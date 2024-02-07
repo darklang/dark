@@ -159,9 +159,13 @@ module Darklang =
         else
           match archName with
           | "x86_64" -> Stdlib.Result.Result.Ok "x64"
+
           | "aarch64" -> Stdlib.Result.Result.Ok "arm64"
           | "arm64" -> Stdlib.Result.Result.Ok "arm64"
+
           | "arm" -> Stdlib.Result.Result.Ok "arm"
+          | "armv7l" -> Stdlib.Result.Result.Ok "arm"
+
           | _ -> Stdlib.Result.Result.Error $"Unsupported arch: {archName}"
 
 

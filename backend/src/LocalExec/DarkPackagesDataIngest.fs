@@ -119,17 +119,34 @@ let fillDarkPackagesCanvasWithData
     let batchList size list =
       list |> Seq.chunkBySize size |> Seq.map List.ofSeq |> Seq.toList
 
-    // Splitting dbJsonEntries into batches of 100
+    // Splitting dbJsonEntries into batches
     let dbJsonEntryBatches = batchList batchSize dbJsonEntries
 
     dbJsonEntryBatches
-    |> List.iter (fun batch ->
+    |> List.iteri (fun i batch ->
+      print $"Inserting batch {i + 1}/{List.length dbJsonEntryBatches}"
+
       let query =
         $"INSERT INTO user_data_v0
             (id, canvas_id, table_tlid, user_version, dark_version, key, data, updated_at)
           VALUES
             (@id, @canvasID, @tlid, @userVersion, @darkVersion, @key, @data, NOW())"
-      Sql.query query |> Sql.executeTransaction [ query, batch ] |> ignore<int list>)
+
+      try
+        LibService.DBConnection.dataSource
+        |> Sql.fromDataSource
+        |> Sql.executeTransaction [ query, batch ]
+        |> ignore<int list>
+      with e ->
+        print $"Error inserting batch: {e.Message}"
+
+        // print all records in the batch that failed to insert
+        batch
+        |> List.iter (fun entry ->
+          print $"----"
+          entry |> List.iter (fun (k, v) -> print $"- {k}: {v}"))
+
+        raise e)
 
     print "Done inserting entries"
   }
