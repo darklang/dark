@@ -770,96 +770,96 @@ module Darklang =
             |> Stdlib.Result.Result.Error
 
 
-      /// Parses a package function declaration
-      ///
-      /// i.e. `let add (x: Int64) (y: Int64): Int64 = x + y`,
-      ///
-      /// - `add` is the function name
-      /// - `x: Int` and `y: Int` are the parameters
-      /// - `Int` is the return type
-      /// - `x + y` is the body
-      let parse
-        (node: ParsedNode)
-        : Stdlib.Result.Result<WrittenTypes.FnDeclaration.FnDeclaration, WrittenTypes.Unparseable> =
-        if node.typ == "fn_decl" then
-          let nameNode =
-            match (findNodeByFieldName node "name") with
-            | Some nameNode ->
-              (Identifiers.parseFn nameNode) |> Stdlib.Result.Result.Ok
-            | None -> Stdlib.Result.Result.Error "No name node found in fn_decl"
+        /// Parses a package function declaration
+        ///
+        /// i.e. `let add (x: Int64) (y: Int64): Int64 = x + y`,
+        ///
+        /// - `add` is the function name
+        /// - `x: Int` and `y: Int` are the parameters
+        /// - `Int` is the return type
+        /// - `x + y` is the body
+        let parse
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.FnDeclaration.FnDeclaration, WrittenTypes.Unparseable> =
+          if node.typ == "fn_decl" then
+            let nameNode =
+              match (findNodeByFieldName node "name") with
+              | Some nameNode ->
+                (Identifiers.parseFn nameNode) |> Stdlib.Result.Result.Ok
+              | None -> Stdlib.Result.Result.Error "No name node found in fn_decl"
 
-          let paramsNode =
-            match (findNodeByFieldName node "params") with
-            | Some paramsNode ->
-              match (parseParams paramsNode) with
-              | Ok params -> params |> Stdlib.Result.Result.Ok
-              | Error e -> Stdlib.Result.Result.Error e
-            | None -> Stdlib.Result.Result.Error "No params node found in fn_decl"
+            let paramsNode =
+              match (findNodeByFieldName node "params") with
+              | Some paramsNode ->
+                match (parseParams paramsNode) with
+                | Ok params -> params |> Stdlib.Result.Result.Ok
+                | Error e -> Stdlib.Result.Result.Error e
+              | None -> Stdlib.Result.Result.Error "No params node found in fn_decl"
 
-          let returnTypeNode =
-            match (findNodeByFieldName node "return_type") with
-            | Some returnTypeNode ->
-              match (TypeReference.parse returnTypeNode) with
-              | Ok returnType -> returnType |> Stdlib.Result.Result.Ok
-              | Error e -> Stdlib.Result.Result.Error e
-            | None -> Stdlib.Result.Result.Error "No return_type node"
+            let returnTypeNode =
+              match (findNodeByFieldName node "return_type") with
+              | Some returnTypeNode ->
+                match (TypeReference.parse returnTypeNode) with
+                | Ok returnType -> returnType |> Stdlib.Result.Result.Ok
+                | Error e -> Stdlib.Result.Result.Error e
+              | None -> Stdlib.Result.Result.Error "No return_type node"
 
-          let bodyNode =
-            match (findNodeByFieldName node "body") with
-            | Some bodyNode ->
-              match (Expr.parse bodyNode) with
-              | Ok body -> body |> Stdlib.Result.Result.Ok
-              | Error e -> Stdlib.Result.Result.Error e
-            | None -> Stdlib.Result.Result.Error "No body node found in fn_decl"
+            let bodyNode =
+              match (findNodeByFieldName node "body") with
+              | Some bodyNode ->
+                match (Expr.parse bodyNode) with
+                | Ok body -> body |> Stdlib.Result.Result.Ok
+                | Error e -> Stdlib.Result.Result.Error e
+              | None -> Stdlib.Result.Result.Error "No body node found in fn_decl"
 
-          let keywordLetNode =
-            match (findNodeByFieldName node "keyword_let") with
-            | Some keywordLetNode ->
-              (getRange keywordLetNode) |> Stdlib.Result.Result.Ok
-            | None -> Stdlib.Result.Result.Error "No keyword_let node found"
+            let keywordLetNode =
+              match (findNodeByFieldName node "keyword_let") with
+              | Some keywordLetNode ->
+                (getRange keywordLetNode) |> Stdlib.Result.Result.Ok
+              | None -> Stdlib.Result.Result.Error "No keyword_let node found"
 
-          let symbolColonNode =
-            match (findNodeByFieldName node "symbol_colon") with
-            | Some symbolColonNode ->
-              (getRange symbolColonNode) |> Stdlib.Result.Result.Ok
-            | None -> Stdlib.Result.Result.Error "No symbol_colon node found"
+            let symbolColonNode =
+              match (findNodeByFieldName node "symbol_colon") with
+              | Some symbolColonNode ->
+                (getRange symbolColonNode) |> Stdlib.Result.Result.Ok
+              | None -> Stdlib.Result.Result.Error "No symbol_colon node found"
 
-          let symbolEqualsNode =
-            match (findNodeByFieldName node "symbol_equals") with
-            | Some symbolEqualsNode ->
-              (getRange symbolEqualsNode) |> Stdlib.Result.Result.Ok
-            | None -> Stdlib.Result.Result.Error "No symbol_equals node found"
+            let symbolEqualsNode =
+              match (findNodeByFieldName node "symbol_equals") with
+              | Some symbolEqualsNode ->
+                (getRange symbolEqualsNode) |> Stdlib.Result.Result.Ok
+              | None -> Stdlib.Result.Result.Error "No symbol_equals node found"
 
-          match
-            nameNode,
-            paramsNode,
-            returnTypeNode,
-            bodyNode,
-            keywordLetNode,
-            symbolColonNode,
-            symbolEqualsNode
-          with
-          | Ok name,
-            Ok params,
-            Ok returnType,
-            Ok body,
-            Ok keywordLetNode,
-            Ok symbolColonNode,
-            Ok symbolEqualsNode ->
-            (WrittenTypes.FnDeclaration.FnDeclaration
-              { range = node.sourceRange
-                name = name
-                parameters = params
-                returnType = returnType
-                body = body
-                keywordLet = keywordLetNode
-                symbolColon = symbolColonNode
-                symbolEquals = symbolEqualsNode })
-            |> Stdlib.Result.Result.Ok
+            match
+              nameNode,
+              paramsNode,
+              returnTypeNode,
+              bodyNode,
+              keywordLetNode,
+              symbolColonNode,
+              symbolEqualsNode
+            with
+            | Ok name,
+              Ok params,
+              Ok returnType,
+              Ok body,
+              Ok keywordLetNode,
+              Ok symbolColonNode,
+              Ok symbolEqualsNode ->
+              (WrittenTypes.FnDeclaration.FnDeclaration
+                { range = node.sourceRange
+                  name = name
+                  parameters = params
+                  returnType = returnType
+                  body = body
+                  keywordLet = keywordLetNode
+                  symbolColon = symbolColonNode
+                  symbolEquals = symbolEqualsNode })
+              |> Stdlib.Result.Result.Ok
 
-          | _ ->
-            (WrittenTypes.Unparseable { source = node })
-            |> Stdlib.Result.Result.Error
+            | _ ->
+              (WrittenTypes.Unparseable { source = node })
+              |> Stdlib.Result.Result.Error
 
 
       /// Map a ParsedNode to a WrittenTypes.ParsedFile
