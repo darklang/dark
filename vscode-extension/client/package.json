@@ -2,6 +2,7 @@
   "name": "darklang-lsp-client",
   "description": "Client part of an LSP-powered VS Code extension for Darklang",
   "author": "darklang",
+  "icon" : "vscode-extension/static/logo-dark.png",
   "version": "0.0.1",
   "publisher": "darklang",
   "repository": {

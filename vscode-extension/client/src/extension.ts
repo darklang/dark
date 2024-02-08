@@ -13,11 +13,13 @@ import {
 let client: LanguageClient;
 
 export function activate(context: ExtensionContext) {
+  const isDebugMode = () => process.env.VSCODE_DEBUG_MODE === "true";
+
   const sharedServerOptions = {
     options: { cwd: "/home/dark/app" },
     command: "bash",
     args: [
-      "./scripts/run-cli",
+      isDebugMode ? "./scripts/run-cli" : "darklang",
       "--skip-self-update",
       "@PACKAGE.Darklang.LanguageTools.LspServer.runServerCli",
       "null", // 'parses' to () - TODO clean this up once we switch over to new parser
