@@ -2,7 +2,8 @@
   "name": "darklang-vs-code-extension",
   "description": "Darklang VS Code Extension. This is a work-in-progress, not yet ready for general consumption. Join the Discord to learn more.",
   "author": "darklang",
-  "version": "0.0.4",
+  "version": "0.0.5",
+  "icon" : "./static/logo-dark.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/darklang/dark"
