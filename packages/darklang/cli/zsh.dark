@@ -1,0 +1,81 @@
+module Darklang =
+  module Cli =
+    module Zsh =
+
+      /// Read the content of .zshrc file
+      let readZshrc () : Stdlib.Result.Result<String, String> =
+        let zhrcContent = Builtin.fileRead ".zshrc"
+
+        match zhrcContent with
+        | Ok content ->
+          content
+          |> Stdlib.String.fromBytesWithReplacement
+          |> Stdlib.Result.Result.Ok
+        | Error e -> Stdlib.Result.Result.Error e
+
+
+      /// Write content to .zshrc file
+      let writeToZshrc (content: String) : Stdlib.Result.Result<String, String> =
+        let writeResult = Builtin.fileWrite (Stdlib.String.toBytes content) ".zshrc"
+
+        match writeResult with
+        | Ok _ -> Stdlib.Result.Result.Ok "Wrote to .zshrc"
+        | Error e -> Stdlib.Result.Result.Error e
+
+
+      /// Delete an alias from .zshrc
+      let deleteAlias (alias: String) : Stdlib.Result.Result<String, String> =
+        let deleteAlias =
+          Stdlib.Process.runCommand $"sed -i '' '/alias {alias}=/d' ~/.zshrc"
+
+        if deleteAlias.exitCode == 0L then
+          Stdlib.Result.Result.Ok "Alias deleted"
+        else
+          Stdlib.Result.Result.Error deleteAlias.stderr
+
+
+      /// Add an alias to .zshrc
+      let addAlias
+        (alias: String)
+        (command: String)
+        : Stdlib.Result.Result<String, String> =
+        let aliasDefinition = $"alias {alias}='{command}'"
+
+        match (readZshrc ()) with
+        | Ok content ->
+          let newContent = content ++ "\n" ++ aliasDefinition
+          writeToZshrc newContent
+          applyZshConfigChanges ()
+        | Error e -> Stdlib.Result.Result.Error e
+
+
+      /// Add a path to PATH
+      let addToPath (path: String) : Stdlib.Result.Result<String, String> =
+        let targetDir = $"$HOME/{path}"
+
+        let isExecutableInPath =
+          Stdlib.Process.runCommand $"echo $PATH | grep -q {targetDir}"
+
+        if isExecutableInPath.exitCode == 0L then
+          Stdlib.Result.Result.Ok "Path is already added to PATH"
+        else
+          match (readZshrc ()) with
+          | Ok content ->
+            if Stdlib.String.contains content targetDir then
+              Stdlib.Result.Result.Ok "Path is already added to .zshrc"
+            else
+              let updatedContent = content ++ "\nexport PATH=$PATH:" ++ targetDir
+
+              writeToZshrc updatedContent
+              applyZshConfigChanges ()
+          | Error e -> Stdlib.Result.Result.Error e
+
+
+      /// Apply changes to .zshrc
+      let applyZshConfigChanges () : Stdlib.Result.Result<String, String> =
+        let applyResult = Builtin.processRun "source ~/.zshrc"
+
+        if applyResult.exitCode == 0L then
+          Stdlib.Result.Result.Ok "Zsh config changes applied"
+        else
+          Stdlib.Result.Result.Error applyResult.stderr
