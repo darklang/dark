@@ -1,6 +1,13 @@
 module Darklang =
   module Cli =
     module SelfUpdate =
+      let configPath = ".darklang/bin/darklang/config.json"
+      let executablePath = ".darklang/bin/darklang/"
+      let baseUrl = "https://api.github.com/repos/darklang/dark"
+      let bearerToken = "${GITHUB_RELEASES_TOKEN}"
+
+      let shell () : Stdlib.Cli.HostDefaultShell =
+        (Darklang.Stdlib.Cli.getShell ()) |> Builtin.unwrap
 
       type Asset =
         { name: String
@@ -10,105 +17,281 @@ module Darklang =
         { tag_name: String
           assets: List<Asset> }
 
+      let defaultConfig =
+        Dict
+          { version = "v0.0.0"
+            lastUpdateTimestamp = "0" }
 
-      let configPath = ".darklang/bin/darklang/config.json"
+
+      let getFromGithub
+        (bearerToken: String)
+        (path: String)
+        : Stdlib.Result.Result<String, String> =
+        let headers =
+          [ ("authorization ", "bearer" ++ bearerToken)
+            ("accept", "application/vnd.github+json")
+            ("user-Agent", "Darklang") ]
+
+        let response = Darklang.Stdlib.HttpClient.request "GET" path headers []
+
+        match response with
+        | Ok r ->
+          r.body
+          |> Darklang.Stdlib.String.fromBytesWithReplacement
+          |> Stdlib.Result.Result.Ok
+        | Error e -> Stdlib.Result.Result.Error "Failed to make GitHub API request"
+
+
+      let hostToString
+        (host: Darklang.Stdlib.Cli.Host.Host)
+        : Stdlib.Result.Result<String, String> =
+        match host.os, host.arch with
+        | Linux, Armv7l -> "linux-musl-x64" |> Stdlib.Result.Result.Ok
+        | Linux, Arm64 -> "linux-arm64" |> Stdlib.Result.Result.Ok
+        | Linux, Aarch64 -> "linux-arm64" |> Stdlib.Result.Result.Ok
+        | Linux, X86_64 -> "linux-x64" |> Stdlib.Result.Result.Ok
+        | MacOS, Arm64 -> "osx-arm64" |> Stdlib.Result.Result.Ok
+        | MacOS, X86_64 -> "osx-x64" |> Stdlib.Result.Result.Ok
+        | _, _ -> Stdlib.Result.Result.Error "Unsupported OS or Arch"
+
 
       /// get tag of most recent release, from github api
       /// (i.e. `v0.0.19`)
       let getLatestReleaseTag () : Stdlib.Result.Result<String, String> =
-        let releases =
-          Darklang.Stdlib.HttpClient.request
-            "GET"
-            "https://api.github.com/repos/darklang/dark/releases"
-            [ ("Authorization", "Bearer" ++ "${GITHUB_RELEASES_TOKEN}")
-              ("Accept", "application/vnd.github+json")
-              ("User-Agent", "Darklang") ]
-            (Darklang.Stdlib.String.toBytes "")
-
-        let releasesBody =
-          match releases with
-          | Ok r -> r.body |> Darklang.Stdlib.String.fromBytesWithReplacement
-
-          | Error e ->
-            Builtin.printLine "Failed to get releases"
-            ""
-
-
-        // get latest release tag name from list of releases
-        match (Builtin.jsonParse<List<Release>> releasesBody) with
-        | Ok releases ->
-          releases
-          |> Stdlib.List.map (fun release -> release.tag_name)
-          |> Stdlib.List.head
-          |> Stdlib.Option.withDefault "v0.0.0"
-          |> Stdlib.Result.Result.Ok
-
-        | Error e -> Stdlib.Result.Result.Error "Failed to parse latest release tag"
+        (getFromGithub bearerToken $"{baseUrl}/releases")
+        |> Stdlib.Result.andThen (fun releases ->
+          (Builtin.jsonParse<List<Release>> releases)
+          |> Stdlib.Result.map (fun releases ->
+            releases
+            |> Stdlib.List.map (fun release -> release.tag_name)
+            |> Stdlib.List.head
+            |> Stdlib.Option.withDefault "v0.0.0"))
 
 
       // get download url for latest release based on os and arch
       let getDownloadUrl
-        (os: String)
-        (arch: String)
+        (host: Darklang.Stdlib.Cli.Host.Host)
         : Stdlib.Result.Result<String, String> =
-        let latestTag = getLatestReleaseTag ()
+        Builtin.printLine " - Getting download url for latest release"
+        let host = (hostToString host) |> Builtin.unwrap
 
-        match latestTag with
-        | Error e -> Stdlib.Result.Result.Error "Failed to get latest release tag"
-        | Ok latestTag ->
-          let release =
-            Darklang.Stdlib.HttpClient.request
-              "GET"
-              $"https://api.github.com/repos/darklang/dark/releases/tags/{latestTag}"
-              [ ("Authorization", "Bearer" ++ "${GITHUB_RELEASES_TOKEN}")
-                ("Accept", "application/vnd.github+json")
-                ("User-Agent", "Darklang") ]
-              (Darklang.Stdlib.String.toBytes "")
-
-          let releaseBody =
-            match release with
-            | Ok r -> r.body |> Darklang.Stdlib.String.fromBytesWithReplacement
-
-            | Error e ->
-              Builtin.printLine "Failed to get release"
-              ""
-
-          match (Builtin.jsonParse<Release> releaseBody) with
-          | Ok release ->
-            release.assets
-            |> Stdlib.List.filter (fun asset ->
-              Stdlib.String.contains asset.name (os ++ "-" ++ arch))
-            |> Stdlib.List.map (fun asset -> asset.browser_download_url)
-            |> Stdlib.List.head
-            |> Stdlib.Option.withDefault ""
-            |> Stdlib.Result.Result.Ok
-
-          | Error e -> Stdlib.Result.Result.Error "Failed to parse release"
+        (getLatestReleaseTag ())
+        |> Stdlib.Result.andThen (fun latestTag ->
+          (getFromGithub bearerToken $"{baseUrl}/releases/tags/{latestTag}")
+          |> Stdlib.Result.andThen (fun release ->
+            (Builtin.jsonParse<Release> release)
+            |> Stdlib.Result.map (fun release ->
+              release.assets
+              |> Stdlib.List.filter (fun asset ->
+                Stdlib.String.contains asset.name (host))
+              |> Stdlib.List.map (fun asset -> asset.browser_download_url)
+              |> Stdlib.List.head
+              |> Stdlib.Option.withDefault "")))
 
 
       // get local release version from config.json
-      let getLocalVersion () : Stdlib.Result.Result<String, String> =
+      let readLocalVersionFromConfigJson () : Stdlib.Result.Result<String, String> =
+        (Builtin.fileRead configPath)
+        |> Stdlib.Result.andThen (fun config ->
+          config
+          |> Stdlib.String.fromBytesWithReplacement
+          |> Builtin.jsonParse<Dict<String>>)
+        |> Stdlib.Result.andThen (fun config ->
+          config
+          |> PACKAGE.Darklang.Stdlib.Dict.get "version"
+          |> Stdlib.Option.toResult "Failed to find version key")
 
-        let config =
-          (Builtin.fileRead configPath)
-          |> Stdlib.Result.map (fun config ->
-            config
-            |> Stdlib.String.fromBytesWithReplacement
-            |> Builtin.jsonParse<Dict<String>>
-            |> (Stdlib.Result.map (fun config ->
-              config
-              |> PACKAGE.Darklang.Stdlib.Dict.get "version"
-              |> Stdlib.Option.withDefault "v0.0.0")))
+      let isLatestVersion () : Bool =
+        let localVersion = (readLocalVersionFromConfigJson ()) |> Builtin.unwrap
+        let latestVersion = getLatestReleaseTag ()
 
-        match config with
-        | Ok version -> version
-        | Error e -> Stdlib.Result.Result.Error "Failed to get local version"
+        match latestVersion with
+        | Ok version -> localVersion == version
+        | Error e ->
+          Stdlib.Result.Result.Error e
+          false
+
+      /// ----------------- Download and prepare asset ----------------- ///
+
+      let downloadAsset
+        (downloadUrl: String)
+        (assetName: String)
+        : Stdlib.Result.Result<String, String> =
+        Builtin.printLine " - Downloading asset"
+
+        let command =
+          $"curl -s -L -o \".darklang/bin/darklang/{assetName}\" {downloadUrl}"
+
+        let result = Stdlib.Process.runCommand command
+
+        if result.exitCode == 0L then
+          Stdlib.Result.Result.Ok assetName
+        else
+          Stdlib.Result.Result.Error "Failed to download asset"
 
 
+      let getAssetName (downloadUrl: String) : Stdlib.Result.Result<String, String> =
+        let result = Stdlib.Process.runCommand $"basename {downloadUrl}"
+
+        if result.exitCode == 0L then
+          Stdlib.Result.Result.Ok(result.stdout |> Stdlib.String.trim)
+        else
+          Stdlib.Result.Result.Error "Failed to get asset name"
+
+
+      let gunzipAsset
+        (assetName: String)
+        (executablePath: String)
+        : Stdlib.Result.Result<(String * String), String> =
+        Builtin.printLine " - Unzipping asset"
+
+        if Stdlib.String.endsWith assetName ".gz" then
+          let assetNameWithoutExt = assetName |> Stdlib.String.dropLast 3L
+          let zipPath = executablePath ++ assetName
+          let newExecutablePath = executablePath ++ assetNameWithoutExt
+
+          match
+            (Darklang.Cli.ZipUtils.gunzipToFile "-c" zipPath newExecutablePath)
+          with
+          | Ok _ ->
+            let deleteZip = Stdlib.Process.runCommand $"rm {zipPath}"
+
+            if deleteZip.exitCode == 0L then
+              Stdlib.Result.Result.Ok((assetNameWithoutExt, newExecutablePath))
+            else
+              Builtin.printLine "Failed to remove compressed asset"
+              deleteZip.exitCode
+
+          | Error e -> Stdlib.Result.Result.Error e
+
+        else
+          Stdlib.Result.Result.Error "Asset is not a .gz file"
+
+
+      /// ----------------- Update Config ----------------- ///
+
+      let readConfig
+        (configPath: String)
+        : Stdlib.Result.Result<Dict<String>, String> =
+        match Builtin.fileRead configPath with
+        | Ok content ->
+          let parsedResult =
+            Builtin.jsonParse<Dict<String>> (
+              content |> Stdlib.String.fromBytesWithReplacement
+            )
+
+          Stdlib.Result.mapError parsedResult (fun _ ->
+            "Failed to parse config.json")
+        | Error _ -> Stdlib.Result.Result.Error "Failed to read config.json"
+
+      let updateConfig
+        (latestVersion: String)
+        (configPath: String)
+        : Stdlib.Result.Result<Dict<String>, String> =
+        Builtin.printLine " - Updating config file with latest version"
+
+        (readConfig configPath)
+        |> Stdlib.Result.map (fun config ->
+          let currentTimestamp =
+            (Stdlib.DateTime.now ())
+            |> Stdlib.DateTime.toSeconds
+            |> Stdlib.Int64.toString
+
+          config
+          |> PACKAGE.Darklang.Stdlib.Dict.set "version" latestVersion
+          |> PACKAGE.Darklang.Stdlib.Dict.set "lastUpdateTimestamp" currentTimestamp)
+
+      let writeConfig
+        (config: Dict<String>)
+        (configPath: String)
+        : Stdlib.Result.Result<Unit, String> =
+        let serializedConfig =
+          (Builtin.jsonSerialize<Dict<String>> config) |> Stdlib.String.toBytes
+
+        match (Builtin.fileWrite serializedConfig configPath) with
+        | Ok _ -> Stdlib.Result.Result.Ok()
+        | Error _ -> Stdlib.Result.Result.Error "Failed to update config.json"
+
+
+      /// ----------------- Add/Remove Alias ----------------- ///
+
+      let deleteAlias (alias: String) : Stdlib.Result.Result<String, String> =
+        Builtin.printLine " - Deleting old alias if it exists"
+
+        if shell () == Darklang.Stdlib.Cli.HostDefaultShell.Zsh then
+          Darklang.Cli.Zsh.deleteAlias alias
+        else if shell () == Darklang.Stdlib.Cli.HostDefaultShell.Bash then
+          Darklang.Cli.Bash.deleteAlias alias
+        else
+          Stdlib.Result.Result.Error "Unsupported shell"
+
+
+      let addAlias
+        (alias: String)
+        (command: String)
+        : Stdlib.Result.Result<String, String> =
+        Builtin.printLine " - Adding darklang alias"
+
+        if shell () == Darklang.Stdlib.Cli.HostDefaultShell.Zsh then
+          Darklang.Cli.Zsh.addAlias alias command
+        else if shell () == Darklang.Stdlib.Cli.HostDefaultShell.Bash then
+          Darklang.Cli.Bash.addAlias alias command
+        else
+          Stdlib.Result.Result.Error "Unsupported shell"
+
+
+      /// ----------------- Add to PATH ----------------- ///
+      let addToPathIfNeeded
+        (executablePath: String)
+        : Stdlib.Result.Result<Unit, String> =
+        Builtin.printLine "Do you want to add to your PATH? (y/n): "
+        let response = Builtin.stdinReadLine ()
+
+        if response == "y" || response == "Y" then
+          if shell () == Darklang.Stdlib.Cli.HostDefaultShell.Zsh then
+            Darklang.Cli.Zsh.addToPath executablePath
+          else if shell () == Darklang.Stdlib.Cli.HostDefaultShell.Bash then
+            Darklang.Cli.Bash.addToPath executablePath
+          else
+            Stdlib.Result.Result.Error "Unsupported shell"
+
+        else
+          Builtin.printLine "Skipping PATH update"
+          Stdlib.Result.Result.Ok()
+
+
+      /// ----------------- Main ----------------- ///
+      let downloadAndReplaceRelease () : Stdlib.Result.Result<Int64, String> =
+        (Stdlib.Cli.Host.getRunTimeHost ())
+        |> Stdlib.Result.andThen (fun host ->
+          (getDownloadUrl host)
+          |> Stdlib.Result.andThen (fun downloadUrl ->
+            (getAssetName downloadUrl)
+            |> Stdlib.Result.andThen (fun assetName ->
+              (downloadAsset downloadUrl assetName)
+              |> Stdlib.Result.andThen (fun _ ->
+                (gunzipAsset assetName executablePath)
+                |> Stdlib.Result.andThen
+                  (fun (assetNameWithoutExt, newExecutablePath) ->
+                    (Stdlib.Cli.grantExecutePermission newExecutablePath)
+                    |> Stdlib.Result.andThen (fun _ ->
+                      let latestVersion =
+                        (getLatestReleaseTag ()) |> Builtin.unwrap
+
+                      (updateConfig latestVersion configPath)
+                      |> Stdlib.Result.andThen (fun updatedConfig ->
+                        (writeConfig updatedConfig configPath)
+                        |> Stdlib.Result.andThen (fun _ ->
+                          (deleteAlias "darklang")
+                          |> Stdlib.Result.andThen (fun _ ->
+                            (addAlias "darklang" newExecutablePath)
+                            |> Stdlib.Result.map (fun _ -> 0L))))))))))
+
+
+      /// ----------------- Self Update ----------------- ///
 
       // check if we should skip self update (if we've updated in the last 24 hours don't update)
       let shouldSkipUpdate () : Bool =
-
         let config =
           (Builtin.fileRead configPath)
           |> Stdlib.Result.map (fun config ->
@@ -135,220 +318,6 @@ module Darklang =
         secondsSinceLastUpdate < oneDayInSeconds
 
 
-      // get users os and arch
-
-      let getOS () : Stdlib.Result.Result<String, String> =
-        let os = Stdlib.Process.runCommand "uname -s"
-        let osName = Stdlib.String.trim os.stdout
-
-        if os.exitCode != 0L then
-          Stdlib.Result.Result.Error "Failed to get OS"
-        else
-          match osName with
-          | "Darwin" -> Stdlib.Result.Result.Ok "osx"
-          | "Linux" -> Stdlib.Result.Result.Ok "linux"
-          | _ -> Stdlib.Result.Result.Error $"Unsupported OS: {osName}"
-
-
-      let getArch () : Stdlib.Result.Result<String, String> =
-        let arch = Stdlib.Process.runCommand "uname -m"
-        let archName = Stdlib.String.trim arch.stdout
-
-        if arch.exitCode != 0L then
-          Stdlib.Result.Result.Error "Failed to get arch"
-        else
-          match archName with
-          | "x86_64" -> Stdlib.Result.Result.Ok "x64"
-
-          | "aarch64" -> Stdlib.Result.Result.Ok "arm64"
-          | "arm64" -> Stdlib.Result.Result.Ok "arm64"
-
-          | "arm" -> Stdlib.Result.Result.Ok "arm"
-          | "armv7l" -> Stdlib.Result.Result.Ok "arm"
-
-          | _ -> Stdlib.Result.Result.Error $"Unsupported arch: {archName}"
-
-
-
-      let isLatestVersion () : Bool =
-        let localVersion = (getLocalVersion ()) |> Builtin.unwrap
-        let latestVersion = (getLatestReleaseTag ())
-
-        let isLatest =
-          match latestVersion with
-          | Ok version -> localVersion == version
-          | Error e ->
-            Stdlib.Result.Result.Error e
-            false
-
-        isLatest
-
-
-
-      let downloadAndReplaceRelease () : Int64 =
-        let os = (getOS ()) |> Builtin.unwrap
-        let arch = (getArch ()) |> Builtin.unwrap
-
-        let downloadUrl = getDownloadUrl os arch
-
-        match downloadUrl with
-        | Error e ->
-          Builtin.printLine "Failed to get download url"
-          1L
-        | Ok downloadUrl ->
-          let executablePath = ".darklang/bin/darklang"
-
-          let assetName =
-            (Stdlib.Process.runCommand $"basename {downloadUrl}")
-            |> fun result -> result.stdout
-            |> Stdlib.String.trim
-
-
-
-          let asset =
-            Stdlib.Process.runCommand
-              $"""curl -s -L -o ".darklang/bin/darklang/{assetName}" {downloadUrl}"""
-
-          if asset.exitCode == 0L then
-
-            if Stdlib.String.endsWith assetName ".gz" then
-              let assetNameWithoutExt = assetName |> Stdlib.String.dropLast 3L
-
-              let executablePath = $".darklang/bin/darklang/{assetNameWithoutExt}"
-              let zipPath = $".darklang/bin/darklang/{assetName}"
-
-              let gunzip =
-                Darklang.Cli.ZipUtils.gunzipToFile "-c" zipPath executablePath
-
-              if gunzip.exitCode == 0L then
-
-                let chmod = Stdlib.Process.runCommand $"chmod +x {executablePath}"
-
-                if chmod.exitCode == 0L then
-
-                  let deleteOldAlias =
-                    Stdlib.Process.runCommand
-                      "sed -i '' '/alias darklang=/d' ~/.zshrc"
-
-                  if deleteOldAlias.exitCode == 0L then
-
-                    Builtin.printLine "creating alias..."
-                    let zhrcContent = Builtin.fileRead ".zshrc"
-
-                    match zhrcContent with
-                    | Error e -> Builtin.printLine "failed to read ~/.zshrc"
-                    | Ok content ->
-                      let updatedContent =
-                        content
-                        |> Stdlib.String.fromBytesWithReplacement
-                        |> Stdlib.String.append
-                          $"\nalias darklang='{executablePath}'"
-
-                      let writeResult =
-                        Builtin.fileWrite
-                          (updatedContent |> Stdlib.String.toBytes)
-                          ".zshrc"
-
-                      match writeResult with
-                      | Error e -> Builtin.printLine "failed to update ~/.zshrc"
-                      | Ok _ -> Builtin.printLine "updated .zshrc"
-
-
-                    let apply = Stdlib.Process.runCommand "source .zshrc"
-
-                    if apply.exitCode == 0L then
-                      Builtin.printLine "applied alias"
-                      0L
-
-                    else
-                      Builtin.printLine "failed to apply alias"
-                      apply.exitCode
-
-                  else
-                    Builtin.printLine "failed to delete old alias"
-                    deleteOldAlias.exitCode
-
-
-                  Builtin.printLine "removing compressed asset"
-
-                  let rm =
-                    Stdlib.Process.runCommand
-                      $"rm .darklang/bin/darklang/{assetName}"
-
-                  if rm.exitCode == 0L then
-                    Builtin.printLine "Removed compressed asset"
-
-                  else
-                    Builtin.printLine "Failed to remove compressed asset"
-                    rm.exitCode
-
-                else
-                  Builtin.printLine "Failed to make executable"
-                  chmod.exitCode
-
-              else
-                Builtin.printLine "Failed to unzip asset"
-                gunzip.exitCode
-
-            else
-              Builtin.printLine "Unsupported file format"
-              1L
-
-            let latestVersion = (getLatestReleaseTag ()) |> Builtin.unwrap
-
-            // save the tag name to config.json
-            let currentTimestamp =
-              (Stdlib.DateTime.now ())
-              |> Stdlib.DateTime.toSeconds
-              |> Stdlib.Int64.toString
-
-            let config =
-              (Builtin.fileRead configPath)
-              |> Stdlib.Result.map (fun config ->
-                config
-                |> Stdlib.String.fromBytesWithReplacement
-                |> Builtin.jsonParse<Dict<String>>
-                |> (Stdlib.Result.map (fun config ->
-                  config
-                  |> PACKAGE.Darklang.Stdlib.Dict.set "version" latestVersion)))
-
-            match config with
-            | Ok config ->
-              let defaultConfig =
-                Dict
-                  { version = "v0.0.0"
-                    lastUpdateTimestamp = "0" }
-
-              let updatedConfig =
-                config
-                |> Stdlib.Result.withDefault defaultConfig
-                |> PACKAGE.Darklang.Stdlib.Dict.set "version" latestVersion
-                |> PACKAGE.Darklang.Stdlib.Dict.set
-                  "lastUpdateTimestamp"
-                  currentTimestamp
-
-              let serializedConfig =
-                updatedConfig
-                |> Builtin.jsonSerialize<Dict<String>>
-                |> Stdlib.String.toBytes
-
-              let configUpdateResult =
-                Builtin.fileWrite
-                  serializedConfig
-                  ".darklang/bin/darklang/config.json"
-
-              match configUpdateResult with
-              | Ok _ -> 0L
-
-              | Error e ->
-                Builtin.printLine "Failed to update config.json"
-                1L
-          else
-            Builtin.printLine "Failed to download asset"
-            1L
-
-
-
       let runSelfUpdate () : Int64 =
         if shouldSkipUpdate () then
           Builtin.printLine
@@ -359,110 +328,47 @@ module Darklang =
           Builtin.printLine "Already on latest version"
           0L
         else
-          Builtin.printLine "Updating darklang..."
-          downloadAndReplaceRelease ()
+          Builtin.printLine "Running self update..."
+          (downloadAndReplaceRelease ()) |> Builtin.unwrap
+
+
+      /// ----------------- Ensure Darklang Setup ----------------- ///
+
+      let ensureDirectoryExists (path: String) : Int64 =
+        if (Builtin.fileExists configPath) != true then
+          let makeDir =
+            Stdlib.Process.runCommand $"mkdir -p \"$HOME/{executablePath}\""
+
+          if makeDir.exitCode == 0L then
+            addToPathIfNeeded executablePath
+            0L
+          else
+            Builtin.printLine "Failed to create darklang dir"
+            makeDir.exitCode
+        else
+          0L
+
+      let ensureConfigExists
+        (configPath: String)
+        : Stdlib.Result.Result<Unit, String> =
+        if (Builtin.fileExists configPath) != true then
+          Builtin.fileWrite
+            ("""{"version":"v0.0.0","lastUpdateTimestamp":"0"}"""
+             |> Stdlib.String.toBytes)
+            configPath
+        else
+          Stdlib.Result.Result.Ok()
 
 
       let ensureDarklangSetup () : Int64 =
-        if Builtin.fileExists ".darklang/bin/darklang" then
-          //  check config.json
-          if Builtin.fileExists configPath then
-            runSelfUpdate ()
-          else
-            let config =
-              Builtin.fileWrite
-                ("""{"version":"v0.0.0","lastUpdateTimestamp":"0"}"""
-                 |> Stdlib.String.toBytes)
-                configPath
+        let dirSetupResult = ensureDirectoryExists executablePath
 
-            runSelfUpdate ()
-
+        if (dirSetupResult != 0L) then
+          Builtin.printLine "Setting up darklang..."
+          dirSetupResult
         else
-          Builtin.printLine "darklang dir does not exist, creating darklang dir... "
-
-          let makeDir =
-            Stdlib.Process.runCommand """mkdir -p "$HOME/.darklang/bin/darklang"""
-
-          if makeDir.exitCode == 0L then
-            Builtin.printLine "created darklang dir"
-          else
-            Builtin.printLine "failed to create darklang dir"
-            makeDir.exitCode
-
-
-          //make config.json
-          let makeConfig =
-            Stdlib.Process.runCommand
-              """touch "$HOME/.darklang/bin/darklang/config.json"""
-
-          if makeConfig.exitCode == 0L then
-            Builtin.printLine "created config.json"
-          else
-            Builtin.printLine "failed to create config.json"
-            makeConfig.exitCode
-
-
-          // add to path
-          let targetDir = "$HOME/.darklang/bin/darklang"
-
-          Builtin.printLine "Do you want to add to your PATH? (y/n): "
-          let response = Builtin.stdinReadLine ()
-
-          if response == "y" || response == "Y" then
-
-            Builtin.printLine "adding to path..."
-
-            let checkPath =
-              Stdlib.Process.runCommand
-                "echo $PATH | grep -q $HOME/.darklang/bin/darklang"
-
-            if checkPath.exitCode == 0L then
-              Builtin.printLine "already in PATH"
-            else
-              let zhrcContent = Builtin.fileRead ".zshrc"
-
-              match zhrcContent with
-              | Error e -> Builtin.printLine $"failed to read ~/.zshrc"
-              | Ok content ->
-                let newPath = "\nexport PATH=$PATH:" ++ targetDir
-
-                let updatedContent =
-                  content
-                  |> Stdlib.String.fromBytesWithReplacement
-                  |> Stdlib.String.append newPath
-
-                let writeResult =
-                  Builtin.fileWrite
-                    (updatedContent |> Stdlib.String.toBytes)
-                    ".zshrc"
-
-                match writeResult with
-                | Error e -> Builtin.printLine "failed to update ~/.zshrc"
-                | Ok _ -> Builtin.printLine "updated .zshrc with new PATH"
-
-              let apply = Stdlib.Process.runCommand "source .zshrc"
-
-              if apply.exitCode == 0L then
-                Builtin.printLine "applied new PATH"
-              else
-                Builtin.printLine "failed to apply new PATH"
-                apply.exitCode
-
-          else
-            Builtin.printLine "skipping PATH update"
-
-          // create config.json
-          Builtin.printLine "creating config.json"
-
-          let config =
-            Builtin.fileWrite
-              ("""{"version":"v0.0.0","lastUpdateTimestamp":"0"}"""
-               |> Stdlib.String.toBytes)
-              ".darklang/bin/darklang/config.json"
-
-          match config with
+          match ensureConfigExists configPath with
           | Ok _ -> runSelfUpdate ()
-
           | Error e ->
-            Builtin.printLine "Failed to create config.json"
+            Builtin.printLine "Failed to create or update config.json"
             1L
