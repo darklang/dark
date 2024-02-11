@@ -1,0 +1,73 @@
+module Darklang =
+  module Stdlib =
+    module Cli =
+      type HostDefaultShell =
+        | Bash
+        | Zsh
+
+      /// get the shell of the current user
+      let getShell () : Stdlib.Result.Result<HostDefaultShell, String> =
+        let shell = Stdlib.Process.runCommand "echo $SHELL"
+
+        if shell.exitCode == 0L then
+          let shell = shell.stdout |> Stdlib.String.trim
+
+          match shell with
+          | "/bin/bash" -> Stdlib.Result.Result.Ok HostDefaultShell.Bash
+          | "/bin/zsh" -> Stdlib.Result.Result.Ok HostDefaultShell.Zsh
+          | _ -> Stdlib.Result.Result.Error "Unsupported shell"
+        else
+          Stdlib.Result.Result.Error shell.stderr
+
+      let grantExecutePermission
+        (path: String)
+        : Stdlib.Result.Result<String, String> =
+        let grantPermission = Stdlib.Process.runCommand $"chmod +x {path}"
+
+        if grantPermission.exitCode == 0L then
+          Stdlib.Result.Result.Ok path
+        else
+          Stdlib.Result.Result.Error grantPermission.stderr
+
+
+      module Host =
+        type OS =
+          | Linux
+          | MacOS
+          | Windows
+
+        type Architechture =
+          | X86_64
+          | Aarch64
+          | Arm
+          | Arm64
+          | Armv7l
+
+        type Host = { os: OS; arch: Architechture }
+
+        /// get the runtime host
+        let getRunTimeHost () : Stdlib.Result.Result<Host, String> =
+          let os = Stdlib.Process.runCommand "uname"
+          let arch = Stdlib.Process.runCommand "uname -m"
+
+          match os.exitCode, arch.exitCode with
+          | 0L, 0L ->
+            let os = Stdlib.String.trim os.stdout
+            let arch = Stdlib.String.trim arch.stdout
+
+            let os =
+              match os with
+              | "Linux" -> OS.Linux
+              | "Darwin" -> OS.MacOS
+              | "Windows" -> OS.Windows
+
+            let arch =
+              match arch with
+              | "x86_64" -> Architechture.X86_64
+              | "aarch64" -> Architechture.Aarch64
+              | "arm" -> Architechture.Arm
+              | "arm64" -> Architechture.Arm64
+              | "armv7l" -> Architechture.Armv7l
+
+            Stdlib.Result.Result.Ok(Host { os = os; arch = arch })
+          | _, _ -> Stdlib.Result.Result.Error(arch.stderr ++ os.stderr)
