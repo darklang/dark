@@ -1,24 +1,8 @@
 module Darklang =
   module Stdlib =
     module Cli =
-      type HostDefaultShell =
-        | Bash
-        | Zsh
-
-      /// get the shell of the current user
-      let getShell () : Stdlib.Result.Result<HostDefaultShell, String> =
-        let shell = Stdlib.Process.runCommand "echo $SHELL"
-
-        if shell.exitCode == 0L then
-          let shell = shell.stdout |> Stdlib.String.trim
-
-          match shell with
-          | "/bin/bash" -> Stdlib.Result.Result.Ok HostDefaultShell.Bash
-          | "/bin/zsh" -> Stdlib.Result.Result.Ok HostDefaultShell.Zsh
-          | _ -> Stdlib.Result.Result.Error "Unsupported shell"
-        else
-          Stdlib.Result.Result.Error shell.stderr
-
+      /// Grants execute permissions to the specified file.
+      /// If successful, returns {{Ok <param path>}}. Otherwise, returns an {{Error <var stderr>}}
       let grantExecutePermission
         (path: String)
         : Stdlib.Result.Result<String, String> =
@@ -31,6 +15,10 @@ module Darklang =
 
 
       module Host =
+        type HostDefaultShell =
+          | Bash
+          | Zsh
+
         type OS =
           | Linux
           | MacOS
@@ -45,7 +33,25 @@ module Darklang =
 
         type Host = { os: OS; arch: Architechture }
 
-        /// get the runtime host
+
+        /// Determines the default shell used by the current user.
+        /// Returns  {{Ok <HostDefaultShell>}} if successful, or {{Error}} with a message if the shell is unsupported or an error occurs.
+        let getShell () : Stdlib.Result.Result<HostDefaultShell, String> =
+          let shell = Stdlib.Process.runCommand "echo $SHELL"
+
+          if shell.exitCode == 0L then
+            let shell = shell.stdout |> Stdlib.String.trim
+
+            match shell with
+            | "/bin/bash" -> Stdlib.Result.Result.Ok HostDefaultShell.Bash
+            | "/bin/zsh" -> Stdlib.Result.Result.Ok HostDefaultShell.Zsh
+            | _ -> Stdlib.Result.Result.Error "Unsupported shell"
+          else
+            Stdlib.Result.Result.Error shell.stderr
+
+
+        /// Identifies and returns the operating system and architecture of the runtime host.
+        /// Returns {{Ok <Host>}} on success, or an {{Error}} with combined stderr if it fails
         let getRunTimeHost () : Stdlib.Result.Result<Host, String> =
           let os = Stdlib.Process.runCommand "uname"
           let arch = Stdlib.Process.runCommand "uname -m"

@@ -45,6 +45,10 @@ module Darklang =
         | Ok content ->
           let newContent = content ++ "\n" ++ aliasDefinition
           writeToBashrc newContent
+
+          Builtin.printLine
+            "Changes have been made to your .bashrc file. To apply these changes to your current terminal session, please run the following command:\nsource ~/.bashrc\n\n "
+
           applyBashConfigChanges ()
         | Error e -> Stdlib.Result.Result.Error e
 

@@ -6,8 +6,8 @@ module Darklang =
       let baseUrl = "https://api.github.com/repos/darklang/dark"
       let bearerToken = "${GITHUB_RELEASES_TOKEN}"
 
-      let shell () : Stdlib.Cli.HostDefaultShell =
-        (Darklang.Stdlib.Cli.getShell ()) |> Builtin.unwrap
+      let shell () : Stdlib.Cli.Host.HostDefaultShell =
+        (Darklang.Stdlib.Cli.Host.getShell ()) |> Builtin.unwrap
 
       type Asset =
         { name: String
@@ -218,9 +218,9 @@ module Darklang =
       let deleteAlias (alias: String) : Stdlib.Result.Result<String, String> =
         Builtin.printLine " - Deleting old alias if it exists"
 
-        if shell () == Darklang.Stdlib.Cli.HostDefaultShell.Zsh then
+        if shell () == Stdlib.Cli.Host.HostDefaultShell.Zsh then
           Darklang.Cli.Zsh.deleteAlias alias
-        else if shell () == Darklang.Stdlib.Cli.HostDefaultShell.Bash then
+        else if shell () == Stdlib.Cli.Host.HostDefaultShell.Bash then
           Darklang.Cli.Bash.deleteAlias alias
         else
           Stdlib.Result.Result.Error "Unsupported shell"
@@ -232,9 +232,9 @@ module Darklang =
         : Stdlib.Result.Result<String, String> =
         Builtin.printLine " - Adding darklang alias"
 
-        if shell () == Darklang.Stdlib.Cli.HostDefaultShell.Zsh then
+        if shell () == Stdlib.Cli.Host.HostDefaultShell.Zsh then
           Darklang.Cli.Zsh.addAlias alias command
-        else if shell () == Darklang.Stdlib.Cli.HostDefaultShell.Bash then
+        else if shell () == Stdlib.Cli.Host.HostDefaultShell.Bash then
           Darklang.Cli.Bash.addAlias alias command
         else
           Stdlib.Result.Result.Error "Unsupported shell"
@@ -248,9 +248,9 @@ module Darklang =
         let response = Builtin.stdinReadLine ()
 
         if response == "y" || response == "Y" then
-          if shell () == Darklang.Stdlib.Cli.HostDefaultShell.Zsh then
+          if shell () == Stdlib.Cli.Host.HostDefaultShell.Zsh then
             Darklang.Cli.Zsh.addToPath executablePath
-          else if shell () == Darklang.Stdlib.Cli.HostDefaultShell.Bash then
+          else if shell () == Stdlib.Cli.Host.HostDefaultShell.Bash then
             Darklang.Cli.Bash.addToPath executablePath
           else
             Stdlib.Result.Result.Error "Unsupported shell"
