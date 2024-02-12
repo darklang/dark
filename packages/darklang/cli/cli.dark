@@ -159,7 +159,10 @@ darklang update                                   Update the darklang CLI to the
       args |> Darklang.Cli.parseArguments |> Darklang.Cli.executeCommand
 
     let executeCliCommand (args: List<String>) : Int64 =
-      if Stdlib.List.member_v0 args "--skip-self-update" then
+      if
+        Stdlib.List.member_v0 args "--skip-self-update"
+        || Stdlib.List.member_v0 args "update"
+      then
         let newArgs =
           args |> Stdlib.List.filter (fun arg -> arg != "--skip-self-update")
 
