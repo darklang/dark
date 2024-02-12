@@ -12,7 +12,7 @@ Content-Length: LENGTH
 Hello back
 
 [test]
-(let response = (PACKAGE.Darklang.Stdlib.HttpClient.get "http://URL") |> Builtin.unwrap
+(let response = (PACKAGE.Darklang.Stdlib.HttpClient.get [] "http://URL") |> Builtin.unwrap
  let respHeaders = response.headers |> PACKAGE.Darklang.Stdlib.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
  {response with headers = respHeaders}) =
    PACKAGE.Darklang.Stdlib.HttpClient.Response
