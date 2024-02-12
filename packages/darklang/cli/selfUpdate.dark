@@ -30,9 +30,9 @@ module Darklang =
         let headers =
           [ ("authorization ", "bearer" ++ bearerToken)
             ("accept", "application/vnd.github+json")
-            ("user-Agent", "Darklang") ]
+            ("user-Agent", "darklang") ]
 
-        let response = Darklang.Stdlib.HttpClient.request "GET" path headers []
+        let response = Darklang.Stdlib.HttpClient.get headers path
 
         match response with
         | Ok r ->
@@ -46,7 +46,7 @@ module Darklang =
         (host: Darklang.Stdlib.Cli.Host.Host)
         : Stdlib.Result.Result<String, String> =
         match host.os, host.arch with
-        | Linux, Armv7l -> "linux-musl-x64" |> Stdlib.Result.Result.Ok
+        | Linux, Armv7l -> "linux-arm" |> Stdlib.Result.Result.Ok
         | Linux, Arm64 -> "linux-arm64" |> Stdlib.Result.Result.Ok
         | Linux, Aarch64 -> "linux-arm64" |> Stdlib.Result.Result.Ok
         | Linux, X86_64 -> "linux-x64" |> Stdlib.Result.Result.Ok
@@ -213,55 +213,11 @@ module Darklang =
         | Error _ -> Stdlib.Result.Result.Error "Failed to update config.json"
 
 
-      /// ----------------- Add/Remove Alias ----------------- ///
-
-      let deleteAlias (alias: String) : Stdlib.Result.Result<String, String> =
-        Builtin.printLine " - Deleting old alias if it exists"
-
-        if shell () == Stdlib.Cli.Host.HostDefaultShell.Zsh then
-          Darklang.Cli.Zsh.deleteAlias alias
-        else if shell () == Stdlib.Cli.Host.HostDefaultShell.Bash then
-          Darklang.Cli.Bash.deleteAlias alias
-        else
-          Stdlib.Result.Result.Error "Unsupported shell"
-
-
-      let addAlias
-        (alias: String)
-        (command: String)
-        : Stdlib.Result.Result<String, String> =
-        Builtin.printLine " - Adding darklang alias"
-
-        if shell () == Stdlib.Cli.Host.HostDefaultShell.Zsh then
-          Darklang.Cli.Zsh.addAlias alias command
-        else if shell () == Stdlib.Cli.Host.HostDefaultShell.Bash then
-          Darklang.Cli.Bash.addAlias alias command
-        else
-          Stdlib.Result.Result.Error "Unsupported shell"
-
-
-      /// ----------------- Add to PATH ----------------- ///
-      let addToPathIfNeeded
-        (executablePath: String)
-        : Stdlib.Result.Result<Unit, String> =
-        Builtin.printLine "Do you want to add to your PATH? (y/n): "
-        let response = Builtin.stdinReadLine ()
-
-        if response == "y" || response == "Y" then
-          if shell () == Stdlib.Cli.Host.HostDefaultShell.Zsh then
-            Darklang.Cli.Zsh.addToPath executablePath
-          else if shell () == Stdlib.Cli.Host.HostDefaultShell.Bash then
-            Darklang.Cli.Bash.addToPath executablePath
-          else
-            Stdlib.Result.Result.Error "Unsupported shell"
-
-        else
-          Builtin.printLine "Skipping PATH update"
-          Stdlib.Result.Result.Ok()
-
-
       /// ----------------- Main ----------------- ///
+      // TODO: delete old version of the executable, if the new version is working correctly
       let downloadAndReplaceRelease () : Stdlib.Result.Result<Int64, String> =
+        let shell = shell ()
+
         (Stdlib.Cli.Host.getRunTimeHost ())
         |> Stdlib.Result.andThen (fun host ->
           (getDownloadUrl host)
@@ -273,7 +229,7 @@ module Darklang =
                 (gunzipAsset assetName executablePath)
                 |> Stdlib.Result.andThen
                   (fun (assetNameWithoutExt, newExecutablePath) ->
-                    (Stdlib.Cli.grantExecutePermission newExecutablePath)
+                    (Stdlib.Cli.Unix.grantExecutePermission newExecutablePath)
                     |> Stdlib.Result.andThen (fun _ ->
                       let latestVersion =
                         (getLatestReleaseTag ()) |> Builtin.unwrap
@@ -282,9 +238,16 @@ module Darklang =
                       |> Stdlib.Result.andThen (fun updatedConfig ->
                         (writeConfig updatedConfig configPath)
                         |> Stdlib.Result.andThen (fun _ ->
-                          (deleteAlias "darklang")
+                          (Stdlib.Cli.Unix.deleteAlias
+                            host.os
+                            shell
+                            "darklang")
                           |> Stdlib.Result.andThen (fun _ ->
-                            (addAlias "darklang" newExecutablePath)
+                            (Stdlib.Cli.Unix.addAlias
+                              host.os
+                              shell
+                              "darklang"
+                              newExecutablePath)
                             |> Stdlib.Result.map (fun _ -> 0L))))))))))
 
 
@@ -340,7 +303,10 @@ module Darklang =
             Stdlib.Process.runCommand $"mkdir -p \"$HOME/{executablePath}\""
 
           if makeDir.exitCode == 0L then
-            addToPathIfNeeded executablePath
+            let host = (Stdlib.Cli.Host.getRunTimeHost ()) |> Builtin.unwrap
+            let shell = shell ()
+
+            Stdlib.Cli.Unix.addToPath host.os shell executablePath
             0L
           else
             Builtin.printLine "Failed to create darklang dir"
