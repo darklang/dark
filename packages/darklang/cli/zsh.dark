@@ -17,10 +17,7 @@ module Darklang =
       /// Write content to .zshrc file
       let writeToZshrc (content: String) : Stdlib.Result.Result<String, String> =
         let writeResult = Builtin.fileWrite (Stdlib.String.toBytes content) ".zshrc"
-
-        match writeResult with
-        | Ok _ -> Stdlib.Result.Result.Ok "Wrote to .zshrc"
-        | Error e -> Stdlib.Result.Result.Error e
+        writeResult |> Stdlib.Result.map (fun _ -> "Wrote to .zshrc")
 
 
       /// Delete an alias from .zshrc

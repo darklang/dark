@@ -1,17 +1,68 @@
 module Darklang =
   module Stdlib =
     module Cli =
-      /// Grants execute permissions to the specified file.
-      /// If successful, returns {{Ok <param path>}}. Otherwise, returns an {{Error <var stderr>}}
-      let grantExecutePermission
-        (path: String)
-        : Stdlib.Result.Result<String, String> =
-        let grantPermission = Stdlib.Process.runCommand $"chmod +x {path}"
+      module Unix =
+        /// Grants execute permissions to the specified file.
+        /// If successful, returns {{Ok <param path>}}. Otherwise, returns an {{Error <var stderr>}}
+        //TODO : pass OS as a parameter to this function, to handle windows
+        let grantExecutePermission
+          (path: String)
+          : Stdlib.Result.Result<String, String> =
+          let grantPermission = Stdlib.Process.runCommand $"chmod +x {path}"
 
-        if grantPermission.exitCode == 0L then
-          Stdlib.Result.Result.Ok path
-        else
-          Stdlib.Result.Result.Error grantPermission.stderr
+          if grantPermission.exitCode == 0L then
+            Stdlib.Result.Result.Ok path
+          else
+            Stdlib.Result.Result.Error grantPermission.stderr
+
+
+        /// Adds an alias to the user's default shell configuration file. The alias will be available in new shell sessions.
+        let addAlias
+          (os: Host.OS)
+          (shell: Host.HostDefaultShell)
+          (alias: String)
+          (command: String)
+          : Stdlib.Result.Result<String, String> =
+          match os, shell with
+          | Linux, Bash -> Darklang.Cli.Bash.addAlias alias command
+          | Linux, Zsh -> Darklang.Cli.Zsh.addAlias alias command
+          | MacOS, Bash -> Darklang.Cli.Bash.addAlias alias command
+          | MacOS, Zsh -> Darklang.Cli.Zsh.addAlias alias command
+          | _ -> Stdlib.Result.Result.Error "Unsupported OS or shell"
+
+
+        /// Deletes an alias from the user's default shell configuration file.
+        let deleteAlias
+          (os: Host.OS)
+          (shell: Host.HostDefaultShell)
+          (alias: String)
+          : Stdlib.Result.Result<String, String> =
+          match os, shell with
+          | Linux, Bash -> Darklang.Cli.Bash.deleteAlias alias
+          | Linux, Zsh -> Darklang.Cli.Zsh.deleteAlias alias
+          | MacOS, Bash -> Darklang.Cli.Bash.deleteAlias alias
+          | MacOS, Zsh -> Darklang.Cli.Zsh.deleteAlias alias
+          | _ -> Stdlib.Result.Result.Error "Unsupported OS or shell"
+
+
+        /// Adds a path to the user's default shell configuration file. The path will be available in new shell sessions.
+        let addToPath
+          (os: Host.OS)
+          (shell: Host.HostDefaultShell)
+          (path: String)
+          : Stdlib.Result.Result<String, String> =
+          Builtin.printLine "Do you want to add to your PATH? (y/n): "
+          let response = Builtin.stdinReadLine ()
+
+          if response == "y" || response == "Y" then
+            match os, shell with
+            | Linux, Bash -> Darklang.Cli.Bash.addToPath path
+            | Linux, Zsh -> Darklang.Cli.Zsh.addToPath path
+            | MacOS, Bash -> Darklang.Cli.Bash.addToPath path
+            | MacOS, Zsh -> Darklang.Cli.Zsh.addToPath path
+            | _ -> Stdlib.Result.Result.Error "Unsupported OS or shell"
+          else
+            Stdlib.Result.Result.Ok "Skipped adding to PATH"
 
 
       module Host =

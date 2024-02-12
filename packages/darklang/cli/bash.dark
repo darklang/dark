@@ -16,10 +16,7 @@ module Darklang =
       /// Write content to .bashrc file
       let writeToBashrc (content: String) : Stdlib.Result.Result<String, String> =
         let writeResult = Builtin.fileWrite (Stdlib.String.toBytes content) ".bashrc"
-
-        match writeResult with
-        | Ok _ -> Stdlib.Result.Result.Ok "Wrote to .bashrc"
-        | Error e -> Stdlib.Result.Result.Error e
+        writeResult |> Stdlib.Result.map (fun _ -> "Wrote to .bashrc")
 
 
       /// Delete an alias from .bashrc
@@ -46,8 +43,10 @@ module Darklang =
           let newContent = content ++ "\n" ++ aliasDefinition
           writeToBashrc newContent
 
+          // CLEANUP: in bash `source ~/.bashrc` doesn't work from a subprocess, This is why we need to print a message to the user to run the command manually
+          // one workaround is adding `[[ -f ~/.bashrc ]] && . ~/.bashrc` which makes sure .bashrc exists and sources it, applying it configuration to the current shell session.
           Builtin.printLine
-            "Changes have been made to your .bashrc file. To apply these changes to your current terminal session, please run the following command:\nsource ~/.bashrc\n\n "
+            "Changes have been made to your .bashrc file. \nTo apply these changes to your current terminal session, please run the following command:\nsource ~/.bashrc\n\n "
 
           applyBashConfigChanges ()
         | Error e -> Stdlib.Result.Result.Error e
