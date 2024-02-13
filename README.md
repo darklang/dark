@@ -17,10 +17,9 @@ Dark-next isn't yet ready for production use.
 
 See also:
 
-- The [Darklang Community Discord](https://darklang.com/discord-invite) channel - please join and say hi!
-  This is where the vast majority of our communication happens.
-- Our [GitHub Issues](https://github.com/darklang/dark/issues), where most work is tracked.
-- Our [Notion](https://darklang.com/magicbox), which we are slowly migrating to Github, generally.
+- The [Darklang Community Discord](https://darklang.com/discord-invite) channel, where most of our communication happens - join and say hi!
+- Our [GitHub Issues](https://github.com/darklang/dark/issues), where most work is tracked
+- Our [Notion](https://darklang.com/magicbox), which we are slowly migrating to Github, generally
 - Darklang-Classic [login](https://darklang.com/login) and [repo](https://github.com/darklang/classic-dark/)
-- Our [guide to the repo](https://docs.darklang.com/contributing/repo-layout) for help browsing.
-- A [guide](/CONTRIBUTING.md) for contributing to Dark.
+- Our [guide to the repo](https://docs.darklang.com/contributing/repo-layout) for help browsing
+- A [guide](/CONTRIBUTING.md) for contributing to Dark
