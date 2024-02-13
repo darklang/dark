@@ -111,7 +111,7 @@
     // Cloud storage
     "type=volume,src=cloudstorage,dst=/home/dark/cloud-storage",
 
-    // VSCode extensions
+    // VS Code extensions
     "type=volume,src=darklang-dark-extension-volume,dst=/home/dark/.vscode-server/extensions",
     "type=volume,src=darklang-dark-extension-volume-insiders,dst=/home/dark/.vscode-server-insiders/extensions"
   ],

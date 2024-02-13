@@ -1,12 +1,12 @@
-## Setting up VSCode
+## Setting up VS Code
 
-VSCode's Remote Containers feature works very well with Dark. However, we need
-to run things slightly differently to make it work. Instead of using
-`./scripts/builder` to run the build, we run the build within the devcontainer.
+We primarily develop Dark in VS Code, so the setup is pretty straightforward.
 
 ## Getting started
 
-Install the [Remote Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+Install the
+[Remote Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers),
+which is used to wrap the Docker devcontainer that we use for development.
 
 Note that "Clone into container" does not work at the moment, so first clone the
 Dark repo locally.
@@ -24,7 +24,10 @@ This is also logged to `rundir/logs/build-server.log`
 
 ## Extensions
 
-VSCode extensions are installed on a docker volume in the container, which caches them for the next time we need to restart the container. This means that new extensions added to devcontainer.json are not automatically built. If that's needed, you can delete the extensions volume with:
+VS Code extensions are installed on a docker volume in the container, which caches
+them for the next time we need to restart the container. This means that new
+extensions added to `devcontainer.json` are not automatically built. If that's
+needed, you can delete the extensions volume with:
 
 - `docker volume rm darklang-dark-extension-volume darklang-dark-extension-volume-insiders`
 

@@ -4,7 +4,7 @@
 
 - Every file should start with a comment describing it.
 
-- all files have a formatter, which should be setup automatically in VSCode. Use
+- all files have a formatter, which should be setup automatically in VS Code. Use
   `./scripts/formatting/format format` to format otherwise. Unformatted files fail in CI.
 
 - imports should be ordered:
