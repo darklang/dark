@@ -51,7 +51,7 @@ development container in Docker, which has the exact right versions of all the
 tools we use.
 
 - If you're using VS Code, we run our build scripts in the VS Code devcontainer. See
-  [the VS Code instructions](docs/vscode-setup.md) for instructions.
+  [the VS Code instructions](vscode-setup.md) for instructions.
 - Otherwise, simply run `scripts/builder --compile --watch --test`,
   and watch the output of the build process.
 
@@ -74,7 +74,7 @@ If you see "initial compile failed," there are a few things to try:
 - If setting up in VS Code, try navigating to the `global.json` at the root of the
   repo, and saving it (unchanged).
 - Go to a random `.dark` file in the `packages` directory and save it (unchanged).
-- If you're still stuck, please ask for help in Discord or create a GitHub issue.
+- If you're still stuck, please ask for help in [Discord](https://darklang.com/discord-invite) or create a [GitHub issue](https://github.com/darklang/dark/issues).
 
 ## Formatting
 
@@ -87,7 +87,7 @@ We use yapf for python formatting, though it's not checked in CI.
 
 ## Pre-commit hook
 
-You probably also want to install a pre-commit hook that the formatters for
+You probably also want to install a pre-commit hook that runs the formatters for
 you.
 `cp scripts/formatting/pre-commit-hook.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit`
 
