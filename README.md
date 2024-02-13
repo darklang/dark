@@ -20,6 +20,6 @@ See also:
 - The [Discord](https://darklang.com/discord-invite), where most of our communication happens - join and say hi!
 - Our [GitHub Issues](https://github.com/darklang/dark/issues), where most work is tracked
 - Our [Notion](https://darklang.com/magicbox), which we are slowly migrating to Github, generally
-- Darklang-Classic [login](https://darklang.com/login) and [repo](https://github.com/darklang/classic-dark/)
-- Our [guide to the repo](https://docs.darklang.com/contributing/repo-layout) for help browsing
+- Darklang-Classic [login](https://darklang.com/login) and [repo](https://github.com/darklang/classic-dark)
 - A [guide](/CONTRIBUTING.md) for contributing to Dark
+- Our [guide to the repo](https://docs.darklang.com/contributing/repo-layout) for help browsing -- though, it's a bit outdated.
