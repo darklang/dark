@@ -49,6 +49,12 @@
       {"id": "string", "description": "String literals"},
       {"id": "operator", "description": "Operators like +, -"},
       {"id": "variable", "description": "General variable identifiers"}
+    ],
+    "commands": [
+      {
+        "command": "darklang.runScript",
+        "title": "Run Darklang Script"
+      }
     ]
   },
 
