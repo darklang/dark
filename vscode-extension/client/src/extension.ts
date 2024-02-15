@@ -1,5 +1,5 @@
-import { workspace, ExtensionContext } from "vscode";
-
+import { workspace, ExtensionContext, commands, window } from "vscode";
+import * as os from "os";
 import * as vscode from "vscode";
 import { SemanticTokensFeature } from "vscode-languageclient/lib/common/semanticTokens";
 import {
@@ -63,6 +63,40 @@ export function activate(context: ExtensionContext) {
   client.trace = Trace.Verbose;
 
   client.start();
+
+  let disposable = commands.registerCommand("darklang.runScript", () => {
+    const editor = window.activeTextEditor;
+    if (!editor) {
+      window.showWarningMessage(
+        "No active editor! Please open a file to run the script.",
+      );
+      return;
+    }
+
+    const filePath = editor.document.uri.fsPath;
+
+    let terminal = window.terminals.find(t => t.name === "darklang-terminal");
+
+    if (!terminal) {
+      terminal = window.createTerminal(`darklang-terminal`);
+    }
+
+    terminal.show(true);
+
+    if (isDebugMode()) {
+      let changeDirCommand = `cd /home/dark/app`;
+      let scriptCommand = `./scripts/run-cli  "${filePath}" --skip-self-update`;
+      terminal.sendText(changeDirCommand, true);
+      terminal.sendText(scriptCommand, true);
+    } else {
+      let changeDirCommand = `cd ${os.homedir()}`;
+      let scriptCommand = `darklang "${filePath}" --skip-self-update`;
+      terminal.sendText(changeDirCommand, true);
+      terminal.sendText(scriptCommand, true);
+    }
+  });
+
+  context.subscriptions.push(disposable);
 }
 
 export function deactivate(): Thenable<void> | undefined {
