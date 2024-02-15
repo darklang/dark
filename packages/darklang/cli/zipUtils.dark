@@ -6,9 +6,14 @@ module Darklang =
       let gunzip
         (option: String)
         (zipFilePath: String)
-        : Darklang.Stdlib.Process.Result =
+        : Stdlib.Result.Result<String, String> =
 
-        Stdlib.Process.runCommand $"gunzip {option} {zipFilePath}"
+        let unzip = Stdlib.Process.runCommand $"gunzip {option} {zipFilePath}"
+
+        if unzip.exitCode == 0L then
+          Stdlib.Result.Result.Ok zipFilePath
+        else
+          Stdlib.Result.Result.Error unzip.stderr
 
 
       /// Unzip a file to a specified destination path
@@ -16,7 +21,13 @@ module Darklang =
         (option: String)
         (zipFilePath: String)
         (destinationFilePath: String)
-        : Darklang.Stdlib.Process.Result =
+        : Stdlib.Result.Result<String, String> =
 
-        Stdlib.Process.runCommand
-          $"gunzip {option} {zipFilePath} > {destinationFilePath}"
+        let unzip =
+          Stdlib.Process.runCommand
+            $"gunzip {option} {zipFilePath} > {destinationFilePath}"
+
+        if unzip.exitCode == 0L then
+          Stdlib.Result.Result.Ok destinationFilePath
+        else
+          Stdlib.Result.Result.Error unzip.stderr

@@ -1,0 +1,84 @@
+module Darklang =
+  module Cli =
+    module Bash =
+      /// Read the content of .bashrc file
+      let readBashrc () : Stdlib.Result.Result<String, String> =
+        let zhrcContent = Builtin.fileRead ".bashrc"
+
+        match zhrcContent with
+        | Ok content ->
+          content
+          |> Stdlib.String.fromBytesWithReplacement
+          |> Stdlib.Result.Result.Ok
+        | Error e -> Stdlib.Result.Result.Error e
+
+
+      /// Write content to .bashrc file
+      let writeToBashrc (content: String) : Stdlib.Result.Result<String, String> =
+        let writeResult = Builtin.fileWrite (Stdlib.String.toBytes content) ".bashrc"
+        writeResult |> Stdlib.Result.map (fun _ -> "Wrote to .bashrc")
+
+
+      /// Delete an alias from .bashrc
+      let deleteAlias (alias: String) : Stdlib.Result.Result<String, String> =
+
+        let deleteAlias =
+          Stdlib.Process.runCommand $"sed -i '' '/alias {alias}=/d' ~/.bashrc"
+
+        if deleteAlias.exitCode == 0L then
+          Stdlib.Result.Result.Ok "Alias deleted"
+        else
+          Stdlib.Result.Result.Error deleteAlias.stderr
+
+
+      /// Add an alias to .bashrc
+      let addAlias
+        (alias: String)
+        (command: String)
+        : Stdlib.Result.Result<String, String> =
+        let aliasDefinition = $"alias {alias}='{command}'"
+
+        match (readBashrc ()) with
+        | Ok content ->
+          let newContent = content ++ "\n" ++ aliasDefinition
+          writeToBashrc newContent
+
+          // CLEANUP: in bash `source ~/.bashrc` doesn't work from a subprocess, This is why we need to print a message to the user to run the command manually
+          // one workaround is adding `[[ -f ~/.bashrc ]] && . ~/.bashrc` which makes sure .bashrc exists and sources it, applying it configuration to the current shell session.
+          Builtin.printLine
+            "Changes have been made to your .bashrc file. \nTo apply these changes to your current terminal session, please run the following command:\nsource ~/.bashrc\n\n "
+
+          applyBashConfigChanges ()
+        | Error e -> Stdlib.Result.Result.Error e
+
+
+      /// Add a path to PATH
+      let addToPath (path: String) : Stdlib.Result.Result<String, String> =
+        let targetDir = $"$HOME/{path}"
+
+        let isExecutableInPath =
+          Stdlib.Process.runCommand $"echo $PATH | grep -q {targetDir}"
+
+        if isExecutableInPath.exitCode == 0L then
+          Stdlib.Result.Result.Ok "Path is already added to PATH"
+        else
+          match (readBashrc ()) with
+          | Ok content ->
+            if Stdlib.String.contains content targetDir then
+              Stdlib.Result.Result.Ok "Path is already added to .bashrc"
+            else
+              let updatedContent = content ++ "\nexport PATH=$PATH:" ++ targetDir
+
+              writeToBashrc updatedContent
+              applyBashConfigChanges ()
+          | Error e -> Stdlib.Result.Result.Error e
+
+
+      /// Apply changes to .bashrc
+      let applyBashConfigChanges () : Stdlib.Result.Result<String, String> =
+        let applyResult = Builtin.processRun "source ~/.bashrc"
+
+        if applyResult.exitCode == 0L then
+          Stdlib.Result.Result.Ok "Bash config changes applied"
+        else
+          Stdlib.Result.Result.Error applyResult.stderr

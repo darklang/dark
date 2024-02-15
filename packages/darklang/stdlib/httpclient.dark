@@ -64,8 +64,11 @@ module Darklang =
         Builtin.httpClientRequest method uri headers body
 
 
-      let get (uri: String) : Stdlib.Result.Result<Response, RequestError> =
-        request "GET" uri [] []
+      let get
+        (headers: List<String * String>)
+        (uri: String)
+        : Stdlib.Result.Result<Response, RequestError> =
+        request "GET" uri headers []
 
 
       let post

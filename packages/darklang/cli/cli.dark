@@ -5,6 +5,7 @@ module Darklang =
       | PackageViewer of PackageViewer.Command
       | RunFunction of flags: List<String> * fnName: String * args: List<String>
       | RunScript of String * List<String>
+      | RunSelfUpdate
       | Invalid of List<String>
 
 
@@ -36,6 +37,8 @@ module Darklang =
         match PackageViewer.parseCommand args with
         | Ok command -> Command.PackageViewer command
         | Error _ -> Command.Invalid [ "Invalid package command" ]
+
+      | [ "update" ] -> Command.RunSelfUpdate
 
       | thingToRun :: args ->
         if Stdlib.String.startsWith thingToRun "@" then
@@ -128,6 +131,8 @@ darklang package                                  Explore the contents of the pa
 
 darklang [script path]                            Run a .dark script
   i.e. `darklang ./my-script.dark`
+
+darklang update                                   Update the darklang CLI to the latest version
 """
 
         0L
@@ -137,6 +142,8 @@ darklang [script path]                            Run a .dark script
       | RunScript(scriptPath, args) -> runScript scriptPath args
 
       | RunFunction(flags, fnName, args) -> runFunction flags fnName args
+
+      | RunSelfUpdate -> Darklang.Cli.SelfUpdate.runSelfUpdate ()
 
       | Invalid args ->
         let args = args |> Stdlib.String.join " "
@@ -152,11 +159,15 @@ darklang [script path]                            Run a .dark script
       args |> Darklang.Cli.parseArguments |> Darklang.Cli.executeCommand
 
     let executeCliCommand (args: List<String>) : Int64 =
-      if Stdlib.List.member_v0 args "--skip-self-update" then
+      if
+        Stdlib.List.member_v0 args "--skip-self-update"
+        || Stdlib.List.member_v0 args "update"
+      then
         let newArgs =
           args |> Stdlib.List.filter (fun arg -> arg != "--skip-self-update")
 
         processNormally newArgs
       else
         Darklang.Cli.SelfUpdate.ensureDarklangSetup ()
+        Builtin.printLine "Running command... \n\n"
         processNormally args
