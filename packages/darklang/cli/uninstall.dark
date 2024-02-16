@@ -15,7 +15,7 @@ module Darklang =
         (Darklang.Stdlib.Cli.Host.getShell ()) |> Builtin.unwrap
 
       let runUninstall () : Int64 =
-        match (shell ()) with
+        match shell () with
         | Bash ->
           let result =
             (Darklang.Cli.Bash.deleteAlias "darklang")

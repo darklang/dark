@@ -38,7 +38,7 @@ module Darklang =
         : Stdlib.Result.Result<String, String> =
         let aliasDefinition = $"alias {alias}='{command}'"
 
-        match (readZshrc ()) with
+        match readZshrc () with
         | Ok content ->
           let newContent = content ++ "\n" ++ aliasDefinition
           writeToZshrc newContent
@@ -56,7 +56,7 @@ module Darklang =
         if isExecutableInPath.exitCode == 0L then
           Stdlib.Result.Result.Ok "Path is already added to PATH"
         else
-          match (readZshrc ()) with
+          match readZshrc () with
           | Ok content ->
             if Stdlib.String.contains content targetDir then
               Stdlib.Result.Result.Ok "Path is already added to .zshrc"
@@ -72,7 +72,7 @@ module Darklang =
       let removeFromPath (path: String) : Stdlib.Result.Result<String, String> =
         let targetDir = $"$HOME/{path}"
 
-        match (readZshrc ()) with
+        match readZshrc () with
         | Ok content ->
           let exportPattern = "\nexport PATH=$PATH:" ++ targetDir
 
