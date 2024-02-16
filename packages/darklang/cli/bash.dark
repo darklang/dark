@@ -3,9 +3,9 @@ module Darklang =
     module Bash =
       /// Read the content of .bashrc file
       let readBashrc () : Stdlib.Result.Result<String, String> =
-        let zhrcContent = Builtin.fileRead ".bashrc"
+        let bashrcContent = Builtin.fileRead ".bashrc"
 
-        match zhrcContent with
+        match bashrcContent with
         | Ok content ->
           content
           |> Stdlib.String.fromBytesWithReplacement
@@ -38,7 +38,7 @@ module Darklang =
         : Stdlib.Result.Result<String, String> =
         let aliasDefinition = $"alias {alias}='{command}'"
 
-        match (readBashrc ()) with
+        match readBashrc () with
         | Ok content ->
           let newContent = content ++ "\n" ++ aliasDefinition
           writeToBashrc newContent
@@ -62,7 +62,7 @@ module Darklang =
         if isExecutableInPath.exitCode == 0L then
           Stdlib.Result.Result.Ok "Path is already added to PATH"
         else
-          match (readBashrc ()) with
+          match readBashrc () with
           | Ok content ->
             if Stdlib.String.contains content targetDir then
               Stdlib.Result.Result.Ok "Path is already added to .bashrc"
@@ -72,6 +72,25 @@ module Darklang =
               writeToBashrc updatedContent
               applyBashConfigChanges ()
           | Error e -> Stdlib.Result.Result.Error e
+
+
+      /// Remove a path from PATH
+      let removeFromPath (path: String) : Stdlib.Result.Result<String, String> =
+        let targetDir = $"$HOME/{path}"
+
+        match readBashrc () with
+        | Ok content ->
+          let exportPattern = "\nexport PATH=$PATH:" ++ targetDir
+
+          if Stdlib.String.contains content exportPattern then
+            let updatedContent = Stdlib.String.replaceAll content exportPattern ""
+
+            writeToBashrc updatedContent
+            applyBashConfigChanges ()
+          else
+            Stdlib.Result.Result.Ok "Path is not found in .bashrc"
+        | Error e -> Stdlib.Result.Result.Error e
+
 
 
       /// Apply changes to .bashrc
