@@ -6,6 +6,7 @@ module Darklang =
       | RunFunction of flags: List<String> * fnName: String * args: List<String>
       | RunScript of String * List<String>
       | RunSelfUpdate
+      | Uninstall
       | Invalid of List<String>
 
 
@@ -32,6 +33,8 @@ module Darklang =
 
       match args with
       | [ "help" ] -> Command.Help
+
+      | [ "uninstall" ] -> Command.Uninstall
 
       | "package" :: args ->
         match PackageViewer.parseCommand args with
@@ -144,6 +147,8 @@ darklang update                                   Update the darklang CLI to the
       | RunFunction(flags, fnName, args) -> runFunction flags fnName args
 
       | RunSelfUpdate -> Darklang.Cli.SelfUpdate.runSelfUpdate ()
+
+      | Uninstall -> Darklang.Cli.Uninstall.runUninstall ()
 
       | Invalid args ->
         let args = args |> Stdlib.String.join " "

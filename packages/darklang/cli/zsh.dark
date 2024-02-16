@@ -68,6 +68,25 @@ module Darklang =
           | Error e -> Stdlib.Result.Result.Error e
 
 
+      /// delete from PATH
+      let removeFromPath (path: String) : Stdlib.Result.Result<String, String> =
+        let targetDir = $"$HOME/{path}"
+
+        match (readZshrc ()) with
+        | Ok content ->
+          let exportPattern = "\nexport PATH=$PATH:" ++ targetDir
+
+          if Stdlib.String.contains content exportPattern then
+            let updatedContent = Stdlib.String.replaceAll content exportPattern ""
+
+            writeToZshrc updatedContent
+            applyZshConfigChanges ()
+          else
+            Stdlib.Result.Result.Ok "Path is not found in .zshrc"
+        | Error e -> Stdlib.Result.Result.Error e
+
+
+
       /// Apply changes to .zshrc
       let applyZshConfigChanges () : Stdlib.Result.Result<String, String> =
         let applyResult = Builtin.processRun "source ~/.zshrc"

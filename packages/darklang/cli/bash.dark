@@ -3,9 +3,9 @@ module Darklang =
     module Bash =
       /// Read the content of .bashrc file
       let readBashrc () : Stdlib.Result.Result<String, String> =
-        let zhrcContent = Builtin.fileRead ".bashrc"
+        let bashrcContent = Builtin.fileRead ".bashrc"
 
-        match zhrcContent with
+        match bashrcContent with
         | Ok content ->
           content
           |> Stdlib.String.fromBytesWithReplacement
@@ -72,6 +72,25 @@ module Darklang =
               writeToBashrc updatedContent
               applyBashConfigChanges ()
           | Error e -> Stdlib.Result.Result.Error e
+
+
+      /// Remove a path from PATH
+      let removeFromPath (path: String) : Stdlib.Result.Result<String, String> =
+        let targetDir = $"$HOME/{path}"
+
+        match (readBashrc ()) with
+        | Ok content ->
+          let exportPattern = "\nexport PATH=$PATH:" ++ targetDir
+
+          if Stdlib.String.contains content exportPattern then
+            let updatedContent = Stdlib.String.replaceAll content exportPattern ""
+
+            writeToBashrc updatedContent
+            applyBashConfigChanges ()
+          else
+            Stdlib.Result.Result.Ok "Path is not found in .bashrc"
+        | Error e -> Stdlib.Result.Result.Error e
+
 
 
       /// Apply changes to .bashrc

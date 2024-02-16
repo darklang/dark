@@ -1,0 +1,48 @@
+module Darklang =
+  module Cli =
+    module Uninstall =
+      let removeDarklangDirectory () : Stdlib.Result.Result<String, Int64> =
+        Builtin.printLine "Deleting darklang ..."
+        let directoryPath = "$HOME/.darklang"
+        let command = $"rm -rf {directoryPath}"
+        let result = Stdlib.Process.runCommand command
+
+        match result.exitCode with
+        | 0L -> Stdlib.Result.Result.Ok "darklang directory deleted"
+        | _ -> Stdlib.Result.Result.Error result.exitCode
+
+      let shell () : Stdlib.Cli.Host.HostDefaultShell =
+        (Darklang.Stdlib.Cli.Host.getShell ()) |> Builtin.unwrap
+
+      let runUninstall () : Int64 =
+        match (shell ()) with
+        | Bash ->
+          let result =
+            (Darklang.Cli.Bash.deleteAlias "darklang")
+            |> Stdlib.Result.andThen (fun _ ->
+              Darklang.Cli.Bash.removeFromPath ".darklang/bin/darklang/")
+            |> Stdlib.Result.andThen (fun _ -> removeDarklangDirectory ())
+
+          match result with
+          | Ok _ ->
+            Builtin.printLine "darklang was uninstalled successfully"
+            0L
+          | Error _ ->
+            Builtin.printLine "Error uninstalling darklang"
+            1L
+
+        | Zsh ->
+          let result =
+            (Darklang.Cli.Zsh.deleteAlias "darklang")
+            |> Stdlib.Result.andThen (fun _ ->
+              Darklang.Cli.Zsh.removeFromPath ".darklang/bin/darklang/")
+            |> Stdlib.Result.andThen (fun _ -> removeDarklangDirectory ())
+
+          match result with
+          | Ok _ ->
+            Builtin.printLine "darklang was uninstalled successfully"
+            0L
+          | Error _ ->
+            Builtin.printLine "Error uninstalling darklang"
+            1L
+        | _ -> 1L
