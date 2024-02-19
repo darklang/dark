@@ -550,6 +550,8 @@ module Darklang =
 
             // /// The server has support for pull model diagnostics.
             // diagnosticProvider?: DiagnosticOptions | DiagnosticRegistrationOptions;
+            // diagnosticProvider:
+            //   Stdlib.Option.Option<DiagnosticOptions.DiagnosticOptions>
 
             // /// Inline completion options used during static registration.
             // ///

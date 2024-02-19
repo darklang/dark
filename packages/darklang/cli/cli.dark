@@ -28,7 +28,7 @@ module Darklang =
             ([], args)
 
         // no args
-        | None -> ([], [])
+        | None -> ([], [ "help" ])
 
 
       match args with

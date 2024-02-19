@@ -62,7 +62,7 @@ module Darklang =
 
       let toJson (p: Position) : Json =
         Json.Object
-          [ ("line", p.line |> Stdlib.UInt64.toFloat Json.Number)
+          [ ("line", p.line |> Stdlib.UInt64.toFloat |> Json.Number)
             ("character", p.character |> Stdlib.UInt64.toFloat |> Json.Number) ]
 
       let fromJson (json: Json) : Stdlib.Result.Result<Position, Unit> =
@@ -103,7 +103,7 @@ module Darklang =
 
       let toJson (r: Range) : Json =
         Json.Object
-          [ ("start", Position.toJson p.start); ("end", Position.toJson p.``end``) ]
+          [ ("start", Position.toJson r.start); ("end", Position.toJson r.``end``) ]
 
 
 
@@ -112,6 +112,9 @@ module Darklang =
       /// inside a text file.
       type Location =
         { uri: DocumentUri; range: Range.Range }
+
+      let toJson (l: Location) : Json =
+        Json.Object [ ("uri", Json.String l.uri); ("range", Range.toJson l.range) ]
 
     module TextDocumentItem =
       /// An item to transfer a text document from the client to the server.
@@ -350,10 +353,10 @@ module Darklang =
 
       let toJson (s: DiagnosticSeverity) : Json =
         match s with
-        | Error -> Json.Number 1
-        | Warning -> Json.Number 2
-        | Information -> Json.Number 3
-        | Hint -> Json.Number 4
+        | Error -> Json.Number 1.0
+        | Warning -> Json.Number 2.0
+        | Information -> Json.Number 3.0
+        | Hint -> Json.Number 4.0
 
       let fromJson (json: Json) : Stdlib.Result.Result<DiagnosticSeverity, Unit> =
         match json with
@@ -401,6 +404,11 @@ module Darklang =
           message: String
         }
 
+      let toJson (ri: DiagnosticRelatedInformation) : Json =
+        Json.Object
+          [ ("location", Location.toJson ri.location)
+            ("message", Json.String ri.message) ]
+
     module CodeDescription =
       /// Structure to capture a description for an error code.
       type CodeDescription =
@@ -409,10 +417,18 @@ module Darklang =
           href: URI
         }
 
+      let toJson (c: CodeDescription) : Json =
+        Json.Object [ ("href", Json.String c.href) ]
+
     module DiagnosticCode =
       type DiagnosticCode =
         | Number of Int64
         | String of String
+
+      let toJson (c: DiagnosticCode) : Json =
+        match c with
+        | Number n -> (Stdlib.Int64.toFloat n) |> Json.Number
+        | String s -> Json.String s
 
     module Diagnostic =
       type Diagnostic =
@@ -451,8 +467,23 @@ module Darklang =
         }
 
       let toJson (d: Diagnostic) : Json =
-        let fields = [] // TODO
-        Json.Object fields
+        let fields =
+          [ Stdlib.Option.Option.Some(("range", Range.toJson d.range))
+            d.severity
+            |> Stdlib.Option.map (fun s -> ("severity", DiagnosticSeverity.toJson s))
+            // d.code |> Stdlib.Option.map (fun c -> ("code", DiagnosticCode.toJson c))
+            // d.codeDescription
+            // |> Stdlib.Option.map (fun cd -> ("codeDescription", CodeDescription.toJson cd))
+            // d.source |> Stdlib.Option.map (fun s -> ("source", Json.String s))
+            Stdlib.Option.Option.Some(("message", d.message |> Json.String))
+            // d.tags |> Stdlib.Option.map (fun tags ->
+            //   ("tags", Json.Array(tags |> Stdlib.List.map DiagnosticTag.toJson)))
+            // d.relatedInformation |> Stdlib.Option.map (fun ri ->
+            //   ("relatedInformation", Json.Array(ri |> Stdlib.List.map DiagnosticRelatedInformation.toJson)))
+            // d.data |> Stdlib.Option.map (fun j -> ("data", j |> Json.String))
+            ]
+
+        fields |> Stdlib.Option.values |> Json.Object
 
 
     module StaticRegistrationOptions =

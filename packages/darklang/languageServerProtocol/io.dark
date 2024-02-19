@@ -33,6 +33,11 @@ module Darklang =
         requestId: JsonRPC.RequestId *
         SemanticTokens.SemanticTokensRequest.SemanticTokensParams.SemanticTokensParams
 
+
+      // diagnostics
+      // | PublishDiagnostics of
+      //   LanguageServerProtocol.Messages.PublishDiagnostics.PublishDiagnosticsParams.PublishDiagnosticsParams
+
       | Other of JsonRPC.Request.Request
 
 
@@ -77,6 +82,14 @@ module Darklang =
         |> SemanticTokens.SemanticTokensRequest.SemanticTokensParams.fromJson
         |> Builtin.unwrap
         |> fun p -> IncomingMessage.TextDocumentSemanticTokensRequest(requestId, p)
+
+
+      // // -- diagnostics
+      // | ("textDocument/diagnostic", None, Some(Object p)) ->
+      //   (Stdlib.AltJson.Json.Object p)
+      //   |> LanguageServerProtocol.Messages.PublishDiagnostics.PublishDiagnosticsParams.fromJson
+      //   |> Builtin.unwrap
+      //   |> IncomingMessage.PublishDiagnostics
 
 
       | _other -> IncomingMessage.Other r
