@@ -32,16 +32,16 @@ module Darklang =
               version: Stdlib.Option.Option<Int64>
 
               /// An array of diagnostic information items.
-              diagnostics: List<Diagnostic.Diagnostic>
+              diagnostics: List<LanguageServerProtocol.Diagnostic.Diagnostic>
             }
 
           let toJson (p: PublishDiagnosticsParams) : Json =
             let fields =
-              [ Some(("uri", Json.String p.uri))
+              [ Stdlib.Option.Option.Some(("uri", Json.String p.uri))
 
                 (p.version |> Stdlib.Option.map (fun v -> ("version", Json.String v)))
 
-                Some(
+                Stdlib.Option.Option.Some(
                   ("diagnostics",
                    Json.Array(
                      Stdlib.List.map p.diagnostics (fun d -> Diagnostic.toJson d)
@@ -50,6 +50,39 @@ module Darklang =
               |> Stdlib.Option.values
 
             Json.Object fields
+
+// let fromJson
+//   (json: Json)
+//   : Stdlib.Result.Result<PublishDiagnosticsParams.PublishDiagnosticsParams, Unit> =
+
+//   match json with
+//   | Object fields ->
+//     let uri =
+//       match Stdlib.List.findFirst fields (fun (k, _) -> k = "uri") with
+//       | Some(_, String uri) -> Stdlib.Result.Result.Ok uri
+//       | _ -> Stdlib.Result.Result.Error()
+
+//     let version =
+//       match Stdlib.List.findFirst fields (fun (k, _) -> k = "version") with
+//       | Some(_, String version) ->
+//         Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some version)
+//       | _ -> Stdlib.Result.Result.Error()
+
+//     let diagnostics = Stdlib.Result.Result.Ok []
+
+//     match (uri, version, diagnostics) with
+//     | (Ok uri, Ok version, Ok diagnostics) ->
+//       Stdlib.Result.Result.Ok(
+//         PublishDiagnosticsParams.PublishDiagnosticsParams
+//           { uri = uri
+//             version = version
+//             diagnostics = diagnostics }
+//       )
+//     | _ -> Stdlib.Result.Result.Error()
+
+//   | _ -> Stdlib.Result.Result.Error()
+
+
 
 
 (*

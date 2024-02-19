@@ -10,7 +10,7 @@ module Darklang =
 
       type ParsedNode =
         {
-          // e.g., a node of `typ` `let_epression` has a child node with a `body` field name
+          // e.g., a node of `typ` `let_expression` has a child node with a `body` field name
           fieldName: Stdlib.Option.Option<String>
 
           /// e.g. `source_file`, `fn_decl`, `expression`, `let_expression`
