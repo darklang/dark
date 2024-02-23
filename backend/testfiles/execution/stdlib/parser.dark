@@ -77,6 +77,12 @@ module ParseToSimplifiedTree =
                               children = [] } ] } ] } ] }
 
 
+  ("" |> Builtin.parserParseToSimplifiedTree) = ParsedNode
+    { typ = "source_file"
+      fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
+      text = ""
+      sourceRange = range (0L, 0L) (0L, 0L)
+      children = [] }
 
 // These tests are a huge pain to write and maintain
 // Let's focus on roundtripping tests, largely,
