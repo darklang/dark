@@ -222,8 +222,7 @@ module Darklang =
             |> logAndSendToClient
 
           | Some docText ->
-            let parsed =
-              docText |> Parser.parseToSimplifiedTree |> Parser.parseCliScript
+            let parsed = docText.parsed
 
             match parsed with
             | Ok parsedFile ->
@@ -264,6 +263,8 @@ module Darklang =
                       "Couldn't parse this part of the file")
 
                 sendDiagnostic requestParams.textDocument.uri diagnostics
+
+              | _ -> ()
 
 
             | Error parseError ->

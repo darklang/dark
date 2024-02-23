@@ -1,7 +1,10 @@
 module Darklang =
   module LanguageTools =
     module LspServer =
-      type DocumentInScope = { uri: String; text: String }
+      type DocumentInScope =
+        { uri: String
+          text: String
+          parsed: Stdlib.Result.Result<WrittenTypes.ParsedFile, String> }
 
       type LspState =
         {
