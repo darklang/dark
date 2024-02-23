@@ -38,12 +38,20 @@ module Darklang =
           (request:
             LanguageServerProtocol.DocumentSync.TextDocument.DidOpenTextDocumentNotification.DidOpenTextDocumentParams.DidOpenTextDocumentParams)
           : LspState =
+          let parsed =
+            request.textDocument.text
+            |> Parser.parseToSimplifiedTree
+            |> Parser.parseCliScript
+
           { state with
               documentsInScope =
                 Stdlib.Dict.set
                   state.documentsInScope
                   request.textDocument.uri
-                  request.textDocument.text }
+                  (LanguageTools.LspServer.DocumentInScope
+                    { uri = request.textDocument.uri
+                      text = request.textDocument.text
+                      parsed = parsed }) }
 
 
         let handleTextDocumentDidSave
@@ -59,12 +67,18 @@ module Darklang =
             state
 
           | Some text ->
+            let parsed =
+              text |> Parser.parseToSimplifiedTree |> Parser.parseCliScript
+
             { state with
                 documentsInScope =
                   Stdlib.Dict.set
                     state.documentsInScope
                     request.textDocument.uri
-                    text }
+                    (LanguageTools.LspServer.DocumentInScope
+                      { uri = request.textDocument.uri
+                        text = text
+                        parsed = parsed }) }
 
 
         let handleTextDocumentDidClose

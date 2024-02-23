@@ -98,12 +98,12 @@ module Darklang =
           start: Position.Position
 
           /// The range's end position.
-          ``end``: Position.Position
+          end_: Position.Position
         }
 
       let toJson (r: Range) : Json =
         Json.Object
-          [ ("start", Position.toJson r.start); ("end", Position.toJson r.``end``) ]
+          [ ("start", Position.toJson r.start); ("end", Position.toJson r.end_) ]
 
 
 

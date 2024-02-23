@@ -68,20 +68,22 @@ let fns : List<BuiltInFn> =
 
               let sourceText =
                 let lines = String.splitOnNewline sourceCode
+                if lines.Length = 0 then
+                  ""
+                else
+                  match startPos.Row with
+                  | row when row = endPos.Row ->
+                    lines[row][startPos.Column .. (endPos.Column - 1)]
+                  | _ ->
+                    let firstLine = lines[startPos.Row][startPos.Column ..]
+                    let middleLines =
+                      if startPos.Row + 1 <= endPos.Row - 1 then
+                        lines[startPos.Row + 1 .. endPos.Row - 1]
+                      else
+                        []
+                    let lastLine = lines[endPos.Row][.. endPos.Column - 1]
 
-                match startPos.Row with
-                | row when row = endPos.Row ->
-                  lines[row][startPos.Column .. (endPos.Column - 1)]
-                | _ ->
-                  let firstLine = lines[startPos.Row][startPos.Column ..]
-                  let middleLines =
-                    if startPos.Row + 1 <= endPos.Row - 1 then
-                      lines[startPos.Row + 1 .. endPos.Row - 1]
-                    else
-                      []
-                  let lastLine = lines[endPos.Row][.. endPos.Column - 1]
-
-                  String.concat "\n" (firstLine :: middleLines @ [ lastLine ])
+                    String.concat "\n" (firstLine :: middleLines @ [ lastLine ])
 
               let fieldName =
                 if cursor.FieldName = null then

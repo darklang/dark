@@ -157,7 +157,7 @@ module Darklang =
                 LanguageServerProtocol.Position.Position
                   { line = lineStart
                     character = characterStart }
-              ``end`` =
+              end_ =
                 LanguageServerProtocol.Position.Position
                   { line = lineEnd
                     character = characterEnd } }
@@ -222,8 +222,7 @@ module Darklang =
             |> logAndSendToClient
 
           | Some docText ->
-            let parsed =
-              docText |> Parser.parseToSimplifiedTree |> Parser.parseCliScript
+            let parsed = docText.parsed
 
             match parsed with
             | Ok parsedFile ->
@@ -265,6 +264,8 @@ module Darklang =
 
                 sendDiagnostic requestParams.textDocument.uri diagnostics
 
+              | _ -> ()
+
 
             | Error parseError ->
               (JsonRPC.Response.Error.make
@@ -282,7 +283,7 @@ module Darklang =
                     { start =
                         LanguageServerProtocol.Position.Position
                           { line = 0UL; character = 0UL }
-                      ``end`` =
+                      end_ =
                         LanguageServerProtocol.Position.Position
                           { line = 0UL; character = 0UL } })
 
