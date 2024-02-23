@@ -157,7 +157,7 @@ module Darklang =
                 LanguageServerProtocol.Position.Position
                   { line = lineStart
                     character = characterStart }
-              ``end`` =
+              end_ =
                 LanguageServerProtocol.Position.Position
                   { line = lineEnd
                     character = characterEnd } }
@@ -283,7 +283,7 @@ module Darklang =
                     { start =
                         LanguageServerProtocol.Position.Position
                           { line = 0UL; character = 0UL }
-                      ``end`` =
+                      end_ =
                         LanguageServerProtocol.Position.Position
                           { line = 0UL; character = 0UL } })
 
