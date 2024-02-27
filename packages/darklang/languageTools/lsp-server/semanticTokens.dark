@@ -138,69 +138,6 @@ module Darklang =
                     ) }
             )
 
-        let convertParserRangeToLspRange
-          (range: Parser.Range)
-          : LanguageServerProtocol.Range.Range =
-          let lineStart =
-            range.start.row |> Stdlib.UInt64.fromInt64 |> Builtin.unwrap
-
-          let characterStart =
-            range.start.column |> Stdlib.UInt64.fromInt64 |> Builtin.unwrap
-
-          let lineEnd = range.end_.row |> Stdlib.UInt64.fromInt64 |> Builtin.unwrap
-
-          let characterEnd =
-            range.end_.column |> Stdlib.UInt64.fromInt64 |> Builtin.unwrap
-
-          LanguageServerProtocol.Range.Range
-            { start =
-                LanguageServerProtocol.Position.Position
-                  { line = lineStart
-                    character = characterStart }
-              end_ =
-                LanguageServerProtocol.Position.Position
-                  { line = lineEnd
-                    character = characterEnd } }
-
-        let createErrorDiagnostic
-          (range: Parser.Range)
-          (message: String)
-          : LanguageServerProtocol.Diagnostic.Diagnostic =
-          LanguageServerProtocol.Diagnostic.Diagnostic
-            { range = convertParserRangeToLspRange range
-              severity =
-                Stdlib.Option.Option.Some
-                  LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity.Error
-              code = Stdlib.Option.Option.None
-              codeDescription = Stdlib.Option.Option.None
-              source = Stdlib.Option.Option.None
-              message = message
-              tags = Stdlib.Option.Option.None
-              relatedInformation = Stdlib.Option.Option.None
-              data = Stdlib.Option.Option.None }
-
-        let sendDiagnostic
-          (uri: LanguageServerProtocol.DocumentUri)
-          (diagnostic:
-            List<LanguageServerProtocol.Messages.PublishDiagnostics.PublishDiagnosticsParams.PublishDiagnosticsParams>)
-          : Unit =
-          let diagnosticsJson =
-            LanguageServerProtocol
-              .Messages
-              .PublishDiagnostics
-              .PublishDiagnosticsParams
-              .toJson (
-                LanguageServerProtocol.Messages.PublishDiagnostics.PublishDiagnosticsParams.PublishDiagnosticsParams
-                  { uri = uri
-                    version = Stdlib.Option.Option.None
-                    diagnostics = diagnostic }
-              )
-
-          (JsonRPC.Request.makeNotificationString
-            "textDocument/publishDiagnostics"
-            (diagnosticsJson |> Stdlib.Option.Option.Some))
-          |> logAndSendToClient
-
 
         let handleSemanticTokensRequest
           (state: LspState)
@@ -253,20 +190,6 @@ module Darklang =
 
               logAndSendToClient resultJson
 
-              match parsedFile with
-              | CliScript parsedFile when parsedFile.unparseableStuff != [] ->
-                let diagnostics =
-                  parsedFile.unparseableStuff
-                  |> Stdlib.List.map (fun unparseable ->
-                    createErrorDiagnostic
-                      unparseable.source.sourceRange
-                      "Couldn't parse this part of the file")
-
-                sendDiagnostic requestParams.textDocument.uri diagnostics
-
-              | _ -> ()
-
-
             | Error parseError ->
               (JsonRPC.Response.Error.make
                 (Stdlib.Option.Option.Some requestId)
@@ -275,20 +198,5 @@ module Darklang =
                 Stdlib.Option.Option.None)
               |> Stdlib.AltJson.format
               |> logAndSendToClient
-
-
-              let diagnostics =
-                createErrorDiagnostic
-                  (LanguageServerProtocol.Range.Range
-                    { start =
-                        LanguageServerProtocol.Position.Position
-                          { line = 0UL; character = 0UL }
-                      end_ =
-                        LanguageServerProtocol.Position.Position
-                          { line = 0UL; character = 0UL } })
-
-                  "Couldn't parse code for syntax highlighting"
-
-              sendDiagnostic requestParams.textDocument.uri [ diagnostics ]
 
           state
