@@ -37,10 +37,22 @@ module Darklang =
         type Builtin =
           | TUnit of SourceRange
           | TBool of SourceRange
+          | TInt8 of SourceRange
+          | TUInt8 of SourceRange
+          | TInt16 of SourceRange
+          | TUInt16 of SourceRange
+          | TInt32 of SourceRange
+          | TUInt32 of SourceRange
           | TInt64 of SourceRange
+          | TUInt64 of SourceRange
+          | TInt128 of SourceRange
+          | TUInt128 of SourceRange
           | TFloat of SourceRange
           | TChar of SourceRange
           | TString of SourceRange
+          | TDateTime of SourceRange
+          | TUuid of SourceRange
+
 
         type TypeReference =
           | Builtin of Builtin
@@ -69,11 +81,48 @@ module Darklang =
       type Expr =
         | EUnit of SourceRange
         | EBool of SourceRange * Bool
+        | EInt8 of
+          SourceRange *
+          intPart: (SourceRange * Int8) *
+          suffixPart: SourceRange
+        | EUInt8 of
+          SourceRange *
+          intPart: (SourceRange * UInt8) *
+          suffixPart: SourceRange
+        | EInt16 of
+          SourceRange *
+          intPart: (SourceRange * Int16) *
+          suffixPart: SourceRange
+        | EUInt16 of
+          SourceRange *
+          intPart: (SourceRange * UInt16) *
+          suffixPart: SourceRange
+        | EInt32 of
+          SourceRange *
+          intPart: (SourceRange * Int32) *
+          suffixPart: SourceRange
+        | EUInt32 of
+          SourceRange *
+          intPart: (SourceRange * UInt32) *
+          suffixPart: SourceRange
         | EInt64 of
           SourceRange *
           intPart: (SourceRange * Int64) *
           /// for the L suffix
           suffixPart: SourceRange
+        | EUInt64 of
+          SourceRange *
+          intPart: (SourceRange * UInt64) *
+          suffixPart: SourceRange
+        | EInt128 of
+          SourceRange *
+          intPart: (SourceRange * Int128) *
+          suffixPart: SourceRange
+        | EUInt128 of
+          SourceRange *
+          intPart: (SourceRange * UInt128) *
+          suffixPart: SourceRange
+        | EFloat of SourceRange * Sign * String * String
         | EString of
           SourceRange *
           contents: Stdlib.Option.Option<SourceRange * String> *

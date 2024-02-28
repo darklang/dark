@@ -34,9 +34,9 @@ let x = 1L + 2L
       (symbol)
       (expression
         (infix_operation
-          (expression (int64_literal (digits) (symbol)))
+          (expression (int64_literal (digits (positive_digits)) (symbol)))
           (operator)
-          (expression (int64_literal (digits) (symbol)))
+          (expression (int64_literal (digits (positive_digits)) (symbol)))
         )
       )
       (expression

@@ -1,0 +1,29 @@
+==================
+float literal
+==================
+
+1.0
+
+---
+
+(source_file (expression (float_literal)))
+
+
+==================
+float literal (negative)
+==================
+
+-1.0
+
+---
+(source_file (expression (float_literal)))
+
+
+==================
+float literal (zero)
+==================
+
+-00000000.000
+
+---
+(source_file (expression (float_literal)))

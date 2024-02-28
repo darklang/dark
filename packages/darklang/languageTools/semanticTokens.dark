@@ -105,7 +105,16 @@ module Darklang =
             match t with
             | TUnit r -> [ makeToken r TokenType.TypeName ]
             | TBool r -> [ makeToken r TokenType.TypeName ]
+            | TInt8 r -> [ makeToken r TokenType.TypeName ]
+            | TUInt8 r -> [ makeToken r TokenType.TypeName ]
+            | TInt16 r -> [ makeToken r TokenType.TypeName ]
+            | TUInt16 r -> [ makeToken r TokenType.TypeName ]
+            | TInt32 r -> [ makeToken r TokenType.TypeName ]
+            | TUInt32 r -> [ makeToken r TokenType.TypeName ]
             | TInt64 r -> [ makeToken r TokenType.TypeName ]
+            | TUInt64 r -> [ makeToken r TokenType.TypeName ]
+            | TInt128 r -> [ makeToken r TokenType.TypeName ]
+            | TUInt128 r -> [ makeToken r TokenType.TypeName ]
             | TFloat r -> [ makeToken r TokenType.TypeName ]
             | TChar r -> [ makeToken r TokenType.TypeName ]
             | TString r -> [ makeToken r TokenType.TypeName ]
@@ -156,8 +165,53 @@ module Darklang =
           // true
           | EBool(range, _b) -> [ makeToken range TokenType.Keyword ]
 
+          // 12y
+          | EInt8(_, (intPartRange, _), suffixPartRange) ->
+            [ makeToken intPartRange TokenType.Number
+              makeToken suffixPartRange TokenType.Symbol ]
+
+          // 12uy
+          | EUInt8(_, (intPartRange, _), suffixPartRange) ->
+            [ makeToken intPartRange TokenType.Number
+              makeToken suffixPartRange TokenType.Symbol ]
+
+          // 12s
+          | EInt16(_, (intPartRange, _), suffixPartRange) ->
+            [ makeToken intPartRange TokenType.Number
+              makeToken suffixPartRange TokenType.Symbol ]
+
+          // 12us
+          | EUInt16(_, (intPartRange, _), suffixPartRange) ->
+            [ makeToken intPartRange TokenType.Number
+              makeToken suffixPartRange TokenType.Symbol ]
+
+          // 12l
+          | EInt32(_, (intPartRange, _), suffixPartRange) ->
+            [ makeToken intPartRange TokenType.Number
+              makeToken suffixPartRange TokenType.Symbol ]
+
+          // 12ul
+          | EUInt32(_, (intPartRange, _), suffixPartRange) ->
+            [ makeToken intPartRange TokenType.Number
+              makeToken suffixPartRange TokenType.Symbol ]
+
           // 12L
           | EInt64(_, (intPartRange, _), suffixPartRange) ->
+            [ makeToken intPartRange TokenType.Number
+              makeToken suffixPartRange TokenType.Symbol ]
+
+          // 12UL
+          | EUInt64(_, (intPartRange, _), suffixPartRange) ->
+            [ makeToken intPartRange TokenType.Number
+              makeToken suffixPartRange TokenType.Symbol ]
+
+          // 12Q
+          | EInt128(_, (intPartRange, _), suffixPartRange) ->
+            [ makeToken intPartRange TokenType.Number
+              makeToken suffixPartRange TokenType.Symbol ]
+
+          // 12Z
+          | EUInt128(_, (intPartRange, _), suffixPartRange) ->
             [ makeToken intPartRange TokenType.Number
               makeToken suffixPartRange TokenType.Symbol ]
 

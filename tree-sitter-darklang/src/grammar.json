@@ -245,7 +245,47 @@
         },
         {
           "type": "SYMBOL",
+          "name": "int8_literal"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "uint8_literal"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "int16_literal"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "uint16_literal"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "int32_literal"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "uint32_literal"
+        },
+        {
+          "type": "SYMBOL",
           "name": "int64_literal"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "uint64_literal"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "int128_literal"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "uint128_literal"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "float_literal"
         },
         {
           "type": "SYMBOL",
@@ -591,6 +631,162 @@
         ]
       }
     },
+    "int8_literal": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "digits",
+          "content": {
+            "type": "SYMBOL",
+            "name": "digits"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "suffix",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "y"
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        }
+      ]
+    },
+    "uint8_literal": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "digits",
+          "content": {
+            "type": "SYMBOL",
+            "name": "positive_digits"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "suffix",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "uy"
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        }
+      ]
+    },
+    "int16_literal": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "digits",
+          "content": {
+            "type": "SYMBOL",
+            "name": "digits"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "suffix",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "s"
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        }
+      ]
+    },
+    "uint16_literal": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "digits",
+          "content": {
+            "type": "SYMBOL",
+            "name": "positive_digits"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "suffix",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "us"
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        }
+      ]
+    },
+    "int32_literal": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "digits",
+          "content": {
+            "type": "SYMBOL",
+            "name": "digits"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "suffix",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "l"
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        }
+      ]
+    },
+    "uint32_literal": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "digits",
+          "content": {
+            "type": "SYMBOL",
+            "name": "positive_digits"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "suffix",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "ul"
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        }
+      ]
+    },
     "int64_literal": {
       "type": "SEQ",
       "members": [
@@ -617,9 +813,108 @@
         }
       ]
     },
+    "uint64_literal": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "digits",
+          "content": {
+            "type": "SYMBOL",
+            "name": "positive_digits"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "suffix",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "UL"
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        }
+      ]
+    },
+    "int128_literal": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "digits",
+          "content": {
+            "type": "SYMBOL",
+            "name": "digits"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "suffix",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "Q"
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        }
+      ]
+    },
+    "uint128_literal": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "digits",
+          "content": {
+            "type": "SYMBOL",
+            "name": "positive_digits"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "suffix",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "Z"
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        }
+      ]
+    },
     "digits": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "positive_digits"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "negative_digits"
+        }
+      ]
+    },
+    "negative_digits": {
+      "type": "PATTERN",
+      "value": "-\\d+"
+    },
+    "positive_digits": {
       "type": "PATTERN",
       "value": "\\d+"
+    },
+    "float_literal": {
+      "type": "PATTERN",
+      "value": "-?\\d+\\.\\d+"
     },
     "type_reference": {
       "type": "CHOICE",
@@ -647,7 +942,43 @@
         },
         {
           "type": "PATTERN",
+          "value": "Int8"
+        },
+        {
+          "type": "PATTERN",
+          "value": "UInt8"
+        },
+        {
+          "type": "PATTERN",
+          "value": "Int16"
+        },
+        {
+          "type": "PATTERN",
+          "value": "UInt16"
+        },
+        {
+          "type": "PATTERN",
+          "value": "Int32"
+        },
+        {
+          "type": "PATTERN",
+          "value": "UInt32"
+        },
+        {
+          "type": "PATTERN",
           "value": "Int64"
+        },
+        {
+          "type": "PATTERN",
+          "value": "UInt64"
+        },
+        {
+          "type": "PATTERN",
+          "value": "Int128"
+        },
+        {
+          "type": "PATTERN",
+          "value": "UInt128"
         },
         {
           "type": "PATTERN",
@@ -660,6 +991,14 @@
         {
           "type": "PATTERN",
           "value": "String"
+        },
+        {
+          "type": "PATTERN",
+          "value": "DateTime"
+        },
+        {
+          "type": "PATTERN",
+          "value": "Uuid"
         }
       ]
     },

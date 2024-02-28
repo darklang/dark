@@ -72,8 +72,9 @@ Bool.and true false
 ---
 
 (source_file
-  (ERROR (symbol))
-  (expression (variable_identifier))
+  (ERROR
+    (symbol)
+    (UNEXPECTED 'a'))
   (expression (bool_literal))
   (expression (bool_literal))
 )

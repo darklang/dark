@@ -177,8 +177,44 @@ module Darklang =
               (WrittenTypes.TypeReference.Builtin.TBool node.sourceRange)
               |> Stdlib.Result.Result.Ok
 
+            | "Int8" ->
+              (WrittenTypes.TypeReference.Builtin.TInt8 node.sourceRange)
+              |> Stdlib.Result.Result.Ok
+
+            | "UInt8" ->
+              (WrittenTypes.TypeReference.Builtin.TUInt8 node.sourceRange)
+              |> Stdlib.Result.Result.Ok
+
+            | "Int16" ->
+              (WrittenTypes.TypeReference.Builtin.TInt16 node.sourceRange)
+              |> Stdlib.Result.Result.Ok
+
+            | "UInt16" ->
+              (WrittenTypes.TypeReference.Builtin.TUInt16 node.sourceRange)
+              |> Stdlib.Result.Result.Ok
+
+            | "Int32" ->
+              (WrittenTypes.TypeReference.Builtin.TInt32 node.sourceRange)
+              |> Stdlib.Result.Result.Ok
+
+            | "UInt32" ->
+              (WrittenTypes.TypeReference.Builtin.TUInt32 node.sourceRange)
+              |> Stdlib.Result.Result.Ok
+
             | "Int64" ->
               (WrittenTypes.TypeReference.Builtin.TInt64 node.sourceRange)
+              |> Stdlib.Result.Result.Ok
+
+            | "UInt64" ->
+              (WrittenTypes.TypeReference.Builtin.TUInt64 node.sourceRange)
+              |> Stdlib.Result.Result.Ok
+
+            | "Int128" ->
+              (WrittenTypes.TypeReference.Builtin.TInt128 node.sourceRange)
+              |> Stdlib.Result.Result.Ok
+
+            | "UInt128" ->
+              (WrittenTypes.TypeReference.Builtin.TUInt128 node.sourceRange)
               |> Stdlib.Result.Result.Ok
 
             | "Float" ->
@@ -334,37 +370,129 @@ module Darklang =
             |> Stdlib.Result.Result.Error
 
 
-        let parseInt64Literal
+        let parseIntLiteral
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          if node.typ == "int64_literal" then
+          let supportedInts =
+            [ "int8_literal"
+              "uint8_literal"
+              "int16_literal"
+              "uint16_literal"
+              "int32_literal"
+              "uint32_literal"
+              "int64_literal"
+              "uint64_literal"
+              "int128_literal"
+              "uint128_literal" ]
+
+          if Stdlib.List.member_v0 supportedInts node.typ then
             let intPart =
               (findNodeByFieldName node "digits")
-              |> Stdlib.Option.toResult "No digits node found in int64_literal"
+              |> Stdlib.Option.toResult "No digits node found in int_literal"
 
             let suffixPart =
               (findNodeByFieldName node "suffix")
-              |> Stdlib.Option.toResult "No suffix node found in int64_literal"
+              |> Stdlib.Option.toResult "No suffix node found in int_literal"
 
             match intPart, suffixPart with
             | Ok intPart, Ok suffixPart ->
               let intText = getText intPart
 
-              match Stdlib.Int64.parse intText with
-              | Ok i ->
-                (WrittenTypes.Expr.EInt64(
-                  node.sourceRange,
-                  (intPart.sourceRange, i),
-                  suffixPart.sourceRange
-                ))
-                |> Stdlib.Result.Result.Ok
+              let parsedResult =
+                match node.typ with
+                | "int8_literal" ->
+                  (Stdlib.Int8.parse intText)
+                  |> Stdlib.Result.map (fun i ->
+                    WrittenTypes.Expr.EInt8(
+                      node.sourceRange,
+                      (intPart.sourceRange, i),
+                      suffixPart.sourceRange
+                    ))
+                | "uint8_literal" ->
+                  (Stdlib.UInt8.parse intText)
+                  |> Stdlib.Result.map (fun i ->
+                    WrittenTypes.Expr.EUInt8(
+                      node.sourceRange,
+                      (intPart.sourceRange, i),
+                      suffixPart.sourceRange
+                    ))
+                | "int16_literal" ->
+                  (Stdlib.Int16.parse intText)
+                  |> Stdlib.Result.map (fun i ->
+                    WrittenTypes.Expr.EInt16(
+                      node.sourceRange,
+                      (intPart.sourceRange, i),
+                      suffixPart.sourceRange
+                    ))
+                | "uint16_literal" ->
+                  (Stdlib.UInt16.parse intText)
+                  |> Stdlib.Result.map (fun i ->
+                    WrittenTypes.Expr.EUInt16(
+                      node.sourceRange,
+                      (intPart.sourceRange, i),
+                      suffixPart.sourceRange
+                    ))
+                | "int32_literal" ->
+                  (Stdlib.Int32.parse intText)
+                  |> Stdlib.Result.map (fun i ->
+                    WrittenTypes.Expr.EInt32(
+                      node.sourceRange,
+                      (intPart.sourceRange, i),
+                      suffixPart.sourceRange
+                    ))
+                | "uint32_literal" ->
+                  (Stdlib.UInt32.parse intText)
+                  |> Stdlib.Result.map (fun i ->
+                    WrittenTypes.Expr.EUInt32(
+                      node.sourceRange,
+                      (intPart.sourceRange, i),
+                      suffixPart.sourceRange
+                    ))
+                | "int64_literal" ->
+                  (Stdlib.Int64.parse intText)
+                  |> Stdlib.Result.map (fun i ->
+                    WrittenTypes.Expr.EInt64(
+                      node.sourceRange,
+                      (intPart.sourceRange, i),
+                      suffixPart.sourceRange
+                    ))
+                | "uint64_literal" ->
+                  (Stdlib.UInt64.parse intText)
+                  |> Stdlib.Result.map (fun i ->
+                    WrittenTypes.Expr.EUInt64(
+                      node.sourceRange,
+                      (intPart.sourceRange, i),
+                      suffixPart.sourceRange
+                    ))
+                | "int128_literal" ->
+                  (Stdlib.Int128.parse intText)
+                  |> Stdlib.Result.map (fun i ->
+                    WrittenTypes.Expr.EInt128(
+                      node.sourceRange,
+                      (intPart.sourceRange, i),
+                      suffixPart.sourceRange
+                    ))
+                | "uint128_literal" ->
+                  (Stdlib.UInt128.parse intText)
+                  |> Stdlib.Result.map (fun i ->
+                    WrittenTypes.Expr.EUInt128(
+                      node.sourceRange,
+                      (intPart.sourceRange, i),
+                      suffixPart.sourceRange
+                    ))
+                | _ ->
+                  (WrittenTypes.Unparseable { source = node })
+                  |> Stdlib.Result.Result.Error
+
+              match parsedResult with
+              | Ok expr -> Stdlib.Result.Result.Ok expr
               | Error _ ->
+                Stdlib.Result.Result.Error(
+                  WrittenTypes.Unparseable { source = node }
+                )
+              | _ ->
                 (WrittenTypes.Unparseable { source = node })
                 |> Stdlib.Result.Result.Error
-
-            | _ ->
-              (WrittenTypes.Unparseable { source = node })
-              |> Stdlib.Result.Result.Error
 
           else
             (WrittenTypes.Unparseable { source = node })
@@ -585,7 +713,16 @@ module Darklang =
           | "unit" ->
             (WrittenTypes.Expr.EUnit node.sourceRange) |> Stdlib.Result.Result.Ok
           | "bool_literal" -> parseBoolLiteral node
-          | "int64_literal" -> parseInt64Literal node
+          | "int8_literal" -> parseIntLiteral node
+          | "uint8_literal" -> parseIntLiteral node
+          | "int16_literal" -> parseIntLiteral node
+          | "uint16_literal" -> parseIntLiteral node
+          | "int32_literal" -> parseIntLiteral node
+          | "uint32_literal" -> parseIntLiteral node
+          | "int64_literal" -> parseIntLiteral node
+          | "uint64_literal" -> parseIntLiteral node
+          | "int128_literal" -> parseIntLiteral node
+          | "uint128_literal" -> parseIntLiteral node
           | "string_literal" -> parseStringLiteral node
 
           // assigning and accessing variables
