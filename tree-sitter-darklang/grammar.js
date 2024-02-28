@@ -148,6 +148,7 @@ module.exports = grammar({
         ),
       ),
 
+    //CLEANUP: we are using .NET suffixes for integers (e.g. `1L` for Int64) temporarily until we remove the old parser.
     int8_literal: $ =>
       seq(field("digits", $.digits), field("suffix", alias("y", $.symbol))),
 
