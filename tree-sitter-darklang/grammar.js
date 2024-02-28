@@ -55,7 +55,17 @@ module.exports = grammar({
         $.paren_expression,
         $.unit,
         $.bool_literal,
+        $.int8_literal,
+        $.uint8_literal,
+        $.int16_literal,
+        $.uint16_literal,
+        $.int32_literal,
+        $.uint32_literal,
         $.int64_literal,
+        $.uint64_literal,
+        $.int128_literal,
+        $.uint128_literal,
+        $.float_literal,
         $.string_literal,
 
         $.let_expression,
@@ -138,17 +148,82 @@ module.exports = grammar({
         ),
       ),
 
+    int8_literal: $ =>
+      seq(field("digits", $.digits), field("suffix", alias("y", $.symbol))),
+
+    uint8_literal: $ =>
+      seq(
+        field("digits", $.positive_digits),
+        field("suffix", alias("uy", $.symbol)),
+      ),
+
+    int16_literal: $ =>
+      seq(field("digits", $.digits), field("suffix", alias("s", $.symbol))),
+
+    uint16_literal: $ =>
+      seq(
+        field("digits", $.positive_digits),
+        field("suffix", alias("us", $.symbol)),
+      ),
+
+    int32_literal: $ =>
+      seq(field("digits", $.digits), field("suffix", alias("l", $.symbol))),
+
+    uint32_literal: $ =>
+      seq(
+        field("digits", $.positive_digits),
+        field("suffix", alias("ul", $.symbol)),
+      ),
+
     int64_literal: $ =>
       seq(field("digits", $.digits), field("suffix", alias("L", $.symbol))),
 
-    digits: $ => /\d+/,
+    uint64_literal: $ =>
+      seq(
+        field("digits", $.positive_digits),
+        field("suffix", alias("UL", $.symbol)),
+      ),
+
+    int128_literal: $ =>
+      seq(field("digits", $.digits), field("suffix", alias("Q", $.symbol))),
+
+    uint128_literal: $ =>
+      seq(
+        field("digits", $.positive_digits),
+        field("suffix", alias("Z", $.symbol)),
+      ),
+
+    // digits: $ => /-?\d+/,
+    digits: $ => choice($.positive_digits, $.negative_digits),
+    negative_digits: $ => /-\d+/,
+    positive_digits: $ => /\d+/,
+
+    float_literal: $ => /-?\d+\.\d+/,
 
     //
     // Common
     type_reference: $ => choice($.builtin_type, $.qualified_type_name),
 
     builtin_type: $ =>
-      choice(/Unit/, /Bool/, /Int64/, /Float/, /Char/, /String/),
+      choice(
+        /Unit/,
+        /Bool/,
+        /Int8/,
+        /UInt8/,
+        /Int16/,
+        /UInt16/,
+        /Int32/,
+        /UInt32/,
+        /Int64/,
+        /UInt64/,
+        /Int128/,
+        /UInt128/,
+        /Float/,
+        /Char/,
+        /String/,
+        /DateTime/,
+        /Uuid/,
+      ),
 
     //
     // Identifiers

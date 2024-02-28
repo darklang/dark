@@ -29,7 +29,7 @@ TRUE
 ---
 
 (source_file
-  (ERROR (UNEXPECTED 'T'))
+  (ERROR)
 )
 
 
@@ -42,11 +42,7 @@ FALSE
 ---
 
 (source_file
-  (ERROR
-    (UNEXPECTED 'A')
-    (symbol)
-    (UNEXPECTED 'E')
-  )
+  (ERROR)
 )
 
 
@@ -59,8 +55,7 @@ True
 ---
 
 (source_file
-  (ERROR (UNEXPECTED 'T'))
-  (expression (variable_identifier))
+  (ERROR)
 )
 
 ==================
@@ -72,6 +67,5 @@ False
 ---
 
 (source_file
-  (ERROR (UNEXPECTED 'a'))
-  (expression (variable_identifier))
+  (ERROR)
 )

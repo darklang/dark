@@ -227,8 +227,21 @@ module TextToTextRoundtripping =
     ("(true)" |> roundtripCliScript) = "true"
 
     // int literals
+    ("1y" |> roundtripCliScript) = "1y"
+    ("-1y" |> roundtripCliScript) = "-1y"
+    ("1uy" |> roundtripCliScript) = "1uy"
+    ("1s" |> roundtripCliScript) = "1s"
+    ("1us" |> roundtripCliScript) = "1us"
+    ("1l" |> roundtripCliScript) = "1l"
+    ("-1l" |> roundtripCliScript) = "-1l"
+    ("1ul" |> roundtripCliScript) = "1ul"
     ("0L" |> roundtripCliScript) = "0L"
     ("1900L" |> roundtripCliScript) = "1900L"
+    ("-1900L" |> roundtripCliScript) = "-1900L"
+    ("1UL" |> roundtripCliScript) = "1UL"
+    ("1Q" |> roundtripCliScript) = "1Q"
+    ("-1Q" |> roundtripCliScript) = "-1Q"
+    ("1Q" |> roundtripCliScript) = "1Q"
 
     // string literals
     ("\"\"" |> roundtripCliScript) = "\"\""

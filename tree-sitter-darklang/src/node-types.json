@@ -10,6 +10,25 @@
     "fields": {}
   },
   {
+    "type": "digits",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "negative_digits",
+          "named": true
+        },
+        {
+          "type": "positive_digits",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "expression",
     "named": true,
     "fields": {},
@@ -22,6 +41,10 @@
           "named": true
         },
         {
+          "type": "float_literal",
+          "named": true
+        },
+        {
           "type": "function_call",
           "named": true
         },
@@ -30,7 +53,23 @@
           "named": true
         },
         {
+          "type": "int128_literal",
+          "named": true
+        },
+        {
+          "type": "int16_literal",
+          "named": true
+        },
+        {
+          "type": "int32_literal",
+          "named": true
+        },
+        {
           "type": "int64_literal",
+          "named": true
+        },
+        {
+          "type": "int8_literal",
           "named": true
         },
         {
@@ -43,6 +82,26 @@
         },
         {
           "type": "string_literal",
+          "named": true
+        },
+        {
+          "type": "uint128_literal",
+          "named": true
+        },
+        {
+          "type": "uint16_literal",
+          "named": true
+        },
+        {
+          "type": "uint32_literal",
+          "named": true
+        },
+        {
+          "type": "uint64_literal",
+          "named": true
+        },
+        {
+          "type": "uint8_literal",
           "named": true
         },
         {
@@ -295,7 +354,111 @@
     }
   },
   {
+    "type": "int128_literal",
+    "named": true,
+    "fields": {
+      "digits": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "digits",
+            "named": true
+          }
+        ]
+      },
+      "suffix": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "int16_literal",
+    "named": true,
+    "fields": {
+      "digits": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "digits",
+            "named": true
+          }
+        ]
+      },
+      "suffix": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "int32_literal",
+    "named": true,
+    "fields": {
+      "digits": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "digits",
+            "named": true
+          }
+        ]
+      },
+      "suffix": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "int64_literal",
+    "named": true,
+    "fields": {
+      "digits": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "digits",
+            "named": true
+          }
+        ]
+      },
+      "suffix": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "int8_literal",
     "named": true,
     "fields": {
       "digits": {
@@ -608,6 +771,136 @@
     }
   },
   {
+    "type": "uint128_literal",
+    "named": true,
+    "fields": {
+      "digits": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "positive_digits",
+            "named": true
+          }
+        ]
+      },
+      "suffix": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "uint16_literal",
+    "named": true,
+    "fields": {
+      "digits": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "positive_digits",
+            "named": true
+          }
+        ]
+      },
+      "suffix": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "uint32_literal",
+    "named": true,
+    "fields": {
+      "digits": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "positive_digits",
+            "named": true
+          }
+        ]
+      },
+      "suffix": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "uint64_literal",
+    "named": true,
+    "fields": {
+      "digits": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "positive_digits",
+            "named": true
+          }
+        ]
+      },
+      "suffix": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "uint8_literal",
+    "named": true,
+    "fields": {
+      "digits": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "positive_digits",
+            "named": true
+          }
+        ]
+      },
+      "suffix": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "variable_identifier",
     "named": true,
     "fields": {}
@@ -617,7 +910,7 @@
     "named": false
   },
   {
-    "type": "digits",
+    "type": "float_literal",
     "named": true
   },
   {
@@ -625,7 +918,15 @@
     "named": true
   },
   {
+    "type": "negative_digits",
+    "named": true
+  },
+  {
     "type": "operator",
+    "named": true
+  },
+  {
+    "type": "positive_digits",
     "named": true
   },
   {

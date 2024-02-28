@@ -7,8 +7,74 @@ unsupported plain integer
 ---
 
 (source_file
-  (ERROR (digits))
+  (ERROR (positive_digits))
 )
+
+
+==================
+int8 literal
+==================
+
+-1y
+
+---
+
+(source_file (expression (int8_literal (digits (negative_digits)) (symbol))))
+
+
+==================
+uint8 literal
+==================
+
+1uy
+
+---
+
+(source_file (expression (uint8_literal (positive_digits) (symbol))))
+
+
+==================
+int16 literal
+==================
+
+1s
+
+---
+
+(source_file (expression (int16_literal (digits (positive_digits)) (symbol))))
+
+
+==================
+uint16 literal
+==================
+
+1us
+
+---
+
+(source_file (expression (uint16_literal (positive_digits) (symbol))))
+
+
+==================
+int32 literal
+==================
+
+-1l
+
+---
+
+(source_file (expression (int32_literal (digits (negative_digits)) (symbol))))
+
+
+==================
+uint32 literal
+==================
+
+1ul
+
+---
+
+(source_file (expression (uint32_literal (positive_digits) (symbol))))
 
 
 ==================
@@ -19,7 +85,40 @@ int64 literal (.net style)
 
 ---
 
-(source_file (expression (int64_literal (digits) (symbol))))
+(source_file (expression (int64_literal (digits (positive_digits)) (symbol))))
+
+
+==================
+uint64 literal
+==================
+
+1UL
+
+---
+
+(source_file (expression (uint64_literal (positive_digits) (symbol))))
+
+
+==================
+int128 literal
+==================
+
+-1Q
+
+---
+
+(source_file (expression (int128_literal (digits (negative_digits)) (symbol))))
+
+
+==================
+uint128 literal
+==================
+
+1Z
+
+---
+
+(source_file (expression (uint128_literal (positive_digits) (symbol))))
 
 
 ==================
@@ -30,4 +129,4 @@ int64 literal (.net style)
 
 ---
 
-(source_file (expression (int64_literal (digits) (symbol))))
+(source_file (expression (int64_literal (digits (positive_digits)) (symbol))))

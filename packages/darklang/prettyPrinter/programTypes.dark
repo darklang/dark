@@ -700,14 +700,14 @@ module Darklang =
         | EBool(_id, b) -> PACKAGE.Darklang.Stdlib.Bool.toString b
         | EInt64(_id, i) -> (PACKAGE.Darklang.Stdlib.Int64.toString i) ++ "L"
         | EUInt64(_id, i) -> (PACKAGE.Darklang.Stdlib.UInt64.toString i) ++ "UL"
-        | EInt8(_id, i) -> PACKAGE.Darklang.Stdlib.Int8.toString i
-        | EUInt8(_id, i) -> PACKAGE.Darklang.Stdlib.UInt8.toString i
-        | EInt16(_id, i) -> PACKAGE.Darklang.Stdlib.Int16.toString i
-        | EUInt16(_id, i) -> PACKAGE.Darklang.Stdlib.UInt16.toString i
-        | EInt32(_id, i) -> PACKAGE.Darklang.Stdlib.Int32.toString i
-        | EUInt32(_id, i) -> PACKAGE.Darklang.Stdlib.UInt32.toString i
-        | EInt128(_id, i) -> PACKAGE.Darklang.Stdlib.Int128.toString i
-        | EUInt128(_id, i) -> PACKAGE.Darklang.Stdlib.UInt128.toString i
+        | EInt8(_id, i) -> PACKAGE.Darklang.Stdlib.Int8.toString i ++ "y"
+        | EUInt8(_id, i) -> PACKAGE.Darklang.Stdlib.UInt8.toString i ++ "uy"
+        | EInt16(_id, i) -> PACKAGE.Darklang.Stdlib.Int16.toString i ++ "s"
+        | EUInt16(_id, i) -> PACKAGE.Darklang.Stdlib.UInt16.toString i ++ "us"
+        | EInt32(_id, i) -> PACKAGE.Darklang.Stdlib.Int32.toString i ++ "l"
+        | EUInt32(_id, i) -> PACKAGE.Darklang.Stdlib.UInt32.toString i ++ "ul"
+        | EInt128(_id, i) -> PACKAGE.Darklang.Stdlib.Int128.toString i ++ "Q"
+        | EUInt128(_id, i) -> PACKAGE.Darklang.Stdlib.UInt128.toString i ++ "Z"
 
         | EFloat(_id, sign, whole, remainder) ->
           let signPart = PACKAGE.Darklang.PrettyPrinter.sign sign
