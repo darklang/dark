@@ -10,11 +10,7 @@ module TS = LibTreeSitter_FS.TreeSitter
 [<Serializable>]
 type TreeSitterException =
   inherit Exception
-  new() = { inherit Exception() }
   new(message : string) = { inherit Exception(message) }
-  new(message : string, inner : Exception) = { inherit Exception(message, inner) }
-  new(info : SerializationInfo, context : StreamingContext) =
-    { inherit Exception(info, context) }
 
 type Point =
   { Row : int
