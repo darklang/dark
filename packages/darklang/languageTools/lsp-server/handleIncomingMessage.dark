@@ -1,9 +1,6 @@
 module Darklang =
   module LanguageTools =
     module LspServer =
-      /// This is how we handle incoming requests from the client.
-      ///
-      /// (this is the core of Darklang's LSP server)
       let convertParserRangeToLspRange
         (range: Parser.Range)
         : LanguageServerProtocol.Range.Range =
@@ -66,7 +63,9 @@ module Darklang =
           (diagnosticsJson |> Stdlib.Option.Option.Some))
         |> logAndSendToClient
 
-
+      /// This is how we handle incoming requests from the client.
+      ///
+      /// (this is the core of Darklang's LSP server)
       let handleIncomingMessage
         (state: LspState)
         (r: JsonRPC.Request.Request)
@@ -121,30 +120,9 @@ module Darklang =
             // TODO: log more than just the method
             state
 
-        let uri =
-          match r.params with
-          | Some(Object p) ->
-            match
-              Stdlib.List.findFirst p (fun (key, _) -> key == "textDocument")
-            with
-            | Some(("textDocument", Object innerList)) ->
-              match
-                Stdlib.List.findFirst innerList (fun (key, _) -> key == "uri")
-              with
-              | Some(("uri", String uriValue)) -> uriValue
-              | _ -> ""
-            | _ -> ""
-          | _ -> ""
-
-
-        let document = (Stdlib.Dict.get state.documentsInScope uri)
-
-        match document with
-        | None -> ()
-        | Some document ->
-          let parsed = document.parsed
-
-          match parsed with
+        state.documentsInScope
+        |> Stdlib.Dict.iter (fun uri document ->
+          match document.parsed with
           | Ok parsedFile ->
             match parsedFile with
             | CliScript parsed when parsed.unparseableStuff != [] ->
@@ -156,8 +134,7 @@ module Darklang =
                     "Couldn't parse this part of the file")
 
               sendDiagnostic uri diagnostics
-
             | _ -> ()
-          | _ -> ()
+          | _ -> ())
 
         currentState
