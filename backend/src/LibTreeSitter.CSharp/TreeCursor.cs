@@ -1,8 +1,8 @@
 using System;
 using System.Runtime.InteropServices;
-using LibTreeSitter.Native;
+using LibTreeSitter.CSharp.Native;
 
-namespace LibTreeSitter
+namespace LibTreeSitter.CSharp
 {
   public class TreeCursor : IDisposable
   {

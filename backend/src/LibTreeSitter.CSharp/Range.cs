@@ -1,4 +1,4 @@
-namespace LibTreeSitter
+namespace LibTreeSitter.CSharp
 {
   public class Range
   {

@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace LibTreeSitter.Native
+namespace LibTreeSitter.CSharp.Native
 {
   internal enum TsInputEncoding
   {

@@ -1,8 +1,8 @@
 using System;
 using System.Runtime.InteropServices;
-using static LibTreeSitter.Native.Native;
+using static LibTreeSitter.CSharp.Native.Native;
 
-namespace LibTreeSitter
+namespace LibTreeSitter.CSharp
 {
   public class Language
   {

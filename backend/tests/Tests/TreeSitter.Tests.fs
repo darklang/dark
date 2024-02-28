@@ -6,8 +6,8 @@ open Expecto
 open Prelude
 open TestUtils.TestUtils
 open System.Text
-open LibTreeSitter
-open LibTreeSitter.Darklang
+open LibTreeSitter.CSharp
+open LibTreeSitter.CSharp.Darklang
 
 let toStringTest =
   testCase "Basic function declaration parse test"

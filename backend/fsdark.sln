@@ -62,9 +62,9 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibPackageManager", "src\Li
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BuiltinCliHost", "src\BuiltinCliHost\BuiltinCliHost.fsproj", "{B199C1DE-48A2-47B4-9672-BCCB7E4F8C78}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibTreeSitter", "src\LibTreeSitter\LibTreeSitter.csproj", "{71C4BF70-671B-469F-9666-F7078899466B}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibTreeSitter.CSharp", "src\LibTreeSitter.CSharp\LibTreeSitter.CSharp.csproj", "{71C4BF70-671B-469F-9666-F7078899466B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LibTreeSitter.Darklang", "src\LibTreeSitter.Darklang\LibTreeSitter.Darklang.csproj", "{63E3C5D8-2760-4A05-A73C-4C7FC8303FFE}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LibTreeSitter.CSharp.Darklang", "src\LibTreeSitter.CSharp.Darklang\LibTreeSitter.CSharp.Darklang.csproj", "{63E3C5D8-2760-4A05-A73C-4C7FC8303FFE}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

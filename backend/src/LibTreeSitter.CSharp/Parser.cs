@@ -5,10 +5,10 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Win32.SafeHandles;
-using LibTreeSitter.Native;
-using static LibTreeSitter.Native.Native;
+using LibTreeSitter.CSharp.Native;
+using static LibTreeSitter.CSharp.Native.Native;
 
-namespace LibTreeSitter
+namespace LibTreeSitter.CSharp
 {
   public class Parser : IDisposable
   {

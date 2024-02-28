@@ -43,8 +43,8 @@
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../LibTreeSitter/LibTreeSitter.csproj" />
-    <ProjectReference Include="../LibTreeSitter.Darklang/LibTreeSitter.Darklang.csproj" />
+    <ProjectReference Include="../LibTreeSitter.CSharp/LibTreeSitter.CSharp.csproj" />
+    <ProjectReference Include="../LibTreeSitter.CSharp.Darklang/LibTreeSitter.CSharp.Darklang.csproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

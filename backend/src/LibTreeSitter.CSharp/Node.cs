@@ -4,10 +4,10 @@ using System.Dynamic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Xml;
-using LibTreeSitter.Native;
-using static LibTreeSitter.Native.Native;
+using LibTreeSitter.CSharp.Native;
+using static LibTreeSitter.CSharp.Native.Native;
 
-namespace LibTreeSitter
+namespace LibTreeSitter.CSharp
 {
   public class Node
   {

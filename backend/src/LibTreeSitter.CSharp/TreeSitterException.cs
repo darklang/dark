@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.Serialization;
 
-namespace LibTreeSitter
+namespace LibTreeSitter.CSharp
 {
   [Serializable]
   public class TreeSitterException : Exception

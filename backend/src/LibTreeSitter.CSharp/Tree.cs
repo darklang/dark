@@ -2,9 +2,9 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
-using static LibTreeSitter.Native.Native;
+using static LibTreeSitter.CSharp.Native.Native;
 
-namespace LibTreeSitter
+namespace LibTreeSitter.CSharp
 {
   public class Tree : IDisposable
   {
