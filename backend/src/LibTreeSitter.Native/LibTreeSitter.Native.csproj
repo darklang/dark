@@ -6,6 +6,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+  </ItemGroup>
+  <ItemGroup>
     <None Update="tree-sitter.so">
       <Pack>True</Pack>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>

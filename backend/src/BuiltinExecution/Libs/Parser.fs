@@ -7,8 +7,8 @@ open System.Text
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
-open LibTreeSitter.CSharp
-open LibTreeSitter.CSharp.Darklang
+open LibTreeSitter.Main
+open LibTreeSitter.Darklang
 
 module VT = ValueType
 module Dval = LibExecution.Dval
@@ -56,7 +56,7 @@ let fns : List<BuiltInFn> =
             let fields =
               let mapPoint (point : Point) =
                 let fields =
-                  [ "row", DInt64 point.Row; "column", DInt64 point.Column ]
+                  [ "row", DInt64 point.row; "column", DInt64 point.column ]
                 DRecord(pointTypeName, pointTypeName, [], Map fields)
 
               let startPos = cursor.Current.StartPosition
@@ -103,7 +103,7 @@ let fns : List<BuiltInFn> =
           let parser = new Parser(Language = DarklangLanguage.Create())
 
           let tree =
-            parser.Parse(Encoding.UTF8.GetBytes sourceCode, InputEncoding.Utf8)
+            parser.Parse(Encoding.UTF8.GetBytes sourceCode, InputEncoding.Utf8, None)
 
           tree.Root.Walk() |> mapNodeAtCursor |> Ply
         | _ -> incorrectArgs ())

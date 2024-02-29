@@ -21,8 +21,8 @@
     <ProjectReference Include="../../src/BuiltinDarkInternal/BuiltinDarkInternal.fsproj" />
     <ProjectReference Include="../../src/QueueWorker/QueueWorker.fsproj" />
     <ProjectReference Include="../../src/LibPackageManager/LibPackageManager.fsproj" />
-    <ProjectReference Include="../../src/LibTreeSitter.CSharp/LibTreeSitter.CSharp.csproj" />
-    <ProjectReference Include="../../src/LibTreeSitter.CSharp.Darklang/LibTreeSitter.CSharp.Darklang.csproj" />
+    <ProjectReference Include="../../src/LibTreeSitter.Native/LibTreeSitter.Native.csproj" />
+    <ProjectReference Include="../../src/LibTreeSitter/LibTreeSitter.fsproj" />
     <ProjectReference Include="../TestUtils/TestUtils.fsproj" />
   </ItemGroup>
   <ItemGroup>

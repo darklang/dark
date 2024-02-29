@@ -1,19 +1,37 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>Library</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <LangVersion>8.0</LangVersion>
-    <!-- Publishing configuration -->
-    <IsPublishable>false</IsPublishable>
-    <IsTrimmable>false</IsTrimmable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+
   <ItemGroup>
     <None Include="paket.references" />
-    <Compile Include="TreeSitter.Native.fs" />
-    <Compile Include="LibTreeSitter_FS.fs" />
   </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
   </ItemGroup>
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
+
+  <!-- tree-sitter .so files -->
+  <ItemGroup>
+    <Content Include="tree-sitter.so">
+      <Pack>True</Pack>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Include="tree-sitter-darklang.so">
+      <Pack>True</Pack>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!-- actual source files -->
+  <ItemGroup>
+    <Compile Include="LibTreeSitter.Native.fs" />
+    <Compile Include="LibTreeSitter.fs" />
+    <Compile Include="LibTreeSitter.Darklang.fs" />
+  </ItemGroup>
 </Project>

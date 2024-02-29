@@ -6,8 +6,9 @@ open Expecto
 open Prelude
 open TestUtils.TestUtils
 open System.Text
-open LibTreeSitter.CSharp
-open LibTreeSitter.CSharp.Darklang
+
+open LibTreeSitter.Main
+open LibTreeSitter.Darklang
 
 let toStringTest =
   testCase "Basic function declaration parse test"
@@ -15,7 +16,7 @@ let toStringTest =
     let parser = new Parser(Language = DarklangLanguage.Create())
     let source = "let increment (i: Int64): Int64 = i + 1L" |> Encoding.UTF8.GetBytes
 
-    let tree = parser.Parse(source, InputEncoding.Utf8)
+    let tree = parser.Parse(source, InputEncoding.Utf8, None)
 
     Expect.equal
       (tree.Root.ToString())

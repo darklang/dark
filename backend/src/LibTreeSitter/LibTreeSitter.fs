@@ -1,97 +1,161 @@
-module rec LibTSParser_FS.LibTreeSitter
+module rec LibTreeSitter.Main
 
 open System
 open System.Runtime.InteropServices
-open System.Runtime.Serialization
-open System.Diagnostics
+open System.Threading
+open System.Threading.Tasks
 
-module TS = LibTreeSitter_FS.TreeSitter
+open LibTreeSitter.Native
 
-[<Serializable>]
-type TreeSitterException =
-  inherit Exception
-  new(message : string) = { inherit Exception(message) }
+type TreeSitterException(message : string) =
+  inherit Exception(message)
 
-type Point =
-  { Row : int
-    Column : int }
+module Seq =
+  let myFinally action sequence =
+    seq {
+      try
+        yield! sequence
+      finally
+        action ()
+    }
 
-  // // Override default equality and comparison
-  // override this.Equals(otherObj) =
-  //   match otherObj with
-  //   | :? Point as other -> this.Row = other.Row && this.Column = other.Column
-  //   | _ -> false
+type InputEncoding =
+  | Utf8 = 0
+  | Utf16 = 1
 
-  // override this.GetHashCode() =
-  //   let prime = 397
-  //   this.Row * prime + this.Column
-
-  // interface System.IComparable<Point> with
-  //   member this.CompareTo(other) =
-  //     if Object.ReferenceEquals(this, other) then
-  //       0
-  //     else
-  //       match this.Row.CompareTo(other.Row) with
-  //       | 0 -> this.Column.CompareTo(other.Column)
-  //       | x -> x
-
-  // For a prettier printout
-  override this.ToString() = sprintf "(%d, %d)" this.Row this.Column
-
-
-type Range = { StartByte : int; EndByte : int; StartPoint : Point; EndPoint : Point }
-
-
-type SymbolType =
-  | Regular = 0
-  | Anonymous = 1
-  | Auxiliary = 2
+type Point = { row : int; column : int }
+type Range = { startPoint : Point; endPoint : Point }
 
 type Language(handle : IntPtr) =
-  let Handle = handle
+  do if handle = IntPtr.Zero then raise (ArgumentNullException "handle")
+  member _.Handle = handle
 
-  // Constructor logic
-  do if handle = IntPtr.Zero then raise (new ArgumentNullException("handle"))
+type Node(handle : TsNode) =
+  static member internal Create(node : TsNode) =
+    //if node.id = IntPtr.Zero then null else
+    Node(node)
 
-  member this.SymbolCount : int = int (TS.Language.ts_language_symbol_count (Handle))
+  member _.Handle = handle
 
-  member this.SymbolName(symbol : uint16) : string =
-    Marshal.PtrToStringAnsi(TS.Language.ts_language_symbol_name (Handle, symbol))
+  member _.Kind = Marshal.PtrToStringAnsi(Native.ts_node_type (handle))
 
-  member this.SymbolForName(name : string, isNamed : bool) : uint16 option =
-    let ptr = Marshal.StringToHGlobalAnsi(name)
-    let id =
-      TS.Language.ts_language_symbol_for_name (
-        Handle,
-        ptr,
-        uint32 name.Length,
-        isNamed
-      )
-    Marshal.FreeHGlobal(ptr)
-    if id = 0us then None else Some id
+  member this.Range =
+    { startPoint = this.StartPosition; endPoint = this.EndPosition }
 
-  member this.FieldCount : int = int (TS.Language.ts_language_field_count (Handle))
+  member _.StartPosition =
+    let res = Native.ts_node_start_point (handle)
+    { row = int res.row; column = int res.column }
 
-  member this.FieldNameForId(fieldId : uint16) : string =
-    Marshal.PtrToStringAnsi(
-      TS.Language.ts_language_field_name_for_id (Handle, fieldId)
-    )
+  member _.EndPosition =
+    let res = Native.ts_node_end_point (handle)
+    { row = int res.row; column = int res.column }
 
-  member this.FieldIdForName(fieldName : string) : uint16 option =
-    let ptr = Marshal.StringToHGlobalAnsi(fieldName)
-    let id =
-      TS.Language.ts_language_field_id_for_name (
-        Handle,
-        ptr,
-        uint32 fieldName.Length
-      )
-    Marshal.FreeHGlobal(ptr)
-    if id = 0us then None else Some id
+  member _.ChildCount = int (Native.ts_node_child_count (handle))
 
-  member this.GetSymbolType(symbol : uint16) : SymbolType =
-    // note: originally this had a whole enum<> casting thing - maybe the match here is bad for some reason
-    match TS.Language.ts_language_symbol_type (Handle, symbol) with
-    | TS.Types.TsSymbolType.Regular -> SymbolType.Regular
-    | TS.Types.TsSymbolType.Anonymous -> SymbolType.Anonymous
-    | TS.Types.TsSymbolType.Auxiliary -> SymbolType.Auxiliary
-    | _ -> failwith "nahjjasdfj"
+  member this.Children =
+    let cursor = new TreeCursor(this)
+
+    cursor.GotoFirstChild() |> ignore
+
+    Seq.init this.ChildCount (fun _ ->
+      let result = cursor.Current
+      cursor.GotoNextSibling() |> ignore
+      result)
+    |> Seq.myFinally (cursor :> IDisposable).Dispose
+
+  override _.ToString() =
+    let cPtr = Native.ts_node_string (handle)
+    try
+      Marshal.PtrToStringAnsi(cPtr)
+    finally
+      Marshal.FreeHGlobal(cPtr)
+
+  member this.Walk() = new TreeCursor(this)
+
+
+type TreeCursor(initial : Node) =
+  let mutable handle = Native.ts_tree_cursor_new (initial.Handle)
+
+  member _.GotoFirstChild() = Native.ts_tree_cursor_goto_first_child (&handle)
+  member _.GotoNextSibling() = Native.ts_tree_cursor_goto_next_sibling (&handle)
+  member _.GotoParent() = Native.ts_tree_cursor_goto_parent (&handle)
+
+  member _.Current = Node.Create(Native.ts_tree_cursor_current_node (&handle))
+
+  member _.FieldName =
+    let ptr = Native.ts_tree_cursor_current_field_name (&handle)
+    if ptr = IntPtr.Zero then null else Marshal.PtrToStringAnsi(ptr)
+
+  interface IDisposable with
+    member _.Dispose() = Native.ts_tree_cursor_delete (&handle)
+
+type Tree(handle : IntPtr) =
+  member _.Root = Node.Create(Native.ts_tree_root_node (handle))
+
+  interface IDisposable with
+    member _.Dispose() = Native.ts_tree_delete (handle)
+
+type Parser() =
+  let handle = Native.ts_parser_new ()
+
+  member _.Language
+    with get () = Language(Native.ts_parser_language (handle))
+    and set (value : Language) =
+      if not (Native.ts_parser_set_language (handle, value.Handle)) then
+        raise (TreeSitterException("Could not set language"))
+
+  member this.Parse(text : string, ct : Option<CancellationToken>) =
+    let bytes = System.Text.Encoding.UTF8.GetBytes(text)
+    this.Parse(bytes, InputEncoding.Utf8, ct)
+
+  member this.Parse
+    (
+      bytes : byte[],
+      encoding : InputEncoding,
+      ct : Option<CancellationToken>
+    ) =
+    let length = uint32 (bytes.Length)
+    let gch = GCHandle.Alloc(bytes, GCHandleType.Pinned)
+    try
+      let ptr = gch.AddrOfPinnedObject()
+      this.ParseInternal(ptr, length, encoding, ct)
+    finally
+      gch.Free()
+
+  member private _.ParseInternal
+    (
+      input : IntPtr,
+      length : uint32,
+      encoding : InputEncoding,
+      ct : Option<CancellationToken>
+    ) =
+    let mutable cancelFlag = 0L
+    let cancelFlagPtr = new IntPtr(cancelFlag) // had & -- ok?
+
+    let encoding =
+      match encoding with
+      | InputEncoding.Utf16 -> TsInputEncoding.Utf16
+      | InputEncoding.Utf8 -> TsInputEncoding.Utf8
+      | _ -> TsInputEncoding.Utf8
+
+    if ct.IsSome then
+      Native.ts_parser_set_cancellation_flag (handle, cancelFlagPtr)
+    try
+      let resultPtr =
+        Native.ts_parser_parse_string_encoding (
+          handle,
+          IntPtr.Zero,
+          input,
+          length,
+          encoding
+        )
+      if resultPtr = IntPtr.Zero then
+        raise (TaskCanceledException("Parsing canceled"))
+      new Tree(resultPtr)
+    finally
+      Native.ts_parser_set_cancellation_flag (handle, IntPtr.Zero)
+
+  interface IDisposable with
+    member this.Dispose() =
+      Native.ts_parser_delete (handle)
+      GC.SuppressFinalize(this)

@@ -170,8 +170,8 @@ jobs:
           name: Setup backend build environment
           command: |
             set -x
-            if [[ -f /home/dark/tree-sitter.so && ! -f /home/dark/app/backend/src/LibTreeSitter.CSharp/tree-sitter.so ]]; then
-              mv /home/dark/tree-sitter.so /home/dark/app/backend/src/LibTreeSitter.CSharp/
+            if [[ -f /home/dark/tree-sitter.so && ! -f /home/dark/app/backend/src/LibTreeSitter.Native/tree-sitter.so ]]; then
+              mv /home/dark/tree-sitter.so /home/dark/app/backend/src/LibTreeSitter.Native/
               else
               echo "No action needed."
             fi
@@ -179,8 +179,8 @@ jobs:
       - persist_to_workspace:
           root: "."
           paths:
-            - backend/src/LibTreeSitter.CSharp.Darklang
-            - backend/src/LibTreeSitter.CSharp
+            - backend/src/LibTreeSitter.Native
+            - backend/src/LibTreeSitter
       - slack-notify-job-failure
 
   # Build server binaries and run tests

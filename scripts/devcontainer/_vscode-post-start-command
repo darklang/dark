@@ -3,9 +3,9 @@
 set -euo pipefail
 
 
-echo "Copying tree-sitter.so (built in Dockerfile) to backend/src/LibTreeSitter.CSharp (to P/Invoke against)"
+echo "Copying tree-sitter.so (built in Dockerfile) to backend/src/LibTreeSitter.Native (to P/Invoke against)"
 TREE_SITTER_SOURCE="/home/dark/tree-sitter.so"
-TREE_SITTER_TARGET="/home/dark/app/backend/src/LibTreeSitter.CSharp/tree-sitter.so"
+TREE_SITTER_TARGET="/home/dark/app/backend/src/LibTreeSitter.Native/tree-sitter.so"
 if [ -e "$TREE_SITTER_SOURCE" ]; then
   mv "$TREE_SITTER_SOURCE" "$TREE_SITTER_TARGET"
 elif [ ! -e "$TREE_SITTER_TARGET" ]; then
