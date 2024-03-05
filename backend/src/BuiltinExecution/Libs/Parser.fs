@@ -7,8 +7,8 @@ open System.Text
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
-open LibTreeSitter
-open LibTreeSitter.Darklang
+open LibTreeSitter.CSharp
+open LibTreeSitter.CSharp.Darklang
 
 module VT = ValueType
 module Dval = LibExecution.Dval

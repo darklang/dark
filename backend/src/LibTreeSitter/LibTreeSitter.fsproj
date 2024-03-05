@@ -9,7 +9,7 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
-    <Compile Include="TreeSitter.fs" />
+    <Compile Include="TreeSitter.Native.fs" />
     <Compile Include="LibTreeSitter_FS.fs" />
   </ItemGroup>
   <ItemGroup>

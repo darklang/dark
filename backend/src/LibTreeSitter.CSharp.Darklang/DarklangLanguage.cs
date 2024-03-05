@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
-namespace LibTreeSitter.Darklang
+namespace LibTreeSitter.CSharp.Darklang
 {
   public static class DarklangLanguage
   {

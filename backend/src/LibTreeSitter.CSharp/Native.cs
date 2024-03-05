@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace LibTreeSitter.Native
+namespace LibTreeSitter.CSharp.Native
 {
   internal enum TsInputEncoding
   {
@@ -80,45 +80,6 @@ namespace LibTreeSitter.Native
   {
     [FieldOffset(0)] public IntPtr tree;
     [FieldOffset(8)] public IntPtr id;
-  }
-
-  [StructLayout(LayoutKind.Sequential)]
-  internal struct TsQueryCapture
-  {
-    public TsNode node;
-    public uint index;
-  }
-
-  [StructLayout(LayoutKind.Sequential)]
-  internal struct TsQueryMatch
-  {
-    public uint id;
-    public ushort pattern_index;
-    public ushort capture_count;
-    public IntPtr captures;
-  }
-
-  public enum TsQueryPredicateStepType
-  {
-    Done,
-    Capture,
-    String,
-  };
-
-  [StructLayout(LayoutKind.Sequential)]
-  public struct TsQueryPredicateStep
-  {
-    TsQueryPredicateStepType type;
-    uint value_id;
-  }
-
-  internal enum TsQueryError
-  {
-    None = 0,
-    Syntax,
-    NodeType,
-    Field,
-    Capture,
   }
 
   internal static class Native

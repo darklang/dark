@@ -1,6 +1,6 @@
 using System;
 
-namespace LibTreeSitter
+namespace LibTreeSitter.CSharp
 {
   public class Point : IComparable<Point>
   {

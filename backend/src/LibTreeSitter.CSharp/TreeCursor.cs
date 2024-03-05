@@ -1,8 +1,8 @@
 using System;
 using System.Runtime.InteropServices;
-using LibTreeSitter.Native;
+using LibTreeSitter.CSharp.Native;
 
-namespace LibTreeSitter
+namespace LibTreeSitter.CSharp
 {
   public class TreeCursor : IDisposable
   {
@@ -11,11 +11,6 @@ namespace LibTreeSitter
     internal TreeCursor(Node initial)
     {
       _native = Native.Native.ts_tree_cursor_new(initial.Handle);
-    }
-
-    public void Reset(Node newNode)
-    {
-      Native.Native.ts_tree_cursor_reset(ref _native, newNode.Handle);
     }
 
     public bool GotoFirstChild()
@@ -34,7 +29,6 @@ namespace LibTreeSitter
     }
 
     public Node Current => Node.Create(Native.Native.ts_tree_cursor_current_node(ref _native));
-    public ushort FieldId => Native.Native.ts_tree_cursor_current_field_id(ref _native);
 
     public string FieldName
     {
