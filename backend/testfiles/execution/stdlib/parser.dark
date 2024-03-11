@@ -252,6 +252,13 @@ module TextToTextRoundtripping =
     ("-1Q" |> roundtripCliScript) = "-1Q"
     ("1Q" |> roundtripCliScript) = "1Q"
 
+    // float literals
+    ("-1.0" |> roundtripCliScript) = "-1.0"
+    ("-1.5" |> roundtripCliScript) = "-1.5"
+    ("1.5" |> roundtripCliScript) = "1.5"
+    ("0.0" |> roundtripCliScript) = "0.0"
+    ("0.775" |> roundtripCliScript) = "0.775"
+
     // string literals
     ("\"\"" |> roundtripCliScript) = "\"\""
     ("\"hello\"" |> roundtripCliScript) = "\"hello\""

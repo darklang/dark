@@ -498,6 +498,46 @@ module Darklang =
             (WrittenTypes.Unparseable { source = node })
             |> Stdlib.Result.Result.Error
 
+        let parseFloatLiteral
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
+          if node.typ == "float_literal" then
+            let floatStr = getText node
+
+            match Stdlib.Float.parse floatStr with
+            | Ok floatValue ->
+              let (sign, whole, remainder) =
+                let (sign, unsignedFloat) =
+                  if Stdlib.String.startsWith floatStr "-" then
+                    (Darklang.LanguageTools.Sign.Negative,
+                     Stdlib.String.dropFirst floatStr 1L)
+                  else
+                    (Darklang.LanguageTools.Sign.Positive, floatStr)
+
+                let parts = Stdlib.String.split unsignedFloat "."
+
+                let whole =
+                  parts |> Stdlib.List.head |> Stdlib.Option.withDefault "0"
+
+                let remainder =
+                  parts
+                  |> Stdlib.List.tail
+                  |> Stdlib.Option.withDefault [ "0" ]
+                  |> Stdlib.List.head
+                  |> Stdlib.Option.withDefault "0"
+
+                (sign, whole, remainder)
+
+
+              (WrittenTypes.Expr.EFloat(node.sourceRange, sign, whole, remainder))
+              |> Stdlib.Result.Result.Ok
+
+            | Error _ ->
+              Stdlib.Result.Result.Error(WrittenTypes.Unparseable { source = node })
+
+          else
+            Stdlib.Result.Result.Error(WrittenTypes.Unparseable { source = node })
+
 
         let parseStringLiteral
           (node: ParsedNode)
@@ -723,6 +763,7 @@ module Darklang =
           | "uint64_literal" -> parseIntLiteral node
           | "int128_literal" -> parseIntLiteral node
           | "uint128_literal" -> parseIntLiteral node
+          | "float_literal" -> parseFloatLiteral node
           | "string_literal" -> parseStringLiteral node
 
           // assigning and accessing variables

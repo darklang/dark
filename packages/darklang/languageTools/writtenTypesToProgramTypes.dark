@@ -163,7 +163,7 @@ module Darklang =
           | EUInt64(_, (_, i), _) -> ProgramTypes.Expr.EUInt64(gid (), i)
           | EInt128(_, (_, i), _) -> ProgramTypes.Expr.EInt128(gid (), i)
           | EUInt128(_, (_, i), _) -> ProgramTypes.Expr.EUInt128(gid (), i)
-          | EFloat(_, (_, f), _) -> ProgramTypes.Expr.EFloat(gid (), f)
+          | EFloat(_, s, w, f) -> ProgramTypes.Expr.EFloat(gid (), s, w, f)
           | EString(_, contents, _, _) ->
             match contents with
             | None -> ProgramTypes.Expr.EString(gid (), [])

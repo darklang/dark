@@ -194,12 +194,10 @@ module.exports = grammar({
         field("suffix", alias("Z", $.symbol)),
       ),
 
-    // digits: $ => /-?\d+/,
+    float_literal: $ => /[+-]?[0-9]+\.[0-9]+/,
     digits: $ => choice($.positive_digits, $.negative_digits),
     negative_digits: $ => /-\d+/,
     positive_digits: $ => /\d+/,
-
-    float_literal: $ => /-?\d+\.\d+/,
 
     //
     // Common
