@@ -529,11 +529,7 @@ module Darklang =
                 (sign, whole, remainder)
 
 
-              (WrittenTypes.Expr.EFloat(
-                node.sourceRange,
-                sign,
-                whole,
-                remainder))
+              (WrittenTypes.Expr.EFloat(node.sourceRange, sign, whole, remainder))
               |> Stdlib.Result.Result.Ok
 
             | Error _ ->
