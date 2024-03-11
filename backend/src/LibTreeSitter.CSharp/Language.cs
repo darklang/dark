@@ -1,19 +1,17 @@
 using System;
-using System.Runtime.InteropServices;
-using static LibTreeSitter.CSharp.Native.Native;
 
 namespace LibTreeSitter.CSharp
 {
   public class Language
   {
-    internal IntPtr Handle;
+    internal IntPtr _handle;
 
     public Language(IntPtr handle)
     {
       if (handle == IntPtr.Zero)
         throw new ArgumentNullException(nameof(handle));
 
-      Handle = handle;
+      _handle = handle;
     }
   }
 }

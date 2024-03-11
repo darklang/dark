@@ -5,10 +5,37 @@
     <LangVersion>7.3</LangVersion>
   </PropertyGroup>
 
+  <!--
+    Embed `tree-sitter` along with any build artifacts,
+    to be extracted (to a temp dir)
+    and P/Invoke'd against at run-time.
+
+    We must embed the _correct_ `tree-sitter` native library,
+    per the runtime identifier of the current build.
+
+    This setup must match the list of runtime identifiers in
+    `build-release-cli-exes.sh`! Otherwise we'll fail to include
+    the correct native library for the relevant runtime.
+  -->
+  <PropertyGroup>
+    <RuntimeIdentifiers>linux-x64;linux-musl-x64;linux-arm64;linux-arm;osx-x64;osx-arm64</RuntimeIdentifiers>
+  </PropertyGroup>
+  <Target Name="PrintRuntimeIdentifier" BeforeTargets="CoreCompile">
+    <Message Importance="high" Text="RuntimeIdentifier is '$(RuntimeIdentifier)'" />
+  </Target>
   <ItemGroup>
-    <None Update="lib/tree-sitter-linux-x64.so" LogicalName="tree-sitter.so">
-      <Pack>True</Pack>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
+    <!-- Default, based on our devcontainer's setup -->
+    <EmbeddedResource Condition="'$(RuntimeIdentifier)' == ''" Include="lib/tree-sitter-linux-x64.so" LogicalName="tree-sitter.so"/>
+
+    <EmbeddedResource Condition="'$(RuntimeIdentifier)' == 'linux-x64'" Include="lib/tree-sitter-linux-x64.so" LogicalName="tree-sitter.so"/>
+    <EmbeddedResource Condition="'$(RuntimeIdentifier)' == 'linux-musl-x64'" Include="lib/tree-sitter-linux-musl-x64.so" LogicalName="tree-sitter.so"/>
+    <EmbeddedResource Condition="'$(RuntimeIdentifier)' == 'linux-arm64'" Include="lib/tree-sitter-linux-arm64.so" LogicalName="tree-sitter.so"/>
+    <EmbeddedResource Condition="'$(RuntimeIdentifier)' == 'linux-arm'" Include="lib/tree-sitter-linux-arm.so" LogicalName="tree-sitter.so"/>
+    <EmbeddedResource Condition="'$(RuntimeIdentifier)' == 'osx-x64'" Include="lib/tree-sitter-macos-x64.dylib" LogicalName="tree-sitter.dylib"/>
+    <EmbeddedResource Condition="'$(RuntimeIdentifier)' == 'osx-arm64'" Include="lib/tree-sitter-macos-arm64.dylib" LogicalName="tree-sitter.dylib"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LibTreeSitter\LibTreeSitter.fsproj" />
   </ItemGroup>
 </Project>

@@ -1,47 +1,46 @@
 using System;
 using System.Runtime.InteropServices;
-using LibTreeSitter.CSharp.Native;
 
 namespace LibTreeSitter.CSharp
 {
   public class TreeCursor : IDisposable
   {
-    private TsTreeCursor _native;
+    private Native.TsTreeCursor _handle;
 
     internal TreeCursor(Node initial)
     {
-      _native = Native.Native.ts_tree_cursor_new(initial.Handle);
+      _handle = Native.ts_tree_cursor_new(initial._handle);
     }
 
     public bool GotoFirstChild()
     {
-      return Native.Native.ts_tree_cursor_goto_first_child(ref _native);
+      return Native.ts_tree_cursor_goto_first_child(ref _handle);
     }
 
     public bool GotoNextSibling()
     {
-      return Native.Native.ts_tree_cursor_goto_next_sibling(ref _native);
+      return Native.ts_tree_cursor_goto_next_sibling(ref _handle);
     }
 
     public bool GotoParent()
     {
-      return Native.Native.ts_tree_cursor_goto_parent(ref _native);
+      return Native.ts_tree_cursor_goto_parent(ref _handle);
     }
 
-    public Node Current => Node.Create(Native.Native.ts_tree_cursor_current_node(ref _native));
+    public Node Current => Node.Create(Native.ts_tree_cursor_current_node(ref _handle));
 
     public string FieldName
     {
       get
       {
-        var ptr = Native.Native.ts_tree_cursor_current_field_name(ref _native);
+        var ptr = Native.ts_tree_cursor_current_field_name(ref _handle);
         return ptr == IntPtr.Zero ? null : Marshal.PtrToStringAnsi(ptr);
       }
     }
 
     public void Dispose()
     {
-      Native.Native.ts_tree_cursor_delete(ref _native);
+      Native.ts_tree_cursor_delete(ref _handle);
     }
   }
 }

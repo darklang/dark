@@ -2,8 +2,6 @@ using System;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using LibTreeSitter.CSharp.Native;
-using static LibTreeSitter.CSharp.Native.Native;
 
 namespace LibTreeSitter.CSharp
 {
@@ -16,7 +14,7 @@ namespace LibTreeSitter.CSharp
     /// </summary>
     public Parser()
     {
-      _handle = ts_parser_new();
+      _handle = Native.ts_parser_new();
     }
 
     /// <summary>
@@ -30,10 +28,10 @@ namespace LibTreeSitter.CSharp
     {
       set
       {
-        if (!ts_parser_set_language(_handle, value.Handle))
+        if (!Native.ts_parser_set_language(_handle, value._handle))
           throw new TreeSitterException("Could not set language");
       }
-      get => new Language(ts_parser_language(_handle));
+      get => new Language(Native.ts_parser_language(_handle));
     }
 
     /// <summary>
@@ -79,18 +77,18 @@ namespace LibTreeSitter.CSharp
       if (token is CancellationToken ct)
       {
         var cancelFlagPtr = &cancelFlag;
-        ts_parser_set_cancellation_flag(_handle, new IntPtr(cancelFlagPtr));
+        Native.ts_parser_set_cancellation_flag(_handle, new IntPtr(cancelFlagPtr));
         registration = ct.Register(() => *cancelFlagPtr = 1);
       }
 
       try
       {
-        var result = ts_parser_parse_string_encoding(
+        var result = Native.ts_parser_parse_string_encoding(
             _handle,
             IntPtr.Zero,
             input,
             length,
-            (TsInputEncoding)encoding
+            (Native.TsInputEncoding)encoding
         );
 
         if (result == IntPtr.Zero)
@@ -100,7 +98,7 @@ namespace LibTreeSitter.CSharp
       }
       finally
       {
-        ts_parser_set_cancellation_flag(_handle, IntPtr.Zero);
+        Native.ts_parser_set_cancellation_flag(_handle, IntPtr.Zero);
         registration?.Dispose();
       }
     }
@@ -111,8 +109,8 @@ namespace LibTreeSitter.CSharp
     /// </summary>
     public TimeSpan Timeout
     {
-      get => TimeSpan.FromMilliseconds(ts_parser_timeout_micros(_handle) / 1000.0);
-      set => ts_parser_set_timeout_micros(_handle, (ulong)(value.TotalMilliseconds * 1000));
+      get => TimeSpan.FromMilliseconds(Native.ts_parser_timeout_micros(_handle) / 1000.0);
+      set => Native.ts_parser_set_timeout_micros(_handle, (ulong)(value.TotalMilliseconds * 1000));
     }
 
     /// <summary>
@@ -120,13 +118,13 @@ namespace LibTreeSitter.CSharp
     /// </summary>
     public void Dispose()
     {
-      ts_parser_delete(_handle);
+      Native.ts_parser_delete(_handle);
       GC.SuppressFinalize(this);
     }
 
     ~Parser()
     {
-      ts_parser_delete(_handle);
+      Native.ts_parser_delete(_handle);
     }
   }
 

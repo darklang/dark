@@ -10,7 +10,6 @@
   <ItemGroup>
     <None Include="paket.references" />
     <Compile Include="TreeSitter.Native.fs" />
-    <Compile Include="LibTreeSitter_FS.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />

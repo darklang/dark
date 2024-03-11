@@ -45,10 +45,19 @@
   <ItemGroup>
     <None Include="paket.references" />
   </ItemGroup>
+  <Target Name="PrintRuntimeIdentifierCli" BeforeTargets="BeforeBuild">
+    <Message Importance="high" Text="RuntimeIdentifier in Cli is '$(RuntimeIdentifier)'" />
+  </Target>
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../LibPackageManager/LibPackageManager.fsproj" />
     <ProjectReference Include="../BuiltinCliHost/BuiltinCliHost.fsproj" />
+
+    <!--
+      Note: We need to reference these projects explicitly (not just transitively),
+      otherwise (for some reason) the tree-sitter.so file doesn't get embedded properly.
+     -->
+    <ProjectReference Include="../LibTreeSitter.CSharp/LibTreeSitter.CSharp.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Cli.fs" />

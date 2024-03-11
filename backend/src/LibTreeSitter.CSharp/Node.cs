@@ -2,29 +2,27 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
-using LibTreeSitter.CSharp.Native;
-using static LibTreeSitter.CSharp.Native.Native;
 
 namespace LibTreeSitter.CSharp
 {
   public class Node
   {
-    internal TsNode Handle;
+    internal Native.TsNode _handle;
 
-    internal static Node Create(TsNode node)
+    internal static Node Create(Native.TsNode node)
     {
       return node.id == IntPtr.Zero ? null : new Node(node);
     }
 
-    private Node(TsNode node)
+    private Node(Native.TsNode node)
     {
-      Handle = node;
+      _handle = node;
     }
 
     /// <summary>
     /// Get this node's type as a string
     /// </summary>
-    public string Kind => Marshal.PtrToStringAnsi(ts_node_type(Handle));
+    public string Kind => Marshal.PtrToStringAnsi(Native.ts_node_type(_handle));
 
     /// <summary>
     /// Get this node's start position in terms of rows and columns.
@@ -33,7 +31,7 @@ namespace LibTreeSitter.CSharp
     {
       get
       {
-        var res = ts_node_start_point(Handle);
+        var res = Native.ts_node_start_point(_handle);
         return new Point((int)res.row, (int)res.column);
       }
     }
@@ -45,7 +43,7 @@ namespace LibTreeSitter.CSharp
     {
       get
       {
-        var res = ts_node_end_point(Handle);
+        var res = Native.ts_node_end_point(_handle);
         return new Point((int)res.row, (int)res.column);
       }
     }
@@ -53,7 +51,7 @@ namespace LibTreeSitter.CSharp
     /// <summary> S-expression representation of the node. </summary>
     public override string ToString()
     {
-      var cPtr = ts_node_string(Handle);
+      var cPtr = Native.ts_node_string(_handle);
       var result = Marshal.PtrToStringAnsi(cPtr);
 
       // Free the memory
@@ -65,24 +63,6 @@ namespace LibTreeSitter.CSharp
     public TreeCursor Walk()
     {
       return new TreeCursor(this);
-    }
-
-    protected bool Equals(Node other)
-    {
-      return ts_node_eq(Handle, other.Handle);
-    }
-
-    public override bool Equals(object obj)
-    {
-      if (ReferenceEquals(null, obj)) return false;
-      if (ReferenceEquals(this, obj)) return true;
-      if (obj.GetType() != this.GetType()) return false;
-      return Equals((Node)obj);
-    }
-
-    public override int GetHashCode()
-    {
-      return Handle.id.ToInt32();
     }
   }
 }
