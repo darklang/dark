@@ -6,7 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Update="tree-sitter.so">
+    <None Update="lib/tree-sitter-linux-x64.so" LogicalName="tree-sitter.so">
       <Pack>True</Pack>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

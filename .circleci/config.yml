@@ -170,8 +170,8 @@ jobs:
           name: Setup backend build environment
           command: |
             set -x
-            if [[ -f /home/dark/tree-sitter.so && ! -f /home/dark/app/backend/src/LibTreeSitter.CSharp/tree-sitter.so ]]; then
-              mv /home/dark/tree-sitter.so /home/dark/app/backend/src/LibTreeSitter.CSharp/
+            if [[ -f /home/dark/tree-sitter-linux-x64.so && ! -f /home/dark/app/backend/src/LibTreeSitter.CSharp/lib/tree-sitter-linux-x64.so ]]; then
+              mv /home/dark/tree-sitter-linux-x64.so /home/dark/app/backend/src/LibTreeSitter.CSharp/lib/tree-sitter-linux-x64.so
               else
               echo "No action needed."
             fi
@@ -272,7 +272,7 @@ jobs:
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
       - assert-clean-worktree
-      - run: ./scripts/build/dotnet-publish-all-clis.sh
+      - run: ./scripts/build/build-release-cli-exes.sh
       - persist_to_workspace:
           root: "."
           paths:
