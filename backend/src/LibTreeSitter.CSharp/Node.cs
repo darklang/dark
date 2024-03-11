@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Dynamic;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Xml;
 using LibTreeSitter.CSharp.Native;
 using static LibTreeSitter.CSharp.Native.Native;
 
@@ -29,12 +27,6 @@ namespace LibTreeSitter.CSharp
     public string Kind => Marshal.PtrToStringAnsi(ts_node_type(Handle));
 
     /// <summary>
-    /// Get the range of source code that this node represents, both in terms of raw bytes
-    /// and of row/column coordinates.
-    /// </summary>
-    public Range Range => new Range(StartPosition, EndPosition);
-
-    /// <summary>
     /// Get this node's start position in terms of rows and columns.
     /// </summary>
     public Point StartPosition
@@ -55,29 +47,6 @@ namespace LibTreeSitter.CSharp
       {
         var res = ts_node_end_point(Handle);
         return new Point((int)res.row, (int)res.column);
-      }
-    }
-
-    /// <summary>
-    /// Get this node's number of children.
-    /// </summary>
-    public int ChildCount => (int)ts_node_child_count(Handle);
-
-    /// <summary>
-    /// Iterate over this node's children.
-    /// </summary>
-    public IEnumerable<Node> Children
-    {
-      get
-      {
-        var cursor = new TreeCursor(this);
-        cursor.GotoFirstChild();
-        return Enumerable.Range(0, ChildCount).Select(_ =>
-        {
-          var result = cursor.Current;
-          cursor.GotoNextSibling();
-          return result;
-        }).Finally(cursor.Dispose);
       }
     }
 
@@ -114,22 +83,6 @@ namespace LibTreeSitter.CSharp
     public override int GetHashCode()
     {
       return Handle.id.ToInt32();
-    }
-  }
-
-  public static class EnumerableExtensions
-  {
-    public static IEnumerable<T> Finally<T>(this IEnumerable<T> enumerable, Action after)
-    {
-      try
-      {
-        foreach (var value in enumerable)
-          yield return value;
-      }
-      finally
-      {
-        after();
-      }
     }
   }
 }

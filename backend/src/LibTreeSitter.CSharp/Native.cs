@@ -105,11 +105,6 @@ namespace LibTreeSitter.CSharp.Native
         TsNode node
     );
 
-    [DllImport(DllName)]
-    internal static extern uint ts_node_child_count(
-        TsNode node
-    );
-
 
     [DllImport(DllName)]
     internal static extern bool ts_node_eq(

@@ -96,9 +96,6 @@ module Node =
   extern IntPtr ts_node_string(TsNode node)
 
   [<DllImport(DllName)>]
-  extern uint ts_node_child_count(TsNode node)
-
-  [<DllImport(DllName)>]
   extern bool ts_node_eq(TsNode node, TsNode other)
 
 
