@@ -368,7 +368,7 @@ ENV PATH "$PATH:~/zig"
 # tree-sitter,
 # to P/Invoke within our Darklang bindings
 #
-# Note: The resultant built libs are moved into the `backend/src/LibTreeSitter.CSharp`
+# Note: The resultant built libs are moved into the `backend/src/LibTreeSitter`
 # directory, in the `_copy-tree-sitter-binary` script,
 # as this docker container doesn't seem to
 # have access to the /home/dark directory here.

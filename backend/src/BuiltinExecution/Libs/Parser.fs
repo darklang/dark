@@ -7,6 +7,8 @@ open System.Text
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
+
+open LibTreeSitter.Main
 open LibTreeSitter.CSharp
 open LibTreeSitter.CSharp.Darklang
 
@@ -56,7 +58,7 @@ let fns : List<BuiltInFn> =
             let fields =
               let mapPoint (point : Point) =
                 let fields =
-                  [ "row", DInt64 point.Row; "column", DInt64 point.Column ]
+                  [ "row", DInt64 point.row; "column", DInt64 point.column ]
                 DRecord(pointTypeName, pointTypeName, [], Map fields)
 
               let startPos = cursor.Current.StartPosition
@@ -71,17 +73,17 @@ let fns : List<BuiltInFn> =
                 if lines.Length = 0 then
                   ""
                 else
-                  match startPos.Row with
-                  | row when row = endPos.Row ->
-                    lines[row][startPos.Column .. (endPos.Column - 1)]
+                  match startPos.row with
+                  | row when row = endPos.row ->
+                    lines[row][startPos.column .. (endPos.column - 1)]
                   | _ ->
-                    let firstLine = lines[startPos.Row][startPos.Column ..]
+                    let firstLine = lines[startPos.row][startPos.column ..]
                     let middleLines =
-                      if startPos.Row + 1 <= endPos.Row - 1 then
-                        lines[startPos.Row + 1 .. endPos.Row - 1]
+                      if startPos.row + 1 <= endPos.row - 1 then
+                        lines[startPos.row + 1 .. endPos.row - 1]
                       else
                         []
-                    let lastLine = lines[endPos.Row][.. endPos.Column - 1]
+                    let lastLine = lines[endPos.row][.. endPos.column - 1]
 
                     String.concat "\n" (firstLine :: middleLines @ [ lastLine ])
 
@@ -103,7 +105,7 @@ let fns : List<BuiltInFn> =
           let parser = new Parser(Language = DarklangLanguage.Create())
 
           let tree =
-            parser.Parse(Encoding.UTF8.GetBytes sourceCode, InputEncoding.Utf8)
+            parser.Parse(Encoding.UTF8.GetBytes sourceCode, InputEncoding.Utf8, None)
 
           tree.Root.Walk() |> mapNodeAtCursor |> Ply
         | _ -> incorrectArgs ())

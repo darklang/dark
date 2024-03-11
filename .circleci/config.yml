@@ -170,18 +170,18 @@ jobs:
           name: Setup backend build environment
           command: |
             set -x
-            if [[ -f /home/dark/tree-sitter-linux-x64.so && ! -f /home/dark/app/backend/src/LibTreeSitter.CSharp/lib/tree-sitter-linux-x64.so ]]; then
-              mv /home/dark/tree-sitter-linux-x64.so /home/dark/app/backend/src/LibTreeSitter.CSharp/lib/tree-sitter-linux-x64.so
+            if [[ -f /home/dark/tree-sitter-linux-x64.so && ! -f /home/dark/app/backend/src/LibTreeSitter/lib/tree-sitter-linux-x64.so ]]; then
+              mkdir -p /home/dark/app/backend/src/LibTreeSitter/lib
+              mv /home/dark/tree-sitter-linux-x64.so /home/dark/app/backend/src/LibTreeSitter/lib/tree-sitter-linux-x64.so
               else
               echo "No action needed."
             fi
       - run: ./scripts/build/build-parser
+      - run: npm install tree-sitter-cli && cd tree-sitter-darklang && npm run test
       - persist_to_workspace:
           root: "."
           paths:
-            - backend/src/LibTreeSitter.CSharp.Darklang
-            - backend/src/LibTreeSitter.CSharp
-      - run: npm install tree-sitter-cli && cd tree-sitter-darklang && npm run test
+            - backend/src/LibTreeSitter
       - slack-notify-job-failure
 
   # Build server binaries and run tests

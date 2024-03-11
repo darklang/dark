@@ -1,6 +1,7 @@
 ﻿/// Raw F# bindings (P/Invoke) for tree-sitter
 /// TODO: some of these types and functions could be internal
-module LibTreeSitter.CSharp.Native
+[<RequireQualifiedAccess>]
+module LibTreeSitter.Native
 
 open System
 open System.IO
@@ -12,7 +13,7 @@ open System.Runtime.InteropServices
 
 
 // These bindings correspond to this specific version of tree-sitter
-let _treeSitterVersion = "v0.20.8"
+let private _treeSitterVersion = "v0.20.8"
 
 
 type TsInputEncoding =
@@ -80,8 +81,6 @@ if not (File.Exists resourcePath) then
     stream.CopyTo(fileStream)
 else
   Console.WriteLine($"Tree-sitter native library already exists at {resourcePath}")
-
-
 
 
 

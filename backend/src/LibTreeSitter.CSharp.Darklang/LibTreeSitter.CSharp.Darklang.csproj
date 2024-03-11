@@ -11,7 +11,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\LibTreeSitter.CSharp\LibTreeSitter.CSharp.csproj" />
+      <ProjectReference Include="..\LibTreeSitter\LibTreeSitter.fsproj" />
     </ItemGroup>
 
     <ItemGroup>

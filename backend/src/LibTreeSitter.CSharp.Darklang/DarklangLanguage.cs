@@ -10,6 +10,6 @@ namespace LibTreeSitter.CSharp.Darklang
     [DllImport(DllName)]
     private static extern IntPtr tree_sitter_darklang();
 
-    public static Language Create() => new Language(tree_sitter_darklang());
+    public static Main.Language Create() => new Main.Language(tree_sitter_darklang());
   }
 }

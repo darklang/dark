@@ -57,7 +57,7 @@
       Note: We need to reference these projects explicitly (not just transitively),
       otherwise (for some reason) the tree-sitter.so file doesn't get embedded properly.
      -->
-    <ProjectReference Include="../LibTreeSitter.CSharp/LibTreeSitter.CSharp.csproj" />
+    <ProjectReference Include="../LibTreeSitter/LibTreeSitter.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Cli.fs" />
