@@ -891,6 +891,10 @@
         }
       ]
     },
+    "float_literal": {
+      "type": "PATTERN",
+      "value": "[+-]?[0-9]+\\.[0-9]+"
+    },
     "digits": {
       "type": "CHOICE",
       "members": [
@@ -911,10 +915,6 @@
     "positive_digits": {
       "type": "PATTERN",
       "value": "\\d+"
-    },
-    "float_literal": {
-      "type": "PATTERN",
-      "value": "-?\\d+\\.\\d+"
     },
     "type_reference": {
       "type": "CHOICE",

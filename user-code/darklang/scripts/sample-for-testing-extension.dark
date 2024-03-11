@@ -1,2 +1,4 @@
 type ID = Int64
 let double (i: Int) : Int = i + i
+type MyFloat = Float
+1.5
