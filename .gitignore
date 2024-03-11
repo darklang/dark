@@ -40,3 +40,5 @@ tree-sitter-darklang/xplat-builds
 
 deploy-lock-manual-deploy
 .secrets
+
+clis/
