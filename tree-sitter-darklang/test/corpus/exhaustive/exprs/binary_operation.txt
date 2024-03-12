@@ -1,0 +1,34 @@
+==================
+logical AND
+==================
+
+true && true
+
+---
+
+(source_file
+  (expression
+    (infix_operation
+      (expression
+        (bool_literal))
+      (operator)
+      (expression
+        (bool_literal)))))
+
+
+
+==================
+logical OR
+==================
+true || true
+
+---
+
+(source_file
+  (expression
+    (infix_operation
+      (expression
+        (bool_literal))
+      (operator)
+      (expression
+        (bool_literal)))))

@@ -44,6 +44,56 @@ a + b + c
 
 
 ==================
+infix * has higher precedence than infix +
+i.e `a + b * c` should be parsed as `a + (b * c)`
+==================
+
+a + b * c
+
+---
+
+(source_file
+  (expression
+    (infix_operation
+      (expression (variable_identifier))
+      (operator)
+      (expression
+        (infix_operation
+          (expression (variable_identifier))
+          (operator)
+          (expression (variable_identifier))
+        )
+      )
+    )
+  )
+)
+
+
+==================
+infix ^ has higher precedence than infix *
+i.e. `a * b ^ c` should be parsed as `a * (b ^ c)`
+==================
+a * b ^ c
+
+---
+
+(source_file
+  (expression
+    (infix_operation
+      (expression (variable_identifier))
+      (operator)
+      (expression
+        (infix_operation
+          (expression (variable_identifier))
+          (operator)
+          (expression (variable_identifier))
+        )
+      )
+    )
+  )
+)
+
+==================
 basic function call (hacky)
 ==================
 

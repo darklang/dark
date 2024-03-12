@@ -77,6 +77,21 @@ module Darklang =
       type InfixOperator =
         | ArithmeticPlus
         | ArithmeticMinus
+        | ArithmeticMultiply
+        | ArithmeticDivide
+        | ArithmeticModulo
+        | ArithmeticPower
+        | ComparisonGreaterThan
+        | ComparisonGreaterThanOrEqual
+        | ComparisonLessThan
+        | ComparisonLessThanOrEqual
+        | ComparisonEquals
+        | ComparisonNotEquals
+        | StringConcat
+
+      type BinaryOperator =
+        | BinOpAnd
+        | BinOpOr
 
       type Expr =
         | EUnit of SourceRange

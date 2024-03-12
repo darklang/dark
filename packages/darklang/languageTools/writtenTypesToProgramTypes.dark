@@ -197,6 +197,56 @@ module Darklang =
                 ProgramTypes.InfixFnName.ArithmeticMinus
                 |> ProgramTypes.Infix.InfixFnCall
 
+              | ArithmeticMultiply ->
+                ProgramTypes.InfixFnName.ArithmeticMultiply
+                |> ProgramTypes.Infix.InfixFnCall
+
+              | ArithmeticDivide ->
+                ProgramTypes.InfixFnName.ArithmeticDivide
+                |> ProgramTypes.Infix.InfixFnCall
+
+              | ArithmeticModulo ->
+                ProgramTypes.InfixFnName.ArithmeticModulo
+                |> ProgramTypes.Infix.InfixFnCall
+
+              | ArithmeticPower ->
+                ProgramTypes.InfixFnName.ArithmeticPower
+                |> ProgramTypes.Infix.InfixFnCall
+
+              | ComparisonGreaterThan ->
+                ProgramTypes.InfixFnName.ComparisonGreaterThan
+                |> ProgramTypes.Infix.InfixFnCall
+
+              | ComparisonGreaterThanOrEqual ->
+                ProgramTypes.InfixFnName.ComparisonGreaterThanOrEqual
+                |> ProgramTypes.Infix.InfixFnCall
+
+              | ComparisonLessThan ->
+                ProgramTypes.InfixFnName.ComparisonLessThan
+                |> ProgramTypes.Infix.InfixFnCall
+
+              | ComparisonLessThanOrEqual ->
+                ProgramTypes.InfixFnName.ComparisonLessThanOrEqual
+                |> ProgramTypes.Infix.InfixFnCall
+
+              | ComparisonEquals ->
+                ProgramTypes.InfixFnName.ComparisonEquals
+                |> ProgramTypes.Infix.InfixFnCall
+
+              | ComparisonNotEquals ->
+                ProgramTypes.InfixFnName.ComparisonNotEquals
+                |> ProgramTypes.Infix.InfixFnCall
+
+              | StringConcat ->
+                ProgramTypes.InfixFnName.StringConcat
+                |> ProgramTypes.Infix.InfixFnCall
+
+              | BinOpAnd ->
+                ProgramTypes.BinaryOperation.BinOpAnd |> ProgramTypes.Infix.BinOp
+
+              | BinOpOr ->
+                ProgramTypes.BinaryOperation.BinOpOr |> ProgramTypes.Infix.BinOp
+
             ProgramTypes.Expr.EInfix(
               gid (),
               infix,

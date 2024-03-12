@@ -498,6 +498,7 @@ module Darklang =
             (WrittenTypes.Unparseable { source = node })
             |> Stdlib.Result.Result.Error
 
+
         let parseFloatLiteral
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
@@ -658,6 +659,19 @@ module Darklang =
                 match getText operatorNode with
                 | "+" -> WrittenTypes.InfixOperator.ArithmeticPlus
                 | "-" -> WrittenTypes.InfixOperator.ArithmeticMinus
+                | "*" -> WrittenTypes.InfixOperator.ArithmeticMultiply
+                | "/" -> WrittenTypes.InfixOperator.ArithmeticDivide
+                | "%" -> WrittenTypes.InfixOperator.ArithmeticModulo
+                | "^" -> WrittenTypes.InfixOperator.ArithmeticPower
+                | ">" -> WrittenTypes.InfixOperator.ComparisonGreaterThan
+                | ">=" -> WrittenTypes.InfixOperator.ComparisonGreaterThanOrEqual
+                | "<" -> WrittenTypes.InfixOperator.ComparisonLessThan
+                | "<=" -> WrittenTypes.InfixOperator.ComparisonLessThanOrEqual
+                | "==" -> WrittenTypes.InfixOperator.ComparisonEquals
+                | "!=" -> WrittenTypes.InfixOperator.ComparisonNotEquals
+                | "++" -> WrittenTypes.InfixOperator.StringConcat
+                | "&&" -> WrittenTypes.BinaryOperator.BinOpAnd
+                | "||" -> WrittenTypes.BinaryOperator.BinOpOr
                 | _ ->
                   (WrittenTypes.Unparseable { source = node })
                   |> Stdlib.Result.Result.Error
