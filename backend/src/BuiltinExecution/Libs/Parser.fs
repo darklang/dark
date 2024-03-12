@@ -8,9 +8,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-open LibTreeSitter.Main
-open LibTreeSitter.CSharp
-open LibTreeSitter.CSharp.Darklang
+open LibTreeSitter
 
 module VT = ValueType
 module Dval = LibExecution.Dval
@@ -102,7 +100,7 @@ let fns : List<BuiltInFn> =
             DRecord(parsedNodeTypeName, parsedNodeTypeName, [], Map fields)
 
 
-          let parser = new Parser(Language = DarklangLanguage.Create())
+          let parser = new Parser(Language = DarklangLanguage.create ())
 
           let tree =
             parser.Parse(Encoding.UTF8.GetBytes sourceCode, InputEncoding.Utf8, None)

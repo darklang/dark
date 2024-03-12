@@ -9,9 +9,8 @@
   </PropertyGroup>
 
   <!--
-    Embed `tree-sitter` along with any build artifacts,
-    to be extracted (to a temp dir)
-    and P/Invoke'd against at run-time.
+    Embed `tree-sitter` and `tree-sitter-darklang` with any build artifacts we publish,
+    to be extracted (to a temp dir), loaded, an used at run-time.
 
     We must embed the _correct_ `tree-sitter` native library,
     per the runtime identifier of the current build.
@@ -26,17 +25,39 @@
   <Target Name="PrintRuntimeIdentifier" BeforeTargets="CoreCompile">
     <Message Importance="high" Text="RuntimeIdentifier is '$(RuntimeIdentifier)'" />
   </Target>
-  <ItemGroup>
-    <!-- Default, based on our devcontainer's setup -->
-    <EmbeddedResource Condition="'$(RuntimeIdentifier)' == ''" Include="lib/tree-sitter-linux-x64.so" LogicalName="tree-sitter.so"/>
 
-    <EmbeddedResource Condition="'$(RuntimeIdentifier)' == 'linux-x64'" Include="lib/tree-sitter-linux-x64.so" LogicalName="tree-sitter.so"/>
-    <EmbeddedResource Condition="'$(RuntimeIdentifier)' == 'linux-musl-x64'" Include="lib/tree-sitter-linux-musl-x64.so" LogicalName="tree-sitter.so"/>
-    <EmbeddedResource Condition="'$(RuntimeIdentifier)' == 'linux-arm64'" Include="lib/tree-sitter-linux-arm64.so" LogicalName="tree-sitter.so"/>
-    <EmbeddedResource Condition="'$(RuntimeIdentifier)' == 'linux-arm'" Include="lib/tree-sitter-linux-arm.so" LogicalName="tree-sitter.so"/>
-    <EmbeddedResource Condition="'$(RuntimeIdentifier)' == 'osx-x64'" Include="lib/tree-sitter-macos-x64.dylib" LogicalName="tree-sitter.dylib"/>
-    <EmbeddedResource Condition="'$(RuntimeIdentifier)' == 'osx-arm64'" Include="lib/tree-sitter-macos-arm64.dylib" LogicalName="tree-sitter.dylib"/>
+  <!-- default, based on our devcontainer's setup -->
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == ''">
+    <EmbeddedResource Include="lib/tree-sitter-linux-x64.so" LogicalName="tree-sitter.so"/>
+    <EmbeddedResource Include="lib/tree-sitter-darklang.so" LogicalName="tree-sitter-darklang.so"/>
   </ItemGroup>
+  <!-- for specific cross-plat builds -->
+  <!-- TODO start cross-plat building tree-sitter-darklang when relevant, and copy here -->
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'linux-x64'">
+    <EmbeddedResource  Include="lib/tree-sitter-linux-x64.so" LogicalName="tree-sitter.so"/>
+    <EmbeddedResource Include="lib/tree-sitter-darklang.so" LogicalName="tree-sitter-darklang.so"/>
+  </ItemGroup>
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'linux-musl-x64'">
+    <EmbeddedResource  Include="lib/tree-sitter-linux-musl-x64.so" LogicalName="tree-sitter.so"/>
+    <EmbeddedResource Include="lib/tree-sitter-darklang.so" LogicalName="tree-sitter-darklang.so"/>
+  </ItemGroup>
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'linux-arm64'">
+    <EmbeddedResource  Include="lib/tree-sitter-linux-arm64.so" LogicalName="tree-sitter.so"/>
+    <EmbeddedResource Include="lib/tree-sitter-darklang.so" LogicalName="tree-sitter-darklang.so"/>
+  </ItemGroup>
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'linux-arm'">
+    <EmbeddedResource  Include="lib/tree-sitter-linux-arm.so" LogicalName="tree-sitter.so"/>
+    <EmbeddedResource Include="lib/tree-sitter-darklang.so" LogicalName="tree-sitter-darklang.so"/>
+  </ItemGroup>
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'osx-x64'">
+    <EmbeddedResource  Include="lib/tree-sitter-macos-x64.dylib" LogicalName="tree-sitter.dylib"/>
+    <EmbeddedResource Include="lib/tree-sitter-darklang.so" LogicalName="tree-sitter-darklang.so"/>
+  </ItemGroup>
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'osx-arm64'">
+    <EmbeddedResource  Include="lib/tree-sitter-macos-arm64.dylib" LogicalName="tree-sitter.dylib"/>
+    <EmbeddedResource Include="lib/tree-sitter-darklang.so" LogicalName="tree-sitter-darklang.so"/>
+  </ItemGroup>
+
 
   <!-- Paket, for NuGet dependencies-->
   <ItemGroup>
@@ -49,7 +70,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="TreeSitter.Native.fs" />
-    <Compile Include="LibTreeSitter.fs" />
+    <Compile Include="Helpers.fs" />
+    <Compile Include="TreeSitter.fs" />
+    <Compile Include="TreeSitter.Darklang.fs" />
   </ItemGroup>
 </Project>

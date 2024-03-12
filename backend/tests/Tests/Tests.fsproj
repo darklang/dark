@@ -22,7 +22,6 @@
     <ProjectReference Include="../../src/QueueWorker/QueueWorker.fsproj" />
     <ProjectReference Include="../../src/LibPackageManager/LibPackageManager.fsproj" />
     <ProjectReference Include="../../src/LibTreeSitter/LibTreeSitter.fsproj" />
-    <ProjectReference Include="../../src/LibTreeSitter.CSharp.Darklang/LibTreeSitter.CSharp.Darklang.csproj" />
     <ProjectReference Include="../TestUtils/TestUtils.fsproj" />
   </ItemGroup>
   <ItemGroup>

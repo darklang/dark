@@ -3,7 +3,7 @@
 set -euo pipefail
 
 
-echo "Copying tree-sitter libraries (built in Dockerfile) to backend/src/LibTreeSitter (to P/Invoke against)"
+echo "Copying tree-sitter libraries (built in Dockerfile) to backend/src/LibTreeSitter"
 TREE_SITTER_SOURCE="/home/dark/tree-sitter-builds/"
 TREE_SITTER_TARGET="/home/dark/app/backend/src/LibTreeSitter/lib"
 
