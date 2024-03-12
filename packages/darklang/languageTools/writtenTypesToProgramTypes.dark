@@ -136,6 +136,40 @@ module Darklang =
               deprecated = ProgramTypes.Deprecation.NotDeprecated }
 
 
+      module InfixFnName =
+        let toPT (infix: WrittenTypes.InfixFnName) : ProgramTypes.InfixFnName =
+          match infix with
+          | ArithmeticPlus -> ProgramTypes.InfixFnName.ArithmeticPlus
+          | ArithmeticMinus -> ProgramTypes.InfixFnName.ArithmeticMinus
+          | ArithmeticMultiply -> ProgramTypes.InfixFnName.ArithmeticMultiply
+          | ArithmeticDivide -> ProgramTypes.InfixFnName.ArithmeticDivide
+          | ArithmeticModulo -> ProgramTypes.InfixFnName.ArithmeticModulo
+          | ArithmeticPower -> ProgramTypes.InfixFnName.ArithmeticPower
+          | ComparisonGreaterThan -> ProgramTypes.InfixFnName.ComparisonGreaterThan
+          | ComparisonGreaterThanOrEqual ->
+            ProgramTypes.InfixFnName.ComparisonGreaterThanOrEqual
+          | ComparisonLessThan -> ProgramTypes.InfixFnName.ComparisonLessThan
+          | ComparisonLessThanOrEqual ->
+            ProgramTypes.InfixFnName.ComparisonLessThanOrEqual
+          | ComparisonEquals -> ProgramTypes.InfixFnName.ComparisonEquals
+          | ComparisonNotEquals -> ProgramTypes.InfixFnName.ComparisonNotEquals
+          | StringConcat -> ProgramTypes.InfixFnName.StringConcat
+
+
+      module BinaryOperation =
+        let toPT
+          (binop: WrittenTypes.BinaryOperation)
+          : ProgramTypes.BinaryOperation =
+          match binop with
+          | BinOpAnd -> ProgramTypes.BinaryOperation.BinOpAnd
+          | BinOpOr -> ProgramTypes.BinaryOperation.BinOpOr
+
+
+      module Infix =
+        let toPT (infix: WrittenTypes.Infix) : ProgramTypes.Infix =
+          match infix with
+          | InfixFnCall op -> ProgramTypes.Infix.InfixFnCall(InfixFnName.toPT op)
+          | BinOp op -> ProgramTypes.Infix.BinOp(BinaryOperation.toPT op)
 
       module Expr =
         module LetPattern =
@@ -187,15 +221,7 @@ module Darklang =
 
           // fn calls
           | EInfix(_, (_, op), left, right) ->
-            let infix =
-              match op with
-              | ArithmeticPlus ->
-                ProgramTypes.InfixFnName.ArithmeticPlus
-                |> ProgramTypes.Infix.InfixFnCall
-
-              | ArithmeticMinus ->
-                ProgramTypes.InfixFnName.ArithmeticMinus
-                |> ProgramTypes.Infix.InfixFnCall
+            let infix = Infix.toPT op
 
             ProgramTypes.Expr.EInfix(
               gid (),

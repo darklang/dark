@@ -498,6 +498,7 @@ module Darklang =
             (WrittenTypes.Unparseable { source = node })
             |> Stdlib.Result.Result.Error
 
+
         let parseFloatLiteral
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
@@ -656,8 +657,46 @@ module Darklang =
               match operatorNode with
               | Ok operatorNode ->
                 match getText operatorNode with
-                | "+" -> WrittenTypes.InfixOperator.ArithmeticPlus
-                | "-" -> WrittenTypes.InfixOperator.ArithmeticMinus
+                | "+" ->
+                  WrittenTypes.Infix.InfixFnCall
+                    WrittenTypes.InfixFnName.ArithmeticPlus
+                | "-" ->
+                  WrittenTypes.Infix.InfixFnCall
+                    WrittenTypes.InfixFnName.ArithmeticMinus
+                | "*" ->
+                  WrittenTypes.Infix.InfixFnCall
+                    WrittenTypes.InfixFnName.ArithmeticMultiply
+                | "/" ->
+                  WrittenTypes.Infix.InfixFnCall
+                    WrittenTypes.InfixFnName.ArithmeticDivide
+                | "%" ->
+                  WrittenTypes.Infix.InfixFnCall
+                    WrittenTypes.InfixFnName.ArithmeticModulo
+                | "^" ->
+                  WrittenTypes.Infix.InfixFnCall
+                    WrittenTypes.InfixFnName.ArithmeticPower
+                | ">" ->
+                  WrittenTypes.Infix.InfixFnCall
+                    WrittenTypes.InfixFnName.ComparisonGreaterThan
+                | ">=" ->
+                  WrittenTypes.Infix.InfixFnCall
+                    WrittenTypes.InfixFnName.ComparisonGreaterThanOrEqual
+                | "<" ->
+                  WrittenTypes.Infix.InfixFnCall
+                    WrittenTypes.InfixFnName.ComparisonLessThan
+                | "<=" ->
+                  WrittenTypes.Infix.InfixFnCall
+                    WrittenTypes.InfixFnName.ComparisonLessThanOrEqual
+                | "==" ->
+                  WrittenTypes.Infix.InfixFnCall
+                    WrittenTypes.InfixFnName.ComparisonEquals
+                | "!=" ->
+                  WrittenTypes.Infix.InfixFnCall
+                    WrittenTypes.InfixFnName.ComparisonNotEquals
+                | "&&" ->
+                  WrittenTypes.Infix.BinOp WrittenTypes.BinaryOperation.BinOpAnd
+                | "||" ->
+                  WrittenTypes.Infix.BinOp WrittenTypes.BinaryOperation.BinOpOr
                 | _ ->
                   (WrittenTypes.Unparseable { source = node })
                   |> Stdlib.Result.Result.Error

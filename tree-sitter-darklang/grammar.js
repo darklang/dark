@@ -3,6 +3,21 @@
 // - deal with keywords
 // - better support for partially-written code (i.e. `let x =`)
 
+const PREC = {
+  LOGICAL_OR: 0,
+  LOGICAL_AND: 1,
+  COMPARISON: 2,
+  SUM: 3,
+  PRODUCT: 4,
+  EXPONENT: 5,
+};
+
+const logicalOperators = choice("&&", "||");
+const comparisonOperators = choice("==", "!=", "<", "<=", ">", ">=");
+const additiveOperators = choice("+", "-");
+const multiplicativeOperators = choice("*", "/", "%");
+const exponentOperator = "^";
+
 module.exports = grammar({
   name: "darklang",
 
@@ -139,12 +154,63 @@ module.exports = grammar({
 
     infix_operation: $ =>
       // given `1 + 2 * 3`, this will parse as `1 + (2 * 3)`
-      prec.left(
-        1,
-        seq(
-          field("left", $.expression),
-          field("operator", alias(choice("+", "-"), $.operator)), // TODO more operators.
-          field("right", $.expression), // TODO maybe optional
+      choice(
+        // Power
+        prec.right(
+          PREC.EXPONENT,
+          seq(
+            field("left", $.expression),
+            field("operator", alias(exponentOperator, $.operator)),
+            field("right", $.expression),
+          ),
+        ),
+
+        // multiplication, division, modulo
+        prec.left(
+          PREC.PRODUCT,
+          seq(
+            field("left", $.expression),
+            field("operator", alias(multiplicativeOperators, $.operator)),
+            field("right", $.expression),
+          ),
+        ),
+
+        // addition, subtraction
+        prec.left(
+          PREC.SUM,
+          seq(
+            field("left", $.expression),
+            field("operator", alias(additiveOperators, $.operator)),
+            field("right", $.expression),
+          ),
+        ),
+
+        // Comparison
+        prec.left(
+          PREC.COMPARISON,
+          seq(
+            field("left", $.expression),
+            field("operator", alias(comparisonOperators, $.operator)),
+            field("right", $.expression),
+          ),
+        ),
+
+        // Logical operations
+        prec.left(
+          PREC.LOGICAL_AND,
+          seq(
+            field("left", $.expression),
+            field("operator", alias(logicalOperators, $.operator)),
+            field("right", $.expression),
+          ),
+        ),
+        prec.left(
+          PREC.LOGICAL_OR,
+          seq(
+            field("left", $.expression),
+            field("operator", alias(logicalOperators, $.operator)),
+            field("right", $.expression),
+          ),
         ),
       ),
 
