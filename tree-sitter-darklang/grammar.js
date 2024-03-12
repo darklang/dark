@@ -209,7 +209,7 @@ module.exports = grammar({
           seq(
             field("left", $.expression),
             field("operator", alias(logicalOperators, $.operator)),
-            field("right", $.expression), // TODO maybe optional
+            field("right", $.expression),
           ),
         ),
       ),
