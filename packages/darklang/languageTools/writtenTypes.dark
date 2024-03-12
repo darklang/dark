@@ -75,10 +75,10 @@ module Darklang =
       type LetPattern = LPVariable of SourceRange * name: String
 
       type Infix =
-        | InfixOperator of InfixOperator
-        | BinaryOperator of BinaryOperator
+        | InfixFnCall of InfixFnName
+        | BinOp of BinaryOperation
 
-      type InfixOperator =
+      type InfixFnName =
         | ArithmeticPlus
         | ArithmeticMinus
         | ArithmeticMultiply
@@ -93,7 +93,7 @@ module Darklang =
         | ComparisonNotEquals
         | StringConcat
 
-      type BinaryOperator =
+      type BinaryOperation =
         | BinOpAnd
         | BinOpOr
 

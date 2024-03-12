@@ -658,47 +658,45 @@ module Darklang =
               | Ok operatorNode ->
                 match getText operatorNode with
                 | "+" ->
-                  WrittenTypes.Infix.InfixOperator
-                    WrittenTypes.InfixOperator.ArithmeticPlus
+                  WrittenTypes.Infix.InfixFnCall
+                    WrittenTypes.InfixFnName.ArithmeticPlus
                 | "-" ->
-                  WrittenTypes.Infix.InfixOperator
-                    WrittenTypes.InfixOperator.ArithmeticMinus
+                  WrittenTypes.Infix.InfixFnCall
+                    WrittenTypes.InfixFnName.ArithmeticMinus
                 | "*" ->
-                  WrittenTypes.Infix.InfixOperator
-                    WrittenTypes.InfixOperator.ArithmeticMultiply
+                  WrittenTypes.Infix.InfixFnCall
+                    WrittenTypes.InfixFnName.ArithmeticMultiply
                 | "/" ->
-                  WrittenTypes.Infix.InfixOperator
-                    WrittenTypes.InfixOperator.ArithmeticDivide
+                  WrittenTypes.Infix.InfixFnCall
+                    WrittenTypes.InfixFnName.ArithmeticDivide
                 | "%" ->
-                  WrittenTypes.Infix.InfixOperator
-                    WrittenTypes.InfixOperator.ArithmeticModulo
+                  WrittenTypes.Infix.InfixFnCall
+                    WrittenTypes.InfixFnName.ArithmeticModulo
                 | "^" ->
-                  WrittenTypes.Infix.InfixOperator
-                    WrittenTypes.InfixOperator.ArithmeticPower
+                  WrittenTypes.Infix.InfixFnCall
+                    WrittenTypes.InfixFnName.ArithmeticPower
                 | ">" ->
-                  WrittenTypes.Infix.InfixOperator
-                    WrittenTypes.InfixOperator.ComparisonGreaterThan
+                  WrittenTypes.Infix.InfixFnCall
+                    WrittenTypes.InfixFnName.ComparisonGreaterThan
                 | ">=" ->
-                  WrittenTypes.Infix.InfixOperator
-                    WrittenTypes.InfixOperator.ComparisonGreaterThanOrEqual
+                  WrittenTypes.Infix.InfixFnCall
+                    WrittenTypes.InfixFnName.ComparisonGreaterThanOrEqual
                 | "<" ->
-                  WrittenTypes.Infix.InfixOperator
-                    WrittenTypes.InfixOperator.ComparisonLessThan
+                  WrittenTypes.Infix.InfixFnCall
+                    WrittenTypes.InfixFnName.ComparisonLessThan
                 | "<=" ->
-                  WrittenTypes.Infix.InfixOperator
-                    WrittenTypes.InfixOperator.ComparisonLessThanOrEqual
+                  WrittenTypes.Infix.InfixFnCall
+                    WrittenTypes.InfixFnName.ComparisonLessThanOrEqual
                 | "==" ->
-                  WrittenTypes.Infix.InfixOperator
-                    WrittenTypes.InfixOperator.ComparisonEquals
+                  WrittenTypes.Infix.InfixFnCall
+                    WrittenTypes.InfixFnName.ComparisonEquals
                 | "!=" ->
-                  WrittenTypes.Infix.InfixOperator
-                    WrittenTypes.InfixOperator.ComparisonNotEquals
+                  WrittenTypes.Infix.InfixFnCall
+                    WrittenTypes.InfixFnName.ComparisonNotEquals
                 | "&&" ->
-                  WrittenTypes.Infix.BinaryOperator
-                    WrittenTypes.BinaryOperator.BinOpAnd
+                  WrittenTypes.Infix.BinOp WrittenTypes.BinaryOperation.BinOpAnd
                 | "||" ->
-                  WrittenTypes.Infix.BinaryOperator
-                    WrittenTypes.BinaryOperator.BinOpOr
+                  WrittenTypes.Infix.BinOp WrittenTypes.BinaryOperation.BinOpOr
                 | _ ->
                   (WrittenTypes.Unparseable { source = node })
                   |> Stdlib.Result.Result.Error
