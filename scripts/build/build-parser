@@ -13,14 +13,19 @@ echo "Building parser"
 # build the parser and generate the bindings
 npm run build-parser
 
+cross_compile=false
+if [[ "$#" -gt 0 && "$1" == "--cross-compile" ]]; then
+  cross_compile=true
+fi
 
 # make parser binaries for the current platform
 echo "Building tree-sitter-darklang.so"
 zig cc -o tree-sitter-darklang.so -shared src/parser.c -Isrc -O3 -fPIC
 
 
+
 # Optionally cross-compile to other platforms
-if [[ "$#" -gt 0 && "$1" == "--cross-compile" ]]; then
+if $cross_compile; then
   echo "Cross-compiling tree-sitter-darklang.so for all platforms"
   rm -rf xplat-builds
   mkdir xplat-builds
@@ -28,16 +33,17 @@ if [[ "$#" -gt 0 && "$1" == "--cross-compile" ]]; then
   declare -A targets=(
     # TODO it seems i386 targets aren't working - commented out for now
 
-    ["x86_64-windows-gnu"]="tree-sitter-darklang-windows-x86_64.dll"
+    ["x86_64-windows-gnu"]="tree-sitter-darklang-windows-x64.dll"
     #["i386-windows-gnu"]="tree-sitter-darklang-windows-i386.dll"
 
-    ["x86_64-linux-gnu"]="tree-sitter-darklang-linux-x86_64.so"
+    ["x86_64-linux-gnu"]="tree-sitter-darklang-linux-x64.so"
+    ["x86_64-linux-musl"]="tree-sitter-darklang-linux-musl-64.so"
     #["i386-linux-gnu"]="tree-sitter-darklang-linux-i386.so"
-    ["aarch64-linux-gnu"]="tree-sitter-darklang-linux-aarch64.so"
+    ["aarch64-linux-gnu"]="tree-sitter-darklang-linux-arm64.so"
     ["arm-linux-gnueabi"]="tree-sitter-darklang-linux-arm.so"
 
-    ["x86_64-macos"]="tree-sitter-darklang-macOS-x86_64.dylib"
-    ["aarch64-macos"]="tree-sitter-darklang-macOS-aarch64.dylib"
+    ["x86_64-macos"]="tree-sitter-darklang-macos-x64.dylib"
+    ["aarch64-macos"]="tree-sitter-darklang-macos-arm64.dylib"
   )
   for target in "${!targets[@]}"; do
     zig cc -target $target -o "xplat-builds/${targets[$target]}" -shared src/parser.c -Isrc -O3
@@ -48,7 +54,13 @@ fi
 
 cd ..
 
-# copy `tree-sitter-darklang.so` to `backend/src/LibTreeSitter`
+# copy `tree-sitter-darklang.so` to `backend/src/LibTreeSitter/lib`
 mkdir -p backend/src/LibTreeSitter/lib
 echo "Copying tree-sitter-darklang.so to backend/src/LibTreeSitter/lib"
 cp tree-sitter-darklang/tree-sitter-darklang.so backend/src/LibTreeSitter/lib
+
+# copy the others too
+if $cross_compile; then
+  echo "Copying cross-compiled tree-sitter-darklang.so to backend/src/LibTreeSitter/lib"
+  cp tree-sitter-darklang/xplat-builds/tree-sitter-darklang-* backend/src/LibTreeSitter/lib
+fi

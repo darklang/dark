@@ -176,7 +176,7 @@ jobs:
               else
               echo "No action needed."
             fi
-      - run: ./scripts/build/build-parser
+      - run: ./scripts/build/build-parser --cross-compile
       - run: npm install tree-sitter-cli && cd tree-sitter-darklang && npm run test
       - persist_to_workspace:
           root: "."
