@@ -93,6 +93,141 @@ a * b ^ c
   )
 )
 
+
+
+==================
+comparison operator >
+==================
+
+a > b
+
+---
+
+(source_file
+  (expression
+    (infix_operation
+      (expression (variable_identifier))
+      (operator)
+      (expression (variable_identifier))
+    )
+  )
+)
+
+
+==================
+comparison operator <
+==================
+
+a < b
+
+---
+
+(source_file
+  (expression
+    (infix_operation
+      (expression (variable_identifier))
+      (operator)
+      (expression (variable_identifier))
+    )
+  )
+)
+
+
+==================
+comparison operator >=
+==================
+
+a >= b
+
+---
+
+(source_file
+  (expression
+    (infix_operation
+      (expression (variable_identifier))
+      (operator)
+      (expression (variable_identifier))
+    )
+  )
+)
+
+
+==================
+comparison operator <=
+==================
+
+a <= b
+
+---
+
+(source_file
+  (expression
+    (infix_operation
+      (expression (variable_identifier))
+      (operator)
+      (expression (variable_identifier))
+    )
+  )
+)
+
+
+==================
+comparison operator ==
+==================
+
+a == b
+
+---
+
+(source_file
+  (expression
+    (infix_operation
+      (expression (variable_identifier))
+      (operator)
+      (expression (variable_identifier))
+    )
+  )
+)
+
+
+==================
+comparison operator !=
+==================
+
+a != b
+
+---
+
+(source_file
+  (expression
+    (infix_operation
+      (expression (variable_identifier))
+      (operator)
+      (expression (variable_identifier))
+    )
+  )
+)
+
+
+==================
+exponent operator ^
+==================
+
+a ^ b
+
+---
+
+(source_file
+  (expression
+    (infix_operation
+      (expression (variable_identifier))
+      (operator)
+      (expression (variable_identifier))
+    )
+  )
+)
+
+
 ==================
 basic function call (hacky)
 ==================

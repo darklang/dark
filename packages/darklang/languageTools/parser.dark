@@ -657,21 +657,48 @@ module Darklang =
               match operatorNode with
               | Ok operatorNode ->
                 match getText operatorNode with
-                | "+" -> WrittenTypes.InfixOperator.ArithmeticPlus
-                | "-" -> WrittenTypes.InfixOperator.ArithmeticMinus
-                | "*" -> WrittenTypes.InfixOperator.ArithmeticMultiply
-                | "/" -> WrittenTypes.InfixOperator.ArithmeticDivide
-                | "%" -> WrittenTypes.InfixOperator.ArithmeticModulo
-                | "^" -> WrittenTypes.InfixOperator.ArithmeticPower
-                | ">" -> WrittenTypes.InfixOperator.ComparisonGreaterThan
-                | ">=" -> WrittenTypes.InfixOperator.ComparisonGreaterThanOrEqual
-                | "<" -> WrittenTypes.InfixOperator.ComparisonLessThan
-                | "<=" -> WrittenTypes.InfixOperator.ComparisonLessThanOrEqual
-                | "==" -> WrittenTypes.InfixOperator.ComparisonEquals
-                | "!=" -> WrittenTypes.InfixOperator.ComparisonNotEquals
-                | "++" -> WrittenTypes.InfixOperator.StringConcat
-                | "&&" -> WrittenTypes.BinaryOperator.BinOpAnd
-                | "||" -> WrittenTypes.BinaryOperator.BinOpOr
+                | "+" ->
+                  WrittenTypes.Infix.InfixOperator
+                    WrittenTypes.InfixOperator.ArithmeticPlus
+                | "-" ->
+                  WrittenTypes.Infix.InfixOperator
+                    WrittenTypes.InfixOperator.ArithmeticMinus
+                | "*" ->
+                  WrittenTypes.Infix.InfixOperator
+                    WrittenTypes.InfixOperator.ArithmeticMultiply
+                | "/" ->
+                  WrittenTypes.Infix.InfixOperator
+                    WrittenTypes.InfixOperator.ArithmeticDivide
+                | "%" ->
+                  WrittenTypes.Infix.InfixOperator
+                    WrittenTypes.InfixOperator.ArithmeticModulo
+                | "^" ->
+                  WrittenTypes.Infix.InfixOperator
+                    WrittenTypes.InfixOperator.ArithmeticPower
+                | ">" ->
+                  WrittenTypes.Infix.InfixOperator
+                    WrittenTypes.InfixOperator.ComparisonGreaterThan
+                | ">=" ->
+                  WrittenTypes.Infix.InfixOperator
+                    WrittenTypes.InfixOperator.ComparisonGreaterThanOrEqual
+                | "<" ->
+                  WrittenTypes.Infix.InfixOperator
+                    WrittenTypes.InfixOperator.ComparisonLessThan
+                | "<=" ->
+                  WrittenTypes.Infix.InfixOperator
+                    WrittenTypes.InfixOperator.ComparisonLessThanOrEqual
+                | "==" ->
+                  WrittenTypes.Infix.InfixOperator
+                    WrittenTypes.InfixOperator.ComparisonEquals
+                | "!=" ->
+                  WrittenTypes.Infix.InfixOperator
+                    WrittenTypes.InfixOperator.ComparisonNotEquals
+                | "&&" ->
+                  WrittenTypes.Infix.BinaryOperator
+                    WrittenTypes.BinaryOperator.BinOpAnd
+                | "||" ->
+                  WrittenTypes.Infix.BinaryOperator
+                    WrittenTypes.BinaryOperator.BinOpOr
                 | _ ->
                   (WrittenTypes.Unparseable { source = node })
                   |> Stdlib.Result.Result.Error

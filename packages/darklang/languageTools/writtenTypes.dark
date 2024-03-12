@@ -74,6 +74,10 @@ module Darklang =
       // Expressions
       type LetPattern = LPVariable of SourceRange * name: String
 
+      type Infix =
+        | InfixOperator of InfixOperator
+        | BinaryOperator of BinaryOperator
+
       type InfixOperator =
         | ArithmeticPlus
         | ArithmeticMinus
@@ -156,7 +160,7 @@ module Darklang =
 
         | EInfix of
           SourceRange *
-          op: (SourceRange * InfixOperator) *
+          op: (SourceRange * Infix) *
           left: Expr *
           right: Expr
 
