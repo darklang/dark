@@ -82,6 +82,7 @@ module.exports = grammar({
         $.uint128_literal,
         $.float_literal,
         $.string_literal,
+        $.char_literal,
 
         $.let_expression,
         $.variable_identifier,
@@ -129,6 +130,7 @@ module.exports = grammar({
 
     //
     // Strings
+    // TODO: maybe add support for multiline strings (""")
     string_literal: $ =>
       choice(
         seq(
@@ -146,12 +148,29 @@ module.exports = grammar({
         choice(
           // higher precedence than escape sequences
           token.immediate(prec(1, /[^\\"\n]+/)),
-          $.string_escape_sequence,
+          $.escape_sequence,
         ),
       ),
-    string_escape_sequence: _ =>
-      token.immediate(seq("\\", /(\"|\\|\/|b|f|n|r|t|u)/)),
 
+    //
+    // Characters
+    char_literal: $ =>
+      seq(
+        field("symbol_open_single_quote", alias("'", $.symbol)),
+        field("content", $.character),
+        field("symbol_close_single_quote", alias("'", $.symbol)),
+      ),
+    character: $ =>
+      choice(
+        // higher precedence than escape sequences
+        token.immediate(prec(1, /[^'\\\n]/)),
+        $.escape_sequence,
+      ),
+
+    escape_sequence: _ => token.immediate(seq("\\", /(\"|\\|\/|b|f|n|r|t|u)/)),
+
+    //
+    // Infix operations
     infix_operation: $ =>
       // given `1 + 2 * 3`, this will parse as `1 + (2 * 3)`
       choice(
@@ -214,6 +233,8 @@ module.exports = grammar({
         ),
       ),
 
+    //
+    // Integers
     //CLEANUP: we are using .NET suffixes for integers (e.g. `1L` for Int64) temporarily until we remove the old parser.
     int8_literal: $ =>
       seq(field("digits", $.digits), field("suffix", alias("y", $.symbol))),
@@ -260,10 +281,13 @@ module.exports = grammar({
         field("suffix", alias("Z", $.symbol)),
       ),
 
-    float_literal: $ => /[+-]?[0-9]+\.[0-9]+/,
     digits: $ => choice($.positive_digits, $.negative_digits),
     negative_digits: $ => /-\d+/,
     positive_digits: $ => /\d+/,
+
+    //
+    // Floats
+    float_literal: $ => /[+-]?[0-9]+\.[0-9]+/,
 
     //
     // Common

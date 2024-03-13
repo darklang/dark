@@ -718,7 +718,7 @@ module Darklang =
           $"{signPart}{whole}.{remainderPart}"
 
 
-        | EChar(_id, c) -> "\"" ++ c ++ "\""
+        | EChar(_id, c) -> "'" ++ c ++ "'"
 
         | EString(_id, segments) ->
           match segments with

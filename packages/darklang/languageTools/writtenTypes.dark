@@ -147,6 +147,11 @@ module Darklang =
           contents: Stdlib.Option.Option<SourceRange * String> *
           symbolOpenQuote: SourceRange *
           symbolCloseQuote: SourceRange
+        | EChar of
+          SourceRange *
+          contents: Stdlib.Option.Option<SourceRange * String> *
+          symbolOpenQuote: SourceRange *
+          symbolCloseQuote: SourceRange
 
         | ELet of
           SourceRange *

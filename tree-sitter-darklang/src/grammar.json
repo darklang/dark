@@ -293,6 +293,10 @@
         },
         {
           "type": "SYMBOL",
+          "name": "char_literal"
+        },
+        {
+          "type": "SYMBOL",
           "name": "let_expression"
         },
         {
@@ -563,12 +567,71 @@
           },
           {
             "type": "SYMBOL",
-            "name": "string_escape_sequence"
+            "name": "escape_sequence"
           }
         ]
       }
     },
-    "string_escape_sequence": {
+    "char_literal": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "symbol_open_single_quote",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "'"
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "content",
+          "content": {
+            "type": "SYMBOL",
+            "name": "character"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "symbol_close_single_quote",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "'"
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        }
+      ]
+    },
+    "character": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "IMMEDIATE_TOKEN",
+          "content": {
+            "type": "PREC",
+            "value": 1,
+            "content": {
+              "type": "PATTERN",
+              "value": "[^'\\\\\\n]"
+            }
+          }
+        },
+        {
+          "type": "SYMBOL",
+          "name": "escape_sequence"
+        }
+      ]
+    },
+    "escape_sequence": {
       "type": "IMMEDIATE_TOKEN",
       "content": {
         "type": "SEQ",
@@ -1142,10 +1205,6 @@
         }
       ]
     },
-    "float_literal": {
-      "type": "PATTERN",
-      "value": "[+-]?[0-9]+\\.[0-9]+"
-    },
     "digits": {
       "type": "CHOICE",
       "members": [
@@ -1166,6 +1225,10 @@
     "positive_digits": {
       "type": "PATTERN",
       "value": "\\d+"
+    },
+    "float_literal": {
+      "type": "PATTERN",
+      "value": "[+-]?[0-9]+\\.[0-9]+"
     },
     "type_reference": {
       "type": "CHOICE",

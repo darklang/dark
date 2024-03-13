@@ -39,7 +39,7 @@ string with escape
   (expression
     (string_literal
       (symbol)
-      (string_content (string_escape_sequence))
+      (string_content (escape_sequence))
       (symbol)
     )
   )

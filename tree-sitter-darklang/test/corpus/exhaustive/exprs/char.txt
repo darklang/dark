@@ -1,0 +1,24 @@
+==================
+basic char
+==================
+
+'a'
+
+---
+
+(source_file
+  (expression
+    (char_literal (symbol) (character) (symbol))))
+
+
+==================
+escape sequence
+==================
+
+'\n'
+
+---
+
+(source_file
+  (expression
+    (char_literal (symbol) (character (escape_sequence)) (symbol))))
