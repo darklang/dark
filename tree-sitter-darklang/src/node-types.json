@@ -54,7 +54,7 @@
       "required": false,
       "types": [
         {
-          "type": "escape_sequence",
+          "type": "char_or_string_escape_sequence",
           "named": true
         }
       ]
@@ -713,7 +713,7 @@
       "required": false,
       "types": [
         {
-          "type": "escape_sequence",
+          "type": "char_or_string_escape_sequence",
           "named": true
         }
       ]
@@ -965,7 +965,7 @@
     "named": false
   },
   {
-    "type": "escape_sequence",
+    "type": "char_or_string_escape_sequence",
     "named": true
   },
   {

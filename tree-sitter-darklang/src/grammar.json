@@ -567,7 +567,7 @@
           },
           {
             "type": "SYMBOL",
-            "name": "escape_sequence"
+            "name": "char_or_string_escape_sequence"
           }
         ]
       }
@@ -627,11 +627,11 @@
         },
         {
           "type": "SYMBOL",
-          "name": "escape_sequence"
+          "name": "char_or_string_escape_sequence"
         }
       ]
     },
-    "escape_sequence": {
+    "char_or_string_escape_sequence": {
       "type": "IMMEDIATE_TOKEN",
       "content": {
         "type": "SEQ",

@@ -148,7 +148,7 @@ module.exports = grammar({
         choice(
           // higher precedence than escape sequences
           token.immediate(prec(1, /[^\\"\n]+/)),
-          $.escape_sequence,
+          $.char_or_string_escape_sequence,
         ),
       ),
 
@@ -164,10 +164,11 @@ module.exports = grammar({
       choice(
         // higher precedence than escape sequences
         token.immediate(prec(1, /[^'\\\n]/)),
-        $.escape_sequence,
+        $.char_or_string_escape_sequence,
       ),
 
-    escape_sequence: _ => token.immediate(seq("\\", /(\"|\\|\/|b|f|n|r|t|u)/)),
+    char_or_string_escape_sequence: _ =>
+      token.immediate(seq("\\", /(\"|\\|\/|b|f|n|r|t|u)/)),
 
     //
     // Infix operations

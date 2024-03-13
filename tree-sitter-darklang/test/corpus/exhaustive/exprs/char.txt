@@ -21,4 +21,4 @@ escape sequence
 
 (source_file
   (expression
-    (char_literal (symbol) (character (escape_sequence)) (symbol))))
+    (char_literal (symbol) (character (char_or_string_escape_sequence)) (symbol))))
