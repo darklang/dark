@@ -10,6 +10,57 @@
     "fields": {}
   },
   {
+    "type": "char_literal",
+    "named": true,
+    "fields": {
+      "content": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "character",
+            "named": true
+          }
+        ]
+      },
+      "symbol_close_single_quote": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_open_single_quote": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "character",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "char_or_string_escape_sequence",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "digits",
     "named": true,
     "fields": {},
@@ -38,6 +89,10 @@
       "types": [
         {
           "type": "bool_literal",
+          "named": true
+        },
+        {
+          "type": "char_literal",
           "named": true
         },
         {
@@ -658,7 +713,7 @@
       "required": false,
       "types": [
         {
-          "type": "string_escape_sequence",
+          "type": "char_or_string_escape_sequence",
           "named": true
         }
       ]
@@ -910,6 +965,10 @@
     "named": false
   },
   {
+    "type": "char_or_string_escape_sequence",
+    "named": true
+  },
+  {
     "type": "float_literal",
     "named": true
   },
@@ -927,10 +986,6 @@
   },
   {
     "type": "positive_digits",
-    "named": true
-  },
-  {
-    "type": "string_escape_sequence",
     "named": true
   },
   {

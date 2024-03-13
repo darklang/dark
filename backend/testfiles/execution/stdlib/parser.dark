@@ -264,6 +264,11 @@ module TextToTextRoundtripping =
     ("\"hello\"" |> roundtripCliScript) = "\"hello\""
     ("\"hello\\tworld\"" |> roundtripCliScript) = "\"hello\\tworld\""
 
+    // char literals
+    ("'a'" |> roundtripCliScript) = "'a'"
+    ("'\\n'" |> roundtripCliScript) = "'\\n'"
+    ("'\t'" |> roundtripCliScript) = "'\t'"
+
     // variables and let bindings
     ("assumedlyAVariableName" |> roundtripCliScript) = "assumedlyAVariableName"
     // TODO: this is ugly

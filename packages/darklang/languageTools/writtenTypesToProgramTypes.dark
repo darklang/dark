@@ -206,6 +206,10 @@ module Darklang =
                 gid (),
                 [ ProgramTypes.StringSegment.StringText s ]
               )
+          | EChar(_, c, _, _) ->
+            match c with
+            | None -> ProgramTypes.Expr.EChar(gid (), "")
+            | Some((_, c)) -> ProgramTypes.Expr.EChar(gid (), c)
 
           // declaring and accessing variables
           | ELet(_, pat, rhs, body, _, _) ->

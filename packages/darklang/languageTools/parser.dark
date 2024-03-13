@@ -580,6 +580,39 @@ module Darklang =
             (WrittenTypes.Unparseable { source = node })
             |> Stdlib.Result.Result.Error
 
+        let parseCharLiteral
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
+          if node.typ == "char_literal" then
+            let openQuoteNode =
+              (findNodeByFieldName node "symbol_open_single_quote")
+              |> Stdlib.Option.toResult
+                "No symbol_open_single_quote node found in char_literal"
+
+            let charNode =
+              match findNodeByFieldName node "content" with
+              | Some charPart ->
+                Stdlib.Option.Option.Some((charPart.sourceRange, charPart.text))
+              | None -> Stdlib.Option.Option.None
+
+            let closeQuoteNode =
+              (findNodeByFieldName node "symbol_close_single_quote")
+              |> Stdlib.Option.toResult
+                "No symbol_close_single_quote node found in char_literal"
+
+            match openQuoteNode, closeQuoteNode with
+            | Ok openQuoteNode, Ok closeQuoteNode ->
+              (WrittenTypes.Expr.EChar(
+                node.sourceRange,
+                charNode,
+                openQuoteNode.sourceRange,
+                closeQuoteNode.sourceRange
+              ))
+              |> Stdlib.Result.Result.Ok
+
+            | _ ->
+              (WrittenTypes.Unparseable { source = node })
+              |> Stdlib.Result.Result.Error
 
         let parseLetExpr
           (node: ParsedNode)
@@ -804,6 +837,7 @@ module Darklang =
           | "uint128_literal" -> parseIntLiteral node
           | "float_literal" -> parseFloatLiteral node
           | "string_literal" -> parseStringLiteral node
+          | "char_literal" -> parseCharLiteral node
 
           // assigning and accessing variables
           | "let_expression" -> parseLetExpr node

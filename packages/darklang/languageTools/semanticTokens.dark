@@ -231,6 +231,18 @@ module Darklang =
               [ makeToken symbolCloseQuote TokenType.Symbol ] ]
             |> Stdlib.List.flatten
 
+          // 'a'
+          | EChar(range, _contentsMaybe, symbolOpenQuote, symbolCloseQuote) ->
+            [ // '
+              [ makeToken symbolOpenQuote TokenType.Symbol ]
+
+              // a
+              [ makeToken range TokenType.String ]
+
+              // '
+              [ makeToken symbolCloseQuote TokenType.Symbol ] ]
+            |> Stdlib.List.flatten
+
           // let x = 2
           // x + 1
           | ELet(range, lp, expr, body, keywordLet, symbolEquals) ->
