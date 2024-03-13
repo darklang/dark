@@ -181,6 +181,7 @@ jobs:
           paths:
             - backend/src/LibTreeSitter.CSharp.Darklang
             - backend/src/LibTreeSitter.CSharp
+      - run: npm install tree-sitter-cli && cd tree-sitter-darklang && npm run test
       - slack-notify-job-failure
 
   # Build server binaries and run tests
