@@ -86,6 +86,8 @@ module.exports = grammar({
         $.list_literal,
         $.tuple_literal,
 
+        $.if_statement,
+
         $.let_expression,
         $.variable_identifier,
 
