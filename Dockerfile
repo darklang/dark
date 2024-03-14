@@ -108,6 +108,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       google-cloud-sdk-pubsub-emulator \
       google-cloud-sdk-gke-gcloud-auth-plugin \
       jq \
+      parallel \
       # yugabyte
       ntp \
       vim \
@@ -331,22 +332,9 @@ ENV PATH "$PATH:/home/dark/emsdk/upstream/emscripten"
 
 
 #############
-# tree-sitter,
-# to P/Invoke with in our Darklang bindings
-#
-# Note: `tree-sitter.so` is moved into the `backend/src/LibTreeSitter` directory in
-# the `_copy-tree-sitter-binary` script, as this docker container doesn't seem to
-# have access the /home/dark directory here.
-#############
-RUN git clone --depth 1 --branch v0.20.8 https://github.com/tree-sitter/tree-sitter.git \
-  && gcc  -fPIC  -shared  -o tree-sitter.so  tree-sitter/lib/src/lib.c  -I tree-sitter/lib/src  -I tree-sitter/lib/src/../include \
-  && rm -rf tree-sitter/
-# TODO: cross-compile for other platforms, when we start releasing `darklang` binaries
-
-
-#############
 # Zig,
-# for (cross-)compiling the `tree-sitter-darklang` parser
+# for (cross-)compiling our `tree-sitter-darklang` parser,
+# along with the `tree-sitter` library itself.
 # TODO Occasionally, check https://ziglang.org/download to see if we're using the latest version
 ENV ZIG_VERSION=0.11.0
 ENV ZIG_ARM64_MINISIG="RUSGOq2NVecA2XPwbgbN5SvU46UcCmhhfcfrjVC+YvcwUcjAYfIXQmqE//df1Mes7iyGZvGoy2+PSJ8pog7QGLE+3nvP8gtlSAs="

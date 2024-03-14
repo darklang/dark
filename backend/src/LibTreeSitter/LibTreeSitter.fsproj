@@ -7,13 +7,70 @@
     <IsPublishable>false</IsPublishable>
     <IsTrimmable>false</IsTrimmable>
   </PropertyGroup>
+
+  <!--
+    Embed `tree-sitter` and `tree-sitter-darklang` with any build artifacts we publish,
+    to be extracted (to a temp dir), loaded, an used at run-time.
+
+    We must embed the _correct_ `tree-sitter` native library,
+    per the runtime identifier of the current build.
+
+    This setup must match the list of runtime identifiers in
+    `build-release-cli-exes.sh`! Otherwise we'll fail to include
+    the correct native library for the relevant runtime.
+  -->
+  <PropertyGroup>
+    <RuntimeIdentifiers>linux-x64;linux-musl-x64;linux-arm64;linux-arm;osx-x64;osx-arm64</RuntimeIdentifiers>
+  </PropertyGroup>
+  <Target Name="PrintRuntimeIdentifier" BeforeTargets="CoreCompile">
+    <Message Importance="high" Text="RuntimeIdentifier is '$(RuntimeIdentifier)'" />
+  </Target>
+
+  <!-- default, based on our devcontainer's setup -->
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == ''">
+    <EmbeddedResource Include="lib/tree-sitter.so" LogicalName="tree-sitter.so"/>
+    <EmbeddedResource Include="lib/tree-sitter-darklang.so" LogicalName="tree-sitter-darklang.so"/>
+  </ItemGroup>
+  <!-- for specific cross-plat builds -->
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'linux-x64'">
+    <EmbeddedResource Include="lib/tree-sitter-linux-x64.so" LogicalName="tree-sitter.so"/>
+    <EmbeddedResource Include="lib/tree-sitter-darklang-linux-x64.so" LogicalName="tree-sitter-darklang.so"/>
+  </ItemGroup>
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'linux-musl-x64'">
+    <EmbeddedResource Include="lib/tree-sitter-linux-musl-x64.so" LogicalName="tree-sitter.so"/>
+    <EmbeddedResource Include="lib/tree-sitter-darklang-linux-musl-x64.so" LogicalName="tree-sitter-darklang.so"/>
+  </ItemGroup>
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'linux-arm64'">
+    <EmbeddedResource Include="lib/tree-sitter-linux-arm64.so" LogicalName="tree-sitter.so"/>
+    <EmbeddedResource Include="lib/tree-sitter-darklang-linux-arm64.so" LogicalName="tree-sitter-darklang.so"/>
+  </ItemGroup>
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'linux-arm'">
+    <EmbeddedResource Include="lib/tree-sitter-linux-arm.so" LogicalName="tree-sitter.so"/>
+    <EmbeddedResource Include="lib/tree-sitter-darklang-linux-arm.so" LogicalName="tree-sitter-darklang.so"/>
+  </ItemGroup>
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'osx-x64'">
+    <EmbeddedResource Include="lib/tree-sitter-macos-x64.dylib" LogicalName="tree-sitter.dylib"/>
+    <EmbeddedResource Include="lib/tree-sitter-darklang-macos-x64.dylib" LogicalName="tree-sitter-darklang.so"/>
+  </ItemGroup>
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'osx-arm64'">
+    <EmbeddedResource Include="lib/tree-sitter-macos-arm64.dylib" LogicalName="tree-sitter.dylib"/>
+    <EmbeddedResource Include="lib/tree-sitter-darklang-macos-arm64.dylib" LogicalName="tree-sitter-darklang.so"/>
+  </ItemGroup>
+
+
+  <!-- Paket, for NuGet dependencies-->
   <ItemGroup>
     <None Include="paket.references" />
-    <Compile Include="TreeSitter.Native.fs" />
-    <Compile Include="LibTreeSitter_FS.fs" />
   </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
   </ItemGroup>
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
+
+  <ItemGroup>
+    <Compile Include="Helpers.fs" />
+    <Compile Include="TreeSitter.fs" />
+    <Compile Include="TreeSitter.Darklang.fs" />
+  </ItemGroup>
 </Project>

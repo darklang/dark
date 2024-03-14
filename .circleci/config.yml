@@ -17,7 +17,7 @@ executors:
       IN_DEV_CONTAINER: true
     docker:
       # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-base:81930cb
+      - image: darklang/dark-base:0f4a81f
 
 commands:
   show-large-files-and-directories:
@@ -166,22 +166,20 @@ jobs:
     steps:
       - darkcheckout
       - setup-app
+      - run: ./scripts/build/build-tree-sitter.sh
+      - run: ./scripts/build/build-parser --cross-compile
       - run:
-          name: Setup backend build environment
           command: |
-            set -x
-            if [[ -f /home/dark/tree-sitter.so && ! -f /home/dark/app/backend/src/LibTreeSitter.CSharp/tree-sitter.so ]]; then
-              mv /home/dark/tree-sitter.so /home/dark/app/backend/src/LibTreeSitter.CSharp/
-              else
-              echo "No action needed."
+            if [ "${CIRCLE_BRANCH}" = "main" ]; then
+              ./scripts/build/build-parser --cross-compile
+            else
+              ./scripts/build/build-parser
             fi
-      - run: ./scripts/build/build-parser
+      - run: npm install tree-sitter-cli && cd tree-sitter-darklang && npm run test
       - persist_to_workspace:
           root: "."
           paths:
-            - backend/src/LibTreeSitter.CSharp.Darklang
-            - backend/src/LibTreeSitter.CSharp
-      - run: npm install tree-sitter-cli && cd tree-sitter-darklang && npm run test
+            - backend/src/LibTreeSitter/lib
       - slack-notify-job-failure
 
   # Build server binaries and run tests
@@ -201,6 +199,7 @@ jobs:
       #- run: git restore-mtime
       - setup-app
       - attach_workspace: { at: "." }
+      - run: ls -l backend/src/LibTreeSitter/lib
       - run:
           name: Setup backend build environment
           command: |
@@ -272,7 +271,13 @@ jobs:
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
       - assert-clean-worktree
-      - run: ./scripts/build/dotnet-publish-all-clis.sh
+      - run:
+          command: |
+            if [ "${CIRCLE_BRANCH}" = "main" ]; then
+              ./scripts/build/build-release-cli-exes.sh --cross-compile
+            else
+              ./scripts/build/build-release-cli-exes.sh
+            fi
       - persist_to_workspace:
           root: "."
           paths:

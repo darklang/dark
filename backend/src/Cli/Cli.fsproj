@@ -6,8 +6,9 @@
     <LangVersion>8.0</LangVersion>
     <!-- Publishing configuration -->
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+
     <!-- We publish these for lots of different runtimes, so leave these empty and
-         then specify them in scripts/build/dotnet-publish-all-executors.sh. The
+         then specify them in scripts/build/build-release-cli-exes.sh. The
          regular build works fine with the defaults (and will pick a runtime
          automatically) -->
     <!-- <PublishTrimmed>true</PublishTrimmed> -->
@@ -46,10 +47,19 @@
   <ItemGroup>
     <None Include="paket.references" />
   </ItemGroup>
+  <Target Name="PrintRuntimeIdentifierCli" BeforeTargets="BeforeBuild">
+    <Message Importance="high" Text="RuntimeIdentifier in Cli is '$(RuntimeIdentifier)'" />
+  </Target>
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../LibPackageManager/LibPackageManager.fsproj" />
     <ProjectReference Include="../BuiltinCliHost/BuiltinCliHost.fsproj" />
+
+    <!--
+      Note: We need to reference these projects explicitly (not just transitively),
+      otherwise (for some reason) the tree-sitter.so file doesn't get embedded properly.
+     -->
+    <ProjectReference Include="../LibTreeSitter/LibTreeSitter.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Cli.fs" />
