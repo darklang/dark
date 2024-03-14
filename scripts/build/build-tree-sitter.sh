@@ -14,7 +14,7 @@
 # Note: The list of build targets should be updated _in conjunction with_ equivalent
 # updates in `LibTreeSitter.fsproj`, as well as `build-release-cli-exes.sh`.
 
-cd ~/
+cd ~/ || exit
 
 # Clone the specific branch of the tree-sitter repository
 git clone --depth 1 --branch v0.20.8 https://github.com/tree-sitter/tree-sitter.git
@@ -27,12 +27,12 @@ mkdir -p $output_base_dir
 
 # Compile tree-sitter for different platforms using the function
 parallel ::: \
-  "~/zig/zig cc -target x86_64-linux-gnu -fPIC -shared -o $output_base_dir/tree-sitter-linux-x64.so $tree_sitter_sources" \
-  "~/zig/zig cc -target x86_64-linux-musl -fPIC -shared -o $output_base_dir/tree-sitter-linux-musl-x64.so $tree_sitter_sources" \
-  "~/zig/zig cc -target aarch64-linux-gnu -fPIC -shared -o $output_base_dir/tree-sitter-linux-arm64.so $tree_sitter_sources" \
-  "~/zig/zig cc -target arm-linux-gnueabihf -fPIC -shared -o $output_base_dir/tree-sitter-linux-arm.so $tree_sitter_sources" \
-  "~/zig/zig cc -target x86_64-macos-none -fPIC -shared -o $output_base_dir/tree-sitter-macos-x64.dylib $tree_sitter_sources" \
-  "~/zig/zig cc -target aarch64-macos-none -fPIC -shared -o $output_base_dir/tree-sitter-macos-arm64.dylib $tree_sitter_sources"
+  "$HOME/zig/zig cc -target x86_64-linux-gnu -fPIC -shared -o $output_base_dir/tree-sitter-linux-x64.so $tree_sitter_sources" \
+  "$HOME/zig/zig cc -target x86_64-linux-musl -fPIC -shared -o $output_base_dir/tree-sitter-linux-musl-x64.so $tree_sitter_sources" \
+  "$HOME/zig/zig cc -target aarch64-linux-gnu -fPIC -shared -o $output_base_dir/tree-sitter-linux-arm64.so $tree_sitter_sources" \
+  "$HOME/zig/zig cc -target arm-linux-gnueabihf -fPIC -shared -o $output_base_dir/tree-sitter-linux-arm.so $tree_sitter_sources" \
+  "$HOME/zig/zig cc -target x86_64-macos-none -fPIC -shared -o $output_base_dir/tree-sitter-macos-x64.dylib $tree_sitter_sources" \
+  "$HOME/zig/zig cc -target aarch64-macos-none -fPIC -shared -o $output_base_dir/tree-sitter-macos-arm64.dylib $tree_sitter_sources"
 
 # Clean up
 rm -rf tree-sitter/
