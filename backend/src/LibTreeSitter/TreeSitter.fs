@@ -171,8 +171,10 @@ type Language(handle : IntPtr) =
 
 type Node(handle : Native.TsNode) =
   static member internal Create(node : Native.TsNode) =
-    //if node.id = IntPtr.Zero then null else
-    Node(node)
+    if node.id = IntPtr.Zero then
+      raise (ArgumentNullException "tree-sitter lib returned null node handle")
+    else
+      Node node
 
   member _.Handle = handle
 

@@ -168,6 +168,13 @@ jobs:
       - setup-app
       - run: ./scripts/build/build-tree-sitter.sh
       - run: ./scripts/build/build-parser --cross-compile
+      - run:
+          command: |
+            if [ "${CIRCLE_BRANCH}" = "main" ]; then
+              ./scripts/build/build-parser --cross-compile
+            else
+              ./scripts/build/build-parser
+            fi
       - run: npm install tree-sitter-cli && cd tree-sitter-darklang && npm run test
       - persist_to_workspace:
           root: "."
@@ -402,6 +409,13 @@ workflows:
       - build-cli:
           requires:
             - build-parser
+          # TODO we should build-cli in all branches,
+          # but only `main` should cross-compile.
+          # This takes a while in CI, so filtering out when
+          # not on `main`, for now.
+          filters:
+            branches:
+              only: main
 
       # TODO: maybe put this into 'deploy' job,
       # otherwise we're left in an awkward state if this succeeds

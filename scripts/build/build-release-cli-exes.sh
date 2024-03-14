@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 . ./scripts/devcontainer/_assert-in-container "$0" "$@"
 
-# build all dotnet executor binaries in parallel
+# TODO only build the 'current' runtime in non-`main` branches,
+# and build all runtimes in `main` branch.
+
+# TODO run some test in CI against the current-runtime executable,
+# just verifying that it (incl the packaged parser) works.
+
+# build the CLI executables for all platforms
 
 set -euo pipefail
 
@@ -16,8 +22,8 @@ mkdir -p clis
 # https://stackoverflow.com/a/43951971/104021
 
 # This list must match the list of runtime identifiers in
-# - `backend/src/LibTreeSitter/LibTreeSitter.fsproj` and
-# - and ``./scripts/build/build-tree-sitter.sh`.
+# - `backend/src/LibTreeSitter/LibTreeSitter.fsproj`
+# - and `./scripts/build/build-tree-sitter.sh`.
 #
 # Otherwise we'll fail to include the correct native library
 # for the relevant runtime.
