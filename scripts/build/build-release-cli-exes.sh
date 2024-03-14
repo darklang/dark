@@ -8,19 +8,13 @@
 
 set -euo pipefail
 
-sha=$(git rev-parse HEAD)
+sha=$(git rev-parse HEAD | cut -c 1-10)
 
 release="alpha-$sha"
 
 mkdir -p clis
 
 
-# --- Determine the runtimes to build for
-
-# Default runtimes variable to an empty string.
-runtimes=""
-
-# Check for --cross-compile flag to set runtimes accordingly.
 if [[ " $* " =~ " --cross-compile " ]]; then
   echo "Cross-compiling for all supported runtimes"
 
@@ -31,37 +25,55 @@ if [[ " $* " =~ " --cross-compile " ]]; then
   #
   # Otherwise we'll fail to include the correct native library
   # for the relevant runtime.
-  # TODO: include `win-x64` and `win-arm64`.
   runtimes="linux-x64 linux-musl-x64 linux-arm64 linux-arm osx-x64 osx-arm64"
+  # TODO: include `win-x64` and `win-arm64`.
+
+  # Parallelism set to 1 here to avoid running out of memory.
+  # TODO: do better with gnu parallel or with this solution that I couldn't make work:
+  # https://stackoverflow.com/a/43951971/104021
+  for rt in $runtimes; do
+    echo "Building for runtime: $rt"
+    ./scripts/build/_dotnet-wrapper publish \
+      -c Release \
+      src/Cli/Cli.fsproj \
+      /p:DebugType=None \
+      /p:DebugSymbols=false \
+      /p:PublishSingleFile=true \
+      /p:PublishTrimmed=true \
+      /p:PublishReadyToRun=false \
+      --self-contained true \
+      --runtime "$rt"
+
+    target="clis/darklang-$release-$rt"
+    echo "Moving to $target"
+    if [[ $rt == win-* ]]; then
+      mv -f "backend/Build/out/Cli/Release/net8.0/$rt/publish/Cli.exe" "$target.exe"
+      gzip -f "$target.exe"
+    else
+      mv -f "backend/Build/out/Cli/Release/net8.0/$rt/publish/Cli" "$target"
+      gzip -f "$target"
+    fi
+  done
+
 else
-    echo "Building for current runtime
-    "
-    # Dynamically determine the current runtime based on the machine architecture
-    # , if not cross-compiling.
-    machine_arch=$(uname -m)
+  # Building for the default runtime based on the current environment
+  echo "Building for the default runtime"
 
-    case "$machine_arch" in
-      x86_64)
-        runtimes="linux-x64"
-        ;;
-      aarch64)
-        runtimes="linux-arm64"
-        ;;
-      *)
-        echo "Unsupported machine architecture: $machine_arch"
-        exit 1
-        ;;
-    esac
-fi
+  runtime=""
+  machine_arch=$(uname -m)
 
-
-# --- Actually build the exes
-
-# Parallelism set to 1 here to avoid running out of memory.
-# TODO: do better with gnu parallel or with this solution that I couldn't make work:
-# https://stackoverflow.com/a/43951971/104021
-for rt in $runtimes; do
-  echo "Building for runtime: $rt"
+  case "$machine_arch" in
+    x86_64)
+      runtime="linux-x64"
+      ;;
+    aarch64)
+      runtime="linux-arm64"
+      ;;
+    *)
+      echo "Unsupported machine architecture: $machine_arch"
+      exit 1
+      ;;
+  esac
 
   ./scripts/build/_dotnet-wrapper publish \
     -c Release \
@@ -71,16 +83,12 @@ for rt in $runtimes; do
     /p:PublishSingleFile=true \
     /p:PublishTrimmed=true \
     /p:PublishReadyToRun=false \
-    --self-contained true \
-    --runtime "$rt"
+    --self-contained true
 
-  target="clis/darklang-$release-$rt"
+  target="clis/darklang-$release-$runtime"
   echo "Moving to $target"
-  if [[ $rt == win-* ]]; then
-    mv -f "backend/Build/out/Cli/Release/net8.0/$rt/publish/Cli.exe" "$target.exe"
-    gzip -f "$target.exe"
-  else
-    mv -f "backend/Build/out/Cli/Release/net8.0/$rt/publish/Cli" "$target"
-    gzip -f "$target"
-  fi
-done
+  mv -f "backend/Build/out/Cli/Release/net8.0/$runtime/publish/Cli" "$target"
+
+  # we probably want to execute this right away if we're not cross-compiling,
+  # so let's not bother gzipping
+fi
