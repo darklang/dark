@@ -364,31 +364,6 @@ RUN set -e; \
 ENV PATH "$PATH:~/zig"
 
 
-#############
-# tree-sitter,
-# to P/Invoke within our Darklang bindings
-#
-# Note: The resultant built libs are moved into the `backend/src/LibTreeSitter`
-# directory, in the `_copy-tree-sitter-binary` script,
-# as this docker container doesn't seem to
-# have access to the /home/dark directory here.
-#
-# Note: The list of build targets should be updated _in conjunction with_
-# equivalent updates in the `LibTreeSitter` fsproj/csproj files,
-# as well as `build-release-cli-exes.sh`.
-#############
-RUN git clone --depth 1 --branch v0.20.8 https://github.com/tree-sitter/tree-sitter.git && \
-    mkdir -p tree-sitter-builds && \
-    parallel ::: \
-    "~/zig/zig cc -target x86_64-linux-gnu -fPIC -shared -o tree-sitter-builds/tree-sitter-linux-x64.so tree-sitter/lib/src/lib.c -I tree-sitter/lib/src -I tree-sitter/lib/src/../include" \
-    "~/zig/zig cc -target x86_64-linux-musl -fPIC -shared -o tree-sitter-builds/tree-sitter-linux-musl-x64.so tree-sitter/lib/src/lib.c -I tree-sitter/lib/src -I tree-sitter/lib/src/../include" \
-    "~/zig/zig cc -target aarch64-linux-gnu -fPIC -shared -o tree-sitter-builds/tree-sitter-linux-arm64.so tree-sitter/lib/src/lib.c -I tree-sitter/lib/src -I tree-sitter/lib/src/../include" \
-    "~/zig/zig cc -target arm-linux-gnueabihf -fPIC -shared -o tree-sitter-builds/tree-sitter-linux-arm.so tree-sitter/lib/src/lib.c -I tree-sitter/lib/src -I tree-sitter/lib/src/../include" \
-    "~/zig/zig cc -target x86_64-macos-none -fPIC -shared -o tree-sitter-builds/tree-sitter-macos-x64.dylib tree-sitter/lib/src/lib.c -I tree-sitter/lib/src -I tree-sitter/lib/src/../include" \
-    "~/zig/zig cc -target aarch64-macos-none -fPIC -shared -o tree-sitter-builds/tree-sitter-macos-arm64.dylib tree-sitter/lib/src/lib.c -I tree-sitter/lib/src -I tree-sitter/lib/src/../include" && \
-    rm -rf tree-sitter/
-
-
 ############################
 # VSCE, used for publishing VS Code extension
 #

@@ -42,3 +42,5 @@ deploy-lock-manual-deploy
 .secrets
 
 clis/
+
+.mono

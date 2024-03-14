@@ -16,8 +16,11 @@ mkdir -p clis
 # https://stackoverflow.com/a/43951971/104021
 
 # This list must match the list of runtime identifiers in
-# `build-release-cli-exes.sh`! Otherwise we'll fail to include
-# the correct native library for the relevant runtime.
+# - `backend/src/LibTreeSitter/LibTreeSitter.fsproj` and
+# - and ``./scripts/build/build-tree-sitter.sh`.
+#
+# Otherwise we'll fail to include the correct native library
+# for the relevant runtime.
 runtimes="linux-x64 linux-musl-x64 linux-arm64 linux-arm osx-x64 osx-arm64"
 # TODO: include `win-x64` and `win-arm64`.
 

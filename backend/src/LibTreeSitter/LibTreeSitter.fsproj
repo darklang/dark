@@ -50,11 +50,11 @@
   </ItemGroup>
   <ItemGroup Condition="'$(RuntimeIdentifier)' == 'osx-x64'">
     <EmbeddedResource Include="lib/tree-sitter-macos-x64.dylib" LogicalName="tree-sitter.dylib"/>
-    <EmbeddedResource Include="lib/tree-sitter-darklang-macos-x64.so" LogicalName="tree-sitter-darklang.so"/>
+    <EmbeddedResource Include="lib/tree-sitter-darklang-macos-x64.dylib" LogicalName="tree-sitter-darklang.so"/>
   </ItemGroup>
   <ItemGroup Condition="'$(RuntimeIdentifier)' == 'osx-arm64'">
     <EmbeddedResource Include="lib/tree-sitter-macos-arm64.dylib" LogicalName="tree-sitter.dylib"/>
-    <EmbeddedResource Include="lib/tree-sitter-darklang-macos-arm64.so" LogicalName="tree-sitter-darklang.so"/>
+    <EmbeddedResource Include="lib/tree-sitter-darklang-macos-arm64.dylib" LogicalName="tree-sitter-darklang.so"/>
   </ItemGroup>
 
 

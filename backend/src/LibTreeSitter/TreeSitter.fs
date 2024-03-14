@@ -257,7 +257,7 @@ type Parser() =
       ct : Option<CancellationToken>
     ) =
     let mutable cancelFlag = 0L
-    let cancelFlagPtr = new IntPtr(cancelFlag) // had & -- ok?
+    let cancelFlagPtr = new IntPtr(cancelFlag)
 
     let encoding =
       match encoding with
