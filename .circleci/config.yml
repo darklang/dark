@@ -271,7 +271,13 @@ jobs:
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
       - assert-clean-worktree
-      - run: ./scripts/build/build-release-cli-exes.sh
+      - run:
+          command: |
+            if [ "${CIRCLE_BRANCH}" = "main" ]; then
+              ./scripts/build/build-release-cli-exes.sh --cross-compile
+            else
+              ./scripts/build/build-release-cli-exes.sh
+            fi
       - persist_to_workspace:
           root: "."
           paths:
@@ -409,13 +415,6 @@ workflows:
       - build-cli:
           requires:
             - build-parser
-          # TODO we should build-cli in all branches,
-          # but only `main` should cross-compile.
-          # This takes a while in CI, so filtering out when
-          # not on `main`, for now.
-          filters:
-            branches:
-              only: main
 
       # TODO: maybe put this into 'deploy' job,
       # otherwise we're left in an awkward state if this succeeds
