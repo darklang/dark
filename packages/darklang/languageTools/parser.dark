@@ -1168,6 +1168,63 @@ module Darklang =
               (WrittenTypes.Unparseable { source = node })
               |> Stdlib.Result.Result.Error
 
+        let parseIfStatement
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
+          if node.typ == "if_statement" then
+            let keywordIfNode =
+              (findNodeByFieldName node "keyword_if")
+              |> Stdlib.Option.toResult "No keyword_if node found in if_statement"
+
+            let conditionNode =
+              match (findNodeByFieldName node "condition") with
+              | Some conditionNode -> (Expr.parse conditionNode)
+              | None ->
+                Stdlib.Result.Result.Error "No condition node found in if_statement"
+
+            let keywordThenNode =
+              (findNodeByFieldName node "keyword_then")
+              |> Stdlib.Option.toResult "No keyword_then node found in if_statement"
+
+            let thenNode =
+              match (findNodeByFieldName node "then_expr") with
+              | Some thenNode -> (Expr.parse thenNode)
+              | None ->
+                Stdlib.Result.Result.Error "No then node found in if_statement"
+
+            let keywordElseNode = (findNodeByFieldName node "keyword_else")
+
+            let elseNode =
+              match (findNodeByFieldName node "else_expr") with
+              | Some elseNode -> (Expr.parse elseNode) |> Stdlib.Result.toOption
+              | None ->
+                (Stdlib.Result.Result.Error "No else node found in if_statement")
+                |> Stdlib.Result.toOption
+
+
+            match keywordIfNode, conditionNode, keywordThenNode, thenNode with
+            | Ok keywordIfNode, Ok conditionNode, Ok keywordThenNode, Ok thenNode ->
+              let keywordElseNodeRange =
+                keywordElseNode |> Stdlib.Option.map (fun node -> node.sourceRange)
+
+              (WrittenTypes.Expr.EIf(
+                node.sourceRange,
+                conditionNode,
+                thenNode,
+                elseNode,
+                keywordIfNode.sourceRange,
+                keywordThenNode.sourceRange,
+                keywordElseNodeRange
+              ))
+              |> Stdlib.Result.Result.Ok
+
+            | _ ->
+              (WrittenTypes.Unparseable { source = node })
+              |> Stdlib.Result.Result.Error
+
+          else
+            (WrittenTypes.Unparseable { source = node })
+            |> Stdlib.Result.Result.Error
 
         let parseFunctionCall
           (node: ParsedNode)
@@ -1262,6 +1319,8 @@ module Darklang =
           | "variable_identifier" ->
             (WrittenTypes.Expr.EVariable(node.sourceRange, getText node))
             |> Stdlib.Result.Result.Ok
+
+          | "if_statement" -> parseIfStatement node
 
           // fn calls
           | "infix_operation" -> parseInfixOperation node

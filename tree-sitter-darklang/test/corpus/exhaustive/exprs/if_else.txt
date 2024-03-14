@@ -1,0 +1,129 @@
+==================
+basic if/else statement
+==================
+if a > b then a else b
+
+---
+
+  (source_file
+    (expression
+      (if_statement
+        (keyword)
+        (expression
+          (infix_operation
+            (expression
+              (variable_identifier))
+            (operator)
+            (expression
+              (variable_identifier))))
+        (keyword)
+        (expression
+          (variable_identifier))
+        (keyword)
+        (expression
+          (variable_identifier)))))
+
+
+
+
+==================
+if without else
+==================
+
+if a > b then a
+
+---
+
+  (source_file
+    (expression
+      (if_statement
+        (keyword)
+        (expression
+          (infix_operation
+            (expression
+              (variable_identifier))
+            (operator)
+            (expression
+              (variable_identifier))))
+        (keyword)
+        (expression
+          (variable_identifier)))))
+
+
+==================
+ambiguous if/else statement (the else is for the outer if statement)
+==================
+
+if a > b then
+  if c > d then c
+else b
+
+---
+
+  (source_file
+    (expression
+      (if_statement
+        (keyword)
+        (expression
+          (infix_operation
+            (expression
+              (variable_identifier))
+            (operator)
+            (expression
+              (variable_identifier))))
+        (keyword)
+        (expression
+          (if_statement
+            (keyword)
+            (expression
+              (infix_operation
+                (expression
+                  (variable_identifier))
+                (operator)
+                (expression
+                  (variable_identifier))))
+            (keyword)
+            (expression
+              (variable_identifier))
+            (keyword)
+            (expression
+              (variable_identifier)))))))
+
+
+==================
+ambiguous if/else statement (else is for the inner if statement)
+==================
+if a > b then
+  if c > d then c
+  else b
+
+---
+
+  (source_file
+    (expression
+      (if_statement
+        (keyword)
+        (expression
+          (infix_operation
+            (expression
+              (variable_identifier))
+            (operator)
+            (expression
+              (variable_identifier))))
+        (keyword)
+        (expression
+          (if_statement
+            (keyword)
+            (expression
+              (infix_operation
+                (expression
+                  (variable_identifier))
+                (operator)
+                (expression
+                  (variable_identifier))))
+            (keyword)
+            (expression
+              (variable_identifier))
+            (keyword)
+            (expression
+              (variable_identifier)))))))

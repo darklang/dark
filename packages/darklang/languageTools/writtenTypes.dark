@@ -210,6 +210,15 @@ module Darklang =
 
         | EVariable of SourceRange * String
 
+        | EIf of
+          SourceRange *
+          cond: Expr *
+          thenExpr: Expr *
+          elseExpr: Stdlib.Option.Option<Expr> *
+          keywordIf: SourceRange *
+          keywordThen: SourceRange *
+          keywordElse: Stdlib.Option.Option<SourceRange>
+
         | EInfix of
           SourceRange *
           op: (SourceRange * Infix) *

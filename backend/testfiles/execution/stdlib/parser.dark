@@ -302,6 +302,31 @@ module TextToTextRoundtripping =
     // TODO: this is ugly
     ("let x = 1L\n  x" |> roundtripCliScript) = "let x =\n  1L\nx"
 
+    // if expressions
+    ("if true then 1L else 2L" |> roundtripCliScript) = "if true then\n  1L\nelse\n  2L"
+    ("if true then 1L else if false then 2L else 3L" |> roundtripCliScript) = "if true then\n  1L\nelse\n  if false then\n    2L\n  else\n    3L"
+    ("if true then 1L else if false then 2L" |> roundtripCliScript) = "if true then\n  1L\nelse\n  if false then\n    2L"
+    ("if true then 1L" |> roundtripCliScript) = "if true then\n  1L"
+
+    ("""if a > b then
+  if c > d then c
+else b"""
+     |> roundtripCliScript) = """if (a) > (b) then
+  if (c) > (d) then
+    c
+  else
+    b"""
+
+    ("""if a > b then
+  if c > d then c
+  else b"""
+     |> roundtripCliScript) = """if (a) > (b) then
+  if (c) > (d) then
+    c
+  else
+    b"""
+
+
     // fn calls
     // TODO: these are ugly
     ("1L + 2L" |> roundtripCliScript) = "(1L) + (2L)"
