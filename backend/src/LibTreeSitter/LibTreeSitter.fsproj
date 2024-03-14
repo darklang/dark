@@ -28,7 +28,7 @@
 
   <!-- default, based on our devcontainer's setup -->
   <ItemGroup Condition="'$(RuntimeIdentifier)' == ''">
-    <EmbeddedResource Include="lib/tree-sitter-linux-x64.so" LogicalName="tree-sitter.so"/>
+    <EmbeddedResource Include="lib/tree-sitter.so" LogicalName="tree-sitter.so"/>
     <EmbeddedResource Include="lib/tree-sitter-darklang.so" LogicalName="tree-sitter-darklang.so"/>
   </ItemGroup>
   <!-- for specific cross-plat builds -->

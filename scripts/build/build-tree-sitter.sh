@@ -27,6 +27,7 @@ mkdir -p $output_base_dir
 
 # Compile tree-sitter for different platforms using the function
 parallel ::: \
+  "$HOME/zig/zig cc -fPIC -shared -o $output_base_dir/tree-sitter.so $tree_sitter_sources" \
   "$HOME/zig/zig cc -target x86_64-linux-gnu -fPIC -shared -o $output_base_dir/tree-sitter-linux-x64.so $tree_sitter_sources" \
   "$HOME/zig/zig cc -target x86_64-linux-musl -fPIC -shared -o $output_base_dir/tree-sitter-linux-musl-x64.so $tree_sitter_sources" \
   "$HOME/zig/zig cc -target aarch64-linux-gnu -fPIC -shared -o $output_base_dir/tree-sitter-linux-arm64.so $tree_sitter_sources" \
