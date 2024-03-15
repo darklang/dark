@@ -2,7 +2,7 @@ module Darklang =
   module LanguageTools =
     module RuntimeTypes =
       // <aliases>
-      type Option = PACKAGE.Darklang.Stdlib.Option.Option
+      type Option = Stdlib.Option.Option
       // </aliases>
 
       module FQTypeName =
@@ -65,8 +65,7 @@ module Darklang =
           | UserProgram of UserProgram
 
 
-      type NameResolution<'a> =
-        PACKAGE.Darklang.Stdlib.Result.Result<'a, RuntimeError>
+      type NameResolution<'a> = Stdlib.Result.Result<'a, RuntimeError>
 
 
       type TypeReference =
@@ -138,7 +137,7 @@ module Darklang =
 
       type MatchCase =
         { pat: MatchPattern
-          whenCondition: PACKAGE.Darklang.Stdlib.Option.Option<Expr>
+          whenCondition: Stdlib.Option.Option<Expr>
           rhs: Expr }
 
       type LetPattern =
@@ -293,8 +292,7 @@ module Darklang =
             (KnownType.KTTuple(
               toValueType first,
               toValueType second,
-              theRest
-              |> PACKAGE.Darklang.Stdlib.List.map (fun item -> toValueType item)
+              theRest |> Stdlib.List.map (fun item -> toValueType item)
             ))
             |> ValueType.Known
 
@@ -307,9 +305,7 @@ module Darklang =
           | DFnVal fnImpl ->
             match fnImpl with
             | Lambda lambda ->
-              let ps =
-                PACKAGE.Darklang.Stdlib.List.map lambda.parameters (fun _ ->
-                  ValueType.Unknown)
+              let ps = Stdlib.List.map lambda.parameters (fun _ -> ValueType.Unknown)
 
               ValueType.Known(KnownType.KTFn(ps, ValueType.Unknown))
 

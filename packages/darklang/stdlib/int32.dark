@@ -23,7 +23,7 @@ module Darklang =
       let remainder
         (value: Int32)
         (divisor: Int32)
-        : PACKAGE.Darklang.Stdlib.Result.Result<Int32, String> =
+        : Stdlib.Result.Result<Int32, String> =
         Builtin.int32Remainder value divisor
 
 
@@ -109,8 +109,7 @@ module Darklang =
 
       /// Returns the sum of all the ints in the list
       let sum (lst: List<Int32>) : Int32 =
-        PACKAGE.Darklang.Stdlib.List.fold lst 0l (fun acc x ->
-          Builtin.int32Add acc x)
+        Stdlib.List.fold lst 0l (fun acc x -> Builtin.int32Add acc x)
 
 
       /// Returns the higher of <param a> and <param b>
@@ -147,9 +146,7 @@ module Darklang =
 
 
       /// Returns the <type Int32> value of a <type String>
-      let parse
-        (s: String)
-        : PACKAGE.Darklang.Stdlib.Result.Result<Int32, PACKAGE.Darklang.Stdlib.Int32.ParseError> =
+      let parse (s: String) : Stdlib.Result.Result<Int32, Stdlib.Int32.ParseError> =
         Builtin.int32Parse s
 
 
@@ -174,25 +171,25 @@ module Darklang =
 
 
       /// Converts a <type UInt32> to a <type Int32>. Returns {{None}} if the value is greater than 2147483647.
-      let fromUInt32 (i: UInt32) : PACKAGE.Darklang.Stdlib.Option.Option<Int32> =
+      let fromUInt32 (i: UInt32) : Stdlib.Option.Option<Int32> =
         Builtin.int32FromUInt32 i
 
 
       /// Converts an <type Int64> to a <type Int32>. Returns {{None}} if the value is less than -2147483648 or greater than 2147483647.
-      let fromInt64 (i: Int64) : PACKAGE.Darklang.Stdlib.Option.Option<Int32> =
+      let fromInt64 (i: Int64) : Stdlib.Option.Option<Int32> =
         Builtin.int32FromInt64 i
 
 
       /// Converts a <type UInt64> to a <type Int32>. Returns {{None}} if the value is greater than 2147483647.
-      let fromUInt64 (i: UInt64) : PACKAGE.Darklang.Stdlib.Option.Option<Int32> =
+      let fromUInt64 (i: UInt64) : Stdlib.Option.Option<Int32> =
         Builtin.int32FromUInt64 i
 
 
       /// Converts an <type Int128> to a <type Int32>. Returns {{None}} if the value is less than -2147483648 or greater than 2147483647.
-      let fromInt128 (i: Int128) : PACKAGE.Darklang.Stdlib.Option.Option<Int32> =
+      let fromInt128 (i: Int128) : Stdlib.Option.Option<Int32> =
         Builtin.int32FromInt128 i
 
 
       /// Converts a <type UInt128> to a <type Int32>. Returns {{None}} if the value is greater than 2147483647.
-      let fromUInt128 (i: UInt128) : PACKAGE.Darklang.Stdlib.Option.Option<Int32> =
+      let fromUInt128 (i: UInt128) : Stdlib.Option.Option<Int32> =
         Builtin.int32FromUInt128 i

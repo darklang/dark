@@ -12,7 +12,7 @@ module Darklang =
         | _ -> Stdlib.Result.Result.Error result.exitCode
 
       let shell () : Stdlib.Cli.Host.HostDefaultShell =
-        (Darklang.Stdlib.Cli.Host.getShell ()) |> Builtin.unwrap
+        (Stdlib.Cli.Host.getShell ()) |> Builtin.unwrap
 
       let runUninstall () : Int64 =
         Builtin.printLine "Are you sure you want to uninstall darklang cli? (y/n): "

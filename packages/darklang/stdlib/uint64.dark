@@ -74,8 +74,7 @@ module Darklang =
 
       /// Returns the sum of all the ints in the list
       let sum (lst: List<UInt64>) : UInt64 =
-        PACKAGE.Darklang.Stdlib.List.fold lst 0UL (fun acc x ->
-          Builtin.uint64Add acc x)
+        Stdlib.List.fold lst 0UL (fun acc x -> Builtin.uint64Add acc x)
 
 
       /// Returns the higher of <param a> and <param b>
@@ -114,7 +113,7 @@ module Darklang =
       /// Returns the <type UInt64> value of a <type String>
       let parse
         (s: String)
-        : PACKAGE.Darklang.Stdlib.Result.Result<UInt64, PACKAGE.Darklang.Stdlib.UInt64.ParseError> =
+        : Stdlib.Result.Result<UInt64, Stdlib.UInt64.ParseError> =
         Builtin.uint64Parse s
 
 
@@ -123,7 +122,7 @@ module Darklang =
 
 
       /// Converts an <type Int8> to an <type UInt64>. Returns {{None}} if the value is less than 0
-      let fromInt8 (i: Int8) : PACKAGE.Darklang.Stdlib.Option.Option<UInt64> =
+      let fromInt8 (i: Int8) : Stdlib.Option.Option<UInt64> =
         Builtin.uint64FromInt8 i
 
 
@@ -132,7 +131,7 @@ module Darklang =
 
 
       /// Converts an <type Int16> to an <type UInt64>. Returns {{None}} if the value is less than 0
-      let fromInt16 (i: Int16) : PACKAGE.Darklang.Stdlib.Option.Option<UInt64> =
+      let fromInt16 (i: Int16) : Stdlib.Option.Option<UInt64> =
         Builtin.uint64FromInt16 i
 
 
@@ -141,7 +140,7 @@ module Darklang =
 
 
       /// Converts an <type Int32> to an <type UInt64>. Returns {{None}} if the value is less than 0
-      let fromInt32 (i: Int32) : PACKAGE.Darklang.Stdlib.Option.Option<UInt64> =
+      let fromInt32 (i: Int32) : Stdlib.Option.Option<UInt64> =
         Builtin.uint64FromInt32 i
 
 
@@ -150,15 +149,15 @@ module Darklang =
 
 
       /// Converts an <type Int64> to an <type UInt64>. Returns {{None}} if the value is less than 0
-      let fromInt64 (i: Int64) : PACKAGE.Darklang.Stdlib.Option.Option<UInt64> =
+      let fromInt64 (i: Int64) : Stdlib.Option.Option<UInt64> =
         Builtin.uint64FromInt64 i
 
 
       /// Converts an <type Int128> to an <type UInt64>. Returns {{None}} if the value is less than 0 or greater than 18446744073709551615
-      let fromInt128 (i: Int128) : PACKAGE.Darklang.Stdlib.Option.Option<UInt64> =
+      let fromInt128 (i: Int128) : Stdlib.Option.Option<UInt64> =
         Builtin.uint64FromInt128 i
 
 
       /// Converts a <type UInt128> to an <type UInt64>. Returns {{None}} if the value is greater than 18446744073709551615
-      let fromUInt128 (i: UInt128) : PACKAGE.Darklang.Stdlib.Option.Option<UInt64> =
+      let fromUInt128 (i: UInt128) : Stdlib.Option.Option<UInt64> =
         Builtin.uint64FromUInt128 i

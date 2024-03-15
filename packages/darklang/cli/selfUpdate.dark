@@ -7,7 +7,7 @@ module Darklang =
       let bearerToken = "${GITHUB_RELEASES_TOKEN}"
 
       let shell () : Stdlib.Cli.Host.HostDefaultShell =
-        (Darklang.Stdlib.Cli.Host.getShell ()) |> Builtin.unwrap
+        (Stdlib.Cli.Host.getShell ()) |> Builtin.unwrap
 
       type Asset =
         { name: String
@@ -32,18 +32,16 @@ module Darklang =
             ("accept", "application/vnd.github+json")
             ("user-Agent", "darklang") ]
 
-        let response = Darklang.Stdlib.HttpClient.get headers path
+        let response = Stdlib.HttpClient.get headers path
 
         match response with
         | Ok r ->
-          r.body
-          |> Darklang.Stdlib.String.fromBytesWithReplacement
-          |> Stdlib.Result.Result.Ok
+          r.body |> Stdlib.String.fromBytesWithReplacement |> Stdlib.Result.Result.Ok
         | Error e -> Stdlib.Result.Result.Error "Failed to make GitHub API request"
 
 
       let hostToString
-        (host: Darklang.Stdlib.Cli.Host.Host)
+        (host: Stdlib.Cli.Host.Host)
         : Stdlib.Result.Result<String, String> =
         match host.os, host.arch with
         | Linux, Armv7l -> "linux-arm" |> Stdlib.Result.Result.Ok
@@ -70,7 +68,7 @@ module Darklang =
 
       // get download url for latest release based on os and arch
       let getDownloadUrl
-        (host: Darklang.Stdlib.Cli.Host.Host)
+        (host: Stdlib.Cli.Host.Host)
         : Stdlib.Result.Result<String, String> =
         Builtin.printLine " - Getting download url for latest release"
         let host = (hostToString host) |> Builtin.unwrap
@@ -98,7 +96,7 @@ module Darklang =
           |> Builtin.jsonParse<Dict<String>>)
         |> Stdlib.Result.andThen (fun config ->
           config
-          |> PACKAGE.Darklang.Stdlib.Dict.get "version"
+          |> Stdlib.Dict.get "version"
           |> Stdlib.Option.toResult "Failed to find version key")
 
       let isLatestVersion () : Bool =
@@ -198,8 +196,8 @@ module Darklang =
             |> Stdlib.Int64.toString
 
           config
-          |> PACKAGE.Darklang.Stdlib.Dict.set "version" latestVersion
-          |> PACKAGE.Darklang.Stdlib.Dict.set "lastUpdateTimestamp" currentTimestamp)
+          |> Stdlib.Dict.set "version" latestVersion
+          |> Stdlib.Dict.set "lastUpdateTimestamp" currentTimestamp)
 
       let writeConfig
         (config: Dict<String>)
@@ -263,7 +261,7 @@ module Darklang =
             |> Builtin.jsonParse<Dict<String>>
             |> (Stdlib.Result.map (fun config ->
               config
-              |> PACKAGE.Darklang.Stdlib.Dict.get "lastUpdateTimestamp"
+              |> Stdlib.Dict.get "lastUpdateTimestamp"
               |> Stdlib.Option.withDefault "0")))
 
         let lastUpdateTimestamp =

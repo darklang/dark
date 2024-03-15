@@ -282,7 +282,7 @@ module Darklang =
               typeParams = []
               parameters =
                 fn.parameters
-                |> Darklang.Stdlib.List.map (fun p ->
+                |> Stdlib.List.map (fun p ->
                   Parameter.toUserFnParamPT resolver p)
               returnType = TypeReference.toPT resolver fn.returnType
               description = ""

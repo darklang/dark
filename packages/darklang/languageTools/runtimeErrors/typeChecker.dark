@@ -2,24 +2,22 @@ module Darklang =
   module LanguageTools =
     module RuntimeErrors =
       // <aliases>
-      type Option = PACKAGE.Darklang.Stdlib.Option.Option
-      type ID = PACKAGE.Darklang.LanguageTools.ID
-      type TLID = PACKAGE.Darklang.LanguageTools.TLID
+      type Option = Stdlib.Option.Option
+      type ID = LanguageTools.ID
+      type TLID = LanguageTools.TLID
 
       // language
-      type RTTypeReference =
-        PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference
+      type RTTypeReference = LanguageTools.RuntimeTypes.TypeReference
 
-      type RTDval = PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval
+      type RTDval = LanguageTools.RuntimeTypes.Dval.Dval
 
-      type RTTypeName =
-        PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQTypeName.FQTypeName
+      type RTTypeName = LanguageTools.RuntimeTypes.FQTypeName.FQTypeName
 
-      type RTFnName = PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQFnName.FQFnName
-      type RTParam = PACKAGE.Darklang.LanguageTools.RuntimeTypes.Param
+      type RTFnName = LanguageTools.RuntimeTypes.FQFnName.FQFnName
+      type RTParam = LanguageTools.RuntimeTypes.Param
 
       // RuntimeErrors
-      type REErrorOutput = PACKAGE.Darklang.LanguageTools.RuntimeErrors.ErrorOutput
+      type REErrorOutput = LanguageTools.RuntimeErrors.ErrorOutput
       // </aliases>
 
 
@@ -221,7 +219,7 @@ module Darklang =
               //     [ String " // "; Description fieldDef.description ]
 
               let segment =
-                PACKAGE.Darklang.Stdlib.List.append
+                Stdlib.List.append
                   [ ErrorSegment.ErrorSegment.String "({ "
                     ErrorSegment.ErrorSegment.InlineFieldName fieldName
                     ErrorSegment.ErrorSegment.String ": "
@@ -281,24 +279,24 @@ module Darklang =
                   ErrorSegment.ErrorSegment.String "."
                   ErrorSegment.ErrorSegment.InlineFieldName caseName
                   ErrorSegment.ErrorSegment.String " " ]
-                |> PACKAGE.Darklang.Stdlib.List.append openParen
-                |> PACKAGE.Darklang.Stdlib.List.append prefix
-                |> PACKAGE.Darklang.Stdlib.List.append
+                |> Stdlib.List.append openParen
+                |> Stdlib.List.append prefix
+                |> Stdlib.List.append
                   [ ErrorSegment.ErrorSegment.TypeReference fieldType ]
-                |> PACKAGE.Darklang.Stdlib.List.append suffix
-                |> PACKAGE.Darklang.Stdlib.List.append closeParen
+                |> Stdlib.List.append suffix
+                |> Stdlib.List.append closeParen
 
               let argumentSegment =
                 [ ErrorSegment.ErrorSegment.ShortTypeName enumType
                   ErrorSegment.ErrorSegment.String "."
                   ErrorSegment.ErrorSegment.InlineFieldName caseName
                   ErrorSegment.ErrorSegment.String " " ]
-                |> PACKAGE.Darklang.Stdlib.List.append openParen
-                |> PACKAGE.Darklang.Stdlib.List.append prefix
-                |> PACKAGE.Darklang.Stdlib.List.append
+                |> Stdlib.List.append openParen
+                |> Stdlib.List.append prefix
+                |> Stdlib.List.append
                   [ ErrorSegment.ErrorSegment.TypeOfValue argument ]
-                |> PACKAGE.Darklang.Stdlib.List.append suffix
-                |> PACKAGE.Darklang.Stdlib.List.append closeParen
+                |> Stdlib.List.append suffix
+                |> Stdlib.List.append closeParen
 
               (argumentSegment, fieldTypeSegment)
 
@@ -345,7 +343,7 @@ module Darklang =
             match e with
             | ValueNotExpectedType(argument, expected, context) ->
               let summary =
-                PACKAGE.Darklang.Stdlib.List.append
+                Stdlib.List.append
                   (contextSummary context)
                   [ ErrorSegment.ErrorSegment.String " should be "
                     ErrorSegment.ErrorSegment.IndefiniteArticle

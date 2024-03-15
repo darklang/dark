@@ -15,18 +15,14 @@ module Darklang =
       /// Returns the equivalent of <param angleInDegrees> in radians, the unit used
       /// by all of Dark's trigonometry functions.
       let degrees (angleInDegrees: Float) : Float =
-        (PACKAGE.Darklang.Stdlib.Float.multiply
-          angleInDegrees
-          PACKAGE.Darklang.Stdlib.Math.pi)
-        |> PACKAGE.Darklang.Stdlib.Float.divide 180.0
+        (Stdlib.Float.multiply angleInDegrees Stdlib.Math.pi)
+        |> Stdlib.Float.divide 180.0
 
 
       /// Returns the equivalent of <param angleInTurns> in radians, the unit used by all of
       /// Dark's trigonometry functions.
       let turns (angleInTurns: Float) : Float =
-        PACKAGE.Darklang.Stdlib.Float.multiply
-          PACKAGE.Darklang.Stdlib.Math.tau
-          angleInTurns
+        Stdlib.Float.multiply Stdlib.Math.tau angleInTurns
 
 
       /// Returns <param angleInRadians> in radians, the unit used by all of Dark's
@@ -59,8 +55,7 @@ module Darklang =
       /// result}} where <var result> is in radians and is between {{0.0}} and <fn
       /// Math.pi>. Otherwise, returns {{Nothing}}.
       /// This function is the inverse of <fn Math.cos>.
-      let acos (ratio: Float) : PACKAGE.Darklang.Stdlib.Option.Option<Float> =
-        Builtin.mathAcos ratio
+      let acos (ratio: Float) : Stdlib.Option.Option<Float> = Builtin.mathAcos ratio
 
 
       /// Returns the arc sine of <param ratio>, as an <type Option>.
@@ -68,8 +63,7 @@ module Darklang =
       /// result}} where <var result> is in radians and is between {{-Math.pi/2}} and
       /// {{Math.pi/2}}. Otherwise, returns {{Nothing}}.
       /// This function is the inverse of <fn Math.sin>.
-      let asin (ratio: Float) : PACKAGE.Darklang.Stdlib.Option.Option<Float> =
-        Builtin.mathAsin ratio
+      let asin (ratio: Float) : Stdlib.Option.Option<Float> = Builtin.mathAsin ratio
 
 
       /// Returns the arc tangent of <param ratio>. The result is in radians and is between

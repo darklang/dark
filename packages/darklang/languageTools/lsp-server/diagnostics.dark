@@ -10,7 +10,7 @@ async function gatherAndReportDiagnostics(
   textDocument: TextDocument,
 ): Promise<void> {
   const diagnosticsFromDarkResponse = await runDarkCli(
-    "@PACKAGE.Darklang.LanguageTools.LanguageServerProtocol.getDiagnostics",
+    "@LanguageTools.LanguageServerProtocol.getDiagnostics",
     textDocument.uri,
     JSON.stringify(textDocument.getText()),
   );

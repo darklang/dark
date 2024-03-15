@@ -23,7 +23,7 @@ module Darklang =
       let remainder
         (value: Int64)
         (divisor: Int64)
-        : PACKAGE.Darklang.Stdlib.Result.Result<Int64, String> =
+        : Stdlib.Result.Result<Int64, String> =
         Builtin.int64Remainder value divisor
 
 
@@ -97,7 +97,7 @@ module Darklang =
 
       /// Returns the sum of all the ints in the list
       let sum (lst: List<Int64>) : Int64 =
-        PACKAGE.Darklang.Stdlib.List.fold lst 0L (fun acc x -> acc + x)
+        Stdlib.List.fold lst 0L (fun acc x -> acc + x)
 
 
       /// Returns the higher of <param a> and <param b>
@@ -123,9 +123,7 @@ module Darklang =
 
 
       /// Returns the <type Int64> value of a <type String>
-      let parse
-        (s: String)
-        : PACKAGE.Darklang.Stdlib.Result.Result<Int64, PACKAGE.Darklang.Stdlib.Int64.ParseError> =
+      let parse (s: String) : Stdlib.Result.Result<Int64, Stdlib.Int64.ParseError> =
         Builtin.int64Parse s
 
 
@@ -158,15 +156,15 @@ module Darklang =
 
 
       /// Converts a <type UInt64> to an <type Int64>. Returns {{None}} if the value is greater than 9223372036854775807
-      let fromUInt64 (i: UInt64) : PACKAGE.Darklang.Stdlib.Option.Option<Int64> =
+      let fromUInt64 (i: UInt64) : Stdlib.Option.Option<Int64> =
         Builtin.int64FromUInt64 i
 
 
       /// Converts an <type Int128> to an <type Int64>. Returns {{None}} if the value is less than -9223372036854775808 or greater than 9223372036854775807
-      let fromInt128 (i: Int128) : PACKAGE.Darklang.Stdlib.Option.Option<Int64> =
+      let fromInt128 (i: Int128) : Stdlib.Option.Option<Int64> =
         Builtin.int64FromInt128 i
 
 
       /// Converts a <type UInt128> to an <type Int64>. Returns {{None}} if the value is greater than 9223372036854775807
-      let fromUInt128 (i: UInt128) : PACKAGE.Darklang.Stdlib.Option.Option<Int64> =
+      let fromUInt128 (i: UInt128) : Stdlib.Option.Option<Int64> =
         Builtin.int64FromUInt128 i

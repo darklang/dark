@@ -7,42 +7,37 @@ module Darklang =
           body: List<UInt8> }
 
       module Request =
-        let queryParams
-          (req: PACKAGE.Darklang.Stdlib.Http.Request)
-          : List<String * String> =
-          match req.url |> PACKAGE.Darklang.Stdlib.String.split "?" with
+        let queryParams (req: Stdlib.Http.Request) : List<String * String> =
+          match req.url |> Stdlib.String.split "?" with
           | [] -> []
           | _ :: queryParts ->
-            (PACKAGE.Darklang.Stdlib.String.join queryParts "")
-            |> PACKAGE.Darklang.Stdlib.String.split "&"
-            |> PACKAGE.Darklang.Stdlib.List.map (fun param ->
-              match PACKAGE.Darklang.Stdlib.String.split param "=" with
+            (Stdlib.String.join queryParts "")
+            |> Stdlib.String.split "&"
+            |> Stdlib.List.map (fun param ->
+              match Stdlib.String.split param "=" with
               | [ key; value ] -> (key, value)
               | _ -> (param, ""))
 
         let queryParam
-          (req: PACKAGE.Darklang.Stdlib.Http.Request)
+          (req: Stdlib.Http.Request)
           (key: String)
-          : PACKAGE.Darklang.Stdlib.Option.Option<String> =
+          : Stdlib.Option.Option<String> =
           let found =
-            (PACKAGE.Darklang.Stdlib.Http.Request.queryParams req)
-            |> PACKAGE.Darklang.Stdlib.List.filterMap (fun pair ->
+            (Stdlib.Http.Request.queryParams req)
+            |> Stdlib.List.filterMap (fun pair ->
               match pair with
               | (k, v) ->
                 if k == key then
-                  PACKAGE.Darklang.Stdlib.Option.Option.Some v
+                  Stdlib.Option.Option.Some v
                 else
-                  PACKAGE.Darklang.Stdlib.Option.Option.None
-              | _ -> PACKAGE.Darklang.Stdlib.Option.Option.None)
+                  Stdlib.Option.Option.None
+              | _ -> Stdlib.Option.Option.None)
 
           match found with
-          | [] -> PACKAGE.Darklang.Stdlib.Option.Option.None
-          | [ v ] -> PACKAGE.Darklang.Stdlib.Option.Option.Some v
+          | [] -> Stdlib.Option.Option.None
+          | [ v ] -> Stdlib.Option.Option.Some v
           // TODO: something else?
-          | items ->
-            PACKAGE.Darklang.Stdlib.Option.Option.Some(
-              PACKAGE.Darklang.Stdlib.String.join items ","
-            )
+          | items -> Stdlib.Option.Option.Some(Stdlib.String.join items ",")
 
 
       type Response =
@@ -52,11 +47,8 @@ module Darklang =
 
       /// Returns a <type Response> that can be returned from an HTTP handler to
       /// respond with HTTP status <param code> and <param response> body.
-      let response
-        (body: List<UInt8>)
-        (statusCode: Int64)
-        : PACKAGE.Darklang.Stdlib.Http.Response =
-        PACKAGE.Darklang.Stdlib.Http.Response
+      let response (body: List<UInt8>) (statusCode: Int64) : Stdlib.Http.Response =
+        Stdlib.Http.Response
           { statusCode = statusCode
             headers = []
             body = body }
@@ -68,16 +60,16 @@ module Darklang =
         (body: List<UInt8>)
         (headers: List<String * String>)
         (statusCode: Int64)
-        : PACKAGE.Darklang.Stdlib.Http.Response =
-        PACKAGE.Darklang.Stdlib.Http.Response
+        : Stdlib.Http.Response =
+        Stdlib.Http.Response
           { statusCode = statusCode
             headers = headers
             body = body }
 
       /// Returns a <type Response> that can be returned from an HTTP handler to
       /// respond with HTTP status 200 and <param response> body.
-      let success (body: List<UInt8>) : PACKAGE.Darklang.Stdlib.Http.Response =
-        PACKAGE.Darklang.Stdlib.Http.Response
+      let success (body: List<UInt8>) : Stdlib.Http.Response =
+        Stdlib.Http.Response
           { statusCode = 200L
             headers = []
             body = body }
@@ -88,11 +80,11 @@ module Darklang =
       let responseWithHtml
         (body: String)
         (statusCode: Int64)
-        : PACKAGE.Darklang.Stdlib.Http.Response =
-        PACKAGE.Darklang.Stdlib.Http.Response
+        : Stdlib.Http.Response =
+        Stdlib.Http.Response
           { statusCode = statusCode
             headers = [ ("Content-Type", "text/html; charset=utf-8") ]
-            body = body |> PACKAGE.Darklang.Stdlib.String.toBytes }
+            body = body |> Stdlib.String.toBytes }
 
 
       /// Returns a <type Response> that can be returned from an HTTP handler to
@@ -101,11 +93,11 @@ module Darklang =
       let responseWithText
         (text: String)
         (statusCode: Int64)
-        : PACKAGE.Darklang.Stdlib.Http.Response =
-        PACKAGE.Darklang.Stdlib.Http.Response
+        : Stdlib.Http.Response =
+        Stdlib.Http.Response
           { statusCode = statusCode
             headers = [ ("Content-Type", "text/plain; charset=utf-8") ]
-            body = PACKAGE.Darklang.Stdlib.String.toBytes text }
+            body = Stdlib.String.toBytes text }
 
       /// Returns a <type Response> that can be returned from an HTTP handler to
       /// respond with HTTP status 200, <param response> body, with the
@@ -113,48 +105,48 @@ module Darklang =
       let responseWithJson
         (json: String)
         (statusCode: Int64)
-        : PACKAGE.Darklang.Stdlib.Http.Response =
-        PACKAGE.Darklang.Stdlib.Http.Response
+        : Stdlib.Http.Response =
+        Stdlib.Http.Response
           { statusCode = statusCode
             headers = [ ("Content-Type", "application/json") ]
-            body = PACKAGE.Darklang.Stdlib.String.toBytes json }
+            body = Stdlib.String.toBytes json }
 
       /// Returns a <type Response> that can be returned from an HTTP handler to
       /// respond with {{302}} status code and redirect to <param url>.
-      let redirectTo (url: String) : PACKAGE.Darklang.Stdlib.Http.Response =
-        PACKAGE.Darklang.Stdlib.Http.Response
+      let redirectTo (url: String) : Stdlib.Http.Response =
+        Stdlib.Http.Response
           { statusCode = 302L
             headers = [ ("Location", url) ]
             body = [] }
 
       /// Returns a <type Response> that can be returned from an HTTP handler to
       /// respond with {{400}} status code and <param response> body.
-      let badRequest (error: String) : PACKAGE.Darklang.Stdlib.Http.Response =
-        PACKAGE.Darklang.Stdlib.Http.Response
+      let badRequest (error: String) : Stdlib.Http.Response =
+        Stdlib.Http.Response
           { statusCode = 400L
             headers = []
-            body = PACKAGE.Darklang.Stdlib.String.toBytes error }
+            body = Stdlib.String.toBytes error }
 
       /// Returns a <type Response> that can be returned from an HTTP handler to
       /// respond with {{404}} status code.
-      let notFound () : PACKAGE.Darklang.Stdlib.Http.Response =
-        PACKAGE.Darklang.Stdlib.Http.Response
+      let notFound () : Stdlib.Http.Response =
+        Stdlib.Http.Response
           { statusCode = 404L
             headers = []
             body = [] }
 
       /// Returns a <type Response> that can be returned from an HTTP handler to
       /// respond with {{401}} status code.
-      let unauthorized () : PACKAGE.Darklang.Stdlib.Http.Response =
-        PACKAGE.Darklang.Stdlib.Http.Response
+      let unauthorized () : Stdlib.Http.Response =
+        Stdlib.Http.Response
           { statusCode = 401L
             headers = []
             body = [] }
 
       /// Returns a <type Response> that can be returned from an HTTP handler to
       /// respond with {{403}} status code.
-      let forbidden () : PACKAGE.Darklang.Stdlib.Http.Response =
-        PACKAGE.Darklang.Stdlib.Http.Response
+      let forbidden () : Stdlib.Http.Response =
+        Stdlib.Http.Response
           { statusCode = 403L
             headers = []
             body = [] }
@@ -169,7 +161,7 @@ module Darklang =
           sameSite: String }
 
 // TODO: this references several things that don't actually exist
-// (e.g. PACKAGE.Darklang.Stdlib.DateTime.dayOfWeek)
+// (e.g. Stdlib.DateTime.dayOfWeek)
 // /// Returns an HTTP Set-Cookie header <type (String*String)> suitable for use with <fn
 // /// Http.responseWithHeaders>, given a cookie <param name>, a <type String>
 // /// <param value> for it, and a <type Dict> of Set-Cookie <param params>
@@ -179,31 +171,31 @@ module Darklang =
 //   (name: String)
 //   (value: String)
 //   (cookie: Cookie)
-//   : PACKAGE.Darklang.Stdlib.Result.Result<(String * String), String> =
+//   : Stdlib.Result.Result<(String * String), String> =
 //   if
 //     not (
-//       PACKAGE.Darklang.Stdlib.List.contains
+//       Stdlib.List.contains
 //         [ "strict"; "lax"; "none" ]
-//         (PACKAGE.Darklang.Stdlib.String.toLowercase cookie.sameSite)
+//         (Stdlib.String.toLowercase cookie.sameSite)
 //     )
 //   then
 //     Error "SameSite must be either \"Strict\" or \"Lax\" or \"None\""
 //   else
 //     let expires =
 //       let e = cookie.expires
-//       $"{PACKAGE.Darklang.Stdlib.DateTime.dayOfWeek e}, {PACKAGE.Darklang.Stdlib.DateTime.day e} {PACKAGE.Darklang.Stdlib.DateTime.month e} {PACKAGE.Darklang.Stdlib.DateTime.year e} {PACKAGE.Darklang.Stdlib.DateTime.hour e}:{PACKAGE.Darklang.Stdlib.DateTime.minute e}:{PACKAGE.Darklang.Stdlib.DateTime.second} GMT"
+//       $"{Stdlib.DateTime.dayOfWeek e}, {Stdlib.DateTime.day e} {Stdlib.DateTime.month e} {Stdlib.DateTime.year e} {Stdlib.DateTime.hour e}:{Stdlib.DateTime.minute e}:{Stdlib.DateTime.second} GMT"
 
 //     let cookie =
 //       [ ("Expires", expires)
-//         ("Max-Age", cookie.maxAge |> PACKAGE.Darklang.Stdlib.Int64.toString)
+//         ("Max-Age", cookie.maxAge |> Stdlib.Int64.toString)
 //         ("Domain", cookie.domain)
 //         ("Path", cookie.path)
-//         ("Secure", cookie.secure |> PACKAGE.Darklang.Stdlib.Bool.toString)
-//         ("HttpOnly", cookie.httpOnly |> PACKAGE.Darklang.Stdlib.Bool.toString)
+//         ("Secure", cookie.secure |> Stdlib.Bool.toString)
+//         ("HttpOnly", cookie.httpOnly |> Stdlib.Bool.toString)
 //         ("SameSite", cookie.sameSite) ]
-//       |> PACKAGE.Darklang.Stdlib.List.filterMap (fun (k, v) -> if v == "" then PACKAGE.Darklang.Stdlib.Option.Option.None else PACKAGE.Darklang.Stdlib.Option.Option.Some(k, v))
-//       |> PACKAGE.Darklang.Stdlib.List.map (fun (k, v) -> k ++ "=" ++ v)
-//       |> PACKAGE.Darklang.Stdlib.String.join "; "
+//       |> Stdlib.List.filterMap (fun (k, v) -> if v == "" then Stdlib.Option.Option.None else Stdlib.Option.Option.Some(k, v))
+//       |> Stdlib.List.map (fun (k, v) -> k ++ "=" ++ v)
+//       |> Stdlib.String.join "; "
 
 //     if cookie == "" then
 //       Error "Cookie must have at least one parameter"

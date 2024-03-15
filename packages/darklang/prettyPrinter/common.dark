@@ -1,33 +1,30 @@
 // TODO:
-//alias PT = PACKAGE.Darklang.LanguageTools.ProgramTypes
-//alias RT = PACKAGE.Darklang.Stdlib.RuntimeTypes
+//alias PT = LanguageTools.ProgramTypes
+//alias RT = Stdlib.RuntimeTypes
 
 module Darklang =
   module PrettyPrinter =
     let indent (s: String) : String =
       s
-      |> PACKAGE.Darklang.Stdlib.String.split "\n"
-      |> PACKAGE.Darklang.Stdlib.List.map (fun line ->
+      |> Stdlib.String.split "\n"
+      |> Stdlib.List.map (fun line ->
         match line with
         | "" -> ""
         | line -> "  " ++ line)
-      |> PACKAGE.Darklang.Stdlib.String.join "\n"
+      |> Stdlib.String.join "\n"
 
-    let sign (s: PACKAGE.Darklang.LanguageTools.Sign) : String =
+    let sign (s: LanguageTools.Sign) : String =
       match s with
       | Positive -> ""
       | Negative -> "-"
 
     let escapeSpecialCharacters (s: String) : String =
       s
-      |> PACKAGE.Darklang.Stdlib.String.replaceAll "\n" "\\n"
-      |> PACKAGE.Darklang.Stdlib.String.replaceAll "\t" "\\t"
-      |> PACKAGE.Darklang.Stdlib.String.replaceAll "\r" "\\r"
+      |> Stdlib.String.replaceAll "\n" "\\n"
+      |> Stdlib.String.replaceAll "\t" "\\t"
+      |> Stdlib.String.replaceAll "\r" "\\r"
 
     let processRemainder (remainder: String) : String =
-      let rem = $".{remainder}" |> PACKAGE.Darklang.Stdlib.Float.parse
+      let rem = $".{remainder}" |> Stdlib.Float.parse
 
-      rem
-      |> Builtin.unwrap
-      |> PACKAGE.Darklang.Stdlib.Float.toString
-      |> PACKAGE.Darklang.Stdlib.String.dropFirst 2L
+      rem |> Builtin.unwrap |> Stdlib.Float.toString |> Stdlib.String.dropFirst 2L

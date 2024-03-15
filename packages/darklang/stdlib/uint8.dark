@@ -73,24 +73,17 @@ module Darklang =
 
       /// Returns the sum of all the ints in the list
       let sum (lst: List<UInt8>) : UInt8 =
-        PACKAGE.Darklang.Stdlib.List.fold lst 0uy (fun acc x ->
-          PACKAGE.Darklang.Stdlib.UInt8.add acc x)
+        Stdlib.List.fold lst 0uy (fun acc x -> Stdlib.UInt8.add acc x)
 
 
       /// Returns the higher of <param a> and <param b>
       let max (a: UInt8) (b: UInt8) : UInt8 =
-        if (PACKAGE.Darklang.Stdlib.UInt8.greaterThan a b) then
-          a
-        else
-          b
+        if (Stdlib.UInt8.greaterThan a b) then a else b
 
 
       /// Returns the lower of <param a> and <param b>
       let min (a: UInt8) (b: UInt8) : UInt8 =
-        if (PACKAGE.Darklang.Stdlib.UInt8.lessThan a b) then
-          a
-        else
-          b
+        if (Stdlib.UInt8.lessThan a b) then a else b
 
 
       /// If <param value> is within the range given by <param limitA> and <param
@@ -100,29 +93,24 @@ module Darklang =
       /// <param limitA> and <param limitB> can be provided in any order.
       let clamp (value: UInt8) (limitA: UInt8) (limitB: UInt8) : UInt8 =
         let min =
-          if (PACKAGE.Darklang.Stdlib.UInt8.lessThan limitA limitB) then
+          if (Stdlib.UInt8.lessThan limitA limitB) then
             limitA
           else
             limitB
 
         let max =
-          if (PACKAGE.Darklang.Stdlib.UInt8.greaterThan limitA limitB) then
+          if (Stdlib.UInt8.greaterThan limitA limitB) then
             limitA
           else
             limitB
 
-        if (PACKAGE.Darklang.Stdlib.UInt8.lessThan value min) then
-          min
-        else if (PACKAGE.Darklang.Stdlib.UInt8.greaterThan value max) then
-          max
-        else
-          value
+        if (Stdlib.UInt8.lessThan value min) then min
+        else if (Stdlib.UInt8.greaterThan value max) then max
+        else value
 
 
       /// Returns the <type UInt8> value of a <type String>
-      let parse
-        (s: String)
-        : PACKAGE.Darklang.Stdlib.Result.Result<UInt8, PACKAGE.Darklang.Stdlib.UInt8.ParseError> =
+      let parse (s: String) : Stdlib.Result.Result<UInt8, Stdlib.UInt8.ParseError> =
         Builtin.uint8Parse s
 
 
@@ -131,45 +119,44 @@ module Darklang =
 
 
       /// Converts an <type Int8> to a <type UInt8>. Returns {{None}} if the value is less than 0.
-      let fromInt8 (i: Int8) : PACKAGE.Darklang.Stdlib.Option.Option<UInt8> =
-        Builtin.uint8FromInt8 i
+      let fromInt8 (i: Int8) : Stdlib.Option.Option<UInt8> = Builtin.uint8FromInt8 i
 
 
       /// Converts an <type Int16> to a <type UInt8>. Returns {{None}} if the value is less than 0 or greater than 255.
-      let fromInt16 (i: Int16) : PACKAGE.Darklang.Stdlib.Option.Option<UInt8> =
+      let fromInt16 (i: Int16) : Stdlib.Option.Option<UInt8> =
         Builtin.uint8FromInt16 i
 
 
       /// Converts a <type UInt16> to a <type UInt8>. Returns {{None}} if the value is greater than 255.
-      let fromUInt16 (i: UInt16) : PACKAGE.Darklang.Stdlib.Option.Option<UInt8> =
+      let fromUInt16 (i: UInt16) : Stdlib.Option.Option<UInt8> =
         Builtin.uint8FromUInt16 i
 
 
       /// Converts an <type Int32> to a <type UInt8>. Returns {{None}} if the value is less than 0 or greater than 255.
-      let fromInt32 (i: Int32) : PACKAGE.Darklang.Stdlib.Option.Option<UInt8> =
+      let fromInt32 (i: Int32) : Stdlib.Option.Option<UInt8> =
         Builtin.uint8FromInt32 i
 
 
       /// Converts a <type UInt32> to a <type UInt8>. Returns {{None}} if the value is greater than 255.
-      let fromUInt32 (i: UInt32) : PACKAGE.Darklang.Stdlib.Option.Option<UInt8> =
+      let fromUInt32 (i: UInt32) : Stdlib.Option.Option<UInt8> =
         Builtin.uint8FromUInt32 i
 
 
       /// Converts an <type Int64> to a <type UInt8>. Returns {{None}} if the value is less than 0 or greater than 255.
-      let fromInt64 (i: Int64) : PACKAGE.Darklang.Stdlib.Option.Option<UInt8> =
+      let fromInt64 (i: Int64) : Stdlib.Option.Option<UInt8> =
         Builtin.uint8FromInt64 i
 
 
       /// Converts a <type UInt64> to a <type UInt8>. Returns {{None}} if the value is greater than 255.
-      let fromUInt64 (i: UInt64) : PACKAGE.Darklang.Stdlib.Option.Option<UInt8> =
+      let fromUInt64 (i: UInt64) : Stdlib.Option.Option<UInt8> =
         Builtin.uint8FromUInt64 i
 
 
       /// Converts an <type Int128> to a <type UInt8>. Returns {{None}} if the value is less than 0 or greater than 255.
-      let fromInt128 (i: Int128) : PACKAGE.Darklang.Stdlib.Option.Option<UInt8> =
+      let fromInt128 (i: Int128) : Stdlib.Option.Option<UInt8> =
         Builtin.uint8FromInt128 i
 
 
       /// Converts a <type UInt128> to a <type UInt8>. Returns {{None}} if the value is greater than 255.
-      let fromUInt128 (i: UInt128) : PACKAGE.Darklang.Stdlib.Option.Option<UInt8> =
+      let fromUInt128 (i: UInt128) : Stdlib.Option.Option<UInt8> =
         Builtin.uint8FromUInt128 i

@@ -60,14 +60,14 @@ module Darklang =
       (args: List<String>)
       : Int64 =
       if Stdlib.List.member_v0 flags "wip-parser" then
-        let nameResolver = Darklang.LanguageTools.NameResolver.empty ()
+        let nameResolver = LanguageTools.NameResolver.empty ()
 
         let args =
           args
           |> Stdlib.List.map (fun arg ->
             arg
-            |> Darklang.LanguageTools.Parser.parseToSimplifiedTree
-            |> Darklang.LanguageTools.Parser.parseCliScript
+            |> LanguageTools.Parser.parseToSimplifiedTree
+            |> LanguageTools.Parser.parseCliScript
             |> Builtin.unwrap
             |> fun parsedFile ->
                 match parsedFile with
@@ -111,7 +111,7 @@ module Darklang =
         match result with
         | Ok exitCode -> exitCode
         | Error e ->
-          Builtin.printLine (Darklang.LanguageTools.RuntimeErrors.Error.toString e)
+          Builtin.printLine (LanguageTools.RuntimeErrors.Error.toString e)
 
           1L
 
@@ -146,9 +146,9 @@ darklang update                                   Update the darklang CLI to the
 
       | RunFunction(flags, fnName, args) -> runFunction flags fnName args
 
-      | RunSelfUpdate -> Darklang.Cli.SelfUpdate.runSelfUpdate ()
+      | RunSelfUpdate -> SelfUpdate.runSelfUpdate ()
 
-      | Uninstall -> Darklang.Cli.Uninstall.runUninstall ()
+      | Uninstall -> Uninstall.runUninstall ()
 
       | Invalid args ->
         let args = args |> Stdlib.String.join " "
@@ -161,7 +161,7 @@ darklang update                                   Update the darklang CLI to the
 
 
     let processNormally (args: List<String>) : Int64 =
-      args |> Darklang.Cli.parseArguments |> Darklang.Cli.executeCommand
+      args |> parseArguments |> executeCommand
 
     let executeCliCommand (args: List<String>) : Int64 =
       if
@@ -173,6 +173,6 @@ darklang update                                   Update the darklang CLI to the
 
         processNormally newArgs
       else
-        Darklang.Cli.SelfUpdate.ensureDarklangSetup ()
+        SelfUpdate.ensureDarklangSetup ()
         Builtin.printLine "Running command... \n\n"
         processNormally args

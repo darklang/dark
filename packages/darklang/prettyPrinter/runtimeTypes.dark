@@ -2,16 +2,14 @@ module Darklang =
   module PrettyPrinter =
     module RuntimeTypes =
       let nameResolutionError
-        (nr: PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.Error)
+        (nr: LanguageTools.RuntimeErrors.NameResolution.Error)
         : String =
-        PACKAGE.Darklang.Stdlib.String.join nr.names "."
+        Stdlib.String.join nr.names "."
 
       module FQTypeName =
 
-        let package
-          (p: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQTypeName.Package)
-          : String =
-          let modulesPart = PACKAGE.Darklang.Stdlib.String.join p.modules "."
+        let package (p: LanguageTools.RuntimeTypes.FQTypeName.Package) : String =
+          let modulesPart = Stdlib.String.join p.modules "."
 
           let namePart = p.name
 
@@ -19,21 +17,19 @@ module Darklang =
             if p.version == 0L then
               ""
             else
-              $"_v{PACKAGE.Darklang.Stdlib.Int64.toString p.version}"
+              $"_v{Stdlib.Int64.toString p.version}"
 
           $"PACKAGE.{p.owner}.{modulesPart}.{namePart}{versionPart}"
 
 
         let userProgram
-          (u: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQTypeName.UserProgram)
+          (u: LanguageTools.RuntimeTypes.FQTypeName.UserProgram)
           : String =
           let modulesPart =
             match u.modules with
             | [] -> ""
             | modules ->
-              modules
-              |> PACKAGE.Darklang.Stdlib.String.join "."
-              |> (fun parts -> $"{parts}.")
+              modules |> Stdlib.String.join "." |> (fun parts -> $"{parts}.")
 
           let namePart = u.name
 
@@ -41,37 +37,31 @@ module Darklang =
             if u.version == 0L then
               ""
             else
-              $"_v{PACKAGE.Darklang.Stdlib.Int64.toString u.version}"
+              $"_v{Stdlib.Int64.toString u.version}"
 
           $"{modulesPart}{namePart}{versionPart}"
 
       // TODO rename to fqtypeName?
-      let typeName
-        (t: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQTypeName.FQTypeName)
-        : String =
+      let typeName (t: LanguageTools.RuntimeTypes.FQTypeName.FQTypeName) : String =
         match t with
         | Package p -> FQTypeName.package p
         | UserProgram u -> FQTypeName.userProgram u
 
 
       module FQConstantName =
-        let builtIn
-          (t: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQConstantName.Builtin)
-          : String =
+        let builtIn (t: LanguageTools.RuntimeTypes.FQConstantName.Builtin) : String =
           let namePart = t.name
 
           let versionPart =
             if t.version == 0L then
               ""
             else
-              $"_v{PACKAGE.Darklang.Stdlib.Int64.toString t.version}"
+              $"_v{Stdlib.Int64.toString t.version}"
 
           $"{namePart}{versionPart}"
 
-        let package
-          (p: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQConstantName.Package)
-          : String =
-          let modulesPart = PACKAGE.Darklang.Stdlib.String.join p.modules "."
+        let package (p: LanguageTools.RuntimeTypes.FQConstantName.Package) : String =
+          let modulesPart = Stdlib.String.join p.modules "."
 
           let namePart = p.name
 
@@ -79,20 +69,18 @@ module Darklang =
             if p.version == 0L then
               ""
             else
-              $"_v{PACKAGE.Darklang.Stdlib.Int64.toString p.version}"
+              $"_v{Stdlib.Int64.toString p.version}"
 
           $"PACKAGE.{p.owner}.{modulesPart}.{namePart}{versionPart}"
 
         let userProgram
-          (u: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQConstantName.UserProgram)
+          (u: LanguageTools.RuntimeTypes.FQConstantName.UserProgram)
           : String =
           let modulesPart =
             match u.modules with
             | [] -> ""
             | modules ->
-              modules
-              |> PACKAGE.Darklang.Stdlib.String.join "."
-              |> (fun parts -> $"{parts}.")
+              modules |> Stdlib.String.join "." |> (fun parts -> $"{parts}.")
 
           let namePart = u.name
 
@@ -100,13 +88,13 @@ module Darklang =
             if u.version == 0L then
               ""
             else
-              $"_v{PACKAGE.Darklang.Stdlib.Int64.toString u.version}"
+              $"_v{Stdlib.Int64.toString u.version}"
 
           $"{modulesPart}{namePart}{versionPart}"
 
       // TODO rename to fqconstantName?
       let constantName
-        (t: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQConstantName.FQConstantName)
+        (t: LanguageTools.RuntimeTypes.FQConstantName.FQConstantName)
         : String =
         match t with
         | Builtin b -> FQConstantName.builtIn b
@@ -115,23 +103,19 @@ module Darklang =
 
 
       module FQFnName =
-        let builtIn
-          (t: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQFnName.Builtin)
-          : String =
+        let builtIn (t: LanguageTools.RuntimeTypes.FQFnName.Builtin) : String =
           let namePart = t.name
 
           let versionPart =
             if t.version == 0L then
               ""
             else
-              $"_v{PACKAGE.Darklang.Stdlib.Int64.toString t.version}"
+              $"_v{Stdlib.Int64.toString t.version}"
 
           $"{namePart}{versionPart}"
 
-        let package
-          (p: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQFnName.Package)
-          : String =
-          let modulesPart = PACKAGE.Darklang.Stdlib.String.join p.modules "."
+        let package (p: LanguageTools.RuntimeTypes.FQFnName.Package) : String =
+          let modulesPart = Stdlib.String.join p.modules "."
 
           let namePart = p.name
 
@@ -139,20 +123,18 @@ module Darklang =
             if p.version == 0L then
               ""
             else
-              $"_v{PACKAGE.Darklang.Stdlib.Int64.toString p.version}"
+              $"_v{Stdlib.Int64.toString p.version}"
 
           $"PACKAGE.{p.owner}.{modulesPart}.{namePart}{versionPart}"
 
         let userProgram
-          (u: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQFnName.UserProgram)
+          (u: LanguageTools.RuntimeTypes.FQFnName.UserProgram)
           : String =
           let modulesPart =
             match u.modules with
             | [] -> ""
             | modules ->
-              modules
-              |> PACKAGE.Darklang.Stdlib.String.join "."
-              |> (fun parts -> $"{parts}.")
+              modules |> Stdlib.String.join "." |> (fun parts -> $"{parts}.")
 
           let namePart = u.name
 
@@ -160,22 +142,18 @@ module Darklang =
             if u.version == 0L then
               ""
             else
-              $"_v{PACKAGE.Darklang.Stdlib.Int64.toString u.version}"
+              $"_v{Stdlib.Int64.toString u.version}"
 
           $"{modulesPart}{namePart}{versionPart}"
 
       // TODO rename to fqfnName?
-      let fnName
-        (t: PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQFnName.FQFnName)
-        : String =
+      let fnName (t: LanguageTools.RuntimeTypes.FQFnName.FQFnName) : String =
         match t with
         | Builtin b -> FQFnName.builtIn b
         | Package p -> FQFnName.package p
         | UserProgram u -> FQFnName.userProgram u
 
-      let typeReference
-        (t: PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference)
-        : String =
+      let typeReference (t: LanguageTools.RuntimeTypes.TypeReference) : String =
         match t with
         | TUnit -> "Unit"
         | TBool -> "Bool"
@@ -198,9 +176,9 @@ module Darklang =
         | TList inner -> $"List<{typeReference inner}>"
         | TDict inner -> $"Dict<{typeReference inner}>"
         | TTuple(first, second, theRest) ->
-          (PACKAGE.Darklang.Stdlib.List.append [ first; second ] theRest)
-          |> PACKAGE.Darklang.Stdlib.List.map (fun item -> typeReference item)
-          |> PACKAGE.Darklang.Stdlib.String.join " * "
+          (Stdlib.List.append [ first; second ] theRest)
+          |> Stdlib.List.map (fun item -> typeReference item)
+          |> Stdlib.String.join " * "
           |> fun parts -> "(" ++ parts ++ ")"
 
         | TCustomType(typ, args) ->
@@ -209,8 +187,8 @@ module Darklang =
             | [] -> ""
             | args ->
               args
-              |> PACKAGE.Darklang.Stdlib.List.map (fun arg -> typeReference arg)
-              |> PACKAGE.Darklang.Stdlib.String.join ", "
+              |> Stdlib.List.map (fun arg -> typeReference arg)
+              |> Stdlib.String.join ", "
               |> fun parts -> $"<{parts}>"
 
           let typeNamePart =
@@ -223,8 +201,8 @@ module Darklang =
         | TFn(args, ret) ->
           let argPart =
             args
-            |> PACKAGE.Darklang.Stdlib.List.map (fun arg -> typeReference arg)
-            |> PACKAGE.Darklang.Stdlib.String.join ", "
+            |> Stdlib.List.map (fun arg -> typeReference arg)
+            |> Stdlib.String.join ", "
             |> fun parts -> "(" ++ parts ++ ")"
 
           $"{argPart} -> {typeReference ret}"
@@ -234,9 +212,7 @@ module Darklang =
         | TVariable varName -> "'" ++ varName
 
 
-      let knownType
-        (t: PACKAGE.Darklang.LanguageTools.RuntimeTypes.KnownType)
-        : String =
+      let knownType (t: LanguageTools.RuntimeTypes.KnownType) : String =
         match t with
         | KTUnit -> "Unit"
         | KTBool -> "Bool"
@@ -259,15 +235,15 @@ module Darklang =
         | KTList typ -> $"List<{valueType typ}>"
         | KTDict typ -> $"Dict<{valueType typ}>"
         | KTTuple(t1, t2, trest) ->
-          (PACKAGE.Darklang.Stdlib.List.append [ t1; t2 ] trest)
-          |> PACKAGE.Darklang.Stdlib.List.map (fun item -> valueType item)
-          |> PACKAGE.Darklang.Stdlib.String.join ", "
+          (Stdlib.List.append [ t1; t2 ] trest)
+          |> Stdlib.List.map (fun item -> valueType item)
+          |> Stdlib.String.join ", "
           |> fun s -> $"({s})"
 
         | KTFn(argTypes, retType) ->
           (Stdlib.List.push argTypes retType)
-          |> PACKAGE.Darklang.Stdlib.List.map (fun vt -> valueType vt)
-          |> PACKAGE.Darklang.Stdlib.String.join " -> "
+          |> Stdlib.List.map (fun vt -> valueType vt)
+          |> Stdlib.String.join " -> "
 
         | KTCustomType(name, typeArgs) ->
           let typeArgsPortion =
@@ -275,8 +251,8 @@ module Darklang =
             | [] -> ""
             | args ->
               args
-              |> PACKAGE.Darklang.Stdlib.List.map (fun t -> valueType t)
-              |> PACKAGE.Darklang.Stdlib.String.join ", "
+              |> Stdlib.List.map (fun t -> valueType t)
+              |> Stdlib.String.join ", "
               |> fun betweenBrackets -> "<" + betweenBrackets + ">"
 
           (typeName name) ++ typeArgsPortion
@@ -284,28 +260,22 @@ module Darklang =
         | KTDB typ -> $"Datastore<{valueType typ}>"
 
 
-      let valueType
-        (vt: PACKAGE.Darklang.LanguageTools.RuntimeTypes.ValueType)
-        : String =
+      let valueType (vt: LanguageTools.RuntimeTypes.ValueType) : String =
         match vt with
         | Known kt -> knownType kt
         | Unknown -> "_"
 
 
       module Dval =
-        let valueTypeName
-          (dv: PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval)
-          : String =
+        let valueTypeName (dv: LanguageTools.RuntimeTypes.Dval.Dval) : String =
           dv |> LanguageTools.RuntimeTypes.Dval.toValueType |> valueType
 
         let makeSpaces (len: Int64) : String =
-          (PACKAGE.Darklang.Stdlib.List.repeat len " ")
-          |> Builtin.unwrap
-          |> PACKAGE.Darklang.Stdlib.String.join ""
+          (Stdlib.List.repeat len " ") |> Builtin.unwrap |> Stdlib.String.join ""
 
         let withIndent
           (indent: Int64)
-          (dv: PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval)
+          (dv: LanguageTools.RuntimeTypes.Dval.Dval)
           : String =
           let nl = "\n" ++ (makeSpaces indent)
           let inl = "\n" ++ (makeSpaces (indent + 2L))
@@ -335,52 +305,48 @@ module Darklang =
           | DInt128 i -> Builtin.int128ToString i
           | DUInt128 i -> Builtin.uint128ToString i
 
-          | DFloat f -> PACKAGE.Darklang.Stdlib.Float.toString f // CLEANUP: deal with Infinity, NegativeInfinity, and NaN
+          | DFloat f -> Stdlib.Float.toString f // CLEANUP: deal with Infinity, NegativeInfinity, and NaN
 
-          | DDateTime d ->
-            $"<{valueTypeName}: {PACKAGE.Darklang.Stdlib.DateTime.toString d}>"
+          | DDateTime d -> $"<{valueTypeName}: {Stdlib.DateTime.toString d}>"
 
-          | DUuid uuid ->
-            $"<{valueTypeName}: {PACKAGE.Darklang.Stdlib.Uuid.toString uuid}>"
+          | DUuid uuid -> $"<{valueTypeName}: {Stdlib.Uuid.toString uuid}>"
 
 
 
           | DList(vt, l) ->
-            if PACKAGE.Darklang.Stdlib.List.isEmpty l then
+            if Stdlib.List.isEmpty l then
               $"{valueTypeName} []"
             else
               let elems =
-                PACKAGE.Darklang.Stdlib.String.join
-                  (PACKAGE.Darklang.Stdlib.List.map l (fun item ->
-                    withIndent indent item))
+                Stdlib.String.join
+                  (Stdlib.List.map l (fun item -> withIndent indent item))
                   ", "
 
               $"[{inl}{elems}{nl}]"
 
           | DTuple(first, second, theRest) ->
-            let l = PACKAGE.Darklang.Stdlib.List.append [ first; second ] theRest
+            let l = Stdlib.List.append [ first; second ] theRest
 
-            let parts =
-              PACKAGE.Darklang.Stdlib.List.map l (fun item -> withIndent indent item)
+            let parts = Stdlib.List.map l (fun item -> withIndent indent item)
 
-            let short = PACKAGE.Darklang.Stdlib.String.join parts ", "
+            let short = Stdlib.String.join parts ", "
 
-            if PACKAGE.Darklang.Stdlib.String.length short <= 80L then
+            if Stdlib.String.length short <= 80L then
               $"({short})"
             else
-              let long = PACKAGE.Darklang.Stdlib.String.join parts $"{inl}, "
+              let long = Stdlib.String.join parts $"{inl}, "
 
               $"({inl}{long}{nl})"
 
           | DRecord(_, typeName, typeArgs, o) ->
             let strs =
               o
-              |> PACKAGE.Darklang.Stdlib.Dict.toList
-              |> PACKAGE.Darklang.Stdlib.List.map (fun pair ->
+              |> Stdlib.Dict.toList
+              |> Stdlib.List.map (fun pair ->
                 let (key, value) = pair
                 $"{key}: {withIndent indent value}")
 
-            let elems = PACKAGE.Darklang.Stdlib.String.join strs $",{inl}"
+            let elems = Stdlib.String.join strs $",{inl}"
             let typeStr = typeName typeName
 
             let typeArgsPart =
@@ -388,24 +354,24 @@ module Darklang =
               | [] -> ""
               | args ->
                 args
-                |> PACKAGE.Darklang.Stdlib.List.map (fun t -> valueTypeName t)
-                |> PACKAGE.Darklang.Stdlib.String.join ", "
+                |> Stdlib.List.map (fun t -> valueTypeName t)
+                |> Stdlib.String.join ", "
                 |> fun betweenBrackets -> "<" + betweenBrackets + ">"
 
             typeStr ++ typeArgsPart ++ " {" ++ inl ++ elems ++ nl ++ "}"
 
           | DDict d ->
-            if d == PACKAGE.Darklang.Stdlib.Dict.empty then
+            if d == Stdlib.Dict.empty then
               "{}"
             else
               let strs =
                 d
-                |> PACKAGE.Darklang.Stdlib.Dict.toList
-                |> PACKAGE.Darklang.Stdlib.List.map (fun pair ->
+                |> Stdlib.Dict.toList
+                |> Stdlib.List.map (fun pair ->
                   let (key, value) = pair
                   $"{key}: {withIndent indent value}")
 
-              let elems = PACKAGE.Darklang.Stdlib.String.join strs $",{inl}"
+              let elems = Stdlib.String.join strs $",{inl}"
               "{" ++ inl ++ elems ++ nl ++ "}"
 
           | DEnum(_, typeName, typeArgs, caseName, fields) ->
@@ -414,31 +380,28 @@ module Darklang =
               | [] -> ""
               | typeArgs ->
                 typeArgs
-                |> PACKAGE.Darklang.Stdlib.List.map (fun typeArg ->
-                  valueType typeArg)
-                |> PACKAGE.Darklang.Stdlib.String.join ", "
+                |> Stdlib.List.map (fun typeArg -> valueType typeArg)
+                |> Stdlib.String.join ", "
                 |> fun parts -> $"<{parts}>"
 
             let short =
               let fieldStr =
                 fields
-                |> PACKAGE.Darklang.Stdlib.List.map (fun value ->
-                  withIndent indent value)
-                |> PACKAGE.Darklang.Stdlib.String.join ", "
+                |> Stdlib.List.map (fun value -> withIndent indent value)
+                |> Stdlib.String.join ", "
 
               let fieldStr = if fieldStr == "" then "" else $"({fieldStr})"
 
               let typeStr = typeName typeName
               $"{typeStr}{typeArgsPart}.{caseName}{fieldStr}"
 
-            if PACKAGE.Darklang.Stdlib.String.length short <= 80L then
+            if Stdlib.String.length short <= 80L then
               short
             else
               let fieldStr =
                 fields
-                |> PACKAGE.Darklang.Stdlib.List.map (fun value ->
-                  withIndent indent value)
-                |> PACKAGE.Darklang.Stdlib.String.join $",{inl}"
+                |> Stdlib.List.map (fun value -> withIndent indent value)
+                |> Stdlib.String.join $",{inl}"
 
               let fieldStr = if fieldStr == "" then "" else $"({inl}{fieldStr}{nl})"
 
@@ -446,8 +409,7 @@ module Darklang =
               $"{typeStr}{typeArgsPart}.{caseName}{fieldStr}"
 
 
-          | DFnVal(NamedFn fnName) ->
-            PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.FnName.fnName fnName
+          | DFnVal(NamedFn fnName) -> PrettyPrinter.RuntimeTypes.FnName.fnName fnName
 
           | DFnVal(Lambda impl) ->
             // Note: this use case is safe (RE docs/dblock-serialization.md)
@@ -465,5 +427,5 @@ module Darklang =
 
 
 
-      let dval (dv: PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval) : String =
+      let dval (dv: LanguageTools.RuntimeTypes.Dval.Dval) : String =
         Dval.withIndent 0L dv

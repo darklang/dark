@@ -26,11 +26,11 @@ module Darklang =
 
 
     let parseVersion (name: String) : (String * Int64) =
-      let parts = PACKAGE.Darklang.Stdlib.String.split name "_v"
-      let name = (PACKAGE.Darklang.Stdlib.List.head parts) |> Builtin.unwrap
+      let parts = Stdlib.String.split name "_v"
+      let name = (Stdlib.List.head parts) |> Builtin.unwrap
 
       let version =
-        (PACKAGE.Darklang.Stdlib.List.last parts)
+        (Stdlib.List.last parts)
         |> Builtin.unwrap
         |> Builtin.int64Parse
         |> Builtin.unwrap
@@ -39,15 +39,12 @@ module Darklang =
 
 
     let parseName (name: String) : GenericName =
-      let parts = PACKAGE.Darklang.Stdlib.String.split name "."
-      let owner = (PACKAGE.Darklang.Stdlib.List.head parts) |> Builtin.unwrap
-      let name = (PACKAGE.Darklang.Stdlib.List.last parts) |> Builtin.unwrap
+      let parts = Stdlib.String.split name "."
+      let owner = (Stdlib.List.head parts) |> Builtin.unwrap
+      let name = (Stdlib.List.last parts) |> Builtin.unwrap
 
       let modules =
-        parts
-        |> PACKAGE.Darklang.Stdlib.List.tail
-        |> Builtin.unwrap
-        |> PACKAGE.Darklang.Stdlib.List.dropLast
+        parts |> Stdlib.List.tail |> Builtin.unwrap |> Stdlib.List.dropLast
 
       let (name, version) = parseVersion name
 

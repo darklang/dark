@@ -80,7 +80,7 @@ module Darklang =
 
           | NotJson ->
             log
-              $"Error parsing incoming message as json:\n{incomingMessageRaw}\nError: {PACKAGE.Darklang.Stdlib.AltJson.ParseError.toString err}"
+              $"Error parsing incoming message as json:\n{incomingMessageRaw}\nError: {Stdlib.AltJson.ParseError.toString err}"
 
             logAndSendToClient
               """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""

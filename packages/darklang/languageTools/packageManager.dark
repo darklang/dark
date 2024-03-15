@@ -128,7 +128,7 @@ module Darklang =
 
         let byName
           (fnName: String)
-          : Stdlib.Result.Result<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn, String> =
+          : Stdlib.Result.Result<LanguageTools.ProgramTypes.PackageFn.PackageFn, String> =
           let fn =
             Stdlib.HttpClient.request
               "GET"
