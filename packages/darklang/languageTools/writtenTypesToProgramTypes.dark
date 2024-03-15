@@ -282,8 +282,7 @@ module Darklang =
               typeParams = []
               parameters =
                 fn.parameters
-                |> Stdlib.List.map (fun p ->
-                  Parameter.toUserFnParamPT resolver p)
+                |> Stdlib.List.map (fun p -> Parameter.toUserFnParamPT resolver p)
               returnType = TypeReference.toPT resolver fn.returnType
               description = ""
               deprecated = ProgramTypes.Deprecation.NotDeprecated
