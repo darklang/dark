@@ -23,7 +23,7 @@ module Darklang =
       let remainder
         (value: Int16)
         (divisor: Int16)
-        : PACKAGE.Darklang.Stdlib.Result.Result<Int16, String> =
+        : Stdlib.Result.Result<Int16, String> =
         Builtin.int16Remainder value divisor
 
 
@@ -109,23 +109,17 @@ module Darklang =
 
       /// Returns the sum of all the ints in the list
       let sum (lst: List<Int16>) : Int16 =
-        PACKAGE.Darklang.Stdlib.List.fold lst 0s (fun acc x -> acc + x)
+        Stdlib.List.fold lst 0s (fun acc x -> acc + x)
 
 
       /// Returns the higher of <param a> and <param b>
       let max (a: Int16) (b: Int16) : Int16 =
-        if (PACKAGE.Darklang.Stdlib.Int16.greaterThan a b) then
-          a
-        else
-          b
+        if (Stdlib.Int16.greaterThan a b) then a else b
 
 
       /// Returns the lower of <param a> and <param b>
       let min (a: Int16) (b: Int16) : Int16 =
-        if (PACKAGE.Darklang.Stdlib.Int16.lessThan a b) then
-          a
-        else
-          b
+        if (Stdlib.Int16.lessThan a b) then a else b
 
 
       /// If <param value> is within the range given by <param limitA> and <param
@@ -135,29 +129,24 @@ module Darklang =
       /// <param limitA> and <param limitB> can be provided in any order.
       let clamp (value: Int16) (limitA: Int16) (limitB: Int16) : Int16 =
         let min =
-          if (PACKAGE.Darklang.Stdlib.Int16.lessThan limitA limitB) then
+          if (Stdlib.Int16.lessThan limitA limitB) then
             limitA
           else
             limitB
 
         let max =
-          if (PACKAGE.Darklang.Stdlib.Int16.greaterThan limitA limitB) then
+          if (Stdlib.Int16.greaterThan limitA limitB) then
             limitA
           else
             limitB
 
-        if (PACKAGE.Darklang.Stdlib.Int16.lessThan value min) then
-          min
-        else if (PACKAGE.Darklang.Stdlib.Int16.greaterThan value max) then
-          max
-        else
-          value
+        if (Stdlib.Int16.lessThan value min) then min
+        else if (Stdlib.Int16.greaterThan value max) then max
+        else value
 
 
       /// Returns the <type Int16> value of a <type String>
-      let parse
-        (s: String)
-        : PACKAGE.Darklang.Stdlib.Result.Result<Int16, PACKAGE.Darklang.Stdlib.Int16.ParseError> =
+      let parse (s: String) : Stdlib.Result.Result<Int16, Stdlib.Int16.ParseError> =
         Builtin.int16Parse s
 
 
@@ -174,35 +163,35 @@ module Darklang =
 
 
       /// Converts a <type UInt16> to an <type Int16>. Returns {{None}} if the value is greater than 32767.
-      let fromUInt16 (i: UInt16) : PACKAGE.Darklang.Stdlib.Option.Option<Int16> =
+      let fromUInt16 (i: UInt16) : Stdlib.Option.Option<Int16> =
         Builtin.int16FromUInt16 i
 
 
       /// Converts an <type Int32> to an <type Int16>. Returns {{None}} if the value is less than -32768 or greater than 32767.
-      let fromInt32 (i: Int32) : PACKAGE.Darklang.Stdlib.Option.Option<Int16> =
+      let fromInt32 (i: Int32) : Stdlib.Option.Option<Int16> =
         Builtin.int16FromInt32 i
 
 
       /// Converts a <type UInt32> to an <type Int16>. Returns {{None}} if the value is greater than 32767.
-      let fromUInt32 (i: UInt32) : PACKAGE.Darklang.Stdlib.Option.Option<Int16> =
+      let fromUInt32 (i: UInt32) : Stdlib.Option.Option<Int16> =
         Builtin.int16FromUInt32 i
 
 
       /// Converts an <type Int64> to an <type Int16>. Returns {{None}} if the value is less than -32768 or greater than 32767.
-      let fromInt64 (i: Int64) : PACKAGE.Darklang.Stdlib.Option.Option<Int16> =
+      let fromInt64 (i: Int64) : Stdlib.Option.Option<Int16> =
         Builtin.int16FromInt64 i
 
 
       /// Converts a <type UInt64> to an <type Int16>. Returns {{None}} if the value is greater than 32767.
-      let fromUInt64 (i: UInt64) : PACKAGE.Darklang.Stdlib.Option.Option<Int16> =
+      let fromUInt64 (i: UInt64) : Stdlib.Option.Option<Int16> =
         Builtin.int16FromUInt64 i
 
 
       /// Converts an <type Int128> to an <type Int16>. Returns {{None}} if the value is less than -32768 or greater than 32767.
-      let fromInt128 (i: Int128) : PACKAGE.Darklang.Stdlib.Option.Option<Int16> =
+      let fromInt128 (i: Int128) : Stdlib.Option.Option<Int16> =
         Builtin.int16FromInt128 i
 
 
       /// Converts a <type UInt128> to an <type Int16>. Returns {{None}} if the value is greater than 32767.
-      let fromUInt128 (i: UInt128) : PACKAGE.Darklang.Stdlib.Option.Option<Int16> =
+      let fromUInt128 (i: UInt128) : Stdlib.Option.Option<Int16> =
         Builtin.int16FromUInt128 i

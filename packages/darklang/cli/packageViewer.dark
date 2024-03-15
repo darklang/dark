@@ -69,7 +69,7 @@ module Darklang =
             Builtin.printLine "module not found"
             1L
           else
-            let result = Darklang.PrettyPrinter.packages moduleContents
+            let result = PrettyPrinter.packages moduleContents
             Builtin.printLine result
             0L
 

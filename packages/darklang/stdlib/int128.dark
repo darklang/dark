@@ -23,7 +23,7 @@ module Darklang =
       let remainder
         (value: Int128)
         (divisor: Int128)
-        : PACKAGE.Darklang.Stdlib.Result.Result<Int128, String> =
+        : Stdlib.Result.Result<Int128, String> =
         Builtin.int128Remainder value divisor
 
 
@@ -81,23 +81,17 @@ module Darklang =
 
       /// Returns the sum of all the ints in the list
       let sum (lst: List<Int128>) : Int128 =
-        PACKAGE.Darklang.Stdlib.List.fold lst 0Q (fun acc x -> acc + x)
+        Stdlib.List.fold lst 0Q (fun acc x -> acc + x)
 
 
       /// Returns the higher of <param a> and <param b>
       let max (a: Int128) (b: Int128) : Int128 =
-        if (PACKAGE.Darklang.Stdlib.Int128.greaterThan a b) then
-          a
-        else
-          b
+        if (Stdlib.Int128.greaterThan a b) then a else b
 
 
       /// Returns the lower of <param a> and <param b>
       let min (a: Int128) (b: Int128) : Int128 =
-        if (PACKAGE.Darklang.Stdlib.Int128.lessThan a b) then
-          a
-        else
-          b
+        if (Stdlib.Int128.lessThan a b) then a else b
 
 
       /// If <param value> is within the range given by <param limitA> and <param
@@ -107,23 +101,20 @@ module Darklang =
       /// <param limitA> and <param limitB> can be provided in any order.
       let clamp (value: Int128) (limitA: Int128) (limitB: Int128) : Int128 =
         let min =
-          if (PACKAGE.Darklang.Stdlib.Int128.lessThan limitA limitB) then
+          if (Stdlib.Int128.lessThan limitA limitB) then
             limitA
           else
             limitB
 
         let max =
-          if (PACKAGE.Darklang.Stdlib.Int128.greaterThan limitA limitB) then
+          if (Stdlib.Int128.greaterThan limitA limitB) then
             limitA
           else
             limitB
 
-        if (PACKAGE.Darklang.Stdlib.Int128.lessThan value min) then
-          min
-        else if (PACKAGE.Darklang.Stdlib.Int128.greaterThan value max) then
-          max
-        else
-          value
+        if (Stdlib.Int128.lessThan value min) then min
+        else if (Stdlib.Int128.greaterThan value max) then max
+        else value
 
 
       /// Stringify <param int128>
@@ -133,7 +124,7 @@ module Darklang =
       /// Returns the <type Int128> value of a <type String>
       let parse
         (s: String)
-        : PACKAGE.Darklang.Stdlib.Result.Result<Int128, PACKAGE.Darklang.Stdlib.Int128.ParseError> =
+        : Stdlib.Result.Result<Int128, Stdlib.Int128.ParseError> =
         Builtin.int128Parse s
 
 

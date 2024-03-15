@@ -39,21 +39,19 @@ module Darklang =
 
       /// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
       let absoluteValue (a: Float) : Float =
-        if (PACKAGE.Darklang.Stdlib.Float.lessThan a 0.0) then
-          PACKAGE.Darklang.Stdlib.Float.multiply a -1.0
+        if (Stdlib.Float.lessThan a 0.0) then
+          Stdlib.Float.multiply a -1.0
         else
           a
 
 
       /// Returns the negation of <param a>, {{-a}}
-      let negate (a: Float) : Float =
-        PACKAGE.Darklang.Stdlib.Float.multiply a -1.0
+      let negate (a: Float) : Float = Stdlib.Float.multiply a -1.0
 
 
       /// Returns the sum of all the floats in the list
       let sum (a: List<Float>) : Float =
-        PACKAGE.Darklang.Stdlib.List.fold a 0.0 (fun acc next ->
-          PACKAGE.Darklang.Stdlib.Float.add acc next)
+        Stdlib.List.fold a 0.0 (fun acc next -> Stdlib.Float.add acc next)
 
 
       /// Get the square root of a float
@@ -100,18 +98,12 @@ module Darklang =
 
       /// Returns the lesser of <type Float> <param a> and <type Float> <param b>
       let min (a: Float) (b: Float) : Float =
-        if (PACKAGE.Darklang.Stdlib.Float.lessThan a b) then
-          a
-        else
-          b
+        if (Stdlib.Float.lessThan a b) then a else b
 
 
       /// Returns the greater of <type Float> <param a> and <type Float> <param b>
       let max (a: Float) (b: Float) : Float =
-        if (PACKAGE.Darklang.Stdlib.Float.greaterThan a b) then
-          a
-        else
-          b
+        if (Stdlib.Float.greaterThan a b) then a else b
 
 
       /// If <param value> is within the range given by <param limitA> and <param
@@ -124,30 +116,26 @@ module Darklang =
         (value: Float)
         (limitA: Float)
         (limitB: Float)
-        : PACKAGE.Darklang.Stdlib.Result.Result<Float, String> =
-        if
-          PACKAGE.Darklang.Stdlib.Float.isNaN limitA
-          || PACKAGE.Darklang.Stdlib.Float.isNaN limitB
-        then
-          PACKAGE.Darklang.Stdlib.Result.Result.Error
-            "clamp requires arguments to be valid numbers"
+        : Stdlib.Result.Result<Float, String> =
+        if Stdlib.Float.isNaN limitA || Stdlib.Float.isNaN limitB then
+          Stdlib.Result.Result.Error "clamp requires arguments to be valid numbers"
         else
           let (lower, upper) =
-            if PACKAGE.Darklang.Stdlib.Float.lessThan limitA limitB then
+            if Stdlib.Float.lessThan limitA limitB then
               (limitA, limitB)
             else
               (limitB, limitA)
 
-          if PACKAGE.Darklang.Stdlib.Float.lessThan value lower then
-            PACKAGE.Darklang.Stdlib.Result.Result.Ok lower
-          else if PACKAGE.Darklang.Stdlib.Float.greaterThan value upper then
-            PACKAGE.Darklang.Stdlib.Result.Result.Ok upper
+          if Stdlib.Float.lessThan value lower then
+            Stdlib.Result.Result.Ok lower
+          else if Stdlib.Float.greaterThan value upper then
+            Stdlib.Result.Result.Ok upper
           else
-            PACKAGE.Darklang.Stdlib.Result.Result.Ok value
+            Stdlib.Result.Result.Ok value
 
 
       /// Returns the <type Float> value wrapped in a {{Result}} of the <type String>
-      let parse (s: String) : PACKAGE.Darklang.Stdlib.Result.Result<Float, String> =
+      let parse (s: String) : Stdlib.Result.Result<Float, String> =
         Builtin.floatParse s
 
 

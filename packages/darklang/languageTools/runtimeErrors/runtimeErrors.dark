@@ -15,8 +15,7 @@ module Darklang =
           | Count of Int64 * singular: ErrorSegment * plural: ErrorSegment // 2 errors, 1 error, etc
 
           // -- Functions
-          | FunctionName of
-            PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQFnName.FQFnName
+          | FunctionName of LanguageTools.RuntimeTypes.FQFnName.FQFnName
           /// Description from StdLib description fields.
           /// Has markers like <param name>, that should be parsed and displayed (TODO: why parse?)
           | Description of String
@@ -24,19 +23,15 @@ module Darklang =
           | InlineParamName of String
 
           // -- Types
-          | TypeName of
-            PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQTypeName.FQTypeName
-          | ShortTypeName of
-            PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQTypeName.FQTypeName
-          | TypeReference of
-            PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference
-          | TypeOfValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval
+          | TypeName of LanguageTools.RuntimeTypes.FQTypeName.FQTypeName
+          | ShortTypeName of LanguageTools.RuntimeTypes.FQTypeName.FQTypeName
+          | TypeReference of LanguageTools.RuntimeTypes.TypeReference
+          | TypeOfValue of LanguageTools.RuntimeTypes.Dval.Dval
           | FieldName of String // records and enums
           | InlineFieldName of String // records and enums
 
           // -- Constants
-          | ConstantName of
-            PACKAGE.Darklang.LanguageTools.RuntimeTypes.FQConstantName.FQConstantName
+          | ConstantName of LanguageTools.RuntimeTypes.FQConstantName.FQConstantName
 
           // -- Variables
           | DBName of String
@@ -44,73 +39,63 @@ module Darklang =
           | InlineVarName of String
 
           // -- Dvals
-          | InlineValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval // possibly shortened to be shown inline
-          | FullValue of PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval
+          | InlineValue of LanguageTools.RuntimeTypes.Dval.Dval // possibly shortened to be shown inline
+          | FullValue of LanguageTools.RuntimeTypes.Dval.Dval
 
         let toString (list: List<ErrorSegment>) : String =
-          let reversed = PACKAGE.Darklang.Stdlib.List.reverse list
+          let reversed = Stdlib.List.reverse list
 
           let parts =
-            PACKAGE.Darklang.Stdlib.List.fold
-              reversed
-              []
-              (fun prevSegments segment ->
-                let newSegment =
-                  match segment with
-                  | String s -> s
-                  | Int i -> PACKAGE.Darklang.Stdlib.Int64.toString i
-                  | Ordinal i -> Stdlib.String.toOrdinal i
-                  | Count(i, singular, plural) ->
-                    let count = PACKAGE.Darklang.Stdlib.Int64.toString i
+            Stdlib.List.fold reversed [] (fun prevSegments segment ->
+              let newSegment =
+                match segment with
+                | String s -> s
+                | Int i -> Stdlib.Int64.toString i
+                | Ordinal i -> Stdlib.String.toOrdinal i
+                | Count(i, singular, plural) ->
+                  let count = Stdlib.Int64.toString i
 
-                    if i == 1L then
-                      let segment = toString [ singular ]
-                      $"{count} {segment}"
-                    else
-                      let segment = toString [ plural ]
-                      $"{count} {segment}"
+                  if i == 1L then
+                    let segment = toString [ singular ]
+                    $"{count} {segment}"
+                  else
+                    let segment = toString [ plural ]
+                    $"{count} {segment}"
 
-                  | IndefiniteArticle ->
-                    match Stdlib.List.head prevSegments with
-                    | None -> ""
-                    | Some prev -> Stdlib.String.articleFor prev ++ " "
+                | IndefiniteArticle ->
+                  match Stdlib.List.head prevSegments with
+                  | None -> ""
+                  | Some prev -> Stdlib.String.articleFor prev ++ " "
 
-                  | FunctionName fn ->
-                    PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.fnName fn
+                | FunctionName fn -> PrettyPrinter.RuntimeTypes.fnName fn
 
-                  | Description d -> d
-                  | ParamName p -> $"`{p}`"
-                  | InlineParamName p -> p // Inline versions don't have quotes
-                  | TypeName t ->
-                    PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeName t
-                  | ConstantName c ->
-                    PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.constantName c
-                  | ShortTypeName t ->
-                    // TODO: make it short
-                    PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeName t
-                  | TypeReference t ->
-                    PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeReference t
-                  | TypeOfValue dv ->
-                    PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.Dval.valueTypeName
-                      dv
-                  | FieldName f -> $"`{f}`"
-                  | InlineFieldName f -> f
-                  | DBName db -> db
-                  | VarName v -> $"`{v}`"
-                  | InlineVarName v -> v
-                  | InlineValue dv ->
-                    (PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.dval dv)
-                    |> Stdlib.String.ellipsis 10L
-                    |> Stdlib.String.splitOnNewline
-                    |> PACKAGE.Darklang.Stdlib.String.join ""
-                  | FullValue dv ->
-                    PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.dval dv
-                  | segment ->
-                    $"(RTETODO toString parts {(Builtin.jsonSerialize<ErrorSegment> segment)})"
+                | Description d -> d
+                | ParamName p -> $"`{p}`"
+                | InlineParamName p -> p // Inline versions don't have quotes
+                | TypeName t -> PrettyPrinter.RuntimeTypes.typeName t
+                | ConstantName c -> PrettyPrinter.RuntimeTypes.constantName c
+                | ShortTypeName t ->
+                  // TODO: make it short
+                  PrettyPrinter.RuntimeTypes.typeName t
+                | TypeReference t -> PrettyPrinter.RuntimeTypes.typeReference t
+                | TypeOfValue dv -> PrettyPrinter.RuntimeTypes.Dval.valueTypeName dv
+                | FieldName f -> $"`{f}`"
+                | InlineFieldName f -> f
+                | DBName db -> db
+                | VarName v -> $"`{v}`"
+                | InlineVarName v -> v
+                | InlineValue dv ->
+                  (PrettyPrinter.RuntimeTypes.dval dv)
+                  |> Stdlib.String.ellipsis 10L
+                  |> Stdlib.String.splitOnNewline
+                  |> Stdlib.String.join ""
+                | FullValue dv -> PrettyPrinter.RuntimeTypes.dval dv
+                | segment ->
+                  $"(RTETODO toString parts {(Builtin.jsonSerialize<ErrorSegment> segment)})"
 
-                PACKAGE.Darklang.Stdlib.List.push prevSegments newSegment)
+              Stdlib.List.push prevSegments newSegment)
 
-          PACKAGE.Darklang.Stdlib.String.join parts ""
+          Stdlib.String.join parts ""
 
 
       type ErrorOutput =
@@ -125,16 +110,13 @@ module Darklang =
       // maybe as cases of that (e.g. TypeCheckerError, NameResolutionError)
 
       type Error =
-        | CliError of PACKAGE.Darklang.LanguageTools.RuntimeErrors.Cli.Error
-        | TypeCheckerError of
-          PACKAGE.Darklang.LanguageTools.RuntimeErrors.TypeChecker.Error
-        | NameResolutionError of
-          PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.Error
+        | CliError of LanguageTools.RuntimeErrors.Cli.Error
+        | TypeCheckerError of LanguageTools.RuntimeErrors.TypeChecker.Error
+        | NameResolutionError of LanguageTools.RuntimeErrors.NameResolution.Error
         | SqlCompilerRuntimeError of Error
-        | ExecutionError of
-          PACKAGE.Darklang.LanguageTools.RuntimeErrors.Execution.Error
-        | JsonError of PACKAGE.Darklang.LanguageTools.RuntimeErrors.Json.Error
-        | IntError of PACKAGE.Darklang.LanguageTools.RuntimeErrors.Int.Error
+        | ExecutionError of LanguageTools.RuntimeErrors.Execution.Error
+        | JsonError of LanguageTools.RuntimeErrors.Json.Error
+        | IntError of LanguageTools.RuntimeErrors.Int.Error
 
         | OldStringErrorTODO of String
 
@@ -167,7 +149,7 @@ module Darklang =
 
             { innerOutput with
                 summary =
-                  PACKAGE.Darklang.Stdlib.List.append
+                  Stdlib.List.append
                     [ (ErrorSegment.ErrorSegment.String sqlErrorTemplate) ]
                     innerOutput.summary }
 
@@ -179,9 +161,7 @@ module Darklang =
           let s = toSegments e
 
           let explanation =
-            ErrorSegment.toString (
-              PACKAGE.Darklang.Stdlib.List.append s.summary s.extraExplanation
-            )
+            ErrorSegment.toString (Stdlib.List.append s.summary s.extraExplanation)
 
           let actual = ErrorSegment.toString s.actual
           let actual = if actual == "" then "" else $"\nActual: {actual}"

@@ -24,20 +24,20 @@ module Darklang =
         type ParseError =
           /// The json string can't be parsed as the given type.
           | CantMatchWithType of
-            PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference *
+            LanguageTools.RuntimeTypes.TypeReference *
             String *
             JsonPath.JsonPath
           | EnumExtraField of rawJson: String * JsonPath.JsonPath
           | EnumMissingField of
-            PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference *
+            LanguageTools.RuntimeTypes.TypeReference *
             index: Int64 *
             JsonPath.JsonPath
           | EnumInvalidCasename of
-            PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference *
+            LanguageTools.RuntimeTypes.TypeReference *
             caseName: String *
             JsonPath.JsonPath
           | EnumTooManyCases of
-            PACKAGE.Darklang.LanguageTools.RuntimeTypes.TypeReference *
+            LanguageTools.RuntimeTypes.TypeReference *
             cases: List<String> *
             JsonPath.JsonPath
           | RecordDuplicateField of fieldName: String * JsonPath.JsonPath
@@ -50,7 +50,7 @@ module Darklang =
             "Can't parse JSON `"
             ++ json
             ++ "` as type `"
-            ++ PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeReference typ
+            ++ PrettyPrinter.RuntimeTypes.typeReference typ
             ++ "` at path: `"
             ++ JsonPath.toString path
             ++ "`"
@@ -68,7 +68,7 @@ module Darklang =
             "Can't parse JSON because argument "
             ++ Int64.toString index
             ++ " (`"
-            ++ PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeReference typ
+            ++ PrettyPrinter.RuntimeTypes.typeReference typ
             ++ "`) is missing at path: `"
             ++ JsonPath.toString path
             ++ "`"
@@ -78,7 +78,7 @@ module Darklang =
             "Can't parse JSON as `"
             ++ caseName
             ++ "` is not a known case of type `"
-            ++ PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeReference typ
+            ++ PrettyPrinter.RuntimeTypes.typeReference typ
             ++ "` at path: `"
             ++ JsonPath.toString path
             ++ "`"
@@ -88,7 +88,7 @@ module Darklang =
             let cases = cases |> List.map (fun c -> $"`{c}`") |> String.join ", "
 
             $"Can't parse JSON with multiple fields ({cases}) as type `"
-            ++ PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.typeReference typ
+            ++ PrettyPrinter.RuntimeTypes.typeReference typ
             ++ "` at path: `"
             ++ JsonPath.toString path
             ++ "`"

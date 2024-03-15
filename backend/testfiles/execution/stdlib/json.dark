@@ -1540,25 +1540,27 @@ module Package =
     PACKAGE.Darklang.LanguageTools.Sign.Positive
 
 
-  Builtin.jsonSerialize<PACKAGE.OpenAI.Completion.ResponseChoice> (
-    PACKAGE.OpenAI.Completion.ResponseChoice { text = "hello" }
+  Builtin.jsonSerialize<PACKAGE.Darklang.OpenAI.Completion.ResponseChoice> (
+    PACKAGE.Darklang.OpenAI.Completion.ResponseChoice { text = "hello" }
   ) = "{\"text\":\"hello\"}"
 
-  Builtin.jsonParse<PACKAGE.OpenAI.Completion.ResponseChoice> "{\"text\":\"hello\"}" = Result
-    .Ok(PACKAGE.OpenAI.Completion.ResponseChoice { text = "hello" })
+  Builtin.jsonParse<PACKAGE.Darklang.OpenAI.Completion.ResponseChoice>
+    "{\"text\":\"hello\"}" = Result.Ok(
+    PACKAGE.Darklang.OpenAI.Completion.ResponseChoice { text = "hello" }
+  )
 
-  Builtin.jsonSerialize<PACKAGE.OpenAI.Completion.Request> (
-    PACKAGE.OpenAI.Completion.Request
+  Builtin.jsonSerialize<PACKAGE.Darklang.OpenAI.Completion.Request> (
+    PACKAGE.Darklang.OpenAI.Completion.Request
       { model = "davinci"
         prompt = "test"
         max_tokens = 5L
         temperature = 0.7 }
   ) = "{\"max_tokens\":5,\"model\":\"davinci\",\"prompt\":\"test\",\"temperature\":0.7}"
 
-  Builtin.jsonParse<PACKAGE.OpenAI.Completion.Request>
+  Builtin.jsonParse<PACKAGE.Darklang.OpenAI.Completion.Request>
     "{\"max_tokens\":5,\"model\":\"davinci\",\"prompt\":\"test\",\"temperature\":0.7}" = Result
     .Ok(
-      PACKAGE.OpenAI.Completion.Request
+      PACKAGE.Darklang.OpenAI.Completion.Request
         { model = "davinci"
           prompt = "test"
           max_tokens = 5L

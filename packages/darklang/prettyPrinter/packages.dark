@@ -4,15 +4,14 @@ module Darklang =
 
       type Module =
         { name: String
-          types: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType>
-          fns: List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn>
-          constants:
-            List<PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant>
+          types: List<LanguageTools.ProgramTypes.PackageType>
+          fns: List<LanguageTools.ProgramTypes.PackageFn.PackageFn>
+          constants: List<LanguageTools.ProgramTypes.PackageConstant>
           submodules: List<Module> }
 
       let withType
         (ms: List<Module>)
-        (t: PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageType)
+        (t: LanguageTools.ProgramTypes.PackageType)
         : List<Module> =
         match t.name.modules with
         | [] ->
@@ -88,7 +87,7 @@ module Darklang =
 
       let withFn
         (ms: List<Module>)
-        (f: PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn)
+        (f: LanguageTools.ProgramTypes.PackageFn.PackageFn)
         : List<Module> =
         match f.name.modules with
         | [] ->
@@ -162,7 +161,7 @@ module Darklang =
 
       let withConstant
         (ms: List<Module>)
-        (c: PACKAGE.Darklang.LanguageTools.ProgramTypes.PackageConstant)
+        (c: LanguageTools.ProgramTypes.PackageConstant)
         : List<Module> =
         match c.name.modules with
         | [] ->

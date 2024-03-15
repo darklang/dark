@@ -30,12 +30,12 @@ module Darklang =
       let parseToSimplifiedTree (text: String) : ParsedNode =
         Builtin.parserParseToSimplifiedTree text
 
-      let parseName (fnName: String) : Darklang.Stdlib.Result.Result<String> =
-        if (Darklang.Stdlib.String.contains fnName "_v") then
+      let parseName (fnName: String) : Stdlib.Result.Result<String> =
+        if (Stdlib.String.contains fnName "_v") then
           // Todo : check if the name is valid
-          Darklang.Stdlib.Result.Result.Ok fnName
+          Stdlib.Result.Result.Ok fnName
         else
-          Darklang.Stdlib.Result.Result.Ok(fnName ++ "_v0")
+          Stdlib.Result.Result.Ok(fnName ++ "_v0")
 
       // // TODO: maybe re-frame this into expected/actual or something
       // type ParseError =
@@ -510,10 +510,9 @@ module Darklang =
               let (sign, whole, remainder) =
                 let (sign, unsignedFloat) =
                   if Stdlib.String.startsWith floatStr "-" then
-                    (Darklang.LanguageTools.Sign.Negative,
-                     Stdlib.String.dropFirst floatStr 1L)
+                    (Sign.Negative, Stdlib.String.dropFirst floatStr 1L)
                   else
-                    (Darklang.LanguageTools.Sign.Positive, floatStr)
+                    (Sign.Positive, floatStr)
 
                 let parts = Stdlib.String.split unsignedFloat "."
 

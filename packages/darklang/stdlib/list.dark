@@ -10,73 +10,66 @@ module Darklang =
 
       /// Returns {{Some}} the head (first value) of a list.
       /// Returns {{None}} if the list is empty.
-      let head (list: List<'a>) : PACKAGE.Darklang.Stdlib.Option.Option<'a> =
+      let head (list: List<'a>) : Stdlib.Option.Option<'a> =
         match list with
-        | [] -> PACKAGE.Darklang.Stdlib.Option.Option.None
-        | head :: _ -> PACKAGE.Darklang.Stdlib.Option.Option.Some head
+        | [] -> Stdlib.Option.Option.None
+        | head :: _ -> Stdlib.Option.Option.Some head
 
 
       /// If <param list> contains at least one value, returns {{Some}} with a list of
       /// every value other than the first. Otherwise, returns {{None}}.
-      let tail (list: List<'a>) : PACKAGE.Darklang.Stdlib.Option.Option<List<'a>> =
+      let tail (list: List<'a>) : Stdlib.Option.Option<List<'a>> =
         match list with
-        | [] -> PACKAGE.Darklang.Stdlib.Option.Option.None
-        | _ :: tail -> PACKAGE.Darklang.Stdlib.Option.Option.Some tail
+        | [] -> Stdlib.Option.Option.None
+        | _ :: tail -> Stdlib.Option.Option.Some tail
 
 
       /// Add element <param val> to front of <type list> <param list>
       let push (list: List<'a>) (value: 'a) : List<'a> =
-        PACKAGE.Darklang.Stdlib.List.append_v0 [ value ] list
+        Stdlib.List.append_v0 [ value ] list
 
 
       /// Add element <param val> to back of <type list> <param list>
       let pushBack (list: List<'a>) (value: 'a) : List<'a> =
-        PACKAGE.Darklang.Stdlib.List.append_v0 list [ value ]
+        Stdlib.List.append_v0 list [ value ]
 
 
       /// Returns the last value in <param list>, wrapped in an option (<paramNone> if the list is empty)
-      let last (list: List<'a>) : PACKAGE.Darklang.Stdlib.Option.Option<'a> =
+      let last (list: List<'a>) : Stdlib.Option.Option<'a> =
         match list with
-        | [] -> PACKAGE.Darklang.Stdlib.Option.Option.None
+        | [] -> Stdlib.Option.Option.None
         | head :: tail ->
           match tail with
-          | [] -> PACKAGE.Darklang.Stdlib.Option.Option.Some head
-          | _ -> PACKAGE.Darklang.Stdlib.List.last tail
+          | [] -> Stdlib.Option.Option.Some head
+          | _ -> Stdlib.List.last tail
 
 
       // Todo: remove the helper function once we have recursive lambdas
       let reverseHelper (list: List<'a>) (acc: List<'a>) : List<'a> =
         match list with
         | [] -> acc
-        | head :: tail ->
-          reverseHelper tail (PACKAGE.Darklang.Stdlib.List.push acc head)
+        | head :: tail -> reverseHelper tail (Stdlib.List.push acc head)
 
       /// Returns a reversed copy of <param list>
-      let reverse (list: List<'a>) : List<'a> =
-        PACKAGE.Darklang.Stdlib.List.reverseHelper list []
+      let reverse (list: List<'a>) : List<'a> = Stdlib.List.reverseHelper list []
 
 
       /// Returns {{Some firstMatch}} where <var firstMatch> is the first value of the
       /// list for which <param fn> returns {{true}}. Returns {{None}} if no such
       /// value exists
-      let findFirst
-        (list: List<'a>)
-        (fn: 'a -> Bool)
-        : PACKAGE.Darklang.Stdlib.Option.Option<'a> =
+      let findFirst (list: List<'a>) (fn: 'a -> Bool) : Stdlib.Option.Option<'a> =
         match list with
-        | [] -> PACKAGE.Darklang.Stdlib.Option.Option.None
+        | [] -> Stdlib.Option.Option.None
         | head :: tail ->
           if (fn head) then
-            PACKAGE.Darklang.Stdlib.Option.Option.Some head
+            Stdlib.Option.Option.Some head
           else
-            PACKAGE.Darklang.Stdlib.List.findFirst tail fn
+            Stdlib.List.findFirst tail fn
 
 
       /// Returns {{true}} if <param value> is in the list
       let ``member`` (list: List<'a>) (value: 'a) : Bool =
-        PACKAGE.Darklang.Stdlib.Option.isSome (
-          PACKAGE.Darklang.Stdlib.List.findFirst list (fun elem -> elem == value)
-        )
+        Stdlib.Option.isSome (Stdlib.List.findFirst list (fun elem -> elem == value))
 
 
       // TODO: remove this once we have a way to call lambdas recursively
@@ -84,23 +77,19 @@ module Darklang =
         if times <= 0L then
           []
         else
-          PACKAGE.Darklang.Stdlib.List.push_v0
-            (repeatUnsafe (times - 1L) value)
-            value
+          Stdlib.List.push_v0 (repeatUnsafe (times - 1L) value) value
 
 
       /// Returns a list containing <param val> repeated <param times> times
       let repeat
         (times: Int64)
         (value: 'a)
-        : PACKAGE.Darklang.Stdlib.Result.Result<List<'a>, String> =
+        : Stdlib.Result.Result<List<'a>, String> =
         if times < 0L then
-          PACKAGE.Darklang.Stdlib.Result.Result.Error
-            $"Expected `times` to be positive, but it was `{times |> PACKAGE.Darklang.Stdlib.Int64.toString}`"
+          Stdlib.Result.Result.Error
+            $"Expected `times` to be positive, but it was `{times |> Stdlib.Int64.toString}`"
         else
-          PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-            PACKAGE.Darklang.Stdlib.List.repeatUnsafe times value
-          )
+          Stdlib.Result.Result.Ok(Stdlib.List.repeatUnsafe times value)
 
 
       /// Returns the number of values in <param list>
@@ -113,9 +102,7 @@ module Darklang =
         if lowest > highest then
           []
         else
-          PACKAGE.Darklang.Stdlib.List.push_v0
-            (PACKAGE.Darklang.Stdlib.List.range (lowest + 1L) highest)
-            lowest
+          Stdlib.List.push_v0 (Stdlib.List.range (lowest + 1L) highest) lowest
 
 
       /// Folds <param list> into a single value, by repeatedly applying <param fn> to any two pairs.
@@ -124,7 +111,7 @@ module Darklang =
         | [] -> init
         | head :: tail ->
           let init = fn init head
-          PACKAGE.Darklang.Stdlib.List.fold tail init fn
+          Stdlib.List.fold tail init fn
 
 
       /// Returns a single list containing the values of every list directly in <paramlist>
@@ -132,10 +119,7 @@ module Darklang =
       let flatten (list: List<List<'a>>) : List<'a> =
         match list with
         | [] -> []
-        | head :: tail ->
-          PACKAGE.Darklang.Stdlib.List.append_v0
-            head
-            (PACKAGE.Darklang.Stdlib.List.flatten tail)
+        | head :: tail -> Stdlib.List.append_v0 head (Stdlib.List.flatten tail)
 
 
       /// Returns a single list containing the values of <param list> separated by <param sep>
@@ -144,9 +128,9 @@ module Darklang =
         | [] -> []
         | [ single ] -> [ single ]
         | head :: tail ->
-          (PACKAGE.Darklang.Stdlib.List.interpose tail sep)
-          |> PACKAGE.Darklang.Stdlib.List.push_v0 sep
-          |> PACKAGE.Darklang.Stdlib.List.push_v0 head
+          (Stdlib.List.interpose tail sep)
+          |> Stdlib.List.push_v0 sep
+          |> Stdlib.List.push_v0 head
 
 
       /// Returns a list with the first value from <param l1> then the first value
@@ -159,9 +143,9 @@ module Darklang =
           match l2 with
           | [] -> l1
           | bHead :: bTail ->
-            (PACKAGE.Darklang.Stdlib.List.interleave aTail bTail)
-            |> PACKAGE.Darklang.Stdlib.List.push_v0 bHead
-            |> PACKAGE.Darklang.Stdlib.List.push_v0 aHead
+            (Stdlib.List.interleave aTail bTail)
+            |> Stdlib.List.push_v0 bHead
+            |> Stdlib.List.push_v0 aHead
 
 
       /// Returns the passed list, with only unique values, where uniqueness is based
@@ -208,7 +192,7 @@ module Darklang =
       let sortByComparator
         (list: List<'a>)
         (fn: 'a -> 'a -> Int64)
-        : PACKAGE.Darklang.Stdlib.Result.Result<List<'a>, String> =
+        : Stdlib.Result.Result<List<'a>, String> =
         Builtin.listSortByComparator_v0 list fn
 
 
@@ -222,11 +206,7 @@ module Darklang =
       let all (list: List<'a>) (fn: 'a -> Bool) : Bool =
         match list with
         | [] -> true
-        | head :: tail ->
-          if (fn head) then
-            PACKAGE.Darklang.Stdlib.List.all tail fn
-          else
-            false
+        | head :: tail -> if (fn head) then Stdlib.List.all tail fn else false
 
 
       // Calls <param f> on every <var val> in <param list>, returning a list of only
@@ -234,12 +214,9 @@ module Darklang =
       // Preserves the order of values that were not dropped. Consider <fn
       // List.filterMap> if you also want to transform the values.
       let filter (list: List<'a>) (f: 'a -> Bool) : List<'a> =
-        (PACKAGE.Darklang.Stdlib.List.fold list [] (fun acc elem ->
-          if (f elem) then
-            PACKAGE.Darklang.Stdlib.List.push_v0 acc elem
-          else
-            acc))
-        |> PACKAGE.Darklang.Stdlib.List.reverse
+        (Stdlib.List.fold list [] (fun acc elem ->
+          if (f elem) then Stdlib.List.push_v0 acc elem else acc))
+        |> Stdlib.List.reverse
 
 
       // Calls <param fn> on every <var val> in <param list>, returning a list that
@@ -250,17 +227,15 @@ module Darklang =
       // This function combines <fn List.filter> and <fn List.map>.
       let filterMap
         (list: List<'a>)
-        (fn: 'a -> PACKAGE.Darklang.Stdlib.Option.Option<'b>)
+        (fn: 'a -> Stdlib.Option.Option<'b>)
         : List<'b> =
         match list with
         | [] -> []
         | head :: tail ->
           match (fn head) with
           | Some newValue ->
-            PACKAGE.Darklang.Stdlib.List.push_v0
-              (PACKAGE.Darklang.Stdlib.List.filterMap tail fn)
-              newValue
-          | None -> PACKAGE.Darklang.Stdlib.List.filterMap tail fn
+            Stdlib.List.push_v0 (Stdlib.List.filterMap tail fn) newValue
+          | None -> Stdlib.List.filterMap tail fn
 
 
       /// Drops the first <param count> values from <param list>
@@ -270,18 +245,14 @@ module Darklang =
         else
           match list with
           | [] -> []
-          | _ :: tail -> PACKAGE.Darklang.Stdlib.List.drop tail (count - 1L)
+          | _ :: tail -> Stdlib.List.drop tail (count - 1L)
 
 
       /// Drops the longest prefix of <param list> which satisfies the predicate <param val>
       let dropWhile (list: List<'a>) (fn: 'a -> Bool) : List<'a> =
         match list with
         | [] -> []
-        | head :: tail ->
-          if (fn head) then
-            PACKAGE.Darklang.Stdlib.List.dropWhile tail fn
-          else
-            list
+        | head :: tail -> if (fn head) then Stdlib.List.dropWhile tail fn else list
 
 
       /// Drops the last value from <param list>
@@ -291,10 +262,7 @@ module Darklang =
         | head :: tail ->
           match tail with
           | [] -> []
-          | _ ->
-            PACKAGE.Darklang.Stdlib.List.push_v0
-              (PACKAGE.Darklang.Stdlib.List.dropLast tail)
-              head
+          | _ -> Stdlib.List.push_v0 (Stdlib.List.dropLast tail) head
 
 
       /// Drops all but the first <param count> values from <param list>
@@ -305,9 +273,7 @@ module Darklang =
           match list with
           | [] -> []
           | head :: tail ->
-            PACKAGE.Darklang.Stdlib.List.push_v0
-              (PACKAGE.Darklang.Stdlib.List.take tail (count - 1L))
-              head
+            Stdlib.List.push_v0 (Stdlib.List.take tail (count - 1L)) head
 
 
       /// Return the longest prefix of <param list> which satisfies the predicate <param fn>
@@ -316,9 +282,7 @@ module Darklang =
         | [] -> []
         | head :: tail ->
           if (fn head) then
-            PACKAGE.Darklang.Stdlib.List.push_v0
-              (PACKAGE.Darklang.Stdlib.List.takeWhile tail fn)
-              head
+            Stdlib.List.push_v0 (Stdlib.List.takeWhile tail fn) head
           else
             []
 
@@ -327,9 +291,8 @@ module Darklang =
       // results of those calls.
       // Consider <fn List.filterMap> if you also want to drop some of the values.
       let map (list: List<'a>) (fn: 'a -> 'b) : List<'b> =
-        (PACKAGE.Darklang.Stdlib.List.fold list [] (fun acc elem ->
-          PACKAGE.Darklang.Stdlib.List.push_v0 acc (fn elem)))
-        |> PACKAGE.Darklang.Stdlib.List.reverse
+        (Stdlib.List.fold list [] (fun acc elem -> Stdlib.List.push_v0 acc (fn elem)))
+        |> Stdlib.List.reverse
 
 
       /// Calls <fn fn> on every <var val> and its <var index> in <param list>,
@@ -367,7 +330,7 @@ module Darklang =
         (as_: List<'a>)
         (bs: List<'b>)
         (fn: 'a -> 'b -> 'c)
-        : PACKAGE.Darklang.Stdlib.Option.Option<List<'c>> =
+        : Stdlib.Option.Option<List<'c>> =
         Builtin.listMap2_v0 as_ bs fn
 
 
@@ -386,9 +349,7 @@ module Darklang =
           match bs with
           | [] -> []
           | bHead :: bTail ->
-            PACKAGE.Darklang.Stdlib.List.push_v0
-              (PACKAGE.Darklang.Stdlib.List.zipShortest aTail bTail)
-              (aHead, bHead)
+            Stdlib.List.push_v0 (Stdlib.List.zipShortest aTail bTail) (aHead, bHead)
 
 
       /// If the lists have the same length, returns {{Some list of tuples}} formed from
@@ -400,28 +361,20 @@ module Darklang =
       /// If the lists differ in length, returns {{None}} (consider
       /// <fn List.zipShortest> if you want to drop values from the longer list
       /// instead).
-      let zip
-        (l1: List<'a>)
-        (l2: List<'b>)
-        : PACKAGE.Darklang.Stdlib.Option.Option<List<('a * 'b)>> =
-        if
-          (PACKAGE.Darklang.Stdlib.List.length l1)
-          != (PACKAGE.Darklang.Stdlib.List.length l2)
-        then
-          PACKAGE.Darklang.Stdlib.Option.Option.None
+      let zip (l1: List<'a>) (l2: List<'b>) : Stdlib.Option.Option<List<('a * 'b)>> =
+        if (Stdlib.List.length l1) != (Stdlib.List.length l2) then
+          Stdlib.Option.Option.None
         else
           match l1 with
-          | [] -> PACKAGE.Darklang.Stdlib.Option.Option.Some []
+          | [] -> Stdlib.Option.Option.Some []
           | aHead :: aTail ->
             match l2 with
-            | [] -> PACKAGE.Darklang.Stdlib.Option.Option.Some []
+            | [] -> Stdlib.Option.Option.Some []
             | bHead :: bTail ->
-              match PACKAGE.Darklang.Stdlib.List.zip aTail bTail with
+              match Stdlib.List.zip aTail bTail with
               | Some zipped ->
-                PACKAGE.Darklang.Stdlib.Option.Option.Some(
-                  PACKAGE.Darklang.Stdlib.List.push_v0 zipped (aHead, bHead)
-                )
-              | None -> PACKAGE.Darklang.Stdlib.Option.Option.None
+                Stdlib.Option.Option.Some(Stdlib.List.push_v0 zipped (aHead, bHead))
+              | None -> Stdlib.Option.Option.None
 
 
       /// Given a <param pairs> list where each value is a tuple of two values (such
@@ -434,36 +387,30 @@ module Darklang =
         match pairs with
         | [] -> ([], [])
         | (a, b) :: tail ->
-          let (firsts, seconds) = PACKAGE.Darklang.Stdlib.List.unzip tail
+          let (firsts, seconds) = Stdlib.List.unzip tail
 
-          (PACKAGE.Darklang.Stdlib.List.push_v0 firsts a,
-           PACKAGE.Darklang.Stdlib.List.push_v0 seconds b)
+          (Stdlib.List.push_v0 firsts a, Stdlib.List.push_v0 seconds b)
 
 
       /// Returns {{Some value}} at <param index> in <param list> if <param index> is
       /// less than the length of the list otherwise returns {{None}}.
-      let getAt
-        (list: List<'a>)
-        (index: Int64)
-        : PACKAGE.Darklang.Stdlib.Option.Option<'a> =
+      let getAt (list: List<'a>) (index: Int64) : Stdlib.Option.Option<'a> =
         if index < 0L then
-          PACKAGE.Darklang.Stdlib.Option.Option.None
+          Stdlib.Option.Option.None
         else
           match list with
-          | [] -> PACKAGE.Darklang.Stdlib.Option.Option.None
+          | [] -> Stdlib.Option.Option.None
           | head :: tail ->
             if index == 0L then
-              PACKAGE.Darklang.Stdlib.Option.Option.Some head
+              Stdlib.Option.Option.Some head
             else
-              PACKAGE.Darklang.Stdlib.List.getAt tail (index - 1L)
+              Stdlib.List.getAt tail (index - 1L)
 
 
       /// Returns {{Just <var randomValue>}}, where <var randomValue> is a randomly
       /// selected value in <param list>. Returns {{Nothing}} if <param list> is
       /// empty.
-      let randomElement
-        (list: List<'a>)
-        : PACKAGE.Darklang.Stdlib.Option.Option<'a> =
+      let randomElement (list: List<'a>) : Stdlib.Option.Option<'a> =
         Builtin.listRandomElement_v0 list
 
 
@@ -483,12 +430,12 @@ module Darklang =
         match ls with
         | [] -> ([], [])
         | head :: tail ->
-          let (trueList, falseList) = PACKAGE.Darklang.Stdlib.List.partition tail f
+          let (trueList, falseList) = Stdlib.List.partition tail f
 
           if (f head) then
-            (PACKAGE.Darklang.Stdlib.List.push_v0 trueList head, falseList)
+            (Stdlib.List.push_v0 trueList head, falseList)
           else
-            (trueList, PACKAGE.Darklang.Stdlib.List.push_v0 falseList head)
+            (trueList, Stdlib.List.push_v0 falseList head)
 
 
       /// Applies the given function <param fn> to each element of the <param list>.
@@ -497,4 +444,4 @@ module Darklang =
         | [] -> ()
         | head :: tail ->
           f head
-          PACKAGE.Darklang.Stdlib.List.iter tail f
+          Stdlib.List.iter tail f

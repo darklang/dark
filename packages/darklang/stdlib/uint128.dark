@@ -59,23 +59,17 @@ module Darklang =
 
       /// Returns the sum of all the ints in the list
       let sum (lst: List<UInt128>) : UInt128 =
-        PACKAGE.Darklang.Stdlib.List.fold lst 0Z (fun acc x -> acc + x)
+        Stdlib.List.fold lst 0Z (fun acc x -> acc + x)
 
 
       /// Returns the higher of <param a> and <param b>
       let max (a: UInt128) (b: UInt128) : UInt128 =
-        if (PACKAGE.Darklang.Stdlib.UInt128.greaterThan a b) then
-          a
-        else
-          b
+        if (Stdlib.UInt128.greaterThan a b) then a else b
 
 
       /// Returns the lower of <param a> and <param b>
       let min (a: UInt128) (b: UInt128) : UInt128 =
-        if (PACKAGE.Darklang.Stdlib.UInt128.lessThan a b) then
-          a
-        else
-          b
+        if (Stdlib.UInt128.lessThan a b) then a else b
 
 
       /// If <param value> is within the range given by <param limitA> and <param
@@ -85,23 +79,20 @@ module Darklang =
       /// <param limitA> and <param limitB> can be provided in any order.
       let clamp (value: UInt128) (limitA: UInt128) (limitB: UInt128) : UInt128 =
         let min =
-          if (PACKAGE.Darklang.Stdlib.UInt128.lessThan limitA limitB) then
+          if (Stdlib.UInt128.lessThan limitA limitB) then
             limitA
           else
             limitB
 
         let max =
-          if (PACKAGE.Darklang.Stdlib.UInt128.greaterThan limitA limitB) then
+          if (Stdlib.UInt128.greaterThan limitA limitB) then
             limitA
           else
             limitB
 
-        if (PACKAGE.Darklang.Stdlib.UInt128.lessThan value min) then
-          min
-        else if (PACKAGE.Darklang.Stdlib.UInt128.greaterThan value max) then
-          max
-        else
-          value
+        if (Stdlib.UInt128.lessThan value min) then min
+        else if (Stdlib.UInt128.greaterThan value max) then max
+        else value
 
 
       /// Stringify <param uint128>
@@ -111,7 +102,7 @@ module Darklang =
       /// Returns the <type UInt128> value of a <type String>
       let parse
         (s: String)
-        : PACKAGE.Darklang.Stdlib.Result.Result<UInt128, PACKAGE.Darklang.Stdlib.UInt128.ParseError> =
+        : Stdlib.Result.Result<UInt128, Stdlib.UInt128.ParseError> =
         Builtin.uint128Parse s
 
 

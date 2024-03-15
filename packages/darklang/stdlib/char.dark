@@ -11,33 +11,31 @@ module Darklang =
 
       /// Return whether <param c> is a lowercase character.
       let isLowercase (c: Char) : Bool =
-        PACKAGE.Darklang.Stdlib.Char.toLowercase c == c
-        && PACKAGE.Darklang.Stdlib.Char.toUppercase c != c
+        Stdlib.Char.toLowercase c == c && Stdlib.Char.toUppercase c != c
 
 
       /// Return whether <param c> is an uppercase character.
       let isUppercase (c: Char) : Bool =
-        PACKAGE.Darklang.Stdlib.Char.toLowercase c != c
-        && PACKAGE.Darklang.Stdlib.Char.toUppercase c == c
+        Stdlib.Char.toLowercase c != c && Stdlib.Char.toUppercase c == c
 
 
       /// Return whether <param c> is a digit (that is, the digits 0-9)
       let isDigit (c: Char) : Bool =
-        (PACKAGE.Darklang.Stdlib.Char.isGreaterThanOrEqualTo c '0')
-        && (PACKAGE.Darklang.Stdlib.Char.isLessThanOrEqualTo c '9')
+        (Stdlib.Char.isGreaterThanOrEqualTo c '0')
+        && (Stdlib.Char.isLessThanOrEqualTo c '9')
 
 
       /// Return whether <param c> is an ASCII letter
       let isASCIILetter (c: Char) : Bool =
-        (PACKAGE.Darklang.Stdlib.Char.isGreaterThanOrEqualTo c 'a')
-        && (PACKAGE.Darklang.Stdlib.Char.isLessThanOrEqualTo c 'z')
-        || (PACKAGE.Darklang.Stdlib.Char.isGreaterThanOrEqualTo c 'A')
-           && (PACKAGE.Darklang.Stdlib.Char.isLessThanOrEqualTo c 'Z')
+        (Stdlib.Char.isGreaterThanOrEqualTo c 'a')
+        && (Stdlib.Char.isLessThanOrEqualTo c 'z')
+        || (Stdlib.Char.isGreaterThanOrEqualTo c 'A')
+           && (Stdlib.Char.isLessThanOrEqualTo c 'Z')
 
 
       /// Return whether <param c> is a valid ASCII character
       let isASCII (c: Char) : Bool =
-        let asciiCode = PACKAGE.Darklang.Stdlib.Char.toAsciiCode c
+        let asciiCode = Stdlib.Char.toAsciiCode c
 
         match asciiCode with
         | Some ascii -> (ascii >= 0L) && (ascii <= 127L)
@@ -45,7 +43,7 @@ module Darklang =
 
 
       /// Return {{Some <var code>}} if <param c> is a valid ASCII character, otherwise {{None}}"
-      let toAsciiCode (c: Char) : PACKAGE.Darklang.Stdlib.Option.Option<Int64> =
+      let toAsciiCode (c: Char) : Stdlib.Option.Option<Int64> =
         Builtin.charToAsciiCode c
 
 

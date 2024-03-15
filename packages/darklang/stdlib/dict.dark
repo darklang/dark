@@ -6,7 +6,7 @@ module Darklang =
 
       /// Returns a dictionary with a single entry {{<param key>: <param value>}}
       let singleton (key: String) (value: 'a) : Dict<'a> =
-        PACKAGE.Darklang.Stdlib.Dict.set (Dict { }) key value
+        Stdlib.Dict.set (Dict { }) key value
 
 
       /// Returns the number of entries in <param dict>
@@ -41,18 +41,13 @@ module Darklang =
       /// where <var dict> has <param entries>.
       /// Otherwise, returns {{None}} (use <fn Dict.fromListOverwritingDuplicates>
       /// if you want to overwrite duplicate keys).
-      let fromList
-        (entries: List<(String * 'a)>)
-        : PACKAGE.Darklang.Stdlib.Option.Option<Dict<'a>> =
+      let fromList (entries: List<(String * 'a)>) : Stdlib.Option.Option<Dict<'a>> =
         Builtin.dictFromList_v0 entries
 
 
       /// If the <param dict> contains <param key>, returns the corresponding value,
       /// wrapped in an <type Option>: {{Some value}}. Otherwise, returns {{None}}.
-      let get
-        (dict: Dict<'a>)
-        (key: String)
-        : PACKAGE.Darklang.Stdlib.Option.Option<'a> =
+      let get (dict: Dict<'a>) (key: String) : Stdlib.Option.Option<'a> =
         Builtin.dictGet_v0 dict key
 
 
@@ -88,7 +83,7 @@ module Darklang =
       /// This function combines <fn Dict.filter> and <fn Dict.map>.
       let filterMap
         (dict: Dict<'a>)
-        (fn: String -> 'a -> PACKAGE.Darklang.Stdlib.Option.Option<'b>)
+        (fn: String -> 'a -> Stdlib.Option.Option<'b>)
         : Dict<'b> =
         Builtin.dictFilterMap_v0 dict fn
 

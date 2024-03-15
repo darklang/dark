@@ -6,5 +6,4 @@ module Darklang =
           | MultipleExpressionsToExecute
           | NoExpressionsToExecute
           | UncaughtException of String * List<String * String>
-          | NonIntReturned of
-            actuallyReturned: PACKAGE.Darklang.LanguageTools.RuntimeTypes.Dval.Dval
+          | NonIntReturned of actuallyReturned: LanguageTools.RuntimeTypes.Dval.Dval

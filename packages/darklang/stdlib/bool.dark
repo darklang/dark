@@ -13,8 +13,7 @@ module Darklang =
       let ``or`` (a: Bool) (b: Bool) : Bool = a || b
 
       /// Returns {{true}} if exactly one of <param a> and <param b> is {{true}}. Returns {{false}} if both are {{true}} or neither is {{true}}
-      let xor (a: Bool) (b: Bool) : Bool =
-        if a then PACKAGE.Darklang.Stdlib.Bool.not b else b
+      let xor (a: Bool) (b: Bool) : Bool = if a then Stdlib.Bool.not b else b
 
       /// Return {\"true\"} or {\"false\"}
       let toString (b: Bool) : String = if b then "true" else "false"

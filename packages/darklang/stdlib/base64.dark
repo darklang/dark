@@ -6,9 +6,7 @@ module Darklang =
       /// alphabets defined in [RFC 4648](https://www.rfc-editor.org/rfc/rfc4648.html)
       /// sections [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) and
       /// [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5).
-      let decode
-        (s: String)
-        : PACKAGE.Darklang.Stdlib.Result.Result<List<UInt8>, String> =
+      let decode (s: String) : Stdlib.Result.Result<List<UInt8>, String> =
         Builtin.base64Decode s
 
 

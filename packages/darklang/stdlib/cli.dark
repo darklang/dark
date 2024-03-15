@@ -24,10 +24,10 @@ module Darklang =
           (command: String)
           : Stdlib.Result.Result<String, String> =
           match os, shell with
-          | Linux, Bash -> Darklang.Cli.Bash.addAlias alias command
-          | Linux, Zsh -> Darklang.Cli.Zsh.addAlias alias command
-          | MacOS, Bash -> Darklang.Cli.Bash.addAlias alias command
-          | MacOS, Zsh -> Darklang.Cli.Zsh.addAlias alias command
+          | Linux, Bash -> Bash.addAlias alias command
+          | Linux, Zsh -> Zsh.addAlias alias command
+          | MacOS, Bash -> Bash.addAlias alias command
+          | MacOS, Zsh -> Zsh.addAlias alias command
           | _ -> Stdlib.Result.Result.Error "Unsupported OS or shell"
 
 

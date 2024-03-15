@@ -12,17 +12,16 @@ module Darklang =
 
     let returnsString () : String = "string"
 
-    let returnsOptionSome () : PACKAGE.Darklang.Stdlib.Option.Option<Int64> =
-      PACKAGE.Darklang.Stdlib.Option.Option.Some 5L
+    let returnsOptionSome () : Stdlib.Option.Option<Int64> =
+      Stdlib.Option.Option.Some 5L
 
-    let returnsOptionNone () : PACKAGE.Darklang.Stdlib.Option.Option<'a> =
-      PACKAGE.Darklang.Stdlib.Option.Option.None
+    let returnsOptionNone () : Stdlib.Option.Option<'a> = Stdlib.Option.Option.None
 
-    let returnsResultOk () : PACKAGE.Darklang.Stdlib.Result.Result<Int64, String> =
-      PACKAGE.Darklang.Stdlib.Result.Result.Ok 5L
+    let returnsResultOk () : Stdlib.Result.Result<Int64, String> =
+      Stdlib.Result.Result.Ok 5L
 
-    let returnsResultError () : PACKAGE.Darklang.Stdlib.Result.Result<Char, Bool> =
-      PACKAGE.Darklang.Stdlib.Result.Result.Error false
+    let returnsResultError () : Stdlib.Result.Result<Char, Bool> =
+      Stdlib.Result.Result.Error false
 
     let throwsException () : DateTime =
       Builtin.testRaiseException "throwsException message"
@@ -54,6 +53,6 @@ module Darklang =
       let tupleConst = (1L, 2L, 3L)
       let charConst = 'c'
       let unitConst = ()
-      let enumConst = PACKAGE.Darklang.Stdlib.Option.Option.Some 5L
+      let enumConst = Stdlib.Option.Option.Some 5L
       let listConst = [ 1L; 2L; 3L ]
       let dictConst = Dict { a = 1L; b = 2L; c = 3L }
