@@ -645,19 +645,13 @@ module Darklang =
                 "No symbol_open_bracket node found in list_literal"
 
             let contents =
-              match findNodeByFieldName node "content" with
-              | Some contentsNode ->
-                let filteredChildren =
-                  contentsNode.children
-                  |> Stdlib.List.filter (fun c -> c.text != ";")
-
-                let contents =
-                  filteredChildren
-                  |> Stdlib.List.map Expr.parse
-                  |> Stdlib.List.map Builtin.unwrap
-
-                Stdlib.Option.Option.Some((contentsNode.sourceRange, contents))
-              | None -> Stdlib.Option.Option.None
+              node
+              |> findNodeByFieldName "content"
+              |> Stdlib.Option.map (fun contentsNode ->
+                contentsNode.children
+                |> Stdlib.List.filter (fun c -> c.text != ";")
+                |> Stdlib.List.map (fun c -> c |> Expr.parse |> Builtin.unwrap)
+                |> fun contents -> (contentsNode.sourceRange, contents))
 
             let closeBracketNode =
               (findNodeByFieldName node "symbol_close_bracket")
