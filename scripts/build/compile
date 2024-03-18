@@ -396,6 +396,7 @@ def mark(should, f):
 
   elif f == "tree-sitter-darklang/grammar.js":
     should.build_parser = True
+    should.backend_quick_build = True
 
   else:
     print("non-build file: " + f, end='')

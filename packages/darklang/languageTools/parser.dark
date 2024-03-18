@@ -55,20 +55,25 @@ module Darklang =
         (node: ParsedNode)
         (fieldName: String)
         : Stdlib.Option.Option<ParsedNode> =
-        let filteredChildren =
-          node.children
-          |> Stdlib.List.filter (fun c ->
-            match c.fieldName with
-            | Some fName -> fName == fieldName
-            | None -> false)
+        match node.fieldName with
+        | Some fName when fName == fieldName -> Stdlib.Option.Option.Some node
+        | _ ->
+          let directChildMatch =
+            node.children
+            |> Stdlib.List.filter (fun c ->
+              match c.fieldName with
+              | Some fName -> fName == fieldName
+              | None -> false)
 
-        match filteredChildren with
-        | [ c ] -> Stdlib.Option.Option.Some c
-        | [] -> Stdlib.Option.Option.None
-        | _ -> Stdlib.Option.Option.None // TODO: this should error, there are multiple matches
-
-
-
+          match directChildMatch with
+          | [ c ] -> Stdlib.Option.Option.Some c
+          | [] ->
+            node.children
+            |> Stdlib.List.fold Stdlib.Option.Option.None (fun acc child ->
+              match acc with
+              | Some _ -> acc
+              | None -> findNodeByFieldName child fieldName)
+          | _ -> Stdlib.Option.Option.None
 
       // --------------------
       // Parsing to WrittenTypes
@@ -229,6 +234,21 @@ module Darklang =
               (WrittenTypes.TypeReference.Builtin.TString node.sourceRange)
               |> Stdlib.Result.Result.Ok
 
+            | text when (Stdlib.String.startsWith text "List") ->
+              let typeParamNode =
+                match (findNodeByFieldName node "typ_param") with
+                | Some typeParamNode -> parse typeParamNode
+                | None ->
+                  Stdlib.Result.Result.Error "No type_param node found in list_type"
+
+              match typeParamNode with
+              | Ok typeParam ->
+                (WrittenTypes.TypeReference.Builtin.TList node.sourceRange typeParam)
+                |> Stdlib.Result.Result.Ok
+              | Error _ ->
+                Stdlib.Result.Result.Error(
+                  WrittenTypes.Unparseable { source = node }
+                )
             | _ ->
               (WrittenTypes.Unparseable { source = node })
               |> Stdlib.Result.Result.Error
@@ -579,6 +599,7 @@ module Darklang =
             (WrittenTypes.Unparseable { source = node })
             |> Stdlib.Result.Result.Error
 
+
         let parseCharLiteral
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
@@ -612,6 +633,47 @@ module Darklang =
             | _ ->
               (WrittenTypes.Unparseable { source = node })
               |> Stdlib.Result.Result.Error
+
+
+        let parseListLiteral
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
+          if node.typ == "list_literal" then
+            let openBracketNode =
+              (findNodeByFieldName node "symbol_open_bracket")
+              |> Stdlib.Option.toResult
+                "No symbol_open_bracket node found in list_literal"
+
+            let contents =
+              match findNodeByFieldName node "content" with
+              | Some contentsNode ->
+                let filteredChildren =
+                  contentsNode.children
+                  |> Stdlib.List.filter (fun c -> c.text != ";")
+
+                let contents =
+                  filteredChildren
+                  |> Stdlib.List.map Expr.parse
+                  |> Stdlib.List.map Builtin.unwrap
+
+                Stdlib.Option.Option.Some((contentsNode.sourceRange, contents))
+              | None -> Stdlib.Option.Option.None
+
+            let closeBracketNode =
+              (findNodeByFieldName node "symbol_close_bracket")
+              |> Stdlib.Option.toResult
+                "No symbol_close_bracket node found in list_literal"
+
+            match openBracketNode, closeBracketNode with
+            | Ok openBracketNode, Ok closeBracketNode ->
+              (WrittenTypes.Expr.EList(
+                node.sourceRange,
+                contents,
+                openBracketNode.sourceRange,
+                closeBracketNode.sourceRange
+              ))
+              |> Stdlib.Result.Result.Ok
+
 
         let parseLetExpr
           (node: ParsedNode)
@@ -837,6 +899,8 @@ module Darklang =
           | "float_literal" -> parseFloatLiteral node
           | "string_literal" -> parseStringLiteral node
           | "char_literal" -> parseCharLiteral node
+
+          | "list_literal" -> parseListLiteral node
 
           // assigning and accessing variables
           | "let_expression" -> parseLetExpr node

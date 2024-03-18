@@ -77,6 +77,10 @@ module Darklang =
             | TFloat _range -> ProgramTypes.TypeReference.TFloat
             | TChar _range -> ProgramTypes.TypeReference.TChar
             | TString _range -> ProgramTypes.TypeReference.TString
+            | TList(_range, typ) ->
+              match typ with
+              | Builtin t -> ProgramTypes.TypeReference.TList(toPT t)
+              | QualifiedName qn -> ProgramTypes.TypeReference.TList(toPT t)
             | TDateTime _range -> ProgramTypes.TypeReference.TDateTime
             | TUuid _range -> ProgramTypes.TypeReference.TUuid
 
@@ -210,6 +214,15 @@ module Darklang =
             match c with
             | None -> ProgramTypes.Expr.EChar(gid (), "")
             | Some((_, c)) -> ProgramTypes.Expr.EChar(gid (), c)
+
+          | EList(_, contents, _, _) ->
+            match contents with
+            | None -> ProgramTypes.Expr.EList(gid (), [])
+            | Some((_, items)) ->
+              ProgramTypes.Expr.EList(
+                gid (),
+                Stdlib.List.map items (fun i -> toPT resolver i)
+              )
 
           // declaring and accessing variables
           | ELet(_, pat, rhs, body, _, _) ->

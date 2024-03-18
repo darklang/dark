@@ -212,6 +212,8 @@ module TextToTextRoundtripping =
     ("type MyFloat = Float" |> roundtripCliScript) = "type MyFloat =\n  Float"
     ("type MyChar = Char" |> roundtripCliScript) = "type MyChar =\n  Char"
     ("type MyString = String" |> roundtripCliScript) = "type MyString =\n  String"
+    ("type MyList = List<String>" |> roundtripCliScript) = "type MyList =\n  List<String>"
+    ("type MyList = List<List<String>>" |> roundtripCliScript) = "type MyList =\n  List<List<String>>"
 
     // single-part qualified name
     ("type ID = Test" |> roundtripCliScript) = "type ID =\n  Test"
@@ -268,6 +270,13 @@ module TextToTextRoundtripping =
     ("'a'" |> roundtripCliScript) = "'a'"
     ("'\\n'" |> roundtripCliScript) = "'\\n'"
     ("'\t'" |> roundtripCliScript) = "'\t'"
+
+    // list literal
+    ("[]" |> roundtripCliScript) = "[]"
+    ("[\"hello\"]" |> roundtripCliScript) = "[\"hello\"]"
+    ("[1L; 2L]" |> roundtripCliScript) = "[1L; 2L]"
+    ("[true; false; true; false]" |> roundtripCliScript) = "[true; false; true; false]"
+    ("[[1L; 2L]; [3L; 4L]]" |> roundtripCliScript) = "[[1L; 2L]; [3L; 4L]]"
 
     // variables and let bindings
     ("assumedlyAVariableName" |> roundtripCliScript) = "assumedlyAVariableName"

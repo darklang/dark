@@ -83,6 +83,7 @@ module.exports = grammar({
         $.float_literal,
         $.string_literal,
         $.char_literal,
+        $.list_literal,
 
         $.let_expression,
         $.variable_identifier,
@@ -291,6 +292,23 @@ module.exports = grammar({
     float_literal: $ => /[+-]?[0-9]+\.[0-9]+/,
 
     //
+    // List
+    list_literal: $ =>
+      seq(
+        field("symbol_open_bracket", alias("[", $.symbol)),
+        field("content", optional($.list_content)),
+        field("symbol_close_bracket", alias("]", $.symbol)),
+      ),
+
+    list_content: $ =>
+      seq(
+        $.expression,
+        repeat(
+          seq(field("list_separator", alias(";", $.symbol)), $.expression),
+        ),
+      ),
+
+    //
     // Common
     type_reference: $ => choice($.builtin_type, $.qualified_type_name),
 
@@ -311,8 +329,18 @@ module.exports = grammar({
         /Float/,
         /Char/,
         /String/,
+        $.list_type,
         /DateTime/,
         /Uuid/,
+      ),
+
+    // List<T>
+    list_type: $ =>
+      seq(
+        /List/,
+        field("symbol_open_angle", alias("<", $.symbol)),
+        field("typ_param", $.type_reference),
+        field("symbol_close_angle", alias(">", $.symbol)),
       ),
 
     //
