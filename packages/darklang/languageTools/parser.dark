@@ -58,6 +58,7 @@ module Darklang =
         match node.fieldName with
         | Some fName when fName == fieldName -> Stdlib.Option.Option.Some node
         | _ ->
+          // If no match on the current node, look among its direct children
           let directChildMatch =
             node.children
             |> Stdlib.List.filter (fun c ->
@@ -68,12 +69,13 @@ module Darklang =
           match directChildMatch with
           | [ c ] -> Stdlib.Option.Option.Some c
           | [] ->
+            // If no direct children match, recursively search deeper in each child
             node.children
             |> Stdlib.List.fold Stdlib.Option.Option.None (fun acc child ->
               match acc with
               | Some _ -> acc
               | None -> findNodeByFieldName child fieldName)
-          | _ -> Stdlib.Option.Option.None
+          | _ -> Stdlib.Option.Option.None // TODO: this should error, there are multiple matches
 
       // --------------------
       // Parsing to WrittenTypes
