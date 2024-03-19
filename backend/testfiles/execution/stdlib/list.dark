@@ -605,7 +605,7 @@ PACKAGE.Darklang.Stdlib.List.chunkBySize_v0 [] 4L = PACKAGE.Darklang.Stdlib.Resu
   []
 
 PACKAGE.Darklang.Stdlib.List.chunkBySize_v0 [ 1L; 2L; 3L; 4L ] 0L = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Size must be greater than zero"
+  PACKAGE.Darklang.Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero
 
 PACKAGE.Darklang.Stdlib.List.chunkBySize_v0 [ 1L; 2L; 3L; 4L ] -1L = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "Size must be greater than zero"
+  PACKAGE.Darklang.Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero
