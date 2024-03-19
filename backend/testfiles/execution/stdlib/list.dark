@@ -588,3 +588,24 @@ PACKAGE.Darklang.Stdlib.List.groupByWithKey_v0 [] (fun x -> x) = []
 PACKAGE.Darklang.Stdlib.List.dropLast [ 1L; 2L; 3L; 4L; 5L ] = [ 1L; 2L; 3L; 4L ]
 PACKAGE.Darklang.Stdlib.List.dropLast [ 1L ] = []
 PACKAGE.Darklang.Stdlib.List.dropLast [] = []
+
+PACKAGE.Darklang.Stdlib.List.chunkBySize_v0 [ 1L; 2L; 3L; 4L; 5L ] 2L = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  [ [ 1L; 2L ]; [ 3L; 4L ]; [ 5L ] ]
+
+PACKAGE.Darklang.Stdlib.List.chunkBySize_v0 [ 1L; 2L; 3L; 4L; 5L; 6L ] 3L = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  [ [ 1L; 2L; 3L ]; [ 4L; 5L; 6L ] ]
+
+PACKAGE.Darklang.Stdlib.List.chunkBySize_v0 [ 1L; 2L; 3L ] 1L = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  [ [ 1L ]; [ 2L ]; [ 3L ] ]
+
+PACKAGE.Darklang.Stdlib.List.chunkBySize_v0 [ 1L; 2L ] 3L = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  [ [ 1L; 2L ] ]
+
+PACKAGE.Darklang.Stdlib.List.chunkBySize_v0 [] 4L = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+  []
+
+PACKAGE.Darklang.Stdlib.List.chunkBySize_v0 [ 1L; 2L; 3L; 4L ] 0L = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Size must be greater than zero"
+
+PACKAGE.Darklang.Stdlib.List.chunkBySize_v0 [ 1L; 2L; 3L; 4L ] -1L = PACKAGE.Darklang.Stdlib.Result.Result.Error
+  "Size must be greater than zero"

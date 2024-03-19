@@ -445,3 +445,35 @@ module Darklang =
         | head :: tail ->
           f head
           Stdlib.List.iter tail f
+
+
+      /// Helper function for chunkBySize. Recursively divides a list into chunks of a given size.
+      let chunkBySizeHelper
+        (size: Int64)
+        (currentList: List<'a>)
+        (accum: List<List<'a>>)
+        : List<List<'a>> =
+        match currentList with
+        | [] -> Stdlib.List.reverse accum
+        | _ ->
+          let taken = Stdlib.List.take currentList size
+          let rest = Stdlib.List.drop currentList size
+
+          let newAccum =
+            if Stdlib.List.isEmpty taken then
+              accum
+            else
+              Stdlib.List.push accum taken
+
+          chunkBySizeHelper size rest newAccum
+
+      /// Chunks <param list> into sublists of specified maximum <param size>.
+      /// If <param size> is less than or equal to zero, returns an error
+      let chunkBySize
+        (list: List<'a>)
+        (size: Int64)
+        : Stdlib.Result.Result<List<List<'a>>, String> =
+        if size <= 0L then
+          Stdlib.Result.Result.Error "Size must be greater than zero"
+        else
+          Stdlib.Result.Result.Ok(Stdlib.List.chunkBySizeHelper size list [])
