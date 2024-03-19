@@ -50,7 +50,13 @@ module Darklang =
           | TFloat of SourceRange
           | TChar of SourceRange
           | TString of SourceRange
-          | TList of SourceRange * TypeReference.TypeReference
+
+          | TList of
+            SourceRange *
+            openBracket: SourceRange *
+            typ: TypeReference.TypeReference *
+            closeBracket: SourceRange
+
           | TDateTime of SourceRange
           | TUuid of SourceRange
 
@@ -156,7 +162,7 @@ module Darklang =
 
         | EList of
           SourceRange *
-          contents: Stdlib.Option.Option<SourceRange * List<Expr>> *
+          contents: List<Expr * Stdlib.Option.Option<SourceRange>> *
           symbolOpenBracket: SourceRange *
           symbolCloseBracket: SourceRange
 

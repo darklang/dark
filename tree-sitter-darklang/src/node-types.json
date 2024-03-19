@@ -13,7 +13,7 @@
       "required": false,
       "types": [
         {
-          "type": "list_type",
+          "type": "list_type_reference",
           "named": true
         }
       ]
@@ -671,9 +671,19 @@
     }
   },
   {
-    "type": "list_type",
+    "type": "list_type_reference",
     "named": true,
     "fields": {
+      "keyword_type_constructor": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "keyword",
+            "named": true
+          }
+        ]
+      },
       "symbol_close_angle": {
         "multiple": false,
         "required": true,

@@ -1393,7 +1393,7 @@
         },
         {
           "type": "SYMBOL",
-          "name": "list_type"
+          "name": "list_type_reference"
         },
         {
           "type": "PATTERN",
@@ -1405,12 +1405,21 @@
         }
       ]
     },
-    "list_type": {
+    "list_type_reference": {
       "type": "SEQ",
       "members": [
         {
-          "type": "PATTERN",
-          "value": "List"
+          "type": "FIELD",
+          "name": "keyword_type_constructor",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "List"
+            },
+            "named": true,
+            "value": "keyword"
+          }
         },
         {
           "type": "FIELD",

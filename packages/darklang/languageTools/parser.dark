@@ -237,17 +237,38 @@ module Darklang =
               |> Stdlib.Result.Result.Ok
 
             | text when (Stdlib.String.startsWith text "List") ->
+              let listKeyword =
+                (findNodeByFieldName node "keyword_type_constructor")
+                |> Stdlib.Option.toResult
+                  "No keyword_type_constructor node found in list_type"
+
+              let openBracketNode =
+                (findNodeByFieldName node "symbol_open_angle")
+                |> Stdlib.Option.toResult
+                  "No symbol_open_angle node found in list_type"
+
               let typeParamNode =
                 match (findNodeByFieldName node "typ_param") with
                 | Some typeParamNode -> parse typeParamNode
                 | None ->
                   Stdlib.Result.Result.Error "No type_param node found in list_type"
 
-              match typeParamNode with
-              | Ok typeParam ->
-                (WrittenTypes.TypeReference.Builtin.TList node.sourceRange typeParam)
+              let closeBracketNode =
+                (findNodeByFieldName node "symbol_close_angle")
+                |> Stdlib.Option.toResult
+                  "No symbol_close_angle node found in list_type"
+
+              match
+                listKeyword, openBracketNode, typeParamNode, closeBracketNode
+              with
+              | Ok listKeyword, Ok openBracketNode, Ok typeParam, Ok closeBracketNode ->
+                (WrittenTypes.TypeReference.Builtin.TList
+                  listKeyword.sourceRange
+                  openBracketNode.sourceRange
+                  typeParam
+                  closeBracketNode.sourceRange)
                 |> Stdlib.Result.Result.Ok
-              | Error _ ->
+              | _ ->
                 Stdlib.Result.Result.Error(
                   WrittenTypes.Unparseable { source = node }
                 )
@@ -652,8 +673,10 @@ module Darklang =
               |> Stdlib.Option.map (fun contentsNode ->
                 contentsNode.children
                 |> Stdlib.List.filter (fun c -> c.text != ";")
-                |> Stdlib.List.map (fun c -> c |> Expr.parse |> Builtin.unwrap)
-                |> fun contents -> (contentsNode.sourceRange, contents))
+                |> Stdlib.List.map (fun c ->
+                  c |> Expr.parse |> Builtin.unwrap,
+                  Stdlib.Option.Option.Some c.sourceRange))
+              |> Stdlib.Option.withDefault []
 
             let closeBracketNode =
               (findNodeByFieldName node "symbol_close_bracket")

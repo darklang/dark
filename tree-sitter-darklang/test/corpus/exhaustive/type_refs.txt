@@ -37,7 +37,7 @@ type MyList = List<String>
   (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
   (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
   (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
-  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type (list_type (symbol) (type_reference (builtin_type)) (symbol)))))
+  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type (list_type_reference (keyword) (symbol) (type_reference (builtin_type)) (symbol)))))
 )
 
 

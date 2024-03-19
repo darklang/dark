@@ -214,6 +214,7 @@ module TextToTextRoundtripping =
     ("type MyString = String" |> roundtripCliScript) = "type MyString =\n  String"
     ("type MyList = List<String>" |> roundtripCliScript) = "type MyList =\n  List<String>"
     ("type MyList = List<List<String>>" |> roundtripCliScript) = "type MyList =\n  List<List<String>>"
+    ("type MyList = List<MyString>" |> roundtripCliScript) = "type MyList =\n  List<MyString>"
 
     // single-part qualified name
     ("type ID = Test" |> roundtripCliScript) = "type ID =\n  Test"

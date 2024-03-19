@@ -12,7 +12,7 @@
 #define ALIAS_COUNT 0
 #define TOKEN_COUNT 67
 #define EXTERNAL_TOKEN_COUNT 0
-#define FIELD_COUNT 31
+#define FIELD_COUNT 32
 #define MAX_ALIAS_SEQUENCE_LENGTH 7
 #define PRODUCTION_ID_COUNT 18
 
@@ -78,7 +78,7 @@ enum {
   aux_sym_builtin_type_token15 = 59,
   aux_sym_builtin_type_token16 = 60,
   aux_sym_builtin_type_token17 = 61,
-  aux_sym_list_type_token1 = 62,
+  anon_sym_List = 62,
   anon_sym_DOT = 63,
   aux_sym_variable_identifier_token1 = 64,
   aux_sym_type_identifier_token1 = 65,
@@ -113,7 +113,7 @@ enum {
   sym_list_content = 94,
   sym_type_reference = 95,
   sym_builtin_type = 96,
-  sym_list_type = 97,
+  sym_list_type_reference = 97,
   sym_qualified_fn_name = 98,
   sym_qualified_type_name = 99,
   sym_variable_identifier = 100,
@@ -191,7 +191,7 @@ static const char * const ts_symbol_names[] = {
   [aux_sym_builtin_type_token15] = "builtin_type_token15",
   [aux_sym_builtin_type_token16] = "builtin_type_token16",
   [aux_sym_builtin_type_token17] = "builtin_type_token17",
-  [aux_sym_list_type_token1] = "list_type_token1",
+  [anon_sym_List] = "keyword",
   [anon_sym_DOT] = "symbol",
   [aux_sym_variable_identifier_token1] = "variable_identifier_token1",
   [aux_sym_type_identifier_token1] = "type_identifier_token1",
@@ -226,7 +226,7 @@ static const char * const ts_symbol_names[] = {
   [sym_list_content] = "list_content",
   [sym_type_reference] = "type_reference",
   [sym_builtin_type] = "builtin_type",
-  [sym_list_type] = "list_type",
+  [sym_list_type_reference] = "list_type_reference",
   [sym_qualified_fn_name] = "qualified_fn_name",
   [sym_qualified_type_name] = "qualified_type_name",
   [sym_variable_identifier] = "variable_identifier",
@@ -304,7 +304,7 @@ static const TSSymbol ts_symbol_map[] = {
   [aux_sym_builtin_type_token15] = aux_sym_builtin_type_token15,
   [aux_sym_builtin_type_token16] = aux_sym_builtin_type_token16,
   [aux_sym_builtin_type_token17] = aux_sym_builtin_type_token17,
-  [aux_sym_list_type_token1] = aux_sym_list_type_token1,
+  [anon_sym_List] = anon_sym_let,
   [anon_sym_DOT] = anon_sym_COLON,
   [aux_sym_variable_identifier_token1] = aux_sym_variable_identifier_token1,
   [aux_sym_type_identifier_token1] = aux_sym_type_identifier_token1,
@@ -339,7 +339,7 @@ static const TSSymbol ts_symbol_map[] = {
   [sym_list_content] = sym_list_content,
   [sym_type_reference] = sym_type_reference,
   [sym_builtin_type] = sym_builtin_type,
-  [sym_list_type] = sym_list_type,
+  [sym_list_type_reference] = sym_list_type_reference,
   [sym_qualified_fn_name] = sym_qualified_fn_name,
   [sym_qualified_type_name] = sym_qualified_type_name,
   [sym_variable_identifier] = sym_variable_identifier,
@@ -603,9 +603,9 @@ static const TSSymbolMetadata ts_symbol_metadata[] = {
     .visible = false,
     .named = false,
   },
-  [aux_sym_list_type_token1] = {
-    .visible = false,
-    .named = false,
+  [anon_sym_List] = {
+    .visible = true,
+    .named = true,
   },
   [anon_sym_DOT] = {
     .visible = true,
@@ -743,7 +743,7 @@ static const TSSymbolMetadata ts_symbol_metadata[] = {
     .visible = true,
     .named = true,
   },
-  [sym_list_type] = {
+  [sym_list_type_reference] = {
     .visible = true,
     .named = true,
   },
@@ -807,28 +807,29 @@ enum {
   field_identifier = 7,
   field_keyword_let = 8,
   field_keyword_type = 9,
-  field_left = 10,
-  field_list_separator = 11,
-  field_name = 12,
-  field_operator = 13,
-  field_params = 14,
-  field_return_type = 15,
-  field_right = 16,
-  field_suffix = 17,
-  field_symbol_close_angle = 18,
-  field_symbol_close_bracket = 19,
-  field_symbol_close_quote = 20,
-  field_symbol_close_single_quote = 21,
-  field_symbol_colon = 22,
-  field_symbol_equals = 23,
-  field_symbol_left_paren = 24,
-  field_symbol_open_angle = 25,
-  field_symbol_open_bracket = 26,
-  field_symbol_open_quote = 27,
-  field_symbol_open_single_quote = 28,
-  field_symbol_right_paren = 29,
-  field_typ = 30,
-  field_typ_param = 31,
+  field_keyword_type_constructor = 10,
+  field_left = 11,
+  field_list_separator = 12,
+  field_name = 13,
+  field_operator = 14,
+  field_params = 15,
+  field_return_type = 16,
+  field_right = 17,
+  field_suffix = 18,
+  field_symbol_close_angle = 19,
+  field_symbol_close_bracket = 20,
+  field_symbol_close_quote = 21,
+  field_symbol_close_single_quote = 22,
+  field_symbol_colon = 23,
+  field_symbol_equals = 24,
+  field_symbol_left_paren = 25,
+  field_symbol_open_angle = 26,
+  field_symbol_open_bracket = 27,
+  field_symbol_open_quote = 28,
+  field_symbol_open_single_quote = 29,
+  field_symbol_right_paren = 30,
+  field_typ = 31,
+  field_typ_param = 32,
 };
 
 static const char * const ts_field_names[] = {
@@ -842,6 +843,7 @@ static const char * const ts_field_names[] = {
   [field_identifier] = "identifier",
   [field_keyword_let] = "keyword_let",
   [field_keyword_type] = "keyword_type",
+  [field_keyword_type_constructor] = "keyword_type_constructor",
   [field_left] = "left",
   [field_list_separator] = "list_separator",
   [field_name] = "name",
@@ -883,7 +885,7 @@ static const TSFieldMapSlice ts_field_map_slices[PRODUCTION_ID_COUNT] = {
   [14] = {.index = 33, .length = 5},
   [15] = {.index = 38, .length = 5},
   [16] = {.index = 43, .length = 7},
-  [17] = {.index = 50, .length = 3},
+  [17] = {.index = 50, .length = 4},
 };
 
 static const TSFieldMapEntry ts_field_map_entries[] = {
@@ -954,6 +956,7 @@ static const TSFieldMapEntry ts_field_map_entries[] = {
     {field_symbol_colon, 3},
     {field_symbol_equals, 5},
   [50] =
+    {field_keyword_type_constructor, 0},
     {field_symbol_close_angle, 3},
     {field_symbol_open_angle, 1},
     {field_typ_param, 2},
@@ -2123,7 +2126,7 @@ static bool ts_lex(TSLexer *lexer, TSStateId state) {
           ('a' <= lookahead && lookahead <= 'z')) ADVANCE(217);
       END_STATE();
     case 158:
-      ACCEPT_TOKEN(aux_sym_list_type_token1);
+      ACCEPT_TOKEN(anon_sym_List);
       if (('0' <= lookahead && lookahead <= '9') ||
           ('A' <= lookahead && lookahead <= 'Z') ||
           lookahead == '_' ||
@@ -8629,11 +8632,11 @@ static const uint16_t ts_small_parse_table[] = {
       sym_unit,
   [6710] = 9,
     ACTIONS(326), 1,
-      aux_sym_list_type_token1,
+      anon_sym_List,
     ACTIONS(328), 1,
       aux_sym_type_identifier_token1,
     STATE(180), 1,
-      sym_list_type,
+      sym_list_type_reference,
     STATE(182), 1,
       sym_type_identifier,
     STATE(246), 1,
@@ -8665,11 +8668,11 @@ static const uint16_t ts_small_parse_table[] = {
       aux_sym_builtin_type_token17,
   [6755] = 9,
     ACTIONS(326), 1,
-      aux_sym_list_type_token1,
+      anon_sym_List,
     ACTIONS(328), 1,
       aux_sym_type_identifier_token1,
     STATE(180), 1,
-      sym_list_type,
+      sym_list_type_reference,
     STATE(182), 1,
       sym_type_identifier,
     STATE(246), 1,
@@ -8701,11 +8704,11 @@ static const uint16_t ts_small_parse_table[] = {
       aux_sym_builtin_type_token17,
   [6800] = 9,
     ACTIONS(326), 1,
-      aux_sym_list_type_token1,
+      anon_sym_List,
     ACTIONS(328), 1,
       aux_sym_type_identifier_token1,
     STATE(180), 1,
-      sym_list_type,
+      sym_list_type_reference,
     STATE(182), 1,
       sym_type_identifier,
     STATE(246), 1,
@@ -8737,11 +8740,11 @@ static const uint16_t ts_small_parse_table[] = {
       aux_sym_builtin_type_token17,
   [6845] = 9,
     ACTIONS(326), 1,
-      aux_sym_list_type_token1,
+      anon_sym_List,
     ACTIONS(328), 1,
       aux_sym_type_identifier_token1,
     STATE(180), 1,
-      sym_list_type,
+      sym_list_type_reference,
     STATE(182), 1,
       sym_type_identifier,
     STATE(221), 1,
@@ -11212,8 +11215,8 @@ static const TSParseActionEntry ts_parse_actions[] = {
   [346] = {.entry = {.count = 1, .reusable = true}}, SHIFT(29),
   [348] = {.entry = {.count = 1, .reusable = true}}, REDUCE(sym_list_content, 1),
   [350] = {.entry = {.count = 1, .reusable = true}}, SHIFT(63),
-  [352] = {.entry = {.count = 1, .reusable = true}}, REDUCE(sym_list_type, 4, .production_id = 17),
-  [354] = {.entry = {.count = 1, .reusable = false}}, REDUCE(sym_list_type, 4, .production_id = 17),
+  [352] = {.entry = {.count = 1, .reusable = true}}, REDUCE(sym_list_type_reference, 4, .production_id = 17),
+  [354] = {.entry = {.count = 1, .reusable = false}}, REDUCE(sym_list_type_reference, 4, .production_id = 17),
   [356] = {.entry = {.count = 1, .reusable = true}}, REDUCE(aux_sym_source_file_repeat1, 2),
   [358] = {.entry = {.count = 2, .reusable = false}}, REDUCE(aux_sym_source_file_repeat1, 2), SHIFT_REPEAT(264),
   [361] = {.entry = {.count = 1, .reusable = false}}, REDUCE(aux_sym_source_file_repeat1, 2),
