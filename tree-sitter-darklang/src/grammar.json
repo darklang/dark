@@ -1312,6 +1312,23 @@
               }
             ]
           }
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "ALIAS",
+              "content": {
+                "type": "STRING",
+                "value": ";"
+              },
+              "named": true,
+              "value": "symbol"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
         }
       ]
     },

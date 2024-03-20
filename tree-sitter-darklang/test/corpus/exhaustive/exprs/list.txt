@@ -143,8 +143,7 @@ List with trailing semicolon
           (bool_literal))
         (symbol)
         (expression
-          (bool_literal)))
-      (ERROR
+          (bool_literal))
         (symbol))
       (symbol))))
 

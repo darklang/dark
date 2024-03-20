@@ -276,6 +276,8 @@ module TextToTextRoundtripping =
     ("[]" |> roundtripCliScript) = "[]"
     ("[\"hello\"]" |> roundtripCliScript) = "[\"hello\"]"
     ("[1L; 2L]" |> roundtripCliScript) = "[1L; 2L]"
+    // TODO: fix this, the trailing semicolon is getting removed
+    ("[1L; 2L; 3L;]" |> roundtripCliScript) = "[1L; 2L; 3L]"
     ("[true; false; true; false]" |> roundtripCliScript) = "[true; false; true; false]"
     ("[[1L; 2L]; [3L; 4L]]" |> roundtripCliScript) = "[[1L; 2L]; [3L; 4L]]"
 
@@ -285,7 +287,7 @@ module TextToTextRoundtripping =
     ("let x = 1L\n  x" |> roundtripCliScript) = "let x =\n  1L\nx"
 
     // fn calls
-    // TODO: these is ugly
+    // TODO: these are ugly
     ("1L + 2L" |> roundtripCliScript) = "(1L) + (2L)"
     ("1L + b + 3L" |> roundtripCliScript) = "((1L) + (b)) + (3L)"
     ("1L + 2L * 3L - 4L" |> roundtripCliScript) = "((1L) + ((2L) * (3L))) - (4L)"

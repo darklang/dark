@@ -78,7 +78,7 @@ module Darklang =
             | TFloat _range -> ProgramTypes.TypeReference.TFloat
             | TChar _range -> ProgramTypes.TypeReference.TChar
             | TString _range -> ProgramTypes.TypeReference.TString
-            | TList(_range, _, typ, _) ->
+            | TList(_range, _, _, typ, _) ->
               let typ = TypeReference.toPT resolver typ
               ProgramTypes.TypeReference.TList(typ)
             | TDateTime _range -> ProgramTypes.TypeReference.TDateTime
@@ -89,7 +89,6 @@ module Darklang =
           (resolver: NameResolver.NameResolutionSettings)
           (t: WrittenTypes.TypeReference.TypeReference)
           : ProgramTypes.TypeReference =
-
           match t with
           | Builtin b -> Builtin.toPT resolver b
           | QualifiedName qn ->

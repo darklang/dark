@@ -630,6 +630,10 @@
         {
           "type": "expression",
           "named": true
+        },
+        {
+          "type": "symbol",
+          "named": true
         }
       ]
     }

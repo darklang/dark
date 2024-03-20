@@ -294,7 +294,6 @@ module.exports = grammar({
     //
     // List
     // TODO: allow multi-line lists where a newline is 'interpreted' as a list delimiter (i.e. no ; needed)
-    // TODO: support [1; 2;] (lists ending with a ; -- as part of being a 'tolerant' parser)
     list_literal: $ =>
       seq(
         field("symbol_open_bracket", alias("[", $.symbol)),
@@ -308,6 +307,7 @@ module.exports = grammar({
         repeat(
           seq(field("list_separator", alias(";", $.symbol)), $.expression),
         ),
+        optional(alias(";", $.symbol)),
       ),
 
     //

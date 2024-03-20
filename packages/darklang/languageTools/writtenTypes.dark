@@ -34,6 +34,7 @@ module Darklang =
 
       // Types
       module TypeReference =
+        // The first sourceRange corresponds to the whole type
         type Builtin =
           | TUnit of SourceRange
           | TBool of SourceRange
@@ -53,6 +54,7 @@ module Darklang =
 
           | TList of
             SourceRange *
+            keywordList: SourceRange *
             openBracket: SourceRange *
             typ: TypeReference.TypeReference *
             closeBracket: SourceRange
