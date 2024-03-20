@@ -16,6 +16,10 @@
               {
                 "type": "SYMBOL",
                 "name": "fn_decl"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "DOC_COMMENT"
               }
             ]
           }
@@ -1405,7 +1409,12 @@
   ],
   "conflicts": [],
   "precedences": [],
-  "externals": [],
+  "externals": [
+    {
+      "type": "SYMBOL",
+      "name": "DOC_COMMENT"
+    }
+  ],
   "inline": [],
   "supertypes": []
 }

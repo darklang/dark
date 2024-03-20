@@ -21,11 +21,13 @@ const exponentOperator = "^";
 module.exports = grammar({
   name: "darklang",
 
+  externals: $ => [$.DOC_COMMENT],
+
   rules: {
     source_file: $ =>
       seq(
         // all type and fn defs first
-        repeat(choice($.type_decl, $.fn_decl)),
+        repeat(choice($.type_decl, $.fn_decl, $.DOC_COMMENT)),
 
         // then the expressions to evaluate, in order
         repeat($.expression),
