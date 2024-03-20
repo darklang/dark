@@ -690,6 +690,10 @@
       "required": false,
       "types": [
         {
+          "type": "DOC_COMMENT",
+          "named": true
+        },
+        {
           "type": "expression",
           "named": true
         },
@@ -963,6 +967,10 @@
   {
     "type": "\n",
     "named": false
+  },
+  {
+    "type": "DOC_COMMENT",
+    "named": true
   },
   {
     "type": "char_or_string_escape_sequence",
