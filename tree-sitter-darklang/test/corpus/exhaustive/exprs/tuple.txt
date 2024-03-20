@@ -1,0 +1,87 @@
+==================
+tuple two
+==================
+
+("hello", 1L)
+
+---
+
+(source_file
+  (expression
+    (tuple_literal
+      (symbol)
+      (expression
+        (string_literal
+          (symbol)
+          (string_content)
+          (symbol)))
+      (symbol)
+      (expression
+        (int64_literal
+          (digits
+            (positive_digits))
+          (symbol)))
+      (symbol))))
+
+
+==================
+tuple three
+==================
+
+("hello", 1L, 3.14)
+
+---
+
+(source_file
+  (expression
+    (tuple_literal
+      (symbol)
+      (expression
+        (string_literal
+          (symbol)
+          (string_content)
+          (symbol)))
+      (symbol)
+      (expression
+        (int64_literal
+          (digits
+            (positive_digits))
+          (symbol)))
+      (rest_expressions
+        (symbol)
+        (expression
+          (float_literal)))
+      (symbol))))
+
+
+==================
+tuple four
+==================
+
+("hello", 1L, 3.14, true)
+
+---
+
+(source_file
+  (expression
+    (tuple_literal
+      (symbol)
+      (expression
+        (string_literal
+          (symbol)
+          (string_content)
+          (symbol)))
+      (symbol)
+      (expression
+        (int64_literal
+          (digits
+            (positive_digits))
+          (symbol)))
+          (rest_expressions
+            (symbol)
+            (expression
+              (float_literal))
+            (symbol)
+            (expression
+              (bool_literal)))
+      (symbol))))

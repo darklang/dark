@@ -81,6 +81,17 @@ module Darklang =
             | TList(_range, _, _, typ, _) ->
               let typ = TypeReference.toPT resolver typ
               ProgramTypes.TypeReference.TList(typ)
+
+            | TTuple(_range, firstType, _, secondType, restTypes, _, _) ->
+              let firstType = TypeReference.toPT resolver firstType
+              let secondType = TypeReference.toPT resolver secondType
+
+              let restTypes =
+                Stdlib.List.map restTypes (fun (_, t) ->
+                  TypeReference.toPT resolver t)
+
+              ProgramTypes.TypeReference.TTuple(firstType, secondType, restTypes)
+
             | TDateTime _range -> ProgramTypes.TypeReference.TDateTime
             | TUuid _range -> ProgramTypes.TypeReference.TUuid
 
@@ -219,6 +230,13 @@ module Darklang =
               gid (),
               Stdlib.List.map contents (fun (expr, _) -> toPT resolver expr)
             )
+
+          | ETuple(_, first, _, second, rest, _, _) ->
+            let first = toPT resolver first
+            let second = toPT resolver second
+            let rest = Stdlib.List.map rest (fun (_, e) -> toPT resolver e)
+
+            ProgramTypes.Expr.ETuple(gid (), first, second, rest)
 
           // declaring and accessing variables
           | ELet(_, pat, rhs, body, _, _) ->
