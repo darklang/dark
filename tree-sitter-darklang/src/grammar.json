@@ -1389,7 +1389,7 @@
             "members": [
               {
                 "type": "SYMBOL",
-                "name": "rest_expressions"
+                "name": "tuple_literal_the_rest"
               },
               {
                 "type": "BLANK"
@@ -1412,7 +1412,7 @@
         }
       ]
     },
-    "rest_expressions": {
+    "tuple_literal_the_rest": {
       "type": "REPEAT1",
       "content": {
         "type": "SEQ",
@@ -1640,7 +1640,7 @@
             "members": [
               {
                 "type": "SYMBOL",
-                "name": "rest_types"
+                "name": "type_reference_tuple_the_rest"
               },
               {
                 "type": "BLANK"
@@ -1663,7 +1663,7 @@
         }
       ]
     },
-    "rest_types": {
+    "type_reference_tuple_the_rest": {
       "type": "REPEAT1",
       "content": {
         "type": "SEQ",

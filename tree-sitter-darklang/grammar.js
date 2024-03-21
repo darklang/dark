@@ -319,11 +319,11 @@ module.exports = grammar({
         field("first", $.expression),
         field("symbol_comma", alias(",", $.symbol)),
         field("second", $.expression),
-        field("rest", optional($.rest_expressions)),
+        field("rest", optional($.tuple_literal_the_rest)),
         field("symbol_right_paren", alias(")", $.symbol)),
       ),
 
-    rest_expressions: $ =>
+    tuple_literal_the_rest: $ =>
       repeat1(
         seq(
           field("symbol_comma", alias(",", $.symbol)),
@@ -376,11 +376,11 @@ module.exports = grammar({
         field("first", $.type_reference),
         field("symbol_asterisk", alias("*", $.symbol)),
         field("second", $.type_reference),
-        field("rest", optional($.rest_types)),
+        field("rest", optional($.type_reference_tuple_the_rest)),
         field("symbol_right_paren", alias(")", $.symbol)),
       ),
 
-    rest_types: $ =>
+    type_reference_tuple_the_rest: $ =>
       repeat1(
         seq(
           field("symbol_asterisk", alias("*", $.symbol)),

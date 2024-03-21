@@ -68,7 +68,7 @@ type MyTuple = (Int64 * String * Bool * Float * Char * Unit)
           (symbol)
           (type_reference
             (builtin_type))
-          (rest_types
+          (type_reference_tuple_the_rest
             (symbol)
             (type_reference
               (builtin_type)))
@@ -86,7 +86,7 @@ type MyTuple = (Int64 * String * Bool * Float * Char * Unit)
           (symbol)
           (type_reference
             (builtin_type))
-          (rest_types
+          (type_reference_tuple_the_rest
             (symbol)
             (type_reference
               (builtin_type))

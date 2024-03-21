@@ -816,58 +816,6 @@
     }
   },
   {
-    "type": "rest_expressions",
-    "named": true,
-    "fields": {
-      "expr": {
-        "multiple": true,
-        "required": true,
-        "types": [
-          {
-            "type": "expression",
-            "named": true
-          }
-        ]
-      },
-      "symbol_comma": {
-        "multiple": true,
-        "required": true,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
-    "type": "rest_types",
-    "named": true,
-    "fields": {
-      "symbol_asterisk": {
-        "multiple": true,
-        "required": true,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      },
-      "type": {
-        "multiple": true,
-        "required": true,
-        "types": [
-          {
-            "type": "type_reference",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
     "type": "source_file",
     "named": true,
     "fields": {},
@@ -960,7 +908,7 @@
         "required": false,
         "types": [
           {
-            "type": "rest_expressions",
+            "type": "tuple_literal_the_rest",
             "named": true
           }
         ]
@@ -1008,6 +956,32 @@
     }
   },
   {
+    "type": "tuple_literal_the_rest",
+    "named": true,
+    "fields": {
+      "expr": {
+        "multiple": true,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      },
+      "symbol_comma": {
+        "multiple": true,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "tuple_type_reference",
     "named": true,
     "fields": {
@@ -1026,7 +1000,7 @@
         "required": false,
         "types": [
           {
-            "type": "rest_types",
+            "type": "type_reference_tuple_the_rest",
             "named": true
           }
         ]
@@ -1141,6 +1115,32 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "type_reference_tuple_the_rest",
+    "named": true,
+    "fields": {
+      "symbol_asterisk": {
+        "multiple": true,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "type": {
+        "multiple": true,
+        "required": true,
+        "types": [
+          {
+            "type": "type_reference",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {

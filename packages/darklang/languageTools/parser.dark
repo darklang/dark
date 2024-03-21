@@ -305,14 +305,15 @@ module Darklang =
 
                 match leftParen, first, asterisk, second, rightParen with
                 | Ok leftParen, Ok first, Ok asterisk, Ok second, Ok rightParen ->
-                  (WrittenTypes.TypeReference.Builtin.TTuple
-                    node.sourceRange
-                    first
-                    asterisk.sourceRange
-                    second
-                    rest
-                    leftParen.sourceRange
-                    rightParen.sourceRange)
+                  (WrittenTypes.TypeReference.Builtin.TTuple(
+                    node.sourceRange,
+                    first,
+                    asterisk.sourceRange,
+                    second,
+                    rest,
+                    leftParen.sourceRange,
+                    rightParen.sourceRange
+                  ))
                   |> Stdlib.Result.Result.Ok
 
                 | _ ->

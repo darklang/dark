@@ -47,7 +47,7 @@ tuple three
           (digits
             (positive_digits))
           (symbol)))
-      (rest_expressions
+      (tuple_literal_the_rest
         (symbol)
         (expression
           (float_literal)))
@@ -77,7 +77,7 @@ tuple four
           (digits
             (positive_digits))
           (symbol)))
-          (rest_expressions
+          (tuple_literal_the_rest
             (symbol)
             (expression
               (float_literal))
