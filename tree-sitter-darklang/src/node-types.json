@@ -15,6 +15,10 @@
         {
           "type": "list_type_reference",
           "named": true
+        },
+        {
+          "type": "tuple_type_reference",
+          "named": true
         }
       ]
     }

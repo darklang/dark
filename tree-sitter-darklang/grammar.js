@@ -84,6 +84,7 @@ module.exports = grammar({
         $.string_literal,
         $.char_literal,
         $.list_literal,
+        $.tuple_literal,
 
         $.let_expression,
         $.variable_identifier,
@@ -311,6 +312,26 @@ module.exports = grammar({
       ),
 
     //
+    // Tuples
+    tuple_literal: $ =>
+      seq(
+        field("symbol_left_paren", alias("(", $.symbol)),
+        field("first", $.expression),
+        field("symbol_comma", alias(",", $.symbol)),
+        field("second", $.expression),
+        field("rest", optional($.rest_expressions)),
+        field("symbol_right_paren", alias(")", $.symbol)),
+      ),
+
+    rest_expressions: $ =>
+      repeat1(
+        seq(
+          field("symbol_comma", alias(",", $.symbol)),
+          field("expr", $.expression),
+        ),
+      ),
+
+    //
     // Common
     type_reference: $ => choice($.builtin_type, $.qualified_type_name),
 
@@ -332,10 +353,12 @@ module.exports = grammar({
         /Char/,
         /String/,
         $.list_type_reference,
+        $.tuple_type_reference,
         /DateTime/,
         /Uuid/,
       ),
 
+    //
     // List<T>
     list_type_reference: $ =>
       seq(
@@ -343,6 +366,26 @@ module.exports = grammar({
         field("symbol_open_angle", alias("<", $.symbol)),
         field("typ_param", $.type_reference),
         field("symbol_close_angle", alias(">", $.symbol)),
+      ),
+
+    //
+    // Tuple
+    tuple_type_reference: $ =>
+      seq(
+        field("symbol_left_paren", alias("(", $.symbol)),
+        field("first", $.type_reference),
+        field("symbol_asterisk", alias("*", $.symbol)),
+        field("second", $.type_reference),
+        field("rest", optional($.rest_types)),
+        field("symbol_right_paren", alias(")", $.symbol)),
+      ),
+
+    rest_types: $ =>
+      repeat1(
+        seq(
+          field("symbol_asterisk", alias("*", $.symbol)),
+          field("type", $.type_reference),
+        ),
       ),
 
     //
