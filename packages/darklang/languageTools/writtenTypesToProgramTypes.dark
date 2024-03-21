@@ -59,6 +59,7 @@ module Darklang =
       module TypeReference =
         module Builtin =
           let toPT
+            (resolver: NameResolver.NameResolutionSettings)
             (t: WrittenTypes.TypeReference.Builtin)
             : ProgramTypes.TypeReference =
             match t with
@@ -77,6 +78,9 @@ module Darklang =
             | TFloat _range -> ProgramTypes.TypeReference.TFloat
             | TChar _range -> ProgramTypes.TypeReference.TChar
             | TString _range -> ProgramTypes.TypeReference.TString
+            | TList(_range, _, _, typ, _) ->
+              let typ = TypeReference.toPT resolver typ
+              ProgramTypes.TypeReference.TList(typ)
             | TDateTime _range -> ProgramTypes.TypeReference.TDateTime
             | TUuid _range -> ProgramTypes.TypeReference.TUuid
 
@@ -85,9 +89,8 @@ module Darklang =
           (resolver: NameResolver.NameResolutionSettings)
           (t: WrittenTypes.TypeReference.TypeReference)
           : ProgramTypes.TypeReference =
-
           match t with
-          | Builtin b -> Builtin.toPT b
+          | Builtin b -> Builtin.toPT resolver b
           | QualifiedName qn ->
             let typeName = Identifiers.QualifiedType.toPT resolver qn
 
@@ -210,6 +213,12 @@ module Darklang =
             match c with
             | None -> ProgramTypes.Expr.EChar(gid (), "")
             | Some((_, c)) -> ProgramTypes.Expr.EChar(gid (), c)
+
+          | EList(_, contents, _, _) ->
+            ProgramTypes.Expr.EList(
+              gid (),
+              Stdlib.List.map contents (fun (expr, _) -> toPT resolver expr)
+            )
 
           // declaring and accessing variables
           | ELet(_, pat, rhs, body, _, _) ->

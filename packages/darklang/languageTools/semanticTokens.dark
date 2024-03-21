@@ -118,6 +118,14 @@ module Darklang =
             | TFloat r -> [ makeToken r TokenType.TypeName ]
             | TChar r -> [ makeToken r TokenType.TypeName ]
             | TString r -> [ makeToken r TokenType.TypeName ]
+            | TList(r, rk, ro, t, rc) ->
+              Stdlib.List.flatten (
+                [ [ makeToken r TokenType.TypeName ]
+                  [ makeToken rk TokenType.Keyword ]
+                  [ makeToken ro TokenType.Symbol ]
+                  (TypeReference.tokenize t)
+                  [ makeToken rc TokenType.Symbol ] ]
+              )
 
         let tokenize
           (t: WrittenTypes.TypeReference.TypeReference)
@@ -241,6 +249,20 @@ module Darklang =
 
               // '
               [ makeToken symbolCloseQuote TokenType.Symbol ] ]
+            |> Stdlib.List.flatten
+
+          | EList(range, contentsMaybe, symbolLeftBracket, symbolRightBracket) ->
+            let contents =
+              contentsMaybe
+              |> Stdlib.List.map (fun (expr, _) -> Expr.tokenize expr)
+              |> Stdlib.List.flatten
+
+            [ // [
+              [ makeToken symbolLeftBracket TokenType.Symbol ]
+              // 1 ; 2 ; 3
+              contents
+              // ]
+              [ makeToken symbolRightBracket TokenType.Symbol ] ]
             |> Stdlib.List.flatten
 
           // let x = 2

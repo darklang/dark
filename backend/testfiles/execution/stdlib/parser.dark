@@ -212,6 +212,9 @@ module TextToTextRoundtripping =
     ("type MyFloat = Float" |> roundtripCliScript) = "type MyFloat =\n  Float"
     ("type MyChar = Char" |> roundtripCliScript) = "type MyChar =\n  Char"
     ("type MyString = String" |> roundtripCliScript) = "type MyString =\n  String"
+    ("type MyList = List<String>" |> roundtripCliScript) = "type MyList =\n  List<String>"
+    ("type MyList = List<List<String>>" |> roundtripCliScript) = "type MyList =\n  List<List<String>>"
+    ("type MyList = List<MyString>" |> roundtripCliScript) = "type MyList =\n  List<MyString>"
 
     // single-part qualified name
     ("type ID = Test" |> roundtripCliScript) = "type ID =\n  Test"
@@ -269,13 +272,21 @@ module TextToTextRoundtripping =
     ("'\\n'" |> roundtripCliScript) = "'\\n'"
     ("'\t'" |> roundtripCliScript) = "'\t'"
 
+    // list literal
+    ("[]" |> roundtripCliScript) = "[]"
+    ("[\"hello\"]" |> roundtripCliScript) = "[\"hello\"]"
+    ("[1L; 2L]" |> roundtripCliScript) = "[1L; 2L]"
+    ("[1L; 2L; 3L;]" |> roundtripCliScript) = "[1L; 2L; 3L]"
+    ("[true; false; true; false]" |> roundtripCliScript) = "[true; false; true; false]"
+    ("[[1L; 2L]; [3L; 4L]]" |> roundtripCliScript) = "[[1L; 2L]; [3L; 4L]]"
+
     // variables and let bindings
     ("assumedlyAVariableName" |> roundtripCliScript) = "assumedlyAVariableName"
     // TODO: this is ugly
     ("let x = 1L\n  x" |> roundtripCliScript) = "let x =\n  1L\nx"
 
     // fn calls
-    // TODO: these is ugly
+    // TODO: these are ugly
     ("1L + 2L" |> roundtripCliScript) = "(1L) + (2L)"
     ("1L + b + 3L" |> roundtripCliScript) = "((1L) + (b)) + (3L)"
     ("1L + 2L * 3L - 4L" |> roundtripCliScript) = "((1L) + ((2L) * (3L))) - (4L)"

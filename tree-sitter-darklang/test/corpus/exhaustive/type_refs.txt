@@ -4,10 +4,20 @@ all builtin type references
 
 type MyUnit = Unit
 type MyBool = Bool
+type MyInt8 = Int8
+type MyInt16 = Int16
+type MyInt32 = Int32
 type MyInt64 = Int64
+type MyInt128 = Int128
+type MyUInt8 = UInt8
+type MyUInt16 = UInt16
+type MyUInt32 = UInt32
+type MyUInt64 = UInt64
+type MyUInt128 = UInt128
 type MyFloat = Float
 type MyChar = Char
 type MyString = String
+type MyList = List<String>
 
 ---
 
@@ -18,6 +28,16 @@ type MyString = String
   (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
   (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
   (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
+  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
+  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
+  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
+  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
+  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
+  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
+  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
+  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
+  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
+  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type (list_type_reference (keyword) (symbol) (type_reference (builtin_type)) (symbol)))))
 )
 
 

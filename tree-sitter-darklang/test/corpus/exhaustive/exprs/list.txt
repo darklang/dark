@@ -1,0 +1,230 @@
+==================
+empty list
+==================
+
+[]
+
+---
+
+(source_file
+  (expression
+    (list_literal
+      (symbol)
+      (symbol))))
+
+
+==================
+Single-item list
+==================
+
+["hello"]
+
+---
+
+(source_file
+  (expression
+    (list_literal
+      (symbol)
+      (list_content
+        (expression
+          (string_literal
+            (symbol)
+            (string_content)
+            (symbol))))
+      (symbol))))
+
+
+==================
+Two-item list
+==================
+
+[1L; 2L]
+
+---
+
+(source_file
+  (expression
+    (list_literal
+      (symbol)
+      (list_content
+        (expression
+          (int64_literal
+            (digits
+              (positive_digits))
+            (symbol)))
+        (symbol)
+        (expression
+          (int64_literal
+            (digits
+              (positive_digits))
+            (symbol))))
+      (symbol))))
+
+
+==================
+Multiple-item list
+==================
+
+[true; false; true; false]
+
+---
+
+(source_file
+  (expression
+    (list_literal
+      (symbol)
+      (list_content
+        (expression
+          (bool_literal))
+        (symbol)
+        (expression
+          (bool_literal))
+        (symbol)
+        (expression
+          (bool_literal))
+        (symbol)
+        (expression
+          (bool_literal)))
+      (symbol))))
+
+
+
+==================
+Nested list
+==================
+
+[[true; false]; [true; false]]
+
+---
+
+(source_file
+  (expression
+    (list_literal
+      (symbol)
+      (list_content
+        (expression
+          (list_literal
+            (symbol)
+            (list_content
+              (expression
+                (bool_literal))
+              (symbol)
+              (expression
+                (bool_literal)))
+            (symbol)))
+        (symbol)
+        (expression
+          (list_literal
+            (symbol)
+            (list_content
+              (expression
+                (bool_literal))
+              (symbol)
+              (expression
+                (bool_literal)))
+            (symbol))))
+      (symbol))))
+
+
+==================
+List with trailing semicolon
+==================
+
+[true; false;]
+
+---
+
+(source_file
+  (expression
+    (list_literal
+      (symbol)
+      (list_content
+        (expression
+          (bool_literal))
+        (symbol)
+        (expression
+          (bool_literal))
+        (symbol))
+      (symbol))))
+
+
+==================
+List starting with semicolon
+==================
+
+[; true; false]
+
+---
+
+(source_file
+  (expression
+    (list_literal
+      (symbol)
+      (ERROR
+        (symbol))
+      (list_content
+        (expression
+          (bool_literal))
+        (symbol)
+        (expression
+          (bool_literal)))
+        (symbol))))
+
+
+==================
+List with missing semicolon
+==================
+
+[true false]
+
+---
+
+(source_file
+  (expression
+    (list_literal
+      (symbol)
+      (list_content
+        (expression
+          (bool_literal)))
+      (ERROR)
+      (symbol))))
+
+
+==================
+List with missing item
+==================
+
+[true; ; false]
+
+---
+
+(source_file
+  (expression
+    (list_literal
+      (symbol)
+      (list_content
+        (expression
+          (bool_literal))
+        (ERROR
+          (symbol))
+        (symbol)
+        (expression
+          (bool_literal)))
+      (symbol))))
+
+
+==================
+List with just a semicolon
+==================
+
+[;]
+
+---
+
+(source_file
+  (expression
+    (list_literal
+      (symbol)
+      (ERROR
+        (symbol))
+      (symbol))))
