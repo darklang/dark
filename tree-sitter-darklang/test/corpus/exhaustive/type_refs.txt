@@ -18,6 +18,9 @@ type MyFloat = Float
 type MyChar = Char
 type MyString = String
 type MyList = List<String>
+type MyTuple2 = (Int64 * String)
+type MyTuple3 = (Int64 * String * Bool)
+type MyTuple = (Int64 * String * Bool * Float * Char * Unit)
 
 ---
 
@@ -38,6 +41,65 @@ type MyList = List<String>
   (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
   (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
   (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type (list_type_reference (keyword) (symbol) (type_reference (builtin_type)) (symbol)))))
+  (type_decl
+    (keyword)
+    (type_identifier)
+    (symbol)
+    (type_reference
+      (builtin_type
+        (tuple_type_reference
+          (symbol)
+          (type_reference
+            (builtin_type))
+          (symbol)
+          (type_reference
+            (builtin_type))
+          (symbol)))))
+  (type_decl
+    (keyword)
+    (type_identifier)
+    (symbol)
+    (type_reference
+      (builtin_type
+        (tuple_type_reference
+          (symbol)
+          (type_reference
+            (builtin_type))
+          (symbol)
+          (type_reference
+            (builtin_type))
+          (type_reference_tuple_the_rest
+            (symbol)
+            (type_reference
+              (builtin_type)))
+          (symbol)))))
+  (type_decl
+    (keyword)
+    (type_identifier)
+    (symbol)
+    (type_reference
+      (builtin_type
+        (tuple_type_reference
+          (symbol)
+          (type_reference
+            (builtin_type))
+          (symbol)
+          (type_reference
+            (builtin_type))
+          (type_reference_tuple_the_rest
+            (symbol)
+            (type_reference
+              (builtin_type))
+            (symbol)
+            (type_reference
+              (builtin_type))
+            (symbol)
+            (type_reference
+              (builtin_type))
+            (symbol)
+            (type_reference
+              (builtin_type)))
+          (symbol)))))
 )
 
 

@@ -216,6 +216,9 @@ module TextToTextRoundtripping =
     ("type MyList = List<List<String>>" |> roundtripCliScript) = "type MyList =\n  List<List<String>>"
     ("type MyList = List<MyString>" |> roundtripCliScript) = "type MyList =\n  List<MyString>"
 
+    ("type MyTuple2 = (String * Int64)" |> roundtripCliScript) = "type MyTuple2 =\n  (String * Int64)"
+    ("type MyTuple3 = (String * Int64 * Bool)" |> roundtripCliScript) = "type MyTuple3 =\n  (String * Int64 * Bool)"
+    ("type MyTuple = (String * Int64 * Bool * Unit)" |> roundtripCliScript) = "type MyTuple =\n  (String * Int64 * Bool * Unit)"
     // single-part qualified name
     ("type ID = Test" |> roundtripCliScript) = "type ID =\n  Test"
 
@@ -279,6 +282,11 @@ module TextToTextRoundtripping =
     ("[1L; 2L; 3L;]" |> roundtripCliScript) = "[1L; 2L; 3L]"
     ("[true; false; true; false]" |> roundtripCliScript) = "[true; false; true; false]"
     ("[[1L; 2L]; [3L; 4L]]" |> roundtripCliScript) = "[[1L; 2L]; [3L; 4L]]"
+    // tuple literals
+    ("(1L, \"hello\")" |> roundtripCliScript) = "(1L, \"hello\")"
+    ("(1L, \"hello\", 2L)" |> roundtripCliScript) = "(1L, \"hello\", 2L)"
+    ("(1L, \"hello\", 2L, true)" |> roundtripCliScript) = "(1L, \"hello\", 2L, true)"
+    ("(1L, 2L + 3L, 4L)" |> roundtripCliScript) = "(1L, (2L) + (3L), 4L)"
 
     // variables and let bindings
     ("assumedlyAVariableName" |> roundtripCliScript) = "assumedlyAVariableName"

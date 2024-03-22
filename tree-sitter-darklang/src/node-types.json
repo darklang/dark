@@ -15,6 +15,10 @@
         {
           "type": "list_type_reference",
           "named": true
+        },
+        {
+          "type": "tuple_type_reference",
+          "named": true
         }
       ]
     }
@@ -151,6 +155,10 @@
         },
         {
           "type": "string_literal",
+          "named": true
+        },
+        {
+          "type": "tuple_literal",
           "named": true
         },
         {
@@ -882,6 +890,164 @@
     }
   },
   {
+    "type": "tuple_literal",
+    "named": true,
+    "fields": {
+      "first": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      },
+      "rest": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "tuple_literal_the_rest",
+            "named": true
+          }
+        ]
+      },
+      "second": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      },
+      "symbol_comma": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_left_paren": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_right_paren": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "tuple_literal_the_rest",
+    "named": true,
+    "fields": {
+      "expr": {
+        "multiple": true,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      },
+      "symbol_comma": {
+        "multiple": true,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "tuple_type_reference",
+    "named": true,
+    "fields": {
+      "first": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type_reference",
+            "named": true
+          }
+        ]
+      },
+      "rest": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "type_reference_tuple_the_rest",
+            "named": true
+          }
+        ]
+      },
+      "second": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type_reference",
+            "named": true
+          }
+        ]
+      },
+      "symbol_asterisk": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_left_paren": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_right_paren": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "type_decl",
     "named": true,
     "fields": {
@@ -949,6 +1115,32 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "type_reference_tuple_the_rest",
+    "named": true,
+    "fields": {
+      "symbol_asterisk": {
+        "multiple": true,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "type": {
+        "multiple": true,
+        "required": true,
+        "types": [
+          {
+            "type": "type_reference",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {

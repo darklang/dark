@@ -126,6 +126,26 @@ module Darklang =
                   (TypeReference.tokenize t)
                   [ makeToken rc TokenType.Symbol ] ]
               )
+            | TTuple(r, first, ra, second, rest, ro, rc) ->
+              [ [ makeToken r TokenType.Symbol ]
+                // (
+                [ makeToken ro TokenType.Symbol ]
+                // first
+                TypeReference.tokenize first
+                // *
+                [ makeToken ra TokenType.Symbol ]
+                // second
+                TypeReference.tokenize second
+                // rest
+                (rest
+                 |> Stdlib.List.map (fun (symbolAsterisk, typ) ->
+                   [ makeToken symbolAsterisk TokenType.Symbol ]
+                   TypeReference.tokenize typ)
+                 |> Stdlib.List.flatten)
+                // )
+                [ makeToken rc TokenType.Symbol ] ]
+              |> Stdlib.List.flatten
+
 
         let tokenize
           (t: WrittenTypes.TypeReference.TypeReference)
@@ -263,6 +283,33 @@ module Darklang =
               contents
               // ]
               [ makeToken symbolRightBracket TokenType.Symbol ] ]
+            |> Stdlib.List.flatten
+
+          // (1, 2, 3)
+          | ETuple(range,
+                   first,
+                   symbolComma,
+                   second,
+                   rest,
+                   symbolOpenParen,
+                   symbolCloseParen) ->
+            let rest =
+              rest
+              |> Stdlib.List.map (fun (_, expr) -> Expr.tokenize expr)
+              |> Stdlib.List.flatten
+
+            [ // (
+              [ makeToken symbolOpenParen TokenType.Symbol ]
+              // 1
+              Expr.tokenize first
+              // ,
+              [ makeToken symbolComma TokenType.Symbol ]
+              // 2
+              Expr.tokenize second
+              // , 3
+              rest
+              // )
+              [ makeToken symbolCloseParen TokenType.Symbol ] ]
             |> Stdlib.List.flatten
 
           // let x = 2

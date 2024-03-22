@@ -77,6 +77,7 @@ module Darklang =
               | None -> findNodeByFieldName child fieldName)
           | _ -> Stdlib.Option.Option.None // TODO: this should error, there are multiple matches
 
+
       // --------------------
       // Parsing to WrittenTypes
       // --------------------
@@ -240,6 +241,84 @@ module Darklang =
               let firstChild = node.children |> Stdlib.List.head |> Builtin.unwrap
 
               match firstChild.typ with
+              | "tuple_type_reference" ->
+                let leftParen =
+                  (findNodeByFieldName firstChild "symbol_left_paren")
+                  |> Stdlib.Option.toResult
+                    "No symbol_left_paren node found in tuple_type_reference"
+
+                let first =
+                  match (findNodeByFieldName firstChild "first") with
+                  | Some firstNode -> TypeReference.parse firstNode
+                  | None ->
+                    Stdlib.Result.Result.Error
+                      "No first node found in tuple_type_reference"
+
+                let second =
+                  match (findNodeByFieldName firstChild "second") with
+                  | Some secondNode -> TypeReference.parse secondNode
+                  | None ->
+                    Stdlib.Result.Result.Error
+                      "No second node found in tuple_type_reference"
+
+                let rest =
+                  firstChild
+                  |> findNodeByFieldName "rest"
+                  |> Stdlib.Option.map (fun restNode ->
+                    restNode.children
+                    |> Stdlib.List.chunkBySize 2L
+                    |> Builtin.unwrap
+                    |> Stdlib.List.map (fun chunk ->
+                      match chunk with
+                      | [ symbol; typeNode ] ->
+                        let typeRef = TypeReference.parse typeNode
+
+                        match typeRef with
+                        | Ok typeRef -> (symbol.sourceRange, typeRef)
+                        | Error _ ->
+                          (symbol.sourceRange,
+                           WrittenTypes.Unparseable { source = typeNode })
+
+                      | [ typeNode ] ->
+                        let typeRef = TypeReference.parse typeNode
+
+                        match typeRef with
+                        | Ok typeRef -> (Stdlib.Option.Option.None, typeRef)
+                        | Error _ ->
+                          (Stdlib.Option.Option.None,
+                           WrittenTypes.Unparseable { source = typeNode })
+                      | _ ->
+                        (Stdlib.Option.Option.None,
+                         WrittenTypes.Unparseable { source = chunk })))
+                  |> Stdlib.Option.withDefault []
+
+                let asterisk =
+                  (findNodeByFieldName firstChild "symbol_asterisk")
+                  |> Stdlib.Option.toResult
+                    "No symbol_asterisk node found in tuple_type_reference"
+
+                let rightParen =
+                  (findNodeByFieldName firstChild "symbol_right_paren")
+                  |> Stdlib.Option.toResult
+                    "No symbol_right_paren node found in tuple_type_reference"
+
+                match leftParen, first, asterisk, second, rightParen with
+                | Ok leftParen, Ok first, Ok asterisk, Ok second, Ok rightParen ->
+                  (WrittenTypes.TypeReference.Builtin.TTuple(
+                    node.sourceRange,
+                    first,
+                    asterisk.sourceRange,
+                    second,
+                    rest,
+                    leftParen.sourceRange,
+                    rightParen.sourceRange
+                  ))
+                  |> Stdlib.Result.Result.Ok
+
+                | _ ->
+                  (WrittenTypes.Unparseable { source = node })
+                  |> Stdlib.Result.Result.Error
+
               | "list_type_reference" ->
                 let listKeyword =
                   (findNodeByFieldName firstChild "keyword_type_constructor")
@@ -720,6 +799,93 @@ module Darklang =
               |> Stdlib.Result.Result.Ok
 
 
+        let parseTupleLiteral
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
+          if node.typ == "tuple_literal" then
+            let openParenNode =
+              (findNodeByFieldName node "symbol_left_paren")
+              |> Stdlib.Option.toResult
+                "No symbol_open_paren node found in tuple_literal"
+
+            let first =
+              match (findNodeByFieldName node "first") with
+              | Some firstNode -> Expr.parse firstNode
+              | None ->
+                Stdlib.Result.Result.Error "No first node found in tuple_literal"
+
+            let second =
+              match (findNodeByFieldName node "second") with
+              | Some secondNode -> Expr.parse secondNode
+              | None ->
+                Stdlib.Result.Result.Error "No second node found in tuple_literal"
+
+            let rest =
+              (findNodeByFieldName node "rest")
+              |> Stdlib.Option.map (fun restNode ->
+                restNode.children
+                |> Stdlib.List.chunkBySize 2L
+                |> Builtin.unwrap
+                |> Stdlib.List.map (fun chunk ->
+                  match chunk with
+                  | [ symbol; exprNode ] ->
+                    let expr = Expr.parse exprNode
+
+                    match expr with
+                    | Ok expr -> (symbol.sourceRange, expr)
+                    | Error _ ->
+                      (symbol.sourceRange,
+                       WrittenTypes.Unparseable { source = exprNode })
+
+                  | [ exprNode ] ->
+                    let expr = Expr.parse exprNode
+
+                    match expr with
+                    | Ok expr -> (Stdlib.Option.Option.None, expr)
+                    | Error _ ->
+                      (Stdlib.Option.Option.None,
+                       WrittenTypes.Unparseable { source = exprNode })
+                  | _ ->
+                    (Stdlib.Option.Option.None,
+                     WrittenTypes.Unparseable { source = chunk })))
+              |> Stdlib.Option.withDefault []
+
+            let commaSymbol =
+              (findNodeByFieldName node "symbol_comma")
+              |> Stdlib.Option.toResult "No symbol_comma node found in tuple_literal"
+
+            let closeParenNode =
+              (findNodeByFieldName node "symbol_right_paren")
+              |> Stdlib.Option.toResult
+                "No symbol_close_paren node found in tuple_literal"
+
+            match openParenNode, first, commaSymbol, second, closeParenNode with
+            | Ok openParenNode,
+              Ok first,
+              Ok commaSymbol,
+              Ok second,
+              Ok closeParenNode ->
+              (WrittenTypes.Expr.ETuple(
+                node.sourceRange,
+                first,
+                commaSymbol.sourceRange,
+                second,
+                rest,
+                openParenNode.sourceRange,
+                closeParenNode.sourceRange
+              ))
+              |> Stdlib.Result.Result.Ok
+
+            | _ ->
+              Builtin.printLine "Error parsing tuple literal"
+
+              (WrittenTypes.Unparseable { source = node })
+              |> Stdlib.Result.Result.Error
+          else
+            (WrittenTypes.Unparseable { source = node })
+            |> Stdlib.Result.Result.Error
+
+
         let parseLetExpr
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
@@ -946,6 +1112,7 @@ module Darklang =
           | "char_literal" -> parseCharLiteral node
 
           | "list_literal" -> parseListLiteral node
+          | "tuple_literal" -> parseTupleLiteral node
 
           // assigning and accessing variables
           | "let_expression" -> parseLetExpr node
