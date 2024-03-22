@@ -78,7 +78,6 @@ module Darklang =
           | _ -> Stdlib.Option.Option.None // TODO: this should error, there are multiple matches
 
 
-
       // --------------------
       // Parsing to WrittenTypes
       // --------------------
