@@ -5,7 +5,7 @@ module Darklang =
       | PackageViewer of PackageViewer.Command
       | RunFunction of flags: List<String> * fnName: String * args: List<String>
       | RunScript of String * List<String>
-      | RunSelfUpdate
+      | RunInstallOrUpdate
       | Uninstall
       | Invalid of List<String>
 
@@ -41,7 +41,8 @@ module Darklang =
         | Ok command -> Command.PackageViewer command
         | Error _ -> Command.Invalid [ "Invalid package command" ]
 
-      | [ "update" ] -> Command.RunSelfUpdate
+      | [ "install" ] -> Command.RunInstallOrUpdate
+      | [ "update" ] -> Command.RunInstallOrUpdate
 
       | thingToRun :: args ->
         if Stdlib.String.startsWith thingToRun "@" then
@@ -135,6 +136,8 @@ darklang package                                  Explore the contents of the pa
 darklang [script path]                            Run a .dark script
   i.e. `darklang ./my-script.dark`
 
+darklang install                                  Install the darklang CLI so it's available globally in your terminal
+
 darklang update                                   Update the darklang CLI to the latest version
 """
 
@@ -146,9 +149,42 @@ darklang update                                   Update the darklang CLI to the
 
       | RunFunction(flags, fnName, args) -> runFunction flags fnName args
 
-      | RunSelfUpdate -> SelfUpdate.runSelfUpdate ()
+      | RunInstallOrUpdate ->
+        Builtin.printLine "Installing/updating..."
+        let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
 
-      | Uninstall -> Uninstall.runUninstall ()
+        match LocalInstall.Installation.installOrUpdateLatestRelease host with
+        | Ok _ ->
+          Builtin.printLine "Install/update complete"
+          0L
+        | Error e ->
+          Builtin.printLine e
+          1L
+
+      | Uninstall ->
+        Builtin.printLine "Are you sure you want to uninstall darklang cli? (y/n): "
+
+        let response = Builtin.stdinReadLine ()
+
+        if response == "y" || response == "Y" then
+          Builtin.printLine "Uninstalling..."
+
+          let r =
+            (Stdlib.Cli.Host.getRuntimeHost ())
+            |> Stdlib.Result.andThen (fun host ->
+              LocalInstall.Uninstall.runUninstall host)
+
+          match r with
+          | Ok _ ->
+            Builtin.printLine "Uninstall complete"
+            0L
+          | Error e ->
+            Builtin.printLine e
+            1L
+
+        else
+          Builtin.printLine "Uninstall cancelled"
+          0L
 
       | Invalid args ->
         let args = args |> Stdlib.String.join " "
@@ -164,15 +200,14 @@ darklang update                                   Update the darklang CLI to the
       args |> parseArguments |> executeCommand
 
     let executeCliCommand (args: List<String>) : Int64 =
-      if
-        Stdlib.List.member_v0 args "--skip-self-update"
-        || Stdlib.List.member_v0 args "update"
-      then
+      if Stdlib.List.member_v0 args "--skip-self-update" then
         let newArgs =
           args |> Stdlib.List.filter (fun arg -> arg != "--skip-self-update")
 
         processNormally newArgs
       else
-        SelfUpdate.ensureDarklangSetup ()
-        Builtin.printLine "Running command... \n\n"
-        processNormally args
+        match LocalInstall.selfUpdateIfRelevant () with
+        | Ok _ -> processNormally args
+        | Error e ->
+          Builtin.printLine $"Failed to run self-update: {e}\nProceeding anyway."
+          processNormally args

@@ -1,0 +1,99 @@
+module Darklang =
+  /// Darklang's interactions with the API
+  ///
+  /// This isn't meant for general use outside of our org.
+  ///
+  /// It'd probably be best to write a new module for your own API,
+  /// or contribute general-purpose package types/fns for interacting with GitHub's API
+  module GitHub =
+    let darklangRepoBaseUrl = "https://api.github.com/repos/darklang/dark"
+
+    /// A baseline function for fetching data from the GitHub API
+    let fetchString
+      (bearerToken: String)
+      (url: String)
+      : Stdlib.Result.Result<String, String> =
+      let headers =
+        [ ("authorization ", "bearer" ++ bearerToken)
+          ("accept", "application/vnd.github+json")
+          ("user-Agent", "darklang") ]
+
+      match Stdlib.HttpClient.get headers url with
+      | Ok r ->
+        r.body |> Stdlib.String.fromBytesWithReplacement |> Stdlib.Result.Result.Ok
+      | Error _e -> Stdlib.Result.Result.Error "Failed to make GitHub API request"
+
+
+    module Releases =
+      type Asset =
+        { name: String
+          browser_download_url: String }
+
+      type Release =
+        { tag_name: String
+          assets: List<Asset> }
+
+      /// Get tag of the most recent Darklang release, from the GitHub API
+      /// (i.e. `v0.0.19`)
+      ///
+      /// TODO: typify the error type
+      let getLatestReleaseTag
+        (bearerToken: String)
+        : Stdlib.Result.Result<String, String> =
+        match fetchString bearerToken $"{darklangRepoBaseUrl}/releases" with
+        | Ok releasesJsonString ->
+          match Builtin.jsonParse<List<Release>> releasesJsonString with
+          | Ok releases ->
+            match Stdlib.List.head releases with
+            | Some latestRelease -> latestRelease.tag_name |> Stdlib.Result.Result.Ok
+            | None -> Stdlib.Result.Result.Error "No releases found"
+          | Error _e ->
+            Stdlib.Result.Result.Error "Couldn't parse releases JSON string"
+        | Error _e ->
+          Stdlib.Result.Result.Error "Couldn't fetch releases list from GitHub API"
+
+
+      /// Get the appropriate URL to download the latest release of the `darklang` cli exe,
+      /// corresponding to the current OS and Architecture
+      ///
+      /// TODO typify the error type
+      let getDownloadUrl
+        (host: Stdlib.Cli.Host.Host)
+        (bearerToken: String)
+        (releaseTag: String)
+        : Stdlib.Result.Result<String, String> =
+        let hostStr =
+          match host.os, host.arch with
+          | Linux, Armv7l -> "linux-arm" |> Stdlib.Result.Result.Ok
+          | Linux, Arm64 -> "linux-arm64" |> Stdlib.Result.Result.Ok
+          | Linux, Aarch64 -> "linux-arm64" |> Stdlib.Result.Result.Ok
+          | Linux, X86_64 -> "linux-x64" |> Stdlib.Result.Result.Ok
+          | MacOS, Arm64 -> "osx-arm64" |> Stdlib.Result.Result.Ok
+          | MacOS, X86_64 -> "osx-x64" |> Stdlib.Result.Result.Ok
+          | _, _ -> Stdlib.Result.Result.Error "Unsupported OS or Arch"
+
+        match hostStr with
+        | Ok hostStr ->
+          let fetched =
+            fetchString
+              bearerToken
+              $"{darklangRepoBaseUrl}/releases/tags/{releaseTag}"
+
+          match fetched with
+          | Ok releaseJsonString ->
+            match Builtin.jsonParse<Release> releaseJsonString with
+            | Ok release ->
+              let matchingAssetMaybe =
+                release.assets
+                |> Stdlib.List.findFirst (fun a ->
+                  Stdlib.String.contains a.name hostStr)
+
+              match matchingAssetMaybe with
+              | Some asset -> asset.browser_download_url |> Stdlib.Result.Result.Ok
+
+              | None -> Stdlib.Result.Result.Error "No matching asset found"
+            | Error _e ->
+              Stdlib.Result.Result.Error "Couldn't parse release JSON string"
+          | Error _e ->
+            Stdlib.Result.Result.Error "Couldn't fetch release from GitHub API"
+        | Error _e -> Stdlib.Result.Result.Error "Couldn't determine host"

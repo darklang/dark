@@ -1,0 +1,68 @@
+module Darklang =
+  module Cli =
+    module LocalInstall =
+      /// Helps to download the latest release of the Darklang CLI,
+      /// and replace the current version with it.
+      module Installation =
+        /// TODO we should really use something in Dark to get the asset name,
+        /// rather than using `basename` in the shell
+        /// (won't work for Windows, anyway.)
+        let basename (url: String) : Stdlib.Result.Result<String, String> =
+          let result = Stdlib.Cli.execute $"basename {url}"
+
+          if result.exitCode == 0L then
+            Stdlib.Result.Result.Ok(result.stdout |> Stdlib.String.trim)
+          else
+            Stdlib.Result.Result.Error "Failed to get asset name"
+
+
+        // TODO: delete old version of the executable, if the new version is working correctly
+        let installOrUpdateLatestRelease
+          (host: Stdlib.Cli.Host.Host)
+          : Stdlib.Result.Result<Unit, String> =
+          (Stdlib.Cli.Unix.ensureDirectoryExists executableDir) |> Builtin.unwrap
+
+          let latestReleaseTag =
+            (GitHub.Releases.getLatestReleaseTag bearerToken) |> Builtin.unwrap
+
+          let downloadUrl = // will be something like `darklang-linux-x64.gz`
+            (GitHub.Releases.getDownloadUrl host bearerToken latestReleaseTag)
+            |> Builtin.unwrap
+
+          let assetName = (basename downloadUrl) |> Builtin.unwrap
+
+          let downloadTo = $"{executableDir}{assetName}"
+
+          (Stdlib.Cli.Curl.downloadFileToPath downloadUrl downloadTo)
+          |> Builtin.unwrap
+
+
+          // unzip the .gz file
+          let extractedExecutablePath =
+            if Stdlib.String.endsWith assetName ".gz" then
+              $"{executableDir}{assetName |> Stdlib.String.dropLast 3L}"
+            else
+              // TODO: error here better
+              Stdlib.Result.Result.Error "Asset is not a .gz file"
+
+
+          (Stdlib.Cli.Gunzip.unzipToFile downloadTo extractedExecutablePath)
+          |> Builtin.unwrap
+
+          (Stdlib.Cli.Unix.removeFile downloadTo) |> Builtin.unwrap
+
+          (Stdlib.Cli.Unix.grantExecutePermission extractedExecutablePath)
+          |> Builtin.unwrap
+
+          (Config.updateVersion configPath latestReleaseTag) |> Builtin.unwrap
+
+          (Stdlib.Cli.Unix.deleteAlias host.defaultShell "darklang")
+          |> Builtin.unwrap
+
+          (Stdlib.Cli.Unix.addAlias
+            host.defaultShell
+            "darklang"
+            extractedExecutablePath)
+          |> Builtin.unwrap
+
+          Stdlib.Result.Result.Ok()

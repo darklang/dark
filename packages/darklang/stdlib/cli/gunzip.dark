@@ -1,0 +1,12 @@
+module Darklang =
+  module Stdlib =
+    module Cli =
+      /// Functions to interact with the `gunzip` CLI application
+      module Gunzip =
+        /// Unzip a file to a specified destination path
+        let unzipToFile
+          (inputFilePath: String)
+          (outputFilePath: String)
+          : Stdlib.Result.Result<Unit, String> =
+          Stdlib.Cli.executeWithUnitOrStdErr
+            $"gunzip -c {inputFilePath} > {outputFilePath}"

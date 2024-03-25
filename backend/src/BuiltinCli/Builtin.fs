@@ -16,7 +16,7 @@ let contents =
     [ Libs.Directory.contents
       Libs.Environment.contents
       Libs.File.contents
-      Libs.Process.contents
+      Libs.Execution.contents
       Libs.Output.contents
       Libs.Stdin.contents
       Libs.LanguageServerProtocol.contents

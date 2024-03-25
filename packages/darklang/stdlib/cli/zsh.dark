@@ -1,0 +1,82 @@
+module Darklang =
+  module Stdlib =
+    module Cli =
+      module Zsh =
+        /// Read the content of .zshrc file
+        let readZshrc () : Result.Result<String, String> =
+          (Builtin.fileRead "$HOME/.zshrc")
+          |> Result.map (fun content -> String.fromBytesWithReplacement content)
+
+        /// Overwrite what's in the .zshrc file
+        let overwriteZshrc (content: String) : Result.Result<Unit, String> =
+          (Builtin.fileWrite (String.toBytes content) "$HOME/.zshrc")
+          |> Result.map (fun _ -> ())
+
+
+        /// Apply changes to .zshrc
+        /// , via `source`
+        let applyZshConfigChanges () : Result.Result<Unit, String> =
+          Cli.executeWithUnitOrStdErr "source $HOME/.zshrc"
+
+
+        /// Delete an alias from .zshrc
+        let deleteAlias (alias: String) : Result.Result<Unit, String> =
+          (readZshrc ())
+          |> Result.andThen (fun content ->
+            let updatedContent =
+              content
+              |> String.split "\n"
+              |> List.filter (fun line ->
+                Bool.not (String.contains line $"alias {alias}="))
+              |> String.join "\n"
+
+            overwriteZshrc updatedContent)
+
+
+        /// Add an alias to .zshrc
+        let addAlias
+          (alias: String)
+          (command: String)
+          : Result.Result<Unit, String> =
+          let aliasDefinition = $"alias {alias}='{command}'"
+
+          (readZshrc ())
+          |> Result.map (fun content ->
+            let updatedContent = content ++ "\n" ++ aliasDefinition
+            overwriteZshrc updatedContent
+            applyZshConfigChanges ())
+
+
+        /// Add a path to PATH
+        ///
+        /// If already in PATH, or if already in .zshrc, ignore and return Ok
+        let addToPath (path: String) : Result.Result<Unit, String> =
+          // TODO: I suspect that this is a bad check.
+          let isExecutableInPath = Cli.execute $"echo $PATH | grep -q {path}"
+
+          if isExecutableInPath.exitCode == 0L then
+            Result.Result.Ok()
+          else
+            (readZshrc ())
+            |> Result.map (fun content ->
+              if String.contains content path then
+                Result.Result.Ok()
+              else
+                let updatedContent = content ++ "\nexport PATH=$PATH:" ++ path
+
+                overwriteZshrc updatedContent
+                applyZshConfigChanges ())
+
+        /// Delete from PATH
+        let removeFromPath (path: String) : Result.Result<Unit, String> =
+          match readZshrc () with
+          | Ok content ->
+            let exportPattern = "\nexport PATH=$PATH:" ++ path
+
+            if String.contains content exportPattern then
+              let updatedContent = String.replaceAll content exportPattern ""
+              overwriteZshrc updatedContent
+              applyZshConfigChanges ()
+            else
+              Stdlib.Result.Result.Ok()
+          | Error e -> Stdlib.Result.Result.Error e

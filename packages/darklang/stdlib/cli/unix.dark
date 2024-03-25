@@ -1,0 +1,70 @@
+module Darklang =
+  module Stdlib =
+    module Cli =
+      module Unix =
+        let removeFile (path: String) : Result.Result<Unit, String> =
+          Cli.executeWithUnitOrStdErr $"rm {path}"
+
+        let removeDirectory (path: String) : Result.Result<Unit, String> =
+          Cli.executeWithUnitOrStdErr $"rm -rf {path}"
+
+        let ensureDirectoryExists (path: String) : Result.Result<Unit, String> =
+          Cli.executeWithUnitOrStdErr $"mkdir -p {path}"
+
+        /// Grants execute permissions to the specified file. (chmod +x <param path>)
+        /// If successful, returns {{Ok ()}}. Otherwise, returns an {{Error <var stderr>}}
+        let grantExecutePermission (path: String) : Result.Result<Unit, String> =
+          Cli.executeWithUnitOrStdErr $"chmod +x {path}"
+
+
+        /// Adds an alias to the user's default shell configuration file.
+        /// The alias will be available in new shell sessions.
+        let addAlias
+          (shell: Shell.Shell)
+          (alias: String)
+          (command: String)
+          : Result.Result<String, String> =
+          match shell with
+          | Bash -> Bash.addAlias alias command
+          | Zsh -> Zsh.addAlias alias command
+          | _ -> Result.Result.Error "Unsupported shell"
+
+
+        /// Deletes an alias from the user's default shell configuration file.
+        let deleteAlias
+          (shell: Shell.Shell)
+          (alias: String)
+          : Result.Result<String, String> =
+          match shell with
+          | Bash -> Bash.deleteAlias alias
+          | Zsh -> Zsh.deleteAlias alias
+          | _ -> Result.Result.Error "Unsupported OS or shell"
+
+
+        /// Adds a path to the user's default shell configuration file.
+        /// The path will be available in new shell sessions.
+        ///
+        /// TODO typify the error cases
+        /// TODO move the prompt to the usage site
+        let addToPath
+          (shell: Shell.Shell)
+          (path: String)
+          : Result.Result<String, String> =
+          match shell with
+          | Bash -> Bash.addToPath path
+          | Zsh -> Zsh.addToPath path
+          | _ -> Result.Result.Error "Unsupported OS or shell"
+
+
+        /// Removes a path from the user's default shell configuration file.
+        /// The path will no longer be available in new shell sessions.
+        /// If successful, returns {{Ok ()}}. Otherwise, returns an {{Error <var stderr>}}
+        /// TODO typify the error cases
+        let removeFromPath
+          (shell: Shell.Shell)
+          (path: String)
+          : Result.Result<String, String> =
+          match shell with
+          | Bash -> Bash.removeFromPath path
+          | Zsh -> Zsh.removeFromPath path
+          | _ -> Result.Result.Error "Unsupported OS or shell"

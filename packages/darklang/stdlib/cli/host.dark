@@ -1,0 +1,95 @@
+module Darklang =
+  module Stdlib =
+    module Cli =
+      module OS =
+        type OS =
+          | Linux
+          | MacOS
+          | Windows
+
+        let getOS () : Stdlib.Result.Result<OS, String> =
+          let os = Stdlib.Cli.execute "uname"
+
+          if os.exitCode == 0L then
+            let os = os.stdout |> Stdlib.String.trim
+
+            match os with
+            | "Linux" -> Stdlib.Result.Result.Ok OS.Linux
+            | "Darwin" -> Stdlib.Result.Result.Ok OS.MacOS
+            | "Windows" -> Stdlib.Result.Result.Ok OS.Windows
+            | _ -> Stdlib.Result.Result.Error "Unsupported OS"
+          else
+            Stdlib.Result.Result.Error os.stderr
+
+
+      module Architecture =
+        type Architecture =
+          | X86_64
+          | Aarch64
+          | Arm
+          | Arm64
+          | Armv7l
+
+        let getArchitecture () : Stdlib.Result.Result<Architecture, String> =
+          let arch = Stdlib.Cli.execute "uname -m"
+
+          if arch.exitCode == 0L then
+            let arch = arch.stdout |> Stdlib.String.trim
+
+            match arch with
+            | "x86_64" -> Stdlib.Result.Result.Ok Architecture.X86_64
+            | "aarch64" -> Stdlib.Result.Result.Ok Architecture.Aarch64
+            | "arm" -> Stdlib.Result.Result.Ok Architecture.Arm
+            | "arm64" -> Stdlib.Result.Result.Ok Architecture.Arm64
+            | "armv7l" -> Stdlib.Result.Result.Ok Architecture.Armv7l
+            | _ -> Stdlib.Result.Result.Error "Unsupported architecture"
+          else
+            Stdlib.Result.Result.Error arch.stderr
+
+
+      module Shell =
+        type Shell =
+          | Bash
+          | Zsh
+
+        /// Determines the default shell used by the current user.
+        /// Returns  {{Ok <Shell>}} if successful, or {{Error}} with a message if the shell is unsupported or an error occurs.
+        let getDefaultShell () : Stdlib.Result.Result<Shell, String> =
+          (Stdlib.Cli.executeWithStdOutOrStdErr "echo $SHELL")
+          |> Stdlib.Result.andThen (fun shell ->
+            match Stdlib.String.trim shell with
+            | "/bin/bash" -> Stdlib.Result.Result.Ok Shell.Bash
+            | "/bin/zsh" -> Stdlib.Result.Result.Ok Shell.Zsh
+            | _ -> Stdlib.Result.Result.Error "Unsupported shell")
+
+
+      module Host =
+        type Host =
+          { os: OS.OS
+            arch: Architecture.Architecture
+            defaultShell: Shell.Shell }
+
+        /// Identifies and returns the operating system and architecture of the runtime host.
+        /// Returns {{Ok <Host>}} on success, or an {{Error}} with combined stderr if it fails
+        let getRuntimeHost () : Stdlib.Result.Result<Host.Host, String> =
+          let os = OS.getOS ()
+          let arch = Architecture.getArchitecture ()
+          let defaultShell = Shell.getDefaultShell ()
+
+          match os, arch, defaultShell with
+          | Ok os, Ok arch, Ok defaultShell ->
+            Stdlib.Result.Result.Ok(
+              Host
+                { os = os
+                  arch = arch
+                  defaultShell = defaultShell }
+            )
+
+          | Error _osExitCode, _, _ ->
+            Stdlib.Result.Result.Error $"Couldn't determine host OS: ${arch.stderr}"
+          | _, Error _archExitCode, _ ->
+            Stdlib.Result.Result.Error
+              $"Couldn't determine host architecture: ${arch.stderr}"
+          | _, _, Error _shellExitCode ->
+            Stdlib.Result.Result.Error
+              $"Couldn't determine host default shell: ${arch.stderr}"

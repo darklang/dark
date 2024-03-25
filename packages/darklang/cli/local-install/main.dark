@@ -1,0 +1,70 @@
+module Darklang =
+  module Cli =
+    /// Everything related to the local installation of the Darklang CLI
+    ///
+    /// (as opposed to running the CLI without any install)
+    module LocalInstall =
+      // TODO: base these 'constants' on each other
+      // or maybe they shouldn't constants, but rather passed into the respective fns... probably that.
+      let darklangDir = "$HOME/.darklang"
+      let configPath = "$HOME/.darklang/config.json"
+      let executableDir = "$HOME/.darklang/bin/"
+      let bearerToken = "${GITHUB_RELEASES_TOKEN}"
+
+
+      /// Check if the latest version of the Darklang CLI is installed,
+      /// by comparing:
+      /// - the latest release on GitHub,
+      /// (against)
+      /// - the locally-installed version, as recorded in the `.darklang/config.json` file.
+      let isAtLatestVersion
+        (configPath: String)
+        : Stdlib.Result.Result<Bool, String> =
+        match GitHub.Releases.getLatestReleaseTag bearerToken with
+        | Ok latestVersion ->
+          match Config.readLocallyInstalledDarklangVersion configPath with
+          | Ok(Some localVersion) ->
+            Stdlib.Result.Result.Ok(localVersion == latestVersion)
+          | Ok None -> Stdlib.Result.Result.Ok false
+          | Error _e -> Stdlib.Result.Result.Error "Couldn't determine local version"
+        | Error _e ->
+          Stdlib.Result.Result.Error
+            "Couldn't determine latest version -- whatever you're about to try probably won't work"
+
+
+      // Check if we should skip self update
+      // (if we've updated in the last 24 hours, don't update)
+      let hasUpdatedInLastDay (configPath: String) : Bool =
+        match Config.read configPath with
+        | Ok config ->
+          match config |> Stdlib.Dict.get "lastUpdateTimestamp" with
+          | None -> false
+          | Some timestamp ->
+            let secondsSinceLastUpdate =
+              ((Stdlib.DateTime.now ()) |> Stdlib.DateTime.toSeconds)
+              - (lastUpdateTimestamp |> Stdlib.Int64.parse |> Builtin.unwrap)
+
+            let oneDayInSeconds = 86400L // TODO: show math
+
+            secondsSinceLastUpdate < oneDayInSeconds
+        | Error e -> false
+
+
+      let selfUpdateIfRelevant () : Stdlib.Result.Result<Unit, String> =
+        // if not installed, ignore -- nothing to self-update
+        if Stdlib.Bool.not (Builtin.fileExists configPath) then
+          Stdlib.Result.Result.Ok()
+        // don't update _too_ often
+        else if hasUpdatedInLastDay configPath then
+          Builtin.printLine
+            "Skipping self-update because we've updated in the last 24 hours"
+
+          Stdlib.Result.Result.Ok()
+        else
+          match isAtLatestVersion configPath with
+          | Ok true -> Stdlib.Result.Result.Ok()
+          | Ok false ->
+            (Stdlib.Cli.Host.getRuntimeHost ())
+            |> Stdlib.Result.andThen (fun host ->
+              LocalInstall.Installation.installOrUpdateLatestRelease host)
+          | Error e -> Stdlib.Result.Result.Error e

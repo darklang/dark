@@ -28,6 +28,12 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString path ] ->
           uply {
             try
+              let path =
+                path.Replace(
+                  "$HOME",
+                  System.Environment.GetEnvironmentVariable "HOME"
+                )
+
               let! contents = System.IO.File.ReadAllBytesAsync path
               return resultOk (Dval.byteArrayToDvalList contents)
             with e ->
@@ -53,6 +59,12 @@ let fns : List<BuiltInFn> =
         | _, _, [ DList(_, contents); DString path ] ->
           uply {
             try
+              let path =
+                path.Replace(
+                  "$HOME",
+                  System.Environment.GetEnvironmentVariable "HOME"
+                )
+
               do!
                 System.IO.File.WriteAllBytesAsync(
                   path,

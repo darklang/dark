@@ -10,7 +10,7 @@ set -euo pipefail
 # - `gcloud auth login`
 # - make sure your IP address is allow-listed in Yugabyte
 #
-# Then run this with `./scripts/deployment/setup-packages 1`,
+# Then run this with `./scripts/deployment/replace-prod-packages 1`,
 # and proceed with additional steps as you succeed.
 
 db_username=$(gcloud secrets versions access latest --secret db-username)
