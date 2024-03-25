@@ -45,38 +45,3 @@ module Darklang =
             let updatedContent = content ++ "\n" ++ aliasDefinition
             overwriteZshrc updatedContent
             applyZshConfigChanges ())
-
-
-        /// Add a path to PATH
-        ///
-        /// If already in PATH, or if already in .zshrc, ignore and return Ok
-        let addToPath (path: String) : Result.Result<Unit, String> =
-          // TODO: I suspect that this is a bad check.
-          let isExecutableInPath = Cli.execute $"echo $PATH | grep -q {path}"
-
-          if isExecutableInPath.exitCode == 0L then
-            Result.Result.Ok()
-          else
-            (readZshrc ())
-            |> Result.map (fun content ->
-              if String.contains content path then
-                Result.Result.Ok()
-              else
-                let updatedContent = content ++ "\nexport PATH=$PATH:" ++ path
-
-                overwriteZshrc updatedContent
-                applyZshConfigChanges ())
-
-        /// Delete from PATH
-        let removeFromPath (path: String) : Result.Result<Unit, String> =
-          match readZshrc () with
-          | Ok content ->
-            let exportPattern = "\nexport PATH=$PATH:" ++ path
-
-            if String.contains content exportPattern then
-              let updatedContent = String.replaceAll content exportPattern ""
-              overwriteZshrc updatedContent
-              applyZshConfigChanges ()
-            else
-              Stdlib.Result.Result.Ok()
-          | Error e -> Stdlib.Result.Result.Error e
