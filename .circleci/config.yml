@@ -491,6 +491,12 @@ workflows:
               only: main
           requires: [ok-to-deploy]
 
+      - deploy-lock:
+          filters:
+            branches:
+              only: main
+          requires: [ok-to-deploy]
+
       # actual deploy
       - deploy:
           context:
@@ -503,8 +509,3 @@ workflows:
             - deploy-lock
             - push-containers-to-gcp
             - push-assets-to-gcp
-
-      - deploy-lock:
-          filters:
-            branches:
-              only: main
