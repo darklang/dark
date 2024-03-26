@@ -314,7 +314,7 @@ jobs:
   # This is used as a no-op dependency for other jobs, to prevent "deploy things"
   # from happening before the "build things" are done
   ok-to-deploy:
-    executor: in-container
+    executor: simple-executor
     steps:
       - run:
           name: No operation
