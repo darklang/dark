@@ -29,6 +29,8 @@ module Append =
 
 
 module Join =
+  (PACKAGE.Darklang.Stdlib.String.join_v0 [ "a"; "b"; "c"; "d" ] "|") = "a|b|c|d"
+
   (PACKAGE.Darklang.Stdlib.String.join_v0 [ "a"; "̂" ] "")
   |> PACKAGE.Darklang.Stdlib.String.base64UrlEncode_v0 = "w6I"
 

@@ -14,7 +14,7 @@
     <Compile Include="Libs/File.fs" />
     <Compile Include="Libs/LanguageServerProtocol.fs" />
     <Compile Include="Libs/Output.fs" />
-    <Compile Include="Libs/Process.fs" />
+    <Compile Include="Libs/Execution.fs" />
     <Compile Include="Libs/Stdin.fs" />
     <Compile Include="Libs/Time.fs" />
     <Compile Include="Builtin.fs" />

@@ -1,5 +1,5 @@
 /// Standard libraries for running processes
-module BuiltinCli.Libs.Process
+module BuiltinCli.Libs.Execution
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -12,20 +12,24 @@ module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
 open System.Runtime.InteropServices
 
+let executionOutcomeTypeName =
+  FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Cli" ] "ExecutionOutcome" 0
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "processRun" 0
-      description = "Runs a process, return exitCode, stdout and stderr"
+  [ { name = fn "cliExecute" 0
+      description = "Runs a process; return exitCode, stdout, and stderr"
       typeParams = []
-      parameters = [ Param.make "command" TString "The command to run" ]
-      returnType =
-        TCustomType(
-          Ok(FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Process" ] "Result" 0),
-          []
-        )
+      parameters = [ Param.make "command" TString "The command to execute" ]
+      returnType = TCustomType(Ok executionOutcomeTypeName, [])
       fn =
         (function
         | _, _, [ DString command ] ->
+          let command =
+            command.Replace(
+              "$HOME",
+              System.Environment.GetEnvironmentVariable "HOME"
+            )
+
           let cmdName, cmdArgs =
             if RuntimeInformation.IsOSPlatform OSPlatform.Windows then
               "cmd.exe", $"/c {command}"
@@ -33,10 +37,11 @@ let fns : List<BuiltInFn> =
               RuntimeInformation.IsOSPlatform OSPlatform.Linux
               || RuntimeInformation.IsOSPlatform OSPlatform.OSX
             then
+              // TODO: run in whatever the default shell is -- not just bash.
               "/bin/bash", $"-c \"{command}\""
             else
-              raiseString
-                "Process.run not supported for your operating system (Linux, Windows, or Mac not detected)"
+              "Executing CLI commands is not supported for your operating system (Linux, Windows, or Mac not detected)"
+              |> raiseString
 
           let psi =
             System.Diagnostics.ProcessStartInfo(command)
@@ -51,15 +56,14 @@ let fns : List<BuiltInFn> =
 
           let p = System.Diagnostics.Process.Start(psi)
 
-          // TODO: read+return bytes, not strings, and update the corresponding `Process.Result` type
+          // TODO: read+return bytes, not strings, and update the corresponding `ExecutionOutcome` type
           // (need an alternative to `p.StandardOutput.ReadToEnd()` here)
           let stdout = p.StandardOutput.ReadToEnd()
           let stderr = p.StandardError.ReadToEnd()
 
           p.WaitForExit()
 
-          let typeName =
-            FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Process" ] "Result" 0
+          let typeName = executionOutcomeTypeName
           let fields =
             [ "exitCode", DInt64 p.ExitCode
               "stdout", DString stdout
