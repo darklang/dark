@@ -160,6 +160,21 @@ commands:
 # Actual workflow
 ##########################
 jobs:
+  #
+  ## All jobs related to the 'build' of Darklang
+
+  static-checks:
+    executor: in-container
+    steps:
+      - darkcheckout
+      - run: scripts/linting/shellchecker
+      # There are currently no yaml files
+      # - run: scripts/linting/yamllinter
+      - run: cd tf && terraform init -backend=false && terraform validate
+      - run: scripts/formatting/format check
+      - slack-notify-job-failure
+      - deploy-lock-remove-on-fail
+
   # Build parser
   build-parser:
     executor: in-container
@@ -295,6 +310,36 @@ jobs:
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
 
+  #
+  # This is used as a no-op dependency for other jobs, to prevent "deploy things"
+  # from happening before the "build things" are done
+  ok-to-deploy:
+    executor: in-container
+    steps:
+      - run:
+          name: No operation
+          command: "true"
+
+  #
+  # Jobs that test that a deploy _should_ work, for feature branch builds
+  gcp-containers-test:
+    executor: in-container
+    steps:
+      # Just test that we can build them for now
+      - darkcheckout
+      - setup-app
+      - attach_workspace: { at: "." }
+      - build-gcp-containers
+      - slack-notify-job-failure
+      - deploy-lock-remove-on-fail
+
+  notify-non-deploy:
+    executor: simple-executor
+    steps:
+      - slack-notify-build
+
+  #
+  # Jobs to run on `main` after we've confirmed the build is OK
   # Publish cli via github releases
   publish-github-release:
     executor: in-container
@@ -306,7 +351,7 @@ jobs:
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
 
-  # Publish VS Code Extension
+  # Publish VS Code Extension to the Marketplace
   publish-vs-code-extension:
     executor: in-container
     steps:
@@ -314,29 +359,6 @@ jobs:
       - setup-app
       - attach_workspace: { at: "." }
       - run: ./scripts/deployment/publish-vs-code-extension
-      - slack-notify-job-failure
-      - deploy-lock-remove-on-fail
-
-  static-checks:
-    executor: in-container
-    steps:
-      - darkcheckout
-      - run: scripts/linting/shellchecker
-      # There are currently no yaml files
-      # - run: scripts/linting/yamllinter
-      - run: cd tf && terraform init -backend=false && terraform validate
-      - run: scripts/formatting/format check
-      - slack-notify-job-failure
-      - deploy-lock-remove-on-fail
-
-  gcp-containers-test:
-    executor: in-container
-    steps:
-      # Just test that we can build them for now
-      - darkcheckout
-      - setup-app
-      - attach_workspace: { at: "." }
-      - build-gcp-containers
       - slack-notify-job-failure
       - deploy-lock-remove-on-fail
 
@@ -397,49 +419,61 @@ jobs:
       - slack-notify-deploy
       - deploy-lock-remove-on-fail
 
-  notify-non-deploy:
-    executor: simple-executor
-    steps:
-      - slack-notify-build
-
 workflows:
   build-and-deploy:
     jobs:
-      # initial builds & tests
+      #
+      # build things
       - static-checks
+
       - build-parser
+
       - build-backend:
-          requires:
-            - build-parser
+          requires: [build-parser]
+
       - build-cli:
+          requires: [build-parser]
+
+      #
+      # "did the build work?"
+      # (other jobs should largely depend on this 'passing')
+      - ok-to-deploy:
           requires:
+            - static-checks
             - build-parser
-
-      # TODO: maybe put this into 'deploy' job,
-      # otherwise we're left in an awkward state if this succeeds
-      # and that fails
-      - publish-github-release:
-          requires:
+            - build-backend
             - build-cli
-          filters:
-            branches:
-              only: main
 
-      # TODO: maybe put this into 'deploy' job,
-      # otherwise we're left in an awkward state if this succeeds
-      # and that fails
-      - publish-vs-code-extension:
-          filters:
-            branches:
-              only: main
-
+      #
+      # for feature branches, check: "is this thing gonna be OK to deploy?"
       - gcp-containers-test:
           # This is fully covered by push-containers-to-gcp, so no need to do it twice
           filters:
             branches:
               ignore: main
+          requires: [ok-to-deploy]
+
+      - notify-non-deploy:
+          filters:
+            branches:
+              ignore: main
           requires:
-            - build-backend
+            - ok-to-deploy
+            - gcp-containers-test
+
+      #
+      # Deploy things (only on `main`)
+      - publish-vs-code-extension:
+          filters:
+            branches:
+              only: main
+          requires: [ok-to-deploy]
+
+      - publish-github-release:
+          filters:
+            branches:
+              only: main
+          requires: [ok-to-deploy]
 
       - push-assets-to-gcp:
           context:
@@ -447,9 +481,7 @@ workflows:
           filters:
             branches:
               only: main
-          requires:
-            - build-backend
-            - build-cli
+          requires: [ok-to-deploy]
 
       - push-containers-to-gcp:
           context:
@@ -457,8 +489,7 @@ workflows:
           filters:
             branches:
               only: main
-          requires:
-            - build-backend
+          requires: [ok-to-deploy]
 
       # actual deploy
       - deploy:
@@ -468,22 +499,12 @@ workflows:
             branches:
               only: main
           requires:
+            - ok-to-deploy
             - deploy-lock
             - push-containers-to-gcp
             - push-assets-to-gcp
-            - static-checks
 
       - deploy-lock:
           filters:
             branches:
               only: main
-
-      - notify-non-deploy:
-          filters:
-            branches:
-              ignore: main
-          requires:
-            - build-backend
-            - build-cli
-            - gcp-containers-test
-            - static-checks
