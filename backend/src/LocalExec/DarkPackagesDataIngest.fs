@@ -2,21 +2,11 @@
 /// via SQL. CLEANUP.
 module LocalExec.DarkPackagesDataIngest
 
-open System.Threading.Tasks
-open FSharp.Control.Tasks
-
 open Prelude
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
-
-open Utils
-
-open Npgsql.FSharp
-open Npgsql
-open LibCloud.Db
-
 
 let typ name = RT.FQTypeName.fqPackage "Darklang" [ "DarkPackages" ] name 0
 
@@ -42,6 +32,8 @@ let makeItem (caseName : string) (dv : RT.Dval) =
 let makeEntry name category item =
   let fields = [ "name", name; "category", category; "item", item ]
   RT.DRecord(entryTypeName, entryTypeName, [], Map fields)
+
+
 
 /// Manually seed the DB with the package items
 ///
@@ -96,57 +88,37 @@ let fillDarkPackagesCanvasWithData
         typ = RT.TCustomType(Ok entryTypeName, [])
         version = 0 }
 
-
     let! dbEntries =
       allEntries
       |> Ply.List.mapSequentially (fun entry ->
         LibCloud.UserDB.dvalToDB None types dbRef entry)
 
-    let dbJsonEntries =
+    let copyCommand =
+      """
+      COPY user_data_v0 (id, canvas_id, table_tlid, user_version, dark_version, key, data)
+      FROM STDIN WITH (FORMAT csv)
+      """
+
+    let csvLines =
       dbEntries
       |> List.map (fun entryDbJson ->
-        [ "id", Sql.uuid (System.Guid.NewGuid())
-          "canvasID", Sql.uuid canvasId
-          "tlid", Sql.id dbRef.tlid
-          "userVersion", Sql.int dbRef.version
-          "darkVersion", Sql.int LibCloud.UserDB.currentDarkVersion
-          "key", Sql.string (System.Guid.NewGuid() |> string)
-          "data", Sql.jsonb entryDbJson ])
+        [ System.Guid.NewGuid() |> string // id
+          canvasId |> string // canvas_id
+          dbRef.tlid |> string // table_tlid
+          dbRef.version |> string // user_version
+          LibCloud.UserDB.currentDarkVersion |> string // dark_version
+          System.Guid.NewGuid() |> string // key
+          "\"" + entryDbJson.Replace("\"", "\"\"") + "\"" ] // escape double quotes
+        |> String.concat ",")
 
-    let batchSize = 100
-
-    // Function to split the list into batches of a specified size
-    let batchList size list =
-      list |> Seq.chunkBySize size |> Seq.map List.ofSeq |> Seq.toList
-
-    // Splitting dbJsonEntries into batches
-    let dbJsonEntryBatches = batchList batchSize dbJsonEntries
-
-    dbJsonEntryBatches
-    |> List.iteri (fun i batch ->
-      print $"Inserting batch {i + 1}/{List.length dbJsonEntryBatches}"
-
-      let query =
-        $"INSERT INTO user_data_v0
-            (id, canvas_id, table_tlid, user_version, dark_version, key, data, updated_at)
-          VALUES
-            (@id, @canvasID, @tlid, @userVersion, @darkVersion, @key, @data, NOW())"
-
-      try
-        LibService.DBConnection.dataSource
-        |> Sql.fromDataSource
-        |> Sql.executeTransaction [ query, batch ]
-        |> ignore<int list>
-      with e ->
-        print $"Error inserting batch: {e.Message}"
-
-        // print all records in the batch that failed to insert
-        batch
-        |> List.iter (fun entry ->
-          print $"----"
-          entry |> List.iter (fun (k, v) -> print $"- {k}: {v}"))
-
-        raise e)
+    try
+      use conn = LibService.DBConnection.dataSource.OpenConnection()
+      use writer = conn.BeginTextImport copyCommand
+      csvLines |> List.iter writer.WriteLine
+      writer.Close()
+    with e ->
+      print $"Error inserting batch: {e.Message}"
+      raise e
 
     print "Done inserting entries"
   }
