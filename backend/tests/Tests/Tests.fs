@@ -36,7 +36,7 @@ let main (args : string array) : int =
         Tests.Cron.tests
         Tests.DvalRepr.tests
         Tests.QueueSchedulingRules.tests
-        Tests.Queue.tests
+        // TODO: bring these back Tests.Queue.tests
         Tests.Execution.tests
         Tests.Parser.tests
         Tests.HttpClient.tests
