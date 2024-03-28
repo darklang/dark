@@ -21,6 +21,8 @@ const exponentOperator = "^";
 module.exports = grammar({
   name: "darklang",
 
+  externals: $ => [$.indent, $.dedent],
+
   rules: {
     source_file: $ =>
       seq(
@@ -86,7 +88,7 @@ module.exports = grammar({
         $.list_literal,
         $.tuple_literal,
 
-        $.if_statement,
+        $.if_expression,
 
         $.let_expression,
         $.variable_identifier,
@@ -331,6 +333,58 @@ module.exports = grammar({
           field("symbol_comma", alias(",", $.symbol)),
           field("expr", $.expression),
         ),
+      ),
+
+    //
+    // if/elif/else
+    if_expression: $ =>
+      seq(
+        field("keyword_if", alias("if", $.keyword)),
+        field("condition", $.expression),
+        field("keyword_then", alias("then", $.keyword)),
+        field(
+          "then_expr",
+          // choice(thenBlock or seq)
+          seq(
+            $.indent,
+            seq(repeat(field("then_block", $.expression)), $.dedent),
+          ),
+        ),
+        // repeat($.elif_expression),
+        field("elif_blocks", optional(repeat($.elif_expression))),
+        optional($.else_expression),
+      ),
+
+    elif_expression: $ =>
+      seq(
+        field("keyword_elif", alias("elif", $.keyword)),
+        field("condition", $.expression),
+        field("keyword_then", alias("then", $.keyword)),
+        field(
+          "then_expr",
+          seq(
+            $.indent,
+            seq(repeat(field("then_block", $.expression)), $.dedent),
+          ),
+        ),
+      ),
+
+    // else_expression: $ =>
+    //   seq(
+    //     field("keyword_else", alias("else", $.keyword)),
+    //     field(
+    //       "else_expr",
+    //       seq(
+    //         $.indent,
+    //         seq(repeat(field("else_block", $.expression)), $.dedent),
+    //       ),
+    //     ),
+    //   ),
+
+    else_expression: $ =>
+      seq(
+        field("keyword_else", alias("else", $.keyword)),
+        seq($.indent, seq(repeat(field("else_block", $.expression)), $.dedent)),
       ),
 
     //

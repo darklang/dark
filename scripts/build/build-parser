@@ -20,7 +20,7 @@ fi
 
 # make parser binaries for the current platform
 echo "Building tree-sitter-darklang.so"
-zig cc -o tree-sitter-darklang.so -shared src/parser.c -Isrc -O3 -fPIC
+zig cc -o tree-sitter-darklang.so -shared src/parser.c src/scanner.c -Isrc -O3 -fPIC
 
 
 
@@ -46,7 +46,7 @@ if $cross_compile; then
     ["aarch64-macos"]="tree-sitter-darklang-macos-arm64.dylib"
   )
   for target in "${!targets[@]}"; do
-    zig cc -target $target -o "xplat-builds/${targets[$target]}" -shared src/parser.c -Isrc -O3
+    zig cc -target $target -o "xplat-builds/${targets[$target]}" -shared src/parser.c src/scanner.c -Isrc -O3
   done
 
   echo "Compilation completed successfully for all targets."
