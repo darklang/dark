@@ -305,6 +305,10 @@
         },
         {
           "type": "SYMBOL",
+          "name": "dict_literal"
+        },
+        {
+          "type": "SYMBOL",
           "name": "let_expression"
         },
         {
@@ -1336,6 +1340,134 @@
         }
       ]
     },
+    "dict_literal": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "keyword_dict",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "Dict"
+            },
+            "named": true,
+            "value": "keyword"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "symbol_open_brace",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "{"
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "content",
+          "content": {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "dict_content"
+              },
+              {
+                "type": "BLANK"
+              }
+            ]
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "symbol_close_brace",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "}"
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        }
+      ]
+    },
+    "dict_content": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "dict_pair"
+        },
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "FIELD",
+                "name": "dict_separator",
+                "content": {
+                  "type": "ALIAS",
+                  "content": {
+                    "type": "STRING",
+                    "value": ";"
+                  },
+                  "named": true,
+                  "value": "symbol"
+                }
+              },
+              {
+                "type": "SYMBOL",
+                "name": "dict_pair"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "dict_pair": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "key",
+          "content": {
+            "type": "SYMBOL",
+            "name": "expression"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "symbol_equals",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "="
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "value",
+          "content": {
+            "type": "SYMBOL",
+            "name": "expression"
+          }
+        }
+      ]
+    },
     "tuple_literal": {
       "type": "SEQ",
       "members": [
@@ -1526,6 +1658,10 @@
           "name": "tuple_type_reference"
         },
         {
+          "type": "SYMBOL",
+          "name": "dict_type_reference"
+        },
+        {
           "type": "PATTERN",
           "value": "DateTime"
         },
@@ -1691,6 +1827,58 @@
           }
         ]
       }
+    },
+    "dict_type_reference": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "keyword_type_constructor",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "Dict"
+            },
+            "named": true,
+            "value": "keyword"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "symbol_open_angle",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "<"
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "value_type",
+          "content": {
+            "type": "SYMBOL",
+            "name": "type_reference"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "symbol_close_angle",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": ">"
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        }
+      ]
     },
     "qualified_fn_name": {
       "type": "SEQ",

@@ -126,6 +126,14 @@ module Darklang =
                   (TypeReference.tokenize t)
                   [ makeToken rc TokenType.Symbol ] ]
               )
+            | TDict(r, rk, ro, t, rc) ->
+              Stdlib.List.flatten (
+                [ [ makeToken r TokenType.TypeName ]
+                  [ makeToken rk TokenType.Keyword ]
+                  [ makeToken ro TokenType.Symbol ]
+                  (TypeReference.tokenize t)
+                  [ makeToken rc TokenType.Symbol ] ]
+              )
             | TTuple(r, first, ra, second, rest, ro, rc) ->
               [ [ makeToken r TokenType.Symbol ]
                 // (
@@ -283,6 +291,26 @@ module Darklang =
               contents
               // ]
               [ makeToken symbolRightBracket TokenType.Symbol ] ]
+            |> Stdlib.List.flatten
+
+          | EDict(range,
+                  contentsMaybe,
+                  keywordDict,
+                  symbolOpenBrace,
+                  symbolCloseBrace) ->
+            let contents =
+              contentsMaybe
+              |> Stdlib.List.map (fun (_, key, value) -> Expr.tokenize value)
+              |> Stdlib.List.flatten
+
+            [ // Dict
+              [ makeToken keywordDict TokenType.Keyword ]
+              // {
+              [ makeToken symbolOpenBrace TokenType.Symbol ]
+              // a = 1 ; b = 2 ; c = 3
+              contents
+              // }
+              [ makeToken symbolCloseBrace TokenType.Symbol ] ]
             |> Stdlib.List.flatten
 
           // (1, 2, 3)

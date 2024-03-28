@@ -13,6 +13,10 @@
       "required": false,
       "types": [
         {
+          "type": "dict_type_reference",
+          "named": true
+        },
+        {
           "type": "list_type_reference",
           "named": true
         },
@@ -75,6 +79,160 @@
     }
   },
   {
+    "type": "dict_content",
+    "named": true,
+    "fields": {
+      "dict_separator": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "dict_pair",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "dict_literal",
+    "named": true,
+    "fields": {
+      "content": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "dict_content",
+            "named": true
+          }
+        ]
+      },
+      "keyword_dict": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "keyword",
+            "named": true
+          }
+        ]
+      },
+      "symbol_close_brace": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_open_brace": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "dict_pair",
+    "named": true,
+    "fields": {
+      "key": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      },
+      "symbol_equals": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "dict_type_reference",
+    "named": true,
+    "fields": {
+      "keyword_type_constructor": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "keyword",
+            "named": true
+          }
+        ]
+      },
+      "symbol_close_angle": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_open_angle": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "value_type": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type_reference",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "digits",
     "named": true,
     "fields": {},
@@ -107,6 +265,10 @@
         },
         {
           "type": "char_literal",
+          "named": true
+        },
+        {
+          "type": "dict_literal",
           "named": true
         },
         {

@@ -241,6 +241,39 @@ module Darklang =
               let firstChild = node.children |> Stdlib.List.head |> Builtin.unwrap
 
               match firstChild.typ with
+              | "dict_type_reference" ->
+                let dictKeyword =
+                  (findNodeByFieldName firstChild "keyword_type_constructor")
+                  |> Stdlib.Option.toResult
+                    "No keyword_type_constructor node found in dict_type_reference"
+
+                let openBracket =
+                  (findNodeByFieldName firstChild "symbol_open_angle")
+                  |> Stdlib.Option.toResult
+                    "No symbol_open_angle node found in dict_type_reference"
+
+                let valueTypeNode =
+                  match (findNodeByFieldName firstChild "value_type") with
+                  | Some valueTypeNode -> parse valueTypeNode
+                  | None ->
+                    Stdlib.Result.Result.Error
+                      "No type_param node found in dict_type_reference"
+
+                let closeBracket =
+                  (findNodeByFieldName firstChild "symbol_close_angle")
+                  |> Stdlib.Option.toResult
+                    "No symbol_close_angle node found in dict_type_reference"
+
+                match dictKeyword, openBracket, valueTypeNode, closeBracket with
+                | Ok dictKeyword, Ok openBracket, Ok valueTypeNode, Ok closeBracket ->
+                  (WrittenTypes.TypeReference.Builtin.TDict
+                    firstChild.sourceRange
+                    dictKeyword.sourceRange
+                    openBracket.sourceRange
+                    valueTypeNode
+                    closeBracket.sourceRange)
+                  |> Stdlib.Result.Result.Ok
+
               | "tuple_type_reference" ->
                 let leftParen =
                   (findNodeByFieldName firstChild "symbol_left_paren")
@@ -799,6 +832,118 @@ module Darklang =
               |> Stdlib.Result.Result.Ok
 
 
+        let parseDictLiteral
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
+          if node.typ == "dict_literal" then
+            let keywordDictNode =
+              (findNodeByFieldName node "keyword_dict")
+              |> Stdlib.Option.toResult "No keyword_dict node found in dict_literal"
+
+            let openBraceNode =
+              (findNodeByFieldName node "symbol_open_brace")
+              |> Stdlib.Option.toResult
+                "No symbol_open_brace node found in dict_literal"
+
+            let contents =
+              node
+              |> findNodeByFieldName "content"
+              |> Stdlib.Option.map (fun contentsNode ->
+                contentsNode.children
+                |> Stdlib.List.chunkBySize 2L
+                |> Builtin.unwrap
+                |> Stdlib.List.map (fun chunk ->
+                  match chunk with
+                  | [ dictPairNode; _separator ] ->
+                    let keyNode =
+                      (findNodeByFieldName dictPairNode "key")
+                      |> Stdlib.Option.toResult "No key node found in dict_pair"
+
+                    let symbolEqualsNode =
+                      (findNodeByFieldName dictPairNode "symbol_equals")
+                      |> Stdlib.Option.toResult
+                        "No symbol_equals node found in dict_pair"
+
+                    let valueNode =
+                      (findNodeByFieldName dictPairNode "value")
+                      |> Stdlib.Option.toResult "No value node found in dict_pair"
+
+                    match (keyNode, symbolEqualsNode, valueNode) with
+                    | (Ok keyNode, Ok symbolEqualsNode, Ok valueNode) ->
+                      let key = keyNode.text
+                      let value = Expr.parse valueNode
+
+                      match value with
+                      | Ok value -> (symbolEqualsNode, key, value)
+                      | _ ->
+                        Stdlib.Result.Result.Error(
+                          WrittenTypes.Unparseable { source = dictPairNode }
+                        )
+                    | _ ->
+                      Stdlib.Result.Result.Error(
+                        WrittenTypes.Unparseable { source = chunk }
+                      )
+
+                  | [ dictPairNode ] ->
+                    let keyNode =
+                      (findNodeByFieldName dictPairNode "key")
+                      |> Stdlib.Option.toResult "No key node found in dict_pair"
+
+                    let symbolEqualsNode =
+                      (findNodeByFieldName dictPairNode "symbol_equals")
+                      |> Stdlib.Option.toResult
+                        "No symbol_equals node found in dict_pair"
+
+                    let valueNode =
+                      (findNodeByFieldName dictPairNode "value")
+                      |> Stdlib.Option.toResult "No value node found in dict_pair"
+
+                    match (keyNode, symbolEqualsNode, valueNode) with
+                    | (Ok keyNode, Ok symbolEqualsNode, Ok valueNode) ->
+                      let key = keyNode.text
+                      let value = Expr.parse valueNode
+
+                      match value with
+                      | Ok value -> (symbolEqualsNode, key, value)
+                      | _ ->
+                        Stdlib.Result.Result.Error(
+                          WrittenTypes.Unparseable { source = dictPairNode }
+                        )
+                    | _ ->
+                      Stdlib.Result.Result.Error(
+                        WrittenTypes.Unparseable { source = chunk }
+                      )
+                  | _ ->
+                    Stdlib.Result.Result.Error(
+                      WrittenTypes.Unparseable { source = chunk }
+                    )))
+              |> Stdlib.Option.withDefault []
+
+            let closeBraceNode =
+              (findNodeByFieldName node "symbol_close_brace")
+              |> Stdlib.Option.toResult
+                "No symbol_close_brace node found in dict_literal"
+
+            match keywordDictNode, openBraceNode, closeBraceNode with
+            | Ok keywordDictNode, Ok openBraceNode, Ok closeBraceNode ->
+              (WrittenTypes.Expr.EDict(
+                node.sourceRange,
+                contents,
+                keywordDictNode.sourceRange,
+                openBraceNode.sourceRange,
+                closeBraceNode.sourceRange
+              ))
+              |> Stdlib.Result.Result.Ok
+
+            | _ ->
+              (WrittenTypes.Unparseable { source = node })
+              |> Stdlib.Result.Result.Error
+
+          else
+            (WrittenTypes.Unparseable { source = node })
+            |> Stdlib.Result.Result.Error
+
+
         let parseTupleLiteral
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
@@ -1112,6 +1257,7 @@ module Darklang =
           | "char_literal" -> parseCharLiteral node
 
           | "list_literal" -> parseListLiteral node
+          | "dict_literal" -> parseDictLiteral node
           | "tuple_literal" -> parseTupleLiteral node
 
           // assigning and accessing variables
