@@ -82,6 +82,11 @@ module Darklang =
               let typ = TypeReference.toPT resolver typ
               ProgramTypes.TypeReference.TList(typ)
 
+            | TDict(_range, _, _, valueType, _) ->
+              let valueType = TypeReference.toPT resolver valueType
+
+              ProgramTypes.TypeReference.TDict valueType
+
             | TTuple(_range, firstType, _, secondType, restTypes, _, _) ->
               let firstType = TypeReference.toPT resolver firstType
               let secondType = TypeReference.toPT resolver secondType
@@ -229,6 +234,12 @@ module Darklang =
             ProgramTypes.Expr.EList(
               gid (),
               Stdlib.List.map contents (fun (expr, _) -> toPT resolver expr)
+            )
+
+          | EDict(_, contents, _, _, _) ->
+            ProgramTypes.Expr.EDict(
+              gid (),
+              Stdlib.List.map contents (fun (_, k, v) -> (k, toPT resolver v))
             )
 
           | ETuple(_, first, _, second, rest, _, _) ->

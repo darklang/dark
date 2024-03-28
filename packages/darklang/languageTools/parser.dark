@@ -241,6 +241,39 @@ module Darklang =
               let firstChild = node.children |> Stdlib.List.head |> Builtin.unwrap
 
               match firstChild.typ with
+              | "dict_type_reference" ->
+                let dictKeyword =
+                  (findNodeByFieldName firstChild "keyword_type_constructor")
+                  |> Stdlib.Option.toResult
+                    "No keyword_type_constructor node found in dict_type_reference"
+
+                let openBracket =
+                  (findNodeByFieldName firstChild "symbol_open_angle")
+                  |> Stdlib.Option.toResult
+                    "No symbol_open_angle node found in dict_type_reference"
+
+                let valueTypeNode =
+                  match findNodeByFieldName firstChild "value_type" with
+                  | Some valueTypeNode -> parse valueTypeNode
+                  | None ->
+                    Stdlib.Result.Result.Error
+                      "No type_param node found in dict_type_reference"
+
+                let closeBracket =
+                  (findNodeByFieldName firstChild "symbol_close_angle")
+                  |> Stdlib.Option.toResult
+                    "No symbol_close_angle node found in dict_type_reference"
+
+                match dictKeyword, openBracket, valueTypeNode, closeBracket with
+                | Ok dictKeyword, Ok openBracket, Ok valueTypeNode, Ok closeBracket ->
+                  (WrittenTypes.TypeReference.Builtin.TDict
+                    firstChild.sourceRange
+                    dictKeyword.sourceRange
+                    openBracket.sourceRange
+                    valueTypeNode
+                    closeBracket.sourceRange)
+                  |> Stdlib.Result.Result.Ok
+
               | "tuple_type_reference" ->
                 let leftParen =
                   (findNodeByFieldName firstChild "symbol_left_paren")
@@ -248,14 +281,14 @@ module Darklang =
                     "No symbol_left_paren node found in tuple_type_reference"
 
                 let first =
-                  match (findNodeByFieldName firstChild "first") with
+                  match findNodeByFieldName firstChild "first" with
                   | Some firstNode -> TypeReference.parse firstNode
                   | None ->
                     Stdlib.Result.Result.Error
                       "No first node found in tuple_type_reference"
 
                 let second =
-                  match (findNodeByFieldName firstChild "second") with
+                  match findNodeByFieldName firstChild "second" with
                   | Some secondNode -> TypeReference.parse secondNode
                   | None ->
                     Stdlib.Result.Result.Error
@@ -331,7 +364,7 @@ module Darklang =
                     "No symbol_open_angle node found in list_type"
 
                 let typeParamNode =
-                  match (findNodeByFieldName firstChild "typ_param") with
+                  match findNodeByFieldName firstChild "typ_param" with
                   | Some typeParamNode -> parse typeParamNode
                   | None ->
                     Stdlib.Result.Result.Error
@@ -372,7 +405,7 @@ module Darklang =
             match node.children with
             | [ single ] ->
               if single.typ == "builtin_type" then
-                match (parseBuiltIn single) with
+                match parseBuiltIn single with
                 | Ok builtin ->
                   (WrittenTypes.TypeReference.TypeReference.Builtin builtin)
                   |> Stdlib.Result.Result.Ok
@@ -381,7 +414,7 @@ module Darklang =
                   |> Stdlib.Result.Result.Error
 
               elif single.typ == "qualified_type_name" then
-                match (Identifiers.parseQualifiedType single) with
+                match Identifiers.parseQualifiedType single with
                 | Ok qualifiedType ->
                   (WrittenTypes.TypeReference.TypeReference.QualifiedName
                     qualifiedType)
@@ -407,7 +440,7 @@ module Darklang =
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.TypeDeclaration.Definition, WrittenTypes.Unparseable> =
           if node.typ == "type_reference" then
-            match (TypeReference.parse node) with
+            match TypeReference.parse node with
             | Ok typeRef ->
               (WrittenTypes.TypeDeclaration.Definition.Alias typeRef)
               |> Stdlib.Result.Result.Ok
@@ -426,26 +459,26 @@ module Darklang =
           if node.typ == "type_decl" then
 
             let nameNode =
-              match (findNodeByFieldName node "name") with
+              match findNodeByFieldName node "name" with
               | Some nameNode ->
                 (Identifiers.parseType nameNode) |> Stdlib.Result.Result.Ok
               | None -> Stdlib.Result.Result.Error "No name node found in type_decl"
 
             let defNode =
-              match (findNodeByFieldName node "typ") with
+              match findNodeByFieldName node "typ" with
               | Some defNode -> (parseDefinition defNode)
               | None ->
                 Stdlib.Result.Result.Error "No definition node found in type_decl"
 
             let keywordTypeNode =
-              match (findNodeByFieldName node "keyword_type") with
+              match findNodeByFieldName node "keyword_type" with
               | Some keywordTypeNode ->
                 (getRange keywordTypeNode) |> Stdlib.Result.Result.Ok
               | None ->
                 Stdlib.Result.Result.Error "No keyword_type node found in type_decl"
 
             let symbolEqualsNode =
-              match (findNodeByFieldName node "symbol_equals") with
+              match findNodeByFieldName node "symbol_equals" with
               | Some symbolEqualsNode ->
                 (getRange symbolEqualsNode) |> Stdlib.Result.Result.Ok
               | None ->
@@ -655,7 +688,6 @@ module Darklang =
 
                 (sign, whole, remainder)
 
-
               (WrittenTypes.Expr.EFloat(node.sourceRange, sign, whole, remainder))
               |> Stdlib.Result.Result.Ok
 
@@ -799,6 +831,118 @@ module Darklang =
               |> Stdlib.Result.Result.Ok
 
 
+        let parseDictLiteral
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
+          if node.typ == "dict_literal" then
+            let keywordDictNode =
+              (findNodeByFieldName node "keyword_dict")
+              |> Stdlib.Option.toResult "No keyword_dict node found in dict_literal"
+
+            let openBraceNode =
+              (findNodeByFieldName node "symbol_open_brace")
+              |> Stdlib.Option.toResult
+                "No symbol_open_brace node found in dict_literal"
+
+            let contents =
+              node
+              |> findNodeByFieldName "content"
+              |> Stdlib.Option.map (fun contentsNode ->
+                contentsNode.children
+                |> Stdlib.List.chunkBySize 2L
+                |> Builtin.unwrap
+                |> Stdlib.List.map (fun chunk ->
+                  match chunk with
+                  | [ dictPairNode; _separator ] ->
+                    let keyNode =
+                      (findNodeByFieldName dictPairNode "key")
+                      |> Stdlib.Option.toResult "No key node found in dict_pair"
+
+                    let symbolEqualsNode =
+                      (findNodeByFieldName dictPairNode "symbol_equals")
+                      |> Stdlib.Option.toResult
+                        "No symbol_equals node found in dict_pair"
+
+                    let valueNode =
+                      (findNodeByFieldName dictPairNode "value")
+                      |> Stdlib.Option.toResult "No value node found in dict_pair"
+
+                    match (keyNode, symbolEqualsNode, valueNode) with
+                    | (Ok keyNode, Ok symbolEqualsNode, Ok valueNode) ->
+                      let key = keyNode.text
+                      let value = Expr.parse valueNode
+
+                      match value with
+                      | Ok value -> (symbolEqualsNode, key, value)
+                      | _ ->
+                        Stdlib.Result.Result.Error(
+                          WrittenTypes.Unparseable { source = dictPairNode }
+                        )
+                    | _ ->
+                      Stdlib.Result.Result.Error(
+                        WrittenTypes.Unparseable { source = chunk }
+                      )
+
+                  | [ dictPairNode ] ->
+                    let keyNode =
+                      (findNodeByFieldName dictPairNode "key")
+                      |> Stdlib.Option.toResult "No key node found in dict_pair"
+
+                    let symbolEqualsNode =
+                      (findNodeByFieldName dictPairNode "symbol_equals")
+                      |> Stdlib.Option.toResult
+                        "No symbol_equals node found in dict_pair"
+
+                    let valueNode =
+                      (findNodeByFieldName dictPairNode "value")
+                      |> Stdlib.Option.toResult "No value node found in dict_pair"
+
+                    match (keyNode, symbolEqualsNode, valueNode) with
+                    | (Ok keyNode, Ok symbolEqualsNode, Ok valueNode) ->
+                      let key = keyNode.text
+                      let value = Expr.parse valueNode
+
+                      match value with
+                      | Ok value -> (symbolEqualsNode, key, value)
+                      | _ ->
+                        Stdlib.Result.Result.Error(
+                          WrittenTypes.Unparseable { source = dictPairNode }
+                        )
+                    | _ ->
+                      Stdlib.Result.Result.Error(
+                        WrittenTypes.Unparseable { source = chunk }
+                      )
+                  | _ ->
+                    Stdlib.Result.Result.Error(
+                      WrittenTypes.Unparseable { source = chunk }
+                    )))
+              |> Stdlib.Option.withDefault []
+
+            let closeBraceNode =
+              (findNodeByFieldName node "symbol_close_brace")
+              |> Stdlib.Option.toResult
+                "No symbol_close_brace node found in dict_literal"
+
+            match keywordDictNode, openBraceNode, closeBraceNode with
+            | Ok keywordDictNode, Ok openBraceNode, Ok closeBraceNode ->
+              (WrittenTypes.Expr.EDict(
+                node.sourceRange,
+                contents,
+                keywordDictNode.sourceRange,
+                openBraceNode.sourceRange,
+                closeBraceNode.sourceRange
+              ))
+              |> Stdlib.Result.Result.Ok
+
+            | _ ->
+              (WrittenTypes.Unparseable { source = node })
+              |> Stdlib.Result.Result.Error
+
+          else
+            (WrittenTypes.Unparseable { source = node })
+            |> Stdlib.Result.Result.Error
+
+
         let parseTupleLiteral
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
@@ -809,13 +953,13 @@ module Darklang =
                 "No symbol_open_paren node found in tuple_literal"
 
             let first =
-              match (findNodeByFieldName node "first") with
+              match findNodeByFieldName node "first" with
               | Some firstNode -> Expr.parse firstNode
               | None ->
                 Stdlib.Result.Result.Error "No first node found in tuple_literal"
 
             let second =
-              match (findNodeByFieldName node "second") with
+              match findNodeByFieldName node "second" with
               | Some secondNode -> Expr.parse secondNode
               | None ->
                 Stdlib.Result.Result.Error "No second node found in tuple_literal"
@@ -877,8 +1021,6 @@ module Darklang =
               |> Stdlib.Result.Result.Ok
 
             | _ ->
-              Builtin.printLine "Error parsing tuple literal"
-
               (WrittenTypes.Unparseable { source = node })
               |> Stdlib.Result.Result.Error
           else
@@ -904,14 +1046,14 @@ module Darklang =
                 "No symbol_equals node found in let_expression"
 
             let expr =
-              match (findNodeByFieldName node "expr") with
-              | Some exprNode -> (Expr.parse exprNode)
+              match findNodeByFieldName node "expr" with
+              | Some exprNode -> Expr.parse exprNode
               | None ->
                 Stdlib.Result.Result.Error "No expr node found in let_expression"
 
             let body =
-              match (findNodeByFieldName node "body") with
-              | Some bodyNode -> (Expr.parse bodyNode)
+              match findNodeByFieldName node "body" with
+              | Some bodyNode -> Expr.parse bodyNode
               | None ->
                 Stdlib.Result.Result.Error "No body node found in let_expression"
 
@@ -948,8 +1090,8 @@ module Darklang =
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
           if node.typ == "infix_operation" then
             let leftArg =
-              match (findNodeByFieldName node "left") with
-              | Some leftArgNode -> (Expr.parse leftArgNode)
+              match findNodeByFieldName node "left" with
+              | Some leftArgNode -> Expr.parse leftArgNode
               | None ->
                 Stdlib.Result.Result.Error "No left node found in infix_operation"
 
@@ -1007,8 +1149,8 @@ module Darklang =
                   |> Stdlib.Result.Result.Error
 
             let rightArg =
-              match (findNodeByFieldName node "right") with
-              | Some rightArgNode -> (Expr.parse rightArgNode)
+              match findNodeByFieldName node "right" with
+              | Some rightArgNode -> Expr.parse rightArgNode
               | None ->
                 Stdlib.Result.Result.Error "No right node found in infix_operation"
 
@@ -1033,8 +1175,8 @@ module Darklang =
           if node.typ == "function_call" then
 
             let fnNameNode =
-              match (findNodeByFieldName node "fn") with
-              | Some fnNameNode -> (Identifiers.parseQualifiedFunction fnNameNode)
+              match findNodeByFieldName node "fn" with
+              | Some fnNameNode -> Identifiers.parseQualifiedFunction fnNameNode
               | None ->
                 Stdlib.Result.Result.Error "No fn node found in function_call"
 
@@ -1090,9 +1232,9 @@ module Darklang =
           match node.typ with
           // simple
           | "paren_expression" ->
-            match (findNodeByFieldName node "expr") with
-            | Some exprNode -> (Expr.parse exprNode)
-            | None -> (WrittenTypes.Unparseable { source = node })
+            match findNodeByFieldName node "expr" with
+            | Some exprNode -> Expr.parse exprNode
+            | None -> WrittenTypes.Unparseable { source = node }
 
           | "unit" ->
             (WrittenTypes.Expr.EUnit node.sourceRange) |> Stdlib.Result.Result.Ok
@@ -1112,6 +1254,7 @@ module Darklang =
           | "char_literal" -> parseCharLiteral node
 
           | "list_literal" -> parseListLiteral node
+          | "dict_literal" -> parseDictLiteral node
           | "tuple_literal" -> parseTupleLiteral node
 
           // assigning and accessing variables
@@ -1158,7 +1301,7 @@ module Darklang =
 
           elif node.typ == "fn_decl_param" then
             let nameNode =
-              match (findNodeByFieldName node "identifier") with
+              match findNodeByFieldName node "identifier" with
               | Some nameNode ->
                 (Identifiers.parseVariable nameNode) |> Stdlib.Result.Result.Ok
               | None ->
@@ -1166,13 +1309,13 @@ module Darklang =
                   "No identifier node found in fn_decl_param"
 
             let typNode =
-              match (findNodeByFieldName node "typ") with
-              | Some typNode -> (TypeReference.parse typNode)
+              match findNodeByFieldName node "typ" with
+              | Some typNode -> TypeReference.parse typNode
               | None ->
                 Stdlib.Result.Result.Error "No typ node found in fn_decl_param"
 
             let symbolLeftParenNode =
-              match (findNodeByFieldName node "symbol_left_paren") with
+              match findNodeByFieldName node "symbol_left_paren" with
               | Some symbolLeftParenNode ->
                 (getRange symbolLeftParenNode) |> Stdlib.Result.Result.Ok
               | None ->
@@ -1180,7 +1323,7 @@ module Darklang =
                   "No symbol_left_paren node found in fn_decl_param"
 
             let symbolColonNode =
-              match (findNodeByFieldName node "symbol_colon") with
+              match findNodeByFieldName node "symbol_colon" with
               | Some symbolColonNode ->
                 (getRange symbolColonNode) |> Stdlib.Result.Result.Ok
               | None ->
@@ -1188,7 +1331,7 @@ module Darklang =
                   "No symbol_colon node found in fn_decl_param"
 
             let symbolRightParenNode =
-              match (findNodeByFieldName node "symbol_right_paren") with
+              match findNodeByFieldName node "symbol_right_paren" with
               | Some symbolRightParenNode ->
                 (getRange symbolRightParenNode) |> Stdlib.Result.Result.Ok
               | None ->
@@ -1264,40 +1407,40 @@ module Darklang =
           : Stdlib.Result.Result<WrittenTypes.FnDeclaration.FnDeclaration, WrittenTypes.Unparseable> =
           if node.typ == "fn_decl" then
             let nameNode =
-              match (findNodeByFieldName node "name") with
+              match findNodeByFieldName node "name" with
               | Some nameNode ->
                 (Identifiers.parseFn nameNode) |> Stdlib.Result.Result.Ok
               | None -> Stdlib.Result.Result.Error "No name node found in fn_decl"
 
             let paramsNode =
-              match (findNodeByFieldName node "params") with
-              | Some paramsNode -> (parseParams paramsNode)
+              match findNodeByFieldName node "params" with
+              | Some paramsNode -> parseParams paramsNode
               | None -> Stdlib.Result.Result.Error "No params node found in fn_decl"
 
             let returnTypeNode =
-              match (findNodeByFieldName node "return_type") with
-              | Some returnTypeNode -> (TypeReference.parse returnTypeNode)
+              match findNodeByFieldName node "return_type" with
+              | Some returnTypeNode -> TypeReference.parse returnTypeNode
               | None -> Stdlib.Result.Result.Error "No return_type node"
 
             let bodyNode =
-              match (findNodeByFieldName node "body") with
-              | Some bodyNode -> (Expr.parse bodyNode)
+              match findNodeByFieldName node "body" with
+              | Some bodyNode -> Expr.parse bodyNode
               | None -> Stdlib.Result.Result.Error "No body node found in fn_decl"
 
             let keywordLetNode =
-              match (findNodeByFieldName node "keyword_let") with
+              match findNodeByFieldName node "keyword_let" with
               | Some keywordLetNode ->
                 (getRange keywordLetNode) |> Stdlib.Result.Result.Ok
               | None -> Stdlib.Result.Result.Error "No keyword_let node found"
 
             let symbolColonNode =
-              match (findNodeByFieldName node "symbol_colon") with
+              match findNodeByFieldName node "symbol_colon" with
               | Some symbolColonNode ->
                 (getRange symbolColonNode) |> Stdlib.Result.Result.Ok
               | None -> Stdlib.Result.Result.Error "No symbol_colon node found"
 
             let symbolEqualsNode =
-              match (findNodeByFieldName node "symbol_equals") with
+              match findNodeByFieldName node "symbol_equals" with
               | Some symbolEqualsNode ->
                 (getRange symbolEqualsNode) |> Stdlib.Result.Result.Ok
               | None -> Stdlib.Result.Result.Error "No symbol_equals node found"

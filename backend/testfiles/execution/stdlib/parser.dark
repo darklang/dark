@@ -212,9 +212,13 @@ module TextToTextRoundtripping =
     ("type MyFloat = Float" |> roundtripCliScript) = "type MyFloat =\n  Float"
     ("type MyChar = Char" |> roundtripCliScript) = "type MyChar =\n  Char"
     ("type MyString = String" |> roundtripCliScript) = "type MyString =\n  String"
+
     ("type MyList = List<String>" |> roundtripCliScript) = "type MyList =\n  List<String>"
     ("type MyList = List<List<String>>" |> roundtripCliScript) = "type MyList =\n  List<List<String>>"
     ("type MyList = List<MyString>" |> roundtripCliScript) = "type MyList =\n  List<MyString>"
+
+    ("type MyDict = Dict<Int64>" |> roundtripCliScript) = "type MyDict =\n  Dict<Int64>"
+    ("type MyDict = Dict<MyList>" |> roundtripCliScript) = "type MyDict =\n  Dict<MyList>"
 
     ("type MyTuple2 = (String * Int64)" |> roundtripCliScript) = "type MyTuple2 =\n  (String * Int64)"
     ("type MyTuple3 = (String * Int64 * Bool)" |> roundtripCliScript) = "type MyTuple3 =\n  (String * Int64 * Bool)"
@@ -282,6 +286,13 @@ module TextToTextRoundtripping =
     ("[1L; 2L; 3L;]" |> roundtripCliScript) = "[1L; 2L; 3L]"
     ("[true; false; true; false]" |> roundtripCliScript) = "[true; false; true; false]"
     ("[[1L; 2L]; [3L; 4L]]" |> roundtripCliScript) = "[[1L; 2L]; [3L; 4L]]"
+
+    // dict literal
+    ("Dict { }" |> roundtripCliScript) = "Dict {  }"
+    ("Dict { a = 1L }" |> roundtripCliScript) = "Dict { a = 1L }"
+    ("Dict { a = \"hello\"; b = \"test\" }" |> roundtripCliScript) = "Dict { a = \"hello\"; b = \"test\" }"
+    ("Dict { a = 1L; b = 2L; c = 3L }" |> roundtripCliScript) = "Dict { a = 1L; b = 2L; c = 3L }"
+
     // tuple literals
     ("(1L, \"hello\")" |> roundtripCliScript) = "(1L, \"hello\")"
     ("(1L, \"hello\", 2L)" |> roundtripCliScript) = "(1L, \"hello\", 2L)"

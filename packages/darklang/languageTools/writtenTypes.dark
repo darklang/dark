@@ -59,6 +59,13 @@ module Darklang =
             typ: TypeReference.TypeReference *
             closeBracket: SourceRange
 
+          | TDict of
+            SourceRange *
+            keywordDict: SourceRange *
+            openBrace: SourceRange *
+            typ: TypeReference.TypeReference *
+            closeBrace: SourceRange
+
           | TTuple of
             SourceRange *
             first: TypeReference *
@@ -176,6 +183,13 @@ module Darklang =
           contents: List<Expr * Stdlib.Option.Option<SourceRange>> *
           symbolOpenBracket: SourceRange *
           symbolCloseBracket: SourceRange
+
+        | EDict of
+          SourceRange *
+          contents: List<SourceRange * String * Expr> *
+          keywordDict: SourceRange *
+          symbolOpenBrace: SourceRange *
+          symbolCloseBrace: SourceRange
 
         | ETuple of
           SourceRange *

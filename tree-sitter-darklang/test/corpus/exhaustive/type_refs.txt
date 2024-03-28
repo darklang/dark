@@ -21,6 +21,7 @@ type MyList = List<String>
 type MyTuple2 = (Int64 * String)
 type MyTuple3 = (Int64 * String * Bool)
 type MyTuple = (Int64 * String * Bool * Float * Char * Unit)
+type MyDict = Dict<Int64>
 
 ---
 
@@ -100,6 +101,7 @@ type MyTuple = (Int64 * String * Bool * Float * Char * Unit)
             (type_reference
               (builtin_type)))
           (symbol)))))
+  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type (dict_type_reference (keyword) (symbol) (type_reference (builtin_type)) (symbol)))))
 )
 
 

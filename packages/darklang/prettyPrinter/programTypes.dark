@@ -679,7 +679,7 @@ module Darklang =
             |> Stdlib.String.join "; "
             |> fun parts -> "{ " ++ parts ++ " }"
 
-          $"(Dict {pairPart})"
+          $"Dict {pairPart}"
 
 
         | ETuple(_id, first, second, theRest) ->

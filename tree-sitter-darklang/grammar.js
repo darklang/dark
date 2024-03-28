@@ -85,6 +85,7 @@ module.exports = grammar({
         $.char_literal,
         $.list_literal,
         $.tuple_literal,
+        $.dict_literal,
 
         $.let_expression,
         $.variable_identifier,
@@ -312,6 +313,29 @@ module.exports = grammar({
       ),
 
     //
+    // Dict
+    dict_literal: $ =>
+      seq(
+        field("keyword_dict", alias("Dict", $.keyword)),
+        field("symbol_open_brace", alias("{", $.symbol)),
+        field("content", optional($.dict_content)),
+        field("symbol_close_brace", alias("}", $.symbol)),
+      ),
+
+    dict_content: $ =>
+      seq(
+        $.dict_pair,
+        repeat(seq(field("dict_separator", alias(";", $.symbol)), $.dict_pair)),
+      ),
+
+    dict_pair: $ =>
+      seq(
+        field("key", $.expression),
+        field("symbol_equals", alias("=", $.symbol)),
+        field("value", $.expression),
+      ),
+
+    //
     // Tuples
     tuple_literal: $ =>
       seq(
@@ -354,6 +378,7 @@ module.exports = grammar({
         /String/,
         $.list_type_reference,
         $.tuple_type_reference,
+        $.dict_type_reference,
         /DateTime/,
         /Uuid/,
       ),
@@ -386,6 +411,16 @@ module.exports = grammar({
           field("symbol_asterisk", alias("*", $.symbol)),
           field("type", $.type_reference),
         ),
+      ),
+
+    //
+    // Dict<T>
+    dict_type_reference: $ =>
+      seq(
+        field("keyword_type_constructor", alias("Dict", $.keyword)),
+        field("symbol_open_angle", alias("<", $.symbol)),
+        field("value_type", $.type_reference),
+        field("symbol_close_angle", alias(">", $.symbol)),
       ),
 
     //

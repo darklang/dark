@@ -1,0 +1,123 @@
+==================
+Empty Dict
+==================
+
+Dict {}
+
+---
+
+(source_file
+  (expression
+    (dict_literal
+      (keyword)
+      (symbol)
+      (symbol))))
+
+
+
+==================
+Dict with one pair
+==================
+
+Dict {a = 1L}
+
+---
+
+(source_file
+  (expression
+    (dict_literal
+      (keyword)
+      (symbol)
+      (dict_content
+        (dict_pair
+          (expression
+            (variable_identifier))
+          (symbol)
+          (expression
+            (int64_literal
+              (digits
+                (positive_digits))
+              (symbol)))))
+      (symbol))))
+
+
+==================
+Dict with two pairs
+==================
+
+Dict {a = 1L; b = 2L}
+
+---
+
+(source_file
+  (expression
+    (dict_literal
+      (keyword)
+      (symbol)
+      (dict_content
+        (dict_pair
+          (expression
+            (variable_identifier))
+          (symbol)
+          (expression
+            (int64_literal
+              (digits
+                (positive_digits))
+              (symbol))))
+        (symbol)
+        (dict_pair
+          (expression
+            (variable_identifier))
+          (symbol)
+          (expression
+            (int64_literal
+              (digits
+                (positive_digits))
+              (symbol)))))
+      (symbol))))
+
+
+==================
+Dict with multiple pairs
+==================
+
+Dict {a = 1L; b = 2L; c = 3L}
+
+---
+
+(source_file
+  (expression
+    (dict_literal
+      (keyword)
+      (symbol)
+      (dict_content
+        (dict_pair
+          (expression
+            (variable_identifier))
+          (symbol)
+          (expression
+            (int64_literal
+              (digits
+                (positive_digits))
+              (symbol))))
+        (symbol)
+        (dict_pair
+          (expression
+            (variable_identifier))
+          (symbol)
+          (expression
+            (int64_literal
+              (digits
+                (positive_digits))
+              (symbol))))
+        (symbol)
+        (dict_pair
+          (expression
+            (variable_identifier))
+          (symbol)
+          (expression
+            (int64_literal
+              (digits
+                (positive_digits))
+              (symbol)))))
+      (symbol))))
