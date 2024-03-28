@@ -325,6 +325,32 @@ module Darklang =
           // x
           | EVariable(range, _varName) -> [ makeToken range TokenType.VariableName ]
 
+          // if true then 1 else 2
+          | EIf(range, cond, thenExpr, elseExpr, keywordIf, keywordThen, keywordElse) ->
+            let elseKeyword =
+              match keywordElse with
+              | Some e -> [ makeToken e TokenType.Keyword ]
+              | None -> []
+
+            let elseExpr =
+              match elseExpr with
+              | Some e -> Expr.tokenize e
+              | None -> []
+
+            [ // if
+              [ makeToken keywordIf TokenType.Keyword ]
+              // true
+              Expr.tokenize cond
+              // then
+              [ makeToken keywordThen TokenType.Keyword ]
+              // 1
+              Expr.tokenize thenExpr
+              // else
+              elseKeyword
+              // 2
+              elseExpr ]
+            |> Stdlib.List.flatten
+
           // x + 1
           | EInfix(_, (opRange, _op), left, right) ->
             [ // x

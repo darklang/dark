@@ -249,6 +249,18 @@ module Darklang =
 
           | EVariable(_, var) -> ProgramTypes.Expr.EVariable (gid ()) var
 
+          | EIf(_, cond, thenExpr, elseExpr, _, _, _) ->
+            let elseExpr =
+              match elseExpr with
+              | None -> Stdlib.Option.Option.None
+              | Some e -> (toPT resolver e) |> Stdlib.Option.Option.Some
+
+            ProgramTypes.Expr.EIf(
+              gid (),
+              toPT resolver cond,
+              toPT resolver thenExpr,
+              elseExpr
+            )
 
           // fn calls
           | EInfix(_, (_, op), left, right) ->

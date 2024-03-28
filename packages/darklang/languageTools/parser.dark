@@ -877,8 +877,6 @@ module Darklang =
               |> Stdlib.Result.Result.Ok
 
             | _ ->
-              Builtin.printLine "Error parsing tuple literal"
-
               (WrittenTypes.Unparseable { source = node })
               |> Stdlib.Result.Result.Error
           else
@@ -1026,6 +1024,107 @@ module Darklang =
               (WrittenTypes.Unparseable { source = node })
               |> Stdlib.Result.Result.Error
 
+        let convertElifToIfExpression
+          (elifNode: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
+          let keywordElifNode =
+            (findNodeByFieldName elifNode "keyword_elif")
+            |> Stdlib.Option.toResult "No keyword_elif node found in elif_expression"
+
+          let conditionNode =
+            match (findNodeByFieldName elifNode "condition") with
+            | Some conditionNode -> (Expr.parse conditionNode)
+            | None ->
+              Stdlib.Result.Result.Error "No condition node found in elif_expression"
+
+          let keywordThenNode =
+            (findNodeByFieldName elifNode "keyword_then")
+            |> Stdlib.Option.toResult "No keyword_then node found in elif_expression"
+
+          let thenNode =
+            match (findNodeByFieldName elifNode "then_block") with
+            | Some thenNode -> (Expr.parse thenNode)
+            | None ->
+              Stdlib.Result.Result.Error "No then node found in elif_expression"
+
+          match keywordElifNode, conditionNode, keywordThenNode, thenNode with
+          | Ok keywordElifNode, Ok conditionNode, Ok keywordThenNode, Ok thenNode ->
+            (WrittenTypes.Expr.EIf(
+              elifNode.sourceRange,
+              conditionNode,
+              thenNode,
+              Stdlib.Option.Option.None,
+              keywordElifNode.sourceRange,
+              keywordThenNode.sourceRange,
+              Stdlib.Option.Option.None
+            ))
+            |> Stdlib.Result.Result.Ok
+          | _ ->
+            (WrittenTypes.Unparseable { source = elifNode })
+            |> Stdlib.Result.Result.Error
+
+        let parseIfExpression
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
+          if node.typ == "if_expression" then
+            let keywordIfNode =
+              (findNodeByFieldName node "keyword_if")
+              |> Stdlib.Option.toResult "No keyword_if node found in if_expression"
+
+            let conditionNode =
+              match (findNodeByFieldName node "condition") with
+              | Some conditionNode -> (Expr.parse conditionNode)
+              | None ->
+                Stdlib.Result.Result.Error "No condition node found in if_expression"
+
+            let keywordThenNode =
+              (findNodeByFieldName node "keyword_then")
+              |> Stdlib.Option.toResult "No keyword_then node found in if_expression"
+
+            let thenNode =
+              match (findNodeByFieldName node "then_block") with
+              | Some thenNode -> (Expr.parse thenNode)
+              | None ->
+                Stdlib.Result.Result.Error "No then node found in if_expression"
+
+            let keywordElseNode = (findNodeByFieldName node "keyword_else")
+
+            let keywordElifNode = (findNodeByFieldName node "keyword_elif")
+
+            let elseNode =
+              match
+                (findNodeByFieldName node "elif_blocks"),
+                (findNodeByFieldName node "else_block")
+              with
+              | None, Some elseBlock ->
+                (Expr.parse elseBlock) |> Stdlib.Result.toOption
+              | Some elifBlock, _ ->
+                (convertElifToIfExpression elifBlock) |> Stdlib.Result.toOption
+              | _, _ -> Stdlib.Option.Option.None
+
+            match keywordIfNode, conditionNode, keywordThenNode, thenNode with
+            | Ok keywordIfNode, Ok conditionNode, Ok keywordThenNode, Ok thenNode ->
+              let keywordElseNodeRange =
+                keywordElseNode |> Stdlib.Option.map (fun node -> node.sourceRange)
+
+              (WrittenTypes.Expr.EIf(
+                node.sourceRange,
+                conditionNode,
+                thenNode,
+                elseNode,
+                keywordIfNode.sourceRange,
+                keywordThenNode.sourceRange,
+                keywordElseNodeRange
+              ))
+              |> Stdlib.Result.Result.Ok
+
+            | _ ->
+              (WrittenTypes.Unparseable { source = node })
+              |> Stdlib.Result.Result.Error
+
+          else
+            (WrittenTypes.Unparseable { source = node })
+            |> Stdlib.Result.Result.Error
 
         let parseFunctionCall
           (node: ParsedNode)
@@ -1119,6 +1218,8 @@ module Darklang =
           | "variable_identifier" ->
             (WrittenTypes.Expr.EVariable(node.sourceRange, getText node))
             |> Stdlib.Result.Result.Ok
+
+          | "if_expression" -> parseIfExpression node
 
           // fn calls
           | "infix_operation" -> parseInfixOperation node
