@@ -1,31 +1,23 @@
 // function
 let userFn () : Int64 = 6L
 (() |> userFn) = 6L
-([] |> PACKAGE.Darklang.Stdlib.List.push_v0 2L) = [ 2L ]
+([] |> Stdlib.List.push_v0 2L) = [ 2L ]
 
 // nested function
-([]
- |> PACKAGE.Darklang.Stdlib.List.push_v0 (
-   PACKAGE.Darklang.Stdlib.Int64.add_v0
-     1L
-     (PACKAGE.Darklang.Stdlib.Int64.add_v0 1L 3L)
- )) = [ 5L ]
+([] |> Stdlib.List.push_v0 (Stdlib.Int64.add_v0 1L (Stdlib.Int64.add_v0 1L 3L))) = [ 5L ]
 
-([]
- |> PACKAGE.Darklang.Stdlib.List.push_v0 (
-   PACKAGE.Darklang.Stdlib.Int64.add_v0 1L ((+) 1L 3L)
- )) = [ 5L ]
+([] |> Stdlib.List.push_v0 (Stdlib.Int64.add_v0 1L ((+) 1L 3L))) = [ 5L ]
 
-([] |> PACKAGE.Darklang.Stdlib.List.push_v0 (Builtin.testRuntimeError "err")) = Builtin.testDerrorMessage
+([] |> Stdlib.List.push_v0 (Builtin.testRuntimeError "err")) = Builtin.testDerrorMessage
   "err"
 
 // general
 (4L |> (-) 3L) = 1L
 
 ([ 5L ]
- |> PACKAGE.Darklang.Stdlib.List.head
+ |> Stdlib.List.head
  |> Builtin.unwrap
- |> PACKAGE.Darklang.Stdlib.Int64.add_v0 1L
+ |> Stdlib.Int64.add_v0 1L
  |> (+) 3L
  |> (fun x -> if (x + 4L) > 1L then x else (1L + x))) = 9L
 
@@ -44,76 +36,57 @@ type Z = { a: List<Int64> }
 type Y = { z: Z }
 type X = { y: Y }
 
-(let x = X { y = Y { z = Z { a = [ 1L; 2L; 3L; 4L; 5L ] } } } in
- (x.y.z.a |> PACKAGE.Darklang.Stdlib.List.length_v0)) = 5L
+(let x = X { y = Y { z = Z { a = [ 1L; 2L; 3L; 4L; 5L ] } } }
+ (x.y.z.a |> Stdlib.List.length_v0)) = 5L
 
 type MyEnum = A of Int64 * Int64 * Int64
 (33L |> MyEnum.A 21L 42L) = MyEnum.A 33L 21L 42L
 
-(3L |> PACKAGE.Darklang.Stdlib.Result.Result.Ok) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  3L
+(3L |> Stdlib.Result.Result.Ok) = Stdlib.Result.Result.Ok 3L
 
-(4L |> (+) 3L |> PACKAGE.Darklang.Stdlib.Option.Option.Some) = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  7L
+(4L |> (+) 3L |> Stdlib.Option.Option.Some) = Stdlib.Option.Option.Some 7L
 
-(PACKAGE.Darklang.Stdlib.Option.Option.None
- |> PACKAGE.Darklang.Stdlib.Option.Option.Some) = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  PACKAGE.Darklang.Stdlib.Option.Option.None
+(Stdlib.Option.Option.None |> Stdlib.Option.Option.Some) = Stdlib.Option.Option.Some
+  Stdlib.Option.Option.None
 
 
-(let x = PACKAGE.Darklang.Stdlib.Option.Option.Some 3L
+(let x = Stdlib.Option.Option.Some 3L
 
- x
- |> PACKAGE.Darklang.Stdlib.Option.map (fun a -> a)
- |> PACKAGE.Darklang.Stdlib.Option.map (fun a -> a + 1L)) = PACKAGE.Darklang.Stdlib.Option.Option.Some
+ x |> Stdlib.Option.map (fun a -> a) |> Stdlib.Option.map (fun a -> a + 1L)) = Stdlib.Option.Option.Some
   4L
 
-(let x = fun x -> PACKAGE.Darklang.Stdlib.Option.map x (fun a -> a) in
+(let x = fun x -> Stdlib.Option.map x (fun a -> a)
 
- (PACKAGE.Darklang.Stdlib.Option.Option.Some 3L)
- |> x
- |> PACKAGE.Darklang.Stdlib.Option.map (fun a -> a + 1L)) = PACKAGE.Darklang.Stdlib.Option.Option.Some
+ (Stdlib.Option.Option.Some 3L) |> x |> Stdlib.Option.map (fun a -> a + 1L)) = Stdlib.Option.Option.Some
   4L
 
-((PACKAGE.Darklang.Stdlib.Option.Option.Some 3L)
- |> PACKAGE.Darklang.Stdlib.Option.withDefault_v0
-   PACKAGE.Darklang.Stdlib.Option.Option.None
+((Stdlib.Option.Option.Some 3L)
+ |> Stdlib.Option.withDefault_v0 Stdlib.Option.Option.None
  |> (+) 3L) = 6L
 
-((PACKAGE.Darklang.Stdlib.Result.Result.Ok 3L)
- |> PACKAGE.Darklang.Stdlib.Result.withDefault_v0 0L
- |> (+) 3L) = 6L
+((Stdlib.Result.Result.Ok 3L) |> Stdlib.Result.withDefault_v0 0L |> (+) 3L) = 6L
 
-((PACKAGE.Darklang.Stdlib.Result.Result.Error "err")
- |> PACKAGE.Darklang.Stdlib.Result.withDefault_v0 0L
- |> (+) 3L) = 3L
+((Stdlib.Result.Result.Error "err") |> Stdlib.Result.withDefault_v0 0L |> (+) 3L) = 3L
 
-(let x = fun a -> PACKAGE.Darklang.Stdlib.Result.withDefault_v0 a 1L in
- (PACKAGE.Darklang.Stdlib.Result.Result.Error "err") |> x |> (+) 3L) = 4L
+(let x = fun a -> Stdlib.Result.withDefault_v0 a 1L
+ (Stdlib.Result.Result.Error "err") |> x |> (+) 3L) = 4L
 
 (let x =
   fun x ->
-    PACKAGE.Darklang.Stdlib.Option.andThen_v0
-      (PACKAGE.Darklang.Stdlib.Option.Option.Some x)
-      (fun x -> PACKAGE.Darklang.Stdlib.Option.Option.Some(1L + x)) in
+    Stdlib.Option.andThen_v0 (Stdlib.Option.Option.Some x) (fun x ->
+      Stdlib.Option.Option.Some(1L + x))
 
- 3L |> x) = PACKAGE.Darklang.Stdlib.Option.Option.Some 4L
+ 3L |> x) = Stdlib.Option.Option.Some 4L
 
 (let x =
-  fun x ->
-    PACKAGE.Darklang.Stdlib.Option.andThen_v0 x (fun x ->
-      PACKAGE.Darklang.Stdlib.Option.Option.Some(1L + x)) in
+  fun x -> Stdlib.Option.andThen_v0 x (fun x -> Stdlib.Option.Option.Some(1L + x))
 
- 3L |> PACKAGE.Darklang.Stdlib.Option.Option.Some |> x) = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  4L
+ 3L |> Stdlib.Option.Option.Some |> x) = Stdlib.Option.Option.Some 4L
 
-(3L
- |> PACKAGE.Darklang.Stdlib.Option.Option.Some
- |> PACKAGE.Darklang.Stdlib.Result.fromOption "test") = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+(3L |> Stdlib.Option.Option.Some |> Stdlib.Result.fromOption "test") = Stdlib.Result.Result.Ok
   3L
 
-(PACKAGE.Darklang.Stdlib.Option.Option.None
- |> PACKAGE.Darklang.Stdlib.Result.fromOption "test") = PACKAGE.Darklang.Stdlib.Result.Result.Error
+(Stdlib.Option.Option.None |> Stdlib.Result.fromOption "test") = Stdlib.Result.Result.Error
   "test"
 
 
@@ -121,11 +94,11 @@ module FnName =
   (let fn = (fun x -> x + 1L)
    6L |> fn) = 7L
 
-  (let fn = PACKAGE.Darklang.Stdlib.Int64.add
+  (let fn = Stdlib.Int64.add
    3L |> fn 4L) = 7L
 
-  (let fn = PACKAGE.Darklang.Stdlib.Int64.subtract
+  (let fn = Stdlib.Int64.subtract
    11L |> fn 4L) = 7L
 
-  (let fn = PACKAGE.Darklang.Stdlib.Int64.max
+  (let fn = Stdlib.Int64.max
    3L |> fn 7L) = 7L

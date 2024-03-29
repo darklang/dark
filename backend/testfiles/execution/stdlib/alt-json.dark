@@ -1,8 +1,8 @@
 // aliases and helpers
 
-type Json = PACKAGE.Darklang.Stdlib.AltJson.Json
+type Json = Stdlib.AltJson.Json
 
-type ParseError = PACKAGE.Darklang.Stdlib.AltJson.ParseError.ParseError
+type ParseError = Stdlib.AltJson.ParseError.ParseError
 
 
 
@@ -15,22 +15,17 @@ type ParseError = PACKAGE.Darklang.Stdlib.AltJson.ParseError.ParseError
 // should we bother taking the formatter out of Builtin land? enh
 
 // <helpers>
-let parse
-  (jsonString: String)
-  : PACKAGE.Darklang.Stdlib.Result.Result<Json, ParseError> =
-  PACKAGE.Darklang.Stdlib.AltJson.parse jsonString
+let parse (jsonString: String) : Stdlib.Result.Result<Json, ParseError> =
+  Stdlib.AltJson.parse jsonString
 
-let format (json: Json) : String =
-  PACKAGE.Darklang.Stdlib.AltJson.format json
+let format (json: Json) : String = Stdlib.AltJson.format json
 
 
-let parsedOk (json: Json) : PACKAGE.Darklang.Stdlib.Result.Result<Json, ParseError> =
-  PACKAGE.Darklang.Stdlib.Result.Result.Ok json
+let parsedOk (json: Json) : Stdlib.Result.Result<Json, ParseError> =
+  Stdlib.Result.Result.Ok json
 
-let parseError
-  (err: ParseError)
-  : PACKAGE.Darklang.Stdlib.Result.Result<Json, ParseError> =
-  PACKAGE.Darklang.Stdlib.Result.Result.Error err
+let parseError (err: ParseError) : Stdlib.Result.Result<Json, ParseError> =
+  Stdlib.Result.Result.Error err
 // </helpers>
 
 // tests

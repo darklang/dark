@@ -157,20 +157,20 @@ module Equals =
   ([ 1uy; 2uy; 3uy ] == [ 1uy; 2uy; 3uy ]) = true
   ([ 1uy; 2uy; 3uy ] != [ 3uy; 2uy; 1uy ]) = true
 
-  ((PACKAGE.Darklang.Stdlib.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")
-   == (PACKAGE.Darklang.Stdlib.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")) = true
+  ((Stdlib.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")
+   == (Stdlib.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")) = true
 
-  ((PACKAGE.Darklang.Stdlib.DateTime.parse "2019-07-28T22:42:36Z")
-   == (PACKAGE.Darklang.Stdlib.DateTime.parse "2019-07-28T22:42:36Z")) = true
+  ((Stdlib.DateTime.parse "2019-07-28T22:42:36Z")
+   == (Stdlib.DateTime.parse "2019-07-28T22:42:36Z")) = true
 
-  ((PACKAGE.Darklang.Stdlib.DateTime.parse "2019-07-28T22:42:37Z")
-   != (PACKAGE.Darklang.Stdlib.DateTime.parse "2019-07-28T22:42:36Z")) = true
+  ((Stdlib.DateTime.parse "2019-07-28T22:42:37Z")
+   != (Stdlib.DateTime.parse "2019-07-28T22:42:36Z")) = true
 
-  (PACKAGE.Darklang.Stdlib.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d"
-   == PACKAGE.Darklang.Stdlib.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
+  (Stdlib.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d"
+   == Stdlib.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
 
-  (PACKAGE.Darklang.Stdlib.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2e"
-   != PACKAGE.Darklang.Stdlib.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
+  (Stdlib.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2e"
+   != Stdlib.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
 
   (fun x -> y) = (fun x -> y)
   ((fun x -> let y = 1Q in y) == (fun x -> let y = 1Q in y)) = true
@@ -319,41 +319,25 @@ module Equals =
   (EEnum2UInt8.E1 != EEnumUInt8.E2) = true
 
 
-  (PACKAGE.Darklang.Stdlib.Option.Option.None
-   == PACKAGE.Darklang.Stdlib.Option.Option.None) = true
+  (Stdlib.Option.Option.None == Stdlib.Option.Option.None) = true
 
-  (PACKAGE.Darklang.Stdlib.Option.Option.None
-   != PACKAGE.Darklang.Stdlib.Option.Option.Some
-     PACKAGE.Darklang.Stdlib.Option.Option.None) = true
+  (Stdlib.Option.Option.None != Stdlib.Option.Option.Some Stdlib.Option.Option.None) = true
 
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 5L
-   == PACKAGE.Darklang.Stdlib.Option.Option.Some 5L) = true
+  (Stdlib.Option.Option.Some 5L == Stdlib.Option.Option.Some 5L) = true
 
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 5L
-   != PACKAGE.Darklang.Stdlib.Option.Option.Some 6L) = true
+  (Stdlib.Option.Option.Some 5L != Stdlib.Option.Option.Some 6L) = true
 
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some(
-    PACKAGE.Darklang.Stdlib.Option.Option.Some 0L
-   )
-   != PACKAGE.Darklang.Stdlib.Option.Option.Some(
-     PACKAGE.Darklang.Stdlib.Option.Option.Some 1L
-   )) = true
+  (Stdlib.Option.Option.Some(Stdlib.Option.Option.Some 0L)
+   != Stdlib.Option.Option.Some(Stdlib.Option.Option.Some 1L)) = true
 
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some(
-    PACKAGE.Darklang.Stdlib.Option.Option.Some 0L
-   )
-   == PACKAGE.Darklang.Stdlib.Option.Option.Some(
-     PACKAGE.Darklang.Stdlib.Option.Option.Some 0L
-   )) = true
+  (Stdlib.Option.Option.Some(Stdlib.Option.Option.Some 0L)
+   == Stdlib.Option.Option.Some(Stdlib.Option.Option.Some 0L)) = true
 
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error 0L
-   == PACKAGE.Darklang.Stdlib.Result.Result.Error 0L) = true
+  (Stdlib.Result.Result.Error 0L == Stdlib.Result.Result.Error 0L) = true
 
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 0L
-   == PACKAGE.Darklang.Stdlib.Result.Result.Ok 0L) = true
+  (Stdlib.Result.Result.Ok 0L == Stdlib.Result.Result.Ok 0L) = true
 
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 0L
-   != PACKAGE.Darklang.Stdlib.Result.Result.Error 0L) = true
+  (Stdlib.Result.Result.Ok 0L != Stdlib.Result.Result.Error 0L) = true
 
 
   type MyDBType = { x: String; y: String }
@@ -375,7 +359,7 @@ module Equals =
     (Builtin.testRuntimeError "test" != Builtin.testRuntimeError "different msg") = Builtin.testDerrorMessage
       "test"
 
-    (() != PACKAGE.Darklang.Stdlib.Option.Option.None) = Builtin.testDerrorMessage
+    (() != Stdlib.Option.Option.None) = Builtin.testDerrorMessage
       "Both values must be the same type"
 
     (() != false) = Builtin.testDerrorMessage "Both values must be the same type"
@@ -384,59 +368,59 @@ module Equals =
     (MyDB != 5L) = Builtin.testDerrorMessage "Both values must be the same type"
 
   // Other ways to call it
-  PACKAGE.Darklang.Stdlib.equals_v0 1Q 1Q = true
+  Stdlib.equals_v0 1Q 1Q = true
   (==) 1Q 1Q = true
   1Q == 1Q = true
 
-  PACKAGE.Darklang.Stdlib.equals_v0 1Z 1Z = true
+  Stdlib.equals_v0 1Z 1Z = true
   (==) 1Z 1Z = true
   1Z == 1Z = true
 
-  PACKAGE.Darklang.Stdlib.equals_v0 1L 1L = true
+  Stdlib.equals_v0 1L 1L = true
   (==) 1L 1L = true
   1L == 1L = true
 
-  PACKAGE.Darklang.Stdlib.equals_v0 1l 1l = true
+  Stdlib.equals_v0 1l 1l = true
   (==) 1l 1l = true
   1l == 1l = true
 
-  PACKAGE.Darklang.Stdlib.equals_v0 1ul 1ul = true
+  Stdlib.equals_v0 1ul 1ul = true
   (==) 1ul 1ul = true
   1ul == 1ul = true
 
-  PACKAGE.Darklang.Stdlib.equals_v0 1s 1s = true
+  Stdlib.equals_v0 1s 1s = true
   (==) 1s 1s = true
   1s == 1s = true
 
-  PACKAGE.Darklang.Stdlib.equals_v0 1us 1us = true
+  Stdlib.equals_v0 1us 1us = true
   (==) 1us 1us = true
   1us == 1us = true
 
-  PACKAGE.Darklang.Stdlib.equals_v0 1y 1y = true
+  Stdlib.equals_v0 1y 1y = true
   (==) 1y 1y = true
   1y == 1y = true
 
-  PACKAGE.Darklang.Stdlib.equals_v0 1uy 1uy = true
+  Stdlib.equals_v0 1uy 1uy = true
   (==) 1uy 1uy = true
   1uy == 1uy = true
 
 
 module NotEquals =
-  PACKAGE.Darklang.Stdlib.notEquals_v0 1Q 1Q = false
-  PACKAGE.Darklang.Stdlib.notEquals_v0 1Z 1Z = false
-  PACKAGE.Darklang.Stdlib.notEquals_v0 1L 1L = false
-  PACKAGE.Darklang.Stdlib.notEquals_v0 1l 1l = false
-  PACKAGE.Darklang.Stdlib.notEquals_v0 1ul 1ul = false
-  PACKAGE.Darklang.Stdlib.notEquals_v0 1s 1s = false
-  PACKAGE.Darklang.Stdlib.notEquals_v0 1us 1us = false
-  PACKAGE.Darklang.Stdlib.notEquals_v0 1y 1y = false
-  PACKAGE.Darklang.Stdlib.notEquals_v0 1uy 1uy = false
-  PACKAGE.Darklang.Stdlib.notEquals_v0 "abc" "abc" = false
-  PACKAGE.Darklang.Stdlib.notEquals_v0 "abd" "abc" = true
+  Stdlib.notEquals_v0 1Q 1Q = false
+  Stdlib.notEquals_v0 1Z 1Z = false
+  Stdlib.notEquals_v0 1L 1L = false
+  Stdlib.notEquals_v0 1l 1l = false
+  Stdlib.notEquals_v0 1ul 1ul = false
+  Stdlib.notEquals_v0 1s 1s = false
+  Stdlib.notEquals_v0 1us 1us = false
+  Stdlib.notEquals_v0 1y 1y = false
+  Stdlib.notEquals_v0 1uy 1uy = false
+  Stdlib.notEquals_v0 "abc" "abc" = false
+  Stdlib.notEquals_v0 "abd" "abc" = true
 
-  PACKAGE.Darklang.Stdlib.notEquals_v0
-    (PACKAGE.Darklang.Stdlib.DateTime.parse "2021-07-28T22:42:36Z")
-    (PACKAGE.Darklang.Stdlib.DateTime.parse "2019-07-28T22:42:36Z") = true
+  Stdlib.notEquals_v0
+    (Stdlib.DateTime.parse "2021-07-28T22:42:36Z")
+    (Stdlib.DateTime.parse "2019-07-28T22:42:36Z") = true
 
   (!=) 1Q 1Q = false
   (!=) 1Z 1Z = false
@@ -451,8 +435,8 @@ module NotEquals =
   (!=) "abd" "abc" = true
 
   (!=)
-    (PACKAGE.Darklang.Stdlib.DateTime.parse "2021-07-28T22:42:36Z")
-    (PACKAGE.Darklang.Stdlib.DateTime.parse "2019-07-28T22:42:36Z") = true
+    (Stdlib.DateTime.parse "2021-07-28T22:42:36Z")
+    (Stdlib.DateTime.parse "2019-07-28T22:42:36Z") = true
 
   1Q != 1Q = false
   1Z != 1Z = false
@@ -466,8 +450,8 @@ module NotEquals =
   "abc" != "abc" = false
   "abd" != "abc" = true
 
-  (PACKAGE.Darklang.Stdlib.DateTime.parse "2021-07-28T22:42:36Z")
-  != (PACKAGE.Darklang.Stdlib.DateTime.parse "2019-07-28T22:42:36Z") = true
+  (Stdlib.DateTime.parse "2021-07-28T22:42:36Z")
+  != (Stdlib.DateTime.parse "2019-07-28T22:42:36Z") = true
 
 
 // Moving to packages

@@ -7,16 +7,13 @@
 
 type Person = { Name: String; Age: Int64 }
 
-type Result<'ok, 'err> = PACKAGE.Darklang.Stdlib.Result.Result<'ok, 'err>
-type Option<'t> = PACKAGE.Darklang.Stdlib.Option.Option<'t>
+type Result<'ok, 'err> = Stdlib.Result.Result<'ok, 'err>
+type Option<'t> = Stdlib.Option.Option<'t>
 
 let err
-  (v:
-    PACKAGE.Darklang.Stdlib.Result.Result<'a, PACKAGE.Darklang.Stdlib.Json.ParseError.ParseError>)
+  (v: Stdlib.Result.Result<'a, Stdlib.Json.ParseError.ParseError>)
   : Result<'a, String> =
-  v
-  |> PACKAGE.Darklang.Stdlib.Result.mapError
-    PACKAGE.Darklang.Stdlib.Json.ParseError.toString
+  v |> Stdlib.Result.mapError Stdlib.Json.ParseError.toString
 
 
 module Unit =
@@ -845,7 +842,7 @@ module Float =
 
 module Char =
   let charFromString (s: String) : Char =
-    (PACKAGE.Darklang.Stdlib.String.head s) |> Builtin.unwrap
+    (Stdlib.String.head s) |> Builtin.unwrap
 
   Builtin.jsonSerialize<Char> 'a' = "\"a\""
   Builtin.jsonParse<Char> "\"a\"" = Result.Ok 'a'
@@ -914,16 +911,16 @@ module String =
     "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor."
 
 
-  Builtin.jsonSerialize<String> (PACKAGE.Darklang.Stdlib.String.repeat_v0 "a" 100L) = "\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\""
+  Builtin.jsonSerialize<String> (Stdlib.String.repeat_v0 "a" 100L) = "\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\""
 
   Builtin.jsonParse<String>
     "\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"" = Result
-    .Ok(PACKAGE.Darklang.Stdlib.String.repeat_v0 "a" 100L)
+    .Ok(Stdlib.String.repeat_v0 "a" 100L)
 
 
 module DateTime =
   let d (datestr: String) : DateTime =
-    (PACKAGE.Darklang.Stdlib.DateTime.parse datestr) |> Builtin.unwrap
+    (Stdlib.DateTime.parse datestr) |> Builtin.unwrap
 
   // now-ish
   Builtin.jsonSerialize<DateTime> (d "2023-07-28T22:42:36Z") = "\"2023-07-28T22:42:36Z\""
@@ -966,7 +963,7 @@ module DateTime =
 
 module Uuid =
   let uuid (s: String) : Uuid =
-    (PACKAGE.Darklang.Stdlib.Uuid.parse_v0 s) |> Builtin.unwrap
+    (Stdlib.Uuid.parse_v0 s) |> Builtin.unwrap
 
   // empty
   Builtin.jsonSerialize<Uuid> (uuid "00000000-0000-0000-0000-000000000000") = "\"00000000-0000-0000-0000-000000000000\""
@@ -1104,31 +1101,27 @@ module Tuples =
 
   Builtin.jsonSerialize<(Int64 * String) * (Person * Dict<String>)> (
     (1L, "two"),
-    (Person { Name = "Alice"; Age = 42L },
-     PACKAGE.Darklang.Stdlib.Dict.singleton "a" "b")
+    (Person { Name = "Alice"; Age = 42L }, Stdlib.Dict.singleton "a" "b")
   ) = "[[1,\"two\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]"
 
   Builtin.jsonParse<(Int64 * String) * (Person * Dict<String>)>
     "[[1,\"two\"],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]" = Result.Ok(
     ((1L, "two"),
-     (Person { Name = "Alice"; Age = 42L },
-      PACKAGE.Darklang.Stdlib.Dict.singleton "a" "b"))
+     (Person { Name = "Alice"; Age = 42L }, Stdlib.Dict.singleton "a" "b"))
   )
 
 
   Builtin.jsonSerialize<(List<Int64 * String> * List<UInt8>) *
   (Person * Dict<String>)> (
     ([ (1L, "two"); (3L, "four") ], []),
-    (Person { Name = "Alice"; Age = 42L },
-     PACKAGE.Darklang.Stdlib.Dict.singleton "a" "b")
+    (Person { Name = "Alice"; Age = 42L }, Stdlib.Dict.singleton "a" "b")
   ) = "[[[[1,\"two\"],[3,\"four\"]],[]],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]"
 
   Builtin.jsonParse<(List<Int64 * String> * List<UInt8>) * (Person * Dict<String>)>
     "[[[[1,\"two\"],[3,\"four\"]],[]],[{\"Age\":42,\"Name\":\"Alice\"},{\"a\":\"b\"}]]" = Result
     .Ok(
       (([ (1L, "two"); (3L, "four") ], []),
-       (Person { Name = "Alice"; Age = 42L },
-        PACKAGE.Darklang.Stdlib.Dict.singleton "a" "b"))
+       (Person { Name = "Alice"; Age = 42L }, Stdlib.Dict.singleton "a" "b"))
     )
 
 
@@ -1229,16 +1222,16 @@ module Result =
 
   Builtin.jsonSerialize<Result<List<Dict<String> * Option<Int64>>, String>> (
     Result.Ok
-      [ (PACKAGE.Darklang.Stdlib.Dict.singleton "a" "b", Option.Some 1L)
-        (PACKAGE.Darklang.Stdlib.Dict.singleton "c" "d", Option.None) ]
+      [ (Stdlib.Dict.singleton "a" "b", Option.Some 1L)
+        (Stdlib.Dict.singleton "c" "d", Option.None) ]
   ) = "{\"Ok\":[[[{\"a\":\"b\"},{\"Some\":[1]}],[{\"c\":\"d\"},{\"None\":[]}]]]}"
 
   Builtin.jsonParse<Result<List<Dict<String> * Option<Int64>>, String>>
     "{\"Ok\":[[[{\"a\":\"b\"},{\"Some\":[1]}],[{\"c\":\"d\"},{\"None\":[]}]]]}" = Result
     .Ok(
       Result.Ok
-        [ (PACKAGE.Darklang.Stdlib.Dict.singleton "a" "b", Option.Some 1L)
-          (PACKAGE.Darklang.Stdlib.Dict.singleton "c" "d", Option.None) ]
+        [ (Stdlib.Dict.singleton "a" "b", Option.Some 1L)
+          (Stdlib.Dict.singleton "c" "d", Option.None) ]
     )
 
   Builtin.jsonSerialize<Result<Result<Int64, String>, String>> (
@@ -1261,19 +1254,17 @@ module Result =
     Result.Ok(Result.Ok(Option.Some(Result.Ok 1L)))
   ) = "{\"Ok\":[{\"Ok\":[{\"Some\":[{\"Ok\":[1]}]}]}]}"
 
-  Builtin.jsonParse<Result<Result<PACKAGE.Darklang.Stdlib.Option.Option<Result<Int64, String>>, String>, String>>
+  Builtin.jsonParse<Result<Result<Stdlib.Option.Option<Result<Int64, String>>, String>, String>>
     "{\"Ok\":[{\"Ok\":[{\"Some\":[{\"Ok\":[1]}]}]}]}" = Result.Ok(
     Result.Ok(Result.Ok(Option.Some(Result.Ok 1L)))
   )
 
 module Dict =
 
-  Builtin.jsonSerialize<Dict<String>> (
-    PACKAGE.Darklang.Stdlib.Dict.singleton "a" "b"
-  ) = """{"a":"b"}"""
+  Builtin.jsonSerialize<Dict<String>> (Stdlib.Dict.singleton "a" "b") = """{"a":"b"}"""
 
   Builtin.jsonParse<Dict<String>> """{"a":"b"}""" = Result.Ok(
-    PACKAGE.Darklang.Stdlib.Dict.singleton "a" "b"
+    Stdlib.Dict.singleton "a" "b"
   )
 
   Builtin.jsonSerialize<Dict<String>> (Dict { a = "b"; c = "d" }) = """{"a":"b","c":"d"}"""

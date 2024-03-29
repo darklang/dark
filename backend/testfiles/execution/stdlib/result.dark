@@ -1,384 +1,303 @@
-PACKAGE.Darklang.Stdlib.Result.andThen
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "test")
-  (fun x -> PACKAGE.Darklang.Stdlib.Result.Result.Error "test") = PACKAGE.Darklang.Stdlib.Result.Result.Error
+Stdlib.Result.andThen (Stdlib.Result.Result.Error "test") (fun x ->
+  Stdlib.Result.Result.Error "test") = Stdlib.Result.Result.Error "test"
+
+Stdlib.Result.andThen (Stdlib.Result.Result.Error "test") (fun x ->
+  Stdlib.Result.Result.Ok 5L) = Stdlib.Result.Result.Error "test"
+
+Stdlib.Result.andThen (Stdlib.Result.Result.Ok 5L) (fun x ->
+  Stdlib.Result.Result.Error "test") = Stdlib.Result.Result.Error "test"
+
+Stdlib.Result.andThen (Stdlib.Result.Result.Ok 5L) (fun x ->
+  Stdlib.Result.Result.Ok(1L + x)) = Stdlib.Result.Result.Ok 6L
+
+
+Stdlib.Result.collect
+  [ Stdlib.Result.Result.Ok 5L
+    Stdlib.Result.Result.Ok 6L
+    Stdlib.Result.Result.Ok 7L ] = Stdlib.Result.Result.Ok [ 5L; 6L; 7L ]
+
+Stdlib.Result.collect
+  [ Stdlib.Result.Result.Ok 5L
+    Stdlib.Result.Result.Error "test"
+    Stdlib.Result.Result.Ok 7L ] = Stdlib.Result.Result.Error "test"
+
+Stdlib.Result.collect
+  [ Stdlib.Result.Result.Ok 5L
+    Stdlib.Result.Result.Error "test"
+    Stdlib.Result.Result.Error "test2" ] = Stdlib.Result.Result.Error "test"
+
+Stdlib.Result.collect
+  [ Stdlib.Result.Result.Error "test"; Stdlib.Result.Result.Error "test2" ] = Stdlib.Result.Result.Error
   "test"
 
-PACKAGE.Darklang.Stdlib.Result.andThen
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "test")
-  (fun x -> PACKAGE.Darklang.Stdlib.Result.Result.Ok 5L) = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "test"
+Stdlib.Result.collect [] = Stdlib.Result.Result.Ok []
 
-PACKAGE.Darklang.Stdlib.Result.andThen
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 5L)
-  (fun x -> PACKAGE.Darklang.Stdlib.Result.Result.Error "test") = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "test"
 
-PACKAGE.Darklang.Stdlib.Result.andThen
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 5L)
-  (fun x -> PACKAGE.Darklang.Stdlib.Result.Result.Ok(1L + x)) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+
+Stdlib.Result.fromOption (Stdlib.Option.Option.Some 6L) "test" = Stdlib.Result.Result.Ok
   6L
 
-
-PACKAGE.Darklang.Stdlib.Result.collect
-  [ PACKAGE.Darklang.Stdlib.Result.Result.Ok 5L
-    PACKAGE.Darklang.Stdlib.Result.Result.Ok 6L
-    PACKAGE.Darklang.Stdlib.Result.Result.Ok 7L ] = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  [ 5L; 6L; 7L ]
-
-PACKAGE.Darklang.Stdlib.Result.collect
-  [ PACKAGE.Darklang.Stdlib.Result.Result.Ok 5L
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
-    PACKAGE.Darklang.Stdlib.Result.Result.Ok 7L ] = PACKAGE.Darklang.Stdlib.Result.Result.Error
+Stdlib.Result.fromOption Stdlib.Option.Option.None "test" = Stdlib.Result.Result.Error
   "test"
 
-PACKAGE.Darklang.Stdlib.Result.collect
-  [ PACKAGE.Darklang.Stdlib.Result.Result.Ok 5L
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "test2" ] = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "test"
+Stdlib.Result.fromOption
+  (Stdlib.Option.Option.Some(Stdlib.Result.Result.Error "test"))
+  "test" = Stdlib.Result.Result.Ok(Stdlib.Result.Result.Error "test")
 
-PACKAGE.Darklang.Stdlib.Result.collect
-  [ PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "test2" ] = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "test"
+Stdlib.Result.fromOption Stdlib.Option.Option.None (1L, 2L, 3L) = Stdlib
+  .Result
+  .Result
+  .Error((1L, 2L, 3L))
 
-PACKAGE.Darklang.Stdlib.Result.collect [] = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  []
+Stdlib.Result.fromOption Stdlib.Option.Option.None Stdlib.Option.Option.None = Stdlib.Result.Result.Error
+  Stdlib.Option.Option.None
 
 
 
-PACKAGE.Darklang.Stdlib.Result.fromOption
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 6L)
-  "test" = PACKAGE.Darklang.Stdlib.Result.Result.Ok 6L
+Stdlib.Result.map2_v0
+  (Stdlib.Result.Result.Error "error1")
+  (Stdlib.Result.Result.Error "error2")
+  (fun a b -> a - b) = Stdlib.Result.Result.Error "error1"
 
-PACKAGE.Darklang.Stdlib.Result.fromOption
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  "test" = PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
+Stdlib.Result.map2_v0
+  (Stdlib.Result.Result.Error "error1")
+  (Stdlib.Result.Result.Ok 1L)
+  (fun a b -> a - b) = Stdlib.Result.Result.Error "error1"
 
-PACKAGE.Darklang.Stdlib.Result.fromOption
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some(
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
-  ))
-  "test" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
-)
+Stdlib.Result.map2_v0
+  (Stdlib.Result.Result.Ok 10L)
+  (Stdlib.Result.Result.Error "error2")
+  (fun a b -> a - b) = Stdlib.Result.Result.Error "error2"
 
-PACKAGE.Darklang.Stdlib.Result.fromOption
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (1L, 2L, 3L) = PACKAGE.Darklang.Stdlib.Result.Result.Error((1L, 2L, 3L))
-
-PACKAGE.Darklang.Stdlib.Result.fromOption
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  PACKAGE.Darklang.Stdlib.Option.Option.None = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Result.map2_v0
+  (Stdlib.Result.Result.Ok 10L)
+  (Stdlib.Result.Result.Ok 1L)
+  (fun a b -> a - b) = Stdlib.Result.Result.Ok 9L
 
 
 
-PACKAGE.Darklang.Stdlib.Result.map2_v0
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error1")
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error2")
-  (fun a b -> a - b) = PACKAGE.Darklang.Stdlib.Result.Result.Error "error1"
+Stdlib.Result.map3_v0
+  (Stdlib.Result.Result.Error "error1")
+  (Stdlib.Result.Result.Error "error2")
+  (Stdlib.Result.Result.Error "error3")
+  (fun a b c -> a - b - c) = Stdlib.Result.Result.Error "error1"
 
-PACKAGE.Darklang.Stdlib.Result.map2_v0
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error1")
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1L)
-  (fun a b -> a - b) = PACKAGE.Darklang.Stdlib.Result.Result.Error "error1"
+Stdlib.Result.map3_v0
+  (Stdlib.Result.Result.Error "error1")
+  (Stdlib.Result.Result.Error "error2")
+  (Stdlib.Result.Result.Ok 1L)
+  (fun a b c -> a - b - c) = Stdlib.Result.Result.Error "error1"
 
-PACKAGE.Darklang.Stdlib.Result.map2_v0
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 10L)
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error2")
-  (fun a b -> a - b) = PACKAGE.Darklang.Stdlib.Result.Result.Error "error2"
+Stdlib.Result.map3_v0
+  (Stdlib.Result.Result.Ok 10L)
+  (Stdlib.Result.Result.Error "error2")
+  (Stdlib.Result.Result.Error "error3")
+  (fun a b c -> a - b - c) = Stdlib.Result.Result.Error "error2"
 
-PACKAGE.Darklang.Stdlib.Result.map2_v0
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 10L)
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1L)
-  (fun a b -> a - b) = PACKAGE.Darklang.Stdlib.Result.Result.Ok 9L
+Stdlib.Result.map3_v0
+  (Stdlib.Result.Result.Ok 10L)
+  (Stdlib.Result.Result.Ok 1L)
+  (Stdlib.Result.Result.Error "error3")
+  (fun a b c -> a - b - c) = Stdlib.Result.Result.Error "error3"
 
-
-
-PACKAGE.Darklang.Stdlib.Result.map3_v0
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error1")
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error2")
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error3")
-  (fun a b c -> a - b - c) = PACKAGE.Darklang.Stdlib.Result.Result.Error "error1"
-
-PACKAGE.Darklang.Stdlib.Result.map3_v0
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error1")
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error2")
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1L)
-  (fun a b c -> a - b - c) = PACKAGE.Darklang.Stdlib.Result.Result.Error "error1"
-
-PACKAGE.Darklang.Stdlib.Result.map3_v0
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 10L)
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error2")
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error3")
-  (fun a b c -> a - b - c) = PACKAGE.Darklang.Stdlib.Result.Result.Error "error2"
-
-PACKAGE.Darklang.Stdlib.Result.map3_v0
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 10L)
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1L)
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error3")
-  (fun a b c -> a - b - c) = PACKAGE.Darklang.Stdlib.Result.Result.Error "error3"
-
-PACKAGE.Darklang.Stdlib.Result.map3_v0
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 10L)
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1L)
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1L)
-  (fun a b c -> a - b - c) = PACKAGE.Darklang.Stdlib.Result.Result.Ok 8L
+Stdlib.Result.map3_v0
+  (Stdlib.Result.Result.Ok 10L)
+  (Stdlib.Result.Result.Ok 1L)
+  (Stdlib.Result.Result.Ok 1L)
+  (fun a b c -> a - b - c) = Stdlib.Result.Result.Ok 8L
 
 
-PACKAGE.Darklang.Stdlib.Result.map4_v0
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error1")
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error2")
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error3")
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error4")
-  (fun a b c d -> a - b - c - d) = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "error1"
+Stdlib.Result.map4_v0
+  (Stdlib.Result.Result.Error "error1")
+  (Stdlib.Result.Result.Error "error2")
+  (Stdlib.Result.Result.Error "error3")
+  (Stdlib.Result.Result.Error "error4")
+  (fun a b c d -> a - b - c - d) = Stdlib.Result.Result.Error "error1"
 
-PACKAGE.Darklang.Stdlib.Result.map4_v0
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error1")
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error2")
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error3")
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1L)
-  (fun a b c d -> a - b - c - d) = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "error1"
+Stdlib.Result.map4_v0
+  (Stdlib.Result.Result.Error "error1")
+  (Stdlib.Result.Result.Error "error2")
+  (Stdlib.Result.Result.Error "error3")
+  (Stdlib.Result.Result.Ok 1L)
+  (fun a b c d -> a - b - c - d) = Stdlib.Result.Result.Error "error1"
 
-PACKAGE.Darklang.Stdlib.Result.map4_v0
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 10L)
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1L)
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1L)
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error4")
-  (fun a b c d -> a - b - c - d) = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "error4"
+Stdlib.Result.map4_v0
+  (Stdlib.Result.Result.Ok 10L)
+  (Stdlib.Result.Result.Ok 1L)
+  (Stdlib.Result.Result.Ok 1L)
+  (Stdlib.Result.Result.Error "error4")
+  (fun a b c d -> a - b - c - d) = Stdlib.Result.Result.Error "error4"
 
-PACKAGE.Darklang.Stdlib.Result.map4_v0
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 10L)
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1L)
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1L)
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 2L)
-  (fun a b c d -> a - b - c - d) = PACKAGE.Darklang.Stdlib.Result.Result.Ok 6L
+Stdlib.Result.map4_v0
+  (Stdlib.Result.Result.Ok 10L)
+  (Stdlib.Result.Result.Ok 1L)
+  (Stdlib.Result.Result.Ok 1L)
+  (Stdlib.Result.Result.Ok 2L)
+  (fun a b c d -> a - b - c - d) = Stdlib.Result.Result.Ok 6L
 
 
-PACKAGE.Darklang.Stdlib.Result.map5_v0
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error1")
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error2")
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error3")
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error4")
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error5")
-  (fun a b c d e -> a - b - c - d - e) = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "error1"
+Stdlib.Result.map5_v0
+  (Stdlib.Result.Result.Error "error1")
+  (Stdlib.Result.Result.Error "error2")
+  (Stdlib.Result.Result.Error "error3")
+  (Stdlib.Result.Result.Error "error4")
+  (Stdlib.Result.Result.Error "error5")
+  (fun a b c d e -> a - b - c - d - e) = Stdlib.Result.Result.Error "error1"
 
-PACKAGE.Darklang.Stdlib.Result.map5_v0
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error1")
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error2")
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error3")
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error4")
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1L)
-  (fun a b c d e -> a - b - c - d - e) = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "error1"
+Stdlib.Result.map5_v0
+  (Stdlib.Result.Result.Error "error1")
+  (Stdlib.Result.Result.Error "error2")
+  (Stdlib.Result.Result.Error "error3")
+  (Stdlib.Result.Result.Error "error4")
+  (Stdlib.Result.Result.Ok 1L)
+  (fun a b c d e -> a - b - c - d - e) = Stdlib.Result.Result.Error "error1"
 
-PACKAGE.Darklang.Stdlib.Result.map5_v0
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 10L)
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1L)
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1L)
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 2L)
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "error5")
-  (fun a b c d e -> a - b - c - d - e) = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "error5"
+Stdlib.Result.map5_v0
+  (Stdlib.Result.Result.Ok 10L)
+  (Stdlib.Result.Result.Ok 1L)
+  (Stdlib.Result.Result.Ok 1L)
+  (Stdlib.Result.Result.Ok 2L)
+  (Stdlib.Result.Result.Error "error5")
+  (fun a b c d e -> a - b - c - d - e) = Stdlib.Result.Result.Error "error5"
 
-PACKAGE.Darklang.Stdlib.Result.map5_v0
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 10L)
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1L)
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 1L)
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 2L)
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 3L)
-  (fun a b c d e -> a - b - c - d - e) = PACKAGE.Darklang.Stdlib.Result.Result.Ok 3L
+Stdlib.Result.map5_v0
+  (Stdlib.Result.Result.Ok 10L)
+  (Stdlib.Result.Result.Ok 1L)
+  (Stdlib.Result.Result.Ok 1L)
+  (Stdlib.Result.Result.Ok 2L)
+  (Stdlib.Result.Result.Ok 3L)
+  (fun a b c d e -> a - b - c - d - e) = Stdlib.Result.Result.Ok 3L
 
 
 
-PACKAGE.Darklang.Stdlib.Result.mapWithDefault_v0
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "test")
-  5L
-  (fun x -> x + 1L) = 5L
+Stdlib.Result.mapWithDefault_v0 (Stdlib.Result.Result.Error "test") 5L (fun x ->
+  x + 1L) = 5L
 
-PACKAGE.Darklang.Stdlib.Result.mapWithDefault_v0
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 6L)
-  5L
-  (fun x -> x + 1L) = 7L
+Stdlib.Result.mapWithDefault_v0 (Stdlib.Result.Result.Ok 6L) 5L (fun x -> x + 1L) = 7L
 
-PACKAGE.Darklang.Stdlib.Result.mapWithDefault_v0
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "test1")
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "test2")
-  (fun x -> x + 1L) = PACKAGE.Darklang.Stdlib.Result.Result.Error "test2"
+Stdlib.Result.mapWithDefault_v0
+  (Stdlib.Result.Result.Error "test1")
+  (Stdlib.Result.Result.Error "test2")
+  (fun x -> x + 1L) = Stdlib.Result.Result.Error "test2"
 
 
 
-PACKAGE.Darklang.Stdlib.Result.mapError
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "test")
-  (fun x -> PACKAGE.Darklang.Stdlib.String.append x "-appended") = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "test-appended"
+Stdlib.Result.mapError (Stdlib.Result.Result.Error "test") (fun x ->
+  Stdlib.String.append x "-appended") = Stdlib.Result.Result.Error "test-appended"
 
-PACKAGE.Darklang.Stdlib.Result.mapError
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 4L)
-  (fun x -> PACKAGE.Darklang.Stdlib.Int64.divide_v0 x 2L) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  4L
+Stdlib.Result.mapError (Stdlib.Result.Result.Ok 4L) (fun x ->
+  Stdlib.Int64.divide_v0 x 2L) = Stdlib.Result.Result.Ok 4L
 
 
-PACKAGE.Darklang.Stdlib.Result.map
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "test")
-  (fun x -> PACKAGE.Darklang.Stdlib.Int64.divide_v0 x 2L) = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "test"
+Stdlib.Result.map (Stdlib.Result.Result.Error "test") (fun x ->
+  Stdlib.Int64.divide_v0 x 2L) = Stdlib.Result.Result.Error "test"
 
-PACKAGE.Darklang.Stdlib.Result.map
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 4L)
-  (fun x -> PACKAGE.Darklang.Stdlib.Int64.divide_v0 x 2L) = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+Stdlib.Result.map (Stdlib.Result.Result.Ok 4L) (fun x -> Stdlib.Int64.divide_v0 x 2L) = Stdlib.Result.Result.Ok
   2L
 
 
 
-PACKAGE.Darklang.Stdlib.Result.toOption (
-  PACKAGE.Darklang.Stdlib.Result.Result.Ok "test"
-) = PACKAGE.Darklang.Stdlib.Option.Option.Some "test"
-
-PACKAGE.Darklang.Stdlib.Result.toOption (
-  PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
-) = PACKAGE.Darklang.Stdlib.Option.Option.None
-
-
-
-PACKAGE.Darklang.Stdlib.Result.withDefault_v0
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "test")
-  5L = 5L
-
-PACKAGE.Darklang.Stdlib.Result.withDefault_v0
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok 6L)
-  5L = 6L
-
-
-
-PACKAGE.Darklang.Stdlib.Result.isOk_v0 (
-  PACKAGE.Darklang.Stdlib.Result.Result.Ok "test"
-) = true
-
-PACKAGE.Darklang.Stdlib.Result.isOk_v0 (
-  PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
-) = false
-
-
-PACKAGE.Darklang.Stdlib.Result.isError_v0 (
-  PACKAGE.Darklang.Stdlib.Result.Result.Ok "test"
-) = false
-
-PACKAGE.Darklang.Stdlib.Result.isError_v0 (
-  PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
-) = true
-
-
-PACKAGE.Darklang.Stdlib.Result.and_v0
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok "test1")
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok "test2") = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  "test2"
-
-PACKAGE.Darklang.Stdlib.Result.and_v0
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok "test1")
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "test2") = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "test2"
-
-PACKAGE.Darklang.Stdlib.Result.and_v0
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "test1")
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok "test2") = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "test1"
-
-PACKAGE.Darklang.Stdlib.Result.and_v0
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "test1")
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "test2") = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "test1"
-
-
-PACKAGE.Darklang.Stdlib.Result.or_v0
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok "test1")
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok "test2") = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  "test1"
-
-PACKAGE.Darklang.Stdlib.Result.or_v0
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok "test1")
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "test2") = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  "test1"
-
-PACKAGE.Darklang.Stdlib.Result.or_v0
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "test1")
-  (PACKAGE.Darklang.Stdlib.Result.Result.Ok "test2") = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  "test2"
-
-PACKAGE.Darklang.Stdlib.Result.or_v0
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "test1")
-  (PACKAGE.Darklang.Stdlib.Result.Result.Error "test2") = PACKAGE.Darklang.Stdlib.Result.Result.Error
-  "test2"
-
-
-PACKAGE.Darklang.Stdlib.Result.toList_v0 (
-  PACKAGE.Darklang.Stdlib.Result.Result.Ok "test"
-) = [ "test" ]
-
-PACKAGE.Darklang.Stdlib.Result.toList_v0 (
-  PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
-) = []
-
-
-PACKAGE.Darklang.Stdlib.Result.join_v0 (
-  PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-    PACKAGE.Darklang.Stdlib.Result.Result.Ok "test"
-  )
-) = PACKAGE.Darklang.Stdlib.Result.Result.Ok "test"
-
-PACKAGE.Darklang.Stdlib.Result.join_v0 (
-  PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
-  )
-) = PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
-
-PACKAGE.Darklang.Stdlib.Result.join_v0 (
-  PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
-) = PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
-
-
-PACKAGE.Darklang.Stdlib.Result.combine_v0
-  [ PACKAGE.Darklang.Stdlib.Result.Result.Ok 1L
-    PACKAGE.Darklang.Stdlib.Result.Result.Ok 2L
-    PACKAGE.Darklang.Stdlib.Result.Result.Ok 3L ] = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  [ 1L; 2L; 3L ]
-
-PACKAGE.Darklang.Stdlib.Result.combine_v0
-  [ PACKAGE.Darklang.Stdlib.Result.Result.Ok 1L
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
-    PACKAGE.Darklang.Stdlib.Result.Result.Ok 3L ] = PACKAGE.Darklang.Stdlib.Result.Result.Error
+Stdlib.Result.toOption (Stdlib.Result.Result.Ok "test") = Stdlib.Option.Option.Some
   "test"
 
-PACKAGE.Darklang.Stdlib.Result.combine_v0
-  [ PACKAGE.Darklang.Stdlib.Result.Result.Error "test1"
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "test2" ] = PACKAGE.Darklang.Stdlib.Result.Result.Error
+Stdlib.Result.toOption (Stdlib.Result.Result.Error "test") = Stdlib.Option.Option.None
+
+
+
+Stdlib.Result.withDefault_v0 (Stdlib.Result.Result.Error "test") 5L = 5L
+
+Stdlib.Result.withDefault_v0 (Stdlib.Result.Result.Ok 6L) 5L = 6L
+
+
+
+Stdlib.Result.isOk_v0 (Stdlib.Result.Result.Ok "test") = true
+
+Stdlib.Result.isOk_v0 (Stdlib.Result.Result.Error "test") = false
+
+
+Stdlib.Result.isError_v0 (Stdlib.Result.Result.Ok "test") = false
+
+Stdlib.Result.isError_v0 (Stdlib.Result.Result.Error "test") = true
+
+
+Stdlib.Result.and_v0
+  (Stdlib.Result.Result.Ok "test1")
+  (Stdlib.Result.Result.Ok "test2") = Stdlib.Result.Result.Ok "test2"
+
+Stdlib.Result.and_v0
+  (Stdlib.Result.Result.Ok "test1")
+  (Stdlib.Result.Result.Error "test2") = Stdlib.Result.Result.Error "test2"
+
+Stdlib.Result.and_v0
+  (Stdlib.Result.Result.Error "test1")
+  (Stdlib.Result.Result.Ok "test2") = Stdlib.Result.Result.Error "test1"
+
+Stdlib.Result.and_v0
+  (Stdlib.Result.Result.Error "test1")
+  (Stdlib.Result.Result.Error "test2") = Stdlib.Result.Result.Error "test1"
+
+
+Stdlib.Result.or_v0
+  (Stdlib.Result.Result.Ok "test1")
+  (Stdlib.Result.Result.Ok "test2") = Stdlib.Result.Result.Ok "test1"
+
+Stdlib.Result.or_v0
+  (Stdlib.Result.Result.Ok "test1")
+  (Stdlib.Result.Result.Error "test2") = Stdlib.Result.Result.Ok "test1"
+
+Stdlib.Result.or_v0
+  (Stdlib.Result.Result.Error "test1")
+  (Stdlib.Result.Result.Ok "test2") = Stdlib.Result.Result.Ok "test2"
+
+Stdlib.Result.or_v0
+  (Stdlib.Result.Result.Error "test1")
+  (Stdlib.Result.Result.Error "test2") = Stdlib.Result.Result.Error "test2"
+
+
+Stdlib.Result.toList_v0 (Stdlib.Result.Result.Ok "test") = [ "test" ]
+
+Stdlib.Result.toList_v0 (Stdlib.Result.Result.Error "test") = []
+
+
+Stdlib.Result.join_v0 (Stdlib.Result.Result.Ok(Stdlib.Result.Result.Ok "test")) = Stdlib.Result.Result.Ok
+  "test"
+
+Stdlib.Result.join_v0 (Stdlib.Result.Result.Ok(Stdlib.Result.Result.Error "test")) = Stdlib.Result.Result.Error
+  "test"
+
+Stdlib.Result.join_v0 (Stdlib.Result.Result.Error "test") = Stdlib.Result.Result.Error
+  "test"
+
+
+Stdlib.Result.combine_v0
+  [ Stdlib.Result.Result.Ok 1L
+    Stdlib.Result.Result.Ok 2L
+    Stdlib.Result.Result.Ok 3L ] = Stdlib.Result.Result.Ok [ 1L; 2L; 3L ]
+
+Stdlib.Result.combine_v0
+  [ Stdlib.Result.Result.Ok 1L
+    Stdlib.Result.Result.Error "test"
+    Stdlib.Result.Result.Ok 3L ] = Stdlib.Result.Result.Error "test"
+
+Stdlib.Result.combine_v0
+  [ Stdlib.Result.Result.Error "test1"; Stdlib.Result.Result.Error "test2" ] = Stdlib.Result.Result.Error
   "test1"
 
-PACKAGE.Darklang.Stdlib.Result.combine_v0 [] = PACKAGE.Darklang.Stdlib.Result.Result.Ok
+Stdlib.Result.combine_v0 [] = Stdlib.Result.Result.Ok []
+
+
+Stdlib.Result.values_v0
+  [ Stdlib.Result.Result.Ok 1L
+    Stdlib.Result.Result.Ok 2L
+    Stdlib.Result.Result.Ok 3L ] = Stdlib.Result.Result.Ok [ 1L; 2L; 3L ]
+
+Stdlib.Result.values_v0
+  [ Stdlib.Result.Result.Ok 1L
+    Stdlib.Result.Result.Error "test"
+    Stdlib.Result.Result.Ok 3L ] = Stdlib.Result.Result.Ok [ 1L; 3L ]
+
+Stdlib.Result.values_v0
+  [ Stdlib.Result.Result.Error "test1"; Stdlib.Result.Result.Error "test2" ] = Stdlib.Result.Result.Ok
   []
 
-
-PACKAGE.Darklang.Stdlib.Result.values_v0
-  [ PACKAGE.Darklang.Stdlib.Result.Result.Ok 1L
-    PACKAGE.Darklang.Stdlib.Result.Result.Ok 2L
-    PACKAGE.Darklang.Stdlib.Result.Result.Ok 3L ] = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  [ 1L; 2L; 3L ]
-
-PACKAGE.Darklang.Stdlib.Result.values_v0
-  [ PACKAGE.Darklang.Stdlib.Result.Result.Ok 1L
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "test"
-    PACKAGE.Darklang.Stdlib.Result.Result.Ok 3L ] = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  [ 1L; 3L ]
-
-PACKAGE.Darklang.Stdlib.Result.values_v0
-  [ PACKAGE.Darklang.Stdlib.Result.Result.Error "test1"
-    PACKAGE.Darklang.Stdlib.Result.Result.Error "test2" ] = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  []
-
-PACKAGE.Darklang.Stdlib.Result.values_v0 [] = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-  []
+Stdlib.Result.values_v0 [] = Stdlib.Result.Result.Ok []

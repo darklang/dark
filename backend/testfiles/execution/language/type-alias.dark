@@ -36,7 +36,7 @@ module NestedAlias =
   type EmployeeCredential = UserCredential
 
   let getUserID (credential: UserCredential) : Id =
-    credential |> PACKAGE.Darklang.Stdlib.Tuple2.second
+    credential |> Stdlib.Tuple2.second
 
   getUserID (("Alice", "EMP123")) = "EMP123"
 
@@ -59,21 +59,19 @@ module NestedAlias =
 module ListAlias =
   type IntegerList = List<Int64>
 
-  let isEmpty (il: IntegerList) : Bool =
-    PACKAGE.Darklang.Stdlib.List.isEmpty_v0 il
+  let isEmpty (il: IntegerList) : Bool = Stdlib.List.isEmpty_v0 il
 
   isEmpty ([]) = true
   isEmpty ([ 1L; 2L; 3L ]) = false
 
 module ResultAlias =
   // result alias
-  type IntResult = PACKAGE.Darklang.Stdlib.Result.Result<Int64, String>
+  type IntResult = Stdlib.Result.Result<Int64, String>
 
-  let getIntResultValue (ir: IntResult) : Int64 =
-    PACKAGE.Darklang.Stdlib.Result.withDefault_v0 ir 0L
+  let getIntResultValue (ir: IntResult) : Int64 = Stdlib.Result.withDefault_v0 ir 0L
 
-  getIntResultValue (PACKAGE.Darklang.Stdlib.Result.Result.Ok 5L) = 5L
-  getIntResultValue (PACKAGE.Darklang.Stdlib.Result.Result.Error "error") = 0L
+  getIntResultValue (Stdlib.Result.Result.Ok 5L) = 5L
+  getIntResultValue (Stdlib.Result.Result.Error "error") = 0L
 
 module RecordWithTypeArgs =
   type Inner<'a, 'b> = { a: 'a; b: 'b }
@@ -116,33 +114,33 @@ module RecordWithTypeArgsDifferentName =
 module RecordWithRecursiveTypeArgs =
   type Inner<'a> =
     { a: 'a
-      b: PACKAGE.Darklang.Stdlib.Result.Result<Alias<'a>, String> }
+      b: Stdlib.Result.Result<Alias<'a>, String> }
 
   type Alias<'x> = Inner<'x>
 
   Inner
     { a = 5L
       b =
-        PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+        Stdlib.Result.Result.Ok(
           Inner
             { a = 6L
               b =
-                PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+                Stdlib.Result.Result.Ok(
                   Inner
                     { a = 7L
-                      b = PACKAGE.Darklang.Stdlib.Result.Result.Error "test" }
+                      b = Stdlib.Result.Result.Error "test" }
                 ) }
         ) } = Alias
     { a = 5L
       b =
-        PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+        Stdlib.Result.Result.Ok(
           Alias
             { a = 6L
               b =
-                PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+                Stdlib.Result.Result.Ok(
                   Alias
                     { a = 7L
-                      b = PACKAGE.Darklang.Stdlib.Result.Result.Error "test" }
+                      b = Stdlib.Result.Result.Error "test" }
                 ) }
         ) }
 
@@ -202,10 +200,10 @@ module EnumWithTypeArgsDifferentName =
 module EnumWithRecursiveTypeArgs =
   type Inner<'a> =
     | A of a: 'a
-    | B of b: PACKAGE.Darklang.Stdlib.Result.Result<Alias<'a>, String>
+    | B of b: Stdlib.Result.Result<Alias<'a>, String>
 
   type Alias<'x> = Inner<'x>
 
-  Alias.B(PACKAGE.Darklang.Stdlib.Result.Result.Ok(Alias.A 5L)) = Inner.B(
-    PACKAGE.Darklang.Stdlib.Result.Result.Ok(Inner.A 5L)
+  Alias.B(Stdlib.Result.Result.Ok(Alias.A 5L)) = Inner.B(
+    Stdlib.Result.Result.Ok(Inner.A 5L)
   )

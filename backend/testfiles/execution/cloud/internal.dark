@@ -2,10 +2,10 @@
 // Misc
 // ---------------
 module Documentation =
-  (PACKAGE.Darklang.Stdlib.List.length_v0 (Builtin.languageToolsAllBuiltinFns ()) > 100L) = true
+  (Stdlib.List.length_v0 (Builtin.languageToolsAllBuiltinFns ()) > 100L) = true
 
   ((Builtin.languageToolsAllBuiltinFns ())
-   |> PACKAGE.Darklang.Stdlib.List.findFirst (fun f -> f.name == "int64Add")
+   |> Stdlib.List.findFirst (fun f -> f.name == "int64Add")
    |> Builtin.unwrap
    |> (fun f -> f.parameters)) = [ PACKAGE.Darklang.LanguageTools.BuiltinFunctionParameter
                                      { name = "a"; ``type`` = "Int64" }
@@ -16,9 +16,7 @@ module Documentation =
 module Infra =
 
   // correct number of tables
-  PACKAGE.Darklang.Stdlib.Dict.size_v0 (
-    Builtin.darkInternalInfraGetAndLogTableSizes_v0 ()
-  ) = 15L
+  Stdlib.Dict.size_v0 (Builtin.darkInternalInfraGetAndLogTableSizes_v0 ()) = 15L
 
   // server build hash
   (match Builtin.darkInternalInfraServerBuildHash_v0 () with
@@ -27,7 +25,7 @@ module Infra =
    // in ci, "circleci"
    | "circleci" -> true
    // otherwise it's the first 7 chars of the git hash
-   | hash -> (PACKAGE.Darklang.Stdlib.String.length hash) == 7L) = true
+   | hash -> (Stdlib.String.length hash) == 7L) = true
 
 module Canvas =
   // Test creating a new canvas - just check it we can call `owner` on it
@@ -39,7 +37,7 @@ module Domains =
   module Roundtrip =
     ((Builtin.testGetCanvasID ())
      |> Builtin.darkInternalCanvasDomainGet
-     |> PACKAGE.Darklang.Stdlib.List.head
+     |> Stdlib.List.head
      |> Builtin.unwrap
      |> Builtin.darkInternalCanvasDomainToCanvasID) = PACKAGE
       .Darklang
@@ -50,11 +48,10 @@ module Domains =
 
   module Errors =
     Builtin.darkInternalCanvasDomainGet (
-      (PACKAGE.Darklang.Stdlib.Uuid.parse_v0 "7d9e5495-b068-4364-a2cc-3633ab4d13e6")
-      |> Builtin.unwrap
+      (Stdlib.Uuid.parse_v0 "7d9e5495-b068-4364-a2cc-3633ab4d13e6") |> Builtin.unwrap
     ) = []
 
-    Builtin.darkInternalCanvasDomainToCanvasID "not-a-real-domain" = PACKAGE.Darklang.Stdlib.Result.Result.Error
+    Builtin.darkInternalCanvasDomainToCanvasID "not-a-real-domain" = Stdlib.Result.Result.Error
       "Canvas not found"
 
 module Secrets =
@@ -84,7 +81,7 @@ module Secrets =
      (Builtin.testGetCanvasID ())
      "SECRET"
      "OTHERVALUE"
-     1L) = PACKAGE.Darklang.Stdlib.Result.Result.Error "Error inserting secret"
+     1L) = Stdlib.Result.Result.Error "Error inserting secret"
 
   // delete
   Builtin.darkInternalCanvasSecretDelete (Builtin.testGetCanvasID ()) "SECRET" 2L = ()
@@ -111,7 +108,7 @@ module Toplevels =
 
     (Builtin.testGetCanvasID ())
     |> Builtin.darkInternalCanvasDBUnlocked
-    |> PACKAGE.Darklang.Stdlib.List.length = 1L
+    |> Stdlib.List.length = 1L
 
   module NoDB =
     (Builtin.testGetCanvasID ()) |> Builtin.darkInternalCanvasDBUnlocked = []
@@ -132,10 +129,10 @@ module UnlockedDB =
     // one
     (Builtin.testGetCanvasID ())
     |> Builtin.darkInternalCanvasDBUnlocked
-    |> PACKAGE.Darklang.Stdlib.List.length = 1L
+    |> Stdlib.List.length = 1L
 
     // one but locked
-    (let _ = Builtin.dbSet (X { x = "str" }) "test" UXDB in
+    (let _ = Builtin.dbSet (X { x = "str" }) "test" UXDB
      (Builtin.testGetCanvasID ()) |> Builtin.darkInternalCanvasDBUnlocked) = []
 
 module Queue =
