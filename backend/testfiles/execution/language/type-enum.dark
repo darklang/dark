@@ -1,25 +1,24 @@
-PACKAGE.Darklang.Stdlib.Option.Option.None = PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Option.Option.None = Stdlib.Option.Option.None
 
-((PACKAGE.Darklang.Stdlib.List.head [])
- == PACKAGE.Darklang.Stdlib.Option.Option.None) = true
+((Stdlib.List.head []) == Stdlib.Option.Option.None) = true
 
-(PACKAGE.Darklang.Stdlib.List.head []) = PACKAGE.Darklang.Stdlib.Option.Option.None
+(Stdlib.List.head []) = Stdlib.Option.Option.None
 
-PACKAGE.Darklang.Stdlib.Result.Result.Ok(Builtin.testRuntimeError "err") = Builtin.testDerrorMessage
+Stdlib.Result.Result.Ok(Builtin.testRuntimeError "err") = Builtin.testDerrorMessage
   "err"
 
-PACKAGE.Darklang.Stdlib.Option.Option.Some(Builtin.testRuntimeError "err") = Builtin.testDerrorMessage
+Stdlib.Option.Option.Some(Builtin.testRuntimeError "err") = Builtin.testDerrorMessage
   "err"
 
-PACKAGE.Darklang.Stdlib.Result.Result.Error(Builtin.testRuntimeError "err") = Builtin.testDerrorMessage
+Stdlib.Result.Result.Error(Builtin.testRuntimeError "err") = Builtin.testDerrorMessage
   "err"
 
 module Errors =
   module Builtins =
-    PACKAGE.Darklang.Stdlib.Option.Option.None 5 = Builtin.testDerrorMessage
+    Stdlib.Option.Option.None 5 = Builtin.testDerrorMessage
       "Case `None` expected 0 fields but got 1"
 
-    PACKAGE.Darklang.Stdlib.Option.Option.Some(5, 6) = Builtin.testDerrorMessage
+    Stdlib.Option.Option.Some(5, 6) = Builtin.testDerrorMessage
       "Case `Some` expected 1 fields but got 2"
 
   module User =
@@ -63,8 +62,8 @@ module Simple =
   (AorB.A == AorB.A) = true
   (AorB.A == AorB.B) = false
 
-  PACKAGE.Darklang.Stdlib.List.unique_v0 [ AorB.A; AorB.B; AorB.A; AorB.A; AorB.B ] = [ AorB.A
-                                                                                        AorB.B ]
+  Stdlib.List.unique_v0 [ AorB.A; AorB.B; AorB.A; AorB.A; AorB.B ] = [ AorB.A
+                                                                       AorB.B ]
 
   module EnumReference =
     type CorD =
@@ -102,9 +101,9 @@ module MixedCases =
       EnumOfMixedCases.Y(5L)
       EnumOfMixedCases.Z("testZ", 2L) ]
 
-   match PACKAGE.Darklang.Stdlib.List.getAt values 3L with
-   | Some z -> PACKAGE.Darklang.Stdlib.Result.Result.Ok z
-   | None -> PACKAGE.Darklang.Stdlib.Result.Result.Error "Failure") = PACKAGE
+   match Stdlib.List.getAt values 3L with
+   | Some z -> Stdlib.Result.Result.Ok z
+   | None -> Stdlib.Result.Result.Error "Failure") = PACKAGE
     .Darklang
     .Stdlib
     .Result
@@ -115,11 +114,11 @@ module MixedCases =
      EnumOfMixedCases.X "testX"
      EnumOfMixedCases.Y(5L)
      EnumOfMixedCases.Z("testZ", 2L) ]
-   |> PACKAGE.Darklang.Stdlib.List.map_v0 (fun v ->
+   |> Stdlib.List.map_v0 (fun v ->
      match v with
      | X s -> "X " ++ s
      | Z(s, _i) -> "Z " ++ s
-     | Y y -> "Y " ++ (PACKAGE.Darklang.Stdlib.Int64.toString_v0 y)
+     | Y y -> "Y " ++ (Stdlib.Int64.toString_v0 y)
      | W -> "a simple W")) = [ "a simple W"; "X testX"; "Y 5"; "Z testZ" ]
 
 module TuplesVsNonTuples =
@@ -182,14 +181,13 @@ module Polymorphism =
     insert' tree value cmp
 
   let ofList (values: List<'a>) (cmp: ('a * 'a) -> Int64) : RBTree<'a> =
-    PACKAGE.Darklang.Stdlib.List.fold_v0 values RBTree.Empty (fun tree value ->
-      insert tree value cmp)
+    Stdlib.List.fold_v0 values RBTree.Empty (fun tree value -> insert tree value cmp)
 
   let toList' (tree: RBTree<'a>) (acc: List<'a>) : List<'a> =
     match tree with
     | Empty -> acc
     | Node(_, left, value, right) ->
-      toList' left (PACKAGE.Darklang.Stdlib.List.push (toList' right acc) value)
+      toList' left (Stdlib.List.push (toList' right acc) value)
 
   let toList (tree: RBTree<'a>) : List<'a> = toList' tree []
 

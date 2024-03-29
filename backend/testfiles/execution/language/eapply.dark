@@ -1,20 +1,20 @@
-PACKAGE.Darklang.Stdlib.Int64.add_v0 5L = Builtin.testDerrorMessage
+Stdlib.Int64.add_v0 5L = Builtin.testDerrorMessage
   "PACKAGE.Darklang.Stdlib.Int64.add has 0 type parameters and 2 parameters, but here was called with 0 type arguments and 1 arguments."
 
 (let fn = (fun x -> x + 1L)
  fn 6L) = 7L
 
-(let fn = PACKAGE.Darklang.Stdlib.Int64.add
+(let fn = Stdlib.Int64.add
  fn 3L 4L) = 7L
 
-(let fn = PACKAGE.Darklang.Stdlib.Int64.max
+(let fn = Stdlib.Int64.max
  fn 3L 7L) = 7L
 
 // ---------------------------
 // DarkInternal tests are internal
 // ---------------------------
 module Darkinternal =
-  (let _ = Builtin.testSetExpectedExceptionCount 1L in
+  (let _ = Builtin.testSetExpectedExceptionCount 1L
    Builtin.darkInternalInfraSchedulingRuleList ()) = Builtin.testDerrorMessage
     "Unknown error"
 
@@ -36,17 +36,16 @@ module UserDefined =
 
   let returnsString () : String = "string"
 
-  let returnsOptionSome () : PACKAGE.Darklang.Stdlib.Option.Option<Int64> =
-    PACKAGE.Darklang.Stdlib.Option.Option.Some 5L
+  let returnsOptionSome () : Stdlib.Option.Option<Int64> =
+    Stdlib.Option.Option.Some 5L
 
-  let returnsOptionNone () : PACKAGE.Darklang.Stdlib.Option.Option<Int64> =
-    PACKAGE.Darklang.Stdlib.Option.Option.None
+  let returnsOptionNone () : Stdlib.Option.Option<Int64> = Stdlib.Option.Option.None
 
-  let returnsResultOk () : PACKAGE.Darklang.Stdlib.Result.Result<Int64, 'err> =
-    PACKAGE.Darklang.Stdlib.Result.Result.Ok 5L
+  let returnsResultOk () : Stdlib.Result.Result<Int64, 'err> =
+    Stdlib.Result.Result.Ok 5L
 
-  let returnsResultError () : PACKAGE.Darklang.Stdlib.Result.Result<String, Bool> =
-    PACKAGE.Darklang.Stdlib.Result.Result.Error false
+  let returnsResultError () : Stdlib.Result.Result<String, Bool> =
+    Stdlib.Result.Result.Error false
 
   let throwsException () : 'a =
     Builtin.testRaiseException "throwsException message"
@@ -71,10 +70,10 @@ module UserDefined =
   twoStringFn "str1" "str2" = "str1 appended str2"
   returnsInt () = 5L
   returnsString () = "string"
-  returnsOptionSome () = PACKAGE.Darklang.Stdlib.Option.Option.Some 5L
+  returnsOptionSome () = Stdlib.Option.Option.Some 5L
   (returnsOptionSome ()) |> Builtin.unwrap = 5L
-  returnsOptionNone () = PACKAGE.Darklang.Stdlib.Option.Option.None
-  returnsResultOk () = PACKAGE.Darklang.Stdlib.Result.Result.Ok 5L
+  returnsOptionNone () = Stdlib.Option.Option.None
+  returnsResultOk () = Stdlib.Result.Result.Ok 5L
   (returnsResultOk ()) |> Builtin.unwrap = 5L
   fnWithTypeArgAndOneParam<Int64> 1L = 1L
   fnWithTypeArgs<Int64, String> 5L "x" = 5L
@@ -136,19 +135,16 @@ module Packages =
   PACKAGE.Darklang.Test.returnsInt () = 5L
   PACKAGE.Darklang.Test.returnsString () = "string"
 
-  PACKAGE.Darklang.Test.returnsOptionSome () = PACKAGE.Darklang.Stdlib.Option.Option.Some
-    5L
+  PACKAGE.Darklang.Test.returnsOptionSome () = Stdlib.Option.Option.Some 5L
 
   (PACKAGE.Darklang.Test.returnsOptionSome ()) |> Builtin.unwrap = 5L
-  PACKAGE.Darklang.Test.returnsOptionNone () = PACKAGE.Darklang.Stdlib.Option.Option.None
+  PACKAGE.Darklang.Test.returnsOptionNone () = Stdlib.Option.Option.None
 
-  PACKAGE.Darklang.Test.returnsResultOk () = PACKAGE.Darklang.Stdlib.Result.Result.Ok
-    5L
+  PACKAGE.Darklang.Test.returnsResultOk () = Stdlib.Result.Result.Ok 5L
 
   (PACKAGE.Darklang.Test.returnsResultOk ()) |> Builtin.unwrap = 5L
 
-  PACKAGE.Darklang.Test.returnsResultError () = PACKAGE.Darklang.Stdlib.Result.Result.Error
-    false
+  PACKAGE.Darklang.Test.returnsResultError () = Stdlib.Result.Result.Error false
 
   PACKAGE.Darklang.Test.polyFn (PACKAGE.Darklang.Test.X.A 5L) = PACKAGE.Darklang.Test.X.A
     5L
@@ -179,7 +175,7 @@ module Packages =
 
     PACKAGE.Darklang.Test.derrorFn "test" = Builtin.testDerrorMessage "test"
 
-    (let _ = Builtin.testSetExpectedExceptionCount 1L in
+    (let _ = Builtin.testSetExpectedExceptionCount 1L
      PACKAGE.Darklang.Test.throwsException ()) = Builtin.testDerrorMessage
       "Unknown error"
 

@@ -1,90 +1,82 @@
 // TYPESCLEANUP - re-add all this with proper types
-// PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" {} = { ``Set-Cookie`` = "myCookie=myVal" }
-// PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { Expires = (PACKAGE.Darklang.Stdlib.DateTime.parse "2000-07-28T22:42:00Z") |> Builtin.unwrap; ``Max-Age`` = -100; Domain = "darklang.com"; Path = "/my/path"; Secure = true; HttpOnly = false; SameSite = "Strict" } = { ``Set-Cookie`` = "myCookie=myVal; Secure; SameSite=Strict; Path=/my/path; Max-Age=-100; Expires=Fri, 28 Jul 2000 22:42:00 GMT; Domain=darklang.com"}
+// Stdlib.Http.setCookie "myCookie" "myVal" {} = { ``Set-Cookie`` = "myCookie=myVal" }
+// Stdlib.Http.setCookie "myCookie" "myVal" { Expires = (Stdlib.DateTime.parse "2000-07-28T22:42:00Z") |> Builtin.unwrap; ``Max-Age`` = -100; Domain = "darklang.com"; Path = "/my/path"; Secure = true; HttpOnly = false; SameSite = "Strict" } = { ``Set-Cookie`` = "myCookie=myVal; Secure; SameSite=Strict; Path=/my/path; Max-Age=-100; Expires=Fri, 28 Jul 2000 22:42:00 GMT; Domain=darklang.com"}
 
 // date
-// (match PACKAGE.Darklang.Stdlib.DateTime.parse "2019-07-28T22:42:00Z" with
-// | Ok date -> PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { Expires = date; ``Max-Age`` = 3600; Domain = "darklang.com"; Path = "/my/path"; Secure = true; HttpOnly = true; SameSite = "Strict" }) = { ``Set-Cookie`` = "myCookie=myVal; Secure; SameSite=Strict; Path=/my/path; Max-Age=3600; HttpOnly; Expires=Sun, 28 Jul 2019 22:42:00 GMT; Domain=darklang.com"}
+// (match Stdlib.DateTime.parse "2019-07-28T22:42:00Z" with
+// | Ok date -> Stdlib.Http.setCookie "myCookie" "myVal" { Expires = date; ``Max-Age`` = 3600; Domain = "darklang.com"; Path = "/my/path"; Secure = true; HttpOnly = true; SameSite = "Strict" }) = { ``Set-Cookie`` = "myCookie=myVal; Secure; SameSite=Strict; Path=/my/path; Max-Age=3600; HttpOnly; Expires=Sun, 28 Jul 2019 22:42:00 GMT; Domain=darklang.com"}
 
 // module Errors =
-//   PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { Expires = 5 } = Builtin.Test.runtimeError "Expected `Expires` to be a date, but it was `5`"
-//   PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { ``Max-Age`` = "foo" } = Builtin.Test.runtimeError "Expected `Max-Age` to be a `Int` representing seconds, but it was `\"foo\"`"
-//   PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { Domain = 5 } = Builtin.Test.runtimeError "Expected ``Path` or `Domain`` to be a String, but it was `5`"
-//   PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { Path = 5 } = Builtin.Test.runtimeError "Expected ``Path` or `Domain`` to be a String, but it was `5`"
-//   PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { Secure = 5 } = Builtin.Test.runtimeError "Expected `Secure or HttpOnly` to be `true` or `false`, but it was `5`"
-//   PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { HttpOnly = 5 } = Builtin.Test.runtimeError "Expected `Secure or HttpOnly` to be `true` or `false`, but it was `5`"
-//   PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { SameSite = 5 } = Builtin.Test.runtimeError "Expected `SameSite` to be `Strict`, `Lax`, or `None`, but it was `5`"
-//   PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" {``Max-Age`` = 3600; SameSite = "allthesecures" } = Builtin.Test.runtimeError "Expected `SameSite` to be `Strict`, `Lax`, or `None`, but it was `\"allthesecures\"`"
-//   PACKAGE.Darklang.Stdlib.Http.setCookie "myCookie" "myVal" { Fake = "fake"} = Builtin.Test.runtimeError "Keys must be `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was Fake"
+//   Stdlib.Http.setCookie "myCookie" "myVal" { Expires = 5 } = Builtin.Test.runtimeError "Expected `Expires` to be a date, but it was `5`"
+//   Stdlib.Http.setCookie "myCookie" "myVal" { ``Max-Age`` = "foo" } = Builtin.Test.runtimeError "Expected `Max-Age` to be a `Int` representing seconds, but it was `\"foo\"`"
+//   Stdlib.Http.setCookie "myCookie" "myVal" { Domain = 5 } = Builtin.Test.runtimeError "Expected ``Path` or `Domain`` to be a String, but it was `5`"
+//   Stdlib.Http.setCookie "myCookie" "myVal" { Path = 5 } = Builtin.Test.runtimeError "Expected ``Path` or `Domain`` to be a String, but it was `5`"
+//   Stdlib.Http.setCookie "myCookie" "myVal" { Secure = 5 } = Builtin.Test.runtimeError "Expected `Secure or HttpOnly` to be `true` or `false`, but it was `5`"
+//   Stdlib.Http.setCookie "myCookie" "myVal" { HttpOnly = 5 } = Builtin.Test.runtimeError "Expected `Secure or HttpOnly` to be `true` or `false`, but it was `5`"
+//   Stdlib.Http.setCookie "myCookie" "myVal" { SameSite = 5 } = Builtin.Test.runtimeError "Expected `SameSite` to be `Strict`, `Lax`, or `None`, but it was `5`"
+//   Stdlib.Http.setCookie "myCookie" "myVal" {``Max-Age`` = 3600; SameSite = "allthesecures" } = Builtin.Test.runtimeError "Expected `SameSite` to be `Strict`, `Lax`, or `None`, but it was `\"allthesecures\"`"
+//   Stdlib.Http.setCookie "myCookie" "myVal" { Fake = "fake"} = Builtin.Test.runtimeError "Keys must be `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was Fake"
 
 
-PACKAGE.Darklang.Stdlib.Http.badRequest_v0 "Your request resulted in an error" = PACKAGE.Darklang.Stdlib.Http.Response
+Stdlib.Http.badRequest_v0 "Your request resulted in an error" = Stdlib.Http.Response
   { statusCode = 400L
     headers = []
-    body = PACKAGE.Darklang.Stdlib.String.toBytes "Your request resulted in an error" }
+    body = Stdlib.String.toBytes "Your request resulted in an error" }
 
-PACKAGE.Darklang.Stdlib.Http.response
-  (PACKAGE.Darklang.Stdlib.String.toBytes "test")
-  200L = PACKAGE.Darklang.Stdlib.Http.Response
+Stdlib.Http.response (Stdlib.String.toBytes "test") 200L = Stdlib.Http.Response
   { statusCode = 200L
     headers = []
-    body = PACKAGE.Darklang.Stdlib.String.toBytes "test" }
+    body = Stdlib.String.toBytes "test" }
 
-PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
-  (PACKAGE.Darklang.Stdlib.String.toBytes "test")
+Stdlib.Http.responseWithHeaders
+  (Stdlib.String.toBytes "test")
   [ ("Content-Type", "text/html; charset=utf-8") ]
-  200L = PACKAGE.Darklang.Stdlib.Http.Response
+  200L = Stdlib.Http.Response
   { statusCode = 200L
     headers = [ ("Content-Type", "text/html; charset=utf-8") ]
-    body = PACKAGE.Darklang.Stdlib.String.toBytes "test" }
+    body = Stdlib.String.toBytes "test" }
 
-PACKAGE.Darklang.Stdlib.Http.notFound () = PACKAGE.Darklang.Stdlib.Http.response
-  []
-  404L
+Stdlib.Http.notFound () = Stdlib.Http.response [] 404L
 
-PACKAGE.Darklang.Stdlib.Http.unauthorized () = PACKAGE.Darklang.Stdlib.Http.response
-  []
-  401L
+Stdlib.Http.unauthorized () = Stdlib.Http.response [] 401L
 
-PACKAGE.Darklang.Stdlib.Http.forbidden () = PACKAGE.Darklang.Stdlib.Http.response
-  []
-  403L
+Stdlib.Http.forbidden () = Stdlib.Http.response [] 403L
 
-PACKAGE.Darklang.Stdlib.Http.success (PACKAGE.Darklang.Stdlib.String.toBytes "test") = PACKAGE.Darklang.Stdlib.Http.response
-  (PACKAGE.Darklang.Stdlib.String.toBytes "test")
+Stdlib.Http.success (Stdlib.String.toBytes "test") = Stdlib.Http.response
+  (Stdlib.String.toBytes "test")
   200L
 
-PACKAGE.Darklang.Stdlib.Http.responseWithHtml "test" 200L = PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
-  (PACKAGE.Darklang.Stdlib.String.toBytes "test")
+Stdlib.Http.responseWithHtml "test" 200L = Stdlib.Http.responseWithHeaders
+  (Stdlib.String.toBytes "test")
   [ ("Content-Type", "text/html; charset=utf-8") ]
   200L
 
-PACKAGE.Darklang.Stdlib.Http.responseWithText "test" 200L = PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
-  (PACKAGE.Darklang.Stdlib.String.toBytes "test")
+Stdlib.Http.responseWithText "test" 200L = Stdlib.Http.responseWithHeaders
+  (Stdlib.String.toBytes "test")
   [ ("Content-Type", "text/plain; charset=utf-8") ]
   200L
 
-PACKAGE.Darklang.Stdlib.Http.responseWithJson "test" 200L = PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
-  (PACKAGE.Darklang.Stdlib.String.toBytes "test")
+Stdlib.Http.responseWithJson "test" 200L = Stdlib.Http.responseWithHeaders
+  (Stdlib.String.toBytes "test")
   [ ("Content-Type", "application/json") ]
   200L
 
-(PACKAGE.Darklang.Stdlib.Http.redirectTo "") = PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
+(Stdlib.Http.redirectTo "") = Stdlib.Http.responseWithHeaders
   []
   [ ("Location", "") ]
   302L
 
-(PACKAGE.Darklang.Stdlib.Http.redirectTo "bad url") = PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
+(Stdlib.Http.redirectTo "bad url") = Stdlib.Http.responseWithHeaders
   []
   [ ("Location", "bad url") ]
   302L
 
-(PACKAGE.Darklang.Stdlib.Http.redirectTo_v0 "http://someothersite.com") = PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
+(Stdlib.Http.redirectTo_v0 "http://someothersite.com") = Stdlib.Http.responseWithHeaders
   []
   [ ("Location", "http://someothersite.com") ]
   302L
 
-(PACKAGE.Darklang.Stdlib.Http.redirectTo_v0 "/relativeUrl") = PACKAGE.Darklang.Stdlib.Http.responseWithHeaders
+(Stdlib.Http.redirectTo_v0 "/relativeUrl") = Stdlib.Http.responseWithHeaders
   []
   [ ("Location", "/relativeUrl") ]
   302L

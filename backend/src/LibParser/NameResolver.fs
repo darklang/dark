@@ -208,6 +208,26 @@ let resolveTypeName
               )
           | Ok(name, version) ->
             match modules with
+            | "Stdlib" :: otherModules ->
+              let name =
+                PT.FQTypeName.package
+                  "Darklang"
+                  ("Stdlib" :: otherModules)
+                  name
+                  version
+
+              let! packageTypeExists = packageTypeExists (packageNameMapper name)
+
+              if packageTypeExists then
+                return Ok(PT.FQTypeName.FQTypeName.Package name)
+              else
+                return
+                  Error(
+                    { nameType = nameErrorType
+                      errorType = NRE.NotFound
+                      names = NEList.toList names }
+                  )
+
             | "PACKAGE" :: owner :: modules ->
               let name = PT.FQTypeName.package owner modules name version
 
@@ -222,6 +242,8 @@ let resolveTypeName
                       errorType = NRE.NotFound
                       names = NEList.toList names }
                   )
+
+
             | _ ->
               // 2. Name exactly matches something in the UserProgram space
               let (userProgram : PT.FQTypeName.UserProgram) =
@@ -331,6 +353,29 @@ let resolveConstantName
               )
           | Ok(name, version) ->
             match modules with
+
+            // TODO: reuse some code between this and the next match case
+            | "Stdlib" :: otherModules ->
+              let name =
+                PT.FQConstantName.package
+                  "Darklang"
+                  ("Stdlib" :: otherModules)
+                  name
+                  version
+
+              let! packageConstantExists =
+                packageConstantExists (packageNameMapper name)
+
+              if packageConstantExists then
+                return Ok(PT.FQConstantName.FQConstantName.Package name)
+              else
+                return
+                  Error(
+                    { nameType = nameErrorType
+                      errorType = NRE.NotFound
+                      names = NEList.toList names }
+                  )
+
             | "PACKAGE" :: owner :: modules ->
               let name = PT.FQConstantName.package owner modules name version
 
@@ -346,6 +391,7 @@ let resolveConstantName
                       errorType = NRE.NotFound
                       names = NEList.toList names }
                   )
+
             | [ "Builtin" ] ->
               let (builtIn : PT.FQConstantName.Builtin) =
                 { name = name; version = version }
@@ -359,6 +405,7 @@ let resolveConstantName
                       errorType = NRE.NotFound
                       names = NEList.toList names }
                   )
+
             | _ ->
               // 2. Name exactly matches something in the UserProgram space
               let (userProgram : PT.FQConstantName.UserProgram) =
@@ -465,6 +512,25 @@ let resolveFnName
               )
           | Ok(name, version) ->
             match modules with
+            | "Stdlib" :: otherModules ->
+              let name =
+                PT.FQFnName.package
+                  "Darklang"
+                  ("Stdlib" :: otherModules)
+                  name
+                  version
+
+              let! packageFnExists = packageFnExists (packageNameMapper name)
+
+              if packageFnExists then
+                return Ok(PT.FQFnName.FQFnName.Package name)
+              else
+                return
+                  Error(
+                    { nameType = nameErrorType
+                      errorType = NRE.NotFound
+                      names = NEList.toList names }
+                  )
             | "PACKAGE" :: owner :: modules ->
               let name = PT.FQFnName.package owner modules name version
 

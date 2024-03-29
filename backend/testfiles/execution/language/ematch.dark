@@ -375,7 +375,7 @@ module Float =
    | var -> "fail") = "pass"
 
   (match 6.5 with
-   | var -> $"pass: {PACKAGE.Darklang.Stdlib.Float.toString var}"
+   | var -> $"pass: {Stdlib.Float.toString var}"
    | 6.5 -> "fail"
    | 5.5 -> "fail") = "pass: 6.5"
 
@@ -390,7 +390,7 @@ module Float =
    | var -> "fail") = "pass"
 
   (match -4.7 with
-   | var -> $"pass: {PACKAGE.Darklang.Stdlib.Float.toString var}"
+   | var -> $"pass: {Stdlib.Float.toString var}"
    | -4.7 -> "fail"
    | 4.7 -> "fail") = "pass: -4.7"
 
@@ -435,7 +435,7 @@ module Char =
    | var -> "fail") = "pass"
 
   (match 'a' with
-   | var -> $"pass: {PACKAGE.Darklang.Stdlib.Char.toString var}"
+   | var -> $"pass: {Stdlib.Char.toString var}"
    | 'a' -> "fail"
    | 'b' -> "fail") = "pass: a"
 
@@ -472,9 +472,7 @@ module List =
 
   (match [ 1L; 2L; 3L ] with
    | var ->
-     let length =
-       (PACKAGE.Darklang.Stdlib.List.length var)
-       |> PACKAGE.Darklang.Stdlib.Int64.toString
+     let length = (Stdlib.List.length var) |> Stdlib.Int64.toString
 
      $"pass with length: {length}"
    | [ 1L; 2L; 3L ] -> "fail"
@@ -592,8 +590,7 @@ module List =
      | [] -> 4L) = 2L
 
     (match [ 1L; 2L; 3L ] with
-     | head :: rest ->
-       head + (rest |> PACKAGE.Darklang.Stdlib.List.head |> Builtin.unwrap)) = 3L
+     | head :: rest -> head + (rest |> Stdlib.List.head |> Builtin.unwrap)) = 3L
 
     (match "" with
      | head :: rest -> "fail") = Builtin.testDerrorMessage
@@ -701,7 +698,7 @@ module Tuple =
    | (true, [ 1L; 2L ]) -> "pass") = "pass"
 
   // duplicate tuple variables
-  (let tpl = (1L, 2L, (3L, 4L), 5L) in
+  (let tpl = (1L, 2L, (3L, 4L), 5L)
 
    match tpl with
    | (a, b, (a, b), a) -> (a, b)
@@ -759,44 +756,44 @@ module Tuple =
 
 module Result =
 
-  (match PACKAGE.Darklang.Stdlib.Result.Result.Ok 5L with
+  (match Stdlib.Result.Result.Ok 5L with
    | Ok 6L -> "fail"
    | Error _ -> "fail"
    | Ok 5L -> "pass"
    | var -> "fail") = "pass"
 
-  (match PACKAGE.Darklang.Stdlib.Result.Result.Ok 5L with
+  (match Stdlib.Result.Result.Ok 5L with
    | Ok 5L -> "pass"
    | Error _ -> "fail"
    | var -> "fail") = "pass"
 
-  (match PACKAGE.Darklang.Stdlib.Result.Result.Error "failure" with
+  (match Stdlib.Result.Result.Error "failure" with
    | Ok _ -> "fail"
    | Error "success" -> "fail"
    | Error "failure" -> "pass") = "pass"
 
-  (match PACKAGE.Darklang.Stdlib.Result.Result.Error "failure" with
+  (match Stdlib.Result.Result.Error "failure" with
    | Ok var -> $"unexpected: {var}"
    | Error msg -> $"pass: {msg}") = "pass: failure"
 
-  (match PACKAGE.Darklang.Stdlib.Result.Result.Ok [ 1L; 2L; 3L ] with
+  (match Stdlib.Result.Result.Ok [ 1L; 2L; 3L ] with
    | Ok [ 1L; 2L; 3L; 4L ] -> "fail"
    | Error _ -> "fail"
    | Ok [ 1L; 2L; 3L ] -> "pass"
    | _ -> "fail") = "pass"
 
-  (match PACKAGE.Darklang.Stdlib.Result.Result.Ok((1L, 'a')) with
+  (match Stdlib.Result.Result.Ok((1L, 'a')) with
    | Ok((2L, 'b')) -> "fail"
    | Ok((1L, 'a')) -> "pass"
    | _ -> "fail") = "pass"
 
-  (match PACKAGE.Darklang.Stdlib.Result.Result.Error "failure" with
+  (match Stdlib.Result.Result.Error "failure" with
    | "failure" -> "fail"
    | Error "failure" -> "fail"
    | _ -> "fail") = Builtin.testDerrorMessage
     "Cannot match PACKAGE.Darklang.Stdlib.Result.Result value PACKAGE.Da... with a String pattern"
 
-  (match PACKAGE.Darklang.Stdlib.Result.Result.Ok 5.0 with
+  (match Stdlib.Result.Result.Ok 5.0 with
    | Ok 6.0 -> "fail"
    | Error _ -> "fail"
    | Ok 5.0 -> "pass"
@@ -806,45 +803,45 @@ module Result =
 
 module Option =
 
-  (match PACKAGE.Darklang.Stdlib.Option.Option.Some 5L with
+  (match Stdlib.Option.Option.Some 5L with
    | Some 6L -> "fail"
    | None -> "fail"
    | Some 5L -> "pass"
    | var -> "fail") = "pass"
 
-  (match PACKAGE.Darklang.Stdlib.Option.Option.Some 5L with
+  (match Stdlib.Option.Option.Some 5L with
    | Some 5L -> "pass"
    | None -> "fail"
    | var -> "fail") = "pass"
 
-  (match PACKAGE.Darklang.Stdlib.Option.Option.None with
+  (match Stdlib.Option.Option.None with
    | Some _ -> "fail"
    | None -> "pass") = "pass"
 
-  (match PACKAGE.Darklang.Stdlib.Option.Option.Some "hello" with
+  (match Stdlib.Option.Option.Some "hello" with
    | Some "world" -> "fail"
    | None -> "fail"
    | Some msg -> $"pass: {msg}") = "pass: hello"
 
-  (match PACKAGE.Darklang.Stdlib.Option.Option.Some [ 1L; 2L; 3L ] with
+  (match Stdlib.Option.Option.Some [ 1L; 2L; 3L ] with
    | Some [ 1L; 2L; 3L; 4L ] -> "fail"
    | None -> "fail"
    | Some [ 1L; 2L; 3L ] -> "pass"
    | _ -> "fail") = "pass"
 
-  (match PACKAGE.Darklang.Stdlib.Option.Option.Some((1L, 'a')) with
+  (match Stdlib.Option.Option.Some((1L, 'a')) with
    | Some((2L, 'b')) -> "fail"
    | Some((1L, 'a')) -> "pass"
    | _ -> "fail") = "pass"
 
-  (match PACKAGE.Darklang.Stdlib.Option.Option.Some "hello" with
+  (match Stdlib.Option.Option.Some "hello" with
    | "hello" -> "fail"
    | Some "hello" -> "fail"
    | _ -> "fail") = Builtin.testDerrorMessage
     // TODO bad error message
     "Cannot match PACKAGE.Darklang.Stdlib.Option.Option value PACKAGE.Da... with a String pattern"
 
-  (match PACKAGE.Darklang.Stdlib.Option.Option.Some 5.0 with
+  (match Stdlib.Option.Option.Some 5.0 with
    | Some 6.0 -> "fail"
    | None -> "fail"
    | Some 5.0 -> "pass"
@@ -945,7 +942,7 @@ module GuardClause =
    | _ -> "fail") = "fail"
 
   (match (5L, "hello") with
-   | (x, y) when x > 0L && PACKAGE.Darklang.Stdlib.String.length y == 5L -> "pass"
+   | (x, y) when x > 0L && Stdlib.String.length y == 5L -> "pass"
    | _ -> "fail") = "pass"
 
   (match -5L with
@@ -969,6 +966,6 @@ module GuardClause =
    | 2L when x > 2L -> false
    | 3L -> true) = Builtin.testDerrorMessage "No match for 5"
 
-  (match PACKAGE.Darklang.Stdlib.Result.Result.Error 5L with
+  (match Stdlib.Result.Result.Error 5L with
    | Ok x when x > 2L -> false
    | Error _ -> true) = true

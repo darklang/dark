@@ -58,14 +58,9 @@ module Polymorphism =
   (MyRecord { col1 = (); col2 = 1L }).col2 = 1L
 
   (MyRecord
-    { col1 =
-        PACKAGE.Darklang.Stdlib.Option.Option.Some(
-          PACKAGE.Darklang.Stdlib.Result.Result.Ok 1L
-        )
+    { col1 = Stdlib.Option.Option.Some(Stdlib.Result.Result.Ok 1L)
       col2 = 1L })
-    .col1 = PACKAGE.Darklang.Stdlib.Option.Option.Some(
-    PACKAGE.Darklang.Stdlib.Result.Result.Ok 1L
-  )
+    .col1 = Stdlib.Option.Option.Some(Stdlib.Result.Result.Ok 1L)
 
 
 module Nested =
@@ -87,20 +82,20 @@ module Update =
   (let myRec = RecordForUpdate { x = 4L; y = 1L } in { myRec with y = 22L; y = 42L }) = RecordForUpdate
     { x = 4L; y = 42L }
 
-  (let myRec = RecordForUpdateMultipe { x = 4L; y = 1L; z = 0L } in
+  (let myRec = RecordForUpdateMultipe { x = 4L; y = 1L; z = 0L }
    { myRec with y = 2L; z = 42L }) = RecordForUpdateMultipe
     { x = 4L; y = 2L; z = 42L }
 
-  (let myRec = RecordForUpdateMultipe { x = 4L; y = 1L; z = 0L } in
+  (let myRec = RecordForUpdateMultipe { x = 4L; y = 1L; z = 0L }
    { myRec with z = 3L; x = 42L }) = RecordForUpdateMultipe
     { x = 42L; y = 1L; z = 3L }
 
-  (let myRec = RecordForUpdateMultipe { x = 4L; y = 1L; z = 0L } in
+  (let myRec = RecordForUpdateMultipe { x = 4L; y = 1L; z = 0L }
    { myRec with z = 3L; x = 42L; y = 11L }) = RecordForUpdateMultipe
     { x = 42L; y = 11L; z = 3L }
 
   module Invalid =
-    (let myRec = RecordForUpdateMultipe { x = 4L; y = 1L; z = 0L } in
+    (let myRec = RecordForUpdateMultipe { x = 4L; y = 1L; z = 0L }
 
      { myRec with
          z = 3L

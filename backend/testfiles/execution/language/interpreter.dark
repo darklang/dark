@@ -5,6 +5,6 @@
 // The issue is likely
 // - in our interpreter,
 // - or in the implementation of List.map specifically
-// ((PACKAGE.Darklang.Stdlib.List.repeat_v0 348L 1L)
+// ((Stdlib.List.repeat_v0 348L 1L)
 //  |> Builtin.unwrap
-//  |> PACKAGE.Darklang.Stdlib.List.map (fun _f -> 1)) = []
+//  |> Stdlib.List.map (fun _f -> 1)) = []

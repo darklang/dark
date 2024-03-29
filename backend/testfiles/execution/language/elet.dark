@@ -7,7 +7,7 @@ module Variables =
   (let x = 5L in x) = 5L
 
 module Unit =
-  (let () = PACKAGE.Darklang.Stdlib.Tuple2.first ((), 5L) in 5L) = 5L
+  (let () = Stdlib.Tuple2.first ((), 5L) in 5L) = 5L
 
 module Tuples =
   (let (a, b) = (1L, 2L) in 2L) = 2L
@@ -25,7 +25,7 @@ module Tuples =
     "test"
 
   (let (_, _, _) =
-    (Builtin.testRuntimeError "test1", 2L, Builtin.testRuntimeError "test2") in
+    (Builtin.testRuntimeError "test1", 2L, Builtin.testRuntimeError "test2")
 
    2L) = Builtin.testDerrorMessage "test1"
 
@@ -57,42 +57,36 @@ module Shadowing =
 
   (let x = 35L
 
-   match PACKAGE.Darklang.Stdlib.Result.Result.Ok 6L with
+   match Stdlib.Result.Result.Ok 6L with
    | Ok x -> x) = 6L
 
 
-  (let x = 35L in
-   PACKAGE.Darklang.Stdlib.List.map_v0 [ 1L; 2L; 3L; 4L ] (fun x -> x + 2L)) = [ 3L
-                                                                                 4L
-                                                                                 5L
-                                                                                 6L ]
+  (let x = 35L in Stdlib.List.map_v0 [ 1L; 2L; 3L; 4L ] (fun x -> x + 2L)) = [ 3L
+                                                                               4L
+                                                                               5L
+                                                                               6L ]
 
 
   (let x = 35L
 
-   match PACKAGE.Darklang.Stdlib.Result.Result.Ok 6L with
-   | Ok x ->
-     (PACKAGE.Darklang.Stdlib.List.map_v0 [ 1L; 2L; 3L; 4L ] (fun x -> x + 2L))) = [ 3L
-                                                                                     4L
-                                                                                     5L
-                                                                                     6L ]
+   match Stdlib.Result.Result.Ok 6L with
+   | Ok x -> (Stdlib.List.map_v0 [ 1L; 2L; 3L; 4L ] (fun x -> x + 2L))) = [ 3L
+                                                                            4L
+                                                                            5L
+                                                                            6L ]
 
 
-  (PACKAGE.Darklang.Stdlib.List.map_v0 [ 1L; 2L; 3L; 4L ] (fun x ->
-    (let x = 35L in
+  (Stdlib.List.map_v0 [ 1L; 2L; 3L; 4L ] (fun x ->
+    (let x = 35L
 
-     match PACKAGE.Darklang.Stdlib.Result.Result.Ok 6L with
+     match Stdlib.Result.Result.Ok 6L with
      | Ok x -> x + 2L))) = [ 8L; 8L; 8L; 8L ]
 
 
-  (PACKAGE.Darklang.Stdlib.List.map_v0 [ 1L; 2L; 3L; 4L ] (fun x ->
-    match PACKAGE.Darklang.Stdlib.Result.Result.Ok 6L with
+  (Stdlib.List.map_v0 [ 1L; 2L; 3L; 4L ] (fun x ->
+    match Stdlib.Result.Result.Ok 6L with
     | Ok x -> let x = 9L in x + 2L)) = [ 11L; 11L; 11L; 11L ]
 
-  (PACKAGE.Darklang.Stdlib.List.map_v0 [ 1L; 2L; 3L; 4L ] (fun x ->
-    (match
-      PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-        PACKAGE.Darklang.Stdlib.Result.Result.Ok 6L
-      )
-     with
+  (Stdlib.List.map_v0 [ 1L; 2L; 3L; 4L ] (fun x ->
+    (match Stdlib.Result.Result.Ok(Stdlib.Result.Result.Ok 6L) with
      | Ok(Ok x) -> let x = 9L in x + 2L))) = [ 11L; 11L; 11L; 11L ]

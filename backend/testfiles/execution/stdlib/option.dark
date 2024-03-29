@@ -1,419 +1,357 @@
-PACKAGE.Darklang.Stdlib.Option.andThen_v0
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 5L)
-  (fun x -> PACKAGE.Darklang.Stdlib.Option.Option.Some(1L + x)) = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  6L
+Stdlib.Option.andThen_v0 (Stdlib.Option.Option.Some 5L) (fun x ->
+  Stdlib.Option.Option.Some(1L + x)) = Stdlib.Option.Option.Some 6L
 
-PACKAGE.Darklang.Stdlib.Option.andThen_v0
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 5L)
-  (fun x -> PACKAGE.Darklang.Stdlib.Option.Option.None) = PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Option.andThen_v0 (Stdlib.Option.Option.Some 5L) (fun x ->
+  Stdlib.Option.Option.None) = Stdlib.Option.Option.None
 
-PACKAGE.Darklang.Stdlib.Option.andThen_v0
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (fun x -> PACKAGE.Darklang.Stdlib.Option.Option.Some 5L) = PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Option.andThen_v0 Stdlib.Option.Option.None (fun x ->
+  Stdlib.Option.Option.Some 5L) = Stdlib.Option.Option.None
 
-PACKAGE.Darklang.Stdlib.Option.andThen_v0
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (fun x -> PACKAGE.Darklang.Stdlib.Option.Option.None) = PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Option.andThen_v0 Stdlib.Option.Option.None (fun x ->
+  Stdlib.Option.Option.None) = Stdlib.Option.Option.None
 
-PACKAGE.Darklang.Stdlib.Option.andThen_v0
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 8L)
-  (fun x ->
-    PACKAGE.Darklang.Stdlib.Option.Option.Some(
-      PACKAGE.Darklang.Stdlib.Int64.divide_v0 x 2L
-    )) = PACKAGE.Darklang.Stdlib.Option.Option.Some 4L
+Stdlib.Option.andThen_v0 (Stdlib.Option.Option.Some 8L) (fun x ->
+  Stdlib.Option.Option.Some(Stdlib.Int64.divide_v0 x 2L)) = Stdlib.Option.Option.Some
+  4L
 
-PACKAGE.Darklang.Stdlib.Option.andThen_v0
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 8L)
-  (fun x ->
-    PACKAGE.Darklang.Stdlib.Option.Option.Some(
-      PACKAGE.Darklang.Stdlib.Int64.divide_v0 x 0L
-    )) = Builtin.testDerrorMessage "Division by zero"
+Stdlib.Option.andThen_v0 (Stdlib.Option.Option.Some 8L) (fun x ->
+  Stdlib.Option.Option.Some(Stdlib.Int64.divide_v0 x 0L)) = Builtin.testDerrorMessage
+  "Division by zero"
 
 
-PACKAGE.Darklang.Stdlib.Option.andThen2_v0
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 5L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 6L)
-  (fun x y -> PACKAGE.Darklang.Stdlib.Option.Option.Some(x + y)) = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  11L
+Stdlib.Option.andThen2_v0
+  (Stdlib.Option.Option.Some 5L)
+  (Stdlib.Option.Option.Some 6L)
+  (fun x y -> Stdlib.Option.Option.Some(x + y)) = Stdlib.Option.Option.Some 11L
 
-PACKAGE.Darklang.Stdlib.Option.andThen2_v0
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 5L)
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (fun x y -> PACKAGE.Darklang.Stdlib.Option.Option.Some(x + y)) = PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Option.andThen2_v0
+  (Stdlib.Option.Option.Some 5L)
+  Stdlib.Option.Option.None
+  (fun x y -> Stdlib.Option.Option.Some(x + y)) = Stdlib.Option.Option.None
 
-PACKAGE.Darklang.Stdlib.Option.andThen2_v0
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 6L)
-  (fun x y -> PACKAGE.Darklang.Stdlib.Option.Option.Some(x + y)) = PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Option.andThen2_v0
+  Stdlib.Option.Option.None
+  (Stdlib.Option.Option.Some 6L)
+  (fun x y -> Stdlib.Option.Option.Some(x + y)) = Stdlib.Option.Option.None
 
-PACKAGE.Darklang.Stdlib.Option.andThen2_v0
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (fun x y -> PACKAGE.Darklang.Stdlib.Option.Option.Some(x + y)) = PACKAGE.Darklang.Stdlib.Option.Option.None
-
-
-PACKAGE.Darklang.Stdlib.Option.andThen3_v0
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 5L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 6L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 7L)
-  (fun x y z -> PACKAGE.Darklang.Stdlib.Option.Option.Some(x + y + z)) = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  18L
+Stdlib.Option.andThen2_v0
+  Stdlib.Option.Option.None
+  Stdlib.Option.Option.None
+  (fun x y -> Stdlib.Option.Option.Some(x + y)) = Stdlib.Option.Option.None
 
 
-PACKAGE.Darklang.Stdlib.Option.andThen3_v0
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 6L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 7L)
-  (fun x y z -> PACKAGE.Darklang.Stdlib.Option.Option.Some(x + y + z)) = PACKAGE.Darklang.Stdlib.Option.Option.None
-
-PACKAGE.Darklang.Stdlib.Option.andThen3_v0
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 5L)
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 7L)
-  (fun x y z -> PACKAGE.Darklang.Stdlib.Option.Option.Some(x + y + z)) = PACKAGE.Darklang.Stdlib.Option.Option.None
-
-PACKAGE.Darklang.Stdlib.Option.andThen3_v0
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 5L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 6L)
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (fun x y z -> PACKAGE.Darklang.Stdlib.Option.Option.Some(x + y + z)) = PACKAGE.Darklang.Stdlib.Option.Option.None
-
-PACKAGE.Darklang.Stdlib.Option.andThen3_v0
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (fun x y z -> PACKAGE.Darklang.Stdlib.Option.Option.Some(x + y + z)) = PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Option.andThen3_v0
+  (Stdlib.Option.Option.Some 5L)
+  (Stdlib.Option.Option.Some 6L)
+  (Stdlib.Option.Option.Some 7L)
+  (fun x y z -> Stdlib.Option.Option.Some(x + y + z)) = Stdlib.Option.Option.Some 18L
 
 
-PACKAGE.Darklang.Stdlib.Option.andThen4_v0
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 5L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 6L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 7L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 8L)
-  (fun x y z w -> PACKAGE.Darklang.Stdlib.Option.Option.Some(x + y + z + w)) = PACKAGE.Darklang.Stdlib.Option.Option.Some
+Stdlib.Option.andThen3_v0
+  Stdlib.Option.Option.None
+  (Stdlib.Option.Option.Some 6L)
+  (Stdlib.Option.Option.Some 7L)
+  (fun x y z -> Stdlib.Option.Option.Some(x + y + z)) = Stdlib.Option.Option.None
+
+Stdlib.Option.andThen3_v0
+  (Stdlib.Option.Option.Some 5L)
+  Stdlib.Option.Option.None
+  (Stdlib.Option.Option.Some 7L)
+  (fun x y z -> Stdlib.Option.Option.Some(x + y + z)) = Stdlib.Option.Option.None
+
+Stdlib.Option.andThen3_v0
+  (Stdlib.Option.Option.Some 5L)
+  (Stdlib.Option.Option.Some 6L)
+  Stdlib.Option.Option.None
+  (fun x y z -> Stdlib.Option.Option.Some(x + y + z)) = Stdlib.Option.Option.None
+
+Stdlib.Option.andThen3_v0
+  Stdlib.Option.Option.None
+  Stdlib.Option.Option.None
+  Stdlib.Option.Option.None
+  (fun x y z -> Stdlib.Option.Option.Some(x + y + z)) = Stdlib.Option.Option.None
+
+
+Stdlib.Option.andThen4_v0
+  (Stdlib.Option.Option.Some 5L)
+  (Stdlib.Option.Option.Some 6L)
+  (Stdlib.Option.Option.Some 7L)
+  (Stdlib.Option.Option.Some 8L)
+  (fun x y z w -> Stdlib.Option.Option.Some(x + y + z + w)) = Stdlib.Option.Option.Some
   26L
 
 
-PACKAGE.Darklang.Stdlib.Option.andThen4_v0
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 6L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 7L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 8L)
-  (fun x y z w -> PACKAGE.Darklang.Stdlib.Option.Option.Some(x + y + z + w)) = PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Option.andThen4_v0
+  Stdlib.Option.Option.None
+  (Stdlib.Option.Option.Some 6L)
+  (Stdlib.Option.Option.Some 7L)
+  (Stdlib.Option.Option.Some 8L)
+  (fun x y z w -> Stdlib.Option.Option.Some(x + y + z + w)) = Stdlib.Option.Option.None
 
-PACKAGE.Darklang.Stdlib.Option.andThen4_v0
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 5L)
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 7L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 8L)
-  (fun x y z w -> PACKAGE.Darklang.Stdlib.Option.Option.Some(x + y + z + w)) = PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Option.andThen4_v0
+  (Stdlib.Option.Option.Some 5L)
+  Stdlib.Option.Option.None
+  (Stdlib.Option.Option.Some 7L)
+  (Stdlib.Option.Option.Some 8L)
+  (fun x y z w -> Stdlib.Option.Option.Some(x + y + z + w)) = Stdlib.Option.Option.None
 
-PACKAGE.Darklang.Stdlib.Option.andThen4_v0
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 5L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 6L)
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 8L)
-  (fun x y z w -> PACKAGE.Darklang.Stdlib.Option.Option.Some(x + y + z + w)) = PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Option.andThen4_v0
+  (Stdlib.Option.Option.Some 5L)
+  (Stdlib.Option.Option.Some 6L)
+  Stdlib.Option.Option.None
+  (Stdlib.Option.Option.Some 8L)
+  (fun x y z w -> Stdlib.Option.Option.Some(x + y + z + w)) = Stdlib.Option.Option.None
 
-PACKAGE.Darklang.Stdlib.Option.andThen4_v0
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 5L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 6L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 7L)
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (fun x y z w -> PACKAGE.Darklang.Stdlib.Option.Option.Some(x + y + z + w)) = PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Option.andThen4_v0
+  (Stdlib.Option.Option.Some 5L)
+  (Stdlib.Option.Option.Some 6L)
+  (Stdlib.Option.Option.Some 7L)
+  Stdlib.Option.Option.None
+  (fun x y z w -> Stdlib.Option.Option.Some(x + y + z + w)) = Stdlib.Option.Option.None
 
-PACKAGE.Darklang.Stdlib.Option.andThen4_v0
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (fun x y z w -> PACKAGE.Darklang.Stdlib.Option.Option.Some(x + y + z + w)) = PACKAGE.Darklang.Stdlib.Option.Option.None
-
-
-PACKAGE.Darklang.Stdlib.Option.map
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 4L)
-  (fun x -> PACKAGE.Darklang.Stdlib.Int64.divide_v0 x 2L) = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  2L
-
-PACKAGE.Darklang.Stdlib.Option.map
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (fun x -> PACKAGE.Darklang.Stdlib.Int64.divide_v0 x 2L) = PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Option.andThen4_v0
+  Stdlib.Option.Option.None
+  Stdlib.Option.Option.None
+  Stdlib.Option.Option.None
+  Stdlib.Option.Option.None
+  (fun x y z w -> Stdlib.Option.Option.Some(x + y + z + w)) = Stdlib.Option.Option.None
 
 
-PACKAGE.Darklang.Stdlib.Option.map2_v0
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 10L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 1L)
-  (fun a b -> a - b) = PACKAGE.Darklang.Stdlib.Option.Option.Some 9L
+Stdlib.Option.map (Stdlib.Option.Option.Some 4L) (fun x ->
+  Stdlib.Int64.divide_v0 x 2L) = Stdlib.Option.Option.Some 2L
 
-PACKAGE.Darklang.Stdlib.Option.map2_v0
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 10L)
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (fun a b -> a - b) = PACKAGE.Darklang.Stdlib.Option.Option.None
-
-PACKAGE.Darklang.Stdlib.Option.map2_v0
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 1L)
-  (fun a b -> a - b) = PACKAGE.Darklang.Stdlib.Option.Option.None
-
-PACKAGE.Darklang.Stdlib.Option.map2_v0
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (fun a b -> a - b) = PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Option.map Stdlib.Option.Option.None (fun x -> Stdlib.Int64.divide_v0 x 2L) = Stdlib.Option.Option.None
 
 
-PACKAGE.Darklang.Stdlib.Option.map3_v0
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 10L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 1L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 2L)
-  (fun a b c -> a - b - c) = PACKAGE.Darklang.Stdlib.Option.Option.Some 7L
+Stdlib.Option.map2_v0
+  (Stdlib.Option.Option.Some 10L)
+  (Stdlib.Option.Option.Some 1L)
+  (fun a b -> a - b) = Stdlib.Option.Option.Some 9L
 
-PACKAGE.Darklang.Stdlib.Option.map3_v0
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 10L)
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 2L)
-  (fun a b c -> a - b - c) = PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Option.map2_v0
+  (Stdlib.Option.Option.Some 10L)
+  Stdlib.Option.Option.None
+  (fun a b -> a - b) = Stdlib.Option.Option.None
 
-PACKAGE.Darklang.Stdlib.Option.map3_v0
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 1L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 2L)
-  (fun a b c -> a - b - c) = PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Option.map2_v0
+  Stdlib.Option.Option.None
+  (Stdlib.Option.Option.Some 1L)
+  (fun a b -> a - b) = Stdlib.Option.Option.None
 
-PACKAGE.Darklang.Stdlib.Option.map3_v0
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 2L)
-  (fun a b c -> a - b - c) = PACKAGE.Darklang.Stdlib.Option.Option.None
-
-PACKAGE.Darklang.Stdlib.Option.map3_v0
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (fun a b c -> a - b - c) = PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Option.map2_v0 Stdlib.Option.Option.None Stdlib.Option.Option.None (fun a b ->
+  a - b) = Stdlib.Option.Option.None
 
 
-PACKAGE.Darklang.Stdlib.Option.map4_v0
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 10L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 1L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 2L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 3L)
-  (fun a b c d -> a - b - c - d) = PACKAGE.Darklang.Stdlib.Option.Option.Some 4L
+Stdlib.Option.map3_v0
+  (Stdlib.Option.Option.Some 10L)
+  (Stdlib.Option.Option.Some 1L)
+  (Stdlib.Option.Option.Some 2L)
+  (fun a b c -> a - b - c) = Stdlib.Option.Option.Some 7L
 
-PACKAGE.Darklang.Stdlib.Option.map4_v0
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 10L)
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 2L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 3L)
-  (fun a b c d -> a - b - c - d) = PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Option.map3_v0
+  (Stdlib.Option.Option.Some 10L)
+  Stdlib.Option.Option.None
+  (Stdlib.Option.Option.Some 2L)
+  (fun a b c -> a - b - c) = Stdlib.Option.Option.None
 
-PACKAGE.Darklang.Stdlib.Option.map4_v0
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 1L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 2L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 3L)
-  (fun a b c d -> a - b - c - d) = PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Option.map3_v0
+  Stdlib.Option.Option.None
+  (Stdlib.Option.Option.Some 1L)
+  (Stdlib.Option.Option.Some 2L)
+  (fun a b c -> a - b - c) = Stdlib.Option.Option.None
 
-PACKAGE.Darklang.Stdlib.Option.map4_v0
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 2L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 3L)
-  (fun a b c d -> a - b - c - d) = PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Option.map3_v0
+  Stdlib.Option.Option.None
+  Stdlib.Option.Option.None
+  (Stdlib.Option.Option.Some 2L)
+  (fun a b c -> a - b - c) = Stdlib.Option.Option.None
 
-PACKAGE.Darklang.Stdlib.Option.map4_v0
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 3L)
-  (fun a b c d -> a - b - c - d) = PACKAGE.Darklang.Stdlib.Option.Option.None
-
-PACKAGE.Darklang.Stdlib.Option.map4_v0
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (fun a b c d -> a - b - c - d) = PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Option.map3_v0
+  Stdlib.Option.Option.None
+  Stdlib.Option.Option.None
+  Stdlib.Option.Option.None
+  (fun a b c -> a - b - c) = Stdlib.Option.Option.None
 
 
-PACKAGE.Darklang.Stdlib.Option.map5_v0
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 10L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 1L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 2L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 3L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 4L)
-  (fun a b c d e -> a - b - c - d - e) = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  0L
+Stdlib.Option.map4_v0
+  (Stdlib.Option.Option.Some 10L)
+  (Stdlib.Option.Option.Some 1L)
+  (Stdlib.Option.Option.Some 2L)
+  (Stdlib.Option.Option.Some 3L)
+  (fun a b c d -> a - b - c - d) = Stdlib.Option.Option.Some 4L
 
-PACKAGE.Darklang.Stdlib.Option.map5_v0
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 10L)
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 2L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 3L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 4L)
-  (fun a b c d e -> a - b - c - d - e) = PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Option.map4_v0
+  (Stdlib.Option.Option.Some 10L)
+  Stdlib.Option.Option.None
+  (Stdlib.Option.Option.Some 2L)
+  (Stdlib.Option.Option.Some 3L)
+  (fun a b c d -> a - b - c - d) = Stdlib.Option.Option.None
 
-PACKAGE.Darklang.Stdlib.Option.map5_v0
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (fun a b c d e -> a - b - c - d - e) = PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Option.map4_v0
+  Stdlib.Option.Option.None
+  (Stdlib.Option.Option.Some 1L)
+  (Stdlib.Option.Option.Some 2L)
+  (Stdlib.Option.Option.Some 3L)
+  (fun a b c d -> a - b - c - d) = Stdlib.Option.Option.None
+
+Stdlib.Option.map4_v0
+  Stdlib.Option.Option.None
+  Stdlib.Option.Option.None
+  (Stdlib.Option.Option.Some 2L)
+  (Stdlib.Option.Option.Some 3L)
+  (fun a b c d -> a - b - c - d) = Stdlib.Option.Option.None
+
+Stdlib.Option.map4_v0
+  Stdlib.Option.Option.None
+  Stdlib.Option.Option.None
+  Stdlib.Option.Option.None
+  (Stdlib.Option.Option.Some 3L)
+  (fun a b c d -> a - b - c - d) = Stdlib.Option.Option.None
+
+Stdlib.Option.map4_v0
+  Stdlib.Option.Option.None
+  Stdlib.Option.Option.None
+  Stdlib.Option.Option.None
+  Stdlib.Option.Option.None
+  (fun a b c d -> a - b - c - d) = Stdlib.Option.Option.None
 
 
-PACKAGE.Darklang.Stdlib.Option.mapWithDefault_v0
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 5L)
+Stdlib.Option.map5_v0
+  (Stdlib.Option.Option.Some 10L)
+  (Stdlib.Option.Option.Some 1L)
+  (Stdlib.Option.Option.Some 2L)
+  (Stdlib.Option.Option.Some 3L)
+  (Stdlib.Option.Option.Some 4L)
+  (fun a b c d e -> a - b - c - d - e) = Stdlib.Option.Option.Some 0L
+
+Stdlib.Option.map5_v0
+  (Stdlib.Option.Option.Some 10L)
+  Stdlib.Option.Option.None
+  (Stdlib.Option.Option.Some 2L)
+  (Stdlib.Option.Option.Some 3L)
+  (Stdlib.Option.Option.Some 4L)
+  (fun a b c d e -> a - b - c - d - e) = Stdlib.Option.Option.None
+
+Stdlib.Option.map5_v0
+  Stdlib.Option.Option.None
+  Stdlib.Option.Option.None
+  Stdlib.Option.Option.None
+  Stdlib.Option.Option.None
+  Stdlib.Option.Option.None
+  (fun a b c d e -> a - b - c - d - e) = Stdlib.Option.Option.None
+
+
+Stdlib.Option.mapWithDefault_v0 (Stdlib.Option.Option.Some 5L) 6L (fun x -> x + 1L) = 6L
+
+Stdlib.Option.mapWithDefault_v0 Stdlib.Option.Option.None 6L (fun x -> x + 1L) = 6L
+
+Stdlib.Option.mapWithDefault_v0
+  (Stdlib.Option.Option.Some 5L)
+  Stdlib.Option.Option.None
+  (fun x -> x + 1L) = 6L
+
+Stdlib.Option.mapWithDefault_v0
+  Stdlib.Option.Option.None
+  Stdlib.Option.Option.None
+  (fun x -> x + 1L) = Stdlib.Option.Option.None
+
+
+Stdlib.Option.withDefault_v0 (Stdlib.Option.Option.Some 6L) 5L = 6L
+
+Stdlib.Option.withDefault_v0 Stdlib.Option.Option.None 5L = 5L
+
+
+Stdlib.Option.isSome_v0 (Stdlib.Option.Option.Some 6L) = true
+
+Stdlib.Option.isSome_v0 Stdlib.Option.Option.None = false
+
+
+Stdlib.Option.isNone_v0 (Stdlib.Option.Option.Some 6L) = false
+
+Stdlib.Option.isNone_v0 Stdlib.Option.Option.None = true
+
+
+Stdlib.Option.toResult_v0 (Stdlib.Option.Option.Some 6L) 5L = Stdlib.Result.Result.Ok
   6L
-  (fun x -> x + 1L) = 6L
 
-PACKAGE.Darklang.Stdlib.Option.mapWithDefault_v0
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  6L
-  (fun x -> x + 1L) = 6L
-
-PACKAGE.Darklang.Stdlib.Option.mapWithDefault_v0
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 5L)
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (fun x -> x + 1L) = 6L
-
-PACKAGE.Darklang.Stdlib.Option.mapWithDefault_v0
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (fun x -> x + 1L) = PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Option.toResult_v0 Stdlib.Option.Option.None "error" = Stdlib.Result.Result.Error
+  "error"
 
 
-PACKAGE.Darklang.Stdlib.Option.withDefault_v0
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 6L)
-  5L = 6L
-
-PACKAGE.Darklang.Stdlib.Option.withDefault_v0
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  5L = 5L
-
-
-PACKAGE.Darklang.Stdlib.Option.isSome_v0 (
-  PACKAGE.Darklang.Stdlib.Option.Option.Some 6L
-) = true
-
-PACKAGE.Darklang.Stdlib.Option.isSome_v0 PACKAGE.Darklang.Stdlib.Option.Option.None = false
-
-
-PACKAGE.Darklang.Stdlib.Option.isNone_v0 (
-  PACKAGE.Darklang.Stdlib.Option.Option.Some 6L
-) = false
-
-PACKAGE.Darklang.Stdlib.Option.isNone_v0 PACKAGE.Darklang.Stdlib.Option.Option.None = true
-
-
-PACKAGE.Darklang.Stdlib.Option.toResult_v0
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 6L)
-  5L = PACKAGE.Darklang.Stdlib.Result.Result.Ok 6L
-
-PACKAGE.Darklang.Stdlib.Option.toResult_v0
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  "error" = PACKAGE.Darklang.Stdlib.Result.Result.Error "error"
-
-
-PACKAGE.Darklang.Stdlib.Option.and_v0
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 6L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 5L) = PACKAGE.Darklang.Stdlib.Option.Option.Some
+Stdlib.Option.and_v0 (Stdlib.Option.Option.Some 6L) (Stdlib.Option.Option.Some 5L) = Stdlib.Option.Option.Some
   5L
 
-PACKAGE.Darklang.Stdlib.Option.and_v0
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 6L)
-  PACKAGE.Darklang.Stdlib.Option.Option.None = PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Option.and_v0 (Stdlib.Option.Option.Some 6L) Stdlib.Option.Option.None = Stdlib.Option.Option.None
 
-PACKAGE.Darklang.Stdlib.Option.and_v0
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 5L) = PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Option.and_v0 Stdlib.Option.Option.None (Stdlib.Option.Option.Some 5L) = Stdlib.Option.Option.None
 
-PACKAGE.Darklang.Stdlib.Option.and_v0
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  PACKAGE.Darklang.Stdlib.Option.Option.None = PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Option.and_v0 Stdlib.Option.Option.None Stdlib.Option.Option.None = Stdlib.Option.Option.None
 
 
-PACKAGE.Darklang.Stdlib.Option.or_v0
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 6L)
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 5L) = PACKAGE.Darklang.Stdlib.Option.Option.Some
+Stdlib.Option.or_v0 (Stdlib.Option.Option.Some 6L) (Stdlib.Option.Option.Some 5L) = Stdlib.Option.Option.Some
   6L
 
-PACKAGE.Darklang.Stdlib.Option.or_v0
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 6L)
-  PACKAGE.Darklang.Stdlib.Option.Option.None = PACKAGE.Darklang.Stdlib.Option.Option.Some
+Stdlib.Option.or_v0 (Stdlib.Option.Option.Some 6L) Stdlib.Option.Option.None = Stdlib.Option.Option.Some
   6L
 
-PACKAGE.Darklang.Stdlib.Option.or_v0
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  (PACKAGE.Darklang.Stdlib.Option.Option.Some 5L) = PACKAGE.Darklang.Stdlib.Option.Option.Some
+Stdlib.Option.or_v0 Stdlib.Option.Option.None (Stdlib.Option.Option.Some 5L) = Stdlib.Option.Option.Some
   5L
 
-PACKAGE.Darklang.Stdlib.Option.or_v0
-  PACKAGE.Darklang.Stdlib.Option.Option.None
-  PACKAGE.Darklang.Stdlib.Option.Option.None = PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Option.or_v0 Stdlib.Option.Option.None Stdlib.Option.Option.None = Stdlib.Option.Option.None
 
 
-PACKAGE.Darklang.Stdlib.Option.toList_v0 (
-  PACKAGE.Darklang.Stdlib.Option.Option.Some 6L
-) = [ 6L ]
+Stdlib.Option.toList_v0 (Stdlib.Option.Option.Some 6L) = [ 6L ]
 
-PACKAGE.Darklang.Stdlib.Option.toList_v0 PACKAGE.Darklang.Stdlib.Option.Option.None = []
+Stdlib.Option.toList_v0 Stdlib.Option.Option.None = []
 
 
-PACKAGE.Darklang.Stdlib.Option.join_v0 (
-  PACKAGE.Darklang.Stdlib.Option.Option.Some(
-    PACKAGE.Darklang.Stdlib.Option.Option.Some 6L
-  )
-) = PACKAGE.Darklang.Stdlib.Option.Option.Some 6L
+Stdlib.Option.join_v0 (Stdlib.Option.Option.Some(Stdlib.Option.Option.Some 6L)) = Stdlib.Option.Option.Some
+  6L
 
-PACKAGE.Darklang.Stdlib.Option.join_v0 (
-  PACKAGE.Darklang.Stdlib.Option.Option.Some(
-    PACKAGE.Darklang.Stdlib.Option.Option.None
-  )
-) = PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Option.join_v0 (Stdlib.Option.Option.Some(Stdlib.Option.Option.None)) = Stdlib.Option.Option.None
 
-PACKAGE.Darklang.Stdlib.Option.join_v0 PACKAGE.Darklang.Stdlib.Option.Option.None = PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Option.join_v0 Stdlib.Option.Option.None = Stdlib.Option.Option.None
 
 
-PACKAGE.Darklang.Stdlib.Option.combine_v0
-  [ PACKAGE.Darklang.Stdlib.Option.Option.Some 6L
-    PACKAGE.Darklang.Stdlib.Option.Option.Some 5L
-    PACKAGE.Darklang.Stdlib.Option.Option.Some 4L
-    PACKAGE.Darklang.Stdlib.Option.Option.Some 3L ] = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  [ 6L; 5L; 4L; 3L ]
+Stdlib.Option.combine_v0
+  [ Stdlib.Option.Option.Some 6L
+    Stdlib.Option.Option.Some 5L
+    Stdlib.Option.Option.Some 4L
+    Stdlib.Option.Option.Some 3L ] = Stdlib.Option.Option.Some [ 6L; 5L; 4L; 3L ]
 
-PACKAGE.Darklang.Stdlib.Option.combine_v0
-  [ PACKAGE.Darklang.Stdlib.Option.Option.Some 6L
-    PACKAGE.Darklang.Stdlib.Option.Option.None
-    PACKAGE.Darklang.Stdlib.Option.Option.Some 4L
-    PACKAGE.Darklang.Stdlib.Option.Option.Some 3L ] = PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Option.combine_v0
+  [ Stdlib.Option.Option.Some 6L
+    Stdlib.Option.Option.None
+    Stdlib.Option.Option.Some 4L
+    Stdlib.Option.Option.Some 3L ] = Stdlib.Option.Option.None
 
-PACKAGE.Darklang.Stdlib.Option.combine_v0
-  [ PACKAGE.Darklang.Stdlib.Option.Option.None
-    PACKAGE.Darklang.Stdlib.Option.Option.None
-    PACKAGE.Darklang.Stdlib.Option.Option.None
-    PACKAGE.Darklang.Stdlib.Option.Option.None ] = PACKAGE.Darklang.Stdlib.Option.Option.None
+Stdlib.Option.combine_v0
+  [ Stdlib.Option.Option.None
+    Stdlib.Option.Option.None
+    Stdlib.Option.Option.None
+    Stdlib.Option.Option.None ] = Stdlib.Option.Option.None
 
 
-PACKAGE.Darklang.Stdlib.Option.values
-  [ PACKAGE.Darklang.Stdlib.Option.Option.Some 6L
-    PACKAGE.Darklang.Stdlib.Option.Option.Some 5L
-    PACKAGE.Darklang.Stdlib.Option.Option.Some 4L
-    PACKAGE.Darklang.Stdlib.Option.Option.Some 3L ] = [ 6L; 5L; 4L; 3L ]
+Stdlib.Option.values
+  [ Stdlib.Option.Option.Some 6L
+    Stdlib.Option.Option.Some 5L
+    Stdlib.Option.Option.Some 4L
+    Stdlib.Option.Option.Some 3L ] = [ 6L; 5L; 4L; 3L ]
 
-PACKAGE.Darklang.Stdlib.Option.values
-  [ PACKAGE.Darklang.Stdlib.Option.Option.Some 6L
-    PACKAGE.Darklang.Stdlib.Option.Option.None
-    PACKAGE.Darklang.Stdlib.Option.Option.Some 4L
-    PACKAGE.Darklang.Stdlib.Option.Option.Some 3L ] = [ 6L; 4L; 3L ]
+Stdlib.Option.values
+  [ Stdlib.Option.Option.Some 6L
+    Stdlib.Option.Option.None
+    Stdlib.Option.Option.Some 4L
+    Stdlib.Option.Option.Some 3L ] = [ 6L; 4L; 3L ]
 
-PACKAGE.Darklang.Stdlib.Option.values
-  [ PACKAGE.Darklang.Stdlib.Option.Option.Some 6L
-    PACKAGE.Darklang.Stdlib.Option.Option.None
-    PACKAGE.Darklang.Stdlib.Option.Option.None
-    PACKAGE.Darklang.Stdlib.Option.Option.None ] = [ 6L ]
+Stdlib.Option.values
+  [ Stdlib.Option.Option.Some 6L
+    Stdlib.Option.Option.None
+    Stdlib.Option.Option.None
+    Stdlib.Option.Option.None ] = [ 6L ]
 
-PACKAGE.Darklang.Stdlib.Option.values
-  [ PACKAGE.Darklang.Stdlib.Option.Option.None
-    PACKAGE.Darklang.Stdlib.Option.Option.None
-    PACKAGE.Darklang.Stdlib.Option.Option.None
-    PACKAGE.Darklang.Stdlib.Option.Option.None ] = []
+Stdlib.Option.values
+  [ Stdlib.Option.Option.None
+    Stdlib.Option.Option.None
+    Stdlib.Option.Option.None
+    Stdlib.Option.Option.None ] = []

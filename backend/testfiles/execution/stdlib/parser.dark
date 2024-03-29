@@ -30,47 +30,45 @@ module ParseToSimplifiedTree =
   // simplest type alias
   ("type ID = Int64" |> Builtin.parserParseToSimplifiedTree) = ParsedNode
     { typ = "source_file"
-      fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
+      fieldName = Stdlib.Option.Option.None
       text = "type ID = Int64"
       sourceRange = range (0L, 0L) (0L, 15L)
       children =
         [ ParsedNode
-            { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
+            { fieldName = Stdlib.Option.Option.None
               typ = "type_decl"
               text = "type ID = Int64"
               sourceRange = range (0L, 0L) (0L, 15L)
               children =
                 [ ParsedNode
-                    { fieldName =
-                        PACKAGE.Darklang.Stdlib.Option.Option.Some "keyword_type"
+                    { fieldName = Stdlib.Option.Option.Some "keyword_type"
                       typ = "keyword"
                       text = "type"
                       sourceRange = range (0L, 0L) (0L, 4L)
                       children = [] }
 
                   ParsedNode
-                    { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.Some "name"
+                    { fieldName = Stdlib.Option.Option.Some "name"
                       typ = "type_identifier"
                       text = "ID"
                       sourceRange = range (0L, 5L) (0L, 7L)
                       children = [] }
 
                   ParsedNode
-                    { fieldName =
-                        PACKAGE.Darklang.Stdlib.Option.Option.Some "symbol_equals"
+                    { fieldName = Stdlib.Option.Option.Some "symbol_equals"
                       typ = "symbol"
                       text = "="
                       sourceRange = range (0L, 8L) (0L, 9L)
                       children = [] }
 
                   ParsedNode
-                    { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.Some "typ"
+                    { fieldName = Stdlib.Option.Option.Some "typ"
                       typ = "type_reference"
                       text = "Int64"
                       sourceRange = range (0L, 10L) (0L, 15L)
                       children =
                         [ ParsedNode
-                            { fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
+                            { fieldName = Stdlib.Option.Option.None
                               typ = "builtin_type"
                               text = "Int64"
                               sourceRange = range (0L, 10L) (0L, 15L)
@@ -79,7 +77,7 @@ module ParseToSimplifiedTree =
 
   ("" |> Builtin.parserParseToSimplifiedTree) = ParsedNode
     { typ = "source_file"
-      fieldName = PACKAGE.Darklang.Stdlib.Option.Option.None
+      fieldName = Stdlib.Option.Option.None
       text = ""
       sourceRange = range (0L, 0L) (0L, 0L)
       children = [] }
@@ -150,7 +148,7 @@ module TextToTextRoundtripping =
       | CliScript script -> script
 
     let typesAndFnsPart = // List<String>
-      (PACKAGE.Darklang.Stdlib.List.fold script.typesAndFns [] (fun acc typeOrFn ->
+      (Stdlib.List.fold script.typesAndFns [] (fun acc typeOrFn ->
         match typeOrFn with
         | Type typeDecl ->
           let prettyPrinted =
@@ -159,7 +157,7 @@ module TextToTextRoundtripping =
               typeDecl
             |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.userType
 
-          acc |> PACKAGE.Darklang.Stdlib.List.push prettyPrinted
+          acc |> Stdlib.List.push prettyPrinted
 
         | Function fnDecl ->
           let prettyPrinted =
@@ -168,23 +166,23 @@ module TextToTextRoundtripping =
               fnDecl
             |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.userFunction
 
-          acc |> PACKAGE.Darklang.Stdlib.List.push prettyPrinted))
-      |> PACKAGE.Darklang.Stdlib.List.reverse
+          acc |> Stdlib.List.push prettyPrinted))
+      |> Stdlib.List.reverse
 
     let exprsPart = // List<String>
-      (PACKAGE.Darklang.Stdlib.List.fold script.exprsToEval [] (fun acc expr ->
+      (Stdlib.List.fold script.exprsToEval [] (fun acc expr ->
         let prettyPrinted =
           (PACKAGE.Darklang.LanguageTools.NameResolver.empty ())
           |> PACKAGE.Darklang.LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
             expr
           |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.expr
 
-        acc |> PACKAGE.Darklang.Stdlib.List.push prettyPrinted))
-      |> PACKAGE.Darklang.Stdlib.List.reverse
+        acc |> Stdlib.List.push prettyPrinted))
+      |> Stdlib.List.reverse
 
     [ typesAndFnsPart; exprsPart ]
-    |> PACKAGE.Darklang.Stdlib.List.flatten
-    |> PACKAGE.Darklang.Stdlib.String.join "\n\n"
+    |> Stdlib.List.flatten
+    |> Stdlib.String.join "\n\n"
 
 
   let roundtripCliScript (text: String) : String =
@@ -335,8 +333,8 @@ module TextToTextRoundtripping =
 
 
     // multiple params
-    ("let isHigher (a: Int64) (b: Int64) : Bool = (PACKAGE.Darklang.Stdlib.Int64.greaterThan_v0 a b)"
-     |> roundtripCliScript) = "let isHigher (a: Int64) (b: Int64): Bool =\n  PACKAGE.Darklang.Stdlib.Int64.greaterThan_v0 a b"
+    ("let isHigher (a: Int64) (b: Int64) : Bool = (Stdlib.Int64.greaterThan_v0 a b)"
+     |> roundtripCliScript) = "let isHigher (a: Int64) (b: Int64): Bool =\n  Stdlib.Int64.greaterThan_v0 a b"
 
 
 

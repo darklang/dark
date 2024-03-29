@@ -1,229 +1,220 @@
 let smiley () : Char =
-  "😂" |> PACKAGE.Darklang.Stdlib.String.head |> Builtin.unwrap
+  "😂" |> Stdlib.String.head |> Builtin.unwrap
 
 let hand () : Char =
-  "✋🏿" |> PACKAGE.Darklang.Stdlib.String.head |> Builtin.unwrap
+  "✋🏿" |> Stdlib.String.head |> Builtin.unwrap
 
 let family () : Char =
-  "👩‍👩‍👧‍👦" |> PACKAGE.Darklang.Stdlib.String.head |> Builtin.unwrap
+  "👩‍👩‍👧‍👦" |> Stdlib.String.head |> Builtin.unwrap
 
-PACKAGE.Darklang.Stdlib.Char.toLowercase 'A' = 'a'
-PACKAGE.Darklang.Stdlib.Char.toLowercase 'a' = 'a'
-PACKAGE.Darklang.Stdlib.Char.toLowercase 'Á' = 'á'
-PACKAGE.Darklang.Stdlib.Char.toLowercase '3' = '3'
-PACKAGE.Darklang.Stdlib.Char.toLowercase (smiley ()) = smiley ()
-PACKAGE.Darklang.Stdlib.Char.toLowercase 'Ż' = 'ż'
-PACKAGE.Darklang.Stdlib.Char.toLowercase 'Ó' = 'ó'
-PACKAGE.Darklang.Stdlib.Char.toLowercase 'Ł' = 'ł'
-PACKAGE.Darklang.Stdlib.Char.toLowercase (hand ()) = hand ()
-PACKAGE.Darklang.Stdlib.Char.toLowercase 'Ჾ' = 'ჾ'
-PACKAGE.Darklang.Stdlib.Char.toLowercase 'ჾ' = 'ჾ'
-
-
-PACKAGE.Darklang.Stdlib.Char.toUppercase 'a' = 'A'
-PACKAGE.Darklang.Stdlib.Char.toUppercase 'A' = 'A'
-PACKAGE.Darklang.Stdlib.Char.toUppercase 'á' = 'Á'
-PACKAGE.Darklang.Stdlib.Char.toUppercase '3' = '3'
-PACKAGE.Darklang.Stdlib.Char.toUppercase (smiley ()) = smiley ()
-PACKAGE.Darklang.Stdlib.Char.toUppercase 'ż' = 'Ż'
-PACKAGE.Darklang.Stdlib.Char.toUppercase 'ó' = 'Ó'
-PACKAGE.Darklang.Stdlib.Char.toUppercase 'ł' = 'Ł'
-PACKAGE.Darklang.Stdlib.Char.toUppercase (hand ()) = hand ()
-PACKAGE.Darklang.Stdlib.Char.toUppercase 'ჾ' = 'Ჾ'
-PACKAGE.Darklang.Stdlib.Char.toUppercase 'Ჾ' = 'Ჾ'
+Stdlib.Char.toLowercase 'A' = 'a'
+Stdlib.Char.toLowercase 'a' = 'a'
+Stdlib.Char.toLowercase 'Á' = 'á'
+Stdlib.Char.toLowercase '3' = '3'
+Stdlib.Char.toLowercase (smiley ()) = smiley ()
+Stdlib.Char.toLowercase 'Ż' = 'ż'
+Stdlib.Char.toLowercase 'Ó' = 'ó'
+Stdlib.Char.toLowercase 'Ł' = 'ł'
+Stdlib.Char.toLowercase (hand ()) = hand ()
+Stdlib.Char.toLowercase 'Ჾ' = 'ჾ'
+Stdlib.Char.toLowercase 'ჾ' = 'ჾ'
 
 
-PACKAGE.Darklang.Stdlib.Char.isLowercase_v0 'a' = true
-PACKAGE.Darklang.Stdlib.Char.isLowercase_v0 'A' = false
-PACKAGE.Darklang.Stdlib.Char.isLowercase_v0 'á' = true
-PACKAGE.Darklang.Stdlib.Char.isLowercase_v0 'Á' = false
-PACKAGE.Darklang.Stdlib.Char.isLowercase_v0 '3' = false
-PACKAGE.Darklang.Stdlib.Char.isLowercase_v0 (smiley ()) = false
-PACKAGE.Darklang.Stdlib.Char.isLowercase_v0 'ż' = true
-PACKAGE.Darklang.Stdlib.Char.isLowercase_v0 'Ż' = false
-PACKAGE.Darklang.Stdlib.Char.isLowercase_v0 'ó' = true
-PACKAGE.Darklang.Stdlib.Char.isLowercase_v0 'Ó' = false
-PACKAGE.Darklang.Stdlib.Char.isLowercase_v0 'ł' = true
-PACKAGE.Darklang.Stdlib.Char.isLowercase_v0 'Ł' = false
-PACKAGE.Darklang.Stdlib.Char.isLowercase_v0 (hand ()) = false
-PACKAGE.Darklang.Stdlib.Char.isLowercase_v0 'ჾ' = true
-PACKAGE.Darklang.Stdlib.Char.isLowercase_v0 'Ჾ' = false
+Stdlib.Char.toUppercase 'a' = 'A'
+Stdlib.Char.toUppercase 'A' = 'A'
+Stdlib.Char.toUppercase 'á' = 'Á'
+Stdlib.Char.toUppercase '3' = '3'
+Stdlib.Char.toUppercase (smiley ()) = smiley ()
+Stdlib.Char.toUppercase 'ż' = 'Ż'
+Stdlib.Char.toUppercase 'ó' = 'Ó'
+Stdlib.Char.toUppercase 'ł' = 'Ł'
+Stdlib.Char.toUppercase (hand ()) = hand ()
+Stdlib.Char.toUppercase 'ჾ' = 'Ჾ'
+Stdlib.Char.toUppercase 'Ჾ' = 'Ჾ'
 
 
-PACKAGE.Darklang.Stdlib.Char.isUppercase_v0 'a' = false
-PACKAGE.Darklang.Stdlib.Char.isUppercase_v0 'A' = true
-PACKAGE.Darklang.Stdlib.Char.isUppercase_v0 'á' = false
-PACKAGE.Darklang.Stdlib.Char.isUppercase_v0 'Á' = true
-PACKAGE.Darklang.Stdlib.Char.isUppercase_v0 '3' = false
-PACKAGE.Darklang.Stdlib.Char.isUppercase_v0 (smiley ()) = false
-PACKAGE.Darklang.Stdlib.Char.isUppercase_v0 'ż' = false
-PACKAGE.Darklang.Stdlib.Char.isUppercase_v0 'Ż' = true
-PACKAGE.Darklang.Stdlib.Char.isUppercase_v0 'ó' = false
-PACKAGE.Darklang.Stdlib.Char.isUppercase_v0 'Ó' = true
-PACKAGE.Darklang.Stdlib.Char.isUppercase_v0 'ł' = false
-PACKAGE.Darklang.Stdlib.Char.isUppercase_v0 'Ł' = true
-PACKAGE.Darklang.Stdlib.Char.isUppercase_v0 (hand ()) = false
-PACKAGE.Darklang.Stdlib.Char.isUppercase_v0 'ჾ' = false
-PACKAGE.Darklang.Stdlib.Char.isUppercase_v0 'Ჾ' = true
+Stdlib.Char.isLowercase_v0 'a' = true
+Stdlib.Char.isLowercase_v0 'A' = false
+Stdlib.Char.isLowercase_v0 'á' = true
+Stdlib.Char.isLowercase_v0 'Á' = false
+Stdlib.Char.isLowercase_v0 '3' = false
+Stdlib.Char.isLowercase_v0 (smiley ()) = false
+Stdlib.Char.isLowercase_v0 'ż' = true
+Stdlib.Char.isLowercase_v0 'Ż' = false
+Stdlib.Char.isLowercase_v0 'ó' = true
+Stdlib.Char.isLowercase_v0 'Ó' = false
+Stdlib.Char.isLowercase_v0 'ł' = true
+Stdlib.Char.isLowercase_v0 'Ł' = false
+Stdlib.Char.isLowercase_v0 (hand ()) = false
+Stdlib.Char.isLowercase_v0 'ჾ' = true
+Stdlib.Char.isLowercase_v0 'Ჾ' = false
 
 
-PACKAGE.Darklang.Stdlib.Char.isDigit_v0 'a' = false
-PACKAGE.Darklang.Stdlib.Char.isDigit_v0 'A' = false
-PACKAGE.Darklang.Stdlib.Char.isDigit_v0 'á' = false
-PACKAGE.Darklang.Stdlib.Char.isDigit_v0 'Á' = false
-PACKAGE.Darklang.Stdlib.Char.isDigit_v0 '0' = true
-PACKAGE.Darklang.Stdlib.Char.isDigit_v0 '1' = true
-PACKAGE.Darklang.Stdlib.Char.isDigit_v0 '2' = true
-PACKAGE.Darklang.Stdlib.Char.isDigit_v0 '3' = true
-PACKAGE.Darklang.Stdlib.Char.isDigit_v0 '4' = true
-PACKAGE.Darklang.Stdlib.Char.isDigit_v0 '5' = true
-PACKAGE.Darklang.Stdlib.Char.isDigit_v0 '6' = true
-PACKAGE.Darklang.Stdlib.Char.isDigit_v0 '7' = true
-PACKAGE.Darklang.Stdlib.Char.isDigit_v0 '8' = true
-PACKAGE.Darklang.Stdlib.Char.isDigit_v0 '9' = true
-PACKAGE.Darklang.Stdlib.Char.isDigit_v0 (smiley ()) = false
-PACKAGE.Darklang.Stdlib.Char.isDigit_v0 'ż' = false
-PACKAGE.Darklang.Stdlib.Char.isDigit_v0 'Ż' = false
-PACKAGE.Darklang.Stdlib.Char.isDigit_v0 'ó' = false
-PACKAGE.Darklang.Stdlib.Char.isDigit_v0 'Ó' = false
-PACKAGE.Darklang.Stdlib.Char.isDigit_v0 'ł' = false
-PACKAGE.Darklang.Stdlib.Char.isDigit_v0 'Ł' = false
-PACKAGE.Darklang.Stdlib.Char.isDigit_v0 (hand ()) = false
-PACKAGE.Darklang.Stdlib.Char.isDigit_v0 'ჾ' = false
-PACKAGE.Darklang.Stdlib.Char.isDigit_v0 'Ჾ' = false
-PACKAGE.Darklang.Stdlib.Char.isDigit_v0 ' ' = false
-PACKAGE.Darklang.Stdlib.Char.isDigit_v0 '\t' = false
+Stdlib.Char.isUppercase_v0 'a' = false
+Stdlib.Char.isUppercase_v0 'A' = true
+Stdlib.Char.isUppercase_v0 'á' = false
+Stdlib.Char.isUppercase_v0 'Á' = true
+Stdlib.Char.isUppercase_v0 '3' = false
+Stdlib.Char.isUppercase_v0 (smiley ()) = false
+Stdlib.Char.isUppercase_v0 'ż' = false
+Stdlib.Char.isUppercase_v0 'Ż' = true
+Stdlib.Char.isUppercase_v0 'ó' = false
+Stdlib.Char.isUppercase_v0 'Ó' = true
+Stdlib.Char.isUppercase_v0 'ł' = false
+Stdlib.Char.isUppercase_v0 'Ł' = true
+Stdlib.Char.isUppercase_v0 (hand ()) = false
+Stdlib.Char.isUppercase_v0 'ჾ' = false
+Stdlib.Char.isUppercase_v0 'Ჾ' = true
 
 
-PACKAGE.Darklang.Stdlib.Char.isASCIILetter_v0 'a' = true
-PACKAGE.Darklang.Stdlib.Char.isASCIILetter_v0 'A' = true
-PACKAGE.Darklang.Stdlib.Char.isASCIILetter_v0 'á' = false
-PACKAGE.Darklang.Stdlib.Char.isASCIILetter_v0 'Á' = false
-PACKAGE.Darklang.Stdlib.Char.isASCIILetter_v0 '3' = false
-PACKAGE.Darklang.Stdlib.Char.isASCIILetter_v0 ',' = false
-PACKAGE.Darklang.Stdlib.Char.isASCIILetter_v0 (smiley ()) = false
-PACKAGE.Darklang.Stdlib.Char.isASCIILetter_v0 'ż' = false
-PACKAGE.Darklang.Stdlib.Char.isASCIILetter_v0 'Ż' = false
-PACKAGE.Darklang.Stdlib.Char.isASCIILetter_v0 'ó' = false
-PACKAGE.Darklang.Stdlib.Char.isASCIILetter_v0 'Ó' = false
-PACKAGE.Darklang.Stdlib.Char.isASCIILetter_v0 'ł' = false
-PACKAGE.Darklang.Stdlib.Char.isASCIILetter_v0 'Ł' = false
-PACKAGE.Darklang.Stdlib.Char.isASCIILetter_v0 (hand ()) = false
-PACKAGE.Darklang.Stdlib.Char.isASCIILetter_v0 'ჾ' = false
-PACKAGE.Darklang.Stdlib.Char.isASCIILetter_v0 'Ჾ' = false
-PACKAGE.Darklang.Stdlib.Char.isASCIILetter_v0 ' ' = false
-PACKAGE.Darklang.Stdlib.Char.isASCIILetter_v0 '\t' = false
+Stdlib.Char.isDigit_v0 'a' = false
+Stdlib.Char.isDigit_v0 'A' = false
+Stdlib.Char.isDigit_v0 'á' = false
+Stdlib.Char.isDigit_v0 'Á' = false
+Stdlib.Char.isDigit_v0 '0' = true
+Stdlib.Char.isDigit_v0 '1' = true
+Stdlib.Char.isDigit_v0 '2' = true
+Stdlib.Char.isDigit_v0 '3' = true
+Stdlib.Char.isDigit_v0 '4' = true
+Stdlib.Char.isDigit_v0 '5' = true
+Stdlib.Char.isDigit_v0 '6' = true
+Stdlib.Char.isDigit_v0 '7' = true
+Stdlib.Char.isDigit_v0 '8' = true
+Stdlib.Char.isDigit_v0 '9' = true
+Stdlib.Char.isDigit_v0 (smiley ()) = false
+Stdlib.Char.isDigit_v0 'ż' = false
+Stdlib.Char.isDigit_v0 'Ż' = false
+Stdlib.Char.isDigit_v0 'ó' = false
+Stdlib.Char.isDigit_v0 'Ó' = false
+Stdlib.Char.isDigit_v0 'ł' = false
+Stdlib.Char.isDigit_v0 'Ł' = false
+Stdlib.Char.isDigit_v0 (hand ()) = false
+Stdlib.Char.isDigit_v0 'ჾ' = false
+Stdlib.Char.isDigit_v0 'Ჾ' = false
+Stdlib.Char.isDigit_v0 ' ' = false
+Stdlib.Char.isDigit_v0 '\t' = false
 
 
-PACKAGE.Darklang.Stdlib.Char.isASCII_v0 'a' = true
-PACKAGE.Darklang.Stdlib.Char.isASCII_v0 'A' = true
-PACKAGE.Darklang.Stdlib.Char.isASCII_v0 'á' = false
-PACKAGE.Darklang.Stdlib.Char.isASCII_v0 'Á' = false
-PACKAGE.Darklang.Stdlib.Char.isASCII_v0 '3' = true
-PACKAGE.Darklang.Stdlib.Char.isASCII_v0 (smiley ()) = false
-PACKAGE.Darklang.Stdlib.Char.isASCII_v0 'ż' = false
-PACKAGE.Darklang.Stdlib.Char.isASCII_v0 'Ż' = false
-PACKAGE.Darklang.Stdlib.Char.isASCII_v0 'ó' = false
-PACKAGE.Darklang.Stdlib.Char.isASCII_v0 'Ó' = false
-PACKAGE.Darklang.Stdlib.Char.isASCII_v0 'ł' = false
-PACKAGE.Darklang.Stdlib.Char.isASCII_v0 'Ł' = false
-PACKAGE.Darklang.Stdlib.Char.isASCII_v0 (hand ()) = false
-PACKAGE.Darklang.Stdlib.Char.isASCII_v0 'ჾ' = false
-PACKAGE.Darklang.Stdlib.Char.isASCII_v0 'Ჾ' = false
-PACKAGE.Darklang.Stdlib.Char.isASCII_v0 ' ' = true
-PACKAGE.Darklang.Stdlib.Char.isASCII_v0 '\t' = true
+Stdlib.Char.isASCIILetter_v0 'a' = true
+Stdlib.Char.isASCIILetter_v0 'A' = true
+Stdlib.Char.isASCIILetter_v0 'á' = false
+Stdlib.Char.isASCIILetter_v0 'Á' = false
+Stdlib.Char.isASCIILetter_v0 '3' = false
+Stdlib.Char.isASCIILetter_v0 ',' = false
+Stdlib.Char.isASCIILetter_v0 (smiley ()) = false
+Stdlib.Char.isASCIILetter_v0 'ż' = false
+Stdlib.Char.isASCIILetter_v0 'Ż' = false
+Stdlib.Char.isASCIILetter_v0 'ó' = false
+Stdlib.Char.isASCIILetter_v0 'Ó' = false
+Stdlib.Char.isASCIILetter_v0 'ł' = false
+Stdlib.Char.isASCIILetter_v0 'Ł' = false
+Stdlib.Char.isASCIILetter_v0 (hand ()) = false
+Stdlib.Char.isASCIILetter_v0 'ჾ' = false
+Stdlib.Char.isASCIILetter_v0 'Ჾ' = false
+Stdlib.Char.isASCIILetter_v0 ' ' = false
+Stdlib.Char.isASCIILetter_v0 '\t' = false
 
 
-PACKAGE.Darklang.Stdlib.Char.toAsciiCode 'a' = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  97L
-
-PACKAGE.Darklang.Stdlib.Char.toAsciiCode 'A' = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  65L
-
-PACKAGE.Darklang.Stdlib.Char.toAsciiCode 'á' = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  225L
-
-PACKAGE.Darklang.Stdlib.Char.toAsciiCode 'Á' = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  193L
-
-PACKAGE.Darklang.Stdlib.Char.toAsciiCode '3' = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  51L
-
-PACKAGE.Darklang.Stdlib.Char.toAsciiCode (smiley ()) = PACKAGE.Darklang.Stdlib.Option.Option.None
-
-PACKAGE.Darklang.Stdlib.Char.toAsciiCode 'ż' = PACKAGE.Darklang.Stdlib.Option.Option.None
-
-PACKAGE.Darklang.Stdlib.Char.toAsciiCode 'Ż' = PACKAGE.Darklang.Stdlib.Option.Option.None
-
-PACKAGE.Darklang.Stdlib.Char.toAsciiCode 'ó' = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  243L
-
-PACKAGE.Darklang.Stdlib.Char.toAsciiCode 'Ó' = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  211L
-
-PACKAGE.Darklang.Stdlib.Char.toAsciiCode 'ł' = PACKAGE.Darklang.Stdlib.Option.Option.None
-
-PACKAGE.Darklang.Stdlib.Char.toAsciiCode 'Ł' = PACKAGE.Darklang.Stdlib.Option.Option.None
-
-PACKAGE.Darklang.Stdlib.Char.toAsciiCode (hand ()) = PACKAGE.Darklang.Stdlib.Option.Option.None
-
-PACKAGE.Darklang.Stdlib.Char.toAsciiCode 'ჾ' = PACKAGE.Darklang.Stdlib.Option.Option.None
-
-PACKAGE.Darklang.Stdlib.Char.toAsciiCode 'Ჾ' = PACKAGE.Darklang.Stdlib.Option.Option.None
-
-PACKAGE.Darklang.Stdlib.Char.toAsciiCode ' ' = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  32L
-
-PACKAGE.Darklang.Stdlib.Char.toAsciiCode '\t' = PACKAGE.Darklang.Stdlib.Option.Option.Some
-  9L
+Stdlib.Char.isASCII_v0 'a' = true
+Stdlib.Char.isASCII_v0 'A' = true
+Stdlib.Char.isASCII_v0 'á' = false
+Stdlib.Char.isASCII_v0 'Á' = false
+Stdlib.Char.isASCII_v0 '3' = true
+Stdlib.Char.isASCII_v0 (smiley ()) = false
+Stdlib.Char.isASCII_v0 'ż' = false
+Stdlib.Char.isASCII_v0 'Ż' = false
+Stdlib.Char.isASCII_v0 'ó' = false
+Stdlib.Char.isASCII_v0 'Ó' = false
+Stdlib.Char.isASCII_v0 'ł' = false
+Stdlib.Char.isASCII_v0 'Ł' = false
+Stdlib.Char.isASCII_v0 (hand ()) = false
+Stdlib.Char.isASCII_v0 'ჾ' = false
+Stdlib.Char.isASCII_v0 'Ჾ' = false
+Stdlib.Char.isASCII_v0 ' ' = true
+Stdlib.Char.isASCII_v0 '\t' = true
 
 
-PACKAGE.Darklang.Stdlib.Char.isLessThan_v0 'a' 'b' = true
-PACKAGE.Darklang.Stdlib.Char.isLessThan_v0 'a' 'A' = false
-PACKAGE.Darklang.Stdlib.Char.isLessThan_v0 'b' 'A' = false
-PACKAGE.Darklang.Stdlib.Char.isLessThan_v0 'a' 'á' = true
-PACKAGE.Darklang.Stdlib.Char.isLessThan_v0 'b' 'á' = true
-PACKAGE.Darklang.Stdlib.Char.isLessThan_v0 'a' 'ჾ' = true
-PACKAGE.Darklang.Stdlib.Char.isLessThan_v0 'a' 'Ჾ' = true
-PACKAGE.Darklang.Stdlib.Char.isLessThan_v0 'a' 'ł' = true
-PACKAGE.Darklang.Stdlib.Char.isLessThan_v0 'a' 'Ł' = true
-PACKAGE.Darklang.Stdlib.Char.isLessThan_v0 'a' ' ' = false
-PACKAGE.Darklang.Stdlib.Char.isLessThan_v0 'a' '\t' = false
-PACKAGE.Darklang.Stdlib.Char.isLessThan_v0 'a' '1' = false
-PACKAGE.Darklang.Stdlib.Char.isLessThan_v0 '2' '1' = false
-PACKAGE.Darklang.Stdlib.Char.isLessThan_v0 'a' (smiley ()) = true
-PACKAGE.Darklang.Stdlib.Char.isLessThan_v0 'a' (hand ()) = true
-PACKAGE.Darklang.Stdlib.Char.isLessThan_v0 'a' (family ()) = true
-PACKAGE.Darklang.Stdlib.Char.isLessThan_v0 (smiley ()) (hand ()) = false
+Stdlib.Char.toAsciiCode 'a' = Stdlib.Option.Option.Some 97L
+
+Stdlib.Char.toAsciiCode 'A' = Stdlib.Option.Option.Some 65L
+
+Stdlib.Char.toAsciiCode 'á' = Stdlib.Option.Option.Some 225L
+
+Stdlib.Char.toAsciiCode 'Á' = Stdlib.Option.Option.Some 193L
+
+Stdlib.Char.toAsciiCode '3' = Stdlib.Option.Option.Some 51L
+
+Stdlib.Char.toAsciiCode (smiley ()) = Stdlib.Option.Option.None
+
+Stdlib.Char.toAsciiCode 'ż' = Stdlib.Option.Option.None
+
+Stdlib.Char.toAsciiCode 'Ż' = Stdlib.Option.Option.None
+
+Stdlib.Char.toAsciiCode 'ó' = Stdlib.Option.Option.Some 243L
+
+Stdlib.Char.toAsciiCode 'Ó' = Stdlib.Option.Option.Some 211L
+
+Stdlib.Char.toAsciiCode 'ł' = Stdlib.Option.Option.None
+
+Stdlib.Char.toAsciiCode 'Ł' = Stdlib.Option.Option.None
+
+Stdlib.Char.toAsciiCode (hand ()) = Stdlib.Option.Option.None
+
+Stdlib.Char.toAsciiCode 'ჾ' = Stdlib.Option.Option.None
+
+Stdlib.Char.toAsciiCode 'Ჾ' = Stdlib.Option.Option.None
+
+Stdlib.Char.toAsciiCode ' ' = Stdlib.Option.Option.Some 32L
+
+Stdlib.Char.toAsciiCode '\t' = Stdlib.Option.Option.Some 9L
 
 
-PACKAGE.Darklang.Stdlib.Char.isGreaterThan_v0 'a' 'b' = false
-PACKAGE.Darklang.Stdlib.Char.isGreaterThan_v0 'a' 'A' = true
-PACKAGE.Darklang.Stdlib.Char.isGreaterThan_v0 'b' 'A' = true
-PACKAGE.Darklang.Stdlib.Char.isGreaterThan_v0 'a' 'á' = false
-PACKAGE.Darklang.Stdlib.Char.isGreaterThan_v0 'b' 'á' = false
-PACKAGE.Darklang.Stdlib.Char.isGreaterThan_v0 'a' 'ჾ' = false
-PACKAGE.Darklang.Stdlib.Char.isGreaterThan_v0 'a' 'Ჾ' = false
-PACKAGE.Darklang.Stdlib.Char.isGreaterThan_v0 'a' 'ł' = false
-PACKAGE.Darklang.Stdlib.Char.isGreaterThan_v0 'a' 'Ł' = false
-PACKAGE.Darklang.Stdlib.Char.isGreaterThan_v0 'a' ' ' = true
-PACKAGE.Darklang.Stdlib.Char.isGreaterThan_v0 'a' '\t' = true
-PACKAGE.Darklang.Stdlib.Char.isGreaterThan_v0 'a' '1' = true
-PACKAGE.Darklang.Stdlib.Char.isGreaterThan_v0 '2' '1' = true
-PACKAGE.Darklang.Stdlib.Char.isGreaterThan_v0 'a' (smiley ()) = false
-PACKAGE.Darklang.Stdlib.Char.isGreaterThan_v0 'a' (hand ()) = false
-PACKAGE.Darklang.Stdlib.Char.isGreaterThan_v0 'a' (family ()) = false
-PACKAGE.Darklang.Stdlib.Char.isGreaterThan_v0 (smiley ()) (hand ()) = true
+Stdlib.Char.isLessThan_v0 'a' 'b' = true
+Stdlib.Char.isLessThan_v0 'a' 'A' = false
+Stdlib.Char.isLessThan_v0 'b' 'A' = false
+Stdlib.Char.isLessThan_v0 'a' 'á' = true
+Stdlib.Char.isLessThan_v0 'b' 'á' = true
+Stdlib.Char.isLessThan_v0 'a' 'ჾ' = true
+Stdlib.Char.isLessThan_v0 'a' 'Ჾ' = true
+Stdlib.Char.isLessThan_v0 'a' 'ł' = true
+Stdlib.Char.isLessThan_v0 'a' 'Ł' = true
+Stdlib.Char.isLessThan_v0 'a' ' ' = false
+Stdlib.Char.isLessThan_v0 'a' '\t' = false
+Stdlib.Char.isLessThan_v0 'a' '1' = false
+Stdlib.Char.isLessThan_v0 '2' '1' = false
+Stdlib.Char.isLessThan_v0 'a' (smiley ()) = true
+Stdlib.Char.isLessThan_v0 'a' (hand ()) = true
+Stdlib.Char.isLessThan_v0 'a' (family ()) = true
+Stdlib.Char.isLessThan_v0 (smiley ()) (hand ()) = false
 
 
-PACKAGE.Darklang.Stdlib.Char.toString 'A' = "A"
-PACKAGE.Darklang.Stdlib.Char.toString 'a' = "a"
-PACKAGE.Darklang.Stdlib.Char.toString 'Á' = "Á"
-PACKAGE.Darklang.Stdlib.Char.toString '3' = "3"
-PACKAGE.Darklang.Stdlib.Char.toString (smiley ()) = "😂"
-PACKAGE.Darklang.Stdlib.Char.toString 'Ż' = "Ż"
-PACKAGE.Darklang.Stdlib.Char.toString 'Ó' = "Ó"
-PACKAGE.Darklang.Stdlib.Char.toString 'Ł' = "Ł"
-PACKAGE.Darklang.Stdlib.Char.toString (hand ()) = "✋🏿"
-PACKAGE.Darklang.Stdlib.Char.toString 'Ჾ' = "Ჾ"
-PACKAGE.Darklang.Stdlib.Char.toString 'ჾ' = "ჾ"
+Stdlib.Char.isGreaterThan_v0 'a' 'b' = false
+Stdlib.Char.isGreaterThan_v0 'a' 'A' = true
+Stdlib.Char.isGreaterThan_v0 'b' 'A' = true
+Stdlib.Char.isGreaterThan_v0 'a' 'á' = false
+Stdlib.Char.isGreaterThan_v0 'b' 'á' = false
+Stdlib.Char.isGreaterThan_v0 'a' 'ჾ' = false
+Stdlib.Char.isGreaterThan_v0 'a' 'Ჾ' = false
+Stdlib.Char.isGreaterThan_v0 'a' 'ł' = false
+Stdlib.Char.isGreaterThan_v0 'a' 'Ł' = false
+Stdlib.Char.isGreaterThan_v0 'a' ' ' = true
+Stdlib.Char.isGreaterThan_v0 'a' '\t' = true
+Stdlib.Char.isGreaterThan_v0 'a' '1' = true
+Stdlib.Char.isGreaterThan_v0 '2' '1' = true
+Stdlib.Char.isGreaterThan_v0 'a' (smiley ()) = false
+Stdlib.Char.isGreaterThan_v0 'a' (hand ()) = false
+Stdlib.Char.isGreaterThan_v0 'a' (family ()) = false
+Stdlib.Char.isGreaterThan_v0 (smiley ()) (hand ()) = true
+
+
+Stdlib.Char.toString 'A' = "A"
+Stdlib.Char.toString 'a' = "a"
+Stdlib.Char.toString 'Á' = "Á"
+Stdlib.Char.toString '3' = "3"
+Stdlib.Char.toString (smiley ()) = "😂"
+Stdlib.Char.toString 'Ż' = "Ż"
+Stdlib.Char.toString 'Ó' = "Ó"
+Stdlib.Char.toString 'Ł' = "Ł"
+Stdlib.Char.toString (hand ()) = "✋🏿"
+Stdlib.Char.toString 'Ჾ' = "Ჾ"
+Stdlib.Char.toString 'ჾ' = "ჾ"
