@@ -1,0 +1,78 @@
+// TODO: a lot more tests.
+
+// aliases and helpers
+type HtmlTag = Stdlib.Html.HtmlTag
+type Node = Stdlib.Html.Node
+
+let nodeToString (node: Node) : String = Stdlib.Html.nodeToString node
+
+let stringNode (str: String) : Node = Stdlib.Html.stringNode str
+
+let htmlTag (n: String) (a: List<String * String>) (c: List<Node>) : Node =
+  Stdlib.Html.htmlTagNode n a c
+
+
+let tidyHtml (html: String) : String =
+  html
+  |> Stdlib.String.split "\n"
+  |> Stdlib.List.map (fun line -> Stdlib.String.trim line)
+  |> Stdlib.String.join ""
+
+
+// -- basic testing of low-level fns
+(htmlTag "div" [] []) |> nodeToString = "<div/>"
+
+(htmlTag "div" [] [ stringNode "yolo" ]) |> nodeToString = "<div>yolo</div>"
+
+(htmlTag "div" [ ("id", "my-div") ] [ stringNode "yolo" ]) |> nodeToString = "<div id=\"my-div\">yolo</div>"
+
+(htmlTag "div" [] [ htmlTag "button" [] [ stringNode "click me" ] ])
+|> nodeToString = "<div><button>click me</button></div>"
+
+
+// -- testing of simple html node helpers
+(Stdlib.Html.comment "hello") |> nodeToString = "<!-- hello -->"
+
+(Stdlib.Html.br ()) |> nodeToString = "<br/>"
+(Stdlib.Html.div [] []) |> nodeToString = "<div/>"
+(Stdlib.Html.span [] []) |> nodeToString = "<span/>"
+
+(Stdlib.Html.h1 [] []) |> nodeToString = "<h1/>"
+(Stdlib.Html.h2 [] []) |> nodeToString = "<h2/>"
+(Stdlib.Html.h3 [] []) |> nodeToString = "<h3/>"
+(Stdlib.Html.h4 [] []) |> nodeToString = "<h4/>"
+(Stdlib.Html.h5 [] []) |> nodeToString = "<h5/>"
+(Stdlib.Html.h6 [] []) |> nodeToString = "<h6/>"
+
+(Stdlib.Html.p [] []) |> nodeToString = "<p/>"
+(Stdlib.Html.ul [] []) |> nodeToString = "<ul/>"
+(Stdlib.Html.ol [] []) |> nodeToString = "<ol/>"
+(Stdlib.Html.li [] []) |> nodeToString = "<li/>"
+
+(Stdlib.Html.table [] []) |> nodeToString = "<table/>"
+(Stdlib.Html.tr [] []) |> nodeToString = "<tr/>"
+(Stdlib.Html.td [] []) |> nodeToString = "<td/>"
+(Stdlib.Html.th [] []) |> nodeToString = "<th/>"
+(Stdlib.Html.tbody [] []) |> nodeToString = "<tbody/>"
+(Stdlib.Html.thead [] []) |> nodeToString = "<thead/>"
+(Stdlib.Html.tfoot [] []) |> nodeToString = "<tfoot/>"
+
+(Stdlib.Html.caption [] []) |> nodeToString = "<caption/>"
+
+(Stdlib.Html.colgroup [] []) |> nodeToString = "<colgroup/>"
+(Stdlib.Html.col [] []) |> nodeToString = "<col/>"
+
+
+// -- test writing out a full document
+
+([ Stdlib.Html.html
+     []
+     [ Stdlib.Html.head [] [ Stdlib.Html.title [] [ stringNode "Darklang.com" ] ]
+
+       Stdlib.Html.body [] [ Stdlib.Html.p [] [ stringNode "welcome to darklang" ] ] ] ]
+ |> Stdlib.Html.document) = ("<!DOCTYPE html>
+    <html>
+      <head><title>Darklang.com</title></head>
+      <body><p>welcome to darklang</p></body>
+    </html>"
+                             |> tidyHtml)
