@@ -1,0 +1,155 @@
+module Darklang =
+  module Stdlib =
+
+    /// TODO think more on the organization of these
+    /// - should the 'tag' helpers be in some Tag submodule?
+    /// - should nodeToString be in a Node module, with HtmlTag and Node moved there?
+    ///
+    /// TODO fill in more helpers for common HTML tags
+    module Html =
+      type HtmlTag =
+        { name: String
+          attrs: List<String * String>
+          children: List<Node> }
+
+      type Node =
+        /// for comments and when we don't want to write something out in Dark-y HTML
+        | String of String
+        | HtmlTag of HtmlTag
+
+
+      let stringNode (str: String) : Node = Node.String str
+
+      let htmlTagNode
+        (name: String)
+        (attrs: List<String * String>)
+        (children: List<Node>)
+        : Node =
+        (HtmlTag
+          { name = name
+            attrs = attrs
+            children = children })
+        |> Node.HtmlTag
+
+
+      let nodeToString (node: Node) : String =
+        match node with
+        | String str -> str
+        | HtmlTag tag ->
+          let attributesText =
+            tag.attrs
+            |> List.map (fun (key, value) -> $"{key}=\"{value}\"")
+            |> String.join " "
+
+          match tag.children with
+          | [] ->
+            match attributesText with
+            | "" -> $"<{tag.name}/>"
+            | text -> $"<{tag.name} {text}/>"
+
+          | children ->
+            let childHtml =
+              children |> List.map (fun c -> Html.nodeToString c) |> String.join ""
+
+            let startTag =
+              match attributesText with
+              | "" -> $"<{tag.name}>"
+              | text -> $"<{tag.name} {text}>"
+
+            let endTag = $"</{tag.name}>"
+
+            startTag ++ childHtml ++ endTag
+
+
+      let comment (s: String) : Node = stringNode $"<!-- {s} -->"
+
+      let br () : Node = htmlTagNode "br" [] []
+
+      let html (attrs: List<String * String>) (c: List<Node>) : Node =
+        htmlTagNode "html" attrs c
+
+      let body (attrs: List<String * String>) (c: List<Node>) : Node =
+        htmlTagNode "body" attrs c
+
+      let head (attrs: List<String * String>) (c: List<Node>) : Node =
+        htmlTagNode "head" attrs c
+
+      let title (attrs: List<String * String>) (c: List<Node>) : Node =
+        htmlTagNode "title" attrs c
+
+      let a (attrs: List<String * String>) (c: List<Node>) : Node =
+        htmlTagNode "a" attrs c
+
+      // same for div, span, etc.:
+      let div (attrs: List<String * String>) (c: List<Node>) : Node =
+        htmlTagNode "div" attrs c
+
+      let span (attrs: List<String * String>) (c: List<Node>) : Node =
+        htmlTagNode "span" attrs c
+
+      let h1 (attrs: List<String * String>) (c: List<Node>) : Node =
+        htmlTagNode "h1" attrs c
+
+      let h2 (attrs: List<String * String>) (c: List<Node>) : Node =
+        htmlTagNode "h2" attrs c
+
+      let h3 (attrs: List<String * String>) (c: List<Node>) : Node =
+        htmlTagNode "h3" attrs c
+
+      let h4 (attrs: List<String * String>) (c: List<Node>) : Node =
+        htmlTagNode "h4" attrs c
+
+      let h5 (attrs: List<String * String>) (c: List<Node>) : Node =
+        htmlTagNode "h5" attrs c
+
+      let h6 (attrs: List<String * String>) (c: List<Node>) : Node =
+        htmlTagNode "h6" attrs c
+
+      let p (attrs: List<String * String>) (c: List<Node>) : Node =
+        htmlTagNode "p" attrs c
+
+      let ul (attrs: List<String * String>) (c: List<Node>) : Node =
+        htmlTagNode "ul" attrs c
+
+      let ol (attrs: List<String * String>) (c: List<Node>) : Node =
+        htmlTagNode "ol" attrs c
+
+      let li (attrs: List<String * String>) (c: List<Node>) : Node =
+        htmlTagNode "li" attrs c
+
+      let table (attrs: List<String * String>) (c: List<Node>) : Node =
+        htmlTagNode "table" attrs c
+
+      let tr (attrs: List<String * String>) (c: List<Node>) : Node =
+        htmlTagNode "tr" attrs c
+
+      let td (attrs: List<String * String>) (c: List<Node>) : Node =
+        htmlTagNode "td" attrs c
+
+      let th (attrs: List<String * String>) (c: List<Node>) : Node =
+        htmlTagNode "th" attrs c
+
+      let tbody (attrs: List<String * String>) (c: List<Node>) : Node =
+        htmlTagNode "tbody" attrs c
+
+      let thead (attrs: List<String * String>) (c: List<Node>) : Node =
+        htmlTagNode "thead" attrs c
+
+      let tfoot (attrs: List<String * String>) (c: List<Node>) : Node =
+        htmlTagNode "tfoot" attrs c
+
+      let caption (attrs: List<String * String>) (c: List<Node>) : Node =
+        htmlTagNode "caption" attrs c
+
+      let colgroup (attrs: List<String * String>) (c: List<Node>) : Node =
+        htmlTagNode "colgroup" attrs c
+
+      let col (attrs: List<String * String>) (c: List<Node>) : Node =
+        htmlTagNode "col" attrs c
+
+
+
+      let document (nodes: List<Node>) : String =
+        let htmlDocHeader = "<!DOCTYPE html>"
+        let theRest = nodes |> List.map (fun n -> nodeToString n) |> String.join ""
+        htmlDocHeader ++ theRest
