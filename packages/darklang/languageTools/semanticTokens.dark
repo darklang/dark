@@ -363,7 +363,10 @@ module Darklang =
 
             let elseExpr =
               match elseExpr with
-              | Some e -> Expr.tokenize e
+              | Some e ->
+                e
+                |> Stdlib.List.map (fun e -> Expr.tokenize e)
+                |> Stdlib.List.flatten
               | None -> []
 
             [ // if

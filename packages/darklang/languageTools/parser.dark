@@ -1253,7 +1253,6 @@ module Darklang =
 
             let keywordElifNode = findNodeByFieldName node "keyword_elif"
 
-
             let elseNode =
               match
                 findNodesByFieldName node "elif_blocks",
@@ -1272,6 +1271,11 @@ module Darklang =
                     | None -> Stdlib.Option.Option.Some [ e ]
                   | Error _ -> acc)
                 |> Stdlib.Option.map Stdlib.List.reverse
+
+              | [], Some elseBlock ->
+                (Expr.parse elseBlock)
+                |> Stdlib.Result.toOption
+                |> Stdlib.Option.map (fun e -> [ e ])
 
               | elifBlocks, Some elseBlock ->
                 let elseNode =
@@ -1302,10 +1306,6 @@ module Darklang =
                 | None, Some elseNode -> Stdlib.Option.Option.Some elseNode
                 | None, None -> Stdlib.Option.Option.None
 
-              | _, Some elseBlock ->
-                (Expr.parse elseBlock)
-                |> Stdlib.Result.toOption
-                |> Stdlib.Option.map (fun e -> [ e ])
 
             match keywordIfNode, conditionNode, keywordThenNode, thenNode with
             | Ok keywordIfNode, Ok conditionNode, Ok keywordThenNode, Ok thenNode ->
