@@ -1,28 +1,126 @@
 ==================
-basic if/else statement
+inline if/else statement - no else
 ==================
-if a > b then a else b
+
+if true then (a)
 
 ---
 
-  (source_file
-    (expression
-      (if_statement
-        (keyword)
-        (expression
-          (infix_operation
-            (expression
-              (variable_identifier))
-            (operator)
-            (expression
-              (variable_identifier))))
-        (keyword)
+(source_file
+  (expression
+    (if_expression
+      (keyword)
+      (expression
+        (bool_literal))
+      (keyword)
+      (paren_expression
+        (symbol)
         (expression
           (variable_identifier))
-        (keyword)
-        (expression
-          (variable_identifier)))))
+        (symbol)))))
 
+
+==================
+inline if/elif/else statement
+==================
+
+if true then (a) elif false then (b) else (c)
+
+---
+
+(source_file
+  (expression
+    (if_expression
+      (keyword)
+      (expression
+        (bool_literal))
+      (keyword)
+      (paren_expression
+        (symbol)
+        (expression
+          (variable_identifier))
+        (symbol))
+    (elif_expression
+      (keyword)
+      (expression
+          (bool_literal))
+        (keyword)
+        (paren_expression
+          (symbol)
+          (expression
+            (variable_identifier))
+          (symbol)))
+    (else_expression
+      (keyword)
+      (expression
+        (paren_expression
+          (symbol)
+          (expression
+            (variable_identifier))
+          (symbol)))))))
+
+
+==================
+inline if/else statement
+==================
+
+if true then (a) else b
+
+---
+
+(source_file
+  (expression
+    (if_expression
+      (keyword)
+      (expression
+        (bool_literal))
+      (keyword)
+      (paren_expression
+        (symbol)
+        (expression
+          (variable_identifier))
+        (symbol))
+        (else_expression
+          (keyword)
+          (expression
+              (variable_identifier))))))
+
+
+==================
+basic if/else statement
+==================
+
+if a > b then
+  a
+else
+  b
+
+---
+
+(source_file
+  (expression
+    (if_expression
+      (keyword)
+      (expression
+        (infix_operation
+          (expression
+            (variable_identifier))
+          (operator)
+          (expression
+            (variable_identifier))))
+      (keyword)
+      (indent)
+      (expression
+        (variable_identifier))
+      (dedent)
+      (else_expression
+        (keyword)
+        (indent)
+        (expression
+          (variable_identifier)
+        )
+        (dedent)
+        ))))
 
 
 
@@ -30,24 +128,29 @@ if a > b then a else b
 if without else
 ==================
 
-if a > b then a
+if a > b then
+  a
 
 ---
 
-  (source_file
-    (expression
-      (if_statement
-        (keyword)
-        (expression
-          (infix_operation
-            (expression
-              (variable_identifier))
-            (operator)
-            (expression
-              (variable_identifier))))
-        (keyword)
-        (expression
-          (variable_identifier)))))
+(source_file
+  (expression
+    (if_expression
+      (keyword)
+      (expression
+        (infix_operation
+          (expression
+            (variable_identifier))
+          (operator)
+          (expression
+            (variable_identifier))))
+      (keyword)
+      (indent)
+      (expression
+        (variable_identifier))
+      (dedent)
+      )))
+
 
 
 ==================
@@ -55,25 +158,28 @@ ambiguous if/else statement (the else is for the outer if statement)
 ==================
 
 if a > b then
-  if c > d then c
-else b
+  if c > d then
+    c
+else
+  b
 
 ---
 
-  (source_file
-    (expression
-      (if_statement
-        (keyword)
-        (expression
-          (infix_operation
-            (expression
-              (variable_identifier))
-            (operator)
-            (expression
-              (variable_identifier))))
-        (keyword)
-        (expression
-          (if_statement
+(source_file
+  (expression
+    (if_expression
+      (keyword)
+      (expression
+        (infix_operation
+          (expression
+            (variable_identifier))
+          (operator)
+          (expression
+            (variable_identifier))))
+      (keyword)
+      (indent)
+      (expression
+          (if_expression
             (keyword)
             (expression
               (infix_operation
@@ -83,25 +189,251 @@ else b
                 (expression
                   (variable_identifier))))
             (keyword)
+            (indent)
             (expression
               (variable_identifier))
-            (keyword)
-            (expression
-              (variable_identifier)))))))
+            (dedent)))
+        (dedent)
+        (else_expression
+          (keyword)
+          (indent)
+          (expression
+            (variable_identifier))
+          (dedent)
+          ))))
+
 
 
 ==================
 ambiguous if/else statement (else is for the inner if statement)
 ==================
+
 if a > b then
-  if c > d then c
-  else b
+  if c > d then
+    c
+  else
+    b
 
 ---
 
-  (source_file
-    (expression
-      (if_statement
+(source_file
+  (expression
+    (if_expression
+      (keyword)
+      (expression
+        (infix_operation
+          (expression
+            (variable_identifier))
+          (operator)
+          (expression
+            (variable_identifier))))
+      (keyword)
+      (indent)
+      (expression
+        (if_expression
+          (keyword)
+          (expression
+            (infix_operation
+              (expression
+                (variable_identifier))
+              (operator)
+              (expression
+                (variable_identifier))))
+          (keyword)
+          (indent)
+          (expression
+            (variable_identifier))
+          (dedent)
+          (else_expression
+            (keyword)
+            (indent)
+            (expression
+              (variable_identifier))
+            (dedent))))
+      (dedent))))
+
+
+==================
+nested if/else statement
+==================
+
+if a > b then
+  if c > d then
+    c
+  else
+    if e > f then
+      e
+    else
+      if g > h then
+        g
+      else
+        h
+else
+  b
+
+---
+
+(source_file
+  (expression
+    (if_expression
+      (keyword)
+      (expression
+        (infix_operation
+          (expression
+            (variable_identifier))
+          (operator)
+          (expression
+            (variable_identifier))))
+      (keyword)
+      (indent)
+      (expression
+        (if_expression
+          (keyword)
+          (expression
+            (infix_operation
+              (expression
+                (variable_identifier))
+              (operator)
+              (expression
+                (variable_identifier))))
+          (keyword)
+          (indent)
+          (expression
+            (variable_identifier))
+          (dedent)
+          (else_expression
+            (keyword)
+            (indent)
+            (expression
+              (if_expression
+                (keyword)
+                (expression
+                  (infix_operation
+                    (expression
+                      (variable_identifier))
+                    (operator)
+                    (expression
+                      (variable_identifier))))
+                (keyword)
+                (indent)
+                (expression
+                  (variable_identifier))
+                (dedent)
+                (else_expression
+                  (keyword)
+                  (indent)
+                  (expression
+                    (if_expression
+                      (keyword)
+                      (expression
+                        (infix_operation
+                          (expression
+                            (variable_identifier))
+                          (operator)
+                          (expression
+                            (variable_identifier))))
+                      (keyword)
+                      (indent)
+                      (expression
+                        (variable_identifier))
+                      (dedent)
+                      (else_expression
+                        (keyword)
+                        (indent)
+                        (expression
+                          (variable_identifier))
+                         (dedent))))
+                      (dedent))))
+                (dedent))))
+          (dedent)
+          (else_expression
+            (keyword)
+            (indent)
+            (expression
+              (variable_identifier))
+            (dedent)))))
+
+
+==================
+if/elif/else statement
+==================
+
+if a > b then
+  a
+elif c > d then
+  c
+else
+  d
+
+---
+
+(source_file
+  (expression
+    (if_expression
+      (keyword)
+      (expression
+        (infix_operation
+          (expression
+            (variable_identifier))
+          (operator)
+          (expression
+            (variable_identifier))))
+              (keyword)
+              (indent)
+              (expression
+                (variable_identifier))
+              (dedent)
+    (elif_expression
+      (keyword)
+      (expression
+        (infix_operation
+          (expression
+            (variable_identifier))
+          (operator)
+          (expression
+            (variable_identifier))))
+      (keyword)
+      (indent)
+      (expression
+        (variable_identifier))
+      (dedent))
+    (else_expression
+      (keyword)
+      (indent)
+      (expression
+        (variable_identifier))
+      (dedent)))))
+
+
+
+==================
+if/elif
+==================
+
+if a > b then
+  a
+elif c > d then
+  c
+
+---
+
+(source_file
+  (expression
+    (if_expression
+      (keyword)
+      (expression
+        (infix_operation
+          (expression
+            (variable_identifier))
+          (operator)
+          (expression
+            (variable_identifier))))
+      (keyword)
+      (indent)
+      (expression
+        (variable_identifier))
+      (dedent)
+      (elif_expression
         (keyword)
         (expression
           (infix_operation
@@ -111,19 +443,7 @@ if a > b then
             (expression
               (variable_identifier))))
         (keyword)
+        (indent)
         (expression
-          (if_statement
-            (keyword)
-            (expression
-              (infix_operation
-                (expression
-                  (variable_identifier))
-                (operator)
-                (expression
-                  (variable_identifier))))
-            (keyword)
-            (expression
-              (variable_identifier))
-            (keyword)
-            (expression
-              (variable_identifier)))))))
+          (variable_identifier))
+        (dedent)))))
