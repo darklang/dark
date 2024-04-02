@@ -16,7 +16,7 @@ Dict {}
 
 
 ==================
-Dict with one pair
+Dict with one key
 ==================
 
 Dict {a = 1L}
@@ -42,7 +42,7 @@ Dict {a = 1L}
 
 
 ==================
-Dict with two pairs
+Dict with two keys
 ==================
 
 Dict {a = 1L; b = 2L}
@@ -78,7 +78,7 @@ Dict {a = 1L; b = 2L}
 
 
 ==================
-Dict with multiple pairs
+Dict with multiple keys
 ==================
 
 Dict {a = 1L; b = 2L; c = 3L}
