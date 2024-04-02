@@ -192,31 +192,9 @@ module Darklang =
 
       module Expr =
         module LetPattern =
-
-          let nestedExprs
-            (exprs: List<WrittenTypes.Expr>)
-            (resolver: NameResolver.NameResolutionSettings)
-            : Stdlib.Option.Option<ProgramTypes.Expr> =
-            match exprs with
-            | [] -> Stdlib.Option.Option.None
-            | [ e ] -> Stdlib.Option.Option.Some(Expr.toPT resolver e)
-            | e :: es ->
-              match e with
-              | EIf(range, cond, thenExpr, _, kwIf, kwThen, kwElse) ->
-                Stdlib.Option.Option.Some(
-                  ProgramTypes.Expr.EIf(
-                    gid (),
-                    Expr.toPT resolver cond,
-                    Expr.toPT resolver thenExpr,
-                    nestedExprs es resolver
-                  )
-                )
-              | _ -> Stdlib.Option.Option.None
-
           let toPT (p: WrittenTypes.LetPattern) : ProgramTypes.LetPattern =
             match p with
             | LPVariable(_, name) -> ProgramTypes.LetPattern.LPVariable(gid (), name)
-
 
         let toPT
           (resolver: NameResolver.NameResolutionSettings)
@@ -283,9 +261,7 @@ module Darklang =
 
           | EIf(_, cond, thenExpr, elseExpr, _, _, _) ->
             let elseExpr =
-              match elseExpr with
-              | None -> Stdlib.Option.Option.None
-              | Some es -> Expr.LetPattern.nestedExprs es resolver
+              elseExpr |> Stdlib.Option.map (fun es -> Expr.toPT resolver es)
 
             ProgramTypes.Expr.EIf(
               gid (),

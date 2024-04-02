@@ -51,20 +51,6 @@ module Darklang =
       let getText (node: ParsedNode) : String = node.text
       let getRange (node: ParsedNode) : Range = node.sourceRange
 
-
-      let findNodesByFieldName
-        (node: ParsedNode)
-        (fieldName: String)
-        : List<ParsedNode> =
-        match node.fieldName with
-        | Some fName when fName == fieldName -> [ node ]
-        | _ ->
-          node.children
-          |> Stdlib.List.fold [] (fun acc child ->
-            match child.fieldName with
-            | Some fName when fName == fieldName -> Stdlib.List.append [ child ] acc
-            | _ -> Stdlib.List.append acc (findNodesByFieldName child fieldName))
-
       let findNodeByFieldName
         (node: ParsedNode)
         (fieldName: String)
@@ -81,18 +67,18 @@ module Darklang =
           | [ c ] -> Stdlib.Option.Option.Some c
           | _ ->
             match fieldName with
-            | "else_block" ->
+            | "else_expression" ->
               node.children
               |> Stdlib.List.fold Stdlib.Option.Option.None (fun acc child ->
                 match acc, child.fieldName with
                 | Some _, _ ->
-                  // Keep the first found else_block
+                  // Keep the first found else_expression
                   acc
-                | None, Some fName when fName == "then_block" ->
-                  // Continue the search after a then_block, but don't search within it for an else_block
+                | None, Some fName when fName == "then_expression" ->
+                  // Continue the search after a then_expression, but don't search within it for an else_expression
                   acc
                 | None, _ ->
-                  // Recursively search for the else_block in child nodes
+                  // Recursively search for the else_expression in child nodes
                   findNodeByFieldName child fieldName)
             | _ -> Stdlib.Option.Option.None
 
@@ -1186,44 +1172,6 @@ module Darklang =
               (WrittenTypes.Unparseable { source = node })
               |> Stdlib.Result.Result.Error
 
-        let convertElifToIfExpression
-          (elifNode: ParsedNode)
-          : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          let keywordElifNode =
-            (findNodeByFieldName elifNode "keyword_elif")
-            |> Stdlib.Option.toResult "No keyword_elif node found in elif_expression"
-
-          let conditionNode =
-            match findNodeByFieldName elifNode "condition" with
-            | Some conditionNode -> Expr.parse conditionNode
-            | None ->
-              Stdlib.Result.Result.Error "No condition node found in elif_expression"
-
-          let keywordThenNode =
-            (findNodeByFieldName elifNode "keyword_then")
-            |> Stdlib.Option.toResult "No keyword_then node found in elif_expression"
-
-          let thenNode =
-            match findNodeByFieldName elifNode "then_block" with
-            | Some thenNode -> Expr.parse thenNode
-            | None ->
-              Stdlib.Result.Result.Error "No then node found in elif_expression"
-
-          match keywordElifNode, conditionNode, keywordThenNode, thenNode with
-          | Ok keywordElifNode, Ok conditionNode, Ok keywordThenNode, Ok thenNode ->
-            (WrittenTypes.Expr.EIf(
-              elifNode.sourceRange,
-              conditionNode,
-              thenNode,
-              Stdlib.Option.Option.None,
-              keywordElifNode.sourceRange,
-              keywordThenNode.sourceRange,
-              Stdlib.Option.Option.None
-            ))
-            |> Stdlib.Result.Result.Ok
-          | _ ->
-            (WrittenTypes.Unparseable { source = elifNode })
-            |> Stdlib.Result.Result.Error
 
         let parseIfExpression
           (node: ParsedNode)
@@ -1244,68 +1192,17 @@ module Darklang =
               |> Stdlib.Option.toResult "No keyword_then node found in if_expression"
 
             let thenNode =
-              match findNodeByFieldName node "then_block" with
+              match findNodeByFieldName node "then_expression" with
               | Some thenNode -> Expr.parse thenNode
               | None ->
                 Stdlib.Result.Result.Error "No then node found in if_expression"
 
             let keywordElseNode = findNodeByFieldName node "keyword_else"
 
-            let keywordElifNode = findNodeByFieldName node "keyword_elif"
-
             let elseNode =
-              match
-                findNodesByFieldName node "elif_blocks",
-                findNodeByFieldName node "else_block"
-              with
-              | [], None -> Stdlib.Option.Option.None
-              | elifBlocks, None ->
-                elifBlocks
-                |> Stdlib.List.map Expr.convertElifToIfExpression
-                |> Stdlib.List.fold Stdlib.Option.Option.None (fun acc exprResult ->
-                  match exprResult with
-                  | Ok e ->
-                    match acc with
-                    | Some es ->
-                      (Stdlib.List.append es [ e ]) |> Stdlib.Option.Option.Some
-                    | None -> Stdlib.Option.Option.Some [ e ]
-                  | Error _ -> acc)
-                |> Stdlib.Option.map Stdlib.List.reverse
-
-              | [], Some elseBlock ->
-                (Expr.parse elseBlock)
-                |> Stdlib.Result.toOption
-                |> Stdlib.Option.map (fun e -> [ e ])
-
-              | elifBlocks, Some elseBlock ->
-                let elseNode =
-                  (Expr.parse elseBlock)
-                  |> Stdlib.Result.toOption
-                  |> Stdlib.Option.map (fun e -> [ e ])
-
-                let elifNodes =
-                  elifBlocks
-                  |> Stdlib.List.map Expr.convertElifToIfExpression
-                  |> Stdlib.List.fold
-                    Stdlib.Option.Option.None
-                    (fun acc exprResult ->
-                      match exprResult with
-                      | Ok e ->
-                        match acc with
-                        | Some es ->
-                          (Stdlib.List.append es [ e ]) |> Stdlib.Option.Option.Some
-                        | None -> Stdlib.Option.Option.Some [ e ]
-                      | Error _ -> acc)
-                  |> Stdlib.Option.map Stdlib.List.reverse
-
-                match elifNodes, elseNode with
-                | Some elifNodes, Some elseNode ->
-                  (Stdlib.List.append elifNodes elseNode)
-                  |> Stdlib.Option.Option.Some
-                | Some elifNodes, None -> Stdlib.Option.Option.Some elifNodes
-                | None, Some elseNode -> Stdlib.Option.Option.Some elseNode
-                | None, None -> Stdlib.Option.Option.None
-
+              match findNodeByFieldName node "else_expression" with
+              | None -> Stdlib.Option.Option.None
+              | Some elseBlock -> (Expr.parse elseBlock) |> Stdlib.Result.toOption
 
             match keywordIfNode, conditionNode, keywordThenNode, thenNode with
             | Ok keywordIfNode, Ok conditionNode, Ok keywordThenNode, Ok thenNode ->

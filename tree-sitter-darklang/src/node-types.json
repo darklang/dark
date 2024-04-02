@@ -252,110 +252,6 @@
     }
   },
   {
-    "type": "elif_expression",
-    "named": true,
-    "fields": {
-      "condition": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "expression",
-            "named": true
-          }
-        ]
-      },
-      "keyword_elif": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "keyword",
-            "named": true
-          }
-        ]
-      },
-      "keyword_then": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "keyword",
-            "named": true
-          }
-        ]
-      },
-      "then_block": {
-        "multiple": true,
-        "required": true,
-        "types": [
-          {
-            "type": "expression",
-            "named": true
-          },
-          {
-            "type": "paren_expression",
-            "named": true
-          }
-        ]
-      }
-    },
-    "children": {
-      "multiple": true,
-      "required": false,
-      "types": [
-        {
-          "type": "dedent",
-          "named": true
-        },
-        {
-          "type": "indent",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "else_expression",
-    "named": true,
-    "fields": {
-      "else_block": {
-        "multiple": true,
-        "required": false,
-        "types": [
-          {
-            "type": "expression",
-            "named": true
-          }
-        ]
-      },
-      "keyword_else": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "keyword",
-            "named": true
-          }
-        ]
-      }
-    },
-    "children": {
-      "multiple": true,
-      "required": false,
-      "types": [
-        {
-          "type": "dedent",
-          "named": true
-        },
-        {
-          "type": "indent",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
     "type": "expression",
     "named": true,
     "fields": {},
@@ -678,12 +574,22 @@
           }
         ]
       },
-      "elif_blocks": {
+      "else_expression": {
         "multiple": true,
         "required": false,
         "types": [
           {
-            "type": "elif_expression",
+            "type": "expression",
+            "named": true
+          }
+        ]
+      },
+      "keyword_else": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "keyword",
             "named": true
           }
         ]
@@ -708,7 +614,7 @@
           }
         ]
       },
-      "then_block": {
+      "then_expression": {
         "multiple": true,
         "required": true,
         "types": [
@@ -729,10 +635,6 @@
       "types": [
         {
           "type": "dedent",
-          "named": true
-        },
-        {
-          "type": "else_expression",
           "named": true
         },
         {

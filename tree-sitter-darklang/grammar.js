@@ -363,33 +363,25 @@ module.exports = grammar({
         field("condition", $.expression),
         field("keyword_then", alias("then", $.keyword)),
         choice(
-          seq($.indent, repeat1(field("then_block", $.expression)), $.dedent),
-          field("then_block", $.paren_expression),
-        ),
-        field("elif_blocks", optional(repeat($.elif_expression))),
-        optional($.else_expression),
-      ),
-
-    elif_expression: $ =>
-      seq(
-        field("keyword_elif", alias("elif", $.keyword)),
-        field("condition", $.expression),
-        field("keyword_then", alias("then", $.keyword)),
-        choice(
-          seq($.indent, repeat1(field("then_block", $.expression)), $.dedent),
-          field("then_block", $.paren_expression),
-        ),
-      ),
-
-    else_expression: $ =>
-      seq(
-        field("keyword_else", alias("else", $.keyword)),
-        choice(
           seq(
             $.indent,
-            seq(repeat(field("else_block", $.expression)), $.dedent),
+            repeat1(field("then_expression", $.expression)),
+            $.dedent,
           ),
-          field("else_block", $.expression),
+          field("then_expression", $.paren_expression),
+        ),
+        optional(
+          seq(
+            field("keyword_else", alias("else", $.keyword)),
+            choice(
+              seq(
+                $.indent,
+                repeat(field("else_expression", $.expression)),
+                $.dedent,
+              ),
+              field("else_expression", $.expression),
+            ),
+          ),
         ),
       ),
 

@@ -9,55 +9,37 @@ if true then (a)
 (source_file
   (expression
     (if_expression
-      (keyword)
-      (expression
-        (bool_literal))
-      (keyword)
-      (paren_expression
-        (symbol)
-        (expression
-          (variable_identifier))
-        (symbol)))))
+      (keyword) (expression (bool_literal)) (keyword)
+      (paren_expression (symbol) (expression (variable_identifier)) (symbol))
+    )
+  )
+)
 
 
 ==================
 inline if/elif/else statement
 ==================
 
-if true then (a) elif false then (b) else (c)
+if true then (a) else if false then (b) else c
 
 ---
 
 (source_file
   (expression
     (if_expression
+      (keyword) (expression (bool_literal)) (keyword)
+      (paren_expression (symbol) (expression (variable_identifier)) (symbol))
       (keyword)
       (expression
-        (bool_literal))
-      (keyword)
-      (paren_expression
-        (symbol)
-        (expression
-          (variable_identifier))
-        (symbol))
-    (elif_expression
-      (keyword)
-      (expression
-          (bool_literal))
-        (keyword)
-        (paren_expression
-          (symbol)
-          (expression
-            (variable_identifier))
-          (symbol)))
-    (else_expression
-      (keyword)
-      (expression
-        (paren_expression
-          (symbol)
-          (expression
-            (variable_identifier))
-          (symbol)))))))
+        (if_expression
+          (keyword) (expression (bool_literal)) (keyword)
+          (paren_expression (symbol) (expression (variable_identifier)) (symbol))
+          (keyword) (expression (variable_identifier))
+        )
+      )
+    )
+  )
+)
 
 
 ==================
@@ -71,19 +53,12 @@ if true then (a) else b
 (source_file
   (expression
     (if_expression
-      (keyword)
-      (expression
-        (bool_literal))
-      (keyword)
-      (paren_expression
-        (symbol)
-        (expression
-          (variable_identifier))
-        (symbol))
-        (else_expression
-          (keyword)
-          (expression
-              (variable_identifier))))))
+      (keyword) (expression (bool_literal)) (keyword)
+      (paren_expression (symbol) (expression (variable_identifier)) (symbol))
+      (keyword) (expression (variable_identifier))
+    )
+  )
+)
 
 
 ==================
@@ -100,28 +75,14 @@ else
 (source_file
   (expression
     (if_expression
-      (keyword)
-      (expression
-        (infix_operation
-          (expression
-            (variable_identifier))
-          (operator)
-          (expression
-            (variable_identifier))))
-      (keyword)
-      (indent)
-      (expression
-        (variable_identifier))
+      (keyword) (expression (infix_operation (expression (variable_identifier)) (operator) (expression (variable_identifier)))) (keyword)
+      (indent) (expression (variable_identifier))
+      (dedent) (keyword)
+      (indent) (expression (variable_identifier))
       (dedent)
-      (else_expression
-        (keyword)
-        (indent)
-        (expression
-          (variable_identifier)
-        )
-        (dedent)
-        ))))
-
+    )
+  )
+)
 
 
 ==================
@@ -136,20 +97,12 @@ if a > b then
 (source_file
   (expression
     (if_expression
-      (keyword)
-      (expression
-        (infix_operation
-          (expression
-            (variable_identifier))
-          (operator)
-          (expression
-            (variable_identifier))))
-      (keyword)
-      (indent)
-      (expression
-        (variable_identifier))
+      (keyword) (expression (infix_operation (expression (variable_identifier)) (operator) (expression (variable_identifier)))) (keyword)
+      (indent) (expression (variable_identifier))
       (dedent)
-      )))
+    )
+  )
+)
 
 
 
@@ -157,100 +110,67 @@ if a > b then
 ambiguous if/else statement (the else is for the outer if statement)
 ==================
 
-if a > b then
-  if c > d then
+if a  then
+  if b then
     c
 else
-  b
+  d
 
 ---
 
 (source_file
   (expression
     (if_expression
-      (keyword)
-      (expression
-        (infix_operation
-          (expression
-            (variable_identifier))
-          (operator)
-          (expression
-            (variable_identifier))))
-      (keyword)
+      (keyword) (expression (variable_identifier)) (keyword)
       (indent)
       (expression
-          (if_expression
-            (keyword)
-            (expression
-              (infix_operation
-                (expression
-                  (variable_identifier))
-                (operator)
-                (expression
-                  (variable_identifier))))
-            (keyword)
-            (indent)
-            (expression
-              (variable_identifier))
-            (dedent)))
-        (dedent)
-        (else_expression
-          (keyword)
+        (if_expression
+          (keyword) (expression (variable_identifier)) (keyword)
           (indent)
-          (expression
-            (variable_identifier))
+          (expression (variable_identifier))
           (dedent)
-          ))))
-
+        )
+      )
+      (dedent)
+      (keyword)
+      (indent) (expression (variable_identifier))
+      (dedent)
+    )
+  )
+)
 
 
 ==================
 ambiguous if/else statement (else is for the inner if statement)
 ==================
 
-if a > b then
-  if c > d then
+if a then
+  if b then
     c
   else
-    b
+    d
 
 ---
 
 (source_file
   (expression
     (if_expression
-      (keyword)
-      (expression
-        (infix_operation
-          (expression
-            (variable_identifier))
-          (operator)
-          (expression
-            (variable_identifier))))
-      (keyword)
+      (keyword) (expression (variable_identifier)) (keyword)
       (indent)
       (expression
         (if_expression
-          (keyword)
-          (expression
-            (infix_operation
-              (expression
-                (variable_identifier))
-              (operator)
-              (expression
-                (variable_identifier))))
-          (keyword)
-          (indent)
-          (expression
-            (variable_identifier))
+          (keyword) (expression (variable_identifier)) (keyword)
+          (indent) (expression (variable_identifier))
           (dedent)
-          (else_expression
-            (keyword)
-            (indent)
-            (expression
-              (variable_identifier))
-            (dedent))))
-      (dedent))))
+          (keyword)
+          (indent) (expression (variable_identifier))
+          (dedent)
+        )
+      )
+      (dedent)
+    )
+  )
+)
 
 
 ==================
@@ -276,82 +196,37 @@ else
 (source_file
   (expression
     (if_expression
-      (keyword)
-      (expression
-        (infix_operation
-          (expression
-            (variable_identifier))
-          (operator)
-          (expression
-            (variable_identifier))))
-      (keyword)
+      (keyword) (expression (infix_operation (expression (variable_identifier)) (operator) (expression (variable_identifier)))) (keyword)
       (indent)
       (expression
         (if_expression
-          (keyword)
-          (expression
-            (infix_operation
-              (expression
-                (variable_identifier))
-              (operator)
-              (expression
-                (variable_identifier))))
+          (keyword) (expression (infix_operation (expression (variable_identifier)) (operator) (expression (variable_identifier)))) (keyword)
+          (indent) (expression (variable_identifier))
+          (dedent)
           (keyword)
           (indent)
           (expression
-            (variable_identifier))
+            (if_expression
+              (keyword) (expression (infix_operation (expression (variable_identifier)) (operator) (expression (variable_identifier)))) (keyword)
+              (indent) (expression (variable_identifier))
+              (dedent)
+              (keyword)
+              (indent) (expression (variable_identifier))
+              (dedent)
+            )
+          )
           (dedent)
-          (else_expression
-            (keyword)
-            (indent)
-            (expression
-              (if_expression
-                (keyword)
-                (expression
-                  (infix_operation
-                    (expression
-                      (variable_identifier))
-                    (operator)
-                    (expression
-                      (variable_identifier))))
-                (keyword)
-                (indent)
-                (expression
-                  (variable_identifier))
-                (dedent)
-                (else_expression
-                  (keyword)
-                  (indent)
-                  (expression
-                    (if_expression
-                      (keyword)
-                      (expression
-                        (infix_operation
-                          (expression
-                            (variable_identifier))
-                          (operator)
-                          (expression
-                            (variable_identifier))))
-                      (keyword)
-                      (indent)
-                      (expression
-                        (variable_identifier))
-                      (dedent)
-                      (else_expression
-                        (keyword)
-                        (indent)
-                        (expression
-                          (variable_identifier))
-                         (dedent))))
-                      (dedent))))
-                (dedent))))
-          (dedent)
-          (else_expression
-            (keyword)
-            (indent)
-            (expression
-              (variable_identifier))
-            (dedent)))))
+        )
+      )
+      (dedent)
+      (keyword)
+      (indent) (expression (variable_identifier))
+      (dedent)
+    )
+  )
+)
+
+
 
 
 ==================
@@ -360,49 +235,31 @@ if/elif/else statement
 
 if a > b then
   a
-elif c > d then
+else if c > d then
   c
 else
   d
 
 ---
 
+
 (source_file
   (expression
     (if_expression
-      (keyword)
+      (keyword) (expression (infix_operation (expression (variable_identifier)) (operator) (expression (variable_identifier)))) (keyword)
+      (indent) (expression (variable_identifier))
+      (dedent) (keyword)
       (expression
-        (infix_operation
-          (expression
-            (variable_identifier))
-          (operator)
-          (expression
-            (variable_identifier))))
-              (keyword)
-              (indent)
-              (expression
-                (variable_identifier))
-              (dedent)
-    (elif_expression
-      (keyword)
-      (expression
-        (infix_operation
-          (expression
-            (variable_identifier))
-          (operator)
-          (expression
-            (variable_identifier))))
-      (keyword)
-      (indent)
-      (expression
-        (variable_identifier))
-      (dedent))
-    (else_expression
-      (keyword)
-      (indent)
-      (expression
-        (variable_identifier))
-      (dedent)))))
+        (if_expression
+          (keyword) (expression (infix_operation (expression (variable_identifier)) (operator) (expression (variable_identifier)))) (keyword)
+          (indent) (expression (variable_identifier))
+          (dedent) (keyword)
+          (expression (variable_identifier))
+        )
+      )
+    )
+  )
+)
 
 
 
@@ -412,7 +269,7 @@ if/elif
 
 if a > b then
   a
-elif c > d then
+else if c > d then
   c
 
 ---
@@ -420,30 +277,16 @@ elif c > d then
 (source_file
   (expression
     (if_expression
-      (keyword)
+      (keyword) (expression (infix_operation (expression (variable_identifier)) (operator) (expression (variable_identifier)))) (keyword)
+      (indent) (expression (variable_identifier))
+      (dedent) (keyword)
       (expression
-        (infix_operation
-          (expression
-            (variable_identifier))
-          (operator)
-          (expression
-            (variable_identifier))))
-      (keyword)
-      (indent)
-      (expression
-        (variable_identifier))
-      (dedent)
-      (elif_expression
-        (keyword)
-        (expression
-          (infix_operation
-            (expression
-              (variable_identifier))
-            (operator)
-            (expression
-              (variable_identifier))))
-        (keyword)
-        (indent)
-        (expression
-          (variable_identifier))
-        (dedent)))))
+        (if_expression
+          (keyword) (expression (infix_operation (expression (variable_identifier)) (operator) (expression (variable_identifier)))) (keyword)
+          (indent) (expression (variable_identifier))
+          (dedent)
+        )
+      )
+    )
+  )
+)

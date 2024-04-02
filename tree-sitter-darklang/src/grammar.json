@@ -1628,7 +1628,7 @@
                   "type": "REPEAT1",
                   "content": {
                     "type": "FIELD",
-                    "name": "then_block",
+                    "name": "then_expression",
                     "content": {
                       "type": "SYMBOL",
                       "name": "expression"
@@ -1643,7 +1643,7 @@
             },
             {
               "type": "FIELD",
-              "name": "then_block",
+              "name": "then_expression",
               "content": {
                 "type": "SYMBOL",
                 "name": "paren_expression"
@@ -1652,169 +1652,65 @@
           ]
         },
         {
-          "type": "FIELD",
-          "name": "elif_blocks",
-          "content": {
-            "type": "CHOICE",
-            "members": [
-              {
-                "type": "REPEAT",
-                "content": {
-                  "type": "SYMBOL",
-                  "name": "elif_expression"
-                }
-              },
-              {
-                "type": "BLANK"
-              }
-            ]
-          }
-        },
-        {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "SYMBOL",
-              "name": "else_expression"
-            },
-            {
-              "type": "BLANK"
-            }
-          ]
-        }
-      ]
-    },
-    "elif_expression": {
-      "type": "SEQ",
-      "members": [
-        {
-          "type": "FIELD",
-          "name": "keyword_elif",
-          "content": {
-            "type": "ALIAS",
-            "content": {
-              "type": "STRING",
-              "value": "elif"
-            },
-            "named": true,
-            "value": "keyword"
-          }
-        },
-        {
-          "type": "FIELD",
-          "name": "condition",
-          "content": {
-            "type": "SYMBOL",
-            "name": "expression"
-          }
-        },
-        {
-          "type": "FIELD",
-          "name": "keyword_then",
-          "content": {
-            "type": "ALIAS",
-            "content": {
-              "type": "STRING",
-              "value": "then"
-            },
-            "named": true,
-            "value": "keyword"
-          }
-        },
-        {
           "type": "CHOICE",
           "members": [
             {
               "type": "SEQ",
               "members": [
                 {
-                  "type": "SYMBOL",
-                  "name": "indent"
-                },
-                {
-                  "type": "REPEAT1",
+                  "type": "FIELD",
+                  "name": "keyword_else",
                   "content": {
-                    "type": "FIELD",
-                    "name": "then_block",
+                    "type": "ALIAS",
                     "content": {
-                      "type": "SYMBOL",
-                      "name": "expression"
-                    }
+                      "type": "STRING",
+                      "value": "else"
+                    },
+                    "named": true,
+                    "value": "keyword"
                   }
                 },
                 {
-                  "type": "SYMBOL",
-                  "name": "dedent"
-                }
-              ]
-            },
-            {
-              "type": "FIELD",
-              "name": "then_block",
-              "content": {
-                "type": "SYMBOL",
-                "name": "paren_expression"
-              }
-            }
-          ]
-        }
-      ]
-    },
-    "else_expression": {
-      "type": "SEQ",
-      "members": [
-        {
-          "type": "FIELD",
-          "name": "keyword_else",
-          "content": {
-            "type": "ALIAS",
-            "content": {
-              "type": "STRING",
-              "value": "else"
-            },
-            "named": true,
-            "value": "keyword"
-          }
-        },
-        {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "SEQ",
-              "members": [
-                {
-                  "type": "SYMBOL",
-                  "name": "indent"
-                },
-                {
-                  "type": "SEQ",
+                  "type": "CHOICE",
                   "members": [
                     {
-                      "type": "REPEAT",
-                      "content": {
-                        "type": "FIELD",
-                        "name": "else_block",
-                        "content": {
+                      "type": "SEQ",
+                      "members": [
+                        {
                           "type": "SYMBOL",
-                          "name": "expression"
+                          "name": "indent"
+                        },
+                        {
+                          "type": "REPEAT",
+                          "content": {
+                            "type": "FIELD",
+                            "name": "else_expression",
+                            "content": {
+                              "type": "SYMBOL",
+                              "name": "expression"
+                            }
+                          }
+                        },
+                        {
+                          "type": "SYMBOL",
+                          "name": "dedent"
                         }
-                      }
+                      ]
                     },
                     {
-                      "type": "SYMBOL",
-                      "name": "dedent"
+                      "type": "FIELD",
+                      "name": "else_expression",
+                      "content": {
+                        "type": "SYMBOL",
+                        "name": "expression"
+                      }
                     }
                   ]
                 }
               ]
             },
             {
-              "type": "FIELD",
-              "name": "else_block",
-              "content": {
-                "type": "SYMBOL",
-                "name": "expression"
-              }
+              "type": "BLANK"
             }
           ]
         }
