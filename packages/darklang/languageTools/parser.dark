@@ -55,32 +55,17 @@ module Darklang =
         (node: ParsedNode)
         (fieldName: String)
         : Stdlib.Option.Option<ParsedNode> =
-        match node.fieldName with
-        | Some fName when fName == fieldName -> Stdlib.Option.Option.Some node
-        | _ ->
-          let directChildren =
-            node.children
-            |> Stdlib.List.filter (fun c ->
-              c.fieldName == Stdlib.Option.Option.Some fieldName)
+        let filteredChildren =
+          node.children
+          |> Stdlib.List.filter (fun c ->
+            match c.fieldName with
+            | Some fName -> fName == fieldName
+            | None -> false)
 
-          match directChildren with
-          | [ c ] -> Stdlib.Option.Option.Some c
-          | _ ->
-            match fieldName with
-            | "else_expression" ->
-              node.children
-              |> Stdlib.List.fold Stdlib.Option.Option.None (fun acc child ->
-                match acc, child.fieldName with
-                | Some _, _ ->
-                  // Keep the first found else_expression
-                  acc
-                | None, Some fName when fName == "then_expression" ->
-                  // Continue the search after a then_expression, but don't search within it for an else_expression
-                  acc
-                | None, _ ->
-                  // Recursively search for the else_expression in child nodes
-                  findNodeByFieldName child fieldName)
-            | _ -> Stdlib.Option.Option.None
+        match filteredChildren with
+        | [ c ] -> Stdlib.Option.Option.Some c
+        | [] -> Stdlib.Option.Option.None
+        | _ -> Stdlib.Option.Option.None // TODO: this should error, there are multiple matches
 
       // --------------------
       // Parsing to WrittenTypes
