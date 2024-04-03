@@ -55,7 +55,25 @@
         "command": "darklang.runScript",
         "title": "Run Darklang Script"
       }
-    ]
+    ],
+    "viewsContainers": {
+        "activitybar": [
+            {
+                "id": "darklangViewContainer",
+                "title": "Darklang",
+                "icon": "static/logo-dark-transparent.svg"
+            }
+        ]
+    },
+    "views": {
+      "darklangViewContainer": [
+        {
+          "id": "myTreeView",
+          "name": "My Tree View",
+          "_todo_when": "workspaceHasFolder"
+        }
+      ]
+    }
   },
 
   "scripts": {

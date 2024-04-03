@@ -1,0 +1,72 @@
+module Darklang =
+  module LanguageTools =
+    module LspServer =
+      module TreeView =
+        // TODO: move these types to something not our-lang-server -specific
+        module TreeItemCollapsibleState =
+          type TreeItemCollapsibleState =
+            /// Can be neither collapsed nor expanded.
+            /// (Implies it has no children.)
+            | None
+
+            | Collapsed
+
+            | Expanded
+
+          let toJson (state: TreeItemCollapsibleState) : Json =
+            match state with
+            | None -> Json.Number 0.0
+            | Collapsed -> Json.Number 1.0
+            | Expanded -> Json.Number 2.0
+
+
+        module TreeItemType =
+          type TreeItemType =
+            | File
+            | Directory
+
+          let toJson (t: TreeItemType) : Json =
+            match t with
+            | File -> Json.String "file"
+            | Directory -> Json.String "directory"
+
+
+        module TreeItem =
+          type TreeItem =
+            { id: String
+              label: String
+              type_: TreeItemType.TreeItemType
+              collapsibleState: TreeItemCollapsibleState.TreeItemCollapsibleState }
+
+          let toJson (i: TreeItem) : Json =
+            Json.Object
+              [ ("id", Json.String i.id)
+                ("label", Json.String i.label)
+                ("type", TreeItemType.toJson i.type_)
+                ("collapsibleState",
+                 TreeItemCollapsibleState.toJson i.collapsibleState) ]
+
+        /// handles `darklang/getRootNodes` requests
+        let handleGetRootNodesRequest
+          (state: LspState)
+          (requestId: JsonRPC.RequestId)
+          : LspState =
+          let response =
+            [ TreeItem.TreeItem
+                { id = "test"
+                  label = "Testing"
+                  type_ = TreeItemType.TreeItemType.File
+                  collapsibleState =
+                    TreeItemCollapsibleState.TreeItemCollapsibleState.None } ]
+            |> Stdlib.List.map (fun i -> TreeItem.toJson i)
+            |> Json.Array
+
+          let responseJson =
+            response
+            |> (fun r ->
+              JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) r)
+            |> Stdlib.AltJson.format
+
+          logAndSendToClient responseJson
+
+          state
