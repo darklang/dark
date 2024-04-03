@@ -206,20 +206,20 @@ Stdlib.Int8.parse_v0 "1 " = Stdlib.Result.Result.Ok(1y)
 
 Stdlib.Int8.parse_v0 "+1" = Stdlib.Result.Result.Ok(1y)
 
-Stdlib.Int8.parse_v0 " +1 " = PACKAGE.Darklang.Stdlib.Result.Result.Ok(1y)
+Stdlib.Int8.parse_v0 " +1 " = Stdlib.Result.Result.Ok(1y)
 
 Stdlib.Int8.parse_v0 "-1" = Stdlib.Result.Result.Ok(-1y)
 
-Stdlib.Int8.parse_v0 "078" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(78y) // "octal" format ignored
+Stdlib.Int8.parse_v0 "078" = Stdlib.Result.Result.Ok(78y) // "octal" format ignored
 
-Stdlib.Int8.parse_v0 "-00001" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(-1y)
+Stdlib.Int8.parse_v0 "-00001" = Stdlib.Result.Result.Ok(-1y)
 
 Stdlib.Int8.parse_v0 "-10001" = Stdlib.Result.Result.Error
   Stdlib.Int8.ParseError.OutOfRange
 
-Stdlib.Int8.parse_v0 "127" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(127y)
+Stdlib.Int8.parse_v0 "127" = Stdlib.Result.Result.Ok(127y)
 
-Stdlib.Int8.parse_v0 "-128" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(-128y)
+Stdlib.Int8.parse_v0 "-128" = Stdlib.Result.Result.Ok(-128y)
 
 Stdlib.Int8.parse_v0 "128" = Stdlib.Result.Result.Error
   Stdlib.Int8.ParseError.OutOfRange

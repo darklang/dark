@@ -45,6 +45,35 @@ module Darklang =
             )
           | Some name ->
             match modules with
+            | "Stdlib" :: otherModules ->
+              let name = (parser name) |> Builtin.unwrap
+
+              let fqName =
+                [ "Darklang"; "Stdlib" ]
+                |> Stdlib.List.append otherModules
+                |> Stdlib.List.append [ name ]
+                |> Stdlib.String.join "."
+
+              let packageThingExists = packageThingExists fqName
+
+              if packageThingExists then
+                Stdlib.Result.Result.Ok(
+                  (ProgramTypes.FQTypeName.Package
+                    { owner = "Darklang"
+                      modules = Stdlib.List.append [ "Stdlib" ] otherModules
+                      name = name
+                      version = 0L })
+                  |> ProgramTypes.FQTypeName.FQTypeName.Package
+                )
+              else
+                Stdlib.Result.Result.Error(
+                  LanguageTools.RuntimeErrors.NameResolution.Error
+                    { errorType =
+                        LanguageTools.RuntimeErrors.NameResolution.ErrorType.NotFound
+                      nameType = nameErrorType
+                      names = Stdlib.List.append otherModules [ name ] }
+                )
+
             | "PACKAGE" :: owner :: modules ->
 
               let name = (parser name) |> Builtin.unwrap
@@ -194,8 +223,36 @@ module Darklang =
             )
           | Some name ->
             match modules with
-            | "PACKAGE" :: owner :: modules ->
+            | "Stdlib" :: otherModules ->
+              let name = (parser name) |> Builtin.unwrap
 
+              let fqName =
+                [ "Darklang"; "Stdlib" ]
+                |> Stdlib.List.append otherModules
+                |> Stdlib.List.append [ name ]
+                |> Stdlib.String.join "."
+
+              let packageThingExists = packageThingExists fqName
+
+              if packageThingExists then
+                Stdlib.Result.Result.Ok(
+                  (ProgramTypes.FQFnName.Package
+                    { owner = "Darklang"
+                      modules = Stdlib.List.append [ "Stdlib" ] otherModules
+                      name = name
+                      version = 0L })
+                  |> ProgramTypes.FQFnName.FQFnName.Package
+                )
+              else
+                Stdlib.Result.Result.Error(
+                  LanguageTools.RuntimeErrors.NameResolution.Error
+                    { errorType =
+                        LanguageTools.RuntimeErrors.NameResolution.ErrorType.NotFound
+                      nameType = nameErrorType
+                      names = Stdlib.List.append otherModules [ name ] }
+                )
+
+            | "PACKAGE" :: owner :: modules ->
               let name = (parser name) |> Builtin.unwrap
 
               let fqName =

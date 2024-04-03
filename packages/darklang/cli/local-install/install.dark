@@ -56,13 +56,9 @@ module Darklang =
 
           (Config.updateVersion configPath latestReleaseTag) |> Builtin.unwrap
 
-          (Stdlib.Cli.Unix.deleteAlias host.defaultShell "darklang")
-          |> Builtin.unwrap
+          (Stdlib.Cli.Unix.deleteAlias host.defaultShell "dark") |> Builtin.unwrap
 
-          (Stdlib.Cli.Unix.addAlias
-            host.defaultShell
-            "darklang"
-            extractedExecutablePath)
+          (Stdlib.Cli.Unix.addAlias host.defaultShell "dark" extractedExecutablePath)
           |> Builtin.unwrap
 
           Stdlib.Result.Result.Ok()

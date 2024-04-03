@@ -10,7 +10,7 @@ module Darklang =
           (host: Stdlib.Cli.Host.Host)
           : Stdlib.Result.Result<Unit, String> =
           let result =
-            (Stdlib.Cli.Unix.deleteAlias host.defaultShell "darklang")
+            (Stdlib.Cli.Unix.deleteAlias host.defaultShell "dark")
             |> Stdlib.Result.andThen (fun _ -> removeDarklangDirectory ())
 
           match result with

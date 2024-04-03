@@ -226,6 +226,7 @@ module TextToTextRoundtripping =
 
     // fully-qualified package name (multi-part)
     ("type MyOption = PACKAGE.Darklang.Stdlib.Option.Option" |> roundtripCliScript) = "type MyOption =\n  PACKAGE.Darklang.Stdlib.Option.Option_v0"
+    ("type MyOption = Stdlib.Option.Option" |> roundtripCliScript) = "type MyOption =\n  PACKAGE.Darklang.Stdlib.Option.Option_v0"
 
 
   module TypeDeclaration =
@@ -305,14 +306,14 @@ module TextToTextRoundtripping =
     // if expressions
     ("if true then (1L)" |> roundtripCliScript) = "if true then\n  1L"
     ("if true then (1L) else 2L" |> roundtripCliScript) = "if true then\n  1L\nelse\n  2L"
-    ("if a < b then (1L) else if c > d then (2L)" |> roundtripCliScript) = "if (a) < (b) then\n  1L\nelse\n  if (c) > (d) then\n    2L"
-    ("if a < b then (1L) else if c > d then (2L) else 3L" |> roundtripCliScript) = "if (a) < (b) then\n  1L\nelse\n  if (c) > (d) then\n    2L\n  else\n    3L"
+    ("if a < b then (1L) else if c > d then (2L)" |> roundtripCliScript) = "if (a) < (b) then\n  1L\nelse if (c) > (d) then\n  2L"
+    ("if a < b then (1L) else if c > d then (2L) else 3L" |> roundtripCliScript) = "if (a) < (b) then\n  1L\nelse if (c) > (d) then\n  2L\nelse\n  3L"
 
     ("if true then\n 1L" |> roundtripCliScript) = "if true then\n  1L"
     ("if true then\n 1L\nelse\n 2L" |> roundtripCliScript) = "if true then\n  1L\nelse\n  2L"
-    ("if true then\n a\nelse if false then\n c" |> roundtripCliScript) = "if true then\n  a\nelse\n  if false then\n    c"
+    ("if true then\n a\nelse if false then\n c" |> roundtripCliScript) = "if true then\n  a\nelse if false then\n  c"
 
-    ("if a > b then\n a\nelse if c > d then\n c\nelse d" |> roundtripCliScript) = "if (a) > (b) then\n  a\nelse\n  if (c) > (d) then\n    c\n  else\n    d"
+    ("if a > b then\n a\nelse if c > d then\n c\nelse d" |> roundtripCliScript) = "if (a) > (b) then\n  a\nelse if (c) > (d) then\n  c\nelse\n  d"
 
 
     ("""if true then
@@ -323,12 +324,10 @@ else if true then
   d"""
      |> roundtripCliScript) = """if true then
   a
-else
-  if false then
-    c
-  else
-    if true then
-      d"""
+else if false then
+  c
+else if true then
+  d"""
 
 
     ("""if true then
@@ -341,14 +340,12 @@ else
   e"""
      |> roundtripCliScript) = """if true then
   a
+else if false then
+  c
+else if true then
+  d
 else
-  if false then
-    c
-  else
-    if true then
-      d
-    else
-      e"""
+  e"""
 
     // else for inner if
     ("""if a > b then
@@ -390,17 +387,14 @@ else
         h"""
      |> roundtripCliScript) = """if (a) > (b) then
   a
+else if (c) > (d) then
+  c
+else if (e) > (f) then
+  e
+else if (g) > (h) then
+  g
 else
-  if (c) > (d) then
-    c
-  else
-    if (e) > (f) then
-      e
-    else
-      if (g) > (h) then
-        g
-      else
-        h"""
+  h"""
 
 
     // fn calls
@@ -420,6 +414,7 @@ else
     ("(and true false)" |> roundtripCliScript) = "and true false"
     ("(Bool.and true false)" |> roundtripCliScript) = "Bool.and true false"
     ("(PACKAGE.Darklang.Stdlib.Bool.and true false)" |> roundtripCliScript) = "PACKAGE.Darklang.Stdlib.Bool.and_v0 true false"
+    ("(Stdlib.Bool.and true false)" |> roundtripCliScript) = "PACKAGE.Darklang.Stdlib.Bool.and_v0 true false"
     ("(Builtin.int64Add 1L 2L)" |> roundtripCliScript) = "Builtin.int64Add 1L 2L"
 
   module FunctionDeclaration =
@@ -435,7 +430,7 @@ else
 
     // multiple params
     ("let isHigher (a: Int64) (b: Int64) : Bool = (Stdlib.Int64.greaterThan_v0 a b)"
-     |> roundtripCliScript) = "let isHigher (a: Int64) (b: Int64): Bool =\n  Stdlib.Int64.greaterThan_v0 a b"
+     |> roundtripCliScript) = "let isHigher (a: Int64) (b: Int64): Bool =\n  PACKAGE.Darklang.Stdlib.Int64.greaterThan_v0 a b"
 
 
 

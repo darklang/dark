@@ -409,7 +409,7 @@ module Darklang =
               $"{typeStr}{typeArgsPart}.{caseName}{fieldStr}"
 
 
-          | DFnVal(NamedFn fnName) -> PrettyPrinter.RuntimeTypes.FnName.fnName fnName
+          | DFnVal(NamedFn fnName) -> PrettyPrinter.RuntimeTypes.fnName fnName
 
           | DFnVal(Lambda impl) ->
             // Note: this use case is safe (RE docs/dblock-serialization.md)
