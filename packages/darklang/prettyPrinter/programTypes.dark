@@ -753,10 +753,17 @@ module Darklang =
           match elseBranch with
           | None -> $"if {condPart} then\n{thenPart}"
           | Some elseBranch ->
-            let elsePart =
-              (PrettyPrinter.ProgramTypes.expr elseBranch) |> PrettyPrinter.indent
+            match elseBranch with
+            | EIf(_, _, _, _) ->
+              let elsePart = (PrettyPrinter.ProgramTypes.expr elseBranch)
 
-            $"if {condPart} then\n{thenPart}\nelse\n{elsePart}"
+              $"if {condPart} then\n{thenPart}\nelse {elsePart}"
+
+            | _ ->
+              let elsePart =
+                (PrettyPrinter.ProgramTypes.expr elseBranch) |> PrettyPrinter.indent
+
+              $"if {condPart} then\n{thenPart}\nelse\n{elsePart}"
 
         | EMatch(_id, arg, cases) ->
           let cases =
