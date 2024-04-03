@@ -49,8 +49,7 @@ module Darklang =
               let name = (parser name) |> Builtin.unwrap
 
               let fqName =
-                [ "Darklang" ]
-                |> Stdlib.List.append [ "Stdlib" ]
+                [ "Darklang"; "Stdlib" ]
                 |> Stdlib.List.append otherModules
                 |> Stdlib.List.append [ name ]
                 |> Stdlib.String.join "."
@@ -228,8 +227,7 @@ module Darklang =
               let name = (parser name) |> Builtin.unwrap
 
               let fqName =
-                [ "Darklang" ]
-                |> Stdlib.List.append [ "Stdlib" ]
+                [ "Darklang"; "Stdlib" ]
                 |> Stdlib.List.append otherModules
                 |> Stdlib.List.append [ name ]
                 |> Stdlib.String.join "."
