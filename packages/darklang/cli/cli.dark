@@ -125,20 +125,22 @@ module Darklang =
       match command with
       | Help ->
         Builtin.printLine
-          """Usage:
-darklang help                                     Show this help message and exit
+          """Note: If the darklang CLI is installed, you can run commands using `dark [command]`.
+If it is not installed, replace `dark` with the executable's path, like `./darklang-exe-path [command]`. \n
+Usage:
+dark help                                     Show this help message and exit
 
-darklang [function name]                          Run a function in the package manager
+dark [function name]                          Run a function in the package manager
   i.e. `darklang @Darklang.Stdlib.Bool.and true false`
 
-darklang package                                  Explore the contents of the package manager
+dark package                                  Explore the contents of the package manager
 
-darklang [script path]                            Run a .dark script
+dark [script path]                            Run a .dark script
   i.e. `darklang ./my-script.dark`
 
-darklang install                                  Install the darklang CLI so it's available globally in your terminal
+dark install                                  Install the darklang CLI so it's available globally in your terminal
 
-darklang update                                   Update the darklang CLI to the latest version
+dark update                                   Update the darklang CLI to the latest version
 """
 
         0L
@@ -190,7 +192,7 @@ darklang update                                   Update the darklang CLI to the
         let args = args |> Stdlib.String.join " "
 
         Builtin.printLine
-          $"Invalid command {args}. Use `darklang help` for more information."
+          $"Invalid command {args}. Use `dark help` for more information."
 
         1L
 
