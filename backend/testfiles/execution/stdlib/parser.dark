@@ -302,6 +302,107 @@ module TextToTextRoundtripping =
     // TODO: this is ugly
     ("let x = 1L\n  x" |> roundtripCliScript) = "let x =\n  1L\nx"
 
+    // if expressions
+    ("if true then (1L)" |> roundtripCliScript) = "if true then\n  1L"
+    ("if true then (1L) else 2L" |> roundtripCliScript) = "if true then\n  1L\nelse\n  2L"
+    ("if a < b then (1L) else if c > d then (2L)" |> roundtripCliScript) = "if (a) < (b) then\n  1L\nelse\n  if (c) > (d) then\n    2L"
+    ("if a < b then (1L) else if c > d then (2L) else 3L" |> roundtripCliScript) = "if (a) < (b) then\n  1L\nelse\n  if (c) > (d) then\n    2L\n  else\n    3L"
+
+    ("if true then\n 1L" |> roundtripCliScript) = "if true then\n  1L"
+    ("if true then\n 1L\nelse\n 2L" |> roundtripCliScript) = "if true then\n  1L\nelse\n  2L"
+    ("if true then\n a\nelse if false then\n c" |> roundtripCliScript) = "if true then\n  a\nelse\n  if false then\n    c"
+
+    ("if a > b then\n a\nelse if c > d then\n c\nelse d" |> roundtripCliScript) = "if (a) > (b) then\n  a\nelse\n  if (c) > (d) then\n    c\n  else\n    d"
+
+
+    ("""if true then
+  a
+else if false then
+  c
+else if true then
+  d"""
+     |> roundtripCliScript) = """if true then
+  a
+else
+  if false then
+    c
+  else
+    if true then
+      d"""
+
+
+    ("""if true then
+  a
+else if false then
+  c
+else if true then
+  d
+else
+  e"""
+     |> roundtripCliScript) = """if true then
+  a
+else
+  if false then
+    c
+  else
+    if true then
+      d
+    else
+      e"""
+
+    // else for inner if
+    ("""if a > b then
+  if c > d then
+    c
+  else
+    b"""
+     |> roundtripCliScript) = """if (a) > (b) then
+  if (c) > (d) then
+    c
+  else
+    b"""
+
+    // else for outer if
+    ("""if a > b then
+  if c > d then
+    c
+else
+  b"""
+     |> roundtripCliScript) = """if (a) > (b) then
+  if (c) > (d) then
+    c
+else
+  b"""
+
+    // nested if
+    ("""if a > b then
+  a
+else
+  if c > d then
+    c
+  else
+    if e > f then
+      e
+    else
+      if g > h then
+        g
+      else
+        h"""
+     |> roundtripCliScript) = """if (a) > (b) then
+  a
+else
+  if (c) > (d) then
+    c
+  else
+    if (e) > (f) then
+      e
+    else
+      if (g) > (h) then
+        g
+      else
+        h"""
+
+
     // fn calls
     // TODO: these are ugly
     ("1L + 2L" |> roundtripCliScript) = "(1L) + (2L)"

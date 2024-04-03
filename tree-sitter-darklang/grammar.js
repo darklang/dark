@@ -21,6 +21,8 @@ const exponentOperator = "^";
 module.exports = grammar({
   name: "darklang",
 
+  externals: $ => [$.indent, $.dedent],
+
   rules: {
     source_file: $ =>
       seq(
@@ -86,7 +88,7 @@ module.exports = grammar({
         $.list_literal,
         $.tuple_literal,
         $.dict_literal,
-
+        $.if_expression,
         $.let_expression,
         $.variable_identifier,
 
@@ -352,6 +354,34 @@ module.exports = grammar({
         seq(
           field("symbol_comma", alias(",", $.symbol)),
           field("expr", $.expression),
+        ),
+      ),
+
+    if_expression: $ =>
+      seq(
+        field("keyword_if", alias("if", $.keyword)),
+        field("condition", $.expression),
+        field("keyword_then", alias("then", $.keyword)),
+        choice(
+          seq(
+            $.indent,
+            repeat1(field("then_expression", $.expression)),
+            $.dedent,
+          ),
+          field("then_expression", $.paren_expression),
+        ),
+        optional(
+          seq(
+            field("keyword_else", alias("else", $.keyword)),
+            choice(
+              seq(
+                $.indent,
+                repeat(field("else_expression", $.expression)),
+                $.dedent,
+              ),
+              field("else_expression", $.expression),
+            ),
+          ),
         ),
       ),
 
