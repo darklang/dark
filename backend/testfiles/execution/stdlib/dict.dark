@@ -88,7 +88,7 @@ module FromList =
           Server = "dark" }
     )
 
-  Stdlib.Dict.fromList_v0 [] = PACKAGE.Darklang.Stdlib.Option.Option.Some(Dict { })
+  Stdlib.Dict.fromList_v0 [] = Stdlib.Option.Option.Some(Dict { })
 
   Stdlib.Dict.fromList_v0 [ Builtin.testRuntimeError "" ] = Builtin.testDerrorMessage
     ""

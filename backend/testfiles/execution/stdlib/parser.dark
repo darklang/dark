@@ -226,6 +226,7 @@ module TextToTextRoundtripping =
 
     // fully-qualified package name (multi-part)
     ("type MyOption = PACKAGE.Darklang.Stdlib.Option.Option" |> roundtripCliScript) = "type MyOption =\n  PACKAGE.Darklang.Stdlib.Option.Option_v0"
+    ("type MyOption = Stdlib.Option.Option" |> roundtripCliScript) = "type MyOption =\n  PACKAGE.Darklang.Stdlib.Option.Option_v0"
 
 
   module TypeDeclaration =
@@ -420,6 +421,7 @@ else
     ("(and true false)" |> roundtripCliScript) = "and true false"
     ("(Bool.and true false)" |> roundtripCliScript) = "Bool.and true false"
     ("(PACKAGE.Darklang.Stdlib.Bool.and true false)" |> roundtripCliScript) = "PACKAGE.Darklang.Stdlib.Bool.and_v0 true false"
+    ("(Stdlib.Bool.and true false)" |> roundtripCliScript) = "PACKAGE.Darklang.Stdlib.Bool.and_v0 true false"
     ("(Builtin.int64Add 1L 2L)" |> roundtripCliScript) = "Builtin.int64Add 1L 2L"
 
   module FunctionDeclaration =
@@ -435,7 +437,7 @@ else
 
     // multiple params
     ("let isHigher (a: Int64) (b: Int64) : Bool = (Stdlib.Int64.greaterThan_v0 a b)"
-     |> roundtripCliScript) = "let isHigher (a: Int64) (b: Int64): Bool =\n  Stdlib.Int64.greaterThan_v0 a b"
+     |> roundtripCliScript) = "let isHigher (a: Int64) (b: Int64): Bool =\n  PACKAGE.Darklang.Stdlib.Int64.greaterThan_v0 a b"
 
 
 

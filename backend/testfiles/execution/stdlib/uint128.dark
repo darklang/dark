@@ -75,19 +75,19 @@ Stdlib.UInt128.mod_v0 127Z 3Z = 1Z
 
 Stdlib.UInt128.mod_v0 5Z 0Z = Builtin.testDerrorMessage "Zero modulus"
 
-Stdlib.UInt128.parse_v0 "0" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(0Z)
+Stdlib.UInt128.parse_v0 "0" = Stdlib.Result.Result.Ok(0Z)
 
-Stdlib.UInt128.parse_v0 "1" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(1Z)
+Stdlib.UInt128.parse_v0 "1" = Stdlib.Result.Result.Ok(1Z)
 
-Stdlib.UInt128.parse_v0 " 1" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(1Z)
+Stdlib.UInt128.parse_v0 " 1" = Stdlib.Result.Result.Ok(1Z)
 
-Stdlib.UInt128.parse_v0 "1 " = PACKAGE.Darklang.Stdlib.Result.Result.Ok(1Z)
+Stdlib.UInt128.parse_v0 "1 " = Stdlib.Result.Result.Ok(1Z)
 
-Stdlib.UInt128.parse_v0 "+1" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(1Z)
+Stdlib.UInt128.parse_v0 "+1" = Stdlib.Result.Result.Ok(1Z)
 
-Stdlib.UInt128.parse_v0 " +1 " = PACKAGE.Darklang.Stdlib.Result.Result.Ok(1Z)
+Stdlib.UInt128.parse_v0 " +1 " = Stdlib.Result.Result.Ok(1Z)
 
-Stdlib.UInt128.parse_v0 "078" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(78Z) // "octal" format ignored
+Stdlib.UInt128.parse_v0 "078" = Stdlib.Result.Result.Ok(78Z) // "octal" format ignored
 
 Stdlib.UInt128.parse_v0 "170141183460469231731687303715884105727" = PACKAGE
   .Darklang
@@ -118,7 +118,7 @@ Stdlib.UInt128.parse_v0 "0b0100" = Stdlib.Result.Result.Error
 Stdlib.UInt128.parse_v0 "pi" = Stdlib.Result.Result.Error
   Stdlib.UInt128.ParseError.BadFormat
 
-Stdlib.UInt128.parse_v0 "PACKAGE.Darklang.Stdlib.Math.pi" = Stdlib.Result.Result.Error
+Stdlib.UInt128.parse_v0 "Stdlib.Math.pi" = Stdlib.Result.Result.Error
   Stdlib.UInt128.ParseError.BadFormat
 
 Stdlib.UInt128.parse_v0 "1.23E+04" = Stdlib.Result.Result.Error

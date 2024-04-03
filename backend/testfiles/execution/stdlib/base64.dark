@@ -5,15 +5,13 @@ Stdlib.Base64.decode "white space" = Stdlib.Result.Result.Error
 
 Stdlib.Base64.decode "Kw" = Stdlib.Result.Result.Ok(Stdlib.String.toBytes_v0 "+")
 
-Stdlib.Base64.decode "yLo" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  Stdlib.String.toBytes_v0 "Ⱥ"
-)
+Stdlib.Base64.decode "yLo" = Stdlib.Result.Result.Ok(Stdlib.String.toBytes_v0 "Ⱥ")
 
-Stdlib.Base64.decode "xbzDs8WCdw" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+Stdlib.Base64.decode "xbzDs8WCdw" = Stdlib.Result.Result.Ok(
   Stdlib.String.toBytes_v0 "żółw"
 )
 
-Stdlib.Base64.decode "LyotKygmQDk4NTIx" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+Stdlib.Base64.decode "LyotKygmQDk4NTIx" = Stdlib.Result.Result.Ok(
   Stdlib.String.toBytes_v0 "/*-+(&@98521"
 )
 
@@ -26,56 +24,44 @@ Stdlib.Base64.decode "" = Stdlib.Result.Result.Ok(Stdlib.String.toBytes_v0 "")
 // Test cases from the spec with padding added
 Stdlib.Base64.decode "Zg" = Stdlib.Result.Result.Ok(Stdlib.String.toBytes_v0 "f")
 
-Stdlib.Base64.decode "Zg==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  Stdlib.String.toBytes_v0 "f"
-)
+Stdlib.Base64.decode "Zg==" = Stdlib.Result.Result.Ok(Stdlib.String.toBytes_v0 "f")
 
-Stdlib.Base64.decode "Zm8" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  Stdlib.String.toBytes_v0 "fo"
-)
+Stdlib.Base64.decode "Zm8" = Stdlib.Result.Result.Ok(Stdlib.String.toBytes_v0 "fo")
 
-Stdlib.Base64.decode "Zm8=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  Stdlib.String.toBytes_v0 "fo"
-)
+Stdlib.Base64.decode "Zm8=" = Stdlib.Result.Result.Ok(Stdlib.String.toBytes_v0 "fo")
 
-Stdlib.Base64.decode "Zm9v" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  Stdlib.String.toBytes_v0 "foo"
-)
+Stdlib.Base64.decode "Zm9v" = Stdlib.Result.Result.Ok(Stdlib.String.toBytes_v0 "foo")
 
-Stdlib.Base64.decode "Zm9vYg" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+Stdlib.Base64.decode "Zm9vYg" = Stdlib.Result.Result.Ok(
   Stdlib.String.toBytes_v0 "foob"
 )
 
-Stdlib.Base64.decode "Zm9vYg==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+Stdlib.Base64.decode "Zm9vYg==" = Stdlib.Result.Result.Ok(
   Stdlib.String.toBytes_v0 "foob"
 )
 
-Stdlib.Base64.decode "Zm9vYmE" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+Stdlib.Base64.decode "Zm9vYmE" = Stdlib.Result.Result.Ok(
   Stdlib.String.toBytes_v0 "fooba"
 )
 
-Stdlib.Base64.decode "Zm9vYmE=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+Stdlib.Base64.decode "Zm9vYmE=" = Stdlib.Result.Result.Ok(
   Stdlib.String.toBytes_v0 "fooba"
 )
 
-Stdlib.Base64.decode "Zm9vYmFy" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+Stdlib.Base64.decode "Zm9vYmFy" = Stdlib.Result.Result.Ok(
   Stdlib.String.toBytes_v0 "foobar"
 )
 // "Impossible cases" from apache
 // https://commons.apache.org/proper/commons-codec/xref-test/org/apache/commons/codec/binary/Base64Test.html
-Stdlib.Base64.decode "ZE==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  Stdlib.String.toBytes_v0 "d"
-)
+Stdlib.Base64.decode "ZE==" = Stdlib.Result.Result.Ok(Stdlib.String.toBytes_v0 "d")
 
-Stdlib.Base64.decode "ZmC=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  Stdlib.String.toBytes_v0 "f`"
-)
+Stdlib.Base64.decode "ZmC=" = Stdlib.Result.Result.Ok(Stdlib.String.toBytes_v0 "f`")
 
-Stdlib.Base64.decode "Zm9vYE==" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+Stdlib.Base64.decode "Zm9vYE==" = Stdlib.Result.Result.Ok(
   Stdlib.String.toBytes_v0 "foo`"
 )
 
-Stdlib.Base64.decode "Zm9vYmC=" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
+Stdlib.Base64.decode "Zm9vYmC=" = Stdlib.Result.Result.Ok(
   Stdlib.String.toBytes_v0 "foob`"
 )
 
@@ -98,9 +84,7 @@ Stdlib.Base64.decode "-p" = Stdlib.Result.Result.Ok([ 250uy ])
 
 Stdlib.Base64.decode "lI" = Stdlib.Result.Result.Ok([ 148uy ])
 
-Stdlib.Base64.decode "5Sk" = PACKAGE.Darklang.Stdlib.Result.Result.Ok(
-  [ 229uy; 41uy ]
-)
+Stdlib.Base64.decode "5Sk" = Stdlib.Result.Result.Ok([ 229uy; 41uy ])
 
 Stdlib.Base64.decode "AA" = Stdlib.Result.Result.Ok([ 0uy ])
 
