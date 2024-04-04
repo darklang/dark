@@ -9,6 +9,7 @@ import {
   Trace,
   TransportKind,
 } from "vscode-languageclient/node";
+import { ServerBackedTreeDataProvider } from "./ServerBackedTreeDataProvider";
 
 let client: LanguageClient;
 
@@ -61,6 +62,16 @@ export function activate(context: ExtensionContext) {
 
   client.registerFeature(new SemanticTokensFeature(client));
   client.trace = Trace.Verbose;
+
+  client
+    .onReady()
+    .then(() => {
+      const treeDataProvider = new ServerBackedTreeDataProvider(client);
+      vscode.window.createTreeView("myTreeView", { treeDataProvider });
+    })
+    .catch(error => {
+      console.error("The client could not be started:", error);
+    });
 
   client.start();
 
