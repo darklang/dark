@@ -2,7 +2,7 @@
 inline if/else statement - no else
 ==================
 
-if true then (a)
+if true then a
 
 ---
 
@@ -10,7 +10,7 @@ if true then (a)
   (expression
     (if_expression
       (keyword) (expression (bool_literal)) (keyword)
-      (paren_expression (symbol) (expression (variable_identifier)) (symbol))
+      (expression (variable_identifier))
     )
   )
 )
@@ -20,7 +20,7 @@ if true then (a)
 inline if/elif/else statement
 ==================
 
-if true then (a) else if false then (b) else c
+if true then a else if false then b else c
 
 ---
 
@@ -28,12 +28,12 @@ if true then (a) else if false then (b) else c
   (expression
     (if_expression
       (keyword) (expression (bool_literal)) (keyword)
-      (paren_expression (symbol) (expression (variable_identifier)) (symbol))
+      (expression (variable_identifier))
       (keyword)
       (expression
         (if_expression
           (keyword) (expression (bool_literal)) (keyword)
-          (paren_expression (symbol) (expression (variable_identifier)) (symbol))
+          (expression (variable_identifier))
           (keyword) (expression (variable_identifier))
         )
       )
@@ -46,7 +46,7 @@ if true then (a) else if false then (b) else c
 inline if/else statement
 ==================
 
-if true then (a) else b
+if true then a else b
 
 ---
 
@@ -54,7 +54,7 @@ if true then (a) else b
   (expression
     (if_expression
       (keyword) (expression (bool_literal)) (keyword)
-      (paren_expression (symbol) (expression (variable_identifier)) (symbol))
+      (expression (variable_identifier))
       (keyword) (expression (variable_identifier))
     )
   )

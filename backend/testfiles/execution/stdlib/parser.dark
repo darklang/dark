@@ -304,10 +304,10 @@ module TextToTextRoundtripping =
     ("let x = 1L\n  x" |> roundtripCliScript) = "let x =\n  1L\nx"
 
     // if expressions
-    ("if true then (1L)" |> roundtripCliScript) = "if true then\n  1L"
-    ("if true then (1L) else 2L" |> roundtripCliScript) = "if true then\n  1L\nelse\n  2L"
-    ("if a < b then (1L) else if c > d then (2L)" |> roundtripCliScript) = "if (a) < (b) then\n  1L\nelse if (c) > (d) then\n  2L"
-    ("if a < b then (1L) else if c > d then (2L) else 3L" |> roundtripCliScript) = "if (a) < (b) then\n  1L\nelse if (c) > (d) then\n  2L\nelse\n  3L"
+    ("if true then 1L" |> roundtripCliScript) = "if true then\n  1L"
+    ("if true then 1L else 2L" |> roundtripCliScript) = "if true then\n  1L\nelse\n  2L"
+    ("if a < b then 1L else if c > d then 2L" |> roundtripCliScript) = "if (a) < (b) then\n  1L\nelse if (c) > (d) then\n  2L"
+    ("if a < b then 1L else if c > d then 2L else 3L" |> roundtripCliScript) = "if (a) < (b) then\n  1L\nelse if (c) > (d) then\n  2L\nelse\n  3L"
 
     ("if true then\n 1L" |> roundtripCliScript) = "if true then\n  1L"
     ("if true then\n 1L\nelse\n 2L" |> roundtripCliScript) = "if true then\n  1L\nelse\n  2L"
@@ -315,6 +315,7 @@ module TextToTextRoundtripping =
 
     ("if a > b then\n a\nelse if c > d then\n c\nelse d" |> roundtripCliScript) = "if (a) > (b) then\n  a\nelse if (c) > (d) then\n  c\nelse\n  d"
 
+    ("if true then\n\ta\nelse\n\tb" |> roundtripCliScript) = "if true then\n  a\nelse\n  b"
 
     ("""if true then
   a
