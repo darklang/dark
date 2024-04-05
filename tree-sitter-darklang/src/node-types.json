@@ -621,10 +621,6 @@
           {
             "type": "expression",
             "named": true
-          },
-          {
-            "type": "paren_expression",
-            "named": true
           }
         ]
       }

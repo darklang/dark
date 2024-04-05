@@ -2,7 +2,7 @@
 inline if/else statement - no else
 ==================
 
-if true then (a)
+if true then a
 
 ---
 
@@ -10,7 +10,7 @@ if true then (a)
   (expression
     (if_expression
       (keyword) (expression (bool_literal)) (keyword)
-      (paren_expression (symbol) (expression (variable_identifier)) (symbol))
+      (expression (variable_identifier))
     )
   )
 )
@@ -20,7 +20,7 @@ if true then (a)
 inline if/elif/else statement
 ==================
 
-if true then (a) else if false then (b) else c
+if true then a else if false then b else c
 
 ---
 
@@ -28,12 +28,12 @@ if true then (a) else if false then (b) else c
   (expression
     (if_expression
       (keyword) (expression (bool_literal)) (keyword)
-      (paren_expression (symbol) (expression (variable_identifier)) (symbol))
+      (expression (variable_identifier))
       (keyword)
       (expression
         (if_expression
           (keyword) (expression (bool_literal)) (keyword)
-          (paren_expression (symbol) (expression (variable_identifier)) (symbol))
+          (expression (variable_identifier))
           (keyword) (expression (variable_identifier))
         )
       )
@@ -46,7 +46,7 @@ if true then (a) else if false then (b) else c
 inline if/else statement
 ==================
 
-if true then (a) else b
+if true then a else b
 
 ---
 
@@ -54,7 +54,7 @@ if true then (a) else b
   (expression
     (if_expression
       (keyword) (expression (bool_literal)) (keyword)
-      (paren_expression (symbol) (expression (variable_identifier)) (symbol))
+      (expression (variable_identifier))
       (keyword) (expression (variable_identifier))
     )
   )
@@ -301,3 +301,117 @@ else if c > d then
     )
   )
 )
+
+
+
+==================
+if/else tab indentation
+==================
+
+if a > b then
+	a
+else
+	b
+
+---
+
+(source_file
+  (expression
+    (if_expression
+      (keyword) (expression (infix_operation (expression (variable_identifier)) (operator) (expression (variable_identifier)))) (keyword)
+      (indent) (expression (variable_identifier))
+      (dedent) (keyword)
+      (indent) (expression (variable_identifier))
+      (dedent)
+    )
+  )
+)
+
+
+==================
+if/else double space indentation
+==================
+
+if a > b then
+  a
+else
+  b
+
+---
+
+(source_file
+  (expression
+    (if_expression
+      (keyword) (expression (infix_operation (expression (variable_identifier)) (operator) (expression (variable_identifier)))) (keyword)
+      (indent) (expression (variable_identifier))
+      (dedent) (keyword)
+      (indent) (expression (variable_identifier))
+      (dedent)
+    )
+  )
+)
+
+
+
+==================
+if/else mix of tab and double space indentation - (TODO: maybe this should error?)
+==================
+
+if a > b then
+	if c > d then
+    c
+ else
+	d
+
+---
+
+(source_file
+  (expression
+    (if_expression
+      (keyword) (expression (infix_operation (expression (variable_identifier)) (operator) (expression (variable_identifier)))) (keyword)
+      (indent)
+      (expression
+        (if_expression
+          (keyword) (expression (infix_operation (expression (variable_identifier)) (operator) (expression (variable_identifier)))) (keyword)
+          (indent) (expression (variable_identifier))
+          (dedent)
+          (keyword)
+          (expression
+            (variable_identifier))
+        )
+      )
+      (dedent)
+    )
+  )
+)
+
+
+==================
+if/else mix of tab and double space indentation -error
+==================
+
+if a > b then
+ if c > d then
+	c
+   else
+	d
+
+---
+
+(source_file
+  (expression
+    (if_expression
+      (keyword) (expression (infix_operation (expression (variable_identifier)) (operator) (expression (variable_identifier)))) (keyword)
+      (indent)
+      (expression
+        (if_expression
+          (keyword)
+          (expression (infix_operation (expression (variable_identifier)) (operator) (expression (variable_identifier)))) (keyword)
+          (ERROR (expression (variable_identifier)))
+          (indent)
+          (expression
+            (variable_identifier))
+          (dedent)))
+      (expression
+        (variable_identifier))
+      (dedent))))
