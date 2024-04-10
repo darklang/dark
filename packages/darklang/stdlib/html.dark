@@ -40,8 +40,8 @@ module Darklang =
             tag.attrs
             |> List.map (fun (key, valueOpt) ->
               match valueOpt with
-                | Some value -> $"{key}=\"{value}\""
-                | None -> key)
+              | Some value -> $"{key}=\"{value}\""
+              | None -> key)
             |> String.join " "
 
           match tag.children with
@@ -77,7 +77,10 @@ module Darklang =
       let head (attrs: List<String * Option.Option<String>>) (c: List<Node>) : Node =
         htmlTagNode "head" attrs c
 
-      let title (attrs: List<String * Option.Option<String>>) (c: List<Node>) : Node =
+      let title
+        (attrs: List<String * Option.Option<String>>)
+        (c: List<Node>)
+        : Node =
         htmlTagNode "title" attrs c
 
       let a (attrs: List<String * Option.Option<String>>) (c: List<Node>) : Node =
@@ -120,7 +123,10 @@ module Darklang =
       let li (attrs: List<String * Option.Option<String>>) (c: List<Node>) : Node =
         htmlTagNode "li" attrs c
 
-      let table (attrs: List<String * Option.Option<String>>) (c: List<Node>) : Node =
+      let table
+        (attrs: List<String * Option.Option<String>>)
+        (c: List<Node>)
+        : Node =
         htmlTagNode "table" attrs c
 
       let tr (attrs: List<String * Option.Option<String>>) (c: List<Node>) : Node =
@@ -132,25 +138,43 @@ module Darklang =
       let th (attrs: List<String * Option.Option<String>>) (c: List<Node>) : Node =
         htmlTagNode "th" attrs c
 
-      let tbody (attrs: List<String * Option.Option<String>>) (c: List<Node>) : Node =
+      let tbody
+        (attrs: List<String * Option.Option<String>>)
+        (c: List<Node>)
+        : Node =
         htmlTagNode "tbody" attrs c
 
-      let thead (attrs: List<String * Option.Option<String>>) (c: List<Node>) : Node =
+      let thead
+        (attrs: List<String * Option.Option<String>>)
+        (c: List<Node>)
+        : Node =
         htmlTagNode "thead" attrs c
 
-      let tfoot (attrs: List<String * Option.Option<String>>) (c: List<Node>) : Node =
+      let tfoot
+        (attrs: List<String * Option.Option<String>>)
+        (c: List<Node>)
+        : Node =
         htmlTagNode "tfoot" attrs c
 
-      let caption (attrs: List<String * Option.Option<String>>) (c: List<Node>) : Node =
+      let caption
+        (attrs: List<String * Option.Option<String>>)
+        (c: List<Node>)
+        : Node =
         htmlTagNode "caption" attrs c
 
-      let colgroup (attrs: List<String * Option.Option<String>>) (c: List<Node>) : Node =
+      let colgroup
+        (attrs: List<String * Option.Option<String>>)
+        (c: List<Node>)
+        : Node =
         htmlTagNode "colgroup" attrs c
 
       let col (attrs: List<String * Option.Option<String>>) (c: List<Node>) : Node =
         htmlTagNode "col" attrs c
 
-      let button (attrs : List<String * Option.Option<String>>) (c : List<Node>) : Node =
+      let button
+        (attrs: List<String * Option.Option<String>>)
+        (c: List<Node>)
+        : Node =
         htmlTagNode "button" attrs c
 
 
