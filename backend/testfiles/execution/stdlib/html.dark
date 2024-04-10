@@ -8,7 +8,11 @@ let nodeToString (node: Node) : String = Stdlib.Html.nodeToString node
 
 let stringNode (str: String) : Node = Stdlib.Html.stringNode str
 
-let htmlTag (n: String) (a: List<String * String>) (c: List<Node>) : Node =
+let htmlTag
+  (n: String)
+  (a: List<String * Stdlib.Option.Option<String>>)
+  (c: List<Node>)
+  : Node =
   Stdlib.Html.htmlTagNode n a c
 
 
@@ -24,7 +28,8 @@ let tidyHtml (html: String) : String =
 
 (htmlTag "div" [] [ stringNode "yolo" ]) |> nodeToString = "<div>yolo</div>"
 
-(htmlTag "div" [ ("id", "my-div") ] [ stringNode "yolo" ]) |> nodeToString = "<div id=\"my-div\">yolo</div>"
+(htmlTag "div" [ ("id", (Stdlib.Option.Option.Some "my-div")) ] [ stringNode "yolo" ])
+|> nodeToString = "<div id=\"my-div\">yolo</div>"
 
 (htmlTag "div" [] [ htmlTag "button" [] [ stringNode "click me" ] ])
 |> nodeToString = "<div><button>click me</button></div>"
