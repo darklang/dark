@@ -4,7 +4,6 @@ module LibExecution.ProgramTypes
 open Prelude
 
 
-
 type NameValidator<'name> = 'name -> unit
 type NamePrinter<'name> = 'name -> string
 
@@ -310,36 +309,43 @@ module FQFnName =
 type NameResolution<'a> = Result<'a, NameResolutionError.Error>
 
 type LetPattern =
-  | LPVariable of id * name : string
   | LPUnit of id
   | LPTuple of
     id *
     first : LetPattern *
     second : LetPattern *
     theRest : List<LetPattern>
+  | LPVariable of id * name : string
 
 /// Used for pattern matching in a match statement
 type MatchPattern =
-  | MPVariable of id * string
-  | MPEnum of id * caseName : string * fieldPats : List<MatchPattern>
-  | MPInt64 of id * int64
-  | MPUInt64 of id * uint64
+  | MPUnit of id
+
+  | MPBool of id * bool
+
   | MPInt8 of id * int8
   | MPUInt8 of id * uint8
   | MPInt16 of id * int16
   | MPUInt16 of id * uint16
   | MPInt32 of id * int32
   | MPUInt32 of id * uint32
+  | MPInt64 of id * int64
+  | MPUInt64 of id * uint64
   | MPInt128 of id * System.Int128
   | MPUInt128 of id * System.UInt128
-  | MPBool of id * bool
+
+  | MPFloat of id * Sign * string * string
+
   | MPChar of id * string
   | MPString of id * string
-  | MPFloat of id * Sign * string * string
-  | MPUnit of id
-  | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
+
   | MPList of id * List<MatchPattern>
   | MPListCons of id * head : MatchPattern * tail : MatchPattern
+  | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
+
+  | MPEnum of id * caseName : string * fieldPats : List<MatchPattern>
+
+  | MPVariable of id * string
 
 type BinaryOperation =
   | BinOpAnd
@@ -370,30 +376,37 @@ type Infix =
 /// - user-defined enums
 /// - etc.
 type TypeReference =
-  | TInt64
-  | TUInt64
+  | TUnit
+
+  | TBool
+
   | TInt8
   | TUInt8
   | TInt16
   | TUInt16
   | TInt32
   | TUInt32
+  | TInt64
+  | TUInt64
   | TInt128
   | TUInt128
+
   | TFloat
-  | TBool
-  | TUnit
+
+  | TChar
   | TString
+
+  | TUuid
+  | TDateTime
+
   | TList of TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TDict of TypeReference
-  | TDB of TypeReference
-  | TDateTime
-  | TChar
-  | TUuid
-  // A named variable, eg `a` in `List<a>`, matches anything
-  | TVariable of string
+
   | TFn of NEList<TypeReference> * TypeReference
+
+  | TDB of TypeReference
+  // A named variable, eg `a` in `List<a>`, matches anything
 
   /// A type defined by a standard library module, a canvas/user, or a package
   /// e.g. `Result<Int64, String>` is represented as `TCustomType("Result", [TInt64, TString])`
@@ -402,33 +415,52 @@ type TypeReference =
     NameResolution<FQTypeName.FQTypeName> *
     typeArgs : List<TypeReference>
 
+  | TVariable of string
 
 /// Expressions - the main part of the language.
 type Expr =
-  | EInt64 of id * int64
-  | EUInt64 of id * uint64
+  // -- Simple exprs --
+  | EUnit of id
+  | EBool of id * bool
+
   | EInt8 of id * int8
   | EUInt8 of id * uint8
   | EInt16 of id * int16
   | EUInt16 of id * uint16
   | EInt32 of id * int32
   | EUInt32 of id * uint32
+  | EInt64 of id * int64
+  | EUInt64 of id * uint64
   | EInt128 of id * System.Int128
   | EUInt128 of id * System.UInt128
-  | EBool of id * bool
-  | EString of id * List<StringSegment>
-  | EUnit of id
-
-  /// A character is an Extended Grapheme Cluster (hence why we use a string). This
-  /// is equivalent to one screen-visible "character" in Unicode.
-  | EChar of id * string
 
   // Allow the user to have arbitrarily big numbers, even if they don't make sense as
   // floats. The float is split as we want to preserve what the user entered.
   // Strings are used as numbers lose the leading zeros (eg 7.00007)
   | EFloat of id * Sign * string * string
 
-  | EConstant of id * NameResolution<FQConstantName.FQConstantName>
+  /// A character is an Extended Grapheme Cluster (hence why we use a string). This
+  /// is equivalent to one screen-visible "character" in Unicode.
+  | EChar of id * string
+  | EString of id * List<StringSegment>
+
+
+  // -- Flow control --
+  /// `if cond then thenExpr else elseExpr`
+  | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
+
+  /// `(1 + 2) |> fnName |> (+) 3`
+  | EPipe of id * Expr * List<PipeExpr>
+
+  /// Supports `match` expressions
+  /// ```fsharp
+  /// match x + 2 with // arg
+  /// | pattern -> expr // cases[0]
+  /// | pattern -> expr
+  /// | ...
+  /// ```
+  // cases is a list to represent when a user starts typing but doesn't complete it
+  | EMatch of id * arg : Expr * cases : List<MatchCase>
 
   // <summary>
   // Composed of binding pattern, the expression to create bindings for,
@@ -440,40 +472,48 @@ type Expr =
   // expr2
   // </code>
   | ELet of id * LetPattern * Expr * Expr
+  // Reference some local variable by name
+  //
+  // i.e. after a `let binding = value`, any use of `binding`
+  | EVariable of id * string
+  // Access a field of some expression (e.g. `someExpr.fieldName`)
+  | EFieldAccess of id * Expr * string
 
-  // Composed of condition, expr if true, and expr if false
-  | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
+
+  // -- Basic structures --
+  | EList of id * List<Expr>
+  | EDict of id * List<string * Expr>
+  | ETuple of id * Expr * Expr * List<Expr>
+
+
+  // -- "Applying" args to things, such as fns and lambdas --
+  /// This is a function call, the first expression is the value of the function.
+  /// - `expr (args[0])`
+  /// - `expr (args[0]) (args[1])`
+  /// - `expr<typeArg[0]> (args[0])`
+  | EApply of id * expr: Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
+
+  /// Reference a function name, _usually_ so we can _apply_ it with args
+  | EFnName of id * NameResolution<FQFnName.FQFnName>
 
   // Composed of a parameters * the expression itself
   // The id in the varname list is the analysis id, used to get a livevalue
   // from the analysis engine
   | ELambda of id * pats : NEList<LetPattern> * body : Expr
 
+  /// Calls upon an infix function
+  | EInfix of id * Infix * lhs: Expr * rhs: Expr
 
-  // Access a field of some expression (e.g. `someExpr.fieldName`)
-  | EFieldAccess of id * Expr * string
 
-  // Reference some local variable by name
-  //
-  // i.e. after a `let binding = value`, any use of `binding`
-  | EVariable of id * string
-
-  // This is a function call, the first expression is the value of the function.
-  | EApply of id * Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
-  | EFnName of id * NameResolution<FQFnName.FQFnName>
-
-  | EInfix of id * Infix * Expr * Expr
-  | EPipe of id * Expr * List<PipeExpr>
-  | EList of id * List<Expr>
-  | EDict of id * List<string * Expr>
-  | ETuple of id * Expr * Expr * List<Expr>
+  // -- References to custom types and data --
+  | EConstant of id * NameResolution<FQConstantName.FQConstantName>
 
   // See NameResolution comment above
   | ERecord of
     id *
-    NameResolution<FQTypeName.FQTypeName> *
+    typeName: NameResolution<FQTypeName.FQTypeName> *
     // User is allowed type `Name {}` even if that's an error
-    List<string * Expr>
+    fields: List<string * Expr>
   | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
 
   // Enums include `Some`, `None`, `Error`, `Ok`, as well
@@ -491,15 +531,6 @@ type Expr =
     caseName : string *
     fields : List<Expr>
 
-  /// Supports `match` expressions
-  /// ```fsharp
-  /// match x + 2 with // arg
-  /// | pattern -> expr
-  /// | pattern -> expr
-  /// | ...
-  /// ```
-  // cases is a list to represent when a user starts typing but doesn't complete it
-  | EMatch of id * arg : Expr * cases : List<MatchCase>
 
 and MatchCase = { pat : MatchPattern; whenCondition : Option<Expr>; rhs : Expr }
 
@@ -608,47 +639,6 @@ type Deprecation<'name> =
   | DeprecatedBecause of string
 
 
-module Handler =
-
-  type CronInterval =
-    | EveryDay
-    | EveryWeek
-    | EveryFortnight
-    | EveryHour
-    | Every12Hours
-    | EveryMinute
-
-  /// User to represent handlers in their lowest-level form: a triple of space * name * modifier
-  /// "Space" is "HTTP", "WORKER", "REPL", etc.
-  ///
-  /// "Modifier" options differ based on space.
-  /// e.g. HTTP handler may have "GET" modifier.
-  ///
-  /// Handlers which don't have modifiers (e.g. repl, worker) nearly
-  /// always (but not actually always) have `_` as their modifier.
-  type HandlerDesc = (string * string * string)
-
-  type Spec =
-    | HTTP of route : string * method : string
-    | Worker of name : string
-    | Cron of name : string * interval : CronInterval
-    | REPL of name : string
-
-  type T = { tlid : tlid; ast : Expr; spec : Spec }
-
-
-module DB =
-  type T = { tlid : tlid; name : string; version : int; typ : TypeReference }
-
-module UserType =
-  type T =
-    { tlid : tlid
-      name : FQTypeName.UserProgram
-      declaration : TypeDeclaration.T
-      description : string
-      deprecated : Deprecation<FQTypeName.FQTypeName> }
-
-
 
 
 type Const =
@@ -672,45 +662,10 @@ type Const =
   | CList of List<Const>
   | CDict of List<string * Const>
 
-module UserConstant =
-  type T =
-    { tlid : tlid
-      name : FQConstantName.UserProgram
-      description : string
-      deprecated : Deprecation<FQConstantName.FQConstantName>
-      body : Const }
 
-module UserFunction =
-  type Parameter = { name : string; typ : TypeReference; description : string }
-
-  type T =
-    { tlid : tlid
-      name : FQFnName.UserProgram
-      typeParams : List<string>
-      parameters : NEList<Parameter>
-      returnType : TypeReference
-      description : string
-      deprecated : Deprecation<FQFnName.FQFnName>
-      body : Expr }
-
-module Toplevel =
-  type T =
-    | TLHandler of Handler.T
-    | TLDB of DB.T
-    | TLFunction of UserFunction.T
-    | TLType of UserType.T
-    | TLConstant of UserConstant.T
-
-  let toTLID (tl : T) : tlid =
-    match tl with
-    | TLHandler h -> h.tlid
-    | TLDB db -> db.tlid
-    | TLFunction f -> f.tlid
-    | TLType t -> t.tlid
-    | TLConstant c -> c.tlid
-
-module Secret =
-  type T = { name : string; value : string; version : int }
+// --
+// Package things
+// --
 
 module PackageConstant =
   type T =
@@ -744,7 +699,6 @@ module PackageType =
       description : string
       deprecated : Deprecation<FQTypeName.FQTypeName> }
 
-
 type Packages =
   { types : List<PackageType.T>
     constants : List<PackageConstant.T>
@@ -755,3 +709,87 @@ type Packages =
     let fns = packages |> List.map (fun p -> p.fns) |> List.concat
     let constants = packages |> List.map (fun p -> p.constants) |> List.concat
     { types = types; fns = fns; constants = constants }
+
+
+
+// --
+// User things
+// --
+
+module UserType =
+  type T =
+    { tlid : tlid
+      name : FQTypeName.UserProgram
+      declaration : TypeDeclaration.T
+      description : string
+      deprecated : Deprecation<FQTypeName.FQTypeName> }
+
+module UserConstant =
+  type T =
+    { tlid : tlid
+      name : FQConstantName.UserProgram
+      description : string
+      deprecated : Deprecation<FQConstantName.FQConstantName>
+      body : Const }
+
+module UserFunction =
+  type Parameter = { name : string; typ : TypeReference; description : string }
+
+  type T =
+    { tlid : tlid
+      name : FQFnName.UserProgram
+      typeParams : List<string>
+      parameters : NEList<Parameter>
+      returnType : TypeReference
+      description : string
+      deprecated : Deprecation<FQFnName.FQFnName>
+      body : Expr }
+
+module DB =
+  type T = { tlid : tlid; name : string; version : int; typ : TypeReference }
+
+module Secret =
+  type T = { name : string; value : string; version : int }
+
+module Handler =
+  type CronInterval =
+    | EveryDay
+    | EveryWeek
+    | EveryFortnight
+    | EveryHour
+    | Every12Hours
+    | EveryMinute
+
+  /// User to represent handlers in their lowest-level form: a triple of space * name * modifier
+  /// "Space" is "HTTP", "WORKER", "REPL", etc.
+  ///
+  /// "Modifier" options differ based on space.
+  /// e.g. HTTP handler may have "GET" modifier.
+  ///
+  /// Handlers which don't have modifiers (e.g. repl, worker) nearly
+  /// always (but not actually always) have `_` as their modifier.
+  type HandlerDesc = (string * string * string)
+
+  type Spec =
+    | HTTP of route : string * method : string
+    | Worker of name : string
+    | Cron of name : string * interval : CronInterval
+    | REPL of name : string
+
+  type T = { tlid : tlid; ast : Expr; spec : Spec }
+
+module Toplevel =
+  type T =
+    | TLHandler of Handler.T
+    | TLDB of DB.T
+    | TLFunction of UserFunction.T
+    | TLType of UserType.T
+    | TLConstant of UserConstant.T
+
+  let toTLID (tl : T) : tlid =
+    match tl with
+    | TLHandler h -> h.tlid
+    | TLDB db -> db.tlid
+    | TLFunction f -> f.tlid
+    | TLType t -> t.tlid
+    | TLConstant c -> c.tlid
