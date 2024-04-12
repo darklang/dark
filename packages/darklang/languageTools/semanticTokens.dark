@@ -340,6 +340,23 @@ module Darklang =
               [ makeToken symbolCloseParen TokenType.Symbol ] ]
             |> Stdlib.List.flatten
 
+          // Person { name = "Alice" }
+          | ERecord(range, name, fields, symbolOpenBrace, symbolCloseBrace) ->
+            let fields =
+              fields
+              |> Stdlib.List.map (fun (_, fieldName, value) -> Expr.tokenize value)
+              |> Stdlib.List.flatten
+
+            [ // Person
+              QualifiedTypeIdentifier.tokenize name
+              // {
+              [ makeToken symbolOpenBrace TokenType.Symbol ]
+              // name = "Alice"
+              fields
+              // }
+              [ makeToken symbolCloseBrace TokenType.Symbol ] ]
+            |> Stdlib.List.flatten
+
           // let x = 2
           // x + 1
           | ELet(range, lp, expr, body, keywordLet, symbolEquals) ->

@@ -29,8 +29,9 @@ TRUE
 ---
 
 (source_file
-  (ERROR)
-)
+  (ERROR
+    (qualified_type_name
+      (type_identifier))))
 
 
 ==================
@@ -42,8 +43,10 @@ FALSE
 ---
 
 (source_file
-  (ERROR)
-)
+  (ERROR
+    (qualified_type_name
+      (type_identifier))))
+
 
 
 ==================
@@ -55,8 +58,9 @@ True
 ---
 
 (source_file
-  (ERROR)
-)
+  (ERROR
+    (qualified_type_name
+      (type_identifier))))
 
 ==================
 False (error)
@@ -67,5 +71,6 @@ False
 ---
 
 (source_file
-  (ERROR)
-)
+  (ERROR
+    (qualified_type_name
+      (type_identifier))))

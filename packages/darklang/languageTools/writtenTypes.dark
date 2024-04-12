@@ -31,6 +31,7 @@ module Darklang =
           fn: FnIdentifier
         }
 
+      type Name = Unresolved of SourceRange * List<String>
 
       // Types
       module TypeReference =
@@ -86,7 +87,16 @@ module Darklang =
 
 
       module TypeDeclaration =
-        type Definition = Alias of TypeReference.TypeReference
+        type RecordField =
+          { range: SourceRange
+            name: String
+            typ: TypeReference.TypeReference
+            description: String
+            symbolColon: SourceRange }
+
+        type Definition =
+          | Alias of TypeReference.TypeReference
+          | Record of List<RecordField>
 
         type TypeDeclaration =
           { range: SourceRange
@@ -199,6 +209,13 @@ module Darklang =
           rest: List<Stdlib.Option.Option<SourceRange> * Expr> *
           symbolOpenParen: SourceRange *
           symbolCloseParen: SourceRange
+
+        | ERecord of
+          SourceRange *
+          typeName: Name *
+          fields: List<SourceRange * String * Expr> *
+          symbolOpenBrace: SourceRange *
+          symbolCloseBrace: SourceRange
 
         | ELet of
           SourceRange *

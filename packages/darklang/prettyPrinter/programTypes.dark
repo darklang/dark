@@ -701,9 +701,8 @@ module Darklang =
               $"{name} = {PrettyPrinter.ProgramTypes.expr expr}")
             |> Stdlib.String.join "; "
             |> fun parts -> "{ " ++ parts ++ " }"
-            |> PrettyPrinter.indent
 
-          $"{typeNamePart}\n{fieldPart}"
+          $"{typeNamePart} {fieldPart}"
 
         | EEnum(_id, typeName, caseName, fields) ->
           let typeNamePart =
@@ -901,7 +900,7 @@ module Darklang =
           (d: LanguageTools.ProgramTypes.TypeDeclaration.RecordField)
           : String =
           // TODO: /// for description
-          $"{d.name} : {PrettyPrinter.ProgramTypes.typeReference d.typ}"
+          $"{d.name}: {PrettyPrinter.ProgramTypes.typeReference d.typ}"
 
         let enumField
           (d: LanguageTools.ProgramTypes.TypeDeclaration.EnumField)
@@ -937,9 +936,9 @@ module Darklang =
             fields
             |> Stdlib.List.map (fun field ->
               PrettyPrinter.ProgramTypes.TypeDeclaration.recordField field)
-            |> Stdlib.String.join "\n"
+            |> Stdlib.String.join "\n  "
 
-          "{\n" ++ (PrettyPrinter.indent fieldsPart) ++ "\n}"
+          "{ " ++ (fieldsPart) ++ " }"
 
         | Enum cases ->
           cases

@@ -63,16 +63,28 @@ module ParseToSimplifiedTree =
 
                   ParsedNode
                     { fieldName = Stdlib.Option.Option.Some "typ"
-                      typ = "type_reference"
+                      typ = "type_decl_def"
                       text = "Int64"
                       sourceRange = range (0L, 10L) (0L, 15L)
                       children =
                         [ ParsedNode
                             { fieldName = Stdlib.Option.Option.None
-                              typ = "builtin_type"
+                              typ = "type_decl_def_alias"
                               text = "Int64"
                               sourceRange = range (0L, 10L) (0L, 15L)
-                              children = [] } ] } ] } ] }
+                              children =
+                                [ ParsedNode
+                                    { fieldName = Stdlib.Option.Option.None
+                                      typ = "type_reference"
+                                      text = "Int64"
+                                      sourceRange = range (0L, 10L) (0L, 15L)
+                                      children =
+                                        [ ParsedNode
+                                            { fieldName = Stdlib.Option.Option.None
+                                              typ = "builtin_type"
+                                              text = "Int64"
+                                              sourceRange = range (0L, 10L) (0L, 15L)
+                                              children = [] } ] } ] } ] } ] } ] }
 
 
   ("" |> Builtin.parserParseToSimplifiedTree) = ParsedNode
@@ -232,6 +244,18 @@ module TextToTextRoundtripping =
   module TypeDeclaration =
     ("type SimpleAlias = Unit" |> roundtripCliScript) = "type SimpleAlias =\n  Unit"
 
+    // record type
+    ("type Person = {name: String}" |> roundtripCliScript) = "type Person =\n  { name: String }"
+
+    ("type Person = {name: String; age: Int64}" |> roundtripCliScript) = "type Person =\n  { name: String\n    age: Int64 }"
+    ("type Person = {name: String; age: Int64; hasPet: Bool}" |> roundtripCliScript) = "type Person =\n  { name: String\n    age: Int64\n    hasPet: Bool }"
+
+    ("type Person = {name: String; age: Int64; hasPet: Bool; pet: Pet}"
+     |> roundtripCliScript) = """type Person =
+  { name: String
+    age: Int64
+    hasPet: Bool
+    pet: Pet }"""
 
   module Expr =
     // units
@@ -297,6 +321,14 @@ module TextToTextRoundtripping =
     ("(1L, \"hello\", 2L)" |> roundtripCliScript) = "(1L, \"hello\", 2L)"
     ("(1L, \"hello\", 2L, true)" |> roundtripCliScript) = "(1L, \"hello\", 2L, true)"
     ("(1L, 2L + 3L, 4L)" |> roundtripCliScript) = "(1L, (2L) + (3L), 4L)"
+
+    // record literal
+    ("Person {name =\"John\"} " |> roundtripCliScript) = "Person { name = \"John\" }"
+    ("Person {name =\"John\"; age = 30L} " |> roundtripCliScript) = "Person { name = \"John\"; age = 30L }"
+    ("Person {name =\"John\"; age = 30L; hasPet = true} " |> roundtripCliScript) = "Person { name = \"John\"; age = 30L; hasPet = true }"
+
+    ("Person {name =\"John\"; age = 30L; hasPet = true; pet = Pet {name = \"Luna\"}} "
+     |> roundtripCliScript) = "Person { name = \"John\"; age = 30L; hasPet = true; pet = Pet { name = \"Luna\" } }"
 
     // variables and let bindings
     ("assumedlyAVariableName" |> roundtripCliScript) = "assumedlyAVariableName"

@@ -16,7 +16,7 @@ let x = 1L + 2L
 ---
 
 (source_file
-  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
+  (type_decl (keyword) (type_identifier) (symbol) (type_decl_def (type_decl_def_alias (type_reference (builtin_type)))))
   (fn_decl
     (keyword)
     (fn_identifier)

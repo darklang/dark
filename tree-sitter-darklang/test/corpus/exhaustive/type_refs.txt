@@ -26,82 +26,88 @@ type MyDict = Dict<Int64>
 ---
 
 (source_file
-  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
-  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
-  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
-  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
-  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
-  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
-  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
-  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
-  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
-  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
-  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
-  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
-  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
-  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
-  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type)))
-  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type (list_type_reference (keyword) (symbol) (type_reference (builtin_type)) (symbol)))))
+  (type_decl (keyword) (type_identifier) (symbol) (type_decl_def (type_decl_def_alias (type_reference (builtin_type)))))
+  (type_decl (keyword) (type_identifier) (symbol) (type_decl_def (type_decl_def_alias (type_reference (builtin_type)))))
+  (type_decl (keyword) (type_identifier) (symbol) (type_decl_def (type_decl_def_alias (type_reference (builtin_type)))))
+  (type_decl (keyword) (type_identifier) (symbol) (type_decl_def (type_decl_def_alias (type_reference (builtin_type)))))
+  (type_decl (keyword) (type_identifier) (symbol) (type_decl_def (type_decl_def_alias (type_reference (builtin_type)))))
+  (type_decl (keyword) (type_identifier) (symbol) (type_decl_def (type_decl_def_alias (type_reference (builtin_type)))))
+  (type_decl (keyword) (type_identifier) (symbol) (type_decl_def (type_decl_def_alias (type_reference (builtin_type)))))
+  (type_decl (keyword) (type_identifier) (symbol) (type_decl_def (type_decl_def_alias (type_reference (builtin_type)))))
+  (type_decl (keyword) (type_identifier) (symbol) (type_decl_def (type_decl_def_alias (type_reference (builtin_type)))))
+  (type_decl (keyword) (type_identifier) (symbol) (type_decl_def (type_decl_def_alias (type_reference (builtin_type)))))
+  (type_decl (keyword) (type_identifier) (symbol) (type_decl_def (type_decl_def_alias (type_reference (builtin_type)))))
+  (type_decl (keyword) (type_identifier) (symbol) (type_decl_def (type_decl_def_alias (type_reference (builtin_type)))))
+  (type_decl (keyword) (type_identifier) (symbol) (type_decl_def (type_decl_def_alias (type_reference (builtin_type)))))
+  (type_decl (keyword) (type_identifier) (symbol) (type_decl_def (type_decl_def_alias (type_reference (builtin_type)))))
+  (type_decl (keyword) (type_identifier) (symbol) (type_decl_def (type_decl_def_alias (type_reference (builtin_type)))))
+  (type_decl (keyword) (type_identifier) (symbol) (type_decl_def (type_decl_def_alias (type_reference (builtin_type (list_type_reference (keyword) (symbol) (type_reference (builtin_type)) (symbol)))))))
   (type_decl
     (keyword)
     (type_identifier)
     (symbol)
-    (type_reference
-      (builtin_type
-        (tuple_type_reference
-          (symbol)
-          (type_reference
-            (builtin_type))
-          (symbol)
-          (type_reference
-            (builtin_type))
-          (symbol)))))
+    (type_decl_def
+      (type_decl_def_alias
+        (type_reference
+          (builtin_type
+            (tuple_type_reference
+              (symbol)
+              (type_reference
+                (builtin_type))
+              (symbol)
+              (type_reference
+                (builtin_type))
+              (symbol)))))))
   (type_decl
     (keyword)
     (type_identifier)
     (symbol)
-    (type_reference
-      (builtin_type
-        (tuple_type_reference
-          (symbol)
-          (type_reference
-            (builtin_type))
-          (symbol)
-          (type_reference
-            (builtin_type))
-          (type_reference_tuple_the_rest
-            (symbol)
-            (type_reference
-              (builtin_type)))
-          (symbol)))))
+    (type_decl_def
+      (type_decl_def_alias
+        (type_reference
+          (builtin_type
+            (tuple_type_reference
+              (symbol)
+              (type_reference
+                (builtin_type))
+              (symbol)
+              (type_reference
+                (builtin_type))
+              (type_reference_tuple_the_rest
+                (symbol)
+                (type_reference
+                  (builtin_type)))
+              (symbol)))))))
   (type_decl
     (keyword)
     (type_identifier)
     (symbol)
-    (type_reference
-      (builtin_type
-        (tuple_type_reference
-          (symbol)
-          (type_reference
-            (builtin_type))
-          (symbol)
-          (type_reference
-            (builtin_type))
-          (type_reference_tuple_the_rest
-            (symbol)
-            (type_reference
-              (builtin_type))
-            (symbol)
-            (type_reference
-              (builtin_type))
-            (symbol)
-            (type_reference
-              (builtin_type))
-            (symbol)
-            (type_reference
-              (builtin_type)))
-          (symbol)))))
-  (type_decl (keyword) (type_identifier) (symbol) (type_reference (builtin_type (dict_type_reference (keyword) (symbol) (type_reference (builtin_type)) (symbol)))))
+    (type_decl_def
+      (type_decl_def_alias
+        (type_reference
+          (builtin_type
+            (tuple_type_reference
+              (symbol)
+              (type_reference
+                (builtin_type))
+              (symbol)
+              (type_reference
+                (builtin_type))
+              (type_reference_tuple_the_rest
+                (symbol)
+                (type_reference
+                  (builtin_type))
+                (symbol)
+                (type_reference
+                  (builtin_type))
+                (symbol)
+                (type_reference
+                  (builtin_type))
+                (symbol)
+                (type_reference
+                  (builtin_type)))
+              (symbol)))))))
+  (type_decl (keyword) (type_identifier) (symbol) (type_decl_def (type_decl_def_alias (type_reference (builtin_type (dict_type_reference (keyword) (symbol) (type_reference (builtin_type)) (symbol)))))))
 )
 
 
@@ -118,9 +124,12 @@ type ID = Test
     (keyword)
     (type_identifier)
     (symbol)
-    (type_reference (qualified_type_name (type_identifier)))
+    (type_decl_def
+      (type_decl_def_alias (type_reference (qualified_type_name (type_identifier))))
+    )
   )
 )
+
 
 ==================
 multi-part qualified type identifier
@@ -135,17 +144,21 @@ type ID = PACKAGE.Darklang.Stdlib.Option.Option
     (keyword)
     (type_identifier)
     (symbol)
-    (type_reference
-      (qualified_type_name
-        (module_identifier)
-        (symbol)
-        (module_identifier)
-        (symbol)
-        (module_identifier)
-        (symbol)
-        (module_identifier)
-        (symbol)
-        (type_identifier)
+    (type_decl_def
+      (type_decl_def_alias
+        (type_reference
+          (qualified_type_name
+            (module_identifier)
+            (symbol)
+            (module_identifier)
+            (symbol)
+            (module_identifier)
+            (symbol)
+            (module_identifier)
+            (symbol)
+            (type_identifier)
+          )
+        )
       )
     )
   )
