@@ -228,4 +228,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let contents = (fns, constants)
+let contents : Builtins = LibExecution.Builtin.fromContents constants fns

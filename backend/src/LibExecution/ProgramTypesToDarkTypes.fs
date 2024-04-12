@@ -1518,6 +1518,7 @@ module Secret =
 
 module PackageType =
   let typeName = ptTyp [] "PackageType" 0
+  let knownType = KTCustomType(typeName, [])
 
   let toDT (p : PT.PackageType.T) : Dval =
     let fields =
@@ -1566,6 +1567,7 @@ module PackageFn =
       | _ -> Exception.raiseInternal "Invalid PackageFn.Parameter" []
 
   let typeName = ptTyp [ "PackageFn" ] "PackageFn" 0
+  let knownType = KTCustomType(typeName, [])
 
   let toDT (p : PT.PackageFn.T) : Dval =
     let fields =
@@ -1608,6 +1610,7 @@ module PackageFn =
 
 module PackageConstant =
   let typeName = ptTyp [] "PackageConstant" 0
+  let knownType = KTCustomType(typeName, [])
 
   let toDT (p : PT.PackageConstant.T) : Dval =
     let fields =
@@ -1632,3 +1635,20 @@ module PackageConstant =
         deprecated =
           fields |> D.field "deprecated" |> Deprecation.fromDT FQConstantName.fromDT }
     | _ -> Exception.raiseInternal "Invalid PackageConstant" []
+
+
+// TODO: fromDT? not sure if we really need it
+module Packages =
+  let typeName = ptTyp [ "Packages" ] "Packages" 0
+
+  let toDT (p : PT.Packages) : Dval =
+    let fields =
+      [ ("types",
+         DList(VT.known PackageType.knownType, List.map PackageType.toDT p.types))
+        ("constants",
+         DList(
+           VT.known PackageConstant.knownType,
+           List.map PackageConstant.toDT p.constants
+         ))
+        ("fns", DList(VT.known PackageFn.knownType, List.map PackageFn.toDT p.fns)) ]
+    DRecord(typeName, typeName, [], Map fields)

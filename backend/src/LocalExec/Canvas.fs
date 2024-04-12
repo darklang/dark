@@ -12,9 +12,6 @@ open LibCloud.Db
 
 module PT = LibExecution.ProgramTypes
 
-open Utils
-
-
 let parseYamlExn<'a> (filename : string) : 'a =
   let contents = System.IO.File.ReadAllText filename
   let deserialized = Legivel.Serialization.Deserialize<'a> contents

@@ -19,16 +19,12 @@ module Interpreter = LibExecution.Interpreter
 open LibCloud
 
 
-let builtins : LibExecution.Builtin.Contents =
+let builtins : RT.Builtins =
   LibExecution.Builtin.combine
     [ BuiltinExecution.Builtin.contents HttpClient.configuration
       BuiltinCloudExecution.Builtin.contents
       BuiltinDarkInternal.Builtin.contents ]
     []
-let builtIns : RT.BuiltIns =
-  let (fns, constants) = builtins
-  { fns = fns |> Map.fromListBy _.name
-    constants = constants |> Map.fromListBy _.name }
 
 let packageManager = PackageManager.packageManager
 
@@ -54,7 +50,7 @@ let createState
       LibService.Rollbar.sendException None metadata exn
 
     return
-      Exe.createState builtIns packageManager tracing sendException notify program
+      Exe.createState builtins packageManager tracing sendException notify program
   }
 
 type ExecutionReason =

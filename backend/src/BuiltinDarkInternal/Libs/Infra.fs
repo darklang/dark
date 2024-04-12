@@ -134,4 +134,4 @@ human-readable data."
       deprecated = NotDeprecated } ]
 
 let constants : List<BuiltInConstant> = []
-let contents = (fns, constants)
+let contents : Builtins = LibExecution.Builtin.fromContents constants fns

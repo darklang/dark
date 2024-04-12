@@ -54,6 +54,7 @@
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../LibPackageManager/LibPackageManager.fsproj" />
     <ProjectReference Include="../BuiltinCliHost/BuiltinCliHost.fsproj" />
+    <ProjectReference Include="../BuiltinPackagesOnDisk/BuiltinPackagesOnDisk.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Cli.fs" />

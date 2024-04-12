@@ -112,13 +112,17 @@ let merge
     packageManager = packageManager }
 
 
-let fromBuiltins ((fns, constants) : LibExecution.Builtin.Contents) : NameResolver =
+let fromBuiltins (builtins : RT.Builtins) : NameResolver =
   { builtinFns =
-      fns |> List.map (fun fn -> PT2RT.FQFnName.Builtin.fromRT fn.name) |> Set.ofList
+      builtins.fns
+      |> Map.keys
+      |> List.map PT2RT.FQFnName.Builtin.fromRT
+      |> Set.ofList
 
     builtinConstants =
-      constants
-      |> List.map (fun fn -> PT2RT.FQConstantName.Builtin.fromRT fn.name)
+      builtins.constants
+      |> Map.keys
+      |> List.map PT2RT.FQConstantName.Builtin.fromRT
       |> Set.ofList
 
     userTypes = Set.empty

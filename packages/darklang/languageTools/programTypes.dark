@@ -509,7 +509,238 @@ module Darklang =
           deprecated: Deprecation<FQFnName.FQFnName> }
 
 
-      type Packages =
-        { types: List<PackageType>
-          constants: List<PackageConstant>
-          fns: List<PackageFn.PackageFn> }
+      module Packages =
+        type Packages =
+          { types: List<PackageType>
+            constants: List<PackageConstant>
+            fns: List<PackageFn.PackageFn> }
+
+        let filterToModule
+          (p: Packages)
+          (owner: String)
+          (moduleName: List<String>)
+          : Packages =
+          Packages
+            { types =
+                p.types
+                |> Stdlib.List.filter (fun t ->
+                  t.name.owner == owner && t.name.modules == moduleName)
+
+              constants =
+                p.constants
+                |> Stdlib.List.filter (fun c ->
+                  c.name.owner == owner && c.name.modules == moduleName)
+
+              fns =
+                p.fns
+                |> Stdlib.List.filter (fun f ->
+                  f.name.owner == owner && f.name.modules == moduleName) }
+
+
+        // helper functions for converting a Packages to a List<Module>,
+        // to represent packages in the module hierarchy
+        type Module =
+          { name: String
+            types: List<PackageType>
+            constants: List<PackageConstant>
+            fns: List<PackageFn.PackageFn>
+            submodules: List<Module> }
+
+        let withType (ms: List<Module>) (t: PackageType) : List<Module> =
+          match t.name.modules with
+          | firstModuleNamePart :: submoduleNames ->
+            let (foundModuleMaybe, otherModules) =
+              ms |> Stdlib.List.partition (fun m -> m.name == firstModuleNamePart)
+
+            match (foundModuleMaybe, submoduleNames) with
+            | [], [] ->
+              let newModule =
+                Module
+                  { name = firstModuleNamePart
+                    types =
+                      [ { t with
+                            name = { t.name with modules = [] } } ]
+                    fns = []
+                    constants = []
+                    submodules = [] }
+
+              Stdlib.List.append otherModules [ newModule ]
+
+            | [], submoduleNames ->
+              let typeWithoutFirstModuleNamePartOfModule =
+                { t with
+                    name = { t.name with modules = submoduleNames } }
+
+              let newModuleWithSubmodule =
+                Module
+                  { name = firstModuleNamePart
+                    types = []
+                    fns = []
+                    constants = []
+                    submodules = withType [] typeWithoutFirstModuleNamePartOfModule }
+
+              Stdlib.List.append otherModules [ newModuleWithSubmodule ]
+
+            | [ foundModule ], [] ->
+              let updatedModule =
+                { foundModule with
+                    types =
+                      Stdlib.List.append
+                        foundModule.types
+                        [ { t with
+                              name = { t.name with modules = [] } } ] }
+
+              Stdlib.List.append otherModules [ updatedModule ]
+
+            | [ foundModule ], submoduleNames ->
+              let typeWithoutFirstModuleNamePartOfModule =
+                { t with
+                    name = { t.name with modules = submoduleNames } }
+
+              let updatedModule =
+                { foundModule with
+                    submodules =
+                      withType
+                        foundModule.submodules
+                        typeWithoutFirstModuleNamePartOfModule }
+
+              Stdlib.List.append otherModules [ updatedModule ]
+
+
+        let withFn (ms: List<Module>) (f: PackageFn.PackageFn) : List<Module> =
+          match f.name.modules with
+          | firstModuleNamePart :: submoduleNames ->
+            let (foundModuleMaybe, otherModules) =
+              ms |> Stdlib.List.partition (fun m -> m.name == firstModuleNamePart)
+
+            match (foundModuleMaybe, submoduleNames) with
+            | [], [] ->
+              let newModule =
+                Module
+                  { name = firstModuleNamePart
+                    types = []
+                    fns =
+                      [ { f with
+                            name = { f.name with modules = [] } } ]
+                    constants = []
+                    submodules = [] }
+
+              Stdlib.List.append otherModules [ newModule ]
+
+            | [], submoduleNames ->
+              let fnWithoutFirstModuleNamePartOfModule =
+                { f with
+                    name = { f.name with modules = submoduleNames } }
+
+              let newModuleWithSubmodule =
+                Module
+                  { name = firstModuleNamePart
+                    types = []
+                    fns = []
+                    constants = []
+                    submodules = withFn [] fnWithoutFirstModuleNamePartOfModule }
+
+              Stdlib.List.append otherModules [ newModuleWithSubmodule ]
+
+            | [ foundModule ], [] ->
+              let updatedModule =
+                { foundModule with
+                    fns =
+                      Stdlib.List.append
+                        foundModule.fns
+                        [ { f with
+                              name = { f.name with modules = [] } } ] }
+
+              Stdlib.List.append otherModules [ updatedModule ]
+
+            | [ foundModule ], submoduleNames ->
+              let fnWithoutFirstModuleNamePartOfModule =
+                { f with
+                    name = { f.name with modules = submoduleNames } }
+
+              let updatedModule =
+                { foundModule with
+                    submodules =
+                      withFn
+                        foundModule.submodules
+                        fnWithoutFirstModuleNamePartOfModule }
+
+              Stdlib.List.append otherModules [ updatedModule ]
+
+        let withConstant (ms: List<Module>) (c: PackageConstant) : List<Module> =
+          match c.name.modules with
+          | firstModuleNamePart :: submoduleNames ->
+            let (foundModuleMaybe, otherModules) =
+              ms |> Stdlib.List.partition (fun m -> m.name == firstModuleNamePart)
+
+            match (foundModuleMaybe, submoduleNames) with
+            | [], [] ->
+              let newModule =
+                Module
+                  { name = firstModuleNamePart
+                    types = []
+                    fns = []
+                    constants =
+                      [ { c with
+                            name = { c.name with modules = [] } } ]
+                    submodules = [] }
+
+              Stdlib.List.append otherModules [ newModule ]
+
+            | [], submoduleNames ->
+              let constantWithoutFirstModuleNamePartOfModule =
+                { c with
+                    name = { c.name with modules = submoduleNames } }
+
+              let newModuleWithSubmodule =
+                Module
+                  { name = firstModuleNamePart
+                    types = []
+                    fns = []
+                    constants = []
+                    submodules =
+                      withConstant [] constantWithoutFirstModuleNamePartOfModule }
+
+              Stdlib.List.append otherModules [ newModuleWithSubmodule ]
+
+            | [ foundModule ], [] ->
+              let updatedModule =
+                { foundModule with
+                    constants =
+                      Stdlib.List.append
+                        foundModule.constants
+                        [ { c with
+                              name = { c.name with modules = [] } } ] }
+
+              Stdlib.List.append otherModules [ updatedModule ]
+
+            | [ foundModule ], submoduleNames ->
+              let constantWithoutFirstModuleNamePartOfModule =
+                { c with
+                    name = { c.name with modules = submoduleNames } }
+
+              let updatedModule =
+                { foundModule with
+                    submodules =
+                      withConstant
+                        foundModule.submodules
+                        constantWithoutFirstModuleNamePartOfModule }
+
+              Stdlib.List.append otherModules [ updatedModule ]
+
+
+        let toModules (p: Packages) : List<Module> =
+          let empty = []
+
+          let modulesAfterTypes =
+            Stdlib.List.fold p.types empty (fun modules t -> withType modules t)
+
+          let modulesWithTypesAndFns =
+            Stdlib.List.fold p.fns modulesAfterTypes (fun modules f ->
+              withFn modules f)
+
+          let modulesWithTypesAndFnsAndConstants =
+            Stdlib.List.fold p.constants modulesWithTypesAndFns (fun modules c ->
+              withConstant modules c)
+
+          modulesWithTypesAndFnsAndConstants

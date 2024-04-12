@@ -5,17 +5,11 @@ open Prelude
 open LibExecution.RuntimeTypes
 
 let getStateForEval
-  (builtin : LibExecution.Builtin.Contents)
+  (builtins : Builtins)
   (types : List<UserType.T>)
   (fns : List<UserFunction.T>)
   (constants : List<UserConstant.T>)
-
   : ExecutionState =
-
-  let builtIns : BuiltIns =
-    let builtInFns, builtInConstants = builtin
-    { fns = builtInFns |> List.map (fun fn -> fn.name, fn) |> Map
-      constants = builtInConstants |> List.map (fun c -> c.name, c) |> Map }
 
   // TODO
   let packageManager : PackageManager = PackageManager.Empty
@@ -29,7 +23,7 @@ let getStateForEval
       constants = Map.fromListBy (_.name) constants
       secrets = List.empty }
 
-  { builtIns = builtIns
+  { builtIns = builtins
     tracing = LibExecution.Execution.noTracing
     test = LibExecution.Execution.noTestContext
     reportException = consoleReporter

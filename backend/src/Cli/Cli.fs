@@ -41,16 +41,14 @@ let info () =
 // Execution
 // ---------------------
 
-let builtIns : RT.BuiltIns =
-  let (fns, constants) =
-    LibExecution.Builtin.combine
-      [ BuiltinExecution.Builtin.contents
-          BuiltinExecution.Libs.HttpClient.defaultConfig
-        BuiltinCli.Builtin.contents
-        BuiltinCliHost.Builtin.contents ]
-      []
-  { fns = fns |> Map.fromListBy _.name
-    constants = constants |> Map.fromListBy _.name }
+let builtIns : RT.Builtins =
+  LibExecution.Builtin.combine
+    [ BuiltinExecution.Builtin.contents
+        BuiltinExecution.Libs.HttpClient.defaultConfig
+      BuiltinCli.Builtin.contents
+      BuiltinCliHost.Builtin.contents
+      BuiltinPackagesOnDisk.Builtin.contents ]
+    []
 
 // TODO: de-dupe with _other_ Cli.fs
 let packageManagerBaseUrl =

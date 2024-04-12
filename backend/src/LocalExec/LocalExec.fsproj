@@ -19,17 +19,18 @@
     <ProjectReference Include="../LibCloud/LibCloud.fsproj" />
     <ProjectReference Include="../LibParser/LibParser.fsproj" />
 
+    <!-- do we still need the below? -->
     <ProjectReference Include="../BuiltinExecution/BuiltinExecution.fsproj" />
     <ProjectReference Include="../BuiltinCli/BuiltinCli.fsproj" />
     <ProjectReference Include="../BuiltinCliHost/BuiltinCliHost.fsproj" />
     <ProjectReference Include="../BuiltinDarkInternal/BuiltinDarkInternal.fsproj" />
     <ProjectReference Include="../BuiltinCloudExecution/BuiltinCloudExecution.fsproj" />
     <ProjectReference Include="../../tests/TestUtils/TestUtils.fsproj" />
+
+    <ProjectReference Include="../BuiltinPackagesOnDisk/BuiltinPackagesOnDisk.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Utils.fs" />
     <Compile Include="Builtins.fs" />
-    <Compile Include="LoadPackagesFromDisk.fs" />
     <Compile Include="Canvas.fs" />
     <Compile Include="DarkPackagesDataIngest.fs" />
     <Compile Include="LocalExec.fs" />

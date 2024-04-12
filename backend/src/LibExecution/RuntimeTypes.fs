@@ -1498,9 +1498,10 @@ and TestContext =
     postTestExecutionHook : TestContext -> unit }
 
 // Functionally written in F# and shipped with the executable
-and BuiltIns =
+and Builtins =
   { constants : Map<FQConstantName.Builtin, BuiltInConstant>
     fns : Map<FQFnName.Builtin, BuiltInFn> }
+
 
 // Functionality written in Dark stored and managed outside of user space
 and PackageManager =
@@ -1526,7 +1527,7 @@ and Notifier = ExecutionState -> string -> Metadata -> unit
 // All state used while running a program
 and ExecutionState =
   { // -- Set consistently across a runtime --
-    builtIns : BuiltIns
+    builtIns : Builtins
     tracing : Tracing
     test : TestContext
 
@@ -1567,7 +1568,6 @@ and Constants =
 
 and Types =
   { typeSymbolTable : TypeSymbolTable
-
     package : FQTypeName.Package -> Ply<Option<PackageType.T>>
     userProgram : Map<FQTypeName.UserProgram, UserType.T> }
 

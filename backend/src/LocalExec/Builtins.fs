@@ -8,20 +8,18 @@ open Prelude
 module RT = LibExecution.RuntimeTypes
 
 /// for parsing packages, which may reference _any_ builtin
-let all : RT.BuiltIns =
-  let (fns, constants) =
-    LibExecution.Builtin.combine
-      [ BuiltinExecution.Builtin.contents
-          BuiltinExecution.Libs.HttpClient.defaultConfig
-        BuiltinCli.Builtin.contents
-        BuiltinCliHost.Builtin.contents
-        BuiltinCloudExecution.Builtin.contents // TODO: do we need this?
-        TestUtils.LibTest.contents ] // TODO: or this?
-      []
-  { fns = fns |> Map.fromListBy _.name
-    constants = constants |> Map.fromListBy _.name }
+let all : RT.Builtins =
+  LibExecution.Builtin.combine
+    [ BuiltinExecution.Builtin.contents
+        BuiltinExecution.Libs.HttpClient.defaultConfig
+      BuiltinCli.Builtin.contents
+      BuiltinCliHost.Builtin.contents
+      BuiltinCloudExecution.Builtin.contents // TODO: do we need this?
+      BuiltinPackagesOnDisk.Builtin.contents
+      TestUtils.LibTest.contents ] // TODO: or this?
+    []
 
-let accessibleByCanvas : LibExecution.Builtin.Contents =
+let accessibleByCanvas : RT.Builtins =
   LibExecution.Builtin.combine
     [ BuiltinExecution.Builtin.contents
         BuiltinExecution.Libs.HttpClient.defaultConfig

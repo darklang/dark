@@ -62,7 +62,7 @@ module Darklang =
           1L
         | Ok moduleContents ->
           let emptyModule =
-            LanguageTools.ProgramTypes.Packages
+            LanguageTools.ProgramTypes.Packages.Packages
               { types = []; fns = []; constants = [] }
 
           if moduleContents == emptyModule then

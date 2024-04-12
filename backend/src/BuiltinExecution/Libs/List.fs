@@ -699,4 +699,4 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, constants)
+let contents : Builtins = LibExecution.Builtin.fromContents constants fns

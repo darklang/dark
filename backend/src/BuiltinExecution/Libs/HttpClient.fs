@@ -535,4 +535,4 @@ let fns (config : Configuration) : List<BuiltInFn> =
 
 let constants : List<BuiltInConstant> = []
 
-let contents config = (fns config, constants)
+let contents config : Builtins = Builtin.fromContents constants (fns config)

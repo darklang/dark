@@ -16,8 +16,11 @@
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../LibParser/LibParser.fsproj" />
+
     <ProjectReference Include="../BuiltinExecution/BuiltinExecution.fsproj" />
     <ProjectReference Include="../BuiltinCli/BuiltinCli.fsproj" />
+    <ProjectReference Include="../BuiltinPackagesOnDisk/BuiltinPackagesOnDisk.fsproj" />
+
     <ProjectReference Include="../LibPackageManager/LibPackageManager.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

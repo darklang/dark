@@ -126,21 +126,22 @@ module Darklang =
       | Help ->
         Builtin.printLine
           """Note: If the darklang CLI is installed, you can run commands using `dark [command]`.
-If it is not installed, replace `dark` with the executable's path, like `./darklang-exe-path [command]`. \n
+If it is not installed, replace `dark` with the executable's path, like `./darklang-exe-path [command]`.
+
 Usage:
-dark help                                     Show this help message and exit
+dark help                             Show this help message and exit
 
-dark [function name]                          Run a function in the package manager
-  i.e. `darklang @Darklang.Stdlib.Bool.and true false`
+dark [function name]                  Run a function in the package manager
+  i.e. `dark @Darklang.Stdlib.Bool.and true false`
 
-dark package                                  Explore the contents of the package manager
+dark package                          Explore the contents of the package manager
 
-dark [script path]                            Run a .dark script
-  i.e. `darklang ./my-script.dark`
+dark [script path]                    Run a .dark script
+  i.e. `dark ./my-script.dark`
 
-dark install                                  Install the darklang CLI so it's available globally in your terminal
+dark install                          Install the darklang CLI so it's available globally in your terminal
 
-dark update                                   Update the darklang CLI to the latest version
+dark update                           Update the darklang CLI to the latest version
 """
 
         0L

@@ -112,4 +112,4 @@ let fns : List<BuiltInFn> =
 *)
 
 
-let contents : Builtin.Contents = (fns, constants)
+let contents : Builtins = Builtin.fromContents constants fns

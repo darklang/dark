@@ -10,7 +10,7 @@ let fnRenames =
   // eg: fn "Http" "respond" 0, fn "Http" "response" 0
   []
 
-let contents (httpConfig : Libs.HttpClient.Configuration) : Builtin.Contents =
+let contents (httpConfig : Libs.HttpClient.Configuration) : Builtins =
   Builtin.combine
     [ Libs.Bool.contents
       Libs.Base64.contents

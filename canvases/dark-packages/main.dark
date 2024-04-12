@@ -163,11 +163,11 @@ let _handler _req =
       | _ -> Stdlib.Option.Option.None)
 
   let respBody =
-    (PACKAGE.Darklang.LanguageTools.ProgramTypes.Packages
+    (PACKAGE.Darklang.LanguageTools.ProgramTypes.Packages.Packages
       { types = types
         fns = fns
         constants = constants })
-    |> Builtin.jsonSerialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.Packages>
+    |> Builtin.jsonSerialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.Packages.Packages>
     |> Stdlib.String.toBytes
 
   Stdlib.Http.response respBody 200L

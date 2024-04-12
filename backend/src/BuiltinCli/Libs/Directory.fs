@@ -101,5 +101,4 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-
-let contents : Builtin.Contents = (fns, constants)
+let contents : Builtins = Builtin.fromContents constants fns

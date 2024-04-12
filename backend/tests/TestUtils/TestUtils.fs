@@ -124,17 +124,14 @@ let testDB (name : string) (typ : PT.TypeReference) : PT.DB.T =
 
 let builtIns
   (httpConfig : BuiltinExecution.Libs.HttpClient.Configuration)
-  : RT.BuiltIns =
-  let (fns, constants) =
-    LibExecution.Builtin.combine
-      [ LibTest.contents
-        BuiltinExecution.Builtin.contents httpConfig
-        BuiltinCloudExecution.Builtin.contents
-        BuiltinDarkInternal.Builtin.contents
-        BuiltinCli.Builtin.contents ]
-      []
-  { fns = fns |> Map.fromListBy _.name
-    constants = constants |> Map.fromListBy _.name }
+  : RT.Builtins =
+  LibExecution.Builtin.combine
+    [ LibTest.contents
+      BuiltinExecution.Builtin.contents httpConfig
+      BuiltinCloudExecution.Builtin.contents
+      BuiltinDarkInternal.Builtin.contents
+      BuiltinCli.Builtin.contents ]
+    []
 
 let cloudBuiltIns =
   let httpConfig =
@@ -148,14 +145,12 @@ let localBuiltIns =
     { BuiltinExecution.Libs.HttpClient.defaultConfig with timeoutInMs = 5000 }
   builtIns httpConfig
 
+// Why do we use the LibCloud PM here?
 let packageManager = LibCloud.PackageManager.packageManager
 
 // This resolves both builtins and package functions
 let nameResolver =
-  { LibParser.NameResolver.fromBuiltins (
-      Map.values localBuiltIns.fns,
-      Map.values localBuiltIns.constants
-    ) with
+  { LibParser.NameResolver.fromBuiltins localBuiltIns with
       packageManager = Some packageManager }
 
 

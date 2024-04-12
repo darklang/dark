@@ -1,0 +1,157 @@
+module Darklang =
+  module LanguageTools =
+    module LspServer =
+      module TreeView =
+        // <aliases>
+        type TreeItemType = VSCode.TreeView.TreeItemType.TreeItemType
+
+        type TreeItemCollapsibleState =
+          VSCode.TreeView.TreeItemCollapsibleState.TreeItemCollapsibleState
+
+        type TreeItem = VSCode.TreeView.TreeItem.TreeItem
+        // </aliases>
+
+
+        let makeTreeItem
+          (id: String)
+          (label: String)
+          (collapsibleState: TreeItemCollapsibleState)
+          : TreeItem =
+          TreeItem
+            { id = Stdlib.Option.Option.Some id
+              label =
+                Stdlib.Option.Option.Some(
+                  VSCode.TreeView.TreeItem.Label.Label.String label
+                )
+              collapsibleState = collapsibleState |> Stdlib.Option.Option.Some
+              command = Stdlib.Option.Option.None // TODO: this should be a command to open the package
+              contextValue = Stdlib.Option.Option.None
+              checkboxState = Stdlib.Option.Option.None
+              accessibilityInformation = Stdlib.Option.Option.None
+              description = Stdlib.Option.Option.None // could include metadata about package, author, etc.
+              iconPath = Stdlib.Option.Option.None // TODO: based on whether it's a module, type, constant, or fn (or later: other things, like http endpoint)
+              resourceUri = Stdlib.Option.Option.None // TODO: this should be the URI of the package
+              tooltip = Stdlib.Option.Option.None }
+
+
+        /// handles `darklang/getRootNodes` requests
+        let handleGetRootNodesRequest
+          (state: LspState)
+          (requestId: JsonRPC.RequestId)
+          : LspState =
+          let response =
+            // TODO: this should be the list of packages that you have access to
+            // - the `darklang` package
+            // - (future: other globally-accessible packages)
+            //   (anything that you've 'pinned' or whatever)
+            // - your account's packages (for me, `stachu`)
+            // - packages shared with you
+            [ makeTreeItem "Darklang" "Darklang" TreeItemCollapsibleState.Collapsed
+              makeTreeItem "Stachu" "Stachu" TreeItemCollapsibleState.Collapsed ]
+
+            |> Stdlib.List.map (fun i -> VSCode.TreeView.TreeItem.toJson i)
+            |> Json.Array
+
+          let responseJson =
+            response
+            |> (fun r ->
+              JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) r)
+            |> Stdlib.AltJson.format
+
+          logAndSendToClient responseJson
+
+          state
+
+
+        let getModuleByParts
+          (allModules: List<ProgramTypes.Packages.Module>)
+          (parts: List<String>)
+          : Stdlib.Option.Option<ProgramTypes.Packages.Module> =
+          match parts with
+          | moduleNameToLookFor :: otherModuleParts ->
+            // just use tryFind, since we're looking for a single module
+            let found =
+              allModules
+              |> Stdlib.List.findFirst (fun m -> m.name = moduleNameToLookFor)
+
+            match found, otherModuleParts with
+            | Some foundModule, [] -> Stdlib.Option.Option.Some foundModule
+            | Some foundModule, _ ->
+              getModuleByParts foundModule.submodules otherModuleParts
+            | None, _ -> Stdlib.Option.Option.None
+
+
+        /// handles `darklang/getChildNodes` requests
+        let handleGetChildNodesRequest
+          (state: LspState)
+          (requestId: JsonRPC.RequestId)
+          (nodeId: String)
+          : LspState =
+          log "a"
+
+          let (ownerName, moduleNameParts) =
+            match nodeId |> Stdlib.String.split "." with
+            | ownerName :: moduleNameParts -> (ownerName, moduleNameParts)
+
+          log "bz"
+
+          let filteredPackages =
+            ProgramTypes.Packages.filterToModule
+              state.packages
+              ownerName
+              moduleNameParts
+          // ahh but how do I get submodules...?
+          log "c"
+
+          // let foundModule =
+          //   (getModuleByParts modules moduleNameParts) |> Builtin.unwrap
+
+          log "d"
+
+          let response =
+            let submoduleNodes =
+              // foundModule.submodules
+              // |> Stdlib.List.map (fun m ->
+              //   let id = $"{nodeId}.{m.name}"
+              //   makeTreeItem id m.name TreeItemCollapsibleState.Collapsed)
+              []
+
+            let typeNodes =
+              // foundModule.types
+              // |> Stdlib.List.map (fun t ->
+              //   let id = $"{nodeId}.{t.name}"
+              //   // TODO: deal with t.name better... pretty-print it
+              //   makeTreeItem id t.name TreeItemCollapsibleState.None)
+              []
+
+            let constantNodes =
+              // foundModule.constants
+              // |> Stdlib.List.map (fun c ->
+              //   let id = $"{nodeId}.{c.name}"
+              //   makeTreeItem id c.name TreeItemCollapsibleState.None)
+              []
+
+            let fnNodes =
+              // foundModule.fns
+              // |> Stdlib.List.map (fun f ->
+              //   let id = $"{nodeId}.{f.name}"
+              //   makeTreeItem id f.name TreeItemCollapsibleState.None)
+              []
+
+            (Stdlib.List.flatten
+              [ submoduleNodes; typeNodes; constantNodes; fnNodes ])
+            |> Stdlib.List.map (fun i -> VSCode.TreeView.TreeItem.toJson i)
+            |> Json.Array
+
+          log "e"
+
+          let responseJson =
+            response
+            |> (fun r ->
+              JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) r)
+            |> Stdlib.AltJson.format
+
+          log "f"
+          logAndSendToClient responseJson
+
+          state

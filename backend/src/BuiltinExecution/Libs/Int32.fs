@@ -521,4 +521,4 @@ let fns : List<BuiltInFn> =
 
     ]
 
-let contents = (fns, constants)
+let contents : Builtins = LibExecution.Builtin.fromContents constants fns

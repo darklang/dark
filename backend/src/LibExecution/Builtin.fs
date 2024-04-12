@@ -6,9 +6,6 @@ open RuntimeTypes
 
 type FnRenames = List<FQFnName.Builtin * FQFnName.Builtin>
 
-/// All Libs should expose `contents`, which is a list of all the constants and functions it provides
-type Contents = List<BuiltInFn> * List<BuiltInConstant>
-
 
 // To cut down on the amount of code, when we rename a function and make no other
 // changes, we don't duplicate it. Instead, we rename it and add the rename to this
@@ -48,14 +45,27 @@ let checkFn (_fn : BuiltInFn) : unit =
   //   Exception.raiseInternal $"function {fn.name} has no parameters" [ "fn", fn.name ]
   ()
 
-/// Provided a list of library contents, combine them (handling renames)
-let combine (libs : List<Contents>) (fnRenames : FnRenames) : Contents =
-  let (fns, constants) = List.unzip libs
+/// Provided a list of Builtins, combine them (handling renames)
+let combine (libs : List<Builtins>) (fnRenames : FnRenames) : Builtins =
+  { fns =
+      libs
+      |> List.map _.fns
+      |> List.collect Map.values
+      |> renameFunctions fnRenames
+      |> Map.fromListBy _.name
 
-  fns |> List.concat |> List.iter checkFn
+    constants =
+      libs
+      |> List.map _.constants
+      |> List.collect Map.values
+      |> Map.fromListBy _.name }
 
-  (fns |> List.concat |> renameFunctions fnRenames, constants |> List.concat)
-
+let fromContents
+  (constants : List<BuiltInConstant>)
+  (fns : List<BuiltInFn>)
+  : Builtins =
+  { fns = fns |> Map.fromListBy _.name
+    constants = constants |> Map.fromListBy _.name }
 
 
 module Shortcuts =

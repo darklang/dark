@@ -48,8 +48,10 @@ module Darklang =
 
         logAndSendToClient initializeResponse
 
+        let packages = Builtin.getPackagesFromDisk ()
 
         LspState
           { initialized = true
             shouldShutdown = false
-            documentsInScope = Dict { } }
+            documentsInScope = Dict { }
+            packages = packages }

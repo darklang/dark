@@ -9,13 +9,14 @@ open Prelude
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 
-open Utils
+open BuiltinPackagesOnDisk.Utils
 
 module HandleCommand =
   let loadPackagesToInternalSqlTables () : Ply<Result<unit, string>> =
     uply {
       // first, load the packages from disk, ensuring all parse well
-      let! packagesFromDisk = LoadPackagesFromDisk.load Builtins.all
+      let! packagesFromDisk =
+        BuiltinPackagesOnDisk.Libs.Packages.loadFromDisk Builtins.all
 
       let typeLen = packagesFromDisk.types |> List.length
       let constantLen = packagesFromDisk.constants |> List.length
@@ -39,14 +40,16 @@ module HandleCommand =
   let reloadDarkPackagesCanvas () : Ply<Result<unit, string>> =
     uply {
       // first, load the packages from disk, ensuring all parse well
-      let! packagesFromDisk = LoadPackagesFromDisk.load Builtins.all
+      let! packagesFromDisk =
+        BuiltinPackagesOnDisk.Libs.Packages.loadFromDisk Builtins.all
       let inMemPackageManager = inMemPackageManagerFromPackages packagesFromDisk
 
       // then, parse the canvas' `main.dark`, purge any previous data, and create the canvas
       let nameResolver =
-        LibParser.NameResolver.fromBuiltins Builtins.accessibleByCanvas
+        Builtins.all // TODO: reconsider if we need to restrict this
+        |> LibParser.NameResolver.fromBuiltins
         |> fun nr ->
-          { nr with packageManager = Some inMemPackageManager; allowError = false }
+            { nr with packageManager = Some inMemPackageManager; allowError = false }
 
       let! (canvasId, toplevels) = Canvas.loadFromDisk nameResolver "dark-packages"
 
