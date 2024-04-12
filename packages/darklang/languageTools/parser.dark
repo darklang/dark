@@ -386,6 +386,7 @@ module Darklang =
             Stdlib.Result.Result.Error(WrittenTypes.Unparseable { source = node })
 
 
+
         let parse
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.TypeReference.TypeReference, WrittenTypes.Unparseable> =
@@ -457,45 +458,90 @@ module Darklang =
                 match (findNodeByFieldName child "content") with
                 | Some contentNode ->
                   contentNode.children
-                  |> Stdlib.List.filter (fun c ->
-                    c.typ == "type_decl_def_record_field")
-                  |> Stdlib.List.map (fun fieldNode ->
-                    let fieldNameNode =
-                      (findNodeByFieldName fieldNode "field")
-                      |> Stdlib.Option.toResult
-                        "No field_name node found in type_decl_def_record"
+                  |> Stdlib.List.chunkBySize 2L
+                  |> Builtin.unwrap
+                  |> Stdlib.List.map (fun chunk ->
+                    match chunk with
+                    | [ fieldNode ] ->
+                      let fieldNameNode =
+                        (findNodeByFieldName fieldNode "field")
+                        |> Stdlib.Option.toResult
+                          "No field_name node found in type_decl_def_record"
 
-                    let symbolColonNode =
-                      (findNodeByFieldName fieldNode "symbol_colon")
-                      |> Stdlib.Option.toResult
-                        "No symbol_colon node found in type_decl_def_record"
+                      let symbolColonNode =
+                        (findNodeByFieldName fieldNode "symbol_colon")
+                        |> Stdlib.Option.toResult
+                          "No symbol_colon node found in type_decl_def_record"
 
-                    let fieldTypeNode =
-                      (findNodeByFieldName fieldNode "type")
-                      |> Stdlib.Option.toResult
-                        "No field_type node found in type_decl_def_record"
+                      let fieldTypeNode =
+                        (findNodeByFieldName fieldNode "type")
+                        |> Stdlib.Option.toResult
+                          "No field_type node found in type_decl_def_record"
 
-                    match fieldNameNode, symbolColonNode, fieldTypeNode with
-                    | Ok fieldNameNode, Ok symbolColonNode, Ok fieldTypeNode ->
-                      let fieldName = fieldNameNode.text
-                      let fieldType = TypeReference.parse fieldTypeNode
+                      match fieldNameNode, symbolColonNode, fieldTypeNode with
+                      | Ok fieldNameNode, Ok symbolColonNode, Ok fieldTypeNode ->
+                        let fieldName = fieldNameNode.text
+                        let fieldType = TypeReference.parse fieldTypeNode
 
-                      match fieldType with
-                      | Ok fieldType ->
-                        (WrittenTypes.TypeDeclaration.RecordField
-                          { range = fieldNode.sourceRange
-                            name = fieldName
-                            typ = fieldType
-                            description = ""
-                            symbolColon = symbolColonNode.sourceRange })
-                        |> Stdlib.Result.Result.Ok
+                        match fieldType with
+                        | Ok fieldType ->
+                          (WrittenTypes.TypeDeclaration.RecordField
+                            { range = fieldNode.sourceRange
+                              name = fieldName
+                              typ = fieldType
+                              description = ""
+                              symbolColon = symbolColonNode.sourceRange })
+                          |> Stdlib.Result.Result.Ok
 
-                      | Error _ ->
-                        (WrittenTypes.Unparseable { source = fieldTypeNode })
+                        | Error _ ->
+                          (WrittenTypes.Unparseable { source = fieldTypeNode })
+                          |> Stdlib.Result.Result.Error
+                      | _ ->
+                        (WrittenTypes.Unparseable { source = fieldNode })
                         |> Stdlib.Result.Result.Error
+
+                    | [ fieldNode; _separator ] ->
+                      let fieldNameNode =
+                        (findNodeByFieldName fieldNode "field")
+                        |> Stdlib.Option.toResult
+                          "No field_name node found in type_decl_def_record"
+
+                      let symbolColonNode =
+                        (findNodeByFieldName fieldNode "symbol_colon")
+                        |> Stdlib.Option.toResult
+                          "No symbol_colon node found in type_decl_def_record"
+
+                      let fieldTypeNode =
+                        (findNodeByFieldName fieldNode "type")
+                        |> Stdlib.Option.toResult
+                          "No field_type node found in type_decl_def_record"
+
+                      match fieldNameNode, symbolColonNode, fieldTypeNode with
+                      | Ok fieldNameNode, Ok symbolColonNode, Ok fieldTypeNode ->
+                        let fieldName = fieldNameNode.text
+                        let fieldType = TypeReference.parse fieldTypeNode
+
+                        match fieldType with
+                        | Ok fieldType ->
+                          (WrittenTypes.TypeDeclaration.RecordField
+                            { range = fieldNode.sourceRange
+                              name = fieldName
+                              typ = fieldType
+                              description = ""
+                              symbolColon = symbolColonNode.sourceRange })
+                          |> Stdlib.Result.Result.Ok
+
+                        | Error _ ->
+                          (WrittenTypes.Unparseable { source = fieldTypeNode })
+                          |> Stdlib.Result.Result.Error
+                      | _ ->
+                        (WrittenTypes.Unparseable { source = fieldNode })
+                        |> Stdlib.Result.Result.Error
+
                     | _ ->
                       (WrittenTypes.Unparseable { source = fieldNode })
                       |> Stdlib.Result.Result.Error)
+
                 | None -> [] |> Stdlib.Result.Result.Ok
 
               let recordFields = recordFields |> Stdlib.Result.values
