@@ -122,40 +122,34 @@ let testUserRecordType
 let testDB (name : string) (typ : PT.TypeReference) : PT.DB.T =
   { tlid = gid (); name = name; typ = typ; version = 0 }
 
-let builtIns
+let builtins
   (httpConfig : BuiltinExecution.Libs.HttpClient.Configuration)
-  : RT.BuiltIns =
-  let (fns, constants) =
-    LibExecution.Builtin.combine
-      [ LibTest.contents
-        BuiltinExecution.Builtin.contents httpConfig
-        BuiltinCloudExecution.Builtin.contents
-        BuiltinDarkInternal.Builtin.contents
-        BuiltinCli.Builtin.contents ]
-      []
-  { fns = fns |> Map.fromListBy _.name
-    constants = constants |> Map.fromListBy _.name }
+  : RT.Builtins =
+  LibExecution.Builtin.combine
+    [ LibTest.builtins
+      BuiltinExecution.Builtin.builtins httpConfig
+      BuiltinCloudExecution.Builtin.builtins
+      BuiltinDarkInternal.Builtin.builtins
+      BuiltinCli.Builtin.builtins ]
+    []
 
 let cloudBuiltIns =
   let httpConfig =
     { LibCloudExecution.HttpClient.configuration with
         timeoutInMs = 5000
         allowedIP = (fun _ -> true) }
-  builtIns httpConfig
+  builtins httpConfig
 
 let localBuiltIns =
   let httpConfig =
     { BuiltinExecution.Libs.HttpClient.defaultConfig with timeoutInMs = 5000 }
-  builtIns httpConfig
+  builtins httpConfig
 
 let packageManager = LibCloud.PackageManager.packageManager
 
 // This resolves both builtins and package functions
 let nameResolver =
-  { LibParser.NameResolver.fromBuiltins (
-      Map.values localBuiltIns.fns,
-      Map.values localBuiltIns.constants
-    ) with
+  { LibParser.NameResolver.fromBuiltins localBuiltIns with
       packageManager = Some packageManager }
 
 
@@ -219,10 +213,10 @@ let executionStateFor
     // in the tests and so are worth watching out for.
     let notifier : RT.Notifier = fun _state _msg _tags -> ()
 
-    let builtIns = if allowLocalHttpAccess then localBuiltIns else cloudBuiltIns
+    let builtins = if allowLocalHttpAccess then localBuiltIns else cloudBuiltIns
     let state =
       Exe.createState
-        builtIns
+        builtins
         packageManager
         Exe.noTracing
         exceptionReporter

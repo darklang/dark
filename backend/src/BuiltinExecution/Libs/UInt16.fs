@@ -520,4 +520,4 @@ let fns : List<BuiltInFn> =
 
     ]
 
-let contents = (fns, constants)
+let builtins = LibExecution.Builtin.make constants fns

@@ -316,7 +316,7 @@ let rec eval
           return! ExecutionError.raise source (ExecutionError.ConstDoesntExist name)
         | Some constant -> return evalConst source constant.body
       | FQConstantName.Builtin c ->
-        match Map.find c state.builtIns.constants with
+        match Map.find c state.builtins.constants with
         | None ->
           return! ExecutionError.raise source (ExecutionError.ConstDoesntExist name)
         | Some constant -> return constant.body
@@ -909,7 +909,7 @@ and callFn
     let! fn =
       match desc with
       | FQFnName.Builtin std ->
-        Map.find std state.builtIns.fns |> Option.map builtInFnToFn |> Ply
+        Map.find std state.builtins.fns |> Option.map builtInFnToFn |> Ply
       | FQFnName.UserProgram u ->
         Map.find u state.program.fns |> Option.map userFnToFn |> Ply
       | FQFnName.Package pkg ->

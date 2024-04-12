@@ -11,4 +11,4 @@ let fnRenames : Builtin.FnRenames =
   // eg: fn "Http" "respond" 0, fn "Http" "response" 0
   []
 
-let contents = Builtin.combine [ Libs.Cli.contents ] fnRenames
+let builtins = Builtin.combine [ Libs.Cli.builtins ] fnRenames

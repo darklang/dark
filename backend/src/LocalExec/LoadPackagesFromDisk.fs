@@ -14,7 +14,7 @@ open Utils
 
 /// Reads and parses all .dark files in `packages` dir,
 /// failing upon any individual failure
-let load (builtins : RT.BuiltIns) : Ply<PT.Packages> =
+let load (builtins : RT.Builtins) : Ply<PT.Packages> =
   uply {
     let filesWithContents =
       "/home/dark/app/packages"
@@ -25,10 +25,7 @@ let load (builtins : RT.BuiltIns) : Ply<PT.Packages> =
     // First pass, parse all the packages, allowing unresolved names
     // (other package items won't be available yet)
     let nameResolver =
-      LibParser.NameResolver.fromBuiltins (
-        Map.values builtins.fns |> Seq.toList,
-        Map.values builtins.constants |> Seq.toList
-      )
+      LibParser.NameResolver.fromBuiltins builtins
       |> fun nr -> { nr with allowError = true }
 
     let! (packagesParsedWithUnresolvedNamesAllowed : PT.Packages) =

@@ -30,7 +30,7 @@ let httpConfig : BuiltinExecution.Libs.HttpClient.Configuration =
 
 let builtin =
   LibExecution.Builtin.combine
-    [ BuiltinExecution.Builtin.contents httpConfig; Builtin.contents ]
+    [ BuiltinExecution.Builtin.builtins httpConfig; Builtin.builtins ]
     []
 
 

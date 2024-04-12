@@ -11,7 +11,7 @@ module TypeChecker = LibExecution.TypeChecker
 
 module UserDB = LibCloud.UserDB
 module Db = LibCloud.Db
-
+module Builtin = LibExecution.Builtin
 
 let varA = TVariable "a"
 
@@ -442,4 +442,4 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, constants)
+let builtins = LibExecution.Builtin.make constants fns

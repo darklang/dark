@@ -1498,7 +1498,7 @@ and TestContext =
     postTestExecutionHook : TestContext -> unit }
 
 // Functionally written in F# and shipped with the executable
-and BuiltIns =
+and Builtins =
   { constants : Map<FQConstantName.Builtin, BuiltInConstant>
     fns : Map<FQFnName.Builtin, BuiltInFn> }
 
@@ -1526,7 +1526,7 @@ and Notifier = ExecutionState -> string -> Metadata -> unit
 // All state used while running a program
 and ExecutionState =
   { // -- Set consistently across a runtime --
-    builtIns : BuiltIns
+    builtins : Builtins
     tracing : Tracing
     test : TestContext
 
@@ -1580,12 +1580,12 @@ module ExecutionState =
       userProgram = state.program.types }
 
   let availableFunctions (state : ExecutionState) : Functions =
-    { builtIn = state.builtIns.fns
+    { builtIn = state.builtins.fns
       package = state.packageManager.getFn
       userProgram = state.program.fns }
 
   let availableConstants (state : ExecutionState) : Constants =
-    { builtIn = state.builtIns.constants
+    { builtIn = state.builtins.constants
       package = state.packageManager.getConstant
       userProgram = state.program.constants }
 

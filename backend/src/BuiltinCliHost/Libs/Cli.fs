@@ -69,15 +69,12 @@ module CliRuntimeError =
       Error.toDT e |> RT.RuntimeError.fromDT
 
 let libExecutionContents =
-  BuiltinExecution.Builtin.contents BuiltinExecution.Libs.HttpClient.defaultConfig
+  BuiltinExecution.Builtin.builtins BuiltinExecution.Libs.HttpClient.defaultConfig
 
-let builtIns : RT.BuiltIns =
-  let (fns, constants) =
-    LibExecution.Builtin.combine
-      [ libExecutionContents; BuiltinCli.Builtin.contents ]
-      []
-  { fns = fns |> Map.fromListBy _.name
-    constants = constants |> Map.fromListBy _.name }
+let builtinsToUse : RT.Builtins =
+  LibExecution.Builtin.combine
+    [ libExecutionContents; BuiltinCli.Builtin.builtins ]
+    []
 
 // TODO: de-dupe with _other_ Cli.fs
 let packageManagerBaseUrl =
@@ -111,7 +108,7 @@ let execute
     let sendException = parentState.reportException
     let state =
       Exe.createState
-        builtIns
+        builtinsToUse
         packageManager
         Exe.noTracing
         sendException
@@ -456,4 +453,4 @@ let fns : List<BuiltInFn> =
     ]
 
 let constants : List<BuiltInConstant> = []
-let contents = (fns, constants)
+let builtins = LibExecution.Builtin.make constants fns

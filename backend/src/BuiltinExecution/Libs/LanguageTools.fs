@@ -39,7 +39,7 @@ let fns : List<BuiltInFn> =
           let fnTypeName = typ [] "BuiltinFunction" 0
 
           let fns =
-            state.builtIns.fns
+            state.builtins.fns
             |> Map.toList
             |> List.map (fun (key, data) ->
               let parameters =
@@ -65,4 +65,4 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, constants)
+let builtins = LibExecution.Builtin.make constants fns

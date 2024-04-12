@@ -146,7 +146,7 @@ let fns : List<BuiltInFn> =
 
             let builtin =
               LibExecution.Builtin.combine
-                [ BuiltinExecution.Builtin.contents httpConfig ]
+                [ BuiltinExecution.Builtin.builtins httpConfig ]
                 []
 
             let! result =
@@ -171,4 +171,4 @@ let fns : List<BuiltInFn> =
 
     ]
 
-let contents = (fns, constants)
+let builtins = LibExecution.Builtin.make constants fns
