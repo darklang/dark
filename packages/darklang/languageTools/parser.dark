@@ -386,28 +386,7 @@ module Darklang =
             Stdlib.Result.Result.Error(WrittenTypes.Unparseable { source = node })
 
 
-
         let parse
-          (node: ParsedNode)
-          : Stdlib.Result.Result<WrittenTypes.TypeReference.TypeReference, WrittenTypes.Unparseable> =
-          if node.typ == "type_decl_def_alias" then
-            match node.children with
-            | [ single ] when single.typ == "type_reference" ->
-              parseTypeReference single
-
-            | _ ->
-              (WrittenTypes.Unparseable { source = node })
-              |> Stdlib.Result.Result.Error
-
-          elif node.typ == "type_reference" then
-            parseTypeReference node
-
-          else
-            (WrittenTypes.Unparseable { source = node })
-            |> Stdlib.Result.Result.Error
-
-
-        let parseTypeReference
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.TypeReference.TypeReference, WrittenTypes.Unparseable> =
           if node.typ == "type_reference" then
@@ -451,12 +430,20 @@ module Darklang =
           if node.typ == "type_decl_def" then
             match node.children with
             | [ child ] when child.typ == "type_decl_def_alias" ->
+              match child.children with
+              | [ single ] when single.typ == "type_reference" ->
+                let typRef = TypeReference.parse single
 
-              match TypeReference.parse child with
-              | Ok typeRef ->
-                (WrittenTypes.TypeDeclaration.Definition.Alias typeRef)
-                |> Stdlib.Result.Result.Ok
-              | Error _ ->
+                match typRef with
+                | Ok typRef ->
+                  (WrittenTypes.TypeDeclaration.Definition.Alias typRef)
+                  |> Stdlib.Result.Result.Ok
+
+                | Error _ ->
+                  (WrittenTypes.Unparseable { source = node })
+                  |> Stdlib.Result.Result.Error
+
+              | _ ->
                 (WrittenTypes.Unparseable { source = node })
                 |> Stdlib.Result.Result.Error
 
