@@ -65,7 +65,7 @@ module Darklang =
           if (Stdlib.List.``member`` voidElements tag.name) then
             match attributesText with
             | "" -> $"<{tag.name}/>"
-            | text -> $"<{tag.name} {text}> </{tag.name}>"
+            | text -> $"<{tag.name} {text}/>"
 
           else
             match tag.children with
@@ -200,6 +200,9 @@ module Darklang =
         (c: List<Node>)
         : Node =
         htmlTagNode "button" attrs c
+
+      let img (attrs: List<String * Option.Option<String>>) : Node =
+        htmlTagNode "img" attrs []
 
 
       let document (nodes: List<Node>) : String =

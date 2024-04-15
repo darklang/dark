@@ -67,6 +67,10 @@ let tidyHtml (html: String) : String =
 (Stdlib.Html.colgroup [] []) |> nodeToString = "<colgroup></colgroup>"
 (Stdlib.Html.col [] []) |> nodeToString = "<col/>"
 
+(Stdlib.Html.img []) |> nodeToString = "<img/>"
+
+(Stdlib.Html.img [ ("src", Stdlib.Option.Option.Some "foo.png") ])
+|> nodeToString = "<img src=\"foo.png\"/>"
 
 // -- test writing out a full document
 
