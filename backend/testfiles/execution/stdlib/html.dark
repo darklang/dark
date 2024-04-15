@@ -24,7 +24,7 @@ let tidyHtml (html: String) : String =
 
 
 // -- basic testing of low-level fns
-(htmlTag "div" [] []) |> nodeToString = "<div/>"
+(htmlTag "div" [] []) |> nodeToString = "<div></div>"
 
 (htmlTag "div" [] [ stringNode "yolo" ]) |> nodeToString = "<div>yolo</div>"
 
@@ -39,32 +39,32 @@ let tidyHtml (html: String) : String =
 (Stdlib.Html.comment "hello") |> nodeToString = "<!-- hello -->"
 
 (Stdlib.Html.br ()) |> nodeToString = "<br/>"
-(Stdlib.Html.div [] []) |> nodeToString = "<div/>"
-(Stdlib.Html.span [] []) |> nodeToString = "<span/>"
+(Stdlib.Html.div [] []) |> nodeToString = "<div></div>"
+(Stdlib.Html.span [] []) |> nodeToString = "<span></span>"
 
-(Stdlib.Html.h1 [] []) |> nodeToString = "<h1/>"
-(Stdlib.Html.h2 [] []) |> nodeToString = "<h2/>"
-(Stdlib.Html.h3 [] []) |> nodeToString = "<h3/>"
-(Stdlib.Html.h4 [] []) |> nodeToString = "<h4/>"
-(Stdlib.Html.h5 [] []) |> nodeToString = "<h5/>"
-(Stdlib.Html.h6 [] []) |> nodeToString = "<h6/>"
+(Stdlib.Html.h1 [] []) |> nodeToString = "<h1></h1>"
+(Stdlib.Html.h2 [] []) |> nodeToString = "<h2></h2>"
+(Stdlib.Html.h3 [] []) |> nodeToString = "<h3></h3>"
+(Stdlib.Html.h4 [] []) |> nodeToString = "<h4></h4>"
+(Stdlib.Html.h5 [] []) |> nodeToString = "<h5></h5>"
+(Stdlib.Html.h6 [] []) |> nodeToString = "<h6></h6>"
 
-(Stdlib.Html.p [] []) |> nodeToString = "<p/>"
-(Stdlib.Html.ul [] []) |> nodeToString = "<ul/>"
-(Stdlib.Html.ol [] []) |> nodeToString = "<ol/>"
-(Stdlib.Html.li [] []) |> nodeToString = "<li/>"
+(Stdlib.Html.p [] []) |> nodeToString = "<p></p>"
+(Stdlib.Html.ul [] []) |> nodeToString = "<ul></ul>"
+(Stdlib.Html.ol [] []) |> nodeToString = "<ol></ol>"
+(Stdlib.Html.li [] []) |> nodeToString = "<li></li>"
 
-(Stdlib.Html.table [] []) |> nodeToString = "<table/>"
-(Stdlib.Html.tr [] []) |> nodeToString = "<tr/>"
-(Stdlib.Html.td [] []) |> nodeToString = "<td/>"
-(Stdlib.Html.th [] []) |> nodeToString = "<th/>"
-(Stdlib.Html.tbody [] []) |> nodeToString = "<tbody/>"
-(Stdlib.Html.thead [] []) |> nodeToString = "<thead/>"
-(Stdlib.Html.tfoot [] []) |> nodeToString = "<tfoot/>"
+(Stdlib.Html.table [] []) |> nodeToString = "<table></table>"
+(Stdlib.Html.tr [] []) |> nodeToString = "<tr></tr>"
+(Stdlib.Html.td [] []) |> nodeToString = "<td></td>"
+(Stdlib.Html.th [] []) |> nodeToString = "<th></th>"
+(Stdlib.Html.tbody [] []) |> nodeToString = "<tbody></tbody>"
+(Stdlib.Html.thead [] []) |> nodeToString = "<thead></thead>"
+(Stdlib.Html.tfoot [] []) |> nodeToString = "<tfoot></tfoot>"
 
-(Stdlib.Html.caption [] []) |> nodeToString = "<caption/>"
+(Stdlib.Html.caption [] []) |> nodeToString = "<caption></caption>"
 
-(Stdlib.Html.colgroup [] []) |> nodeToString = "<colgroup/>"
+(Stdlib.Html.colgroup [] []) |> nodeToString = "<colgroup></colgroup>"
 (Stdlib.Html.col [] []) |> nodeToString = "<col/>"
 
 
