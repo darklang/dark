@@ -38,7 +38,7 @@ let tidyHtml (html: String) : String =
 // -- testing of simple html node helpers
 (Stdlib.Html.comment "hello") |> nodeToString = "<!-- hello -->"
 
-(Stdlib.Html.br ()) |> nodeToString = "<br/>"
+(Stdlib.Html.br ()) |> nodeToString = "<br>"
 (Stdlib.Html.div [] []) |> nodeToString = "<div></div>"
 (Stdlib.Html.span [] []) |> nodeToString = "<span></span>"
 
@@ -65,12 +65,12 @@ let tidyHtml (html: String) : String =
 (Stdlib.Html.caption [] []) |> nodeToString = "<caption></caption>"
 
 (Stdlib.Html.colgroup [] []) |> nodeToString = "<colgroup></colgroup>"
-(Stdlib.Html.col [] []) |> nodeToString = "<col/>"
+(Stdlib.Html.col [] []) |> nodeToString = "<col>"
 
-(Stdlib.Html.img []) |> nodeToString = "<img/>"
+(Stdlib.Html.img []) |> nodeToString = "<img>"
 
 (Stdlib.Html.img [ ("src", Stdlib.Option.Option.Some "foo.png") ])
-|> nodeToString = "<img src=\"foo.png\"/>"
+|> nodeToString = "<img src=\"foo.png\">"
 
 // -- test writing out a full document
 
