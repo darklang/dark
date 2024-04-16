@@ -28,6 +28,7 @@ tree-sitter-darklang/node_modules
 tree-sitter-darklang/bindings
 tree-sitter-darklang/tree-sitter-darklang.so
 tree-sitter-darklang/xplat-builds
+tree-sitter-darklang/src/parser.c
 
 # Terraform
 **/.terraform/*

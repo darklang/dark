@@ -189,7 +189,7 @@ jobs:
             else
               ./scripts/build/build-parser
             fi
-      - run: npm install tree-sitter-cli && cd tree-sitter-darklang && npm run test
+      - run: cd tree-sitter-darklang && npm run test
       - persist_to_workspace:
           root: "."
           paths:
