@@ -17,6 +17,25 @@ module Darklang =
         | String of String
         | HtmlTag of HtmlTag
 
+      /// These elements are void, i.e. they can't contain any child nodes and only consist of a starting tag
+      let voidElements =
+        [ "area"
+          "base"
+          "br"
+          "col"
+          "command"
+          "embed"
+          "hr"
+          "img"
+          "input"
+          "keygen"
+          "link"
+          "meta"
+          "param"
+          "source"
+          "track"
+          "wbr" ]
+
 
       let stringNode (str: String) : Node = Node.String str
 
@@ -44,24 +63,30 @@ module Darklang =
               | None -> key)
             |> String.join " "
 
-          match tag.children with
-          | [] ->
+          if (Stdlib.List.``member`` voidElements tag.name) then
             match attributesText with
-            | "" -> $"<{tag.name}/>"
-            | text -> $"<{tag.name} {text}> </{tag.name}>"
+            | "" -> $"<{tag.name}>"
+            | text -> $"<{tag.name} {text}>"
 
-          | children ->
-            let childHtml =
-              children |> List.map (fun c -> Html.nodeToString c) |> String.join ""
-
-            let startTag =
+          else
+            match tag.children with
+            | [] ->
               match attributesText with
-              | "" -> $"<{tag.name}>"
-              | text -> $"<{tag.name} {text}>"
+              | "" -> $"<{tag.name}></{tag.name}>"
+              | text -> $"<{tag.name} {text}></{tag.name}>"
 
-            let endTag = $"</{tag.name}>"
+            | children ->
+              let childHtml =
+                children |> List.map (fun c -> Html.nodeToString c) |> String.join ""
 
-            startTag ++ childHtml ++ endTag
+              let startTag =
+                match attributesText with
+                | "" -> $"<{tag.name}>"
+                | text -> $"<{tag.name} {text}>"
+
+              let endTag = $"</{tag.name}>"
+
+              startTag ++ childHtml ++ endTag
 
 
       let comment (s: String) : Node = stringNode $"<!-- {s} -->"
@@ -176,6 +201,9 @@ module Darklang =
         (c: List<Node>)
         : Node =
         htmlTagNode "button" attrs c
+
+      let img (attrs: List<String * Option.Option<String>>) : Node =
+        htmlTagNode "img" attrs []
 
 
       let document (nodes: List<Node>) : String =
