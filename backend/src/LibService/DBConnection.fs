@@ -16,18 +16,23 @@ let connectionString () : string =
   sb.Username <- Config.pgUser
   sb.Password <- Config.pgPassword
   sb.Database <- Config.pgDBName
+
   sb.SslMode <- if Config.pgSslRequired then SslMode.VerifyFull else SslMode.Allow
+
   sb.LoadBalanceHosts <- true
+
+  sb.IncludeErrorDetail <- true
+
+  // Our DB in GCP supports 800 connections at once.
+  // We plan to have 2 BwdServers, 2 QueueWorkers, and 1 CronChecker
+  sb.Pooling <- true
+  sb.MinPoolSize <- int (float Config.pgPoolSize * 0.5)
+  sb.MaxPoolSize <- int (float Config.pgPoolSize * 1.5)
 
   match Config.pgRootCertPath with
   | Some rootCert -> sb.RootCertificate <- rootCert
   | None -> ()
-  sb.IncludeErrorDetail <- true
-  // Our DB in GCP supports 800 connections at once. We plan to have 2
-  // BwdServers, 2 QueueWorkers, and 1 CronChecker
-  sb.Pooling <- true
-  sb.MinPoolSize <- int (float Config.pgPoolSize * 0.5)
-  sb.MaxPoolSize <- int (float Config.pgPoolSize * 1.5)
+
   sb.ToString()
 
 let debugConnectionString () : string =

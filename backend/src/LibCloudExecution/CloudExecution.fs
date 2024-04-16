@@ -1,7 +1,7 @@
+/// For executing code with the appropriate production "Dark cloud" execution,
+/// setting traces, stdlib, etc, appropriately.
+/// Used by any "Cloud" service (bwdserver, queueworker, cronchecker, etc.)
 module LibCloudExecution.CloudExecution
-
-// For executing code with the appropriate production "real" execution, setting
-// traces, stdlib, etc, appropriately. Used by most of the executables.
 
 open FSharp.Control.Tasks
 open System.Threading.Tasks
@@ -14,21 +14,16 @@ module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module Exe = LibExecution.Execution
-module Interpreter = LibExecution.Interpreter
 
 open LibCloud
 
 
-let builtins : LibExecution.Builtin.Contents =
+let builtins : RT.Builtins =
   LibExecution.Builtin.combine
-    [ BuiltinExecution.Builtin.contents HttpClient.configuration
-      BuiltinCloudExecution.Builtin.contents
-      BuiltinDarkInternal.Builtin.contents ]
+    [ BuiltinExecution.Builtin.builtins HttpClient.configuration
+      BuiltinCloudExecution.Builtin.builtins
+      BuiltinDarkInternal.Builtin.builtins ]
     []
-let builtIns : RT.BuiltIns =
-  let (fns, constants) = builtins
-  { fns = fns |> Map.fromListBy _.name
-    constants = constants |> Map.fromListBy _.name }
 
 let packageManager = PackageManager.packageManager
 
@@ -54,7 +49,7 @@ let createState
       LibService.Rollbar.sendException None metadata exn
 
     return
-      Exe.createState builtIns packageManager tracing sendException notify program
+      Exe.createState builtins packageManager tracing sendException notify program
   }
 
 type ExecutionReason =
@@ -65,9 +60,15 @@ type ExecutionReason =
   /// A reexecution is a trace that already exists, being amended with new values
   | ReExecution
 
-/// Execute handler. This could be the first execution, which will have an
-/// ExecutionReason of InitialExecution, and initialize traces and send pushes, or
-/// ReExecution, which will update existing traces and not send pushes.
+/// Execute handler.
+/// This could be
+/// - the first execution, which will
+///   - have an ExecutionReason of InitialExecution
+///   - initialize traces
+///   - send pushes
+/// - or ReExecution, which will
+///   - update existing traces
+///   - not send pushes
 let executeHandler
   (pusherSerializer : Pusher.PusherEventSerializer)
   (h : RT.Handler.T)
@@ -103,7 +104,7 @@ let executeHandler
     let findBody (tlid : tlid) : Ply<Option<string * RT.Expr>> =
       uply {
         match findUserBody tlid with
-        | Some(body) -> return Some body
+        | Some body -> return Some body
         | None -> return! findPackageBody tlid
       }
 

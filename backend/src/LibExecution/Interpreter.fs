@@ -37,12 +37,7 @@ module ExecutionError =
     | ConstDoesntExist of FQConstantName.FQConstantName
 
   let toDT (e : Error) : RuntimeError =
-    let typeName =
-      FQTypeName.fqPackage
-        "Darklang"
-        [ "LanguageTools"; "RuntimeErrors"; "Execution" ]
-        "Error"
-        0
+    let typeName = RuntimeError.name [ "Execution" ] "Error" 0
 
     let case (caseName : string) (fields : List<Dval>) : RuntimeError =
       DEnum(typeName, typeName, [], caseName, fields) |> RuntimeError.executionError
@@ -72,35 +67,41 @@ module ExecutionError =
 let rec evalConst (source : Source) (c : Const) : Dval =
   let r = evalConst source
   match c with
-  | CInt64 i -> DInt64 i
-  | CUInt64 i -> DUInt64 i
+  | CUnit -> DUnit
+  | CBool b -> DBool b
+
   | CInt8 i -> DInt8 i
   | CUInt8 i -> DUInt8 i
   | CInt16 i -> DInt16 i
   | CUInt16 i -> DUInt16 i
   | CInt32 i -> DInt32 i
   | CUInt32 i -> DUInt32 i
+  | CInt64 i -> DInt64 i
+  | CUInt64 i -> DUInt64 i
   | CInt128 i -> DInt128 i
   | CUInt128 i -> DUInt128 i
-  | CBool b -> DBool b
-  | CString s -> DString s
-  | CChar c -> DChar c
+
   | CFloat(sign, w, f) -> DFloat(makeFloat sign w f)
-  | CUnit -> DUnit
+
+  | CChar c -> DChar c
+  | CString s -> DString s
+
+  | CList items -> DList(ValueType.Unknown, (List.map r items))
   | CTuple(first, second, rest) -> DTuple(r first, r second, List.map r rest)
+  | CDict items ->
+    DDict(ValueType.Unknown, (List.map (Tuple2.mapSecond r) items) |> Map.ofList)
+
   | CEnum(Ok typeName, caseName, fields) ->
     // TYPESTODO: this uses the original type name, so if it's an alias, it won't be equal to the
     DEnum(typeName, typeName, VT.typeArgsTODO, caseName, List.map r fields)
+
   | CEnum(Error msg, _caseName, _fields) ->
     raiseRTE source (RuntimeError.oldError $"Invalid const name: {msg}")
-  | CList items -> DList(ValueType.Unknown, (List.map r items))
-  | CDict items ->
-    DDict(ValueType.Unknown, (List.map (Tuple2.mapSecond r) items) |> Map.ofList)
 
 
 
 /// Used in the ELet and ELambda evals
-/// Does the dval 'match' the given pattern?
+/// Answers: does the `dval` "match" the given pattern?
 ///
 /// Returns:
 /// - whether or not the expr 'matches' the pattern
@@ -176,8 +177,8 @@ let rec eval
                                                                 outerTypeArgs)) }) ->
           // Here we have found an alias, so we need to combine the type's
           // typeArgs with the aliased type's typeParams.
-          // Eg in
-          //   type Var = Result<Int64, String>
+          // e.g. in
+          //   `type Var = Result<Int64, String>`
           // we need to combine Var's typeArgs (<Int, String>) with Result's
           // typeParams (<`Ok, `Error>)
           //
@@ -274,6 +275,25 @@ let rec eval
 
   uply {
     match e with
+    | EUnit _id -> return DUnit
+
+    | EBool(_id, b) -> return DBool b
+
+    | EInt8(_id, i) -> return DInt8 i
+    | EUInt8(_id, i) -> return DUInt8 i
+    | EInt16(_id, i) -> return DInt16 i
+    | EUInt16(_id, i) -> return DUInt16 i
+    | EInt32(_id, i) -> return DInt32 i
+    | EUInt32(_id, i) -> return DUInt32 i
+    | EInt64(_id, i) -> return DInt64 i
+    | EUInt64(_id, i) -> return DUInt64 i
+    | EInt128(_id, i) -> return DInt128 i
+    | EUInt128(_id, i) -> return DUInt128 i
+
+    | EFloat(_id, value) -> return DFloat value
+
+    | EChar(_id, s) -> return DChar s
+
     | EString(_, [ StringText s ]) ->
       // We expect strings to be normalized during parsing
       return DString(s)
@@ -293,35 +313,26 @@ let rec eval
                   raiseExeRTE id (ExecutionError.NonStringInStringInterpolation dv)
           })
       return segments |> String.concat "" |> String.normalize |> DString
-    | EBool(_id, b) -> return DBool b
-    | EInt64(_id, i) -> return DInt64 i
-    | EUInt64(_id, i) -> return DUInt64 i
-    | EInt8(_id, i) -> return DInt8 i
-    | EUInt8(_id, i) -> return DUInt8 i
-    | EInt16(_id, i) -> return DInt16 i
-    | EUInt16(_id, i) -> return DUInt16 i
-    | EInt32(_id, i) -> return DInt32 i
-    | EUInt32(_id, i) -> return DUInt32 i
-    | EInt128(_id, i) -> return DInt128 i
-    | EUInt128(_id, i) -> return DUInt128 i
-    | EFloat(_id, value) -> return DFloat value
-    | EUnit _id -> return DUnit
-    | EChar(_id, s) -> return DChar s
+
+
     | EConstant(id, name) ->
       let source = sourceID id
+
       match name with
-      | FQConstantName.UserProgram c ->
-        match Map.find c state.program.constants with
-        | None ->
-          return! ExecutionError.raise source (ExecutionError.ConstDoesntExist name)
-        | Some constant -> return evalConst source constant.body
       | FQConstantName.Builtin c ->
-        match Map.find c state.builtIns.constants with
+        match Map.find c state.builtins.constants with
         | None ->
           return! ExecutionError.raise source (ExecutionError.ConstDoesntExist name)
         | Some constant -> return constant.body
+
       | FQConstantName.Package c ->
         match! state.packageManager.getConstant c with
+        | None ->
+          return! ExecutionError.raise source (ExecutionError.ConstDoesntExist name)
+        | Some constant -> return evalConst source constant.body
+
+      | FQConstantName.UserProgram c ->
+        match Map.find c state.program.constants with
         | None ->
           return! ExecutionError.raise source (ExecutionError.ConstDoesntExist name)
         | Some constant -> return evalConst source constant.body
@@ -340,12 +351,10 @@ let rec eval
       return TypeChecker.DvalCreator.list VT.unknown results
 
     | ETuple(_id, first, second, theRest) ->
-
       let! firstResult = eval state tlid tst st first
       let! secondResult = eval state tlid tst st second
       let! otherResults = Ply.List.mapSequentially (eval state tlid tst st) theRest
       return DTuple(firstResult, secondResult, otherResults)
-
 
     | EVariable(id, name) ->
       match Map.find name st with
@@ -909,14 +918,14 @@ and callFn
     let! fn =
       match desc with
       | FQFnName.Builtin std ->
-        Map.find std state.builtIns.fns |> Option.map builtInFnToFn |> Ply
-      | FQFnName.UserProgram u ->
-        Map.find u state.program.fns |> Option.map userFnToFn |> Ply
+        Map.find std state.builtins.fns |> Option.map builtInFnToFn |> Ply
       | FQFnName.Package pkg ->
         uply {
           let! fn = state.packageManager.getFn pkg
           return Option.map packageFnToFn fn
         }
+      | FQFnName.UserProgram u ->
+        Map.find u state.program.fns |> Option.map userFnToFn |> Ply
 
     match fn with
     | Some fn ->

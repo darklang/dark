@@ -271,8 +271,6 @@ let varB = TVariable "b"
 let varC = TVariable "c"
 
 
-let constants : List<BuiltInConstant> = []
-
 let fns : List<BuiltInFn> =
   [ { name = fn "listUniqueBy" 0
       typeParams = []
@@ -699,4 +697,5 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, constants)
+
+let builtins = LibExecution.Builtin.make [] fns

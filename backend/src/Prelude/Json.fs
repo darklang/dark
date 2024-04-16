@@ -181,10 +181,12 @@ module Vanilla =
   // json.
   let getDefaultOptions () =
     let fsharpConverter =
-      JsonFSharpConverter(unionEncoding = (JsonUnionEncoding.ExternalTag))
-    let options = JsonSerializerOptions()
-    options.MaxDepth <- System.Int32.MaxValue // infinite
-    options.NumberHandling <- JsonNumberHandling.AllowNamedFloatingPointLiterals
+      JsonFSharpConverter(unionEncoding = JsonUnionEncoding.ExternalTag)
+    let options =
+      JsonSerializerOptions(
+        MaxDepth = System.Int32.MaxValue, // infinite
+        NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals
+      )
     options.Converters.Add(NodaConverters.InstantConverter)
     options.Converters.Add(LocalDateTimeConverter())
     options.Converters.Add(UInt64Converter())

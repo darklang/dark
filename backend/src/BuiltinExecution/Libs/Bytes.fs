@@ -1,16 +1,10 @@
 module BuiltinExecution.Libs.Bytes
 
 open System.Text
-open System.Text.RegularExpressions
 
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
-
-module Dval = LibExecution.Dval
-
-let constants : List<BuiltInConstant> = []
-
 
 
 let fns : List<BuiltInFn> =
@@ -44,4 +38,4 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, constants)
+let builtins = LibExecution.Builtin.make [] fns

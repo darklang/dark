@@ -15,10 +15,6 @@ module Dval = LibExecution.Dval
 let varA = TVariable "a"
 
 
-
-let constants : List<BuiltInConstant> = []
-
-
 let fns : List<BuiltInFn> =
   [ { name = fn "mathCos" 0
       typeParams = []
@@ -211,4 +207,5 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, constants)
+
+let builtins = LibExecution.Builtin.make [] fns

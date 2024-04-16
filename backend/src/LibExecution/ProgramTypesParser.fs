@@ -54,7 +54,7 @@ module Handler =
 
     let toModule (s : PT.Handler.Spec) =
       match s with
-      | PT.Handler.HTTP _ -> "HTTP_BASIC"
+      | PT.Handler.HTTP _ -> "HTTP"
       | PT.Handler.Worker _ -> "WORKER" // CLEANUP the DB relies on the casing
       | PT.Handler.Cron _ -> "CRON" // CLEANUP the DB relies on the casing
       | PT.Handler.REPL _ -> "REPL"

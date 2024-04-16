@@ -10,15 +10,13 @@ module Queue = LibCloud.Queue
 
 open LibExecution.Builtin.Shortcuts
 
-let varA = TVariable "a"
-
-let constants : List<BuiltInConstant> = []
+let tvar v = TVariable v
 
 let fns : List<BuiltInFn> =
   [ { name = fn "emit" 0
       typeParams = []
-      parameters = [ Param.make "event" varA ""; Param.make "name" TString "" ]
-      returnType = varA
+      parameters = [ Param.make "event" (tvar "a") ""; Param.make "name" TString "" ]
+      returnType = tvar "a"
       description = "Emit a <param event> to the <param name> worker"
       fn =
         (function
@@ -27,8 +25,9 @@ let fns : List<BuiltInFn> =
             let canvasID = state.program.canvasID
 
             do!
-              // the "_" exists because handlers in the DB have 3 fields (eg Http, /path, GET),
-              // but we don't need a 3rd one for workers
+              // Handlers in our Postgres DB are all stored in the same table.
+              // Typically they have 3 fields (e.g. `Http`, `/path`, `GET`).
+              // The "_" exists here to fit that shape, even though, workers don't need it.
               Queue.enqueueNow canvasID "WORKER" name "_" data
 
             return data
@@ -38,4 +37,4 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, constants)
+let builtins = LibExecution.Builtin.make [] fns

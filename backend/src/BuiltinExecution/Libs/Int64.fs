@@ -12,8 +12,6 @@ open LibExecution.Builtin.Shortcuts
 module VT = ValueType
 module Dval = LibExecution.Dval
 
-let constants : List<BuiltInConstant> = []
-
 /// Used for values which are outside the range of expected values for some
 /// reason. Really, any function using this should have a Result type instead.
 let argumentWasntPositive (paramName : string) (dv : Dval) : string =
@@ -92,7 +90,9 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "%"
       previewable = Pure
-      // TODO: Deprecate this when we can version infix operators and when infix operators support Result return types (https://github.com/darklang/dark/issues/4267)
+      // TODO: Deprecate this when we can version infix operators
+      //  and when infix operators support Result return types
+      //  (https://github.com/darklang/dark/issues/4267)
       // The current function returns an RTE (it used to rollbar) on negative `b`.
       deprecated = NotDeprecated }
 
@@ -572,8 +572,7 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated } ]
 
-    ]
 
-let contents = (fns, constants)
+let builtins = LibExecution.Builtin.make [] fns

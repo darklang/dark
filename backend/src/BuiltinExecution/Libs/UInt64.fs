@@ -12,8 +12,6 @@ open LibExecution.Builtin.Shortcuts
 module VT = ValueType
 module Dval = LibExecution.Dval
 
-let constants : List<BuiltInConstant> = []
-
 
 module ParseError =
   type ParseError =
@@ -504,4 +502,5 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, constants)
+
+let builtins = LibExecution.Builtin.make [] fns

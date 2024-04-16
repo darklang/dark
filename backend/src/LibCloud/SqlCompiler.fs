@@ -12,7 +12,6 @@ open Prelude
 
 open LibExecution.RuntimeTypes
 
-module VT = ValueType
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module DvalReprInternalQueryable = LibExecution.DvalReprInternalQueryable
 module TypeChecker = LibExecution.TypeChecker
@@ -49,11 +48,6 @@ let uint128 (v : System.UInt128) : SqlValue =
   let idParam = NpgsqlParameter("uint128", typ)
   idParam.Value <- System.Numerics.BigInteger.op_Implicit (v)
   Sql.parameter idParam
-
-
-type position =
-  | First
-  | Last
 
 
 // This canonicalizes an expression, meaning it removes multiple ways of

@@ -12,16 +12,14 @@ module VT = ValueType
 module Dval = LibExecution.Dval
 
 
-let constants : List<BuiltInConstant> = []
-
-
 let fns : List<BuiltInFn> =
   [ { name = fn "charToUppercase" 0
       typeParams = []
       parameters = [ Param.make "c" TChar "" ]
       returnType = TChar
       description =
-        "Return the uppercase value of <param c>. If <param c> does not have an uppercase value, returns <param c>"
+        "Return the uppercase value of <param c>.
+        If <param c> does not have an uppercase value, returns <param c>"
       fn =
         function
         | _, _, [ DChar c ] -> Ply(DChar(c.ToUpper()))
@@ -36,7 +34,8 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "c" TChar "" ]
       returnType = TChar
       description =
-        "Return the lowercase value of <param c>. If <param c> does not have a lowercase value, returns <param c>"
+        "Return the lowercase value of <param c>.
+        If <param c> does not have a lowercase value, returns <param c>"
       fn =
         function
         | _, _, [ DChar c ] -> Ply(DChar(c.ToLower()))
@@ -129,13 +128,10 @@ let fns : List<BuiltInFn> =
       description = "Stringify <param c>"
       fn =
         (function
-        | _, _, [ DChar c ] -> Ply(DString(c))
+        | _, _, [ DChar c ] -> Ply(DString c)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated } ]
 
-
-    ]
-
-let contents = (fns, constants)
+let builtins = LibExecution.Builtin.make [] fns

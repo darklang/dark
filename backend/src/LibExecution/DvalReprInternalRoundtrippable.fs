@@ -30,8 +30,8 @@ module FormatV0 =
       { owner : string; modules : List<string>; name : string; version : int }
 
     type FQTypeName =
-      | UserProgram of UserProgram
       | Package of Package
+      | UserProgram of UserProgram
 
 
     let toRT (t : FQTypeName) : RT.FQTypeName.FQTypeName =

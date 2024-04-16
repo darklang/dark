@@ -1,8 +1,8 @@
 module String
 
-// Returns a seq of EGC (extended grapheme cluster - essentially a visible
-// screen character)
-// https://stackoverflow.com/a/4556612/104021
+/// Returns a seq of EGC
+/// (extended grapheme cluster - essentially a visible screen character)
+/// https://stackoverflow.com/a/4556612/104021
 let toEgcSeq (s : string) : seq<string> =
   seq {
     let tee = System.Globalization.StringInfo.GetTextElementEnumerator(s)
@@ -18,7 +18,6 @@ let toEgcChar (str : string) : Option<string> =
   | [] -> None
   | [ char ] -> Some char
   | _ -> None
-
 
 
 let splitOnNewline (str : string) : List<string> =

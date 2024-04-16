@@ -14,6 +14,7 @@ module VT = RT.ValueType
 module Dval = LibExecution.Dval
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
+module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module Exe = LibExecution.Execution
 module WT = LibParser.WrittenTypes
 module Json = BuiltinExecution.Libs.Json
@@ -68,27 +69,25 @@ module CliRuntimeError =
     let toRuntimeError (e : Error) : RT.RuntimeError =
       Error.toDT e |> RT.RuntimeError.fromDT
 
-let libExecutionContents =
-  BuiltinExecution.Builtin.contents BuiltinExecution.Libs.HttpClient.defaultConfig
 
-let builtIns : RT.BuiltIns =
-  let (fns, constants) =
-    LibExecution.Builtin.combine
-      [ libExecutionContents; BuiltinCli.Builtin.contents ]
-      []
-  { fns = fns |> Map.fromListBy _.name
-    constants = constants |> Map.fromListBy _.name }
+let builtinsToUse : RT.Builtins =
+  LibExecution.Builtin.combine
+    [ BuiltinExecution.Builtin.builtins
+        BuiltinExecution.Libs.HttpClient.defaultConfig
+      BuiltinCli.Builtin.builtins ]
+    []
 
 // TODO: de-dupe with _other_ Cli.fs
-let packageManagerBaseUrl =
-  match
-    System.Environment.GetEnvironmentVariable "DARK_CONFIG_PACKAGE_MANAGER_BASE_URL"
-  with
-  | null -> "https://packages.darklang.com"
-  | var -> var
-
 let packageManager =
-  LibPackageManager.PackageManager.packageManager packageManagerBaseUrl
+  let baseUrl =
+    match
+      System.Environment.GetEnvironmentVariable
+        "DARK_CONFIG_PACKAGE_MANAGER_BASE_URL"
+    with
+    | null -> "https://packages.darklang.com"
+    | var -> var
+
+  LibPackageManager.PackageManager.packageManager baseUrl
 
 let execute
   (parentState : RT.ExecutionState)
@@ -100,22 +99,20 @@ let execute
     let (program : Program) =
       { canvasID = System.Guid.NewGuid()
         internalFnsAllowed = false
-        fns = mod'.fns |> List.map PT2RT.UserFunction.toRT |> Map.fromListBy _.name
         types = mod'.types |> List.map PT2RT.UserType.toRT |> Map.fromListBy _.name
         constants =
           mod'.constants |> List.map PT2RT.UserConstant.toRT |> Map.fromListBy _.name
+        secrets = []
         dbs = Map.empty
-        secrets = [] }
+        fns = mod'.fns |> List.map PT2RT.UserFunction.toRT |> Map.fromListBy _.name }
 
-    let notify = parentState.notify
-    let sendException = parentState.reportException
     let state =
       Exe.createState
-        builtIns
+        builtinsToUse
         packageManager
         Exe.noTracing
-        sendException
-        notify
+        parentState.reportException
+        parentState.notify
         program
 
     if mod'.exprs.Length = 1 then
@@ -331,21 +328,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "functionName" TString ""
-          Param.make
-            "args"
-            (TList(
-              TCustomType(
-                Ok(
-                  FQTypeName.Package
-                    { owner = "Darklang"
-                      modules = [ "LanguageTools"; "ProgramTypes" ]
-                      name = "Expr"
-                      version = 0 }
-                ),
-                []
-              )
-            ))
-            "" ]
+          Param.make "args" (TList(TCustomType(Ok PT2DT.Expr.typeName, []))) "" ]
       returnType = TypeReference.result TString ExecutionError.typeRef
       description =
         "Executes an arbitrary Dark package function using the new darklang parser"
@@ -451,9 +434,6 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated } ]
 
-    ]
-
-let constants : List<BuiltInConstant> = []
-let contents = (fns, constants)
+let builtins = LibExecution.Builtin.make [] fns

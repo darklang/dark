@@ -5,17 +5,11 @@ open Prelude
 open LibExecution.RuntimeTypes
 
 let getStateForEval
-  (builtin : LibExecution.Builtin.Contents)
+  (builtins : Builtins)
   (types : List<UserType.T>)
-  (fns : List<UserFunction.T>)
   (constants : List<UserConstant.T>)
-
+  (fns : List<UserFunction.T>)
   : ExecutionState =
-
-  let builtIns : BuiltIns =
-    let builtInFns, builtInConstants = builtin
-    { fns = builtInFns |> List.map (fun fn -> fn.name, fn) |> Map
-      constants = builtInConstants |> List.map (fun c -> c.name, c) |> Map }
 
   // TODO
   let packageManager : PackageManager = PackageManager.Empty
@@ -23,13 +17,13 @@ let getStateForEval
   let program : Program =
     { canvasID = CanvasID.Empty
       internalFnsAllowed = true
-      dbs = Map.empty
-      fns = Map.fromListBy (_.name) fns
       types = Map.fromListBy (_.name) types
       constants = Map.fromListBy (_.name) constants
-      secrets = List.empty }
+      dbs = Map.empty
+      secrets = List.empty
+      fns = Map.fromListBy (_.name) fns }
 
-  { builtIns = builtIns
+  { builtins = builtins
     tracing = LibExecution.Execution.noTracing
     test = LibExecution.Execution.noTestContext
     reportException = consoleReporter

@@ -1,19 +1,15 @@
 /// Blocking and pausing queue events
 module LibCloud.QueueSchedulingRules
 
-
 open System.Threading.Tasks
 open FSharp.Control.Tasks
+
+open Prelude
 
 open Npgsql.FSharp
 open Npgsql
 open Db
 
-open Prelude
-
-module Telemetry = LibService.Telemetry
-
-module RT = LibExecution.RuntimeTypes
 
 module SchedulingRule =
   module RuleType =
@@ -26,12 +22,12 @@ module SchedulingRule =
         | Block -> "block"
         | Pause -> "pause"
 
-
     let parse (r : string) : Option<T> =
       match r with
       | "block" -> Some Block
       | "pause" -> Some Pause
       | _ -> None
+
 
   type T =
     { id : System.Guid
@@ -112,10 +108,10 @@ let getWorkerSchedules (canvasID : CanvasID) : Task<WorkerStates.T> =
     let! states =
       Sql.query
         "SELECT name
-         FROM toplevels_v0 T
-         WHERE canvas_id = @canvasID
-           AND tipe = 'handler'
-           AND module = 'WORKER'"
+        FROM toplevels_v0 T
+        WHERE canvas_id = @canvasID
+          AND tipe = 'handler'
+          AND module = 'WORKER'"
       |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
       |> Sql.executeAsync (fun read ->
         (read.stringOrNone "name" |> Option.unwrap "", WorkerStates.Running))
@@ -158,8 +154,10 @@ let addSchedulingRule
     let id = System.Guid.NewGuid()
     do!
       Sql.query
-        "INSERT INTO scheduling_rules_v0 (id, rule_type, canvas_id, handler_name, event_space)
-         VALUES (@id, @ruleType::scheduling_rule_type, @canvasID, @workerName, 'WORKER')
+        "INSERT INTO scheduling_rules_v0
+          (id, rule_type, canvas_id, handler_name, event_space)
+         VALUES
+           (@id, @ruleType::scheduling_rule_type, @canvasID, @workerName, 'WORKER')
          ON CONFLICT DO NOTHING"
       |> Sql.parameters
         [ "id", Sql.uuid id
@@ -179,10 +177,10 @@ let removeSchedulingRule
   : Task<unit> =
   Sql.query
     "DELETE FROM scheduling_rules_v0
-     WHERE canvas_id = @canvasID
-       AND handler_name = @workerName
-       AND event_space = 'WORKER'
-       AND rule_type = @ruleType::scheduling_rule_type"
+    WHERE canvas_id = @canvasID
+      AND handler_name = @workerName
+      AND event_space = 'WORKER'
+      AND rule_type = @ruleType::scheduling_rule_type"
   |> Sql.parameters
     [ "ruleType", Sql.string ruleType
       "canvasID", Sql.uuid canvasID

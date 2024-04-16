@@ -10,7 +10,6 @@ open LaunchDarkly.Sdk
 open LaunchDarkly.Sdk.Server
 
 module Internal =
-
   // For testing
   // See https://docs.launchdarkly.com/sdk/features/test-data-sources#net-server-side
   let testData = Integrations.TestData.DataSource()

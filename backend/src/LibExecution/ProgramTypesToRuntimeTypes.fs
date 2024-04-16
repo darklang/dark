@@ -444,6 +444,63 @@ module TypeDeclaration =
     { typeParams = t.typeParams; definition = Definition.toRT t.definition }
 
 
+// --
+// Package stuff
+// --
+module PackageType =
+  let toRT (t : PT.PackageType.T) : RT.PackageType.T =
+    { name = FQTypeName.Package.toRT t.name
+      declaration = TypeDeclaration.toRT t.declaration }
+
+module PackageConstant =
+  let toRT (c : PT.PackageConstant.T) : RT.PackageConstant.T =
+    { name = FQConstantName.Package.toRT c.name; body = Const.toRT c.body }
+
+module PackageFn =
+  module Parameter =
+    let toRT (p : PT.PackageFn.Parameter) : RT.PackageFn.Parameter =
+      { name = p.name; typ = TypeReference.toRT p.typ }
+
+  let toRT (f : PT.PackageFn.T) : RT.PackageFn.T =
+    { name = f.name |> FQFnName.Package.toRT
+      tlid = f.tlid
+      body = f.body |> Expr.toRT
+      typeParams = f.typeParams
+      parameters = f.parameters |> NEList.map Parameter.toRT
+      returnType = f.returnType |> TypeReference.toRT }
+
+
+
+// --
+// User stuff
+// --
+
+module UserType =
+  let toRT (t : PT.UserType.T) : RT.UserType.T =
+    { tlid = t.tlid
+      name = FQTypeName.UserProgram.toRT t.name
+      declaration = TypeDeclaration.toRT t.declaration }
+
+module UserConstant =
+  let toRT (c : PT.UserConstant.T) : RT.UserConstant.T =
+    { tlid = c.tlid
+      name = FQConstantName.UserProgram.toRT c.name
+      body = Const.toRT c.body }
+
+module UserFunction =
+  module Parameter =
+    let toRT (p : PT.UserFunction.Parameter) : RT.UserFunction.Parameter =
+      { name = p.name; typ = TypeReference.toRT p.typ }
+
+  let toRT (f : PT.UserFunction.T) : RT.UserFunction.T =
+    { tlid = f.tlid
+      name = FQFnName.UserProgram.toRT f.name
+      typeParams = f.typeParams
+      parameters = NEList.map Parameter.toRT f.parameters
+      returnType = TypeReference.toRT f.returnType
+      body = Expr.toRT f.body }
+
+
 module Handler =
   module CronInterval =
     let toRT (ci : PT.Handler.CronInterval) : RT.Handler.CronInterval =
@@ -474,62 +531,15 @@ module DB =
       version = db.version
       typ = TypeReference.toRT db.typ }
 
-module UserType =
-  let toRT (t : PT.UserType.T) : RT.UserType.T =
-    { tlid = t.tlid
-      name = FQTypeName.UserProgram.toRT t.name
-      declaration = TypeDeclaration.toRT t.declaration }
-
-module UserConstant =
-  let toRT (c : PT.UserConstant.T) : RT.UserConstant.T =
-    { tlid = c.tlid
-      name = FQConstantName.UserProgram.toRT c.name
-      body = Const.toRT c.body }
-
-module UserFunction =
-  module Parameter =
-    let toRT (p : PT.UserFunction.Parameter) : RT.UserFunction.Parameter =
-      { name = p.name; typ = TypeReference.toRT p.typ }
-
-  let toRT (f : PT.UserFunction.T) : RT.UserFunction.T =
-    { tlid = f.tlid
-      name = FQFnName.UserProgram.toRT f.name
-      typeParams = f.typeParams
-      parameters = NEList.map Parameter.toRT f.parameters
-      returnType = TypeReference.toRT f.returnType
-      body = Expr.toRT f.body }
-
-module Toplevel =
-  let toRT (tl : PT.Toplevel.T) : RT.Toplevel.T =
-    match tl with
-    | PT.Toplevel.TLHandler h -> RT.Toplevel.TLHandler(Handler.toRT h)
-    | PT.Toplevel.TLDB db -> RT.Toplevel.TLDB(DB.toRT db)
-    | PT.Toplevel.TLFunction f -> RT.Toplevel.TLFunction(UserFunction.toRT f)
-    | PT.Toplevel.TLType t -> RT.Toplevel.TLType(UserType.toRT t)
-    | PT.Toplevel.TLConstant c -> RT.Toplevel.TLConstant(UserConstant.toRT c)
-
 module Secret =
   let toRT (s : PT.Secret.T) : RT.Secret.T =
     { name = s.name; value = s.value; version = s.version }
 
-module PackageFn =
-  module Parameter =
-    let toRT (p : PT.PackageFn.Parameter) : RT.PackageFn.Parameter =
-      { name = p.name; typ = TypeReference.toRT p.typ }
-
-  let toRT (f : PT.PackageFn.T) : RT.PackageFn.T =
-    { name = f.name |> FQFnName.Package.toRT
-      tlid = f.tlid
-      body = f.body |> Expr.toRT
-      typeParams = f.typeParams
-      parameters = f.parameters |> NEList.map Parameter.toRT
-      returnType = f.returnType |> TypeReference.toRT }
-
-module PackageType =
-  let toRT (t : PT.PackageType.T) : RT.PackageType.T =
-    { name = FQTypeName.Package.toRT t.name
-      declaration = TypeDeclaration.toRT t.declaration }
-
-module PackageConstant =
-  let toRT (c : PT.PackageConstant.T) : RT.PackageConstant.T =
-    { name = FQConstantName.Package.toRT c.name; body = Const.toRT c.body }
+module Toplevel =
+  let toRT (tl : PT.Toplevel.T) : RT.Toplevel.T =
+    match tl with
+    | PT.Toplevel.TLType t -> RT.Toplevel.TLType(UserType.toRT t)
+    | PT.Toplevel.TLConstant c -> RT.Toplevel.TLConstant(UserConstant.toRT c)
+    | PT.Toplevel.TLDB db -> RT.Toplevel.TLDB(DB.toRT db)
+    | PT.Toplevel.TLFunction f -> RT.Toplevel.TLFunction(UserFunction.toRT f)
+    | PT.Toplevel.TLHandler h -> RT.Toplevel.TLHandler(Handler.toRT h)

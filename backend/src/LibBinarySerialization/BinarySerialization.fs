@@ -47,72 +47,81 @@ let wrapSerializationException (id : string) (f : unit -> 'a) : 'a =
       )
     )
 
-let serializeExpr (tlid : tlid) (e : PT.Expr) : byte[] =
-  wrapSerializationException (string tlid) (fun () ->
-    let serializableValue = PT2ST.Expr.toST e
-    MessagePack.MessagePackSerializer.Serialize(
-      serializableValue,
-      optionsWithoutZip
-    ))
+module Expr =
+  let serialize (tlid : tlid) (e : PT.Expr) : byte[] =
+    wrapSerializationException (string tlid) (fun () ->
+      let serializableValue = PT2ST.Expr.toST e
+      MessagePack.MessagePackSerializer.Serialize(
+        serializableValue,
+        optionsWithoutZip
+      ))
 
-let deserializeExpr (tlid : tlid) (data : byte[]) : PT.Expr =
-  wrapSerializationException (string tlid) (fun () ->
-    MessagePack.MessagePackSerializer.Deserialize<ST.Expr>(data, optionsWithoutZip)
-    |> PT2ST.Expr.toPT)
-
-let serializeToplevel (tl : PT.Toplevel.T) : byte[] =
-  wrapSerializationException (PT.Toplevel.toTLID tl |> string) (fun () ->
-    let v = PT2ST.Toplevel.toST tl
-    MessagePack.MessagePackSerializer.Serialize(v, optionsWithoutZip))
-
-let deserializeToplevel (tlid : tlid) (data : byte[]) : PT.Toplevel.T =
-  wrapSerializationException (string tlid) (fun () ->
-    MessagePack.MessagePackSerializer.Deserialize(data, optionsWithoutZip)
-    |> PT2ST.Toplevel.toPT)
-
-let serializeToplevels (msg : string) (tls : List<PT.Toplevel.T>) : byte[] =
-  wrapSerializationException msg (fun () ->
-    let v = List.map PT2ST.Toplevel.toST tls
-    MessagePack.MessagePackSerializer.Serialize(v, optionsWithoutZip))
-
-let deserializeToplevels (msg : string) (data : byte[]) : List<PT.Toplevel.T> =
-  wrapSerializationException msg (fun () ->
-    MessagePack.MessagePackSerializer.Deserialize(data, optionsWithoutZip)
-    |> List.map PT2ST.Toplevel.toPT)
+  let deserialize (tlid : tlid) (data : byte[]) : PT.Expr =
+    wrapSerializationException (string tlid) (fun () ->
+      MessagePack.MessagePackSerializer.Deserialize<ST.Expr>(
+        data,
+        optionsWithoutZip
+      )
+      |> PT2ST.Expr.toPT)
 
 
-let serializePackageFn (fn : PT.PackageFn.T) : byte[] =
-  wrapSerializationException (string fn.id) (fun () ->
-    let v = PT2ST.PackageFn.toST fn
-    MessagePack.MessagePackSerializer.Serialize(v, optionsWithoutZip))
+module PackageType =
+  let serialize (pt : PT.PackageType.T) : byte[] =
+    wrapSerializationException (string pt.id) (fun () ->
+      let v = PT2ST.PackageType.toST pt
+      MessagePack.MessagePackSerializer.Serialize(v, optionsWithoutZip))
 
-let serializePackageType (pt : PT.PackageType.T) : byte[] =
-  wrapSerializationException (string pt.id) (fun () ->
-    let v = PT2ST.PackageType.toST pt
-    MessagePack.MessagePackSerializer.Serialize(v, optionsWithoutZip))
+  let deserialize (uuid : System.Guid) (data : byte[]) : PT.PackageType.T =
+    wrapSerializationException (string uuid) (fun () ->
+      MessagePack.MessagePackSerializer.Deserialize(data, optionsWithoutZip)
+      |> PT2ST.PackageType.toPT)
 
-let serializePackageConstant (constant : PT.PackageConstant.T) : byte[] =
-  wrapSerializationException (string constant.id) (fun () ->
-    let v = PT2ST.PackageConstant.toST constant
-    MessagePack.MessagePackSerializer.Serialize(v, optionsWithoutZip))
 
-let deserializePackageType (uuid : System.Guid) (data : byte[]) : PT.PackageType.T =
-  wrapSerializationException (string uuid) (fun () ->
-    MessagePack.MessagePackSerializer.Deserialize(data, optionsWithoutZip)
-    |> PT2ST.PackageType.toPT)
+module PackageConstant =
+  let serialize (constant : PT.PackageConstant.T) : byte[] =
+    wrapSerializationException (string constant.id) (fun () ->
+      let v = PT2ST.PackageConstant.toST constant
+      MessagePack.MessagePackSerializer.Serialize(v, optionsWithoutZip))
 
-let deserializePackageConstant
-  (uuid : System.Guid)
-  (data : byte[])
-  : PT.PackageConstant.T =
-  wrapSerializationException (string uuid) (fun () ->
-    MessagePack.MessagePackSerializer.Deserialize(data, optionsWithoutZip)
-    |> PT2ST.PackageConstant.toPT)
+  let deserialize (uuid : System.Guid) (data : byte[]) : PT.PackageConstant.T =
+    wrapSerializationException (string uuid) (fun () ->
+      MessagePack.MessagePackSerializer.Deserialize(data, optionsWithoutZip)
+      |> PT2ST.PackageConstant.toPT)
 
-let deserializePackageFn (uuid : System.Guid) (data : byte[]) : PT.PackageFn.T =
-  wrapSerializationException (string uuid) (fun () ->
-    MessagePack.MessagePackSerializer.Deserialize(data, optionsWithoutZip)
-    |> PT2ST.PackageFn.toPT)
+
+module PackageFn =
+  let serialize (fn : PT.PackageFn.T) : byte[] =
+    wrapSerializationException (string fn.id) (fun () ->
+      let v = PT2ST.PackageFn.toST fn
+      MessagePack.MessagePackSerializer.Serialize(v, optionsWithoutZip))
+
+  let deserialize (uuid : System.Guid) (data : byte[]) : PT.PackageFn.T =
+    wrapSerializationException (string uuid) (fun () ->
+      MessagePack.MessagePackSerializer.Deserialize(data, optionsWithoutZip)
+      |> PT2ST.PackageFn.toPT)
+
+
+module Toplevel =
+  let serialize (tl : PT.Toplevel.T) : byte[] =
+    wrapSerializationException (PT.Toplevel.toTLID tl |> string) (fun () ->
+      let v = PT2ST.Toplevel.toST tl
+      MessagePack.MessagePackSerializer.Serialize(v, optionsWithoutZip))
+
+  let deserialize (tlid : tlid) (data : byte[]) : PT.Toplevel.T =
+    wrapSerializationException (string tlid) (fun () ->
+      MessagePack.MessagePackSerializer.Deserialize(data, optionsWithoutZip)
+      |> PT2ST.Toplevel.toPT)
+
+module Toplevels =
+  let serialize (msg : string) (tls : List<PT.Toplevel.T>) : byte[] =
+    wrapSerializationException msg (fun () ->
+      let v = List.map PT2ST.Toplevel.toST tls
+      MessagePack.MessagePackSerializer.Serialize(v, optionsWithoutZip))
+
+  let deserialize (msg : string) (data : byte[]) : List<PT.Toplevel.T> =
+    wrapSerializationException msg (fun () ->
+      MessagePack.MessagePackSerializer.Deserialize(data, optionsWithoutZip)
+      |> List.map PT2ST.Toplevel.toPT)
 
 
 module Test =

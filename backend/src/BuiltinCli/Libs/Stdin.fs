@@ -1,16 +1,11 @@
 /// Standard libraries for reading data from the user via the CLI
 module BuiltinCli.Libs.Stdin
 
-open System.Threading.Tasks
-open FSharp.Control.Tasks
-
 open Prelude
 open LibExecution.RuntimeTypes
 
 module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
-
-let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "stdinReadLine" 0
@@ -29,4 +24,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let contents : Builtin.Contents = (fns, constants)
+let builtins : Builtins = Builtin.make [] fns

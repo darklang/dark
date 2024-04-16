@@ -1,4 +1,5 @@
 /// Provides central place to fetch environment-specific configuration values
+[<RequireQualifiedAccess>]
 module LibCloud.Config
 
 open LibService.ConfigDsl

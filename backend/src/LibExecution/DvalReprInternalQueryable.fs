@@ -15,20 +15,23 @@ module VT = ValueType
 
 
 let parseJson (s : string) : JsonElement =
-  let mutable options = new JsonDocumentOptions()
-  options.CommentHandling <- JsonCommentHandling.Skip
-  options.MaxDepth <- System.Int32.MaxValue // infinite
+  let options =
+    new JsonDocumentOptions(
+      CommentHandling = JsonCommentHandling.Skip,
+      MaxDepth = System.Int32.MaxValue // infinite
+    )
 
   JsonDocument.Parse(s, options).RootElement
 
 let writeJson (f : Utf8JsonWriter -> Ply<unit>) : Ply<string> =
   uply {
-    let mutable options = new JsonWriterOptions()
-    options.Indented <- true
-    options.SkipValidation <- true
-    let encoder =
-      System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-    options.Encoder <- encoder
+    let options =
+      new JsonWriterOptions(
+        Indented = true,
+        SkipValidation = true,
+        Encoder =
+          System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+      )
 
     let stream = new System.IO.MemoryStream()
     let w = new Utf8JsonWriter(stream, options)

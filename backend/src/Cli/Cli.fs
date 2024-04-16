@@ -41,27 +41,25 @@ let info () =
 // Execution
 // ---------------------
 
-let builtIns : RT.BuiltIns =
-  let (fns, constants) =
-    LibExecution.Builtin.combine
-      [ BuiltinExecution.Builtin.contents
-          BuiltinExecution.Libs.HttpClient.defaultConfig
-        BuiltinCli.Builtin.contents
-        BuiltinCliHost.Builtin.contents ]
-      []
-  { fns = fns |> Map.fromListBy _.name
-    constants = constants |> Map.fromListBy _.name }
+let builtins : RT.Builtins =
+  LibExecution.Builtin.combine
+    [ BuiltinExecution.Builtin.builtins
+        BuiltinExecution.Libs.HttpClient.defaultConfig
+      BuiltinCli.Builtin.builtins
+      BuiltinCliHost.Builtin.builtins ]
+    []
 
 // TODO: de-dupe with _other_ Cli.fs
-let packageManagerBaseUrl =
-  match
-    System.Environment.GetEnvironmentVariable "DARK_CONFIG_PACKAGE_MANAGER_BASE_URL"
-  with
-  | null -> "https://packages.darklang.com"
-  | var -> var
-
 let packageManager =
-  LibPackageManager.PackageManager.packageManager packageManagerBaseUrl
+  let baseUrl =
+    match
+      System.Environment.GetEnvironmentVariable
+        "DARK_CONFIG_PACKAGE_MANAGER_BASE_URL"
+    with
+    | null -> "https://packages.darklang.com"
+    | var -> var
+
+  LibPackageManager.PackageManager.packageManager baseUrl
 
 
 let state () =
@@ -84,7 +82,7 @@ let state () =
   let sendException (_ : RT.ExecutionState) (metadata : Metadata) (exn : exn) =
     printException "Internal error" metadata exn
 
-  Exe.createState builtIns packageManager tracing sendException notify program
+  Exe.createState builtins packageManager tracing sendException notify program
 
 
 

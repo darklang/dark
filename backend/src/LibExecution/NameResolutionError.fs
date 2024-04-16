@@ -20,11 +20,13 @@ type NameType =
   | Constant
 
 type Error =
-  { errorType : ErrorType
+  {
+    errorType : ErrorType
     nameType : NameType
-    // The `.`-delimited name _parts_ e.g. `List.fakeFunction` is `["List";
-    // "fakeFunction"]`
-    names : List<string> }
+    /// The `.`-delimited name parts
+    /// e.g. `List.fakeFunction` => `["List"; "fakeFunction"]`
+    names : List<string>
+  }
 
 /// to RuntimeError
 module RTE =

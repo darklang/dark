@@ -7,10 +7,6 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 
-let varA = TVariable "a"
-
-let constants : List<BuiltInConstant> = []
-
 let fns : List<BuiltInFn> =
   // TODO: Maybe Expose ENot
   [ { name = fn "boolNot" 0
@@ -18,7 +14,9 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "b" TBool "" ]
       returnType = TBool
       description =
-        "Returns the inverse of <param b>: {{true}} if <param b> is {{false}} and {{false}} if <param b> is {{true}}"
+        "Returns the inverse of <param b>:
+        {{true}} if <param b> is {{false}}
+        and {{false}} if <param b> is {{true}}"
       fn =
         (function
         | _, _, [ DBool b ] -> Ply(DBool(not b))
@@ -28,4 +26,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let contents = (fns, constants)
+let builtins = LibExecution.Builtin.make [] fns

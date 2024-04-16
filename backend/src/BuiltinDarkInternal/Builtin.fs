@@ -30,16 +30,18 @@ let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
     })
 
 
-let contents =
-  Builtin.combine
-    [ Libs.Canvases.contents
-      Libs.DBs.contents
-      Libs.Domains.contents
-      Libs.F404.contents
-      Libs.Infra.contents
-      Libs.Secrets.contents
-      Libs.Users.contents
-      Libs.Workers.contents ]
-    fnRenames
-  |> (fun (fns, constants) ->
-    (fns |> List.map (fun f -> { f with fn = internalFn f.fn }), constants))
+let builtins : Builtins =
+  let builtins =
+    Builtin.combine
+      [ Libs.Canvases.builtins
+        Libs.DBs.builtins
+        Libs.Domains.builtins
+        Libs.F404.builtins
+        Libs.Infra.builtins
+        Libs.Secrets.builtins
+        Libs.Users.builtins
+        Libs.Workers.builtins ]
+      fnRenames
+
+  { builtins with
+      fns = builtins.fns |> Map.map (fun f -> { f with fn = internalFn f.fn }) }

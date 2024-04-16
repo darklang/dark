@@ -8,22 +8,29 @@ open LibExecution.Builtin.Shortcuts
 module VT = ValueType
 module Dval = LibExecution.Dval
 module TypeChecker = LibExecution.TypeChecker
+module Builtin = LibExecution.Builtin
 
 module UserDB = LibCloud.UserDB
 module Db = LibCloud.Db
 
 
-let varA = TVariable "a"
+let tvar v = TVariable v
 
-let dbType = TDB varA
+let dbType v = TDB(tvar v)
 
-let valType = varA
-let valParam = Param.make "val" valType ""
+let valParam v = Param.make "val" (tvar v) ""
 let keyParam = Param.make "key" TString ""
 let keysParam = Param.make "keys" (TList TString) ""
-let tableParam = Param.make "table" dbType ""
-let queryParam =
-  Param.makeWithArgs "filter" (TFn(NEList.singleton varA, TBool)) "" [ "value" ]
+
+let tableParam v = Param.make "table" (dbType v) ""
+
+/// A function param that goes from `TVariable v` to `TBool`, to be used as a filter
+let queryFilterParam v =
+  Param.makeWithArgs
+    "filter"
+    (TFn(NEList.singleton (TVariable v), TBool))
+    ""
+    [ "value" ]
 
 let handleUnexpectedExceptionDuringQuery
   (state : ExecutionState)
@@ -40,14 +47,11 @@ let handleUnexpectedExceptionDuringQuery
       e
     LibCloud.SqlCompiler.error "An error occurred while querying the Datastore"
 
-let constants : List<BuiltInConstant> = []
-
-
 let fns : List<BuiltInFn> =
   [ { name = fn "dbSet" 0
       typeParams = []
-      parameters = [ valParam; keyParam; tableParam ]
-      returnType = valType
+      parameters = [ valParam "a"; keyParam; tableParam "a" ]
+      returnType = tvar "a"
       description =
         "Upsert <param val> into <param table>, accessible by <param key>"
       fn =
@@ -70,8 +74,8 @@ let fns : List<BuiltInFn> =
 
     { name = fn "dbGet" 0
       typeParams = []
-      parameters = [ keyParam; tableParam ]
-      returnType = TypeReference.option valType
+      parameters = [ keyParam; tableParam "a" ]
+      returnType = TypeReference.option (tvar "a")
       description = "Finds a value in <param table> by <param key>"
       fn =
         (function
@@ -89,8 +93,8 @@ let fns : List<BuiltInFn> =
 
     { name = fn "dbGetMany" 0
       typeParams = []
-      parameters = [ keysParam; tableParam ]
-      returnType = TypeReference.option (TList valType)
+      parameters = [ keysParam; tableParam "a" ]
+      returnType = TypeReference.option (TList(tvar "a"))
       description =
         "Finds many values in <param table> by <param keys>. If all <param keys> are found, returns Some a list of [values], otherwise returns None (to ignore missing keys, use DB.etExisting)"
       fn =
@@ -124,8 +128,8 @@ let fns : List<BuiltInFn> =
 
     { name = fn "dbGetExisting" 0
       typeParams = []
-      parameters = [ keysParam; tableParam ]
-      returnType = TList valType
+      parameters = [ keysParam; tableParam "a" ]
+      returnType = TList(tvar "a")
       description =
         "Finds many values in <param table> by <param keys> (ignoring any missing items), returning a {{ [value] }} list of values"
       fn =
@@ -150,8 +154,8 @@ let fns : List<BuiltInFn> =
 
     { name = fn "dbGetManyWithKeys" 0
       typeParams = []
-      parameters = [ keysParam; tableParam ]
-      returnType = TDict valType
+      parameters = [ keysParam; tableParam "a" ]
+      returnType = TDict(tvar "a")
       description =
         "Finds many values in <param table> by <param keys>, returning a {{ {key:{value}, key2: {value2} } }} object of keys and values"
       fn =
@@ -175,7 +179,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "dbDelete" 0
       typeParams = []
-      parameters = [ keyParam; tableParam ]
+      parameters = [ keyParam; tableParam "a" ]
       returnType = TUnit
       description = "Delete <param key> from <param table>"
       fn =
@@ -194,7 +198,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "dbDeleteAll" 0
       typeParams = []
-      parameters = [ tableParam ]
+      parameters = [ tableParam "a" ]
       returnType = TUnit
       description = "Delete everything from <param table>"
       fn =
@@ -213,8 +217,8 @@ let fns : List<BuiltInFn> =
 
     { name = fn "dbGetAll" 0
       typeParams = []
-      parameters = [ tableParam ]
-      returnType = TList valType
+      parameters = [ tableParam "a" ]
+      returnType = TList(tvar "a")
       description = "Fetch all the values in <param table>"
       fn =
         (function
@@ -235,8 +239,8 @@ let fns : List<BuiltInFn> =
 
     { name = fn "dbGetAllWithKeys" 0
       typeParams = []
-      parameters = [ tableParam ]
-      returnType = TDict valType
+      parameters = [ tableParam "a" ]
+      returnType = TDict(tvar "a")
       description =
         "Fetch all the values in <param table>. Returns an object with key: value. ie. {key : value, key2: value2}"
       fn =
@@ -255,7 +259,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "dbCount" 0
       typeParams = []
-      parameters = [ tableParam ]
+      parameters = [ tableParam "a" ]
       returnType = TInt64
       description = "Return the number of items stored in <param table>"
       fn =
@@ -288,7 +292,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "dbKeys" 0
       typeParams = []
-      parameters = [ tableParam ]
+      parameters = [ tableParam "a" ]
       returnType = TList TString
       description =
         "Fetch all the keys of entries in <param table>. Returns an list with strings"
@@ -308,8 +312,8 @@ let fns : List<BuiltInFn> =
 
     { name = fn "dbQuery" 0
       typeParams = []
-      parameters = [ tableParam; queryParam ]
-      returnType = TList valType
+      parameters = [ tableParam "a"; queryFilterParam "a" ]
+      returnType = TList(tvar "a")
       description =
         "Fetch all the values from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
@@ -334,8 +338,8 @@ let fns : List<BuiltInFn> =
 
     { name = fn "dbQueryWithKey" 0
       typeParams = []
-      parameters = [ tableParam; queryParam ]
-      returnType = TDict valType
+      parameters = [ tableParam "a"; queryFilterParam "a" ]
+      returnType = TDict(tvar "a")
       description =
         "Fetch all the values from <param table> for which filter returns true, returning {key : value} as an dict. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
@@ -360,8 +364,8 @@ let fns : List<BuiltInFn> =
 
     { name = fn "dbQueryOne" 0
       typeParams = []
-      parameters = [ tableParam; queryParam ]
-      returnType = TypeReference.option valType
+      parameters = [ tableParam "a"; queryFilterParam "a" ]
+      returnType = TypeReference.option (tvar "a")
       description =
         "Fetch exactly one value from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Some value and if there is none or more than 1 found, it returns None. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
@@ -388,8 +392,8 @@ let fns : List<BuiltInFn> =
 
     { name = fn "dbQueryOneWithKey" 0
       typeParams = []
-      parameters = [ tableParam; queryParam ]
-      returnType = TypeReference.option (TTuple(TString, valType, []))
+      parameters = [ tableParam "a"; queryFilterParam "a" ]
+      returnType = TypeReference.option (TTuple(TString, tvar "a", []))
       description =
         "Fetch exactly one value from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. If there is exactly one key/value pair, it returns Some {key: value} and if there is none or more than 1 found, it returns None. Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
@@ -420,7 +424,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "dbQueryCount" 0
       typeParams = []
-      parameters = [ tableParam; queryParam ]
+      parameters = [ tableParam "a"; queryFilterParam "a" ]
       returnType = TInt64
       description =
         "Return the number of items from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
@@ -442,4 +446,4 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, constants)
+let builtins = Builtin.make [] fns

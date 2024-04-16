@@ -16,7 +16,6 @@ let lowercaseHeaderKeys (headers : List<string * string>) : List<string * string
   headers |> List.map (fun (k, v) -> (String.toLowercase k, v))
 
 module Request =
-
   let typ = RT.FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Http" ] "Request" 0
 
   let fromRequest

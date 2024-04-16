@@ -14,9 +14,6 @@ module VT = ValueType
 module Dval = LibExecution.Dval
 
 
-let constants : List<BuiltInConstant> = []
-
-
 let packageFnType
   (addlModules : List<string>)
   (name : string)
@@ -37,7 +34,7 @@ let fns : List<BuiltInFn> =
   [ { name = fn "parserParseToSimplifiedTree" 0
       typeParams = []
       parameters = [ Param.make "sourceCode" TString "" ]
-      returnType = TCustomType(Ok(packageFnType [] "ParsedNode" 0), [])
+      returnType = TCustomType(Ok parsedNodeTypeName, [])
       description = "Parses some Darklang code"
       fn =
         (function
@@ -111,4 +108,5 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, constants)
+
+let builtins = LibExecution.Builtin.make [] fns

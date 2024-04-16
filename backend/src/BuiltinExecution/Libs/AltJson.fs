@@ -125,7 +125,7 @@ module Parsing =
 
       | _ -> raise (ParseError.JsonException ParseError.NotJson)
 
-    // .net does the hard work of actually parsing the JSON
+    // .NET does the hard work of actually parsing the JSON
     let parsedByDotNet =
       try
         Ok(JsonDocument.Parse(str, dotnetParsingOptions).RootElement)
@@ -187,10 +187,6 @@ module Serialize =
       w.WriteEndObject() // }
 
 
-
-let constants : List<BuiltInConstant> = []
-
-
 let fns : List<BuiltInFn> =
   [ { name = fn "altJsonFormat" 0
       typeParams = []
@@ -228,4 +224,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let contents = (fns, constants)
+let builtins = LibExecution.Builtin.make [] fns

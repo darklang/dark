@@ -4,7 +4,6 @@
 /// </remarks>
 module LibCloud.Serialize
 
-
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
@@ -17,7 +16,6 @@ open Prelude
 module PT = LibExecution.ProgramTypes
 module BinarySerialization = LibBinarySerialization.BinarySerialization
 module PTParser = LibExecution.ProgramTypesParser
-module Telemetry = LibService.Telemetry
 
 
 // --------------------------------------------------------
@@ -39,14 +37,16 @@ let loadToplevels
   task {
     let! data =
       Sql.query
-        "SELECT tlid, data, deleted FROM toplevels_v0
-          WHERE canvas_id = @canvasID
+        "SELECT tlid, data, deleted
+        FROM toplevels_v0
+        WHERE canvas_id = @canvasID
           AND tlid = ANY (@tlids)
           AND (
-              ((tipe = 'handler'::toplevel_type OR tipe = 'db'::toplevel_type))
-              OR tipe = 'user_function'::toplevel_type
-              OR tipe = 'user_type'::toplevel_type
-              OR tipe = 'user_constant'::toplevel_type)"
+            ((tipe = 'handler'::toplevel_type OR tipe = 'db'::toplevel_type))
+            OR tipe = 'user_function'::toplevel_type
+            OR tipe = 'user_type'::toplevel_type
+            OR tipe = 'user_constant'::toplevel_type
+          )"
       |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
       |> Sql.executeAsync (fun read ->
         (read.tlid "tlid", read.bytea "data", read.bool "deleted"))
@@ -55,7 +55,7 @@ let loadToplevels
       data
       |> List.map (fun (tlid, tl, deleted) ->
         let isDeleted = if deleted then Deleted else NotDeleted
-        (isDeleted, BinarySerialization.deserializeToplevel tlid tl))
+        (isDeleted, BinarySerialization.Toplevel.deserialize tlid tl))
   }
 
 
@@ -68,13 +68,13 @@ let fetchReleventTLIDsForHTTP
   // pattern matching to solve our routing.
   Sql.query
     "SELECT tlid
-     FROM toplevels_v0
-     WHERE canvas_id = @canvasID
-       AND (((module = 'HTTP' OR module = 'HTTP_BASIC')
-             AND @path like name
-             AND modifier = @method)
-         OR tipe <> 'handler'::toplevel_type)
-       AND deleted IS FALSE"
+    FROM toplevels_v0
+    WHERE canvas_id = @canvasID
+      AND (
+        (module = 'HTTP' AND @path like name AND modifier = @method)
+        OR tipe <> 'handler'::toplevel_type
+      )
+      AND deleted IS FALSE"
   |> Sql.parameters
     [ "path", Sql.string path
       "method", Sql.string method
@@ -98,12 +98,12 @@ let fetchRelevantTLIDsForEvent
   : Task<List<tlid>> =
   Sql.query
     "SELECT tlid FROM toplevels_v0
-      WHERE canvas_id = @canvasID
-        AND ((module = @space
-              AND name = @name
-              AND modifier = @modifier)
-              OR tipe <> 'handler'::toplevel_type)
-        AND deleted IS FALSE"
+    WHERE canvas_id = @canvasID
+      AND (
+        (module = @space AND name = @name AND modifier = @modifier)
+        OR tipe <> 'handler'::toplevel_type
+      )
+      AND deleted IS FALSE"
   |> Sql.parameters
     [ "canvasID", Sql.uuid canvasID
       "space", Sql.string module'
@@ -115,21 +115,21 @@ let fetchRelevantTLIDsForEvent
 let fetchTLIDsForAllDBs (canvasID : CanvasID) : Task<List<tlid>> =
   Sql.query
     "SELECT tlid FROM toplevels_v0
-     WHERE canvas_id = @canvasID
-       AND tipe = 'db'::toplevel_type
-       AND deleted IS FALSE"
+    WHERE canvas_id = @canvasID
+      AND tipe = 'db'::toplevel_type
+      AND deleted IS FALSE"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
 let fetchTLIDsForAllWorkers (canvasID : CanvasID) : Task<List<tlid>> =
   Sql.query
     "SELECT tlid FROM toplevels_v0
-     WHERE canvas_id = @canvasID
-       AND tipe = 'handler'::toplevel_type
-       AND module <> 'CRON'
-       AND module <> 'REPL'
-       AND module <> 'HTTP'
-       AND deleted IS FALSE"
+    WHERE canvas_id = @canvasID
+      AND tipe = 'handler'::toplevel_type
+      AND module <> 'CRON'
+      AND module <> 'REPL'
+      AND module <> 'HTTP'
+      AND deleted IS FALSE"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
@@ -137,15 +137,15 @@ let fetchTLIDsForAllWorkers (canvasID : CanvasID) : Task<List<tlid>> =
 let fetchAllIncludingDeletedTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
   Sql.query
     "SELECT tlid FROM toplevels_v0
-     WHERE canvas_id = @canvasID"
+    WHERE canvas_id = @canvasID"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
 let fetchAllLiveTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
   Sql.query
     "SELECT tlid FROM toplevels_v0
-     WHERE canvas_id = @canvasID
-       AND deleted IS FALSE"
+    WHERE canvas_id = @canvasID
+      AND deleted IS FALSE"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
@@ -163,20 +163,22 @@ type CronScheduleData =
 /// TODO: this is untested, but also essential for running the crons
 let fetchActiveCrons () : Task<List<CronScheduleData>> =
   Sql.query
-    "SELECT canvas_id,
-                  tlid,
-                  modifier,
-                  toplevels_v0.name as handler_name
-       FROM toplevels_v0
-       JOIN canvases_v0 ON toplevels_v0.canvas_id = canvases_v0.id
-      WHERE module = 'CRON'
-        AND modifier IS NOT NULL
-        AND modifier <> ''
-        AND toplevels_v0.name IS NOT NULL
-        AND deleted IS FALSE"
+    "SELECT
+      canvas_id,
+      tlid,
+      modifier,
+      toplevels_v0.name as handler_name
+    FROM toplevels_v0
+    JOIN canvases_v0 ON toplevels_v0.canvas_id = canvases_v0.id
+    WHERE module = 'CRON'
+      AND modifier IS NOT NULL
+      AND modifier <> ''
+      AND toplevels_v0.name IS NOT NULL
+      AND deleted IS FALSE"
   |> Sql.executeAsync (fun read ->
     let interval = read.string "modifier"
     let canvasID = read.uuid "canvas_id"
+
     { canvasID = canvasID
       tlid = read.id "tlid"
       cronName = read.string "handler_name"

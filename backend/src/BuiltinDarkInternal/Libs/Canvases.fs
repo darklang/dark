@@ -12,22 +12,10 @@ module VT = ValueType
 module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 module Canvas = LibCloud.Canvas
-module Serialize = LibCloud.Serialize
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
 
-
-let ptTyp
-  (submodules : List<string>)
-  (name : string)
-  (version : int)
-  : FQTypeName.FQTypeName =
-  FQTypeName.fqPackage
-    "Darklang"
-    ("Stdlib" :: "ProgramTypes" :: submodules)
-    name
-    version
-
+// TODO: does this type need to be in Internal?
 let packageCanvasType (addlModules : List<string>) (name : string) (version : int) =
   FQTypeName.fqPackage
     "Darklang"
@@ -35,8 +23,6 @@ let packageCanvasType (addlModules : List<string>) (name : string) (version : in
     name
     version
 
-
-let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "darkInternalCanvasList" 0
@@ -129,22 +115,6 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated }
 
-    // ---------------------
-    // Programs
-    // ---------------------
-    { name = fn "darkInternalCanvasDarkEditorCanvasID" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TUuid
-      description = "Returns the ID of the special dark-editor canvas"
-      fn =
-        (function
-        | state, _, [ DUnit ] -> state.program.canvasID |> DUuid |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
 
     { name = fn "darkInternalCanvasFullProgram" 0
       typeParams = []
@@ -210,4 +180,4 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, constants)
+let builtins = LibExecution.Builtin.make [] fns

@@ -5,7 +5,6 @@ open Prelude
 open RuntimeTypes
 
 module PT = ProgramTypes
-module RT = RuntimeTypes
 module VT = ValueType
 module NRE = LibExecution.NameResolutionError
 module D = LibExecution.DvalDecoder
@@ -716,7 +715,8 @@ module PipeExpr =
 
 
 module Expr =
-  let knownType = KTCustomType(ptTyp [] "Expr" 0, [])
+  let typeName = ptTyp [] "Expr" 0
+  let knownType = KTCustomType(typeName, [])
 
   let rec toDT (e : PT.Expr) : Dval =
     let (caseName, fields) =

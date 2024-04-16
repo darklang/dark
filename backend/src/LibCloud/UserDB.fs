@@ -78,8 +78,9 @@ let rec set
         Sql.query
           $"INSERT INTO user_data_v0
             (id, canvas_id, table_tlid, user_version, dark_version, key, data, updated_at)
-            VALUES (@id, @canvasID, @tlid, @userVersion, @darkVersion, @key, @data, NOW())
-            {upsertQuery}"
+          VALUES
+            (@id, @canvasID, @tlid, @userVersion, @darkVersion, @key, @data, NOW())
+          {upsertQuery}"
         |> Sql.parameters
           [ "id", Sql.uuid id
             "canvasID", Sql.uuid state.program.canvasID
@@ -106,12 +107,12 @@ and getOption
     let! result =
       Sql.query
         "SELECT data
-           FROM user_data_v0
-          WHERE table_tlid = @tlid
-            AND canvas_id = @canvasID
-            AND user_version = @userVersion
-            AND dark_version = @darkVersion
-            AND key = @key"
+          FROM user_data_v0
+        WHERE table_tlid = @tlid
+          AND canvas_id = @canvasID
+          AND user_version = @userVersion
+          AND dark_version = @darkVersion
+          AND key = @key"
       |> Sql.parameters
         [ "tlid", Sql.tlid db.tlid
           "canvasID", Sql.uuid state.program.canvasID
@@ -137,12 +138,12 @@ and getMany
     let! result =
       Sql.query
         "SELECT data
-          FROM user_data_v0
-          WHERE table_tlid = @tlid
-            AND canvas_id = @canvasID
-            AND user_version = @userVersion
-            AND dark_version = @darkVersion
-            AND key = ANY (@keys)"
+        FROM user_data_v0
+        WHERE table_tlid = @tlid
+          AND canvas_id = @canvasID
+          AND user_version = @userVersion
+          AND dark_version = @darkVersion
+          AND key = ANY (@keys)"
       |> Sql.parameters
         [ "tlid", Sql.tlid db.tlid
           "canvasID", Sql.uuid state.program.canvasID
@@ -167,12 +168,12 @@ and getManyWithKeys
     let! result =
       Sql.query
         "SELECT key, data
-          FROM user_data_v0
-          WHERE table_tlid = @tlid
-            AND canvas_id = @canvasID
-            AND user_version = @userVersion
-            AND dark_version = @darkVersion
-            AND key = ANY (@keys)"
+        FROM user_data_v0
+        WHERE table_tlid = @tlid
+          AND canvas_id = @canvasID
+          AND user_version = @userVersion
+          AND dark_version = @darkVersion
+          AND key = ANY (@keys)"
       |> Sql.parameters
         [ "tlid", Sql.tlid db.tlid
           "canvasID", Sql.uuid state.program.canvasID
@@ -198,11 +199,11 @@ let getAll (state : RT.ExecutionState) (db : RT.DB.T) : Ply<List<string * RT.Dva
     let! result =
       Sql.query
         "SELECT key, data
-          FROM user_data_v0
-          WHERE table_tlid = @tlid
-            AND canvas_id = @canvasID
-            AND user_version = @userVersion
-            AND dark_version = @darkVersion"
+        FROM user_data_v0
+        WHERE table_tlid = @tlid
+          AND canvas_id = @canvasID
+          AND user_version = @userVersion
+          AND dark_version = @darkVersion"
       |> Sql.parameters
         [ "tlid", Sql.tlid db.tlid
           "canvasID", Sql.uuid state.program.canvasID
@@ -246,12 +247,12 @@ let doQuery
       return
         Sql.query
           $"SELECT {queryFor}
-              FROM user_data_v0
-              WHERE table_tlid = @tlid
-                AND canvas_id = @canvasID
-                AND user_version = @userVersion
-                AND dark_version = @darkVersion
-                AND {compiled.sql}"
+          FROM user_data_v0
+          WHERE table_tlid = @tlid
+            AND canvas_id = @canvasID
+            AND user_version = @userVersion
+            AND dark_version = @darkVersion
+            AND {compiled.sql}"
         |> Sql.parameters (
           compiled.vars
           @ [ "tlid", Sql.tlid db.tlid
@@ -300,9 +301,8 @@ let queryValues
     let! query = doQuery state db b "data"
 
     match query with
-    | Error err -> return (Error err)
+    | Error err -> return Error err
     | Ok query ->
-
       let! results = query |> Sql.executeAsync (fun read -> read.string "data")
 
       return!
@@ -318,7 +318,7 @@ let queryCount
     let! query = doQuery state db b "COUNT(*)"
 
     match query with
-    | Error err -> return (Error err)
+    | Error err -> return Error err
     | Ok query ->
       return!
         query |> Sql.executeRowAsync (fun read -> read.int "count") |> Task.map Ok
@@ -327,11 +327,11 @@ let queryCount
 let getAllKeys (state : RT.ExecutionState) (db : RT.DB.T) : Task<List<string>> =
   Sql.query
     "SELECT key
-     FROM user_data_v0
-     WHERE table_tlid = @tlid
-     AND canvas_id = @canvasID
-     AND user_version = @userVersion
-     AND dark_version = @darkVersion"
+    FROM user_data_v0
+    WHERE table_tlid = @tlid
+      AND canvas_id = @canvasID
+      AND user_version = @userVersion
+      AND dark_version = @darkVersion"
   |> Sql.parameters
     [ "tlid", Sql.tlid db.tlid
       "canvasID", Sql.uuid state.program.canvasID
@@ -342,11 +342,11 @@ let getAllKeys (state : RT.ExecutionState) (db : RT.DB.T) : Task<List<string>> =
 let count (state : RT.ExecutionState) (db : RT.DB.T) : Task<int> =
   Sql.query
     "SELECT COUNT(*)
-     FROM user_data_v0
-     WHERE table_tlid = @tlid
-       AND canvas_id = @canvasID
-       AND user_version = @userVersion
-       AND dark_version = @darkVersion"
+    FROM user_data_v0
+    WHERE table_tlid = @tlid
+      AND canvas_id = @canvasID
+      AND user_version = @userVersion
+      AND dark_version = @darkVersion"
   |> Sql.parameters
     [ "tlid", Sql.tlid db.tlid
       "canvasID", Sql.uuid state.program.canvasID
@@ -357,12 +357,12 @@ let count (state : RT.ExecutionState) (db : RT.DB.T) : Task<int> =
 let delete (state : RT.ExecutionState) (db : RT.DB.T) (key : string) : Task<unit> =
   Sql.query
     "DELETE
-     FROM user_data_v0
-     WHERE key = @key
-       AND table_tlid = @tlid
-       AND canvas_id = @canvasID
-       AND user_version = @userVersion
-       AND dark_version = @darkVersion"
+    FROM user_data_v0
+    WHERE key = @key
+      AND table_tlid = @tlid
+      AND canvas_id = @canvasID
+      AND user_version = @userVersion
+      AND dark_version = @darkVersion"
   |> Sql.parameters
     [ "key", Sql.string key
       "tlid", Sql.tlid db.tlid
@@ -375,10 +375,10 @@ let deleteAll (state : RT.ExecutionState) (db : RT.DB.T) : Task<unit> =
   //   covered by idx_user_data_current_data_for_tlid
   Sql.query
     "DELETE FROM user_data_v0
-     WHERE canvas_id = @canvasID
-       AND table_tlid = @tlid
-       AND user_version = @userVersion
-       AND dark_version = @darkVersion"
+    WHERE canvas_id = @canvasID
+      AND table_tlid = @tlid
+      AND user_version = @userVersion
+      AND dark_version = @darkVersion"
   |> Sql.parameters
     [ "tlid", Sql.tlid db.tlid
       "canvasID", Sql.uuid state.program.canvasID
@@ -416,11 +416,11 @@ let deleteAll (state : RT.ExecutionState) (db : RT.DB.T) : Task<unit> =
 let statsCount (canvasID : CanvasID) (db : RT.DB.T) : Task<int> =
   Sql.query
     "SELECT COUNT(*)
-     FROM user_data_v0
-     WHERE table_tlid = @tlid
-       AND canvas_id = @canvasID
-       AND user_version = @userVersion
-       AND dark_version = @darkVersion"
+    FROM user_data_v0
+    WHERE table_tlid = @tlid
+      AND canvas_id = @canvasID
+      AND user_version = @userVersion
+      AND dark_version = @darkVersion"
   |> Sql.parameters
     [ "tlid", Sql.tlid db.tlid
       "canvasID", Sql.uuid canvasID
@@ -435,9 +435,9 @@ let statsCount (canvasID : CanvasID) (db : RT.DB.T) : Task<int> =
 let all (canvasID : CanvasID) : Task<List<tlid>> =
   Sql.query
     "SELECT tlid
-       FROM toplevels_v0
-      WHERE canvas_id = @canvasID
-        AND tipe = 'db'"
+    FROM toplevels_v0
+    WHERE canvas_id = @canvasID
+      AND tipe = 'db'"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
@@ -452,15 +452,15 @@ let unlocked (canvasID : CanvasID) : Task<List<tlid>> =
   // CLEANUP: do we need table_tlid IS NULL since we're using NOT NULL in the schema?
   Sql.query
     "SELECT tl.tlid
-     FROM toplevels_v0 as tl
-     LEFT JOIN user_data_v0 as ud
-            ON tl.tlid = ud.table_tlid
-           AND tl.canvas_id = ud.canvas_id
-     WHERE tl.canvas_id = @canvasID
-       AND tl.module IS NULL
-       AND tl.deleted = false
-       AND ud.table_tlid IS NULL
-     GROUP BY tl.tlid"
+    FROM toplevels_v0 as tl
+    LEFT JOIN user_data_v0 as ud
+      ON tl.tlid = ud.table_tlid
+        AND tl.canvas_id = ud.canvas_id
+    WHERE tl.canvas_id = @canvasID
+      AND tl.module IS NULL
+      AND tl.deleted = false
+      AND ud.table_tlid IS NULL
+    GROUP BY tl.tlid"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 

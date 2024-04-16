@@ -10,8 +10,6 @@ open Npgsql
 open Prelude
 open Db
 
-module RT = LibExecution.RuntimeTypes
-
 let createUser () : Task<UserID> =
   task {
     let userID = System.Guid.NewGuid()
@@ -22,5 +20,6 @@ let createUser () : Task<UserID> =
           VALUES (@id)"
       |> Sql.parameters [ "id", Sql.uuid userID ]
       |> Sql.executeStatementAsync
+
     return userID
   }

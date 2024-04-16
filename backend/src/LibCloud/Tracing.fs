@@ -8,10 +8,8 @@ open Prelude
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module Exe = LibExecution.Execution
-module Interpreter = LibExecution.Interpreter
 module DvalReprInternalHash = LibExecution.DvalReprInternalHash
 
 module LD = LibService.LaunchDarkly
@@ -25,7 +23,8 @@ module TraceSamplingRule =
   type T =
     | SampleNone
     | SampleAll
-    | SampleOneIn of int
+    /// Sample one every `n`
+    | SampleOneIn of n : int
     | SampleAllWithTelemetry
 
   let parseRule (ruleString : string) : Result<T, string> =

@@ -9,13 +9,15 @@ module VT = ValueType
 module Dval = LibExecution.Dval
 module DarkDateTime = LibExecution.DarkDateTime
 
+
 let ISO8601Format = "yyyy-MM-ddTHH:mm:ssZ"
 
 let ISO8601DateParser (s : string) : Result<DarkDateTime.T, unit> =
-
   let culture = System.Globalization.CultureInfo.InvariantCulture
   let styles = System.Globalization.DateTimeStyles.AssumeUniversal
+
   let mutable (result : System.DateTime) = Unchecked.defaultof<System.DateTime>
+
   match s with
   | date when date.Contains("GMT") -> Error()
   | date when date.EndsWith('z') -> Error()
@@ -24,8 +26,6 @@ let ISO8601DateParser (s : string) : Result<DarkDateTime.T, unit> =
     ->
     Ok(DarkDateTime.fromDateTime (result.ToUniversalTime()))
   | _ -> Error()
-
-let constants : List<BuiltInConstant> = []
 
 
 let fns : List<BuiltInFn> =
@@ -107,7 +107,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TDateTime
-      description = "Returns the current time"
+      description = "Returns the current datetime"
       fn =
         (function
         | _, _, [ DUnit ] ->
@@ -122,7 +122,7 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TDateTime
-      description = "Returns the <type Date> with the time set to midnight"
+      description = "Returns the <type DateTime> with the time set to midnight"
       fn =
         (function
         | _, _, [ DUnit ] ->
@@ -138,7 +138,8 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "d" TDateTime ""; Param.make "seconds" TInt64 "" ]
       returnType = TDateTime
-      description = "Returns a <type Date> <param seconds> seconds after <param d>"
+      description =
+        "Returns a <type DateTime> <param seconds> seconds after <param d>"
       fn =
         (function
         | _, _, [ DDateTime d; DInt64 s ] ->
@@ -158,7 +159,8 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "d" TDateTime ""; Param.make "seconds" TInt64 "" ]
       returnType = TDateTime
-      description = "Returns a <type Date> <param seconds> seconds before <param d>"
+      description =
+        "Returns a <type DateTime> <param seconds> seconds before <param d>"
       fn =
         (function
         | _, _, [ DDateTime d; DInt64 s ] ->
@@ -192,7 +194,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DDateTime d1; DDateTime d2 ] -> Ply(DBool(d1 < d2))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlBinOp("<")
+      sqlSpec = SqlBinOp "<"
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -206,7 +208,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DDateTime d1; DDateTime d2 ] -> Ply(DBool(d1 >= d2))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlBinOp(">=")
+      sqlSpec = SqlBinOp ">="
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -220,7 +222,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DDateTime d1; DDateTime d2 ] -> Ply(DBool(d1 <= d2))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlBinOp("<=")
+      sqlSpec = SqlBinOp "<="
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -246,7 +248,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "seconds" TInt64 "" ]
       returnType = TDateTime
       description =
-        "Converts an <type Int64> representing seconds since the Unix epoch into a <type Date>"
+        "Converts an <type Int64> representing seconds since the Unix epoch into a <type DateTime>"
       fn =
         (function
         | _, _, [ DInt64 s ] ->
@@ -309,7 +311,8 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt64
       description =
-        "Returns the weekday of <param date> as an <type Int64>. Monday = {{1}}, Tuesday = {{2}}, ... Sunday = {{7}} (in accordance with ISO 8601)"
+        "Returns the weekday of <param date> as an <type Int64>.
+        Monday = {{1}}, Tuesday = {{2}}, ... Sunday = {{7}} (in accordance with ISO 8601)"
       fn =
         (function
         | _, _, [ DDateTime d ] -> d.DayOfWeek |> int64 |> DInt64 |> Ply
@@ -397,4 +400,4 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let contents = (fns, constants)
+let builtins = LibExecution.Builtin.make [] fns

@@ -10,7 +10,6 @@ open LibExecution.RuntimeTypes
 module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
 
-let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "printLine" 0
@@ -61,9 +60,7 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
-
-    ]
+      deprecated = NotDeprecated } ]
 
 
-let contents : Builtin.Contents = (fns, constants)
+let builtins = LibExecution.Builtin.make [] fns

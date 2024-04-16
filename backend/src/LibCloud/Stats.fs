@@ -1,6 +1,5 @@
+/// Non-execution analysis
 module LibCloud.Stats
-
-// Non-execution analysis
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -12,8 +11,6 @@ open Db
 open Prelude
 
 module RT = LibExecution.RuntimeTypes
-module AT = LibExecution.AnalysisTypes
-module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 type DBStat = { count : int; example : Option<RT.Dval * string> }

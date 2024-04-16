@@ -134,7 +134,6 @@ module FQTypeName =
       if version = 0 then name else $"{name}_v{version}"
 
 
-
 /// A Fully-Qualified Constant Name
 ///
 /// Used to reference a constant defined by the runtime, in a Package, or by a User
@@ -623,38 +622,52 @@ and TypeReference =
 // Expressions here are runtime variants of the AST in ProgramTypes, having had
 // superfluous information removed.
 and Expr =
-  | EInt64 of id * int64
-  | EUInt64 of id * uint64
+  | EUnit of id
+
+  | EBool of id * bool
+
   | EInt8 of id * int8
   | EUInt8 of id * uint8
   | EInt16 of id * int16
   | EUInt16 of id * uint16
   | EInt32 of id * int32
   | EUInt32 of id * uint32
+  | EInt64 of id * int64
+  | EUInt64 of id * uint64
   | EInt128 of id * System.Int128
   | EUInt128 of id * System.UInt128
-  | EBool of id * bool
-  | EString of id * List<StringSegment>
-  | EUnit of id
-  | EChar of id * string
+
   | EFloat of id * double
-  | EConstant of id * FQConstantName.FQConstantName
-  | ELet of id * LetPattern * Expr * Expr
+
+  | EChar of id * string
+  | EString of id * List<StringSegment>
+
+  // flow control
   | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
-  | ELambda of id * pats : NEList<LetPattern> * body : Expr
-  | EFieldAccess of id * Expr * string
+  | EMatch of id * Expr * NEList<MatchCase>
+  | EAnd of id * lhs : Expr * rhs : Expr
+  | EOr of id * lhs : Expr * rhs : Expr
+
+  // declaring and referencing vars
+  | ELet of id * LetPattern * Expr * Expr
   | EVariable of id * string
-  | EApply of id * Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
+  | EFieldAccess of id * Expr * string
+
+  // calling fns and other things
   | EFnName of id * FQFnName.FQFnName
+  | EApply of id * Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
+  | ELambda of id * pats : NEList<LetPattern> * body : Expr
+
+  // structures
   | EList of id * List<Expr>
   | ETuple of id * Expr * Expr * List<Expr>
+  | EDict of id * List<string * Expr>
+
+  // working with custom types
+  | EConstant of id * FQConstantName.FQConstantName
   | ERecord of id * FQTypeName.FQTypeName * NEList<string * Expr>
   | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
-  | EDict of id * List<string * Expr>
   | EEnum of id * FQTypeName.FQTypeName * caseName : string * fields : List<Expr>
-  | EMatch of id * Expr * NEList<MatchCase>
-  | EAnd of id * Expr * Expr
-  | EOr of id * Expr * Expr
 
   // A runtime error. This is included so that we can allow the program to run in the
   // presence of compile-time errors (which are converted to this error). We may
@@ -665,39 +678,46 @@ and Expr =
 and MatchCase = { pat : MatchPattern; whenCondition : Option<Expr>; rhs : Expr }
 
 and LetPattern =
-  | LPVariable of id * name : string
   | LPUnit of id
   | LPTuple of
     id *
     first : LetPattern *
     second : LetPattern *
     theRest : List<LetPattern>
+  | LPVariable of id * name : string
 
 and StringSegment =
   | StringText of string
   | StringInterpolation of Expr
 
 and MatchPattern =
-  | MPVariable of id * string
-  | MPEnum of id * caseName : string * fieldPatterns : List<MatchPattern>
-  | MPInt64 of id * int64
-  | MPUInt64 of id * uint64
+  | MPUnit of id
+
+  | MPBool of id * bool
   | MPInt8 of id * int8
   | MPUInt8 of id * uint8
   | MPInt16 of id * int16
   | MPUInt16 of id * uint16
   | MPInt32 of id * int32
   | MPUInt32 of id * uint32
+  | MPInt64 of id * int64
+  | MPUInt64 of id * uint64
   | MPInt128 of id * System.Int128
   | MPUInt128 of id * System.UInt128
-  | MPBool of id * bool
+
+  | MPFloat of id * double
+
   | MPChar of id * string
   | MPString of id * string
-  | MPFloat of id * double
-  | MPUnit of id
-  | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
+
   | MPList of id * List<MatchPattern>
   | MPListCons of id * head : MatchPattern * tail : MatchPattern
+  | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
+
+  | MPEnum of id * caseName : string * fieldPatterns : List<MatchPattern>
+
+  | MPVariable of id * string
+
 
 and DvalMap = Map<string, Dval>
 
@@ -726,19 +746,23 @@ and [<NoComparison>] Dval =
 
   // Simple types
   | DBool of bool
-  | DInt64 of int64
-  | DUInt64 of uint64
+
   | DInt8 of int8
   | DUInt8 of uint8
   | DInt16 of int16
   | DUInt16 of uint16
   | DInt32 of int32
   | DUInt32 of uint32
+  | DInt64 of int64
+  | DUInt64 of uint64
   | DInt128 of System.Int128
   | DUInt128 of System.UInt128
+
   | DFloat of double
+
   | DChar of string // TextElements (extended grapheme clusters) are provided as strings
   | DString of string
+
   | DDateTime of DarkDateTime.T
   | DUuid of System.Guid
 
@@ -751,6 +775,7 @@ and [<NoComparison>] Dval =
     valueType : ValueType *
     entries : DvalMap
 
+  // custom types
   | DRecord of
     // CLEANUP nitpick: maybe move sourceTypeName before runtimeTypeName?
     // CLEANUP we may need a sourceTypeArgs here as well
@@ -941,6 +966,7 @@ module TypeDeclaration =
     | Enum of NEList<EnumCase>
 
   type T = { typeParams : List<string>; definition : Definition }
+
 
 // Functions for working with Dark runtime expressions
 module Expr =
@@ -1241,6 +1267,85 @@ module Dval =
     | _ -> None
 
 
+// TODO: rename to ConstDeclaration
+type Const =
+  | CUnit
+  | CBool of bool
+
+  | CInt8 of int8
+  | CUInt8 of uint8
+  | CInt16 of int16
+  | CUInt16 of uint16
+  | CInt32 of int32
+  | CUInt32 of uint32
+  | CInt64 of int64
+  | CUInt64 of uint64
+  | CInt128 of System.Int128
+  | CUInt128 of System.UInt128
+
+  | CFloat of Sign * string * string
+
+  | CChar of string
+  | CString of string
+
+  | CList of List<Const>
+  | CTuple of first : Const * second : Const * rest : List<Const>
+  | CDict of List<string * Const>
+
+  | CEnum of NameResolution<FQTypeName.FQTypeName> * caseName : string * List<Const>
+
+
+
+
+// ------------
+// Package stuff
+// ------------
+
+module PackageType =
+  type T = { name : FQTypeName.Package; declaration : TypeDeclaration.T }
+
+module PackageConstant =
+  type T = { name : FQConstantName.Package; body : Const }
+
+module PackageFn =
+  type Parameter = { name : string; typ : TypeReference }
+
+  type T =
+    { name : FQFnName.Package
+      tlid : tlid
+      typeParams : List<string>
+      parameters : NEList<Parameter>
+      returnType : TypeReference
+      body : Expr }
+
+
+// ------------
+// User stuff
+// ------------
+module UserType =
+  type T =
+    { tlid : tlid; name : FQTypeName.UserProgram; declaration : TypeDeclaration.T }
+
+module UserConstant =
+  type T = { tlid : tlid; name : FQConstantName.UserProgram; body : Const }
+
+module UserFunction =
+  type Parameter = { name : string; typ : TypeReference }
+
+  type T =
+    { tlid : tlid
+      name : FQFnName.UserProgram
+      typeParams : List<string>
+      parameters : NEList<Parameter>
+      returnType : TypeReference
+      body : Expr }
+
+module DB =
+  type T = { tlid : tlid; name : string; typ : TypeReference; version : int }
+
+module Secret =
+  type T = { name : string; value : string; version : int }
+
 module Handler =
   type CronInterval =
     | EveryDay
@@ -1258,49 +1363,6 @@ module Handler =
 
   type T = { tlid : tlid; ast : Expr; spec : Spec }
 
-module DB =
-  type T = { tlid : tlid; name : string; typ : TypeReference; version : int }
-
-module UserType =
-  type T =
-    { tlid : tlid; name : FQTypeName.UserProgram; declaration : TypeDeclaration.T }
-
-type Const =
-  | CInt64 of int64
-  | CUInt64 of uint64
-  | CInt8 of int8
-  | CUInt8 of uint8
-  | CInt16 of int16
-  | CUInt16 of uint16
-  | CInt32 of int32
-  | CUInt32 of uint32
-  | CInt128 of System.Int128
-  | CUInt128 of System.UInt128
-  | CBool of bool
-  | CString of string
-  | CChar of string
-  | CFloat of Sign * string * string
-  | CUnit
-  | CTuple of first : Const * second : Const * rest : List<Const>
-  | CEnum of NameResolution<FQTypeName.FQTypeName> * caseName : string * List<Const>
-  | CList of List<Const>
-  | CDict of List<string * Const>
-
-
-module UserConstant =
-  type T = { tlid : tlid; name : FQConstantName.UserProgram; body : Const }
-
-module UserFunction =
-  type Parameter = { name : string; typ : TypeReference }
-
-  type T =
-    { tlid : tlid
-      name : FQFnName.UserProgram
-      typeParams : List<string>
-      parameters : NEList<Parameter>
-      returnType : TypeReference
-      body : Expr }
-
 module Toplevel =
   type T =
     | TLHandler of Handler.T
@@ -1317,30 +1379,7 @@ module Toplevel =
     | TLType t -> t.tlid
     | TLConstant c -> c.tlid
 
-module Secret =
-  type T = { name : string; value : string; version : int }
 
-
-// ------------
-// Functions
-// ------------
-
-module PackageFn =
-  type Parameter = { name : string; typ : TypeReference }
-
-  type T =
-    { name : FQFnName.Package
-      tlid : tlid
-      typeParams : List<string>
-      parameters : NEList<Parameter>
-      returnType : TypeReference
-      body : Expr }
-
-module PackageType =
-  type T = { name : FQTypeName.Package; declaration : TypeDeclaration.T }
-
-module PackageConstant =
-  type T = { name : FQConstantName.Package; body : Const }
 
 // <summary>
 // Used to mark whether a function can be run on the client rather than backend.
@@ -1476,10 +1515,12 @@ and StoreFnResult = FunctionRecord -> NEList<Dval> -> Dval -> unit
 and Program =
   { canvasID : CanvasID
     internalFnsAllowed : bool // whether this canvas is allowed call internal functions
-    dbs : Map<string, DB.T>
-    fns : Map<FQFnName.UserProgram, UserFunction.T>
+
     types : Map<FQTypeName.UserProgram, UserType.T>
     constants : Map<FQConstantName.UserProgram, UserConstant.T>
+    fns : Map<FQFnName.UserProgram, UserFunction.T>
+
+    dbs : Map<string, DB.T>
     secrets : List<Secret.T> }
 
 /// Set of callbacks used to trace the interpreter, and other context needed to run code
@@ -1498,16 +1539,16 @@ and TestContext =
     postTestExecutionHook : TestContext -> unit }
 
 // Functionally written in F# and shipped with the executable
-and BuiltIns =
+and Builtins =
   { constants : Map<FQConstantName.Builtin, BuiltInConstant>
     fns : Map<FQFnName.Builtin, BuiltInFn> }
 
 // Functionality written in Dark stored and managed outside of user space
 and PackageManager =
   { getType : FQTypeName.Package -> Ply<Option<PackageType.T>>
+    getConstant : FQConstantName.Package -> Ply<Option<PackageConstant.T>>
     getFn : FQFnName.Package -> Ply<Option<PackageFn.T>>
     getFnByTLID : tlid -> Ply<Option<PackageFn.T>>
-    getConstant : FQConstantName.Package -> Ply<Option<PackageConstant.T>>
 
     init : Ply<unit> }
 
@@ -1526,7 +1567,7 @@ and Notifier = ExecutionState -> string -> Metadata -> unit
 // All state used while running a program
 and ExecutionState =
   { // -- Set consistently across a runtime --
-    builtIns : BuiltIns
+    builtins : Builtins
     tracing : Tracing
     test : TestContext
 
@@ -1555,21 +1596,21 @@ and ExecutionState =
     typeSymbolTable : TypeSymbolTable
   }
 
-and Functions =
-  { builtIn : Map<FQFnName.Builtin, BuiltInFn>
-    package : FQFnName.Package -> Ply<Option<PackageFn.T>>
-    userProgram : Map<FQFnName.UserProgram, UserFunction.T> }
+and Types =
+  { typeSymbolTable : TypeSymbolTable
+
+    package : FQTypeName.Package -> Ply<Option<PackageType.T>>
+    userProgram : Map<FQTypeName.UserProgram, UserType.T> }
 
 and Constants =
   { builtIn : Map<FQConstantName.Builtin, BuiltInConstant>
     package : FQConstantName.Package -> Ply<Option<PackageConstant.T>>
     userProgram : Map<FQConstantName.UserProgram, UserConstant.T> }
 
-and Types =
-  { typeSymbolTable : TypeSymbolTable
-
-    package : FQTypeName.Package -> Ply<Option<PackageType.T>>
-    userProgram : Map<FQTypeName.UserProgram, UserType.T> }
+and Functions =
+  { builtIn : Map<FQFnName.Builtin, BuiltInFn>
+    package : FQFnName.Package -> Ply<Option<PackageFn.T>>
+    userProgram : Map<FQFnName.UserProgram, UserFunction.T> }
 
 
 module ExecutionState =
@@ -1579,15 +1620,16 @@ module ExecutionState =
       package = state.packageManager.getType
       userProgram = state.program.types }
 
+  let availableConstants (state : ExecutionState) : Constants =
+    { builtIn = state.builtins.constants
+      package = state.packageManager.getConstant
+      userProgram = state.program.constants }
+
   let availableFunctions (state : ExecutionState) : Functions =
-    { builtIn = state.builtIns.fns
+    { builtIn = state.builtins.fns
       package = state.packageManager.getFn
       userProgram = state.program.fns }
 
-  let availableConstants (state : ExecutionState) : Constants =
-    { builtIn = state.builtIns.constants
-      package = state.packageManager.getConstant
-      userProgram = state.program.constants }
 
 
 module Types =
@@ -1603,11 +1645,11 @@ module Types =
     (types : Types)
     : Ply<Option<TypeDeclaration.T>> =
     match name with
-    | FQTypeName.UserProgram user ->
-      Map.find user types.userProgram |> Option.map _.declaration |> Ply
-
     | FQTypeName.Package pkg ->
       types.package pkg |> Ply.map (Option.map _.declaration)
+
+    | FQTypeName.UserProgram user ->
+      Map.find user types.userProgram |> Option.map _.declaration |> Ply
 
   // Swap concrete types for type parameters
   let rec substitute
@@ -1703,17 +1745,6 @@ let builtInFnToFn (fn : BuiltInFn) : Fn =
     sqlSpec = fn.sqlSpec
     fn = BuiltInFunction fn.fn }
 
-let userFnToFn (fn : UserFunction.T) : Fn =
-  let toParam (p : UserFunction.Parameter) : Param = { name = p.name; typ = p.typ }
-
-  { name = FQFnName.UserProgram fn.name
-    typeParams = fn.typeParams
-    parameters = NEList.map toParam fn.parameters
-    returnType = fn.returnType
-    previewable = Impure
-    sqlSpec = NotQueryable
-    fn = UserProgramFunction(fn.tlid, fn.body) }
-
 let packageFnToFn (fn : PackageFn.T) : Fn =
   let toParam (p : PackageFn.Parameter) : Param = { name = p.name; typ = p.typ }
 
@@ -1724,3 +1755,14 @@ let packageFnToFn (fn : PackageFn.T) : Fn =
     previewable = Impure
     sqlSpec = NotQueryable
     fn = PackageFunction(fn.tlid, fn.body) }
+
+let userFnToFn (fn : UserFunction.T) : Fn =
+  let toParam (p : UserFunction.Parameter) : Param = { name = p.name; typ = p.typ }
+
+  { name = FQFnName.UserProgram fn.name
+    typeParams = fn.typeParams
+    parameters = NEList.map toParam fn.parameters
+    returnType = fn.returnType
+    previewable = Impure
+    sqlSpec = NotQueryable
+    fn = UserProgramFunction(fn.tlid, fn.body) }

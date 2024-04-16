@@ -11,8 +11,6 @@ module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
 
-let constants : List<BuiltInConstant> = []
-
 
 let fns : List<BuiltInFn> =
   [ { name = fn "directoryCurrent" 0
@@ -102,4 +100,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let contents : Builtin.Contents = (fns, constants)
+let builtins : Builtins = Builtin.make [] fns

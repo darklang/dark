@@ -2,10 +2,6 @@ module Regex
 
 open System.Text.RegularExpressions
 
-// ----------------------
-// Patterns
-// ----------------------
-
 // Active pattern for regexes
 let (|Regex|_|) (pattern : string) (input : string) =
   let m = Regex.Match(input, pattern)

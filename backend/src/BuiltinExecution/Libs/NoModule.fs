@@ -322,9 +322,6 @@ and equalsMatchPattern (pattern1 : MatchPattern) (pattern2 : MatchPattern) : boo
 
 let varA = TVariable "a"
 
-let constants : List<BuiltInConstant> = []
-
-
 let fns : List<BuiltInFn> =
   [ { name = fn "equals" 0
       typeParams = []
@@ -429,4 +426,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let contents = (fns, constants)
+let builtins = LibExecution.Builtin.make [] fns

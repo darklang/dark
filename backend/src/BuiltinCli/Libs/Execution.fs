@@ -12,6 +12,7 @@ module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
 open System.Runtime.InteropServices
 
+
 let executionOutcomeTypeName =
   FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Cli" ] "ExecutionOutcome" 0
 
@@ -33,26 +34,26 @@ let fns : List<BuiltInFn> =
           let cmdName, cmdArgs =
             if RuntimeInformation.IsOSPlatform OSPlatform.Windows then
               "cmd.exe", $"/c {command}"
+            // TODO: run in whatever the default shell is -- not just bash.
             else if
               RuntimeInformation.IsOSPlatform OSPlatform.Linux
               || RuntimeInformation.IsOSPlatform OSPlatform.OSX
             then
-              // TODO: run in whatever the default shell is -- not just bash.
               "/bin/bash", $"-c \"{command}\""
             else
               "Executing CLI commands is not supported for your operating system (Linux, Windows, or Mac not detected)"
               |> raiseString
 
           let psi =
-            System.Diagnostics.ProcessStartInfo(command)
-            |> fun psi ->
-              psi.FileName <- cmdName
-              psi.Arguments <- cmdArgs
-              psi.UseShellExecute <- false
-              psi.RedirectStandardOutput <- true
-              psi.RedirectStandardError <- true
-              psi.CreateNoWindow <- true
-              psi
+            System.Diagnostics.ProcessStartInfo(
+              command,
+              FileName = cmdName,
+              Arguments = cmdArgs,
+              UseShellExecute = false,
+              RedirectStandardOutput = true,
+              RedirectStandardError = true,
+              CreateNoWindow = true
+            )
 
           let p = System.Diagnostics.Process.Start(psi)
 
@@ -74,5 +75,4 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let constants : List<BuiltInConstant> = []
-let contents : Builtin.Contents = (fns, constants)
+let builtins : Builtins = Builtin.make [] fns
