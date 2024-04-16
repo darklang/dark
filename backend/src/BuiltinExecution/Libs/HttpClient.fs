@@ -533,6 +533,5 @@ let fns (config : Configuration) : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let constants : List<BuiltInConstant> = []
 
-let builtins config = Builtin.make constants (fns config)
+let builtins config = Builtin.make [] (fns config)

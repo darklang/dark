@@ -1,6 +1,6 @@
 # Prelude
 
-To use `open Prelude` in other modules.
+To use, `open Prelude` in other modules.
 
 This adds missing methods and functions to existing standard modules, much like FSharpPlus.
 

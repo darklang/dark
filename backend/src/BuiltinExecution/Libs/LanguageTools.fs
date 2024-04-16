@@ -11,10 +11,6 @@ module TypeChecker = LibExecution.TypeChecker
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
 
-
-
-let constants : List<BuiltInConstant> = []
-
 let typ
   (addlModules : List<string>)
   (name : string)
@@ -29,7 +25,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TList(TCustomType(Ok(typ [] "BuiltinFunction" 0), []))
       description =
-        "Returns a list of Function records, representing the functions available in the standard library."
+        "Returns a list of the Builtin functions (usually not to be accessed directly)."
       fn =
         (function
         | state, _, [ DUnit ] ->
@@ -65,4 +61,5 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let builtins = LibExecution.Builtin.make constants fns
+
+let builtins = LibExecution.Builtin.make [] fns

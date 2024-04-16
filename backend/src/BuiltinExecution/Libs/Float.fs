@@ -7,8 +7,6 @@ open LibExecution.Builtin.Shortcuts
 module VT = ValueType
 module Dval = LibExecution.Dval
 
-let constants : List<BuiltInConstant> = []
-
 
 module ParseError =
   type ParseError = | BadFormat
@@ -21,6 +19,7 @@ module ParseError =
     let typeName =
       FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Float" ] "ParseError" 0
     DEnum(typeName, typeName, [], caseName, fields)
+
 
 let fns : List<BuiltInFn> =
   [ { name = fn "floatCeiling" 0
@@ -347,4 +346,4 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let builtins = LibExecution.Builtin.make constants fns
+let builtins = LibExecution.Builtin.make [] fns

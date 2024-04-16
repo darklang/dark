@@ -7,6 +7,9 @@ open RuntimeTypes
 
 let rec typeName (t : TypeReference) : string =
   match t with
+  | TUnit -> "Unit"
+  | TBool -> "Bool"
+
   | TInt64 -> "Int64"
   | TUInt64 -> "UInt64"
   | TInt8 -> "Int8"
@@ -17,21 +20,23 @@ let rec typeName (t : TypeReference) : string =
   | TUInt32 -> "UInt32"
   | TInt128 -> "Int128"
   | TUInt128 -> "UInt128"
+
   | TFloat -> "Float"
-  | TBool -> "Bool"
-  | TUnit -> "Unit"
   | TChar -> "Char"
   | TString -> "String"
+
+  | TDateTime -> "DateTime"
+  | TUuid -> "Uuid"
+
   | TList nested -> $"List<{typeName nested}>"
   | TTuple(n1, n2, rest) ->
     let nested = (n1 :: n2 :: rest) |> List.map typeName |> String.concat ", "
     $"({nested})"
   | TDict nested -> $"Dict<{typeName nested}>"
+
   | TFn _ -> "Function"
-  | TVariable varname -> $"'{varname}"
-  | TDB _ -> "Datastore"
-  | TDateTime -> "DateTime"
-  | TUuid -> "Uuid"
+
+  | TCustomType(Error _nre, _) -> "(Error during function resolution)"
   | TCustomType(Ok t, typeArgs) ->
     let typeArgsPortion =
       match typeArgs with
@@ -42,7 +47,9 @@ let rec typeName (t : TypeReference) : string =
         |> String.concat ", "
         |> fun betweenBrackets -> "<" + betweenBrackets + ">"
     FQTypeName.toString t + typeArgsPortion
-  | TCustomType(Error _nre, _) -> "(Error during function resolution)"
+
+  | TDB _ -> "Datastore"
+  | TVariable varname -> $"'{varname}"
 
 
 let rec knownTypeName (vt : KnownType) : string =
@@ -119,20 +126,22 @@ let toRepr (dv : Dval) : string =
     let justType = $"<{typename}>"
 
     match dv with
-    | DString s -> $"\"{s}\""
-    | DChar c -> $"'{c}'"
-    | DInt64 i -> string i
-    | DUInt64 i -> string i
+    | DUnit -> "()"
+
+    | DBool true -> "true"
+    | DBool false -> "false"
+
     | DInt8 i -> string i
     | DUInt8 i -> string i
     | DInt16 i -> string i
     | DUInt16 i -> string i
     | DInt32 i -> string i
     | DUInt32 i -> string i
+    | DInt64 i -> string i
+    | DUInt64 i -> string i
     | DInt128 i -> string i
     | DUInt128 i -> string i
-    | DBool true -> "true"
-    | DBool false -> "false"
+
     | DFloat f ->
       if System.Double.IsPositiveInfinity f then
         "Infinity"
@@ -143,20 +152,21 @@ let toRepr (dv : Dval) : string =
       else
         let result = sprintf "%.12g" f
         if result.Contains "." then result else $"{result}.0"
-    | DUnit -> "()"
-    | DFnVal _ ->
-      // TODO: we should print this, as this use case is safe
-      // See docs/dblock-serialization.md
-      justType
+
+    | DChar c -> $"'{c}'"
+    | DString s -> $"\"{s}\""
+
     | DDateTime d -> wrap (DarkDateTime.toIsoString d)
     | DDB name -> wrap name
     | DUuid uuid -> wrap (string uuid)
+
     | DList(_, l) ->
       if List.isEmpty l then
         wrap "[]"
       else
         let elems = String.concat ", " (List.map (toRepr_ indent) l)
         $"[{inl}{elems}{nl}]"
+
     | DTuple(first, second, theRest) ->
       let l = [ first; second ] @ theRest
       let short = String.concat ", " (List.map (toRepr_ indent) l)
@@ -167,15 +177,6 @@ let toRepr (dv : Dval) : string =
         let long = String.concat $"{inl}, " (List.map (toRepr_ indent) l)
         $"({inl}{long}{nl})"
 
-    | DRecord(_, typeName, _typeArgsTODO, fields) ->
-      let fields =
-        fields
-        |> Map.toList
-        |> List.map (fun (key, value) -> ($"{key}: {toRepr_ indent value}"))
-
-      let elems = String.concat $",{inl}" fields
-      let typeStr = FQTypeName.toString typeName
-      $"{typeStr} {{" + $"{inl}{elems}{nl}" + "}"
 
     | DDict(_valueTypeTODO, o) ->
       if Map.isEmpty o then
@@ -188,6 +189,18 @@ let toRepr (dv : Dval) : string =
 
         let elems = String.concat $",{inl}" strs
         "{" + $"{inl}{elems}{nl}" + "}"
+
+    | DRecord(_, typeName, _typeArgsTODO, fields) ->
+      let fields =
+        fields
+        |> Map.toList
+        |> List.map (fun (key, value) -> ($"{key}: {toRepr_ indent value}"))
+
+      let elems = String.concat $",{inl}" fields
+      let typeStr = FQTypeName.toString typeName
+      $"{typeStr} {{" + $"{inl}{elems}{nl}" + "}"
+
+
     | DEnum(_, typeName, typeArgs, caseName, fields) ->
       let typeArgsPart =
         match typeArgs with
@@ -222,5 +235,9 @@ let toRepr (dv : Dval) : string =
         let typeStr = FQTypeName.toString typeName
         $"{typeStr}{typeArgsPart}.{caseName}{fieldStr}"
 
+    | DFnVal _ ->
+      // TODO: we should print this, as this use case is safe
+      // See docs/dblock-serialization.md
+      justType
 
   toRepr_ 0 dv

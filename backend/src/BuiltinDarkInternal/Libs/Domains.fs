@@ -7,13 +7,9 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module VT = ValueType
 module Dval = LibExecution.Dval
 module Canvas = LibCloud.Canvas
 
-
-
-let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "darkInternalCanvasDomainGet" 0
@@ -55,4 +51,4 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let builtins = LibExecution.Builtin.make constants fns
+let builtins = LibExecution.Builtin.make [] fns

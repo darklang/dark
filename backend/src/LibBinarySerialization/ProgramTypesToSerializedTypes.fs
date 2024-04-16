@@ -854,6 +854,7 @@ module UserFunction =
       deprecated = Deprecation.toPT FQFnName.toPT f.deprecated
       body = Expr.toPT f.body }
 
+
 module UserConstant =
   let toST (c : PT.UserConstant.T) : ST.UserConstant.T =
     { tlid = c.tlid
@@ -868,6 +869,7 @@ module UserConstant =
       description = c.description
       deprecated = Deprecation.toPT FQConstantName.toPT c.deprecated
       body = Const.toPT c.body }
+
 
 module Toplevel =
   let toST (tl : PT.Toplevel.T) : ST.Toplevel.T =
@@ -885,6 +887,7 @@ module Toplevel =
     | ST.Toplevel.TLFunction f -> PT.Toplevel.TLFunction(UserFunction.toPT f)
     | ST.Toplevel.TLType ut -> PT.Toplevel.TLType(UserType.toPT ut)
     | ST.Toplevel.TLConstant c -> PT.Toplevel.TLConstant(UserConstant.toPT c)
+
 
 module PackageFn =
   module Parameter =

@@ -9,8 +9,6 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 
-let constants : List<BuiltInConstant> = []
-
 let fns : List<BuiltInFn> =
   [ { name = fn "darkInternalUserCreate" 0
       typeParams = []
@@ -29,4 +27,4 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let builtins = LibExecution.Builtin.make constants fns
+let builtins = LibExecution.Builtin.make [] fns

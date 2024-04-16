@@ -64,8 +64,8 @@ let LoadClient (canvasName : string) : Task<string> =
         getStateForEval
           builtin
           clientSource.types
-          clientSource.fns
           clientSource.constants
+          clientSource.fns
       LibExecution.Execution.executeFunction
         state
         None
@@ -77,10 +77,10 @@ let LoadClient (canvasName : string) : Task<string> =
     match initialState with
     | Ok result ->
       Libs.Editor.editor <-
-        { Types = clientSource.types
-          Functions = clientSource.fns
-          Constants = clientSource.constants
-          CurrentState = result }
+        { types = clientSource.types
+          constants = clientSource.constants
+          functions = clientSource.fns
+          currentState = result }
 
       return LibExecution.DvalReprDeveloper.toRepr result
 
@@ -99,9 +99,9 @@ let HandleEvent (serializedEvent : string) : Task<string> =
     let state =
       getStateForEval
         builtin
-        Libs.Editor.editor.Types
-        Libs.Editor.editor.Functions
-        Libs.Editor.editor.Constants
+        Libs.Editor.editor.types
+        Libs.Editor.editor.constants
+        Libs.Editor.editor.functions
 
     let! result =
       LibExecution.Execution.executeFunction

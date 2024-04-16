@@ -16,9 +16,6 @@ let varA = TVariable "a"
 let varB = TVariable "b"
 
 
-
-let constants : List<BuiltInConstant> = []
-
 let fns : List<BuiltInFn> =
   [ { name = fn "dictSize" 0
       typeParams = []
@@ -72,7 +69,8 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "dict" (TDict varA) "" ]
       returnType = (TList(TTuple(varA, varB, [])))
       description =
-        "Returns <param dict>'s entries as a list of {{(key, value)}} tuples, in an arbitrary order. This function is the opposite of <fn Dict.fromList>"
+        "Returns <param dict>'s entries as a list of {{(key, value)}} tuples, in an arbitrary order.
+        This function is the opposite of <fn Dict.fromList>"
       fn =
         (function
         | _, _, [ DDict(valueType, o) ] ->
@@ -363,6 +361,7 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
+
     { name = fn "dictIsEmpty" 0
       typeParams = []
       parameters = [ Param.make "dict" (TDict varA) "" ]
@@ -383,7 +382,9 @@ let fns : List<BuiltInFn> =
         [ Param.make "left" (TDict varA) ""; Param.make "right" (TDict varA) "" ]
       returnType = TDict varA
       description =
-        "Returns a combined dictionary with both dictionaries' entries. If the same key exists in both <param left> and <param right>, it will have the value from <param right>."
+        "Returns a combined dictionary with both dictionaries' entries.
+        If the same key exists in both <param left> and <param right>,
+          it will have the value from <param right>."
       fn =
         (function
         | _, _, [ DDict(_vtTODO1, l); DDict(_vtTODO2, r) ] ->
@@ -428,4 +429,4 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let builtins = LibExecution.Builtin.make constants fns
+let builtins = LibExecution.Builtin.make [] fns

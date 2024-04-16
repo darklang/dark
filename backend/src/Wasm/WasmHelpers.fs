@@ -23,6 +23,7 @@ let getJsRuntimeThis () : IJSInProcessRuntime =
 
   jsRuntimeTypeInstance.GetValue(null) :?> IJSInProcessRuntime
 
+
 /// Call a function exposed in JS host
 ///
 /// TODO: consider requiring the input of this to be SimpleJSON or something,

@@ -12,9 +12,6 @@ open LibExecution.Builtin.Shortcuts
 module VT = ValueType
 module Dval = LibExecution.Dval
 
-let constants : List<BuiltInConstant> = []
-
-
 
 module ParseError =
   type ParseError =
@@ -30,7 +27,6 @@ module ParseError =
     let typeName =
       FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Int32" ] "ParseError" 0
     DEnum(typeName, typeName, [], caseName, fields)
-
 
 
 let fns : List<BuiltInFn> =
@@ -517,8 +513,6 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated } ]
 
-    ]
-
-let builtins = LibExecution.Builtin.make constants fns
+let builtins = LibExecution.Builtin.make [] fns

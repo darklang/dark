@@ -1,8 +1,8 @@
 /// This is the webserver for darklang.io, often referred to as "BWD" (named after
 /// our old domain - builtwithdark.com)
 ///
-/// All Dark programs are hosted with BWD - our grand-users hit this server, and BWD
-/// handles the requests.  So, BWD is what handles the "handlers" of a Dark program.
+/// All Dark HTTP handlers are handled by this service
+/// our grand-users hit this server, and BWD handles the requests.
 ///
 /// It uses ASP.NET directly, instead of a web framework, so we can tune the exact
 /// behaviour of headers and such.
@@ -71,9 +71,7 @@ let getHeadersWithoutMergingKeys (ctx : HttpContext) : List<string * string> =
   |> Seq.collect (fun pair -> pair)
   |> Seq.toList
 
-/// Reads the incoming query parameters and simplifies into a list of key*values pairs
-///
-/// (multiple query params may be present with the same key)
+/// Reads the incoming query parameters
 let getQuery (ctx : HttpContext) : string = ctx.Request.QueryString.ToString()
 
 /// Reads the incoming request body as a byte array
@@ -85,7 +83,7 @@ let getBody (ctx : HttpContext) : Task<byte array> =
       do! ctx.Request.Body.CopyToAsync(ms)
       return ms.ToArray()
     with e ->
-      // Let's try to get a good error message to the user, but don't include .NET specific hints
+      // Let's try to get a good error message to the user, but don't include .NET-specific hints
       let tooSlowlyMessage =
         "Reading the request body timed out due to data arriving too slowly"
       let message =
@@ -149,7 +147,9 @@ let writeResponseToContext
   : Task<unit> =
   task {
     ctx.Response.StatusCode <- statusCode
+
     headers |> List.iter (fun (k, v) -> setResponseHeader ctx k v)
+
     ctx.Response.ContentLength <- int64 body.Length
     if ctx.Request.Method <> "HEAD" then
       // TODO: benchmark - this is apparently faster than streams
@@ -195,18 +195,17 @@ let errorResponse
 
 
 let noHandlerResponse (ctx : HttpContext) : Task<HttpContext> =
-  // CLEANUP: use errorResponse
   Telemetry.addTag "http.completion_reason" "noHandler"
-  standardResponse ctx "404 Not Found: No route matches" textPlain 404
+  errorResponse ctx "404 Not Found: No route matches" 404
 
 let canvasNotFoundResponse (ctx : HttpContext) : Task<HttpContext> =
-  // CLEANUP: use errorResponse
   Telemetry.addTag "http.completion_reason" "canvasNotFound"
-  standardResponse ctx "canvas not found" textPlain 404
+  errorResponse ctx "canvas not found" 404
 
 let internalErrorResponse (ctx : HttpContext) (e : exn) : Task<HttpContext> =
   Telemetry.addTag "http.completion_reason" "internalError"
   Telemetry.addTag "http.internal_exception_msg" e.Message
+
   // It's possible that the body has already been written to, so we need to be careful here
   if ctx.Response.HasStarted then
     Telemetry.addTag "http.body_started_before_error_logged" true
@@ -220,9 +219,8 @@ let internalErrorResponse (ctx : HttpContext) (e : exn) : Task<HttpContext> =
 let moreThanOneHandlerResponse (ctx : HttpContext) : Task<HttpContext> =
   let path = ctx.Request.Path.Value
   let message = $"500 Internal Server Error: More than one handler for route: {path}"
-  // CLEANUP: use errorResponse
   Telemetry.addTag "http.completion_reason" "moreThanOnHandler"
-  standardResponse ctx message textPlain 500
+  errorResponse ctx message 500
 
 let unmatchedRouteResponse
   (ctx : HttpContext)
@@ -230,9 +228,8 @@ let unmatchedRouteResponse
   (route : string)
   : Task<HttpContext> =
   let message = $"The request ({requestPath}) does not match the route ({route})"
-  // CLEANUP use errorResponse
   Telemetry.addTag "http.completion_reason" "unmatchedRoute"
-  standardResponse ctx message textPlain 500
+  errorResponse ctx message 500
 
 
 // ---------------
@@ -240,8 +237,8 @@ let unmatchedRouteResponse
 // ---------------
 
 let isHttps (ctx : HttpContext) =
-  // requests aren't actually https in production. The load balancer terminates https
-  // and forwards the details using headers
+  // Requests aren't actually https in production.
+  // The load balancer terminates https and forwards the details using headers.
   getHeader ctx.Request.Headers "X-Forwarded-Proto" = Some "https"
 
 // ---------------
@@ -284,6 +281,8 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
       let traceID = LibExecution.AnalysisTypes.TraceID.create ()
       let requestMethod = ctx.Request.Method
       let requestPath = ctx.Request.Path.Value |> Routing.sanitizeUrlPath
+
+      // TODO: stop storing all the handler types together...
       let desc = ("HTTP", requestPath, requestMethod)
 
       Telemetry.addTags [ "canvas.id", canvasID; "trace_id", traceID ]
@@ -339,8 +338,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
 
           return ctx
 
-        | None -> // vars didnt parse
-
+        | None -> // vars didn't parse
           // TODO: reenable using CloudStorage
           // FireAndForget.fireAndForgetTask "store-event" (fun () ->
           //   let request = LibHttpMiddleware.Request.fromRequest url reqHeaders reqBody

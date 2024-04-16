@@ -1,10 +1,8 @@
+/// Our Postgres DB migrations
 module LibCloud.Migrations
 
-
-// Migrations
-
 // Note that we don't use Tasks in here because these are expected to be run in
-// order, so easier to execute synchronously than have a bunch of code to use
+// order, so it's easier to execute synchronously than have a bunch of code to use
 // tasks and then extra code to ensure the tasks are run synchronously.
 
 open Npgsql
@@ -44,9 +42,9 @@ let runSystemMigration (name : string) (sql : string) : unit =
   // On conflict, do nothing because another starting process might be running this migration as well.
   let recordMigrationStmt =
     "INSERT INTO system_migrations_v0
-       (name, execution_date, sql)
-       VALUES (@name, CURRENT_TIMESTAMP, @sql)
-       ON CONFLICT DO NOTHING"
+      (name, execution_date, sql)
+    VALUES (@name, CURRENT_TIMESTAMP, @sql)
+    ON CONFLICT DO NOTHING"
 
   let recordMigrationParams = [ "name", Sql.string name; "sql", Sql.string sql ]
 

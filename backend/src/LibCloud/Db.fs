@@ -10,11 +10,8 @@ open Prelude
 
 module Telemetry = LibService.Telemetry
 
-module RT = LibExecution.RuntimeTypes
-
 
 module Sql =
-
   let query (sql : string) : Sql.SqlProps =
     LibService.DBConnection.dataSource |> Sql.fromDataSource |> Sql.query sql
 
@@ -45,7 +42,7 @@ module Sql =
 
   // TODO do a better job of naming these
   // NOTE: This does not use SQL `EXISTS` but rather expects the query to return a
-  // list of 1/0. We should instead make this use SQL `EXISTS` because it returns
+  // list of 1/0. We should instead (TODO) make this use SQL `EXISTS` because it returns
   // early and fetches less data
   let executeExistsAsync (props : Sql.SqlProps) : Task<bool> =
     task {
@@ -182,49 +179,49 @@ let tableStats () : Task<List<TableStatsRow>> =
   // 3) the final query provides both raw- and humanized- formatted columns
   Sql.query
     "WITH sizes AS (
-         SELECT
-            relname as \"relation\",
-            pg_total_relation_size (C .oid) as disk,
-            reltuples::bigint AS \"rows\"
-         FROM pg_class C
-         LEFT JOIN pg_namespace N ON (N.oid = C .relnamespace)
-         WHERE nspname NOT IN ('pg_catalog', 'information_schema')
-         AND C .relkind <> 'i'
-         AND nspname !~ '^pg_toast'
-         ORDER BY pg_total_relation_size (C .oid) DESC
-     ),
+      SELECT
+        relname as \"relation\",
+        pg_total_relation_size (C .oid) as disk,
+        reltuples::bigint AS \"rows\"
+      FROM pg_class C
+      LEFT JOIN pg_namespace N ON (N.oid = C .relnamespace)
+      WHERE nspname NOT IN ('pg_catalog', 'information_schema')
+        AND C .relkind <> 'i'
+        AND nspname !~ '^pg_toast'
+      ORDER BY pg_total_relation_size (C .oid) DESC
+    ),
 
-     -- with_total_row is a subquery that appends a SUM() row to the bottom of our result set
-     with_total_row AS (
-         SELECT relation, disk, \"rows\" FROM sizes
-         UNION ALL
-         SELECT
-            'Total',
-            SUM(disk),
-            SUM(\"rows\")
-         FROM sizes
-     )
+    -- with_total_row is a subquery that appends a SUM() row to the bottom of our result set
+    with_total_row AS (
+      SELECT relation, disk, \"rows\" FROM sizes
+      UNION ALL
+      SELECT
+        'Total',
+        SUM(disk),
+        SUM(\"rows\")
+      FROM sizes
+    )
 
-     -- now we actually do our output, including both raw and humanized-number
-     -- columns for \"disk\" and \"rows\"
-     SELECT relation,
-         disk,
-         \"rows\",
-         pg_size_pretty(disk) as disk_human,
-         -- NOTE: below uses pg_size_pretty to get us something human readable
-         -- ('100M' is easier than '100000000', but it's _row count_, not bytes,
-         -- hence trimming those parts off.)
-         --
-         -- Examples for trim(from substring(...)):
-         -- 100 MB -> 100M
-         -- 100 kb -> 100k
-         -- 1 bytes -> 1
-         trim(from
-             substring(
-                 pg_size_pretty ( \"rows\"::bigint)
-                 from '[0-9]* [^b]?')
-         ) as rows_human
-     FROM with_total_row"
+    -- now we actually do our output, including both raw and humanized-number
+    -- columns for \"disk\" and \"rows\"
+    SELECT relation,
+      disk,
+      \"rows\",
+      pg_size_pretty(disk) as disk_human,
+      -- NOTE: below uses pg_size_pretty to get us something human readable
+      -- ('100M' is easier than '100000000', but it's _row count_, not bytes,
+      -- hence trimming those parts off.)
+      --
+      -- Examples for trim(from substring(...)):
+      -- 100 MB -> 100M
+      -- 100 kb -> 100k
+      -- 1 bytes -> 1
+      trim(from
+          substring(
+              pg_size_pretty ( \"rows\"::bigint)
+              from '[0-9]* [^b]?')
+      ) as rows_human
+    FROM with_total_row"
   |> Sql.executeAsync (fun read ->
     { relation = read.string "relation"
       diskBytes = read.int64OrNone "disk" |> Option.unwrap 0

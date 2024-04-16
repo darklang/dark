@@ -18,7 +18,7 @@ let renameFunctions
   (renames : FnRenames)
   (existing : List<BuiltInFn>)
   : List<BuiltInFn> =
-  let existingMap = existing |> List.map (fun fn -> fn.name, fn) |> Map
+  let existingMap = existing |> Map.fromListBy _.name
   let newFns =
     renames
     |> List.fold
@@ -28,6 +28,7 @@ let renameFunctions
           |> Exception.unwrapOptionInternal
             $"all fns should exist {oldName} -> {newName}"
             [ "oldName", oldName; "newName", newName ]
+
         Map.add
           oldName
           { newFn with
@@ -39,11 +40,10 @@ let renameFunctions
   existing @ newFns
 
 
-let checkFn (_fn : BuiltInFn) : unit =
-  // We can't do this until constants (eg Math.pi) are no longer implemented as functions
-  // if fn.parameters = [] then
-  //   Exception.raiseInternal $"function {fn.name} has no parameters" [ "fn", fn.name ]
-  ()
+let checkFn (fn : BuiltInFn) : unit =
+  if fn.parameters = [] then
+    Exception.raiseInternal $"function {fn.name} has no parameters" [ "fn", fn.name ]
+
 
 /// Provided a list of library contents, combine them (handling renames)
 let combine (libs : List<Builtins>) (fnRenames : FnRenames) : Builtins =

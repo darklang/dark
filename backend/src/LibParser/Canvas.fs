@@ -15,9 +15,9 @@ open ParserException
 type WTCanvasModule =
   { name : List<string>
     types : List<WT.UserType.T>
-    fns : List<WT.UserFunction.T>
     constants : List<WT.UserConstant.T>
     dbs : List<WT.DB.T>
+    fns : List<WT.UserFunction.T>
     // TODO: consider breaking this down into httpHandlers, crons, workers, and repls
     handlers : List<WT.Handler.Spec * WT.Expr>
     exprs : List<WT.Expr> }
@@ -25,17 +25,17 @@ type WTCanvasModule =
 let emptyWTModule =
   { name = []
     types = []
-    fns = []
     constants = []
     dbs = []
+    fns = []
     handlers = []
     exprs = [] }
 
 type PTCanvasModule =
   { types : List<PT.UserType.T>
-    fns : List<PT.UserFunction.T>
-    dbs : List<PT.DB.T>
     constants : List<PT.UserConstant.T>
+    dbs : List<PT.DB.T>
+    fns : List<PT.UserFunction.T>
     // TODO: consider breaking this down into httpHandlers, crons, workers, and repls
     handlers : List<PT.Handler.Spec * PT.Expr>
     exprs : List<PT.Expr> }

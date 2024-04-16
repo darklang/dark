@@ -27,13 +27,15 @@ let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
   | _, _, [ DUuid canvasID; DString handlerName ] ->
     uply {
       do! fn canvasID handlerName
-      // TODO reenable
       let! _s = SchedulingRules.getWorkerSchedules canvasID
+
+      // TODO reenable
       // Pusher.push
       //   LibClientTypesToCloudTypes.Pusher.eventSerializer
       //   canvasID
       //   (Pusher.UpdateWorkerStates s)
       //   None
+
       return DUnit
     }
   | _ -> incorrectArgs ())
@@ -57,7 +59,6 @@ let rulesToDval (rules : List<SchedulingRules.SchedulingRule.T>) : Dval =
         ("created_at", DDateTime(DarkDateTime.fromInstant r.createdAt)) ]
     DRecord(typeName, typeName, [], Map fields))
   |> Dval.list (KTCustomType(typeName, []))
-
 
 
 let fns : List<BuiltInFn> =
@@ -142,5 +143,4 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let constants : List<BuiltInConstant> = []
-let builtins = LibExecution.Builtin.make constants fns
+let builtins = LibExecution.Builtin.make [] fns

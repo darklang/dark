@@ -1,8 +1,6 @@
 /// Supports the storage (CRUD) of canvas-level user secrets
 module LibCloud.Secret
 
-// Secrets
-
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
@@ -17,9 +15,9 @@ module PT = LibExecution.ProgramTypes
 let getCanvasSecrets (canvasID : CanvasID) : Task<List<PT.Secret.T>> =
   Sql.query
     "SELECT name, value, version
-     FROM secrets_v0
-     WHERE canvas_id = @canvasID
-     ORDER BY created_at DESC"
+    FROM secrets_v0
+    WHERE canvas_id = @canvasID
+    ORDER BY created_at DESC"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read ->
     { name = read.string "name"
@@ -34,8 +32,9 @@ let insert
   : Task<unit> =
   Sql.query
     "INSERT INTO secrets_v0
-    (canvas_id, name, value, version)
-    VALUES (@canvasID, @name, @value, @version)"
+      (canvas_id, name, value, version)
+    VALUES
+      (@canvasID, @name, @value, @version)"
   |> Sql.parameters
     [ "canvasID", Sql.uuid canvasID
       "name", Sql.string name

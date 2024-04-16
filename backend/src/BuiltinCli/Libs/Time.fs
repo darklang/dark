@@ -10,8 +10,6 @@ open LibExecution.RuntimeTypes
 module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
 
-let constants : List<BuiltInConstant> = []
-
 let fns : List<BuiltInFn> =
   [ { name = fn "timeSleep" 0
       typeParams = []
@@ -32,4 +30,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let builtins : Builtins = Builtin.make constants fns
+let builtins : Builtins = Builtin.make [] fns

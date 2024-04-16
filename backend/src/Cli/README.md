@@ -1,12 +1,11 @@
-# darklang-cli
+# `darklang` CLI executable
+
+TODO improve this readme
 
 ## Usage
 
-- create script with #!/usr/bin/env darklang
+- create script with `#!/usr/bin/env darklang`
 - runs same as if it was bash
-
-- darklang infer --prompt "A file that prints 'hello' 100 times in a loop"
-  - creates and saves a script that does what the prompt asks with the name creates by the AI
 
 ## Structure
 

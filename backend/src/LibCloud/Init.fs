@@ -27,7 +27,7 @@ let waitForDB (shouldWaitForDB : WaitForDB) : Task<unit> =
 /// <summary>Initialize LibCloud.</summary>
 ///
 /// <remarks> This function does not do any behaviour which accesses DB tables and
-/// data, as the DB might not be migrated to it's correct form at this point (eg in
+/// data, as the DB might not be migrated to its correct form at this point (e.g. in
 /// the test of dev environment). This is called by ProdExec, which does the
 /// migration. You cannot expect the DB to be ready when LibCloud is initialized -
 /// call `waitForDB` if you need that.</remarks>

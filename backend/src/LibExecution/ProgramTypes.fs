@@ -371,7 +371,7 @@ type Infix =
   | BinOp of BinaryOperation
 
 /// Darklang's available types
-/// - `int`
+/// - `Int64`
 /// - `List<T>`
 /// - user-defined enums
 /// - etc.
@@ -491,7 +491,7 @@ type Expr =
   /// - `expr (args[0])`
   /// - `expr (args[0]) (args[1])`
   /// - `expr<typeArg[0]> (args[0])`
-  | EApply of id * expr: Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
+  | EApply of id * expr : Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
 
   /// Reference a function name, _usually_ so we can _apply_ it with args
   | EFnName of id * NameResolution<FQFnName.FQFnName>
@@ -502,7 +502,7 @@ type Expr =
   | ELambda of id * pats : NEList<LetPattern> * body : Expr
 
   /// Calls upon an infix function
-  | EInfix of id * Infix * lhs: Expr * rhs: Expr
+  | EInfix of id * Infix * lhs : Expr * rhs : Expr
 
 
   // -- References to custom types and data --
@@ -511,9 +511,9 @@ type Expr =
   // See NameResolution comment above
   | ERecord of
     id *
-    typeName: NameResolution<FQTypeName.FQTypeName> *
+    typeName : NameResolution<FQTypeName.FQTypeName> *
     // User is allowed type `Name {}` even if that's an error
-    fields: List<string * Expr>
+    fields : List<string * Expr>
   | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
 
   // Enums include `Some`, `None`, `Error`, `Ok`, as well
@@ -599,7 +599,7 @@ module PipeExpr =
     | EPipeEnum(id, _, _, _) -> id
 
 
-/// A type defined by a standard library module, a canvas/user, or a package
+/// A type defined by a package or canvas/user
 module TypeDeclaration =
   type RecordField = { name : string; typ : TypeReference; description : string }
 
@@ -624,23 +624,7 @@ module TypeDeclaration =
   type T = { typeParams : List<string>; definition : Definition }
 
 
-// Used to mark whether a function/type has been deprecated, and if so,
-// details about possible replacements/alternatives, and reasoning
-type Deprecation<'name> =
-  | NotDeprecated
-
-  // The exact same thing is available under a new, preferred name
-  | RenamedTo of 'name
-
-  /// This has been deprecated and has a replacement we can suggest
-  | ReplacedBy of 'name
-
-  /// This has been deprecated and not replaced, provide a message for the user
-  | DeprecatedBecause of string
-
-
-
-
+// TODO: consider renaming to ConstDeclaration
 type Const =
   | CInt64 of int64
   | CUInt64 of uint64
@@ -663,6 +647,22 @@ type Const =
   | CDict of List<string * Const>
 
 
+
+// Used to mark whether a function/type has been deprecated, and if so,
+// details about possible replacements/alternatives, and reasoning
+type Deprecation<'name> =
+  | NotDeprecated
+
+  // The exact same thing is available under a new, preferred name
+  | RenamedTo of 'name
+
+  /// This has been deprecated and has a replacement we can suggest
+  | ReplacedBy of 'name
+
+  /// This has been deprecated and not replaced, provide a message for the user
+  | DeprecatedBecause of string
+
+
 // --
 // Package things
 // --
@@ -675,6 +675,15 @@ module PackageConstant =
       description : string
       deprecated : Deprecation<FQConstantName.FQConstantName>
       body : Const }
+
+module PackageType =
+  type T =
+    { tlid : tlid
+      id : System.Guid
+      name : FQTypeName.Package
+      declaration : TypeDeclaration.T
+      description : string
+      deprecated : Deprecation<FQTypeName.FQTypeName> }
 
 module PackageFn =
   type Parameter = { name : string; typ : TypeReference; description : string }
@@ -690,25 +699,16 @@ module PackageFn =
       description : string
       deprecated : Deprecation<FQFnName.FQFnName> }
 
-module PackageType =
-  type T =
-    { tlid : tlid
-      id : System.Guid
-      name : FQTypeName.Package
-      declaration : TypeDeclaration.T
-      description : string
-      deprecated : Deprecation<FQTypeName.FQTypeName> }
-
 type Packages =
   { types : List<PackageType.T>
     constants : List<PackageConstant.T>
     fns : List<PackageFn.T> }
 
   static member combine(packages : List<Packages>) : Packages =
-    let types = packages |> List.map (fun p -> p.types) |> List.concat
-    let fns = packages |> List.map (fun p -> p.fns) |> List.concat
-    let constants = packages |> List.map (fun p -> p.constants) |> List.concat
-    { types = types; fns = fns; constants = constants }
+    // CLEANUP: can't we just List.collect here?
+    { types = packages |> List.map _.types |> List.concat
+      constants = packages |> List.map _.constants |> List.concat
+      fns = packages |> List.map _.fns |> List.concat }
 
 
 
@@ -780,16 +780,16 @@ module Handler =
 
 module Toplevel =
   type T =
-    | TLHandler of Handler.T
-    | TLDB of DB.T
-    | TLFunction of UserFunction.T
     | TLType of UserType.T
     | TLConstant of UserConstant.T
+    | TLDB of DB.T
+    | TLFunction of UserFunction.T
+    | TLHandler of Handler.T
 
   let toTLID (tl : T) : tlid =
     match tl with
-    | TLHandler h -> h.tlid
-    | TLDB db -> db.tlid
-    | TLFunction f -> f.tlid
     | TLType t -> t.tlid
     | TLConstant c -> c.tlid
+    | TLDB db -> db.tlid
+    | TLFunction f -> f.tlid
+    | TLHandler h -> h.tlid

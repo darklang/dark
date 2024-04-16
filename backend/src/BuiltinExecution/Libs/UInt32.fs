@@ -12,7 +12,6 @@ open LibExecution.Builtin.Shortcuts
 module VT = ValueType
 module Dval = LibExecution.Dval
 
-let constants : List<BuiltInConstant> = []
 
 module ParseError =
   type ParseError =
@@ -351,7 +350,8 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt8 "" ]
       returnType = TypeReference.option TUInt32
       description =
-        "Converts an Int8 to a 32-bit unsigned integer. Returns {{None}} if the value is less than 0."
+        "Converts an Int8 to a 32-bit unsigned integer.
+        Returns {{None}} if the value is less than 0."
       fn =
         (function
         | _, _, [ DInt8 a ] ->
@@ -384,7 +384,8 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt16 "" ]
       returnType = TypeReference.option TUInt32
       description =
-        "Converts an Int16 to a 32-bit unsigned integer. Returns {{None}} if the value is less than 0."
+        "Converts an Int16 to a 32-bit unsigned integer.
+        Returns {{None}} if the value is less than 0."
       fn =
         (function
         | _, _, [ DInt16 a ] ->
@@ -417,7 +418,8 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt32 "" ]
       returnType = TypeReference.option TInt32
       description =
-        "Converts an Int32 to a 32-bit unsigned integer. Returns {{None}} if the value is less than 0"
+        "Converts an Int32 to a 32-bit unsigned integer.
+        Returns {{None}} if the value is less than 0"
       fn =
         (function
         | _, _, [ DInt32 a ] ->
@@ -436,7 +438,8 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt64 "" ]
       returnType = TypeReference.option TUInt32
       description =
-        "Converts an Int64 to a 32-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 4294967295."
+        "Converts an Int64 to a 32-bit unsigned integer.
+        Returns {{None}} if the value is less than 0 or greater than 4294967295."
       fn =
         (function
         | _, _, [ DInt64 a ] ->
@@ -457,7 +460,8 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt64 "" ]
       returnType = TypeReference.option TUInt32
       description =
-        "Converts a UInt64 to a 32-bit unsigned integer. Returns {{None}} if the value is greater than 4294967295."
+        "Converts a UInt64 to a 32-bit unsigned integer.
+        Returns {{None}} if the value is greater than 4294967295."
       fn =
         (function
         | _, _, [ DUInt64 a ] ->
@@ -498,7 +502,8 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt128 "" ]
       returnType = TypeReference.option TUInt32
       description =
-        "Converts a UInt128 to a 32-bit unsigned integer. Returns {{None}} if the value is greater than 4294967295."
+        "Converts a UInt128 to a 32-bit unsigned integer.
+        Returns {{None}} if the value is greater than 4294967295."
       fn =
         (function
         | _, _, [ DUInt128 a ] ->
@@ -509,8 +514,6 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated } ]
 
-    ]
-
-let builtins = LibExecution.Builtin.make constants fns
+let builtins = LibExecution.Builtin.make [] fns

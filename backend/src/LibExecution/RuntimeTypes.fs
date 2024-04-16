@@ -645,8 +645,8 @@ and Expr =
   // flow control
   | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
   | EMatch of id * Expr * NEList<MatchCase>
-  | EAnd of id * lhs: Expr * rhs: Expr
-  | EOr of id * lhs: Expr * rhs: Expr
+  | EAnd of id * lhs : Expr * rhs : Expr
+  | EOr of id * lhs : Expr * rhs : Expr
 
   // declaring and referencing vars
   | ELet of id * LetPattern * Expr * Expr
@@ -1267,27 +1267,32 @@ module Dval =
     | _ -> None
 
 
-
+// TODO: rename to ConstDeclaration
 type Const =
-  | CInt64 of int64
-  | CUInt64 of uint64
+  | CUnit
+  | CBool of bool
+
   | CInt8 of int8
   | CUInt8 of uint8
   | CInt16 of int16
   | CUInt16 of uint16
   | CInt32 of int32
   | CUInt32 of uint32
+  | CInt64 of int64
+  | CUInt64 of uint64
   | CInt128 of System.Int128
   | CUInt128 of System.UInt128
-  | CBool of bool
-  | CString of string
-  | CChar of string
+
   | CFloat of Sign * string * string
-  | CUnit
-  | CTuple of first : Const * second : Const * rest : List<Const>
-  | CEnum of NameResolution<FQTypeName.FQTypeName> * caseName : string * List<Const>
+
+  | CChar of string
+  | CString of string
+
   | CList of List<Const>
+  | CTuple of first : Const * second : Const * rest : List<Const>
   | CDict of List<string * Const>
+
+  | CEnum of NameResolution<FQTypeName.FQTypeName> * caseName : string * List<Const>
 
 
 
@@ -1335,6 +1340,12 @@ module UserFunction =
       returnType : TypeReference
       body : Expr }
 
+module DB =
+  type T = { tlid : tlid; name : string; typ : TypeReference; version : int }
+
+module Secret =
+  type T = { name : string; value : string; version : int }
+
 module Handler =
   type CronInterval =
     | EveryDay
@@ -1351,12 +1362,6 @@ module Handler =
     | REPL of name : string
 
   type T = { tlid : tlid; ast : Expr; spec : Spec }
-
-module DB =
-  type T = { tlid : tlid; name : string; typ : TypeReference; version : int }
-
-module Secret =
-  type T = { name : string; value : string; version : int }
 
 module Toplevel =
   type T =
@@ -1640,11 +1645,11 @@ module Types =
     (types : Types)
     : Ply<Option<TypeDeclaration.T>> =
     match name with
-    | FQTypeName.UserProgram user ->
-      Map.find user types.userProgram |> Option.map _.declaration |> Ply
-
     | FQTypeName.Package pkg ->
       types.package pkg |> Ply.map (Option.map _.declaration)
+
+    | FQTypeName.UserProgram user ->
+      Map.find user types.userProgram |> Option.map _.declaration |> Ply
 
   // Swap concrete types for type parameters
   let rec substitute
@@ -1740,17 +1745,6 @@ let builtInFnToFn (fn : BuiltInFn) : Fn =
     sqlSpec = fn.sqlSpec
     fn = BuiltInFunction fn.fn }
 
-let userFnToFn (fn : UserFunction.T) : Fn =
-  let toParam (p : UserFunction.Parameter) : Param = { name = p.name; typ = p.typ }
-
-  { name = FQFnName.UserProgram fn.name
-    typeParams = fn.typeParams
-    parameters = NEList.map toParam fn.parameters
-    returnType = fn.returnType
-    previewable = Impure
-    sqlSpec = NotQueryable
-    fn = UserProgramFunction(fn.tlid, fn.body) }
-
 let packageFnToFn (fn : PackageFn.T) : Fn =
   let toParam (p : PackageFn.Parameter) : Param = { name = p.name; typ = p.typ }
 
@@ -1761,3 +1755,14 @@ let packageFnToFn (fn : PackageFn.T) : Fn =
     previewable = Impure
     sqlSpec = NotQueryable
     fn = PackageFunction(fn.tlid, fn.body) }
+
+let userFnToFn (fn : UserFunction.T) : Fn =
+  let toParam (p : UserFunction.Parameter) : Param = { name = p.name; typ = p.typ }
+
+  { name = FQFnName.UserProgram fn.name
+    typeParams = fn.typeParams
+    parameters = NEList.map toParam fn.parameters
+    returnType = fn.returnType
+    previewable = Impure
+    sqlSpec = NotQueryable
+    fn = UserProgramFunction(fn.tlid, fn.body) }

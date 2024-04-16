@@ -24,11 +24,11 @@ type CronScheduleData = Serialize.CronScheduleData
 let lastRanAt (cron : CronScheduleData) : Task<Option<NodaTime.Instant>> =
   Sql.query
     "SELECT ran_at
-       FROM cron_records_v0
-       WHERE tlid = @tlid
-       AND canvas_id = @canvasID
-       ORDER BY id DESC
-       LIMIT 1"
+    FROM cron_records_v0
+    WHERE tlid = @tlid
+      AND canvas_id = @canvasID
+    ORDER BY id DESC
+    LIMIT 1"
   |> Sql.parameters
     [ "tlid", Sql.tlid cron.tlid; "canvasID", Sql.uuid cron.canvasID ]
   |> Sql.executeRowOptionAsync (fun read -> read.instantWithoutTimeZone "ran_at")
@@ -80,8 +80,9 @@ let executionCheck (cron : CronScheduleData) : Task<Option<NextExecution>> =
 let recordExecution (cron : CronScheduleData) : Task<unit> =
   Sql.query
     "INSERT INTO cron_records_v0
-    (id, tlid, canvas_id)
-    VALUES (@id, @tlid, @canvasID)"
+      (id, tlid, canvas_id)
+    VALUES
+      (@id, @tlid, @canvasID)"
   |> Sql.parameters
     [ "id", Sql.uuid (System.Guid.NewGuid())
       "tlid", Sql.tlid cron.tlid
@@ -124,6 +125,8 @@ let checkAndScheduleWorkForCron (cron : CronScheduleData) : Task<bool> =
         // that's 24.85 days worth of milliseconds. Since our
         // longest allowed cron interval is two weeks, this is
         // fine
+        // CLEANUP: that^ note assumes too much about our cron setup;
+        //   monthly crons would be reasonable
         check.interval
         |> Option.map (fun interval -> ("interval", interval.Milliseconds :> obj))
       let delayRatioLog =

@@ -19,11 +19,6 @@ module Telemetry = LibService.Telemetry
 
 module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippable
 module PT = LibExecution.ProgramTypes
-module PTParser = LibExecution.ProgramTypesParser
-module RT = LibExecution.RuntimeTypes
-module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
-module Execution = LibExecution.Execution
-module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 module SchedulingRules = QueueSchedulingRules
 
@@ -80,11 +75,11 @@ let createEventAtTime
   : Task<unit> =
   Sql.query
     "INSERT INTO queue_events_v0
-       (id, canvas_id, module, name, modifier, value,
-        enqueued_at, locked_at)
+      (id, canvas_id, module, name, modifier, value,
+       enqueued_at, locked_at)
      VALUES
-       (@id, @canvasID, @module, @name, @modifier, @value,
-        @enqueuedAt, NULL)"
+      (@id, @canvasID, @module, @name, @modifier, @value,
+       @enqueuedAt, NULL)"
   |> Sql.parameters
     [ "id", Sql.uuid id
       "canvasID", Sql.uuid canvasID
@@ -128,12 +123,12 @@ let loadEventIDs
   : Task<List<EventID>> =
   Sql.query
     "SELECT id
-     FROM queue_events_v0
-     WHERE module = @module
-       AND name = @name
-       AND modifier = @modifier
-       AND canvas_id = @canvasID
-       LIMIT 1000" // don't go overboard
+    FROM queue_events_v0
+    WHERE module = @module
+      AND name = @name
+      AND modifier = @modifier
+      AND canvas_id = @canvasID
+    LIMIT 1000" // don't go overboard
   |> Sql.parameters
     [ "canvasID", Sql.uuid canvasID
       "module", Sql.string module'
@@ -148,12 +143,12 @@ module Test =
     : Task<List<RT.Dval>> =
     Sql.query
       "SELECT value
-        FROM queue_events_v0
-        WHERE module = @module
-          AND name = @name
-          AND modifier = @modifier
-          AND canvas_id = @canvasID
-          LIMIT 1000" // don't go overboard
+      FROM queue_events_v0
+      WHERE module = @module
+        AND name = @name
+        AND modifier = @modifier
+        AND canvas_id = @canvasID
+      LIMIT 1000" // don't go overboard
     |> Sql.parameters
       [ "canvasID", Sql.uuid canvasID
         "module", Sql.string module'
@@ -166,7 +161,9 @@ module Test =
 
 let deleteEvent (event : T) : Task<unit> =
   Sql.query
-    "DELETE FROM queue_events_v0 WHERE id = @eventID AND canvas_id = @canvasID"
+    "DELETE FROM queue_events_v0
+    WHERE id = @eventID
+      AND canvas_id = @canvasID"
   |> Sql.parameters
     [ "eventID", Sql.uuid event.id; "canvasID", Sql.uuid event.canvasID ]
   |> Sql.executeStatementAsync
@@ -245,7 +242,6 @@ let publisher : Lazy<Task<PublisherServiceApiClient>> =
         if not topicFound then
           let! (_ : Topic) = client.CreateTopicAsync(topicName)
           ()
-
 
       return client
     })

@@ -143,7 +143,6 @@ let run (options : Options) : Task<int> =
       do! Task.iterWithConcurrency 25 convertToRT allIDs
       return 0
 
-
     | Help ->
       help ()
       return 0
@@ -155,8 +154,6 @@ let run (options : Options) : Task<int> =
   }
 
 let initSerializers () =
-  // allow universally-serializable types
-
   // one-off types used internally
   // we probably don't need most of these, but it's key that ProdExec doesn't ever
   // fail, so we're extra-cautious, and include _everything_.

@@ -13,9 +13,6 @@ module VT = ValueType
 module Dval = LibExecution.Dval
 
 
-
-let constants : List<BuiltInConstant> = []
-
 module ParseError =
   type ParseError =
     | BadFormat
@@ -472,4 +469,5 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let builtins = LibExecution.Builtin.make constants fns
+
+let builtins = LibExecution.Builtin.make [] fns

@@ -10,8 +10,6 @@ open LibExecution.RuntimeTypes
 module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
 
-let constants : List<BuiltInConstant> = []
-
 // TODO reimplement this in Darklang, without any custom built-in function. I had
 // some difficulties around this - I forget what - but this got the job done for now
 let fns : List<BuiltInFn> =
@@ -112,4 +110,4 @@ let fns : List<BuiltInFn> =
 *)
 
 
-let builtins : Builtins = Builtin.make constants fns
+let builtins : Builtins = Builtin.make [] fns

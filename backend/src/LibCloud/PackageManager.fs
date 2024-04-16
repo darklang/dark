@@ -12,7 +12,6 @@ open Db
 
 module BinarySerialization = LibBinarySerialization.BinarySerialization
 module PT = LibExecution.ProgramTypes
-module PTParser = LibExecution.ProgramTypesParser
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT = LibExecution.RuntimeTypes
 
@@ -21,8 +20,10 @@ let savePackageTypes (types : List<PT.PackageType.T>) : Task<Unit> =
   types
   |> Task.iterInParallel (fun typ ->
     Sql.query
-      "INSERT INTO package_types_v0 (tlid, id, owner, modules, typename, version, definition)
-       VALUES (@tlid, @id, @owner, @modules, @typename, @version, @definition)"
+      "INSERT INTO package_types_v0
+        (tlid, id, owner, modules, typename, version, definition)
+      VALUES
+        (@tlid, @id, @owner, @modules, @typename, @version, @definition)"
     |> Sql.parameters
       [ "tlid", Sql.tlid typ.tlid
         "id", Sql.uuid typ.id
@@ -30,7 +31,7 @@ let savePackageTypes (types : List<PT.PackageType.T>) : Task<Unit> =
         "modules", Sql.string (typ.name.modules |> String.concat ".")
         "typename", Sql.string typ.name.name
         "version", Sql.int typ.name.version
-        "definition", Sql.bytea (BinarySerialization.serializePackageType typ) ]
+        "definition", Sql.bytea (BinarySerialization.PackageType.serialize typ) ]
     |> Sql.executeStatementAsync)
 
 
@@ -38,8 +39,10 @@ let savePackageConstants (constants : List<PT.PackageConstant.T>) : Task<Unit> =
   constants
   |> Task.iterInParallel (fun c ->
     Sql.query
-      "INSERT INTO package_constants_v0 (tlid, id, owner, modules, name, version, definition)
-       VALUES (@tlid, @id, @owner, @modules, @name, @version, @definition)"
+      "INSERT INTO package_constants_v0
+        (tlid, id, owner, modules, name, version, definition)
+      VALUES
+        (@tlid, @id, @owner, @modules, @name, @version, @definition)"
     |> Sql.parameters
       [ "tlid", Sql.tlid c.tlid
         "id", Sql.uuid c.id
@@ -47,15 +50,17 @@ let savePackageConstants (constants : List<PT.PackageConstant.T>) : Task<Unit> =
         "modules", Sql.string (c.name.modules |> String.concat ".")
         "name", Sql.string c.name.name
         "version", Sql.int c.name.version
-        "definition", Sql.bytea (BinarySerialization.serializePackageConstant c) ]
+        "definition", Sql.bytea (BinarySerialization.PackageConstant.serialize c) ]
     |> Sql.executeStatementAsync)
 
 let savePackageFunctions (fns : List<PT.PackageFn.T>) : Task<Unit> =
   fns
   |> Task.iterInParallel (fun fn ->
     Sql.query
-      "INSERT INTO package_functions_v0 (tlid, id, owner, modules, fnname, version, definition)
-       VALUES (@tlid, @id, @owner, @modules, @fnname, @version, @definition)"
+      "INSERT INTO package_functions_v0
+        (tlid, id, owner, modules, fnname, version, definition)
+      VALUES
+        (@tlid, @id, @owner, @modules, @fnname, @version, @definition)"
     |> Sql.parameters
       [ "tlid", Sql.tlid fn.tlid
         "id", Sql.uuid fn.id
@@ -63,7 +68,7 @@ let savePackageFunctions (fns : List<PT.PackageFn.T>) : Task<Unit> =
         "modules", Sql.string (fn.name.modules |> String.concat ".")
         "fnname", Sql.string fn.name.name
         "version", Sql.int fn.name.version
-        "definition", Sql.bytea (BinarySerialization.serializePackageFn fn) ]
+        "definition", Sql.bytea (BinarySerialization.PackageFn.serialize fn) ]
     |> Sql.executeStatementAsync)
 
 
@@ -111,7 +116,7 @@ let getFn (name : PT.FQFnName.Package) : Ply<Option<PT.PackageFn.T>> =
     return
       fn
       |> Option.map (fun (id, def) ->
-        BinarySerialization.deserializePackageFn id def)
+        BinarySerialization.PackageFn.deserialize id def)
   }
 
 let getFnByTLID (tlid : tlid) : Ply<Option<PT.PackageFn.T>> =
@@ -128,7 +133,7 @@ let getFnByTLID (tlid : tlid) : Ply<Option<PT.PackageFn.T>> =
     return
       fn
       |> Option.map (fun (id, def) ->
-        BinarySerialization.deserializePackageFn id def)
+        BinarySerialization.PackageFn.deserialize id def)
   }
 
 let getType (name : PT.FQTypeName.Package) : Ply<Option<PT.PackageType.T>> =
@@ -152,7 +157,7 @@ let getType (name : PT.FQTypeName.Package) : Ply<Option<PT.PackageType.T>> =
     return
       fn
       |> Option.map (fun (id, def) ->
-        BinarySerialization.deserializePackageType id def)
+        BinarySerialization.PackageType.deserialize id def)
   }
 
 let getConstant
@@ -178,7 +183,7 @@ let getConstant
     return
       fn
       |> Option.map (fun (id, def) ->
-        BinarySerialization.deserializePackageConstant id def)
+        BinarySerialization.PackageConstant.deserialize id def)
   }
 
 

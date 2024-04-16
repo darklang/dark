@@ -12,7 +12,7 @@ open System.Threading.Tasks
 // to make F# ok with the namespace rec
 #nowarn "40"
 
-/// Raw bindings to the tree-sitter.so
+/// Raw I/O against `tree-sitter.so` (or the platform-specific equivalent)
 /// TODO: some of these types and functions could be internal
 module Native =
   open System

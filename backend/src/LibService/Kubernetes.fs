@@ -131,10 +131,13 @@ open System.Runtime.InteropServices
 let registerShutdownCallback (callback : unit -> unit) : unit =
   PosixSignalRegistration.Create(PosixSignal.SIGTERM, (fun _ -> callback ()))
   |> ignore<PosixSignalRegistration>
+
   PosixSignalRegistration.Create(PosixSignal.SIGINT, (fun _ -> callback ()))
   |> ignore<PosixSignalRegistration>
+
   PosixSignalRegistration.Create(PosixSignal.SIGQUIT, (fun _ -> callback ()))
   |> ignore<PosixSignalRegistration>
+
   ()
 
 /// Run an ASP.NET server that provides the healthcheck and shutdown endpoints. This

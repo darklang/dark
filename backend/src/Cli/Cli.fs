@@ -50,15 +50,16 @@ let builtins : RT.Builtins =
     []
 
 // TODO: de-dupe with _other_ Cli.fs
-let packageManagerBaseUrl =
-  match
-    System.Environment.GetEnvironmentVariable "DARK_CONFIG_PACKAGE_MANAGER_BASE_URL"
-  with
-  | null -> "https://packages.darklang.com"
-  | var -> var
-
 let packageManager =
-  LibPackageManager.PackageManager.packageManager packageManagerBaseUrl
+  let baseUrl =
+    match
+      System.Environment.GetEnvironmentVariable
+        "DARK_CONFIG_PACKAGE_MANAGER_BASE_URL"
+    with
+    | null -> "https://packages.darklang.com"
+    | var -> var
+
+  LibPackageManager.PackageManager.packageManager baseUrl
 
 
 let state () =

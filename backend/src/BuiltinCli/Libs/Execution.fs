@@ -12,6 +12,7 @@ module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
 open System.Runtime.InteropServices
 
+
 let executionOutcomeTypeName =
   FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Cli" ] "ExecutionOutcome" 0
 
@@ -44,15 +45,15 @@ let fns : List<BuiltInFn> =
               |> raiseString
 
           let psi =
-            System.Diagnostics.ProcessStartInfo(command)
-            |> fun psi ->
-              psi.FileName <- cmdName
-              psi.Arguments <- cmdArgs
-              psi.UseShellExecute <- false
-              psi.RedirectStandardOutput <- true
-              psi.RedirectStandardError <- true
-              psi.CreateNoWindow <- true
-              psi
+            System.Diagnostics.ProcessStartInfo(
+              command,
+              FileName = cmdName,
+              Arguments = cmdArgs,
+              UseShellExecute = false,
+              RedirectStandardOutput = true,
+              RedirectStandardError = true,
+              CreateNoWindow = true
+            )
 
           let p = System.Diagnostics.Process.Start(psi)
 
@@ -74,5 +75,4 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let constants : List<BuiltInConstant> = []
-let builtins : Builtins = Builtin.make constants fns
+let builtins : Builtins = Builtin.make [] fns

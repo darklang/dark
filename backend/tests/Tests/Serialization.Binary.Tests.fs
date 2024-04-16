@@ -21,8 +21,8 @@ module RoundtripTests =
       (fun tl ->
         let tlid = PT.Toplevel.toTLID tl
         tl
-        |> BinarySerialization.serializeToplevel
-        |> BinarySerialization.deserializeToplevel tlid
+        |> BinarySerialization.Toplevel.serialize
+        |> BinarySerialization.Toplevel.deserialize tlid
         |> (=) tl)
       (List.map (fun x -> x, true) Values.ProgramTypes.toplevels)
 
@@ -38,8 +38,8 @@ module ConsistentSerializationTests =
 
   let formats =
     [ { name = "BinarySerialization"
-        serializer = BinarySerialization.serializeToplevels "test"
-        deserializer = BinarySerialization.deserializeToplevels "test"
+        serializer = BinarySerialization.Toplevels.serialize "test"
+        deserializer = BinarySerialization.Toplevels.deserialize "test"
         prettyPrinter = Some(BinarySerialization.Test.serializeToplevelsToJson)
         prefix = "toplevels-binary"
         suffix = ".bin"

@@ -25,16 +25,16 @@ module Darklang =
       let now () : DateTime = Builtin.dateTimeNow ()
 
 
-      /// Returns the <type Date> with the time set to midnight
+      /// Returns the <type DateTime> with the time set to midnight
       let today () : DateTime = Builtin.dateTimeToday ()
 
 
-      /// Returns a <type Date> <param seconds> seconds after <param d>
+      /// Returns a <type DateTime> <param seconds> seconds after <param d>
       let addSeconds (d: DateTime) (seconds: Int64) : DateTime =
         Builtin.dateTimeAddSeconds d seconds
 
 
-      /// Returns a <type Date> <param seconds> seconds before <param d>
+      /// Returns a <type DateTime> <param seconds> seconds before <param d>
       let subtractSeconds (d: DateTime) (seconds: Int64) : DateTime =
         Builtin.dateTimeSubtractSeconds d seconds
 
@@ -63,7 +63,7 @@ module Darklang =
       let toSeconds (date: DateTime) : Int64 = Builtin.dateTimeToSeconds date
 
 
-      /// Converts an <type Int64> representing seconds since the Unix epoch into a <type Date>
+      /// Converts an <type Int64> representing seconds since the Unix epoch into a <type DateTime>
       let fromSeconds (seconds: Int64) : DateTime =
         Builtin.dateTimeFromSeconds seconds
 

@@ -18,9 +18,6 @@ module TypeChecker = LibExecution.TypeChecker
 module Interpreter = LibExecution.Interpreter
 
 
-
-let constants : List<BuiltInConstant> = []
-
 let fns : List<BuiltInFn> =
   [ { name = fn "stringMap" 0
       typeParams = []
@@ -55,6 +52,7 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
+
 
     { name = fn "stringToList" 0
       typeParams = []
@@ -485,4 +483,5 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let builtins = LibExecution.Builtin.make constants fns
+
+let builtins = LibExecution.Builtin.make [] fns

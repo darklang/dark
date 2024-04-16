@@ -3,7 +3,6 @@
 ///
 /// Computes hashes such as sha256, md5, etc.
 /// </summary>
-
 module BuiltinExecution.Libs.Crypto
 
 open System.Security.Cryptography
@@ -14,9 +13,6 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = ValueType
 module Dval = LibExecution.Dval
-
-
-let constants : List<BuiltInConstant> = []
 
 
 let fns : List<BuiltInFn> =
@@ -113,4 +109,4 @@ let fns : List<BuiltInFn> =
       previewable = ImpurePreviewable
       deprecated = NotDeprecated } ]
 
-let builtins = LibExecution.Builtin.make constants fns
+let builtins = LibExecution.Builtin.make [] fns

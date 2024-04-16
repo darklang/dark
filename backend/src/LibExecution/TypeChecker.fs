@@ -1,5 +1,6 @@
+/// The run-time type-checker
+/// Called by the interpreter, and a few other places
 module LibExecution.TypeChecker
-
 
 open Prelude
 open RuntimeTypes
@@ -9,7 +10,6 @@ module VT = ValueType
 /// Returns `Ok ()` if no errors, or `Error first` otherwise
 let combineErrorsUnit (l : NEList<Result<unit, 'err>>) : Result<unit, 'err> =
   l |> NEList.find Result.isError |> Option.unwrap (Ok())
-
 
 
 type Location = Option<tlid * id>

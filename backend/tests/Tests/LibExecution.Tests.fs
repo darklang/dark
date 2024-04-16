@@ -166,16 +166,7 @@ let t
 
             let! typeChecked =
               let expected =
-                RT.TCustomType(
-                  Ok(
-                    RT.FQTypeName.fqPackage
-                      "Darklang"
-                      [ "LanguageTools"; "RuntimeErrors" ]
-                      "Error"
-                      0
-                  ),
-                  []
-                )
+                RT.TCustomType(Ok(RT.RuntimeError.name [] "Error" 0), [])
 
               let context =
                 LibExecution.TypeChecker.Context.FunctionCallParameter(

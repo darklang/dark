@@ -10,10 +10,9 @@ open LibExecution.Builtin.Shortcuts
 module VT = ValueType
 module Dval = LibExecution.Dval
 
+
 let varA = TVariable "a"
 let varB = TVariable "b"
-
-let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "x509PemCertificatePublicKey" 0
@@ -57,4 +56,5 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let builtins = LibExecution.Builtin.make constants fns
+
+let builtins = LibExecution.Builtin.make [] fns

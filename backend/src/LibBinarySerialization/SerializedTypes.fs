@@ -55,15 +55,6 @@ type NEList<'a> =
 
 module FQTypeName =
   [<MessagePack.MessagePackObject>]
-  type UserProgram =
-    { [<MessagePack.Key 0>]
-      modules : List<string>
-      [<MessagePack.Key 1>]
-      name : string
-      [<MessagePack.Key 2>]
-      version : int }
-
-  [<MessagePack.MessagePackObject>]
   type Package =
     { [<MessagePack.Key 0>]
       owner : string
@@ -75,9 +66,18 @@ module FQTypeName =
       version : int }
 
   [<MessagePack.MessagePackObject>]
+  type UserProgram =
+    { [<MessagePack.Key 0>]
+      modules : List<string>
+      [<MessagePack.Key 1>]
+      name : string
+      [<MessagePack.Key 2>]
+      version : int }
+
+  [<MessagePack.MessagePackObject>]
   type FQTypeName =
-    | UserProgram of UserProgram
     | Package of Package
+    | UserProgram of UserProgram
 
 
 module FQConstantName =
@@ -89,15 +89,6 @@ module FQConstantName =
       version : int }
 
   [<MessagePack.MessagePackObject>]
-  type UserProgram =
-    { [<MessagePack.Key 0>]
-      modules : List<string>
-      [<MessagePack.Key 1>]
-      name : string
-      [<MessagePack.Key 2>]
-      version : int }
-
-  [<MessagePack.MessagePackObject>]
   type Package =
     { [<MessagePack.Key 0>]
       owner : string
@@ -106,6 +97,15 @@ module FQConstantName =
       [<MessagePack.Key 2>]
       name : string
       [<MessagePack.Key 3>]
+      version : int }
+
+  [<MessagePack.MessagePackObject>]
+  type UserProgram =
+    { [<MessagePack.Key 0>]
+      modules : List<string>
+      [<MessagePack.Key 1>]
+      name : string
+      [<MessagePack.Key 2>]
       version : int }
 
   [<MessagePack.MessagePackObject>]
@@ -124,15 +124,6 @@ module FQFnName =
       version : int }
 
   [<MessagePack.MessagePackObject>]
-  type UserProgram =
-    { [<MessagePack.Key 0>]
-      modules : List<string>
-      [<MessagePack.Key 1>]
-      name : string
-      [<MessagePack.Key 2>]
-      version : int }
-
-  [<MessagePack.MessagePackObject>]
   type Package =
     { [<MessagePack.Key 0>]
       owner : string
@@ -141,6 +132,15 @@ module FQFnName =
       [<MessagePack.Key 2>]
       name : string
       [<MessagePack.Key 3>]
+      version : int }
+
+  [<MessagePack.MessagePackObject>]
+  type UserProgram =
+    { [<MessagePack.Key 0>]
+      modules : List<string>
+      [<MessagePack.Key 1>]
+      name : string
+      [<MessagePack.Key 2>]
       version : int }
 
   [<MessagePack.MessagePackObject>]
@@ -392,61 +392,6 @@ module TypeDeclaration =
       definition : Definition }
 
 
-
-module Handler =
-  [<MessagePack.MessagePackObject>]
-  type CronInterval =
-    | EveryDay
-    | EveryWeek
-    | EveryFortnight
-    | EveryHour
-    | Every12Hours
-    | EveryMinute
-
-  [<MessagePack.MessagePackObject>]
-  type Spec =
-    | Worker of name : string
-    | Cron of name : string * interval : CronInterval
-    | REPL of name : string
-    | HTTP of route : string * method : string
-
-  [<MessagePack.MessagePackObject>]
-  type T =
-    { [<MessagePack.Key 0>]
-      tlid : tlid
-      [<MessagePack.Key 1>]
-      ast : Expr
-      [<MessagePack.Key 2>]
-      spec : Spec }
-
-
-module DB =
-  [<MessagePack.MessagePackObject>]
-  type T =
-    { [<MessagePack.Key 0>]
-      tlid : tlid
-      [<MessagePack.Key 1>]
-      name : string
-      [<MessagePack.Key 2>]
-      version : int
-      [<MessagePack.Key 3>]
-      typ : TypeReference }
-
-
-module UserType =
-  [<MessagePack.MessagePackObject>]
-  type T =
-    { [<MessagePack.Key 0>]
-      tlid : tlid
-      [<MessagePack.Key 1>]
-      name : FQTypeName.UserProgram
-      [<MessagePack.Key 3>]
-      declaration : TypeDeclaration.T
-      [<MessagePack.Key 4>]
-      description : string
-      [<MessagePack.Key 5>]
-      deprecated : Deprecation<FQTypeName.FQTypeName> }
-
 [<MessagePack.MessagePackObject>]
 type Const =
   | CInt64 of int64
@@ -468,6 +413,91 @@ type Const =
   | CEnum of NameResolution<FQTypeName.FQTypeName> * caseName : string * List<Const>
   | CList of List<Const>
   | CDict of List<string * Const>
+
+
+
+module PackageType =
+  [<MessagePack.MessagePackObject>]
+  type T =
+    { [<MessagePack.Key 0>]
+      tlid : tlid
+      [<MessagePack.Key 1>]
+      id : System.Guid
+      [<MessagePack.Key 2>]
+      name : FQTypeName.Package
+      [<MessagePack.Key 3>]
+      declaration : TypeDeclaration.T
+      [<MessagePack.Key 4>]
+      description : string
+      [<MessagePack.Key 5>]
+      deprecated : Deprecation<FQTypeName.FQTypeName> }
+
+module PackageConstant =
+  [<MessagePack.MessagePackObject>]
+  type T =
+    { [<MessagePack.Key 0>]
+      tlid : tlid
+      [<MessagePack.Key 1>]
+      id : System.Guid
+      [<MessagePack.Key 2>]
+      name : FQConstantName.Package
+      [<MessagePack.Key 3>]
+      body : Const
+      [<MessagePack.Key 4>]
+      description : string
+      [<MessagePack.Key 5>]
+      deprecated : Deprecation<FQConstantName.FQConstantName> }
+
+
+module PackageFn =
+  [<MessagePack.MessagePackObject>]
+  type Parameter =
+    { [<MessagePack.Key 0>]
+      name : string
+      [<MessagePack.Key 1>]
+      typ : TypeReference
+      [<MessagePack.Key 2>]
+      description : string }
+
+  [<MessagePack.MessagePackObject>]
+  type T =
+    { [<MessagePack.Key 0>]
+      tlid : tlid
+      [<MessagePack.Key 1>]
+      id : System.Guid
+      [<MessagePack.Key 2>]
+      name : FQFnName.Package
+      [<MessagePack.Key 3>]
+      body : Expr
+      [<MessagePack.Key 4>]
+      typeParams : List<string>
+      [<MessagePack.Key 5>]
+      parameters : NEList<Parameter>
+      [<MessagePack.Key 6>]
+      returnType : TypeReference
+      [<MessagePack.Key 7>]
+      description : string
+      [<MessagePack.Key 8>]
+      deprecated : Deprecation<FQFnName.FQFnName> }
+
+
+// -- User stuff
+
+
+module UserType =
+  [<MessagePack.MessagePackObject>]
+  type T =
+    { [<MessagePack.Key 0>]
+      tlid : tlid
+      [<MessagePack.Key 1>]
+      name : FQTypeName.UserProgram
+      [<MessagePack.Key 3>]
+      declaration : TypeDeclaration.T
+      [<MessagePack.Key 4>]
+      description : string
+      [<MessagePack.Key 5>]
+      deprecated : Deprecation<FQTypeName.FQTypeName> }
+
 
 module UserConstant =
   [<MessagePack.MessagePackObject>]
@@ -512,68 +542,46 @@ module UserFunction =
       [<MessagePack.Key 7>]
       body : Expr }
 
-module PackageFn =
+module Handler =
   [<MessagePack.MessagePackObject>]
-  type Parameter =
+  type CronInterval =
+    | EveryDay
+    | EveryWeek
+    | EveryFortnight
+    | EveryHour
+    | Every12Hours
+    | EveryMinute
+
+  [<MessagePack.MessagePackObject>]
+  type Spec =
+    | Worker of name : string
+    | Cron of name : string * interval : CronInterval
+    | REPL of name : string
+    | HTTP of route : string * method : string
+
+  [<MessagePack.MessagePackObject>]
+  type T =
     { [<MessagePack.Key 0>]
+      tlid : tlid
+      [<MessagePack.Key 1>]
+      ast : Expr
+      [<MessagePack.Key 2>]
+      spec : Spec }
+
+
+module DB =
+  [<MessagePack.MessagePackObject>]
+  type T =
+    { [<MessagePack.Key 0>]
+      tlid : tlid
+      [<MessagePack.Key 1>]
       name : string
-      [<MessagePack.Key 1>]
-      typ : TypeReference
       [<MessagePack.Key 2>]
-      description : string }
-
-  [<MessagePack.MessagePackObject>]
-  type T =
-    { [<MessagePack.Key 0>]
-      tlid : tlid
-      [<MessagePack.Key 1>]
-      id : System.Guid
-      [<MessagePack.Key 2>]
-      name : FQFnName.Package
+      version : int
       [<MessagePack.Key 3>]
-      body : Expr
-      [<MessagePack.Key 4>]
-      typeParams : List<string>
-      [<MessagePack.Key 5>]
-      parameters : NEList<Parameter>
-      [<MessagePack.Key 6>]
-      returnType : TypeReference
-      [<MessagePack.Key 7>]
-      description : string
-      [<MessagePack.Key 8>]
-      deprecated : Deprecation<FQFnName.FQFnName> }
+      typ : TypeReference }
 
-module PackageType =
-  [<MessagePack.MessagePackObject>]
-  type T =
-    { [<MessagePack.Key 0>]
-      tlid : tlid
-      [<MessagePack.Key 1>]
-      id : System.Guid
-      [<MessagePack.Key 2>]
-      name : FQTypeName.Package
-      [<MessagePack.Key 3>]
-      declaration : TypeDeclaration.T
-      [<MessagePack.Key 4>]
-      description : string
-      [<MessagePack.Key 5>]
-      deprecated : Deprecation<FQTypeName.FQTypeName> }
 
-module PackageConstant =
-  [<MessagePack.MessagePackObject>]
-  type T =
-    { [<MessagePack.Key 0>]
-      tlid : tlid
-      [<MessagePack.Key 1>]
-      id : System.Guid
-      [<MessagePack.Key 2>]
-      name : FQConstantName.Package
-      [<MessagePack.Key 3>]
-      body : Const
-      [<MessagePack.Key 4>]
-      description : string
-      [<MessagePack.Key 5>]
-      deprecated : Deprecation<FQConstantName.FQConstantName> }
 
 module Toplevel =
   [<MessagePack.MessagePackObject>]

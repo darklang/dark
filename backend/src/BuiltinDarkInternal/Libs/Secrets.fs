@@ -12,16 +12,12 @@ module Dval = LibExecution.Dval
 module Secret = LibCloud.Secret
 
 
-
 let packageSecretType (addlModules : List<string>) (name : string) (version : int) =
   FQTypeName.fqPackage
     "Darklang"
     ("Internal" :: "Canvas" :: addlModules)
     name
     version
-
-
-let constants : List<BuiltInConstant> = []
 
 let fns : List<BuiltInFn> =
   [ { name = fn "darkInternalCanvasSecretGetAll" 0
@@ -99,4 +95,4 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let builtins = LibExecution.Builtin.make constants fns
+let builtins = LibExecution.Builtin.make [] fns

@@ -7,7 +7,6 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module VT = ValueType
 module Dval = LibExecution.Dval
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module Telemetry = LibService.Telemetry
@@ -133,5 +132,4 @@ human-readable data."
       previewable = Impure
       deprecated = NotDeprecated } ]
 
-let constants : List<BuiltInConstant> = []
-let builtins = LibExecution.Builtin.make constants fns
+let builtins = LibExecution.Builtin.make [] fns

@@ -7,15 +7,10 @@ type Instant = NodaTime.Instant
 
 open Prelude
 
-open LibCloud.Db
-
-module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
-module RT = LibExecution.RuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module EQ = LibCloud.Queue
-module Execution = LibExecution.Execution
 module Pusher = LibCloud.Pusher
 module CloudExecution = LibCloudExecution.CloudExecution
 module Canvas = LibCloud.Canvas
@@ -27,17 +22,23 @@ module Rollbar = LibService.Rollbar
 
 module CTPusher = LibClientTypes.Pusher
 
+open LibCloud.Db
+
+
 let mutable shouldShutdown = false
 
 type ShouldRetry =
   | Retry of NodaTime.Duration
   | NoRetry
 
-/// The algorithm here is described in the chart in docs/eventsV2.md. The algorithm
-/// below is annotated with names from chart. `dequeueAndProcess` will block until it
-/// receives a notification. Returns a Result containing the notification and the
-/// event on success, and just the notification and failure reason on failure. Should
-/// not throw on error.
+/// The algorithm here is described in the chart in `docs/eventsV2.md`.
+/// The code below is annotated with names from chart.
+///
+/// Notes:
+/// - `dequeueAndProcess` will block until it receives a notification.
+/// - Returns a Result containing the notification and the
+///   event on success, and just the notification and failure reason on failure.
+/// - Should not throw on error.
 let processNotification
   (notification : EQ.Notification)
   : Task<Result<EQ.T * EQ.Notification, string * EQ.Notification>> =
@@ -81,6 +82,7 @@ let processNotification
           "event.locked_at", event.lockedAt
           "event.enqueued_at", event.enqueuedAt ]
 
+
       // -------
       // LockCheck
       // -------
@@ -98,6 +100,7 @@ let processNotification
           // `now`.
           expiryTime - Instant.now ()
         | None -> NodaTime.Duration.FromSeconds 0.0 // LockNone
+
       if timeLeft.TotalSeconds > 0 then
         // RETRY but it means something else is running it so doesn't matter
         return! stop "IsLocked" (Retry timeLeft)
@@ -113,7 +116,6 @@ let processNotification
             [ "queue.rule.type", rule.ruleType; "queue.rule.id", rule.id ]
           return! stop "RuleCheckPaused/Blocked" NoRetry
         | None -> // RuleNone
-
           // -------
           // DeliveryCheck
           // Note that this happens after all the other checks, as we might have
@@ -145,7 +147,7 @@ let processNotification
                 Exception.taskCatch (fun () ->
                   task {
                     return!
-                      Canvas.loadForEventV2
+                      Canvas.loadForEvent
                         notification.data.canvasID
                         event.module'
                         event.name

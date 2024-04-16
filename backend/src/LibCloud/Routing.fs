@@ -1,3 +1,9 @@
+/// Maps user-defined routes (in their Http Handlers) to Postgres patterns
+/// for filtering when BWD gets a request, to choose the 'right',
+/// most appropriate handler.
+///
+/// In charge of extracting out any URL parameters along the way
+/// (i.e. if `/hello/:name` is defined, and you go to `/hello/john`)
 module LibCloud.Routing
 
 open FSharp.Control.Tasks
@@ -22,7 +28,6 @@ let splitUriPath (path : string) : string array =
   Array.filter (fun x -> String.length x > 0) subs
 
 let routeToPostgresPattern (route : string) : string =
-
   // https://www.postgresql.org/docs/9.6/functions-matching.html
   route
   |> String.collect (fun str ->

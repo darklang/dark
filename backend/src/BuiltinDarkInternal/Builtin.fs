@@ -31,16 +31,17 @@ let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
 
 
 let builtins : Builtins =
-  Builtin.combine
-    [ Libs.Canvases.builtins
-      Libs.DBs.builtins
-      Libs.Domains.builtins
-      Libs.F404.builtins
-      Libs.Infra.builtins
-      Libs.Secrets.builtins
-      Libs.Users.builtins
-      Libs.Workers.builtins ]
-    fnRenames
-  |> fun builtins ->
-    { builtins with
-        fns = builtins.fns |> Map.map (fun f -> { f with fn = internalFn f.fn }) }
+  let builtins =
+    Builtin.combine
+      [ Libs.Canvases.builtins
+        Libs.DBs.builtins
+        Libs.Domains.builtins
+        Libs.F404.builtins
+        Libs.Infra.builtins
+        Libs.Secrets.builtins
+        Libs.Users.builtins
+        Libs.Workers.builtins ]
+      fnRenames
+
+  { builtins with
+      fns = builtins.fns |> Map.map (fun f -> { f with fn = internalFn f.fn }) }

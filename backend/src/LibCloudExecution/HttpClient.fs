@@ -20,7 +20,6 @@ open LibExecution.RuntimeTypes
 // 5. By removing all access for the cloud run service account (see iam.tf)
 module LocalAccess =
 
-
   // Cloud Run lists the IPs it routes internally here:
   // https://cloud.google.com/run/docs/configuring/vpc-connectors?#manage
   // Ban all of them

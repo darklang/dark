@@ -6,12 +6,9 @@ open FSharp.Control.Tasks
 
 open Prelude
 open LibExecution.RuntimeTypes
-module VT = ValueType
 module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
-
-let constants : List<BuiltInConstant> = []
 
 
 let fns : List<BuiltInFn> =
@@ -244,4 +241,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let builtins : Builtins = Builtin.make constants fns
+let builtins : Builtins = Builtin.make [] fns

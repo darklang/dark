@@ -14,9 +14,11 @@ module TypeChecker = LibExecution.TypeChecker
 
 // parsing
 let parseJson (s : string) : JsonElement =
-  let mutable options = new JsonDocumentOptions()
-  options.CommentHandling <- JsonCommentHandling.Skip
-  options.MaxDepth <- System.Int32.MaxValue // infinite
+  let options =
+    new JsonDocumentOptions(
+      CommentHandling = JsonCommentHandling.Skip,
+      MaxDepth = System.Int32.MaxValue // infinite
+    )
 
   JsonDocument.Parse(s, options).RootElement
 
@@ -24,16 +26,14 @@ let parseJson (s : string) : JsonElement =
 // serialization
 let writeJson (f : Utf8JsonWriter -> Ply<unit>) : Ply<string> =
   uply {
-    let mutable options = new JsonWriterOptions()
-    options.Indented <-
-      // TODO: `true` here makes it hard to write tests, because the output is
-      // spread across multiple lines.
-      //true
-      false
-    options.SkipValidation <- true
-    let encoder =
-      System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-    options.Encoder <- encoder
+    let options =
+      new JsonWriterOptions(
+        // TODO: `true` here would make it hard to write tests...
+        Indented = false,
+        SkipValidation = true,
+        Encoder =
+          System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+      )
 
     let stream = new System.IO.MemoryStream()
     let w = new Utf8JsonWriter(stream, options)
@@ -806,9 +806,6 @@ let parse
     }
 
 
-let constants : List<BuiltInConstant> = []
-
-
 let fns : List<BuiltInFn> =
   [ { name = fn "jsonSerialize" 0
       typeParams = [ "a" ]
@@ -861,4 +858,4 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-let builtins = LibExecution.Builtin.make constants fns
+let builtins = LibExecution.Builtin.make [] fns

@@ -3,6 +3,7 @@
 open System
 open System.Runtime.InteropServices
 
+/// "Raw" I/O with `tree-sitter-darklang.so` (or the platform-specific equivalent)
 module Native =
   open System
   open System.IO
@@ -33,7 +34,7 @@ module Native =
     let assembly = Assembly.GetExecutingAssembly()
     use stream = assembly.GetManifestResourceStream(resourceName)
 
-    if (stream = null) then
+    if stream = null then
       $"Resource {resourceName} not found in assembly {assembly.FullName}"
       |> Exception
       |> raise

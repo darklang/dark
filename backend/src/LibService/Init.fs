@@ -11,6 +11,7 @@ let init (serviceName : string) : unit =
 
   printTime $" Inited LibService in {serviceName}"
 
+
 /// Called when shutting down, probably. Used to explicitly flush any buffered
 /// connections.
 let shutdown (serviceName : string) : unit =

@@ -28,11 +28,14 @@ let createWithExactID
     do!
       Sql.query
         "INSERT INTO canvases_v0
-         (id, account_id)
-         VALUES (@id, @owner);
+          (id, account_id)
+         VALUES
+          (@id, @owner);
+
          INSERT INTO domains_v0
-         (canvas_id, domain)
-         VALUES (@id, @domain)"
+           (canvas_id, domain)
+         VALUES
+           (@id, @domain)"
       |> Sql.parameters
         [ "id", Sql.uuid id; "owner", Sql.uuid owner; "domain", Sql.string domain ]
       |> Sql.executeStatementAsync
@@ -47,23 +50,26 @@ let create (owner : UserID) (domain : string) : Task<CanvasID> =
 
 let canvasIDForDomain (domain : string) : Task<Option<CanvasID>> =
   Sql.query
-    "SELECT canvas_id FROM domains_v0
-      WHERE domain = @domain"
+    "SELECT canvas_id
+    FROM domains_v0
+    WHERE domain = @domain"
   |> Sql.parameters [ "domain", Sql.string domain ]
   |> Sql.executeRowOptionAsync (fun read -> read.uuid "canvas_id")
 
 let domainsForCanvasID (id : CanvasID) : Task<List<string>> =
   Sql.query
-    "SELECT domain FROM domains_v0
-      WHERE canvas_id = @id"
+    "SELECT domain
+    FROM domains_v0
+    WHERE canvas_id = @id"
   |> Sql.parameters [ "id", Sql.uuid id ]
   |> Sql.executeAsync (fun read -> read.string "domain")
 
 let addDomain (canvasID : CanvasID) (domain : string) : Task<unit> =
   Sql.query
     "INSERT INTO domains_v0
-     (canvas_id, domain)
-     VALUES (@canvasID, @domain)"
+       (canvas_id, domain)
+     VALUES
+       (@canvasID, @domain)"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "domain", Sql.string domain ]
   |> Sql.executeStatementAsync
 
@@ -74,8 +80,9 @@ let allCanvasIDs () : Task<List<CanvasID>> =
 
 let getOwner (id : CanvasID) : Task<Option<UserID>> =
   Sql.query
-    "SELECT account_id FROM canvases_v0
-      WHERE id = @id"
+    "SELECT account_id
+    FROM canvases_v0
+    WHERE id = @id"
   |> Sql.parameters [ "id", Sql.uuid id ]
   |> Sql.executeRowOptionAsync (fun read -> read.uuid "account_id")
 
@@ -310,7 +317,7 @@ let loadTLIDsWithContext (id : CanvasID) (tlids : List<tlid>) : Task<T> =
     return! loadFrom id tlids
   }
 
-let loadForEventV2
+let loadForEvent
   (id : CanvasID)
   (module' : string)
   (name : string)
@@ -452,7 +459,7 @@ let saveTLIDs
           else
             None, None, None
 
-        let serializedToplevel = BinarySerialization.serializeToplevel tl
+        let serializedToplevel = BinarySerialization.Toplevel.serialize tl
 
         let deleted =
           match deleted with
@@ -462,18 +469,21 @@ let saveTLIDs
         return!
           Sql.query
             "INSERT INTO toplevels_v0
-                    (canvas_id, tlid, digest, tipe, name, module, modifier,
-                     deleted, data, updated_at)
-                    VALUES (@canvasID, @tlid, @digest, @typ::toplevel_type, @name,
-                            @module, @modifier, @deleted, @data, NOW())
-                    ON CONFLICT (canvas_id, tlid) DO UPDATE
-                    SET digest = @digest,
-                        tipe = @typ::toplevel_type,
-                        name = @name,
-                        module = @module,
-                        modifier = @modifier,
-                        deleted = @deleted,
-                        data = @data"
+              (canvas_id, tlid, digest, tipe, name,
+               module, modifier, deleted, data, updated_at)
+            VALUES
+              (@canvasID, @tlid, @digest, @typ::toplevel_type, @name,
+               @module, @modifier, @deleted, @data, NOW())
+            ON CONFLICT
+              (canvas_id, tlid)
+              DO UPDATE
+              SET digest = @digest,
+                  tipe = @typ::toplevel_type,
+                  name = @name,
+                  module = @module,
+                  modifier = @modifier,
+                  deleted = @deleted,
+                  data = @data"
           |> Sql.parameters
             [ "canvasID", Sql.uuid id
               "tlid", Sql.id tlid

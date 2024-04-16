@@ -75,8 +75,8 @@ open Prelude
 module AT = LibExecution.AnalysisTypes
 module RT = LibExecution.RuntimeTypes
 
-// Only do storage here. Anything else needs utility functions that go in
-// LibDarkInternal.
+// Only do storage here.
+// Anything else needs utility functions that go in BuiltinDarkInternal.
 
 type RoundTrippableDval = LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval
 
@@ -125,7 +125,10 @@ let client =
 
 let rootTLIDFor (canvasID : CanvasID) (traceID : AT.TraceID.T) : Task<Option<tlid>> =
   Sql.query
-    "SELECT root_tlid FROM traces_v0 WHERE canvas_id = @canvasID AND trace_id = @traceID"
+    "SELECT root_tlid
+    FROM traces_v0
+    WHERE canvas_id = @canvasID
+      AND trace_id = @traceID"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "traceID", Sql.traceID traceID ]
   |> Sql.executeRowOptionAsync (fun read -> read.tlid "root_tlid")
 
@@ -145,8 +148,9 @@ let storeTraceTLIDs
   : Task<unit> =
   Sql.query
     "INSERT INTO traces_v0
-     (id, canvas_id, trace_id, root_tlid, callgraph_tlids)
-     VALUES (@id, @canvasID, @traceID, @rootTLID, @callgraphTLIDs::bigint[])"
+      (id, canvas_id, trace_id, root_tlid, callgraph_tlids)
+    VALUES
+      (@id, @canvasID, @traceID, @rootTLID, @callgraphTLIDs::bigint[])"
   |> Sql.parameters
     [ "id", System.Guid.NewGuid() |> Sql.uuid
       "canvasID", Sql.uuid canvasID
@@ -161,15 +165,15 @@ let listMostRecentTraceIDsForTLIDs
   : Task<List<tlid * AT.TraceID.T>> =
   Sql.query
     "SELECT callgraph_tlids, trace_id
-     FROM (
-       SELECT
-         callgraph_tlids, trace_id,
-         ROW_NUMBER() OVER (PARTITION BY root_tlid ORDER BY trace_id ASC) as row_num
-       FROM traces_v0
-       WHERE root_tlid = ANY(@tlids::bigint[])
-         AND canvas_id = @canvasID
-     ) t
-     WHERE row_num <= 10"
+    FROM (
+      SELECT
+        callgraph_tlids, trace_id,
+        ROW_NUMBER() OVER (PARTITION BY root_tlid ORDER BY trace_id ASC) as row_num
+      FROM traces_v0
+      WHERE root_tlid = ANY(@tlids::bigint[])
+        AND canvas_id = @canvasID
+    ) t
+    WHERE row_num <= 10"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
   |> Sql.executeAsync (fun read ->
     (read.traceID "trace_id", read.idArray "callgraph_tlids"))
@@ -266,15 +270,19 @@ let storeToCloudStorage
     stream.Position <- 0L
 
     // Create the object and metadata
-    let object = Google.Apis.Storage.v1.Data.Object()
-    object.Name <- objectName canvasID rootTLID traceID "0"
-    object.ContentType <- "application/json"
-    object.ContentEncoding <- "br"
-    object.Metadata <-
-      Map
-        [ "storage_format_version", string currentStorageVersion
-          "hash_version", string LibExecution.DvalReprInternalHash.currentHashVersion ]
-    object.Bucket <- bucketName
+    let object =
+      new Google.Apis.Storage.v1.Data.Object(
+        Name = objectName canvasID rootTLID traceID "0",
+        ContentType = "application/json",
+        ContentEncoding = "br",
+        Metadata =
+          Map
+            [ "storage_format_version", string currentStorageVersion
+              "hash_version",
+              string LibExecution.DvalReprInternalHash.currentHashVersion ],
+        Bucket = bucketName
+      )
+
 
     // Upload to CloudStorage
     let! client = client.Force()
