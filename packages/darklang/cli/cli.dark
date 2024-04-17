@@ -201,8 +201,17 @@ dark update                                   Update the darklang CLI to the lat
     let processNormally (args: List<String>) : Int64 =
       args |> parseArguments |> executeCommand
 
+
+
+
     let executeCliCommand (args: List<String>) : Int64 =
-      if Stdlib.List.member_v0 args "--skip-self-update" then
+      // how do we resolve `mySpecialFunction` in `mySpecialFunction args arg2`
+      // - what if there are different versions/hashes available in a given module?
+      // - what if there are things by that name in multiple modules I have access to?
+
+
+      
+      if Stdlib.List.member args "--skip-self-update" then
         let newArgs =
           args |> Stdlib.List.filter (fun arg -> arg != "--skip-self-update")
 

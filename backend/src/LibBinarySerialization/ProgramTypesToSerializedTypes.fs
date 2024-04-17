@@ -669,6 +669,7 @@ module Const =
 
 module Deprecation =
   type Deprecation<'name> =
+    | WIP
     | NotDeprecated
     | RenamedTo of 'name
     | ReplacedBy of 'name

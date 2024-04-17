@@ -17,7 +17,6 @@ open Prelude
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
-module PTParser = LibExecution.ProgramTypesParser
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 module Canvas = LibCloud.Canvas

@@ -1,0 +1,366 @@
+// TODO migrate more of this to package space
+
+// Note: this is filled in via underground DB.sets in LocalExec.fs
+
+[<HttpHandler("GET", "/ping")>]
+let _handler _req =
+  let body = "pong" |> Stdlib.String.toBytes
+
+  Stdlib.Http.response body 200L
+
+
+// expose some metadata to quickly check if things seem to be working
+[<HttpHandler("GET", "/packages/stats")>]
+let _handler _req =
+  // TODO: get stats via a new builtin fn
+
+  Stdlib.Http.response body 200L
+
+
+
+// let fetchByName
+//   (category: PACKAGE.Darklang.DarkPackages.Category)
+//   (name: String)
+//   : Stdlib.Http.Response =
+//   let name = PACKAGE.Darklang.DarkPackages.parseName name
+
+//   let foundMaybe =
+//     Builtin.dbQueryOne PackageEntriesDB (fun v ->
+//       v.category == category && v.name == name)
+
+//   PACKAGE.Darklang.DarkPackages.makeResponseForEntryMaybe foundMaybe
+
+
+// let fetchByTlid
+//   (category: PACKAGE.Darklang.DarkPackages.Category)
+//   (tlid: String)
+//   : Stdlib.Http.Response =
+//   let tlid = (Stdlib.UInt64.parse tlid) |> Builtin.unwrap
+
+//   let entriesInCategory =
+//     Builtin.dbQuery PackageEntriesDB (fun v -> v.category == category)
+
+//   let foundMaybe =
+//     entriesInCategory
+//     |> Stdlib.List.findFirst (fun entry ->
+//       match entry.item with
+//       | Fn fn -> fn.id == id
+//       | Constant c -> c.id == id
+//       | Type typ -> typ.id == id)
+
+//   PACKAGE.Darklang.DarkPackages.makeResponseForEntryMaybe foundMaybe
+
+
+
+// ------
+// Name-resolution
+// ------
+[<HttpHandler("GET", "nr.darklang.io", "/api/name-resolver/type/:name")>]
+let _handler _req = ...
+
+[<HttpHandler("GET", "/api/name-resolver/constant/:name")>]
+let _handler _req = ...
+
+[<HttpHandler("GET", "/api/name-resolver/function/:name")>]
+let _handler _req = ...
+
+
+
+// ------
+// Package-fetching
+// ------
+[<HttpHandler("GET", "/api/packages/type/by-hash/:hash")>]
+let _handler _req = ...
+
+[<HttpHandler("GET", "/constant/by-hash/:hash")>]
+let _handler _req = ...
+
+[<HttpHandler("GET", "/function/by-hash/:hash")>]
+let _handler _req = ...
+
+
+
+
+// TODO: how do we _contribute_ these things?
+
+[<HttpHandler("POST", "/api/package/edit")>]
+let _handler _req =
+  // request.body
+  // [ NewType 
+    // { id : System.Guid
+      //   name : FQTypeName.Package {owner, modules, name}
+      //   declaration : TypeDeclaration.T
+      //   readiness : 
+      //   description : string }
+
+    // DeprecateType
+    // AddFunction
+
+    // PointHttpHandlerTo FunctionHash
+
+    // MoveType of typeName: ... , to: ["asdf"]
+  // ]
+  //req.body
+    
+  Builtin.storePackageType
+
+[<HttpHandler("PUT", "/api/packages/type/update/name")>]
+let _handler _req =
+  //req.body
+    // { name : FQTypeName.Package
+    //   hash: ... }
+  Builtin.storePackageType
+
+
+
+
+
+[<HttpHandler("POST", "/api/packages/type")>]
+let _handler _req =
+  //req.body
+    // { id : System.Guid
+    //   name : FQTypeName.Package {owner, modules, name}
+    //   declaration : TypeDeclaration.T
+    //   readiness : 
+    //   description : string }
+  Builtin.storePackageType
+
+[<HttpHandler("PUT", "/api/packages/type/update/name")>]
+let _handler _req =
+  //req.body
+    // { name : FQTypeName.Package
+    //   hash: ... }
+  Builtin.storePackageType
+
+
+
+[<HttpHandler("GET", "/constant/by-hash/:hash")>]
+let _handler _req = ...
+
+[<HttpHandler("GET", "/function/by-hash/:hash")>]
+let _handler _req = ...
+
+
+
+// #abc
+let myOldHttpHandler (req: HttpHandler.Request): HttpHandler.Response = 
+  HttpHandler.Response
+    { statusCode = 200
+      headers = []
+      body = "old repsonse" }
+
+// #def
+let newHttpHandler  (req: HttpHandler.Request): HttpHandler.Response = 
+  HttpHandler.Response
+    { statusCode = 200
+      headers = []
+      body = "new response" }
+
+// #zzz
+let inProgressHttpHandler  (req: HttpHandler.Request): HttpHandler.Response = 
+  if not req.isOcean then
+    newHttpHandler req
+  else
+    myOldHttpHandler req
+
+
+
+[<HttpHandler("PUT", "/api/cloud/http-handler")>]
+let _handler _req =
+  // { 
+  //   method: "GET"
+  //   route: "/function/by-hash/:hash"
+  //   function_hash: #def
+  // }
+
+(*
+```
+$ dark matter types --in Stachu
+
+- MyType1
+- [MyType2] 
+- MyType3
+
+---
+
+Viewing MyType2 (currently at hash #ab1)
+
+type MyType2 = Option 1
+
+
+Other versions:
+- #bc1
+- #b3e
+
+
+```
+
+
+
+```
+$ dark cloud http-handlers
+- GET /
+- GET /asdf
+- [GET /function/by-hash/:hash]
+- GET /type/by-hash/:hash
+
+---
+
+Viewing GET /function/by-hash/:hash
+
+Currently pointed at #def:
+```
+let handler (req) = 
+  req....
+
+```
+
+
+```
+*)
+
+
+
+
+
+
+[<HttpHandler("PUT", "/api/cloud/cron-handler")>]
+let _handler _req =
+  // { 
+  //   method: "GET"
+  //   route: "/function/by-hash/:hash"
+  //   function_hash: #def
+  // }
+
+
+
+
+
+[<HttpHandler("GET", "/owner/:owner")>]
+let _handler _req =
+  // let allItems =
+  //   (Builtin.dbQuery PackageEntriesDB (fun entry -> entry.name.owner == owner))
+  //   |> Stdlib.List.map (fun entry ->
+  //     let typeOfItem =
+  //       match entry.item with
+  //       | Fn _ -> "fn"
+  //       | Type _ -> "type"
+  //       | Constant _ -> "const"
+
+  //     let modules = Stdlib.String.join entry.name.modules "."
+  //     $"{typeOfItem} {entry.name.owner}.{modules}.{entry.name.name}")
+  //   |> Stdlib.List.sort
+  //   |> Stdlib.String.join "\n"
+
+  // let respBody =
+  //   if allItems == "" then
+  //     ($"owner {owner} not found") |> Stdlib.String.toBytes
+  //   else
+  //     allItems |> Stdlib.String.toBytes
+  Builtins.darkInternalPackageThingsByOwner
+
+  Stdlib.Http.response respBody 200L
+
+
+[<HttpHandler("GET", "/modules/:name")>]
+let _handler _req =
+  // // names are in the form of Owner.Module.Module.Module
+  // let names = Stdlib.String.split name "."
+  // let owner = names |> Stdlib.List.head |> Builtin.unwrap
+  // let modules = names |> Stdlib.List.drop 1L
+
+  // let fns =
+  //   (Builtin.dbQuery PackageEntriesDB (fun v ->
+  //     v.name.owner == owner
+  //     && v.category == PACKAGE.Darklang.DarkPackages.Category.Fn))
+  //   |> Stdlib.List.filter (fun v -> v.name.modules == modules)
+  //   |> Stdlib.List.filterMap (fun v ->
+  //     match v.item with
+  //     | Fn f -> Stdlib.Option.Option.Some f
+  //     | _ -> Stdlib.Option.Option.None)
+
+  // let types =
+  //   (Builtin.dbQuery PackageEntriesDB (fun v ->
+  //     v.name.owner == owner
+  //     && v.category == PACKAGE.Darklang.DarkPackages.Category.Type))
+  //   |> Stdlib.List.filter (fun v -> v.name.modules == modules)
+  //   |> Stdlib.List.filterMap (fun v ->
+  //     match v.item with
+  //     | Type t -> Stdlib.Option.Option.Some t
+  //     | _ -> Stdlib.Option.Option.None)
+
+  // let constants =
+  //   (Builtin.dbQuery PackageEntriesDB (fun v ->
+  //     v.name.owner == owner
+  //     && v.category == PACKAGE.Darklang.DarkPackages.Category.Constant))
+  //   |> Stdlib.List.filter (fun v -> v.name.modules == modules)
+  //   |> Stdlib.List.filterMap (fun v ->
+  //     match v.package with
+  //     | Const c -> Stdlib.Option.Option.Some c
+  //     | _ -> Stdlib.Option.Option.None)
+
+  // let respBody =
+  //   (PACKAGE.Darklang.LanguageTools.ProgramTypes.Packages
+  //     { types = types
+  //       fns = fns
+  //       constants = constants })
+  //   |> Builtin.jsonSerialize<PACKAGE.Darklang.LanguageTools.ProgramTypes.Packages>
+  //   |> Stdlib.String.toBytes
+
+  .. TODO: some other builtin
+
+  Stdlib.Http.response respBody 200L
+
+
+
+
+
+
+
+[<HttpHandler("GET", "/stats")>]
+let _handler _req = Stdlib.Http.response Bytes.empty 200L
+
+
+clientJsonGETApi "v1/initial_load" R InitialLoad.V1.initialLoad
+
+clientJsonApi "v1/add_op" RW AddOps.V1.addOp
+
+
+clientJsonGETApi "v1/packages" R (Packages.ListV1.packages packages)
+
+
+(* Later
+
+addRoute "GET" "/login" html None Login.loginPage
+addRoute "POST" "/login" html None Login.loginHandler
+addRoute "GET" "/logout" html None Login.logout
+addRoute "POST" "/logout" html None Login.logout
+
+builder.MapGet("/check-apiserver", checkApiserver) |> ignore<IRouteBuilder>
+
+clientJsonApi "v1/get_db_stats" R DBs.DBStatsV1.getStats
+clientJsonApi "get_unlocked_dbs" R DBs.Unlocked.get
+
+
+clientJsonApi "v1/get_trace_data" R Traces.TraceDataV1.getTraceData
+clientJsonApi "all_traces" R Traces.AllTraces.fetchAll
+
+clientJsonApi "delete_404" RW F404s.Delete.delete
+clientJsonApi "get_404s" R F404s.List.get
+
+clientJsonApi "v1/execute_function" RW Execution.FunctionV1.execute
+
+clientJsonApi "delete-toplevel-forever" RW Toplevels.Delete.delete
+
+// CLEANUP: packages/upload_function
+// CLEANUP: save_test handler
+
+clientJsonApi "v1/delete_secret" RW Secrets.DeleteV1.delete
+clientJsonApi "v1/insert_secret" RW Secrets.InsertV1.insert
+
+clientJsonApi "v1/trigger_handler" RW Execution.HandlerV1.trigger
+clientJsonApi "worker_schedule" RW Workers.Scheduler.updateSchedule
+clientJsonApi "get_worker_stats" R Workers.WorkerStats.getStats
+
+clientJsonApi "register_tunnel" RW Tunnels.Register.register
+*)
