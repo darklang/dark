@@ -480,14 +480,13 @@ module Darklang =
 
                       match fieldNameNode, symbolColonNode, fieldTypeNode with
                       | Ok fieldNameNode, Ok symbolColonNode, Ok fieldTypeNode ->
-                        let fieldName = fieldNameNode.text
                         let fieldType = TypeReference.parse fieldTypeNode
 
                         match fieldType with
                         | Ok fieldType ->
                           (WrittenTypes.TypeDeclaration.RecordField
                             { range = fieldNode.sourceRange
-                              name = fieldName
+                              name = (fieldNameNode.sourceRange, fieldNameNode.text)
                               typ = fieldType
                               description = ""
                               symbolColon = symbolColonNode.sourceRange })
@@ -518,14 +517,13 @@ module Darklang =
 
                       match fieldNameNode, symbolColonNode, fieldTypeNode with
                       | Ok fieldNameNode, Ok symbolColonNode, Ok fieldTypeNode ->
-                        let fieldName = fieldNameNode.text
                         let fieldType = TypeReference.parse fieldTypeNode
 
                         match fieldType with
                         | Ok fieldType ->
                           (WrittenTypes.TypeDeclaration.RecordField
                             { range = fieldNode.sourceRange
-                              name = fieldName
+                              name = (fieldNameNode.sourceRange, fieldNameNode.text)
                               typ = fieldType
                               description = ""
                               symbolColon = symbolColonNode.sourceRange })
@@ -1179,7 +1177,7 @@ module Darklang =
 
                     match fieldNode, symbolEqualsNode, valueNode with
                     | Ok fieldNode, Ok symbolEqualsNode, Ok valueNode ->
-                      let field = fieldNode.text
+                      let field = (fieldNode.sourceRange, fieldNode.text)
                       let value = Expr.parse valueNode
 
                       match value with
@@ -1211,7 +1209,7 @@ module Darklang =
 
                     match fieldNode, symbolEqualsNode, valueNode with
                     | Ok fieldNode, Ok symbolEqualsNode, Ok valueNode ->
-                      let field = fieldNode.text
+                      let field = (fieldNode.sourceRange, fieldNode.text)
                       let value = Expr.parse valueNode
 
                       match value with

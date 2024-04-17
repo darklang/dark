@@ -122,9 +122,10 @@ module Darklang =
             (resolver: NameResolver.NameResolutionSettings)
             (f: WrittenTypes.TypeDeclaration.RecordField)
             : ProgramTypes.TypeDeclaration.RecordField =
+            let name = f.name |> Stdlib.Tuple2.second
 
             ProgramTypes.TypeDeclaration.RecordField
-              { name = f.name
+              { name = name
                 typ = TypeReference.toPT resolver f.typ
                 description = "" }
 
@@ -266,13 +267,15 @@ module Darklang =
 
             ProgramTypes.Expr.ETuple(gid (), first, second, rest)
 
-          | ERecord(_, name, fields, _, _) ->
-            let name = NameResolver.TypeName.resolve resolver [] name
+          | ERecord(_, typeName, fields, _, _) ->
+            let typeName = NameResolver.TypeName.resolve resolver [] typeName
 
             let fields =
-              Stdlib.List.map fields (fun (_, k, v) -> (k, toPT resolver v))
+              Stdlib.List.map fields (fun (_, name, typeName) ->
+                let fieldName = name |> Stdlib.Tuple2.second
+                (fieldName, toPT resolver typeName))
 
-            ProgramTypes.Expr.ERecord(gid (), name, fields)
+            ProgramTypes.Expr.ERecord(gid (), typeName, fields)
 
           // declaring and accessing variables
           | ELet(_, pat, rhs, body, _, _) ->

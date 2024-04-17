@@ -169,6 +169,16 @@ module Darklang =
           : List<SemanticToken> =
           match d with
           | Alias typeRef -> TypeReference.tokenize typeRef
+          | Record fields ->
+            fields
+            |> Stdlib.List.map (fun rf ->
+              let nameRange = rf.name |> Stdlib.Tuple2.first
+
+              [ [ makeToken nameRange TokenType.String ]
+                [ makeToken rf.symbolColon TokenType.Symbol ]
+                TypeReference.tokenize rf.typ ]
+              |> Stdlib.List.flatten)
+            |> Stdlib.List.flatten
 
         // type ID = UInt64
         let tokenize
@@ -180,7 +190,7 @@ module Darklang =
             [ makeToken t.name.range TokenType.TypeName ]
             // =
             [ makeToken t.symbolEquals TokenType.Symbol ]
-            // UInt64
+            // UInt64 or { name: String }
             tokenizeDefinition t.definition ]
           |> Stdlib.List.flatten
 
@@ -341,18 +351,31 @@ module Darklang =
             |> Stdlib.List.flatten
 
           // Person { name = "Alice" }
-          | ERecord(range, name, fields, symbolOpenBrace, symbolCloseBrace) ->
+          | ERecord(range, typeName, fields, symbolOpenBrace, symbolCloseBrace) ->
+            let typeName =
+              match typeName with
+              | Unresolved(range, _) -> [ makeToken range TokenType.TypeName ]
+              | _ -> []
+
             let fields =
               fields
-              |> Stdlib.List.map (fun (_, fieldName, value) -> Expr.tokenize value)
+              |> Stdlib.List.map (fun (symbol, fieldName, value) ->
+                let range = fieldName |> Stdlib.Tuple2.first
+
+                [ // name
+                  [ makeToken range TokenType.String ]
+                  // =
+                  [ makeToken symbol.sourceRange TokenType.Symbol ]
+                  // "Alice"
+                  Expr.tokenize value ])
               |> Stdlib.List.flatten
 
             [ // Person
-              QualifiedTypeIdentifier.tokenize name
+              typeName
               // {
               [ makeToken symbolOpenBrace TokenType.Symbol ]
               // name = "Alice"
-              fields
+              fields |> Stdlib.List.flatten
               // }
               [ makeToken symbolCloseBrace TokenType.Symbol ] ]
             |> Stdlib.List.flatten

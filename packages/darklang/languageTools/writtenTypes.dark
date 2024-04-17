@@ -89,7 +89,7 @@ module Darklang =
       module TypeDeclaration =
         type RecordField =
           { range: SourceRange
-            name: String
+            name: SourceRange * String
             typ: TypeReference.TypeReference
             description: String
             symbolColon: SourceRange }
@@ -213,7 +213,7 @@ module Darklang =
         | ERecord of
           SourceRange *
           typeName: Name *
-          fields: List<SourceRange * String * Expr> *
+          fields: List<SourceRange * (SourceRange * String) * Expr> *
           symbolOpenBrace: SourceRange *
           symbolCloseBrace: SourceRange
 
