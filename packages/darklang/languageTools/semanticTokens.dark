@@ -174,7 +174,7 @@ module Darklang =
             |> Stdlib.List.map (fun rf ->
               let nameRange = rf.name |> Stdlib.Tuple2.first
 
-              [ [ makeToken nameRange TokenType.String ]
+              [ [ makeToken nameRange TokenType.Property ]
                 [ makeToken rf.symbolColon TokenType.Symbol ]
                 TypeReference.tokenize rf.typ ]
               |> Stdlib.List.flatten)
@@ -363,7 +363,7 @@ module Darklang =
                 let range = fieldName |> Stdlib.Tuple2.first
 
                 [ // name
-                  [ makeToken range TokenType.String ]
+                  [ makeToken range TokenType.Property ]
                   // =
                   [ makeToken symbol.sourceRange TokenType.Symbol ]
                   // "Alice"
