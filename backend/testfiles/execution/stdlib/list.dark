@@ -11,7 +11,7 @@ Stdlib.List.all_v0 [ 4L ] (fun item -> item < 3L) = false
 Stdlib.List.all_v0 [ 1L; 4L ] (fun item -> item < 3L) = false
 
 
-Stdlib.List.append_v0 [ 1L; 2L; 3L ] [ 4L; 5L; 6L ] = [ 1L; 2L; 3L; 4L; 5L; 6L ]
+fn#abc [ 1L; 2L; 3L ] [ 4L; 5L; 6L ] = [ 1L; 2L; 3L; 4L; 5L; 6L ]
 
 Stdlib.List.append_v0 [ 3L; 4L ] [ 5L; 6L ] = [ 3L; 4L; 5L; 6L ]
 Stdlib.List.append_v0 [ 1L ] [ 2L ] = [ 1L; 2L ]

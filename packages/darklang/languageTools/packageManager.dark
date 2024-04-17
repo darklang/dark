@@ -2,6 +2,8 @@ module Darklang =
   module LanguageTools =
     /// For interacting with the `dark-packages` canvas,
     /// where package items (types, constants, fns, etc) are maintained.
+
+    // Somehow (*waves hands*) this needs access to a proper namre solvers
     module PackageManager =
       // TODO: This is not the most elegant or complete solution. Revisit.
       let baseUrl () : String =

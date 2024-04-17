@@ -60,27 +60,18 @@ let assert'
 /// Fully-Qualified Type Name
 ///
 /// Used to reference a type defined in a Package or by a User
-module FQTypeName =
-  /// The name of a type in the package manager
-  type Package =
-    // TODO: consider whether modules should be a NonEmptyList
+module FQPackageTypeName =
+  type FQPackageTypeName =
     { owner : string
+      // TODO: consider whether modules should be a NonEmptyList
       modules : List<string>
       name : string
       version : int }
 
-  /// Part of the user's program (eg canvas or cli)
-  type UserProgram = { modules : List<string>; name : string; version : int }
-
-  type FQTypeName =
-    | Package of Package
-    | UserProgram of UserProgram
-
-
   let assertTypeName (name : string) : unit =
     assertRe "type name must match" typeNamePattern name
 
-  let package
+  let make
     (owner : string)
     (modules : List<string>)
     (name : string)
@@ -89,49 +80,18 @@ module FQTypeName =
     assert' modules name version assertTypeName
     { owner = owner; modules = modules; name = name; version = version }
 
-  let fqPackage
-    (owner : string)
-    (modules : List<string>)
-    (name : string)
-    (version : int)
-    : FQTypeName =
-    Package(package owner modules name version)
-
-  let userProgram
-    (modules : List<string>)
-    (name : string)
-    (version : int)
-    : UserProgram =
-    assert' modules name version assertTypeName
-    { modules = modules; name = name; version = version }
-
-  let fqUserProgram
-    (modules : List<string>)
-    (name : string)
-    (version : int)
-    : FQTypeName =
-    UserProgram(userProgram modules name version)
-
-
-  let packageToString (s : Package) : string =
+  let toString (s : FQPackageTypeName) : string =
     let name = ("PACKAGE" :: s.owner :: s.modules @ [ s.name ]) |> String.concat "."
     if s.version = 0 then name else $"{name}_v{s.version}"
 
-  let userProgramToString (s : UserProgram) : string =
-    let name = s.modules @ [ s.name ] |> String.concat "."
-    if s.version = 0 then name else $"{name}_v{s.version}"
 
-  let toString (name : FQTypeName) : string =
-    match name with
-    | Package pkg -> packageToString pkg
-    | UserProgram user -> userProgramToString user
+  let toShortName (name : FQPackageTypeName) : string =
+    if name.version = 0 then name.name else $"{name.name}_v{name.version}"
 
 
-  let toShortName (name : FQTypeName) : string =
-    match name with
-    | UserProgram { name = name; version = version }
-    | Package { name = name; version = version } ->
-      if version = 0 then name else $"{name}_v{version}"
+module FullTypeReference = 
+  type FullTypeReference = 
+    | Package of Hash
 
 
 /// A Fully-Qualified Constant Name
@@ -382,7 +342,7 @@ type KnownType =
   /// let s = Some(5)       // type args: [Known KTInt64]
   /// let o = Ok (5)        // type args: [Known KTInt64, Unknown]
   /// let e = Error ("str") // type args: [Unknown, Known KTString]
-  | KTCustomType of FQTypeName.FQTypeName * typeArgs : List<ValueType>
+  | KTCustomType of FullTypeReference.FullTypeReference * typeArgs : List<ValueType>
 
   // let myDict = {} // KTDict Unknown
   | KTDict of ValueType
@@ -433,7 +393,7 @@ module ValueType =
     KTTuple(first, second, theRest) |> known
 
   let customType
-    (typeName : FQTypeName.FQTypeName)
+    (typeName : FullTypeReference.FullTypeReference)
     (typeArgs : List<ValueType>)
     : ValueType =
     KTCustomType(typeName, typeArgs) |> known
@@ -478,6 +438,7 @@ module ValueType =
             |> String.concat ", "
             |> fun inner -> $"<{inner}>"
 
+        // TODO: lookup from FullTypeReference.hash to FQTypeName
         $"{FQTypeName.toString typeName}{typeArgsPart}"
 
       | KTFn(args, ret) ->
@@ -578,7 +539,7 @@ and TypeReference =
   | TDB of TypeReference
   | TVariable of string
   | TCustomType of
-    NameResolution<FQTypeName.FQTypeName> *
+    NameResolution<FullTypeReference.FullTypeReference> *
     typeArgs : List<TypeReference>
   | TDict of TypeReference // CLEANUP add key type
 
@@ -665,15 +626,23 @@ and Expr =
 
   // working with custom types
   | EConstant of id * FQConstantName.FQConstantName
-  | ERecord of id * FQTypeName.FQTypeName * NEList<string * Expr>
+  | ERecord of id * FullTypeReference.FullTypeReference * NEList<string * Expr>
   | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
-  | EEnum of id * FQTypeName.FQTypeName * caseName : string * fields : List<Expr>
+  | EEnum of id * FullTypeReference.FullTypeReference * caseName : string * fields : List<Expr>
 
   // A runtime error. This is included so that we can allow the program to run in the
   // presence of compile-time errors (which are converted to this error). We may
   // adapt this to include more information as we go. This list of exprs is the
   // subexpressions to evaluate before evaluating the error.
   | EError of id * RuntimeError * List<Expr>
+
+
+(*
+  - source text: `Stdlib.Option.Option.Some 1`
+  - WrittenTypes: Stdlib.Option.Option.Some
+  - ProgramTypes: #asdf
+  - RuntimeTypes: #asdf
+*)
 
 and MatchCase = { pat : MatchPattern; whenCondition : Option<Expr>; rhs : Expr }
 
@@ -779,16 +748,16 @@ and [<NoComparison>] Dval =
   | DRecord of
     // CLEANUP nitpick: maybe move sourceTypeName before runtimeTypeName?
     // CLEANUP we may need a sourceTypeArgs here as well
-    runtimeTypeName : FQTypeName.FQTypeName *
-    sourceTypeName : FQTypeName.FQTypeName *
+    runtimeTypeName : FullTypeReference.FullTypeReference *
+    sourceTypeName : FullTypeReference.FullTypeReference *
     typeArgs : List<ValueType> *
     fields : DvalMap
 
   | DEnum of
     // CLEANUP nitpick: maybe move sourceTypeName before runtimeTypeName?
     // CLEANUP we may need a sourceTypeArgs here as well
-    runtimeTypeName : FQTypeName.FQTypeName *
-    sourceTypeName : FQTypeName.FQTypeName *
+    runtimeTypeName : FullTypeReference.FullTypeReference *
+    sourceTypeName : FullTypeReference.FullTypeReference *
     typeArgs : List<ValueType> *
     caseName : string *
     fields : List<Dval>
@@ -1292,7 +1261,7 @@ type Const =
   | CTuple of first : Const * second : Const * rest : List<Const>
   | CDict of List<string * Const>
 
-  | CEnum of NameResolution<FQTypeName.FQTypeName> * caseName : string * List<Const>
+  | CEnum of NameResolution<FullTypeReference.FullTypeReference> * caseName : string * List<Const>
 
 
 
@@ -1322,23 +1291,23 @@ module PackageFn =
 // ------------
 // User stuff
 // ------------
-module UserType =
-  type T =
-    { tlid : tlid; name : FQTypeName.UserProgram; declaration : TypeDeclaration.T }
+// module UserType =
+//   type T =
+//     { tlid : tlid; name : FQTypeName.UserProgram; declaration : TypeDeclaration.T }
 
-module UserConstant =
-  type T = { tlid : tlid; name : FQConstantName.UserProgram; body : Const }
+// module UserConstant =
+//   type T = { tlid : tlid; name : FQConstantName.UserProgram; body : Const }
 
-module UserFunction =
-  type Parameter = { name : string; typ : TypeReference }
+// module UserFunction =
+//   type Parameter = { name : string; typ : TypeReference }
 
-  type T =
-    { tlid : tlid
-      name : FQFnName.UserProgram
-      typeParams : List<string>
-      parameters : NEList<Parameter>
-      returnType : TypeReference
-      body : Expr }
+//   type T =
+//     { tlid : tlid
+//       name : FQFnName.UserProgram
+//       typeParams : List<string>
+//       parameters : NEList<Parameter>
+//       returnType : TypeReference
+//       body : Expr }
 
 module DB =
   type T = { tlid : tlid; name : string; typ : TypeReference; version : int }

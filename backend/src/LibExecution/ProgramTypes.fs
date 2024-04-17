@@ -778,6 +778,12 @@ module Handler =
 
   type T = { tlid : tlid; ast : Expr; spec : Spec }
 
+
+
+module HttpHandler =
+  type HttpHandler = 
+    { tlid : tlid; method : string; route : string;  ast : PackageFunctionReference (hash) }
+
 module Toplevel =
   type T =
     | TLType of UserType.T
