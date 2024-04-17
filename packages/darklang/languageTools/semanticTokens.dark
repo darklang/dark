@@ -172,7 +172,7 @@ module Darklang =
           | Record fields ->
             fields
             |> Stdlib.List.map (fun rf ->
-              let nameRange = rf.name |> Stdlib.Tuple2.first
+              let (nameRange, _) = rf.name
 
               [ [ makeToken nameRange TokenType.Property ]
                 [ makeToken rf.symbolColon TokenType.Symbol ]
@@ -360,7 +360,9 @@ module Darklang =
             let fields =
               fields
               |> Stdlib.List.map (fun (symbol, fieldName, value) ->
-                let range = fieldName |> Stdlib.Tuple2.first
+                // TODO: use tuple destructuring, once nested tuple destructuring in a lambda is fixed
+                // i.e. fun (symbol, (sourceRange, _), value) -> ... instead of the below code
+                let (range, _) = fieldName
 
                 [ // name
                   [ makeToken range TokenType.Property ]
