@@ -190,7 +190,7 @@ module Darklang =
             [ makeToken t.name.range TokenType.TypeName ]
             // =
             [ makeToken t.symbolEquals TokenType.Symbol ]
-            // UInt64 or { name: String }
+            // UInt64
             tokenizeDefinition t.definition ]
           |> Stdlib.List.flatten
 
