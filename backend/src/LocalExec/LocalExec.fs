@@ -46,7 +46,7 @@ module HandleCommand =
       let nameResolver =
         LibParser.NameResolver.fromBuiltins Builtins.accessibleByCanvas
         |> fun nr ->
-          { nr with packageManager = Some inMemPackageManager; allowError = false }
+          { nr with packageManager = inMemPackageManager; allowError = false }
 
       let! (canvasId, toplevels) = Canvas.loadFromDisk nameResolver "dark-packages"
 

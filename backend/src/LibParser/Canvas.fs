@@ -8,6 +8,7 @@ module FS2WT = FSharpToWrittenTypes
 module WT = WrittenTypes
 module WT2PT = WrittenTypesToProgramTypes
 module PT = LibExecution.ProgramTypes
+module RT = LibExecution.RuntimeTypes
 
 open Utils
 open ParserException
@@ -215,11 +216,12 @@ let parseDecls (decls : List<SynModuleDecl>) : WTCanvasModule =
     emptyWTModule
     decls
 
+// TOOD: determine if this should take a PM in
 let toResolver (canvas : WTCanvasModule) : NameResolver.NameResolver =
   let fns = canvas.fns |> List.map _.name
   let types = canvas.types |> List.map _.name
   let constants = canvas.constants |> List.map _.name
-  NameResolver.create [] [] types fns constants true None
+  NameResolver.create [] [] types fns constants true RT.PackageManager.Empty
 
 let toPT
   (nameResolver : NameResolver.NameResolver)

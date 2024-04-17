@@ -39,7 +39,7 @@ type NameResolver =
     hackLocallyDefinedPackageFns : Set<RT.FQFnName.Package>
     hackLocallyDefinedPackageConstants : Set<RT.FQConstantName.Package>
 
-    packageManager : Option<RT.PackageManager>
+    packageManager : RT.PackageManager
   }
 
 
@@ -58,7 +58,7 @@ let empty : NameResolver =
     hackLocallyDefinedPackageFns = Set.empty
     hackLocallyDefinedPackageConstants = Set.empty
 
-    packageManager = None }
+    packageManager = RT.PackageManager.Empty }
 
 
 let create
@@ -68,7 +68,7 @@ let create
   (userFns : List<PT.FQFnName.UserProgram>)
   (userConstants : List<PT.FQConstantName.UserProgram>)
   (allowError : bool)
-  (packageManager : Option<RT.PackageManager>)
+  (packageManager : RT.PackageManager)
   : NameResolver =
   { builtinFns = Set.ofList builtinFns
     builtinConstants = Set.ofList builtinConstants
@@ -89,7 +89,7 @@ let create
 let merge
   (a : NameResolver)
   (b : NameResolver)
-  (packageManager : Option<RT.PackageManager>)
+  (packageManager : RT.PackageManager)
   : NameResolver =
   { builtinFns = Set.union a.builtinFns b.builtinFns
     builtinConstants = Set.union a.builtinConstants b.builtinConstants
@@ -135,7 +135,7 @@ let fromBuiltins (builtins : RT.Builtins) : NameResolver =
     hackLocallyDefinedPackageFns = Set.empty
     hackLocallyDefinedPackageConstants = Set.empty
 
-    packageManager = None }
+    packageManager = RT.PackageManager.Empty }
 
 
 let fromExecutionState (state : RT.ExecutionState) : NameResolver =
@@ -172,7 +172,7 @@ let fromExecutionState (state : RT.ExecutionState) : NameResolver =
     hackLocallyDefinedPackageTypes = Set.empty
     hackLocallyDefinedPackageConstants = Set.empty
 
-    packageManager = Some state.packageManager }
+    packageManager = state.packageManager }
 
 
 // TODO: there's a lot going on here to resolve the outer portion of the name and to
@@ -640,17 +640,14 @@ let resolveFnName
 
 module TypeName =
   let packageTypeExists
-    (pm : Option<RT.PackageManager>)
+    (pm : RT.PackageManager)
     (hackLocallyDefinedPackageTypes : Set<RT.FQTypeName.Package>)
     (typeName : RT.FQTypeName.Package)
     : Ply<bool> =
     uply {
-      match pm with
-      | None -> return false
-      | Some pm ->
-        match! pm.getType typeName with
-        | None -> return Set.contains typeName hackLocallyDefinedPackageTypes
-        | Some _ -> return true
+      match! pm.getType typeName with
+      | None -> return Set.contains typeName hackLocallyDefinedPackageTypes
+      | Some _ -> return true
     }
 
   let maybeResolve
@@ -692,17 +689,14 @@ module TypeName =
 
 module ConstantName =
   let packageConstExists
-    (pm : Option<RT.PackageManager>)
+    (pm : RT.PackageManager)
     (hackLocallyDefinedPackageConstants : Set<RT.FQConstantName.Package>)
     (constName : RT.FQConstantName.Package)
     : Ply<bool> =
     uply {
-      match pm with
-      | None -> return false
-      | Some pm ->
-        match! pm.getConstant constName with
-        | None -> return Set.contains constName hackLocallyDefinedPackageConstants
-        | Some _ -> return true
+      match! pm.getConstant constName with
+      | None -> return Set.contains constName hackLocallyDefinedPackageConstants
+      | Some _ -> return true
     }
 
 
@@ -745,17 +739,14 @@ module ConstantName =
 
 module FnName =
   let packageFnExists
-    (pm : Option<RT.PackageManager>)
+    (pm : RT.PackageManager)
     (hackLocallyDefinedPackageFns : Set<RT.FQFnName.Package>)
     (fnName : RT.FQFnName.Package)
     : Ply<bool> =
     uply {
-      match pm with
-      | None -> return false
-      | Some pm ->
-        match! pm.getFn fnName with
-        | None -> return Set.contains fnName hackLocallyDefinedPackageFns
-        | Some _ -> return true
+      match! pm.getFn fnName with
+      | None -> return Set.contains fnName hackLocallyDefinedPackageFns
+      | Some _ -> return true
     }
 
   let maybeResolve

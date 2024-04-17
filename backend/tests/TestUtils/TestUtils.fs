@@ -150,7 +150,7 @@ let packageManager = LibCloud.PackageManager.packageManager
 // This resolves both builtins and package functions
 let nameResolver =
   { LibParser.NameResolver.fromBuiltins localBuiltIns with
-      packageManager = Some packageManager }
+      packageManager = packageManager }
 
 
 let executionStateFor

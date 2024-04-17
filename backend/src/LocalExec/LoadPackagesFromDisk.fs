@@ -42,10 +42,7 @@ let load (builtins : RT.Builtins) : Ply<PT.Packages> =
       { nameResolver with
           allowError = false
           packageManager =
-            Some(
-              inMemPackageManagerFromPackages
-                packagesParsedWithUnresolvedNamesAllowed
-            ) }
+            inMemPackageManagerFromPackages packagesParsedWithUnresolvedNamesAllowed }
 
     return!
       filesWithContents
