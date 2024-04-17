@@ -36,7 +36,7 @@ let load (builtins : RT.Builtins) : Ply<PT.Packages> =
         LibParser.Parser.parsePackageFile nameResolver path contents)
       |> Ply.map PT.Packages.combine
 
-    // 3. re-parse the packages, though this time we don't allow unresolved names
+    // Re-parse the packages, though this time we don't allow unresolved names
     // (any package references that may have been unresolved a second ago should now be OK)
     let nameResolver =
       { nameResolver with
