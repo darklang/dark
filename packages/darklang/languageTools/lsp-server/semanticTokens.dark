@@ -25,7 +25,8 @@ module Darklang =
             "number" // [6] for number literals
             "parameter" // [7] for function parameter identifiers
             "variable" // [8] for general identifiers
-            "function" ] // [9] for function names/identifiers
+            "function" // [9] for function names/identifiers
+            "property" ] // [10] for field names
 
         let tokenModifiers = []
 
@@ -51,6 +52,7 @@ module Darklang =
             | VariableName -> 8UL
             | FunctionName -> 9UL
 
+            | Property -> 10UL
 
           let toRelativeTokens
             (tokens: List<LanguageTools.SemanticTokens.SemanticToken>)

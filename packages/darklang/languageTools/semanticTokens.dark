@@ -169,6 +169,16 @@ module Darklang =
           : List<SemanticToken> =
           match d with
           | Alias typeRef -> TypeReference.tokenize typeRef
+          | Record fields ->
+            fields
+            |> Stdlib.List.map (fun rf ->
+              let (nameRange, _) = rf.name
+
+              [ [ makeToken nameRange TokenType.Property ]
+                [ makeToken rf.symbolColon TokenType.Symbol ]
+                TypeReference.tokenize rf.typ ]
+              |> Stdlib.List.flatten)
+            |> Stdlib.List.flatten
 
         // type ID = UInt64
         let tokenize
@@ -338,6 +348,38 @@ module Darklang =
               rest
               // )
               [ makeToken symbolCloseParen TokenType.Symbol ] ]
+            |> Stdlib.List.flatten
+
+          // Person { name = "Alice" }
+          | ERecord(range, typeName, fields, symbolOpenBrace, symbolCloseBrace) ->
+            let typeName =
+              match typeName with
+              | Unresolved(range, _) -> [ makeToken range TokenType.TypeName ]
+              | _ -> []
+
+            let fields =
+              fields
+              |> Stdlib.List.map (fun (symbol, fieldName, value) ->
+                // TODO: use tuple destructuring, once nested tuple destructuring in a lambda is fixed
+                // i.e. fun (symbol, (sourceRange, _), value) -> ... instead of the below code
+                let (range, _) = fieldName
+
+                [ // name
+                  [ makeToken range TokenType.Property ]
+                  // =
+                  [ makeToken symbol.sourceRange TokenType.Symbol ]
+                  // "Alice"
+                  Expr.tokenize value ])
+              |> Stdlib.List.flatten
+
+            [ // Person
+              typeName
+              // {
+              [ makeToken symbolOpenBrace TokenType.Symbol ]
+              // name = "Alice"
+              fields |> Stdlib.List.flatten
+              // }
+              [ makeToken symbolCloseBrace TokenType.Symbol ] ]
             |> Stdlib.List.flatten
 
           // let x = 2

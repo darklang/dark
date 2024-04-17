@@ -320,6 +320,10 @@
           "named": true
         },
         {
+          "type": "record_literal",
+          "named": true
+        },
+        {
           "type": "string_literal",
           "named": true
         },
@@ -1062,6 +1066,114 @@
     }
   },
   {
+    "type": "record_content",
+    "named": true,
+    "fields": {
+      "record_separator": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "record_pair",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "record_literal",
+    "named": true,
+    "fields": {
+      "content": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "record_content",
+            "named": true
+          }
+        ]
+      },
+      "symbol_close_brace": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_open_brace": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "type_name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "qualified_type_name",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "record_pair",
+    "named": true,
+    "fields": {
+      "field": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "variable_identifier",
+            "named": true
+          }
+        ]
+      },
+      "symbol_equals": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "source_file",
     "named": true,
     "fields": {},
@@ -1328,6 +1440,138 @@
         ]
       },
       "typ": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type_decl_def",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "type_decl_def",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "type_decl_def_alias",
+          "named": true
+        },
+        {
+          "type": "type_decl_def_record",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "type_decl_def_alias",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "type_reference",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "type_decl_def_record",
+    "named": true,
+    "fields": {
+      "content": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "type_decl_def_record_content",
+            "named": true
+          }
+        ]
+      },
+      "symbol_close_brace": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_open_brace": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "type_decl_def_record_content",
+    "named": true,
+    "fields": {
+      "record_separator": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "type_decl_def_record_field",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "type_decl_def_record_field",
+    "named": true,
+    "fields": {
+      "field": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "variable_identifier",
+            "named": true
+          }
+        ]
+      },
+      "symbol_colon": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "type": {
         "multiple": false,
         "required": true,
         "types": [

@@ -1,0 +1,116 @@
+==================
+Record -one field
+==================
+
+Person {name = "John"}
+
+---
+
+(source_file
+  (expression
+    (record_literal
+      (qualified_type_name (type_identifier))
+      (symbol)
+      (record_content
+        (record_pair (variable_identifier) (symbol) (expression (string_literal (symbol) (string_content) (symbol))))
+      )
+      (symbol)
+    )
+  )
+)
+
+
+==================
+Record -two fields
+==================
+
+Person {name = "John"; age = 30L}
+
+---
+
+(source_file
+  (expression
+    (record_literal
+      (qualified_type_name (type_identifier))
+      (symbol)
+      (record_content
+        (record_pair (variable_identifier) (symbol) (expression (string_literal (symbol) (string_content) (symbol))))
+        (symbol)
+        (record_pair (variable_identifier) (symbol) (expression (int64_literal (digits (positive_digits)) (symbol))))
+      )
+      (symbol)
+    )
+  )
+)
+
+
+==================
+Record -multiple fields
+==================
+
+Person {name = "John"; age = 30L; hobbies = ["reading"; "swimming"]}
+
+---
+
+(source_file
+  (expression
+    (record_literal
+      (qualified_type_name (type_identifier))
+        (symbol)
+        (record_content
+          (record_pair (variable_identifier) (symbol) (expression (string_literal (symbol) (string_content) (symbol))))
+          (symbol)
+          (record_pair (variable_identifier) (symbol) (expression (int64_literal (digits (positive_digits)) (symbol))))
+          (symbol)
+          (record_pair (variable_identifier) (symbol)
+            (expression (list_literal
+              (symbol)
+              (list_content
+                (expression (string_literal (symbol) (string_content) (symbol)))
+                (symbol)
+                (expression (string_literal (symbol) (string_content) (symbol)))
+              )
+              (symbol))
+            )
+          )
+        )
+        (symbol)
+    )
+  )
+)
+
+
+==================
+Record -nested Record
+==================
+
+Person {name = "John"; address = Address {city = "New York"; street = "5th Avenue"}}
+
+---
+
+(source_file
+  (expression
+    (record_literal
+      (qualified_type_name (type_identifier)) (symbol)
+      (record_content
+        (record_pair (variable_identifier) (symbol) (expression (string_literal (symbol) (string_content) (symbol))))
+        (symbol)
+        (record_pair (variable_identifier) (symbol)
+          (expression
+            (record_literal (qualified_type_name (type_identifier)) (symbol)
+              (record_content
+                (record_pair (variable_identifier) (symbol) (expression (string_literal (symbol) (string_content) (symbol))))
+                (symbol)
+                (record_pair (variable_identifier) (symbol) (expression (string_literal (symbol) (string_content) (symbol))))
+              )
+              (symbol)
+            )
+          )
+        )
+      )
+    (symbol)
+    )
+  )
+)
+
+

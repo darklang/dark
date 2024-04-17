@@ -428,13 +428,133 @@ module Darklang =
         let parseDefinition
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.TypeDeclaration.Definition, WrittenTypes.Unparseable> =
-          if node.typ == "type_reference" then
-            match TypeReference.parse node with
-            | Ok typeRef ->
-              (WrittenTypes.TypeDeclaration.Definition.Alias typeRef)
-              |> Stdlib.Result.Result.Ok
+          if node.typ == "type_decl_def" then
+            match node.children with
+            | [ child ] when child.typ == "type_decl_def_alias" ->
+              match child.children with
+              | [ single ] when single.typ == "type_reference" ->
+                let typRef = TypeReference.parse single
 
-            | Error _ ->
+                match typRef with
+                | Ok typRef ->
+                  (WrittenTypes.TypeDeclaration.Definition.Alias typRef)
+                  |> Stdlib.Result.Result.Ok
+
+                | Error _ ->
+                  (WrittenTypes.Unparseable { source = node })
+                  |> Stdlib.Result.Result.Error
+
+              | _ ->
+                (WrittenTypes.Unparseable { source = node })
+                |> Stdlib.Result.Result.Error
+
+            | [ child ] when child.typ == "type_decl_def_record" ->
+              let openBraceNode =
+                (findNodeByFieldName child "symbol_open_brace")
+                |> Stdlib.Option.toResult
+                  "No symbol_open_brace node found in type_decl_def_record"
+
+              let recordFields =
+                match (findNodeByFieldName child "content") with
+                | Some contentNode ->
+                  contentNode.children
+                  |> Stdlib.List.chunkBySize 2L
+                  |> Builtin.unwrap
+                  |> Stdlib.List.map (fun chunk ->
+                    match chunk with
+                    | [ fieldNode ] ->
+                      let fieldNameNode =
+                        (findNodeByFieldName fieldNode "field")
+                        |> Stdlib.Option.toResult
+                          "No field_name node found in type_decl_def_record"
+
+                      let symbolColonNode =
+                        (findNodeByFieldName fieldNode "symbol_colon")
+                        |> Stdlib.Option.toResult
+                          "No symbol_colon node found in type_decl_def_record"
+
+                      let fieldTypeNode =
+                        (findNodeByFieldName fieldNode "type")
+                        |> Stdlib.Option.toResult
+                          "No field_type node found in type_decl_def_record"
+
+                      match fieldNameNode, symbolColonNode, fieldTypeNode with
+                      | Ok fieldNameNode, Ok symbolColonNode, Ok fieldTypeNode ->
+                        let fieldType = TypeReference.parse fieldTypeNode
+
+                        match fieldType with
+                        | Ok fieldType ->
+                          (WrittenTypes.TypeDeclaration.RecordField
+                            { range = fieldNode.sourceRange
+                              name = (fieldNameNode.sourceRange, fieldNameNode.text)
+                              typ = fieldType
+                              description = ""
+                              symbolColon = symbolColonNode.sourceRange })
+                          |> Stdlib.Result.Result.Ok
+
+                        | Error _ ->
+                          (WrittenTypes.Unparseable { source = fieldTypeNode })
+                          |> Stdlib.Result.Result.Error
+                      | _ ->
+                        (WrittenTypes.Unparseable { source = fieldNode })
+                        |> Stdlib.Result.Result.Error
+
+                    | [ fieldNode; _separator ] ->
+                      let fieldNameNode =
+                        (findNodeByFieldName fieldNode "field")
+                        |> Stdlib.Option.toResult
+                          "No field_name node found in type_decl_def_record"
+
+                      let symbolColonNode =
+                        (findNodeByFieldName fieldNode "symbol_colon")
+                        |> Stdlib.Option.toResult
+                          "No symbol_colon node found in type_decl_def_record"
+
+                      let fieldTypeNode =
+                        (findNodeByFieldName fieldNode "type")
+                        |> Stdlib.Option.toResult
+                          "No field_type node found in type_decl_def_record"
+
+                      match fieldNameNode, symbolColonNode, fieldTypeNode with
+                      | Ok fieldNameNode, Ok symbolColonNode, Ok fieldTypeNode ->
+                        let fieldType = TypeReference.parse fieldTypeNode
+
+                        match fieldType with
+                        | Ok fieldType ->
+                          (WrittenTypes.TypeDeclaration.RecordField
+                            { range = fieldNode.sourceRange
+                              name = (fieldNameNode.sourceRange, fieldNameNode.text)
+                              typ = fieldType
+                              description = ""
+                              symbolColon = symbolColonNode.sourceRange })
+                          |> Stdlib.Result.Result.Ok
+
+                        | Error _ ->
+                          (WrittenTypes.Unparseable { source = fieldTypeNode })
+                          |> Stdlib.Result.Result.Error
+                      | _ ->
+                        (WrittenTypes.Unparseable { source = fieldNode })
+                        |> Stdlib.Result.Result.Error
+
+                    | _ ->
+                      (WrittenTypes.Unparseable { source = fieldNode })
+                      |> Stdlib.Result.Result.Error)
+
+                | None -> [] |> Stdlib.Result.Result.Ok
+
+              let recordFields = recordFields |> Stdlib.Result.values
+
+              let closeBraceNode =
+                (findNodeByFieldName child "symbol_close_brace")
+                |> Stdlib.Option.toResult
+                  "No symbol_close_brace node found in type_decl_def_record"
+
+              match openBraceNode, recordFields, closeBraceNode with
+              | Ok openBraceNode, Ok recordFields, Ok closeBraceNode ->
+                (WrittenTypes.TypeDeclaration.Definition.Record recordFields)
+                |> Stdlib.Result.Result.Ok
+
+            | _ ->
               (WrittenTypes.Unparseable { source = node })
               |> Stdlib.Result.Result.Error
 
@@ -1017,6 +1137,129 @@ module Darklang =
             |> Stdlib.Result.Result.Error
 
 
+        let parseRecordLiteral
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
+          if node.typ == "record_literal" then
+            let typeNameNode =
+              (findNodeByFieldName node "type_name")
+              |> Stdlib.Option.toResult "No type_name node found in record_literal"
+
+            let openBraceNode =
+              (findNodeByFieldName node "symbol_open_brace")
+              |> Stdlib.Option.toResult
+                "No symbol_open_brace node found in record_literal"
+
+            let contents =
+              node
+              |> findNodeByFieldName "content"
+              |> Stdlib.Option.map (fun contentsNode ->
+                contentsNode.children
+                |> Stdlib.List.chunkBySize 2L
+                |> Builtin.unwrap
+                |> Stdlib.List.map (fun chunk ->
+                  match chunk with
+                  | [ recordPairNode; _separator ] ->
+                    let fieldNode =
+                      (findNodeByFieldName recordPairNode "field")
+                      |> Stdlib.Option.toResult
+                        "No field node found in record_pair"
+
+                    let symbolEqualsNode =
+                      (findNodeByFieldName recordPairNode "symbol_equals")
+                      |> Stdlib.Option.toResult
+                        "No symbol_equals node found in record_pair"
+
+                    let valueNode =
+                      (findNodeByFieldName recordPairNode "value")
+                      |> Stdlib.Option.toResult
+                        "No value node found in record_pair"
+
+                    match fieldNode, symbolEqualsNode, valueNode with
+                    | Ok fieldNode, Ok symbolEqualsNode, Ok valueNode ->
+                      let field = (fieldNode.sourceRange, fieldNode.text)
+                      let value = Expr.parse valueNode
+
+                      match value with
+                      | Ok value -> (symbolEqualsNode, field, value)
+                      | _ ->
+                        Stdlib.Result.Result.Error(
+                          WrittenTypes.Unparseable { source = recordPairNode }
+                        )
+                    | _ ->
+                      Stdlib.Result.Result.Error(
+                        WrittenTypes.Unparseable { source = chunk }
+                      )
+
+                  | [ recordPairNode ] ->
+                    let fieldNode =
+                      (findNodeByFieldName recordPairNode "field")
+                      |> Stdlib.Option.toResult
+                        "No field node found in record_pair"
+
+                    let symbolEqualsNode =
+                      (findNodeByFieldName recordPairNode "symbol_equals")
+                      |> Stdlib.Option.toResult
+                        "No symbol_equals node found in record_pair"
+
+                    let valueNode =
+                      (findNodeByFieldName recordPairNode "value")
+                      |> Stdlib.Option.toResult
+                        "No value node found in record_pair"
+
+                    match fieldNode, symbolEqualsNode, valueNode with
+                    | Ok fieldNode, Ok symbolEqualsNode, Ok valueNode ->
+                      let field = (fieldNode.sourceRange, fieldNode.text)
+                      let value = Expr.parse valueNode
+
+                      match value with
+                      | Ok value -> (symbolEqualsNode, field, value)
+                      | _ ->
+                        Stdlib.Result.Result.Error(
+                          WrittenTypes.Unparseable { source = recordPairNode }
+                        )
+                    | _ ->
+                      Stdlib.Result.Result.Error(
+                        WrittenTypes.Unparseable { source = chunk }
+                      )
+                  | _ ->
+                    Stdlib.Result.Result.Error(
+                      WrittenTypes.Unparseable { source = chunk }
+                    )))
+              |> Stdlib.Option.withDefault []
+
+            let closeBraceNode =
+              (findNodeByFieldName node "symbol_close_brace")
+              |> Stdlib.Option.toResult
+                "No symbol_close_brace node found in record_literal"
+
+            match typeNameNode, openBraceNode, closeBraceNode with
+            | Ok typeNameNode, Ok openBraceNode, Ok closeBraceNode ->
+              let typeNameNode =
+                Darklang.LanguageTools.WrittenTypes.Name.Unresolved(
+                  typeNameNode.sourceRange,
+                  [ typeNameNode.text ]
+                )
+
+              (WrittenTypes.Expr.ERecord(
+                node.sourceRange,
+                typeNameNode,
+                contents,
+                openBraceNode.sourceRange,
+                closeBraceNode.sourceRange
+              ))
+              |> Stdlib.Result.Result.Ok
+
+            | _ ->
+              (WrittenTypes.Unparseable { source = node })
+              |> Stdlib.Result.Result.Error
+
+          else
+            (WrittenTypes.Unparseable { source = node })
+            |> Stdlib.Result.Result.Error
+
+
+
         let parseLetExpr
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
@@ -1301,6 +1544,8 @@ module Darklang =
           | "list_literal" -> parseListLiteral node
           | "dict_literal" -> parseDictLiteral node
           | "tuple_literal" -> parseTupleLiteral node
+
+          | "record_literal" -> parseRecordLiteral node
 
           // assigning and accessing variables
           | "let_expression" -> parseLetExpr node

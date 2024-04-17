@@ -121,11 +121,11 @@ module Darklang =
           (packageThingExists: String -> Bool)
           (allowError: Bool)
           (currentModule: List<String>)
-          (name: LanguageTools.WrittenTypesToProgramTypes.Name)
+          (name: LanguageTools.WrittenTypes.Name)
           : LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQTypeName.FQTypeName> =
 
           match name with
-          | Unresolved given ->
+          | Unresolved(_, given) ->
             let result =
               Stdlib.List.fold
                 (NameResolver.namesToTry given currentModule)
@@ -172,7 +172,7 @@ module Darklang =
         let maybeResolve
           (resolver: NameResolver.NameResolutionSettings)
           (currentModule: List<String>)
-          (name: LanguageTools.WrittenTypesToProgramTypes.Name)
+          (name: LanguageTools.WrittenTypes.Name)
           : LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQTypeName.FQTypeName> =
 
           resolveTypeName
@@ -186,7 +186,7 @@ module Darklang =
         let resolve
           (resolver: NameResolver.NameResolutionSettings)
           (currentModule: List<String>)
-          (name: LanguageTools.WrittenTypesToProgramTypes.Name)
+          (name: LanguageTools.WrittenTypes.Name)
           : LanguageTools.ProgramTypes.NameResolution<LanguageTools.ProgramTypes.FQTypeName.FQTypeName> =
           resolveTypeName
             LanguageTools.Parser.parseName

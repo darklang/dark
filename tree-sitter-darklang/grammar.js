@@ -62,7 +62,37 @@ module.exports = grammar({
         field("keyword_type", alias("type", $.keyword)),
         field("name", $.type_identifier),
         field("symbol_equals", alias("=", $.symbol)),
-        field("typ", $.type_reference),
+        field("typ", $.type_decl_def),
+      ),
+
+    type_decl_def: $ => choice($.type_decl_def_alias, $.type_decl_def_record),
+
+    type_decl_def_alias: $ => $.type_reference,
+
+    // e.g. `type Person = { name: String; age: Int }`
+    type_decl_def_record: $ =>
+      seq(
+        field("symbol_open_brace", alias("{", $.symbol)),
+        field("content", optional($.type_decl_def_record_content)),
+        field("symbol_close_brace", alias("}", $.symbol)),
+      ),
+
+    type_decl_def_record_content: $ =>
+      seq(
+        $.type_decl_def_record_field,
+        repeat(
+          seq(
+            field("record_separator", alias(";", $.symbol)),
+            $.type_decl_def_record_field,
+          ),
+        ),
+      ),
+
+    type_decl_def_record_field: $ =>
+      seq(
+        field("field", $.variable_identifier),
+        field("symbol_colon", alias(":", $.symbol)),
+        field("type", $.type_reference),
       ),
 
     //
@@ -88,6 +118,7 @@ module.exports = grammar({
         $.list_literal,
         $.tuple_literal,
         $.dict_literal,
+        $.record_literal,
         $.if_expression,
         $.let_expression,
         $.variable_identifier,
@@ -357,6 +388,32 @@ module.exports = grammar({
         ),
       ),
 
+    //
+    // Record
+    // // TODO: allow multi-line records where a newline is 'interpreted' as a record delimiter (i.e. no ; needed)
+    record_literal: $ =>
+      seq(
+        field("type_name", $.qualified_type_name),
+        field("symbol_open_brace", alias("{", $.symbol)),
+        field("content", optional($.record_content)),
+        field("symbol_close_brace", alias("}", $.symbol)),
+      ),
+    record_content: $ =>
+      seq(
+        $.record_pair,
+        repeat(
+          seq(field("record_separator", alias(";", $.symbol)), $.record_pair),
+        ),
+      ),
+    record_pair: $ =>
+      seq(
+        field("field", $.variable_identifier),
+        field("symbol_equals", alias("=", $.symbol)),
+        field("value", $.expression),
+      ),
+
+    //
+    // If expressions
     if_expression: $ =>
       prec.right(
         seq(

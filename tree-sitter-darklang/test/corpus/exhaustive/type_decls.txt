@@ -11,8 +11,11 @@ type ID = Int64
     (keyword)
     (type_identifier)
     (symbol)
-    (type_reference
-      (builtin_type))))
+    (type_decl_def
+      (type_decl_def_alias (type_reference (builtin_type)))
+    )
+  )
+)
 
 
 ==================
@@ -28,15 +31,19 @@ type MyID = PACKAGE.Darklang.LanguageTools.Test
     (keyword)
     (type_identifier)
     (symbol)
-    (type_reference
-      (qualified_type_name
-        (module_identifier)
-        (symbol)
-        (module_identifier)
-        (symbol)
-        (module_identifier)
-        (symbol)
-        (type_identifier)
+    (type_decl_def
+      (type_decl_def_alias
+        (type_reference
+          (qualified_type_name
+            (module_identifier)
+            (symbol)
+            (module_identifier)
+            (symbol)
+            (module_identifier)
+            (symbol)
+            (type_identifier)
+          )
+        )
       )
     )
   )
@@ -55,9 +62,38 @@ type MyID = Test
     keyword_type: (keyword)
     name: (type_identifier)
     symbol_equals: (symbol)
-    typ: (type_reference
-      (qualified_type_name
-        (type_identifier)
+    typ: (type_decl_def
+          (type_decl_def_alias
+            (type_reference (qualified_type_name (type_identifier)))
+          )
+        )
+  )
+)
+
+
+==================
+type def Record
+==================
+
+type Cols2 = { col1: Int64; col2: Int64 }
+
+---
+
+(source_file
+  (type_decl (keyword) (type_identifier) (symbol)
+    (type_decl_def
+      (type_decl_def_record
+        (symbol)
+          (type_decl_def_record_content
+            (type_decl_def_record_field
+              (variable_identifier) (symbol) (type_reference (builtin_type))
+            )
+            (symbol)
+            (type_decl_def_record_field
+              (variable_identifier) (symbol) (type_reference (builtin_type))
+            )
+          )
+        (symbol)
       )
     )
   )
