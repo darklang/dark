@@ -870,37 +870,6 @@ module ProgramTypes =
 
   let userFunctions : List<PT.UserFunction.T> = [ userFunction ]
 
-  let userRecordType : PT.UserType.T =
-    { tlid = 0UL
-      name = { modules = []; name = "User"; version = 0 }
-      description = "test description"
-      deprecated = PT.NotDeprecated
-      declaration =
-        { typeParams = [ "a" ]
-          definition =
-            let firstField : PT.TypeDeclaration.RecordField =
-              { name = "prop1"; typ = typeReference; description = "desc1" }
-            PT.TypeDeclaration.Record(NEList.singleton firstField) } }
-
-  let userEnumType : PT.UserType.T =
-    { tlid = 0UL
-      name = { modules = []; name = "User"; version = 0 }
-      deprecated = PT.NotDeprecated
-      description = "test description"
-      declaration =
-        { typeParams = [ "a" ]
-          definition =
-            PT.TypeDeclaration.Enum(
-              NEList.ofList
-                { name = "caseA"; fields = []; description = "" }
-                [ { name = "caseB"
-                    fields =
-                      [ { typ = typeReference; label = Some "i"; description = "" } ]
-                    description = "" } ]
-            ) } }
-
-  let userTypes : List<PT.UserType.T> = [ userRecordType; userEnumType ]
-
   let userConstant : PT.UserConstant.T =
     { tlid = 0UL
       name = { modules = []; name = "pi"; version = 0 }
@@ -974,8 +943,7 @@ module ProgramTypes =
     [ List.map PT.Toplevel.TLHandler Handler.handlers
       List.map PT.Toplevel.TLDB [ userDB ]
       List.map PT.Toplevel.TLFunction userFunctions
-      List.map PT.Toplevel.TLConstant userConstants
-      List.map PT.Toplevel.TLType userTypes ]
+      List.map PT.Toplevel.TLConstant userConstants ]
     |> List.concat
 
   let userSecret : PT.Secret.T = { name = "APIKEY"; value = "hunter2"; version = 0 }
