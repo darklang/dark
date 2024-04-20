@@ -7,7 +7,10 @@ open Prelude
 module FS2WT = FSharpToWrittenTypes
 module WT = WrittenTypes
 module WT2PT = WrittenTypesToProgramTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PT = LibExecution.ProgramTypes
+module RT = LibExecution.RuntimeTypes
+module NR = NameResolver
 
 open Utils
 
@@ -21,7 +24,6 @@ type PTPackageModule =
   { fns : List<PT.PackageFn.T>
     types : List<PT.PackageType.T>
     constants : List<PT.PackageConstant.T> }
-
 let emptyPTModule = { fns = []; types = []; constants = [] }
 
 
@@ -94,8 +96,12 @@ let rec parseDecls
     emptyWTModule
     decls
 
+
 let parse
-  (resolver : NameResolver.NameResolver)
+  (builtins : RT.Builtins)
+  (pm : RT.PackageManager)
+  (userStuff : NR.UserStuff)
+  (onMissing : NR.OnMissing)
   (filename : string)
   (contents : string)
   : Ply<PTPackageModule> =
@@ -116,54 +122,44 @@ let parse
 
 
       let typeNameToModules (p : PT.FQTypeName.Package) : List<string> =
-        "PACKAGE" :: p.owner :: p.modules
+        p.owner :: p.modules
 
       let fnNameToModules (p : PT.FQFnName.Package) : List<string> =
-        "PACKAGE" :: p.owner :: p.modules
+        p.owner :: p.modules
 
       let constantNameToModules (p : PT.FQConstantName.Package) : List<string> =
-        "PACKAGE" :: p.owner :: p.modules
+        p.owner :: p.modules
 
-      let fns =
-        modul.fns
-        |> List.map _.name
-        |> List.map LibExecution.ProgramTypesToRuntimeTypes.FQFnName.Package.toRT
-        |> Set
-      let types =
-        modul.types
-        |> List.map _.name
-        |> List.map LibExecution.ProgramTypesToRuntimeTypes.FQTypeName.Package.toRT
-        |> Set
-      let constants =
-        modul.constants
-        |> List.map _.name
-        |> List.map
-          LibExecution.ProgramTypesToRuntimeTypes.FQConstantName.Package.toRT
-        |> Set
-
-      let resolver =
-        { resolver with
-            hackLocallyDefinedPackageFns = fns
-            hackLocallyDefinedPackageTypes = types
-            hackLocallyDefinedPackageConstants = constants }
       let! fns =
         modul.fns
         |> Ply.List.mapSequentially (fun fn ->
-          WT2PT.PackageFn.toPT resolver (fnNameToModules fn.name) fn)
+          WT2PT.PackageFn.toPT
+            builtins
+            pm
+            userStuff
+            onMissing
+            (fnNameToModules fn.name)
+            fn)
 
       let! types =
         modul.types
         |> Ply.List.mapSequentially (fun typ ->
-          WT2PT.PackageType.toPT resolver (typeNameToModules typ.name) typ)
+          WT2PT.PackageType.toPT
+            pm
+            userStuff
+            onMissing
+            (typeNameToModules typ.name)
+            typ)
 
       let! constants =
         modul.constants
         |> Ply.List.mapSequentially (fun constant ->
           WT2PT.PackageConstant.toPT
-            resolver
+            pm
+            userStuff
+            onMissing
             (constantNameToModules constant.name)
             constant)
-
 
       return { fns = fns; types = types; constants = constants }
 

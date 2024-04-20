@@ -20,6 +20,7 @@ open Prelude
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
+module NR = LibParser.NameResolver
 module Routing = LibCloud.Routing
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
@@ -43,6 +44,15 @@ type Test =
     request : byte array
     expectedResponse : byte array
   }
+
+let parse code =
+  LibParser.Parser.parsePTExpr
+    localBuiltIns
+    packageManager
+    NR.UserStuff.empty
+    NR.OnMissing.ThrowError
+    "BwdServer.Tests.fs"
+    code
 
 
 let newline = byte '\n'
@@ -189,15 +199,13 @@ module ParseTest =
 let setupTestCanvas (testName : string) (test : Test) : Task<CanvasID * string> =
   task {
     let! (canvasID, domain) = initializeTestCanvas' $"bwdserver-{testName}"
-    let resolver = nameResolver
 
     // Handlers
     let! oplists =
       test.handlers
       |> Ply.List.mapSequentially (fun handler ->
         uply {
-          let! source =
-            LibParser.Parser.parsePTExpr resolver "BwdServer.Tests.fs" handler.code
+          let! source = parse handler.code
 
           let spec =
             match handler.version with

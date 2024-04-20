@@ -88,9 +88,6 @@ module PersistedSerializations =
         v<LibExecution.ProgramTypes.Toplevel.T>
           "function"
           (PT.Toplevel.TLFunction V.ProgramTypes.userFunction)
-        v<LibExecution.ProgramTypes.Toplevel.T>
-          "recordtype"
-          (PT.Toplevel.TLType V.ProgramTypes.userRecordType)
 
         // ------------------
         // LibCloud

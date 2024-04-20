@@ -20,6 +20,7 @@ module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
+module NR = LibParser.NameResolver
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
 
@@ -239,6 +240,14 @@ let baseDir = "testfiles/execution/"
 
 // Read all test files. The test file format is described in README.md
 let fileTests () : Test =
+  let parseTestFile fileName =
+    LibParser.TestModule.parseTestFile
+      localBuiltIns
+      packageManager
+      NR.UserStuff.empty
+      NR.OnMissing.Allow
+      fileName
+
   System.IO.Directory.GetDirectories(baseDir, "*")
   |> Array.map (fun dir ->
     System.IO.Directory.GetFiles(dir, "*.dark")
@@ -254,14 +263,12 @@ let fileTests () : Test =
       else
         try
           let modules =
-            $"{dir}/{filename}"
-            |> LibParser.TestModule.parseTestFile nameResolver
-            |> fun ply -> ply.Result
+            $"{dir}/{filename}" |> parseTestFile |> (fun ply -> ply.Result)
 
           // Within a module, tests have access to
-          let fns = modules |> List.map _.fns |> List.concat
-          let types = modules |> List.map _.types |> List.concat
-          let constants = modules |> List.map _.constants |> List.concat
+          let fns = modules |> List.collect _.fns
+          let types = modules |> List.collect _.types
+          let constants = modules |> List.collect _.constants
           let tests =
             modules
             |> List.map (fun m ->

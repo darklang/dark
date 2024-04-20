@@ -30,6 +30,7 @@ module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
+module NR = LibParser.NameResolver
 
 open TestUtils.TestUtils
 
@@ -84,6 +85,14 @@ let updateBody (body : byte array) : byte array =
 
   body |> List.fromArray |> find |> List.toArray
 
+
+let parseTest test =
+  LibParser.TestModule.parseSingleTestFromFile
+    localBuiltIns
+    packageManager
+    NR.UserStuff.empty
+    NR.OnMissing.ThrowError
+    test
 
 let makeTest versionName filename =
   // Parse the file contents now, rather than later, so that tests that refer to
@@ -155,9 +164,7 @@ let makeTest versionName filename =
         // CLEANUP: this doesn't use the correct length, as it might be latin1 or
         // compressed
         |> String.replace "LENGTH" (string response.body.Length)
-        |> LibParser.TestModule.parseSingleTestFromFile
-          nameResolver
-          "httpclient.tests.fs"
+        |> parseTest "httpclient.tests.fs"
         |> Ply.toTask
 
       // Run the handler (call the HTTP client)

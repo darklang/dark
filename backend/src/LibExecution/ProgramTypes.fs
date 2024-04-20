@@ -705,10 +705,9 @@ type Packages =
     fns : List<PackageFn.T> }
 
   static member combine(packages : List<Packages>) : Packages =
-    // CLEANUP: can't we just List.collect here?
-    { types = packages |> List.map _.types |> List.concat
-      constants = packages |> List.map _.constants |> List.concat
-      fns = packages |> List.map _.fns |> List.concat }
+    { types = packages |> List.collect _.types
+      constants = packages |> List.collect _.constants
+      fns = packages |> List.collect _.fns }
 
 
 

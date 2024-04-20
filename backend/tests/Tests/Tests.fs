@@ -31,12 +31,12 @@ let main (args : string array) : int =
 
     let tests =
       [ Tests.AnalysisTypes.tests
-        //Tests.BwdServer.tests
+        Tests.BwdServer.tests
         Tests.Canvas.tests
         Tests.Cron.tests
         Tests.DvalRepr.tests
         Tests.QueueSchedulingRules.tests
-        // TODO: bring these back Tests.Queue.tests
+        // TODO: bring back Tests.Queue.tests
         Tests.Execution.tests
         Tests.Parser.tests
         Tests.HttpClient.tests
@@ -55,7 +55,7 @@ let main (args : string array) : int =
         Tests.StorageTraces.tests ]
 
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()
-    // let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token
+    let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token
     let httpClientTestsTask = Tests.HttpClient.init cancelationTokenSource.Token
     Telemetry.Console.loadTelemetry "tests" Telemetry.TraceDBQueries
 
@@ -70,7 +70,7 @@ let main (args : string array) : int =
 
     NonBlockingConsole.wait () // flush stdout
     cancelationTokenSource.Cancel()
-    //bwdServerTestsTask.Wait()
+    bwdServerTestsTask.Wait()
     httpClientTestsTask.Wait()
     QueueWorker.shouldShutdown <- true
     exitCode

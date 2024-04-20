@@ -9,20 +9,30 @@ open FSharp.Control.Tasks
 
 module PT = LibExecution.ProgramTypes
 open LibExecution.RuntimeTypes
+module NR = LibParser.NameResolver
 
 module C = LibCloud.SqlCompiler
 module S = TestUtils.RTShortcuts
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 let p (code : string) : Task<Expr> =
-  LibParser.Parser.parseRTExpr nameResolver "sqlcompiler.tests.fs" code
+  LibParser.Parser.parseRTExpr
+    localBuiltIns
+    packageManager
+    NR.UserStuff.empty
+    NR.OnMissing.ThrowError
+    "sqlcompiler.tests.fs"
+    code
   |> Ply.toTask
 
-let parse
-  (nameResolver : LibParser.NameResolver.NameResolver)
-  (code : string)
-  : Task<Expr> =
-  LibParser.Parser.parseRTExpr nameResolver "sqlcompiler.tests.fs" code
+let parse (userFns : List<PT.FQFnName.UserProgram>) (code : string) : Task<Expr> =
+  LibParser.Parser.parseRTExpr
+    localBuiltIns
+    packageManager
+    { NR.UserStuff.empty with fns = Set userFns }
+    NR.OnMissing.ThrowError
+    "sqlcompiler.tests.fs"
+    code
   |> Ply.toTask
 
 let compile
@@ -153,12 +163,7 @@ let inlineWorksAtRoot =
         Map.empty
         Map.empty
     let fns = ExecutionState.availableFunctions state
-    let! expr =
-      LibParser.Parser.parseRTExpr
-        nameResolver
-        "test.fs"
-        "let y = 5 in let x = 6 in (3 + (let x = 7 in y))"
-      |> Ply.toTask
+    let! expr = p "let y = 5 in let x = 6 in (3 + (let x = 7 in y))"
 
     let! expected = p "3 + 5"
     let! result = (C.inline' fns "value" Map.empty expr) |> Ply.toTask
@@ -256,13 +261,9 @@ let inlineWorksWithUserFunctions =
       Map.add userAdd.name userAdd existingFunctions.userProgram
     let fns = { existingFunctions with userProgram = updatedUserProgram }
 
-    let nr =
-      { nameResolver with
-          userFns = Set.singleton (PT.FQFnName.userProgram [] "userAdd" 0) }
-
     let! expr =
       parse
-        nr
+        [ PT.FQFnName.userProgram [] "userAdd" 0 ]
         "let a = 1 in let b = 9 in let c = userAdd 6 4 in (p.height == c) && (p.age == b)"
 
     let! expected = p "p.height == (6 + 4) && p.age == 9"
@@ -301,13 +302,9 @@ let inlineWorksWithPackageAndUserFunctions =
       Map.add userAnd.name userAnd existingFunctions.userProgram
     let fns = { existingFunctions with userProgram = updatedUserProgram }
 
-    let nr =
-      { nameResolver with
-          userFns = Set.singleton (PT.FQFnName.userProgram [] "userAnd" 0) }
-
     let! expr =
       parse
-        nr
+        [ PT.FQFnName.userProgram [] "userAnd" 0 ]
         "userAnd user.human (PACKAGE.Darklang.Stdlib.Int64.lessThan_v0 user.height (PACKAGE.Darklang.Stdlib.Int64.add height 1))"
 
     let! expected = p "user.human && (user.height < (height + 1))"
@@ -344,13 +341,12 @@ let inlineFunctionArguments =
       Map.add userAdd.name userAdd existingFunctions.userProgram
     let fns = { existingFunctions with userProgram = updatedUserProgram }
 
-    let nr =
-      { nameResolver with
-          userFns = Set.singleton (PT.FQFnName.userProgram [] "userAdd" 0) }
+    let userFns = [ PT.FQFnName.userProgram [] "userAdd" 0 ]
 
-    let! expr = parse nr "let a = 1 in let b = 9 in (p.height == userAdd 6 (b - 4))"
+    let! expr =
+      parse userFns "let a = 1 in let b = 9 in (p.height == userAdd 6 (b - 4))"
 
-    let! expected = parse nr "p.height == 6 + (9 - 4)"
+    let! expected = parse userFns "p.height == 6 + (9 - 4)"
     let! result = (C.inline' fns "value" Map.empty expr) |> Ply.toTask
     return Expect.equalExprIgnoringIDs result expected
   }

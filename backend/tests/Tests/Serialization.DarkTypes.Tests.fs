@@ -215,14 +215,6 @@ module RoundtripTests =
           None
 
         testRoundtripList
-          "PT.UserTypes"
-          (pkg [] "UserType" 0)
-          V.ProgramTypes.userTypes
-          PT2DT.UserType.toDT
-          PT2DT.UserType.fromDT
-          None
-
-        testRoundtripList
           "PT.UserConstants"
           (pkg [] "UserConstant" 0)
           V.ProgramTypes.userConstants

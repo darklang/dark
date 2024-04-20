@@ -17,6 +17,7 @@ open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module NR = LibParser.NameResolver
 module EQ = LibCloud.Queue
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
@@ -25,7 +26,14 @@ module SR = LibCloud.QueueSchedulingRules
 module TCS = LibCloud.TraceCloudStorage
 
 let p (code : string) : Task<PT.Expr> =
-  LibParser.Parser.parsePTExpr nameResolver "Queue.Tests.fs" code |> Ply.toTask
+  LibParser.Parser.parsePTExpr
+    localBuiltIns
+    packageManager
+    NR.UserStuff.empty
+    NR.OnMissing.ThrowError
+    "Queue.Tests.fs"
+    code
+  |> Ply.toTask
 
 // This doesn't actually test input, since it's a cron handler and not an actual event handler
 

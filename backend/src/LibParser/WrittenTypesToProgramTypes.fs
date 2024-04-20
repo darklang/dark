@@ -5,9 +5,10 @@ open Prelude
 
 module WT = WrittenTypes
 module PT = LibExecution.ProgramTypes
+module RT = LibExecution.RuntimeTypes
 module FS2WT = FSharpToWrittenTypes
 module NRE = LibExecution.NameResolutionError
-type NameResolver = NameResolver.NameResolver
+module NR = NameResolver
 
 module InfixFnName =
   let toPT (name : WT.InfixFnName) : PT.InfixFnName =
@@ -28,11 +29,13 @@ module InfixFnName =
 
 module TypeReference =
   let rec toPT
-    (resolver : NameResolver)
+    (pm : RT.PackageManager)
+    (userStuff : NR.UserStuff)
+    (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (t : WT.TypeReference)
     : Ply<PT.TypeReference> =
-    let toPT = toPT resolver currentModule
+    let toPT = toPT pm userStuff onMissing currentModule
     uply {
       match t with
       | WT.TUnit -> return PT.TUnit
@@ -64,7 +67,7 @@ module TypeReference =
       | WT.TDict typ -> return! toPT typ |> Ply.map PT.TDict
 
       | WT.TCustomType(t, typeArgs) ->
-        let! t = NameResolver.TypeName.resolve resolver currentModule t
+        let! t = NR.resolveTypeName pm userStuff.types onMissing currentModule t
         let! typeArgs = Ply.List.mapSequentially toPT typeArgs
         return PT.TCustomType(t, typeArgs)
 
@@ -127,7 +130,9 @@ module MatchPattern =
 
 module Expr =
   let resolveTypeName
-    (resolver : NameResolver)
+    (pm : RT.PackageManager)
+    (userStuff : NR.UserStuff)
+    (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (names : List<string>)
     (caseName : string) // used for errors
@@ -143,14 +148,17 @@ module Expr =
       )
     | head :: tail ->
       let name = NEList.ofList head tail |> WT.Unresolved
-      NameResolver.TypeName.resolve resolver currentModule name
+      NR.resolveTypeName pm userStuff.types onMissing currentModule name
 
   let rec toPT
-    (resolver : NameResolver)
+    (builtins : RT.Builtins)
+    (pm : RT.PackageManager)
+    (userStuff : NR.UserStuff)
+    (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (e : WT.Expr)
     : Ply<PT.Expr> =
-    let toPT = toPT resolver currentModule
+    let toPT = toPT builtins pm userStuff onMissing currentModule
     uply {
       match e with
       | WT.EChar(id, char) -> return PT.EChar(id, char)
@@ -167,7 +175,7 @@ module Expr =
       | WT.EString(id, segments) ->
         let! segments =
           Ply.List.mapSequentially
-            (stringSegmentToPT resolver currentModule)
+            (stringSegmentToPT builtins pm userStuff onMissing currentModule)
             segments
         return PT.EString(id, segments)
       | WT.EFloat(id, sign, whole, fraction) ->
@@ -177,8 +185,11 @@ module Expr =
       | WT.EVariable(id, var) ->
         // This could be a UserConstant
         let! constant =
-          NameResolver.ConstantName.maybeResolve
-            resolver
+          NR.resolveConstantName
+            (builtins.constants |> Map.keys |> Set)
+            pm
+            userStuff.constants
+            NR.OnMissing.Allow
             currentModule
             (WT.Unresolved(NEList.singleton var))
         match constant with
@@ -189,23 +200,44 @@ module Expr =
         return PT.EFieldAccess(id, obj, fieldname)
       | WT.EApply(id, (WT.EFnName(_, name)), [], { head = WT.EPlaceHolder }) ->
         // There are no arguments, so this could be a function name or a constant
-        let! fnName = NameResolver.FnName.maybeResolve resolver currentModule name
+        let! fnName =
+          NR.resolveFnName
+            (builtins.fns |> Map.keys |> Set)
+            pm
+            userStuff.fns
+            NR.OnMissing.Allow
+            currentModule
+            name
         match fnName with
         | Ok _ as name -> return PT.EFnName(id, name)
         | Error _ ->
-          let! name = NameResolver.ConstantName.resolve resolver currentModule name
+          let! name =
+            NR.resolveConstantName
+              (builtins.constants |> Map.keys |> Set)
+              pm
+              userStuff.constants
+              onMissing
+              currentModule
+              name
           return PT.EConstant(id, name)
       | WT.EApply(id, name, typeArgs, args) ->
         let! name = toPT name
         let! typeArgs =
           Ply.List.mapSequentially
-            (TypeReference.toPT resolver currentModule)
+            (TypeReference.toPT pm userStuff onMissing currentModule)
             typeArgs
         let! args = Ply.NEList.mapSequentially toPT args
 
         return PT.EApply(id, name, typeArgs, args)
       | WT.EFnName(id, name) ->
-        let! fnName = NameResolver.FnName.maybeResolve resolver currentModule name
+        let! fnName =
+          NR.resolveFnName
+            (builtins.fns |> Map.keys |> Set)
+            pm
+            userStuff.fns
+            NR.OnMissing.Allow
+            currentModule
+            name
         match fnName, name with
         | Error _, WT.Unresolved { head = varName; tail = [] } when
           not (String.isCapitalized varName)
@@ -242,7 +274,8 @@ module Expr =
         let! theRest = Ply.List.mapSequentially toPT theRest
         return PT.ETuple(id, first, second, theRest)
       | WT.ERecord(id, typeName, fields) ->
-        let! typeName = NameResolver.TypeName.resolve resolver currentModule typeName
+        let! typeName =
+          NR.resolveTypeName pm userStuff.types onMissing currentModule typeName
         let! fields =
           Ply.List.mapSequentially
             (fun (fieldName, fieldExpr) ->
@@ -265,10 +298,13 @@ module Expr =
       | WT.EPipe(pipeID, expr1, rest) ->
         let! expr1 = toPT expr1
         let! rest =
-          Ply.List.mapSequentially (pipeExprToPT resolver currentModule) rest
+          Ply.List.mapSequentially
+            (pipeExprToPT builtins pm userStuff onMissing currentModule)
+            rest
         return PT.EPipe(pipeID, expr1, rest)
       | WT.EEnum(id, typeName, caseName, exprs) ->
-        let! typeName = resolveTypeName resolver currentModule typeName caseName
+        let! typeName =
+          resolveTypeName pm userStuff onMissing currentModule typeName caseName
         let! exprs = Ply.List.mapSequentially toPT exprs
         return PT.EEnum(id, typeName, caseName, exprs)
       | WT.EMatch(id, mexpr, cases) ->
@@ -313,29 +349,41 @@ module Expr =
     }
 
   and stringSegmentToPT
-    (resolver : NameResolver)
+    (builtins : RT.Builtins)
+    (pm : RT.PackageManager)
+    (userStuff : NR.UserStuff)
+    (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (segment : WT.StringSegment)
     : Ply<PT.StringSegment> =
     match segment with
     | WT.StringText text -> Ply(PT.StringText text)
     | WT.StringInterpolation expr ->
-      toPT resolver currentModule expr
+      toPT builtins pm userStuff onMissing currentModule expr
       |> Ply.map (fun interpolated -> PT.StringInterpolation interpolated)
 
   and pipeExprToPT
-    (resolver : NameResolver)
+    (builtins : RT.Builtins)
+    (pm : RT.PackageManager)
+    (userStuff : NR.UserStuff)
+    (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (pipeExpr : WT.PipeExpr)
     : Ply<PT.PipeExpr> =
-    let toPT = toPT resolver currentModule
+    let toPT = toPT builtins pm userStuff onMissing currentModule
 
     uply {
       match pipeExpr with
       | WT.EPipeVariableOrUserFunction(id, name) ->
         let! resolved =
           let asUserFnName = WT.Name.Unresolved(NEList.singleton name)
-          NameResolver.FnName.maybeResolve resolver currentModule asUserFnName
+          NR.resolveFnName
+            (builtins.fns |> Map.keys |> Set)
+            pm
+            userStuff.fns
+            NR.OnMissing.Allow
+            currentModule
+            asUserFnName
 
         return
           match resolved with
@@ -356,34 +404,51 @@ module Expr =
                        args) ->
         // Special case for variables with arguments. Since it could be a userfn, we
         // need to check that first. We do a similar thing converting EFnNames.
-        let! fnName = NameResolver.FnName.maybeResolve resolver currentModule name
+        let! fnName =
+          NR.resolveFnName
+            (builtins.fns |> Map.keys |> Set)
+            pm
+            userStuff.fns
+            NR.OnMissing.Allow
+            currentModule
+            name
         let! args = Ply.List.mapSequentially toPT args
         match fnName with
         | Ok name -> return PT.EPipeFnCall(id, Ok name, [], args)
         | Error _ -> return PT.EPipeVariable(id, varName, args)
 
       | WT.EPipeFnCall(id, name, typeArgs, args) ->
-        let! fnName = NameResolver.FnName.resolve resolver currentModule name
+        let! fnName =
+          NR.resolveFnName
+            (builtins.fns |> Map.keys |> Set)
+            pm
+            userStuff.fns
+            onMissing
+            currentModule
+            name
         let! typeArgs =
           Ply.List.mapSequentially
-            (TypeReference.toPT resolver currentModule)
+            (TypeReference.toPT pm userStuff onMissing currentModule)
             typeArgs
         let! args = Ply.List.mapSequentially toPT args
         return PT.EPipeFnCall(id, fnName, typeArgs, args)
 
       | WT.EPipeEnum(id, typeName, caseName, fields) ->
-        let! typeName = resolveTypeName resolver currentModule typeName caseName
+        let! typeName =
+          resolveTypeName pm userStuff onMissing currentModule typeName caseName
         let! fields = Ply.List.mapSequentially toPT fields
         return PT.EPipeEnum(id, typeName, caseName, fields)
     }
 
 module Const =
   let rec toPT
-    (resolver : NameResolver)
+    (pm : RT.PackageManager)
+    (userStuff : NR.UserStuff)
+    (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (c : WT.Const)
     : Ply<PT.Const> =
-    let toPT = toPT resolver currentModule
+    let toPT = toPT pm userStuff onMissing currentModule
     uply {
       match c with
       | WT.CUnit -> return PT.CUnit
@@ -424,7 +489,8 @@ module Const =
         return PT.CTuple(first, second, theRest)
 
       | WT.CEnum(typeName, caseName, fields) ->
-        let! typeName = Expr.resolveTypeName resolver currentModule typeName caseName
+        let! typeName =
+          Expr.resolveTypeName pm userStuff onMissing currentModule typeName caseName
         let! fields = Ply.List.mapSequentially toPT fields
         return PT.CEnum(typeName, caseName, fields)
     }
@@ -432,74 +498,269 @@ module Const =
 
 module TypeDeclaration =
   module RecordField =
-
     let toPT
-      (resolver : NameResolver)
+      (pm : RT.PackageManager)
+      (userStuff : NR.UserStuff)
+      (onMissing : NR.OnMissing)
       (currentModule : List<string>)
       (f : WT.TypeDeclaration.RecordField)
       : Ply<PT.TypeDeclaration.RecordField> =
       uply {
-        let! typ = TypeReference.toPT resolver currentModule f.typ
+        let! typ = TypeReference.toPT pm userStuff onMissing currentModule f.typ
         return { name = f.name; typ = typ; description = f.description }
       }
 
   module EnumField =
     let toPT
-      (resolver : NameResolver)
+      (pm : RT.PackageManager)
+      (userStuff : NR.UserStuff)
+      (onMissing : NR.OnMissing)
       (currentModule : List<string>)
       (f : WT.TypeDeclaration.EnumField)
       : Ply<PT.TypeDeclaration.EnumField> =
       uply {
-        let! typ = TypeReference.toPT resolver currentModule f.typ
+        let! typ = TypeReference.toPT pm userStuff onMissing currentModule f.typ
         return { typ = typ; label = f.label; description = f.description }
       }
 
   module EnumCase =
     let toPT
-      (resolver : NameResolver)
+      (pm : RT.PackageManager)
+      (userStuff : NR.UserStuff)
+      (onMissing : NR.OnMissing)
       (currentModule : List<string>)
       (c : WT.TypeDeclaration.EnumCase)
       : Ply<PT.TypeDeclaration.EnumCase> =
       uply {
         let! fields =
-          Ply.List.mapSequentially (EnumField.toPT resolver currentModule) c.fields
+          Ply.List.mapSequentially
+            (EnumField.toPT pm userStuff onMissing currentModule)
+            c.fields
         return { name = c.name; fields = fields; description = c.description }
       }
 
   module Definition =
     let toPT
-      (resolver : NameResolver)
+      (pm : RT.PackageManager)
+      (userStuff : NR.UserStuff)
+      (onMissing : NR.OnMissing)
       (currentModule : List<string>)
       (d : WT.TypeDeclaration.Definition)
       : Ply<PT.TypeDeclaration.Definition> =
       uply {
         match d with
         | WT.TypeDeclaration.Alias typ ->
-          let! typ = TypeReference.toPT resolver currentModule typ
+          let! typ = TypeReference.toPT pm userStuff onMissing currentModule typ
           return PT.TypeDeclaration.Alias typ
 
         | WT.TypeDeclaration.Record fields ->
           let! fields =
             Ply.NEList.mapSequentially
-              (RecordField.toPT resolver currentModule)
+              (RecordField.toPT pm userStuff onMissing currentModule)
               fields
           return PT.TypeDeclaration.Record fields
 
         | WT.TypeDeclaration.Enum cases ->
           let! cases =
-            Ply.NEList.mapSequentially (EnumCase.toPT resolver currentModule) cases
+            Ply.NEList.mapSequentially
+              (EnumCase.toPT pm userStuff onMissing currentModule)
+              cases
           return PT.TypeDeclaration.Enum cases
       }
 
 
   let toPT
-    (resolver : NameResolver)
+    (pm : RT.PackageManager)
+    (userStuff : NR.UserStuff)
+    (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (d : WT.TypeDeclaration.T)
     : Ply<PT.TypeDeclaration.T> =
     uply {
-      let! def = Definition.toPT resolver currentModule d.definition
+      let! def = Definition.toPT pm userStuff onMissing currentModule d.definition
       return { typeParams = d.typeParams; definition = def }
+    }
+
+
+
+module PackageType =
+  let toPT
+    (pm : RT.PackageManager)
+    (userStuff : NR.UserStuff)
+    (onMissing : NR.OnMissing)
+    (currentModule : List<string>)
+    (pt : WT.PackageType.T)
+    : Ply<PT.PackageType.T> =
+    uply {
+      let! declaration =
+        TypeDeclaration.toPT pm userStuff onMissing currentModule pt.declaration
+      return
+        { name = pt.name
+          description = pt.description
+          declaration = declaration
+          deprecated = PT.NotDeprecated
+          id = System.Guid.NewGuid()
+          tlid = gid () }
+    }
+
+module PackageConstant =
+  let toPT
+    (pm : RT.PackageManager)
+    (userStuff : NR.UserStuff)
+    (onMissing : NR.OnMissing)
+    (currentModule : List<string>)
+    (c : WT.PackageConstant.T)
+    : Ply<PT.PackageConstant.T> =
+    uply {
+      let! body = Const.toPT pm userStuff onMissing currentModule c.body
+      return
+        { name = c.name
+          description = c.description
+          deprecated = PT.NotDeprecated
+          body = body
+          id = System.Guid.NewGuid()
+          tlid = gid () }
+    }
+
+
+module PackageFn =
+  module Parameter =
+    let toPT
+      (pm : RT.PackageManager)
+      (userStuff : NR.UserStuff)
+      (onMissing : NR.OnMissing)
+      (currentModule : List<string>)
+      (p : WT.PackageFn.Parameter)
+      : Ply<PT.PackageFn.Parameter> =
+      uply {
+        let! typ = TypeReference.toPT pm userStuff onMissing currentModule p.typ
+        return { name = p.name; typ = typ; description = p.description }
+      }
+
+  let toPT
+    (builtins : RT.Builtins)
+    (pm : RT.PackageManager)
+    (userStuff : NR.UserStuff)
+    (onMissing : NR.OnMissing)
+    (currentModule : List<string>)
+    (fn : WT.PackageFn.T)
+    : Ply<PT.PackageFn.T> =
+    uply {
+      let! parameters =
+        Ply.NEList.mapSequentially
+          (Parameter.toPT pm userStuff onMissing currentModule)
+          fn.parameters
+      let! returnType =
+        TypeReference.toPT pm userStuff onMissing currentModule fn.returnType
+      let! body = Expr.toPT builtins pm userStuff onMissing currentModule fn.body
+
+      return
+        { name = fn.name
+          parameters = parameters
+          returnType = returnType
+          description = fn.description
+          deprecated = PT.NotDeprecated
+          body = body
+          typeParams = fn.typeParams
+          id = System.Guid.NewGuid()
+          tlid = gid () }
+    }
+
+
+
+module UserType =
+  let toPT
+    (pm : RT.PackageManager)
+    (userStuff : NR.UserStuff)
+    (onMissing : NR.OnMissing)
+    (currentModule : List<string>)
+    (t : WT.UserType.T)
+    : Ply<PT.UserType.T> =
+    uply {
+      let! declaration =
+        TypeDeclaration.toPT pm userStuff onMissing currentModule t.declaration
+      return
+        { tlid = gid ()
+          name = t.name
+          declaration = declaration
+          description = t.description
+          deprecated = PT.NotDeprecated }
+    }
+
+
+module UserConstant =
+  let toPT
+    (pm : RT.PackageManager)
+    (userStuff : NR.UserStuff)
+    (onMissing : NR.OnMissing)
+    (currentModule : List<string>)
+    (c : WT.UserConstant.T)
+    : Ply<PT.UserConstant.T> =
+    uply {
+      let! body = Const.toPT pm userStuff onMissing currentModule c.body
+      return
+        { tlid = gid ()
+          name = c.name
+          description = c.description
+          deprecated = PT.NotDeprecated
+          body = body }
+    }
+
+
+module DB =
+  let toPT
+    (pm : RT.PackageManager)
+    (userStuff : NR.UserStuff)
+    (onMissing : NR.OnMissing)
+    (currentModule : List<string>)
+    (db : WT.DB.T)
+    : Ply<PT.DB.T> =
+    uply {
+      let! typ = TypeReference.toPT pm userStuff onMissing currentModule db.typ
+      return { tlid = gid (); name = db.name; version = db.version; typ = typ }
+    }
+
+module UserFunction =
+  module Parameter =
+    let toPT
+      (pm : RT.PackageManager)
+      (userStuff : NR.UserStuff)
+      (onMissing : NR.OnMissing)
+      (currentModule : List<string>)
+      (p : WT.UserFunction.Parameter)
+      : Ply<PT.UserFunction.Parameter> =
+      uply {
+        let! typ = TypeReference.toPT pm userStuff onMissing currentModule p.typ
+        return { name = p.name; typ = typ; description = p.description }
+      }
+
+  let toPT
+    (builtins : RT.Builtins)
+    (pm : RT.PackageManager)
+    (userStuff : NR.UserStuff)
+    (onMissing : NR.OnMissing)
+    (currentModule : List<string>)
+    (f : WT.UserFunction.T)
+    : Ply<PT.UserFunction.T> =
+    uply {
+      let! parameters =
+        Ply.NEList.mapSequentially
+          (Parameter.toPT pm userStuff onMissing currentModule)
+          f.parameters
+
+      let! returnType =
+        TypeReference.toPT pm userStuff onMissing currentModule f.returnType
+      let! body = Expr.toPT builtins pm userStuff onMissing currentModule f.body
+
+      return
+        { tlid = gid ()
+          name = f.name
+          typeParams = f.typeParams
+          parameters = parameters
+          returnType = returnType
+          description = f.description
+          deprecated = PT.NotDeprecated
+          body = body }
     }
 
 
@@ -524,162 +785,14 @@ module Handler =
       | WT.Handler.REPL name -> PT.Handler.REPL name
 
   let toPT
-    (nameResolver : NameResolver)
+    (builtins : RT.Builtins)
+    (pm : RT.PackageManager)
+    (userStuff : NR.UserStuff)
+    (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (h : WT.Handler.T)
     : Ply<PT.Handler.T> =
     uply {
-      let! ast = Expr.toPT nameResolver currentModule h.ast
+      let! ast = Expr.toPT builtins pm userStuff onMissing currentModule h.ast
       return { tlid = gid (); ast = ast; spec = Spec.toPT h.spec }
-    }
-
-module DB =
-  let toPT
-    (nameResolver : NameResolver)
-    (currentModule : List<string>)
-    (db : WT.DB.T)
-    : Ply<PT.DB.T> =
-    uply {
-      let! typ = TypeReference.toPT nameResolver currentModule db.typ
-      return { tlid = gid (); name = db.name; version = db.version; typ = typ }
-    }
-
-module UserType =
-  let toPT
-    (resolver : NameResolver)
-    (currentModule : List<string>)
-    (t : WT.UserType.T)
-    : Ply<PT.UserType.T> =
-    uply {
-      let! declaration = TypeDeclaration.toPT resolver currentModule t.declaration
-      return
-        { tlid = gid ()
-          name = t.name
-          declaration = declaration
-          description = t.description
-          deprecated = PT.NotDeprecated }
-    }
-
-
-module UserFunction =
-  module Parameter =
-    let toPT
-      (resolver : NameResolver)
-      (currentModule : List<string>)
-      (p : WT.UserFunction.Parameter)
-      : Ply<PT.UserFunction.Parameter> =
-      uply {
-        let! typ = TypeReference.toPT resolver currentModule p.typ
-        return { name = p.name; typ = typ; description = p.description }
-      }
-
-  let toPT
-    (resolver : NameResolver)
-    (currentModule : List<string>)
-    (f : WT.UserFunction.T)
-    : Ply<PT.UserFunction.T> =
-    uply {
-      let! parameters =
-        Ply.NEList.mapSequentially
-          (Parameter.toPT resolver currentModule)
-          f.parameters
-      let! returnType = TypeReference.toPT resolver currentModule f.returnType
-      let! body = Expr.toPT resolver currentModule f.body
-
-      return
-        { tlid = gid ()
-          name = f.name
-          typeParams = f.typeParams
-          parameters = parameters
-          returnType = returnType
-          description = f.description
-          deprecated = PT.NotDeprecated
-          body = body }
-    }
-
-module UserConstant =
-  let toPT
-    (resolver : NameResolver)
-    (currentModule : List<string>)
-    (c : WT.UserConstant.T)
-    : Ply<PT.UserConstant.T> =
-    uply {
-      let! body = Const.toPT resolver currentModule c.body
-      return
-        { tlid = gid ()
-          name = c.name
-          description = c.description
-          deprecated = PT.NotDeprecated
-          body = body }
-    }
-
-module PackageFn =
-  module Parameter =
-    let toPT
-      (resolver : NameResolver)
-      (currentModule : List<string>)
-      (p : WT.PackageFn.Parameter)
-      : Ply<PT.PackageFn.Parameter> =
-      uply {
-        let! typ = TypeReference.toPT resolver currentModule p.typ
-        return { name = p.name; typ = typ; description = p.description }
-      }
-
-  let toPT
-    (resolver : NameResolver)
-    (currentModule : List<string>)
-    (fn : WT.PackageFn.T)
-    : Ply<PT.PackageFn.T> =
-    uply {
-      let! parameters =
-        Ply.NEList.mapSequentially
-          (Parameter.toPT resolver currentModule)
-          fn.parameters
-      let! returnType = TypeReference.toPT resolver currentModule fn.returnType
-      let! body = Expr.toPT resolver currentModule fn.body
-
-      return
-        { name = fn.name
-          parameters = parameters
-          returnType = returnType
-          description = fn.description
-          deprecated = PT.NotDeprecated
-          body = body
-          typeParams = fn.typeParams
-          id = System.Guid.NewGuid()
-          tlid = gid () }
-    }
-
-module PackageType =
-  let toPT
-    (resolver : NameResolver)
-    (currentModule : List<string>)
-    (pt : WT.PackageType.T)
-    : Ply<PT.PackageType.T> =
-    uply {
-      let! declaration = TypeDeclaration.toPT resolver currentModule pt.declaration
-      return
-        { name = pt.name
-          description = pt.description
-          declaration = declaration
-          deprecated = PT.NotDeprecated
-          id = System.Guid.NewGuid()
-          tlid = gid () }
-    }
-
-module PackageConstant =
-  let toPT
-    (resolver : NameResolver)
-    (currentModule : List<string>)
-    (c : WT.PackageConstant.T)
-    : Ply<PT.PackageConstant.T> =
-    uply {
-      let! body = Const.toPT resolver currentModule c.body
-      return
-        { name = c.name
-          description = c.description
-          deprecated = PT.NotDeprecated
-          body = body
-          id = System.Guid.NewGuid()
-          tlid = gid () }
     }

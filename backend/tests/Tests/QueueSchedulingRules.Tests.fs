@@ -11,13 +11,20 @@ open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module NR = LibParser.NameResolver
 module EQ2 = LibCloud.Queue
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
 module SR = LibCloud.QueueSchedulingRules
 
 let p (code : string) : Task<PT.Expr> =
-  LibParser.Parser.parsePTExpr nameResolver "queueschedulingrules.fs" code
+  LibParser.Parser.parsePTExpr
+    localBuiltIns
+    packageManager
+    NR.UserStuff.empty
+    NR.OnMissing.ThrowError
+    "queueschedulingrules.fs"
+    code
   |> Ply.toTask
 
 
