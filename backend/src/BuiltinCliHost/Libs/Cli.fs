@@ -18,6 +18,7 @@ module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module Exe = LibExecution.Execution
 module WT = LibParser.WrittenTypes
 module Json = BuiltinExecution.Libs.Json
+module NR = LibParser.NameResolver
 
 
 module ExecutionError =
@@ -154,13 +155,20 @@ let fns : List<BuiltInFn> =
               CliRuntimeError.UncaughtException(msg, metadata)
               |> CliRuntimeError.RTE.toRuntimeError
 
-            let nameResolver = LibParser.NameResolver.fromExecutionState state
 
             let! parsedScript =
               uply {
                 try
                   return!
-                    LibParser.Canvas.parse nameResolver filename code |> Ply.map Ok
+                    LibParser.Canvas.parse
+                      state.builtins
+                      state.packageManager
+                      NR.HackPackageStuff.empty
+                      (NR.UserStuff.fromProgram state.program)
+                      NR.OnMissing.Allow // Right? kinda surprising.
+                      filename
+                      code
+                    |> Ply.map Ok
                 with e ->
                   return Error(exnError e)
               }
@@ -232,10 +240,13 @@ let fns : List<BuiltInFn> =
                   []
                   parts
 
-              let resolver = LibParser.NameResolver.fromExecutionState state
               let! fnName =
-                LibParser.NameResolver.FnName.resolve
-                  resolver
+                LibParser.NameResolver.resolveFnName
+                  (state.builtins.fns |> Map.keys |> Set)
+                  state.packageManager
+                  Set.empty
+                  (NR.UserStuff.fromProgram state.program).fns
+                  NR.OnMissing.Allow // OK?
                   []
                   (WT.Unresolved name)
 
@@ -370,10 +381,13 @@ let fns : List<BuiltInFn> =
                   []
                   parts
 
-              let resolver = LibParser.NameResolver.fromExecutionState state
               let! fnName =
-                LibParser.NameResolver.FnName.resolve
-                  resolver
+                LibParser.NameResolver.resolveFnName
+                  (state.builtins.fns |> Map.keys |> Set)
+                  state.packageManager
+                  Set.empty
+                  (NR.UserStuff.fromProgram state.program).fns
+                  NR.OnMissing.Allow // ok?
                   []
                   (WT.Unresolved name)
 

@@ -43,12 +43,8 @@ module HandleCommand =
       let inMemPackageManager = inMemPackageManagerFromPackages packagesFromDisk
 
       // then, parse the canvas' `main.dark`, purge any previous data, and create the canvas
-      let nameResolver =
-        LibParser.NameResolver.fromBuiltins Builtins.accessibleByCanvas
-        |> fun nr ->
-          { nr with packageManager = inMemPackageManager; allowError = false }
-
-      let! (canvasId, toplevels) = Canvas.loadFromDisk nameResolver "dark-packages"
+      let! (canvasId, toplevels) =
+        Canvas.loadFromDisk inMemPackageManager "dark-packages"
 
       print $"Loaded canvas {canvasId} with {List.length toplevels} toplevels"
 

@@ -276,7 +276,7 @@ module Expr =
 
   let private nameOrBlank (v : string) : string = if v = emptyVar then "" else v
 
-  let parseFn (fnName : string) : Result<string * int, string> =
+  let parseFnName (fnName : string) : Result<string * int, string> =
     match fnName with
     | Regex.Regex "^([a-z][a-z0-9A-Z]*[']?)_v(\d+)$" [ name; version ] ->
       Ok(name, (int version))
@@ -829,7 +829,7 @@ module Function =
         let returnType = TypeReference.fromSynType typeName
 
         let (name, version) =
-          Expr.parseFn name
+          Expr.parseFnName name
           |> Exception.unwrapResultInternal [ "name", name; "binding", binding ]
         { name = name
           version = version
@@ -900,7 +900,7 @@ module Constant =
                  _,
                  _,
                  _) ->
-      match Expr.parseFn name.idText with
+      match Expr.parseFnName name.idText with
       | Ok(name, version) ->
         { name = name; version = version; body = fromSynExpr expr }
       | Error errMsg ->

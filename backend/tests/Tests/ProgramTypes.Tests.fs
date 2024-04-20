@@ -10,6 +10,7 @@ module RT = LibExecution.RuntimeTypes
 module PT2ST = LibBinarySerialization.ProgramTypesToSerializedTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PTParser = LibExecution.ProgramTypesParser
+module NR = LibParser.NameResolver
 module S = TestUtils.RTShortcuts
 
 let ptFQFnName =
@@ -23,7 +24,13 @@ let testPipesToRuntimeTypes =
   testTask "pipes to runtime types" {
     let! actual =
       "value.age |> (-) 2L |> (+) value.age |> (<) 3L"
-      |> LibParser.Parser.parseRTExpr nameResolver "programTypes.tests.fs"
+      |> LibParser.Parser.parseRTExpr
+          localBuiltIns
+          packageManager
+          NR.HackPackageStuff.empty
+          NR.UserStuff.empty
+          NR.OnMissing.ThrowError
+         "programTypes.tests.fs"
       |> Ply.toTask
 
     let expected =

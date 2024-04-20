@@ -11,9 +11,10 @@ open Npgsql.FSharp
 open LibCloud.Db
 
 module PT = LibExecution.ProgramTypes
+module RT = LibExecution.RuntimeTypes
+module NR = LibParser.NameResolver
 
 open Utils
-
 
 let parseYamlExn<'a> (filename : string) : 'a =
   let contents = System.IO.File.ReadAllText filename
@@ -50,7 +51,7 @@ let purgeDataFromInternalSqlTables (id : CanvasID) : Task<unit> =
 
 
 let loadFromDisk
-  (nameResolver : LibParser.NameResolver.NameResolver)
+  (pm : RT.PackageManager)
   (canvasName : string)
   : Ply<System.Guid * List<LibExecution.ProgramTypes.Toplevel.T>> =
   uply {
@@ -83,7 +84,11 @@ let loadFromDisk
       uply {
         let! canvas =
           LibParser.Canvas.parseFromFile
-            nameResolver
+            Builtins.accessibleByCanvas
+            pm
+            NR.HackPackageStuff.empty
+            NR.UserStuff.empty
+            NR.OnMissing.ThrowError
             $"{canvasDir}/{config.Main}.dark"
 
         let types = canvas.types |> List.map PT.Toplevel.TLType

@@ -13,9 +13,18 @@ module RT = LibExecution.RuntimeTypes
 module Cron = LibCloud.Cron
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
+module NR = LibParser.NameResolver
 
 let p (code : string) : Task<PT.Expr> =
-  LibParser.Parser.parseSimple "cron.tests.fs" code |> Ply.toTask
+  LibParser.Parser.parseSimple
+    localBuiltIns
+    packageManager
+    NR.HackPackageStuff.empty
+    NR.UserStuff.empty
+    NR.OnMissing.ThrowError
+    "cron.tests.fs"
+    code
+  |> Ply.toTask
 
 
 let testCronFetchActiveCrons =

@@ -7,7 +7,10 @@ open Prelude
 module FS2WT = FSharpToWrittenTypes
 module WT = WrittenTypes
 module WT2PT = WrittenTypesToProgramTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PT = LibExecution.ProgramTypes
+module RT = LibExecution.RuntimeTypes
+module NR = NameResolver
 
 open Utils
 
@@ -21,7 +24,6 @@ type PTPackageModule =
   { fns : List<PT.PackageFn.T>
     types : List<PT.PackageType.T>
     constants : List<PT.PackageConstant.T> }
-
 let emptyPTModule = { fns = []; types = []; constants = [] }
 
 
@@ -94,8 +96,13 @@ let rec parseDecls
     emptyWTModule
     decls
 
+
 let parse
-  (resolver : NameResolver.NameResolver)
+  (builtins : RT.Builtins)
+  (pm : RT.PackageManager)
+  (hackPackageStuff : NR.HackPackageStuff)
+  (userStuff : NR.UserStuff)
+  (onMissing : NR.OnMissing)
   (filename : string)
   (contents : string)
   : Ply<PTPackageModule> =
@@ -116,54 +123,68 @@ let parse
 
 
       let typeNameToModules (p : PT.FQTypeName.Package) : List<string> =
-        "PACKAGE" :: p.owner :: p.modules
+        p.owner :: p.modules
 
       let fnNameToModules (p : PT.FQFnName.Package) : List<string> =
-        "PACKAGE" :: p.owner :: p.modules
+        p.owner :: p.modules
 
       let constantNameToModules (p : PT.FQConstantName.Package) : List<string> =
-        "PACKAGE" :: p.owner :: p.modules
+        p.owner :: p.modules
 
-      let fns =
-        modul.fns
-        |> List.map _.name
-        |> List.map LibExecution.ProgramTypesToRuntimeTypes.FQFnName.Package.toRT
-        |> Set
-      let types =
-        modul.types
-        |> List.map _.name
-        |> List.map LibExecution.ProgramTypesToRuntimeTypes.FQTypeName.Package.toRT
-        |> Set
-      let constants =
-        modul.constants
-        |> List.map _.name
-        |> List.map
-          LibExecution.ProgramTypesToRuntimeTypes.FQConstantName.Package.toRT
-        |> Set
+      // TODO: I'm not sure if we actually need this here?
+      // we're doing two pases, right, so probably not?
+      // and if this is the only place we're setting that, then maybe the thing can be removed? idk.
+      let updatedHackPackageStuff : NR.HackPackageStuff =
+        let newTypes =
+          modul.types
+          |> List.map _.name
+          |> List.map PT2RT.FQTypeName.Package.toRT
+          |> Set
+        let newConstants =
+          modul.constants
+          |> List.map _.name
+          |> List.map PT2RT.FQConstantName.Package.toRT
+          |> Set
+        let newFns =
+          modul.fns |> List.map _.name |> List.map PT2RT.FQFnName.Package.toRT |> Set
 
-      let resolver =
-        { resolver with
-            hackLocallyDefinedPackageFns = fns
-            hackLocallyDefinedPackageTypes = types
-            hackLocallyDefinedPackageConstants = constants }
+        { types = Set.union hackPackageStuff.types newTypes
+          constants = Set.union hackPackageStuff.constants newConstants
+          fns = Set.union hackPackageStuff.fns newFns }
+
       let! fns =
         modul.fns
         |> Ply.List.mapSequentially (fun fn ->
-          WT2PT.PackageFn.toPT resolver (fnNameToModules fn.name) fn)
+          WT2PT.PackageFn.toPT
+            builtins
+            pm
+            updatedHackPackageStuff
+            userStuff
+            onMissing
+            (fnNameToModules fn.name)
+            fn)
 
       let! types =
         modul.types
         |> Ply.List.mapSequentially (fun typ ->
-          WT2PT.PackageType.toPT resolver (typeNameToModules typ.name) typ)
+          WT2PT.PackageType.toPT
+            pm
+            hackPackageStuff
+            userStuff
+            onMissing
+            (typeNameToModules typ.name)
+            typ)
 
       let! constants =
         modul.constants
         |> Ply.List.mapSequentially (fun constant ->
           WT2PT.PackageConstant.toPT
-            resolver
+            pm
+            hackPackageStuff
+            userStuff
+            onMissing
             (constantNameToModules constant.name)
             constant)
-
 
       return { fns = fns; types = types; constants = constants }
 

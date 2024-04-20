@@ -147,11 +147,6 @@ let localBuiltIns =
 
 let packageManager = LibCloud.PackageManager.packageManager
 
-// This resolves both builtins and package functions
-let nameResolver =
-  { LibParser.NameResolver.fromBuiltins localBuiltIns with
-      packageManager = packageManager }
-
 
 let executionStateFor
   (canvasID : CanvasID)

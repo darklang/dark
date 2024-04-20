@@ -10,8 +10,10 @@ module WT2PT = WrittenTypesToProgramTypes
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT = LibExecution.RuntimeTypes
+module NR = NameResolver
 
 open Utils
+
 type WTTest =
   { name : string; lineNumber : int; actual : WT.Expr; expected : WT.Expr }
 
@@ -188,22 +190,63 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : List<WTModule> =
   parseModule [] [] decls
 
 
-let toPT (resolver : NameResolver.NameResolver) (m : WTModule) : Ply<PTModule> =
+let toPT
+  (builtins : RT.Builtins)
+  (pm : RT.PackageManager)
+  (hackPackageStuff : NR.HackPackageStuff)
+  (userStuff : NR.UserStuff)
+  (onMissing : NR.OnMissing)
+  (m : WTModule)
+  : Ply<PTModule> =
   uply {
     let! fns =
-      m.fns |> Ply.List.mapSequentially (WT2PT.UserFunction.toPT resolver m.name)
+      m.fns
+      |> Ply.List.mapSequentially (
+        WT2PT.UserFunction.toPT
+          builtins
+          pm
+          hackPackageStuff
+          userStuff
+          onMissing
+          m.name
+      )
     let! types =
-      m.types |> Ply.List.mapSequentially (WT2PT.UserType.toPT resolver m.name)
+      m.types
+      |> Ply.List.mapSequentially (
+        WT2PT.UserType.toPT pm hackPackageStuff userStuff onMissing m.name
+      )
     let! constants =
       m.constants
-      |> Ply.List.mapSequentially (WT2PT.UserConstant.toPT resolver m.name)
-    let! dbs = m.dbs |> Ply.List.mapSequentially (WT2PT.DB.toPT resolver m.name)
+      |> Ply.List.mapSequentially (
+        WT2PT.UserConstant.toPT pm hackPackageStuff userStuff onMissing m.name
+      )
+    let! dbs =
+      m.dbs
+      |> Ply.List.mapSequentially (
+        WT2PT.DB.toPT pm hackPackageStuff userStuff onMissing m.name
+      )
     let! (tests : List<PTTest>) =
       m.tests
       |> Ply.List.mapSequentially (fun test ->
         uply {
-          let! actual = WT2PT.Expr.toPT resolver m.name test.actual
-          let! expected = WT2PT.Expr.toPT resolver m.name test.expected
+          let! actual =
+            WT2PT.Expr.toPT
+              builtins
+              pm
+              hackPackageStuff
+              userStuff
+              onMissing
+              m.name
+              test.actual
+          let! expected =
+            WT2PT.Expr.toPT
+              builtins
+              pm
+              hackPackageStuff
+              userStuff
+              onMissing
+              m.name
+              test.expected
           return
             { PTTest.actual = actual
               expected = expected
@@ -226,7 +269,11 @@ let toPT (resolver : NameResolver.NameResolver) (m : WTModule) : Ply<PTModule> =
 
 /// Returns a flattened list of modules in the file.
 let parseTestFile
-  (baseResolver : NameResolver.NameResolver)
+  (builtins : RT.Builtins)
+  (pm : RT.PackageManager)
+  (hackPackageStuff : NR.HackPackageStuff)
+  (userStuff : NR.UserStuff)
+  (onMissing : NR.OnMissing)
   (filename : string)
   : Ply<List<PTModule>> =
   uply {
@@ -236,30 +283,33 @@ let parseTestFile
       |> parseAsFSharpSourceFile filename
       |> parseFile
 
-    let fns = modules |> List.map _.fns |> List.concat
-    let fnNames = fns |> List.map _.name |> Set.ofList
+    let fns =
+      modules |> List.map _.fns |> List.concat |> List.map _.name |> Set.ofList
+    let types =
+      modules |> List.map _.types |> List.concat |> List.map _.name |> Set.ofList
+    let constants =
+      modules |> List.map _.constants |> List.concat |> List.map _.name |> Set.ofList
 
-    let types = modules |> List.map _.types |> List.concat
-    let typeNames = types |> List.map _.name |> Set.ofList
+    let updatedUserStuff : NR.UserStuff =
+      { types = Set.union userStuff.types types
+        constants = Set.union userStuff.constants constants
+        fns = Set.union userStuff.fns fns }
 
-    let constants = modules |> List.map _.constants |> List.concat
-    let constantNames = constants |> List.map _.name |> Set.ofList
-
-    let programResolver =
-      { NameResolver.empty with
-          userFns = fnNames
-          userTypes = typeNames
-          userConstants = constantNames }
-    let resolver =
-      NameResolver.merge baseResolver programResolver baseResolver.packageManager
-
-    let! result = modules |> Ply.List.mapSequentially (toPT resolver)
+    let! result =
+      modules
+      |> Ply.List.mapSequentially (
+        toPT builtins pm hackPackageStuff updatedUserStuff onMissing
+      )
 
     return result
   }
 
 let parseSingleTestFromFile
-  (resolver : NameResolver.NameResolver)
+  (builtins : RT.Builtins)
+  (pm : RT.PackageManager)
+  (hackPackageStuff : NR.HackPackageStuff)
+  (userStuff : NR.UserStuff)
+  (onMissing : NR.OnMissing)
   (filename : string)
   (testSource : string)
   : Ply<RTTest> =
@@ -270,10 +320,10 @@ let parseSingleTestFromFile
       |> singleExprFromImplFile
       |> parseTest
 
-    let! actual =
-      wtTest.actual |> WT2PT.Expr.toPT resolver [] |> Ply.map PT2RT.Expr.toRT
-    let! expected =
-      wtTest.expected |> WT2PT.Expr.toPT resolver [] |> Ply.map PT2RT.Expr.toRT
+    let mapExpr = WT2PT.Expr.toPT builtins pm hackPackageStuff userStuff onMissing []
+
+    let! actual = wtTest.actual |> mapExpr |> Ply.map PT2RT.Expr.toRT
+    let! expected = wtTest.expected |> mapExpr |> Ply.map PT2RT.Expr.toRT
     return
       { actual = actual
         expected = expected

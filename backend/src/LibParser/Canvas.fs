@@ -9,6 +9,7 @@ module WT = WrittenTypes
 module WT2PT = WrittenTypesToProgramTypes
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module NR = NameResolver
 
 open Utils
 open ParserException
@@ -77,6 +78,7 @@ let (|SimpleAttribute|_|) (attr : SynAttribute) =
         (Some attr.Range)
 
   Some(attrName, parseAttrArgs attr.ArgExpr)
+
 
 /// Update a CanvasModule by parsing a single F# let binding
 /// Depending on the attribute present, this may add a user function, a handler, or a DB
@@ -180,6 +182,7 @@ let parseTypeDefn (m : WTCanvasModule) (typeDefn : SynTypeDefn) : WTCanvasModule
 
     { m with types = m.types @ newTypes; dbs = m.dbs @ newDBs }
 
+
 /// An F# module has a list of declarations, which can be:
 /// - a group of let bindings
 /// - a group of type definitions
@@ -216,36 +219,63 @@ let parseDecls (decls : List<SynModuleDecl>) : WTCanvasModule =
     emptyWTModule
     decls
 
-// TOOD: determine if this should take a PM in
-let toResolver (canvas : WTCanvasModule) : NameResolver.NameResolver =
-  let fns = canvas.fns |> List.map _.name
-  let types = canvas.types |> List.map _.name
-  let constants = canvas.constants |> List.map _.name
-  NameResolver.create [] [] types fns constants true RT.PackageManager.Empty
 
 let toPT
-  (nameResolver : NameResolver.NameResolver)
+  (builtins : RT.Builtins)
+  (pm : RT.PackageManager)
+  (hackPackageStuff : NR.HackPackageStuff)
+  (userStuff : NR.UserStuff)
+  (onMissing : NR.OnMissing)
   (m : WTCanvasModule)
   : Ply<PTCanvasModule> =
   uply {
     let! types =
-      m.types |> Ply.List.mapSequentially (WT2PT.UserType.toPT nameResolver m.name)
+      m.types
+      |> Ply.List.mapSequentially (
+        WT2PT.UserType.toPT pm hackPackageStuff userStuff onMissing m.name
+      )
     let! fns =
-      m.fns |> Ply.List.mapSequentially (WT2PT.UserFunction.toPT nameResolver m.name)
+      m.fns
+      |> Ply.List.mapSequentially (
+        WT2PT.UserFunction.toPT
+          builtins
+          pm
+          hackPackageStuff
+          userStuff
+          onMissing
+          m.name
+      )
     let! constants =
       m.constants
-      |> Ply.List.mapSequentially (WT2PT.UserConstant.toPT nameResolver m.name)
-    let! dbs = m.dbs |> Ply.List.mapSequentially (WT2PT.DB.toPT nameResolver m.name)
+      |> Ply.List.mapSequentially (
+        WT2PT.UserConstant.toPT pm hackPackageStuff userStuff onMissing m.name
+      )
+    let! dbs =
+      m.dbs
+      |> Ply.List.mapSequentially (
+        WT2PT.DB.toPT pm hackPackageStuff userStuff onMissing m.name
+      )
     let! handlers =
       m.handlers
       |> Ply.List.mapSequentially (fun (spec, expr) ->
         uply {
           let spec = WT2PT.Handler.Spec.toPT spec
-          let! expr = WT2PT.Expr.toPT nameResolver m.name expr
+          let! expr =
+            WT2PT.Expr.toPT
+              builtins
+              pm
+              hackPackageStuff
+              userStuff
+              onMissing
+              m.name
+              expr
           return (spec, expr)
         })
     let! exprs =
-      m.exprs |> Ply.List.mapSequentially (WT2PT.Expr.toPT nameResolver m.name)
+      m.exprs
+      |> Ply.List.mapSequentially (
+        WT2PT.Expr.toPT builtins pm hackPackageStuff userStuff onMissing m.name
+      )
 
     return
       { types = types
@@ -256,8 +286,13 @@ let toPT
         exprs = exprs }
   }
 
+
 let parse
-  (resolver : NameResolver.NameResolver)
+  (builtins : RT.Builtins)
+  (pm : RT.PackageManager)
+  (hackPackageStuff : NR.HackPackageStuff)
+  (userStuff : NR.UserStuff)
+  (onMissing : NR.OnMissing)
   (filename : string)
   (source : string)
   : Ply<PTCanvasModule> =
@@ -281,13 +316,30 @@ let parse
         None // whole file
 
   let module' = parseDecls decls
-  let resolver =
-    NameResolver.merge resolver (toResolver module') resolver.packageManager
-  toPT resolver module'
+
+  let updatedUserStuff : NR.UserStuff =
+    { types = Set.union userStuff.types (module'.types |> List.map _.name |> Set)
+      constants =
+        Set.union userStuff.constants (module'.constants |> List.map _.name |> Set)
+      fns = Set.union userStuff.fns (module'.fns |> List.map _.name |> Set) }
+
+  toPT
+    builtins
+    pm
+    hackPackageStuff
+    updatedUserStuff
+    onMissing // TODO: maybe this should be `OnMissing.Allow` -- the previous code had that...
+    module'
 
 
 let parseFromFile
-  (resolver : NameResolver.NameResolver)
+  (builtins : RT.Builtins)
+  (pm : RT.PackageManager)
+  (hackPackageStuff : NR.HackPackageStuff)
+  (userStuff : NR.UserStuff)
+  (onMissing : NR.OnMissing)
   (filename : string)
   : Ply<PTCanvasModule> =
-  filename |> System.IO.File.ReadAllText |> parse resolver filename
+  filename
+  |> System.IO.File.ReadAllText
+  |> parse builtins pm hackPackageStuff userStuff onMissing filename

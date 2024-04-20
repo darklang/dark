@@ -11,7 +11,7 @@ open Prelude
 module PT = LibExecution.ProgramTypes
 
 type Name =
-  // Used when a syntactic construct turns into a function (eg some operators)
+  // Used when a syntactic construct turns into a function (e.g. some operators)
   | KnownBuiltin of string * int
   // Basically all names are unresolved at this point, and will be resolved during
   // WrittenTypesToProgramTypes

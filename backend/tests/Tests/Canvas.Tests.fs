@@ -17,9 +17,18 @@ module Serialize = LibCloud.Serialize
 module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module Account = LibCloud.Account
+module NR = LibParser.NameResolver
 
 let parse (code : string) : Task<PT.Expr> =
-  LibParser.Parser.parseSimple "tests.canvas.fs" code |> Ply.toTask
+  LibParser.Parser.parseSimple
+    localBuiltIns
+    packageManager
+    NR.HackPackageStuff.empty
+    NR.UserStuff.empty
+    NR.OnMissing.ThrowError
+    "tests.canvas.fs"
+    code
+  |> Ply.toTask
 
 let testDBOplistRoundtrip : Test =
   testTask "db oplist roundtrip" {
