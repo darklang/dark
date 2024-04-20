@@ -208,296 +208,296 @@ module TextToTextRoundtripping =
   module TypeReference =
     // all built-ins
     ("type MyUnit = Unit" |> roundtripCliScript) = "type MyUnit =\n  Unit"
-//     ("type MyBool = Bool" |> roundtripCliScript) = "type MyBool =\n  Bool"
-//     ("type MyInt8 = Int8" |> roundtripCliScript) = "type MyInt8 =\n  Int8"
-//     ("type MyUInt8 = UInt8" |> roundtripCliScript) = "type MyUInt8 =\n  UInt8"
-//     ("type MyInt16 = Int16" |> roundtripCliScript) = "type MyInt16 =\n  Int16"
-//     ("type MyUInt16 = UInt16" |> roundtripCliScript) = "type MyUInt16 =\n  UInt16"
-//     ("type MyInt32 = Int32" |> roundtripCliScript) = "type MyInt32 =\n  Int32"
-//     ("type MyUInt32 = UInt32" |> roundtripCliScript) = "type MyUInt32 =\n  UInt32"
-//     ("type MyInt64 = Int64" |> roundtripCliScript) = "type MyInt64 =\n  Int64"
-//     ("type MyUInt64 = UInt64" |> roundtripCliScript) = "type MyUInt64 =\n  UInt64"
-//     ("type MyInt128 = Int128" |> roundtripCliScript) = "type MyInt128 =\n  Int128"
-//     ("type MyUInt128 = UInt128" |> roundtripCliScript) = "type MyUInt128 =\n  UInt128"
-//     ("type MyFloat = Float" |> roundtripCliScript) = "type MyFloat =\n  Float"
-//     ("type MyChar = Char" |> roundtripCliScript) = "type MyChar =\n  Char"
-//     ("type MyString = String" |> roundtripCliScript) = "type MyString =\n  String"
+    ("type MyBool = Bool" |> roundtripCliScript) = "type MyBool =\n  Bool"
+    ("type MyInt8 = Int8" |> roundtripCliScript) = "type MyInt8 =\n  Int8"
+    ("type MyUInt8 = UInt8" |> roundtripCliScript) = "type MyUInt8 =\n  UInt8"
+    ("type MyInt16 = Int16" |> roundtripCliScript) = "type MyInt16 =\n  Int16"
+    ("type MyUInt16 = UInt16" |> roundtripCliScript) = "type MyUInt16 =\n  UInt16"
+    ("type MyInt32 = Int32" |> roundtripCliScript) = "type MyInt32 =\n  Int32"
+    ("type MyUInt32 = UInt32" |> roundtripCliScript) = "type MyUInt32 =\n  UInt32"
+    ("type MyInt64 = Int64" |> roundtripCliScript) = "type MyInt64 =\n  Int64"
+    ("type MyUInt64 = UInt64" |> roundtripCliScript) = "type MyUInt64 =\n  UInt64"
+    ("type MyInt128 = Int128" |> roundtripCliScript) = "type MyInt128 =\n  Int128"
+    ("type MyUInt128 = UInt128" |> roundtripCliScript) = "type MyUInt128 =\n  UInt128"
+    ("type MyFloat = Float" |> roundtripCliScript) = "type MyFloat =\n  Float"
+    ("type MyChar = Char" |> roundtripCliScript) = "type MyChar =\n  Char"
+    ("type MyString = String" |> roundtripCliScript) = "type MyString =\n  String"
 
-//     ("type MyList = List<String>" |> roundtripCliScript) = "type MyList =\n  List<String>"
-//     ("type MyList = List<List<String>>" |> roundtripCliScript) = "type MyList =\n  List<List<String>>"
-//     ("type MyList = List<MyString>" |> roundtripCliScript) = "type MyList =\n  List<MyString>"
+    ("type MyList = List<String>" |> roundtripCliScript) = "type MyList =\n  List<String>"
+    ("type MyList = List<List<String>>" |> roundtripCliScript) = "type MyList =\n  List<List<String>>"
+    ("type MyList = List<MyString>" |> roundtripCliScript) = "type MyList =\n  List<MyString>"
 
-//     ("type MyDict = Dict<Int64>" |> roundtripCliScript) = "type MyDict =\n  Dict<Int64>"
-//     ("type MyDict = Dict<MyList>" |> roundtripCliScript) = "type MyDict =\n  Dict<MyList>"
+    ("type MyDict = Dict<Int64>" |> roundtripCliScript) = "type MyDict =\n  Dict<Int64>"
+    ("type MyDict = Dict<MyList>" |> roundtripCliScript) = "type MyDict =\n  Dict<MyList>"
 
-//     ("type MyTuple2 = (String * Int64)" |> roundtripCliScript) = "type MyTuple2 =\n  (String * Int64)"
-//     ("type MyTuple3 = (String * Int64 * Bool)" |> roundtripCliScript) = "type MyTuple3 =\n  (String * Int64 * Bool)"
-//     ("type MyTuple = (String * Int64 * Bool * Unit)" |> roundtripCliScript) = "type MyTuple =\n  (String * Int64 * Bool * Unit)"
-//     // single-part qualified name
-//     ("type ID = Test" |> roundtripCliScript) = "type ID =\n  Test"
+    ("type MyTuple2 = (String * Int64)" |> roundtripCliScript) = "type MyTuple2 =\n  (String * Int64)"
+    ("type MyTuple3 = (String * Int64 * Bool)" |> roundtripCliScript) = "type MyTuple3 =\n  (String * Int64 * Bool)"
+    ("type MyTuple = (String * Int64 * Bool * Unit)" |> roundtripCliScript) = "type MyTuple =\n  (String * Int64 * Bool * Unit)"
+    // single-part qualified name
+    ("type ID = Test" |> roundtripCliScript) = "type ID =\n  Test"
 
-//     // fully-qualified package name (multi-part)
-//     ("type MyOption = PACKAGE.Darklang.Stdlib.Option.Option" |> roundtripCliScript) = "type MyOption =\n  PACKAGE.Darklang.Stdlib.Option.Option_v0"
-//     ("type MyOption = Stdlib.Option.Option" |> roundtripCliScript) = "type MyOption =\n  PACKAGE.Darklang.Stdlib.Option.Option_v0"
-
-
-//   module TypeDeclaration =
-//     ("type SimpleAlias = Unit" |> roundtripCliScript) = "type SimpleAlias =\n  Unit"
-
-//     // record type
-//     ("type Person = {name: String}" |> roundtripCliScript) = "type Person =\n  { name: String }"
-
-//     ("type Person = {name: String; age: Int64}" |> roundtripCliScript) = "type Person =\n  { name: String\n    age: Int64 }"
-//     ("type Person = {name: String; age: Int64; hasPet: Bool}" |> roundtripCliScript) = "type Person =\n  { name: String\n    age: Int64\n    hasPet: Bool }"
-
-//     ("type Person = {name: String; age: Int64; hasPet: Bool; pet: Pet}"
-//      |> roundtripCliScript) = """type Person =
-//   { name: String
-//     age: Int64
-//     hasPet: Bool
-//     pet: Pet }"""
-
-//   module Expr =
-//     // units
-//     ("()" |> roundtripCliScript) = "()"
-
-//     // bools
-//     ("true" |> roundtripCliScript) = "true"
-//     ("false" |> roundtripCliScript) = "false"
-
-//     // parens (disappear)
-//     ("(true)" |> roundtripCliScript) = "true"
-
-//     // int literals
-//     ("1y" |> roundtripCliScript) = "1y"
-//     ("-1y" |> roundtripCliScript) = "-1y"
-//     ("1uy" |> roundtripCliScript) = "1uy"
-//     ("1s" |> roundtripCliScript) = "1s"
-//     ("1us" |> roundtripCliScript) = "1us"
-//     ("1l" |> roundtripCliScript) = "1l"
-//     ("-1l" |> roundtripCliScript) = "-1l"
-//     ("1ul" |> roundtripCliScript) = "1ul"
-//     ("0L" |> roundtripCliScript) = "0L"
-//     ("1900L" |> roundtripCliScript) = "1900L"
-//     ("-1900L" |> roundtripCliScript) = "-1900L"
-//     ("1UL" |> roundtripCliScript) = "1UL"
-//     ("1Q" |> roundtripCliScript) = "1Q"
-//     ("-1Q" |> roundtripCliScript) = "-1Q"
-//     ("1Q" |> roundtripCliScript) = "1Q"
-
-//     // float literals
-//     ("-1.0" |> roundtripCliScript) = "-1.0"
-//     ("-1.5" |> roundtripCliScript) = "-1.5"
-//     ("1.5" |> roundtripCliScript) = "1.5"
-//     ("0.0" |> roundtripCliScript) = "0.0"
-//     ("0.775" |> roundtripCliScript) = "0.775"
-
-//     // string literals
-//     ("\"\"" |> roundtripCliScript) = "\"\""
-//     ("\"hello\"" |> roundtripCliScript) = "\"hello\""
-//     ("\"hello\\tworld\"" |> roundtripCliScript) = "\"hello\\tworld\""
-
-//     // char literals
-//     ("'a'" |> roundtripCliScript) = "'a'"
-//     ("'\\n'" |> roundtripCliScript) = "'\\n'"
-//     ("'\t'" |> roundtripCliScript) = "'\t'"
-
-//     // list literal
-//     ("[]" |> roundtripCliScript) = "[]"
-//     ("[\"hello\"]" |> roundtripCliScript) = "[\"hello\"]"
-//     ("[1L; 2L]" |> roundtripCliScript) = "[1L; 2L]"
-//     ("[1L; 2L; 3L;]" |> roundtripCliScript) = "[1L; 2L; 3L]"
-//     ("[true; false; true; false]" |> roundtripCliScript) = "[true; false; true; false]"
-//     ("[[1L; 2L]; [3L; 4L]]" |> roundtripCliScript) = "[[1L; 2L]; [3L; 4L]]"
-
-//     // dict literal
-//     ("Dict { }" |> roundtripCliScript) = "Dict {  }"
-//     ("Dict { a = 1L }" |> roundtripCliScript) = "Dict { a = 1L }"
-//     ("Dict { a = \"hello\"; b = \"test\" }" |> roundtripCliScript) = "Dict { a = \"hello\"; b = \"test\" }"
-//     ("Dict { a = 1L; b = 2L; c = 3L }" |> roundtripCliScript) = "Dict { a = 1L; b = 2L; c = 3L }"
-
-//     // tuple literals
-//     ("(1L, \"hello\")" |> roundtripCliScript) = "(1L, \"hello\")"
-//     ("(1L, \"hello\", 2L)" |> roundtripCliScript) = "(1L, \"hello\", 2L)"
-//     ("(1L, \"hello\", 2L, true)" |> roundtripCliScript) = "(1L, \"hello\", 2L, true)"
-//     ("(1L, 2L + 3L, 4L)" |> roundtripCliScript) = "(1L, (2L) + (3L), 4L)"
-
-//     // record literal
-//     ("Person {name =\"John\"} " |> roundtripCliScript) = "Person { name = \"John\" }"
-//     ("Person {name =\"John\"; age = 30L} " |> roundtripCliScript) = "Person { name = \"John\"; age = 30L }"
-//     ("Person {name =\"John\"; age = 30L; hasPet = true} " |> roundtripCliScript) = "Person { name = \"John\"; age = 30L; hasPet = true }"
-
-//     ("Person {name =\"John\"; age = 30L; hasPet = true; pet = Pet {name = \"Luna\"}} "
-//      |> roundtripCliScript) = "Person { name = \"John\"; age = 30L; hasPet = true; pet = Pet { name = \"Luna\" } }"
-
-//     // variables and let bindings
-//     ("assumedlyAVariableName" |> roundtripCliScript) = "assumedlyAVariableName"
-//     // TODO: this is ugly
-//     ("let x = 1L\n  x" |> roundtripCliScript) = "let x =\n  1L\nx"
-
-//     // if expressions
-//     ("if true then 1L" |> roundtripCliScript) = "if true then\n  1L"
-//     ("if true then 1L else 2L" |> roundtripCliScript) = "if true then\n  1L\nelse\n  2L"
-//     ("if a < b then 1L else if c > d then 2L" |> roundtripCliScript) = "if (a) < (b) then\n  1L\nelse if (c) > (d) then\n  2L"
-//     ("if a < b then 1L else if c > d then 2L else 3L" |> roundtripCliScript) = "if (a) < (b) then\n  1L\nelse if (c) > (d) then\n  2L\nelse\n  3L"
-
-//     ("if true then\n 1L" |> roundtripCliScript) = "if true then\n  1L"
-//     ("if true then\n 1L\nelse\n 2L" |> roundtripCliScript) = "if true then\n  1L\nelse\n  2L"
-//     ("if true then\n a\nelse if false then\n c" |> roundtripCliScript) = "if true then\n  a\nelse if false then\n  c"
-
-//     ("if a > b then\n a\nelse if c > d then\n c\nelse d" |> roundtripCliScript) = "if (a) > (b) then\n  a\nelse if (c) > (d) then\n  c\nelse\n  d"
-
-//     ("if true then\n\ta\nelse\n\tb" |> roundtripCliScript) = "if true then\n  a\nelse\n  b"
-
-//     ("""if true then
-//   a
-// else if false then
-//   c
-// else if true then
-//   d"""
-//      |> roundtripCliScript) = """if true then
-//   a
-// else if false then
-//   c
-// else if true then
-//   d"""
+    // fully-qualified package name (multi-part)
+    ("type MyOption = PACKAGE.Darklang.Stdlib.Option.Option" |> roundtripCliScript) = "type MyOption =\n  PACKAGE.Darklang.Stdlib.Option.Option_v0"
+    ("type MyOption = Stdlib.Option.Option" |> roundtripCliScript) = "type MyOption =\n  PACKAGE.Darklang.Stdlib.Option.Option_v0"
 
 
-//     ("""if true then
-//   a
-// else if false then
-//   c
-// else if true then
-//   d
-// else
-//   e"""
-//      |> roundtripCliScript) = """if true then
-//   a
-// else if false then
-//   c
-// else if true then
-//   d
-// else
-//   e"""
+  module TypeDeclaration =
+    ("type SimpleAlias = Unit" |> roundtripCliScript) = "type SimpleAlias =\n  Unit"
 
-//     // else for inner if
-//     ("""if a > b then
-//   if c > d then
-//     c
-//   else
-//     b"""
-//      |> roundtripCliScript) = """if (a) > (b) then
-//   if (c) > (d) then
-//     c
-//   else
-//     b"""
+    // record type
+    ("type Person = {name: String}" |> roundtripCliScript) = "type Person =\n  { name: String }"
 
-//     // else for outer if
-//     ("""if a > b then
-//   if c > d then
-//     c
-// else
-//   b"""
-//      |> roundtripCliScript) = """if (a) > (b) then
-//   if (c) > (d) then
-//     c
-// else
-//   b"""
+    ("type Person = {name: String; age: Int64}" |> roundtripCliScript) = "type Person =\n  { name: String\n    age: Int64 }"
+    ("type Person = {name: String; age: Int64; hasPet: Bool}" |> roundtripCliScript) = "type Person =\n  { name: String\n    age: Int64\n    hasPet: Bool }"
 
-//     // nested if
-//     ("""if a > b then
-//   a
-// else
-//   if c > d then
-//     c
-//   else
-//     if e > f then
-//       e
-//     else
-//       if g > h then
-//         g
-//       else
-//         h"""
-//      |> roundtripCliScript) = """if (a) > (b) then
-//   a
-// else if (c) > (d) then
-//   c
-// else if (e) > (f) then
-//   e
-// else if (g) > (h) then
-//   g
-// else
-//   h"""
+    ("type Person = {name: String; age: Int64; hasPet: Bool; pet: Pet}"
+     |> roundtripCliScript) = """type Person =
+  { name: String
+    age: Int64
+    hasPet: Bool
+    pet: Pet }"""
+
+  module Expr =
+    // units
+    ("()" |> roundtripCliScript) = "()"
+
+    // bools
+    ("true" |> roundtripCliScript) = "true"
+    ("false" |> roundtripCliScript) = "false"
+
+    // parens (disappear)
+    ("(true)" |> roundtripCliScript) = "true"
+
+    // int literals
+    ("1y" |> roundtripCliScript) = "1y"
+    ("-1y" |> roundtripCliScript) = "-1y"
+    ("1uy" |> roundtripCliScript) = "1uy"
+    ("1s" |> roundtripCliScript) = "1s"
+    ("1us" |> roundtripCliScript) = "1us"
+    ("1l" |> roundtripCliScript) = "1l"
+    ("-1l" |> roundtripCliScript) = "-1l"
+    ("1ul" |> roundtripCliScript) = "1ul"
+    ("0L" |> roundtripCliScript) = "0L"
+    ("1900L" |> roundtripCliScript) = "1900L"
+    ("-1900L" |> roundtripCliScript) = "-1900L"
+    ("1UL" |> roundtripCliScript) = "1UL"
+    ("1Q" |> roundtripCliScript) = "1Q"
+    ("-1Q" |> roundtripCliScript) = "-1Q"
+    ("1Q" |> roundtripCliScript) = "1Q"
+
+    // float literals
+    ("-1.0" |> roundtripCliScript) = "-1.0"
+    ("-1.5" |> roundtripCliScript) = "-1.5"
+    ("1.5" |> roundtripCliScript) = "1.5"
+    ("0.0" |> roundtripCliScript) = "0.0"
+    ("0.775" |> roundtripCliScript) = "0.775"
+
+    // string literals
+    ("\"\"" |> roundtripCliScript) = "\"\""
+    ("\"hello\"" |> roundtripCliScript) = "\"hello\""
+    ("\"hello\\tworld\"" |> roundtripCliScript) = "\"hello\\tworld\""
+
+    // char literals
+    ("'a'" |> roundtripCliScript) = "'a'"
+    ("'\\n'" |> roundtripCliScript) = "'\\n'"
+    ("'\t'" |> roundtripCliScript) = "'\t'"
+
+    // list literal
+    ("[]" |> roundtripCliScript) = "[]"
+    ("[\"hello\"]" |> roundtripCliScript) = "[\"hello\"]"
+    ("[1L; 2L]" |> roundtripCliScript) = "[1L; 2L]"
+    ("[1L; 2L; 3L;]" |> roundtripCliScript) = "[1L; 2L; 3L]"
+    ("[true; false; true; false]" |> roundtripCliScript) = "[true; false; true; false]"
+    ("[[1L; 2L]; [3L; 4L]]" |> roundtripCliScript) = "[[1L; 2L]; [3L; 4L]]"
+
+    // dict literal
+    ("Dict { }" |> roundtripCliScript) = "Dict {  }"
+    ("Dict { a = 1L }" |> roundtripCliScript) = "Dict { a = 1L }"
+    ("Dict { a = \"hello\"; b = \"test\" }" |> roundtripCliScript) = "Dict { a = \"hello\"; b = \"test\" }"
+    ("Dict { a = 1L; b = 2L; c = 3L }" |> roundtripCliScript) = "Dict { a = 1L; b = 2L; c = 3L }"
+
+    // tuple literals
+    ("(1L, \"hello\")" |> roundtripCliScript) = "(1L, \"hello\")"
+    ("(1L, \"hello\", 2L)" |> roundtripCliScript) = "(1L, \"hello\", 2L)"
+    ("(1L, \"hello\", 2L, true)" |> roundtripCliScript) = "(1L, \"hello\", 2L, true)"
+    ("(1L, 2L + 3L, 4L)" |> roundtripCliScript) = "(1L, (2L) + (3L), 4L)"
+
+    // record literal
+    ("Person {name =\"John\"} " |> roundtripCliScript) = "Person { name = \"John\" }"
+    ("Person {name =\"John\"; age = 30L} " |> roundtripCliScript) = "Person { name = \"John\"; age = 30L }"
+    ("Person {name =\"John\"; age = 30L; hasPet = true} " |> roundtripCliScript) = "Person { name = \"John\"; age = 30L; hasPet = true }"
+
+    ("Person {name =\"John\"; age = 30L; hasPet = true; pet = Pet {name = \"Luna\"}} "
+     |> roundtripCliScript) = "Person { name = \"John\"; age = 30L; hasPet = true; pet = Pet { name = \"Luna\" } }"
+
+    // variables and let bindings
+    ("assumedlyAVariableName" |> roundtripCliScript) = "assumedlyAVariableName"
+    // TODO: this is ugly
+    ("let x = 1L\n  x" |> roundtripCliScript) = "let x =\n  1L\nx"
+
+    // if expressions
+    ("if true then 1L" |> roundtripCliScript) = "if true then\n  1L"
+    ("if true then 1L else 2L" |> roundtripCliScript) = "if true then\n  1L\nelse\n  2L"
+    ("if a < b then 1L else if c > d then 2L" |> roundtripCliScript) = "if (a) < (b) then\n  1L\nelse if (c) > (d) then\n  2L"
+    ("if a < b then 1L else if c > d then 2L else 3L" |> roundtripCliScript) = "if (a) < (b) then\n  1L\nelse if (c) > (d) then\n  2L\nelse\n  3L"
+
+    ("if true then\n 1L" |> roundtripCliScript) = "if true then\n  1L"
+    ("if true then\n 1L\nelse\n 2L" |> roundtripCliScript) = "if true then\n  1L\nelse\n  2L"
+    ("if true then\n a\nelse if false then\n c" |> roundtripCliScript) = "if true then\n  a\nelse if false then\n  c"
+
+    ("if a > b then\n a\nelse if c > d then\n c\nelse d" |> roundtripCliScript) = "if (a) > (b) then\n  a\nelse if (c) > (d) then\n  c\nelse\n  d"
+
+    ("if true then\n\ta\nelse\n\tb" |> roundtripCliScript) = "if true then\n  a\nelse\n  b"
+
+    ("""if true then
+  a
+else if false then
+  c
+else if true then
+  d"""
+     |> roundtripCliScript) = """if true then
+  a
+else if false then
+  c
+else if true then
+  d"""
 
 
-//     // fn calls
-//     // TODO: these are ugly
-//     ("1L + 2L" |> roundtripCliScript) = "(1L) + (2L)"
-//     ("1L + b + 3L" |> roundtripCliScript) = "((1L) + (b)) + (3L)"
-//     ("1L + 2L * 3L - 4L" |> roundtripCliScript) = "((1L) + ((2L) * (3L))) - (4L)"
-//     ("1L > 2L" |> roundtripCliScript) = "(1L) > (2L)"
-//     ("1L >= 2L" |> roundtripCliScript) = "(1L) >= (2L)"
-//     ("1L < 2L" |> roundtripCliScript) = "(1L) < (2L)"
-//     ("1L <= 2L" |> roundtripCliScript) = "(1L) <= (2L)"
-//     ("1L == 2L" |> roundtripCliScript) = "(1L) == (2L)"
-//     ("1L != 2L" |> roundtripCliScript) = "(1L) != (2L)"
-//     ("1L ^ 2L" |> roundtripCliScript) = "(1L) ^ (2L)"
-//     ("true && false" |> roundtripCliScript) = "(true) && (false)"
-//     ("true || false" |> roundtripCliScript) = "(true) || (false)"
-//     ("(and true false)" |> roundtripCliScript) = "and true false"
-//     ("(Bool.and true false)" |> roundtripCliScript) = "Bool.and true false"
-//     ("(PACKAGE.Darklang.Stdlib.Bool.and true false)" |> roundtripCliScript) = "PACKAGE.Darklang.Stdlib.Bool.and_v0 true false"
-//     ("(Stdlib.Bool.and true false)" |> roundtripCliScript) = "PACKAGE.Darklang.Stdlib.Bool.and_v0 true false"
-//     ("(Builtin.int64Add 1L 2L)" |> roundtripCliScript) = "Builtin.int64Add 1L 2L"
+    ("""if true then
+  a
+else if false then
+  c
+else if true then
+  d
+else
+  e"""
+     |> roundtripCliScript) = """if true then
+  a
+else if false then
+  c
+else if true then
+  d
+else
+  e"""
 
-//   module FunctionDeclaration =
-//     // single 'normal' param
-//     ("let helloWorld (i: Int64): String = \"Hello world\"" |> roundtripCliScript) = "let helloWorld (i: Int64): String =\n  \"Hello world\""
+    // else for inner if
+    ("""if a > b then
+  if c > d then
+    c
+  else
+    b"""
+     |> roundtripCliScript) = """if (a) > (b) then
+  if (c) > (d) then
+    c
+  else
+    b"""
 
-//     ("let double2 (i: PACKAGE.Darklang.LanguageTools.ID_v0) : Int64 = i + i"
-//      |> roundtripCliScript) = "let double2 (i: PACKAGE.Darklang.LanguageTools.ID_v0): Int64 =\n  (i) + (i)"
+    // else for outer if
+    ("""if a > b then
+  if c > d then
+    c
+else
+  b"""
+     |> roundtripCliScript) = """if (a) > (b) then
+  if (c) > (d) then
+    c
+else
+  b"""
 
-//     // () param
-//     ("let emptyString () : String = \"\"" |> roundtripCliScript) = "let emptyString (_: Unit): String =\n  \"\""
+    // nested if
+    ("""if a > b then
+  a
+else
+  if c > d then
+    c
+  else
+    if e > f then
+      e
+    else
+      if g > h then
+        g
+      else
+        h"""
+     |> roundtripCliScript) = """if (a) > (b) then
+  a
+else if (c) > (d) then
+  c
+else if (e) > (f) then
+  e
+else if (g) > (h) then
+  g
+else
+  h"""
 
 
-//     // multiple params
-//     ("let isHigher (a: Int64) (b: Int64) : Bool = (Stdlib.Int64.greaterThan_v0 a b)"
-//      |> roundtripCliScript) = "let isHigher (a: Int64) (b: Int64): Bool =\n  PACKAGE.Darklang.Stdlib.Int64.greaterThan_v0 a b"
+    // fn calls
+    // TODO: these are ugly
+    ("1L + 2L" |> roundtripCliScript) = "(1L) + (2L)"
+    ("1L + b + 3L" |> roundtripCliScript) = "((1L) + (b)) + (3L)"
+    ("1L + 2L * 3L - 4L" |> roundtripCliScript) = "((1L) + ((2L) * (3L))) - (4L)"
+    ("1L > 2L" |> roundtripCliScript) = "(1L) > (2L)"
+    ("1L >= 2L" |> roundtripCliScript) = "(1L) >= (2L)"
+    ("1L < 2L" |> roundtripCliScript) = "(1L) < (2L)"
+    ("1L <= 2L" |> roundtripCliScript) = "(1L) <= (2L)"
+    ("1L == 2L" |> roundtripCliScript) = "(1L) == (2L)"
+    ("1L != 2L" |> roundtripCliScript) = "(1L) != (2L)"
+    ("1L ^ 2L" |> roundtripCliScript) = "(1L) ^ (2L)"
+    ("true && false" |> roundtripCliScript) = "(true) && (false)"
+    ("true || false" |> roundtripCliScript) = "(true) || (false)"
+    ("(and true false)" |> roundtripCliScript) = "and true false"
+    ("(Bool.and true false)" |> roundtripCliScript) = "Bool.and true false"
+    ("(PACKAGE.Darklang.Stdlib.Bool.and true false)" |> roundtripCliScript) = "PACKAGE.Darklang.Stdlib.Bool.and_v0 true false"
+    ("(Stdlib.Bool.and true false)" |> roundtripCliScript) = "PACKAGE.Darklang.Stdlib.Bool.and_v0 true false"
+    ("(Builtin.int64Add 1L 2L)" |> roundtripCliScript) = "Builtin.int64Add 1L 2L"
+
+  module FunctionDeclaration =
+    // single 'normal' param
+    ("let helloWorld (i: Int64): String = \"Hello world\"" |> roundtripCliScript) = "let helloWorld (i: Int64): String =\n  \"Hello world\""
+
+    ("let double2 (i: PACKAGE.Darklang.LanguageTools.ID_v0) : Int64 = i + i"
+     |> roundtripCliScript) = "let double2 (i: PACKAGE.Darklang.LanguageTools.ID_v0): Int64 =\n  (i) + (i)"
+
+    // () param
+    ("let emptyString () : String = \"\"" |> roundtripCliScript) = "let emptyString (_: Unit): String =\n  \"\""
 
 
-
-//   module FnCalls =
-//     //package function call
-//     ("let sum (a : Int64) (b : Int64) : Int64 = (PACKAGE.Darklang.Stdlib.Int64.add a b)"
-//      |> roundtripCliScript) = "let sum (a: Int64) (b: Int64): Int64 =\n  PACKAGE.Darklang.Stdlib.Int64.add_v0 a b"
+    // multiple params
+    ("let isHigher (a: Int64) (b: Int64) : Bool = (Stdlib.Int64.greaterThan_v0 a b)"
+     |> roundtripCliScript) = "let isHigher (a: Int64) (b: Int64): Bool =\n  PACKAGE.Darklang.Stdlib.Int64.greaterThan_v0 a b"
 
 
 
-//     module CliScript =
-//       // TODO the output here is a bit broken
-//       ("""
-// type BookID = Int64
+  module FnCalls =
+    //package function call
+    ("let sum (a : Int64) (b : Int64) : Int64 = (PACKAGE.Darklang.Stdlib.Int64.add a b)"
+     |> roundtripCliScript) = "let sum (a: Int64) (b: Int64): Int64 =\n  PACKAGE.Darklang.Stdlib.Int64.add_v0 a b"
 
-// let getTitle (bookId: BookID): String =
-//   let book = (Library.getBook bookId)
-//   (getNameFromBook book)
 
-// let curiousGeorgeBookId = 101L
-// (Builtin.printLine (getTitle curiousGeorgeBookId))
 
-// 0L
-// """
-//        |> roundtripCliScript) = """type BookID =
-//   Int64
+    module CliScript =
+      // TODO the output here is a bit broken
+      ("""
+type BookID = Int64
 
-// let getTitle (bookId: BookID): String =
-//   let book =
-//     Library.getBook bookId
-//   getNameFromBook book
+let getTitle (bookId: BookID): String =
+  let book = (Library.getBook bookId)
+  (getNameFromBook book)
 
-// let curiousGeorgeBookId =
-//   101L
-// Builtin.printLine getTitle curiousGeorgeBookId
+let curiousGeorgeBookId = 101L
+(Builtin.printLine (getTitle curiousGeorgeBookId))
 
-// 0L"""
+0L
+"""
+       |> roundtripCliScript) = """type BookID =
+  Int64
+
+let getTitle (bookId: BookID): String =
+  let book =
+    Library.getBook bookId
+  getNameFromBook book
+
+let curiousGeorgeBookId =
+  101L
+Builtin.printLine getTitle curiousGeorgeBookId
+
+0L"""
