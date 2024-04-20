@@ -315,8 +315,10 @@ let parse
         [ "parsedAsFsharp", parsedAsFSharp ]
         None // whole file
 
+  // To WrittenTypes
   let module' = parseDecls decls
 
+  // To ProgramTypes -- with the 'new stuff' in context
   let updatedUserStuff : NR.UserStuff =
     { types = Set.union userStuff.types (module'.types |> List.map _.name |> Set)
       constants =

@@ -723,14 +723,6 @@ module UserType =
       description : string
       deprecated : Deprecation<FQTypeName.FQTypeName> }
 
-  let fromPackageType (t : PackageType.T) : T =
-    { tlid = t.tlid
-      name =
-        { modules = t.name.modules; name = t.name.name; version = t.name.version }
-      declaration = t.declaration
-      description = t.description
-      deprecated = t.deprecated }
-
 module UserConstant =
   type T =
     { tlid : tlid

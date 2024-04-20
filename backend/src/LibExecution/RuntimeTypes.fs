@@ -1326,23 +1326,6 @@ module UserType =
   type T =
     { tlid : tlid; name : FQTypeName.UserProgram; declaration : TypeDeclaration.T }
 
-  let mapNameFromPackageType (t : FQTypeName.Package) : FQTypeName.UserProgram =
-    { modules = t.modules; name = t.name; version = t.version }
-
-  let mapFromPackageType (t : PackageType.T) : T =
-    { tlid = gid ()
-      name = mapNameFromPackageType t.name
-      declaration = t.declaration }
-
-  let mapMapFromPackageType
-    (t : Map<FQTypeName.Package, PackageType.T>)
-    : Map<FQTypeName.UserProgram, T> =
-    t
-    |> Map.toList
-    |> List.map (fun (k, v) -> (mapNameFromPackageType k, mapFromPackageType v))
-    |> Map
-
-
 module UserConstant =
   type T = { tlid : tlid; name : FQConstantName.UserProgram; body : Const }
 
