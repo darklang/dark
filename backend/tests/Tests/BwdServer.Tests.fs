@@ -49,7 +49,6 @@ let parse code =
   LibParser.Parser.parsePTExpr
     localBuiltIns
     packageManager
-    NR.HackPackageStuff.empty
     NR.UserStuff.empty
     NR.OnMissing.ThrowError
     "BwdServer.Tests.fs"
@@ -206,8 +205,7 @@ let setupTestCanvas (testName : string) (test : Test) : Task<CanvasID * string> 
       test.handlers
       |> Ply.List.mapSequentially (fun handler ->
         uply {
-          let! source =
-            parse handler.code
+          let! source = parse handler.code
 
           let spec =
             match handler.version with

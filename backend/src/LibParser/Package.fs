@@ -100,7 +100,6 @@ let rec parseDecls
 let parse
   (builtins : RT.Builtins)
   (pm : RT.PackageManager)
-  (hackPackageStuff : NR.HackPackageStuff)
   (userStuff : NR.UserStuff)
   (onMissing : NR.OnMissing)
   (filename : string)
@@ -131,34 +130,12 @@ let parse
       let constantNameToModules (p : PT.FQConstantName.Package) : List<string> =
         p.owner :: p.modules
 
-      // TODO: I'm not sure if we actually need this here?
-      // we're doing two pases, right, so probably not?
-      // and if this is the only place we're setting that, then maybe the thing can be removed? idk.
-      let updatedHackPackageStuff : NR.HackPackageStuff =
-        let newTypes =
-          modul.types
-          |> List.map _.name
-          |> List.map PT2RT.FQTypeName.Package.toRT
-          |> Set
-        let newConstants =
-          modul.constants
-          |> List.map _.name
-          |> List.map PT2RT.FQConstantName.Package.toRT
-          |> Set
-        let newFns =
-          modul.fns |> List.map _.name |> List.map PT2RT.FQFnName.Package.toRT |> Set
-
-        { types = Set.union hackPackageStuff.types newTypes
-          constants = Set.union hackPackageStuff.constants newConstants
-          fns = Set.union hackPackageStuff.fns newFns }
-
       let! fns =
         modul.fns
         |> Ply.List.mapSequentially (fun fn ->
           WT2PT.PackageFn.toPT
             builtins
             pm
-            updatedHackPackageStuff
             userStuff
             onMissing
             (fnNameToModules fn.name)
@@ -169,7 +146,6 @@ let parse
         |> Ply.List.mapSequentially (fun typ ->
           WT2PT.PackageType.toPT
             pm
-            hackPackageStuff
             userStuff
             onMissing
             (typeNameToModules typ.name)
@@ -180,7 +156,6 @@ let parse
         |> Ply.List.mapSequentially (fun constant ->
           WT2PT.PackageConstant.toPT
             pm
-            hackPackageStuff
             userStuff
             onMissing
             (constantNameToModules constant.name)

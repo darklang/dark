@@ -19,7 +19,6 @@ let exprRTs =
         LibParser.Parser.parseRTExpr
           localBuiltIns
           packageManager
-          NR.HackPackageStuff.empty
           NR.UserStuff.empty
           NR.OnMissing.Allow
           "parser.tests.fs"

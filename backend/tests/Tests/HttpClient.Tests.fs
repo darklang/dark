@@ -90,7 +90,6 @@ let parseTest test =
   LibParser.TestModule.parseSingleTestFromFile
     localBuiltIns
     packageManager
-    NR.HackPackageStuff.empty
     NR.UserStuff.empty
     NR.OnMissing.ThrowError
     test

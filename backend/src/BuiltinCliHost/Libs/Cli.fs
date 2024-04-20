@@ -163,9 +163,8 @@ let fns : List<BuiltInFn> =
                     LibParser.Canvas.parse
                       state.builtins
                       state.packageManager
-                      NR.HackPackageStuff.empty
                       (NR.UserStuff.fromProgram state.program)
-                      NR.OnMissing.Allow // Right? kinda surprising.
+                      NR.OnMissing.Allow
                       filename
                       code
                     |> Ply.map Ok
@@ -244,7 +243,6 @@ let fns : List<BuiltInFn> =
                 LibParser.NameResolver.resolveFnName
                   (state.builtins.fns |> Map.keys |> Set)
                   state.packageManager
-                  Set.empty
                   (NR.UserStuff.fromProgram state.program).fns
                   NR.OnMissing.Allow // OK?
                   []
@@ -385,7 +383,6 @@ let fns : List<BuiltInFn> =
                 LibParser.NameResolver.resolveFnName
                   (state.builtins.fns |> Map.keys |> Set)
                   state.packageManager
-                  Set.empty
                   (NR.UserStuff.fromProgram state.program).fns
                   NR.OnMissing.Allow // ok?
                   []

@@ -23,7 +23,6 @@ let parse (code : string) : Task<PT.Expr> =
   LibParser.Parser.parseSimple
     localBuiltIns
     packageManager
-    NR.HackPackageStuff.empty
     NR.UserStuff.empty
     NR.OnMissing.ThrowError
     "tests.canvas.fs"

@@ -193,7 +193,6 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : List<WTModule> =
 let toPT
   (builtins : RT.Builtins)
   (pm : RT.PackageManager)
-  (hackPackageStuff : NR.HackPackageStuff)
   (userStuff : NR.UserStuff)
   (onMissing : NR.OnMissing)
   (m : WTModule)
@@ -202,51 +201,25 @@ let toPT
     let! fns =
       m.fns
       |> Ply.List.mapSequentially (
-        WT2PT.UserFunction.toPT
-          builtins
-          pm
-          hackPackageStuff
-          userStuff
-          onMissing
-          m.name
+        WT2PT.UserFunction.toPT builtins pm userStuff onMissing m.name
       )
     let! types =
       m.types
-      |> Ply.List.mapSequentially (
-        WT2PT.UserType.toPT pm hackPackageStuff userStuff onMissing m.name
-      )
+      |> Ply.List.mapSequentially (WT2PT.UserType.toPT pm userStuff onMissing m.name)
     let! constants =
       m.constants
       |> Ply.List.mapSequentially (
-        WT2PT.UserConstant.toPT pm hackPackageStuff userStuff onMissing m.name
+        WT2PT.UserConstant.toPT pm userStuff onMissing m.name
       )
     let! dbs =
-      m.dbs
-      |> Ply.List.mapSequentially (
-        WT2PT.DB.toPT pm hackPackageStuff userStuff onMissing m.name
-      )
+      m.dbs |> Ply.List.mapSequentially (WT2PT.DB.toPT pm userStuff onMissing m.name)
     let! (tests : List<PTTest>) =
       m.tests
       |> Ply.List.mapSequentially (fun test ->
         uply {
-          let! actual =
-            WT2PT.Expr.toPT
-              builtins
-              pm
-              hackPackageStuff
-              userStuff
-              onMissing
-              m.name
-              test.actual
-          let! expected =
-            WT2PT.Expr.toPT
-              builtins
-              pm
-              hackPackageStuff
-              userStuff
-              onMissing
-              m.name
-              test.expected
+          let exprToPT = WT2PT.Expr.toPT builtins pm userStuff onMissing m.name
+          let! actual = exprToPT test.actual
+          let! expected = exprToPT test.expected
           return
             { PTTest.actual = actual
               expected = expected
@@ -271,7 +244,6 @@ let toPT
 let parseTestFile
   (builtins : RT.Builtins)
   (pm : RT.PackageManager)
-  (hackPackageStuff : NR.HackPackageStuff)
   (userStuff : NR.UserStuff)
   (onMissing : NR.OnMissing)
   (filename : string)
@@ -297,9 +269,7 @@ let parseTestFile
 
     let! result =
       modules
-      |> Ply.List.mapSequentially (
-        toPT builtins pm hackPackageStuff updatedUserStuff onMissing
-      )
+      |> Ply.List.mapSequentially (toPT builtins pm updatedUserStuff onMissing)
 
     return result
   }
@@ -307,7 +277,6 @@ let parseTestFile
 let parseSingleTestFromFile
   (builtins : RT.Builtins)
   (pm : RT.PackageManager)
-  (hackPackageStuff : NR.HackPackageStuff)
   (userStuff : NR.UserStuff)
   (onMissing : NR.OnMissing)
   (filename : string)
@@ -320,7 +289,7 @@ let parseSingleTestFromFile
       |> singleExprFromImplFile
       |> parseTest
 
-    let mapExpr = WT2PT.Expr.toPT builtins pm hackPackageStuff userStuff onMissing []
+    let mapExpr = WT2PT.Expr.toPT builtins pm userStuff onMissing []
 
     let! actual = wtTest.actual |> mapExpr |> Ply.map PT2RT.Expr.toRT
     let! expected = wtTest.expected |> mapExpr |> Ply.map PT2RT.Expr.toRT

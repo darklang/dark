@@ -223,7 +223,6 @@ let parseDecls (decls : List<SynModuleDecl>) : WTCanvasModule =
 let toPT
   (builtins : RT.Builtins)
   (pm : RT.PackageManager)
-  (hackPackageStuff : NR.HackPackageStuff)
   (userStuff : NR.UserStuff)
   (onMissing : NR.OnMissing)
   (m : WTCanvasModule)
@@ -231,50 +230,31 @@ let toPT
   uply {
     let! types =
       m.types
-      |> Ply.List.mapSequentially (
-        WT2PT.UserType.toPT pm hackPackageStuff userStuff onMissing m.name
-      )
+      |> Ply.List.mapSequentially (WT2PT.UserType.toPT pm userStuff onMissing m.name)
     let! fns =
       m.fns
       |> Ply.List.mapSequentially (
-        WT2PT.UserFunction.toPT
-          builtins
-          pm
-          hackPackageStuff
-          userStuff
-          onMissing
-          m.name
+        WT2PT.UserFunction.toPT builtins pm userStuff onMissing m.name
       )
     let! constants =
       m.constants
       |> Ply.List.mapSequentially (
-        WT2PT.UserConstant.toPT pm hackPackageStuff userStuff onMissing m.name
+        WT2PT.UserConstant.toPT pm userStuff onMissing m.name
       )
     let! dbs =
-      m.dbs
-      |> Ply.List.mapSequentially (
-        WT2PT.DB.toPT pm hackPackageStuff userStuff onMissing m.name
-      )
+      m.dbs |> Ply.List.mapSequentially (WT2PT.DB.toPT pm userStuff onMissing m.name)
     let! handlers =
       m.handlers
       |> Ply.List.mapSequentially (fun (spec, expr) ->
         uply {
           let spec = WT2PT.Handler.Spec.toPT spec
-          let! expr =
-            WT2PT.Expr.toPT
-              builtins
-              pm
-              hackPackageStuff
-              userStuff
-              onMissing
-              m.name
-              expr
+          let! expr = WT2PT.Expr.toPT builtins pm userStuff onMissing m.name expr
           return (spec, expr)
         })
     let! exprs =
       m.exprs
       |> Ply.List.mapSequentially (
-        WT2PT.Expr.toPT builtins pm hackPackageStuff userStuff onMissing m.name
+        WT2PT.Expr.toPT builtins pm userStuff onMissing m.name
       )
 
     return
@@ -290,7 +270,6 @@ let toPT
 let parse
   (builtins : RT.Builtins)
   (pm : RT.PackageManager)
-  (hackPackageStuff : NR.HackPackageStuff)
   (userStuff : NR.UserStuff)
   (onMissing : NR.OnMissing)
   (filename : string)
@@ -325,23 +304,16 @@ let parse
         Set.union userStuff.constants (module'.constants |> List.map _.name |> Set)
       fns = Set.union userStuff.fns (module'.fns |> List.map _.name |> Set) }
 
-  toPT
-    builtins
-    pm
-    hackPackageStuff
-    updatedUserStuff
-    onMissing // TODO: maybe this should be `OnMissing.Allow` -- the previous code had that...
-    module'
+  toPT builtins pm updatedUserStuff onMissing module'
 
 
 let parseFromFile
   (builtins : RT.Builtins)
   (pm : RT.PackageManager)
-  (hackPackageStuff : NR.HackPackageStuff)
   (userStuff : NR.UserStuff)
   (onMissing : NR.OnMissing)
   (filename : string)
   : Ply<PTCanvasModule> =
   filename
   |> System.IO.File.ReadAllText
-  |> parse builtins pm hackPackageStuff userStuff onMissing filename
+  |> parse builtins pm userStuff onMissing filename

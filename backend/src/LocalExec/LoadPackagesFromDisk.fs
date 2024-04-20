@@ -32,7 +32,6 @@ let load (builtins : RT.Builtins) : Ply<PT.Packages> =
         LibParser.Parser.parsePackageFile
           builtins
           RT.PackageManager.Empty
-          NR.HackPackageStuff.empty
           NR.UserStuff.empty
           NR.OnMissing.Allow
           path
@@ -47,7 +46,6 @@ let load (builtins : RT.Builtins) : Ply<PT.Packages> =
         LibParser.Parser.parsePackageFile
           builtins
           (inMemPackageManagerFromPackages packages)
-          NR.HackPackageStuff.empty
           NR.UserStuff.empty
           NR.OnMissing.ThrowError
           path

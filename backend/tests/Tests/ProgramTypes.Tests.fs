@@ -25,12 +25,11 @@ let testPipesToRuntimeTypes =
     let! actual =
       "value.age |> (-) 2L |> (+) value.age |> (<) 3L"
       |> LibParser.Parser.parseRTExpr
-          localBuiltIns
-          packageManager
-          NR.HackPackageStuff.empty
-          NR.UserStuff.empty
-          NR.OnMissing.ThrowError
-         "programTypes.tests.fs"
+        localBuiltIns
+        packageManager
+        NR.UserStuff.empty
+        NR.OnMissing.ThrowError
+        "programTypes.tests.fs"
       |> Ply.toTask
 
     let expected =

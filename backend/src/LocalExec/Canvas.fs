@@ -86,7 +86,6 @@ let loadFromDisk
           LibParser.Canvas.parseFromFile
             Builtins.accessibleByCanvas
             pm
-            NR.HackPackageStuff.empty
             NR.UserStuff.empty
             NR.OnMissing.ThrowError
             $"{canvasDir}/{config.Main}.dark"

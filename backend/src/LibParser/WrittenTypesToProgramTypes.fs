@@ -30,13 +30,12 @@ module InfixFnName =
 module TypeReference =
   let rec toPT
     (pm : RT.PackageManager)
-    (hackPackageStuff : NR.HackPackageStuff)
     (userStuff : NR.UserStuff)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (t : WT.TypeReference)
     : Ply<PT.TypeReference> =
-    let toPT = toPT pm hackPackageStuff userStuff onMissing currentModule
+    let toPT = toPT pm userStuff onMissing currentModule
     uply {
       match t with
       | WT.TUnit -> return PT.TUnit
@@ -68,14 +67,7 @@ module TypeReference =
       | WT.TDict typ -> return! toPT typ |> Ply.map PT.TDict
 
       | WT.TCustomType(t, typeArgs) ->
-        let! t =
-          NR.resolveTypeName
-            pm
-            hackPackageStuff.types
-            userStuff.types
-            onMissing
-            currentModule
-            t
+        let! t = NR.resolveTypeName pm userStuff.types onMissing currentModule t
         let! typeArgs = Ply.List.mapSequentially toPT typeArgs
         return PT.TCustomType(t, typeArgs)
 
@@ -139,7 +131,6 @@ module MatchPattern =
 module Expr =
   let resolveTypeName
     (pm : RT.PackageManager)
-    (hackPackageStuff : NR.HackPackageStuff)
     (userStuff : NR.UserStuff)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
@@ -157,24 +148,17 @@ module Expr =
       )
     | head :: tail ->
       let name = NEList.ofList head tail |> WT.Unresolved
-      NR.resolveTypeName
-        pm
-        hackPackageStuff.types
-        userStuff.types
-        onMissing
-        currentModule
-        name
+      NR.resolveTypeName pm userStuff.types onMissing currentModule name
 
   let rec toPT
     (builtins : RT.Builtins)
     (pm : RT.PackageManager)
-    (hackPackageStuff : NR.HackPackageStuff)
     (userStuff : NR.UserStuff)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (e : WT.Expr)
     : Ply<PT.Expr> =
-    let toPT = toPT builtins pm hackPackageStuff userStuff onMissing currentModule
+    let toPT = toPT builtins pm userStuff onMissing currentModule
     uply {
       match e with
       | WT.EChar(id, char) -> return PT.EChar(id, char)
@@ -191,13 +175,7 @@ module Expr =
       | WT.EString(id, segments) ->
         let! segments =
           Ply.List.mapSequentially
-            (stringSegmentToPT
-              builtins
-              pm
-              hackPackageStuff
-              userStuff
-              onMissing
-              currentModule)
+            (stringSegmentToPT builtins pm userStuff onMissing currentModule)
             segments
         return PT.EString(id, segments)
       | WT.EFloat(id, sign, whole, fraction) ->
@@ -210,7 +188,6 @@ module Expr =
           NR.resolveConstantName
             (builtins.constants |> Map.keys |> Set)
             pm
-            hackPackageStuff.constants
             userStuff.constants
             NR.OnMissing.Allow
             currentModule
@@ -227,7 +204,6 @@ module Expr =
           NR.resolveFnName
             (builtins.fns |> Map.keys |> Set)
             pm
-            hackPackageStuff.fns
             userStuff.fns
             NR.OnMissing.Allow
             currentModule
@@ -239,7 +215,6 @@ module Expr =
             NR.resolveConstantName
               (builtins.constants |> Map.keys |> Set)
               pm
-              hackPackageStuff.constants
               userStuff.constants
               onMissing
               currentModule
@@ -249,7 +224,7 @@ module Expr =
         let! name = toPT name
         let! typeArgs =
           Ply.List.mapSequentially
-            (TypeReference.toPT pm hackPackageStuff userStuff onMissing currentModule)
+            (TypeReference.toPT pm userStuff onMissing currentModule)
             typeArgs
         let! args = Ply.NEList.mapSequentially toPT args
 
@@ -259,7 +234,6 @@ module Expr =
           NR.resolveFnName
             (builtins.fns |> Map.keys |> Set)
             pm
-            hackPackageStuff.fns
             userStuff.fns
             NR.OnMissing.Allow
             currentModule
@@ -301,13 +275,7 @@ module Expr =
         return PT.ETuple(id, first, second, theRest)
       | WT.ERecord(id, typeName, fields) ->
         let! typeName =
-          NR.resolveTypeName
-            pm
-            hackPackageStuff.types
-            userStuff.types
-            onMissing
-            currentModule
-            typeName
+          NR.resolveTypeName pm userStuff.types onMissing currentModule typeName
         let! fields =
           Ply.List.mapSequentially
             (fun (fieldName, fieldExpr) ->
@@ -331,25 +299,12 @@ module Expr =
         let! expr1 = toPT expr1
         let! rest =
           Ply.List.mapSequentially
-            (pipeExprToPT
-              builtins
-              pm
-              hackPackageStuff
-              userStuff
-              onMissing
-              currentModule)
+            (pipeExprToPT builtins pm userStuff onMissing currentModule)
             rest
         return PT.EPipe(pipeID, expr1, rest)
       | WT.EEnum(id, typeName, caseName, exprs) ->
         let! typeName =
-          resolveTypeName
-            pm
-            hackPackageStuff
-            userStuff
-            onMissing
-            currentModule
-            typeName
-            caseName
+          resolveTypeName pm userStuff onMissing currentModule typeName caseName
         let! exprs = Ply.List.mapSequentially toPT exprs
         return PT.EEnum(id, typeName, caseName, exprs)
       | WT.EMatch(id, mexpr, cases) ->
@@ -396,7 +351,6 @@ module Expr =
   and stringSegmentToPT
     (builtins : RT.Builtins)
     (pm : RT.PackageManager)
-    (hackPackageStuff : NR.HackPackageStuff)
     (userStuff : NR.UserStuff)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
@@ -405,19 +359,18 @@ module Expr =
     match segment with
     | WT.StringText text -> Ply(PT.StringText text)
     | WT.StringInterpolation expr ->
-      toPT builtins pm hackPackageStuff userStuff onMissing currentModule expr
+      toPT builtins pm userStuff onMissing currentModule expr
       |> Ply.map (fun interpolated -> PT.StringInterpolation interpolated)
 
   and pipeExprToPT
     (builtins : RT.Builtins)
     (pm : RT.PackageManager)
-    (hackPackageStuff : NR.HackPackageStuff)
     (userStuff : NR.UserStuff)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (pipeExpr : WT.PipeExpr)
     : Ply<PT.PipeExpr> =
-    let toPT = toPT builtins pm hackPackageStuff userStuff onMissing currentModule
+    let toPT = toPT builtins pm userStuff onMissing currentModule
 
     uply {
       match pipeExpr with
@@ -427,7 +380,6 @@ module Expr =
           NR.resolveFnName
             (builtins.fns |> Map.keys |> Set)
             pm
-            hackPackageStuff.fns
             userStuff.fns
             NR.OnMissing.Allow
             currentModule
@@ -456,7 +408,6 @@ module Expr =
           NR.resolveFnName
             (builtins.fns |> Map.keys |> Set)
             pm
-            hackPackageStuff.fns
             userStuff.fns
             NR.OnMissing.Allow
             currentModule
@@ -471,28 +422,20 @@ module Expr =
           NR.resolveFnName
             (builtins.fns |> Map.keys |> Set)
             pm
-            hackPackageStuff.fns
             userStuff.fns
             onMissing
             currentModule
             name
         let! typeArgs =
           Ply.List.mapSequentially
-            (TypeReference.toPT pm hackPackageStuff userStuff onMissing currentModule)
+            (TypeReference.toPT pm userStuff onMissing currentModule)
             typeArgs
         let! args = Ply.List.mapSequentially toPT args
         return PT.EPipeFnCall(id, fnName, typeArgs, args)
 
       | WT.EPipeEnum(id, typeName, caseName, fields) ->
         let! typeName =
-          resolveTypeName
-            pm
-            hackPackageStuff
-            userStuff
-            onMissing
-            currentModule
-            typeName
-            caseName
+          resolveTypeName pm userStuff onMissing currentModule typeName caseName
         let! fields = Ply.List.mapSequentially toPT fields
         return PT.EPipeEnum(id, typeName, caseName, fields)
     }
@@ -500,13 +443,12 @@ module Expr =
 module Const =
   let rec toPT
     (pm : RT.PackageManager)
-    (hackPackageStuff : NR.HackPackageStuff)
     (userStuff : NR.UserStuff)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (c : WT.Const)
     : Ply<PT.Const> =
-    let toPT = toPT pm hackPackageStuff userStuff onMissing currentModule
+    let toPT = toPT pm userStuff onMissing currentModule
     uply {
       match c with
       | WT.CUnit -> return PT.CUnit
@@ -548,14 +490,7 @@ module Const =
 
       | WT.CEnum(typeName, caseName, fields) ->
         let! typeName =
-          Expr.resolveTypeName
-            pm
-            hackPackageStuff
-            userStuff
-            onMissing
-            currentModule
-            typeName
-            caseName
+          Expr.resolveTypeName pm userStuff onMissing currentModule typeName caseName
         let! fields = Ply.List.mapSequentially toPT fields
         return PT.CEnum(typeName, caseName, fields)
     }
@@ -565,49 +500,32 @@ module TypeDeclaration =
   module RecordField =
     let toPT
       (pm : RT.PackageManager)
-      (hackPackageStuff : NR.HackPackageStuff)
       (userStuff : NR.UserStuff)
       (onMissing : NR.OnMissing)
       (currentModule : List<string>)
       (f : WT.TypeDeclaration.RecordField)
       : Ply<PT.TypeDeclaration.RecordField> =
       uply {
-        let! typ =
-          TypeReference.toPT
-            pm
-            hackPackageStuff
-            userStuff
-            onMissing
-            currentModule
-            f.typ
+        let! typ = TypeReference.toPT pm userStuff onMissing currentModule f.typ
         return { name = f.name; typ = typ; description = f.description }
       }
 
   module EnumField =
     let toPT
       (pm : RT.PackageManager)
-      (hackPackageStuff : NR.HackPackageStuff)
       (userStuff : NR.UserStuff)
       (onMissing : NR.OnMissing)
       (currentModule : List<string>)
       (f : WT.TypeDeclaration.EnumField)
       : Ply<PT.TypeDeclaration.EnumField> =
       uply {
-        let! typ =
-          TypeReference.toPT
-            pm
-            hackPackageStuff
-            userStuff
-            onMissing
-            currentModule
-            f.typ
+        let! typ = TypeReference.toPT pm userStuff onMissing currentModule f.typ
         return { typ = typ; label = f.label; description = f.description }
       }
 
   module EnumCase =
     let toPT
       (pm : RT.PackageManager)
-      (hackPackageStuff : NR.HackPackageStuff)
       (userStuff : NR.UserStuff)
       (onMissing : NR.OnMissing)
       (currentModule : List<string>)
@@ -616,7 +534,7 @@ module TypeDeclaration =
       uply {
         let! fields =
           Ply.List.mapSequentially
-            (EnumField.toPT pm hackPackageStuff userStuff onMissing currentModule)
+            (EnumField.toPT pm userStuff onMissing currentModule)
             c.fields
         return { name = c.name; fields = fields; description = c.description }
       }
@@ -624,7 +542,6 @@ module TypeDeclaration =
   module Definition =
     let toPT
       (pm : RT.PackageManager)
-      (hackPackageStuff : NR.HackPackageStuff)
       (userStuff : NR.UserStuff)
       (onMissing : NR.OnMissing)
       (currentModule : List<string>)
@@ -633,27 +550,20 @@ module TypeDeclaration =
       uply {
         match d with
         | WT.TypeDeclaration.Alias typ ->
-          let! typ =
-            TypeReference.toPT
-              pm
-              hackPackageStuff
-              userStuff
-              onMissing
-              currentModule
-              typ
+          let! typ = TypeReference.toPT pm userStuff onMissing currentModule typ
           return PT.TypeDeclaration.Alias typ
 
         | WT.TypeDeclaration.Record fields ->
           let! fields =
             Ply.NEList.mapSequentially
-              (RecordField.toPT pm hackPackageStuff userStuff onMissing currentModule)
+              (RecordField.toPT pm userStuff onMissing currentModule)
               fields
           return PT.TypeDeclaration.Record fields
 
         | WT.TypeDeclaration.Enum cases ->
           let! cases =
             Ply.NEList.mapSequentially
-              (EnumCase.toPT pm hackPackageStuff userStuff onMissing currentModule)
+              (EnumCase.toPT pm userStuff onMissing currentModule)
               cases
           return PT.TypeDeclaration.Enum cases
       }
@@ -661,21 +571,13 @@ module TypeDeclaration =
 
   let toPT
     (pm : RT.PackageManager)
-    (hackPackageStuff : NR.HackPackageStuff)
     (userStuff : NR.UserStuff)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (d : WT.TypeDeclaration.T)
     : Ply<PT.TypeDeclaration.T> =
     uply {
-      let! def =
-        Definition.toPT
-          pm
-          hackPackageStuff
-          userStuff
-          onMissing
-          currentModule
-          d.definition
+      let! def = Definition.toPT pm userStuff onMissing currentModule d.definition
       return { typeParams = d.typeParams; definition = def }
     }
 
@@ -684,7 +586,6 @@ module TypeDeclaration =
 module PackageType =
   let toPT
     (pm : RT.PackageManager)
-    (hackPackageStuff : NR.HackPackageStuff)
     (userStuff : NR.UserStuff)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
@@ -692,13 +593,7 @@ module PackageType =
     : Ply<PT.PackageType.T> =
     uply {
       let! declaration =
-        TypeDeclaration.toPT
-          pm
-          hackPackageStuff
-          userStuff
-          onMissing
-          currentModule
-          pt.declaration
+        TypeDeclaration.toPT pm userStuff onMissing currentModule pt.declaration
       return
         { name = pt.name
           description = pt.description
@@ -711,15 +606,13 @@ module PackageType =
 module PackageConstant =
   let toPT
     (pm : RT.PackageManager)
-    (hackPackageStuff : NR.HackPackageStuff)
     (userStuff : NR.UserStuff)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (c : WT.PackageConstant.T)
     : Ply<PT.PackageConstant.T> =
     uply {
-      let! body =
-        Const.toPT pm hackPackageStuff userStuff onMissing currentModule c.body
+      let! body = Const.toPT pm userStuff onMissing currentModule c.body
       return
         { name = c.name
           description = c.description
@@ -734,28 +627,19 @@ module PackageFn =
   module Parameter =
     let toPT
       (pm : RT.PackageManager)
-      (hackPackageStuff : NR.HackPackageStuff)
       (userStuff : NR.UserStuff)
       (onMissing : NR.OnMissing)
       (currentModule : List<string>)
       (p : WT.PackageFn.Parameter)
       : Ply<PT.PackageFn.Parameter> =
       uply {
-        let! typ =
-          TypeReference.toPT
-            pm
-            hackPackageStuff
-            userStuff
-            onMissing
-            currentModule
-            p.typ
+        let! typ = TypeReference.toPT pm userStuff onMissing currentModule p.typ
         return { name = p.name; typ = typ; description = p.description }
       }
 
   let toPT
     (builtins : RT.Builtins)
     (pm : RT.PackageManager)
-    (hackPackageStuff : NR.HackPackageStuff)
     (userStuff : NR.UserStuff)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
@@ -764,25 +648,11 @@ module PackageFn =
     uply {
       let! parameters =
         Ply.NEList.mapSequentially
-          (Parameter.toPT pm hackPackageStuff userStuff onMissing currentModule)
+          (Parameter.toPT pm userStuff onMissing currentModule)
           fn.parameters
       let! returnType =
-        TypeReference.toPT
-          pm
-          hackPackageStuff
-          userStuff
-          onMissing
-          currentModule
-          fn.returnType
-      let! body =
-        Expr.toPT
-          builtins
-          pm
-          hackPackageStuff
-          userStuff
-          onMissing
-          currentModule
-          fn.body
+        TypeReference.toPT pm userStuff onMissing currentModule fn.returnType
+      let! body = Expr.toPT builtins pm userStuff onMissing currentModule fn.body
 
       return
         { name = fn.name
@@ -801,7 +671,6 @@ module PackageFn =
 module UserType =
   let toPT
     (pm : RT.PackageManager)
-    (hackPackageStuff : NR.HackPackageStuff)
     (userStuff : NR.UserStuff)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
@@ -809,13 +678,7 @@ module UserType =
     : Ply<PT.UserType.T> =
     uply {
       let! declaration =
-        TypeDeclaration.toPT
-          pm
-          hackPackageStuff
-          userStuff
-          onMissing
-          currentModule
-          t.declaration
+        TypeDeclaration.toPT pm userStuff onMissing currentModule t.declaration
       return
         { tlid = gid ()
           name = t.name
@@ -828,15 +691,13 @@ module UserType =
 module UserConstant =
   let toPT
     (pm : RT.PackageManager)
-    (hackPackageStuff : NR.HackPackageStuff)
     (userStuff : NR.UserStuff)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (c : WT.UserConstant.T)
     : Ply<PT.UserConstant.T> =
     uply {
-      let! body =
-        Const.toPT pm hackPackageStuff userStuff onMissing currentModule c.body
+      let! body = Const.toPT pm userStuff onMissing currentModule c.body
       return
         { tlid = gid ()
           name = c.name
@@ -849,21 +710,13 @@ module UserConstant =
 module DB =
   let toPT
     (pm : RT.PackageManager)
-    (hackPackageStuff : NR.HackPackageStuff)
     (userStuff : NR.UserStuff)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (db : WT.DB.T)
     : Ply<PT.DB.T> =
     uply {
-      let! typ =
-        TypeReference.toPT
-          pm
-          hackPackageStuff
-          userStuff
-          onMissing
-          currentModule
-          db.typ
+      let! typ = TypeReference.toPT pm userStuff onMissing currentModule db.typ
       return { tlid = gid (); name = db.name; version = db.version; typ = typ }
     }
 
@@ -871,28 +724,19 @@ module UserFunction =
   module Parameter =
     let toPT
       (pm : RT.PackageManager)
-      (hackPackageStuff : NR.HackPackageStuff)
       (userStuff : NR.UserStuff)
       (onMissing : NR.OnMissing)
       (currentModule : List<string>)
       (p : WT.UserFunction.Parameter)
       : Ply<PT.UserFunction.Parameter> =
       uply {
-        let! typ =
-          TypeReference.toPT
-            pm
-            hackPackageStuff
-            userStuff
-            onMissing
-            currentModule
-            p.typ
+        let! typ = TypeReference.toPT pm userStuff onMissing currentModule p.typ
         return { name = p.name; typ = typ; description = p.description }
       }
 
   let toPT
     (builtins : RT.Builtins)
     (pm : RT.PackageManager)
-    (hackPackageStuff : NR.HackPackageStuff)
     (userStuff : NR.UserStuff)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
@@ -901,25 +745,12 @@ module UserFunction =
     uply {
       let! parameters =
         Ply.NEList.mapSequentially
-          (Parameter.toPT pm hackPackageStuff userStuff onMissing currentModule)
+          (Parameter.toPT pm userStuff onMissing currentModule)
           f.parameters
+
       let! returnType =
-        TypeReference.toPT
-          pm
-          hackPackageStuff
-          userStuff
-          onMissing
-          currentModule
-          f.returnType
-      let! body =
-        Expr.toPT
-          builtins
-          pm
-          hackPackageStuff
-          userStuff
-          onMissing
-          currentModule
-          f.body
+        TypeReference.toPT pm userStuff onMissing currentModule f.returnType
+      let! body = Expr.toPT builtins pm userStuff onMissing currentModule f.body
 
       return
         { tlid = gid ()
@@ -956,21 +787,12 @@ module Handler =
   let toPT
     (builtins : RT.Builtins)
     (pm : RT.PackageManager)
-    (hackPackageStuff : NR.HackPackageStuff)
     (userStuff : NR.UserStuff)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (h : WT.Handler.T)
     : Ply<PT.Handler.T> =
     uply {
-      let! ast =
-        Expr.toPT
-          builtins
-          pm
-          hackPackageStuff
-          userStuff
-          onMissing
-          currentModule
-          h.ast
+      let! ast = Expr.toPT builtins pm userStuff onMissing currentModule h.ast
       return { tlid = gid (); ast = ast; spec = Spec.toPT h.spec }
     }

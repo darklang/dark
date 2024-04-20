@@ -10,14 +10,6 @@ module RT = LibExecution.RuntimeTypes
 module NRE = LibExecution.NameResolutionError
 
 
-type HackPackageStuff =
-  { types : Set<RT.FQTypeName.Package>
-    constants : Set<RT.FQConstantName.Package>
-    fns : Set<RT.FQFnName.Package> }
-
-  static member empty = { types = Set.empty; constants = Set.empty; fns = Set.empty }
-
-
 type UserStuff =
   { types : Set<PT.FQTypeName.UserProgram>
     constants : Set<PT.FQConstantName.UserProgram>
@@ -98,13 +90,11 @@ let namesToTry
 
 let resolveTypeName
   (packageManager : RT.PackageManager)
-  (hackPackageTypes : Set<RT.FQTypeName.Package>)
   (userTypes : Set<PT.FQTypeName.UserProgram>)
   (onMissing : OnMissing)
   (currentModule : List<string>)
   (name : WT.Name)
   : Ply<PT.NameResolution<PT.FQTypeName.FQTypeName>> =
-
   let err errType names : PT.NameResolution<PT.FQTypeName.FQTypeName> =
     Error { nameType = NRE.Type; errorType = errType; names = names }
 
@@ -122,17 +112,12 @@ let resolveTypeName
       uply {
         match! packageManager.getType rtName with
         | Some _found -> return Ok(PT.FQTypeName.FQTypeName.Package name)
-        | None ->
-          if Set.contains rtName hackPackageTypes then
-            return Ok(PT.FQTypeName.FQTypeName.Package name)
-          else
-            return notFoundError
+        | None -> return notFoundError
       }
 
     let tryResolve
       (name : GenericName)
       : Ply<Result<PT.FQTypeName.FQTypeName, unit>> =
-      // try UserProgram space first, then try package space
       uply {
         let (userProgram : PT.FQTypeName.UserProgram) =
           { modules = name.modules; name = name.name; version = name.version }
@@ -180,7 +165,6 @@ let resolveTypeName
 let resolveConstantName
   (builtinConstants : Set<RT.FQConstantName.Builtin>)
   (packageManager : RT.PackageManager)
-  (hackPackageConstants : Set<RT.FQConstantName.Package>)
   (userConstants : Set<PT.FQConstantName.UserProgram>)
   (onMissing : OnMissing)
   (currentModule : List<string>)
@@ -202,11 +186,7 @@ let resolveConstantName
       uply {
         match! packageManager.getConstant rtName with
         | Some _found -> return Ok(PT.FQConstantName.FQConstantName.Package name)
-        | None ->
-          if Set.contains rtName hackPackageConstants then
-            return Ok(PT.FQConstantName.FQConstantName.Package name)
-          else
-            return notFoundError
+        | None -> return notFoundError
       }
 
     let tryResolve
@@ -267,7 +247,6 @@ let resolveConstantName
 let resolveFnName
   (builtinFns : Set<RT.FQFnName.Builtin>)
   (packageManager : RT.PackageManager)
-  (hackPackageFns : Set<RT.FQFnName.Package>)
   (userFns : Set<PT.FQFnName.UserProgram>)
   (onMissing : OnMissing)
   (currentModule : List<string>)
@@ -288,11 +267,7 @@ let resolveFnName
       uply {
         match! packageManager.getFn rtName with
         | Some _found -> return Ok(PT.FQFnName.FQFnName.Package name)
-        | None ->
-          if Set.contains rtName hackPackageFns then
-            return Ok(PT.FQFnName.FQFnName.Package name)
-          else
-            return notFoundError
+        | None -> return notFoundError
       }
 
     let tryResolve (name : GenericName) : Ply<Result<PT.FQFnName.FQFnName, unit>> =

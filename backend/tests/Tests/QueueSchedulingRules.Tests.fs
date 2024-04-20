@@ -21,7 +21,6 @@ let p (code : string) : Task<PT.Expr> =
   LibParser.Parser.parsePTExpr
     localBuiltIns
     packageManager
-    NR.HackPackageStuff.empty
     NR.UserStuff.empty
     NR.OnMissing.ThrowError
     "queueschedulingrules.fs"

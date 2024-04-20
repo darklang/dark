@@ -244,7 +244,6 @@ let fileTests () : Test =
     LibParser.TestModule.parseTestFile
       localBuiltIns
       packageManager
-      NR.HackPackageStuff.empty
       NR.UserStuff.empty
       NR.OnMissing.Allow
       fileName
