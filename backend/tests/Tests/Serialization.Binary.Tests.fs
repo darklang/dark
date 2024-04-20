@@ -61,18 +61,18 @@ module ConsistentSerializationTests =
     |> List.iter (fun f ->
       let output = f.serializer Values.ProgramTypes.toplevels
 
-      let sha1 =
-        System.Security.Cryptography.SHA1.HashData(System.ReadOnlySpan output)
-        |> SimpleBase.Base16.LowerCase.Encode
+      // let sha1 =
+      //   System.Security.Cryptography.SHA1.HashData(System.ReadOnlySpan output)
+      //   |> SimpleBase.Base16.LowerCase.Encode
 
-      File.writefileBytes Config.Serialization (nameFor f false sha1) output
+      //File.writefileBytes Config.Serialization (nameFor f false sha1) output
       File.writefileBytes Config.Serialization (nameFor f false "latest") output
 
       match f.prettyPrinter with
       | None -> ()
       | Some prettyPrinter ->
         let jsonData = prettyPrinter Values.ProgramTypes.toplevels
-        File.writefile Config.Serialization (nameFor f true sha1) jsonData
+        //File.writefile Config.Serialization (nameFor f true sha1) jsonData
         File.writefile Config.Serialization (nameFor f true "latest") jsonData)
 
   let testTestFiles =
