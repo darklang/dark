@@ -238,6 +238,10 @@
         {
           "type": "SYMBOL",
           "name": "type_decl_def_record"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "type_decl_def_enum"
         }
       ]
     },
@@ -360,6 +364,191 @@
         }
       ]
     },
+    "type_decl_def_enum": {
+      "type": "FIELD",
+      "name": "content",
+      "content": {
+        "type": "CHOICE",
+        "members": [
+          {
+            "type": "SYMBOL",
+            "name": "type_decl_enum_single_line"
+          },
+          {
+            "type": "SYMBOL",
+            "name": "type_decl_enum_multi_line"
+          }
+        ]
+      }
+    },
+    "type_decl_enum_single_line": {
+      "type": "REPEAT1",
+      "content": {
+        "type": "SYMBOL",
+        "name": "type_decl_enum_case"
+      }
+    },
+    "type_decl_enum_multi_line": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "indent"
+        },
+        {
+          "type": "REPEAT1",
+          "content": {
+            "type": "SYMBOL",
+            "name": "type_decl_enum_case"
+          }
+        },
+        {
+          "type": "SYMBOL",
+          "name": "dedent"
+        }
+      ]
+    },
+    "type_decl_enum_case": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "symbol_pipe",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "|"
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "case_name",
+          "content": {
+            "type": "SYMBOL",
+            "name": "identifier_enum_case"
+          }
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "FIELD",
+                  "name": "keyword_of",
+                  "content": {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "STRING",
+                      "value": "of"
+                    },
+                    "named": true,
+                    "value": "keyword"
+                  }
+                },
+                {
+                  "type": "SEQ",
+                  "members": [
+                    {
+                      "type": "SYMBOL",
+                      "name": "type_decl_enum_field"
+                    },
+                    {
+                      "type": "REPEAT",
+                      "content": {
+                        "type": "SEQ",
+                        "members": [
+                          {
+                            "type": "FIELD",
+                            "name": "symbol_astrisk",
+                            "content": {
+                              "type": "ALIAS",
+                              "content": {
+                                "type": "STRING",
+                                "value": "*"
+                              },
+                              "named": true,
+                              "value": "symbol"
+                            }
+                          },
+                          {
+                            "type": "SYMBOL",
+                            "name": "type_decl_enum_field"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        }
+      ]
+    },
+    "type_decl_enum_field": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "type_annotation",
+              "content": {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "FIELD",
+                    "name": "identifier",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "variable_identifier"
+                    }
+                  },
+                  {
+                    "type": "FIELD",
+                    "name": "symbol_colon",
+                    "content": {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "STRING",
+                        "value": ":"
+                      },
+                      "named": true,
+                      "value": "symbol"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "FIELD",
+          "name": "type",
+          "content": {
+            "type": "SYMBOL",
+            "name": "type_reference"
+          }
+        }
+      ]
+    },
+    "newline": {
+      "type": "PATTERN",
+      "value": "\\n"
+    },
     "expression": {
       "type": "CHOICE",
       "members": [
@@ -442,6 +631,10 @@
         {
           "type": "SYMBOL",
           "name": "record_literal"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "enum_literal"
         },
         {
           "type": "SYMBOL",
@@ -1836,6 +2029,125 @@
         }
       ]
     },
+    "enum_literal": {
+      "type": "PREC_RIGHT",
+      "value": 0,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "FIELD",
+            "name": "type_name",
+            "content": {
+              "type": "SYMBOL",
+              "name": "qualified_type_name"
+            }
+          },
+          {
+            "type": "FIELD",
+            "name": "symbol_dot",
+            "content": {
+              "type": "ALIAS",
+              "content": {
+                "type": "STRING",
+                "value": "."
+              },
+              "named": true,
+              "value": "symbol"
+            }
+          },
+          {
+            "type": "FIELD",
+            "name": "case_name",
+            "content": {
+              "type": "SYMBOL",
+              "name": "identifier_enum_case"
+            }
+          },
+          {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "FIELD",
+                    "name": "symbol_open_paren",
+                    "content": {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "STRING",
+                        "value": "("
+                      },
+                      "named": true,
+                      "value": "symbol"
+                    }
+                  },
+                  {
+                    "type": "FIELD",
+                    "name": "enum_fields",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "enum_fields"
+                    }
+                  },
+                  {
+                    "type": "FIELD",
+                    "name": "symbol_close_paren",
+                    "content": {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "STRING",
+                        "value": ")"
+                      },
+                      "named": true,
+                      "value": "symbol"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "BLANK"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "enum_fields": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "expression"
+        },
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "FIELD",
+                "name": "symbol_comma",
+                "content": {
+                  "type": "ALIAS",
+                  "content": {
+                    "type": "STRING",
+                    "value": ","
+                  },
+                  "named": true,
+                  "value": "symbol"
+                }
+              },
+              {
+                "type": "SYMBOL",
+                "name": "expression"
+              }
+            ]
+          }
+        }
+      ]
+    },
     "if_expression": {
       "type": "PREC_RIGHT",
       "value": 0,
@@ -2362,6 +2674,10 @@
       "type": "PATTERN",
       "value": "[A-Z][a-zA-Z0-9_]*"
     },
+    "identifier_enum_case": {
+      "type": "PATTERN",
+      "value": "[A-Z][a-zA-Z0-9_]*"
+    },
     "unit": {
       "type": "STRING",
       "value": "()"
@@ -2373,7 +2689,12 @@
       "value": "\\s"
     }
   ],
-  "conflicts": [],
+  "conflicts": [
+    [
+      "module_identifier",
+      "type_identifier"
+    ]
+  ],
   "precedences": [],
   "externals": [
     {

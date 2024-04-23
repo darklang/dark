@@ -257,6 +257,23 @@ module TextToTextRoundtripping =
     hasPet: Bool
     pet: Pet }"""
 
+    // Enum type
+    ("type Color = | Red | Green | Blue" |> roundtripCliScript) = "type Color =\n  | Red\n  | Green\n  | Blue"
+    ("type MyEnum = | A of Int64" |> roundtripCliScript) = "type MyEnum =\n  | A of Int64"
+    ("type MyEnum = | A of Int64 * Int64" |> roundtripCliScript) = "type MyEnum =\n  | A of Int64 * Int64"
+    ("type MyEnum = | A of Int64 * Bool * String | B of Int64" |> roundtripCliScript) = "type MyEnum =\n  | A of Int64 * Bool * String\n  | B of Int64"
+    ("type MyEnum = | A of x:Int64 * y:Int64" |> roundtripCliScript) = "type MyEnum =\n  | A of x: Int64 * y: Int64"
+
+    ("type Color =\n  | Red\n  | Green\n  | Blue" |> roundtripCliScript) = "type Color =\n  | Red\n  | Green\n  | Blue"
+    ("type MyEnum =\n  | A of Int64\n  | B of String" |> roundtripCliScript) = "type MyEnum =\n  | A of Int64\n  | B of String"
+    ("type MyEnum =\n  | A of x: Int64\n  | B of y: String" |> roundtripCliScript) = "type MyEnum =\n  | A of x: Int64\n  | B of y: String"
+
+    ("type MyEnum =\n  | A of x: Int64 * y: Int64\n  | B of z: String"
+     |> roundtripCliScript) = "type MyEnum =\n  | A of x: Int64 * y: Int64\n  | B of z: String"
+
+
+
+
   module Expr =
     // units
     ("()" |> roundtripCliScript) = "()"
@@ -329,6 +346,16 @@ module TextToTextRoundtripping =
 
     ("Person {name =\"John\"; age = 30L; hasPet = true; pet = Pet {name = \"Luna\"}} "
      |> roundtripCliScript) = "Person { name = \"John\"; age = 30L; hasPet = true; pet = Pet { name = \"Luna\" } }"
+
+    // enum literal
+    ("Color.Red" |> roundtripCliScript) = "Color.Red"
+    ("Stdlib.Option.None" |> roundtripCliScript) = "Stdlib.Option.None"
+    ("PACKAGE.Darklang.Stdlib.Option.Option.None" |> roundtripCliScript) = "PACKAGE.Darklang.Stdlib.Option.Option.None"
+    ("PACKAGE.Darklang.Stdlib.Option.Option.Some(1L)" |> roundtripCliScript) = "PACKAGE.Darklang.Stdlib.Option.Option.Some(1L)"
+    ("MyEnum.A(1L, 2L)" |> roundtripCliScript) = "MyEnum.A(1L, 2L)"
+
+
+
 
     // variables and let bindings
     ("assumedlyAVariableName" |> roundtripCliScript) = "assumedlyAVariableName"

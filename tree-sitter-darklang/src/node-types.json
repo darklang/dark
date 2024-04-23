@@ -252,6 +252,98 @@
     }
   },
   {
+    "type": "enum_fields",
+    "named": true,
+    "fields": {
+      "symbol_comma": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "expression",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "enum_literal",
+    "named": true,
+    "fields": {
+      "case_name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier_enum_case",
+            "named": true
+          }
+        ]
+      },
+      "enum_fields": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "enum_fields",
+            "named": true
+          }
+        ]
+      },
+      "symbol_close_paren": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_dot": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_open_paren": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "type_name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "qualified_type_name",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "expression",
     "named": true,
     "fields": {},
@@ -269,6 +361,10 @@
         },
         {
           "type": "dict_literal",
+          "named": true
+        },
+        {
+          "type": "enum_literal",
           "named": true
         },
         {
@@ -563,6 +659,11 @@
         ]
       }
     }
+  },
+  {
+    "type": "identifier_enum_case",
+    "named": true,
+    "fields": {}
   },
   {
     "type": "if_expression",
@@ -1464,6 +1565,10 @@
           "named": true
         },
         {
+          "type": "type_decl_def_enum",
+          "named": true
+        },
+        {
           "type": "type_decl_def_record",
           "named": true
         }
@@ -1483,6 +1588,26 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "type_decl_def_enum",
+    "named": true,
+    "fields": {
+      "content": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type_decl_enum_multi_line",
+            "named": true
+          },
+          {
+            "type": "type_decl_enum_single_line",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -1581,6 +1706,136 @@
           }
         ]
       }
+    }
+  },
+  {
+    "type": "type_decl_enum_case",
+    "named": true,
+    "fields": {
+      "case_name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier_enum_case",
+            "named": true
+          }
+        ]
+      },
+      "keyword_of": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "keyword",
+            "named": true
+          }
+        ]
+      },
+      "symbol_astrisk": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_pipe": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "type_decl_enum_field",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "type_decl_enum_field",
+    "named": true,
+    "fields": {
+      "identifier": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "variable_identifier",
+            "named": true
+          }
+        ]
+      },
+      "symbol_colon": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "type": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type_reference",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "type_decl_enum_multi_line",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "dedent",
+          "named": true
+        },
+        {
+          "type": "indent",
+          "named": true
+        },
+        {
+          "type": "type_decl_enum_case",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "type_decl_enum_single_line",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "type_decl_enum_case",
+          "named": true
+        }
+      ]
     }
   },
   {

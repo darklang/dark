@@ -94,9 +94,23 @@ module Darklang =
             description: String
             symbolColon: SourceRange }
 
+        type EnumField =
+          { range: SourceRange
+            typ: TypeReference.TypeReference
+            label: Stdlib.Option.Option<SourceRange * String>
+            description: String }
+
+        type EnumCase =
+          { range: SourceRange
+            name: SourceRange * String
+            fields: List<EnumField>
+            description: String
+            keywordOf: Stdlib.Option.Option<SourceRange> }
+
         type Definition =
           | Alias of TypeReference.TypeReference
           | Record of List<RecordField>
+          | Enum of List<EnumCase>
 
         type TypeDeclaration =
           { range: SourceRange
@@ -216,6 +230,13 @@ module Darklang =
           fields: List<SourceRange * (SourceRange * String) * Expr> *
           symbolOpenBrace: SourceRange *
           symbolCloseBrace: SourceRange
+
+        | EEnum of
+          SourceRange *
+          typeName: (SourceRange * List<String>) *
+          caseName: (SourceRange * String) *
+          fields: List<Expr> *
+          symbolDot: SourceRange
 
         | ELet of
           SourceRange *

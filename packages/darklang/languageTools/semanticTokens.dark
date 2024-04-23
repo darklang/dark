@@ -180,6 +180,37 @@ module Darklang =
               |> Stdlib.List.flatten)
             |> Stdlib.List.flatten
 
+          | Enum cases ->
+            cases
+            |> Stdlib.List.map (fun case ->
+              let (enumCaseNameRange, _) = case.name
+
+              let typeRange =
+                case.fields
+                |> Stdlib.List.map (fun field -> TypeReference.tokenize field.typ)
+
+              let labelTokens =
+                case.fields
+                |> Stdlib.List.map (fun field ->
+                  match field.label with
+                  | Some((range, _)) -> [ range ]
+                  | None -> [])
+                |> Stdlib.List.flatten
+                |> Stdlib.List.map (fun range -> makeToken range TokenType.Property)
+
+              let keywordOf =
+                match case.keywordOf with
+                | Some range -> [ makeToken range TokenType.Keyword ]
+                | None -> []
+
+              [ [ makeToken enumCaseNameRange TokenType.EnumCase ]
+                keywordOf
+                labelTokens
+                typeRange |> Stdlib.List.flatten ]
+              |> Stdlib.List.flatten)
+            |> Stdlib.List.flatten
+
+
         // type ID = UInt64
         let tokenize
           (t: WrittenTypes.TypeDeclaration.TypeDeclaration)
@@ -381,6 +412,35 @@ module Darklang =
               // }
               [ makeToken symbolCloseBrace TokenType.Symbol ] ]
             |> Stdlib.List.flatten
+
+
+          // Option.Option.Some 1L
+          | EEnum(range, typeName, caseName, fields, symbolDot) ->
+            let typeName =
+              match typeName with
+              | (range, _) -> [ makeToken range TokenType.TypeName ]
+              | _ -> []
+
+            let caseName =
+              match caseName with
+              | (range, _) -> [ makeToken range TokenType.EnumCase ]
+              | _ -> []
+
+            let fields =
+              fields
+              |> Stdlib.List.map (fun expr -> Expr.tokenize expr)
+              |> Stdlib.List.flatten
+
+            [ // Option.Option.Some
+              typeName
+              // .
+              [ makeToken symbolDot TokenType.Symbol ]
+              // Some
+              caseName
+              // 1L
+              fields ]
+            |> Stdlib.List.flatten
+
 
           // let x = 2
           // x + 1

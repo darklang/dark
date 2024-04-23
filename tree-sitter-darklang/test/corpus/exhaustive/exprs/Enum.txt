@@ -1,0 +1,132 @@
+==================
+Enum - no args
+==================
+
+MyEnum.NoArgs
+
+---
+
+(source_file
+  (expression
+    (enum_literal
+      (qualified_type_name (type_identifier))
+      (symbol)
+      (identifier_enum_case)
+    )
+  )
+)
+
+
+==================
+Enum - with one arg
+==================
+
+MyEnum.OneArg(1L)
+
+---
+
+(source_file
+  (expression
+    (enum_literal
+      (qualified_type_name
+        (type_identifier))
+      (symbol)
+      (identifier_enum_case)
+      (symbol)
+      (enum_fields
+        (expression (int64_literal (digits (positive_digits)) (symbol)))
+      )
+      (symbol)
+    )
+  )
+)
+
+
+
+==================
+Enum - with two args
+==================
+
+MyEnum.TwoArgs(1L, 2L)
+
+---
+
+(source_file
+  (expression
+    (enum_literal
+    (qualified_type_name
+      (type_identifier))
+    (symbol)
+    (identifier_enum_case)
+    (symbol)
+    (enum_fields
+      (expression
+        (int64_literal
+          (digits
+            (positive_digits))
+          (symbol)))
+      (symbol)
+      (expression
+        (int64_literal
+          (digits
+            (positive_digits))
+          (symbol))))
+    (symbol))
+  )
+)
+
+
+
+==================
+Enum - fully qualified
+==================
+
+Stdlib.Option.Option.None
+
+---
+
+(source_file
+  (expression
+    (enum_literal
+      (qualified_type_name
+        (module_identifier)
+        (symbol)
+        (module_identifier)
+        (symbol)
+        (type_identifier)
+      )
+      (symbol)
+      (identifier_enum_case)
+    )
+  )
+)
+
+
+==================
+Enum - fully qualified with args
+==================
+
+Stdlib.Option.Option.Some(1L)
+
+---
+
+(source_file
+  (expression
+    (enum_literal
+      (qualified_type_name
+        (module_identifier)
+        (symbol)
+        (module_identifier)
+        (symbol)
+        (type_identifier)
+      )
+      (symbol)
+      (identifier_enum_case)
+      (symbol)
+        (enum_fields
+          (expression (int64_literal (digits (positive_digits)) (symbol)))
+        )
+      (symbol)
+    )
+  )
+)

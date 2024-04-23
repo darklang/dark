@@ -98,3 +98,286 @@ type Cols2 = { col1: Int64; col2: Int64 }
     )
   )
 )
+
+
+==================
+type def Record with package type
+==================
+
+type Cols2 = { col1: PACKAGE.Darklang.LanguageTools.Test; col2: Int64 }
+
+---
+
+(source_file
+  (type_decl (keyword) (type_identifier) (symbol)
+    (type_decl_def
+      (type_decl_def_record
+        (symbol)
+          (type_decl_def_record_content
+            (type_decl_def_record_field
+              (variable_identifier) (symbol) (type_reference
+                (qualified_type_name
+                  (module_identifier) (symbol) (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)
+                )
+              )
+            )
+            (symbol)
+            (type_decl_def_record_field
+              (variable_identifier) (symbol) (type_reference (builtin_type))
+            )
+          )
+        (symbol)
+      )
+    )
+  )
+)
+
+
+==================
+type def Enum - one case, no fields
+==================
+
+type MyEnum =
+  | A
+
+---
+
+(source_file
+  (type_decl
+    (keyword) (type_identifier) (symbol)
+    (type_decl_def
+      (type_decl_def_enum
+        (type_decl_enum_multi_line
+          (indent)
+          (type_decl_enum_case
+            (symbol)
+            (identifier_enum_case))
+          (dedent)
+        )
+      )
+    )
+  )
+)
+
+
+==================
+type def Enum - multiple cases, no fields
+==================
+
+type MyEnum =
+  | A
+  | B
+  | C
+
+---
+
+(source_file
+  (type_decl
+    (keyword) (type_identifier) (symbol)
+    (type_decl_def
+      (type_decl_def_enum
+        (type_decl_enum_multi_line
+          (indent)
+          (type_decl_enum_case (symbol) (identifier_enum_case))
+          (type_decl_enum_case (symbol) (identifier_enum_case))
+          (type_decl_enum_case (symbol) (identifier_enum_case))
+          (dedent)
+        )
+      )
+    )
+  )
+)
+
+
+
+
+==================
+type def Enum - one case, one field
+==================
+
+type MyEnum = | A of Int64
+
+---
+
+(source_file
+  (type_decl (keyword) (type_identifier) (symbol)
+    (type_decl_def
+      (type_decl_def_enum
+        (type_decl_enum_single_line
+          (type_decl_enum_case
+            (symbol) (identifier_enum_case) (keyword) (type_decl_enum_field (type_reference (builtin_type)))
+          )
+        )
+      )
+    )
+  )
+)
+
+
+==================
+type def Enum - multiple cases, one field
+==================
+
+type MyEnum =
+  | A of Int64
+  | B of String
+  | C
+
+---
+
+(source_file
+  (type_decl
+    (keyword)
+    (type_identifier)
+    (symbol)
+    (type_decl_def
+      (type_decl_def_enum
+        (type_decl_enum_multi_line
+          (indent)
+          (type_decl_enum_case
+            (symbol)
+            (identifier_enum_case)
+            (keyword)
+            (type_decl_enum_field
+              (type_reference (builtin_type))
+            )
+          )
+          (type_decl_enum_case
+            (symbol)
+            (identifier_enum_case)
+            (keyword)
+            (type_decl_enum_field
+              (type_reference (builtin_type))
+            )
+          )
+          (type_decl_enum_case (symbol) (identifier_enum_case))
+          (dedent)
+        )
+      )
+    )
+  )
+)
+
+
+==================
+type def Enum - multiple cases, no fields, single line
+==================
+
+type MyEnum = | A | B | C
+
+---
+
+(source_file
+  (type_decl
+    (keyword)
+    (type_identifier)
+    (symbol)
+    (type_decl_def
+      (type_decl_def_enum
+        (type_decl_enum_single_line
+          (type_decl_enum_case (symbol) (identifier_enum_case))
+          (type_decl_enum_case (symbol) (identifier_enum_case))
+          (type_decl_enum_case (symbol) (identifier_enum_case))
+        )
+      )
+    )
+  )
+)
+
+
+==================
+type def Enum - multiple cases, one field with label
+==================
+
+ type MyEnum =
+  | A of x: Int64
+  | B of y: String
+  | C of z: (Int64 * Bool)
+
+---
+
+(source_file
+  (type_decl (keyword) (type_identifier) (symbol)
+    (type_decl_def
+      (type_decl_def_enum
+        (type_decl_enum_multi_line
+          (indent)
+
+          (type_decl_enum_case
+            (symbol)
+            (identifier_enum_case)
+            (keyword)
+            (type_decl_enum_field
+              (variable_identifier)
+              (symbol)
+              (type_reference (builtin_type))
+            )
+          )
+
+          (type_decl_enum_case
+            (symbol)
+            (identifier_enum_case)
+            (keyword)
+            (type_decl_enum_field
+              (variable_identifier)
+              (symbol)
+              (type_reference (builtin_type))
+            )
+          )
+
+          (type_decl_enum_case
+            (symbol)
+            (identifier_enum_case)
+            (keyword)
+            (type_decl_enum_field
+              (variable_identifier)
+              (symbol)
+              (type_reference
+                (builtin_type
+                  (tuple_type_reference
+                    (symbol)
+                    (type_reference (builtin_type))
+                    (symbol)
+                    (type_reference (builtin_type))
+                    (symbol)
+                  )
+                )
+              )
+            )
+          )
+          (dedent)
+        )
+      )
+    )
+  )
+)
+
+
+==================
+type def Enum - multiple cases, two field
+==================
+
+type MyEnum =
+  | A of Int64 * Bool
+
+---
+
+(source_file
+  (type_decl (keyword) (type_identifier) (symbol)
+    (type_decl_def
+      (type_decl_def_enum
+        (type_decl_enum_multi_line
+          (indent)
+          (type_decl_enum_case
+            (symbol)
+            (identifier_enum_case)
+            (keyword)
+            (type_decl_enum_field (type_reference (builtin_type)))
+            (symbol)
+            (type_decl_enum_field (type_reference (builtin_type))))
+          (dedent)
+        )
+      )
+    )
+  )
+)
