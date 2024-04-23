@@ -42,7 +42,6 @@ MyEnum.OneArg(1L)
 )
 
 
-
 ==================
 Enum - with two args
 ==================
@@ -74,7 +73,6 @@ MyEnum.TwoArgs(1L, 2L)
     (symbol))
   )
 )
-
 
 
 ==================

@@ -98,7 +98,8 @@ module Darklang =
           { range: SourceRange
             typ: TypeReference.TypeReference
             label: Stdlib.Option.Option<SourceRange * String>
-            description: String }
+            description: String
+            symbolColon: Stdlib.Option.Option<SourceRange> }
 
         type EnumCase =
           { range: SourceRange

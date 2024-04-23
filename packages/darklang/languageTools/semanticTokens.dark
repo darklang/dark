@@ -185,23 +185,31 @@ module Darklang =
             |> Stdlib.List.map (fun case ->
               let (enumCaseNameRange, _) = case.name
 
-              let typeRange =
-                case.fields
-                |> Stdlib.List.map (fun field -> TypeReference.tokenize field.typ)
-
-              let labelTokens =
-                case.fields
-                |> Stdlib.List.map (fun field ->
-                  match field.label with
-                  | Some((range, _)) -> [ range ]
-                  | None -> [])
-                |> Stdlib.List.flatten
-                |> Stdlib.List.map (fun range -> makeToken range TokenType.Property)
-
               let keywordOf =
                 match case.keywordOf with
                 | Some range -> [ makeToken range TokenType.Keyword ]
                 | None -> []
+
+              let labelTokens =
+                case.fields
+                |> Stdlib.List.map (fun field ->
+                  let label =
+                    match field.label with
+                    | Some((range, _)) -> [ range ]
+                    | None -> []
+
+                  let colon =
+                    match field.symbolColon with
+                    | Some range -> [ range ]
+                    | None -> []
+
+                  Stdlib.List.append label colon)
+                |> Stdlib.List.flatten
+                |> Stdlib.List.map (fun range -> makeToken range TokenType.Property)
+
+              let typeRange =
+                case.fields
+                |> Stdlib.List.map (fun field -> TypeReference.tokenize field.typ)
 
               [ [ makeToken enumCaseNameRange TokenType.EnumCase ]
                 keywordOf

@@ -580,6 +580,10 @@ module Darklang =
                             |> Stdlib.Option.map (fun ln ->
                               (ln.sourceRange, ln.text))
 
+                          let colonSymbol =
+                            (findNodeByFieldName field "symbol_colon")
+                            |> Stdlib.Option.map (fun ln -> ln.sourceRange)
+
                           let fieldType = TypeReference.parse fieldTypeNode
 
                           match fieldType with
@@ -588,7 +592,8 @@ module Darklang =
                               { range = field.sourceRange
                                 typ = fieldType
                                 label = label
-                                description = "" }
+                                description = ""
+                                symbolColon = colonSymbol }
                           | Error _ ->
                             (WrittenTypes.Unparseable { source = field })
                         | None -> (WrittenTypes.Unparseable { source = field }))
