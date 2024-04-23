@@ -205,6 +205,12 @@ module Darklang =
       let img (attrs: List<String * Option.Option<String>>) : Node =
         htmlTagNode "img" attrs []
 
+      let svg (attrs: List<String * Option.Option<String>>) (c: List<Node>) : Node =
+        htmlTagNode "svg" attrs c
+
+      let path (attrs: List<String * Option.Option<String>>) : Node =
+        htmlTagNode "path" attrs []
+
       let meta (attrs: List<String * Option.Option<String>>) : Node =
         htmlTagNode "meta" attrs []
 
@@ -237,6 +243,21 @@ module Darklang =
 
       let i (attrs: List<String * Option.Option<String>>) (c: List<Node>) : Node =
         htmlTagNode "i" attrs c
+
+      let code (attrs: List<String * Option.Option<String>>) (c: List<Node>) : Node =
+        htmlTagNode "code" attrs c
+
+      let pre (attrs: List<String * Option.Option<String>>) (c: List<Node>) : Node =
+        htmlTagNode "pre" attrs c
+
+      let nav (attrs: List<String * Option.Option<String>>) (c: List<Node>) : Node =
+        htmlTagNode "nav" attrs c
+
+      let footer
+        (attrs: List<String * Option.Option<String>>)
+        (c: List<Node>)
+        : Node =
+        htmlTagNode "footer" attrs c
 
       let document (nodes: List<Node>) : String =
         let htmlDocHeader = "<!DOCTYPE html>"

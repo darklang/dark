@@ -72,6 +72,47 @@ let tidyHtml (html: String) : String =
 (Stdlib.Html.img [ ("src", Stdlib.Option.Option.Some "foo.png") ])
 |> nodeToString = "<img src=\"foo.png\">"
 
+(Stdlib.Html.svg [] []) |> nodeToString = "<svg></svg>"
+(Stdlib.Html.path []) |> nodeToString = "<path></path>"
+
+(Stdlib.Html.i [] []) |> nodeToString = "<i></i>"
+
+(Stdlib.Html.meta [ ("charset", Stdlib.Option.Option.Some "UTF-8") ])
+|> nodeToString = "<meta charset=\"UTF-8\">"
+
+(Stdlib.Html.link
+  [ ("rel", Stdlib.Option.Option.Some "stylesheet")
+    ("href", Stdlib.Option.Option.Some "./style.css") ])
+|> nodeToString = "<link rel=\"stylesheet\" href=\"./style.css\">"
+
+(Stdlib.Html.script
+  [ ("src", Stdlib.Option.Option.Some "https://cdn.tailwindcss.com") ]
+  [])
+|> nodeToString = "<script src=\"https://cdn.tailwindcss.com\"></script>"
+
+(Stdlib.Html.form [ ("id", Stdlib.Option.Option.Some "my-form") ] [])
+|> nodeToString = "<form id=\"my-form\"></form>"
+
+(Stdlib.Html.input
+  [ ("type", Stdlib.Option.Option.Some "text")
+    ("name", Stdlib.Option.Option.Some "name")
+    ("id", Stdlib.Option.Option.Some "name") ])
+|> nodeToString = "<input type=\"text\" name=\"name\" id=\"name\">"
+
+(Stdlib.Html.label
+  [ ("for", Stdlib.Option.Option.Some "name") ]
+  [ stringNode "Name" ])
+|> nodeToString = "<label for=\"name\">Name</label>"
+
+(Stdlib.Html.section [] []) |> nodeToString = "<section></section>"
+
+// code
+(Stdlib.Html.code [] []) |> nodeToString = "<code></code>"
+(Stdlib.Html.pre [] []) |> nodeToString = "<pre></pre>"
+
+(Stdlib.Html.nav [] []) |> nodeToString = "<nav></nav>"
+(Stdlib.Html.footer [] []) |> nodeToString = "<footer></footer>"
+
 // -- test writing out a full document
 
 ([ Stdlib.Html.html
