@@ -554,6 +554,72 @@ module Darklang =
                 (WrittenTypes.TypeDeclaration.Definition.Record recordFields)
                 |> Stdlib.Result.Result.Ok
 
+
+            | [ child ] when child.typ == "type_decl_def_enum" ->
+              match findNodeByFieldName child "content" with
+              | Some contentNode ->
+                let enumCases =
+                  contentNode.children
+                  |> Stdlib.List.filter (fun caseNode ->
+                    caseNode.typ != "indent" && caseNode.typ != "dedent")
+
+                  |> Stdlib.List.map (fun caseNode ->
+                    let caseNameNode = findNodeByFieldName caseNode "case_name"
+
+                    let keywordOf =
+                      Stdlib.Option.map
+                        (findNodeByFieldName caseNode "keyword_of")
+                        (fun node -> node.sourceRange)
+
+                    let fields =
+                      caseNode.children
+                      |> Stdlib.List.filter (fun field ->
+                        field.typ == "type_decl_enum_field")
+                      |> Stdlib.List.map (fun field ->
+                        match findNodeByFieldName field "type" with
+                        | Some fieldTypeNode ->
+                          let label =
+                            (findNodeByFieldName field "identifier")
+                            |> Stdlib.Option.map (fun ln ->
+                              (ln.sourceRange, ln.text))
+
+                          let colonSymbol =
+                            (findNodeByFieldName field "symbol_colon")
+                            |> Stdlib.Option.map (fun ln -> ln.sourceRange)
+
+                          let fieldType = TypeReference.parse fieldTypeNode
+
+                          match fieldType with
+                          | Ok fieldType ->
+                            WrittenTypes.TypeDeclaration.EnumField
+                              { range = field.sourceRange
+                                typ = fieldType
+                                label = label
+                                description = ""
+                                symbolColon = colonSymbol }
+                          | Error _ -> WrittenTypes.Unparseable { source = field }
+                        | None -> WrittenTypes.Unparseable { source = field })
+
+                    match caseNameNode with
+                    | Some caseNameNode ->
+                      (WrittenTypes.TypeDeclaration.EnumCase
+                        { range = caseNode.sourceRange
+                          name = (caseNameNode.sourceRange, caseNameNode.text)
+                          fields = fields
+                          description = ""
+                          keywordOf = keywordOf })
+                      |> Stdlib.Result.Result.Ok
+                    | None ->
+                      (WrittenTypes.Unparseable { source = caseNode })
+                      |> Stdlib.Result.Result.Error)
+
+                enumCases
+                |> Stdlib.Result.collect
+                |> Stdlib.Result.map (fun enumCases ->
+                  WrittenTypes.TypeDeclaration.Definition.Enum enumCases)
+
+              | None -> []
+
             | _ ->
               (WrittenTypes.Unparseable { source = node })
               |> Stdlib.Result.Result.Error
@@ -561,6 +627,7 @@ module Darklang =
           else
             (WrittenTypes.Unparseable { source = node })
             |> Stdlib.Result.Result.Error
+
 
         let parse
           (node: ParsedNode)
@@ -1259,6 +1326,59 @@ module Darklang =
             |> Stdlib.Result.Result.Error
 
 
+        let parseEnumLiteral
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
+          if node.typ == "enum_literal" then
+            let typeNameNode =
+              (findNodeByFieldName node "type_name")
+              |> Stdlib.Option.toResult "No type_name node found in enum_literal"
+
+            let symbolDotNode =
+              (findNodeByFieldName node "symbol_dot")
+              |> Stdlib.Option.toResult "No symbol_dot node found in enum_literal"
+
+            let caseNameNode =
+              (findNodeByFieldName node "case_name")
+              |> Stdlib.Option.toResult "No case_name node found in enum_literal"
+
+            let enumFieldsNode =
+              (findNodeByFieldName node "enum_fields")
+              |> Stdlib.Option.map (fun enumFieldsNode ->
+                enumFieldsNode.children
+                |> Stdlib.List.chunkBySize 2L
+                |> Builtin.unwrap
+                |> Stdlib.List.map (fun chunk ->
+                  match chunk with
+                  | [ fieldNode ] ->
+                    match Expr.parse fieldNode with
+                    | Ok field -> field
+                    | Error _ -> (WrittenTypes.Unparseable { source = fieldNode })
+
+                  | [ fieldNode; _separator ] ->
+                    match Expr.parse fieldNode with
+                    | Ok field -> field
+                    | Error _ -> (WrittenTypes.Unparseable { source = fieldNode })))
+
+              |> Stdlib.Option.withDefault []
+
+
+            match typeNameNode, symbolDotNode, caseNameNode with
+            | Ok typeNameNode, Ok symbolDotNode, Ok caseNameNode ->
+
+              (WrittenTypes.Expr.EEnum(
+                node.sourceRange,
+                (typeNameNode.sourceRange, [ typeNameNode.text ]),
+                (caseNameNode.sourceRange, caseNameNode.text),
+                enumFieldsNode,
+                symbolDotNode.sourceRange
+              ))
+              |> Stdlib.Result.Result.Ok
+
+            | _ ->
+              (WrittenTypes.Unparseable { source = node })
+              |> Stdlib.Result.Result.Error
+
 
         let parseLetExpr
           (node: ParsedNode)
@@ -1546,6 +1666,8 @@ module Darklang =
           | "tuple_literal" -> parseTupleLiteral node
 
           | "record_literal" -> parseRecordLiteral node
+
+          | "enum_literal" -> parseEnumLiteral node
 
           // assigning and accessing variables
           | "let_expression" -> parseLetExpr node

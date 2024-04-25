@@ -29,9 +29,7 @@ TRUE
 ---
 
 (source_file
-  (ERROR
-    (qualified_type_name
-      (type_identifier))))
+  (ERROR (module_identifier)))
 
 
 ==================
@@ -43,9 +41,7 @@ FALSE
 ---
 
 (source_file
-  (ERROR
-    (qualified_type_name
-      (type_identifier))))
+  (ERROR (module_identifier)))
 
 
 
@@ -58,9 +54,7 @@ True
 ---
 
 (source_file
-  (ERROR
-    (qualified_type_name
-      (type_identifier))))
+  (ERROR (module_identifier)))
 
 ==================
 False (error)
@@ -71,6 +65,4 @@ False
 ---
 
 (source_file
-  (ERROR
-    (qualified_type_name
-      (type_identifier))))
+  (ERROR (module_identifier)))

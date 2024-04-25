@@ -23,6 +23,8 @@ module.exports = grammar({
 
   externals: $ => [$.indent, $.dedent],
 
+  conflicts: $ => [[$.module_identifier, $.type_identifier]],
+
   rules: {
     source_file: $ =>
       seq(
@@ -65,10 +67,17 @@ module.exports = grammar({
         field("typ", $.type_decl_def),
       ),
 
-    type_decl_def: $ => choice($.type_decl_def_alias, $.type_decl_def_record),
+    type_decl_def: $ =>
+      choice(
+        $.type_decl_def_alias,
+        $.type_decl_def_record,
+        $.type_decl_def_enum,
+      ),
 
+    // Alias
     type_decl_def_alias: $ => $.type_reference,
 
+    // Record
     // e.g. `type Person = { name: String; age: Int }`
     type_decl_def_record: $ =>
       seq(
@@ -95,6 +104,52 @@ module.exports = grammar({
         field("type", $.type_reference),
       ),
 
+    // Enums
+    // e.g. `type Color = Red | Green | Blue`
+    type_decl_def_enum: $ =>
+      field(
+        "content",
+        choice($.type_decl_enum_single_line, $.type_decl_enum_multi_line),
+      ),
+    type_decl_enum_single_line: $ => repeat1($.type_decl_enum_case),
+    type_decl_enum_multi_line: $ =>
+      seq($.indent, repeat1($.type_decl_enum_case), $.dedent),
+    type_decl_enum_case: $ =>
+      seq(
+        field("symbol_pipe", alias("|", $.symbol)),
+        field("case_name", $.identifier_enum_case),
+        optional(
+          seq(
+            field("keyword_of", alias("of", $.keyword)),
+            seq(
+              $.type_decl_enum_field,
+              repeat(
+                seq(
+                  field("symbol_astrisk", alias("*", $.symbol)),
+                  $.type_decl_enum_field,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+
+    type_decl_enum_field: $ =>
+      seq(
+        optional(
+          field(
+            "type_annotation",
+            seq(
+              field("identifier", $.variable_identifier),
+              field("symbol_colon", alias(":", $.symbol)),
+            ),
+          ),
+        ),
+        field("type", $.type_reference),
+      ),
+
+    newline: $ => /\n/,
+
     //
     // Expressions
     expression: $ =>
@@ -119,6 +174,7 @@ module.exports = grammar({
         $.tuple_literal,
         $.dict_literal,
         $.record_literal,
+        $.enum_literal,
         $.if_expression,
         $.let_expression,
         $.variable_identifier,
@@ -398,6 +454,7 @@ module.exports = grammar({
         field("content", optional($.record_content)),
         field("symbol_close_brace", alias("}", $.symbol)),
       ),
+
     record_content: $ =>
       seq(
         $.record_pair,
@@ -405,11 +462,37 @@ module.exports = grammar({
           seq(field("record_separator", alias(";", $.symbol)), $.record_pair),
         ),
       ),
+
     record_pair: $ =>
       seq(
         field("field", $.variable_identifier),
         field("symbol_equals", alias("=", $.symbol)),
         field("value", $.expression),
+      ),
+
+    //
+    // Enum
+    // TODO: Make parentheses optional when there's only one argument
+    enum_literal: $ =>
+      prec.right(
+        seq(
+          field("type_name", $.qualified_type_name),
+          field("symbol_dot", alias(".", $.symbol)),
+          field("case_name", $.identifier_enum_case),
+          optional(
+            seq(
+              field("symbol_open_paren", alias("(", $.symbol)),
+              field("enum_fields", $.enum_fields),
+              field("symbol_close_paren", alias(")", $.symbol)),
+            ),
+          ),
+        ),
+      ),
+
+    enum_fields: $ =>
+      seq(
+        $.expression,
+        repeat(seq(field("symbol_comma", alias(",", $.symbol)), $.expression)),
       ),
 
     //
@@ -539,6 +622,9 @@ module.exports = grammar({
 
     // e.g. `LanguageTools in `PACKAGE.Darklang.LanguageTools.SomeType`
     module_identifier: $ => /[A-Z][a-zA-Z0-9_]*/,
+
+    //
+    identifier_enum_case: $ => /[A-Z][a-zA-Z0-9_]*/,
 
     unit: $ => "()",
   },

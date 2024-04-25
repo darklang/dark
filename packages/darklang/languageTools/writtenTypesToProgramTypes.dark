@@ -129,6 +129,38 @@ module Darklang =
                 typ = TypeReference.toPT resolver f.typ
                 description = "" }
 
+        module EnumField =
+          let toPT
+            (resolver: NameResolver.NameResolutionSettings)
+            (f: WrittenTypes.TypeDeclaration.EnumField)
+            : ProgramTypes.TypeDeclaration.EnumField =
+
+            let label =
+              match f.label with
+              | Some l -> Stdlib.Option.Option.Some(l |> Stdlib.Tuple2.second)
+              | None -> Stdlib.Option.Option.None
+
+            ProgramTypes.TypeDeclaration.EnumField
+              { typ = TypeReference.toPT resolver f.typ
+                label = label
+                description = "" }
+
+        module EnumCase =
+          let toPT
+            (resolver: NameResolver.NameResolutionSettings)
+            (c: WrittenTypes.TypeDeclaration.EnumCase)
+            : ProgramTypes.TypeDeclaration.EnumCase =
+
+            let name = c.name |> Stdlib.Tuple2.second
+
+            let fields =
+              Stdlib.List.map c.fields (fun f -> EnumField.toPT resolver f)
+
+            ProgramTypes.TypeDeclaration.EnumCase
+              { name = name
+                fields = fields
+                description = "" }
+
         module Definition =
           let toPT
             (resolver: NameResolver.NameResolutionSettings)
@@ -146,6 +178,10 @@ module Darklang =
                 Stdlib.List.map fields (fun f -> RecordField.toPT resolver f)
 
               ProgramTypes.TypeDeclaration.Definition.Record fields
+
+            | Enum cases ->
+              let cases = Stdlib.List.map cases (fun c -> EnumCase.toPT resolver c)
+              ProgramTypes.TypeDeclaration.Definition.Enum cases
 
         let toPT
           (resolver: NameResolver.NameResolutionSettings)
@@ -276,6 +312,21 @@ module Darklang =
                 (fieldName, toPT resolver typeName))
 
             ProgramTypes.Expr.ERecord(gid (), typeName, fields)
+
+          | EEnum(_, typeName, caseName, fields, _) ->
+            let sr = Stdlib.Tuple2.first typeName
+            let unresolvedTypeName = Stdlib.Tuple2.second typeName
+
+            let typeName =
+              NameResolver.TypeName.resolve
+                resolver
+                []
+                (WrittenTypes.Name.Unresolved sr unresolvedTypeName)
+
+            let caseName = caseName |> Stdlib.Tuple2.second
+            let fields = Stdlib.List.map fields (fun expr -> toPT resolver expr)
+
+            ProgramTypes.Expr.EEnum(gid (), typeName, caseName, fields)
 
           // declaring and accessing variables
           | ELet(_, pat, rhs, body, _, _) ->

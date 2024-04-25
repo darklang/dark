@@ -27,7 +27,7 @@ module Darklang =
 
         | TypeParameter
 
-        | EnumCase // in Option.Some, this would be `Some`
+        | EnumMember // in Option.Some, this would be `Some`
         | Property // ? maybe this should be used for fields
         | Method // ? or maybe this should be used for fields
         | RegularExpression
@@ -179,6 +179,45 @@ module Darklang =
                 TypeReference.tokenize rf.typ ]
               |> Stdlib.List.flatten)
             |> Stdlib.List.flatten
+
+          | Enum cases ->
+            cases
+            |> Stdlib.List.map (fun case ->
+              let (enumCaseNameRange, _) = case.name
+
+              let keywordOf =
+                match case.keywordOf with
+                | Some range -> [ makeToken range TokenType.Keyword ]
+                | None -> []
+
+              let labelTokens =
+                case.fields
+                |> Stdlib.List.map (fun field ->
+                  let label =
+                    match field.label with
+                    | Some((range, _)) -> [ range ]
+                    | None -> []
+
+                  let colon =
+                    match field.symbolColon with
+                    | Some range -> [ range ]
+                    | None -> []
+
+                  Stdlib.List.append label colon)
+                |> Stdlib.List.flatten
+                |> Stdlib.List.map (fun range -> makeToken range TokenType.Property)
+
+              let typeRange =
+                case.fields
+                |> Stdlib.List.map (fun field -> TypeReference.tokenize field.typ)
+
+              [ [ makeToken enumCaseNameRange TokenType.EnumMember ]
+                keywordOf
+                labelTokens
+                typeRange |> Stdlib.List.flatten ]
+              |> Stdlib.List.flatten)
+            |> Stdlib.List.flatten
+
 
         // type ID = UInt64
         let tokenize
@@ -381,6 +420,35 @@ module Darklang =
               // }
               [ makeToken symbolCloseBrace TokenType.Symbol ] ]
             |> Stdlib.List.flatten
+
+
+          // Option.Option.Some 1L
+          | EEnum(range, typeName, caseName, fields, symbolDot) ->
+            let typeName =
+              match typeName with
+              | (range, _) -> [ makeToken range TokenType.TypeName ]
+              | _ -> []
+
+            let caseName =
+              match caseName with
+              | (range, _) -> [ makeToken range TokenType.EnumMember ]
+              | _ -> []
+
+            let fields =
+              fields
+              |> Stdlib.List.map (fun expr -> Expr.tokenize expr)
+              |> Stdlib.List.flatten
+
+            [ // Option.Option.Some
+              typeName
+              // .
+              [ makeToken symbolDot TokenType.Symbol ]
+              // Some
+              caseName
+              // 1L
+              fields ]
+            |> Stdlib.List.flatten
+
 
           // let x = 2
           // x + 1
