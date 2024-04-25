@@ -556,17 +556,20 @@ module Darklang =
 
 
             | [ child ] when child.typ == "type_decl_def_enum" ->
-              let enumCases =
-                match findNodeByFieldName child "content" with
-                | Some contentNode ->
+              match findNodeByFieldName child "content" with
+              | Some contentNode ->
+                let enumCases =
                   contentNode.children
+                  |> Stdlib.List.filter (fun caseNode ->
+                    caseNode.typ != "indent" && caseNode.typ != "dedent")
+
                   |> Stdlib.List.map (fun caseNode ->
                     let caseNameNode = findNodeByFieldName caseNode "case_name"
 
                     let keywordOf =
                       Stdlib.Option.map
                         (findNodeByFieldName caseNode "keyword_of")
-                        (fun range -> range.sourceRange)
+                        (fun node -> node.sourceRange)
 
                     let fields =
                       caseNode.children
@@ -594,9 +597,8 @@ module Darklang =
                                 label = label
                                 description = ""
                                 symbolColon = colonSymbol }
-                          | Error _ ->
-                            (WrittenTypes.Unparseable { source = field })
-                        | None -> (WrittenTypes.Unparseable { source = field }))
+                          | Error _ -> WrittenTypes.Unparseable { source = field }
+                        | None -> WrittenTypes.Unparseable { source = field })
 
                     match caseNameNode with
                     | Some caseNameNode ->
@@ -610,16 +612,13 @@ module Darklang =
                     | None ->
                       (WrittenTypes.Unparseable { source = caseNode })
                       |> Stdlib.Result.Result.Error)
-                  |> Stdlib.Result.values
-                | None -> []
 
-              match enumCases with
-              | Ok enumCases ->
-                (WrittenTypes.TypeDeclaration.Definition.Enum enumCases)
-                |> Stdlib.Result.Result.Ok
-              | Error _ ->
-                (WrittenTypes.Unparseable { source = node })
-                |> Stdlib.Result.Result.Error
+                enumCases
+                |> Stdlib.Result.collect
+                |> Stdlib.Result.map (fun enumCases ->
+                  WrittenTypes.TypeDeclaration.Definition.Enum enumCases)
+
+              | None -> []
 
             | _ ->
               (WrittenTypes.Unparseable { source = node })

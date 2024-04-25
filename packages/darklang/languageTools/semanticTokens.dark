@@ -27,7 +27,7 @@ module Darklang =
 
         | TypeParameter
 
-        | EnumCase // in Option.Some, this would be `Some`
+        | EnumMember // in Option.Some, this would be `Some`
         | Property // ? maybe this should be used for fields
         | Method // ? or maybe this should be used for fields
         | RegularExpression
@@ -211,7 +211,7 @@ module Darklang =
                 case.fields
                 |> Stdlib.List.map (fun field -> TypeReference.tokenize field.typ)
 
-              [ [ makeToken enumCaseNameRange TokenType.EnumCase ]
+              [ [ makeToken enumCaseNameRange TokenType.EnumMember ]
                 keywordOf
                 labelTokens
                 typeRange |> Stdlib.List.flatten ]
@@ -431,7 +431,7 @@ module Darklang =
 
             let caseName =
               match caseName with
-              | (range, _) -> [ makeToken range TokenType.EnumCase ]
+              | (range, _) -> [ makeToken range TokenType.EnumMember ]
               | _ -> []
 
             let fields =

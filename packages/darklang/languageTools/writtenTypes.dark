@@ -237,6 +237,7 @@ module Darklang =
           typeName: (SourceRange * List<String>) *
           caseName: (SourceRange * String) *
           fields: List<Expr> *
+          /// between the typeName and the caseName
           symbolDot: SourceRange
 
         | ELet of
