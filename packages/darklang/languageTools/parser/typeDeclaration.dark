@@ -2,6 +2,55 @@ module Darklang =
   module LanguageTools =
     module Parser =
       module TypeDeclaration =
+        let parseRecordField
+          (fieldNode: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.TypeDeclaration.RecordField, WrittenTypes.Unparseable> =
+          let fieldNameNode = findField fieldNode "field"
+          let symColonNode = findField fieldNode "symbol_colon"
+
+          let fieldTypeNode =
+            findAndParseRequired fieldNode "type" TypeReference.parse
+
+          match fieldNameNode, symColonNode, fieldTypeNode with
+          | Ok fieldName, Ok symColon, Ok fieldType ->
+            (WrittenTypes.TypeDeclaration.RecordField
+              { range = fieldNode.sourceRange
+                name = (fieldName.sourceRange, fieldName.text)
+                typ = fieldType
+                description = ""
+                symbolColon = symColon.sourceRange })
+            |> Stdlib.Result.Result.Ok
+
+          | _ -> createUnparseableError fieldNode
+
+        let parseEnumField
+          (field: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.TypeDeclaration.EnumField, WrittenTypes.Unparseable> =
+          match findNodeByFieldName field "type" with
+          | Some fieldTypeNode ->
+            let label =
+              findAndParseOptional field "identifier" (fun node ->
+                (node.sourceRange, node.text) |> Stdlib.Result.Result.Ok)
+
+            let colonSymbol =
+              findAndParseOptional field "symbol_colon" (fun node ->
+                (Parser.getRange node) |> Stdlib.Result.Result.Ok)
+
+            match TypeReference.parse fieldTypeNode with
+            | Ok fieldType ->
+              (WrittenTypes.TypeDeclaration.EnumField
+                { range = field.sourceRange
+                  typ = fieldType
+                  label = label
+                  description = ""
+                  symbolColon = colonSymbol })
+              |> Stdlib.Result.Result.Ok
+          | Error _ ->
+            Stdlib.Result.Result.Error(WrittenTypes.Unparseable { source = field })
+          | None ->
+            Stdlib.Result.Result.Error(WrittenTypes.Unparseable { source = field })
+
+
         let parseDefinition
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.TypeDeclaration.Definition, WrittenTypes.Unparseable> =
@@ -29,45 +78,9 @@ module Darklang =
                   |> Builtin.unwrap
                   |> Stdlib.List.map (fun chunk ->
                     match chunk with
-                    | [ fieldNode ] ->
-                      let fieldNameNode = findField fieldNode "field"
-                      let symColonNode = findField fieldNode "symbol_colon"
-
-                      let fieldTypeNode =
-                        findAndParseRequired fieldNode "type" TypeReference.parse
-
-                      match fieldNameNode, symColonNode, fieldTypeNode with
-                      | Ok fieldName, Ok symColon, Ok fieldType ->
-                        (WrittenTypes.TypeDeclaration.RecordField
-                          { range = fieldNode.sourceRange
-                            name = (fieldName.sourceRange, fieldName.text)
-                            typ = fieldType
-                            description = ""
-                            symbolColon = symColon.sourceRange })
-                        |> Stdlib.Result.Result.Ok
-
-                      | _ -> createUnparseableError fieldNode
-
-                    | [ fieldNode; _separator ] ->
-                      let fieldNameNode = findField fieldNode "field"
-                      let symColonNode = findField fieldNode "symbol_colon"
-
-                      let fieldTypeNode =
-                        findAndParseRequired fieldNode "type" TypeReference.parse
-
-                      match fieldNameNode, symColonNode, fieldTypeNode with
-                      | Ok fieldName, Ok symColon, Ok fieldType ->
-                        (WrittenTypes.TypeDeclaration.RecordField
-                          { range = fieldNode.sourceRange
-                            name = (fieldName.sourceRange, fieldName.text)
-                            typ = fieldType
-                            description = ""
-                            symbolColon = symColon.sourceRange })
-                        |> Stdlib.Result.Result.Ok
-
-                      | _ -> createUnparseableError fieldNode
-
-                    | _ -> createUnparseableError fieldNode)
+                    | [ fieldNode ] -> parseRecordField fieldNode
+                    | [ fieldNode; _separator ] -> parseRecordField fieldNode
+                    | _ -> createUnparseableError chunk)
 
                 | None -> [] |> Stdlib.Result.Result.Ok
 
@@ -88,7 +101,7 @@ module Darklang =
                     caseNode.typ != "indent" && caseNode.typ != "dedent")
 
                   |> Stdlib.List.map (fun caseNode ->
-                    let caseNameNode = findNodeByFieldName caseNode "case_name"
+                    let caseNameNode = findField caseNode "case_name"
 
                     let keywordOf =
                       findAndParseOptional caseNode "keyword_of" (fun node ->
@@ -100,29 +113,12 @@ module Darklang =
                         field.typ == "type_decl_enum_field")
                       |> Stdlib.List.map (fun field ->
                         match findNodeByFieldName field "type" with
-                        | Some fieldTypeNode ->
-                          let label =
-                            findAndParseOptional field "identifier" (fun node ->
-                              (node.sourceRange, node.text)
-                              |> Stdlib.Result.Result.Ok)
+                        | Some fieldTypeNode -> parseEnumField field
+                        | None -> createUnparseableError field)
+                      |> Stdlib.Result.collect
 
-                          let colonSymbol =
-                            findAndParseOptional field "symbol_colon" (fun node ->
-                              (Parser.getRange node) |> Stdlib.Result.Result.Ok)
-
-                          match TypeReference.parse fieldTypeNode with
-                          | Ok fieldType ->
-                            WrittenTypes.TypeDeclaration.EnumField
-                              { range = field.sourceRange
-                                typ = fieldType
-                                label = label
-                                description = ""
-                                symbolColon = colonSymbol }
-                          | Error _ -> WrittenTypes.Unparseable { source = field }
-                        | None -> WrittenTypes.Unparseable { source = field })
-
-                    match caseNameNode with
-                    | Some caseNameNode ->
+                    match caseNameNode, fields with
+                    | Ok caseNameNode, Ok fields ->
                       (WrittenTypes.TypeDeclaration.EnumCase
                         { range = caseNode.sourceRange
                           name = (caseNameNode.sourceRange, caseNameNode.text)
@@ -130,7 +126,7 @@ module Darklang =
                           description = ""
                           keywordOf = keywordOf })
                       |> Stdlib.Result.Result.Ok
-                    | None -> createUnparseableError caseNode)
+                    | Error _ -> createUnparseableError caseNode)
 
                 enumCases
                 |> Stdlib.Result.collect
