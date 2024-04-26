@@ -33,9 +33,7 @@ module Darklang =
           | [] ->
             "Unexpected - there should be an odd number of parts to a qualified name"
 
-        /// Parses a qualified name (either type, or function, or (future) something else)
-        ///
-        /// These names come in the form of `module1.module2.module3.name`,
+        /// Qualified names (type, fn, etc) come in the form of `module1.module2.module3.name`,
         /// and we need to parse out the `module1.module2.module3.` part,
         /// ensuring that we take note of the `.` source ranges after each module name
         let extractModuleIdentifiers

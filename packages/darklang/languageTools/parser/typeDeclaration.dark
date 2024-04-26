@@ -10,9 +10,7 @@ module Darklang =
             | [ child ] when child.typ == "type_decl_def_alias" ->
               match child.children with
               | [ single ] when single.typ == "type_reference" ->
-                let typRef = TypeReference.parse single
-
-                match typRef with
+                match TypeReference.parse single with
                 | Ok typRef ->
                   (WrittenTypes.TypeDeclaration.Definition.Alias typRef)
                   |> Stdlib.Result.Result.Ok
@@ -112,9 +110,7 @@ module Darklang =
                             findAndParseOptional field "symbol_colon" (fun node ->
                               (Parser.getRange node) |> Stdlib.Result.Result.Ok)
 
-                          let fieldType = TypeReference.parse fieldTypeNode
-
-                          match fieldType with
+                          match TypeReference.parse fieldTypeNode with
                           | Ok fieldType ->
                             WrittenTypes.TypeDeclaration.EnumField
                               { range = field.sourceRange

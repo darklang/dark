@@ -2,70 +2,33 @@ module Darklang =
   module LanguageTools =
     module Parser =
       module TypeReference =
+        type TBuiltin = WrittenTypes.TypeReference.Builtin
+
+        let builtin
+          (b: TBuiltin)
+          : Stdlib.Result.Result<'a, WrittenTypes.Unparseable> =
+          Stdlib.Result.Result.Ok b
+
         let parseBuiltIn
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.TypeReference.Builtin, WrittenTypes.Unparseable> =
           if node.typ == "builtin_type" then
             match node.text with
-            | "Unit" ->
-              (WrittenTypes.TypeReference.Builtin.TUnit node.sourceRange)
-              |> Stdlib.Result.Result.Ok
-
-            | "Bool" ->
-              (WrittenTypes.TypeReference.Builtin.TBool node.sourceRange)
-              |> Stdlib.Result.Result.Ok
-
-            | "Int8" ->
-              (WrittenTypes.TypeReference.Builtin.TInt8 node.sourceRange)
-              |> Stdlib.Result.Result.Ok
-
-            | "UInt8" ->
-              (WrittenTypes.TypeReference.Builtin.TUInt8 node.sourceRange)
-              |> Stdlib.Result.Result.Ok
-
-            | "Int16" ->
-              (WrittenTypes.TypeReference.Builtin.TInt16 node.sourceRange)
-              |> Stdlib.Result.Result.Ok
-
-            | "UInt16" ->
-              (WrittenTypes.TypeReference.Builtin.TUInt16 node.sourceRange)
-              |> Stdlib.Result.Result.Ok
-
-            | "Int32" ->
-              (WrittenTypes.TypeReference.Builtin.TInt32 node.sourceRange)
-              |> Stdlib.Result.Result.Ok
-
-            | "UInt32" ->
-              (WrittenTypes.TypeReference.Builtin.TUInt32 node.sourceRange)
-              |> Stdlib.Result.Result.Ok
-
-            | "Int64" ->
-              (WrittenTypes.TypeReference.Builtin.TInt64 node.sourceRange)
-              |> Stdlib.Result.Result.Ok
-
-            | "UInt64" ->
-              (WrittenTypes.TypeReference.Builtin.TUInt64 node.sourceRange)
-              |> Stdlib.Result.Result.Ok
-
-            | "Int128" ->
-              (WrittenTypes.TypeReference.Builtin.TInt128 node.sourceRange)
-              |> Stdlib.Result.Result.Ok
-
-            | "UInt128" ->
-              (WrittenTypes.TypeReference.Builtin.TUInt128 node.sourceRange)
-              |> Stdlib.Result.Result.Ok
-
-            | "Float" ->
-              (WrittenTypes.TypeReference.Builtin.TFloat node.sourceRange)
-              |> Stdlib.Result.Result.Ok
-
-            | "Char" ->
-              (WrittenTypes.TypeReference.Builtin.TChar node.sourceRange)
-              |> Stdlib.Result.Result.Ok
-
-            | "String" ->
-              (WrittenTypes.TypeReference.Builtin.TString node.sourceRange)
-              |> Stdlib.Result.Result.Ok
+            | "Unit" -> (TBuiltin.TUnit node.sourceRange) |> builtin
+            | "Bool" -> (TBuiltin.TBool node.sourceRange) |> builtin
+            | "Int8" -> (TBuiltin.TInt8 node.sourceRange) |> builtin
+            | "UInt8" -> (TBuiltin.TUInt8 node.sourceRange) |> builtin
+            | "Int16" -> (TBuiltin.TInt16 node.sourceRange) |> builtin
+            | "UInt16" -> (TBuiltin.TUInt16 node.sourceRange) |> builtin
+            | "Int32" -> (TBuiltin.TInt32 node.sourceRange) |> builtin
+            | "UInt32" -> (TBuiltin.TUInt32 node.sourceRange) |> builtin
+            | "Int64" -> (TBuiltin.TInt64 node.sourceRange) |> builtin
+            | "UInt64" -> (TBuiltin.TUInt64 node.sourceRange) |> builtin
+            | "Int128" -> (TBuiltin.TInt128 node.sourceRange) |> builtin
+            | "UInt128" -> (TBuiltin.TUInt128 node.sourceRange) |> builtin
+            | "Float" -> (TBuiltin.TFloat node.sourceRange) |> builtin
+            | "Char" -> (TBuiltin.TChar node.sourceRange) |> builtin
+            | "String" -> (TBuiltin.TString node.sourceRange) |> builtin
 
             | _ ->
               let firstChild = node.children |> Stdlib.List.head |> Builtin.unwrap
@@ -82,13 +45,13 @@ module Darklang =
 
                 match dictKeyword, openBracket, valueTypeNode, closeBracket with
                 | Ok dictKeyword, Ok openBracket, Ok valueType, Ok closeBracket ->
-                  (WrittenTypes.TypeReference.Builtin.TDict
+                  (TBuiltin.TDict
                     firstChild.sourceRange
                     dictKeyword.sourceRange
                     openBracket.sourceRange
                     valueType
                     closeBracket.sourceRange)
-                  |> Stdlib.Result.Result.Ok
+                  |> builtin
 
               | "tuple_type_reference" ->
                 let leftParen = findField firstChild "symbol_left_paren"
@@ -109,18 +72,14 @@ module Darklang =
                     |> Stdlib.List.map (fun chunk ->
                       match chunk with
                       | [ symbol; typeNode ] ->
-                        let typeRef = TypeReference.parse typeNode
-
-                        match typeRef with
+                        match TypeReference.parse typeNode with
                         | Ok typeRef -> (symbol.sourceRange, typeRef)
                         | Error _ ->
                           (symbol.sourceRange,
                            WrittenTypes.Unparseable { source = typeNode })
 
                       | [ typeNode ] ->
-                        let typeRef = TypeReference.parse typeNode
-
-                        match typeRef with
+                        match TypeReference.parse typeNode with
                         | Ok typeRef -> (Stdlib.Option.Option.None, typeRef)
                         | Error _ ->
                           (Stdlib.Option.Option.None,
@@ -135,7 +94,7 @@ module Darklang =
 
                 match leftParen, first, asterisk, second, rightParen with
                 | Ok leftParen, Ok first, Ok asterisk, Ok second, Ok rightParen ->
-                  (WrittenTypes.TypeReference.Builtin.TTuple(
+                  (TBuiltin.TTuple(
                     node.sourceRange,
                     first,
                     asterisk.sourceRange,
@@ -144,7 +103,7 @@ module Darklang =
                     leftParen.sourceRange,
                     rightParen.sourceRange
                   ))
-                  |> Stdlib.Result.Result.Ok
+                  |> builtin
 
                 | _ -> createUnparseableError node
 
@@ -161,13 +120,14 @@ module Darklang =
                   listKeyword, openBracketNode, typeParamNode, closeBracketNode
                 with
                 | Ok listKeyword, Ok openBracket, Ok typeParam, Ok closeBracket ->
-                  (WrittenTypes.TypeReference.Builtin.TList
+                  (TBuiltin.TList
                     firstChild.sourceRange
                     listKeyword.sourceRange
                     openBracket.sourceRange
                     typeParam
                     closeBracket.sourceRange)
-                  |> Stdlib.Result.Result.Ok
+                  |> builtin
+
                 | _ -> createUnparseableError node
           else
             createUnparseableError node

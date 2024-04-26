@@ -37,12 +37,6 @@ module Darklang =
         else
           Stdlib.Result.Result.Ok(fnName ++ "_v0")
 
-      // // TODO: maybe re-frame this into expected/actual or something
-      // type ParseError =
-      //   { sourceRange: Range
-      //     sourceText: String
-      //     message: String }
-
 
       // --------------------
       // Helper functions

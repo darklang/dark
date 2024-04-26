@@ -365,17 +365,13 @@ module Darklang =
                 |> Stdlib.List.map (fun chunk ->
                   match chunk with
                   | [ symbol; exprNode ] ->
-                    let expr = Expr.parse exprNode
-
-                    match expr with
+                    match Expr.parse exprNode with
                     | Ok expr ->
                       (symbol.sourceRange, expr) |> Stdlib.Result.Result.Ok
                     | Error _ -> createUnparseableError chunk
 
                   | [ exprNode ] ->
-                    let expr = Expr.parse exprNode
-
-                    match expr with
+                    match Expr.parse exprNode with
                     | Ok expr ->
                       (Stdlib.Option.Option.None, expr) |> Stdlib.Result.Result.Ok
                     | Error _ -> createUnparseableError chunk
