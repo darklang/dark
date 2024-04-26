@@ -2,9 +2,9 @@ module Darklang =
   module LanguageTools =
     module Parser =
       let updateUnparseableStuff
-        (result: Stdlib.Result.Result<WrittenTypes.ParsedFile, String>)
-        (e: String)
-        : Stdlib.Result.Result<WrittenTypes.ParsedFile, String> =
+        (result: WrittenTypes.CliScript)
+        (e: WrittenTypes.Unparseable)
+        : WrittenTypes.CliScript =
         { result with
             unparseableStuff = Stdlib.List.pushBack result.unparseableStuff e }
 
@@ -38,7 +38,12 @@ module Darklang =
             | Error e -> updateUnparseableStuff result e
             | Ok parsedExpr ->
               { result with
-                  exprsToEval = Stdlib.List.pushBack result.exprsToEval parsedExpr })
+                  exprsToEval = Stdlib.List.pushBack result.exprsToEval parsedExpr }
+
+          | _ ->
+            updateUnparseableStuff
+              result
+              (WrittenTypes.Unparseable { source = decl }))
 
       /// Map a ParsedNode to a WrittenTypes.ParsedFile
       ///
