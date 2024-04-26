@@ -77,7 +77,7 @@ module Darklang =
       let findField
         (node: ParsedNode)
         (fieldName: String)
-        : Stdlib.Result.Result<ParsedNode> =
+        : Stdlib.Result.Result<ParsedNode, String> =
         (findNodeByFieldName node fieldName)
         |> Stdlib.Option.toResult $"No {fieldName} node found in {node.typ}"
 
