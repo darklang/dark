@@ -1,0 +1,203 @@
+module Darklang =
+  module LanguageTools =
+    module Parser =
+      module TypeReference =
+        let parseBuiltIn
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.TypeReference.Builtin, WrittenTypes.Unparseable> =
+          if node.typ == "builtin_type" then
+            match node.text with
+            | "Unit" ->
+              (WrittenTypes.TypeReference.Builtin.TUnit node.sourceRange)
+              |> Stdlib.Result.Result.Ok
+
+            | "Bool" ->
+              (WrittenTypes.TypeReference.Builtin.TBool node.sourceRange)
+              |> Stdlib.Result.Result.Ok
+
+            | "Int8" ->
+              (WrittenTypes.TypeReference.Builtin.TInt8 node.sourceRange)
+              |> Stdlib.Result.Result.Ok
+
+            | "UInt8" ->
+              (WrittenTypes.TypeReference.Builtin.TUInt8 node.sourceRange)
+              |> Stdlib.Result.Result.Ok
+
+            | "Int16" ->
+              (WrittenTypes.TypeReference.Builtin.TInt16 node.sourceRange)
+              |> Stdlib.Result.Result.Ok
+
+            | "UInt16" ->
+              (WrittenTypes.TypeReference.Builtin.TUInt16 node.sourceRange)
+              |> Stdlib.Result.Result.Ok
+
+            | "Int32" ->
+              (WrittenTypes.TypeReference.Builtin.TInt32 node.sourceRange)
+              |> Stdlib.Result.Result.Ok
+
+            | "UInt32" ->
+              (WrittenTypes.TypeReference.Builtin.TUInt32 node.sourceRange)
+              |> Stdlib.Result.Result.Ok
+
+            | "Int64" ->
+              (WrittenTypes.TypeReference.Builtin.TInt64 node.sourceRange)
+              |> Stdlib.Result.Result.Ok
+
+            | "UInt64" ->
+              (WrittenTypes.TypeReference.Builtin.TUInt64 node.sourceRange)
+              |> Stdlib.Result.Result.Ok
+
+            | "Int128" ->
+              (WrittenTypes.TypeReference.Builtin.TInt128 node.sourceRange)
+              |> Stdlib.Result.Result.Ok
+
+            | "UInt128" ->
+              (WrittenTypes.TypeReference.Builtin.TUInt128 node.sourceRange)
+              |> Stdlib.Result.Result.Ok
+
+            | "Float" ->
+              (WrittenTypes.TypeReference.Builtin.TFloat node.sourceRange)
+              |> Stdlib.Result.Result.Ok
+
+            | "Char" ->
+              (WrittenTypes.TypeReference.Builtin.TChar node.sourceRange)
+              |> Stdlib.Result.Result.Ok
+
+            | "String" ->
+              (WrittenTypes.TypeReference.Builtin.TString node.sourceRange)
+              |> Stdlib.Result.Result.Ok
+
+            | _ ->
+              let firstChild = node.children |> Stdlib.List.head |> Builtin.unwrap
+
+              match firstChild.typ with
+              | "dict_type_reference" ->
+                let dictKeyword = findField firstChild "keyword_type_constructor"
+                let openBracket = findField firstChild "symbol_open_angle"
+
+                let valueTypeNode =
+                  findAndParseRequired firstChild "value_type" TypeReference.parse
+
+                let closeBracket = findField firstChild "symbol_close_angle"
+
+                match dictKeyword, openBracket, valueTypeNode, closeBracket with
+                | Ok dictKeyword, Ok openBracket, Ok valueType, Ok closeBracket ->
+                  (WrittenTypes.TypeReference.Builtin.TDict
+                    firstChild.sourceRange
+                    dictKeyword.sourceRange
+                    openBracket.sourceRange
+                    valueType
+                    closeBracket.sourceRange)
+                  |> Stdlib.Result.Result.Ok
+
+              | "tuple_type_reference" ->
+                let leftParen = findField firstChild "symbol_left_paren"
+
+                let first =
+                  findAndParseRequired firstChild "first" TypeReference.parse
+
+                let second =
+                  findAndParseRequired firstChild "second" TypeReference.parse
+
+                let rest =
+                  firstChild
+                  |> findNodeByFieldName "rest"
+                  |> Stdlib.Option.map (fun restNode ->
+                    restNode.children
+                    |> Stdlib.List.chunkBySize 2L
+                    |> Builtin.unwrap
+                    |> Stdlib.List.map (fun chunk ->
+                      match chunk with
+                      | [ symbol; typeNode ] ->
+                        let typeRef = TypeReference.parse typeNode
+
+                        match typeRef with
+                        | Ok typeRef -> (symbol.sourceRange, typeRef)
+                        | Error _ ->
+                          (symbol.sourceRange,
+                           WrittenTypes.Unparseable { source = typeNode })
+
+                      | [ typeNode ] ->
+                        let typeRef = TypeReference.parse typeNode
+
+                        match typeRef with
+                        | Ok typeRef -> (Stdlib.Option.Option.None, typeRef)
+                        | Error _ ->
+                          (Stdlib.Option.Option.None,
+                           WrittenTypes.Unparseable { source = typeNode })
+                      | _ ->
+                        (Stdlib.Option.Option.None,
+                         WrittenTypes.Unparseable { source = chunk })))
+                  |> Stdlib.Option.withDefault []
+
+                let asterisk = findField firstChild "symbol_asterisk"
+                let rightParen = findField firstChild "symbol_right_paren"
+
+                match leftParen, first, asterisk, second, rightParen with
+                | Ok leftParen, Ok first, Ok asterisk, Ok second, Ok rightParen ->
+                  (WrittenTypes.TypeReference.Builtin.TTuple(
+                    node.sourceRange,
+                    first,
+                    asterisk.sourceRange,
+                    second,
+                    rest,
+                    leftParen.sourceRange,
+                    rightParen.sourceRange
+                  ))
+                  |> Stdlib.Result.Result.Ok
+
+                | _ -> createUnparseableError node
+
+              | "list_type_reference" ->
+                let listKeyword = findField firstChild "keyword_type_constructor"
+                let openBracketNode = findField firstChild "symbol_open_angle"
+
+                let typeParamNode =
+                  findAndParseRequired firstChild "typ_param" TypeReference.parse
+
+                let closeBracketNode = findField firstChild "symbol_close_angle"
+
+                match
+                  listKeyword, openBracketNode, typeParamNode, closeBracketNode
+                with
+                | Ok listKeyword, Ok openBracket, Ok typeParam, Ok closeBracket ->
+                  (WrittenTypes.TypeReference.Builtin.TList
+                    firstChild.sourceRange
+                    listKeyword.sourceRange
+                    openBracket.sourceRange
+                    typeParam
+                    closeBracket.sourceRange)
+                  |> Stdlib.Result.Result.Ok
+                | _ -> createUnparseableError node
+          else
+            createUnparseableError node
+
+
+        let parse
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.TypeReference.TypeReference, WrittenTypes.Unparseable> =
+          if node.typ == "type_reference" then
+            match node.children with
+            | [ single ] ->
+              if single.typ == "builtin_type" then
+                match parseBuiltIn single with
+                | Ok builtin ->
+                  (WrittenTypes.TypeReference.TypeReference.Builtin builtin)
+                  |> Stdlib.Result.Result.Ok
+                | Error _ -> createUnparseableError node
+
+              elif single.typ == "qualified_type_name" then
+                match Identifiers.parseQualifiedType single with
+                | Ok qualifiedType ->
+                  (WrittenTypes.TypeReference.TypeReference.QualifiedName
+                    qualifiedType)
+                  |> Stdlib.Result.Result.Ok
+
+                | Error _ -> createUnparseableError node
+
+              else
+                createUnparseableError node
+            | _ -> Stdlib.Result.Result.Error "Not a single child"
+
+          else
+            createUnparseableError node

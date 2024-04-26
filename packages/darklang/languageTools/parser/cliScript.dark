@@ -1,0 +1,66 @@
+module Darklang =
+  module LanguageTools =
+    module Parser =
+      let updateUnparseableStuff
+        (result: Stdlib.Result.Result<WrittenTypes.ParsedFile, String>)
+        (e: String)
+        : Stdlib.Result.Result<WrittenTypes.ParsedFile, String> =
+        { result with
+            unparseableStuff = Stdlib.List.pushBack result.unparseableStuff e }
+
+      let parseDeclaration
+        (result: Stdlib.Result.Result<WrittenTypes.CliScript, String>)
+        (decl: ParsedNode)
+        : Stdlib.Result.Result<WrittenTypes.CliScript, String> =
+        Stdlib.Result.map result (fun result ->
+          match decl.typ with
+          | "type_decl" ->
+            match TypeDeclaration.parse decl with
+            | Error e -> updateUnparseableStuff result e
+            | Ok parsedTypeDef ->
+              let newType = WrittenTypes.CliScriptTypeOrFn.Type parsedTypeDef
+
+              { result with
+                  typesAndFns = Stdlib.List.pushBack result.typesAndFns newType }
+
+          | "fn_decl" ->
+            match FunctionDeclaration.parse decl with
+            | Error e -> updateUnparseableStuff result e
+
+            | Ok parsedFnDecl ->
+              let newFn = WrittenTypes.CliScriptTypeOrFn.Function parsedFnDecl
+
+              { result with
+                  typesAndFns = Stdlib.List.pushBack result.typesAndFns newFn }
+
+          | "expression" ->
+            match Expr.parse decl with
+            | Error e -> updateUnparseableStuff result e
+            | Ok parsedExpr ->
+              { result with
+                  exprsToEval = Stdlib.List.pushBack result.exprsToEval parsedExpr })
+
+      /// Map a ParsedNode to a WrittenTypes.ParsedFile
+      ///
+      /// This is the entrypoint for mapping a ParsedNode to WrittenTypes
+      let parseCliScript
+        (node: ParsedNode)
+        : Stdlib.Result.Result<WrittenTypes.ParsedFile, String> =
+        if node.typ == "source_file" then
+          let init =
+            WrittenTypes.CliScript
+              { range = node.sourceRange
+                typesAndFns = []
+                unparseableStuff = []
+                exprsToEval = [] }
+
+          let result =
+            Stdlib.List.fold
+              node.children
+              (Stdlib.Result.Result.Ok init)
+              Parser.parseDeclaration
+
+          Stdlib.Result.map result (fun parsedResult ->
+            WrittenTypes.ParsedFile.CliScript parsedResult)
+        else
+          Stdlib.Result.Result.Error $"Not a source_file: {node.typ}"
