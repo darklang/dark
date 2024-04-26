@@ -1,0 +1,87 @@
+module Darklang =
+  module LanguageTools =
+    module Parser =
+      module Identifiers =
+        let extractModuleIdentifiersHelper
+          (modulesSoFarInReverse:
+            List<WrittenTypes.ModuleIdentifier * WrittenTypes.SourceRange>)
+          (nodes: List<ParsedNode>)
+          : (List<WrittenTypes.ModuleIdentifier * WrittenTypes.SourceRange> *
+            ParsedNode)
+          =
+          match nodes with
+          | modulePart :: symbolPart :: otherParts ->
+            if modulePart.typ != "module_identifier" then
+              $"Unexpected - modulePart should be a module_identifier but is {modulePart.typ}"
+            elif symbolPart.typ != "symbol" then
+              $"Unexpected - symbolPart should be a symbol but is {symbolPart.typ}"
+            else
+              let moduleIdentifier =
+                WrittenTypes.ModuleIdentifier
+                  { range = modulePart.sourceRange
+                    name = modulePart.text }
+
+              let updatedModules =
+                Stdlib.List.push
+                  modulesSoFarInReverse
+                  ((moduleIdentifier, symbolPart.sourceRange))
+
+              extractModuleIdentifiersHelper updatedModules otherParts
+
+          | [ lastPart ] -> (modulesSoFarInReverse, lastPart)
+
+          | [] ->
+            "Unexpected - there should be an odd number of parts to a qualified name"
+
+        /// Qualified names (type, fn, etc) come in the form of `module1.module2.module3.name`,
+        /// and we need to parse out the `module1.module2.module3.` part,
+        /// ensuring that we take note of the `.` source ranges after each module name
+        let extractModuleIdentifiers
+          (nodes: List<ParsedNode>)
+          : (List<WrittenTypes.ModuleIdentifier * WrittenTypes.SourceRange> *
+            ParsedNode)
+          =
+          let (modulesInReverse, lastNode) = extractModuleIdentifiersHelper [] nodes
+          (Stdlib.List.reverse modulesInReverse, lastNode)
+
+        let parseVariable (n: ParsedNode) : WrittenTypes.VariableIdentifier =
+          WrittenTypes.VariableIdentifier { range = n.sourceRange; name = n.text }
+
+        let parseType (n: ParsedNode) : WrittenTypes.TypeIdentifier =
+          WrittenTypes.TypeIdentifier { range = n.sourceRange; name = n.text }
+
+        let parseFn (n: ParsedNode) : WrittenTypes.FnIdentifier =
+          WrittenTypes.FnIdentifier { range = n.sourceRange; name = n.text }
+
+
+        let parseQualifiedType
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.QualifiedTypeIdentifier, String> =
+          if node.typ == "qualified_type_name" then
+            let (modules, typeIdentifierNode) =
+              extractModuleIdentifiers node.children
+
+            (WrittenTypes.QualifiedTypeIdentifier
+              { range = node.sourceRange
+                modules = modules
+                typ = parseType typeIdentifierNode })
+            |> Stdlib.Result.Result.Ok
+          else
+            Stdlib.Result.Result.Error
+              $"Can't parse qualified_type_name from {node.typ}"
+
+
+        let parseQualifiedFunction
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.QualifiedFnIdentifier, String> =
+          if node.typ == "qualified_fn_name" then
+            let (modules, fnIdentifierNode) = extractModuleIdentifiers node.children
+
+            (WrittenTypes.QualifiedFnIdentifier
+              { range = node.sourceRange
+                modules = modules
+                fn = parseFn fnIdentifierNode })
+            |> Stdlib.Result.Result.Ok
+          else
+            Stdlib.Result.Result.Error
+              $"Can't parse qualified_fn_name from {node.typ}"

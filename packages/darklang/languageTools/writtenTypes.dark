@@ -110,6 +110,7 @@ module Darklang =
 
         type Definition =
           | Alias of TypeReference.TypeReference
+          // TODO: capture the ;s separating the fields
           | Record of List<RecordField>
           | Enum of List<EnumCase>
 

@@ -1,0 +1,97 @@
+module Darklang =
+  module LanguageTools =
+    /// Maps `TreeSitter.ParsedNode`s to structures defined in `WrittenTypes`
+    module Parser =
+      // TODO: these should be UInts of some size
+      // (UInt8 might even be enough - how many lines are over 255chars?)
+      type Point = { row: Int64; column: Int64 }
+
+      type Range = { start: Point; end_: Point }
+
+      type ParsedNode =
+        {
+          // e.g., a node of `typ` `let_expression` has a child node with a `body` field name
+          fieldName: Stdlib.Option.Option<String>
+
+          /// e.g. `source_file`, `fn_decl`, `expression`, `let_expression`
+          typ: String
+
+          /// The text of this node as it was in the unparsed source code
+          text: String
+
+          /// Where in the source code is this node written/contained
+          /// i.e. Line 1, Column 2 to Line 1, Column 5
+          sourceRange: Range
+
+          children: List<ParsedNode>
+        }
+
+
+      let parseToSimplifiedTree (text: String) : ParsedNode =
+        Builtin.parserParseToSimplifiedTree text
+
+      let parseName (fnName: String) : Stdlib.Result.Result<String> =
+        if Stdlib.String.contains fnName "_v" then
+          // Todo : check if the name is valid
+          Stdlib.Result.Result.Ok fnName
+        else
+          Stdlib.Result.Result.Ok(fnName ++ "_v0")
+
+
+      // --------------------
+      // Helper functions
+      // --------------------
+
+      let getText (node: ParsedNode) : String = node.text
+      let getRange (node: ParsedNode) : Range = node.sourceRange
+
+      let findNodeByFieldName
+        (node: ParsedNode)
+        (fieldName: String)
+        : Stdlib.Option.Option<ParsedNode> =
+        let filteredChildren =
+          node.children
+          |> Stdlib.List.filter (fun c ->
+            match c.fieldName with
+            | Some fName -> fName == fieldName
+            | None -> false)
+
+        match filteredChildren with
+        | [ c ] -> Stdlib.Option.Option.Some c
+        | [] -> Stdlib.Option.Option.None
+        | _ -> Stdlib.Option.Option.None // TODO: this should error, there are multiple matches
+
+
+      let createUnparseableError
+        (node: ParsedNode)
+        : Stdlib.Result.Result<WrittenTypes.Unparseable> =
+        (WrittenTypes.Unparseable { source = node }) |> Stdlib.Result.Result.Error
+
+      /// Used for fields that don't need to be parsed, i.e. symbols, keywords, etc
+      let findField
+        (node: ParsedNode)
+        (fieldName: String)
+        : Stdlib.Result.Result<ParsedNode, String> =
+        (findNodeByFieldName node fieldName)
+        |> Stdlib.Option.toResult $"No {fieldName} node found in {node.typ}"
+
+      /// Used for optional fields eg. else clauses
+      let findAndParseOptional
+        (node: ParsedNode)
+        (fieldName: String)
+        (parserFn: ParsedNode -> Stdlib.Result.Result<'a, String>)
+        : Stdlib.Option.Option<'a> =
+        match findNodeByFieldName node fieldName with
+        | Some nd -> (parserFn nd) |> Stdlib.Result.toOption
+        | None -> Stdlib.Option.Option.None
+
+      /// Used for required fields
+      let findAndParseRequired
+        (node: ParsedNode)
+        (fieldName: String)
+        (parserFn: ParsedNode -> Stdlib.Result.Result<'a, String>)
+        : Stdlib.Result.Result<'a, String> =
+        match findNodeByFieldName node fieldName with
+        | Some nd -> parserFn nd
+        | None ->
+          Stdlib.Result.Result.Error $"No {fieldName} node found in {node.typ}"

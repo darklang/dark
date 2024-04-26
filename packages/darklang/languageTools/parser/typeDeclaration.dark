@@ -1,0 +1,170 @@
+module Darklang =
+  module LanguageTools =
+    module Parser =
+      module TypeDeclaration =
+        let parseRecordField
+          (fieldNode: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.TypeDeclaration.RecordField, WrittenTypes.Unparseable> =
+          let fieldNameNode = findField fieldNode "field"
+          let symColonNode = findField fieldNode "symbol_colon"
+
+          let fieldTypeNode =
+            findAndParseRequired fieldNode "type" TypeReference.parse
+
+          match fieldNameNode, symColonNode, fieldTypeNode with
+          | Ok fieldName, Ok symColon, Ok fieldType ->
+            (WrittenTypes.TypeDeclaration.RecordField
+              { range = fieldNode.sourceRange
+                name = (fieldName.sourceRange, fieldName.text)
+                typ = fieldType
+                description = ""
+                symbolColon = symColon.sourceRange })
+            |> Stdlib.Result.Result.Ok
+
+          | _ -> createUnparseableError fieldNode
+
+        let parseEnumField
+          (field: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.TypeDeclaration.EnumField, WrittenTypes.Unparseable> =
+          match findNodeByFieldName field "type" with
+          | Some fieldTypeNode ->
+            let label =
+              findAndParseOptional field "identifier" (fun node ->
+                (node.sourceRange, node.text) |> Stdlib.Result.Result.Ok)
+
+            let colonSymbol =
+              findAndParseOptional field "symbol_colon" (fun node ->
+                (Parser.getRange node) |> Stdlib.Result.Result.Ok)
+
+            match TypeReference.parse fieldTypeNode with
+            | Ok fieldType ->
+              (WrittenTypes.TypeDeclaration.EnumField
+                { range = field.sourceRange
+                  typ = fieldType
+                  label = label
+                  description = ""
+                  symbolColon = colonSymbol })
+              |> Stdlib.Result.Result.Ok
+          | Error _ ->
+            Stdlib.Result.Result.Error(WrittenTypes.Unparseable { source = field })
+          | None ->
+            Stdlib.Result.Result.Error(WrittenTypes.Unparseable { source = field })
+
+
+        let parseDefinition
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.TypeDeclaration.Definition, WrittenTypes.Unparseable> =
+          if node.typ == "type_decl_def" then
+            match node.children with
+            | [ child ] when child.typ == "type_decl_def_alias" ->
+              match child.children with
+              | [ single ] when single.typ == "type_reference" ->
+                match TypeReference.parse single with
+                | Ok typRef ->
+                  (WrittenTypes.TypeDeclaration.Definition.Alias typRef)
+                  |> Stdlib.Result.Result.Ok
+
+                | Error _ -> createUnparseableError single
+              | _ -> createUnparseableError child
+
+            | [ child ] when child.typ == "type_decl_def_record" ->
+              let openBraceNode = findField child "symbol_open_brace"
+
+              let recordFields =
+                match (findNodeByFieldName child "content") with
+                | Some contentNode ->
+                  contentNode.children
+                  |> Stdlib.List.chunkBySize 2L
+                  |> Builtin.unwrap
+                  |> Stdlib.List.map (fun chunk ->
+                    match chunk with
+                    | [ fieldNode ] -> parseRecordField fieldNode
+                    | [ fieldNode; _separator ] -> parseRecordField fieldNode
+                    | _ -> createUnparseableError chunk)
+
+                | None -> [] |> Stdlib.Result.Result.Ok
+
+              let recordFields = recordFields |> Stdlib.Result.values
+              let closeBraceNode = findField child "symbol_close_brace"
+
+              match openBraceNode, recordFields, closeBraceNode with
+              | Ok openBrace, Ok recordFields, Ok closeBrace ->
+                (WrittenTypes.TypeDeclaration.Definition.Record recordFields)
+                |> Stdlib.Result.Result.Ok
+
+            | [ child ] when child.typ == "type_decl_def_enum" ->
+              match findNodeByFieldName child "content" with
+              | Some contentNode ->
+                let enumCases =
+                  contentNode.children
+                  |> Stdlib.List.filter (fun caseNode ->
+                    caseNode.typ != "indent" && caseNode.typ != "dedent")
+
+                  |> Stdlib.List.map (fun caseNode ->
+                    let caseNameNode = findField caseNode "case_name"
+
+                    let keywordOf =
+                      findAndParseOptional caseNode "keyword_of" (fun node ->
+                        Stdlib.Result.Result.Ok node.sourceRange)
+
+                    let fields =
+                      caseNode.children
+                      |> Stdlib.List.filter (fun field ->
+                        field.typ == "type_decl_enum_field")
+                      |> Stdlib.List.map (fun field ->
+                        match findNodeByFieldName field "type" with
+                        | Some fieldTypeNode -> parseEnumField field
+                        | None -> createUnparseableError field)
+                      |> Stdlib.Result.collect
+
+                    match caseNameNode, fields with
+                    | Ok caseNameNode, Ok fields ->
+                      (WrittenTypes.TypeDeclaration.EnumCase
+                        { range = caseNode.sourceRange
+                          name = (caseNameNode.sourceRange, caseNameNode.text)
+                          fields = fields
+                          description = ""
+                          keywordOf = keywordOf })
+                      |> Stdlib.Result.Result.Ok
+                    | Error _ -> createUnparseableError caseNode)
+
+                enumCases
+                |> Stdlib.Result.collect
+                |> Stdlib.Result.map (fun enumCases ->
+                  WrittenTypes.TypeDeclaration.Definition.Enum enumCases)
+
+              | None -> [] |> Stdlib.Result.Result.Ok
+
+            | _ -> createUnparseableError node
+
+          else
+            createUnparseableError node
+
+        let parse
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.TypeDeclaration.TypeDeclaration, WrittenTypes.Unparseable> =
+          if node.typ == "type_decl" then
+            let nameNode =
+              findAndParseRequired node "name" (fun node ->
+                (Identifiers.parseType node) |> Stdlib.Result.Result.Ok)
+
+            let defNode =
+              findAndParseRequired node "typ" TypeDeclaration.parseDefinition
+
+            let keywordTypeNode = findField node "keyword_type"
+            let symbolEqualsNode = findField node "symbol_equals"
+
+            match nameNode, defNode, keywordTypeNode, symbolEqualsNode with
+            | Ok name, Ok def, Ok keywordType, Ok symbolEquals ->
+              (WrittenTypes.TypeDeclaration.TypeDeclaration
+                { range = node.sourceRange
+                  name = name
+                  definition = def
+                  keywordType = keywordType.sourceRange
+                  symbolEquals = symbolEquals.sourceRange })
+              |> Stdlib.Result.Result.Ok
+
+            | _ -> createUnparseableError node
+
+          else
+            createUnparseableError node

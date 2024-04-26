@@ -1,0 +1,116 @@
+module Darklang =
+  module LanguageTools =
+    module Parser =
+      module FunctionDeclaration =
+        /// Parses a package function declaration parameter
+        ///
+        /// i.e. in `let foo (x: Int): ...`, this parses `(x: Int)`
+        let parseFnDeclParam
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.FnDeclaration.Parameter, WrittenTypes.Unparseable> =
+          if node.typ == "unit" then
+            (WrittenTypes.FnDeclaration.UnitParameter { range = node.sourceRange })
+            |> WrittenTypes.FnDeclaration.Parameter.Unit
+            |> Stdlib.Result.Result.Ok
+
+          elif node.typ == "fn_decl_param" then
+            let nameNode =
+              findAndParseRequired node "identifier" (fun node ->
+                (Identifiers.parseVariable node) |> Stdlib.Result.Result.Ok)
+
+            let typNode = findAndParseRequired node "typ" TypeReference.parse
+            let symLeftParenNode = findField node "symbol_left_paren"
+            let symColonNode = findField node "symbol_colon"
+            let symRightParenNode = findField node "symbol_right_paren"
+
+            match
+              nameNode, typNode, symLeftParenNode, symColonNode, symRightParenNode
+            with
+            | Ok name, Ok typ, Ok leftParen, Ok colon, Ok rightParen ->
+              (WrittenTypes.FnDeclaration.NormalParameter
+                { range = node.sourceRange
+                  name = name
+                  typ = typ
+                  symbolLeftParen = leftParen.sourceRange
+                  symbolColon = colon.sourceRange
+                  symbolRightParen = rightParen.sourceRange })
+              |> WrittenTypes.FnDeclaration.Parameter.Normal
+              |> Stdlib.Result.Result.Ok
+
+            | _ -> createUnparseableError node
+
+          else
+            createUnparseableError node
+
+        /// Parses a package function definition's parameters
+        let parseParams
+          (node: ParsedNode)
+          : Stdlib.Result.Result<List<WrittenTypes.FnDeclaration.Parameter>, WrittenTypes.Unparseable> =
+          if node.typ == "fn_decl_params" then
+            let defs =
+              Stdlib.List.fold
+                node.children
+                (Stdlib.Result.Result.Ok [])
+                (fun defs param ->
+                  match defs, parseFnDeclParam param with
+                  | Ok defs, Ok fnDeclParam ->
+                    (Stdlib.List.push defs fnDeclParam) |> Stdlib.Result.Result.Ok
+
+                  | _ -> createUnparseableError node)
+
+            match defs with
+            | Error _e -> defs
+            | Ok defs -> (Stdlib.List.reverse defs) |> Stdlib.Result.Result.Ok
+          else
+            createUnparseableError node
+
+
+        /// Parses a package function declaration
+        ///
+        /// i.e. `let add (x: Int64) (y: Int64): Int64 = x + y`,
+        ///
+        /// - `add` is the function name
+        /// - `x: Int` and `y: Int` are the parameters
+        /// - `Int` is the return type
+        /// - `x + y` is the body
+        let parse
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.FnDeclaration.FnDeclaration, WrittenTypes.Unparseable> =
+          if node.typ == "fn_decl" then
+            let nameNode =
+              findAndParseRequired node "name" (fun node ->
+                (Identifiers.parseFn node) |> Stdlib.Result.Result.Ok)
+
+            let paramsNode =
+              findAndParseRequired node "params" FunctionDeclaration.parseParams
+
+            let returnTypeNode =
+              findAndParseRequired node "return_type" TypeReference.parse
+
+            let bodyNode = findAndParseRequired node "body" Expr.parse
+            let keywordLetNode = findField node "keyword_let"
+            let symColonNode = findField node "symbol_colon"
+            let symEqualsNode = findField node "symbol_equals"
+
+            match
+              nameNode,
+              paramsNode,
+              returnTypeNode,
+              bodyNode,
+              keywordLetNode,
+              symColonNode,
+              symEqualsNode
+            with
+            | Ok name, Ok params, Ok rt, Ok body, Ok keywordLet, Ok colon, Ok equals ->
+              (WrittenTypes.FnDeclaration.FnDeclaration
+                { range = node.sourceRange
+                  name = name
+                  parameters = params
+                  returnType = rt
+                  body = body
+                  keywordLet = keywordLet.sourceRange
+                  symbolColon = colon.sourceRange
+                  symbolEquals = equals.sourceRange })
+              |> Stdlib.Result.Result.Ok
+
+            | _ -> createUnparseableError node
