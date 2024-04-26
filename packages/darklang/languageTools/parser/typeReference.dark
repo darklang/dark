@@ -6,7 +6,7 @@ module Darklang =
 
         let builtin
           (b: TBuiltin)
-          : Stdlib.Result.Result<'a, WrittenTypes.Unparseable> =
+          : Stdlib.Result.Result<TBuiltin, WrittenTypes.Unparseable> =
           Stdlib.Result.Result.Ok b
 
         let parseBuiltIn
