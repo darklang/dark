@@ -15,7 +15,8 @@ module Darklang =
 
             match b with
             | Ok b ->
-              Stdlib.Result.Result.Ok(WrittenTypes.Expr.EBool(node.sourceRange, b))
+              (WrittenTypes.Expr.EBool(node.sourceRange, b))
+              |> Stdlib.Result.Result.Ok
             | Error _ -> createUnparseableError node
 
           else
@@ -235,7 +236,7 @@ module Darklang =
             let openBracketNode = findField node "symbol_open_bracket"
             let closeBracketNode = findField node "symbol_close_bracket"
 
-            let contents =
+            let findContent =
               node
               |> findNodeByFieldName "content"
               |> Stdlib.Option.map (fun contentsNode ->
@@ -245,25 +246,26 @@ module Darklang =
                 |> Stdlib.List.map (fun chunk ->
                   match chunk with
                   | [ exprNode; symbol ] ->
-                    let expr = Expr.parse exprNode
-
-                    match expr with
-                    | Ok e -> (e, Stdlib.Option.Option.Some symbol.sourceRange)
+                    match Expr.parse exprNode with
+                    | Ok e ->
+                      (e, Stdlib.Option.Option.Some symbol.sourceRange)
+                      |> Stdlib.Result.Result.Ok
                     | Error _ -> createUnparseableError chunk
 
                   | [ exprNode ] ->
-                    let expr = Expr.parse exprNode
-
-                    // TODO: check error-handling here
-                    match expr with
-                    | Ok e -> (e, Stdlib.Option.Option.None)
+                    match Expr.parse exprNode with
+                    | Ok e ->
+                      (e, Stdlib.Option.Option.None) |> Stdlib.Result.Result.Ok
                     | Error _ -> createUnparseableError exprNode
                   | _ -> createUnparseableError chunk))
 
-              |> Stdlib.Option.withDefault []
+            let contents =
+              match findContent with
+              | Some c -> c |> Stdlib.Result.collect
+              | None -> [] |> Stdlib.Result.Result.Ok
 
-            match openBracketNode, closeBracketNode with
-            | Ok openBracket, Ok closeBracket ->
+            match openBracketNode, contents, closeBracketNode with
+            | Ok openBracket, Ok contents, Ok closeBracket ->
               (WrittenTypes.Expr.EList(
                 node.sourceRange,
                 contents,
@@ -271,6 +273,8 @@ module Darklang =
                 closeBracket.sourceRange
               ))
               |> Stdlib.Result.Result.Ok
+
+            | _ -> createUnparseableError node
 
 
         let parseDictLiteral
@@ -280,7 +284,7 @@ module Darklang =
             let keywordDictNode = findField node "keyword_dict"
             let openBraceNode = findField node "symbol_open_brace"
 
-            let contents =
+            let findContent =
               node
               |> findNodeByFieldName "content"
               |> Stdlib.Option.map (fun contentsNode ->
@@ -301,7 +305,7 @@ module Darklang =
 
                     match (keyNode, symbolEqualsNode, valueNode) with
                     | (Ok key, Ok symbolEquals, Ok value) ->
-                      (symbolEquals, key, value)
+                      (symbolEquals, key, value) |> Stdlib.Result.Result.Ok
                     | _ -> createUnparseableError dictPairNode
 
                   | [ dictPairNode ] ->
@@ -316,15 +320,19 @@ module Darklang =
 
                     match (keyNode, symbolEqualsNode, valueNode) with
                     | (Ok key, Ok symbolEquals, Ok value) ->
-                      (symbolEquals, key, value)
+                      (symbolEquals, key, value) |> Stdlib.Result.Result.Ok
                     | _ -> createUnparseableError dictPairNode
                   | _ -> createUnparseableError chunk))
-              |> Stdlib.Option.withDefault []
+
+            let contents =
+              match findContent with
+              | Some c -> c |> Stdlib.Result.collect
+              | None -> [] |> Stdlib.Result.Result.Ok
 
             let closeBraceNode = findField node "symbol_close_brace"
 
-            match keywordDictNode, openBraceNode, closeBraceNode with
-            | Ok keywordDict, Ok openBrace, Ok closeBrace ->
+            match keywordDictNode, openBraceNode, contents, closeBraceNode with
+            | Ok keywordDict, Ok openBrace, Ok contents, Ok closeBrace ->
               (WrittenTypes.Expr.EDict(
                 node.sourceRange,
                 contents,
@@ -348,7 +356,7 @@ module Darklang =
             let first = findAndParseRequired node "first" Expr.parse
             let second = findAndParseRequired node "second" Expr.parse
 
-            let rest =
+            let findRest =
               (findNodeByFieldName node "rest")
               |> Stdlib.Option.map (fun restNode ->
                 restNode.children
@@ -360,24 +368,31 @@ module Darklang =
                     let expr = Expr.parse exprNode
 
                     match expr with
-                    | Ok expr -> (symbol.sourceRange, expr)
+                    | Ok expr ->
+                      (symbol.sourceRange, expr) |> Stdlib.Result.Result.Ok
                     | Error _ -> createUnparseableError chunk
 
                   | [ exprNode ] ->
                     let expr = Expr.parse exprNode
 
                     match expr with
-                    | Ok expr -> (Stdlib.Option.Option.None, expr)
+                    | Ok expr ->
+                      (Stdlib.Option.Option.None, expr) |> Stdlib.Result.Result.Ok
                     | Error _ -> createUnparseableError chunk
                   | _ -> createUnparseableError chunk))
 
-              |> Stdlib.Option.withDefault []
+            let rest =
+              match findRest with
+              | Some r -> r |> Stdlib.Result.collect
+              | None -> [] |> Stdlib.Result.Result.Ok
 
             let commaSymbol = findField node "symbol_comma"
             let closeParenNode = findField node "symbol_right_paren"
 
-            match openParenNode, first, commaSymbol, second, closeParenNode with
-            | Ok openParen, Ok first, Ok symComma, Ok second, Ok closeParen ->
+            match
+              openParenNode, first, commaSymbol, second, rest, closeParenNode
+            with
+            | Ok openParen, Ok first, Ok symComma, Ok second, Ok rest, Ok closeParen ->
               (WrittenTypes.Expr.ETuple(
                 node.sourceRange,
                 first,
@@ -401,7 +416,7 @@ module Darklang =
             let typeNameNode = findField node "type_name"
             let openBraceNode = findField node "symbol_open_brace"
 
-            let contents =
+            let findContent =
               node
               |> findNodeByFieldName "content"
               |> Stdlib.Option.map (fun contentsNode ->
@@ -421,7 +436,8 @@ module Darklang =
                       findAndParseRequired recordPairNode "value" Expr.parse
 
                     match fieldNode, symbolEqualsNode, valueNode with
-                    | Ok field, Ok symEquals, Ok value -> (symEquals, field, value)
+                    | Ok field, Ok symEquals, Ok value ->
+                      (symEquals, field, value) |> Stdlib.Result.Result.Ok
                     | _ -> createUnparseableError recordPairNode
 
                   | [ recordPairNode ] ->
@@ -435,17 +451,21 @@ module Darklang =
                       findAndParseRequired recordPairNode "value" Expr.parse
 
                     match fieldNode, symbolEqualsNode, valueNode with
-                    | Ok field, Ok symEquals, Ok value -> (symEquals, field, value)
+                    | Ok field, Ok symEquals, Ok value ->
+                      (symEquals, field, value) |> Stdlib.Result.Result.Ok
                     | _ -> createUnparseableError recordPairNode
 
                   | _ -> createUnparseableError chunk))
 
-              |> Stdlib.Option.withDefault []
+            let contents =
+              match findContent with
+              | Some c -> c |> Stdlib.Result.collect
+              | None -> [] |> Stdlib.Result.Result.Ok
 
             let closeBraceNode = findField node "symbol_close_brace"
 
-            match typeNameNode, openBraceNode, closeBraceNode with
-            | Ok typeName, Ok openBrace, Ok closeBrace ->
+            match typeNameNode, openBraceNode, contents, closeBraceNode with
+            | Ok typeName, Ok openBrace, Ok contents, Ok closeBrace ->
               let typeNameNode =
                 Darklang.LanguageTools.WrittenTypes.Name.Unresolved(
                   typeName.sourceRange,
@@ -660,16 +680,13 @@ module Darklang =
                 | Some fName -> fName == "args"
                 | None -> false)
               |> Stdlib.List.map Expr.parse
-              |> Stdlib.List.map (fun expr ->
-                match expr with
-                | Ok exp -> exp
-                | Error _ -> createUnparseableError node)
+              |> Stdlib.Result.collect
 
             let symbolLeftParen = findField node "symbol_left_paren"
             let symbolRightParen = findField node "symbol_right_paren"
 
-            match fnNameNode, args, symbolLeftParen, symbolRightParen with
-            | Ok fnName, args, Ok symLeftParen, Ok symRightParen ->
+            match fnNameNode, args, symbolLeftParen, args, symbolRightParen with
+            | Ok fnName, args, Ok symLeftParen, Ok args, Ok symRightParen ->
               (WrittenTypes.Expr.EFnCall(
                 node.sourceRange,
                 fnName,

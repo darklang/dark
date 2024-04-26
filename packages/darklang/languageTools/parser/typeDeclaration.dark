@@ -141,7 +141,7 @@ module Darklang =
                 |> Stdlib.Result.map (fun enumCases ->
                   WrittenTypes.TypeDeclaration.Definition.Enum enumCases)
 
-              | None -> []
+              | None -> [] |> Stdlib.Result.Result.Ok
 
             | _ -> createUnparseableError node
 
