@@ -32,58 +32,58 @@ module ParseToSimplifiedTree =
     { typ = "source_file"
       fieldName = Stdlib.Option.Option.None
       text = "type ID = Int64"
-      sourceRange = range (0L, 0L) (0L, 15L)
+      range = range (0L, 0L) (0L, 15L)
       children =
         [ ParsedNode
             { fieldName = Stdlib.Option.Option.None
               typ = "type_decl"
               text = "type ID = Int64"
-              sourceRange = range (0L, 0L) (0L, 15L)
+              range = range (0L, 0L) (0L, 15L)
               children =
                 [ ParsedNode
                     { fieldName = Stdlib.Option.Option.Some "keyword_type"
                       typ = "keyword"
                       text = "type"
-                      sourceRange = range (0L, 0L) (0L, 4L)
+                      range = range (0L, 0L) (0L, 4L)
                       children = [] }
 
                   ParsedNode
                     { fieldName = Stdlib.Option.Option.Some "name"
                       typ = "type_identifier"
                       text = "ID"
-                      sourceRange = range (0L, 5L) (0L, 7L)
+                      range = range (0L, 5L) (0L, 7L)
                       children = [] }
 
                   ParsedNode
                     { fieldName = Stdlib.Option.Option.Some "symbol_equals"
                       typ = "symbol"
                       text = "="
-                      sourceRange = range (0L, 8L) (0L, 9L)
+                      range = range (0L, 8L) (0L, 9L)
                       children = [] }
 
                   ParsedNode
                     { fieldName = Stdlib.Option.Option.Some "typ"
                       typ = "type_decl_def"
                       text = "Int64"
-                      sourceRange = range (0L, 10L) (0L, 15L)
+                      range = range (0L, 10L) (0L, 15L)
                       children =
                         [ ParsedNode
                             { fieldName = Stdlib.Option.Option.None
                               typ = "type_decl_def_alias"
                               text = "Int64"
-                              sourceRange = range (0L, 10L) (0L, 15L)
+                              range = range (0L, 10L) (0L, 15L)
                               children =
                                 [ ParsedNode
                                     { fieldName = Stdlib.Option.Option.None
                                       typ = "type_reference"
                                       text = "Int64"
-                                      sourceRange = range (0L, 10L) (0L, 15L)
+                                      range = range (0L, 10L) (0L, 15L)
                                       children =
                                         [ ParsedNode
                                             { fieldName = Stdlib.Option.Option.None
                                               typ = "builtin_type"
                                               text = "Int64"
-                                              sourceRange = range (0L, 10L) (0L, 15L)
+                                              range = range (0L, 10L) (0L, 15L)
                                               children = [] } ] } ] } ] } ] } ] }
 
 
@@ -91,7 +91,7 @@ module ParseToSimplifiedTree =
     { typ = "source_file"
       fieldName = Stdlib.Option.Option.None
       text = ""
-      sourceRange = range (0L, 0L) (0L, 0L)
+      range = range (0L, 0L) (0L, 0L)
       children = [] }
 
 // These tests are a huge pain to write and maintain

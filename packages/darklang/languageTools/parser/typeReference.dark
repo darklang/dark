@@ -14,21 +14,21 @@ module Darklang =
           : Stdlib.Result.Result<WrittenTypes.TypeReference.Builtin, WrittenTypes.Unparseable> =
           if node.typ == "builtin_type" then
             match node.text with
-            | "Unit" -> (TBuiltin.TUnit node.sourceRange) |> builtin
-            | "Bool" -> (TBuiltin.TBool node.sourceRange) |> builtin
-            | "Int8" -> (TBuiltin.TInt8 node.sourceRange) |> builtin
-            | "UInt8" -> (TBuiltin.TUInt8 node.sourceRange) |> builtin
-            | "Int16" -> (TBuiltin.TInt16 node.sourceRange) |> builtin
-            | "UInt16" -> (TBuiltin.TUInt16 node.sourceRange) |> builtin
-            | "Int32" -> (TBuiltin.TInt32 node.sourceRange) |> builtin
-            | "UInt32" -> (TBuiltin.TUInt32 node.sourceRange) |> builtin
-            | "Int64" -> (TBuiltin.TInt64 node.sourceRange) |> builtin
-            | "UInt64" -> (TBuiltin.TUInt64 node.sourceRange) |> builtin
-            | "Int128" -> (TBuiltin.TInt128 node.sourceRange) |> builtin
-            | "UInt128" -> (TBuiltin.TUInt128 node.sourceRange) |> builtin
-            | "Float" -> (TBuiltin.TFloat node.sourceRange) |> builtin
-            | "Char" -> (TBuiltin.TChar node.sourceRange) |> builtin
-            | "String" -> (TBuiltin.TString node.sourceRange) |> builtin
+            | "Unit" -> (TBuiltin.TUnit node.range) |> builtin
+            | "Bool" -> (TBuiltin.TBool node.range) |> builtin
+            | "Int8" -> (TBuiltin.TInt8 node.range) |> builtin
+            | "UInt8" -> (TBuiltin.TUInt8 node.range) |> builtin
+            | "Int16" -> (TBuiltin.TInt16 node.range) |> builtin
+            | "UInt16" -> (TBuiltin.TUInt16 node.range) |> builtin
+            | "Int32" -> (TBuiltin.TInt32 node.range) |> builtin
+            | "UInt32" -> (TBuiltin.TUInt32 node.range) |> builtin
+            | "Int64" -> (TBuiltin.TInt64 node.range) |> builtin
+            | "UInt64" -> (TBuiltin.TUInt64 node.range) |> builtin
+            | "Int128" -> (TBuiltin.TInt128 node.range) |> builtin
+            | "UInt128" -> (TBuiltin.TUInt128 node.range) |> builtin
+            | "Float" -> (TBuiltin.TFloat node.range) |> builtin
+            | "Char" -> (TBuiltin.TChar node.range) |> builtin
+            | "String" -> (TBuiltin.TString node.range) |> builtin
 
             | _ ->
               let firstChild = node.children |> Stdlib.List.head |> Builtin.unwrap
@@ -46,11 +46,11 @@ module Darklang =
                 match dictKeyword, openBracket, valueTypeNode, closeBracket with
                 | Ok dictKeyword, Ok openBracket, Ok valueType, Ok closeBracket ->
                   (TBuiltin.TDict
-                    firstChild.sourceRange
-                    dictKeyword.sourceRange
-                    openBracket.sourceRange
+                    firstChild.range
+                    dictKeyword.range
+                    openBracket.range
                     valueType
-                    closeBracket.sourceRange)
+                    closeBracket.range)
                   |> builtin
 
               | "tuple_type_reference" ->
@@ -73,9 +73,9 @@ module Darklang =
                       match chunk with
                       | [ symbol; typeNode ] ->
                         match TypeReference.parse typeNode with
-                        | Ok typeRef -> (symbol.sourceRange, typeRef)
+                        | Ok typeRef -> (symbol.range, typeRef)
                         | Error _ ->
-                          (symbol.sourceRange,
+                          (symbol.range,
                            WrittenTypes.Unparseable { source = typeNode })
 
                       | [ typeNode ] ->
@@ -95,13 +95,13 @@ module Darklang =
                 match leftParen, first, asterisk, second, rightParen with
                 | Ok leftParen, Ok first, Ok asterisk, Ok second, Ok rightParen ->
                   (TBuiltin.TTuple(
-                    node.sourceRange,
+                    node.range,
                     first,
-                    asterisk.sourceRange,
+                    asterisk.range,
                     second,
                     rest,
-                    leftParen.sourceRange,
-                    rightParen.sourceRange
+                    leftParen.range,
+                    rightParen.range
                   ))
                   |> builtin
 
@@ -121,11 +121,11 @@ module Darklang =
                 with
                 | Ok listKeyword, Ok openBracket, Ok typeParam, Ok closeBracket ->
                   (TBuiltin.TList
-                    firstChild.sourceRange
-                    listKeyword.sourceRange
-                    openBracket.sourceRange
+                    firstChild.range
+                    listKeyword.range
+                    openBracket.range
                     typeParam
-                    closeBracket.sourceRange)
+                    closeBracket.range)
                   |> builtin
 
                 | _ -> createUnparseableError node

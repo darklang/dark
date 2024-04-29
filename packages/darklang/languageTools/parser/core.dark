@@ -21,7 +21,7 @@ module Darklang =
 
           /// Where in the source code is this node written/contained
           /// i.e. Line 1, Column 2 to Line 1, Column 5
-          sourceRange: Range
+          range: Range
 
           children: List<ParsedNode>
         }
@@ -43,7 +43,7 @@ module Darklang =
       // --------------------
 
       let getText (node: ParsedNode) : String = node.text
-      let getRange (node: ParsedNode) : Range = node.sourceRange
+      let getRange (node: ParsedNode) : Range = node.range
 
       let findNodeByFieldName
         (node: ParsedNode)

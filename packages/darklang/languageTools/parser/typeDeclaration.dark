@@ -14,11 +14,11 @@ module Darklang =
           match fieldNameNode, symColonNode, fieldTypeNode with
           | Ok fieldName, Ok symColon, Ok fieldType ->
             (WrittenTypes.TypeDeclaration.RecordField
-              { range = fieldNode.sourceRange
-                name = (fieldName.sourceRange, fieldName.text)
+              { range = fieldNode.range
+                name = (fieldName.range, fieldName.text)
                 typ = fieldType
                 description = ""
-                symbolColon = symColon.sourceRange })
+                symbolColon = symColon.range })
             |> Stdlib.Result.Result.Ok
 
           | _ -> createUnparseableError fieldNode
@@ -30,7 +30,7 @@ module Darklang =
           | Some fieldTypeNode ->
             let label =
               findAndParseOptional field "identifier" (fun node ->
-                (node.sourceRange, node.text) |> Stdlib.Result.Result.Ok)
+                (node.range, node.text) |> Stdlib.Result.Result.Ok)
 
             let colonSymbol =
               findAndParseOptional field "symbol_colon" (fun node ->
@@ -39,7 +39,7 @@ module Darklang =
             match TypeReference.parse fieldTypeNode with
             | Ok fieldType ->
               (WrittenTypes.TypeDeclaration.EnumField
-                { range = field.sourceRange
+                { range = field.range
                   typ = fieldType
                   label = label
                   description = ""
@@ -105,7 +105,7 @@ module Darklang =
 
                     let keywordOf =
                       findAndParseOptional caseNode "keyword_of" (fun node ->
-                        Stdlib.Result.Result.Ok node.sourceRange)
+                        Stdlib.Result.Result.Ok node.range)
 
                     let fields =
                       caseNode.children
@@ -120,8 +120,8 @@ module Darklang =
                     match caseNameNode, fields with
                     | Ok caseNameNode, Ok fields ->
                       (WrittenTypes.TypeDeclaration.EnumCase
-                        { range = caseNode.sourceRange
-                          name = (caseNameNode.sourceRange, caseNameNode.text)
+                        { range = caseNode.range
+                          name = (caseNameNode.range, caseNameNode.text)
                           fields = fields
                           description = ""
                           keywordOf = keywordOf })
@@ -157,11 +157,11 @@ module Darklang =
             match nameNode, defNode, keywordTypeNode, symbolEqualsNode with
             | Ok name, Ok def, Ok keywordType, Ok symbolEquals ->
               (WrittenTypes.TypeDeclaration.TypeDeclaration
-                { range = node.sourceRange
+                { range = node.range
                   name = name
                   definition = def
-                  keywordType = keywordType.sourceRange
-                  symbolEquals = symbolEquals.sourceRange })
+                  keywordType = keywordType.range
+                  symbolEquals = symbolEquals.range })
               |> Stdlib.Result.Result.Ok
 
             | _ -> createUnparseableError node

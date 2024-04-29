@@ -15,8 +15,7 @@ module Darklang =
 
             match b with
             | Ok b ->
-              (WrittenTypes.Expr.EBool(node.sourceRange, b))
-              |> Stdlib.Result.Result.Ok
+              (WrittenTypes.Expr.EBool(node.range, b)) |> Stdlib.Result.Result.Ok
             | Error _ -> createUnparseableError node
 
           else
@@ -66,68 +65,30 @@ module Darklang =
 
               match parseIntByType intText node.typ with
               | Ok parsedValue ->
+                let intPart = (intPart.range, parsedValue)
+
                 let expr =
                   match node.typ with
                   | "int8_literal" ->
-                    WrittenTypes.Expr.EInt8(
-                      node.sourceRange,
-                      (intPart.sourceRange, parsedValue),
-                      sfx.sourceRange
-                    )
+                    WrittenTypes.Expr.EInt8(node.range, intPart, sfx.range)
                   | "uint8_literal" ->
-                    WrittenTypes.Expr.EUInt8(
-                      node.sourceRange,
-                      (intPart.sourceRange, parsedValue),
-                      sfx.sourceRange
-                    )
+                    WrittenTypes.Expr.EUInt8(node.range, intPart, sfx.range)
                   | "int16_literal" ->
-                    WrittenTypes.Expr.EInt16(
-                      node.sourceRange,
-                      (intPart.sourceRange, parsedValue),
-                      sfx.sourceRange
-                    )
+                    WrittenTypes.Expr.EInt16(node.range, intPart, sfx.range)
                   | "uint16_literal" ->
-                    WrittenTypes.Expr.EUInt16(
-                      node.sourceRange,
-                      (intPart.sourceRange, parsedValue),
-                      sfx.sourceRange
-                    )
+                    WrittenTypes.Expr.EUInt16(node.range, intPart, sfx.range)
                   | "int32_literal" ->
-                    WrittenTypes.Expr.EInt32(
-                      node.sourceRange,
-                      (intPart.sourceRange, parsedValue),
-                      sfx.sourceRange
-                    )
+                    WrittenTypes.Expr.EInt32(node.range, intPart, sfx.range)
                   | "uint32_literal" ->
-                    WrittenTypes.Expr.EUInt32(
-                      node.sourceRange,
-                      (intPart.sourceRange, parsedValue),
-                      sfx.sourceRange
-                    )
+                    WrittenTypes.Expr.EUInt32(node.range, intPart, sfx.range)
                   | "int64_literal" ->
-                    WrittenTypes.Expr.EInt64(
-                      node.sourceRange,
-                      (intPart.sourceRange, parsedValue),
-                      sfx.sourceRange
-                    )
+                    WrittenTypes.Expr.EInt64(node.range, intPart, sfx.range)
                   | "uint64_literal" ->
-                    WrittenTypes.Expr.EUInt64(
-                      node.sourceRange,
-                      (intPart.sourceRange, parsedValue),
-                      sfx.sourceRange
-                    )
+                    WrittenTypes.Expr.EUInt64(node.range, intPart, sfx.range)
                   | "int128_literal" ->
-                    WrittenTypes.Expr.EInt128(
-                      node.sourceRange,
-                      (intPart.sourceRange, parsedValue),
-                      sfx.sourceRange
-                    )
+                    WrittenTypes.Expr.EInt128(node.range, intPart, sfx.range)
                   | "uint128_literal" ->
-                    WrittenTypes.Expr.EUInt128(
-                      node.sourceRange,
-                      (intPart.sourceRange, parsedValue),
-                      sfx.sourceRange
-                    )
+                    WrittenTypes.Expr.EUInt128(node.range, intPart, sfx.range)
                   | _ -> createUnparseableError node
 
                 expr |> Stdlib.Result.Result.Ok
@@ -167,7 +128,7 @@ module Darklang =
 
                 (sign, whole, remainder)
 
-              (WrittenTypes.Expr.EFloat(node.sourceRange, sign, whole, remainder))
+              (WrittenTypes.Expr.EFloat(node.range, sign, whole, remainder))
               |> Stdlib.Result.Result.Ok
 
             | Error _ -> createUnparseableError node
@@ -185,16 +146,16 @@ module Darklang =
 
             let contents =
               findAndParseOptional node "content" (fun stringPart ->
-                (stringPart.sourceRange, stringPart.text) |> Stdlib.Result.Result.Ok)
+                (stringPart.range, stringPart.text) |> Stdlib.Result.Result.Ok)
 
 
             match openQuoteNode, closeQuoteNode with
             | Ok openQuote, Ok closeQuote ->
               (WrittenTypes.Expr.EString(
-                node.sourceRange,
+                node.range,
                 contents,
-                openQuote.sourceRange,
-                closeQuote.sourceRange
+                openQuote.range,
+                closeQuote.range
               ))
               |> Stdlib.Result.Result.Ok
 
@@ -212,17 +173,17 @@ module Darklang =
 
             let charNode =
               findAndParseOptional node "content" (fun charPart ->
-                (charPart.sourceRange, charPart.text) |> Stdlib.Result.Result.Ok)
+                (charPart.range, charPart.text) |> Stdlib.Result.Result.Ok)
 
             let closeQuoteNode = findField node "symbol_close_single_quote"
 
             match openQuoteNode, closeQuoteNode with
             | Ok openQuote, Ok closeQuote ->
               (WrittenTypes.Expr.EChar(
-                node.sourceRange,
+                node.range,
                 charNode,
-                openQuote.sourceRange,
-                closeQuote.sourceRange
+                openQuote.range,
+                closeQuote.range
               ))
               |> Stdlib.Result.Result.Ok
 
@@ -248,7 +209,7 @@ module Darklang =
                   | [ exprNode; symbol ] ->
                     match Expr.parse exprNode with
                     | Ok e ->
-                      (e, Stdlib.Option.Option.Some symbol.sourceRange)
+                      (e, Stdlib.Option.Option.Some symbol.range)
                       |> Stdlib.Result.Result.Ok
                     | Error _ -> createUnparseableError chunk
 
@@ -267,10 +228,10 @@ module Darklang =
             match openBracketNode, contents, closeBracketNode with
             | Ok openBracket, Ok contents, Ok closeBracket ->
               (WrittenTypes.Expr.EList(
-                node.sourceRange,
+                node.range,
                 contents,
-                openBracket.sourceRange,
-                closeBracket.sourceRange
+                openBracket.range,
+                closeBracket.range
               ))
               |> Stdlib.Result.Result.Ok
 
@@ -334,11 +295,11 @@ module Darklang =
             match keywordDictNode, openBraceNode, contents, closeBraceNode with
             | Ok keywordDict, Ok openBrace, Ok contents, Ok closeBrace ->
               (WrittenTypes.Expr.EDict(
-                node.sourceRange,
+                node.range,
                 contents,
-                keywordDict.sourceRange,
-                openBrace.sourceRange,
-                closeBrace.sourceRange
+                keywordDict.range,
+                openBrace.range,
+                closeBrace.range
               ))
               |> Stdlib.Result.Result.Ok
 
@@ -366,8 +327,7 @@ module Darklang =
                   match chunk with
                   | [ symbol; exprNode ] ->
                     match Expr.parse exprNode with
-                    | Ok expr ->
-                      (symbol.sourceRange, expr) |> Stdlib.Result.Result.Ok
+                    | Ok expr -> (symbol.range, expr) |> Stdlib.Result.Result.Ok
                     | Error _ -> createUnparseableError chunk
 
                   | [ exprNode ] ->
@@ -390,13 +350,13 @@ module Darklang =
             with
             | Ok openParen, Ok first, Ok symComma, Ok second, Ok rest, Ok closeParen ->
               (WrittenTypes.Expr.ETuple(
-                node.sourceRange,
+                node.range,
                 first,
-                symComma.sourceRange,
+                symComma.range,
                 second,
                 rest,
-                openParen.sourceRange,
-                closeParen.sourceRange
+                openParen.range,
+                closeParen.range
               ))
               |> Stdlib.Result.Result.Ok
 
@@ -424,7 +384,7 @@ module Darklang =
                   | [ recordPairNode; _separator ] ->
                     let fieldNode =
                       findAndParseRequired recordPairNode "field" (fun node ->
-                        (node.sourceRange, node.text) |> Stdlib.Result.Result.Ok)
+                        (node.range, node.text) |> Stdlib.Result.Result.Ok)
 
                     let symbolEqualsNode = findField recordPairNode "symbol_equals"
 
@@ -439,7 +399,7 @@ module Darklang =
                   | [ recordPairNode ] ->
                     let fieldNode =
                       findAndParseRequired recordPairNode "field" (fun node ->
-                        (node.sourceRange, node.text) |> Stdlib.Result.Result.Ok)
+                        (node.range, node.text) |> Stdlib.Result.Result.Ok)
 
                     let symbolEqualsNode = findField recordPairNode "symbol_equals"
 
@@ -464,16 +424,16 @@ module Darklang =
             | Ok typeName, Ok openBrace, Ok contents, Ok closeBrace ->
               let typeNameNode =
                 Darklang.LanguageTools.WrittenTypes.Name.Unresolved(
-                  typeName.sourceRange,
+                  typeName.range,
                   [ typeName.text ]
                 )
 
               (WrittenTypes.Expr.ERecord(
-                node.sourceRange,
+                node.range,
                 typeNameNode,
                 contents,
-                openBrace.sourceRange,
-                closeBrace.sourceRange
+                openBrace.range,
+                closeBrace.range
               ))
               |> Stdlib.Result.Result.Ok
 
@@ -515,11 +475,11 @@ module Darklang =
             match typeNameNode, symbolDotNode, caseNameNode with
             | Ok typeNameNode, Ok symbolDotNode, Ok caseNameNode ->
               (WrittenTypes.Expr.EEnum(
-                node.sourceRange,
-                (typeNameNode.sourceRange, [ typeNameNode.text ]),
-                (caseNameNode.sourceRange, caseNameNode.text),
+                node.range,
+                (typeNameNode.range, [ typeNameNode.text ]),
+                (caseNameNode.range, caseNameNode.text),
                 enumFieldsNode,
-                symbolDotNode.sourceRange
+                symbolDotNode.range
               ))
               |> Stdlib.Result.Result.Ok
 
@@ -539,15 +499,12 @@ module Darklang =
             match keywordLetNode, identifierNode, symbolEqualsNode, expr, body with
             | Ok keywordLet, Ok identifier, Ok symbolEquals, Ok expr, Ok body ->
               (WrittenTypes.Expr.ELet(
-                node.sourceRange,
-                WrittenTypes.LetPattern.LPVariable(
-                  identifier.sourceRange,
-                  identifier.text
-                ),
+                node.range,
+                WrittenTypes.LetPattern.LPVariable(identifier.range, identifier.text),
                 expr,
                 body,
-                keywordLet.sourceRange,
-                symbolEquals.sourceRange
+                keywordLet.range,
+                symbolEquals.range
               ))
               |> Stdlib.Result.Result.Ok
 
@@ -616,8 +573,8 @@ module Darklang =
             match leftArg, operatorNode, rightArg with
             | Ok leftArg, Ok operatorNode, Ok rightArg ->
               (WrittenTypes.Expr.EInfix(
-                node.sourceRange,
-                ((operatorNode.sourceRange, operator)),
+                node.range,
+                ((operatorNode.range, operator)),
                 leftArg,
                 rightArg
               ))
@@ -638,7 +595,7 @@ module Darklang =
 
             let keywordElseNodeRange =
               findAndParseOptional node "keyword_else" (fun node ->
-                node.sourceRange |> Stdlib.Result.Result.Ok)
+                node.range |> Stdlib.Result.Result.Ok)
 
             let elseNode = findAndParseOptional node "else_expression" Expr.parse
 
@@ -646,12 +603,12 @@ module Darklang =
             | Ok keywordIf, Ok condition, Ok keywordThen, Ok thenNode ->
 
               (WrittenTypes.Expr.EIf(
-                node.sourceRange,
+                node.range,
                 condition,
                 thenNode,
                 elseNode,
-                keywordIf.sourceRange,
-                keywordThen.sourceRange,
+                keywordIf.range,
+                keywordThen.range,
                 keywordElseNodeRange
               ))
               |> Stdlib.Result.Result.Ok
@@ -684,11 +641,11 @@ module Darklang =
             match fnNameNode, args, symbolLeftParen, args, symbolRightParen with
             | Ok fnName, args, Ok symLeftParen, Ok args, Ok symRightParen ->
               (WrittenTypes.Expr.EFnCall(
-                node.sourceRange,
+                node.range,
                 fnName,
                 args,
-                symLeftParen.sourceRange,
-                symRightParen.sourceRange
+                symLeftParen.range,
+                symRightParen.range
               ))
               |> Stdlib.Result.Result.Ok
 
@@ -707,8 +664,7 @@ module Darklang =
           // simple
           | "paren_expression" -> findAndParseRequired node "expr" Expr.parse
 
-          | "unit" ->
-            (WrittenTypes.Expr.EUnit node.sourceRange) |> Stdlib.Result.Result.Ok
+          | "unit" -> (WrittenTypes.Expr.EUnit node.range) |> Stdlib.Result.Result.Ok
           | "bool_literal" -> parseBoolLiteral node
           | "int8_literal" -> parseIntLiteral node
           | "uint8_literal" -> parseIntLiteral node
@@ -734,7 +690,7 @@ module Darklang =
           // assigning and accessing variables
           | "let_expression" -> parseLetExpr node
           | "variable_identifier" ->
-            (WrittenTypes.Expr.EVariable(node.sourceRange, getText node))
+            (WrittenTypes.Expr.EVariable(node.range, getText node))
             |> Stdlib.Result.Result.Ok
 
           | "if_expression" -> parseIfExpression node
