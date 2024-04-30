@@ -506,6 +506,7 @@ module ToList =
 
 
 module Split =
+  Stdlib.String.split "hello world" "notfound" = [ "hello world" ]
   Stdlib.String.split "hello😄world" "😄" = [ "hello"; "world" ]
   Stdlib.String.split "hello&&&&world" "&&&&" = [ "hello"; "world" ]
   Stdlib.String.split "hello34564world34564sun" "😄" = [ "hello34564world34564sun" ]

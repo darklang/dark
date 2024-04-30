@@ -13,35 +13,7 @@ module Darklang =
             name: String
             version: Int64 }
 
-        /// Part of the user's program (eg canvas or cli)
-        type UserProgram =
-          { modules: List<String>
-            name: String
-            version: Int64 }
-
-
-        type FQTypeName =
-          | Package of Package
-          | UserProgram of UserProgram
-
-      module FQFnName =
-        type Builtin = { name: String; version: Int64 }
-
-        type Package =
-          { owner: String
-            modules: List<String>
-            name: String
-            version: Int64 }
-
-        type UserProgram =
-          { modules: List<String>
-            name: String
-            version: Int64 }
-
-        type FQFnName =
-          | Builtin of Builtin
-          | Package of Package
-          | UserProgram of UserProgram
+        type FQTypeName = Package of Package
 
 
       module FQConstantName =
@@ -53,15 +25,25 @@ module Darklang =
             name: String
             version: Int64 }
 
-        type UserProgram =
-          { modules: List<String>
-            name: String
-            version: Int64 }
-
         type FQConstantName =
           | Builtin of Builtin
           | Package of Package
-          | UserProgram of UserProgram
+
+
+      module FQFnName =
+        type Builtin = { name: String; version: Int64 }
+
+        type Package =
+          { owner: String
+            modules: List<String>
+            name: String
+            version: Int64 }
+
+        type FQFnName =
+          | Builtin of Builtin
+          | Package of Package
+
+
 
 
       type NameResolution<'a> =
@@ -397,84 +379,7 @@ module Darklang =
             definition: Definition }
 
 
-      module Handler =
-        type CronInterval =
-          | EveryDay
-          | EveryWeek
-          | EveryFortnight
-          | EveryHour
-          | Every12Hours
-          | EveryMinute
-
-        type Spec =
-          | HTTP of route: String * method: String
-          | Worker of name: String
-          | Cron of name: String * interval: CronInterval
-          | REPL of name: String
-
-        type Handler = { tlid: TLID; ast: Expr; spec: Spec }
-
-
-      type DB =
-        { tlid: TLID
-          name: String
-          version: Int64
-          typ: TypeReference }
-
-
-      /// A type that a User defined within a Canvas
-      type UserType =
-        { tlid: TLID
-          name: FQTypeName.UserProgram
-          description: String
-          declaration: TypeDeclaration.TypeDeclaration
-          deprecated: Deprecation<FQTypeName.FQTypeName> }
-
-      module UserFunction =
-        type Parameter =
-          { name: String
-            typ: TypeReference
-            description: String }
-
-        type UserFunction =
-          { tlid: TLID
-            name: FQFnName.UserProgram
-            typeParams: List<String>
-            parameters: List<Parameter>
-            returnType: TypeReference
-            description: String
-            deprecated: Deprecation<FQFnName.FQFnName>
-            body: Expr }
-
-      type UserConstant =
-        { tlid: TLID
-          name: FQConstantName.UserProgram
-          description: String
-          deprecated: Deprecation<FQFnName.FQFnName>
-          body: Const }
-
-
-      // module Toplevel =
-      //   type T =
-      //     | TLHandler of Handler.Handler
-      //     | TLDB of DB
-      //     | TLFunction of UserFunction.UserFunction
-      //     | TLType of UserType.T
-
-      //   let toTLID (tl : T) : tlid =
-      //     match tl with
-      //     | TLHandler h -> h.tlid
-      //     | TLDB db -> db.tlid
-      //     | TLFunction f -> f.tlid
-      //     | TLType t -> t.tlid
-
-
-      type Secret =
-        { name: String
-          value: String
-          version: Int64 }
-
-
+      // Package space
       type PackageType =
         { tlid: TLID
           id: Uuid
@@ -482,6 +387,16 @@ module Darklang =
           declaration: TypeDeclaration.TypeDeclaration
           description: String
           deprecated: Deprecation<FQTypeName.FQTypeName> }
+
+
+      type PackageConstant =
+        { tlid: TLID
+          id: Uuid
+          name: FQConstantName.Package
+          body: Const
+          description: String
+          deprecated: Deprecation<FQFnName.FQFnName> }
+
 
       module PackageFn =
         type Parameter =
@@ -500,16 +415,50 @@ module Darklang =
             description: String
             deprecated: Deprecation<FQFnName.FQFnName> }
 
-      type PackageConstant =
-        { tlid: TLID
-          id: Uuid
-          name: FQConstantName.Package
-          body: Const
-          description: String
-          deprecated: Deprecation<FQFnName.FQFnName> }
-
-
       type Packages =
         { types: List<PackageType>
           constants: List<PackageConstant>
           fns: List<PackageFn.PackageFn> }
+
+
+      // User/Canvas space
+      type DB =
+        { tlid: TLID
+          name: String
+          version: Int64
+          typ: TypeReference }
+
+
+      type Secret =
+        { name: String
+          value: String
+          version: Int64 }
+
+
+      module Handler =
+        type CronInterval =
+          | EveryDay
+          | EveryWeek
+          | EveryFortnight
+          | EveryHour
+          | Every12Hours
+          | EveryMinute
+
+        type Spec =
+          | HTTP of route: String * method: String
+          | Worker of name: String
+          | Cron of name: String * interval: CronInterval
+          | REPL of name: String
+
+        type Handler = { tlid: TLID; ast: Expr; spec: Spec }
+
+
+// module Toplevel =
+//   type T =
+//     | TLDB of DB
+//     | TLHandler of Handler.Handler
+
+//   let toTLID (tl : T) : tlid =
+//     match tl with
+//     | TLDB db -> db.tlid
+//     | TLHandler h -> h.tlid

@@ -12,17 +12,17 @@ module Dval = LibExecution.Dval
 module TypeChecker = LibExecution.TypeChecker
 
 type Editor =
-  { types : List<UserType.T>
-    constants : List<UserConstant.T>
-    functions : List<UserFunction.T>
+  { types : List<PackageType.T>
+    constants : List<PackageConstant.T>
+    functions : List<PackageFn.T>
     currentState : Dval }
 
 
 /// A "user program" that can be executed by the interpreter
 type UserProgramSource =
-  { types : List<UserType.T>
-    constants : List<UserConstant.T>
-    fns : List<UserFunction.T>
+  { types : List<PackageType.T>
+    constants : List<PackageConstant.T>
+    fns : List<PackageFn.T>
 
     // (exprs to eval, in order)
     exprs : List<Expr> }

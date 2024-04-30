@@ -425,22 +425,22 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
 module Test =
   let rec isQueryableDval (dval : Dval) : bool =
     match dval with
-    | DInt64 _
-    | DUInt64 _
+    | DUnit
+    | DBool _
     | DInt8 _
     | DUInt8 _
     | DInt16 _
     | DUInt16 _
     | DInt32 _
     | DUInt32 _
+    | DInt64 _
+    | DUInt64 _
     | DInt128 _
     | DUInt128 _
-    | DString _
-    | DUnit
-    | DBool _
-    | DDateTime _
-    | DChar _
     | DFloat _
+    | DChar _
+    | DString _
+    | DDateTime _
     | DUuid _ -> true
 
     // VTTODO these should probably just check the valueType, not any internal data

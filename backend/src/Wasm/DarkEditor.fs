@@ -15,9 +15,9 @@ let debug (arg : string) = WasmHelpers.callJSFunction "console.log" [ arg ]
 
 /// Source of the editor (types, functions)
 type EditorSource =
-  { types : List<UserType.T>
-    fns : List<UserFunction.T>
-    constants : List<UserConstant.T> }
+  { types : List<PackageType.T>
+    constants : List<PackageConstant.T>
+    fns : List<PackageFn.T> }
 
 
 
@@ -69,7 +69,7 @@ let LoadClient (canvasName : string) : Task<string> =
       LibExecution.Execution.executeFunction
         state
         None
-        (FQFnName.fqUserProgram [] "init" 0)
+        (FQFnName.fqPackage "TODO" [] "init" 0)
         []
         (NEList.singleton DUnit)
 
@@ -107,7 +107,7 @@ let HandleEvent (serializedEvent : string) : Task<string> =
       LibExecution.Execution.executeFunction
         state
         None
-        (FQFnName.fqUserProgram [] "handleEvent" 0)
+        (FQFnName.fqPackage "TODO" [] "handleEvent" 0)
         []
         (NEList.singleton (DString serializedEvent))
 

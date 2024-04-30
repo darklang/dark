@@ -13,11 +13,6 @@ let eBuiltinFnName (name : string) (version : int) : Expr =
   |> PT2RT.FQFnName.toRT
   |> fun x -> EFnName(gid (), x)
 
-let eUserFnName (name : string) : Expr =
-  PT.FQFnName.fqUserProgram [] name 0
-  |> PT2RT.FQFnName.toRT
-  |> fun x -> EFnName(gid (), x)
-
 
 let eFn'
   (function_ : string)
@@ -36,13 +31,6 @@ let eFn
   : Expr =
   eFn' function_ version typeArgs args
 
-let eUserFn
-  (function_ : string)
-  (typeArgs : List<TypeReference>)
-  (args : List<Expr>)
-  : Expr =
-  let args = NEList.ofListUnsafe "eUserFn" [] args
-  EApply(gid (), (eUserFnName function_), typeArgs, args)
 
 let eApply
   (target : Expr)
@@ -101,25 +89,32 @@ let eEnum
   : Expr =
   EEnum(gid (), typeName, name, args)
 
-let userTypeName
+let packageTypeName
+  (owner : string)
   (modules : List<string>)
   (name : string)
   (version : int)
-  : FQTypeName.UserProgram =
-  { modules = modules; name = name; version = version }
+  : FQTypeName.Package =
+  { owner = owner; modules = modules; name = name; version = version }
 
-let fqUserTypeName (modules : List<string>) (name : string) (version : int) =
-  FQTypeName.UserProgram(userTypeName modules name version)
+let fqPackageTypeName
+  (owner : string)
+  (modules : List<string>)
+  (name : string)
+  (version : int)
+  =
+  FQTypeName.Package(packageTypeName owner modules name version)
 
 let eTuple (first : Expr) (second : Expr) (theRest : Expr list) : Expr =
   ETuple(gid (), first, second, theRest)
 
-let userTypeReference
+let packageTypeReference
+  (owner : string)
   (modules : List<string>)
   (name : string)
   (version : int)
   : TypeReference =
-  TCustomType(Ok(fqUserTypeName modules name version), [])
+  TCustomType(Ok(fqPackageTypeName owner modules name version), [])
 
 let customTypeRecord (fields : List<string * TypeReference>) : TypeDeclaration.T =
   let fields =
@@ -132,11 +127,12 @@ let customTypeRecord (fields : List<string * TypeReference>) : TypeDeclaration.T
     { typeParams = []; definition = TypeDeclaration.Record(NEList.ofList hd rest) }
 
 let userTypeRecord
+  (owner : string)
   (modules : List<string>)
   (name : string)
   (version : int)
   (fields : List<string * TypeReference>)
-  : UserType.T =
+  : PackageType.T =
   { tlid = gid ()
-    name = { modules = modules; name = name; version = version }
+    name = { owner = owner; modules = modules; name = name; version = version }
     declaration = customTypeRecord fields }

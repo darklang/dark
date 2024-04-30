@@ -29,10 +29,10 @@ let load (builtins : RT.Builtins) : Ply<PT.Packages> =
       filesWithContents
       // TODO: parallelize
       |> Ply.List.mapSequentially (fun (path, contents) ->
+        //debuG "parsing" path
         LibParser.Parser.parsePackageFile
           builtins
-          RT.PackageManager.Empty
-          NR.UserStuff.empty
+          RT.PackageManager.empty
           NR.OnMissing.Allow
           path
           contents)
@@ -46,7 +46,6 @@ let load (builtins : RT.Builtins) : Ply<PT.Packages> =
         LibParser.Parser.parsePackageFile
           builtins
           (inMemPackageManagerFromPackages packages)
-          NR.UserStuff.empty
           NR.OnMissing.ThrowError
           path
           contents)

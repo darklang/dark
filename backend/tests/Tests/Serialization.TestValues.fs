@@ -23,20 +23,16 @@ let tlids : List<tlid> = [ 1UL; 0UL; uint64 -1L ]
 
 module RuntimeTypes =
   let fqTypeNames : List<RT.FQTypeName.FQTypeName> =
-    [ RT.FQTypeName.UserProgram { modules = [ "X" ]; name = "userfn"; version = 0 }
-      RT.FQTypeName.Package
+    [ RT.FQTypeName.Package
         { owner = "a"; modules = [ "b"; "C" ]; name = "d"; version = 2 } ]
 
   let fqFnNames : List<RT.FQFnName.FQFnName> =
-    [ RT.FQFnName.UserProgram { modules = [ "X" ]; name = "userfn"; version = 0 }
-      RT.FQFnName.Builtin { name = "aB"; version = 1 }
+    [ RT.FQFnName.Builtin { name = "aB"; version = 1 }
       RT.FQFnName.Package
         { owner = "a"; modules = [ "b"; "C" ]; name = "d"; version = 2 } ]
 
   let fqConstantNames : List<RT.FQConstantName.FQConstantName> =
-    [ RT.FQConstantName.UserProgram
-        { modules = [ "X" ]; name = "userfn"; version = 0 }
-      RT.FQConstantName.Builtin { name = "aB"; version = 1 }
+    [ RT.FQConstantName.Builtin { name = "aB"; version = 1 }
       RT.FQConstantName.Package
         { owner = "a"; modules = [ "b"; "C" ]; name = "d"; version = 2 } ]
 
@@ -60,7 +56,10 @@ module RuntimeTypes =
       RT.TDict RT.TBool
       RT.TDB RT.TBool
       RT.TCustomType(
-        Ok(RT.FQTypeName.UserProgram { modules = []; name = "User"; version = 0 }),
+        Ok(
+          RT.FQTypeName.Package
+            { owner = "test"; modules = []; name = "User"; version = 0 }
+        ),
         [ RT.TBool ]
       )
       RT.TCustomType(
@@ -176,7 +175,8 @@ module RuntimeTypes =
         128384UL,
         RT.EFnName(
           2236UL,
-          RT.FQFnName.UserProgram { modules = []; name = "fn"; version = 0 }
+          RT.FQFnName.Package
+            { owner = "test"; modules = []; name = "fn"; version = 0 }
         ),
         [],
         (NEList.singleton (RT.EUnit(7756UL)))
@@ -190,8 +190,11 @@ module RuntimeTypes =
       )
       RT.ERecord(
         8167384UL,
-        RT.FQTypeName.UserProgram(
-          { modules = [ "MyModule"; "Name" ]; name = "NonEmptyList"; version = 0 }
+        RT.FQTypeName.Package(
+          { owner = "owner"
+            modules = [ "MyModule"; "Name" ]
+            name = "NonEmptyList"
+            version = 0 }
         ),
         NEList.singleton ("a9df8", RT.EUnit(71631UL))
       )
@@ -212,7 +215,8 @@ module RuntimeTypes =
       RT.EOr(8375723UL, RT.EBool(83289473UL, true), RT.EBool(383674673UL, false))
       RT.EEnum(
         8375723UL,
-        RT.FQTypeName.UserProgram { modules = []; name = "MyEnum"; version = 0 },
+        RT.FQTypeName.Package
+          { owner = "owner"; modules = []; name = "MyEnum"; version = 0 },
         "A",
         [ RT.EUnit(81264012UL) ]
       ) ]
@@ -252,7 +256,8 @@ module RuntimeTypes =
 
   let dval : RT.Dval =
     let typeName =
-      RT.FQTypeName.UserProgram { modules = []; name = "MyType"; version = 0 }
+      RT.FQTypeName.Package
+        { owner = "owner"; modules = []; name = "MyType"; version = 0 }
     sampleDvals
     |> List.map (fun (name, (dv, _)) -> name, dv)
     |> fun fields -> RT.DRecord(typeName, typeName, [], Map fields)
@@ -263,8 +268,7 @@ module ProgramTypes =
   let signs = [ Sign.Positive; Sign.Negative ]
 
   let fqFnNames : List<PT.FQFnName.FQFnName> =
-    [ PT.FQFnName.UserProgram { modules = []; name = "fn"; version = 0 }
-      PT.FQFnName.Builtin { name = "int64Increment"; version = 1 }
+    [ PT.FQFnName.Builtin { name = "int64Increment"; version = 1 }
       PT.FQFnName.Package
         { owner = "twilio"; modules = [ "Twilio" ]; name = "sms"; version = 1 } ]
 
@@ -348,8 +352,8 @@ module ProgramTypes =
         PT.TDB PT.TBool
         PT.TCustomType(
           Ok(
-            PT.FQTypeName.UserProgram
-              { modules = [ "Mod" ]; name = "User"; version = 0 }
+            PT.FQTypeName.Package
+              { owner = "owner"; modules = [ "Mod" ]; name = "User"; version = 0 }
           ),
           [ PT.TBool ]
         )
@@ -509,8 +513,9 @@ module ProgramTypes =
                         PT.ERecord(
                           109539183UL,
                           Ok(
-                            PT.FQTypeName.UserProgram(
-                              { modules = [ "dark"; "stdlib" ]
+                            PT.FQTypeName.Package(
+                              { owner = "dark"
+                                modules = [ "stdlib" ]
                                 name = "NonEmptyList"
                                 version = 0 }
                             )
@@ -856,29 +861,6 @@ module ProgramTypes =
 
   let userDBs : List<PT.DB.T> = [ userDB ]
 
-  let userFunction : PT.UserFunction.T =
-    { tlid = 0UL
-      name = { modules = []; name = "user"; version = 0 }
-      typeParams = [ "a" ]
-      parameters =
-        NEList.singleton
-          { name = "myparam1"; typ = typeReference; description = "param1" }
-      returnType = typeReference
-      description = "function description"
-      deprecated = PT.DeprecatedBecause "some reason"
-      body = expr }
-
-  let userFunctions : List<PT.UserFunction.T> = [ userFunction ]
-
-  let userConstant : PT.UserConstant.T =
-    { tlid = 0UL
-      name = { modules = []; name = "pi"; version = 0 }
-      description = "constant description"
-      deprecated = PT.DeprecatedBecause "some reason"
-      body = constValue }
-
-  let userConstants : List<PT.UserConstant.T> = [ userConstant ]
-
   // TODO: serialize stdlib types?
   // (also make sure we roundtrip test them)
 
@@ -941,9 +923,7 @@ module ProgramTypes =
 
   let toplevels : List<PT.Toplevel.T> =
     [ List.map PT.Toplevel.TLHandler Handler.handlers
-      List.map PT.Toplevel.TLDB [ userDB ]
-      List.map PT.Toplevel.TLFunction userFunctions
-      List.map PT.Toplevel.TLConstant userConstants ]
+      List.map PT.Toplevel.TLDB [ userDB ] ]
     |> List.concat
 
   let userSecret : PT.Secret.T = { name = "APIKEY"; value = "hunter2"; version = 0 }

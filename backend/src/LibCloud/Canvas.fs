@@ -96,17 +96,12 @@ let getOwner (id : CanvasID) : Task<Option<UserID>> =
 /// </remarks>
 type T =
   { id : CanvasID
+
+    secrets : Map<string, PT.Secret.T>
     handlers : Map<tlid, PT.Handler.T>
     dbs : Map<tlid, PT.DB.T>
-    userFunctions : Map<tlid, PT.UserFunction.T>
-    userTypes : Map<tlid, PT.UserType.T>
-    userConstants : Map<tlid, PT.UserConstant.T>
     deletedHandlers : Map<tlid, PT.Handler.T>
-    deletedDBs : Map<tlid, PT.DB.T>
-    deletedUserFunctions : Map<tlid, PT.UserFunction.T>
-    deletedUserTypes : Map<tlid, PT.UserType.T>
-    deletedUserConstants : Map<tlid, PT.UserConstant.T>
-    secrets : Map<string, PT.Secret.T> }
+    deletedDBs : Map<tlid, PT.DB.T> }
 
 let addToplevel (deleted : Serialize.Deleted) (tl : PT.Toplevel.T) (c : T) : T =
   let tlid = PT.Toplevel.toTLID tl
@@ -116,22 +111,10 @@ let addToplevel (deleted : Serialize.Deleted) (tl : PT.Toplevel.T) (c : T) : T =
     { c with handlers = Map.add tlid h c.handlers }
   | Serialize.NotDeleted, PT.Toplevel.TLDB db ->
     { c with dbs = Map.add tlid db c.dbs }
-  | Serialize.NotDeleted, PT.Toplevel.TLType t ->
-    { c with userTypes = Map.add tlid t c.userTypes }
-  | Serialize.NotDeleted, PT.Toplevel.TLFunction f ->
-    { c with userFunctions = Map.add tlid f c.userFunctions }
-  | Serialize.NotDeleted, PT.Toplevel.TLConstant cn ->
-    { c with userConstants = Map.add tlid cn c.userConstants }
   | Serialize.Deleted, PT.Toplevel.TLHandler h ->
     { c with deletedHandlers = Map.add tlid h c.deletedHandlers }
   | Serialize.Deleted, PT.Toplevel.TLDB db ->
     { c with deletedDBs = Map.add tlid db c.deletedDBs }
-  | Serialize.Deleted, PT.Toplevel.TLType t ->
-    { c with deletedUserTypes = Map.add tlid t c.deletedUserTypes }
-  | Serialize.Deleted, PT.Toplevel.TLFunction f ->
-    { c with deletedUserFunctions = Map.add tlid f c.deletedUserFunctions }
-  | Serialize.Deleted, PT.Toplevel.TLConstant cn ->
-    { c with deletedUserConstants = Map.add tlid cn c.deletedUserConstants }
 
 
 let addToplevels (tls : List<Serialize.Deleted * PT.Toplevel.T>) (canvas : T) : T =
@@ -140,22 +123,14 @@ let addToplevels (tls : List<Serialize.Deleted * PT.Toplevel.T>) (canvas : T) : 
 let toplevels (c : T) : Map<tlid, PT.Toplevel.T> =
   let map f l = Map.map f l |> Map.toSeq
 
-  [ map PT.Toplevel.TLHandler c.handlers
-    map PT.Toplevel.TLDB c.dbs
-    map PT.Toplevel.TLType c.userTypes
-    map PT.Toplevel.TLFunction c.userFunctions
-    map PT.Toplevel.TLConstant c.userConstants ]
+  [ map PT.Toplevel.TLHandler c.handlers; map PT.Toplevel.TLDB c.dbs ]
   |> Seq.concat
   |> Map
 
 let deletedToplevels (c : T) : Map<tlid, PT.Toplevel.T> =
   let map f l = Map.map f l |> Map.toSeq
 
-  [ map PT.Toplevel.TLHandler c.deletedHandlers
-    map PT.Toplevel.TLDB c.deletedDBs
-    map PT.Toplevel.TLType c.deletedUserTypes
-    map PT.Toplevel.TLFunction c.deletedUserFunctions
-    map PT.Toplevel.TLConstant c.deletedUserConstants ]
+  [ map PT.Toplevel.TLHandler c.deletedHandlers; map PT.Toplevel.TLDB c.deletedDBs ]
   |> Seq.concat
   |> Map
 
@@ -196,35 +171,6 @@ let deleteHandler (tlid : tlid) c =
         handlers = Map.remove h.tlid c.handlers
         deletedHandlers = Map.add h.tlid h c.deletedHandlers }
 
-let setFunction (f : PT.UserFunction.T) (c : T) : T =
-  // if the fn had been deleted, remove it from the deleted set. This handles
-  // a data race where a Set comes in after a Delete.
-  { c with
-      userFunctions = Map.add f.tlid f c.userFunctions
-      deletedUserFunctions = Map.remove f.tlid c.deletedUserFunctions }
-
-let setType (t : PT.UserType.T) (c : T) : T =
-  // if the tipe had been deleted, remove it from the deleted set. This handles
-  // a data race where a Set comes in after a Delete.
-  { c with
-      userTypes = Map.add t.tlid t c.userTypes
-      deletedUserTypes = Map.remove t.tlid c.deletedUserTypes }
-
-let deleteFunction (tlid : tlid) (c : T) : T =
-  match Map.get tlid c.userFunctions with
-  | None -> c
-  | Some f ->
-    { c with
-        userFunctions = Map.remove tlid c.userFunctions
-        deletedUserFunctions = Map.add tlid f c.deletedUserFunctions }
-
-let deleteType (tlid : tlid) (c : T) : T =
-  match Map.get tlid c.userTypes with
-  | None -> c
-  | Some t ->
-    { c with
-        userTypes = Map.remove tlid c.userTypes
-        deletedUserTypes = Map.add tlid t c.deletedUserTypes }
 
 // CLEANUP Historically, on the backend, toplevel meant handler or DB
 // we want to de-conflate the concepts
@@ -266,14 +212,8 @@ let empty (id : CanvasID) =
   { id = id
     handlers = Map.empty
     dbs = Map.empty
-    userFunctions = Map.empty
-    userTypes = Map.empty
-    userConstants = Map.empty
     deletedHandlers = Map.empty
     deletedDBs = Map.empty
-    deletedUserFunctions = Map.empty
-    deletedUserTypes = Map.empty
-    deletedUserConstants = Map.empty
     secrets = Map.empty }
 
 let loadFrom (id : CanvasID) (tlids : List<tlid>) : Task<T> =
@@ -364,31 +304,11 @@ let getToplevel (tlid : tlid) (c : T) : Option<Serialize.Deleted * PT.Toplevel.T
     Map.find tlid c.deletedDBs
     |> Option.map (fun h -> (Serialize.Deleted, PT.Toplevel.TLDB h))
 
-  let userFunction () =
-    Map.find tlid c.userFunctions
-    |> Option.map (fun h -> (Serialize.NotDeleted, PT.Toplevel.TLFunction h))
-
-  let deletedUserFunction () =
-    Map.find tlid c.deletedUserFunctions
-    |> Option.map (fun h -> (Serialize.Deleted, PT.Toplevel.TLFunction h))
-
-  let userType () =
-    Map.find tlid c.userTypes
-    |> Option.map (fun h -> (Serialize.NotDeleted, PT.Toplevel.TLType h))
-
-  let deletedUserType () =
-    Map.find tlid c.deletedUserTypes
-    |> Option.map (fun h -> (Serialize.Deleted, PT.Toplevel.TLType h))
 
   handler ()
   |> Option.orElseWith deletedHandler
   |> Option.orElseWith db
   |> Option.orElseWith deletedDB
-  |> Option.orElseWith userFunction
-  |> Option.orElseWith deletedUserFunction
-  |> Option.orElseWith userType
-  |> Option.orElseWith deletedUserType
-
 
 
 let deleteToplevelForever (canvasID : CanvasID) (tlid : tlid) : Task<unit> =
@@ -404,9 +324,6 @@ let toplevelToDBTypeString (tl : PT.Toplevel.T) : string =
   match tl with
   | PT.Toplevel.TLDB _ -> "db"
   | PT.Toplevel.TLHandler _ -> "handler"
-  | PT.Toplevel.TLFunction _ -> "user_function"
-  | PT.Toplevel.TLType _ -> "user_type"
-  | PT.Toplevel.TLConstant _ -> "user_constant"
 
 /// Save just the TLIDs listed (a canvas may load more tlids to support
 /// calling/testing these TLs, even though those TLs do not need to be updated)
@@ -444,10 +361,7 @@ let saveTLIDs
                 PTParser.Handler.Spec.toName spec,
                 PTParser.Handler.Spec.toModifier spec
               )
-          | PT.Toplevel.TLDB _
-          | PT.Toplevel.TLType _
-          | PT.Toplevel.TLConstant _
-          | PT.Toplevel.TLFunction _ -> None
+          | PT.Toplevel.TLDB _ -> None
 
         let (module_, name, modifier) =
           // Only save info used to find handlers when the handler has not been deleted
@@ -556,35 +470,11 @@ let toProgram (c : T) : Ply<RT.Program> =
       |> List.map (fun db -> (db.name, PT2RT.DB.toRT db))
       |> Map.ofList
 
-    let userFns =
-      c.userFunctions
-      |> Map.values
-      |> List.map (fun f ->
-        (PT2RT.FQFnName.UserProgram.toRT f.name, PT2RT.UserFunction.toRT f))
-      |> Map.ofList
-
-    let userTypes =
-      c.userTypes
-      |> Map.values
-      |> List.map (fun t ->
-        (PT2RT.FQTypeName.UserProgram.toRT t.name, PT2RT.UserType.toRT t))
-      |> Map.ofList
-
-    let userConstants =
-      c.userConstants
-      |> Map.values
-      |> List.map (fun c ->
-        (PT2RT.FQConstantName.UserProgram.toRT c.name, PT2RT.UserConstant.toRT c))
-      |> Map.ofList
-
     let secrets = c.secrets |> Map.values |> List.map PT2RT.Secret.toRT
 
     return
       { canvasID = c.id
         internalFnsAllowed = List.contains c.id Config.allowedDarkInternalCanvasIDs
-        fns = userFns
-        types = userTypes
-        constants = userConstants
         dbs = dbs
         secrets = secrets }
   }

@@ -50,14 +50,12 @@ let setupDBs (canvasID : CanvasID) (dbs : List<PT.DB.T>) : Task<unit> =
 let t
   (internalFnsAllowed : bool)
   (canvasName : string)
+  (pm : RT.PackageManager)
   (actualExpr : PT.Expr)
   (expectedExpr : PT.Expr)
   (filename : string)
   (lineNumber : int)
   (dbs : List<PT.DB.T>)
-  (types : List<PT.UserType.T>)
-  (functions : List<PT.UserFunction.T>)
-  (constants : List<PT.UserConstant.T>)
   (workers : List<string>)
   : Test =
   testTask $"line{lineNumber}" {
@@ -72,36 +70,12 @@ let t
 
       let tlid = 777777297845223UL
 
-      let rtTypes =
-        types
-        |> List.map (fun typ ->
-          (PT2RT.FQTypeName.UserProgram.toRT typ.name, PT2RT.UserType.toRT typ))
-        |> Map.ofList
-
       let rtDBs =
         dbs |> List.map (fun db -> (db.name, PT2RT.DB.toRT db)) |> Map.ofList
 
-      let rtFunctions =
-        functions
-        |> List.map (fun fn ->
-          (PT2RT.FQFnName.UserProgram.toRT fn.name, PT2RT.UserFunction.toRT fn))
-        |> Map.ofList
-
-      let rtConstants =
-        constants
-        |> List.map (fun c ->
-          (PT2RT.FQConstantName.UserProgram.toRT c.name, PT2RT.UserConstant.toRT c))
-        |> Map.ofList
-
       let! (state : RT.ExecutionState) =
-        executionStateFor
-          canvasID
-          internalFnsAllowed
-          false
-          rtDBs
-          rtTypes
-          rtFunctions
-          rtConstants
+        executionStateFor pm canvasID internalFnsAllowed false rtDBs
+
       let red = "\u001b[31m"
       let green = "\u001b[32m"
       let bold = "\u001b[1;37m"
@@ -242,9 +216,9 @@ let baseDir = "testfiles/execution/"
 let fileTests () : Test =
   let parseTestFile fileName =
     LibParser.TestModule.parseTestFile
+      "Tests"
       localBuiltIns
       packageManager
-      NR.UserStuff.empty
       NR.OnMissing.Allow
       fileName
 
@@ -265,10 +239,15 @@ let fileTests () : Test =
           let modules =
             $"{dir}/{filename}" |> parseTestFile |> (fun ply -> ply.Result)
 
-          // Within a module, tests have access to
-          let fns = modules |> List.collect _.fns
-          let types = modules |> List.collect _.types
-          let constants = modules |> List.collect _.constants
+          let pm =
+            RT.PackageManager.withExtras
+              packageManager
+              (modules |> List.collect _.types |> List.map PT2RT.PackageType.toRT)
+              (modules
+               |> List.collect _.constants
+               |> List.map PT2RT.PackageConstant.toRT)
+              (modules |> List.collect _.fns |> List.map PT2RT.PackageFn.toRT)
+
           let tests =
             modules
             |> List.map (fun m ->
@@ -277,17 +256,14 @@ let fileTests () : Test =
                 t
                   initializeCanvas
                   test.name
+                  pm
                   test.actual
                   test.expected
                   filename
                   test.lineNumber
                   m.dbs
-                  types
-                  fns
-                  constants
                   []))
             |> List.concat
-
 
           testList testName tests
         with e ->

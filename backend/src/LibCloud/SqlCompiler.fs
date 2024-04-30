@@ -320,21 +320,6 @@ let rec inline'
                 |> Map.ofList
               return! inline' fns paramName paramToArgMap body
             | None -> return expr
-          | FQFnName.UserProgram u ->
-            match Map.get u fns.userProgram with
-            | Some fn ->
-              let parameters =
-                fn.parameters
-                |> NEList.map (fun p -> p.name, p.typ)
-                |> NEList.toList
-              let body = fn.body
-              let paramToArgMap =
-                List.zip parameters arguments
-                |> List.map (fun ((name, _), arg) -> name, arg)
-                |> Map.ofList
-              return! inline' fns paramName paramToArgMap body
-            | None -> return expr
-
           | _ -> return expr
         }
       | ELet(_, lpVariable, expr, body) ->
@@ -417,14 +402,12 @@ let rec lambdaToSql
               match constantName with
               | FQConstantName.Builtin b ->
                 match Map.get b constants.builtIn with
-                | None -> return! error $"No built-in constant {nameStr} found"
                 | Some c -> return c.body
+                | None -> return! error $"No built-in constant {nameStr} found"
               | FQConstantName.Package p ->
                 match! constants.package p with
-                | None -> return error $"No package constant {nameStr} found"
                 | Some c -> return LibExecution.Interpreter.evalConst source c.body
-              | FQConstantName.UserProgram _ ->
-                return error $"User constants are not yet supported"
+                | None -> return error $"No package constant {nameStr} found"
             }
           do! typecheckDval nameStr types constant expectedType
           let random = randomString 8

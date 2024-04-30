@@ -1,7 +1,5 @@
 module Darklang =
   module Canvas =
     type Program =
-      { types: List<LanguageTools.ProgramTypes.UserType>
-        dbs: List<LanguageTools.ProgramTypes.DB>
-        fns: List<LanguageTools.ProgramTypes.UserFunction.UserFunction>
+      { dbs: List<LanguageTools.ProgramTypes.DB>
         handlers: List<LanguageTools.ProgramTypes.Handler.Handler> }

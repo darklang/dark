@@ -60,28 +60,10 @@ module FQTypeName =
       | _ -> Exception.raiseInternal "Invalid FQTypeName.Package" []
 
 
-  module UserProgram =
-    let toDT (u : FQTypeName.UserProgram) : Dval =
-      let fields =
-        [ "modules", DList(VT.string, List.map DString u.modules)
-          "name", DString u.name
-          "version", DInt64 u.version ]
-      let typeName = rtTyp [ "FQTypeName" ] "UserProgram" 0
-      DRecord(typeName, typeName, [], Map fields)
-
-    let fromDT (d : Dval) : FQTypeName.UserProgram =
-      match d with
-      | DRecord(_, _, _, fields) ->
-        { modules = modulesField fields
-          name = nameField fields
-          version = versionField fields }
-      | _ -> Exception.raiseInternal "Invalid FQTypeName.UserProgram" []
-
   let toDT (u : FQTypeName.FQTypeName) : Dval =
     let (caseName, fields) =
       match u with
       | FQTypeName.Package u -> "Package", [ Package.toDT u ]
-      | FQTypeName.UserProgram u -> "UserProgram", [ UserProgram.toDT u ]
 
     let typeName = rtTyp [ "FQTypeName" ] "FQTypeName" 0
     DEnum(typeName, typeName, [], caseName, fields)
@@ -90,10 +72,6 @@ module FQTypeName =
   let fromDT (d : Dval) : FQTypeName.FQTypeName =
     match d with
     | DEnum(_, _, [], "Package", [ u ]) -> FQTypeName.Package(Package.fromDT u)
-
-    | DEnum(_, _, [], "UserProgram", [ u ]) ->
-      FQTypeName.UserProgram(UserProgram.fromDT u)
-
     | _ -> Exception.raiseInternal "Invalid FQTypeName" []
 
 
@@ -131,29 +109,11 @@ module FQConstantName =
           version = versionField fields }
       | _ -> Exception.raiseInternal "Invalid FQConstantName.Package" []
 
-  module UserProgram =
-    let toDT (u : FQConstantName.UserProgram) : Dval =
-      let fields =
-        [ "modules", DList(VT.string, List.map DString u.modules)
-          "name", DString u.name
-          "version", DInt64 u.version ]
-      let typeName = rtTyp [ "FQConstantName" ] "UserProgram" 0
-      DRecord(typeName, typeName, [], Map fields)
-
-    let fromDT (d : Dval) : FQConstantName.UserProgram =
-      match d with
-      | DRecord(_, _, _, fields) ->
-        { modules = modulesField fields
-          name = nameField fields
-          version = versionField fields }
-      | _ -> Exception.raiseInternal "Invalid FQConstantName.UserProgram" []
-
   let toDT (u : FQConstantName.FQConstantName) : Dval =
     let (caseName, fields) =
       match u with
       | FQConstantName.Builtin u -> "Builtin", [ Builtin.toDT u ]
       | FQConstantName.Package u -> "Package", [ Package.toDT u ]
-      | FQConstantName.UserProgram u -> "UserProgram", [ UserProgram.toDT u ]
 
     let typeName = rtTyp [ "FQConstantName" ] "FQConstantName" 0
     DEnum(typeName, typeName, [], caseName, fields)
@@ -163,9 +123,6 @@ module FQConstantName =
     | DEnum(_, _, [], "Builtin", [ u ]) -> FQConstantName.Builtin(Builtin.fromDT u)
 
     | DEnum(_, _, [], "Package", [ u ]) -> FQConstantName.Package(Package.fromDT u)
-
-    | DEnum(_, _, [], "UserProgram", [ u ]) ->
-      FQConstantName.UserProgram(UserProgram.fromDT u)
 
     | _ -> Exception.raiseInternal "Invalid FQConstantName" []
 
@@ -205,30 +162,11 @@ module FQFnName =
       | _ -> Exception.raiseInternal "Invalid FQFnName.Package" []
 
 
-  module UserProgram =
-    let toDT (u : FQFnName.UserProgram) : Dval =
-      let fields =
-        [ "modules", DList(VT.string, List.map DString u.modules)
-          "name", DString u.name
-          "version", DInt64 u.version ]
-      let typeName = rtTyp [ "FQFnName" ] "UserProgram" 0
-      DRecord(typeName, typeName, [], Map fields)
-
-    let fromDT (d : Dval) : FQFnName.UserProgram =
-      match d with
-      | DRecord(_, _, _, fields) ->
-        { modules = modulesField fields
-          name = nameField fields
-          version = versionField fields }
-      | _ -> Exception.raiseInternal "Invalid FQFnName.UserProgram" []
-
-
   let toDT (u : FQFnName.FQFnName) : Dval =
     let (caseName, fields) =
       match u with
       | FQFnName.Builtin u -> "Builtin", [ Builtin.toDT u ]
       | FQFnName.Package u -> "Package", [ Package.toDT u ]
-      | FQFnName.UserProgram u -> "UserProgram", [ UserProgram.toDT u ]
 
     let typeName = rtTyp [ "FQFnName" ] "FQFnName" 0
     DEnum(typeName, typeName, [], caseName, fields)
@@ -238,9 +176,6 @@ module FQFnName =
     | DEnum(_, _, [], "Builtin", [ u ]) -> FQFnName.Builtin(Builtin.fromDT u)
 
     | DEnum(_, _, [], "Package", [ u ]) -> FQFnName.Package(Package.fromDT u)
-
-    | DEnum(_, _, [], "UserProgram", [ u ]) ->
-      FQFnName.UserProgram(UserProgram.fromDT u)
 
     | _ -> Exception.raiseInternal "Invalid FQFnName" []
 

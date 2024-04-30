@@ -6,22 +6,23 @@ open LibExecution.RuntimeTypes
 
 let getStateForEval
   (builtins : Builtins)
-  (types : List<UserType.T>)
-  (constants : List<UserConstant.T>)
-  (fns : List<UserFunction.T>)
+  (_types : List<PackageType.T>)
+  (_constants : List<PackageConstant.T>)
+  (_fns : List<PackageFn.T>)
   : ExecutionState =
 
   // TODO
-  let packageManager : PackageManager = PackageManager.Empty
+  let packageManager : PackageManager = PackageManager.empty
 
   let program : Program =
     { canvasID = CanvasID.Empty
       internalFnsAllowed = true
-      types = Map.fromListBy (_.name) types
-      constants = Map.fromListBy (_.name) constants
+      // types = Map.fromListBy (_.name) types
+      // constants = Map.fromListBy (_.name) constants
       dbs = Map.empty
       secrets = List.empty
-      fns = Map.fromListBy (_.name) fns }
+    //fns = Map.fromListBy (_.name) fns
+    }
 
   { builtins = builtins
     tracing = LibExecution.Execution.noTracing

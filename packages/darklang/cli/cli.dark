@@ -61,7 +61,7 @@ module Darklang =
       (args: List<String>)
       : Int64 =
       if Stdlib.List.member_v0 flags "wip-parser" then
-        let nameResolver = LanguageTools.NameResolver.empty ()
+        let onMissing = LanguageTools.NameResolver.OnMissing.Allow
 
         let args =
           args
@@ -75,7 +75,7 @@ module Darklang =
                 | CliScript script -> script.exprsToEval)
           |> Stdlib.List.flatten
           |> Stdlib.List.map (fun arg ->
-            LanguageTools.WrittenTypesToProgramTypes.Expr.toPT nameResolver arg)
+            LanguageTools.WrittenTypesToProgramTypes.Expr.toPT onMissing arg)
 
         match Builtin.cliExecuteFunctionWithNewParser fnName args with
         | Ok result ->

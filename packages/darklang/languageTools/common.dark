@@ -17,3 +17,9 @@ module Darklang =
         description: String
         parameters: List<BuiltinFunctionParameter>
         returnType: String }
+
+    /// A Darklang builtin constant
+    type BuiltinConstant =
+      { name: String
+        description: String
+        ``type``: String }

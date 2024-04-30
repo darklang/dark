@@ -423,6 +423,25 @@ let fns : List<BuiltInFn> =
 
       sqlSpec = NotQueryable
       previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "debug" 0
+      typeParams = []
+      parameters =
+        [ Param.make "label" TString "The label to be printed."
+          Param.make "value" (TVariable "a") "The value to be printed." ]
+      returnType = TUnit
+      description = "Prints the given <param value> to the standard output"
+      fn =
+        (function
+        | _, _, [ DString label; value ] ->
+          // TODO: call upon the Dark equivalent fn instead of rlying on DvalReprDeveloper
+          print $"DEBUG: {label} - {DvalReprDeveloper.toRepr value}"
+          Ply DUnit
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
       deprecated = NotDeprecated } ]
 
 

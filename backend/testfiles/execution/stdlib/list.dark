@@ -503,3 +503,9 @@ Stdlib.List.chunkBySize_v0 [ 1L; 2L; 3L; 4L ] 0L = Stdlib.Result.Result.Error
 
 Stdlib.List.chunkBySize_v0 [ 1L; 2L; 3L; 4L ] -1L = Stdlib.Result.Result.Error
   Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero
+
+
+Stdlib.List.splitLast [] = Stdlib.Option.Option.None
+Stdlib.List.splitLast [ 1L ] = Stdlib.Option.Option.Some(([], 1L))
+Stdlib.List.splitLast [ 1L; 2L ] = Stdlib.Option.Option.Some(([ 1L ], 2L))
+Stdlib.List.splitLast [ 1L; 2L; 3L ] = Stdlib.Option.Option.Some(([ 1L; 2L ], 3L))

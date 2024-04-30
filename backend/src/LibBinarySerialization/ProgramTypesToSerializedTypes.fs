@@ -107,26 +107,13 @@ module FQTypeName =
         name = name.name
         version = name.version }
 
-  module UserProgram =
-    let toST (name : PT.FQTypeName.UserProgram) : ST.FQTypeName.UserProgram =
-      { modules = name.modules; name = name.name; version = name.version }
-
-    let toPT (name : ST.FQTypeName.UserProgram) : PT.FQTypeName.UserProgram =
-      { modules = name.modules; name = name.name; version = name.version }
-
-
-
   let toST (name : PT.FQTypeName.FQTypeName) : ST.FQTypeName.FQTypeName =
     match name with
     | PT.FQTypeName.Package name -> ST.FQTypeName.Package(Package.toST name)
-    | PT.FQTypeName.UserProgram name ->
-      ST.FQTypeName.UserProgram(UserProgram.toST name)
 
   let toPT (name : ST.FQTypeName.FQTypeName) : PT.FQTypeName.FQTypeName =
     match name with
     | ST.FQTypeName.Package name -> PT.FQTypeName.Package(Package.toPT name)
-    | ST.FQTypeName.UserProgram name ->
-      PT.FQTypeName.UserProgram(UserProgram.toPT name)
 
 
 module FQConstantName =
@@ -150,21 +137,12 @@ module FQConstantName =
         name = name.name
         version = name.version }
 
-  module UserProgram =
-    let toST (name : PT.FQConstantName.UserProgram) : ST.FQConstantName.UserProgram =
-      { modules = name.modules; name = name.name; version = name.version }
-
-    let toPT (name : ST.FQConstantName.UserProgram) : PT.FQConstantName.UserProgram =
-      { modules = name.modules; name = name.name; version = name.version }
-
   let toST
     (name : PT.FQConstantName.FQConstantName)
     : ST.FQConstantName.FQConstantName =
     match name with
     | PT.FQConstantName.Builtin name -> ST.FQConstantName.Builtin(Builtin.toST name)
     | PT.FQConstantName.Package name -> ST.FQConstantName.Package(Package.toST name)
-    | PT.FQConstantName.UserProgram name ->
-      ST.FQConstantName.UserProgram(UserProgram.toST name)
 
   let toPT
     (name : ST.FQConstantName.FQConstantName)
@@ -172,8 +150,6 @@ module FQConstantName =
     match name with
     | ST.FQConstantName.Builtin name -> PT.FQConstantName.Builtin(Builtin.toPT name)
     | ST.FQConstantName.Package name -> PT.FQConstantName.Package(Package.toPT name)
-    | ST.FQConstantName.UserProgram name ->
-      PT.FQConstantName.UserProgram(UserProgram.toPT name)
 
 
 module FQFnName =
@@ -197,24 +173,15 @@ module FQFnName =
         name = name.name
         version = name.version }
 
-  module UserProgram =
-    let toST (name : PT.FQFnName.UserProgram) : ST.FQFnName.UserProgram =
-      { modules = name.modules; name = name.name; version = name.version }
-
-    let toPT (name : ST.FQFnName.UserProgram) : PT.FQFnName.UserProgram =
-      { modules = name.modules; name = name.name; version = name.version }
-
   let toST (name : PT.FQFnName.FQFnName) : ST.FQFnName.FQFnName =
     match name with
     | PT.FQFnName.Builtin name -> ST.FQFnName.Builtin(Builtin.toST name)
     | PT.FQFnName.Package name -> ST.FQFnName.Package(Package.toST name)
-    | PT.FQFnName.UserProgram name -> ST.FQFnName.UserProgram(UserProgram.toST name)
 
   let toPT (name : ST.FQFnName.FQFnName) : PT.FQFnName.FQFnName =
     match name with
     | ST.FQFnName.Builtin name -> PT.FQFnName.Builtin(Builtin.toPT name)
     | ST.FQFnName.Package name -> PT.FQFnName.Package(Package.toPT name)
-    | ST.FQFnName.UserProgram name -> PT.FQFnName.UserProgram(UserProgram.toPT name)
 
 
 module InfixFnName =
@@ -754,6 +721,71 @@ module TypeDeclaration =
     { typeParams = d.typeParams; definition = Definition.toPT d.definition }
 
 
+module PackageType =
+  let toST (pt : PT.PackageType.T) : ST.PackageType.T =
+    { name = FQTypeName.Package.toST pt.name
+      description = pt.description
+      declaration = TypeDeclaration.toST pt.declaration
+      deprecated = Deprecation.toST FQTypeName.toST pt.deprecated
+      id = pt.id
+      tlid = pt.tlid }
+
+  let toPT (pt : ST.PackageType.T) : PT.PackageType.T =
+    { name = FQTypeName.Package.toPT pt.name
+      description = pt.description
+      declaration = TypeDeclaration.toPT pt.declaration
+      deprecated = Deprecation.toPT FQTypeName.toPT pt.deprecated
+      id = pt.id
+      tlid = pt.tlid }
+
+module PackageConstant =
+  let toST (pc : PT.PackageConstant.T) : ST.PackageConstant.T =
+    { tlid = pc.tlid
+      id = pc.id
+      name = FQConstantName.Package.toST pc.name
+      body = Const.toST pc.body
+      description = pc.description
+      deprecated = Deprecation.toST FQConstantName.toST pc.deprecated }
+
+  let toPT (pc : ST.PackageConstant.T) : PT.PackageConstant.T =
+    { tlid = pc.tlid
+      id = pc.id
+      name = FQConstantName.Package.toPT pc.name
+      body = Const.toPT pc.body
+      description = pc.description
+      deprecated = Deprecation.toPT FQConstantName.toPT pc.deprecated }
+
+module PackageFn =
+  module Parameter =
+    let toST (p : PT.PackageFn.Parameter) : ST.PackageFn.Parameter =
+      { name = p.name; typ = TypeReference.toST p.typ; description = p.description }
+
+    let toPT (p : ST.PackageFn.Parameter) : PT.PackageFn.Parameter =
+      { name = p.name; typ = TypeReference.toPT p.typ; description = p.description }
+
+  let toST (fn : PT.PackageFn.T) : ST.PackageFn.T =
+    { name = FQFnName.Package.toST fn.name
+      parameters = NEList.map Parameter.toST fn.parameters |> NEList.toST
+      returnType = TypeReference.toST fn.returnType
+      description = fn.description
+      deprecated = Deprecation.toST FQFnName.toST fn.deprecated
+      body = Expr.toST fn.body
+      typeParams = fn.typeParams
+      id = fn.id
+      tlid = fn.tlid }
+
+  let toPT (fn : ST.PackageFn.T) : PT.PackageFn.T =
+    { name = FQFnName.Package.toPT fn.name
+      parameters = fn.parameters |> NEList.toPT |> NEList.map Parameter.toPT
+      returnType = TypeReference.toPT fn.returnType
+      description = fn.description
+      deprecated = Deprecation.toPT FQFnName.toPT fn.deprecated
+      body = Expr.toPT fn.body
+      typeParams = fn.typeParams
+      id = fn.id
+      tlid = fn.tlid }
+
+
 module Handler =
   module CronInterval =
     let toST (ci : PT.Handler.CronInterval) : ST.Handler.CronInterval =
@@ -810,145 +842,14 @@ module DB =
       version = db.version
       typ = TypeReference.toPT db.typ }
 
-module UserType =
-  let toST (t : PT.UserType.T) : ST.UserType.T =
-    { tlid = t.tlid
-      name = FQTypeName.UserProgram.toST t.name
-      declaration = TypeDeclaration.toST t.declaration
-      description = t.description
-      deprecated = Deprecation.toST FQTypeName.toST t.deprecated }
-
-  let toPT (t : ST.UserType.T) : PT.UserType.T =
-    { tlid = t.tlid
-      name = FQTypeName.UserProgram.toPT t.name
-      declaration = TypeDeclaration.toPT t.declaration
-      description = t.description
-      deprecated = Deprecation.toPT FQTypeName.toPT t.deprecated }
-
-
-module UserFunction =
-  module Parameter =
-    let toST (p : PT.UserFunction.Parameter) : ST.UserFunction.Parameter =
-      { name = p.name; typ = TypeReference.toST p.typ; description = p.description }
-
-    let toPT (p : ST.UserFunction.Parameter) : PT.UserFunction.Parameter =
-      { name = p.name; typ = TypeReference.toPT p.typ; description = p.description }
-
-  let toST (f : PT.UserFunction.T) : ST.UserFunction.T =
-    { tlid = f.tlid
-      name = FQFnName.UserProgram.toST f.name
-      typeParams = f.typeParams
-      parameters = NEList.map Parameter.toST f.parameters |> NEList.toST
-      returnType = TypeReference.toST f.returnType
-      description = f.description
-      deprecated = Deprecation.toST FQFnName.toST f.deprecated
-      body = Expr.toST f.body }
-
-  let toPT (f : ST.UserFunction.T) : PT.UserFunction.T =
-    { tlid = f.tlid
-      name = FQFnName.UserProgram.toPT f.name
-      typeParams = f.typeParams
-      parameters = f.parameters |> NEList.toPT |> NEList.map Parameter.toPT
-      returnType = TypeReference.toPT f.returnType
-      description = f.description
-      deprecated = Deprecation.toPT FQFnName.toPT f.deprecated
-      body = Expr.toPT f.body }
-
-
-module UserConstant =
-  let toST (c : PT.UserConstant.T) : ST.UserConstant.T =
-    { tlid = c.tlid
-      name = FQConstantName.UserProgram.toST c.name
-      description = c.description
-      deprecated = Deprecation.toST FQConstantName.toST c.deprecated
-      body = Const.toST c.body }
-
-  let toPT (c : ST.UserConstant.T) : PT.UserConstant.T =
-    { tlid = c.tlid
-      name = FQConstantName.UserProgram.toPT c.name
-      description = c.description
-      deprecated = Deprecation.toPT FQConstantName.toPT c.deprecated
-      body = Const.toPT c.body }
-
 
 module Toplevel =
   let toST (tl : PT.Toplevel.T) : ST.Toplevel.T =
     match tl with
-    | PT.Toplevel.TLHandler h -> ST.Toplevel.TLHandler(Handler.toST h)
     | PT.Toplevel.TLDB db -> ST.Toplevel.TLDB(DB.toST db)
-    | PT.Toplevel.TLFunction f -> ST.Toplevel.TLFunction(UserFunction.toST f)
-    | PT.Toplevel.TLType ut -> ST.Toplevel.TLType(UserType.toST ut)
-    | PT.Toplevel.TLConstant c -> ST.Toplevel.TLConstant(UserConstant.toST c)
+    | PT.Toplevel.TLHandler h -> ST.Toplevel.TLHandler(Handler.toST h)
 
   let toPT (tl : ST.Toplevel.T) : PT.Toplevel.T =
     match tl with
-    | ST.Toplevel.TLHandler h -> PT.Toplevel.TLHandler(Handler.toPT h)
     | ST.Toplevel.TLDB db -> PT.Toplevel.TLDB(DB.toPT db)
-    | ST.Toplevel.TLFunction f -> PT.Toplevel.TLFunction(UserFunction.toPT f)
-    | ST.Toplevel.TLType ut -> PT.Toplevel.TLType(UserType.toPT ut)
-    | ST.Toplevel.TLConstant c -> PT.Toplevel.TLConstant(UserConstant.toPT c)
-
-
-module PackageFn =
-  module Parameter =
-    let toST (p : PT.PackageFn.Parameter) : ST.PackageFn.Parameter =
-      { name = p.name; typ = TypeReference.toST p.typ; description = p.description }
-
-    let toPT (p : ST.PackageFn.Parameter) : PT.PackageFn.Parameter =
-      { name = p.name; typ = TypeReference.toPT p.typ; description = p.description }
-
-  let toST (fn : PT.PackageFn.T) : ST.PackageFn.T =
-    { name = FQFnName.Package.toST fn.name
-      parameters = NEList.map Parameter.toST fn.parameters |> NEList.toST
-      returnType = TypeReference.toST fn.returnType
-      description = fn.description
-      deprecated = Deprecation.toST FQFnName.toST fn.deprecated
-      body = Expr.toST fn.body
-      typeParams = fn.typeParams
-      id = fn.id
-      tlid = fn.tlid }
-
-  let toPT (fn : ST.PackageFn.T) : PT.PackageFn.T =
-    { name = FQFnName.Package.toPT fn.name
-      parameters = fn.parameters |> NEList.toPT |> NEList.map Parameter.toPT
-      returnType = TypeReference.toPT fn.returnType
-      description = fn.description
-      deprecated = Deprecation.toPT FQFnName.toPT fn.deprecated
-      body = Expr.toPT fn.body
-      typeParams = fn.typeParams
-      id = fn.id
-      tlid = fn.tlid }
-
-module PackageType =
-  let toST (pt : PT.PackageType.T) : ST.PackageType.T =
-    { name = FQTypeName.Package.toST pt.name
-      description = pt.description
-      declaration = TypeDeclaration.toST pt.declaration
-      deprecated = Deprecation.toST FQTypeName.toST pt.deprecated
-      id = pt.id
-      tlid = pt.tlid }
-
-  let toPT (pt : ST.PackageType.T) : PT.PackageType.T =
-    { name = FQTypeName.Package.toPT pt.name
-      description = pt.description
-      declaration = TypeDeclaration.toPT pt.declaration
-      deprecated = Deprecation.toPT FQTypeName.toPT pt.deprecated
-      id = pt.id
-      tlid = pt.tlid }
-
-module PackageConstant =
-  let toST (pc : PT.PackageConstant.T) : ST.PackageConstant.T =
-    { tlid = pc.tlid
-      id = pc.id
-      name = FQConstantName.Package.toST pc.name
-      body = Const.toST pc.body
-      description = pc.description
-      deprecated = Deprecation.toST FQConstantName.toST pc.deprecated }
-
-  let toPT (pc : ST.PackageConstant.T) : PT.PackageConstant.T =
-    { tlid = pc.tlid
-      id = pc.id
-      name = FQConstantName.Package.toPT pc.name
-      body = Const.toPT pc.body
-      description = pc.description
-      deprecated = Deprecation.toPT FQConstantName.toPT pc.deprecated }
+    | ST.Toplevel.TLHandler h -> PT.Toplevel.TLHandler(Handler.toPT h)

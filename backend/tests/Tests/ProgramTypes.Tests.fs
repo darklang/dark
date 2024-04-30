@@ -27,7 +27,6 @@ let testPipesToRuntimeTypes =
       |> LibParser.Parser.parseRTExpr
         localBuiltIns
         packageManager
-        NR.UserStuff.empty
         NR.OnMissing.ThrowError
         "programTypes.tests.fs"
       |> Ply.toTask

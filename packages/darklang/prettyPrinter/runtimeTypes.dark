@@ -6,46 +6,40 @@ module Darklang =
         : String =
         Stdlib.String.join nr.names "."
 
+
+      let packageName
+        (owner: String)
+        (modules: List<String>)
+        (name: String)
+        (version: Int64)
+        : String =
+        let modulesPart =
+          match modules with
+          | [] -> ""
+          | modules ->
+            let modules = Stdlib.String.join modules "."
+            $"{modules}."
+
+        let versionPart =
+          if version == 0L then
+            ""
+          else
+            $"_v{Stdlib.Int64.toString version}"
+
+        match owner with
+        | "Tests" -> $"{modulesPart}{name}{versionPart}"
+        | _ -> $"PACKAGE.{owner}.{modulesPart}{name}{versionPart}"
+
+
       module FQTypeName =
 
         let package (p: LanguageTools.RuntimeTypes.FQTypeName.Package) : String =
-          let modulesPart = Stdlib.String.join p.modules "."
-
-          let namePart = p.name
-
-          let versionPart =
-            if p.version == 0L then
-              ""
-            else
-              $"_v{Stdlib.Int64.toString p.version}"
-
-          $"PACKAGE.{p.owner}.{modulesPart}.{namePart}{versionPart}"
-
-
-        let userProgram
-          (u: LanguageTools.RuntimeTypes.FQTypeName.UserProgram)
-          : String =
-          let modulesPart =
-            match u.modules with
-            | [] -> ""
-            | modules ->
-              modules |> Stdlib.String.join "." |> (fun parts -> $"{parts}.")
-
-          let namePart = u.name
-
-          let versionPart =
-            if u.version == 0L then
-              ""
-            else
-              $"_v{Stdlib.Int64.toString u.version}"
-
-          $"{modulesPart}{namePart}{versionPart}"
+          packageName p.owner p.modules p.name p.version
 
       // TODO rename to fqtypeName?
       let typeName (t: LanguageTools.RuntimeTypes.FQTypeName.FQTypeName) : String =
         match t with
         | Package p -> FQTypeName.package p
-        | UserProgram u -> FQTypeName.userProgram u
 
 
       module FQConstantName =
@@ -61,36 +55,7 @@ module Darklang =
           $"{namePart}{versionPart}"
 
         let package (p: LanguageTools.RuntimeTypes.FQConstantName.Package) : String =
-          let modulesPart = Stdlib.String.join p.modules "."
-
-          let namePart = p.name
-
-          let versionPart =
-            if p.version == 0L then
-              ""
-            else
-              $"_v{Stdlib.Int64.toString p.version}"
-
-          $"PACKAGE.{p.owner}.{modulesPart}.{namePart}{versionPart}"
-
-        let userProgram
-          (u: LanguageTools.RuntimeTypes.FQConstantName.UserProgram)
-          : String =
-          let modulesPart =
-            match u.modules with
-            | [] -> ""
-            | modules ->
-              modules |> Stdlib.String.join "." |> (fun parts -> $"{parts}.")
-
-          let namePart = u.name
-
-          let versionPart =
-            if u.version == 0L then
-              ""
-            else
-              $"_v{Stdlib.Int64.toString u.version}"
-
-          $"{modulesPart}{namePart}{versionPart}"
+          packageName p.owner p.modules p.name p.version
 
       // TODO rename to fqconstantName?
       let constantName
@@ -99,7 +64,6 @@ module Darklang =
         match t with
         | Builtin b -> FQConstantName.builtIn b
         | Package p -> FQConstantName.package p
-        | UserProgram u -> FQConstantName.userProgram u
 
 
       module FQFnName =
@@ -115,43 +79,14 @@ module Darklang =
           $"{namePart}{versionPart}"
 
         let package (p: LanguageTools.RuntimeTypes.FQFnName.Package) : String =
-          let modulesPart = Stdlib.String.join p.modules "."
+          packageName p.owner p.modules p.name p.version
 
-          let namePart = p.name
-
-          let versionPart =
-            if p.version == 0L then
-              ""
-            else
-              $"_v{Stdlib.Int64.toString p.version}"
-
-          $"PACKAGE.{p.owner}.{modulesPart}.{namePart}{versionPart}"
-
-        let userProgram
-          (u: LanguageTools.RuntimeTypes.FQFnName.UserProgram)
-          : String =
-          let modulesPart =
-            match u.modules with
-            | [] -> ""
-            | modules ->
-              modules |> Stdlib.String.join "." |> (fun parts -> $"{parts}.")
-
-          let namePart = u.name
-
-          let versionPart =
-            if u.version == 0L then
-              ""
-            else
-              $"_v{Stdlib.Int64.toString u.version}"
-
-          $"{modulesPart}{namePart}{versionPart}"
 
       // TODO rename to fqfnName?
       let fnName (t: LanguageTools.RuntimeTypes.FQFnName.FQFnName) : String =
         match t with
         | Builtin b -> FQFnName.builtIn b
         | Package p -> FQFnName.package p
-        | UserProgram u -> FQFnName.userProgram u
 
       let typeReference (t: LanguageTools.RuntimeTypes.TypeReference) : String =
         match t with

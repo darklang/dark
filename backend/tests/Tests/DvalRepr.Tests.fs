@@ -34,25 +34,28 @@ let queryableRoundtripsSuccessfullyInRecord
   ) : Task<bool> =
 
   task {
-    let typeName = S.userTypeName [] "MyType" 0
+    let typeName = S.packageTypeName "Tests" [] "MyType" 0
     let record =
       RT.DRecord(
-        RT.FQTypeName.UserProgram typeName,
-        RT.FQTypeName.UserProgram typeName,
+        RT.FQTypeName.Package typeName,
+        RT.FQTypeName.Package typeName,
         [],
         Map.ofList [ "field", dv ]
       )
-    let typeRef = S.userTypeReference [] "MyType" 0
+    let typeRef = S.packageTypeReference "Tests" [] "MyType" 0
 
     let types : RT.Types =
-      { defaultTypes () with
-          userProgram =
-            Map
-              [ typeName,
+      { typeSymbolTable = Map.empty
+        package =
+          fun name ->
+            if name = typeName then
+              let packageType : RT.PackageType.T =
                 { name = typeName
                   tlid = 8UL
-                  declaration = S.customTypeRecord [ "field", fieldTyp ] } ] }
-
+                  declaration = S.customTypeRecord [ "field", fieldTyp ] }
+              packageType |> Some |> Ply
+            else
+              packageManager.getType name }
 
     let! roundtripped =
       record

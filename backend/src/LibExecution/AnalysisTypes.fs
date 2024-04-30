@@ -100,9 +100,6 @@ type AnalysisRequest =
     tlid : tlid
     traceID : TraceID.T
     traceData : TraceData
-    userFns : List<RT.UserFunction.T>
-    userTypes : List<RT.UserType.T>
-    userConstants : List<RT.UserConstant.T>
     dbs : List<RT.DB.T>
     expr : RT.Expr
     packageFns : List<RT.PackageFn.T>

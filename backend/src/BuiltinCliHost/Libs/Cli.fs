@@ -100,12 +100,15 @@ let execute
     let (program : Program) =
       { canvasID = System.Guid.NewGuid()
         internalFnsAllowed = false
-        types = mod'.types |> List.map PT2RT.UserType.toRT |> Map.fromListBy _.name
-        constants =
-          mod'.constants |> List.map PT2RT.UserConstant.toRT |> Map.fromListBy _.name
         secrets = []
-        dbs = Map.empty
-        fns = mod'.fns |> List.map PT2RT.UserFunction.toRT |> Map.fromListBy _.name }
+        dbs = Map.empty }
+
+    let packageManager =
+      PackageManager.withExtras
+        packageManager
+        (mod'.types |> List.map PT2RT.PackageType.toRT)
+        (mod'.constants |> List.map PT2RT.PackageConstant.toRT)
+        (mod'.fns |> List.map PT2RT.PackageFn.toRT)
 
     let state =
       Exe.createState
@@ -155,15 +158,15 @@ let fns : List<BuiltInFn> =
               CliRuntimeError.UncaughtException(msg, metadata)
               |> CliRuntimeError.RTE.toRuntimeError
 
-
             let! parsedScript =
               uply {
                 try
                   return!
                     LibParser.Canvas.parse
+                      "CliScript"
+                      "CanvasName"
                       state.builtins
                       state.packageManager
-                      (NR.UserStuff.fromProgram state.program)
                       NR.OnMissing.Allow
                       filename
                       code
@@ -243,7 +246,6 @@ let fns : List<BuiltInFn> =
                 LibParser.NameResolver.resolveFnName
                   (state.builtins.fns |> Map.keys |> Set)
                   state.packageManager
-                  (NR.UserStuff.fromProgram state.program).fns
                   NR.OnMissing.Allow // OK?
                   []
                   (WT.Unresolved name)
@@ -383,7 +385,6 @@ let fns : List<BuiltInFn> =
                 LibParser.NameResolver.resolveFnName
                   (state.builtins.fns |> Map.keys |> Set)
                   state.packageManager
-                  (NR.UserStuff.fromProgram state.program).fns
                   NR.OnMissing.Allow // ok?
                   []
                   (WT.Unresolved name)

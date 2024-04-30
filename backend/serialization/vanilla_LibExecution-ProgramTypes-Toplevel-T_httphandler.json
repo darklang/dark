@@ -303,8 +303,9 @@
                                                               {
                                                                 "Ok": [
                                                                   {
-                                                                    "UserProgram": [
+                                                                    "Package": [
                                                                       {
+                                                                        "owner": "owner",
                                                                         "modules": [
                                                                           "Mod"
                                                                         ],
@@ -592,10 +593,10 @@
                                                   {
                                                     "Ok": [
                                                       {
-                                                        "UserProgram": [
+                                                        "Package": [
                                                           {
+                                                            "owner": "dark",
                                                             "modules": [
-                                                              "dark",
                                                               "stdlib"
                                                             ],
                                                             "name": "NonEmptyList",

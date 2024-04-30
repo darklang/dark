@@ -838,23 +838,7 @@ module Function =
           returnType = returnType
           body = Expr.fromSynExpr expr }
 
-module UserFunction =
-  let fromSynBinding
-    (moduleName : List<string>)
-    (b : SynBinding)
-    : WT.UserFunction.T =
-    let f = Function.fromSynBinding b
-    { name = PT.FQFnName.userProgram moduleName f.name f.version
-      typeParams = f.typeParams
-      parameters =
-        f.parameters
-        |> NEList.map (fun p -> { name = p.name; description = ""; typ = p.typ })
-      returnType = f.returnType
-      description = ""
-      body = f.body }
-
 module Constant =
-
   type T = { name : string; version : int; body : WT.Const }
 
   let fromSynExpr (expr : SynExpr) : WT.Const =
@@ -914,17 +898,6 @@ module Constant =
         "Unsupported constant"
         [ "binding", binding ]
         (Some binding.RangeOfBindingWithRhs)
-
-
-module UserConstant =
-  let fromSynBinding
-    (moduleName : List<string>)
-    (b : SynBinding)
-    : WT.UserConstant.T =
-    let c = Constant.fromSynBinding b
-    { name = PT.FQConstantName.userProgram moduleName c.name c.version
-      description = ""
-      body = c.body }
 
 
 module PackageFn =
@@ -1058,26 +1031,6 @@ module TypeDeclaration =
           [ "typeDef", typeDef ]
           (Some typeDef.Range)
 
-
-module UserType =
-  let fromSynTypeDefn
-    (moduleName : List<string>)
-    (typeDef : SynTypeDefn)
-    : WT.UserType.T =
-    let (typeParams, names, definition) =
-      TypeDeclaration.Definition.fromSynTypeDefn typeDef
-    let (name, version) =
-      List.last names
-      |> Exception.unwrapOptionInternal
-        "user type should have name"
-        [ "typeDef", typeDef ]
-      |> Expr.parseTypeName
-      |> Exception.unwrapResultInternal []
-    let modules = moduleName @ names |> List.initial
-
-    { name = PT.FQTypeName.userProgram modules name version
-      description = ""
-      declaration = { definition = definition; typeParams = typeParams } }
 
 module PackageType =
   let fromSynTypeDefn

@@ -10,19 +10,6 @@ module RT = LibExecution.RuntimeTypes
 module NRE = LibExecution.NameResolutionError
 
 
-type UserStuff =
-  { types : Set<PT.FQTypeName.UserProgram>
-    constants : Set<PT.FQConstantName.UserProgram>
-    fns : Set<PT.FQFnName.UserProgram> }
-
-  static member empty = { types = Set.empty; constants = Set.empty; fns = Set.empty }
-  static member fromProgram(program : RT.Program) : UserStuff =
-    let map fn items = items |> Map.keys |> List.map fn |> Set
-    { types = program.types |> map PT2RT.FQTypeName.UserProgram.fromRT
-      constants = program.constants |> map PT2RT.FQConstantName.UserProgram.fromRT
-      fns = program.fns |> map PT2RT.FQFnName.UserProgram.fromRT }
-
-
 /// If a name is not found, should we raise an exception?
 ///
 /// - when the local package DB is fully empty, and we're filling it in for the
@@ -66,6 +53,9 @@ type GenericName = { modules : List<string>; name : string; version : int }
 /// - Darklang.Option.Option
 /// - Option.Option
 /// , in that order (most specific first).
+///
+/// TODO?: accept an Option<string> of the _owner_ as well.
+/// I think that'll be useful in many contexts to help resolve names...
 let namesToTry
   (currentModule : List<string>)
   (given : GenericName)
@@ -90,7 +80,6 @@ let namesToTry
 
 let resolveTypeName
   (packageManager : RT.PackageManager)
-  (userTypes : Set<PT.FQTypeName.UserProgram>)
   (onMissing : OnMissing)
   (currentModule : List<string>)
   (name : WT.Name)
@@ -119,18 +108,12 @@ let resolveTypeName
       (name : GenericName)
       : Ply<Result<PT.FQTypeName.FQTypeName, unit>> =
       uply {
-        let (userProgram : PT.FQTypeName.UserProgram) =
-          { modules = name.modules; name = name.name; version = name.version }
-
-        if Set.contains userProgram userTypes then
-          return Ok(PT.FQTypeName.UserProgram userProgram)
-        else
-          match name.modules with
-          | [] -> return Error()
-          | owner :: modules ->
-            let name = PT.FQTypeName.package owner modules name.name name.version
-            let! packageName = tryPackageName name
-            return packageName |> Result.mapError (fun _ -> ())
+        match name.modules with
+        | [] -> return Error()
+        | owner :: modules ->
+          let name = PT.FQTypeName.package owner modules name.name name.version
+          let! packageName = tryPackageName name
+          return packageName |> Result.mapError (fun _ -> ())
       }
 
     uply {
@@ -165,7 +148,6 @@ let resolveTypeName
 let resolveConstantName
   (builtinConstants : Set<RT.FQConstantName.Builtin>)
   (packageManager : RT.PackageManager)
-  (userConstants : Set<PT.FQConstantName.UserProgram>)
   (onMissing : OnMissing)
   (currentModule : List<string>)
   (name : WT.Name)
@@ -193,25 +175,21 @@ let resolveConstantName
       (name : GenericName)
       : Ply<Result<PT.FQConstantName.FQConstantName, unit>> =
       uply {
-        let (userProgram : PT.FQConstantName.UserProgram) =
-          { modules = name.modules; name = name.name; version = name.version }
 
-        if name.modules = [ "Builtin" ] then
-          let (builtInRT : RT.FQConstantName.Builtin) =
-            { name = name.name; version = name.version }
-
-          if Set.contains builtInRT builtinConstants then
-            let (builtInPT : PT.FQConstantName.Builtin) =
+        match name.modules with
+        | [] -> return Error()
+        | owner :: modules ->
+          if owner = "Builtin" && modules = [] then
+            let (builtInRT : RT.FQConstantName.Builtin) =
               { name = name.name; version = name.version }
-            return Ok(PT.FQConstantName.Builtin builtInPT)
+
+            if Set.contains builtInRT builtinConstants then
+              let (builtInPT : PT.FQConstantName.Builtin) =
+                { name = name.name; version = name.version }
+              return Ok(PT.FQConstantName.Builtin builtInPT)
+            else
+              return Error()
           else
-            return Error()
-        elif Set.contains userProgram userConstants then
-          return Ok(PT.FQConstantName.UserProgram userProgram)
-        else
-          match name.modules with
-          | [] -> return Error()
-          | owner :: modules ->
             let name = PT.FQConstantName.package owner modules name.name name.version
             let! packageName = tryPackageName name
             return packageName |> Result.mapError (fun _ -> ())
@@ -247,7 +225,6 @@ let resolveConstantName
 let resolveFnName
   (builtinFns : Set<RT.FQFnName.Builtin>)
   (packageManager : RT.PackageManager)
-  (userFns : Set<PT.FQFnName.UserProgram>)
   (onMissing : OnMissing)
   (currentModule : List<string>)
   (name : WT.Name)
@@ -272,26 +249,21 @@ let resolveFnName
 
     let tryResolve (name : GenericName) : Ply<Result<PT.FQFnName.FQFnName, unit>> =
       uply {
-        let (userProgram : PT.FQFnName.UserProgram) =
-          { modules = name.modules; name = name.name; version = name.version }
-
-        if name.modules = [ "Builtin" ] then
-          let (builtInRT : RT.FQFnName.Builtin) =
-            { name = name.name; version = name.version }
-
-          if Set.contains builtInRT builtinFns then
-            let (builtInPT : PT.FQFnName.Builtin) =
+        match name.modules with
+        | [] -> return Error()
+        | owner :: modules ->
+          if owner = "Builtin" && modules = [] then
+            let (builtInRT : RT.FQFnName.Builtin) =
               { name = name.name; version = name.version }
-            return Ok(PT.FQFnName.Builtin builtInPT)
-          else
-            return Error()
 
-        elif Set.contains userProgram userFns then
-          return Ok(PT.FQFnName.UserProgram userProgram)
-        else
-          match name.modules with
-          | [] -> return Error()
-          | owner :: modules ->
+            if Set.contains builtInRT builtinFns then
+              let (builtInPT : PT.FQFnName.Builtin) =
+                { name = name.name; version = name.version }
+              return Ok(PT.FQFnName.Builtin builtInPT)
+            else
+              return Error()
+
+          else
             let name = PT.FQFnName.package owner modules name.name name.version
             let! packageName = tryPackageName name
             return packageName |> Result.mapError (fun _ -> ())

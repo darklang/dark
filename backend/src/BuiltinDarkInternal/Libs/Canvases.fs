@@ -102,8 +102,6 @@ let fns : List<BuiltInFn> =
             if
               Map.containsKey tlid c.deletedHandlers
               || Map.containsKey tlid c.deletedDBs
-              || Map.containsKey tlid c.deletedUserTypes
-              || Map.containsKey tlid c.deletedUserFunctions
             then
               do! Canvas.deleteToplevelForever canvasID tlid
               return DBool true
@@ -129,21 +127,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, [ DUuid canvasID ] ->
           uply {
-            let! canvas = Canvas.loadAll canvasID
-
-            let types =
-              canvas.userTypes
-              |> Map.values
-              |> Seq.toList
-              |> List.map PT2DT.UserType.toDT
-            let types = DList(VT.customType PT2DT.UserType.typeName [], types)
-
-            let fns =
-              canvas.userFunctions
-              |> Map.values
-              |> Seq.toList
-              |> List.map PT2DT.UserFunction.toDT
-            let fns = DList(VT.customType PT2DT.UserFunction.typeName [], fns)
+            let! _canvas = Canvas.loadAll canvasID
 
             // let dbs =
             //   Map.values canvas.dbs
@@ -169,10 +153,9 @@ let fns : List<BuiltInFn> =
             //       |> Some)
             //   |> Dval.list VT.unknownTODO
 
-
             let typeName = packageCanvasType [] "Program" 0
             return
-              DRecord(typeName, typeName, [], Map [ "types", types; "fns", fns ])
+              DRecord(typeName, typeName, [], Map [])
               |> Dval.resultOk (KTCustomType(typeName, [])) KTString
           }
         | _ -> incorrectArgs ())

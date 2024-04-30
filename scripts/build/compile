@@ -12,6 +12,9 @@ run_tests = False
 in_ci = os.getenv("CI") == "true"
 optimize = in_ci
 
+fsharp_thing_to_build = "fsdark.sln"
+# sometimes it's handy to only build a specific project
+# fsharp_thing_to_build = "src/LocalExec"
 
 # Make io unbuffered
 def flush(fn):
@@ -187,7 +190,7 @@ def backend_quick_build():
       --no-restore \
       --verbosity {verbosity} \
       --configuration {configuration} \
-      fsdark.sln"
+      {fsharp_thing_to_build}"
 
   result = run_backend(start, build)
 
@@ -209,7 +212,7 @@ def backend_full_build():
       /clp:ForceConsoleColor \
       --verbosity {verbosity} \
       --configuration {configuration} \
-      fsdark.sln"
+      {fsharp_thing_to_build}"
 
   result = run_backend(start, build)
 

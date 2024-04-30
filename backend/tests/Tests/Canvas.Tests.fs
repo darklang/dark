@@ -23,7 +23,6 @@ let parse (code : string) : Task<PT.Expr> =
   LibParser.Parser.parseSimple
     localBuiltIns
     packageManager
-    NR.UserStuff.empty
     NR.OnMissing.ThrowError
     "tests.canvas.fs"
     code
@@ -53,33 +52,6 @@ let testHttpOplistRoundtrip =
         (PTParser.Handler.Spec.toModifier h.spec)
     Expect.equal (c.handlers[h.tlid]) h "Handlers should be equal"
   }
-
-
-let testHttpOplistLoadsUserTypes =
-  testTask "httpOplistLoadsUserTypes" {
-    let! canvasID = initializeTestCanvas "http_oplist_loads_user_types"
-    let handler = testHttpRouteHandler "/path" "GET" (PT.EInt64(gid (), 5L))
-    let typ =
-      testUserRecordType
-        ({ modules = []; name = "test-tipe"; version = 0 })
-        ("age", PT.TInt64)
-        []
-
-    do!
-      Canvas.saveTLIDs
-        canvasID
-        [ (PT.Toplevel.TLHandler handler, Serialize.NotDeleted)
-          (PT.Toplevel.TLType typ, Serialize.NotDeleted) ]
-
-    let! (c2 : Canvas.T) =
-      Canvas.loadHttpHandlers
-        canvasID
-        (PTParser.Handler.Spec.toName handler.spec)
-        (PTParser.Handler.Spec.toModifier handler.spec)
-    Expect.equal (c2.userTypes[typ.tlid]) typ "user types"
-  }
-
-
 
 
 let testHttpLoadIgnoresDeletedHandler =
@@ -119,41 +91,6 @@ let testHttpLoadIgnoresDeletedHandler =
     Expect.equal dbRow (None, None, None, Some true) "Row should be cleared"
   }
 
-let testHttpLoadIgnoresDeletedFns =
-  testTask "Http load ignores deleted fns" {
-    let! canvasID = initializeTestCanvas "http-load-ignores-deleted-fns"
-
-    let handler = testHttpRouteHandler "/path" "GET" (PT.EInt64(gid (), 5L))
-    let ps = (NEList.singleton "param")
-
-    let! fivePlusThreeParsed = parse "5 + 3"
-    let f = testUserFn "testfn" [] ps (PT.TVariable "a") fivePlusThreeParsed
-
-    let! sixPlusFourParsed = parse "6 + 4"
-    let fNew = testUserFn "testfnNew" [] ps (PT.TVariable "a") sixPlusFourParsed
-
-    do!
-      Canvas.saveTLIDs
-        canvasID
-        [ (PT.Toplevel.TLHandler handler, Serialize.NotDeleted)
-          (PT.Toplevel.TLFunction f, Serialize.NotDeleted) ]
-    // TLIDs are saved in parallel, so do them in separate calls
-    do!
-      Canvas.saveTLIDs
-        canvasID
-        [ (PT.Toplevel.TLFunction f, Serialize.Deleted)
-          (PT.Toplevel.TLFunction fNew, Serialize.NotDeleted) ]
-
-    let! (c2 : Canvas.T) =
-      Canvas.loadHttpHandlers
-        canvasID
-        (PTParser.Handler.Spec.toName handler.spec)
-        (PTParser.Handler.Spec.toModifier handler.spec)
-
-    Expect.equal c2.handlers[handler.tlid] handler "handler is loaded "
-    Expect.equal c2.userFunctions.Count 1 "only one function is loaded from cache"
-    Expect.equal c2.userFunctions[fNew.tlid] fNew "later func is loaded"
-  }
 
 let testSetHandlerAfterDelete =
   testTask "handler set after delete" {
@@ -185,41 +122,6 @@ let testSetHandlerAfterDelete =
     Expect.equal c2.handlers.Count 1 "only live is in handlers"
   }
 
-let testSetFunctionAfterDelete =
-  testTask "function set after delete" {
-    let! canvasID = initializeTestCanvas "db-set-function-after-delete"
-    let ps = NEList.singleton "param"
-    let! e1 = parse "5 + 3"
-    let! e2 = parse "6 + 4"
-    let f1 = testUserFn "testfn" [] ps (PT.TVariable "a") e1
-    let f2 = testUserFn "testfn" [] ps (PT.TVariable "a") e2
-
-    // Just the deleted handler
-    do! Canvas.saveTLIDs canvasID [ (PT.Toplevel.TLFunction f1, Serialize.Deleted) ]
-
-    let! (c1 : Canvas.T) = Canvas.loadAll canvasID
-
-    Expect.equal
-      (Map.find f1.tlid c1.deletedUserFunctions)
-      (Some f1)
-      "deleted in deleted"
-    Expect.equal c1.deletedUserFunctions.Count 1 "only deleted in deleted"
-    Expect.equal c1.userFunctions.Count 0 "deleted not present"
-
-    // And the new one (the deleted is still there)
-    do!
-      Canvas.saveTLIDs canvasID [ (PT.Toplevel.TLFunction f2, Serialize.NotDeleted) ]
-
-    let! (c2 : Canvas.T) = Canvas.loadAll canvasID
-
-    Expect.equal
-      (Map.find f1.tlid c2.deletedUserFunctions)
-      (Some f1)
-      "deleted still in deleted"
-    Expect.equal c2.deletedUserFunctions.Count 1 "only deleted still in deleted"
-    Expect.equal (Map.find f2.tlid c2.userFunctions) (Some f2) "live is present"
-    Expect.equal c2.userFunctions.Count 1 "only live is present"
-  }
 
 
 let testLoadAllDBs =
@@ -246,9 +148,6 @@ let tests =
     "canvas"
     [ testHttpOplistRoundtrip
       testDBOplistRoundtrip
-      testHttpOplistLoadsUserTypes
-      testHttpLoadIgnoresDeletedFns
       testHttpLoadIgnoresDeletedHandler
       testSetHandlerAfterDelete
-      testSetFunctionAfterDelete
       testLoadAllDBs ]

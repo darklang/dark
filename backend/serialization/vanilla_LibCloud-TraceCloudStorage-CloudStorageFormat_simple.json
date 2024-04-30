@@ -6,8 +6,9 @@
       {
         "DRecord": [
           {
-            "UserProgram": [
+            "Package": [
               {
+                "owner": "owner",
                 "modules": [],
                 "name": "MyType",
                 "version": 0
@@ -15,8 +16,9 @@
             ]
           },
           {
-            "UserProgram": [
+            "Package": [
               {
+                "owner": "owner",
                 "modules": [],
                 "name": "MyType",
                 "version": 0
@@ -3640,6 +3642,45 @@
             "emoji2": {
               "DString": [
                 "\uD83E\uDDD1\uD83C\uDFFD\u200D\uD83E\uDDB0\u200D\uD83E\uDDD1\uD83C\uDFFC\u200D\uD83D\uDCBB\u200D\u200D"
+              ]
+            },
+            "enum": {
+              "DEnum": [
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "AltJson"
+                      ],
+                      "name": "Json",
+                      "version": 0
+                    }
+                  ]
+                },
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "AltJson"
+                      ],
+                      "name": "Json",
+                      "version": 0
+                    }
+                  ]
+                },
+                [],
+                "String",
+                [
+                  {
+                    "DString": [
+                      "test"
+                    ]
+                  }
+                ]
               ]
             },
             "escaped": {
@@ -7586,206 +7627,76 @@
             "record": {
               "DRecord": [
                 {
-                  "UserProgram": [
+                  "Package": [
                     {
+                      "owner": "Darklang",
                       "modules": [
-                        "Two",
-                        "Modules"
+                        "Stdlib",
+                        "Http"
                       ],
-                      "name": "Foo",
+                      "name": "Request",
                       "version": 0
                     }
                   ]
                 },
                 {
-                  "UserProgram": [
+                  "Package": [
                     {
+                      "owner": "Darklang",
                       "modules": [
-                        "Two",
-                        "Modules"
+                        "Stdlib",
+                        "Http"
                       ],
-                      "name": "FooAlias",
+                      "name": "Request",
                       "version": 0
                     }
                   ]
                 },
                 [],
                 {
-                  "foo": {
-                    "DInt64": [
-                      5
-                    ]
-                  }
-                }
-              ]
-            },
-            "record2": {
-              "DRecord": [
-                {
-                  "UserProgram": [
-                    {
-                      "modules": [],
-                      "name": "Foo",
-                      "version": 0
-                    }
-                  ]
-                },
-                {
-                  "UserProgram": [
-                    {
-                      "modules": [],
-                      "name": "FooAlias",
-                      "version": 0
-                    }
-                  ]
-                },
-                [
-                  {
-                    "Unknown": []
-                  },
-                  {
-                    "Known": [
+                  "body": {
+                    "DList": [
                       {
-                        "KTBool": []
-                      }
-                    ]
-                  }
-                ],
-                {
-                  "type": {
-                    "DString": [
-                      "weird"
-                    ]
-                  },
-                  "value": {
-                    "DUnit": []
-                  }
-                }
-              ]
-            },
-            "record3": {
-              "DRecord": [
-                {
-                  "UserProgram": [
-                    {
-                      "modules": [],
-                      "name": "Foo",
-                      "version": 0
-                    }
-                  ]
-                },
-                {
-                  "UserProgram": [
-                    {
-                      "modules": [],
-                      "name": "Foo",
-                      "version": 0
-                    }
-                  ]
-                },
-                [],
-                {
-                  "type": {
-                    "DString": [
-                      "weird"
-                    ]
-                  },
-                  "value": {
-                    "DString": [
-                      "x"
-                    ]
-                  }
-                }
-              ]
-            },
-            "record4": {
-              "DRecord": [
-                {
-                  "UserProgram": [
-                    {
-                      "modules": [],
-                      "name": "Foo",
-                      "version": 0
-                    }
-                  ]
-                },
-                {
-                  "UserProgram": [
-                    {
-                      "modules": [],
-                      "name": "Foo",
-                      "version": 0
-                    }
-                  ]
-                },
-                [
-                  {
-                    "Known": [
-                      {
-                        "KTBool": []
-                      }
-                    ]
-                  },
-                  {
-                    "Known": [
-                      {
-                        "KTChar": []
-                      }
-                    ]
-                  },
-                  {
-                    "Known": [
-                      {
-                        "KTCustomType": [
+                        "Known": [
                           {
-                            "UserProgram": [
-                              {
-                                "modules": [],
-                                "name": "Foo",
-                                "version": 0
-                              }
-                            ]
-                          },
-                          []
+                            "KTUInt8": []
+                          }
                         ]
-                      }
+                      },
+                      []
                     ]
-                  }
-                ],
-                {
-                  "foo\\\\bar": {
-                    "DInt64": [
-                      5
+                  },
+                  "headers": {
+                    "DList": [
+                      {
+                        "Known": [
+                          {
+                            "KTTuple": [
+                              {
+                                "Known": [
+                                  {
+                                    "KTString": []
+                                  }
+                                ]
+                              },
+                              {
+                                "Known": [
+                                  {
+                                    "KTString": []
+                                  }
+                                ]
+                              },
+                              []
+                            ]
+                          }
+                        ]
+                      },
+                      []
                     ]
-                  }
-                }
-              ]
-            },
-            "record5": {
-              "DRecord": [
-                {
-                  "UserProgram": [
-                    {
-                      "modules": [],
-                      "name": "Foo",
-                      "version": 0
-                    }
-                  ]
-                },
-                {
-                  "UserProgram": [
-                    {
-                      "modules": [],
-                      "name": "Foo",
-                      "version": 0
-                    }
-                  ]
-                },
-                [],
-                {
-                  "$type": {
-                    "DInt64": [
-                      5
+                  },
+                  "url": {
+                    "DString": [
+                      "https://darklang.com"
                     ]
                   }
                 }
@@ -7994,12 +7905,13 @@
       7777772986753,
       "testFn",
       2,
-      "CCTYZMOkcnY",
+      "n0F0Btndqzc",
       {
         "DRecord": [
           {
-            "UserProgram": [
+            "Package": [
               {
+                "owner": "owner",
                 "modules": [],
                 "name": "MyType",
                 "version": 0
@@ -8007,8 +7919,9 @@
             ]
           },
           {
-            "UserProgram": [
+            "Package": [
               {
+                "owner": "owner",
                 "modules": [],
                 "name": "MyType",
                 "version": 0
@@ -11632,6 +11545,45 @@
             "emoji2": {
               "DString": [
                 "\uD83E\uDDD1\uD83C\uDFFD\u200D\uD83E\uDDB0\u200D\uD83E\uDDD1\uD83C\uDFFC\u200D\uD83D\uDCBB\u200D\u200D"
+              ]
+            },
+            "enum": {
+              "DEnum": [
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "AltJson"
+                      ],
+                      "name": "Json",
+                      "version": 0
+                    }
+                  ]
+                },
+                {
+                  "Package": [
+                    {
+                      "owner": "Darklang",
+                      "modules": [
+                        "Stdlib",
+                        "AltJson"
+                      ],
+                      "name": "Json",
+                      "version": 0
+                    }
+                  ]
+                },
+                [],
+                "String",
+                [
+                  {
+                    "DString": [
+                      "test"
+                    ]
+                  }
+                ]
               ]
             },
             "escaped": {
@@ -15578,206 +15530,76 @@
             "record": {
               "DRecord": [
                 {
-                  "UserProgram": [
+                  "Package": [
                     {
+                      "owner": "Darklang",
                       "modules": [
-                        "Two",
-                        "Modules"
+                        "Stdlib",
+                        "Http"
                       ],
-                      "name": "Foo",
+                      "name": "Request",
                       "version": 0
                     }
                   ]
                 },
                 {
-                  "UserProgram": [
+                  "Package": [
                     {
+                      "owner": "Darklang",
                       "modules": [
-                        "Two",
-                        "Modules"
+                        "Stdlib",
+                        "Http"
                       ],
-                      "name": "FooAlias",
+                      "name": "Request",
                       "version": 0
                     }
                   ]
                 },
                 [],
                 {
-                  "foo": {
-                    "DInt64": [
-                      5
-                    ]
-                  }
-                }
-              ]
-            },
-            "record2": {
-              "DRecord": [
-                {
-                  "UserProgram": [
-                    {
-                      "modules": [],
-                      "name": "Foo",
-                      "version": 0
-                    }
-                  ]
-                },
-                {
-                  "UserProgram": [
-                    {
-                      "modules": [],
-                      "name": "FooAlias",
-                      "version": 0
-                    }
-                  ]
-                },
-                [
-                  {
-                    "Unknown": []
-                  },
-                  {
-                    "Known": [
+                  "body": {
+                    "DList": [
                       {
-                        "KTBool": []
-                      }
-                    ]
-                  }
-                ],
-                {
-                  "type": {
-                    "DString": [
-                      "weird"
-                    ]
-                  },
-                  "value": {
-                    "DUnit": []
-                  }
-                }
-              ]
-            },
-            "record3": {
-              "DRecord": [
-                {
-                  "UserProgram": [
-                    {
-                      "modules": [],
-                      "name": "Foo",
-                      "version": 0
-                    }
-                  ]
-                },
-                {
-                  "UserProgram": [
-                    {
-                      "modules": [],
-                      "name": "Foo",
-                      "version": 0
-                    }
-                  ]
-                },
-                [],
-                {
-                  "type": {
-                    "DString": [
-                      "weird"
-                    ]
-                  },
-                  "value": {
-                    "DString": [
-                      "x"
-                    ]
-                  }
-                }
-              ]
-            },
-            "record4": {
-              "DRecord": [
-                {
-                  "UserProgram": [
-                    {
-                      "modules": [],
-                      "name": "Foo",
-                      "version": 0
-                    }
-                  ]
-                },
-                {
-                  "UserProgram": [
-                    {
-                      "modules": [],
-                      "name": "Foo",
-                      "version": 0
-                    }
-                  ]
-                },
-                [
-                  {
-                    "Known": [
-                      {
-                        "KTBool": []
-                      }
-                    ]
-                  },
-                  {
-                    "Known": [
-                      {
-                        "KTChar": []
-                      }
-                    ]
-                  },
-                  {
-                    "Known": [
-                      {
-                        "KTCustomType": [
+                        "Known": [
                           {
-                            "UserProgram": [
-                              {
-                                "modules": [],
-                                "name": "Foo",
-                                "version": 0
-                              }
-                            ]
-                          },
-                          []
+                            "KTUInt8": []
+                          }
                         ]
-                      }
+                      },
+                      []
                     ]
-                  }
-                ],
-                {
-                  "foo\\\\bar": {
-                    "DInt64": [
-                      5
+                  },
+                  "headers": {
+                    "DList": [
+                      {
+                        "Known": [
+                          {
+                            "KTTuple": [
+                              {
+                                "Known": [
+                                  {
+                                    "KTString": []
+                                  }
+                                ]
+                              },
+                              {
+                                "Known": [
+                                  {
+                                    "KTString": []
+                                  }
+                                ]
+                              },
+                              []
+                            ]
+                          }
+                        ]
+                      },
+                      []
                     ]
-                  }
-                }
-              ]
-            },
-            "record5": {
-              "DRecord": [
-                {
-                  "UserProgram": [
-                    {
-                      "modules": [],
-                      "name": "Foo",
-                      "version": 0
-                    }
-                  ]
-                },
-                {
-                  "UserProgram": [
-                    {
-                      "modules": [],
-                      "name": "Foo",
-                      "version": 0
-                    }
-                  ]
-                },
-                [],
-                {
-                  "$type": {
-                    "DInt64": [
-                      5
+                  },
+                  "url": {
+                    "DString": [
+                      "https://darklang.com"
                     ]
                   }
                 }
