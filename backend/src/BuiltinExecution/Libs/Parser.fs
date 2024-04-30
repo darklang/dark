@@ -59,7 +59,7 @@ let fns : List<BuiltInFn> =
               let startPos = cursor.Current.StartPosition
               let endPos = cursor.Current.EndPosition
 
-              let sourceRange =
+              let range =
                 let fields = [ "start", mapPoint startPos; "end_", mapPoint endPos ]
                 DRecord(rangeTypeName, rangeTypeName, [], Map fields)
 
@@ -91,7 +91,7 @@ let fns : List<BuiltInFn> =
               [ ("fieldName", fieldName)
                 ("typ", DString cursor.Current.Kind)
                 ("text", DString sourceText)
-                ("range", sourceRange)
+                ("range", range)
                 ("children", DList(VT.customType parsedNodeTypeName [], children)) ]
 
             DRecord(parsedNodeTypeName, parsedNodeTypeName, [], Map fields)

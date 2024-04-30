@@ -315,7 +315,6 @@ let parse
           None // whole file
 
     let moduleWT = parseDecls owner canvasName decls
-    debuG "Parsed module" moduleWT
 
     // Initial pass, so we can re-parse with all names in context
     let! result = toPT builtins pm onMissing moduleWT

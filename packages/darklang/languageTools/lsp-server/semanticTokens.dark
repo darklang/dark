@@ -61,8 +61,8 @@ module Darklang =
             : List<LanguageServerProtocol.SemanticTokens.RelativeSemanticToken.RelativeSemanticToken<LanguageTools.SemanticTokens.TokenType>> =
             tokens
             |> Stdlib.List.sortByComparator_v0 (fun a b ->
-              let aStart = a.sourceRange.start
-              let bStart = b.sourceRange.start
+              let aStart = a.range.start
+              let bStart = b.range.start
 
               if Stdlib.Int64.lessThan aStart.row bStart.row then
                 -1L
@@ -81,14 +81,13 @@ module Darklang =
                 let (tokensSoFar, startOfLastToken) = acc
 
                 let (deltaLine, deltaStart) =
-                  match token.sourceRange.start.row - startOfLastToken.row with
-                  | 0L ->
-                    (0UL, token.sourceRange.start.column - startOfLastToken.column)
+                  match token.range.start.row - startOfLastToken.row with
+                  | 0L -> (0UL, token.range.start.column - startOfLastToken.column)
                   | lineDiff ->
                     let lineDiff =
                       lineDiff |> Stdlib.UInt64.fromInt64 |> Builtin.unwrap
 
-                    (lineDiff, token.sourceRange.start.column)
+                    (lineDiff, token.range.start.column)
 
                 let newToken =
                   LanguageServerProtocol.SemanticTokens.RelativeSemanticToken.RelativeSemanticToken //<LanguageTools.SemanticTokens.TokenType>
@@ -96,13 +95,12 @@ module Darklang =
                       deltaStart =
                         deltaStart |> Stdlib.UInt64.fromInt64 |> Builtin.unwrap
                       length =
-                        (token.sourceRange.end_.column
-                         - token.sourceRange.start.column)
+                        (token.range.end_.column - token.range.start.column)
                         |> Stdlib.UInt64.fromInt64
                         |> Builtin.unwrap
                       tokenType = token.tokenType }
 
-                (Stdlib.List.push tokensSoFar newToken, token.sourceRange.start)))
+                (Stdlib.List.push tokensSoFar newToken, token.range.start)))
             |> Stdlib.Tuple2.first
             |> Stdlib.List.reverse
 

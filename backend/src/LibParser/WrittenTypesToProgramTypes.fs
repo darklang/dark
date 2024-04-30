@@ -180,7 +180,6 @@ module Expr =
       | WT.EBool(id, b) -> return PT.EBool(id, b)
       | WT.EUnit id -> return PT.EUnit id
       | WT.EVariable(id, var) ->
-        if var = "format" then debuG "format" (currentModule)
         // This could be a UserConstant
         let! constant =
           NR.resolveConstantName

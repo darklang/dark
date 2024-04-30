@@ -120,7 +120,7 @@ module Darklang =
 
         module EnumField =
           let toPT
-            (resolver: NameResolver.NameResolutionSettings)
+            (onMissing: NameResolver.OnMissing)
             (f: WrittenTypes.TypeDeclaration.EnumField)
             : ProgramTypes.TypeDeclaration.EnumField =
 
@@ -130,20 +130,20 @@ module Darklang =
               | None -> Stdlib.Option.Option.None
 
             ProgramTypes.TypeDeclaration.EnumField
-              { typ = TypeReference.toPT resolver f.typ
+              { typ = TypeReference.toPT onMissing f.typ
                 label = label
                 description = "" }
 
         module EnumCase =
           let toPT
-            (resolver: NameResolver.NameResolutionSettings)
+            (onMissing: NameResolver.OnMissing)
             (c: WrittenTypes.TypeDeclaration.EnumCase)
             : ProgramTypes.TypeDeclaration.EnumCase =
 
             let name = c.name |> Stdlib.Tuple2.second
 
             let fields =
-              Stdlib.List.map c.fields (fun f -> EnumField.toPT resolver f)
+              Stdlib.List.map c.fields (fun f -> EnumField.toPT onMissing f)
 
             ProgramTypes.TypeDeclaration.EnumCase
               { name = name
@@ -161,8 +161,6 @@ module Darklang =
               let typ = TypeReference.toPT onMissing typ
               ProgramTypes.TypeDeclaration.Definition.Alias typ
 
-            | Enum _cases -> "TODO"
-
             | Record fields ->
               let fields =
                 Stdlib.List.map fields (fun (f, _) -> RecordField.toPT onMissing f)
@@ -170,7 +168,7 @@ module Darklang =
               ProgramTypes.TypeDeclaration.Definition.Record fields
 
             | Enum cases ->
-              let cases = Stdlib.List.map cases (fun c -> EnumCase.toPT resolver c)
+              let cases = Stdlib.List.map cases (fun c -> EnumCase.toPT onMissing c)
               ProgramTypes.TypeDeclaration.Definition.Enum cases
 
         let toPT
@@ -313,12 +311,12 @@ module Darklang =
 
             let typeName =
               NameResolver.TypeName.resolve
-                resolver
+                onMissing
                 []
                 (WrittenTypes.Name.Unresolved sr unresolvedTypeName)
 
             let caseName = caseName |> Stdlib.Tuple2.second
-            let fields = Stdlib.List.map fields (fun expr -> toPT resolver expr)
+            let fields = Stdlib.List.map fields (fun expr -> toPT onMissing expr)
 
             ProgramTypes.Expr.EEnum(gid (), typeName, caseName, fields)
 

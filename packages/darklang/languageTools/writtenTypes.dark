@@ -2,82 +2,82 @@ module Darklang =
   module LanguageTools =
     module WrittenTypes =
       // <aliases>
-      type SourceRange = Parser.Range
+      type Range = Parser.Range
       // <aliases>
 
       // Identifiers
 
-      type ModuleIdentifier = { range: SourceRange; name: String }
+      type ModuleIdentifier = { range: Range; name: String }
 
-      type TypeIdentifier = { range: SourceRange; name: String }
+      type TypeIdentifier = { range: Range; name: String }
 
       type QualifiedTypeIdentifier =
         {
-          range: SourceRange
-          /// the SourceRange corresponds to the `.` after the module name
-          modules: List<ModuleIdentifier * SourceRange>
+          range: Range
+          /// the Range corresponds to the `.` after the module name
+          modules: List<ModuleIdentifier * Range>
           typ: TypeIdentifier
         }
 
-      type VariableIdentifier = { range: SourceRange; name: String }
+      type VariableIdentifier = { range: Range; name: String }
 
-      type FnIdentifier = { range: SourceRange; name: String }
+      type FnIdentifier = { range: Range; name: String }
 
       type QualifiedFnIdentifier =
         {
-          range: SourceRange
-          /// the sourceRange corresponds to the `.` after the module name
-          modules: List<ModuleIdentifier * SourceRange>
+          range: Range
+          /// the range corresponds to the `.` after the module name
+          modules: List<ModuleIdentifier * Range>
           fn: FnIdentifier
         }
 
-      type Name = Unresolved of SourceRange * List<String>
+      type Name = Unresolved of Range * List<String>
 
       // Types
       module TypeReference =
-        // The first sourceRange corresponds to the whole type
+        // The first range corresponds to the whole type
         type Builtin =
-          | TUnit of SourceRange
-          | TBool of SourceRange
-          | TInt8 of SourceRange
-          | TUInt8 of SourceRange
-          | TInt16 of SourceRange
-          | TUInt16 of SourceRange
-          | TInt32 of SourceRange
-          | TUInt32 of SourceRange
-          | TInt64 of SourceRange
-          | TUInt64 of SourceRange
-          | TInt128 of SourceRange
-          | TUInt128 of SourceRange
-          | TFloat of SourceRange
-          | TChar of SourceRange
-          | TString of SourceRange
+          | TUnit of Range
+          | TBool of Range
+          | TInt8 of Range
+          | TUInt8 of Range
+          | TInt16 of Range
+          | TUInt16 of Range
+          | TInt32 of Range
+          | TUInt32 of Range
+          | TInt64 of Range
+          | TUInt64 of Range
+          | TInt128 of Range
+          | TUInt128 of Range
+          | TFloat of Range
+          | TChar of Range
+          | TString of Range
 
           | TList of
-            SourceRange *
-            keywordList: SourceRange *
-            openBracket: SourceRange *
+            Range *
+            keywordList: Range *
+            openBracket: Range *
             typ: TypeReference.TypeReference *
-            closeBracket: SourceRange
+            closeBracket: Range
 
           | TDict of
-            SourceRange *
-            keywordDict: SourceRange *
-            openBrace: SourceRange *
+            Range *
+            keywordDict: Range *
+            openBrace: Range *
             typ: TypeReference.TypeReference *
-            closeBrace: SourceRange
+            closeBrace: Range
 
           | TTuple of
-            SourceRange *
+            Range *
             first: TypeReference *
-            symbolAsterisk: SourceRange *
+            symbolAsterisk: Range *
             second: TypeReference *
-            rest: List<Stdlib.Option.Option<SourceRange> * TypeReference> *
-            openParen: SourceRange *
-            closeParen: SourceRange
+            rest: List<Stdlib.Option.Option<Range> * TypeReference> *
+            openParen: Range *
+            closeParen: Range
 
-          | TDateTime of SourceRange
-          | TUuid of SourceRange
+          | TDateTime of Range
+          | TUuid of Range
 
 
         type TypeReference =
@@ -88,42 +88,42 @@ module Darklang =
 
       module TypeDeclaration =
         type RecordField =
-          { range: SourceRange
-            name: SourceRange * String
+          { range: Range
+            name: Range * String
             typ: TypeReference.TypeReference
             description: String
-            symbolColon: SourceRange }
+            symbolColon: Range }
 
         type EnumField =
-          { range: SourceRange
+          { range: Range
             typ: TypeReference.TypeReference
-            label: Stdlib.Option.Option<SourceRange * String>
+            label: Stdlib.Option.Option<Range * String>
             description: String
-            symbolColon: Stdlib.Option.Option<SourceRange> }
+            symbolColon: Stdlib.Option.Option<Range> }
 
         type EnumCase =
-          { range: SourceRange
-            name: SourceRange * String
+          { range: Range
+            name: Range * String
             fields: List<EnumField>
             description: String
-            keywordOf: Stdlib.Option.Option<SourceRange> }
+            keywordOf: Stdlib.Option.Option<Range> }
 
         type Definition =
           | Alias of TypeReference.TypeReference
-          | Record of List<RecordField * Stdlib.Option.Option<SourceRange>>
+          | Record of List<RecordField * Stdlib.Option.Option<Range>>
           // TODO: capture the |s that precede the EnumCases
           | Enum of List<EnumCase>
 
         type TypeDeclaration =
-          { range: SourceRange
+          { range: Range
             name: TypeIdentifier
             definition: Definition
-            keywordType: SourceRange
-            symbolEquals: SourceRange }
+            keywordType: Range
+            symbolEquals: Range }
 
 
       // Expressions
-      type LetPattern = LPVariable of SourceRange * name: String
+      type LetPattern = LPVariable of Range * name: String
 
       type Infix =
         | InfixFnCall of InfixFnName
@@ -149,148 +149,117 @@ module Darklang =
         | BinOpOr
 
       type Expr =
-        | EUnit of SourceRange
-        | EBool of SourceRange * Bool
-        | EInt8 of
-          SourceRange *
-          intPart: (SourceRange * Int8) *
-          suffixPart: SourceRange
-        | EUInt8 of
-          SourceRange *
-          intPart: (SourceRange * UInt8) *
-          suffixPart: SourceRange
-        | EInt16 of
-          SourceRange *
-          intPart: (SourceRange * Int16) *
-          suffixPart: SourceRange
-        | EUInt16 of
-          SourceRange *
-          intPart: (SourceRange * UInt16) *
-          suffixPart: SourceRange
-        | EInt32 of
-          SourceRange *
-          intPart: (SourceRange * Int32) *
-          suffixPart: SourceRange
-        | EUInt32 of
-          SourceRange *
-          intPart: (SourceRange * UInt32) *
-          suffixPart: SourceRange
+        | EUnit of Range
+        | EBool of Range * Bool
+        | EInt8 of Range * intPart: (Range * Int8) * suffixPart: Range
+        | EUInt8 of Range * intPart: (Range * UInt8) * suffixPart: Range
+        | EInt16 of Range * intPart: (Range * Int16) * suffixPart: Range
+        | EUInt16 of Range * intPart: (Range * UInt16) * suffixPart: Range
+        | EInt32 of Range * intPart: (Range * Int32) * suffixPart: Range
+        | EUInt32 of Range * intPart: (Range * UInt32) * suffixPart: Range
         | EInt64 of
-          SourceRange *
-          intPart: (SourceRange * Int64) *
+          Range *
+          intPart: (Range * Int64) *
           /// for the L suffix
-          suffixPart: SourceRange
-        | EUInt64 of
-          SourceRange *
-          intPart: (SourceRange * UInt64) *
-          suffixPart: SourceRange
-        | EInt128 of
-          SourceRange *
-          intPart: (SourceRange * Int128) *
-          suffixPart: SourceRange
-        | EUInt128 of
-          SourceRange *
-          intPart: (SourceRange * UInt128) *
-          suffixPart: SourceRange
-        | EFloat of SourceRange * Sign * String * String
+          suffixPart: Range
+        | EUInt64 of Range * intPart: (Range * UInt64) * suffixPart: Range
+        | EInt128 of Range * intPart: (Range * Int128) * suffixPart: Range
+        | EUInt128 of Range * intPart: (Range * UInt128) * suffixPart: Range
+        | EFloat of Range * Sign * String * String
         | EString of
-          SourceRange *
-          contents: Stdlib.Option.Option<SourceRange * String> *
-          symbolOpenQuote: SourceRange *
-          symbolCloseQuote: SourceRange
+          Range *
+          contents: Stdlib.Option.Option<Range * String> *
+          symbolOpenQuote: Range *
+          symbolCloseQuote: Range
         | EChar of
-          SourceRange *
-          contents: Stdlib.Option.Option<SourceRange * String> *
-          symbolOpenQuote: SourceRange *
-          symbolCloseQuote: SourceRange
+          Range *
+          contents: Stdlib.Option.Option<Range * String> *
+          symbolOpenQuote: Range *
+          symbolCloseQuote: Range
 
         | EList of
-          SourceRange *
-          contents: List<Expr * Stdlib.Option.Option<SourceRange>> *
-          symbolOpenBracket: SourceRange *
-          symbolCloseBracket: SourceRange
+          Range *
+          contents: List<Expr * Stdlib.Option.Option<Range>> *
+          symbolOpenBracket: Range *
+          symbolCloseBracket: Range
 
         | EDict of
-          SourceRange *
-          contents: List<SourceRange * String * Expr> *
-          keywordDict: SourceRange *
-          symbolOpenBrace: SourceRange *
-          symbolCloseBrace: SourceRange
+          Range *
+          contents: List<Range * String * Expr> *
+          keywordDict: Range *
+          symbolOpenBrace: Range *
+          symbolCloseBrace: Range
 
         | ETuple of
-          SourceRange *
+          Range *
           first: Expr *
-          symbolComma: SourceRange *
+          symbolComma: Range *
           second: Expr *
-          rest: List<Stdlib.Option.Option<SourceRange> * Expr> *
-          symbolOpenParen: SourceRange *
-          symbolCloseParen: SourceRange
+          rest: List<Stdlib.Option.Option<Range> * Expr> *
+          symbolOpenParen: Range *
+          symbolCloseParen: Range
 
         | ERecord of
-          SourceRange *
+          Range *
           typeName: Name *
-          fields: List<SourceRange * (SourceRange * String) * Expr> *
-          symbolOpenBrace: SourceRange *
-          symbolCloseBrace: SourceRange
+          fields: List<Range * (Range * String) * Expr> *
+          symbolOpenBrace: Range *
+          symbolCloseBrace: Range
 
         | EEnum of
-          SourceRange *
-          typeName: (SourceRange * List<String>) *
-          caseName: (SourceRange * String) *
+          Range *
+          typeName: (Range * List<String>) *
+          caseName: (Range * String) *
           fields: List<Expr> *
           /// between the typeName and the caseName
-          symbolDot: SourceRange
+          symbolDot: Range
 
         | ELet of
-          SourceRange *
+          Range *
           LetPattern *
           expr: Expr *
           body: Expr *
-          keywordLet: SourceRange *
-          symbolEquals: SourceRange
+          keywordLet: Range *
+          symbolEquals: Range
 
-        | EVariable of SourceRange * String
+        | EVariable of Range * String
 
         | EIf of
-          SourceRange *
+          Range *
           cond: Expr *
           thenExpr: Expr *
           elseExpr: Stdlib.Option.Option<Expr> *
-          keywordIf: SourceRange *
-          keywordThen: SourceRange *
-          keywordElse: Stdlib.Option.Option<SourceRange>
+          keywordIf: Range *
+          keywordThen: Range *
+          keywordElse: Stdlib.Option.Option<Range>
 
-        | EInfix of
-          SourceRange *
-          op: (SourceRange * Infix) *
-          left: Expr *
-          right: Expr
+        | EInfix of Range * op: (Range * Infix) * left: Expr * right: Expr
 
         // TODO: I accidentally got away from how we normally represent
         // Expressions - switch to this instead.
-        // | EApply of SourceRange * lhs: Expr * args: List<Expr>
+        // | EApply of Range * lhs: Expr * args: List<Expr>
         // | EFnName of QualifiedFnIdentifier
 
         | EFnCall of
-          SourceRange *
+          Range *
           fnName: QualifiedFnIdentifier *
           args: List<Expr> *
-          symbolLeftParen: SourceRange *
-          symbolRightParen: SourceRange
+          symbolLeftParen: Range *
+          symbolRightParen: Range
 
 
 
       // Fn declarations
       module FnDeclaration =
-        type UnitParameter = { range: SourceRange }
+        type UnitParameter = { range: Range }
 
         type NormalParameter =
-          { range: SourceRange
+          { range: Range
             name: VariableIdentifier
             typ: TypeReference.TypeReference
-            symbolLeftParen: SourceRange
-            symbolColon: SourceRange
-            symbolRightParen: SourceRange }
+            symbolLeftParen: Range
+            symbolColon: Range
+            symbolRightParen: Range }
 
         type Parameter =
           | Unit of UnitParameter
@@ -298,14 +267,14 @@ module Darklang =
 
 
         type FnDeclaration =
-          { range: SourceRange
+          { range: Range
             name: FnIdentifier
             parameters: List<Parameter>
             returnType: TypeReference.TypeReference
             body: Expr
-            keywordLet: SourceRange
-            symbolColon: SourceRange
-            symbolEquals: SourceRange }
+            keywordLet: Range
+            symbolColon: Range
+            symbolEquals: Range }
 
 
       // Cli scripts
@@ -316,7 +285,7 @@ module Darklang =
       type Unparseable = { source: Parser.ParsedNode }
 
       type CliScript =
-        { range: SourceRange
+        { range: Range
           typesAndFns: List<CliScriptTypeOrFn>
           unparseableStuff: List<Unparseable>
           exprsToEval: List<Expr> }
