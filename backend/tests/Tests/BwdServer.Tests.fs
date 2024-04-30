@@ -49,7 +49,6 @@ let parse code =
   LibParser.Parser.parsePTExpr
     localBuiltIns
     packageManager
-    NR.UserStuff.empty
     NR.OnMissing.ThrowError
     "BwdServer.Tests.fs"
     code

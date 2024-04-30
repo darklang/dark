@@ -90,8 +90,9 @@
                 {
                   "Ok": [
                     {
-                      "UserProgram": [
+                      "Package": [
                         {
+                          "owner": "owner",
                           "modules": [
                             "Mod"
                           ],

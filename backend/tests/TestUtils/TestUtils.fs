@@ -79,17 +79,19 @@ let testCron
 let testWorker (name : string) (ast : PT.Expr) : PT.Handler.T =
   { tlid = gid (); ast = ast; spec = PT.Handler.Worker name }
 
-let testUserFn
+let testPackageFn
+  (owner : string)
   (name : string)
   (typeParams : List<string>)
   (parameters : NEList<string>)
   (returnType : PT.TypeReference)
   (body : PT.Expr)
-  : PT.UserFunction.T =
-  { tlid = gid ()
+  : PT.PackageFn.T =
+  { id = System.Guid.NewGuid()
+    tlid = gid ()
     body = body
     description = ""
-    name = PT.FQFnName.userProgram [] name 0
+    name = PT.FQFnName.package owner [] name 0
     typeParams = typeParams
     deprecated = PT.NotDeprecated
     parameters =
@@ -99,14 +101,15 @@ let testUserFn
     returnType = returnType }
 
 let testUserRecordType
-  (name : PT.FQTypeName.UserProgram)
+  (name : PT.FQTypeName.Package)
   (firstField : string * PT.TypeReference)
   (additionalFields : List<string * PT.TypeReference>)
-  : PT.UserType.T =
+  : PT.PackageType.T =
   let mapField (name, typ) : PT.TypeDeclaration.RecordField =
     { name = name; typ = typ; description = "" }
 
-  { tlid = gid ()
+  { id = System.Guid.NewGuid()
+    tlid = gid ()
     name = name
     description = ""
     deprecated = PT.NotDeprecated
@@ -149,13 +152,11 @@ let packageManager = LibCloud.PackageManager.packageManager
 
 
 let executionStateFor
+  (pm : RT.PackageManager)
   (canvasID : CanvasID)
   (internalFnsAllowed : bool)
   (allowLocalHttpAccess : bool)
   (dbs : Map<string, RT.DB.T>)
-  (userTypes : Map<RT.FQTypeName.UserProgram, RT.UserType.T>)
-  (userFunctions : Map<RT.FQFnName.UserProgram, RT.UserFunction.T>)
-  (userConstants : Map<RT.FQConstantName.UserProgram, RT.UserConstant.T>)
   : Task<RT.ExecutionState> =
   task {
     let! domains = Canvas.domainsForCanvasID canvasID
@@ -163,10 +164,7 @@ let executionStateFor
     let program : RT.Program =
       { canvasID = canvasID
         internalFnsAllowed = internalFnsAllowed
-        fns = userFunctions
-        types = userTypes
         dbs = dbs
-        constants = userConstants
         secrets = [] }
 
     let testContext : RT.TestContext =
@@ -210,13 +208,7 @@ let executionStateFor
 
     let builtins = if allowLocalHttpAccess then localBuiltIns else cloudBuiltIns
     let state =
-      Exe.createState
-        builtins
-        packageManager
-        Exe.noTracing
-        exceptionReporter
-        notifier
-        program
+      Exe.createState builtins pm Exe.noTracing exceptionReporter notifier program
     let state = { state with test = testContext }
     return state
   }
@@ -448,16 +440,11 @@ module Expect =
     let err () = errorFn path (string actual) (string expected)
 
     match actual, expected with
-    | FQTypeName.UserProgram a, FQTypeName.UserProgram e ->
-      if a.name <> e.name then err ()
-      if a.version <> e.version then err ()
     | FQTypeName.Package a, FQTypeName.Package e ->
       if a.owner <> e.owner then err ()
       if a.modules <> e.modules then err ()
       if a.name <> e.name then err ()
       if a.version <> e.version then err ()
-    | FQTypeName.UserProgram _, _
-    | FQTypeName.Package _, _ -> err ()
 
   let rec matchPatternEqualityBaseFn
     (checkIDs : bool)
@@ -1098,47 +1085,71 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
     ("int string3", DString "0", TString)
     ("uuid string", DString "7d9e5495-b068-4364-a2cc-3633ab4d13e6", TString)
     ("list", DList(ValueType.Known KTInt64, [ Dval.int64 4 ]), TList TInt64)
+
     ("record",
      DRecord(
-       S.fqUserTypeName [ "Two"; "Modules" ] "Foo" 0,
-       S.fqUserTypeName [ "Two"; "Modules" ] "FooAlias" 0,
+       S.fqPackageTypeName "Darklang" [ "Stdlib"; "Http" ] "Request" 0,
+       S.fqPackageTypeName "Darklang" [ "Stdlib"; "Http" ] "Request" 0,
        [],
-       Map.ofList [ "foo", Dval.int64 5 ]
+       Map.ofList
+         [ "url", DString "https://darklang.com"
+           "headers", Dval.list (KTTuple(VT.string, VT.string, [])) []
+           "body", Dval.list KTUInt8 [] ]
      ),
-     TCustomType(Ok(S.fqUserTypeName [ "Two"; "Modules" ] "Foo" 0), []))
-    ("record2",
-     DRecord(
-       S.fqUserTypeName [] "Foo" 0,
-       S.fqUserTypeName [] "FooAlias" 0,
-       [ VT.unknown; VT.bool ],
-       Map.ofList [ ("type", DString "weird"); ("value", DUnit) ]
-     ),
-     TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
-    ("record3",
-     DRecord(
-       S.fqUserTypeName [] "Foo" 0,
-       S.fqUserTypeName [] "Foo" 0,
+     TCustomType(
+       Ok(S.fqPackageTypeName "Darklang" [ "Stdlib"; "Http" ] "Request" 0),
+       []
+     ))
+
+    ("enum",
+     DEnum(
+       S.fqPackageTypeName "Darklang" [ "Stdlib"; "AltJson" ] "Json" 0,
+       S.fqPackageTypeName "Darklang" [ "Stdlib"; "AltJson" ] "Json" 0,
        [],
-       Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]
+       "String",
+       [ DString "test" ]
      ),
-     TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
-    // More Json.NET tests
-    ("record4",
-     DRecord(
-       S.fqUserTypeName [] "Foo" 0,
-       S.fqUserTypeName [] "Foo" 0,
-       [ VT.bool; VT.char; (VT.customType (S.fqUserTypeName [] "Foo" 0)) [] ],
-       Map.ofList [ "foo\\\\bar", Dval.int64 5 ]
-     ),
-     TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
-    ("record5",
-     DRecord(
-       S.fqUserTypeName [] "Foo" 0,
-       S.fqUserTypeName [] "Foo" 0,
-       [],
-       Map.ofList [ "$type", Dval.int64 5 ]
-     ),
-     TCustomType(Ok(S.fqUserTypeName [] "Foo" 0), []))
+     TCustomType(
+       Ok(S.fqPackageTypeName "Darklang" [ "Stdlib"; "AltJson" ] "Json" 0),
+       []
+     ))
+
+    // TODO: extract what's useful in here, and create smaller tests for each
+    // ("record2",
+    //  DRecord(
+    //    S.fqPackageTypeName "Test" [] "Foo" 0,
+    //    S.fqPackageTypeName "Test" [] "FooAlias" 0,
+    //    [ VT.unknown; VT.bool ],
+    //    Map.ofList [ ("type", DString "weird"); ("value", DUnit) ]
+    //  ),
+    //  TCustomType(Ok(S.fqPackageTypeName "Test" [] "Foo" 0), []))
+    // ("record3",
+    //  DRecord(
+    //    S.fqPackageTypeName "Test" [] "Foo" 0,
+    //    S.fqPackageTypeName "Test" [] "Foo" 0,
+    //    [],
+    //    Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]
+    //  ),
+    //  TCustomType(Ok(S.fqPackageTypeName "Test" [] "Foo" 0), []))
+    // // More Json.NET tests
+    // ("record4",
+    //  DRecord(
+    //    S.fqPackageTypeName "Test" [] "Foo" 0,
+    //    S.fqPackageTypeName "Test" [] "Foo" 0,
+    //    [ VT.bool
+    //      VT.char
+    //      (VT.customType (S.fqPackageTypeName "Test" [] "Foo" 0)) [] ],
+    //    Map.ofList [ "foo\\\\bar", Dval.int64 5 ]
+    //  ),
+    //  TCustomType(Ok(S.fqPackageTypeName "Test" [] "Foo" 0), []))
+    // ("record5",
+    //  DRecord(
+    //    S.fqPackageTypeName "Test" [] "Foo" 0,
+    //    S.fqPackageTypeName "Test" [] "Foo" 0,
+    //    [],
+    //    Map.ofList [ "$type", Dval.int64 5 ]
+    //  ),
+    //  TCustomType(Ok(S.fqPackageTypeName "Test" [] "Foo" 0), []))
     ("dict", DDict(VT.unknown, Map [ "foo", Dval.int64 5 ]), TDict TInt64)
     ("dict3",
      DDict(VT.unknown, Map [ ("type", DString "weird"); ("value", DString "x") ]),

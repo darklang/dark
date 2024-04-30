@@ -4,28 +4,32 @@ open FSharp.Compiler.Syntax
 
 open Prelude
 
-module FS2WT = FSharpToWrittenTypes
-module WT = WrittenTypes
-module WT2PT = WrittenTypesToProgramTypes
-module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module PT = LibExecution.ProgramTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+
+module WT = WrittenTypes
+module FS2WT = FSharpToWrittenTypes
+module WT2PT = WrittenTypesToProgramTypes
 module NR = NameResolver
 
 open Utils
 open ParserException
 
 type WTCanvasModule =
-  { name : List<string>
-    types : List<WT.UserType.T>
-    constants : List<WT.UserConstant.T>
+  { owner : string
+    name : List<string>
+    types : List<WT.PackageType.T>
+    constants : List<WT.PackageConstant.T>
     dbs : List<WT.DB.T>
-    fns : List<WT.UserFunction.T>
+    fns : List<WT.PackageFn.T>
     // TODO: consider breaking this down into httpHandlers, crons, workers, and repls
     handlers : List<WT.Handler.Spec * WT.Expr>
     exprs : List<WT.Expr> }
 
-let emptyWTModule =
-  { name = []
+let emptyRootWTModule owner canvasName =
+  { owner = owner
+    name = [ "Canvas"; canvasName ]
     types = []
     constants = []
     dbs = []
@@ -34,10 +38,12 @@ let emptyWTModule =
     exprs = [] }
 
 type PTCanvasModule =
-  { types : List<PT.UserType.T>
-    constants : List<PT.UserConstant.T>
+  { // These will end up in the package manager
+    types : List<PT.PackageType.T>
+    constants : List<PT.PackageConstant.T>
+    fns : List<PT.PackageFn.T>
+
     dbs : List<PT.DB.T>
-    fns : List<PT.UserFunction.T>
     // TODO: consider breaking this down into httpHandlers, crons, workers, and repls
     handlers : List<PT.Handler.Spec * PT.Expr>
     exprs : List<PT.Expr> }
@@ -101,7 +107,7 @@ let parseLetBinding (m : WTCanvasModule) (letBinding : SynBinding) : WTCanvasMod
           WT.ELet(gid (), FS2WT.LetPattern.fromSynPat pat, expr, WT.EUnit(gid ()))
         { m with exprs = m.exprs @ [ newExpr ] }
       | Some _ ->
-        let newFn = FS2WT.UserFunction.fromSynBinding m.name letBinding
+        let newFn = FS2WT.PackageFn.fromSynBinding m.owner m.name letBinding
         { m with fns = newFn :: m.fns }
 
     | [ attr ] ->
@@ -178,7 +184,7 @@ let parseTypeDefn (m : WTCanvasModule) (typeDefn : SynTypeDefn) : WTCanvasModule
       if isDB then
         [ UserDB.fromSynTypeDefn typeDefn ], []
       else
-        [], [ FS2WT.UserType.fromSynTypeDefn m.name typeDefn ]
+        [], [ FS2WT.PackageType.fromSynTypeDefn m.owner m.name typeDefn ]
 
     { m with types = m.types @ newTypes; dbs = m.dbs @ newDBs }
 
@@ -198,7 +204,11 @@ let parseTypeDefn (m : WTCanvasModule) (typeDefn : SynTypeDefn) : WTCanvasModule
 ///   or as DBs (i.e. with `[<DB>] DBName = Type`)
 /// - ? expressions are parsed as init commands (not currently supported)
 /// - anything else fails
-let parseDecls (decls : List<SynModuleDecl>) : WTCanvasModule =
+let parseDecls
+  (owner : string)
+  (canvasName : string)
+  (decls : List<SynModuleDecl>)
+  : WTCanvasModule =
   List.fold
     (fun m decl ->
       match decl with
@@ -216,104 +226,108 @@ let parseDecls (decls : List<SynModuleDecl>) : WTCanvasModule =
           "Unsupported declaration"
           [ "decl", decl ]
           (Some decl.Range))
-    emptyWTModule
+    (emptyRootWTModule owner canvasName)
     decls
 
 
 let toPT
   (builtins : RT.Builtins)
   (pm : RT.PackageManager)
-  (userStuff : NR.UserStuff)
   (onMissing : NR.OnMissing)
   (m : WTCanvasModule)
   : Ply<PTCanvasModule> =
   uply {
     let! types =
       m.types
-      |> Ply.List.mapSequentially (WT2PT.UserType.toPT pm userStuff onMissing m.name)
-    let! fns =
-      m.fns
       |> Ply.List.mapSequentially (
-        WT2PT.UserFunction.toPT builtins pm userStuff onMissing m.name
+        WT2PT.PackageType.toPT pm onMissing (m.owner :: m.name)
       )
+
     let! constants =
       m.constants
       |> Ply.List.mapSequentially (
-        WT2PT.UserConstant.toPT pm userStuff onMissing m.name
+        WT2PT.PackageConstant.toPT pm onMissing (m.owner :: m.name)
       )
+
     let! dbs =
-      m.dbs |> Ply.List.mapSequentially (WT2PT.DB.toPT pm userStuff onMissing m.name)
+      m.dbs
+      |> Ply.List.mapSequentially (WT2PT.DB.toPT pm onMissing (m.owner :: m.name))
+
+    let! fns =
+      m.fns
+      |> Ply.List.mapSequentially (
+        WT2PT.PackageFn.toPT builtins pm onMissing (m.owner :: m.name)
+      )
+
     let! handlers =
       m.handlers
       |> Ply.List.mapSequentially (fun (spec, expr) ->
         uply {
           let spec = WT2PT.Handler.Spec.toPT spec
-          let! expr = WT2PT.Expr.toPT builtins pm userStuff onMissing m.name expr
+          let! expr = WT2PT.Expr.toPT builtins pm onMissing (m.owner :: m.name) expr
           return (spec, expr)
         })
+
     let! exprs =
       m.exprs
       |> Ply.List.mapSequentially (
-        WT2PT.Expr.toPT builtins pm userStuff onMissing m.name
+        WT2PT.Expr.toPT builtins pm onMissing (m.owner :: m.name)
       )
 
     return
       { types = types
-        fns = fns
         constants = constants
         dbs = dbs
+        fns = fns
         handlers = handlers
         exprs = exprs }
   }
 
 
 let parse
+  (owner : string)
+  (canvasName : string)
   (builtins : RT.Builtins)
   (pm : RT.PackageManager)
-  (userStuff : NR.UserStuff)
   (onMissing : NR.OnMissing)
   (filename : string)
   (source : string)
   : Ply<PTCanvasModule> =
-  let parsedAsFSharp = parseAsFSharpSourceFile filename source
 
-  let decls =
-    match parsedAsFSharp with
-    | ParsedImplFileInput(_,
-                          _,
-                          _,
-                          _,
-                          _,
-                          [ SynModuleOrNamespace(_, _, _, decls, _, _, _, _, _) ],
-                          _,
-                          _,
-                          _) -> decls
-    | _ ->
-      raiseParserError
-        "Wrong shape tree - parseable canvas definitions must contain a single module with declarations inside"
-        [ "parsedAsFsharp", parsedAsFSharp ]
-        None // whole file
+  uply {
+    let parsedAsFSharp = parseAsFSharpSourceFile filename source
 
-  // To WrittenTypes
-  let module' = parseDecls decls
+    let decls =
+      match parsedAsFSharp with
+      | ParsedImplFileInput(_,
+                            _,
+                            _,
+                            _,
+                            _,
+                            [ SynModuleOrNamespace(_, _, _, decls, _, _, _, _, _) ],
+                            _,
+                            _,
+                            _) -> decls
+      | _ ->
+        raiseParserError
+          "Wrong shape tree - parseable canvas definitions must contain a single module with declarations inside"
+          [ "parsedAsFsharp", parsedAsFSharp ]
+          None // whole file
 
-  // To ProgramTypes -- with the 'new stuff' in context
-  let updatedUserStuff : NR.UserStuff =
-    { types = Set.union userStuff.types (module'.types |> List.map _.name |> Set)
-      constants =
-        Set.union userStuff.constants (module'.constants |> List.map _.name |> Set)
-      fns = Set.union userStuff.fns (module'.fns |> List.map _.name |> Set) }
+    let moduleWT = parseDecls owner canvasName decls
 
-  toPT builtins pm updatedUserStuff onMissing module'
+    // Initial pass, so we can re-parse with all names in context
+    let! result = toPT builtins pm onMissing moduleWT
 
+    let pm =
+      RT.PackageManager.withExtras
+        pm
+        (result.types |> List.map PT2RT.PackageType.toRT)
+        (result.constants |> List.map PT2RT.PackageConstant.toRT)
+        (result.fns |> List.map PT2RT.PackageFn.toRT)
 
-let parseFromFile
-  (builtins : RT.Builtins)
-  (pm : RT.PackageManager)
-  (userStuff : NR.UserStuff)
-  (onMissing : NR.OnMissing)
-  (filename : string)
-  : Ply<PTCanvasModule> =
-  filename
-  |> System.IO.File.ReadAllText
-  |> parse builtins pm userStuff onMissing filename
+    // Now, parse again, but with the names in context (so fewer are marked as unresolved)
+    let! result = toPT builtins pm onMissing moduleWT
+
+    return result
+  }

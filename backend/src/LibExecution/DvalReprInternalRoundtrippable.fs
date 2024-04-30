@@ -24,22 +24,14 @@ module FormatV0 =
   //    change RT.Dval.
 
   module FQTypeName =
-    type UserProgram = { modules : List<string>; name : string; version : int }
-
     type Package =
       { owner : string; modules : List<string>; name : string; version : int }
 
-    type FQTypeName =
-      | Package of Package
-      | UserProgram of UserProgram
+    type FQTypeName = Package of Package
 
 
     let toRT (t : FQTypeName) : RT.FQTypeName.FQTypeName =
       match t with
-      | UserProgram { modules = modules; name = name; version = version } ->
-        RT.FQTypeName.UserProgram
-          { modules = modules; name = name; version = version }
-
       | Package { owner = owner; modules = modules; name = name; version = version } ->
         RT.FQTypeName.Package
           { owner = owner; modules = modules; name = name; version = version }
@@ -47,11 +39,6 @@ module FormatV0 =
 
     let fromRT (t : RT.FQTypeName.FQTypeName) : FQTypeName =
       match t with
-      | RT.FQTypeName.UserProgram { modules = modules
-                                    name = name
-                                    version = version } ->
-        FQTypeName.UserProgram { modules = modules; name = name; version = version }
-
       | RT.FQTypeName.Package { owner = owner
                                 modules = modules
                                 name = name
@@ -64,24 +51,17 @@ module FormatV0 =
   module FQFnName =
     type Builtin = { name : string; version : int }
 
-    type UserProgram = { modules : List<string>; name : string; version : int }
-
     type Package =
       { owner : string; modules : List<string>; name : string; version : int }
 
     type FQFnName =
       | Builtin of Builtin
       | Package of Package
-      | UserProgram of UserProgram
-
 
     let toRT (fn : FQFnName) : RT.FQFnName.FQFnName =
       match fn with
       | Builtin { name = name; version = version } ->
         RT.FQFnName.Builtin { name = name; version = version }
-
-      | UserProgram { modules = modules; name = name; version = version } ->
-        RT.FQFnName.UserProgram { modules = modules; name = name; version = version }
 
       | Package { owner = owner; modules = modules; name = name; version = version } ->
         RT.FQFnName.Package
@@ -91,9 +71,6 @@ module FormatV0 =
       match fn with
       | RT.FQFnName.Builtin { name = name; version = version } ->
         FQFnName.Builtin { name = name; version = version }
-
-      | RT.FQFnName.UserProgram { modules = modules; name = name; version = version } ->
-        FQFnName.UserProgram { modules = modules; name = name; version = version }
 
       | RT.FQFnName.Package { owner = owner
                               modules = modules

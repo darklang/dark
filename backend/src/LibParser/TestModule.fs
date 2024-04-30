@@ -19,9 +19,9 @@ type WTTest =
 
 type WTModule =
   { name : List<string>
-    types : List<WT.UserType.T>
-    fns : List<WT.UserFunction.T>
-    constants : List<WT.UserConstant.T>
+    types : List<WT.PackageType.T>
+    fns : List<WT.PackageFn.T>
+    constants : List<WT.PackageConstant.T>
     dbs : List<WT.DB.T>
     tests : List<WTTest> }
 
@@ -33,9 +33,9 @@ type PTTest =
 
 type PTModule =
   { name : List<string>
-    types : List<PT.UserType.T>
-    fns : List<PT.UserFunction.T>
-    constants : List<PT.UserConstant.T>
+    types : List<PT.PackageType.T>
+    fns : List<PT.PackageFn.T>
+    constants : List<PT.PackageConstant.T>
     dbs : List<PT.DB.T>
     tests : List<PTTest> }
 
@@ -47,9 +47,9 @@ type RTTest =
 
 type RTModule =
   { name : List<string>
-    types : List<PT.UserType.T>
-    fns : List<PT.UserFunction.T>
-    constants : List<PT.UserConstant.T>
+    types : List<PT.PackageType.T>
+    fns : List<PT.PackageFn.T>
+    constants : List<PT.PackageConstant.T>
     dbs : List<PT.DB.T>
     tests : List<RTTest> }
 
@@ -95,11 +95,14 @@ let parseTest (ast : SynExpr) : WTTest =
   | _ -> Exception.raiseInternal "Test case not in format `x = y`" [ "ast", ast ]
 
 
-let parseFile (parsedAsFSharp : ParsedImplFileInput) : List<WTModule> =
+let parseFile
+  (owner : string)
+  (parsedAsFSharp : ParsedImplFileInput)
+  : List<WTModule> =
   let parseTypeDecl
-    (moduleName : List<string>)
+    (currentModule : List<string>)
     (typeDefn : SynTypeDefn)
-    : List<WT.DB.T> * List<WT.UserType.T> =
+    : List<WT.DB.T> * List<WT.PackageType.T> =
     match typeDefn with
     | SynTypeDefn(SynComponentInfo(attrs, _, _, _, _, _, _, _), _, _, _, _, _) ->
       let attrs = attrs |> List.map _.Attributes |> List.concat
@@ -108,25 +111,27 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : List<WTModule> =
         |> List.exists (fun attr ->
           longIdentToList attr.TypeName.LongIdent = [ "DB" ])
       if isDB then
+        // TODO
         [ UserDB.fromSynTypeDefn typeDefn ], []
       else
-        [], [ FS2WT.UserType.fromSynTypeDefn moduleName typeDefn ]
+        [], [ FS2WT.PackageType.fromSynTypeDefn owner currentModule typeDefn ]
+
 
   let parseSynBinding
-    (moduleName : List<string>)
+    (currentModule : List<string>)
     (binding : SynBinding)
-    : List<WT.UserFunction.T> * List<WT.UserConstant.T> =
+    : List<WT.PackageFn.T> * List<WT.PackageConstant.T> =
     match binding with
     | SynBinding(_, _, _, _, _, _, _, signature, _, _, _, _, _) ->
       match signature with
       | SynPat.LongIdent(SynLongIdent _, _, _, _, _, _) ->
-        [ FS2WT.UserFunction.fromSynBinding moduleName binding ], []
+        [ FS2WT.PackageFn.fromSynBinding owner currentModule binding ], []
       | SynPat.Named _ ->
-        [], [ FS2WT.UserConstant.fromSynBinding moduleName binding ]
+        [], [ FS2WT.PackageConstant.fromSynBinding owner currentModule binding ]
       | _ -> Exception.raiseInternal $"Unsupported binding" [ "binding", binding ]
 
   let rec parseModule
-    (moduleName : List<string>)
+    (currentModule : List<string>)
     (parentDBs : List<WT.DB.T>)
     (decls : List<SynModuleDecl>)
     : List<WTModule> =
@@ -135,16 +140,16 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : List<WTModule> =
         (fun ((m : WTModule), nested) decl ->
           match decl with
           | SynModuleDecl.Let(_, bindings, _) ->
-            let (newUserFns, newUserConstants) =
-              bindings |> List.map (parseSynBinding moduleName) |> List.unzip
+            let (newUserFns, newPackageConstants) =
+              bindings |> List.map (parseSynBinding currentModule) |> List.unzip
             ({ m with
                 fns = m.fns @ List.concat newUserFns
-                constants = m.constants @ List.concat newUserConstants },
+                constants = m.constants @ List.concat newPackageConstants },
              nested)
 
           | SynModuleDecl.Types(defns, _) ->
             let (dbs, types) =
-              List.map (parseTypeDecl moduleName) defns |> List.unzip
+              List.map (parseTypeDecl currentModule) defns |> List.unzip
             ({ m with
                 types = m.types @ List.concat types
                 dbs = m.dbs @ List.concat dbs },
@@ -166,9 +171,10 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : List<WTModule> =
                                        _,
                                        _,
                                        _) ->
-            (m, parseModule (moduleName @ [ modName.idText ]) m.dbs decls @ nested)
+            (m,
+             parseModule (currentModule @ [ modName.idText ]) m.dbs decls @ nested)
           | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
-        ({ emptyWTModule with name = moduleName; dbs = parentDBs }, [])
+        ({ emptyWTModule with name = currentModule; dbs = parentDBs }, [])
         decls
     m :: nested
 
@@ -191,33 +197,39 @@ let parseFile (parsedAsFSharp : ParsedImplFileInput) : List<WTModule> =
 
 
 let toPT
+  (owner : string)
   (builtins : RT.Builtins)
   (pm : RT.PackageManager)
-  (userStuff : NR.UserStuff)
   (onMissing : NR.OnMissing)
   (m : WTModule)
   : Ply<PTModule> =
   uply {
-    let! fns =
-      m.fns
-      |> Ply.List.mapSequentially (
-        WT2PT.UserFunction.toPT builtins pm userStuff onMissing m.name
-      )
+    let currentModule = owner :: m.name
+
     let! types =
       m.types
-      |> Ply.List.mapSequentially (WT2PT.UserType.toPT pm userStuff onMissing m.name)
+      |> Ply.List.mapSequentially (WT2PT.PackageType.toPT pm onMissing currentModule)
+
     let! constants =
       m.constants
       |> Ply.List.mapSequentially (
-        WT2PT.UserConstant.toPT pm userStuff onMissing m.name
+        WT2PT.PackageConstant.toPT pm onMissing currentModule
       )
+
     let! dbs =
-      m.dbs |> Ply.List.mapSequentially (WT2PT.DB.toPT pm userStuff onMissing m.name)
+      m.dbs |> Ply.List.mapSequentially (WT2PT.DB.toPT pm onMissing currentModule)
+
+    let! fns =
+      m.fns
+      |> Ply.List.mapSequentially (
+        WT2PT.PackageFn.toPT builtins pm onMissing currentModule
+      )
+
     let! (tests : List<PTTest>) =
       m.tests
       |> Ply.List.mapSequentially (fun test ->
         uply {
-          let exprToPT = WT2PT.Expr.toPT builtins pm userStuff onMissing m.name
+          let exprToPT = WT2PT.Expr.toPT builtins pm onMissing currentModule
           let! actual = exprToPT test.actual
           let! expected = exprToPT test.expected
           return
@@ -242,34 +254,33 @@ let toPT
 
 /// Returns a flattened list of modules in the file.
 let parseTestFile
+  (owner : string)
   (builtins : RT.Builtins)
   (pm : RT.PackageManager)
-  (userStuff : NR.UserStuff)
   (onMissing : NR.OnMissing)
   (filename : string)
   : Ply<List<PTModule>> =
   uply {
-    let modules =
+    let modulesWT =
       filename
       |> System.IO.File.ReadAllText
       |> parseAsFSharpSourceFile filename
-      |> parseFile
+      |> parseFile owner
 
-    let fns =
-      modules |> List.map _.fns |> List.concat |> List.map _.name |> Set.ofList
-    let types =
-      modules |> List.map _.types |> List.concat |> List.map _.name |> Set.ofList
-    let constants =
-      modules |> List.map _.constants |> List.concat |> List.map _.name |> Set.ofList
+    // Initial pass, so we can re-parse with all names in context
+    let! (result : List<PTModule>) =
+      modulesWT |> Ply.List.mapSequentially (toPT owner builtins pm onMissing)
 
-    let updatedUserStuff : NR.UserStuff =
-      { types = Set.union userStuff.types types
-        constants = Set.union userStuff.constants constants
-        fns = Set.union userStuff.fns fns }
+    // Now, parse again, but with the names in context (so fewer are marked as unresolved)
+    let pm =
+      RT.PackageManager.withExtras
+        pm
+        (result |> List.collect _.types |> List.map PT2RT.PackageType.toRT)
+        (result |> List.collect _.constants |> List.map PT2RT.PackageConstant.toRT)
+        (result |> List.collect _.fns |> List.map PT2RT.PackageFn.toRT)
 
-    let! result =
-      modules
-      |> Ply.List.mapSequentially (toPT builtins pm updatedUserStuff onMissing)
+    let! (result : List<PTModule>) =
+      modulesWT |> Ply.List.mapSequentially (toPT owner builtins pm onMissing)
 
     return result
   }
@@ -277,7 +288,6 @@ let parseTestFile
 let parseSingleTestFromFile
   (builtins : RT.Builtins)
   (pm : RT.PackageManager)
-  (userStuff : NR.UserStuff)
   (onMissing : NR.OnMissing)
   (filename : string)
   (testSource : string)
@@ -289,7 +299,7 @@ let parseSingleTestFromFile
       |> singleExprFromImplFile
       |> parseTest
 
-    let mapExpr = WT2PT.Expr.toPT builtins pm userStuff onMissing []
+    let mapExpr = WT2PT.Expr.toPT builtins pm onMissing []
 
     let! actual = wtTest.actual |> mapExpr |> Ply.map PT2RT.Expr.toRT
     let! expected = wtTest.expected |> mapExpr |> Ply.map PT2RT.Expr.toRT

@@ -66,9 +66,6 @@ let state () =
   let program : RT.Program =
     { canvasID = System.Guid.NewGuid()
       internalFnsAllowed = false
-      fns = Map.empty
-      types = Map.empty
-      constants = Map.empty
       dbs = Map.empty
       secrets = [] }
 
@@ -129,9 +126,6 @@ let main (args : string[]) =
       let errorSourceStr =
         match source with
         | Some(tlid, id) ->
-          let foundProgramTL =
-            state.program.fns.Values |> Seq.tryFind (fun fn -> fn.tlid = tlid)
-
           let foundPackageTL =
             state.packageManager.getFnByTLID tlid
             // TODO don't do this hacky stuff
@@ -139,14 +133,11 @@ let main (args : string[]) =
             |> Async.AwaitTask
             |> Async.RunSynchronously
 
-          match foundProgramTL, foundPackageTL with
-          | Some programFn, _ ->
-            $"user fn {RT.FQFnName.userProgramToString programFn.name}, expr {id}"
-
-          | None, Some packageFn ->
+          match foundPackageTL with
+          | Some packageFn ->
             $"package fn {RT.FQFnName.packageToString packageFn.name}, expr {id}"
 
-          | None, None -> $"tlid {tlid}, expr {id}"
+          | None -> $"tlid {tlid}, expr {id}"
 
         | None -> "(unknown)"
 

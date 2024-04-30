@@ -7,6 +7,7 @@ open System.Threading.Tasks
 
 open Prelude
 
+module PT = LibExecution.ProgramTypes
 module Telemetry = LibService.Telemetry
 
 module CTPusher = LibClientTypes.Pusher
@@ -17,6 +18,9 @@ let initSerializers () =
   // These are serializers used in the tests that are not used in the main program
   Json.Vanilla.allow<Map<string, string>> "tests"
   Json.Vanilla.allow<LibExecution.AnalysisTypes.TraceData> "testTraceData"
+  Json.Vanilla.allow<PT.PackageType.T> "Canvas.loadJsonFromDisk"
+  Json.Vanilla.allow<PT.PackageConstant.T> "Canvas.loadJsonFromDisk"
+  Json.Vanilla.allow<PT.PackageFn.T> "Canvas.loadJsonFromDisk"
 
 
 [<EntryPoint>]

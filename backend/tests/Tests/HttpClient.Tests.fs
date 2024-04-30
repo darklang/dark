@@ -90,7 +90,6 @@ let parseTest test =
   LibParser.TestModule.parseSingleTestFromFile
     localBuiltIns
     packageManager
-    NR.UserStuff.empty
     NR.OnMissing.ThrowError
     test
 
@@ -154,8 +153,7 @@ let makeTest versionName filename =
       // Set up the canvas
       let canvasID = System.Guid.NewGuid()
       let tlid = 7777772398743UL
-      let! state =
-        executionStateFor canvasID false true Map.empty Map.empty Map.empty Map.empty
+      let! state = executionStateFor packageManager canvasID false true Map.empty
 
       // Parse the Dark code
       let! (test : LibParser.TestModule.RTTest) =

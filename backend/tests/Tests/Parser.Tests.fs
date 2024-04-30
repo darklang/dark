@@ -12,6 +12,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module NR = LibParser.NameResolver
 
 let id = 0UL // since we're ignoring IDs, just use the same one everywhere
+
 let exprRTs =
   let t name testStr expectedExpr =
     testTask name {
@@ -19,7 +20,6 @@ let exprRTs =
         LibParser.Parser.parseRTExpr
           localBuiltIns
           packageManager
-          NR.UserStuff.empty
           NR.OnMissing.Allow
           "parser.tests.fs"
           testStr
@@ -30,7 +30,7 @@ let exprRTs =
 
 
   testList
-    "Parser tests"
+    "Exprs"
     // TODO: order these by simplicity, and add more tests
     [
       // First, let's start with some simple ones
@@ -119,6 +119,5 @@ let exprRTs =
           )
         )) ]
 
-//let canvases
 
 let tests = testList "Parser" [ exprRTs ]

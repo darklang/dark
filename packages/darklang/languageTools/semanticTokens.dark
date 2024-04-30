@@ -2,7 +2,7 @@ module Darklang =
   module LanguageTools =
     module SemanticTokens =
       // <aliases>
-      type SourceRange = Parser.Range
+      type Range = Parser.Range
       // <aliases>
 
       type TokenType =
@@ -46,12 +46,10 @@ module Darklang =
       ///
       /// These tokens mean little without reference to a document where the
       /// 'ranges' live within.
-      type SemanticToken =
-        { sourceRange: SourceRange
-          tokenType: TokenType }
+      type SemanticToken = { range: Range; tokenType: TokenType }
 
-      let makeToken (s: SourceRange) (t: TokenType) : SemanticToken =
-        SemanticToken { sourceRange = s; tokenType = t }
+      let makeToken (s: Range) (t: TokenType) : SemanticToken =
+        SemanticToken { range = s; tokenType = t }
 
 
       module ModuleIdentifier =
@@ -406,13 +404,13 @@ module Darklang =
               fields
               |> Stdlib.List.map (fun (symbol, fieldName, value) ->
                 // TODO: use tuple destructuring, once nested tuple destructuring in a lambda is fixed
-                // i.e. fun (symbol, (sourceRange, _), value) -> ... instead of the below code
+                // i.e. fun (symbol, (range, _), value) -> ... instead of the below code
                 let (range, _) = fieldName
 
                 [ // name
                   [ makeToken range TokenType.Property ]
                   // =
-                  [ makeToken symbol.sourceRange TokenType.Symbol ]
+                  [ makeToken symbol.range TokenType.Symbol ]
                   // "Alice"
                   Expr.tokenize value ])
               |> Stdlib.List.flatten

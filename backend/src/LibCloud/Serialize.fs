@@ -42,10 +42,8 @@ let loadToplevels
         WHERE canvas_id = @canvasID
           AND tlid = ANY (@tlids)
           AND (
-            ((tipe = 'handler'::toplevel_type OR tipe = 'db'::toplevel_type))
-            OR tipe = 'user_function'::toplevel_type
-            OR tipe = 'user_type'::toplevel_type
-            OR tipe = 'user_constant'::toplevel_type
+            tipe = 'db'::toplevel_type
+            OR tipe = 'handler'::toplevel_type
           )"
       |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
       |> Sql.executeAsync (fun read ->

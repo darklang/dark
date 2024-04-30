@@ -259,6 +259,30 @@ module TypeDeclaration =
   type T = { typeParams : List<string>; definition : Definition }
 
 
+module PackageType =
+  type T =
+    { name : PT.FQTypeName.Package
+      declaration : TypeDeclaration.T
+      description : string }
+
+module PackageConstant =
+  type T = { name : PT.FQConstantName.Package; description : string; body : Const }
+
+module PackageFn =
+  type Parameter = { name : string; typ : TypeReference; description : string }
+
+  type T =
+    { name : PT.FQFnName.Package
+      body : Expr
+      typeParams : List<string>
+      parameters : NEList<Parameter>
+      returnType : TypeReference
+      description : string }
+
+
+module DB =
+  type T = { name : string; version : int; typ : TypeReference }
+
 module Handler =
   type CronInterval =
     | EveryFortnight
@@ -275,49 +299,3 @@ module Handler =
     | REPL of name : string
 
   type T = { ast : Expr; spec : Spec }
-
-
-module DB =
-  type T = { name : string; version : int; typ : TypeReference }
-
-module UserType =
-  type T =
-    { name : PT.FQTypeName.UserProgram
-      declaration : TypeDeclaration.T
-      description : string }
-
-module UserFunction =
-  type Parameter = { name : string; typ : TypeReference; description : string }
-
-  type T =
-    { name : PT.FQFnName.UserProgram
-      typeParams : List<string>
-      parameters : NEList<Parameter>
-      returnType : TypeReference
-      description : string
-      body : Expr }
-
-module UserConstant =
-  type T =
-    { name : PT.FQConstantName.UserProgram; description : string; body : Const }
-
-
-module PackageFn =
-  type Parameter = { name : string; typ : TypeReference; description : string }
-
-  type T =
-    { name : PT.FQFnName.Package
-      body : Expr
-      typeParams : List<string>
-      parameters : NEList<Parameter>
-      returnType : TypeReference
-      description : string }
-
-module PackageType =
-  type T =
-    { name : PT.FQTypeName.Package
-      declaration : TypeDeclaration.T
-      description : string }
-
-module PackageConstant =
-  type T = { name : PT.FQConstantName.Package; description : string; body : Const }

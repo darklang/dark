@@ -331,12 +331,6 @@ let rec eval
           return! ExecutionError.raise source (ExecutionError.ConstDoesntExist name)
         | Some constant -> return evalConst source constant.body
 
-      | FQConstantName.UserProgram c ->
-        match Map.find c state.program.constants with
-        | None ->
-          return! ExecutionError.raise source (ExecutionError.ConstDoesntExist name)
-        | Some constant -> return evalConst source constant.body
-
 
     | ELet(id, pattern, rhs, body) ->
       let source = sourceID id
@@ -924,8 +918,6 @@ and callFn
           let! fn = state.packageManager.getFn pkg
           return Option.map packageFnToFn fn
         }
-      | FQFnName.UserProgram u ->
-        Map.find u state.program.fns |> Option.map userFnToFn |> Ply
 
     match fn with
     | Some fn ->
@@ -1017,8 +1009,7 @@ and execFn
             return result
           }
 
-        | PackageFunction(tlid, body)
-        | UserProgramFunction(tlid, body) ->
+        | PackageFunction(tlid, body) ->
           state.tracing.traceTLID tlid
           let state = { state with caller = caller }
           let symTable =

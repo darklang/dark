@@ -95,6 +95,9 @@ module Darklang =
         //     else
         //       (FetchError.Not200 response) |> Stdlib.Result.Result.Error
 
+
+        // TODO: this type signature is totally wrong,
+        // yet we're not complaining in the runtime type-checker?
         let byName
           (typeName: String)
           : Stdlib.Result.Result<ProgramTypes.PackageType, String> =
@@ -133,6 +136,31 @@ module Darklang =
             Stdlib.HttpClient.request
               "GET"
               $"{baseUrl ()}/function/by-name/{fnName}"
+              []
+              []
+
+          let statusCode =
+            fn
+            |> Stdlib.Result.map (fun response -> response.statusCode)
+            |> Builtin.unwrap
+
+          match statusCode with
+          | 200L -> Stdlib.Result.Result.Ok fn
+          | e -> Stdlib.Result.Result.Error e
+
+
+      module Constant =
+        // let getAll (baseUrl: String) : String = "TODO"
+
+        // let getByTlid (baseUrl: String) (tlid: String) : String = "TODO"
+
+        let byName
+          (fnName: String)
+          : Stdlib.Result.Result<LanguageTools.ProgramTypes.PackageConstant, String> =
+          let fn =
+            Stdlib.HttpClient.request
+              "GET"
+              $"{baseUrl ()}/constant/by-name/{fnName}"
               []
               []
 

@@ -4,8 +4,6 @@ type Json = Stdlib.AltJson.Json
 
 type ParseError = Stdlib.AltJson.ParseError.ParseError
 
-
-
 // TODO: backfill a _lot_ from json.dark
 
 // TODO: think - should it be impossible for a JNumber to hold anything that isn't alowed by JSON

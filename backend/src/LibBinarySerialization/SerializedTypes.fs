@@ -66,18 +66,7 @@ module FQTypeName =
       version : int }
 
   [<MessagePack.MessagePackObject>]
-  type UserProgram =
-    { [<MessagePack.Key 0>]
-      modules : List<string>
-      [<MessagePack.Key 1>]
-      name : string
-      [<MessagePack.Key 2>]
-      version : int }
-
-  [<MessagePack.MessagePackObject>]
-  type FQTypeName =
-    | Package of Package
-    | UserProgram of UserProgram
+  type FQTypeName = Package of Package
 
 
 module FQConstantName =
@@ -100,19 +89,9 @@ module FQConstantName =
       version : int }
 
   [<MessagePack.MessagePackObject>]
-  type UserProgram =
-    { [<MessagePack.Key 0>]
-      modules : List<string>
-      [<MessagePack.Key 1>]
-      name : string
-      [<MessagePack.Key 2>]
-      version : int }
-
-  [<MessagePack.MessagePackObject>]
   type FQConstantName =
     | Builtin of Builtin
     | Package of Package
-    | UserProgram of UserProgram
 
 
 module FQFnName =
@@ -135,19 +114,9 @@ module FQFnName =
       version : int }
 
   [<MessagePack.MessagePackObject>]
-  type UserProgram =
-    { [<MessagePack.Key 0>]
-      modules : List<string>
-      [<MessagePack.Key 1>]
-      name : string
-      [<MessagePack.Key 2>]
-      version : int }
-
-  [<MessagePack.MessagePackObject>]
   type FQFnName =
     | Builtin of Builtin
     | Package of Package
-    | UserProgram of UserProgram
 
 
 module NameResolutionError =
@@ -484,63 +453,6 @@ module PackageFn =
 // -- User stuff
 
 
-module UserType =
-  [<MessagePack.MessagePackObject>]
-  type T =
-    { [<MessagePack.Key 0>]
-      tlid : tlid
-      [<MessagePack.Key 1>]
-      name : FQTypeName.UserProgram
-      [<MessagePack.Key 3>]
-      declaration : TypeDeclaration.T
-      [<MessagePack.Key 4>]
-      description : string
-      [<MessagePack.Key 5>]
-      deprecated : Deprecation<FQTypeName.FQTypeName> }
-
-
-module UserConstant =
-  [<MessagePack.MessagePackObject>]
-  type T =
-    { [<MessagePack.Key 0>]
-      tlid : tlid
-      [<MessagePack.Key 1>]
-      name : FQConstantName.UserProgram
-      [<MessagePack.Key 2>]
-      description : string
-      [<MessagePack.Key 3>]
-      deprecated : Deprecation<FQConstantName.FQConstantName>
-      [<MessagePack.Key 4>]
-      body : Const }
-
-module UserFunction =
-  [<MessagePack.MessagePackObject>]
-  type Parameter =
-    { [<MessagePack.Key 0>]
-      name : string
-      [<MessagePack.Key 1>]
-      typ : TypeReference
-      [<MessagePack.Key 2>]
-      description : string }
-
-  [<MessagePack.MessagePackObject>]
-  type T =
-    { [<MessagePack.Key 0>]
-      tlid : tlid
-      [<MessagePack.Key 1>]
-      name : FQFnName.UserProgram
-      [<MessagePack.Key 2>]
-      typeParams : List<string>
-      [<MessagePack.Key 3>]
-      parameters : NEList<Parameter>
-      [<MessagePack.Key 4>]
-      returnType : TypeReference
-      [<MessagePack.Key 5>]
-      description : string
-      [<MessagePack.Key 6>]
-      deprecated : Deprecation<FQFnName.FQFnName>
-      [<MessagePack.Key 7>]
-      body : Expr }
 
 module Handler =
   [<MessagePack.MessagePackObject>]
@@ -586,8 +498,5 @@ module DB =
 module Toplevel =
   [<MessagePack.MessagePackObject>]
   type T =
-    | TLHandler of Handler.T
     | TLDB of DB.T
-    | TLFunction of UserFunction.T
-    | TLType of UserType.T
-    | TLConstant of UserConstant.T
+    | TLHandler of Handler.T

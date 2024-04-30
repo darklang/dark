@@ -57,9 +57,23 @@ let assert'
   assert_ "version can't be negative" [ "version", version ] (version >= 0)
 
 
+let packageName
+  (owner : string)
+  (modules : List<string>)
+  (name : string)
+  (version : int)
+  : string =
+  let nameParts =
+    match owner with
+    | "Tests" -> modules @ [ name ]
+    | _ -> "PACKAGE" :: owner :: modules @ [ name ]
+  let name = nameParts |> String.concat "."
+
+  if version = 0 then name else $"{name}_v{version}"
+
 /// Fully-Qualified Type Name
 ///
-/// Used to reference a type defined in a Package or by a User
+/// Used to reference a type defined in a Package
 module FQTypeName =
   /// The name of a type in the package manager
   type Package =
@@ -69,13 +83,7 @@ module FQTypeName =
       name : string
       version : int }
 
-  /// Part of the user's program (eg canvas or cli)
-  type UserProgram = { modules : List<string>; name : string; version : int }
-
-  type FQTypeName =
-    | Package of Package
-    | UserProgram of UserProgram
-
+  type FQTypeName = Package of Package
 
   let assertTypeName (name : string) : unit =
     assertRe "type name must match" typeNamePattern name
@@ -97,46 +105,23 @@ module FQTypeName =
     : FQTypeName =
     Package(package owner modules name version)
 
-  let userProgram
-    (modules : List<string>)
-    (name : string)
-    (version : int)
-    : UserProgram =
-    assert' modules name version assertTypeName
-    { modules = modules; name = name; version = version }
-
-  let fqUserProgram
-    (modules : List<string>)
-    (name : string)
-    (version : int)
-    : FQTypeName =
-    UserProgram(userProgram modules name version)
-
-
   let packageToString (s : Package) : string =
-    let name = ("PACKAGE" :: s.owner :: s.modules @ [ s.name ]) |> String.concat "."
-    if s.version = 0 then name else $"{name}_v{s.version}"
-
-  let userProgramToString (s : UserProgram) : string =
-    let name = s.modules @ [ s.name ] |> String.concat "."
-    if s.version = 0 then name else $"{name}_v{s.version}"
+    packageName s.owner s.modules s.name s.version
 
   let toString (name : FQTypeName) : string =
     match name with
     | Package pkg -> packageToString pkg
-    | UserProgram user -> userProgramToString user
 
 
   let toShortName (name : FQTypeName) : string =
     match name with
-    | UserProgram { name = name; version = version }
     | Package { name = name; version = version } ->
       if version = 0 then name else $"{name}_v{version}"
 
 
 /// A Fully-Qualified Constant Name
 ///
-/// Used to reference a constant defined by the runtime, in a Package, or by a User
+/// Used to reference a constant defined by the runtime or in a Package
 module FQConstantName =
   /// A constant built into the runtime
   ///
@@ -149,15 +134,9 @@ module FQConstantName =
       name : string
       version : int }
 
-  /// Part of the user's program (eg canvas or cli)
-  ///
-  /// TODO: consider whether modules should be a NonEmptyList
-  type UserProgram = { modules : List<string>; name : string; version : int }
-
   type FQConstantName =
     | Builtin of Builtin
     | Package of Package
-    | UserProgram of UserProgram
 
 
   let assertConstantName (name : string) : unit =
@@ -187,44 +166,23 @@ module FQConstantName =
     : FQConstantName =
     Package(package owner modules name version)
 
-  let userProgram
-    (modules : List<string>)
-    (name : string)
-    (version : int)
-    : UserProgram =
-    assert' modules name version assertConstantName
-    { modules = modules; name = name; version = version }
-
-  let fqUserProgram
-    (modules : List<string>)
-    (name : string)
-    (version : int)
-    : FQConstantName =
-    UserProgram(userProgram modules name version)
-
   let builtinToString (s : Builtin) : string =
     let name = s.name
     if s.version = 0 then name else $"{name}_v{s.version}"
 
   let packageToString (s : Package) : string =
-    let name = ("PACKAGE" :: s.owner :: s.modules @ [ s.name ]) |> String.concat "."
-    if s.version = 0 then name else $"{name}_v{s.version}"
-
-  let userProgramToString (s : UserProgram) : string =
-    let name = s.modules @ [ s.name ] |> String.concat "."
-    if s.version = 0 then name else $"{name}_v{s.version}"
+    packageName s.owner s.modules s.name s.version
 
 
   let toString (name : FQConstantName) : string =
     match name with
     | Builtin b -> builtinToString b
     | Package p -> packageToString p
-    | UserProgram u -> userProgramToString u
 
 
 /// A Fully-Qualified Function Name
 ///
-/// Used to reference a function defined by the runtime, in a Package, or by a User
+/// Used to reference a function defined by the runtime or in a Package
 module FQFnName =
   /// A function built into the runtime
   ///
@@ -239,14 +197,9 @@ module FQFnName =
       name : string
       version : int }
 
-  /// Part of the user's program (eg canvas or cli)
-  type UserProgram = { modules : List<string>; name : string; version : int }
-
-
   type FQFnName =
     | Builtin of Builtin
     | Package of Package
-    | UserProgram of UserProgram
 
 
   let assertFnName (name : string) : unit =
@@ -280,39 +233,18 @@ module FQFnName =
     : FQFnName =
     Package(package owner modules name version)
 
-  let userProgram
-    (modules : List<string>)
-    (name : string)
-    (version : int)
-    : UserProgram =
-    assert' modules name version assertFnName
-    { modules = modules; name = name; version = version }
-
-  let fqUserProgram
-    (modules : List<string>)
-    (name : string)
-    (version : int)
-    : FQFnName =
-    UserProgram(userProgram modules name version)
-
 
   let builtinToString (s : Builtin) : string =
     let name = s.name
     if s.version = 0 then name else $"{name}_v{s.version}"
 
   let packageToString (s : Package) : string =
-    let name = ("PACKAGE" :: s.owner :: s.modules @ [ s.name ]) |> String.concat "."
-    if s.version = 0 then name else $"{name}_v{s.version}"
-
-  let userProgramToString (s : UserProgram) : string =
-    let name = s.modules @ [ s.name ] |> String.concat "."
-    if s.version = 0 then name else $"{name}_v{s.version}"
+    packageName s.owner s.modules s.name s.version
 
   let toString (name : FQFnName) : string =
     match name with
     | Builtin b -> builtinToString b
     | Package pkg -> packageToString pkg
-    | UserProgram user -> userProgramToString user
 
 
   let isInternalFn (fnName : Builtin) : bool = fnName.name.Contains("darkInternal")
@@ -1302,10 +1234,11 @@ type Const =
 // ------------
 
 module PackageType =
-  type T = { name : FQTypeName.Package; declaration : TypeDeclaration.T }
+  type T =
+    { tlid : tlid; name : FQTypeName.Package; declaration : TypeDeclaration.T }
 
 module PackageConstant =
-  type T = { name : FQConstantName.Package; body : Const }
+  type T = { tlid : tlid; name : FQConstantName.Package; body : Const }
 
 module PackageFn =
   type Parameter = { name : string; typ : TypeReference }
@@ -1322,24 +1255,6 @@ module PackageFn =
 // ------------
 // User stuff
 // ------------
-module UserType =
-  type T =
-    { tlid : tlid; name : FQTypeName.UserProgram; declaration : TypeDeclaration.T }
-
-module UserConstant =
-  type T = { tlid : tlid; name : FQConstantName.UserProgram; body : Const }
-
-module UserFunction =
-  type Parameter = { name : string; typ : TypeReference }
-
-  type T =
-    { tlid : tlid
-      name : FQFnName.UserProgram
-      typeParams : List<string>
-      parameters : NEList<Parameter>
-      returnType : TypeReference
-      body : Expr }
-
 module DB =
   type T = { tlid : tlid; name : string; typ : TypeReference; version : int }
 
@@ -1367,17 +1282,11 @@ module Toplevel =
   type T =
     | TLHandler of Handler.T
     | TLDB of DB.T
-    | TLFunction of UserFunction.T
-    | TLType of UserType.T
-    | TLConstant of UserConstant.T
 
   let toTLID (tl : T) : tlid =
     match tl with
     | TLHandler h -> h.tlid
     | TLDB db -> db.tlid
-    | TLFunction f -> f.tlid
-    | TLType t -> t.tlid
-    | TLConstant c -> c.tlid
 
 
 
@@ -1497,7 +1406,6 @@ and BuiltInFnSig =
 
 and FnImpl =
   | BuiltInFunction of BuiltInFnSig
-  | UserProgramFunction of tlid * Expr
   | PackageFunction of tlid * Expr
 
 
@@ -1515,10 +1423,6 @@ and StoreFnResult = FunctionRecord -> NEList<Dval> -> Dval -> unit
 and Program =
   { canvasID : CanvasID
     internalFnsAllowed : bool // whether this canvas is allowed call internal functions
-
-    types : Map<FQTypeName.UserProgram, UserType.T>
-    constants : Map<FQConstantName.UserProgram, UserConstant.T>
-    fns : Map<FQFnName.UserProgram, UserFunction.T>
 
     dbs : Map<string, DB.T>
     secrets : List<Secret.T> }
@@ -1552,13 +1456,43 @@ and PackageManager =
 
     init : Ply<unit> }
 
-  static member Empty =
+  static member empty =
     { getType = (fun _ -> Ply None)
       getFn = (fun _ -> Ply None)
       getFnByTLID = (fun _ -> Ply None)
       getConstant = (fun _ -> Ply None)
 
       init = uply { return () } }
+
+  /// Allows you to side-load a few 'extras' in-memory, along
+  /// the normal fetching functionality. (Mostly helpful for tests)
+  static member withExtras
+    (pm : PackageManager)
+    (types : List<PackageType.T>)
+    (constants : List<PackageConstant.T>)
+    (fns : List<PackageFn.T>)
+    : PackageManager =
+    { getType =
+        fun name ->
+          match types |> List.tryFind (fun t -> t.name = name) with
+          | Some t -> Some t |> Ply
+          | None -> pm.getType name
+      getConstant =
+        fun name ->
+          match constants |> List.tryFind (fun c -> c.name = name) with
+          | Some c -> Some c |> Ply
+          | None -> pm.getConstant name
+      getFn =
+        fun name ->
+          match fns |> List.tryFind (fun f -> f.name = name) with
+          | Some f -> Some f |> Ply
+          | None -> pm.getFn name
+      getFnByTLID =
+        fun tlid ->
+          match fns |> List.tryFind (fun f -> f.tlid = tlid) with
+          | Some f -> Some f |> Ply
+          | None -> pm.getFnByTLID tlid
+      init = pm.init }
 
 and ExceptionReporter = ExecutionState -> Metadata -> exn -> unit
 
@@ -1582,7 +1516,7 @@ and ExecutionState =
     notify : Notifier
 
     // -- Set at the start of an execution --
-    program : Program // TODO: rename to UserCode?
+    program : Program // TODO: rename to Canvas?
 
 
     // -- Can change over time during execution --
@@ -1599,36 +1533,29 @@ and ExecutionState =
 and Types =
   { typeSymbolTable : TypeSymbolTable
 
-    package : FQTypeName.Package -> Ply<Option<PackageType.T>>
-    userProgram : Map<FQTypeName.UserProgram, UserType.T> }
+    package : FQTypeName.Package -> Ply<Option<PackageType.T>> }
 
 and Constants =
   { builtIn : Map<FQConstantName.Builtin, BuiltInConstant>
-    package : FQConstantName.Package -> Ply<Option<PackageConstant.T>>
-    userProgram : Map<FQConstantName.UserProgram, UserConstant.T> }
+    package : FQConstantName.Package -> Ply<Option<PackageConstant.T>> }
 
 and Functions =
   { builtIn : Map<FQFnName.Builtin, BuiltInFn>
-    package : FQFnName.Package -> Ply<Option<PackageFn.T>>
-    userProgram : Map<FQFnName.UserProgram, UserFunction.T> }
+    package : FQFnName.Package -> Ply<Option<PackageFn.T>> }
 
 
 module ExecutionState =
   let availableTypes (state : ExecutionState) : Types =
     { typeSymbolTable = state.typeSymbolTable
 
-      package = state.packageManager.getType
-      userProgram = state.program.types }
+      package = state.packageManager.getType }
 
   let availableConstants (state : ExecutionState) : Constants =
     { builtIn = state.builtins.constants
-      package = state.packageManager.getConstant
-      userProgram = state.program.constants }
+      package = state.packageManager.getConstant }
 
   let availableFunctions (state : ExecutionState) : Functions =
-    { builtIn = state.builtins.fns
-      package = state.packageManager.getFn
-      userProgram = state.program.fns }
+    { builtIn = state.builtins.fns; package = state.packageManager.getFn }
 
 
 
@@ -1636,8 +1563,7 @@ module Types =
   let empty =
     { typeSymbolTable = Map.empty
 
-      package = (fun _ -> Ply None)
-      userProgram = Map.empty }
+      package = (fun _ -> Ply None) }
 
   let find
     // TODO: swap these args
@@ -1647,9 +1573,6 @@ module Types =
     match name with
     | FQTypeName.Package pkg ->
       types.package pkg |> Ply.map (Option.map _.declaration)
-
-    | FQTypeName.UserProgram user ->
-      Map.find user types.userProgram |> Option.map _.declaration |> Ply
 
   // Swap concrete types for type parameters
   let rec substitute
@@ -1755,14 +1678,3 @@ let packageFnToFn (fn : PackageFn.T) : Fn =
     previewable = Impure
     sqlSpec = NotQueryable
     fn = PackageFunction(fn.tlid, fn.body) }
-
-let userFnToFn (fn : UserFunction.T) : Fn =
-  let toParam (p : UserFunction.Parameter) : Param = { name = p.name; typ = p.typ }
-
-  { name = FQFnName.UserProgram fn.name
-    typeParams = fn.typeParams
-    parameters = NEList.map toParam fn.parameters
-    returnType = fn.returnType
-    previewable = Impure
-    sqlSpec = NotQueryable
-    fn = UserProgramFunction(fn.tlid, fn.body) }

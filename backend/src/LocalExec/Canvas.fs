@@ -77,21 +77,37 @@ let loadFromDisk
           return ownerID
       }
 
+    // i.e. dark-packages -> ("Darklang", "Packages")
+    let (ownerName, canvasName) =
+      if String.startsWith "dark-" canvasName then
+        let canvasName = canvasName |> String.dropLeft 5
+        // capitialize first letter
+        let canvasName = canvasName[0].ToString().ToUpper() + canvasName.Substring 1
+        ("Darklang", canvasName)
+      else
+        raise (
+          System.Exception
+            $"Currently only prepared to parse Darklang (dark-) canvases"
+        )
+
+    // TODO this doesn't purge any added types/consts/fns from PM... maybe we should?
     do! purgeDataFromInternalSqlTables canvasID
     do! LibCloud.Canvas.createWithExactID canvasID ownerID domain
 
     let! tls =
       uply {
+        let fileName = $"{canvasDir}/{config.Main}.dark"
+        let source = System.IO.File.ReadAllText fileName
+
         let! canvas =
-          LibParser.Canvas.parseFromFile
+          LibParser.Canvas.parse
+            ownerName
+            canvasName
             Builtins.accessibleByCanvas
             pm
-            NR.UserStuff.empty
             NR.OnMissing.ThrowError
-            $"{canvasDir}/{config.Main}.dark"
-
-        let types = canvas.types |> List.map PT.Toplevel.TLType
-        let fns = canvas.fns |> List.map PT.Toplevel.TLFunction
+            fileName
+            source
 
         let handlers =
           canvas.handlers
@@ -100,9 +116,12 @@ let loadFromDisk
 
         let dbs = canvas.dbs |> List.map PT.Toplevel.TLDB
 
+        do! LibCloud.PackageManager.savePackageTypes canvas.types
+        do! LibCloud.PackageManager.savePackageConstants canvas.constants
+        do! LibCloud.PackageManager.savePackageFunctions canvas.fns
+
         return
-          (types @ dbs @ fns @ handlers)
-          |> List.map (fun tl -> tl, LibCloud.Serialize.NotDeleted)
+          (dbs @ handlers) |> List.map (fun tl -> tl, LibCloud.Serialize.NotDeleted)
       }
 
     print $"Saving {List.length tls} toplevels to canvas"

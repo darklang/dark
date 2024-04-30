@@ -83,10 +83,10 @@ module Darklang =
 
                     | [ fieldNode; separator ] ->
                       (parseRecordField fieldNode,
-                       Stdlib.Option.Option.Some separator.sourceRange)
+                       Stdlib.Option.Option.Some separator.range)
                     | _ ->
                       (createUnparseableError chunk,
-                       Stdlib.Option.Option.Some separator.sourceRange))
+                       Stdlib.Option.Option.Some separator.range))
 
                 | None -> (Stdlib.Result.Result.Ok [], Stdlib.Option.Option.None)
 

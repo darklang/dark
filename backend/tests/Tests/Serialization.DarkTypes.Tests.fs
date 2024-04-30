@@ -30,8 +30,7 @@ module RoundtripTests =
   let types : RT.Types =
     { typeSymbolTable = Map.empty
 
-      package = packageManager.getType
-      userProgram = Map.empty }
+      package = packageManager.getType }
 
   let testRoundtrip
     (testName : string)
@@ -207,22 +206,6 @@ module RoundtripTests =
           None
 
         testRoundtripList
-          "PT.UserFunction"
-          (pkg [ "UserFunction" ] "UserFunction" 0)
-          V.ProgramTypes.userFunctions
-          PT2DT.UserFunction.toDT
-          PT2DT.UserFunction.fromDT
-          None
-
-        testRoundtripList
-          "PT.UserConstants"
-          (pkg [] "UserConstant" 0)
-          V.ProgramTypes.userConstants
-          PT2DT.UserConstant.toDT
-          PT2DT.UserConstant.fromDT
-          None
-
-        testRoundtripList
           "PT.Secret"
           (pkg [] "Secret" 0)
           V.ProgramTypes.userSecrets
@@ -244,9 +227,7 @@ module RoundtripTests =
           V.ProgramTypes.Handler.handlers
           PT2DT.Handler.toDT
           PT2DT.Handler.fromDT
-          None
-
-        ]
+          None ]
 
 
 let tests =

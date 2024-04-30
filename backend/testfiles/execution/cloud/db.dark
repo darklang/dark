@@ -235,7 +235,7 @@ type MyTlid =
 [<DB>]
 type MyTlidDB = MyTlid
 
-module addToTest =
+module AddToTest =
   (let test = Builtin.dbSet (MyTlid { mytlid = 1234UL }) "test" MyTlidDB
    (Builtin.dbGetAll MyTlidDB)) = [ MyTlid { mytlid = 1234UL } ]
 

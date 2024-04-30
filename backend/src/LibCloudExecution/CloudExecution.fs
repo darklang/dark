@@ -89,28 +89,15 @@ let executeHandler
     HashSet.add h.tlid tracing.results.tlids
     let! result = Exe.executeExpr state h.tlid inputVars h.ast
 
-    let findUserBody (tlid : tlid) : Option<string * RT.Expr> =
-      program.fns
-      |> Map.values
-      |> List.find (fun (fn : RT.UserFunction.T) -> fn.tlid = tlid)
-      |> Option.map (fun (fn : RT.UserFunction.T) -> string fn.name, fn.body)
-
     let findPackageBody (tlid : tlid) : Ply<Option<string * RT.Expr>> =
       packageManager.getFnByTLID tlid
       |> Ply.map (
         Option.map (fun (pkg : RT.PackageFn.T) -> string pkg.name, pkg.body)
       )
 
-    let findBody (tlid : tlid) : Ply<Option<string * RT.Expr>> =
-      uply {
-        match findUserBody tlid with
-        | Some body -> return Some body
-        | None -> return! findPackageBody tlid
-      }
-
     let sourceOf (tlid : tlid) (id : id) : Ply<string> =
       uply {
-        let! data = findBody tlid
+        let! data = findPackageBody tlid
         let mutable result = "unknown caller", "unknown body", "unknown expr"
         match data with
         | None -> ()

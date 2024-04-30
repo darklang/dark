@@ -26,16 +26,9 @@ module Darklang =
 
 
     let parseVersion (name: String) : (String * Int64) =
-      let parts = Stdlib.String.split name "_v"
-      let name = (Stdlib.List.head parts) |> Builtin.unwrap
-
-      let version =
-        (Stdlib.List.last parts)
-        |> Builtin.unwrap
-        |> Builtin.int64Parse
-        |> Builtin.unwrap
-
-      (name, version)
+      match Stdlib.String.split name "_v" with
+      | [ name ] -> (name, 0L)
+      | [ name; version ] -> (name, version |> Builtin.int64Parse |> Builtin.unwrap)
 
 
     let parseName (name: String) : GenericName =

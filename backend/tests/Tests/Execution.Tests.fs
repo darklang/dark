@@ -11,54 +11,11 @@ open TestUtils.TestUtils
 open LibExecution.RuntimeTypes
 open TestUtils.RTShortcuts
 
-module VT = ValueType
-module Dval = LibExecution.Dval
 module Exe = LibExecution.Execution
-module RuntimeTypesAst = LibExecution.RuntimeTypesAst
 
 module AT = LibExecution.AnalysisTypes
 module PT = LibExecution.ProgramTypes
-module PTParser = LibExecution.ProgramTypesParser
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
-
-type Dictionary<'k, 'v> = System.Collections.Generic.Dictionary<'k, 'v>
-
-let executionStateForPreview
-  (dbs : Map<string, DB.T>)
-  (types : Map<FQTypeName.UserProgram, UserType.T>)
-  (fns : Map<FQFnName.UserProgram, UserFunction.T>)
-  (constants : Map<FQConstantName.UserProgram, UserConstant.T>)
-  : Task<AT.AnalysisResults * ExecutionState> =
-  task {
-    let canvasID = System.Guid.NewGuid()
-    let! state = executionStateFor canvasID false false dbs types fns constants
-    let results, traceFn = Exe.traceDvals ()
-
-    let state = { state with tracing.traceDval = traceFn }
-    return (results, state)
-  }
-
-let execSaveDvals
-  (dbs : List<DB.T>)
-  (userTypes : List<UserType.T>)
-  (userFns : List<UserFunction.T>)
-  (userConstants : List<UserConstant.T>)
-  (ast : Expr)
-  : Task<AT.AnalysisResults> =
-  task {
-    let tlid = 777777827493UL
-    let types = userTypes |> List.map (fun typ -> typ.name, typ) |> Map.ofList
-    let fns = userFns |> List.map (fun fn -> fn.name, fn) |> Map.ofList
-    let dbs = dbs |> List.map (fun db -> db.name, db) |> Map.ofList
-    let constants = userConstants |> List.map (fun c -> c.name, c) |> Map.ofList
-
-    let! (results, state) = executionStateForPreview dbs types fns constants
-
-    let inputVars = Map.empty
-    let! _result = Exe.executeExpr state tlid inputVars ast
-
-    return results
-  }
 
 
 let testExecFunctionTLIDs : Test =
@@ -66,11 +23,11 @@ let testExecFunctionTLIDs : Test =
     let! meta = initializeTestCanvas "exec-function-tlids"
     let name = "testFunction"
     let ps = NEList.singleton "param"
-    let (fn : UserFunction.T) =
-      testUserFn name [] ps (PT.TVariable "a") (PT.EInt64(gid (), 5))
-      |> PT2RT.UserFunction.toRT
-    let fns = Map.ofList [ (fn.name, fn) ]
-    let! state = executionStateFor meta false false Map.empty Map.empty fns Map.empty
+    let (fn : PackageFn.T) =
+      testPackageFn "owner" name [] ps (PT.TVariable "a") (PT.EInt64(gid (), 5))
+      |> PT2RT.PackageFn.toRT
+    let pm = PackageManager.withExtras packageManager [] [] [ fn ]
+    let! state = executionStateFor pm meta false false Map.empty
 
     let tlids, traceFn = Exe.traceTLIDs ()
 
@@ -80,7 +37,7 @@ let testExecFunctionTLIDs : Test =
       Exe.executeFunction
         state
         None
-        (FQFnName.UserProgram fn.name)
+        (FQFnName.Package fn.name)
         []
         (NEList.singleton DUnit)
 

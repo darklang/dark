@@ -13,14 +13,7 @@ module Darklang =
             name: String
             version: Int64 }
 
-        type UserProgram =
-          { modules: List<String>
-            name: String
-            version: Int64 }
-
-        type FQTypeName =
-          | Package of Package
-          | UserProgram of UserProgram
+        type FQTypeName = Package of Package
 
 
       module FQFnName =
@@ -32,15 +25,9 @@ module Darklang =
             name: String
             version: Int64 }
 
-        type UserProgram =
-          { modules: List<String>
-            name: String
-            version: Int64 }
-
         type FQFnName =
           | Builtin of Builtin
           | Package of Package
-          | UserProgram of UserProgram
 
 
       /// A Fully-Qualified Constant Name
@@ -54,15 +41,9 @@ module Darklang =
             name: String
             version: Int64 }
 
-        type UserProgram =
-          { modules: List<String>
-            name: String
-            version: Int64 }
-
         type FQConstantName =
           | Builtin of Builtin
           | Package of Package
-          | UserProgram of UserProgram
 
 
       type NameResolution<'a> = Stdlib.Result.Result<'a, RuntimeError>

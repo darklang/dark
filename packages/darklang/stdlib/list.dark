@@ -480,3 +480,9 @@ module Darklang =
             Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero
         else
           Stdlib.Result.Result.Ok(Stdlib.List.chunkBySizeHelper size list [])
+
+
+      let splitLast (l: List<'a>) : Stdlib.Option.Option<List<'a> * 'a> =
+        match reverse l with
+        | [] -> Stdlib.Option.Option.None
+        | head :: tail -> Stdlib.Option.Option.Some((reverse tail, head))

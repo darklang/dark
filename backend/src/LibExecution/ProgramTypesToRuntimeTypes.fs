@@ -15,23 +15,14 @@ module FQTypeName =
     let fromRT (p : RT.FQTypeName.Package) : PT.FQTypeName.Package =
       { owner = p.owner; modules = p.modules; name = p.name; version = p.version }
 
-  module UserProgram =
-    let toRT (u : PT.FQTypeName.UserProgram) : RT.FQTypeName.UserProgram =
-      { modules = u.modules; name = u.name; version = u.version }
-
-    let fromRT (u : RT.FQTypeName.UserProgram) : PT.FQTypeName.UserProgram =
-      { modules = u.modules; name = u.name; version = u.version }
 
   let toRT (fqtn : PT.FQTypeName.FQTypeName) : RT.FQTypeName.FQTypeName =
     match fqtn with
     | PT.FQTypeName.Package p -> RT.FQTypeName.Package(Package.toRT p)
-    | PT.FQTypeName.UserProgram u -> RT.FQTypeName.UserProgram(UserProgram.toRT u)
 
   let fromRT (fqtn : RT.FQTypeName.FQTypeName) : Option<PT.FQTypeName.FQTypeName> =
     match fqtn with
     | RT.FQTypeName.Package p -> PT.FQTypeName.Package(Package.fromRT p) |> Some
-    | RT.FQTypeName.UserProgram u ->
-      PT.FQTypeName.UserProgram(UserProgram.fromRT u) |> Some
 
 
 module FQConstantName =
@@ -49,12 +40,6 @@ module FQConstantName =
     let fromRT (c : RT.FQConstantName.Package) : PT.FQConstantName.Package =
       { owner = c.owner; modules = c.modules; name = c.name; version = c.version }
 
-  module UserProgram =
-    let toRT (c : PT.FQConstantName.UserProgram) : RT.FQConstantName.UserProgram =
-      { modules = c.modules; name = c.name; version = c.version }
-
-    let fromRT (c : RT.FQConstantName.UserProgram) : PT.FQConstantName.UserProgram =
-      { modules = c.modules; name = c.name; version = c.version }
 
   let toRT
     (name : PT.FQConstantName.FQConstantName)
@@ -62,8 +47,6 @@ module FQConstantName =
     match name with
     | PT.FQConstantName.Builtin s -> RT.FQConstantName.Builtin(Builtin.toRT s)
     | PT.FQConstantName.Package p -> RT.FQConstantName.Package(Package.toRT p)
-    | PT.FQConstantName.UserProgram u ->
-      RT.FQConstantName.UserProgram(UserProgram.toRT u)
 
 
 module FQFnName =
@@ -81,18 +64,10 @@ module FQFnName =
     let fromRT (p : RT.FQFnName.Package) : PT.FQFnName.Package =
       { owner = p.owner; modules = p.modules; name = p.name; version = p.version }
 
-  module UserProgram =
-    let toRT (u : PT.FQFnName.UserProgram) : RT.FQFnName.UserProgram =
-      { modules = u.modules; name = u.name; version = u.version }
-
-    let fromRT (u : RT.FQFnName.UserProgram) : PT.FQFnName.UserProgram =
-      { modules = u.modules; name = u.name; version = u.version }
-
   let toRT (fqfn : PT.FQFnName.FQFnName) : RT.FQFnName.FQFnName =
     match fqfn with
     | PT.FQFnName.Builtin s -> RT.FQFnName.Builtin(Builtin.toRT s)
     | PT.FQFnName.Package p -> RT.FQFnName.Package(Package.toRT p)
-    | PT.FQFnName.UserProgram u -> RT.FQFnName.UserProgram(UserProgram.toRT u)
 
 
 module NameResolution =
@@ -449,12 +424,15 @@ module TypeDeclaration =
 // --
 module PackageType =
   let toRT (t : PT.PackageType.T) : RT.PackageType.T =
-    { name = FQTypeName.Package.toRT t.name
+    { tlid = t.tlid
+      name = FQTypeName.Package.toRT t.name
       declaration = TypeDeclaration.toRT t.declaration }
 
 module PackageConstant =
   let toRT (c : PT.PackageConstant.T) : RT.PackageConstant.T =
-    { name = FQConstantName.Package.toRT c.name; body = Const.toRT c.body }
+    { tlid = c.tlid
+      name = FQConstantName.Package.toRT c.name
+      body = Const.toRT c.body }
 
 module PackageFn =
   module Parameter =
@@ -474,33 +452,6 @@ module PackageFn =
 // --
 // User stuff
 // --
-
-module UserType =
-  let toRT (t : PT.UserType.T) : RT.UserType.T =
-    { tlid = t.tlid
-      name = FQTypeName.UserProgram.toRT t.name
-      declaration = TypeDeclaration.toRT t.declaration }
-
-module UserConstant =
-  let toRT (c : PT.UserConstant.T) : RT.UserConstant.T =
-    { tlid = c.tlid
-      name = FQConstantName.UserProgram.toRT c.name
-      body = Const.toRT c.body }
-
-module UserFunction =
-  module Parameter =
-    let toRT (p : PT.UserFunction.Parameter) : RT.UserFunction.Parameter =
-      { name = p.name; typ = TypeReference.toRT p.typ }
-
-  let toRT (f : PT.UserFunction.T) : RT.UserFunction.T =
-    { tlid = f.tlid
-      name = FQFnName.UserProgram.toRT f.name
-      typeParams = f.typeParams
-      parameters = NEList.map Parameter.toRT f.parameters
-      returnType = TypeReference.toRT f.returnType
-      body = Expr.toRT f.body }
-
-
 module Handler =
   module CronInterval =
     let toRT (ci : PT.Handler.CronInterval) : RT.Handler.CronInterval =
@@ -538,8 +489,5 @@ module Secret =
 module Toplevel =
   let toRT (tl : PT.Toplevel.T) : RT.Toplevel.T =
     match tl with
-    | PT.Toplevel.TLType t -> RT.Toplevel.TLType(UserType.toRT t)
-    | PT.Toplevel.TLConstant c -> RT.Toplevel.TLConstant(UserConstant.toRT c)
     | PT.Toplevel.TLDB db -> RT.Toplevel.TLDB(DB.toRT db)
-    | PT.Toplevel.TLFunction f -> RT.Toplevel.TLFunction(UserFunction.toRT f)
     | PT.Toplevel.TLHandler h -> RT.Toplevel.TLHandler(Handler.toRT h)
