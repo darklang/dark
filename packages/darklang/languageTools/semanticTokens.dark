@@ -171,12 +171,18 @@ module Darklang =
           | Alias typeRef -> TypeReference.tokenize typeRef
           | Record fields ->
             fields
-            |> Stdlib.List.map (fun rf ->
+            |> Stdlib.List.map (fun (rf, sep) ->
               let (nameRange, _) = rf.name
+
+              let symSemicolon =
+                match sep with
+                | Some range -> [ makeToken range TokenType.Symbol ]
+                | None -> []
 
               [ [ makeToken nameRange TokenType.Property ]
                 [ makeToken rf.symbolColon TokenType.Symbol ]
-                TypeReference.tokenize rf.typ ]
+                TypeReference.tokenize rf.typ
+                symSemicolon ]
               |> Stdlib.List.flatten)
             |> Stdlib.List.flatten
 

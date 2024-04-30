@@ -267,13 +267,13 @@
         },
         {
           "type": "FIELD",
-          "name": "content",
+          "name": "fields",
           "content": {
             "type": "CHOICE",
             "members": [
               {
                 "type": "SYMBOL",
-                "name": "type_decl_def_record_content"
+                "name": "type_decl_def_record_fields"
               },
               {
                 "type": "BLANK"
@@ -296,36 +296,44 @@
         }
       ]
     },
-    "type_decl_def_record_content": {
+    "type_decl_def_record_fields": {
       "type": "SEQ",
       "members": [
         {
-          "type": "SYMBOL",
-          "name": "type_decl_def_record_field"
+          "type": "FIELD",
+          "name": "first",
+          "content": {
+            "type": "SYMBOL",
+            "name": "type_decl_def_record_field"
+          }
         },
         {
-          "type": "REPEAT",
+          "type": "FIELD",
+          "name": "others",
           "content": {
-            "type": "SEQ",
-            "members": [
-              {
-                "type": "FIELD",
-                "name": "record_separator",
-                "content": {
-                  "type": "ALIAS",
+            "type": "REPEAT",
+            "content": {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "FIELD",
+                  "name": "symbol_semicolon",
                   "content": {
-                    "type": "STRING",
-                    "value": ";"
-                  },
-                  "named": true,
-                  "value": "symbol"
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "STRING",
+                      "value": ";"
+                    },
+                    "named": true,
+                    "value": "symbol"
+                  }
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "type_decl_def_record_field"
                 }
-              },
-              {
-                "type": "SYMBOL",
-                "name": "type_decl_def_record_field"
-              }
-            ]
+              ]
+            }
           }
         }
       ]
@@ -335,7 +343,7 @@
       "members": [
         {
           "type": "FIELD",
-          "name": "field",
+          "name": "field_name",
           "content": {
             "type": "SYMBOL",
             "name": "variable_identifier"

@@ -84,7 +84,7 @@ type Cols2 = { col1: Int64; col2: Int64 }
     (type_decl_def
       (type_decl_def_record
         (symbol)
-          (type_decl_def_record_content
+          (type_decl_def_record_fields
             (type_decl_def_record_field
               (variable_identifier) (symbol) (type_reference (builtin_type))
             )
@@ -113,7 +113,7 @@ type Cols2 = { col1: PACKAGE.Darklang.LanguageTools.Test; col2: Int64 }
     (type_decl_def
       (type_decl_def_record
         (symbol)
-          (type_decl_def_record_content
+          (type_decl_def_record_fields
             (type_decl_def_record_field
               (variable_identifier) (symbol) (type_reference
                 (qualified_type_name

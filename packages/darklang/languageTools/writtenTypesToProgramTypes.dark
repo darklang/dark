@@ -175,7 +175,7 @@ module Darklang =
 
             | Record fields ->
               let fields =
-                Stdlib.List.map fields (fun f -> RecordField.toPT resolver f)
+                Stdlib.List.map fields (fun (f, _) -> RecordField.toPT resolver f)
 
               ProgramTypes.TypeDeclaration.Definition.Record fields
 
