@@ -110,8 +110,8 @@ module Darklang =
 
         type Definition =
           | Alias of TypeReference.TypeReference
-          // TODO: capture the ;s separating the fields
-          | Record of List<RecordField>
+          | Record of List<RecordField * Stdlib.Option.Option<SourceRange>>
+          // TODO: capture the |s that precede the EnumCases
           | Enum of List<EnumCase>
 
         type TypeDeclaration =

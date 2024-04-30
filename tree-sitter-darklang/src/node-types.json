@@ -1614,12 +1614,12 @@
     "type": "type_decl_def_record",
     "named": true,
     "fields": {
-      "content": {
+      "fields": {
         "multiple": false,
         "required": false,
         "types": [
           {
-            "type": "type_decl_def_record_content",
+            "type": "type_decl_def_record_fields",
             "named": true
           }
         ]
@@ -1647,36 +1647,10 @@
     }
   },
   {
-    "type": "type_decl_def_record_content",
-    "named": true,
-    "fields": {
-      "record_separator": {
-        "multiple": true,
-        "required": false,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      }
-    },
-    "children": {
-      "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "type_decl_def_record_field",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
     "type": "type_decl_def_record_field",
     "named": true,
     "fields": {
-      "field": {
+      "field_name": {
         "multiple": false,
         "required": true,
         "types": [
@@ -1702,6 +1676,46 @@
         "types": [
           {
             "type": "type_reference",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "type_decl_def_record_fields",
+    "named": true,
+    "fields": {
+      "first": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type_decl_def_record_field",
+            "named": true
+          }
+        ]
+      },
+      "others": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          },
+          {
+            "type": "type_decl_def_record_field",
+            "named": true
+          }
+        ]
+      },
+      "symbol_semicolon": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
             "named": true
           }
         ]

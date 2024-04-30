@@ -5,7 +5,7 @@ module Darklang =
         let parseRecordField
           (fieldNode: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.TypeDeclaration.RecordField, WrittenTypes.Unparseable> =
-          let fieldNameNode = findField fieldNode "field"
+          let fieldNameNode = findField fieldNode "field_name"
           let symColonNode = findField fieldNode "symbol_colon"
 
           let fieldTypeNode =
@@ -71,20 +71,33 @@ module Darklang =
               let openBraceNode = findField child "symbol_open_brace"
 
               let recordFields =
-                match (findNodeByFieldName child "content") with
-                | Some contentNode ->
-                  contentNode.children
+                match (findNodeByFieldName child "fields") with
+                | Some fieldsNode ->
+                  fieldsNode.children
                   |> Stdlib.List.chunkBySize 2L
                   |> Builtin.unwrap
                   |> Stdlib.List.map (fun chunk ->
                     match chunk with
-                    | [ fieldNode ] -> parseRecordField fieldNode
-                    | [ fieldNode; _separator ] -> parseRecordField fieldNode
-                    | _ -> createUnparseableError chunk)
+                    | [ fieldNode ] ->
+                      (parseRecordField fieldNode, Stdlib.Option.Option.None)
 
-                | None -> [] |> Stdlib.Result.Result.Ok
+                    | [ fieldNode; separator ] ->
+                      (parseRecordField fieldNode,
+                       Stdlib.Option.Option.Some separator.sourceRange)
+                    | _ ->
+                      (createUnparseableError chunk,
+                       Stdlib.Option.Option.Some separator.sourceRange))
 
-              let recordFields = recordFields |> Stdlib.Result.values
+                | None -> (Stdlib.Result.Result.Ok [], Stdlib.Option.Option.None)
+
+              let recordFields =
+                recordFields
+                |> Stdlib.List.map (fun (field, separator) ->
+                  match field with
+                  | Ok field -> (field, separator) |> Stdlib.Result.Result.Ok
+                  | Error _ -> createUnparseableError child)
+
+              let recordFields = recordFields |> Stdlib.Result.collect
               let closeBraceNode = findField child "symbol_close_brace"
 
               match openBraceNode, recordFields, closeBraceNode with

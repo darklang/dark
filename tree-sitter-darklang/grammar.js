@@ -82,24 +82,27 @@ module.exports = grammar({
     type_decl_def_record: $ =>
       seq(
         field("symbol_open_brace", alias("{", $.symbol)),
-        field("content", optional($.type_decl_def_record_content)),
+        field("fields", optional($.type_decl_def_record_fields)),
         field("symbol_close_brace", alias("}", $.symbol)),
       ),
 
-    type_decl_def_record_content: $ =>
+    type_decl_def_record_fields: $ =>
       seq(
-        $.type_decl_def_record_field,
-        repeat(
-          seq(
-            field("record_separator", alias(";", $.symbol)),
-            $.type_decl_def_record_field,
+        field("first", $.type_decl_def_record_field),
+        field(
+          "others",
+          repeat(
+            seq(
+              field("symbol_semicolon", alias(";", $.symbol)),
+              $.type_decl_def_record_field,
+            ),
           ),
         ),
       ),
 
     type_decl_def_record_field: $ =>
       seq(
-        field("field", $.variable_identifier),
+        field("field_name", $.variable_identifier),
         field("symbol_colon", alias(":", $.symbol)),
         field("type", $.type_reference),
       ),
