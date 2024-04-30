@@ -130,7 +130,7 @@ module Darklang =
                 parsed.unparseableStuff
                 |> Stdlib.List.map (fun unparseable ->
                   createErrorDiagnostic
-                    unparseable.source.sourceRange
+                    unparseable.source.range
                     "Couldn't parse this part of the file")
 
               sendDiagnostic uri diagnostics

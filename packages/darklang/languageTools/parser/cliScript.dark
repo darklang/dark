@@ -54,7 +54,7 @@ module Darklang =
         if node.typ == "source_file" then
           let init =
             WrittenTypes.CliScript
-              { range = node.sourceRange
+              { range = node.range
                 typesAndFns = []
                 unparseableStuff = []
                 exprsToEval = [] }

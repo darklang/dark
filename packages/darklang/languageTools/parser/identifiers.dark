@@ -18,13 +18,13 @@ module Darklang =
             else
               let moduleIdentifier =
                 WrittenTypes.ModuleIdentifier
-                  { range = modulePart.sourceRange
+                  { range = modulePart.range
                     name = modulePart.text }
 
               let updatedModules =
                 Stdlib.List.push
                   modulesSoFarInReverse
-                  ((moduleIdentifier, symbolPart.sourceRange))
+                  ((moduleIdentifier, symbolPart.range))
 
               extractModuleIdentifiersHelper updatedModules otherParts
 
@@ -45,13 +45,13 @@ module Darklang =
           (Stdlib.List.reverse modulesInReverse, lastNode)
 
         let parseVariable (n: ParsedNode) : WrittenTypes.VariableIdentifier =
-          WrittenTypes.VariableIdentifier { range = n.sourceRange; name = n.text }
+          WrittenTypes.VariableIdentifier { range = n.range; name = n.text }
 
         let parseType (n: ParsedNode) : WrittenTypes.TypeIdentifier =
-          WrittenTypes.TypeIdentifier { range = n.sourceRange; name = n.text }
+          WrittenTypes.TypeIdentifier { range = n.range; name = n.text }
 
         let parseFn (n: ParsedNode) : WrittenTypes.FnIdentifier =
-          WrittenTypes.FnIdentifier { range = n.sourceRange; name = n.text }
+          WrittenTypes.FnIdentifier { range = n.range; name = n.text }
 
 
         let parseQualifiedType
@@ -62,7 +62,7 @@ module Darklang =
               extractModuleIdentifiers node.children
 
             (WrittenTypes.QualifiedTypeIdentifier
-              { range = node.sourceRange
+              { range = node.range
                 modules = modules
                 typ = parseType typeIdentifierNode })
             |> Stdlib.Result.Result.Ok
@@ -78,7 +78,7 @@ module Darklang =
             let (modules, fnIdentifierNode) = extractModuleIdentifiers node.children
 
             (WrittenTypes.QualifiedFnIdentifier
-              { range = node.sourceRange
+              { range = node.range
                 modules = modules
                 fn = parseFn fnIdentifierNode })
             |> Stdlib.Result.Result.Ok

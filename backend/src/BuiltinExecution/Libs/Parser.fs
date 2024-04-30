@@ -91,7 +91,7 @@ let fns : List<BuiltInFn> =
               [ ("fieldName", fieldName)
                 ("typ", DString cursor.Current.Kind)
                 ("text", DString sourceText)
-                ("sourceRange", sourceRange)
+                ("range", sourceRange)
                 ("children", DList(VT.customType parsedNodeTypeName [], children)) ]
 
             DRecord(parsedNodeTypeName, parsedNodeTypeName, [], Map fields)

@@ -9,7 +9,7 @@ module Darklang =
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.FnDeclaration.Parameter, WrittenTypes.Unparseable> =
           if node.typ == "unit" then
-            (WrittenTypes.FnDeclaration.UnitParameter { range = node.sourceRange })
+            (WrittenTypes.FnDeclaration.UnitParameter { range = node.range })
             |> WrittenTypes.FnDeclaration.Parameter.Unit
             |> Stdlib.Result.Result.Ok
 
@@ -28,12 +28,12 @@ module Darklang =
             with
             | Ok name, Ok typ, Ok leftParen, Ok colon, Ok rightParen ->
               (WrittenTypes.FnDeclaration.NormalParameter
-                { range = node.sourceRange
+                { range = node.range
                   name = name
                   typ = typ
-                  symbolLeftParen = leftParen.sourceRange
-                  symbolColon = colon.sourceRange
-                  symbolRightParen = rightParen.sourceRange })
+                  symbolLeftParen = leftParen.range
+                  symbolColon = colon.range
+                  symbolRightParen = rightParen.range })
               |> WrittenTypes.FnDeclaration.Parameter.Normal
               |> Stdlib.Result.Result.Ok
 
@@ -103,14 +103,14 @@ module Darklang =
             with
             | Ok name, Ok params, Ok rt, Ok body, Ok keywordLet, Ok colon, Ok equals ->
               (WrittenTypes.FnDeclaration.FnDeclaration
-                { range = node.sourceRange
+                { range = node.range
                   name = name
                   parameters = params
                   returnType = rt
                   body = body
-                  keywordLet = keywordLet.sourceRange
-                  symbolColon = colon.sourceRange
-                  symbolEquals = equals.sourceRange })
+                  keywordLet = keywordLet.range
+                  symbolColon = colon.range
+                  symbolEquals = equals.range })
               |> Stdlib.Result.Result.Ok
 
             | _ -> createUnparseableError node
