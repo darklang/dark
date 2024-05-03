@@ -10,6 +10,7 @@ const PREC = {
   SUM: 3,
   PRODUCT: 4,
   EXPONENT: 5,
+  MATCH_EXPR: 6,
   FIELDACCESS: 7,
 };
 
@@ -37,8 +38,9 @@ module.exports = grammar({
         repeat($.expression),
       ),
 
-    //
+    // ---------------------
     // Function declarations
+    // ---------------------
     fn_decl: $ =>
       seq(
         field("keyword_let", alias("let", $.keyword)),
@@ -59,8 +61,9 @@ module.exports = grammar({
         field("symbol_right_paren", alias(")", $.symbol)),
       ),
 
-    //
+    // ---------------------
     // Type declarations
+    // ---------------------
     type_decl: $ =>
       seq(
         field("keyword_type", alias("type", $.keyword)),
@@ -76,9 +79,11 @@ module.exports = grammar({
         $.type_decl_def_enum,
       ),
 
+    //
     // Alias
     type_decl_def_alias: $ => $.type_reference,
 
+    //
     // Record
     // e.g. `type Person = { name: String; age: Int }`
     type_decl_def_record: $ =>
@@ -109,6 +114,7 @@ module.exports = grammar({
         field("type", $.type_reference),
       ),
 
+    //
     // Enums
     // e.g. `type Color = Red | Green | Blue`
     type_decl_def_enum: $ =>
@@ -122,7 +128,7 @@ module.exports = grammar({
     type_decl_enum_case: $ =>
       seq(
         field("symbol_pipe", alias("|", $.symbol)),
-        field("case_name", $.identifier_enum_case),
+        field("case_name", $.enum_case_identifier),
         optional(
           seq(
             field("keyword_of", alias("of", $.keyword)),
@@ -155,8 +161,108 @@ module.exports = grammar({
 
     newline: $ => /\n/,
 
+    // ---------------------
+    // Match patterns
+    // ---------------------
+    match_pattern: $ =>
+      choice(
+        $.unit,
+        alias($.bool_literal, $.bool),
+        alias($.int8_literal, $.int8),
+        alias($.uint8_literal, $.uint8),
+        alias($.int16_literal, $.int16),
+        alias($.uint16_literal, $.uint16),
+        alias($.int32_literal, $.int32),
+        alias($.uint32_literal, $.uint32),
+        alias($.int64_literal, $.int64),
+        alias($.uint64_literal, $.uint64),
+        alias($.int128_literal, $.int128),
+        alias($.uint128_literal, $.uint128),
+        alias($.float_literal, $.float),
+        alias($.char_literal, $.char),
+        alias($.string_literal, $.string),
+        alias($.mp_list, $.list),
+        alias($.mp_list_cons, $.list_cons),
+        alias($.mp_tuple, $.tuple),
+        alias($.mp_enum, $.enum),
+        alias($.variable_identifier, $.variable),
+      ),
+
+    // match pattern - list
+    mp_list: $ =>
+      seq(
+        field("symbol_open_bracket", alias("[", $.symbol)),
+        field("content", optional($.mp_list_content)),
+        field("symbol_close_bracket", alias("]", $.symbol)),
+      ),
+
+    mp_list_content: $ =>
+      seq(
+        $.match_pattern,
+        repeat(
+          seq(field("list_separator", alias(";", $.symbol)), $.match_pattern),
+        ),
+        optional(alias(";", $.symbol)),
+      ),
+
     //
+    // match pattern - list cons
+    mp_list_cons: $ =>
+      prec.left(
+        seq(
+          field("head", $.match_pattern),
+          field("symbol_double_colon", alias("::", $.symbol)),
+          field("tail", $.match_pattern),
+        ),
+      ),
+
+    //
+    // match pattern - tuple
+    mp_tuple: $ =>
+      seq(
+        field("symbol_left_paren", alias("(", $.symbol)),
+        field("first", $.match_pattern),
+        field("symbol_comma", alias(",", $.symbol)),
+        field("second", $.match_pattern),
+        field("rest", optional($.mp_tuple_the_rest)),
+        field("symbol_right_paren", alias(")", $.symbol)),
+      ),
+
+    mp_tuple_the_rest: $ =>
+      repeat1(
+        seq(
+          field("symbol_comma", alias(",", $.symbol)),
+          field("pat", $.match_pattern),
+        ),
+      ),
+
+    //
+    // match pattern - enum
+    mp_enum: $ =>
+      prec.right(
+        seq(
+          field("case_name", $.enum_case_identifier),
+          optional(
+            seq(
+              field("symbol_open_paren", alias("(", $.symbol)),
+              field("enum_fields", $.mp_enum_fields),
+              field("symbol_close_paren", alias(")", $.symbol)),
+            ),
+          ),
+        ),
+      ),
+
+    mp_enum_fields: $ =>
+      seq(
+        $.match_pattern,
+        repeat(
+          seq(field("symbol_comma", alias(",", $.symbol)), $.match_pattern),
+        ),
+      ),
+
+    // ---------------------
     // Expressions
+    // ---------------------
     expression: $ =>
       choice(
         $.paren_expression,
@@ -184,12 +290,15 @@ module.exports = grammar({
         $.let_expression,
         $.variable_identifier,
 
+        $.match_expression,
+
         $.infix_operation,
         $.function_call,
 
         $.field_access,
         $.lambda_expression,
       ),
+
     paren_expression: $ =>
       seq(
         field("symbol_left_paren", alias("(", $.symbol)),
@@ -197,36 +306,9 @@ module.exports = grammar({
         field("symbol_right_paren", alias(")", $.symbol)),
       ),
 
+    //
+    // Booleans
     bool_literal: $ => choice(/true/, /false/),
-
-    /**
-     * e.g. `Int64.add 1 2
-     *
-     * This is currently a bit hacky, requiring parens around the function call,
-     * in order to help tree-sitter parse it correctly.
-     *
-     * There's certainly a better way to remove ambiguities. TODO
-     *
-     * TODO maybe call this "apply" instead
-     *      sometimes the thing we are 'applying' is not directly a function
-     */
-    function_call: $ =>
-      seq(
-        field("symbol_left_paren", alias("(", $.symbol)),
-        field("fn", $.qualified_fn_name),
-        field("args", repeat1($.expression)),
-        field("symbol_right_paren", alias(")", $.symbol)),
-      ),
-
-    let_expression: $ =>
-      seq(
-        field("keyword_let", alias("let", $.keyword)),
-        field("identifier", $.variable_identifier),
-        field("symbol_equals", alias("=", $.symbol)),
-        field("expr", $.expression),
-        "\n",
-        field("body", $.expression),
-      ),
 
     //
     // Strings
@@ -464,7 +546,7 @@ module.exports = grammar({
 
     //
     // Record
-    // // TODO: allow multi-line records where a newline is 'interpreted' as a record delimiter (i.e. no ; needed)
+    // TODO: allow multi-line records where a newline is 'interpreted' as a record delimiter (i.e. no ; needed)
     record_literal: $ =>
       seq(
         field("type_name", $.qualified_type_name),
@@ -496,7 +578,7 @@ module.exports = grammar({
         seq(
           field("type_name", $.qualified_type_name),
           field("symbol_dot", alias(".", $.symbol)),
-          field("case_name", $.identifier_enum_case),
+          field("case_name", $.enum_case_identifier),
           optional(
             seq(
               field("symbol_open_paren", alias("(", $.symbol)),
@@ -587,7 +669,64 @@ module.exports = grammar({
     let_pattern: $ => choice($.unit, $.lp_tuple, $.variable_identifier),
 
     //
+    // Match expression
+    match_expression: $ =>
+      prec(
+        PREC.MATCH_EXPR,
+        seq(
+          field("keyword_match", alias("match", $.keyword)),
+          field("arg", $.expression),
+          field("keyword_with", alias("with", $.keyword)),
+          field("cases", repeat1($.match_case)),
+        ),
+      ),
+
+    match_case: $ =>
+      seq(
+        field("symbol_pipe", alias("|", $.symbol)),
+        field("pattern", $.match_pattern),
+        optional(
+          seq(
+            field("when_keyword", alias("when", $.keyword)),
+            field("guard_expr", $.expression),
+          ),
+        ),
+        field("symbol_arrow", alias("->", $.symbol)),
+        field("rhs", $.expression),
+      ),
+
+    /**
+     * e.g. `Int64.add 1 2
+     *
+     * This is currently a bit hacky, requiring parens around the function call,
+     * in order to help tree-sitter parse it correctly.
+     *
+     * There's certainly a better way to remove ambiguities. TODO
+     *
+     * TODO maybe call this "apply" instead
+     *      sometimes the thing we are 'applying' is not directly a function
+     */
+    function_call: $ =>
+      seq(
+        field("symbol_left_paren", alias("(", $.symbol)),
+        field("fn", $.qualified_fn_name),
+        field("args", repeat1($.expression)),
+        field("symbol_right_paren", alias(")", $.symbol)),
+      ),
+
+    let_expression: $ =>
+      seq(
+        field("keyword_let", alias("let", $.keyword)),
+        field("identifier", $.variable_identifier),
+        field("symbol_equals", alias("=", $.symbol)),
+        field("expr", $.expression),
+        "\n",
+        field("body", $.expression),
+      ),
+
+    // ---------------------
     // Common
+    // ---------------------
     type_reference: $ => choice($.builtin_type, $.qualified_type_name),
 
     builtin_type: $ =>
@@ -654,8 +793,9 @@ module.exports = grammar({
         field("symbol_close_angle", alias(">", $.symbol)),
       ),
 
-    //
+    // ---------------------
     // Identifiers
+    // ---------------------
     qualified_fn_name: $ =>
       seq(
         repeat(seq($.module_identifier, alias(".", $.symbol))),
@@ -683,7 +823,7 @@ module.exports = grammar({
     module_identifier: $ => /[A-Z][a-zA-Z0-9_]*/,
 
     //
-    identifier_enum_case: $ => /[A-Z][a-zA-Z0-9_]*/,
+    enum_case_identifier: $ => /[A-Z][a-zA-Z0-9_]*/,
 
     unit: $ => "()",
   },
