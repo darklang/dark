@@ -237,6 +237,124 @@ module Darklang =
             tokenizeDefinition t.definition ]
           |> Stdlib.List.flatten
 
+      module MatchPattern =
+        let tokenize (p: WrittenTypes.MatchPattern) : List<SemanticToken> =
+          match p with
+          | MPVariable(range, _name) -> [ makeToken range TokenType.VariableName ]
+          | MPUnit(range) -> [ makeToken range TokenType.Symbol ]
+          | MPInt8(_, (intPartRange, _), suffixPartRange) ->
+            [ makeToken intPartRange TokenType.Number
+              makeToken suffixPartRange TokenType.Symbol ]
+          | MPUInt8(_, (intPartRange, _), suffixPartRange) ->
+            [ makeToken intPartRange TokenType.Number
+              makeToken suffixPartRange TokenType.Symbol ]
+          | MPInt16(_, (intPartRange, _), suffixPartRange) ->
+            [ makeToken intPartRange TokenType.Number
+              makeToken suffixPartRange TokenType.Symbol ]
+          | MPUInt16(_, (intPartRange, _), suffixPartRange) ->
+            [ makeToken intPartRange TokenType.Number
+              makeToken suffixPartRange TokenType.Symbol ]
+          | MPInt32(_, (intPartRange, _), suffixPartRange) ->
+            [ makeToken intPartRange TokenType.Number
+              makeToken suffixPartRange TokenType.Symbol ]
+          | MPUInt32(_, (intPartRange, _), suffixPartRange) ->
+            [ makeToken intPartRange TokenType.Number
+              makeToken suffixPartRange TokenType.Symbol ]
+          | MPInt64(_, (intPartRange, _), suffixPartRange) ->
+            [ makeToken intPartRange TokenType.Number
+              makeToken suffixPartRange TokenType.Symbol ]
+          | MPUInt64(_, (intPartRange, _), suffixPartRange) ->
+            [ makeToken intPartRange TokenType.Number
+              makeToken suffixPartRange TokenType.Symbol ]
+          | MPInt128(_, (intPartRange, _), suffixPartRange) ->
+            [ makeToken intPartRange TokenType.Number
+              makeToken suffixPartRange TokenType.Symbol ]
+          | MPUInt128(_, (intPartRange, _), suffixPartRange) ->
+            [ makeToken intPartRange TokenType.Number
+              makeToken suffixPartRange TokenType.Symbol ]
+          | MPFloat(range, _sign, _whole, _fraction) ->
+            [ makeToken range TokenType.Number ]
+          | MPString(range, _contentsMaybe, symbolOpenQuote, symbolCloseQuote) ->
+            [ // "
+              [ makeToken symbolOpenQuote TokenType.Symbol ]
+              // hello
+              [ makeToken range TokenType.String ]
+              // "
+              [ makeToken symbolCloseQuote TokenType.Symbol ] ]
+            |> Stdlib.List.flatten
+          | MPChar(range, _contentsMaybe, symbolOpenQuote, symbolCloseQuote) ->
+            [ // '
+              [ makeToken symbolOpenQuote TokenType.Symbol ]
+              // a
+              [ makeToken range TokenType.String ]
+              // '
+              [ makeToken symbolCloseQuote TokenType.Symbol ] ]
+
+          | MPList(range, contentsMaybe, symbolLeftBracket, symbolRightBracket) ->
+            let contents =
+              contentsMaybe
+              |> Stdlib.List.map (fun (pat, _) -> tokenize pat)
+              |> Stdlib.List.flatten
+
+            [ // [
+              [ makeToken symbolLeftBracket TokenType.Symbol ]
+              // 1 ; 2 ; 3
+              contents
+              // ]
+              [ makeToken symbolRightBracket TokenType.Symbol ] ]
+            |> Stdlib.List.flatten
+
+          | MPListCons(range, head, tail, symbolCons) ->
+            [ // head
+              tokenize head
+              // ::
+              [ makeToken symbolCons TokenType.Symbol ]
+              // tail
+              tokenize tail ]
+            |> Stdlib.List.flatten
+
+          | MPTuple(range,
+                    first,
+                    symbolComma,
+                    second,
+                    rest,
+                    symbolOpenParen,
+                    symbolCloseParen) ->
+            let rest =
+              rest
+              |> Stdlib.List.map (fun (_, pat) -> tokenize pat)
+              |> Stdlib.List.flatten
+
+            [ // (
+              [ makeToken symbolOpenParen TokenType.Symbol ]
+              // 1
+              tokenize first
+              // ,
+              [ makeToken symbolComma TokenType.Symbol ]
+              // 2
+              tokenize second
+              // , 3
+              rest
+              // )
+              [ makeToken symbolCloseParen TokenType.Symbol ] ]
+            |> Stdlib.List.flatten
+
+          | MPEnum(range, caseName, fields) ->
+            let caseName =
+              match caseName with
+              | (range, _) -> [ makeToken range TokenType.EnumMember ]
+              | _ -> []
+
+            let fields =
+              fields
+              |> Stdlib.List.map (fun pat -> tokenize pat)
+              |> Stdlib.List.flatten
+
+            [ // Some
+              caseName
+              // 1L
+              fields ]
+            |> Stdlib.List.flatten
 
 
       module Expr =
@@ -524,6 +642,54 @@ module Darklang =
               elseKeyword
               // 2
               elseExpr ]
+            |> Stdlib.List.flatten
+
+          // match x with
+          // | x when x > 1 -> x
+          // | 1 -> 1
+          | EMatch(range, expr, cases, keywordMatch, symbolWith) ->
+            let cases =
+              cases
+              |> Stdlib.List.map (fun case ->
+                let pipeSym = Stdlib.Tuple3.first case.pat
+                let pattern = Stdlib.Tuple3.second case.pat
+                let arrowSym = Stdlib.Tuple3.third case.pat
+
+                let whenCondition =
+                  Stdlib.Option.mapWithDefault
+                    case.whenCondition
+                    []
+                    (fun (whenKeyword, expr) ->
+                      [ // when
+                        [ makeToken whenKeyword TokenType.Keyword ]
+                        // x > 1
+                        (Expr.tokenize expr) ]
+                      |> Stdlib.List.flatten)
+
+
+                [ // |
+                  [ makeToken pipeSym TokenType.Symbol ]
+                  // x
+                  MatchPattern.tokenize pattern
+                  // when x > 1
+                  whenCondition
+                  // ->
+                  [ makeToken arrowSym TokenType.Symbol ]
+                  // x
+                  Expr.tokenize case.rhs ]
+                |> Stdlib.List.flatten)
+
+              |> Stdlib.List.flatten
+
+            [ // match
+              [ makeToken keywordMatch TokenType.Keyword ]
+              // x
+              Expr.tokenize expr
+              // with
+              [ makeToken symbolWith TokenType.Keyword ]
+              // | x when x > 1 -> x
+              // | 1 -> 1
+              cases ]
             |> Stdlib.List.flatten
 
           // x + 1
