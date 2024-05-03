@@ -37,7 +37,7 @@ module Darklang =
 
         let parseMPInt
           (node: ParsedNode)
-          : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
+          : Stdlib.Result.Result<WrittenTypes.MatchPattern, WrittenTypes.Unparseable> =
           let supportedInts =
             [ "int8"
               "uint8"
