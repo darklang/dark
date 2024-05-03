@@ -11,7 +11,7 @@ MyEnum.NoArgs
     (enum_literal
       (qualified_type_name (type_identifier))
       (symbol)
-      (identifier_enum_case)
+      (enum_case_identifier)
     )
   )
 )
@@ -31,7 +31,7 @@ MyEnum.OneArg(1L)
       (qualified_type_name
         (type_identifier))
       (symbol)
-      (identifier_enum_case)
+      (enum_case_identifier)
       (symbol)
       (enum_fields
         (expression (int64_literal (digits (positive_digits)) (symbol)))
@@ -56,7 +56,7 @@ MyEnum.TwoArgs(1L, 2L)
     (qualified_type_name
       (type_identifier))
     (symbol)
-    (identifier_enum_case)
+    (enum_case_identifier)
     (symbol)
     (enum_fields
       (expression
@@ -94,7 +94,7 @@ Stdlib.Option.Option.None
         (type_identifier)
       )
       (symbol)
-      (identifier_enum_case)
+      (enum_case_identifier)
     )
   )
 )
@@ -119,7 +119,7 @@ Stdlib.Option.Option.Some(1L)
         (type_identifier)
       )
       (symbol)
-      (identifier_enum_case)
+      (enum_case_identifier)
       (symbol)
         (enum_fields
           (expression (int64_literal (digits (positive_digits)) (symbol)))
