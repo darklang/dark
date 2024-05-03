@@ -1,0 +1,17 @@
+==================
+field access
+==================
+
+person.name
+
+---
+
+(source_file
+  (expression
+    (field_access
+      (expression (variable_identifier))
+      (symbol)
+      (variable_identifier)
+    )
+  )
+)

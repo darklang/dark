@@ -386,6 +386,9 @@ module TextToTextRoundtripping =
     // TODO: this is ugly
     ("let x = 1L\n  x" |> roundtripCliScript) = "let x =\n  1L\nx"
 
+    // field access
+    ("person.name" |> roundtripCliScript) = "person.name"
+
     // if expressions
     ("if true then 1L" |> roundtripCliScript) = "if true then\n  1L"
     ("if true then 1L else 2L" |> roundtripCliScript) = "if true then\n  1L\nelse\n  2L"

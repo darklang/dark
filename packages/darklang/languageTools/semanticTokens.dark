@@ -467,6 +467,16 @@ module Darklang =
           // x
           | EVariable(range, _varName) -> [ makeToken range TokenType.VariableName ]
 
+          // person.name
+          | EFieldAccess(range, expr, (r, fieldName), symbolDot) ->
+            [ // person
+              Expr.tokenize expr
+              // .
+              [ makeToken symbolDot TokenType.Symbol ]
+              // name
+              [ makeToken r TokenType.Property ] ]
+            |> Stdlib.List.flatten
+
           // if true then 1 else 2
           | EIf(range, cond, thenExpr, elseExpr, keywordIf, keywordThen, keywordElse) ->
             let elseKeyword =

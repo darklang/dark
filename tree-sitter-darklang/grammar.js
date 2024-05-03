@@ -184,6 +184,8 @@ module.exports = grammar({
 
         $.infix_operation,
         $.function_call,
+
+        $.field_access,
       ),
     paren_expression: $ =>
       seq(
@@ -214,13 +216,15 @@ module.exports = grammar({
       ),
 
     let_expression: $ =>
-      seq(
-        field("keyword_let", alias("let", $.keyword)),
-        field("identifier", $.variable_identifier),
-        field("symbol_equals", alias("=", $.symbol)),
-        field("expr", $.expression),
-        "\n",
-        field("body", $.expression),
+      prec.right(
+        seq(
+          field("keyword_let", alias("let", $.keyword)),
+          field("identifier", $.variable_identifier),
+          field("symbol_equals", alias("=", $.symbol)),
+          field("expr", $.expression),
+          "\n",
+          field("body", $.expression),
+        ),
       ),
 
     //
@@ -528,6 +532,15 @@ module.exports = grammar({
             ),
           ),
         ),
+      ),
+
+    // field access
+    // e.g. `person.name`
+    field_access: $ =>
+      seq(
+        field("expr", $.expression),
+        field("symbol_dot", alias(".", $.symbol)),
+        field("field_name", $.variable_identifier),
       ),
 
     //

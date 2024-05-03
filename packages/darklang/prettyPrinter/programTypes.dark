@@ -604,7 +604,7 @@ module Darklang =
 
           // TODO: only sometimes need to wrap exprPart in parens
 
-          $"({exprPart}).{fieldName}"
+          $"{exprPart}.{fieldName}"
 
         | EVariable(_id, name) -> name
 

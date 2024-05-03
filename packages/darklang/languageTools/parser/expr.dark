@@ -513,6 +513,28 @@ module Darklang =
           else
             createUnparseableError node
 
+        let parseFieldAccess
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
+          if node.typ == "field_access" then
+            let expr = findAndParseRequired node "expr" Expr.parse
+            let symbolDotNode = findField node "symbol_dot"
+            let fieldName = findField node "field_name"
+
+            match expr, symbolDotNode, fieldName with
+            | Ok expr, Ok symbolDot, Ok field ->
+              (WrittenTypes.Expr.EFieldAccess(
+                node.range,
+                expr,
+                (field.range, field.text),
+                symbolDot.range
+              ))
+              |> Stdlib.Result.Result.Ok
+
+            | _ -> createUnparseableError node
+
+          else
+            createUnparseableError node
 
         let parseInfixOperation
           (node: ParsedNode)
@@ -692,6 +714,8 @@ module Darklang =
           | "variable_identifier" ->
             (WrittenTypes.Expr.EVariable(node.range, getText node))
             |> Stdlib.Result.Result.Ok
+
+          | "field_access" -> parseFieldAccess node
 
           | "if_expression" -> parseIfExpression node
 

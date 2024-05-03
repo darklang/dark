@@ -368,6 +368,10 @@
           "named": true
         },
         {
+          "type": "field_access",
+          "named": true
+        },
+        {
           "type": "float_literal",
           "named": true
         },
@@ -456,6 +460,42 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "field_access",
+    "named": true,
+    "fields": {
+      "expr": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      },
+      "field_name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "variable_identifier",
+            "named": true
+          }
+        ]
+      },
+      "symbol_dot": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
