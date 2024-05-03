@@ -916,18 +916,11 @@ module Darklang =
               |> Stdlib.List.map Expr.parse
               |> Stdlib.Result.collect
 
-            let symbolLeftParen = findField node "symbol_left_paren"
-            let symbolRightParen = findField node "symbol_right_paren"
+            match fnNameNode, args with
+            | Ok fnName, Ok args ->
+              let fnName = WrittenTypes.Expr.EFnName(node.range, fnName)
 
-            match fnNameNode, args, symbolLeftParen, args, symbolRightParen with
-            | Ok fnName, args, Ok symLeftParen, Ok args, Ok symRightParen ->
-              (WrittenTypes.Expr.EFnCall(
-                node.range,
-                fnName,
-                args,
-                symLeftParen.range,
-                symRightParen.range
-              ))
+              (WrittenTypes.Expr.EApply(node.range, fnName, [], args))
               |> Stdlib.Result.Result.Ok
 
             | _ -> createUnparseableError node

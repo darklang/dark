@@ -457,17 +457,15 @@ module Darklang =
 
             ProgramTypes.Expr.ELambda(gid (), pats, body)
 
-          | EFnCall(_, fnName, args, _, _) ->
+          | EFnName(_, fnName) ->
             let fnName = Identifiers.QualifiedFn.toPT onMissing fnName
+            ProgramTypes.Expr.EFnName(gid (), fnName)
 
-            let fnNameExpr = ProgramTypes.Expr.EFnName(gid (), fnName)
+          | EApply(_, fn, typeArgs, args) ->
+            let fn = toPT onMissing fn
+            let args = Stdlib.List.map args (fun a -> toPT onMissing a)
 
-            ProgramTypes.Expr.EApply(
-              gid (),
-              fnNameExpr,
-              [],
-              Stdlib.List.map args (fun a -> toPT onMissing a)
-            )
+            ProgramTypes.Expr.EApply(gid (), fn, [], args)
 
 
       module FunctionDeclaration =

@@ -332,12 +332,12 @@ module Darklang =
         // | EApply of Range * lhs: Expr * args: List<Expr>
         // | EFnName of QualifiedFnIdentifier
 
-        | EFnCall of
+        | EApply of
           Range *
-          fnName: QualifiedFnIdentifier *
-          args: List<Expr> *
-          symbolLeftParen: Range *
-          symbolRightParen: Range
+          lhs: Expr *
+          typeArgs: List<TypeReference.TypeReference> *
+          args: List<Expr>
+        | EFnName of Range * name: QualifiedFnIdentifier
 
 
 

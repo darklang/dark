@@ -11,7 +11,7 @@ let myFn (): String = "hello"
 
 let x = 1L + 2L
 
-(Builtin.printLine (myFn ()))
+Builtin.printLine (myFn (()))
 
 ---
 
@@ -41,10 +41,17 @@ let x = 1L + 2L
       )
       (expression
         (function_call
-          (symbol)
-          (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
-          (expression (function_call (symbol) (qualified_fn_name (fn_identifier)) (expression (unit)) (symbol)))
-          (symbol)
+          (qualified_fn_name
+            (module_identifier)
+            (symbol)
+            (fn_identifier))
+          (paren_expression
+            (symbol)
+            (expression
+              (function_call (qualified_fn_name (fn_identifier))
+                (paren_expression (symbol) (expression (unit)) (symbol))))
+            (symbol)
+          )
         )
       )
     )

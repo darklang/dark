@@ -53,7 +53,7 @@ fn decl with multiple params
 ==================
 
 let isHigher (a: Int64) (b: Int64): Bool =
-  (Int64.isGreaterThan a b)
+  Int64.isGreaterThan (a) (b)
 
 ---
 
@@ -70,13 +70,10 @@ let isHigher (a: Int64) (b: Int64): Bool =
     (symbol)
     (expression
       (function_call
-        (symbol)
         (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
-        (expression (variable_identifier))
-        (expression (variable_identifier))
-        (symbol)
+        (paren_expression (symbol) (expression (variable_identifier)) (symbol))
+        (paren_expression (symbol) (expression (variable_identifier)) (symbol))
       )
     )
   )
 )
-

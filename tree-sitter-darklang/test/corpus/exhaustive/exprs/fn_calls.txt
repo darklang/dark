@@ -250,18 +250,16 @@ a ++ b
 basic function call (hacky)
 ==================
 
-(Bool.and true false)
+Bool.and (true) (false)
 
 ---
 
 (source_file
   (expression
     (function_call
-      (symbol)
       (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
-      (expression (bool_literal))
-      (expression (bool_literal))
-      (symbol)
+      (paren_expression (symbol) (expression (bool_literal)) (symbol))
+      (paren_expression (symbol) (expression (bool_literal)) (symbol))
     )
   )
 )
@@ -270,17 +268,16 @@ basic function call (hacky)
 how function calls _should_ work (broken)
 ==================
 
-Bool.and true false
+Bool.and (true) (false)
 
 ---
 
 (source_file
-  (ERROR
-    (module_identifier)
-    (symbol))
   (expression
-    (variable_identifier))
-  (expression
-    (bool_literal))
-  (expression
-    (bool_literal)))
+    (function_call
+      (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
+      (paren_expression (symbol) (expression (bool_literal)) (symbol))
+      (paren_expression (symbol) (expression (bool_literal)) (symbol))
+    )
+  )
+)

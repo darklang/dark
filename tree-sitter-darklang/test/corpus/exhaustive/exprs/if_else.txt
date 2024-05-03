@@ -407,7 +407,7 @@ if a > b then
         (if_expression
           (keyword)
           (expression (infix_operation (expression (variable_identifier)) (operator) (expression (variable_identifier)))) (keyword)
-          (ERROR (expression (variable_identifier)))
+          (ERROR (qualified_fn_name (fn_identifier)))
           (indent)
           (expression
             (variable_identifier))
