@@ -499,6 +499,52 @@ else
   h"""
 
 
+    // match expressions
+    ("match () with\n| () -> true" |> roundtripCliScript) = "match () with\n| () ->\n  true"
+    ("match true with\n| true -> true" |> roundtripCliScript) = "match true with\n| true ->\n  true"
+
+    ("match 1y with\n| 1y -> true" |> roundtripCliScript) = "match 1y with\n| 1y ->\n  true"
+    ("match -1y with\n| -1y -> true" |> roundtripCliScript) = "match -1y with\n| -1y ->\n  true"
+    ("match 0uy with\n| 0uy -> true" |> roundtripCliScript) = "match 0uy with\n| 0uy ->\n  true"
+
+    ("match 1s with\n| 1s -> true" |> roundtripCliScript) = "match 1s with\n| 1s ->\n  true"
+    ("match 2us with\n| 2us -> true" |> roundtripCliScript) = "match 2us with\n| 2us ->\n  true"
+
+    ("match 3l with\n| 3l -> true" |> roundtripCliScript) = "match 3l with\n| 3l ->\n  true"
+    ("match 4l with\n| 4l -> true" |> roundtripCliScript) = "match 4l with\n| 4l ->\n  true"
+
+    ("match 5ul with\n| 5ul -> true" |> roundtripCliScript) = "match 5ul with\n| 5ul ->\n  true"
+    ("match 6ul with\n| 6ul -> true" |> roundtripCliScript) = "match 6ul with\n| 6ul ->\n  true"
+
+    ("match 7L with\n| 7L -> true" |> roundtripCliScript) = "match 7L with\n| 7L ->\n  true"
+    ("match 8UL with\n| 8UL -> true" |> roundtripCliScript) = "match 8UL with\n| 8UL ->\n  true"
+
+    ("match 9Q with\n| 9Q -> true" |> roundtripCliScript) = "match 9Q with\n| 9Q ->\n  true"
+    ("match 10Z with\n| 10Z -> true" |> roundtripCliScript) = "match 10Z with\n| 10Z ->\n  true"
+
+    ("match 0.9 with\n| 0.9 -> true" |> roundtripCliScript) = "match 0.9 with\n| 0.9 ->\n  true"
+
+    ("match \"str\" with\n| \"str\" -> true" |> roundtripCliScript) = "match \"str\" with\n| \"str\" ->\n  true"
+    ("match 'c' with\n| 'c' -> true" |> roundtripCliScript) = "match 'c' with\n| 'c' ->\n  true"
+    ("match var with\n| var -> true" |> roundtripCliScript) = "match var with\n| var ->\n  true"
+
+    ("match \"str\" with\n| \"str\" -> true\n| \"other\" -> false"
+     |> roundtripCliScript) = "match \"str\" with\n| \"str\" ->\n  true\n| \"other\" ->\n  false"
+
+    ("match [1L; 2L] with\n| [1L; 2L] -> true" |> roundtripCliScript) = "match [1L; 2L] with\n| [1L; 2L] ->\n  true"
+
+    ("match [1L; 2L; 3L] with\n| head :: tail ->\n \"pass\"" |> roundtripCliScript) = "match [1L; 2L; 3L] with\n| head :: tail ->\n  \"pass\""
+
+    ("match (1L, 2L) with\n| (1L, 2L) -> true" |> roundtripCliScript) = "match (1L, 2L) with\n| (1L, 2L) ->\n  true"
+
+    ("match Stdlib.Result.Result.Ok(5L) with\n| Ok(5L) -> true\n| Error(e) -> false"
+     |> roundtripCliScript) = "match Stdlib.Result.Result.Ok(5L) with\n| Ok 5L ->\n  true\n| Error e ->\n  false"
+
+    ("match \"str\" with\n| \"str\" when true -> true" |> roundtripCliScript) = "match \"str\" with\n| \"str\" when true ->\n  true"
+
+    ("match x with\n| y when y > 1L -> true\n| z when z < 1L -> false\n| w -> w"
+     |> roundtripCliScript) = "match x with\n| y when (y) > (1L) ->\n  true\n| z when (z) < (1L) ->\n  false\n| w ->\n  w"
+
     // fn calls
     // TODO: these are ugly
     ("1L + 2L" |> roundtripCliScript) = "(1L) + (2L)"
