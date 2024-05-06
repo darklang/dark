@@ -186,6 +186,7 @@ module.exports = grammar({
         alias($.mp_tuple, $.tuple),
         alias($.mp_enum, $.enum),
         alias($.variable_identifier, $.variable),
+        alias(/_/, $.wildcard),
       ),
 
     // match pattern - list
@@ -670,6 +671,7 @@ module.exports = grammar({
 
     //
     // Match expression
+    // TODO : allow one-line match expressions (i.e. match x with | 1 -> ...)
     match_expression: $ =>
       prec(
         PREC.MATCH_EXPR,

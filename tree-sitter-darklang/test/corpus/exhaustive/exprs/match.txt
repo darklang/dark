@@ -397,3 +397,22 @@ match [ 1L; 2L; 3L ] with
     )
   )
 )
+
+
+==================
+match expression - test wildcard
+==================
+
+match true with
+  | _ -> true
+
+---
+
+(source_file
+  (expression
+    (match_expression
+      (keyword) (expression (bool_literal)) (keyword)
+      (match_case (symbol) (match_pattern (wildcard)) (symbol) (expression (bool_literal)))
+    )
+  )
+)

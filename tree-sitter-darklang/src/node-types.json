@@ -1770,6 +1770,10 @@
         {
           "type": "variable",
           "named": true
+        },
+        {
+          "type": "wildcard",
+          "named": true
         }
       ]
     }
@@ -3097,6 +3101,10 @@
   },
   {
     "type": "unit",
+    "named": true
+  },
+  {
+    "type": "wildcard",
     "named": true
   }
 ]

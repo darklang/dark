@@ -383,4 +383,8 @@ module Darklang =
                 (WrittenTypes.MatchPattern.MPVariable(node.range, child.text))
                 |> Stdlib.Result.Result.Ok
 
+              | "wildcard" ->
+                (WrittenTypes.MatchPattern.MPVariable(node.range, "_"))
+                |> Stdlib.Result.Result.Ok
+
             | _ -> createUnparseableError node

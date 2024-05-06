@@ -734,6 +734,15 @@
           },
           "named": true,
           "value": "variable"
+        },
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "PATTERN",
+            "value": "_"
+          },
+          "named": true,
+          "value": "wildcard"
         }
       ]
     },
