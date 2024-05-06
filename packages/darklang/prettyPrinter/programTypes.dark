@@ -601,7 +601,6 @@ module Darklang =
 
         | EFieldAccess(id, expr, fieldName) ->
           let exprPart = PrettyPrinter.ProgramTypes.expr expr
-          // Builtin.debug "expr" expr
 
           // TODO: only sometimes need to wrap exprPart in parens
           match expr with
