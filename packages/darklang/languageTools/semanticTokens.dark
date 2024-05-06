@@ -243,7 +243,33 @@ module Darklang =
         module LetPattern =
           let tokenize (lp: WrittenTypes.LetPattern) : List<SemanticToken> =
             match lp with
+            | LPUnit range -> [ makeToken range TokenType.Symbol ]
             | LPVariable(range, _name) -> [ makeToken range TokenType.VariableName ]
+            | LPTuple(range,
+                      first,
+                      symbolComma,
+                      second,
+                      rest,
+                      symbolOpenParen,
+                      symbolCloseParen) ->
+              let rest =
+                rest
+                |> Stdlib.List.map (fun (_, pat) -> LetPattern.tokenize pat)
+                |> Stdlib.List.flatten
+
+              [ // (
+                [ makeToken symbolOpenParen TokenType.Symbol ]
+                // a
+                LetPattern.tokenize first
+                // ,
+                [ makeToken symbolComma TokenType.Symbol ]
+                // b
+                LetPattern.tokenize second
+                // , c
+                rest
+                // )
+                [ makeToken symbolCloseParen TokenType.Symbol ] ]
+              |> Stdlib.List.flatten
 
 
         let tokenize (e: WrittenTypes.Expr) : List<SemanticToken> =
@@ -509,6 +535,22 @@ module Darklang =
               // 1
               Expr.tokenize right ]
             |> Stdlib.List.flatten
+
+          // fun a -> a + 1
+          | ELambda(range, pats, body, keywordFun, symbolArrow) ->
+            [ // fun
+              [ makeToken range TokenType.Keyword ]
+              // a
+              (pats
+               |> Stdlib.List.map (fun pat -> LetPattern.tokenize pat)
+               |> Stdlib.List.flatten)
+              // ->
+              [ makeToken symbolArrow TokenType.Symbol ]
+              // a + 1
+              Expr.tokenize body ]
+            |> Stdlib.List.flatten
+
+
 
           // hacky temp. syntax -- see `grammar.js`
           // (Int64.add 1L 2L)
