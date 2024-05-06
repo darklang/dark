@@ -322,6 +322,7 @@ module Darklang =
 
       let letPattern (lp: LanguageTools.ProgramTypes.LetPattern) : String =
         match lp with
+        | LPUnit _id -> "()"
         | LPVariable(_id, name) -> name
         | LPTuple(_id, first, second, theRest) ->
           (Stdlib.List.append [ first; second ] theRest)
@@ -697,7 +698,7 @@ module Darklang =
 
           let bodyPart = PrettyPrinter.ProgramTypes.expr body
 
-          $"(fun {argsPart} -> \n {PrettyPrinter.indent bodyPart})"
+          $"(fun {patsPart} ->\n{PrettyPrinter.indent bodyPart})"
 
         | EApply(_id, fnName, typeArgs, args) ->
           let fnNamePart = PrettyPrinter.ProgramTypes.expr fnName
