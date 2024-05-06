@@ -1,9 +1,76 @@
 CREATE TABLE IF NOT EXISTS
+system_migrations_v0
+( name TEXT PRIMARY KEY
+, execution_date TIMESTAMPTZ NOT NULL
+, sql TEXT NOT NULL
+);
+
+
+CREATE TABLE IF NOT EXISTS
 accounts_v0
 ( id UUID PRIMARY KEY
 , created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+--------------------
+-- Stuff that belongs in "package space"
+--------------------
+CREATE TABLE IF NOT EXISTS
+package_types_v0
+( id UUID PRIMARY KEY
+, tlid BIGINT NOT NULL -- for tracing
+  /* owner/namespace part of the string, eg dark.
+   * CLEANUP This isn't a good way to store this because the username should be
+   * stored in the editor canvas. But we haven't got all the details worked out so
+   * for now store the owner */
+-- allow search by name
+, owner TEXT NOT NULL
+, modules TEXT NOT NULL /* eg Twitter.Other; includes package name, but not owner name */
+, typename TEXT NOT NULL /* eg sendText */
+, version INTEGER NOT NULL /* eg 0 */
+-- the actual definition
+, definition BYTEA NOT NULL /* the whole thing serialized as binary */
+-- bonus
+, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+
+CREATE TABLE IF NOT EXISTS
+package_constants_v0
+( id UUID PRIMARY KEY
+, tlid BIGINT NOT NULL
+, owner TEXT NOT NULL
+, modules TEXT NOT NULL /* eg Twitter.Other; includes package name, but not owner name */
+, name TEXT NOT NULL /* eg pi */
+, version INTEGER NOT NULL /* eg 0 */
+-- the actual definition
+, definition BYTEA NOT NULL /* the whole thing serialized as binary */
+-- bonus
+, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS
+package_functions_v0
+( id UUID PRIMARY KEY
+, tlid BIGINT NOT NULL -- for tracing
+  /* owner/namespace part of the string, e.g. dark.
+   * CLEANUP This isn't a good way to store this because the username should be
+   * stored in the editor canvas. But we haven't got all the details worked out so
+   * for now store the owner */
+-- allow search by name
+, owner TEXT NOT NULL
+, modules TEXT NOT NULL /* eg Twitter.Other; includes package name, but not owner name */
+, fnname TEXT NOT NULL /* eg sendText */
+, version INTEGER NOT NULL /* e.g. 0 */
+-- the actual definition
+, definition BYTEA NOT NULL /* the whole thing serialized as binary */
+-- bonus
+, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+--------------------
+-- Stuff that belongs in "user space"
+--------------------
 CREATE TABLE IF NOT EXISTS
 canvases_v0
 ( id UUID PRIMARY KEY
@@ -11,6 +78,49 @@ canvases_v0
 , created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+
+-- User K/V DBs
+CREATE TABLE IF NOT EXISTS
+user_data_v0
+( id UUID PRIMARY KEY
+, canvas_id UUID NOT NULL
+, table_tlid BIGINT NOT NULL
+, user_version INT NOT NULL
+, dark_version INT NOT NULL
+, data JSONB NOT NULL
+, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+, key TEXT NOT NULL
+, CONSTRAINT user_data_key_uniq UNIQUE (canvas_id, table_tlid, dark_version, user_version, key)
+);
+
+CREATE INDEX IF NOT EXISTS
+  idx_user_data_fetch
+ON user_data_v0
+  (canvas_id, table_tlid, user_version, dark_version);
+
+CREATE INDEX IF NOT EXISTS
+  idx_user_data_current_data_for_tlid
+ON user_data_v0
+  (user_version, dark_version, canvas_id, table_tlid);
+
+CREATE INDEX IF NOT EXISTS
+  idx_user_data_gin_data
+ON user_data_v0
+  USING GIN
+  (data jsonb_path_ops);
+
+
+-- HTTP Handlers
+CREATE TABLE IF NOT EXISTS
+domains_v0
+( domain TEXT PRIMARY KEY
+, canvas_id UUID NOT NULL
+, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
+-- TODO: extract out table of http handlers from toplevels_v0
+
+
+-- CRONs
 CREATE TABLE IF NOT EXISTS
 cron_records_v0
 ( id UUID PRIMARY KEY
@@ -20,17 +130,23 @@ cron_records_v0
 );
 
 CREATE INDEX IF NOT EXISTS
-idx_cron_records_tlid_canvas_id_id
+  idx_cron_records_tlid_canvas_id_id
 ON cron_records_v0
-(tlid, canvas_id, id DESC);
+  (tlid, canvas_id, id DESC);
 
+
+-- Queues/Workers
+CREATE TYPE scheduling_rule_type AS ENUM ('pause', 'block');
 
 CREATE TABLE IF NOT EXISTS
-domains_v0
-( domain TEXT PRIMARY KEY
+scheduling_rules_v0
+( id UUID PRIMARY KEY
+, rule_type scheduling_rule_type NOT NULL
 , canvas_id UUID NOT NULL
-, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
-
+, handler_name TEXT NOT NULL
+, event_space TEXT NOT NULL
+, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
 CREATE TABLE IF NOT EXISTS
 queue_events_v0
@@ -50,80 +166,12 @@ queue_events_v0
 -- the module rarely changes
 -- 2) fetch the indexes for all items we're unpausing. This is rare so it's fine to
 CREATE INDEX IF NOT EXISTS
-idx_queue_events_count
-ON queue_events_v0 (canvas_id, module, name);
+  idx_queue_events_count
+ON
+  queue_events_v0 (canvas_id, module, name);
 
 
-CREATE TABLE IF NOT EXISTS
-package_functions_v0
--- IDs
-( id UUID PRIMARY KEY
-, tlid BIGINT NOT NULL -- includes TLID for tracing
-  /* owner/namespace part of the string, eg dark.
-   * CLEANUP This isn't a good way to store this because the username should be
-   * stored in the editor canvas. But we haven't got all the details worked out so
-   * for now store the owner */
--- allow search by name
-, owner TEXT NOT NULL
-, modules TEXT NOT NULL /* eg Twitter.Other; includes package name, but not owner name */
-, fnname TEXT NOT NULL /* eg sendText */
-, version INTEGER NOT NULL /* eg 0 */
--- the actual definition
-, definition BYTEA NOT NULL /* the whole thing serialized as binary */
--- bonus
-, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS
-package_types_v0
--- IDs
-( id UUID PRIMARY KEY
-, tlid BIGINT NOT NULL -- includes TLID for tracing
-  /* owner/namespace part of the string, eg dark.
-   * CLEANUP This isn't a good way to store this because the username should be
-   * stored in the editor canvas. But we haven't got all the details worked out so
-   * for now store the owner */
--- allow search by name
-, owner TEXT NOT NULL
-, modules TEXT NOT NULL /* eg Twitter.Other; includes package name, but not owner name */
-, typename TEXT NOT NULL /* eg sendText */
-, version INTEGER NOT NULL /* eg 0 */
--- the actual definition
-, definition BYTEA NOT NULL /* the whole thing serialized as binary */
--- bonus
-, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-
-CREATE TABLE IF NOT EXISTS
-package_constants_v0
--- IDs
-( id UUID PRIMARY KEY
-, tlid BIGINT NOT NULL
-, owner TEXT NOT NULL
-, modules TEXT NOT NULL /* eg Twitter.Other; includes package name, but not owner name */
-, name TEXT NOT NULL /* eg pi */
-, version INTEGER NOT NULL /* eg 0 */
--- the actual definition
-, definition BYTEA NOT NULL /* the whole thing serialized as binary */
--- bonus
-, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-
-CREATE TYPE scheduling_rule_type AS ENUM ('pause', 'block');
-
-CREATE TABLE IF NOT EXISTS
-scheduling_rules_v0
-( id UUID PRIMARY KEY
-, rule_type scheduling_rule_type NOT NULL
-, canvas_id UUID NOT NULL
-, handler_name TEXT NOT NULL
-, event_space TEXT NOT NULL
-, created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-
+-- Secrets
 CREATE TABLE IF NOT EXISTS
 secrets_v0
 ( canvas_id UUID NOT NULL
@@ -135,17 +183,7 @@ secrets_v0
 );
 
 
-
-
-CREATE TABLE IF NOT EXISTS
-system_migrations_v0
-( name TEXT PRIMARY KEY
-, execution_date TIMESTAMPTZ NOT NULL
-, sql TEXT NOT NULL
-);
-
-
-
+-- Top-levels
 CREATE TYPE toplevel_type AS
 ENUM ('db', 'handler');
 
@@ -166,45 +204,14 @@ toplevels_v0
 );
 
 
--- Keep track of what traces are available for which handler/function/etc
+-- Traces
 CREATE TABLE IF NOT EXISTS
 traces_v0
 ( id UUID PRIMARY KEY
 , canvas_id UUID NOT NULL
--- the handler's (or for a function's default trace, the function's) TLID (used to
--- store the trace data in Cloud Storage)
+-- the handler's (or for a function's default trace, the function's) TLID
+-- (used to store the trace data in Cloud Storage)
 , root_tlid BIGINT NOT NULL
 , trace_id UUID NOT NULL
 , callgraph_tlids BIGINT[] NOT NULL -- functions called during the trace
 );
-
-
-CREATE TABLE IF NOT EXISTS
-user_data_v0
-( id UUID PRIMARY KEY
-, canvas_id UUID NOT NULL
-, table_tlid BIGINT NOT NULL
-, user_version INT NOT NULL
-, dark_version INT NOT NULL
-, data JSONB NOT NULL
-, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-, key TEXT NOT NULL
-, CONSTRAINT user_data_key_uniq UNIQUE (canvas_id, table_tlid, dark_version, user_version, key)
-);
-
-CREATE INDEX IF NOT EXISTS
-idx_user_data_fetch
-ON user_data_v0
-(canvas_id, table_tlid, user_version, dark_version);
-
-CREATE INDEX IF NOT EXISTS
-idx_user_data_current_data_for_tlid
-ON user_data_v0
-(user_version, dark_version, canvas_id, table_tlid);
-
-CREATE INDEX IF NOT EXISTS
-idx_user_data_gin_data
-ON user_data_v0
-USING GIN
-(data jsonb_path_ops)
