@@ -603,8 +603,10 @@ module Darklang =
           let exprPart = PrettyPrinter.ProgramTypes.expr expr
 
           // TODO: only sometimes need to wrap exprPart in parens
-
-          $"({exprPart}).{fieldName}"
+          match expr with
+          | EVariable(_, _) -> $"{exprPart}.{fieldName}"
+          | EFieldAccess(_, _, _) -> $"{exprPart}.{fieldName}"
+          | _ -> $"({exprPart}).{fieldName}"
 
         | EVariable(_id, name) -> name
 

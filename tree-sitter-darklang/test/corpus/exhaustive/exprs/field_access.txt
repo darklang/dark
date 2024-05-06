@@ -1,0 +1,79 @@
+==================
+field access
+==================
+
+person.name
+
+---
+
+(source_file
+  (expression
+    (field_access
+      (expression (variable_identifier))
+      (symbol)
+      (variable_identifier)
+    )
+  )
+)
+
+==================
+field access - paren defined Record
+==================
+
+(Person { name = "Janice" }).name
+
+---
+
+(source_file
+  (expression
+   (field_access
+      (expression
+        (paren_expression
+          (symbol)
+          (expression
+            (record_literal
+              (qualified_type_name (type_identifier))
+              (symbol)
+              (record_content
+                (record_pair
+                  (variable_identifier)
+                  (symbol)
+                  (expression (string_literal (symbol) (string_content) (symbol)))
+                )
+              )
+              (symbol)
+            )
+          )
+          (symbol)
+        )
+      )
+      (symbol)
+      (variable_identifier)
+    )
+  )
+)
+
+
+==================
+field access - nested
+==================
+
+person.address.street
+
+---
+
+(source_file
+  (expression
+    (field_access
+      (expression
+        (field_access
+          (expression (variable_identifier))
+          (symbol)
+          (variable_identifier)
+        )
+      )
+      (symbol)
+      (variable_identifier)
+    )
+  )
+)

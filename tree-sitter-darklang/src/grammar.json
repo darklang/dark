@@ -663,6 +663,10 @@
         {
           "type": "SYMBOL",
           "name": "function_call"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "field_access"
         }
       ]
     },
@@ -2295,6 +2299,44 @@
                 "type": "BLANK"
               }
             ]
+          }
+        ]
+      }
+    },
+    "field_access": {
+      "type": "PREC",
+      "value": 7,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "FIELD",
+            "name": "expr",
+            "content": {
+              "type": "SYMBOL",
+              "name": "expression"
+            }
+          },
+          {
+            "type": "FIELD",
+            "name": "symbol_dot",
+            "content": {
+              "type": "ALIAS",
+              "content": {
+                "type": "STRING",
+                "value": "."
+              },
+              "named": true,
+              "value": "symbol"
+            }
+          },
+          {
+            "type": "FIELD",
+            "name": "field_name",
+            "content": {
+              "type": "SYMBOL",
+              "name": "variable_identifier"
+            }
           }
         ]
       }

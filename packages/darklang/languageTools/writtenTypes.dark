@@ -224,6 +224,12 @@ module Darklang =
 
         | EVariable of Range * String
 
+        | EFieldAccess of
+          Range *
+          Expr *
+          fieldName: (Range * String) *
+          symbolDot: Range
+
         | EIf of
           Range *
           cond: Expr *

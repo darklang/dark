@@ -331,6 +331,9 @@ module Darklang =
 
           | EVariable(_, var) -> ProgramTypes.Expr.EVariable (gid ()) var
 
+          | EFieldAccess(_, expr, (_, fieldName), _) ->
+            ProgramTypes.Expr.EFieldAccess(gid (), toPT onMissing expr, fieldName)
+
           | EIf(_, cond, thenExpr, elseExpr, _, _, _) ->
             let elseExpr =
               elseExpr |> Stdlib.Option.map (fun es -> Expr.toPT onMissing es)

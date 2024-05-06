@@ -10,6 +10,7 @@ const PREC = {
   SUM: 3,
   PRODUCT: 4,
   EXPONENT: 5,
+  FIELDACCESS: 7,
 };
 
 const logicalOperators = choice("&&", "||");
@@ -184,6 +185,8 @@ module.exports = grammar({
 
         $.infix_operation,
         $.function_call,
+
+        $.field_access,
       ),
     paren_expression: $ =>
       seq(
@@ -527,6 +530,18 @@ module.exports = grammar({
               ),
             ),
           ),
+        ),
+      ),
+
+    // field access
+    // e.g. `person.name`
+    field_access: $ =>
+      prec(
+        PREC.FIELDACCESS,
+        seq(
+          field("expr", $.expression),
+          field("symbol_dot", alias(".", $.symbol)),
+          field("field_name", $.variable_identifier),
         ),
       ),
 
