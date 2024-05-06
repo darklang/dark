@@ -667,6 +667,10 @@
         {
           "type": "SYMBOL",
           "name": "field_access"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "lambda_expression"
         }
       ]
     },
@@ -2340,6 +2344,170 @@
           }
         ]
       }
+    },
+    "lambda_expression": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "keyword_fun",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "fun"
+            },
+            "named": true,
+            "value": "keyword"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "pats",
+          "content": {
+            "type": "SYMBOL",
+            "name": "lambda_pats"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "symbol_arrow",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "->"
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "body",
+          "content": {
+            "type": "SYMBOL",
+            "name": "expression"
+          }
+        }
+      ]
+    },
+    "lambda_pats": {
+      "type": "FIELD",
+      "name": "pat",
+      "content": {
+        "type": "REPEAT1",
+        "content": {
+          "type": "SYMBOL",
+          "name": "let_pattern"
+        }
+      }
+    },
+    "lp_tuple": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "symbol_left_paren",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "("
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "first",
+          "content": {
+            "type": "SYMBOL",
+            "name": "let_pattern"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "symbol_comma",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": ","
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "second",
+          "content": {
+            "type": "SYMBOL",
+            "name": "let_pattern"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "rest",
+          "content": {
+            "type": "REPEAT",
+            "content": {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "FIELD",
+                  "name": "symbol_comma",
+                  "content": {
+                    "type": "ALIAS",
+                    "content": {
+                      "type": "STRING",
+                      "value": ","
+                    },
+                    "named": true,
+                    "value": "symbol"
+                  }
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "let_pattern"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "symbol_right_paren",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": ")"
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        }
+      ]
+    },
+    "let_pattern": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "unit"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "lp_tuple"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "variable_identifier"
+        }
+      ]
     },
     "type_reference": {
       "type": "CHOICE",

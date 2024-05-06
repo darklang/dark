@@ -187,6 +187,7 @@ module.exports = grammar({
         $.function_call,
 
         $.field_access,
+        $.lambda_expression,
       ),
     paren_expression: $ =>
       seq(
@@ -544,6 +545,35 @@ module.exports = grammar({
           field("field_name", $.variable_identifier),
         ),
       ),
+
+    //
+    // Lambda expressions
+    lambda_expression: $ =>
+      seq(
+        field("keyword_fun", alias("fun", $.keyword)),
+        field("pats", $.lambda_pats),
+        field("symbol_arrow", alias("->", $.symbol)),
+        field("body", $.expression),
+      ),
+
+    lambda_pats: $ => field("pat", repeat1($.let_pattern)),
+
+    lp_tuple: $ =>
+      seq(
+        field("symbol_left_paren", alias("(", $.symbol)),
+        field("first", $.let_pattern),
+        field("symbol_comma", alias(",", $.symbol)),
+        field("second", $.let_pattern),
+        field(
+          "rest",
+          repeat(
+            seq(field("symbol_comma", alias(",", $.symbol)), $.let_pattern),
+          ),
+        ),
+        field("symbol_right_paren", alias(")", $.symbol)),
+      ),
+
+    let_pattern: $ => choice($.unit, $.lp_tuple, $.variable_identifier),
 
     //
     // Common

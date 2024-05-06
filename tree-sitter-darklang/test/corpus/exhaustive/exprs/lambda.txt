@@ -1,0 +1,182 @@
+==================
+lambda - lp_unit
+==================
+
+fun () -> 1L
+
+---
+
+(source_file
+  (expression
+    (lambda_expression
+      (keyword)
+      (lambda_pats (let_pattern (unit)))
+      (symbol)
+      (expression (int64_literal (digits (positive_digits)) (symbol)))
+    )
+  )
+)
+
+
+==================
+lambda - one lp_variable
+==================
+
+fun x -> x + 1L
+
+---
+
+(source_file
+  (expression
+    (lambda_expression
+      (keyword)
+      (lambda_pats (let_pattern (variable_identifier)))
+      (symbol)
+      (expression
+        (infix_operation
+          (expression (variable_identifier))
+          (operator)
+          (expression (int64_literal (digits (positive_digits)) (symbol)))
+        )
+      )
+    )
+  )
+)
+
+==================
+lambda test - wrapped in parens
+==================
+
+(fun x -> x + 1L)
+
+---
+
+(source_file
+  (expression
+    (paren_expression
+      (symbol)
+      (expression
+        (lambda_expression
+          (keyword)
+          (lambda_pats
+            (let_pattern (variable_identifier)))
+          (symbol)
+          (expression
+            (infix_operation
+              (expression (variable_identifier))
+              (operator)
+              (expression (int64_literal (digits (positive_digits)) (symbol)))
+            )
+          )
+        )
+      )
+      (symbol)
+    )
+  )
+)
+
+
+==================
+lambda - two lp_variables
+==================
+
+fun a b -> a * b
+
+---
+
+(source_file
+  (expression
+    (lambda_expression
+      (keyword)
+      (lambda_pats
+        (let_pattern (variable_identifier))
+        (let_pattern (variable_identifier))
+      )
+      (symbol)
+      (expression
+        (infix_operation
+          (expression (variable_identifier))
+          (operator)
+          (expression (variable_identifier))
+        )
+      )
+    )
+  )
+)
+
+
+==================
+lambda - lp_tuple
+==================
+
+fun (str1, str2) -> str1 ++ str2
+
+---
+
+(source_file
+  (expression
+    (lambda_expression
+      (keyword)
+      (lambda_pats
+        (let_pattern
+          (lp_tuple
+            (symbol)
+            (let_pattern (variable_identifier))
+            (symbol)
+            (let_pattern (variable_identifier))
+            (symbol)
+          )
+        )
+      )
+      (symbol)
+      (expression
+        (infix_operation
+          (expression (variable_identifier))
+          (operator)
+          (expression (variable_identifier))
+        )
+      )
+    )
+  )
+)
+
+
+==================
+lambda test - lp_variable and lp_tuple
+==================
+
+fun x (y, z) -> x ++ y ++ z
+
+---
+
+(source_file
+  (expression
+    (lambda_expression
+      (keyword)
+      (lambda_pats
+        (let_pattern (variable_identifier))
+        (let_pattern
+          (lp_tuple
+            (symbol)
+            (let_pattern (variable_identifier))
+            (symbol)
+            (let_pattern (variable_identifier))
+            (symbol)
+          )
+        )
+      )
+      (symbol)
+      (expression
+        (infix_operation
+          (expression
+            (infix_operation
+              (expression (variable_identifier))
+              (operator)
+              (expression (variable_identifier))))
+          (operator)
+          (expression (variable_identifier))
+        )
+      )
+    )
+  )
+)

@@ -408,6 +408,10 @@
           "named": true
         },
         {
+          "type": "lambda_expression",
+          "named": true
+        },
+        {
           "type": "let_expression",
           "named": true
         },
@@ -952,6 +956,68 @@
     }
   },
   {
+    "type": "lambda_expression",
+    "named": true,
+    "fields": {
+      "body": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      },
+      "keyword_fun": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "keyword",
+            "named": true
+          }
+        ]
+      },
+      "pats": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "lambda_pats",
+            "named": true
+          }
+        ]
+      },
+      "symbol_arrow": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "lambda_pats",
+    "named": true,
+    "fields": {
+      "pat": {
+        "multiple": true,
+        "required": true,
+        "types": [
+          {
+            "type": "let_pattern",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "let_expression",
     "named": true,
     "fields": {
@@ -1005,6 +1071,29 @@
           }
         ]
       }
+    }
+  },
+  {
+    "type": "let_pattern",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "lp_tuple",
+          "named": true
+        },
+        {
+          "type": "unit",
+          "named": true
+        },
+        {
+          "type": "variable_identifier",
+          "named": true
+        }
+      ]
     }
   },
   {
@@ -1113,6 +1202,76 @@
         "types": [
           {
             "type": "type_reference",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "lp_tuple",
+    "named": true,
+    "fields": {
+      "first": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "let_pattern",
+            "named": true
+          }
+        ]
+      },
+      "rest": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "let_pattern",
+            "named": true
+          },
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "second": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "let_pattern",
+            "named": true
+          }
+        ]
+      },
+      "symbol_comma": {
+        "multiple": true,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_left_paren": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_right_paren": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
             "named": true
           }
         ]
