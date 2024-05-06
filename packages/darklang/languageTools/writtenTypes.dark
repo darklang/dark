@@ -135,6 +135,55 @@ module Darklang =
           symbolOpenParen: Range *
           symbolCloseParen: Range
 
+      type MatchPattern =
+        | MPUnit of Range
+        | MPBool of Range * Bool
+        | MPInt8 of Range * intPart: (Range * Int8) * suffixPart: Range
+        | MPUInt8 of Range * intPart: (Range * UInt8) * suffixPart: Range
+        | MPInt16 of Range * intPart: (Range * Int16) * suffixPart: Range
+        | MPUInt16 of Range * intPart: (Range * UInt16) * suffixPart: Range
+        | MPInt32 of Range * intPart: (Range * Int32) * suffixPart: Range
+        | MPUInt32 of Range * intPart: (Range * UInt32) * suffixPart: Range
+        | MPInt64 of Range * intPart: (Range * Int64) * suffixPart: Range
+        | MPUInt64 of Range * intPart: (Range * UInt64) * suffixPart: Range
+        | MPInt128 of Range * intPart: (Range * Int128) * suffixPart: Range
+        | MPUInt128 of Range * intPart: (Range * UInt128) * suffixPart: Range
+        | MPFloat of Range * Sign * String * String
+        | MPChar of
+          Range *
+          contents: Stdlib.Option.Option<Range * String> *
+          symbolOpenQuote: Range *
+          symbolCloseQuote: Range
+        | MPString of
+          Range *
+          contents: Stdlib.Option.Option<Range * String> *
+          symbolOpenQuote: Range *
+          symbolCloseQuote: Range
+        | MPList of
+          Range *
+          contents: List<MatchPattern * Stdlib.Option.Option<Range>> *
+          symbolOpenBracket: Range *
+          symbolCloseBracket: Range
+        | MPListCons of
+          Range *
+          head: MatchPattern *
+          tail: MatchPattern *
+          symbolCons: Range
+        | MPTuple of
+          Range *
+          first: MatchPattern *
+          symbolComma: Range *
+          second: MatchPattern *
+          rest: List<Stdlib.Option.Option<Range> * MatchPattern> *
+          symbolOpenParen: Range *
+          symbolCloseParen: Range
+        | MPVariable of Range * String
+        | MPEnum of
+          Range *
+          caseName: (Range * String) *
+          fieldPats: List<MatchPattern>
+
+
       type Infix =
         | InfixFnCall of InfixFnName
         | BinOp of BinaryOperation
@@ -157,6 +206,11 @@ module Darklang =
       type BinaryOperation =
         | BinOpAnd
         | BinOpOr
+
+      type MatchCase =
+        { pat: Range * MatchPattern * Range
+          whenCondition: Stdlib.Option.Option<Range * Expr>
+          rhs: Expr }
 
       type Expr =
         | EUnit of Range
@@ -248,6 +302,13 @@ module Darklang =
           keywordIf: Range *
           keywordThen: Range *
           keywordElse: Stdlib.Option.Option<Range>
+
+        | EMatch of
+          Range *
+          expr: Expr *
+          cases: List<MatchCase> *
+          keywordMatch: Range *
+          keywordWith: Range
 
         | EInfix of Range * op: (Range * Infix) * left: Expr * right: Expr
 

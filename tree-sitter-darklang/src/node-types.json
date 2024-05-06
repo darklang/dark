@@ -1,5 +1,10 @@
 [
   {
+    "type": "bool",
+    "named": true,
+    "fields": {}
+  },
+  {
     "type": "bool_literal",
     "named": true,
     "fields": {}
@@ -25,6 +30,42 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "char",
+    "named": true,
+    "fields": {
+      "content": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "character",
+            "named": true
+          }
+        ]
+      },
+      "symbol_close_single_quote": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_open_single_quote": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -252,6 +293,57 @@
     }
   },
   {
+    "type": "enum",
+    "named": true,
+    "fields": {
+      "case_name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "enum_case_identifier",
+            "named": true
+          }
+        ]
+      },
+      "enum_fields": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "mp_enum_fields",
+            "named": true
+          }
+        ]
+      },
+      "symbol_close_paren": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_open_paren": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "enum_case_identifier",
+    "named": true,
+    "fields": {}
+  },
+  {
     "type": "enum_fields",
     "named": true,
     "fields": {
@@ -286,7 +378,7 @@
         "required": true,
         "types": [
           {
-            "type": "identifier_enum_case",
+            "type": "enum_case_identifier",
             "named": true
           }
         ]
@@ -417,6 +509,10 @@
         },
         {
           "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "match_expression",
           "named": true
         },
         {
@@ -705,11 +801,6 @@
     }
   },
   {
-    "type": "identifier_enum_case",
-    "named": true,
-    "fields": {}
-  },
-  {
     "type": "if_expression",
     "named": true,
     "fields": {
@@ -826,7 +917,59 @@
     }
   },
   {
+    "type": "int128",
+    "named": true,
+    "fields": {
+      "digits": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "digits",
+            "named": true
+          }
+        ]
+      },
+      "suffix": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "int128_literal",
+    "named": true,
+    "fields": {
+      "digits": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "digits",
+            "named": true
+          }
+        ]
+      },
+      "suffix": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "int16",
     "named": true,
     "fields": {
       "digits": {
@@ -878,6 +1021,32 @@
     }
   },
   {
+    "type": "int32",
+    "named": true,
+    "fields": {
+      "digits": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "digits",
+            "named": true
+          }
+        ]
+      },
+      "suffix": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "int32_literal",
     "named": true,
     "fields": {
@@ -904,7 +1073,59 @@
     }
   },
   {
+    "type": "int64",
+    "named": true,
+    "fields": {
+      "digits": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "digits",
+            "named": true
+          }
+        ]
+      },
+      "suffix": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "int64_literal",
+    "named": true,
+    "fields": {
+      "digits": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "digits",
+            "named": true
+          }
+        ]
+      },
+      "suffix": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "int8",
     "named": true,
     "fields": {
       "digits": {
@@ -1097,6 +1318,78 @@
     }
   },
   {
+    "type": "list",
+    "named": true,
+    "fields": {
+      "content": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "mp_list_content",
+            "named": true
+          }
+        ]
+      },
+      "symbol_close_bracket": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_open_bracket": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "list_cons",
+    "named": true,
+    "fields": {
+      "head": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "match_pattern",
+            "named": true
+          }
+        ]
+      },
+      "symbol_double_colon": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "tail": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "match_pattern",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "list_content",
     "named": true,
     "fields": {
@@ -1279,9 +1572,294 @@
     }
   },
   {
+    "type": "match_case",
+    "named": true,
+    "fields": {
+      "guard_expr": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      },
+      "pattern": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "match_pattern",
+            "named": true
+          }
+        ]
+      },
+      "rhs": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      },
+      "symbol_arrow": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_pipe": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "when_keyword": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "keyword",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "match_expression",
+    "named": true,
+    "fields": {
+      "arg": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      },
+      "cases": {
+        "multiple": true,
+        "required": true,
+        "types": [
+          {
+            "type": "match_case",
+            "named": true
+          }
+        ]
+      },
+      "keyword_match": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "keyword",
+            "named": true
+          }
+        ]
+      },
+      "keyword_with": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "keyword",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "match_pattern",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "bool",
+          "named": true
+        },
+        {
+          "type": "char",
+          "named": true
+        },
+        {
+          "type": "enum",
+          "named": true
+        },
+        {
+          "type": "float",
+          "named": true
+        },
+        {
+          "type": "int128",
+          "named": true
+        },
+        {
+          "type": "int16",
+          "named": true
+        },
+        {
+          "type": "int32",
+          "named": true
+        },
+        {
+          "type": "int64",
+          "named": true
+        },
+        {
+          "type": "int8",
+          "named": true
+        },
+        {
+          "type": "list",
+          "named": true
+        },
+        {
+          "type": "list_cons",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "tuple",
+          "named": true
+        },
+        {
+          "type": "uint128",
+          "named": true
+        },
+        {
+          "type": "uint16",
+          "named": true
+        },
+        {
+          "type": "uint32",
+          "named": true
+        },
+        {
+          "type": "uint64",
+          "named": true
+        },
+        {
+          "type": "uint8",
+          "named": true
+        },
+        {
+          "type": "unit",
+          "named": true
+        },
+        {
+          "type": "variable",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "module_identifier",
     "named": true,
     "fields": {}
+  },
+  {
+    "type": "mp_enum_fields",
+    "named": true,
+    "fields": {
+      "symbol_comma": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "match_pattern",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "mp_list_content",
+    "named": true,
+    "fields": {
+      "list_separator": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "match_pattern",
+          "named": true
+        },
+        {
+          "type": "symbol",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "mp_tuple_the_rest",
+    "named": true,
+    "fields": {
+      "pat": {
+        "multiple": true,
+        "required": true,
+        "types": [
+          {
+            "type": "match_pattern",
+            "named": true
+          }
+        ]
+      },
+      "symbol_comma": {
+        "multiple": true,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
   },
   {
     "type": "paren_expression",
@@ -1497,6 +2075,42 @@
     }
   },
   {
+    "type": "string",
+    "named": true,
+    "fields": {
+      "content": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "string_content",
+            "named": true
+          }
+        ]
+      },
+      "symbol_close_quote": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_open_quote": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "string_content",
     "named": true,
     "fields": {},
@@ -1536,6 +2150,72 @@
         ]
       },
       "symbol_open_quote": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "tuple",
+    "named": true,
+    "fields": {
+      "first": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "match_pattern",
+            "named": true
+          }
+        ]
+      },
+      "rest": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "mp_tuple_the_rest",
+            "named": true
+          }
+        ]
+      },
+      "second": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "match_pattern",
+            "named": true
+          }
+        ]
+      },
+      "symbol_comma": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_left_paren": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_right_paren": {
         "multiple": false,
         "required": true,
         "types": [
@@ -1930,7 +2610,7 @@
         "required": true,
         "types": [
           {
-            "type": "identifier_enum_case",
+            "type": "enum_case_identifier",
             "named": true
           }
         ]
@@ -2102,7 +2782,59 @@
     }
   },
   {
+    "type": "uint128",
+    "named": true,
+    "fields": {
+      "digits": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "positive_digits",
+            "named": true
+          }
+        ]
+      },
+      "suffix": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "uint128_literal",
+    "named": true,
+    "fields": {
+      "digits": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "positive_digits",
+            "named": true
+          }
+        ]
+      },
+      "suffix": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "uint16",
     "named": true,
     "fields": {
       "digits": {
@@ -2154,7 +2886,59 @@
     }
   },
   {
+    "type": "uint32",
+    "named": true,
+    "fields": {
+      "digits": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "positive_digits",
+            "named": true
+          }
+        ]
+      },
+      "suffix": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "uint32_literal",
+    "named": true,
+    "fields": {
+      "digits": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "positive_digits",
+            "named": true
+          }
+        ]
+      },
+      "suffix": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "uint64",
     "named": true,
     "fields": {
       "digits": {
@@ -2206,6 +2990,32 @@
     }
   },
   {
+    "type": "uint8",
+    "named": true,
+    "fields": {
+      "digits": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "positive_digits",
+            "named": true
+          }
+        ]
+      },
+      "suffix": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "uint8_literal",
     "named": true,
     "fields": {
@@ -2232,6 +3042,11 @@
     }
   },
   {
+    "type": "variable",
+    "named": true,
+    "fields": {}
+  },
+  {
     "type": "variable_identifier",
     "named": true,
     "fields": {}
@@ -2246,6 +3061,10 @@
   },
   {
     "type": "dedent",
+    "named": true
+  },
+  {
+    "type": "float",
     "named": true
   },
   {

@@ -249,6 +249,63 @@ module Darklang =
 
               ProgramTypes.LetPattern.LPTuple(gid (), first, second, rest)
 
+        module MatchPattern =
+          let toPT
+            (onMissing: NameResolver.OnMissing)
+            (p: WrittenTypes.MatchPattern)
+            : ProgramTypes.MatchPattern =
+            match p with
+            | MPUnit _ -> ProgramTypes.MatchPattern.MPUnit(gid ())
+            | MPBool(_, b) -> ProgramTypes.MatchPattern.MPBool(gid (), b)
+            | MPInt8(_, (_, i), _) -> ProgramTypes.MatchPattern.MPInt8(gid (), i)
+            | MPUInt8(_, (_, i), _) -> ProgramTypes.MatchPattern.MPUInt8(gid (), i)
+            | MPInt16(_, (_, i), _) -> ProgramTypes.MatchPattern.MPInt16(gid (), i)
+            | MPUInt16(_, (_, i), _) -> ProgramTypes.MatchPattern.MPUInt16(gid (), i)
+            | MPInt32(_, (_, i), _) -> ProgramTypes.MatchPattern.MPInt32(gid (), i)
+            | MPUInt32(_, (_, i), _) -> ProgramTypes.MatchPattern.MPUInt32(gid (), i)
+            | MPInt64(_, (_, i), _) -> ProgramTypes.MatchPattern.MPInt64(gid (), i)
+            | MPUInt64(_, (_, i), _) -> ProgramTypes.MatchPattern.MPUInt64(gid (), i)
+            | MPInt128(_, (_, i), _) -> ProgramTypes.MatchPattern.MPInt128(gid (), i)
+            | MPUInt128(_, (_, i), _) ->
+              ProgramTypes.MatchPattern.MPUInt128(gid (), i)
+            | MPFloat(_, s, w, f) ->
+              ProgramTypes.MatchPattern.MPFloat(gid (), s, w, f)
+            | MPString(_, contents, _, _) ->
+              match contents with
+              | None -> ProgramTypes.MatchPattern.MPString(gid (), "")
+              | Some((_, s)) -> ProgramTypes.MatchPattern.MPString(gid (), s)
+            | MPChar(_, c, _, _) ->
+              match c with
+              | None -> ProgramTypes.MatchPattern.MPChar(gid (), "")
+              | Some((_, c)) -> ProgramTypes.MatchPattern.MPChar(gid (), c)
+
+            | MPList(_, contents, _, _) ->
+              ProgramTypes.MatchPattern.MPList(
+                gid (),
+                Stdlib.List.map contents (fun (p, _) -> toPT onMissing p)
+              )
+            | MPListCons(_, head, tail, _) ->
+              ProgramTypes.MatchPattern.MPListCons(
+                gid (),
+                toPT onMissing head,
+                toPT onMissing tail
+              )
+            | MPTuple(_, first, _, second, rest, _, _) ->
+              ProgramTypes.MatchPattern.MPTuple(
+                gid (),
+                toPT onMissing first,
+                toPT onMissing second,
+                Stdlib.List.map rest (fun (_, p) -> toPT onMissing p)
+              )
+            | MPEnum(_, caseName, fields) ->
+              let caseName = caseName |> Stdlib.Tuple2.second
+              let fields = Stdlib.List.map fields (fun p -> toPT onMissing p)
+
+              ProgramTypes.MatchPattern.MPEnum(gid (), caseName, fields)
+
+            | MPVariable(_, name) ->
+              ProgramTypes.MatchPattern.MPVariable(gid (), name)
+
 
         let toPT
           (onMissing: NameResolver.OnMissing)
@@ -351,6 +408,26 @@ module Darklang =
               toPT onMissing thenExpr,
               elseExpr
             )
+
+          | EMatch(_, expr, cases, _, _) ->
+            let cases =
+              Stdlib.List.map cases (fun case ->
+                let pat =
+                  MatchPattern.toPT onMissing (Stdlib.Tuple3.second case.pat)
+
+                let whenCondition =
+                  case.whenCondition
+                  |> Stdlib.Option.map (fun (_, e) -> toPT onMissing e)
+
+                let rhs = toPT onMissing case.rhs
+
+                ProgramTypes.MatchCase
+                  { pat = pat
+                    whenCondition = whenCondition
+                    rhs = rhs })
+
+            ProgramTypes.Expr.EMatch(gid (), toPT onMissing expr, cases)
+
 
           // fn calls
           | EInfix(_, (_, op), left, right) ->

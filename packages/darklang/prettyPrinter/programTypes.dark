@@ -335,29 +335,29 @@ module Darklang =
         | MPVariable(_id, name) -> name
         | MPUnit _id -> "()"
         | MPBool(_id, b) -> Stdlib.Bool.toString b
-        | MPInt64(_id, i) -> Stdlib.Int64.toString i
-        | MPUInt64(_id, i) -> Stdlib.UInt64.toString i
-        | MPInt8(_id, i) -> Stdlib.Int8.toString i
-        | MPUInt8(_id, i) -> Stdlib.UInt8.toString i
-        | MPInt16(_id, i) -> Stdlib.Int16.toString i
-        | MPUInt16(_id, i) -> Stdlib.UInt16.toString i
-        | MPInt32(_id, i) -> Stdlib.Int32.toString i
-        | MPUInt32(_id, i) -> Stdlib.UInt32.toString i
-        | MPInt128(_id, i) -> Stdlib.Int128.toString i
-        | MPUInt128(_id, i) -> Stdlib.UInt128.toString i
+        | MPInt64(_id, i) -> (Stdlib.Int64.toString i) ++ "L"
+        | MPUInt64(_id, i) -> (Stdlib.UInt64.toString i) ++ "UL"
+        | MPInt8(_id, i) -> (Stdlib.Int8.toString i) ++ "y"
+        | MPUInt8(_id, i) -> (Stdlib.UInt8.toString i) ++ "uy"
+        | MPInt16(_id, i) -> (Stdlib.Int16.toString i) ++ "s"
+        | MPUInt16(_id, i) -> (Stdlib.UInt16.toString i) ++ "us"
+        | MPInt32(_id, i) -> (Stdlib.Int32.toString i) ++ "l"
+        | MPUInt32(_id, i) -> (Stdlib.UInt32.toString i) ++ "ul"
+        | MPInt128(_id, i) -> (Stdlib.Int128.toString i) ++ "Q"
+        | MPUInt128(_id, i) -> (Stdlib.UInt128.toString i) ++ "Z"
         | MPFloat(_id, sign, whole, remainder) ->
           let remainderPart = PrettyPrinter.processRemainder remainder
 
           $"{PrettyPrinter.sign sign}{whole}.{remainderPart}"
 
-        | MPChar(_id, c) -> c
+        | MPChar(_id, c) -> $"'{c}'"
         | MPString(_id, s) -> $"\"{PrettyPrinter.escapeSpecialCharacters s}\""
 
         | MPList(_id, items) ->
           items
           |> Stdlib.List.map (fun item ->
             PrettyPrinter.ProgramTypes.matchPattern item)
-          |> Stdlib.String.join ", "
+          |> Stdlib.String.join "; "
           |> fun parts -> "[" ++ parts ++ "]"
 
         | MPListCons(_id, head, tail) ->
@@ -659,7 +659,7 @@ module Darklang =
 
           let argPart = PrettyPrinter.ProgramTypes.expr arg
 
-          $"match {argPart} with \n{casesPart}"
+          $"match {argPart} with\n{casesPart}"
 
 
         | EPipe(_id, expr, pipeExprs) ->

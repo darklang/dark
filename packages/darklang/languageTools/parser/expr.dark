@@ -756,6 +756,73 @@ module Darklang =
             createUnparseableError node
 
 
+        let parseMatchCase
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.MatchCase, WrittenTypes.Unparseable> =
+          let pipeSym = findField node "symbol_pipe"
+
+          let pattern =
+            findAndParseRequired node "pattern" MatchPattern.parseMatchPattern
+
+          let arrowSym = findField node "symbol_arrow"
+
+          let rhs = findAndParseRequired node "rhs" Expr.parse
+
+          let whenKeywordNode =
+            findAndParseOptional node "when_keyword" (fun node ->
+              node.range |> Stdlib.Result.Result.Ok)
+
+          let guardExprNode = findAndParseOptional node "guard_expr" Expr.parse
+
+          let guardExpr =
+            match whenKeywordNode, guardExprNode with
+            | Some whenKeyword, Some guardExpr ->
+              Stdlib.Option.Option.Some((whenKeyword, guardExpr))
+            | _ -> Stdlib.Option.Option.None
+
+          match pipeSym, pattern, arrowSym, rhs with
+          | Ok pipe, Ok pattern, Ok arrow, Ok rhs ->
+            (WrittenTypes.MatchCase
+              { pat = (pipe.range, pattern, arrow.range)
+                whenCondition = guardExpr
+                rhs = rhs })
+            |> Stdlib.Result.Result.Ok
+
+          | _ -> createUnparseableError node
+
+
+        let parseMatchExpression
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
+          if node.typ == "match_expression" then
+            let keywordMatchNode = findField node "keyword_match"
+            let exprNode = findAndParseRequired node "arg" Expr.parse
+            let keywordWithNode = findField node "keyword_with"
+
+            let cases =
+              node.children
+              |> Stdlib.List.filter (fun c ->
+                match c.fieldName with
+                | Some fName -> fName == "cases"
+                | None -> false)
+              |> Stdlib.List.map (fun c -> parseMatchCase c)
+              |> Stdlib.Result.collect
+
+            match keywordMatchNode, exprNode, keywordWithNode, cases with
+            | Ok keywordMatch, Ok expr, Ok keywordWith, Ok cases ->
+              (WrittenTypes.Expr.EMatch(
+                node.range,
+                expr,
+                cases,
+                keywordMatch.range,
+                keywordWith.range
+              ))
+              |> Stdlib.Result.Result.Ok
+
+          else
+            createUnparseableError node
+
+
         let parseFunctionCall
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
@@ -833,6 +900,7 @@ module Darklang =
           | "field_access" -> parseFieldAccess node
 
           | "if_expression" -> parseIfExpression node
+          | "match_expression" -> parseMatchExpression node
 
           // fn calls
           | "infix_operation" -> parseInfixOperation node

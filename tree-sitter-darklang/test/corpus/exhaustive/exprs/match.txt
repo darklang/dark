@@ -1,0 +1,418 @@
+==================
+match expression - one case
+==================
+
+match 6L with
+| 6L -> true
+
+---
+
+(source_file
+  (expression
+    (match_expression
+      (keyword)
+      (expression (int64_literal (digits (positive_digits)) (symbol)))
+      (keyword)
+      (match_case
+        (symbol)
+        (match_pattern (int64 (digits (positive_digits)) (symbol)))
+        (symbol)
+        (expression (bool_literal))
+      )
+    )
+  )
+)
+
+
+==================
+match expression - two cases
+==================
+
+match true with
+| true -> true
+| false -> false
+
+---
+
+(source_file
+  (expression
+    (match_expression
+      (keyword) (expression (bool_literal)) (keyword)
+      (match_case (symbol) (match_pattern (bool)) (symbol) (expression (bool_literal)))
+      (match_case (symbol) (match_pattern (bool)) (symbol) (expression (bool_literal)))
+    )
+  )
+)
+
+
+==================
+match expression - multiple cases
+==================
+
+match 6L with
+  | var -> "pass"
+  | 6L -> "fail"
+  | 7L -> "pass"
+
+---
+
+(source_file
+  (expression
+    (match_expression
+      (keyword) (expression (int64_literal (digits (positive_digits)) (symbol))) (keyword)
+      (match_case
+        (symbol) (match_pattern (variable)) (symbol)
+        (expression (string_literal (symbol) (string_content) (symbol)))
+      )
+      (match_case
+        (symbol) (match_pattern (int64 (digits (positive_digits)) (symbol))) (symbol)
+        (expression (string_literal (symbol) (string_content) (symbol)))
+      )
+      (match_case
+        (symbol) (match_pattern (int64 (digits (positive_digits)) (symbol))) (symbol)
+        (expression (string_literal (symbol) (string_content) (symbol)))
+      )
+    )
+  )
+)
+
+
+==================
+match expression - test list
+==================
+
+match [ true; false] with
+  | [] -> false
+  | [ true; false ] -> true
+  | var -> "fail"
+
+---
+
+(source_file
+  (expression
+    (match_expression
+      (keyword)
+      (expression
+        (list_literal
+          (symbol)
+          (list_content (expression (bool_literal)) (symbol) (expression (bool_literal)))
+          (symbol)
+        )
+      )
+      (keyword)
+      (match_case
+        (symbol) (match_pattern (list (symbol) (symbol)))
+        (symbol) (expression (bool_literal))
+      )
+      (match_case
+        (symbol)
+        (match_pattern
+          (list
+            (symbol)
+            (mp_list_content (match_pattern (bool)) (symbol) (match_pattern (bool)))
+            (symbol)
+          )
+        )
+        (symbol) (expression (bool_literal))
+      )
+
+      (match_case
+        (symbol) (match_pattern (variable)) (symbol)
+        (expression
+          (string_literal (symbol) (string_content) (symbol))))
+    )
+  )
+)
+
+
+==================
+match expression - test let expression
+==================
+
+match [ true ] with
+  | var ->
+    let length = (Stdlib.List.length var)
+    length
+  | [ true ] -> 1L
+  | [] -> 0L
+
+---
+
+(source_file
+  (expression
+    (match_expression
+      (keyword)
+      (expression (list_literal (symbol) (list_content (expression (bool_literal))) (symbol)))
+      (keyword)
+      (match_case
+        (symbol) (match_pattern (variable)) (symbol)
+        (expression
+          (let_expression
+            (keyword) (variable_identifier) (symbol)
+            (expression
+              (function_call
+                (symbol)
+                (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+                (expression (variable_identifier))
+                (symbol)
+              )
+            )
+            (expression (variable_identifier))
+          )
+        )
+      )
+      (match_case
+        (symbol)
+        (match_pattern (list (symbol) (mp_list_content (match_pattern (bool))) (symbol)))
+        (symbol)
+        (expression (int64_literal (digits (positive_digits)) (symbol)))
+      )
+      (match_case
+        (symbol)
+        (match_pattern (list (symbol) (symbol)))
+        (symbol)
+        (expression (int64_literal (digits (positive_digits)) (symbol)))
+      )
+    )
+  )
+)
+
+
+==================
+match expression - test when condition
+==================
+
+match 5L with
+  | x when x > 0L -> true
+  | x -> false
+
+---
+
+(source_file
+  (expression
+    (match_expression
+      (keyword) (expression (int64_literal (digits (positive_digits)) (symbol))) (keyword)
+      (match_case
+        (symbol)
+        (match_pattern (variable))
+        (keyword)
+        (expression
+          (infix_operation
+            (expression (variable_identifier)) (operator) (expression (int64_literal (digits (positive_digits)) (symbol)))
+          )
+        )
+        (symbol) (expression (bool_literal))
+      )
+      (match_case
+        (symbol) (match_pattern (variable)) (symbol) (expression (bool_literal)))
+    )
+  )
+)
+
+
+==================
+match expression - test tuple
+==================
+
+match (5L, 6L) with
+  | (w, x)  -> true
+  | (y, z) -> false
+
+---
+
+(source_file
+  (expression
+    (match_expression
+      (keyword)
+      (expression
+        (tuple_literal
+          (symbol)
+          (expression (int64_literal (digits (positive_digits)) (symbol)))
+          (symbol)
+          (expression (int64_literal (digits (positive_digits)) (symbol)))
+          (symbol)
+        )
+      )
+      (keyword)
+      (match_case
+        (symbol)
+        (match_pattern
+          (tuple (symbol) (match_pattern (variable)) (symbol) (match_pattern (variable)) (symbol))
+        )
+        (symbol)
+        (expression (bool_literal)))
+      (match_case
+        (symbol)
+        (match_pattern
+          (tuple (symbol) (match_pattern (variable)) (symbol) (match_pattern (variable)) (symbol))
+        )
+        (symbol)
+        (expression (bool_literal))
+      )
+    )
+  )
+)
+
+
+==================
+match expression - test enum
+==================
+
+match Stdlib.Result.Result.Ok(5L) with
+  | Ok(x) -> x
+  | Error(x) -> x
+
+---
+
+(source_file
+  (expression
+    (match_expression
+      (keyword)
+      (expression
+        (enum_literal
+          (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)) (symbol) (enum_case_identifier) (symbol) (enum_fields (expression (int64_literal (digits (positive_digits)) (symbol)))) (symbol)
+        )
+      )
+      (keyword)
+      (match_case
+        (symbol)
+        (match_pattern
+          (enum (enum_case_identifier) (symbol) (mp_enum_fields (match_pattern (variable))) (symbol))
+        )
+        (symbol) (expression (variable_identifier)))
+      (match_case
+        (symbol)
+        (match_pattern
+          (enum
+            (enum_case_identifier)
+            (symbol)
+            (mp_enum_fields (match_pattern (variable)))
+            (symbol)
+          )
+        )
+        (symbol) (expression (variable_identifier))
+      )
+    )
+  )
+)
+
+
+==================
+match expression - test list cons
+==================
+
+match [ 1L; 2L; 3L ] with
+  | head :: tail -> "pass"
+  | [] -> "fail"
+
+---
+
+(source_file
+ (expression
+    (match_expression
+      (keyword)
+      (expression
+        (list_literal
+          (symbol)
+          (list_content
+            (expression (int64_literal (digits (positive_digits)) (symbol)))
+            (symbol)
+            (expression (int64_literal (digits (positive_digits)) (symbol)))
+            (symbol)
+            (expression (int64_literal (digits (positive_digits)) (symbol)))
+          )
+          (symbol)
+        )
+      )
+      (keyword)
+      (match_case
+        (symbol)
+        (match_pattern
+          (list_cons (match_pattern (variable)) (symbol) (match_pattern (variable)))
+        )
+        (symbol)
+        (expression (string_literal (symbol) (string_content) (symbol)))
+      )
+      (match_case
+        (symbol)
+        (match_pattern (list (symbol) (symbol)))
+        (symbol)
+        (expression (string_literal (symbol) (string_content) (symbol)))
+      )
+    )
+  )
+)
+
+
+==================
+match expression - test list cons with list
+==================
+
+match [ 1L; 2L; 3L ] with
+  | 1L :: 2L :: [ 3L ] -> 6L
+
+---
+
+(source_file
+  (expression
+    (match_expression
+      (keyword)
+      (expression
+        (list_literal
+          (symbol)
+          (list_content
+            (expression (int64_literal (digits (positive_digits)) (symbol)))
+            (symbol)
+            (expression (int64_literal (digits (positive_digits)) (symbol)))
+            (symbol)
+            (expression (int64_literal (digits (positive_digits)) (symbol)))
+          )
+          (symbol)
+        )
+      )
+      (keyword)
+      (match_case
+        (symbol)
+        (match_pattern
+          (list_cons
+            (match_pattern
+              (list_cons
+                (match_pattern (int64 (digits (positive_digits)) (symbol)))
+                (symbol)
+                (match_pattern (int64 (digits (positive_digits)) (symbol)))
+              )
+            )
+            (symbol)
+            (match_pattern
+              (list
+                (symbol)
+                (mp_list_content (match_pattern (int64 (digits (positive_digits)) (symbol))))
+                (symbol))
+            )
+          )
+        )
+        (symbol)
+        (expression (int64_literal (digits (positive_digits)) (symbol)))
+      )
+    )
+  )
+)
+
+
+==================
+match expression - test wildcard
+==================
+
+match true with
+  | _ -> true
+
+---
+
+(source_file
+  (expression
+    (match_expression
+      (keyword) (expression (bool_literal)) (keyword)
+      (match_case (symbol) (match_pattern (variable)) (symbol) (expression (bool_literal)))
+    )
+  )
+)

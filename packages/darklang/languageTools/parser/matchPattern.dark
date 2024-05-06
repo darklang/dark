@@ -1,0 +1,386 @@
+module Darklang =
+  module LanguageTools =
+    module Parser =
+      module MatchPattern =
+        let parseMPBool
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.MatchPattern, WrittenTypes.Unparseable> =
+          let b =
+            match getText node with
+            | "true" -> true |> Stdlib.Result.Result.Ok
+            | "false" -> false |> Stdlib.Result.Result.Ok
+            | _ -> createUnparseableError node
+
+          match b with
+          | Ok b ->
+            (WrittenTypes.MatchPattern.MPBool(node.range, b))
+            |> Stdlib.Result.Result.Ok
+          | Error _ -> createUnparseableError node
+
+        // Helper function for parseMPInt
+        let parseIntByType
+          (intText: String)
+          (typ: String)
+          : Stdlib.Result.Result<_res, _err> =
+          match typ with
+          | "int8" -> Stdlib.Int8.parse intText
+          | "uint8" -> Stdlib.UInt8.parse intText
+          | "int16" -> Stdlib.Int16.parse intText
+          | "uint16" -> Stdlib.UInt16.parse intText
+          | "int32" -> Stdlib.Int32.parse intText
+          | "uint32" -> Stdlib.UInt32.parse intText
+          | "int64" -> Stdlib.Int64.parse intText
+          | "uint64" -> Stdlib.UInt64.parse intText
+          | "int128" -> Stdlib.Int128.parse intText
+          | "uint128" -> Stdlib.UInt128.parse intText
+          | _ -> Stdlib.Result.Result.Error $"Unsupported integer type: {typ}"
+
+        let parseMPInt
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.MatchPattern, WrittenTypes.Unparseable> =
+          let supportedInts =
+            [ "int8"
+              "uint8"
+              "int16"
+              "uint16"
+              "int32"
+              "uint32"
+              "int64"
+              "uint64"
+              "int128"
+              "uint128" ]
+
+          if (Stdlib.List.member_v0 supportedInts node.typ) then
+            let intPart = findField node "digits"
+            let suffixPart = findField node "suffix"
+
+            match intPart, suffixPart with
+            | Ok intPart, Ok sfx ->
+              let intText = getText intPart
+
+              match parseIntByType intText node.typ with
+              | Ok parsedValue ->
+                let intPart = (intPart.range, parsedValue)
+
+                let pat =
+                  match node.typ with
+                  | "int8" ->
+                    WrittenTypes.MatchPattern.MPInt8(node.range, intPart, sfx.range)
+                  | "uint8" ->
+                    WrittenTypes.MatchPattern.MPUInt8(node.range, intPart, sfx.range)
+                  | "int16" ->
+                    WrittenTypes.MatchPattern.MPInt16(node.range, intPart, sfx.range)
+                  | "uint16" ->
+                    WrittenTypes.MatchPattern.MPUInt16(
+                      node.range,
+                      intPart,
+                      sfx.range
+                    )
+                  | "int32" ->
+                    WrittenTypes.MatchPattern.MPInt32(node.range, intPart, sfx.range)
+                  | "uint32" ->
+                    WrittenTypes.MatchPattern.MPUInt32(
+                      node.range,
+                      intPart,
+                      sfx.range
+                    )
+                  | "int64" ->
+                    WrittenTypes.MatchPattern.MPInt64(node.range, intPart, sfx.range)
+                  | "uint64" ->
+                    WrittenTypes.MatchPattern.MPUInt64(
+                      node.range,
+                      intPart,
+                      sfx.range
+                    )
+                  | "int128" ->
+                    WrittenTypes.MatchPattern.MPInt128(
+                      node.range,
+                      intPart,
+                      sfx.range
+                    )
+                  | "uint128" ->
+                    WrittenTypes.MatchPattern.MPUInt128(
+                      node.range,
+                      intPart,
+                      sfx.range
+                    )
+                  | _ -> createUnparseableError node
+
+                pat |> Stdlib.Result.Result.Ok
+
+              | Error _ -> createUnparseableError node
+
+          else
+            createUnparseableError node
+
+        let parseMPFloat
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.MatchPattern, WrittenTypes.Unparseable> =
+          let floatStr = getText node
+
+          match Stdlib.Float.parse floatStr with
+          | Ok floatValue ->
+            let (sign, whole, remainder) =
+              let (sign, unsignedFloat) =
+                if Stdlib.String.startsWith floatStr "-" then
+                  (Sign.Negative, Stdlib.String.dropFirst floatStr 1L)
+                else
+                  (Sign.Positive, floatStr)
+
+              let parts = Stdlib.String.split unsignedFloat "."
+
+              let whole = parts |> Stdlib.List.head |> Stdlib.Option.withDefault "0"
+
+              let remainder =
+                parts
+                |> Stdlib.List.tail
+                |> Stdlib.Option.withDefault [ "0" ]
+                |> Stdlib.List.head
+                |> Stdlib.Option.withDefault "0"
+
+              (sign, whole, remainder)
+
+            (WrittenTypes.MatchPattern.MPFloat(node.range, sign, whole, remainder))
+            |> Stdlib.Result.Result.Ok
+
+          | Error _ -> createUnparseableError node
+
+        let parseMPString
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.MatchPattern, WrittenTypes.Unparseable> =
+          let openQuoteNode = findField node "symbol_open_quote"
+          let closeQuoteNode = findField node "symbol_close_quote"
+
+          let contents =
+            findAndParseOptional node "content" (fun stringPart ->
+              (stringPart.range, stringPart.text) |> Stdlib.Result.Result.Ok)
+
+          match openQuoteNode, closeQuoteNode with
+          | Ok openQuote, Ok closeQuote ->
+            (WrittenTypes.MatchPattern.MPString(
+              node.range,
+              contents,
+              openQuote.range,
+              closeQuote.range
+            ))
+            |> Stdlib.Result.Result.Ok
+          | _ -> createUnparseableError node
+
+        let parseMPChar
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.MatchPattern, WrittenTypes.Unparseable> =
+
+          let openQuoteNode = findField node "symbol_open_single_quote"
+
+          let charNode =
+            findAndParseOptional node "content" (fun charPart ->
+              (charPart.range, charPart.text) |> Stdlib.Result.Result.Ok)
+
+          let closeQuoteNode = findField node "symbol_close_single_quote"
+
+          match openQuoteNode, closeQuoteNode with
+          | Ok openQuote, Ok closeQuote ->
+            (WrittenTypes.MatchPattern.MPChar(
+              node.range,
+              charNode,
+              openQuote.range,
+              closeQuote.range
+            ))
+            |> Stdlib.Result.Result.Ok
+
+          | _ -> createUnparseableError node
+
+        let parseMPList
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.MatchPattern, WrittenTypes.Unparseable> =
+          let openBracketNode = findField node "symbol_open_bracket"
+          let closeBracketNode = findField node "symbol_close_bracket"
+
+          let findContent =
+            node
+            |> findNodeByFieldName "content"
+            |> Stdlib.Option.map (fun contentsNode ->
+              contentsNode.children
+              |> Stdlib.List.chunkBySize 2L
+              |> Builtin.unwrap
+              |> Stdlib.List.map (fun chunk ->
+                match chunk with
+                | [ pat; symbol ] ->
+
+                  match parseMatchPattern pat with
+                  | Ok e ->
+                    (e, Stdlib.Option.Option.Some symbol.range)
+                    |> Stdlib.Result.Result.Ok
+                  | Error _ -> createUnparseableError chunk
+
+                | [ pat ] ->
+                  match MatchPattern.parseMatchPattern pat with
+                  | Ok e ->
+                    (e, Stdlib.Option.Option.None) |> Stdlib.Result.Result.Ok
+                  | Error _ -> createUnparseableError pat
+                | _ -> createUnparseableError chunk))
+
+          let contents =
+            match findContent with
+            | Some c -> c |> Stdlib.Result.collect
+            | None -> [] |> Stdlib.Result.Result.Ok
+
+          match openBracketNode, contents, closeBracketNode with
+          | Ok openBracket, Ok contents, Ok closeBracket ->
+            (WrittenTypes.MatchPattern.MPList(
+              node.range,
+              contents,
+              openBracket.range,
+              closeBracket.range
+            ))
+            |> Stdlib.Result.Result.Ok
+          | _ -> createUnparseableError node
+
+        let parseMPListCons
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.MatchPattern, WrittenTypes.Unparseable> =
+          let head = findAndParseRequired node "head" MatchPattern.parseMatchPattern
+          let tail = findAndParseRequired node "tail" MatchPattern.parseMatchPattern
+          let consSymbol = findField node "symbol_double_colon"
+
+          match head, tail, consSymbol with
+          | Ok head, Ok tail, Ok consSymbol ->
+            (WrittenTypes.MatchPattern.MPListCons(
+              node.range,
+              head,
+              tail,
+              consSymbol.range
+            ))
+            |> Stdlib.Result.Result.Ok
+
+        let parseMPTuple
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.MatchPattern, WrittenTypes.Unparseable> =
+          let openParenNode = findField node "symbol_left_paren"
+
+          let first =
+            findAndParseRequired node "first" MatchPattern.parseMatchPattern
+
+          let second =
+            findAndParseRequired node "second" MatchPattern.parseMatchPattern
+
+          let findRest =
+            (findNodeByFieldName node "rest")
+            |> Stdlib.Option.map (fun restNode ->
+              restNode.children
+              |> Stdlib.List.chunkBySize 2L
+              |> Builtin.unwrap
+              |> Stdlib.List.map (fun chunk ->
+                match chunk with
+                | [ symbol; patNode ] ->
+                  match MatchPattern.parseMatchPattern patNode with
+                  | Ok pat -> (symbol.range, pat) |> Stdlib.Result.Result.Ok
+                  | Error _ -> createUnparseableError chunk
+
+                | [ patNode ] ->
+                  match MatchPattern.parseMatchPattern patNode with
+                  | Ok pat ->
+                    (Stdlib.Option.Option.None, pat) |> Stdlib.Result.Result.Ok
+                  | Error _ -> createUnparseableError chunk
+                | _ -> createUnparseableError chunk))
+
+          let rest =
+            match findRest with
+            | Some r -> r |> Stdlib.Result.collect
+            | None -> [] |> Stdlib.Result.Result.Ok
+
+          let commaSymbol = findField node "symbol_comma"
+          let closeParenNode = findField node "symbol_right_paren"
+
+          match openParenNode, first, commaSymbol, second, rest, closeParenNode with
+          | Ok openPr, Ok first, Ok commaSym, Ok second, Ok rest, Ok closePr ->
+            (WrittenTypes.MatchPattern.MPTuple(
+              node.range,
+              first,
+              commaSym.range,
+              second,
+              rest,
+              openPr.range,
+              closePr.range
+            ))
+            |> Stdlib.Result.Result.Ok
+
+          | _ -> createUnparseableError node
+
+        let parseMPEnum
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.MatchPattern, WrittenTypes.Unparseable> =
+          let caseNameNode = findField node "case_name"
+
+          let enumFieldsNode =
+            (findNodeByFieldName node "enum_fields")
+            |> Stdlib.Option.map (fun enumFieldsNode ->
+              enumFieldsNode.children
+              |> Stdlib.List.chunkBySize 2L
+              |> Builtin.unwrap
+              |> Stdlib.List.map (fun chunk ->
+                match chunk with
+                | [ fieldNode ] ->
+                  match parseMatchPattern fieldNode with
+                  | Ok field -> field
+                  | Error _ -> WrittenTypes.Unparseable { source = fieldNode }
+
+                | [ fieldNode; _separator ] ->
+                  match parseMatchPattern fieldNode with
+                  | Ok field -> field
+                  | Error _ -> WrittenTypes.Unparseable { source = fieldNode }))
+
+            |> Stdlib.Option.withDefault []
+
+
+          match caseNameNode with
+          | Ok caseNameNode ->
+            (WrittenTypes.MatchPattern.MPEnum(
+              node.range,
+              (caseNameNode.range, caseNameNode.text),
+              enumFieldsNode
+            ))
+            |> Stdlib.Result.Result.Ok
+
+          | _ -> createUnparseableError node
+
+        let parseMatchPattern
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.MatchPattern, WrittenTypes.Unparseable> =
+          if node.typ == "match_pattern" then
+            match node.children with
+            | [] -> createUnparseableError node
+            | [ child ] ->
+              match child.typ with
+              | "unit" ->
+                (WrittenTypes.MatchPattern.MPUnit node.range)
+                |> Stdlib.Result.Result.Ok
+              | "bool" -> parseMPBool child
+
+              | "int8" -> parseMPInt child
+              | "uint8" -> parseMPInt child
+              | "int16" -> parseMPInt child
+              | "uint16" -> parseMPInt child
+              | "int32" -> parseMPInt child
+              | "uint32" -> parseMPInt child
+              | "int64" -> parseMPInt child
+              | "uint64" -> parseMPInt child
+              | "int128" -> parseMPInt child
+              | "uint128" -> parseMPInt child
+
+              | "float" -> parseMPFloat child
+
+              | "string" -> parseMPString child
+              | "char" -> parseMPChar child
+
+              | "list" -> parseMPList child
+              | "list_cons" -> parseMPListCons child
+
+              | "tuple" -> parseMPTuple child
+              | "enum" -> parseMPEnum child
+
+              | "variable" ->
+                (WrittenTypes.MatchPattern.MPVariable(node.range, child.text))
+                |> Stdlib.Result.Result.Ok
+
+            | _ -> createUnparseableError node
