@@ -388,6 +388,10 @@ module TextToTextRoundtripping =
 
     // field access
     ("person.name" |> roundtripCliScript) = "person.name"
+    ("(Person { name =\"Janice\" }).name" |> roundtripCliScript) = "(Person { name = \"Janice\" }).name"
+    ("record.someField.anotherFieldInsideThat" |> roundtripCliScript) = "record.someField.anotherFieldInsideThat"
+    ("person.age + 1L" |> roundtripCliScript) = "(person.age) + (1L)"
+
 
     // if expressions
     ("if true then 1L" |> roundtripCliScript) = "if true then\n  1L"
