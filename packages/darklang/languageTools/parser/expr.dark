@@ -604,6 +604,118 @@ module Darklang =
 
             | _ -> createUnparseableError node
 
+        let parseLetPattern
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.LetPattern, WrittenTypes.Unparseable> =
+          if node.typ == "let_pattern" then
+            match node.children with
+            | [ child ] ->
+              match child.typ with
+              | "unit" ->
+                (WrittenTypes.LetPattern.LPUnit(child.range))
+                |> Stdlib.Result.Result.Ok
+              | "variable_identifier" ->
+                (WrittenTypes.LetPattern.LPVariable(child.range, getText child))
+                |> Stdlib.Result.Result.Ok
+              | "lp_tuple" ->
+                let openParenNode = findField child "symbol_left_paren"
+                let first = findAndParseRequired child "first" Expr.parseLetPattern
+
+                let second = findAndParseRequired child "second" Expr.parseLetPattern
+
+                let findRest =
+                  (findNodeByFieldName child "rest")
+                  |> Stdlib.Option.map (fun restNode ->
+                    restNode.children
+                    |> Stdlib.List.chunkBySize 2L
+                    |> Builtin.unwrap
+                    |> Stdlib.List.map (fun chunk ->
+                      match chunk with
+                      | [ symbol; exprNode ] ->
+                        match Expr.parseLetPattern exprNode with
+                        | Ok expr ->
+                          (symbol.range, expr) |> Stdlib.Result.Result.Ok
+                        | Error _ -> createUnparseableError chunk
+
+                      | [ exprNode ] ->
+                        match Expr.parseLetPattern exprNode with
+                        | Ok expr ->
+                          (Stdlib.Option.Option.None, expr)
+                          |> Stdlib.Result.Result.Ok
+                        | Error _ -> createUnparseableError chunk
+                      | _ -> createUnparseableError chunk))
+
+                let rest =
+                  match findRest with
+                  | Some r -> r |> Stdlib.Result.collect
+                  | None -> [] |> Stdlib.Result.Result.Ok
+
+                let commaSymbol = findField child "symbol_comma"
+                let closeParenNode = findField child "symbol_right_paren"
+
+                match
+                  openParenNode, first, commaSymbol, second, rest, closeParenNode
+                with
+                | Ok openParen,
+                  Ok first,
+                  Ok symComma,
+                  Ok second,
+                  Ok rest,
+                  Ok closeParen ->
+                  (WrittenTypes.LetPattern.LPTuple(
+                    child.range,
+                    first,
+                    symComma.range,
+                    second,
+                    rest,
+                    openParen.range,
+                    closeParen.range
+                  ))
+                  |> Stdlib.Result.Result.Ok
+
+                | _ -> createUnparseableError child
+
+            | _ -> createUnparseableError child
+
+          else
+            createUnparseableError node
+
+
+
+        let parseLambda
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
+          if node.typ == "lambda_expression" then
+            let keywordFun = findField node "keyword_fun"
+
+            let paramsNode =
+              match findField node "pats" with
+              | Ok paramsNode ->
+                paramsNode.children
+                |> Stdlib.List.map (fun child -> parseLetPattern child)
+                |> Stdlib.Result.collect
+
+              | _ -> createUnparseableError node
+
+
+
+            let arrowNode = findField node "symbol_arrow"
+            let bodyNode = findAndParseRequired node "body" Expr.parse
+
+            match keywordFun, paramsNode, arrowNode, bodyNode with
+            | Ok keywordFun, Ok paramsNode, Ok arrowNode, Ok bodyNode ->
+              (WrittenTypes.Expr.ELambda(
+                node.range,
+                paramsNode,
+                bodyNode,
+                keywordFun.range,
+                arrowNode.range
+              ))
+              |> Stdlib.Result.Result.Ok
+
+            | _ -> createUnparseableError node
+
+
 
         let parseIfExpression
           (node: ParsedNode)
@@ -721,6 +833,7 @@ module Darklang =
 
           // fn calls
           | "infix_operation" -> parseInfixOperation node
+          | "lambda_expression" -> parseLambda node
           | "function_call" -> parseFunctionCall node
 
           | _ -> createUnparseableError node
