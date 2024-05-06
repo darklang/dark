@@ -391,6 +391,17 @@ module TextToTextRoundtripping =
     ("(Person { name =\"Janice\" }).name" |> roundtripCliScript) = "(Person { name = \"Janice\" }).name"
     ("record.someField.anotherFieldInsideThat" |> roundtripCliScript) = "record.someField.anotherFieldInsideThat"
     ("person.age + 1L" |> roundtripCliScript) = "(person.age) + (1L)"
+    // lambda
+    ("fun x -> x + 1L" |> roundtripCliScript) = "(fun x ->\n  (x) + (1L))"
+    ("(fun x -> x + 1L)" |> roundtripCliScript) = "(fun x ->\n  (x) + (1L))"
+    ("fun x y -> x * y" |> roundtripCliScript) = "(fun x y ->\n  (x) * (y))"
+    ("fun () -> 1L" |> roundtripCliScript) = "(fun () ->\n  1L)"
+
+    ("fun var -> (Stdlib.String.toUppercase (Stdlib.String.fromChar var))"
+     |> roundtripCliScript) = "(fun var ->\n  PACKAGE.Darklang.Stdlib.String.toUppercase PACKAGE.Darklang.Stdlib.String.fromChar var)"
+
+    ("fun (str1, str2) -> str1 ++ str2" |> roundtripCliScript) = "(fun (str1, str2) ->\n  (str1) ++ (str2))"
+
 
 
     // if expressions
@@ -500,6 +511,7 @@ else
     ("1L == 2L" |> roundtripCliScript) = "(1L) == (2L)"
     ("1L != 2L" |> roundtripCliScript) = "(1L) != (2L)"
     ("1L ^ 2L" |> roundtripCliScript) = "(1L) ^ (2L)"
+    ("strVar ++ \"str\"" |> roundtripCliScript) = "(strVar) ++ (\"str\")"
     ("true && false" |> roundtripCliScript) = "(true) && (false)"
     ("true || false" |> roundtripCliScript) = "(true) || (false)"
     ("(and true false)" |> roundtripCliScript) = "and true false"

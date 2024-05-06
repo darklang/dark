@@ -113,6 +113,7 @@ module Darklang =
 
 
       type LetPattern =
+        | LPUnit of ID
         | LPVariable of ID * name: String
         | LPTuple of
           ID *

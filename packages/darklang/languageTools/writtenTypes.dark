@@ -123,7 +123,17 @@ module Darklang =
 
 
       // Expressions
-      type LetPattern = LPVariable of Range * name: String
+      type LetPattern =
+        | LPUnit of Range
+        | LPVariable of Range * name: String
+        | LPTuple of
+          Range *
+          first: LetPattern *
+          symbolComma: Range *
+          second: LetPattern *
+          rest: List<Stdlib.Option.Option<Range> * LetPattern> *
+          symbolOpenParen: Range *
+          symbolCloseParen: Range
 
       type Infix =
         | InfixFnCall of InfixFnName
@@ -240,6 +250,13 @@ module Darklang =
           keywordElse: Stdlib.Option.Option<Range>
 
         | EInfix of Range * op: (Range * Infix) * left: Expr * right: Expr
+
+        | ELambda of
+          Range *
+          pats: List<LetPattern> *
+          body: Expr *
+          keywordFun: Range *
+          symbolArrow: Range
 
         // TODO: I accidentally got away from how we normally represent
         // Expressions - switch to this instead.

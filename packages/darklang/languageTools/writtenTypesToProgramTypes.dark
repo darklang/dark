@@ -240,7 +240,14 @@ module Darklang =
         module LetPattern =
           let toPT (p: WrittenTypes.LetPattern) : ProgramTypes.LetPattern =
             match p with
+            | LPUnit _ -> ProgramTypes.LetPattern.LPUnit(gid ())
             | LPVariable(_, name) -> ProgramTypes.LetPattern.LPVariable(gid (), name)
+            | LPTuple(_, first, _, second, rest, _, _) ->
+              let first = toPT first
+              let second = toPT second
+              let rest = Stdlib.List.map rest (fun (_, p) -> toPT p)
+
+              ProgramTypes.LetPattern.LPTuple(gid (), first, second, rest)
 
 
         let toPT
@@ -355,6 +362,12 @@ module Darklang =
               toPT onMissing left,
               toPT onMissing right
             )
+
+          | ELambda(_, pats, body, _, _) ->
+            let pats = Stdlib.List.map pats (fun p -> LetPattern.toPT p)
+            let body = Expr.toPT onMissing body
+
+            ProgramTypes.Expr.ELambda(gid (), pats, body)
 
           | EFnCall(_, fnName, args, _, _) ->
             let fnName = Identifiers.QualifiedFn.toPT onMissing fnName
