@@ -54,7 +54,7 @@ let packageName
 module FQTypeName =
   /// The name of a type in the package manager
   type Package =
-    // TODO: consider whether modules should be a NonEmptyList
+
     { owner : string
       modules : List<string>
       name : string
@@ -82,12 +82,9 @@ module FQTypeName =
     : FQTypeName =
     Package(package owner modules name version)
 
-  let packageToString (s : Package) : string =
-    packageName s.owner s.modules s.name s.version
-
   let toString (name : FQTypeName) : string =
     match name with
-    | Package p -> packageToString p
+    | Package p -> packageName p.owner p.modules p.name p.version
 
 
 
@@ -96,14 +93,12 @@ module FQTypeName =
 /// Used to reference a constant defined by the runtime, in a Package, or by a User
 module FQConstantName =
   /// A constant built into the runtime
-  ///
-  /// TODO: replace with just string * version ?
   type Builtin = { name : string; version : int }
 
   /// The name of a constant in the package manager
   type Package =
     { owner : string
-      modules : List<string> // TODO: consider whether modules should be a NonEmptyList
+      modules : List<string>
       name : string
       version : int }
 
@@ -144,13 +139,10 @@ module FQConstantName =
     let name = s.name
     if s.version = 0 then name else $"{name}_v{s.version}"
 
-  let packageToString (s : Package) : string =
-    packageName s.owner s.modules s.name s.version
-
   let toString (name : FQConstantName) : string =
     match name with
     | Builtin b -> builtinToString b
-    | Package p -> packageToString p
+    | Package p -> packageName p.owner p.modules p.name p.version
 
 
 /// A Fully-Qualified Function Name
@@ -158,15 +150,12 @@ module FQConstantName =
 /// Used to reference a function defined by the runtime, in a Package, or by a User
 module FQFnName =
   /// A function built into the runtime
-  ///
-  /// TODO: replace with just string * version ?
-  /// like `{ function_ = "__list_map"; version = 0 }`
   type Builtin = { name : string; version : int }
 
   /// The name of a function in the package manager
   type Package =
     { owner : string
-      modules : List<string> // TODO: consider whether modules should be a NonEmptyList
+      modules : List<string>
       name : string
       version : int }
 
@@ -208,13 +197,10 @@ module FQFnName =
     let name = s.name
     if s.version = 0 then name else $"{name}_v{s.version}"
 
-  let packageToString (s : Package) : string =
-    packageName s.owner s.modules s.name s.version
-
   let toString (name : FQFnName) : string =
     match name with
     | Builtin b -> builtinToString b
-    | Package p -> packageToString p
+    | Package p -> packageName p.owner p.modules p.name p.version
 
 
 // In ProgramTypes, names (FnNames, TypeNames, ConstantNames) have already been
@@ -341,6 +327,7 @@ type TypeReference =
   /// e.g. `Result<Int64, String>` is represented as `TCustomType("Result", [TInt64, TString])`
   /// `typeArgs` is the list of type arguments, if any
   | TCustomType of
+    // TODO: this reference should be by-hash
     NameResolution<FQTypeName.FQTypeName> *
     typeArgs : List<TypeReference>
 
@@ -435,11 +422,15 @@ type Expr =
 
 
   // -- References to custom types and data --
-  | EConstant of id * NameResolution<FQConstantName.FQConstantName>
+  | EConstant of
+    id
+    // TODO: this reference should be by-hash
+    * NameResolution<FQConstantName.FQConstantName>
 
   // See NameResolution comment above
   | ERecord of
     id *
+    // TODO: this reference should be by-hash
     typeName : NameResolution<FQTypeName.FQTypeName> *
     // User is allowed type `Name {}` even if that's an error
     fields : List<string * Expr>
@@ -456,6 +447,7 @@ type Expr =
   ///   `EEnum(Some UserType.MyEnum, "C", [EInt64(1), EString("title")]`
   | EEnum of
     id *
+    // TODO: this reference should be by-hash
     typeName : NameResolution<FQTypeName.FQTypeName> *
     caseName : string *
     fields : List<Expr>
@@ -478,6 +470,7 @@ and PipeExpr =
     args : List<Expr>
   | EPipeEnum of
     id *
+    // TODO: this reference should be by-hash
     typeName : NameResolution<FQTypeName.FQTypeName> *
     caseName : string *
     fields : List<Expr>
@@ -571,7 +564,10 @@ type Const =
   | CFloat of Sign * string * string
   | CUnit
   | CTuple of first : Const * second : Const * rest : List<Const>
-  | CEnum of NameResolution<FQTypeName.FQTypeName> * caseName : string * List<Const>
+
+  | CEnum of
+    // TODO: this reference should be by-hash
+    NameResolution<FQTypeName.FQTypeName> * caseName : string * List<Const>
   | CList of List<Const>
   | CDict of List<string * Const>
 
