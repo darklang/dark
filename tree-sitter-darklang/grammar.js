@@ -18,6 +18,7 @@ const comparisonOperators = choice("==", "!=", "<", "<=", ">", ">=");
 const additiveOperators = choice("+", "-");
 const multiplicativeOperators = choice("*", "/", "%");
 const exponentOperator = "^";
+const stringConcatOperator = "++";
 
 module.exports = grammar({
   name: "darklang",
@@ -328,6 +329,16 @@ module.exports = grammar({
           seq(
             field("left", $.expression),
             field("operator", alias(logicalOperators, $.operator)),
+            field("right", $.expression),
+          ),
+        ),
+
+        // String concatenation
+        prec.left(
+          PREC.SUM,
+          seq(
+            field("left", $.expression),
+            field("operator", alias(stringConcatOperator, $.operator)),
             field("right", $.expression),
           ),
         ),

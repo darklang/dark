@@ -227,6 +227,24 @@ a ^ b
   )
 )
 
+==================
+string concatenation operator ++
+==================
+
+a ++ b
+
+---
+
+(source_file
+  (expression
+    (infix_operation
+      (expression (variable_identifier))
+      (operator)
+      (expression (variable_identifier))
+    )
+  )
+)
+
 
 ==================
 basic function call (hacky)

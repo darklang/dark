@@ -511,6 +511,7 @@ else
     ("1L == 2L" |> roundtripCliScript) = "(1L) == (2L)"
     ("1L != 2L" |> roundtripCliScript) = "(1L) != (2L)"
     ("1L ^ 2L" |> roundtripCliScript) = "(1L) ^ (2L)"
+    ("strVar ++ \"str\"" |> roundtripCliScript) = "(strVar) ++ (\"str\")"
     ("true && false" |> roundtripCliScript) = "(true) && (false)"
     ("true || false" |> roundtripCliScript) = "(true) || (false)"
     ("(and true false)" |> roundtripCliScript) = "and true false"

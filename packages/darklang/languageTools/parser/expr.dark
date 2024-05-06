@@ -588,6 +588,9 @@ module Darklang =
                   WrittenTypes.Infix.BinOp WrittenTypes.BinaryOperation.BinOpAnd
                 | "||" ->
                   WrittenTypes.Infix.BinOp WrittenTypes.BinaryOperation.BinOpOr
+                | "++" ->
+                  WrittenTypes.Infix.InfixFnCall
+                    WrittenTypes.InfixFnName.StringConcat
                 | _ -> createUnparseableError node
 
             let rightArg = findAndParseRequired node "right" Expr.parse
