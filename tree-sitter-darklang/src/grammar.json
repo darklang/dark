@@ -734,15 +734,6 @@
           },
           "named": true,
           "value": "variable"
-        },
-        {
-          "type": "ALIAS",
-          "content": {
-            "type": "PATTERN",
-            "value": "_"
-          },
-          "named": true,
-          "value": "wildcard"
         }
       ]
     },
@@ -3582,12 +3573,20 @@
       ]
     },
     "variable_identifier": {
-      "type": "PATTERN",
-      "value": "[a-z][a-zA-Z0-9_]*"
+      "type": "PREC",
+      "value": 8,
+      "content": {
+        "type": "PATTERN",
+        "value": "[a-z_][a-zA-Z0-9_]*"
+      }
     },
     "fn_identifier": {
-      "type": "PATTERN",
-      "value": "[a-z][a-zA-Z0-9_]*"
+      "type": "PREC",
+      "value": 9,
+      "content": {
+        "type": "PATTERN",
+        "value": "[a-z_][a-zA-Z0-9_]*"
+      }
     },
     "type_identifier": {
       "type": "PATTERN",

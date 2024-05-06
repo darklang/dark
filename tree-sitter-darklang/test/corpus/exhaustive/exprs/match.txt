@@ -412,7 +412,7 @@ match true with
   (expression
     (match_expression
       (keyword) (expression (bool_literal)) (keyword)
-      (match_case (symbol) (match_pattern (wildcard)) (symbol) (expression (bool_literal)))
+      (match_case (symbol) (match_pattern (variable)) (symbol) (expression (bool_literal)))
     )
   )
 )

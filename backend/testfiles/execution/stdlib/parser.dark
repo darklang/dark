@@ -546,6 +546,7 @@ else
      |> roundtripCliScript) = "match x with\n| y when (y) > (1L) ->\n  true\n| z when (z) < (1L) ->\n  false\n| w ->\n  w"
 
     ("match true with\n| _ -> true" |> roundtripCliScript) = "match true with\n| _ ->\n  true"
+    ("match true with\n| _var -> true" |> roundtripCliScript) = "match true with\n| _var ->\n  true"
 
     // fn calls
     // TODO: these are ugly

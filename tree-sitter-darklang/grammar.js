@@ -12,6 +12,8 @@ const PREC = {
   EXPONENT: 5,
   MATCH_EXPR: 6,
   FIELDACCESS: 7,
+  VAR_IDENTIFIER: 8,
+  FN_IDENTIFIER: 9,
 };
 
 const logicalOperators = choice("&&", "||");
@@ -186,7 +188,6 @@ module.exports = grammar({
         alias($.mp_tuple, $.tuple),
         alias($.mp_enum, $.enum),
         alias($.variable_identifier, $.variable),
-        alias(/_/, $.wildcard),
       ),
 
     // match pattern - list
@@ -813,10 +814,10 @@ module.exports = grammar({
     /** e.g. `x` in `let double (x: Int) = x + x`
      *
      * for let bindings, params, etc. */
-    variable_identifier: $ => /[a-z][a-zA-Z0-9_]*/,
+    variable_identifier: $ => prec(PREC.VAR_IDENTIFIER, /[a-z_][a-zA-Z0-9_]*/),
 
     // e.g. `double` in `let double (x: Int) = x + x`
-    fn_identifier: $ => /[a-z][a-zA-Z0-9_]*/,
+    fn_identifier: $ => prec(PREC.FN_IDENTIFIER, /[a-z_][a-zA-Z0-9_]*/),
 
     // e.g. `Person` in `type MyPerson = ...`
     type_identifier: $ => /[A-Z][a-zA-Z0-9_]*/,
