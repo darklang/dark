@@ -569,6 +569,37 @@ module Darklang =
               [ makeToken symbolCloseBrace TokenType.Symbol ] ]
             |> Stdlib.List.flatten
 
+          //{ RecordForUpdate { x = 4L; y = 1L } with y = 2L }
+          | ERecordUpdate(range,
+                          record,
+                          updates,
+                          symbolOpenBrace,
+                          symbolCloseBrace,
+                          keywordWith) ->
+            let record = Expr.tokenize record
+
+            let updates =
+              updates
+              |> Stdlib.List.map (fun (name, symbolEquals, value) ->
+                let (range, _) = name
+
+                [ // x
+                  [ makeToken range TokenType.Property ]
+                  // =
+                  [ makeToken symbolEquals TokenType.Symbol ]
+                  // 4L
+                  Expr.tokenize value ]
+                |> Stdlib.List.flatten)
+              |> Stdlib.List.flatten
+
+            [ // { RecordForUpdate { x = 4L; y = 1L }
+              record
+              // with
+              [ makeToken keywordWith TokenType.Keyword ]
+              // y = 2L
+              updates ]
+            |> Stdlib.List.flatten
+
 
           // Option.Option.Some 1L
           | EEnum(range, typeName, caseName, fields, symbolDot) ->
