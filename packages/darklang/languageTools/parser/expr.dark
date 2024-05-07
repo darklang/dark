@@ -443,6 +443,82 @@ module Darklang =
             createUnparseableError node
 
 
+        let parseRecordUpdate
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
+          if node.typ == "record_update" then
+            let openBrace = findField node "symbol_open_brace"
+            let closeBrace = findField node "symbol_close_brace"
+            let recordExpr = findAndParseRequired node "record" Expr.parse
+            let keywordWith = findField node "keyword_with"
+
+            let fieldUpdates =
+              (findNodeByFieldName node "field_updates")
+              |> Stdlib.Option.map (fun fieldUpdatesNode ->
+                fieldUpdatesNode.children
+                |> Stdlib.List.chunkBySize 2L
+                |> Builtin.unwrap
+                |> Stdlib.List.map (fun chunk ->
+                  match chunk with
+                  | [ fieldNode; _separator ] ->
+                    let fieldNameNode =
+                      findAndParseRequired fieldNode "field_name" (fun node ->
+                        ((node.range, node.text)) |> Stdlib.Result.Result.Ok)
+
+                    let symbolEqualsNode = findField fieldNode "symbol_equals"
+
+                    let valueNode =
+                      findAndParseRequired fieldNode "value" Expr.parse
+
+                    match fieldNameNode, symbolEqualsNode, valueNode with
+                    | Ok fieldName, Ok symEquals, Ok value ->
+                      ((fieldName, symEquals.range, value))
+                      |> Stdlib.Result.Result.Ok
+                    | _ -> createUnparseableError fieldNode
+
+                  | [ fieldNode ] ->
+                    let fieldNameNode =
+                      findAndParseRequired fieldNode "field_name" (fun node ->
+                        ((node.range, node.text)) |> Stdlib.Result.Result.Ok)
+
+                    let symbolEqualsNode = findField fieldNode "symbol_equals"
+
+                    let valueNode =
+                      findAndParseRequired fieldNode "value" Expr.parse
+
+                    match fieldNameNode, symbolEqualsNode, valueNode with
+                    | Ok fieldName, Ok symEquals, Ok value ->
+                      ((fieldName, symEquals.range, value))
+                      |> Stdlib.Result.Result.Ok
+                    | _ -> createUnparseableError fieldNode
+                  | _ -> createUnparseableError chunk))
+
+              |> Stdlib.Option.withDefault []
+
+            let fieldUpdates = fieldUpdates |> Stdlib.Result.collect
+
+            match openBrace, closeBrace, recordExpr, keywordWith, fieldUpdates with
+            | Ok openBrace,
+              Ok closeBrace,
+              Ok recordExpr,
+              Ok keywordWith,
+              Ok fieldUpdates ->
+              (WrittenTypes.Expr.ERecordUpdate(
+                node.range,
+                recordExpr,
+                fieldUpdates,
+                openBrace.range,
+                closeBrace.range,
+                keywordWith.range
+              ))
+              |> Stdlib.Result.Result.Ok
+
+            | _ -> createUnparseableError node
+
+
+
+
+
         let parseEnumLiteral
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
@@ -606,6 +682,7 @@ module Darklang =
               |> Stdlib.Result.Result.Ok
 
             | _ -> createUnparseableError node
+
 
         let parseLetPattern
           (node: ParsedNode)
@@ -889,6 +966,7 @@ module Darklang =
           | "tuple_literal" -> parseTupleLiteral node
 
           | "record_literal" -> parseRecordLiteral node
+          | "record_update" -> parseRecordUpdate node
           | "enum_literal" -> parseEnumLiteral node
 
           // assigning and accessing variables

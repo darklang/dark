@@ -361,15 +361,10 @@ module TextToTextRoundtripping =
     ("Person2 {name =\"John\"; age = 30L} " |> roundtripCliScript) = "Person2 { name = \"John\"; age = 30L }"
     ("Person3 {name =\"John\"; age = 30L; hasPet = true} " |> roundtripCliScript) = "Person3 { name = \"John\"; age = 30L; hasPet = true }"
 
-
-    // // enum literals TODO
-    // type MyEnum =
-    //   | A
-    //   | B of String * Int64
-
-    // ("MyEnum.A" |> roundtripCliScript) = "MyEnum.A"
-    // ("MyEnum.B (\"test\", 12L)" |> roundtripCliScript) = "MyEnum.B (\"test\", 12L)"
-
+    // record update
+    ("{ RecordForUpdate { x = 4L; y = 1L } with y = 2L }" |> roundtripCliScript) = "{ RecordForUpdate { x = 4L; y = 1L } with y = 2L }"
+    ("{ myRec with y = 2L }" |> roundtripCliScript) = "{ myRec with y = 2L }"
+    ("{ myRec with y = 2L; z = 42L }" |> roundtripCliScript) = "{ myRec with y = 2L; z = 42L }"
 
     // enum literal
     ("Color.Red" |> roundtripCliScript) = "Color.Red"
