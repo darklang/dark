@@ -558,11 +558,11 @@ else
     ("strVar ++ \"str\"" |> roundtripCliScript) = "(strVar) ++ (\"str\")"
     ("true && false" |> roundtripCliScript) = "(true) && (false)"
     ("true || false" |> roundtripCliScript) = "(true) || (false)"
-    ("and (true) (false)" |> roundtripCliScript) = "and true false"
-    ("Bool.and (true) (false)" |> roundtripCliScript) = "Bool.and true false"
-    ("PACKAGE.Darklang.Stdlib.Bool.and (true) (false)" |> roundtripCliScript) = "PACKAGE.Darklang.Stdlib.Bool.and true false"
-    ("Stdlib.Bool.and (true) (false)" |> roundtripCliScript) = "PACKAGE.Darklang.Stdlib.Bool.and true false"
-    ("Builtin.int64Add (1L) (2L)" |> roundtripCliScript) = "Builtin.int64Add 1L 2L"
+    ("and true false" |> roundtripCliScript) = "and true false"
+    ("Bool.and true false" |> roundtripCliScript) = "Bool.and true false"
+    ("PACKAGE.Darklang.Stdlib.Bool.and true false" |> roundtripCliScript) = "PACKAGE.Darklang.Stdlib.Bool.and true false"
+    ("Stdlib.Bool.and true false" |> roundtripCliScript) = "PACKAGE.Darklang.Stdlib.Bool.and true false"
+    ("Builtin.int64Add 1L 2L" |> roundtripCliScript) = "Builtin.int64Add 1L 2L"
 
   module FunctionDeclaration =
     // single 'normal' param
@@ -576,29 +576,30 @@ else
 
 
     // multiple params
-    ("let isHigher (a: Int64) (b: Int64) : Bool = (Stdlib.Int64.greaterThan (a) (b))"
+    ("let isHigher (a: Int64) (b: Int64) : Bool = Stdlib.Int64.greaterThan a b"
      |> roundtripCliScript) = "let isHigher (a: Int64) (b: Int64): Bool =\n  PACKAGE.Darklang.Stdlib.Int64.greaterThan a b"
 
 
 
   module FnCalls =
     //package function call
-    ("let sum (a : Int64) (b : Int64) : Int64 = PACKAGE.Darklang.Stdlib.Int64.add (a) (b)"
+    ("let sum (a : Int64) (b : Int64) : Int64 = PACKAGE.Darklang.Stdlib.Int64.add a b"
      |> roundtripCliScript) = "let sum (a: Int64) (b: Int64): Int64 =\n  PACKAGE.Darklang.Stdlib.Int64.add a b"
 
 
 
   module CliScript =
     // CLEANUP the output here is a bit broken
+    // TODO: maybe there is an issue with the pretty printer when printing `Builtin.printLine getTitle curiousGeorgeBookId`
     ("""
 type BookID = Int64
 
 let getTitle (bookId: BookID): String =
-  let book = Library.getBook (bookId)
-  getNameFromBook (book)
+  let book = Library.getBook bookId
+  getNameFromBook book
 
 let curiousGeorgeBookId = 101L
-Builtin.printLine (getTitle (curiousGeorgeBookId))
+Builtin.printLine (getTitle curiousGeorgeBookId)
 
 0L
 """

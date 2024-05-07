@@ -9,9 +9,9 @@ a + b
 (source_file
   (expression
     (infix_operation
-      (expression (variable_identifier))
+      (expression (simple_expression (variable_identifier)))
       (operator)
-      (expression (variable_identifier))
+      (expression (simple_expression (variable_identifier)))
     )
   )
 )
@@ -31,13 +31,13 @@ a + b + c
     (infix_operation
       (expression
         (infix_operation
-          (expression (variable_identifier))
+          (expression (simple_expression (variable_identifier)))
           (operator)
-          (expression (variable_identifier))
+          (expression (simple_expression (variable_identifier)))
         )
       )
       (operator)
-      (expression (variable_identifier))
+      (expression (simple_expression (variable_identifier)))
     )
   )
 )
@@ -55,13 +55,13 @@ a + b * c
 (source_file
   (expression
     (infix_operation
-      (expression (variable_identifier))
+      (expression (simple_expression (variable_identifier)))
       (operator)
       (expression
         (infix_operation
-          (expression (variable_identifier))
+          (expression (simple_expression (variable_identifier)))
           (operator)
-          (expression (variable_identifier))
+          (expression (simple_expression (variable_identifier)))
         )
       )
     )
@@ -73,6 +73,7 @@ a + b * c
 infix ^ has higher precedence than infix *
 i.e. `a * b ^ c` should be parsed as `a * (b ^ c)`
 ==================
+
 a * b ^ c
 
 ---
@@ -80,13 +81,13 @@ a * b ^ c
 (source_file
   (expression
     (infix_operation
-      (expression (variable_identifier))
+      (expression (simple_expression (variable_identifier)))
       (operator)
       (expression
         (infix_operation
-          (expression (variable_identifier))
+          (expression (simple_expression (variable_identifier)))
           (operator)
-          (expression (variable_identifier))
+          (expression (simple_expression (variable_identifier)))
         )
       )
     )
@@ -106,9 +107,9 @@ a > b
 (source_file
   (expression
     (infix_operation
-      (expression (variable_identifier))
+      (expression (simple_expression (variable_identifier)))
       (operator)
-      (expression (variable_identifier))
+      (expression (simple_expression (variable_identifier)))
     )
   )
 )
@@ -125,9 +126,9 @@ a < b
 (source_file
   (expression
     (infix_operation
-      (expression (variable_identifier))
+      (expression (simple_expression (variable_identifier)))
       (operator)
-      (expression (variable_identifier))
+      (expression (simple_expression (variable_identifier)))
     )
   )
 )
@@ -144,9 +145,9 @@ a >= b
 (source_file
   (expression
     (infix_operation
-      (expression (variable_identifier))
+      (expression (simple_expression (variable_identifier)))
       (operator)
-      (expression (variable_identifier))
+      (expression (simple_expression (variable_identifier)))
     )
   )
 )
@@ -163,9 +164,9 @@ a <= b
 (source_file
   (expression
     (infix_operation
-      (expression (variable_identifier))
+      (expression (simple_expression (variable_identifier)))
       (operator)
-      (expression (variable_identifier))
+      (expression (simple_expression (variable_identifier)))
     )
   )
 )
@@ -182,9 +183,9 @@ a == b
 (source_file
   (expression
     (infix_operation
-      (expression (variable_identifier))
+      (expression (simple_expression (variable_identifier)))
       (operator)
-      (expression (variable_identifier))
+      (expression (simple_expression (variable_identifier)))
     )
   )
 )
@@ -201,9 +202,9 @@ a != b
 (source_file
   (expression
     (infix_operation
-      (expression (variable_identifier))
+      (expression (simple_expression (variable_identifier)))
       (operator)
-      (expression (variable_identifier))
+      (expression (simple_expression (variable_identifier)))
     )
   )
 )
@@ -220,9 +221,9 @@ a ^ b
 (source_file
   (expression
     (infix_operation
-      (expression (variable_identifier))
+      (expression (simple_expression (variable_identifier)))
       (operator)
-      (expression (variable_identifier))
+      (expression (simple_expression (variable_identifier)))
     )
   )
 )
@@ -238,19 +239,19 @@ a ++ b
 (source_file
   (expression
     (infix_operation
-      (expression (variable_identifier))
+      (expression (simple_expression (variable_identifier)))
       (operator)
-      (expression (variable_identifier))
+      (expression (simple_expression (variable_identifier)))
     )
   )
 )
 
 
 ==================
-basic function call (hacky)
+basic function call
 ==================
 
-Bool.and (true) (false)
+Bool.and true false
 
 ---
 
@@ -258,17 +259,19 @@ Bool.and (true) (false)
   (expression
     (function_call
       (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
-      (paren_expression (symbol) (expression (bool_literal)) (symbol))
-      (paren_expression (symbol) (expression (bool_literal)) (symbol))
+      (simple_expression (bool_literal))
+      (simple_expression (bool_literal))
+      (newline)
     )
   )
 )
 
+
 ==================
-how function calls _should_ work (broken)
+function call with function call as argument
 ==================
 
-Bool.and (true) (false)
+Bool.and (Bool.and true false) false
 
 ---
 
@@ -276,8 +279,50 @@ Bool.and (true) (false)
   (expression
     (function_call
       (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
-      (paren_expression (symbol) (expression (bool_literal)) (symbol))
-      (paren_expression (symbol) (expression (bool_literal)) (symbol))
+      (paren_expression
+        (symbol)
+        (expression
+          (function_call
+            (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
+            (simple_expression (bool_literal))
+            (simple_expression (bool_literal))
+          )
+        )
+        (symbol)
+      )
+      (simple_expression (bool_literal))
+      (newline)
     )
   )
 )
+
+
+==================
+function call test
+==================
+
+Builtin.printLine (getTitle curiousGeorgeBookId)
+
+0L
+
+---
+
+(source_file
+  (expression
+    (function_call
+      (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
+      (paren_expression
+        (symbol)
+        (expression
+          (function_call (qualified_fn_name (fn_identifier)) (simple_expression (variable_identifier))))
+        (symbol)
+      )
+      (newline)
+    )
+  )
+  (expression
+    (simple_expression
+      (int64_literal
+        (digits
+          (positive_digits))
+        (symbol)))))

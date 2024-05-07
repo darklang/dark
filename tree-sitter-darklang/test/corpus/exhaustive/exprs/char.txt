@@ -8,7 +8,7 @@ basic char
 
 (source_file
   (expression
-    (char_literal (symbol) (character) (symbol))))
+    (simple_expression (char_literal (symbol) (character) (symbol)))))
 
 
 ==================
@@ -21,4 +21,4 @@ escape sequence
 
 (source_file
   (expression
-    (char_literal (symbol) (character (char_or_string_escape_sequence)) (symbol))))
+    (simple_expression (char_literal (symbol) (character (char_or_string_escape_sequence)) (symbol)))))

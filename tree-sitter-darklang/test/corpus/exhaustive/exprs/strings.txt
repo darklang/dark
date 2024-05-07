@@ -7,7 +7,7 @@ empty string
 ---
 
 (source_file
-  (expression (string_literal (symbol) (symbol)))
+  (expression (simple_expression (string_literal (symbol) (symbol))))
 )
 
 
@@ -21,7 +21,7 @@ basic string
 
 (source_file
   (expression
-    (string_literal (symbol) (string_content) (symbol))
+    (simple_expression (string_literal (symbol) (string_content) (symbol)))
   )
 )
 
@@ -37,10 +37,10 @@ string with escape
 
 (source_file
   (expression
-    (string_literal
+    (simple_expression (string_literal
       (symbol)
       (string_content (char_or_string_escape_sequence))
       (symbol)
-    )
+    ))
   )
 )

@@ -8,14 +8,14 @@ Person {name = "John"}
 
 (source_file
   (expression
-    (record_literal
+    (simple_expression (record_literal
       (qualified_type_name (type_identifier))
       (symbol)
       (record_content
-        (record_pair (variable_identifier) (symbol) (expression (string_literal (symbol) (string_content) (symbol))))
+        (record_pair (variable_identifier) (symbol) (expression (simple_expression (string_literal (symbol) (string_content) (symbol)))))
       )
       (symbol)
-    )
+    ))
   )
 )
 
@@ -30,16 +30,16 @@ Person {name = "John"; age = 30L}
 
 (source_file
   (expression
-    (record_literal
+    (simple_expression (record_literal
       (qualified_type_name (type_identifier))
       (symbol)
       (record_content
-        (record_pair (variable_identifier) (symbol) (expression (string_literal (symbol) (string_content) (symbol))))
+        (record_pair (variable_identifier) (symbol) (expression (simple_expression (string_literal (symbol) (string_content) (symbol)))))
         (symbol)
-        (record_pair (variable_identifier) (symbol) (expression (int64_literal (digits (positive_digits)) (symbol))))
+        (record_pair (variable_identifier) (symbol) (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol)))))
       )
       (symbol)
-    )
+    ))
   )
 )
 
@@ -54,28 +54,28 @@ Person {name = "John"; age = 30L; hobbies = ["reading"; "swimming"]}
 
 (source_file
   (expression
-    (record_literal
+    (simple_expression (record_literal
       (qualified_type_name (type_identifier))
         (symbol)
         (record_content
-          (record_pair (variable_identifier) (symbol) (expression (string_literal (symbol) (string_content) (symbol))))
+          (record_pair (variable_identifier) (symbol) (expression (simple_expression (string_literal (symbol) (string_content) (symbol)))))
           (symbol)
-          (record_pair (variable_identifier) (symbol) (expression (int64_literal (digits (positive_digits)) (symbol))))
+          (record_pair (variable_identifier) (symbol) (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol)))))
           (symbol)
           (record_pair (variable_identifier) (symbol)
-            (expression (list_literal
+            (expression (simple_expression (list_literal
               (symbol)
               (list_content
-                (expression (string_literal (symbol) (string_content) (symbol)))
+                (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
                 (symbol)
-                (expression (string_literal (symbol) (string_content) (symbol)))
+                (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
               )
-              (symbol))
+              (symbol)))
             )
           )
         )
         (symbol)
-    )
+    ))
   )
 )
 
@@ -90,26 +90,26 @@ Person {name = "John"; address = Address {city = "New York"; street = "5th Avenu
 
 (source_file
   (expression
-    (record_literal
+    (simple_expression (record_literal
       (qualified_type_name (type_identifier)) (symbol)
       (record_content
-        (record_pair (variable_identifier) (symbol) (expression (string_literal (symbol) (string_content) (symbol))))
+        (record_pair (variable_identifier) (symbol) (expression (simple_expression (string_literal (symbol) (string_content) (symbol)))))
         (symbol)
         (record_pair (variable_identifier) (symbol)
           (expression
-            (record_literal (qualified_type_name (type_identifier)) (symbol)
+            (simple_expression (record_literal (qualified_type_name (type_identifier)) (symbol)
               (record_content
-                (record_pair (variable_identifier) (symbol) (expression (string_literal (symbol) (string_content) (symbol))))
+                (record_pair (variable_identifier) (symbol) (expression (simple_expression (string_literal (symbol) (string_content) (symbol)))))
                 (symbol)
-                (record_pair (variable_identifier) (symbol) (expression (string_literal (symbol) (string_content) (symbol))))
+                (record_pair (variable_identifier) (symbol) (expression (simple_expression (string_literal (symbol) (string_content) (symbol)))))
               )
               (symbol)
-            )
+            ))
           )
         )
       )
     (symbol)
-    )
+    ))
   )
 )
 

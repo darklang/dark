@@ -8,9 +8,9 @@ empty list
 
 (source_file
   (expression
-    (list_literal
+    (simple_expression (list_literal
       (symbol)
-      (symbol))))
+      (symbol)))))
 
 
 ==================
@@ -23,15 +23,15 @@ Single-item list
 
 (source_file
   (expression
-    (list_literal
+    (simple_expression (list_literal
       (symbol)
       (list_content
         (expression
-          (string_literal
+          (simple_expression (string_literal
             (symbol)
             (string_content)
-            (symbol))))
-      (symbol))))
+            (symbol)))))
+      (symbol)))))
 
 
 ==================
@@ -44,21 +44,21 @@ Two-item list
 
 (source_file
   (expression
-    (list_literal
+    (simple_expression (list_literal
       (symbol)
       (list_content
         (expression
-          (int64_literal
-            (digits
-              (positive_digits))
-            (symbol)))
-        (symbol)
-        (expression
-          (int64_literal
+          (simple_expression (int64_literal
             (digits
               (positive_digits))
             (symbol))))
-      (symbol))))
+        (symbol)
+        (expression
+          (simple_expression (int64_literal
+            (digits
+              (positive_digits))
+            (symbol)))))
+      (symbol)))))
 
 
 ==================
@@ -71,21 +71,21 @@ Multiple-item list
 
 (source_file
   (expression
-    (list_literal
+    (simple_expression (list_literal
       (symbol)
       (list_content
         (expression
-          (bool_literal))
+          (simple_expression (bool_literal)))
         (symbol)
         (expression
-          (bool_literal))
+          (simple_expression (bool_literal)))
         (symbol)
         (expression
-          (bool_literal))
+          (simple_expression (bool_literal)))
         (symbol)
         (expression
-          (bool_literal)))
-      (symbol))))
+          (simple_expression (bool_literal))))
+      (symbol)))))
 
 
 
@@ -99,31 +99,31 @@ Nested list
 
 (source_file
   (expression
-    (list_literal
+    (simple_expression (list_literal
       (symbol)
       (list_content
         (expression
-          (list_literal
+          (simple_expression (list_literal
             (symbol)
             (list_content
               (expression
-                (bool_literal))
+                (simple_expression (bool_literal)))
               (symbol)
               (expression
-                (bool_literal)))
-            (symbol)))
+                (simple_expression (bool_literal))))
+            (symbol))))
         (symbol)
         (expression
-          (list_literal
+          (simple_expression (list_literal
             (symbol)
             (list_content
               (expression
-                (bool_literal))
+                (simple_expression (bool_literal)))
               (symbol)
               (expression
-                (bool_literal)))
-            (symbol))))
-      (symbol))))
+                (simple_expression (bool_literal))))
+            (symbol)))))
+      (symbol)))))
 
 
 ==================
@@ -136,16 +136,16 @@ List with trailing semicolon
 
 (source_file
   (expression
-    (list_literal
+    (simple_expression (list_literal
       (symbol)
       (list_content
         (expression
-          (bool_literal))
+          (simple_expression (bool_literal)))
         (symbol)
         (expression
-          (bool_literal))
+          (simple_expression (bool_literal)))
         (symbol))
-      (symbol))))
+      (symbol)))))
 
 
 ==================
@@ -158,17 +158,17 @@ List starting with semicolon
 
 (source_file
   (expression
-    (list_literal
+    (simple_expression (list_literal
       (symbol)
       (ERROR
         (symbol))
       (list_content
         (expression
-          (bool_literal))
+          (simple_expression (bool_literal)))
         (symbol)
         (expression
-          (bool_literal)))
-        (symbol))))
+          (simple_expression (bool_literal))))
+        (symbol)))))
 
 
 ==================
@@ -181,13 +181,13 @@ List with missing semicolon
 
 (source_file
   (expression
-    (list_literal
+    (simple_expression (list_literal
       (symbol)
       (list_content
         (expression
-          (bool_literal)))
+          (simple_expression (bool_literal))))
       (ERROR)
-      (symbol))))
+      (symbol)))))
 
 
 ==================
@@ -200,17 +200,17 @@ List with missing item
 
 (source_file
   (expression
-    (list_literal
+    (simple_expression (list_literal
       (symbol)
       (list_content
         (expression
-          (bool_literal))
+          (simple_expression (bool_literal)))
         (ERROR
           (symbol))
         (symbol)
         (expression
-          (bool_literal)))
-      (symbol))))
+          (simple_expression (bool_literal))))
+      (symbol)))))
 
 
 ==================
@@ -223,8 +223,8 @@ List with just a semicolon
 
 (source_file
   (expression
-    (list_literal
+    (simple_expression (list_literal
       (symbol)
       (ERROR
         (symbol))
-      (symbol))))
+      (symbol)))))

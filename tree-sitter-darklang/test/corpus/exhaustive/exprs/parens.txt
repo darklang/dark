@@ -10,7 +10,7 @@ parens expr
   (expression
     (paren_expression
       (symbol)
-      (expression (bool_literal))
+      (expression (simple_expression (bool_literal)))
       (symbol)
     )
   )

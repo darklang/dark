@@ -337,6 +337,7 @@ module Darklang =
           lhs: Expr *
           typeArgs: List<TypeReference.TypeReference> *
           args: List<Expr>
+
         | EFnName of Range * name: QualifiedFnIdentifier
 
 

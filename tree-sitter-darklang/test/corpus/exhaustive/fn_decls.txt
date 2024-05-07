@@ -22,7 +22,7 @@ let helloWorld (i: Int64): String = "Hello world"
     (symbol)
     (type_reference (builtin_type))
     (symbol)
-    (expression (string_literal (symbol) (string_content) (symbol)))
+    (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
   )
 )
 
@@ -43,7 +43,7 @@ let emptyString (): String = ""
     (symbol)
     (type_reference (builtin_type))
     (symbol)
-    (expression (string_literal (symbol) (symbol)))
+    (expression (simple_expression (string_literal (symbol) (symbol))))
   )
 )
 
@@ -53,7 +53,7 @@ fn decl with multiple params
 ==================
 
 let isHigher (a: Int64) (b: Int64): Bool =
-  Int64.isGreaterThan (a) (b)
+  Int64.isGreaterThan a b
 
 ---
 
@@ -71,8 +71,9 @@ let isHigher (a: Int64) (b: Int64): Bool =
     (expression
       (function_call
         (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
-        (paren_expression (symbol) (expression (variable_identifier)) (symbol))
-        (paren_expression (symbol) (expression (variable_identifier)) (symbol))
+        (simple_expression (variable_identifier))
+        (simple_expression (variable_identifier))
+        (newline)
       )
     )
   )

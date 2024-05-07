@@ -937,6 +937,10 @@ module Darklang =
           match node.typ with
           // simple
           | "paren_expression" -> findAndParseRequired node "expr" Expr.parse
+          | "simple_expression" ->
+            match node.children with
+            | [ single ] -> parseCase single
+            | _ -> createUnparseableError node
 
           | "unit" -> (WrittenTypes.Expr.EUnit node.range) |> Stdlib.Result.Result.Ok
           | "bool_literal" -> parseBoolLiteral node
@@ -989,6 +993,8 @@ module Darklang =
             match node.children with
             | [ single ] -> parseCase single
             | _ -> createUnparseableError node
+          elif node.typ == "simple_expression" then
+            parseCase node
           elif node.typ == "paren_expression" then
             findAndParseRequired node "expr" Expr.parse
           else

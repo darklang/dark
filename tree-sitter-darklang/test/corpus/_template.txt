@@ -6,4 +6,4 @@ true
 
 ---
 
-(source_file (expression (bool_literal)))
+(source_file (expression (simple_expression (bool_literal))))

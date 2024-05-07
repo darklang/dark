@@ -294,9 +294,8 @@ module.exports = grammar({
     // ---------------------
     // Expressions
     // ---------------------
-    expression: $ =>
+    simple_expression: $ =>
       choice(
-        $.paren_expression,
         $.unit,
         $.bool_literal,
         $.int8_literal,
@@ -317,9 +316,15 @@ module.exports = grammar({
         $.dict_literal,
         $.record_literal,
         $.enum_literal,
+        $.variable_identifier,
+      ),
+
+    expression: $ =>
+      choice(
+        $.paren_expression,
+        $.simple_expression,
         $.if_expression,
         $.let_expression,
-        $.variable_identifier,
 
         $.match_expression,
 
@@ -741,11 +746,16 @@ module.exports = grammar({
      *      sometimes the thing we are 'applying' is not directly a function
      */
     function_call: $ =>
-      seq(
-        field("symbol_left_paren", alias("(", $.symbol)),
-        field("fn", $.qualified_fn_name),
-        field("args", repeat1($.expression)),
-        field("symbol_right_paren", alias(")", $.symbol)),
+      prec.right(
+        seq(
+          field("fn", $.qualified_fn_name),
+          field(
+            "args",
+            repeat1(choice($.paren_expression, $.simple_expression)),
+          ),
+          // the new line is used as a delimiter
+          optional($.newline),
+        ),
       ),
 
     let_expression: $ =>
