@@ -19,7 +19,7 @@ let toStringTest =
 
     Expect.equal
       (tree.Root.ToString())
-      "(source_file (fn_decl keyword_let: (keyword) name: (fn_identifier) params: (fn_decl_params (fn_decl_param symbol_left_paren: (symbol) identifier: (variable_identifier) symbol_colon: (symbol) typ: (type_reference (builtin_type)) symbol_right_paren: (symbol))) symbol_colon: (symbol) return_type: (type_reference (builtin_type)) symbol_equals: (symbol) body: (expression (infix_operation left: (expression (variable_identifier)) operator: (operator) right: (expression (int64_literal digits: (digits (positive_digits)) suffix: (symbol)))))))"
+      "(source_file (fn_decl keyword_let: (keyword) name: (fn_identifier) params: (fn_decl_params (fn_decl_param symbol_left_paren: (symbol) identifier: (variable_identifier) symbol_colon: (symbol) typ: (type_reference (builtin_type)) symbol_right_paren: (symbol))) symbol_colon: (symbol) return_type: (type_reference (builtin_type)) symbol_equals: (symbol) body: (expression (infix_operation left: (expression (simple_expression (variable_identifier))) operator: (operator) right: (expression (simple_expression (int64_literal digits: (digits (positive_digits)) suffix: (symbol))))))))"
       ""
 
 let tests = testList "TreeSitter" [ toStringTest ]
