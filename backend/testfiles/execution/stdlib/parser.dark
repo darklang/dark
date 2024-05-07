@@ -393,7 +393,7 @@ module TextToTextRoundtripping =
     ("fun () -> 1L" |> roundtripCliScript) = "(fun () ->\n  1L)"
 
     ("fun var -> (Stdlib.String.toUppercase (Stdlib.String.fromChar var))"
-     |> roundtripCliScript) = "(fun var ->\n  PACKAGE.Darklang.Stdlib.String.toUppercase PACKAGE.Darklang.Stdlib.String.fromChar var)"
+     |> roundtripCliScript) = "(fun var ->\n  PACKAGE.Darklang.Stdlib.String.toUppercase (PACKAGE.Darklang.Stdlib.String.fromChar var))"
 
     ("fun (str1, str2) -> str1 ++ str2" |> roundtripCliScript) = "(fun (str1, str2) ->\n  (str1) ++ (str2))"
 
@@ -590,7 +590,6 @@ else
 
   module CliScript =
     // CLEANUP the output here is a bit broken
-    // TODO: maybe there is an issue with the pretty printer when printing `Builtin.printLine getTitle curiousGeorgeBookId`
     ("""
 type BookID = Int64
 
@@ -613,6 +612,6 @@ let getTitle (bookId: BookID): String =
 
 let curiousGeorgeBookId =
   101L
-Builtin.printLine getTitle curiousGeorgeBookId
+Builtin.printLine (getTitle curiousGeorgeBookId)
 
 0L"""
