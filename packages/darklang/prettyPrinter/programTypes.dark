@@ -739,7 +739,7 @@ module Darklang =
 
           // TODO: don't always need the parens
 
-          $"{{ ({recordPart}) with {updatePart} }}"
+          $"{{ {recordPart} with {updatePart} }}"
 
         | EConstant(_id, constant) ->
           match constant with

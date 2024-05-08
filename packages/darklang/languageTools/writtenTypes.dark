@@ -270,6 +270,14 @@ module Darklang =
           symbolOpenBrace: Range *
           symbolCloseBrace: Range
 
+        | ERecordUpdate of
+          Range *
+          record: Expr *
+          updates: List<(Range * String) * Range * Expr> *
+          symbolOpenBrace: Range *
+          symbolCloseBrace: Range *
+          keywordWith: Range
+
         | EEnum of
           Range *
           typeName: (Range * List<String>) *

@@ -369,6 +369,17 @@ module Darklang =
 
             ProgramTypes.Expr.ERecord(gid (), typeName, fields)
 
+          | ERecordUpdate(_, record, updates, _, _, _) ->
+            let record = toPT onMissing record
+
+            let updates =
+              updates
+              |> Stdlib.List.map (fun (name, _, expr) ->
+                let name = name |> Stdlib.Tuple2.second
+                (name, toPT onMissing expr))
+
+            ProgramTypes.Expr.ERecordUpdate(gid (), record, updates)
+
           | EEnum(_, typeName, caseName, fields, _) ->
             let sr = Stdlib.Tuple2.first typeName
             let unresolvedTypeName = Stdlib.Tuple2.second typeName

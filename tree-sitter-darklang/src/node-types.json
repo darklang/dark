@@ -524,6 +524,10 @@
           "named": true
         },
         {
+          "type": "record_update",
+          "named": true
+        },
+        {
           "type": "string_literal",
           "named": true
         },
@@ -2049,6 +2053,124 @@
           }
         ]
       }
+    }
+  },
+  {
+    "type": "record_update",
+    "named": true,
+    "fields": {
+      "field_updates": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "record_update_fields",
+            "named": true
+          }
+        ]
+      },
+      "keyword_with": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "keyword",
+            "named": true
+          }
+        ]
+      },
+      "record": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      },
+      "symbol_close_brace": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_open_brace": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "record_update_field",
+    "named": true,
+    "fields": {
+      "field_name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "variable_identifier",
+            "named": true
+          }
+        ]
+      },
+      "symbol_equals": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "record_update_fields",
+    "named": true,
+    "fields": {
+      "symbol_semicolon": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "record_update_field",
+          "named": true
+        }
+      ]
     }
   },
   {

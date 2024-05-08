@@ -116,6 +116,35 @@ module.exports = grammar({
         field("type", $.type_reference),
       ),
 
+    // Record update
+    // e.g. { RecordForUpdate { x = 4L; y = 1L } with y = 2L }
+    record_update: $ =>
+      seq(
+        field("symbol_open_brace", alias("{", $.symbol)),
+        field("record", $.expression),
+        field("keyword_with", alias("with", $.keyword)),
+        field("field_updates", $.record_update_fields),
+        field("symbol_close_brace", alias("}", $.symbol)),
+      ),
+
+    record_update_fields: $ =>
+      seq(
+        $.record_update_field,
+        repeat(
+          seq(
+            field("symbol_semicolon", alias(";", $.symbol)),
+            $.record_update_field,
+          ),
+        ),
+      ),
+
+    record_update_field: $ =>
+      seq(
+        field("field_name", $.variable_identifier),
+        field("symbol_equals", alias("=", $.symbol)),
+        field("value", $.expression),
+      ),
+
     //
     // Enums
     // e.g. `type Color = Red | Green | Blue`
@@ -299,6 +328,8 @@ module.exports = grammar({
 
         $.field_access,
         $.lambda_expression,
+
+        $.record_update,
       ),
 
     paren_expression: $ =>
