@@ -257,7 +257,7 @@ Bool.and true false
 
 (source_file
   (expression
-    (function_call
+    (apply
       (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
       (simple_expression (bool_literal))
       (simple_expression (bool_literal))
@@ -277,12 +277,12 @@ Bool.and (Bool.and true false) false
 
 (source_file
   (expression
-    (function_call
+    (apply
       (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
       (paren_expression
         (symbol)
         (expression
-          (function_call
+          (apply
             (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
             (simple_expression (bool_literal))
             (simple_expression (bool_literal))
@@ -309,12 +309,12 @@ Builtin.printLine (getTitle curiousGeorgeBookId)
 
 (source_file
   (expression
-    (function_call
+    (apply
       (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
       (paren_expression
         (symbol)
         (expression
-          (function_call (qualified_fn_name (fn_identifier)) (simple_expression (variable_identifier))))
+          (apply (qualified_fn_name (fn_identifier)) (simple_expression (variable_identifier))))
         (symbol)
       )
       (newline)

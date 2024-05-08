@@ -40,7 +40,7 @@ Builtin.printLine (myFn ())
         )
       )
       (expression
-        (function_call
+        (apply
           (qualified_fn_name
             (module_identifier)
             (symbol)
@@ -48,7 +48,7 @@ Builtin.printLine (myFn ())
           (paren_expression
             (symbol)
             (expression
-              (function_call (qualified_fn_name (fn_identifier))
+              (apply (qualified_fn_name (fn_identifier))
                 (simple_expression (unit))))
             (symbol)
           )

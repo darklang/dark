@@ -1,5 +1,45 @@
 [
   {
+    "type": "apply",
+    "named": true,
+    "fields": {
+      "args": {
+        "multiple": true,
+        "required": true,
+        "types": [
+          {
+            "type": "paren_expression",
+            "named": true
+          },
+          {
+            "type": "simple_expression",
+            "named": true
+          }
+        ]
+      },
+      "fn": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "qualified_fn_name",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "newline",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "bool",
     "named": true,
     "fields": {}
@@ -444,11 +484,11 @@
       "required": true,
       "types": [
         {
-          "type": "field_access",
+          "type": "apply",
           "named": true
         },
         {
-          "type": "function_call",
+          "type": "field_access",
           "named": true
         },
         {
@@ -677,46 +717,6 @@
     "type": "fn_identifier",
     "named": true,
     "fields": {}
-  },
-  {
-    "type": "function_call",
-    "named": true,
-    "fields": {
-      "args": {
-        "multiple": true,
-        "required": true,
-        "types": [
-          {
-            "type": "paren_expression",
-            "named": true
-          },
-          {
-            "type": "simple_expression",
-            "named": true
-          }
-        ]
-      },
-      "fn": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "qualified_fn_name",
-            "named": true
-          }
-        ]
-      }
-    },
-    "children": {
-      "multiple": false,
-      "required": false,
-      "types": [
-        {
-          "type": "newline",
-          "named": true
-        }
-      ]
-    }
   },
   {
     "type": "if_expression",

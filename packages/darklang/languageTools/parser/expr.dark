@@ -903,7 +903,7 @@ module Darklang =
         let parseFunctionCall
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          if node.typ == "function_call" then
+          if node.typ == "apply" then
             let fnNameNode =
               findAndParseRequired node "fn" Identifiers.parseQualifiedFunction
 
@@ -980,7 +980,7 @@ module Darklang =
           // fn calls
           | "infix_operation" -> parseInfixOperation node
           | "lambda_expression" -> parseLambda node
-          | "function_call" -> parseFunctionCall node
+          | "apply" -> parseFunctionCall node
 
           | _ -> createUnparseableError node
 

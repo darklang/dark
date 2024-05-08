@@ -150,7 +150,7 @@ match [ true ] with
           (let_expression
             (keyword) (variable_identifier) (symbol)
             (expression
-              (function_call
+              (apply
                 (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
                 (simple_expression (variable_identifier))
               )

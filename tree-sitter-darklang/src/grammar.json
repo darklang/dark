@@ -1322,7 +1322,7 @@
         },
         {
           "type": "SYMBOL",
-          "name": "function_call"
+          "name": "apply"
         },
         {
           "type": "SYMBOL",
@@ -3237,7 +3237,7 @@
         }
       ]
     },
-    "function_call": {
+    "apply": {
       "type": "PREC_RIGHT",
       "value": 0,
       "content": {
