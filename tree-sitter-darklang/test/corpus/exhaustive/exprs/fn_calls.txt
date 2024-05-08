@@ -298,7 +298,7 @@ Bool.and (Bool.and true false) false
 
 
 ==================
-function call test
+function call - with a function call as argument followed by an expression
 ==================
 
 Builtin.printLine (getTitle curiousGeorgeBookId)
@@ -326,3 +326,103 @@ Builtin.printLine (getTitle curiousGeorgeBookId)
         (digits
           (positive_digits))
         (symbol)))))
+
+
+==================
+function call - with a record as argument
+==================
+
+Builtin.printLine Person { name = "Alice" }
+
+---
+
+(source_file
+  (expression
+    (apply
+      (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
+      (simple_expression
+        (record_literal
+          (qualified_type_name (type_identifier))
+          (symbol)
+          (record_content
+            (record_pair
+              (variable_identifier)
+              (symbol)
+              (expression
+                (simple_expression (string_literal (symbol) (string_content) (symbol)))
+              )
+            )
+          )
+          (symbol)
+        )
+      )
+      (newline)
+    )
+  )
+)
+
+
+
+
+==================
+function call - with an enum as argument
+==================
+
+Builtin.printLine Stdlib.Option.Option.Some(1L)
+
+---
+
+(source_file
+  (expression
+    (apply
+      (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
+      (simple_expression
+        (enum_literal
+          (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier))
+          (symbol)
+          (enum_case_identifier)
+          (symbol)
+          (enum_fields
+            (expression
+              (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+            )
+          )
+          (symbol)
+        )
+      )
+      (newline)
+    )
+  )
+)
+
+
+==================
+function call - with a dict as argument
+==================
+
+Builtin.printLine Dict {a = 1L}
+
+---
+
+(source_file
+  (expression
+    (apply
+      (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
+      (simple_expression
+        (dict_literal
+          (keyword)
+          (symbol)
+          (dict_content
+            (dict_pair
+              (expression (simple_expression (variable_identifier)))
+              (symbol)
+              (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+            )
+          )
+          (symbol)
+        )
+      )
+      (newline)
+    )
+  )
+)

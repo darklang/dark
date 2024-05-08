@@ -316,6 +316,8 @@ module.exports = grammar({
      * myFunction (myFunction2 arg) (arg2)
      *
      */
+
+    // TODO: reconsider having enum_literal as a simple_expression
     simple_expression: $ =>
       choice(
         $.unit,
