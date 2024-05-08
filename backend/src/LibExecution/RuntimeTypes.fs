@@ -78,7 +78,6 @@ let packageName
 module FQTypeName =
   /// The name of a type in the package manager
   type Package =
-
     { owner : string
       modules : List<string>
       name : string
@@ -458,6 +457,59 @@ module ValueType =
 
 
 
+// ------------
+// Exprs
+// ------------
+
+/// The LHS pattern in
+/// - a `let` binding (in `let x = 1`, the `x`)
+/// - a lambda (in `fn (x, y) -> x + y`, the `(x, y)`
+type LetPattern =
+  | LPUnit of id
+  | LPTuple of
+    id *
+    first : LetPattern *
+    second : LetPattern *
+    theRest : List<LetPattern>
+  | LPVariable of id * name : string
+
+
+/// The LHS of a `match` case
+///
+/// i.e. the `true` (`MPBool true`) in
+/// ```fsharp
+/// match x with
+/// | true -> "some text"
+/// ```
+type MatchPattern =
+  | MPUnit of id
+
+  | MPBool of id * bool
+  | MPInt8 of id * int8
+  | MPUInt8 of id * uint8
+  | MPInt16 of id * int16
+  | MPUInt16 of id * uint16
+  | MPInt32 of id * int32
+  | MPUInt32 of id * uint32
+  | MPInt64 of id * int64
+  | MPUInt64 of id * uint64
+  | MPInt128 of id * System.Int128
+  | MPUInt128 of id * System.UInt128
+
+  | MPFloat of id * double
+
+  | MPChar of id * string
+  | MPString of id * string
+
+  | MPList of id * List<MatchPattern>
+  | MPListCons of id * head : MatchPattern * tail : MatchPattern
+  | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
+
+  | MPEnum of id * caseName : string * fieldPatterns : List<MatchPattern>
+
+  | MPVariable of id * string
+
+
 type NameResolution<'a> = Result<'a, RuntimeError>
 
 and TypeReference =
@@ -585,46 +637,9 @@ and Expr =
 
 and MatchCase = { pat : MatchPattern; whenCondition : Option<Expr>; rhs : Expr }
 
-and LetPattern =
-  | LPUnit of id
-  | LPTuple of
-    id *
-    first : LetPattern *
-    second : LetPattern *
-    theRest : List<LetPattern>
-  | LPVariable of id * name : string
-
 and StringSegment =
   | StringText of string
   | StringInterpolation of Expr
-
-and MatchPattern =
-  | MPUnit of id
-
-  | MPBool of id * bool
-  | MPInt8 of id * int8
-  | MPUInt8 of id * uint8
-  | MPInt16 of id * int16
-  | MPUInt16 of id * uint16
-  | MPInt32 of id * int32
-  | MPUInt32 of id * uint32
-  | MPInt64 of id * int64
-  | MPUInt64 of id * uint64
-  | MPInt128 of id * System.Int128
-  | MPUInt128 of id * System.UInt128
-
-  | MPFloat of id * double
-
-  | MPChar of id * string
-  | MPString of id * string
-
-  | MPList of id * List<MatchPattern>
-  | MPListCons of id * head : MatchPattern * tail : MatchPattern
-  | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
-
-  | MPEnum of id * caseName : string * fieldPatterns : List<MatchPattern>
-
-  | MPVariable of id * string
 
 
 and DvalMap = Map<string, Dval>
@@ -641,8 +656,6 @@ and LambdaImpl =
 and FnValImpl =
   | Lambda of LambdaImpl
   | NamedFn of FQFnName.FQFnName
-
-and DDateTime = NodaTime.LocalDate
 
 /// RuntimeError is the major way of representing errors in the runtime. These are
 /// primarily used for things where the user made an error, such as a type error, as
@@ -1206,11 +1219,9 @@ type Const =
 
 
 
-
 // ------------
-// Package stuff
+// Package-Space
 // ------------
-
 module PackageType =
   //type Name = ...
   // TODO: hash
@@ -1237,8 +1248,9 @@ module PackageFn =
       body : Expr }
 
 
+
 // ------------
-// User stuff
+// User-/Canvas- Space
 // ------------
 module DB =
   type T = { tlid : tlid; name : string; typ : TypeReference; version : int }
@@ -1275,61 +1287,67 @@ module Toplevel =
 
 
 
-// <summary>
-// Used to mark whether a function can be run on the client rather than backend.
-// </summary>
-// <remarks>
-// The runtime needs to know whether to save a function's results when it
-// runs. Pure functions that can be run on the client do not need to have
-// their results saved.
-// In addition, some functions can be run without side-effects; to give
-// the user a good experience, we can run them as soon as they are added.
-// this includes DateTime.now and Int.random.
-// </remarks>
+// ------------
+// Builtins, Execution State, Package Manager
+// A bunch of tangled things we need to `and` together
+// ------------
+
+/// <summary>
+/// Used to mark whether a function can be run on the client rather than backend.
+/// </summary>
+/// <remarks>
+/// The runtime needs to know whether to save a function's results when it
+/// runs. Pure functions that can be run on the client do not need to have
+/// their results saved.
+/// In addition, some functions can be run without side-effects; to give
+/// the user a good experience, we can run them as soon as they are added.
+/// this includes DateTime.now and Int.random.
+/// </remarks>
 type Previewable =
-  // The same inputs will always yield the same outputs,
-  // so we don't need to save results. e.g. `DateTime.addSeconds`
+  /// The same inputs will always yield the same outputs,
+  /// so we don't need to save results. e.g. `DateTime.addSeconds`
   | Pure
 
-  // Output may vary with the same inputs, though we can safely preview.
-  // e.g. `DateTime.now`. We should save the results.
+  /// Output may vary with the same inputs, though we can safely preview.
+  /// e.g. `DateTime.now`. We should save the results.
   | ImpurePreviewable
 
-  // Can only be run on the server. e.g. `DB.update`
-  // We should save the results.
+  /// Can only be run on the server. e.g. `DB.update`
+  /// We should save the results.
   | Impure
 
-// Used to mark whether a function has an equivalent that can be
-// used within a Postgres query.
+
+/// Used to mark whether a function has an equivalent that can be
+/// used within a Postgres query.
 type SqlSpec =
-  // Can be implemented, but we haven't yet
+  /// Can be implemented, but we haven't yet
   | NotYetImplemented
 
-  // This is not a function which can be queried
+  /// This is not a function which can be queried
   | NotQueryable
 
-  // A query function (it can't be called inside a query, but its argument can be a query)
+  /// A query function (it can't be called inside a query, but its argument can be a query)
   | QueryFunction
 
-  // Can be implemented by a given builtin postgres 9.6 operator with 1 arg (eg `@ x`)
+  /// Can be implemented by a given builtin postgres 9.6 operator with 1 arg (eg `@ x`)
   | SqlUnaryOp of string
 
-  // Can be implemented by a given builtin postgres 9.6 operator with 2 args (eg `x + y`)
+  /// Can be implemented by a given builtin postgres 9.6 operator with 2 args (eg `x + y`)
   | SqlBinOp of string
 
-  // Can be implemented by a given builtin postgres 9.6 function
+  /// Can be implemented by a given builtin postgres 9.6 function
   | SqlFunction of string
 
-  // Can be implemented by a given builtin postgres 9.6 function with extra arguments that go first
+  /// Can be implemented by a given builtin postgres 9.6 function with extra arguments that go first
   | SqlFunctionWithPrefixArgs of string * List<string>
 
-  // Can be implemented by a given builtin postgres 9.6 function with extra arguments that go last
+  /// Can be implemented by a given builtin postgres 9.6 function with extra arguments that go last
   | SqlFunctionWithSuffixArgs of string * List<string>
 
-  // Can be implemented by given callback that receives 1 SQLified-string argument
-  // | SqlCallback of (string -> string)
+  /// Can be implemented by given callback that receives 1 SQLified-string argument
+  /// | SqlCallback of (string -> string)
 
-  // Can be implemented by given callback that receives 2 SQLified-string argument
+  /// Can be implemented by given callback that receives 2 SQLified-string argument
   | SqlCallback2 of (string -> string -> string)
 
   member this.isQueryable() : bool =
@@ -1344,6 +1362,7 @@ type SqlSpec =
     | SqlFunctionWithSuffixArgs _
     | SqlCallback2 _ -> true
 
+
 type BuiltInConstant =
   { name : FQConstantName.Builtin
     typ : TypeReference
@@ -1351,7 +1370,11 @@ type BuiltInConstant =
     deprecated : Deprecation<FQConstantName.FQConstantName>
     body : Dval }
 
-// A built-in standard library function
+
+/// A built-in standard library function
+///
+/// (Generally shouldn't be accessed directly,
+/// except by a single stdlib Package fn that wraps it)
 type BuiltInFn =
   { name : FQFnName.Builtin
     typeParams : List<string>
@@ -1371,14 +1394,12 @@ and Fn =
     previewable : Previewable
     sqlSpec : SqlSpec
 
-    // Functions can be run in WASM if they have an implementation in LibExecution.
-    // Functions whose implementation is in BuiltinCloudExecution can only be implemented on the server.
-
-    // <remarks>
-    // May throw an exception, though we're trying to get them to never throw exceptions.
-    // </remarks>
+    /// <remarks>
+    /// May throw an exception, though we're trying to get them to never throw exceptions.
+    /// </remarks>
     fn : FnImpl }
 
+// TODO: consider making this a record instead of a tuple
 and BuiltInFnSig =
   (ExecutionState *
 
@@ -1407,7 +1428,7 @@ and StoreFnResult = FunctionRecord -> NEList<Dval> -> Dval -> unit
 /// Every part of a user's program
 and Program =
   { canvasID : CanvasID
-    internalFnsAllowed : bool // whether this canvas is allowed call internal functions
+    internalFnsAllowed : bool
     dbs : Map<string, DB.T>
     secrets : List<Secret.T> }
 
@@ -1426,12 +1447,12 @@ and TestContext =
     mutable expectedExceptionCount : int
     postTestExecutionHook : TestContext -> unit }
 
-// Functionally written in F# and shipped with the executable
+/// Functionally written in F# and shipped with the executable
 and Builtins =
   { constants : Map<FQConstantName.Builtin, BuiltInConstant>
     fns : Map<FQFnName.Builtin, BuiltInFn> }
 
-// Functionality written in Dark stored and managed outside of user space
+/// Functionality written in Dark stored and managed outside of user space
 and PackageManager =
   { getType : FQTypeName.Package -> Ply<Option<PackageType.T>>
     getConstant : FQConstantName.Package -> Ply<Option<PackageConstant.T>>
@@ -1482,7 +1503,7 @@ and ExceptionReporter = ExecutionState -> Metadata -> exn -> unit
 
 and Notifier = ExecutionState -> string -> Metadata -> unit
 
-// All state used while running a program
+/// All state used while running a program
 and ExecutionState =
   { // -- Set consistently across a runtime --
     builtins : Builtins
@@ -1505,8 +1526,8 @@ and ExecutionState =
 
     // -- Can change over time during execution --
 
-    // tlid/id of the caller - used to find the source of an error. It's not the end
-    // of the world if this is wrong or missing, but it will give worse errors.
+    /// tlid/id of the caller - used to find the source of an error. It's not the end
+    /// of the world if this is wrong or missing, but it will give worse errors.
     caller : Source
 
     packageManager : PackageManager // TODO update to availableTypes?
@@ -1555,7 +1576,7 @@ module Types =
     | FQTypeName.Package pkg ->
       types.package pkg |> Ply.map (Option.map _.declaration)
 
-  // Swap concrete types for type parameters
+  /// Swap concrete types for type parameters
   let rec substitute
     (typeParams : List<string>)
     (typeArguments : List<TypeReference>)
@@ -1632,6 +1653,7 @@ let consoleReporter : ExceptionReporter =
 let consoleNotifier : Notifier =
   fun _state msg tags ->
     print $"A notification happened in the runtime:\n  {msg}\n  {tags}\n\n"
+
 
 let builtInParamToParam (p : BuiltInParam) : Param = { name = p.name; typ = p.typ }
 
