@@ -8,11 +8,11 @@ MyEnum.NoArgs
 
 (source_file
   (expression
-    (enum_literal
+    (simple_expression (enum_literal
       (qualified_type_name (type_identifier))
       (symbol)
       (enum_case_identifier)
-    )
+    ))
   )
 )
 
@@ -27,17 +27,17 @@ MyEnum.OneArg(1L)
 
 (source_file
   (expression
-    (enum_literal
+    (simple_expression (enum_literal
       (qualified_type_name
         (type_identifier))
       (symbol)
       (enum_case_identifier)
       (symbol)
       (enum_fields
-        (expression (int64_literal (digits (positive_digits)) (symbol)))
+        (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
       )
       (symbol)
-    )
+    ))
   )
 )
 
@@ -52,7 +52,7 @@ MyEnum.TwoArgs(1L, 2L)
 
 (source_file
   (expression
-    (enum_literal
+    (simple_expression (enum_literal
     (qualified_type_name
       (type_identifier))
     (symbol)
@@ -60,17 +60,17 @@ MyEnum.TwoArgs(1L, 2L)
     (symbol)
     (enum_fields
       (expression
-        (int64_literal
-          (digits
-            (positive_digits))
-          (symbol)))
-      (symbol)
-      (expression
-        (int64_literal
+        (simple_expression (int64_literal
           (digits
             (positive_digits))
           (symbol))))
-    (symbol))
+      (symbol)
+      (expression
+        (simple_expression (int64_literal
+          (digits
+            (positive_digits))
+          (symbol)))))
+    (symbol)))
   )
 )
 
@@ -85,7 +85,7 @@ Stdlib.Option.Option.None
 
 (source_file
   (expression
-    (enum_literal
+    (simple_expression (enum_literal
       (qualified_type_name
         (module_identifier)
         (symbol)
@@ -95,7 +95,7 @@ Stdlib.Option.Option.None
       )
       (symbol)
       (enum_case_identifier)
-    )
+    ))
   )
 )
 
@@ -110,7 +110,7 @@ Stdlib.Option.Option.Some(1L)
 
 (source_file
   (expression
-    (enum_literal
+    (simple_expression (enum_literal
       (qualified_type_name
         (module_identifier)
         (symbol)
@@ -122,9 +122,9 @@ Stdlib.Option.Option.Some(1L)
       (enum_case_identifier)
       (symbol)
         (enum_fields
-          (expression (int64_literal (digits (positive_digits)) (symbol)))
+          (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
         )
       (symbol)
-    )
+    ))
   )
 )

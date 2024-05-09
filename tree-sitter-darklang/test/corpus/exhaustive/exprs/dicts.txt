@@ -8,10 +8,10 @@ Dict {}
 
 (source_file
   (expression
-    (dict_literal
+    (simple_expression (dict_literal
       (keyword)
       (symbol)
-      (symbol))))
+      (symbol)))))
 
 
 
@@ -25,20 +25,20 @@ Dict {a = 1L}
 
 (source_file
   (expression
-    (dict_literal
+    (simple_expression (dict_literal
       (keyword)
       (symbol)
       (dict_content
         (dict_pair
           (expression
-            (variable_identifier))
+            (simple_expression (variable_identifier)))
           (symbol)
           (expression
-            (int64_literal
+            (simple_expression (int64_literal
               (digits
                 (positive_digits))
-              (symbol)))))
-      (symbol))))
+              (symbol))))))
+      (symbol)))))
 
 
 ==================
@@ -51,30 +51,30 @@ Dict {a = 1L; b = 2L}
 
 (source_file
   (expression
-    (dict_literal
+    (simple_expression (dict_literal
       (keyword)
       (symbol)
       (dict_content
         (dict_pair
           (expression
-            (variable_identifier))
+            (simple_expression (variable_identifier)))
           (symbol)
           (expression
-            (int64_literal
-              (digits
-                (positive_digits))
-              (symbol))))
-        (symbol)
-        (dict_pair
-          (expression
-            (variable_identifier))
-          (symbol)
-          (expression
-            (int64_literal
+            (simple_expression (int64_literal
               (digits
                 (positive_digits))
               (symbol)))))
-      (symbol))))
+        (symbol)
+        (dict_pair
+          (expression
+            (simple_expression (variable_identifier)))
+          (symbol)
+          (expression
+            (simple_expression (int64_literal
+              (digits
+                (positive_digits))
+              (symbol))))))
+      (symbol)))))
 
 
 ==================
@@ -87,37 +87,37 @@ Dict {a = 1L; b = 2L; c = 3L}
 
 (source_file
   (expression
-    (dict_literal
+    (simple_expression (dict_literal
       (keyword)
       (symbol)
       (dict_content
         (dict_pair
           (expression
-            (variable_identifier))
+            (simple_expression (variable_identifier)))
           (symbol)
           (expression
-            (int64_literal
-              (digits
-                (positive_digits))
-              (symbol))))
-        (symbol)
-        (dict_pair
-          (expression
-            (variable_identifier))
-          (symbol)
-          (expression
-            (int64_literal
-              (digits
-                (positive_digits))
-              (symbol))))
-        (symbol)
-        (dict_pair
-          (expression
-            (variable_identifier))
-          (symbol)
-          (expression
-            (int64_literal
+            (simple_expression (int64_literal
               (digits
                 (positive_digits))
               (symbol)))))
-      (symbol))))
+        (symbol)
+        (dict_pair
+          (expression
+            (simple_expression (variable_identifier)))
+          (symbol)
+          (expression
+            (simple_expression (int64_literal
+              (digits
+                (positive_digits))
+              (symbol)))))
+        (symbol)
+        (dict_pair
+          (expression
+            (simple_expression (variable_identifier)))
+          (symbol)
+          (expression
+            (simple_expression (int64_literal
+              (digits
+                (positive_digits))
+              (symbol))))))
+      (symbol)))))

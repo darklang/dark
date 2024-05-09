@@ -6,5 +6,5 @@ unit
 
 ---
 
-(source_file (expression (unit)))
+(source_file (expression (simple_expression (unit))))
 

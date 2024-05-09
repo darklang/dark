@@ -705,7 +705,10 @@ module Darklang =
 
           let argsPart =
             args
-            |> Stdlib.List.map (fun arg -> PrettyPrinter.ProgramTypes.expr arg)
+            |> Stdlib.List.map (fun arg ->
+              match arg with
+              | EApply(_, _, _, _) -> $"({PrettyPrinter.ProgramTypes.expr arg})"
+              | _ -> PrettyPrinter.ProgramTypes.expr arg)
             |> Stdlib.String.join " "
 
           match typeArgs with

@@ -12,7 +12,7 @@ fun () -> 1L
       (keyword)
       (lambda_pats (let_pattern (unit)))
       (symbol)
-      (expression (int64_literal (digits (positive_digits)) (symbol)))
+      (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
     )
   )
 )
@@ -34,9 +34,9 @@ fun x -> x + 1L
       (symbol)
       (expression
         (infix_operation
-          (expression (variable_identifier))
+          (expression (simple_expression (variable_identifier)))
           (operator)
-          (expression (int64_literal (digits (positive_digits)) (symbol)))
+          (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
         )
       )
     )
@@ -63,9 +63,9 @@ lambda test - wrapped in parens
           (symbol)
           (expression
             (infix_operation
-              (expression (variable_identifier))
+              (expression (simple_expression (variable_identifier)))
               (operator)
-              (expression (int64_literal (digits (positive_digits)) (symbol)))
+              (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
             )
           )
         )
@@ -95,9 +95,9 @@ fun a b -> a * b
       (symbol)
       (expression
         (infix_operation
-          (expression (variable_identifier))
+          (expression (simple_expression (variable_identifier)))
           (operator)
-          (expression (variable_identifier))
+          (expression (simple_expression (variable_identifier)))
         )
       )
     )
@@ -131,9 +131,9 @@ fun (str1, str2) -> str1 ++ str2
       (symbol)
       (expression
         (infix_operation
-          (expression (variable_identifier))
+          (expression (simple_expression (variable_identifier)))
           (operator)
-          (expression (variable_identifier))
+          (expression (simple_expression (variable_identifier)))
         )
       )
     )
@@ -170,11 +170,11 @@ fun x (y, z) -> x ++ y ++ z
         (infix_operation
           (expression
             (infix_operation
-              (expression (variable_identifier))
+              (expression (simple_expression (variable_identifier)))
               (operator)
-              (expression (variable_identifier))))
+              (expression (simple_expression (variable_identifier)))))
           (operator)
-          (expression (variable_identifier))
+          (expression (simple_expression (variable_identifier)))
         )
       )
     )

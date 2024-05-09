@@ -10,10 +10,10 @@ true && true
   (expression
     (infix_operation
       (expression
-        (bool_literal))
+        (simple_expression (bool_literal)))
       (operator)
       (expression
-        (bool_literal)))))
+        (simple_expression (bool_literal))))))
 
 
 
@@ -28,7 +28,7 @@ true || true
   (expression
     (infix_operation
       (expression
-        (bool_literal))
+        (simple_expression (bool_literal)))
       (operator)
       (expression
-        (bool_literal)))))
+        (simple_expression (bool_literal))))))

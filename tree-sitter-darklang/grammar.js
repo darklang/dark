@@ -294,9 +294,32 @@ module.exports = grammar({
     // ---------------------
     // Expressions
     // ---------------------
-    expression: $ =>
+
+    /**
+     * `simple_expression` vs. `expression`:
+     *
+     * `simple_expression`:
+     * includes simple elements that have distinct starting and ending points, typically not requiring parentheses for clarity.
+     * e.g. literals, variables, etc.
+     *
+     * `expression`:
+     * Enompasses both simple expressions and more complex expressions (e.g. infix operations, function calls, etc.).
+     * These are elements that may require parentheses to disambiguate the order and grouping of elements.
+     *
+     * e.g.
+     * `myFunction myFunction2 arg arg2`
+     *
+     * without parentheses, It's unclear whether `arg2` is supposed to be a second argument to `myFunction2`:
+     * myFunction (myFunction2 arg arg2)
+     *
+     * or a second argument to `myFunction`:
+     * myFunction (myFunction2 arg) (arg2)
+     *
+     */
+
+    // TODO: reconsider having enum_literal as a simple_expression
+    simple_expression: $ =>
       choice(
-        $.paren_expression,
         $.unit,
         $.bool_literal,
         $.int8_literal,
@@ -317,14 +340,20 @@ module.exports = grammar({
         $.dict_literal,
         $.record_literal,
         $.enum_literal,
+        $.variable_identifier,
+      ),
+
+    expression: $ =>
+      choice(
+        $.paren_expression,
+        $.simple_expression,
         $.if_expression,
         $.let_expression,
-        $.variable_identifier,
 
         $.match_expression,
 
         $.infix_operation,
-        $.function_call,
+        $.apply,
 
         $.field_access,
         $.lambda_expression,
@@ -729,23 +758,20 @@ module.exports = grammar({
         field("rhs", $.expression),
       ),
 
-    /**
-     * e.g. `Int64.add 1 2
-     *
-     * This is currently a bit hacky, requiring parens around the function call,
-     * in order to help tree-sitter parse it correctly.
-     *
-     * There's certainly a better way to remove ambiguities. TODO
-     *
-     * TODO maybe call this "apply" instead
-     *      sometimes the thing we are 'applying' is not directly a function
-     */
-    function_call: $ =>
-      seq(
-        field("symbol_left_paren", alias("(", $.symbol)),
-        field("fn", $.qualified_fn_name),
-        field("args", repeat1($.expression)),
-        field("symbol_right_paren", alias(")", $.symbol)),
+    //
+    // Function call
+    // e.g. `Int64.add 1 2
+    apply: $ =>
+      prec.right(
+        seq(
+          field("fn", $.qualified_fn_name),
+          field(
+            "args",
+            repeat1(choice($.paren_expression, $.simple_expression)),
+          ),
+          // the new line is used as a delimiter
+          optional($.newline),
+        ),
       ),
 
     let_expression: $ =>

@@ -8,20 +8,20 @@ tuple two
 
 (source_file
   (expression
-    (tuple_literal
+    (simple_expression (tuple_literal
       (symbol)
       (expression
-        (string_literal
+        (simple_expression (string_literal
           (symbol)
           (string_content)
-          (symbol)))
+          (symbol))))
       (symbol)
       (expression
-        (int64_literal
+        (simple_expression (int64_literal
           (digits
             (positive_digits))
-          (symbol)))
-      (symbol))))
+          (symbol))))
+      (symbol)))))
 
 
 ==================
@@ -34,24 +34,24 @@ tuple three
 
 (source_file
   (expression
-    (tuple_literal
+    (simple_expression (tuple_literal
       (symbol)
       (expression
-        (string_literal
+        (simple_expression (string_literal
           (symbol)
           (string_content)
-          (symbol)))
+          (symbol))))
       (symbol)
       (expression
-        (int64_literal
+        (simple_expression (int64_literal
           (digits
             (positive_digits))
-          (symbol)))
+          (symbol))))
       (tuple_literal_the_rest
         (symbol)
         (expression
-          (float_literal)))
-      (symbol))))
+          (simple_expression (float_literal))))
+      (symbol)))))
 
 
 ==================
@@ -64,24 +64,24 @@ tuple four
 
 (source_file
   (expression
-    (tuple_literal
+    (simple_expression (tuple_literal
       (symbol)
       (expression
-        (string_literal
+        (simple_expression (string_literal
           (symbol)
           (string_content)
-          (symbol)))
+          (symbol))))
       (symbol)
       (expression
-        (int64_literal
+        (simple_expression (int64_literal
           (digits
             (positive_digits))
-          (symbol)))
+          (symbol))))
           (tuple_literal_the_rest
             (symbol)
             (expression
-              (float_literal))
+              (simple_expression (float_literal)))
             (symbol)
             (expression
-              (bool_literal)))
-      (symbol))))
+              (simple_expression (bool_literal))))
+      (symbol)))))

@@ -19,7 +19,7 @@ int8 literal
 
 ---
 
-(source_file (expression (int8_literal (digits (negative_digits)) (symbol))))
+(source_file (expression (simple_expression (int8_literal (digits (negative_digits)) (symbol)))))
 
 
 ==================
@@ -30,7 +30,7 @@ uint8 literal
 
 ---
 
-(source_file (expression (uint8_literal (positive_digits) (symbol))))
+(source_file (expression (simple_expression (uint8_literal (positive_digits) (symbol)))))
 
 
 ==================
@@ -41,7 +41,7 @@ int16 literal
 
 ---
 
-(source_file (expression (int16_literal (digits (positive_digits)) (symbol))))
+(source_file (expression (simple_expression (int16_literal (digits (positive_digits)) (symbol)))))
 
 
 ==================
@@ -52,7 +52,7 @@ uint16 literal
 
 ---
 
-(source_file (expression (uint16_literal (positive_digits) (symbol))))
+(source_file (expression (simple_expression (uint16_literal (positive_digits) (symbol)))))
 
 
 ==================
@@ -63,7 +63,7 @@ int32 literal
 
 ---
 
-(source_file (expression (int32_literal (digits (negative_digits)) (symbol))))
+(source_file (expression (simple_expression (int32_literal (digits (negative_digits)) (symbol)))))
 
 
 ==================
@@ -74,7 +74,7 @@ uint32 literal
 
 ---
 
-(source_file (expression (uint32_literal (positive_digits) (symbol))))
+(source_file (expression (simple_expression (uint32_literal (positive_digits) (symbol)))))
 
 
 ==================
@@ -85,7 +85,7 @@ int64 literal (.net style)
 
 ---
 
-(source_file (expression (int64_literal (digits (positive_digits)) (symbol))))
+(source_file (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol)))))
 
 
 ==================
@@ -96,7 +96,7 @@ uint64 literal
 
 ---
 
-(source_file (expression (uint64_literal (positive_digits) (symbol))))
+(source_file (expression (simple_expression (uint64_literal (positive_digits) (symbol)))))
 
 
 ==================
@@ -107,7 +107,7 @@ int128 literal
 
 ---
 
-(source_file (expression (int128_literal (digits (negative_digits)) (symbol))))
+(source_file (expression (simple_expression (int128_literal (digits (negative_digits)) (symbol)))))
 
 
 ==================
@@ -118,7 +118,7 @@ uint128 literal
 
 ---
 
-(source_file (expression (uint128_literal (positive_digits) (symbol))))
+(source_file (expression (simple_expression (uint128_literal (positive_digits) (symbol)))))
 
 
 ==================
@@ -129,4 +129,4 @@ uint128 literal
 
 ---
 
-(source_file (expression (int64_literal (digits (positive_digits)) (symbol))))
+(source_file (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol)))))

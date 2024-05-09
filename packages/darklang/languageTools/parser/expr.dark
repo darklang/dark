@@ -903,7 +903,7 @@ module Darklang =
         let parseFunctionCall
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          if node.typ == "function_call" then
+          if node.typ == "apply" then
             let fnNameNode =
               findAndParseRequired node "fn" Identifiers.parseQualifiedFunction
 
@@ -916,18 +916,11 @@ module Darklang =
               |> Stdlib.List.map Expr.parse
               |> Stdlib.Result.collect
 
-            let symbolLeftParen = findField node "symbol_left_paren"
-            let symbolRightParen = findField node "symbol_right_paren"
+            match fnNameNode, args with
+            | Ok fnName, Ok args ->
+              let fnName = WrittenTypes.Expr.EFnName(node.range, fnName)
 
-            match fnNameNode, args, symbolLeftParen, args, symbolRightParen with
-            | Ok fnName, args, Ok symLeftParen, Ok args, Ok symRightParen ->
-              (WrittenTypes.Expr.EFnCall(
-                node.range,
-                fnName,
-                args,
-                symLeftParen.range,
-                symRightParen.range
-              ))
+              (WrittenTypes.Expr.EApply(node.range, fnName, [], args))
               |> Stdlib.Result.Result.Ok
 
             | _ -> createUnparseableError node
@@ -944,6 +937,10 @@ module Darklang =
           match node.typ with
           // simple
           | "paren_expression" -> findAndParseRequired node "expr" Expr.parse
+          | "simple_expression" ->
+            match node.children with
+            | [ single ] -> parseCase single
+            | _ -> createUnparseableError node
 
           | "unit" -> (WrittenTypes.Expr.EUnit node.range) |> Stdlib.Result.Result.Ok
           | "bool_literal" -> parseBoolLiteral node
@@ -983,7 +980,7 @@ module Darklang =
           // fn calls
           | "infix_operation" -> parseInfixOperation node
           | "lambda_expression" -> parseLambda node
-          | "function_call" -> parseFunctionCall node
+          | "apply" -> parseFunctionCall node
 
           | _ -> createUnparseableError node
 
@@ -996,6 +993,8 @@ module Darklang =
             match node.children with
             | [ single ] -> parseCase single
             | _ -> createUnparseableError node
+          elif node.typ == "simple_expression" then
+            parseCase node
           elif node.typ == "paren_expression" then
             findAndParseRequired node "expr" Expr.parse
           else

@@ -1,5 +1,45 @@
 [
   {
+    "type": "apply",
+    "named": true,
+    "fields": {
+      "args": {
+        "multiple": true,
+        "required": true,
+        "types": [
+          {
+            "type": "paren_expression",
+            "named": true
+          },
+          {
+            "type": "simple_expression",
+            "named": true
+          }
+        ]
+      },
+      "fn": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "qualified_fn_name",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "newline",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "bool",
     "named": true,
     "fields": {}
@@ -444,31 +484,11 @@
       "required": true,
       "types": [
         {
-          "type": "bool_literal",
-          "named": true
-        },
-        {
-          "type": "char_literal",
-          "named": true
-        },
-        {
-          "type": "dict_literal",
-          "named": true
-        },
-        {
-          "type": "enum_literal",
+          "type": "apply",
           "named": true
         },
         {
           "type": "field_access",
-          "named": true
-        },
-        {
-          "type": "float_literal",
-          "named": true
-        },
-        {
-          "type": "function_call",
           "named": true
         },
         {
@@ -480,35 +500,11 @@
           "named": true
         },
         {
-          "type": "int128_literal",
-          "named": true
-        },
-        {
-          "type": "int16_literal",
-          "named": true
-        },
-        {
-          "type": "int32_literal",
-          "named": true
-        },
-        {
-          "type": "int64_literal",
-          "named": true
-        },
-        {
-          "type": "int8_literal",
-          "named": true
-        },
-        {
           "type": "lambda_expression",
           "named": true
         },
         {
           "type": "let_expression",
-          "named": true
-        },
-        {
-          "type": "list_literal",
           "named": true
         },
         {
@@ -520,47 +516,11 @@
           "named": true
         },
         {
-          "type": "record_literal",
-          "named": true
-        },
-        {
           "type": "record_update",
           "named": true
         },
         {
-          "type": "string_literal",
-          "named": true
-        },
-        {
-          "type": "tuple_literal",
-          "named": true
-        },
-        {
-          "type": "uint128_literal",
-          "named": true
-        },
-        {
-          "type": "uint16_literal",
-          "named": true
-        },
-        {
-          "type": "uint32_literal",
-          "named": true
-        },
-        {
-          "type": "uint64_literal",
-          "named": true
-        },
-        {
-          "type": "uint8_literal",
-          "named": true
-        },
-        {
-          "type": "unit",
-          "named": true
-        },
-        {
-          "type": "variable_identifier",
+          "type": "simple_expression",
           "named": true
         }
       ]
@@ -757,52 +717,6 @@
     "type": "fn_identifier",
     "named": true,
     "fields": {}
-  },
-  {
-    "type": "function_call",
-    "named": true,
-    "fields": {
-      "args": {
-        "multiple": true,
-        "required": true,
-        "types": [
-          {
-            "type": "expression",
-            "named": true
-          }
-        ]
-      },
-      "fn": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "qualified_fn_name",
-            "named": true
-          }
-        ]
-      },
-      "symbol_left_paren": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      },
-      "symbol_right_paren": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      }
-    }
   },
   {
     "type": "if_expression",
@@ -2174,6 +2088,101 @@
     }
   },
   {
+    "type": "simple_expression",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "bool_literal",
+          "named": true
+        },
+        {
+          "type": "char_literal",
+          "named": true
+        },
+        {
+          "type": "dict_literal",
+          "named": true
+        },
+        {
+          "type": "enum_literal",
+          "named": true
+        },
+        {
+          "type": "float_literal",
+          "named": true
+        },
+        {
+          "type": "int128_literal",
+          "named": true
+        },
+        {
+          "type": "int16_literal",
+          "named": true
+        },
+        {
+          "type": "int32_literal",
+          "named": true
+        },
+        {
+          "type": "int64_literal",
+          "named": true
+        },
+        {
+          "type": "int8_literal",
+          "named": true
+        },
+        {
+          "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "record_literal",
+          "named": true
+        },
+        {
+          "type": "string_literal",
+          "named": true
+        },
+        {
+          "type": "tuple_literal",
+          "named": true
+        },
+        {
+          "type": "uint128_literal",
+          "named": true
+        },
+        {
+          "type": "uint16_literal",
+          "named": true
+        },
+        {
+          "type": "uint32_literal",
+          "named": true
+        },
+        {
+          "type": "uint64_literal",
+          "named": true
+        },
+        {
+          "type": "uint8_literal",
+          "named": true
+        },
+        {
+          "type": "unit",
+          "named": true
+        },
+        {
+          "type": "variable_identifier",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "source_file",
     "named": true,
     "fields": {},
@@ -3203,6 +3212,10 @@
   },
   {
     "type": "negative_digits",
+    "named": true
+  },
+  {
+    "type": "newline",
     "named": true
   },
   {

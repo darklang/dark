@@ -1204,13 +1204,9 @@
         }
       ]
     },
-    "expression": {
+    "simple_expression": {
       "type": "CHOICE",
       "members": [
-        {
-          "type": "SYMBOL",
-          "name": "paren_expression"
-        },
         {
           "type": "SYMBOL",
           "name": "unit"
@@ -1293,15 +1289,28 @@
         },
         {
           "type": "SYMBOL",
+          "name": "variable_identifier"
+        }
+      ]
+    },
+    "expression": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "paren_expression"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "simple_expression"
+        },
+        {
+          "type": "SYMBOL",
           "name": "if_expression"
         },
         {
           "type": "SYMBOL",
           "name": "let_expression"
-        },
-        {
-          "type": "SYMBOL",
-          "name": "variable_identifier"
         },
         {
           "type": "SYMBOL",
@@ -1313,7 +1322,7 @@
         },
         {
           "type": "SYMBOL",
-          "name": "function_call"
+          "name": "apply"
         },
         {
           "type": "SYMBOL",
@@ -3228,55 +3237,54 @@
         }
       ]
     },
-    "function_call": {
-      "type": "SEQ",
-      "members": [
-        {
-          "type": "FIELD",
-          "name": "symbol_left_paren",
-          "content": {
-            "type": "ALIAS",
-            "content": {
-              "type": "STRING",
-              "value": "("
-            },
-            "named": true,
-            "value": "symbol"
-          }
-        },
-        {
-          "type": "FIELD",
-          "name": "fn",
-          "content": {
-            "type": "SYMBOL",
-            "name": "qualified_fn_name"
-          }
-        },
-        {
-          "type": "FIELD",
-          "name": "args",
-          "content": {
-            "type": "REPEAT1",
+    "apply": {
+      "type": "PREC_RIGHT",
+      "value": 0,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "FIELD",
+            "name": "fn",
             "content": {
               "type": "SYMBOL",
-              "name": "expression"
+              "name": "qualified_fn_name"
             }
-          }
-        },
-        {
-          "type": "FIELD",
-          "name": "symbol_right_paren",
-          "content": {
-            "type": "ALIAS",
+          },
+          {
+            "type": "FIELD",
+            "name": "args",
             "content": {
-              "type": "STRING",
-              "value": ")"
-            },
-            "named": true,
-            "value": "symbol"
+              "type": "REPEAT1",
+              "content": {
+                "type": "CHOICE",
+                "members": [
+                  {
+                    "type": "SYMBOL",
+                    "name": "paren_expression"
+                  },
+                  {
+                    "type": "SYMBOL",
+                    "name": "simple_expression"
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "newline"
+              },
+              {
+                "type": "BLANK"
+              }
+            ]
           }
-        }
-      ]
+        ]
+      }
     },
     "let_expression": {
       "type": "SEQ",

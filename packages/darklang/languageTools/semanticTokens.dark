@@ -750,18 +750,17 @@ module Darklang =
 
 
           // hacky temp. syntax -- see `grammar.js`
-          // (Int64.add 1L 2L)
-          | EFnCall(range, fnName, args, symbolLeftParen, symbolRightParen) ->
-            [ // (
-              [ makeToken symbolLeftParen TokenType.Symbol ]
-              // Int64.add
-              QualifiedFnIdentifier.tokenize fnName
-              // 1L 2L
+          // Int64.add (1L) (2L)
+          | EFnName(_, fnName) -> QualifiedFnIdentifier.tokenize fnName
+
+          | EApply(range, lhs, typeArgs, args) ->
+            [ Expr.tokenize lhs
+              (typeArgs
+               |> Stdlib.List.map (fun typeArg -> TypeReference.tokenize typeArg)
+               |> Stdlib.List.flatten)
               (args
                |> Stdlib.List.map (fun arg -> Expr.tokenize arg)
-               |> Stdlib.List.flatten)
-              // )
-              [ makeToken symbolRightParen TokenType.Symbol ] ]
+               |> Stdlib.List.flatten) ]
             |> Stdlib.List.flatten
 
 
