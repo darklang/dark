@@ -42,6 +42,11 @@ type X = { y: Y }
 type MyEnum = A of Int64 * Int64 * Int64
 (33L |> MyEnum.A 21L 42L) = MyEnum.A 33L 21L 42L
 
+// TODO: test this in Parser.Tests
+(33L |> MyEnum.A 21L 42L) = MyEnum.A(33L, 21L, 42L)
+(33L |> MyEnum.A(21L, 42L)) = MyEnum.A 33L 21L 42L
+(33L |> MyEnum.A(21L, 42L)) = MyEnum.A(33L, 21L, 42L)
+
 (3L |> Stdlib.Result.Result.Ok) = Stdlib.Result.Result.Ok 3L
 
 (4L |> (+) 3L |> Stdlib.Option.Option.Some) = Stdlib.Option.Option.Some 7L
