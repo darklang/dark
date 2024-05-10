@@ -276,6 +276,7 @@ module Darklang =
             tokenizeDefinition t.definition ]
           |> Stdlib.List.flatten
 
+      // TODO: maybe this should be inside `Expr` module?
       module MatchPattern =
         let tokenize (p: WrittenTypes.MatchPattern) : List<SemanticToken> =
           match p with
@@ -428,6 +429,74 @@ module Darklang =
                 [ makeToken symbolCloseParen TokenType.Symbol ] ]
               |> Stdlib.List.flatten
 
+        module PipeExpr =
+          let tokenize (pe: WrittenTypes.PipeExpr) : List<SemanticToken> =
+            match pe with
+            | EPipeInfix(_, (opRange, _op), expr) ->
+              [ // (+) 1
+                [ makeToken opRange TokenType.Operator ]
+                // 1
+                Expr.tokenize expr ]
+              |> Stdlib.List.flatten
+
+            | EPipeLambda(_, pats, body, keywordFun, symbolArrow) ->
+              [ // fun
+                [ makeToken keywordFun TokenType.Keyword ]
+                // a
+                (pats
+                 |> Stdlib.List.map (fun pat -> LetPattern.tokenize pat)
+                 |> Stdlib.List.flatten)
+                // ->
+                [ makeToken symbolArrow TokenType.Symbol ]
+                // a + 1
+                Expr.tokenize body ]
+              |> Stdlib.List.flatten
+
+            | EPipeEnum(_, typeName, caseName, fields, symbolDot) ->
+              let typeName =
+                match typeName with
+                | (range, _) -> [ makeToken range TokenType.TypeName ]
+                | _ -> []
+
+              let caseName =
+                match caseName with
+                | (range, _) -> [ makeToken range TokenType.EnumMember ]
+                | _ -> []
+
+              let fields =
+                fields
+                |> Stdlib.List.map (fun expr -> Expr.tokenize expr)
+                |> Stdlib.List.flatten
+
+              [ // Option.Option.Some
+                typeName
+                // .
+                [ makeToken symbolDot TokenType.Symbol ]
+                // Some
+                caseName
+                // 1L
+                fields ]
+              |> Stdlib.List.flatten
+
+            | EPipeFnCall(_, fnName, typeArgs, args) ->
+              let fnName =
+                match fnName with
+                | Unresolved(range, _) -> [ makeToken range TokenType.FunctionName ]
+                | _ -> []
+
+              [ // Darklang.Stdlib.List.map
+                fnName
+                (typeArgs
+                 |> Stdlib.List.map (fun typeArg -> TypeReference.tokenize typeArg)
+                 |> Stdlib.List.flatten)
+                // (1)
+                (args
+                 |> Stdlib.List.map (fun arg -> Expr.tokenize arg)
+                 |> Stdlib.List.flatten) ]
+              |> Stdlib.List.flatten
+
+            | EPipeVariable(range, _varName) ->
+              [ makeToken range TokenType.VariableName ] |> Stdlib.List.flatten
 
         let tokenize (e: WrittenTypes.Expr) : List<SemanticToken> =
           match e with
@@ -761,6 +830,25 @@ module Darklang =
               // | 1 -> 1
               cases ]
             |> Stdlib.List.flatten
+
+          // x |> fn |> fn
+          | EPipe(_, expr, pipeExprs) ->
+            let pipeExprs =
+              pipeExprs
+              |> Stdlib.List.map (fun (pipeSym, pipeExpr) ->
+                [ // |>
+                  [ makeToken pipeSym TokenType.Symbol ]
+                  // fn
+                  Expr.PipeExpr.tokenize pipeExpr ])
+              |> Stdlib.List.flatten
+
+            [ // x
+              Expr.tokenize expr
+              // |> fn
+              (pipeExprs) |> Stdlib.List.flatten ]
+
+            |> Stdlib.List.flatten
+
 
           // x + 1
           | EInfix(_, (opRange, _op), left, right) ->
