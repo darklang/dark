@@ -329,6 +329,54 @@ module Darklang =
             | MPVariable(_, name) ->
               ProgramTypes.MatchPattern.MPVariable(gid (), name)
 
+        module PipeExpr =
+          let toPT
+            (onMissing: NameResolver.OnMissing)
+            (pipeExpr: WrittenTypes.PipeExpr)
+            : ProgramTypes.PipeExpr =
+            match pipeExpr with
+            | EPipeInfix(_, (_, infix), right) ->
+              let right = Expr.toPT onMissing right
+
+              ProgramTypes.PipeExpr.EPipeInfix(gid (), Infix.toPT infix, right)
+
+            | EPipeLambda(_, pats, body, _, _) ->
+              let body = Expr.toPT onMissing body
+              let pats = Stdlib.List.map pats (fun p -> LetPattern.toPT p)
+
+              ProgramTypes.PipeExpr.EPipeLambda(gid (), pats, body)
+
+            | EPipeEnum(_, (sr, typeName), (_, caseName), fields, _) ->
+
+              let typeName =
+                NameResolver.TypeName.resolve
+                  onMissing
+                  []
+                  (WrittenTypes.Name.Unresolved sr typeName)
+
+              let fields = Stdlib.List.map fields (fun e -> Expr.toPT onMissing e)
+
+              ProgramTypes.PipeExpr.EPipeEnum(gid (), typeName, caseName, fields)
+
+            | EPipeFnCall(_, fnName, typeArgs, args) ->
+              let fnName = NameResolver.FnName.resolve onMissing [] fnName
+
+              let typeArgs =
+                Stdlib.List.map typeArgs (fun t -> TypeReference.toPT onMissing t)
+
+              let args = Stdlib.List.map args (fun a -> Expr.toPT onMissing a)
+
+              ProgramTypes.PipeExpr.EPipeFnCall(gid (), fnName, typeArgs, args)
+
+            | EPipeVariableOrFnCall(range, var) ->
+              let asUserFnName = WrittenTypes.Name.Unresolved(range, [ var ])
+
+              let resolved = NameResolver.FnName.resolve onMissing [] asUserFnName
+
+              match resolved with
+              | Ok name -> ProgramTypes.PipeExpr.EPipeFnCall(gid (), name, [], [])
+              | Error _ -> ProgramTypes.PipeExpr.EPipeVariable(gid (), var, [])
+
 
         let toPT
           (onMissing: NameResolver.OnMissing)
@@ -403,17 +451,13 @@ module Darklang =
 
             ProgramTypes.Expr.ERecordUpdate(gid (), record, updates)
 
-          | EEnum(_, typeName, caseName, fields, _) ->
-            let sr = Stdlib.Tuple2.first typeName
-            let unresolvedTypeName = Stdlib.Tuple2.second typeName
-
+          | EEnum(_, (sr, typeName), (_, caseName), fields, _) ->
             let typeName =
               NameResolver.TypeName.resolve
                 onMissing
                 []
-                (WrittenTypes.Name.Unresolved sr unresolvedTypeName)
+                (WrittenTypes.Name.Unresolved sr typeName)
 
-            let caseName = caseName |> Stdlib.Tuple2.second
             let fields = Stdlib.List.map fields (fun expr -> toPT onMissing expr)
 
             ProgramTypes.Expr.EEnum(gid (), typeName, caseName, fields)
@@ -462,6 +506,11 @@ module Darklang =
 
             ProgramTypes.Expr.EMatch(gid (), toPT onMissing expr, cases)
 
+          | EPipe(_, expr, pipeExpr) ->
+            let pipeExpr =
+              pipeExpr |> Stdlib.List.map (fun (_, e) -> PipeExpr.toPT onMissing e)
+
+            ProgramTypes.Expr.EPipe(gid (), toPT onMissing expr, pipeExpr)
 
           // fn calls
           | EInfix(_, (_, op), left, right) ->

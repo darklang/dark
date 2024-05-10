@@ -334,6 +334,8 @@ module Darklang =
           keywordMatch: Range *
           keywordWith: Range
 
+        | EPipe of Range * Expr * List<Range * PipeExpr>
+
         | EInfix of Range * op: (Range * Infix) * left: Expr * right: Expr
 
         | ELambda of
@@ -343,11 +345,6 @@ module Darklang =
           keywordFun: Range *
           symbolArrow: Range
 
-        // TODO: I accidentally got away from how we normally represent
-        // Expressions - switch to this instead.
-        // | EApply of Range * lhs: Expr * args: List<Expr>
-        // | EFnName of QualifiedFnIdentifier
-
         | EApply of
           Range *
           lhs: Expr *
@@ -356,6 +353,27 @@ module Darklang =
 
         | EFnName of Range * name: QualifiedFnIdentifier
 
+      type PipeExpr =
+        | EPipeInfix of Range * op: (Range * Infix) * Expr
+        | EPipeLambda of
+          Range *
+          pats: List<LetPattern> *
+          body: Expr *
+          keywordFun: Range *
+          symbolArrow: Range
+        | EPipeEnum of
+          Range *
+          typeName: (Range * List<String>) *
+          caseName: (Range * String) *
+          fields: List<Expr> *
+          /// between the typeName and the caseName
+          symbolDot: Range
+        | EPipeFnCall of
+          Range *
+          fnName: Name *
+          typeArgs: List<TypeReference.TypeReference> *
+          args: List<Expr>
+        | EPipeVariableOrFnCall of Range * String
 
 
       // Fn declarations
