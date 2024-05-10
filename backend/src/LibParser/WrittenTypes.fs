@@ -219,8 +219,7 @@ and PipeExpr =
   ///   or a user function with only one argument or type args.
   ///
   /// We resolve this ambiguity during name resolution of WT2PT.
-  // TODO: rename to EPipeVariableOrFnCall
-  | EPipeVariableOrUserFunction of id * string
+  | EPipeVariableOrFnCall of id * string
 
 
 type Const =
