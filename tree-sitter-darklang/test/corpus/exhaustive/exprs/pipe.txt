@@ -1,0 +1,333 @@
+==================
+pipe expression - function call
+==================
+
+1L |> Stdlib.Int64.toString
+
+---
+
+(source_file
+  (expression
+    (pipe_expression
+      (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+      (pipe_exprs
+        (symbol)
+        (pipe_expr
+          (pipe_fn_call
+            (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+          )
+        )
+      )
+    )
+  )
+)
+
+
+==================
+pipe expression - function call with arguments
+==================
+
+1L |> Stdlib.Int64.add 2L
+
+---
+
+(source_file
+  (expression
+    (pipe_expression
+      (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+      (pipe_exprs
+        (symbol)
+        (pipe_expr
+          (pipe_fn_call
+            (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+            (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+          )
+        )
+      )
+    )
+  )
+)
+
+
+==================
+pipe expression - variable
+==================
+
+5L |> x
+
+---
+
+(source_file
+  (expression
+    (pipe_expression
+      (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+      (pipe_exprs (symbol) (pipe_expr (pipe_variable_or_fn_call (variable_or_fn_identifier))))
+    )
+  )
+)
+
+
+==================
+pipe expression - let pattern + variable
+==================
+
+let fn = (fun x -> x + 1L)
+1L |> fn
+
+---
+
+(source_file
+  (expression
+    (let_expression
+      (keyword) (variable_identifier) (symbol)
+      (expression
+        (paren_expression
+          (symbol)
+          (expression
+            (lambda_expression
+              (keyword)
+              (lambda_pats (let_pattern (variable_identifier)))
+              (symbol)
+              (expression
+                (infix_operation
+                  (expression (simple_expression (variable_identifier)))
+                  (operator)
+                  (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                )
+              )
+            )
+          )
+          (symbol)
+        )
+      )
+      (expression
+        (pipe_expression
+          (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+          (pipe_exprs (symbol) (pipe_expr (pipe_variable_or_fn_call (variable_or_fn_identifier))))
+        )
+      )
+    )
+  )
+)
+
+
+==================
+pipe expression - infix
+==================
+
+1L |> (+) 2L
+
+---
+
+(source_file
+  (expression
+    (pipe_expression
+      (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+      (pipe_exprs
+        (symbol)
+        (pipe_expr
+          (pipe_infix
+            (symbol) (operator) (symbol)
+            (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+          )
+        )
+      )
+    )
+  )
+)
+
+
+==================
+pipe expression - enum
+==================
+
+3L |> Stdlib.Result.Result.Ok
+
+---
+
+(source_file
+  (expression
+    (pipe_expression
+      (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+      (pipe_exprs
+        (symbol)
+        (pipe_expr
+          (pipe_enum
+            (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)) (symbol) (enum_case_identifier)
+          )
+        )
+      )
+    )
+  )
+)
+
+
+==================
+pipe expression - enum with two fields
+==================
+
+33L |> MyEnum.A(21L)
+
+---
+
+(source_file
+  (expression
+    (pipe_expression
+      (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+      (pipe_exprs
+        (symbol)
+        (pipe_expr
+          (pipe_enum
+            (qualified_type_name (type_identifier)) (symbol) (enum_case_identifier)
+            (symbol) (pipe_enum_fields (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))) (symbol)
+          )
+        )
+      )
+    )
+  )
+)
+
+
+==================
+pipe expression - lambda without parens
+==================
+
+1L |> fun x -> x + 1L
+
+---
+
+(source_file
+  (expression
+    (pipe_expression
+      (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+      (pipe_exprs
+        (symbol)
+        (pipe_expr
+          (pipe_lambda
+            (keyword)
+            (pipe_lambda_pats (let_pattern (variable_identifier)))
+            (symbol)
+            (expression
+              (infix_operation
+                (expression (simple_expression (variable_identifier)))
+                (operator)
+                (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+
+==================
+pipe expression - lambda with parens
+==================
+
+1L |> (fun x -> x + 1L)
+
+---
+
+(source_file
+  (expression
+    (pipe_expression
+      (expression
+        (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+      )
+      (pipe_exprs
+        (symbol)
+        (pipe_expr
+          (pipe_lambda
+            (symbol)
+              (keyword)
+              (pipe_lambda_pats (let_pattern (variable_identifier)))
+              (symbol)
+              (expression
+                (infix_operation
+                  (expression (simple_expression (variable_identifier)))
+                  (operator)
+                  (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                )
+              )
+            (symbol)
+          )
+        )
+      )
+    )
+  )
+)
+
+
+==================
+pipe expression - pipe a function call into another function call
+==================
+
+Stdlib.Int64.add 1L 2L |> Stdlib.Int64.add 1L
+
+---
+
+(source_file
+  (expression
+    (pipe_expression
+      (expression
+        (apply
+          (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+          (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+          (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+        )
+      )
+      (pipe_exprs
+        (symbol)
+        (pipe_expr
+          (pipe_fn_call
+            (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+            (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+          )
+        )
+      )
+    )
+  )
+)
+
+
+==================
+pipe expression - multiple pipe expressions
+==================
+
+[1L; 2L]
+|> Stdlib.List.last
+|> Builtin.unwrap
+
+---
+
+(source_file
+  (expression
+    (pipe_expression
+      (expression
+        (simple_expression
+          (list_literal
+            (symbol)
+            (list_content
+              (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+              (symbol)
+              (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+            )
+            (symbol)
+          )
+        )
+      )
+      (pipe_exprs
+        (symbol)
+        (pipe_expr
+          (pipe_fn_call (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier)))
+        )
+        (symbol)
+        (pipe_expr
+          (pipe_fn_call (qualified_fn_name (module_identifier) (symbol) (fn_identifier)))
+        )
+      )
+    )
+  )
+)

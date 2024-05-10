@@ -22,6 +22,10 @@
         "required": true,
         "types": [
           {
+            "type": "fn_identifier",
+            "named": true
+          },
+          {
             "type": "qualified_fn_name",
             "named": true
           }
@@ -600,11 +604,19 @@
           "named": true
         },
         {
+          "type": "pipe_expression",
+          "named": true
+        },
+        {
           "type": "record_update",
           "named": true
         },
         {
           "type": "simple_expression",
+          "named": true
+        },
+        {
+          "type": "tuple_literal",
           "named": true
         }
       ]
@@ -619,7 +631,23 @@
         "required": true,
         "types": [
           {
-            "type": "expression",
+            "type": "apply",
+            "named": true
+          },
+          {
+            "type": "field_access",
+            "named": true
+          },
+          {
+            "type": "paren_expression",
+            "named": true
+          },
+          {
+            "type": "record_literal",
+            "named": true
+          },
+          {
+            "type": "variable_identifier",
             "named": true
           }
         ]
@@ -1936,6 +1964,355 @@
     }
   },
   {
+    "type": "pipe_enum",
+    "named": true,
+    "fields": {
+      "case_name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "enum_case_identifier",
+            "named": true
+          }
+        ]
+      },
+      "enum_fields": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "pipe_enum_fields",
+            "named": true
+          }
+        ]
+      },
+      "symbol_close_paren": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_dot": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_open_paren": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "type_name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "qualified_type_name",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "pipe_enum_fields",
+    "named": true,
+    "fields": {
+      "symbol_comma": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "expression",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "pipe_expr",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "pipe_enum",
+          "named": true
+        },
+        {
+          "type": "pipe_fn_call",
+          "named": true
+        },
+        {
+          "type": "pipe_infix",
+          "named": true
+        },
+        {
+          "type": "pipe_lambda",
+          "named": true
+        },
+        {
+          "type": "pipe_variable_or_fn_call",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "pipe_expression",
+    "named": true,
+    "fields": {
+      "expr": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      },
+      "pipe_exprs": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "pipe_exprs",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "pipe_exprs",
+    "named": true,
+    "fields": {
+      "pipe_expr": {
+        "multiple": true,
+        "required": true,
+        "types": [
+          {
+            "type": "pipe_expr",
+            "named": true
+          }
+        ]
+      },
+      "symbol_pipe": {
+        "multiple": true,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "pipe_fn_call",
+    "named": true,
+    "fields": {
+      "args": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "paren_expression",
+            "named": true
+          },
+          {
+            "type": "simple_expression",
+            "named": true
+          }
+        ]
+      },
+      "fn": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "qualified_fn_name",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "pipe_infix",
+    "named": true,
+    "fields": {
+      "operator": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "operator",
+            "named": true
+          }
+        ]
+      },
+      "right": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      },
+      "symbol_close_paren": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_open_paren": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "pipe_lambda",
+    "named": true,
+    "fields": {
+      "body": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      },
+      "keyword_fun": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "keyword",
+            "named": true
+          }
+        ]
+      },
+      "pats": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "pipe_lambda_pats",
+            "named": true
+          }
+        ]
+      },
+      "symbol_arrow": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_close_paren": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_open_paren": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "pipe_lambda_pats",
+    "named": true,
+    "fields": {
+      "pat": {
+        "multiple": true,
+        "required": true,
+        "types": [
+          {
+            "type": "let_pattern",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "pipe_variable_or_fn_call",
+    "named": true,
+    "fields": {
+      "variable_or_fn_name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "variable_or_fn_identifier",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "qualified_fn_name",
     "named": true,
     "fields": {
@@ -2293,10 +2670,6 @@
         },
         {
           "type": "string_literal",
-          "named": true
-        },
-        {
-          "type": "tuple_literal",
           "named": true
         },
         {

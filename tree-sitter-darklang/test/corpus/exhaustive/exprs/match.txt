@@ -223,13 +223,13 @@ match (5L, 6L) with
     (match_expression
       (keyword)
       (expression
-        (simple_expression (tuple_literal
+        (tuple_literal
           (symbol)
           (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
           (symbol)
           (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
           (symbol)
-        ))
+        )
       )
       (keyword)
       (match_case
