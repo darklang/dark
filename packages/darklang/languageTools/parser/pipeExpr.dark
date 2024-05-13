@@ -157,14 +157,21 @@ module Darklang =
             |> Stdlib.List.map Expr.parse
             |> Stdlib.Result.collect
 
-          // TODO: Handle typeArgs
+          let typeArgs =
+            node.children
+            |> Stdlib.List.filter (fun c ->
+              match c.fieldName with
+              | Some fName -> fName == "type_args"
+              | None -> false)
+            |> Stdlib.List.map TypeReference.parse
+            |> Stdlib.Result.collect
 
-          match fnNameNode, args with
-          | Ok fnName, Ok args ->
+          match fnNameNode, typeArgs, args with
+          | Ok fnName, Ok typeArgs, Ok args ->
             let name = fnName.text |> Stdlib.String.split "."
             let fnName = WrittenTypes.Name.Unresolved(fnName.range, name)
 
-            (WrittenTypes.PipeExpr.EPipeFnCall(node.range, fnName, [], args))
+            (WrittenTypes.PipeExpr.EPipeFnCall(node.range, fnName, typeArgs, args))
             |> Stdlib.Result.Result.Ok
 
           | _ -> createUnparseableError node

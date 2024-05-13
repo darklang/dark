@@ -3945,6 +3945,53 @@
             }
           },
           {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "FIELD",
+                    "name": "symbol_open_angle",
+                    "content": {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "STRING",
+                        "value": "<"
+                      },
+                      "named": true,
+                      "value": "symbol"
+                    }
+                  },
+                  {
+                    "type": "FIELD",
+                    "name": "type_args",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "type_reference"
+                    }
+                  },
+                  {
+                    "type": "FIELD",
+                    "name": "symbol_close_angle",
+                    "content": {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "STRING",
+                        "value": ">"
+                      },
+                      "named": true,
+                      "value": "symbol"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "BLANK"
+              }
+            ]
+          },
+          {
             "type": "FIELD",
             "name": "args",
             "content": {
@@ -4107,31 +4154,6 @@
         }
       ]
     },
-    "pipe_expression": {
-      "type": "PREC",
-      "value": 10,
-      "content": {
-        "type": "SEQ",
-        "members": [
-          {
-            "type": "FIELD",
-            "name": "expr",
-            "content": {
-              "type": "SYMBOL",
-              "name": "expression"
-            }
-          },
-          {
-            "type": "FIELD",
-            "name": "pipe_exprs",
-            "content": {
-              "type": "SYMBOL",
-              "name": "pipe_exprs"
-            }
-          }
-        ]
-      }
-    },
     "pipe_exprs": {
       "type": "PREC_RIGHT",
       "value": 0,
@@ -4163,6 +4185,31 @@
             }
           ]
         }
+      }
+    },
+    "pipe_expression": {
+      "type": "PREC",
+      "value": 10,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "FIELD",
+            "name": "expr",
+            "content": {
+              "type": "SYMBOL",
+              "name": "expression"
+            }
+          },
+          {
+            "type": "FIELD",
+            "name": "pipe_exprs",
+            "content": {
+              "type": "SYMBOL",
+              "name": "pipe_exprs"
+            }
+          }
+        ]
       }
     },
     "type_reference": {

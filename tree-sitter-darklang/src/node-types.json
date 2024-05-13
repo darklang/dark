@@ -2157,6 +2157,36 @@
             "named": true
           }
         ]
+      },
+      "symbol_close_angle": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_open_angle": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "type_args": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "type_reference",
+            "named": true
+          }
+        ]
       }
     }
   },

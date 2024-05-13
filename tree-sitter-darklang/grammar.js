@@ -818,6 +818,9 @@ module.exports = grammar({
     // ---------------------
     // Pipe expressions
     // ---------------------
+
+    //
+    // Pipe lambda
     pipe_lambda: $ =>
       choice(
         field("pipe_lambda", $.lambda_expression),
@@ -828,6 +831,8 @@ module.exports = grammar({
         ),
       ),
 
+    //
+    // Pipe infix
     pipe_infix: $ =>
       choice(
         // Power
@@ -891,11 +896,19 @@ module.exports = grammar({
         ),
       ),
 
-    // TODO: handle typeArgs?
+    //
+    // Pipe function call
     pipe_fn_call: $ =>
       prec.right(
         seq(
           field("fn", $.qualified_fn_name),
+          optional(
+            seq(
+              field("symbol_open_angle", alias("<", $.symbol)),
+              field("type_args", $.type_reference),
+              field("symbol_close_angle", alias(">", $.symbol)),
+            ),
+          ),
           field(
             "args",
             repeat(choice($.paren_expression, $.simple_expression)),
@@ -903,6 +916,8 @@ module.exports = grammar({
         ),
       ),
 
+    //
+    // Pipe enum
     pipe_enum: $ =>
       prec.right(
         seq(
@@ -928,12 +943,6 @@ module.exports = grammar({
     pipe_expr: $ =>
       choice($.pipe_lambda, $.pipe_infix, $.pipe_fn_call, $.pipe_enum),
 
-    pipe_expression: $ =>
-      prec(
-        PREC.PIPE_EXPR,
-        seq(field("expr", $.expression), field("pipe_exprs", $.pipe_exprs)),
-      ),
-
     pipe_exprs: $ =>
       prec.right(
         repeat1(
@@ -942,6 +951,12 @@ module.exports = grammar({
             field("pipe_expr", $.pipe_expr),
           ),
         ),
+      ),
+
+    pipe_expression: $ =>
+      prec(
+        PREC.PIPE_EXPR,
+        seq(field("expr", $.expression), field("pipe_exprs", $.pipe_exprs)),
       ),
 
     // ---------------------

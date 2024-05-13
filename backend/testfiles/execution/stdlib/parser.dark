@@ -580,6 +580,7 @@ else
     ("33L |> MyEnum.A(21L)" |> roundtripCliScript) = "33L\n|> MyEnum.A (21L)"
     ("1L |> Stdlib.Int64.add 2L" |> roundtripCliScript) = "1L\n|> PACKAGE.Darklang.Stdlib.Int64.add 2L"
     ("1L |> Stdlib.Int64.toString" |> roundtripCliScript) = "1L\n|> PACKAGE.Darklang.Stdlib.Int64.toString"
+    ("\"true\" |> Builtin.jsonParse<Bool>" |> roundtripCliScript) = "\"true\"\n|> Builtin.jsonParse<Bool>"
     ("Stdlib.Int64.add 1L 2L |> Stdlib.Int64.add 1L" |> roundtripCliScript) = "PACKAGE.Darklang.Stdlib.Int64.add 1L 2L\n|> PACKAGE.Darklang.Stdlib.Int64.add 1L"
 
     ("""[1L; 2L]

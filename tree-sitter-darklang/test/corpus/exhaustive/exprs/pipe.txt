@@ -50,6 +50,32 @@ pipe expression - function call with arguments
 
 
 ==================
+pipe expression - function call with type arguments
+==================
+
+"true" |> Builtin.jsonParse<Bool>
+
+---
+
+(source_file
+  (expression
+    (pipe_expression
+      (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
+      (pipe_exprs
+        (symbol)
+        (pipe_expr
+          (pipe_fn_call
+            (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
+            (symbol) (type_reference (builtin_type)) (symbol)
+          )
+        )
+      )
+    )
+  )
+)
+
+
+==================
 pipe expression - variable
 ==================
 
