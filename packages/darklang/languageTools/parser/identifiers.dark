@@ -129,12 +129,7 @@ module Darklang =
                 modules = modules
                 fn = parseFn fnIdentifierNode })
             |> Stdlib.Result.Result.Ok
-          elif node.typ == "fn_identifier" then
-            (WrittenTypes.QualifiedFnIdentifier
-              { range = node.range
-                modules = []
-                fn = parseFn node })
-            |> Stdlib.Result.Result.Ok
+
           else
             Stdlib.Result.Result.Error
               $"Can't parse qualified_fn_name from {node.typ}"
