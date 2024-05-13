@@ -795,7 +795,7 @@ module.exports = grammar({
     apply: $ =>
       prec.right(
         seq(
-          field("fn", choice($.qualified_fn_name, $.fn_identifier)),
+          field("fn", $.qualified_fn_name),
           field(
             "args",
             repeat1(choice($.paren_expression, $.simple_expression)),
@@ -818,30 +818,15 @@ module.exports = grammar({
     // ---------------------
     // Pipe expressions
     // ---------------------
-
-    pipe_variable_or_fn_call: $ =>
-      seq(field("variable_or_fn_name", $.variable_or_fn_identifier)),
-
     pipe_lambda: $ =>
       choice(
-        seq(
-          field("keyword_fun", alias("fun", $.keyword)),
-          field("pats", $.pipe_lambda_pats),
-          field("symbol_arrow", alias("->", $.symbol)),
-          field("body", $.expression),
-        ),
-
+        field("pipe_lambda", $.lambda_expression),
         seq(
           field("symbol_open_paren", alias("(", $.symbol)),
-          field("keyword_fun", alias("fun", $.keyword)),
-          field("pats", $.pipe_lambda_pats),
-          field("symbol_arrow", alias("->", $.symbol)),
-          field("body", $.expression),
+          field("pipe_lambda", $.lambda_expression),
           field("symbol_close_paren", alias(")", $.symbol)),
         ),
       ),
-
-    pipe_lambda_pats: $ => field("pat", repeat1($.let_pattern)),
 
     pipe_infix: $ =>
       choice(
@@ -941,13 +926,7 @@ module.exports = grammar({
       ),
 
     pipe_expr: $ =>
-      choice(
-        $.pipe_variable_or_fn_call,
-        $.pipe_lambda,
-        $.pipe_infix,
-        $.pipe_fn_call,
-        $.pipe_enum,
-      ),
+      choice($.pipe_lambda, $.pipe_infix, $.pipe_fn_call, $.pipe_enum),
 
     pipe_expression: $ =>
       prec(
@@ -1118,8 +1097,6 @@ module.exports = grammar({
 
     // e.g. `double` in `let double (x: Int) = x + x`
     fn_identifier: $ => prec(PREC.FN_IDENTIFIER, /[a-z_][a-zA-Z0-9_]*/),
-
-    variable_or_fn_identifier: $ => /[a-z_][a-zA-Z0-9_]*/,
 
     // e.g. `Person` in `type MyPerson = ...`
     type_identifier: $ => /[A-Z][a-zA-Z0-9_]*/,

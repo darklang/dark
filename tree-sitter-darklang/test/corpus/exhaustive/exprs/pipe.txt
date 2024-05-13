@@ -61,7 +61,7 @@ pipe expression - variable
   (expression
     (pipe_expression
       (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
-      (pipe_exprs (symbol) (pipe_expr (pipe_variable_or_fn_call (variable_or_fn_identifier))))
+      (pipe_exprs (symbol) (pipe_expr (pipe_fn_call (qualified_fn_name (fn_identifier)))))
     )
   )
 )
@@ -103,7 +103,7 @@ let fn = (fun x -> x + 1L)
       (expression
         (pipe_expression
           (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
-          (pipe_exprs (symbol) (pipe_expr (pipe_variable_or_fn_call (variable_or_fn_identifier))))
+          (pipe_exprs (symbol) (pipe_expr (pipe_fn_call (qualified_fn_name (fn_identifier)))))
         )
       )
     )
@@ -204,14 +204,16 @@ pipe expression - lambda without parens
         (symbol)
         (pipe_expr
           (pipe_lambda
-            (keyword)
-            (pipe_lambda_pats (let_pattern (variable_identifier)))
-            (symbol)
-            (expression
-              (infix_operation
-                (expression (simple_expression (variable_identifier)))
-                (operator)
-                (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+            (lambda_expression
+              (keyword)
+              (lambda_pats (let_pattern (variable_identifier)))
+              (symbol)
+              (expression
+                (infix_operation
+                  (expression (simple_expression (variable_identifier)))
+                  (operator)
+                  (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                )
               )
             )
           )
@@ -241,14 +243,16 @@ pipe expression - lambda with parens
         (pipe_expr
           (pipe_lambda
             (symbol)
-              (keyword)
-              (pipe_lambda_pats (let_pattern (variable_identifier)))
-              (symbol)
-              (expression
-                (infix_operation
-                  (expression (simple_expression (variable_identifier)))
-                  (operator)
-                  (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+              (lambda_expression
+                (keyword)
+                (lambda_pats (let_pattern (variable_identifier)))
+                (symbol)
+                (expression
+                  (infix_operation
+                    (expression (simple_expression (variable_identifier)))
+                    (operator)
+                    (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                  )
                 )
               )
             (symbol)

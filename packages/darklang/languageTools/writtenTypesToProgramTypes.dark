@@ -358,24 +358,29 @@ module Darklang =
 
               ProgramTypes.PipeExpr.EPipeEnum(gid (), typeName, caseName, fields)
 
+            // TODO: rename to EPipeVariableOrFnCall
             | EPipeFnCall(_, fnName, typeArgs, args) ->
-              let fnName = NameResolver.FnName.resolve onMissing [] fnName
+              let (range, name) =
+                match fnName with
+                | Unresolved(range, fnName) -> (range, fnName)
+
+              let resolved =
+                NameResolver.FnName.resolve
+                  onMissing
+                  []
+                  (WrittenTypes.Name.Unresolved(range, name))
 
               let typeArgs =
                 Stdlib.List.map typeArgs (fun t -> TypeReference.toPT onMissing t)
 
               let args = Stdlib.List.map args (fun a -> Expr.toPT onMissing a)
 
-              ProgramTypes.PipeExpr.EPipeFnCall(gid (), fnName, typeArgs, args)
-
-            | EPipeVariableOrFnCall(range, var) ->
-              let asUserFnName = WrittenTypes.Name.Unresolved(range, [ var ])
-
-              let resolved = NameResolver.FnName.resolve onMissing [] asUserFnName
-
               match resolved with
-              | Ok name -> ProgramTypes.PipeExpr.EPipeFnCall(gid (), name, [], [])
-              | Error _ -> ProgramTypes.PipeExpr.EPipeVariable(gid (), var, [])
+              | Ok _ ->
+                ProgramTypes.PipeExpr.EPipeFnCall(gid (), resolved, typeArgs, args)
+              | Error _ ->
+                let name = name |> Stdlib.List.last |> Builtin.unwrap
+                ProgramTypes.PipeExpr.EPipeVariable(gid (), name, typeArgs)
 
 
         let toPT

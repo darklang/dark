@@ -22,10 +22,6 @@
         "required": true,
         "types": [
           {
-            "type": "fn_identifier",
-            "named": true
-          },
-          {
             "type": "qualified_fn_name",
             "named": true
           }
@@ -2078,10 +2074,6 @@
         {
           "type": "pipe_lambda",
           "named": true
-        },
-        {
-          "type": "pipe_variable_or_fn_call",
-          "named": true
         }
       ]
     }
@@ -2218,42 +2210,12 @@
     "type": "pipe_lambda",
     "named": true,
     "fields": {
-      "body": {
+      "pipe_lambda": {
         "multiple": false,
         "required": true,
         "types": [
           {
-            "type": "expression",
-            "named": true
-          }
-        ]
-      },
-      "keyword_fun": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "keyword",
-            "named": true
-          }
-        ]
-      },
-      "pats": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "pipe_lambda_pats",
-            "named": true
-          }
-        ]
-      },
-      "symbol_arrow": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "symbol",
+            "type": "lambda_expression",
             "named": true
           }
         ]
@@ -2274,38 +2236,6 @@
         "types": [
           {
             "type": "symbol",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
-    "type": "pipe_lambda_pats",
-    "named": true,
-    "fields": {
-      "pat": {
-        "multiple": true,
-        "required": true,
-        "types": [
-          {
-            "type": "let_pattern",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
-    "type": "pipe_variable_or_fn_call",
-    "named": true,
-    "fields": {
-      "variable_or_fn_name": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "variable_or_fn_identifier",
             "named": true
           }
         ]

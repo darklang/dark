@@ -314,7 +314,7 @@ Builtin.printLine (getTitle curiousGeorgeBookId)
       (paren_expression
         (symbol)
         (expression
-          (apply (fn_identifier) (simple_expression (variable_identifier))))
+          (apply (qualified_fn_name (fn_identifier)) (simple_expression (variable_identifier))))
         (symbol)
       )
       (newline)

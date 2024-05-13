@@ -3383,17 +3383,8 @@
             "type": "FIELD",
             "name": "fn",
             "content": {
-              "type": "CHOICE",
-              "members": [
-                {
-                  "type": "SYMBOL",
-                  "name": "qualified_fn_name"
-                },
-                {
-                  "type": "SYMBOL",
-                  "name": "fn_identifier"
-                }
-              ]
+              "type": "SYMBOL",
+              "name": "qualified_fn_name"
             }
           },
           {
@@ -3490,68 +3481,16 @@
         }
       ]
     },
-    "pipe_variable_or_fn_call": {
-      "type": "SEQ",
-      "members": [
-        {
-          "type": "FIELD",
-          "name": "variable_or_fn_name",
-          "content": {
-            "type": "SYMBOL",
-            "name": "variable_or_fn_identifier"
-          }
-        }
-      ]
-    },
     "pipe_lambda": {
       "type": "CHOICE",
       "members": [
         {
-          "type": "SEQ",
-          "members": [
-            {
-              "type": "FIELD",
-              "name": "keyword_fun",
-              "content": {
-                "type": "ALIAS",
-                "content": {
-                  "type": "STRING",
-                  "value": "fun"
-                },
-                "named": true,
-                "value": "keyword"
-              }
-            },
-            {
-              "type": "FIELD",
-              "name": "pats",
-              "content": {
-                "type": "SYMBOL",
-                "name": "pipe_lambda_pats"
-              }
-            },
-            {
-              "type": "FIELD",
-              "name": "symbol_arrow",
-              "content": {
-                "type": "ALIAS",
-                "content": {
-                  "type": "STRING",
-                  "value": "->"
-                },
-                "named": true,
-                "value": "symbol"
-              }
-            },
-            {
-              "type": "FIELD",
-              "name": "body",
-              "content": {
-                "type": "SYMBOL",
-                "name": "expression"
-              }
-            }
-          ]
+          "type": "FIELD",
+          "name": "pipe_lambda",
+          "content": {
+            "type": "SYMBOL",
+            "name": "lambda_expression"
+          }
         },
         {
           "type": "SEQ",
@@ -3571,44 +3510,10 @@
             },
             {
               "type": "FIELD",
-              "name": "keyword_fun",
-              "content": {
-                "type": "ALIAS",
-                "content": {
-                  "type": "STRING",
-                  "value": "fun"
-                },
-                "named": true,
-                "value": "keyword"
-              }
-            },
-            {
-              "type": "FIELD",
-              "name": "pats",
+              "name": "pipe_lambda",
               "content": {
                 "type": "SYMBOL",
-                "name": "pipe_lambda_pats"
-              }
-            },
-            {
-              "type": "FIELD",
-              "name": "symbol_arrow",
-              "content": {
-                "type": "ALIAS",
-                "content": {
-                  "type": "STRING",
-                  "value": "->"
-                },
-                "named": true,
-                "value": "symbol"
-              }
-            },
-            {
-              "type": "FIELD",
-              "name": "body",
-              "content": {
-                "type": "SYMBOL",
-                "name": "expression"
+                "name": "lambda_expression"
               }
             },
             {
@@ -3627,17 +3532,6 @@
           ]
         }
       ]
-    },
-    "pipe_lambda_pats": {
-      "type": "FIELD",
-      "name": "pat",
-      "content": {
-        "type": "REPEAT1",
-        "content": {
-          "type": "SYMBOL",
-          "name": "let_pattern"
-        }
-      }
     },
     "pipe_infix": {
       "type": "CHOICE",
@@ -4195,10 +4089,6 @@
     "pipe_expr": {
       "type": "CHOICE",
       "members": [
-        {
-          "type": "SYMBOL",
-          "name": "pipe_variable_or_fn_call"
-        },
         {
           "type": "SYMBOL",
           "name": "pipe_lambda"
@@ -4914,10 +4804,6 @@
         "type": "PATTERN",
         "value": "[a-z_][a-zA-Z0-9_]*"
       }
-    },
-    "variable_or_fn_identifier": {
-      "type": "PATTERN",
-      "value": "[a-z_][a-zA-Z0-9_]*"
     },
     "type_identifier": {
       "type": "PATTERN",

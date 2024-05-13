@@ -73,6 +73,7 @@ module Darklang =
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.PipeExpr, WrittenTypes.Unparseable> =
           if node.typ == "pipe_lambda" then
+            let node = (findField node "pipe_lambda") |> Builtin.unwrap
             let keywordFun = findField node "keyword_fun"
 
             let patsNode =
@@ -160,7 +161,8 @@ module Darklang =
 
           match fnNameNode, args with
           | Ok fnName, Ok args ->
-            let fnName = WrittenTypes.Name.Unresolved(fnName.range, [ fnName.text ])
+            let name = fnName.text |> Stdlib.String.split "."
+            let fnName = WrittenTypes.Name.Unresolved(fnName.range, name)
 
             (WrittenTypes.PipeExpr.EPipeFnCall(node.range, fnName, [], args))
             |> Stdlib.Result.Result.Ok
@@ -180,8 +182,4 @@ module Darklang =
               | "pipe_lambda" -> parsePipeLambda child
               | "pipe_enum" -> parsePipeEnum child
               | "pipe_fn_call" -> parsePipeFnCall child
-              | "pipe_variable_or_fn_call" ->
-                (WrittenTypes.PipeExpr.EPipeVariableOrFnCall(node.range, node.text))
-                |> Stdlib.Result.Result.Ok
-
             | _ -> createUnparseableError node
