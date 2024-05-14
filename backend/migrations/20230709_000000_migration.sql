@@ -8,6 +8,8 @@ system_migrations_v0
 
 CREATE TABLE IF NOT EXISTS
 accounts_v0
+-- TODO include name
+-- and update references (i.e. in package_types) to be based on id
 ( id UUID PRIMARY KEY
 , created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -19,18 +21,11 @@ CREATE TABLE IF NOT EXISTS
 package_types_v0
 ( id UUID PRIMARY KEY
 , tlid BIGINT NOT NULL -- for tracing
-  /* owner/namespace part of the string, eg dark.
-   * CLEANUP This isn't a good way to store this because the username should be
-   * stored in the editor canvas. But we haven't got all the details worked out so
-   * for now store the owner */
--- allow search by name
-, owner TEXT NOT NULL
-, modules TEXT NOT NULL /* eg Twitter.Other; includes package name, but not owner name */
-, typename TEXT NOT NULL /* eg sendText */
-, version INTEGER NOT NULL /* eg 0 */
--- the actual definition
-, definition BYTEA NOT NULL /* the whole thing serialized as binary */
--- bonus
+, owner TEXT NOT NULL -- e.g. Darklang
+, modules TEXT NOT NULL -- e.g. Twitter.Other
+, typename TEXT NOT NULL -- e.g. TextMetadata
+, version INTEGER NOT NULL -- e.g. 0
+, definition BYTEA NOT NULL -- the whole thing serialized as binary, in ProgramTypes form
 , created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -38,14 +33,12 @@ package_types_v0
 CREATE TABLE IF NOT EXISTS
 package_constants_v0
 ( id UUID PRIMARY KEY
-, tlid BIGINT NOT NULL
-, owner TEXT NOT NULL
-, modules TEXT NOT NULL /* eg Twitter.Other; includes package name, but not owner name */
-, name TEXT NOT NULL /* eg pi */
-, version INTEGER NOT NULL /* eg 0 */
--- the actual definition
-, definition BYTEA NOT NULL /* the whole thing serialized as binary */
--- bonus
+, tlid BIGINT NOT NULL -- for tracing
+, owner TEXT NOT NULL -- e.g. Darklang
+, modules TEXT NOT NULL -- e.g. Math.Geometry
+, name TEXT NOT NULL -- e.g. pi
+, version INTEGER NOT NULL -- e.g. 0
+, definition BYTEA NOT NULL -- the whole thing serialized as binary, in ProgramTypes form
 , created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -53,18 +46,11 @@ CREATE TABLE IF NOT EXISTS
 package_functions_v0
 ( id UUID PRIMARY KEY
 , tlid BIGINT NOT NULL -- for tracing
-  /* owner/namespace part of the string, e.g. dark.
-   * CLEANUP This isn't a good way to store this because the username should be
-   * stored in the editor canvas. But we haven't got all the details worked out so
-   * for now store the owner */
--- allow search by name
-, owner TEXT NOT NULL
-, modules TEXT NOT NULL /* eg Twitter.Other; includes package name, but not owner name */
-, fnname TEXT NOT NULL /* eg sendText */
-, version INTEGER NOT NULL /* e.g. 0 */
--- the actual definition
-, definition BYTEA NOT NULL /* the whole thing serialized as binary */
--- bonus
+, owner TEXT NOT NULL -- e.g. Darklang
+, modules TEXT NOT NULL -- e.g. Twitter.Other
+, fnname TEXT NOT NULL -- e.g. sendText
+, version INTEGER NOT NULL -- e.g. 0
+, definition BYTEA NOT NULL -- the whole thing serialized as binary, in ProgramTypes form
 , created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
