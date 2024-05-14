@@ -54,11 +54,7 @@ let packageName
 module FQTypeName =
   /// The name of a type in the package manager
   type Package =
-
-    { owner : string
-      modules : List<string>
-      name : string
-      version : int }
+    { owner : string; modules : List<string>; name : string; version : int }
 
   type FQTypeName = Package of Package
 
@@ -97,10 +93,7 @@ module FQConstantName =
 
   /// The name of a constant in the package manager
   type Package =
-    { owner : string
-      modules : List<string>
-      name : string
-      version : int }
+    { owner : string; modules : List<string>; name : string; version : int }
 
   type FQConstantName =
     | Builtin of Builtin
@@ -154,10 +147,7 @@ module FQFnName =
 
   /// The name of a function in the package manager
   type Package =
-    { owner : string
-      modules : List<string>
-      name : string
-      version : int }
+    { owner : string; modules : List<string>; name : string; version : int }
 
   type FQFnName =
     | Builtin of Builtin
@@ -423,9 +413,9 @@ type Expr =
 
   // -- References to custom types and data --
   | EConstant of
-    id
+    id *
     // TODO: this reference should be by-hash
-    * NameResolution<FQConstantName.FQConstantName>
+    NameResolution<FQConstantName.FQConstantName>
 
   // See NameResolution comment above
   | ERecord of
@@ -546,7 +536,6 @@ module TypeDeclaration =
   type T = { typeParams : List<string>; definition : Definition }
 
 
-// TODO: consider renaming to ConstDeclaration
 type Const =
   | CInt64 of int64
   | CUInt64 of uint64
@@ -567,7 +556,9 @@ type Const =
 
   | CEnum of
     // TODO: this reference should be by-hash
-    NameResolution<FQTypeName.FQTypeName> * caseName : string * List<Const>
+    NameResolution<FQTypeName.FQTypeName> *
+    caseName : string *
+    fields : List<Const>
   | CList of List<Const>
   | CDict of List<string * Const>
 

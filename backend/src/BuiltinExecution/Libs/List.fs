@@ -8,7 +8,6 @@ module VT = ValueType
 module Dval = LibExecution.Dval
 module Interpreter = LibExecution.Interpreter
 module TypeChecker = LibExecution.TypeChecker
-module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
 
 // CLEANUP something like type ComparatorResult = Higher | Lower | Same

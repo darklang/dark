@@ -78,10 +78,7 @@ let packageName
 module FQTypeName =
   /// The name of a type in the package manager
   type Package =
-    { owner : string
-      modules : List<string>
-      name : string
-      version : int }
+    { owner : string; modules : List<string>; name : string; version : int }
 
   type FQTypeName = Package of Package
 
@@ -120,10 +117,7 @@ module FQConstantName =
 
   /// The name of a constant in the package manager
   type Package =
-    { owner : string
-      modules : List<string>
-      name : string
-      version : int }
+    { owner : string; modules : List<string>; name : string; version : int }
 
   type FQConstantName =
     | Builtin of Builtin
@@ -173,10 +167,7 @@ module FQFnName =
 
   /// The name of a function in the package manager
   type Package =
-    { owner : string
-      modules : List<string>
-      name : string
-      version : int }
+    { owner : string; modules : List<string>; name : string; version : int }
 
   type FQFnName =
     | Builtin of Builtin
@@ -1190,7 +1181,6 @@ module Dval =
     | _ -> None
 
 
-// TODO: rename to ConstDeclaration
 type Const =
   | CUnit
   | CBool of bool
@@ -1346,7 +1336,6 @@ type SqlSpec =
 
   /// Can be implemented by given callback that receives 1 SQLified-string argument
   /// | SqlCallback of (string -> string)
-
   /// Can be implemented by given callback that receives 2 SQLified-string argument
   | SqlCallback2 of (string -> string -> string)
 
@@ -1387,7 +1376,8 @@ type BuiltInFn =
     fn : BuiltInFnSig }
 
 and Fn =
-  { name : FQFnName.FQFnName
+  {
+    name : FQFnName.FQFnName
     typeParams : List<string>
     parameters : NEList<Param>
     returnType : TypeReference
@@ -1397,7 +1387,8 @@ and Fn =
     /// <remarks>
     /// May throw an exception, though we're trying to get them to never throw exceptions.
     /// </remarks>
-    fn : FnImpl }
+    fn : FnImpl
+  }
 
 // TODO: consider making this a record instead of a tuple
 and BuiltInFnSig =
@@ -1563,9 +1554,7 @@ module ExecutionState =
 
 
 module Types =
-  let empty =
-    { typeSymbolTable = Map.empty
-      package = (fun _ -> Ply None) }
+  let empty = { typeSymbolTable = Map.empty; package = (fun _ -> Ply None) }
 
   let find
     // TODO: swap these args

@@ -1,8 +1,10 @@
-/// Fetches package items from a web-based package manager
-/// hosted in a `dark-packages` canvas.
+/// Fetches package items from a web-based package manager, for CLI runtimes.
 ///
 /// TODO: this currently assumes that the package items match the shape
 /// of Dark types defined in @Darklang.LanguageTools.ProgramTypes
+///
+/// TODO: move this to something more CLI-focused,
+/// and review if current usages are appropriate.
 module LibPackageManager.PackageManager
 
 open System.Threading.Tasks
