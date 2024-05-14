@@ -187,8 +187,6 @@ let getConstant
   }
 
 
-// CLEANUP this package manager should be removed, and all usages replaced with the
-// one that fetches things from the `dark-packages` canvas' http endpoints
 let packageManager : RT.PackageManager =
   let withCache (f : 'name -> Ply<Option<'value>>) =
     let cache = System.Collections.Concurrent.ConcurrentDictionary<'name, 'value>()
@@ -213,6 +211,7 @@ let packageManager : RT.PackageManager =
           let! typ = name |> PT2RT.FQTypeName.Package.fromRT |> getType
           return Option.map PT2RT.PackageType.toRT typ
         })
+
     getFn =
       withCache (fun name ->
         uply {

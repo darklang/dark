@@ -1,69 +1,7 @@
 module Darklang =
   /// some types that correspond to the `dark-packages` canvas
   module DarkPackages =
-    type GenericName =
-      { owner: String
-        modules: List<String>
-        name: String
-        version: Int64 }
-
-    type Category =
-      | Fn
-      | Type
-      | Constant
-
-    type PackageItem =
-      | Fn of LanguageTools.ProgramTypes.PackageFn.PackageFn
-      | Type of LanguageTools.ProgramTypes.PackageType
-      | Constant of LanguageTools.ProgramTypes.PackageConstant
-
-    // TODO: follow up on the shape of this
-    /// an entry in the package manager's DB
-    type Entry =
-      { name: GenericName
-        category: Category
-        item: PackageItem }
-
-
-    let parseVersion (name: String) : (String * Int64) =
-      match Stdlib.String.split name "_v" with
-      | [ name ] -> (name, 0L)
-      | [ name; version ] -> (name, version |> Builtin.int64Parse |> Builtin.unwrap)
-
-
-    let parseName (name: String) : GenericName =
-      let parts = Stdlib.String.split name "."
-      let owner = (Stdlib.List.head parts) |> Builtin.unwrap
-      let name = (Stdlib.List.last parts) |> Builtin.unwrap
-
-      let modules =
-        parts |> Stdlib.List.tail |> Builtin.unwrap |> Stdlib.List.dropLast
-
-      let (name, version) = parseVersion name
-
-      GenericName
-        { owner = owner
-          modules = modules
-          name = name
-          version = version }
-
-
-    /// Support function for fetchByName and fetchById
-    let makeResponseForEntryMaybe
-      (entry: Stdlib.Option.Option<Entry>)
-      : Stdlib.Http.Response =
-      match entry with
-      | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
-      | Some entry ->
-        let json =
-          match entry.item with
-          | Fn fn ->
-            Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageFn.PackageFn> fn
-          | Constant const' ->
-            Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageConstant> const'
-          | Type typ ->
-            Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageType> typ
-
-        let respBody = json |> Stdlib.String.toBytes
-
-        Stdlib.Http.response respBody 200L
+    type Stats =
+      { types: Int64
+        constants: Int64
+        fns: Int64 }
