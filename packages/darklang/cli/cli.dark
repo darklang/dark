@@ -2,7 +2,6 @@ module Darklang =
   module Cli =
     type Command =
       | Help
-      | PackageViewer of PackageViewer.Command
       | RunFunction of flags: List<String> * fnName: String * args: List<String>
       | RunScript of String * List<String>
       | RunInstallOrUpdate
@@ -35,11 +34,6 @@ module Darklang =
       | [ "help" ] -> Command.Help
 
       | [ "uninstall" ] -> Command.Uninstall
-
-      | "package" :: args ->
-        match PackageViewer.parseCommand args with
-        | Ok command -> Command.PackageViewer command
-        | Error _ -> Command.Invalid [ "Invalid package command" ]
 
       | [ "install" ] -> Command.RunInstallOrUpdate
       | [ "update" ] -> Command.RunInstallOrUpdate
@@ -133,8 +127,6 @@ dark help                                     Show this help message and exit
 dark [function name]                          Run a function in the package manager
   i.e. `darklang @Darklang.Stdlib.Bool.and true false`
 
-dark package                                  Explore the contents of the package manager
-
 dark [script path]                            Run a .dark script
   i.e. `darklang ./my-script.dark`
 
@@ -144,8 +136,6 @@ dark update                                   Update the darklang CLI to the lat
 """
 
         0L
-
-      | PackageViewer command -> PackageViewer.executeCommand command
 
       | RunScript(scriptPath, args) -> runScript scriptPath args
 
