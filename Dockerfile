@@ -317,6 +317,9 @@ RUN /home/dark/install-dotnet8 \
 RUN dotnet tool install fantomas --version 6.2.3 -g
 ENV PATH "$PATH:/home/dark/bin:/home/dark/.dotnet/tools"
 
+# without this, dotnet restore seems to fail, accessing the wrong path
+ENV NUGET_SCRATCH=/tmp/NuGetScratch
+
 #############
 # Emscripten,
 # for compiling the tree-sitter parser to wasm
