@@ -29,6 +29,8 @@ module Darklang =
             | "Float" -> (TBuiltin.TFloat node.range) |> builtin
             | "Char" -> (TBuiltin.TChar node.range) |> builtin
             | "String" -> (TBuiltin.TString node.range) |> builtin
+            | "DateTime" -> (TBuiltin.TDateTime node.range) |> builtin
+            | "Uuid" -> (TBuiltin.TUuid node.range) |> builtin
 
             | _ ->
               let firstChild = node.children |> Stdlib.List.head |> Builtin.unwrap
@@ -128,6 +130,15 @@ module Darklang =
                     closeBracket.range)
                   |> builtin
 
+                | _ -> createUnparseableError node
+
+              | "variable_type_reference" ->
+                let variableName = findField firstChild "variable"
+
+                match variableName with
+                | Ok variableName ->
+                  (TBuiltin.TVariable variableName.range variableName.text)
+                  |> builtin
                 | _ -> createUnparseableError node
           else
             createUnparseableError node
