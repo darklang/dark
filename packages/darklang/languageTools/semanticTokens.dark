@@ -154,7 +154,7 @@ module Darklang =
                 [ makeToken rc TokenType.Symbol ] ]
               |> Stdlib.List.flatten
 
-            | TVariable (r, _) -> [ makeToken r TokenType.TypeName ]
+            | TVariable(r, _) -> [ makeToken r TokenType.TypeName ]
 
         let tokenize
           (t: WrittenTypes.TypeReference.TypeReference)
