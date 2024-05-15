@@ -70,14 +70,12 @@ module Darklang =
             | TFloat _range -> ProgramTypes.TypeReference.TFloat
             | TChar _range -> ProgramTypes.TypeReference.TChar
             | TString _range -> ProgramTypes.TypeReference.TString
+            | TDateTime _range -> ProgramTypes.TypeReference.TDateTime
+            | TUuid _range -> ProgramTypes.TypeReference.TUuid
+
             | TList(_range, _, _, typ, _) ->
               let typ = TypeReference.toPT onMissing typ
               ProgramTypes.TypeReference.TList(typ)
-
-            | TDict(_range, _, _, valueType, _) ->
-              let valueType = TypeReference.toPT onMissing valueType
-
-              ProgramTypes.TypeReference.TDict valueType
 
             | TTuple(_range, firstType, _, secondType, restTypes, _, _) ->
               let firstType = TypeReference.toPT onMissing firstType
@@ -89,9 +87,13 @@ module Darklang =
 
               ProgramTypes.TypeReference.TTuple(firstType, secondType, restTypes)
 
-            | TDateTime _range -> ProgramTypes.TypeReference.TDateTime
-            | TUuid _range -> ProgramTypes.TypeReference.TUuid
+            | TDict(_range, _, _, valueType, _) ->
+              let valueType = TypeReference.toPT onMissing valueType
 
+              ProgramTypes.TypeReference.TDict valueType
+
+
+            | TVariable(_range, name) -> ProgramTypes.TypeReference.TVariable name
 
         let toPT
           (onMissing: NameResolver.OnMissing)
