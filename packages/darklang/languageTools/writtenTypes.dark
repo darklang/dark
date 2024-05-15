@@ -52,6 +52,8 @@ module Darklang =
           | TFloat of Range
           | TChar of Range
           | TString of Range
+          | TDateTime of Range
+          | TUuid of Range
 
           | TList of
             Range *
@@ -59,13 +61,6 @@ module Darklang =
             openBracket: Range *
             typ: TypeReference.TypeReference *
             closeBracket: Range
-
-          | TDict of
-            Range *
-            keywordDict: Range *
-            openBrace: Range *
-            typ: TypeReference.TypeReference *
-            closeBrace: Range
 
           | TTuple of
             Range *
@@ -76,8 +71,14 @@ module Darklang =
             openParen: Range *
             closeParen: Range
 
-          | TDateTime of Range
-          | TUuid of Range
+          | TDict of
+            Range *
+            keywordDict: Range *
+            openBrace: Range *
+            typ: TypeReference.TypeReference *
+            closeBrace: Range
+
+          | TVariable of Range * String
 
 
         type TypeReference =

@@ -233,9 +233,13 @@ module TextToTextRoundtripping =
     ("type MyChar = Char" |> roundtripCliScript) = "type MyChar =\n  Char"
     ("type MyString = String" |> roundtripCliScript) = "type MyString =\n  String"
 
+    ("type MyDateTime = DateTime" |> roundtripCliScript) = "type MyDateTime =\n  DateTime"
+    ("type MyUuid = Uuid" |> roundtripCliScript) = "type MyUuid =\n  Uuid"
+
     ("type MyList = List<String>" |> roundtripCliScript) = "type MyList =\n  List<String>"
     ("type MyList = List<List<String>>" |> roundtripCliScript) = "type MyList =\n  List<List<String>>"
     ("type MyList = List<MyString>" |> roundtripCliScript) = "type MyList =\n  List<MyString>"
+    ("type MyList = List<'a>" |> roundtripCliScript) = "type MyList =\n  List<'a>"
 
     ("type MyDict = Dict<Int64>" |> roundtripCliScript) = "type MyDict =\n  Dict<Int64>"
     ("type MyDict = Dict<MyList>" |> roundtripCliScript) = "type MyDict =\n  Dict<MyList>"
@@ -243,6 +247,9 @@ module TextToTextRoundtripping =
     ("type MyTuple2 = (String * Int64)" |> roundtripCliScript) = "type MyTuple2 =\n  (String * Int64)"
     ("type MyTuple3 = (String * Int64 * Bool)" |> roundtripCliScript) = "type MyTuple3 =\n  (String * Int64 * Bool)"
     ("type MyTuple = (String * Int64 * Bool * Unit)" |> roundtripCliScript) = "type MyTuple =\n  (String * Int64 * Bool * Unit)"
+
+    ("type MyVar = 'a" |> roundtripCliScript) = "type MyVar =\n  'a"
+
     // single-part qualified name
     ("type ID = Test" |> roundtripCliScript) = "type ID =\n  Test"
 

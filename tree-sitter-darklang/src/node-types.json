@@ -68,6 +68,10 @@
         {
           "type": "tuple_type_reference",
           "named": true
+        },
+        {
+          "type": "variable_type_reference",
+          "named": true
         }
       ]
     }
@@ -3181,6 +3185,32 @@
     "type": "variable_identifier",
     "named": true,
     "fields": {}
+  },
+  {
+    "type": "variable_type_reference",
+    "named": true,
+    "fields": {
+      "symbol_single_quote": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "variable": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "variable_identifier",
+            "named": true
+          }
+        ]
+      }
+    }
   },
   {
     "type": "\n",

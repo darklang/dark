@@ -116,6 +116,8 @@ module Darklang =
             | TFloat r -> [ makeToken r TokenType.TypeName ]
             | TChar r -> [ makeToken r TokenType.TypeName ]
             | TString r -> [ makeToken r TokenType.TypeName ]
+            | TUuid r -> [ makeToken r TokenType.TypeName ]
+            | TDateTime r -> [ makeToken r TokenType.TypeName ]
             | TList(r, rk, ro, t, rc) ->
               Stdlib.List.flatten (
                 [ [ makeToken r TokenType.TypeName ]
@@ -152,6 +154,7 @@ module Darklang =
                 [ makeToken rc TokenType.Symbol ] ]
               |> Stdlib.List.flatten
 
+            | TVariable(r, _) -> [ makeToken r TokenType.TypeName ]
 
         let tokenize
           (t: WrittenTypes.TypeReference.TypeReference)

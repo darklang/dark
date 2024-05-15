@@ -3434,8 +3434,8 @@
           "name": "dict_type_reference"
         },
         {
-          "type": "PATTERN",
-          "value": "DateTime"
+          "type": "SYMBOL",
+          "name": "variable_type_reference"
         },
         {
           "type": "PATTERN",
@@ -3648,6 +3648,32 @@
             },
             "named": true,
             "value": "symbol"
+          }
+        }
+      ]
+    },
+    "variable_type_reference": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "symbol_single_quote",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "'"
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "variable",
+          "content": {
+            "type": "SYMBOL",
+            "name": "variable_identifier"
           }
         }
       ]
