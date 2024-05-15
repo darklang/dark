@@ -96,16 +96,10 @@ module NameResolution =
 module FQTypeName =
   module Package =
     let toST (name : PT.FQTypeName.Package) : ST.FQTypeName.Package =
-      { owner = name.owner
-        modules = name.modules
-        name = name.name
-        version = name.version }
+      { owner = name.owner; modules = name.modules; name = name.name }
 
     let toPT (name : ST.FQTypeName.Package) : PT.FQTypeName.Package =
-      { owner = name.owner
-        modules = name.modules
-        name = name.name
-        version = name.version }
+      { owner = name.owner; modules = name.modules; name = name.name }
 
   let toST (name : PT.FQTypeName.FQTypeName) : ST.FQTypeName.FQTypeName =
     match name with
@@ -126,16 +120,10 @@ module FQConstantName =
 
   module Package =
     let toST (name : PT.FQConstantName.Package) : ST.FQConstantName.Package =
-      { owner = name.owner
-        modules = name.modules
-        name = name.name
-        version = name.version }
+      { owner = name.owner; modules = name.modules; name = name.name }
 
     let toPT (name : ST.FQConstantName.Package) : PT.FQConstantName.Package =
-      { owner = name.owner
-        modules = name.modules
-        name = name.name
-        version = name.version }
+      { owner = name.owner; modules = name.modules; name = name.name }
 
   let toST
     (name : PT.FQConstantName.FQConstantName)
@@ -162,16 +150,10 @@ module FQFnName =
 
   module Package =
     let toST (name : PT.FQFnName.Package) : ST.FQFnName.Package =
-      { owner = name.owner
-        modules = name.modules
-        name = name.name
-        version = name.version }
+      { owner = name.owner; modules = name.modules; name = name.name }
 
     let toPT (name : ST.FQFnName.Package) : PT.FQFnName.Package =
-      { owner = name.owner
-        modules = name.modules
-        name = name.name
-        version = name.version }
+      { owner = name.owner; modules = name.modules; name = name.name }
 
   let toST (name : PT.FQFnName.FQFnName) : ST.FQFnName.FQFnName =
     match name with

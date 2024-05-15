@@ -10,24 +10,15 @@ module D = DvalDecoder
 let languageToolsTyp
   (submodules : List<string>)
   (name : string)
-  (version : int)
   : FQTypeName.FQTypeName =
-  FQTypeName.fqPackage "Darklang" ("LanguageTools" :: submodules) name version
+  FQTypeName.fqPackage "Darklang" ("LanguageTools" :: submodules) name
 
 
-let rtTyp
-  (submodules : List<string>)
-  (name : string)
-  (version : int)
-  : FQTypeName.FQTypeName =
-  languageToolsTyp ("RuntimeTypes" :: submodules) name version
+let rtTyp (submodules : List<string>) (name : string) : FQTypeName.FQTypeName =
+  languageToolsTyp ("RuntimeTypes" :: submodules) name
 
-let errorsTyp
-  (submodules : List<string>)
-  (name : string)
-  (version : int)
-  : FQTypeName.FQTypeName =
-  languageToolsTyp ("Errors" :: submodules) name version
+let errorsTyp (submodules : List<string>) (name : string) : FQTypeName.FQTypeName =
+  languageToolsTyp ("Errors" :: submodules) name
 
 
 // TODO: should these be elsewhere?
@@ -38,16 +29,15 @@ let versionField m = m |> D.intField "version"
 
 
 module FQTypeName =
-  let knownType = KTCustomType(rtTyp [ "FQTypeName" ] "FQTypeName" 0, [])
+  let knownType = KTCustomType(rtTyp [ "FQTypeName" ] "FQTypeName", [])
 
   module Package =
     let toDT (u : FQTypeName.Package) : Dval =
       let fields =
         [ "owner", DString u.owner
           "modules", DList(VT.string, List.map DString u.modules)
-          "name", DString u.name
-          "version", DInt64 u.version ]
-      let typeName = rtTyp [ "FQTypeName" ] "Package" 0
+          "name", DString u.name ]
+      let typeName = rtTyp [ "FQTypeName" ] "Package"
       DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : FQTypeName.Package =
@@ -55,8 +45,7 @@ module FQTypeName =
       | DRecord(_, _, _, fields) ->
         { owner = ownerField fields
           modules = modulesField fields
-          name = nameField fields
-          version = versionField fields }
+          name = nameField fields }
       | _ -> Exception.raiseInternal "Invalid FQTypeName.Package" []
 
 
@@ -65,7 +54,7 @@ module FQTypeName =
       match u with
       | FQTypeName.Package u -> "Package", [ Package.toDT u ]
 
-    let typeName = rtTyp [ "FQTypeName" ] "FQTypeName" 0
+    let typeName = rtTyp [ "FQTypeName" ] "FQTypeName"
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -76,12 +65,12 @@ module FQTypeName =
 
 
 module FQConstantName =
-  let knownType = KTCustomType(rtTyp [ "FQConstantName" ] "FQConstantName" 0, [])
+  let knownType = KTCustomType(rtTyp [ "FQConstantName" ] "FQConstantName", [])
 
   module Builtin =
     let toDT (u : FQConstantName.Builtin) : Dval =
       let fields = [ "name", DString u.name; "version", DInt64 u.version ]
-      let typeName = rtTyp [ "FQConstantName" ] "Builtin" 0
+      let typeName = rtTyp [ "FQConstantName" ] "Builtin"
       DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : FQConstantName.Builtin =
@@ -95,9 +84,8 @@ module FQConstantName =
       let fields =
         [ "owner", DString u.owner
           "modules", DList(VT.string, List.map DString u.modules)
-          "name", DString u.name
-          "version", DInt64 u.version ]
-      let typeName = rtTyp [ "FQConstantName" ] "Package" 0
+          "name", DString u.name ]
+      let typeName = rtTyp [ "FQConstantName" ] "Package"
       DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : FQConstantName.Package =
@@ -105,8 +93,7 @@ module FQConstantName =
       | DRecord(_, _, _, fields) ->
         { owner = ownerField fields
           modules = modulesField fields
-          name = nameField fields
-          version = versionField fields }
+          name = nameField fields }
       | _ -> Exception.raiseInternal "Invalid FQConstantName.Package" []
 
   let toDT (u : FQConstantName.FQConstantName) : Dval =
@@ -115,7 +102,7 @@ module FQConstantName =
       | FQConstantName.Builtin u -> "Builtin", [ Builtin.toDT u ]
       | FQConstantName.Package u -> "Package", [ Package.toDT u ]
 
-    let typeName = rtTyp [ "FQConstantName" ] "FQConstantName" 0
+    let typeName = rtTyp [ "FQConstantName" ] "FQConstantName"
     DEnum(typeName, typeName, [], caseName, fields)
 
   let fromDT (d : Dval) : FQConstantName.FQConstantName =
@@ -128,12 +115,12 @@ module FQConstantName =
 
 
 module FQFnName =
-  let knownType = KTCustomType(rtTyp [ "FQFnName" ] "FQFnName" 0, [])
+  let knownType = KTCustomType(rtTyp [ "FQFnName" ] "FQFnName", [])
 
   module Builtin =
     let toDT (u : FQFnName.Builtin) : Dval =
       let fields = [ "name", DString u.name; "version", DInt64 u.version ]
-      let typeName = rtTyp [ "FQFnName" ] "Builtin" 0
+      let typeName = rtTyp [ "FQFnName" ] "Builtin"
       DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : FQFnName.Builtin =
@@ -147,9 +134,8 @@ module FQFnName =
       let fields =
         [ "owner", DString u.owner
           "modules", DList(VT.string, List.map DString u.modules)
-          "name", DString u.name
-          "version", DInt64 u.version ]
-      let typeName = rtTyp [ "FQFnName" ] "Package" 0
+          "name", DString u.name ]
+      let typeName = rtTyp [ "FQFnName" ] "Package"
       DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : FQFnName.Package =
@@ -157,8 +143,7 @@ module FQFnName =
       | DRecord(_, _, _, fields) ->
         { owner = ownerField fields
           modules = modulesField fields
-          name = nameField fields
-          version = versionField fields }
+          name = nameField fields }
       | _ -> Exception.raiseInternal "Invalid FQFnName.Package" []
 
 
@@ -168,7 +153,7 @@ module FQFnName =
       | FQFnName.Builtin u -> "Builtin", [ Builtin.toDT u ]
       | FQFnName.Package u -> "Package", [ Package.toDT u ]
 
-    let typeName = rtTyp [ "FQFnName" ] "FQFnName" 0
+    let typeName = rtTyp [ "FQFnName" ] "FQFnName"
     DEnum(typeName, typeName, [], caseName, fields)
 
   let fromDT (d : Dval) : FQFnName.FQFnName =
@@ -188,7 +173,7 @@ module NameResolution =
     (f : 'p -> Dval)
     (result : NameResolution<'p>)
     : Dval =
-    let errType = KTCustomType(RuntimeError.name [ "NameResolution" ] "Error" 0, [])
+    let errType = KTCustomType(RuntimeError.name [ "NameResolution" ] "Error", [])
 
     match result with
     | Ok name -> Dval.resultOk nameValueType errType (f name)
@@ -204,7 +189,7 @@ module NameResolution =
 
 
 module TypeReference =
-  let typeName = rtTyp [] "TypeReference" 0
+  let typeName = rtTyp [] "TypeReference"
   let knownType = KTCustomType(typeName, [])
 
   let rec toDT (t : TypeReference) : Dval =
@@ -294,12 +279,12 @@ module TypeReference =
 module Param =
   let toDT (p : Param) : Dval =
     let fields = [ ("name", DString p.name); ("typ", TypeReference.toDT p.typ) ]
-    let typeName = rtTyp [] "Param" 0
+    let typeName = rtTyp [] "Param"
     DRecord(typeName, typeName, [], Map fields)
 
 
 module LetPattern =
-  let knownType = KTCustomType(rtTyp [] "LetPattern" 0, [])
+  let knownType = KTCustomType(rtTyp [] "LetPattern", [])
 
   let rec toDT (p : LetPattern) : Dval =
     let (caseName, fields) =
@@ -313,7 +298,7 @@ module LetPattern =
           toDT second
           DList(VT.known knownType, List.map toDT theRest) ]
 
-    let typeName = rtTyp [] "LetPattern" 0
+    let typeName = rtTyp [] "LetPattern"
     DEnum(typeName, typeName, [], caseName, fields)
 
   let rec fromDT (d : Dval) : LetPattern =
@@ -331,7 +316,7 @@ module LetPattern =
 
 
 module MatchPattern =
-  let knownType = KTCustomType(rtTyp [] "MatchPattern" 0, [])
+  let knownType = KTCustomType(rtTyp [] "MatchPattern", [])
 
   let rec toDT (p : MatchPattern) : Dval =
     let (caseName, fields) =
@@ -373,7 +358,7 @@ module MatchPattern =
           DString caseName
           DList(VT.known knownType, List.map toDT fieldPats) ]
 
-    let typeName = rtTyp [] "MatchPattern" 0
+    let typeName = rtTyp [] "MatchPattern"
     DEnum(typeName, typeName, [], caseName, fields)
 
   let rec fromDT (d : Dval) : MatchPattern =
@@ -421,14 +406,14 @@ module MatchPattern =
 
 
 module StringSegment =
-  let knownType = KTCustomType(rtTyp [] "StringSegment" 0, [])
+  let knownType = KTCustomType(rtTyp [] "StringSegment", [])
 
   let toDT (exprToDT : Expr -> Dval) (s : StringSegment) : Dval =
     let (caseName, fields) =
       match s with
       | StringText text -> "StringText", [ DString text ]
       | StringInterpolation expr -> "StringInterpolation", [ exprToDT expr ]
-    let typeName = rtTyp [] "StringSegment" 0
+    let typeName = rtTyp [] "StringSegment"
     DEnum(typeName, typeName, [], caseName, fields)
 
   let fromDT (exprFromDT : Dval -> Expr) (d : Dval) : StringSegment =
@@ -440,7 +425,7 @@ module StringSegment =
 
 
 module Expr =
-  let knownType = KTCustomType(rtTyp [] "Expr" 0, [])
+  let knownType = KTCustomType(rtTyp [] "Expr", [])
 
   let rec toDT (e : Expr) : Dval =
     let (caseName, fields) =
@@ -529,7 +514,7 @@ module Expr =
             let whenCondition =
               case.whenCondition |> Option.map toDT |> Dval.option knownType
             let expr = toDT case.rhs
-            let typeName = (rtTyp [] "MatchCase" 0)
+            let typeName = (rtTyp [] "MatchCase")
             DRecord(
               typeName,
               typeName,
@@ -539,7 +524,7 @@ module Expr =
                   ("whenCondition", whenCondition)
                   ("rhs", expr) ]
             ))
-          |> Dval.list (KTCustomType((rtTyp [] "MatchCase" 0), []))
+          |> Dval.list (KTCustomType((rtTyp [] "MatchCase"), []))
         "EMatch", [ DInt64(int64 id); toDT arg; cases ]
 
 
@@ -583,7 +568,7 @@ module Expr =
           Dval.list knownType (List.map toDT exprs) ]
 
 
-    let typeName = rtTyp [] "Expr" 0
+    let typeName = rtTyp [] "Expr"
     DEnum(typeName, typeName, [], caseName, fields)
 
   let rec fromDT (d : Dval) : Expr =
@@ -763,7 +748,7 @@ module RuntimeError =
 
 
 module Dval =
-  let knownType = KTCustomType(rtTyp [ "Dval" ] "Dval" 0, [])
+  let knownType = KTCustomType(rtTyp [ "Dval" ] "Dval", [])
 
   module KnownType =
     let toDT (kt : KnownType) : Dval =
@@ -810,7 +795,7 @@ module Dval =
 
         | KTDB d -> "KTDB", [ ValueType.toDT d ]
 
-      let typeName = rtTyp [] "KnownType" 0
+      let typeName = rtTyp [] "KnownType"
       DEnum(typeName, typeName, [], caseName, fields)
 
     let fromDT (d : Dval) : KnownType =
@@ -858,7 +843,7 @@ module Dval =
 
 
   module ValueType =
-    let knownType = KTCustomType(rtTyp [] "ValueType" 0, [])
+    let knownType = KTCustomType(rtTyp [] "ValueType", [])
 
     let toDT (vt : ValueType) : Dval =
       let (caseName, fields) =
@@ -867,7 +852,7 @@ module Dval =
         | ValueType.Known kt ->
           let kt = KnownType.toDT kt
           "Known", [ kt ]
-      let typeName = rtTyp [] "ValueType" 0
+      let typeName = rtTyp [] "ValueType"
       DEnum(typeName, typeName, [], caseName, fields)
 
     let fromDT (d : Dval) : ValueType =
@@ -894,7 +879,7 @@ module Dval =
           ("parameters", parameters)
           ("body", Expr.toDT l.body) ]
 
-      let typeName = rtTyp [] "LambdaImpl" 0
+      let typeName = rtTyp [] "LambdaImpl"
       DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : LambdaImpl =
@@ -925,7 +910,7 @@ module Dval =
         match fnValImpl with
         | Lambda lambda -> "Lambda", [ LambdaImpl.toDT lambda ]
         | NamedFn fnName -> "NamedFn", [ FQFnName.toDT fnName ]
-      let typeName = rtTyp [] "FnValImpl" 0
+      let typeName = rtTyp [] "FnValImpl"
       DEnum(typeName, typeName, [], caseName, fields)
 
     let fromDT (d : Dval) : FnValImpl =
@@ -986,7 +971,7 @@ module Dval =
           DString caseName
           DList(VT.known knownType, List.map toDT fields) ]
 
-    let typeName = rtTyp [ "Dval" ] "Dval" 0
+    let typeName = rtTyp [ "Dval" ] "Dval"
     DEnum(typeName, typeName, [], caseName, fields)
 
 

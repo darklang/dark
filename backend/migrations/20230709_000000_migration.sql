@@ -24,7 +24,6 @@ package_types_v0
 , owner TEXT NOT NULL -- e.g. Darklang
 , modules TEXT NOT NULL -- e.g. Twitter.Other
 , typename TEXT NOT NULL -- e.g. TextMetadata
-, version INTEGER NOT NULL -- e.g. 0
 , definition BYTEA NOT NULL -- the whole thing serialized as binary, in ProgramTypes form
 , created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -37,7 +36,6 @@ package_constants_v0
 , owner TEXT NOT NULL -- e.g. Darklang
 , modules TEXT NOT NULL -- e.g. Math.Geometry
 , name TEXT NOT NULL -- e.g. pi
-, version INTEGER NOT NULL -- e.g. 0
 , definition BYTEA NOT NULL -- the whole thing serialized as binary, in ProgramTypes form
 , created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -49,7 +47,6 @@ package_functions_v0
 , owner TEXT NOT NULL -- e.g. Darklang
 , modules TEXT NOT NULL -- e.g. Twitter.Other
 , fnname TEXT NOT NULL -- e.g. sendText
-, version INTEGER NOT NULL -- e.g. 0
 , definition BYTEA NOT NULL -- the whole thing serialized as binary, in ProgramTypes form
 , created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

@@ -61,9 +61,7 @@ module FQTypeName =
       [<MessagePack.Key 1>]
       modules : List<string>
       [<MessagePack.Key 2>]
-      name : string
-      [<MessagePack.Key 3>]
-      version : int }
+      name : string }
 
   [<MessagePack.MessagePackObject>]
   type FQTypeName = Package of Package
@@ -84,9 +82,7 @@ module FQConstantName =
       [<MessagePack.Key 1>]
       modules : List<string>
       [<MessagePack.Key 2>]
-      name : string
-      [<MessagePack.Key 3>]
-      version : int }
+      name : string }
 
   [<MessagePack.MessagePackObject>]
   type FQConstantName =
@@ -109,9 +105,7 @@ module FQFnName =
       [<MessagePack.Key 1>]
       modules : List<string>
       [<MessagePack.Key 2>]
-      name : string
-      [<MessagePack.Key 3>]
-      version : int }
+      name : string }
 
   [<MessagePack.MessagePackObject>]
   type FQFnName =

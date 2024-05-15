@@ -156,7 +156,7 @@ module Error =
           "FnValResult",
           [ RT2DT.TypeReference.toDT returnType; Location.toDT location ]
 
-      let typeName = RuntimeError.name [ "TypeChecker" ] "Context" 0
+      let typeName = RuntimeError.name [ "TypeChecker" ] "Context"
       DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -172,7 +172,7 @@ module Error =
       | TypeDoesntExist(typeName, context) ->
         "TypeDoesntExist", [ RT2DT.FQTypeName.toDT typeName; Context.toDT context ]
 
-    let typeName = RuntimeError.name [ "TypeChecker" ] "Error" 0
+    let typeName = RuntimeError.name [ "TypeChecker" ] "Error"
 
     DEnum(typeName, typeName, [], caseName, fields) |> RuntimeError.typeCheckerError
 

@@ -16,12 +16,8 @@ module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
 
 // TODO: does this type need to be in Internal?
-let packageCanvasType (addlModules : List<string>) (name : string) (version : int) =
-  FQTypeName.fqPackage
-    "Darklang"
-    ("Internal" :: "Canvas" :: addlModules)
-    name
-    version
+let packageCanvasType (addlModules : List<string>) (name : string) =
+  FQTypeName.fqPackage "Darklang" ("Internal" :: "Canvas" :: addlModules) name
 
 
 let fns : List<BuiltInFn> =
@@ -119,7 +115,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "canvasID" TUuid "" ]
       returnType =
         TypeReference.result
-          (TCustomType(Ok(packageCanvasType [] "Program" 0), []))
+          (TCustomType(Ok(packageCanvasType [] "Program"), []))
           TString
       description =
         "Returns a list of toplevel ids of http handlers in canvas <param canvasId>"
@@ -153,7 +149,7 @@ let fns : List<BuiltInFn> =
             //       |> Some)
             //   |> Dval.list VT.unknownTODO
 
-            let typeName = packageCanvasType [] "Program" 0
+            let typeName = packageCanvasType [] "Program"
             return
               DRecord(typeName, typeName, [], Map [])
               |> Dval.resultOk (KTCustomType(typeName, [])) KTString

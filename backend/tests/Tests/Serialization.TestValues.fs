@@ -23,18 +23,15 @@ let tlids : List<tlid> = [ 1UL; 0UL; uint64 -1L ]
 
 module RuntimeTypes =
   let fqTypeNames : List<RT.FQTypeName.FQTypeName> =
-    [ RT.FQTypeName.Package
-        { owner = "a"; modules = [ "b"; "C" ]; name = "d"; version = 2 } ]
+    [ RT.FQTypeName.Package { owner = "a"; modules = [ "b"; "C" ]; name = "d" } ]
 
   let fqFnNames : List<RT.FQFnName.FQFnName> =
     [ RT.FQFnName.Builtin { name = "aB"; version = 1 }
-      RT.FQFnName.Package
-        { owner = "a"; modules = [ "b"; "C" ]; name = "d"; version = 2 } ]
+      RT.FQFnName.Package { owner = "a"; modules = [ "b"; "C" ]; name = "d" } ]
 
   let fqConstantNames : List<RT.FQConstantName.FQConstantName> =
     [ RT.FQConstantName.Builtin { name = "aB"; version = 1 }
-      RT.FQConstantName.Package
-        { owner = "a"; modules = [ "b"; "C" ]; name = "d"; version = 2 } ]
+      RT.FQConstantName.Package { owner = "a"; modules = [ "b"; "C" ]; name = "d" } ]
 
   let typeReferences : List<RT.TypeReference> =
     [ RT.TInt64
@@ -56,19 +53,13 @@ module RuntimeTypes =
       RT.TDict RT.TBool
       RT.TDB RT.TBool
       RT.TCustomType(
-        Ok(
-          RT.FQTypeName.Package
-            { owner = "test"; modules = []; name = "User"; version = 0 }
-        ),
+        Ok(RT.FQTypeName.Package { owner = "test"; modules = []; name = "User" }),
         [ RT.TBool ]
       )
       RT.TCustomType(
         Ok(
           RT.FQTypeName.Package
-            { owner = "dark"
-              modules = [ "Mod1"; "Mod2" ]
-              name = "Pack"
-              version = 0 }
+            { owner = "dark"; modules = [ "Mod1"; "Mod2" ]; name = "Pack" }
         ),
         [ RT.TBool ]
       )
@@ -175,8 +166,7 @@ module RuntimeTypes =
         128384UL,
         RT.EFnName(
           2236UL,
-          RT.FQFnName.Package
-            { owner = "test"; modules = []; name = "fn"; version = 0 }
+          RT.FQFnName.Package { owner = "test"; modules = []; name = "fn" }
         ),
         [],
         (NEList.singleton (RT.EUnit(7756UL)))
@@ -193,8 +183,7 @@ module RuntimeTypes =
         RT.FQTypeName.Package(
           { owner = "owner"
             modules = [ "MyModule"; "Name" ]
-            name = "NonEmptyList"
-            version = 0 }
+            name = "NonEmptyList" }
         ),
         NEList.singleton ("a9df8", RT.EUnit(71631UL))
       )
@@ -215,8 +204,7 @@ module RuntimeTypes =
       RT.EOr(8375723UL, RT.EBool(83289473UL, true), RT.EBool(383674673UL, false))
       RT.EEnum(
         8375723UL,
-        RT.FQTypeName.Package
-          { owner = "owner"; modules = []; name = "MyEnum"; version = 0 },
+        RT.FQTypeName.Package { owner = "owner"; modules = []; name = "MyEnum" },
         "A",
         [ RT.EUnit(81264012UL) ]
       ) ]
@@ -256,8 +244,7 @@ module RuntimeTypes =
 
   let dval : RT.Dval =
     let typeName =
-      RT.FQTypeName.Package
-        { owner = "owner"; modules = []; name = "MyType"; version = 0 }
+      RT.FQTypeName.Package { owner = "owner"; modules = []; name = "MyType" }
     sampleDvals
     |> List.map (fun (name, (dv, _)) -> name, dv)
     |> fun fields -> RT.DRecord(typeName, typeName, [], Map fields)
@@ -269,8 +256,7 @@ module ProgramTypes =
 
   let fqFnNames : List<PT.FQFnName.FQFnName> =
     [ PT.FQFnName.Builtin { name = "int64Increment"; version = 1 }
-      PT.FQFnName.Package
-        { owner = "twilio"; modules = [ "Twilio" ]; name = "sms"; version = 1 } ]
+      PT.FQFnName.Package { owner = "twilio"; modules = [ "Twilio" ]; name = "sms" } ]
 
 
   let letPatterns : List<PT.LetPattern> =
@@ -353,17 +339,14 @@ module ProgramTypes =
         PT.TCustomType(
           Ok(
             PT.FQTypeName.Package
-              { owner = "owner"; modules = [ "Mod" ]; name = "User"; version = 0 }
+              { owner = "owner"; modules = [ "Mod" ]; name = "User" }
           ),
           [ PT.TBool ]
         )
         PT.TCustomType(
           Ok(
             PT.FQTypeName.Package
-              { owner = "dark"
-                modules = [ "Mod1"; "Mod2" ]
-                name = "Pack"
-                version = 0 }
+              { owner = "dark"; modules = [ "Mod1"; "Mod2" ]; name = "Pack" }
           ),
           [ PT.TBool ]
         )
@@ -516,8 +499,7 @@ module ProgramTypes =
                             PT.FQTypeName.Package(
                               { owner = "dark"
                                 modules = [ "stdlib" ]
-                                name = "NonEmptyList"
-                                version = 0 }
+                                name = "NonEmptyList" }
                             )
                           ),
                           [ ("field",
@@ -562,8 +544,7 @@ module ProgramTypes =
                                  PT.FQTypeName.Package(
                                    { owner = "Darklang"
                                      modules = [ "Stdlib"; "Result" ]
-                                     name = "Result"
-                                     version = 0 }
+                                     name = "Result" }
                                  )
                                ),
                                "Error",
@@ -866,10 +847,7 @@ module ProgramTypes =
 
   let packageFn : PT.PackageFn.T =
     { name =
-        { owner = "dark"
-          modules = [ "stdlib"; "Int64"; "Int64" ]
-          name = "mod"
-          version = 0 }
+        { owner = "dark"; modules = [ "stdlib"; "Int64"; "Int64" ]; name = "mod" }
       body = expr
       typeParams = [ "a" ]
       parameters =
@@ -887,8 +865,7 @@ module ProgramTypes =
     { name =
         { owner = "darklang"
           modules = [ "stdlib"; "Int64"; "Int64" ]
-          name = "Int64"
-          version = 0 }
+          name = "Int64" }
       declaration =
         { typeParams = [ "a" ]
           definition =
@@ -911,8 +888,7 @@ module ProgramTypes =
     { name =
         { owner = "dark"
           modules = [ "stdlib"; "Int64"; "Int64" ]
-          name = "testConstant"
-          version = 0 }
+          name = "testConstant" }
       body = constValue
       description = "test"
       deprecated = PT.NotDeprecated

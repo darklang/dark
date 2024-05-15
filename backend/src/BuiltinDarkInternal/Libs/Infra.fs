@@ -12,8 +12,8 @@ module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module Telemetry = LibService.Telemetry
 
 
-let packageInfraType (addlModules : List<string>) (name : string) (version : int) =
-  FQTypeName.fqPackage "Darklang" ("Internal" :: "Infra" :: addlModules) name version
+let packageInfraType (addlModules : List<string>) (name : string) =
+  FQTypeName.fqPackage "Darklang" ("Internal" :: "Infra" :: addlModules) name
 
 
 
@@ -48,7 +48,7 @@ let fns : List<BuiltInFn> =
     { name = fn "darkInternalInfraGetAndLogTableSizes" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TDict(TCustomType(Ok(packageInfraType [] "TableSize" 0), []))
+      returnType = TDict(TCustomType(Ok(packageInfraType [] "TableSize"), []))
       description =
         "Query the postgres database for the current size (disk + rowcount) of all
 tables. This uses pg_stat, so it is fast but imprecise. This function is logged
@@ -80,7 +80,7 @@ human-readable data."
                   ("disk_human", ts.diskHuman)
                   ("rows_human", ts.rowsHuman) ])
 
-            let typeName = packageInfraType [] "TableSize" 0
+            let typeName = packageInfraType [] "TableSize"
 
             return
               tableStats

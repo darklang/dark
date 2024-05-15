@@ -136,11 +136,9 @@ let t
                 "Darklang"
                 [ "LanguageTools"; "RuntimeErrors"; "Error" ]
                 "toErrorMessage"
-                0
 
             let! typeChecked =
-              let expected =
-                RT.TCustomType(Ok(RT.RuntimeError.name [] "Error" 0), [])
+              let expected = RT.TCustomType(Ok(RT.RuntimeError.name [] "Error"), [])
 
               let context =
                 LibExecution.TypeChecker.Context.FunctionCallParameter(

@@ -12,25 +12,21 @@ module Dval = LibExecution.Dval
 module Secret = LibCloud.Secret
 
 
-let packageSecretType (addlModules : List<string>) (name : string) (version : int) =
-  FQTypeName.fqPackage
-    "Darklang"
-    ("Internal" :: "Canvas" :: addlModules)
-    name
-    version
+let packageSecretType (addlModules : List<string>) (name : string) =
+  FQTypeName.fqPackage "Darklang" ("Internal" :: "Canvas" :: addlModules) name
 
 let fns : List<BuiltInFn> =
   [ { name = fn "darkInternalCanvasSecretGetAll" 0
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
-      returnType = TList(TCustomType(Ok(packageSecretType [] "Secret" 0), []))
+      returnType = TList(TCustomType(Ok(packageSecretType [] "Secret"), []))
       description = "Get all secrets in the canvas"
       fn =
         (function
         | _, _, [ DUuid canvasID ] ->
           uply {
             let! secrets = Secret.getCanvasSecrets canvasID
-            let typeName = packageSecretType [] "Secret" 0
+            let typeName = packageSecretType [] "Secret"
 
             return
               secrets

@@ -25,7 +25,7 @@ module ParseError =
       | OutOfRange -> "OutOfRange", []
 
     let typeName =
-      FQTypeName.fqPackage "Darklang" [ "Stdlib"; "UInt16" ] "ParseError" 0
+      FQTypeName.fqPackage "Darklang" [ "Stdlib"; "UInt16" ] "ParseError"
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -317,16 +317,12 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "s" TString "" ]
       returnType =
         let errorType =
-          FQTypeName.Package
-            { owner = "Darklang"
-              modules = [ "Stdlib"; "UInt16" ]
-              name = "ParseError"
-              version = 0 }
+          FQTypeName.fqPackage "Darklang" [ "Stdlib"; "UInt16" ] "ParseError"
         TypeReference.result TUInt16 (TCustomType(Ok errorType, []))
       description = "Returns the <type UInt16> value of a <type String>"
       fn =
         let resultOk = Dval.resultOk KTUInt16 KTString
-        let typeName = RuntimeError.name [ "UInt16" ] "ParseError" 0
+        let typeName = RuntimeError.name [ "UInt16" ] "ParseError"
         let resultError = Dval.resultError KTUInt16 (KTCustomType(typeName, []))
         (function
         | _, _, [ DString s ] ->

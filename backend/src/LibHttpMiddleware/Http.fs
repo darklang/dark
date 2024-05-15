@@ -16,7 +16,7 @@ let lowercaseHeaderKeys (headers : List<string * string>) : List<string * string
   headers |> List.map (fun (k, v) -> (String.toLowercase k, v))
 
 module Request =
-  let typ = RT.FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Http" ] "Request" 0
+  let typ = RT.FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Http" ] "Request"
 
   let fromRequest
     (uri : string)
@@ -47,8 +47,7 @@ module Response =
     // Expected user response
     | RT.DRecord(RT.FQTypeName.Package { owner = "Darklang"
                                          modules = [ "Stdlib"; "Http" ]
-                                         name = "Response"
-                                         version = 0 },
+                                         name = "Response" },
                  _,
                  [],
                  fields) ->
@@ -88,7 +87,7 @@ module Response =
           headers = [ "Content-Type", "text/plain; charset=utf-8" ]
           body =
             UTF8.toBytes
-              "Application error: expected a Http.Response_v0, but its fields were the wrong type" }
+              "Application error: expected a Http.Response, but its fields were the wrong type" }
 
     // Error responses
     | uncaughtResult ->

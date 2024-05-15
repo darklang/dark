@@ -14,7 +14,7 @@ open System.Runtime.InteropServices
 
 
 let executionOutcomeTypeName =
-  FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Cli" ] "ExecutionOutcome" 0
+  FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Cli" ] "ExecutionOutcome"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "cliExecute" 0

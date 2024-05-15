@@ -17,18 +17,13 @@ module Dval = LibExecution.Dval
 let packageFnType
   (addlModules : List<string>)
   (name : string)
-  (version : int)
   : FQTypeName.FQTypeName =
-  FQTypeName.fqPackage
-    "Darklang"
-    ([ "LanguageTools"; "Parser" ] @ addlModules)
-    name
-    version
+  FQTypeName.fqPackage "Darklang" ([ "LanguageTools"; "Parser" ] @ addlModules) name
 
 
-let pointTypeName = packageFnType [] "Point" 0
-let rangeTypeName = packageFnType [] "Range" 0
-let parsedNodeTypeName = packageFnType [] "ParsedNode" 0
+let pointTypeName = packageFnType [] "Point"
+let rangeTypeName = packageFnType [] "Range"
+let parsedNodeTypeName = packageFnType [] "ParsedNode"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "parserParseToSimplifiedTree" 0

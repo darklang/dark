@@ -65,7 +65,7 @@ module Sign =
 module TypeName =
   module Package =
     let toPT (p : EPT.FQTypeName.Package) : PT.FQTypeName.Package =
-      { owner = p.owner; modules = p.modules; name = p.name; version = p.version }
+      { owner = p.owner; modules = p.modules; name = p.name }
 
   let toPT (fqfn : EPT.FQTypeName.FQTypeName) : PT.FQTypeName.FQTypeName =
     match fqfn with
@@ -79,7 +79,7 @@ module FnName =
 
   module Package =
     let toPT (p : EPT.FQFnName.Package) : PT.FQFnName.Package =
-      { owner = p.owner; modules = p.modules; name = p.name; version = p.version }
+      { owner = p.owner; modules = p.modules; name = p.name }
 
   let toPT (fqfn : EPT.FQFnName.FQFnName) : PT.FQFnName.FQFnName =
     match fqfn with
@@ -93,7 +93,7 @@ module ConstantName =
 
   module Package =
     let toPT (p : EPT.FQConstantName.Package) : PT.FQConstantName.Package =
-      { owner = p.owner; modules = p.modules; name = p.name; version = p.version }
+      { owner = p.owner; modules = p.modules; name = p.name }
 
   let toPT
     (fqfn : EPT.FQConstantName.FQConstantName)

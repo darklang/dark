@@ -330,16 +330,14 @@ let fns : List<BuiltInFn> =
                 match result with
                 | DEnum(FQTypeName.Package { owner = "Darklang"
                                              modules = [ "Stdlib"; "Option" ]
-                                             name = "Option"
-                                             version = 0 },
+                                             name = "Option" },
                         _,
                         _typeArgsDEnumTODO,
                         "Some",
                         [ o ]) -> return Some o
                 | DEnum(FQTypeName.Package { owner = "Darklang"
                                              modules = [ "Stdlib"; "Option" ]
-                                             name = "Option"
-                                             version = 0 },
+                                             name = "Option" },
                         _,
                         _typeArgsDEnumTODO,
                         "None",

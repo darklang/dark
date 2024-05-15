@@ -38,7 +38,7 @@ let fnNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
 let builtinNamePattern = @"^(__|[a-z])[a-z0-9A-Z_]\w*$"
 let constantNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
 
-let assertBuiltin'
+let assertBuiltin
   (name : string)
   (version : int)
   (nameValidator : string -> unit)
@@ -46,30 +46,21 @@ let assertBuiltin'
   nameValidator name
   assert_ "version can't be negative" [ "version", version ] (version >= 0)
 
-let assert'
+let assertPackage
   (modules : List<string>)
   (name : string)
-  (version : int)
   (nameValidator : string -> unit)
   : unit =
   List.iter (assertRe "modules name must match" modulePattern) modules
   nameValidator name
-  assert_ "version can't be negative" [ "version", version ] (version >= 0)
 
 
-let packageName
-  (owner : string)
-  (modules : List<string>)
-  (name : string)
-  (version : int)
-  : string =
+let packageName (owner : string) (modules : List<string>) (name : string) : string =
   let nameParts =
     match owner with
     | "Tests" -> modules @ [ name ]
     | _ -> "PACKAGE" :: owner :: modules @ [ name ]
-  let name = nameParts |> String.concat "."
-
-  if version = 0 then name else $"{name}_v{version}"
+  nameParts |> String.concat "."
 
 
 /// Fully-Qualified Type Name
@@ -77,34 +68,27 @@ let packageName
 /// Used to reference a type defined in a Package
 module FQTypeName =
   /// The name of a type in the package manager
-  type Package =
-    { owner : string; modules : List<string>; name : string; version : int }
+  type Package = { owner : string; modules : List<string>; name : string }
 
   type FQTypeName = Package of Package
 
   let assertTypeName (name : string) : unit =
     assertRe "type name must match" typeNamePattern name
 
-  let package
-    (owner : string)
-    (modules : List<string>)
-    (name : string)
-    (version : int)
-    : Package =
-    assert' modules name version assertTypeName
-    { owner = owner; modules = modules; name = name; version = version }
+  let package (owner : string) (modules : List<string>) (name : string) : Package =
+    assertPackage modules name assertTypeName
+    { owner = owner; modules = modules; name = name }
 
   let fqPackage
     (owner : string)
     (modules : List<string>)
     (name : string)
-    (version : int)
     : FQTypeName =
-    Package(package owner modules name version)
+    Package(package owner modules name)
 
   let toString (name : FQTypeName) : string =
     match name with
-    | Package p -> packageName p.owner p.modules p.name p.version
+    | Package p -> packageName p.owner p.modules p.name
 
 
 /// A Fully-Qualified Constant Name
@@ -116,8 +100,7 @@ module FQConstantName =
   type Builtin = { name : string; version : int }
 
   /// The name of a constant in the package manager
-  type Package =
-    { owner : string; modules : List<string>; name : string; version : int }
+  type Package = { owner : string; modules : List<string>; name : string }
 
   type FQConstantName =
     | Builtin of Builtin
@@ -128,25 +111,19 @@ module FQConstantName =
     assertRe "Constant name must match" constantNamePattern name
 
   let builtin (name : string) (version : int) : Builtin =
-    assertBuiltin' name version assertConstantName
+    assertBuiltin name version assertConstantName
     { name = name; version = version }
 
-  let package
-    (owner : string)
-    (modules : List<string>)
-    (name : string)
-    (version : int)
-    : Package =
-    assert' modules name version assertConstantName
-    { owner = owner; modules = modules; name = name; version = version }
+  let package (owner : string) (modules : List<string>) (name : string) : Package =
+    assertPackage modules name assertConstantName
+    { owner = owner; modules = modules; name = name }
 
   let fqPackage
     (owner : string)
     (modules : List<string>)
     (name : string)
-    (version : int)
     : FQConstantName =
-    Package(package owner modules name version)
+    Package(package owner modules name)
 
   let builtinToString (s : Builtin) : string =
     let name = s.name
@@ -155,7 +132,7 @@ module FQConstantName =
   let toString (name : FQConstantName) : string =
     match name with
     | Builtin b -> builtinToString b
-    | Package p -> packageName p.owner p.modules p.name p.version
+    | Package p -> packageName p.owner p.modules p.name
 
 
 /// A Fully-Qualified Function Name
@@ -166,8 +143,7 @@ module FQFnName =
   type Builtin = { name : string; version : int }
 
   /// The name of a function in the package manager
-  type Package =
-    { owner : string; modules : List<string>; name : string; version : int }
+  type Package = { owner : string; modules : List<string>; name : string }
 
   type FQFnName =
     | Builtin of Builtin
@@ -180,32 +156,25 @@ module FQFnName =
     assertRe $"Fn name must match" builtinNamePattern name
 
   let builtin (name : string) (version : int) : Builtin =
-    assertBuiltin' name version assertBuiltinFnName
+    assertBuiltin name version assertBuiltinFnName
     { name = name; version = version }
 
-  let package
-    (owner : string)
-    (modules : List<string>)
-    (name : string)
-    (version : int)
-    : Package =
-    assert' modules name version assertFnName
-    { owner = owner; modules = modules; name = name; version = version }
+  let package (owner : string) (modules : List<string>) (name : string) : Package =
+    assertPackage modules name assertFnName
+    { owner = owner; modules = modules; name = name }
 
   let fqPackage
     (owner : string)
     (modules : List<string>)
     (name : string)
-    (version : int)
     : FQFnName =
-    Package(package owner modules name version)
+    Package(package owner modules name)
 
   let builtinToString (s : Builtin) : string =
     let name = s.name
     if s.version = 0 then name else $"{name}_v{s.version}"
 
-  let packageToString (s : Package) : string =
-    packageName s.owner s.modules s.name s.version
+  let packageToString (s : Package) : string = packageName s.owner s.modules s.name
 
   let toString (name : FQFnName) : string =
     match name with
@@ -770,13 +739,13 @@ and Param = { name : string; typ : TypeReference }
 module TypeReference =
   let result (t1 : TypeReference) (t2 : TypeReference) : TypeReference =
     TCustomType(
-      Ok(FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Result" ] "Result" 0),
+      Ok(FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Result" ] "Result"),
       [ t1; t2 ]
     )
 
   let option (t : TypeReference) : TypeReference =
     TCustomType(
-      Ok(FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Option" ] "Option" 0),
+      Ok(FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Option" ] "Option"),
       [ t ]
     )
 
@@ -786,15 +755,14 @@ module RuntimeError =
 
   let fromDT (dv : Dval) : RuntimeError = RuntimeError dv
 
-  let name (modules : List<string>) (typeName : string) (version : int) =
+  let name (modules : List<string>) (typeName : string) =
     FQTypeName.fqPackage
       "Darklang"
       ("LanguageTools" :: "RuntimeErrors" :: modules)
       typeName
-      version
 
   let case (caseName : string) (fields : List<Dval>) : RuntimeError =
-    let typeName = name [] "Error" 0
+    let typeName = name [] "Error"
     DEnum(typeName, typeName, [], caseName, fields) |> RuntimeError
 
 

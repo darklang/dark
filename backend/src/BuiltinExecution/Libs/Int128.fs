@@ -25,7 +25,7 @@ module ParseError =
       | OutOfRange -> "OutOfRange", []
 
     let typeName =
-      FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Int128" ] "ParseError" 0
+      FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Int128" ] "ParseError"
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -329,19 +329,13 @@ let fns : List<BuiltInFn> =
         TypeReference.result
           TInt128
           (TCustomType(
-            Ok(
-              FQTypeName.Package
-                { owner = "Darklang"
-                  modules = [ "Stdlib"; "Int128" ]
-                  name = "ParseError"
-                  version = 0 }
-            ),
+            Ok(FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Int128" ] "ParseError"),
             []
           ))
       description = "Returns the <type Int128> value of a <type String>"
       fn =
         let resultOk = Dval.resultOk KTInt128 KTString
-        let typeName = RuntimeError.name [ "Int128" ] "ParseError" 0
+        let typeName = RuntimeError.name [ "Int128" ] "ParseError"
         let resultError = Dval.resultError KTInt128 (KTCustomType(typeName, []))
         (function
         | _, _, [ DString s ] ->

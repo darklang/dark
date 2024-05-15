@@ -32,7 +32,7 @@ module ParsesAndDecodesOk =
         """{
           "tlid": 112,
           "id": "f6345e32-f0c6-422a-a9f1-1039a63ce781",
-          "name": { "modules": [ "Stdlib", "Result" ], "name": "Result", "owner": "Darklang", "version": 0 },
+          "name": { "modules": [ "Stdlib", "Result" ], "name": "Result", "owner": "Darklang" },
           "description": "",
           "declaration": {
             "definition": {
@@ -65,10 +65,7 @@ module ParsesAndDecodesOk =
         { tlid = 112UL
           id = System.Guid.Parse "f6345e32-f0c6-422a-a9f1-1039a63ce781"
           name =
-            { owner = "Darklang"
-              modules = [ "Stdlib"; "Result" ]
-              name = "Result"
-              version = 0 }
+            { owner = "Darklang"; modules = [ "Stdlib"; "Result" ]; name = "Result" }
           description = ""
           declaration =
             { typeParams = [ "Ok"; "Err" ]

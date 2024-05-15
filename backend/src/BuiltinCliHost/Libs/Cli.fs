@@ -22,12 +22,7 @@ module NR = LibParser.NameResolver
 
 
 module ExecutionError =
-  let fqTypeName =
-    FQTypeName.Package
-      { owner = "Darklang"
-        modules = [ "Cli" ]
-        name = "ExecutionError"
-        version = 0 }
+  let fqTypeName = FQTypeName.fqPackage "Darklang" [ "Cli" ] "ExecutionError"
   let typeRef = TCustomType(Ok fqTypeName, [])
 
 
@@ -63,7 +58,7 @@ module CliRuntimeError =
           | NonIntReturned actuallyReturned ->
             "NonIntReturned", [ RT2DT.Dval.toDT actuallyReturned ]
 
-        let typeName = RT.RuntimeError.name [ "Cli" ] "Error" 0
+        let typeName = RT.RuntimeError.name [ "Cli" ] "Error"
         DEnum(typeName, typeName, [], caseName, fields)
 
 

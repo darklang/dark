@@ -93,17 +93,11 @@ let packageTypeName
   (owner : string)
   (modules : List<string>)
   (name : string)
-  (version : int)
   : FQTypeName.Package =
-  { owner = owner; modules = modules; name = name; version = version }
+  { owner = owner; modules = modules; name = name }
 
-let fqPackageTypeName
-  (owner : string)
-  (modules : List<string>)
-  (name : string)
-  (version : int)
-  =
-  FQTypeName.Package(packageTypeName owner modules name version)
+let fqPackageTypeName (owner : string) (modules : List<string>) (name : string) =
+  FQTypeName.Package(packageTypeName owner modules name)
 
 let eTuple (first : Expr) (second : Expr) (theRest : Expr list) : Expr =
   ETuple(gid (), first, second, theRest)
@@ -112,9 +106,8 @@ let packageTypeReference
   (owner : string)
   (modules : List<string>)
   (name : string)
-  (version : int)
   : TypeReference =
-  TCustomType(Ok(fqPackageTypeName owner modules name version), [])
+  TCustomType(Ok(fqPackageTypeName owner modules name), [])
 
 let customTypeRecord (fields : List<string * TypeReference>) : TypeDeclaration.T =
   let fields =
@@ -130,9 +123,8 @@ let userTypeRecord
   (owner : string)
   (modules : List<string>)
   (name : string)
-  (version : int)
   (fields : List<string * TypeReference>)
   : PackageType.T =
   { tlid = gid ()
-    name = { owner = owner; modules = modules; name = name; version = version }
+    name = { owner = owner; modules = modules; name = name }
     declaration = customTypeRecord fields }

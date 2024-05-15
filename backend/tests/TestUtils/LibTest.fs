@@ -48,13 +48,12 @@ let fns : List<BuiltInFn> =
   [ { name = fn "testDerrorMessage" 0
       typeParams = []
       parameters = [ Param.make "errorMessage" TString "" ]
-      returnType =
-        TCustomType(Ok(RuntimeError.name [ "Error" ] "ErrorMessage" 0), [])
+      returnType = TCustomType(Ok(RuntimeError.name [ "Error" ] "ErrorMessage"), [])
       description = "Return a value representing a runtime type error"
       fn =
         (function
         | _, _, [ DString error ] ->
-          let typeName = RuntimeError.name [ "Error" ] "ErrorMessage" 0
+          let typeName = RuntimeError.name [ "Error" ] "ErrorMessage"
           DEnum(typeName, typeName, [], "ErrorString", [ DString error ]) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -79,14 +78,13 @@ let fns : List<BuiltInFn> =
     { name = fn "testDerrorSqlMessage" 0
       typeParams = []
       parameters = [ Param.make "errorString" TString "" ]
-      returnType =
-        TCustomType(Ok(RuntimeError.name [ "Error" ] "ErrorMessage" 0), [])
+      returnType = TCustomType(Ok(RuntimeError.name [ "Error" ] "ErrorMessage"), [])
       description = "Return a value that matches errors thrown by the SqlCompiler"
       fn =
         (function
         | _, _, [ DString errorString ] ->
           let msg = LibCloud.SqlCompiler.errorTemplate + errorString
-          let typeName = RuntimeError.name [ "Error" ] "ErrorMessage" 0
+          let typeName = RuntimeError.name [ "Error" ] "ErrorMessage"
           DEnum(typeName, typeName, [], "ErrorString", [ DString msg ]) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

@@ -36,7 +36,7 @@ module IntRuntimeError =
         | NegativeModulus -> "NegativeModulus", []
         | ZeroModulus -> "ZeroModulus", []
 
-      let typeName = RuntimeError.name [ "Int" ] "Error" 0
+      let typeName = RuntimeError.name [ "Int" ] "Error"
 
       DEnum(typeName, typeName, [], caseName, fields) |> RuntimeError.intError
 
@@ -52,8 +52,7 @@ module ParseError =
       | BadFormat -> "BadFormat", []
       | OutOfRange -> "OutOfRange", []
 
-    let typeName =
-      FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Int64" ] "ParseError" 0
+    let typeName = FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Int64" ] "ParseError"
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -391,16 +390,12 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "s" TString "" ]
       returnType =
         let errorType =
-          FQTypeName.Package
-            { owner = "Darklang"
-              modules = [ "Stdlib"; "Int64" ]
-              name = "ParseError"
-              version = 0 }
+          FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Int64" ] "ParseError"
         TypeReference.result TInt64 (TCustomType(Ok errorType, []))
       description = "Returns the <type Int64> value of a <type String>"
       fn =
         let resultOk = Dval.resultOk KTInt64 KTString
-        let typeName = RuntimeError.name [ "Int64" ] "ParseError" 0
+        let typeName = RuntimeError.name [ "Int64" ] "ParseError"
         let resultError = Dval.resultError KTInt64 (KTCustomType(typeName, []))
         (function
         | _, _, [ DString s ] ->

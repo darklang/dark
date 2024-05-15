@@ -71,14 +71,13 @@ module ProgramTypes =
   module FQTypeName =
     module Package =
       let decoder : JsonDecoder<ProgramTypes.FQTypeName.Package> =
-        Decoders.obj4Fields
+        Decoders.obj3Fields
           "FQTypeName.Package"
           ("owner", Decoders.string)
           ("modules", Decoders.list Decoders.string)
           ("name", Decoders.string)
-          ("version", Decoders.int32)
-          (fun owner modules name version ->
-            { owner = owner; modules = modules; name = name; version = version })
+          (fun owner modules name ->
+            { owner = owner; modules = modules; name = name })
 
     module FQTypeName =
       type DU = ProgramTypes.FQTypeName.FQTypeName
@@ -100,14 +99,13 @@ module ProgramTypes =
 
     module Package =
       let decoder : JsonDecoder<ProgramTypes.FQFnName.Package> =
-        Decoders.obj4Fields
+        Decoders.obj3Fields
           "FQFnName.Package"
           ("owner", Decoders.string)
           ("modules", Decoders.list Decoders.string)
           ("name", Decoders.string)
-          ("version", Decoders.int32)
-          (fun owner modules name version ->
-            { owner = owner; modules = modules; name = name; version = version })
+          (fun owner modules name ->
+            { owner = owner; modules = modules; name = name })
 
     module FQFnName =
       type DU = ProgramTypes.FQFnName.FQFnName
@@ -130,14 +128,13 @@ module ProgramTypes =
 
     module Package =
       let decoder : JsonDecoder<ProgramTypes.FQConstantName.Package> =
-        Decoders.obj4Fields
+        Decoders.obj3Fields
           "FQConstantName.Package"
           ("owner", Decoders.string)
           ("modules", Decoders.list Decoders.string)
           ("name", Decoders.string)
-          ("version", Decoders.int32)
-          (fun owner modules name version ->
-            { owner = owner; modules = modules; name = name; version = version })
+          (fun owner modules name ->
+            { owner = owner; modules = modules; name = name })
 
     module FQConstantName =
       type DU = ProgramTypes.FQConstantName.FQConstantName

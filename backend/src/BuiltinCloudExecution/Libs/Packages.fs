@@ -12,28 +12,19 @@ module PT = LibExecution.ProgramTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module PM = LibCloud.PackageManager
 
-let statsTypeName = FQTypeName.fqPackage "Darklang" [ "DarkPackages" ] "Stats" 0
+let statsTypeName = FQTypeName.fqPackage "Darklang" [ "DarkPackages" ] "Stats"
 
 
 // TODO: consider doing the name-parsing in Dark instead
 
-type GenericName =
-  { owner : string; modules : List<string>; name : string; version : int }
+type GenericName = { owner : string; modules : List<string>; name : string }
 
 let parseGenericName (name : string) : GenericName =
   match name |> String.split "." with
   | owner :: modulesAndName ->
     match List.rev modulesAndName with
-    | nameWithVersionMaybe :: modulesInReverse ->
-      let name, version =
-        match nameWithVersionMaybe |> String.split "_v" with
-        | [ name ] -> name, 0
-        | [ name; version ] -> name, int version
-        | _ -> failwithf "Invalid name: %s" name
-      { owner = owner
-        modules = List.rev modulesInReverse
-        name = name
-        version = version }
+    | name :: modulesInReverse ->
+      { owner = owner; modules = List.rev modulesInReverse; name = name }
     | [] -> failwithf "Invalid name (no name): %s" name
   | [] -> failwithf "Invalid name (no owner): %s" name
 
@@ -72,7 +63,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString name ] ->
           uply {
             let n = parseGenericName name
-            let name = PT.FQTypeName.package n.owner n.modules n.name n.version
+            let name = PT.FQTypeName.package n.owner n.modules n.name
             match! PM.getType name with
             | Some t -> return t |> PT2DT.PackageType.toDT |> Dval.optionSome optType
             | None -> return Dval.optionNone optType
@@ -96,7 +87,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString name ] ->
           uply {
             let n = parseGenericName name
-            let name = PT.FQConstantName.package n.owner n.modules n.name n.version
+            let name = PT.FQConstantName.package n.owner n.modules n.name
             match! PM.getConstant name with
             | Some c ->
               return c |> PT2DT.PackageConstant.toDT |> Dval.optionSome optType
@@ -121,7 +112,7 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString name ] ->
           uply {
             let n = parseGenericName name
-            let name = PT.FQFnName.package n.owner n.modules n.name n.version
+            let name = PT.FQFnName.package n.owner n.modules n.name
             match! PM.getFn name with
             | Some f -> return f |> PT2DT.PackageFn.toDT |> Dval.optionSome optType
             | None -> return Dval.optionNone optType

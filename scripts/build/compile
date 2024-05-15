@@ -14,7 +14,7 @@ optimize = in_ci
 
 fsharp_thing_to_build = "fsdark.sln"
 # sometimes it's handy to only build a specific project
-# fsharp_thing_to_build = "src/LocalExec"
+#fsharp_thing_to_build = "src/LibExecution"
 
 # Make io unbuffered
 def flush(fn):
@@ -311,6 +311,7 @@ def execute(should):
     should.copy_dark_wasm |= success
     should.backend_test |= success
     should.reload_backend_server |= success
+    should.reload_all_packages |= success
 
   if should.copy_dark_wasm:
     if not copy_dark_wasm(): success = False
@@ -363,7 +364,7 @@ def mark(should, f):
     should.backend_full_build = True
 
   elif f.startswith("backend/") and \
-       (f.endswith(".fs") or f.endswith(".fsi") or f.endswith(".cs")):
+       (f.endswith(".fs") or f.endswith(".fsi")):
     if in_ci:
       should.backend_full_build = True
     else:

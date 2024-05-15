@@ -8,8 +8,7 @@
       "Int64",
       "Int64"
     ],
-    "name": "testConstant",
-    "version": 0
+    "name": "testConstant"
   },
   "description": "test",
   "deprecated": {
