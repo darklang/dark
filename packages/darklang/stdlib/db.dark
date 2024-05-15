@@ -1,6 +1,7 @@
 module Darklang =
   module Stdlib =
     module DB =
+      // CLEANUP: change the table type to DB<'a> when we remove LibParser
       /// Upsert <param val> into <param table>, accessible by <param key>
       let set (value: 'a) (key: String) (table: 'a) : 'a =
         Builtin.dbSet value key table
