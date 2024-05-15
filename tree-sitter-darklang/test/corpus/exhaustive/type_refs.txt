@@ -22,6 +22,8 @@ type MyTuple2 = (Int64 * String)
 type MyTuple3 = (Int64 * String * Bool)
 type MyTuple = (Int64 * String * Bool * Float * Char * Unit)
 type MyDict = Dict<Int64>
+type MyDateTime = DateTime
+type MyUUID = Uuid
 
 ---
 
@@ -42,6 +44,7 @@ type MyDict = Dict<Int64>
   (type_decl (keyword) (type_identifier) (symbol) (type_decl_def (type_decl_def_alias (type_reference (builtin_type)))))
   (type_decl (keyword) (type_identifier) (symbol) (type_decl_def (type_decl_def_alias (type_reference (builtin_type)))))
   (type_decl (keyword) (type_identifier) (symbol) (type_decl_def (type_decl_def_alias (type_reference (builtin_type (list_type_reference (keyword) (symbol) (type_reference (builtin_type)) (symbol)))))))
+  (type_decl (keyword) (type_identifier) (symbol) (type_decl_def (type_decl_def_alias (type_reference (builtin_type (tuple_type_reference (symbol) (type_reference (builtin_type)) (symbol) (type_reference (builtin_type)) (symbol)))))))
   (type_decl
     (keyword)
     (type_identifier)
@@ -52,11 +55,10 @@ type MyDict = Dict<Int64>
           (builtin_type
             (tuple_type_reference
               (symbol)
-              (type_reference
-                (builtin_type))
+              (type_reference (builtin_type))
               (symbol)
-              (type_reference
-                (builtin_type))
+              (type_reference (builtin_type))
+              (type_reference_tuple_the_rest (symbol) (type_reference (builtin_type)))
               (symbol)))))))
   (type_decl
     (keyword)
@@ -68,46 +70,22 @@ type MyDict = Dict<Int64>
           (builtin_type
             (tuple_type_reference
               (symbol)
-              (type_reference
-                (builtin_type))
+              (type_reference (builtin_type))
               (symbol)
-              (type_reference
-                (builtin_type))
+              (type_reference (builtin_type))
               (type_reference_tuple_the_rest
                 (symbol)
-                (type_reference
-                  (builtin_type)))
-              (symbol)))))))
-  (type_decl
-    (keyword)
-    (type_identifier)
-    (symbol)
-    (type_decl_def
-      (type_decl_def_alias
-        (type_reference
-          (builtin_type
-            (tuple_type_reference
-              (symbol)
-              (type_reference
-                (builtin_type))
-              (symbol)
-              (type_reference
-                (builtin_type))
-              (type_reference_tuple_the_rest
+                (type_reference (builtin_type))
                 (symbol)
-                (type_reference
-                  (builtin_type))
+                (type_reference (builtin_type))
                 (symbol)
-                (type_reference
-                  (builtin_type))
+                (type_reference (builtin_type))
                 (symbol)
-                (type_reference
-                  (builtin_type))
-                (symbol)
-                (type_reference
-                  (builtin_type)))
+                (type_reference (builtin_type)))
               (symbol)))))))
   (type_decl (keyword) (type_identifier) (symbol) (type_decl_def (type_decl_def_alias (type_reference (builtin_type (dict_type_reference (keyword) (symbol) (type_reference (builtin_type)) (symbol)))))))
+  (type_decl (keyword) (type_identifier) (symbol) (type_decl_def (type_decl_def_alias (type_reference (builtin_type)))))
+  (type_decl (keyword) (type_identifier) (symbol) (type_decl_def (type_decl_def_alias (type_reference (builtin_type)))))
 )
 
 
@@ -159,6 +137,28 @@ type ID = PACKAGE.Darklang.Stdlib.Option.Option
             (type_identifier)
           )
         )
+      )
+    )
+  )
+)
+
+
+==================
+type reference - variable
+==================
+
+type MyVar = 'a
+
+---
+
+(source_file
+  (type_decl
+    (keyword)
+    (type_identifier)
+    (symbol)
+    (type_decl_def
+      (type_decl_def_alias
+        (type_reference (builtin_type (variable_type_reference (symbol) (variable_identifier))))
       )
     )
   )

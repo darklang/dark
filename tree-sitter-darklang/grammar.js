@@ -806,10 +806,12 @@ module.exports = grammar({
         /Float/,
         /Char/,
         /String/,
+        /DateTime/,
+        /Uuid/,
         $.list_type_reference,
         $.tuple_type_reference,
         $.dict_type_reference,
-        /DateTime/,
+        $.variable_type_reference,
         /Uuid/,
       ),
 
@@ -851,6 +853,15 @@ module.exports = grammar({
         field("symbol_open_angle", alias("<", $.symbol)),
         field("value_type", $.type_reference),
         field("symbol_close_angle", alias(">", $.symbol)),
+      ),
+
+    //
+    // Variable type reference
+    // 'a
+    variable_type_reference: $ =>
+      seq(
+        field("symbol_single_quote", alias("'", $.symbol)),
+        field("variable", $.variable_identifier),
       ),
 
     // ---------------------
