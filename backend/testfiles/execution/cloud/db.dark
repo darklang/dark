@@ -62,14 +62,14 @@ type TestNestedAliasRecord = AliasOfRecord
 
 module NestedRecordFieldAccess =
   // can use lambda like (fun p -> p.details.numbers.age)
-  (Builtin.dbSet
+  (Stdlib.DB.set
     (OuterRecord
       { name = "joe"
         details = InnerRecord { numbers = AliasOfVeryInnerRecord { age = 41L } } })
     "jjj"
     TestNestedRecord
 
-   Builtin.dbSet
+   Stdlib.DB.set
      (OuterRecord
        { name = "frank"
          details = InnerRecord { numbers = VeryInnerRecord { age = 22L } } })
@@ -77,19 +77,19 @@ module NestedRecordFieldAccess =
      TestNestedRecord
 
    let shouldBeJustJoe =
-     Builtin.dbQuery TestNestedRecord (fun p -> p.details.numbers.age == 41L)
+     Stdlib.DB.query TestNestedRecord (fun p -> p.details.numbers.age == 41L)
 
    Stdlib.List.length shouldBeJustJoe) = 1L
 
   // same as above, but with aliases
-  (Builtin.dbSet
+  (Stdlib.DB.set
     (AliasOfRecord
       { name = "jeremy"
         details = InnerRecord { numbers = VeryInnerRecord { age = 38L } } })
     "ignored"
     TestNestedAliasRecord
 
-   Builtin.dbSet
+   Stdlib.DB.set
      (AliasOfRecord
        { name = "josephine"
          details = InnerRecord { numbers = AliasOfVeryInnerRecord { age = 29L } } })
@@ -97,7 +97,7 @@ module NestedRecordFieldAccess =
      TestNestedAliasRecord
 
    let shouldBeJustJeremy =
-     Builtin.dbQuery TestNestedAliasRecord (fun p -> p.details.numbers.age == 38L)
+     Stdlib.DB.query TestNestedAliasRecord (fun p -> p.details.numbers.age == 38L)
 
    Stdlib.List.length shouldBeJustJeremy) = 1L
 
@@ -111,17 +111,17 @@ type RecordWithGenericThing = GenericThing<String>
 type TestRecordWithGenericThing = RecordWithGenericThing
 
 module AccessDataInGenericField =
-  (Builtin.dbSet
+  (Stdlib.DB.set
     (RecordWithGenericThing { name = "joe" })
     "jjj"
     TestRecordWithGenericThing
 
-   Builtin.dbSet
+   Stdlib.DB.set
      (RecordWithGenericThing { name = "frank" })
      "fff"
      TestRecordWithGenericThing
 
-   Builtin.dbQuery TestRecordWithGenericThing (fun p -> p.name == "joe")) = [ RecordWithGenericThing
+   Stdlib.DB.query TestRecordWithGenericThing (fun p -> p.name == "joe")) = [ RecordWithGenericThing
                                                                                 { name =
                                                                                     "joe" } ]
 
@@ -132,19 +132,19 @@ module AccessRecordInGenericField =
   type TestDB = GenericThing<RecordThing>
 
 
-  (Builtin.dbSet
+  (Stdlib.DB.set
     (GenericThing { name = RecordThing { nested = "joe" } })
     "jjj"
     TestDB
 
-   Builtin.dbSet
+   Stdlib.DB.set
      (GenericThing { name = RecordThing { nested = "frank" } })
      "fff"
      TestDB
 
    let nestedValue = RecordThing { nested = "joe" }
 
-   Builtin.dbQuery TestDB (fun p -> p.name == nestedValue)) = [ GenericThing
+   Stdlib.DB.query TestDB (fun p -> p.name == nestedValue)) = [ GenericThing
                                                                   { name =
                                                                       RecordThing
                                                                         { nested =
@@ -157,12 +157,12 @@ module AccessEnumInGenericField =
   type TestDB = GenericThing<EnumThing>
 
 
-  (Builtin.dbSet (GenericThing { name = EnumThing.A "joe" }) "jjj" TestDB
-   Builtin.dbSet (GenericThing { name = EnumThing.A "frank" }) "fff" TestDB
+  (Stdlib.DB.set (GenericThing { name = EnumThing.A "joe" }) "jjj" TestDB
+   Stdlib.DB.set (GenericThing { name = EnumThing.A "frank" }) "fff" TestDB
 
    let nestedValue = EnumThing.A "joe"
 
-   Builtin.dbQuery TestDB (fun p -> p.name == nestedValue)) = [ GenericThing
+   Stdlib.DB.query TestDB (fun p -> p.name == nestedValue)) = [ GenericThing
                                                                   { name =
                                                                       EnumThing.A
                                                                         "joe" } ]
@@ -170,15 +170,15 @@ module AccessEnumInGenericField =
 
 module AddToTestEnumDBs =
   (let test1 =
-    Builtin.dbSet (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB
+    Stdlib.DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB
 
    let test2 =
-     Builtin.dbSet
+     Stdlib.DB.set
        (EnumTestRecord { x = "goodbye"; y = MyEnum.B })
        "test2"
        TestEnumDB
 
-   (Builtin.dbGetAll TestEnumDB) |> Stdlib.List.sort) = [ EnumTestRecord
+   (Stdlib.DB.getAll TestEnumDB) |> Stdlib.List.sort) = [ EnumTestRecord
                                                             { x = "goodbye"
                                                               y = MyEnum.B }
                                                           EnumTestRecord
@@ -186,44 +186,44 @@ module AddToTestEnumDBs =
                                                               y = MyEnum.A } ]
 
   (let test1 =
-    Builtin.dbSet (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB
+    Stdlib.DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB
 
    let test2 =
-     Builtin.dbSet
+     Stdlib.DB.set
        (EnumTestRecord { x = "goodbye"; y = MyEnum.B })
        "test2"
        TestEnumDB
 
-   (Builtin.dbGet "test1" TestEnumDB)) = Stdlib.Option.Option.Some(
+   (Stdlib.DB.get "test1" TestEnumDB)) = Stdlib.Option.Option.Some(
     EnumTestRecord { x = "hello"; y = MyEnum.A }
   )
 
-  (let test1 = Builtin.dbSet MyEnum.A "test1" TestEnumDB2
-   let test2 = Builtin.dbSet MyEnum.B "test2" TestEnumDB2
-   (Builtin.dbGetAll TestEnumDB2) |> Stdlib.List.sort) = [ MyEnum.A; MyEnum.B ]
+  (let test1 = Stdlib.DB.set MyEnum.A "test1" TestEnumDB2
+   let test2 = Stdlib.DB.set MyEnum.B "test2" TestEnumDB2
+   (Stdlib.DB.getAll TestEnumDB2) |> Stdlib.List.sort) = [ MyEnum.A; MyEnum.B ]
 
-  (let test1 = Builtin.dbSet MyEnum.C "test1" TestEnumDB2
-   let test2 = Builtin.dbSet MyEnum.B "test2" TestEnumDB2
-   (Builtin.dbGet "test1" TestEnumDB2)) = Stdlib.Option.Option.Some(MyEnum.C)
+  (let test1 = Stdlib.DB.set MyEnum.C "test1" TestEnumDB2
+   let test2 = Stdlib.DB.set MyEnum.B "test2" TestEnumDB2
+   (Stdlib.DB.get "test1" TestEnumDB2)) = Stdlib.Option.Option.Some(MyEnum.C)
 
-  (let test1 = Builtin.dbSet MyEnum2.D "test1" TestEnumDB3
-   let test2 = Builtin.dbSet MyEnum2.E "test2" TestEnumDB3
-   let test3 = Builtin.dbSet (MyEnum2.F MyEnum.A) "test3" TestEnumDB3
-   (Builtin.dbGetAll TestEnumDB3) |> Stdlib.List.sort) = [ MyEnum2.D
+  (let test1 = Stdlib.DB.set MyEnum2.D "test1" TestEnumDB3
+   let test2 = Stdlib.DB.set MyEnum2.E "test2" TestEnumDB3
+   let test3 = Stdlib.DB.set (MyEnum2.F MyEnum.A) "test3" TestEnumDB3
+   (Stdlib.DB.getAll TestEnumDB3) |> Stdlib.List.sort) = [ MyEnum2.D
                                                            MyEnum2.E
                                                            MyEnum2.F MyEnum.A ]
 
   (let testQuery =
-    Builtin.dbSet (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB
+    Stdlib.DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB
 
-   (Builtin.dbQuery TestEnumDB (fun p -> p.x == "hello"))) = [ EnumTestRecord
+   (Stdlib.DB.query TestEnumDB (fun p -> p.x == "hello"))) = [ EnumTestRecord
                                                                  { x = "hello"
                                                                    y = MyEnum.A } ]
 
   (let testQuery =
-    Builtin.dbSet (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB
+    Stdlib.DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB
 
-   (Builtin.dbQuery TestEnumDB (fun p -> p.y == MyEnum.A))) = [ EnumTestRecord
+   (Stdlib.DB.query TestEnumDB (fun p -> p.y == MyEnum.A))) = [ EnumTestRecord
                                                                   { x = "hello"
                                                                     y = MyEnum.A } ]
 
@@ -236,8 +236,8 @@ type MyTlid =
 type MyTlidDB = MyTlid
 
 module AddToTest =
-  (let test = Builtin.dbSet (MyTlid { mytlid = 1234UL }) "test" MyTlidDB
-   (Builtin.dbGetAll MyTlidDB)) = [ MyTlid { mytlid = 1234UL } ]
+  (let test = Stdlib.DB.set (MyTlid { mytlid = 1234UL }) "test" MyTlidDB
+   (Stdlib.DB.getAll MyTlidDB)) = [ MyTlid { mytlid = 1234UL } ]
 
 
 module Roundtrip =
@@ -348,16 +348,16 @@ module Roundtrip =
 
   // TODO: Add roundtrip for bytes (Bytes values not supported yet)
   (let v = sample ()
-   let z = Builtin.dbSet v "all" SampleDB
-   (z, Builtin.dbGet "all" SampleDB)) = (sample (),
+   let z = Stdlib.DB.set v "all" SampleDB
+   (z, Stdlib.DB.get "all" SampleDB)) = (sample (),
                                          Stdlib.Option.Option.Some(sample ()))
 
 
   module QueryEquality =
     let fetch (fn: 'a -> Bool) : List<'a> =
-      let z = Builtin.dbSet (sample ()) "sample" SampleDB
-      let z = Builtin.dbSet (otherSample ()) "other" SampleDB
-      Builtin.dbQuery SampleDB fn
+      let z = Stdlib.DB.set (sample ()) "sample" SampleDB
+      let z = Stdlib.DB.set (otherSample ()) "other" SampleDB
+      Stdlib.DB.query SampleDB fn
 
     // invalid type comparisons errors
     // these work, but the DError has a random string in it that we can't match
@@ -525,33 +525,33 @@ module Roundtrip =
 
 module ValueMissingColumnGivesGoodError =
   // TYPESCLEANUP: can we test a missing column against the DB anymore?
-  // (Builtin.dbSet (XY { x = "x"; y = "v" }) "i" XDB) = Builtin.Test.runtimeError "Found but did not expect: [y]"
+  // (Stdlib.DB.set (XY { x = "x"; y = "v" }) "i" XDB) = Builtin.Test.runtimeError "Found but did not expect: [y]"
 
-  (Builtin.dbSet (XY { x = "x"; y = "v" }) "i" XDB) = Builtin.testDerrorMessage
+  (Stdlib.DB.set (XY { x = "x"; y = "v" }) "i" XDB) = Builtin.testDerrorMessage
     "DB XDB's value should be a X. However, a XY (XY {  x: ...) was passed instead.\n\nExpected: X\nActual: a XY: XY {\n  x: \"x\",\n  y: \"v\"\n}"
 
 
 module SetDoesUpsert =
-  (let old = Builtin.dbSet (X { x = "hello" }) "hello" XDB
-   let newval = Builtin.dbSet (X { x = "goodbye" }) "hello" XDB
-   Builtin.dbGetAllWithKeys XDB) = Dict { hello = X { x = "goodbye" } }
+  (let old = Stdlib.DB.set (X { x = "hello" }) "hello" XDB
+   let newval = Stdlib.DB.set (X { x = "goodbye" }) "hello" XDB
+   Stdlib.DB.getAllWithKeys XDB) = Dict { hello = X { x = "goodbye" } }
 
 module SetCharUpserts =
-  (let old = Builtin.dbSet (Z { x = 'a' }) "a" ZDB
-   let newval = Builtin.dbSet (Z { x = 'b' }) "a" ZDB
-   Builtin.dbGetAllWithKeys ZDB) = Dict { a = Z { x = 'b' } }
+  (let old = Stdlib.DB.set (Z { x = 'a' }) "a" ZDB
+   let newval = Stdlib.DB.set (Z { x = 'b' }) "a" ZDB
+   Stdlib.DB.getAllWithKeys ZDB) = Dict { a = Z { x = 'b' } }
 
 
 
 module Get =
   // return none for empty store
-  (Builtin.dbGet "lol" XDB) = Stdlib.Option.Option.None
+  (Stdlib.DB.get "lol" XDB) = Stdlib.Option.Option.None
 
   // return none for invalid key
-  (let _ = Builtin.dbSet (X { x = "hello" }) "key" XDB in Builtin.dbGet "lol" XDB) = Stdlib.Option.Option.None
+  (let _ = Stdlib.DB.set (X { x = "hello" }) "key" XDB in Stdlib.DB.get "lol" XDB) = Stdlib.Option.Option.None
 
   // returns single value
-  (let _ = Builtin.dbSet (X { x = "hello" }) "key" XDB in Builtin.dbGet "key" XDB) = PACKAGE
+  (let _ = Stdlib.DB.set (X { x = "hello" }) "key" XDB in Stdlib.DB.get "key" XDB) = PACKAGE
     .Darklang
     .Stdlib
     .Option
@@ -559,15 +559,15 @@ module Get =
     .Some(X { x = "hello" })
 
   // returns correct value given reassigned entry
-  (let _ = Builtin.dbSet (X { x = "hello" }) "key" XDB
-   let _ = Builtin.dbSet (X { x = "goodbye" }) "key" XDB
-   Builtin.dbGet "key" XDB) = Stdlib.Option.Option.Some(X { x = "goodbye" })
+  (let _ = Stdlib.DB.set (X { x = "hello" }) "key" XDB
+   let _ = Stdlib.DB.set (X { x = "goodbye" }) "key" XDB
+   Stdlib.DB.get "key" XDB) = Stdlib.Option.Option.Some(X { x = "goodbye" })
 
   // returns value given multiple entries
-  (let _ = Builtin.dbSet (X { x = "pancake" }) "key1" XDB
-   let _ = Builtin.dbSet (X { x = "waffle" }) "key2" XDB
-   let _ = Builtin.dbSet (X { x = "scone" }) "key3" XDB
-   Builtin.dbGet "key2" XDB) = Stdlib.Option.Option.Some(X { x = "waffle" })
+  (let _ = Stdlib.DB.set (X { x = "pancake" }) "key1" XDB
+   let _ = Stdlib.DB.set (X { x = "waffle" }) "key2" XDB
+   let _ = Stdlib.DB.set (X { x = "scone" }) "key3" XDB
+   Stdlib.DB.get "key2" XDB) = Stdlib.Option.Option.Some(X { x = "waffle" })
 
 
 module Params =
@@ -576,21 +576,21 @@ module Params =
   [<DB>]
   type ParamDB = Param<String>
 
-  (let _ = Builtin.dbSet (Param { x = "hello"; b = 5L }) "key" ParamDB
-   Builtin.dbGet "key" ParamDB) = Stdlib.Option.Option.Some(
+  (let _ = Stdlib.DB.set (Param { x = "hello"; b = 5L }) "key" ParamDB
+   Stdlib.DB.get "key" ParamDB) = Stdlib.Option.Option.Some(
     Param { x = "hello"; b = 5L }
   )
 
 
 
 module GetAll =
-  (let one = Builtin.dbSet (SortedX { x = "hello"; sortBy = 0L }) "one" SortedXDB
+  (let one = Stdlib.DB.set (SortedX { x = "hello"; sortBy = 0L }) "one" SortedXDB
 
-   let two = Builtin.dbSet (SortedX { x = "goodbye"; sortBy = 1L }) "two" SortedXDB
+   let two = Stdlib.DB.set (SortedX { x = "goodbye"; sortBy = 1L }) "two" SortedXDB
 
-   let three = Builtin.dbSet (SortedX { x = "howdy"; sortBy = 2L }) "three" SortedXDB
+   let three = Stdlib.DB.set (SortedX { x = "howdy"; sortBy = 2L }) "three" SortedXDB
 
-   (Builtin.dbGetAll SortedXDB) |> Stdlib.List.sortBy_v0 (fun x -> x.sortBy)) = [ (SortedX
+   (Stdlib.DB.getAll SortedXDB) |> Stdlib.List.sortBy_v0 (fun x -> x.sortBy)) = [ (SortedX
                                                                                     { x =
                                                                                         "hello"
                                                                                       sortBy =
@@ -608,90 +608,90 @@ module GetAll =
 
 
 module GetAllKeys =
-  (let one = Builtin.dbSet (X { x = "hello" }) "one" XDB
-   let two = Builtin.dbSet (X { x = "goodbye" }) "two" XDB
-   (Builtin.dbKeys XDB) |> Stdlib.List.sort_v0) = [ "one"; "two" ]
+  (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
+   let two = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
+   (Stdlib.DB.keys XDB) |> Stdlib.List.sort_v0) = [ "one"; "two" ]
 
 
 module GetAllWithKeys =
-  (let one = Builtin.dbSet (X { x = "hello" }) "one" XDB
-   let two = Builtin.dbSet (X { x = "goodbye" }) "two" XDB
-   Builtin.dbGetAllWithKeys XDB) = Dict
+  (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
+   let two = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
+   Stdlib.DB.getAllWithKeys XDB) = Dict
     { one = X { x = "hello" }
       two = X { x = "goodbye" } }
 
 
 module GetManyWithKeys =
-  (let one = Builtin.dbSet (X { x = "hello" }) "one" XDB
-   let two = Builtin.dbSet (X { x = "goodbye" }) "two" XDB
-   Builtin.dbGetManyWithKeys [ "one"; "two" ] XDB) = Dict
+  (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
+   let two = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
+   Stdlib.DB.getManyWithKeys [ "one"; "two" ] XDB) = Dict
     { one = (X { x = "hello" })
       two = (X { x = "goodbye" }) }
 
 
 module GetExisting =
-  (let one = Builtin.dbSet (X { x = "hello" }) "one" XDB
-   let two = Builtin.dbSet (X { x = "goodbye" }) "two" XDB
-   Builtin.dbGetExisting_v0 [ "three"; "two" ] XDB) = [ (X { x = "goodbye" }) ]
+  (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
+   let two = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
+   Stdlib.DB.getExisting [ "three"; "two" ] XDB) = [ (X { x = "goodbye" }) ]
 
 
 module GetMany =
-  (let one = Builtin.dbSet (X { x = "hello" }) "one" XDB
-   let two = Builtin.dbSet (X { x = "goodbye" }) "two" XDB
-   Builtin.dbGetMany [ "three"; "two" ] XDB) = Stdlib.Option.Option.None
+  (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
+   let two = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
+   Stdlib.DB.getMany [ "three"; "two" ] XDB) = Stdlib.Option.Option.None
 
-  (let one = Builtin.dbSet (X { x = "hello" }) "one" XDB
-   let two = Builtin.dbSet (X { x = "goodbye" }) "two" XDB
+  (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
+   let two = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
 
-   (Builtin.dbGetMany [ "one"; "two" ] XDB)
+   (Stdlib.DB.getMany [ "one"; "two" ] XDB)
    |> Builtin.unwrap
    |> Stdlib.List.sortBy (fun v -> v.x)) = [ (X { x = "goodbye" })
                                              (X { x = "hello" }) ]
 
 
 module Delete =
-  (let one = Builtin.dbSet (X { x = "hello" }) "one" XDB
-   let delete = Builtin.dbDelete "one" XDB
-   Builtin.dbGetAllWithKeys XDB) = Dict { }
+  (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
+   let delete = Stdlib.DB.delete "one" XDB
+   Stdlib.DB.getAllWithKeys XDB) = Dict { }
 
   // delete nothing
-  (let one = Builtin.dbSet (X { x = "hello" }) "one" XDB
-   let delete = Builtin.dbDelete "two" XDB
-   Builtin.dbGetAllWithKeys XDB) = Dict { one = (X { x = "hello" }) }
+  (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
+   let delete = Stdlib.DB.delete "two" XDB
+   Stdlib.DB.getAllWithKeys XDB) = Dict { one = (X { x = "hello" }) }
 
   // deletes only one
-  (let one = Builtin.dbSet (X { x = "hello" }) "one" XDB
-   let two = Builtin.dbSet (X { x = "goodbye" }) "two" XDB
-   let delete = Builtin.dbDelete "one" XDB
-   Builtin.dbGetAllWithKeys XDB) = Dict { two = (X { x = "goodbye" }) }
+  (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
+   let two = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
+   let delete = Stdlib.DB.delete "one" XDB
+   Stdlib.DB.getAllWithKeys XDB) = Dict { two = (X { x = "goodbye" }) }
 
 module DeleteAll =
-  (let one = Builtin.dbSet (X { x = "hello" }) "one" XDB
-   let delete = Builtin.dbDeleteAll XDB
-   Builtin.dbGetAll XDB) = []
+  (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
+   let delete = Stdlib.DB.deleteAll XDB
+   Stdlib.DB.getAll XDB) = []
 
   // deletes all
-  (let one = Builtin.dbSet (X { x = "hello" }) "one" XDB
-   let two = Builtin.dbSet (X { x = "goodbye" }) "two" XDB
-   let delete = Builtin.dbDeleteAll XDB
-   Builtin.dbGetAll XDB) = []
+  (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
+   let two = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
+   let delete = Stdlib.DB.deleteAll XDB
+   Stdlib.DB.getAll XDB) = []
 
   // when empty
-  (let delete = Builtin.dbDeleteAll XDB in Builtin.dbGetAll XDB) = []
+  (let delete = Stdlib.DB.deleteAll XDB in Stdlib.DB.getAll XDB) = []
 
 module Count =
   // empty
-  Builtin.dbCount XDB = 0L
+  Stdlib.DB.count XDB = 0L
 
   // one entries
-  (let _ = Builtin.dbSet (X { x = "hello" }) "one" XDB in Builtin.dbCount XDB) = 1L
+  (let _ = Stdlib.DB.set (X { x = "hello" }) "one" XDB in Stdlib.DB.count XDB) = 1L
 
   // multiple entries
-  (let _ = Builtin.dbSet (X { x = "hello" }) "one" XDB
-   let _ = Builtin.dbSet (X { x = "goodbye" }) "two" XDB
-   let _ = Builtin.dbSet (X { x = "howdy" }) "three" XDB
-   let _ = Builtin.dbSet (X { x = "cheers" }) "four" XDB
-   Builtin.dbCount XDB) = 4L
+  (let _ = Stdlib.DB.set (X { x = "hello" }) "one" XDB
+   let _ = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
+   let _ = Stdlib.DB.set (X { x = "howdy" }) "three" XDB
+   let _ = Stdlib.DB.set (X { x = "cheers" }) "four" XDB
+   Stdlib.DB.count XDB) = 4L
 
 // ------------
 // SqlCompiler queries
@@ -727,7 +727,7 @@ let addFriend
         income = income
         age = age }
 
-  Builtin.dbSet obj key PersonDB
+  Stdlib.DB.set obj key PersonDB
 
 let prepFriends () : Unit =
   (let _ = addFriend "ross" "Ross" 73L true "1967-05-12T00:00:00Z" 100.0 33L
@@ -743,12 +743,12 @@ let d (datestr: String) : DateTime =
 let rossDOB () : DateTime = d "1967-05-12T00:00:00Z"
 
 let friendsError (lambda: ('a -> Bool)) : List<Person> =
-  let _ = prepFriends () in Builtin.dbQuery PersonDB lambda
+  let _ = prepFriends () in Stdlib.DB.query PersonDB lambda
 
 let friends (lambda: ('a -> Bool)) : List<String> =
   let _ = prepFriends ()
 
-  (Builtin.dbQuery PersonDB lambda)
+  (Stdlib.DB.query PersonDB lambda)
   |> Stdlib.List.map_v0 (fun p -> p.name)
   |> Stdlib.List.sort_v0
 
@@ -807,7 +807,7 @@ module FindAll =
     Stdlib.String.contains_v0 user.name str
 
   let userLessThan (user: Person) (height: Int64) : Bool =
-    Builtin.int64LessThan_v0 user height
+    Stdlib.Int64.lessThan user height
 
   let userAdd (a: Int64) (b: Int64) : Int64 = a + b
 
@@ -1089,7 +1089,7 @@ module PartialEvaluation =
   (let _ = prepFriends ()
    let x = Y { y = Z { z = A { a = 5L } } }
 
-   ((Builtin.dbQuery PersonDB (fun p -> x.y.z.a < p.height))
+   ((Stdlib.DB.query PersonDB (fun p -> x.y.z.a < p.height))
     |> Stdlib.List.map_v0 (fun p -> p.name)
     |> Stdlib.List.sort_v0)) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
@@ -1114,10 +1114,10 @@ module PartialEvaluation =
 
 
 module QueryOne =
-  (let _ = prepFriends () in Builtin.dbQueryOne PersonDB (fun p -> p.name == "bob")) = Stdlib.Option.Option.None
+  (let _ = prepFriends () in Stdlib.DB.queryOne PersonDB (fun p -> p.name == "bob")) = Stdlib.Option.Option.None
 
   (let _ = prepFriends ()
-   Builtin.dbQueryOne PersonDB (fun p -> p.name == "Rachel"))
+   Stdlib.DB.queryOne PersonDB (fun p -> p.name == "Rachel"))
   |> Stdlib.Option.map (fun v -> v.name) = Stdlib.Option.Option.Some "Rachel"
 
 
@@ -1125,22 +1125,22 @@ module QueryOne =
   (let _ = prepFriends ()
    let test = "ache"
 
-   (Builtin.dbQueryOne PersonDB (fun p -> p.name == $"R{test}l"))
+   (Stdlib.DB.queryOne PersonDB (fun p -> p.name == $"R{test}l"))
    |> Stdlib.Option.map (fun v -> v.name)) = Stdlib.Option.Option.Some "Rachel"
 
 
 module QueryOneWithKey =
   // multiple
-  (let _ = prepFriends () in Builtin.dbQueryOneWithKey PersonDB (fun p -> p.human)) = Stdlib.Option.Option.None
+  (let _ = prepFriends () in Stdlib.DB.queryOneWithKey PersonDB (fun p -> p.human)) = Stdlib.Option.Option.None
 
   // none
   (let _ = prepFriends ()
-   Builtin.dbQueryOneWithKey PersonDB (fun p -> p.name == "bob")) = Stdlib.Option.Option.None
+   Stdlib.DB.queryOneWithKey PersonDB (fun p -> p.name == "bob")) = Stdlib.Option.Option.None
 
   // one
   (let _ = prepFriends ()
 
-   (Builtin.dbQueryOneWithKey PersonDB (fun p -> p.name == "Rachel"))
+   (Stdlib.DB.queryOneWithKey PersonDB (fun p -> p.name == "Rachel"))
    |> Builtin.unwrap
    |> (fun v -> (Stdlib.Tuple2.second v).name)) = "Rachel"
 
@@ -1148,7 +1148,7 @@ module QueryOneWithKey =
   (let _ = prepFriends ()
    let test = "ache"
 
-   (Builtin.dbQueryOneWithKey PersonDB (fun p -> p.name == $"R{test}l"))
+   (Stdlib.DB.queryOneWithKey PersonDB (fun p -> p.name == $"R{test}l"))
    |> Stdlib.Option.map (fun v -> (Stdlib.Tuple2.second v).name)) = Stdlib.Option.Option.Some
     "Rachel"
 
@@ -1156,23 +1156,23 @@ module QueryOneWithKey =
 module QueryWithKey =
   // none
   (let _ = prepFriends ()
-   Builtin.dbQueryWithKey PersonDB (fun p -> p.name == "bob")) = Stdlib.Dict.empty
+   Stdlib.DB.queryWithKey PersonDB (fun p -> p.name == "bob")) = Stdlib.Dict.empty
 
   // one
   (let _ = prepFriends ()
 
-   (Builtin.dbQueryWithKey PersonDB (fun p -> p.name == "Rachel"))
-   |> Builtin.dictToList_v0
+   (Stdlib.DB.queryWithKey PersonDB (fun p -> p.name == "Rachel"))
+   |> Stdlib.Dict.toList
    |> Stdlib.List.map (fun v -> (Stdlib.Tuple2.second v).name)) = [ "Rachel" ]
 
 module QueryCount =
   // none
   (let _ = prepFriends ()
-   Builtin.dbQueryCount_v0 PersonDB (fun p -> p.name == "bob")) = 0L
+   Stdlib.DB.queryCount PersonDB (fun p -> p.name == "bob")) = 0L
 
   // one
   (let _ = prepFriends ()
-   Builtin.dbQueryCount_v0 PersonDB (fun p -> p.height > 3L)) = 4L
+   Stdlib.DB.queryCount PersonDB (fun p -> p.height > 3L)) = 4L
 
 
-((Builtin.dbGenerateKey_v0 ()) |> Stdlib.String.length) = 36L
+((Stdlib.DB.generateKey ()) |> Stdlib.String.length) = 36L
