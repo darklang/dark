@@ -812,7 +812,6 @@ module.exports = grammar({
         $.tuple_type_reference,
         $.dict_type_reference,
         $.variable_type_reference,
-        /Uuid/,
       ),
 
     //
