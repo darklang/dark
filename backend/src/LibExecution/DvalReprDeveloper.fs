@@ -52,7 +52,7 @@ let rec typeName (t : TypeReference) : string =
   | TVariable varname -> $"'{varname}"
 
 
-let rec knownTypeName (vt : KnownType) : string =
+let rec private knownTypeName (vt : KnownType) : string =
   match vt with
   | KTInt64 -> "Int64"
   | KTUInt64 -> "UInt64"
@@ -99,7 +99,7 @@ let rec knownTypeName (vt : KnownType) : string =
 
     FQTypeName.toString name + typeArgsPortion
 
-and valueTypeName (typ : ValueType) : string =
+and private valueTypeName (typ : ValueType) : string =
   match typ with
   | ValueType.Known typ -> knownTypeName typ
   | ValueType.Unknown -> "_"

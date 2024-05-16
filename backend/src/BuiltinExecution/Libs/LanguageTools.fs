@@ -32,9 +32,9 @@ let fns : List<BuiltInFn> =
           let consts =
             state.builtins.constants
             |> Map.toList
-            |> List.map (fun (key, data) ->
+            |> List.map (fun (name, data) ->
               let fields =
-                [ "name", DString(FQConstantName.builtinToString key)
+                [ "name", DString(FQConstantName.builtinToString name)
                   "description", DString data.description
                   "returnType", DString(typeNameToStr data.typ) ]
 
@@ -62,7 +62,7 @@ let fns : List<BuiltInFn> =
           let fns =
             state.builtins.fns
             |> Map.toList
-            |> List.map (fun (key, data) ->
+            |> List.map (fun (name, data) ->
               let parameters =
                 data.parameters
                 |> List.map (fun p ->
@@ -73,7 +73,7 @@ let fns : List<BuiltInFn> =
                 |> Dval.list (KTCustomType(fnParamTypeName, []))
 
               let fields =
-                [ "name", DString(FQFnName.builtinToString key)
+                [ "name", DString(FQFnName.builtinToString name)
                   "description", DString data.description
                   "parameters", parameters
                   "returnType", DString(typeNameToStr data.returnType) ]

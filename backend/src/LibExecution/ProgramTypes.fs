@@ -56,17 +56,6 @@ module FQTypeName =
     assertPackage modules name assertTypeName
     { owner = owner; modules = modules; name = name }
 
-  let fqPackage
-    (owner : string)
-    (modules : List<string>)
-    (name : string)
-    : FQTypeName =
-    Package(package owner modules name)
-
-  let toString (name : FQTypeName) : string =
-    match name with
-    | Package p -> packageName p.owner p.modules p.name
-
 
 
 /// A Fully-Qualified Constant Name
@@ -98,22 +87,7 @@ module FQConstantName =
     assertPackage modules name assertConstantName
     { owner = owner; modules = modules; name = name }
 
-  let fqPackage
-    (owner : string)
-    (modules : List<string>)
-    (name : string)
-    : FQConstantName =
-    Package(package owner modules name)
 
-
-  let builtinToString (s : Builtin) : string =
-    let name = s.name
-    if s.version = 0 then name else $"{name}_v{s.version}"
-
-  let toString (name : FQConstantName) : string =
-    match name with
-    | Builtin b -> builtinToString b
-    | Package p -> packageName p.owner p.modules p.name
 
 
 /// A Fully-Qualified Function Name
@@ -133,9 +107,6 @@ module FQFnName =
   let assertFnName (name : string) : unit =
     assertRe $"Fn name must match" fnNamePattern name
 
-  let assertBuiltinFnName (name : string) : unit =
-    assertRe $"Builtin Fn name must match" builtinNamePattern name
-
   let builtIn (name : string) (version : int) : Builtin =
     assertBuiltin name version assertFnName
     { name = name; version = version }
@@ -153,15 +124,6 @@ module FQFnName =
     (name : string)
     : FQFnName =
     Package(package owner modules name)
-
-  let builtinToString (s : Builtin) : string =
-    let name = s.name
-    if s.version = 0 then name else $"{name}_v{s.version}"
-
-  let toString (name : FQFnName) : string =
-    match name with
-    | Builtin b -> builtinToString b
-    | Package p -> packageName p.owner p.modules p.name
 
 
 // In ProgramTypes, names (FnNames, TypeNames, ConstantNames) have already been
@@ -553,7 +515,6 @@ type Deprecation<'name> =
 // --
 // Package things
 // --
-
 module PackageType =
   type T =
     { tlid : tlid
