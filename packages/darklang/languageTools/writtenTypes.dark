@@ -83,6 +83,13 @@ module Darklang =
             arguments: List<TypeReference.TypeReference * Range> *
             ret: TypeReference.TypeReference
 
+          | TDB of
+            Range *
+            keywordDB: Range *
+            symbolOpenAngle: Range *
+            typ: TypeReference *
+            symbolCloseAngle: Range
+
           | TVariable of Range * String
 
 

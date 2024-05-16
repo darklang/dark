@@ -100,6 +100,10 @@ module Darklang =
 
               ProgramTypes.TypeReference.TFn(args, returnType)
 
+            | TDB(_range, _, _, typ, _) ->
+              let typ = TypeReference.toPT onMissing typ
+              ProgramTypes.TypeReference.TDB typ
+
             | TVariable(_range, name) -> ProgramTypes.TypeReference.TVariable name
 
         let toPT
