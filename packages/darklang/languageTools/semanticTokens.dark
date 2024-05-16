@@ -163,6 +163,12 @@ module Darklang =
                  |> Stdlib.List.flatten)
 
                 TypeReference.tokenize ret ]
+
+            | TDB(r, rk, ro, t, rc) ->
+              [ [ makeToken rk TokenType.Keyword ]
+                [ makeToken ro TokenType.Symbol ]
+                (TypeReference.tokenize t)
+                [ makeToken rc TokenType.Symbol ] ]
               |> Stdlib.List.flatten
 
             | TVariable(r, _) -> [ makeToken r TokenType.TypeName ]
