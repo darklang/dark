@@ -3448,6 +3448,10 @@
         {
           "type": "SYMBOL",
           "name": "variable_type_reference"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "db_type_reference"
         }
       ]
     },
@@ -3701,6 +3705,58 @@
           }
         ]
       }
+    },
+    "db_type_reference": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "keyword_type_constructor",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "DB"
+            },
+            "named": true,
+            "value": "keyword"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "symbol_open_angle",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "<"
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "typ_param",
+          "content": {
+            "type": "SYMBOL",
+            "name": "type_reference"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "symbol_close_angle",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": ">"
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        }
+      ]
     },
     "variable_type_reference": {
       "type": "SEQ",

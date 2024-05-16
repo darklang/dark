@@ -813,6 +813,8 @@ module.exports = grammar({
         $.dict_type_reference,
         $.fn_type_reference,
         $.variable_type_reference,
+
+        $.db_type_reference,
       ),
 
     //
@@ -875,6 +877,15 @@ module.exports = grammar({
         ),
       ),
 
+    // DB type reference
+    // DB<'a>
+    db_type_reference: $ =>
+      seq(
+        field("keyword_type_constructor", alias("DB", $.keyword)),
+        field("symbol_open_angle", alias("<", $.symbol)),
+        field("typ_param", $.type_reference),
+        field("symbol_close_angle", alias(">", $.symbol)),
+      ),
     //
     // Variable type reference
     // 'a

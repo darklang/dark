@@ -58,6 +58,10 @@
       "required": false,
       "types": [
         {
+          "type": "db_type_reference",
+          "named": true
+        },
+        {
           "type": "dict_type_reference",
           "named": true
         },
@@ -165,6 +169,52 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "db_type_reference",
+    "named": true,
+    "fields": {
+      "keyword_type_constructor": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "keyword",
+            "named": true
+          }
+        ]
+      },
+      "symbol_close_angle": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_open_angle": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "typ_param": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type_reference",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
