@@ -258,6 +258,9 @@ module TextToTextRoundtripping =
     ("type MyFn = PACKAGE.Darklang.LanguageTools.ID -> 'a -> 'b"
      |> roundtripCliScript) = "type MyFn =\n  PACKAGE.Darklang.LanguageTools.ID -> 'a -> 'b"
 
+    ("type MyDB = DB<'a>" |> roundtripCliScript) = "type MyDB =\n  DB<'a>"
+    ("type MyDB = DB<Person>" |> roundtripCliScript) = "type MyDB =\n  DB<Person>"
+
     ("type MyVar = 'a" |> roundtripCliScript) = "type MyVar =\n  'a"
 
     // single-part qualified name
