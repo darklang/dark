@@ -31,7 +31,7 @@ type Error =
 /// to RuntimeError
 module RTE =
   module ErrorType =
-    let typeName = RT.RuntimeError.name [ "NameResolution" ] "ErrorType" 0
+    let typeName = RT.RuntimeError.name [ "NameResolution" ] "ErrorType"
 
     let toDT (et : ErrorType) : RT.Dval =
       let (caseName, fields) =
@@ -56,7 +56,7 @@ module RTE =
       | _ -> Exception.raiseInternal "Invalid ErrorType" []
 
   module NameType =
-    let typeName = RT.RuntimeError.name [ "NameResolution" ] "NameType" 0
+    let typeName = RT.RuntimeError.name [ "NameResolution" ] "NameType"
     let toDT (nt : NameType) : RT.Dval =
       let (caseName, fields) =
         match nt with
@@ -74,7 +74,7 @@ module RTE =
       | _ -> Exception.raiseInternal "Invalid NameType" []
 
   module Error =
-    let typeName = RT.RuntimeError.name [ "NameResolution" ] "Error" 0
+    let typeName = RT.RuntimeError.name [ "NameResolution" ] "Error"
     let toDT (e : Error) : RT.Dval =
       let fields =
         [ ("errorType", ErrorType.toDT e.errorType)

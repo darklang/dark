@@ -19,8 +19,7 @@ module ParseError =
       match e with
       | BadFormat -> "BadFormat", []
 
-    let typeName =
-      FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Uuid" ] "ParseError" 0
+    let typeName = FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Uuid" ] "ParseError"
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -48,13 +47,7 @@ let fns : List<BuiltInFn> =
         TypeReference.result
           TInt64
           (TCustomType(
-            Ok(
-              FQTypeName.Package
-                { owner = "Darklang"
-                  modules = [ "Stdlib"; "Uuid" ]
-                  name = "ParseError"
-                  version = 0 }
-            ),
+            Ok(FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Uuid" ] "ParseError"),
             []
           ))
       description =
@@ -62,7 +55,7 @@ let fns : List<BuiltInFn> =
       fn =
         let resultOk = Dval.resultOk KTUuid KTString
         let typeName =
-          FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Uuid" ] "ParseError" 0
+          FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Uuid" ] "ParseError"
         let resultError = Dval.resultError KTUuid (KTCustomType(typeName, []))
         (function
         | _, _, [ DString s ] ->

@@ -196,8 +196,7 @@ module Darklang =
                 ProgramTypes.FQTypeName.Package
                   { owner = owner
                     modules = modules
-                    name = d.name.name
-                    version = 0L }
+                    name = d.name.name }
               description = ""
               declaration = toPT onMissing d
               deprecated = ProgramTypes.Deprecation.NotDeprecated }
@@ -503,8 +502,7 @@ module Darklang =
                 ProgramTypes.FQFnName.Package
                   { owner = owner
                     modules = modules
-                    name = fn.name.name
-                    version = 0L }
+                    name = fn.name.name }
               typeParams = []
               parameters =
                 fn.parameters

@@ -8,7 +8,6 @@ module VT = ValueType
 module Dval = LibExecution.Dval
 module Interpreter = LibExecution.Interpreter
 module TypeChecker = LibExecution.TypeChecker
-module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
 
 // CLEANUP something like type ComparatorResult = Higher | Lower | Same
@@ -658,7 +657,7 @@ let fns : List<BuiltInFn> =
          <param fn> to each element in the list.
 
          For example, if <param list> is {{[1, 2, 3, 4, 5]}} and <param fn>
-         is {{fn item -> Int64.mod_v0 item 2}}, returns {{[(1, [1, 3, 5]), (0, [2, 4])]}}.
+         is {{fn item -> Int64.mod item 2}}, returns {{[(1, [1, 3, 5]), (0, [2, 4])]}}.
 
           Preserves the order of values and of the keys."
       fn =

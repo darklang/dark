@@ -98,7 +98,6 @@ let runtimeErrorToString
         "Darklang"
         [ "LanguageTools"; "RuntimeErrors"; "Error" ]
         "toString"
-        0
     let args = NEList.singleton (RT.RuntimeError.toDT rte)
     return! executeFunction state None fnName [] args
   }

@@ -37,7 +37,7 @@ module ExecutionError =
     | ConstDoesntExist of FQConstantName.FQConstantName
 
   let toDT (e : Error) : RuntimeError =
-    let typeName = RuntimeError.name [ "Execution" ] "Error" 0
+    let typeName = RuntimeError.name [ "Execution" ] "Error"
 
     let case (caseName : string) (fields : List<Dval>) : RuntimeError =
       DEnum(typeName, typeName, [], caseName, fields) |> RuntimeError.executionError

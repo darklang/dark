@@ -102,7 +102,7 @@ let exprRTs =
       // Now let's test some more complex expressions
       t
         "pipe without expr"
-        "(let x = 5L\nx |> PACKAGE.Darklang.Stdlib.List.map_v0 5L)"
+        "(let x = 5L\nx |> PACKAGE.Darklang.Stdlib.List.map 5L)"
         (PT.ELet(
           id,
           PT.LPVariable(id, "x"),
@@ -112,7 +112,7 @@ let exprRTs =
             PT.EVariable(id, "x"),
             [ PT.EPipeFnCall(
                 id,
-                Ok(PT.FQFnName.fqPackage "Darklang" [ "Stdlib"; "List" ] "map" 0),
+                Ok(PT.FQFnName.fqPackage "Darklang" [ "Stdlib"; "List" ] "map"),
                 [],
                 [ PT.EInt64(id, 5L) ]
               ) ]

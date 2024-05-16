@@ -91,7 +91,7 @@ let testPackageFn
     tlid = gid ()
     body = body
     description = ""
-    name = PT.FQFnName.package owner [] name 0
+    name = PT.FQFnName.package owner [] name
     typeParams = typeParams
     deprecated = PT.NotDeprecated
     parameters =
@@ -444,7 +444,6 @@ module Expect =
       if a.owner <> e.owner then err ()
       if a.modules <> e.modules then err ()
       if a.name <> e.name then err ()
-      if a.version <> e.version then err ()
 
   let rec matchPatternEqualityBaseFn
     (checkIDs : bool)
@@ -1088,8 +1087,8 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
 
     ("record",
      DRecord(
-       S.fqPackageTypeName "Darklang" [ "Stdlib"; "Http" ] "Request" 0,
-       S.fqPackageTypeName "Darklang" [ "Stdlib"; "Http" ] "Request" 0,
+       S.fqPackageTypeName "Darklang" [ "Stdlib"; "Http" ] "Request",
+       S.fqPackageTypeName "Darklang" [ "Stdlib"; "Http" ] "Request",
        [],
        Map.ofList
          [ "url", DString "https://darklang.com"
@@ -1097,20 +1096,20 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
            "body", Dval.list KTUInt8 [] ]
      ),
      TCustomType(
-       Ok(S.fqPackageTypeName "Darklang" [ "Stdlib"; "Http" ] "Request" 0),
+       Ok(S.fqPackageTypeName "Darklang" [ "Stdlib"; "Http" ] "Request"),
        []
      ))
 
     ("enum",
      DEnum(
-       S.fqPackageTypeName "Darklang" [ "Stdlib"; "AltJson" ] "Json" 0,
-       S.fqPackageTypeName "Darklang" [ "Stdlib"; "AltJson" ] "Json" 0,
+       S.fqPackageTypeName "Darklang" [ "Stdlib"; "AltJson" ] "Json",
+       S.fqPackageTypeName "Darklang" [ "Stdlib"; "AltJson" ] "Json",
        [],
        "String",
        [ DString "test" ]
      ),
      TCustomType(
-       Ok(S.fqPackageTypeName "Darklang" [ "Stdlib"; "AltJson" ] "Json" 0),
+       Ok(S.fqPackageTypeName "Darklang" [ "Stdlib"; "AltJson" ] "Json"),
        []
      ))
 

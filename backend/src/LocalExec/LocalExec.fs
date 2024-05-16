@@ -48,30 +48,6 @@ module HandleCommand =
 
       print $"Loaded canvas {canvasId} with {List.length toplevels} toplevels"
 
-
-      let dbTlid =
-        toplevels
-        |> List.choose (fun tl ->
-          //print $"Looking at toplevel {tl}"
-          match tl with
-          | PT.Toplevel.TLDB db -> Some db.tlid
-          | _ -> None)
-        |> List.tryHead
-        |> Option.defaultWith (fun () ->
-          Exception.raiseInternal
-            "Surprisingly, no DB definiting db found in dark-packages/main.dark"
-            [])
-
-      let types = { RT.Types.empty with package = inMemPackageManager.getType }
-
-      // finally, take of the packages we parsed from disk and load them into the canvas's DB
-      do!
-        DarkPackagesDataIngest.fillDarkPackagesCanvasWithData
-          types
-          canvasId
-          dbTlid
-          packagesFromDisk
-
       return Ok()
     }
 

@@ -17,9 +17,8 @@ module Queue = LibCloud.Queue
 let packageInternalType
   (addlModules : List<string>)
   (name : string)
-  (version : int)
   : FQTypeName.FQTypeName =
-  FQTypeName.fqPackage "Darklang" ("Internal" :: addlModules) name version
+  FQTypeName.fqPackage "Darklang" ("Internal" :: addlModules) name
 
 
 let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
@@ -41,7 +40,7 @@ let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
   | _ -> incorrectArgs ())
 
 
-let schedulingRuleTypeName = packageInternalType [ "Worker" ] "SchedulingRule" 0
+let schedulingRuleTypeName = packageInternalType [ "Worker" ] "SchedulingRule"
 
 let schedulingRuleTypeRef = TCustomType(Ok schedulingRuleTypeName, [])
 

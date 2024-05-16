@@ -21,16 +21,15 @@ let savePackageTypes (types : List<PT.PackageType.T>) : Task<Unit> =
   |> Task.iterInParallel (fun typ ->
     Sql.query
       "INSERT INTO package_types_v0
-        (tlid, id, owner, modules, typename, version, definition)
+        (tlid, id, owner, modules, typename, definition)
       VALUES
-        (@tlid, @id, @owner, @modules, @typename, @version, @definition)"
+        (@tlid, @id, @owner, @modules, @typename, @definition)"
     |> Sql.parameters
       [ "tlid", Sql.tlid typ.tlid
         "id", Sql.uuid typ.id
         "owner", Sql.string typ.name.owner
         "modules", Sql.string (typ.name.modules |> String.concat ".")
         "typename", Sql.string typ.name.name
-        "version", Sql.int typ.name.version
         "definition", Sql.bytea (BinarySerialization.PackageType.serialize typ) ]
     |> Sql.executeStatementAsync)
 
@@ -40,16 +39,15 @@ let savePackageConstants (constants : List<PT.PackageConstant.T>) : Task<Unit> =
   |> Task.iterInParallel (fun c ->
     Sql.query
       "INSERT INTO package_constants_v0
-        (tlid, id, owner, modules, name, version, definition)
+        (tlid, id, owner, modules, name, definition)
       VALUES
-        (@tlid, @id, @owner, @modules, @name, @version, @definition)"
+        (@tlid, @id, @owner, @modules, @name, @definition)"
     |> Sql.parameters
       [ "tlid", Sql.tlid c.tlid
         "id", Sql.uuid c.id
         "owner", Sql.string c.name.owner
         "modules", Sql.string (c.name.modules |> String.concat ".")
         "name", Sql.string c.name.name
-        "version", Sql.int c.name.version
         "definition", Sql.bytea (BinarySerialization.PackageConstant.serialize c) ]
     |> Sql.executeStatementAsync)
 
@@ -58,16 +56,15 @@ let savePackageFunctions (fns : List<PT.PackageFn.T>) : Task<Unit> =
   |> Task.iterInParallel (fun fn ->
     Sql.query
       "INSERT INTO package_functions_v0
-        (tlid, id, owner, modules, fnname, version, definition)
+        (tlid, id, owner, modules, fnname, definition)
       VALUES
-        (@tlid, @id, @owner, @modules, @fnname, @version, @definition)"
+        (@tlid, @id, @owner, @modules, @fnname, @definition)"
     |> Sql.parameters
       [ "tlid", Sql.tlid fn.tlid
         "id", Sql.uuid fn.id
         "owner", Sql.string fn.name.owner
         "modules", Sql.string (fn.name.modules |> String.concat ".")
         "fnname", Sql.string fn.name.name
-        "version", Sql.int fn.name.version
         "definition", Sql.bytea (BinarySerialization.PackageFn.serialize fn) ]
     |> Sql.executeStatementAsync)
 
@@ -102,14 +99,12 @@ let getFn (name : PT.FQFnName.Package) : Ply<Option<PT.PackageFn.T>> =
       FROM package_functions_v0
       WHERE owner = @owner
         AND modules = @modules
-        AND fnname = @name
-        AND version = @version"
+        AND fnname = @name"
       |> Sql.query
       |> Sql.parameters
         [ "owner", Sql.string name.owner
           "modules", Sql.string (name.modules |> String.concat ".")
-          "name", Sql.string name.name
-          "version", Sql.int name.version ]
+          "name", Sql.string name.name ]
       |> Sql.executeRowOptionAsync (fun read ->
         (read.uuid "id", read.bytea "definition"))
 
@@ -143,14 +138,12 @@ let getType (name : PT.FQTypeName.Package) : Ply<Option<PT.PackageType.T>> =
       FROM package_types_v0
       WHERE owner = @owner
         AND modules = @modules
-        AND typename = @name
-        AND version = @version"
+        AND typename = @name"
       |> Sql.query
       |> Sql.parameters
         [ "owner", Sql.string name.owner
           "modules", Sql.string (name.modules |> String.concat ".")
-          "name", Sql.string name.name
-          "version", Sql.int name.version ]
+          "name", Sql.string name.name ]
       |> Sql.executeRowOptionAsync (fun read ->
         (read.uuid "id", read.bytea "definition"))
 
@@ -169,14 +162,12 @@ let getConstant
       FROM package_constants_v0
       WHERE owner = @owner
         AND modules = @modules
-        AND name = @name
-        AND version = @version"
+        AND name = @name"
       |> Sql.query
       |> Sql.parameters
         [ "owner", Sql.string name.owner
           "modules", Sql.string (name.modules |> String.concat ".")
-          "name", Sql.string name.name
-          "version", Sql.int name.version ]
+          "name", Sql.string name.name ]
       |> Sql.executeRowOptionAsync (fun read ->
         (read.uuid "id", read.bytea "definition"))
 
@@ -187,8 +178,6 @@ let getConstant
   }
 
 
-// CLEANUP this package manager should be removed, and all usages replaced with the
-// one that fetches things from the `dark-packages` canvas' http endpoints
 let packageManager : RT.PackageManager =
   let withCache (f : 'name -> Ply<Option<'value>>) =
     let cache = System.Collections.Concurrent.ConcurrentDictionary<'name, 'value>()
@@ -213,6 +202,7 @@ let packageManager : RT.PackageManager =
           let! typ = name |> PT2RT.FQTypeName.Package.fromRT |> getType
           return Option.map PT2RT.PackageType.toRT typ
         })
+
     getFn =
       withCache (fun name ->
         uply {

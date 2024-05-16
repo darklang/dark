@@ -34,7 +34,7 @@ let queryableRoundtripsSuccessfullyInRecord
   ) : Task<bool> =
 
   task {
-    let typeName = S.packageTypeName "Tests" [] "MyType" 0
+    let typeName = S.packageTypeName "Tests" [] "MyType"
     let record =
       RT.DRecord(
         RT.FQTypeName.Package typeName,
@@ -42,7 +42,7 @@ let queryableRoundtripsSuccessfullyInRecord
         [],
         Map.ofList [ "field", dv ]
       )
-    let typeRef = S.packageTypeReference "Tests" [] "MyType" 0
+    let typeRef = S.packageTypeReference "Tests" [] "MyType"
 
     let types : RT.Types =
       { typeSymbolTable = Map.empty

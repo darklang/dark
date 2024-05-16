@@ -10,16 +10,8 @@ module VT = ValueType
 module Dval = LibExecution.Dval
 
 
-let typ
-  (addlModules : List<string>)
-  (name : string)
-  (version : int)
-  : FQTypeName.FQTypeName =
-  FQTypeName.fqPackage
-    "Darklang"
-    ([ "Stdlib"; "AltJson" ] @ addlModules)
-    name
-    version
+let typ (addlModules : List<string>) (name : string) : FQTypeName.FQTypeName =
+  FQTypeName.fqPackage "Darklang" ([ "Stdlib"; "AltJson" ] @ addlModules) name
 
 
 module Json =
@@ -31,7 +23,7 @@ module Json =
     | Array of List<Json>
     | Object of List<string * Json>
 
-  let typeName = typ [] "Json" 0
+  let typeName = typ [] "Json"
   let typeRef = TCustomType(Ok typeName, [])
   let knownType = KTCustomType(typeName, [])
 
@@ -78,7 +70,7 @@ module Json =
 
 
 module ParseError =
-  let typeName = typ [ "ParseError" ] "ParseError" 0
+  let typeName = typ [ "ParseError" ] "ParseError"
   let typeRef = TCustomType(Ok typeName, [])
   let knownType = KTCustomType(typeName, [])
 

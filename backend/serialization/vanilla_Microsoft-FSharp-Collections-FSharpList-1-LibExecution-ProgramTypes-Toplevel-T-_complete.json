@@ -310,8 +310,7 @@
                                                                           "modules": [
                                                                             "Mod"
                                                                           ],
-                                                                          "name": "User",
-                                                                          "version": 0
+                                                                          "name": "User"
                                                                         }
                                                                       ]
                                                                     }
@@ -336,8 +335,7 @@
                                                                             "Mod1",
                                                                             "Mod2"
                                                                           ],
-                                                                          "name": "Pack",
-                                                                          "version": 0
+                                                                          "name": "Pack"
                                                                         }
                                                                       ]
                                                                     }
@@ -600,8 +598,7 @@
                                                               "modules": [
                                                                 "stdlib"
                                                               ],
-                                                              "name": "NonEmptyList",
-                                                              "version": 0
+                                                              "name": "NonEmptyList"
                                                             }
                                                           ]
                                                         }
@@ -740,8 +737,7 @@
                                                                         "Stdlib",
                                                                         "Result"
                                                                       ],
-                                                                      "name": "Result",
-                                                                      "version": 0
+                                                                      "name": "Result"
                                                                     }
                                                                   ]
                                                                 }
@@ -1813,8 +1809,7 @@
                                                                           "modules": [
                                                                             "Mod"
                                                                           ],
-                                                                          "name": "User",
-                                                                          "version": 0
+                                                                          "name": "User"
                                                                         }
                                                                       ]
                                                                     }
@@ -1839,8 +1834,7 @@
                                                                             "Mod1",
                                                                             "Mod2"
                                                                           ],
-                                                                          "name": "Pack",
-                                                                          "version": 0
+                                                                          "name": "Pack"
                                                                         }
                                                                       ]
                                                                     }
@@ -2103,8 +2097,7 @@
                                                               "modules": [
                                                                 "stdlib"
                                                               ],
-                                                              "name": "NonEmptyList",
-                                                              "version": 0
+                                                              "name": "NonEmptyList"
                                                             }
                                                           ]
                                                         }
@@ -2243,8 +2236,7 @@
                                                                         "Stdlib",
                                                                         "Result"
                                                                       ],
-                                                                      "name": "Result",
-                                                                      "version": 0
+                                                                      "name": "Result"
                                                                     }
                                                                   ]
                                                                 }
@@ -3319,8 +3311,7 @@
                                                                           "modules": [
                                                                             "Mod"
                                                                           ],
-                                                                          "name": "User",
-                                                                          "version": 0
+                                                                          "name": "User"
                                                                         }
                                                                       ]
                                                                     }
@@ -3345,8 +3336,7 @@
                                                                             "Mod1",
                                                                             "Mod2"
                                                                           ],
-                                                                          "name": "Pack",
-                                                                          "version": 0
+                                                                          "name": "Pack"
                                                                         }
                                                                       ]
                                                                     }
@@ -3609,8 +3599,7 @@
                                                               "modules": [
                                                                 "stdlib"
                                                               ],
-                                                              "name": "NonEmptyList",
-                                                              "version": 0
+                                                              "name": "NonEmptyList"
                                                             }
                                                           ]
                                                         }
@@ -3749,8 +3738,7 @@
                                                                         "Stdlib",
                                                                         "Result"
                                                                       ],
-                                                                      "name": "Result",
-                                                                      "version": 0
+                                                                      "name": "Result"
                                                                     }
                                                                   ]
                                                                 }
@@ -4822,8 +4810,7 @@
                                                                           "modules": [
                                                                             "Mod"
                                                                           ],
-                                                                          "name": "User",
-                                                                          "version": 0
+                                                                          "name": "User"
                                                                         }
                                                                       ]
                                                                     }
@@ -4848,8 +4835,7 @@
                                                                             "Mod1",
                                                                             "Mod2"
                                                                           ],
-                                                                          "name": "Pack",
-                                                                          "version": 0
+                                                                          "name": "Pack"
                                                                         }
                                                                       ]
                                                                     }
@@ -5112,8 +5098,7 @@
                                                               "modules": [
                                                                 "stdlib"
                                                               ],
-                                                              "name": "NonEmptyList",
-                                                              "version": 0
+                                                              "name": "NonEmptyList"
                                                             }
                                                           ]
                                                         }
@@ -5252,8 +5237,7 @@
                                                                         "Stdlib",
                                                                         "Result"
                                                                       ],
-                                                                      "name": "Result",
-                                                                      "version": 0
+                                                                      "name": "Result"
                                                                     }
                                                                   ]
                                                                 }
@@ -6113,8 +6097,7 @@
                             "modules": [
                               "Mod"
                             ],
-                            "name": "User",
-                            "version": 0
+                            "name": "User"
                           }
                         ]
                       }
@@ -6139,8 +6122,7 @@
                               "Mod1",
                               "Mod2"
                             ],
-                            "name": "Pack",
-                            "version": 0
+                            "name": "Pack"
                           }
                         ]
                       }

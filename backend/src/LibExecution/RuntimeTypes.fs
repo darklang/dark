@@ -38,7 +38,7 @@ let fnNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
 let builtinNamePattern = @"^(__|[a-z])[a-z0-9A-Z_]\w*$"
 let constantNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
 
-let assertBuiltin'
+let assertBuiltin
   (name : string)
   (version : int)
   (nameValidator : string -> unit)
@@ -46,77 +46,49 @@ let assertBuiltin'
   nameValidator name
   assert_ "version can't be negative" [ "version", version ] (version >= 0)
 
-let assert'
+let assertPackage
   (modules : List<string>)
   (name : string)
-  (version : int)
   (nameValidator : string -> unit)
   : unit =
   List.iter (assertRe "modules name must match" modulePattern) modules
   nameValidator name
-  assert_ "version can't be negative" [ "version", version ] (version >= 0)
 
 
-let packageName
-  (owner : string)
-  (modules : List<string>)
-  (name : string)
-  (version : int)
-  : string =
+let packageName (owner : string) (modules : List<string>) (name : string) : string =
   let nameParts =
     match owner with
     | "Tests" -> modules @ [ name ]
     | _ -> "PACKAGE" :: owner :: modules @ [ name ]
-  let name = nameParts |> String.concat "."
+  nameParts |> String.concat "."
 
-  if version = 0 then name else $"{name}_v{version}"
 
 /// Fully-Qualified Type Name
 ///
 /// Used to reference a type defined in a Package
 module FQTypeName =
   /// The name of a type in the package manager
-  type Package =
-    // TODO: consider whether modules should be a NonEmptyList
-    { owner : string
-      modules : List<string>
-      name : string
-      version : int }
+  type Package = { owner : string; modules : List<string>; name : string }
 
   type FQTypeName = Package of Package
 
   let assertTypeName (name : string) : unit =
     assertRe "type name must match" typeNamePattern name
 
-  let package
-    (owner : string)
-    (modules : List<string>)
-    (name : string)
-    (version : int)
-    : Package =
-    assert' modules name version assertTypeName
-    { owner = owner; modules = modules; name = name; version = version }
+  let package (owner : string) (modules : List<string>) (name : string) : Package =
+    assertPackage modules name assertTypeName
+    { owner = owner; modules = modules; name = name }
 
   let fqPackage
     (owner : string)
     (modules : List<string>)
     (name : string)
-    (version : int)
     : FQTypeName =
-    Package(package owner modules name version)
-
-  let packageToString (s : Package) : string =
-    packageName s.owner s.modules s.name s.version
+    Package(package owner modules name)
 
   let toString (name : FQTypeName) : string =
     match name with
-    | Package pkg -> packageToString pkg
-
-
-  let toShortName (name : FQTypeName) : string =
-    match name with
-    | Package { name = name; version = version } ->
-      if version = 0 then name else $"{name}_v{version}"
+    | Package p -> packageName p.owner p.modules p.name
 
 
 /// A Fully-Qualified Constant Name
@@ -128,11 +100,7 @@ module FQConstantName =
   type Builtin = { name : string; version : int }
 
   /// The name of a constant in the package manager
-  type Package =
-    { owner : string
-      modules : List<string> // TODO: consider whether modules should be a NonEmptyList
-      name : string
-      version : int }
+  type Package = { owner : string; modules : List<string>; name : string }
 
   type FQConstantName =
     | Builtin of Builtin
@@ -143,41 +111,28 @@ module FQConstantName =
     assertRe "Constant name must match" constantNamePattern name
 
   let builtin (name : string) (version : int) : Builtin =
-    assertBuiltin' name version assertConstantName
+    assertBuiltin name version assertConstantName
     { name = name; version = version }
 
-  let fqBuiltIn (name : string) (version : int) : FQConstantName =
-    Builtin(builtin name version)
-
-  let package
-    (owner : string)
-    (modules : List<string>)
-    (name : string)
-    (version : int)
-    : Package =
-    assert' modules name version assertConstantName
-    { owner = owner; modules = modules; name = name; version = version }
+  let package (owner : string) (modules : List<string>) (name : string) : Package =
+    assertPackage modules name assertConstantName
+    { owner = owner; modules = modules; name = name }
 
   let fqPackage
     (owner : string)
     (modules : List<string>)
     (name : string)
-    (version : int)
     : FQConstantName =
-    Package(package owner modules name version)
+    Package(package owner modules name)
 
   let builtinToString (s : Builtin) : string =
     let name = s.name
     if s.version = 0 then name else $"{name}_v{s.version}"
 
-  let packageToString (s : Package) : string =
-    packageName s.owner s.modules s.name s.version
-
-
   let toString (name : FQConstantName) : string =
     match name with
     | Builtin b -> builtinToString b
-    | Package p -> packageToString p
+    | Package p -> packageName p.owner p.modules p.name
 
 
 /// A Fully-Qualified Function Name
@@ -185,22 +140,14 @@ module FQConstantName =
 /// Used to reference a function defined by the runtime or in a Package
 module FQFnName =
   /// A function built into the runtime
-  ///
-  /// TODO: replace with just string * version ?
-  /// like `{ function_ = "__list_map"; version = 0 }`
   type Builtin = { name : string; version : int }
 
   /// The name of a function in the package manager
-  type Package =
-    { owner : string
-      modules : List<string> // TODO: consider whether modules should be a NonEmptyList
-      name : string
-      version : int }
+  type Package = { owner : string; modules : List<string>; name : string }
 
   type FQFnName =
     | Builtin of Builtin
     | Package of Package
-
 
   let assertFnName (name : string) : unit =
     assertRe $"Fn name must match" fnNamePattern name
@@ -208,44 +155,31 @@ module FQFnName =
   let assertBuiltinFnName (name : string) : unit =
     assertRe $"Fn name must match" builtinNamePattern name
 
-
   let builtin (name : string) (version : int) : Builtin =
-    assertBuiltin' name version assertBuiltinFnName
+    assertBuiltin name version assertBuiltinFnName
     { name = name; version = version }
 
-  let fqBuiltin (name : string) (version : int) : FQFnName =
-    Builtin(builtin name version)
-
-  let package
-    (owner : string)
-    (modules : List<string>)
-    (name : string)
-    (version : int)
-    : Package =
-    assert' modules name version assertFnName
-    { owner = owner; modules = modules; name = name; version = version }
+  let package (owner : string) (modules : List<string>) (name : string) : Package =
+    assertPackage modules name assertFnName
+    { owner = owner; modules = modules; name = name }
 
   let fqPackage
     (owner : string)
     (modules : List<string>)
     (name : string)
-    (version : int)
     : FQFnName =
-    Package(package owner modules name version)
-
+    Package(package owner modules name)
 
   let builtinToString (s : Builtin) : string =
     let name = s.name
     if s.version = 0 then name else $"{name}_v{s.version}"
 
-  let packageToString (s : Package) : string =
-    packageName s.owner s.modules s.name s.version
+  let packageToString (s : Package) : string = packageName s.owner s.modules s.name
 
   let toString (name : FQFnName) : string =
     match name with
     | Builtin b -> builtinToString b
     | Package pkg -> packageToString pkg
-
 
   let isInternalFn (fnName : Builtin) : bool = fnName.name.Contains("darkInternal")
 
@@ -276,38 +210,38 @@ type KnownType =
   | KTUuid
   | KTDateTime
 
-  // let empty =    [] // KTList Unknown
-  // let intList = [1] // KTList (ValueType.Known KTInt64)
+  /// let empty =    [] // KTList Unknown
+  /// let intList = [1] // KTList (ValueType.Known KTInt64)
   | KTList of ValueType
 
-  // Intuitively, since Dvals generate KnownTypes, you would think that we can
-  // use KnownTypes in a KTTuple.
-  //
-  // However, we sometimes construct a KTTuple to repesent the type of a Tuple
-  // which doesn't exist. For example, in `List.zip [] []`, we create the result
-  // from the types of the two lists, which themselves might be (and likely are)
-  // `Unknown`.
+  /// Intuitively, since Dvals generate KnownTypes, you would think that we can
+  /// use KnownTypes in a KTTuple.
+  ///
+  /// However, we sometimes construct a KTTuple to repesent the type of a Tuple
+  /// which doesn't exist. For example, in `List.zip [] []`, we create the result
+  /// from the types of the two lists, which themselves might be (and likely are)
+  /// `Unknown`.
   | KTTuple of ValueType * ValueType * List<ValueType>
 
-  // let f = (fun x -> x)        // KTFn([Unknown], Unknown)
-  // let intF = (fun (x: Int) -> x) // KTFn([Known KTInt64], Unknown)
-  //
-  // Note that we could theoretically know some return types by analyzing the
-  // code or type signatures of functions. We don't do this yet as it's
-  // complicated. When we do decide to do this, some incorrect programs may stop
-  // functioning (see example). Our goal is for correctly typed functions to
-  // stay working so this might be ok.
-  //
-  // For example:
-  //   let z1 = (fun x -> 5)
-  //   let z2 = (fun x -> "str")
-  // `[z1, z2]` is allowed now but might not be allowed later
+  /// let f = (fun x -> x)        // KTFn([Unknown], Unknown)
+  /// let intF = (fun (x: Int) -> x) // KTFn([Known KTInt64], Unknown)
+  ///
+  /// Note that we could theoretically know some return types by analyzing the
+  /// code or type signatures of functions. We don't do this yet as it's
+  /// complicated. When we do decide to do this, some incorrect programs may stop
+  /// functioning (see example). Our goal is for correctly typed functions to
+  /// stay working so this might be ok.
+  ///
+  /// For example:
+  ///   let z1 = (fun x -> 5)
+  ///   let z2 = (fun x -> "str")
+  /// `[z1, z2]` is allowed now but might not be allowed later
   | KTFn of args : NEList<ValueType> * ret : ValueType
 
-  // At time of writing, all DBs are of a specific type, and DBs may only be
-  // referenced directly, but we expect to eventually allow references to DBs
-  // where the type may be unknown
-  // List.head ([]: List<DB<'a>>) // KTDB (Unknown)
+  /// At time of writing, all DBs are of a specific type, and DBs may only be
+  /// referenced directly, but we expect to eventually allow references to DBs
+  /// where the type may be unknown
+  /// List.head ([]: List<DB<'a>>) // KTDB (Unknown)
   | KTDB of ValueType
 
   /// let n = None          // type args: [Unknown]
@@ -316,7 +250,7 @@ type KnownType =
   /// let e = Error ("str") // type args: [Unknown, Known KTString]
   | KTCustomType of FQTypeName.FQTypeName * typeArgs : List<ValueType>
 
-  // let myDict = {} // KTDict Unknown
+  /// let myDict = {} // KTDict Unknown
   | KTDict of ValueType
 
 /// Represents the actual type of a Dval
@@ -483,9 +417,61 @@ module ValueType =
 
 
 
+// ------------
+// Exprs
+// ------------
+
+/// The LHS pattern in
+/// - a `let` binding (in `let x = 1`, the `x`)
+/// - a lambda (in `fn (x, y) -> x + y`, the `(x, y)`
+type LetPattern =
+  | LPUnit of id
+  | LPTuple of
+    id *
+    first : LetPattern *
+    second : LetPattern *
+    theRest : List<LetPattern>
+  | LPVariable of id * name : string
+
+
+/// The LHS of a `match` case
+///
+/// i.e. the `true` (`MPBool true`) in
+/// ```fsharp
+/// match x with
+/// | true -> "some text"
+/// ```
+type MatchPattern =
+  | MPUnit of id
+
+  | MPBool of id * bool
+  | MPInt8 of id * int8
+  | MPUInt8 of id * uint8
+  | MPInt16 of id * int16
+  | MPUInt16 of id * uint16
+  | MPInt32 of id * int32
+  | MPUInt32 of id * uint32
+  | MPInt64 of id * int64
+  | MPUInt64 of id * uint64
+  | MPInt128 of id * System.Int128
+  | MPUInt128 of id * System.UInt128
+
+  | MPFloat of id * double
+
+  | MPChar of id * string
+  | MPString of id * string
+
+  | MPList of id * List<MatchPattern>
+  | MPListCons of id * head : MatchPattern * tail : MatchPattern
+  | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
+
+  | MPEnum of id * caseName : string * fieldPatterns : List<MatchPattern>
+
+  | MPVariable of id * string
+
+
 type NameResolution<'a> = Result<'a, RuntimeError>
 
-// Dark runtime type
 and TypeReference =
   | TUnit
   | TBool
@@ -522,15 +508,6 @@ and TypeReference =
   member this.isConcrete() : bool =
     let rec isConcrete (t : TypeReference) : bool =
       match t with
-      | TVariable _ -> false
-      | TList t -> isConcrete t
-      | TTuple(t1, t2, ts) ->
-        isConcrete t1 && isConcrete t2 && List.forall isConcrete ts
-      | TFn(ts, t) -> NEList.forall isConcrete ts && isConcrete t
-      | TDB t -> isConcrete t
-      | TCustomType(_, ts) -> List.forall isConcrete ts
-      | TDict t -> isConcrete t
-      // exhaustiveness
       | TUnit
       | TBool
       | TInt64
@@ -548,6 +525,17 @@ and TypeReference =
       | TString
       | TUuid
       | TDateTime -> true
+
+      | TList t -> isConcrete t
+      | TTuple(t1, t2, ts) ->
+        isConcrete t1 && isConcrete t2 && List.forall isConcrete ts
+      | TFn(ts, t) -> NEList.forall isConcrete ts && isConcrete t
+      | TDB t -> isConcrete t
+      | TCustomType(_, ts) -> List.forall isConcrete ts
+      | TDict t -> isConcrete t
+
+      | TVariable _ -> false
+
     isConcrete this
 
 
@@ -609,50 +597,15 @@ and Expr =
 
 and MatchCase = { pat : MatchPattern; whenCondition : Option<Expr>; rhs : Expr }
 
-and LetPattern =
-  | LPUnit of id
-  | LPTuple of
-    id *
-    first : LetPattern *
-    second : LetPattern *
-    theRest : List<LetPattern>
-  | LPVariable of id * name : string
-
 and StringSegment =
   | StringText of string
   | StringInterpolation of Expr
 
-and MatchPattern =
-  | MPUnit of id
-
-  | MPBool of id * bool
-  | MPInt8 of id * int8
-  | MPUInt8 of id * uint8
-  | MPInt16 of id * int16
-  | MPUInt16 of id * uint16
-  | MPInt32 of id * int32
-  | MPUInt32 of id * uint32
-  | MPInt64 of id * int64
-  | MPUInt64 of id * uint64
-  | MPInt128 of id * System.Int128
-  | MPUInt128 of id * System.UInt128
-
-  | MPFloat of id * double
-
-  | MPChar of id * string
-  | MPString of id * string
-
-  | MPList of id * List<MatchPattern>
-  | MPListCons of id * head : MatchPattern * tail : MatchPattern
-  | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
-
-  | MPEnum of id * caseName : string * fieldPatterns : List<MatchPattern>
-
-  | MPVariable of id * string
-
 
 and DvalMap = Map<string, Dval>
 
+// CLEANUP type typeSymbolTable and symtable being here
+// seems to be the Interpreter impl leaking into the types...
 and LambdaImpl =
   { typeSymbolTable : TypeSymbolTable
     tlid : tlid // The TLID of the expression where this was defined
@@ -661,10 +614,8 @@ and LambdaImpl =
     body : Expr }
 
 and FnValImpl =
-  | Lambda of LambdaImpl // A fn value
-  | NamedFn of FQFnName.FQFnName // A reference to an Fn in the executionState
-
-and DDateTime = NodaTime.LocalDate
+  | Lambda of LambdaImpl
+  | NamedFn of FQFnName.FQFnName
 
 /// RuntimeError is the major way of representing errors in the runtime. These are
 /// primarily used for things where the user made an error, such as a type error, as
@@ -734,7 +685,7 @@ and [<NoComparison>] Dval =
 
 and DvalTask = Ply<Dval>
 
-/// our record of any variable bindings in scope
+/// Our record/tracking of any variable bindings in scope
 ///
 /// i.e. within the execution of `x+y` in
 ///  `let x = 1; let y = 2; x + y`
@@ -742,7 +693,7 @@ and DvalTask = Ply<Dval>
 ///   `{ "x" => DInt64 1; "y" => DInt64 2 }`
 and Symtable = Map<string, Dval>
 
-/// Our record of any type arguments in scope
+/// Our record/tracking of any type arguments in scope
 ///
 /// i.e. within the execution of
 ///   `let serialize<'a> (x : 'a) : string = ...`,
@@ -753,8 +704,8 @@ and Symtable = Map<string, Dval>
 and TypeSymbolTable = Map<string, TypeReference>
 
 
-// Record the source expression of an error. This is to show the code that was
-// responsible for it
+/// Record the source expression of an error.
+/// This is to show the code that was responsible for it.
 and Source = Option<tlid * id>
 
 and BuiltInParam =
@@ -788,13 +739,13 @@ and Param = { name : string; typ : TypeReference }
 module TypeReference =
   let result (t1 : TypeReference) (t2 : TypeReference) : TypeReference =
     TCustomType(
-      Ok(FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Result" ] "Result" 0),
+      Ok(FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Result" ] "Result"),
       [ t1; t2 ]
     )
 
   let option (t : TypeReference) : TypeReference =
     TCustomType(
-      Ok(FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Option" ] "Option" 0),
+      Ok(FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Option" ] "Option"),
       [ t ]
     )
 
@@ -804,15 +755,14 @@ module RuntimeError =
 
   let fromDT (dv : Dval) : RuntimeError = RuntimeError dv
 
-  let name (modules : List<string>) (typeName : string) (version : int) =
+  let name (modules : List<string>) (typeName : string) =
     FQTypeName.fqPackage
       "Darklang"
       ("LanguageTools" :: "RuntimeErrors" :: modules)
       typeName
-      version
 
   let case (caseName : string) (fields : List<Dval>) : RuntimeError =
-    let typeName = name [] "Error" 0
+    let typeName = name [] "Error"
     DEnum(typeName, typeName, [], caseName, fields) |> RuntimeError
 
 
@@ -1063,14 +1013,14 @@ module Dval =
     | DUnit -> ValueType.Known KTUnit
 
     | DBool _ -> ValueType.Known KTBool
-    | DInt64 _ -> ValueType.Known KTInt64
-    | DUInt64 _ -> ValueType.Known KTUInt64
     | DInt8 _ -> ValueType.Known KTInt8
     | DUInt8 _ -> ValueType.Known KTUInt8
     | DInt16 _ -> ValueType.Known KTInt16
     | DUInt16 _ -> ValueType.Known KTUInt16
     | DInt32 _ -> ValueType.Known KTInt32
     | DUInt32 _ -> ValueType.Known KTUInt32
+    | DInt64 _ -> ValueType.Known KTInt64
+    | DUInt64 _ -> ValueType.Known KTUInt64
     | DInt128 _ -> ValueType.Known KTInt128
     | DUInt128 _ -> ValueType.Known KTUInt128
     | DFloat _ -> ValueType.Known KTFloat
@@ -1133,16 +1083,6 @@ module Dval =
     | DString s -> Some s
     | _ -> None
 
-  let asInt64 (dv : Dval) : Option<int64> =
-    match dv with
-    | DInt64 i -> Some i
-    | _ -> None
-
-  let asUInt64 (dv : Dval) : Option<uint64> =
-    match dv with
-    | DUInt64 i -> Some i
-    | _ -> None
-
   let asInt8 (dv : Dval) : Option<int8> =
     match dv with
     | DInt8 i -> Some i
@@ -1173,6 +1113,16 @@ module Dval =
     | DUInt32 i -> Some i
     | _ -> None
 
+  let asInt64 (dv : Dval) : Option<int64> =
+    match dv with
+    | DInt64 i -> Some i
+    | _ -> None
+
+  let asUInt64 (dv : Dval) : Option<uint64> =
+    match dv with
+    | DUInt64 i -> Some i
+    | _ -> None
+
   let asInt128 (dv : Dval) : Option<System.Int128> =
     match dv with
     | DInt128 i -> Some i
@@ -1199,7 +1149,6 @@ module Dval =
     | _ -> None
 
 
-// TODO: rename to ConstDeclaration
 type Const =
   | CUnit
   | CBool of bool
@@ -1228,21 +1177,26 @@ type Const =
 
 
 
-
 // ------------
-// Package stuff
+// Package-Space
 // ------------
-
 module PackageType =
+  //type Name = ...
+  // TODO: hash
   type T =
     { tlid : tlid; name : FQTypeName.Package; declaration : TypeDeclaration.T }
 
 module PackageConstant =
+  //type Name = ...
+  // TODO: hash
   type T = { tlid : tlid; name : FQConstantName.Package; body : Const }
 
 module PackageFn =
+  //type Name = ...
+
   type Parameter = { name : string; typ : TypeReference }
 
+  // TODO: hash
   type T =
     { name : FQFnName.Package
       tlid : tlid
@@ -1252,8 +1206,9 @@ module PackageFn =
       body : Expr }
 
 
+
 // ------------
-// User stuff
+// User-/Canvas- Space
 // ------------
 module DB =
   type T = { tlid : tlid; name : string; typ : TypeReference; version : int }
@@ -1290,61 +1245,66 @@ module Toplevel =
 
 
 
-// <summary>
-// Used to mark whether a function can be run on the client rather than backend.
-// </summary>
-// <remarks>
-// The runtime needs to know whether to save a function's results when it
-// runs. Pure functions that can be run on the client do not need to have
-// their results saved.
-// In addition, some functions can be run without side-effects; to give
-// the user a good experience, we can run them as soon as they are added.
-// this includes DateTime.now and Int.random.
-// </remarks>
+// ------------
+// Builtins, Execution State, Package Manager
+// A bunch of tangled things we need to `and` together
+// ------------
+
+/// <summary>
+/// Used to mark whether a function can be run on the client rather than backend.
+/// </summary>
+/// <remarks>
+/// The runtime needs to know whether to save a function's results when it
+/// runs. Pure functions that can be run on the client do not need to have
+/// their results saved.
+/// In addition, some functions can be run without side-effects; to give
+/// the user a good experience, we can run them as soon as they are added.
+/// this includes DateTime.now and Int.random.
+/// </remarks>
 type Previewable =
-  // The same inputs will always yield the same outputs,
-  // so we don't need to save results. e.g. `DateTime.addSeconds`
+  /// The same inputs will always yield the same outputs,
+  /// so we don't need to save results. e.g. `DateTime.addSeconds`
   | Pure
 
-  // Output may vary with the same inputs, though we can safely preview.
-  // e.g. `DateTime.now`. We should save the results.
+  /// Output may vary with the same inputs, though we can safely preview.
+  /// e.g. `DateTime.now`. We should save the results.
   | ImpurePreviewable
 
-  // Can only be run on the server. e.g. `DB.update`
-  // We should save the results.
+  /// Can only be run on the server. e.g. `DB.update`
+  /// We should save the results.
   | Impure
 
-// Used to mark whether a function has an equivalent that can be
-// used within a Postgres query.
+
+/// Used to mark whether a function has an equivalent that can be
+/// used within a Postgres query.
 type SqlSpec =
-  // Can be implemented, but we haven't yet
+  /// Can be implemented, but we haven't yet
   | NotYetImplemented
 
-  // This is not a function which can be queried
+  /// This is not a function which can be queried
   | NotQueryable
 
-  // A query function (it can't be called inside a query, but its argument can be a query)
+  /// A query function (it can't be called inside a query, but its argument can be a query)
   | QueryFunction
 
-  // Can be implemented by a given builtin postgres 9.6 operator with 1 arg (eg `@ x`)
+  /// Can be implemented by a given builtin postgres 9.6 operator with 1 arg (eg `@ x`)
   | SqlUnaryOp of string
 
-  // Can be implemented by a given builtin postgres 9.6 operator with 2 args (eg `x + y`)
+  /// Can be implemented by a given builtin postgres 9.6 operator with 2 args (eg `x + y`)
   | SqlBinOp of string
 
-  // Can be implemented by a given builtin postgres 9.6 function
+  /// Can be implemented by a given builtin postgres 9.6 function
   | SqlFunction of string
 
-  // Can be implemented by a given builtin postgres 9.6 function with extra arguments that go first
+  /// Can be implemented by a given builtin postgres 9.6 function with extra arguments that go first
   | SqlFunctionWithPrefixArgs of string * List<string>
 
-  // Can be implemented by a given builtin postgres 9.6 function with extra arguments that go last
+  /// Can be implemented by a given builtin postgres 9.6 function with extra arguments that go last
   | SqlFunctionWithSuffixArgs of string * List<string>
 
-  // Can be implemented by given callback that receives 1 SQLified-string argument
-  // | SqlCallback of (string -> string)
-
-  // Can be implemented by given callback that receives 2 SQLified-string argument
+  /// Can be implemented by given callback that receives 1 SQLified-string argument
+  /// | SqlCallback of (string -> string)
+  /// Can be implemented by given callback that receives 2 SQLified-string argument
   | SqlCallback2 of (string -> string -> string)
 
   member this.isQueryable() : bool =
@@ -1359,6 +1319,7 @@ type SqlSpec =
     | SqlFunctionWithSuffixArgs _
     | SqlCallback2 _ -> true
 
+
 type BuiltInConstant =
   { name : FQConstantName.Builtin
     typ : TypeReference
@@ -1366,7 +1327,11 @@ type BuiltInConstant =
     deprecated : Deprecation<FQConstantName.FQConstantName>
     body : Dval }
 
-// A built-in standard library function
+
+/// A built-in standard library function
+///
+/// (Generally shouldn't be accessed directly,
+/// except by a single stdlib Package fn that wraps it)
 type BuiltInFn =
   { name : FQFnName.Builtin
     typeParams : List<string>
@@ -1379,21 +1344,21 @@ type BuiltInFn =
     fn : BuiltInFnSig }
 
 and Fn =
-  { name : FQFnName.FQFnName
+  {
+    name : FQFnName.FQFnName
     typeParams : List<string>
     parameters : NEList<Param>
     returnType : TypeReference
     previewable : Previewable
     sqlSpec : SqlSpec
 
-    // Functions can be run in WASM if they have an implementation in LibExecution.
-    // Functions whose implementation is in BuiltinCloudExecution can only be implemented on the server.
+    /// <remarks>
+    /// May throw an exception, though we're trying to get them to never throw exceptions.
+    /// </remarks>
+    fn : FnImpl
+  }
 
-    // <remarks>
-    // May throw an exception, though we're trying to get them to never throw exceptions.
-    // </remarks>
-    fn : FnImpl }
-
+// TODO: consider making this a record instead of a tuple
 and BuiltInFnSig =
   (ExecutionState *
 
@@ -1422,8 +1387,7 @@ and StoreFnResult = FunctionRecord -> NEList<Dval> -> Dval -> unit
 /// Every part of a user's program
 and Program =
   { canvasID : CanvasID
-    internalFnsAllowed : bool // whether this canvas is allowed call internal functions
-
+    internalFnsAllowed : bool
     dbs : Map<string, DB.T>
     secrets : List<Secret.T> }
 
@@ -1442,12 +1406,12 @@ and TestContext =
     mutable expectedExceptionCount : int
     postTestExecutionHook : TestContext -> unit }
 
-// Functionally written in F# and shipped with the executable
+/// Functionally written in F# and shipped with the executable
 and Builtins =
   { constants : Map<FQConstantName.Builtin, BuiltInConstant>
     fns : Map<FQFnName.Builtin, BuiltInFn> }
 
-// Functionality written in Dark stored and managed outside of user space
+/// Functionality written in Dark stored and managed outside of user space
 and PackageManager =
   { getType : FQTypeName.Package -> Ply<Option<PackageType.T>>
     getConstant : FQConstantName.Package -> Ply<Option<PackageConstant.T>>
@@ -1498,7 +1462,7 @@ and ExceptionReporter = ExecutionState -> Metadata -> exn -> unit
 
 and Notifier = ExecutionState -> string -> Metadata -> unit
 
-// All state used while running a program
+/// All state used while running a program
 and ExecutionState =
   { // -- Set consistently across a runtime --
     builtins : Builtins
@@ -1521,8 +1485,8 @@ and ExecutionState =
 
     // -- Can change over time during execution --
 
-    // tlid/id of the caller - used to find the source of an error. It's not the end
-    // of the world if this is wrong or missing, but it will give worse errors.
+    /// tlid/id of the caller - used to find the source of an error. It's not the end
+    /// of the world if this is wrong or missing, but it will give worse errors.
     caller : Source
 
     packageManager : PackageManager // TODO update to availableTypes?
@@ -1532,7 +1496,6 @@ and ExecutionState =
 
 and Types =
   { typeSymbolTable : TypeSymbolTable
-
     package : FQTypeName.Package -> Ply<Option<PackageType.T>> }
 
 and Constants =
@@ -1547,7 +1510,6 @@ and Functions =
 module ExecutionState =
   let availableTypes (state : ExecutionState) : Types =
     { typeSymbolTable = state.typeSymbolTable
-
       package = state.packageManager.getType }
 
   let availableConstants (state : ExecutionState) : Constants =
@@ -1560,10 +1522,7 @@ module ExecutionState =
 
 
 module Types =
-  let empty =
-    { typeSymbolTable = Map.empty
-
-      package = (fun _ -> Ply None) }
+  let empty = { typeSymbolTable = Map.empty; package = (fun _ -> Ply None) }
 
   let find
     // TODO: swap these args
@@ -1574,7 +1533,7 @@ module Types =
     | FQTypeName.Package pkg ->
       types.package pkg |> Ply.map (Option.map _.declaration)
 
-  // Swap concrete types for type parameters
+  /// Swap concrete types for type parameters
   let rec substitute
     (typeParams : List<string>)
     (typeArguments : List<TypeReference>)
@@ -1598,14 +1557,14 @@ module Types =
 
     | TUnit
     | TBool
-    | TInt64
-    | TUInt64
     | TInt8
     | TUInt8
     | TInt16
     | TUInt16
     | TInt32
     | TUInt32
+    | TInt64
+    | TUInt64
     | TInt128
     | TUInt128
     | TFloat
@@ -1651,6 +1610,7 @@ let consoleReporter : ExceptionReporter =
 let consoleNotifier : Notifier =
   fun _state msg tags ->
     print $"A notification happened in the runtime:\n  {msg}\n  {tags}\n\n"
+
 
 let builtInParamToParam (p : BuiltInParam) : Param = { name = p.name; typ = p.typ }
 

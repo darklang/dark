@@ -94,16 +94,15 @@ module Darklang =
               (Stdlib.List.flatten [ name.modules; [ name.name ] ])
               |> Stdlib.String.join "."
 
-            match PackageManager.Type.byName nameForLookup with
-            | Ok _found ->
+            if PackageManager.Type.existsByName nameForLookup then
               (ProgramTypes.FQTypeName.Package
                 { owner = owner
                   modules = modules
-                  name = name.name
-                  version = name.version })
+                  name = name.name })
               |> ProgramTypes.FQTypeName.FQTypeName.Package
               |> Stdlib.Result.Result.Ok
-            | Error _ -> Stdlib.Result.Result.Error()
+            else
+              Stdlib.Result.Result.Error()
 
 
         let resolve
@@ -158,12 +157,10 @@ module Darklang =
               names = names })
           |> Stdlib.Result.Result.Error
 
-
         let builtinThingExists (name: String) : Bool =
           (Builtin.languageToolsAllBuiltinConstants ())
           |> Stdlib.List.findFirst (fun f -> f.name == name)
           |> Stdlib.Option.isSome
-
 
         let tryResolve
           (name: GenericName)
@@ -184,17 +181,15 @@ module Darklang =
                 |> Stdlib.Result.Result.Ok
               else
                 Error()
+            else if PackageManager.Constant.existsByName nameForLookup then
+              (ProgramTypes.FQConstantName.Package
+                { owner = owner
+                  modules = modules
+                  name = name.name })
+              |> ProgramTypes.FQConstantName.FQConstantName.Package
+              |> Stdlib.Result.Result.Ok
             else
-              match PackageManager.Constant.byName nameForLookup with
-              | Ok _found ->
-                (ProgramTypes.FQConstantName.Package
-                  { owner = owner
-                    modules = modules
-                    name = name.name
-                    version = name.version })
-                |> ProgramTypes.FQConstantName.FQConstantName.Package
-                |> Stdlib.Result.Result.Ok
-              | Error _ -> Stdlib.Result.Result.Error()
+              Stdlib.Result.Result.Error()
 
 
         let resolve
@@ -271,16 +266,15 @@ module Darklang =
                 (Stdlib.List.flatten [ name.modules; [ name.name ] ])
                 |> Stdlib.String.join "."
 
-              match PackageManager.Function.byName nameForLookup with
-              | Ok _found ->
+              if PackageManager.Function.existsByName nameForLookup then
                 (ProgramTypes.FQFnName.Package
                   { owner = owner
                     modules = modules
-                    name = name.name
-                    version = name.version })
+                    name = name.name })
                 |> ProgramTypes.FQFnName.FQFnName.Package
                 |> Stdlib.Result.Result.Ok
-              | Error _ -> Stdlib.Result.Result.Error()
+              else
+                Stdlib.Result.Result.Error()
 
 
         let resolve

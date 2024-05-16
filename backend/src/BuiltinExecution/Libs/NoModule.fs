@@ -366,8 +366,7 @@ let fns : List<BuiltInFn> =
           // success: extract `Some` out of an Option
           | DEnum(FQTypeName.Package({ owner = "Darklang"
                                        modules = [ "Stdlib"; "Option" ]
-                                       name = "Option"
-                                       version = 0 }),
+                                       name = "Option" }),
                   _,
                   _,
                   "Some",
@@ -376,8 +375,7 @@ let fns : List<BuiltInFn> =
           // success: extract `Ok` out of a Result
           | DEnum(FQTypeName.Package({ owner = "Darklang"
                                        modules = [ "Stdlib"; "Result" ]
-                                       name = "Result"
-                                       version = 0 }),
+                                       name = "Result" }),
                   _,
                   _,
                   "Ok",
@@ -386,8 +384,7 @@ let fns : List<BuiltInFn> =
           // Error: expected Some, got None
           | DEnum(FQTypeName.Package({ owner = "Darklang"
                                        modules = [ "Stdlib"; "Option" ]
-                                       name = "Option"
-                                       version = 0 }),
+                                       name = "Option" }),
                   _,
                   _,
                   "None",
@@ -399,8 +396,7 @@ let fns : List<BuiltInFn> =
           // Error: expected Ok, got Error
           | DEnum(FQTypeName.Package({ owner = "Darklang"
                                        modules = [ "Stdlib"; "Result" ]
-                                       name = "Result"
-                                       version = 0 }),
+                                       name = "Result" }),
                   _,
                   _,
                   "Error",

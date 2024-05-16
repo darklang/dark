@@ -49,8 +49,7 @@ module RoundtripTests =
             (RT.FQFnName.fqPackage
               "Darklang"
               [ "LanguageTools"; "ProgramTypes" ]
-              "expr"
-              0),
+              "expr"),
           returnType = RT.TCustomType(Ok typeName, []),
           location = None
         )
@@ -100,17 +99,16 @@ module RoundtripTests =
 
   module RuntimeTypes =
 
-    let pkg mods name v =
+    let pkg mods name =
       RT.FQTypeName.fqPackage
         "Darklang"
         (([ "LanguageTools"; "RuntimeTypes" ] @ mods))
         name
-        v
 
     let tests =
       [ testRoundtripList
           "RT.FQTypeName"
-          (pkg [ "FQTypeName" ] "FQTypeName" 0)
+          (pkg [ "FQTypeName" ] "FQTypeName")
           V.RuntimeTypes.fqTypeNames
           RT2DT.FQTypeName.toDT
           RT2DT.FQTypeName.fromDT
@@ -118,7 +116,7 @@ module RoundtripTests =
 
         testRoundtripList
           "RT.FQFnName"
-          (pkg [ "FQFnName" ] "FQFnName" 0)
+          (pkg [ "FQFnName" ] "FQFnName")
           V.RuntimeTypes.fqFnNames
           RT2DT.FQFnName.toDT
           RT2DT.FQFnName.fromDT
@@ -126,7 +124,7 @@ module RoundtripTests =
 
         testRoundtripList
           "RT.FQConstantName"
-          (pkg [ "FQConstantName" ] "FQConstantName" 0)
+          (pkg [ "FQConstantName" ] "FQConstantName")
           V.RuntimeTypes.fqConstantNames
           RT2DT.FQConstantName.toDT
           RT2DT.FQConstantName.fromDT
@@ -134,7 +132,7 @@ module RoundtripTests =
 
         testRoundtripList
           "RT.TypeReference"
-          (pkg [] "TypeReference" 0)
+          (pkg [] "TypeReference")
           V.RuntimeTypes.typeReferences
           RT2DT.TypeReference.toDT
           RT2DT.TypeReference.fromDT
@@ -142,7 +140,7 @@ module RoundtripTests =
 
         testRoundtripList
           "RT.Expr"
-          (pkg [] "Expr" 0)
+          (pkg [] "Expr")
           V.RuntimeTypes.exprs
           RT2DT.Expr.toDT
           RT2DT.Expr.fromDT
@@ -150,7 +148,7 @@ module RoundtripTests =
 
         testRoundtripList
           "RT.ValueType"
-          (pkg [] "ValueType" 0)
+          (pkg [] "ValueType")
           V.RuntimeTypes.valueTypes
           RT2DT.Dval.ValueType.toDT
           RT2DT.Dval.ValueType.fromDT
@@ -158,7 +156,7 @@ module RoundtripTests =
 
         testRoundtripList
           "RT.Dval"
-          (pkg [ "Dval" ] "Dval" 0)
+          (pkg [ "Dval" ] "Dval")
           V.RuntimeTypes.dvals
           RT2DT.Dval.toDT
           RT2DT.Dval.fromDT
@@ -173,17 +171,16 @@ module RoundtripTests =
 
   module ProgramTypes =
 
-    let pkg mods name v =
+    let pkg mods name =
       RT.FQTypeName.fqPackage
         "Darklang"
         (([ "LanguageTools"; "ProgramTypes" ] @ mods))
         name
-        v
 
     let tests =
       [ testRoundtripList
           "PT.PackageFn"
-          (pkg [ "PackageFn" ] "PackageFn" 0)
+          (pkg [ "PackageFn" ] "PackageFn")
           V.ProgramTypes.packageFns
           PT2DT.PackageFn.toDT
           PT2DT.PackageFn.fromDT
@@ -191,7 +188,7 @@ module RoundtripTests =
 
         testRoundtripList
           "PT.PackageType"
-          (pkg [] "PackageType" 0)
+          (pkg [] "PackageType")
           V.ProgramTypes.packageTypes
           PT2DT.PackageType.toDT
           PT2DT.PackageType.fromDT
@@ -199,7 +196,7 @@ module RoundtripTests =
 
         testRoundtripList
           "PT.PackageConstant"
-          (pkg [] "PackageConstant" 0)
+          (pkg [] "PackageConstant")
           V.ProgramTypes.packageConstants
           PT2DT.PackageConstant.toDT
           PT2DT.PackageConstant.fromDT
@@ -207,7 +204,7 @@ module RoundtripTests =
 
         testRoundtripList
           "PT.Secret"
-          (pkg [] "Secret" 0)
+          (pkg [] "Secret")
           V.ProgramTypes.userSecrets
           PT2DT.Secret.toDT
           PT2DT.Secret.fromDT
@@ -215,7 +212,7 @@ module RoundtripTests =
 
         testRoundtripList
           "PT.DB"
-          (pkg [] "DB" 0)
+          (pkg [] "DB")
           V.ProgramTypes.userDBs
           PT2DT.DB.toDT
           PT2DT.DB.fromDT
@@ -223,7 +220,7 @@ module RoundtripTests =
 
         testRoundtripList
           "PT.Handler"
-          (pkg [ "Handler" ] "Handler" 0)
+          (pkg [ "Handler" ] "Handler")
           V.ProgramTypes.Handler.handlers
           PT2DT.Handler.toDT
           PT2DT.Handler.fromDT

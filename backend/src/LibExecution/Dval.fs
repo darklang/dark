@@ -48,7 +48,7 @@ let ignoreAndUseEmpty (_ignoredForNow : List<ValueType>) = []
 
 
 
-let optionType = FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Option" ] "Option" 0
+let optionType = FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Option" ] "Option"
 
 
 let optionSome (innerType : KnownType) (dv : Dval) : Dval =
@@ -70,7 +70,7 @@ let option (innerType : KnownType) (dv : Option<Dval>) : Dval =
 
 
 
-let resultType = FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Result" ] "Result" 0
+let resultType = FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Result" ] "Result"
 
 
 let resultOk (okType : KnownType) (errorType : KnownType) (dvOk : Dval) : Dval =

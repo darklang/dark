@@ -74,7 +74,7 @@ module RuntimeError =
       match e with
       | UnsupportedType typ -> "UnsupportedType", [ RT2DT.TypeReference.toDT typ ]
 
-    let typeName = RuntimeError.name [ "Json" ] "Error" 0
+    let typeName = RuntimeError.name [ "Json" ] "Error"
     DEnum(typeName, typeName, [], caseName, fields) |> RuntimeError.jsonError
 
   let raiseUnsupportedType (typ : TypeReference) : 'a =
@@ -93,7 +93,6 @@ module JsonPath =
         "Darklang"
         [ "Stdlib"; "Json"; "ParseError"; "JsonPath"; "Part" ]
         "Part"
-        0
 
     let toDT (part : Part) : Dval =
       let (caseName, fields) =
@@ -289,7 +288,7 @@ let rec serialize
 module ParseError =
   module RT2DT = LibExecution.RuntimeTypesToDarkTypes
   let typeName =
-    FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Json"; "ParseError" ] "ParseError" 0
+    FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Json"; "ParseError" ] "ParseError"
   type ParseError =
     /// The json string can't be parsed as the given type.
     | CantMatchWithType of TypeReference * string * JsonPath.JsonPath

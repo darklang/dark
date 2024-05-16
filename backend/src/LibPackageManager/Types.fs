@@ -37,16 +37,14 @@ module ProgramTypes =
   type NameResolution<'a> = Result<'a, NameResolutionError.Error>
 
   module FQTypeName =
-    type Package =
-      { owner : string; modules : List<string>; name : string; version : int }
+    type Package = { owner : string; modules : List<string>; name : string }
 
     type FQTypeName = Package of Package
 
 
   module FQFnName =
     type Builtin = { name : string; version : int }
-    type Package =
-      { owner : string; modules : List<string>; name : string; version : int }
+    type Package = { owner : string; modules : List<string>; name : string }
 
     type FQFnName =
       | Builtin of Builtin
@@ -55,8 +53,7 @@ module ProgramTypes =
 
   module FQConstantName =
     type Builtin = { name : string; version : int }
-    type Package =
-      { owner : string; modules : List<string>; name : string; version : int }
+    type Package = { owner : string; modules : List<string>; name : string }
 
     type FQConstantName =
       | Builtin of Builtin

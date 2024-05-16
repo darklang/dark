@@ -89,7 +89,7 @@ let execute
   : Task<Result<RT.Dval, RT.Source * RT.RuntimeError>> =
   task {
     let state = state ()
-    let fnName = RT.FQFnName.fqPackage "Darklang" [ "Cli" ] "executeCliCommand" 0
+    let fnName = RT.FQFnName.fqPackage "Darklang" [ "Cli" ] "executeCliCommand"
     let args =
       args |> List.map RT.DString |> Dval.list RT.KTString |> NEList.singleton
     return! Exe.executeFunction state None fnName [] args

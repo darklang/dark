@@ -96,8 +96,7 @@
                           "modules": [
                             "Mod"
                           ],
-                          "name": "User",
-                          "version": 0
+                          "name": "User"
                         }
                       ]
                     }
@@ -122,8 +121,7 @@
                             "Mod1",
                             "Mod2"
                           ],
-                          "name": "Pack",
-                          "version": 0
+                          "name": "Pack"
                         }
                       ]
                     }

@@ -16,8 +16,7 @@ module ParseError =
       match e with
       | BadFormat -> "BadFormat", []
 
-    let typeName =
-      FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Float" ] "ParseError" 0
+    let typeName = FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Float" ] "ParseError"
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -280,20 +279,14 @@ let fns : List<BuiltInFn> =
         TypeReference.result
           TFloat
           (TCustomType(
-            Ok(
-              FQTypeName.Package
-                { owner = "Darklang"
-                  modules = [ "Stdlib"; "Int64" ]
-                  name = "ParseError"
-                  version = 0 }
-            ),
+            Ok(FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Float" ] "ParseError"),
             []
           ))
       description =
         "Returns the <type Float> value wrapped in a {{Result}} of the <type String>"
       fn =
         let resultOk r = Dval.resultOk KTFloat KTString r |> Ply
-        let typeName = RuntimeError.name [ "Float" ] "ParseError" 0
+        let typeName = RuntimeError.name [ "Float" ] "ParseError"
         let resultError = Dval.resultError KTFloat (KTCustomType(typeName, []))
         (function
         | _, _, [ DString s ] ->

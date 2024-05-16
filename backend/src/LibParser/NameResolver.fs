@@ -97,6 +97,8 @@ let resolveTypeName
     let tryPackageName
       (name : PT.FQTypeName.Package)
       : Ply<PT.NameResolution<PT.FQTypeName.FQTypeName>> =
+      // TODO: error if type version is somehow non-0 (here and other package stuff in this file)
+      // TODO: also do this in the Dark equivalent
       let rtName = PT2RT.FQTypeName.Package.toRT name
       uply {
         match! packageManager.getType rtName with
@@ -111,7 +113,7 @@ let resolveTypeName
         match name.modules with
         | [] -> return Error()
         | owner :: modules ->
-          let name = PT.FQTypeName.package owner modules name.name name.version
+          let name = PT.FQTypeName.package owner modules name.name
           let! packageName = tryPackageName name
           return packageName |> Result.mapError (fun _ -> ())
       }
@@ -123,8 +125,8 @@ let resolveTypeName
       // TODO: ensure we're validating fully and reasonably (e.g. include module)
       match FS2WT.Expr.parseTypeName name with
       | Error _ -> return err NRE.InvalidPackageName (NEList.toList given)
-      | Ok(name, version) ->
-        let genericName = { modules = modules; name = name; version = version }
+      | Ok name ->
+        let genericName = { modules = modules; name = name; version = 0 }
 
         let! (result : PT.NameResolution<PT.FQTypeName.FQTypeName>) =
           Ply.List.foldSequentially
@@ -175,7 +177,6 @@ let resolveConstantName
       (name : GenericName)
       : Ply<Result<PT.FQConstantName.FQConstantName, unit>> =
       uply {
-
         match name.modules with
         | [] -> return Error()
         | owner :: modules ->
@@ -190,7 +191,7 @@ let resolveConstantName
             else
               return Error()
           else
-            let name = PT.FQConstantName.package owner modules name.name name.version
+            let name = PT.FQConstantName.package owner modules name.name
             let! packageName = tryPackageName name
             return packageName |> Result.mapError (fun _ -> ())
       }
@@ -201,7 +202,6 @@ let resolveConstantName
       match FS2WT.Expr.parseFnName name with
       | Error _ -> return err NRE.InvalidPackageName (NEList.toList given)
       | Ok(name, version) ->
-
         let genericName = { modules = modules; name = name; version = version }
 
         let! (result : PT.NameResolution<PT.FQConstantName.FQConstantName>) =
@@ -264,7 +264,7 @@ let resolveFnName
               return Error()
 
           else
-            let name = PT.FQFnName.package owner modules name.name name.version
+            let name = PT.FQFnName.package owner modules name.name
             let! packageName = tryPackageName name
             return packageName |> Result.mapError (fun _ -> ())
       }

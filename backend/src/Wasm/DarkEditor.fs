@@ -69,7 +69,7 @@ let LoadClient (canvasName : string) : Task<string> =
       LibExecution.Execution.executeFunction
         state
         None
-        (FQFnName.fqPackage "TODO" [] "init" 0)
+        (FQFnName.fqPackage "TODO" [] "init")
         []
         (NEList.singleton DUnit)
 
@@ -107,7 +107,7 @@ let HandleEvent (serializedEvent : string) : Task<string> =
       LibExecution.Execution.executeFunction
         state
         None
-        (FQFnName.fqPackage "TODO" [] "handleEvent" 0)
+        (FQFnName.fqPackage "TODO" [] "handleEvent")
         []
         (NEList.singleton (DString serializedEvent))
 

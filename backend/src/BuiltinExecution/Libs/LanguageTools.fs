@@ -11,12 +11,8 @@ module TypeChecker = LibExecution.TypeChecker
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
 
-let typ
-  (addlModules : List<string>)
-  (name : string)
-  (version : int)
-  : FQTypeName.FQTypeName =
-  FQTypeName.fqPackage "Darklang" ([ "LanguageTools" ] @ addlModules) name version
+let typ (addlModules : List<string>) (name : string) : FQTypeName.FQTypeName =
+  FQTypeName.fqPackage "Darklang" ([ "LanguageTools" ] @ addlModules) name
 
 
 let typeNameToStr = DvalReprDeveloper.typeName
@@ -25,20 +21,20 @@ let fns : List<BuiltInFn> =
   [ { name = fn "languageToolsAllBuiltinConstants" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TList(TCustomType(Ok(typ [] "BuiltinConstant" 0), []))
+      returnType = TList(TCustomType(Ok(typ [] "BuiltinConstant"), []))
       description =
         "Returns a list of the Builtin constants (usually not to be accessed directly)."
       fn =
         (function
         | state, _, [ DUnit ] ->
-          let constTypeName = typ [] "BuiltinConstant" 0
+          let constTypeName = typ [] "BuiltinConstant"
 
           let consts =
             state.builtins.constants
             |> Map.toList
-            |> List.map (fun (key, data) ->
+            |> List.map (fun (name, data) ->
               let fields =
-                [ "name", DString(FQConstantName.builtinToString key)
+                [ "name", DString(FQConstantName.builtinToString name)
                   "description", DString data.description
                   "returnType", DString(typeNameToStr data.typ) ]
 
@@ -54,20 +50,19 @@ let fns : List<BuiltInFn> =
     { name = fn "languageToolsAllBuiltinFns" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TList(TCustomType(Ok(typ [] "BuiltinFunction" 0), []))
+      returnType = TList(TCustomType(Ok(typ [] "BuiltinFunction"), []))
       description =
         "Returns a list of the Builtin functions (usually not to be accessed directly)."
       fn =
         (function
         | state, _, [ DUnit ] ->
-
-          let fnParamTypeName = typ [] "BuiltinFunctionParameter" 0
-          let fnTypeName = typ [] "BuiltinFunction" 0
+          let fnParamTypeName = typ [] "BuiltinFunctionParameter"
+          let fnTypeName = typ [] "BuiltinFunction"
 
           let fns =
             state.builtins.fns
             |> Map.toList
-            |> List.map (fun (key, data) ->
+            |> List.map (fun (name, data) ->
               let parameters =
                 data.parameters
                 |> List.map (fun p ->
@@ -78,7 +73,7 @@ let fns : List<BuiltInFn> =
                 |> Dval.list (KTCustomType(fnParamTypeName, []))
 
               let fields =
-                [ "name", DString(FQFnName.builtinToString key)
+                [ "name", DString(FQFnName.builtinToString name)
                   "description", DString data.description
                   "parameters", parameters
                   "returnType", DString(typeNameToStr data.returnType) ]

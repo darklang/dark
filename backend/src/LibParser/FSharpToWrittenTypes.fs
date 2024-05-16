@@ -285,13 +285,10 @@ module Expr =
 
     | _ -> Error "Bad format in fn name"
 
-  let parseTypeName (typeName : string) : Result<string * int, string> =
+  let parseTypeName (typeName : string) : Result<string, string> =
     match typeName with
-    | Regex.Regex "^([A-Z][a-z0-9A-Z]*[']?)_v(\d+)$" [ name; version ] ->
-      Ok(name, (int version))
-
-    | Regex.Regex "^([A-Z][a-z0-9A-Z]*[']?)$" [ name ] -> Ok(name, 0)
-
+    | Regex.Regex "^([A-Z][a-z0-9A-Z]*[']?)_v0$" [ name ] -> Ok name
+    | Regex.Regex "^([A-Z][a-z0-9A-Z]*[']?)$" [ name ] -> Ok name
     | _ -> Error "Bad format in type name"
 
 
@@ -907,7 +904,7 @@ module PackageFn =
     (b : SynBinding)
     : WT.PackageFn.T =
     let f = Function.fromSynBinding b
-    { name = PT.FQFnName.package owner modules f.name f.version
+    { name = PT.FQFnName.package owner modules f.name
       typeParams = f.typeParams
       parameters =
         f.parameters
@@ -1040,14 +1037,14 @@ module PackageType =
     : WT.PackageType.T =
     let (typeParams, names, definition) =
       TypeDeclaration.Definition.fromSynTypeDefn typeDef
-    let (name, version) =
+    let name =
       List.last names
       |> Exception.unwrapOptionInternal
         "user type should have name"
         [ "typeDef", typeDef ]
       |> Expr.parseTypeName
       |> Exception.unwrapResultInternal []
-    { name = PT.FQTypeName.package owner modules name version
+    { name = PT.FQTypeName.package owner modules name
       description = ""
       declaration = { typeParams = typeParams; definition = definition } }
 
@@ -1058,6 +1055,6 @@ module PackageConstant =
     (b : SynBinding)
     : WT.PackageConstant.T =
     let c = Constant.fromSynBinding b
-    { name = PT.FQConstantName.package owner modules c.name c.version
+    { name = PT.FQConstantName.package owner modules c.name
       description = ""
       body = c.body }

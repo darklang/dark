@@ -44,7 +44,7 @@ let compile
     let canvasID = System.Guid.NewGuid()
 
     let typeName : FQTypeName.Package =
-      { owner = "Tests"; modules = []; name = "MyType"; version = 0 }
+      { owner = "Tests"; modules = []; name = "MyType" }
     let field : TypeDeclaration.RecordField = { name = rowName; typ = rowType }
     let typ : PackageType.T =
       { tlid = gid ()

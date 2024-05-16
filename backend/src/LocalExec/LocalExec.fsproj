@@ -31,7 +31,6 @@
     <Compile Include="Builtins.fs" />
     <Compile Include="LoadPackagesFromDisk.fs" />
     <Compile Include="Canvas.fs" />
-    <Compile Include="DarkPackagesDataIngest.fs" />
     <Compile Include="LocalExec.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

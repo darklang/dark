@@ -11,7 +11,6 @@ module Darklang =
         (owner: String)
         (modules: List<String>)
         (name: String)
-        (version: Int64)
         : String =
         let modulesPart =
           match modules with
@@ -20,21 +19,14 @@ module Darklang =
             let modules = Stdlib.String.join modules "."
             $"{modules}."
 
-        let versionPart =
-          if version == 0L then
-            ""
-          else
-            $"_v{Stdlib.Int64.toString version}"
-
         match owner with
-        | "Tests" -> $"{modulesPart}{name}{versionPart}"
-        | _ -> $"PACKAGE.{owner}.{modulesPart}{name}{versionPart}"
+        | "Tests" -> $"{modulesPart}{name}"
+        | _ -> $"PACKAGE.{owner}.{modulesPart}{name}"
 
 
       module FQTypeName =
-
         let package (p: LanguageTools.RuntimeTypes.FQTypeName.Package) : String =
-          packageName p.owner p.modules p.name p.version
+          packageName p.owner p.modules p.name
 
       // TODO rename to fqtypeName?
       let typeName (t: LanguageTools.RuntimeTypes.FQTypeName.FQTypeName) : String =
@@ -55,7 +47,7 @@ module Darklang =
           $"{namePart}{versionPart}"
 
         let package (p: LanguageTools.RuntimeTypes.FQConstantName.Package) : String =
-          packageName p.owner p.modules p.name p.version
+          packageName p.owner p.modules p.name
 
       // TODO rename to fqconstantName?
       let constantName
@@ -79,7 +71,7 @@ module Darklang =
           $"{namePart}{versionPart}"
 
         let package (p: LanguageTools.RuntimeTypes.FQFnName.Package) : String =
-          packageName p.owner p.modules p.name p.version
+          packageName p.owner p.modules p.name
 
 
       // TODO rename to fqfnName?

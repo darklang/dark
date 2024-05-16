@@ -1,8 +1,10 @@
-/// Fetches package items from a web-based package manager
-/// hosted in a `dark-packages` canvas.
+/// Fetches package items from a web-based package manager, for CLI runtimes.
 ///
 /// TODO: this currently assumes that the package items match the shape
 /// of Dark types defined in @Darklang.LanguageTools.ProgramTypes
+///
+/// TODO: move this to something more CLI-focused,
+/// and review if current usages are appropriate.
 module LibPackageManager.PackageManager
 
 open System.Threading.Tasks
@@ -94,12 +96,11 @@ let packageManager (baseUrl : string) : RT.PackageManager =
     (owner : string)
     (modules : List<string>)
     (name : string)
-    (version : int)
     (decoder : SimpleJson.JsonDecoder<'serverType>)
     (f : 'serverType -> 'cachedType)
     : Ply<Option<'cachedType>> =
     let modules = modules |> String.concat "."
-    let namestring = $"{owner}.{modules}.{name}_v{version}"
+    let namestring = $"{owner}.{modules}.{name}"
     let url = $"{baseUrl}/{kind}/by-name/{namestring}"
     fetch url decoder f
 
@@ -122,7 +123,6 @@ let packageManager (baseUrl : string) : RT.PackageManager =
           name.owner
           name.modules
           name.name
-          name.version
           JsonDeserialization.ProgramTypes.PackageType.decoder
           conversionFn)
 
@@ -135,7 +135,6 @@ let packageManager (baseUrl : string) : RT.PackageManager =
           name.owner
           name.modules
           name.name
-          name.version
           JsonDeserialization.ProgramTypes.PackageFn.PackageFn.decoder
           conversionFn)
 
@@ -158,7 +157,6 @@ let packageManager (baseUrl : string) : RT.PackageManager =
           name.owner
           name.modules
           name.name
-          name.version
           JsonDeserialization.ProgramTypes.PackageConstant.decoder
           conversionFn)
 

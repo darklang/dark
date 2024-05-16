@@ -125,11 +125,7 @@ let executeHandler
 
     let error (msg : string) : RT.Dval =
       let typeName =
-        RT.FQTypeName.Package
-          { owner = "Darklang"
-            modules = [ "Stdlib"; "Http" ]
-            name = "Response"
-            version = 0 }
+        RT.FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Http" ] "Response"
 
       let fields =
         [ ("statusCode", RT.DInt64 500)

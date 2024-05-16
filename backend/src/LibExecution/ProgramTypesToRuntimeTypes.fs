@@ -10,10 +10,10 @@ module PT = ProgramTypes
 module FQTypeName =
   module Package =
     let toRT (p : PT.FQTypeName.Package) : RT.FQTypeName.Package =
-      { owner = p.owner; modules = p.modules; name = p.name; version = p.version }
+      { owner = p.owner; modules = p.modules; name = p.name }
 
     let fromRT (p : RT.FQTypeName.Package) : PT.FQTypeName.Package =
-      { owner = p.owner; modules = p.modules; name = p.name; version = p.version }
+      { owner = p.owner; modules = p.modules; name = p.name }
 
 
   let toRT (fqtn : PT.FQTypeName.FQTypeName) : RT.FQTypeName.FQTypeName =
@@ -35,10 +35,10 @@ module FQConstantName =
 
   module Package =
     let toRT (c : PT.FQConstantName.Package) : RT.FQConstantName.Package =
-      { owner = c.owner; modules = c.modules; name = c.name; version = c.version }
+      { owner = c.owner; modules = c.modules; name = c.name }
 
     let fromRT (c : RT.FQConstantName.Package) : PT.FQConstantName.Package =
-      { owner = c.owner; modules = c.modules; name = c.name; version = c.version }
+      { owner = c.owner; modules = c.modules; name = c.name }
 
 
   let toRT
@@ -59,10 +59,10 @@ module FQFnName =
 
   module Package =
     let toRT (p : PT.FQFnName.Package) : RT.FQFnName.Package =
-      { owner = p.owner; modules = p.modules; name = p.name; version = p.version }
+      { owner = p.owner; modules = p.modules; name = p.name }
 
     let fromRT (p : RT.FQFnName.Package) : PT.FQFnName.Package =
-      { owner = p.owner; modules = p.modules; name = p.name; version = p.version }
+      { owner = p.owner; modules = p.modules; name = p.name }
 
   let toRT (fqfn : PT.FQFnName.FQFnName) : RT.FQFnName.FQFnName =
     match fqfn with

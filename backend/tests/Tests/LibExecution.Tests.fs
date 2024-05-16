@@ -17,7 +17,6 @@ open Prelude
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
-module PTParser = LibExecution.ProgramTypesParser
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 module NR = LibParser.NameResolver
@@ -137,11 +136,9 @@ let t
                 "Darklang"
                 [ "LanguageTools"; "RuntimeErrors"; "Error" ]
                 "toErrorMessage"
-                0
 
             let! typeChecked =
-              let expected =
-                RT.TCustomType(Ok(RT.RuntimeError.name [] "Error" 0), [])
+              let expected = RT.TCustomType(Ok(RT.RuntimeError.name [] "Error"), [])
 
               let context =
                 LibExecution.TypeChecker.Context.FunctionCallParameter(
