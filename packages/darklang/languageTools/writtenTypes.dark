@@ -78,6 +78,11 @@ module Darklang =
             typ: TypeReference.TypeReference *
             closeBrace: Range
 
+          | TFn of
+            Range *
+            arguments: List<TypeReference.TypeReference * Range> *
+            ret: TypeReference.TypeReference
+
           | TVariable of Range * String
 
 

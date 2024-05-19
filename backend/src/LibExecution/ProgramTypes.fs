@@ -241,7 +241,7 @@ type TypeReference =
   | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TDict of TypeReference
 
-  | TFn of NEList<TypeReference> * TypeReference
+  | TFn of arguments : NEList<TypeReference> * ret : TypeReference
 
   | TDB of TypeReference
   // A named variable, eg `a` in `List<a>`, matches anything
