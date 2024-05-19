@@ -17,16 +17,24 @@ module Darklang =
           let toPT
             (onMissing: NameResolver.OnMissing)
             (i: WrittenTypes.QualifiedTypeIdentifier)
-            : ProgramTypes.NameResolution<ProgramTypes.FQTypeName.FQTypeName> =
+            : (ProgramTypes.NameResolution<ProgramTypes.FQTypeName.FQTypeName> *
+              List<WrittenTypes.TypeReference.TypeReference>)
+            =
+            let typeArgs =
+              Stdlib.List.map i.typeArgs (fun t -> TypeReference.toPT onMissing t)
+
             let nameToResolve =
               Stdlib.List.append
                 (Stdlib.List.map i.modules (fun (m, _) -> m.name))
                 [ i.typ.name ]
 
-            NameResolver.TypeName.resolve
-              onMissing
-              []
-              (WrittenTypes.Name.Unresolved(i.range, nameToResolve))
+            let typeName =
+              NameResolver.TypeName.resolve
+                onMissing
+                []
+                (WrittenTypes.Name.Unresolved(i.range, nameToResolve))
+
+            (typeName, typeArgs)
 
 
         module Fn =
@@ -113,9 +121,9 @@ module Darklang =
           match t with
           | Builtin b -> Builtin.toPT onMissing b
           | QualifiedName qn ->
-            let typeName = Identifiers.QualifiedType.toPT onMissing qn
+            let (typeName, typeArgs) = Identifiers.QualifiedType.toPT onMissing qn
 
-            ProgramTypes.TypeReference.TCustomType(typeName, [])
+            ProgramTypes.TypeReference.TCustomType(typeName, typeArgs)
 
 
       module TypeDeclaration =
@@ -191,7 +199,9 @@ module Darklang =
           let def = Definition.toPT onMissing d.definition
 
           ProgramTypes.TypeDeclaration.TypeDeclaration
-            { typeParams = []; definition = def }
+            { typeParams =
+                d.typeParams |> Stdlib.List.map (fun p -> p |> Stdlib.Tuple2.second)
+              definition = def }
 
 
         let toPackageTypePT

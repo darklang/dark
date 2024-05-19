@@ -850,7 +850,7 @@ module Darklang =
           | [] -> ""
           | _ ->
             p.declaration.typeParams
-            |> Stdlib.List.map (fun typeParam -> $"'{typeParam}")
+            |> Stdlib.List.map (fun typeParam -> $"{typeParam}")
             |> Stdlib.String.join ", "
             |> fun parts -> $"<{parts}>"
 

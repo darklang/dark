@@ -1925,10 +1925,51 @@
   {
     "type": "qualified_type_name",
     "named": true,
-    "fields": {},
+    "fields": {
+      "symbol_close_angle": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_open_angle": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "type_args": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "type_args",
+            "named": true
+          }
+        ]
+      },
+      "type_identifier": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type_identifier",
+            "named": true
+          }
+        ]
+      }
+    },
     "children": {
       "multiple": true,
-      "required": true,
+      "required": false,
       "types": [
         {
           "type": "module_identifier",
@@ -1936,10 +1977,6 @@
         },
         {
           "type": "symbol",
-          "named": true
-        },
-        {
-          "type": "type_identifier",
           "named": true
         }
       ]
@@ -2601,6 +2638,32 @@
     }
   },
   {
+    "type": "type_args",
+    "named": true,
+    "fields": {
+      "symbol_comma": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "type_reference",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "type_decl",
     "named": true,
     "fields": {
@@ -2624,9 +2687,29 @@
           }
         ]
       },
+      "symbol_close_angle": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
       "symbol_equals": {
         "multiple": false,
         "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_open_angle": {
+        "multiple": false,
+        "required": false,
         "types": [
           {
             "type": "symbol",
@@ -2640,6 +2723,16 @@
         "types": [
           {
             "type": "type_decl_def",
+            "named": true
+          }
+        ]
+      },
+      "type_params": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "type_decl_type_params",
             "named": true
           }
         ]
@@ -2941,6 +3034,32 @@
       "types": [
         {
           "type": "type_decl_enum_case",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "type_decl_type_params",
+    "named": true,
+    "fields": {
+      "symbol_comma": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "variable_type_reference",
           "named": true
         }
       ]

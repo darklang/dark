@@ -161,17 +161,46 @@ module Darklang =
               findAndParseRequired node "name" (fun node ->
                 (Identifiers.parseType node) |> Stdlib.Result.Result.Ok)
 
+            let typeParamsNodes =
+              node
+              |> findNodeByFieldName "type_params"
+              |> Stdlib.Option.map (fun node ->
+                node.children
+                |> Stdlib.List.chunkBySize 2L
+                |> Builtin.unwrap
+                |> Stdlib.List.map (fun chunk ->
+                  match chunk with
+                  | [ typeParamNode ] ->
+                    (typeParamNode.range, typeParamNode.text)
+                    |> Stdlib.Result.Result.Ok
+
+                  | [ typeParamNode; _separator ] ->
+                    (typeParamNode.range, typeParamNode.text)
+                    |> Stdlib.Result.Result.Ok
+
+                  | _ ->
+                    (createUnparseableError chunk) |> Stdlib.Result.Result.Error))
+
+            let typParams =
+              match typeParamsNodes with
+              | Some typeParams -> typeParams |> Stdlib.Result.collect
+              | None -> [] |> Stdlib.Result.Result.Ok
+
             let defNode =
               findAndParseRequired node "typ" TypeDeclaration.parseDefinition
 
             let keywordTypeNode = findField node "keyword_type"
             let symbolEqualsNode = findField node "symbol_equals"
 
-            match nameNode, defNode, keywordTypeNode, symbolEqualsNode with
-            | Ok name, Ok def, Ok keywordType, Ok symbolEquals ->
+            match
+              nameNode, defNode, typParams, keywordTypeNode, symbolEqualsNode
+            with
+            | Ok name, Ok def, Ok typeParams, Ok keywordType, Ok symbolEquals ->
+
               (WrittenTypes.TypeDeclaration.TypeDeclaration
                 { range = node.range
                   name = name
+                  typeParams = typeParams
                   definition = def
                   keywordType = keywordType.range
                   symbolEquals = symbolEquals.range })

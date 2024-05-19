@@ -17,6 +17,7 @@ module Darklang =
           /// the Range corresponds to the `.` after the module name
           modules: List<ModuleIdentifier * Range>
           typ: TypeIdentifier
+          typeArgs: List<TypeReference.TypeReference>
         }
 
       type VariableIdentifier = { range: Range; name: String }
@@ -130,6 +131,7 @@ module Darklang =
         type TypeDeclaration =
           { range: Range
             name: TypeIdentifier
+            typeParams: List<Range * String>
             definition: Definition
             keywordType: Range
             symbolEquals: Range }
