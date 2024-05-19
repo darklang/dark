@@ -132,6 +132,36 @@ module Darklang =
 
                 | _ -> createUnparseableError node
 
+              | "fn_type_reference" ->
+                let returnTypeNode =
+                  firstChild.children
+                  |> Stdlib.List.last
+                  |> Builtin.unwrap
+                  |> TypeReference.parse
+
+                let argsNodes =
+                  firstChild.children
+                  |> Stdlib.List.dropLast
+                  |> Stdlib.List.chunkBySize 2L
+                  |> Builtin.unwrap
+                  |> Stdlib.List.map (fun chunk ->
+                    match chunk with
+                    | [ typeNode; arrowNode ] ->
+                      match TypeReference.parse typeNode with
+                      | Ok typeRef ->
+                        (typeRef, arrowNode.range) |> Stdlib.Result.Result.Ok
+                      | Error _ -> createUnparseableError node
+                    | [ typeNode ] -> createUnparseableError node
+                    | _ -> createUnparseableError node)
+
+                let args = argsNodes |> Stdlib.Result.collect
+
+                match returnTypeNode, args with
+                | Ok returnType, Ok args ->
+                  (TBuiltin.TFn firstChild.range args returnType) |> builtin
+
+                | _ -> createUnparseableError node
+
               | "variable_type_reference" ->
                 let variableName = findField firstChild "variable"
 
