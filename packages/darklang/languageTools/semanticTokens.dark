@@ -154,6 +154,17 @@ module Darklang =
                 [ makeToken rc TokenType.Symbol ] ]
               |> Stdlib.List.flatten
 
+            | TFn(r, args, ret) ->
+              [ (args
+                 |> Stdlib.List.map (fun (arg, symbolArrow) ->
+                   [ TypeReference.tokenize arg
+                     [ makeToken symbolArrow TokenType.Symbol ] ]
+                   |> Stdlib.List.flatten)
+                 |> Stdlib.List.flatten)
+
+                TypeReference.tokenize ret ]
+              |> Stdlib.List.flatten
+
             | TVariable(r, _) -> [ makeToken r TokenType.TypeName ]
 
         let tokenize

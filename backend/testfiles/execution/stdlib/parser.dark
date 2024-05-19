@@ -248,6 +248,16 @@ module TextToTextRoundtripping =
     ("type MyTuple3 = (String * Int64 * Bool)" |> roundtripCliScript) = "type MyTuple3 =\n  (String * Int64 * Bool)"
     ("type MyTuple = (String * Int64 * Bool * Unit)" |> roundtripCliScript) = "type MyTuple =\n  (String * Int64 * Bool * Unit)"
 
+    ("type MyFn = 'a -> String" |> roundtripCliScript) = "type MyFn =\n  'a -> String"
+    ("type MyFn = 'a -> 'b -> 'c" |> roundtripCliScript) = "type MyFn =\n  'a -> 'b -> 'c"
+    ("type MyFn = 'a -> 'b -> 'c -> 'd" |> roundtripCliScript) = "type MyFn =\n  'a -> 'b -> 'c -> 'd"
+
+    ("type MyFn = (String * Int64 * Bool) -> Dict<Int64> -> List<List<String>>"
+     |> roundtripCliScript) = "type MyFn =\n  (String * Int64 * Bool) -> Dict<Int64> -> List<List<String>>"
+
+    ("type MyFn = PACKAGE.Darklang.LanguageTools.ID -> 'a -> 'b"
+     |> roundtripCliScript) = "type MyFn =\n  PACKAGE.Darklang.LanguageTools.ID -> 'a -> 'b"
+
     ("type MyVar = 'a" |> roundtripCliScript) = "type MyVar =\n  'a"
 
     // single-part qualified name

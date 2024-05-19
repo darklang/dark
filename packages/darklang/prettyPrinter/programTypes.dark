@@ -214,8 +214,7 @@ module Darklang =
             args
             |> Stdlib.List.map (fun arg ->
               PrettyPrinter.ProgramTypes.typeReference arg)
-            |> Stdlib.String.join ", "
-            |> fun parts -> "(" ++ parts ++ ")"
+            |> Stdlib.String.join " -> "
 
           $"{argPart} -> {PrettyPrinter.ProgramTypes.typeReference ret}"
         | _ ->

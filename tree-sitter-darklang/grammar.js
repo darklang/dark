@@ -811,6 +811,7 @@ module.exports = grammar({
         $.list_type_reference,
         $.tuple_type_reference,
         $.dict_type_reference,
+        $.fn_type_reference,
         $.variable_type_reference,
       ),
 
@@ -832,7 +833,7 @@ module.exports = grammar({
         field("first", $.type_reference),
         field("symbol_asterisk", alias("*", $.symbol)),
         field("second", $.type_reference),
-        field("rest", optional($.type_reference_tuple_the_rest)),
+        optional(field("rest", $.type_reference_tuple_the_rest)),
         field("symbol_right_paren", alias(")", $.symbol)),
       ),
 
@@ -852,6 +853,24 @@ module.exports = grammar({
         field("symbol_open_angle", alias("<", $.symbol)),
         field("value_type", $.type_reference),
         field("symbol_close_angle", alias(">", $.symbol)),
+      ),
+
+    //
+    // Function type reference
+    //  'a -> 'b -> 'c
+    fn_type_reference: $ =>
+      prec.right(
+        seq(
+          $.type_reference,
+          repeat1(
+            prec.left(
+              seq(
+                field("symbol_arrow", alias("->", $.symbol)),
+                $.type_reference,
+              ),
+            ),
+          ),
+        ),
       ),
 
     //

@@ -92,6 +92,13 @@ module Darklang =
 
               ProgramTypes.TypeReference.TDict valueType
 
+            | TFn(_range, args, returnType) ->
+              let args =
+                Stdlib.List.map args (fun (t, _) -> TypeReference.toPT onMissing t)
+
+              let returnType = TypeReference.toPT onMissing returnType
+
+              ProgramTypes.TypeReference.TFn(args, returnType)
 
             | TVariable(_range, name) -> ProgramTypes.TypeReference.TVariable name
 
