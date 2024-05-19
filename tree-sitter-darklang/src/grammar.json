@@ -3422,6 +3422,14 @@
           "value": "String"
         },
         {
+          "type": "PATTERN",
+          "value": "DateTime"
+        },
+        {
+          "type": "PATTERN",
+          "value": "Uuid"
+        },
+        {
           "type": "SYMBOL",
           "name": "list_type_reference"
         },
@@ -3435,11 +3443,11 @@
         },
         {
           "type": "SYMBOL",
-          "name": "variable_type_reference"
+          "name": "fn_type_reference"
         },
         {
-          "type": "PATTERN",
-          "value": "Uuid"
+          "type": "SYMBOL",
+          "name": "variable_type_reference"
         }
       ]
     },
@@ -3541,20 +3549,20 @@
           }
         },
         {
-          "type": "FIELD",
-          "name": "rest",
-          "content": {
-            "type": "CHOICE",
-            "members": [
-              {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "rest",
+              "content": {
                 "type": "SYMBOL",
                 "name": "type_reference_tuple_the_rest"
-              },
-              {
-                "type": "BLANK"
               }
-            ]
-          }
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
         },
         {
           "type": "FIELD",
@@ -3651,6 +3659,48 @@
           }
         }
       ]
+    },
+    "fn_type_reference": {
+      "type": "PREC_RIGHT",
+      "value": 0,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "SYMBOL",
+            "name": "type_reference"
+          },
+          {
+            "type": "REPEAT1",
+            "content": {
+              "type": "PREC_LEFT",
+              "value": 0,
+              "content": {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "FIELD",
+                    "name": "symbol_arrow",
+                    "content": {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "STRING",
+                        "value": "->"
+                      },
+                      "named": true,
+                      "value": "symbol"
+                    }
+                  },
+                  {
+                    "type": "SYMBOL",
+                    "name": "type_reference"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
     },
     "variable_type_reference": {
       "type": "SEQ",

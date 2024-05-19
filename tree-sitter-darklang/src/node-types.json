@@ -62,6 +62,10 @@
           "named": true
         },
         {
+          "type": "fn_type_reference",
+          "named": true
+        },
+        {
           "type": "list_type_reference",
           "named": true
         },
@@ -721,6 +725,32 @@
     "type": "fn_identifier",
     "named": true,
     "fields": {}
+  },
+  {
+    "type": "fn_type_reference",
+    "named": true,
+    "fields": {
+      "symbol_arrow": {
+        "multiple": true,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "type_reference",
+          "named": true
+        }
+      ]
+    }
   },
   {
     "type": "if_expression",

@@ -163,3 +163,97 @@ type MyVar = 'a
     )
   )
 )
+
+
+==================
+type reference - fn
+==================
+
+type MyFn = 'a -> String
+
+---
+
+(source_file
+  (type_decl
+    (keyword)
+    (type_identifier)
+    (symbol)
+    (type_decl_def
+      (type_decl_def_alias
+        (type_reference
+          (builtin_type
+            (fn_type_reference
+              (type_reference (builtin_type (variable_type_reference (symbol) (variable_identifier))))
+              (symbol)
+              (type_reference (builtin_type))
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+
+==================
+type reference - fn with two args
+==================
+
+type MyFn = 'a -> 'b -> String
+
+---
+
+(source_file
+  (type_decl
+    (keyword)
+    (type_identifier)
+    (symbol)
+    (type_decl_def
+      (type_decl_def_alias
+        (type_reference
+          (builtin_type
+            (fn_type_reference
+              (type_reference (builtin_type (variable_type_reference (symbol) (variable_identifier))))
+              (symbol)
+              (type_reference (builtin_type (variable_type_reference (symbol) (variable_identifier))))
+              (symbol)
+              (type_reference (builtin_type))
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+
+==================
+type reference - fn with multiple args
+==================
+
+type MyFn = 'a -> 'b -> 'c -> String
+
+---
+
+(source_file
+  (type_decl
+    (keyword) (type_identifier) (symbol)
+    (type_decl_def
+      (type_decl_def_alias
+        (type_reference
+          (builtin_type
+            (fn_type_reference
+              (type_reference (builtin_type (variable_type_reference (symbol) (variable_identifier))))
+              (symbol)
+              (type_reference (builtin_type (variable_type_reference (symbol) (variable_identifier))))
+              (symbol)
+              (type_reference (builtin_type (variable_type_reference (symbol) (variable_identifier))))
+              (symbol)
+              (type_reference (builtin_type))
+            )
+          )
+        )
+      )
+    )
+  )
+)
