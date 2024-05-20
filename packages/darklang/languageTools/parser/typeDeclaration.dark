@@ -161,28 +161,32 @@ module Darklang =
               findAndParseRequired node "name" (fun node ->
                 (Identifiers.parseType node) |> Stdlib.Result.Result.Ok)
 
-            let typeParamsNodes =
-              node
-              |> findNodeByFieldName "type_params"
-              |> Stdlib.Option.map (fun node ->
-                node.children
-                |> Stdlib.List.chunkBySize 2L
-                |> Builtin.unwrap
-                |> Stdlib.List.map (fun chunk ->
-                  match chunk with
-                  | [ typeParamNode ] ->
-                    (typeParamNode.range, typeParamNode.text)
-                    |> Stdlib.Result.Result.Ok
+            let typeParams =
+              match findNodeByFieldName node "type_params" with
+              | Some typeParamsNode ->
+                typeParamsNode
+                |> findNodeByFieldName "params"
+                |> Stdlib.Option.map (fun node ->
+                  node.children
+                  |> Stdlib.List.chunkBySize 2L
+                  |> Builtin.unwrap
+                  |> Stdlib.List.map (fun chunk ->
+                    match chunk with
+                    | [ typeParamNode ] ->
+                      (typeParamNode.range, typeParamNode.text)
+                      |> Stdlib.Result.Result.Ok
 
-                  | [ typeParamNode; _separator ] ->
-                    (typeParamNode.range, typeParamNode.text)
-                    |> Stdlib.Result.Result.Ok
+                    | [ typeParamNode; _separator ] ->
+                      (typeParamNode.range, typeParamNode.text)
+                      |> Stdlib.Result.Result.Ok
 
-                  | _ ->
-                    (createUnparseableError chunk) |> Stdlib.Result.Result.Error))
+                    | _ ->
+                      (createUnparseableError chunk) |> Stdlib.Result.Result.Error))
+
+              | None -> Stdlib.Option.Option.None
 
             let typParams =
-              match typeParamsNodes with
+              match typeParams with
               | Some typeParams -> typeParams |> Stdlib.Result.collect
               | None -> [] |> Stdlib.Result.Result.Ok
 

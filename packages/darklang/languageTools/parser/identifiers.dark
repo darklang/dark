@@ -55,30 +55,30 @@ module Darklang =
           : Stdlib.Result.Result<WrittenTypes.QualifiedTypeIdentifier, String> =
           if node.typ == "qualified_type_name" then
             let filteredChildren =
-              node.children
-              |> Stdlib.List.filter (fun n ->
-                n.typ != "type_args"
-                && n.fieldName != Stdlib.Option.Option.Some "symbol_open_angle"
-                && n.fieldName != Stdlib.Option.Option.Some "symbol_close_angle")
+              node.children |> Stdlib.List.filter (fun n -> n.typ != "type_args")
 
             let (modules, typeIdentifierNode) =
               extractModuleIdentifiers filteredChildren
 
-            let typeArgsNodes =
-              node
-              |> findNodeByFieldName "type_args"
-              |> Stdlib.Option.map (fun typeArgsNode ->
-                typeArgsNode.children
-                |> Stdlib.List.chunkBySize 2L
-                |> Builtin.unwrap
-                |> Stdlib.List.map (fun chunk ->
-                  match chunk with
-                  | [ typeArg; _ ] -> TypeReference.parse typeArg
-                  | [ typeArg ] -> TypeReference.parse typeArg
-                  | _ -> createUnparseableError chunk))
+            let args =
+              match findNodeByFieldName node "type_args" with
+              | Some typeArgs ->
+                typeArgs
+                |> findNodeByFieldName "args"
+                |> Stdlib.Option.map (fun typeArgsNode ->
+                  typeArgsNode.children
+                  |> Stdlib.List.chunkBySize 2L
+                  |> Builtin.unwrap
+                  |> Stdlib.List.map (fun chunk ->
+                    match chunk with
+                    | [ typeArg; _ ] -> TypeReference.parse typeArg
+                    | [ typeArg ] -> TypeReference.parse typeArg
+                    | _ -> createUnparseableError chunk))
+
+              | None -> Stdlib.Option.Option.None
 
             let typeArgs =
-              match typeArgsNodes with
+              match args with
               | Some typeArgs -> typeArgs |> Stdlib.Result.collect
               | None -> [] |> Stdlib.Result.Result.Ok
 
@@ -91,6 +91,7 @@ module Darklang =
                   typeArgs = typeArgs })
               |> Stdlib.Result.Result.Ok
             | Error _ -> createUnparseableError node
+
           else
             Stdlib.Result.Result.Error
               $"Can't parse qualified_type_name from {node.typ}"

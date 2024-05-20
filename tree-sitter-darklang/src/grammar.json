@@ -209,43 +209,12 @@
           "type": "CHOICE",
           "members": [
             {
-              "type": "SEQ",
-              "members": [
-                {
-                  "type": "FIELD",
-                  "name": "symbol_open_angle",
-                  "content": {
-                    "type": "ALIAS",
-                    "content": {
-                      "type": "STRING",
-                      "value": "<"
-                    },
-                    "named": true,
-                    "value": "symbol"
-                  }
-                },
-                {
-                  "type": "FIELD",
-                  "name": "type_params",
-                  "content": {
-                    "type": "SYMBOL",
-                    "name": "type_decl_type_params"
-                  }
-                },
-                {
-                  "type": "FIELD",
-                  "name": "symbol_close_angle",
-                  "content": {
-                    "type": "ALIAS",
-                    "content": {
-                      "type": "STRING",
-                      "value": ">"
-                    },
-                    "named": true,
-                    "value": "symbol"
-                  }
-                }
-              ]
+              "type": "FIELD",
+              "name": "type_params",
+              "content": {
+                "type": "SYMBOL",
+                "name": "type_decl_type_params"
+              }
             },
             {
               "type": "BLANK"
@@ -276,6 +245,45 @@
       ]
     },
     "type_decl_type_params": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "symbol_open_angle",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "<"
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "params",
+          "content": {
+            "type": "SYMBOL",
+            "name": "params"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "symbol_close_angle",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": ">"
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        }
+      ]
+    },
+    "params": {
       "type": "SEQ",
       "members": [
         {
@@ -3936,43 +3944,12 @@
           "type": "CHOICE",
           "members": [
             {
-              "type": "SEQ",
-              "members": [
-                {
-                  "type": "FIELD",
-                  "name": "symbol_open_angle",
-                  "content": {
-                    "type": "ALIAS",
-                    "content": {
-                      "type": "STRING",
-                      "value": "<"
-                    },
-                    "named": true,
-                    "value": "symbol"
-                  }
-                },
-                {
-                  "type": "FIELD",
-                  "name": "type_args",
-                  "content": {
-                    "type": "SYMBOL",
-                    "name": "type_args"
-                  }
-                },
-                {
-                  "type": "FIELD",
-                  "name": "symbol_close_angle",
-                  "content": {
-                    "type": "ALIAS",
-                    "content": {
-                      "type": "STRING",
-                      "value": ">"
-                    },
-                    "named": true,
-                    "value": "symbol"
-                  }
-                }
-              ]
+              "type": "FIELD",
+              "name": "type_args",
+              "content": {
+                "type": "SYMBOL",
+                "name": "type_args"
+              }
             },
             {
               "type": "BLANK"
@@ -3982,6 +3959,45 @@
       ]
     },
     "type_args": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "symbol_open_angle",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "<"
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "args",
+          "content": {
+            "type": "SYMBOL",
+            "name": "args"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "symbol_close_angle",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": ">"
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        }
+      ]
+    },
+    "args": {
       "type": "SEQ",
       "members": [
         {

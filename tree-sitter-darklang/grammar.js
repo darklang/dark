@@ -70,17 +70,17 @@ module.exports = grammar({
       seq(
         field("keyword_type", alias("type", $.keyword)),
         field("name", $.type_identifier),
-        optional(
-          seq(
-            field("symbol_open_angle", alias("<", $.symbol)),
-            field("type_params", $.type_decl_type_params),
-            field("symbol_close_angle", alias(">", $.symbol)),
-          ),
-        ),
+        optional(field("type_params", $.type_decl_type_params)),
         field("symbol_equals", alias("=", $.symbol)),
         field("typ", $.type_decl_def),
       ),
     type_decl_type_params: $ =>
+      seq(
+        field("symbol_open_angle", alias("<", $.symbol)),
+        field("params", $.params),
+        field("symbol_close_angle", alias(">", $.symbol)),
+      ),
+    params: $ =>
       seq(
         $.variable_type_reference,
         repeat(
@@ -927,16 +927,15 @@ module.exports = grammar({
           repeat(seq($.module_identifier, alias(".", $.symbol))),
           field("type_identifier", $.type_identifier),
         ),
-        optional(
-          seq(
-            field("symbol_open_angle", alias("<", $.symbol)),
-            field("type_args", $.type_args),
-            field("symbol_close_angle", alias(">", $.symbol)),
-          ),
-        ),
+        optional(field("type_args", $.type_args)),
       ),
-
     type_args: $ =>
+      seq(
+        field("symbol_open_angle", alias("<", $.symbol)),
+        field("args", $.args),
+        field("symbol_close_angle", alias(">", $.symbol)),
+      ),
+    args: $ =>
       seq(
         $.type_reference,
         repeat(
