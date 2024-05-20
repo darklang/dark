@@ -903,6 +903,7 @@ module.exports = grammar({
         field("typ_param", $.type_reference),
         field("symbol_close_angle", alias(">", $.symbol)),
       ),
+
     //
     // Variable type reference
     // 'a

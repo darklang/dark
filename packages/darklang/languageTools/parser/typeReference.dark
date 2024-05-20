@@ -182,11 +182,16 @@ module Darklang =
                 | _ -> createUnparseableError node
 
               | "variable_type_reference" ->
+                let symbolSingleQuote = findField firstChild "symbol_single_quote"
                 let variableName = findField firstChild "variable"
 
-                match variableName with
-                | Ok variableName ->
-                  (TBuiltin.TVariable variableName.range variableName.text)
+                match symbolSingleQuote, variableName with
+                | Ok singleQuote, Ok variableName ->
+                  (TBuiltin.TVariable(
+                    firstChild.range,
+                    singleQuote.range,
+                    (variableName.range, variableName.text)
+                  ))
                   |> builtin
                 | _ -> createUnparseableError node
           else

@@ -91,7 +91,7 @@ module Darklang =
             typ: TypeReference *
             symbolCloseAngle: Range
 
-          | TVariable of Range * String
+          | TVariable of Range * symbolSingleQuote: Range * name: (Range * String)
 
 
         type TypeReference =
