@@ -276,3 +276,120 @@ type MyFn = 'a -> 'b -> 'c -> String
     )
   )
 )
+
+
+==================
+type reference - DB -simple
+==================
+
+type MyDB = DB<'a>
+
+---
+
+(source_file
+  (type_decl
+    (keyword)
+    (type_identifier)
+    (symbol)
+    (type_decl_def
+      (type_decl_def_alias
+        (type_reference
+          (builtin_type (db_type_reference (keyword) (symbol) (type_reference (builtin_type (variable_type_reference (symbol) (variable_identifier)))) (symbol)))
+        )
+      )
+    )
+  )
+)
+
+
+==================
+type reference - DB with a variable record type
+==================
+
+type MyRecord = {x: String}
+type MyDB = DB<MyRecord>
+
+---
+(source_file
+  (type_decl
+    (keyword)
+    (type_identifier)
+    (symbol)
+    (type_decl_def
+      (type_decl_def_record
+        (symbol)
+        (type_decl_def_record_fields (type_decl_def_record_field (variable_identifier) (symbol) (type_reference (builtin_type))))
+        (symbol)
+      )
+    )
+  )
+  (type_decl
+    (keyword)
+    (type_identifier)
+    (symbol)
+    (type_decl_def
+      (type_decl_def_alias
+        (type_reference
+          (builtin_type
+            (db_type_reference
+              (keyword)
+              (symbol)
+              (type_reference (qualified_type_name (type_identifier)))
+              (symbol)
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+
+==================
+type reference - DB
+==================
+
+type Generic<'a> = { x: 'a }
+
+type GenericDB = DB<Generic<String>>
+
+---
+
+(source_file
+  (type_decl
+    (keyword) (type_identifier)
+    (type_params (symbol) (type_params_items (variable_type_reference (symbol) (variable_identifier))) (symbol))
+    (symbol)
+    (type_decl_def
+      (type_decl_def_record
+        (symbol)
+        (type_decl_def_record_fields
+          (type_decl_def_record_field
+            (variable_identifier)
+            (symbol)
+            (type_reference (builtin_type (variable_type_reference (symbol) (variable_identifier))))
+          )
+        )
+        (symbol)
+      )
+    )
+  )
+
+  (type_decl
+    (keyword) (type_identifier) (symbol)
+    (type_decl_def
+      (type_decl_def_alias
+        (type_reference
+          (builtin_type
+            (db_type_reference
+              (keyword)
+              (symbol)
+              (type_reference (qualified_type_name (type_identifier) (type_args (symbol) (args (type_reference (builtin_type))) (symbol))))
+              (symbol)
+            )
+          )
+        )
+      )
+    )
+  )
+)

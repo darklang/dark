@@ -119,6 +119,7 @@ module ParseNodeToWrittenTypes =
                       PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeIdentifier
                         { range = range (0L, 5L) (0L, 9L)
                           name = "MyID" }
+                    typeParams = []
                     definition =
                       PACKAGE
                         .Darklang
@@ -258,6 +259,11 @@ module TextToTextRoundtripping =
     ("type MyFn = PACKAGE.Darklang.LanguageTools.ID -> 'a -> 'b"
      |> roundtripCliScript) = "type MyFn =\n  PACKAGE.Darklang.LanguageTools.ID -> 'a -> 'b"
 
+    ("type MyDB = DB<'a>" |> roundtripCliScript) = "type MyDB =\n  DB<'a>"
+    ("type MyDB = DB<Person>" |> roundtripCliScript) = "type MyDB =\n  DB<Person>"
+    ("type MyDB<'a> = DB<'a>" |> roundtripCliScript) = "type MyDB<'a> =\n  DB<'a>"
+    ("type GenericDB = DB<Generic<String>>" |> roundtripCliScript) = "type GenericDB =\n  DB<Generic<String>>"
+
     ("type MyVar = 'a" |> roundtripCliScript) = "type MyVar =\n  'a"
 
     // single-part qualified name
@@ -266,14 +272,18 @@ module TextToTextRoundtripping =
     // fully-qualified package name (multi-part)
     ("type MyOption = PACKAGE.Darklang.Stdlib.Option.Option" |> roundtripCliScript) = "type MyOption =\n  PACKAGE.Darklang.Stdlib.Option.Option"
     ("type MyOption = Stdlib.Option.Option" |> roundtripCliScript) = "type MyOption =\n  PACKAGE.Darklang.Stdlib.Option.Option"
+    ("type MyOption = Stdlib.Option.Option<Int64>" |> roundtripCliScript) = "type MyOption =\n  PACKAGE.Darklang.Stdlib.Option.Option<Int64>"
 
 
   module TypeDeclaration =
     ("type SimpleAlias = Unit" |> roundtripCliScript) = "type SimpleAlias =\n  Unit"
+    // with type params
+    ("type MyType<'a> = List<'a>" |> roundtripCliScript) = "type MyType<'a> =\n  List<'a>"
+    ("type MyType<'a, 'b> = (List<'a> * List<'b>)" |> roundtripCliScript) = "type MyType<'a, 'b> =\n  (List<'a> * List<'b>)"
+    ("type Generic<'a> = { x: 'a }" |> roundtripCliScript) = "type Generic<'a> =\n  { x: 'a }"
 
     // // Enum type TODO
     // ("type Thing = | A | B of Int64 | C of String * Bool" |> roundtripCliScript) = "type Thing =\n  | A\n  | B of Int64\n  | C of String * Bool"
-
 
     // record type
     ("type Person = {name: String}" |> roundtripCliScript) = "type Person =\n  { name: String }"
@@ -580,6 +590,7 @@ else
     ("PACKAGE.Darklang.Stdlib.Bool.and true false" |> roundtripCliScript) = "PACKAGE.Darklang.Stdlib.Bool.and true false"
     ("Stdlib.Bool.and true false" |> roundtripCliScript) = "PACKAGE.Darklang.Stdlib.Bool.and true false"
     ("Builtin.int64Add 1L 2L" |> roundtripCliScript) = "Builtin.int64Add 1L 2L"
+    ("Builtin.jsonParse<Bool> \"true\"" |> roundtripCliScript) = "Builtin.jsonParse<Bool> \"true\""
 
   module FunctionDeclaration =
     // single 'normal' param
@@ -596,6 +607,11 @@ else
     ("let isHigher (a: Int64) (b: Int64) : Bool = Stdlib.Int64.greaterThan a b"
      |> roundtripCliScript) = "let isHigher (a: Int64) (b: Int64): Bool =\n  PACKAGE.Darklang.Stdlib.Int64.greaterThan a b"
 
+    // with type params
+    ("let myFn<'a> (param: 'a): Unit  = ()" |> roundtripCliScript) = "let myFn<'a> (param: 'a): Unit =\n  ()"
+
+    ("let myFn<'a, 'b> (paramOne: 'a) (paramTwo: 'b): Unit  = ()"
+     |> roundtripCliScript) = "let myFn<'a, 'b> (paramOne: 'a) (paramTwo: 'b): Unit =\n  ()"
 
 
   module FnCalls =

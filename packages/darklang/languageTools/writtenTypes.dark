@@ -17,6 +17,7 @@ module Darklang =
           /// the Range corresponds to the `.` after the module name
           modules: List<ModuleIdentifier * Range>
           typ: TypeIdentifier
+          typeArgs: List<TypeReference.TypeReference>
         }
 
       type VariableIdentifier = { range: Range; name: String }
@@ -29,6 +30,7 @@ module Darklang =
           /// the range corresponds to the `.` after the module name
           modules: List<ModuleIdentifier * Range>
           fn: FnIdentifier
+          typeArgs: List<TypeReference.TypeReference>
         }
 
       type Name = Unresolved of Range * List<String>
@@ -83,7 +85,14 @@ module Darklang =
             arguments: List<TypeReference.TypeReference * Range> *
             ret: TypeReference.TypeReference
 
-          | TVariable of Range * String
+          | TDB of
+            Range *
+            keywordDB: Range *
+            symbolOpenAngle: Range *
+            typ: TypeReference *
+            symbolCloseAngle: Range
+
+          | TVariable of Range * symbolSingleQuote: Range * name: (Range * String)
 
 
         type TypeReference =
@@ -123,6 +132,7 @@ module Darklang =
         type TypeDeclaration =
           { range: Range
             name: TypeIdentifier
+            typeParams: List<Range * String>
             definition: Definition
             keywordType: Range
             symbolEquals: Range }
@@ -368,6 +378,7 @@ module Darklang =
         type FnDeclaration =
           { range: Range
             name: FnIdentifier
+            typeParams: List<Range * String>
             parameters: List<Parameter>
             returnType: TypeReference.TypeReference
             body: Expr

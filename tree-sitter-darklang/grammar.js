@@ -47,6 +47,7 @@ module.exports = grammar({
       seq(
         field("keyword_let", alias("let", $.keyword)),
         field("name", $.fn_identifier),
+        optional(field("type_params", $.type_params)),
         field("params", $.fn_decl_params),
         field("symbol_colon", alias(":", $.symbol)),
         field("return_type", $.type_reference),
@@ -70,8 +71,27 @@ module.exports = grammar({
       seq(
         field("keyword_type", alias("type", $.keyword)),
         field("name", $.type_identifier),
+        optional(field("type_params", $.type_params)),
         field("symbol_equals", alias("=", $.symbol)),
         field("typ", $.type_decl_def),
+      ),
+
+    type_params: $ =>
+      seq(
+        field("symbol_open_angle", alias(token.immediate("<"), $.symbol)),
+        field("params", $.type_params_items),
+        field("symbol_close_angle", alias(token.immediate(">"), $.symbol)),
+      ),
+    // TODO: inline this into type_params
+    type_params_items: $ =>
+      seq(
+        $.variable_type_reference,
+        repeat(
+          seq(
+            field("symbol_comma", alias(",", $.symbol)),
+            $.variable_type_reference,
+          ),
+        ),
       ),
 
     type_decl_def: $ =>
@@ -813,6 +833,8 @@ module.exports = grammar({
         $.dict_type_reference,
         $.fn_type_reference,
         $.variable_type_reference,
+
+        $.db_type_reference,
       ),
 
     //
@@ -875,6 +897,16 @@ module.exports = grammar({
         ),
       ),
 
+    // DB type reference
+    // DB<'a>
+    db_type_reference: $ =>
+      seq(
+        field("keyword_type_constructor", alias("DB", $.keyword)),
+        field("symbol_open_angle", alias("<", $.symbol)),
+        field("typ_param", $.type_reference),
+        field("symbol_close_angle", alias(">", $.symbol)),
+      ),
+
     //
     // Variable type reference
     // 'a
@@ -889,14 +921,33 @@ module.exports = grammar({
     // ---------------------
     qualified_fn_name: $ =>
       seq(
-        repeat(seq($.module_identifier, alias(".", $.symbol))),
-        $.fn_identifier,
+        seq(
+          repeat(seq($.module_identifier, alias(".", $.symbol))),
+          $.fn_identifier,
+        ),
+        optional(field("type_args", $.type_args)),
       ),
 
     qualified_type_name: $ =>
       seq(
-        repeat(seq($.module_identifier, alias(".", $.symbol))),
-        $.type_identifier,
+        seq(
+          repeat(seq($.module_identifier, alias(".", $.symbol))),
+          field("type_identifier", $.type_identifier),
+        ),
+        optional(field("type_args", $.type_args)),
+      ),
+    type_args: $ =>
+      seq(
+        field("symbol_open_angle", alias(token.immediate("<"), $.symbol)),
+        field("args", $.args),
+        field("symbol_close_angle", alias(token.immediate(">"), $.symbol)),
+      ),
+    args: $ =>
+      seq(
+        $.type_reference,
+        repeat(
+          seq(field("symbol_comma", alias(",", $.symbol)), $.type_reference),
+        ),
       ),
 
     /** e.g. `x` in `let double (x: Int) = x + x`

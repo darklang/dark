@@ -160,14 +160,38 @@ module Darklang =
                 | Ok returnType, Ok args ->
                   (TBuiltin.TFn firstChild.range args returnType) |> builtin
 
+              | "db_type_reference" ->
+                let dbKeyword = findField firstChild "keyword_type_constructor"
+                let openAngle = findField firstChild "symbol_open_angle"
+
+                let typeParamNode =
+                  findAndParseRequired firstChild "typ_param" TypeReference.parse
+
+                let closeAngle = findField firstChild "symbol_close_angle"
+
+                match dbKeyword, openAngle, typeParamNode, closeAngle with
+                | Ok dbKeyword, Ok openAngle, Ok typeParam, Ok closeAngle ->
+                  (TBuiltin.TDB
+                    firstChild.range
+                    dbKeyword.range
+                    openAngle.range
+                    typeParam
+                    closeAngle.range)
+                  |> builtin
+
                 | _ -> createUnparseableError node
 
               | "variable_type_reference" ->
+                let symbolSingleQuote = findField firstChild "symbol_single_quote"
                 let variableName = findField firstChild "variable"
 
-                match variableName with
-                | Ok variableName ->
-                  (TBuiltin.TVariable variableName.range variableName.text)
+                match symbolSingleQuote, variableName with
+                | Ok singleQuote, Ok variableName ->
+                  (TBuiltin.TVariable(
+                    firstChild.range,
+                    singleQuote.range,
+                    (variableName.range, variableName.text)
+                  ))
                   |> builtin
                 | _ -> createUnparseableError node
           else

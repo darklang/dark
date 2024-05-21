@@ -27,7 +27,8 @@ module Darklang =
             "variable" // [8] for general identifiers
             "function" // [9] for function names/identifiers
             "property" // [10] for field names
-            "enumMember" ] // [11] for enum case names
+            "enumMember" // [11] for enum case names
+            "typeParameter" ] // [12] for type parameter names
 
         let tokenModifiers = []
 
@@ -55,6 +56,7 @@ module Darklang =
 
             | Property -> 10UL
             | EnumMember -> 11UL
+            | TypeParameter -> 12UL
 
           let toRelativeTokens
             (tokens: List<LanguageTools.SemanticTokens.SemanticToken>)

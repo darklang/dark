@@ -64,7 +64,7 @@ type MyID = Test
     symbol_equals: (symbol)
     typ: (type_decl_def
           (type_decl_def_alias
-            (type_reference (qualified_type_name (type_identifier)))
+            (type_reference (qualified_type_name type_identifier: (type_identifier)))
           )
         )
   )

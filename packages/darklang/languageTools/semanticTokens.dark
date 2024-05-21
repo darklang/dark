@@ -61,7 +61,7 @@ module Darklang =
           [ makeToken t.range TokenType.TypeName ]
 
       module QualifiedTypeIdentifier =
-        // Darklang.Stdlib.Option
+        // Darklang.Stdlib.Option<Int64>
         let tokenize
           (q: WrittenTypes.QualifiedTypeIdentifier)
           : List<SemanticToken> =
@@ -71,7 +71,12 @@ module Darklang =
              |> Stdlib.List.flatten)
 
             // Option
-            TypeIdentifier.tokenize q.typ ]
+            TypeIdentifier.tokenize q.typ
+
+            // <Int64>
+            (q.typeArgs
+             |> Stdlib.List.map (fun typeArg -> TypeReference.tokenize typeArg)
+             |> Stdlib.List.flatten) ]
           |> Stdlib.List.flatten
 
       module VariableIdentifier =
@@ -88,6 +93,10 @@ module Darklang =
           [ // Darklang.Stdlib.List.
             (q.modules
              |> Stdlib.List.map (fun (m, _) -> ModuleIdentifier.tokenize m)
+             |> Stdlib.List.flatten)
+
+            (q.typeArgs
+             |> Stdlib.List.map (fun typeArg -> TypeReference.tokenize typeArg)
              |> Stdlib.List.flatten)
 
             // map
@@ -163,9 +172,20 @@ module Darklang =
                  |> Stdlib.List.flatten)
 
                 TypeReference.tokenize ret ]
+
+            | TDB(r, rk, ro, t, rc) ->
+              [ [ makeToken rk TokenType.Keyword ]
+                [ makeToken ro TokenType.Symbol ]
+                (TypeReference.tokenize t)
+                [ makeToken rc TokenType.Symbol ] ]
               |> Stdlib.List.flatten
 
-            | TVariable(r, _) -> [ makeToken r TokenType.TypeName ]
+            | TVariable(r, ra, (rv, _)) ->
+              [ // '
+                [ makeToken ra TokenType.Symbol ]
+                // a
+                [ makeToken rv TokenType.TypeName ] ]
+              |> Stdlib.List.flatten
 
         let tokenize
           (t: WrittenTypes.TypeReference.TypeReference)
@@ -245,6 +265,11 @@ module Darklang =
             [ makeToken t.keywordType TokenType.Keyword ]
             // ID
             [ makeToken t.name.range TokenType.TypeName ]
+
+            (t.typeParams
+             |> Stdlib.List.map (fun (r, typeParam) ->
+               [ makeToken r TokenType.TypeParameter ])
+             |> Stdlib.List.flatten)
             // =
             [ makeToken t.symbolEquals TokenType.Symbol ]
             // UInt64
@@ -821,6 +846,11 @@ module Darklang =
             [ makeToken fn.keywordLet TokenType.Keyword ]
             // `add`
             FnIdentifier.tokenize fn.name
+            // type parameters
+            (t.typeParams
+             |> Stdlib.List.map (fun (r, typeParam) ->
+               [ makeToken r TokenType.TypeParameter ])
+             |> Stdlib.List.flatten)
             // `(a: Int64) (b: Int64)`
             (fn.parameters
              |> Stdlib.List.map (fun p -> Parameter.tokenize p)

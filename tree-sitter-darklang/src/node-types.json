@@ -40,6 +40,32 @@
     }
   },
   {
+    "type": "args",
+    "named": true,
+    "fields": {
+      "symbol_comma": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "type_reference",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "bool",
     "named": true,
     "fields": {}
@@ -57,6 +83,10 @@
       "multiple": false,
       "required": false,
       "types": [
+        {
+          "type": "db_type_reference",
+          "named": true
+        },
         {
           "type": "dict_type_reference",
           "named": true
@@ -165,6 +195,52 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "db_type_reference",
+    "named": true,
+    "fields": {
+      "keyword_type_constructor": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "keyword",
+            "named": true
+          }
+        ]
+      },
+      "symbol_close_angle": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_open_angle": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "typ_param": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type_reference",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -640,6 +716,16 @@
         "types": [
           {
             "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "type_params": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "type_params",
             "named": true
           }
         ]
@@ -1852,7 +1938,18 @@
   {
     "type": "qualified_fn_name",
     "named": true,
-    "fields": {},
+    "fields": {
+      "type_args": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "type_args",
+            "named": true
+          }
+        ]
+      }
+    },
     "children": {
       "multiple": true,
       "required": true,
@@ -1875,10 +1972,31 @@
   {
     "type": "qualified_type_name",
     "named": true,
-    "fields": {},
+    "fields": {
+      "type_args": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "type_args",
+            "named": true
+          }
+        ]
+      },
+      "type_identifier": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type_identifier",
+            "named": true
+          }
+        ]
+      }
+    },
     "children": {
       "multiple": true,
-      "required": true,
+      "required": false,
       "types": [
         {
           "type": "module_identifier",
@@ -1886,10 +2004,6 @@
         },
         {
           "type": "symbol",
-          "named": true
-        },
-        {
-          "type": "type_identifier",
           "named": true
         }
       ]
@@ -2551,6 +2665,42 @@
     }
   },
   {
+    "type": "type_args",
+    "named": true,
+    "fields": {
+      "args": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "args",
+            "named": true
+          }
+        ]
+      },
+      "symbol_close_angle": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_open_angle": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "type_decl",
     "named": true,
     "fields": {
@@ -2590,6 +2740,16 @@
         "types": [
           {
             "type": "type_decl_def",
+            "named": true
+          }
+        ]
+      },
+      "type_params": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "type_params",
             "named": true
           }
         ]
@@ -2900,6 +3060,68 @@
     "type": "type_identifier",
     "named": true,
     "fields": {}
+  },
+  {
+    "type": "type_params",
+    "named": true,
+    "fields": {
+      "params": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type_params_items",
+            "named": true
+          }
+        ]
+      },
+      "symbol_close_angle": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_open_angle": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "type_params_items",
+    "named": true,
+    "fields": {
+      "symbol_comma": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "variable_type_reference",
+          "named": true
+        }
+      ]
+    }
   },
   {
     "type": "type_reference",

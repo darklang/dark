@@ -81,6 +81,39 @@ module Darklang =
               findAndParseRequired node "name" (fun node ->
                 (Identifiers.parseFn node) |> Stdlib.Result.Result.Ok)
 
+            let typeParams =
+              match findNodeByFieldName node "type_params" with
+              | Some typeParamsNode ->
+                typeParamsNode
+                |> findNodeByFieldName "params"
+                |> Stdlib.Option.map (fun node ->
+                  node.children
+                  |> Stdlib.List.chunkBySize 2L
+                  |> Builtin.unwrap
+                  |> Stdlib.List.map (fun chunk ->
+                    match chunk with
+                    | [ typeParamNode ] ->
+                      let name =
+                        typeParamNode |> findField "variable" |> Builtin.unwrap
+
+                      (typeParamNode.range, name.text) |> Stdlib.Result.Result.Ok
+
+                    | [ typeParamNode; _separator ] ->
+                      let name =
+                        typeParamNode |> findField "variable" |> Builtin.unwrap
+
+                      (typeParamNode.range, name.text) |> Stdlib.Result.Result.Ok
+
+                    | _ ->
+                      (createUnparseableError chunk) |> Stdlib.Result.Result.Error))
+
+              | None -> Stdlib.Option.Option.None
+
+            let typeParams =
+              match typeParams with
+              | Some typeParams -> typeParams |> Stdlib.Result.collect
+              | None -> [] |> Stdlib.Result.Result.Ok
+
             let paramsNode =
               findAndParseRequired node "params" FunctionDeclaration.parseParams
 
@@ -94,6 +127,7 @@ module Darklang =
 
             match
               nameNode,
+              typeParams,
               paramsNode,
               returnTypeNode,
               bodyNode,
@@ -101,10 +135,18 @@ module Darklang =
               symColonNode,
               symEqualsNode
             with
-            | Ok name, Ok params, Ok rt, Ok body, Ok keywordLet, Ok colon, Ok equals ->
+            | Ok name,
+              Ok typeParams,
+              Ok params,
+              Ok rt,
+              Ok body,
+              Ok keywordLet,
+              Ok colon,
+              Ok equals ->
               (WrittenTypes.FnDeclaration.FnDeclaration
                 { range = node.range
                   name = name
+                  typeParams = typeParams
                   parameters = params
                   returnType = rt
                   body = body

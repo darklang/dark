@@ -49,19 +49,54 @@ module Darklang =
         let parseFn (n: ParsedNode) : WrittenTypes.FnIdentifier =
           WrittenTypes.FnIdentifier { range = n.range; name = n.text }
 
+        let extractTypeArgs
+          (node: ParsedNode)
+          : Stdlib.Result.Result<List<WrittenTypes.Range * String>, WrittenTypes.Unparseable> =
+          let args =
+            match findNodeByFieldName node "type_args" with
+            | Some typeArgs ->
+              typeArgs
+              |> findNodeByFieldName "args"
+              |> Stdlib.Option.map (fun typeArgsNode ->
+                typeArgsNode.children
+                |> Stdlib.List.chunkBySize 2L
+                |> Builtin.unwrap
+                |> Stdlib.List.map (fun chunk ->
+                  match chunk with
+                  | [ typeArg; _ ] -> TypeReference.parse typeArg
+                  | [ typeArg ] -> TypeReference.parse typeArg
+                  | _ -> createUnparseableError chunk))
+
+            | None -> Stdlib.Option.Option.None
+
+          match args with
+          | Some typeArgs -> typeArgs |> Stdlib.Result.collect
+          | None -> [] |> Stdlib.Result.Result.Ok
+
+
 
         let parseQualifiedType
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.QualifiedTypeIdentifier, String> =
           if node.typ == "qualified_type_name" then
-            let (modules, typeIdentifierNode) =
-              extractModuleIdentifiers node.children
+            let filteredChildren =
+              node.children |> Stdlib.List.filter (fun n -> n.typ != "type_args")
 
-            (WrittenTypes.QualifiedTypeIdentifier
-              { range = node.range
-                modules = modules
-                typ = parseType typeIdentifierNode })
-            |> Stdlib.Result.Result.Ok
+            let (modules, typeIdentifierNode) =
+              extractModuleIdentifiers filteredChildren
+
+            let typeArgs = extractTypeArgs node
+
+            match typeArgs with
+            | Ok typeArgs ->
+              (WrittenTypes.QualifiedTypeIdentifier
+                { range = node.range
+                  modules = modules
+                  typ = parseType typeIdentifierNode
+                  typeArgs = typeArgs })
+              |> Stdlib.Result.Result.Ok
+            | Error _ -> createUnparseableError node
+
           else
             Stdlib.Result.Result.Error
               $"Can't parse qualified_type_name from {node.typ}"
@@ -70,14 +105,25 @@ module Darklang =
         let parseQualifiedFunction
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.QualifiedFnIdentifier, String> =
-          if node.typ == "qualified_fn_name" then
-            let (modules, fnIdentifierNode) = extractModuleIdentifiers node.children
+          let filteredChildren =
+            node.children |> Stdlib.List.filter (fun n -> n.typ != "type_args")
 
-            (WrittenTypes.QualifiedFnIdentifier
-              { range = node.range
-                modules = modules
-                fn = parseFn fnIdentifierNode })
-            |> Stdlib.Result.Result.Ok
+          if node.typ == "qualified_fn_name" then
+            let (modules, fnIdentifierNode) =
+              extractModuleIdentifiers filteredChildren
+
+            let typeArgs = extractTypeArgs node
+
+            match typeArgs with
+            | Ok typeArgs ->
+              (WrittenTypes.QualifiedFnIdentifier
+                { range = node.range
+                  modules = modules
+                  fn = parseFn fnIdentifierNode
+                  typeArgs = typeArgs })
+              |> Stdlib.Result.Result.Ok
+            | Error _ -> createUnparseableError node
+
           else
             Stdlib.Result.Result.Error
               $"Can't parse qualified_fn_name from {node.typ}"

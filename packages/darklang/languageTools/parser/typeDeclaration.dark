@@ -161,17 +161,53 @@ module Darklang =
               findAndParseRequired node "name" (fun node ->
                 (Identifiers.parseType node) |> Stdlib.Result.Result.Ok)
 
+            let typeParams =
+              match findNodeByFieldName node "type_params" with
+              | Some typeParamsNode ->
+                typeParamsNode
+                |> findNodeByFieldName "params"
+                |> Stdlib.Option.map (fun node ->
+                  node.children
+                  |> Stdlib.List.chunkBySize 2L
+                  |> Builtin.unwrap
+                  |> Stdlib.List.map (fun chunk ->
+                    match chunk with
+                    | [ typeParamNode ] ->
+                      let name =
+                        typeParamNode |> findField "variable" |> Builtin.unwrap
+
+                      (typeParamNode.range, name.text) |> Stdlib.Result.Result.Ok
+
+                    | [ typeParamNode; _separator ] ->
+                      let name =
+                        typeParamNode |> findField "variable" |> Builtin.unwrap
+
+                      (typeParamNode.range, name.text) |> Stdlib.Result.Result.Ok
+
+                    | _ ->
+                      (createUnparseableError chunk) |> Stdlib.Result.Result.Error))
+
+              | None -> Stdlib.Option.Option.None
+
+            let typeParams =
+              match typeParams with
+              | Some typeParams -> typeParams |> Stdlib.Result.collect
+              | None -> [] |> Stdlib.Result.Result.Ok
+
             let defNode =
               findAndParseRequired node "typ" TypeDeclaration.parseDefinition
 
             let keywordTypeNode = findField node "keyword_type"
             let symbolEqualsNode = findField node "symbol_equals"
 
-            match nameNode, defNode, keywordTypeNode, symbolEqualsNode with
-            | Ok name, Ok def, Ok keywordType, Ok symbolEquals ->
+            match
+              nameNode, defNode, typeParams, keywordTypeNode, symbolEqualsNode
+            with
+            | Ok name, Ok def, Ok typeParams, Ok keywordType, Ok symbolEquals ->
               (WrittenTypes.TypeDeclaration.TypeDeclaration
                 { range = node.range
                   name = name
+                  typeParams = typeParams
                   definition = def
                   keywordType = keywordType.range
                   symbolEquals = symbolEquals.range })
