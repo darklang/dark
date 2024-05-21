@@ -486,9 +486,13 @@ module Darklang =
 
           | EApply(_, fn, typeArgs, args) ->
             let fn = toPT onMissing fn
+
+            let typeArgs =
+              Stdlib.List.map typeArgs (fun t -> TypeReference.toPT onMissing t)
+
             let args = Stdlib.List.map args (fun a -> toPT onMissing a)
 
-            ProgramTypes.Expr.EApply(gid (), fn, [], args)
+            ProgramTypes.Expr.EApply(gid (), fn, typeArgs, args)
 
 
       module FunctionDeclaration =
@@ -517,6 +521,9 @@ module Darklang =
           (modules: List<String>)
           (fn: WrittenTypes.FnDeclaration.FnDeclaration)
           : ProgramTypes.PackageFn.PackageFn =
+          let typeParams =
+            fn.typeParams |> Stdlib.List.map (fun p -> p |> Stdlib.Tuple2.second)
+
           ProgramTypes.PackageFn.PackageFn
             { tlid = gtlid ()
               id = Stdlib.Uuid.generate ()
@@ -525,7 +532,7 @@ module Darklang =
                   { owner = owner
                     modules = modules
                     name = fn.name.name }
-              typeParams = []
+              typeParams = typeParams
               parameters =
                 fn.parameters
                 |> Stdlib.List.map (fun p ->

@@ -30,6 +30,7 @@ module Darklang =
           /// the range corresponds to the `.` after the module name
           modules: List<ModuleIdentifier * Range>
           fn: FnIdentifier
+          typeArgs: List<TypeReference.TypeReference>
         }
 
       type Name = Unresolved of Range * List<String>
@@ -377,6 +378,7 @@ module Darklang =
         type FnDeclaration =
           { range: Range
             name: FnIdentifier
+            typeParams: List<Range * String>
             parameters: List<Parameter>
             returnType: TypeReference.TypeReference
             body: Expr

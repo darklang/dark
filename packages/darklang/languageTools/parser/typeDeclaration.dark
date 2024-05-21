@@ -189,7 +189,7 @@ module Darklang =
 
               | None -> Stdlib.Option.Option.None
 
-            let typParams =
+            let typeParams =
               match typeParams with
               | Some typeParams -> typeParams |> Stdlib.Result.collect
               | None -> [] |> Stdlib.Result.Result.Ok
@@ -201,10 +201,9 @@ module Darklang =
             let symbolEqualsNode = findField node "symbol_equals"
 
             match
-              nameNode, defNode, typParams, keywordTypeNode, symbolEqualsNode
+              nameNode, defNode, typeParams, keywordTypeNode, symbolEqualsNode
             with
             | Ok name, Ok def, Ok typeParams, Ok keywordType, Ok symbolEquals ->
-
               (WrittenTypes.TypeDeclaration.TypeDeclaration
                 { range = node.range
                   name = name

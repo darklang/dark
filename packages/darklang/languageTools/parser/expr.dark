@@ -918,9 +918,10 @@ module Darklang =
 
             match fnNameNode, args with
             | Ok fnName, Ok args ->
+              let typeArgs = fnName.typeArgs
               let fnName = WrittenTypes.Expr.EFnName(node.range, fnName)
 
-              (WrittenTypes.Expr.EApply(node.range, fnName, [], args))
+              (WrittenTypes.Expr.EApply(node.range, fnName, typeArgs, args))
               |> Stdlib.Result.Result.Ok
 
             | _ -> createUnparseableError node

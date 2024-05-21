@@ -47,6 +47,7 @@ module.exports = grammar({
       seq(
         field("keyword_let", alias("let", $.keyword)),
         field("name", $.fn_identifier),
+        optional(field("type_params", $.type_params)),
         field("params", $.fn_decl_params),
         field("symbol_colon", alias(":", $.symbol)),
         field("return_type", $.type_reference),
@@ -70,11 +71,12 @@ module.exports = grammar({
       seq(
         field("keyword_type", alias("type", $.keyword)),
         field("name", $.type_identifier),
-        optional(field("type_params", $.type_decl_type_params)),
+        optional(field("type_params", $.type_params)),
         field("symbol_equals", alias("=", $.symbol)),
         field("typ", $.type_decl_def),
       ),
-    type_decl_type_params: $ =>
+
+    type_params: $ =>
       seq(
         field("symbol_open_angle", alias("<", $.symbol)),
         field("params", $.params),
@@ -918,8 +920,11 @@ module.exports = grammar({
     // ---------------------
     qualified_fn_name: $ =>
       seq(
-        repeat(seq($.module_identifier, alias(".", $.symbol))),
-        $.fn_identifier,
+        seq(
+          repeat(seq($.module_identifier, alias(".", $.symbol))),
+          $.fn_identifier,
+        ),
+        optional(field("type_args", $.type_args)),
       ),
 
     qualified_type_name: $ =>
@@ -932,9 +937,9 @@ module.exports = grammar({
       ),
     type_args: $ =>
       seq(
-        field("symbol_open_angle", alias("<", $.symbol)),
+        field("symbol_open_angle", alias(token.immediate("<"), $.symbol)),
         field("args", $.args),
-        field("symbol_close_angle", alias(">", $.symbol)),
+        field("symbol_close_angle", alias(token.immediate(">"), $.symbol)),
       ),
     args: $ =>
       seq(

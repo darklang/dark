@@ -78,3 +78,34 @@ let isHigher (a: Int64) (b: Int64): Bool =
     )
   )
 )
+
+
+==================
+fn decl with type parameters
+==================
+
+let myFn<'a> (param: 'a): Unit =
+  ()
+
+---
+
+(source_file
+   (fn_decl
+      (keyword)
+      (fn_identifier)
+      (type_params (symbol) (params (variable_type_reference (symbol) (variable_identifier))) (symbol))
+      (fn_decl_params
+        (fn_decl_param
+          (symbol)
+          (variable_identifier)
+          (symbol)
+          (type_reference (builtin_type (variable_type_reference (symbol) (variable_identifier))))
+          (symbol)
+        )
+      )
+      (symbol)
+      (type_reference (builtin_type))
+      (symbol)
+      (expression (simple_expression (unit)))
+  )
+)

@@ -358,7 +358,7 @@ type GenericDB = DB<Generic<String>>
 (source_file
   (type_decl
     (keyword) (type_identifier)
-    (type_decl_type_params (symbol) (params (variable_type_reference (symbol) (variable_identifier))) (symbol))
+    (type_params (symbol) (params (variable_type_reference (symbol) (variable_identifier))) (symbol))
     (symbol)
     (type_decl_def
       (type_decl_def_record

@@ -95,6 +95,10 @@ module Darklang =
              |> Stdlib.List.map (fun (m, _) -> ModuleIdentifier.tokenize m)
              |> Stdlib.List.flatten)
 
+            (q.typeArgs
+             |> Stdlib.List.map (fun typeArg -> TypeReference.tokenize typeArg)
+             |> Stdlib.List.flatten)
+
             // map
             FnIdentifier.tokenize q.fn ]
           |> Stdlib.List.flatten
@@ -842,6 +846,11 @@ module Darklang =
             [ makeToken fn.keywordLet TokenType.Keyword ]
             // `add`
             FnIdentifier.tokenize fn.name
+            // type parameters
+            (t.typeParams
+             |> Stdlib.List.map (fun (r, typeParam) ->
+               [ makeToken r TokenType.TypeParameter ])
+             |> Stdlib.List.flatten)
             // `(a: Int64) (b: Int64)`
             (fn.parameters
              |> Stdlib.List.map (fun p -> Parameter.tokenize p)
