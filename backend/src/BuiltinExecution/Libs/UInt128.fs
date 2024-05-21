@@ -47,7 +47,7 @@ let fns : List<BuiltInFn> =
           if m = System.UInt128.Zero then
             Int64.IntRuntimeError.Error.ZeroModulus
             |> Int64.IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.caller
+            |> raiseRTE state.tracing.caller
             |> Ply
           else
             let result = v % m
@@ -73,7 +73,7 @@ let fns : List<BuiltInFn> =
           with :? System.OverflowException ->
             Int64.IntRuntimeError.Error.OutOfRange
             |> Int64.IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.caller
+            |> raiseRTE state.tracing.caller
             |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -95,7 +95,7 @@ let fns : List<BuiltInFn> =
           with :? System.OverflowException ->
             Int64.IntRuntimeError.Error.OutOfRange
             |> Int64.IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.caller
+            |> raiseRTE state.tracing.caller
             |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -118,7 +118,7 @@ let fns : List<BuiltInFn> =
           with :? System.OverflowException ->
             Int64.IntRuntimeError.Error.OutOfRange
             |> Int64.IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.caller
+            |> raiseRTE state.tracing.caller
             |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -144,12 +144,12 @@ let fns : List<BuiltInFn> =
           | :? System.DivideByZeroException ->
             Int64.IntRuntimeError.Error.DivideByZeroError
             |> Int64.IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.caller
+            |> raiseRTE state.tracing.caller
             |> Ply
           | :? System.OverflowException ->
             Int64.IntRuntimeError.Error.OutOfRange
             |> Int64.IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.caller
+            |> raiseRTE state.tracing.caller
             |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

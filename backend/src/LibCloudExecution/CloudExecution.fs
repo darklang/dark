@@ -34,7 +34,7 @@ let createState
   : Task<RT.ExecutionState> =
   task {
     let extraMetadata (state : RT.ExecutionState) : Metadata =
-      let tlid, id = Option.defaultValue (0UL, 0UL) state.caller
+      let tlid, id = Option.defaultValue (0UL, 0UL) state.tracing.caller
       [ "callerTLID", tlid
         "callerID", id
         "traceID", traceID

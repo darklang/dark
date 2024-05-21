@@ -449,7 +449,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
                       )
                     return!
                       TypeChecker.raiseValueNotExpectedType
-                        state.caller
+                        state.tracing.caller
                         notAPair
                         (TList(TTuple(TString, TString, [])))
                         context

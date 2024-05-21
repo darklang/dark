@@ -1393,10 +1393,16 @@ and Program =
 
 /// Set of callbacks used to trace the interpreter, and other context needed to run code
 and Tracing =
-  { traceDval : TraceDval
+  {
+    traceDval : TraceDval
     traceTLID : TraceTLID
     loadFnResult : LoadFnResult
-    storeFnResult : StoreFnResult }
+    storeFnResult : StoreFnResult
+
+    /// ID of the caller, used to find the source of an error.
+    /// It's not the end of the world if this is wrong or missing, but it will give worse errors.
+    caller : Source
+  }
 
 // Used for testing
 and TestContext =
@@ -1484,11 +1490,6 @@ and ExecutionState =
 
 
     // -- Can change over time during execution --
-
-    /// tlid/id of the caller - used to find the source of an error. It's not the end
-    /// of the world if this is wrong or missing, but it will give worse errors.
-    caller : Source
-
     packageManager : PackageManager // TODO update to availableTypes?
 
     typeSymbolTable : TypeSymbolTable
