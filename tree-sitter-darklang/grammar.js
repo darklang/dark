@@ -78,9 +78,9 @@ module.exports = grammar({
 
     type_params: $ =>
       seq(
-        field("symbol_open_angle", alias("<", $.symbol)),
+        field("symbol_open_angle", alias(token.immediate("<"), $.symbol)),
         field("params", $.params),
-        field("symbol_close_angle", alias(">", $.symbol)),
+        field("symbol_close_angle", alias(token.immediate(">"), $.symbol)),
       ),
     params: $ =>
       seq(
