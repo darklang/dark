@@ -516,9 +516,6 @@ module Darklang =
             | _ -> createUnparseableError node
 
 
-
-
-
         let parseEnumLiteral
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
@@ -531,25 +528,13 @@ module Darklang =
               (findNodeByFieldName node "enum_fields")
               |> Stdlib.Option.map (fun enumFieldsNode ->
                 enumFieldsNode.children
-                |> Stdlib.List.chunkBySize 2L
-                |> Builtin.unwrap
-                |> Stdlib.List.map (fun chunk ->
-                  match chunk with
-                  | [ fieldNode ] ->
-                    match Expr.parse fieldNode with
-                    | Ok field -> field
-                    | Error _ -> WrittenTypes.Unparseable { source = fieldNode }
+                |> Stdlib.List.map (fun child -> Expr.parse child)
+                |> Stdlib.Result.collect)
 
-                  | [ fieldNode; _separator ] ->
-                    match Expr.parse fieldNode with
-                    | Ok field -> field
-                    | Error _ -> WrittenTypes.Unparseable { source = fieldNode }))
+              |> Stdlib.Option.withDefault ([] |> Stdlib.Result.Result.Ok)
 
-              |> Stdlib.Option.withDefault []
-
-
-            match typeNameNode, symbolDotNode, caseNameNode with
-            | Ok typeNameNode, Ok symbolDotNode, Ok caseNameNode ->
+            match typeNameNode, symbolDotNode, caseNameNode, enumFieldsNode with
+            | Ok typeNameNode, Ok symbolDotNode, Ok caseNameNode, Ok enumFieldsNode ->
               (WrittenTypes.Expr.EEnum(
                 node.range,
                 (typeNameNode.range, [ typeNameNode.text ]),

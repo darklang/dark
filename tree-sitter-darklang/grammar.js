@@ -29,7 +29,11 @@ module.exports = grammar({
 
   externals: $ => [$.indent, $.dedent],
 
-  conflicts: $ => [[$.module_identifier, $.type_identifier]],
+  conflicts: $ => [
+    [$.module_identifier, $.type_identifier],
+    // TODO: deal with this
+    [$.mp_list_cons, $.mp_enum_fields],
+  ],
 
   rules: {
     source_file: $ =>
@@ -294,21 +298,29 @@ module.exports = grammar({
       prec.right(
         seq(
           field("case_name", $.enum_case_identifier),
-          optional(
-            seq(
-              field("symbol_open_paren", alias("(", $.symbol)),
-              field("enum_fields", $.mp_enum_fields),
-              field("symbol_close_paren", alias(")", $.symbol)),
-            ),
-          ),
+          optional(field("enum_fields", $.mp_enum_fields)),
         ),
       ),
 
     mp_enum_fields: $ =>
-      seq(
-        $.match_pattern,
-        repeat(
-          seq(field("symbol_comma", alias(",", $.symbol)), $.match_pattern),
+      prec.left(
+        choice(
+          seq(
+            field("symbol_open_paren", alias("(", $.symbol)),
+            seq(
+              $.match_pattern,
+              repeat(
+                prec.right(
+                  seq(
+                    field("symbol_comma", alias(",", $.symbol)),
+                    $.match_pattern,
+                  ),
+                ),
+              ),
+            ),
+            field("symbol_close_paren", alias(")", $.symbol)),
+          ),
+          prec.right(repeat1($.match_pattern)),
         ),
       ),
 
@@ -656,27 +668,37 @@ module.exports = grammar({
 
     //
     // Enum
-    // TODO: Make parentheses optional when there's only one argument
     enum_literal: $ =>
       prec.right(
         seq(
           field("type_name", $.qualified_type_name),
           field("symbol_dot", alias(".", $.symbol)),
           field("case_name", $.enum_case_identifier),
-          optional(
-            seq(
-              field("symbol_open_paren", alias("(", $.symbol)),
-              field("enum_fields", $.enum_fields),
-              field("symbol_close_paren", alias(")", $.symbol)),
-            ),
-          ),
+          optional(field("enum_fields", $.enum_fields)),
         ),
       ),
 
     enum_fields: $ =>
-      seq(
-        $.expression,
-        repeat(seq(field("symbol_comma", alias(",", $.symbol)), $.expression)),
+      prec(
+        1,
+        choice(
+          seq(
+            field("symbol_open_paren", alias("(", $.symbol)),
+            seq(
+              $.expression,
+              repeat(
+                prec.right(
+                  seq(
+                    field("symbol_comma", alias(",", $.symbol)),
+                    $.expression,
+                  ),
+                ),
+              ),
+            ),
+            field("symbol_close_paren", alias(")", $.symbol)),
+          ),
+          prec.right(repeat1($.expression)),
+        ),
       ),
 
     //
@@ -924,20 +946,31 @@ module.exports = grammar({
           field("type_name", $.qualified_type_name),
           field("symbol_dot", alias(".", $.symbol)),
           field("case_name", $.enum_case_identifier),
-          optional(
-            seq(
-              field("symbol_open_paren", alias("(", $.symbol)),
-              field("enum_fields", $.pipe_enum_fields),
-              field("symbol_close_paren", alias(")", $.symbol)),
-            ),
-          ),
+          optional(field("enum_fields", $.pipe_enum_fields)),
         ),
       ),
 
     pipe_enum_fields: $ =>
-      seq(
-        $.expression,
-        repeat(seq(field("symbol_comma", alias(",", $.symbol)), $.expression)),
+      prec.right(
+        1,
+        choice(
+          seq(
+            field("symbol_open_paren", alias("(", $.symbol)),
+            seq(
+              $.expression,
+              repeat(
+                prec.right(
+                  seq(
+                    field("symbol_comma", alias(",", $.symbol)),
+                    $.expression,
+                  ),
+                ),
+              ),
+            ),
+            field("symbol_close_paren", alias(")", $.symbol)),
+          ),
+          prec.right(repeat1($.expression)),
+        ),
       ),
 
     pipe_expr: $ =>

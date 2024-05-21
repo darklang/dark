@@ -439,26 +439,6 @@
             "named": true
           }
         ]
-      },
-      "symbol_close_paren": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      },
-      "symbol_open_paren": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
       }
     }
   },
@@ -471,8 +451,28 @@
     "type": "enum_fields",
     "named": true,
     "fields": {
+      "symbol_close_paren": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
       "symbol_comma": {
         "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_open_paren": {
+        "multiple": false,
         "required": false,
         "types": [
           {
@@ -517,29 +517,9 @@
           }
         ]
       },
-      "symbol_close_paren": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      },
       "symbol_dot": {
         "multiple": false,
         "required": true,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      },
-      "symbol_open_paren": {
-        "multiple": false,
-        "required": false,
         "types": [
           {
             "type": "symbol",
@@ -1845,8 +1825,28 @@
     "type": "mp_enum_fields",
     "named": true,
     "fields": {
+      "symbol_close_paren": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
       "symbol_comma": {
         "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_open_paren": {
+        "multiple": false,
         "required": false,
         "types": [
           {
@@ -1983,29 +1983,9 @@
           }
         ]
       },
-      "symbol_close_paren": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      },
       "symbol_dot": {
         "multiple": false,
         "required": true,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      },
-      "symbol_open_paren": {
-        "multiple": false,
-        "required": false,
         "types": [
           {
             "type": "symbol",
@@ -2029,8 +2009,28 @@
     "type": "pipe_enum_fields",
     "named": true,
     "fields": {
+      "symbol_close_paren": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
       "symbol_comma": {
         "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_open_paren": {
+        "multiple": false,
         "required": false,
         "types": [
           {

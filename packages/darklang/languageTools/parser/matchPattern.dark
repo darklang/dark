@@ -316,25 +316,13 @@ module Darklang =
             (findNodeByFieldName node "enum_fields")
             |> Stdlib.Option.map (fun enumFieldsNode ->
               enumFieldsNode.children
-              |> Stdlib.List.chunkBySize 2L
-              |> Builtin.unwrap
-              |> Stdlib.List.map (fun chunk ->
-                match chunk with
-                | [ fieldNode ] ->
-                  match parseMatchPattern fieldNode with
-                  | Ok field -> field
-                  | Error _ -> WrittenTypes.Unparseable { source = fieldNode }
+              |> Stdlib.List.map (fun child -> parseMatchPattern child)
+              |> Stdlib.Result.collect)
 
-                | [ fieldNode; _separator ] ->
-                  match parseMatchPattern fieldNode with
-                  | Ok field -> field
-                  | Error _ -> WrittenTypes.Unparseable { source = fieldNode }))
+            |> Stdlib.Option.withDefault ([] |> Stdlib.Result.Result.Ok)
 
-            |> Stdlib.Option.withDefault []
-
-
-          match caseNameNode with
-          | Ok caseNameNode ->
+          match caseNameNode, enumFieldsNode with
+          | Ok caseNameNode, Ok enumFieldsNode ->
             (WrittenTypes.MatchPattern.MPEnum(
               node.range,
               (caseNameNode.range, caseNameNode.text),

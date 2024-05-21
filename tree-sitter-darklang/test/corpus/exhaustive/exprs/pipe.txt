@@ -192,7 +192,7 @@ pipe expression - enum
 pipe expression - enum with two fields
 ==================
 
-33L |> MyEnum.A(21L)
+33L |> MyEnum.A 21L
 
 ---
 
@@ -205,7 +205,36 @@ pipe expression - enum with two fields
         (pipe_expr
           (pipe_enum
             (qualified_type_name (type_identifier)) (symbol) (enum_case_identifier)
-            (symbol) (pipe_enum_fields (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))) (symbol)
+            (pipe_enum_fields (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol)))))
+          )
+        )
+      )
+    )
+  )
+)
+
+
+==================
+pipe expression - enum with three fields
+==================
+
+33L |> MyEnum.B 21L 12L
+
+---
+
+(source_file
+  (expression
+    (pipe_expression
+      (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+      (pipe_exprs
+        (symbol)
+        (pipe_expr
+          (pipe_enum
+            (qualified_type_name (type_identifier)) (symbol) (enum_case_identifier)
+            (pipe_enum_fields
+              (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+              (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+            )
           )
         )
       )

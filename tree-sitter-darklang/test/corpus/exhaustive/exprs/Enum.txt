@@ -21,23 +21,20 @@ MyEnum.NoArgs
 Enum - with one arg
 ==================
 
-MyEnum.OneArg(1L)
+MyEnum.OneArg 1L
 
 ---
 
 (source_file
   (expression
-    (simple_expression (enum_literal
-      (qualified_type_name
-        (type_identifier))
-      (symbol)
-      (enum_case_identifier)
-      (symbol)
-      (enum_fields
-        (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+    (simple_expression
+      (enum_literal
+        (qualified_type_name (type_identifier))
+        (symbol)
+        (enum_case_identifier)
+        (enum_fields (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol)))))
       )
-      (symbol)
-    ))
+    )
   )
 )
 
@@ -52,27 +49,50 @@ MyEnum.TwoArgs(1L, 2L)
 
 (source_file
   (expression
-    (simple_expression (enum_literal
-    (qualified_type_name
-      (type_identifier))
-    (symbol)
-    (enum_case_identifier)
-    (symbol)
-    (enum_fields
-      (expression
-        (simple_expression (int64_literal
-          (digits
-            (positive_digits))
-          (symbol))))
-      (symbol)
-      (expression
-        (simple_expression (int64_literal
-          (digits
-            (positive_digits))
-          (symbol)))))
-    (symbol)))
+    (simple_expression
+      (enum_literal
+        (qualified_type_name (type_identifier))
+        (symbol)
+        (enum_case_identifier)
+        (enum_fields
+          (expression
+            (tuple_literal
+              (symbol)
+              (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+              (symbol)
+              (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+              (symbol)
+            )
+          )
+        )
+      )
+    )
   )
 )
+
+
+==================
+Enum - with two args no parens
+==================
+
+MyEnum.TwoArgs 1L 2L
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (enum_literal
+        (qualified_type_name (type_identifier)) (symbol) (enum_case_identifier)
+        (enum_fields
+          (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+          (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+        )
+      )
+    )
+  )
+)
+
 
 
 ==================
@@ -104,27 +124,20 @@ Stdlib.Option.Option.None
 Enum - fully qualified with args
 ==================
 
-Stdlib.Option.Option.Some(1L)
+Stdlib.Option.Option.Some 1L
 
 ---
 
 (source_file
   (expression
-    (simple_expression (enum_literal
-      (qualified_type_name
-        (module_identifier)
+    (simple_expression
+      (enum_literal
+        (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier))
         (symbol)
-        (module_identifier)
-        (symbol)
-        (type_identifier)
+        (enum_case_identifier)
+        (enum_fields (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol)))))
       )
-      (symbol)
-      (enum_case_identifier)
-      (symbol)
-        (enum_fields
-          (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
-        )
-      (symbol)
-    ))
+    )
   )
 )
+
