@@ -79,10 +79,11 @@ module.exports = grammar({
     type_params: $ =>
       seq(
         field("symbol_open_angle", alias(token.immediate("<"), $.symbol)),
-        field("params", $.params),
+        field("params", $.type_params_items),
         field("symbol_close_angle", alias(token.immediate(">"), $.symbol)),
       ),
-    params: $ =>
+    // TODO: inline this into type_params
+    type_params_items: $ =>
       seq(
         $.variable_type_reference,
         repeat(

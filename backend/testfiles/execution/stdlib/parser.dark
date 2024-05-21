@@ -610,6 +610,9 @@ else
     // with type params
     ("let myFn<'a> (param: 'a): Unit  = ()" |> roundtripCliScript) = "let myFn<'a> (param: 'a): Unit =\n  ()"
 
+    ("let myFn<'a, 'b> (paramOne: 'a) (paramTwo: 'b): Unit  = ()"
+     |> roundtripCliScript) = "let myFn<'a, 'b> (paramOne: 'a) (paramTwo: 'b): Unit =\n  ()"
+
 
   module FnCalls =
     //package function call

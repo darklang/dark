@@ -284,7 +284,7 @@
           "name": "params",
           "content": {
             "type": "SYMBOL",
-            "name": "params"
+            "name": "type_params_items"
           }
         },
         {
@@ -305,7 +305,7 @@
         }
       ]
     },
-    "params": {
+    "type_params_items": {
       "type": "SEQ",
       "members": [
         {

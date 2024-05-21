@@ -279,7 +279,7 @@ type MyFn = 'a -> 'b -> 'c -> String
 
 
 ==================
-type reference - DB
+type reference - DB -simple
 ==================
 
 type MyDB = DB<'a>
@@ -346,7 +346,7 @@ type MyDB = DB<MyRecord>
 
 
 ==================
-type reference - DB with type parameters
+type reference - DB
 ==================
 
 type Generic<'a> = { x: 'a }
@@ -358,7 +358,7 @@ type GenericDB = DB<Generic<String>>
 (source_file
   (type_decl
     (keyword) (type_identifier)
-    (type_params (symbol) (params (variable_type_reference (symbol) (variable_identifier))) (symbol))
+    (type_params (symbol) (type_params_items (variable_type_reference (symbol) (variable_identifier))) (symbol))
     (symbol)
     (type_decl_def
       (type_decl_def_record

@@ -1900,32 +1900,6 @@
     }
   },
   {
-    "type": "params",
-    "named": true,
-    "fields": {
-      "symbol_comma": {
-        "multiple": true,
-        "required": false,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      }
-    },
-    "children": {
-      "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "variable_type_reference",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
     "type": "paren_expression",
     "named": true,
     "fields": {
@@ -3096,7 +3070,7 @@
         "required": true,
         "types": [
           {
-            "type": "params",
+            "type": "type_params_items",
             "named": true
           }
         ]
@@ -3121,6 +3095,32 @@
           }
         ]
       }
+    }
+  },
+  {
+    "type": "type_params_items",
+    "named": true,
+    "fields": {
+      "symbol_comma": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "variable_type_reference",
+          "named": true
+        }
+      ]
     }
   },
   {

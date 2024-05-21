@@ -93,7 +93,7 @@ let myFn<'a> (param: 'a): Unit =
    (fn_decl
       (keyword)
       (fn_identifier)
-      (type_params (symbol) (params (variable_type_reference (symbol) (variable_identifier))) (symbol))
+      (type_params (symbol) (type_params_items (variable_type_reference (symbol) (variable_identifier))) (symbol))
       (fn_decl_params
         (fn_decl_param
           (symbol)
@@ -107,5 +107,39 @@ let myFn<'a> (param: 'a): Unit =
       (type_reference (builtin_type))
       (symbol)
       (expression (simple_expression (unit)))
+  )
+)
+
+
+==================
+fn decl with two type parameters
+==================
+
+let myFn<'a, 'b> (param: 'a): 'b =
+  param
+
+---
+(source_file
+  (fn_decl
+    (keyword) (fn_identifier)
+    (type_params
+      (symbol)
+      (type_params_items (variable_type_reference (symbol) (variable_identifier))
+      (symbol)
+      (variable_type_reference (symbol) (variable_identifier)))
+      (symbol))
+    (fn_decl_params
+      (fn_decl_param
+        (symbol)
+        (variable_identifier)
+        (symbol)
+        (type_reference (builtin_type (variable_type_reference (symbol) (variable_identifier))))
+        (symbol)
+      )
+    )
+    (symbol)
+    (type_reference (builtin_type (variable_type_reference (symbol) (variable_identifier))))
+    (symbol)
+    (expression (simple_expression (variable_identifier)))
   )
 )
