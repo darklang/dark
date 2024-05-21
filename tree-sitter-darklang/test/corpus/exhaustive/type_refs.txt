@@ -213,9 +213,15 @@ type MyFn = 'a -> 'b -> String
         (type_reference
           (builtin_type
             (fn_type_reference
-              (type_reference (builtin_type (variable_type_reference (symbol) (variable_identifier))))
-              (symbol)
-              (type_reference (builtin_type (variable_type_reference (symbol) (variable_identifier))))
+              (type_reference
+                (builtin_type
+                  (fn_type_reference
+                    (type_reference (builtin_type (variable_type_reference (symbol) (variable_identifier))))
+                    (symbol)
+                    (type_reference (builtin_type (variable_type_reference (symbol) (variable_identifier))))
+                  )
+                )
+              )
               (symbol)
               (type_reference (builtin_type))
             )
@@ -225,6 +231,7 @@ type MyFn = 'a -> 'b -> String
     )
   )
 )
+
 
 
 ==================
@@ -243,11 +250,23 @@ type MyFn = 'a -> 'b -> 'c -> String
         (type_reference
           (builtin_type
             (fn_type_reference
-              (type_reference (builtin_type (variable_type_reference (symbol) (variable_identifier))))
-              (symbol)
-              (type_reference (builtin_type (variable_type_reference (symbol) (variable_identifier))))
-              (symbol)
-              (type_reference (builtin_type (variable_type_reference (symbol) (variable_identifier))))
+              (type_reference
+                (builtin_type
+                  (fn_type_reference
+                    (type_reference
+                      (builtin_type
+                        (fn_type_reference
+                          (type_reference (builtin_type (variable_type_reference (symbol) (variable_identifier))))
+                          (symbol)
+                          (type_reference (builtin_type (variable_type_reference (symbol) (variable_identifier))))
+                        )
+                      )
+                    )
+                    (symbol)
+                    (type_reference (builtin_type (variable_type_reference (symbol) (variable_identifier))))
+                  )
+                )
+              )
               (symbol)
               (type_reference (builtin_type))
             )
