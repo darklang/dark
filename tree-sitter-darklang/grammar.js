@@ -860,16 +860,18 @@ module.exports = grammar({
     //  'a -> 'b -> 'c
     fn_type_reference: $ =>
       prec.right(
+        2,
         seq(
-          $.type_reference,
           repeat1(
             prec.left(
+              1,
               seq(
-                field("symbol_arrow", alias("->", $.symbol)),
                 $.type_reference,
+                field("symbol_arrow", alias("->", $.symbol)),
               ),
             ),
           ),
+          $.type_reference,
         ),
       ),
 

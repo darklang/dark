@@ -3662,22 +3662,22 @@
     },
     "fn_type_reference": {
       "type": "PREC_RIGHT",
-      "value": 0,
+      "value": 2,
       "content": {
         "type": "SEQ",
         "members": [
           {
-            "type": "SYMBOL",
-            "name": "type_reference"
-          },
-          {
             "type": "REPEAT1",
             "content": {
               "type": "PREC_LEFT",
-              "value": 0,
+              "value": 1,
               "content": {
                 "type": "SEQ",
                 "members": [
+                  {
+                    "type": "SYMBOL",
+                    "name": "type_reference"
+                  },
                   {
                     "type": "FIELD",
                     "name": "symbol_arrow",
@@ -3690,14 +3690,14 @@
                       "named": true,
                       "value": "symbol"
                     }
-                  },
-                  {
-                    "type": "SYMBOL",
-                    "name": "type_reference"
                   }
                 ]
               }
             }
+          },
+          {
+            "type": "SYMBOL",
+            "name": "type_reference"
           }
         ]
       }
