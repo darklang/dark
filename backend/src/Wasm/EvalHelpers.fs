@@ -33,7 +33,6 @@ let getStateForEval
     program = program
 
     packageManager = packageManager
-    caller = None
     typeSymbolTable = Map.empty }
 
 /// Any 'loose' exprs in the source are mapped without context of previous/later exprs

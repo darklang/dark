@@ -72,7 +72,7 @@ let rec set
         else
           ""
 
-      let! data = dvalToDB state.caller types db dv
+      let! data = dvalToDB state.tracing.caller types db dv
 
       do!
         Sql.query

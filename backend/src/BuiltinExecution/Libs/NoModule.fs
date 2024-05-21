@@ -391,7 +391,7 @@ let fns : List<BuiltInFn> =
                   []) ->
             "expected Some, got None"
             |> RuntimeError.oldError
-            |> raiseRTE state.caller
+            |> raiseRTE state.tracing.caller
 
           // Error: expected Ok, got Error
           | DEnum(FQTypeName.Package({ owner = "Darklang"
@@ -403,19 +403,19 @@ let fns : List<BuiltInFn> =
                   [ value ]) ->
             $"expected Ok, got Error:\n{value |> DvalReprDeveloper.toRepr}"
             |> RuntimeError.oldError
-            |> raiseRTE state.caller
+            |> raiseRTE state.tracing.caller
 
 
           // Error: single dval, but not an Option or Result
           | otherDval ->
             $"Unwrap called with non-Option/non-Result {otherDval}"
             |> RuntimeError.oldError
-            |> raiseRTE state.caller
+            |> raiseRTE state.tracing.caller
 
         | state, _, multipleArgs ->
           $"unwrap called with multiple arguments: {multipleArgs}"
           |> RuntimeError.oldError
-          |> raiseRTE state.caller)
+          |> raiseRTE state.tracing.caller)
 
       sqlSpec = NotQueryable
       previewable = Pure

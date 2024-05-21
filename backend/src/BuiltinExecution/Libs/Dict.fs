@@ -218,7 +218,7 @@ let fns : List<BuiltInFn> =
               Ply.Map.mapSequentially
                 (fun (key, dv) ->
                   let args = NEList.ofList (DString key) [ dv ]
-                  Interpreter.applyFnVal state state.caller b [] args)
+                  Interpreter.applyFnVal state state.tracing.caller b [] args)
                 mapped
 
             return TypeChecker.DvalCreator.dictFromMap VT.unknownTODO result
@@ -250,12 +250,14 @@ let fns : List<BuiltInFn> =
               |> Ply.List.iterSequentially (fun (key, dv) ->
                 uply {
                   let args = NEList.ofList (DString key) [ dv ]
-                  match! Interpreter.applyFnVal state state.caller b [] args with
+                  match!
+                    Interpreter.applyFnVal state state.tracing.caller b [] args
+                  with
                   | DUnit -> return ()
                   | dv ->
                     return!
                       TypeChecker.raiseFnValResultNotExpectedType
-                        state.caller
+                        state.tracing.caller
                         dv
                         TUnit
                 })
@@ -288,11 +290,16 @@ let fns : List<BuiltInFn> =
             let f (key : string) (data : Dval) : Ply<bool> =
               uply {
                 let args = NEList.ofList (DString key) [ data ]
-                match! Interpreter.applyFnVal state state.caller b [] args with
+                match!
+                  Interpreter.applyFnVal state state.tracing.caller b [] args
+                with
                 | DBool v -> return v
                 | v ->
                   return!
-                    TypeChecker.raiseFnValResultNotExpectedType state.caller v TBool
+                    TypeChecker.raiseFnValResultNotExpectedType
+                      state.tracing.caller
+                      v
+                      TBool
               }
             let! result = Ply.Map.filterSequentially f o
             return TypeChecker.DvalCreator.dictFromMap VT.unknownTODO result
@@ -325,7 +332,8 @@ let fns : List<BuiltInFn> =
             let f (key : string) (data : Dval) : Ply<Option<Dval>> =
               uply {
                 let args = NEList.ofList (DString key) [ data ]
-                let! result = Interpreter.applyFnVal state state.caller b [] args
+                let! result =
+                  Interpreter.applyFnVal state state.tracing.caller b [] args
 
                 match result with
                 | DEnum(FQTypeName.Package { owner = "Darklang"
@@ -346,7 +354,7 @@ let fns : List<BuiltInFn> =
                   let expectedType = TypeReference.option varB
                   return!
                     TypeChecker.raiseFnValResultNotExpectedType
-                      state.caller
+                      state.tracing.caller
                       v
                       expectedType
               }

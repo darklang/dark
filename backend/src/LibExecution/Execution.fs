@@ -17,7 +17,8 @@ let noTracing : RT.Tracing =
   { traceDval = traceNoDvals
     traceTLID = traceNoTLIDs
     loadFnResult = loadNoFnResults
-    storeFnResult = storeNoFnResults }
+    storeFnResult = storeNoFnResults
+    caller = None }
 
 let noTestContext : RT.TestContext =
   { sideEffectCount = 0
@@ -38,7 +39,6 @@ let createState
     test = noTestContext
     reportException = reportException
     notify = notify
-    caller = None
     builtins = builtins
 
     program = program

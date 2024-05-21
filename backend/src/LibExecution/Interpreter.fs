@@ -885,12 +885,12 @@ and executeLambda
   let actualLength = NEList.length args
   if expectedLength <> actualLength then
     raiseRTE
-      state.caller
+      state.tracing.caller
       (RuntimeError.oldError
         $"Expected {expectedLength} arguments, got {actualLength}")
 
   else
-    let checkPattern' = checkPattern state.caller
+    let checkPattern' = checkPattern state.tracing.caller
     let paramSyms =
       NEList.map2 checkPattern' args l.parameters
       |> NEList.toList
@@ -982,7 +982,7 @@ and execFn
             let! result =
               uply {
                 try
-                  let state = { state with caller = caller }
+                  let state = { state with tracing.caller = caller }
                   return! f (state, typeArgs, NEList.toList args)
                 with e ->
                   match e with
@@ -1011,7 +1011,7 @@ and execFn
 
         | PackageFunction(tlid, body) ->
           state.tracing.traceTLID tlid
-          let state = { state with caller = caller }
+          let state = { state with tracing.caller = caller }
           let symTable =
             fn.parameters // Lengths are checked in checkFunctionCall
             |> NEList.map2 (fun dv p -> (p.name, dv)) args
