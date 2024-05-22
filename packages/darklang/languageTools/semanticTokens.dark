@@ -276,7 +276,6 @@ module Darklang =
             tokenizeDefinition t.definition ]
           |> Stdlib.List.flatten
 
-      // TODO: maybe this should be inside `Expr` module?
       module MatchPattern =
         let tokenize (p: WrittenTypes.MatchPattern) : List<SemanticToken> =
           match p with
