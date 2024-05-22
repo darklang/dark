@@ -397,8 +397,9 @@ module TextToTextRoundtripping =
     ("Color.Red" |> roundtripCliScript) = "Color.Red"
     ("Stdlib.Option.None" |> roundtripCliScript) = "Stdlib.Option.None"
     ("PACKAGE.Darklang.Stdlib.Option.Option.None" |> roundtripCliScript) = "PACKAGE.Darklang.Stdlib.Option.Option.None"
-    ("PACKAGE.Darklang.Stdlib.Option.Option.Some(1L)" |> roundtripCliScript) = "PACKAGE.Darklang.Stdlib.Option.Option.Some(1L)"
-    ("MyEnum.A(1L, 2L)" |> roundtripCliScript) = "MyEnum.A(1L, 2L)"
+    ("PACKAGE.Darklang.Stdlib.Option.Option.Some 1L" |> roundtripCliScript) = "PACKAGE.Darklang.Stdlib.Option.Option.Some(1L)"
+    ("MyEnum.A(1L, 2L)" |> roundtripCliScript) = "MyEnum.A((1L, 2L))"
+    ("MyEnum.A 1L 2L" |> roundtripCliScript) = "MyEnum.A(1L, 2L)"
 
 
 
@@ -559,7 +560,7 @@ else
 
     ("match (1L, 2L) with\n| (1L, 2L) -> true" |> roundtripCliScript) = "match (1L, 2L) with\n| (1L, 2L) ->\n  true"
 
-    ("match Stdlib.Result.Result.Ok(5L) with\n| Ok(5L) -> true\n| Error(e) -> false"
+    ("match Stdlib.Result.Result.Ok 5L with\n| Ok 5L -> true\n| Error e -> false"
      |> roundtripCliScript) = "match Stdlib.Result.Result.Ok(5L) with\n| Ok 5L ->\n  true\n| Error e ->\n  false"
 
     ("match \"str\" with\n| \"str\" when true -> true" |> roundtripCliScript) = "match \"str\" with\n| \"str\" when true ->\n  true"
@@ -569,6 +570,26 @@ else
 
     ("match true with\n| _ -> true" |> roundtripCliScript) = "match true with\n| _ ->\n  true"
     ("match true with\n| _var -> true" |> roundtripCliScript) = "match true with\n| _var ->\n  true"
+
+
+    // pipe expression
+    ("1L |> (+) 2L" |> roundtripCliScript) = "1L\n|> (+) 2L"
+    ("1L |> x" |> roundtripCliScript) = "1L\n|> x"
+    ("1L |> (fun x -> x + 1L)" |> roundtripCliScript) = "1L\n|> fun x -> (x) + (1L)"
+    ("1L |> fun x -> x + 1L" |> roundtripCliScript) = "1L\n|> fun x -> (x) + (1L)"
+    ("3L |> Stdlib.Result.Result.Ok" |> roundtripCliScript) = "3L\n|> Stdlib.Result.Result.Ok"
+    ("33L |> MyEnum.A 21L" |> roundtripCliScript) = "33L\n|> MyEnum.A (21L)"
+    ("1L |> Stdlib.Int64.add 2L" |> roundtripCliScript) = "1L\n|> PACKAGE.Darklang.Stdlib.Int64.add 2L"
+    ("1L |> Stdlib.Int64.toString" |> roundtripCliScript) = "1L\n|> PACKAGE.Darklang.Stdlib.Int64.toString"
+    ("\"true\" |> Builtin.jsonParse<Bool>" |> roundtripCliScript) = "\"true\"\n|> Builtin.jsonParse<Bool>"
+    ("Stdlib.Int64.add 1L 2L |> Stdlib.Int64.add 1L" |> roundtripCliScript) = "PACKAGE.Darklang.Stdlib.Int64.add 1L 2L\n|> PACKAGE.Darklang.Stdlib.Int64.add 1L"
+
+    ("""[1L; 2L]
+|> Stdlib.List.last
+|> Builtin.unwrap"""
+     |> roundtripCliScript) = """[1L; 2L]
+|> PACKAGE.Darklang.Stdlib.List.last
+|> Builtin.unwrap"""
 
     // fn calls
     // TODO: these are ugly

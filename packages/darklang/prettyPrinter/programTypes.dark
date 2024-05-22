@@ -396,7 +396,7 @@ module Darklang =
             |> Stdlib.List.map PrettyPrinter.ProgramTypes.expr
             |> Stdlib.String.join " "
 
-          $"({varName} {exprs})"
+          if exprs == "" then varName else $"({varName} {exprs})"
 
         | EPipeLambda(_id, pats, body) ->
           let argsPart =
@@ -430,10 +430,13 @@ module Darklang =
           let argsPart =
             args
             |> Stdlib.List.map (fun arg -> PrettyPrinter.ProgramTypes.expr arg)
-            |> Stdlib.List.map (fun arg -> $"({arg})")
+            |> Stdlib.List.map (fun arg -> $"{arg}")
             |> Stdlib.String.join " "
 
-          $"{fnNamePart}{typeArgsPart} {argsPart}"
+          if argsPart == "" then
+            $"{fnNamePart}{typeArgsPart}"
+          else
+            $"{fnNamePart}{typeArgsPart} {argsPart}"
 
         // LanguageTools.ID *
         // typeName: LanguageTools.ProgramTypes.TypeName.TypeName *
@@ -639,9 +642,9 @@ module Darklang =
             pipeExprs
             |> Stdlib.List.map (fun pipeExpr ->
               PrettyPrinter.ProgramTypes.pipeExpr pipeExpr)
-            |> Stdlib.String.join " \n|> "
+            |> Stdlib.String.join "\n|> "
 
-          $"{exprPart} \n|> {pipeParts}"
+          $"{exprPart}\n|> {pipeParts}"
 
 
 

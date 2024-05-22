@@ -48,7 +48,8 @@ Builtin.printLine (myFn ())
           (paren_expression
             (symbol)
             (expression
-              (apply (qualified_fn_name (fn_identifier))
+              (apply
+                (qualified_fn_name (fn_identifier))
                 (simple_expression (unit))))
             (symbol)
           )

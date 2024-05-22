@@ -8,7 +8,7 @@ tuple two
 
 (source_file
   (expression
-    (simple_expression (tuple_literal
+    (tuple_literal
       (symbol)
       (expression
         (simple_expression (string_literal
@@ -21,7 +21,7 @@ tuple two
           (digits
             (positive_digits))
           (symbol))))
-      (symbol)))))
+      (symbol))))
 
 
 ==================
@@ -34,7 +34,7 @@ tuple three
 
 (source_file
   (expression
-    (simple_expression (tuple_literal
+    (tuple_literal
       (symbol)
       (expression
         (simple_expression (string_literal
@@ -51,7 +51,7 @@ tuple three
         (symbol)
         (expression
           (simple_expression (float_literal))))
-      (symbol)))))
+      (symbol))))
 
 
 ==================
@@ -64,7 +64,7 @@ tuple four
 
 (source_file
   (expression
-    (simple_expression (tuple_literal
+    (tuple_literal
       (symbol)
       (expression
         (simple_expression (string_literal
@@ -84,4 +84,4 @@ tuple four
             (symbol)
             (expression
               (simple_expression (bool_literal))))
-      (symbol)))))
+      (symbol))))

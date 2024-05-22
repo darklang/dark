@@ -56,7 +56,7 @@ module Darklang =
             match findNodeByFieldName node "type_args" with
             | Some typeArgs ->
               typeArgs
-              |> findNodeByFieldName "args"
+              |> findNodeByFieldName "type_args_items"
               |> Stdlib.Option.map (fun typeArgsNode ->
                 typeArgsNode.children
                 |> Stdlib.List.chunkBySize 2L

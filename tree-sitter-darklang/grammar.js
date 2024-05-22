@@ -14,6 +14,7 @@ const PREC = {
   FIELDACCESS: 7,
   VAR_IDENTIFIER: 8,
   FN_IDENTIFIER: 9,
+  PIPE_EXPR: 10,
 };
 
 const logicalOperators = choice("&&", "||");
@@ -293,21 +294,29 @@ module.exports = grammar({
       prec.right(
         seq(
           field("case_name", $.enum_case_identifier),
-          optional(
-            seq(
-              field("symbol_open_paren", alias("(", $.symbol)),
-              field("enum_fields", $.mp_enum_fields),
-              field("symbol_close_paren", alias(")", $.symbol)),
-            ),
-          ),
+          optional(field("enum_fields", $.mp_enum_fields)),
         ),
       ),
 
     mp_enum_fields: $ =>
-      seq(
-        $.match_pattern,
-        repeat(
-          seq(field("symbol_comma", alias(",", $.symbol)), $.match_pattern),
+      prec.right(
+        choice(
+          seq(
+            field("symbol_open_paren", alias("(", $.symbol)),
+            seq(
+              $.match_pattern,
+              repeat(
+                prec.right(
+                  seq(
+                    field("symbol_comma", alias(",", $.symbol)),
+                    $.match_pattern,
+                  ),
+                ),
+              ),
+            ),
+            field("symbol_close_paren", alias(")", $.symbol)),
+          ),
+          repeat1(prec.right($.match_pattern)),
         ),
       ),
 
@@ -356,7 +365,6 @@ module.exports = grammar({
         $.string_literal,
         $.char_literal,
         $.list_literal,
-        $.tuple_literal,
         $.dict_literal,
         $.record_literal,
         $.enum_literal,
@@ -367,6 +375,7 @@ module.exports = grammar({
       choice(
         $.paren_expression,
         $.simple_expression,
+        $.tuple_literal,
         $.if_expression,
         $.let_expression,
 
@@ -377,6 +386,7 @@ module.exports = grammar({
 
         $.field_access,
         $.lambda_expression,
+        $.pipe_expression,
 
         $.record_update,
       ),
@@ -654,27 +664,37 @@ module.exports = grammar({
 
     //
     // Enum
-    // TODO: Make parentheses optional when there's only one argument
     enum_literal: $ =>
       prec.right(
         seq(
           field("type_name", $.qualified_type_name),
           field("symbol_dot", alias(".", $.symbol)),
           field("case_name", $.enum_case_identifier),
-          optional(
-            seq(
-              field("symbol_open_paren", alias("(", $.symbol)),
-              field("enum_fields", $.enum_fields),
-              field("symbol_close_paren", alias(")", $.symbol)),
-            ),
-          ),
+          optional(field("enum_fields", $.enum_fields)),
         ),
       ),
 
     enum_fields: $ =>
-      seq(
-        $.expression,
-        repeat(seq(field("symbol_comma", alias(",", $.symbol)), $.expression)),
+      prec(
+        1,
+        choice(
+          seq(
+            field("symbol_open_paren", alias("(", $.symbol)),
+            seq(
+              $.expression,
+              repeat(
+                prec.right(
+                  seq(
+                    field("symbol_comma", alias(",", $.symbol)),
+                    $.expression,
+                  ),
+                ),
+              ),
+            ),
+            field("symbol_close_paren", alias(")", $.symbol)),
+          ),
+          prec.right(repeat1($.expression)),
+        ),
       ),
 
     //
@@ -715,7 +735,16 @@ module.exports = grammar({
       prec(
         PREC.FIELDACCESS,
         seq(
-          field("expr", $.expression),
+          field(
+            "expr",
+            choice(
+              $.variable_identifier,
+              $.record_literal,
+              $.paren_expression,
+              $.field_access,
+              $.apply,
+            ),
+          ),
           field("symbol_dot", alias(".", $.symbol)),
           field("field_name", $.variable_identifier),
         ),
@@ -802,6 +831,154 @@ module.exports = grammar({
         field("expr", $.expression),
         "\n",
         field("body", $.expression),
+      ),
+
+    // ---------------------
+    // Pipe expressions
+    // ---------------------
+
+    //
+    // Pipe lambda
+    pipe_lambda: $ =>
+      choice(
+        field("pipe_lambda", $.lambda_expression),
+        seq(
+          field("symbol_open_paren", alias("(", $.symbol)),
+          field("pipe_lambda", $.lambda_expression),
+          field("symbol_close_paren", alias(")", $.symbol)),
+        ),
+      ),
+
+    //
+    // Pipe infix
+    pipe_infix: $ =>
+      choice(
+        // Power
+        prec.right(
+          seq(
+            field("symbol_open_paren", alias("(", $.symbol)),
+            field("operator", alias(exponentOperator, $.operator)),
+            field("symbol_close_paren", alias(")", $.symbol)),
+            field("right", $.expression),
+          ),
+        ),
+
+        // multiplication, division, modulo
+        prec.left(
+          seq(
+            field("symbol_open_paren", alias("(", $.symbol)),
+            field("operator", alias(multiplicativeOperators, $.operator)),
+            field("symbol_close_paren", alias(")", $.symbol)),
+            field("right", $.expression),
+          ),
+        ),
+
+        // addition, subtraction
+        prec.left(
+          seq(
+            field("symbol_open_paren", alias("(", $.symbol)),
+            field("operator", alias(additiveOperators, $.operator)),
+            field("symbol_close_paren", alias(")", $.symbol)),
+            field("right", $.expression),
+          ),
+        ),
+
+        // Comparison
+        prec.left(
+          seq(
+            field("symbol_open_paren", alias("(", $.symbol)),
+            field("operator", alias(comparisonOperators, $.operator)),
+            field("symbol_close_paren", alias(")", $.symbol)),
+            field("right", $.expression),
+          ),
+        ),
+
+        // Logical operations
+        prec.left(
+          seq(
+            field("symbol_open_paren", alias("(", $.symbol)),
+            field("operator", alias(logicalOperators, $.operator)),
+            field("symbol_close_paren", alias(")", $.symbol)),
+            field("right", $.expression),
+          ),
+        ),
+
+        // String concatenation
+        prec.left(
+          seq(
+            field("symbol_open_paren", alias("(", $.symbol)),
+            field("operator", alias(stringConcatOperator, $.operator)),
+            field("symbol_close_paren", alias(")", $.symbol)),
+            field("right", $.expression),
+          ),
+        ),
+      ),
+
+    //
+    // Pipe function call
+    pipe_fn_call: $ =>
+      prec.right(
+        seq(
+          field("fn", $.qualified_fn_name),
+          field(
+            "args",
+            repeat(choice($.paren_expression, $.simple_expression)),
+          ),
+        ),
+      ),
+
+    //
+    // Pipe enum
+    pipe_enum: $ =>
+      prec.right(
+        seq(
+          field("type_name", $.qualified_type_name),
+          field("symbol_dot", alias(".", $.symbol)),
+          field("case_name", $.enum_case_identifier),
+          optional(field("enum_fields", $.pipe_enum_fields)),
+        ),
+      ),
+
+    pipe_enum_fields: $ =>
+      prec.right(
+        1,
+        choice(
+          seq(
+            field("symbol_open_paren", alias("(", $.symbol)),
+            seq(
+              $.expression,
+              repeat(
+                prec.right(
+                  seq(
+                    field("symbol_comma", alias(",", $.symbol)),
+                    $.expression,
+                  ),
+                ),
+              ),
+            ),
+            field("symbol_close_paren", alias(")", $.symbol)),
+          ),
+          prec.right(repeat1($.expression)),
+        ),
+      ),
+
+    pipe_expr: $ =>
+      choice($.pipe_lambda, $.pipe_infix, $.pipe_fn_call, $.pipe_enum),
+
+    pipe_exprs: $ =>
+      prec.right(
+        repeat1(
+          seq(
+            field("symbol_pipe", alias("|>", $.symbol)),
+            field("pipe_expr", $.pipe_expr),
+          ),
+        ),
+      ),
+
+    pipe_expression: $ =>
+      prec(
+        PREC.PIPE_EXPR,
+        seq(field("expr", $.expression), field("pipe_exprs", $.pipe_exprs)),
       ),
 
     // ---------------------
@@ -939,10 +1116,10 @@ module.exports = grammar({
     type_args: $ =>
       seq(
         field("symbol_open_angle", alias(token.immediate("<"), $.symbol)),
-        field("args", $.args),
+        field("type_args_items", $.type_args_items),
         field("symbol_close_angle", alias(token.immediate(">"), $.symbol)),
       ),
-    args: $ =>
+    type_args_items: $ =>
       seq(
         $.type_reference,
         repeat(

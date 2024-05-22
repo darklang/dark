@@ -321,11 +321,9 @@ Builtin.printLine (getTitle curiousGeorgeBookId)
     )
   )
   (expression
-    (simple_expression
-      (int64_literal
-        (digits
-          (positive_digits))
-        (symbol)))))
+    (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+  )
+)
 
 
 ==================
@@ -368,7 +366,7 @@ Builtin.printLine Person { name = "Alice" }
 function call - with an enum as argument
 ==================
 
-Builtin.printLine Stdlib.Option.Option.Some(1L)
+Builtin.printLine Stdlib.Option.Option.Some 1L
 
 ---
 
@@ -381,13 +379,11 @@ Builtin.printLine Stdlib.Option.Option.Some(1L)
           (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier))
           (symbol)
           (enum_case_identifier)
-          (symbol)
           (enum_fields
             (expression
               (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
             )
           )
-          (symbol)
         )
       )
       (newline)
@@ -440,7 +436,7 @@ Builtin.jsonParse<Bool> "true"
     (apply
       (qualified_fn_name
         (module_identifier) (symbol) (fn_identifier)
-        (type_args (symbol) (args (type_reference (builtin_type))) (symbol))
+        (type_args (symbol) (type_args_items (type_reference (builtin_type))) (symbol))
       )
       (simple_expression (string_literal (symbol) (string_content) (symbol)))
       (newline)

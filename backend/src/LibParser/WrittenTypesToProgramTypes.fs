@@ -363,7 +363,7 @@ module Expr =
 
     uply {
       match pipeExpr with
-      | WT.EPipeVariableOrUserFunction(id, name) ->
+      | WT.EPipeVariableOrFnCall(id, name) ->
         let! resolved =
           let asUserFnName = WT.Name.Unresolved(NEList.singleton name)
           NR.resolveFnName

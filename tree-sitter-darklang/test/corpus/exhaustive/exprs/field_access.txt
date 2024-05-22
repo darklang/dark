@@ -8,8 +8,7 @@ person.name
 
 (source_file
   (expression
-    (field_access
-      (expression (simple_expression (variable_identifier)))
+    (field_access (variable_identifier)
       (symbol)
       (variable_identifier)
     )
@@ -27,29 +26,27 @@ field access - paren defined Record
 (source_file
   (expression
    (field_access
+    (paren_expression
+      (symbol)
       (expression
-        (paren_expression
-          (symbol)
-          (expression
-            (simple_expression (record_literal
-              (qualified_type_name (type_identifier))
-              (symbol)
-              (record_content
-                (record_pair
-                  (variable_identifier)
-                  (symbol)
-                  (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
-                )
+        (simple_expression
+          (record_literal
+            (qualified_type_name (type_identifier))
+            (symbol)
+            (record_content
+              (record_pair
+                (variable_identifier)
+                (symbol)
+                (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
               )
-              (symbol)
-            ))
-          )
-          (symbol)
+            )
+            (symbol))
         )
       )
       (symbol)
-      (variable_identifier)
     )
+    (symbol)
+    (variable_identifier))
   )
 )
 
@@ -65,12 +62,9 @@ person.address.street
 (source_file
   (expression
     (field_access
-      (expression
-        (field_access
-          (expression (simple_expression (variable_identifier)))
-          (symbol)
-          (variable_identifier)
-        )
+      (field_access (variable_identifier)
+        (symbol)
+        (variable_identifier)
       )
       (symbol)
       (variable_identifier)

@@ -340,7 +340,7 @@ module Expr =
       | WT.EInfix(id, op, arg1, WT.EPlaceHolder) -> WT.EPipeInfix(id, op, arg1)
       | WT.EEnum(id, typeName, caseName, fields) ->
         WT.EPipeEnum(id, typeName, caseName, fields)
-      | WT.EVariable(id, name) -> WT.EPipeVariableOrUserFunction(id, name)
+      | WT.EVariable(id, name) -> WT.EPipeVariableOrFnCall(id, name)
       | WT.ELambda(id, pats, body) -> WT.EPipeLambda(id, pats, body)
       | other ->
         raiseParserError
