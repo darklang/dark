@@ -40,32 +40,6 @@
     }
   },
   {
-    "type": "args",
-    "named": true,
-    "fields": {
-      "symbol_comma": {
-        "multiple": true,
-        "required": false,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      }
-    },
-    "children": {
-      "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "type_reference",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
     "type": "bool",
     "named": true,
     "fields": {}
@@ -2157,36 +2131,6 @@
             "named": true
           }
         ]
-      },
-      "symbol_close_angle": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      },
-      "symbol_open_angle": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      },
-      "type_args": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "type_reference",
-            "named": true
-          }
-        ]
       }
     }
   },
@@ -3001,16 +2945,6 @@
     "type": "type_args",
     "named": true,
     "fields": {
-      "args": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "args",
-            "named": true
-          }
-        ]
-      },
       "symbol_close_angle": {
         "multiple": false,
         "required": true,
@@ -3030,7 +2964,43 @@
             "named": true
           }
         ]
+      },
+      "type_args_items": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type_args_items",
+            "named": true
+          }
+        ]
       }
+    }
+  },
+  {
+    "type": "type_args_items",
+    "named": true,
+    "fields": {
+      "symbol_comma": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "type_reference",
+          "named": true
+        }
+      ]
     }
   },
   {

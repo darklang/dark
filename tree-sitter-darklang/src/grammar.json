@@ -3993,53 +3993,6 @@
             }
           },
           {
-            "type": "CHOICE",
-            "members": [
-              {
-                "type": "SEQ",
-                "members": [
-                  {
-                    "type": "FIELD",
-                    "name": "symbol_open_angle",
-                    "content": {
-                      "type": "ALIAS",
-                      "content": {
-                        "type": "STRING",
-                        "value": "<"
-                      },
-                      "named": true,
-                      "value": "symbol"
-                    }
-                  },
-                  {
-                    "type": "FIELD",
-                    "name": "type_args",
-                    "content": {
-                      "type": "SYMBOL",
-                      "name": "type_reference"
-                    }
-                  },
-                  {
-                    "type": "FIELD",
-                    "name": "symbol_close_angle",
-                    "content": {
-                      "type": "ALIAS",
-                      "content": {
-                        "type": "STRING",
-                        "value": ">"
-                      },
-                      "named": true,
-                      "value": "symbol"
-                    }
-                  }
-                ]
-              },
-              {
-                "type": "BLANK"
-              }
-            ]
-          },
-          {
             "type": "FIELD",
             "name": "args",
             "content": {
@@ -4850,10 +4803,10 @@
         },
         {
           "type": "FIELD",
-          "name": "args",
+          "name": "type_args_items",
           "content": {
             "type": "SYMBOL",
-            "name": "args"
+            "name": "type_args_items"
           }
         },
         {
@@ -4874,7 +4827,7 @@
         }
       ]
     },
-    "args": {
+    "type_args_items": {
       "type": "SEQ",
       "members": [
         {

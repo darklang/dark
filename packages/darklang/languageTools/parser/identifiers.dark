@@ -56,7 +56,7 @@ module Darklang =
             match findNodeByFieldName node "type_args" with
             | Some typeArgs ->
               typeArgs
-              |> findNodeByFieldName "args"
+              |> findNodeByFieldName "type_args_items"
               |> Stdlib.Option.map (fun typeArgsNode ->
                 typeArgsNode.children
                 |> Stdlib.List.chunkBySize 2L
@@ -123,12 +123,6 @@ module Darklang =
                   typeArgs = typeArgs })
               |> Stdlib.Result.Result.Ok
             | Error _ -> createUnparseableError node
-
-            (WrittenTypes.QualifiedFnIdentifier
-              { range = node.range
-                modules = modules
-                fn = parseFn fnIdentifierNode })
-            |> Stdlib.Result.Result.Ok
 
           else
             Stdlib.Result.Result.Error

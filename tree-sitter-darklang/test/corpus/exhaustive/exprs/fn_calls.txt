@@ -436,7 +436,7 @@ Builtin.jsonParse<Bool> "true"
     (apply
       (qualified_fn_name
         (module_identifier) (symbol) (fn_identifier)
-        (type_args (symbol) (args (type_reference (builtin_type))) (symbol))
+        (type_args (symbol) (type_args_items (type_reference (builtin_type))) (symbol))
       )
       (simple_expression (string_literal (symbol) (string_content) (symbol)))
       (newline)

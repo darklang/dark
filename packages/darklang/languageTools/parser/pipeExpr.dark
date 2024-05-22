@@ -146,33 +146,35 @@ module Darklang =
         let parsePipeFnCall
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.PipeExpr, WrittenTypes.Unparseable> =
-          let fnNameNode = findField node "fn"
+          match findField node "fn" with
+          | Ok fnNameNode ->
+            let args =
+              node.children
+              |> Stdlib.List.filter (fun c ->
+                match c.fieldName with
+                | Some fName -> fName == "args"
+                | None -> false)
+              |> Stdlib.List.map Expr.parse
+              |> Stdlib.Result.collect
 
-          let args =
-            node.children
-            |> Stdlib.List.filter (fun c ->
-              match c.fieldName with
-              | Some fName -> fName == "args"
-              | None -> false)
-            |> Stdlib.List.map Expr.parse
-            |> Stdlib.Result.collect
+            let typeArgs = Identifiers.extractTypeArgs fnNameNode
 
-          let typeArgs =
-            node.children
-            |> Stdlib.List.filter (fun c ->
-              match c.fieldName with
-              | Some fName -> fName == "type_args"
-              | None -> false)
-            |> Stdlib.List.map TypeReference.parse
-            |> Stdlib.Result.collect
+            match typeArgs, args with
+            | Ok typeArgs, Ok args ->
+              let nameWithoutTyprArgs =
+                fnNameNode.text |> (Stdlib.String.split "<") |> Stdlib.List.head
 
-          match fnNameNode, typeArgs, args with
-          | Ok fnName, Ok typeArgs, Ok args ->
-            let name = fnName.text |> Stdlib.String.split "."
-            let fnName = WrittenTypes.Name.Unresolved(fnName.range, name)
+              let name =
+                match nameWithoutTyprArgs with
+                | Some name -> name |> Stdlib.String.split "."
+                | None -> fnName.text |> Stdlib.String.split "."
 
-            (WrittenTypes.PipeExpr.EPipeFnCall(node.range, fnName, typeArgs, args))
-            |> Stdlib.Result.Result.Ok
+              let fnName = WrittenTypes.Name.Unresolved(fnNameNode.range, name)
+
+              (WrittenTypes.PipeExpr.EPipeFnCall(node.range, fnName, typeArgs, args))
+              |> Stdlib.Result.Result.Ok
+
+            | _ -> createUnparseableError node
 
           | _ -> createUnparseableError node
 

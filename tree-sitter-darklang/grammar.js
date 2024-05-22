@@ -924,13 +924,6 @@ module.exports = grammar({
       prec.right(
         seq(
           field("fn", $.qualified_fn_name),
-          optional(
-            seq(
-              field("symbol_open_angle", alias("<", $.symbol)),
-              field("type_args", $.type_reference),
-              field("symbol_close_angle", alias(">", $.symbol)),
-            ),
-          ),
           field(
             "args",
             repeat(choice($.paren_expression, $.simple_expression)),
@@ -1127,10 +1120,10 @@ module.exports = grammar({
     type_args: $ =>
       seq(
         field("symbol_open_angle", alias(token.immediate("<"), $.symbol)),
-        field("args", $.args),
+        field("type_args_items", $.type_args_items),
         field("symbol_close_angle", alias(token.immediate(">"), $.symbol)),
       ),
-    args: $ =>
+    type_args_items: $ =>
       seq(
         $.type_reference,
         repeat(
