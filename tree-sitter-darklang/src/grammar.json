@@ -1251,7 +1251,7 @@
       }
     },
     "mp_enum_fields": {
-      "type": "PREC_LEFT",
+      "type": "PREC_RIGHT",
       "value": 0,
       "content": {
         "type": "CHOICE",
@@ -1326,10 +1326,10 @@
             ]
           },
           {
-            "type": "PREC_RIGHT",
-            "value": 0,
+            "type": "REPEAT1",
             "content": {
-              "type": "REPEAT1",
+              "type": "PREC_RIGHT",
+              "value": 0,
               "content": {
                 "type": "SYMBOL",
                 "name": "match_pattern"
@@ -4904,10 +4904,6 @@
     [
       "module_identifier",
       "type_identifier"
-    ],
-    [
-      "mp_list_cons",
-      "mp_enum_fields"
     ]
   ],
   "precedences": [],

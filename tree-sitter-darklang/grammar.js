@@ -29,11 +29,7 @@ module.exports = grammar({
 
   externals: $ => [$.indent, $.dedent],
 
-  conflicts: $ => [
-    [$.module_identifier, $.type_identifier],
-    // TODO: deal with this
-    [$.mp_list_cons, $.mp_enum_fields],
-  ],
+  conflicts: $ => [[$.module_identifier, $.type_identifier]],
 
   rules: {
     source_file: $ =>
@@ -303,7 +299,7 @@ module.exports = grammar({
       ),
 
     mp_enum_fields: $ =>
-      prec.left(
+      prec.right(
         choice(
           seq(
             field("symbol_open_paren", alias("(", $.symbol)),
@@ -320,7 +316,7 @@ module.exports = grammar({
             ),
             field("symbol_close_paren", alias(")", $.symbol)),
           ),
-          prec.right(repeat1($.match_pattern)),
+          repeat1(prec.right($.match_pattern)),
         ),
       ),
 
