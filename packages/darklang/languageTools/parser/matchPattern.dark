@@ -17,6 +17,7 @@ module Darklang =
             |> Stdlib.Result.Result.Ok
           | Error _ -> createUnparseableError node
 
+
         // Helper function for parseMPInt
         let parseIntByType
           (intText: String)
@@ -113,6 +114,7 @@ module Darklang =
           else
             createUnparseableError node
 
+
         let parseMPFloat
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.MatchPattern, WrittenTypes.Unparseable> =
@@ -145,6 +147,7 @@ module Darklang =
 
           | Error _ -> createUnparseableError node
 
+
         let parseMPString
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.MatchPattern, WrittenTypes.Unparseable> =
@@ -166,10 +169,10 @@ module Darklang =
             |> Stdlib.Result.Result.Ok
           | _ -> createUnparseableError node
 
+
         let parseMPChar
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.MatchPattern, WrittenTypes.Unparseable> =
-
           let openQuoteNode = findField node "symbol_open_single_quote"
 
           let charNode =
@@ -190,40 +193,39 @@ module Darklang =
 
           | _ -> createUnparseableError node
 
+
         let parseMPList
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.MatchPattern, WrittenTypes.Unparseable> =
           let openBracketNode = findField node "symbol_open_bracket"
           let closeBracketNode = findField node "symbol_close_bracket"
 
-          let findContent =
+          let contents =
             node
             |> findNodeByFieldName "content"
             |> Stdlib.Option.map (fun contentsNode ->
               contentsNode.children
               |> Stdlib.List.chunkBySize 2L
               |> Builtin.unwrap
-              |> Stdlib.List.map (fun chunk ->
-                match chunk with
+              |> Stdlib.List.map (fun patSymbolPair ->
+                match patSymbolPair with
                 | [ pat; symbol ] ->
-
                   match parseMatchPattern pat with
                   | Ok e ->
                     (e, Stdlib.Option.Option.Some symbol.range)
                     |> Stdlib.Result.Result.Ok
-                  | Error _ -> createUnparseableError chunk
+                  | Error _ -> createUnparseableError pat
 
                 | [ pat ] ->
                   match MatchPattern.parseMatchPattern pat with
                   | Ok e ->
                     (e, Stdlib.Option.Option.None) |> Stdlib.Result.Result.Ok
                   | Error _ -> createUnparseableError pat
-                | _ -> createUnparseableError chunk))
+                | _ -> createUnparseableError contentsNode)
 
-          let contents =
-            match findContent with
-            | Some c -> c |> Stdlib.Result.collect
-            | None -> [] |> Stdlib.Result.Result.Ok
+              |> Stdlib.Result.collect)
+
+            |> Stdlib.Option.withDefault ([] |> Stdlib.Result.Result.Ok)
 
           match openBracketNode, contents, closeBracketNode with
           | Ok openBracket, Ok contents, Ok closeBracket ->
@@ -235,6 +237,7 @@ module Darklang =
             ))
             |> Stdlib.Result.Result.Ok
           | _ -> createUnparseableError node
+
 
         let parseMPListCons
           (node: ParsedNode)
@@ -253,6 +256,7 @@ module Darklang =
             ))
             |> Stdlib.Result.Result.Ok
 
+
         let parseMPTuple
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.MatchPattern, WrittenTypes.Unparseable> =
@@ -264,30 +268,28 @@ module Darklang =
           let second =
             findAndParseRequired node "second" MatchPattern.parseMatchPattern
 
-          let findRest =
+          let rest =
             (findNodeByFieldName node "rest")
             |> Stdlib.Option.map (fun restNode ->
               restNode.children
               |> Stdlib.List.chunkBySize 2L
               |> Builtin.unwrap
-              |> Stdlib.List.map (fun chunk ->
-                match chunk with
+              |> Stdlib.List.map (fun symbolPatPair ->
+                match symbolPatPair with
                 | [ symbol; patNode ] ->
                   match MatchPattern.parseMatchPattern patNode with
                   | Ok pat -> (symbol.range, pat) |> Stdlib.Result.Result.Ok
-                  | Error _ -> createUnparseableError chunk
+                  | Error _ -> createUnparseableError patNode
 
                 | [ patNode ] ->
                   match MatchPattern.parseMatchPattern patNode with
                   | Ok pat ->
                     (Stdlib.Option.Option.None, pat) |> Stdlib.Result.Result.Ok
-                  | Error _ -> createUnparseableError chunk
-                | _ -> createUnparseableError chunk))
+                  | Error _ -> createUnparseableError patNode
+                | _ -> createUnparseableError restNode)
 
-          let rest =
-            match findRest with
-            | Some r -> r |> Stdlib.Result.collect
-            | None -> [] |> Stdlib.Result.Result.Ok
+              |> Stdlib.Result.collect)
+            |> Stdlib.Option.withDefault ([] |> Stdlib.Result.Result.Ok)
 
           let commaSymbol = findField node "symbol_comma"
           let closeParenNode = findField node "symbol_right_paren"
@@ -307,6 +309,7 @@ module Darklang =
 
           | _ -> createUnparseableError node
 
+
         let parseMPEnum
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.MatchPattern, WrittenTypes.Unparseable> =
@@ -316,7 +319,7 @@ module Darklang =
             (findNodeByFieldName node "enum_fields")
             |> Stdlib.Option.map (fun enumFieldsNode ->
               enumFieldsNode.children
-              |> Stdlib.List.map (fun child -> parseMatchPattern child)
+              |> Stdlib.List.map (fun pat -> parseMatchPattern pat)
               |> Stdlib.Result.collect)
 
             |> Stdlib.Option.withDefault ([] |> Stdlib.Result.Result.Ok)
@@ -331,6 +334,7 @@ module Darklang =
             |> Stdlib.Result.Result.Ok
 
           | _ -> createUnparseableError node
+
 
         let parseMatchPattern
           (node: ParsedNode)
@@ -372,3 +376,6 @@ module Darklang =
                 |> Stdlib.Result.Result.Ok
 
             | _ -> createUnparseableError node
+
+          else
+            createUnparseableError node

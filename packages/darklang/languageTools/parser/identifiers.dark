@@ -63,16 +63,15 @@ module Darklang =
                 |> Builtin.unwrap
                 |> Stdlib.List.map (fun chunk ->
                   match chunk with
-                  | [ typeArg; _ ] -> TypeReference.parse typeArg
+                  | [ typeArg; _sep ] -> TypeReference.parse typeArg
                   | [ typeArg ] -> TypeReference.parse typeArg
-                  | _ -> createUnparseableError chunk))
+                  | _ -> createUnparseableError typeArgsNode))
 
             | None -> Stdlib.Option.Option.None
 
           match args with
           | Some typeArgs -> typeArgs |> Stdlib.Result.collect
           | None -> [] |> Stdlib.Result.Result.Ok
-
 
 
         let parseQualifiedType

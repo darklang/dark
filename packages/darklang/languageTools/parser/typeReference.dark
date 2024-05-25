@@ -144,15 +144,15 @@ module Darklang =
                   |> Stdlib.List.dropLast
                   |> Stdlib.List.chunkBySize 2L
                   |> Builtin.unwrap
-                  |> Stdlib.List.map (fun chunk ->
-                    match chunk with
+                  |> Stdlib.List.map (fun typeArrowPair ->
+                    match typeArrowPair with
                     | [ typeNode; arrowNode ] ->
                       match TypeReference.parse typeNode with
                       | Ok typeRef ->
                         (typeRef, arrowNode.range) |> Stdlib.Result.Result.Ok
-                      | Error _ -> createUnparseableError node
-                    | [ typeNode ] -> createUnparseableError node
-                    | _ -> createUnparseableError node)
+                      | Error _ -> createUnparseableError typeNode
+                    | [ typeNode ] -> createUnparseableError typeNode
+                    | _ -> createUnparseableError firstChild)
 
                 let args = argsNodes |> Stdlib.Result.collect
 
@@ -193,7 +193,7 @@ module Darklang =
                     (variableName.range, variableName.text)
                   ))
                   |> builtin
-                | _ -> createUnparseableError node
+                | _ -> createUnparseableError firstChild
           else
             createUnparseableError node
 
@@ -209,7 +209,7 @@ module Darklang =
                 | Ok builtin ->
                   (WrittenTypes.TypeReference.TypeReference.Builtin builtin)
                   |> Stdlib.Result.Result.Ok
-                | Error _ -> createUnparseableError node
+                | Error _ -> createUnparseableError single
 
               elif single.typ == "qualified_type_name" then
                 match Identifiers.parseQualifiedType single with
@@ -218,7 +218,7 @@ module Darklang =
                     qualifiedType)
                   |> Stdlib.Result.Result.Ok
 
-                | Error _ -> createUnparseableError node
+                | Error _ -> createUnparseableError single
 
               else
                 createUnparseableError node

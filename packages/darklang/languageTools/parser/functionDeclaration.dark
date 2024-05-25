@@ -90,22 +90,23 @@ module Darklang =
                   node.children
                   |> Stdlib.List.chunkBySize 2L
                   |> Builtin.unwrap
-                  |> Stdlib.List.map (fun chunk ->
-                    match chunk with
-                    | [ typeParamNode ] ->
-                      let name =
-                        typeParamNode |> findField "variable" |> Builtin.unwrap
-
-                      (typeParamNode.range, name.text) |> Stdlib.Result.Result.Ok
-
+                  |> Stdlib.List.map (fun typeParamSeparatorPair ->
+                    match typeParamSeparatorPair with
                     | [ typeParamNode; _separator ] ->
                       let name =
                         typeParamNode |> findField "variable" |> Builtin.unwrap
 
                       (typeParamNode.range, name.text) |> Stdlib.Result.Result.Ok
 
+                    | [ typeParamNode ] ->
+                      let name =
+                        typeParamNode |> findField "variable" |> Builtin.unwrap
+
+                      (typeParamNode.range, name.text) |> Stdlib.Result.Result.Ok
+
                     | _ ->
-                      (createUnparseableError chunk) |> Stdlib.Result.Result.Error))
+                      (createUnparseableError typeParamsNode)
+                      |> Stdlib.Result.Result.Error))
 
               | None -> Stdlib.Option.Option.None
 
@@ -156,3 +157,6 @@ module Darklang =
               |> Stdlib.Result.Result.Ok
 
             | _ -> createUnparseableError node
+
+          else
+            createUnparseableError node

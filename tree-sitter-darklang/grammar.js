@@ -41,6 +41,23 @@ module.exports = grammar({
         repeat($.expression),
       ),
 
+    type_params: $ =>
+      seq(
+        field("symbol_open_angle", alias(token.immediate("<"), $.symbol)),
+        field("params", $.type_params_items),
+        field("symbol_close_angle", alias(token.immediate(">"), $.symbol)),
+      ),
+    type_params_items: $ =>
+      seq(
+        $.variable_type_reference,
+        repeat(
+          seq(
+            field("symbol_comma", alias(",", $.symbol)),
+            $.variable_type_reference,
+          ),
+        ),
+      ),
+
     // ---------------------
     // Function declarations
     // ---------------------
@@ -48,7 +65,7 @@ module.exports = grammar({
       seq(
         field("keyword_let", alias("let", $.keyword)),
         field("name", $.fn_identifier),
-        optional(field("type_params", $.type_params)),
+        field("type_params", optional($.type_params)),
         field("params", $.fn_decl_params),
         field("symbol_colon", alias(":", $.symbol)),
         field("return_type", $.type_reference),
@@ -72,29 +89,12 @@ module.exports = grammar({
       seq(
         field("keyword_type", alias("type", $.keyword)),
         field("name", $.type_identifier),
-        optional(field("type_params", $.type_params)),
+        field("type_params", optional($.type_params)),
         field("symbol_equals", alias("=", $.symbol)),
         field("typ", $.type_decl_def),
       ),
 
-    type_params: $ =>
-      seq(
-        field("symbol_open_angle", alias(token.immediate("<"), $.symbol)),
-        field("params", $.type_params_items),
-        field("symbol_close_angle", alias(token.immediate(">"), $.symbol)),
-      ),
-    // TODO: inline this into type_params
-    type_params_items: $ =>
-      seq(
-        $.variable_type_reference,
-        repeat(
-          seq(
-            field("symbol_comma", alias(",", $.symbol)),
-            $.variable_type_reference,
-          ),
-        ),
-      ),
-
+    // definition
     type_decl_def: $ =>
       choice(
         $.type_decl_def_alias,
@@ -135,35 +135,6 @@ module.exports = grammar({
         field("field_name", $.variable_identifier),
         field("symbol_colon", alias(":", $.symbol)),
         field("type", $.type_reference),
-      ),
-
-    // Record update
-    // e.g. { RecordForUpdate { x = 4L; y = 1L } with y = 2L }
-    record_update: $ =>
-      seq(
-        field("symbol_open_brace", alias("{", $.symbol)),
-        field("record", $.expression),
-        field("keyword_with", alias("with", $.keyword)),
-        field("field_updates", $.record_update_fields),
-        field("symbol_close_brace", alias("}", $.symbol)),
-      ),
-
-    record_update_fields: $ =>
-      seq(
-        $.record_update_field,
-        repeat(
-          seq(
-            field("symbol_semicolon", alias(";", $.symbol)),
-            $.record_update_field,
-          ),
-        ),
-      ),
-
-    record_update_field: $ =>
-      seq(
-        field("field_name", $.variable_identifier),
-        field("symbol_equals", alias("=", $.symbol)),
-        field("value", $.expression),
       ),
 
     //
@@ -294,7 +265,7 @@ module.exports = grammar({
       prec.right(
         seq(
           field("case_name", $.enum_case_identifier),
-          optional(field("enum_fields", $.mp_enum_fields)),
+          field("enum_fields", optional($.mp_enum_fields)),
         ),
       ),
 
@@ -663,6 +634,36 @@ module.exports = grammar({
       ),
 
     //
+    // Record update
+    // e.g. { RecordForUpdate { x = 4L; y = 1L } with y = 2L }
+    record_update: $ =>
+      seq(
+        field("symbol_open_brace", alias("{", $.symbol)),
+        field("record", $.expression),
+        field("keyword_with", alias("with", $.keyword)),
+        field("field_updates", $.record_update_fields),
+        field("symbol_close_brace", alias("}", $.symbol)),
+      ),
+
+    record_update_fields: $ =>
+      seq(
+        $.record_update_field,
+        repeat(
+          seq(
+            field("symbol_semicolon", alias(";", $.symbol)),
+            $.record_update_field,
+          ),
+        ),
+      ),
+
+    record_update_field: $ =>
+      seq(
+        field("field_name", $.variable_identifier),
+        field("symbol_equals", alias("=", $.symbol)),
+        field("value", $.expression),
+      ),
+
+    //
     // Enum
     enum_literal: $ =>
       prec.right(
@@ -670,7 +671,7 @@ module.exports = grammar({
           field("type_name", $.qualified_type_name),
           field("symbol_dot", alias(".", $.symbol)),
           field("case_name", $.enum_case_identifier),
-          optional(field("enum_fields", $.enum_fields)),
+          field("enum_fields", optional($.enum_fields)),
         ),
       ),
 
@@ -700,7 +701,7 @@ module.exports = grammar({
     //
     // If expressions
     if_expression: $ =>
-      prec.right(
+      prec.left(
         seq(
           field("keyword_if", alias("if", $.keyword)),
           field("condition", $.expression),
@@ -783,14 +784,11 @@ module.exports = grammar({
     // Match expression
     // TODO : allow one-line match expressions (i.e. match x with | 1 -> ...)
     match_expression: $ =>
-      prec(
-        PREC.MATCH_EXPR,
-        seq(
-          field("keyword_match", alias("match", $.keyword)),
-          field("arg", $.expression),
-          field("keyword_with", alias("with", $.keyword)),
-          field("cases", repeat1($.match_case)),
-        ),
+      seq(
+        field("keyword_match", alias("match", $.keyword)),
+        field("arg", $.expression),
+        field("keyword_with", alias("with", $.keyword)),
+        field("cases", prec.left(repeat1($.match_case))),
       ),
 
     match_case: $ =>
@@ -935,12 +933,12 @@ module.exports = grammar({
           field("type_name", $.qualified_type_name),
           field("symbol_dot", alias(".", $.symbol)),
           field("case_name", $.enum_case_identifier),
-          optional(field("enum_fields", $.pipe_enum_fields)),
+          field("enum_fields", optional($.pipe_enum_fields)),
         ),
       ),
 
     pipe_enum_fields: $ =>
-      prec.right(
+      prec(
         1,
         choice(
           seq(
@@ -966,7 +964,7 @@ module.exports = grammar({
       choice($.pipe_lambda, $.pipe_infix, $.pipe_fn_call, $.pipe_enum),
 
     pipe_exprs: $ =>
-      prec.right(
+      prec.left(
         repeat1(
           seq(
             field("symbol_pipe", alias("|>", $.symbol)),
@@ -1032,7 +1030,7 @@ module.exports = grammar({
         field("first", $.type_reference),
         field("symbol_asterisk", alias("*", $.symbol)),
         field("second", $.type_reference),
-        optional(field("rest", $.type_reference_tuple_the_rest)),
+        field("rest", optional($.type_reference_tuple_the_rest)),
         field("symbol_right_paren", alias(")", $.symbol)),
       ),
 
@@ -1102,7 +1100,7 @@ module.exports = grammar({
           repeat(seq($.module_identifier, alias(".", $.symbol))),
           $.fn_identifier,
         ),
-        optional(field("type_args", $.type_args)),
+        field("type_args", optional($.type_args)),
       ),
 
     qualified_type_name: $ =>
@@ -1111,7 +1109,7 @@ module.exports = grammar({
           repeat(seq($.module_identifier, alias(".", $.symbol))),
           field("type_identifier", $.type_identifier),
         ),
-        optional(field("type_args", $.type_args)),
+        field("type_args", optional($.type_args)),
       ),
     type_args: $ =>
       seq(
