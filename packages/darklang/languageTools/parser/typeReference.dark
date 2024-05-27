@@ -54,6 +54,7 @@ module Darklang =
                     valueType
                     closeBracket.range)
                   |> builtin
+                | _ -> createUnparseableError node
 
               | "tuple_type_reference" ->
                 let leftParen = findField firstChild "symbol_left_paren"
@@ -71,24 +72,30 @@ module Darklang =
                     restNode.children
                     |> Stdlib.List.chunkBySize 2L
                     |> Builtin.unwrap
-                    |> Stdlib.List.map (fun chunk ->
-                      match chunk with
+                    |> Stdlib.List.map (fun symbolTypePair ->
+                      match symbolTypePair with
                       | [ symbol; typeNode ] ->
                         match TypeReference.parse typeNode with
                         | Ok typeRef -> (symbol.range, typeRef)
                         | Error _ ->
                           (symbol.range,
-                           WrittenTypes.Unparseable { source = typeNode })
+                           WrittenTypes.Unparseable
+                             { source = typeNode
+                               note = Stdlib.Option.Option.None })
 
                       | [ typeNode ] ->
                         match TypeReference.parse typeNode with
                         | Ok typeRef -> (Stdlib.Option.Option.None, typeRef)
                         | Error _ ->
                           (Stdlib.Option.Option.None,
-                           WrittenTypes.Unparseable { source = typeNode })
+                           WrittenTypes.Unparseable
+                             { source = typeNode
+                               note = Stdlib.Option.Option.None })
                       | _ ->
                         (Stdlib.Option.Option.None,
-                         WrittenTypes.Unparseable { source = chunk })))
+                         WrittenTypes.Unparseable
+                           { source = restNode
+                             note = Stdlib.Option.Option.None })))
                   |> Stdlib.Option.withDefault []
 
                 let asterisk = findField firstChild "symbol_asterisk"
@@ -194,6 +201,9 @@ module Darklang =
                   ))
                   |> builtin
                 | _ -> createUnparseableError firstChild
+
+              | _ -> createUnparseableError node
+
           else
             createUnparseableError node
 
@@ -222,7 +232,8 @@ module Darklang =
 
               else
                 createUnparseableError node
-            | _ -> Stdlib.Result.Result.Error "Not a single child"
+
+            | _ -> createUnparseableErrorMsg node "Not a single child"
 
           else
-            Stdlib.Result.Result.Error $"Expected type_reference, got {node.typ}"
+            createUnparseableErrorMsg node $"Expected type_reference, got {node.typ}"

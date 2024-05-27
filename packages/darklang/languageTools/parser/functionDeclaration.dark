@@ -61,6 +61,7 @@ module Darklang =
             match defs with
             | Error _e -> defs
             | Ok defs -> (Stdlib.List.reverse defs) |> Stdlib.Result.Result.Ok
+
           else
             createUnparseableError node
 
@@ -159,4 +160,4 @@ module Darklang =
             | _ -> createUnparseableError node
 
           else
-            Stdlib.Result.Result.Error $"Expected fn_decl, got {node.typ}"
+            createUnparseableErrorMsg node $"Expected fn_decl, got {node.typ}"

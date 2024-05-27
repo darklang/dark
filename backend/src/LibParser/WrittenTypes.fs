@@ -179,6 +179,7 @@ type Expr =
   | EFieldAccess of id * Expr * string
 
   | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
+  // CLEANUP: why is this not an NEList?
   | EPipe of id * Expr * List<PipeExpr>
   | EMatch of id * arg : Expr * cases : List<MatchCase>
 

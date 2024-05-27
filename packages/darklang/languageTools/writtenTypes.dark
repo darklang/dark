@@ -410,7 +410,9 @@ module Darklang =
         | Type of TypeDeclaration.TypeDeclaration
         | Function of FnDeclaration.FnDeclaration
 
-      type Unparseable = { source: Parser.ParsedNode }
+      type Unparseable =
+        { source: Parser.ParsedNode
+          note: Stdlib.Option.Option<String> }
 
       type CliScript =
         { range: Range

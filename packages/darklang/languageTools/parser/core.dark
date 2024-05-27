@@ -65,7 +65,19 @@ module Darklang =
       let createUnparseableError
         (node: ParsedNode)
         : Stdlib.Result.Result<WrittenTypes.Unparseable> =
-        (WrittenTypes.Unparseable { source = node }) |> Stdlib.Result.Result.Error
+        (WrittenTypes.Unparseable
+          { source = node
+            note = Stdlib.Option.Option.None })
+        |> Stdlib.Result.Result.Error
+
+      let createUnparseableErrorMsg
+        (node: ParsedNode)
+        (msg: String)
+        : Stdlib.Result.Result<WrittenTypes.Unparseable> =
+        (WrittenTypes.Unparseable
+          { source = node
+            note = Stdlib.Option.Option.Some msg })
+        |> Stdlib.Result.Result.Error
 
       /// Used for fields that don't need to be parsed, i.e. symbols, keywords, etc
       let findField

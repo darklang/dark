@@ -133,20 +133,20 @@
           }
         },
         {
-          "type": "FIELD",
-          "name": "type_params",
-          "content": {
-            "type": "CHOICE",
-            "members": [
-              {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "type_params",
+              "content": {
                 "type": "SYMBOL",
                 "name": "type_params"
-              },
-              {
-                "type": "BLANK"
               }
-            ]
-          }
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
         },
         {
           "type": "FIELD",
@@ -301,20 +301,20 @@
           }
         },
         {
-          "type": "FIELD",
-          "name": "type_params",
-          "content": {
-            "type": "CHOICE",
-            "members": [
-              {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "type_params",
+              "content": {
                 "type": "SYMBOL",
                 "name": "type_params"
-              },
-              {
-                "type": "BLANK"
               }
-            ]
-          }
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
         },
         {
           "type": "FIELD",
@@ -377,20 +377,20 @@
           }
         },
         {
-          "type": "FIELD",
-          "name": "fields",
-          "content": {
-            "type": "CHOICE",
-            "members": [
-              {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "fields",
+              "content": {
                 "type": "SYMBOL",
                 "name": "type_decl_def_record_fields"
-              },
-              {
-                "type": "BLANK"
               }
-            ]
-          }
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
         },
         {
           "type": "FIELD",
@@ -861,20 +861,20 @@
           }
         },
         {
-          "type": "FIELD",
-          "name": "content",
-          "content": {
-            "type": "CHOICE",
-            "members": [
-              {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "content",
+              "content": {
                 "type": "SYMBOL",
                 "name": "mp_list_content"
-              },
-              {
-                "type": "BLANK"
               }
-            ]
-          }
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
         },
         {
           "type": "FIELD",
@@ -1026,20 +1026,20 @@
           }
         },
         {
-          "type": "FIELD",
-          "name": "rest",
-          "content": {
-            "type": "CHOICE",
-            "members": [
-              {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "rest",
+              "content": {
                 "type": "SYMBOL",
                 "name": "mp_tuple_the_rest"
-              },
-              {
-                "type": "BLANK"
               }
-            ]
-          }
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
         },
         {
           "type": "FIELD",
@@ -1100,20 +1100,20 @@
             }
           },
           {
-            "type": "FIELD",
-            "name": "enum_fields",
-            "content": {
-              "type": "CHOICE",
-              "members": [
-                {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "FIELD",
+                "name": "enum_fields",
+                "content": {
                   "type": "SYMBOL",
                   "name": "mp_enum_fields"
-                },
-                {
-                  "type": "BLANK"
                 }
-              ]
-            }
+              },
+              {
+                "type": "BLANK"
+              }
+            ]
           }
         ]
       }
@@ -2208,20 +2208,20 @@
           }
         },
         {
-          "type": "FIELD",
-          "name": "content",
-          "content": {
-            "type": "CHOICE",
-            "members": [
-              {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "content",
+              "content": {
                 "type": "SYMBOL",
                 "name": "list_content"
-              },
-              {
-                "type": "BLANK"
               }
-            ]
-          }
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
         },
         {
           "type": "FIELD",
@@ -2319,20 +2319,20 @@
           }
         },
         {
-          "type": "FIELD",
-          "name": "content",
-          "content": {
-            "type": "CHOICE",
-            "members": [
-              {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "content",
+              "content": {
                 "type": "SYMBOL",
                 "name": "dict_content"
-              },
-              {
-                "type": "BLANK"
               }
-            ]
-          }
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
         },
         {
           "type": "FIELD",
@@ -2463,20 +2463,20 @@
           }
         },
         {
-          "type": "FIELD",
-          "name": "rest",
-          "content": {
-            "type": "CHOICE",
-            "members": [
-              {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "rest",
+              "content": {
                 "type": "SYMBOL",
                 "name": "tuple_literal_the_rest"
-              },
-              {
-                "type": "BLANK"
               }
-            ]
-          }
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
         },
         {
           "type": "FIELD",
@@ -2547,20 +2547,20 @@
           }
         },
         {
-          "type": "FIELD",
-          "name": "content",
-          "content": {
-            "type": "CHOICE",
-            "members": [
-              {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "content",
+              "content": {
                 "type": "SYMBOL",
                 "name": "record_content"
-              },
-              {
-                "type": "BLANK"
               }
-            ]
-          }
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
         },
         {
           "type": "FIELD",
@@ -2809,20 +2809,20 @@
             }
           },
           {
-            "type": "FIELD",
-            "name": "enum_fields",
-            "content": {
-              "type": "CHOICE",
-              "members": [
-                {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "FIELD",
+                "name": "enum_fields",
+                "content": {
                   "type": "SYMBOL",
                   "name": "enum_fields"
-                },
-                {
-                  "type": "BLANK"
                 }
-              ]
-            }
+              },
+              {
+                "type": "BLANK"
+              }
+            ]
           }
         ]
       }
@@ -4047,20 +4047,20 @@
             }
           },
           {
-            "type": "FIELD",
-            "name": "enum_fields",
-            "content": {
-              "type": "CHOICE",
-              "members": [
-                {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "FIELD",
+                "name": "enum_fields",
+                "content": {
                   "type": "SYMBOL",
                   "name": "pipe_enum_fields"
-                },
-                {
-                  "type": "BLANK"
                 }
-              ]
-            }
+              },
+              {
+                "type": "BLANK"
+              }
+            ]
           }
         ]
       }
@@ -4441,20 +4441,20 @@
           }
         },
         {
-          "type": "FIELD",
-          "name": "rest",
-          "content": {
-            "type": "CHOICE",
-            "members": [
-              {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "rest",
+              "content": {
                 "type": "SYMBOL",
                 "name": "type_reference_tuple_the_rest"
-              },
-              {
-                "type": "BLANK"
               }
-            ]
-          }
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
         },
         {
           "type": "FIELD",
@@ -4706,20 +4706,20 @@
           ]
         },
         {
-          "type": "FIELD",
-          "name": "type_args",
-          "content": {
-            "type": "CHOICE",
-            "members": [
-              {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "type_args",
+              "content": {
                 "type": "SYMBOL",
                 "name": "type_args"
-              },
-              {
-                "type": "BLANK"
               }
-            ]
-          }
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
         }
       ]
     },
@@ -4761,20 +4761,20 @@
           ]
         },
         {
-          "type": "FIELD",
-          "name": "type_args",
-          "content": {
-            "type": "CHOICE",
-            "members": [
-              {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "type_args",
+              "content": {
                 "type": "SYMBOL",
                 "name": "type_args"
-              },
-              {
-                "type": "BLANK"
               }
-            ]
-          }
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
         }
       ]
     },

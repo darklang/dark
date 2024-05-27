@@ -255,6 +255,7 @@ module Darklang =
               consSymbol.range
             ))
             |> Stdlib.Result.Result.Ok
+          | _ -> createUnparseableError node
 
 
         let parseMPTuple
@@ -378,5 +379,6 @@ module Darklang =
             | _ -> createUnparseableError node
 
           else
-            Stdlib.Result.Result.Error
+            createUnparseableErrorMsg
+              node
               $"Expected a match pattern, but got {node.typ}"

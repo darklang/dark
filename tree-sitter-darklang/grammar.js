@@ -64,7 +64,7 @@ module.exports = grammar({
       seq(
         field("keyword_let", alias("let", $.keyword)),
         field("name", $.fn_identifier),
-        field("type_params", optional($.type_params)),
+        optional(field("type_params", $.type_params)),
         field("params", $.fn_decl_params),
         field("symbol_colon", alias(":", $.symbol)),
         field("return_type", $.type_reference),
@@ -88,7 +88,7 @@ module.exports = grammar({
       seq(
         field("keyword_type", alias("type", $.keyword)),
         field("name", $.type_identifier),
-        field("type_params", optional($.type_params)),
+        optional(field("type_params", $.type_params)),
         field("symbol_equals", alias("=", $.symbol)),
         field("typ", $.type_decl_def),
       ),
@@ -111,7 +111,7 @@ module.exports = grammar({
     type_decl_def_record: $ =>
       seq(
         field("symbol_open_brace", alias("{", $.symbol)),
-        field("fields", optional($.type_decl_def_record_fields)),
+        optional(field("fields", $.type_decl_def_record_fields)),
         field("symbol_close_brace", alias("}", $.symbol)),
       ),
 
@@ -212,7 +212,7 @@ module.exports = grammar({
     mp_list: $ =>
       seq(
         field("symbol_open_bracket", alias("[", $.symbol)),
-        field("content", optional($.mp_list_content)),
+        optional(field("content", $.mp_list_content)),
         field("symbol_close_bracket", alias("]", $.symbol)),
       ),
 
@@ -244,7 +244,7 @@ module.exports = grammar({
         field("first", $.match_pattern),
         field("symbol_comma", alias(",", $.symbol)),
         field("second", $.match_pattern),
-        field("rest", optional($.mp_tuple_the_rest)),
+        optional(field("rest", $.mp_tuple_the_rest)),
         field("symbol_right_paren", alias(")", $.symbol)),
       ),
 
@@ -262,7 +262,7 @@ module.exports = grammar({
       prec.right(
         seq(
           field("case_name", $.enum_case_identifier),
-          field("enum_fields", optional($.mp_enum_fields)),
+          optional(field("enum_fields", $.mp_enum_fields)),
         ),
       ),
 
@@ -548,7 +548,7 @@ module.exports = grammar({
     list_literal: $ =>
       seq(
         field("symbol_open_bracket", alias("[", $.symbol)),
-        field("content", optional($.list_content)),
+        optional(field("content", $.list_content)),
         field("symbol_close_bracket", alias("]", $.symbol)),
       ),
 
@@ -567,16 +567,14 @@ module.exports = grammar({
       seq(
         field("keyword_dict", alias("Dict", $.keyword)),
         field("symbol_open_brace", alias("{", $.symbol)),
-        field("content", optional($.dict_content)),
+        optional(field("content", $.dict_content)),
         field("symbol_close_brace", alias("}", $.symbol)),
       ),
-
     dict_content: $ =>
       seq(
         $.dict_pair,
         repeat(seq(field("dict_separator", alias(";", $.symbol)), $.dict_pair)),
       ),
-
     dict_pair: $ =>
       seq(
         field("key", $.expression),
@@ -592,10 +590,9 @@ module.exports = grammar({
         field("first", $.expression),
         field("symbol_comma", alias(",", $.symbol)),
         field("second", $.expression),
-        field("rest", optional($.tuple_literal_the_rest)),
+        optional(field("rest", $.tuple_literal_the_rest)),
         field("symbol_right_paren", alias(")", $.symbol)),
       ),
-
     tuple_literal_the_rest: $ =>
       repeat1(
         seq(
@@ -611,10 +608,9 @@ module.exports = grammar({
       seq(
         field("type_name", $.qualified_type_name),
         field("symbol_open_brace", alias("{", $.symbol)),
-        field("content", optional($.record_content)),
+        optional(field("content", $.record_content)),
         field("symbol_close_brace", alias("}", $.symbol)),
       ),
-
     record_content: $ =>
       seq(
         $.record_pair,
@@ -622,7 +618,6 @@ module.exports = grammar({
           seq(field("record_separator", alias(";", $.symbol)), $.record_pair),
         ),
       ),
-
     record_pair: $ =>
       seq(
         field("field", $.variable_identifier),
@@ -641,7 +636,6 @@ module.exports = grammar({
         field("field_updates", $.record_update_fields),
         field("symbol_close_brace", alias("}", $.symbol)),
       ),
-
     record_update_fields: $ =>
       seq(
         $.record_update_field,
@@ -652,7 +646,6 @@ module.exports = grammar({
           ),
         ),
       ),
-
     record_update_field: $ =>
       seq(
         field("field_name", $.variable_identifier),
@@ -668,10 +661,9 @@ module.exports = grammar({
           field("type_name", $.qualified_type_name),
           field("symbol_dot", alias(".", $.symbol)),
           field("case_name", $.enum_case_identifier),
-          field("enum_fields", optional($.enum_fields)),
+          optional(field("enum_fields", $.enum_fields)),
         ),
       ),
-
     enum_fields: $ =>
       prec(
         1,
@@ -757,7 +749,6 @@ module.exports = grammar({
         field("symbol_arrow", alias("->", $.symbol)),
         field("body", $.expression),
       ),
-
     lambda_pats: $ => field("pat", repeat1($.let_pattern)),
 
     lp_tuple: $ =>
@@ -787,7 +778,6 @@ module.exports = grammar({
         field("keyword_with", alias("with", $.keyword)),
         field("cases", prec.left(repeat1($.match_case))),
       ),
-
     match_case: $ =>
       seq(
         field("symbol_pipe", alias("|", $.symbol)),
@@ -818,6 +808,8 @@ module.exports = grammar({
         ),
       ),
 
+    //
+    // Let expression
     let_expression: $ =>
       seq(
         field("keyword_let", alias("let", $.keyword)),
@@ -930,7 +922,7 @@ module.exports = grammar({
           field("type_name", $.qualified_type_name),
           field("symbol_dot", alias(".", $.symbol)),
           field("case_name", $.enum_case_identifier),
-          field("enum_fields", optional($.pipe_enum_fields)),
+          optional(field("enum_fields", $.pipe_enum_fields)),
         ),
       ),
 
@@ -1027,10 +1019,9 @@ module.exports = grammar({
         field("first", $.type_reference),
         field("symbol_asterisk", alias("*", $.symbol)),
         field("second", $.type_reference),
-        field("rest", optional($.type_reference_tuple_the_rest)),
+        optional(field("rest", $.type_reference_tuple_the_rest)),
         field("symbol_right_paren", alias(")", $.symbol)),
       ),
-
     type_reference_tuple_the_rest: $ =>
       repeat1(
         seq(
@@ -1097,7 +1088,7 @@ module.exports = grammar({
           repeat(seq($.module_identifier, alias(".", $.symbol))),
           $.fn_identifier,
         ),
-        field("type_args", optional($.type_args)),
+        optional(field("type_args", $.type_args)),
       ),
 
     qualified_type_name: $ =>
@@ -1106,8 +1097,9 @@ module.exports = grammar({
           repeat(seq($.module_identifier, alias(".", $.symbol))),
           field("type_identifier", $.type_identifier),
         ),
-        field("type_args", optional($.type_args)),
+        optional(field("type_args", $.type_args)),
       ),
+
     type_args: $ =>
       seq(
         field("symbol_open_angle", alias(token.immediate("<"), $.symbol)),

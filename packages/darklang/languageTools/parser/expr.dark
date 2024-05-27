@@ -5,21 +5,17 @@ module Darklang =
         let parseBoolLiteral
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          if node.typ == "bool_literal" then
-            let b =
-              // TODO: error-handling
-              match getText node with
-              | "true" -> true |> Stdlib.Result.Result.Ok
-              | "false" -> false |> Stdlib.Result.Result.Ok
-              | _ -> createUnparseableError node
+          let b =
+            // TODO: error-handling
+            match getText node with
+            | "true" -> true |> Stdlib.Result.Result.Ok
+            | "false" -> false |> Stdlib.Result.Result.Ok
+            | _ -> createUnparseableError node
 
-            match b with
-            | Ok b ->
-              (WrittenTypes.Expr.EBool(node.range, b)) |> Stdlib.Result.Result.Ok
-            | Error _ -> createUnparseableError node
-
-          else
-            createUnparseableError node
+          match b with
+          | Ok b ->
+            (WrittenTypes.Expr.EBool(node.range, b)) |> Stdlib.Result.Result.Ok
+          | Error _ -> createUnparseableError node
 
 
         // Helper function for parseIntLiteral
@@ -102,719 +98,666 @@ module Darklang =
         let parseFloatLiteral
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          if node.typ == "float_literal" then
-            let floatStr = getText node
+          let floatStr = getText node
 
-            match Stdlib.Float.parse floatStr with
-            | Ok floatValue ->
-              let (sign, whole, remainder) =
-                let (sign, unsignedFloat) =
-                  if Stdlib.String.startsWith floatStr "-" then
-                    (Sign.Negative, Stdlib.String.dropFirst floatStr 1L)
-                  else
-                    (Sign.Positive, floatStr)
+          match Stdlib.Float.parse floatStr with
+          | Ok floatValue ->
+            let (sign, whole, remainder) =
+              let (sign, unsignedFloat) =
+                if Stdlib.String.startsWith floatStr "-" then
+                  (Sign.Negative, Stdlib.String.dropFirst floatStr 1L)
+                else
+                  (Sign.Positive, floatStr)
 
-                let parts = Stdlib.String.split unsignedFloat "."
+              let parts = Stdlib.String.split unsignedFloat "."
 
-                let whole =
-                  parts |> Stdlib.List.head |> Stdlib.Option.withDefault "0"
+              let whole = parts |> Stdlib.List.head |> Stdlib.Option.withDefault "0"
 
-                let remainder =
-                  parts
-                  |> Stdlib.List.tail
-                  |> Stdlib.Option.withDefault [ "0" ]
-                  |> Stdlib.List.head
-                  |> Stdlib.Option.withDefault "0"
+              let remainder =
+                parts
+                |> Stdlib.List.tail
+                |> Stdlib.Option.withDefault [ "0" ]
+                |> Stdlib.List.head
+                |> Stdlib.Option.withDefault "0"
 
-                (sign, whole, remainder)
+              (sign, whole, remainder)
 
-              (WrittenTypes.Expr.EFloat(node.range, sign, whole, remainder))
-              |> Stdlib.Result.Result.Ok
+            (WrittenTypes.Expr.EFloat(node.range, sign, whole, remainder))
+            |> Stdlib.Result.Result.Ok
 
-            | Error _ -> createUnparseableError node
-
-          else
-            createUnparseableError node
+          | Error _ -> createUnparseableError node
 
 
         let parseStringLiteral
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          if node.typ == "string_literal" then
-            let openQuoteNode = findField node "symbol_open_quote"
-            let closeQuoteNode = findField node "symbol_close_quote"
+          let openQuoteNode = findField node "symbol_open_quote"
+          let closeQuoteNode = findField node "symbol_close_quote"
 
-            let contents =
-              findAndParseOptional node "content" (fun stringPart ->
-                (stringPart.range, stringPart.text) |> Stdlib.Result.Result.Ok)
+          let contents =
+            findAndParseOptional node "content" (fun stringPart ->
+              (stringPart.range, stringPart.text) |> Stdlib.Result.Result.Ok)
 
-            match openQuoteNode, closeQuoteNode with
-            | Ok openQuote, Ok closeQuote ->
-              (WrittenTypes.Expr.EString(
-                node.range,
-                contents,
-                openQuote.range,
-                closeQuote.range
-              ))
-              |> Stdlib.Result.Result.Ok
+          match openQuoteNode, closeQuoteNode with
+          | Ok openQuote, Ok closeQuote ->
+            (WrittenTypes.Expr.EString(
+              node.range,
+              contents,
+              openQuote.range,
+              closeQuote.range
+            ))
+            |> Stdlib.Result.Result.Ok
 
-            | _ -> createUnparseableError node
-
-          else
-            createUnparseableError node
+          | _ -> createUnparseableError node
 
 
         let parseCharLiteral
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          if node.typ == "char_literal" then
-            let openQuoteNode = findField node "symbol_open_single_quote"
+          let openQuoteNode = findField node "symbol_open_single_quote"
 
-            let charNode =
-              findAndParseOptional node "content" (fun charPart ->
-                (charPart.range, charPart.text) |> Stdlib.Result.Result.Ok)
+          let charNode =
+            findAndParseOptional node "content" (fun charPart ->
+              (charPart.range, charPart.text) |> Stdlib.Result.Result.Ok)
 
-            let closeQuoteNode = findField node "symbol_close_single_quote"
+          let closeQuoteNode = findField node "symbol_close_single_quote"
 
-            match openQuoteNode, closeQuoteNode with
-            | Ok openQuote, Ok closeQuote ->
-              (WrittenTypes.Expr.EChar(
-                node.range,
-                charNode,
-                openQuote.range,
-                closeQuote.range
-              ))
-              |> Stdlib.Result.Result.Ok
+          match openQuoteNode, closeQuoteNode with
+          | Ok openQuote, Ok closeQuote ->
+            (WrittenTypes.Expr.EChar(
+              node.range,
+              charNode,
+              openQuote.range,
+              closeQuote.range
+            ))
+            |> Stdlib.Result.Result.Ok
 
-            | _ -> createUnparseableError node
+          | _ -> createUnparseableError node
 
 
         let parseListLiteral
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          if node.typ == "list_literal" then
-            let openBracketNode = findField node "symbol_open_bracket"
-            let closeBracketNode = findField node "symbol_close_bracket"
+          let openBracketNode = findField node "symbol_open_bracket"
+          let closeBracketNode = findField node "symbol_close_bracket"
 
-            let listContents =
-              node
-              |> findNodeByFieldName "content"
-              |> Stdlib.Option.map (fun contentsNode ->
-                contentsNode.children
-                |> Stdlib.List.chunkBySize 2L
-                |> Builtin.unwrap
-                |> Stdlib.List.map (fun exprSymbolPair ->
-                  match exprSymbolPair with
-                  | [ exprNode; symbol ] ->
-                    match Expr.parse exprNode with
-                    | Ok e ->
-                      (e, Stdlib.Option.Option.Some symbol.range)
-                      |> Stdlib.Result.Result.Ok
-                    | Error _ -> createUnparseableError contentsNode
+          let listContents =
+            node
+            |> findNodeByFieldName "content"
+            |> Stdlib.Option.map (fun contentsNode ->
+              contentsNode.children
+              |> Stdlib.List.chunkBySize 2L
+              |> Builtin.unwrap
+              |> Stdlib.List.map (fun exprSymbolPair ->
+                match exprSymbolPair with
+                | [ exprNode; symbol ] ->
+                  match Expr.parse exprNode with
+                  | Ok e ->
+                    (e, Stdlib.Option.Option.Some symbol.range)
+                    |> Stdlib.Result.Result.Ok
+                  | Error _ -> createUnparseableError contentsNode
 
-                  | [ exprNode ] ->
-                    match Expr.parse exprNode with
-                    | Ok e ->
-                      (e, Stdlib.Option.Option.None) |> Stdlib.Result.Result.Ok
-                    | Error _ -> createUnparseableError exprNode
+                | [ exprNode ] ->
+                  match Expr.parse exprNode with
+                  | Ok e ->
+                    (e, Stdlib.Option.Option.None) |> Stdlib.Result.Result.Ok
+                  | Error _ -> createUnparseableError exprNode
 
-                  | _ -> createUnparseableError contentsNode)
+                | _ -> createUnparseableError contentsNode)
 
-                |> Stdlib.Result.collect)
+              |> Stdlib.Result.collect)
 
-              |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
+            |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
 
-            match openBracketNode, listContents, closeBracketNode with
-            | Ok openBracket, Ok listContents, Ok closeBracket ->
-              (WrittenTypes.Expr.EList(
-                node.range,
-                listContents,
-                openBracket.range,
-                closeBracket.range
-              ))
-              |> Stdlib.Result.Result.Ok
+          match openBracketNode, listContents, closeBracketNode with
+          | Ok openBracket, Ok listContents, Ok closeBracket ->
+            (WrittenTypes.Expr.EList(
+              node.range,
+              listContents,
+              openBracket.range,
+              closeBracket.range
+            ))
+            |> Stdlib.Result.Result.Ok
 
-            | _ -> createUnparseableError node
+          | _ -> createUnparseableError node
 
 
         let parseDictLiteral
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          if node.typ == "dict_literal" then
-            let keywordDictNode = findField node "keyword_dict"
-            let openBraceNode = findField node "symbol_open_brace"
+          let keywordDictNode = findField node "keyword_dict"
+          let openBraceNode = findField node "symbol_open_brace"
 
-            let dictContents =
-              node
-              |> findNodeByFieldName "content"
-              |> Stdlib.Option.map (fun contentsNode ->
-                contentsNode.children
-                |> Stdlib.List.chunkBySize 2L
-                |> Builtin.unwrap
-                |> Stdlib.List.map (fun dictSeparatorPair ->
-                  match dictSeparatorPair with
-                  | [ dictPairNode; _separator ] ->
-                    let keyNode =
-                      findAndParseRequired dictPairNode "key" (fun node ->
-                        (Parser.getText node) |> Stdlib.Result.Result.Ok)
+          let dictContents =
+            node
+            |> findNodeByFieldName "content"
+            |> Stdlib.Option.map (fun contentsNode ->
+              contentsNode.children
+              |> Stdlib.List.chunkBySize 2L
+              |> Builtin.unwrap
+              |> Stdlib.List.map (fun dictSeparatorPair ->
+                match dictSeparatorPair with
+                | [ dictPairNode; _separator ] ->
+                  let keyNode =
+                    findAndParseRequired dictPairNode "key" (fun node ->
+                      (Parser.getText node) |> Stdlib.Result.Result.Ok)
 
-                    let symbolEqualsNode = findField dictPairNode "symbol_equals"
+                  let symbolEqualsNode = findField dictPairNode "symbol_equals"
 
-                    let valueNode =
-                      findAndParseRequired dictPairNode "value" Expr.parse
+                  let valueNode =
+                    findAndParseRequired dictPairNode "value" Expr.parse
 
-                    match (keyNode, symbolEqualsNode, valueNode) with
-                    | (Ok key, Ok symbolEquals, Ok value) ->
-                      (symbolEquals, key, value) |> Stdlib.Result.Result.Ok
-                    | _ -> createUnparseableError dictPairNode
+                  match (keyNode, symbolEqualsNode, valueNode) with
+                  | (Ok key, Ok symbolEquals, Ok value) ->
+                    (symbolEquals, key, value) |> Stdlib.Result.Result.Ok
+                  | _ -> createUnparseableError dictPairNode
 
-                  | [ dictPairNode ] ->
-                    let keyNode =
-                      findAndParseRequired dictPairNode "key" (fun node ->
-                        (Parser.getText node) |> Stdlib.Result.Result.Ok)
+                | [ dictPairNode ] ->
+                  let keyNode =
+                    findAndParseRequired dictPairNode "key" (fun node ->
+                      (Parser.getText node) |> Stdlib.Result.Result.Ok)
 
-                    let symbolEqualsNode = findField dictPairNode "symbol_equals"
+                  let symbolEqualsNode = findField dictPairNode "symbol_equals"
 
-                    let valueNode =
-                      findAndParseRequired dictPairNode "value" Expr.parse
+                  let valueNode =
+                    findAndParseRequired dictPairNode "value" Expr.parse
 
-                    match (keyNode, symbolEqualsNode, valueNode) with
-                    | (Ok key, Ok symbolEquals, Ok value) ->
-                      (symbolEquals, key, value) |> Stdlib.Result.Result.Ok
-                    | _ -> createUnparseableError dictPairNode
-                  | _ -> createUnparseableError contentsNode)
+                  match (keyNode, symbolEqualsNode, valueNode) with
+                  | (Ok key, Ok symbolEquals, Ok value) ->
+                    (symbolEquals, key, value) |> Stdlib.Result.Result.Ok
+                  | _ -> createUnparseableError dictPairNode
+                | _ -> createUnparseableError contentsNode)
 
-                |> Stdlib.Result.collect)
+              |> Stdlib.Result.collect)
 
-              |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
+            |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
 
-            let closeBraceNode = findField node "symbol_close_brace"
+          let closeBraceNode = findField node "symbol_close_brace"
 
-            match keywordDictNode, openBraceNode, dictContents, closeBraceNode with
-            | Ok keywordDict, Ok openBrace, Ok dictContents, Ok closeBrace ->
-              (WrittenTypes.Expr.EDict(
-                node.range,
-                dictContents,
-                keywordDict.range,
-                openBrace.range,
-                closeBrace.range
-              ))
-              |> Stdlib.Result.Result.Ok
+          match keywordDictNode, openBraceNode, dictContents, closeBraceNode with
+          | Ok keywordDict, Ok openBrace, Ok dictContents, Ok closeBrace ->
+            (WrittenTypes.Expr.EDict(
+              node.range,
+              dictContents,
+              keywordDict.range,
+              openBrace.range,
+              closeBrace.range
+            ))
+            |> Stdlib.Result.Result.Ok
 
-            | _ -> createUnparseableError node
-
-          else
-            createUnparseableError node
+          | _ -> createUnparseableError node
 
 
         let parseTupleLiteral
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          if node.typ == "tuple_literal" then
-            let openParenNode = findField node "symbol_left_paren"
-            let first = findAndParseRequired node "first" Expr.parse
-            let second = findAndParseRequired node "second" Expr.parse
+          let openParenNode = findField node "symbol_left_paren"
+          let first = findAndParseRequired node "first" Expr.parse
+          let second = findAndParseRequired node "second" Expr.parse
 
-            let rest =
-              (findNodeByFieldName node "rest")
-              |> Stdlib.Option.map (fun restNode ->
-                restNode.children
-                |> Stdlib.List.chunkBySize 2L
-                |> Builtin.unwrap
-                |> Stdlib.List.map (fun symbolExprPair ->
-                  match symbolExprPair with
-                  | [ symbol; exprNode ] ->
-                    match Expr.parse exprNode with
-                    | Ok expr -> (symbol.range, expr) |> Stdlib.Result.Result.Ok
-                    | Error _ -> createUnparseableError exprNode
+          let rest =
+            (findNodeByFieldName node "rest")
+            |> Stdlib.Option.map (fun restNode ->
+              restNode.children
+              |> Stdlib.List.chunkBySize 2L
+              |> Builtin.unwrap
+              |> Stdlib.List.map (fun symbolExprPair ->
+                match symbolExprPair with
+                | [ symbol; exprNode ] ->
+                  match Expr.parse exprNode with
+                  | Ok expr -> (symbol.range, expr) |> Stdlib.Result.Result.Ok
+                  | Error _ -> createUnparseableError exprNode
 
-                  | [ exprNode ] ->
-                    match Expr.parse exprNode with
-                    | Ok expr ->
-                      (Stdlib.Option.Option.None, expr) |> Stdlib.Result.Result.Ok
-                    | Error _ -> createUnparseableError exprNode
-                  | _ -> createUnparseableError restNode)
+                | [ exprNode ] ->
+                  match Expr.parse exprNode with
+                  | Ok expr ->
+                    (Stdlib.Option.Option.None, expr) |> Stdlib.Result.Result.Ok
+                  | Error _ -> createUnparseableError exprNode
+                | _ -> createUnparseableError restNode)
 
-                |> Stdlib.Result.collect)
+              |> Stdlib.Result.collect)
 
-              |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
+            |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
 
-            let commaSymbol = findField node "symbol_comma"
-            let closeParenNode = findField node "symbol_right_paren"
+          let commaSymbol = findField node "symbol_comma"
+          let closeParenNode = findField node "symbol_right_paren"
 
-            match
-              openParenNode, first, commaSymbol, second, rest, closeParenNode
-            with
-            | Ok openParen, Ok first, Ok symComma, Ok second, Ok rest, Ok closeParen ->
-              (WrittenTypes.Expr.ETuple(
-                node.range,
-                first,
-                symComma.range,
-                second,
-                rest,
-                openParen.range,
-                closeParen.range
-              ))
-              |> Stdlib.Result.Result.Ok
+          match openParenNode, first, commaSymbol, second, rest, closeParenNode with
+          | Ok openParen, Ok first, Ok symComma, Ok second, Ok rest, Ok closeParen ->
+            (WrittenTypes.Expr.ETuple(
+              node.range,
+              first,
+              symComma.range,
+              second,
+              rest,
+              openParen.range,
+              closeParen.range
+            ))
+            |> Stdlib.Result.Result.Ok
 
-            | _ -> createUnparseableError node
-
-          else
-            createUnparseableError node
+          | _ -> createUnparseableError node
 
 
         let parseRecordLiteral
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          if node.typ == "record_literal" then
-            let typeNameNode = findField node "type_name"
-            let openBraceNode = findField node "symbol_open_brace"
+          let typeNameNode = findField node "type_name"
+          let openBraceNode = findField node "symbol_open_brace"
 
-            let recordContents =
-              node
-              |> findNodeByFieldName "content"
-              |> Stdlib.Option.map (fun contentsNode ->
-                contentsNode.children
-                |> Stdlib.List.chunkBySize 2L
-                |> Builtin.unwrap
-                |> Stdlib.List.map (fun recordSeparatorPair ->
-                  match recordSeparatorPair with
-                  | [ recordPairNode; _separator ] ->
-                    let fieldNode =
-                      findAndParseRequired recordPairNode "field" (fun node ->
-                        (node.range, node.text) |> Stdlib.Result.Result.Ok)
+          let recordContents =
+            node
+            |> findNodeByFieldName "content"
+            |> Stdlib.Option.map (fun contentsNode ->
+              contentsNode.children
+              |> Stdlib.List.chunkBySize 2L
+              |> Builtin.unwrap
+              |> Stdlib.List.map (fun recordSeparatorPair ->
+                match recordSeparatorPair with
+                | [ recordPairNode; _separator ] ->
+                  let fieldNode =
+                    findAndParseRequired recordPairNode "field" (fun node ->
+                      (node.range, node.text) |> Stdlib.Result.Result.Ok)
 
-                    let symbolEqualsNode = findField recordPairNode "symbol_equals"
+                  let symbolEqualsNode = findField recordPairNode "symbol_equals"
 
-                    let valueNode =
-                      findAndParseRequired recordPairNode "value" Expr.parse
+                  let valueNode =
+                    findAndParseRequired recordPairNode "value" Expr.parse
 
-                    match fieldNode, symbolEqualsNode, valueNode with
-                    | Ok field, Ok symEquals, Ok value ->
-                      (symEquals, field, value) |> Stdlib.Result.Result.Ok
-                    | _ -> createUnparseableError recordPairNode
+                  match fieldNode, symbolEqualsNode, valueNode with
+                  | Ok field, Ok symEquals, Ok value ->
+                    (symEquals, field, value) |> Stdlib.Result.Result.Ok
+                  | _ -> createUnparseableError recordPairNode
 
-                  | [ recordPairNode ] ->
-                    let fieldNode =
-                      findAndParseRequired recordPairNode "field" (fun node ->
-                        (node.range, node.text) |> Stdlib.Result.Result.Ok)
+                | [ recordPairNode ] ->
+                  let fieldNode =
+                    findAndParseRequired recordPairNode "field" (fun node ->
+                      (node.range, node.text) |> Stdlib.Result.Result.Ok)
 
-                    let symbolEqualsNode = findField recordPairNode "symbol_equals"
+                  let symbolEqualsNode = findField recordPairNode "symbol_equals"
 
-                    let valueNode =
-                      findAndParseRequired recordPairNode "value" Expr.parse
+                  let valueNode =
+                    findAndParseRequired recordPairNode "value" Expr.parse
 
-                    match fieldNode, symbolEqualsNode, valueNode with
-                    | Ok field, Ok symEquals, Ok value ->
-                      (symEquals, field, value) |> Stdlib.Result.Result.Ok
-                    | _ -> createUnparseableError recordPairNode
+                  match fieldNode, symbolEqualsNode, valueNode with
+                  | Ok field, Ok symEquals, Ok value ->
+                    (symEquals, field, value) |> Stdlib.Result.Result.Ok
+                  | _ -> createUnparseableError recordPairNode
 
-                  | _ -> createUnparseableError contentsNode)
+                | _ -> createUnparseableError contentsNode)
 
-                |> Stdlib.Result.collect)
+              |> Stdlib.Result.collect)
 
-              |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
+            |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
 
-            let closeBraceNode = findField node "symbol_close_brace"
+          let closeBraceNode = findField node "symbol_close_brace"
 
-            match typeNameNode, openBraceNode, recordContents, closeBraceNode with
-            | Ok typeName, Ok openBrace, Ok recordContents, Ok closeBrace ->
-              let typeNameNode =
-                Darklang.LanguageTools.WrittenTypes.Name.Unresolved(
-                  typeName.range,
-                  [ typeName.text ]
-                )
+          match typeNameNode, openBraceNode, recordContents, closeBraceNode with
+          | Ok typeName, Ok openBrace, Ok recordContents, Ok closeBrace ->
+            let typeNameNode =
+              Darklang.LanguageTools.WrittenTypes.Name.Unresolved(
+                typeName.range,
+                [ typeName.text ]
+              )
 
-              (WrittenTypes.Expr.ERecord(
-                node.range,
-                typeNameNode,
-                recordContents,
-                openBrace.range,
-                closeBrace.range
-              ))
-              |> Stdlib.Result.Result.Ok
+            (WrittenTypes.Expr.ERecord(
+              node.range,
+              typeNameNode,
+              recordContents,
+              openBrace.range,
+              closeBrace.range
+            ))
+            |> Stdlib.Result.Result.Ok
 
-            | _ -> createUnparseableError node
-
-          else
-            createUnparseableError node
+          | _ -> createUnparseableError node
 
 
         let parseRecordUpdate
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          if node.typ == "record_update" then
-            let openBrace = findField node "symbol_open_brace"
-            let closeBrace = findField node "symbol_close_brace"
-            let recordExpr = findAndParseRequired node "record" Expr.parse
-            let keywordWith = findField node "keyword_with"
+          let openBrace = findField node "symbol_open_brace"
+          let closeBrace = findField node "symbol_close_brace"
+          let recordExpr = findAndParseRequired node "record" Expr.parse
+          let keywordWith = findField node "keyword_with"
 
-            let fieldUpdates =
-              (findNodeByFieldName node "field_updates")
-              |> Stdlib.Option.map (fun fieldUpdatesNode ->
-                fieldUpdatesNode.children
-                |> Stdlib.List.chunkBySize 2L
-                |> Builtin.unwrap
-                |> Stdlib.List.map (fun fieldSeparatorPair ->
-                  match fieldSeparatorPair with
-                  | [ fieldNode; _separator ] ->
-                    let fieldNameNode =
-                      findAndParseRequired fieldNode "field_name" (fun node ->
-                        ((node.range, node.text)) |> Stdlib.Result.Result.Ok)
+          let fieldUpdates =
+            (findNodeByFieldName node "field_updates")
+            |> Stdlib.Option.map (fun fieldUpdatesNode ->
+              fieldUpdatesNode.children
+              |> Stdlib.List.chunkBySize 2L
+              |> Builtin.unwrap
+              |> Stdlib.List.map (fun fieldSeparatorPair ->
+                match fieldSeparatorPair with
+                | [ fieldNode; _separator ] ->
+                  let fieldNameNode =
+                    findAndParseRequired fieldNode "field_name" (fun node ->
+                      ((node.range, node.text)) |> Stdlib.Result.Result.Ok)
 
-                    let symbolEqualsNode = findField fieldNode "symbol_equals"
+                  let symbolEqualsNode = findField fieldNode "symbol_equals"
 
-                    let valueNode =
-                      findAndParseRequired fieldNode "value" Expr.parse
+                  let valueNode = findAndParseRequired fieldNode "value" Expr.parse
 
-                    match fieldNameNode, symbolEqualsNode, valueNode with
-                    | Ok fieldName, Ok symEquals, Ok value ->
-                      ((fieldName, symEquals.range, value))
-                      |> Stdlib.Result.Result.Ok
-                    | _ -> createUnparseableError fieldNode
+                  match fieldNameNode, symbolEqualsNode, valueNode with
+                  | Ok fieldName, Ok symEquals, Ok value ->
+                    ((fieldName, symEquals.range, value))
+                    |> Stdlib.Result.Result.Ok
+                  | _ -> createUnparseableError fieldNode
 
-                  | [ fieldNode ] ->
-                    let fieldNameNode =
-                      findAndParseRequired fieldNode "field_name" (fun node ->
-                        ((node.range, node.text)) |> Stdlib.Result.Result.Ok)
+                | [ fieldNode ] ->
+                  let fieldNameNode =
+                    findAndParseRequired fieldNode "field_name" (fun node ->
+                      ((node.range, node.text)) |> Stdlib.Result.Result.Ok)
 
-                    let symbolEqualsNode = findField fieldNode "symbol_equals"
+                  let symbolEqualsNode = findField fieldNode "symbol_equals"
 
-                    let valueNode =
-                      findAndParseRequired fieldNode "value" Expr.parse
+                  let valueNode = findAndParseRequired fieldNode "value" Expr.parse
 
-                    match fieldNameNode, symbolEqualsNode, valueNode with
-                    | Ok fieldName, Ok symEquals, Ok value ->
-                      ((fieldName, symEquals.range, value))
-                      |> Stdlib.Result.Result.Ok
-                    | _ -> createUnparseableError fieldNode
+                  match fieldNameNode, symbolEqualsNode, valueNode with
+                  | Ok fieldName, Ok symEquals, Ok value ->
+                    ((fieldName, symEquals.range, value))
+                    |> Stdlib.Result.Result.Ok
+                  | _ -> createUnparseableError fieldNode
 
-                  | _ -> createUnparseableError fieldUpdatesNode)
+                | _ -> createUnparseableError fieldUpdatesNode)
 
-                |> Stdlib.Result.collect)
+              |> Stdlib.Result.collect)
 
-              |> Stdlib.Option.withDefault (
-                Stdlib.Result.Result.Error "field_updates not found"
-              )
+            |> Stdlib.Option.withDefault (
+              Stdlib.Result.Result.Error "field_updates not found"
+            )
 
-            match openBrace, closeBrace, recordExpr, keywordWith, fieldUpdates with
-            | Ok openBrace,
-              Ok closeBrace,
-              Ok recordExpr,
-              Ok keywordWith,
-              Ok fieldUpdates ->
-              (WrittenTypes.Expr.ERecordUpdate(
-                node.range,
-                recordExpr,
-                fieldUpdates,
-                openBrace.range,
-                closeBrace.range,
-                keywordWith.range
-              ))
-              |> Stdlib.Result.Result.Ok
+          match openBrace, closeBrace, recordExpr, keywordWith, fieldUpdates with
+          | Ok openBrace,
+            Ok closeBrace,
+            Ok recordExpr,
+            Ok keywordWith,
+            Ok fieldUpdates ->
+            (WrittenTypes.Expr.ERecordUpdate(
+              node.range,
+              recordExpr,
+              fieldUpdates,
+              openBrace.range,
+              closeBrace.range,
+              keywordWith.range
+            ))
+            |> Stdlib.Result.Result.Ok
 
-            | _ -> createUnparseableError node
+          | _ -> createUnparseableError node
 
 
         let parseEnumLiteral
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          if node.typ == "enum_literal" then
-            let typeNameNode = findField node "type_name"
-            let symbolDotNode = findField node "symbol_dot"
-            let caseNameNode = findField node "case_name"
+          let typeNameNode = findField node "type_name"
+          let symbolDotNode = findField node "symbol_dot"
+          let caseNameNode = findField node "case_name"
 
-            let enumFieldsNode =
-              (findNodeByFieldName node "enum_fields")
-              |> Stdlib.Option.map (fun enumFieldsNode ->
-                enumFieldsNode.children
-                |> Stdlib.List.map (fun child -> Expr.parse child)
-                |> Stdlib.Result.collect)
+          let enumFieldsNode =
+            (findNodeByFieldName node "enum_fields")
+            |> Stdlib.Option.map (fun enumFieldsNode ->
+              enumFieldsNode.children
+              |> Stdlib.List.map (fun child -> Expr.parse child)
+              |> Stdlib.Result.collect)
 
-              |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
+            |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
 
-            match typeNameNode, symbolDotNode, caseNameNode, enumFieldsNode with
-            | Ok typeNameNode, Ok symbolDotNode, Ok caseNameNode, Ok enumFieldsNode ->
-              (WrittenTypes.Expr.EEnum(
-                node.range,
-                (typeNameNode.range, [ typeNameNode.text ]),
-                (caseNameNode.range, caseNameNode.text),
-                enumFieldsNode,
-                symbolDotNode.range
-              ))
-              |> Stdlib.Result.Result.Ok
+          match typeNameNode, symbolDotNode, caseNameNode, enumFieldsNode with
+          | Ok typeNameNode, Ok symbolDotNode, Ok caseNameNode, Ok enumFieldsNode ->
+            (WrittenTypes.Expr.EEnum(
+              node.range,
+              (typeNameNode.range, [ typeNameNode.text ]),
+              (caseNameNode.range, caseNameNode.text),
+              enumFieldsNode,
+              symbolDotNode.range
+            ))
+            |> Stdlib.Result.Result.Ok
 
-            | _ -> createUnparseableError node
+          | _ -> createUnparseableError node
 
 
         let parseLetExpr
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          if node.typ == "let_expression" then
-            let keywordLetNode = findField node "keyword_let"
-            let identifierNode = findField node "identifier"
-            let symbolEqualsNode = findField node "symbol_equals"
-            let expr = findAndParseRequired node "expr" Expr.parse
-            let body = findAndParseRequired node "body" Expr.parse
+          let keywordLetNode = findField node "keyword_let"
+          let identifierNode = findField node "identifier"
+          let symbolEqualsNode = findField node "symbol_equals"
+          let expr = findAndParseRequired node "expr" Expr.parse
+          let body = findAndParseRequired node "body" Expr.parse
 
-            match keywordLetNode, identifierNode, symbolEqualsNode, expr, body with
-            | Ok keywordLet, Ok identifier, Ok symbolEquals, Ok expr, Ok body ->
-              (WrittenTypes.Expr.ELet(
-                node.range,
-                WrittenTypes.LetPattern.LPVariable(identifier.range, identifier.text),
-                expr,
-                body,
-                keywordLet.range,
-                symbolEquals.range
-              ))
-              |> Stdlib.Result.Result.Ok
+          match keywordLetNode, identifierNode, symbolEqualsNode, expr, body with
+          | Ok keywordLet, Ok identifier, Ok symbolEquals, Ok expr, Ok body ->
+            (WrittenTypes.Expr.ELet(
+              node.range,
+              WrittenTypes.LetPattern.LPVariable(identifier.range, identifier.text),
+              expr,
+              body,
+              keywordLet.range,
+              symbolEquals.range
+            ))
+            |> Stdlib.Result.Result.Ok
 
-            | _ -> createUnparseableError node
-
-          else
-            createUnparseableError node
+          | _ -> createUnparseableError node
 
 
         let parseFieldAccess
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          if node.typ == "field_access" then
-            let expr = findAndParseRequired node "expr" Expr.parseCase
-            let symbolDotNode = findField node "symbol_dot"
-            let fieldName = findField node "field_name"
+          let expr = findAndParseRequired node "expr" Expr.parseCase
+          let symbolDotNode = findField node "symbol_dot"
+          let fieldName = findField node "field_name"
 
-            match expr, symbolDotNode, fieldName with
-            | Ok expr, Ok symbolDot, Ok field ->
-              (WrittenTypes.Expr.EFieldAccess(
-                node.range,
-                expr,
-                (field.range, field.text),
-                symbolDot.range
-              ))
-              |> Stdlib.Result.Result.Ok
+          match expr, symbolDotNode, fieldName with
+          | Ok expr, Ok symbolDot, Ok field ->
+            (WrittenTypes.Expr.EFieldAccess(
+              node.range,
+              expr,
+              (field.range, field.text),
+              symbolDot.range
+            ))
+            |> Stdlib.Result.Result.Ok
 
-            | _ -> createUnparseableError node
-
-          else
-            createUnparseableError node
+          | _ -> createUnparseableError node
 
 
         let parseInfixOperation
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          if node.typ == "infix_operation" then
-            let leftArg = findAndParseRequired node "left" Expr.parse
-            let operatorNode = findField node "operator"
+          let leftArg = findAndParseRequired node "left" Expr.parse
+          let operatorNode = findField node "operator"
 
-            let operator =
-              // TODO revisit error-handling here
-              match operatorNode with
-              | Ok operatorNode ->
-                match getText operatorNode with
-                | "+" ->
-                  WrittenTypes.Infix.InfixFnCall
-                    WrittenTypes.InfixFnName.ArithmeticPlus
-                | "-" ->
-                  WrittenTypes.Infix.InfixFnCall
-                    WrittenTypes.InfixFnName.ArithmeticMinus
-                | "*" ->
-                  WrittenTypes.Infix.InfixFnCall
-                    WrittenTypes.InfixFnName.ArithmeticMultiply
-                | "/" ->
-                  WrittenTypes.Infix.InfixFnCall
-                    WrittenTypes.InfixFnName.ArithmeticDivide
-                | "%" ->
-                  WrittenTypes.Infix.InfixFnCall
-                    WrittenTypes.InfixFnName.ArithmeticModulo
-                | "^" ->
-                  WrittenTypes.Infix.InfixFnCall
-                    WrittenTypes.InfixFnName.ArithmeticPower
-                | ">" ->
-                  WrittenTypes.Infix.InfixFnCall
-                    WrittenTypes.InfixFnName.ComparisonGreaterThan
-                | ">=" ->
-                  WrittenTypes.Infix.InfixFnCall
-                    WrittenTypes.InfixFnName.ComparisonGreaterThanOrEqual
-                | "<" ->
-                  WrittenTypes.Infix.InfixFnCall
-                    WrittenTypes.InfixFnName.ComparisonLessThan
-                | "<=" ->
-                  WrittenTypes.Infix.InfixFnCall
-                    WrittenTypes.InfixFnName.ComparisonLessThanOrEqual
-                | "==" ->
-                  WrittenTypes.Infix.InfixFnCall
-                    WrittenTypes.InfixFnName.ComparisonEquals
-                | "!=" ->
-                  WrittenTypes.Infix.InfixFnCall
-                    WrittenTypes.InfixFnName.ComparisonNotEquals
-                | "&&" ->
-                  WrittenTypes.Infix.BinOp WrittenTypes.BinaryOperation.BinOpAnd
-                | "||" ->
-                  WrittenTypes.Infix.BinOp WrittenTypes.BinaryOperation.BinOpOr
-                | "++" ->
-                  WrittenTypes.Infix.InfixFnCall
-                    WrittenTypes.InfixFnName.StringConcat
-                | _ -> createUnparseableError node
-
+          let operator =
+            // TODO revisit error-handling here
+            match operatorNode with
+            | Ok operatorNode ->
+              match getText operatorNode with
+              | "+" ->
+                WrittenTypes.Infix.InfixFnCall
+                  WrittenTypes.InfixFnName.ArithmeticPlus
+              | "-" ->
+                WrittenTypes.Infix.InfixFnCall
+                  WrittenTypes.InfixFnName.ArithmeticMinus
+              | "*" ->
+                WrittenTypes.Infix.InfixFnCall
+                  WrittenTypes.InfixFnName.ArithmeticMultiply
+              | "/" ->
+                WrittenTypes.Infix.InfixFnCall
+                  WrittenTypes.InfixFnName.ArithmeticDivide
+              | "%" ->
+                WrittenTypes.Infix.InfixFnCall
+                  WrittenTypes.InfixFnName.ArithmeticModulo
+              | "^" ->
+                WrittenTypes.Infix.InfixFnCall
+                  WrittenTypes.InfixFnName.ArithmeticPower
+              | ">" ->
+                WrittenTypes.Infix.InfixFnCall
+                  WrittenTypes.InfixFnName.ComparisonGreaterThan
+              | ">=" ->
+                WrittenTypes.Infix.InfixFnCall
+                  WrittenTypes.InfixFnName.ComparisonGreaterThanOrEqual
+              | "<" ->
+                WrittenTypes.Infix.InfixFnCall
+                  WrittenTypes.InfixFnName.ComparisonLessThan
+              | "<=" ->
+                WrittenTypes.Infix.InfixFnCall
+                  WrittenTypes.InfixFnName.ComparisonLessThanOrEqual
+              | "==" ->
+                WrittenTypes.Infix.InfixFnCall
+                  WrittenTypes.InfixFnName.ComparisonEquals
+              | "!=" ->
+                WrittenTypes.Infix.InfixFnCall
+                  WrittenTypes.InfixFnName.ComparisonNotEquals
+              | "&&" ->
+                WrittenTypes.Infix.BinOp WrittenTypes.BinaryOperation.BinOpAnd
+              | "||" -> WrittenTypes.Infix.BinOp WrittenTypes.BinaryOperation.BinOpOr
+              | "++" ->
+                WrittenTypes.Infix.InfixFnCall WrittenTypes.InfixFnName.StringConcat
               | _ -> createUnparseableError node
 
-            let rightArg = findAndParseRequired node "right" Expr.parse
-
-            match leftArg, operatorNode, rightArg with
-            | Ok leftArg, Ok operatorNode, Ok rightArg ->
-              (WrittenTypes.Expr.EInfix(
-                node.range,
-                ((operatorNode.range, operator)),
-                leftArg,
-                rightArg
-              ))
-              |> Stdlib.Result.Result.Ok
-
             | _ -> createUnparseableError node
+
+          let rightArg = findAndParseRequired node "right" Expr.parse
+
+          match leftArg, operatorNode, rightArg with
+          | Ok leftArg, Ok operatorNode, Ok rightArg ->
+            (WrittenTypes.Expr.EInfix(
+              node.range,
+              ((operatorNode.range, operator)),
+              leftArg,
+              rightArg
+            ))
+            |> Stdlib.Result.Result.Ok
+
+          | _ -> createUnparseableError node
 
 
         let parseLetPattern
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.LetPattern, WrittenTypes.Unparseable> =
-          if node.typ == "let_pattern" then
-            match node.children with
-            | [ child ] ->
-              match child.typ with
-              | "unit" ->
-                (WrittenTypes.LetPattern.LPUnit(child.range))
+          match node.children with
+          | [ child ] ->
+            match child.typ with
+            | "unit" ->
+              (WrittenTypes.LetPattern.LPUnit(child.range))
+              |> Stdlib.Result.Result.Ok
+            | "variable_identifier" ->
+              (WrittenTypes.LetPattern.LPVariable(child.range, getText child))
+              |> Stdlib.Result.Result.Ok
+            | "lp_tuple" ->
+              let openParenNode = findField child "symbol_left_paren"
+              let first = findAndParseRequired child "first" Expr.parseLetPattern
+              let second = findAndParseRequired child "second" Expr.parseLetPattern
+
+              let rest =
+                (findNodeByFieldName child "rest")
+                |> Stdlib.Option.map (fun restNode ->
+                  restNode.children
+                  |> Stdlib.List.chunkBySize 2L
+                  |> Builtin.unwrap
+                  |> Stdlib.List.map (fun symbolExprPair ->
+                    match symbolExprPair with
+                    | [ symbol; exprNode ] ->
+                      match Expr.parseLetPattern exprNode with
+                      | Ok expr -> (symbol.range, expr) |> Stdlib.Result.Result.Ok
+                      | Error _ -> createUnparseableError exprNode
+
+                    | [ exprNode ] ->
+                      match Expr.parseLetPattern exprNode with
+                      | Ok expr ->
+                        (Stdlib.Option.Option.None, expr)
+                        |> Stdlib.Result.Result.Ok
+                      | Error _ -> createUnparseableError exprNode
+                    | _ -> createUnparseableError restNode)
+
+                  |> Stdlib.Result.collect)
+
+                |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
+
+              let commaSymbol = findField child "symbol_comma"
+              let closeParenNode = findField child "symbol_right_paren"
+
+              match
+                openParenNode, first, commaSymbol, second, rest, closeParenNode
+              with
+              | Ok openParen,
+                Ok first,
+                Ok symComma,
+                Ok second,
+                Ok rest,
+                Ok closeParen ->
+                (WrittenTypes.LetPattern.LPTuple(
+                  child.range,
+                  first,
+                  symComma.range,
+                  second,
+                  rest,
+                  openParen.range,
+                  closeParen.range
+                ))
                 |> Stdlib.Result.Result.Ok
-              | "variable_identifier" ->
-                (WrittenTypes.LetPattern.LPVariable(child.range, getText child))
-                |> Stdlib.Result.Result.Ok
-              | "lp_tuple" ->
-                let openParenNode = findField child "symbol_left_paren"
-                let first = findAndParseRequired child "first" Expr.parseLetPattern
-                let second = findAndParseRequired child "second" Expr.parseLetPattern
 
-                let rest =
-                  (findNodeByFieldName child "rest")
-                  |> Stdlib.Option.map (fun restNode ->
-                    restNode.children
-                    |> Stdlib.List.chunkBySize 2L
-                    |> Builtin.unwrap
-                    |> Stdlib.List.map (fun symbolExprPair ->
-                      match symbolExprPair with
-                      | [ symbol; exprNode ] ->
-                        match Expr.parseLetPattern exprNode with
-                        | Ok expr ->
-                          (symbol.range, expr) |> Stdlib.Result.Result.Ok
-                        | Error _ -> createUnparseableError exprNode
+              | _ -> createUnparseableError child
 
-                      | [ exprNode ] ->
-                        match Expr.parseLetPattern exprNode with
-                        | Ok expr ->
-                          (Stdlib.Option.Option.None, expr)
-                          |> Stdlib.Result.Result.Ok
-                        | Error _ -> createUnparseableError exprNode
-                      | _ -> createUnparseableError restNode)
-
-                    |> Stdlib.Result.collect)
-
-                  |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
-
-                let commaSymbol = findField child "symbol_comma"
-                let closeParenNode = findField child "symbol_right_paren"
-
-                match
-                  openParenNode, first, commaSymbol, second, rest, closeParenNode
-                with
-                | Ok openParen,
-                  Ok first,
-                  Ok symComma,
-                  Ok second,
-                  Ok rest,
-                  Ok closeParen ->
-                  (WrittenTypes.LetPattern.LPTuple(
-                    child.range,
-                    first,
-                    symComma.range,
-                    second,
-                    rest,
-                    openParen.range,
-                    closeParen.range
-                  ))
-                  |> Stdlib.Result.Result.Ok
-
-                | _ -> createUnparseableError child
-
-            | _ -> createUnparseableError child
-
-          else
-            createUnparseableError node
+          | _ -> createUnparseableError child
 
 
         let parseLambda
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          if node.typ == "lambda_expression" then
-            let keywordFun = findField node "keyword_fun"
+          let keywordFun = findField node "keyword_fun"
 
-            let paramsNode =
-              match findField node "pats" with
-              | Ok paramsNode ->
-                paramsNode.children
-                |> Stdlib.List.map (fun pat -> parseLetPattern pat)
-                |> Stdlib.Result.collect
-
-              | _ -> createUnparseableError node
-
-            let arrowNode = findField node "symbol_arrow"
-            let bodyNode = findAndParseRequired node "body" Expr.parse
-
-            match keywordFun, paramsNode, arrowNode, bodyNode with
-            | Ok keywordFun, Ok paramsNode, Ok arrowNode, Ok bodyNode ->
-              (WrittenTypes.Expr.ELambda(
-                node.range,
-                paramsNode,
-                bodyNode,
-                keywordFun.range,
-                arrowNode.range
-              ))
-              |> Stdlib.Result.Result.Ok
+          let paramsNode =
+            match findField node "pats" with
+            | Ok paramsNode ->
+              paramsNode.children
+              |> Stdlib.List.map (fun pat -> parseLetPattern pat)
+              |> Stdlib.Result.collect
 
             | _ -> createUnparseableError node
 
-          else
-            createUnparseableError node
+          let arrowNode = findField node "symbol_arrow"
+          let bodyNode = findAndParseRequired node "body" Expr.parse
+
+          match keywordFun, paramsNode, arrowNode, bodyNode with
+          | Ok keywordFun, Ok paramsNode, Ok arrowNode, Ok bodyNode ->
+            (WrittenTypes.Expr.ELambda(
+              node.range,
+              paramsNode,
+              bodyNode,
+              keywordFun.range,
+              arrowNode.range
+            ))
+            |> Stdlib.Result.Result.Ok
+
+          | _ -> createUnparseableError node
 
 
         let parseIfExpression
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          if node.typ == "if_expression" then
-            let keywordIfNode = findField node "keyword_if"
-            let conditionNode = findAndParseRequired node "condition" Expr.parse
-            let keywordThenNode = findField node "keyword_then"
-            let thenNode = findAndParseRequired node "then_expression" Expr.parse
+          let keywordIfNode = findField node "keyword_if"
+          let conditionNode = findAndParseRequired node "condition" Expr.parse
+          let keywordThenNode = findField node "keyword_then"
+          let thenNode = findAndParseRequired node "then_expression" Expr.parse
 
-            let keywordElseNodeRange =
-              findAndParseOptional node "keyword_else" (fun node ->
-                node.range |> Stdlib.Result.Result.Ok)
+          let keywordElseNodeRange =
+            findAndParseOptional node "keyword_else" (fun node ->
+              node.range |> Stdlib.Result.Result.Ok)
 
-            let elseNode = findAndParseOptional node "else_expression" Expr.parse
+          let elseNode = findAndParseOptional node "else_expression" Expr.parse
 
-            match keywordIfNode, conditionNode, keywordThenNode, thenNode with
-            | Ok keywordIf, Ok condition, Ok keywordThen, Ok thenNode ->
-              (WrittenTypes.Expr.EIf(
-                node.range,
-                condition,
-                thenNode,
-                elseNode,
-                keywordIf.range,
-                keywordThen.range,
-                keywordElseNodeRange
-              ))
-              |> Stdlib.Result.Result.Ok
+          match keywordIfNode, conditionNode, keywordThenNode, thenNode with
+          | Ok keywordIf, Ok condition, Ok keywordThen, Ok thenNode ->
+            (WrittenTypes.Expr.EIf(
+              node.range,
+              condition,
+              thenNode,
+              elseNode,
+              keywordIf.range,
+              keywordThen.range,
+              keywordElseNodeRange
+            ))
+            |> Stdlib.Result.Result.Ok
 
-            | _ -> createUnparseableError node
-
-          else
-            createUnparseableError node
+          | _ -> createUnparseableError node
 
 
         let parseMatchCase
@@ -854,95 +797,89 @@ module Darklang =
         let parseMatchExpression
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          if node.typ == "match_expression" then
-            let keywordMatchNode = findField node "keyword_match"
-            let exprNode = findAndParseRequired node "arg" Expr.parse
-            let keywordWithNode = findField node "keyword_with"
+          let keywordMatchNode = findField node "keyword_match"
+          let exprNode = findAndParseRequired node "arg" Expr.parse
+          let keywordWithNode = findField node "keyword_with"
 
-            let cases =
-              node.children
-              |> Stdlib.List.filter (fun c ->
-                match c.fieldName with
-                | Some fName -> fName == "cases"
-                | None -> false)
-              |> Stdlib.List.map (fun c -> parseMatchCase c)
-              |> Stdlib.Result.collect
+          let cases =
+            node.children
+            |> Stdlib.List.filter (fun c ->
+              match c.fieldName with
+              | Some fName -> fName == "cases"
+              | None -> false)
+            |> Stdlib.List.map (fun c -> parseMatchCase c)
+            |> Stdlib.Result.collect
 
-            match keywordMatchNode, exprNode, keywordWithNode, cases with
-            | Ok keywordMatch, Ok expr, Ok keywordWith, Ok cases ->
-              (WrittenTypes.Expr.EMatch(
-                node.range,
-                expr,
-                cases,
-                keywordMatch.range,
-                keywordWith.range
-              ))
-              |> Stdlib.Result.Result.Ok
+          match keywordMatchNode, exprNode, keywordWithNode, cases with
+          | Ok keywordMatch, Ok expr, Ok keywordWith, Ok cases ->
+            (WrittenTypes.Expr.EMatch(
+              node.range,
+              expr,
+              cases,
+              keywordMatch.range,
+              keywordWith.range
+            ))
+            |> Stdlib.Result.Result.Ok
 
-          else
-            createUnparseableError node
+          | _ -> createUnparseableError node
 
 
         let parsePipeExpression
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          if node.typ == "pipe_expression" then
-            let expr = findAndParseRequired node "expr" Expr.parse
+          let expr = findAndParseRequired node "expr" Expr.parse
 
-            let pipeExpr =
-              (findNodeByFieldName node "pipe_exprs")
-              |> Stdlib.Option.map (fun pipeExprNode ->
-                pipeExprNode.children
-                |> Stdlib.List.chunkBySize 2L
-                |> Builtin.unwrap
-                |> Stdlib.List.map (fun symbolPipeExprPair ->
-                  match symbolPipeExprPair with
-                  | [ pipeSymbol; pipeExpr ] ->
-                    match PipeExpr.parse pipeExpr with
-                    | Ok pipeExpr ->
-                      (pipeSymbol.range, pipeExpr) |> Stdlib.Result.Result.Ok
-                    | Error _ -> createUnparseableError pipeExpr
-                  | _ -> createUnparseableError pipeExprNode)
+          let pipeExpr =
+            (findNodeByFieldName node "pipe_exprs")
+            |> Stdlib.Option.map (fun pipeExprNode ->
+              pipeExprNode.children
+              |> Stdlib.List.chunkBySize 2L
+              |> Builtin.unwrap
+              |> Stdlib.List.map (fun symbolPipeExprPair ->
+                match symbolPipeExprPair with
+                | [ pipeSymbol; pipeExpr ] ->
+                  match PipeExpr.parse pipeExpr with
+                  | Ok pipeExpr ->
+                    (pipeSymbol.range, pipeExpr) |> Stdlib.Result.Result.Ok
+                  | Error _ -> createUnparseableError pipeExpr
+                | _ -> createUnparseableError pipeExprNode)
 
-                |> Stdlib.Result.collect)
+              |> Stdlib.Result.collect)
 
-              |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
+            // CLEANUP: should error instead of returning an empty list?
+            |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
 
-            match expr, pipeExpr with
-            | Ok expr, Ok pipeExpr ->
-              (WrittenTypes.Expr.EPipe(node.range, expr, pipeExpr))
-              |> Stdlib.Result.Result.Ok
-            | _ -> createUnparseableError node
+          match expr, pipeExpr with
+          | Ok expr, Ok pipeExpr ->
+            (WrittenTypes.Expr.EPipe(node.range, expr, pipeExpr))
+            |> Stdlib.Result.Result.Ok
+          | _ -> createUnparseableError node
 
 
         let parseFunctionCall
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          if node.typ == "apply" then
-            let fnNameNode =
-              findAndParseRequired node "fn" Identifiers.parseQualifiedFunction
+          let fnNameNode =
+            findAndParseRequired node "fn" Identifiers.parseQualifiedFunction
 
-            let args =
-              node.children
-              |> Stdlib.List.filter (fun c ->
-                match c.fieldName with
-                | Some fName -> fName == "args"
-                | None -> false)
-              |> Stdlib.List.map Expr.parse
-              |> Stdlib.Result.collect
+          let args =
+            node.children
+            |> Stdlib.List.filter (fun c ->
+              match c.fieldName with
+              | Some fName -> fName == "args"
+              | None -> false)
+            |> Stdlib.List.map Expr.parse
+            |> Stdlib.Result.collect
 
-            match fnNameNode, args with
-            | Ok fnName, Ok args ->
-              let typeArgs = fnName.typeArgs
-              let fnName = WrittenTypes.Expr.EFnName(node.range, fnName)
+          match fnNameNode, args with
+          | Ok fnName, Ok args ->
+            let typeArgs = fnName.typeArgs
+            let fnName = WrittenTypes.Expr.EFnName(node.range, fnName)
 
-              (WrittenTypes.Expr.EApply(node.range, fnName, typeArgs, args))
-              |> Stdlib.Result.Result.Ok
+            (WrittenTypes.Expr.EApply(node.range, fnName, typeArgs, args))
+            |> Stdlib.Result.Result.Ok
 
-            | _ -> createUnparseableError node
-
-          else
-            createUnparseableError node
+          | _ -> createUnparseableError node
 
 
         /// this parses one of the Expr cases
@@ -1014,4 +951,4 @@ module Darklang =
           elif node.typ == "paren_expression" then
             findAndParseRequired node "expr" Expr.parse
           else
-            Stdlib.Result.Result.Error $"Unsupported expression type: {node.typ}"
+            createUnparseableErrorMsg node $"Unsupported expression type: {node.typ}"

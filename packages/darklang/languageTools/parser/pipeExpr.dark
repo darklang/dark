@@ -150,13 +150,13 @@ module Darklang =
 
             match typeArgs, args with
             | Ok typeArgs, Ok args ->
-              let nameWithoutTyprArgs =
-                fnNameNode.text |> (Stdlib.String.split "<") |> Stdlib.List.head
-
+              // CLEANUP: this is a bit hacky, do it better
               let name =
-                match nameWithoutTyprArgs with
-                | Some name -> name |> Stdlib.String.split "."
-                | None -> fnName.text |> Stdlib.String.split "."
+                fnNameNode.text
+                |> (Stdlib.String.split "<")
+                |> Stdlib.List.head
+                |> Builtin.unwrap
+                |> Stdlib.String.split "."
 
               let fnName = WrittenTypes.Name.Unresolved(fnNameNode.range, name)
 
@@ -183,4 +183,4 @@ module Darklang =
             | _ -> createUnparseableError node
 
           else
-            Stdlib.Result.Result.Error $"Expected pipe_expr, got {node.typ}"
+            createUnparseableErrorMsg node $"Expected pipe_expr, got {node.typ}"

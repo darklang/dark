@@ -86,7 +86,7 @@ module Darklang =
                       (createUnparseableError fieldsNode,
                        Stdlib.Option.Option.Some separator.range))
 
-                | None -> (Stdlib.Result.Result.Ok [], Stdlib.Option.Option.None)
+                | None -> createUnparseableError child
 
               let recordFields =
                 recordFields
@@ -102,6 +102,7 @@ module Darklang =
               | Ok openBrace, Ok recordFields, Ok closeBrace ->
                 (WrittenTypes.TypeDeclaration.Definition.Record recordFields)
                 |> Stdlib.Result.Result.Ok
+              | _ -> createUnparseableError child
 
             | [ child ] when child.typ == "type_decl_def_enum" ->
               match findNodeByFieldName child "content" with
