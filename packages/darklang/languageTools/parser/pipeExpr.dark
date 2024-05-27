@@ -183,4 +183,4 @@ module Darklang =
             | _ -> createUnparseableError node
 
           else
-            createUnparseableError node
+            Stdlib.Result.Result.Error $"Expected pipe_expr, got {node.typ}"

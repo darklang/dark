@@ -493,7 +493,9 @@ module Darklang =
 
                 |> Stdlib.Result.collect)
 
-              |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
+              |> Stdlib.Option.withDefault (
+                Stdlib.Result.Result.Error "field_updates not found"
+              )
 
             match openBrace, closeBrace, recordExpr, keywordWith, fieldUpdates with
             | Ok openBrace,
@@ -1012,4 +1014,4 @@ module Darklang =
           elif node.typ == "paren_expression" then
             findAndParseRequired node "expr" Expr.parse
           else
-            createUnparseableError node
+            Stdlib.Result.Result.Error $"Unsupported expression type: {node.typ}"

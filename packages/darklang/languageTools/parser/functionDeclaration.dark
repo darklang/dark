@@ -159,4 +159,4 @@ module Darklang =
             | _ -> createUnparseableError node
 
           else
-            createUnparseableError node
+            Stdlib.Result.Result.Error $"Expected fn_decl, got {node.typ}"

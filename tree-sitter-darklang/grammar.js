@@ -10,7 +10,6 @@ const PREC = {
   SUM: 3,
   PRODUCT: 4,
   EXPONENT: 5,
-  MATCH_EXPR: 6,
   FIELDACCESS: 7,
   VAR_IDENTIFIER: 8,
   FN_IDENTIFIER: 9,
@@ -181,8 +180,6 @@ module.exports = grammar({
         ),
         field("type", $.type_reference),
       ),
-
-    newline: $ => /\n/,
 
     // ---------------------
     // Match patterns
@@ -701,7 +698,7 @@ module.exports = grammar({
     //
     // If expressions
     if_expression: $ =>
-      prec.left(
+      prec.right(
         seq(
           field("keyword_if", alias("if", $.keyword)),
           field("condition", $.expression),
@@ -1141,6 +1138,8 @@ module.exports = grammar({
 
     //
     enum_case_identifier: $ => /[A-Z][a-zA-Z0-9_]*/,
+
+    newline: $ => /\n/,
 
     unit: $ => "()",
   },

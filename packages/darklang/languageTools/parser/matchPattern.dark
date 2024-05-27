@@ -378,4 +378,5 @@ module Darklang =
             | _ -> createUnparseableError node
 
           else
-            createUnparseableError node
+            Stdlib.Result.Result.Error
+              $"Expected a match pattern, but got {node.typ}"

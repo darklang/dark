@@ -248,6 +248,44 @@ pipe expression - enum with three fields
 
 
 ==================
+pipe expression - enum with tuple
+==================
+
+33L |> MyEnum.C(21L, 12L)
+
+---
+
+(source_file
+  (expression
+    (pipe_expression
+      (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+      (pipe_exprs
+        (symbol)
+        (pipe_expr
+          (pipe_enum
+            (qualified_type_name (type_identifier))
+            (symbol)
+            (enum_case_identifier)
+            (pipe_enum_fields
+              (expression
+                (tuple_literal
+                  (symbol)
+                  (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                  (symbol)
+                  (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                  (symbol)
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+
+==================
 pipe expression - lambda without parens
 ==================
 

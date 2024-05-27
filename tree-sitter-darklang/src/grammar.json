@@ -664,10 +664,6 @@
         }
       ]
     },
-    "newline": {
-      "type": "PATTERN",
-      "value": "\\n"
-    },
     "match_pattern": {
       "type": "CHOICE",
       "members": [
@@ -2921,7 +2917,7 @@
       }
     },
     "if_expression": {
-      "type": "PREC_LEFT",
+      "type": "PREC_RIGHT",
       "value": 0,
       "content": {
         "type": "SEQ",
@@ -4888,6 +4884,10 @@
     "enum_case_identifier": {
       "type": "PATTERN",
       "value": "[A-Z][a-zA-Z0-9_]*"
+    },
+    "newline": {
+      "type": "PATTERN",
+      "value": "\\n"
     },
     "unit": {
       "type": "STRING",

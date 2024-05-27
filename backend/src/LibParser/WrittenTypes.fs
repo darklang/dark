@@ -208,6 +208,9 @@ and PipeExpr =
 
   | EPipeFnCall of
     id *
+    // CLEANUP: should this be an Expr?
+    // let something = {add = /x -> x + 1}
+    // 1 |> something.add 1
     fnName : Name *
     typeArgs : List<TypeReference> *
     args : List<Expr>

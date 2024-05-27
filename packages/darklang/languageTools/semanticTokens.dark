@@ -135,17 +135,15 @@ module Darklang =
                   (TypeReference.tokenize t)
                   [ makeToken rc TokenType.Symbol ] ]
               )
-            | TDict(r, rk, ro, t, rc) ->
+            | TDict(_r, rk, ro, t, rc) ->
               Stdlib.List.flatten (
-                [ [ makeToken r TokenType.TypeName ]
-                  [ makeToken rk TokenType.Keyword ]
+                [ [ makeToken rk TokenType.Keyword ]
                   [ makeToken ro TokenType.Symbol ]
                   (TypeReference.tokenize t)
                   [ makeToken rc TokenType.Symbol ] ]
               )
-            | TTuple(r, first, ra, second, rest, ro, rc) ->
-              [ [ makeToken r TokenType.Symbol ]
-                // (
+            | TTuple(_r, first, ra, second, rest, ro, rc) ->
+              [ // (
                 [ makeToken ro TokenType.Symbol ]
                 // first
                 TypeReference.tokenize first
@@ -163,7 +161,7 @@ module Darklang =
                 [ makeToken rc TokenType.Symbol ] ]
               |> Stdlib.List.flatten
 
-            | TFn(r, args, ret) ->
+            | TFn(_r, args, ret) ->
               [ (args
                  |> Stdlib.List.map (fun (arg, symbolArrow) ->
                    [ TypeReference.tokenize arg
@@ -173,14 +171,14 @@ module Darklang =
 
                 TypeReference.tokenize ret ]
 
-            | TDB(r, rk, ro, t, rc) ->
+            | TDB(_r, rk, ro, t, rc) ->
               [ [ makeToken rk TokenType.Keyword ]
                 [ makeToken ro TokenType.Symbol ]
                 (TypeReference.tokenize t)
                 [ makeToken rc TokenType.Symbol ] ]
               |> Stdlib.List.flatten
 
-            | TVariable(r, ra, (rv, _)) ->
+            | TVariable(_r, ra, (rv, _)) ->
               [ // '
                 [ makeToken ra TokenType.Symbol ]
                 // a
@@ -738,7 +736,7 @@ module Darklang =
 
           // let x = 2
           // x + 1
-          | ELet(range, lp, expr, body, keywordLet, symbolEquals) ->
+          | ELet(_range, lp, expr, body, keywordLet, symbolEquals) ->
             [ [ makeToken keywordLet TokenType.Keyword ]
               LetPattern.tokenize lp
               [ makeToken symbolEquals TokenType.Symbol ]
@@ -750,7 +748,7 @@ module Darklang =
           | EVariable(range, _varName) -> [ makeToken range TokenType.VariableName ]
 
           // person.name
-          | EFieldAccess(range, expr, (r, fieldName), symbolDot) ->
+          | EFieldAccess(_range, expr, (r, fieldName), symbolDot) ->
             [ // person
               Expr.tokenize expr
               // .
@@ -760,7 +758,7 @@ module Darklang =
             |> Stdlib.List.flatten
 
           // if true then 1 else 2
-          | EIf(range, cond, thenExpr, elseExpr, keywordIf, keywordThen, keywordElse) ->
+          | EIf(_range, cond, thenExpr, elseExpr, keywordIf, keywordThen, keywordElse) ->
             let elseKeyword =
               Stdlib.Option.mapWithDefault keywordElse [] (fun e ->
                 [ makeToken e TokenType.Keyword ])
@@ -785,7 +783,7 @@ module Darklang =
           // match x with
           // | x when x > 1 -> x
           // | 1 -> 1
-          | EMatch(range, expr, cases, keywordMatch, symbolWith) ->
+          | EMatch(_range, expr, cases, keywordMatch, symbolWith) ->
             let cases =
               cases
               |> Stdlib.List.map (fun case ->
@@ -803,7 +801,6 @@ module Darklang =
                         // x > 1
                         (Expr.tokenize expr) ]
                       |> Stdlib.List.flatten)
-
 
                 [ // |
                   [ makeToken pipeSym TokenType.Symbol ]
@@ -860,9 +857,9 @@ module Darklang =
             |> Stdlib.List.flatten
 
           // fun a -> a + 1
-          | ELambda(range, pats, body, keywordFun, symbolArrow) ->
+          | ELambda(_range, pats, body, keywordFun, symbolArrow) ->
             [ // fun
-              [ makeToken range TokenType.Keyword ]
+              [ makeToken keywordFun.range TokenType.Keyword ]
               // a
               (pats
                |> Stdlib.List.map (fun pat -> LetPattern.tokenize pat)
@@ -877,9 +874,9 @@ module Darklang =
 
           // hacky temp. syntax -- see `grammar.js`
           // Int64.add (1L) (2L)
-          | EFnName(_, fnName) -> QualifiedFnIdentifier.tokenize fnName
+          | EFnName(_range, fnName) -> QualifiedFnIdentifier.tokenize fnName
 
-          | EApply(range, lhs, typeArgs, args) ->
+          | EApply(_range, lhs, typeArgs, args) ->
             [ Expr.tokenize lhs
               (typeArgs
                |> Stdlib.List.map (fun typeArg -> TypeReference.tokenize typeArg)

@@ -225,4 +225,4 @@ module Darklang =
             | _ -> Stdlib.Result.Result.Error "Not a single child"
 
           else
-            createUnparseableError node
+            Stdlib.Result.Result.Error $"Expected type_reference, got {node.typ}"
