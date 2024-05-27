@@ -61,8 +61,8 @@ module Darklang =
                 typeArgsNode.children
                 |> Stdlib.List.chunkBySize 2L
                 |> Builtin.unwrap
-                |> Stdlib.List.map (fun chunk ->
-                  match chunk with
+                |> Stdlib.List.map (fun typeArgSeparatorPair ->
+                  match typeArgSeparatorPair with
                   | [ typeArg; _sep ] -> TypeReference.parse typeArg
                   | [ typeArg ] -> TypeReference.parse typeArg
                   | _ -> createUnparseableError typeArgsNode))

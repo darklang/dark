@@ -74,8 +74,8 @@ module Darklang =
                   fieldsNode.children
                   |> Stdlib.List.chunkBySize 2L
                   |> Builtin.unwrap
-                  |> Stdlib.List.map (fun chunk ->
-                    match chunk with
+                  |> Stdlib.List.map (fun fieldSeparatorPair ->
+                    match fieldSeparatorPair with
                     | [ fieldNode ] ->
                       (parseRecordField fieldNode, Stdlib.Option.Option.None)
 

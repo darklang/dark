@@ -10,10 +10,10 @@ const PREC = {
   SUM: 3,
   PRODUCT: 4,
   EXPONENT: 5,
-  FIELDACCESS: 7,
-  VAR_IDENTIFIER: 8,
-  FN_IDENTIFIER: 9,
-  PIPE_EXPR: 10,
+  FIELDACCESS: 6,
+  VAR_IDENTIFIER: 7,
+  FN_IDENTIFIER: 8,
+  PIPE_EXPR: 9,
 };
 
 const logicalOperators = choice("&&", "||");

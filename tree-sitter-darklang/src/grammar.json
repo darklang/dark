@@ -3061,7 +3061,7 @@
     },
     "field_access": {
       "type": "PREC",
-      "value": 7,
+      "value": 6,
       "content": {
         "type": "SEQ",
         "members": [
@@ -4210,7 +4210,7 @@
     },
     "pipe_expression": {
       "type": "PREC",
-      "value": 10,
+      "value": 9,
       "content": {
         "type": "SEQ",
         "members": [
@@ -4859,7 +4859,7 @@
     },
     "variable_identifier": {
       "type": "PREC",
-      "value": 8,
+      "value": 7,
       "content": {
         "type": "PATTERN",
         "value": "[a-z_][a-zA-Z0-9_]*"
@@ -4867,7 +4867,7 @@
     },
     "fn_identifier": {
       "type": "PREC",
-      "value": 9,
+      "value": 8,
       "content": {
         "type": "PATTERN",
         "value": "[a-z_][a-zA-Z0-9_]*"
