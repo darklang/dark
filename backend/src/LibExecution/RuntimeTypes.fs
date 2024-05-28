@@ -808,7 +808,8 @@ let raiseUntargetedRTE (rte : RuntimeError) : 'a =
   raise (RuntimeErrorException(None, rte))
 
 // TODO remove all usages of this in favor of better error cases
-let raiseString (s : string) : 'a = raiseUntargetedRTE (RuntimeError.oldError s)
+let raiseUntargetedString (s : string) : 'a =
+  raiseUntargetedRTE (RuntimeError.oldError s)
 
 /// Internally in the runtime, we allow throwing RuntimeErrorExceptions. At the
 /// boundary, typically in Execution.fs, we will catch the exception, and return this

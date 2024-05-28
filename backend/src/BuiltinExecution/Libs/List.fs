@@ -90,7 +90,7 @@ module DvalComparator =
     | DRecord _, _
     | DEnum _, _ ->
       // TODO: Feels like this should hook into typechecker and ValueTypes somehow
-      raiseString "Comparing different types" [ "dv1", dv1; "dv2", dv2 ]
+      raiseUntargetedString "Comparing different types" [ "dv1", dv1; "dv2", dv2 ]
   and compareLetPatternsLists (l1 : List<LetPattern>) (l2 : List<LetPattern>) : int =
 
     let rec equalsLetPattern (pattern1 : LetPattern) (pattern2 : LetPattern) : int =

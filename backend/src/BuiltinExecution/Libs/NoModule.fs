@@ -32,7 +32,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
     && List.forall2 equals a b
   | DTuple(a1, a2, a3), DTuple(b1, b2, b3) ->
     if a3.Length <> b3.Length then // special case - this is a type error
-      raiseString "tuples must be the same length"
+      raiseUntargetedString "tuples must be the same length"
     else
       equals a1 b1 && equals a2 b2 && List.forall2 equals a3 b3
   | DDict(_vtTODO1, a), DDict(_vtTODO2, b) ->
@@ -82,7 +82,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DDateTime _, _
   | DUuid _, _
   | DDB _, _
-  | DEnum _, _ -> raiseString "Both values must be the same type"
+  | DEnum _, _ -> raiseUntargetedString "Both values must be the same type"
 
 and equalsLambdaImpl (impl1 : LambdaImpl) (impl2 : LambdaImpl) : bool =
   // TODO what to do for TypeSymbolTable
