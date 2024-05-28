@@ -80,7 +80,7 @@ module Darklang =
               match findField node "pats" with
               | Ok paramsNode ->
                 paramsNode.children
-                |> Stdlib.List.map (fun child -> Expr.parseLetPattern child)
+                |> Stdlib.List.map (fun pat -> Expr.parseLetPattern pat)
                 |> Stdlib.Result.collect
 
               | _ -> createUnparseableError node
@@ -113,24 +113,13 @@ module Darklang =
             (findNodeByFieldName node "enum_fields")
             |> Stdlib.Option.map (fun enumFieldsNode ->
               enumFieldsNode.children
-              |> Stdlib.List.chunkBySize 2L
-              |> Builtin.unwrap
-              |> Stdlib.List.map (fun chunk ->
-                match chunk with
-                | [ fieldNode ] ->
-                  match Expr.parse fieldNode with
-                  | Ok field -> field
-                  | Error _ -> WrittenTypes.Unparseable { source = fieldNode }
+              |> Stdlib.List.map (fun fieldNode -> Expr.parse fieldNode)
+              |> Stdlib.Result.collect)
 
-                | [ fieldNode; _separator ] ->
-                  match Expr.parse fieldNode with
-                  | Ok field -> field
-                  | Error _ -> WrittenTypes.Unparseable { source = fieldNode }))
+            |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
 
-            |> Stdlib.Option.withDefault []
-
-          match typeNameNode, symbolDotNode, caseNameNode with
-          | Ok typeNameNode, Ok symbolDotNode, Ok caseNameNode ->
+          match typeNameNode, symbolDotNode, caseNameNode, enumFieldsNode with
+          | Ok typeNameNode, Ok symbolDotNode, Ok caseNameNode, Ok enumFieldsNode ->
             (WrittenTypes.PipeExpr.EPipeEnum(
               node.range,
               (typeNameNode.range, [ typeNameNode.text ]),
@@ -161,20 +150,20 @@ module Darklang =
 
             match typeArgs, args with
             | Ok typeArgs, Ok args ->
-              let nameWithoutTyprArgs =
-                fnNameNode.text |> (Stdlib.String.split "<") |> Stdlib.List.head
-
+              // CLEANUP: this is a bit hacky, do it better
               let name =
-                match nameWithoutTyprArgs with
-                | Some name -> name |> Stdlib.String.split "."
-                | None -> fnName.text |> Stdlib.String.split "."
+                fnNameNode.text
+                |> (Stdlib.String.split "<")
+                |> Stdlib.List.head
+                |> Builtin.unwrap
+                |> Stdlib.String.split "."
 
               let fnName = WrittenTypes.Name.Unresolved(fnNameNode.range, name)
 
               (WrittenTypes.PipeExpr.EPipeFnCall(node.range, fnName, typeArgs, args))
               |> Stdlib.Result.Result.Ok
 
-            | _ -> createUnparseableError node
+            | _ -> createUnparseableError fnNameNode
 
           | _ -> createUnparseableError node
 
@@ -192,3 +181,6 @@ module Darklang =
               | "pipe_enum" -> parsePipeEnum child
               | "pipe_fn_call" -> parsePipeFnCall child
             | _ -> createUnparseableError node
+
+          else
+            createUnparseableErrorMsg node $"Expected pipe_expr, got {node.typ}"

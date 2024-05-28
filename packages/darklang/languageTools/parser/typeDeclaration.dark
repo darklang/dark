@@ -45,10 +45,8 @@ module Darklang =
                   description = ""
                   symbolColon = colonSymbol })
               |> Stdlib.Result.Result.Ok
-          | Error _ ->
-            Stdlib.Result.Result.Error(WrittenTypes.Unparseable { source = field })
-          | None ->
-            Stdlib.Result.Result.Error(WrittenTypes.Unparseable { source = field })
+            | Error _ -> createUnparseableError field
+          | None -> createUnparseableError field
 
 
         let parseDefinition
@@ -76,8 +74,8 @@ module Darklang =
                   fieldsNode.children
                   |> Stdlib.List.chunkBySize 2L
                   |> Builtin.unwrap
-                  |> Stdlib.List.map (fun chunk ->
-                    match chunk with
+                  |> Stdlib.List.map (fun fieldSeparatorPair ->
+                    match fieldSeparatorPair with
                     | [ fieldNode ] ->
                       (parseRecordField fieldNode, Stdlib.Option.Option.None)
 
@@ -85,10 +83,10 @@ module Darklang =
                       (parseRecordField fieldNode,
                        Stdlib.Option.Option.Some separator.range)
                     | _ ->
-                      (createUnparseableError chunk,
+                      (createUnparseableError fieldsNode,
                        Stdlib.Option.Option.Some separator.range))
 
-                | None -> (Stdlib.Result.Result.Ok [], Stdlib.Option.Option.None)
+                | None -> createUnparseableError child
 
               let recordFields =
                 recordFields
@@ -104,6 +102,7 @@ module Darklang =
               | Ok openBrace, Ok recordFields, Ok closeBrace ->
                 (WrittenTypes.TypeDeclaration.Definition.Record recordFields)
                 |> Stdlib.Result.Result.Ok
+              | _ -> createUnparseableError child
 
             | [ child ] when child.typ == "type_decl_def_enum" ->
               match findNodeByFieldName child "content" with
@@ -153,6 +152,7 @@ module Darklang =
           else
             createUnparseableError node
 
+
         let parse
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.TypeDeclaration.TypeDeclaration, WrittenTypes.Unparseable> =
@@ -170,8 +170,8 @@ module Darklang =
                   node.children
                   |> Stdlib.List.chunkBySize 2L
                   |> Builtin.unwrap
-                  |> Stdlib.List.map (fun chunk ->
-                    match chunk with
+                  |> Stdlib.List.map (fun typeParamSeparatorPair ->
+                    match typeParamSeparatorPair with
                     | [ typeParamNode ] ->
                       let name =
                         typeParamNode |> findField "variable" |> Builtin.unwrap
@@ -185,7 +185,7 @@ module Darklang =
                       (typeParamNode.range, name.text) |> Stdlib.Result.Result.Ok
 
                     | _ ->
-                      (createUnparseableError chunk) |> Stdlib.Result.Result.Error))
+                      (createUnparseableError node) |> Stdlib.Result.Result.Error))
 
               | None -> Stdlib.Option.Option.None
 

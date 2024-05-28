@@ -43,7 +43,9 @@ module Darklang =
           | _ ->
             updateUnparseableStuff
               result
-              (WrittenTypes.Unparseable { source = decl }))
+              (WrittenTypes.Unparseable
+                { source = decl
+                  note = Stdlib.Option.Option.None }))
 
       /// Map a ParsedNode to a WrittenTypes.ParsedFile
       ///
