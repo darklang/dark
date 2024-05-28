@@ -1329,8 +1329,7 @@ module PackageType =
 
   let toDT (p : PT.PackageType.T) : Dval =
     let fields =
-      [ "tlid", DUInt64(uint64 p.tlid)
-        "id", DUuid p.id
+      [ "id", DUuid p.id
         "name", FQTypeName.Package.toDT p.name
         "declaration", TypeDeclaration.toDT p.declaration
         "description", DString p.description
@@ -1342,8 +1341,7 @@ module PackageType =
   let fromDT (d : Dval) : PT.PackageType.T =
     match d with
     | DRecord(_, _, _, fields) ->
-      { tlid = fields |> D.uint64Field "tlid"
-        id = fields |> D.uuidField "id"
+      { id = fields |> D.uuidField "id"
         name = fields |> D.field "name" |> FQTypeName.Package.fromDT
         declaration = fields |> D.field "declaration" |> TypeDeclaration.fromDT
         description = fields |> D.stringField "description"
@@ -1357,8 +1355,7 @@ module PackageConstant =
 
   let toDT (p : PT.PackageConstant.T) : Dval =
     let fields =
-      [ "tlid", DUInt64(uint64 p.tlid)
-        "id", DUuid p.id
+      [ "id", DUuid p.id
         "name", FQConstantName.Package.toDT p.name
         "body", Const.toDT p.body
         "description", DString p.description
@@ -1369,8 +1366,7 @@ module PackageConstant =
   let fromDT (d : Dval) : PT.PackageConstant.T =
     match d with
     | DRecord(_, _, _, fields) ->
-      { tlid = fields |> D.uint64Field "tlid"
-        id = fields |> D.uuidField "id"
+      { id = fields |> D.uuidField "id"
         name = fields |> D.field "name" |> FQConstantName.Package.fromDT
         body = fields |> D.field "body" |> Const.fromDT
         description = fields |> D.stringField "description"
@@ -1404,8 +1400,7 @@ module PackageFn =
 
   let toDT (p : PT.PackageFn.T) : Dval =
     let fields =
-      [ ("tlid", DUInt64(uint64 p.tlid))
-        ("id", DUuid p.id)
+      [ ("id", DUuid p.id)
         ("name", FQFnName.Package.toDT p.name)
         ("body", Expr.toDT p.body)
         ("typeParams", DList(VT.string, List.map DString p.typeParams))
@@ -1424,8 +1419,7 @@ module PackageFn =
   let fromDT (d : Dval) : PT.PackageFn.T =
     match d with
     | DRecord(_, _, _, fields) ->
-      { tlid = fields |> D.uint64Field "tlid"
-        id = fields |> D.uuidField "id"
+      { id = fields |> D.uuidField "id"
         name = fields |> D.field "name" |> FQFnName.Package.fromDT
         body = fields |> D.field "body" |> Expr.fromDT
         typeParams = fields |> D.stringListField "typeParams"

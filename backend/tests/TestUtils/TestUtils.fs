@@ -88,7 +88,6 @@ let testPackageFn
   (body : PT.Expr)
   : PT.PackageFn.T =
   { id = System.Guid.NewGuid()
-    tlid = gid ()
     body = body
     description = ""
     name = PT.FQFnName.package owner [] name
@@ -109,7 +108,6 @@ let testUserRecordType
     { name = name; typ = typ; description = "" }
 
   { id = System.Guid.NewGuid()
-    tlid = gid ()
     name = name
     description = ""
     deprecated = PT.NotDeprecated

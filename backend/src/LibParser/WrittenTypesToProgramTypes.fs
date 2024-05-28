@@ -573,12 +573,12 @@ module PackageType =
       let! declaration =
         TypeDeclaration.toPT pm onMissing currentModule pt.declaration
       return
-        { name = pt.name
+        { // TODO: use the fancy lookup
+          id = System.Guid.NewGuid()
+          name = pt.name
           description = pt.description
           declaration = declaration
-          deprecated = PT.NotDeprecated
-          id = System.Guid.NewGuid()
-          tlid = gid () }
+          deprecated = PT.NotDeprecated }
     }
 
 module PackageConstant =
@@ -591,12 +591,12 @@ module PackageConstant =
     uply {
       let! body = Const.toPT pm onMissing currentModule c.body
       return
-        { name = c.name
+        { // TODO: use the fancy lookup
+          id = System.Guid.NewGuid()
+          name = c.name
           description = c.description
           deprecated = PT.NotDeprecated
-          body = body
-          id = System.Guid.NewGuid()
-          tlid = gid () }
+          body = body }
     }
 
 
@@ -629,15 +629,15 @@ module PackageFn =
       let! body = Expr.toPT builtins pm onMissing currentModule fn.body
 
       return
-        { name = fn.name
+        { // TODO: use the fancy lookup
+          id = System.Guid.NewGuid()
+          name = fn.name
           parameters = parameters
           returnType = returnType
           description = fn.description
           deprecated = PT.NotDeprecated
           body = body
-          typeParams = fn.typeParams
-          id = System.Guid.NewGuid()
-          tlid = gid () }
+          typeParams = fn.typeParams }
     }
 
 

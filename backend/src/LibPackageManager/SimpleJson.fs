@@ -485,6 +485,44 @@ module Decoders =
 
       | _ -> Error(ctx, sprintf "Expected %s to be an object" name)
 
+  let obj8Fields
+    (name : string)
+    (d1 : string * JsonDecoder<'T1>)
+    (d2 : string * JsonDecoder<'T2>)
+    (d3 : string * JsonDecoder<'T3>)
+    (d4 : string * JsonDecoder<'T4>)
+    (d5 : string * JsonDecoder<'T5>)
+    (d6 : string * JsonDecoder<'T6>)
+    (d7 : string * JsonDecoder<'T7>)
+    (d8 : string * JsonDecoder<'T8>)
+    (ctor : 'T1 -> 'T2 -> 'T3 -> 'T4 -> 'T5 -> 'T6 -> 'T7 -> 'T8 -> 'T)
+    : JsonDecoder<'T> =
+    fun ctx ->
+      match ctx.json with
+      | Object fields ->
+        let f1 = decodeField fields d1 ctx
+        let f2 = decodeField fields d2 ctx
+        let f3 = decodeField fields d3 ctx
+        let f4 = decodeField fields d4 ctx
+        let f5 = decodeField fields d5 ctx
+        let f6 = decodeField fields d6 ctx
+        let f7 = decodeField fields d7 ctx
+        let f8 = decodeField fields d8 ctx
+
+        match f1, f2, f3, f4, f5, f6, f7, f8 with
+        | Ok f1, Ok f2, Ok f3, Ok f4, Ok f5, Ok f6, Ok f7, Ok f8 ->
+          Ok(ctor f1 f2 f3 f4 f5 f6 f7 f8)
+        | Error err, _, _, _, _, _, _, _
+        | _, Error err, _, _, _, _, _, _
+        | _, _, Error err, _, _, _, _, _
+        | _, _, _, Error err, _, _, _, _
+        | _, _, _, _, Error err, _, _, _
+        | _, _, _, _, _, Error err, _, _
+        | _, _, _, _, _, _, Error err, _
+        | _, _, _, _, _, _, _, Error err -> Error err
+
+      | _ -> Error(ctx, sprintf "Expected %s to be an object" name)
+
   let obj9Fields
     (name : string)
     (d1 : string * JsonDecoder<'T1>)

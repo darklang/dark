@@ -228,8 +228,7 @@ module ProgramTypes =
 
 
   type PackageType =
-    { tlid : TLID
-      id : System.Guid
+    { id : uuid
       name : FQTypeName.Package
       declaration : TypeDeclaration.TypeDeclaration
       description : string
@@ -240,8 +239,7 @@ module ProgramTypes =
     type Parameter = { name : string; typ : TypeReference; description : string }
 
     type PackageFn =
-      { tlid : TLID
-        id : System.Guid
+      { id : uuid
         name : FQFnName.Package
         body : Expr
         typeParams : List<string>
@@ -276,8 +274,7 @@ module ProgramTypes =
 
 
   type PackageConstant =
-    { tlid : TLID
-      id : System.Guid
+    { id : uuid
       name : FQConstantName.Package
       description : string
       deprecated : Deprecation<FQConstantName.FQConstantName>

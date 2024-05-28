@@ -1184,13 +1184,12 @@ type Const =
 module PackageType =
   //type Name = ...
   // TODO: hash
-  type T =
-    { tlid : tlid; name : FQTypeName.Package; declaration : TypeDeclaration.T }
+  type T = { id : uuid; name : FQTypeName.Package; declaration : TypeDeclaration.T }
 
 module PackageConstant =
   //type Name = ...
   // TODO: hash
-  type T = { tlid : tlid; name : FQConstantName.Package; body : Const }
+  type T = { id : uuid; name : FQConstantName.Package; body : Const }
 
 module PackageFn =
   //type Name = ...
@@ -1200,7 +1199,7 @@ module PackageFn =
   // TODO: hash
   type T =
     { name : FQFnName.Package
-      tlid : tlid
+      id : uuid
       typeParams : List<string>
       parameters : NEList<Parameter>
       returnType : TypeReference
@@ -1372,7 +1371,7 @@ and BuiltInFnSig =
 
 and FnImpl =
   | BuiltInFunction of BuiltInFnSig
-  | PackageFunction of tlid * Expr
+  | PackageFunction of uuid * Expr
 
 
 and FunctionRecord = Source * FQFnName.FQFnName
@@ -1423,14 +1422,14 @@ and PackageManager =
   { getType : FQTypeName.Package -> Ply<Option<PackageType.T>>
     getConstant : FQConstantName.Package -> Ply<Option<PackageConstant.T>>
     getFn : FQFnName.Package -> Ply<Option<PackageFn.T>>
-    getFnByTLID : tlid -> Ply<Option<PackageFn.T>>
+    getFnByID : uuid -> Ply<Option<PackageFn.T>>
 
     init : Ply<unit> }
 
   static member empty =
     { getType = (fun _ -> Ply None)
       getFn = (fun _ -> Ply None)
-      getFnByTLID = (fun _ -> Ply None)
+      getFnByID = (fun _ -> Ply None)
       getConstant = (fun _ -> Ply None)
 
       init = uply { return () } }
@@ -1458,11 +1457,11 @@ and PackageManager =
           match fns |> List.tryFind (fun f -> f.name = name) with
           | Some f -> Some f |> Ply
           | None -> pm.getFn name
-      getFnByTLID =
-        fun tlid ->
-          match fns |> List.tryFind (fun f -> f.tlid = tlid) with
+      getFnByID =
+        fun id ->
+          match fns |> List.tryFind (fun f -> f.id = id) with
           | Some f -> Some f |> Ply
-          | None -> pm.getFnByTLID tlid
+          | None -> pm.getFnByID id
       init = pm.init }
 
 and ExceptionReporter = ExecutionState -> Metadata -> exn -> unit
@@ -1639,4 +1638,4 @@ let packageFnToFn (fn : PackageFn.T) : Fn =
     returnType = fn.returnType
     previewable = Impure
     sqlSpec = NotQueryable
-    fn = PackageFunction(fn.tlid, fn.body) }
+    fn = PackageFunction(fn.id, fn.body) }

@@ -424,13 +424,13 @@ module TypeDeclaration =
 // --
 module PackageType =
   let toRT (t : PT.PackageType.T) : RT.PackageType.T =
-    { tlid = t.tlid
+    { id = t.id
       name = FQTypeName.Package.toRT t.name
       declaration = TypeDeclaration.toRT t.declaration }
 
 module PackageConstant =
   let toRT (c : PT.PackageConstant.T) : RT.PackageConstant.T =
-    { tlid = c.tlid
+    { id = c.id
       name = FQConstantName.Package.toRT c.name
       body = Const.toRT c.body }
 
@@ -440,8 +440,8 @@ module PackageFn =
       { name = p.name; typ = TypeReference.toRT p.typ }
 
   let toRT (f : PT.PackageFn.T) : RT.PackageFn.T =
-    { name = f.name |> FQFnName.Package.toRT
-      tlid = f.tlid
+    { id = f.id
+      name = f.name |> FQFnName.Package.toRT
       body = f.body |> Expr.toRT
       typeParams = f.typeParams
       parameters = f.parameters |> NEList.map Parameter.toRT
@@ -485,9 +485,3 @@ module DB =
 module Secret =
   let toRT (s : PT.Secret.T) : RT.Secret.T =
     { name = s.name; value = s.value; version = s.version }
-
-module Toplevel =
-  let toRT (tl : PT.Toplevel.T) : RT.Toplevel.T =
-    match tl with
-    | PT.Toplevel.TLDB db -> RT.Toplevel.TLDB(DB.toRT db)
-    | PT.Toplevel.TLHandler h -> RT.Toplevel.TLHandler(Handler.toRT h)

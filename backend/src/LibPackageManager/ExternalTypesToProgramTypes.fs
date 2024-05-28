@@ -346,24 +346,22 @@ module PackageFn =
       { name = p.name; typ = TypeReference.toPT p.typ; description = p.description }
 
   let toPT (fn : EPT.PackageFn.PackageFn) : PT.PackageFn.T =
-    { name = FnName.Package.toPT fn.name
+    { id = fn.id
+      name = FnName.Package.toPT fn.name
       parameters = NEList.map Parameter.toPT fn.parameters
       returnType = TypeReference.toPT fn.returnType
       description = fn.description
       deprecated = Deprecation.toPT FnName.toPT fn.deprecated
       body = Expr.toPT fn.body
-      typeParams = fn.typeParams
-      id = fn.id
-      tlid = fn.tlid }
+      typeParams = fn.typeParams }
 
 module PackageType =
   let toPT (pt : EPT.PackageType) : PT.PackageType.T =
-    { name = TypeName.Package.toPT pt.name
+    { id = pt.id
+      name = TypeName.Package.toPT pt.name
       description = pt.description
       declaration = TypeDeclaration.toPT pt.declaration
-      deprecated = Deprecation.toPT TypeName.toPT pt.deprecated
-      id = pt.id
-      tlid = pt.tlid }
+      deprecated = Deprecation.toPT TypeName.toPT pt.deprecated }
 
 module Const =
   let rec toPT (c : EPT.Const) : PT.Const =
@@ -397,9 +395,8 @@ module Const =
 
 module PackageConstant =
   let toPT (c : EPT.PackageConstant) : PT.PackageConstant.T =
-    { name = ConstantName.Package.toPT c.name
+    { id = c.id
+      name = ConstantName.Package.toPT c.name
       description = c.description
       deprecated = Deprecation.toPT ConstantName.toPT c.deprecated
-      id = c.id
-      tlid = c.tlid
       body = Const.toPT c.body }

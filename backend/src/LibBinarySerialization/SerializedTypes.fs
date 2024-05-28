@@ -383,32 +383,28 @@ module PackageType =
   [<MessagePack.MessagePackObject>]
   type T =
     { [<MessagePack.Key 0>]
-      tlid : tlid
-      [<MessagePack.Key 1>]
       id : System.Guid
-      [<MessagePack.Key 2>]
+      [<MessagePack.Key 1>]
       name : FQTypeName.Package
-      [<MessagePack.Key 3>]
+      [<MessagePack.Key 2>]
       declaration : TypeDeclaration.T
-      [<MessagePack.Key 4>]
+      [<MessagePack.Key 3>]
       description : string
-      [<MessagePack.Key 5>]
+      [<MessagePack.Key 4>]
       deprecated : Deprecation<FQTypeName.FQTypeName> }
 
 module PackageConstant =
   [<MessagePack.MessagePackObject>]
   type T =
     { [<MessagePack.Key 0>]
-      tlid : tlid
-      [<MessagePack.Key 1>]
       id : System.Guid
-      [<MessagePack.Key 2>]
+      [<MessagePack.Key 1>]
       name : FQConstantName.Package
-      [<MessagePack.Key 3>]
+      [<MessagePack.Key 2>]
       body : Const
-      [<MessagePack.Key 4>]
+      [<MessagePack.Key 3>]
       description : string
-      [<MessagePack.Key 5>]
+      [<MessagePack.Key 4>]
       deprecated : Deprecation<FQConstantName.FQConstantName> }
 
 
@@ -425,22 +421,20 @@ module PackageFn =
   [<MessagePack.MessagePackObject>]
   type T =
     { [<MessagePack.Key 0>]
-      tlid : tlid
-      [<MessagePack.Key 1>]
       id : System.Guid
-      [<MessagePack.Key 2>]
+      [<MessagePack.Key 1>]
       name : FQFnName.Package
-      [<MessagePack.Key 3>]
+      [<MessagePack.Key 2>]
       body : Expr
-      [<MessagePack.Key 4>]
+      [<MessagePack.Key 3>]
       typeParams : List<string>
-      [<MessagePack.Key 5>]
+      [<MessagePack.Key 4>]
       parameters : NEList<Parameter>
-      [<MessagePack.Key 6>]
+      [<MessagePack.Key 5>]
       returnType : TypeReference
-      [<MessagePack.Key 7>]
+      [<MessagePack.Key 6>]
       description : string
-      [<MessagePack.Key 8>]
+      [<MessagePack.Key 7>]
       deprecated : Deprecation<FQFnName.FQFnName> }
 
 

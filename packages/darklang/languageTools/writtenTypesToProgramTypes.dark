@@ -197,8 +197,7 @@ module Darklang =
           (d: WrittenTypes.TypeDeclaration.TypeDeclaration)
           : ProgramTypes.PackageType =
           ProgramTypes.PackageType
-            { tlid = gtlid ()
-              id = Stdlib.Uuid.generate ()
+            { id = Stdlib.Uuid.generate ()
               name =
                 ProgramTypes.FQTypeName.Package
                   { owner = owner
@@ -503,8 +502,7 @@ module Darklang =
           (fn: WrittenTypes.FnDeclaration.FnDeclaration)
           : ProgramTypes.PackageFn.PackageFn =
           ProgramTypes.PackageFn.PackageFn
-            { tlid = gtlid ()
-              id = Stdlib.Uuid.generate ()
+            { id = Stdlib.Uuid.generate ()
               name =
                 ProgramTypes.FQFnName.Package
                   { owner = owner

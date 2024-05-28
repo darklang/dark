@@ -20,7 +20,6 @@ accounts_v0
 CREATE TABLE IF NOT EXISTS
 package_types_v0
 ( id UUID PRIMARY KEY
-, tlid BIGINT NOT NULL -- for tracing
 , owner TEXT NOT NULL -- e.g. Darklang
 , modules TEXT NOT NULL -- e.g. Twitter.Other
 , typename TEXT NOT NULL -- e.g. TextMetadata
@@ -32,7 +31,6 @@ package_types_v0
 CREATE TABLE IF NOT EXISTS
 package_constants_v0
 ( id UUID PRIMARY KEY
-, tlid BIGINT NOT NULL -- for tracing
 , owner TEXT NOT NULL -- e.g. Darklang
 , modules TEXT NOT NULL -- e.g. Math.Geometry
 , name TEXT NOT NULL -- e.g. pi
@@ -43,7 +41,6 @@ package_constants_v0
 CREATE TABLE IF NOT EXISTS
 package_functions_v0
 ( id UUID PRIMARY KEY
-, tlid BIGINT NOT NULL -- for tracing
 , owner TEXT NOT NULL -- e.g. Darklang
 , modules TEXT NOT NULL -- e.g. Twitter.Other
 , fnname TEXT NOT NULL -- e.g. sendText
@@ -191,10 +188,12 @@ toplevels_v0
 CREATE TABLE IF NOT EXISTS
 traces_v0
 ( id UUID PRIMARY KEY
+, trace_id UUID NOT NULL -- why do we need this _and_ `id`?
 , canvas_id UUID NOT NULL
 -- the handler's (or for a function's default trace, the function's) TLID
--- (used to store the trace data in Cloud Storage)
+--   (used to store the trace data in Cloud Storage)
+-- TODO consider using a different mechanism here - fns might not have tlids...
+--   why wouldn't we use the `id` instead? length?
 , root_tlid BIGINT NOT NULL
-, trace_id UUID NOT NULL
 , callgraph_tlids BIGINT[] NOT NULL -- functions called during the trace
 );

@@ -123,18 +123,18 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "packageManagerGetFnByTlid" 0
+    { name = fn "packageManagerGetFnById" 0
       typeParams = []
-      parameters = [ Param.make "tlid" TUInt64 "" ]
+      parameters = [ Param.make "id" TUuid "" ]
       returnType =
         TypeReference.option (TCustomType(Ok PT2DT.PackageFn.typeName, []))
       description = "Returns a package function, by name, if it exists"
       fn =
         let optType = KTCustomType(PT2DT.PackageFn.typeName, [])
         (function
-        | _, _, [ DUInt64 tlid ] ->
+        | _, _, [ DUuid id ] ->
           uply {
-            match! PM.getFnByTLID tlid with
+            match! PM.getFnByID id with
             | Some f -> return f |> PT2DT.PackageFn.toDT |> Dval.optionSome optType
             | None -> return Dval.optionNone optType
           }
