@@ -1,0 +1,72 @@
+let apiKey = "TODO: get from secret"
+
+let determineFullPath (incompleteFileName: String) : String =
+  "TODO: use find or something"
+
+let allCodeFromFileBeforeChanges (incompleteFileName: String) : String =
+  let filePath = determineFullPath incompleteFileName
+  let fileContents = $"git show main:{filePath}"
+  $"// {incompleteFileName}\n\n{fileContents}"
+
+let allCodeFromFile (incompleteFileName: String) : String =
+  let filePath = determineFullPath incompleteFileName
+  let fileContents = Builtin.fileRead filePath
+  $"// {incompleteFileName}\n\n{fileContents}"
+
+(Stdlib.Cli.executeWithUnitOrStdErr "cd ~/dark") |> Builtin.unwrap // OK?
+
+let promptText =
+  [ "I'd like help in refactoring some code in a project I'm working on. In this document, I'll:
+      - provide a preamble about the project, Darklang
+      - describe the specific problems I'm facing
+      - provide a rough tree of the project structure, so you know how these things fit together
+      - provide a few files along the way, of relevant code
+      - ask you for advice on the problems"
+    "Darklang is a holistic tool for writing software, including: language, runtime, package manager, editor"
+    "Darklang's backend is written in F#, which (as a reminder) is built in-order, file by file. as such there are particular dependencies between files"
+
+    "Core to our domain is a module 'RuntimeTypes' that many other things are based on"
+    allCodeFromFileBeforeChanges "LibExecution/RuntimeTypes.fs" // TODO: hmm but I kinda want the version _before_ any changes
+
+    "Here's a sketch of changes to this file that I'm considering:"
+    allCodeFromFile "LibExecution/RuntimeTypes.fs" // TODO: hmm but I kinda want the version _before_ any changes
+
+    "There are two problems I'm facing in refactoring this code:"
+    "1. See the `toString` in RuntimeTypes.FQTypeName - that's used in many places 'above' the package names, to help with error messages and other things"
+    "2. a lot of our F# code references the names of Package Types, Consts, and Fns by their name, and we would look up the implementation of those things by name
+      With this refactor"
+
+    "The first problem can be dealt with by updating those `toString`s to simply print TODO with the IDs rather than the names. That's not great, but maybe good enough for now."
+    "The second problem is more difficult - "
+
+
+    "..."
+    allCodeFromFile "LibExecution/ProgramTypes.fs"
+    "..."
+    allCodeFromFile "LibExecution/DvalReprDeveloper.fs"
+    "few other files that might be good to look at"
+    allCodeFromFile "LibExecution/Interpreter.fs"
+    allCodeFromFile "LibExecution/Execution.fs"
+    allCodeFromFile "LibPackageManager/PackageManager.fs"
+    "The following file contains examples of the second problem these builtins take in params of those types, and return values of those types, and we need a nice way to reference it"
+    allCodeFromFile "BuiltinExecution/Libs/LanguageTools.fs"
+    "there are two runtimes - the CLI runtime and Cloud runtime"
+    allCodeFromFile "LibCloudExecution/CloudExecution.fs"
+    allCodeFromFile "Cli/Cli.fs"
+    "So - all that said, I'm not sure how to deal with those two problems:
+      - code (RTEs, Builtins, etc) that _reference_ the Package items by name
+      - the many places where we `toString` 'above' the package names
+
+    Do you have any ideas for how to refactor in such a way that uncomplicates these two problems?"
+
+    "My only initial thought is to
+    - have the RT PM passed into " ]
+  |> Stdlib.String.join "\n-----\n"
+
+let result = (OpenAI.Completion.simple apiKey promptText) |> Builtin.unwrap
+
+Builtin.printLine result
+
+
+// Note: maybe, when building this kinda thing up in Dark, for Darklang code, we reference things not by incomplete file names,
+// but by some ("type-")checked reference (kinda like TDB references) - maybe @Stdib.Cli to get the context of that whole module, for example
