@@ -1,0 +1,497 @@
+==================
+const declaration - int8
+==================
+
+const waterBoilingPointCelsius = 100y
+
+---
+
+(source_file
+  (const_decl
+    (keyword)
+    (constant_identifier)
+    (symbol)
+    (consts (int8_literal (digits (positive_digits)) (symbol)))
+  )
+)
+
+
+==================
+const declaration - uint8
+==================
+
+const maxPlayers = 20uy
+
+---
+
+(source_file
+  (const_decl
+    (keyword)
+    (constant_identifier)
+    (symbol)
+    (consts (uint8_literal (positive_digits) (symbol)))
+  )
+)
+
+
+==================
+const declaration - int16
+==================
+
+const maxSeatsInPlane = 800s
+
+---
+
+(source_file
+  (const_decl
+    (keyword)
+    (constant_identifier)
+    (symbol)
+    (consts (int16_literal (digits (positive_digits)) (symbol)))
+  )
+)
+
+
+==================
+const declaration - uint16
+==================
+
+const maxDaysInAYear = 365us
+
+---
+
+(source_file
+  (const_decl
+    (keyword)
+    (constant_identifier)
+    (symbol)
+    (consts (uint16_literal (positive_digits) (symbol)))
+  )
+)
+
+
+==================
+const declaration - int32
+==================
+
+const stadiumCapacity = 80000l
+
+---
+
+(source_file
+  (const_decl
+    (keyword)
+    (constant_identifier)
+    (symbol)
+    (consts (int32_literal (digits (positive_digits)) (symbol)))
+  )
+)
+
+
+==================
+const declaration - uint32
+==================
+
+const marathonDistance = 42195ul
+
+---
+
+(source_file
+  (const_decl
+    (keyword)
+    (constant_identifier)
+    (symbol)
+    (consts (uint32_literal (positive_digits) (symbol)))
+  )
+)
+
+
+==================
+const declaration - int64
+==================
+
+const secondsInAYear = 31536000L
+
+---
+
+(source_file
+  (const_decl
+    (keyword)
+    (constant_identifier)
+    (symbol)
+    (consts (int64_literal (digits (positive_digits)) (symbol)))
+  )
+)
+
+
+==================
+const declaration - uint64
+==================
+
+const millisecondsInYear = 31536000000UL
+
+---
+
+(source_file
+  (const_decl
+    (keyword)
+    (constant_identifier)
+    (symbol)
+    (consts (uint64_literal (positive_digits) (symbol)))
+  )
+)
+
+
+==================
+const declaration - int128
+==================
+
+const millisecondsInDay = 86400000Q
+
+---
+
+(source_file
+  (const_decl
+    (keyword)
+    (constant_identifier)
+    (symbol)
+    (consts (int128_literal (digits (positive_digits)) (symbol)))
+  )
+)
+
+
+==================
+const declaration - uint128
+==================
+
+const millisecondsInCentury = 3155695200000Z
+
+---
+
+(source_file
+  (const_decl
+    (keyword)
+    (constant_identifier)
+    (symbol)
+    (consts (uint128_literal (positive_digits) (symbol)))
+  )
+)
+
+
+==================
+const declaration - float
+==================
+
+const pi = 3.14159
+
+---
+
+(source_file
+  (const_decl
+    (keyword)
+    (constant_identifier)
+    (symbol)
+    (consts (float_literal))
+  )
+)
+
+
+==================
+const declaration - string
+==================
+
+const message = "Hello, World!"
+
+---
+
+(source_file
+  (const_decl
+    (keyword)
+    (constant_identifier)
+    (symbol)
+    (consts (string_literal (symbol) (string_content) (symbol)))
+  )
+)
+
+
+==================
+const declaration - char
+==================
+
+const letter = 'A'
+
+---
+
+(source_file
+  (const_decl
+    (keyword)
+    (constant_identifier)
+    (symbol)
+    (consts (char_literal (symbol) (character) (symbol)))
+  )
+)
+
+
+==================
+const declaration - boolean
+==================
+
+const isTrue = true
+
+---
+
+(source_file
+  (const_decl
+    (keyword)
+    (constant_identifier)
+    (symbol)
+    (consts (bool_literal))
+  )
+)
+
+
+==================
+const declaration - list
+==================
+
+const numbers = [1L; 2L; 3L]
+
+---
+
+(source_file
+  (const_decl
+    (keyword)
+    (constant_identifier)
+    (symbol)
+    (consts
+      (const_list_literal
+        (symbol)
+        (const_list_content
+          (consts (int64_literal (digits (positive_digits)) (symbol)))
+          (symbol)
+          (consts (int64_literal (digits (positive_digits)) (symbol)))
+          (symbol)
+          (consts (int64_literal (digits (positive_digits)) (symbol)))
+        )
+        (symbol)
+      )
+    )
+  )
+)
+
+
+==================
+const declaration - tuple
+==================
+
+const dimensionsOfRoom = (5L, 10L, 3L)
+
+---
+
+(source_file
+  (const_decl
+    (keyword)
+    (constant_identifier)
+    (symbol)
+    (consts
+      (const_tuple_literal
+        (symbol)
+        (consts (int64_literal (digits (positive_digits)) (symbol)))
+        (symbol)
+        (consts (int64_literal (digits (positive_digits)) (symbol)))
+        (const_tuple_literal_the_rest
+          (symbol)
+          (consts (int64_literal (digits (positive_digits)) (symbol)))
+        )
+        (symbol)
+      )
+    )
+  )
+)
+
+
+==================
+const declaration - dictionary
+==================
+
+const emptyDict = Dict{}
+
+---
+
+(source_file
+  (const_decl
+    (keyword)
+    (constant_identifier)
+    (symbol)
+    (consts
+      (const_dict_literal (keyword) (symbol) (symbol))
+    )
+  )
+)
+
+
+==================
+const declaration - dictionary with key-value pairs
+==================
+
+const myDict = Dict{one = 1L; two = 2L}
+
+---
+
+(source_file
+  (const_decl
+    (keyword)
+    (constant_identifier)
+    (symbol)
+    (consts
+      (const_dict_literal
+        (keyword)
+        (symbol)
+        (const_dict_content
+          (const_dict_pair
+            (expression (simple_expression (variable_identifier)))
+            (symbol)
+            (consts (int64_literal (digits (positive_digits)) (symbol)))
+          )
+          (symbol)
+          (const_dict_pair
+            (expression (simple_expression (variable_identifier)))
+            (symbol)
+            (consts (int64_literal (digits (positive_digits)) (symbol)))
+          )
+        )
+        (symbol)
+      )
+    )
+  )
+)
+
+
+==================
+const declaration - enum
+==================
+
+const colorRed = Color.Red
+
+---
+
+(source_file
+  (const_decl
+    (keyword)
+    (constant_identifier)
+    (symbol)
+    (consts
+      (const_enum_literal
+        (qualified_type_name (type_identifier))
+        (symbol)
+        (enum_case_identifier)
+      )
+    )
+  )
+)
+
+
+==================
+const declaration - enum with one field
+==================
+
+const someOne = Stdlib.Option.Option.Some 1L
+
+---
+
+(source_file
+  (const_decl
+    (keyword)
+    (constant_identifier)
+    (symbol)
+    (consts
+      (const_enum_literal
+        (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier))
+        (symbol)
+        (enum_case_identifier)
+        (const_enum_fields (consts (int64_literal (digits (positive_digits)) (symbol))))
+      )
+    )
+  )
+)
+
+
+==================
+const declaration - enum with multiple fields
+==================
+
+const myEnum = MyEnum.MyCase 1L 2L
+
+---
+
+(source_file
+  (const_decl
+    (keyword)
+    (constant_identifier)
+    (symbol)
+    (consts
+      (const_enum_literal
+        (qualified_type_name (type_identifier)) (symbol) (enum_case_identifier)
+        (const_enum_fields
+          (consts (int64_literal (digits (positive_digits)) (symbol)))
+          (consts (int64_literal (digits (positive_digits)) (symbol)))
+        )
+      )
+    )
+  )
+)
+
+
+==================
+const declaration - enum with tuple field
+==================
+
+const myEnum = MyEnum.MyCase(1L, 2L)
+
+---
+
+(source_file
+  (const_decl
+    (keyword)
+    (constant_identifier)
+    (symbol)
+    (consts
+      (const_enum_literal
+        (qualified_type_name (type_identifier)) (symbol) (enum_case_identifier)
+        (const_enum_fields
+          (consts
+            (const_tuple_literal
+              (symbol)
+              (consts (int64_literal (digits (positive_digits)) (symbol)))
+              (symbol)
+              (consts (int64_literal (digits (positive_digits)) (symbol)))
+              (symbol)
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+
+==================
+const declaration - unit
+==================
+
+const unitValue = ()
+
+---
+
+(source_file
+  (const_decl
+    (keyword)
+    (constant_identifier)
+    (symbol)
+    (consts (unit))
+  )
+)
+
+
+
+

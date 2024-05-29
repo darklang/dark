@@ -33,8 +33,8 @@ module.exports = grammar({
   rules: {
     source_file: $ =>
       seq(
-        // all type and fn defs first
-        repeat(choice($.type_decl, $.fn_decl)),
+        // all type and fn and constant defs first
+        repeat(choice($.type_decl, $.fn_decl, $.const_decl)),
 
         // then the expressions to evaluate, in order
         repeat($.expression),
@@ -54,6 +54,121 @@ module.exports = grammar({
             field("symbol_comma", alias(",", $.symbol)),
             $.variable_type_reference,
           ),
+        ),
+      ),
+
+    // ---------------------
+    // Constant declarations
+    // ---------------------
+    const_decl: $ =>
+      seq(
+        field("keyword_const", alias("const", $.keyword)),
+        field("name", $.constant_identifier),
+        field("symbol_equals", alias("=", $.symbol)),
+        field("value", $.consts),
+      ),
+
+    consts: $ =>
+      choice(
+        $.int8_literal,
+        $.uint8_literal,
+        $.int16_literal,
+        $.uint16_literal,
+        $.int32_literal,
+        $.uint32_literal,
+        $.int64_literal,
+        $.uint64_literal,
+        $.int128_literal,
+        $.uint128_literal,
+        $.float_literal,
+        $.bool_literal,
+        $.string_literal,
+        $.char_literal,
+        $.const_list_literal,
+        $.const_tuple_literal,
+        $.const_dict_literal,
+        $.const_enum_literal,
+        $.unit,
+      ),
+
+    const_list_literal: $ =>
+      seq(
+        field("symbol_open_bracket", alias("[", $.symbol)),
+        field("content", optional($.const_list_content)),
+        field("symbol_close_bracket", alias("]", $.symbol)),
+      ),
+
+    const_list_content: $ =>
+      seq(
+        $.consts,
+        repeat(seq(field("list_separator", alias(";", $.symbol)), $.consts)),
+        optional(alias(";", $.symbol)),
+      ),
+
+    const_tuple_literal: $ =>
+      seq(
+        field("symbol_left_paren", alias("(", $.symbol)),
+        field("first", $.consts),
+        field("symbol_comma", alias(",", $.symbol)),
+        field("second", $.consts),
+        field("rest", optional($.const_tuple_literal_the_rest)),
+        field("symbol_right_paren", alias(")", $.symbol)),
+      ),
+    const_tuple_literal_the_rest: $ =>
+      repeat1(
+        seq(
+          field("symbol_comma", alias(",", $.symbol)),
+          field("expr", $.consts),
+        ),
+      ),
+
+    const_dict_literal: $ =>
+      seq(
+        field("keyword_dict", alias("Dict", $.keyword)),
+        field("symbol_open_brace", alias("{", $.symbol)),
+        field("content", optional($.const_dict_content)),
+        field("symbol_close_brace", alias("}", $.symbol)),
+      ),
+    const_dict_content: $ =>
+      seq(
+        $.const_dict_pair,
+        repeat(
+          seq(field("dict_separator", alias(";", $.symbol)), $.const_dict_pair),
+        ),
+      ),
+    const_dict_pair: $ =>
+      seq(
+        field("key", $.expression),
+        field("symbol_equals", alias("=", $.symbol)),
+        field("value", $.consts),
+      ),
+
+    const_enum_literal: $ =>
+      prec.right(
+        seq(
+          field("type_name", $.qualified_type_name),
+          field("symbol_dot", alias(".", $.symbol)),
+          field("case_name", $.enum_case_identifier),
+          optional(field("enum_fields", $.const_enum_fields)),
+        ),
+      ),
+    const_enum_fields: $ =>
+      prec(
+        1,
+        choice(
+          seq(
+            field("symbol_open_paren", alias("(", $.symbol)),
+            seq(
+              $.consts,
+              repeat(
+                prec.right(
+                  seq(field("symbol_comma", alias(",", $.symbol)), $.consts),
+                ),
+              ),
+            ),
+            field("symbol_close_paren", alias(")", $.symbol)),
+          ),
+          prec.right(repeat1($.consts)),
         ),
       ),
 
