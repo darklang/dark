@@ -144,6 +144,63 @@ module Darklang =
             ProgramTypes.TypeReference.TCustomType(typeName, typeArgs)
 
 
+      module Const =
+        let toPT
+          (onMissing: NameResolver.OnMissing)
+          (c: WrittenTypes.Const)
+          : ProgramTypes.Const =
+          match c with
+          | CUnit _ -> ProgramTypes.Const.CUnit
+          | CBool(_, b) -> ProgramTypes.Const.CBool(b)
+          | CInt8(_, (_, i), _) -> ProgramTypes.Const.CInt8(i)
+          | CUInt8(_, (_, i), _) -> ProgramTypes.Const.CUInt8(i)
+          | CInt16(_, (_, i), _) -> ProgramTypes.Const.CInt16(i)
+          | CUInt16(_, (_, i), _) -> ProgramTypes.Const.CUInt16(i)
+          | CInt32(_, (_, i), _) -> ProgramTypes.Const.CInt32(i)
+          | CUInt32(_, (_, i), _) -> ProgramTypes.Const.CUInt32(i)
+          | CInt64(_, (_, i), _) -> ProgramTypes.Const.CInt64(i)
+          | CUInt64(_, (_, i), _) -> ProgramTypes.Const.CUInt64(i)
+          | CInt128(_, (_, i), _) -> ProgramTypes.Const.CInt128(i)
+          | CUInt128(_, (_, i), _) -> ProgramTypes.Const.CUInt128(i)
+          | CFloat(_, s, w, f) -> ProgramTypes.Const.CFloat(s, w, f)
+          | CString(_, contents, _, _) ->
+            match contents with
+            | None -> ProgramTypes.Const.CString([])
+            | Some((_, s)) -> ProgramTypes.Const.CString(s)
+          | CChar(_, c, _, _) ->
+            match c with
+            | None -> ProgramTypes.Const.CChar("")
+            | Some((_, c)) -> ProgramTypes.Const.CChar(c)
+
+          | CList(_, contents, _, _) ->
+            ProgramTypes.Const.CList(
+              Stdlib.List.map contents (fun (c, _) -> toPT onMissing c)
+            )
+
+          | CDict(_, contents, _, _, _) ->
+            ProgramTypes.Const.CDict(
+              Stdlib.List.map contents (fun (_, k, v) -> (k, toPT onMissing v))
+            )
+
+          | CTuple(_, first, _, second, rest, _, _) ->
+            let first = toPT onMissing first
+            let second = toPT onMissing second
+            let rest = Stdlib.List.map rest (fun (_, c) -> toPT onMissing c)
+
+            ProgramTypes.Const.CTuple(first, second, rest)
+
+          | CEnum(_, (sr, typeName), (_, caseName), fields, _) ->
+            let typeName =
+              NameResolver.TypeName.resolve
+                onMissing
+                []
+                (WrittenTypes.Name.Unresolved sr typeName)
+
+            let fields = Stdlib.List.map fields (fun expr -> toPT onMissing expr)
+
+            ProgramTypes.Const.CEnum(typeName, caseName, fields)
+
+
       module TypeDeclaration =
         module RecordField =
           let toPT
@@ -620,3 +677,41 @@ module Darklang =
               description = ""
               deprecated = ProgramTypes.Deprecation.NotDeprecated
               body = Expr.toPT onMissing fn.body }
+
+
+      module ConstantDeclaration =
+        let toPackageConstPT
+          (onMissing: NameResolver.OnMissing)
+          (owner: String)
+          (modules: List<String>)
+          (d: WrittenTypes.ConstantDeclaration.ConstantDeclaration)
+          : ProgramTypes.PackageConstant =
+          ProgramTypes.PackageConstant
+            { tlid = gtlid ()
+              id = Stdlib.Uuid.generate ()
+              name =
+                ProgramTypes.FQConstantName.Package
+                  { owner = owner
+                    modules = modules
+                    name = d.name.name }
+              body = Const.toPT onMissing d.body
+              description = ""
+              deprecated = ProgramTypes.Deprecation.NotDeprecated }
+
+        let toPT
+          (onMissing: NameResolver.OnMissing)
+          (owner: String)
+          (modules: List<String>)
+          (c: WrittenTypes.ConstantDeclaration.ConstantDeclaration)
+          : ProgramTypes.PackageConstant =
+          ProgramTypes.PackageConstant
+            { tlid = gtlid ()
+              id = Stdlib.Uuid.generate ()
+              name =
+                ProgramTypes.FQConstantName.Package
+                  { owner = owner
+                    modules = modules
+                    name = c.name.name }
+              body = Const.toPT onMissing c.body
+              description = ""
+              deprecated = ProgramTypes.Deprecation.NotDeprecated }

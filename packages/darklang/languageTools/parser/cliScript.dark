@@ -18,20 +18,35 @@ module Darklang =
             match TypeDeclaration.parse decl with
             | Error e -> updateUnparseableStuff result e
             | Ok parsedTypeDef ->
-              let newType = WrittenTypes.CliScriptTypeOrFn.Type parsedTypeDef
+              let newType = WrittenTypes.CliScriptTypeOrFnOrConst.Type parsedTypeDef
 
               { result with
-                  typesAndFns = Stdlib.List.pushBack result.typesAndFns newType }
+                  typesAndFnsAndConsts =
+                    Stdlib.List.pushBack result.typesAndFnsAndConsts newType }
 
           | "fn_decl" ->
             match FunctionDeclaration.parse decl with
             | Error e -> updateUnparseableStuff result e
 
             | Ok parsedFnDecl ->
-              let newFn = WrittenTypes.CliScriptTypeOrFn.Function parsedFnDecl
+              let newFn =
+                WrittenTypes.CliScriptTypeOrFnOrConst.Function parsedFnDecl
 
               { result with
-                  typesAndFns = Stdlib.List.pushBack result.typesAndFns newFn }
+                  typesAndFnsAndConsts =
+                    Stdlib.List.pushBack result.typesAndFnsAndConsts newFn }
+
+          | "const_decl" ->
+            match ConstantDeclaration.parse decl with
+            | Error e -> updateUnparseableStuff result e
+
+            | Ok parsedConstDecl ->
+              let newConst =
+                WrittenTypes.CliScriptTypeOrFnOrConst.Constant parsedConstDecl
+
+              { result with
+                  typesAndFnsAndConsts =
+                    Stdlib.List.pushBack result.typesAndFnsAndConsts newConst }
 
           | "expression" ->
             match Expr.parse decl with
@@ -57,7 +72,7 @@ module Darklang =
           let init =
             WrittenTypes.CliScript
               { range = node.range
-                typesAndFns = []
+                typesAndFnsAndConsts = []
                 unparseableStuff = []
                 exprsToEval = [] }
 
