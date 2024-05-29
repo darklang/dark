@@ -224,16 +224,16 @@ module Darklang =
 
       let constant (c: LanguageTools.ProgramTypes.Const) : String =
         match c with
-        | CInt64 i -> Stdlib.Int64.toString i
-        | CUInt64 i -> Stdlib.UInt64.toString i
-        | CInt8 i -> Stdlib.Int8.toString i
-        | CUInt8 i -> Stdlib.UInt8.toString i
-        | CInt16 i -> Stdlib.Int16.toString i
-        | CUInt16 i -> Stdlib.UInt16.toString i
-        | CInt32 i -> Stdlib.Int32.toString i
-        | CUInt32 i -> Stdlib.UInt32.toString i
-        | CInt128 i -> Stdlib.Int128.toString i
-        | CUInt128 i -> Stdlib.UInt128.toString i
+        | CInt64 i -> Stdlib.Int64.toString i ++ "L"
+        | CUInt64 i -> Stdlib.UInt64.toString i ++ "UL"
+        | CInt8 i -> Stdlib.Int8.toString i ++ "y"
+        | CUInt8 i -> Stdlib.UInt8.toString i ++ "uy"
+        | CInt16 i -> Stdlib.Int16.toString i ++ "s"
+        | CUInt16 i -> Stdlib.UInt16.toString i ++ "us"
+        | CInt32 i -> Stdlib.Int32.toString i ++ "l"
+        | CUInt32 i -> Stdlib.UInt32.toString i ++ "ul"
+        | CInt128 i -> Stdlib.Int128.toString i ++ "Q"
+        | CUInt128 i -> Stdlib.UInt128.toString i ++ "Z"
         | CFloat(sign, whole, remainder) ->
           let signPart = PrettyPrinter.sign sign
 
@@ -241,7 +241,7 @@ module Darklang =
 
           $"{signPart}{whole}.{remainderPart}"
         | CBool b -> Stdlib.Bool.toString b
-        | CChar c -> $"'{Stdlib.Char.toString c}'"
+        | CChar c -> $"'{c}'"
         | CString s -> $"\"{s}\""
         | CUnit -> "()"
         | CTuple(first, second, theRest) ->
@@ -280,7 +280,7 @@ module Darklang =
               let (key, value) = pair
               $"{key} = {PrettyPrinter.ProgramTypes.constant value}")
             |> Stdlib.String.join "; "
-            |> fun parts -> " { " ++ parts ++ " }"
+            |> fun parts -> "{ " ++ parts ++ " }"
 
           $"Dict {pairPart}"
 
@@ -870,7 +870,7 @@ module Darklang =
 
         let bodyPart = PrettyPrinter.ProgramTypes.constant p.body
 
-        $"let {namePart} = {bodyPart}"
+        $"const {namePart} = {bodyPart}"
 
 
       module PackageFn =
