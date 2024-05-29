@@ -75,12 +75,12 @@ let fns : List<BuiltInFn> =
           if m = 0L then
             IntRuntimeError.Error.ZeroModulus
             |> IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.caller
+            |> raiseRTE state.tracing.callStack
             |> Ply
           else if m < 0L then
             IntRuntimeError.Error.NegativeModulus
             |> IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.caller
+            |> raiseRTE state.tracing.callStack
             |> Ply
           else
             let result = v % m
@@ -155,7 +155,7 @@ let fns : List<BuiltInFn> =
              if d = 0L then
                IntRuntimeError.Error.DivideByZeroError
                |> IntRuntimeError.RTE.toRuntimeError
-               |> raiseRTE state.tracing.caller
+               |> raiseRTE state.tracing.callStack
                |> Ply
              else
                Exception.raiseInternal
@@ -225,14 +225,14 @@ let fns : List<BuiltInFn> =
             if exp < 0L then
               IntRuntimeError.Error.NegativeExponent
               |> IntRuntimeError.RTE.toRuntimeError
-              |> raiseRTE state.tracing.caller
+              |> raiseRTE state.tracing.callStack
               |> Ply
             else
               (bigint number) ** (int exp) |> int64 |> DInt64 |> Ply
            with :? System.OverflowException ->
              IntRuntimeError.Error.OutOfRange
              |> IntRuntimeError.RTE.toRuntimeError
-             |> raiseRTE state.tracing.caller
+             |> raiseRTE state.tracing.callStack
              |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "^"
@@ -251,7 +251,7 @@ let fns : List<BuiltInFn> =
           if b = 0L then
             IntRuntimeError.Error.DivideByZeroError
             |> IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.caller
+            |> raiseRTE state.tracing.callStack
             |> Ply
           else
             Ply(DInt64(a / b))

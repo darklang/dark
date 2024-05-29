@@ -33,19 +33,20 @@ let currentDarkVersion = 0
 type Uuid = System.Guid
 
 let rec dbToDval
+  (callStack : RT.CallStack)
   (types : RT.Types)
   (db : RT.DB.T)
   (dbValue : string)
   : Ply<RT.Dval> =
-  DvalReprInternalQueryable.parseJsonV0 types db.typ dbValue
+  DvalReprInternalQueryable.parseJsonV0 callStack types db.typ dbValue
 
 let dvalToDB
-  (source : RT.Source)
+  (callStack : RT.CallStack)
   (types : RT.Types)
   (db : RT.DB.T)
   (dv : RT.Dval)
   : Ply<string> =
-  DvalReprInternalQueryable.toJsonStringV0 source types db.typ dv
+  DvalReprInternalQueryable.toJsonStringV0 callStack types db.typ dv
 
 let rec set
   (state : RT.ExecutionState)
@@ -60,7 +61,7 @@ let rec set
     let types = RT.ExecutionState.availableTypes state
     // CLEANUP: the caller should do this type check instead, but we haven't
     // implemented nested types in the DB yet
-    let context = LibExecution.TypeChecker.DBSchemaType(db.name, db.typ, None)
+    let context = LibExecution.TypeChecker.DBSchemaType(db.name, db.typ)
 
     match! LibExecution.TypeChecker.unify context types Map.empty db.typ dv with
     | Error err -> return Error err
@@ -72,7 +73,7 @@ let rec set
         else
           ""
 
-      let! data = dvalToDB state.tracing.caller types db dv
+      let! data = dvalToDB state.tracing.callStack types db dv
 
       do!
         Sql.query
@@ -123,7 +124,8 @@ and getOption
 
     match result with
     | None -> return None
-    | Some dval -> return! dbToDval types db dval |> Ply.map Some
+    | Some dval ->
+      return! dbToDval state.tracing.callStack types db dval |> Ply.map Some
   }
 
 
@@ -152,7 +154,10 @@ and getMany
           "keys", Sql.stringArray (Array.ofList keys) ]
       |> Sql.executeAsync (fun read -> read.string "data")
 
-    return! result |> List.map (dbToDval types db) |> Ply.List.flatten
+    return!
+      result
+      |> List.map (dbToDval state.tracing.callStack types db)
+      |> Ply.List.flatten
   }
 
 
@@ -186,7 +191,8 @@ and getManyWithKeys
 
       result
       |> List.map (fun (key, data) ->
-        dbToDval types db data |> Ply.map (fun dval -> (key, dval)))
+        dbToDval state.tracing.callStack types db data
+        |> Ply.map (fun dval -> (key, dval)))
       |> Ply.List.flatten
   }
 
@@ -214,7 +220,8 @@ let getAll (state : RT.ExecutionState) (db : RT.DB.T) : Ply<List<string * RT.Dva
     return!
       result
       |> List.map (fun (key, data) ->
-        dbToDval types db data |> Ply.map (fun dval -> (key, dval)))
+        dbToDval state.tracing.callStack types db data
+        |> Ply.map (fun dval -> (key, dval)))
       |> Ply.List.flatten
   }
 
@@ -231,15 +238,10 @@ let doQuery
       | { head = RT.LPVariable(_, name); tail = [] } -> name
       | _ -> Exception.raiseInternal "wrong number of args" [ "args", b.parameters ]
 
-    let! compiled =
-      SqlCompiler.compileLambda
-        state
-        b.tlid
-        b.typeSymbolTable
-        b.symtable
-        paramName
-        db.typ
-        b.body
+    let state =
+      { state with symbolTable = b.symtable; typeSymbolTable = b.typeSymbolTable }
+
+    let! compiled = SqlCompiler.compileLambda state paramName db.typ b.body
 
     match compiled with
     | Error err -> return Error err
@@ -284,7 +286,7 @@ let query
         results
         |> List.map (fun (key, data) ->
           uply {
-            let! dval = dbToDval types db data
+            let! dval = dbToDval state.tracing.callStack types db data
             return (key, dval)
           })
         |> Ply.List.flatten
@@ -306,7 +308,10 @@ let queryValues
       let! results = query |> Sql.executeAsync (fun read -> read.string "data")
 
       return!
-        results |> List.map (dbToDval types db) |> Ply.List.flatten |> Ply.map Ok
+        results
+        |> List.map (dbToDval state.tracing.callStack types db)
+        |> Ply.List.flatten
+        |> Ply.map Ok
   }
 
 let queryCount

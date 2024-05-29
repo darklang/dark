@@ -62,8 +62,7 @@ module ParsesAndDecodesOk =
           json
 
       let expected : PMPT.PackageType =
-        { tlid = 112UL
-          id = System.Guid.Parse "f6345e32-f0c6-422a-a9f1-1039a63ce781"
+        { id = System.Guid.Parse "f6345e32-f0c6-422a-a9f1-1039a63ce781"
           name =
             { owner = "Darklang"; modules = [ "Stdlib"; "Result" ]; name = "Result" }
           description = ""

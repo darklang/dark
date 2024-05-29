@@ -34,11 +34,22 @@ let createState
   : Task<RT.ExecutionState> =
   task {
     let extraMetadata (state : RT.ExecutionState) : Metadata =
-      let tlid, id = Option.defaultValue (0UL, 0UL) state.tracing.caller
-      [ "callerTLID", tlid
-        "callerID", id
-        "traceID", traceID
-        "canvasID", program.canvasID ]
+      let callStack = state.tracing.callStack
+
+      let executionPoint ep =
+        match ep with
+        | RT.ExecutionPoint.Script -> "Input script"
+        | RT.ExecutionPoint.Toplevel tlid -> $"Toplevel {tlid}"
+        | RT.ExecutionPoint.Function fnName ->
+          match fnName with
+          | RT.FQFnName.Package name -> $"Package fn {name}"
+          | RT.FQFnName.Builtin name -> $"Builtin fn {name}"
+        | RT.ExecutionPoint.PackageFn fnId -> $"Package fn {fnId}"
+
+      [ ("entrypoint", executionPoint callStack.entrypoint)
+        ("lastCalled", (executionPoint (fst callStack.lastCalled)))
+        ("traceID", traceID)
+        ("canvasID", program.canvasID) ]
 
     let notify (state : RT.ExecutionState) (msg : string) (metadata : Metadata) =
       let metadata = extraMetadata state @ metadata
@@ -80,48 +91,19 @@ let executeHandler
   task {
     let tracing = Tracing.create program.canvasID h.tlid traceID
 
+    // Store the inputs of the trace (i.e. the arguments to the handler)
     match reason with
     | InitialExecution(desc, varname, inputVar) ->
       tracing.storeTraceInput desc varname inputVar
     | ReExecution -> ()
 
     let! state = createState traceID program tracing.executionTracing
+    let state =
+      { state with tracing.callStack.entrypoint = RT.ExecutionPoint.Toplevel h.tlid }
     HashSet.add h.tlid tracing.results.tlids
-    let! result = Exe.executeExpr state h.tlid inputVars h.ast
+    let! result = Exe.executeExpr state inputVars h.ast
 
-    let findPackageBody (tlid : tlid) : Ply<Option<string * RT.Expr>> =
-      packageManager.getFnByTLID tlid
-      |> Ply.map (
-        Option.map (fun (pkg : RT.PackageFn.T) -> string pkg.name, pkg.body)
-      )
-
-    let sourceOf (tlid : tlid) (id : id) : Ply<string> =
-      uply {
-        let! data = findPackageBody tlid
-        let mutable result = "unknown caller", "unknown body", "unknown expr"
-        match data with
-        | None -> ()
-        | Some(fnName, e) ->
-          LibExecution.RuntimeTypesAst.preTraversal
-            (fun expr ->
-              if RT.Expr.toID expr = id then result <- fnName, string e, string expr
-              expr)
-            identity
-            identity
-            identity
-            identity
-            identity
-            identity
-            e
-          |> ignore<RT.Expr>
-        let (fnName, _body, expr) = result
-        return $"fn {fnName}\nexpr:\n{expr}\n"
-      }
-
-    let sourceString (source : RT.Source) : Ply<string> =
-      match source with
-      | None -> Ply "No source"
-      | Some(tlid, id) -> sourceOf tlid id
+    let callStackString = Exe.callStackString state
 
     let error (msg : string) : RT.Dval =
       let typeName =
@@ -141,32 +123,33 @@ let executeHandler
       task {
         match result with
         | Ok result -> return result
-        | Error(originalSource, originalRTE) ->
-          let! originalSource = sourceString originalSource
+        | Error(originalCallStack, originalRTE) ->
+          let! originalCallStack = callStackString originalCallStack
+
           match! Exe.runtimeErrorToString state originalRTE with
           | Ok(RT.DString msg) ->
-            let msg = $"Error: {msg}\n\nSource: {originalSource}"
+            let msg = $"Error: {msg}\n\nSource: {originalCallStack}"
             return error msg
           | Ok result -> return result
-          | Error(firstErrorSource, firstErrorRTE) ->
-            let! firstErrorSource = sourceString firstErrorSource
+          | Error(firstErrorCallStack, firstErrorRTE) ->
+            let! firstErrorCallStack = callStackString firstErrorCallStack
             match! Exe.runtimeErrorToString state firstErrorRTE with
             | Ok(RT.DString msg) ->
               return
                 error (
                   $"An error occured trying to print a runtime error."
-                  + $"\n\nThe formatting error occurred in {firstErrorSource}. The error was:\n{msg}"
-                  + $"\n\nThe original error is ({originalSource}) {originalRTE}"
+                  + $"\n\nThe formatting error occurred in {firstErrorCallStack}. The error was:\n{msg}"
+                  + $"\n\nThe original error is ({originalCallStack}) {originalRTE}"
                 )
             | Ok result -> return result
-            | Error(secondErrorSource, secondErrorRTE) ->
-              let! secondErrorSource = sourceString secondErrorSource
+            | Error(secondErrorCallStack, secondErrorRTE) ->
+              let! secondErrorCallStack = callStackString secondErrorCallStack
               return
                 error (
                   $"Two errors occured trying to print a runtime error."
-                  + $"\n\nThe 2nd formatting error occurred in {secondErrorSource}. The error was:\n{secondErrorRTE}"
-                  + $"\n\nThe first formatting error occurred in {firstErrorSource}. The error was:\n{firstErrorRTE}"
-                  + $"\n\nThe original error is ({originalSource}) {originalRTE}"
+                  + $"\n\nThe 2nd formatting error occurred in {secondErrorCallStack}. The error was:\n{secondErrorRTE}"
+                  + $"\n\nThe first formatting error occurred in {firstErrorCallStack}. The error was:\n{firstErrorRTE}"
+                  + $"\n\nThe original error is ({originalCallStack}) {originalRTE}"
                 )
       }
 
@@ -190,8 +173,6 @@ let executeHandler
 let reexecuteFunction
   (canvasID : CanvasID)
   (program : RT.Program)
-  (callerTLID : tlid)
-  (callerID : id)
   (traceID : AT.TraceID.T)
   (rootTLID : tlid)
   (name : RT.FQFnName.FQFnName)
@@ -199,12 +180,9 @@ let reexecuteFunction
   (args : NEList<RT.Dval>)
   : Task<RT.ExecutionResult * Tracing.TraceResults.T> =
   task {
-    // FIX - the TLID here is the tlid of the toplevel in which the call exists, not
-    // the rootTLID of the trace.
     let tracing = Tracing.create canvasID rootTLID traceID
     let! state = createState traceID program tracing.executionTracing
-    let source = Some(callerTLID, callerID)
-    let! result = Exe.executeFunction state source name typeArgs args
+    let! result = Exe.executeFunction state name typeArgs args
     tracing.storeTraceResults ()
     return result, tracing.results
   }

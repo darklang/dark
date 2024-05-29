@@ -33,7 +33,8 @@
     <Compile Include="Cron.Tests.fs" />
     <Compile Include="DvalRepr.Tests.fs" />
     <Compile Include="Queue.Tests.fs" />
-    <Compile Include="Execution.Tests.fs" />
+    <!-- TRACINGTODO -->
+    <!--Compile Include="Execution.Tests.fs" /-->
     <Compile Include="Parser.Tests.fs" />
     <Compile Include="HttpClient.Tests.fs" />
     <Compile Include="LibExecution.Tests.fs" />

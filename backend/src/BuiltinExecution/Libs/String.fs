@@ -39,14 +39,14 @@ let fns : List<BuiltInFn> =
            |> Seq.toList
            |> Ply.List.mapSequentially (fun te ->
              let args = NEList.singleton (DChar te)
-             Interpreter.applyFnVal state state.tracing.caller b [] args)
+             Interpreter.applyFnVal state b [] args)
            |> Ply.bind (fun dvals ->
              dvals
              |> Ply.List.mapSequentially (function
                | DChar c -> Ply c
                | dv ->
                  TypeChecker.raiseFnValResultNotExpectedType
-                   state.tracing.caller
+                   state.tracing.callStack
                    dv
                    TChar)
              |> Ply.map (fun parts ->

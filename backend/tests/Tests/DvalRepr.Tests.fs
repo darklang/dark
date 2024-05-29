@@ -19,6 +19,8 @@ module DvalReprInternalHash = LibExecution.DvalReprInternalHash
 module S = TestUtils.RTShortcuts
 
 
+let bogusCallStack = RT.CallStack.fromEntryPoint RT.Script
+
 let defaultTypes () = { RT.Types.empty with package = packageManager.getType }
 
 let roundtrippableRoundtripsSuccessfully (dv : RT.Dval) : bool =
@@ -51,7 +53,7 @@ let queryableRoundtripsSuccessfullyInRecord
             if name = typeName then
               let packageType : RT.PackageType.T =
                 { name = typeName
-                  tlid = 8UL
+                  id = System.Guid.NewGuid()
                   declaration = S.customTypeRecord [ "field", fieldTyp ] }
               packageType |> Some |> Ply
             else
@@ -59,8 +61,10 @@ let queryableRoundtripsSuccessfullyInRecord
 
     let! roundtripped =
       record
-      |> DvalReprInternalQueryable.toJsonStringV0 None types typeRef
-      |> Ply.bind (DvalReprInternalQueryable.parseJsonV0 types typeRef)
+      |> DvalReprInternalQueryable.toJsonStringV0 bogusCallStack types typeRef
+      |> Ply.bind (
+        DvalReprInternalQueryable.parseJsonV0 bogusCallStack types typeRef
+      )
 
     return Expect.dvalEquality record roundtripped
   }
@@ -72,9 +76,17 @@ let queryableRoundtripsSuccessfully
   ) : Task<bool> =
   task {
     let! serialized =
-      DvalReprInternalQueryable.toJsonStringV0 None (defaultTypes ()) typ dv
+      DvalReprInternalQueryable.toJsonStringV0
+        bogusCallStack
+        (defaultTypes ())
+        typ
+        dv
     let! roundtripped =
-      DvalReprInternalQueryable.parseJsonV0 (defaultTypes ()) typ serialized
+      DvalReprInternalQueryable.parseJsonV0
+        bogusCallStack
+        (defaultTypes ())
+        typ
+        serialized
     return Expect.dvalEquality dv roundtripped
   }
 

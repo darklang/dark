@@ -61,11 +61,12 @@ module ExecutionError =
 
     case caseName fields
 
-  let raise (source : Source) (e : Error) : 'a = toDT e |> raiseRTE source
+  let raise (callStack : CallStack) (e : Error) : 'a = toDT e |> raiseRTE callStack
 
 
-let rec evalConst (source : Source) (c : Const) : Dval =
-  let r = evalConst source
+let rec evalConst (callStack : CallStack) (c : Const) : Dval =
+  let r = evalConst callStack
+
   match c with
   | CUnit -> DUnit
   | CBool b -> DBool b
@@ -96,7 +97,7 @@ let rec evalConst (source : Source) (c : Const) : Dval =
     DEnum(typeName, typeName, VT.typeArgsTODO, caseName, List.map r fields)
 
   | CEnum(Error msg, _caseName, _fields) ->
-    raiseRTE source (RuntimeError.oldError $"Invalid const name: {msg}")
+    raiseRTE callStack (RuntimeError.oldError $"Invalid const name: {msg}")
 
 
 
@@ -107,12 +108,13 @@ let rec evalConst (source : Source) (c : Const) : Dval =
 /// - whether or not the expr 'matches' the pattern
 /// - new vars (name * value)
 let rec checkPattern
-  (source : Source)
+  (callStack : CallStack)
   (dv : Dval)
   (pattern : LetPattern)
   : List<string * Dval> =
-  let errStr msg : 'a = raiseRTE source (RuntimeError.oldError msg)
-  let chPat = checkPattern source
+
+  let errStr msg : 'a = raiseRTE callStack (RuntimeError.oldError msg)
+  let chPat = checkPattern callStack
 
   match pattern with
 
@@ -139,21 +141,29 @@ let rec checkPattern
 
 /// Interprets an expression and reduces it to a Dark value
 /// (or a task that should result in such)
-let rec eval
-  (state : ExecutionState)
-  (tlid : tlid)
-  (tst : TypeSymbolTable)
-  (st : Symtable)
-  (e : Expr)
-  : DvalTask =
-  let sourceID id = Some(tlid, id)
-  let errStr id msg : 'a = raiseRTE (sourceID id) (RuntimeError.oldError msg)
-  let err id rte : 'a = raiseRTE (sourceID id) rte
-  let raiseExeRTE id (e : ExecutionError.Error) : Ply<'a> =
-    ExecutionError.raise (sourceID id) e
+let rec eval (state : ExecutionState) (e : Expr) : DvalTask =
+  // Some helper fns to make it easier to update the state's callstack
+  // for a given expr, match pattern, etc.
+  let callStackID (id : id) =
+    { state.tracing.callStack with
+        lastCalled = (fst state.tracing.callStack.lastCalled, Some id) }
+  let stateWithUpdatedCallStack id =
+    { state with tracing.callStack = callStackID id }
 
+  // Update the state's callStack with the id of the expr we're evaluating
+  let state = stateWithUpdatedCallStack (Expr.toID e)
+  let callStack = state.tracing.callStack
+
+  // Some helper fns to make it easier to raise RTEs
+  let errStr callStack msg : 'a = raiseRTE callStack (RuntimeError.oldError msg)
+  let err callStack rte : 'a = raiseRTE callStack rte
+  let raiseExeRTE callStack (e : ExecutionError.Error) : Ply<'a> =
+    ExecutionError.raise callStack e
+
+  // TODO: now that tst and symbolTable and such are included in the state,
+  // maybe some of these fns can move outside of `eval`?
   let typeResolutionError
-    (source : Source)
+    (callStack : CallStack)
     (errorType : NameResolutionError.ErrorType)
     (typeName : FQTypeName.FQTypeName)
     : Ply<'a> =
@@ -161,10 +171,10 @@ let rec eval
       { errorType = errorType
         nameType = NameResolutionError.Type
         names = [ FQTypeName.toString typeName ] }
-    error |> NameResolutionError.RTE.toRuntimeError |> raiseRTE source
+    error |> NameResolutionError.RTE.toRuntimeError |> raiseRTE callStack
 
   let recordMaybe
-    (source : Source)
+    (callStack : CallStack)
     (types : Types)
     (typeName : FQTypeName.FQTypeName)
     // TypeName, typeParam list, fully-resolved (except for typeParam) field list
@@ -209,7 +219,7 @@ let rec eval
                (k, Types.substitute innerTypeParams outerTypeArgs v)))
 
         | Some({ definition = TypeDeclaration.Alias(TCustomType(Error e, _)) }) ->
-          return raiseRTE source e
+          return raiseRTE callStack e
 
         | Some({ typeParams = typeParams
                  definition = TypeDeclaration.Record fields }) ->
@@ -222,17 +232,17 @@ let rec eval
         | Some({ definition = TypeDeclaration.Enum _ }) ->
           return!
             typeResolutionError
-              source
+              callStack
               NameResolutionError.ExpectedRecordButNot
               typeName
 
         | None ->
-          return! typeResolutionError source NameResolutionError.NotFound typeName
+          return! typeResolutionError callStack NameResolutionError.NotFound typeName
       }
     inner typeName
 
   let enumMaybe
-    (source : Source)
+    (callStack : CallStack)
     (types : Types)
     (typeName : FQTypeName.FQTypeName)
     : Ply<FQTypeName.FQTypeName * List<string> * NEList<TypeDeclaration.EnumCase>> =
@@ -255,7 +265,7 @@ let rec eval
                        c.fields }))
 
         | Some({ definition = TypeDeclaration.Alias(TCustomType(Error e, _)) }) ->
-          return raiseRTE source e
+          return raiseRTE callStack e
 
         | Some({ typeParams = typeParams; definition = TypeDeclaration.Enum cases }) ->
           return (typeName, typeParams, cases)
@@ -264,11 +274,11 @@ let rec eval
         | Some({ definition = TypeDeclaration.Record _ }) ->
           return!
             typeResolutionError
-              source
+              callStack
               NameResolutionError.ExpectedEnumButNot
               typeName
         | None ->
-          return! typeResolutionError source NameResolutionError.NotFound typeName
+          return! typeResolutionError callStack NameResolutionError.NotFound typeName
       }
     inner typeName
 
@@ -297,7 +307,7 @@ let rec eval
     | EString(_, [ StringText s ]) ->
       // We expect strings to be normalized during parsing
       return DString(s)
-    | EString(id, segments) ->
+    | EString(_, segments) ->
       let! segments =
         segments
         |> Ply.List.mapSequentially (fun seg ->
@@ -305,64 +315,64 @@ let rec eval
             match seg with
             | StringText text -> return text
             | StringInterpolation expr ->
-              match! eval state tlid tst st expr with
+              match! eval state expr with
               | DString s -> return s
               | dv ->
                 // TODO: maybe better with a type error here
                 return!
-                  raiseExeRTE id (ExecutionError.NonStringInStringInterpolation dv)
+                  raiseExeRTE
+                    callStack
+                    (ExecutionError.NonStringInStringInterpolation dv)
           })
       return segments |> String.concat "" |> String.normalize |> DString
 
 
-    | EConstant(id, name) ->
-      let source = sourceID id
-
+    | EConstant(_, name) ->
       match name with
       | FQConstantName.Builtin c ->
         match Map.find c state.builtins.constants with
         | None ->
-          return! ExecutionError.raise source (ExecutionError.ConstDoesntExist name)
+          return!
+            ExecutionError.raise callStack (ExecutionError.ConstDoesntExist name)
         | Some constant -> return constant.body
 
       | FQConstantName.Package c ->
         match! state.packageManager.getConstant c with
         | None ->
-          return! ExecutionError.raise source (ExecutionError.ConstDoesntExist name)
-        | Some constant -> return evalConst source constant.body
+          return!
+            ExecutionError.raise callStack (ExecutionError.ConstDoesntExist name)
+        | Some constant -> return evalConst callStack constant.body
 
 
-    | ELet(id, pattern, rhs, body) ->
-      let source = sourceID id
-      let! rhs = eval state tlid tst st rhs
-      let newDefs = checkPattern source rhs pattern
-      let newSymtable = Map.mergeFavoringRight st (Map.ofList newDefs)
+    | ELet(_, pattern, rhs, body) ->
+      let! rhs = eval state rhs
+      let newDefs = checkPattern callStack rhs pattern
+      let newSymtable = Map.mergeFavoringRight state.symbolTable (Map.ofList newDefs)
 
-      return! eval state tlid tst newSymtable body
+      return! eval { state with symbolTable = newSymtable } body
 
-    | EList(_id, exprs) ->
-      let! results = Ply.List.mapSequentially (eval state tlid tst st) exprs
-      return TypeChecker.DvalCreator.list VT.unknown results
+    | EList(_, exprs) ->
+      let! results = Ply.List.mapSequentially (eval state) exprs
+      return TypeChecker.DvalCreator.list callStack VT.unknown results
 
-    | ETuple(_id, first, second, theRest) ->
-      let! firstResult = eval state tlid tst st first
-      let! secondResult = eval state tlid tst st second
-      let! otherResults = Ply.List.mapSequentially (eval state tlid tst st) theRest
+    | ETuple(_, first, second, theRest) ->
+      let! firstResult = eval state first
+      let! secondResult = eval state second
+      let! otherResults = Ply.List.mapSequentially (eval state) theRest
       return DTuple(firstResult, secondResult, otherResults)
 
-    | EVariable(id, name) ->
-      match Map.find name st with
-      | None -> return errStr id $"There is no variable named: {name}"
+    | EVariable(_, name) ->
+      match Map.find name state.symbolTable with
+      | None -> return errStr callStack $"There is no variable named: {name}"
       | Some other -> return other
 
 
-    | ERecord(id, typeName, fields) ->
+    | ERecord(_, typeName, fields) ->
       let typeStr = FQTypeName.toString typeName
       let types = ExecutionState.availableTypes state
-      let source = sourceID id
 
       let! (aliasTypeName, _typeParams, expectedFields) =
-        recordMaybe source types typeName
+        recordMaybe callStack types typeName
       let expectedFields = Map expectedFields
 
       let! fields =
@@ -372,18 +382,18 @@ let rec eval
           (fun fields (k, expr) ->
             uply {
               match Map.find k expectedFields with
-              | None -> return errStr id $"Unexpected field `{k}` in {typeStr}"
+              | None ->
+                return errStr callStack $"Unexpected field `{k}` in {typeStr}"
               | Some fieldType ->
-                let! v = eval state tlid tst st expr
+                let! v = eval state expr
                 if Map.containsKey k fields then
-                  return errStr id $"Duplicate field `{k}` in {typeStr}"
+                  return errStr callStack $"Duplicate field `{k}` in {typeStr}"
                 else
-                  let context =
-                    TypeChecker.RecordField(typeName, k, fieldType, None)
+                  let context = TypeChecker.RecordField(typeName, k, fieldType)
                   let check = TypeChecker.unify context types Map.empty fieldType v
                   match! check with
                   | Ok() -> return Map.add k v fields
-                  | Error e -> return err id e
+                  | Error e -> return err callStack e
             })
           Map.empty
 
@@ -392,20 +402,19 @@ let rec eval
       else
         let expectedKeys = Map.keys expectedFields
         let key = Seq.find (fun k -> not (Map.containsKey k fields)) expectedKeys
-        return errStr id $"Missing field `{key}` in {typeStr}"
+        return errStr callStack $"Missing field `{key}` in {typeStr}"
 
-    | ERecordUpdate(id, baseRecord, updates) ->
-      let source = sourceID id
+    | ERecordUpdate(_, baseRecord, updates) ->
       // CLEANUP refactor this impl
       // namely, focus more on the `fields` and don't pass around DRecord so much
 
-      let! baseRecord = eval state tlid tst st baseRecord
+      let! baseRecord = eval state baseRecord
       match baseRecord with
       | DRecord(typeName, _, typ, _) ->
         let typeStr = FQTypeName.toString typeName
         let types = ExecutionState.availableTypes state
 
-        let! (_, _, expected) = recordMaybe source types typeName
+        let! (_, _, expected) = recordMaybe callStack types typeName
         let expectedFields = Map expected
         return!
           updates
@@ -413,59 +422,60 @@ let rec eval
           |> Ply.List.foldSequentially
             (fun r (k, expr) ->
               uply {
-                let! v = eval state tlid tst st expr
+                let! v = eval state expr
 
                 match r, k, v with
-                | _, "", _ -> return errStr id $"Empty key for value `{v}`"
+                | _, "", _ -> return errStr callStack $"Empty key for value `{v}`"
                 | _, _, _ when not (Map.containsKey k expectedFields) ->
-                  return errStr id $"Unexpected field `{k}` in {typeStr}"
+                  return errStr callStack $"Unexpected field `{k}` in {typeStr}"
 
                 | DRecord(typeName, original, _, m), k, v ->
                   let fieldType = Map.findUnsafe k expectedFields
 
-                  let context =
-                    TypeChecker.RecordField(typeName, k, fieldType, None)
+                  let context = TypeChecker.RecordField(typeName, k, fieldType)
 
                   match! TypeChecker.unify context types Map.empty fieldType v with
                   | Ok() -> return DRecord(typeName, original, typ, Map.add k v m)
-                  | Error rte -> return raiseRTE source rte
+                  | Error rte -> return raiseRTE callStack rte
 
                 | _ ->
                   return
-                    errStr id $"Expected a record but {typeStr} is something else"
+                    errStr
+                      callStack
+                      $"Expected a record but {typeStr} is something else"
               })
             baseRecord
-      | _ -> return errStr id "Expected a record in record update"
+      | _ -> return errStr callStack "Expected a record in record update"
 
     | EDict(_, fields) ->
       let! fields =
         fields
         |> Ply.List.mapSequentially (fun (k, v) ->
           uply {
-            let! v = eval state tlid tst st v
+            let! v = eval state v
             return (k, v)
           })
       return TypeChecker.DvalCreator.dict ValueType.Unknown fields
 
-    | EFnName(_id, name) -> return DFnVal(NamedFn name)
+    | EFnName(_, name) -> return DFnVal(NamedFn name)
 
-    | EApply(id, fnTarget, typeArgs, exprs) ->
-      match! eval state tlid tst st fnTarget with
+    | EApply(_, fnTarget, typeArgs, exprs) ->
+      match! eval state fnTarget with
       | DFnVal fnVal ->
-        let! args = Ply.NEList.mapSequentially (eval state tlid tst st) exprs
-        return! applyFnVal state (sourceID id) fnVal typeArgs args
+        let! args = Ply.NEList.mapSequentially (eval state) exprs
+        return! applyFnVal state fnVal typeArgs args
       | other ->
         return
           errStr
-            id
+            callStack
             $"Expected a function value, got something else: {DvalReprDeveloper.toRepr other}"
 
 
-    | EFieldAccess(id, e, fieldName) ->
-      let! obj = eval state tlid tst st e
+    | EFieldAccess(_, e, fieldName) ->
+      let! obj = eval state e
 
       if fieldName = "" then
-        return errStr id "Field name is empty"
+        return errStr callStack "Field name is empty"
       else
         match obj with
         | DRecord(_, typeName, _, fields) ->
@@ -473,35 +483,34 @@ let rec eval
           | Some v -> return v
           | None ->
             let typeStr = FQTypeName.toString typeName
-            return errStr id $"No field named {fieldName} in {typeStr} record"
+            return errStr callStack $"No field named {fieldName} in {typeStr} record"
         | DDB _ ->
           let msg =
             $"Attempting to access field '{fieldName}' of a Datastore "
             + "(use `DB.*` standard library functions to interact with Datastores. "
             + "Field access only work with records)"
-          return errStr id msg
+          return errStr callStack msg
         | _ ->
           let msg =
             $"Attempting to access field '{fieldName}' of a "
             + $"{DvalReprDeveloper.toTypeName obj} (field access only works with records)"
-          return errStr id msg
+          return errStr callStack msg
 
 
-    | ELambda(_id, parameters, body) ->
+    | ELambda(_, parameters, body) ->
       // It is the responsibility of wherever executes the DBlock to pass in
       // args and execute the body.
       return
         DFnVal(
           Lambda
-            { typeSymbolTable = tst
-              tlid = tlid
-              symtable = st
+            { typeSymbolTable = state.typeSymbolTable
+              symtable = state.symbolTable
               parameters = parameters
               body = body }
         )
 
 
-    | EMatch(id, matchExpr, cases) ->
+    | EMatch(_, matchExpr, cases) ->
       /// Does the dval 'match' the given pattern?
       ///
       /// Returns:
@@ -512,134 +521,94 @@ let rec eval
         (pattern : MatchPattern)
         : Ply<bool * List<string * Dval>> =
         uply {
+          // CLEANUP things down the line assume that the `id` in the callStack is an _Expression_ ID.
+          // It might be nice to also allow for MP IDs. This would require a change in the callStack here.
+          // let state = stateWithUpdatedCallStack (MatchPattern.toID pattern)
+          // let callStack = state.tracing.callStack
+
+          let errWrongType expected =
+            raiseExeRTE
+              callStack
+              (ExecutionError.MatchExprPatternWrongType(expected, dv))
+
+          // CLEANUP be nitpicky and reorder these
           match pattern with
-          | MPInt64(id, pi) ->
+          | MPInt64(_, pi) ->
             match dv with
             | DInt64 di -> return (di = pi), []
-            | _ ->
-              return!
-                raiseExeRTE
-                  id
-                  (ExecutionError.MatchExprPatternWrongType("Int64", dv))
+            | _ -> return! errWrongType "Int64"
 
-          | MPUInt64(id, pi) ->
+          | MPUInt64(_, pi) ->
             match dv with
             | DUInt64 di -> return (di = pi), []
-            | _ ->
-              return!
-                raiseExeRTE
-                  id
-                  (ExecutionError.MatchExprPatternWrongType("UInt64", dv))
+            | _ -> return! errWrongType "UInt64"
 
-          | MPInt8(id, pi) ->
+          | MPInt8(_, pi) ->
             match dv with
             | DInt8 di -> return (di = pi), []
-            | _ ->
-              return!
-                raiseExeRTE id (ExecutionError.MatchExprPatternWrongType("Int8", dv))
+            | _ -> return! errWrongType "Int8"
 
-          | MPUInt8(id, pi) ->
+          | MPUInt8(_, pi) ->
             match dv with
             | DUInt8 di -> return (di = pi), []
-            | _ ->
-              return!
-                raiseExeRTE
-                  id
-                  (ExecutionError.MatchExprPatternWrongType("UInt8", dv))
+            | _ -> return! errWrongType "UInt8"
 
-          | MPInt16(id, pi) ->
+          | MPInt16(_, pi) ->
             match dv with
             | DInt16 di -> return (di = pi), []
-            | _ ->
-              return!
-                raiseExeRTE
-                  id
-                  (ExecutionError.MatchExprPatternWrongType("Int16", dv))
+            | _ -> return! errWrongType "Int16"
 
-          | MPUInt16(id, pi) ->
+          | MPUInt16(_, pi) ->
             match dv with
             | DUInt16 di -> return (di = pi), []
-            | _ ->
-              return!
-                raiseExeRTE
-                  id
-                  (ExecutionError.MatchExprPatternWrongType("UInt16", dv))
+            | _ -> return! errWrongType "UInt16"
 
-          | MPInt32(id, pi) ->
+          | MPInt32(_, pi) ->
             match dv with
             | DInt32 di -> return (di = pi), []
-            | _ ->
-              return!
-                raiseExeRTE
-                  id
-                  (ExecutionError.MatchExprPatternWrongType("Int32", dv))
+            | _ -> return! errWrongType "Int32"
 
-          | MPUInt32(id, pi) ->
+          | MPUInt32(_, pi) ->
             match dv with
             | DUInt32 di -> return (di = pi), []
-            | _ ->
-              return!
-                raiseExeRTE
-                  id
-                  (ExecutionError.MatchExprPatternWrongType("UInt32", dv))
+            | _ -> return! errWrongType "UInt32"
 
-          | MPInt128(id, pi) ->
+          | MPInt128(_, pi) ->
             match dv with
             | DInt128 di -> return (di = pi), []
-            | _ ->
-              return!
-                raiseExeRTE
-                  id
-                  (ExecutionError.MatchExprPatternWrongType("Int128", dv))
+            | _ -> return! errWrongType "Int128"
 
-          | MPUInt128(id, pi) ->
+          | MPUInt128(_, pi) ->
             match dv with
             | DUInt128 di -> return (di = pi), []
-            | _ ->
-              return!
-                raiseExeRTE
-                  id
-                  (ExecutionError.MatchExprPatternWrongType("UInt128", dv))
+            | _ -> return! errWrongType "UInt128"
 
-          | MPBool(id, pb) ->
+          | MPBool(_, pb) ->
             match dv with
             | DBool db -> return (db = pb), []
-            | _ ->
-              return!
-                raiseExeRTE id (ExecutionError.MatchExprPatternWrongType("Bool", dv))
-          | MPChar(id, pc) ->
+            | _ -> return! errWrongType "Bool"
+
+          | MPChar(_, pc) ->
             match dv with
             | DChar dc -> return (dc = pc), []
-            | _ ->
-              return!
-                raiseExeRTE id (ExecutionError.MatchExprPatternWrongType("Char", dv))
-          | MPString(id, ps) ->
+            | _ -> return! errWrongType "Char"
+          | MPString(_, ps) ->
             match dv with
             | DString ds -> return (ds = ps), []
-            | _ ->
-              return!
-                raiseExeRTE
-                  id
-                  (ExecutionError.MatchExprPatternWrongType("String", dv))
-          | MPFloat(id, pf) ->
+            | _ -> return! errWrongType "String"
+          | MPFloat(_, pf) ->
             match dv with
             | DFloat df -> return (df = pf), []
-            | _ ->
-              return!
-                raiseExeRTE
-                  id
-                  (ExecutionError.MatchExprPatternWrongType("Float", dv))
-          | MPUnit(id) ->
+            | _ -> return! errWrongType "Float"
+          | MPUnit(_) ->
             match dv with
             | DUnit -> return true, []
-            | _ ->
-              return!
-                raiseExeRTE id (ExecutionError.MatchExprPatternWrongType("Unit", dv))
+            | _ -> return! errWrongType "Unit"
 
-          | MPVariable(_id, varName) -> return true, [ (varName, dv) ]
+          | MPVariable(_, varName) -> return true, [ (varName, dv) ]
 
 
-          | MPEnum(id, caseName, fieldPats) ->
+          | MPEnum(_, caseName, fieldPats) ->
             match dv with
             | DEnum(_dTypeName, _oTypeName, _typeArgsDEnumTODO, dCaseName, dFields) ->
               if caseName <> dCaseName then
@@ -654,7 +623,7 @@ let rec eval
                   if dvFieldLength <> patFieldLength then
                     return!
                       raiseExeRTE
-                        id
+                        callStack
                         (ExecutionError.MatchExprEnumPatternWrongCount(
                           dCaseName,
                           patFieldLength,
@@ -671,14 +640,10 @@ let rec eval
                     let allVars = newVarResults |> List.collect identity
                     return allPass, allVars
 
-            | _dv ->
-              return!
-                raiseExeRTE
-                  id
-                  (ExecutionError.MatchExprPatternWrongType(caseName, dv))
+            | _dv -> return! errWrongType caseName
 
 
-          | MPTuple(id, firstPat, secondPat, theRestPat) ->
+          | MPTuple(_, firstPat, secondPat, theRestPat) ->
             let allPatterns = firstPat :: secondPat :: theRestPat
 
             match dv with
@@ -697,29 +662,26 @@ let rec eval
               else
                 return false, []
             | _ ->
-              return!
-                raiseExeRTE
-                  id
-                  (ExecutionError.MatchExprPatternWrongType("Tuple", dv))
+              // TODO: specify length?
+              return! errWrongType "Tuple"
 
 
-          | MPListCons(id, headPat, tailPat) ->
+          | MPListCons(_, headPat, tailPat) ->
             match dv with
             | DList(_, []) -> return false, []
             | DList(vt, headVal :: tailVals) ->
               let! (headPass, headVars) = checkPattern headVal headPat
               let! (tailPass, tailVars) =
-                checkPattern (TypeChecker.DvalCreator.list vt tailVals) tailPat
+                checkPattern
+                  (TypeChecker.DvalCreator.list callStack vt tailVals)
+                  tailPat
 
               let allSubVars = headVars @ tailVars
               let pass = headPass && tailPass
               return pass, allSubVars
+            | _ -> return! errWrongType "List"
 
-            | _ ->
-              return!
-                raiseExeRTE id (ExecutionError.MatchExprPatternWrongType("List", dv))
-
-          | MPList(id, pats) ->
+          | MPList(_, pats) ->
             match dv with
             | DList(_, vals) ->
               if List.length vals = List.length pats then
@@ -733,14 +695,12 @@ let rec eval
                 return allPass, allVars
               else
                 return false, []
-            | _ ->
-              return!
-                raiseExeRTE id (ExecutionError.MatchExprPatternWrongType("List", dv))
+            | _ -> return! errWrongType "List"
         }
 
 
       // The value we're matching against
-      let! matchVal = eval state tlid tst st matchExpr
+      let! matchVal = eval state matchExpr
 
       let mutable matchResult = None
 
@@ -749,70 +709,73 @@ let rec eval
           ()
         else
           let! passesPattern, newDefs = checkPattern matchVal case.pat
-          let newSymtable = Map.mergeFavoringRight st (Map.ofList newDefs)
+          let newSymtable =
+            Map.mergeFavoringRight state.symbolTable (Map.ofList newDefs)
+          let state = { state with symbolTable = newSymtable }
           let! passesWhenCondition =
             uply {
               match case.whenCondition with
               | Some whenCondition when passesPattern ->
-                match! eval state tlid tst newSymtable whenCondition with
+                match! eval state whenCondition with
                 | DBool b -> return b
-                | _ -> return errStr id "When condition should be a boolean"
+                | _ -> return errStr callStack "When condition should be a boolean"
               | _ -> return true
             }
           if passesPattern && passesWhenCondition then
-            let! r = eval state tlid tst newSymtable case.rhs
+            let! r = eval state case.rhs
             matchResult <- Some r
 
       match matchResult with
       | Some r -> return r
-      | None -> return! raiseExeRTE id (ExecutionError.MatchExprUnmatched matchVal)
+      | None ->
+        return! raiseExeRTE callStack (ExecutionError.MatchExprUnmatched matchVal)
 
 
-    | EIf(id, cond, thenBody, elseBody) ->
-      match! eval state tlid tst st cond with
+    | EIf(_, cond, thenBody, elseBody) ->
+      match! eval state cond with
       | DBool false ->
         match elseBody with
         | None -> return DUnit
-        | Some eb -> return! eval state tlid tst st eb
-      | DBool true -> return! eval state tlid tst st thenBody
-      | _ -> return errStr id "If only supports Booleans"
+        | Some eb -> return! eval state eb
+      | DBool true -> return! eval state thenBody
+      | _ -> return errStr callStack "If only supports Booleans"
 
 
-    | EOr(id, left, right) ->
-      match! eval state tlid tst st left with
+    | EOr(_, left, right) ->
+      match! eval state left with
       | DBool true -> return DBool true
       | DBool false ->
-        match! eval state tlid tst st right with
+        match! eval state right with
         | DBool _ as b -> return b
-        | _ -> return errStr id "|| only supports Booleans"
-      | _ -> return errStr id "|| only supports Booleans"
+        | _ -> return errStr callStack "|| only supports Booleans"
+      | _ -> return errStr callStack "|| only supports Booleans"
 
 
-    | EAnd(id, left, right) ->
-      match! eval state tlid tst st left with
+    | EAnd(_, left, right) ->
+      match! eval state left with
       | DBool false -> return DBool false
       | DBool true ->
-        match! eval state tlid tst st right with
+        match! eval state right with
         | DBool _ as b -> return b
-        | _ -> return errStr id "&& only supports Booleans"
-      | _ -> return errStr id "&& only supports Booleans"
+        | _ -> return errStr callStack "&& only supports Booleans"
+      | _ -> return errStr callStack "&& only supports Booleans"
 
 
-    | EEnum(id, sourceTypeName, caseName, fields) ->
-      let source = sourceID id
+    | EEnum(_, sourceTypeName, caseName, fields) ->
       let typeStr = FQTypeName.toString sourceTypeName
       let types = ExecutionState.availableTypes state
 
-      let! (resolvedTypeName, _, cases) = enumMaybe source types sourceTypeName
+      let! (resolvedTypeName, _, cases) = enumMaybe callStack types sourceTypeName
       let case = cases |> NEList.find (fun c -> c.name = caseName)
 
       match case with
-      | None -> return errStr id $"There is no case named `{caseName}` in {typeStr}"
+      | None ->
+        return errStr callStack $"There is no case named `{caseName}` in {typeStr}"
       | Some case ->
         if case.fields.Length <> fields.Length then
           let msg =
             $"Case `{caseName}` expected {case.fields.Length} fields but got {fields.Length}"
-          return errStr id msg
+          return errStr callStack msg
         else
           let! (fields : List<Dval>) =
             Ply.List.foldSequentiallyWithIndex
@@ -821,7 +784,7 @@ let rec eval
                    fieldsSoFar
                    ((enumFieldType : TypeReference), fieldExpr) ->
                 uply {
-                  let! v = eval state tlid tst st fieldExpr
+                  let! v = eval state fieldExpr
 
                   let context =
                     TypeChecker.EnumField(
@@ -829,8 +792,7 @@ let rec eval
                       case.name,
                       fieldIndex,
                       List.length fields,
-                      enumFieldType,
-                      None
+                      enumFieldType
                     )
 
                   // VTTODO: we should be passing in a proper tst, not Map.empty - right?
@@ -838,7 +800,7 @@ let rec eval
                     TypeChecker.unify context types Map.empty enumFieldType v
                   with
                   | Ok() -> return (List.append fieldsSoFar [ v ])
-                  | Error rte -> return raiseRTE source rte
+                  | Error rte -> return raiseRTE callStack rte
                 })
               []
               (List.zip case.fields fields)
@@ -850,26 +812,21 @@ let rec eval
               caseName
               fields
 
-    | EError(id, rte, exprs) ->
-      let! (_ : List<Dval>) = Ply.List.mapSequentially (eval state tlid tst st) exprs
-      return raiseRTE (sourceID id) rte
+    | EError(_, rte, exprs) ->
+      let! (_ : List<Dval>) = Ply.List.mapSequentially (eval state) exprs
+      return raiseRTE callStack rte
   }
 
 
 and applyFnVal
   (state : ExecutionState)
-  (source : Source)
   (fnVal : FnValImpl)
   (typeArgs : List<TypeReference>)
   (args : NEList<Dval>)
   : DvalTask =
   match fnVal with
   | Lambda l -> executeLambda state l args
-  | NamedFn fn ->
-    // I think we'll end up having to pass the
-    // `tst` in scope here at some point?
-    let tst = Map.empty
-    callFn state tst source fn typeArgs args
+  | NamedFn fn -> callFn state fn typeArgs args
 
 and executeLambda
   (state : ExecutionState)
@@ -885,34 +842,36 @@ and executeLambda
   let actualLength = NEList.length args
   if expectedLength <> actualLength then
     raiseRTE
-      state.tracing.caller
+      state.tracing.callStack
       (RuntimeError.oldError
         $"Expected {expectedLength} arguments, got {actualLength}")
 
   else
-    let checkPattern' = checkPattern state.tracing.caller
+    let checkPattern' = checkPattern state.tracing.callStack
+
     let paramSyms =
       NEList.map2 checkPattern' args l.parameters
       |> NEList.toList
       |> List.flatten
       |> Map
-    let newSymtable = Map.mergeFavoringRight l.symtable paramSyms
 
-    eval state l.tlid l.typeSymbolTable newSymtable l.body
+    let state =
+      { state with symbolTable = Map.mergeFavoringRight l.symtable paramSyms }
+
+    eval state l.body
 
 and callFn
   (state : ExecutionState)
-  (tst : TypeSymbolTable)
-  (caller : Source)
-  (desc : FQFnName.FQFnName)
+  (fnToCall : FQFnName.FQFnName)
   (typeArgs : List<TypeReference>)
   (args : NEList<Dval>)
   : DvalTask =
   uply {
     let! fn =
-      match desc with
+      match fnToCall with
       | FQFnName.Builtin std ->
         Map.find std state.builtins.fns |> Option.map builtInFnToFn |> Ply
+
       | FQFnName.Package pkg ->
         uply {
           let! fn = state.packageManager.getFn pkg
@@ -929,38 +888,48 @@ and callFn
 
       if expectedTypeParams <> actualTypeArgs || expectedArgs <> actualArgs then
         let msg =
-          $"{FQFnName.toString desc} has {expectedTypeParams} type parameters and {expectedArgs} parameters, "
+          $"{FQFnName.toString fnToCall} has {expectedTypeParams} type parameters and {expectedArgs} parameters, "
           + $"but here was called with {actualTypeArgs} type arguments and {actualArgs} arguments."
-        raiseRTE caller (RuntimeError.oldError msg)
+        raiseRTE state.tracing.callStack (RuntimeError.oldError msg)
+
+      let state =
+        let boundArgs =
+          NEList.map2 (fun (p : Param) actual -> (p.name, actual)) fn.parameters args
+          |> NEList.toList
+          |> Map
+        { state with
+            symbolTable = Map.mergeFavoringRight state.symbolTable boundArgs }
 
       let state =
         let newlyBoundTypeArgs = List.zip fn.typeParams typeArgs |> Map
         { state with
-            typeSymbolTable = Map.mergeFavoringRight tst newlyBoundTypeArgs }
-      return! execFn state desc caller fn typeArgs args
+            typeSymbolTable =
+              Map.mergeFavoringRight state.typeSymbolTable newlyBoundTypeArgs }
+
+      return! execFn state fnToCall fn typeArgs args
+
     | None ->
-      // Functions which aren't implemented in the client may have results
-      // available, otherwise they error.
-      let fnResult = state.tracing.loadFnResult (caller, desc) args
+      // Functions which aren't available in the runtime (for whatever reason)
+      // may have results available in traces. (use case: inspecting a cloud-run trace locally)
+      let fnResult =
+        state.tracing.loadFnResult
+          (state.tracing.callStack.lastCalled, fnToCall)
+          args
 
-
-      // TODO: in an old version, we executed the lambda with a fake value to
-      // give enough livevalues for the editor to autocomplete. It may be worth
-      // doing this again
       match fnResult with
       | Some(result, _ts) -> return result
       | None ->
         return
           raiseRTE
-            caller
-            (RuntimeError.oldError $"Function {FQFnName.toString desc} is not found")
+            state.tracing.callStack
+            (RuntimeError.oldError
+              $"Function {FQFnName.toString fnToCall} is not found")
   }
 
 
 and execFn
   (state : ExecutionState)
   (fnDesc : FQFnName.FQFnName)
-  (caller : Source)
   (fn : Fn)
   (typeArgs : List<TypeReference>)
   (args : NEList<Dval>)
@@ -973,22 +942,30 @@ and execFn
       Map.mergeFavoringRight state.typeSymbolTable typeArgsResolvedInFn
 
     match! TypeChecker.checkFunctionCall types typeSymbolTable fn args with
-    | Error rte -> return raiseRTE caller rte
+    | Error rte -> return raiseRTE state.tracing.callStack rte
     | Ok() ->
       let! result =
         match fn.fn with
         | BuiltInFunction f ->
+          let executionPoint = ExecutionPoint.Function fn.name
+
+          state.tracing.traceExecutionPoint executionPoint
+
+          let state =
+            { state with tracing.callStack.lastCalled = (executionPoint, None) }
+
           uply {
             let! result =
               uply {
                 try
-                  let state = { state with tracing.caller = caller }
                   return! f (state, typeArgs, NEList.toList args)
                 with e ->
                   match e with
                   | RuntimeErrorException(None, rte) ->
-                    // Add the caller ID to the error if there isn't one already
-                    return raiseRTE caller rte
+                    // Sometimes it's awkward, in a Builtin fn impl, to pass around the callStack
+                    // So we catch the exception here and add the callStack to it so it's handy in error-reporting
+                    return raiseRTE state.tracing.callStack rte
+
                   | RuntimeErrorException _ -> return Exception.reraise e
 
                   | e ->
@@ -999,27 +976,36 @@ and execFn
                     // information, so best not to show it to the user. If we'd
                     // like to show it to the user, we should catch it where it happens
                     // and give them a known safe error via a RuntimeError
-                    return raiseRTE caller (RuntimeError.oldError "Unknown error")
+                    return
+                      raiseRTE
+                        state.tracing.callStack
+                        (RuntimeError.oldError "Unknown error")
               }
 
-            // there's no point storing data we'll never ask for
             if fn.previewable <> Pure then
-              state.tracing.storeFnResult (caller, fnDesc) args result
+              // TODO same thing here -- shouldn't require ourselves to pass in lastCalled - `tracing` should just get access to it underneath
+              state.tracing.storeFnResult
+                (state.tracing.callStack.lastCalled, fnDesc)
+                args
+                result
 
             return result
           }
 
-        | PackageFunction(tlid, body) ->
-          state.tracing.traceTLID tlid
-          let state = { state with tracing.caller = caller }
-          let symTable =
-            fn.parameters // Lengths are checked in checkFunctionCall
-            |> NEList.map2 (fun dv p -> (p.name, dv)) args
-            |> Map.ofNEList
-            |> withGlobals state
-          eval state tlid typeSymbolTable symTable body
+        | PackageFunction(id, body) ->
+          // maybe this should instead be something like `state.tracing.tracePackageFnCall tlid`?
+          // and the `caller` would be updated by that function? (maybe `caller` is a read-only thing.)
+          let executionPoint = ExecutionPoint.PackageFn id
+
+          state.tracing.traceExecutionPoint executionPoint
+
+          let state =
+            { state with
+                tracing.callStack.lastCalled = (executionPoint, Some(Expr.toID body)) }
+
+          eval state body
 
       match! TypeChecker.checkFunctionReturnType types typeSymbolTable fn result with
-      | Error rte -> return raiseRTE caller rte
+      | Error rte -> return raiseRTE state.tracing.callStack rte
       | Ok() -> return result
   }

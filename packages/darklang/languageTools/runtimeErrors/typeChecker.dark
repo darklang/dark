@@ -23,45 +23,31 @@ module Darklang =
 
       // CLEANUP consider renaming this module to RuntimeTypeChecker
       module TypeChecker =
-        type Location = Option<TLID * ID>
-
         type Context =
           | FunctionCallParameter of
             fnName: RTFnName *
             parameter: RTParam *
-            paramIndex: Int64 *
-            location: Location
+            paramIndex: Int64
 
-          | FunctionCallResult of
-            fnName: RTFnName *
-            returnType: RTTypeReference *
-            location: Location
+          | FunctionCallResult of fnName: RTFnName * returnType: RTTypeReference
 
           | RecordField of
             recordTypeName: RTTypeName *
             fieldName: String *
-            fieldType: RTTypeReference *
-            location: Location
+            fieldType: RTTypeReference
 
-          | DictKey of key: String * typ: (RTTypeReference * Location)
+          | DictKey of key: String * typ: RTTypeReference
 
           | EnumField of
             enumTypeName: RTTypeName *
             caseName: String *
-            fieldIndex: Int64 *  // nth argument to the enum constructor
+            fieldIndex: Int64 *
             fieldCount: Int64 *
-            fieldType: RTTypeReference *
-            location: Location
+            fieldType: RTTypeReference
 
-          | DBQueryVariable of
-            varName: String *
-            expected: RTTypeReference *
-            location: Location
+          | DBQueryVariable of varName: String * expected: RTTypeReference
 
-          | DBSchemaType of
-            name: String *
-            expectedType: RTTypeReference *
-            location: Location
+          | DBSchemaType of name: String * expectedType: RTTypeReference
 
           | ListIndex of index: Int64 * listTyp: RTTypeReference * parent: Context
 
@@ -70,28 +56,30 @@ module Darklang =
             elementType: RTTypeReference *
             parent: Context
 
-          | FnValResult of returnType: RTTypeReference * location: Location
+          | FnValResult of returnType: RTTypeReference
 
 
-
-        type Error =
+        type ErrorType =
           | ValueNotExpectedType of
             actualValue: RTDval *
-            expectedType: RTTypeReference *
-            Context
+            expectedType: RTTypeReference
+          | TypeDoesntExist of RTTypeName
 
-          | TypeDoesntExist of RTTypeName * Context
+        type Error =
+          { errorType: ErrorType
+            context: Context }
+
 
         module Error =
           let valuePath (context: Context) : String =
             // match context with
-            // | TCK.FunctionCallParameter(_, parameter, _, _) -> parameter.name
-            // | TCK.FunctionCallResult(_, _, _) -> "result"
-            // | TCK.RecordField(_, fieldName, _, _) -> fieldName
-            // | TCK.DictKey(key, _, _) -> $".{key}"
-            // | TCK.EnumField(_, caseName, _, _, _, _) -> caseName
-            // | TCK.DBSchemaType(dbName, _, _) -> dbName
-            // | TCK.DBQueryVariable(varName, _, _) -> varName
+            // | TCK.FunctionCallParameter(_, parameter, _) -> parameter.name
+            // | TCK.FunctionCallResult(_, _) -> "result"
+            // | TCK.RecordField(_, fieldName, _) -> fieldName
+            // | TCK.DictKey(key, _) -> $".{key}"
+            // | TCK.EnumField(_, caseName, _, _, _) -> caseName
+            // | TCK.DBSchemaType(dbName, _) -> dbName
+            // | TCK.DBQueryVariable(varName, _) -> varName
             // | TCK.ListIndex(index, _, parent) -> valuePath parent + $"[{index}]"
             // | TCK.TupleIndex(index, _, parent) -> valuePath parent + $"[{index}]"
             "RTETODO: valuePath"
@@ -107,13 +95,13 @@ module Darklang =
             | DBQueryVariable _ -> context
             | ListIndex(_, _, parent) -> rootContext parent
             | TupleIndex(_, _, parent) -> rootContext parent
-            | FnValResult(_, _) -> context
+            | FnValResult _ -> context
 
 
           /// Return the segments describing the context as a short name, used in the description of errors
           let contextSummary (context: Context) : List<ErrorSegment.ErrorSegment> =
             match context with
-            | FunctionCallParameter(fnName, parameter, paramIndex, _) ->
+            | FunctionCallParameter(fnName, parameter, paramIndex) ->
               [ ErrorSegment.ErrorSegment.FunctionName fnName
                 ErrorSegment.ErrorSegment.String "'s "
                 ErrorSegment.ErrorSegment.Ordinal(paramIndex + 1L)
@@ -121,24 +109,23 @@ module Darklang =
                 ErrorSegment.ErrorSegment.ParamName parameter.name
                 ErrorSegment.ErrorSegment.String ")" ]
 
-            | FunctionCallResult(fnName, returnType, _) ->
+            | FunctionCallResult(fnName, returnType) ->
               [ ErrorSegment.ErrorSegment.FunctionName fnName
                 ErrorSegment.ErrorSegment.String "'s return value" ]
 
 
-
-            | RecordField(recordType, fieldName, _, _) ->
+            | RecordField(recordType, fieldName, _) ->
               [ ErrorSegment.ErrorSegment.TypeName recordType
                 ErrorSegment.ErrorSegment.String "'s "
                 ErrorSegment.ErrorSegment.FieldName fieldName
                 ErrorSegment.ErrorSegment.String " field" ]
 
-            // | DictKey(key, _, _) ->
+            // | DictKey(key, _) ->
             //   let typeName =
             //     FQName.BuiltIn { name = TypeName.TypeName "Dict"; modules = []; version = 0 }
             //   [ TypeName typeName; String "'s "; FieldName key; String " value" ]
 
-            | EnumField(enumType, caseName, fieldIndex, _, _, _) ->
+            | EnumField(enumType, caseName, fieldIndex, _, _) ->
               [ ErrorSegment.ErrorSegment.TypeName enumType
                 ErrorSegment.ErrorSegment.String "."
                 ErrorSegment.ErrorSegment.InlineFieldName caseName
@@ -146,12 +133,12 @@ module Darklang =
                 ErrorSegment.ErrorSegment.Ordinal(fieldIndex + 1L)
                 ErrorSegment.ErrorSegment.String " argument" ]
 
-            | DBSchemaType(dbName, expectedType, _) ->
+            | DBSchemaType(dbName, expectedType) ->
               [ ErrorSegment.ErrorSegment.String "DB "
                 ErrorSegment.ErrorSegment.DBName dbName
                 ErrorSegment.ErrorSegment.String "'s value" ]
 
-            | DBQueryVariable(varName, _, _) ->
+            | DBQueryVariable(varName, _) ->
               [ ErrorSegment.ErrorSegment.String "Variable "
                 ErrorSegment.ErrorSegment.VarName varName ]
 
@@ -169,7 +156,7 @@ module Darklang =
               @ contextSummary rootContext
               @ [ String ", the nested value "; VarName(valuePath context) ]
 
-            | FnValResult(_, _) ->
+            | FnValResult(_) ->
               [ ErrorSegment.ErrorSegment.String "Function return value" ]
 
 
@@ -188,7 +175,7 @@ module Darklang =
                 ErrorSegment.ErrorSegment.FullValue argument ]
 
             match context with
-            | FunctionCallParameter(fnName, parameter, paramIndex, _) ->
+            | FunctionCallParameter(fnName, parameter, paramIndex) ->
               let segments =
                 [ ErrorSegment.ErrorSegment.String "("
                   ErrorSegment.ErrorSegment.InlineParamName parameter.name
@@ -199,14 +186,14 @@ module Darklang =
               (defaultActual, segments)
 
 
-            | FunctionCallResult(fnName, returnType, _) ->
+            | FunctionCallResult(fnName, returnType) ->
               // format:
               // Option<String>
               let segment = [ ErrorSegment.ErrorSegment.TypeReference returnType ]
               (defaultActual, segment)
 
 
-            | RecordField(recordType, fieldName, fieldType, _) ->
+            | RecordField(recordType, fieldName, fieldType) ->
               // format:
               // ({ name : string; ... }) // some description
 
@@ -230,7 +217,7 @@ module Darklang =
               (defaultActual, segment)
 
 
-            | DictKey(key, typ, _) ->
+            | DictKey(key, typ) ->
               // format:
               // ({ "name" : String; ... })
               let segment =
@@ -243,8 +230,7 @@ module Darklang =
               defaultActual, segment
 
 
-
-            | EnumField(enumType, caseName, fieldIndex, fieldCount, fieldType, _) ->
+            | EnumField(enumType, caseName, fieldIndex, fieldCount, fieldType) ->
               // format:
               //   Ok (..., string, ...) // some description
               // RTETODO: extract description from the type definition later
@@ -301,12 +287,12 @@ module Darklang =
               (argumentSegment, fieldTypeSegment)
 
 
-            | DBSchemaType(dbName, expectedType, _) ->
+            | DBSchemaType(dbName, expectedType) ->
               let segment = [ ErrorSegment.ErrorSegment.TypeReference expectedType ]
               (defaultActual, segment)
 
 
-            | DBQueryVariable(varName, expected, _) ->
+            | DBQueryVariable(varName, expected) ->
               let segment =
                 [ ErrorSegment.ErrorSegment.String "("
                   ErrorSegment.ErrorSegment.InlineVarName varName
@@ -322,7 +308,7 @@ module Darklang =
             | TupleIndex(index, typ, parent) ->
               defaultActual, [ ErrorSegment.ErrorSegment.TypeReference typ ]
 
-            | FnValResult(returnType, _) ->
+            | FnValResult(returnType) ->
               defaultActual, [ ErrorSegment.ErrorSegment.TypeReference returnType ]
 
 
@@ -339,12 +325,14 @@ module Darklang =
             | TupleIndex _ -> "passed"
             | FnValResult _ -> "returned"
 
+
+
           let toSegments (e: Error) : REErrorOutput =
-            match e with
-            | ValueNotExpectedType(argument, expected, context) ->
+            match e.errorType with
+            | ValueNotExpectedType(argument, expected) ->
               let summary =
                 Stdlib.List.append
-                  (contextSummary context)
+                  (contextSummary e.context)
                   [ ErrorSegment.ErrorSegment.String " should be "
                     ErrorSegment.ErrorSegment.IndefiniteArticle
                     ErrorSegment.ErrorSegment.TypeReference expected ]
@@ -356,10 +344,10 @@ module Darklang =
                   ErrorSegment.ErrorSegment.String " ("
                   ErrorSegment.ErrorSegment.InlineValue argument
                   ErrorSegment.ErrorSegment.String ") was "
-                  ErrorSegment.ErrorSegment.String(contextVerb context)
+                  ErrorSegment.ErrorSegment.String(contextVerb e.context)
                   ErrorSegment.ErrorSegment.String " instead." ]
 
-              let (actual, expected) = contextAsActualExpected argument context
+              let (actual, expected) = contextAsActualExpected argument e.context
 
               ErrorOutput
                 { summary = summary

@@ -46,12 +46,12 @@ let fns : List<BuiltInFn> =
           if m = 0s then
             Int64.IntRuntimeError.Error.ZeroModulus
             |> Int64.IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.caller
+            |> raiseRTE state.tracing.callStack
             |> Ply
           else if m < 0s then
             Int64.IntRuntimeError.Error.NegativeModulus
             |> Int64.IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.caller
+            |> raiseRTE state.tracing.callStack
             |> Ply
           else
             let result = v % m
@@ -87,7 +87,7 @@ let fns : List<BuiltInFn> =
              if d = 0s then
                Int64.IntRuntimeError.Error.DivideByZeroError
                |> Int64.IntRuntimeError.RTE.toRuntimeError
-               |> raiseRTE state.tracing.caller
+               |> raiseRTE state.tracing.callStack
                |> Ply
              else
                Exception.raiseInternal
@@ -114,7 +114,7 @@ let fns : List<BuiltInFn> =
           with :? System.OverflowException ->
             Int64.IntRuntimeError.Error.OutOfRange
             |> Int64.IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.caller
+            |> raiseRTE state.tracing.callStack
             |> Ply
 
         | _ -> incorrectArgs ())
@@ -137,7 +137,7 @@ let fns : List<BuiltInFn> =
           with :? System.OverflowException ->
             Int64.IntRuntimeError.Error.OutOfRange
             |> Int64.IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.caller
+            |> raiseRTE state.tracing.callStack
             |> Ply
 
         | _ -> incorrectArgs ())
@@ -160,7 +160,7 @@ let fns : List<BuiltInFn> =
           with :? System.OverflowException ->
             Int64.IntRuntimeError.Error.OutOfRange
             |> Int64.IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.caller
+            |> raiseRTE state.tracing.callStack
             |> Ply
 
         | _ -> incorrectArgs ())
@@ -184,14 +184,14 @@ let fns : List<BuiltInFn> =
             if exp < 0s then
               Int64.IntRuntimeError.Error.NegativeExponent
               |> Int64.IntRuntimeError.RTE.toRuntimeError
-              |> raiseRTE state.tracing.caller
+              |> raiseRTE state.tracing.callStack
               |> Ply
             else
               (bigint number) ** (int exp) |> int16 |> DInt16 |> Ply
            with :? System.OverflowException ->
              Int64.IntRuntimeError.Error.OutOfRange
              |> Int64.IntRuntimeError.RTE.toRuntimeError
-             |> raiseRTE state.tracing.caller
+             |> raiseRTE state.tracing.callStack
              |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -210,19 +210,19 @@ let fns : List<BuiltInFn> =
           if b = 0s then
             Int64.IntRuntimeError.Error.DivideByZeroError
             |> Int64.IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.caller
+            |> raiseRTE state.tracing.callStack
             |> Ply
           else if a = int16 System.Int16.MinValue && b = -1s then
             Int64.IntRuntimeError.Error.OutOfRange
             |> Int64.IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.caller
+            |> raiseRTE state.tracing.callStack
             |> Ply
           else
             let result = a / b
             if result < System.Int16.MinValue || result > System.Int16.MaxValue then
               Int64.IntRuntimeError.Error.OutOfRange
               |> Int64.IntRuntimeError.RTE.toRuntimeError
-              |> raiseRTE state.tracing.caller
+              |> raiseRTE state.tracing.callStack
               |> Ply
             else
               Ply(DInt16(int16 result))
@@ -244,7 +244,7 @@ let fns : List<BuiltInFn> =
           if a = System.Int16.MinValue then
             Int64.IntRuntimeError.Error.OutOfRange
             |> Int64.IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.caller
+            |> raiseRTE state.tracing.callStack
             |> Ply
           else
             let result = -a

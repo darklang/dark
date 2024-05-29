@@ -77,8 +77,8 @@ module RuntimeError =
     let typeName = RuntimeError.name [ "Json" ] "Error"
     DEnum(typeName, typeName, [], caseName, fields) |> RuntimeError.jsonError
 
-  let raiseUnsupportedType (typ : TypeReference) : 'a =
-    UnsupportedType(typ) |> toRuntimeError |> raiseUntargetedRTE
+  let raiseUnsupportedType (callStack : CallStack) (typ : TypeReference) : 'a =
+    UnsupportedType(typ) |> toRuntimeError |> raiseRTE callStack
 
 
 module JsonPath =
@@ -111,12 +111,13 @@ module JsonPath =
 
 
 let rec serialize
+  (callStack : CallStack)
   (types : Types)
   (w : Utf8JsonWriter)
   (typ : TypeReference)
   (dv : Dval)
   : Ply<unit> =
-  let r = serialize types w
+  let r = serialize callStack types w
   uply {
     match typ, dv with
     // basic types
@@ -247,13 +248,13 @@ let rec serialize
                 "expectedFields", fields ]
 
 
-    | TCustomType(Error err, _typeArgs), _dval -> raiseUntargetedRTE err
+    | TCustomType(Error err, _typeArgs), _dval -> raiseRTE callStack err
 
 
     // Not supported
     | TVariable _, _
     | TFn _, _
-    | TDB _, _ -> return! RuntimeError.raiseUnsupportedType typ
+    | TDB _, _ -> return! RuntimeError.raiseUnsupportedType callStack typ
 
 
     // Exhaust the types
@@ -355,6 +356,7 @@ let raiseCantMatchWithType
 
 
 let parse
+  (callStack : CallStack)
   (types : Types)
   (typ : TypeReference)
   (str : string)
@@ -609,7 +611,7 @@ let parse
       |> Seq.mapi (fun i v -> convert nested (JsonPath.Part.Index i :: pathSoFar) v)
       |> Seq.toList
       |> Ply.List.flatten
-      |> Ply.map (TypeChecker.DvalCreator.list VT.unknownTODO)
+      |> Ply.map (TypeChecker.DvalCreator.list callStack VT.unknownTODO)
 
     | TTuple(t1, t2, rest), JsonValueKind.Array ->
       let values = j.EnumerateArray() |> Seq.toList
@@ -754,14 +756,14 @@ let parse
                 })
               |> Ply.List.flatten
 
-            return! TypeChecker.DvalCreator.record typeName fields
+            return! TypeChecker.DvalCreator.record callStack typeName fields
       }
 
 
     // Explicitly not supported
     | TVariable _, _
     | TFn _, _
-    | TDB _, _ -> RuntimeError.raiseUnsupportedType typ
+    | TDB _, _ -> RuntimeError.raiseUnsupportedType callStack typ
 
 
     // exhaust TypeReferences
@@ -820,7 +822,8 @@ let fns : List<BuiltInFn> =
             // so we can Json.serialize<'b>, if 'b is in the surrounding context
             let types = ExecutionState.availableTypes state
             let! response =
-              writeJson (fun w -> serialize types w typeToSerializeAs arg)
+              writeJson (fun w ->
+                serialize state.tracing.callStack types w typeToSerializeAs arg)
             return DString response
           }
         | _ -> incorrectArgs ())
@@ -839,15 +842,19 @@ let fns : List<BuiltInFn> =
       description =
         "Parses a JSON string <param json> as a Dark value, matching the type <typeParam a>"
       fn =
-        let okType = VT.unknownTODO // "a"
-        let errType = KTCustomType(ParseError.typeName, []) |> VT.known
-        let resultOk = TypeChecker.DvalCreator.resultOk okType errType
-        let resultError = TypeChecker.DvalCreator.resultError okType errType
         (function
         | state, [ typeArg ], [ DString arg ] ->
+          let callStack = state.tracing.callStack
+
+          let okType = VT.unknownTODO // "a"
+          let errType = KTCustomType(ParseError.typeName, []) |> VT.known
+          let resultOk = TypeChecker.DvalCreator.resultOk callStack okType errType
+          let resultError =
+            TypeChecker.DvalCreator.resultError callStack okType errType
+
           let types = ExecutionState.availableTypes state
           uply {
-            match! parse types typeArg arg with
+            match! parse callStack types typeArg arg with
             | Ok v -> return resultOk v
             | Error e -> return resultError (ParseError.toDT e)
           }

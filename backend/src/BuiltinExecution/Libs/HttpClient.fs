@@ -444,12 +444,11 @@ let fns (config : Configuration) : List<BuiltInFn> =
                           [ "Stdlib"; "HttpClient" ]
                           "request"),
                         ({ name = "headers"; typ = headersType }),
-                        2,
-                        None
+                        2
                       )
                     return!
                       TypeChecker.raiseValueNotExpectedType
-                        state.tracing.caller
+                        state.tracing.callStack
                         notAPair
                         (TList(TTuple(TString, TString, [])))
                         context

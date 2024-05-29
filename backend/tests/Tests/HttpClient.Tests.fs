@@ -152,7 +152,6 @@ let makeTest versionName filename =
     else
       // Set up the canvas
       let canvasID = System.Guid.NewGuid()
-      let tlid = 7777772398743UL
       let! state = executionStateFor packageManager canvasID false true Map.empty
 
       // Parse the Dark code
@@ -168,7 +167,7 @@ let makeTest versionName filename =
       // Run the handler (call the HTTP client)
       // Note: this will update the corresponding value in `testCases` with the
       // actual request received
-      let! actual = Exe.executeExpr state tlid Map.empty test.actual
+      let! actual = Exe.executeExpr state Map.empty test.actual
 
       // First check: expected HTTP request matches actual HTTP request
       let tc = testCases[dictKey]
@@ -183,7 +182,7 @@ let makeTest versionName filename =
       // Second check: expected result (Dval) matches actual result (Dval)
       let actual = Result.map normalizeDvalResult actual
 
-      let! expected = Exe.executeExpr state tlid Map.empty test.expected
+      let! expected = Exe.executeExpr state Map.empty test.expected
       match actual, expected with
       | Ok actual, Ok expected ->
         return Expect.equalDval actual expected $"Responses don't match"

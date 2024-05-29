@@ -135,7 +135,7 @@ let fns : List<BuiltInFn> =
         let dictType = VT.unknownTODO
         let optType = VT.dict dictType
         (function
-        | _, _, [ DList(_vtTODO, l) ] ->
+        | state, _, [ DList(_vtTODO, l) ] ->
           let f acc dv =
             match acc, dv with
             | None, _ -> None
@@ -150,7 +150,7 @@ let fns : List<BuiltInFn> =
           match result with
           | Some entries ->
             DDict(dictType, entries)
-            |> TypeChecker.DvalCreator.optionSome optType
+            |> TypeChecker.DvalCreator.optionSome state.tracing.callStack optType
             |> Ply
           | None -> TypeChecker.DvalCreator.optionNone optType |> Ply
         | _ -> incorrectArgs ())
@@ -168,8 +168,10 @@ let fns : List<BuiltInFn> =
          wrapped in an <type Option>: {{Some value}}. Otherwise, returns {{None}}."
       fn =
         (function
-        | _, _, [ DDict(_vtTODO, o); DString s ] ->
-          Map.find s o |> TypeChecker.DvalCreator.option VT.unknownTODO |> Ply
+        | state, _, [ DDict(_vtTODO, o); DString s ] ->
+          Map.find s o
+          |> TypeChecker.DvalCreator.option state.tracing.callStack VT.unknownTODO
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -218,7 +220,7 @@ let fns : List<BuiltInFn> =
               Ply.Map.mapSequentially
                 (fun (key, dv) ->
                   let args = NEList.ofList (DString key) [ dv ]
-                  Interpreter.applyFnVal state state.tracing.caller b [] args)
+                  Interpreter.applyFnVal state b [] args)
                 mapped
 
             return TypeChecker.DvalCreator.dictFromMap VT.unknownTODO result
@@ -250,14 +252,12 @@ let fns : List<BuiltInFn> =
               |> Ply.List.iterSequentially (fun (key, dv) ->
                 uply {
                   let args = NEList.ofList (DString key) [ dv ]
-                  match!
-                    Interpreter.applyFnVal state state.tracing.caller b [] args
-                  with
+                  match! Interpreter.applyFnVal state b [] args with
                   | DUnit -> return ()
                   | dv ->
                     return!
                       TypeChecker.raiseFnValResultNotExpectedType
-                        state.tracing.caller
+                        state.tracing.callStack
                         dv
                         TUnit
                 })
@@ -290,14 +290,12 @@ let fns : List<BuiltInFn> =
             let f (key : string) (data : Dval) : Ply<bool> =
               uply {
                 let args = NEList.ofList (DString key) [ data ]
-                match!
-                  Interpreter.applyFnVal state state.tracing.caller b [] args
-                with
+                match! Interpreter.applyFnVal state b [] args with
                 | DBool v -> return v
                 | v ->
                   return!
                     TypeChecker.raiseFnValResultNotExpectedType
-                      state.tracing.caller
+                      state.tracing.callStack
                       v
                       TBool
               }
@@ -332,8 +330,7 @@ let fns : List<BuiltInFn> =
             let f (key : string) (data : Dval) : Ply<Option<Dval>> =
               uply {
                 let args = NEList.ofList (DString key) [ data ]
-                let! result =
-                  Interpreter.applyFnVal state state.tracing.caller b [] args
+                let! result = Interpreter.applyFnVal state b [] args
 
                 match result with
                 | DEnum(FQTypeName.Package { owner = "Darklang"
@@ -354,7 +351,7 @@ let fns : List<BuiltInFn> =
                   let expectedType = TypeReference.option varB
                   return!
                     TypeChecker.raiseFnValResultNotExpectedType
-                      state.tracing.caller
+                      state.tracing.callStack
                       v
                       expectedType
               }

@@ -206,7 +206,8 @@ let executionStateFor
 
     let builtins = if allowLocalHttpAccess then localBuiltIns else cloudBuiltIns
     let state =
-      Exe.createState builtins pm Exe.noTracing exceptionReporter notifier program
+      let tracing = Exe.noTracing (RT.CallStack.fromEntryPoint RT.Script)
+      Exe.createState builtins pm tracing exceptionReporter notifier program
     let state = { state with test = testContext }
     return state
   }
@@ -1158,7 +1159,6 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      DFnVal(
        Lambda
          { body = RT.EUnit(id 1234)
-           tlid = 77777723098234UL
            typeSymbolTable = Map.empty
            symtable = Map.empty
            parameters = NEList.singleton (RT.LPVariable(id 5678, "a")) }
@@ -1206,7 +1206,6 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
                  )
                )
              )
-           tlid = 7777772349823445UL
            symtable = Map.empty
            typeSymbolTable = Map.empty
            parameters = NEList.singleton (RT.LPVariable(id 5678, "a")) }

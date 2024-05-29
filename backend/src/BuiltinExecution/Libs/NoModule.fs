@@ -360,7 +360,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [] -> incorrectArgs ()
-        | state, _, [ dval ] ->
+        | _, _, [ dval ] ->
           match dval with
 
           // success: extract `Some` out of an Option
@@ -389,9 +389,7 @@ let fns : List<BuiltInFn> =
                   _,
                   "None",
                   []) ->
-            "expected Some, got None"
-            |> RuntimeError.oldError
-            |> raiseRTE state.tracing.caller
+            "expected Some, got None" |> RuntimeError.oldError |> raiseUntargetedRTE
 
           // Error: expected Ok, got Error
           | DEnum(FQTypeName.Package({ owner = "Darklang"
@@ -403,19 +401,19 @@ let fns : List<BuiltInFn> =
                   [ value ]) ->
             $"expected Ok, got Error:\n{value |> DvalReprDeveloper.toRepr}"
             |> RuntimeError.oldError
-            |> raiseRTE state.tracing.caller
+            |> raiseUntargetedRTE
 
 
           // Error: single dval, but not an Option or Result
           | otherDval ->
             $"Unwrap called with non-Option/non-Result {otherDval}"
             |> RuntimeError.oldError
-            |> raiseRTE state.tracing.caller
+            |> raiseUntargetedRTE
 
-        | state, _, multipleArgs ->
+        | _, _, multipleArgs ->
           $"unwrap called with multiple arguments: {multipleArgs}"
           |> RuntimeError.oldError
-          |> raiseRTE state.tracing.caller)
+          |> raiseUntargetedRTE)
 
       sqlSpec = NotQueryable
       previewable = Pure
@@ -434,6 +432,27 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString label; value ] ->
           // TODO: call upon the Dark equivalent fn instead of rlying on DvalReprDeveloper
           print $"DEBUG: {label} - {DvalReprDeveloper.toRepr value}"
+          Ply DUnit
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "debugSymbolTable" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TUnit
+      description = "Prints the current symbol table to the standard output"
+      fn =
+        (function
+        | state, _, [ DUnit ] ->
+          state.symbolTable
+          |> Map.toList
+          |> List.map (fun (key, dv) -> $"- {key}: {DvalReprDeveloper.toRepr dv}")
+          |> String.concat "\n"
+          |> fun lines -> print $"DEBUG: symTable\n{lines}"
+
           Ply DUnit
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

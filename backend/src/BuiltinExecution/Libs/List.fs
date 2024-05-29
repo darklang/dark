@@ -38,14 +38,7 @@ module DvalComparator =
       let l1' = NEList.toList l1.parameters
       let l2' = NEList.toList l2.parameters
       let c = compareLetPatternsLists l1' l2'
-      if c = 0 then
-        let c = compareExprs l1.body l2.body
-        if c = 0 then
-          compareMaps (Map.toList l1.symtable) (Map.toList l2.symtable)
-        else
-          c
-      else
-        c
+      if c = 0 then compareExprs l1.body l2.body else c
 
     | DDB name1, DDB name2 -> compare name1 name2
     | DDateTime dt1, DDateTime dt2 -> compare dt1 dt2
@@ -290,8 +283,7 @@ let fns : List<BuiltInFn> =
                 (fun dv ->
                   uply {
                     let args = NEList.singleton dv
-                    let! key =
-                      Interpreter.applyFnVal state state.tracing.caller b [] args
+                    let! key = Interpreter.applyFnVal state b [] args
 
                     // TODO: type check to ensure `varB` is "comparable"
                     return (dv, key)
@@ -391,7 +383,7 @@ let fns : List<BuiltInFn> =
           uply {
             let fn dv =
               let args = NEList.singleton dv
-              Interpreter.applyFnVal state state.tracing.caller b [] args
+              Interpreter.applyFnVal state b [] args
             let! withKeys =
               list
               |> Ply.List.mapSequentially (fun v ->
@@ -434,17 +426,23 @@ let fns : List<BuiltInFn> =
          Consider <fn List.sort> or <fn List.sortBy> if you don't need this level
          of control."
       fn =
-        let okType = VT.unknownTODO
-        let resultOk = TypeChecker.DvalCreator.resultOk okType VT.string
-        let resultError = TypeChecker.DvalCreator.resultError okType VT.string
 
         (function
         | state, _, [ DList(vt, list); DFnVal f ] ->
+          let okType = VT.unknownTODO
+          let resultOk =
+            TypeChecker.DvalCreator.resultOk state.tracing.callStack okType VT.string
+          let resultError =
+            TypeChecker.DvalCreator.resultError
+              state.tracing.callStack
+              okType
+              VT.string
+
+
           let fn (dv1 : Dval) (dv2 : Dval) : Ply<int> =
             uply {
               let args = NEList.doubleton dv1 dv2
-              let! result =
-                Interpreter.applyFnVal state state.tracing.caller f [] args
+              let! result = Interpreter.applyFnVal state f [] args
 
               match result with
               | DInt64 i when i = 1L || i = 0L || i = -1L -> return int i
@@ -452,7 +450,7 @@ let fns : List<BuiltInFn> =
               | v ->
                 return!
                   TypeChecker.raiseFnValResultNotExpectedType
-                    state.tracing.caller
+                    state.tracing.callStack
                     v
                     TInt64
             }
@@ -483,10 +481,15 @@ let fns : List<BuiltInFn> =
          preserving the order."
       fn =
         (function
-        | _, _, [ DList(vt1, l1); DList(_vt2, l2) ] ->
+        | state, _, [ DList(vt1, l1); DList(_vt2, l2) ] ->
           // VTTODO should fail here in the case of vt1 conflicting with vt2?
           // (or is this handled by the interpreter?)
-          Ply(TypeChecker.DvalCreator.list vt1 (List.append l1 l2))
+          Ply(
+            TypeChecker.DvalCreator.list
+              state.tracing.callStack
+              vt1
+              (List.append l1 l2)
+          )
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -518,10 +521,14 @@ let fns : List<BuiltInFn> =
               Ply.List.mapSequentially
                 (fun ((i, dv) : int * Dval) ->
                   let args = NEList.doubleton (DInt64(int64 i)) dv
-                  Interpreter.applyFnVal state state.tracing.caller b [] args)
+                  Interpreter.applyFnVal state b [] args)
                 list
 
-            return TypeChecker.DvalCreator.list VT.unknownTODO result
+            return
+              TypeChecker.DvalCreator.list
+                state.tracing.callStack
+                VT.unknownTODO
+                result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -565,10 +572,14 @@ let fns : List<BuiltInFn> =
               Ply.List.mapSequentially
                 (fun ((dv1, dv2) : Dval * Dval) ->
                   let args = NEList.doubleton dv1 dv2
-                  Interpreter.applyFnVal state state.tracing.caller b [] args)
+                  Interpreter.applyFnVal state b [] args)
                 list
 
-            return TypeChecker.DvalCreator.list VT.unknownTODO result
+            return
+              TypeChecker.DvalCreator.list
+                state.tracing.callStack
+                VT.unknownTODO
+                result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -613,12 +624,14 @@ let fns : List<BuiltInFn> =
                 Ply.List.mapSequentially
                   (fun ((dv1, dv2) : Dval * Dval) ->
                     let args = NEList.doubleton dv1 dv2
-                    Interpreter.applyFnVal state state.tracing.caller b [] args)
+                    Interpreter.applyFnVal state b [] args)
                   list
 
+              let callStack = state.tracing.callStack
+
               return
-                TypeChecker.DvalCreator.list VT.unknownTODO result
-                |> TypeChecker.DvalCreator.optionSome optType
+                TypeChecker.DvalCreator.list callStack VT.unknownTODO result
+                |> TypeChecker.DvalCreator.optionSome callStack optType
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -638,13 +651,15 @@ let fns : List<BuiltInFn> =
         let optType = VT.unknownTODO
         (function
         | _, _, [ DList(_, []) ] -> TypeChecker.DvalCreator.optionNone optType |> Ply
-        | _, _, [ DList(_, l) ] ->
+        | state, _, [ DList(_, l) ] ->
           // Will return <= (length - 1)
           // Maximum value is Int64.MaxValue which is half of UInt64.MaxValue, but
           // that won't affect this as we won't have a list that big for a long long
           // long time.
           let index = RNG.GetInt32(l.Length)
-          (List.tryItem index l) |> TypeChecker.DvalCreator.option optType |> Ply
+          (List.tryItem index l)
+          |> TypeChecker.DvalCreator.option state.tracing.callStack optType
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
@@ -671,7 +686,7 @@ let fns : List<BuiltInFn> =
           uply {
             let applyFn (dval : Dval) : DvalTask =
               let args = NEList.singleton dval
-              Interpreter.applyFnVal state state.tracing.caller fn [] args
+              Interpreter.applyFnVal state fn [] args
 
             // apply the function to each element in the list
             let! result =

@@ -40,11 +40,15 @@ let fns : List<BuiltInFn> =
       description =
         "Get the editor's global current state (maintained in the WASM runtime)"
       fn =
-        let okType = VT.unknownTODO
-        let resultOk = TypeChecker.DvalCreator.resultOk okType VT.string
-        let resultError = TypeChecker.DvalCreator.resultOk okType VT.string
         (function
-        | _, [ _typeParam ], [ DUnit ] ->
+        | state, [ _typeParam ], [ DUnit ] ->
+          let callStack = state.tracing.callStack
+
+          let okType = VT.unknownTODO
+          let resultOk = TypeChecker.DvalCreator.resultOk callStack okType VT.string
+          let resultError =
+            TypeChecker.DvalCreator.resultError callStack okType VT.string
+
           try
             let state = editor.currentState
             // TODO: assert that the type matches the given typeParam
@@ -65,10 +69,15 @@ let fns : List<BuiltInFn> =
         "Set the editor's global current state (maintained in the WASM runtime)"
       fn =
         (function
-        | _, [ _typeParam ], [ v ] ->
+        | state, [ _typeParam ], [ v ] ->
           // TODO: verify that the type matches the given typeParam
           editor <- { editor with currentState = v }
-          TypeChecker.DvalCreator.resultOk VT.unknownTODO VT.string v |> Ply
+          TypeChecker.DvalCreator.resultOk
+            state.tracing.callStack
+            VT.unknownTODO
+            VT.string
+            v
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -132,8 +141,6 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString sourceJson ] ->
           uply {
             let source = Json.Vanilla.deserialize<UserProgramSource> sourceJson
-            let tlid = 77777723978322UL
-
             let httpConfig : BuiltinExecution.Libs.HttpClient.Configuration =
               { BuiltinExecution.Libs.HttpClient.defaultConfig with
                   telemetryAddException =
@@ -152,7 +159,7 @@ let fns : List<BuiltInFn> =
               let state =
                 getStateForEval builtin source.types source.constants source.fns
               let inputVars = Map.empty
-              LibExecution.Execution.executeExpr state tlid inputVars expr
+              LibExecution.Execution.executeExpr state inputVars expr
 
             match result with
             | Error(_source, rte) ->
