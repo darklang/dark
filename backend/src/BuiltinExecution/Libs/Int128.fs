@@ -47,12 +47,12 @@ let fns : List<BuiltInFn> =
           if m = System.Int128.Zero then
             Int64.IntRuntimeError.Error.ZeroModulus
             |> Int64.IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.caller
+            |> raiseRTE state.tracing.callStack
             |> Ply
           else if m < System.Int128.Zero then
             Int64.IntRuntimeError.Error.NegativeModulus
             |> Int64.IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.caller
+            |> raiseRTE state.tracing.callStack
             |> Ply
           else
             let result = v % m
@@ -88,7 +88,7 @@ let fns : List<BuiltInFn> =
              if d = System.Int128.Zero then
                Int64.IntRuntimeError.Error.DivideByZeroError
                |> Int64.IntRuntimeError.RTE.toRuntimeError
-               |> raiseRTE state.tracing.caller
+               |> raiseRTE state.tracing.callStack
                |> Ply
              else
                Exception.raiseInternal
@@ -115,7 +115,7 @@ let fns : List<BuiltInFn> =
           with :? System.OverflowException ->
             Int64.IntRuntimeError.Error.OutOfRange
             |> Int64.IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.caller
+            |> raiseRTE state.tracing.callStack
             |> Ply
 
         | _ -> incorrectArgs ())
@@ -138,7 +138,7 @@ let fns : List<BuiltInFn> =
           with :? System.OverflowException ->
             Int64.IntRuntimeError.Error.OutOfRange
             |> Int64.IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.caller
+            |> raiseRTE state.tracing.callStack
             |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -161,7 +161,7 @@ let fns : List<BuiltInFn> =
           with :? System.OverflowException ->
             Int64.IntRuntimeError.Error.OutOfRange
             |> Int64.IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.caller
+            |> raiseRTE state.tracing.callStack
             |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -187,12 +187,12 @@ let fns : List<BuiltInFn> =
           | :? System.DivideByZeroException ->
             Int64.IntRuntimeError.Error.DivideByZeroError
             |> Int64.IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.caller
+            |> raiseRTE state.tracing.callStack
             |> Ply
           | :? System.OverflowException ->
             Int64.IntRuntimeError.Error.OutOfRange
             |> Int64.IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.caller
+            |> raiseRTE state.tracing.callStack
             |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -214,7 +214,7 @@ let fns : List<BuiltInFn> =
           with :? System.OverflowException ->
             Int64.IntRuntimeError.Error.OutOfRange
             |> Int64.IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.caller
+            |> raiseRTE state.tracing.callStack
             |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

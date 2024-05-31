@@ -199,9 +199,6 @@ module FormatV0 =
 
 
   type DvalMap = Map<string, Dval>
-  and Source = Option<tlid * id>
-
-  and RuntimeError = RuntimeError of Source * Dval
 
   and Dval =
     | DInt64 of int64
@@ -260,7 +257,6 @@ module FormatV0 =
       RT.DFnVal(
         RT.Lambda
           { typeSymbolTable = Map []
-            tlid = 0UL
             symtable = Map []
             parameters = NEList.singleton (RT.LPVariable(gid (), "var"))
             body = RT.Expr.EUnit 0UL }

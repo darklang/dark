@@ -69,7 +69,7 @@ let state () =
       dbs = Map.empty
       secrets = [] }
 
-  let tracing = Exe.noTracing
+  let tracing = Exe.noTracing (RT.CallStack.fromEntryPoint RT.Script)
 
   let notify (_state : RT.ExecutionState) (_msg : string) (_metadata : Metadata) =
     // let metadata = extraMetadata state @ metadata
@@ -86,13 +86,13 @@ let state () =
 
 let execute
   (args : List<string>)
-  : Task<Result<RT.Dval, RT.Source * RT.RuntimeError>> =
+  : Task<Result<RT.Dval, Option<RT.CallStack> * RT.RuntimeError>> =
   task {
     let state = state ()
     let fnName = RT.FQFnName.fqPackage "Darklang" [ "Cli" ] "executeCliCommand"
     let args =
       args |> List.map RT.DString |> Dval.list RT.KTString |> NEList.singleton
-    return! Exe.executeFunction state None fnName [] args
+    return! Exe.executeFunction state fnName [] args
   }
 
 let initSerializers () =
@@ -117,44 +117,24 @@ let main (args : string[]) =
     NonBlockingConsole.wait ()
 
     match result with
-    | Error(source, rte) ->
+    | Error(callStack, rte) ->
       let state = state ()
 
-      // Ideally, this would be done in Dark rather than F#
-      //
-      // TODO: pretty-print the source the expr.
-      let errorSourceStr =
-        match source with
-        | Some(tlid, id) ->
-          let foundPackageTL =
-            state.packageManager.getFnByTLID tlid
-            // TODO don't do this hacky stuff
-            |> Ply.toTask
-            |> Async.AwaitTask
-            |> Async.RunSynchronously
-
-          match foundPackageTL with
-          | Some packageFn ->
-            $"package fn {RT.FQFnName.packageToString packageFn.name}, expr {id}"
-
-          | None -> $"tlid {tlid}, expr {id}"
-
-        | None -> "(unknown)"
-
+      let errorCallStackStr = LibExecution.Execution.callStackString state callStack
 
       match (LibExecution.Execution.runtimeErrorToString state rte).Result with
       | Ok(RT.DString s) ->
-        System.Console.WriteLine $"Error source: {errorSourceStr}\n  {s}"
+        System.Console.WriteLine $"Error source: {errorCallStackStr}\n  {s}"
 
       | Ok otherVal ->
         System.Console.WriteLine
-          $"Unexpected value while stringifying error.\nSource: {errorSourceStr}\n"
+          $"Unexpected value while stringifying error.\nCallStack: {errorCallStackStr}\n"
         System.Console.WriteLine $"Original Error: {rte}"
         System.Console.WriteLine $"Value is:\n{otherVal}"
 
       | Error(_, newErr) ->
         System.Console.WriteLine
-          $"Error while stringifying error.\n Source: {errorSourceStr}\n"
+          $"Error while stringifying error.\n CallStack: {errorCallStackStr}\n"
         System.Console.WriteLine $"Original Error: {rte}"
         System.Console.WriteLine $"New Error is:\n{newErr}"
 
@@ -165,6 +145,7 @@ let main (args : string[]) =
       System.Console.WriteLine
         $"Error: main function must return an int (returned {output})"
       1
+
   with e ->
     printException "Error starting Darklang CLI" [] e
     1

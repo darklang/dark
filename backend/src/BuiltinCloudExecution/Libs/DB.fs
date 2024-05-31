@@ -64,7 +64,7 @@ let fns : List<BuiltInFn> =
 
             match id with
             | Ok _id -> return value
-            | Error rte -> return raiseRTE None rte
+            | Error rte -> return raiseUntargetedRTE rte
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -83,7 +83,11 @@ let fns : List<BuiltInFn> =
           uply {
             let db = state.program.dbs[dbname]
             let! result = UserDB.getOption state db key
-            return TypeChecker.DvalCreator.option VT.unknownDbTODO result
+            return
+              TypeChecker.DvalCreator.option
+                state.tracing.callStack
+                VT.unknownDbTODO
+                result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -115,7 +119,7 @@ let fns : List<BuiltInFn> =
             if List.length items = List.length keys then
               return
                 items
-                |> TypeChecker.DvalCreator.list valueType
+                |> TypeChecker.DvalCreator.list state.tracing.callStack valueType
                 |> Dval.optionSome optType
             else
               return Dval.optionNone optType
@@ -144,7 +148,11 @@ let fns : List<BuiltInFn> =
                 | DString s -> s
                 | dv -> Exception.raiseInternal "keys aren't strings" [ "key", dv ])
               |> UserDB.getMany state db
-            return result |> TypeChecker.DvalCreator.list VT.unknownDbTODO
+            return
+              result
+              |> TypeChecker.DvalCreator.list
+                state.tracing.callStack
+                VT.unknownDbTODO
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -229,7 +237,9 @@ let fns : List<BuiltInFn> =
             return
               results
               |> List.map snd
-              |> TypeChecker.DvalCreator.list VT.unknownDbTODO
+              |> TypeChecker.DvalCreator.list
+                state.tracing.callStack
+                VT.unknownDbTODO
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -315,7 +325,9 @@ let fns : List<BuiltInFn> =
       parameters = [ tableParam "a"; queryFilterParam "a" ]
       returnType = TList(tvar "a")
       description =
-        "Fetch all the values from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
+        "Fetch all the values from <param table> for which filter returns true.
+        Note that this does not check every value in <param table>, but rather is optimized to find data with indexes.
+        Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
         (function
         | state, _, [ DDB dbname; DFnVal(Lambda b) ] ->
@@ -325,7 +337,11 @@ let fns : List<BuiltInFn> =
               let! results = UserDB.queryValues state db b
               match results with
               | Ok results ->
-                return results |> TypeChecker.DvalCreator.list VT.unknownDbTODO
+                return
+                  results
+                  |> TypeChecker.DvalCreator.list
+                    state.tracing.callStack
+                    VT.unknownDbTODO
               | Error rte -> return raiseUntargetedRTE rte
             with e ->
               return handleUnexpectedExceptionDuringQuery state dbname b e
@@ -378,7 +394,12 @@ let fns : List<BuiltInFn> =
               let! results = UserDB.query state db b
 
               match results with
-              | Ok [ (_, v) ] -> return TypeChecker.DvalCreator.optionSome optType v
+              | Ok [ (_, v) ] ->
+                return
+                  TypeChecker.DvalCreator.optionSome
+                    state.tracing.callStack
+                    optType
+                    v
               | Ok _ -> return TypeChecker.DvalCreator.optionNone optType
               | Error rte -> return raiseUntargetedRTE rte
             with e ->
@@ -409,6 +430,7 @@ let fns : List<BuiltInFn> =
               | Ok [ (key, dv) ] ->
                 return
                   TypeChecker.DvalCreator.optionSome
+                    state.tracing.callStack
                     optType
                     (DTuple(DString key, dv, []))
               | Ok _ -> return TypeChecker.DvalCreator.optionNone optType

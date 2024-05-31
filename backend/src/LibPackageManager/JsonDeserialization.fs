@@ -677,17 +677,15 @@ module ProgramTypes =
 
   module PackageType =
     let decoder : JsonDecoder<ProgramTypes.PackageType> =
-      Decoders.obj6Fields
+      Decoders.obj5Fields
         "PackageType"
-        ("tlid", TLID.decoder)
         ("id", Decoders.guid)
         ("name", FQTypeName.Package.decoder)
         ("declaration", TypeDeclaration.TypeDeclaration.decoder)
         ("description", Decoders.string)
         ("deprecated", Deprecation.decoder FQTypeName.FQTypeName.decoder)
-        (fun tlid id name declaration description deprecated ->
-          { tlid = tlid
-            id = id
+        (fun id name declaration description deprecated ->
+          { id = id
             name = name
             declaration = declaration
             description = description
@@ -707,9 +705,8 @@ module ProgramTypes =
 
     module PackageFn =
       let decoder : JsonDecoder<ProgramTypes.PackageFn.PackageFn> =
-        Decoders.obj9Fields
+        Decoders.obj8Fields
           "PackageFn.PackageFn"
-          ("tlid", TLID.decoder)
           ("id", Decoders.guid)
           ("name", FQFnName.Package.decoder)
           ("body", (fun ctx -> Expr.decoder ctx))
@@ -718,18 +715,8 @@ module ProgramTypes =
           ("returnType", (fun ctx -> TypeReference.decoder ctx))
           ("description", Decoders.string)
           ("deprecated", Deprecation.decoder FQFnName.FQFnName.decoder)
-          (fun
-               tlid
-               id
-               name
-               body
-               typeParams
-               parameters
-               returnType
-               description
-               deprecated ->
-            { tlid = tlid
-              id = id
+          (fun id name body typeParams parameters returnType description deprecated ->
+            { id = id
               name = name
               body = body
               typeParams = typeParams
@@ -790,17 +777,15 @@ module ProgramTypes =
 
   module PackageConstant =
     let decoder : JsonDecoder<ProgramTypes.PackageConstant> =
-      Decoders.obj6Fields
+      Decoders.obj5Fields
         "PackageConstant"
-        ("tlid", TLID.decoder)
         ("id", Decoders.guid)
         ("name", FQConstantName.Package.decoder)
         ("description", Decoders.string)
         ("deprecated", Deprecation.decoder FQConstantName.FQConstantName.decoder)
         ("body", (fun ctx -> Const.decoder ctx))
-        (fun tlid id name description deprecated body ->
-          { tlid = tlid
-            id = id
+        (fun id name description deprecated body ->
+          { id = id
             name = name
             description = description
             deprecated = deprecated

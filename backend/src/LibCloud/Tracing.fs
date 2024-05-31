@@ -104,6 +104,8 @@ module TraceResults =
 type T =
   {
     /// Store the tracing input, if enabled
+    /// TRACINGTODO
+    /// Q: What's the `string` here? Edit: it's the `varname` as passed by LibCloudExecution.executeHandler
     storeTraceInput : PT.Handler.HandlerDesc -> string -> RT.Dval -> unit
 
     /// Store the trace results calculated over the execution, if enabled
@@ -118,86 +120,91 @@ type T =
   }
 
 
+//TRACINGTODO bring thi sback
+// let createCloudStorageTracer
+//   (canvasID : CanvasID)
+//   (rootTLID : tlid) // TODO: this should probably take in some entrypoint rather than an opaque rootTLID
+//   (traceID : AT.TraceID.T)
+//   : T =
+//   // Any real execution needs to track the touched TLIDs in order to send traces to pusher
+//   let touchedTLIDs, traceTLIDFn = Exe.traceTLIDs ()
+//   let results = { TraceResults.empty () with tlids = touchedTLIDs }
+//   let mutable storedInput : (string * RT.Dval) = ("", RT.DUnit)
 
-let createCloudStorageTracer
-  (canvasID : CanvasID)
-  (rootTLID : tlid)
-  (traceID : AT.TraceID.T)
-  : T =
-  // Any real execution needs to track the touched TLIDs in order to send traces to pusher
-  let touchedTLIDs, traceTLIDFn = Exe.traceTLIDs ()
-  let results = { TraceResults.empty () with tlids = touchedTLIDs }
-  let mutable storedInput : (string * RT.Dval) = ("", RT.DUnit)
-  { enabled = true
-    results = results
-    executionTracing =
-      { Exe.noTracing with
-          storeFnResult =
-            (fun (source, name) args result ->
-              let tlid, id = Option.defaultValue (0UL, 0UL) source
-              let hash =
-                args
-                |> DvalReprInternalHash.hash DvalReprInternalHash.currentHashVersion
-              Dictionary.add
-                (tlid, name, id, hash)
-                (result, NodaTime.Instant.now ())
-                results.functionResults)
-          traceTLID = traceTLIDFn }
-    storeTraceResults =
-      fun () ->
-        LibService.FireAndForget.fireAndForgetTask
-          "store-to-cloud-storage"
-          (fun () ->
-            TraceCloudStorage.storeToCloudStorage
-              canvasID
-              rootTLID
-              traceID
-              (HashSet.toList touchedTLIDs)
-              [ storedInput ]
-              results.functionResults)
-    storeTraceInput = fun _ name input -> storedInput <- (name, input) }
+//   let initialCallStack = RT.CallStack.fromEntryPoint entryPoint
+//   { enabled = true
+//     results = results
+//     executionTracing =
+//       { (Exe.noTracing initialCallStack) with
+//           storeFnResult =
+//             (fun (source, name) args result ->
+//               let tlid, id = Option.defaultValue (0UL, 0UL) source
+//               let hash =
+//                 args
+//                 |> DvalReprInternalHash.hash DvalReprInternalHash.currentHashVersion
+//               Dictionary.add
+//                 (tlid, name, id, hash)
+//                 (result, NodaTime.Instant.now ())
+//                 results.functionResults)
+//           traceExecutionPoint = traceTLIDFn }
+//     storeTraceResults =
+//       fun () ->
+//         LibService.FireAndForget.fireAndForgetTask
+//           "store-to-cloud-storage"
+//           (fun () ->
+//             TraceCloudStorage.storeToCloudStorage
+//               canvasID
+//               rootTLID
+//               traceID
+//               (HashSet.toList touchedTLIDs)
+//               [ storedInput ]
+//               results.functionResults)
+//     storeTraceInput = fun _ name input -> storedInput <- (name, input) }
 
 
-let createTelemetryTracer
-  (canvasID : CanvasID)
-  (rootTLID : tlid)
-  (traceID : AT.TraceID.T)
-  : T =
-  let result = createCloudStorageTracer canvasID rootTLID traceID
-  let standardTracing = result.executionTracing
-  { result with
-      executionTracing =
-        { standardTracing with
-            storeFnResult =
-              (fun (source, name) args result ->
-                let stringifiedName =
-                  LibExecution.RuntimeTypes.FQFnName.toString name
-                let tlid, id = Option.defaultValue (0UL, 0UL) source
-                let hash =
-                  args
-                  |> DvalReprInternalHash.hash
-                    DvalReprInternalHash.currentHashVersion
-                Telemetry.addEvent
-                  $"function result for {name}"
-                  [ "fnName", stringifiedName
-                    "tlid", tlid
-                    "id", id
-                    "argCount", NEList.length args
-                    "hash", hash
-                    "resultType",
-                    LibExecution.DvalReprDeveloper.toTypeName result :> obj ]
-                standardTracing.storeFnResult (source, name) args result)
-            traceTLID =
-              fun tlid ->
-                Telemetry.addEvent $"called {tlid}" [ "tlid", tlid ]
-                standardTracing.traceTLID tlid } }
+// let createTelemetryTracer
+//   (canvasID : CanvasID)
+//   (rootTLID : tlid)
+//   (traceID : AT.TraceID.T)
+//   : T =
+//   let result = createCloudStorageTracer canvasID rootTLID traceID
+//   let standardTracing = result.executionTracing
+//   { result with
+//       executionTracing =
+//         { standardTracing with
+//             storeFnResult =
+//               (fun (source, name) args result ->
+//                 let stringifiedName =
+//                   LibExecution.RuntimeTypes.FQFnName.toString name
+//                 let tlid, id = Option.defaultValue (0UL, 0UL) source
+//                 let hash =
+//                   args
+//                   |> DvalReprInternalHash.hash
+//                     DvalReprInternalHash.currentHashVersion
+//                 Telemetry.addEvent
+//                   $"function result for {name}"
+//                   [ "fnName", stringifiedName
+//                     "tlid", tlid
+//                     "id", id
+//                     "argCount", NEList.length args
+//                     "hash", hash
+//                     "resultType",
+//                     LibExecution.DvalReprDeveloper.toTypeName result :> obj ]
+//                 standardTracing.storeFnResult (source, name) args result)
+//             traceExecutionPoint =
+//               fun tlid ->
+//                 Telemetry.addEvent $"called {tlid}" [ "tlid", tlid ]
+//                 standardTracing.traceExecutionPoint tlid } }
 
 let createNonTracer (_canvasID : CanvasID) (_traceID : AT.TraceID.T) : T =
   // Any real execution needs to track the touched TLIDs in order to send traces to pusher
   let results = TraceResults.empty ()
   { enabled = false
     results = results
-    executionTracing = LibExecution.Execution.noTracing
+    executionTracing =
+      LibExecution.Execution.noTracing (
+        RT.CallStack.fromEntryPoint RT.ExecutionPoint.Script
+      )
     storeTraceResults = fun () -> ()
     storeTraceInput = fun _ _ _ -> () }
 
@@ -205,7 +212,7 @@ let createNonTracer (_canvasID : CanvasID) (_traceID : AT.TraceID.T) : T =
 let create (canvasID : CanvasID) (rootTLID : tlid) (traceID : AT.TraceID.T) : T =
   let config = TracingConfig.forHandler canvasID rootTLID traceID
   match config with
-  | TracingConfig.DoTrace -> createCloudStorageTracer canvasID rootTLID traceID
-  | TracingConfig.TraceWithTelemetry ->
-    createTelemetryTracer canvasID rootTLID traceID
+  // TRACINGTODO
+  | TracingConfig.DoTrace // -> createCloudStorageTracer canvasID rootTLID traceID
+  | TracingConfig.TraceWithTelemetry // -> createTelemetryTracer canvasID rootTLID traceID
   | TracingConfig.DontTrace -> createNonTracer canvasID traceID

@@ -106,7 +106,7 @@ let packageManager (baseUrl : string) : RT.PackageManager =
 
   let fetchById
     (kind : string)
-    (id : tlid)
+    (id : uuid)
     (decoder : SimpleJson.JsonDecoder<'serverType>)
     (f : 'serverType -> 'cachedType)
     : Ply<Option<'cachedType>> =
@@ -138,13 +138,13 @@ let packageManager (baseUrl : string) : RT.PackageManager =
           JsonDeserialization.ProgramTypes.PackageFn.PackageFn.decoder
           conversionFn)
 
-    getFnByTLID =
-      withCache (fun tlid ->
+    getFnByID =
+      withCache (fun id ->
         let conversionFn (parsed : EPT.PackageFn.PackageFn) : RT.PackageFn.T =
           parsed |> ET2PT.PackageFn.toPT |> PT2RT.PackageFn.toRT
         fetchById
           "function"
-          tlid
+          id
           JsonDeserialization.ProgramTypes.PackageFn.PackageFn.decoder
           conversionFn)
 

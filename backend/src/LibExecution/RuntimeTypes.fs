@@ -604,11 +604,11 @@ and StringSegment =
 
 and DvalMap = Map<string, Dval>
 
-// CLEANUP type typeSymbolTable and symtable being here
-// seems to be the Interpreter impl leaking into the types...
+// Note to self: trying to remove symTable and typeSymbolTable here
+// causes all sorts of scoping issues. Beware.
+// (that said, typeSymbolTable seems the less-risky to remove...)
 and LambdaImpl =
   { typeSymbolTable : TypeSymbolTable
-    tlid : tlid // The TLID of the expression where this was defined
     symtable : Symtable
     parameters : NEList<LetPattern>
     body : Expr }
@@ -703,10 +703,46 @@ and Symtable = Map<string, Dval>
 ///  { "a" => TInt64 }
 and TypeSymbolTable = Map<string, TypeReference>
 
+and ExecutionPoint =
+  /// User is executing some "arbitrary" expression, passed in by a user.
+  ///
+  /// This should only be at the `entrypoint` of a CallStack.
+  ///   (CLEANUP consider enforcing this via types)
+  | Script //TODO of name: string
+
+  /// Executing some top-level handler,
+  /// such as a saved Script, an HTTP handler, or a Cron
+  | Toplevel of tlid
+
+  // Executing some function
+  | Function of FQFnName.FQFnName
+
+  /// Executing some function in package space
+  | PackageFn of uuid // TODO: remove this once package references are by-id
 
 /// Record the source expression of an error.
 /// This is to show the code that was responsible for it.
-and Source = Option<tlid * id>
+/// TODO maybe rename to ExprLocation
+and Source = ExecutionPoint * Option<id>
+
+and CallStack =
+  {
+    /// The entrypoint of the execution
+    /// (whatever we're executing for a user)
+    entrypoint : ExecutionPoint
+
+    // TODO: bring this back and do something with it,
+    // and improve it to be more useful
+    // (i.e. maintain order of calls, deal with recursions, etc.)
+    // See https://chatgpt.com/share/087935f9-44be-4686-8209-66e701e887b1
+    // /// All of the fns that have been called in this execution
+    // calledFns : Set<FQFnName.FQFnName>
+
+    /// The last-called thing (roughly)
+    ///
+    /// If we've encountered an exception, this should be where things failed
+    lastCalled : Source
+  }
 
 and BuiltInParam =
   { name : string
@@ -734,7 +770,9 @@ and BuiltInParam =
 and Param = { name : string; typ : TypeReference }
 
 
-
+module CallStack =
+  let fromEntryPoint (entrypoint : ExecutionPoint) : CallStack =
+    { entrypoint = entrypoint; lastCalled = (entrypoint, None) }
 
 module TypeReference =
   let result (t1 : TypeReference) (t2 : TypeReference) : TypeReference =
@@ -798,22 +836,33 @@ module RuntimeError =
   let oldError (msg : string) : RuntimeError =
     case "OldStringErrorTODO" [ DString msg ]
 
-exception RuntimeErrorException of Source * RuntimeError
+/// Note: in cases where it's awkward to niclude a CallStack,
+/// the Interpreter should try to inject it where it can
+///
+/// CLEANUP: ideally, the CallStack isn't required as part of the exception.
+/// This would clean up a _lot_ of code.
+/// The tricky part is that we do want the CallStack around, to report on,
+/// and to use for debugging, but the way the Interpreter+Execution is set up,
+/// there's no great single place to `try/with` to supply the call stack.
+exception RuntimeErrorException of Option<CallStack> * RuntimeError
 
-let raiseRTE (source : Source) (rte : RuntimeError) : 'a =
-  raise (RuntimeErrorException(source, rte))
+let raiseRTE (callStack : CallStack) (rte : RuntimeError) : 'a =
+  raise (RuntimeErrorException(Some callStack, rte))
 
-// TODO add sources to all RTEs
+// (only?) OK in builtins because we "fill in" the callstack in the Interpreter for such failures
+// CLEANUP maybe (somehow) restrict to only Builtins
 let raiseUntargetedRTE (rte : RuntimeError) : 'a =
   raise (RuntimeErrorException(None, rte))
 
+
 // TODO remove all usages of this in favor of better error cases
-let raiseString (s : string) : 'a = raiseUntargetedRTE (RuntimeError.oldError s)
+let raiseUntargetedString (s : string) : 'a =
+  raiseUntargetedRTE (RuntimeError.oldError s)
 
 /// Internally in the runtime, we allow throwing RuntimeErrorExceptions. At the
 /// boundary, typically in Execution.fs, we will catch the exception, and return this
 /// type.
-type ExecutionResult = Result<Dval, Source * RuntimeError>
+type ExecutionResult = Result<Dval, Option<CallStack> * RuntimeError>
 
 /// IncorrectArgs should never happen, as all functions are type-checked before
 /// calling. If it does happen, it means that the type parameters in the Fn structure
@@ -1183,13 +1232,12 @@ type Const =
 module PackageType =
   //type Name = ...
   // TODO: hash
-  type T =
-    { tlid : tlid; name : FQTypeName.Package; declaration : TypeDeclaration.T }
+  type T = { id : uuid; name : FQTypeName.Package; declaration : TypeDeclaration.T }
 
 module PackageConstant =
   //type Name = ...
   // TODO: hash
-  type T = { tlid : tlid; name : FQConstantName.Package; body : Const }
+  type T = { id : uuid; name : FQConstantName.Package; body : Const }
 
 module PackageFn =
   //type Name = ...
@@ -1199,7 +1247,7 @@ module PackageFn =
   // TODO: hash
   type T =
     { name : FQFnName.Package
-      tlid : tlid
+      id : uuid
       typeParams : List<string>
       parameters : NEList<Parameter>
       returnType : TypeReference
@@ -1358,28 +1406,23 @@ and Fn =
     fn : FnImpl
   }
 
-// TODO: consider making this a record instead of a tuple
 and BuiltInFnSig =
-  (ExecutionState *
-
-  // type args
-  List<TypeReference> *
-
-  // fn args
-  List<Dval>)
-    -> DvalTask
+  // state * typeArgs * fnArgs
+  (ExecutionState * List<TypeReference> * List<Dval>) -> DvalTask
 
 and FnImpl =
   | BuiltInFunction of BuiltInFnSig
-  | PackageFunction of tlid * Expr
+  | PackageFunction of uuid * Expr
 
 
 and FunctionRecord = Source * FQFnName.FQFnName
 
 and TraceDval = id -> Dval -> unit
 
-and TraceTLID = tlid -> unit
+and TraceExecutionPoint = ExecutionPoint -> unit
 
+// why do we need the Dvals here? those are the args, right - do we really need them?
+// ah, because we could call the same fn twice, from the same place, but with different args. hmm.
 and LoadFnResult = FunctionRecord -> NEList<Dval> -> Option<Dval * NodaTime.Instant>
 
 and StoreFnResult = FunctionRecord -> NEList<Dval> -> Dval -> unit
@@ -1393,16 +1436,12 @@ and Program =
 
 /// Set of callbacks used to trace the interpreter, and other context needed to run code
 and Tracing =
-  {
-    traceDval : TraceDval
-    traceTLID : TraceTLID
+  { traceDval : TraceDval
+    traceExecutionPoint : TraceExecutionPoint
     loadFnResult : LoadFnResult
     storeFnResult : StoreFnResult
 
-    /// ID of the caller, used to find the source of an error.
-    /// It's not the end of the world if this is wrong or missing, but it will give worse errors.
-    caller : Source
-  }
+    callStack : CallStack }
 
 // Used for testing
 and TestContext =
@@ -1422,14 +1461,14 @@ and PackageManager =
   { getType : FQTypeName.Package -> Ply<Option<PackageType.T>>
     getConstant : FQConstantName.Package -> Ply<Option<PackageConstant.T>>
     getFn : FQFnName.Package -> Ply<Option<PackageFn.T>>
-    getFnByTLID : tlid -> Ply<Option<PackageFn.T>>
+    getFnByID : uuid -> Ply<Option<PackageFn.T>>
 
     init : Ply<unit> }
 
   static member empty =
     { getType = (fun _ -> Ply None)
       getFn = (fun _ -> Ply None)
-      getFnByTLID = (fun _ -> Ply None)
+      getFnByID = (fun _ -> Ply None)
       getConstant = (fun _ -> Ply None)
 
       init = uply { return () } }
@@ -1457,11 +1496,11 @@ and PackageManager =
           match fns |> List.tryFind (fun f -> f.name = name) with
           | Some f -> Some f |> Ply
           | None -> pm.getFn name
-      getFnByTLID =
-        fun tlid ->
-          match fns |> List.tryFind (fun f -> f.tlid = tlid) with
+      getFnByID =
+        fun id ->
+          match fns |> List.tryFind (fun f -> f.id = id) with
           | Some f -> Some f |> Ply
-          | None -> pm.getFnByTLID tlid
+          | None -> pm.getFnByID id
       init = pm.init }
 
 and ExceptionReporter = ExecutionState -> Metadata -> exn -> unit
@@ -1492,6 +1531,7 @@ and ExecutionState =
     // -- Can change over time during execution --
     packageManager : PackageManager // TODO update to availableTypes?
 
+    symbolTable : Symtable
     typeSymbolTable : TypeSymbolTable
   }
 
@@ -1506,6 +1546,7 @@ and Constants =
 and Functions =
   { builtIn : Map<FQFnName.Builtin, BuiltInFn>
     package : FQFnName.Package -> Ply<Option<PackageFn.T>> }
+
 
 
 module ExecutionState =
@@ -1638,4 +1679,4 @@ let packageFnToFn (fn : PackageFn.T) : Fn =
     returnType = fn.returnType
     previewable = Impure
     sqlSpec = NotQueryable
-    fn = PackageFunction(fn.tlid, fn.body) }
+    fn = PackageFunction(fn.id, fn.body) }

@@ -22,7 +22,6 @@ type FunctionResult = FnName * id * FunctionArgHash * HashVersion * RT.Dval
 /// and use trace ordering and indexing. Traces are also stored in the index better
 /// (as in, more compactly) as a result.
 module TraceID =
-
   [<Struct>]
   type T =
     | TraceID of System.Guid
@@ -94,17 +93,19 @@ type TraceData = { input : InputVars; functionResults : List<FunctionResult> }
 
 type Trace = TraceID.T * TraceData
 
-type AnalysisRequest =
-  { requestID : int
-    requestTime : NodaTime.Instant
-    tlid : tlid
-    traceID : TraceID.T
-    traceData : TraceData
-    dbs : List<RT.DB.T>
-    expr : RT.Expr
-    packageFns : List<RT.PackageFn.T>
-    packageTypes : List<RT.PackageType.T>
-    packageConstants : List<RT.PackageConstant.T>
-    secrets : List<RT.Secret.T> }
 
-type AnalysisResults = System.Collections.Generic.Dictionary<id, RT.Dval>
+// TODO: this isn't currently used - figure out what to do here
+// type AnalysisRequest =
+//   { requestID : int
+//     requestTime : NodaTime.Instant
+//     tlid : tlid
+//     traceID : TraceID.T
+//     traceData : TraceData
+//     dbs : List<RT.DB.T>
+//     expr : RT.Expr
+//     packageFns : List<RT.PackageFn.T>
+//     packageTypes : List<RT.PackageType.T>
+//     packageConstants : List<RT.PackageConstant.T>
+//     secrets : List<RT.Secret.T> }
+
+// type AnalysisResults = System.Collections.Generic.Dictionary<id, RT.Dval>

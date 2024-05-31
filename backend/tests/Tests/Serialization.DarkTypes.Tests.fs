@@ -50,8 +50,7 @@ module RoundtripTests =
               "Darklang"
               [ "LanguageTools"; "ProgramTypes" ]
               "expr"),
-          returnType = RT.TCustomType(Ok typeName, []),
-          location = None
+          returnType = RT.TCustomType(Ok typeName, [])
         )
 
       let! typeChecked =

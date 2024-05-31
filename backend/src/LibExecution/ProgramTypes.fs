@@ -517,8 +517,7 @@ type Deprecation<'name> =
 // --
 module PackageType =
   type T =
-    { tlid : tlid
-      id : System.Guid
+    { id : uuid
       name : FQTypeName.Package
       declaration : TypeDeclaration.T
       description : string
@@ -526,8 +525,7 @@ module PackageType =
 
 module PackageConstant =
   type T =
-    { tlid : tlid
-      id : System.Guid
+    { id : uuid
       name : FQConstantName.Package
       description : string
       deprecated : Deprecation<FQConstantName.FQConstantName>
@@ -537,8 +535,7 @@ module PackageFn =
   type Parameter = { name : string; typ : TypeReference; description : string }
 
   type T =
-    { tlid : tlid
-      id : System.Guid
+    { id : uuid
       name : FQFnName.Package
       body : Expr
       typeParams : List<string>

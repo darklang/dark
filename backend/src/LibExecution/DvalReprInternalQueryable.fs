@@ -79,13 +79,13 @@ type Utf8JsonWriter with
 
 let rec private toJsonV0
   (w : Utf8JsonWriter)
-  (source : Source)
+  (callStack : CallStack)
   (types : Types)
   (typ : TypeReference)
   (dv : Dval)
   : Ply<unit> =
   uply {
-    let writeDval = toJsonV0 w source types
+    let writeDval = toJsonV0 w callStack types
 
     match typ, dv with
     // basic types
@@ -198,7 +198,7 @@ let rec private toJsonV0
             "Value to be stored does not match a declared type"
             [ "value", dv; "type", typ; "typeName", typeName ]
 
-    | TCustomType(Error err, _), _ -> raiseRTE source err
+    | TCustomType(Error err, _), _ -> raiseRTE callStack err
 
     // Not supported
     | TVariable _, _
@@ -239,15 +239,20 @@ let rec private toJsonV0
 
 
 let toJsonStringV0
-  (source : Source)
+  (callStack : CallStack)
   (types : Types)
   (typ : TypeReference)
   (dval : Dval)
   : Ply<string> =
-  writeJson (fun w -> toJsonV0 w source types typ dval)
+  writeJson (fun w -> toJsonV0 w callStack types typ dval)
 
 
-let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval> =
+let parseJsonV0
+  (callStack : CallStack)
+  (types : Types)
+  (typ : TypeReference)
+  (str : string)
+  : Ply<Dval> =
   let rec convert (typ : TypeReference) (j : JsonElement) : Ply<Dval> =
     match typ, j.ValueKind with
     // simple cases
@@ -291,7 +296,7 @@ let parseJsonV0 (types : Types) (typ : TypeReference) (str : string) : Ply<Dval>
       |> Seq.map (convert nested)
       |> Seq.toList
       |> Ply.List.flatten
-      |> Ply.map (TypeChecker.DvalCreator.list VT.unknownTODO)
+      |> Ply.map (TypeChecker.DvalCreator.list callStack VT.unknownTODO)
 
     | TTuple(t1, t2, rest), JsonValueKind.Array ->
       let arr = j.EnumerateArray() |> Seq.toList

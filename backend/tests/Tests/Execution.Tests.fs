@@ -31,7 +31,7 @@ let testExecFunctionTLIDs : Test =
 
     let tlids, traceFn = Exe.traceTLIDs ()
 
-    let state = { state with tracing.traceTLID = traceFn }
+    let state = { state with tracing.traceExecutionPoint = traceFn }
 
     let! value =
       Exe.executeFunction

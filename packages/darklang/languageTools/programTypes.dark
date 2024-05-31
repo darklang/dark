@@ -379,8 +379,7 @@ module Darklang =
 
       // Package space
       type PackageType =
-        { tlid: TLID
-          id: Uuid
+        { id: Uuid
           name: FQTypeName.Package
           declaration: TypeDeclaration.TypeDeclaration
           description: String
@@ -388,8 +387,7 @@ module Darklang =
 
 
       type PackageConstant =
-        { tlid: TLID
-          id: Uuid
+        { id: Uuid
           name: FQConstantName.Package
           body: Const
           description: String
@@ -403,8 +401,7 @@ module Darklang =
             description: String }
 
         type PackageFn =
-          { tlid: TLID
-            id: Uuid
+          { id: Uuid
             name: FQFnName.Package
             body: Expr
             typeParams: List<String>

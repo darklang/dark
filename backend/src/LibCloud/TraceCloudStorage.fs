@@ -40,13 +40,13 @@ module LibCloud.TraceCloudStorage
 //   - For the execute button, all we're doing is adding more function results.
 //     - We support extending a trace with "layers" to the storage with the same
 //       prefix for example, for the trace at {canvasID}/{traceID} add more function
-//       results at {canvasID}/{traceID}/{timestamp}/{randomNumber} when fetched, it
-//       can be layered on top to overwrite other function results
+//       results at `{canvasID}/{traceID}/{timestamp}/{randomNumber}` when fetched,
+//       it can be layered on top to overwrite other function results
 //   - For the execute_function button, we are again just adding more functions
 //     results, so these are also just layers
 //
 // - 404s (not implemented yet)
-//   - store them using {canvasID}/404s/{traceID}
+//   - store them using `{canvasID}/404s/{traceID}`
 //   - store path such that we can request it in one request
 //   - store just the input
 //   - when converted to a trace, delete and rewrite it the normal way
@@ -78,23 +78,33 @@ module RT = LibExecution.RuntimeTypes
 // Only do storage here.
 // Anything else needs utility functions that go in BuiltinDarkInternal.
 
-type RoundTrippableDval = LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval
+/// The formats that we store in Cloud Storage need to be roundtrippable
+/// and relatively stable. Route all data through this module.
+[<RequireQualifiedAccess>]
+module Roundtrippable =
+  type Dval = LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval
+
+  let toRT (dval : Dval) : RT.Dval =
+    LibExecution.DvalReprInternalRoundtrippable.FormatV0.toRT dval
+
+  let fromRT (dval : RT.Dval) : Dval =
+    LibExecution.DvalReprInternalRoundtrippable.FormatV0.fromRT dval
+
 
 type FunctionArgHash = string
 type FnName = string
-type InputVars = List<string * RoundTrippableDval>
+type InputVars = List<string * Roundtrippable.Dval>
 
-type Result = NodaTime.Instant * RoundTrippableDval
+type Result = NodaTime.Instant * Roundtrippable.Dval
 
-let roundtrippableToDval (dval : RoundTrippableDval) : RT.Dval =
-  LibExecution.DvalReprInternalRoundtrippable.FormatV0.toRT dval
-
-let dvalToRoundtrippable (dval : RT.Dval) : RoundTrippableDval =
-  LibExecution.DvalReprInternalRoundtrippable.FormatV0.fromRT dval
 
 
 let currentStorageVersion = 0
 
+// TRACINGTODO
+// I suppose the `tlid` here is of the ... fn?
+// I'm not sure what the `id` corresponds to - maybe the exprId? of the fn call?
+// and where does the `string` key come from?
 type FunctionResultKey = tlid * RT.FQFnName.FQFnName * id * string
 type FunctionResultValue = RT.Dval * NodaTime.Instant
 
@@ -103,7 +113,7 @@ type CloudStorageFormat =
   { storageFormatVersion : int
     input : InputVars
     functionResults :
-      seq<tlid * id * FnName * int * FunctionArgHash * RoundTrippableDval> }
+      seq<tlid * id * FnName * int * FunctionArgHash * Roundtrippable.Dval> }
 
 let bucketName = Config.traceStorageBucketName
 
@@ -219,14 +229,14 @@ let getTraceData
       |> UTF8.ofBytesUnsafe
       |> Json.Vanilla.deserialize<CloudStorageFormat>
 
-    let parseDval = LibExecution.DvalReprInternalRoundtrippable.FormatV0.toRT
-
     let traceData : AT.TraceData =
-      { input = cloudStorageData.input |> List.map (Tuple2.mapSecond parseDval)
+      { input =
+          cloudStorageData.input |> List.map (Tuple2.mapSecond Roundtrippable.toRT)
         functionResults =
           cloudStorageData.functionResults
           |> Seq.map (fun (_tlid, id, fnName, hashVersion, argHash, dval) ->
-            (fnName, id, argHash, hashVersion, parseDval dval) : AT.FunctionResult)
+            (fnName, id, argHash, hashVersion, Roundtrippable.toRT dval)
+            : AT.FunctionResult)
           |> List.ofSeq }
 
     return (traceID, traceData)
@@ -252,10 +262,10 @@ let storeToCloudStorage
         RT.FQFnName.toString fnName,
         LibExecution.DvalReprInternalHash.currentHashVersion,
         hash,
-        dvalToRoundtrippable dval)
+        Roundtrippable.fromRT dval)
 
     let inputVars =
-      inputVars |> List.map (fun (name, dval) -> (name, dvalToRoundtrippable dval))
+      inputVars |> List.map (fun (name, dval) -> (name, Roundtrippable.fromRT dval))
     let data =
       { input = inputVars
         functionResults = functionResults

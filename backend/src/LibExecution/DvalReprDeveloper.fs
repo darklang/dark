@@ -123,7 +123,6 @@ let toRepr (dv : Dval) : string =
     let indent = indent + 2
     let typename = toTypeName dv
     let wrap str = $"<{typename}: {str}>"
-    let justType = $"<{typename}>"
 
     match dv with
     | DUnit -> "()"
@@ -235,9 +234,10 @@ let toRepr (dv : Dval) : string =
         let typeStr = FQTypeName.toString typeName
         $"{typeStr}{typeArgsPart}.{caseName}{fieldStr}"
 
-    | DFnVal _ ->
-      // TODO: we should print this, as this use case is safe
-      // See docs/dblock-serialization.md
-      justType
+    | DFnVal fnVal ->
+      // TODO we can do better here.
+      match fnVal with
+      | Lambda _impl -> "<lambda>"
+      | NamedFn name -> $"<named fn {name}>"
 
   toRepr_ 0 dv

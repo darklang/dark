@@ -1,9 +1,9 @@
 module Darklang =
   module OpenAI =
     module Config =
-      let apiKey = "openai-api-key"
 
-      let getHeaders () : List<(String * String)> =
+      // TODO: This should be a secret `Secret<String>`
+      let getHeaders (apiKey: String) : List<(String * String)> =
         [ ("authorization", "Bearer " ++ apiKey)
           ("content-type", "application/json") ]
 
@@ -23,17 +23,21 @@ module Darklang =
           model: String
           choices: List<ResponseChoice> }
 
-      let completion (prompt: String) : Stdlib.Result.Result<String, String> =
+
+      let simple
+        (apiKey: String)
+        (prompt: String)
+        : Stdlib.Result.Result<String, String> =
         let openAIRequest =
           Request
-            { model = "text-davinci-003"
+            { model = "gpt-3.5-turbo-0125"
               prompt = prompt
               max_tokens = 700L
               temperature = 0.7 }
 
         let reqBody = Builtin.jsonSerialize<Request> openAIRequest
 
-        let headers = Config.getHeaders ()
+        let headers = Config.getHeaders apiKey
 
         let openAIResponse =
           Stdlib.HttpClient.request
@@ -84,7 +88,7 @@ module Darklang =
 
       let completionOptionsDefault () : CompletionOptions =
         CompletionOptions
-          { model = "gpt-3.5-turbo"
+          { model = "gpt-3.5-turbo-0125"
             messages = [ RequestMessage { role = "user"; content = "test" } ]
             temperature = 0.7
             max_tokens = 700L
@@ -94,6 +98,7 @@ module Darklang =
 
 
       let completionWithOption
+        (apiKey: String)
         (prompt: String)
         (options: Stdlib.Option.Option<CompletionOptions>)
         : Stdlib.Result.Result<String, String> =
@@ -110,7 +115,7 @@ module Darklang =
 
         let reqBody = Builtin.jsonSerialize<CompletionOptions> openAIRequest
 
-        let headers = Config.getHeaders ()
+        let headers = Config.getHeaders apiKey
 
         let openAIResponse =
           Stdlib.HttpClient.request
@@ -138,7 +143,10 @@ module Darklang =
 
 
 
-      let completion (prompt: String) : Stdlib.Result.Result<String, String> =
+      let completion
+        (apiKey: String)
+        (prompt: String)
+        : Stdlib.Result.Result<String, String> =
         let openAIRequest =
           Request
             { model = "gpt-3.5-turbo"
@@ -148,7 +156,7 @@ module Darklang =
 
         let reqBody = Builtin.jsonSerialize<Request> openAIRequest
 
-        let headers = Darklang.OpenAI.Config.getHeaders ()
+        let headers = Darklang.OpenAI.Config.getHeaders apiKey
 
         let openAIResponse =
           Stdlib.HttpClient.request
@@ -184,13 +192,16 @@ module Darklang =
       /// Returns a url to the image
       ///
       /// CLEANUP should it return the image itself instead?
-      let imageGeneration (prompt: String) : Stdlib.Result.Result<String, String> =
+      let imageGeneration
+        (apiKey: String)
+        (prompt: String)
+        : Stdlib.Result.Result<String, String> =
 
         let openAIRequest = Request { prompt = prompt; size = "256x256" }
 
         let reqBody = Builtin.jsonSerialize<Request> openAIRequest
 
-        let headers = Config.getHeaders ()
+        let headers = Config.getHeaders apiKey
 
         let openAIResponse =
           Stdlib.HttpClient.request
@@ -227,9 +238,12 @@ module Darklang =
           model: String }
 
 
-      let retrieveModel (model: String) : Stdlib.Result.Result<String, String> =
+      let retrieveModel
+        (apiKey: String)
+        (model: String)
+        : Stdlib.Result.Result<String, String> =
 
-        let headers = Config.getHeaders ()
+        let headers = Config.getHeaders apiKey
 
         let modelResponse =
           Stdlib.HttpClient.request
@@ -244,12 +258,14 @@ module Darklang =
         | Error e -> Stdlib.Result.Result.Error("OpenAI API request failed\n" ++ e)
 
 
-      let getListOfModels () : Stdlib.Result.Result<List<String>, String> =
+      let getListOfModels
+        (apiKey: String)
+        : Stdlib.Result.Result<List<String>, String> =
         let modelResponse =
           Stdlib.HttpClient.request
             "GET"
             "https://api.openai.com/v1/models"
-            (Config.getHeaders ())
+            (Config.getHeaders apiKey)
             []
 
         match modelResponse with

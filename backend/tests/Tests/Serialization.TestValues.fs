@@ -846,7 +846,8 @@ module ProgramTypes =
   // (also make sure we roundtrip test them)
 
   let packageFn : PT.PackageFn.T =
-    { name =
+    { id = uuid
+      name =
         { owner = "dark"; modules = [ "stdlib"; "Int64"; "Int64" ]; name = "mod" }
       body = expr
       typeParams = [ "a" ]
@@ -855,14 +856,13 @@ module ProgramTypes =
           { name = "param"; typ = typeReference; description = "desc" }
       returnType = typeReference
       description = "test"
-      deprecated = PT.NotDeprecated
-      id = uuid
-      tlid = tlid }
+      deprecated = PT.NotDeprecated }
 
   let packageFns = [ packageFn ]
 
   let packageType : PT.PackageType.T =
-    { name =
+    { id = uuid
+      name =
         { owner = "darklang"
           modules = [ "stdlib"; "Int64"; "Int64" ]
           name = "Int64" }
@@ -877,23 +877,21 @@ module ProgramTypes =
                       [ { typ = typeReference; label = Some "i"; description = "" } ]
                     description = "" } ]
             ) }
-      id = uuid
+
       description = "test"
-      deprecated = PT.NotDeprecated
-      tlid = tlid }
+      deprecated = PT.NotDeprecated }
 
   let packageTypes = [ packageType ]
 
   let packageConstant : PT.PackageConstant.T =
-    { name =
+    { id = uuid
+      name =
         { owner = "dark"
           modules = [ "stdlib"; "Int64"; "Int64" ]
           name = "testConstant" }
       body = constValue
       description = "test"
-      deprecated = PT.NotDeprecated
-      id = uuid
-      tlid = tlid }
+      deprecated = PT.NotDeprecated }
 
   let packageConstants = [ packageConstant ]
 

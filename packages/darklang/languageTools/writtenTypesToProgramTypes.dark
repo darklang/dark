@@ -229,8 +229,7 @@ module Darklang =
           (d: WrittenTypes.TypeDeclaration.TypeDeclaration)
           : ProgramTypes.PackageType =
           ProgramTypes.PackageType
-            { tlid = gtlid ()
-              id = Stdlib.Uuid.generate ()
+            { id = Stdlib.Uuid.generate ()
               name =
                 ProgramTypes.FQTypeName.Package
                   { owner = owner
@@ -606,8 +605,7 @@ module Darklang =
             fn.typeParams |> Stdlib.List.map (fun p -> p |> Stdlib.Tuple2.second)
 
           ProgramTypes.PackageFn.PackageFn
-            { tlid = gtlid ()
-              id = Stdlib.Uuid.generate ()
+            { id = Stdlib.Uuid.generate ()
               name =
                 ProgramTypes.FQFnName.Package
                   { owner = owner

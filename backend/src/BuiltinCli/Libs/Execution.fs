@@ -42,7 +42,7 @@ let fns : List<BuiltInFn> =
               "/bin/bash", $"-c \"{command}\""
             else
               "Executing CLI commands is not supported for your operating system (Linux, Windows, or Mac not detected)"
-              |> raiseString
+              |> raiseUntargetedString
 
           let psi =
             System.Diagnostics.ProcessStartInfo(

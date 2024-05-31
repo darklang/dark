@@ -32,7 +32,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
     && List.forall2 equals a b
   | DTuple(a1, a2, a3), DTuple(b1, b2, b3) ->
     if a3.Length <> b3.Length then // special case - this is a type error
-      raiseString "tuples must be the same length"
+      raiseUntargetedString "tuples must be the same length"
     else
       equals a1 b1 && equals a2 b2 && List.forall2 equals a3 b3
   | DDict(_vtTODO1, a), DDict(_vtTODO2, b) ->
@@ -82,7 +82,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DDateTime _, _
   | DUuid _, _
   | DDB _, _
-  | DEnum _, _ -> raiseString "Both values must be the same type"
+  | DEnum _, _ -> raiseUntargetedString "Both values must be the same type"
 
 and equalsLambdaImpl (impl1 : LambdaImpl) (impl2 : LambdaImpl) : bool =
   // TODO what to do for TypeSymbolTable
@@ -360,7 +360,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [] -> incorrectArgs ()
-        | state, _, [ dval ] ->
+        | _, _, [ dval ] ->
           match dval with
 
           // success: extract `Some` out of an Option
@@ -389,9 +389,7 @@ let fns : List<BuiltInFn> =
                   _,
                   "None",
                   []) ->
-            "expected Some, got None"
-            |> RuntimeError.oldError
-            |> raiseRTE state.tracing.caller
+            "expected Some, got None" |> RuntimeError.oldError |> raiseUntargetedRTE
 
           // Error: expected Ok, got Error
           | DEnum(FQTypeName.Package({ owner = "Darklang"
@@ -403,19 +401,19 @@ let fns : List<BuiltInFn> =
                   [ value ]) ->
             $"expected Ok, got Error:\n{value |> DvalReprDeveloper.toRepr}"
             |> RuntimeError.oldError
-            |> raiseRTE state.tracing.caller
+            |> raiseUntargetedRTE
 
 
           // Error: single dval, but not an Option or Result
           | otherDval ->
             $"Unwrap called with non-Option/non-Result {otherDval}"
             |> RuntimeError.oldError
-            |> raiseRTE state.tracing.caller
+            |> raiseUntargetedRTE
 
-        | state, _, multipleArgs ->
+        | _, _, multipleArgs ->
           $"unwrap called with multiple arguments: {multipleArgs}"
           |> RuntimeError.oldError
-          |> raiseRTE state.tracing.caller)
+          |> raiseUntargetedRTE)
 
       sqlSpec = NotQueryable
       previewable = Pure
@@ -434,6 +432,27 @@ let fns : List<BuiltInFn> =
         | _, _, [ DString label; value ] ->
           // TODO: call upon the Dark equivalent fn instead of rlying on DvalReprDeveloper
           print $"DEBUG: {label} - {DvalReprDeveloper.toRepr value}"
+          Ply DUnit
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "debugSymbolTable" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TUnit
+      description = "Prints the current symbol table to the standard output"
+      fn =
+        (function
+        | state, _, [ DUnit ] ->
+          state.symbolTable
+          |> Map.toList
+          |> List.map (fun (key, dv) -> $"- {key}: {DvalReprDeveloper.toRepr dv}")
+          |> String.concat "\n"
+          |> fun lines -> print $"DEBUG: symTable\n{lines}"
+
           Ply DUnit
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

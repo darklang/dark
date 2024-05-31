@@ -57,7 +57,7 @@ let rec canonicalize (expr : Expr) : Expr = expr
 // Returns a typeReference since we don't always know what type it should have (eg is
 // a polymorphic function is being called)
 let rec dvalToSql
-  (source : Source)
+  (callStack : CallStack)
   (types : Types)
   (expectedType : TypeReference)
   (dval : Dval)
@@ -74,13 +74,13 @@ let rec dvalToSql
     | TVariable _, DRecord(typeName, _, [], _)
     | TVariable _, DEnum(typeName, _, [], _, _) ->
       let! jsonString =
-        DvalReprInternalQueryable.toJsonStringV0 source types expectedType dval
+        DvalReprInternalQueryable.toJsonStringV0 callStack types expectedType dval
       return Sql.jsonb jsonString, TCustomType(Ok typeName, [])
 
     | TCustomType(_, []), DEnum _
     | TCustomType(_, []), DRecord _ ->
       let! jsonString =
-        DvalReprInternalQueryable.toJsonStringV0 source types expectedType dval
+        DvalReprInternalQueryable.toJsonStringV0 callStack types expectedType dval
       return Sql.jsonb jsonString, expectedType
 
     | TVariable _, DDateTime date
@@ -223,7 +223,7 @@ let typecheckDval
   (expectedType : TypeReference)
   =
   uply {
-    let context = TypeChecker.DBQueryVariable(name, expectedType, None)
+    let context = TypeChecker.DBQueryVariable(name, expectedType)
     match! TypeChecker.unify context types Map.empty expectedType dval with
     | Ok() -> return ()
     | Error err -> raise (SqlCompilerRuntimeError err)
@@ -368,33 +368,35 @@ let rec lambdaToSql
   (fns : Functions)
   (types : Types)
   (constants : Constants)
+  (callStack : CallStack)
   (tst : TypeSymbolTable)
   (symtable : DvalMap)
   (paramName : string)
   (dbTypeRef : TypeReference)
   (expectedType : TypeReference)
-  (tlid : tlid)
   (expr : Expr)
   : Ply<CompiledSqlQuery> =
+  let callStack =
+    { callStack with lastCalled = (fst callStack.lastCalled, Some(Expr.toID expr)) }
+
   uply {
     let lts (expectedType : TypeReference) (expr : Expr) : Ply<CompiledSqlQuery> =
       lambdaToSql
         fns
         types
         constants
+        callStack
         tst
         symtable
         paramName
         dbTypeRef
         expectedType
-        tlid
         expr
 
     let! (sql, vars, actualType) =
       uply {
         match expr with
-        | EConstant(id, (constantName)) ->
-          let source = Some(tlid, id)
+        | EConstant(_, (constantName)) ->
           let nameStr = FQConstantName.toString constantName
 
           let! constant =
@@ -406,13 +408,15 @@ let rec lambdaToSql
                 | None -> return! error $"No built-in constant {nameStr} found"
               | FQConstantName.Package p ->
                 match! constants.package p with
-                | Some c -> return LibExecution.Interpreter.evalConst source c.body
+                | Some c ->
+                  return LibExecution.Interpreter.evalConst callStack c.body
                 | None -> return error $"No package constant {nameStr} found"
             }
           do! typecheckDval nameStr types constant expectedType
           let random = randomString 8
           let newname = $"{nameStr}_{random}"
-          let! (sqlValue, actualType) = dvalToSql source types expectedType constant
+          let! (sqlValue, actualType) =
+            dvalToSql callStack types expectedType constant
           return ($"(@{newname})", [ newname, sqlValue ], actualType)
 
         | EApply(_, EFnName(_, fnName), [], args) ->
@@ -536,8 +540,7 @@ let rec lambdaToSql
 
         // TYPESCLEANUP - this could be the paramName, now that we support more than
         // records here.
-        | EVariable(id, varname) ->
-          let source = Some(tlid, id)
+        | EVariable(_, varname) ->
           match Map.get varname symtable with
           | Some dval ->
             do! typecheckDval varname types dval expectedType
@@ -545,7 +548,7 @@ let rec lambdaToSql
             let newname = $"{varname}_{random}"
             // Fetch the actualType here as well as we might be passing in an abstract
             // type.
-            let! (sqlValue, actualType) = dvalToSql source types expectedType dval
+            let! (sqlValue, actualType) = dvalToSql callStack types expectedType dval
             return $"(@{newname})", [ newname, sqlValue ], actualType
           | None -> return error $"This variable is not defined: {varname}"
 
@@ -670,8 +673,7 @@ let rec lambdaToSql
           | _ -> return error "Expected a List"
 
         // TODO: handle cases where `fields` is non-empty
-        | EEnum(id, sourceTypeName, sourceCaseName, []) ->
-          let source = Some(tlid, id)
+        | EEnum(_, sourceTypeName, sourceCaseName, []) ->
           let! dv =
             TypeChecker.DvalCreator.enum
               sourceTypeName
@@ -683,14 +685,13 @@ let rec lambdaToSql
           let typ = TCustomType(Ok sourceTypeName, typeArgs)
 
           typecheck $"Enum '{dv}'" typ expectedType
-          let! v = DvalReprInternalQueryable.toJsonStringV0 source types typ dv
+          let! v = DvalReprInternalQueryable.toJsonStringV0 callStack types typ dv
           let name = randomString 10
 
           return $"(@{name})", [ name, Sql.jsonb v ], typ
 
 
         | EFieldAccess(_, subExpr, fieldName) ->
-
           // This is the core part of the query compiler - being able to query fields
           // of the DB rows.
           //
@@ -927,22 +928,19 @@ let rec lambdaToSql
 //  needs in the right place.
 let partiallyEvaluate
   (state : ExecutionState)
-  (tlid : tlid)
-  (tst : TypeSymbolTable)
-  (symtable : Symtable)
   (paramName : string)
   (body : Expr)
   : Ply.Ply<DvalMap * Expr> =
   uply {
-
     // This isn't really a good implementation, but right now we only do
     // straight-line code here, so it should work
-    let mutable symtable = symtable
+    let mutable symtable = state.symbolTable
 
     let exec (expr : Expr) : Ply.Ply<Expr> =
       uply {
+        let state = { state with symbolTable = symtable }
         let newName = "dark_generated_" + randomString 8
-        let! value = LibExecution.Interpreter.eval state tlid tst symtable expr
+        let! value = LibExecution.Interpreter.eval state expr
         symtable <- Map.add newName value symtable
         return (EVariable(gid (), newName))
       }
@@ -1174,9 +1172,6 @@ type CompileLambdaResult = { sql : string; vars : List<string * SqlValue> }
 
 let compileLambda
   (state : ExecutionState)
-  (tlid : tlid)
-  (tst : TypeSymbolTable)
-  (symtable : DvalMap)
   (paramName : string)
   (dbType : TypeReference)
   (body : Expr)
@@ -1196,7 +1191,8 @@ let compileLambda
         |> inline' fns paramName Map.empty
         // Replace expressions which can be calculated now with their result. See
         // comment for more details.
-        |> Ply.bind (partiallyEvaluate state tlid tst symtable paramName)
+        |> Ply.bind (partiallyEvaluate state paramName)
+
 
       // Resolve typeArgs/aliases in the definition
       let! dbType = getTypeReferenceFromAlias types dbType
@@ -1207,12 +1203,12 @@ let compileLambda
             fns
             types
             constants
-            tst
+            state.tracing.callStack
+            state.typeSymbolTable
             symtable
             paramName
             dbType
             TBool
-            tlid
             body
 
         return Ok { sql = compiled.sql; vars = compiled.vars }

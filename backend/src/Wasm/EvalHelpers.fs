@@ -10,29 +10,20 @@ let getStateForEval
   (_constants : List<PackageConstant.T>)
   (_fns : List<PackageFn.T>)
   : ExecutionState =
-
-  // TODO
-  let packageManager : PackageManager = PackageManager.empty
-
-  let program : Program =
-    { canvasID = CanvasID.Empty
-      internalFnsAllowed = true
-      // types = Map.fromListBy (_.name) types
-      // constants = Map.fromListBy (_.name) constants
-      dbs = Map.empty
-      secrets = List.empty
-    //fns = Map.fromListBy (_.name) fns
-    }
-
   { builtins = builtins
-    tracing = LibExecution.Execution.noTracing
+    tracing = LibExecution.Execution.noTracing (CallStack.fromEntryPoint Script)
     test = LibExecution.Execution.noTestContext
     reportException = consoleReporter
     notify = consoleNotifier
 
-    program = program
+    program =
+      { canvasID = CanvasID.Empty
+        internalFnsAllowed = true
+        dbs = Map.empty
+        secrets = List.empty }
 
-    packageManager = packageManager
+    packageManager = PackageManager.empty // TODO
+    symbolTable = Map.empty
     typeSymbolTable = Map.empty }
 
 /// Any 'loose' exprs in the source are mapped without context of previous/later exprs

@@ -118,13 +118,3 @@ let customTypeRecord (fields : List<string * TypeReference>) : TypeDeclaration.T
   | [] -> Exception.raiseInternal "userRecord must have at least one field" []
   | hd :: rest ->
     { typeParams = []; definition = TypeDeclaration.Record(NEList.ofList hd rest) }
-
-let userTypeRecord
-  (owner : string)
-  (modules : List<string>)
-  (name : string)
-  (fields : List<string * TypeReference>)
-  : PackageType.T =
-  { tlid = gid ()
-    name = { owner = owner; modules = modules; name = name }
-    declaration = customTypeRecord fields }

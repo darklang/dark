@@ -21,12 +21,11 @@ let savePackageTypes (types : List<PT.PackageType.T>) : Task<Unit> =
   |> Task.iterInParallel (fun typ ->
     Sql.query
       "INSERT INTO package_types_v0
-        (tlid, id, owner, modules, typename, definition)
+        (id, owner, modules, typename, definition)
       VALUES
-        (@tlid, @id, @owner, @modules, @typename, @definition)"
+        (@id, @owner, @modules, @typename, @definition)"
     |> Sql.parameters
-      [ "tlid", Sql.tlid typ.tlid
-        "id", Sql.uuid typ.id
+      [ "id", Sql.uuid typ.id
         "owner", Sql.string typ.name.owner
         "modules", Sql.string (typ.name.modules |> String.concat ".")
         "typename", Sql.string typ.name.name
@@ -39,12 +38,11 @@ let savePackageConstants (constants : List<PT.PackageConstant.T>) : Task<Unit> =
   |> Task.iterInParallel (fun c ->
     Sql.query
       "INSERT INTO package_constants_v0
-        (tlid, id, owner, modules, name, definition)
+        (id, owner, modules, name, definition)
       VALUES
-        (@tlid, @id, @owner, @modules, @name, @definition)"
+        (@id, @owner, @modules, @name, @definition)"
     |> Sql.parameters
-      [ "tlid", Sql.tlid c.tlid
-        "id", Sql.uuid c.id
+      [ "id", Sql.uuid c.id
         "owner", Sql.string c.name.owner
         "modules", Sql.string (c.name.modules |> String.concat ".")
         "name", Sql.string c.name.name
@@ -56,12 +54,11 @@ let savePackageFunctions (fns : List<PT.PackageFn.T>) : Task<Unit> =
   |> Task.iterInParallel (fun fn ->
     Sql.query
       "INSERT INTO package_functions_v0
-        (tlid, id, owner, modules, fnname, definition)
+        (id, owner, modules, fnname, definition)
       VALUES
-        (@tlid, @id, @owner, @modules, @fnname, @definition)"
+        (@id, @owner, @modules, @fnname, @definition)"
     |> Sql.parameters
-      [ "tlid", Sql.tlid fn.tlid
-        "id", Sql.uuid fn.id
+      [ "id", Sql.uuid fn.id
         "owner", Sql.string fn.name.owner
         "modules", Sql.string (fn.name.modules |> String.concat ".")
         "fnname", Sql.string fn.name.name
@@ -114,14 +111,14 @@ let getFn (name : PT.FQFnName.Package) : Ply<Option<PT.PackageFn.T>> =
         BinarySerialization.PackageFn.deserialize id def)
   }
 
-let getFnByTLID (tlid : tlid) : Ply<Option<PT.PackageFn.T>> =
+let getFnByID (id : uuid) : Ply<Option<PT.PackageFn.T>> =
   uply {
     let! fn =
       "SELECT id, definition
       FROM package_functions_v0
-      WHERE tlid = @tlid"
+      WHERE id = @id"
       |> Sql.query
-      |> Sql.parameters [ "tlid", Sql.tlid tlid ]
+      |> Sql.parameters [ "id", Sql.uuid id ]
       |> Sql.executeRowOptionAsync (fun read ->
         (read.uuid "id", read.bytea "definition"))
 
@@ -209,10 +206,10 @@ let packageManager : RT.PackageManager =
           let! typ = name |> PT2RT.FQFnName.Package.fromRT |> getFn
           return Option.map PT2RT.PackageFn.toRT typ
         })
-    getFnByTLID =
-      fun tlid ->
+    getFnByID =
+      fun id ->
         uply {
-          let! typ = tlid |> getFnByTLID
+          let! typ = id |> getFnByID
           return Option.map PT2RT.PackageFn.toRT typ
         }
 

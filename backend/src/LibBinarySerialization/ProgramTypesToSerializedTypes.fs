@@ -705,33 +705,29 @@ module TypeDeclaration =
 
 module PackageType =
   let toST (pt : PT.PackageType.T) : ST.PackageType.T =
-    { name = FQTypeName.Package.toST pt.name
+    { id = pt.id
+      name = FQTypeName.Package.toST pt.name
       description = pt.description
       declaration = TypeDeclaration.toST pt.declaration
-      deprecated = Deprecation.toST FQTypeName.toST pt.deprecated
-      id = pt.id
-      tlid = pt.tlid }
+      deprecated = Deprecation.toST FQTypeName.toST pt.deprecated }
 
   let toPT (pt : ST.PackageType.T) : PT.PackageType.T =
-    { name = FQTypeName.Package.toPT pt.name
+    { id = pt.id
+      name = FQTypeName.Package.toPT pt.name
       description = pt.description
       declaration = TypeDeclaration.toPT pt.declaration
-      deprecated = Deprecation.toPT FQTypeName.toPT pt.deprecated
-      id = pt.id
-      tlid = pt.tlid }
+      deprecated = Deprecation.toPT FQTypeName.toPT pt.deprecated }
 
 module PackageConstant =
   let toST (pc : PT.PackageConstant.T) : ST.PackageConstant.T =
-    { tlid = pc.tlid
-      id = pc.id
+    { id = pc.id
       name = FQConstantName.Package.toST pc.name
       body = Const.toST pc.body
       description = pc.description
       deprecated = Deprecation.toST FQConstantName.toST pc.deprecated }
 
   let toPT (pc : ST.PackageConstant.T) : PT.PackageConstant.T =
-    { tlid = pc.tlid
-      id = pc.id
+    { id = pc.id
       name = FQConstantName.Package.toPT pc.name
       body = Const.toPT pc.body
       description = pc.description
@@ -746,26 +742,24 @@ module PackageFn =
       { name = p.name; typ = TypeReference.toPT p.typ; description = p.description }
 
   let toST (fn : PT.PackageFn.T) : ST.PackageFn.T =
-    { name = FQFnName.Package.toST fn.name
+    { id = fn.id
+      name = FQFnName.Package.toST fn.name
       parameters = NEList.map Parameter.toST fn.parameters |> NEList.toST
       returnType = TypeReference.toST fn.returnType
       description = fn.description
       deprecated = Deprecation.toST FQFnName.toST fn.deprecated
       body = Expr.toST fn.body
-      typeParams = fn.typeParams
-      id = fn.id
-      tlid = fn.tlid }
+      typeParams = fn.typeParams }
 
   let toPT (fn : ST.PackageFn.T) : PT.PackageFn.T =
-    { name = FQFnName.Package.toPT fn.name
+    { id = fn.id
+      name = FQFnName.Package.toPT fn.name
       parameters = fn.parameters |> NEList.toPT |> NEList.map Parameter.toPT
       returnType = TypeReference.toPT fn.returnType
       description = fn.description
       deprecated = Deprecation.toPT FQFnName.toPT fn.deprecated
       body = Expr.toPT fn.body
-      typeParams = fn.typeParams
-      id = fn.id
-      tlid = fn.tlid }
+      typeParams = fn.typeParams }
 
 
 module Handler =

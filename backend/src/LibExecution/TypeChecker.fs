@@ -12,137 +12,76 @@ let combineErrorsUnit (l : NEList<Result<unit, 'err>>) : Result<unit, 'err> =
   l |> NEList.find Result.isError |> Option.unwrap (Ok())
 
 
-type Location = Option<tlid * id>
 type Context =
   | FunctionCallParameter of
     fnName : FQFnName.FQFnName *
     parameter : Param *
-    paramIndex : int *
-    // caller : Option<tlid * id> * // TODO add caller
-    location : Location
-  | FunctionCallResult of
-    fnName : FQFnName.FQFnName *
-    returnType : TypeReference *
-    // caller : Option<tlid * id> * // TODO add caller
-    location : Location
+    paramIndex : int
+  | FunctionCallResult of fnName : FQFnName.FQFnName * returnType : TypeReference
   | RecordField of
     recordTypeName : FQTypeName.FQTypeName *
     fieldName : string *
-    fieldType : TypeReference *
-    location : Location
-  | DictKey of key : string * typ : TypeReference * Location
+    fieldType : TypeReference
+  | DictKey of key : string * typ : TypeReference
   | EnumField of
     enumTypeName : FQTypeName.FQTypeName *
     caseName : string *
-    fieldIndex : int *  // nth argument to the enum constructor
+    fieldIndex : int *
     fieldCount : int *
-    fieldType : TypeReference *
-    location : Location
-  | DBQueryVariable of
-    varName : string *
-    expected : TypeReference *
-    location : Location
-  | DBSchemaType of
-    name : string *
-    expectedType : TypeReference *
-    location : Location
+    fieldType : TypeReference
+  | DBQueryVariable of varName : string * expected : TypeReference
+  | DBSchemaType of name : string * expectedType : TypeReference
   | ListIndex of index : int * listTyp : TypeReference * parent : Context
   | TupleIndex of index : int * elementType : TypeReference * parent : Context
-  | FnValResult of returnType : TypeReference * location : Location
+  | FnValResult of returnType : TypeReference
 
 
-module Context =
-  let rec toLocation (c : Context) : Location =
-    match c with
-    | FunctionCallParameter(_, _, _, location) -> location
-    | FunctionCallResult(_, _, location) -> location
-    | RecordField(_, _, _, location) -> location
-    | DictKey(_, _, location) -> location
-    | EnumField(_, _, _, _, _, location) -> location
-    | DBQueryVariable(_, _, location) -> location
-    | DBSchemaType(_, _, location) -> location
-    | ListIndex(_, _, parent) -> toLocation parent
-    | TupleIndex(_, _, parent) -> toLocation parent
-    | FnValResult(_, location) -> location
+type ErrorType =
+  // TODO? swap these fields
+  | ValueNotExpectedType of actualValue : Dval * expectedType : TypeReference
+  | TypeDoesntExist of FQTypeName.FQTypeName
 
-type Error =
-  | ValueNotExpectedType of
-    // CLEANUP consider reordering fields to (context * expectedType * actualValue)
-    actualValue : Dval *
-    expectedType : TypeReference *
-    Context
-  | TypeDoesntExist of FQTypeName.FQTypeName * Context
 
+type Error = { errorType : ErrorType; context : Context }
 
 
 module Error =
-
   module RT2DT = RuntimeTypesToDarkTypes
-
-  module Location =
-    let toDT (location : Location) : Dval =
-      let optType = KTTuple(VT.int64, VT.int64, [])
-      match location with
-      | None -> Dval.optionNone optType
-      | Some(tlid, id) ->
-        let tlid = DInt64(int64 tlid)
-        let id = DInt64(int64 id)
-        Dval.optionSome optType (DTuple(tlid, id, []))
-
 
   module Context =
     let rec toDT (context : Context) : Dval =
       let (caseName, fields) =
         match context with
-        | FunctionCallParameter(fnName, param, paramIndex, location) ->
+        | FunctionCallParameter(fnName, param, paramIndex) ->
           "FunctionCallParameter",
-          [ RT2DT.FQFnName.toDT fnName
-            RT2DT.Param.toDT param
-            DInt64 paramIndex
-            Location.toDT location ]
+          [ RT2DT.FQFnName.toDT fnName; RT2DT.Param.toDT param; DInt64 paramIndex ]
 
-        | FunctionCallResult(fnName, returnType, location) ->
+        | FunctionCallResult(fnName, returnType) ->
           "FunctionCallResult",
-          [ RT2DT.FQFnName.toDT fnName
-            RT2DT.TypeReference.toDT returnType
-            Location.toDT location ]
+          [ RT2DT.FQFnName.toDT fnName; RT2DT.TypeReference.toDT returnType ]
 
-        | RecordField(recordTypeName, fieldName, fieldType, location) ->
+        | RecordField(recordTypeName, fieldName, fieldType) ->
           "RecordField",
           [ RT2DT.FQTypeName.toDT recordTypeName
             DString fieldName
-            RT2DT.TypeReference.toDT fieldType
-            Location.toDT location ]
+            RT2DT.TypeReference.toDT fieldType ]
 
-        | DictKey(key, typ, location) ->
-          "DictKey",
-          [ DString key; RT2DT.TypeReference.toDT typ; Location.toDT location ]
+        | DictKey(key, typ) ->
+          "DictKey", [ DString key; RT2DT.TypeReference.toDT typ ]
 
-        | EnumField(enumTypeName,
-                    caseName,
-                    fieldIndex,
-                    fieldCount,
-                    fieldType,
-                    location) ->
+        | EnumField(enumTypeName, caseName, fieldIndex, fieldCount, fieldType) ->
           "EnumField",
           [ RT2DT.FQTypeName.toDT enumTypeName
             DString caseName
             DInt64 fieldIndex
             DInt64 fieldCount
-            RT2DT.TypeReference.toDT fieldType
-            Location.toDT location ]
+            RT2DT.TypeReference.toDT fieldType ]
 
-        | DBQueryVariable(varName, expected, location) ->
-          "DBQueryVariable",
-          [ DString varName
-            RT2DT.TypeReference.toDT expected
-            Location.toDT location ]
+        | DBQueryVariable(varName, expected) ->
+          "DBQueryVariable", [ DString varName; RT2DT.TypeReference.toDT expected ]
 
-        | DBSchemaType(name, expectedType, location) ->
-          "DBSchemaType",
-          [ DString name
-            RT2DT.TypeReference.toDT expectedType
-            Location.toDT location ]
+        | DBSchemaType(name, expectedType) ->
+          "DBSchemaType", [ DString name; RT2DT.TypeReference.toDT expectedType ]
 
         | ListIndex(index, listTyp, parent) ->
           "ListIndex",
@@ -152,49 +91,56 @@ module Error =
           "TupleIndex",
           [ DInt64 index; RT2DT.TypeReference.toDT elementType; toDT parent ]
 
-        | FnValResult(returnType, location) ->
-          "FnValResult",
-          [ RT2DT.TypeReference.toDT returnType; Location.toDT location ]
+        | FnValResult(returnType) ->
+          "FnValResult", [ RT2DT.TypeReference.toDT returnType ]
 
       let typeName = RuntimeError.name [ "TypeChecker" ] "Context"
       DEnum(typeName, typeName, [], caseName, fields)
 
+  module ErrorType =
+    let toDT (et : ErrorType) : Dval =
+      let (caseName, fields) =
+        match et with
+        | ValueNotExpectedType(actualValue, expectedType) ->
+          "ValueNotExpectedType",
+          [ actualValue |> RT2DT.Dval.toDT
+            expectedType |> RT2DT.TypeReference.toDT ]
+
+        | TypeDoesntExist(typeName) ->
+          "TypeDoesntExist", [ RT2DT.FQTypeName.toDT typeName ]
+
+      let typeName = RuntimeError.name [ "TypeChecker" ] "ErrorType"
+
+      DEnum(typeName, typeName, [], caseName, fields)
 
   let toRuntimeError (e : Error) : RuntimeError =
-    let (caseName, fields) =
-      match e with
-      | ValueNotExpectedType(actualValue, expectedType, context) ->
-        "ValueNotExpectedType",
-        [ actualValue |> RT2DT.Dval.toDT
-          expectedType |> RT2DT.TypeReference.toDT
-          Context.toDT context ]
-
-      | TypeDoesntExist(typeName, context) ->
-        "TypeDoesntExist", [ RT2DT.FQTypeName.toDT typeName; Context.toDT context ]
+    let fields =
+      [ ("errorType", ErrorType.toDT e.errorType)
+        ("context", Context.toDT e.context) ]
 
     let typeName = RuntimeError.name [ "TypeChecker" ] "Error"
 
-    DEnum(typeName, typeName, [], caseName, fields) |> RuntimeError.typeCheckerError
+    DRecord(typeName, typeName, [], Map fields) |> RuntimeError.typeCheckerError
+
 
 let raiseValueNotExpectedType
-  (source : Source)
+  (callStack : CallStack)
   (dv : Dval)
   (typ : TypeReference)
   (context : Context)
   : 'a =
-  ValueNotExpectedType(dv, typ, context)
+  { errorType = ValueNotExpectedType(dv, typ); context = context }
   |> Error.toRuntimeError
-  |> raiseRTE source
+  |> raiseRTE callStack
 
 let raiseFnValResultNotExpectedType
-  (source : Source)
+  (callStack : CallStack)
   (dv : Dval)
   (typ : TypeReference)
   : 'a =
-  let context = FnValResult(typ, source)
-  ValueNotExpectedType(dv, typ, context)
+  { errorType = ValueNotExpectedType(dv, typ); context = FnValResult(typ) }
   |> Error.toRuntimeError
-  |> raiseRTE source
+  |> raiseRTE callStack
 
 
 
@@ -329,7 +275,8 @@ let rec unify
         match! valueTypeUnifies tst expected actual with
         | false ->
           return
-            ValueNotExpectedType(value, TList expected, context)
+            { errorType = ValueNotExpectedType(value, TList expected)
+              context = context }
             |> Error.toRuntimeError
             |> Error
 
@@ -353,7 +300,7 @@ let rec unify
         let vs = v1 :: v2 :: vRest
         if List.length ts <> List.length vs then
           return
-            ValueNotExpectedType(value, expected, context)
+            { errorType = ValueNotExpectedType(value, expected); context = context }
             |> Error.toRuntimeError
             |> Error
         else
@@ -378,10 +325,13 @@ let rec unify
           match! Types.find typeName types with
           | None ->
             return
-              TypeDoesntExist(typeName, context) |> Error.toRuntimeError |> Error
+              { errorType = TypeDoesntExist(typeName); context = context }
+              |> Error.toRuntimeError
+              |> Error
           | Some ut ->
             let err =
-              ValueNotExpectedType(value, expected, context)
+              { errorType = ValueNotExpectedType(value, expected)
+                context = context }
               |> Error.toRuntimeError
               |> Error
 
@@ -404,7 +354,8 @@ let rec unify
               | Ok(TCustomType(Ok concreteTn, _typeArgs)) ->
                 if concreteTn <> typeName then
                   return
-                    ValueNotExpectedType(value, expected, context)
+                    { errorType = ValueNotExpectedType(value, expected)
+                      context = context }
                     |> Error.toRuntimeError
                     |> Error
                 else
@@ -420,7 +371,8 @@ let rec unify
               // TODO: deal with aliased type?
               if tn <> typeName then
                 return
-                  ValueNotExpectedType(value, expected, context)
+                  { errorType = ValueNotExpectedType(value, expected)
+                    context = context }
                   |> Error.toRuntimeError
                   |> Error
               else
@@ -482,7 +434,7 @@ let rec unify
       | TChar, _
       | TDB _, _ ->
         return
-          ValueNotExpectedType(value, expected, context)
+          { errorType = ValueNotExpectedType(value, expected); context = context }
           |> Error.toRuntimeError
           |> Error
   }
@@ -519,7 +471,7 @@ let checkFunctionCall
   fn.parameters
   |> NEList.map2WithIndex
     (fun i value param ->
-      let context = FunctionCallParameter(fn.name, param, i, None)
+      let context = FunctionCallParameter(fn.name, param, i)
       unify context types tst param.typ value)
     args
   |> Ply.NEList.mapSequentially identity
@@ -532,7 +484,7 @@ let checkFunctionReturnType
   (fn : Fn)
   (result : Dval)
   : Ply<Result<unit, RuntimeError>> =
-  let context = FunctionCallResult(fn.name, fn.returnType, None)
+  let context = FunctionCallResult(fn.name, fn.returnType)
   unify context types tst fn.returnType result
 
 
@@ -552,8 +504,15 @@ let checkFunctionReturnType
 /// of a Dval in some F# code).
 ///
 /// TODO: review _all_ usages of these functions
+///
+/// TODO: ideally we don't require a callStack to be input here -- too much data-passing
+/// (Ideally, upon error, we'd "fill in" the callstack in the Interpreter somewhere?)
 module DvalCreator =
-  let list (initialType : ValueType) (list : List<Dval>) : Dval =
+  let list
+    (callStack : CallStack)
+    (initialType : ValueType)
+    (list : List<Dval>)
+    : Dval =
     let (typ, dvs) =
       List.fold
         (fun (typ, list) dv ->
@@ -564,7 +523,7 @@ module DvalCreator =
           | Error() ->
             RuntimeError.oldError
               $"Could not merge types {ValueType.toString (VT.list typ)} and {ValueType.toString (VT.list dvalType)}"
-            |> raiseRTE None)
+            |> raiseRTE callStack)
         (initialType, [])
         (List.rev list)
 
@@ -605,7 +564,7 @@ module DvalCreator =
 
 
 
-  let optionSome (innerType : ValueType) (dv : Dval) : Dval =
+  let optionSome (callStack : CallStack) (innerType : ValueType) (dv : Dval) : Dval =
     let typeName = Dval.optionType
 
     let dvalType = Dval.toValueType dv
@@ -616,7 +575,7 @@ module DvalCreator =
     | Error() ->
       RuntimeError.oldError
         $"Could not merge types {ValueType.toString (VT.customType typeName [ innerType ])} and {ValueType.toString (VT.customType typeName [ dvalType ])}"
-      |> raiseRTE None
+      |> raiseRTE callStack
 
   let optionNone (innerType : ValueType) : Dval =
     DEnum(
@@ -627,14 +586,23 @@ module DvalCreator =
       []
     )
 
-  let option (innerType : ValueType) (dv : Option<Dval>) : Dval =
+  let option
+    (callStack : CallStack)
+    (innerType : ValueType)
+    (dv : Option<Dval>)
+    : Dval =
     match dv with
-    | Some dv -> optionSome innerType dv
+    | Some dv -> optionSome callStack innerType dv
     | None -> optionNone innerType
 
 
 
-  let resultOk (okType : ValueType) (errorType : ValueType) (dvOk : Dval) : Dval =
+  let resultOk
+    (callStack : CallStack)
+    (okType : ValueType)
+    (errorType : ValueType)
+    (dvOk : Dval)
+    : Dval =
     let dvalType = Dval.toValueType dvOk
     match VT.merge okType dvalType with
     | Ok typ ->
@@ -648,9 +616,10 @@ module DvalCreator =
     | Error() ->
       RuntimeError.oldError
         $"Could not merge types {ValueType.toString (VT.customType Dval.resultType [ okType; errorType ])} and {ValueType.toString (VT.customType Dval.resultType [ dvalType; errorType ])}"
-      |> raiseRTE None
+      |> raiseRTE callStack
 
   let resultError
+    (callStack : CallStack)
     (okType : ValueType)
     (errorType : ValueType)
     (dvError : Dval)
@@ -668,22 +637,24 @@ module DvalCreator =
     | Error() ->
       RuntimeError.oldError
         $"Could not merge types {ValueType.toString (VT.customType Dval.resultType [ okType; errorType ])} and {ValueType.toString (VT.customType Dval.resultType [ okType; dvalType ])}"
-      |> raiseRTE None
+      |> raiseRTE callStack
 
   let result
+    (callStack : CallStack)
     (okType : ValueType)
     (errorType : ValueType)
     (dv : Result<Dval, Dval>)
     : Dval =
     match dv with
-    | Ok dv -> resultOk okType errorType dv
-    | Error dv -> resultError okType errorType dv
+    | Ok dv -> resultOk callStack okType errorType dv
+    | Error dv -> resultError callStack okType errorType dv
 
 
   /// Constructs a Dval.DRecord, ensuring that the fields match the expected shape
   ///
   /// note: if provided, the typeArgs must match the # of typeArgs expected by the type
   let record
+    (callStack : CallStack)
     (typeName : FQTypeName.FQTypeName)
     (fields : List<string * Dval>)
     : Ply<Dval> =
@@ -694,11 +665,11 @@ module DvalCreator =
         (fun fields (k, v) ->
           match fields, k, v with
           // skip empty rows
-          | _, "", _ -> raiseUntargetedRTE (RuntimeError.oldError "Empty key")
+          | _, "", _ -> raiseRTE callStack (RuntimeError.oldError "Empty key")
 
           // error if the key appears twice
           | fields, k, _v when Map.containsKey k fields ->
-            raiseUntargetedRTE (RuntimeError.oldError $"Duplicate key: {k}")
+            raiseRTE callStack (RuntimeError.oldError $"Duplicate key: {k}")
 
           // otherwise add it
           | fields, k, v -> Map.add k v fields)
