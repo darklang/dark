@@ -1,0 +1,15 @@
+==================
+package constant
+==================
+
+Stdlib.List.empty
+
+---
+
+(source_file
+  (expression
+    (qualified_const_name
+      (module_identifier) (symbol) (module_identifier) (symbol) (constant_identifier)
+    )
+  )
+)

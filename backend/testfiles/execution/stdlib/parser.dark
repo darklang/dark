@@ -401,8 +401,8 @@ module TextToTextRoundtripping =
     ("MyEnum.A(1L, 2L)" |> roundtripCliScript) = "MyEnum.A((1L, 2L))"
     ("MyEnum.A 1L 2L" |> roundtripCliScript) = "MyEnum.A(1L, 2L)"
 
-
-
+    // qualified constant
+    ("Stdlib.List.empty" |> roundtripCliScript) = "PACKAGE.Darklang.Stdlib.List.empty"
 
     // variables and let bindings
     ("assumedlyAVariableName" |> roundtripCliScript) = "assumedlyAVariableName"
@@ -561,7 +561,7 @@ else
     ("match (1L, 2L) with\n| (1L, 2L) -> true" |> roundtripCliScript) = "match (1L, 2L) with\n| (1L, 2L) ->\n  true"
 
     ("match Stdlib.Result.Result.Ok 5L with\n| Ok 5L -> true\n| Error e -> false"
-     |> roundtripCliScript) = "match Stdlib.Result.Result.Ok(5L) with\n| Ok 5L ->\n  true\n| Error e ->\n  false"
+     |> roundtripCliScript) = "match PACKAGE.Darklang.Stdlib.Result.Result.Ok(5L) with\n| Ok 5L ->\n  true\n| Error e ->\n  false"
 
     ("match \"str\" with\n| \"str\" when true -> true" |> roundtripCliScript) = "match \"str\" with\n| \"str\" when true ->\n  true"
 
@@ -577,7 +577,7 @@ else
     ("1L |> x" |> roundtripCliScript) = "1L\n|> x"
     ("1L |> (fun x -> x + 1L)" |> roundtripCliScript) = "1L\n|> fun x -> (x) + (1L)"
     ("1L |> fun x -> x + 1L" |> roundtripCliScript) = "1L\n|> fun x -> (x) + (1L)"
-    ("3L |> Stdlib.Result.Result.Ok" |> roundtripCliScript) = "3L\n|> Stdlib.Result.Result.Ok"
+    ("3L |> Stdlib.Result.Result.Ok" |> roundtripCliScript) = "3L\n|> PACKAGE.Darklang.Stdlib.Result.Result.Ok"
     ("33L |> MyEnum.A 21L" |> roundtripCliScript) = "33L\n|> MyEnum.A (21L)"
     ("1L |> Stdlib.Int64.add 2L" |> roundtripCliScript) = "1L\n|> PACKAGE.Darklang.Stdlib.Int64.add 2L"
     ("1L |> Stdlib.Int64.toString" |> roundtripCliScript) = "1L\n|> PACKAGE.Darklang.Stdlib.Int64.toString"

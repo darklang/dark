@@ -120,9 +120,11 @@ module Darklang =
 
           match typeNameNode, symbolDotNode, caseNameNode, enumFieldsNode with
           | Ok typeNameNode, Ok symbolDotNode, Ok caseNameNode, Ok enumFieldsNode ->
+            let typeName = typeNameNode.text |> Stdlib.String.split "."
+
             (WrittenTypes.PipeExpr.EPipeEnum(
               node.range,
-              (typeNameNode.range, [ typeNameNode.text ]),
+              (typeNameNode.range, typeName),
               (caseNameNode.range, caseNameNode.text),
               enumFieldsNode,
               symbolDotNode.range

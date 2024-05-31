@@ -55,6 +55,23 @@ module Darklang =
               []
               (WrittenTypes.Name.Unresolved(i.range, nameToResolve))
 
+        module Const =
+          let toPT (c: WrittenTypes.ConstantIdentifier) : String = c.name
+
+        module QualifiedConst =
+          let toPT
+            (onMissing: NameResolver.OnMissing)
+            (c: WrittenTypes.QualifiedConstantIdentifier)
+            : ProgramTypes.NameResolution<ProgramTypes.FQConstantName.FQConstantName> =
+            let nameToResolve =
+              Stdlib.List.append
+                (Stdlib.List.map c.modules (fun (cn, _) -> cn.name))
+                [ c.constant.name ]
+
+            NameResolver.ConstantName.resolve
+              onMissing
+              []
+              (WrittenTypes.Name.Unresolved(c.range, nameToResolve))
 
       module TypeReference =
         module Builtin =
@@ -476,7 +493,17 @@ module Darklang =
               toPT onMissing body
             )
 
-          | EVariable(_, var) -> ProgramTypes.Expr.EVariable (gid ()) var
+          | EVariable(range, var) ->
+            let unresolved = WrittenTypes.Name.Unresolved(range, [ var ])
+            let constant = NameResolver.ConstantName.resolve onMissing [] unresolved
+
+            match constant with
+            | Ok _ -> ProgramTypes.Expr.EConstant(gid (), constant)
+            | Error _ -> ProgramTypes.Expr.EVariable (gid ()) var
+
+          | EConstant(_, c) ->
+            let constant = Identifiers.QualifiedConst.toPT onMissing c
+            ProgramTypes.Expr.EConstant(gid (), constant)
 
           | EFieldAccess(_, expr, (_, fieldName), _) ->
             ProgramTypes.Expr.EFieldAccess(gid (), toPT onMissing expr, fieldName)

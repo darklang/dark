@@ -83,6 +83,23 @@ module Darklang =
         let tokenize (v: WrittenTypes.VariableIdentifier) : List<SemanticToken> =
           [ makeToken v.range TokenType.VariableName ]
 
+      module ConstantIdentifier =
+        let tokenize (c: WrittenTypes.ConstantIdentifier) : List<SemanticToken> =
+          [ makeToken c.range TokenType.VariableName ]
+
+      module QualifiedConstIdentifier =
+        let tokenize
+          (q: WrittenTypes.QualifiedConstantIdentifier)
+          : List<SemanticToken> =
+          [ // Darklang.Stdlib.List
+            (q.modules
+             |> Stdlib.List.map (fun (m, _) -> ModuleIdentifier.tokenize m)
+             |> Stdlib.List.flatten)
+
+            // empty
+            ConstantIdentifier.tokenize q.constant ]
+          |> Stdlib.List.flatten
+
       module FnIdentifier =
         let tokenize (fn: WrittenTypes.FnIdentifier) : List<SemanticToken> =
           [ makeToken fn.range TokenType.FunctionName ]
@@ -747,6 +764,8 @@ module Darklang =
           // x
           | EVariable(range, _varName) -> [ makeToken range TokenType.VariableName ]
 
+          | EConstant(range, c) -> QualifiedConstIdentifier.tokenize c
+
           // person.name
           | EFieldAccess(_range, expr, (r, fieldName), symbolDot) ->
             [ // person
@@ -869,8 +888,6 @@ module Darklang =
               // a + 1
               Expr.tokenize body ]
             |> Stdlib.List.flatten
-
-
 
           // hacky temp. syntax -- see `grammar.js`
           // Int64.add (1L) (2L)
