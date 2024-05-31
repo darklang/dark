@@ -1342,6 +1342,40 @@
         {
           "type": "SYMBOL",
           "name": "record_update"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "qualified_const_name"
+        }
+      ]
+    },
+    "qualified_const_name": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "module_identifier"
+              },
+              {
+                "type": "ALIAS",
+                "content": {
+                  "type": "STRING",
+                  "value": "."
+                },
+                "named": true,
+                "value": "symbol"
+              }
+            ]
+          }
+        },
+        {
+          "type": "SYMBOL",
+          "name": "constant_identifier"
         }
       ]
     },
@@ -4856,6 +4890,10 @@
           }
         }
       ]
+    },
+    "constant_identifier": {
+      "type": "PATTERN",
+      "value": "[a-z_][a-zA-Z0-9_]*"
     },
     "variable_identifier": {
       "type": "PREC",

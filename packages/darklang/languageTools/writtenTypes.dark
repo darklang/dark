@@ -22,6 +22,16 @@ module Darklang =
 
       type VariableIdentifier = { range: Range; name: String }
 
+      type ConstantIdentifier = { range: Range; name: String }
+
+      type QualifiedConstantIdentifier =
+        {
+          range: Range
+          /// the range corresponds to the `.` after the module name
+          modules: List<ModuleIdentifier * Range>
+          constant: ConstantIdentifier
+        }
+
       type FnIdentifier = { range: Range; name: String }
 
       type QualifiedFnIdentifier =
@@ -352,6 +362,8 @@ module Darklang =
           args: List<Expr>
 
         | EFnName of Range * name: QualifiedFnIdentifier
+
+        | EConstant of Range * name: QualifiedConstantIdentifier
 
       type PipeExpr =
         | EPipeInfix of Range * op: (Range * Infix) * Expr

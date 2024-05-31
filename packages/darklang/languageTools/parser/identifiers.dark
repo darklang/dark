@@ -49,6 +49,9 @@ module Darklang =
         let parseFn (n: ParsedNode) : WrittenTypes.FnIdentifier =
           WrittenTypes.FnIdentifier { range = n.range; name = n.text }
 
+        let parseConst (n: ParsedNode) : WrittenTypes.ConstantIdentifier =
+          WrittenTypes.ConstantIdentifier { range = n.range; name = n.text }
+
         let extractTypeArgs
           (node: ParsedNode)
           : Stdlib.Result.Result<List<WrittenTypes.Range * String>, WrittenTypes.Unparseable> =
@@ -126,3 +129,21 @@ module Darklang =
           else
             Stdlib.Result.Result.Error
               $"Can't parse qualified_fn_name from {node.typ}"
+
+
+        let parseQualifiedConstant
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.QualifiedConstantIdentifier, String> =
+          if node.typ == "qualified_const_name" then
+            let (modules, constIdentifierNode) =
+              extractModuleIdentifiers node.children
+
+            (WrittenTypes.QualifiedConstantIdentifier
+              { range = node.range
+                modules = modules
+                constant = parseConst constIdentifierNode })
+            |> Stdlib.Result.Result.Ok
+
+          else
+            Stdlib.Result.Result.Error
+              $"Can't parse qualified_const_name from {node.typ}"

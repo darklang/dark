@@ -357,6 +357,14 @@ module.exports = grammar({
         $.pipe_expression,
 
         $.record_update,
+
+        $.qualified_const_name,
+      ),
+
+    qualified_const_name: $ =>
+      seq(
+        repeat(seq($.module_identifier, alias(".", $.symbol))),
+        $.constant_identifier,
       ),
 
     paren_expression: $ =>
@@ -1113,6 +1121,9 @@ module.exports = grammar({
           seq(field("symbol_comma", alias(",", $.symbol)), $.type_reference),
         ),
       ),
+
+    // e.g. `newline` in `const newline = '\n'`
+    constant_identifier: $ => /[a-z_][a-zA-Z0-9_]*/,
 
     /** e.g. `x` in `let double (x: Int) = x + x`
      *

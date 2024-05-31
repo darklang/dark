@@ -172,6 +172,11 @@
     }
   },
   {
+    "type": "constant_identifier",
+    "named": true,
+    "fields": {}
+  },
+  {
     "type": "db_type_reference",
     "named": true,
     "fields": {
@@ -555,6 +560,10 @@
         },
         {
           "type": "pipe_expression",
+          "named": true
+        },
+        {
+          "type": "qualified_const_name",
           "named": true
         },
         {
@@ -2214,6 +2223,29 @@
           }
         ]
       }
+    }
+  },
+  {
+    "type": "qualified_const_name",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "constant_identifier",
+          "named": true
+        },
+        {
+          "type": "module_identifier",
+          "named": true
+        },
+        {
+          "type": "symbol",
+          "named": true
+        }
+      ]
     }
   },
   {

@@ -85,7 +85,6 @@ module Darklang =
                     WrittenTypes.Expr.EInt128(node.range, intPart, sfx.range)
                   | "uint128_literal" ->
                     WrittenTypes.Expr.EUInt128(node.range, intPart, sfx.range)
-                  | _ -> createUnparseableError node
 
                 expr |> Stdlib.Result.Result.Ok
 
@@ -502,9 +501,11 @@ module Darklang =
 
           match typeNameNode, symbolDotNode, caseNameNode, enumFieldsNode with
           | Ok typeNameNode, Ok symbolDotNode, Ok caseNameNode, Ok enumFieldsNode ->
+            let typeName = typeNameNode.text |> Stdlib.String.split "."
+
             (WrittenTypes.Expr.EEnum(
               node.range,
-              (typeNameNode.range, [ typeNameNode.text ]),
+              (typeNameNode.range, typeName),
               (caseNameNode.range, caseNameNode.text),
               enumFieldsNode,
               symbolDotNode.range
@@ -882,6 +883,19 @@ module Darklang =
           | _ -> createUnparseableError node
 
 
+        let parseConstant
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
+          let constNameNode = Identifiers.parseQualifiedConstant node
+
+          match constNameNode with
+          | Ok constNameNode ->
+            (WrittenTypes.Expr.EConstant(node.range, constNameNode))
+            |> Stdlib.Result.Result.Ok
+
+          | _ -> createUnparseableError node
+
+
         /// this parses one of the Expr cases
         let parseCase
           (node: ParsedNode)
@@ -934,6 +948,8 @@ module Darklang =
           | "infix_operation" -> parseInfixOperation node
           | "lambda_expression" -> parseLambda node
           | "apply" -> parseFunctionCall node
+
+          | "qualified_const_name" -> parseConstant node
 
           | _ -> createUnparseableError node
 
