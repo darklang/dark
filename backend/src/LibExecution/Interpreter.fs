@@ -118,11 +118,11 @@ let rec checkPattern
 
   match pattern with
 
-  | LPVariable(_id, varName) -> [ (varName, dv) ]
+  | LPVariable(_, varName) -> [ (varName, dv) ]
 
-  | LPUnit _id -> if dv <> DUnit then errStr "Unit pattern does not match" else []
+  | LPUnit _ -> if dv <> DUnit then errStr "Unit pattern does not match" else []
 
-  | LPTuple(_id, firstPat, secondPat, theRestPat) ->
+  | LPTuple(_, firstPat, secondPat, theRestPat) ->
     let allPatterns = firstPat :: secondPat :: theRestPat
 
     match dv with
@@ -138,6 +138,129 @@ let rec checkPattern
     | _ -> errStr "Tuple pattern does not match"
 
 // fsharplint:disable FL0039
+
+
+let typeResolutionError
+  (callStack : CallStack)
+  (errorType : NameResolutionError.ErrorType)
+  (typeName : FQTypeName.FQTypeName)
+  : Ply<'a> =
+  let error : NameResolutionError.Error =
+    { errorType = errorType
+      nameType = NameResolutionError.Type
+      names = [ FQTypeName.toString typeName ] }
+  error |> NameResolutionError.RTE.toRuntimeError |> raiseRTE callStack
+
+
+let recordMaybe
+  (callStack : CallStack)
+  (types : Types)
+  (typeName : FQTypeName.FQTypeName)
+  // TypeName, typeParam list, fully-resolved (except for typeParam) field list
+  : Ply<FQTypeName.FQTypeName * List<string> * List<string * TypeReference>> =
+  let rec inner (typeName : FQTypeName.FQTypeName) =
+    uply {
+      match! Types.find typeName types with
+      | Some({ typeParams = outerTypeParams
+               definition = TypeDeclaration.Alias(TCustomType(Ok(innerTypeName),
+                                                              outerTypeArgs)) }) ->
+        // Here we have found an alias, so we need to combine the type's
+        // typeArgs with the aliased type's typeParams.
+        // e.g. in
+        //   `type Var = Result<Int64, String>`
+        // we need to combine Var's typeArgs (<Int, String>) with Result's
+        // typeParams (<`Ok, `Error>)
+        //
+        // To do this, we use typeArgs from the alias definition
+        // (outerTypeArgs) and apply them to the aliased type
+        // (innerTypeName)'s params (which are returned from the lookup and
+        // used as innerTypeParams below).
+        // Example: suppose we have
+        //   type Outer<'a> = Inner<'a, Int>
+        //   type Inner<'x, 'y> = { x : 'x; y : 'y }
+        // The recursive search for Inner will get:
+        //   innerTypeName = "Inner"
+        //   innerTypeParams = ["x"; "y"]
+        //   fields = [("x", TVar "x"); ("y", TVar "y")]
+        // The Outer definition provides:
+        //   outerTypeArgs = [TVar "a"; TInt64]
+        // We combine this with innerTypeParams to get:
+        //   fields = [("x", TVar "a"); ("y", TInt64)]
+        //   outerTypeParams = ["a"]
+        // So the effective result of this is:
+        //   type Outer<'a> = { x : 'a; y : Int }
+        let! (innerTypeName, innerTypeParams, fields) = inner innerTypeName
+        return
+          (innerTypeName,
+           outerTypeParams,
+           fields
+           |> List.map (fun (k, v) ->
+             (k, Types.substitute innerTypeParams outerTypeArgs v)))
+
+      | Some({ definition = TypeDeclaration.Alias(TCustomType(Error e, _)) }) ->
+        return raiseRTE callStack e
+
+      | Some({ typeParams = typeParams; definition = TypeDeclaration.Record fields }) ->
+        return
+          (typeName,
+           typeParams,
+           fields |> NEList.toList |> List.map (fun f -> f.name, f.typ))
+
+      | Some({ definition = TypeDeclaration.Alias(_) })
+      | Some({ definition = TypeDeclaration.Enum _ }) ->
+        return!
+          typeResolutionError
+            callStack
+            NameResolutionError.ExpectedRecordButNot
+            typeName
+
+      | None ->
+        return! typeResolutionError callStack NameResolutionError.NotFound typeName
+    }
+  inner typeName
+
+
+let enumMaybe
+  (callStack : CallStack)
+  (types : Types)
+  (typeName : FQTypeName.FQTypeName)
+  : Ply<FQTypeName.FQTypeName * List<string> * NEList<TypeDeclaration.EnumCase>> =
+  let rec inner (typeName : FQTypeName.FQTypeName) =
+    uply {
+      match! Types.find typeName types with
+      | Some({ typeParams = outerTypeParams
+               definition = TypeDeclaration.Alias(TCustomType(Ok(innerTypeName),
+                                                              outerTypeArgs)) }) ->
+        let! (innerTypeName, innerTypeParams, cases) = inner innerTypeName
+        return
+          (innerTypeName,
+           outerTypeParams,
+           cases
+           |> NEList.map (fun (c : TypeDeclaration.EnumCase) ->
+             { c with
+                 fields =
+                   List.map
+                     (Types.substitute innerTypeParams outerTypeArgs)
+                     c.fields }))
+
+      | Some({ definition = TypeDeclaration.Alias(TCustomType(Error e, _)) }) ->
+        return raiseRTE callStack e
+
+      | Some({ typeParams = typeParams; definition = TypeDeclaration.Enum cases }) ->
+        return (typeName, typeParams, cases)
+
+      | Some({ definition = TypeDeclaration.Alias _ })
+      | Some({ definition = TypeDeclaration.Record _ }) ->
+        return!
+          typeResolutionError
+            callStack
+            NameResolutionError.ExpectedEnumButNot
+            typeName
+      | None ->
+        return! typeResolutionError callStack NameResolutionError.NotFound typeName
+    }
+  inner typeName
+
 
 /// Interprets an expression and reduces it to a Dark value
 /// (or a task that should result in such)
@@ -160,149 +283,26 @@ let rec eval (state : ExecutionState) (e : Expr) : DvalTask =
   let raiseExeRTE callStack (e : ExecutionError.Error) : Ply<'a> =
     ExecutionError.raise callStack e
 
-  // TODO: now that tst and symbolTable and such are included in the state,
-  // maybe some of these fns can move outside of `eval`?
-  let typeResolutionError
-    (callStack : CallStack)
-    (errorType : NameResolutionError.ErrorType)
-    (typeName : FQTypeName.FQTypeName)
-    : Ply<'a> =
-    let error : NameResolutionError.Error =
-      { errorType = errorType
-        nameType = NameResolutionError.Type
-        names = [ FQTypeName.toString typeName ] }
-    error |> NameResolutionError.RTE.toRuntimeError |> raiseRTE callStack
-
-  let recordMaybe
-    (callStack : CallStack)
-    (types : Types)
-    (typeName : FQTypeName.FQTypeName)
-    // TypeName, typeParam list, fully-resolved (except for typeParam) field list
-    : Ply<FQTypeName.FQTypeName * List<string> * List<string * TypeReference>> =
-    let rec inner (typeName : FQTypeName.FQTypeName) =
-      uply {
-        match! Types.find typeName types with
-        | Some({ typeParams = outerTypeParams
-                 definition = TypeDeclaration.Alias(TCustomType(Ok(innerTypeName),
-                                                                outerTypeArgs)) }) ->
-          // Here we have found an alias, so we need to combine the type's
-          // typeArgs with the aliased type's typeParams.
-          // e.g. in
-          //   `type Var = Result<Int64, String>`
-          // we need to combine Var's typeArgs (<Int, String>) with Result's
-          // typeParams (<`Ok, `Error>)
-          //
-          // To do this, we use typeArgs from the alias definition
-          // (outerTypeArgs) and apply them to the aliased type
-          // (innerTypeName)'s params (which are returned from the lookup and
-          // used as innerTypeParams below).
-          // Example: suppose we have
-          //   type Outer<'a> = Inner<'a, Int>
-          //   type Inner<'x, 'y> = { x : 'x; y : 'y }
-          // The recursive search for Inner will get:
-          //   innerTypeName = "Inner"
-          //   innerTypeParams = ["x"; "y"]
-          //   fields = [("x", TVar "x"); ("y", TVar "y")]
-          // The Outer definition provides:
-          //   outerTypeArgs = [TVar "a"; TInt64]
-          // We combine this with innerTypeParams to get:
-          //   fields = [("x", TVar "a"); ("y", TInt64)]
-          //   outerTypeParams = ["a"]
-          // So the effective result of this is:
-          //   type Outer<'a> = { x : 'a; y : Int }
-          let! (innerTypeName, innerTypeParams, fields) = inner innerTypeName
-          return
-            (innerTypeName,
-             outerTypeParams,
-             fields
-             |> List.map (fun (k, v) ->
-               (k, Types.substitute innerTypeParams outerTypeArgs v)))
-
-        | Some({ definition = TypeDeclaration.Alias(TCustomType(Error e, _)) }) ->
-          return raiseRTE callStack e
-
-        | Some({ typeParams = typeParams
-                 definition = TypeDeclaration.Record fields }) ->
-          return
-            (typeName,
-             typeParams,
-             fields |> NEList.toList |> List.map (fun f -> f.name, f.typ))
-
-        | Some({ definition = TypeDeclaration.Alias(_) })
-        | Some({ definition = TypeDeclaration.Enum _ }) ->
-          return!
-            typeResolutionError
-              callStack
-              NameResolutionError.ExpectedRecordButNot
-              typeName
-
-        | None ->
-          return! typeResolutionError callStack NameResolutionError.NotFound typeName
-      }
-    inner typeName
-
-  let enumMaybe
-    (callStack : CallStack)
-    (types : Types)
-    (typeName : FQTypeName.FQTypeName)
-    : Ply<FQTypeName.FQTypeName * List<string> * NEList<TypeDeclaration.EnumCase>> =
-    let rec inner (typeName : FQTypeName.FQTypeName) =
-      uply {
-        match! Types.find typeName types with
-        | Some({ typeParams = outerTypeParams
-                 definition = TypeDeclaration.Alias(TCustomType(Ok(innerTypeName),
-                                                                outerTypeArgs)) }) ->
-          let! (innerTypeName, innerTypeParams, cases) = inner innerTypeName
-          return
-            (innerTypeName,
-             outerTypeParams,
-             cases
-             |> NEList.map (fun (c : TypeDeclaration.EnumCase) ->
-               { c with
-                   fields =
-                     List.map
-                       (Types.substitute innerTypeParams outerTypeArgs)
-                       c.fields }))
-
-        | Some({ definition = TypeDeclaration.Alias(TCustomType(Error e, _)) }) ->
-          return raiseRTE callStack e
-
-        | Some({ typeParams = typeParams; definition = TypeDeclaration.Enum cases }) ->
-          return (typeName, typeParams, cases)
-
-        | Some({ definition = TypeDeclaration.Alias _ })
-        | Some({ definition = TypeDeclaration.Record _ }) ->
-          return!
-            typeResolutionError
-              callStack
-              NameResolutionError.ExpectedEnumButNot
-              typeName
-        | None ->
-          return! typeResolutionError callStack NameResolutionError.NotFound typeName
-      }
-    inner typeName
-
-
   uply {
     match e with
-    | EUnit _id -> return DUnit
+    | EUnit _ -> return DUnit
 
-    | EBool(_id, b) -> return DBool b
+    | EBool(_, b) -> return DBool b
 
-    | EInt8(_id, i) -> return DInt8 i
-    | EUInt8(_id, i) -> return DUInt8 i
-    | EInt16(_id, i) -> return DInt16 i
-    | EUInt16(_id, i) -> return DUInt16 i
-    | EInt32(_id, i) -> return DInt32 i
-    | EUInt32(_id, i) -> return DUInt32 i
-    | EInt64(_id, i) -> return DInt64 i
-    | EUInt64(_id, i) -> return DUInt64 i
-    | EInt128(_id, i) -> return DInt128 i
-    | EUInt128(_id, i) -> return DUInt128 i
+    | EInt8(_, i) -> return DInt8 i
+    | EUInt8(_, i) -> return DUInt8 i
+    | EInt16(_, i) -> return DInt16 i
+    | EUInt16(_, i) -> return DUInt16 i
+    | EInt32(_, i) -> return DInt32 i
+    | EUInt32(_, i) -> return DUInt32 i
+    | EInt64(_, i) -> return DInt64 i
+    | EUInt64(_, i) -> return DUInt64 i
+    | EInt128(_, i) -> return DInt128 i
+    | EUInt128(_, i) -> return DUInt128 i
 
-    | EFloat(_id, value) -> return DFloat value
+    | EFloat(_, value) -> return DFloat value
 
-    | EChar(_id, s) -> return DChar s
+    | EChar(_, s) -> return DChar s
 
     | EString(_, [ StringText s ]) ->
       // We expect strings to be normalized during parsing
@@ -531,62 +531,62 @@ let rec eval (state : ExecutionState) (e : Expr) : DvalTask =
               callStack
               (ExecutionError.MatchExprPatternWrongType(expected, dv))
 
-          // CLEANUP be nitpicky and reorder these
           match pattern with
-          | MPInt64(_, pi) ->
+          | MPUnit(_) ->
             match dv with
-            | DInt64 di -> return (di = pi), []
-            | _ -> return! errWrongType "Int64"
-
-          | MPUInt64(_, pi) ->
-            match dv with
-            | DUInt64 di -> return (di = pi), []
-            | _ -> return! errWrongType "UInt64"
-
-          | MPInt8(_, pi) ->
-            match dv with
-            | DInt8 di -> return (di = pi), []
-            | _ -> return! errWrongType "Int8"
-
-          | MPUInt8(_, pi) ->
-            match dv with
-            | DUInt8 di -> return (di = pi), []
-            | _ -> return! errWrongType "UInt8"
-
-          | MPInt16(_, pi) ->
-            match dv with
-            | DInt16 di -> return (di = pi), []
-            | _ -> return! errWrongType "Int16"
-
-          | MPUInt16(_, pi) ->
-            match dv with
-            | DUInt16 di -> return (di = pi), []
-            | _ -> return! errWrongType "UInt16"
-
-          | MPInt32(_, pi) ->
-            match dv with
-            | DInt32 di -> return (di = pi), []
-            | _ -> return! errWrongType "Int32"
-
-          | MPUInt32(_, pi) ->
-            match dv with
-            | DUInt32 di -> return (di = pi), []
-            | _ -> return! errWrongType "UInt32"
-
-          | MPInt128(_, pi) ->
-            match dv with
-            | DInt128 di -> return (di = pi), []
-            | _ -> return! errWrongType "Int128"
-
-          | MPUInt128(_, pi) ->
-            match dv with
-            | DUInt128 di -> return (di = pi), []
-            | _ -> return! errWrongType "UInt128"
+            | DUnit -> return true, []
+            | _ -> return! errWrongType "Unit"
 
           | MPBool(_, pb) ->
             match dv with
             | DBool db -> return (db = pb), []
             | _ -> return! errWrongType "Bool"
+
+          | MPInt8(_, pi) ->
+            match dv with
+            | DInt8 di -> return (di = pi), []
+            | _ -> return! errWrongType "Int8"
+          | MPUInt8(_, pi) ->
+            match dv with
+            | DUInt8 di -> return (di = pi), []
+            | _ -> return! errWrongType "UInt8"
+          | MPInt16(_, pi) ->
+            match dv with
+            | DInt16 di -> return (di = pi), []
+            | _ -> return! errWrongType "Int16"
+          | MPUInt16(_, pi) ->
+            match dv with
+            | DUInt16 di -> return (di = pi), []
+            | _ -> return! errWrongType "UInt16"
+          | MPInt32(_, pi) ->
+            match dv with
+            | DInt32 di -> return (di = pi), []
+            | _ -> return! errWrongType "Int32"
+          | MPUInt32(_, pi) ->
+            match dv with
+            | DUInt32 di -> return (di = pi), []
+            | _ -> return! errWrongType "UInt32"
+          | MPInt64(_, pi) ->
+            match dv with
+            | DInt64 di -> return (di = pi), []
+            | _ -> return! errWrongType "Int64"
+          | MPUInt64(_, pi) ->
+            match dv with
+            | DUInt64 di -> return (di = pi), []
+            | _ -> return! errWrongType "UInt64"
+          | MPInt128(_, pi) ->
+            match dv with
+            | DInt128 di -> return (di = pi), []
+            | _ -> return! errWrongType "Int128"
+          | MPUInt128(_, pi) ->
+            match dv with
+            | DUInt128 di -> return (di = pi), []
+            | _ -> return! errWrongType "UInt128"
+
+          | MPFloat(_, pf) ->
+            match dv with
+            | DFloat df -> return (df = pf), []
+            | _ -> return! errWrongType "Float"
 
           | MPChar(_, pc) ->
             match dv with
@@ -596,17 +596,6 @@ let rec eval (state : ExecutionState) (e : Expr) : DvalTask =
             match dv with
             | DString ds -> return (ds = ps), []
             | _ -> return! errWrongType "String"
-          | MPFloat(_, pf) ->
-            match dv with
-            | DFloat df -> return (df = pf), []
-            | _ -> return! errWrongType "Float"
-          | MPUnit(_) ->
-            match dv with
-            | DUnit -> return true, []
-            | _ -> return! errWrongType "Unit"
-
-          | MPVariable(_, varName) -> return true, [ (varName, dv) ]
-
 
           | MPEnum(_, caseName, fieldPats) ->
             match dv with
@@ -696,6 +685,8 @@ let rec eval (state : ExecutionState) (e : Expr) : DvalTask =
               else
                 return false, []
             | _ -> return! errWrongType "List"
+
+          | MPVariable(_, varName) -> return true, [ (varName, dv) ]
         }
 
 
