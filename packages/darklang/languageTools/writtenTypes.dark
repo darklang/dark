@@ -34,8 +34,6 @@ module Darklang =
 
       type FnIdentifier = { range: Range; name: String }
 
-      type ConstantIdentifier = { range: Range; name: String }
-
       type QualifiedFnIdentifier =
         {
           range: Range

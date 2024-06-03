@@ -89,6 +89,8 @@ module Darklang =
 
               | Error _ -> createUnparseableError node
 
+            | _ -> createUnparseableError node
+
           else
             createUnparseableError node
 
@@ -177,209 +179,70 @@ module Darklang =
         let parseListConst
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Const, WrittenTypes.Unparseable> =
-          let openBracketNode = findField node "symbol_open_bracket"
-          let closeBracketNode = findField node "symbol_close_bracket"
-
-          let listContents =
+          baseParseList
+            ConstantDeclaration.parseConst
             node
-            |> findNodeByFieldName "content"
-            |> Stdlib.Option.map (fun contentsNode ->
-              contentsNode.children
-              |> Stdlib.List.chunkBySize 2L
-              |> Builtin.unwrap
-              |> Stdlib.List.map (fun constSymbolPair ->
-                match constSymbolPair with
-                | [ constNode; symbol ] ->
-                  match ConstantDeclaration.parseConst constNode with
-                  | Ok e ->
-                    (e, Stdlib.Option.Option.Some symbol.range)
-                    |> Stdlib.Result.Result.Ok
-                  | Error _ -> createUnparseableError contentsNode
-
-                | [ constNode ] ->
-                  match ConstantDeclaration.parseConst constNode with
-                  | Ok e ->
-                    (e, Stdlib.Option.Option.None) |> Stdlib.Result.Result.Ok
-                  | Error _ -> createUnparseableError constNode
-
-                | _ -> createUnparseableError contentsNode)
-
-              |> Stdlib.Result.collect)
-
-            |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
-
-          match openBracketNode, listContents, closeBracketNode with
-          | Ok openBracket, Ok listContents, Ok closeBracket ->
-            (WrittenTypes.Const.CList(
-              node.range,
-              listContents,
-              openBracket.range,
-              closeBracket.range
-            ))
-            |> Stdlib.Result.Result.Ok
-
-          | _ -> createUnparseableError node
+            (fun (range, listContents, rangeOpenBracket, rangeCloseBracket) ->
+              (WrittenTypes.Const.CList(
+                range,
+                listContents,
+                rangeOpenBracket,
+                rangeCloseBracket
+              ))
+              |> Stdlib.Result.Result.Ok)
 
 
         let parseDictLiteral
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Const, WrittenTypes.Unparseable> =
-          let keywordDictNode = findField node "keyword_dict"
-          let openBraceNode = findField node "symbol_open_brace"
-
-          let dictContents =
+          baseParseDict
+            ConstantDeclaration.parseConst
             node
-            |> findNodeByFieldName "content"
-            |> Stdlib.Option.map (fun contentsNode ->
-              contentsNode.children
-              |> Stdlib.List.chunkBySize 2L
-              |> Builtin.unwrap
-              |> Stdlib.List.map (fun dictSeparatorPair ->
-                match dictSeparatorPair with
-                | [ dictPairNode; _separator ] ->
-                  let keyNode =
-                    findAndParseRequired dictPairNode "key" (fun node ->
-                      (Parser.getText node) |> Stdlib.Result.Result.Ok)
-
-                  let symbolEqualsNode = findField dictPairNode "symbol_equals"
-
-                  let valueNode =
-                    findAndParseRequired
-                      dictPairNode
-                      "value"
-                      ConstantDeclaration.parseConst
-
-                  match (keyNode, symbolEqualsNode, valueNode) with
-                  | (Ok key, Ok symbolEquals, Ok value) ->
-                    (symbolEquals, key, value) |> Stdlib.Result.Result.Ok
-                  | _ -> createUnparseableError dictPairNode
-
-                | [ dictPairNode ] ->
-                  let keyNode =
-                    findAndParseRequired dictPairNode "key" (fun node ->
-                      (Parser.getText node) |> Stdlib.Result.Result.Ok)
-
-                  let symbolEqualsNode = findField dictPairNode "symbol_equals"
-
-                  let valueNode =
-                    findAndParseRequired
-                      dictPairNode
-                      "value"
-                      ConstantDeclaration.parseConst
-
-                  match (keyNode, symbolEqualsNode, valueNode) with
-                  | (Ok key, Ok symbolEquals, Ok value) ->
-                    (symbolEquals, key, value) |> Stdlib.Result.Result.Ok
-                  | _ -> createUnparseableError dictPairNode
-                | _ -> createUnparseableError contentsNode)
-
-              |> Stdlib.Result.collect)
-
-            |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
-
-          let closeBraceNode = findField node "symbol_close_brace"
-
-          match keywordDictNode, openBraceNode, dictContents, closeBraceNode with
-          | Ok keywordDict, Ok openBrace, Ok dictContents, Ok closeBrace ->
-            (WrittenTypes.Const.CDict(
-              node.range,
-              dictContents,
-              keywordDict.range,
-              openBrace.range,
-              closeBrace.range
-            ))
-            |> Stdlib.Result.Result.Ok
-
-          | _ -> createUnparseableError node
+            (fun (range, dictContents, keywordDict, openBrace, closeBrace) ->
+              (WrittenTypes.Const.CDict(
+                range,
+                dictContents,
+                keywordDict,
+                openBrace,
+                closeBrace
+              ))
+              |> Stdlib.Result.Result.Ok)
 
 
         let parseTupleLiteral
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Const, WrittenTypes.Unparseable> =
-          let openParenNode = findField node "symbol_left_paren"
-
-          let first =
-            findAndParseRequired node "first" ConstantDeclaration.parseConst
-
-          let second =
-            findAndParseRequired node "second" ConstantDeclaration.parseConst
-
-          let rest =
-            (findNodeByFieldName node "rest")
-            |> Stdlib.Option.map (fun restNode ->
-              restNode.children
-              |> Stdlib.List.chunkBySize 2L
-              |> Builtin.unwrap
-              |> Stdlib.List.map (fun symbolConstPair ->
-                match symbolConstPair with
-                | [ symbol; constNode ] ->
-                  match ConstantDeclaration.parseConst constNode with
-                  | Ok constant ->
-                    (symbol.range, constant) |> Stdlib.Result.Result.Ok
-                  | Error _ -> createUnparseableError constNode
-
-                | [ constNode ] ->
-                  match ConstantDeclaration.parseConst constNode with
-                  | Ok constant ->
-                    (Stdlib.Option.Option.None, constant)
-                    |> Stdlib.Result.Result.Ok
-                  | Error _ -> createUnparseableError constNode
-                | _ -> createUnparseableError restNode)
-
-              |> Stdlib.Result.collect)
-
-            |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
-
-          let commaSymbol = findField node "symbol_comma"
-          let closeParenNode = findField node "symbol_right_paren"
-
-          match openParenNode, first, commaSymbol, second, rest, closeParenNode with
-          | Ok openParen, Ok first, Ok symComma, Ok second, Ok rest, Ok closeParen ->
-            (WrittenTypes.Const.CTuple(
-              node.range,
-              first,
-              symComma.range,
-              second,
-              rest,
-              openParen.range,
-              closeParen.range
-            ))
-            |> Stdlib.Result.Result.Ok
-
-          | _ -> createUnparseableError node
+          baseParseTuple
+            ConstantDeclaration.parseConst
+            node
+            (fun (range, first, comma, second, rest, openParen, closeParen) ->
+              (WrittenTypes.Const.CTuple(
+                range,
+                first,
+                comma,
+                second,
+                rest,
+                openParen,
+                closeParen
+              ))
+              |> Stdlib.Result.Result.Ok)
 
 
         let parseEnumLiteral
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Const, WrittenTypes.Unparseable> =
-          let typeNameNode = findField node "type_name"
-          let symbolDotNode = findField node "symbol_dot"
-          let caseNameNode = findField node "case_name"
-
-          let enumFieldsNode =
-            (findNodeByFieldName node "enum_fields")
-            |> Stdlib.Option.map (fun enumFieldsNode ->
-              enumFieldsNode.children
-              |> Stdlib.List.map (fun field -> ConstantDeclaration.parseConst field)
-              |> Stdlib.Result.collect)
-
-            |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
-
-          match typeNameNode, symbolDotNode, caseNameNode, enumFieldsNode with
-          | Ok typeNameNode, Ok symbolDotNode, Ok caseNameNode, Ok enumFieldsNode ->
-
-            let typeName = typeNameNode.text |> Stdlib.String.split "."
-
-            (WrittenTypes.Const.CEnum(
-              node.range,
-              (typeNameNode.range, typeName),
-              (caseNameNode.range, caseNameNode.text),
-              enumFieldsNode,
-              symbolDotNode.range
-            ))
-            |> Stdlib.Result.Result.Ok
-
-          | _ -> createUnparseableError node
+          baseParseEnum
+            ConstantDeclaration.parseConst
+            node
+            (fun (range, typeName, caseName, enumFields, symbolDot) ->
+              (WrittenTypes.Const.CEnum(
+                range,
+                typeName,
+                caseName,
+                enumFields,
+                symbolDot
+              ))
+              |> Stdlib.Result.Result.Ok)
 
 
         let parseConst

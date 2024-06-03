@@ -1834,6 +1834,32 @@
     }
   },
   {
+    "type": "let_pattern_the_rest",
+    "named": true,
+    "fields": {
+      "expr": {
+        "multiple": true,
+        "required": true,
+        "types": [
+          {
+            "type": "let_pattern",
+            "named": true
+          }
+        ]
+      },
+      "symbol_comma": {
+        "multiple": true,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "list",
     "named": true,
     "fields": {
@@ -2032,15 +2058,11 @@
         ]
       },
       "rest": {
-        "multiple": true,
+        "multiple": false,
         "required": false,
         "types": [
           {
-            "type": "let_pattern",
-            "named": true
-          },
-          {
-            "type": "symbol",
+            "type": "let_pattern_the_rest",
             "named": true
           }
         ]
@@ -2056,7 +2078,7 @@
         ]
       },
       "symbol_comma": {
-        "multiple": true,
+        "multiple": false,
         "required": true,
         "types": [
           {
@@ -2375,7 +2397,7 @@
     "type": "mp_tuple_the_rest",
     "named": true,
     "fields": {
-      "pat": {
+      "expr": {
         "multiple": true,
         "required": true,
         "types": [

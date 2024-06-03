@@ -91,86 +91,19 @@ module.exports = grammar({
         $.unit,
       ),
 
-    const_list_literal: $ =>
-      seq(
-        field("symbol_open_bracket", alias("[", $.symbol)),
-        field("content", optional($.const_list_content)),
-        field("symbol_close_bracket", alias("]", $.symbol)),
-      ),
-
-    const_list_content: $ =>
-      seq(
-        $.consts,
-        repeat(seq(field("list_separator", alias(";", $.symbol)), $.consts)),
-        optional(alias(";", $.symbol)),
-      ),
+    const_list_literal: $ => list_literal_base($, $.const_list_content),
+    const_list_content: $ => list_content_base($, $.consts),
 
     const_tuple_literal: $ =>
-      seq(
-        field("symbol_left_paren", alias("(", $.symbol)),
-        field("first", $.consts),
-        field("symbol_comma", alias(",", $.symbol)),
-        field("second", $.consts),
-        field("rest", optional($.const_tuple_literal_the_rest)),
-        field("symbol_right_paren", alias(")", $.symbol)),
-      ),
-    const_tuple_literal_the_rest: $ =>
-      repeat1(
-        seq(
-          field("symbol_comma", alias(",", $.symbol)),
-          field("expr", $.consts),
-        ),
-      ),
+      tuple_literal_base($, $.consts, $.const_tuple_literal_the_rest),
+    const_tuple_literal_the_rest: $ => tuple_literal_the_rest_base($, $.consts),
 
-    const_dict_literal: $ =>
-      seq(
-        field("keyword_dict", alias("Dict", $.keyword)),
-        field("symbol_open_brace", alias("{", $.symbol)),
-        field("content", optional($.const_dict_content)),
-        field("symbol_close_brace", alias("}", $.symbol)),
-      ),
-    const_dict_content: $ =>
-      seq(
-        $.const_dict_pair,
-        repeat(
-          seq(field("dict_separator", alias(";", $.symbol)), $.const_dict_pair),
-        ),
-      ),
-    const_dict_pair: $ =>
-      seq(
-        field("key", $.expression),
-        field("symbol_equals", alias("=", $.symbol)),
-        field("value", $.consts),
-      ),
+    const_dict_literal: $ => dict_literal_base($, $.const_dict_content),
+    const_dict_content: $ => dict_content_base($, $.const_dict_pair),
+    const_dict_pair: $ => dict_pair_base($, $.expression, $.consts),
 
-    const_enum_literal: $ =>
-      prec.right(
-        seq(
-          field("type_name", $.qualified_type_name),
-          field("symbol_dot", alias(".", $.symbol)),
-          field("case_name", $.enum_case_identifier),
-          optional(field("enum_fields", $.const_enum_fields)),
-        ),
-      ),
-    const_enum_fields: $ =>
-      prec(
-        1,
-        choice(
-          seq(
-            field("symbol_open_paren", alias("(", $.symbol)),
-            seq(
-              $.consts,
-              repeat(
-                prec.right(
-                  seq(field("symbol_comma", alias(",", $.symbol)), $.consts),
-                ),
-              ),
-            ),
-            field("symbol_close_paren", alias(")", $.symbol)),
-          ),
-          prec.right(repeat1($.consts)),
-        ),
-      ),
+    const_enum_literal: $ => enum_literal_base($, $.const_enum_fields),
+    const_enum_fields: $ => enum_fields_base($, $.consts),
 
     // ---------------------
     // Function declarations
@@ -324,21 +257,8 @@ module.exports = grammar({
       ),
 
     // match pattern - list
-    mp_list: $ =>
-      seq(
-        field("symbol_open_bracket", alias("[", $.symbol)),
-        optional(field("content", $.mp_list_content)),
-        field("symbol_close_bracket", alias("]", $.symbol)),
-      ),
-
-    mp_list_content: $ =>
-      seq(
-        $.match_pattern,
-        repeat(
-          seq(field("list_separator", alias(";", $.symbol)), $.match_pattern),
-        ),
-        optional(alias(";", $.symbol)),
-      ),
+    mp_list: $ => list_literal_base($, $.mp_list_content),
+    mp_list_content: $ => list_content_base($, $.match_pattern),
 
     //
     // match pattern - list cons
@@ -353,23 +273,8 @@ module.exports = grammar({
 
     //
     // match pattern - tuple
-    mp_tuple: $ =>
-      seq(
-        field("symbol_left_paren", alias("(", $.symbol)),
-        field("first", $.match_pattern),
-        field("symbol_comma", alias(",", $.symbol)),
-        field("second", $.match_pattern),
-        optional(field("rest", $.mp_tuple_the_rest)),
-        field("symbol_right_paren", alias(")", $.symbol)),
-      ),
-
-    mp_tuple_the_rest: $ =>
-      repeat1(
-        seq(
-          field("symbol_comma", alias(",", $.symbol)),
-          field("pat", $.match_pattern),
-        ),
-      ),
+    mp_tuple: $ => tuple_literal_base($, $.match_pattern, $.mp_tuple_the_rest),
+    mp_tuple_the_rest: $ => tuple_literal_the_rest_base($, $.match_pattern),
 
     //
     // match pattern - enum
@@ -381,27 +286,7 @@ module.exports = grammar({
         ),
       ),
 
-    mp_enum_fields: $ =>
-      prec.right(
-        choice(
-          seq(
-            field("symbol_open_paren", alias("(", $.symbol)),
-            seq(
-              $.match_pattern,
-              repeat(
-                prec.right(
-                  seq(
-                    field("symbol_comma", alias(",", $.symbol)),
-                    $.match_pattern,
-                  ),
-                ),
-              ),
-            ),
-            field("symbol_close_paren", alias(")", $.symbol)),
-          ),
-          repeat1(prec.right($.match_pattern)),
-        ),
-      ),
+    mp_enum_fields: $ => enum_fields_base($, $.match_pattern),
 
     // ---------------------
     // Expressions
@@ -668,61 +553,20 @@ module.exports = grammar({
     //
     // List
     // TODO: allow multi-line lists where a newline is 'interpreted' as a list delimiter (i.e. no ; needed)
-    list_literal: $ =>
-      seq(
-        field("symbol_open_bracket", alias("[", $.symbol)),
-        optional(field("content", $.list_content)),
-        field("symbol_close_bracket", alias("]", $.symbol)),
-      ),
-
-    list_content: $ =>
-      seq(
-        $.expression,
-        repeat(
-          seq(field("list_separator", alias(";", $.symbol)), $.expression),
-        ),
-        optional(alias(";", $.symbol)),
-      ),
+    list_literal: $ => list_literal_base($, $.list_content),
+    list_content: $ => list_content_base($, $.expression),
 
     //
     // Dict
-    dict_literal: $ =>
-      seq(
-        field("keyword_dict", alias("Dict", $.keyword)),
-        field("symbol_open_brace", alias("{", $.symbol)),
-        optional(field("content", $.dict_content)),
-        field("symbol_close_brace", alias("}", $.symbol)),
-      ),
-    dict_content: $ =>
-      seq(
-        $.dict_pair,
-        repeat(seq(field("dict_separator", alias(";", $.symbol)), $.dict_pair)),
-      ),
-    dict_pair: $ =>
-      seq(
-        field("key", $.expression),
-        field("symbol_equals", alias("=", $.symbol)),
-        field("value", $.expression),
-      ),
+    dict_literal: $ => dict_literal_base($, $.dict_content),
+    dict_content: $ => dict_content_base($, $.dict_pair),
+    dict_pair: $ => dict_pair_base($, $.expression, $.expression),
 
     //
     // Tuples
     tuple_literal: $ =>
-      seq(
-        field("symbol_left_paren", alias("(", $.symbol)),
-        field("first", $.expression),
-        field("symbol_comma", alias(",", $.symbol)),
-        field("second", $.expression),
-        optional(field("rest", $.tuple_literal_the_rest)),
-        field("symbol_right_paren", alias(")", $.symbol)),
-      ),
-    tuple_literal_the_rest: $ =>
-      repeat1(
-        seq(
-          field("symbol_comma", alias(",", $.symbol)),
-          field("expr", $.expression),
-        ),
-      ),
+      tuple_literal_base($, $.expression, $.tuple_literal_the_rest),
+    tuple_literal_the_rest: $ => tuple_literal_the_rest_base($, $.expression),
 
     //
     // Record
@@ -778,37 +622,8 @@ module.exports = grammar({
 
     //
     // Enum
-    enum_literal: $ =>
-      prec.right(
-        seq(
-          field("type_name", $.qualified_type_name),
-          field("symbol_dot", alias(".", $.symbol)),
-          field("case_name", $.enum_case_identifier),
-          optional(field("enum_fields", $.enum_fields)),
-        ),
-      ),
-    enum_fields: $ =>
-      prec(
-        1,
-        choice(
-          seq(
-            field("symbol_open_paren", alias("(", $.symbol)),
-            seq(
-              $.expression,
-              repeat(
-                prec.right(
-                  seq(
-                    field("symbol_comma", alias(",", $.symbol)),
-                    $.expression,
-                  ),
-                ),
-              ),
-            ),
-            field("symbol_close_paren", alias(")", $.symbol)),
-          ),
-          prec.right(repeat1($.expression)),
-        ),
-      ),
+    enum_literal: $ => enum_literal_base($, $.enum_fields),
+    enum_fields: $ => enum_fields_base($, $.expression),
 
     //
     // If expressions
@@ -874,20 +689,8 @@ module.exports = grammar({
       ),
     lambda_pats: $ => field("pat", repeat1($.let_pattern)),
 
-    lp_tuple: $ =>
-      seq(
-        field("symbol_left_paren", alias("(", $.symbol)),
-        field("first", $.let_pattern),
-        field("symbol_comma", alias(",", $.symbol)),
-        field("second", $.let_pattern),
-        field(
-          "rest",
-          repeat(
-            seq(field("symbol_comma", alias(",", $.symbol)), $.let_pattern),
-          ),
-        ),
-        field("symbol_right_paren", alias(")", $.symbol)),
-      ),
+    lp_tuple: $ => tuple_literal_base($, $.let_pattern, $.let_pattern_the_rest),
+    let_pattern_the_rest: $ => tuple_literal_the_rest_base($, $.let_pattern),
 
     let_pattern: $ => choice($.unit, $.lp_tuple, $.variable_identifier),
 
@@ -1039,38 +842,8 @@ module.exports = grammar({
 
     //
     // Pipe enum
-    pipe_enum: $ =>
-      prec.right(
-        seq(
-          field("type_name", $.qualified_type_name),
-          field("symbol_dot", alias(".", $.symbol)),
-          field("case_name", $.enum_case_identifier),
-          optional(field("enum_fields", $.pipe_enum_fields)),
-        ),
-      ),
-
-    pipe_enum_fields: $ =>
-      prec(
-        1,
-        choice(
-          seq(
-            field("symbol_open_paren", alias("(", $.symbol)),
-            seq(
-              $.expression,
-              repeat(
-                prec.right(
-                  seq(
-                    field("symbol_comma", alias(",", $.symbol)),
-                    $.expression,
-                  ),
-                ),
-              ),
-            ),
-            field("symbol_close_paren", alias(")", $.symbol)),
-          ),
-          prec.right(repeat1($.expression)),
-        ),
-      ),
+    pipe_enum: $ => enum_literal_base($, $.pipe_enum_fields),
+    pipe_enum_fields: $ => enum_fields_base($, $.expression),
 
     pipe_expr: $ =>
       choice($.pipe_lambda, $.pipe_infix, $.pipe_fn_call, $.pipe_enum),
@@ -1262,3 +1035,87 @@ module.exports = grammar({
     unit: $ => "()",
   },
 });
+
+function list_literal_base($, contentRule) {
+  return seq(
+    field("symbol_open_bracket", alias("[", $.symbol)),
+    optional(field("content", contentRule)),
+    field("symbol_close_bracket", alias("]", $.symbol)),
+  );
+}
+function list_content_base($, content) {
+  return seq(
+    content,
+    repeat(seq(field("list_separator", alias(";", $.symbol)), content)),
+    optional(alias(";", $.symbol)),
+  );
+}
+
+function tuple_literal_base($, firstOrSecond, rest) {
+  return seq(
+    field("symbol_left_paren", alias("(", $.symbol)),
+    field("first", firstOrSecond),
+    field("symbol_comma", alias(",", $.symbol)),
+    field("second", firstOrSecond),
+    optional(field("rest", rest)),
+    field("symbol_right_paren", alias(")", $.symbol)),
+  );
+}
+function tuple_literal_the_rest_base($, rest) {
+  return repeat1(
+    seq(field("symbol_comma", alias(",", $.symbol)), field("expr", rest)),
+  );
+}
+
+function dict_literal_base($, contentRule) {
+  return seq(
+    field("keyword_dict", alias("Dict", $.keyword)),
+    field("symbol_open_brace", alias("{", $.symbol)),
+    optional(field("content", contentRule)),
+    field("symbol_close_brace", alias("}", $.symbol)),
+  );
+}
+function dict_content_base($, dict_pair) {
+  return seq(
+    dict_pair,
+    repeat(seq(field("dict_separator", alias(";", $.symbol)), dict_pair)),
+  );
+}
+function dict_pair_base($, key, value) {
+  return seq(
+    field("key", key),
+    field("symbol_equals", alias("=", $.symbol)),
+    field("value", value),
+  );
+}
+
+function enum_literal_base($, enum_fields) {
+  return prec.right(
+    seq(
+      field("type_name", $.qualified_type_name),
+      field("symbol_dot", alias(".", $.symbol)),
+      field("case_name", $.enum_case_identifier),
+      optional(field("enum_fields", enum_fields)),
+    ),
+  );
+}
+function enum_fields_base($, fields) {
+  return prec(
+    1,
+    choice(
+      seq(
+        field("symbol_open_paren", alias("(", $.symbol)),
+        seq(
+          fields,
+          repeat(
+            prec.right(
+              seq(field("symbol_comma", alias(",", $.symbol)), fields),
+            ),
+          ),
+        ),
+        field("symbol_close_paren", alias(")", $.symbol)),
+      ),
+      prec.right(repeat1(prec.right(fields))),
+    ),
+  );
+}

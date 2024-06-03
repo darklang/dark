@@ -197,47 +197,17 @@ module Darklang =
         let parseMPList
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.MatchPattern, WrittenTypes.Unparseable> =
-          let openBracketNode = findField node "symbol_open_bracket"
-          let closeBracketNode = findField node "symbol_close_bracket"
-
-          let contents =
+          baseParseList
+            MatchPattern.parseMatchPattern
             node
-            |> findNodeByFieldName "content"
-            |> Stdlib.Option.map (fun contentsNode ->
-              contentsNode.children
-              |> Stdlib.List.chunkBySize 2L
-              |> Builtin.unwrap
-              |> Stdlib.List.map (fun patSymbolPair ->
-                match patSymbolPair with
-                | [ pat; symbol ] ->
-                  match parseMatchPattern pat with
-                  | Ok e ->
-                    (e, Stdlib.Option.Option.Some symbol.range)
-                    |> Stdlib.Result.Result.Ok
-                  | Error _ -> createUnparseableError pat
-
-                | [ pat ] ->
-                  match MatchPattern.parseMatchPattern pat with
-                  | Ok e ->
-                    (e, Stdlib.Option.Option.None) |> Stdlib.Result.Result.Ok
-                  | Error _ -> createUnparseableError pat
-                | _ -> createUnparseableError contentsNode)
-
-              |> Stdlib.Result.collect)
-
-            |> Stdlib.Option.withDefault ([] |> Stdlib.Result.Result.Ok)
-
-          match openBracketNode, contents, closeBracketNode with
-          | Ok openBracket, Ok contents, Ok closeBracket ->
-            (WrittenTypes.MatchPattern.MPList(
-              node.range,
-              contents,
-              openBracket.range,
-              closeBracket.range
-            ))
-            |> Stdlib.Result.Result.Ok
-          | _ -> createUnparseableError node
-
+            (fun (rangeN, listContents, rangeOpenBracket, rangeCloseBracket) ->
+              (WrittenTypes.MatchPattern.MPList(
+                rangeN,
+                listContents,
+                rangeOpenBracket,
+                rangeCloseBracket
+              ))
+              |> Stdlib.Result.Result.Ok)
 
         let parseMPListCons
           (node: ParsedNode)
@@ -261,54 +231,20 @@ module Darklang =
         let parseMPTuple
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.MatchPattern, WrittenTypes.Unparseable> =
-          let openParenNode = findField node "symbol_left_paren"
-
-          let first =
-            findAndParseRequired node "first" MatchPattern.parseMatchPattern
-
-          let second =
-            findAndParseRequired node "second" MatchPattern.parseMatchPattern
-
-          let rest =
-            (findNodeByFieldName node "rest")
-            |> Stdlib.Option.map (fun restNode ->
-              restNode.children
-              |> Stdlib.List.chunkBySize 2L
-              |> Builtin.unwrap
-              |> Stdlib.List.map (fun symbolPatPair ->
-                match symbolPatPair with
-                | [ symbol; patNode ] ->
-                  match MatchPattern.parseMatchPattern patNode with
-                  | Ok pat -> (symbol.range, pat) |> Stdlib.Result.Result.Ok
-                  | Error _ -> createUnparseableError patNode
-
-                | [ patNode ] ->
-                  match MatchPattern.parseMatchPattern patNode with
-                  | Ok pat ->
-                    (Stdlib.Option.Option.None, pat) |> Stdlib.Result.Result.Ok
-                  | Error _ -> createUnparseableError patNode
-                | _ -> createUnparseableError restNode)
-
-              |> Stdlib.Result.collect)
-            |> Stdlib.Option.withDefault ([] |> Stdlib.Result.Result.Ok)
-
-          let commaSymbol = findField node "symbol_comma"
-          let closeParenNode = findField node "symbol_right_paren"
-
-          match openParenNode, first, commaSymbol, second, rest, closeParenNode with
-          | Ok openPr, Ok first, Ok commaSym, Ok second, Ok rest, Ok closePr ->
-            (WrittenTypes.MatchPattern.MPTuple(
-              node.range,
-              first,
-              commaSym.range,
-              second,
-              rest,
-              openPr.range,
-              closePr.range
-            ))
-            |> Stdlib.Result.Result.Ok
-
-          | _ -> createUnparseableError node
+          baseParseTuple
+            MatchPattern.parseMatchPattern
+            node
+            (fun (range, first, comma, second, rest, openParen, closeParen) ->
+              (WrittenTypes.MatchPattern.MPTuple(
+                range,
+                first,
+                comma,
+                second,
+                rest,
+                openParen,
+                closeParen
+              ))
+              |> Stdlib.Result.Result.Ok)
 
 
         let parseMPEnum

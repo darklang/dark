@@ -177,164 +177,53 @@ module Darklang =
         let parseListLiteral
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          let openBracketNode = findField node "symbol_open_bracket"
-          let closeBracketNode = findField node "symbol_close_bracket"
-
-          let listContents =
+          baseParseList
+            Expr.parse
             node
-            |> findNodeByFieldName "content"
-            |> Stdlib.Option.map (fun contentsNode ->
-              contentsNode.children
-              |> Stdlib.List.chunkBySize 2L
-              |> Builtin.unwrap
-              |> Stdlib.List.map (fun exprSymbolPair ->
-                match exprSymbolPair with
-                | [ exprNode; symbol ] ->
-                  match Expr.parse exprNode with
-                  | Ok e ->
-                    (e, Stdlib.Option.Option.Some symbol.range)
-                    |> Stdlib.Result.Result.Ok
-                  | Error _ -> createUnparseableError contentsNode
-
-                | [ exprNode ] ->
-                  match Expr.parse exprNode with
-                  | Ok e ->
-                    (e, Stdlib.Option.Option.None) |> Stdlib.Result.Result.Ok
-                  | Error _ -> createUnparseableError exprNode
-
-                | _ -> createUnparseableError contentsNode)
-
-              |> Stdlib.Result.collect)
-
-            |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
-
-          match openBracketNode, listContents, closeBracketNode with
-          | Ok openBracket, Ok listContents, Ok closeBracket ->
-            (WrittenTypes.Expr.EList(
-              node.range,
-              listContents,
-              openBracket.range,
-              closeBracket.range
-            ))
-            |> Stdlib.Result.Result.Ok
-
-          | _ -> createUnparseableError node
+            (fun (rangeN, listContents, rangeOpenBracket, rangeCloseBracket) ->
+              (WrittenTypes.Expr.EList(
+                rangeN,
+                listContents,
+                rangeOpenBracket,
+                rangeCloseBracket
+              ))
+              |> Stdlib.Result.Result.Ok)
 
 
         let parseDictLiteral
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          let keywordDictNode = findField node "keyword_dict"
-          let openBraceNode = findField node "symbol_open_brace"
-
-          let dictContents =
+          baseParseDict
+            Expr.parse
             node
-            |> findNodeByFieldName "content"
-            |> Stdlib.Option.map (fun contentsNode ->
-              contentsNode.children
-              |> Stdlib.List.chunkBySize 2L
-              |> Builtin.unwrap
-              |> Stdlib.List.map (fun dictSeparatorPair ->
-                match dictSeparatorPair with
-                | [ dictPairNode; _separator ] ->
-                  let keyNode =
-                    findAndParseRequired dictPairNode "key" (fun node ->
-                      (Parser.getText node) |> Stdlib.Result.Result.Ok)
-
-                  let symbolEqualsNode = findField dictPairNode "symbol_equals"
-
-                  let valueNode =
-                    findAndParseRequired dictPairNode "value" Expr.parse
-
-                  match (keyNode, symbolEqualsNode, valueNode) with
-                  | (Ok key, Ok symbolEquals, Ok value) ->
-                    (symbolEquals, key, value) |> Stdlib.Result.Result.Ok
-                  | _ -> createUnparseableError dictPairNode
-
-                | [ dictPairNode ] ->
-                  let keyNode =
-                    findAndParseRequired dictPairNode "key" (fun node ->
-                      (Parser.getText node) |> Stdlib.Result.Result.Ok)
-
-                  let symbolEqualsNode = findField dictPairNode "symbol_equals"
-
-                  let valueNode =
-                    findAndParseRequired dictPairNode "value" Expr.parse
-
-                  match (keyNode, symbolEqualsNode, valueNode) with
-                  | (Ok key, Ok symbolEquals, Ok value) ->
-                    (symbolEquals, key, value) |> Stdlib.Result.Result.Ok
-                  | _ -> createUnparseableError dictPairNode
-                | _ -> createUnparseableError contentsNode)
-
-              |> Stdlib.Result.collect)
-
-            |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
-
-          let closeBraceNode = findField node "symbol_close_brace"
-
-          match keywordDictNode, openBraceNode, dictContents, closeBraceNode with
-          | Ok keywordDict, Ok openBrace, Ok dictContents, Ok closeBrace ->
-            (WrittenTypes.Expr.EDict(
-              node.range,
-              dictContents,
-              keywordDict.range,
-              openBrace.range,
-              closeBrace.range
-            ))
-            |> Stdlib.Result.Result.Ok
-
-          | _ -> createUnparseableError node
+            (fun (range, dictContents, keywordDict, openBrace, closeBrace) ->
+              (WrittenTypes.Expr.EDict(
+                range,
+                dictContents,
+                keywordDict,
+                openBrace,
+                closeBrace
+              ))
+              |> Stdlib.Result.Result.Ok)
 
 
         let parseTupleLiteral
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          let openParenNode = findField node "symbol_left_paren"
-          let first = findAndParseRequired node "first" Expr.parse
-          let second = findAndParseRequired node "second" Expr.parse
-
-          let rest =
-            (findNodeByFieldName node "rest")
-            |> Stdlib.Option.map (fun restNode ->
-              restNode.children
-              |> Stdlib.List.chunkBySize 2L
-              |> Builtin.unwrap
-              |> Stdlib.List.map (fun symbolExprPair ->
-                match symbolExprPair with
-                | [ symbol; exprNode ] ->
-                  match Expr.parse exprNode with
-                  | Ok expr -> (symbol.range, expr) |> Stdlib.Result.Result.Ok
-                  | Error _ -> createUnparseableError exprNode
-
-                | [ exprNode ] ->
-                  match Expr.parse exprNode with
-                  | Ok expr ->
-                    (Stdlib.Option.Option.None, expr) |> Stdlib.Result.Result.Ok
-                  | Error _ -> createUnparseableError exprNode
-                | _ -> createUnparseableError restNode)
-
-              |> Stdlib.Result.collect)
-
-            |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
-
-          let commaSymbol = findField node "symbol_comma"
-          let closeParenNode = findField node "symbol_right_paren"
-
-          match openParenNode, first, commaSymbol, second, rest, closeParenNode with
-          | Ok openParen, Ok first, Ok symComma, Ok second, Ok rest, Ok closeParen ->
-            (WrittenTypes.Expr.ETuple(
-              node.range,
-              first,
-              symComma.range,
-              second,
-              rest,
-              openParen.range,
-              closeParen.range
-            ))
-            |> Stdlib.Result.Result.Ok
-
-          | _ -> createUnparseableError node
+          baseParseTuple
+            Expr.parse
+            node
+            (fun (range, first, comma, second, rest, openParen, closeParen) ->
+              (WrittenTypes.Expr.ETuple(
+                range,
+                first,
+                comma,
+                second,
+                rest,
+                openParen,
+                closeParen
+              ))
+              |> Stdlib.Result.Result.Ok)
 
 
         let parseRecordLiteral
@@ -486,33 +375,18 @@ module Darklang =
         let parseEnumLiteral
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          let typeNameNode = findField node "type_name"
-          let symbolDotNode = findField node "symbol_dot"
-          let caseNameNode = findField node "case_name"
-
-          let enumFieldsNode =
-            (findNodeByFieldName node "enum_fields")
-            |> Stdlib.Option.map (fun enumFieldsNode ->
-              enumFieldsNode.children
-              |> Stdlib.List.map (fun child -> Expr.parse child)
-              |> Stdlib.Result.collect)
-
-            |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
-
-          match typeNameNode, symbolDotNode, caseNameNode, enumFieldsNode with
-          | Ok typeNameNode, Ok symbolDotNode, Ok caseNameNode, Ok enumFieldsNode ->
-            let typeName = typeNameNode.text |> Stdlib.String.split "."
-
-            (WrittenTypes.Expr.EEnum(
-              node.range,
-              (typeNameNode.range, typeName),
-              (caseNameNode.range, caseNameNode.text),
-              enumFieldsNode,
-              symbolDotNode.range
-            ))
-            |> Stdlib.Result.Result.Ok
-
-          | _ -> createUnparseableError node
+          baseParseEnum
+            Expr.parse
+            node
+            (fun (range, typeName, caseName, enumFields, symbolDot) ->
+              (WrittenTypes.Expr.EEnum(
+                range,
+                typeName,
+                caseName,
+                enumFields,
+                symbolDot
+              ))
+              |> Stdlib.Result.Result.Ok)
 
 
         let parseLetExpr
@@ -643,59 +517,20 @@ module Darklang =
               (WrittenTypes.LetPattern.LPVariable(child.range, getText child))
               |> Stdlib.Result.Result.Ok
             | "lp_tuple" ->
-              let openParenNode = findField child "symbol_left_paren"
-              let first = findAndParseRequired child "first" Expr.parseLetPattern
-              let second = findAndParseRequired child "second" Expr.parseLetPattern
-
-              let rest =
-                (findNodeByFieldName child "rest")
-                |> Stdlib.Option.map (fun restNode ->
-                  restNode.children
-                  |> Stdlib.List.chunkBySize 2L
-                  |> Builtin.unwrap
-                  |> Stdlib.List.map (fun symbolExprPair ->
-                    match symbolExprPair with
-                    | [ symbol; exprNode ] ->
-                      match Expr.parseLetPattern exprNode with
-                      | Ok expr -> (symbol.range, expr) |> Stdlib.Result.Result.Ok
-                      | Error _ -> createUnparseableError exprNode
-
-                    | [ exprNode ] ->
-                      match Expr.parseLetPattern exprNode with
-                      | Ok expr ->
-                        (Stdlib.Option.Option.None, expr)
-                        |> Stdlib.Result.Result.Ok
-                      | Error _ -> createUnparseableError exprNode
-                    | _ -> createUnparseableError restNode)
-
-                  |> Stdlib.Result.collect)
-
-                |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
-
-              let commaSymbol = findField child "symbol_comma"
-              let closeParenNode = findField child "symbol_right_paren"
-
-              match
-                openParenNode, first, commaSymbol, second, rest, closeParenNode
-              with
-              | Ok openParen,
-                Ok first,
-                Ok symComma,
-                Ok second,
-                Ok rest,
-                Ok closeParen ->
-                (WrittenTypes.LetPattern.LPTuple(
-                  child.range,
-                  first,
-                  symComma.range,
-                  second,
-                  rest,
-                  openParen.range,
-                  closeParen.range
-                ))
-                |> Stdlib.Result.Result.Ok
-
-              | _ -> createUnparseableError child
+              baseParseTuple
+                Expr.parseLetPattern
+                child
+                (fun (range, first, comma, second, rest, openParen, closeParen) ->
+                  (WrittenTypes.LetPattern.LPTuple(
+                    range,
+                    first,
+                    comma,
+                    second,
+                    rest,
+                    openParen,
+                    closeParen
+                  ))
+                  |> Stdlib.Result.Result.Ok)
 
           | _ -> createUnparseableError child
 

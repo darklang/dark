@@ -687,8 +687,7 @@ module Darklang =
           (d: WrittenTypes.ConstantDeclaration.ConstantDeclaration)
           : ProgramTypes.PackageConstant =
           ProgramTypes.PackageConstant
-            { tlid = gtlid ()
-              id = Stdlib.Uuid.generate ()
+            { id = Stdlib.Uuid.generate ()
               name =
                 ProgramTypes.FQConstantName.Package
                   { owner = owner
@@ -705,8 +704,7 @@ module Darklang =
           (c: WrittenTypes.ConstantDeclaration.ConstantDeclaration)
           : ProgramTypes.PackageConstant =
           ProgramTypes.PackageConstant
-            { tlid = gtlid ()
-              id = Stdlib.Uuid.generate ()
+            { id = Stdlib.Uuid.generate ()
               name =
                 ProgramTypes.FQConstantName.Package
                   { owner = owner
