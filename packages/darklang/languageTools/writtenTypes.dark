@@ -387,6 +387,55 @@ module Darklang =
           args: List<Expr>
         | EPipeVariableOrFnCall of Range * String
 
+      type Const =
+        | CUnit of Range
+        | CBool of Range * Bool
+        | CInt8 of Range * intPart: (Range * Int8) * suffixPart: Range
+        | CUInt8 of Range * intPart: (Range * UInt8) * suffixPart: Range
+        | CInt16 of Range * intPart: (Range * Int16) * suffixPart: Range
+        | CUInt16 of Range * intPart: (Range * UInt16) * suffixPart: Range
+        | CInt32 of Range * intPart: (Range * Int32) * suffixPart: Range
+        | CUInt32 of Range * intPart: (Range * UInt32) * suffixPart: Range
+        | CInt64 of Range * intPart: (Range * Int64) * suffixPart: Range
+        | CUInt64 of Range * intPart: (Range * UInt64) * suffixPart: Range
+        | CInt128 of Range * intPart: (Range * Int128) * suffixPart: Range
+        | CUInt128 of Range * intPart: (Range * UInt128) * suffixPart: Range
+        | CFloat of Range * Sign * String * String
+        | CChar of
+          Range *
+          contents: Stdlib.Option.Option<Range * String> *
+          symbolOpenQuote: Range *
+          symbolCloseQuote: Range
+        | CString of
+          Range *
+          contents: Stdlib.Option.Option<Range * String> *
+          symbolOpenQuote: Range *
+          symbolCloseQuote: Range
+        | CList of
+          Range *
+          contents: List<Const * Stdlib.Option.Option<Range>> *
+          symbolOpenBracket: Range *
+          symbolCloseBracket: Range
+        | CDict of
+          Range *
+          contents: List<Range * String * Const> *
+          keywordDict: Range *
+          symbolOpenBrace: Range *
+          symbolCloseBrace: Range
+        | CTuple of
+          Range *
+          first: Const *
+          symbolComma: Range *
+          second: Const *
+          rest: List<Stdlib.Option.Option<Range> * Const> *
+          symbolOpenParen: Range *
+          symbolCloseParen: Range
+        | CEnum of
+          Range *
+          typeName: (Range * List<String>) *
+          caseName: (Range * String) *
+          fields: List<Const> *
+          symbolDot: Range
 
       // Fn declarations
       module FnDeclaration =
@@ -417,10 +466,20 @@ module Darklang =
             symbolEquals: Range }
 
 
+      // Constant declarations
+      module ConstantDeclaration =
+        type ConstantDeclaration =
+          { range: Range
+            name: ConstantIdentifier
+            body: Const
+            keywordConst: Range
+            symbolEquals: Range }
+
       // Cli scripts
-      type CliScriptTypeOrFn =
+      type CliScriptTypeOrFnOrConst =
         | Type of TypeDeclaration.TypeDeclaration
         | Function of FnDeclaration.FnDeclaration
+        | Constant of ConstantDeclaration.ConstantDeclaration
 
       type Unparseable =
         { source: Parser.ParsedNode
@@ -428,7 +487,7 @@ module Darklang =
 
       type CliScript =
         { range: Range
-          typesAndFns: List<CliScriptTypeOrFn>
+          typesAndFnsAndConsts: List<CliScriptTypeOrFnOrConst>
           unparseableStuff: List<Unparseable>
           exprsToEval: List<Expr> }
 

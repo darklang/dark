@@ -903,7 +903,171 @@ module Darklang =
                |> Stdlib.List.flatten) ]
             |> Stdlib.List.flatten
 
+      module Const =
+        let tokenize (c: WrittenTypes.Const) : List<SemanticToken> =
+          match c with
+          | CUnit r -> [ makeToken r TokenType.Symbol ]
+          | CBool(r, _) -> [ makeToken r TokenType.Keyword ]
+          | CInt8(_, (intPartRange, _), suffixPartRange) ->
+            [ makeToken intPartRange TokenType.Number
+              makeToken suffixPartRange TokenType.Symbol ]
 
+          | CUInt8(_, (intPartRange, _), suffixPartRange) ->
+            [ makeToken intPartRange TokenType.Number
+              makeToken suffixPartRange TokenType.Symbol ]
+
+          | CInt16(_, (intPartRange, _), suffixPartRange) ->
+            [ makeToken intPartRange TokenType.Number
+              makeToken suffixPartRange TokenType.Symbol ]
+
+          | CUInt16(_, (intPartRange, _), suffixPartRange) ->
+            [ makeToken intPartRange TokenType.Number
+              makeToken suffixPartRange TokenType.Symbol ]
+
+          | CInt32(_, (intPartRange, _), suffixPartRange) ->
+            [ makeToken intPartRange TokenType.Number
+              makeToken suffixPartRange TokenType.Symbol ]
+
+          | CUInt32(_, (intPartRange, _), suffixPartRange) ->
+            [ makeToken intPartRange TokenType.Number
+              makeToken suffixPartRange TokenType.Symbol ]
+
+          | CInt64(_, (intPartRange, _), suffixPartRange) ->
+            [ makeToken intPartRange TokenType.Number
+              makeToken suffixPartRange TokenType.Symbol ]
+
+          | CUInt64(_, (intPartRange, _), suffixPartRange) ->
+            [ makeToken intPartRange TokenType.Number
+              makeToken suffixPartRange TokenType.Symbol ]
+
+          | CInt128(_, (intPartRange, _), suffixPartRange) ->
+            [ makeToken intPartRange TokenType.Number
+              makeToken suffixPartRange TokenType.Symbol ]
+
+          | CUInt128(_, (intPartRange, _), suffixPartRange) ->
+            [ makeToken intPartRange TokenType.Number
+              makeToken suffixPartRange TokenType.Symbol ]
+
+          | CFloat(range, _sign, _whole, _fraction) ->
+            [ makeToken range TokenType.Number ]
+
+          | CString(range, _contentsMaybe, symbolOpenQuote, symbolCloseQuote) ->
+            [ // "
+              [ makeToken symbolOpenQuote TokenType.Symbol ]
+              // hello
+              [ makeToken range TokenType.String ]
+              // "
+              [ makeToken symbolCloseQuote TokenType.Symbol ] ]
+            |> Stdlib.List.flatten
+
+          | CChar(range, _contentsMaybe, symbolOpenQuote, symbolCloseQuote) ->
+            [ // '
+              [ makeToken symbolOpenQuote TokenType.Symbol ]
+              // a
+              [ makeToken range TokenType.String ]
+              // '
+              [ makeToken symbolCloseQuote TokenType.Symbol ] ]
+            |> Stdlib.List.flatten
+
+          | CList(range, contentsMaybe, symbolLeftBracket, symbolRightBracket) ->
+            let contents =
+              contentsMaybe
+              |> Stdlib.List.map (fun (constant, _) -> tokenize constant)
+              |> Stdlib.List.flatten
+
+            [ // [
+              [ makeToken symbolLeftBracket TokenType.Symbol ]
+              // 1 ; 2 ; 3
+              contents
+              // ]
+              [ makeToken symbolRightBracket TokenType.Symbol ] ]
+            |> Stdlib.List.flatten
+
+          | CTuple(range,
+                   first,
+                   symbolComma,
+                   second,
+                   rest,
+                   symbolOpenParen,
+                   symbolCloseParen) ->
+            let rest =
+              rest
+              |> Stdlib.List.map (fun (_, constant) -> tokenize constant)
+              |> Stdlib.List.flatten
+
+            [ // (
+              [ makeToken symbolOpenParen TokenType.Symbol ]
+              // 1
+              tokenize first
+              // ,
+              [ makeToken symbolComma TokenType.Symbol ]
+              // 2
+              tokenize second
+              // , 3
+              rest
+              // )
+              [ makeToken symbolCloseParen TokenType.Symbol ] ]
+            |> Stdlib.List.flatten
+
+          | CDict(range,
+                  contentsMaybe,
+                  keywordDict,
+                  symbolOpenBrace,
+                  symbolCloseBrace) ->
+            let contents =
+              contentsMaybe
+              |> Stdlib.List.map (fun (_, key, value) -> tokenize value)
+              |> Stdlib.List.flatten
+
+            [ // Dict
+              [ makeToken keywordDict TokenType.Keyword ]
+              // {
+              [ makeToken symbolOpenBrace TokenType.Symbol ]
+              // a = 1 ; b = 2 ; c = 3
+              contents
+              // }
+              [ makeToken symbolCloseBrace TokenType.Symbol ] ]
+            |> Stdlib.List.flatten
+
+          | CEnum(range, typeName, caseName, fields, symbolDot) ->
+            let typeName =
+              match typeName with
+              | (range, _) -> [ makeToken range TokenType.TypeName ]
+              | _ -> []
+
+            let caseName =
+              match caseName with
+              | (range, _) -> [ makeToken range TokenType.EnumMember ]
+              | _ -> []
+
+            let fields =
+              fields
+              |> Stdlib.List.map (fun constant -> tokenize constant)
+              |> Stdlib.List.flatten
+
+            [ // Option.Option.Some
+              typeName
+              // .
+              [ makeToken symbolDot TokenType.Symbol ]
+              // Some
+              caseName
+              // 1L
+              fields ]
+            |> Stdlib.List.flatten
+
+      module ConstantDeclaration =
+        let tokenize
+          (c: WrittenTypes.ConstantDeclaration.ConstantDeclaration)
+          : List<SemanticToken> =
+          [ // const
+            [ makeToken c.keywordConst TokenType.Keyword ]
+            // a
+            ConstantIdentifier.tokenize c.name
+            // =
+            [ makeToken c.symbolEquals TokenType.Operator ]
+            // 1
+            Const.tokenize c.body ]
+          |> Stdlib.List.flatten
 
       module FnDeclaration =
         module UnitParameter =
@@ -971,12 +1135,13 @@ module Darklang =
         let tokenize (wt: WrittenTypes.ParsedFile) : List<SemanticToken> =
           match wt with
           | CliScript cliScript ->
-            let typesAndFnsPart =
-              cliScript.typesAndFns
+            let typesAndFnsAndConstsPart =
+              cliScript.typesAndFnsAndConsts
               |> Stdlib.List.map (fun typeOrFn ->
                 match typeOrFn with
                 | Type t -> TypeDeclaration.tokenize t
-                | Function fn -> FnDeclaration.tokenize fn)
+                | Function fn -> FnDeclaration.tokenize fn
+                | Constant c -> ConstantDeclaration.tokenize c)
               |> Stdlib.List.flatten
 
             let exprsPart =
@@ -984,4 +1149,4 @@ module Darklang =
               |> Stdlib.List.map (fun expr -> Expr.tokenize expr)
               |> Stdlib.List.flatten
 
-            Stdlib.List.flatten [ typesAndFnsPart; exprsPart ]
+            Stdlib.List.flatten [ typesAndFnsAndConstsPart; exprsPart ]

@@ -1,0 +1,313 @@
+module Darklang =
+  module LanguageTools =
+    module Parser =
+      module ConstantDeclaration =
+        let parseBoolConst
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.Const, WrittenTypes.Unparseable> =
+          let b =
+            match getText node with
+            | "true" -> true |> Stdlib.Result.Result.Ok
+            | "false" -> false |> Stdlib.Result.Result.Ok
+            | _ -> createUnparseableError node
+
+          match b with
+          | Ok b ->
+            (WrittenTypes.Const.CBool(node.range, b)) |> Stdlib.Result.Result.Ok
+          | Error _ -> createUnparseableError node
+
+
+        // Helper function for parseIntConst
+        let parseIntByType
+          (intText: String)
+          (typ: String)
+          : Stdlib.Result.Result<_res, _err> =
+          match typ with
+          | "int8_literal" -> Stdlib.Int8.parse intText
+          | "uint8_literal" -> Stdlib.UInt8.parse intText
+          | "int16_literal" -> Stdlib.Int16.parse intText
+          | "uint16_literal" -> Stdlib.UInt16.parse intText
+          | "int32_literal" -> Stdlib.Int32.parse intText
+          | "uint32_literal" -> Stdlib.UInt32.parse intText
+          | "int64_literal" -> Stdlib.Int64.parse intText
+          | "uint64_literal" -> Stdlib.UInt64.parse intText
+          | "int128_literal" -> Stdlib.Int128.parse intText
+          | "uint128_literal" -> Stdlib.UInt128.parse intText
+          | _ -> Stdlib.Result.Result.Error $"Unsupported integer type: {typ}"
+
+        let parseIntConst
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.Const, WrittenTypes.Unparseable> =
+          let supportedInts =
+            [ "int8_literal"
+              "uint8_literal"
+              "int16_literal"
+              "uint16_literal"
+              "int32_literal"
+              "uint32_literal"
+              "int64_literal"
+              "uint64_literal"
+              "int128_literal"
+              "uint128_literal" ]
+
+          if (Stdlib.List.member_v0 supportedInts node.typ) then
+            let intPart = findField node "digits"
+            let suffixPart = findField node "suffix"
+
+            match intPart, suffixPart with
+            | Ok intPart, Ok sfx ->
+              let intText = getText intPart
+
+              match parseIntByType intText node.typ with
+              | Ok parsedValue ->
+                let intPart = (intPart.range, parsedValue)
+
+                let constant =
+                  match node.typ with
+                  | "int8_literal" ->
+                    WrittenTypes.Const.CInt8(node.range, intPart, sfx.range)
+                  | "uint8_literal" ->
+                    WrittenTypes.Const.CUInt8(node.range, intPart, sfx.range)
+                  | "int16_literal" ->
+                    WrittenTypes.Const.CInt16(node.range, intPart, sfx.range)
+                  | "uint16_literal" ->
+                    WrittenTypes.Const.CUInt16(node.range, intPart, sfx.range)
+                  | "int32_literal" ->
+                    WrittenTypes.Const.CInt32(node.range, intPart, sfx.range)
+                  | "uint32_literal" ->
+                    WrittenTypes.Const.CUInt32(node.range, intPart, sfx.range)
+                  | "int64_literal" ->
+                    WrittenTypes.Const.CInt64(node.range, intPart, sfx.range)
+                  | "uint64_literal" ->
+                    WrittenTypes.Const.CUInt64(node.range, intPart, sfx.range)
+                  | "int128_literal" ->
+                    WrittenTypes.Const.CInt128(node.range, intPart, sfx.range)
+                  | "uint128_literal" ->
+                    WrittenTypes.Const.CUInt128(node.range, intPart, sfx.range)
+
+                constant |> Stdlib.Result.Result.Ok
+
+              | Error _ -> createUnparseableError node
+
+            | _ -> createUnparseableError node
+
+          else
+            createUnparseableError node
+
+
+        let parseFloatConst
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.Const, WrittenTypes.Unparseable> =
+          let floatStr = getText node
+
+          match Stdlib.Float.parse floatStr with
+          | Ok floatValue ->
+            let (sign, whole, remainder) =
+              let (sign, unsignedFloat) =
+                if Stdlib.String.startsWith floatStr "-" then
+                  (Sign.Negative, Stdlib.String.dropFirst floatStr 1L)
+                else
+                  (Sign.Positive, floatStr)
+
+              let parts = Stdlib.String.split unsignedFloat "."
+
+              let whole = parts |> Stdlib.List.head |> Stdlib.Option.withDefault "0"
+
+              let remainder =
+                parts
+                |> Stdlib.List.tail
+                |> Stdlib.Option.withDefault [ "0" ]
+                |> Stdlib.List.head
+                |> Stdlib.Option.withDefault "0"
+
+              (sign, whole, remainder)
+
+            (WrittenTypes.Const.CFloat(node.range, sign, whole, remainder))
+            |> Stdlib.Result.Result.Ok
+
+          | Error _ -> createUnparseableError node
+
+
+        let parseStringConst
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.Const, WrittenTypes.Unparseable> =
+          let openQuoteNode = findField node "symbol_open_quote"
+          let closeQuoteNode = findField node "symbol_close_quote"
+
+          let contents =
+            findAndParseOptional node "content" (fun stringPart ->
+              (stringPart.range, stringPart.text) |> Stdlib.Result.Result.Ok)
+
+
+          match openQuoteNode, closeQuoteNode with
+          | Ok openQuote, Ok closeQuote ->
+            (WrittenTypes.Const.CString(
+              node.range,
+              contents,
+              openQuote.range,
+              closeQuote.range
+            ))
+            |> Stdlib.Result.Result.Ok
+
+          | _ -> createUnparseableError node
+
+
+        let parseCharConst
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.Const, WrittenTypes.Unparseable> =
+          let openQuoteNode = findField node "symbol_open_single_quote"
+
+          let charNode =
+            findAndParseOptional node "content" (fun charPart ->
+              (charPart.range, charPart.text) |> Stdlib.Result.Result.Ok)
+
+          let closeQuoteNode = findField node "symbol_close_single_quote"
+
+          match openQuoteNode, closeQuoteNode with
+          | Ok openQuote, Ok closeQuote ->
+            (WrittenTypes.Const.CChar(
+              node.range,
+              charNode,
+              openQuote.range,
+              closeQuote.range
+            ))
+            |> Stdlib.Result.Result.Ok
+
+          | _ -> createUnparseableError node
+
+
+        let parseListConst
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.Const, WrittenTypes.Unparseable> =
+          baseParseList
+            ConstantDeclaration.parseConst
+            node
+            (fun (range, listContents, rangeOpenBracket, rangeCloseBracket) ->
+              (WrittenTypes.Const.CList(
+                range,
+                listContents,
+                rangeOpenBracket,
+                rangeCloseBracket
+              ))
+              |> Stdlib.Result.Result.Ok)
+
+
+        let parseDictLiteral
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.Const, WrittenTypes.Unparseable> =
+          baseParseDict
+            ConstantDeclaration.parseConst
+            node
+            (fun (range, dictContents, keywordDict, openBrace, closeBrace) ->
+              (WrittenTypes.Const.CDict(
+                range,
+                dictContents,
+                keywordDict,
+                openBrace,
+                closeBrace
+              ))
+              |> Stdlib.Result.Result.Ok)
+
+
+        let parseTupleLiteral
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.Const, WrittenTypes.Unparseable> =
+          baseParseTuple
+            ConstantDeclaration.parseConst
+            node
+            (fun (range, first, comma, second, rest, openParen, closeParen) ->
+              (WrittenTypes.Const.CTuple(
+                range,
+                first,
+                comma,
+                second,
+                rest,
+                openParen,
+                closeParen
+              ))
+              |> Stdlib.Result.Result.Ok)
+
+
+        let parseEnumLiteral
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.Const, WrittenTypes.Unparseable> =
+          baseParseEnum
+            ConstantDeclaration.parseConst
+            node
+            (fun (range, typeName, caseName, enumFields, symbolDot) ->
+              (WrittenTypes.Const.CEnum(
+                range,
+                typeName,
+                caseName,
+                enumFields,
+                symbolDot
+              ))
+              |> Stdlib.Result.Result.Ok)
+
+
+        let parseConst
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.Const, WrittenTypes.Unparseable> =
+          match node.typ with
+          | "unit" ->
+            (WrittenTypes.Const.CUnit node.range) |> Stdlib.Result.Result.Ok
+          | "bool_literal" -> parseBoolConst node
+          | "int8_literal" -> parseIntConst node
+          | "uint8_literal" -> parseIntConst node
+          | "int16_literal" -> parseIntConst node
+          | "uint16_literal" -> parseIntConst node
+          | "int32_literal" -> parseIntConst node
+          | "uint32_literal" -> parseIntConst node
+          | "int64_literal" -> parseIntConst node
+          | "uint64_literal" -> parseIntConst node
+          | "int128_literal" -> parseIntConst node
+          | "uint128_literal" -> parseIntConst node
+          | "float_literal" -> parseFloatConst node
+          | "string_literal" -> parseStringConst node
+          | "char_literal" -> parseCharConst node
+          | "const_list_literal" -> parseListConst node
+          | "const_dict_literal" -> parseDictLiteral node
+          | "const_tuple_literal" -> parseTupleLiteral node
+          | "const_enum_literal" -> parseEnumLiteral node
+          | "consts" ->
+            match node.children with
+            | [ constNode ] -> parseConst constNode
+            | _ -> createUnparseableError node
+          | _ -> createUnparseableError node
+
+
+        /// Parses a package constant declaration
+        ///
+        /// i.e. `const waterBoilingPointCelsius = 100y`,
+        ///
+        /// - `waterBoilingPointCelsius` is the constant name
+        /// - `100y` is the body
+        let parse
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.ConstantDeclaration.ConstantDeclaration, WrittenTypes.Unparseable> =
+          if node.typ == "const_decl" then
+            let nameNode =
+              findAndParseRequired node "name" (fun node ->
+                (Identifiers.parseConst node) |> Stdlib.Result.Result.Ok)
+
+            let value = (findNodeByFieldName node "value") |> Builtin.unwrap
+
+            let valueNode =
+              match value.children with
+              | [ valueNode ] -> ConstantDeclaration.parseConst valueNode
+              | _ -> createUnparseableError node
+
+            let keywordConstNode = findField node "keyword_const"
+            let symEqualsNode = findField node "symbol_equals"
+
+            match nameNode, valueNode, keywordConstNode, symEqualsNode with
+            | Ok name, Ok value, Ok keywordConst, Ok equals ->
+              (WrittenTypes.ConstantDeclaration.ConstantDeclaration
+                { range = node.range
+                  name = name
+                  body = value
+                  keywordConst = keywordConst.range
+                  symbolEquals = equals.range })
+              |> Stdlib.Result.Result.Ok
+
+            | _ -> createUnparseableError node

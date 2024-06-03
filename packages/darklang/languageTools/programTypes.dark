@@ -97,7 +97,7 @@ module Darklang =
         | CUInt128 of UInt128
         | CFloat of Sign * String * String
         | CBool of Bool
-        | CChar of Char
+        | CChar of String
         | CString of String
         | CUnit
         | CTuple of Const * Const * List<Const>

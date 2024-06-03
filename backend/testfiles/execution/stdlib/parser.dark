@@ -111,42 +111,47 @@ module ParseNodeToWrittenTypes =
     .CliScript(
       PACKAGE.Darklang.LanguageTools.WrittenTypes.CliScript
         { range = range (0L, 0L) (0L, 17L)
-          typesAndFns =
-            [ PACKAGE.Darklang.LanguageTools.WrittenTypes.CliScriptTypeOrFn.Type(
-                (PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeDeclaration.TypeDeclaration
-                  { range = range (0L, 0L) (0L, 17L)
-                    name =
-                      PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeIdentifier
-                        { range = range (0L, 5L) (0L, 9L)
-                          name = "MyID" }
-                    typeParams = []
-                    definition =
-                      PACKAGE
-                        .Darklang
-                        .LanguageTools
-                        .WrittenTypes
-                        .TypeDeclaration
-                        .Definition
-                        .Alias(
-                          PACKAGE
-                            .Darklang
-                            .LanguageTools
-                            .WrittenTypes
-                            .TypeReference
-                            .TypeReference
-                            .Builtin(
-                              PACKAGE
-                                .Darklang
-                                .LanguageTools
-                                .WrittenTypes
-                                .TypeReference
-                                .Builtin
-                                .TInt64(range (0L, 12L) (0L, 17L))
-                            )
-                        )
-                    keywordType = range (0L, 0L) (0L, 4L)
-                    symbolEquals = range (0L, 10L) (0L, 11L) })
-              ) ]
+          typesAndFnsAndConsts =
+            [ PACKAGE
+                .Darklang
+                .LanguageTools
+                .WrittenTypes
+                .CliScriptTypeOrFnOrConst
+                .Type(
+                  (PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeDeclaration.TypeDeclaration
+                    { range = range (0L, 0L) (0L, 17L)
+                      name =
+                        PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeIdentifier
+                          { range = range (0L, 5L) (0L, 9L)
+                            name = "MyID" }
+                      typeParams = []
+                      definition =
+                        PACKAGE
+                          .Darklang
+                          .LanguageTools
+                          .WrittenTypes
+                          .TypeDeclaration
+                          .Definition
+                          .Alias(
+                            PACKAGE
+                              .Darklang
+                              .LanguageTools
+                              .WrittenTypes
+                              .TypeReference
+                              .TypeReference
+                              .Builtin(
+                                PACKAGE
+                                  .Darklang
+                                  .LanguageTools
+                                  .WrittenTypes
+                                  .TypeReference
+                                  .Builtin
+                                  .TInt64(range (0L, 12L) (0L, 17L))
+                              )
+                          )
+                      keywordType = range (0L, 0L) (0L, 4L)
+                      symbolEquals = range (0L, 10L) (0L, 11L) })
+                ) ]
           unparseableStuff = []
           exprsToEval = [] }
     )
@@ -165,8 +170,8 @@ module TextToTextRoundtripping =
       match parsedFile with
       | CliScript script -> script
 
-    let typesAndFnsPart = // List<String>
-      (Stdlib.List.fold script.typesAndFns [] (fun acc typeOrFn ->
+    let typesAndFnsAndConstsPart = // List<String>
+      (Stdlib.List.fold script.typesAndFnsAndConsts [] (fun acc typeOrFn ->
         match typeOrFn with
         | Type typeDecl ->
           let prettyPrinted =
@@ -188,6 +193,17 @@ module TextToTextRoundtripping =
               fnDecl)
             |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageFn
 
+          acc |> Stdlib.List.push prettyPrinted
+
+        | Constant constDecl ->
+          let prettyPrinted =
+            (PACKAGE.Darklang.LanguageTools.WrittenTypesToProgramTypes.ConstantDeclaration.toPackageConstPT
+              onMissing
+              owner
+              modules
+              constDecl)
+            |> PACKAGE.Darklang.PrettyPrinter.ProgramTypes.packageConstant
+
           acc |> Stdlib.List.push prettyPrinted))
       |> Stdlib.List.reverse
 
@@ -203,7 +219,7 @@ module TextToTextRoundtripping =
         acc |> Stdlib.List.push prettyPrinted))
       |> Stdlib.List.reverse
 
-    [ typesAndFnsPart; exprsPart ]
+    [ typesAndFnsAndConstsPart; exprsPart ]
     |> Stdlib.List.flatten
     |> Stdlib.String.join "\n\n"
 
@@ -313,6 +329,47 @@ module TextToTextRoundtripping =
      |> roundtripCliScript) = "type MyEnum =\n  | A of x: Int64 * y: Int64\n  | B of z: String"
 
 
+  module ConstantDeclaration =
+    ("const unitConst = ()" |> roundtripCliScript) = "const unitConst = ()"
+    ("const maxInt8 = 127y" |> roundtripCliScript) = "const maxInt8 = 127y"
+    ("const maxUInt8 = 255uy" |> roundtripCliScript) = "const maxUInt8 = 255uy"
+    ("const maxInt16 = 32767s" |> roundtripCliScript) = "const maxInt16 = 32767s"
+    ("const maxUInt16 = 65535us" |> roundtripCliScript) = "const maxUInt16 = 65535us"
+    ("const maxInt32 = 2147483647l" |> roundtripCliScript) = "const maxInt32 = 2147483647l"
+    ("const maxUInt32 = 4294967295ul" |> roundtripCliScript) = "const maxUInt32 = 4294967295ul"
+    ("const maxInt64 = 9223372036854775807L" |> roundtripCliScript) = "const maxInt64 = 9223372036854775807L"
+    ("const maxUInt64 = 18446744073709551615UL" |> roundtripCliScript) = "const maxUInt64 = 18446744073709551615UL"
+
+    ("const maxInt128 = 170141183460469231731687303715884105727Q"
+     |> roundtripCliScript) = "const maxInt128 = 170141183460469231731687303715884105727Q"
+
+    ("const maxUInt128 = 340282366920938463463374607431768211455Z"
+     |> roundtripCliScript) = "const maxUInt128 = 340282366920938463463374607431768211455Z"
+
+    ("const trueConst = true" |> roundtripCliScript) = "const trueConst = true"
+    ("const falseConst = false" |> roundtripCliScript) = "const falseConst = false"
+
+    ("const greeting = \"hello\"" |> roundtripCliScript) = "const greeting = \"hello\""
+    ("const newline = '\\n'" |> roundtripCliScript) = "const newline = '\\n'"
+
+    ("const pi = 3.14159" |> roundtripCliScript) = "const pi = 3.14159"
+
+    ("const emptyDict = Dict {}" |> roundtripCliScript) = "const emptyDict = Dict {  }"
+    ("const dict = Dict { a = 1L }" |> roundtripCliScript) = "const dict = Dict { a = 1L }"
+    ("const dict = Dict { a = \"hello\"; b = \"test\" }" |> roundtripCliScript) = "const dict = Dict { a = \"hello\"; b = \"test\" }"
+
+    ("const tuple2Const = (1L, 2L)" |> roundtripCliScript) = "const tuple2Const = (1L, 2L)"
+    ("const tuple3Const = (1L, 2L, 3L)" |> roundtripCliScript) = "const tuple3Const = (1L, 2L, 3L)"
+
+    ("const emptyList = []" |> roundtripCliScript) = "const emptyList = []"
+    ("const listOfInts = [1L; 2L; 3L]" |> roundtripCliScript) = "const listOfInts = [1L; 2L; 3L]"
+    ("const listOfLists = [[1L; 2L]; [3L; 4L]]" |> roundtripCliScript) = "const listOfLists = [[1L; 2L]; [3L; 4L]]"
+
+    ("const none = Stdlib.Option.Option.None" |> roundtripCliScript) = "const none = PACKAGE.Darklang.Stdlib.Option.Option.None"
+    ("const some = Stdlib.Option.Option.Some 1L" |> roundtripCliScript) = "const some = PACKAGE.Darklang.Stdlib.Option.Option.Some(1L)"
+
+    ("const a = MyEnum.A(1L, 2L)" |> roundtripCliScript) = "const a = MyEnum.A((1L, 2L))"
+    ("const a = MyEnum.A 1L 2L" |> roundtripCliScript) = "const a = MyEnum.A(1L, 2L)"
 
 
   module Expr =
