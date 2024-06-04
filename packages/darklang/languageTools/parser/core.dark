@@ -228,7 +228,7 @@ module Darklang =
               | [ dictPairNode; _separator ] ->
                 let keyNode =
                   findAndParseRequired dictPairNode "key" (fun node ->
-                    (Parser.getText node) |> Stdlib.Result.Result.Ok)
+                    (node.range, Parser.getText node) |> Stdlib.Result.Result.Ok)
 
                 let symbolEqualsNode = findField dictPairNode "symbol_equals"
 
@@ -242,7 +242,7 @@ module Darklang =
               | [ dictPairNode ] ->
                 let keyNode =
                   findAndParseRequired dictPairNode "key" (fun node ->
-                    (Parser.getText node) |> Stdlib.Result.Result.Ok)
+                    (node.range, Parser.getText node) |> Stdlib.Result.Result.Ok)
 
                 let symbolEqualsNode = findField dictPairNode "symbol_equals"
 

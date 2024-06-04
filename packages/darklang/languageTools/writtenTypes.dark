@@ -136,8 +136,7 @@ module Darklang =
         type Definition =
           | Alias of TypeReference.TypeReference
           | Record of List<RecordField * Stdlib.Option.Option<Range>>
-          // TODO: capture the |s that precede the EnumCases
-          | Enum of List<EnumCase>
+          | Enum of List<Range * EnumCase>
 
         type TypeDeclaration =
           { range: Range
@@ -275,7 +274,7 @@ module Darklang =
 
         | EDict of
           Range *
-          contents: List<Range * String * Expr> *
+          contents: List<Range * (Range * String) * Expr> *
           keywordDict: Range *
           symbolOpenBrace: Range *
           symbolCloseBrace: Range
@@ -375,6 +374,7 @@ module Darklang =
           symbolArrow: Range
         | EPipeEnum of
           Range *
+          // CLEANUP: this probably should be (Range * List<Range * String>)
           typeName: (Range * List<String>) *
           caseName: (Range * String) *
           fields: List<Expr> *
@@ -418,7 +418,7 @@ module Darklang =
           symbolCloseBracket: Range
         | CDict of
           Range *
-          contents: List<Range * String * Const> *
+          contents: List<Range * (Range * String) * Const> *
           keywordDict: Range *
           symbolOpenBrace: Range *
           symbolCloseBrace: Range

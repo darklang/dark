@@ -179,7 +179,9 @@ module Darklang =
 
           | CDict(_, contents, _, _, _) ->
             ProgramTypes.Const.CDict(
-              Stdlib.List.map contents (fun (_, k, v) -> (k, toPT onMissing v))
+              Stdlib.List.map contents (fun (_, k, v) ->
+                let (_, k) = k
+                (k, toPT onMissing v))
             )
 
           | CTuple(_, first, _, second, rest, _, _) ->
@@ -264,7 +266,9 @@ module Darklang =
               ProgramTypes.TypeDeclaration.Definition.Record fields
 
             | Enum cases ->
-              let cases = Stdlib.List.map cases (fun c -> EnumCase.toPT onMissing c)
+              let cases =
+                Stdlib.List.map cases (fun (_, c) -> EnumCase.toPT onMissing c)
+
               ProgramTypes.TypeDeclaration.Definition.Enum cases
 
         let toPT
@@ -498,7 +502,9 @@ module Darklang =
           | EDict(_, contents, _, _, _) ->
             ProgramTypes.Expr.EDict(
               gid (),
-              Stdlib.List.map contents (fun (_, k, v) -> (k, toPT onMissing v))
+              Stdlib.List.map contents (fun (_, k, v) ->
+                let (_, k) = k
+                (k, toPT onMissing v))
             )
 
           | ETuple(_, first, _, second, rest, _, _) ->
