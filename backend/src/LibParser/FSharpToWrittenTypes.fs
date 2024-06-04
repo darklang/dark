@@ -902,9 +902,9 @@ module PackageFn =
     (owner : string)
     (modules : List<string>)
     (b : SynBinding)
-    : WT.PackageFn.T =
+    : WT.PackageFn.PackageFn =
     let f = Function.fromSynBinding b
-    { name = PT.FQFnName.package owner modules f.name
+    { name = { owner = owner; modules = modules; name = f.name }
       typeParams = f.typeParams
       parameters =
         f.parameters
@@ -1034,7 +1034,7 @@ module PackageType =
     (owner : string)
     (modules : List<string>)
     (typeDef : SynTypeDefn)
-    : WT.PackageType.T =
+    : WT.PackageType.PackageType =
     let (typeParams, names, definition) =
       TypeDeclaration.Definition.fromSynTypeDefn typeDef
     let name =
@@ -1044,7 +1044,7 @@ module PackageType =
         [ "typeDef", typeDef ]
       |> Expr.parseTypeName
       |> Exception.unwrapResultInternal []
-    { name = PT.FQTypeName.package owner modules name
+    { name = { owner = owner; modules = modules; name = name }
       description = ""
       declaration = { typeParams = typeParams; definition = definition } }
 
@@ -1053,8 +1053,8 @@ module PackageConstant =
     (owner : string)
     (modules : List<string>)
     (b : SynBinding)
-    : WT.PackageConstant.T =
+    : WT.PackageConstant.PackageConstant =
     let c = Constant.fromSynBinding b
-    { name = PT.FQConstantName.package owner modules c.name
+    { name = { owner = owner; modules = modules; name = c.name }
       description = ""
       body = c.body }

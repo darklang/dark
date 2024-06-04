@@ -10,6 +10,7 @@ module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
+module PackageIDs = LibExecution.PackageIDs
 module BuiltinCli = BuiltinCli.Builtin
 
 // ---------------------
@@ -41,25 +42,26 @@ let info () =
 // Execution
 // ---------------------
 
+// TODO: de-dupe with _other_ Cli.fs
+let pmBaseUrl =
+  match
+    System.Environment.GetEnvironmentVariable "DARK_CONFIG_PACKAGE_MANAGER_BASE_URL"
+  with
+  | null -> "https://packages.darklang.com"
+  | var -> var
+let packageManagerRT = LibPackageManager.PackageManager.rt pmBaseUrl
+let packageManagerPT = LibPackageManager.PackageManager.pt pmBaseUrl
+
+
 let builtins : RT.Builtins =
   LibExecution.Builtin.combine
     [ BuiltinExecution.Builtin.builtins
         BuiltinExecution.Libs.HttpClient.defaultConfig
+        packageManagerPT
       BuiltinCli.Builtin.builtins
       BuiltinCliHost.Builtin.builtins ]
     []
 
-// TODO: de-dupe with _other_ Cli.fs
-let packageManager =
-  let baseUrl =
-    match
-      System.Environment.GetEnvironmentVariable
-        "DARK_CONFIG_PACKAGE_MANAGER_BASE_URL"
-    with
-    | null -> "https://packages.darklang.com"
-    | var -> var
-
-  LibPackageManager.PackageManager.packageManager baseUrl
 
 
 let state () =
@@ -79,7 +81,7 @@ let state () =
   let sendException (_ : RT.ExecutionState) (metadata : Metadata) (exn : exn) =
     printException "Internal error" metadata exn
 
-  Exe.createState builtins packageManager tracing sendException notify program
+  Exe.createState builtins packageManagerRT tracing sendException notify program
 
 
 
@@ -89,18 +91,18 @@ let execute
   : Task<Result<RT.Dval, Option<RT.CallStack> * RT.RuntimeError>> =
   task {
     let state = state ()
-    let fnName = RT.FQFnName.fqPackage "Darklang" [ "Cli" ] "executeCliCommand"
+    let fnName = RT.FQFnName.fqPackage PackageIDs.Fn.Cli.executeCliCommand
     let args =
       args |> List.map RT.DString |> Dval.list RT.KTString |> NEList.singleton
     return! Exe.executeFunction state fnName [] args
   }
 
 let initSerializers () =
-  Json.Vanilla.allow<List<LibPackageManager.Types.ProgramTypes.PackageType>>
+  Json.Vanilla.allow<List<LibPackageManager.Types.ProgramTypes.PackageType.PackageType>>
     "PackageManager"
   Json.Vanilla.allow<List<LibPackageManager.Types.ProgramTypes.PackageFn.PackageFn>>
     "PackageManager"
-  Json.Vanilla.allow<List<LibPackageManager.Types.ProgramTypes.PackageConstant>>
+  Json.Vanilla.allow<List<LibPackageManager.Types.ProgramTypes.PackageConstant.PackageConstant>>
     "PackageManager"
   ()
 
@@ -109,7 +111,7 @@ let main (args : string[]) =
   try
     initSerializers ()
 
-    packageManager.init.Result
+    packageManagerRT.init.Result
 
     let result = execute (Array.toList args)
     let result = result.Result

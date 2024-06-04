@@ -397,7 +397,9 @@ let rec lambdaToSql
       uply {
         match expr with
         | EConstant(_, (constantName)) ->
-          let nameStr = FQConstantName.toString constantName
+          let nameStr =
+            // CLEANUP remove - will print UUID if Package Constant
+            FQConstantName.toString constantName
 
           let! constant =
             uply {
@@ -414,7 +416,7 @@ let rec lambdaToSql
             }
           do! typecheckDval nameStr types constant expectedType
           let random = randomString 8
-          let newname = $"{nameStr}_{random}"
+          let newname = $"const_{random}"
           let! (sqlValue, actualType) =
             dvalToSql callStack types expectedType constant
           return ($"(@{newname})", [ newname, sqlValue ], actualType)
@@ -508,9 +510,9 @@ let rec lambdaToSql
             | SqlBinOp op, [ argL; argR ] ->
               $"({argL} {op} {argR})", sqlVars, returnType
             | SqlUnaryOp op, [ argSql ] -> $"({op} {argSql})", sqlVars, returnType
-            | SqlFunction fnname, _ ->
+            | SqlFunction fnName, _ ->
               let argSql = String.concat ", " argSqls
-              $"({fnname}({argSql}))", sqlVars, returnType
+              $"({fnName}({argSql}))", sqlVars, returnType
             | SqlFunctionWithPrefixArgs(fnName, fnArgs), _ ->
               let argSql = fnArgs @ argSqls |> String.concat ", "
               $"({fnName} ({argSql}))", sqlVars, returnType

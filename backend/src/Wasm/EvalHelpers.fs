@@ -6,9 +6,9 @@ open LibExecution.RuntimeTypes
 
 let getStateForEval
   (builtins : Builtins)
-  (_types : List<PackageType.T>)
-  (_constants : List<PackageConstant.T>)
-  (_fns : List<PackageFn.T>)
+  (_types : List<PackageType.PackageType>)
+  (_constants : List<PackageConstant.PackageConstant>)
+  (_fns : List<PackageFn.PackageFn>)
   : ExecutionState =
   { builtins = builtins
     tracing = LibExecution.Execution.noTracing (CallStack.fromEntryPoint Script)

@@ -8,10 +8,8 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = ValueType
 module Dval = LibExecution.Dval
+module PackageIDs = LibExecution.PackageIDs
 
-
-let typ (addlModules : List<string>) (name : string) : FQTypeName.FQTypeName =
-  FQTypeName.fqPackage "Darklang" ([ "Stdlib"; "AltJson" ] @ addlModules) name
 
 
 module Json =
@@ -23,7 +21,7 @@ module Json =
     | Array of List<Json>
     | Object of List<string * Json>
 
-  let typeName = typ [] "Json"
+  let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.AltJson.json
   let typeRef = TCustomType(Ok typeName, [])
   let knownType = KTCustomType(typeName, [])
 
@@ -70,7 +68,7 @@ module Json =
 
 
 module ParseError =
-  let typeName = typ [ "ParseError" ] "ParseError"
+  let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.AltJson.parseError
   let typeRef = TCustomType(Ok typeName, [])
   let knownType = KTCustomType(typeName, [])
 

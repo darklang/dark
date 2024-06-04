@@ -9,15 +9,16 @@ open Prelude
 
 open LibExecution.RuntimeTypes
 open EvalHelpers
+module PT = LibExecution.ProgramTypes
 
 let debug (arg : string) = WasmHelpers.callJSFunction "console.log" [ arg ]
 
 
 /// Source of the editor (types, functions)
 type EditorSource =
-  { types : List<PackageType.T>
-    constants : List<PackageConstant.T>
-    fns : List<PackageFn.T> }
+  { types : List<PackageType.PackageType>
+    constants : List<PackageConstant.PackageConstant>
+    fns : List<PackageFn.PackageFn> }
 
 
 
@@ -30,7 +31,8 @@ let httpConfig : BuiltinExecution.Libs.HttpClient.Configuration =
 
 let builtin =
   LibExecution.Builtin.combine
-    [ BuiltinExecution.Builtin.builtins httpConfig; Builtin.builtins ]
+    [ BuiltinExecution.Builtin.builtins httpConfig PT.PackageManager.empty
+      Builtin.builtins ]
     []
 
 
@@ -68,7 +70,7 @@ let LoadClient (canvasName : string) : Task<string> =
           clientSource.fns
       LibExecution.Execution.executeFunction
         state
-        (FQFnName.fqPackage "TODO" [] "init")
+        (FQFnName.fqPackage (System.Guid.NewGuid())) // "TODO" [] "init")
         []
         (NEList.singleton DUnit)
 
@@ -105,7 +107,7 @@ let HandleEvent (serializedEvent : string) : Task<string> =
     let! result =
       LibExecution.Execution.executeFunction
         state
-        (FQFnName.fqPackage "TODO" [] "handleEvent")
+        (FQFnName.fqPackage (System.Guid.NewGuid())) //"TODO" [] "handleEvent")
         []
         (NEList.singleton (DString serializedEvent))
 

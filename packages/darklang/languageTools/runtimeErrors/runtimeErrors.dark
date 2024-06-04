@@ -26,7 +26,8 @@ module Darklang =
           | TypeName of LanguageTools.RuntimeTypes.FQTypeName.FQTypeName
           | ShortTypeName of LanguageTools.RuntimeTypes.FQTypeName.FQTypeName
           | TypeReference of LanguageTools.RuntimeTypes.TypeReference
-          | TypeOfValue of LanguageTools.RuntimeTypes.Dval.Dval
+          | TypeOfValue of LanguageTools.RuntimeTypes.Dval.Dval // CLEANUP should these all just be ValueTypes?
+          | ValueType of LanguageTools.RuntimeTypes.ValueType
           | FieldName of String // records and enums
           | InlineFieldName of String // records and enums
 
@@ -79,6 +80,7 @@ module Darklang =
                   PrettyPrinter.RuntimeTypes.typeName t
                 | TypeReference t -> PrettyPrinter.RuntimeTypes.typeReference t
                 | TypeOfValue dv -> PrettyPrinter.RuntimeTypes.Dval.valueTypeName dv
+                | ValueType vt -> PrettyPrinter.RuntimeTypes.valueType vt
                 | FieldName f -> $"`{f}`"
                 | InlineFieldName f -> f
                 | DBName db -> db

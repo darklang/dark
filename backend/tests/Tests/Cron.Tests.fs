@@ -15,10 +15,12 @@ module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
 module NR = LibParser.NameResolver
 
+let pm = LibCloud.PackageManager.pt
+
 let p (code : string) : Task<PT.Expr> =
   LibParser.Parser.parseSimple
-    localBuiltIns
-    packageManager
+    (localBuiltIns pm)
+    pm
     NR.OnMissing.ThrowError
     "cron.tests.fs"
     code

@@ -38,13 +38,8 @@ module HandleCommand =
 
   let reloadDarkPackagesCanvas () : Ply<Result<unit, string>> =
     uply {
-      // first, load the packages from disk, ensuring all parse well
-      let! packagesFromDisk = LoadPackagesFromDisk.load Builtins.all
-      let inMemPackageManager = inMemPackageManagerFromPackages packagesFromDisk
-
-      // then, parse the canvas' `main.dark`, purge any previous data, and create the canvas
       let! (canvasId, toplevels) =
-        Canvas.loadFromDisk inMemPackageManager "dark-packages"
+        Canvas.loadFromDisk LibCloud.PackageManager.pt "dark-packages"
 
       print $"Loaded canvas {canvasId} with {List.length toplevels} toplevels"
 
@@ -54,9 +49,9 @@ module HandleCommand =
 
 
 let initSerializers () =
-  Json.Vanilla.allow<List<LibExecution.ProgramTypes.PackageFn.T>>
+  Json.Vanilla.allow<List<LibExecution.ProgramTypes.PackageFn.PackageFn>>
     "Parse packageFn list"
-  Json.Vanilla.allow<List<LibExecution.ProgramTypes.PackageType.T>>
+  Json.Vanilla.allow<List<LibExecution.ProgramTypes.PackageType.PackageType>>
     "Parse packageType list"
 
 

@@ -18,7 +18,7 @@ module Darklang =
             match TypeDeclaration.parse decl with
             | Error e -> updateUnparseableStuff result e
             | Ok parsedTypeDef ->
-              let newType = WrittenTypes.CliScriptTypeOrFnOrConst.Type parsedTypeDef
+              let newType = WrittenTypes.CliScriptDeclaration.Type parsedTypeDef
 
               { result with
                   declarations = Stdlib.List.pushBack result.declarations newType }
@@ -28,8 +28,7 @@ module Darklang =
             | Error e -> updateUnparseableStuff result e
 
             | Ok parsedFnDecl ->
-              let newFn =
-                WrittenTypes.CliScriptTypeOrFnOrConst.Function parsedFnDecl
+              let newFn = WrittenTypes.CliScriptDeclaration.Function parsedFnDecl
 
               { result with
                   declarations = Stdlib.List.pushBack result.declarations newFn }
@@ -40,7 +39,7 @@ module Darklang =
 
             | Ok parsedConstDecl ->
               let newConst =
-                WrittenTypes.CliScriptTypeOrFnOrConst.Constant parsedConstDecl
+                WrittenTypes.CliScriptDeclaration.Constant parsedConstDecl
 
               { result with
                   declarations = Stdlib.List.pushBack result.declarations newConst }

@@ -26,6 +26,7 @@ let withGlobals (state : ExecutionState) (symtable : Symtable) : Symtable =
   let globals = globalsFor state
   Map.mergeFavoringRight globals symtable
 
+
 module ExecutionError =
   module RT2DT = RuntimeTypesToDarkTypes
 
@@ -35,9 +36,30 @@ module ExecutionError =
     | MatchExprUnmatched of Dval
     | NonStringInStringInterpolation of Dval
     | ConstDoesntExist of FQConstantName.FQConstantName
+    | FieldAccessFieldDoesntExist of
+      typeName : FQTypeName.FQTypeName *
+      invalidFieldName : string
+    | RecordConstructionFieldDoesntExist of
+      FQTypeName.FQTypeName *
+      invalidFieldName : string
+    | RecordConstructionMissingField of
+      FQTypeName.FQTypeName *
+      missingFieldName : string
+    | RecordConstructionDuplicateField of
+      FQTypeName.FQTypeName *
+      duplicateFieldName : string
+    | FieldAccessNotRecord of ValueType * string
+    | EnumConstructionCaseNotFound of FQTypeName.FQTypeName * string
+    | WrongNumberOfFnArgs of
+      fn : FQFnName.FQFnName *
+      expectedTypeArgs : int *
+      expectedArgs : int *
+      actualTypeArgs : int *
+      actualArgs : int
 
   let toDT (e : Error) : RuntimeError =
-    let typeName = RuntimeError.name [ "Execution" ] "Error"
+    let typeName =
+      FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeError.Execution.error
 
     let case (caseName : string) (fields : List<Dval>) : RuntimeError =
       DEnum(typeName, typeName, [], caseName, fields) |> RuntimeError.executionError
@@ -58,6 +80,41 @@ module ExecutionError =
 
       | ConstDoesntExist name ->
         "ConstDoesntExist", [ RT2DT.FQConstantName.toDT name ]
+
+      | FieldAccessFieldDoesntExist(typeName, invalidFieldName) ->
+        "FieldAccessFieldDoesntExist",
+        [ RT2DT.FQTypeName.toDT typeName; DString invalidFieldName ]
+
+      | FieldAccessNotRecord(vt, fieldName) ->
+        "FieldAccessNotRecord", [ RT2DT.ValueType.toDT vt; DString fieldName ]
+
+      | EnumConstructionCaseNotFound(typeName, caseName) ->
+        "EnumConstructionCaseNotFound",
+        [ RT2DT.FQTypeName.toDT typeName; DString caseName ]
+
+      | WrongNumberOfFnArgs(fn,
+                            expectedTypeArgs,
+                            expectedArgs,
+                            actualTypeArgs,
+                            actualArgs) ->
+        "WrongNumberOfFnArgs",
+        [ RT2DT.FQFnName.toDT fn
+          DInt64 expectedTypeArgs
+          DInt64 expectedArgs
+          DInt64 actualTypeArgs
+          DInt64 actualArgs ]
+
+      | RecordConstructionFieldDoesntExist(typeName, invalidFieldName) ->
+        "RecordConstructionFieldDoesntExist",
+        [ RT2DT.FQTypeName.toDT typeName; DString invalidFieldName ]
+
+      | RecordConstructionMissingField(typeName, missingFieldName) ->
+        "RecordConstructionMissingField",
+        [ RT2DT.FQTypeName.toDT typeName; DString missingFieldName ]
+
+      | RecordConstructionDuplicateField(typeName, duplicateFieldName) ->
+        "RecordConstructionDuplicateField",
+        [ RT2DT.FQTypeName.toDT typeName; DString duplicateFieldName ]
 
     case caseName fields
 
@@ -143,12 +200,9 @@ let rec checkPattern
 let typeResolutionError
   (callStack : CallStack)
   (errorType : NameResolutionError.ErrorType)
-  (typeName : FQTypeName.FQTypeName)
   : Ply<'a> =
   let error : NameResolutionError.Error =
-    { errorType = errorType
-      nameType = NameResolutionError.Type
-      names = [ FQTypeName.toString typeName ] }
+    { errorType = errorType; nameType = NameResolutionError.Type }
   error |> NameResolutionError.RTE.toRuntimeError |> raiseRTE callStack
 
 
@@ -208,14 +262,16 @@ let recordMaybe
 
       | Some({ definition = TypeDeclaration.Alias(_) })
       | Some({ definition = TypeDeclaration.Enum _ }) ->
+        let packageTypeID =
+          match typeName with
+          | FQTypeName.FQTypeName.Package id -> id
         return!
           typeResolutionError
             callStack
-            NameResolutionError.ExpectedRecordButNot
-            typeName
+            (NameResolutionError.ExpectedRecordButNot packageTypeID)
 
       | None ->
-        return! typeResolutionError callStack NameResolutionError.NotFound typeName
+        return! typeResolutionError callStack (NameResolutionError.NotFound [])
     }
   inner typeName
 
@@ -251,13 +307,15 @@ let enumMaybe
 
       | Some({ definition = TypeDeclaration.Alias _ })
       | Some({ definition = TypeDeclaration.Record _ }) ->
+        let packageTypeID =
+          match typeName with
+          | FQTypeName.FQTypeName.Package id -> id
         return!
           typeResolutionError
             callStack
-            NameResolutionError.ExpectedEnumButNot
-            typeName
+            (NameResolutionError.ExpectedEnumButNot packageTypeID)
       | None ->
-        return! typeResolutionError callStack NameResolutionError.NotFound typeName
+        return! typeResolutionError callStack (NameResolutionError.NotFound []) // typeName
     }
   inner typeName
 
@@ -368,7 +426,6 @@ let rec eval (state : ExecutionState) (e : Expr) : DvalTask =
 
 
     | ERecord(_, typeName, fields) ->
-      let typeStr = FQTypeName.toString typeName
       let types = ExecutionState.availableTypes state
 
       let! (aliasTypeName, _typeParams, expectedFields) =
@@ -379,20 +436,34 @@ let rec eval (state : ExecutionState) (e : Expr) : DvalTask =
         fields
         |> NEList.toList
         |> Ply.List.foldSequentially
-          (fun fields (k, expr) ->
+          (fun fields (fieldName, expr) ->
             uply {
-              match Map.find k expectedFields with
+              match Map.find fieldName expectedFields with
               | None ->
-                return errStr callStack $"Unexpected field `{k}` in {typeStr}"
+                return
+                  ExecutionError.raise
+                    callStack
+                    (ExecutionError.RecordConstructionFieldDoesntExist(
+                      typeName,
+                      fieldName
+                    ))
               | Some fieldType ->
                 let! v = eval state expr
-                if Map.containsKey k fields then
-                  return errStr callStack $"Duplicate field `{k}` in {typeStr}"
+                if Map.containsKey fieldName fields then
+                  return
+                    ExecutionError.raise
+                      callStack
+                      (ExecutionError.RecordConstructionDuplicateField(
+                        typeName,
+                        fieldName
+                      ))
+
                 else
-                  let context = TypeChecker.RecordField(typeName, k, fieldType)
+                  let context =
+                    TypeChecker.RecordField(typeName, fieldName, fieldType)
                   let check = TypeChecker.unify context types Map.empty fieldType v
                   match! check with
-                  | Ok() -> return Map.add k v fields
+                  | Ok() -> return Map.add fieldName v fields
                   | Error e -> return err callStack e
             })
           Map.empty
@@ -400,9 +471,14 @@ let rec eval (state : ExecutionState) (e : Expr) : DvalTask =
       if Map.count fields = Map.count expectedFields then
         return DRecord(aliasTypeName, typeName, VT.typeArgsTODO, fields)
       else
-        let expectedKeys = Map.keys expectedFields
-        let key = Seq.find (fun k -> not (Map.containsKey k fields)) expectedKeys
-        return errStr callStack $"Missing field `{key}` in {typeStr}"
+        let expectedFields = Map.keys expectedFields
+        let fieldName =
+          Seq.find (fun k -> not (Map.containsKey k fields)) expectedFields
+        return
+          ExecutionError.raise
+            callStack
+            (ExecutionError.RecordConstructionMissingField(typeName, fieldName))
+
 
     | ERecordUpdate(_, baseRecord, updates) ->
       // CLEANUP refactor this impl
@@ -420,22 +496,30 @@ let rec eval (state : ExecutionState) (e : Expr) : DvalTask =
           updates
           |> NEList.toList
           |> Ply.List.foldSequentially
-            (fun r (k, expr) ->
+            (fun record (fieldName, expr) ->
               uply {
-                let! v = eval state expr
+                let! dv = eval state expr
 
-                match r, k, v with
-                | _, "", _ -> return errStr callStack $"Empty key for value `{v}`"
-                | _, _, _ when not (Map.containsKey k expectedFields) ->
-                  return errStr callStack $"Unexpected field `{k}` in {typeStr}"
+                match record, fieldName, dv with
+                | _, "", _ -> return errStr callStack $"Empty key for value `{dv}`"
+                | _, _, _ when not (Map.containsKey fieldName expectedFields) ->
+                  return
+                    ExecutionError.raise
+                      callStack
+                      (ExecutionError.RecordConstructionFieldDoesntExist(
+                        typeName,
+                        fieldName
+                      ))
 
-                | DRecord(typeName, original, _, m), k, v ->
-                  let fieldType = Map.findUnsafe k expectedFields
+                | DRecord(typeName, original, _, m), fieldName, dv ->
+                  let fieldType = Map.findUnsafe fieldName expectedFields
 
-                  let context = TypeChecker.RecordField(typeName, k, fieldType)
+                  let context =
+                    TypeChecker.RecordField(typeName, fieldName, fieldType)
 
-                  match! TypeChecker.unify context types Map.empty fieldType v with
-                  | Ok() -> return DRecord(typeName, original, typ, Map.add k v m)
+                  match! TypeChecker.unify context types Map.empty fieldType dv with
+                  | Ok() ->
+                    return DRecord(typeName, original, typ, Map.add fieldName dv m)
                   | Error rte -> return raiseRTE callStack rte
 
                 | _ ->
@@ -482,8 +566,10 @@ let rec eval (state : ExecutionState) (e : Expr) : DvalTask =
           match Map.find fieldName fields with
           | Some v -> return v
           | None ->
-            let typeStr = FQTypeName.toString typeName
-            return errStr callStack $"No field named {fieldName} in {typeStr} record"
+            return
+              ExecutionError.raise
+                callStack
+                (ExecutionError.FieldAccessFieldDoesntExist(typeName, fieldName))
         | DDB _ ->
           let msg =
             $"Attempting to access field '{fieldName}' of a Datastore "
@@ -491,10 +577,11 @@ let rec eval (state : ExecutionState) (e : Expr) : DvalTask =
             + "Field access only work with records)"
           return errStr callStack msg
         | _ ->
-          let msg =
-            $"Attempting to access field '{fieldName}' of a "
-            + $"{DvalReprDeveloper.toTypeName obj} (field access only works with records)"
-          return errStr callStack msg
+
+          return
+            ExecutionError.raise
+              callStack
+              (ExecutionError.FieldAccessNotRecord(Dval.toValueType obj, fieldName))
 
 
     | ELambda(_, parameters, body) ->
@@ -753,7 +840,6 @@ let rec eval (state : ExecutionState) (e : Expr) : DvalTask =
 
 
     | EEnum(_, sourceTypeName, caseName, fields) ->
-      let typeStr = FQTypeName.toString sourceTypeName
       let types = ExecutionState.availableTypes state
 
       let! (resolvedTypeName, _, cases) = enumMaybe callStack types sourceTypeName
@@ -761,7 +847,11 @@ let rec eval (state : ExecutionState) (e : Expr) : DvalTask =
 
       match case with
       | None ->
-        return errStr callStack $"There is no case named `{caseName}` in {typeStr}"
+        return
+          ExecutionError.raise
+            callStack
+            (ExecutionError.EnumConstructionCaseNotFound(sourceTypeName, caseName))
+
       | Some case ->
         if case.fields.Length <> fields.Length then
           let msg =
@@ -878,10 +968,15 @@ and callFn
       let actualArgs = NEList.length args
 
       if expectedTypeParams <> actualTypeArgs || expectedArgs <> actualArgs then
-        let msg =
-          $"{FQFnName.toString fnToCall} has {expectedTypeParams} type parameters and {expectedArgs} parameters, "
-          + $"but here was called with {actualTypeArgs} type arguments and {actualArgs} arguments."
-        raiseRTE state.tracing.callStack (RuntimeError.oldError msg)
+        ExecutionError.raise
+          state.tracing.callStack
+          (ExecutionError.WrongNumberOfFnArgs(
+            fnToCall,
+            expectedTypeParams,
+            expectedArgs,
+            actualTypeArgs,
+            actualArgs
+          ))
 
       let state =
         let boundArgs =
@@ -986,7 +1081,7 @@ and execFn
         | PackageFunction(id, body) ->
           // maybe this should instead be something like `state.tracing.tracePackageFnCall tlid`?
           // and the `caller` would be updated by that function? (maybe `caller` is a read-only thing.)
-          let executionPoint = ExecutionPoint.PackageFn id
+          let executionPoint = ExecutionPoint.Function(FQFnName.Package id)
 
           state.tracing.traceExecutionPoint executionPoint
 

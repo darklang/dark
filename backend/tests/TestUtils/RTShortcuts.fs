@@ -89,25 +89,10 @@ let eEnum
   : Expr =
   EEnum(gid (), typeName, name, args)
 
-let packageTypeName
-  (owner : string)
-  (modules : List<string>)
-  (name : string)
-  : FQTypeName.Package =
-  { owner = owner; modules = modules; name = name }
-
-let fqPackageTypeName (owner : string) (modules : List<string>) (name : string) =
-  FQTypeName.Package(packageTypeName owner modules name)
 
 let eTuple (first : Expr) (second : Expr) (theRest : Expr list) : Expr =
   ETuple(gid (), first, second, theRest)
 
-let packageTypeReference
-  (owner : string)
-  (modules : List<string>)
-  (name : string)
-  : TypeReference =
-  TCustomType(Ok(fqPackageTypeName owner modules name), [])
 
 let customTypeRecord (fields : List<string * TypeReference>) : TypeDeclaration.T =
   let fields =

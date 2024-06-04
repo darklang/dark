@@ -19,6 +19,7 @@ module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
+module PackageIDs = LibExecution.PackageIDs
 module NR = LibParser.NameResolver
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
@@ -49,7 +50,7 @@ let setupDBs (canvasID : CanvasID) (dbs : List<PT.DB.T>) : Task<unit> =
 let t
   (internalFnsAllowed : bool)
   (canvasName : string)
-  (pm : RT.PackageManager)
+  (pmPT : PT.PackageManager)
   (actualExpr : PT.Expr)
   (expectedExpr : PT.Expr)
   (filename : string)
@@ -71,7 +72,7 @@ let t
         dbs |> List.map (fun db -> (db.name, PT2RT.DB.toRT db)) |> Map.ofList
 
       let! (state : RT.ExecutionState) =
-        executionStateFor pm canvasID internalFnsAllowed false rtDBs
+        executionStateFor pmPT canvasID internalFnsAllowed false rtDBs
 
       let red = "\u001b[31m"
       let green = "\u001b[32m"
@@ -127,16 +128,22 @@ let t
         uply {
           match actual with
           | Ok _ -> return actual
-          | Error(_, actualRTE) ->
-            let actual = RT.RuntimeError.toDT actualRTE
+          // "alleged" because sometimes we incorrectly construct an RTE... (should be rare, and only during big refactors)
+          | Error(_, allegedRTE) ->
+            let actual = RT.RuntimeError.toDT allegedRTE
             let errorMessageFn =
               RT.FQFnName.fqPackage
-                "Darklang"
-                [ "LanguageTools"; "RuntimeErrors"; "Error" ]
-                "toErrorMessage"
+                PackageIDs.Fn.LanguageTools.RuntimeErrors.Error.toErrorMessage
 
             let! typeChecked =
-              let expected = RT.TCustomType(Ok(RT.RuntimeError.name [] "Error"), [])
+              let expected =
+                RT.TCustomType(
+                  Ok(
+                    RT.FQTypeName.fqPackage
+                      PackageIDs.Type.LanguageTools.RuntimeError.error
+                  ),
+                  []
+                )
 
               let context =
                 LibExecution.TypeChecker.Context.FunctionCallParameter(
@@ -176,6 +183,7 @@ let t
                     [ "result", result ]
 
             | Error e ->
+              debuG "Alleged RTE was not an RTE" e
               // The result was not a RuntimeError, try to stringify the typechecker error
               return!
                 LibExecution.Execution.executeFunction
@@ -207,11 +215,15 @@ let baseDir = "testfiles/execution/"
 
 // Read all test files. The test file format is described in README.md
 let fileTests () : Test =
+  // Note: we use this at parse-time - but later we need to use an enhanced one,
+  // with the 'extra' things defined in the test modules.
+  let pmPT = LibCloud.PackageManager.pt
+
   let parseTestFile fileName =
     LibParser.TestModule.parseTestFile
       "Tests"
-      localBuiltIns
-      packageManager
+      (localBuiltIns pmPT)
+      pmPT
       NR.OnMissing.Allow
       fileName
 
@@ -233,13 +245,12 @@ let fileTests () : Test =
             $"{dir}/{filename}" |> parseTestFile |> (fun ply -> ply.Result)
 
           let pm =
-            RT.PackageManager.withExtras
-              packageManager
-              (modules |> List.collect _.types |> List.map PT2RT.PackageType.toRT)
-              (modules
-               |> List.collect _.constants
-               |> List.map PT2RT.PackageConstant.toRT)
-              (modules |> List.collect _.fns |> List.map PT2RT.PackageFn.toRT)
+            PT.PackageManager.withExtras
+              pmPT
+              (modules |> List.collect _.types)
+              (modules |> List.collect _.constants)
+              (modules |> List.collect _.fns)
+
 
           let tests =
             modules

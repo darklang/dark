@@ -6,10 +6,6 @@ open Prelude
 // Unless otherwise noted, all types in this file correspond pretty directly to
 // LibExecution.ProgramTypes.
 
-// TODO: stop using ProgramTypes
-// We borrow this for now to use FQNames, but they will be removed soon
-module PT = LibExecution.ProgramTypes
-
 type Name =
   // Used when a syntactic construct turns into a function (e.g. some operators)
   | KnownBuiltin of string * int
@@ -264,19 +260,23 @@ module TypeDeclaration =
 
 
 module PackageType =
-  type T =
-    { name : PT.FQTypeName.Package
-      declaration : TypeDeclaration.T
-      description : string }
+  type Name = { owner : string; modules : List<string>; name : string }
+
+  type PackageType =
+    { name : Name; declaration : TypeDeclaration.T; description : string }
 
 module PackageConstant =
-  type T = { name : PT.FQConstantName.Package; description : string; body : Const }
+  type Name = { owner : string; modules : List<string>; name : string }
+
+  type PackageConstant = { name : Name; description : string; body : Const }
 
 module PackageFn =
+  type Name = { owner : string; modules : List<string>; name : string }
+
   type Parameter = { name : string; typ : TypeReference; description : string }
 
-  type T =
-    { name : PT.FQFnName.Package
+  type PackageFn =
+    { name : Name
       body : Expr
       typeParams : List<string>
       parameters : NEList<Parameter>

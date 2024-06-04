@@ -8,9 +8,9 @@ module Errors =
     "Field name is empty"
 
   (let x = MyRecord { col1 = 1L } in x.fieldName) = Builtin.testDerrorMessage
-    "No field named fieldName in MyRecord record"
+    "No field named `fieldName` in MyRecord record"
 
   (Builtin.testRuntimeError "error").fieldName = Builtin.testDerrorMessage "error"
 
   (let x = 6L in x.fieldName) = Builtin.testDerrorMessage
-    "Attempting to access field 'fieldName' of a Int64 (field access only works with records)"
+    "Attempting to access field `fieldName` of a Int64 (field access only works with records)"

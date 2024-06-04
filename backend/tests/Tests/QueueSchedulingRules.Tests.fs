@@ -17,10 +17,12 @@ module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
 module SR = LibCloud.QueueSchedulingRules
 
+let pmPT = PT.PackageManager.empty
+
 let p (code : string) : Task<PT.Expr> =
   LibParser.Parser.parsePTExpr
-    localBuiltIns
-    packageManager
+    (localBuiltIns pmPT)
+    pmPT
     NR.OnMissing.ThrowError
     "queueschedulingrules.fs"
     code

@@ -21,7 +21,9 @@ module S = TestUtils.RTShortcuts
 
 let bogusCallStack = RT.CallStack.fromEntryPoint RT.Script
 
-let defaultTypes () = { RT.Types.empty with package = packageManager.getType }
+let pmRT = LibCloud.PackageManager.rt
+
+let defaultTypes () = { RT.Types.empty with package = pmRT.getType }
 
 let roundtrippableRoundtripsSuccessfully (dv : RT.Dval) : bool =
   dv
@@ -36,28 +38,23 @@ let queryableRoundtripsSuccessfullyInRecord
   ) : Task<bool> =
 
   task {
-    let typeName = S.packageTypeName "Tests" [] "MyType"
-    let record =
-      RT.DRecord(
-        RT.FQTypeName.Package typeName,
-        RT.FQTypeName.Package typeName,
-        [],
-        Map.ofList [ "field", dv ]
-      )
-    let typeRef = S.packageTypeReference "Tests" [] "MyType"
+    let typeID = System.Guid.Parse "82ac8d1c-86ef-45d4-be66-052050739a38"
+    let typeName = RT.FQTypeName.Package typeID
+    let record = RT.DRecord(typeName, typeName, [], Map.ofList [ "field", dv ])
+    let typeRef = RT.TCustomType(Ok typeName, [])
 
     let types : RT.Types =
       { typeSymbolTable = Map.empty
         package =
-          fun name ->
-            if name = typeName then
-              let packageType : RT.PackageType.T =
-                { name = typeName
-                  id = System.Guid.NewGuid()
+          fun id ->
+            if id = typeID then
+              let packageType : RT.PackageType.PackageType =
+                { id = typeID
+                  name = { owner = "Tests"; modules = []; name = "MyType" }
                   declaration = S.customTypeRecord [ "field", fieldTyp ] }
               packageType |> Some |> Ply
             else
-              packageManager.getType name }
+              pmRT.getType id }
 
     let! roundtripped =
       record

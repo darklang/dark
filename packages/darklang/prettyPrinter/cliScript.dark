@@ -1,0 +1,31 @@
+module Darklang =
+  module PrettyPrinter =
+    module ProgramTypes =
+      let cliScript
+        (script: LanguageTools.ProgramTypes.CliScript.CliScript)
+        : String =
+        let declsPart =
+          (Stdlib.List.fold script.declarations [] (fun acc decl ->
+            match decl with
+            | Type typeDecl ->
+              let prettyPrinted = PrettyPrinter.ProgramTypes.packageType typeDecl
+              acc |> Stdlib.List.push prettyPrinted
+
+            | Constant constDecl ->
+              let prettyPrinted =
+                PrettyPrinter.ProgramTypes.packageConstant constDecl
+
+              acc |> Stdlib.List.push prettyPrinted
+
+            | Function fnDecl ->
+              let prettyPrinted = PrettyPrinter.ProgramTypes.packageFn fnDecl
+              acc |> Stdlib.List.push prettyPrinted))
+          |> Stdlib.List.reverse
+
+        let exprsPart =
+          (Stdlib.List.fold script.exprsToEval [] (fun acc expr ->
+            let prettyPrinted = PrettyPrinter.ProgramTypes.expr expr
+            acc |> Stdlib.List.push prettyPrinted))
+          |> Stdlib.List.reverse
+
+        [ declsPart; exprsPart ] |> Stdlib.List.flatten |> Stdlib.String.join "\n\n"

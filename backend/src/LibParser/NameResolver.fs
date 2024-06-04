@@ -79,30 +79,29 @@ let namesToTry
 
 
 let resolveTypeName
-  (packageManager : RT.PackageManager)
+  (packageManager : PT.PackageManager)
   (onMissing : OnMissing)
   (currentModule : List<string>)
   (name : WT.Name)
   : Ply<PT.NameResolution<PT.FQTypeName.FQTypeName>> =
-  let err errType names : PT.NameResolution<PT.FQTypeName.FQTypeName> =
-    Error { nameType = NRE.Type; errorType = errType; names = names }
+  let err errType : PT.NameResolution<PT.FQTypeName.FQTypeName> =
+    Error { nameType = NRE.Type; errorType = errType }
 
   match name with
   // TODO remodel things appropriately so this is not needed
   | WT.KnownBuiltin(_name, _version) ->
     Exception.raiseInternal "Builtin types don't exist" []
   | WT.Unresolved given ->
-    let notFoundError = err NRE.NotFound (NEList.toList given)
+    let notFoundError = err (NRE.NotFound(NEList.toList given))
 
     let tryPackageName
-      (name : PT.FQTypeName.Package)
+      (name : PT.PackageType.Name)
       : Ply<PT.NameResolution<PT.FQTypeName.FQTypeName>> =
       // TODO: error if type version is somehow non-0 (here and other package stuff in this file)
       // TODO: also do this in the Dark equivalent
-      let rtName = PT2RT.FQTypeName.Package.toRT name
       uply {
-        match! packageManager.getType rtName with
-        | Some _found -> return Ok(PT.FQTypeName.FQTypeName.Package name)
+        match! packageManager.findType name with
+        | Some id -> return Ok(PT.FQTypeName.FQTypeName.Package id)
         | None -> return notFoundError
       }
 
@@ -113,7 +112,7 @@ let resolveTypeName
         match name.modules with
         | [] -> return Error()
         | owner :: modules ->
-          let name = PT.FQTypeName.package owner modules name.name
+          let name = PT.PackageType.name owner modules name.name
           let! packageName = tryPackageName name
           return packageName |> Result.mapError (fun _ -> ())
       }
@@ -124,7 +123,7 @@ let resolveTypeName
       // parses `TypeName_v2` into `(TypeName, 2)`, or just `TypeName` into `(TypeName, 0)`.
       // TODO: ensure we're validating fully and reasonably (e.g. include module)
       match FS2WT.Expr.parseTypeName name with
-      | Error _ -> return err NRE.InvalidPackageName (NEList.toList given)
+      | Error _ -> return err (NRE.InvalidPackageName(NEList.toList given))
       | Ok name ->
         let genericName = { modules = modules; name = name; version = 0 }
 
@@ -149,27 +148,26 @@ let resolveTypeName
 
 let resolveConstantName
   (builtinConstants : Set<RT.FQConstantName.Builtin>)
-  (packageManager : RT.PackageManager)
+  (packageManager : PT.PackageManager)
   (onMissing : OnMissing)
   (currentModule : List<string>)
   (name : WT.Name)
   : Ply<PT.NameResolution<PT.FQConstantName.FQConstantName>> =
-  let err errType names : PT.NameResolution<PT.FQConstantName.FQConstantName> =
-    Error { nameType = NRE.Constant; errorType = errType; names = names }
+  let err errType : PT.NameResolution<PT.FQConstantName.FQConstantName> =
+    Error { nameType = NRE.Constant; errorType = errType }
 
   match name with
   | WT.KnownBuiltin(name, version) ->
     Ok(PT.FQConstantName.fqBuiltIn name version) |> Ply
   | WT.Unresolved given ->
-    let notFoundError = err NRE.NotFound (NEList.toList given)
+    let notFoundError = err (NRE.NotFound(NEList.toList given))
 
     let tryPackageName
-      (name : PT.FQConstantName.Package)
+      (name : PT.PackageConstant.Name)
       : Ply<PT.NameResolution<PT.FQConstantName.FQConstantName>> =
-      let rtName = PT2RT.FQConstantName.Package.toRT name
       uply {
-        match! packageManager.getConstant rtName with
-        | Some _found -> return Ok(PT.FQConstantName.FQConstantName.Package name)
+        match! packageManager.findConstant name with
+        | Some id -> return Ok(PT.FQConstantName.FQConstantName.Package id)
         | None -> return notFoundError
       }
 
@@ -191,7 +189,7 @@ let resolveConstantName
             else
               return Error()
           else
-            let name = PT.FQConstantName.package owner modules name.name
+            let name = PT.PackageConstant.name owner modules name.name
             let! packageName = tryPackageName name
             return packageName |> Result.mapError (fun _ -> ())
       }
@@ -200,7 +198,7 @@ let resolveConstantName
       let (modules, name) = NEList.splitLast given
 
       match FS2WT.Expr.parseFnName name with
-      | Error _ -> return err NRE.InvalidPackageName (NEList.toList given)
+      | Error _ -> return err (NRE.InvalidPackageName(NEList.toList given))
       | Ok(name, version) ->
         let genericName = { modules = modules; name = name; version = version }
 
@@ -224,26 +222,25 @@ let resolveConstantName
 
 let resolveFnName
   (builtinFns : Set<RT.FQFnName.Builtin>)
-  (packageManager : RT.PackageManager)
+  (packageManager : PT.PackageManager)
   (onMissing : OnMissing)
   (currentModule : List<string>)
   (name : WT.Name)
   : Ply<PT.NameResolution<PT.FQFnName.FQFnName>> =
-  let err errType names : PT.NameResolution<PT.FQFnName.FQFnName> =
-    Error { nameType = NRE.Function; errorType = errType; names = names }
+  let err errType : PT.NameResolution<PT.FQFnName.FQFnName> =
+    Error { nameType = NRE.Function; errorType = errType }
 
   match name with
   | WT.KnownBuiltin(name, version) -> Ok(PT.FQFnName.fqBuiltIn name version) |> Ply
   | WT.Unresolved given ->
-    let notFoundError = err NRE.NotFound (NEList.toList given)
+    let notFoundError = err (NRE.NotFound(NEList.toList given))
 
     let tryPackageName
-      (name : PT.FQFnName.Package)
+      (name : PT.PackageFn.Name)
       : Ply<PT.NameResolution<PT.FQFnName.FQFnName>> =
-      let rtName = PT2RT.FQFnName.Package.toRT name
       uply {
-        match! packageManager.getFn rtName with
-        | Some _found -> return Ok(PT.FQFnName.FQFnName.Package name)
+        match! packageManager.findFn name with
+        | Some id -> return Ok(PT.FQFnName.FQFnName.Package id)
         | None -> return notFoundError
       }
 
@@ -264,7 +261,7 @@ let resolveFnName
               return Error()
 
           else
-            let name = PT.FQFnName.package owner modules name.name
+            let name = PT.PackageFn.name owner modules name.name
             let! packageName = tryPackageName name
             return packageName |> Result.mapError (fun _ -> ())
       }
@@ -273,7 +270,7 @@ let resolveFnName
       let (modules, name) = NEList.splitLast given
 
       match FS2WT.Expr.parseFnName name with
-      | Error _ -> return err NRE.InvalidPackageName (NEList.toList given)
+      | Error _ -> return err (NRE.InvalidPackageName(NEList.toList given))
       | Ok(name, version) ->
         let genericName = { modules = modules; name = name; version = version }
 

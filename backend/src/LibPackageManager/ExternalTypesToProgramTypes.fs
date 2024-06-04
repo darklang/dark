@@ -30,24 +30,23 @@ module NameResolutionError =
       (err : NameResolutionError.ErrorType)
       : LibExecution.NameResolutionError.ErrorType =
       match err with
-      | NameResolutionError.ErrorType.NotFound ->
-        LibExecution.NameResolutionError.NotFound
+      | NameResolutionError.ErrorType.NotFound names ->
+        LibExecution.NameResolutionError.NotFound names
       | NameResolutionError.MissingEnumModuleName caseName ->
         LibExecution.NameResolutionError.MissingEnumModuleName caseName
-      | NameResolutionError.InvalidPackageName ->
-        LibExecution.NameResolutionError.InvalidPackageName
-      | NameResolutionError.ExpectedEnumButNot ->
-        LibExecution.NameResolutionError.ExpectedEnumButNot
-      | NameResolutionError.ExpectedRecordButNot ->
-        LibExecution.NameResolutionError.ExpectedRecordButNot
+      | NameResolutionError.InvalidPackageName names ->
+        LibExecution.NameResolutionError.InvalidPackageName names
+      | NameResolutionError.ExpectedEnumButNot packageTypeID ->
+        LibExecution.NameResolutionError.ExpectedEnumButNot packageTypeID
+      | NameResolutionError.ExpectedRecordButNot packageTypeID ->
+        LibExecution.NameResolutionError.ExpectedRecordButNot packageTypeID
 
   module Error =
     let toPT
       (err : NameResolutionError.Error)
       : LibExecution.NameResolutionError.Error =
       { errorType = ErrorType.toPT err.errorType
-        nameType = NameType.toPT err.nameType
-        names = err.names }
+        nameType = NameType.toPT err.nameType }
 
 module NameResolution =
   let toPT (f : 's -> 'p) (result : EPT.NameResolution<'s>) : PT.NameResolution<'p> =
@@ -64,8 +63,7 @@ module Sign =
 
 module TypeName =
   module Package =
-    let toPT (p : EPT.FQTypeName.Package) : PT.FQTypeName.Package =
-      { owner = p.owner; modules = p.modules; name = p.name }
+    let toPT (p : EPT.FQTypeName.Package) : PT.FQTypeName.Package = p
 
   let toPT (fqfn : EPT.FQTypeName.FQTypeName) : PT.FQTypeName.FQTypeName =
     match fqfn with
@@ -78,8 +76,7 @@ module FnName =
       { name = b.name; version = b.version }
 
   module Package =
-    let toPT (p : EPT.FQFnName.Package) : PT.FQFnName.Package =
-      { owner = p.owner; modules = p.modules; name = p.name }
+    let toPT (p : EPT.FQFnName.Package) : PT.FQFnName.Package = p
 
   let toPT (fqfn : EPT.FQFnName.FQFnName) : PT.FQFnName.FQFnName =
     match fqfn with
@@ -92,8 +89,7 @@ module ConstantName =
       { name = b.name; version = b.version }
 
   module Package =
-    let toPT (p : EPT.FQConstantName.Package) : PT.FQConstantName.Package =
-      { owner = p.owner; modules = p.modules; name = p.name }
+    let toPT (p : EPT.FQConstantName.Package) : PT.FQConstantName.Package = p
 
   let toPT
     (fqfn : EPT.FQConstantName.FQConstantName)
@@ -341,13 +337,17 @@ module TypeDeclaration =
     { typeParams = d.typeParams; definition = Definition.toPT d.definition }
 
 module PackageFn =
+  module Name =
+    let toPT (n : EPT.PackageFn.Name) : PT.PackageFn.Name =
+      { owner = n.owner; modules = n.modules; name = n.name }
+
   module Parameter =
     let toPT (p : EPT.PackageFn.Parameter) : PT.PackageFn.Parameter =
       { name = p.name; typ = TypeReference.toPT p.typ; description = p.description }
 
-  let toPT (fn : EPT.PackageFn.PackageFn) : PT.PackageFn.T =
+  let toPT (fn : EPT.PackageFn.PackageFn) : PT.PackageFn.PackageFn =
     { id = fn.id
-      name = FnName.Package.toPT fn.name
+      name = Name.toPT fn.name
       parameters = NEList.map Parameter.toPT fn.parameters
       returnType = TypeReference.toPT fn.returnType
       description = fn.description
@@ -356,9 +356,13 @@ module PackageFn =
       typeParams = fn.typeParams }
 
 module PackageType =
-  let toPT (pt : EPT.PackageType) : PT.PackageType.T =
+  module Name =
+    let toPT (n : EPT.PackageType.Name) : PT.PackageType.Name =
+      { owner = n.owner; modules = n.modules; name = n.name }
+
+  let toPT (pt : EPT.PackageType.PackageType) : PT.PackageType.PackageType =
     { id = pt.id
-      name = TypeName.Package.toPT pt.name
+      name = Name.toPT pt.name
       description = pt.description
       declaration = TypeDeclaration.toPT pt.declaration
       deprecated = Deprecation.toPT TypeName.toPT pt.deprecated }
@@ -394,9 +398,15 @@ module Const =
 
 
 module PackageConstant =
-  let toPT (c : EPT.PackageConstant) : PT.PackageConstant.T =
+  module Name =
+    let toPT (n : EPT.PackageConstant.Name) : PT.PackageConstant.Name =
+      { owner = n.owner; modules = n.modules; name = n.name }
+
+  let toPT
+    (c : EPT.PackageConstant.PackageConstant)
+    : PT.PackageConstant.PackageConstant =
     { id = c.id
-      name = ConstantName.Package.toPT c.name
+      name = Name.toPT c.name
       description = c.description
       deprecated = Deprecation.toPT ConstantName.toPT c.deprecated
       body = Const.toPT c.body }

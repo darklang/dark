@@ -2,20 +2,12 @@
   "DRecord": [
     {
       "Package": [
-        {
-          "owner": "owner",
-          "modules": [],
-          "name": "MyType"
-        }
+        "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
       ]
     },
     {
       "Package": [
-        {
-          "owner": "owner",
-          "modules": [],
-          "name": "MyType"
-        }
+        "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
       ]
     },
     [],
@@ -3641,26 +3633,12 @@
         "DEnum": [
           {
             "Package": [
-              {
-                "owner": "Darklang",
-                "modules": [
-                  "Stdlib",
-                  "AltJson"
-                ],
-                "name": "Json"
-              }
+              "d80a6028-92e8-4da2-89b3-1cfc5d275024"
             ]
           },
           {
             "Package": [
-              {
-                "owner": "Darklang",
-                "modules": [
-                  "Stdlib",
-                  "AltJson"
-                ],
-                "name": "Json"
-              }
+              "d80a6028-92e8-4da2-89b3-1cfc5d275024"
             ]
           },
           [],
@@ -7147,26 +7125,12 @@
         "DEnum": [
           {
             "Package": [
-              {
-                "owner": "Darklang",
-                "modules": [
-                  "Stdlib",
-                  "Option"
-                ],
-                "name": "Option"
-              }
+              "9ce3b596-968f-44c9-bcd4-511007cd9225"
             ]
           },
           {
             "Package": [
-              {
-                "owner": "Darklang",
-                "modules": [
-                  "Stdlib",
-                  "Option"
-                ],
-                "name": "Option"
-              }
+              "9ce3b596-968f-44c9-bcd4-511007cd9225"
             ]
           },
           [],
@@ -7178,26 +7142,12 @@
         "DEnum": [
           {
             "Package": [
-              {
-                "owner": "Darklang",
-                "modules": [
-                  "Stdlib",
-                  "Option"
-                ],
-                "name": "Option"
-              }
+              "9ce3b596-968f-44c9-bcd4-511007cd9225"
             ]
           },
           {
             "Package": [
-              {
-                "owner": "Darklang",
-                "modules": [
-                  "Stdlib",
-                  "Option"
-                ],
-                "name": "Option"
-              }
+              "9ce3b596-968f-44c9-bcd4-511007cd9225"
             ]
           },
           [],
@@ -7215,26 +7165,12 @@
         "DEnum": [
           {
             "Package": [
-              {
-                "owner": "Darklang",
-                "modules": [
-                  "Stdlib",
-                  "Option"
-                ],
-                "name": "Option"
-              }
+              "9ce3b596-968f-44c9-bcd4-511007cd9225"
             ]
           },
           {
             "Package": [
-              {
-                "owner": "Darklang",
-                "modules": [
-                  "Stdlib",
-                  "Option"
-                ],
-                "name": "Option"
-              }
+              "9ce3b596-968f-44c9-bcd4-511007cd9225"
             ]
           },
           [],
@@ -7252,26 +7188,12 @@
         "DEnum": [
           {
             "Package": [
-              {
-                "owner": "Darklang",
-                "modules": [
-                  "Stdlib",
-                  "Option"
-                ],
-                "name": "Option"
-              }
+              "9ce3b596-968f-44c9-bcd4-511007cd9225"
             ]
           },
           {
             "Package": [
-              {
-                "owner": "Darklang",
-                "modules": [
-                  "Stdlib",
-                  "Option"
-                ],
-                "name": "Option"
-              }
+              "9ce3b596-968f-44c9-bcd4-511007cd9225"
             ]
           },
           [],
@@ -7289,26 +7211,12 @@
         "DEnum": [
           {
             "Package": [
-              {
-                "owner": "Darklang",
-                "modules": [
-                  "Stdlib",
-                  "Option"
-                ],
-                "name": "Option"
-              }
+              "9ce3b596-968f-44c9-bcd4-511007cd9225"
             ]
           },
           {
             "Package": [
-              {
-                "owner": "Darklang",
-                "modules": [
-                  "Stdlib",
-                  "Option"
-                ],
-                "name": "Option"
-              }
+              "9ce3b596-968f-44c9-bcd4-511007cd9225"
             ]
           },
           [],
@@ -7326,26 +7234,12 @@
         "DEnum": [
           {
             "Package": [
-              {
-                "owner": "Darklang",
-                "modules": [
-                  "Stdlib",
-                  "Option"
-                ],
-                "name": "Option"
-              }
+              "9ce3b596-968f-44c9-bcd4-511007cd9225"
             ]
           },
           {
             "Package": [
-              {
-                "owner": "Darklang",
-                "modules": [
-                  "Stdlib",
-                  "Option"
-                ],
-                "name": "Option"
-              }
+              "9ce3b596-968f-44c9-bcd4-511007cd9225"
             ]
           },
           [],
@@ -7363,26 +7257,12 @@
         "DEnum": [
           {
             "Package": [
-              {
-                "owner": "Darklang",
-                "modules": [
-                  "Stdlib",
-                  "Option"
-                ],
-                "name": "Option"
-              }
+              "9ce3b596-968f-44c9-bcd4-511007cd9225"
             ]
           },
           {
             "Package": [
-              {
-                "owner": "Darklang",
-                "modules": [
-                  "Stdlib",
-                  "Option"
-                ],
-                "name": "Option"
-              }
+              "9ce3b596-968f-44c9-bcd4-511007cd9225"
             ]
           },
           [],
@@ -7400,26 +7280,12 @@
         "DEnum": [
           {
             "Package": [
-              {
-                "owner": "Darklang",
-                "modules": [
-                  "Stdlib",
-                  "Option"
-                ],
-                "name": "Option"
-              }
+              "9ce3b596-968f-44c9-bcd4-511007cd9225"
             ]
           },
           {
             "Package": [
-              {
-                "owner": "Darklang",
-                "modules": [
-                  "Stdlib",
-                  "Option"
-                ],
-                "name": "Option"
-              }
+              "9ce3b596-968f-44c9-bcd4-511007cd9225"
             ]
           },
           [],
@@ -7437,26 +7303,12 @@
         "DEnum": [
           {
             "Package": [
-              {
-                "owner": "Darklang",
-                "modules": [
-                  "Stdlib",
-                  "Option"
-                ],
-                "name": "Option"
-              }
+              "9ce3b596-968f-44c9-bcd4-511007cd9225"
             ]
           },
           {
             "Package": [
-              {
-                "owner": "Darklang",
-                "modules": [
-                  "Stdlib",
-                  "Option"
-                ],
-                "name": "Option"
-              }
+              "9ce3b596-968f-44c9-bcd4-511007cd9225"
             ]
           },
           [],
@@ -7474,26 +7326,12 @@
         "DEnum": [
           {
             "Package": [
-              {
-                "owner": "Darklang",
-                "modules": [
-                  "Stdlib",
-                  "Option"
-                ],
-                "name": "Option"
-              }
+              "9ce3b596-968f-44c9-bcd4-511007cd9225"
             ]
           },
           {
             "Package": [
-              {
-                "owner": "Darklang",
-                "modules": [
-                  "Stdlib",
-                  "Option"
-                ],
-                "name": "Option"
-              }
+              "9ce3b596-968f-44c9-bcd4-511007cd9225"
             ]
           },
           [],
@@ -7511,26 +7349,12 @@
         "DEnum": [
           {
             "Package": [
-              {
-                "owner": "Darklang",
-                "modules": [
-                  "Stdlib",
-                  "Option"
-                ],
-                "name": "Option"
-              }
+              "9ce3b596-968f-44c9-bcd4-511007cd9225"
             ]
           },
           {
             "Package": [
-              {
-                "owner": "Darklang",
-                "modules": [
-                  "Stdlib",
-                  "Option"
-                ],
-                "name": "Option"
-              }
+              "9ce3b596-968f-44c9-bcd4-511007cd9225"
             ]
           },
           [],
@@ -7548,26 +7372,12 @@
         "DEnum": [
           {
             "Package": [
-              {
-                "owner": "Darklang",
-                "modules": [
-                  "Stdlib",
-                  "Option"
-                ],
-                "name": "Option"
-              }
+              "9ce3b596-968f-44c9-bcd4-511007cd9225"
             ]
           },
           {
             "Package": [
-              {
-                "owner": "Darklang",
-                "modules": [
-                  "Stdlib",
-                  "Option"
-                ],
-                "name": "Option"
-              }
+              "9ce3b596-968f-44c9-bcd4-511007cd9225"
             ]
           },
           [],
@@ -7595,26 +7405,12 @@
         "DRecord": [
           {
             "Package": [
-              {
-                "owner": "Darklang",
-                "modules": [
-                  "Stdlib",
-                  "Http"
-                ],
-                "name": "Request"
-              }
+              "dca045b1-e2af-41d8-ad1b-35261b25a426"
             ]
           },
           {
             "Package": [
-              {
-                "owner": "Darklang",
-                "modules": [
-                  "Stdlib",
-                  "Http"
-                ],
-                "name": "Request"
-              }
+              "dca045b1-e2af-41d8-ad1b-35261b25a426"
             ]
           },
           [],
@@ -7662,6 +7458,142 @@
             "url": {
               "DString": [
                 "https://darklang.com"
+              ]
+            }
+          }
+        ]
+      },
+      "record2": {
+        "DRecord": [
+          {
+            "Package": [
+              "dca045b1-e2af-41d8-ad1b-35261b25a426"
+            ]
+          },
+          {
+            "Package": [
+              "dca045b1-e2af-41d8-ad1b-35261b25a426"
+            ]
+          },
+          [
+            {
+              "Unknown": []
+            },
+            {
+              "Known": [
+                {
+                  "KTBool": []
+                }
+              ]
+            }
+          ],
+          {
+            "type": {
+              "DString": [
+                "weird"
+              ]
+            },
+            "value": {
+              "DUnit": []
+            }
+          }
+        ]
+      },
+      "record3": {
+        "DRecord": [
+          {
+            "Package": [
+              "dca045b1-e2af-41d8-ad1b-35261b25a426"
+            ]
+          },
+          {
+            "Package": [
+              "dca045b1-e2af-41d8-ad1b-35261b25a426"
+            ]
+          },
+          [],
+          {
+            "type": {
+              "DString": [
+                "weird"
+              ]
+            },
+            "value": {
+              "DString": [
+                "x"
+              ]
+            }
+          }
+        ]
+      },
+      "record4": {
+        "DRecord": [
+          {
+            "Package": [
+              "dca045b1-e2af-41d8-ad1b-35261b25a426"
+            ]
+          },
+          {
+            "Package": [
+              "dca045b1-e2af-41d8-ad1b-35261b25a426"
+            ]
+          },
+          [
+            {
+              "Known": [
+                {
+                  "KTBool": []
+                }
+              ]
+            },
+            {
+              "Known": [
+                {
+                  "KTChar": []
+                }
+              ]
+            },
+            {
+              "Known": [
+                {
+                  "KTCustomType": [
+                    {
+                      "Package": [
+                        "dca045b1-e2af-41d8-ad1b-35261b25a426"
+                      ]
+                    },
+                    []
+                  ]
+                }
+              ]
+            }
+          ],
+          {
+            "foo\\\\bar": {
+              "DInt64": [
+                5
+              ]
+            }
+          }
+        ]
+      },
+      "record5": {
+        "DRecord": [
+          {
+            "Package": [
+              "dca045b1-e2af-41d8-ad1b-35261b25a426"
+            ]
+          },
+          {
+            "Package": [
+              "dca045b1-e2af-41d8-ad1b-35261b25a426"
+            ]
+          },
+          [],
+          {
+            "$type": {
+              "DInt64": [
+                5
               ]
             }
           }
@@ -7739,26 +7671,12 @@
             "DEnum": [
               {
                 "Package": [
-                  {
-                    "owner": "Darklang",
-                    "modules": [
-                      "Stdlib",
-                      "Result"
-                    ],
-                    "name": "Result"
-                  }
+                  "c1cb018c-8264-4080-be7f-b06b8a0e1729"
                 ]
               },
               {
                 "Package": [
-                  {
-                    "owner": "Darklang",
-                    "modules": [
-                      "Stdlib",
-                      "Result"
-                    ],
-                    "name": "Result"
-                  }
+                  "c1cb018c-8264-4080-be7f-b06b8a0e1729"
                 ]
               },
               [],

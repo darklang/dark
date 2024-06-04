@@ -9,12 +9,14 @@ open LibExecution.RuntimeTypes
 
 module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
+module PackageIDs = LibExecution.PackageIDs
 open Builtin.Shortcuts
 open System.Runtime.InteropServices
 
 
 let executionOutcomeTypeName =
-  FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Cli" ] "ExecutionOutcome"
+  FQTypeName.fqPackage PackageIDs.Type.Stdlib.Cli.executionOutcome
+
 
 let fns : List<BuiltInFn> =
   [ { name = fn "cliExecute" 0

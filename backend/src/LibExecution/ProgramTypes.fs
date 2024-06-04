@@ -23,38 +23,16 @@ let assertBuiltin
   assert_ "version can't be negative" [ "version", version ] (version >= 0)
 
 
-let assertPackage
-  (modules : List<string>)
-  (name : string)
-  (nameValidator : string -> unit)
-  : unit =
-  List.iter (assertRe "modules name must match" modulePattern) modules
-  nameValidator name
-
-
-let packageName (owner : string) (modules : List<string>) (name : string) : string =
-  let nameParts =
-    match owner with
-    | "Tests" -> modules @ [ name ]
-    | _ -> "PACKAGE" :: owner :: modules @ [ name ]
-  nameParts |> String.concat "."
-
-
 /// Fully-Qualified Type Name
 ///
 /// Used to reference a type defined in a Package or by a User
 module FQTypeName =
-  /// The name of a type in the package manager
-  type Package = { owner : string; modules : List<string>; name : string }
+  /// The id of a type in the package manager
+  type Package = uuid
 
   type FQTypeName = Package of Package
 
-  let assertTypeName (name : string) : unit =
-    assertRe "type name must match" typeNamePattern name
-
-  let package (owner : string) (modules : List<string>) (name : string) : Package =
-    assertPackage modules name assertTypeName
-    { owner = owner; modules = modules; name = name }
+  let package (id : uuid) : Package = id
 
 
 
@@ -65,8 +43,8 @@ module FQConstantName =
   /// A constant built into the runtime
   type Builtin = { name : string; version : int }
 
-  /// The name of a constant in the package manager
-  type Package = { owner : string; modules : List<string>; name : string }
+  /// The id of a constant in the package manager
+  type Package = uuid
 
   type FQConstantName =
     | Builtin of Builtin
@@ -83,9 +61,7 @@ module FQConstantName =
   let fqBuiltIn (name : string) (version : int) : FQConstantName =
     Builtin(builtIn name version)
 
-  let package (owner : string) (modules : List<string>) (name : string) : Package =
-    assertPackage modules name assertConstantName
-    { owner = owner; modules = modules; name = name }
+  let package (id : uuid) : Package = id
 
 
 
@@ -97,8 +73,8 @@ module FQFnName =
   /// A function built into the runtime
   type Builtin = { name : string; version : int }
 
-  /// The name of a function in the package manager
-  type Package = { owner : string; modules : List<string>; name : string }
+  /// The id of a function in the package manager
+  type Package = uuid
 
   type FQFnName =
     | Builtin of Builtin
@@ -114,16 +90,9 @@ module FQFnName =
   let fqBuiltIn (name : string) (version : int) : FQFnName =
     Builtin(builtIn name version)
 
-  let package (owner : string) (modules : List<string>) (name : string) : Package =
-    assertPackage modules name assertFnName
-    { owner = owner; modules = modules; name = name }
+  let package (id : uuid) : Package = id
 
-  let fqPackage
-    (owner : string)
-    (modules : List<string>)
-    (name : string)
-    : FQFnName =
-    Package(package owner modules name)
+  let fqPackage (id : uuid) : FQFnName = Package id
 
 
 // In ProgramTypes, names (FnNames, TypeNames, ConstantNames) have already been
@@ -515,28 +484,65 @@ type Deprecation<'name> =
 // --
 // Package things
 // --
+
+// TODO: bring these back in some form.
+// let assertPackage
+//   (modules : List<string>)
+//   (name : string)
+//   (nameValidator : string -> unit)
+//   : unit =
+//   List.iter (assertRe "modules name must match" modulePattern) modules
+//   nameValidator name
+
+
+// let packageName (owner : string) (modules : List<string>) (name : string) : string =
+//   let nameParts =
+//     match owner with
+//     | "Tests" -> modules @ [ name ]
+//     | _ -> "PACKAGE" :: owner :: modules @ [ name ]
+//   nameParts |> String.concat "."
+
+
 module PackageType =
-  type T =
+  type Name = { owner : string; modules : List<string>; name : string }
+
+  let name (owner : string) (modules : List<string>) (name : string) : Name =
+    // TODO: assert OK
+    { owner = owner; modules = modules; name = name }
+
+  type PackageType =
     { id : uuid
-      name : FQTypeName.Package
+      name : Name
       declaration : TypeDeclaration.T
       description : string
       deprecated : Deprecation<FQTypeName.FQTypeName> }
 
 module PackageConstant =
-  type T =
+  type Name = { owner : string; modules : List<string>; name : string }
+
+  let name (owner : string) (modules : List<string>) (name : string) : Name =
+    // TODO: assert OK
+    { owner = owner; modules = modules; name = name }
+
+  type PackageConstant =
     { id : uuid
-      name : FQConstantName.Package
+      name : Name
       description : string
       deprecated : Deprecation<FQConstantName.FQConstantName>
       body : Const }
 
 module PackageFn =
+  type Name = { owner : string; modules : List<string>; name : string }
+
+  let name (owner : string) (modules : List<string>) (name : string) : Name =
+    // TODO: assert OK
+    { owner = owner; modules = modules; name = name }
+
   type Parameter = { name : string; typ : TypeReference; description : string }
 
-  type T =
+  type PackageFn =
     { id : uuid
-      name : FQFnName.Package
+      name : Name
       body : Expr
       typeParams : List<string>
       parameters : NEList<Parameter>
@@ -545,14 +551,86 @@ module PackageFn =
       deprecated : Deprecation<FQFnName.FQFnName> }
 
 type Packages =
-  { types : List<PackageType.T>
-    constants : List<PackageConstant.T>
-    fns : List<PackageFn.T> }
+  { types : List<PackageType.PackageType>
+    constants : List<PackageConstant.PackageConstant>
+    fns : List<PackageFn.PackageFn> }
 
   static member combine(packages : List<Packages>) : Packages =
     { types = packages |> List.collect _.types
       constants = packages |> List.collect _.constants
       fns = packages |> List.collect _.fns }
+
+
+/// Functionality written in Dark stored and managed outside of user space
+///
+/// Note: It may be tempting to think the `getX` fns shouldn't return Options,
+/// but there's a chance of Local <-> Cloud not being fully in sync,
+/// for whatever reasons.
+type PackageManager =
+  { findType : PackageType.Name -> Ply<Option<FQTypeName.Package>>
+    findConstant : PackageConstant.Name -> Ply<Option<FQConstantName.Package>>
+    findFn : PackageFn.Name -> Ply<Option<FQFnName.Package>>
+
+    getType : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
+    getConstant :
+      FQConstantName.Package -> Ply<Option<PackageConstant.PackageConstant>>
+    getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
+
+    init : Ply<unit> }
+
+  static member empty =
+    { findType = (fun _ -> Ply None)
+      findFn = (fun _ -> Ply None)
+      findConstant = (fun _ -> Ply None)
+
+      getType = (fun _ -> Ply None)
+      getFn = (fun _ -> Ply None)
+      getConstant = (fun _ -> Ply None)
+
+      init = uply { return () } }
+
+
+  /// Allows you to side-load a few 'extras' in-memory, along
+  /// the normal fetching functionality. (Mostly helpful for tests)
+  static member withExtras
+    (pm : PackageManager)
+    (types : List<PackageType.PackageType>)
+    (constants : List<PackageConstant.PackageConstant>)
+    (fns : List<PackageFn.PackageFn>)
+    : PackageManager =
+    { findType =
+        fun name ->
+          match types |> List.tryFind (fun t -> t.name = name) with
+          | Some t -> Some t.id |> Ply
+          | None -> pm.findType name
+      findConstant =
+        fun name ->
+          match constants |> List.tryFind (fun c -> c.name = name) with
+          | Some c -> Some c.id |> Ply
+          | None -> pm.findConstant name
+      findFn =
+        fun name ->
+          match fns |> List.tryFind (fun f -> f.name = name) with
+          | Some f -> Some f.id |> Ply
+          | None -> pm.findFn name
+
+      getType =
+        fun id ->
+          match types |> List.tryFind (fun t -> t.id = id) with
+          | Some t -> Ply(Some t)
+          | None -> pm.getType id
+      getConstant =
+        fun id ->
+          match constants |> List.tryFind (fun c -> c.id = id) with
+          | Some c -> Ply(Some c)
+          | None -> pm.getConstant id
+      getFn =
+        fun id ->
+          match fns |> List.tryFind (fun f -> f.id = id) with
+          | Some f -> Ply(Some f)
+          | None -> pm.getFn id
+
+      init = pm.init }
 
 
 

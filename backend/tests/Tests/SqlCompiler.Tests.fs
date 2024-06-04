@@ -15,19 +15,23 @@ module C = LibCloud.SqlCompiler
 module S = TestUtils.RTShortcuts
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
+let pmPT = LibCloud.PackageManager.pt
+
+let builtins = localBuiltIns pmPT
+
 let p (code : string) : Task<Expr> =
   LibParser.Parser.parseRTExpr
-    localBuiltIns
-    packageManager
+    builtins
+    pmPT
     NR.OnMissing.ThrowError
     "sqlcompiler.tests.fs"
     code
   |> Ply.toTask
 
-let parse (fns : List<PackageFn.T>) (code : string) : Task<Expr> =
+let parse (fns : List<PT.PackageFn.PackageFn>) (code : string) : Task<Expr> =
   LibParser.Parser.parseRTExpr
-    localBuiltIns
-    (PackageManager.withExtras packageManager [] [] fns)
+    builtins
+    (PT.PackageManager.withExtras pmPT [] [] fns)
     NR.OnMissing.ThrowError
     "sqlcompiler.tests.fs"
     code
@@ -36,26 +40,29 @@ let parse (fns : List<PackageFn.T>) (code : string) : Task<Expr> =
 let compile
   (symtable : DvalMap)
   (paramName : string)
-  ((rowName, rowType) : string * TypeReference)
+  ((rowName, rowType) : string * PT.TypeReference)
   (expr : Expr)
   : Task<string * Map<string, SqlValue>> =
   task {
     let canvasID = System.Guid.NewGuid()
 
-    let typeName : FQTypeName.Package =
-      { owner = "Tests"; modules = []; name = "MyType" }
-    let field : TypeDeclaration.RecordField = { name = rowName; typ = rowType }
-    let typ : PackageType.T =
-      { id = System.Guid.NewGuid()
-        name = typeName
+    let typeID = System.Guid.Parse "56d0445a-c273-4dfd-b9a6-3b7c63f92479"
+    let typeName = FQTypeName.Package typeID
+    let field : PT.TypeDeclaration.RecordField =
+      { name = rowName; typ = rowType; description = "" }
+    let typ : PT.PackageType.PackageType =
+      { id = typeID
+        name = { owner = "Tests"; modules = []; name = "MyType" }
+        description = ""
+        deprecated = PT.NotDeprecated
         declaration =
           { typeParams = []
-            definition = TypeDeclaration.Record(NEList.singleton field) } }
-    let typeReference = TCustomType(Ok(FQTypeName.Package typeName), [])
+            definition = PT.TypeDeclaration.Record(NEList.singleton field) } }
+    let typeReference = TCustomType(Ok typeName, [])
 
     let! state =
       executionStateFor
-        (PackageManager.withExtras packageManager [ typ ] [] [])
+        (PT.PackageManager.withExtras pmPT [ typ ] [] [])
         canvasID
         false
         false
@@ -100,12 +107,12 @@ let compileTests =
     "compile tests"
     [ testTask "compile true" {
         let! e = p "true"
-        let! sql, args = compile Map.empty "value" ("myfield", TBool) e
+        let! sql, args = compile Map.empty "value" ("myfield", PT.TBool) e
         matchSql sql @"\(@([A-Z]+)\)" args [ Sql.bool true ]
       }
       testTask "compile field" {
         let! e = p "value.myfield"
-        let! sql, args = compile Map.empty "value" ("myfield", TBool) e
+        let! sql, args = compile Map.empty "value" ("myfield", PT.TBool) e
 
         matchSql sql @"\(CAST\(data::jsonb->>'myfield' as bool\)\)" args []
       }
@@ -119,7 +126,7 @@ let compileTests =
             []
             [ S.eFieldAccess (S.eVar "value") injection; (S.eStr "x") ]
 
-        let! sql, args = compile Map.empty "value" (injection, TString) expr
+        let! sql, args = compile Map.empty "value" (injection, PT.TString) expr
 
         matchSql
           sql
@@ -131,7 +138,7 @@ let compileTests =
         let! expr = p "var == value.name"
         let symtable = Map.ofList [ "var", DString "';select * from user_data_v0;'" ]
 
-        let! sql, args = compile symtable "value" ("name", TString) expr
+        let! sql, args = compile symtable "value" ("name", PT.TString) expr
 
         matchSql
           sql
@@ -141,7 +148,7 @@ let compileTests =
       }
       testTask "pipes expand correctly into nested functions" {
         let! expr = p "value.age |> (-) 2L |> (+) value.age |> (<) 3L"
-        let! sql, args = compile Map.empty "value" ("age", TInt64) expr
+        let! sql, args = compile Map.empty "value" ("age", PT.TInt64) expr
 
         matchSql
           sql
@@ -153,8 +160,7 @@ let compileTests =
 
 let inlineWorksAtRoot =
   testTask "inlineWorksAtRoot" {
-    let! state =
-      executionStateFor packageManager (System.Guid.NewGuid()) false false Map.empty
+    let! state = executionStateFor pmPT (System.Guid.NewGuid()) false false Map.empty
     let fns = ExecutionState.availableFunctions state
     let! expr = p "let y = 5 in let x = 6 in (3 + (let x = 7 in y))"
 
@@ -165,8 +171,7 @@ let inlineWorksAtRoot =
 
 let inlineWorksWithNested =
   testTask "inlineWorksWithNested" {
-    let! state =
-      executionStateFor packageManager (System.Guid.NewGuid()) false false Map.empty
+    let! state = executionStateFor pmPT (System.Guid.NewGuid()) false false Map.empty
     let fns = ExecutionState.availableFunctions state
     let! expr = p "let x = 5 in (let x = 6 in (3 + (let x = 7 in x)))"
 
@@ -178,8 +183,7 @@ let inlineWorksWithNested =
 
 let inlineWorksWithPackageFunctionsSqlBinOp =
   testTask "inlineWorksWithPackageFunctionsSqlBinOp" {
-    let! state =
-      executionStateFor packageManager (System.Guid.NewGuid()) false false Map.empty
+    let! state = executionStateFor pmPT (System.Guid.NewGuid()) false false Map.empty
     let fns = ExecutionState.availableFunctions state
     let! expr =
       p
@@ -193,8 +197,7 @@ let inlineWorksWithPackageFunctionsSqlBinOp =
 
 let inlineWorksWithPackageFunctionsSqlFunction =
   testTask "inlineWorksWithPackageFunctionsSqlFunction" {
-    let! state =
-      executionStateFor packageManager (System.Guid.NewGuid()) false false Map.empty
+    let! state = executionStateFor pmPT (System.Guid.NewGuid()) false false Map.empty
     let fns = ExecutionState.availableFunctions state
     let! expr =
       p
@@ -216,12 +219,12 @@ let inlineFunctionArguments =
         PT.EVariable(0UL, "b")
       )
 
-    let (fn : PackageFn.T) =
+    let (fn : PT.PackageFn.PackageFn) =
       testPackageFn "Tests" "userAdd" [] (NEList.doubleton "a" "b") PT.TInt64 fnBody
-      |> PT2RT.PackageFn.toRT
 
     let fns : Functions =
-      { builtIn = localBuiltIns.fns; package = fun _name -> Ply(Some fn) }
+      { builtIn = (localBuiltIns pmPT).fns
+        package = fun _name -> Ply(Some(PT2RT.PackageFn.toRT fn)) }
 
     let! expr =
       parse [ fn ] "let a = 1 in let b = 9 in (p.height == Tests.userAdd 6 (b - 4))"
@@ -238,7 +241,7 @@ let partialEvaluation =
     (fun (expr, vars) ->
       task {
         let canvasID = System.Guid.NewGuid()
-        let! state = executionStateFor packageManager canvasID false false Map.empty
+        let! state = executionStateFor pmPT canvasID false false Map.empty
         let state = { state with symbolTable = Map vars }
         let! expr = p expr
         let result = C.partiallyEvaluate state "x" expr

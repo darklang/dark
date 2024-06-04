@@ -35,8 +35,7 @@ module BadHeader =
       match err with
       | EmptyKey -> "EmptyKey", []
       | InvalidContentType -> "InvalidContentType", []
-    let typeName =
-      FQTypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "BadHeader"
+    let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.badHeader
     DEnum(typeName, typeName, [], caseName, fields)
 
 module BadUrl =
@@ -55,7 +54,7 @@ module BadUrl =
       | InvalidRequest -> "InvalidRequest", []
 
     let typeName =
-      FQTypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "BadUrlDetails"
+      FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.badUrlDetails
     Dval.DEnum(typeName, typeName, [], caseName, fields)
 
 module RequestError =
@@ -82,7 +81,7 @@ module RequestError =
       | BadMethod -> "BadMethod", []
 
     let typeName =
-      FQTypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "RequestError"
+      FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.requestError
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -395,16 +394,11 @@ let fns (config : Configuration) : List<BuiltInFn> =
       returnType =
         TypeReference.result
           (TCustomType(
-            Ok(FQTypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "Response"),
+            Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.response),
             []
           ))
           (TCustomType(
-            Ok(
-              FQTypeName.fqPackage
-                "Darklang"
-                [ "Stdlib"; "HttpClient" ]
-                "RequestError"
-            ),
+            Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.requestError),
             []
           ))
       description =
@@ -412,12 +406,12 @@ let fns (config : Configuration) : List<BuiltInFn> =
         the response is wrapped in {{ Ok }} if a response was successfully
         received and parsed, and is wrapped in {{ Error }} otherwise"
       fn =
-        let typ =
-          FQTypeName.fqPackage "Darklang" [ "Stdlib"; "HttpClient" ] "Response"
+        let typ = FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.response
 
         let responseType = KTCustomType(typ, [])
         let resultOk = Dval.resultOk responseType KTString
-        let typeName = RuntimeError.name [ "HttpClient" ] "RequestError"
+        let typeName =
+          FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.requestError
         let resultError = Dval.resultError responseType (KTCustomType(typeName, []))
         (function
         | state,
@@ -439,10 +433,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
                   | notAPair ->
                     let context =
                       TypeChecker.Context.FunctionCallParameter(
-                        (FQFnName.fqPackage
-                          "Darklang"
-                          [ "Stdlib"; "HttpClient" ]
-                          "request"),
+                        FQFnName.fqPackage PackageIDs.Fn.Stdlib.HttpClient.request,
                         ({ name = "headers"; typ = headersType }),
                         2
                       )
@@ -486,10 +477,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
                       |> Dval.list (KTTuple(VT.string, VT.string, []))
 
                     let typ =
-                      FQTypeName.fqPackage
-                        "Darklang"
-                        [ "Stdlib"; "HttpClient" ]
-                        "Response"
+                      FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.response
 
                     let fields =
                       [ ("statusCode", DInt64(int64 response.statusCode))

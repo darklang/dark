@@ -25,10 +25,12 @@ module SR = LibCloud.QueueSchedulingRules
 
 module TCS = LibCloud.TraceCloudStorage
 
+let pmPT = LibCloud.PackageManager.pt
+
 let p (code : string) : Task<PT.Expr> =
   LibParser.Parser.parsePTExpr
-    localBuiltIns
-    packageManager
+    (localBuiltIns pmPT)
+    pmPT
     NR.OnMissing.ThrowError
     "Queue.Tests.fs"
     code

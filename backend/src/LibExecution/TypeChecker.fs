@@ -49,6 +49,10 @@ module Error =
   module RT2DT = RuntimeTypesToDarkTypes
 
   module Context =
+    let typeName =
+      FQTypeName.Package
+        PackageIDs.Type.LanguageTools.RuntimeError.TypeChecker.context
+
     let rec toDT (context : Context) : Dval =
       let (caseName, fields) =
         match context with
@@ -94,10 +98,13 @@ module Error =
         | FnValResult(returnType) ->
           "FnValResult", [ RT2DT.TypeReference.toDT returnType ]
 
-      let typeName = RuntimeError.name [ "TypeChecker" ] "Context"
       DEnum(typeName, typeName, [], caseName, fields)
 
   module ErrorType =
+    let typeName =
+      FQTypeName.Package
+        PackageIDs.Type.LanguageTools.RuntimeError.TypeChecker.errorType
+
     let toDT (et : ErrorType) : Dval =
       let (caseName, fields) =
         match et with
@@ -109,16 +116,15 @@ module Error =
         | TypeDoesntExist(typeName) ->
           "TypeDoesntExist", [ RT2DT.FQTypeName.toDT typeName ]
 
-      let typeName = RuntimeError.name [ "TypeChecker" ] "ErrorType"
-
       DEnum(typeName, typeName, [], caseName, fields)
+
+  let typeName =
+    FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeError.TypeChecker.error
 
   let toRuntimeError (e : Error) : RuntimeError =
     let fields =
       [ ("errorType", ErrorType.toDT e.errorType)
         ("context", Context.toDT e.context) ]
-
-    let typeName = RuntimeError.name [ "TypeChecker" ] "Error"
 
     DRecord(typeName, typeName, [], Map fields) |> RuntimeError.typeCheckerError
 

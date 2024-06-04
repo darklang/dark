@@ -4,53 +4,30 @@ module Darklang =
     /// where package items (types, constants, fns, etc) are maintained.
     ///
     /// Of note, this is the Dev-time PackageManager, not the Runtime PackageManager.
-    /// (more on this later CLEANUP)
     module PackageManager =
-      // TODO: This is not the most elegant or complete solution. Revisit.
-      let baseUrl () : String =
-        match Builtin.environmentGet "DARK_CONFIG_PACKAGE_MANAGER_BASE_URL" with
-        | Some baseUrl -> baseUrl
-        | None -> "https://packages.darklang.com"
-
       module Type =
-        // TODO: this type signature is totally wrong,
-        // yet we're not complaining in the runtime type-checker?
-        let existsByName (typeName: String) : Bool =
-          let typ =
-            Stdlib.HttpClient.request
-              "GET"
-              $"{baseUrl ()}/type/by-name/{typeName}"
-              []
-              []
+        let find (typeName: String) : Stdlib.Option.Option<Uuid> =
+          Builtin.packageManagerFindType typeName
 
-          match typ with
-          | Ok response -> response.statusCode == 200L
-          | Error _ -> false
+        let get
+          (id: Uuid)
+          : Stdlib.Option.Option<ProgramTypes.PackageType.PackageType> =
+          Builtin.packageManagerGetType id
 
 
       module Constant =
-        let existsByName (name: String) : Bool =
-          let c =
-            Stdlib.HttpClient.request
-              "GET"
-              $"{baseUrl ()}/constant/by-name/{name}"
-              []
-              []
+        let find (name: String) : Stdlib.Option.Option<Uuid> =
+          Builtin.packageManagerFindConstant name
 
-          match c with
-          | Ok response -> response.statusCode == 200L
-          | Error _ -> false
+        let get
+          (id: Uuid)
+          : Stdlib.Option.Option<ProgramTypes.PackageConstant.PackageConstant> =
+          Builtin.packageManagerGetConstant id
 
 
       module Function =
-        let existsByName (name: String) : Bool =
-          let fn =
-            Stdlib.HttpClient.request
-              "GET"
-              $"{baseUrl ()}/function/by-name/{name}"
-              []
-              []
+        let find (name: String) : Stdlib.Option.Option<Uuid> =
+          Builtin.packageManagerFindFn name
 
-          match fn with
-          | Ok response -> response.statusCode == 200L
-          | Error _ -> false
+        let get (id: Uuid) : Stdlib.Option.Option<ProgramTypes.PackageFn.PackageFn> =
+          Builtin.packageManagerGetFn id

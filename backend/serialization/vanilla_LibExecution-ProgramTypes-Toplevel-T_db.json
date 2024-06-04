@@ -91,13 +91,7 @@
                   "Ok": [
                     {
                       "Package": [
-                        {
-                          "owner": "owner",
-                          "modules": [
-                            "Mod"
-                          ],
-                          "name": "User"
-                        }
+                        "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
                       ]
                     }
                   ]
@@ -115,14 +109,7 @@
                   "Ok": [
                     {
                       "Package": [
-                        {
-                          "owner": "dark",
-                          "modules": [
-                            "Mod1",
-                            "Mod2"
-                          ],
-                          "name": "Pack"
-                        }
+                        "31d72f73-0f99-5a9b-949c-b95705ae7c4d"
                       ]
                     }
                   ]

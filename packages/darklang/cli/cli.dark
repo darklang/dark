@@ -8,6 +8,8 @@ module Darklang =
       | Uninstall
       | Invalid of List<String>
 
+    type ExecutionError = { msg: String; metadata: Dict<String> }
+
 
     let parseArguments (args: List<String>) : Command =
       // Extract "flags" value from last argument,

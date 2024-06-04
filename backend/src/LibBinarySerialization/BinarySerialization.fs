@@ -66,36 +66,39 @@ module Expr =
 
 
 module PackageType =
-  let serialize (pt : PT.PackageType.T) : byte[] =
+  let serialize (pt : PT.PackageType.PackageType) : byte[] =
     wrapSerializationException (string pt.id) (fun () ->
       let v = PT2ST.PackageType.toST pt
       MessagePack.MessagePackSerializer.Serialize(v, optionsWithoutZip))
 
-  let deserialize (uuid : System.Guid) (data : byte[]) : PT.PackageType.T =
+  let deserialize (uuid : System.Guid) (data : byte[]) : PT.PackageType.PackageType =
     wrapSerializationException (string uuid) (fun () ->
       MessagePack.MessagePackSerializer.Deserialize(data, optionsWithoutZip)
       |> PT2ST.PackageType.toPT)
 
 
 module PackageConstant =
-  let serialize (constant : PT.PackageConstant.T) : byte[] =
+  let serialize (constant : PT.PackageConstant.PackageConstant) : byte[] =
     wrapSerializationException (string constant.id) (fun () ->
       let v = PT2ST.PackageConstant.toST constant
       MessagePack.MessagePackSerializer.Serialize(v, optionsWithoutZip))
 
-  let deserialize (uuid : System.Guid) (data : byte[]) : PT.PackageConstant.T =
+  let deserialize
+    (uuid : System.Guid)
+    (data : byte[])
+    : PT.PackageConstant.PackageConstant =
     wrapSerializationException (string uuid) (fun () ->
       MessagePack.MessagePackSerializer.Deserialize(data, optionsWithoutZip)
       |> PT2ST.PackageConstant.toPT)
 
 
 module PackageFn =
-  let serialize (fn : PT.PackageFn.T) : byte[] =
+  let serialize (fn : PT.PackageFn.PackageFn) : byte[] =
     wrapSerializationException (string fn.id) (fun () ->
       let v = PT2ST.PackageFn.toST fn
       MessagePack.MessagePackSerializer.Serialize(v, optionsWithoutZip))
 
-  let deserialize (uuid : System.Guid) (data : byte[]) : PT.PackageFn.T =
+  let deserialize (uuid : System.Guid) (data : byte[]) : PT.PackageFn.PackageFn =
     wrapSerializationException (string uuid) (fun () ->
       MessagePack.MessagePackSerializer.Deserialize(data, optionsWithoutZip)
       |> PT2ST.PackageFn.toPT)

@@ -19,10 +19,10 @@ open ParserException
 type WTCanvasModule =
   { owner : string
     name : List<string>
-    types : List<WT.PackageType.T>
-    constants : List<WT.PackageConstant.T>
+    types : List<WT.PackageType.PackageType>
+    constants : List<WT.PackageConstant.PackageConstant>
     dbs : List<WT.DB.T>
-    fns : List<WT.PackageFn.T>
+    fns : List<WT.PackageFn.PackageFn>
     // TODO: consider breaking this down into httpHandlers, crons, workers, and repls
     handlers : List<WT.Handler.Spec * WT.Expr>
     exprs : List<WT.Expr> }
@@ -39,9 +39,9 @@ let emptyRootWTModule owner canvasName =
 
 type PTCanvasModule =
   { // These will end up in the package manager
-    types : List<PT.PackageType.T>
-    constants : List<PT.PackageConstant.T>
-    fns : List<PT.PackageFn.T>
+    types : List<PT.PackageType.PackageType>
+    constants : List<PT.PackageConstant.PackageConstant>
+    fns : List<PT.PackageFn.PackageFn>
 
     dbs : List<PT.DB.T>
     // TODO: consider breaking this down into httpHandlers, crons, workers, and repls
@@ -232,7 +232,7 @@ let parseDecls
 
 let toPT
   (builtins : RT.Builtins)
-  (pm : RT.PackageManager)
+  (pm : PT.PackageManager)
   (onMissing : NR.OnMissing)
   (m : WTCanvasModule)
   : Ply<PTCanvasModule> =
@@ -288,7 +288,7 @@ let parse
   (owner : string)
   (canvasName : string)
   (builtins : RT.Builtins)
-  (pm : RT.PackageManager)
+  (pm : PT.PackageManager)
   (onMissing : NR.OnMissing)
   (filename : string)
   (source : string)
@@ -319,12 +319,7 @@ let parse
     // Initial pass, so we can re-parse with all names in context
     let! result = toPT builtins pm onMissing moduleWT
 
-    let pm =
-      RT.PackageManager.withExtras
-        pm
-        (result.types |> List.map PT2RT.PackageType.toRT)
-        (result.constants |> List.map PT2RT.PackageConstant.toRT)
-        (result.fns |> List.map PT2RT.PackageFn.toRT)
+    let pm = PT.PackageManager.withExtras pm result.types result.constants result.fns
 
     // Now, parse again, but with the names in context (so fewer are marked as unresolved)
     let! result = toPT builtins pm onMissing moduleWT

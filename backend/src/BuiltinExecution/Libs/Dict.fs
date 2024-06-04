@@ -11,6 +11,7 @@ module TypeChecker = LibExecution.TypeChecker
 module VT = ValueType
 module Dval = LibExecution.Dval
 module Interpreter = LibExecution.Interpreter
+module PackageIDs = LibExecution.PackageIDs
 
 let varA = TVariable "a"
 let varB = TVariable "b"
@@ -333,20 +334,16 @@ let fns : List<BuiltInFn> =
                 let! result = Interpreter.applyFnVal state b [] args
 
                 match result with
-                | DEnum(FQTypeName.Package { owner = "Darklang"
-                                             modules = [ "Stdlib"; "Option" ]
-                                             name = "Option" },
-                        _,
-                        _typeArgsDEnumTODO,
-                        "Some",
-                        [ o ]) -> return Some o
-                | DEnum(FQTypeName.Package { owner = "Darklang"
-                                             modules = [ "Stdlib"; "Option" ]
-                                             name = "Option" },
-                        _,
-                        _typeArgsDEnumTODO,
-                        "None",
-                        []) -> return None
+                | DEnum(FQTypeName.Package id, _, _typeArgsDEnumTODO, "Some", [ o ]) when
+                  id = PackageIDs.Type.Stdlib.option
+                  ->
+                  return Some o
+
+                | DEnum(FQTypeName.Package id, _, _typeArgsDEnumTODO, "None", []) when
+                  id = PackageIDs.Type.Stdlib.option
+                  ->
+                  return None
+
                 | v ->
                   let expectedType = TypeReference.option varB
                   return!

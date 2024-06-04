@@ -15,15 +15,15 @@ module NR = NameResolver
 open Utils
 
 type WTPackageModule =
-  { fns : List<WT.PackageFn.T>
-    types : List<WT.PackageType.T>
-    constants : List<WT.PackageConstant.T> }
+  { fns : List<WT.PackageFn.PackageFn>
+    types : List<WT.PackageType.PackageType>
+    constants : List<WT.PackageConstant.PackageConstant> }
 let emptyWTModule = { fns = []; types = []; constants = [] }
 
 type PTPackageModule =
-  { fns : List<PT.PackageFn.T>
-    types : List<PT.PackageType.T>
-    constants : List<PT.PackageConstant.T> }
+  { fns : List<PT.PackageFn.PackageFn>
+    types : List<PT.PackageType.PackageType>
+    constants : List<PT.PackageConstant.PackageConstant> }
 let emptyPTModule = { fns = []; types = []; constants = [] }
 
 
@@ -31,7 +31,7 @@ let emptyPTModule = { fns = []; types = []; constants = [] }
 let parseLetBinding
   (modules : List<string>)
   (letBinding : SynBinding)
-  : List<WT.PackageFn.T> * List<WT.PackageConstant.T> =
+  : List<WT.PackageFn.PackageFn> * List<WT.PackageConstant.PackageConstant> =
   match modules with
   | owner :: modules ->
     if FS2WT.Function.hasArguments letBinding then
@@ -43,7 +43,10 @@ let parseLetBinding
       "Expected owner, and at least 1 other modules"
       [ "modules", modules; "binding", letBinding ]
 
-let parseTypeDef (modules : List<string>) (defn : SynTypeDefn) : WT.PackageType.T =
+let parseTypeDef
+  (modules : List<string>)
+  (defn : SynTypeDefn)
+  : WT.PackageType.PackageType =
   match modules with
   | owner :: modules -> FS2WT.PackageType.fromSynTypeDefn owner modules defn
   | _ ->
@@ -99,7 +102,7 @@ let rec parseDecls
 
 let parse
   (builtins : RT.Builtins)
-  (pm : RT.PackageManager)
+  (pm : PT.PackageManager)
   (onMissing : NR.OnMissing)
   (filename : string)
   (contents : string)
@@ -120,13 +123,13 @@ let parse
       let modul : WTPackageModule = parseDecls baseModule decls
 
 
-      let typeNameToModules (p : PT.FQTypeName.Package) : List<string> =
+      let typeNameToModules (p : WT.PackageType.Name) : List<string> =
         p.owner :: p.modules
 
-      let fnNameToModules (p : PT.FQFnName.Package) : List<string> =
+      let fnNameToModules (p : WT.PackageFn.Name) : List<string> =
         p.owner :: p.modules
 
-      let constantNameToModules (p : PT.FQConstantName.Package) : List<string> =
+      let constantNameToModules (p : WT.PackageConstant.Name) : List<string> =
         p.owner :: p.modules
 
       let! fns =

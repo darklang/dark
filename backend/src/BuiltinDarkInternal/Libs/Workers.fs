@@ -10,16 +10,10 @@ open LibExecution.Builtin.Shortcuts
 
 module Dval = LibExecution.Dval
 module DarkDateTime = LibExecution.DarkDateTime
+module PackageIDs = LibExecution.PackageIDs
 module SchedulingRules = LibCloud.QueueSchedulingRules
 module Pusher = LibCloud.Pusher
 module Queue = LibCloud.Queue
-
-let packageInternalType
-  (addlModules : List<string>)
-  (name : string)
-  : FQTypeName.FQTypeName =
-  FQTypeName.fqPackage "Darklang" ("Internal" :: addlModules) name
-
 
 let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
   (function
@@ -40,7 +34,8 @@ let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
   | _ -> incorrectArgs ())
 
 
-let schedulingRuleTypeName = packageInternalType [ "Worker" ] "SchedulingRule"
+let schedulingRuleTypeName =
+  FQTypeName.Package PackageIDs.Type.Internal.Worker.scheduleRule
 
 let schedulingRuleTypeRef = TCustomType(Ok schedulingRuleTypeName, [])
 

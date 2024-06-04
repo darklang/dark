@@ -32,7 +32,7 @@ let load (builtins : RT.Builtins) : Ply<PT.Packages> =
         //debuG "parsing" path
         LibParser.Parser.parsePackageFile
           builtins
-          RT.PackageManager.empty
+          PT.PackageManager.empty
           NR.OnMissing.Allow
           path
           contents)
@@ -40,14 +40,46 @@ let load (builtins : RT.Builtins) : Ply<PT.Packages> =
 
     // Re-parse the packages, though this time we don't allow unresolved names
     // (any package references that may have been unresolved a second ago should now be OK)
-    return!
+    let! reParsed =
       filesWithContents
       |> Ply.List.mapSequentially (fun (path, contents) ->
         LibParser.Parser.parsePackageFile
           builtins
-          (inMemPackageManagerFromPackages packages)
+          (inMemPackageManagerFromPackages packages) // should have the packages from the first pass, with some IDs... that should be used when parsing other things
           NR.OnMissing.ThrowError
           path
           contents)
       |> Ply.map PT.Packages.combine
+
+    // The IDs that weren't locked-in have changed - let's fix that now.
+    let adjusted : PT.Packages =
+      { types =
+          reParsed.types
+          |> List.map (fun typ ->
+            { typ with
+                id =
+                  packages.types
+                  |> List.find (fun original -> original.name = typ.name)
+                  |> Option.map _.id
+                  |> Option.defaultValue typ.id })
+        constants =
+          reParsed.constants
+          |> List.map (fun c ->
+            { c with
+                id =
+                  packages.constants
+                  |> List.find (fun original -> original.name = c.name)
+                  |> Option.map _.id
+                  |> Option.defaultValue c.id })
+        fns =
+          reParsed.fns
+          |> List.map (fun fn ->
+            { fn with
+                id =
+                  packages.fns
+                  |> List.find (fun original -> original.name = fn.name)
+                  |> Option.map _.id
+                  |> Option.defaultValue fn.id }) }
+
+    return adjusted
   }

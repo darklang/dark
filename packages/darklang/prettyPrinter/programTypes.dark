@@ -6,12 +6,22 @@
 
 module Darklang =
   module PrettyPrinter =
+    // CLEANUP split into a few files - easier to manage, at this point.
+    // i.e. common, typeReference, expr, declarations, packages, cliScript
     module ProgramTypes =
 
       let nameResolutionError
         (nr: LanguageTools.RuntimeErrors.NameResolution.Error)
         : String =
-        Stdlib.String.join nr.names "."
+        match nr.errorType with
+        | NotFound names -> Stdlib.String.join names "."
+        | InvalidPackageName names -> Stdlib.String.join names "."
+        | ExpectedEnumButNot ->
+          "Unexpected: stringification of NRE in RT Pretty-Printer for ExpectedEnumButNot"
+        | ExpectedRecordButNot ->
+          "Unexpected: stringification of NRE in RT Pretty-Printer for ExpectedRecordButNot"
+        | MissingEnumModuleName ->
+          "Unexpected: stringification of NRE in RT Pretty-Printer for MissingEnumModuleName"
 
 
       let packageName
@@ -30,20 +40,22 @@ module Darklang =
         | "Tests" -> $"{modulesPart}{name}"
         | _ -> $"PACKAGE.{owner}.{modulesPart}{name}"
 
-      module FQTypeName =
 
+      module FQTypeName =
         module Package =
           let atDefinition
-            // TODO: take in just owner and typ - modules should have already been dealt with
-            (p: LanguageTools.ProgramTypes.FQTypeName.Package)
+            (id: LanguageTools.ProgramTypes.FQTypeName.Package)
             : String =
-            p.name
+            match LanguageTools.PackageManager.Type.get id with
+            | Some p -> p.name.name
+            | None -> Stdlib.Uuid.toString p
 
           let fullForReference
-            (p: LanguageTools.ProgramTypes.FQTypeName.Package)
+            (id: LanguageTools.ProgramTypes.FQTypeName.Package)
             : String =
-            packageName p.owner p.modules p.name
-
+            match LanguageTools.PackageManager.Type.get id with
+            | Some p -> packageName p.name.owner p.name.modules p.name.name
+            | None -> Stdlib.Uuid.toString p
 
 
         let atDefinition
@@ -78,15 +90,18 @@ module Darklang =
 
         module Package =
           let atDefinition
-            // TODO: take in just owner and typ - modules should have already been dealt with
-            (p: LanguageTools.ProgramTypes.FQConstantName.Package)
+            (id: LanguageTools.ProgramTypes.FQConstantName.Package)
             : String =
-            p.name
+            match LanguageTools.PackageManager.Constant.get id with
+            | Some p -> p.name.name
+            | None -> Stdlib.Uuid.toString p
 
           let fullForReference
-            (p: LanguageTools.ProgramTypes.FQConstantName.Package)
+            (id: LanguageTools.ProgramTypes.FQConstantName.Package)
             : String =
-            packageName p.owner p.modules p.name
+            match LanguageTools.PackageManager.Constant.get id with
+            | Some p -> packageName p.name.owner p.name.modules p.name.name
+            | None -> Stdlib.Uuid.toString p
 
 
 
@@ -126,18 +141,19 @@ module Darklang =
 
 
         module Package =
-
           let atDefinition
-            // TODO: take in just owner and typ - modules should have already been dealt with
-            (p: LanguageTools.ProgramTypes.FQFnName.Package)
+            (id: LanguageTools.ProgramTypes.FQFnName.Package)
             : String =
-            p.name
-
+            match LanguageTools.PackageManager.Function.get id with
+            | Some p -> p.name.name
+            | None -> Stdlib.Uuid.toString p
 
           let fullForReference
-            (p: LanguageTools.ProgramTypes.FQFnName.Package)
+            (id: LanguageTools.ProgramTypes.FQFnName.Package)
             : String =
-            packageName p.owner p.modules p.name
+            match LanguageTools.PackageManager.Function.get id with
+            | Some p -> packageName p.name.owner p.name.modules p.name.name
+            | None -> Stdlib.Uuid.toString p
 
 
         let atDefinition (t: LanguageTools.ProgramTypes.FQFnName.FQFnName) : String =
@@ -570,7 +586,7 @@ module Darklang =
 
           $"let {patternPart} =\n{PrettyPrinter.indent rhsPart}\n{bodyPart}"
 
-        | EFieldAccess(id, expr, fieldName) ->
+        | EFieldAccess(_id, expr, fieldName) ->
           let exprPart = PrettyPrinter.ProgramTypes.expr expr
 
           // TODO: only sometimes need to wrap exprPart in parens
@@ -584,7 +600,7 @@ module Darklang =
 
         // control flow
 
-        | EIf(id, cond, thenBranch, elseBranch) ->
+        | EIf(_id, cond, thenBranch, elseBranch) ->
           let condPart = PrettyPrinter.ProgramTypes.expr cond
 
           let thenPart =
@@ -843,11 +859,10 @@ module Darklang =
       //   $"let {s.name}{versionPart} = \"*****\""
 
 
-      let packageType (p: LanguageTools.ProgramTypes.PackageType) : String =
+      let packageType
+        (p: LanguageTools.ProgramTypes.PackageType.PackageType)
+        : String =
         // TODO: take care of deprecated and description
-        let namePart =
-          PrettyPrinter.ProgramTypes.FQTypeName.Package.atDefinition p.name
-
         let typeParamPart =
           match p.declaration.typeParams with
           | [] -> ""
@@ -861,16 +876,14 @@ module Darklang =
           (PrettyPrinter.ProgramTypes.customType p.declaration)
           |> PrettyPrinter.indent
 
-        $"type {namePart}{typeParamPart} =\n{defPart}"
+        $"type {p.name.name}{typeParamPart} =\n{defPart}"
 
 
-      let packageConstant (p: LanguageTools.ProgramTypes.PackageConstant) : String =
-        let namePart =
-          PrettyPrinter.ProgramTypes.FQConstantName.Package.atDefinition p.name
-
+      let packageConstant
+        (p: LanguageTools.ProgramTypes.PackageConstant.PackageConstant)
+        : String =
         let bodyPart = PrettyPrinter.ProgramTypes.constant p.body
-
-        $"const {namePart} = {bodyPart}"
+        $"const {p.name.name} = {bodyPart}"
 
 
       module PackageFn =
@@ -880,9 +893,6 @@ module Darklang =
 
       let packageFn (p: LanguageTools.ProgramTypes.PackageFn.PackageFn) : String =
         // TODO: handle `deprecated`, `description`
-        let namePart =
-          PrettyPrinter.ProgramTypes.FQFnName.Package.atDefinition p.name
-
         let typeParamPart =
           match p.typeParams with
           | [] -> ""
@@ -902,4 +912,4 @@ module Darklang =
 
         let bodyPart = PrettyPrinter.ProgramTypes.expr p.body
 
-        $"let {namePart}{typeParamPart} {paramPart}: {retPart} =\n{PrettyPrinter.indent bodyPart}"
+        $"let {p.name.name}{typeParamPart} {paramPart}: {retPart} =\n{PrettyPrinter.indent bodyPart}"

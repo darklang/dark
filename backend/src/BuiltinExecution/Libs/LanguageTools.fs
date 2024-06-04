@@ -9,10 +9,7 @@ module Dval = LibExecution.Dval
 module Interpreter = LibExecution.Interpreter
 module TypeChecker = LibExecution.TypeChecker
 module DvalReprDeveloper = LibExecution.DvalReprDeveloper
-
-
-let typ (addlModules : List<string>) (name : string) : FQTypeName.FQTypeName =
-  FQTypeName.fqPackage "Darklang" ([ "LanguageTools" ] @ addlModules) name
+module PackageIDs = LibExecution.PackageIDs
 
 
 let typeNameToStr = DvalReprDeveloper.typeName
@@ -21,13 +18,20 @@ let fns : List<BuiltInFn> =
   [ { name = fn "languageToolsAllBuiltinConstants" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TList(TCustomType(Ok(typ [] "BuiltinConstant"), []))
+      returnType =
+        TList(
+          TCustomType(
+            Ok(FQTypeName.fqPackage PackageIDs.Type.LanguageTools.builtinConstant),
+            []
+          )
+        )
       description =
         "Returns a list of the Builtin constants (usually not to be accessed directly)."
       fn =
         (function
         | state, _, [ DUnit ] ->
-          let constTypeName = typ [] "BuiltinConstant"
+          let constTypeName =
+            FQTypeName.fqPackage PackageIDs.Type.LanguageTools.builtinConstant
 
           let consts =
             state.builtins.constants
@@ -50,14 +54,22 @@ let fns : List<BuiltInFn> =
     { name = fn "languageToolsAllBuiltinFns" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TList(TCustomType(Ok(typ [] "BuiltinFunction"), []))
+      returnType =
+        TList(
+          TCustomType(
+            Ok(FQTypeName.fqPackage PackageIDs.Type.LanguageTools.builtinFn),
+            []
+          )
+        )
       description =
         "Returns a list of the Builtin functions (usually not to be accessed directly)."
       fn =
         (function
         | state, _, [ DUnit ] ->
-          let fnParamTypeName = typ [] "BuiltinFunctionParameter"
-          let fnTypeName = typ [] "BuiltinFunction"
+          let fnParamTypeName =
+            FQTypeName.fqPackage PackageIDs.Type.LanguageTools.builtinFnParam
+          let fnTypeName =
+            FQTypeName.fqPackage PackageIDs.Type.LanguageTools.builtinFn
 
           let fns =
             state.builtins.fns

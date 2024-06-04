@@ -9,11 +9,9 @@ module PT = ProgramTypes
 
 module FQTypeName =
   module Package =
-    let toRT (p : PT.FQTypeName.Package) : RT.FQTypeName.Package =
-      { owner = p.owner; modules = p.modules; name = p.name }
+    let toRT (p : PT.FQTypeName.Package) : RT.FQTypeName.Package = p
 
-    let fromRT (p : RT.FQTypeName.Package) : PT.FQTypeName.Package =
-      { owner = p.owner; modules = p.modules; name = p.name }
+    let fromRT (p : RT.FQTypeName.Package) : PT.FQTypeName.Package = p
 
 
   let toRT (fqtn : PT.FQTypeName.FQTypeName) : RT.FQTypeName.FQTypeName =
@@ -34,11 +32,9 @@ module FQConstantName =
       { name = c.name; version = c.version }
 
   module Package =
-    let toRT (c : PT.FQConstantName.Package) : RT.FQConstantName.Package =
-      { owner = c.owner; modules = c.modules; name = c.name }
+    let toRT (c : PT.FQConstantName.Package) : RT.FQConstantName.Package = c
 
-    let fromRT (c : RT.FQConstantName.Package) : PT.FQConstantName.Package =
-      { owner = c.owner; modules = c.modules; name = c.name }
+    let fromRT (c : RT.FQConstantName.Package) : PT.FQConstantName.Package = c
 
 
   let toRT
@@ -58,11 +54,9 @@ module FQFnName =
       { name = s.name; version = s.version }
 
   module Package =
-    let toRT (p : PT.FQFnName.Package) : RT.FQFnName.Package =
-      { owner = p.owner; modules = p.modules; name = p.name }
+    let toRT (p : PT.FQFnName.Package) : RT.FQFnName.Package = p
 
-    let fromRT (p : RT.FQFnName.Package) : PT.FQFnName.Package =
-      { owner = p.owner; modules = p.modules; name = p.name }
+    let fromRT (p : RT.FQFnName.Package) : PT.FQFnName.Package = p
 
   let toRT (fqfn : PT.FQFnName.FQFnName) : RT.FQFnName.FQFnName =
     match fqfn with
@@ -423,25 +417,37 @@ module TypeDeclaration =
 // Package stuff
 // --
 module PackageType =
-  let toRT (t : PT.PackageType.T) : RT.PackageType.T =
+  module Name =
+    let toRT (n : PT.PackageType.Name) : RT.PackageType.Name =
+      { owner = n.owner; modules = n.modules; name = n.name }
+
+  let toRT (t : PT.PackageType.PackageType) : RT.PackageType.PackageType =
     { id = t.id
-      name = FQTypeName.Package.toRT t.name
+      name = Name.toRT t.name
       declaration = TypeDeclaration.toRT t.declaration }
 
 module PackageConstant =
-  let toRT (c : PT.PackageConstant.T) : RT.PackageConstant.T =
-    { id = c.id
-      name = FQConstantName.Package.toRT c.name
-      body = Const.toRT c.body }
+  module Name =
+    let toRT (n : PT.PackageConstant.Name) : RT.PackageConstant.Name =
+      { owner = n.owner; modules = n.modules; name = n.name }
+
+  let toRT
+    (c : PT.PackageConstant.PackageConstant)
+    : RT.PackageConstant.PackageConstant =
+    { id = c.id; name = Name.toRT c.name; body = Const.toRT c.body }
 
 module PackageFn =
+  module Name =
+    let toRT (n : PT.PackageFn.Name) : RT.PackageFn.Name =
+      { owner = n.owner; modules = n.modules; name = n.name }
+
   module Parameter =
     let toRT (p : PT.PackageFn.Parameter) : RT.PackageFn.Parameter =
       { name = p.name; typ = TypeReference.toRT p.typ }
 
-  let toRT (f : PT.PackageFn.T) : RT.PackageFn.T =
+  let toRT (f : PT.PackageFn.PackageFn) : RT.PackageFn.PackageFn =
     { id = f.id
-      name = f.name |> FQFnName.Package.toRT
+      name = Name.toRT f.name
       body = f.body |> Expr.toRT
       typeParams = f.typeParams
       parameters = f.parameters |> NEList.map Parameter.toRT
@@ -485,3 +491,14 @@ module DB =
 module Secret =
   let toRT (s : PT.Secret.T) : RT.Secret.T =
     { name = s.name; value = s.value; version = s.version }
+
+
+
+module PackageManager =
+  let toRT (pm : PT.PackageManager) : RT.PackageManager =
+    { getType = fun id -> pm.getType id |> Ply.map (Option.map PackageType.toRT)
+      getConstant =
+        fun id -> pm.getConstant id |> Ply.map (Option.map PackageConstant.toRT)
+      getFn = fun id -> pm.getFn id |> Ply.map (Option.map PackageFn.toRT)
+
+      init = pm.init }

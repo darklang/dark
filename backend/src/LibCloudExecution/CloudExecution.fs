@@ -14,18 +14,21 @@ module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module Exe = LibExecution.Execution
+module PackageIDs = LibExecution.PackageIDs
 
 open LibCloud
 
 
+let packageManagerRT = PackageManager.rt
+let packageManagerPT = PackageManager.pt
+
 let builtins : RT.Builtins =
   LibExecution.Builtin.combine
-    [ BuiltinExecution.Builtin.builtins HttpClient.configuration
+    [ BuiltinExecution.Builtin.builtins HttpClient.configuration packageManagerPT
       BuiltinCloudExecution.Builtin.builtins
       BuiltinDarkInternal.Builtin.builtins ]
     []
 
-let packageManager = PackageManager.packageManager
 
 let createState
   (traceID : AT.TraceID.T)
@@ -44,7 +47,6 @@ let createState
           match fnName with
           | RT.FQFnName.Package name -> $"Package fn {name}"
           | RT.FQFnName.Builtin name -> $"Builtin fn {name}"
-        | RT.ExecutionPoint.PackageFn fnId -> $"Package fn {fnId}"
 
       [ ("entrypoint", executionPoint callStack.entrypoint)
         ("lastCalled", (executionPoint (fst callStack.lastCalled)))
@@ -60,7 +62,7 @@ let createState
       LibService.Rollbar.sendException None metadata exn
 
     return
-      Exe.createState builtins packageManager tracing sendException notify program
+      Exe.createState builtins packageManagerRT tracing sendException notify program
   }
 
 type ExecutionReason =
@@ -106,8 +108,7 @@ let executeHandler
     let callStackString = Exe.callStackString state
 
     let error (msg : string) : RT.Dval =
-      let typeName =
-        RT.FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Http" ] "Response"
+      let typeName = RT.FQTypeName.fqPackage PackageIDs.Type.Stdlib.Http.response
 
       let fields =
         [ ("statusCode", RT.DInt64 500)
@@ -191,6 +192,6 @@ let reexecuteFunction
 /// Ensure library is ready to be called. Throws if it cannot initialize.
 let init () : Task<unit> =
   task {
-    do! packageManager.init
+    do! packageManagerRT.init
     return ()
   }

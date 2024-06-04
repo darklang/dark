@@ -11,6 +11,8 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = ValueType
 module Dval = LibExecution.Dval
+module PackageIDs = LibExecution.PackageIDs
+module IntRuntimeError = BuiltinExecution.IntRuntimeError
 
 
 module ParseError =
@@ -24,7 +26,7 @@ module ParseError =
       | BadFormat -> "BadFormat", []
       | OutOfRange -> "OutOfRange", []
 
-    let typeName = FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Int32" ] "ParseError"
+    let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.int32ParseError
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -44,13 +46,13 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DInt32 v; DInt32 m ] ->
           if m = 0 then
-            Int64.IntRuntimeError.Error.ZeroModulus
-            |> Int64.IntRuntimeError.RTE.toRuntimeError
+            IntRuntimeError.Error.ZeroModulus
+            |> IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.tracing.callStack
             |> Ply
           else if m < 0 then
-            Int64.IntRuntimeError.Error.NegativeModulus
-            |> Int64.IntRuntimeError.RTE.toRuntimeError
+            IntRuntimeError.Error.NegativeModulus
+            |> IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.tracing.callStack
             |> Ply
           else
@@ -85,8 +87,8 @@ let fns : List<BuiltInFn> =
             v % d |> DInt32 |> resultOk
            with e ->
              if d = 0 then
-               Int64.IntRuntimeError.Error.DivideByZeroError
-               |> Int64.IntRuntimeError.RTE.toRuntimeError
+               IntRuntimeError.Error.DivideByZeroError
+               |> IntRuntimeError.RTE.toRuntimeError
                |> raiseRTE state.tracing.callStack
                |> Ply
              else
@@ -155,15 +157,15 @@ let fns : List<BuiltInFn> =
         | state, _, [ DInt32 number; DInt32 exp ] ->
           (try
             if exp < 0 then
-              Int64.IntRuntimeError.Error.NegativeExponent
-              |> Int64.IntRuntimeError.RTE.toRuntimeError
+              IntRuntimeError.Error.NegativeExponent
+              |> IntRuntimeError.RTE.toRuntimeError
               |> raiseRTE state.tracing.callStack
               |> Ply
             else
               (bigint number) ** (int exp) |> int32 |> DInt32 |> Ply
            with :? System.OverflowException ->
-             Int64.IntRuntimeError.Error.OutOfRange
-             |> Int64.IntRuntimeError.RTE.toRuntimeError
+             IntRuntimeError.Error.OutOfRange
+             |> IntRuntimeError.RTE.toRuntimeError
              |> raiseRTE state.tracing.callStack
              |> Ply)
         | _ -> incorrectArgs ())
@@ -181,8 +183,8 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DInt32 a; DInt32 b ] ->
           if b = 0 then
-            Int64.IntRuntimeError.Error.DivideByZeroError
-            |> Int64.IntRuntimeError.RTE.toRuntimeError
+            IntRuntimeError.Error.DivideByZeroError
+            |> IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.tracing.callStack
             |> Ply
           else
@@ -317,14 +319,13 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType =
-        let errorType =
-          FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Int32" ] "ParseError"
+        let errorType = FQTypeName.fqPackage PackageIDs.Type.Stdlib.int32ParseError
 
         TypeReference.result TInt32 (TCustomType(Ok errorType, []))
       description = "Returns the <type Int32> value of a <type String>"
       fn =
         let resultOk = Dval.resultOk KTInt32 KTString
-        let typeName = RuntimeError.name [ "Int32" ] "ParseError"
+        let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.int32ParseError
         let resultError = Dval.resultError KTInt32 (KTCustomType(typeName, []))
         (function
         | _, _, [ DString s ] ->

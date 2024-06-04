@@ -10,9 +10,13 @@ let fnRenames =
   // eg: fn "Http" "respond" 0, fn "Http" "response" 0
   []
 
-let builtins (httpConfig : Libs.HttpClient.Configuration) : Builtins =
+let builtins
+  (httpConfig : Libs.HttpClient.Configuration)
+  (pm : LibExecution.ProgramTypes.PackageManager)
+  : Builtins =
   Builtin.combine
     [ Libs.NoModule.builtins
+
       Libs.Bool.builtins
 
       Libs.Int8.builtins
@@ -25,22 +29,26 @@ let builtins (httpConfig : Libs.HttpClient.Configuration) : Builtins =
       Libs.UInt64.builtins
       Libs.Int128.builtins
       Libs.UInt128.builtins
+
       Libs.Float.builtins
-      Libs.Char.builtins
-      Libs.String.builtins
-      Libs.Bytes.builtins
-      Libs.DateTime.builtins
-      Libs.Uuid.builtins
 
       Libs.Math.builtins
 
-      Libs.Dict.builtins
+      Libs.Bytes.builtins
+
+      Libs.Char.builtins
+      Libs.String.builtins
+
       Libs.List.builtins
+      Libs.Dict.builtins
+
+      Libs.DateTime.builtins
+      Libs.Uuid.builtins
+
+      Libs.Base64.builtins
 
       Libs.Json.builtins
       Libs.AltJson.builtins
-
-      Libs.Base64.builtins
 
       Libs.HttpClient.builtins httpConfig
 
@@ -48,5 +56,7 @@ let builtins (httpConfig : Libs.HttpClient.Configuration) : Builtins =
       Libs.Parser.builtins
 
       Libs.Crypto.builtins
-      Libs.X509.builtins ]
+      Libs.X509.builtins
+
+      Libs.Packages.builtins pm ]
     fnRenames

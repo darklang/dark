@@ -18,9 +18,9 @@ let initSerializers () =
   // These are serializers used in the tests that are not used in the main program
   Json.Vanilla.allow<Map<string, string>> "tests"
   Json.Vanilla.allow<LibExecution.AnalysisTypes.TraceData> "testTraceData"
-  Json.Vanilla.allow<PT.PackageType.T> "Canvas.loadJsonFromDisk"
-  Json.Vanilla.allow<PT.PackageConstant.T> "Canvas.loadJsonFromDisk"
-  Json.Vanilla.allow<PT.PackageFn.T> "Canvas.loadJsonFromDisk"
+  Json.Vanilla.allow<PT.PackageType.PackageType> "Canvas.loadJsonFromDisk"
+  Json.Vanilla.allow<PT.PackageConstant.PackageConstant> "Canvas.loadJsonFromDisk"
+  Json.Vanilla.allow<PT.PackageFn.PackageFn> "Canvas.loadJsonFromDisk"
 
 
 [<EntryPoint>]
@@ -43,7 +43,8 @@ let main (args : string array) : int =
         // TODO: bring back Tests.Queue.tests
         // TRACINGTODO
         // Tests.Execution.tests
-        Tests.Parser.tests
+        Tests.LibParser.tests
+        Tests.NewParser.tests
         Tests.HttpClient.tests
         Tests.LibExecution.tests.Force()
         Tests.Prelude.tests
