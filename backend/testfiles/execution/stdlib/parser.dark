@@ -298,12 +298,8 @@ module TextToTextRoundtripping =
     ("type MyType<'a, 'b> = (List<'a> * List<'b>)" |> roundtripCliScript) = "type MyType<'a, 'b> =\n  (List<'a> * List<'b>)"
     ("type Generic<'a> = { x: 'a }" |> roundtripCliScript) = "type Generic<'a> =\n  { x: 'a }"
 
-    // // Enum type TODO
-    // ("type Thing = | A | B of Int64 | C of String * Bool" |> roundtripCliScript) = "type Thing =\n  | A\n  | B of Int64\n  | C of String * Bool"
-
     // record type
     ("type Person = {name: String}" |> roundtripCliScript) = "type Person =\n  { name: String }"
-
     ("type Person = {name: String; age: Int64}" |> roundtripCliScript) = "type Person =\n  { name: String\n    age: Int64 }"
     ("type Person = {name: String; age: Int64; hasPet: Bool}" |> roundtripCliScript) = "type Person =\n  { name: String\n    age: Int64\n    hasPet: Bool }"
 
@@ -328,6 +324,8 @@ module TextToTextRoundtripping =
     ("type MyEnum =\n  | A of x: Int64 * y: Int64\n  | B of z: String"
      |> roundtripCliScript) = "type MyEnum =\n  | A of x: Int64 * y: Int64\n  | B of z: String"
 
+  // // Enum type TODO
+  // ("type Thing = | A | B of Int64 | C of String * Bool" |> roundtripCliScript) = "type Thing =\n  | A\n  | B of Int64\n  | C of String * Bool"
 
   module ConstantDeclaration =
     ("const unitConst = ()" |> roundtripCliScript) = "const unitConst = ()"

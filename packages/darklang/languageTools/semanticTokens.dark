@@ -146,8 +146,7 @@ module Darklang =
             | TDateTime r -> [ makeToken r TokenType.TypeName ]
             | TList(r, rk, ro, t, rc) ->
               Stdlib.List.flatten (
-                [ [ makeToken r TokenType.TypeName ]
-                  [ makeToken rk TokenType.Keyword ]
+                [ [ makeToken rk TokenType.Keyword ]
                   [ makeToken ro TokenType.Symbol ]
                   (TypeReference.tokenize t)
                   [ makeToken rc TokenType.Symbol ] ]
@@ -171,8 +170,9 @@ module Darklang =
                 // rest
                 (rest
                  |> Stdlib.List.map (fun (symbolAsterisk, typ) ->
-                   [ makeToken symbolAsterisk TokenType.Symbol ]
-                   TypeReference.tokenize typ)
+                   [ [ makeToken symbolAsterisk TokenType.Symbol ]
+                     TypeReference.tokenize typ ]
+                   |> Stdlib.List.flatten)
                  |> Stdlib.List.flatten)
                 // )
                 [ makeToken rc TokenType.Symbol ] ]
@@ -187,8 +187,10 @@ module Darklang =
                  |> Stdlib.List.flatten)
 
                 TypeReference.tokenize ret ]
+              |> Stdlib.List.flatten
 
             | TDB(_r, rk, ro, t, rc) ->
+              // CLEANUP: maybe use typeArgs here, instead of seperate <, t, and >
               [ [ makeToken rk TokenType.Keyword ]
                 [ makeToken ro TokenType.Symbol ]
                 (TypeReference.tokenize t)
@@ -235,7 +237,7 @@ module Darklang =
 
           | Enum cases ->
             cases
-            |> Stdlib.List.map (fun case ->
+            |> Stdlib.List.map (fun (pipeRange, case) ->
               let (enumCaseNameRange, _) = case.name
 
               let keywordOf =
@@ -248,26 +250,27 @@ module Darklang =
                 |> Stdlib.List.map (fun field ->
                   let label =
                     match field.label with
-                    | Some((range, _)) -> [ range ]
+                    | Some((range, _)) -> [ makeToken range TokenType.Property ]
                     | None -> []
 
                   let colon =
                     match field.symbolColon with
-                    | Some range -> [ range ]
+                    | Some range -> [ makeToken range TokenType.Symbol ]
                     | None -> []
 
-                  Stdlib.List.append label colon)
+                  [ label; colon ] |> Stdlib.List.flatten)
                 |> Stdlib.List.flatten
-                |> Stdlib.List.map (fun range -> makeToken range TokenType.Property)
 
-              let typeRange =
+              let fields =
                 case.fields
                 |> Stdlib.List.map (fun field -> TypeReference.tokenize field.typ)
+                |> Stdlib.List.flatten
 
-              [ [ makeToken enumCaseNameRange TokenType.EnumMember ]
+              [ [ makeToken pipeRange TokenType.Symbol ]
+                [ makeToken enumCaseNameRange TokenType.EnumMember ]
                 keywordOf
                 labelTokens
-                typeRange |> Stdlib.List.flatten ]
+                fields ]
               |> Stdlib.List.flatten)
             |> Stdlib.List.flatten
 
@@ -290,6 +293,84 @@ module Darklang =
             // UInt64
             tokenizeDefinition t.definition ]
           |> Stdlib.List.flatten
+
+
+      module FnDeclaration =
+        module UnitParameter =
+          // `()`
+          let tokenize
+            (p: WrittenTypes.FnDeclaration.UnitParameter)
+            : List<SemanticToken> =
+            [ makeToken p.range TokenType.Symbol ]
+
+        // `(a: Int64)`
+        module NormalParameter =
+          let tokenize
+            (p: WrittenTypes.FnDeclaration.NormalParameter)
+            : List<SemanticToken> =
+            [ // `(`
+              [ makeToken p.symbolLeftParen TokenType.Symbol ]
+              // `a`
+              [ makeToken p.name.range TokenType.ParameterName ]
+              // `:`
+              [ makeToken p.symbolColon TokenType.Symbol ]
+              // `Int64`
+              TypeReference.tokenize p.typ
+              // `)`
+              [ makeToken p.symbolRightParen TokenType.Symbol ] ]
+            |> Stdlib.List.flatten
+
+        module Parameter =
+          let tokenize
+            (p: WrittenTypes.FnDeclaration.Parameter)
+            : List<SemanticToken> =
+            match p with
+            | Unit u -> UnitParameter.tokenize u
+            | Normal n -> NormalParameter.tokenize n
+
+
+        // `let add (a: Int64) (b: Int64): Int64 = a + b`
+        let tokenize
+          (fn: WrittenTypes.FnDeclaration.FnDeclaration)
+          : List<SemanticToken> =
+          [ // `let`
+            [ makeToken fn.keywordLet TokenType.Keyword ]
+            // `add`
+            FnIdentifier.tokenize fn.name
+            // type parameters
+            (fn.typeParams
+             |> Stdlib.List.map (fun (r, typeParam) ->
+               [ makeToken r TokenType.TypeParameter ])
+             |> Stdlib.List.flatten)
+            // `(a: Int64) (b: Int64)`
+            (fn.parameters
+             |> Stdlib.List.map (fun p -> Parameter.tokenize p)
+             |> Stdlib.List.flatten)
+            // `:`
+            [ makeToken fn.symbolColon TokenType.Symbol ]
+            // `Int64`
+            TypeReference.tokenize fn.returnType
+            // `=`
+            [ makeToken fn.symbolEquals TokenType.Symbol ]
+            // `a + b`
+            Expr.tokenize fn.body ]
+          |> Stdlib.List.flatten
+
+
+      module ConstantDeclaration =
+        let tokenize
+          (c: WrittenTypes.ConstantDeclaration.ConstantDeclaration)
+          : List<SemanticToken> =
+          [ // const
+            [ makeToken c.keywordConst TokenType.Keyword ]
+            // a
+            ConstantIdentifier.tokenize c.name
+            // =
+            [ makeToken c.symbolEquals TokenType.Symbol ]
+            // 1
+            Const.tokenize c.body ]
+          |> Stdlib.List.flatten
+
 
       module MatchPattern =
         let tokenize (p: WrittenTypes.MatchPattern) : List<SemanticToken> =
@@ -328,21 +409,37 @@ module Darklang =
               makeToken suffixPartRange TokenType.Symbol ]
           | MPFloat(range, _sign, _whole, _fraction) ->
             [ makeToken range TokenType.Number ]
-          | MPString(range, _contentsMaybe, symbolOpenQuote, symbolCloseQuote) ->
+          | MPBool(range, _b) -> [ makeToken range TokenType.Keyword ]
+          | MPString(_range, contentsMaybe, symbolOpenQuote, symbolCloseQuote) ->
+            let contents =
+              match contentsMaybe with
+              | Some content ->
+                let (range, _) = content
+                [ makeToken range TokenType.String ]
+              | None -> []
+
             [ // "
               [ makeToken symbolOpenQuote TokenType.Symbol ]
               // hello
-              [ makeToken range TokenType.String ]
+              contents
               // "
               [ makeToken symbolCloseQuote TokenType.Symbol ] ]
             |> Stdlib.List.flatten
-          | MPChar(range, _contentsMaybe, symbolOpenQuote, symbolCloseQuote) ->
+          | MPChar(range, contentsMaybe, symbolOpenQuote, symbolCloseQuote) ->
+            let contents =
+              match contentsMaybe with
+              | Some content ->
+                let (range, _) = content
+                [ makeToken range TokenType.String ]
+              | None -> []
+
             [ // '
               [ makeToken symbolOpenQuote TokenType.Symbol ]
               // a
-              [ makeToken range TokenType.String ]
+              contents
               // '
               [ makeToken symbolCloseQuote TokenType.Symbol ] ]
+            |> Stdlib.List.flatten
 
           | MPList(range, contentsMaybe, symbolLeftBracket, symbolRightBracket) ->
             let contents =
@@ -367,7 +464,7 @@ module Darklang =
               tokenize tail ]
             |> Stdlib.List.flatten
 
-          | MPTuple(range,
+          | MPTuple(_range,
                     first,
                     symbolComma,
                     second,
@@ -376,7 +473,9 @@ module Darklang =
                     symbolCloseParen) ->
             let rest =
               rest
-              |> Stdlib.List.map (fun (_, pat) -> tokenize pat)
+              |> Stdlib.List.map (fun (r, pat) ->
+                [ [ makeToken r TokenType.Symbol ]; tokenize pat ]
+                |> Stdlib.List.flatten)
               |> Stdlib.List.flatten
 
             [ // (
@@ -426,7 +525,9 @@ module Darklang =
                       symbolCloseParen) ->
               let rest =
                 rest
-                |> Stdlib.List.map (fun (_, pat) -> LetPattern.tokenize pat)
+                |> Stdlib.List.map (fun (r, pat) ->
+                  [ [ makeToken r TokenType.Symbol ]; LetPattern.tokenize pat ]
+                  |> Stdlib.List.flatten)
                 |> Stdlib.List.flatten
 
               [ // (
@@ -467,6 +568,7 @@ module Darklang =
               |> Stdlib.List.flatten
 
             | EPipeEnum(_, typeName, caseName, fields, symbolDot) ->
+              // CLEANUP: typeName should be tokenized as a QualifiedTypeIdentifier
               let typeName =
                 match typeName with
                 | (range, _) -> [ makeToken range TokenType.TypeName ]
@@ -493,6 +595,7 @@ module Darklang =
               |> Stdlib.List.flatten
 
             | EPipeFnCall(_, fnName, typeArgs, args) ->
+              // CLEANUP: fnName should be tokenized as a QualifiedFnIdentifier
               let fnName =
                 match fnName with
                 | Unresolved(range, _) -> [ makeToken range TokenType.FunctionName ]
@@ -575,24 +678,38 @@ module Darklang =
             [ makeToken range TokenType.Number ]
 
           // "hello"
-          | EString(range, _contentsMaybe, symbolOpenQuote, symbolCloseQuote) ->
+          | EString(_range, contentsMaybe, symbolOpenQuote, symbolCloseQuote) ->
+            let contents =
+              match contentsMaybe with
+              | Some content ->
+                let (range, _) = content
+                [ makeToken range TokenType.String ]
+              | None -> []
+
             [ // "
               [ makeToken symbolOpenQuote TokenType.Symbol ]
 
               // hello
-              [ makeToken range TokenType.String ]
+              contents
 
               // "
               [ makeToken symbolCloseQuote TokenType.Symbol ] ]
             |> Stdlib.List.flatten
 
           // 'a'
-          | EChar(range, _contentsMaybe, symbolOpenQuote, symbolCloseQuote) ->
+          | EChar(_range, contentsMaybe, symbolOpenQuote, symbolCloseQuote) ->
+            let contents =
+              match contentsMaybe with
+              | Some content ->
+                let (range, _) = content
+                [ makeToken range TokenType.String ]
+              | None -> []
+
             [ // '
               [ makeToken symbolOpenQuote TokenType.Symbol ]
 
               // a
-              [ makeToken range TokenType.String ]
+              contents
 
               // '
               [ makeToken symbolCloseQuote TokenType.Symbol ] ]
@@ -612,14 +729,21 @@ module Darklang =
               [ makeToken symbolRightBracket TokenType.Symbol ] ]
             |> Stdlib.List.flatten
 
-          | EDict(range,
+          | EDict(_range,
                   contentsMaybe,
                   keywordDict,
                   symbolOpenBrace,
                   symbolCloseBrace) ->
             let contents =
               contentsMaybe
-              |> Stdlib.List.map (fun (_, key, value) -> Expr.tokenize value)
+              |> Stdlib.List.map (fun (_, key, value) ->
+                let (r, _) = key
+
+                [ // key
+                  [ makeToken r TokenType.String ]
+                  // value
+                  Expr.tokenize value ]
+                |> Stdlib.List.flatten)
               |> Stdlib.List.flatten
 
             [ // Dict
@@ -642,7 +766,9 @@ module Darklang =
                    symbolCloseParen) ->
             let rest =
               rest
-              |> Stdlib.List.map (fun (_, expr) -> Expr.tokenize expr)
+              |> Stdlib.List.map (fun (r, expr) ->
+                [ [ makeToken r TokenType.Symbol ]; Expr.tokenize expr ]
+                |> Stdlib.List.flatten)
               |> Stdlib.List.flatten
 
             [ // (
@@ -678,7 +804,8 @@ module Darklang =
                   // =
                   [ makeToken symbol.range TokenType.Symbol ]
                   // "Alice"
-                  Expr.tokenize value ])
+                  Expr.tokenize value ]
+                |> Stdlib.List.flatten)
               |> Stdlib.List.flatten
 
             [ // Person
@@ -686,7 +813,7 @@ module Darklang =
               // {
               [ makeToken symbolOpenBrace TokenType.Symbol ]
               // name = "Alice"
-              fields |> Stdlib.List.flatten
+              fields
               // }
               [ makeToken symbolCloseBrace TokenType.Symbol ] ]
             |> Stdlib.List.flatten
@@ -852,7 +979,7 @@ module Darklang =
               pipeExprs
               |> Stdlib.List.map (fun (pipeSym, pipeExpr) ->
                 [ // |>
-                  [ makeToken pipeSym TokenType.Symbol ]
+                  [ makeToken pipeSym TokenType.Operator ]
                   // fn
                   Expr.PipeExpr.tokenize pipeExpr ])
               |> Stdlib.List.flatten
@@ -878,7 +1005,7 @@ module Darklang =
           // fun a -> a + 1
           | ELambda(_range, pats, body, keywordFun, symbolArrow) ->
             [ // fun
-              [ makeToken keywordFun.range TokenType.Keyword ]
+              [ makeToken keywordFun TokenType.Keyword ]
               // a
               (pats
                |> Stdlib.List.map (fun pat -> LetPattern.tokenize pat)
@@ -893,11 +1020,9 @@ module Darklang =
           // Int64.add (1L) (2L)
           | EFnName(_range, fnName) -> QualifiedFnIdentifier.tokenize fnName
 
+          // CLEANUP: consider removing typeArgs from EApply, as it should be handled by QualifiedFnIdentifier
           | EApply(_range, lhs, typeArgs, args) ->
             [ Expr.tokenize lhs
-              (typeArgs
-               |> Stdlib.List.map (fun typeArg -> TypeReference.tokenize typeArg)
-               |> Stdlib.List.flatten)
               (args
                |> Stdlib.List.map (fun arg -> Expr.tokenize arg)
                |> Stdlib.List.flatten) ]
@@ -951,20 +1076,34 @@ module Darklang =
           | CFloat(range, _sign, _whole, _fraction) ->
             [ makeToken range TokenType.Number ]
 
-          | CString(range, _contentsMaybe, symbolOpenQuote, symbolCloseQuote) ->
+          | CString(_range, contentsMaybe, symbolOpenQuote, symbolCloseQuote) ->
+            let contents =
+              match contentsMaybe with
+              | Some content ->
+                let (range, _) = content
+                [ makeToken range TokenType.String ]
+              | None -> []
+
             [ // "
               [ makeToken symbolOpenQuote TokenType.Symbol ]
               // hello
-              [ makeToken range TokenType.String ]
+              contents
               // "
               [ makeToken symbolCloseQuote TokenType.Symbol ] ]
             |> Stdlib.List.flatten
 
-          | CChar(range, _contentsMaybe, symbolOpenQuote, symbolCloseQuote) ->
+          | CChar(_range, contentsMaybe, symbolOpenQuote, symbolCloseQuote) ->
+            let contents =
+              match contentsMaybe with
+              | Some content ->
+                let (range, _) = content
+                [ makeToken range TokenType.String ]
+              | None -> []
+
             [ // '
               [ makeToken symbolOpenQuote TokenType.Symbol ]
               // a
-              [ makeToken range TokenType.String ]
+              contents
               // '
               [ makeToken symbolCloseQuote TokenType.Symbol ] ]
             |> Stdlib.List.flatten
@@ -992,7 +1131,9 @@ module Darklang =
                    symbolCloseParen) ->
             let rest =
               rest
-              |> Stdlib.List.map (fun (_, constant) -> tokenize constant)
+              |> Stdlib.List.map (fun (r, constant) ->
+                [ [ makeToken r TokenType.Symbol ]; tokenize constant ]
+                |> Stdlib.List.flatten)
               |> Stdlib.List.flatten
 
             [ // (
@@ -1016,7 +1157,14 @@ module Darklang =
                   symbolCloseBrace) ->
             let contents =
               contentsMaybe
-              |> Stdlib.List.map (fun (_, key, value) -> tokenize value)
+              |> Stdlib.List.map (fun (_, key, value) ->
+                let (r, _) = key
+
+                [ // key
+                  [ makeToken r TokenType.String ]
+                  // value
+                  tokenize value ]
+                |> Stdlib.List.flatten)
               |> Stdlib.List.flatten
 
             [ // Dict
@@ -1054,81 +1202,6 @@ module Darklang =
               // 1L
               fields ]
             |> Stdlib.List.flatten
-
-      module ConstantDeclaration =
-        let tokenize
-          (c: WrittenTypes.ConstantDeclaration.ConstantDeclaration)
-          : List<SemanticToken> =
-          [ // const
-            [ makeToken c.keywordConst TokenType.Keyword ]
-            // a
-            ConstantIdentifier.tokenize c.name
-            // =
-            [ makeToken c.symbolEquals TokenType.Operator ]
-            // 1
-            Const.tokenize c.body ]
-          |> Stdlib.List.flatten
-
-      module FnDeclaration =
-        module UnitParameter =
-          // `()`
-          let tokenize
-            (p: WrittenTypes.FnDeclaration.UnitParameter)
-            : List<SemanticToken> =
-            [ makeToken p.range TokenType.Symbol ]
-
-        // `(a: Int64)`
-        module NormalParameter =
-          let tokenize
-            (p: WrittenTypes.FnDeclaration.NormalParameter)
-            : List<SemanticToken> =
-            [ // `(`
-              [ makeToken p.symbolLeftParen TokenType.Symbol ]
-              // `a`
-              [ makeToken p.name.range TokenType.ParameterName ]
-              // `:`
-              [ makeToken p.symbolColon TokenType.Symbol ]
-              // `Int64`
-              TypeReference.tokenize p.typ
-              // `)`
-              [ makeToken p.symbolRightParen TokenType.Symbol ] ]
-            |> Stdlib.List.flatten
-
-        module Parameter =
-          let tokenize
-            (p: WrittenTypes.FnDeclaration.Parameter)
-            : List<SemanticToken> =
-            match p with
-            | Unit u -> UnitParameter.tokenize u
-            | Normal n -> NormalParameter.tokenize n
-
-
-        // `let add (a: Int64) (b: Int64): Int64 = a + b`
-        let tokenize
-          (fn: WrittenTypes.FnDeclaration.FnDeclaration)
-          : List<SemanticToken> =
-          [ // `let`
-            [ makeToken fn.keywordLet TokenType.Keyword ]
-            // `add`
-            FnIdentifier.tokenize fn.name
-            // type parameters
-            (t.typeParams
-             |> Stdlib.List.map (fun (r, typeParam) ->
-               [ makeToken r TokenType.TypeParameter ])
-             |> Stdlib.List.flatten)
-            // `(a: Int64) (b: Int64)`
-            (fn.parameters
-             |> Stdlib.List.map (fun p -> Parameter.tokenize p)
-             |> Stdlib.List.flatten)
-            // `:`
-            [ makeToken fn.symbolColon TokenType.Symbol ]
-            // `Int64`
-            TypeReference.tokenize fn.returnType
-            // `=`
-            [ makeToken fn.symbolEquals TokenType.Operator ]
-            // `a + b`
-            Expr.tokenize fn.body ]
-          |> Stdlib.List.flatten
 
 
       module ParsedFile =

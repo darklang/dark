@@ -113,6 +113,7 @@ module Darklang =
                     caseNode.typ != "indent" && caseNode.typ != "dedent")
 
                   |> Stdlib.List.map (fun caseNode ->
+                    let symbolPipeNode = findField caseNode "symbol_pipe"
                     let caseNameNode = findField caseNode "case_name"
 
                     let keywordOf =
@@ -129,14 +130,15 @@ module Darklang =
                         | None -> createUnparseableError field)
                       |> Stdlib.Result.collect
 
-                    match caseNameNode, fields with
-                    | Ok caseNameNode, Ok fields ->
-                      (WrittenTypes.TypeDeclaration.EnumCase
-                        { range = caseNode.range
-                          name = (caseNameNode.range, caseNameNode.text)
-                          fields = fields
-                          description = ""
-                          keywordOf = keywordOf })
+                    match symbolPipeNode, caseNameNode, fields with
+                    | Ok symbolPipe, Ok caseNameNode, Ok fields ->
+                      (symbolPipe.range,
+                       (WrittenTypes.TypeDeclaration.EnumCase
+                         { range = caseNode.range
+                           name = (caseNameNode.range, caseNameNode.text)
+                           fields = fields
+                           description = ""
+                           keywordOf = keywordOf }))
                       |> Stdlib.Result.Result.Ok
                     | Error _ -> createUnparseableError caseNode)
 
