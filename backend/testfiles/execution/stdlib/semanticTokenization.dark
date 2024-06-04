@@ -660,10 +660,12 @@ module TokenizeExpression =
 
   ("Dict { a = 1L; b = 2L }" |> tokenize) = [ (TokenType.Keyword, (0L, 0L), (0L, 4L))
                                               (TokenType.Symbol, (0L, 5L), (0L, 6L))
-                                              (TokenType.String, (0L, 7L), (0L, 8L))
+                                              (TokenType.Property, (0L, 7L), (0L, 8L))
                                               (TokenType.Number, (0L, 11L), (0L, 12L))
                                               (TokenType.Symbol, (0L, 12L), (0L, 13L))
-                                              (TokenType.String, (0L, 15L), (0L, 16L))
+                                              (TokenType.Property,
+                                               (0L, 15L),
+                                               (0L, 16L))
                                               (TokenType.Number, (0L, 19L), (0L, 20L))
                                               (TokenType.Symbol, (0L, 20L), (0L, 21L))
                                               (TokenType.Symbol, (0L, 22L), (0L, 23L)) ]
@@ -1440,7 +1442,7 @@ module TokenizeConstantDeclaration =
                                                                 (TokenType.Symbol,
                                                                  (0L, 23L),
                                                                  (0L, 24L))
-                                                                (TokenType.String,
+                                                                (TokenType.Property,
                                                                  (0L, 25L),
                                                                  (0L, 26L))
                                                                 (TokenType.Number,
@@ -1449,7 +1451,7 @@ module TokenizeConstantDeclaration =
                                                                 (TokenType.Symbol,
                                                                  (0L, 30L),
                                                                  (0L, 31L))
-                                                                (TokenType.String,
+                                                                (TokenType.Property,
                                                                  (0L, 33L),
                                                                  (0L, 34L))
                                                                 (TokenType.Number,

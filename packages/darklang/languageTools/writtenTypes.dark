@@ -487,7 +487,7 @@ module Darklang =
 
       type CliScript =
         { range: Range
-          typesAndFnsAndConsts: List<CliScriptTypeOrFnOrConst>
+          declarations: List<CliScriptTypeOrFnOrConst>
           unparseableStuff: List<Unparseable>
           exprsToEval: List<Expr> }
 
