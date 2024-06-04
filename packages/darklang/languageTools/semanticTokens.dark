@@ -740,7 +740,7 @@ module Darklang =
                 let (r, _) = key
 
                 [ // key
-                  [ makeToken r TokenType.String ]
+                  [ makeToken r TokenType.Property ]
                   // value
                   Expr.tokenize value ]
                 |> Stdlib.List.flatten)
@@ -1161,7 +1161,7 @@ module Darklang =
                 let (r, _) = key
 
                 [ // key
-                  [ makeToken r TokenType.String ]
+                  [ makeToken r TokenType.Property ]
                   // value
                   tokenize value ]
                 |> Stdlib.List.flatten)
@@ -1208,8 +1208,8 @@ module Darklang =
         let tokenize (wt: WrittenTypes.ParsedFile) : List<SemanticToken> =
           match wt with
           | CliScript cliScript ->
-            let typesAndFnsAndConstsPart =
-              cliScript.typesAndFnsAndConsts
+            let declarationsPart =
+              cliScript.declarations
               |> Stdlib.List.map (fun typeOrFn ->
                 match typeOrFn with
                 | Type t -> TypeDeclaration.tokenize t
@@ -1222,4 +1222,4 @@ module Darklang =
               |> Stdlib.List.map (fun expr -> Expr.tokenize expr)
               |> Stdlib.List.flatten
 
-            Stdlib.List.flatten [ typesAndFnsAndConstsPart; exprsPart ]
+            Stdlib.List.flatten [ declarationsPart; exprsPart ]

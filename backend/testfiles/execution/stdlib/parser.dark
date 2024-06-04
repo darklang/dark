@@ -111,7 +111,7 @@ module ParseNodeToWrittenTypes =
     .CliScript(
       PACKAGE.Darklang.LanguageTools.WrittenTypes.CliScript
         { range = range (0L, 0L) (0L, 17L)
-          typesAndFnsAndConsts =
+          declarations =
             [ PACKAGE
                 .Darklang
                 .LanguageTools
@@ -170,8 +170,8 @@ module TextToTextRoundtripping =
       match parsedFile with
       | CliScript script -> script
 
-    let typesAndFnsAndConstsPart = // List<String>
-      (Stdlib.List.fold script.typesAndFnsAndConsts [] (fun acc typeOrFn ->
+    let declarationsPart = // List<String>
+      (Stdlib.List.fold script.declarations [] (fun acc typeOrFn ->
         match typeOrFn with
         | Type typeDecl ->
           let prettyPrinted =
@@ -219,7 +219,7 @@ module TextToTextRoundtripping =
         acc |> Stdlib.List.push prettyPrinted))
       |> Stdlib.List.reverse
 
-    [ typesAndFnsAndConstsPart; exprsPart ]
+    [ declarationsPart; exprsPart ]
     |> Stdlib.List.flatten
     |> Stdlib.String.join "\n\n"
 
