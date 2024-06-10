@@ -701,7 +701,10 @@ module Darklang =
             submodule.declarations
             |> Stdlib.List.filterMap (fun d ->
               match d with
-              | Expr e -> Stdlib.Option.Option.Some(Expr.toPT onMissing e)
+              | Expr e ->
+                let expr = Expr.toPT onMissing e
+                let modules = Stdlib.List.push modules owner
+                Stdlib.Option.Option.Some((expr, modules))
               | _ -> Stdlib.Option.Option.None)
 
           let submodules =
@@ -778,7 +781,9 @@ module Darklang =
             d.declarations
             |> Stdlib.List.filterMap (fun d ->
               match d with
-              | Expr e -> Stdlib.Option.Option.Some(Expr.toPT onMissing e)
+              | Expr e ->
+                let expr = Expr.toPT onMissing e
+                Stdlib.Option.Option.Some((expr, [ owner ]))
               | _ -> Stdlib.Option.Option.None)
 
           ProgramTypes.Definitions

@@ -408,7 +408,7 @@ module Darklang =
           constants: List<PackageConstant>
           fns: List<PackageFn.PackageFn>
           // TODO db and handlers
-          exprs: List<Expr> } // might need list of modules here List<Expr * List<String>>
+          exprs: List<Expr * List<String>> }
 
       // User/Canvas space
       type DB =
