@@ -404,8 +404,8 @@ module Darklang =
           fns: List<PackageFn.PackageFn> }
 
       type Definitions =
-        { types: List<PackageType>
-          constants: List<PackageConstant>
+        { types: List<PackageType.PackageType>
+          constants: List<PackageConstant.PackageConstant>
           fns: List<PackageFn.PackageFn>
           // TODO db and handlers
           exprs: List<Expr * List<String>> }
@@ -457,6 +457,7 @@ module Darklang =
           | Type of PackageType.PackageType
           | Constant of PackageConstant.PackageConstant
           | Function of PackageFn.PackageFn
+          | Module of Definitions
 
         type CliScript =
           { declarations: List<Declaration>

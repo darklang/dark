@@ -55,7 +55,8 @@ module Darklang =
             match ModuleDeclaration.parse decl with
             | Error e -> updateUnparseableStuff result e
             | Ok parsedModuleDecl ->
-              let newModule = WrittenTypes.Declarations.Module parsedModuleDecl
+              let newModule =
+                WrittenTypes.CliScriptDeclaration.Module parsedModuleDecl
 
               { result with
                   declarations = Stdlib.List.pushBack result.declarations newModule }

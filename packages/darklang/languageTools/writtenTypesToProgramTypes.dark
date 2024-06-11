@@ -895,6 +895,11 @@ module Darklang =
                       "Tests"
                       []
                       f
+                  )
+
+                | Module m ->
+                  ProgramTypes.CliScript.Declaration.Module(
+                    ModuleDeclaration.toPT NameResolver.OnMissing.Allow m
                   ))
 
             exprsToEval =
