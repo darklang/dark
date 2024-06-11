@@ -50,7 +50,6 @@ let queryableRoundtripsSuccessfullyInRecord
             if id = typeID then
               let packageType : RT.PackageType.PackageType =
                 { id = typeID
-                  name = { owner = "Tests"; modules = []; name = "MyType" }
                   declaration = S.customTypeRecord [ "field", fieldTyp ] }
               packageType |> Some |> Ply
             else
