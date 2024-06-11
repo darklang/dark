@@ -73,7 +73,7 @@ module Test =
 
 
 ==================
-module decl - with newlines // TODO: fix this
+module decl - with newlines
 ==================
 module Test =
   const x = 1L
@@ -94,30 +94,34 @@ module Test =
         (consts (int64_literal (digits (positive_digits)) (symbol)))
       )
     )
-    (dedent)
-    )
-  (type_decl
-    (keyword) (type_identifier)  (symbol)
-    (type_decl_def
-      (type_decl_def_record
-        (symbol)
-        (type_decl_def_record_fields
-          (type_decl_def_record_field (variable_identifier) (symbol) (type_reference (builtin_type)))
+    (module_content
+      (type_decl
+        (keyword) (type_identifier)  (symbol)
+        (type_decl_def
+          (type_decl_def_record
+            (symbol)
+            (type_decl_def_record_fields
+              (type_decl_def_record_field (variable_identifier) (symbol) (type_reference (builtin_type)))
+            )
+            (symbol)
+          )
         )
-        (symbol)
       )
     )
-  )
-  (fn_decl
-    (keyword)
-    (fn_identifier)
-    (fn_decl_params
-      (fn_decl_param (symbol) (variable_identifier) (symbol)  (type_reference (builtin_type)) (symbol))
+    (module_content
+      (fn_decl
+        (keyword)
+        (fn_identifier)
+        (fn_decl_params
+          (fn_decl_param (symbol) (variable_identifier) (symbol)  (type_reference (builtin_type)) (symbol))
+        )
+        (symbol)
+        (type_reference (builtin_type))
+        (symbol)
+        (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
+      )
     )
-    (symbol)
-    (type_reference (builtin_type))
-    (symbol)
-    (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
+    (dedent)
   )
 )
 
@@ -185,8 +189,7 @@ module Test =
 ---
 
 (source_file
-  (module_decl
-    (keyword) (module_identifier) (symbol)
+  (module_decl (keyword) (module_identifier) (symbol)
     (indent)
     (module_content
       (module_decl
@@ -201,13 +204,18 @@ module Test =
         (dedent)
       )
     )
-    (dedent)
-  )
-  (module_decl
-    (keyword) (module_identifier) (symbol)
-    (indent)
     (module_content
-      (const_decl (keyword) (constant_identifier) (symbol) (consts (bool_literal)))
+      (module_decl
+        (keyword) (module_identifier) (symbol)
+        (indent)
+        (module_content
+          (const_decl
+            (keyword) (constant_identifier) (symbol)
+            (consts (bool_literal))
+          )
+        )
+        (dedent)
+      )
     )
     (dedent)
   )
