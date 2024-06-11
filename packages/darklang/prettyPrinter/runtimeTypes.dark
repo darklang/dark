@@ -4,7 +4,15 @@ module Darklang =
       let nameResolutionError
         (nr: LanguageTools.RuntimeErrors.NameResolution.Error)
         : String =
-        Stdlib.String.join nr.names "."
+        match nr.errorType with
+        | NotFound names -> Stdlib.String.join names "."
+        | InvalidPackageName names -> Stdlib.String.join names "."
+        | ExpectedEnumButNot ->
+          "Unexpected: stringification of NRE in RT Pretty-Printer for ExpectedEnumButNot"
+        | ExpectedRecordButNot ->
+          "Unexpected: stringification of NRE in RT Pretty-Printer for ExpectedRecordButNot"
+        | MissingEnumModuleName ->
+          "Unexpected: stringification of NRE in RT Pretty-Printer for MissingEnumModuleName"
 
 
       let packageName
@@ -25,8 +33,10 @@ module Darklang =
 
 
       module FQTypeName =
-        let package (p: LanguageTools.RuntimeTypes.FQTypeName.Package) : String =
-          packageName p.owner p.modules p.name
+        let package (id: LanguageTools.RuntimeTypes.FQTypeName.Package) : String =
+          match LanguageTools.PackageManager.Type.get id with
+          | Some p -> packageName p.name.owner p.name.modules p.name.name
+          | None -> Stdlib.Uuid.toString p
 
       // TODO rename to fqtypeName?
       let typeName (t: LanguageTools.RuntimeTypes.FQTypeName.FQTypeName) : String =
@@ -46,8 +56,12 @@ module Darklang =
 
           $"{namePart}{versionPart}"
 
-        let package (p: LanguageTools.RuntimeTypes.FQConstantName.Package) : String =
-          packageName p.owner p.modules p.name
+        let package
+          (id: LanguageTools.RuntimeTypes.FQConstantName.Package)
+          : String =
+          match LanguageTools.PackageManager.Constant.get id with
+          | Some p -> packageName p.name.owner p.name.modules p.name.name
+          | None -> Stdlib.Uuid.toString p
 
       // TODO rename to fqconstantName?
       let constantName
@@ -70,8 +84,10 @@ module Darklang =
 
           $"{namePart}{versionPart}"
 
-        let package (p: LanguageTools.RuntimeTypes.FQFnName.Package) : String =
-          packageName p.owner p.modules p.name
+        let package (id: LanguageTools.RuntimeTypes.FQFnName.Package) : String =
+          match LanguageTools.PackageManager.Function.get id with
+          | Some p -> packageName p.name.owner p.name.modules p.name.name
+          | None -> Stdlib.Uuid.toString p
 
 
       // TODO rename to fqfnName?

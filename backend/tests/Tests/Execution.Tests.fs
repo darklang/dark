@@ -23,7 +23,7 @@ let testExecFunctionTLIDs : Test =
     let! meta = initializeTestCanvas "exec-function-tlids"
     let name = "testFunction"
     let ps = NEList.singleton "param"
-    let (fn : PackageFn.T) =
+    let (fn : PackageFn.PackageFn) =
       testPackageFn "owner" name [] ps (PT.TVariable "a") (PT.EInt64(gid (), 5))
       |> PT2RT.PackageFn.toRT
     let pm = PackageManager.withExtras packageManager [] [] [ fn ]

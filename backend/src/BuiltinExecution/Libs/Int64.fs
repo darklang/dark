@@ -11,34 +11,14 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = ValueType
 module Dval = LibExecution.Dval
+module PackageIDs = LibExecution.PackageIDs
+module IntRuntimeError = BuiltinExecution.IntRuntimeError
 
 /// Used for values which are outside the range of expected values for some
 /// reason. Really, any function using this should have a Result type instead.
 let argumentWasntPositive (paramName : string) (dv : Dval) : string =
   let actual = LibExecution.DvalReprDeveloper.toRepr dv
   $"Expected `{paramName}` to be positive, but it was `{actual}`"
-
-module IntRuntimeError =
-  type Error =
-    | DivideByZeroError
-    | OutOfRange
-    | NegativeExponent
-    | NegativeModulus
-    | ZeroModulus
-
-  module RTE =
-    let toRuntimeError (e : Error) : RuntimeError =
-      let (caseName, fields) =
-        match e with
-        | DivideByZeroError -> "DivideByZeroError", []
-        | OutOfRange -> "OutOfRange", []
-        | NegativeExponent -> "NegativeExponent", []
-        | NegativeModulus -> "NegativeModulus", []
-        | ZeroModulus -> "ZeroModulus", []
-
-      let typeName = RuntimeError.name [ "Int" ] "Error"
-
-      DEnum(typeName, typeName, [], caseName, fields) |> RuntimeError.intError
 
 
 module ParseError =
@@ -52,7 +32,7 @@ module ParseError =
       | BadFormat -> "BadFormat", []
       | OutOfRange -> "OutOfRange", []
 
-    let typeName = FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Int64" ] "ParseError"
+    let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.int64ParseError
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -389,13 +369,12 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType =
-        let errorType =
-          FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Int64" ] "ParseError"
+        let errorType = FQTypeName.fqPackage PackageIDs.Type.Stdlib.int64ParseError
         TypeReference.result TInt64 (TCustomType(Ok errorType, []))
       description = "Returns the <type Int64> value of a <type String>"
       fn =
         let resultOk = Dval.resultOk KTInt64 KTString
-        let typeName = RuntimeError.name [ "Int64" ] "ParseError"
+        let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.int64ParseError
         let resultError = Dval.resultError KTInt64 (KTCustomType(typeName, []))
         (function
         | _, _, [ DString s ] ->

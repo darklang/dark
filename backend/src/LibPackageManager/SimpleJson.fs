@@ -201,7 +201,7 @@ module Decoders =
       | String s -> Ok s
       | _ -> Error(ctx, "Expected string")
 
-  let guid : JsonDecoder<System.Guid> =
+  let uuid : JsonDecoder<System.Guid> =
     fun ctx ->
       match ctx.json with
       | String s ->

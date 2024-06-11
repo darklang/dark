@@ -22,7 +22,7 @@ package_types_v0
 ( id UUID PRIMARY KEY
 , owner TEXT NOT NULL -- e.g. Darklang
 , modules TEXT NOT NULL -- e.g. Twitter.Other
-, typename TEXT NOT NULL -- e.g. TextMetadata
+, name TEXT NOT NULL -- e.g. TextMetadata
 , definition BYTEA NOT NULL -- the whole thing serialized as binary, in ProgramTypes form
 , created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -43,7 +43,7 @@ package_functions_v0
 ( id UUID PRIMARY KEY
 , owner TEXT NOT NULL -- e.g. Darklang
 , modules TEXT NOT NULL -- e.g. Twitter.Other
-, fnname TEXT NOT NULL -- e.g. sendText
+, name TEXT NOT NULL -- e.g. sendText
 , definition BYTEA NOT NULL -- the whole thing serialized as binary, in ProgramTypes form
 , created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

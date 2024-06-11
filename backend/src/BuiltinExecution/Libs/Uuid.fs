@@ -9,6 +9,7 @@ open Prelude
 open LibExecution.Builtin.Shortcuts
 module VT = ValueType
 module Dval = LibExecution.Dval
+module PackageIDs = LibExecution.PackageIDs
 
 
 module ParseError =
@@ -19,7 +20,7 @@ module ParseError =
       match e with
       | BadFormat -> "BadFormat", []
 
-    let typeName = FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Uuid" ] "ParseError"
+    let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.uuidParseError
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -47,15 +48,14 @@ let fns : List<BuiltInFn> =
         TypeReference.result
           TInt64
           (TCustomType(
-            Ok(FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Uuid" ] "ParseError"),
+            Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.uuidParseError),
             []
           ))
       description =
         "Parse a <type Uuid> of form {{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}}"
       fn =
         let resultOk = Dval.resultOk KTUuid KTString
-        let typeName =
-          FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Uuid" ] "ParseError"
+        let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.uuidParseError
         let resultError = Dval.resultError KTUuid (KTCustomType(typeName, []))
         (function
         | _, _, [ DString s ] ->

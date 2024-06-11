@@ -9,20 +9,21 @@ open Wasm.EvalHelpers
 
 module VT = ValueType
 module Dval = LibExecution.Dval
+module PT = LibExecution.ProgramTypes
 module TypeChecker = LibExecution.TypeChecker
 
 type Editor =
-  { types : List<PackageType.T>
-    constants : List<PackageConstant.T>
-    functions : List<PackageFn.T>
+  { types : List<PackageType.PackageType>
+    constants : List<PackageConstant.PackageConstant>
+    functions : List<PackageFn.PackageFn>
     currentState : Dval }
 
 
 /// A "user program" that can be executed by the interpreter
 type UserProgramSource =
-  { types : List<PackageType.T>
-    constants : List<PackageConstant.T>
-    fns : List<PackageFn.T>
+  { types : List<PackageType.PackageType>
+    constants : List<PackageConstant.PackageConstant>
+    fns : List<PackageFn.PackageFn>
 
     // (exprs to eval, in order)
     exprs : List<Expr> }
@@ -151,7 +152,9 @@ let fns : List<BuiltInFn> =
 
             let builtin =
               LibExecution.Builtin.combine
-                [ BuiltinExecution.Builtin.builtins httpConfig ]
+                [ BuiltinExecution.Builtin.builtins
+                    httpConfig
+                    PT.PackageManager.empty ]
                 []
 
             let! result =

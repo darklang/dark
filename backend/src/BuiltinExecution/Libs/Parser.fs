@@ -12,18 +12,13 @@ open LibTreeSitter
 
 module VT = ValueType
 module Dval = LibExecution.Dval
+module IDs = LibExecution.PackageIDs.Type.LanguageTools.Parser
 
 
-let packageFnType
-  (addlModules : List<string>)
-  (name : string)
-  : FQTypeName.FQTypeName =
-  FQTypeName.fqPackage "Darklang" ([ "LanguageTools"; "Parser" ] @ addlModules) name
 
-
-let pointTypeName = packageFnType [] "Point"
-let rangeTypeName = packageFnType [] "Range"
-let parsedNodeTypeName = packageFnType [] "ParsedNode"
+let pointTypeName = FQTypeName.fqPackage IDs.point
+let rangeTypeName = FQTypeName.fqPackage IDs.range
+let parsedNodeTypeName = FQTypeName.fqPackage IDs.parsedNode
 
 let fns : List<BuiltInFn> =
   [ { name = fn "parserParseToSimplifiedTree" 0

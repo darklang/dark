@@ -57,11 +57,11 @@ module ParsesAndDecodesOk =
         }"""
 
       let deserialized =
-        SimpleJson.deserialize<PMPT.PackageType>
+        SimpleJson.deserialize<PMPT.PackageType.PackageType>
           JsonDeserialization.ProgramTypes.PackageType.decoder
           json
 
-      let expected : PMPT.PackageType =
+      let expected : PMPT.PackageType.PackageType =
         { id = System.Guid.Parse "f6345e32-f0c6-422a-a9f1-1039a63ce781"
           name =
             { owner = "Darklang"; modules = [ "Stdlib"; "Result" ]; name = "Result" }

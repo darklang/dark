@@ -6,39 +6,22 @@ module Darklang =
       // </aliases>
 
       module FQTypeName =
-
-        type Package =
-          { owner: String
-            modules: List<String>
-            name: String }
-
+        type Package = Uuid
         type FQTypeName = Package of Package
 
-
-      module FQFnName =
+      module FQConstantName =
         type Builtin = { name: String; version: Int64 }
+        type Package = Uuid
 
-        type Package =
-          { owner: String
-            modules: List<String>
-            name: String }
-
-        type FQFnName =
+        type FQConstantName =
           | Builtin of Builtin
           | Package of Package
 
-
-      /// A Fully-Qualified Constant Name
-      /// Includes package, module, and version information where relevant.
-      module FQConstantName =
+      module FQFnName =
         type Builtin = { name: String; version: Int64 }
+        type Package = Uuid
 
-        type Package =
-          { owner: String
-            modules: List<String>
-            name: String }
-
-        type FQConstantName =
+        type FQFnName =
           | Builtin of Builtin
           | Package of Package
 
@@ -239,8 +222,6 @@ module Darklang =
             caseName: String *
             fields: List<Dval>
 
-          | DError of DvalSource * RuntimeError
-
 
         let toValueType (dv: Dval) : ValueType =
           let dvalValueTypeTODO = ValueType.Unknown
@@ -293,9 +274,6 @@ module Darklang =
           // CLEANUP follow up when DDB has a typeReference
           // or look up the type of the DB by name
           | DDB _ -> ValueType.Unknown
-
-          // DError is being moved out of Dval
-          | DError _ -> dvalValueTypeTODO
 
       /// our record of any variable bindings in scope
       ///

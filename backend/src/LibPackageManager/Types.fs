@@ -19,32 +19,31 @@ type Sign =
 
 module NameResolutionError =
   type ErrorType =
-    | NotFound
-    | ExpectedEnumButNot
-    | ExpectedRecordButNot
+    | NotFound of names : List<string>
+    | ExpectedEnumButNot of packageTypeID : uuid
+    | ExpectedRecordButNot of packageTypeID : uuid
     | MissingEnumModuleName of caseName : string
-    | InvalidPackageName
+    | InvalidPackageName of names : List<string>
 
   type NameType =
     | Function
     | Type
     | Constant
 
-  type Error = { errorType : ErrorType; nameType : NameType; names : List<string> }
+  type Error = { errorType : ErrorType; nameType : NameType }
 
 
 module ProgramTypes =
   type NameResolution<'a> = Result<'a, NameResolutionError.Error>
 
   module FQTypeName =
-    type Package = { owner : string; modules : List<string>; name : string }
-
+    type Package = uuid
     type FQTypeName = Package of Package
 
 
   module FQFnName =
     type Builtin = { name : string; version : int }
-    type Package = { owner : string; modules : List<string>; name : string }
+    type Package = uuid
 
     type FQFnName =
       | Builtin of Builtin
@@ -53,7 +52,7 @@ module ProgramTypes =
 
   module FQConstantName =
     type Builtin = { name : string; version : int }
-    type Package = { owner : string; modules : List<string>; name : string }
+    type Package = uuid
 
     type FQConstantName =
       | Builtin of Builtin
@@ -227,20 +226,25 @@ module ProgramTypes =
     type TypeDeclaration = { typeParams : List<string>; definition : Definition }
 
 
-  type PackageType =
-    { id : uuid
-      name : FQTypeName.Package
-      declaration : TypeDeclaration.TypeDeclaration
-      description : string
-      deprecated : Deprecation<FQTypeName.FQTypeName> }
+  module PackageType =
+    type Name = { owner : string; modules : List<string>; name : string }
+
+    type PackageType =
+      { id : uuid
+        name : Name
+        declaration : TypeDeclaration.TypeDeclaration
+        description : string
+        deprecated : Deprecation<FQTypeName.FQTypeName> }
 
 
   module PackageFn =
+    type Name = { owner : string; modules : List<string>; name : string }
+
     type Parameter = { name : string; typ : TypeReference; description : string }
 
     type PackageFn =
       { id : uuid
-        name : FQFnName.Package
+        name : Name
         body : Expr
         typeParams : List<string>
         parameters : NEList<Parameter>
@@ -273,9 +277,12 @@ module ProgramTypes =
     | CDict of List<string * Const>
 
 
-  type PackageConstant =
-    { id : uuid
-      name : FQConstantName.Package
-      description : string
-      deprecated : Deprecation<FQConstantName.FQConstantName>
-      body : Const }
+  module PackageConstant =
+    type Name = { owner : string; modules : List<string>; name : string }
+
+    type PackageConstant =
+      { id : uuid
+        name : Name
+        description : string
+        deprecated : Deprecation<FQConstantName.FQConstantName>
+        body : Const }

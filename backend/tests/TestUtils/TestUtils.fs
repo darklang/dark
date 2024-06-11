@@ -18,9 +18,11 @@ module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 module AT = LibExecution.AnalysisTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module PackageIDs = LibExecution.PackageIDs
+module Exe = LibExecution.Execution
+
 module Account = LibCloud.Account
 module Canvas = LibCloud.Canvas
-module Exe = LibExecution.Execution
 module S = RTShortcuts
 
 
@@ -86,11 +88,11 @@ let testPackageFn
   (parameters : NEList<string>)
   (returnType : PT.TypeReference)
   (body : PT.Expr)
-  : PT.PackageFn.T =
+  : PT.PackageFn.PackageFn =
   { id = System.Guid.NewGuid()
     body = body
     description = ""
-    name = PT.FQFnName.package owner [] name
+    name = PT.PackageFn.name owner [] name
     typeParams = typeParams
     deprecated = PT.NotDeprecated
     parameters =
@@ -99,58 +101,41 @@ let testPackageFn
         parameters
     returnType = returnType }
 
-let testUserRecordType
-  (name : PT.FQTypeName.Package)
-  (firstField : string * PT.TypeReference)
-  (additionalFields : List<string * PT.TypeReference>)
-  : PT.PackageType.T =
-  let mapField (name, typ) : PT.TypeDeclaration.RecordField =
-    { name = name; typ = typ; description = "" }
-
-  { id = System.Guid.NewGuid()
-    name = name
-    description = ""
-    deprecated = PT.NotDeprecated
-    declaration =
-      { typeParams = []
-        definition =
-          PT.TypeDeclaration.Record(
-            NEList.ofList firstField additionalFields |> NEList.map mapField
-          ) } }
-
 
 
 let testDB (name : string) (typ : PT.TypeReference) : PT.DB.T =
   { tlid = gid (); name = name; typ = typ; version = 0 }
 
+
+
 let builtins
   (httpConfig : BuiltinExecution.Libs.HttpClient.Configuration)
+  (pm : PT.PackageManager)
   : RT.Builtins =
   LibExecution.Builtin.combine
     [ LibTest.builtins
-      BuiltinExecution.Builtin.builtins httpConfig
+      BuiltinExecution.Builtin.builtins httpConfig pm
       BuiltinCloudExecution.Builtin.builtins
       BuiltinDarkInternal.Builtin.builtins
       BuiltinCli.Builtin.builtins ]
     []
 
-let cloudBuiltIns =
+let cloudBuiltIns (pm : PT.PackageManager) =
   let httpConfig =
     { LibCloudExecution.HttpClient.configuration with
         timeoutInMs = 5000
         allowedIP = (fun _ -> true) }
-  builtins httpConfig
+  builtins httpConfig pm
 
-let localBuiltIns =
+let localBuiltIns (pm : PT.PackageManager) =
   let httpConfig =
     { BuiltinExecution.Libs.HttpClient.defaultConfig with timeoutInMs = 5000 }
-  builtins httpConfig
+  builtins httpConfig pm
 
-let packageManager = LibCloud.PackageManager.packageManager
 
 
 let executionStateFor
-  (pm : RT.PackageManager)
+  (pmPT : PT.PackageManager)
   (canvasID : CanvasID)
   (internalFnsAllowed : bool)
   (allowLocalHttpAccess : bool)
@@ -204,10 +189,12 @@ let executionStateFor
     // in the tests and so are worth watching out for.
     let notifier : RT.Notifier = fun _state _msg _tags -> ()
 
-    let builtins = if allowLocalHttpAccess then localBuiltIns else cloudBuiltIns
+    let builtins =
+      if allowLocalHttpAccess then localBuiltIns pmPT else cloudBuiltIns pmPT
     let state =
+      let pmRT = PT2RT.PackageManager.toRT pmPT
       let tracing = Exe.noTracing (RT.CallStack.fromEntryPoint RT.Script)
-      Exe.createState builtins pm tracing exceptionReporter notifier program
+      Exe.createState builtins pmRT tracing exceptionReporter notifier program
     let state = { state with test = testContext }
     return state
   }
@@ -439,10 +426,7 @@ module Expect =
     let err () = errorFn path (string actual) (string expected)
 
     match actual, expected with
-    | FQTypeName.Package a, FQTypeName.Package e ->
-      if a.owner <> e.owner then err ()
-      if a.modules <> e.modules then err ()
-      if a.name <> e.name then err ()
+    | FQTypeName.Package a, FQTypeName.Package e -> if a <> e then err ()
 
   let rec matchPatternEqualityBaseFn
     (checkIDs : bool)
@@ -1057,6 +1041,8 @@ let naughtyStrings : List<string * string> =
 
 
 let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
+  let uuid = System.Guid.Parse "dca045b1-e2af-41d8-ad1b-35261b25a426"
+
   [ ("float", DFloat 7.2, TFloat)
     ("float2", DFloat -7.2, TFloat)
     ("float3", DFloat 15.0, TFloat)
@@ -1086,68 +1072,60 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
 
     ("record",
      DRecord(
-       S.fqPackageTypeName "Darklang" [ "Stdlib"; "Http" ] "Request",
-       S.fqPackageTypeName "Darklang" [ "Stdlib"; "Http" ] "Request",
+       FQTypeName.Package uuid,
+       FQTypeName.Package uuid,
        [],
        Map.ofList
          [ "url", DString "https://darklang.com"
            "headers", Dval.list (KTTuple(VT.string, VT.string, [])) []
            "body", Dval.list KTUInt8 [] ]
      ),
-     TCustomType(
-       Ok(S.fqPackageTypeName "Darklang" [ "Stdlib"; "Http" ] "Request"),
-       []
-     ))
+     TCustomType(Ok(FQTypeName.Package uuid), []))
 
     ("enum",
      DEnum(
-       S.fqPackageTypeName "Darklang" [ "Stdlib"; "AltJson" ] "Json",
-       S.fqPackageTypeName "Darklang" [ "Stdlib"; "AltJson" ] "Json",
+       FQTypeName.Package PackageIDs.Type.Stdlib.AltJson.json,
+       FQTypeName.Package PackageIDs.Type.Stdlib.AltJson.json,
        [],
        "String",
        [ DString "test" ]
      ),
-     TCustomType(
-       Ok(S.fqPackageTypeName "Darklang" [ "Stdlib"; "AltJson" ] "Json"),
-       []
-     ))
+     TCustomType(Ok(FQTypeName.Package PackageIDs.Type.Stdlib.AltJson.json), []))
 
     // TODO: extract what's useful in here, and create smaller tests for each
-    // ("record2",
-    //  DRecord(
-    //    S.fqPackageTypeName "Test" [] "Foo" 0,
-    //    S.fqPackageTypeName "Test" [] "FooAlias" 0,
-    //    [ VT.unknown; VT.bool ],
-    //    Map.ofList [ ("type", DString "weird"); ("value", DUnit) ]
-    //  ),
-    //  TCustomType(Ok(S.fqPackageTypeName "Test" [] "Foo" 0), []))
-    // ("record3",
-    //  DRecord(
-    //    S.fqPackageTypeName "Test" [] "Foo" 0,
-    //    S.fqPackageTypeName "Test" [] "Foo" 0,
-    //    [],
-    //    Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]
-    //  ),
-    //  TCustomType(Ok(S.fqPackageTypeName "Test" [] "Foo" 0), []))
-    // // More Json.NET tests
-    // ("record4",
-    //  DRecord(
-    //    S.fqPackageTypeName "Test" [] "Foo" 0,
-    //    S.fqPackageTypeName "Test" [] "Foo" 0,
-    //    [ VT.bool
-    //      VT.char
-    //      (VT.customType (S.fqPackageTypeName "Test" [] "Foo" 0)) [] ],
-    //    Map.ofList [ "foo\\\\bar", Dval.int64 5 ]
-    //  ),
-    //  TCustomType(Ok(S.fqPackageTypeName "Test" [] "Foo" 0), []))
-    // ("record5",
-    //  DRecord(
-    //    S.fqPackageTypeName "Test" [] "Foo" 0,
-    //    S.fqPackageTypeName "Test" [] "Foo" 0,
-    //    [],
-    //    Map.ofList [ "$type", Dval.int64 5 ]
-    //  ),
-    //  TCustomType(Ok(S.fqPackageTypeName "Test" [] "Foo" 0), []))
+    ("record2",
+     DRecord(
+       FQTypeName.Package uuid,
+       FQTypeName.Package uuid,
+       [ VT.unknown; VT.bool ],
+       Map.ofList [ ("type", DString "weird"); ("value", DUnit) ]
+     ),
+     TCustomType(Ok(FQTypeName.Package uuid), []))
+    ("record3",
+     DRecord(
+       FQTypeName.Package uuid,
+       FQTypeName.Package uuid,
+       [],
+       Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]
+     ),
+     TCustomType(Ok(FQTypeName.Package uuid), []))
+    // More Json.NET tests
+    ("record4",
+     DRecord(
+       FQTypeName.Package uuid,
+       FQTypeName.Package uuid,
+       [ VT.bool; VT.char; (VT.customType (FQTypeName.Package uuid)) [] ],
+       Map.ofList [ "foo\\\\bar", Dval.int64 5 ]
+     ),
+     TCustomType(Ok(FQTypeName.Package uuid), []))
+    ("record5",
+     DRecord(
+       FQTypeName.Package uuid,
+       FQTypeName.Package uuid,
+       [],
+       Map.ofList [ "$type", Dval.int64 5 ]
+     ),
+     TCustomType(Ok(FQTypeName.Package uuid), []))
     ("dict", DDict(VT.unknown, Map [ "foo", Dval.int64 5 ]), TDict TInt64)
     ("dict3",
      DDict(VT.unknown, Map [ ("type", DString "weird"); ("value", DString "x") ]),
@@ -1361,11 +1339,12 @@ let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
      TTuple(TInt64, TypeReference.result TInt64 TString, [])) ]
 
 let sampleDvals : List<string * (Dval * TypeReference)> =
-  (List.map (fun (k, v) -> k, DInt64 v, TInt64) interestingInts
-   @ List.map (fun (k, v) -> k, DFloat v, TFloat) interestingFloats
-   @ List.map (fun (k, v) -> k, DString v, TString) interestingStrings
-   @ List.map (fun (k, v) -> k, DString v, TString) naughtyStrings
-   @ interestingDvals)
+  List.concat
+    [ List.map (fun (k, v) -> k, DInt64 v, TInt64) interestingInts
+      List.map (fun (k, v) -> k, DFloat v, TFloat) interestingFloats
+      List.map (fun (k, v) -> k, DString v, TString) interestingStrings
+      List.map (fun (k, v) -> k, DString v, TString) naughtyStrings
+      interestingDvals ]
   |> List.map (fun (k, v, t) -> k, (v, t))
 
 // Utilties shared among tests

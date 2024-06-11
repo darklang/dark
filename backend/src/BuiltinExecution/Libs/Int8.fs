@@ -11,6 +11,8 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = ValueType
 module Dval = LibExecution.Dval
+module PackageIDs = LibExecution.PackageIDs
+module IntRuntimeError = BuiltinExecution.IntRuntimeError
 
 
 module ParseError =
@@ -24,7 +26,7 @@ module ParseError =
       | BadFormat -> "BadFormat", []
       | OutOfRange -> "OutOfRange", []
 
-    let typeName = FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Int8" ] "ParseError"
+    let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.int8ParseError
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -44,13 +46,13 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DInt8 v; DInt8 m ] ->
           if m = 0y then
-            Int64.IntRuntimeError.Error.ZeroModulus
-            |> Int64.IntRuntimeError.RTE.toRuntimeError
+            IntRuntimeError.Error.ZeroModulus
+            |> IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.tracing.callStack
             |> Ply
           else if m < 0y then
-            Int64.IntRuntimeError.Error.NegativeModulus
-            |> Int64.IntRuntimeError.RTE.toRuntimeError
+            IntRuntimeError.Error.NegativeModulus
+            |> IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.tracing.callStack
             |> Ply
           else
@@ -85,8 +87,8 @@ let fns : List<BuiltInFn> =
             v % d |> DInt8 |> resultOk
            with e ->
              if d = 0y then
-               Int64.IntRuntimeError.Error.DivideByZeroError
-               |> Int64.IntRuntimeError.RTE.toRuntimeError
+               IntRuntimeError.Error.DivideByZeroError
+               |> IntRuntimeError.RTE.toRuntimeError
                |> raiseRTE state.tracing.callStack
                |> Ply
              else
@@ -111,8 +113,8 @@ let fns : List<BuiltInFn> =
           try
             DInt8(Checked.(+) a b) |> Ply
           with :? System.OverflowException ->
-            Int64.IntRuntimeError.Error.OutOfRange
-            |> Int64.IntRuntimeError.RTE.toRuntimeError
+            IntRuntimeError.Error.OutOfRange
+            |> IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.tracing.callStack
             |> Ply
         | _ -> incorrectArgs ())
@@ -132,8 +134,8 @@ let fns : List<BuiltInFn> =
           try
             DInt8(Checked.(-) a b) |> Ply
           with :? System.OverflowException ->
-            Int64.IntRuntimeError.Error.OutOfRange
-            |> Int64.IntRuntimeError.RTE.toRuntimeError
+            IntRuntimeError.Error.OutOfRange
+            |> IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.tracing.callStack
             |> Ply
         | _ -> incorrectArgs ())
@@ -153,8 +155,8 @@ let fns : List<BuiltInFn> =
           try
             DInt8(Checked.(*) a b) |> Ply
           with :? System.OverflowException ->
-            Int64.IntRuntimeError.Error.OutOfRange
-            |> Int64.IntRuntimeError.RTE.toRuntimeError
+            IntRuntimeError.Error.OutOfRange
+            |> IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.tracing.callStack
             |> Ply
         | _ -> incorrectArgs ())
@@ -176,15 +178,15 @@ let fns : List<BuiltInFn> =
         | state, _, [ DInt8 number; DInt8 exp ] ->
           (try
             if exp < 0y then
-              Int64.IntRuntimeError.Error.NegativeExponent
-              |> Int64.IntRuntimeError.RTE.toRuntimeError
+              IntRuntimeError.Error.NegativeExponent
+              |> IntRuntimeError.RTE.toRuntimeError
               |> raiseRTE state.tracing.callStack
               |> Ply
             else
               (bigint number) ** (int exp) |> int8 |> DInt8 |> Ply
            with :? System.OverflowException ->
-             Int64.IntRuntimeError.Error.OutOfRange
-             |> Int64.IntRuntimeError.RTE.toRuntimeError
+             IntRuntimeError.Error.OutOfRange
+             |> IntRuntimeError.RTE.toRuntimeError
              |> raiseRTE state.tracing.callStack
              |> Ply)
         | _ -> incorrectArgs ())
@@ -202,15 +204,15 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DInt8 a; DInt8 b ] ->
           if b = int8 0 then
-            Int64.IntRuntimeError.Error.DivideByZeroError
-            |> Int64.IntRuntimeError.RTE.toRuntimeError
+            IntRuntimeError.Error.DivideByZeroError
+            |> IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.tracing.callStack
             |> Ply
           else
             let result = int a / int b
             if result < -128 || result > 127 then
-              Int64.IntRuntimeError.Error.OutOfRange
-              |> Int64.IntRuntimeError.RTE.toRuntimeError
+              IntRuntimeError.Error.OutOfRange
+              |> IntRuntimeError.RTE.toRuntimeError
               |> raiseRTE state.tracing.callStack
               |> Ply
             else
@@ -231,8 +233,8 @@ let fns : List<BuiltInFn> =
         | state, _, [ DInt8 a ] ->
           let result = -(int a)
           if result < -128 || result > 127 then
-            Int64.IntRuntimeError.Error.OutOfRange
-            |> Int64.IntRuntimeError.RTE.toRuntimeError
+            IntRuntimeError.Error.OutOfRange
+            |> IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.tracing.callStack
             |> Ply
           else
@@ -374,13 +376,12 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType =
-        let errorType =
-          FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Int8" ] "ParseError"
+        let errorType = FQTypeName.fqPackage PackageIDs.Type.Stdlib.int8ParseError
         TypeReference.result TInt8 (TCustomType(Ok errorType, []))
       description = "Returns the <type Int8> value of a <type String>"
       fn =
         let resultOk = Dval.resultOk KTInt8 KTString
-        let typeName = RuntimeError.name [ "Int8" ] "ParseError"
+        let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.int8ParseError
         let resultError = Dval.resultError KTInt8 (KTCustomType(typeName, []))
         (function
         | _, _, [ DString s ] ->

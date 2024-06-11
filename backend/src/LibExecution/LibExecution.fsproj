@@ -11,15 +11,16 @@
   <ItemGroup>
     <None Include="paket.references" />
     <Compile Include="DarkDateTime.fs" />
+    <Compile Include="PackageIDs.fs" />
     <Compile Include="RuntimeTypes.fs" />
     <Compile Include="Dval.fs" />
     <Compile Include="DvalDecoder.fs" />
+    <Compile Include="RuntimeTypesToDarkTypes.fs" />
     <Compile Include="NameResolutionError.fs" />
     <Compile Include="RuntimeTypesAst.fs" />
     <Compile Include="DvalReprInternalRoundtrippable.fs" />
     <Compile Include="DvalReprInternalHash.fs" />
     <Compile Include="DvalReprDeveloper.fs" />
-    <Compile Include="RuntimeTypesToDarkTypes.fs" />
     <Compile Include="TypeChecker.fs" />
     <Compile Include="DvalReprInternalQueryable.fs" />
     <Compile Include="Interpreter.fs" />

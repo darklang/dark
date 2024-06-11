@@ -16,13 +16,14 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module Exe = LibExecution.Execution
+module PackageIDs = LibExecution.PackageIDs
 module WT = LibParser.WrittenTypes
 module Json = BuiltinExecution.Libs.Json
 module NR = LibParser.NameResolver
 
 
 module ExecutionError =
-  let fqTypeName = FQTypeName.fqPackage "Darklang" [ "Cli" ] "ExecutionError"
+  let fqTypeName = FQTypeName.fqPackage PackageIDs.Type.Cli.executionError
   let typeRef = TCustomType(Ok fqTypeName, [])
 
 
@@ -58,7 +59,8 @@ module CliRuntimeError =
           | NonIntReturned actuallyReturned ->
             "NonIntReturned", [ RT2DT.Dval.toDT actuallyReturned ]
 
-        let typeName = RT.RuntimeError.name [ "Cli" ] "Error"
+        let typeName =
+          FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeError.Cli.error
         DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -66,24 +68,26 @@ module CliRuntimeError =
       Error.toDT e |> RT.RuntimeError.fromDT
 
 
+
+// TODO: de-dupe with _other_ Cli.fs
+let pmBaseUrl =
+  match
+    System.Environment.GetEnvironmentVariable "DARK_CONFIG_PACKAGE_MANAGER_BASE_URL"
+  with
+  | null -> "https://packages.darklang.com"
+  | var -> var
+let packageManagerRT = LibPackageManager.PackageManager.rt pmBaseUrl
+let packageManagerPT = LibPackageManager.PackageManager.pt pmBaseUrl
+
+
 let builtinsToUse : RT.Builtins =
   LibExecution.Builtin.combine
     [ BuiltinExecution.Builtin.builtins
         BuiltinExecution.Libs.HttpClient.defaultConfig
+        packageManagerPT
       BuiltinCli.Builtin.builtins ]
     []
 
-// TODO: de-dupe with _other_ Cli.fs
-let packageManager =
-  let baseUrl =
-    match
-      System.Environment.GetEnvironmentVariable
-        "DARK_CONFIG_PACKAGE_MANAGER_BASE_URL"
-    with
-    | null -> "https://packages.darklang.com"
-    | var -> var
-
-  LibPackageManager.PackageManager.packageManager baseUrl
 
 let execute
   (parentState : RT.ExecutionState)
@@ -99,7 +103,7 @@ let execute
 
     let packageManager =
       PackageManager.withExtras
-        packageManager
+        packageManagerRT
         (mod'.types |> List.map PT2RT.PackageType.toRT)
         (mod'.constants |> List.map PT2RT.PackageConstant.toRT)
         (mod'.fns |> List.map PT2RT.PackageFn.toRT)
@@ -162,7 +166,7 @@ let fns : List<BuiltInFn> =
                       "CliScript"
                       "CanvasName"
                       state.builtins
-                      state.packageManager
+                      packageManagerPT
                       NR.OnMissing.Allow
                       filename
                       code
@@ -202,7 +206,7 @@ let fns : List<BuiltInFn> =
     { name = fn "cliExecuteFunction" 0
       typeParams = []
       parameters =
-        [ Param.make "functionName" TString ""
+        [ Param.make "functionName" TString "" // TODO: accept the fn ID instead? (so we require the user to find it)
           Param.make "args" (TList TString) "" ]
       returnType = TypeReference.result TString ExecutionError.typeRef
       description = "Executes an arbitrary Dark package function"
@@ -247,8 +251,8 @@ let fns : List<BuiltInFn> =
               let! fnName =
                 LibParser.NameResolver.resolveFnName
                   (state.builtins.fns |> Map.keys |> Set)
-                  state.packageManager
-                  NR.OnMissing.Allow // OK?
+                  packageManagerPT
+                  NR.OnMissing.Allow // OK - we're about to `match` on the Result anyway
                   []
                   (WT.Unresolved name)
 
@@ -258,7 +262,7 @@ let fns : List<BuiltInFn> =
                   match PT2RT.FQFnName.toRT fnName with
                   | FQFnName.Package pkg ->
                     uply {
-                      let! fn = state.packageManager.getFn pkg
+                      let! fn = packageManagerRT.getFn pkg
                       return Option.map packageFnToFn fn
                     }
                   | _ ->
@@ -387,7 +391,7 @@ let fns : List<BuiltInFn> =
               let! fnName =
                 LibParser.NameResolver.resolveFnName
                   (state.builtins.fns |> Map.keys |> Set)
-                  state.packageManager
+                  packageManagerPT
                   NR.OnMissing.Allow // ok?
                   []
                   (WT.Unresolved name)

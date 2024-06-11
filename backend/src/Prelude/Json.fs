@@ -242,7 +242,7 @@ module Vanilla =
 
   let mutable allowedTypes = Dictionary.T<string, string>()
 
-  let rec isSerializable (t : System.Type) : bool =
+  let isSerializable (t : System.Type) : bool =
     if isBaseType t then true else allowedTypes.ContainsKey(string t)
 
   let allow<'a> (reason : string) : unit =

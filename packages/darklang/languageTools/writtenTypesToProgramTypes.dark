@@ -288,11 +288,12 @@ module Darklang =
           (owner: String)
           (modules: List<String>)
           (d: WrittenTypes.TypeDeclaration.TypeDeclaration)
-          : ProgramTypes.PackageType =
-          ProgramTypes.PackageType
+          : ProgramTypes.PackageType.PackageType =
+          ProgramTypes.PackageType.PackageType
+            // TODO: when relevant, use PackageIDs defined in F# land
             { id = Stdlib.Uuid.generate ()
               name =
-                ProgramTypes.FQTypeName.Package
+                ProgramTypes.PackageType.Name
                   { owner = owner
                     modules = modules
                     name = d.name.name }
@@ -668,9 +669,10 @@ module Darklang =
             fn.typeParams |> Stdlib.List.map (fun p -> p |> Stdlib.Tuple2.second)
 
           ProgramTypes.PackageFn.PackageFn
+            // TODO: when relevant, use PacakgeIDs defined in F# land
             { id = Stdlib.Uuid.generate ()
               name =
-                ProgramTypes.FQFnName.Package
+                ProgramTypes.PackageFn.Name
                   { owner = owner
                     modules = modules
                     name = fn.name.name }
@@ -685,17 +687,18 @@ module Darklang =
               body = Expr.toPT onMissing fn.body }
 
 
+      // TODO: generally follow up here
       module ConstantDeclaration =
         let toPackageConstPT
           (onMissing: NameResolver.OnMissing)
           (owner: String)
           (modules: List<String>)
           (d: WrittenTypes.ConstantDeclaration.ConstantDeclaration)
-          : ProgramTypes.PackageConstant =
-          ProgramTypes.PackageConstant
+          : ProgramTypes.PackageConstant.PackageConstant =
+          ProgramTypes.PackageConstant.PackageConstant
             { id = Stdlib.Uuid.generate ()
               name =
-                ProgramTypes.FQConstantName.Package
+                ProgramTypes.PackageConstant.Name
                   { owner = owner
                     modules = modules
                     name = d.name.name }
@@ -703,19 +706,50 @@ module Darklang =
               description = ""
               deprecated = ProgramTypes.Deprecation.NotDeprecated }
 
-        let toPT
-          (onMissing: NameResolver.OnMissing)
-          (owner: String)
-          (modules: List<String>)
-          (c: WrittenTypes.ConstantDeclaration.ConstantDeclaration)
-          : ProgramTypes.PackageConstant =
-          ProgramTypes.PackageConstant
-            { id = Stdlib.Uuid.generate ()
-              name =
-                ProgramTypes.FQConstantName.Package
-                  { owner = owner
-                    modules = modules
-                    name = c.name.name }
-              body = Const.toPT onMissing c.body
-              description = ""
-              deprecated = ProgramTypes.Deprecation.NotDeprecated }
+
+      let cliScript
+        (script: WrittenTypes.CliScript)
+        : ProgramTypes.CliScript.CliScript =
+        // CLEANUP potentially complain about unparsable stuff?
+        ProgramTypes.CliScript.CliScript
+          { declarations =
+              script.declarations
+              |> Stdlib.List.map (fun decl ->
+                match decl with
+                | Type t ->
+                  ProgramTypes.CliScript.Declaration.Type(
+                    TypeDeclaration.toPackageTypePT
+                      NameResolver.OnMissing.Allow
+                      "Tests"
+                      []
+                      t
+                  )
+
+                | Constant c ->
+                  ProgramTypes.CliScript.Declaration.Constant(
+                    ConstantDeclaration.toPackageConstPT
+                      NameResolver.OnMissing.Allow
+                      "Tests"
+                      []
+                      c
+                  )
+
+                | Function f ->
+                  ProgramTypes.CliScript.Declaration.Function(
+                    FunctionDeclaration.toPackageFnPT
+                      NameResolver.OnMissing.Allow
+                      "Tests"
+                      []
+                      f
+                  ))
+
+            exprsToEval =
+              script.exprsToEval
+              |> Stdlib.List.map (fun e -> Expr.toPT NameResolver.OnMissing.Allow e) }
+
+
+      let parsedFileAsCliScript
+        (parsedFile: WrittenTypes.ParsedFile)
+        : ProgramTypes.CliScript.CliScript =
+        match parsedFile with
+        | CliScript script -> cliScript script

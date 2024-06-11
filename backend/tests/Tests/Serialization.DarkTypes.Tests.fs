@@ -16,6 +16,7 @@ module RT = LibExecution.RuntimeTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
+module PackageIDs = LibExecution.PackageIDs
 
 
 module V = SerializationTestValues
@@ -27,10 +28,11 @@ module RoundtripTests =
   // most of the time, it should end up being the same as the source.
   // if there are known exceptions, break down individual mappings as separate tests
 
-  let types : RT.Types =
-    { typeSymbolTable = Map.empty
+  let pmRT = LibCloud.PackageManager.rt
 
-      package = packageManager.getType }
+  let types : RT.Types =
+    // CLEANUP could the `package` fn just return None? Not sure if we're actually using the types there
+    { typeSymbolTable = Map.empty; package = pmRT.getType }
 
   let testRoundtrip
     (testName : string)
@@ -45,11 +47,7 @@ module RoundtripTests =
 
       let context =
         LibExecution.TypeChecker.Context.FunctionCallResult(
-          fnName =
-            (RT.FQFnName.fqPackage
-              "Darklang"
-              [ "LanguageTools"; "ProgramTypes" ]
-              "expr"),
+          fnName = RT.FQFnName.fqPackage System.Guid.Empty,
           returnType = RT.TCustomType(Ok typeName, [])
         )
 
@@ -96,42 +94,91 @@ module RoundtripTests =
         original)
 
 
-  module RuntimeTypes =
+  module ProgramTypes =
+    let pkg (id : uuid) = RT.FQTypeName.fqPackage id
 
-    let pkg mods name =
-      RT.FQTypeName.fqPackage
-        "Darklang"
-        (([ "LanguageTools"; "RuntimeTypes" ] @ mods))
-        name
+    let tests =
+      [ testRoundtripList
+          "PT.PackageType"
+          (pkg PackageIDs.Type.LanguageTools.ProgramTypes.PackageType.packageType)
+          V.ProgramTypes.packageTypes
+          PT2DT.PackageType.toDT
+          PT2DT.PackageType.fromDT
+          None
+
+        testRoundtripList
+          "PT.PackageConstant"
+          (pkg
+            PackageIDs.Type.LanguageTools.ProgramTypes.PackageConstant.packageConstant)
+          V.ProgramTypes.packageConstants
+          PT2DT.PackageConstant.toDT
+          PT2DT.PackageConstant.fromDT
+          None
+
+        testRoundtripList
+          "PT.PackageFn"
+          (pkg PackageIDs.Type.LanguageTools.ProgramTypes.PackageFn.packageFn)
+          V.ProgramTypes.packageFns
+          PT2DT.PackageFn.toDT
+          PT2DT.PackageFn.fromDT
+          None
+
+        testRoundtripList
+          "PT.Secret"
+          (pkg PackageIDs.Type.LanguageTools.ProgramTypes.secret)
+          V.ProgramTypes.userSecrets
+          PT2DT.Secret.toDT
+          PT2DT.Secret.fromDT
+          None
+
+        testRoundtripList
+          "PT.DB"
+          (pkg PackageIDs.Type.LanguageTools.ProgramTypes.db)
+          V.ProgramTypes.userDBs
+          PT2DT.DB.toDT
+          PT2DT.DB.fromDT
+          None
+
+        testRoundtripList
+          "PT.Handler"
+          (pkg PackageIDs.Type.LanguageTools.ProgramTypes.Handler.handler)
+          V.ProgramTypes.Handler.handlers
+          PT2DT.Handler.toDT
+          PT2DT.Handler.fromDT
+          None ]
+
+  module RuntimeTypes =
+    let pkg (id : uuid) = RT.FQTypeName.fqPackage id
 
     let tests =
       [ testRoundtripList
           "RT.FQTypeName"
-          (pkg [ "FQTypeName" ] "FQTypeName")
+          (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.FQTypeName.fqTypeName)
           V.RuntimeTypes.fqTypeNames
           RT2DT.FQTypeName.toDT
           RT2DT.FQTypeName.fromDT
           None
 
         testRoundtripList
-          "RT.FQFnName"
-          (pkg [ "FQFnName" ] "FQFnName")
-          V.RuntimeTypes.fqFnNames
-          RT2DT.FQFnName.toDT
-          RT2DT.FQFnName.fromDT
-          None
-
-        testRoundtripList
           "RT.FQConstantName"
-          (pkg [ "FQConstantName" ] "FQConstantName")
+          (pkg
+            PackageIDs.Type.LanguageTools.RuntimeTypes.FQConstantName.fqConstantName)
           V.RuntimeTypes.fqConstantNames
           RT2DT.FQConstantName.toDT
           RT2DT.FQConstantName.fromDT
           None
 
         testRoundtripList
+          "RT.FQFnName"
+          (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.FQFnName.fqFnName)
+          V.RuntimeTypes.fqFnNames
+          RT2DT.FQFnName.toDT
+          RT2DT.FQFnName.fromDT
+          None
+
+        testRoundtripList
           "RT.TypeReference"
-          (pkg [] "TypeReference")
+          (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.typeReference)
           V.RuntimeTypes.typeReferences
           RT2DT.TypeReference.toDT
           RT2DT.TypeReference.fromDT
@@ -139,7 +186,7 @@ module RoundtripTests =
 
         testRoundtripList
           "RT.Expr"
-          (pkg [] "Expr")
+          (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.expr)
           V.RuntimeTypes.exprs
           RT2DT.Expr.toDT
           RT2DT.Expr.fromDT
@@ -147,15 +194,15 @@ module RoundtripTests =
 
         testRoundtripList
           "RT.ValueType"
-          (pkg [] "ValueType")
+          (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.valueType)
           V.RuntimeTypes.valueTypes
-          RT2DT.Dval.ValueType.toDT
-          RT2DT.Dval.ValueType.fromDT
+          RT2DT.ValueType.toDT
+          RT2DT.ValueType.fromDT
           None
 
         testRoundtripList
           "RT.Dval"
-          (pkg [ "Dval" ] "Dval")
+          (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.dval)
           V.RuntimeTypes.dvals
           RT2DT.Dval.toDT
           RT2DT.Dval.fromDT
@@ -167,63 +214,6 @@ module RoundtripTests =
         // We don't always have F# models for these types, though,
         // so it's not clear how to do this or if it's even useful
         ]
-
-  module ProgramTypes =
-
-    let pkg mods name =
-      RT.FQTypeName.fqPackage
-        "Darklang"
-        (([ "LanguageTools"; "ProgramTypes" ] @ mods))
-        name
-
-    let tests =
-      [ testRoundtripList
-          "PT.PackageFn"
-          (pkg [ "PackageFn" ] "PackageFn")
-          V.ProgramTypes.packageFns
-          PT2DT.PackageFn.toDT
-          PT2DT.PackageFn.fromDT
-          None
-
-        testRoundtripList
-          "PT.PackageType"
-          (pkg [] "PackageType")
-          V.ProgramTypes.packageTypes
-          PT2DT.PackageType.toDT
-          PT2DT.PackageType.fromDT
-          None
-
-        testRoundtripList
-          "PT.PackageConstant"
-          (pkg [] "PackageConstant")
-          V.ProgramTypes.packageConstants
-          PT2DT.PackageConstant.toDT
-          PT2DT.PackageConstant.fromDT
-          None
-
-        testRoundtripList
-          "PT.Secret"
-          (pkg [] "Secret")
-          V.ProgramTypes.userSecrets
-          PT2DT.Secret.toDT
-          PT2DT.Secret.fromDT
-          None
-
-        testRoundtripList
-          "PT.DB"
-          (pkg [] "DB")
-          V.ProgramTypes.userDBs
-          PT2DT.DB.toDT
-          PT2DT.DB.fromDT
-          None
-
-        testRoundtripList
-          "PT.Handler"
-          (pkg [ "Handler" ] "Handler")
-          V.ProgramTypes.Handler.handlers
-          PT2DT.Handler.toDT
-          PT2DT.Handler.fromDT
-          None ]
 
 
 let tests =

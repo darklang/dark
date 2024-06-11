@@ -25,12 +25,15 @@ module NameResolutionError =
     type DU = NameResolutionError.ErrorType
 
     let decoder : JsonDecoder<DU> =
-      [ ("NotFound", Decoders.enum0Fields DU.NotFound)
-        ("ExpectedEnumButNot", Decoders.enum0Fields DU.ExpectedEnumButNot)
-        ("ExpectedRecordButNot", Decoders.enum0Fields DU.ExpectedRecordButNot)
+      [ ("NotFound", Decoders.enum1Field (Decoders.list Decoders.string) DU.NotFound)
+        ("ExpectedEnumButNot",
+         Decoders.enum1Field Decoders.uuid DU.ExpectedEnumButNot)
+        ("ExpectedRecordButNot",
+         Decoders.enum1Field Decoders.uuid DU.ExpectedRecordButNot)
         ("MissingEnumModuleName",
          Decoders.enum1Field Decoders.string DU.MissingEnumModuleName)
-        ("InvalidPackageName", Decoders.enum0Fields DU.InvalidPackageName) ]
+        ("InvalidPackageName",
+         Decoders.enum1Field (Decoders.list Decoders.string) DU.InvalidPackageName) ]
       |> Map.ofList
       |> Decoders.du
 
@@ -48,13 +51,11 @@ module NameResolutionError =
 
   module Error =
     let decoder : JsonDecoder<NameResolutionError.Error> =
-      Decoders.obj3Fields
+      Decoders.obj2Fields
         "NameResolution"
         ("errorType", ErrorType.decoder)
         ("nameType", NameType.decoder)
-        ("names", Decoders.list Decoders.string)
-        (fun errType nameType names ->
-          { errorType = errType; nameType = nameType; names = names })
+        (fun errType nameType -> { errorType = errType; nameType = nameType })
 
 
 module ProgramTypes =
@@ -70,14 +71,7 @@ module ProgramTypes =
 
   module FQTypeName =
     module Package =
-      let decoder : JsonDecoder<ProgramTypes.FQTypeName.Package> =
-        Decoders.obj3Fields
-          "FQTypeName.Package"
-          ("owner", Decoders.string)
-          ("modules", Decoders.list Decoders.string)
-          ("name", Decoders.string)
-          (fun owner modules name ->
-            { owner = owner; modules = modules; name = name })
+      let decoder : JsonDecoder<ProgramTypes.FQTypeName.Package> = Decoders.uuid
 
     module FQTypeName =
       type DU = ProgramTypes.FQTypeName.FQTypeName
@@ -98,14 +92,7 @@ module ProgramTypes =
           (fun name version -> { name = name; version = version })
 
     module Package =
-      let decoder : JsonDecoder<ProgramTypes.FQFnName.Package> =
-        Decoders.obj3Fields
-          "FQFnName.Package"
-          ("owner", Decoders.string)
-          ("modules", Decoders.list Decoders.string)
-          ("name", Decoders.string)
-          (fun owner modules name ->
-            { owner = owner; modules = modules; name = name })
+      let decoder : JsonDecoder<ProgramTypes.FQFnName.Package> = Decoders.uuid
 
     module FQFnName =
       type DU = ProgramTypes.FQFnName.FQFnName
@@ -127,14 +114,7 @@ module ProgramTypes =
           (fun name version -> { name = name; version = version })
 
     module Package =
-      let decoder : JsonDecoder<ProgramTypes.FQConstantName.Package> =
-        Decoders.obj3Fields
-          "FQConstantName.Package"
-          ("owner", Decoders.string)
-          ("modules", Decoders.list Decoders.string)
-          ("name", Decoders.string)
-          (fun owner modules name ->
-            { owner = owner; modules = modules; name = name })
+      let decoder : JsonDecoder<ProgramTypes.FQConstantName.Package> = Decoders.uuid
 
     module FQConstantName =
       type DU = ProgramTypes.FQConstantName.FQConstantName
@@ -676,11 +656,21 @@ module ProgramTypes =
             { typeParams = typeParams; definition = definition })
 
   module PackageType =
-    let decoder : JsonDecoder<ProgramTypes.PackageType> =
+    module Name =
+      let decoder : JsonDecoder<ProgramTypes.PackageType.Name> =
+        Decoders.obj3Fields
+          "PackageType.Name"
+          ("owner", Decoders.string)
+          ("modules", Decoders.list Decoders.string)
+          ("name", Decoders.string)
+          (fun owner modules name ->
+            { owner = owner; modules = modules; name = name })
+
+    let decoder : JsonDecoder<ProgramTypes.PackageType.PackageType> =
       Decoders.obj5Fields
         "PackageType"
-        ("id", Decoders.guid)
-        ("name", FQTypeName.Package.decoder)
+        ("id", Decoders.uuid)
+        ("name", Name.decoder)
         ("declaration", TypeDeclaration.TypeDeclaration.decoder)
         ("description", Decoders.string)
         ("deprecated", Deprecation.decoder FQTypeName.FQTypeName.decoder)
@@ -704,11 +694,21 @@ module ProgramTypes =
             { name = name; typ = typ; description = description })
 
     module PackageFn =
+      module Name =
+        let decoder : JsonDecoder<ProgramTypes.PackageFn.Name> =
+          Decoders.obj3Fields
+            "PackageFn.Name"
+            ("owner", Decoders.string)
+            ("modules", Decoders.list Decoders.string)
+            ("name", Decoders.string)
+            (fun owner modules name ->
+              { owner = owner; modules = modules; name = name })
+
       let decoder : JsonDecoder<ProgramTypes.PackageFn.PackageFn> =
         Decoders.obj8Fields
           "PackageFn.PackageFn"
-          ("id", Decoders.guid)
-          ("name", FQFnName.Package.decoder)
+          ("id", Decoders.uuid)
+          ("name", Name.decoder)
           ("body", (fun ctx -> Expr.decoder ctx))
           ("typeParams", Decoders.list Decoders.string)
           ("parameters", Decoders.list Parameter.decoder)
@@ -776,11 +776,21 @@ module ProgramTypes =
 
 
   module PackageConstant =
-    let decoder : JsonDecoder<ProgramTypes.PackageConstant> =
+    module Name =
+      let decoder : JsonDecoder<ProgramTypes.PackageConstant.Name> =
+        Decoders.obj3Fields
+          "PackageConstant.Name"
+          ("owner", Decoders.string)
+          ("modules", Decoders.list Decoders.string)
+          ("name", Decoders.string)
+          (fun owner modules name ->
+            { owner = owner; modules = modules; name = name })
+
+    let decoder : JsonDecoder<ProgramTypes.PackageConstant.PackageConstant> =
       Decoders.obj5Fields
         "PackageConstant"
-        ("id", Decoders.guid)
-        ("name", FQConstantName.Package.decoder)
+        ("id", Decoders.uuid)
+        ("name", Name.decoder)
         ("description", Decoders.string)
         ("deprecated", Deprecation.decoder FQConstantName.FQConstantName.decoder)
         ("body", (fun ctx -> Const.decoder ctx))

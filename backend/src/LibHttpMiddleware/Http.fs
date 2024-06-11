@@ -10,13 +10,14 @@ open LibExecution.Builtin.Shortcuts
 module Dval = LibExecution.Dval
 module RT = LibExecution.RuntimeTypes
 module Telemetry = LibService.Telemetry
+module PackageIDs = LibExecution.PackageIDs
 
 
 let lowercaseHeaderKeys (headers : List<string * string>) : List<string * string> =
   headers |> List.map (fun (k, v) -> (String.toLowercase k, v))
 
 module Request =
-  let typ = RT.FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Http" ] "Request"
+  let typ = RT.FQTypeName.fqPackage PackageIDs.Type.Stdlib.Http.request
 
   let fromRequest
     (uri : string)
@@ -45,12 +46,9 @@ module Response =
   let toHttpResponse (result : RT.Dval) : HttpResponse =
     match result with
     // Expected user response
-    | RT.DRecord(RT.FQTypeName.Package { owner = "Darklang"
-                                         modules = [ "Stdlib"; "Http" ]
-                                         name = "Response" },
-                 _,
-                 [],
-                 fields) ->
+    | RT.DRecord(RT.FQTypeName.Package id, _, [], fields) when
+      id = PackageIDs.Type.Stdlib.Http.response
+      ->
       Telemetry.addTags [ "response-type", "httpResponse response" ]
 
       let code = Map.get "statusCode" fields

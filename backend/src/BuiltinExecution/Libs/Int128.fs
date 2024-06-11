@@ -11,6 +11,8 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = ValueType
 module Dval = LibExecution.Dval
+module PackageIDs = LibExecution.PackageIDs
+module IntRuntimeError = BuiltinExecution.IntRuntimeError
 
 
 module ParseError =
@@ -24,8 +26,7 @@ module ParseError =
       | BadFormat -> "BadFormat", []
       | OutOfRange -> "OutOfRange", []
 
-    let typeName =
-      FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Int128" ] "ParseError"
+    let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.int128ParseError
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -45,13 +46,13 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DInt128 v; DInt128 m ] ->
           if m = System.Int128.Zero then
-            Int64.IntRuntimeError.Error.ZeroModulus
-            |> Int64.IntRuntimeError.RTE.toRuntimeError
+            IntRuntimeError.Error.ZeroModulus
+            |> IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.tracing.callStack
             |> Ply
           else if m < System.Int128.Zero then
-            Int64.IntRuntimeError.Error.NegativeModulus
-            |> Int64.IntRuntimeError.RTE.toRuntimeError
+            IntRuntimeError.Error.NegativeModulus
+            |> IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.tracing.callStack
             |> Ply
           else
@@ -86,8 +87,8 @@ let fns : List<BuiltInFn> =
             v % d |> DInt128 |> resultOk
            with e ->
              if d = System.Int128.Zero then
-               Int64.IntRuntimeError.Error.DivideByZeroError
-               |> Int64.IntRuntimeError.RTE.toRuntimeError
+               IntRuntimeError.Error.DivideByZeroError
+               |> IntRuntimeError.RTE.toRuntimeError
                |> raiseRTE state.tracing.callStack
                |> Ply
              else
@@ -113,8 +114,8 @@ let fns : List<BuiltInFn> =
             let result = System.Int128.op_CheckedAddition (a, b)
             Ply(DInt128(result))
           with :? System.OverflowException ->
-            Int64.IntRuntimeError.Error.OutOfRange
-            |> Int64.IntRuntimeError.RTE.toRuntimeError
+            IntRuntimeError.Error.OutOfRange
+            |> IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.tracing.callStack
             |> Ply
 
@@ -136,8 +137,8 @@ let fns : List<BuiltInFn> =
             let result = System.Int128.op_CheckedSubtraction (a, b)
             Ply(DInt128(result))
           with :? System.OverflowException ->
-            Int64.IntRuntimeError.Error.OutOfRange
-            |> Int64.IntRuntimeError.RTE.toRuntimeError
+            IntRuntimeError.Error.OutOfRange
+            |> IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.tracing.callStack
             |> Ply
         | _ -> incorrectArgs ())
@@ -159,8 +160,8 @@ let fns : List<BuiltInFn> =
             let result = System.Int128.op_CheckedMultiply (a, b)
             Ply(DInt128(result))
           with :? System.OverflowException ->
-            Int64.IntRuntimeError.Error.OutOfRange
-            |> Int64.IntRuntimeError.RTE.toRuntimeError
+            IntRuntimeError.Error.OutOfRange
+            |> IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.tracing.callStack
             |> Ply
         | _ -> incorrectArgs ())
@@ -185,13 +186,13 @@ let fns : List<BuiltInFn> =
             Ply(DInt128(result))
           with
           | :? System.DivideByZeroException ->
-            Int64.IntRuntimeError.Error.DivideByZeroError
-            |> Int64.IntRuntimeError.RTE.toRuntimeError
+            IntRuntimeError.Error.DivideByZeroError
+            |> IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.tracing.callStack
             |> Ply
           | :? System.OverflowException ->
-            Int64.IntRuntimeError.Error.OutOfRange
-            |> Int64.IntRuntimeError.RTE.toRuntimeError
+            IntRuntimeError.Error.OutOfRange
+            |> IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.tracing.callStack
             |> Ply
         | _ -> incorrectArgs ())
@@ -212,8 +213,8 @@ let fns : List<BuiltInFn> =
             let result = System.Int128.op_CheckedUnaryNegation a
             Ply(DInt128(result))
           with :? System.OverflowException ->
-            Int64.IntRuntimeError.Error.OutOfRange
-            |> Int64.IntRuntimeError.RTE.toRuntimeError
+            IntRuntimeError.Error.OutOfRange
+            |> IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.tracing.callStack
             |> Ply
         | _ -> incorrectArgs ())
@@ -329,13 +330,13 @@ let fns : List<BuiltInFn> =
         TypeReference.result
           TInt128
           (TCustomType(
-            Ok(FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Int128" ] "ParseError"),
+            Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.int128ParseError),
             []
           ))
       description = "Returns the <type Int128> value of a <type String>"
       fn =
         let resultOk = Dval.resultOk KTInt128 KTString
-        let typeName = RuntimeError.name [ "Int128" ] "ParseError"
+        let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.int128ParseError
         let resultError = Dval.resultError KTInt128 (KTCustomType(typeName, []))
         (function
         | _, _, [ DString s ] ->

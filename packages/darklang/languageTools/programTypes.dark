@@ -4,43 +4,24 @@ module Darklang =
 
       /// Used to name where type/function/etc lives, eg a User module, or a Package module.
       module FQTypeName =
-
-        /// The name of a thing in the package manager
-        // TODO: We plan to use UUIDs for this, but this is a placeholder
-        type Package =
-          { owner: String
-            modules: List<String>
-            name: String }
-
+        type Package = Uuid
         type FQTypeName = Package of Package
-
 
       module FQConstantName =
         type Builtin = { name: String; version: Int64 }
-
-        type Package =
-          { owner: String
-            modules: List<String>
-            name: String }
+        type Package = Uuid
 
         type FQConstantName =
           | Builtin of Builtin
           | Package of Package
 
-
       module FQFnName =
         type Builtin = { name: String; version: Int64 }
-
-        type Package =
-          { owner: String
-            modules: List<String>
-            name: String }
+        type Package = Uuid
 
         type FQFnName =
           | Builtin of Builtin
           | Package of Package
-
-
 
 
       type NameResolution<'a> =
@@ -125,14 +106,14 @@ module Darklang =
 
         | MPUnit of ID
         | MPBool of ID * Bool
-        | MPInt64 of ID * Int64
-        | MPUInt64 of ID * UInt64
         | MPInt8 of ID * Int8
         | MPUInt8 of ID * UInt8
         | MPInt16 of ID * Int16
         | MPUInt16 of ID * UInt16
         | MPInt32 of ID * Int32
         | MPUInt32 of ID * UInt32
+        | MPInt64 of ID * Int64
+        | MPUInt64 of ID * UInt64
         | MPInt128 of ID * Int128
         | MPUInt128 of ID * UInt128
         | MPFloat of ID * Sign * String * String
@@ -220,24 +201,15 @@ module Darklang =
 
         | EBool of ID * Bool
 
-        | EInt64 of ID * Int64
-
-        | EUInt64 of ID * UInt64
-
         | EInt8 of ID * Int8
-
         | EUInt8 of ID * UInt8
-
         | EInt16 of ID * Int16
-
         | EUInt16 of ID * UInt16
-
         | EInt32 of ID * Int32
-
         | EUInt32 of ID * UInt32
-
+        | EInt64 of ID * Int64
+        | EUInt64 of ID * UInt64
         | EInt128 of ID * Int128
-
         | EUInt128 of ID * UInt128
 
         // Allow the user to have arbitrarily big numbers, even if they don't make sense as
@@ -286,7 +258,6 @@ module Darklang =
 
 
         // function calls
-
         | EInfix of ID * Infix * Expr * Expr
 
         | ELambda of ID * List<LetPattern> * Expr
@@ -305,14 +276,14 @@ module Darklang =
           match expr with
           | EUnit id -> id
           | EBool(id, _) -> id
-          | EInt64(id, _) -> id
-          | EUInt64(id, _) -> id
           | EInt8(id, _) -> id
           | EUInt8(id, _) -> id
           | EInt16(id, _) -> id
           | EUInt16(id, _) -> id
           | EInt32(id, _) -> id
           | EUInt32(id, _) -> id
+          | EInt64(id, _) -> id
+          | EUInt64(id, _) -> id
           | EInt128(id, _) -> id
           | EUInt128(id, _) -> id
           | EFloat(id, _, _, _) -> id
@@ -378,23 +349,40 @@ module Darklang =
 
 
       // Package space
-      type PackageType =
-        { id: Uuid
-          name: FQTypeName.Package
-          declaration: TypeDeclaration.TypeDeclaration
-          description: String
-          deprecated: Deprecation<FQTypeName.FQTypeName> }
+      module PackageType =
+        type Name =
+          { owner: String
+            modules: List<String>
+            name: String }
+
+        type PackageType =
+          { id: Uuid
+            name: Name
+            declaration: TypeDeclaration.TypeDeclaration
+            description: String
+            deprecated: Deprecation<FQTypeName.FQTypeName> }
 
 
-      type PackageConstant =
-        { id: Uuid
-          name: FQConstantName.Package
-          body: Const
-          description: String
-          deprecated: Deprecation<FQFnName.FQFnName> }
+      module PackageConstant =
+        type Name =
+          { owner: String
+            modules: List<String>
+            name: String }
+
+        type PackageConstant =
+          { id: Uuid
+            name: Name
+            body: Const
+            description: String
+            deprecated: Deprecation<FQFnName.FQFnName> }
 
 
       module PackageFn =
+        type Name =
+          { owner: String
+            modules: List<String>
+            name: String }
+
         type Parameter =
           { name: String
             typ: TypeReference
@@ -402,7 +390,7 @@ module Darklang =
 
         type PackageFn =
           { id: Uuid
-            name: FQFnName.Package
+            name: Name
             body: Expr
             typeParams: List<String>
             parameters: List<Parameter>
@@ -411,8 +399,8 @@ module Darklang =
             deprecated: Deprecation<FQFnName.FQFnName> }
 
       type Packages =
-        { types: List<PackageType>
-          constants: List<PackageConstant>
+        { types: List<PackageType.PackageType>
+          constants: List<PackageConstant.PackageConstant>
           fns: List<PackageFn.PackageFn> }
 
 
@@ -448,12 +436,22 @@ module Darklang =
         type Handler = { tlid: TLID; ast: Expr; spec: Spec }
 
 
-// module Toplevel =
-//   type T =
-//     | TLDB of DB
-//     | TLHandler of Handler.Handler
+      // module Toplevel =
+      //   type T =
+      //     | TLDB of DB
+      //     | TLHandler of Handler.Handler
 
-//   let toTLID (tl : T) : tlid =
-//     match tl with
-//     | TLDB db -> db.tlid
-//     | TLHandler h -> h.tlid
+      //   let toTLID (tl : T) : tlid =
+      //     match tl with
+      //     | TLDB db -> db.tlid
+      //     | TLHandler h -> h.tlid
+
+      module CliScript =
+        type Declaration =
+          | Type of PackageType.PackageType
+          | Constant of PackageConstant.PackageConstant
+          | Function of PackageFn.PackageFn
+
+        type CliScript =
+          { declarations: List<Declaration>
+            exprsToEval: List<Expr> }

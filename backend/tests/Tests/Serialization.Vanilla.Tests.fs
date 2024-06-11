@@ -76,13 +76,17 @@ module PersistedSerializations =
           (V.RuntimeTypes.dval
            |> LibExecution.DvalReprInternalRoundtrippable.FormatV0.fromRT)
 
-        v<LibExecution.ProgramTypes.PackageType.T> "type" V.ProgramTypes.packageType
+        v<LibExecution.ProgramTypes.PackageType.PackageType>
+          "type"
+          V.ProgramTypes.packageType
 
-        v<LibExecution.ProgramTypes.PackageConstant.T>
+        v<LibExecution.ProgramTypes.PackageConstant.PackageConstant>
           "constant"
           V.ProgramTypes.packageConstant
 
-        v<LibExecution.ProgramTypes.PackageFn.T> "function" V.ProgramTypes.packageFn
+        v<LibExecution.ProgramTypes.PackageFn.PackageFn>
+          "function"
+          V.ProgramTypes.packageFn
 
         v<List<LibExecution.ProgramTypes.Toplevel.T>>
           "complete"

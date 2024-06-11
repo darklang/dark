@@ -19,10 +19,12 @@ module PTParser = LibExecution.ProgramTypesParser
 module Account = LibCloud.Account
 module NR = LibParser.NameResolver
 
+let pm = LibCloud.PackageManager.pt
+
 let parse (code : string) : Task<PT.Expr> =
   LibParser.Parser.parseSimple
-    localBuiltIns
-    packageManager
+    (localBuiltIns pm)
+    pm
     NR.OnMissing.ThrowError
     "tests.canvas.fs"
     code

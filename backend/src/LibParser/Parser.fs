@@ -22,7 +22,7 @@ let initialParse (filename : string) (code : string) : WT.Expr =
 /// Returns an incomplete parse of a PT expression
 let parsePTExpr
   (builtins : RT.Builtins)
-  (pm : RT.PackageManager)
+  (pm : PT.PackageManager)
   (onMissing : NR.OnMissing)
   (filename : string)
   (code : string)
@@ -32,7 +32,7 @@ let parsePTExpr
 
 let parseSimple
   (builtins : RT.Builtins)
-  (pm : RT.PackageManager)
+  (pm : PT.PackageManager)
   (onMissing : NR.OnMissing)
   (filename : string)
   (code : string)
@@ -42,7 +42,7 @@ let parseSimple
 
 let parseRTExpr
   (builtins : RT.Builtins)
-  (pm : RT.PackageManager)
+  (pm : PT.PackageManager)
   (onMissing : NR.OnMissing)
   (filename : string)
   (code : string)
@@ -54,7 +54,7 @@ let parseRTExpr
 
 let parsePackageFile
   (builtins : RT.Builtins)
-  (pm : RT.PackageManager)
+  (pm : PT.PackageManager)
   (onMissing : NR.OnMissing)
   (path : string)
   (contents : string)

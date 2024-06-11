@@ -1558,26 +1558,34 @@ module Package =
           temperature = 0.7 }
     )
 
-  Builtin.jsonSerialize<PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType>
-    PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.InvalidPackageName = "{\"InvalidPackageName\":[]}"
+  Builtin.jsonSerialize<PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType> (
+    PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.InvalidPackageName
+      [ "NamePart" ]
+  ) = "{\"InvalidPackageName\":[[\"NamePart\"]]}"
 
   Builtin.jsonParse<PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType>
-    "{\"NotFound\":[]}" = Result.Ok
+    "{\"NotFound\":[[\"NamePart\"]]}" = Result.Ok(
     PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.NotFound
+      [ "NamePart" ]
+  )
 
   Builtin.jsonSerialize<List<PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType>>
-    [ PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.InvalidPackageName
+    [ (PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.InvalidPackageName
+        [ "NamePart" ])
       (PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.MissingEnumModuleName
         "Ok")
-      PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.NotFound ] = "[{\"InvalidPackageName\":[]},{\"MissingEnumModuleName\":[\"Ok\"]},{\"NotFound\":[]}]"
+      (PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.NotFound
+        [ "NamePart" ]) ] = "[{\"InvalidPackageName\":[[\"NamePart\"]]},{\"MissingEnumModuleName\":[\"Ok\"]},{\"NotFound\":[[\"NamePart\"]]}]"
 
   Builtin.jsonParse<List<PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType>>
-    "[{\"InvalidPackageName\":[]},{\"MissingEnumModuleName\":[\"Ok\"]},{\"NotFound\":[]}]" = Result
+    "[{\"InvalidPackageName\":[[\"NamePart\"]]},{\"MissingEnumModuleName\":[\"Ok\"]},{\"NotFound\":[[\"NamePart\"]]}]" = Result
     .Ok(
-      [ PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.InvalidPackageName
+      [ (PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.InvalidPackageName
+          [ "NamePart" ])
         (PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.MissingEnumModuleName
           "Ok")
-        PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.NotFound ]
+        (PACKAGE.Darklang.LanguageTools.RuntimeErrors.NameResolution.ErrorType.NotFound
+          [ "NamePart" ]) ]
     )
 
 

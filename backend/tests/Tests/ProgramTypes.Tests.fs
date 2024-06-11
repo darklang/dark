@@ -19,14 +19,15 @@ let ptFQFnName =
     (fun name -> name |> PT2RT.FQFnName.toRT |> RT.FQFnName.toString)
     [ (PT.FQFnName.fqBuiltIn "stringAppend" 1), "stringAppend_v1" ]
 
+let pmPT = PT.PackageManager.empty
 
 let testPipesToRuntimeTypes =
   testTask "pipes to runtime types" {
     let! actual =
       "value.age |> (-) 2L |> (+) value.age |> (<) 3L"
       |> LibParser.Parser.parseRTExpr
-        localBuiltIns
-        packageManager
+        (localBuiltIns pmPT)
+        pmPT
         NR.OnMissing.ThrowError
         "programTypes.tests.fs"
       |> Ply.toTask

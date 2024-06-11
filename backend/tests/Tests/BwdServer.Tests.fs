@@ -45,10 +45,12 @@ type Test =
     expectedResponse : byte array
   }
 
+let pm = LibCloud.PackageManager.pt
+
 let parse code =
   LibParser.Parser.parsePTExpr
-    localBuiltIns
-    packageManager
+    (localBuiltIns pm)
+    pm
     NR.OnMissing.ThrowError
     "BwdServer.Tests.fs"
     code

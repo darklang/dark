@@ -24,28 +24,24 @@ module FormatV0 =
   //    change RT.Dval.
 
   module FQTypeName =
-    type Package = { owner : string; modules : List<string>; name : string }
+    type Package = uuid
 
     type FQTypeName = Package of Package
 
-
     let toRT (t : FQTypeName) : RT.FQTypeName.FQTypeName =
       match t with
-      | Package { owner = owner; modules = modules; name = name } ->
-        RT.FQTypeName.Package { owner = owner; modules = modules; name = name }
-
+      | Package id -> RT.FQTypeName.Package id
 
     let fromRT (t : RT.FQTypeName.FQTypeName) : FQTypeName =
       match t with
-      | RT.FQTypeName.Package { owner = owner; modules = modules; name = name } ->
-        FQTypeName.Package { owner = owner; modules = modules; name = name }
+      | RT.FQTypeName.Package id -> FQTypeName.Package id
 
 
 
   module FQFnName =
     type Builtin = { name : string; version : int }
 
-    type Package = { owner : string; modules : List<string>; name : string }
+    type Package = uuid
 
     type FQFnName =
       | Builtin of Builtin
@@ -56,17 +52,14 @@ module FormatV0 =
       | Builtin { name = name; version = version } ->
         RT.FQFnName.Builtin { name = name; version = version }
 
-      | Package { owner = owner; modules = modules; name = name } ->
-        RT.FQFnName.Package { owner = owner; modules = modules; name = name }
+      | Package id -> RT.FQFnName.Package id
 
     let fromRT (fn : RT.FQFnName.FQFnName) : FQFnName =
       match fn with
       | RT.FQFnName.Builtin { name = name; version = version } ->
         FQFnName.Builtin { name = name; version = version }
 
-      | RT.FQFnName.Package { owner = owner; modules = modules; name = name } ->
-        FQFnName.Package { owner = owner; modules = modules; name = name }
-
+      | RT.FQFnName.Package id -> FQFnName.Package id
 
 
 

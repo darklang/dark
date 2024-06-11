@@ -6,7 +6,6 @@ open FSharp.Control.Tasks
 open Prelude
 
 module RT = RuntimeTypes
-module AT = AnalysisTypes
 
 let noTracing (callStack : RT.CallStack) : RT.Tracing =
   { traceDval = fun _ _ -> ()
@@ -90,10 +89,7 @@ let runtimeErrorToString
   : Task<Result<RT.Dval, Option<RT.CallStack> * RT.RuntimeError>> =
   task {
     let fnName =
-      RT.FQFnName.fqPackage
-        "Darklang"
-        [ "LanguageTools"; "RuntimeErrors"; "Error" ]
-        "toString"
+      RT.FQFnName.fqPackage PackageIDs.Fn.LanguageTools.RuntimeErrors.Error.toString
     let args = NEList.singleton (RT.RuntimeError.toDT rte)
     return! executeFunction state fnName [] args
   }
@@ -125,7 +121,7 @@ let exprString
     let prettyPrint (expr : RT.Expr) : Ply<string> =
       uply {
         let fnName =
-          RT.FQFnName.fqPackage "Darklang" [ "PrettyPrinter"; "RuntimeTypes" ] "expr"
+          RT.FQFnName.fqPackage PackageIDs.Fn.PrettyPrinter.RuntimeTypes.expr
         let args = NEList.singleton (RuntimeTypesToDarkTypes.Expr.toDT expr)
 
         match! executeFunction state fnName [] args with
@@ -153,7 +149,7 @@ let callStackString
   | Some cs ->
     let (executionPoint, exprId) = cs.lastCalled
 
-    let handleFn (fn : Option<RT.PackageFn.T>) : Ply<string> =
+    let handleFn (fn : Option<RT.PackageFn.PackageFn>) : Ply<string> =
       uply {
         match fn with
         | None -> return "<Couldn't find package function>"
@@ -171,8 +167,6 @@ let callStackString
       | RT.FQFnName.Package name ->
         state.packageManager.getFn name |> Ply.bind handleFn
       | RT.FQFnName.Builtin name -> Ply $"Builtin {name}"
-    | RT.ExecutionPoint.PackageFn fnId ->
-      state.packageManager.getFnByID fnId |> Ply.bind handleFn
 
 
 // /// Return a function to trace TLIDs (add it to state via

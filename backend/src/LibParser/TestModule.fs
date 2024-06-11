@@ -19,10 +19,10 @@ type WTTest =
 
 type WTModule =
   { name : List<string>
-    types : List<WT.PackageType.T>
-    fns : List<WT.PackageFn.T>
-    constants : List<WT.PackageConstant.T>
+    types : List<WT.PackageType.PackageType>
+    constants : List<WT.PackageConstant.PackageConstant>
     dbs : List<WT.DB.T>
+    fns : List<WT.PackageFn.PackageFn>
     tests : List<WTTest> }
 
 let emptyWTModule =
@@ -33,9 +33,9 @@ type PTTest =
 
 type PTModule =
   { name : List<string>
-    types : List<PT.PackageType.T>
-    fns : List<PT.PackageFn.T>
-    constants : List<PT.PackageConstant.T>
+    types : List<PT.PackageType.PackageType>
+    fns : List<PT.PackageFn.PackageFn>
+    constants : List<PT.PackageConstant.PackageConstant>
     dbs : List<PT.DB.T>
     tests : List<PTTest> }
 
@@ -47,9 +47,9 @@ type RTTest =
 
 type RTModule =
   { name : List<string>
-    types : List<PT.PackageType.T>
-    fns : List<PT.PackageFn.T>
-    constants : List<PT.PackageConstant.T>
+    types : List<PT.PackageType.PackageType>
+    fns : List<PT.PackageFn.PackageFn>
+    constants : List<PT.PackageConstant.PackageConstant>
     dbs : List<PT.DB.T>
     tests : List<RTTest> }
 
@@ -102,7 +102,7 @@ let parseFile
   let parseTypeDecl
     (currentModule : List<string>)
     (typeDefn : SynTypeDefn)
-    : List<WT.DB.T> * List<WT.PackageType.T> =
+    : List<WT.DB.T> * List<WT.PackageType.PackageType> =
     match typeDefn with
     | SynTypeDefn(SynComponentInfo(attrs, _, _, _, _, _, _, _), _, _, _, _, _) ->
       let attrs = attrs |> List.map _.Attributes |> List.concat
@@ -120,7 +120,7 @@ let parseFile
   let parseSynBinding
     (currentModule : List<string>)
     (binding : SynBinding)
-    : List<WT.PackageFn.T> * List<WT.PackageConstant.T> =
+    : List<WT.PackageFn.PackageFn> * List<WT.PackageConstant.PackageConstant> =
     match binding with
     | SynBinding(_, _, _, _, _, _, _, signature, _, _, _, _, _) ->
       match signature with
@@ -199,7 +199,7 @@ let parseFile
 let toPT
   (owner : string)
   (builtins : RT.Builtins)
-  (pm : RT.PackageManager)
+  (pm : PT.PackageManager)
   (onMissing : NR.OnMissing)
   (m : WTModule)
   : Ply<PTModule> =
@@ -256,7 +256,7 @@ let toPT
 let parseTestFile
   (owner : string)
   (builtins : RT.Builtins)
-  (pm : RT.PackageManager)
+  (pm : PT.PackageManager)
   (onMissing : NR.OnMissing)
   (filename : string)
   : Ply<List<PTModule>> =
@@ -268,26 +268,63 @@ let parseTestFile
       |> parseFile owner
 
     // Initial pass, so we can re-parse with all names in context
-    let! (result : List<PTModule>) =
+    let! (afterFirstPass : List<PTModule>) =
       modulesWT |> Ply.List.mapSequentially (toPT owner builtins pm onMissing)
 
     // Now, parse again, but with the names in context (so fewer are marked as unresolved)
     let pm =
-      RT.PackageManager.withExtras
+      PT.PackageManager.withExtras
         pm
-        (result |> List.collect _.types |> List.map PT2RT.PackageType.toRT)
-        (result |> List.collect _.constants |> List.map PT2RT.PackageConstant.toRT)
-        (result |> List.collect _.fns |> List.map PT2RT.PackageFn.toRT)
-
-    let! (result : List<PTModule>) =
+        (afterFirstPass |> List.collect _.types)
+        (afterFirstPass |> List.collect _.constants)
+        (afterFirstPass |> List.collect _.fns)
+    let! (afterSecondPass : List<PTModule>) =
       modulesWT |> Ply.List.mapSequentially (toPT owner builtins pm onMissing)
 
-    return result
+    // The IDs that weren't locked-in have changed - let's fix that now.
+    let adjusted : List<PTModule> =
+      afterSecondPass
+      |> List.map (fun m ->
+        let originalModule =
+          afterFirstPass
+          |> List.find (fun original -> original.name = m.name)
+          |> Option.unwrap m
+
+        { m with
+            types =
+              m.types
+              |> List.map (fun typ ->
+                { typ with
+                    id =
+                      originalModule.types
+                      |> List.find (fun original -> original.name = typ.name)
+                      |> Option.map _.id
+                      |> Option.defaultValue typ.id })
+            constants =
+              m.constants
+              |> List.map (fun c ->
+                { c with
+                    id =
+                      originalModule.constants
+                      |> List.find (fun original -> original.name = c.name)
+                      |> Option.map _.id
+                      |> Option.defaultValue c.id })
+            fns =
+              m.fns
+              |> List.map (fun fn ->
+                { fn with
+                    id =
+                      originalModule.fns
+                      |> List.find (fun original -> original.name = fn.name)
+                      |> Option.map _.id
+                      |> Option.defaultValue fn.id }) })
+
+    return adjusted
   }
 
 let parseSingleTestFromFile
   (builtins : RT.Builtins)
-  (pm : RT.PackageManager)
+  (pm : PT.PackageManager)
   (onMissing : NR.OnMissing)
   (filename : string)
   (testSource : string)

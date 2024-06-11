@@ -103,9 +103,9 @@ type Trace = TraceID.T * TraceData
 //     traceData : TraceData
 //     dbs : List<RT.DB.T>
 //     expr : RT.Expr
-//     packageFns : List<RT.PackageFn.T>
-//     packageTypes : List<RT.PackageType.T>
-//     packageConstants : List<RT.PackageConstant.T>
+//     packageFns : List<RT.PackageFn.PackageFn>
+//     packageTypes : List<RT.PackageType.PackageType>
+//     packageConstants : List<RT.PackageConstant.PackageConstant>
 //     secrets : List<RT.Secret.T> }
 
 // type AnalysisResults = System.Collections.Generic.Dictionary<id, RT.Dval>

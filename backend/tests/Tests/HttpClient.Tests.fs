@@ -86,10 +86,13 @@ let updateBody (body : byte array) : byte array =
   body |> List.fromArray |> find |> List.toArray
 
 
+
+let pmPT = LibCloud.PackageManager.pt
+
 let parseTest test =
   LibParser.TestModule.parseSingleTestFromFile
-    localBuiltIns
-    packageManager
+    (localBuiltIns pmPT)
+    pmPT
     NR.OnMissing.ThrowError
     test
 
@@ -152,7 +155,7 @@ let makeTest versionName filename =
     else
       // Set up the canvas
       let canvasID = System.Guid.NewGuid()
-      let! state = executionStateFor packageManager canvasID false true Map.empty
+      let! state = executionStateFor pmPT canvasID false true Map.empty
 
       // Parse the Dark code
       let! (test : LibParser.TestModule.RTTest) =

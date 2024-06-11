@@ -51,7 +51,7 @@ let purgeDataFromInternalSqlTables (id : CanvasID) : Task<unit> =
 
 
 let loadFromDisk
-  (pm : RT.PackageManager)
+  (pm : PT.PackageManager)
   (canvasName : string)
   : Ply<System.Guid * List<LibExecution.ProgramTypes.Toplevel.T>> =
   uply {

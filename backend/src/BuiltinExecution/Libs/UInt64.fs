@@ -11,6 +11,8 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = ValueType
 module Dval = LibExecution.Dval
+module PackageIDs = LibExecution.PackageIDs
+module IntRuntimeError = BuiltinExecution.IntRuntimeError
 
 
 module ParseError =
@@ -24,8 +26,7 @@ module ParseError =
       | BadFormat -> "BadFormat", []
       | OutOfRange -> "OutOfRange", []
 
-    let typeName =
-      FQTypeName.fqPackage "Darklang" [ "Stdlib"; "UInt64" ] "ParseError"
+    let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.uint64ParseError
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -46,8 +47,8 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DUInt64 v; DUInt64 m ] ->
           if m = 0UL then
-            Int64.IntRuntimeError.Error.ZeroModulus
-            |> Int64.IntRuntimeError.RTE.toRuntimeError
+            IntRuntimeError.Error.ZeroModulus
+            |> IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.tracing.callStack
             |> Ply
           else
@@ -71,8 +72,8 @@ let fns : List<BuiltInFn> =
           try
             DUInt64(Checked.(+) a b) |> Ply
           with :? System.OverflowException ->
-            Int64.IntRuntimeError.Error.OutOfRange
-            |> Int64.IntRuntimeError.RTE.toRuntimeError
+            IntRuntimeError.Error.OutOfRange
+            |> IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.tracing.callStack
             |> Ply
         | _ -> incorrectArgs ())
@@ -92,8 +93,8 @@ let fns : List<BuiltInFn> =
           try
             DUInt64(Checked.(-) a b) |> Ply
           with :? System.OverflowException ->
-            Int64.IntRuntimeError.Error.OutOfRange
-            |> Int64.IntRuntimeError.RTE.toRuntimeError
+            IntRuntimeError.Error.OutOfRange
+            |> IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.tracing.callStack
             |> Ply
         | _ -> incorrectArgs ())
@@ -113,8 +114,8 @@ let fns : List<BuiltInFn> =
           try
             DUInt64(Checked.(*) a b) |> Ply
           with :? System.OverflowException ->
-            Int64.IntRuntimeError.Error.OutOfRange
-            |> Int64.IntRuntimeError.RTE.toRuntimeError
+            IntRuntimeError.Error.OutOfRange
+            |> IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.tracing.callStack
             |> Ply
         | _ -> incorrectArgs ())
@@ -137,8 +138,8 @@ let fns : List<BuiltInFn> =
           (try
             (bigint number) ** (int exp) |> uint64 |> DUInt64 |> Ply
            with :? System.OverflowException ->
-             Int64.IntRuntimeError.Error.OutOfRange
-             |> Int64.IntRuntimeError.RTE.toRuntimeError
+             IntRuntimeError.Error.OutOfRange
+             |> IntRuntimeError.RTE.toRuntimeError
              |> raiseRTE state.tracing.callStack
              |> Ply)
         | _ -> incorrectArgs ())
@@ -156,8 +157,8 @@ let fns : List<BuiltInFn> =
         (function
         | state, _, [ DUInt64 a; DUInt64 b ] ->
           if b = 0UL then
-            Int64.IntRuntimeError.Error.DivideByZeroError
-            |> Int64.IntRuntimeError.RTE.toRuntimeError
+            IntRuntimeError.Error.DivideByZeroError
+            |> IntRuntimeError.RTE.toRuntimeError
             |> raiseRTE state.tracing.callStack
             |> Ply
           else
@@ -165,8 +166,8 @@ let fns : List<BuiltInFn> =
             if
               result < System.UInt64.MinValue || result > System.UInt64.MaxValue
             then
-              Int64.IntRuntimeError.Error.OutOfRange
-              |> Int64.IntRuntimeError.RTE.toRuntimeError
+              IntRuntimeError.Error.OutOfRange
+              |> IntRuntimeError.RTE.toRuntimeError
               |> raiseRTE state.tracing.callStack
               |> Ply
             else
@@ -301,13 +302,13 @@ let fns : List<BuiltInFn> =
         TypeReference.result
           TUInt64
           (TCustomType(
-            Ok(FQTypeName.fqPackage "Darklang" [ "Stdlib"; "UInt64" ] "ParseError"),
+            Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.uint64ParseError),
             []
           ))
       description = "Returns the <type UInt64> value of a <type String>"
       fn =
         let resultOk = Dval.resultOk KTUInt64 KTString
-        let typeName = RuntimeError.name [ "UInt64" ] "ParseError"
+        let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.uint64ParseError
         let resultError = Dval.resultError KTUInt64 (KTCustomType(typeName, []))
         (function
         | _, _, [ DString s ] ->

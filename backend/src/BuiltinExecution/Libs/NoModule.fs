@@ -6,6 +6,7 @@ module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
+module PackageIDs = LibExecution.PackageIDs
 module Dval = LibExecution.Dval
 
 
@@ -364,41 +365,27 @@ let fns : List<BuiltInFn> =
           match dval with
 
           // success: extract `Some` out of an Option
-          | DEnum(FQTypeName.Package({ owner = "Darklang"
-                                       modules = [ "Stdlib"; "Option" ]
-                                       name = "Option" }),
-                  _,
-                  _,
-                  "Some",
-                  [ value ]) -> Ply value
+          | DEnum(FQTypeName.Package id, _, _, "Some", [ value ]) when
+            id = PackageIDs.Type.Stdlib.option
+            ->
+            Ply value
 
           // success: extract `Ok` out of a Result
-          | DEnum(FQTypeName.Package({ owner = "Darklang"
-                                       modules = [ "Stdlib"; "Result" ]
-                                       name = "Result" }),
-                  _,
-                  _,
-                  "Ok",
-                  [ value ]) -> Ply value
+          | DEnum(FQTypeName.Package id, _, _, "Ok", [ value ]) when
+            id = PackageIDs.Type.Stdlib.result
+            ->
+            Ply value
 
           // Error: expected Some, got None
-          | DEnum(FQTypeName.Package({ owner = "Darklang"
-                                       modules = [ "Stdlib"; "Option" ]
-                                       name = "Option" }),
-                  _,
-                  _,
-                  "None",
-                  []) ->
+          | DEnum(FQTypeName.Package id, _, _, "None", []) when
+            id = PackageIDs.Type.Stdlib.option
+            ->
             "expected Some, got None" |> RuntimeError.oldError |> raiseUntargetedRTE
 
           // Error: expected Ok, got Error
-          | DEnum(FQTypeName.Package({ owner = "Darklang"
-                                       modules = [ "Stdlib"; "Result" ]
-                                       name = "Result" }),
-                  _,
-                  _,
-                  "Error",
-                  [ value ]) ->
+          | DEnum(FQTypeName.Package id, _, _, "Error", [ value ]) when
+            id = PackageIDs.Type.Stdlib.result
+            ->
             $"expected Ok, got Error:\n{value |> DvalReprDeveloper.toRepr}"
             |> RuntimeError.oldError
             |> raiseUntargetedRTE

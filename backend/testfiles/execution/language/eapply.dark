@@ -1,5 +1,5 @@
 Stdlib.Int64.add_v0 5L = Builtin.testDerrorMessage
-  "PACKAGE.Darklang.Stdlib.Int64.add has 0 type parameters and 2 parameters, but here was called with 0 type arguments and 1 arguments."
+  "PACKAGE.Darklang.Stdlib.Int64.add has 0 type parameters and 2 parameters, but here was called with 0 type arguments and 1 argument."
 
 (let fn = (fun x -> x + 1L)
  fn 6L) = 7L
@@ -99,19 +99,19 @@ module UserDefined =
       "UserDefined.stringFn's 1st argument (`key`) should be a String. However, an Int64 (5) was passed instead.\n\nExpected: (key: String)\nActual: an Int64: 5"
 
     stringFn "str1" "str2" = Builtin.testDerrorMessage
-      "UserDefined.stringFn has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
+      "UserDefined.stringFn has 0 type parameters and 1 parameter, but here was called with 0 type arguments and 2 arguments."
 
     fnWithTypeArgAndOneParam 1L = Builtin.testDerrorMessage
-      "UserDefined.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 0 type arguments and 1 arguments."
+      "UserDefined.fnWithTypeArgAndOneParam has 1 type parameter and 1 parameter, but here was called with 0 type arguments and 1 argument."
 
     fnWithTypeArgAndOneParam<Int64> 1L "str2" = Builtin.testDerrorMessage
-      "UserDefined.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 1 type arguments and 2 arguments."
+      "UserDefined.fnWithTypeArgAndOneParam has 1 type parameter and 1 parameter, but here was called with 1 type argument and 2 arguments."
 
     fnWithTypeArgAndOneParam<Int64, String> 1L = Builtin.testDerrorMessage
-      "UserDefined.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 1 arguments."
+      "UserDefined.fnWithTypeArgAndOneParam has 1 type parameter and 1 parameter, but here was called with 2 type arguments and 1 argument."
 
     fnWithTypeArgAndOneParam<Int64, String> 1L "str" = Builtin.testDerrorMessage
-      "UserDefined.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."
+      "UserDefined.fnWithTypeArgAndOneParam has 1 type parameter and 1 parameter, but here was called with 2 type arguments and 2 arguments."
 
     fnWithTypeArgAndOneParam<Int64> "str2" = Builtin.testDerrorMessage
       "UserDefined.fnWithTypeArgAndOneParam's 1st argument (`arg`) should be an Int64. However, a String (\"str2\") was passed instead.\n\nExpected: (arg: 'a)\nActual: a String: \"str2\""
@@ -171,7 +171,7 @@ module Packages =
       "PACKAGE.Darklang.Test.stringFn's 1st argument (`key`) should be a String. However, an Int64 (5) was passed instead.\n\nExpected: (key: String)\nActual: an Int64: 5"
 
     PACKAGE.Darklang.Test.stringFn "str1" "str2" = Builtin.testDerrorMessage
-      "PACKAGE.Darklang.Test.stringFn has 0 type parameters and 1 parameters, but here was called with 0 type arguments and 2 arguments."
+      "PACKAGE.Darklang.Test.stringFn has 0 type parameters and 1 parameter, but here was called with 0 type arguments and 2 arguments."
 
     PACKAGE.Darklang.Test.derrorFn "test" = Builtin.testDerrorMessage "test"
 
@@ -180,13 +180,13 @@ module Packages =
       "Unknown error"
 
     PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam 1L = Builtin.testDerrorMessage
-      "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 0 type arguments and 1 arguments."
+      "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameter and 1 parameter, but here was called with 0 type arguments and 1 argument."
 
     PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int64> 1L "str2" = Builtin.testDerrorMessage
-      "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 1 type arguments and 2 arguments."
+      "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameter and 1 parameter, but here was called with 1 type argument and 2 arguments."
 
     PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int64, String> 1L = Builtin.testDerrorMessage
-      "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 1 arguments."
+      "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameter and 1 parameter, but here was called with 2 type arguments and 1 argument."
 
     PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int64, String> 1L "str" = Builtin.testDerrorMessage
-      "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameters and 1 parameters, but here was called with 2 type arguments and 2 arguments."
+      "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameter and 1 parameter, but here was called with 2 type arguments and 2 arguments."

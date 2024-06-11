@@ -5,6 +5,7 @@ module LibBinarySerialization.SerializedTypes
 type id = Prelude.id
 type tlid = Prelude.tlid
 type Sign = Prelude.Sign
+type uuid = Prelude.uuid
 
 // The types in this files are serialized using MessagePack.
 //
@@ -55,13 +56,7 @@ type NEList<'a> =
 
 module FQTypeName =
   [<MessagePack.MessagePackObject>]
-  type Package =
-    { [<MessagePack.Key 0>]
-      owner : string
-      [<MessagePack.Key 1>]
-      modules : List<string>
-      [<MessagePack.Key 2>]
-      name : string }
+  type Package = uuid
 
   [<MessagePack.MessagePackObject>]
   type FQTypeName = Package of Package
@@ -76,13 +71,7 @@ module FQConstantName =
       version : int }
 
   [<MessagePack.MessagePackObject>]
-  type Package =
-    { [<MessagePack.Key 0>]
-      owner : string
-      [<MessagePack.Key 1>]
-      modules : List<string>
-      [<MessagePack.Key 2>]
-      name : string }
+  type Package = uuid
 
   [<MessagePack.MessagePackObject>]
   type FQConstantName =
@@ -99,13 +88,7 @@ module FQFnName =
       version : int }
 
   [<MessagePack.MessagePackObject>]
-  type Package =
-    { [<MessagePack.Key 0>]
-      owner : string
-      [<MessagePack.Key 1>]
-      modules : List<string>
-      [<MessagePack.Key 2>]
-      name : string }
+  type Package = uuid
 
   [<MessagePack.MessagePackObject>]
   type FQFnName =
@@ -116,11 +99,11 @@ module FQFnName =
 module NameResolutionError =
   [<MessagePack.MessagePackObject>]
   type ErrorType =
-    | NotFound
+    | NotFound of names : List<string>
+    | ExpectedEnumButNot of packageTypeID : uuid
+    | ExpectedRecordButNot of packageTypeID : uuid
     | MissingEnumModuleName of caseName : string
-    | InvalidPackageName
-    | ExpectedEnumButNot
-    | ExpectedRecordButNot
+    | InvalidPackageName of names : List<string>
 
   [<MessagePack.MessagePackObject>]
   type NameType =
@@ -133,9 +116,7 @@ module NameResolutionError =
     { [<MessagePack.Key 0>]
       errorType : ErrorType
       [<MessagePack.Key 1>]
-      nameType : NameType
-      [<MessagePack.Key 2>]
-      names : List<string> }
+      nameType : NameType }
 
 [<MessagePack.MessagePackObject>]
 type NameResolution<'a> = Result<'a, NameResolutionError.Error>
@@ -381,11 +362,20 @@ type Const =
 
 module PackageType =
   [<MessagePack.MessagePackObject>]
-  type T =
+  type Name =
+    { [<MessagePack.Key 0>]
+      owner : string
+      [<MessagePack.Key 1>]
+      modules : List<string>
+      [<MessagePack.Key 2>]
+      name : string }
+
+  [<MessagePack.MessagePackObject>]
+  type PackageType =
     { [<MessagePack.Key 0>]
       id : System.Guid
       [<MessagePack.Key 1>]
-      name : FQTypeName.Package
+      name : Name
       [<MessagePack.Key 2>]
       declaration : TypeDeclaration.T
       [<MessagePack.Key 3>]
@@ -395,11 +385,20 @@ module PackageType =
 
 module PackageConstant =
   [<MessagePack.MessagePackObject>]
-  type T =
+  type Name =
+    { [<MessagePack.Key 0>]
+      owner : string
+      [<MessagePack.Key 1>]
+      modules : List<string>
+      [<MessagePack.Key 2>]
+      name : string }
+
+  [<MessagePack.MessagePackObject>]
+  type PackageConstant =
     { [<MessagePack.Key 0>]
       id : System.Guid
       [<MessagePack.Key 1>]
-      name : FQConstantName.Package
+      name : Name
       [<MessagePack.Key 2>]
       body : Const
       [<MessagePack.Key 3>]
@@ -410,6 +409,15 @@ module PackageConstant =
 
 module PackageFn =
   [<MessagePack.MessagePackObject>]
+  type Name =
+    { [<MessagePack.Key 0>]
+      owner : string
+      [<MessagePack.Key 1>]
+      modules : List<string>
+      [<MessagePack.Key 2>]
+      name : string }
+
+  [<MessagePack.MessagePackObject>]
   type Parameter =
     { [<MessagePack.Key 0>]
       name : string
@@ -419,11 +427,11 @@ module PackageFn =
       description : string }
 
   [<MessagePack.MessagePackObject>]
-  type T =
+  type PackageFn =
     { [<MessagePack.Key 0>]
       id : System.Guid
       [<MessagePack.Key 1>]
-      name : FQFnName.Package
+      name : Name
       [<MessagePack.Key 2>]
       body : Expr
       [<MessagePack.Key 3>]

@@ -1,4 +1,5 @@
-module Tests.Parser
+/// Tests the old, F#-based parser.
+module Tests.LibParser
 
 open Expecto
 
@@ -9,19 +10,22 @@ module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module PackageIDs = LibExecution.PackageIDs
 module NR = LibParser.NameResolver
 
 let id = 0UL // since we're ignoring IDs, just use the same one everywhere
+
+let pmPT = LibCloud.PackageManager.pt
 
 let exprRTs =
   let t name testStr expectedExpr =
     testTask name {
       let! actual =
         LibParser.Parser.parseRTExpr
-          localBuiltIns
-          packageManager
+          (localBuiltIns pmPT)
+          pmPT
           NR.OnMissing.Allow
-          "parser.tests.fs"
+          "libparser.tests.fs"
           testStr
         |> Ply.toTask
       let expectedExpr = PT2RT.Expr.toRT expectedExpr
@@ -100,6 +104,8 @@ let exprRTs =
         ))
 
       // Now let's test some more complex expressions
+      // CLEANUP the reference to Stdlib.List.map only exists
+      // in PackageIDs to support this test. Fix that.
       t
         "pipe without expr"
         "(let x = 5L\nx |> PACKAGE.Darklang.Stdlib.List.map 5L)"
@@ -112,7 +118,7 @@ let exprRTs =
             PT.EVariable(id, "x"),
             [ PT.EPipeFnCall(
                 id,
-                Ok(PT.FQFnName.fqPackage "Darklang" [ "Stdlib"; "List" ] "map"),
+                Ok(PT.FQFnName.fqPackage PackageIDs.Fn.Stdlib.List.map),
                 [],
                 [ PT.EInt64(id, 5L) ]
               ) ]
@@ -120,4 +126,4 @@ let exprRTs =
         )) ]
 
 
-let tests = testList "Parser" [ exprRTs ]
+let tests = testList "LibParser" [ exprRTs ]

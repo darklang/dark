@@ -9,33 +9,18 @@ module VT = ValueType
 module NRE = LibExecution.NameResolutionError
 module D = LibExecution.DvalDecoder
 
-let languageToolsTyp
-  (submodules : List<string>)
-  (name : string)
-  : FQTypeName.FQTypeName =
-  FQTypeName.fqPackage "Darklang" ("LanguageTools" :: submodules) name
-
-
-let ptTyp (submodules : List<string>) (name : string) : FQTypeName.FQTypeName =
-  languageToolsTyp ("ProgramTypes" :: submodules) name
-
-let errorsTyp (submodules : List<string>) (name : string) : FQTypeName.FQTypeName =
-  languageToolsTyp ("Errors" :: submodules) name
-
 
 // This isn't in PT but I'm not sure where else to put it...
 // maybe rename this file to InternalTypesToDarkTypes?
 module Sign =
-  let toDT (s : Sign) : Dval =
-    let typeName = languageToolsTyp [] "Sign"
+  let typeName = FQTypeName.fqPackage PackageIDs.Type.LanguageTools.sign
 
+  let toDT (s : Sign) : Dval =
     let (caseName, fields) =
       match s with
       | Positive -> "Positive", []
       | Negative -> "Negative", []
-
     DEnum(typeName, typeName, [], caseName, fields)
-
 
   let fromDT (d : Dval) : Sign =
     match d with
@@ -43,8 +28,6 @@ module Sign =
     | DEnum(_, _, [], "Positive", []) -> Positive
     | DEnum(_, _, [], "Negative", []) -> Negative
     | _ -> Exception.raiseInternal "Invalid sign" []
-
-
 
 
 // TODO: should these be elsewhere?
@@ -55,23 +38,21 @@ let versionField m = m |> D.intField "version"
 
 
 module FQTypeName =
-  let knownType = KTCustomType(ptTyp [ "FQTypeName" ] "FQTypeName", [])
+  let typeName =
+    FQTypeName.fqPackage
+      PackageIDs.Type.LanguageTools.ProgramTypes.FQTypeName.fqTypeName
+  let knownType = KTCustomType(typeName, [])
 
   module Package =
-    let toDT (u : PT.FQTypeName.Package) : Dval =
-      let fields =
-        [ "owner", DString u.owner
-          "modules", DList(VT.string, List.map DString u.modules)
-          "name", DString u.name ]
-      let typeName = ptTyp [ "FQTypeName" ] "Package"
-      DRecord(typeName, typeName, [], Map fields)
+    let typeName =
+      FQTypeName.fqPackage
+        PackageIDs.Type.LanguageTools.ProgramTypes.FQTypeName.package
+
+    let toDT (u : PT.FQTypeName.Package) : Dval = DUuid u
 
     let fromDT (d : Dval) : PT.FQTypeName.Package =
       match d with
-      | DRecord(_, _, _, fields) ->
-        { owner = ownerField fields
-          modules = modulesField fields
-          name = nameField fields }
+      | DUuid u -> u
       | _ -> Exception.raiseInternal "Invalid FQTypeName.Package" []
 
 
@@ -79,10 +60,7 @@ module FQTypeName =
     let (caseName, fields) =
       match u with
       | PT.FQTypeName.Package u -> "Package", [ Package.toDT u ]
-
-    let typeName = ptTyp [ "FQTypeName" ] "FQTypeName"
     DEnum(typeName, typeName, [], caseName, fields)
-
 
   let fromDT (d : Dval) : PT.FQTypeName.FQTypeName =
     match d with
@@ -91,12 +69,17 @@ module FQTypeName =
 
 
 module FQFnName =
-  let knownType = KTCustomType(ptTyp [ "FQFnName" ] "FQFnName", [])
+  let typeName =
+    FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.FQFnName.fqFnName
+  let knownType = KTCustomType(typeName, [])
 
   module Builtin =
+    let typeName =
+      FQTypeName.fqPackage
+        PackageIDs.Type.LanguageTools.ProgramTypes.FQFnName.builtin
+
     let toDT (u : PT.FQFnName.Builtin) : Dval =
       let fields = [ "name", DString u.name; "version", DInt64 u.version ]
-      let typeName = ptTyp [ "FQFnName" ] "Builtin"
       DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : PT.FQFnName.Builtin =
@@ -106,20 +89,11 @@ module FQFnName =
       | _ -> Exception.raiseInternal "Invalid FQFnName.Builtin" []
 
   module Package =
-    let toDT (u : PT.FQFnName.Package) : Dval =
-      let fields =
-        [ "owner", DString u.owner
-          "modules", DList(VT.string, List.map DString u.modules)
-          "name", DString u.name ]
-      let typeName = ptTyp [ "FQFnName" ] "Package"
-      DRecord(typeName, typeName, [], Map fields)
+    let toDT (u : PT.FQFnName.Package) : Dval = DUuid u
 
     let fromDT (d : Dval) : PT.FQFnName.Package =
       match d with
-      | DRecord(_, _, _, fields) ->
-        { owner = ownerField fields
-          modules = modulesField fields
-          name = nameField fields }
+      | DUuid u -> u
       | _ -> Exception.raiseInternal "Invalid FQFnName.Package" []
 
 
@@ -128,8 +102,6 @@ module FQFnName =
       match u with
       | PT.FQFnName.Builtin u -> "Builtin", [ Builtin.toDT u ]
       | PT.FQFnName.Package u -> "Package", [ Package.toDT u ]
-
-    let typeName = ptTyp [ "FQFnName" ] "FQFnName"
     DEnum(typeName, typeName, [], caseName, fields)
 
   let fromDT (d : Dval) : PT.FQFnName.FQFnName =
@@ -140,12 +112,17 @@ module FQFnName =
 
 
 module FQConstantName =
-  let knownType = KTCustomType(ptTyp [ "FQConstantName" ] "FQConstantName", [])
+  let typeName =
+    FQTypeName.fqPackage
+      PackageIDs.Type.LanguageTools.ProgramTypes.FQConstantName.fqConstantName
+  let knownType = KTCustomType(typeName, [])
 
   module Builtin =
+    let typeName =
+      FQTypeName.fqPackage
+        PackageIDs.Type.LanguageTools.ProgramTypes.FQConstantName.builtin
     let toDT (u : PT.FQConstantName.Builtin) : Dval =
       let fields = [ "name", DString u.name; "version", DInt64 u.version ]
-      let typeName = ptTyp [ "FQConstantName" ] "Builtin"
       DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : PT.FQConstantName.Builtin =
@@ -155,20 +132,11 @@ module FQConstantName =
       | _ -> Exception.raiseInternal "Invalid FQConstantName.Builtin" []
 
   module Package =
-    let toDT (u : PT.FQConstantName.Package) : Dval =
-      let fields =
-        [ "owner", DString u.owner
-          "modules", DList(VT.string, List.map DString u.modules)
-          "name", DString u.name ]
-      let typeName = ptTyp [ "FQConstantName" ] "Package"
-      DRecord(typeName, typeName, [], Map fields)
+    let toDT (u : PT.FQConstantName.Package) : Dval = DUuid u
 
     let fromDT (d : Dval) : PT.FQConstantName.Package =
       match d with
-      | DRecord(_, _, _, fields) ->
-        { owner = ownerField fields
-          modules = modulesField fields
-          name = nameField fields }
+      | DUuid u -> u
       | _ -> Exception.raiseInternal "Invalid FQConstantName.Package" []
 
   let toDT (u : PT.FQConstantName.FQConstantName) : Dval =
@@ -176,8 +144,6 @@ module FQConstantName =
       match u with
       | PT.FQConstantName.Builtin u -> "Builtin", [ Builtin.toDT u ]
       | PT.FQConstantName.Package u -> "Package", [ Package.toDT u ]
-
-    let typeName = ptTyp [ "FQConstantName" ] "FQConstantName"
     DEnum(typeName, typeName, [], caseName, fields)
 
   let fromDT (d : Dval) : PT.FQConstantName.FQConstantName =
@@ -215,7 +181,9 @@ module NameResolution =
 
 
 module TypeReference =
-  let knownType = KTCustomType(ptTyp [] "TypeReference", [])
+  let typeName =
+    FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.typeReference
+  let knownType = KTCustomType(typeName, [])
 
   let rec toDT (t : PT.TypeReference) : Dval =
     let (caseName, fields) =
@@ -224,14 +192,14 @@ module TypeReference =
 
       | PT.TUnit -> "TUnit", []
       | PT.TBool -> "TBool", []
-      | PT.TInt64 -> "TInt64", []
-      | PT.TUInt64 -> "TUInt64", []
       | PT.TInt8 -> "TInt8", []
       | PT.TUInt8 -> "TUInt8", []
       | PT.TInt16 -> "TInt16", []
       | PT.TUInt16 -> "TUInt16", []
       | PT.TInt32 -> "TInt32", []
       | PT.TUInt32 -> "TUInt32", []
+      | PT.TInt64 -> "TInt64", []
+      | PT.TUInt64 -> "TUInt64", []
       | PT.TInt128 -> "TInt128", []
       | PT.TUInt128 -> "TUInt128", []
       | PT.TFloat -> "TFloat", []
@@ -260,7 +228,6 @@ module TypeReference =
         [ DList(VT.known knownType, args |> NEList.toList |> List.map toDT)
           toDT ret ]
 
-    let typeName = ptTyp [] "TypeReference"
     DEnum(typeName, typeName, [], caseName, fields)
 
   let rec fromDT (d : Dval) : PT.TypeReference =
@@ -305,7 +272,9 @@ module TypeReference =
 
 
 module LetPattern =
-  let knownType = KTCustomType(ptTyp [] "LetPattern", [])
+  let typeName =
+    FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.letPattern
+  let knownType = KTCustomType(typeName, [])
 
   let rec toDT (p : PT.LetPattern) : Dval =
     let (caseName, fields) =
@@ -319,7 +288,6 @@ module LetPattern =
           toDT second
           DList(VT.known knownType, List.map toDT theRest) ]
 
-    let typeName = ptTyp [] "LetPattern"
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -338,7 +306,9 @@ module LetPattern =
 
 
 module MatchPattern =
-  let knownType = KTCustomType(ptTyp [] "MatchPattern", [])
+  let typeName =
+    FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.matchPattern
+  let knownType = KTCustomType(typeName, [])
 
   let rec toDT (p : PT.MatchPattern) : Dval =
     let (caseName, fields) =
@@ -381,7 +351,6 @@ module MatchPattern =
           DString caseName
           DList(VT.known knownType, List.map toDT fieldPats) ]
 
-    let typeName = ptTyp [] "MatchPattern"
     DEnum(typeName, typeName, [], caseName, fields)
 
   let rec fromDT (d : Dval) : PT.MatchPattern =
@@ -436,13 +405,14 @@ module MatchPattern =
 
 
 module BinaryOperation =
+  let typeName =
+    FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.binaryOperation
+
   let toDT (b : PT.BinaryOperation) : Dval =
     let (caseName, fields) =
       match b with
       | PT.BinOpAnd -> "BinOpAnd", []
       | PT.BinOpOr -> "BinOpOr", []
-
-    let typeName = ptTyp [] "BinaryOperation"
     DEnum(typeName, typeName, [], caseName, fields)
 
   let fromDT (d : Dval) : PT.BinaryOperation =
@@ -453,6 +423,9 @@ module BinaryOperation =
 
 
 module InfixFnName =
+  let typeName =
+    FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.infixFnName
+
   let toDT (i : PT.InfixFnName) : Dval =
     let (caseName, fields) =
       match i with
@@ -470,7 +443,6 @@ module InfixFnName =
       | PT.ComparisonNotEquals -> "ComparisonNotEquals", []
       | PT.StringConcat -> "StringConcat", []
 
-    let typeName = ptTyp [] "InfixFnName"
     DEnum(typeName, typeName, [], caseName, fields)
 
   let fromDT (d : Dval) : PT.InfixFnName =
@@ -494,13 +466,14 @@ module InfixFnName =
 
 
 module Infix =
+  let typeName =
+    FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.infix
+
   let toDT (i : PT.Infix) : Dval =
     let (caseName, fields) =
       match i with
       | PT.InfixFnCall infixFnName -> "InfixFnCall", [ InfixFnName.toDT infixFnName ]
       | PT.BinOp binOp -> "BinOp", [ BinaryOperation.toDT binOp ]
-
-    let typeName = ptTyp [] "Infix"
     DEnum(typeName, typeName, [], caseName, fields)
 
   let fromDT (d : Dval) : PT.Infix =
@@ -512,15 +485,15 @@ module Infix =
 
 
 module StringSegment =
-  let knownType = KTCustomType(ptTyp [] "StringSegment", [])
+  let typeName =
+    FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.stringSegment
+  let knownType = KTCustomType(typeName, [])
 
   let toDT (exprToDT : PT.Expr -> Dval) (s : PT.StringSegment) : Dval =
     let (caseName, fields) =
       match s with
       | PT.StringText text -> "StringText", [ DString text ]
       | PT.StringInterpolation expr -> "StringInterpolation", [ exprToDT expr ]
-
-    let typeName = ptTyp [] "StringSegment"
     DEnum(typeName, typeName, [], caseName, fields)
 
   let fromDT (exprFromDT : Dval -> PT.Expr) (d : Dval) : PT.StringSegment =
@@ -532,7 +505,9 @@ module StringSegment =
 
 
 module PipeExpr =
-  let knownType = KTCustomType(ptTyp [] "PipeExpr", [])
+  let typeName =
+    FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.pipeExpr
+  let knownType = KTCustomType(typeName, [])
 
   let toDT
     (exprKT : KnownType)
@@ -575,8 +550,6 @@ module PipeExpr =
           DString caseName
           DList(VT.known exprKT, List.map exprToDT fields) ]
 
-
-    let typeName = ptTyp [] "PipeExpr"
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -633,7 +606,7 @@ module PipeExpr =
 
 
 module Expr =
-  let typeName = ptTyp [] "Expr"
+  let typeName = FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.expr
   let knownType = KTCustomType(typeName, [])
 
   let rec toDT (e : PT.Expr) : Dval =
@@ -725,7 +698,8 @@ module Expr =
           elseExpr |> Option.map toDT |> Dval.option knownType ]
 
       | PT.EMatch(id, arg, cases) ->
-        let typeName = (ptTyp [] "MatchCase")
+        let matchCaseTypeName =
+          FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.matchCase
         let cases =
           cases
           |> List.map (fun case ->
@@ -735,15 +709,15 @@ module Expr =
               case.whenCondition |> Option.map toDT |> Dval.option knownType
             let expr = toDT case.rhs
             DRecord(
-              typeName,
-              typeName,
+              matchCaseTypeName,
+              matchCaseTypeName,
               [],
               Map
                 [ ("pat", pattern)
                   ("whenCondition", whenCondition)
                   ("rhs", expr) ]
             ))
-          |> Dval.list (KTCustomType(typeName, []))
+          |> Dval.list (KTCustomType(matchCaseTypeName, []))
 
         "EMatch", [ DInt64(int64 id); toDT arg; cases ]
 
@@ -801,7 +775,6 @@ module Expr =
         "ERecordUpdate", [ DInt64(int64 id); toDT record; updates ]
 
 
-    let typeName = ptTyp [] "Expr"
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -961,7 +934,9 @@ module Expr =
 
 
 module Const =
-  let knownType = KTCustomType(ptTyp [] "Const", [])
+  let typeName =
+    FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.constDef
+  let knownType = KTCustomType(typeName, [])
 
   let rec toDT (c : PT.Const) : Dval =
     let (caseName, fields) =
@@ -1003,8 +978,6 @@ module Const =
             pairs |> List.map (fun (k, v) -> DTuple(DString k, toDT v, []))
           ) ]
 
-
-    let typeName = ptTyp [] "Const"
     DEnum(typeName, typeName, [], caseName, fields)
 
 
@@ -1057,7 +1030,8 @@ module Const =
     | _ -> Exception.raiseInternal "Invalid Const" []
 
 module Deprecation =
-  let typeName = ptTyp [] "Deprecation"
+  let typeName =
+    FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.deprecation
   let knownType = KTCustomType(typeName, [])
 
   let toDT
@@ -1094,8 +1068,14 @@ module Deprecation =
 
 
 module TypeDeclaration =
+  let typeName =
+    FQTypeName.fqPackage
+      PackageIDs.Type.LanguageTools.ProgramTypes.TypeDeclaration.typeDeclaration
+
   module RecordField =
-    let typeName = ptTyp [ "TypeDeclaration" ] "RecordField"
+    let typeName =
+      FQTypeName.fqPackage
+        PackageIDs.Type.LanguageTools.ProgramTypes.TypeDeclaration.recordField
     let knownType = KTCustomType(typeName, [])
 
     let toDT (rf : PT.TypeDeclaration.RecordField) : Dval =
@@ -1114,10 +1094,12 @@ module TypeDeclaration =
       | _ -> Exception.raiseInternal "Invalid RecordField" []
 
   module EnumField =
-    let knownType = KTCustomType(ptTyp [ "TypeDeclaration" ] "EnumField", [])
+    let typeName =
+      FQTypeName.fqPackage
+        PackageIDs.Type.LanguageTools.ProgramTypes.TypeDeclaration.enumField
+    let knownType = KTCustomType(typeName, [])
 
     let toDT (ef : PT.TypeDeclaration.EnumField) : Dval =
-      let typeName = ptTyp [ "TypeDeclaration" ] "EnumField"
       let fields =
         [ "typ", TypeReference.toDT ef.typ
           "label", ef.label |> Option.map DString |> Dval.option KTString
@@ -1140,7 +1122,9 @@ module TypeDeclaration =
 
 
   module EnumCase =
-    let typeName = ptTyp [ "TypeDeclaration" ] "EnumCase"
+    let typeName =
+      FQTypeName.fqPackage
+        PackageIDs.Type.LanguageTools.ProgramTypes.TypeDeclaration.enumCase
     let knownType = KTCustomType(typeName, [])
 
     let toDT (ec : PT.TypeDeclaration.EnumCase) : Dval =
@@ -1162,7 +1146,9 @@ module TypeDeclaration =
 
 
   module Definition =
-    let typeName = ptTyp [ "TypeDeclaration" ] "Definition"
+    let typeName =
+      FQTypeName.fqPackage
+        PackageIDs.Type.LanguageTools.ProgramTypes.TypeDeclaration.definition
 
     let toDT (d : PT.TypeDeclaration.Definition) : Dval =
       let (caseName, fields) =
@@ -1203,7 +1189,6 @@ module TypeDeclaration =
 
 
   let toDT (td : PT.TypeDeclaration.T) : Dval =
-    let typeName = ptTyp [ "TypeDeclaration" ] "TypeDeclaration"
     let fields =
       [ "typeParams", DList(VT.string, List.map DString td.typeParams)
         "definition", Definition.toDT td.definition ]
@@ -1219,6 +1204,10 @@ module TypeDeclaration =
 
 module Handler =
   module CronInterval =
+    let typeName =
+      FQTypeName.fqPackage
+        PackageIDs.Type.LanguageTools.ProgramTypes.Handler.cronInterval
+
     let toDT (ci : PT.Handler.CronInterval) : Dval =
       let (caseName, fields) =
         match ci with
@@ -1229,7 +1218,6 @@ module Handler =
         | PT.Handler.CronInterval.EveryWeek -> "EveryWeek", []
         | PT.Handler.CronInterval.EveryFortnight -> "EveryFortnight", []
 
-      let typeName = ptTyp [ "Handler" ] "CronInterval"
       DEnum(typeName, typeName, [], caseName, fields)
 
     let fromDT (d : Dval) : PT.Handler.CronInterval =
@@ -1245,6 +1233,9 @@ module Handler =
 
 
   module Spec =
+    let typeName =
+      FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.Handler.spec
+
     let toDT (s : PT.Handler.Spec) : Dval =
       let (caseName, fields) =
         match s with
@@ -1255,7 +1246,6 @@ module Handler =
           "Cron", [ DString name; CronInterval.toDT interval ]
         | PT.Handler.Spec.REPL name -> "REPL", [ DString name ]
 
-      let typeName = ptTyp [ "Handler" ] "Spec"
       DEnum(typeName, typeName, [], caseName, fields)
 
     let fromDT (d : Dval) : PT.Handler.Spec =
@@ -1268,8 +1258,10 @@ module Handler =
       | DEnum(_, _, [], "REPL", [ DString name ]) -> PT.Handler.Spec.REPL(name)
       | _ -> Exception.raiseInternal "Invalid Spec" []
 
+  let typeName =
+    FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.Handler.handler
+
   let toDT (h : PT.Handler.T) : Dval =
-    let typeName = ptTyp [ "Handler" ] "Handler"
     let fields =
       [ "tlid", DUInt64(uint64 h.tlid)
         "ast", Expr.toDT h.ast
@@ -1287,8 +1279,9 @@ module Handler =
 
 
 module DB =
+  let typeName = FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.db
+
   let toDT (db : PT.DB.T) : Dval =
-    let typeName = ptTyp [] "DB"
     let fields =
       [ "tlid", DUInt64(uint64 db.tlid)
         "name", DString db.name
@@ -1307,8 +1300,10 @@ module DB =
 
 
 module Secret =
+  let typeName =
+    FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.secret
+
   let toDT (s : PT.Secret.T) : Dval =
-    let typeName = ptTyp [] "Secret"
     let fields =
       [ "name", DString s.name
         "value", DString s.value
@@ -1325,12 +1320,35 @@ module Secret =
 
 
 module PackageType =
-  let typeName = ptTyp [] "PackageType"
+  module Name =
+    let typeName =
+      FQTypeName.fqPackage
+        PackageIDs.Type.LanguageTools.ProgramTypes.PackageType.name
 
-  let toDT (p : PT.PackageType.T) : Dval =
+    let toDT (n : PT.PackageType.Name) : Dval =
+      let fields =
+        [ "owner", DString n.owner
+          "modules", DList(VT.string, List.map DString n.modules)
+          "name", DString n.name ]
+      DRecord(typeName, typeName, [], Map fields)
+
+    let fromDT (d : Dval) : PT.PackageType.Name =
+      match d with
+      | DRecord(_, _, _, fields) ->
+        { owner = fields |> D.stringField "owner"
+          modules = fields |> D.stringListField "modules"
+          name = fields |> D.stringField "name" }
+      | _ -> Exception.raiseInternal "Invalid PackageType.Name" []
+
+
+  let typeName =
+    FQTypeName.fqPackage
+      PackageIDs.Type.LanguageTools.ProgramTypes.PackageType.packageType
+
+  let toDT (p : PT.PackageType.PackageType) : Dval =
     let fields =
       [ "id", DUuid p.id
-        "name", FQTypeName.Package.toDT p.name
+        "name", Name.toDT p.name
         "declaration", TypeDeclaration.toDT p.declaration
         "description", DString p.description
         "deprecated",
@@ -1338,11 +1356,11 @@ module PackageType =
     DRecord(typeName, typeName, [], Map fields)
 
 
-  let fromDT (d : Dval) : PT.PackageType.T =
+  let fromDT (d : Dval) : PT.PackageType.PackageType =
     match d with
     | DRecord(_, _, _, fields) ->
       { id = fields |> D.uuidField "id"
-        name = fields |> D.field "name" |> FQTypeName.Package.fromDT
+        name = fields |> D.field "name" |> Name.fromDT
         declaration = fields |> D.field "declaration" |> TypeDeclaration.fromDT
         description = fields |> D.stringField "description"
         deprecated =
@@ -1351,23 +1369,46 @@ module PackageType =
 
 
 module PackageConstant =
-  let typeName = ptTyp [] "PackageConstant"
+  module Name =
+    let typeName =
+      FQTypeName.fqPackage
+        PackageIDs.Type.LanguageTools.ProgramTypes.PackageConstant.name
 
-  let toDT (p : PT.PackageConstant.T) : Dval =
+    let toDT (n : PT.PackageConstant.Name) : Dval =
+      let fields =
+        [ "owner", DString n.owner
+          "modules", DList(VT.string, List.map DString n.modules)
+          "name", DString n.name ]
+      DRecord(typeName, typeName, [], Map fields)
+
+    let fromDT (d : Dval) : PT.PackageConstant.Name =
+      match d with
+      | DRecord(_, _, _, fields) ->
+        { owner = fields |> D.stringField "owner"
+          modules = fields |> D.stringListField "modules"
+          name = fields |> D.stringField "name" }
+      | _ -> Exception.raiseInternal "Invalid PackageConstant.Name" []
+
+
+  let typeName =
+    FQTypeName.fqPackage
+      PackageIDs.Type.LanguageTools.ProgramTypes.PackageConstant.packageConstant
+
+  let toDT (p : PT.PackageConstant.PackageConstant) : Dval =
     let fields =
       [ "id", DUuid p.id
-        "name", FQConstantName.Package.toDT p.name
+        "name", Name.toDT p.name
         "body", Const.toDT p.body
         "description", DString p.description
         "deprecated",
         Deprecation.toDT FQConstantName.knownType FQConstantName.toDT p.deprecated ]
     DRecord(typeName, typeName, [], Map fields)
 
-  let fromDT (d : Dval) : PT.PackageConstant.T =
+  let fromDT (d : Dval) : PT.PackageConstant.PackageConstant =
     match d with
     | DRecord(_, _, _, fields) ->
       { id = fields |> D.uuidField "id"
-        name = fields |> D.field "name" |> FQConstantName.Package.fromDT
+        name = fields |> D.field "name" |> Name.fromDT
         body = fields |> D.field "body" |> Const.fromDT
         description = fields |> D.stringField "description"
         deprecated =
@@ -1376,11 +1417,34 @@ module PackageConstant =
 
 
 module PackageFn =
+  module Name =
+    let typeName =
+      FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.PackageFn.name
+
+    let toDT (n : PT.PackageFn.Name) : Dval =
+      let fields =
+        [ "owner", DString n.owner
+          "modules", DList(VT.string, List.map DString n.modules)
+          "name", DString n.name ]
+      DRecord(typeName, typeName, [], Map fields)
+
+    let fromDT (d : Dval) : PT.PackageFn.Name =
+      match d with
+      | DRecord(_, _, _, fields) ->
+        { owner = fields |> D.stringField "owner"
+          modules = fields |> D.stringListField "modules"
+          name = fields |> D.stringField "name" }
+      | _ -> Exception.raiseInternal "Invalid PackageFn.Name" []
+
+
   module Parameter =
-    let knownType = KTCustomType(ptTyp [ "PackageFn" ] "Parameter", [])
+    let typeName =
+      FQTypeName.fqPackage
+        PackageIDs.Type.LanguageTools.ProgramTypes.PackageFn.parameter
+
+    let knownType = KTCustomType(typeName, [])
 
     let toDT (p : PT.PackageFn.Parameter) : Dval =
-      let typeName = ptTyp [ "PackageFn" ] "Parameter"
       let fields =
         [ "name", DString p.name
           "typ", TypeReference.toDT p.typ
@@ -1396,12 +1460,15 @@ module PackageFn =
           description = fields |> D.stringField "description" }
       | _ -> Exception.raiseInternal "Invalid PackageFn.Parameter" []
 
-  let typeName = ptTyp [ "PackageFn" ] "PackageFn"
 
-  let toDT (p : PT.PackageFn.T) : Dval =
+  let typeName =
+    FQTypeName.fqPackage
+      PackageIDs.Type.LanguageTools.ProgramTypes.PackageFn.packageFn
+
+  let toDT (p : PT.PackageFn.PackageFn) : Dval =
     let fields =
       [ ("id", DUuid p.id)
-        ("name", FQFnName.Package.toDT p.name)
+        ("name", Name.toDT p.name)
         ("body", Expr.toDT p.body)
         ("typeParams", DList(VT.string, List.map DString p.typeParams))
         ("parameters",
@@ -1416,11 +1483,11 @@ module PackageFn =
     DRecord(typeName, typeName, [], Map fields)
 
 
-  let fromDT (d : Dval) : PT.PackageFn.T =
+  let fromDT (d : Dval) : PT.PackageFn.PackageFn =
     match d with
     | DRecord(_, _, _, fields) ->
       { id = fields |> D.uuidField "id"
-        name = fields |> D.field "name" |> FQFnName.Package.fromDT
+        name = fields |> D.field "name" |> Name.fromDT
         body = fields |> D.field "body" |> Expr.fromDT
         typeParams = fields |> D.stringListField "typeParams"
         parameters =

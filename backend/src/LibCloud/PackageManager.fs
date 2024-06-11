@@ -12,28 +12,29 @@ open Db
 
 module BinarySerialization = LibBinarySerialization.BinarySerialization
 module PT = LibExecution.ProgramTypes
-module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT = LibExecution.RuntimeTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 
-let savePackageTypes (types : List<PT.PackageType.T>) : Task<Unit> =
+let savePackageTypes (types : List<PT.PackageType.PackageType>) : Task<Unit> =
   types
   |> Task.iterInParallel (fun typ ->
     Sql.query
       "INSERT INTO package_types_v0
-        (id, owner, modules, typename, definition)
+        (id, owner, modules, name, definition)
       VALUES
-        (@id, @owner, @modules, @typename, @definition)"
+        (@id, @owner, @modules, @name, @definition)"
     |> Sql.parameters
       [ "id", Sql.uuid typ.id
         "owner", Sql.string typ.name.owner
         "modules", Sql.string (typ.name.modules |> String.concat ".")
-        "typename", Sql.string typ.name.name
+        "name", Sql.string typ.name.name
         "definition", Sql.bytea (BinarySerialization.PackageType.serialize typ) ]
     |> Sql.executeStatementAsync)
 
-
-let savePackageConstants (constants : List<PT.PackageConstant.T>) : Task<Unit> =
+let savePackageConstants
+  (constants : List<PT.PackageConstant.PackageConstant>)
+  : Task<Unit> =
   constants
   |> Task.iterInParallel (fun c ->
     Sql.query
@@ -49,19 +50,19 @@ let savePackageConstants (constants : List<PT.PackageConstant.T>) : Task<Unit> =
         "definition", Sql.bytea (BinarySerialization.PackageConstant.serialize c) ]
     |> Sql.executeStatementAsync)
 
-let savePackageFunctions (fns : List<PT.PackageFn.T>) : Task<Unit> =
+let savePackageFunctions (fns : List<PT.PackageFn.PackageFn>) : Task<Unit> =
   fns
   |> Task.iterInParallel (fun fn ->
     Sql.query
       "INSERT INTO package_functions_v0
-        (id, owner, modules, fnname, definition)
+        (id, owner, modules, name, definition)
       VALUES
-        (@id, @owner, @modules, @fnname, @definition)"
+        (@id, @owner, @modules, @name, @definition)"
     |> Sql.parameters
       [ "id", Sql.uuid fn.id
         "owner", Sql.string fn.name.owner
         "modules", Sql.string (fn.name.modules |> String.concat ".")
-        "fnname", Sql.string fn.name.name
+        "name", Sql.string fn.name.name
         "definition", Sql.bytea (BinarySerialization.PackageFn.serialize fn) ]
     |> Sql.executeStatementAsync)
 
@@ -89,73 +90,75 @@ let purge () : Task<unit> =
 // Fetching
 // ------------------
 
-let getFn (name : PT.FQFnName.Package) : Ply<Option<PT.PackageFn.T>> =
+let findFn (name : PT.PackageFn.Name) : Ply<Option<PT.FQFnName.Package>> =
   uply {
-    let! fn =
-      "SELECT id, definition
+    return!
+      "SELECT id
       FROM package_functions_v0
       WHERE owner = @owner
         AND modules = @modules
-        AND fnname = @name"
+        AND name = @name"
       |> Sql.query
       |> Sql.parameters
         [ "owner", Sql.string name.owner
           "modules", Sql.string (name.modules |> String.concat ".")
           "name", Sql.string name.name ]
-      |> Sql.executeRowOptionAsync (fun read ->
-        (read.uuid "id", read.bytea "definition"))
-
-    return
-      fn
-      |> Option.map (fun (id, def) ->
-        BinarySerialization.PackageFn.deserialize id def)
+      |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
   }
 
-let getFnByID (id : uuid) : Ply<Option<PT.PackageFn.T>> =
+let getFn (id : uuid) : Ply<Option<PT.PackageFn.PackageFn>> =
   uply {
-    let! fn =
-      "SELECT id, definition
+    let! def =
+      "SELECT definition
       FROM package_functions_v0
       WHERE id = @id"
       |> Sql.query
       |> Sql.parameters [ "id", Sql.uuid id ]
-      |> Sql.executeRowOptionAsync (fun read ->
-        (read.uuid "id", read.bytea "definition"))
+      |> Sql.executeRowOptionAsync (fun read -> read.bytea "definition")
 
     return
-      fn
-      |> Option.map (fun (id, def) ->
-        BinarySerialization.PackageFn.deserialize id def)
+      def |> Option.map (fun def -> BinarySerialization.PackageFn.deserialize id def)
   }
 
-let getType (name : PT.FQTypeName.Package) : Ply<Option<PT.PackageType.T>> =
+
+let findType (name : PT.PackageType.Name) : Ply<Option<PT.FQTypeName.Package>> =
   uply {
-    let! fn =
-      "SELECT id, definition
+    return!
+      "SELECT id
       FROM package_types_v0
       WHERE owner = @owner
         AND modules = @modules
-        AND typename = @name"
+        AND name = @name"
       |> Sql.query
       |> Sql.parameters
         [ "owner", Sql.string name.owner
           "modules", Sql.string (name.modules |> String.concat ".")
           "name", Sql.string name.name ]
-      |> Sql.executeRowOptionAsync (fun read ->
-        (read.uuid "id", read.bytea "definition"))
-
-    return
-      fn
-      |> Option.map (fun (id, def) ->
-        BinarySerialization.PackageType.deserialize id def)
+      |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
   }
 
-let getConstant
-  (name : PT.FQConstantName.Package)
-  : Ply<Option<PT.PackageConstant.T>> =
+let getType (id : uuid) : Ply<Option<PT.PackageType.PackageType>> =
   uply {
-    let! fn =
-      "SELECT id, definition
+    let! def =
+      "SELECT definition
+      FROM package_types_v0
+      WHERE id = @id"
+      |> Sql.query
+      |> Sql.parameters [ "id", Sql.uuid id ]
+      |> Sql.executeRowOptionAsync (fun read -> read.bytea "definition")
+
+    return
+      def
+      |> Option.map (fun def -> BinarySerialization.PackageType.deserialize id def)
+  }
+
+
+let findConstant
+  (name : PT.PackageConstant.Name)
+  : Ply<Option<PT.FQConstantName.Package>> =
+  uply {
+    return!
+      "SELECT id
       FROM package_constants_v0
       WHERE owner = @owner
         AND modules = @modules
@@ -165,59 +168,73 @@ let getConstant
         [ "owner", Sql.string name.owner
           "modules", Sql.string (name.modules |> String.concat ".")
           "name", Sql.string name.name ]
-      |> Sql.executeRowOptionAsync (fun read ->
-        (read.uuid "id", read.bytea "definition"))
+      |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
+  }
+
+let getConstant (id : uuid) : Ply<Option<PT.PackageConstant.PackageConstant>> =
+  uply {
+    let! def =
+      "SELECT definition
+      FROM package_constants_v0
+      WHERE id = @id"
+      |> Sql.query
+      |> Sql.parameters [ "id", Sql.uuid id ]
+      |> Sql.executeRowOptionAsync (fun read -> read.bytea "definition")
 
     return
-      fn
-      |> Option.map (fun (id, def) ->
+      def
+      |> Option.map (fun def ->
         BinarySerialization.PackageConstant.deserialize id def)
   }
 
 
-let packageManager : RT.PackageManager =
-  let withCache (f : 'name -> Ply<Option<'value>>) =
-    let cache = System.Collections.Concurrent.ConcurrentDictionary<'name, 'value>()
-    fun (name : 'name) ->
-      uply {
-        let mutable cached = Unchecked.defaultof<'value>
-        let inCache = cache.TryGetValue(name, &cached)
-        if inCache then
-          return Some cached
-        else
-          let! result = f name
-          match result with
-          | Some v -> cache.TryAdd(name, v) |> ignore<bool>
-          | None -> ()
-          return result
-      }
+let withCache (f : 'key -> Ply<Option<'value>>) =
+  let cache = System.Collections.Concurrent.ConcurrentDictionary<'key, 'value>()
+  fun (key : 'key) ->
+    uply {
+      let mutable cached = Unchecked.defaultof<'value>
+      let inCache = cache.TryGetValue(key, &cached)
+      if inCache then
+        return Some cached
+      else
+        let! result = f key
+        match result with
+        | Some v -> cache.TryAdd(key, v) |> ignore<bool>
+        | None -> ()
+        return result
+    }
 
 
+let rt : RT.PackageManager =
   { getType =
-      withCache (fun name ->
+      withCache (fun id ->
         uply {
-          let! typ = name |> PT2RT.FQTypeName.Package.fromRT |> getType
-          return Option.map PT2RT.PackageType.toRT typ
+          let! typ = getType id
+          return typ |> Option.map PT2RT.PackageType.toRT
         })
-
     getFn =
-      withCache (fun name ->
+      withCache (fun id ->
         uply {
-          let! typ = name |> PT2RT.FQFnName.Package.fromRT |> getFn
-          return Option.map PT2RT.PackageFn.toRT typ
+          let! fn = getFn id
+          return fn |> Option.map PT2RT.PackageFn.toRT
         })
-    getFnByID =
-      fun id ->
-        uply {
-          let! typ = id |> getFnByID
-          return Option.map PT2RT.PackageFn.toRT typ
-        }
-
     getConstant =
-      withCache (fun name ->
+      withCache (fun id ->
         uply {
-          let! typ = name |> PT2RT.FQConstantName.Package.fromRT |> getConstant
-          return Option.map PT2RT.PackageConstant.toRT typ
+          let! c = getConstant id
+          return c |> Option.map PT2RT.PackageConstant.toRT
         })
+
+    init = uply { return () } }
+
+
+let pt : PT.PackageManager =
+  { findType = withCache findType
+    findConstant = withCache findConstant
+    findFn = withCache findFn
+
+    getType = withCache getType
+    getFn = withCache getFn
+    getConstant = withCache getConstant
 
     init = uply { return () } }

@@ -33,10 +33,10 @@ open FSharp.Control.Tasks
 open Prelude
 
 let modulePattern = @"^[A-Z][a-z0-9A-Z_]*$"
-let typeNamePattern = @"^[A-Z][a-z0-9A-Z_]*$"
 let fnNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
 let builtinNamePattern = @"^(__|[a-z])[a-z0-9A-Z_]\w*$"
 let constantNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
+
 
 let assertBuiltin
   (name : string)
@@ -46,49 +46,31 @@ let assertBuiltin
   nameValidator name
   assert_ "version can't be negative" [ "version", version ] (version >= 0)
 
-let assertPackage
-  (modules : List<string>)
-  (name : string)
-  (nameValidator : string -> unit)
-  : unit =
-  List.iter (assertRe "modules name must match" modulePattern) modules
-  nameValidator name
 
-
-let packageName (owner : string) (modules : List<string>) (name : string) : string =
-  let nameParts =
-    match owner with
-    | "Tests" -> modules @ [ name ]
-    | _ -> "PACKAGE" :: owner :: modules @ [ name ]
-  nameParts |> String.concat "."
+// lol maybe pass this in, and satisfy secretly via PT PM?
+// Then we could totally remove Name from the RT Package item types
+// type FQToStringer =
+//   { type: uuid -> string
+//     constant: uuid -> string
+//     fn: uuid -> string }
 
 
 /// Fully-Qualified Type Name
 ///
 /// Used to reference a type defined in a Package
 module FQTypeName =
-  /// The name of a type in the package manager
-  type Package = { owner : string; modules : List<string>; name : string }
+  /// The id of a type in the package manager
+  type Package = uuid
 
   type FQTypeName = Package of Package
 
-  let assertTypeName (name : string) : unit =
-    assertRe "type name must match" typeNamePattern name
+  let package (id : uuid) : Package = id
 
-  let package (owner : string) (modules : List<string>) (name : string) : Package =
-    assertPackage modules name assertTypeName
-    { owner = owner; modules = modules; name = name }
-
-  let fqPackage
-    (owner : string)
-    (modules : List<string>)
-    (name : string)
-    : FQTypeName =
-    Package(package owner modules name)
+  let fqPackage (id : uuid) : FQTypeName = Package id
 
   let toString (name : FQTypeName) : string =
     match name with
-    | Package p -> packageName p.owner p.modules p.name
+    | Package p -> string p // TODO: better
 
 
 /// A Fully-Qualified Constant Name
@@ -96,16 +78,14 @@ module FQTypeName =
 /// Used to reference a constant defined by the runtime or in a Package
 module FQConstantName =
   /// A constant built into the runtime
-  ///
   type Builtin = { name : string; version : int }
 
-  /// The name of a constant in the package manager
-  type Package = { owner : string; modules : List<string>; name : string }
+  /// The id of a constant in the package manager
+  type Package = uuid
 
   type FQConstantName =
     | Builtin of Builtin
     | Package of Package
-
 
   let assertConstantName (name : string) : unit =
     assertRe "Constant name must match" constantNamePattern name
@@ -114,16 +94,9 @@ module FQConstantName =
     assertBuiltin name version assertConstantName
     { name = name; version = version }
 
-  let package (owner : string) (modules : List<string>) (name : string) : Package =
-    assertPackage modules name assertConstantName
-    { owner = owner; modules = modules; name = name }
+  let package (id : uuid) : Package = id
 
-  let fqPackage
-    (owner : string)
-    (modules : List<string>)
-    (name : string)
-    : FQConstantName =
-    Package(package owner modules name)
+  let fqPackage (id : uuid) : FQConstantName = Package id
 
   let builtinToString (s : Builtin) : string =
     let name = s.name
@@ -132,7 +105,7 @@ module FQConstantName =
   let toString (name : FQConstantName) : string =
     match name with
     | Builtin b -> builtinToString b
-    | Package p -> packageName p.owner p.modules p.name
+    | Package p -> string p // TODO: better
 
 
 /// A Fully-Qualified Function Name
@@ -142,15 +115,11 @@ module FQFnName =
   /// A function built into the runtime
   type Builtin = { name : string; version : int }
 
-  /// The name of a function in the package manager
-  type Package = { owner : string; modules : List<string>; name : string }
+  type Package = uuid
 
   type FQFnName =
     | Builtin of Builtin
     | Package of Package
-
-  let assertFnName (name : string) : unit =
-    assertRe $"Fn name must match" fnNamePattern name
 
   let assertBuiltinFnName (name : string) : unit =
     assertRe $"Fn name must match" builtinNamePattern name
@@ -159,22 +128,15 @@ module FQFnName =
     assertBuiltin name version assertBuiltinFnName
     { name = name; version = version }
 
-  let package (owner : string) (modules : List<string>) (name : string) : Package =
-    assertPackage modules name assertFnName
-    { owner = owner; modules = modules; name = name }
+  let package (id : uuid) = id
 
-  let fqPackage
-    (owner : string)
-    (modules : List<string>)
-    (name : string)
-    : FQFnName =
-    Package(package owner modules name)
+  let fqPackage (id : uuid) : FQFnName = Package id
 
   let builtinToString (s : Builtin) : string =
     let name = s.name
     if s.version = 0 then name else $"{name}_v{s.version}"
 
-  let packageToString (s : Package) : string = packageName s.owner s.modules s.name
+  let packageToString (s : Package) : string = string s // TODO: better
 
   let toString (name : FQFnName) : string =
     match name with
@@ -717,9 +679,6 @@ and ExecutionPoint =
   // Executing some function
   | Function of FQFnName.FQFnName
 
-  /// Executing some function in package space
-  | PackageFn of uuid // TODO: remove this once package references are by-id
-
 /// Record the source expression of an error.
 /// This is to show the code that was responsible for it.
 /// TODO maybe rename to ExprLocation
@@ -776,31 +735,21 @@ module CallStack =
 
 module TypeReference =
   let result (t1 : TypeReference) (t2 : TypeReference) : TypeReference =
-    TCustomType(
-      Ok(FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Result" ] "Result"),
-      [ t1; t2 ]
-    )
+    TCustomType(Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.result), [ t1; t2 ])
 
   let option (t : TypeReference) : TypeReference =
-    TCustomType(
-      Ok(FQTypeName.fqPackage "Darklang" [ "Stdlib"; "Option" ] "Option"),
-      [ t ]
-    )
+    TCustomType(Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.option), [ t ])
 
 
 module RuntimeError =
+  let typeName =
+    FQTypeName.fqPackage PackageIDs.Type.LanguageTools.RuntimeError.error
+
   let toDT (RuntimeError e : RuntimeError) : Dval = e
 
   let fromDT (dv : Dval) : RuntimeError = RuntimeError dv
 
-  let name (modules : List<string>) (typeName : string) =
-    FQTypeName.fqPackage
-      "Darklang"
-      ("LanguageTools" :: "RuntimeErrors" :: modules)
-      typeName
-
   let case (caseName : string) (fields : List<Dval>) : RuntimeError =
-    let typeName = name [] "Error"
     DEnum(typeName, typeName, [], caseName, fields) |> RuntimeError
 
 
@@ -820,21 +769,10 @@ module RuntimeError =
   let intError field = case "IntError" [ field ]
 
 
-  // let exceptionThrown (ex : System.Exception) : RuntimeError =
-  //   case
-  //     "ExceptionThrown"
-  //     [ DRecord(
-  //         name [ "ExceptionThrown" ] "ExceptionThrown" 0,
-  //         name [ "ExceptionThrown" ] "ExceptionThrown" 0,
-  //         Map.ofList
-  //           [ "message", DString ex.Message
-  //             "stackTrace", DString ex.StackTrace
-  //             "metadata", DList [] ]
-  //       ) ]
-
   // TODO remove all usages of this in favor of better error cases
   let oldError (msg : string) : RuntimeError =
     case "OldStringErrorTODO" [ DString msg ]
+
 
 /// Note: in cases where it's awkward to niclude a CallStack,
 /// the Interpreter should try to inject it where it can
@@ -889,6 +827,7 @@ type Deprecation<'name> =
 
 module TypeDeclaration =
   type RecordField = { name : string; typ : TypeReference }
+
   type EnumCase = { name : string; fields : List<TypeReference> }
 
   type Definition =
@@ -972,7 +911,6 @@ module MatchPattern =
 
 // Functions for working with Dark runtime values
 module Dval =
-
   // <summary>
   // Checks if a runtime's value matches a given type
   // </summary>
@@ -1229,30 +1167,31 @@ type Const =
 // ------------
 // Package-Space
 // ------------
+// TODO I don't think we actually need the Names in RT...
 module PackageType =
-  //type Name = ...
+  type Name = { owner : string; modules : List<string>; name : string }
+
   // TODO: hash
-  type T = { id : uuid; name : FQTypeName.Package; declaration : TypeDeclaration.T }
+  type PackageType = { id : uuid; name : Name; declaration : TypeDeclaration.T }
 
 module PackageConstant =
-  //type Name = ...
+  type Name = { owner : string; modules : List<string>; name : string }
   // TODO: hash
-  type T = { id : uuid; name : FQConstantName.Package; body : Const }
+  type PackageConstant = { id : uuid; name : Name; body : Const }
 
 module PackageFn =
-  //type Name = ...
+  type Name = { owner : string; modules : List<string>; name : string }
 
   type Parameter = { name : string; typ : TypeReference }
 
   // TODO: hash
-  type T =
-    { name : FQFnName.Package
-      id : uuid
+  type PackageFn =
+    { id : uuid
+      name : Name
       typeParams : List<string>
       parameters : NEList<Parameter>
       returnType : TypeReference
       body : Expr }
-
 
 
 // ------------
@@ -1407,12 +1346,12 @@ and Fn =
   }
 
 and BuiltInFnSig =
-  // state * typeArgs * fnArgs
+  // state * typeArgs * fnArgs -> result
   (ExecutionState * List<TypeReference> * List<Dval>) -> DvalTask
 
 and FnImpl =
   | BuiltInFunction of BuiltInFnSig
-  | PackageFunction of uuid * Expr
+  | PackageFunction of FQFnName.Package * Expr
 
 
 and FunctionRecord = Source * FQFnName.FQFnName
@@ -1457,18 +1396,23 @@ and Builtins =
     fns : Map<FQFnName.Builtin, BuiltInFn> }
 
 /// Functionality written in Dark stored and managed outside of user space
+///
+/// Note: it may be tempting to think these shouldn't return Options,
+/// but if/when Package items may live (for some time) only on local systems,
+/// there's a chance some code will be committed, referencing something
+/// not yet in the Cloud PM.
+/// (though, we'll likely demand deps. in the PM before committing something upstream...)
 and PackageManager =
-  { getType : FQTypeName.Package -> Ply<Option<PackageType.T>>
-    getConstant : FQConstantName.Package -> Ply<Option<PackageConstant.T>>
-    getFn : FQFnName.Package -> Ply<Option<PackageFn.T>>
-    getFnByID : uuid -> Ply<Option<PackageFn.T>>
+  { getType : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
+    getConstant :
+      FQConstantName.Package -> Ply<Option<PackageConstant.PackageConstant>>
+    getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
 
     init : Ply<unit> }
 
   static member empty =
     { getType = (fun _ -> Ply None)
       getFn = (fun _ -> Ply None)
-      getFnByID = (fun _ -> Ply None)
       getConstant = (fun _ -> Ply None)
 
       init = uply { return () } }
@@ -1477,30 +1421,25 @@ and PackageManager =
   /// the normal fetching functionality. (Mostly helpful for tests)
   static member withExtras
     (pm : PackageManager)
-    (types : List<PackageType.T>)
-    (constants : List<PackageConstant.T>)
-    (fns : List<PackageFn.T>)
+    (types : List<PackageType.PackageType>)
+    (constants : List<PackageConstant.PackageConstant>)
+    (fns : List<PackageFn.PackageFn>)
     : PackageManager =
     { getType =
-        fun name ->
-          match types |> List.tryFind (fun t -> t.name = name) with
+        fun id ->
+          match types |> List.tryFind (fun t -> t.id = id) with
           | Some t -> Some t |> Ply
-          | None -> pm.getType name
+          | None -> pm.getType id
       getConstant =
-        fun name ->
-          match constants |> List.tryFind (fun c -> c.name = name) with
+        fun id ->
+          match constants |> List.tryFind (fun c -> c.id = id) with
           | Some c -> Some c |> Ply
-          | None -> pm.getConstant name
+          | None -> pm.getConstant id
       getFn =
-        fun name ->
-          match fns |> List.tryFind (fun f -> f.name = name) with
-          | Some f -> Some f |> Ply
-          | None -> pm.getFn name
-      getFnByID =
         fun id ->
           match fns |> List.tryFind (fun f -> f.id = id) with
           | Some f -> Some f |> Ply
-          | None -> pm.getFnByID id
+          | None -> pm.getFn id
       init = pm.init }
 
 and ExceptionReporter = ExecutionState -> Metadata -> exn -> unit
@@ -1537,15 +1476,15 @@ and ExecutionState =
 
 and Types =
   { typeSymbolTable : TypeSymbolTable
-    package : FQTypeName.Package -> Ply<Option<PackageType.T>> }
+    package : FQTypeName.Package -> Ply<Option<PackageType.PackageType>> }
 
 and Constants =
   { builtIn : Map<FQConstantName.Builtin, BuiltInConstant>
-    package : FQConstantName.Package -> Ply<Option<PackageConstant.T>> }
+    package : FQConstantName.Package -> Ply<Option<PackageConstant.PackageConstant>> }
 
 and Functions =
   { builtIn : Map<FQFnName.Builtin, BuiltInFn>
-    package : FQFnName.Package -> Ply<Option<PackageFn.T>> }
+    package : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>> }
 
 
 
@@ -1670,10 +1609,10 @@ let builtInFnToFn (fn : BuiltInFn) : Fn =
     sqlSpec = fn.sqlSpec
     fn = BuiltInFunction fn.fn }
 
-let packageFnToFn (fn : PackageFn.T) : Fn =
+let packageFnToFn (fn : PackageFn.PackageFn) : Fn =
   let toParam (p : PackageFn.Parameter) : Param = { name = p.name; typ = p.typ }
 
-  { name = FQFnName.Package fn.name
+  { name = FQFnName.Package fn.id
     typeParams = fn.typeParams
     parameters = fn.parameters |> NEList.map toParam
     returnType = fn.returnType

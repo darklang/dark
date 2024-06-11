@@ -22,7 +22,7 @@ let oldFunctionsAreDeprecated =
   testTask "old functions are deprecated" {
     let mutable counts = Map.empty
 
-    let fns = localBuiltIns.fns |> Map.values
+    let fns = (localBuiltIns PT.PackageManager.empty).fns |> Map.values
 
     fns
     |> List.iter (fun fn ->

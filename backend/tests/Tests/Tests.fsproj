@@ -35,7 +35,8 @@
     <Compile Include="Queue.Tests.fs" />
     <!-- TRACINGTODO -->
     <!--Compile Include="Execution.Tests.fs" /-->
-    <Compile Include="Parser.Tests.fs" />
+    <Compile Include="LibParser.Tests.fs" />
+    <Compile Include="NewParser.Tests.fs" />
     <Compile Include="HttpClient.Tests.fs" />
     <Compile Include="LibExecution.Tests.fs" />
     <Compile Include="Prelude.Tests.fs" />

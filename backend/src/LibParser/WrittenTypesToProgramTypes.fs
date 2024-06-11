@@ -29,7 +29,7 @@ module InfixFnName =
 
 module TypeReference =
   let rec toPT
-    (pm : RT.PackageManager)
+    (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (t : WT.TypeReference)
@@ -129,7 +129,7 @@ module MatchPattern =
 
 module Expr =
   let resolveTypeName
-    (pm : RT.PackageManager)
+    (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (names : List<string>)
@@ -139,9 +139,7 @@ module Expr =
     | [] ->
       Ply(
         Error(
-          { nameType = NRE.Type
-            errorType = NRE.MissingEnumModuleName caseName
-            names = names }
+          { nameType = NRE.Type; errorType = NRE.MissingEnumModuleName caseName }
         )
       )
     | head :: tail ->
@@ -150,7 +148,7 @@ module Expr =
 
   let rec toPT
     (builtins : RT.Builtins)
-    (pm : RT.PackageManager)
+    (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (e : WT.Expr)
@@ -341,7 +339,7 @@ module Expr =
 
   and stringSegmentToPT
     (builtins : RT.Builtins)
-    (pm : RT.PackageManager)
+    (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (segment : WT.StringSegment)
@@ -354,7 +352,7 @@ module Expr =
 
   and pipeExprToPT
     (builtins : RT.Builtins)
-    (pm : RT.PackageManager)
+    (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (pipeExpr : WT.PipeExpr)
@@ -427,7 +425,7 @@ module Expr =
 
 module Const =
   let rec toPT
-    (pm : RT.PackageManager)
+    (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (c : WT.Const)
@@ -483,7 +481,7 @@ module Const =
 module TypeDeclaration =
   module RecordField =
     let toPT
-      (pm : RT.PackageManager)
+      (pm : PT.PackageManager)
       (onMissing : NR.OnMissing)
       (currentModule : List<string>)
       (f : WT.TypeDeclaration.RecordField)
@@ -495,7 +493,7 @@ module TypeDeclaration =
 
   module EnumField =
     let toPT
-      (pm : RT.PackageManager)
+      (pm : PT.PackageManager)
       (onMissing : NR.OnMissing)
       (currentModule : List<string>)
       (f : WT.TypeDeclaration.EnumField)
@@ -507,7 +505,7 @@ module TypeDeclaration =
 
   module EnumCase =
     let toPT
-      (pm : RT.PackageManager)
+      (pm : PT.PackageManager)
       (onMissing : NR.OnMissing)
       (currentModule : List<string>)
       (c : WT.TypeDeclaration.EnumCase)
@@ -522,7 +520,7 @@ module TypeDeclaration =
 
   module Definition =
     let toPT
-      (pm : RT.PackageManager)
+      (pm : PT.PackageManager)
       (onMissing : NR.OnMissing)
       (currentModule : List<string>)
       (d : WT.TypeDeclaration.Definition)
@@ -550,7 +548,7 @@ module TypeDeclaration =
 
 
   let toPT
-    (pm : RT.PackageManager)
+    (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (d : WT.TypeDeclaration.T)
@@ -561,39 +559,51 @@ module TypeDeclaration =
     }
 
 
+// If it's one of the package items that we reference in F# code,
+// make sure that we set its ID corrently at parse-time.
+//
+// CLEANUP: expose the equivalent of this via some Builtin for the Darklang WT2PT stuff?
+// I suppose that's only really needed when we do the switch-over.
+module PackageIDs = LibExecution.PackageIDs
 
 module PackageType =
+  module Name =
+    let toPT (n : WT.PackageType.Name) : PT.PackageType.Name =
+      { owner = n.owner; modules = n.modules; name = n.name }
+
   let toPT
-    (pm : RT.PackageManager)
+    (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
-    (pt : WT.PackageType.T)
-    : Ply<PT.PackageType.T> =
+    (pt : WT.PackageType.PackageType)
+    : Ply<PT.PackageType.PackageType> =
     uply {
       let! declaration =
         TypeDeclaration.toPT pm onMissing currentModule pt.declaration
       return
-        { // TODO: use the fancy lookup
-          id = System.Guid.NewGuid()
-          name = pt.name
+        { id = PackageIDs.Type.idForName pt.name.owner pt.name.modules pt.name.name
+          name = Name.toPT pt.name
           description = pt.description
           declaration = declaration
           deprecated = PT.NotDeprecated }
     }
 
 module PackageConstant =
+  module Name =
+    let toPT (n : WT.PackageConstant.Name) : PT.PackageConstant.Name =
+      { owner = n.owner; modules = n.modules; name = n.name }
+
   let toPT
-    (pm : RT.PackageManager)
+    (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
-    (c : WT.PackageConstant.T)
-    : Ply<PT.PackageConstant.T> =
+    (c : WT.PackageConstant.PackageConstant)
+    : Ply<PT.PackageConstant.PackageConstant> =
     uply {
       let! body = Const.toPT pm onMissing currentModule c.body
       return
-        { // TODO: use the fancy lookup
-          id = System.Guid.NewGuid()
-          name = c.name
+        { id = PackageIDs.Constant.idForName c.name.owner c.name.modules c.name.name
+          name = Name.toPT c.name
           description = c.description
           deprecated = PT.NotDeprecated
           body = body }
@@ -601,9 +611,13 @@ module PackageConstant =
 
 
 module PackageFn =
+  module Name =
+    let toPT (n : WT.PackageFn.Name) : PT.PackageFn.Name =
+      { owner = n.owner; modules = n.modules; name = n.name }
+
   module Parameter =
     let toPT
-      (pm : RT.PackageManager)
+      (pm : PT.PackageManager)
       (onMissing : NR.OnMissing)
       (currentModule : List<string>)
       (p : WT.PackageFn.Parameter)
@@ -615,11 +629,11 @@ module PackageFn =
 
   let toPT
     (builtins : RT.Builtins)
-    (pm : RT.PackageManager)
+    (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
-    (fn : WT.PackageFn.T)
-    : Ply<PT.PackageFn.T> =
+    (fn : WT.PackageFn.PackageFn)
+    : Ply<PT.PackageFn.PackageFn> =
     uply {
       let! parameters =
         Ply.NEList.mapSequentially
@@ -629,9 +643,8 @@ module PackageFn =
       let! body = Expr.toPT builtins pm onMissing currentModule fn.body
 
       return
-        { // TODO: use the fancy lookup
-          id = System.Guid.NewGuid()
-          name = fn.name
+        { id = PackageIDs.Fn.idForName fn.name.owner fn.name.modules fn.name.name
+          name = Name.toPT fn.name
           parameters = parameters
           returnType = returnType
           description = fn.description
@@ -645,7 +658,7 @@ module PackageFn =
 
 module DB =
   let toPT
-    (pm : RT.PackageManager)
+    (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (db : WT.DB.T)
@@ -678,7 +691,7 @@ module Handler =
 
   let toPT
     (builtins : RT.Builtins)
-    (pm : RT.PackageManager)
+    (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
     (h : WT.Handler.T)
