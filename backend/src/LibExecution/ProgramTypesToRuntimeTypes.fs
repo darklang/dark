@@ -417,37 +417,22 @@ module TypeDeclaration =
 // Package stuff
 // --
 module PackageType =
-  module Name =
-    let toRT (n : PT.PackageType.Name) : RT.PackageType.Name =
-      { owner = n.owner; modules = n.modules; name = n.name }
-
   let toRT (t : PT.PackageType.PackageType) : RT.PackageType.PackageType =
-    { id = t.id
-      name = Name.toRT t.name
-      declaration = TypeDeclaration.toRT t.declaration }
+    { id = t.id; declaration = TypeDeclaration.toRT t.declaration }
 
 module PackageConstant =
-  module Name =
-    let toRT (n : PT.PackageConstant.Name) : RT.PackageConstant.Name =
-      { owner = n.owner; modules = n.modules; name = n.name }
-
   let toRT
     (c : PT.PackageConstant.PackageConstant)
     : RT.PackageConstant.PackageConstant =
-    { id = c.id; name = Name.toRT c.name; body = Const.toRT c.body }
+    { id = c.id; body = Const.toRT c.body }
 
 module PackageFn =
-  module Name =
-    let toRT (n : PT.PackageFn.Name) : RT.PackageFn.Name =
-      { owner = n.owner; modules = n.modules; name = n.name }
-
   module Parameter =
     let toRT (p : PT.PackageFn.Parameter) : RT.PackageFn.Parameter =
       { name = p.name; typ = TypeReference.toRT p.typ }
 
   let toRT (f : PT.PackageFn.PackageFn) : RT.PackageFn.PackageFn =
     { id = f.id
-      name = Name.toRT f.name
       body = f.body |> Expr.toRT
       typeParams = f.typeParams
       parameters = f.parameters |> NEList.map Parameter.toRT

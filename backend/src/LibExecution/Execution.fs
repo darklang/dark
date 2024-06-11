@@ -154,7 +154,7 @@ let callStackString
         match fn with
         | None -> return "<Couldn't find package function>"
         | Some fn ->
-          let fnName = string fn.name
+          let fnName = string fn.id
           let! exprString = exprString state fn.body exprId
           return fnName + ": " + exprString
       }
@@ -210,5 +210,4 @@ let rec rteToString
     | Error(_, rte) ->
       debuG "Error converting RTE to string" rte
       return! rteToString state rte
-
   }

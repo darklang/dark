@@ -1167,27 +1167,20 @@ type Const =
 // ------------
 // Package-Space
 // ------------
-// TODO I don't think we actually need the Names in RT...
 module PackageType =
-  type Name = { owner : string; modules : List<string>; name : string }
-
   // TODO: hash
-  type PackageType = { id : uuid; name : Name; declaration : TypeDeclaration.T }
+  type PackageType = { id : uuid; declaration : TypeDeclaration.T }
 
 module PackageConstant =
-  type Name = { owner : string; modules : List<string>; name : string }
   // TODO: hash
-  type PackageConstant = { id : uuid; name : Name; body : Const }
+  type PackageConstant = { id : uuid; body : Const }
 
 module PackageFn =
-  type Name = { owner : string; modules : List<string>; name : string }
-
   type Parameter = { name : string; typ : TypeReference }
 
   // TODO: hash
   type PackageFn =
     { id : uuid
-      name : Name
       typeParams : List<string>
       parameters : NEList<Parameter>
       returnType : TypeReference
