@@ -212,6 +212,30 @@ module Darklang =
           | QualifiedName q -> QualifiedTypeIdentifier.tokenize q
 
 
+      module ModuleDeclaration =
+        let tokenizeDeclaration
+          (d: WrittenTypes.ModuleDeclaration.Declaration)
+          : List<SemanticToken> =
+          match d with
+          | Type t -> TypeDeclaration.tokenize t
+          | Function f -> FnDeclaration.tokenize f
+          | Constant c -> ConstantDeclaration.tokenize c
+          | SubModule sm -> ModuleDeclaration.tokenize sm
+          | Expr e -> Expr.tokenize e
+
+        let tokenize
+          (m: WrittenTypes.ModuleDeclaration.ModuleDeclaration)
+          : List<SemanticToken> =
+          let (nameRange, name) = m.name
+
+          [ [ makeToken m.keywordModule TokenType.Keyword ]
+            [ makeToken nameRange TokenType.ModuleName ]
+            (m.declarations
+             |> Stdlib.List.map (fun d -> ModuleDeclaration.tokenizeDeclaration d)
+             |> Stdlib.List.flatten) ]
+          |> Stdlib.List.flatten
+
+
       module TypeDeclaration =
         let tokenizeDefinition
           (d: WrittenTypes.TypeDeclaration.Definition)
@@ -1028,6 +1052,7 @@ module Darklang =
                |> Stdlib.List.flatten) ]
             |> Stdlib.List.flatten
 
+
       module Const =
         let tokenize (c: WrittenTypes.Const) : List<SemanticToken> =
           match c with
@@ -1214,7 +1239,8 @@ module Darklang =
                 match typeOrFn with
                 | Type t -> TypeDeclaration.tokenize t
                 | Function fn -> FnDeclaration.tokenize fn
-                | Constant c -> ConstantDeclaration.tokenize c)
+                | Constant c -> ConstantDeclaration.tokenize c
+                | Module m -> ModuleDeclaration.tokenize m)
               |> Stdlib.List.flatten
 
             let exprsPart =

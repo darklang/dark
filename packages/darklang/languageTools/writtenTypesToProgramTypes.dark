@@ -639,6 +639,160 @@ module Darklang =
             ProgramTypes.Expr.EApply(gid (), fn, typeArgs, args)
 
 
+      module ModuleDeclaration =
+        let combineSubmodules
+          (submodules: List<ProgramTypes.Definitions>)
+          : ProgramTypes.Definitions =
+          let init =
+            ProgramTypes.Definitions
+              { types = []
+                constants = []
+                fns = []
+                exprs = [] }
+
+          submodules
+          |> Stdlib.List.fold init (fun acc m ->
+            ProgramTypes.Definitions
+              { types = acc.types |> Stdlib.List.append m.types
+                constants = acc.constants |> Stdlib.List.append m.constants
+                fns = acc.fns |> Stdlib.List.append m.fns
+                exprs = acc.exprs |> Stdlib.List.append m.exprs })
+
+        let submoduleToPT
+          (onMissing: NameResolver.OnMissing)
+          (owner: String)
+          (modules: List<String>)
+          (submodule: WrittenTypes.ModuleDeclaration.ModuleDeclaration)
+          : ProgramTypes.Definitions =
+          let (_, m) = submodule.name
+          let modules = Stdlib.List.append modules [ m ]
+
+          let types =
+            submodule.declarations
+            |> Stdlib.List.filterMap (fun d ->
+              match d with
+              | Type t ->
+                Stdlib.Option.Option.Some(
+                  TypeDeclaration.toPackageTypePT onMissing owner modules t
+                )
+              | _ -> Stdlib.Option.Option.None)
+
+          let fns =
+            submodule.declarations
+            |> Stdlib.List.filterMap (fun d ->
+              match d with
+              | Function f ->
+                Stdlib.Option.Option.Some(
+                  FunctionDeclaration.toPackageFnPT onMissing owner modules f
+                )
+              | _ -> Stdlib.Option.Option.None)
+
+          let constants =
+            submodule.declarations
+            |> Stdlib.List.filterMap (fun d ->
+              match d with
+              | Constant c ->
+                Stdlib.Option.Option.Some(
+                  ConstantDeclaration.toPackageConstPT onMissing owner modules c
+                )
+              | _ -> Stdlib.Option.Option.None)
+
+          let exprs =
+            submodule.declarations
+            |> Stdlib.List.filterMap (fun d ->
+              match d with
+              | Expr e ->
+                let expr = Expr.toPT onMissing e
+                let modules = Stdlib.List.push modules owner
+                Stdlib.Option.Option.Some((expr, modules))
+              | _ -> Stdlib.Option.Option.None)
+
+          let submodules =
+            submodule.declarations
+            |> Stdlib.List.filterMap (fun d ->
+              match d with
+              | SubModule m ->
+                Stdlib.Option.Option.Some(submoduleToPT onMissing owner modules m)
+              | _ -> Stdlib.Option.Option.None)
+
+          let submodules = combineSubmodules submodules
+
+          ProgramTypes.Definitions
+            { types = types |> Stdlib.List.append submodules.types
+              constants = constants |> Stdlib.List.append submodules.constants
+              fns = fns |> Stdlib.List.append submodules.fns
+              exprs = exprs |> Stdlib.List.append submodules.exprs }
+
+
+        let toPT
+          (onMissing: NameResolver.OnMissing)
+          (d: WrittenTypes.ModuleDeclaration.ModuleDeclaration)
+          : ProgramTypes.Definitions =
+          let (_, owner) = d.name
+
+          let types =
+            d.declarations
+            |> Stdlib.List.filterMap (fun d ->
+              match d with
+              | Type t ->
+                Stdlib.Option.Option.Some(
+                  TypeDeclaration.toPackageTypePT onMissing owner [] t
+                )
+              | _ -> Stdlib.Option.Option.None)
+
+          let fns =
+            d.declarations
+            |> Stdlib.List.filterMap (fun d ->
+              match d with
+              | Function f ->
+                Stdlib.Option.Option.Some(
+                  FunctionDeclaration.toPackageFnPT onMissing owner [] f
+                )
+              | _ -> Stdlib.Option.Option.None)
+
+          let constants =
+            d.declarations
+            |> Stdlib.List.filterMap (fun d ->
+              match d with
+              | Constant c ->
+                Stdlib.Option.Option.Some(
+                  ConstantDeclaration.toPackageConstPT onMissing owner [] c
+                )
+              | _ -> Stdlib.Option.Option.None)
+
+          let init =
+            ProgramTypes.Definitions
+              { types = []
+                constants = []
+                fns = []
+                exprs = [] }
+
+          let submodules =
+            d.declarations
+            |> Stdlib.List.filterMap (fun d ->
+              match d with
+              | SubModule m ->
+                Stdlib.Option.Option.Some(submoduleToPT onMissing owner [] m)
+              | _ -> Stdlib.Option.Option.Some init)
+
+          let submodules = ModuleDeclaration.combineSubmodules submodules
+
+          let exprs =
+            d.declarations
+            |> Stdlib.List.filterMap (fun d ->
+              match d with
+              | Expr e ->
+                let expr = Expr.toPT onMissing e
+                Stdlib.Option.Option.Some((expr, [ owner ]))
+              | _ -> Stdlib.Option.Option.None)
+
+          ProgramTypes.Definitions
+            { types = types |> Stdlib.List.append submodules.types
+              constants = constants |> Stdlib.List.append submodules.constants
+              fns = fns |> Stdlib.List.append submodules.fns
+              exprs = exprs |> Stdlib.List.append submodules.exprs }
+
+
       module FunctionDeclaration =
         module Parameter =
           let toPackageFnParamPT
@@ -741,6 +895,11 @@ module Darklang =
                       "Tests"
                       []
                       f
+                  )
+
+                | Module m ->
+                  ProgramTypes.CliScript.Declaration.Module(
+                    ModuleDeclaration.toPT NameResolver.OnMissing.Allow m
                   ))
 
             exprsToEval =

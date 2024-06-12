@@ -33,6 +33,7 @@ module.exports = grammar({
   rules: {
     source_file: $ =>
       seq(
+        repeat($.module_decl),
         // all type and fn and constant defs first
         repeat(choice($.type_decl, $.fn_decl, $.const_decl)),
 
@@ -54,6 +55,29 @@ module.exports = grammar({
             field("symbol_comma", alias(",", $.symbol)),
             $.variable_type_reference,
           ),
+        ),
+      ),
+
+    // ---------------------
+    // Module declarations
+    // ---------------------
+    module_decl: $ =>
+      prec.left(
+        seq(
+          field("keyword_module", alias("module", $.keyword)),
+          field("name", $.module_identifier),
+          field("symbol_equals", alias("=", $.symbol)),
+          seq($.indent, field("content", repeat1($.module_content)), $.dedent),
+        ),
+      ),
+    module_content: $ =>
+      seq(
+        choice(
+          $.module_decl,
+          $.fn_decl,
+          $.type_decl,
+          $.const_decl,
+          $.expression,
         ),
       ),
 

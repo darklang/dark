@@ -1,0 +1,60 @@
+module Darklang =
+  module LanguageTools =
+    module Parser =
+      module ModuleDeclaration =
+        let parseDecls
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.ModuleDeclaration.Declaration, WrittenTypes.Unparseable> =
+          match node.typ with
+          | "type_decl" ->
+            (TypeDeclaration.parse node)
+            |> Stdlib.Result.map (fun x ->
+              WrittenTypes.ModuleDeclaration.Declaration.Type x)
+          | "fn_decl" ->
+            (FunctionDeclaration.parse node)
+            |> Stdlib.Result.map (fun x ->
+              WrittenTypes.ModuleDeclaration.Declaration.Function x)
+          | "const_decl" ->
+            (ConstantDeclaration.parse node)
+            |> Stdlib.Result.map (fun x ->
+              WrittenTypes.ModuleDeclaration.Declaration.Constant x)
+          | "module_decl" ->
+            (ModuleDeclaration.parse node)
+            |> Stdlib.Result.map (fun x ->
+              WrittenTypes.ModuleDeclaration.Declaration.SubModule x)
+          | "expression" ->
+            (Expr.parse node)
+            |> Stdlib.Result.map (fun x ->
+              WrittenTypes.ModuleDeclaration.Declaration.Expr x)
+          | _ -> createUnparseableError node
+
+        let parse
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.ModuleDeclaration.ModuleDeclaration, WrittenTypes.Unparseable> =
+          if node.typ == "module_decl" then
+            let keywordModule = findField node "keyword_module"
+            let name = (findField node "name") |> Builtin.unwrap
+
+            let declarations =
+              (Stdlib.List.filter node.children (fun node ->
+                node.typ == "module_content"))
+              |> Stdlib.List.map (fun node ->
+                node.children
+                |> Stdlib.List.head
+                |> Builtin.unwrap
+                |> ModuleDeclaration.parseDecls)
+              |> Stdlib.Result.collect
+
+            match keywordModule, declarations with
+            | Ok keywordModule, Ok declarations ->
+              (WrittenTypes.ModuleDeclaration.ModuleDeclaration
+                { range = node.range
+                  name = (name.range, name.text)
+                  declarations = declarations
+                  keywordModule = keywordModule.range })
+              |> Stdlib.Result.Result.Ok
+
+            | _ -> createUnparseableError node
+
+          else
+            createUnparseableError node

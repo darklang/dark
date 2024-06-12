@@ -437,6 +437,24 @@ module Darklang =
           fields: List<Const> *
           symbolDot: Range
 
+
+      // Module declarations
+      module ModuleDeclaration =
+        type Declaration =
+          | Type of TypeDeclaration.TypeDeclaration
+          | Function of FnDeclaration.FnDeclaration
+          | Constant of ConstantDeclaration.ConstantDeclaration
+          | SubModule of ModuleDeclaration.ModuleDeclaration
+          // TODO: handle http handler and db
+          | Expr of Expr
+
+        type ModuleDeclaration =
+          { range: Range
+            name: Range * String
+            declarations: List<Declaration>
+            keywordModule: Range }
+
+
       // Fn declarations
       module FnDeclaration =
         type UnitParameter = { range: Range }
@@ -475,15 +493,17 @@ module Darklang =
             keywordConst: Range
             symbolEquals: Range }
 
-      type Unparseable =
-        { source: Parser.ParsedNode
-          note: Stdlib.Option.Option<String> }
-
       // Cli scripts (CLEANUP throw both of these types in a CliScript module)
       type CliScriptDeclaration =
         | Type of TypeDeclaration.TypeDeclaration
         | Function of FnDeclaration.FnDeclaration
         | Constant of ConstantDeclaration.ConstantDeclaration
+        | Module of ModuleDeclaration.ModuleDeclaration
+
+      type Unparseable =
+        { source: Parser.ParsedNode
+          note: Stdlib.Option.Option<String> }
+
 
       type CliScript =
         { range: Range

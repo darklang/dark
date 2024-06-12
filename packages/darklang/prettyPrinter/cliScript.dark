@@ -7,6 +7,10 @@ module Darklang =
         let declsPart =
           (Stdlib.List.fold script.declarations [] (fun acc decl ->
             match decl with
+            | Module moduleDecl ->
+              let prettyPrinted = PrettyPrinter.definitions moduleDecl
+              acc |> Stdlib.List.push prettyPrinted
+
             | Type typeDecl ->
               let prettyPrinted = PrettyPrinter.ProgramTypes.packageType typeDecl
               acc |> Stdlib.List.push prettyPrinted

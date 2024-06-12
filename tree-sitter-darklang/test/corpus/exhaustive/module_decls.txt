@@ -1,0 +1,222 @@
+==================
+module decl - simple
+==================
+
+module Test =
+  type T = { x : Int64; y : Int64}
+
+---
+
+(source_file
+  (module_decl
+    (keyword) (module_identifier) (symbol)
+    (indent)
+    (module_content
+      (type_decl
+        (keyword) (type_identifier) (symbol)
+        (type_decl_def
+          (type_decl_def_record
+            (symbol)
+            (type_decl_def_record_fields
+              (type_decl_def_record_field (variable_identifier) (symbol) (type_reference (builtin_type)))
+              (symbol)
+              (type_decl_def_record_field (variable_identifier) (symbol) (type_reference (builtin_type)))
+            )
+            (symbol)
+          )
+        )
+      )
+    )
+    (dedent)
+  )
+)
+
+
+==================
+module decl - nested module
+==================
+
+module Test =
+  module Nested =
+    type T = { x : Int64 }
+
+---
+
+(source_file
+  (module_decl
+    (keyword) (module_identifier) (symbol)
+    (indent)
+    (module_content
+      (module_decl
+        (keyword) (module_identifier) (symbol)
+        (indent)
+        (module_content
+          (type_decl
+            (keyword) (type_identifier) (symbol)
+            (type_decl_def
+              (type_decl_def_record
+                (symbol)
+                (type_decl_def_record_fields
+                  (type_decl_def_record_field (variable_identifier) (symbol) (type_reference (builtin_type)))
+                )
+                (symbol)
+              )
+            )
+          )
+        )
+      (dedent)
+      )
+    )
+    (dedent)
+  )
+)
+
+
+==================
+module decl - with newlines
+==================
+module Test =
+  const x = 1L
+
+  type T = { x : Int64 }
+
+  let helloWorld (i: Int64): String = "Hello world"
+
+---
+
+(source_file
+  (module_decl
+    (keyword) (module_identifier) (symbol)
+    (indent)
+    (module_content
+      (const_decl
+        (keyword) (constant_identifier) (symbol)
+        (consts (int64_literal (digits (positive_digits)) (symbol)))
+      )
+    )
+    (module_content
+      (type_decl
+        (keyword) (type_identifier)  (symbol)
+        (type_decl_def
+          (type_decl_def_record
+            (symbol)
+            (type_decl_def_record_fields
+              (type_decl_def_record_field (variable_identifier) (symbol) (type_reference (builtin_type)))
+            )
+            (symbol)
+          )
+        )
+      )
+    )
+    (module_content
+      (fn_decl
+        (keyword)
+        (fn_identifier)
+        (fn_decl_params
+          (fn_decl_param (symbol) (variable_identifier) (symbol)  (type_reference (builtin_type)) (symbol))
+        )
+        (symbol)
+        (type_reference (builtin_type))
+        (symbol)
+        (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
+      )
+    )
+    (dedent)
+  )
+)
+
+
+
+==================
+module decl - no newlines
+==================
+module Test =
+  const x = 1L
+  type T = { x : Int64 }
+  let helloWorld (i: Int64): String = "Hello world"
+
+---
+
+(source_file
+  (module_decl
+    (keyword) (module_identifier) (symbol)
+    (indent)
+    (module_content
+      (const_decl
+        (keyword) (constant_identifier) (symbol)
+        (consts (int64_literal (digits (positive_digits)) (symbol)))
+      )
+    )
+    (module_content
+      (type_decl
+        (keyword) (type_identifier) (symbol)
+        (type_decl_def
+          (type_decl_def_record
+            (symbol)
+            (type_decl_def_record_fields (type_decl_def_record_field (variable_identifier) (symbol) (type_reference (builtin_type))))
+            (symbol)
+          )
+        )
+      )
+    )
+    (module_content
+      (fn_decl
+        (keyword)
+        (fn_identifier)
+        (fn_decl_params (fn_decl_param (symbol) (variable_identifier) (symbol) (type_reference (builtin_type)) (symbol)))
+        (symbol)
+        (type_reference (builtin_type))
+        (symbol)
+        (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
+      )
+    )
+    (dedent)
+  )
+)
+
+
+==================
+module decl - nested modules
+==================
+
+module Test =
+  module Nested1 =
+    const x = 1L
+
+  module Nested2 =
+    const x = true
+
+---
+
+(source_file
+  (module_decl (keyword) (module_identifier) (symbol)
+    (indent)
+    (module_content
+      (module_decl
+        (keyword) (module_identifier) (symbol)
+        (indent)
+        (module_content
+          (const_decl
+            (keyword) (constant_identifier) (symbol)
+            (consts (int64_literal (digits (positive_digits)) (symbol)))
+          )
+        )
+        (dedent)
+      )
+    )
+    (module_content
+      (module_decl
+        (keyword) (module_identifier) (symbol)
+        (indent)
+        (module_content
+          (const_decl
+            (keyword) (constant_identifier) (symbol)
+            (consts (bool_literal))
+          )
+        )
+        (dedent)
+      )
+    )
+    (dedent)
+  )
+)

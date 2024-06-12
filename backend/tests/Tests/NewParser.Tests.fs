@@ -768,6 +768,46 @@ let functionDeclarations =
       "let sum (a: Int64) (b: Int64): Int64 =\n  PACKAGE.Darklang.Stdlib.Int64.add a b" ]
   |> testList "function declarations"
 
+let moduleDeclarations =
+  [ t
+      "simple module"
+      "module MyModule =\n  type ID = Int64"
+      "module MyModule =\n  type ID =\n    Int64"
+
+    t
+      "module with types, fns, and consts"
+      """module MyModule =
+  type ID = Int64
+  type MyString = String
+  let myFn (i: Int64): Int64 = 1L
+  const x = 100L"""
+      "module MyModule =\n  type ID =\n    Int64\n\n  type MyString =\n    String\n\n  let myFn (i: Int64): Int64 =\n    1L\n\n  const x = 100L"
+
+    t
+      "module with types, fns, conts, and newlines"
+      """module MyModule =
+  type ID = Int64
+
+  type MyString = String
+
+  let myFn (i: Int64): Int64 = 1L
+
+  const x = 100L"""
+      "module MyModule =\n  type ID =\n    Int64\n\n  type MyString =\n    String\n\n  let myFn (i: Int64): Int64 =\n    1L\n\n  const x = 100L"
+
+    t
+      "nested module declaration"
+      """module MyModule1 =
+  type ID = Int64
+  module MyModule2 =
+    type ID = Int64
+    module MyModule3 =
+      type ID = Int64
+      const x = 100L
+      1L"""
+      "module MyModule1 =\n  type ID =\n    Int64\n\n  module MyModule2 =\n    type ID =\n      Int64\n\n    module MyModule3 =\n      type ID =\n        Int64\n\n      const x = 100L\n\n      1L" ]
+  |> testList "module declarations"
+
 
 let cliScripts =
   [
@@ -806,4 +846,5 @@ let tests =
       constantDeclarations
       exprs
       functionDeclarations
+      moduleDeclarations
       cliScripts ]

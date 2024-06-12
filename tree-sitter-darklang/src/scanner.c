@@ -49,6 +49,7 @@ void pop(struct Scanner *scanner)
 bool tree_sitter_darklang_external_scanner_scan(void *payload, TSLexer *lexer, const bool *valid_symbols)
 {
   struct Scanner *scanner = payload;
+  bool found_newline = false;
 
   // Check if the scanner is currently handling a block dedentation
   if (scanner->in_dedent)
@@ -66,28 +67,26 @@ bool tree_sitter_darklang_external_scanner_scan(void *payload, TSLexer *lexer, c
     }
   }
 
-  // Skip whitespace but not newlines, preparing for indentation counting
-  while (iswspace(lexer->lookahead) && lexer->lookahead != '\n')
-  {
-    lexer->advance(lexer, true); // Move the lexer forward, skipping the whitespace
-  }
-
   // New line or end of file handling
-  if (lexer->lookahead == '\n' || lexer->eof(lexer))
+  while (lexer->lookahead == '\n')
   {
-    bool should_advance = lexer->lookahead == '\n';
-    // If there's a newline, advance past it.
-    if (should_advance)
+    found_newline = true;
+    lexer->advance(lexer, true);
+    // Skip any following newline characters
+    while (lexer->lookahead == '\n')
     {
       lexer->advance(lexer, true);
     }
+  }
 
+  if (found_newline)
+  {
     unsigned int new_indent_length = 0;
     // Count the number of spaces for the new line to determine the new indentation level.
     while (iswspace(lexer->lookahead) && lexer->lookahead != '\n')
     {
       lexer->advance(lexer, true);
-      new_indent_length = lexer->get_column(lexer); // Update the current indentation level
+      new_indent_length++; // Update the current indentation level
     }
 
     // Emit DEDENT tokens if the new indentation level is less than the previous levels
@@ -100,7 +99,7 @@ bool tree_sitter_darklang_external_scanner_scan(void *payload, TSLexer *lexer, c
     }
 
     // If the new indentation is greater and there was a preceding newline, push this new level onto the stack and emit an INDENT token
-    if (new_indent_length > (unsigned int)scanner->indent_stack[scanner->stack_size] && should_advance)
+    if (new_indent_length > (unsigned int)scanner->indent_stack[scanner->stack_size])
     {
       push(scanner, new_indent_length);
       lexer->result_symbol = INDENT;
@@ -111,6 +110,18 @@ bool tree_sitter_darklang_external_scanner_scan(void *payload, TSLexer *lexer, c
     if (scanner->stack_size > 0 && new_indent_length == (unsigned int)scanner->indent_stack[scanner->stack_size])
     {
       scanner->in_dedent = false;
+      return false;
+    }
+  }
+
+  // Handle end of file dedentation
+  if (lexer->eof(lexer))
+  {
+    while (scanner->stack_size > 0)
+    {
+      pop(scanner);
+      lexer->result_symbol = DEDENT;
+      return true;
     }
   }
 

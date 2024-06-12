@@ -7,6 +7,13 @@
         {
           "type": "REPEAT",
           "content": {
+            "type": "SYMBOL",
+            "name": "module_decl"
+          }
+        },
+        {
+          "type": "REPEAT",
+          "content": {
             "type": "CHOICE",
             "members": [
               {
@@ -109,6 +116,103 @@
               }
             ]
           }
+        }
+      ]
+    },
+    "module_decl": {
+      "type": "PREC_LEFT",
+      "value": 0,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "FIELD",
+            "name": "keyword_module",
+            "content": {
+              "type": "ALIAS",
+              "content": {
+                "type": "STRING",
+                "value": "module"
+              },
+              "named": true,
+              "value": "keyword"
+            }
+          },
+          {
+            "type": "FIELD",
+            "name": "name",
+            "content": {
+              "type": "SYMBOL",
+              "name": "module_identifier"
+            }
+          },
+          {
+            "type": "FIELD",
+            "name": "symbol_equals",
+            "content": {
+              "type": "ALIAS",
+              "content": {
+                "type": "STRING",
+                "value": "="
+              },
+              "named": true,
+              "value": "symbol"
+            }
+          },
+          {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "indent"
+              },
+              {
+                "type": "FIELD",
+                "name": "content",
+                "content": {
+                  "type": "REPEAT1",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "module_content"
+                  }
+                }
+              },
+              {
+                "type": "SYMBOL",
+                "name": "dedent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "module_content": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "module_decl"
+            },
+            {
+              "type": "SYMBOL",
+              "name": "fn_decl"
+            },
+            {
+              "type": "SYMBOL",
+              "name": "type_decl"
+            },
+            {
+              "type": "SYMBOL",
+              "name": "const_decl"
+            },
+            {
+              "type": "SYMBOL",
+              "name": "expression"
+            }
+          ]
         }
       ]
     },

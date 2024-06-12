@@ -51,6 +51,15 @@ module Darklang =
               { result with
                   exprsToEval = Stdlib.List.pushBack result.exprsToEval parsedExpr }
 
+          | "module_decl" ->
+            match ModuleDeclaration.parse decl with
+            | Error e -> updateUnparseableStuff result e
+            | Ok parsedModuleDecl ->
+              let newModule =
+                WrittenTypes.CliScriptDeclaration.Module parsedModuleDecl
+
+              { result with
+                  declarations = Stdlib.List.pushBack result.declarations newModule }
           | _ ->
             updateUnparseableStuff
               result
