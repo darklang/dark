@@ -841,28 +841,8 @@ module Darklang =
               body = Expr.toPT onMissing fn.body }
 
 
-      // TODO: generally follow up here
-      module ConstantDeclaration =
-        let toPackageConstPT
-          (onMissing: NameResolver.OnMissing)
-          (owner: String)
-          (modules: List<String>)
-          (d: WrittenTypes.ConstantDeclaration.ConstantDeclaration)
-          : ProgramTypes.PackageConstant.PackageConstant =
-          ProgramTypes.PackageConstant.PackageConstant
-            { id = Stdlib.Uuid.generate ()
-              name =
-                ProgramTypes.PackageConstant.Name
-                  { owner = owner
-                    modules = modules
-                    name = d.name.name }
-              body = Const.toPT onMissing d.body
-              description = ""
-              deprecated = ProgramTypes.Deprecation.NotDeprecated }
-
-
       let cliScript
-        (script: WrittenTypes.CliScript)
+        (script: WrittenTypes.CliScript.CliScript)
         : ProgramTypes.CliScript.CliScript =
         // CLEANUP potentially complain about unparsable stuff?
         ProgramTypes.CliScript.CliScript

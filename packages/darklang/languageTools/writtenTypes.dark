@@ -484,32 +484,23 @@ module Darklang =
             symbolEquals: Range }
 
 
-      // Constant declarations
-      module ConstantDeclaration =
-        type ConstantDeclaration =
-          { range: Range
-            name: ConstantIdentifier
-            body: Const
-            keywordConst: Range
-            symbolEquals: Range }
-
-      // Cli scripts (CLEANUP throw both of these types in a CliScript module)
-      type CliScriptDeclaration =
-        | Type of TypeDeclaration.TypeDeclaration
-        | Function of FnDeclaration.FnDeclaration
-        | Constant of ConstantDeclaration.ConstantDeclaration
-        | Module of ModuleDeclaration.ModuleDeclaration
-
       type Unparseable =
         { source: Parser.ParsedNode
           note: Stdlib.Option.Option<String> }
 
 
-      type CliScript =
-        { range: Range
-          declarations: List<CliScriptDeclaration>
-          unparseableStuff: List<Unparseable>
-          exprsToEval: List<Expr> }
+      module CliScript =
+        type CliScriptDeclaration =
+          | Type of TypeDeclaration.TypeDeclaration
+          | Function of FnDeclaration.FnDeclaration
+          | Constant of ConstantDeclaration.ConstantDeclaration
+          | Module of ModuleDeclaration.ModuleDeclaration
+
+        type CliScript =
+          { range: Range
+            declarations: List<CliScript.CliScriptDeclaration>
+            unparseableStuff: List<Unparseable>
+            exprsToEval: List<Expr> }
 
 
-      type ParsedFile = CliScript of CliScript
+      type ParsedFile = CliScript of CliScript.CliScript

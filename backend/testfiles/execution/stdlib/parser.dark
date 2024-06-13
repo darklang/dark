@@ -109,44 +109,50 @@ module ParseNodeToWrittenTypes =
     .WrittenTypes
     .ParsedFile
     .CliScript(
-      PACKAGE.Darklang.LanguageTools.WrittenTypes.CliScript
+      PACKAGE.Darklang.LanguageTools.WrittenTypes.CliScript.CliScript
         { range = range (0L, 0L) (0L, 17L)
           declarations =
-            [ PACKAGE.Darklang.LanguageTools.WrittenTypes.CliScriptDeclaration.Type(
-                (PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeDeclaration.TypeDeclaration
-                  { range = range (0L, 0L) (0L, 17L)
-                    name =
-                      PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeIdentifier
-                        { range = range (0L, 5L) (0L, 9L)
-                          name = "MyID" }
-                    typeParams = []
-                    definition =
-                      PACKAGE
-                        .Darklang
-                        .LanguageTools
-                        .WrittenTypes
-                        .TypeDeclaration
-                        .Definition
-                        .Alias(
-                          PACKAGE
-                            .Darklang
-                            .LanguageTools
-                            .WrittenTypes
-                            .TypeReference
-                            .TypeReference
-                            .Builtin(
-                              PACKAGE
-                                .Darklang
-                                .LanguageTools
-                                .WrittenTypes
-                                .TypeReference
-                                .Builtin
-                                .TInt64(range (0L, 12L) (0L, 17L))
-                            )
-                        )
-                    keywordType = range (0L, 0L) (0L, 4L)
-                    symbolEquals = range (0L, 10L) (0L, 11L) })
-              ) ]
+            [ PACKAGE
+                .Darklang
+                .LanguageTools
+                .WrittenTypes
+                .CliScript
+                .CliScriptDeclaration
+                .Type(
+                  (PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeDeclaration.TypeDeclaration
+                    { range = range (0L, 0L) (0L, 17L)
+                      name =
+                        PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeIdentifier
+                          { range = range (0L, 5L) (0L, 9L)
+                            name = "MyID" }
+                      typeParams = []
+                      definition =
+                        PACKAGE
+                          .Darklang
+                          .LanguageTools
+                          .WrittenTypes
+                          .TypeDeclaration
+                          .Definition
+                          .Alias(
+                            PACKAGE
+                              .Darklang
+                              .LanguageTools
+                              .WrittenTypes
+                              .TypeReference
+                              .TypeReference
+                              .Builtin(
+                                PACKAGE
+                                  .Darklang
+                                  .LanguageTools
+                                  .WrittenTypes
+                                  .TypeReference
+                                  .Builtin
+                                  .TInt64(range (0L, 12L) (0L, 17L))
+                              )
+                          )
+                      keywordType = range (0L, 0L) (0L, 4L)
+                      symbolEquals = range (0L, 10L) (0L, 11L) })
+                ) ]
           unparseableStuff = []
           exprsToEval = [] }
     )
