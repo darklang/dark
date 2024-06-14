@@ -7,7 +7,6 @@
     <IsTrimmable>false</IsTrimmable>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../../src/LibParser/LibParser.fsproj" />
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../../src/BuiltinExecution/BuiltinExecution.fsproj" />
     <ProjectReference Include="../../src/BuiltinCli/BuiltinCli.fsproj" />

@@ -789,7 +789,6 @@ module Darklang =
               deprecated = ProgramTypes.Deprecation.NotDeprecated }
 
 
-      // TODO: generally follow up here
       module ConstantDeclaration =
         let toPackageConstPT
           (onMissing: NameResolver.OnMissing)

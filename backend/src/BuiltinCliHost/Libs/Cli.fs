@@ -413,8 +413,6 @@ let fns : List<BuiltInFn> =
                 match fn with
                 | None -> return DString "fn not found"
                 | Some f ->
-
-
                   let newArgs =
                     args
                     |> List.collect (fun dval ->
