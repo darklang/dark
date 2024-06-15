@@ -253,7 +253,7 @@ open System.Collections.Generic
 open System.Threading.Tasks
 
 let configureAspNetCore
-  (options : Instrumentation.AspNetCore.AspNetCoreTraceInstrumentationOptions)
+  (options : Instrumentation.AspNetCore.AspNetCoreInstrumentationOptions)
   =
 
   // https://github.com/open-telemetry/opentelemetry-dotnet/blob/main/src/OpenTelemetry.Instrumentation.AspNetCore/README.md
