@@ -74,6 +74,13 @@ module Darklang =
             typ: TypeReference.TypeReference *
             closeBracket: Range
 
+          | TDict of
+            Range *
+            keywordDict: Range *
+            openBrace: Range *
+            typ: TypeReference.TypeReference *
+            closeBrace: Range
+
           | TTuple of
             Range *
             first: TypeReference *
@@ -82,13 +89,6 @@ module Darklang =
             rest: List<Stdlib.Option.Option<Range> * TypeReference> *
             openParen: Range *
             closeParen: Range
-
-          | TDict of
-            Range *
-            keywordDict: Range *
-            openBrace: Range *
-            typ: TypeReference.TypeReference *
-            closeBrace: Range
 
           | TFn of
             Range *
@@ -109,44 +109,6 @@ module Darklang =
           | Builtin of Builtin
           | QualifiedName of QualifiedTypeIdentifier
 
-
-
-      module TypeDeclaration =
-        type RecordField =
-          { range: Range
-            name: Range * String
-            typ: TypeReference.TypeReference
-            description: String
-            symbolColon: Range }
-
-        type EnumField =
-          { range: Range
-            typ: TypeReference.TypeReference
-            label: Stdlib.Option.Option<Range * String>
-            description: String
-            symbolColon: Stdlib.Option.Option<Range> }
-
-        type EnumCase =
-          { range: Range
-            name: Range * String
-            fields: List<EnumField>
-            description: String
-            keywordOf: Stdlib.Option.Option<Range> }
-
-        type Definition =
-          | Alias of TypeReference.TypeReference
-          | Record of List<RecordField * Stdlib.Option.Option<Range>>
-          | Enum of List<Range * EnumCase>
-
-        type TypeDeclaration =
-          { range: Range
-            name: TypeIdentifier
-            typeParams: List<Range * String>
-            definition: Definition
-            keywordType: Range
-            symbolEquals: Range }
-
-
       // Expressions
       type LetPattern =
         | LPUnit of Range
@@ -159,6 +121,7 @@ module Darklang =
           rest: List<Stdlib.Option.Option<Range> * LetPattern> *
           symbolOpenParen: Range *
           symbolCloseParen: Range
+
 
       type MatchPattern =
         | MPUnit of Range
@@ -208,10 +171,15 @@ module Darklang =
           caseName: (Range * String) *
           fieldPats: List<MatchPattern>
 
+      type MatchCase =
+        { pat: Range * MatchPattern * Range
+          whenCondition: Stdlib.Option.Option<Range * Expr>
+          rhs: Expr }
 
-      type Infix =
-        | InfixFnCall of InfixFnName
-        | BinOp of BinaryOperation
+
+      type BinaryOperation =
+        | BinOpAnd
+        | BinOpOr
 
       type InfixFnName =
         | ArithmeticPlus
@@ -228,14 +196,10 @@ module Darklang =
         | ComparisonNotEquals
         | StringConcat
 
-      type BinaryOperation =
-        | BinOpAnd
-        | BinOpOr
+      type Infix =
+        | InfixFnCall of InfixFnName
+        | BinOp of BinaryOperation
 
-      type MatchCase =
-        { pat: Range * MatchPattern * Range
-          whenCondition: Stdlib.Option.Option<Range * Expr>
-          rhs: Expr }
 
       type Expr =
         | EUnit of Range
@@ -387,6 +351,7 @@ module Darklang =
           args: List<Expr>
         | EPipeVariableOrFnCall of Range * String
 
+
       type Const =
         | CUnit of Range
         | CBool of Range * Bool
@@ -455,6 +420,53 @@ module Darklang =
             keywordModule: Range }
 
 
+      // Type declaration
+      module TypeDeclaration =
+        type RecordField =
+          { range: Range
+            name: Range * String
+            typ: TypeReference.TypeReference
+            description: String
+            symbolColon: Range }
+
+        type EnumField =
+          { range: Range
+            typ: TypeReference.TypeReference
+            label: Stdlib.Option.Option<Range * String>
+            description: String
+            symbolColon: Stdlib.Option.Option<Range> }
+
+        type EnumCase =
+          { range: Range
+            name: Range * String
+            fields: List<EnumField>
+            description: String
+            keywordOf: Stdlib.Option.Option<Range> }
+
+        type Definition =
+          | Alias of TypeReference.TypeReference
+          | Record of List<RecordField * Stdlib.Option.Option<Range>>
+          | Enum of List<Range * EnumCase>
+
+        type TypeDeclaration =
+          { range: Range
+            name: TypeIdentifier
+            typeParams: List<Range * String>
+            definition: Definition
+            keywordType: Range
+            symbolEquals: Range }
+
+
+      // Constant declarations
+      module ConstantDeclaration =
+        type ConstantDeclaration =
+          { range: Range
+            name: ConstantIdentifier
+            body: Const
+            keywordConst: Range
+            symbolEquals: Range }
+
+
       // Fn declarations
       module FnDeclaration =
         type UnitParameter = { range: Range }
@@ -484,32 +496,23 @@ module Darklang =
             symbolEquals: Range }
 
 
-      // Constant declarations
-      module ConstantDeclaration =
-        type ConstantDeclaration =
-          { range: Range
-            name: ConstantIdentifier
-            body: Const
-            keywordConst: Range
-            symbolEquals: Range }
-
-      // Cli scripts (CLEANUP throw both of these types in a CliScript module)
-      type CliScriptDeclaration =
-        | Type of TypeDeclaration.TypeDeclaration
-        | Function of FnDeclaration.FnDeclaration
-        | Constant of ConstantDeclaration.ConstantDeclaration
-        | Module of ModuleDeclaration.ModuleDeclaration
-
       type Unparseable =
         { source: Parser.ParsedNode
           note: Stdlib.Option.Option<String> }
 
 
-      type CliScript =
-        { range: Range
-          declarations: List<CliScriptDeclaration>
-          unparseableStuff: List<Unparseable>
-          exprsToEval: List<Expr> }
+      module CliScript =
+        type CliScriptDeclaration =
+          | Type of TypeDeclaration.TypeDeclaration
+          | Function of FnDeclaration.FnDeclaration
+          | Constant of ConstantDeclaration.ConstantDeclaration
+          | Module of ModuleDeclaration.ModuleDeclaration
+
+        type CliScript =
+          { range: Range
+            declarations: List<CliScript.CliScriptDeclaration>
+            unparseableStuff: List<Unparseable>
+            exprsToEval: List<Expr> }
 
 
-      type ParsedFile = CliScript of CliScript
+      type ParsedFile = CliScript of CliScript.CliScript

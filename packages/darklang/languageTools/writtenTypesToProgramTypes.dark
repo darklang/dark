@@ -37,6 +37,25 @@ module Darklang =
             (typeName, typeArgs)
 
 
+        module Const =
+          let toPT (c: WrittenTypes.ConstantIdentifier) : String = c.name
+
+        module QualifiedConst =
+          let toPT
+            (onMissing: NameResolver.OnMissing)
+            (c: WrittenTypes.QualifiedConstantIdentifier)
+            : ProgramTypes.NameResolution<ProgramTypes.FQConstantName.FQConstantName> =
+            let nameToResolve =
+              Stdlib.List.append
+                (Stdlib.List.map c.modules (fun (cn, _) -> cn.name))
+                [ c.constant.name ]
+
+            NameResolver.ConstantName.resolve
+              onMissing
+              []
+              (WrittenTypes.Name.Unresolved(c.range, nameToResolve))
+
+
         module Fn =
           let toPT (fn: WrittenTypes.FnIdentifier) : String = fn.name
 
@@ -55,23 +74,6 @@ module Darklang =
               []
               (WrittenTypes.Name.Unresolved(i.range, nameToResolve))
 
-        module Const =
-          let toPT (c: WrittenTypes.ConstantIdentifier) : String = c.name
-
-        module QualifiedConst =
-          let toPT
-            (onMissing: NameResolver.OnMissing)
-            (c: WrittenTypes.QualifiedConstantIdentifier)
-            : ProgramTypes.NameResolution<ProgramTypes.FQConstantName.FQConstantName> =
-            let nameToResolve =
-              Stdlib.List.append
-                (Stdlib.List.map c.modules (fun (cn, _) -> cn.name))
-                [ c.constant.name ]
-
-            NameResolver.ConstantName.resolve
-              onMissing
-              []
-              (WrittenTypes.Name.Unresolved(c.range, nameToResolve))
 
       module TypeReference =
         module Builtin =
@@ -102,6 +104,11 @@ module Darklang =
               let typ = TypeReference.toPT onMissing typ
               ProgramTypes.TypeReference.TList(typ)
 
+            | TDict(_range, _, _, valueType, _) ->
+              let valueType = TypeReference.toPT onMissing valueType
+
+              ProgramTypes.TypeReference.TDict valueType
+
             | TTuple(_range, firstType, _, secondType, restTypes, _, _) ->
               let firstType = TypeReference.toPT onMissing firstType
               let secondType = TypeReference.toPT onMissing secondType
@@ -111,11 +118,6 @@ module Darklang =
                   TypeReference.toPT onMissing t)
 
               ProgramTypes.TypeReference.TTuple(firstType, secondType, restTypes)
-
-            | TDict(_range, _, _, valueType, _) ->
-              let valueType = TypeReference.toPT onMissing valueType
-
-              ProgramTypes.TypeReference.TDict valueType
 
             | TFn(_range, args, returnType) ->
               let args =
@@ -144,164 +146,6 @@ module Darklang =
             ProgramTypes.TypeReference.TCustomType(typeName, typeArgs)
 
 
-      module Const =
-        let toPT
-          (onMissing: NameResolver.OnMissing)
-          (c: WrittenTypes.Const)
-          : ProgramTypes.Const =
-          match c with
-          | CUnit _ -> ProgramTypes.Const.CUnit
-          | CBool(_, b) -> ProgramTypes.Const.CBool(b)
-          | CInt8(_, (_, i), _) -> ProgramTypes.Const.CInt8(i)
-          | CUInt8(_, (_, i), _) -> ProgramTypes.Const.CUInt8(i)
-          | CInt16(_, (_, i), _) -> ProgramTypes.Const.CInt16(i)
-          | CUInt16(_, (_, i), _) -> ProgramTypes.Const.CUInt16(i)
-          | CInt32(_, (_, i), _) -> ProgramTypes.Const.CInt32(i)
-          | CUInt32(_, (_, i), _) -> ProgramTypes.Const.CUInt32(i)
-          | CInt64(_, (_, i), _) -> ProgramTypes.Const.CInt64(i)
-          | CUInt64(_, (_, i), _) -> ProgramTypes.Const.CUInt64(i)
-          | CInt128(_, (_, i), _) -> ProgramTypes.Const.CInt128(i)
-          | CUInt128(_, (_, i), _) -> ProgramTypes.Const.CUInt128(i)
-          | CFloat(_, s, w, f) -> ProgramTypes.Const.CFloat(s, w, f)
-          | CString(_, contents, _, _) ->
-            match contents with
-            | None -> ProgramTypes.Const.CString([])
-            | Some((_, s)) -> ProgramTypes.Const.CString(s)
-          | CChar(_, c, _, _) ->
-            match c with
-            | None -> ProgramTypes.Const.CChar("")
-            | Some((_, c)) -> ProgramTypes.Const.CChar(c)
-
-          | CList(_, contents, _, _) ->
-            ProgramTypes.Const.CList(
-              Stdlib.List.map contents (fun (c, _) -> toPT onMissing c)
-            )
-
-          | CDict(_, contents, _, _, _) ->
-            ProgramTypes.Const.CDict(
-              Stdlib.List.map contents (fun (_, k, v) ->
-                let (_, k) = k
-                (k, toPT onMissing v))
-            )
-
-          | CTuple(_, first, _, second, rest, _, _) ->
-            let first = toPT onMissing first
-            let second = toPT onMissing second
-            let rest = Stdlib.List.map rest (fun (_, c) -> toPT onMissing c)
-
-            ProgramTypes.Const.CTuple(first, second, rest)
-
-          | CEnum(_, (sr, typeName), (_, caseName), fields, _) ->
-            let typeName =
-              NameResolver.TypeName.resolve
-                onMissing
-                []
-                (WrittenTypes.Name.Unresolved sr typeName)
-
-            let fields = Stdlib.List.map fields (fun expr -> toPT onMissing expr)
-
-            ProgramTypes.Const.CEnum(typeName, caseName, fields)
-
-
-      module TypeDeclaration =
-        module RecordField =
-          let toPT
-            (onMissing: NameResolver.OnMissing)
-            (f: WrittenTypes.TypeDeclaration.RecordField)
-            : ProgramTypes.TypeDeclaration.RecordField =
-            let name = f.name |> Stdlib.Tuple2.second
-
-            ProgramTypes.TypeDeclaration.RecordField
-              { name = name
-                typ = TypeReference.toPT onMissing f.typ
-                description = "" }
-
-        module EnumField =
-          let toPT
-            (onMissing: NameResolver.OnMissing)
-            (f: WrittenTypes.TypeDeclaration.EnumField)
-            : ProgramTypes.TypeDeclaration.EnumField =
-
-            let label =
-              match f.label with
-              | Some l -> Stdlib.Option.Option.Some(l |> Stdlib.Tuple2.second)
-              | None -> Stdlib.Option.Option.None
-
-            ProgramTypes.TypeDeclaration.EnumField
-              { typ = TypeReference.toPT onMissing f.typ
-                label = label
-                description = "" }
-
-        module EnumCase =
-          let toPT
-            (onMissing: NameResolver.OnMissing)
-            (c: WrittenTypes.TypeDeclaration.EnumCase)
-            : ProgramTypes.TypeDeclaration.EnumCase =
-
-            let name = c.name |> Stdlib.Tuple2.second
-
-            let fields =
-              Stdlib.List.map c.fields (fun f -> EnumField.toPT onMissing f)
-
-            ProgramTypes.TypeDeclaration.EnumCase
-              { name = name
-                fields = fields
-                description = "" }
-
-        module Definition =
-          let toPT
-            (onMissing: NameResolver.OnMissing)
-            (d: WrittenTypes.TypeDeclaration.Definition)
-            : ProgramTypes.TypeDeclaration.Definition =
-
-            match d with
-            | Alias typ ->
-              let typ = TypeReference.toPT onMissing typ
-              ProgramTypes.TypeDeclaration.Definition.Alias typ
-
-            | Record fields ->
-              let fields =
-                Stdlib.List.map fields (fun (f, _) -> RecordField.toPT onMissing f)
-
-              ProgramTypes.TypeDeclaration.Definition.Record fields
-
-            | Enum cases ->
-              let cases =
-                Stdlib.List.map cases (fun (_, c) -> EnumCase.toPT onMissing c)
-
-              ProgramTypes.TypeDeclaration.Definition.Enum cases
-
-        let toPT
-          (onMissing: NameResolver.OnMissing)
-          (d: WrittenTypes.TypeDeclaration.TypeDeclaration)
-          : ProgramTypes.TypeDeclaration.TypeDeclaration =
-          let def = Definition.toPT onMissing d.definition
-
-          ProgramTypes.TypeDeclaration.TypeDeclaration
-            { typeParams =
-                d.typeParams |> Stdlib.List.map (fun p -> p |> Stdlib.Tuple2.second)
-              definition = def }
-
-
-        let toPackageTypePT
-          (onMissing: NameResolver.OnMissing)
-          (owner: String)
-          (modules: List<String>)
-          (d: WrittenTypes.TypeDeclaration.TypeDeclaration)
-          : ProgramTypes.PackageType.PackageType =
-          ProgramTypes.PackageType.PackageType
-            // TODO: when relevant, use PackageIDs defined in F# land
-            { id = Stdlib.Uuid.generate ()
-              name =
-                ProgramTypes.PackageType.Name
-                  { owner = owner
-                    modules = modules
-                    name = d.name.name }
-              description = ""
-              declaration = toPT onMissing d
-              deprecated = ProgramTypes.Deprecation.NotDeprecated }
-
-
       module InfixFnName =
         let toPT (infix: WrittenTypes.InfixFnName) : ProgramTypes.InfixFnName =
           match infix with
@@ -321,7 +165,6 @@ module Darklang =
           | ComparisonNotEquals -> ProgramTypes.InfixFnName.ComparisonNotEquals
           | StringConcat -> ProgramTypes.InfixFnName.StringConcat
 
-
       module BinaryOperation =
         let toPT
           (binop: WrittenTypes.BinaryOperation)
@@ -330,12 +173,12 @@ module Darklang =
           | BinOpAnd -> ProgramTypes.BinaryOperation.BinOpAnd
           | BinOpOr -> ProgramTypes.BinaryOperation.BinOpOr
 
-
       module Infix =
         let toPT (infix: WrittenTypes.Infix) : ProgramTypes.Infix =
           match infix with
           | InfixFnCall op -> ProgramTypes.Infix.InfixFnCall(InfixFnName.toPT op)
           | BinOp op -> ProgramTypes.Infix.BinOp(BinaryOperation.toPT op)
+
 
       module Expr =
         module LetPattern =
@@ -639,6 +482,65 @@ module Darklang =
             ProgramTypes.Expr.EApply(gid (), fn, typeArgs, args)
 
 
+      module Const =
+        let toPT
+          (onMissing: NameResolver.OnMissing)
+          (c: WrittenTypes.Const)
+          : ProgramTypes.Const =
+          match c with
+          | CUnit _ -> ProgramTypes.Const.CUnit
+          | CBool(_, b) -> ProgramTypes.Const.CBool(b)
+          | CInt8(_, (_, i), _) -> ProgramTypes.Const.CInt8(i)
+          | CUInt8(_, (_, i), _) -> ProgramTypes.Const.CUInt8(i)
+          | CInt16(_, (_, i), _) -> ProgramTypes.Const.CInt16(i)
+          | CUInt16(_, (_, i), _) -> ProgramTypes.Const.CUInt16(i)
+          | CInt32(_, (_, i), _) -> ProgramTypes.Const.CInt32(i)
+          | CUInt32(_, (_, i), _) -> ProgramTypes.Const.CUInt32(i)
+          | CInt64(_, (_, i), _) -> ProgramTypes.Const.CInt64(i)
+          | CUInt64(_, (_, i), _) -> ProgramTypes.Const.CUInt64(i)
+          | CInt128(_, (_, i), _) -> ProgramTypes.Const.CInt128(i)
+          | CUInt128(_, (_, i), _) -> ProgramTypes.Const.CUInt128(i)
+          | CFloat(_, s, w, f) -> ProgramTypes.Const.CFloat(s, w, f)
+          | CString(_, contents, _, _) ->
+            match contents with
+            | None -> ProgramTypes.Const.CString([])
+            | Some((_, s)) -> ProgramTypes.Const.CString(s)
+          | CChar(_, c, _, _) ->
+            match c with
+            | None -> ProgramTypes.Const.CChar("")
+            | Some((_, c)) -> ProgramTypes.Const.CChar(c)
+
+          | CList(_, contents, _, _) ->
+            ProgramTypes.Const.CList(
+              Stdlib.List.map contents (fun (c, _) -> toPT onMissing c)
+            )
+
+          | CDict(_, contents, _, _, _) ->
+            ProgramTypes.Const.CDict(
+              Stdlib.List.map contents (fun (_, k, v) ->
+                let (_, k) = k
+                (k, toPT onMissing v))
+            )
+
+          | CTuple(_, first, _, second, rest, _, _) ->
+            let first = toPT onMissing first
+            let second = toPT onMissing second
+            let rest = Stdlib.List.map rest (fun (_, c) -> toPT onMissing c)
+
+            ProgramTypes.Const.CTuple(first, second, rest)
+
+          | CEnum(_, (sr, typeName), (_, caseName), fields, _) ->
+            let typeName =
+              NameResolver.TypeName.resolve
+                onMissing
+                []
+                (WrittenTypes.Name.Unresolved sr typeName)
+
+            let fields = Stdlib.List.map fields (fun expr -> toPT onMissing expr)
+
+            ProgramTypes.Const.CEnum(typeName, caseName, fields)
+
+
       module ModuleDeclaration =
         let combineSubmodules
           (submodules: List<ProgramTypes.Definitions>)
@@ -793,6 +695,119 @@ module Darklang =
               exprs = exprs |> Stdlib.List.append submodules.exprs }
 
 
+      module TypeDeclaration =
+        module RecordField =
+          let toPT
+            (onMissing: NameResolver.OnMissing)
+            (f: WrittenTypes.TypeDeclaration.RecordField)
+            : ProgramTypes.TypeDeclaration.RecordField =
+            let (_, name) = f.name
+
+            ProgramTypes.TypeDeclaration.RecordField
+              { name = name
+                typ = TypeReference.toPT onMissing f.typ
+                description = "" }
+
+        module EnumField =
+          let toPT
+            (onMissing: NameResolver.OnMissing)
+            (f: WrittenTypes.TypeDeclaration.EnumField)
+            : ProgramTypes.TypeDeclaration.EnumField =
+            let label = f.label |> Stdlib.Option.map Stdlib.Tuple2.second
+
+            ProgramTypes.TypeDeclaration.EnumField
+              { typ = TypeReference.toPT onMissing f.typ
+                label = label
+                description = "" }
+
+        module EnumCase =
+          let toPT
+            (onMissing: NameResolver.OnMissing)
+            (c: WrittenTypes.TypeDeclaration.EnumCase)
+            : ProgramTypes.TypeDeclaration.EnumCase =
+            let (_, name) = c.name
+
+            let fields =
+              Stdlib.List.map c.fields (fun f -> EnumField.toPT onMissing f)
+
+            ProgramTypes.TypeDeclaration.EnumCase
+              { name = name
+                fields = fields
+                description = "" }
+
+        module Definition =
+          let toPT
+            (onMissing: NameResolver.OnMissing)
+            (d: WrittenTypes.TypeDeclaration.Definition)
+            : ProgramTypes.TypeDeclaration.Definition =
+
+            match d with
+            | Alias typ ->
+              let typ = TypeReference.toPT onMissing typ
+              ProgramTypes.TypeDeclaration.Definition.Alias typ
+
+            | Record fields ->
+              let fields =
+                Stdlib.List.map fields (fun (f, _) -> RecordField.toPT onMissing f)
+
+              ProgramTypes.TypeDeclaration.Definition.Record fields
+
+            | Enum cases ->
+              let cases =
+                Stdlib.List.map cases (fun (_, c) -> EnumCase.toPT onMissing c)
+
+              ProgramTypes.TypeDeclaration.Definition.Enum cases
+
+        let toPT
+          (onMissing: NameResolver.OnMissing)
+          (d: WrittenTypes.TypeDeclaration.TypeDeclaration)
+          : ProgramTypes.TypeDeclaration.TypeDeclaration =
+          let def = Definition.toPT onMissing d.definition
+
+          ProgramTypes.TypeDeclaration.TypeDeclaration
+            { typeParams =
+                d.typeParams |> Stdlib.List.map (fun p -> p |> Stdlib.Tuple2.second)
+              definition = def }
+
+
+        let toPackageTypePT
+          (onMissing: NameResolver.OnMissing)
+          (owner: String)
+          (modules: List<String>)
+          (d: WrittenTypes.TypeDeclaration.TypeDeclaration)
+          : ProgramTypes.PackageType.PackageType =
+          ProgramTypes.PackageType.PackageType
+            // TODO: when relevant, use PackageIDs defined in F# land
+            { id = Stdlib.Uuid.generate ()
+              name =
+                ProgramTypes.PackageType.Name
+                  { owner = owner
+                    modules = modules
+                    name = d.name.name }
+              description = ""
+              declaration = toPT onMissing d
+              deprecated = ProgramTypes.Deprecation.NotDeprecated }
+
+
+      module ConstantDeclaration =
+        let toPackageConstPT
+          (onMissing: NameResolver.OnMissing)
+          (owner: String)
+          (modules: List<String>)
+          (d: WrittenTypes.ConstantDeclaration.ConstantDeclaration)
+          : ProgramTypes.PackageConstant.PackageConstant =
+          ProgramTypes.PackageConstant.PackageConstant
+            { id = Stdlib.Uuid.generate ()
+              name =
+                ProgramTypes.PackageConstant.Name
+                  { owner = owner
+                    modules = modules
+                    name = d.name.name }
+              body = Const.toPT onMissing d.body
+              description = ""
+              deprecated = ProgramTypes.Deprecation.NotDeprecated }
+
+
       module FunctionDeclaration =
         module Parameter =
           let toPackageFnParamPT
@@ -841,28 +856,8 @@ module Darklang =
               body = Expr.toPT onMissing fn.body }
 
 
-      // TODO: generally follow up here
-      module ConstantDeclaration =
-        let toPackageConstPT
-          (onMissing: NameResolver.OnMissing)
-          (owner: String)
-          (modules: List<String>)
-          (d: WrittenTypes.ConstantDeclaration.ConstantDeclaration)
-          : ProgramTypes.PackageConstant.PackageConstant =
-          ProgramTypes.PackageConstant.PackageConstant
-            { id = Stdlib.Uuid.generate ()
-              name =
-                ProgramTypes.PackageConstant.Name
-                  { owner = owner
-                    modules = modules
-                    name = d.name.name }
-              body = Const.toPT onMissing d.body
-              description = ""
-              deprecated = ProgramTypes.Deprecation.NotDeprecated }
-
-
       let cliScript
-        (script: WrittenTypes.CliScript)
+        (script: WrittenTypes.CliScript.CliScript)
         : ProgramTypes.CliScript.CliScript =
         // CLEANUP potentially complain about unparsable stuff?
         ProgramTypes.CliScript.CliScript
