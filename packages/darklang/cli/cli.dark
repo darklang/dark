@@ -2,7 +2,7 @@ module Darklang =
   module Cli =
     type Command =
       | Help
-      | RunFunction of flags: List<String> * fnName: String * args: List<String>
+      | RunFunction of fnName: String * args: List<String>
       | RunScript of String * List<String>
       | RunInstallOrUpdate
       | Uninstall
@@ -13,7 +13,7 @@ module Darklang =
 
     let parseArguments (args: List<String>) : Command =
       // Extract "flags" value from last argument,
-      // which is used like `--flags=wip-parser,local-pm`.
+      // which is used like `--flags=skip-self-update,local-pm`.
       //
       // TODO: support flags as non-last arguments
       // TODO: extract known flags out of this, into some structured data
@@ -43,7 +43,7 @@ module Darklang =
       | thingToRun :: args ->
         if Stdlib.String.startsWith thingToRun "@" then
           let fnName = thingToRun |> Stdlib.String.dropFirst_v0 1L
-          Command.RunFunction(flags, fnName, args)
+          Command.RunFunction(fnName, args)
         else
           Command.RunScript(thingToRun, args)
 
@@ -51,13 +51,8 @@ module Darklang =
 
 
 
-    let runFunction
-      (flags: List<String>)
-      (fnName: String)
-      (args: List<String>)
-      : Int64 =
-      if Stdlib.List.member_v0 flags "wip-parser" then
-        let onMissing = LanguageTools.NameResolver.OnMissing.Allow
+    let runFunction (fnName: String) (args: List<String>) : Int64 =
+      let onMissing = LanguageTools.NameResolver.OnMissing.Allow
 
         let args =
           args
@@ -73,25 +68,14 @@ module Darklang =
           |> Stdlib.List.map (fun arg ->
             LanguageTools.WrittenTypesToProgramTypes.Expr.toPT onMissing arg)
 
-        match Builtin.cliExecuteFunctionWithNewParser fnName args with
-        | Ok result ->
-          Builtin.printLine result
-          0L
+      match Builtin.cliExecuteFunctionWithNewParser fnName args with
+      | Ok result ->
+        Builtin.printLine result
+        0L
 
-        | Error err ->
-          Builtin.printLine err
-          1L
-
-      // Use old parser
-      else
-        match Builtin.cliExecuteFunction fnName args with
-        | Ok result ->
-          Builtin.printLine result
-          0L
-
-        | Error err ->
-          Builtin.printLine err
-          1L
+      | Error err ->
+        Builtin.printLine err
+        1L
 
 
     let runScript (scriptPath: String) (args: List<String>) : Int64 =
@@ -141,7 +125,7 @@ dark update                                   Update the darklang CLI to the lat
 
       | RunScript(scriptPath, args) -> runScript scriptPath args
 
-      | RunFunction(flags, fnName, args) -> runFunction flags fnName args
+      | RunFunction(fnName, args) -> runFunction fnName args
 
       | RunInstallOrUpdate ->
         Builtin.printLine "Installing/updating..."
