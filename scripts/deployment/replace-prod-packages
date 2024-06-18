@@ -7,11 +7,15 @@ set -euo pipefail
 # This is run manually, step by step, to replace the canvas and data at packages.darklang.com.
 #
 # First,
+# - open a terminal, and make sure you're in the devcontainer
+#   (`./scripts/run-in-docker bash`) if relevant
 # - `gcloud auth login`
 # - make sure your IP address is allow-listed in Yugabyte
 #
 # Then run this with `./scripts/deployment/replace-prod-packages 1`,
 # and proceed with additional steps as you succeed.
+#
+# You may need to `gcloud config set project darklang-next`.
 
 db_username=$(gcloud secrets versions access latest --secret db-username)
 db_password=$(gcloud secrets versions access latest --secret db-password)

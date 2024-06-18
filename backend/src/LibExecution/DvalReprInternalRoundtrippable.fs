@@ -38,32 +38,6 @@ module FormatV0 =
 
 
 
-  module FQFnName =
-    type Builtin = { name : string; version : int }
-
-    type Package = uuid
-
-    type FQFnName =
-      | Builtin of Builtin
-      | Package of Package
-
-    let toRT (fn : FQFnName) : RT.FQFnName.FQFnName =
-      match fn with
-      | Builtin { name = name; version = version } ->
-        RT.FQFnName.Builtin { name = name; version = version }
-
-      | Package id -> RT.FQFnName.Package id
-
-    let fromRT (fn : RT.FQFnName.FQFnName) : FQFnName =
-      match fn with
-      | RT.FQFnName.Builtin { name = name; version = version } ->
-        FQFnName.Builtin { name = name; version = version }
-
-      | RT.FQFnName.Package id -> FQFnName.Package id
-
-
-
-
   module rec ValueType =
     module KnownType =
       type KnownType =
@@ -341,28 +315,35 @@ let toHashV2 (dvals : list<RT.Dval>) : string =
 module Test =
   let rec isRoundtrippableDval (dval : RT.Dval) : bool =
     match dval with
-    | RT.DFnVal _ -> false // not supported
-    | RT.DString _
-    | RT.DInt64 _
-    | RT.DUInt64 _
+    | RT.DUnit
+    | RT.DBool _
     | RT.DInt8 _
     | RT.DUInt8 _
     | RT.DInt16 _
     | RT.DUInt16 _
     | RT.DInt32 _
     | RT.DUInt32 _
+    | RT.DInt64 _
+    | RT.DUInt64 _
     | RT.DInt128 _
     | RT.DUInt128 _
     | RT.DFloat _
-    | RT.DUnit
-    | RT.DBool _
     | RT.DChar _
+    | RT.DString _
+    | RT.DUuid _
     | RT.DDateTime _ -> true
+
     | RT.DEnum(_typeName, _, _typeArgsDEnumTODO, _caseName, fields) ->
       List.all isRoundtrippableDval fields
+
     | RT.DList(_, dvals) -> List.all isRoundtrippableDval dvals
+
     | RT.DDict(_, map) -> map |> Map.values |> List.all isRoundtrippableDval
+
     | RT.DRecord(_, _, _, map) -> map |> Map.values |> List.all isRoundtrippableDval
-    | RT.DUuid _ -> true
+
     | RT.DTuple(v1, v2, rest) -> List.all isRoundtrippableDval (v1 :: v2 :: rest)
+
     | RT.DDB _ -> true
+
+    | RT.DFnVal _ -> false // not supported
