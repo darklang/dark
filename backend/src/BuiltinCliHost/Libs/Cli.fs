@@ -342,6 +342,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // TODO: this doesn't seem to be using the new parser
     { name = fn "cliExecuteFunctionWithNewParser" 0
       typeParams = []
       parameters =
