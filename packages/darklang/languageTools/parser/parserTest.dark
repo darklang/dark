@@ -5,18 +5,18 @@ module Darklang =
         let initialParse (code: String) : WrittenTypes.ParsedFile =
           code
           |> LanguageTools.Parser.parseToSimplifiedTree
-          |> LanguageTools.Parser.parseCliScript
+          |> LanguageTools.Parser.parseFromTree
           |> Builtin.unwrap
 
         // TODO: maybe use a proper type instead of string?
         let parsePTExpr
           (code: String)
           : Stdlib.Result.Result<ProgramTypes.Expr, String> =
-          let cliScript = code |> ParserTest.initialParse
+          let sourceFile = code |> ParserTest.initialParse
 
           let exprs =
-            match cliScript with
-            | CliScript c -> c.exprsToEval
+            match sourceFile with
+            | SourceFile c -> c.exprsToEval
             | _ -> []
 
           let onMissing = LanguageTools.NameResolver.OnMissing.Allow
@@ -29,10 +29,12 @@ module Darklang =
             "Expected exactly one expression to be parsed"
             |> Stdlib.Result.Result.Error
 
-        let parsePTCliScript (code: String) : ProgramTypes.CliScript.CliScript =
+        let parsePTSourceFile (code: String) : ProgramTypes.SourceFile.SourceFile =
           code
           |> ParserTest.initialParse
-          |> WrittenTypesToProgramTypes.parsedFileAsCliScript
+          |> WrittenTypesToProgramTypes.parsedFileAsSourceFile
 
         let parseAndPrettyPrint (code: String) : String =
-          code |> ParserTest.parsePTCliScript |> PrettyPrinter.ProgramTypes.cliScript
+          code
+          |> ParserTest.parsePTSourceFile
+          |> PrettyPrinter.ProgramTypes.sourceFile

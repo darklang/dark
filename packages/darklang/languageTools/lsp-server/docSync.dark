@@ -41,7 +41,7 @@ module Darklang =
           let parsed =
             request.textDocument.text
             |> Parser.parseToSimplifiedTree
-            |> Parser.parseCliScript
+            |> Parser.parseFromTree
 
           { state with
               documentsInScope =
@@ -67,8 +67,7 @@ module Darklang =
             state
 
           | Some text ->
-            let parsed =
-              text |> Parser.parseToSimplifiedTree |> Parser.parseCliScript
+            let parsed = text |> Parser.parseToSimplifiedTree |> Parser.parseFromTree
 
             { state with
                 documentsInScope =

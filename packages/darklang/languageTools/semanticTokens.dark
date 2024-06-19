@@ -1232,9 +1232,9 @@ module Darklang =
       module ParsedFile =
         let tokenize (wt: WrittenTypes.ParsedFile) : List<SemanticToken> =
           match wt with
-          | CliScript cliScript ->
+          | SourceFile sourceFile ->
             let declarationsPart =
-              cliScript.declarations
+              sourceFile.declarations
               |> Stdlib.List.map (fun typeOrFn ->
                 match typeOrFn with
                 | Type t -> TypeDeclaration.tokenize t
@@ -1244,7 +1244,7 @@ module Darklang =
               |> Stdlib.List.flatten
 
             let exprsPart =
-              cliScript.exprsToEval
+              sourceFile.exprsToEval
               |> Stdlib.List.map (fun expr -> Expr.tokenize expr)
               |> Stdlib.List.flatten
 

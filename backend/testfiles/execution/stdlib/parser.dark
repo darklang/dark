@@ -102,22 +102,22 @@ module ParseToSimplifiedTree =
 module ParseNodeToWrittenTypes =
   ("type MyID = Int64"
    |> PACKAGE.Darklang.LanguageTools.Parser.parseToSimplifiedTree
-   |> PACKAGE.Darklang.LanguageTools.Parser.parseCliScript
+   |> PACKAGE.Darklang.LanguageTools.Parser.parseFromTree
    |> Builtin.unwrap) = PACKAGE
     .Darklang
     .LanguageTools
     .WrittenTypes
     .ParsedFile
-    .CliScript(
-      PACKAGE.Darklang.LanguageTools.WrittenTypes.CliScript.CliScript
+    .SourceFile(
+      PACKAGE.Darklang.LanguageTools.WrittenTypes.SourceFile.SourceFile
         { range = range (0L, 0L) (0L, 17L)
           declarations =
             [ PACKAGE
                 .Darklang
                 .LanguageTools
                 .WrittenTypes
-                .CliScript
-                .CliScriptDeclaration
+                .SourceFile
+                .SourceFileDeclaration
                 .Type(
                   (PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeDeclaration.TypeDeclaration
                     { range = range (0L, 0L) (0L, 17L)

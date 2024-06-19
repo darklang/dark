@@ -2,16 +2,16 @@ module Darklang =
   module LanguageTools =
     module Parser =
       let updateUnparseableStuff
-        (result: WrittenTypes.CliScript.CliScript)
+        (result: WrittenTypes.SourceFile.SourceFile)
         (e: WrittenTypes.Unparseable)
-        : WrittenTypes.CliScript.CliScript =
+        : WrittenTypes.SourceFile.SourceFile =
         { result with
             unparseableStuff = Stdlib.List.pushBack result.unparseableStuff e }
 
       let parseDeclaration
-        (result: Stdlib.Result.Result<WrittenTypes.CliScript.CliScript, String>)
+        (result: Stdlib.Result.Result<WrittenTypes.SourceFile.SourceFile, String>)
         (decl: ParsedNode)
-        : Stdlib.Result.Result<WrittenTypes.CliScript.CliScript, String> =
+        : Stdlib.Result.Result<WrittenTypes.SourceFile.SourceFile, String> =
         Stdlib.Result.map result (fun result ->
           match decl.typ with
           | "type_decl" ->
@@ -19,7 +19,7 @@ module Darklang =
             | Error e -> updateUnparseableStuff result e
             | Ok parsedTypeDef ->
               let newType =
-                WrittenTypes.CliScript.CliScriptDeclaration.Type parsedTypeDef
+                WrittenTypes.SourceFile.SourceFileDeclaration.Type parsedTypeDef
 
               { result with
                   declarations = Stdlib.List.pushBack result.declarations newType }
@@ -30,7 +30,7 @@ module Darklang =
 
             | Ok parsedFnDecl ->
               let newFn =
-                WrittenTypes.CliScript.CliScriptDeclaration.Function parsedFnDecl
+                WrittenTypes.SourceFile.SourceFileDeclaration.Function parsedFnDecl
 
               { result with
                   declarations = Stdlib.List.pushBack result.declarations newFn }
@@ -41,7 +41,8 @@ module Darklang =
 
             | Ok parsedConstDecl ->
               let newConst =
-                WrittenTypes.CliScript.CliScriptDeclaration.Constant parsedConstDecl
+                WrittenTypes.SourceFile.SourceFileDeclaration.Constant
+                  parsedConstDecl
 
               { result with
                   declarations = Stdlib.List.pushBack result.declarations newConst }
@@ -58,7 +59,8 @@ module Darklang =
             | Error e -> updateUnparseableStuff result e
             | Ok parsedModuleDecl ->
               let newModule =
-                WrittenTypes.CliScript.CliScriptDeclaration.Module parsedModuleDecl
+                WrittenTypes.SourceFile.SourceFileDeclaration.Module
+                  parsedModuleDecl
 
               { result with
                   declarations = Stdlib.List.pushBack result.declarations newModule }
@@ -72,12 +74,12 @@ module Darklang =
       /// Map a ParsedNode to a WrittenTypes.ParsedFile
       ///
       /// This is the entrypoint for mapping a ParsedNode to WrittenTypes
-      let parseCliScript
+      let parseFromTree
         (node: ParsedNode)
         : Stdlib.Result.Result<WrittenTypes.ParsedFile, String> =
         if node.typ == "source_file" then
           let init =
-            WrittenTypes.CliScript.CliScript
+            WrittenTypes.SourceFile.SourceFile
               { range = node.range
                 declarations = []
                 unparseableStuff = []
@@ -90,6 +92,6 @@ module Darklang =
               Parser.parseDeclaration
 
           Stdlib.Result.map result (fun parsedResult ->
-            WrittenTypes.ParsedFile.CliScript parsedResult)
+            WrittenTypes.ParsedFile.SourceFile parsedResult)
         else
           Stdlib.Result.Result.Error $"Not a source_file: {node.typ}"

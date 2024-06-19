@@ -4,7 +4,7 @@
 ///   source (input)
 ///   -> parsed TreeSitter tree
 ///   -> parsed CLI Script
-///   -> PT.CliScript
+///   -> PT.SourceFile
 ///   -> pretty-print back to text (expected)
 ///
 module Tests.NewParser
@@ -1523,7 +1523,7 @@ let moduleDeclarations =
   |> testList "module declarations"
 
 
-let cliScripts =
+let sourceFiles =
   [
     // CLEANUP the output here is a bit broken
     t
@@ -1565,4 +1565,4 @@ let tests =
       exprs
       functionDeclarations
       moduleDeclarations
-      cliScripts ]
+      sourceFiles ]

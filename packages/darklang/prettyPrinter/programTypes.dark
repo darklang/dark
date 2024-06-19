@@ -7,7 +7,7 @@
 module Darklang =
   module PrettyPrinter =
     // CLEANUP split into a few files - easier to manage, at this point.
-    // i.e. common, typeReference, expr, declarations, packages, cliScript
+    // i.e. common, typeReference, expr, declarations, packages, sourceFile
     module ProgramTypes =
 
       let nameResolutionError

@@ -501,18 +501,18 @@ module Darklang =
           note: Stdlib.Option.Option<String> }
 
 
-      module CliScript =
-        type CliScriptDeclaration =
+      module SourceFile =
+        type SourceFileDeclaration =
           | Type of TypeDeclaration.TypeDeclaration
           | Function of FnDeclaration.FnDeclaration
           | Constant of ConstantDeclaration.ConstantDeclaration
           | Module of ModuleDeclaration.ModuleDeclaration
 
-        type CliScript =
+        type SourceFile =
           { range: Range
-            declarations: List<CliScript.CliScriptDeclaration>
+            declarations: List<SourceFile.SourceFileDeclaration>
             unparseableStuff: List<Unparseable>
             exprsToEval: List<Expr> }
 
 
-      type ParsedFile = CliScript of CliScript.CliScript
+      type ParsedFile = SourceFile of SourceFile.SourceFile

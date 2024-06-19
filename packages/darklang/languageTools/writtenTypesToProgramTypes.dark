@@ -856,17 +856,17 @@ module Darklang =
               body = Expr.toPT onMissing fn.body }
 
 
-      let cliScript
-        (script: WrittenTypes.CliScript.CliScript)
-        : ProgramTypes.CliScript.CliScript =
+      let sourceFile
+        (source: WrittenTypes.SourceFile.SourceFile)
+        : ProgramTypes.SourceFile.SourceFile =
         // CLEANUP potentially complain about unparsable stuff?
-        ProgramTypes.CliScript.CliScript
+        ProgramTypes.SourceFile.SourceFile
           { declarations =
-              script.declarations
+              source.declarations
               |> Stdlib.List.map (fun decl ->
                 match decl with
                 | Type t ->
-                  ProgramTypes.CliScript.Declaration.Type(
+                  ProgramTypes.SourceFile.Declaration.Type(
                     TypeDeclaration.toPackageTypePT
                       NameResolver.OnMissing.Allow
                       "Tests"
@@ -875,7 +875,7 @@ module Darklang =
                   )
 
                 | Constant c ->
-                  ProgramTypes.CliScript.Declaration.Constant(
+                  ProgramTypes.SourceFile.Declaration.Constant(
                     ConstantDeclaration.toPackageConstPT
                       NameResolver.OnMissing.Allow
                       "Tests"
@@ -884,7 +884,7 @@ module Darklang =
                   )
 
                 | Function f ->
-                  ProgramTypes.CliScript.Declaration.Function(
+                  ProgramTypes.SourceFile.Declaration.Function(
                     FunctionDeclaration.toPackageFnPT
                       NameResolver.OnMissing.Allow
                       "Tests"
@@ -893,17 +893,17 @@ module Darklang =
                   )
 
                 | Module m ->
-                  ProgramTypes.CliScript.Declaration.Module(
+                  ProgramTypes.SourceFile.Declaration.Module(
                     ModuleDeclaration.toPT NameResolver.OnMissing.Allow m
                   ))
 
             exprsToEval =
-              script.exprsToEval
+              source.exprsToEval
               |> Stdlib.List.map (fun e -> Expr.toPT NameResolver.OnMissing.Allow e) }
 
 
-      let parsedFileAsCliScript
+      let parsedFileAsSourceFile
         (parsedFile: WrittenTypes.ParsedFile)
-        : ProgramTypes.CliScript.CliScript =
+        : ProgramTypes.SourceFile.SourceFile =
         match parsedFile with
-        | CliScript script -> cliScript script
+        | SourceFile source -> sourceFile source
