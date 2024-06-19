@@ -18,7 +18,7 @@ module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module C2DT = LibExecution.CommonToDarkTypes
 let pm = LibCloud.PackageManager.pt
 
-let p (code : string) : Task<RT.Dval> =
+let p (code : string) : Task<PT.Expr> =
   uply {
     let! (state : RT.ExecutionState) =
       let canvasID = System.Guid.NewGuid()
@@ -28,9 +28,15 @@ let p (code : string) : Task<RT.Dval> =
       RT.FQFnName.FQFnName.Package PackageIDs.Fn.LanguageTools.Parser.parsePTExpr
 
     let args = NEList.singleton (RT.DString code)
-    let! exeResult = LibExecution.Execution.executeFunction state name [] args
+    let! execResult = LibExecution.Execution.executeFunction state name [] args
 
-    return! state |> unwrapExecutionResult exeResult
+    match execResult with
+    | Ok dval ->
+      match C2DT.Result.fromDT PT2DT.Expr.fromDT dval identity with
+      | Ok expr -> return expr
+      | Error _ ->
+        return Exception.raiseInternal "Error converting Dval to PT.Expr" []
+    | _ -> return Exception.raiseInternal "Error executing parsePTExpr function" []
   }
   |> Ply.toTask
 
@@ -49,15 +55,7 @@ let testCronSanity =
     let! canvasID = initializeTestCanvas "cron-sanity"
 
     let! e = p "5 + 3"
-    let resultExpr = C2DT.Result.fromDT PT2DT.Expr.fromDT e RT.RuntimeError.fromDT
-
-    let expr =
-      match resultExpr with
-      | Ok expr -> expr
-      | Error e ->
-        Exception.raiseInternal "Error converting to dark types" [ "error", e ]
-
-    let h = testCron "test" PT.Handler.EveryDay expr
+    let h = testCron "test" PT.Handler.EveryDay e
     do! Canvas.saveTLIDs canvasID [ (PT.Toplevel.TLHandler h, Serialize.NotDeleted) ]
 
     let cronScheduleData : Cron.CronScheduleData =
@@ -76,15 +74,7 @@ let testCronJustRan =
     let! canvasID = initializeTestCanvas "cron-just-ran"
 
     let! e = p "5 + 3"
-    let resultExpr = C2DT.Result.fromDT PT2DT.Expr.fromDT e RT.RuntimeError.fromDT
-
-    let expr =
-      match resultExpr with
-      | Ok expr -> expr
-      | Error e ->
-        Exception.raiseInternal "Error converting to dark types" [ "error", e ]
-
-    let h = testCron "test" PT.Handler.EveryDay expr
+    let h = testCron "test" PT.Handler.EveryDay e
 
     do! Canvas.saveTLIDs canvasID [ (PT.Toplevel.TLHandler h, Serialize.NotDeleted) ]
 
