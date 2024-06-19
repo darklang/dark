@@ -1,3 +1,4 @@
+// CLEANUP: split this file into smaller files
 module TestUtils.TestUtils
 
 open Expecto
@@ -1432,3 +1433,30 @@ let configureLogging
       loggingBuilder.AddFile($"{LibCloud.Config.logDir}{name}.log", append = false)
       |> ignore<ILoggingBuilder>)
   |> ignore<IServiceCollection>
+
+
+let unwrapExecutionResult
+  (exeResult : RT.ExecutionResult)
+  (state : RT.ExecutionState)
+  : Ply.Ply<RT.Dval> =
+  uply {
+    match exeResult with
+    | Ok dval -> return dval
+    | Error(_callStack, rte) ->
+      let errorMessageFn =
+        RT.FQFnName.fqPackage
+          PackageIDs.Fn.LanguageTools.RuntimeErrors.Error.toErrorMessage
+
+      let rte = RT.RuntimeError.toDT rte
+
+      let! rteMessage =
+        LibExecution.Execution.executeFunction
+          state
+          errorMessageFn
+          []
+          (NEList.ofList rte [])
+
+      match rteMessage with
+      | Ok(RT.DString msg) -> return RT.DString msg
+      | _ -> return RT.DString(string rte)
+  }

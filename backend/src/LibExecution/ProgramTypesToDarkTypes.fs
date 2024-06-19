@@ -1500,3 +1500,25 @@ module PackageFn =
         deprecated =
           fields |> D.field "deprecated" |> Deprecation.fromDT FQFnName.fromDT }
     | _ -> Exception.raiseInternal "Invalid PackageFn" []
+
+
+module Result =
+  let toDT
+    (nameValueType : KnownType)
+    (errorType : KnownType)
+    (r : Result<'a, ProgramTypes.TypeReference>)
+    (inner : 'a -> Dval)
+    : Dval =
+    match r with
+    | Ok v -> Dval.resultOk nameValueType errorType (inner v)
+    | Error err ->
+      Dval.resultError nameValueType errorType (err |> TypeReference.toDT)
+
+  let fromDT (f : Dval -> 'a) (d : Dval) : 'a =
+    match d with
+    | DEnum(tn, _, _typeArgsDEnumTODO, "Ok", [ v ]) when tn = Dval.resultType -> f v
+
+    | DEnum(tn, _, _typeArgsDEnumTODO, "Error", []) when tn = Dval.resultType ->
+      Exception.raiseInternal "Got Error" []
+
+    | _ -> Exception.raiseInternal "Invalid Result" []

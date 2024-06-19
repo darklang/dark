@@ -13,17 +13,23 @@ module RT = LibExecution.RuntimeTypes
 module Cron = LibCloud.Cron
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
-module NR = LibParser.NameResolver
-
+module PackageIDs = LibExecution.PackageIDs
 let pm = LibCloud.PackageManager.pt
 
-let p (code : string) : Task<PT.Expr> =
-  LibParser.Parser.parseSimple
-    (localBuiltIns pm)
-    pm
-    NR.OnMissing.ThrowError
-    "cron.tests.fs"
-    code
+let p (code : string) : Task<RT.Dval> =
+  uply {
+    let! (state : RT.ExecutionState) =
+      let canvasID = System.Guid.NewGuid()
+      executionStateFor pm canvasID false false Map.empty
+
+    let name =
+      RT.FQFnName.FQFnName.Package PackageIDs.Fn.LanguageTools.Parser.parsePTExpr
+
+    let args = NEList.singleton (RT.DString code)
+    let! exeResult = LibExecution.Execution.executeFunction state name [] args
+
+    return! state |> unwrapExecutionResult exeResult
+  }
   |> Ply.toTask
 
 
@@ -41,7 +47,11 @@ let testCronSanity =
     let! canvasID = initializeTestCanvas "cron-sanity"
 
     let! e = p "5 + 3"
-    let h = testCron "test" PT.Handler.EveryDay e
+    let expr =
+      LibExecution.ProgramTypesToDarkTypes.Result.fromDT
+        LibExecution.ProgramTypesToDarkTypes.Expr.fromDT
+        e
+    let h = testCron "test" PT.Handler.EveryDay expr
     do! Canvas.saveTLIDs canvasID [ (PT.Toplevel.TLHandler h, Serialize.NotDeleted) ]
 
     let cronScheduleData : Cron.CronScheduleData =
@@ -60,7 +70,11 @@ let testCronJustRan =
     let! canvasID = initializeTestCanvas "cron-just-ran"
 
     let! e = p "5 + 3"
-    let h = testCron "test" PT.Handler.EveryDay e
+    let expr =
+      LibExecution.ProgramTypesToDarkTypes.Result.fromDT
+        LibExecution.ProgramTypesToDarkTypes.Expr.fromDT
+        e
+    let h = testCron "test" PT.Handler.EveryDay expr
 
     do! Canvas.saveTLIDs canvasID [ (PT.Toplevel.TLHandler h, Serialize.NotDeleted) ]
 
