@@ -49,8 +49,7 @@ let testCronSanity =
     let! canvasID = initializeTestCanvas "cron-sanity"
 
     let! e = p "5 + 3"
-    let resultExpr =
-      C2DT.Result.fromDT PT2DT.Expr.fromDT e PT2DT.TypeReference.fromDT
+    let resultExpr = C2DT.Result.fromDT PT2DT.Expr.fromDT e RT.RuntimeError.fromDT
 
     let expr =
       match resultExpr with
@@ -77,8 +76,7 @@ let testCronJustRan =
     let! canvasID = initializeTestCanvas "cron-just-ran"
 
     let! e = p "5 + 3"
-    let resultExpr =
-      C2DT.Result.fromDT PT2DT.Expr.fromDT e PT2DT.TypeReference.fromDT
+    let resultExpr = C2DT.Result.fromDT PT2DT.Expr.fromDT e RT.RuntimeError.fromDT
 
     let expr =
       match resultExpr with
