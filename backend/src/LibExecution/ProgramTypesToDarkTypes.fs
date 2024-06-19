@@ -8,6 +8,7 @@ module PT = ProgramTypes
 module VT = ValueType
 module NRE = LibExecution.NameResolutionError
 module D = LibExecution.DvalDecoder
+module C2DT = LibExecution.CommonToDarkTypes
 
 
 // This isn't in PT but I'm not sure where else to put it...
@@ -164,20 +165,10 @@ module NameResolution =
     (result : PT.NameResolution<'p>)
     : Dval =
     let errType = KTCustomType(NameResolutionError.RTE.Error.typeName, [])
-
-    match result with
-    | Ok name -> Dval.resultOk nameValueType errType (f name)
-    | Error err -> Dval.resultError nameValueType errType (NRE.RTE.Error.toDT err)
+    C2DT.Result.toDT nameValueType errType result f NRE.RTE.Error.toDT
 
   let fromDT (f : Dval -> 'a) (d : Dval) : PT.NameResolution<'a> =
-    match d with
-    | DEnum(tn, _, _typeArgsDEnumTODO, "Ok", [ v ]) when tn = Dval.resultType ->
-      Ok(f v)
-
-    | DEnum(tn, _, _typeArgsDEnumTODO, "Error", [ v ]) when tn = Dval.resultType ->
-      Error(NRE.RTE.Error.fromDT v)
-
-    | _ -> Exception.raiseInternal "Invalid NameResolution" []
+    C2DT.Result.fromDT f d NRE.RTE.Error.fromDT
 
 
 module TypeReference =
@@ -1500,25 +1491,3 @@ module PackageFn =
         deprecated =
           fields |> D.field "deprecated" |> Deprecation.fromDT FQFnName.fromDT }
     | _ -> Exception.raiseInternal "Invalid PackageFn" []
-
-
-module Result =
-  let toDT
-    (nameValueType : KnownType)
-    (errorType : KnownType)
-    (r : Result<'a, ProgramTypes.TypeReference>)
-    (inner : 'a -> Dval)
-    : Dval =
-    match r with
-    | Ok v -> Dval.resultOk nameValueType errorType (inner v)
-    | Error err ->
-      Dval.resultError nameValueType errorType (err |> TypeReference.toDT)
-
-  let fromDT (f : Dval -> 'a) (d : Dval) : 'a =
-    match d with
-    | DEnum(tn, _, _typeArgsDEnumTODO, "Ok", [ v ]) when tn = Dval.resultType -> f v
-
-    | DEnum(tn, _, _typeArgsDEnumTODO, "Error", []) when tn = Dval.resultType ->
-      Exception.raiseInternal "Got Error" []
-
-    | _ -> Exception.raiseInternal "Invalid Result" []

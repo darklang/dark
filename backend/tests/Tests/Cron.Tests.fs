@@ -14,6 +14,8 @@ module Cron = LibCloud.Cron
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
 module PackageIDs = LibExecution.PackageIDs
+module PT2DT = LibExecution.ProgramTypesToDarkTypes
+module C2DT = LibExecution.CommonToDarkTypes
 let pm = LibCloud.PackageManager.pt
 
 let p (code : string) : Task<RT.Dval> =
@@ -47,10 +49,15 @@ let testCronSanity =
     let! canvasID = initializeTestCanvas "cron-sanity"
 
     let! e = p "5 + 3"
+    let resultExpr =
+      C2DT.Result.fromDT PT2DT.Expr.fromDT e PT2DT.TypeReference.fromDT
+
     let expr =
-      LibExecution.ProgramTypesToDarkTypes.Result.fromDT
-        LibExecution.ProgramTypesToDarkTypes.Expr.fromDT
-        e
+      match resultExpr with
+      | Ok expr -> expr
+      | Error e ->
+        Exception.raiseInternal "Error converting to dark types" [ "error", e ]
+
     let h = testCron "test" PT.Handler.EveryDay expr
     do! Canvas.saveTLIDs canvasID [ (PT.Toplevel.TLHandler h, Serialize.NotDeleted) ]
 
@@ -70,10 +77,15 @@ let testCronJustRan =
     let! canvasID = initializeTestCanvas "cron-just-ran"
 
     let! e = p "5 + 3"
+    let resultExpr =
+      C2DT.Result.fromDT PT2DT.Expr.fromDT e PT2DT.TypeReference.fromDT
+
     let expr =
-      LibExecution.ProgramTypesToDarkTypes.Result.fromDT
-        LibExecution.ProgramTypesToDarkTypes.Expr.fromDT
-        e
+      match resultExpr with
+      | Ok expr -> expr
+      | Error e ->
+        Exception.raiseInternal "Error converting to dark types" [ "error", e ]
+
     let h = testCron "test" PT.Handler.EveryDay expr
 
     do! Canvas.saveTLIDs canvasID [ (PT.Toplevel.TLHandler h, Serialize.NotDeleted) ]
