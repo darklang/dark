@@ -9,7 +9,7 @@ let tokenize
   =
   text
   |> PACKAGE.Darklang.LanguageTools.Parser.parseToSimplifiedTree
-  |> PACKAGE.Darklang.LanguageTools.Parser.parseCliScript
+  |> PACKAGE.Darklang.LanguageTools.Parser.parseFromTree
   |> Builtin.unwrap
   |> PACKAGE.Darklang.LanguageTools.SemanticTokens.ParsedFile.tokenize
   |> Stdlib.List.map (fun token ->

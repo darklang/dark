@@ -6,6 +6,7 @@ open RuntimeTypes
 
 module VT = ValueType
 module D = DvalDecoder
+module C2DT = LibExecution.CommonToDarkTypes
 
 
 // TODO: should these be elsewhere?
@@ -143,18 +144,10 @@ module NameResolution =
     (result : NameResolution<'p>)
     : Dval =
     let errType = KTCustomType(typeName, [])
-
-    match result with
-    | Ok name -> Dval.resultOk nameValueType errType (f name)
-    | Error err -> RuntimeError.toDT err |> Dval.resultError nameValueType errType
+    C2DT.Result.toDT nameValueType errType result f RuntimeError.toDT
 
   let fromDT (f : Dval -> 'a) (d : Dval) : NameResolution<'a> =
-    match d with
-    | DEnum(tn, _, _typeArgsDEnumTODO, "Ok", [ v ]) when tn = Dval.resultType ->
-      Ok(f v)
-    | DEnum(tn, _, _typeArgsDEnumTODO, "Error", [ v ]) when tn = Dval.resultType ->
-      Error(RuntimeError.fromDT v)
-    | _ -> Exception.raiseInternal "Invalid NameResolution" []
+    C2DT.Result.fromDT f d RuntimeError.fromDT
 
 
 module TypeReference =

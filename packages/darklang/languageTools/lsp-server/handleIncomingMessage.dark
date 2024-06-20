@@ -125,7 +125,7 @@ module Darklang =
           match document.parsed with
           | Ok parsedFile ->
             match parsedFile with
-            | CliScript parsed when parsed.unparseableStuff != [] ->
+            | SourceFile parsed when parsed.unparseableStuff != [] ->
               let diagnostics =
                 parsed.unparseableStuff
                 |> Stdlib.List.map (fun unparseable ->

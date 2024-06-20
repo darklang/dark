@@ -13,17 +13,31 @@ module RT = LibExecution.RuntimeTypes
 module Cron = LibCloud.Cron
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
-module NR = LibParser.NameResolver
-
+module PackageIDs = LibExecution.PackageIDs
+module PT2DT = LibExecution.ProgramTypesToDarkTypes
+module C2DT = LibExecution.CommonToDarkTypes
 let pm = LibCloud.PackageManager.pt
 
 let p (code : string) : Task<PT.Expr> =
-  LibParser.Parser.parseSimple
-    (localBuiltIns pm)
-    pm
-    NR.OnMissing.ThrowError
-    "cron.tests.fs"
-    code
+  uply {
+    let! (state : RT.ExecutionState) =
+      let canvasID = System.Guid.NewGuid()
+      executionStateFor pm canvasID false false Map.empty
+
+    let name =
+      RT.FQFnName.FQFnName.Package PackageIDs.Fn.LanguageTools.Parser.parsePTExpr
+
+    let args = NEList.singleton (RT.DString code)
+    let! execResult = LibExecution.Execution.executeFunction state name [] args
+
+    match execResult with
+    | Ok dval ->
+      match C2DT.Result.fromDT PT2DT.Expr.fromDT dval identity with
+      | Ok expr -> return expr
+      | Error _ ->
+        return Exception.raiseInternal "Error converting Dval to PT.Expr" []
+    | _ -> return Exception.raiseInternal "Error executing parsePTExpr function" []
+  }
   |> Ply.toTask
 
 

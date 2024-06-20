@@ -105,6 +105,11 @@ module Type =
       let range = p [] "Range" "e194e06f-a765-483d-b6a5-16856ed547f0"
       let parsedNode = p [] "ParsedNode" "3612c001-663c-4695-9b1c-d3a1582a8057"
 
+    module NameResolver =
+      let private p addl = p ("NameResolver" :: addl)
+      let nameResolverOnMissing =
+        p [] "OnMissing" "3c6057e7-143b-4af8-96c4-c193c1ccfeb3"
+
     module RuntimeError =
       let private p addl = p ("RuntimeErrors" :: addl)
 
@@ -321,6 +326,18 @@ module Fn =
         let toString = p [] "toString" "64a08e23-e4ea-474b-9f77-3d2b1b953879"
         let toErrorMessage =
           p [] "toErrorMessage" "d861d9c4-45da-4789-8f41-b0e481422190"
+
+    module Parser =
+      let private p addl = p ("Parser" :: addl)
+      let parsePTExpr =
+        p [ "ParserTest" ] "parsePTExpr" "d96d3e6b-6c0d-4559-ae36-353eaf738fa9"
+
+      let parseAndPrettyPrint =
+        p
+          [ "ParserTest" ]
+          "parseAndPrettyPrint"
+          "361fb7f2-523b-4b50-8f29-cc99d5f03e3a"
+
 
   module PrettyPrinter =
     module RuntimeTypes =

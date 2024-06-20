@@ -8,6 +8,7 @@ module PT = ProgramTypes
 module VT = ValueType
 module NRE = LibExecution.NameResolutionError
 module D = LibExecution.DvalDecoder
+module C2DT = LibExecution.CommonToDarkTypes
 
 
 // This isn't in PT but I'm not sure where else to put it...
@@ -164,20 +165,10 @@ module NameResolution =
     (result : PT.NameResolution<'p>)
     : Dval =
     let errType = KTCustomType(NameResolutionError.RTE.Error.typeName, [])
-
-    match result with
-    | Ok name -> Dval.resultOk nameValueType errType (f name)
-    | Error err -> Dval.resultError nameValueType errType (NRE.RTE.Error.toDT err)
+    C2DT.Result.toDT nameValueType errType result f NRE.RTE.Error.toDT
 
   let fromDT (f : Dval -> 'a) (d : Dval) : PT.NameResolution<'a> =
-    match d with
-    | DEnum(tn, _, _typeArgsDEnumTODO, "Ok", [ v ]) when tn = Dval.resultType ->
-      Ok(f v)
-
-    | DEnum(tn, _, _typeArgsDEnumTODO, "Error", [ v ]) when tn = Dval.resultType ->
-      Error(NRE.RTE.Error.fromDT v)
-
-    | _ -> Exception.raiseInternal "Invalid NameResolution" []
+    C2DT.Result.fromDT f d NRE.RTE.Error.fromDT
 
 
 module TypeReference =

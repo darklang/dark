@@ -64,11 +64,11 @@ module Darklang =
           |> Stdlib.List.map (fun arg ->
             arg
             |> LanguageTools.Parser.parseToSimplifiedTree
-            |> LanguageTools.Parser.parseCliScript
+            |> LanguageTools.Parser.parseFromTree
             |> Builtin.unwrap
             |> fun parsedFile ->
                 match parsedFile with
-                | CliScript script -> script.exprsToEval)
+                | SourceFile source -> source.exprsToEval)
           |> Stdlib.List.flatten
           |> Stdlib.List.map (fun arg ->
             LanguageTools.WrittenTypesToProgramTypes.Expr.toPT onMissing arg)

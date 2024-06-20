@@ -42,6 +42,7 @@ module Darklang =
       type ComputeDiagnosticsOutput = { diagnostics: List<Diagnostic> }
 
       let getDiagnostics (uri: String) (text: String) : String =
+        // CLEANUP: languageToolsParseCliScript doesn't exist
         match Builtin.languageToolsParseCliScript text with
         | Ok() ->
           (ComputeDiagnosticsOutput { diagnostics = [] })

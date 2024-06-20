@@ -452,13 +452,14 @@ module Darklang =
       //     | TLDB db -> db.tlid
       //     | TLHandler h -> h.tlid
 
-      module CliScript =
+      module SourceFile =
         type Declaration =
           | Type of PackageType.PackageType
           | Constant of PackageConstant.PackageConstant
           | Function of PackageFn.PackageFn
-          | Module of Definitions
+          // db and handlers
+          | Module of Definitions // re-evaluate if this makes sense to be here
 
-        type CliScript =
+        type SourceFile =
           { declarations: List<Declaration>
             exprsToEval: List<Expr> }
