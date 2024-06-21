@@ -27,14 +27,6 @@ module TCS = LibCloud.TraceCloudStorage
 
 let pmPT = LibCloud.PackageManager.pt
 
-let p (code : string) : Task<PT.Expr> =
-  LibParser.Parser.parsePTExpr
-    (localBuiltIns pmPT)
-    pmPT
-    NR.OnMissing.ThrowError
-    "Queue.Tests.fs"
-    code
-  |> Ply.toTask
 
 // This doesn't actually test input, since it's a cron handler and not an actual event handler
 
@@ -42,8 +34,8 @@ let initializeCanvas (name : string) : Task<CanvasID * tlid> =
   task {
     // set up handler
     let! canvasID = initializeTestCanvas name
-
-    let! e = p "let data = PACKAGE.Darklang.Stdlib.DateTime.now_v0 () in 123"
+    let! e =
+      parsePTExpr "let data = PACKAGE.Darklang.Stdlib.DateTime.now ()\n 123"
     let h = testWorker "test" e
 
     do! Canvas.saveTLIDs canvasID [ (PT.Toplevel.TLHandler h, Serialize.NotDeleted) ]

@@ -17,25 +17,14 @@ module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
 module SR = LibCloud.QueueSchedulingRules
 
-let pmPT = PT.PackageManager.empty
-
-let p (code : string) : Task<PT.Expr> =
-  LibParser.Parser.parsePTExpr
-    (localBuiltIns pmPT)
-    pmPT
-    NR.OnMissing.ThrowError
-    "queueschedulingrules.fs"
-    code
-  |> Ply.toTask
-
 
 let testGetWorkerSchedulesForCanvas =
   testTask "worker schedules for canvas" {
     let! canvasID = initializeTestCanvas "worker-schedules"
 
-    let! e1 = p "1"
-    let! e2 = p "1"
-    let! e3 = p "1"
+    let! e1 = parsePTExpr "1L"
+    let! e2 = parsePTExpr "1L"
+    let! e3 = parsePTExpr "1L"
     let apple = testWorker "apple" e1
     let banana = testWorker "banana" e2
     let cherry = testWorker "cherry" e3
