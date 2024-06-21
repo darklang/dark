@@ -406,17 +406,12 @@ module.exports = grammar({
     // Strings
     // TODO: maybe add support for multiline strings (""")
     string_literal: $ =>
-      choice(
-        seq(
-          field("symbol_open_quote", alias('"', $.symbol)),
-          field("symbol_close_quote", alias('"', $.symbol)),
-        ),
-        seq(
-          field("symbol_open_quote", alias('"', $.symbol)),
-          field("content", $.string_content),
-          field("symbol_close_quote", alias('"', $.symbol)),
-        ),
+      seq(
+        field("symbol_open_quote", alias('"', $.symbol)),
+        optional(field("content", $.string_content)),
+        field("symbol_close_quote", alias('"', $.symbol)),
       ),
+
     string_content: $ =>
       repeat1(
         choice(
@@ -788,66 +783,24 @@ module.exports = grammar({
 
     //
     // Pipe infix
-    pipe_infix: $ =>
+    operator: $ =>
       choice(
-        // Power
-        prec.right(
-          seq(
-            field("symbol_open_paren", alias("(", $.symbol)),
-            field("operator", alias(exponentOperator, $.operator)),
-            field("symbol_close_paren", alias(")", $.symbol)),
-            field("right", $.expression),
-          ),
-        ),
+        exponentOperator,
+        multiplicativeOperators,
+        additiveOperators,
+        comparisonOperators,
+        logicalOperators,
+        stringConcatOperator,
+      ),
 
-        // multiplication, division, modulo
-        prec.left(
-          seq(
-            field("symbol_open_paren", alias("(", $.symbol)),
-            field("operator", alias(multiplicativeOperators, $.operator)),
-            field("symbol_close_paren", alias(")", $.symbol)),
-            field("right", $.expression),
-          ),
-        ),
-
-        // addition, subtraction
-        prec.left(
-          seq(
-            field("symbol_open_paren", alias("(", $.symbol)),
-            field("operator", alias(additiveOperators, $.operator)),
-            field("symbol_close_paren", alias(")", $.symbol)),
-            field("right", $.expression),
-          ),
-        ),
-
-        // Comparison
-        prec.left(
-          seq(
-            field("symbol_open_paren", alias("(", $.symbol)),
-            field("operator", alias(comparisonOperators, $.operator)),
-            field("symbol_close_paren", alias(")", $.symbol)),
-            field("right", $.expression),
-          ),
-        ),
-
-        // Logical operations
-        prec.left(
-          seq(
-            field("symbol_open_paren", alias("(", $.symbol)),
-            field("operator", alias(logicalOperators, $.operator)),
-            field("symbol_close_paren", alias(")", $.symbol)),
-            field("right", $.expression),
-          ),
-        ),
-
-        // String concatenation
-        prec.left(
-          seq(
-            field("symbol_open_paren", alias("(", $.symbol)),
-            field("operator", alias(stringConcatOperator, $.operator)),
-            field("symbol_close_paren", alias(")", $.symbol)),
-            field("right", $.expression),
-          ),
+    pipe_infix: $ =>
+      prec.right(
+        50, // this precedence is important to ensure it will parse `1L |> (-) 2L |> (+) 3L` as ((1L |> (-) 2L) |> (+) 3L) and not `(1L |> ((-) 2L |> (+) 3L))`
+        seq(
+          field("symbol_open_paren", alias("(", $.symbol)),
+          field("operator", $.operator),
+          field("symbol_close_paren", alias(")", $.symbol)),
+          field("right", $.expression),
         ),
       ),
 
@@ -874,18 +827,19 @@ module.exports = grammar({
 
     pipe_exprs: $ =>
       prec.left(
-        repeat1(
-          seq(
-            field("symbol_pipe", alias("|>", $.symbol)),
-            field("pipe_expr", $.pipe_expr),
-          ),
+        seq(
+          field("symbol_pipe", alias("|>", $.symbol)),
+          field("pipe_expr", $.pipe_expr),
         ),
       ),
 
     pipe_expression: $ =>
-      prec(
+      prec.left(
         PREC.PIPE_EXPR,
-        seq(field("expr", $.expression), field("pipe_exprs", $.pipe_exprs)),
+        seq(
+          field("expr", $.expression),
+          repeat1(field("pipe_exprs", $.pipe_exprs)),
+        ),
       ),
 
     // ---------------------

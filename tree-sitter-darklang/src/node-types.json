@@ -2511,6 +2511,11 @@
     }
   },
   {
+    "type": "operator",
+    "named": true,
+    "fields": {}
+  },
+  {
     "type": "paren_expression",
     "named": true,
     "fields": {
@@ -2680,7 +2685,7 @@
         ]
       },
       "pipe_exprs": {
-        "multiple": false,
+        "multiple": true,
         "required": true,
         "types": [
           {
@@ -2696,7 +2701,7 @@
     "named": true,
     "fields": {
       "pipe_expr": {
-        "multiple": true,
+        "multiple": false,
         "required": true,
         "types": [
           {
@@ -2706,7 +2711,7 @@
         ]
       },
       "symbol_pipe": {
-        "multiple": true,
+        "multiple": false,
         "required": true,
         "types": [
           {
@@ -4416,6 +4421,62 @@
     "named": false
   },
   {
+    "type": "!=",
+    "named": false
+  },
+  {
+    "type": "%",
+    "named": false
+  },
+  {
+    "type": "&&",
+    "named": false
+  },
+  {
+    "type": "*",
+    "named": false
+  },
+  {
+    "type": "+",
+    "named": false
+  },
+  {
+    "type": "++",
+    "named": false
+  },
+  {
+    "type": "-",
+    "named": false
+  },
+  {
+    "type": "/",
+    "named": false
+  },
+  {
+    "type": "<",
+    "named": false
+  },
+  {
+    "type": "<=",
+    "named": false
+  },
+  {
+    "type": "==",
+    "named": false
+  },
+  {
+    "type": ">",
+    "named": false
+  },
+  {
+    "type": ">=",
+    "named": false
+  },
+  {
+    "type": "^",
+    "named": false
+  },
+  {
     "type": "char_or_string_escape_sequence",
     "named": true
   },
@@ -4448,10 +4509,6 @@
     "named": true
   },
   {
-    "type": "operator",
-    "named": true
-  },
-  {
     "type": "positive_digits",
     "named": true
   },
@@ -4462,5 +4519,9 @@
   {
     "type": "unit",
     "named": true
+  },
+  {
+    "type": "||",
+    "named": false
   }
 ]
