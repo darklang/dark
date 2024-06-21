@@ -26,6 +26,11 @@ module Account = LibCloud.Account
 module Canvas = LibCloud.Canvas
 module S = RTShortcuts
 
+module PackageIDs = LibExecution.PackageIDs
+module PT2DT = LibExecution.ProgramTypesToDarkTypes
+module C2DT = LibExecution.CommonToDarkTypes
+
+let pmPT = LibCloud.PackageManager.pt
 
 let testOwner : Lazy<Task<UserID>> = lazy (Account.createUser ())
 
@@ -1460,3 +1465,25 @@ let unwrapExecutionResult
       | Ok(RT.DString msg) -> return RT.DString msg
       | _ -> return RT.DString(string rte)
   }
+
+let parsePTExpr (code : string) : Task<PT.Expr> =
+  uply {
+    let! (state : RT.ExecutionState) =
+      let canvasID = System.Guid.NewGuid()
+      executionStateFor pmPT canvasID false false Map.empty
+
+    let name =
+      RT.FQFnName.FQFnName.Package PackageIDs.Fn.LanguageTools.Parser.parsePTExpr
+
+    let args = NEList.singleton (RT.DString code)
+    let! execResult = LibExecution.Execution.executeFunction state name [] args
+
+    match execResult with
+    | Ok dval ->
+      match C2DT.Result.fromDT PT2DT.Expr.fromDT dval identity with
+      | Ok expr -> return expr
+      | Error _ ->
+        return Exception.raiseInternal "Error converting Dval to PT.Expr" []
+    | _ -> return Exception.raiseInternal "Error executing parsePTExpr function" []
+  }
+  |> Ply.toTask
