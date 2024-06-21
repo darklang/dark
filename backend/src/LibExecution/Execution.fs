@@ -154,7 +154,7 @@ let callStackString
         match fn with
         | None -> return "<Couldn't find package function>"
         | Some fn ->
-          let fnName = string fn.name
+          let fnName = "TODO" //string fn.name
           let! exprString = exprString state fn.body exprId
           return fnName + ": " + exprString
       }
