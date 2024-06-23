@@ -361,6 +361,7 @@ module.exports = grammar({
         $.record_literal,
         $.enum_literal,
         $.variable_identifier,
+        $.field_access,
       ),
 
     expression: $ =>
@@ -376,7 +377,6 @@ module.exports = grammar({
         $.infix_operation,
         $.apply,
 
-        $.field_access,
         $.lambda_expression,
         $.pipe_expression,
 
@@ -689,7 +689,6 @@ module.exports = grammar({
               $.record_literal,
               $.paren_expression,
               $.field_access,
-              $.apply,
             ),
           ),
           field("symbol_dot", alias(".", $.symbol)),

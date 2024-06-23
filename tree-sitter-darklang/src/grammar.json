@@ -2007,6 +2007,10 @@
         {
           "type": "SYMBOL",
           "name": "variable_identifier"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "field_access"
         }
       ]
     },
@@ -2044,10 +2048,6 @@
         {
           "type": "SYMBOL",
           "name": "apply"
-        },
-        {
-          "type": "SYMBOL",
-          "name": "field_access"
         },
         {
           "type": "SYMBOL",
@@ -3814,10 +3814,6 @@
                 {
                   "type": "SYMBOL",
                   "name": "field_access"
-                },
-                {
-                  "type": "SYMBOL",
-                  "name": "apply"
                 }
               ]
             }

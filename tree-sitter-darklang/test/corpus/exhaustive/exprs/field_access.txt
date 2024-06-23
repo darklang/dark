@@ -8,9 +8,11 @@ person.name
 
 (source_file
   (expression
-    (field_access (variable_identifier)
-      (symbol)
-      (variable_identifier)
+    (simple_expression
+      (field_access (variable_identifier)
+        (symbol)
+        (variable_identifier)
+      )
     )
   )
 )
@@ -25,28 +27,31 @@ field access - paren defined Record
 
 (source_file
   (expression
-   (field_access
-    (paren_expression
-      (symbol)
-      (expression
-        (simple_expression
-          (record_literal
-            (qualified_type_name (type_identifier))
-            (symbol)
-            (record_content
-              (record_pair
-                (variable_identifier)
+    (simple_expression
+      (field_access
+        (paren_expression
+          (symbol)
+          (expression
+            (simple_expression
+              (record_literal
+                (qualified_type_name (type_identifier))
                 (symbol)
-                (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
-              )
+                (record_content
+                  (record_pair
+                    (variable_identifier)
+                    (symbol)
+                    (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
+                  )
+                )
+                (symbol))
             )
-            (symbol))
+          )
+          (symbol)
         )
+        (symbol)
+        (variable_identifier)
       )
-      (symbol)
     )
-    (symbol)
-    (variable_identifier))
   )
 )
 
@@ -61,13 +66,70 @@ person.address.street
 
 (source_file
   (expression
-    (field_access
-      (field_access (variable_identifier)
+    (simple_expression
+      (field_access
+        (field_access (variable_identifier)
+          (symbol)
+          (variable_identifier)
+        )
         (symbol)
         (variable_identifier)
       )
-      (symbol)
-      (variable_identifier)
+    )
+  )
+)
+
+
+==================
+field access fn_call
+==================
+
+(getPerson()).name
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (field_access
+        (paren_expression
+          (symbol)
+          (expression
+            (apply (qualified_fn_name (fn_identifier)) (simple_expression (unit)))
+          )
+          (symbol)
+        )
+        (symbol)
+        (variable_identifier)
+      )
+    )
+  )
+)
+
+
+==================
+field access fn_call - nested
+==================
+
+(getUser()).profile.name
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (field_access
+        (field_access
+          (paren_expression
+            (symbol)
+            (expression (apply (qualified_fn_name (fn_identifier)) (simple_expression (unit))))
+            (symbol)
+          )
+          (symbol)
+          (variable_identifier))
+        (symbol)
+        (variable_identifier)
+      )
     )
   )
 )

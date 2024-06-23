@@ -1022,10 +1022,6 @@
           "named": true
         },
         {
-          "type": "field_access",
-          "named": true
-        },
-        {
           "type": "if_expression",
           "named": true
         },
@@ -1080,10 +1076,6 @@
         "multiple": false,
         "required": true,
         "types": [
-          {
-            "type": "apply",
-            "named": true
-          },
           {
             "type": "field_access",
             "named": true
@@ -3179,6 +3171,10 @@
         },
         {
           "type": "enum_literal",
+          "named": true
+        },
+        {
+          "type": "field_access",
           "named": true
         },
         {
