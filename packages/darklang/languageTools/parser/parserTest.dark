@@ -8,6 +8,16 @@ module Darklang =
           |> LanguageTools.Parser.parseFromTree
           |> Builtin.unwrap
 
+        let parseWTExpr (code: WrittenTypes.ParsedFile) : WrittenTypes.Expr =
+          let exprs =
+            match sourceFile with
+            | SourceFile c -> c.exprsToEval
+            | _ -> []
+
+          match exprs with
+          | [ expr ] -> expr
+          | _ -> failwith "Expected exactly one expression to be parsed"
+
         // TODO: maybe use a proper type instead of string?
         let parsePTExpr
           (code: String)

@@ -272,6 +272,9 @@ module Type =
       let scheduleRule =
         p [ "Worker" ] "ScheduleRule" "0669d155-6352-4851-8968-ef676b18d8ad"
 
+    module Test =
+      let private p addl = p ("Test" :: addl)
+      let ptTest = p [] "PTTest" "e6fc7686-68f9-4fbe-a6cb-b615dd41ee7e"
 
   // what we expose to the outside world
   let idForName
@@ -351,6 +354,12 @@ module Fn =
     let executeCliCommand =
       p [ "Cli" ] "executeCliCommand" "9b4aa7ca-82f4-4fc5-be9c-bdfb97ad4ac2"
 
+  module Internal =
+    let private p addl = p ("Internal" :: addl)
+    module Test =
+      let private p addl = p ("Test" :: addl)
+      let parseSingleTestFromFile =
+        p [] "parseSingleTestFromFile" "53f3fbc6-25fd-427a-ab0d-ba0559543c99"
 
   // what we expose to the outside world
   let idForName

@@ -1487,3 +1487,6 @@ let parsePTExpr (code : string) : Task<PT.Expr> =
     | _ -> return Exception.raiseInternal "Error executing parsePTExpr function" []
   }
   |> Ply.toTask
+
+type RTTest =
+  { name : string; lineNumber : int; actual : RT.Expr; expected : RT.Expr }

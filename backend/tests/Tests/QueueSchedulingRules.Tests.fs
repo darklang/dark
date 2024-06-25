@@ -11,7 +11,6 @@ open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module NR = LibParser.NameResolver
 module EQ2 = LibCloud.Queue
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize

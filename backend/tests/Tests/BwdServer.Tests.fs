@@ -20,7 +20,6 @@ open Prelude
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
-module NR = LibParser.NameResolver
 module Routing = LibCloud.Routing
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
