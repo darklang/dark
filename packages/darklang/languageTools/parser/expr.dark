@@ -281,11 +281,10 @@ module Darklang =
 
           match typeNameNode, openBraceNode, recordContents, closeBraceNode with
           | Ok typeName, Ok openBrace, Ok recordContents, Ok closeBrace ->
+            let tn = typeName.text |> Stdlib.String.split "."
+
             let typeNameNode =
-              Darklang.LanguageTools.WrittenTypes.Name.Unresolved(
-                typeName.range,
-                [ typeName.text ]
-              )
+              Darklang.LanguageTools.WrittenTypes.Name.Unresolved(typeName.range, tn)
 
             (WrittenTypes.Expr.ERecord(
               node.range,

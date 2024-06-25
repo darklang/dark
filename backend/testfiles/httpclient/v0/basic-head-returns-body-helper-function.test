@@ -17,7 +17,7 @@ Here's a body!
 // clients successfully ignore it.
 (let response = (PACKAGE.Darklang.Stdlib.HttpClient.head "http://URL") |> Builtin.unwrap
  let respHeaders = response.headers |> PACKAGE.Darklang.Stdlib.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
- {response with headers = respHeaders}) =
+ {response with headers = respHeaders}) ==
    PACKAGE.Darklang.Stdlib.HttpClient.Response
     { statusCode = 200L
       headers = [

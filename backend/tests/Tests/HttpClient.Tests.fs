@@ -30,7 +30,8 @@ module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
-module NR = LibParser.NameResolver
+module PackageIDs = LibExecution.PackageIDs
+module C2DT = LibExecution.CommonToDarkTypes
 
 open TestUtils.TestUtils
 
@@ -89,12 +90,40 @@ let updateBody (body : byte array) : byte array =
 
 let pmPT = LibCloud.PackageManager.pt
 
-let parseTest test =
-  LibParser.TestModule.parseSingleTestFromFile
-    (localBuiltIns pmPT)
-    pmPT
-    NR.OnMissing.ThrowError
-    test
+let parseSingleTestFromFile
+  (filename : string)
+  (test : string)
+  : Ply<Internal.Test.PTTest> =
+  uply {
+    let! (state : RT.ExecutionState) =
+      let canvasID = System.Guid.NewGuid()
+      executionStateFor pmPT canvasID false false Map.empty
+
+    let name =
+      RT.FQFnName.FQFnName.Package
+        PackageIDs.Fn.Internal.Test.parseSingleTestFromFile
+
+    let args = NEList.ofList (RT.DString filename) [ RT.DString test ]
+    let! execResult = LibExecution.Execution.executeFunction state name [] args
+
+    match execResult with
+    | Ok dval -> return Internal.Test.fromDT dval
+    | Error _ -> return Exception.raiseInternal "Error executing function" []
+
+  }
+
+let parseTest (filename : string) (test : string) : Ply<Internal.Test.RTTest> =
+  uply {
+    let! ptTest = (parseSingleTestFromFile filename test)
+    let actual = ptTest.actual |> PT2RT.Expr.toRT
+    let expected = ptTest.expected |> PT2RT.Expr.toRT
+
+    return
+      { actual = actual
+        expected = expected
+        lineNumber = ptTest.lineNumber
+        name = ptTest.name }
+  }
 
 let makeTest versionName filename =
   // Parse the file contents now, rather than later, so that tests that refer to
@@ -158,7 +187,7 @@ let makeTest versionName filename =
       let! state = executionStateFor pmPT canvasID false true Map.empty
 
       // Parse the Dark code
-      let! (test : LibParser.TestModule.RTTest) =
+      let! (test : Internal.Test.RTTest) =
         darkCode
         |> String.replace "URL" $"{host}/{versionName}/{testName}"
         // CLEANUP: this doesn't use the correct length, as it might be latin1 or

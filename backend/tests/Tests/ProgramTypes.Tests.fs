@@ -10,8 +10,32 @@ module RT = LibExecution.RuntimeTypes
 module PT2ST = LibBinarySerialization.ProgramTypesToSerializedTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PTParser = LibExecution.ProgramTypesParser
-module NR = LibParser.NameResolver
 module S = TestUtils.RTShortcuts
+module PackageIDs = LibExecution.PackageIDs
+module PT2DT = LibExecution.ProgramTypesToDarkTypes
+module C2DT = LibExecution.CommonToDarkTypes
+let pm = LibCloud.PackageManager.pt
+
+let p (code : string) : Ply<PT.Expr> =
+  uply {
+    let! (state : RT.ExecutionState) =
+      let canvasID = System.Guid.NewGuid()
+      executionStateFor pm canvasID false false Map.empty
+
+    let name =
+      RT.FQFnName.FQFnName.Package PackageIDs.Fn.LanguageTools.Parser.parsePTExpr
+
+    let args = NEList.singleton (RT.DString code)
+    let! execResult = LibExecution.Execution.executeFunction state name [] args
+
+    match execResult with
+    | Ok dval ->
+      match C2DT.Result.fromDT PT2DT.Expr.fromDT dval identity with
+      | Ok expr -> return expr
+      | Error _ ->
+        return Exception.raiseInternal "Error converting Dval to PT.Expr" []
+    | _ -> return Exception.raiseInternal "Error executing parsePTExpr function" []
+  }
 
 let ptFQFnName =
   testMany
@@ -23,14 +47,8 @@ let pmPT = PT.PackageManager.empty
 
 let testPipesToRuntimeTypes =
   testTask "pipes to runtime types" {
-    let! actual =
-      "value.age |> (-) 2L |> (+) value.age |> (<) 3L"
-      |> LibParser.Parser.parseRTExpr
-        (localBuiltIns pmPT)
-        pmPT
-        NR.OnMissing.ThrowError
-        "programTypes.tests.fs"
-      |> Ply.toTask
+    let parsed = p "value.age |> (-) 2L |> (+) value.age |> (<) 3L"
+    let! actual = Ply.map PT2RT.Expr.toRT parsed |> Ply.toTask
 
     let expected =
       S.eFn

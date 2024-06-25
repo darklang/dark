@@ -1,9 +1,10 @@
 [http-handler GET /]
-(let body =
-   request.headers
+( let _ = "CLEANUP: Bring this test back once we can parse `"(\""`"
+  let body =
+  (request.headers
    |> PACKAGE.Darklang.Stdlib.List.map (fun (k,v) -> "(\"" ++ k ++ "\", \"" ++ v ++ "\")")
    |> PACKAGE.Darklang.Stdlib.String.join ",\n"
-   |> PACKAGE.Darklang.Stdlib.String.toBytes
+   |> PACKAGE.Darklang.Stdlib.String.toBytes)
  PACKAGE.Darklang.Stdlib.Http.response body 200L)
 
 [request]

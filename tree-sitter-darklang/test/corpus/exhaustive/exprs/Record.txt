@@ -114,3 +114,58 @@ Person {name = "John"; address = Address {city = "New York"; street = "5th Avenu
 )
 
 
+==================
+Record -muliple fields with newline
+==================
+
+Person {
+  name = "John"
+  age = 30L
+  hobbies = ["reading"; "swimming"]
+}
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (record_literal
+        (qualified_type_name (type_identifier))
+        (symbol)
+        (record_content
+          (record_pair
+            (variable_identifier)
+            (symbol)
+            (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
+          )
+          (newline)
+          (record_pair
+            (variable_identifier)
+            (symbol)
+            (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+          )
+          (newline)
+          (record_pair
+            (variable_identifier)
+            (symbol)
+            (expression
+              (simple_expression
+                (list_literal
+                  (symbol)
+                  (list_content
+                    (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
+                    (symbol)
+                    (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
+                  )
+                  (symbol)
+                )
+              )
+            )
+          )
+          (newline)
+        )
+        (symbol)
+      )
+    )
+  )
+)

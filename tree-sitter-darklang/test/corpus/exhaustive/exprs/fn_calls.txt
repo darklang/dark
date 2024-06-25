@@ -443,3 +443,24 @@ Builtin.jsonParse<Bool> "true"
     )
   )
 )
+
+
+==================
+function call - with a field_access as argument
+==================
+
+PACKAGE.Darklang.Stdlib.Http.response request.body 200L
+
+---
+
+(source_file
+  (expression
+    (apply
+      (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+      (simple_expression (field_access (variable_identifier) (symbol) (variable_identifier)))
+      (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+      (newline)
+    )
+  )
+)
+

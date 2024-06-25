@@ -17,18 +17,6 @@ module Serialize = LibCloud.Serialize
 module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module Account = LibCloud.Account
-module NR = LibParser.NameResolver
-
-let pm = LibCloud.PackageManager.pt
-
-let parse (code : string) : Task<PT.Expr> =
-  LibParser.Parser.parseSimple
-    (localBuiltIns pm)
-    pm
-    NR.OnMissing.ThrowError
-    "tests.canvas.fs"
-    code
-  |> Ply.toTask
 
 let testDBOplistRoundtrip : Test =
   testTask "db oplist roundtrip" {
@@ -97,8 +85,8 @@ let testHttpLoadIgnoresDeletedHandler =
 let testSetHandlerAfterDelete =
   testTask "handler set after delete" {
     let! canvasID = initializeTestCanvas "set-handlder-after-delete"
-    let! e1 = parse "5 + 3"
-    let! e2 = parse "5 + 2"
+    let! e1 = parsePTExpr "5 + 3"
+    let! e2 = parsePTExpr "5 + 2"
     let h1 = testHttpRouteHandler "/path" "GET" e1
     let h2 = testHttpRouteHandler "/path" "GET" e2
 

@@ -434,3 +434,64 @@ pipe expression - multiple pipe expressions
     )
   )
 )
+
+
+==================
+pipe expression - multiple pipe expressions with infix
+==================
+
+1L
+|> (+) 2L
+|> (*) 3L
+|> (>) 4L
+
+---
+
+(source_file
+  (expression
+    (pipe_expression
+      (expression
+        (pipe_expression
+          (expression
+            (pipe_expression
+              (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+              (pipe_exprs
+                (symbol)
+                (pipe_expr
+                  (pipe_infix
+                    (symbol)
+                    (operator)
+                    (symbol)
+                    (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                  )
+                )
+              )
+            )
+          )
+          (pipe_exprs
+            (symbol)
+            (pipe_expr
+              (pipe_infix
+                (symbol)
+                (operator)
+                (symbol)
+                (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+              )
+            )
+          )
+        )
+      )
+      (pipe_exprs
+        (symbol)
+        (pipe_expr
+          (pipe_infix
+            (symbol)
+            (operator)
+            (symbol)
+            (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+          )
+        )
+      )
+    )
+  )
+)

@@ -441,6 +441,10 @@
           "named": true
         },
         {
+          "type": "newline",
+          "named": true
+        },
+        {
           "type": "symbol",
           "named": true
         }
@@ -1022,10 +1026,6 @@
           "named": true
         },
         {
-          "type": "field_access",
-          "named": true
-        },
-        {
           "type": "if_expression",
           "named": true
         },
@@ -1080,10 +1080,6 @@
         "multiple": false,
         "required": true,
         "types": [
-          {
-            "type": "apply",
-            "named": true
-          },
           {
             "type": "field_access",
             "named": true
@@ -1955,6 +1951,10 @@
           "named": true
         },
         {
+          "type": "newline",
+          "named": true
+        },
+        {
           "type": "symbol",
           "named": true
         }
@@ -2478,6 +2478,10 @@
           "named": true
         },
         {
+          "type": "newline",
+          "named": true
+        },
+        {
           "type": "symbol",
           "named": true
         }
@@ -2509,6 +2513,11 @@
         ]
       }
     }
+  },
+  {
+    "type": "operator",
+    "named": true,
+    "fields": {}
   },
   {
     "type": "paren_expression",
@@ -2680,7 +2689,7 @@
         ]
       },
       "pipe_exprs": {
-        "multiple": false,
+        "multiple": true,
         "required": true,
         "types": [
           {
@@ -2696,7 +2705,7 @@
     "named": true,
     "fields": {
       "pipe_expr": {
-        "multiple": true,
+        "multiple": false,
         "required": true,
         "types": [
           {
@@ -2706,7 +2715,7 @@
         ]
       },
       "symbol_pipe": {
-        "multiple": true,
+        "multiple": false,
         "required": true,
         "types": [
           {
@@ -2946,6 +2955,10 @@
       "required": true,
       "types": [
         {
+          "type": "newline",
+          "named": true
+        },
+        {
           "type": "record_pair",
           "named": true
         }
@@ -3174,6 +3187,10 @@
         },
         {
           "type": "enum_literal",
+          "named": true
+        },
+        {
+          "type": "field_access",
           "named": true
         },
         {
@@ -4416,6 +4433,62 @@
     "named": false
   },
   {
+    "type": "!=",
+    "named": false
+  },
+  {
+    "type": "%",
+    "named": false
+  },
+  {
+    "type": "&&",
+    "named": false
+  },
+  {
+    "type": "*",
+    "named": false
+  },
+  {
+    "type": "+",
+    "named": false
+  },
+  {
+    "type": "++",
+    "named": false
+  },
+  {
+    "type": "-",
+    "named": false
+  },
+  {
+    "type": "/",
+    "named": false
+  },
+  {
+    "type": "<",
+    "named": false
+  },
+  {
+    "type": "<=",
+    "named": false
+  },
+  {
+    "type": "==",
+    "named": false
+  },
+  {
+    "type": ">",
+    "named": false
+  },
+  {
+    "type": ">=",
+    "named": false
+  },
+  {
+    "type": "^",
+    "named": false
+  },
+  {
     "type": "char_or_string_escape_sequence",
     "named": true
   },
@@ -4448,10 +4521,6 @@
     "named": true
   },
   {
-    "type": "operator",
-    "named": true
-  },
-  {
     "type": "positive_digits",
     "named": true
   },
@@ -4462,5 +4531,9 @@
   {
     "type": "unit",
     "named": true
+  },
+  {
+    "type": "||",
+    "named": false
   }
 ]

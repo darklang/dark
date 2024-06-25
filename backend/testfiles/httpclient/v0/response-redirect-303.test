@@ -12,7 +12,7 @@ Location: /v0/response-redirect-destination
 [test]
 (let response = (PACKAGE.Darklang.Stdlib.HttpClient.request "get" "http://URL" [] []) |> Builtin.unwrap
  let respHeaders = response.headers |> PACKAGE.Darklang.Stdlib.List.filter (fun h ->PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
- {response with headers = respHeaders}) =
+ {response with headers = respHeaders}) ==
    PACKAGE.Darklang.Stdlib.HttpClient.Response
     { statusCode = 303L
       headers =
