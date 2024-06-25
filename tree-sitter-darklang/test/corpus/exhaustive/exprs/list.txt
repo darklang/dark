@@ -228,3 +228,34 @@ List with just a semicolon
       (ERROR
         (symbol))
       (symbol)))))
+
+
+==================
+List with newlines
+==================
+
+[true
+ false
+ true
+ false]
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (list_literal
+        (symbol)
+        (list_content
+          (expression (simple_expression (bool_literal)))
+          (newline)
+          (expression (simple_expression (bool_literal)))
+          (newline)
+          (expression (simple_expression (bool_literal)))
+          (newline)
+          (expression (simple_expression (bool_literal))))
+        (symbol)
+      )
+    )
+  )
+)

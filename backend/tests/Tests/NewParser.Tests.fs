@@ -531,6 +531,14 @@ let exprs =
       []
       false
     t "int list list" "[[1L; 2L]; [3L; 4L]]" "[[1L; 2L]; [3L; 4L]]" [] [] [] false
+    t
+      "list -newline as a separator"
+      "[ true\n false\n true ]"
+      "[true; false; true]"
+      []
+      []
+      []
+      false
 
     // dict literal
     t "empty dict" "Dict { }" "Dict {  }" [] [] [] false
@@ -585,6 +593,15 @@ let exprs =
     t
       "record, 3 fields"
       "Person3 {name =\"John\"; age = 30L; hasPet = true} "
+      "Person3 { name = \"John\"; age = 30L; hasPet = true }"
+      [ person3 ]
+      []
+      []
+      false
+
+    t
+      "record, with newline as separator"
+      "Person3\n {name =\"John\"\n age = 30L\n hasPet = true} "
       "Person3 { name = \"John\"; age = 30L; hasPet = true }"
       [ person3 ]
       []

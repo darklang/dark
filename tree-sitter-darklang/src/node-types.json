@@ -441,6 +441,10 @@
           "named": true
         },
         {
+          "type": "newline",
+          "named": true
+        },
+        {
           "type": "symbol",
           "named": true
         }
@@ -1947,6 +1951,10 @@
           "named": true
         },
         {
+          "type": "newline",
+          "named": true
+        },
+        {
           "type": "symbol",
           "named": true
         }
@@ -2470,6 +2478,10 @@
           "named": true
         },
         {
+          "type": "newline",
+          "named": true
+        },
+        {
           "type": "symbol",
           "named": true
         }
@@ -2942,6 +2954,10 @@
       "multiple": true,
       "required": true,
       "types": [
+        {
+          "type": "newline",
+          "named": true
+        },
         {
           "type": "record_pair",
           "named": true

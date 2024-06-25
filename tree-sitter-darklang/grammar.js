@@ -2,6 +2,7 @@
 // - int64 literals (e.g. `0L`)
 // - deal with keywords
 // - better support for partially-written code (i.e. `let x =`)
+// - consider using Supertype Nodes for rules whose definitions are a simple choice eg. `simple_expression`, `consts`, etc.
 
 const PREC = {
   LOGICAL_OR: 0,
@@ -180,6 +181,7 @@ module.exports = grammar({
     //
     // Record
     // e.g. `type Person = { name: String; age: Int }`
+    // TODO: allow multi-line records where a newline is 'interpreted' as a record delimiter (i.e. no ; needed)
     type_decl_def_record: $ =>
       seq(
         field("symbol_open_brace", alias("{", $.symbol)),
@@ -589,7 +591,6 @@ module.exports = grammar({
 
     //
     // Record
-    // TODO: allow multi-line records where a newline is 'interpreted' as a record delimiter (i.e. no ; needed)
     record_literal: $ =>
       seq(
         field("type_name", $.qualified_type_name),
@@ -598,10 +599,17 @@ module.exports = grammar({
         field("symbol_close_brace", alias("}", $.symbol)),
       ),
     record_content: $ =>
-      seq(
-        $.record_pair,
-        repeat(
-          seq(field("record_separator", alias(";", $.symbol)), $.record_pair),
+      choice(
+        seq(
+          $.record_pair,
+          repeat(
+            seq(field("record_separator", alias(";", $.symbol)), $.record_pair),
+          ),
+        ),
+        seq(
+          $.record_pair,
+          repeat(seq($.newline, $.record_pair)),
+          optional($.newline),
         ),
       ),
     record_pair: $ =>
@@ -1021,10 +1029,13 @@ function list_literal_base($, contentRule) {
   );
 }
 function list_content_base($, content) {
-  return seq(
-    content,
-    repeat(seq(field("list_separator", alias(";", $.symbol)), content)),
-    optional(alias(";", $.symbol)),
+  return choice(
+    seq(
+      content,
+      repeat(seq(field("list_separator", alias(";", $.symbol)), content)),
+      optional(alias(";", $.symbol)),
+    ),
+    seq(content, repeat(seq($.newline, content)), optional($.newline)),
   );
 }
 
