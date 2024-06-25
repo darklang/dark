@@ -19,6 +19,8 @@ module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 module AT = LibExecution.AnalysisTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module PT2RDT = LibExecution.ProgramTypesToDarkTypes
+module D = LibExecution.DvalDecoder
 module PackageIDs = LibExecution.PackageIDs
 module Exe = LibExecution.Execution
 
@@ -1488,5 +1490,29 @@ let parsePTExpr (code : string) : Task<PT.Expr> =
   }
   |> Ply.toTask
 
-type RTTest =
-  { name : string; lineNumber : int; actual : RT.Expr; expected : RT.Expr }
+module Internal =
+  module Test =
+    type PTTest =
+      { name : string; lineNumber : int; actual : PT.Expr; expected : PT.Expr }
+
+    type RTTest =
+      { name : string; lineNumber : int; actual : RT.Expr; expected : RT.Expr }
+
+    let typeName = FQTypeName.fqPackage PackageIDs.Type.Internal.Test.ptTest
+
+    let toDt (t : PTTest) : Dval =
+      let fields =
+        [ "name", DString t.name
+          "lineNumber", DInt64 t.lineNumber
+          "actual", PT2DT.Expr.toDT t.actual
+          "expected", PT2DT.Expr.toDT t.expected ]
+      DRecord(typeName, typeName, [], Map fields)
+
+    let fromDT (d : Dval) : PTTest =
+      match d with
+      | DRecord(_, _, _, fields) ->
+        { name = fields |> D.stringField "name"
+          lineNumber = fields |> D.intField "lineNumber"
+          actual = fields |> D.field "actual" |> PT2DT.Expr.fromDT
+          expected = fields |> D.field "expected" |> PT2DT.Expr.fromDT }
+      | _ -> Exception.raiseInternal "Invalid Test" []

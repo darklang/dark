@@ -1491,27 +1491,3 @@ module PackageFn =
         deprecated =
           fields |> D.field "deprecated" |> Deprecation.fromDT FQFnName.fromDT }
     | _ -> Exception.raiseInternal "Invalid PackageFn" []
-
-module Internal =
-  module Test =
-    type PTTest =
-      { name : string; lineNumber : int; actual : PT.Expr; expected : PT.Expr }
-
-    let typeName = FQTypeName.fqPackage PackageIDs.Type.Internal.Test.ptTest
-
-    let toDt (t : PTTest) : Dval =
-      let fields =
-        [ "name", DString t.name
-          "lineNumber", DInt64 t.lineNumber
-          "actual", Expr.toDT t.actual
-          "expected", Expr.toDT t.expected ]
-      DRecord(typeName, typeName, [], Map fields)
-
-    let fromDT (d : Dval) : PTTest =
-      match d with
-      | DRecord(_, _, _, fields) ->
-        { name = fields |> D.stringField "name"
-          lineNumber = fields |> D.intField "lineNumber"
-          actual = fields |> D.field "actual" |> Expr.fromDT
-          expected = fields |> D.field "expected" |> Expr.fromDT }
-      | _ -> Exception.raiseInternal "Invalid Test" []

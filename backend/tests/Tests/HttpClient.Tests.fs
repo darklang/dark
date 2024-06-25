@@ -31,7 +31,6 @@ module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 module PackageIDs = LibExecution.PackageIDs
-module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module C2DT = LibExecution.CommonToDarkTypes
 
 open TestUtils.TestUtils
@@ -94,7 +93,7 @@ let pmPT = LibCloud.PackageManager.pt
 let parseSingleTestFromFile
   (filename : string)
   (test : string)
-  : Ply<PT2DT.Internal.Test.PTTest> =
+  : Ply<Internal.Test.PTTest> =
   uply {
     let! (state : RT.ExecutionState) =
       let canvasID = System.Guid.NewGuid()
@@ -108,12 +107,12 @@ let parseSingleTestFromFile
     let! execResult = LibExecution.Execution.executeFunction state name [] args
 
     match execResult with
-    | Ok dval -> return PT2DT.Internal.Test.fromDT dval
+    | Ok dval -> return Internal.Test.fromDT dval
     | Error _ -> return Exception.raiseInternal "Error executing function" []
 
   }
 
-let parseTest (filename : string) (test : string) : Ply<RTTest> =
+let parseTest (filename : string) (test : string) : Ply<Internal.Test.RTTest> =
   uply {
     let! ptTest = (parseSingleTestFromFile filename test)
     let actual = ptTest.actual |> PT2RT.Expr.toRT
@@ -188,7 +187,7 @@ let makeTest versionName filename =
       let! state = executionStateFor pmPT canvasID false true Map.empty
 
       // Parse the Dark code
-      let! (test : RTTest) =
+      let! (test : Internal.Test.RTTest) =
         darkCode
         |> String.replace "URL" $"{host}/{versionName}/{testName}"
         // CLEANUP: this doesn't use the correct length, as it might be latin1 or
