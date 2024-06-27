@@ -33,7 +33,6 @@ module CliRuntimeError =
   type Error =
     | NoExpressionsToExecute
     | UncaughtException of string * metadata : List<string * string>
-    | MultipleExpressionsToExecute of List<string>
     | NonIntReturned of actuallyReturned : Dval
 
   /// to RuntimeError
@@ -51,10 +50,6 @@ module CliRuntimeError =
               |> Dval.list (KTTuple(VT.string, VT.string, []))
 
             "UncaughtException", [ DString msg; metadata ]
-
-          | MultipleExpressionsToExecute exprs ->
-            "MultipleExpressionsToExecute",
-            [ DList(VT.string, List.map DString exprs) ]
 
           | NonIntReturned actuallyReturned ->
             "NonIntReturned", [ RT2DT.Dval.toDT actuallyReturned ]
@@ -127,10 +122,16 @@ let execute
         CliRuntimeError.NoExpressionsToExecute |> CliRuntimeError.RTE.toRuntimeError
       return Error((None, rte))
     else // mod'.exprs.Length > 1
-      let rte =
-        CliRuntimeError.MultipleExpressionsToExecute(mod'.exprs |> List.map string)
-        |> CliRuntimeError.RTE.toRuntimeError
-      return Error((None, rte))
+      let exprs = mod'.exprs |> List.map PT2RT.Expr.toRT
+      let results = List.map (Exe.executeExpr state symtable) exprs
+      let lastResult = List.last results
+      match lastResult with
+      | Some lastResult -> return! lastResult
+      | None ->
+        let rte =
+          CliRuntimeError.NoExpressionsToExecute
+          |> CliRuntimeError.RTE.toRuntimeError
+        return Error((None, rte))
   }
 
 
@@ -203,147 +204,9 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+
+    // TODO: use the new parser
     { name = fn "cliExecuteFunction" 0
-      typeParams = []
-      parameters =
-        [ Param.make "functionName" TString "" // TODO: accept the fn ID instead? (so we require the user to find it)
-          Param.make "args" (TList TString) "" ]
-      returnType = TypeReference.result TString ExecutionError.typeRef
-      description = "Executes an arbitrary Dark package function"
-      fn =
-        let errType = KTCustomType(ExecutionError.fqTypeName, [])
-        let resultOk = Dval.resultOk KTString errType
-        let resultError = Dval.resultError KTString errType
-
-        function
-        | state, [], [ DString functionName; DList(_vtTODO, args) ] ->
-          uply {
-            let err (msg : string) (metadata : List<string * string>) : Dval =
-              let fields =
-                [ ("msg", DString msg)
-                  ("metadata",
-                   DDict(
-                     VT.string,
-                     metadata |> List.map (Tuple2.mapSecond DString) |> Map
-                   )) ]
-
-              DRecord(
-                ExecutionError.fqTypeName,
-                ExecutionError.fqTypeName,
-                [],
-                Map fields
-              )
-
-            let exnError (e : exn) : Dval =
-              let msg = Exception.getMessages e |> String.concat "\n"
-              let metadata =
-                Exception.toMetadata e |> List.map (fun (k, v) -> k, string v)
-              err msg metadata
-
-            try
-              let parts = functionName.Split('.') |> List.ofArray
-              let name =
-                NEList.ofListUnsafe
-                  "Can't call `Cli.executeFunction` with an empty function name"
-                  []
-                  parts
-
-              let! fnName =
-                LibParser.NameResolver.resolveFnName
-                  (state.builtins.fns |> Map.keys |> Set)
-                  packageManagerPT
-                  NR.OnMissing.Allow // OK - we're about to `match` on the Result anyway
-                  []
-                  (WT.Unresolved name)
-
-              match fnName with
-              | Ok fnName ->
-                let! fn =
-                  match PT2RT.FQFnName.toRT fnName with
-                  | FQFnName.Package pkg ->
-                    uply {
-                      let! fn = packageManagerRT.getFn pkg
-                      return Option.map packageFnToFn fn
-                    }
-                  | _ ->
-                    Exception.raiseInternal
-                      "Error constructing package function name"
-                      [ "fn", fn ]
-
-                match fn with
-                | None -> return DString "fn not found"
-                | Some f ->
-                  let types = RT.ExecutionState.availableTypes state
-
-                  let expectedTypes = (NEList.toList f.parameters) |> List.map _.typ
-
-                  let stringArgs =
-                    args
-                    |> List.map (fun arg ->
-                      match arg with
-                      | DString s -> s
-                      | e -> Exception.raiseInternal "Expected string" [ "arg", e ])
-
-                  let! args =
-                    Ply.List.mapSequentially
-                      (fun (typ, (str : string)) ->
-                        uply {
-                          // Quote the string only if it's of type String and isn't already quoted.
-                          // Leave it unquoted for other types.
-                          let str =
-                            if
-                              (str.StartsWith("\"") && str.EndsWith("\""))
-                              || (str.StartsWith("\'") && str.EndsWith("\'"))
-                            then
-                              str
-                            else if typ = TString then
-                              $"\"{str}\""
-                            else
-                              str
-
-                          match!
-                            Json.parse state.tracing.callStack types typ str
-                          with
-                          | Ok v -> return v
-                          | Error e -> return Json.ParseError.toDT e
-                        })
-                      (List.zip expectedTypes stringArgs)
-
-                  let! result =
-                    Exe.executeFunction
-                      state
-                      f.name
-                      []
-                      (NEList.ofList args.Head args.Tail)
-
-                  match result with
-                  | Error(_, e) ->
-                    // TODO we should probably return the error here as-is, and handle by calling the
-                    // toSegments on the error within the CLI
-                    return
-                      e
-                      |> RuntimeError.toDT
-                      |> LibExecution.DvalReprDeveloper.toRepr
-                      |> DString
-                      |> resultError
-                  | Ok value ->
-                    match value with
-                    | DString s -> return resultOk (DString s)
-                    | _ ->
-                      let asString = LibExecution.DvalReprDeveloper.toRepr value
-                      return resultOk (DString asString)
-              | _ -> return incorrectArgs ()
-            with e ->
-              return exnError e
-          }
-        | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    // TODO: this doesn't seem to be using the new parser
-    { name = fn "cliExecuteFunctionWithNewParser" 0
       typeParams = []
       parameters =
         [ Param.make "functionName" TString ""
