@@ -54,21 +54,21 @@ module Darklang =
     let runFunction (fnName: String) (args: List<String>) : Int64 =
       let onMissing = LanguageTools.NameResolver.OnMissing.Allow
 
-        let args =
-          args
-          |> Stdlib.List.map (fun arg ->
-            arg
-            |> LanguageTools.Parser.parseToSimplifiedTree
-            |> LanguageTools.Parser.parseFromTree
-            |> Builtin.unwrap
-            |> fun parsedFile ->
-                match parsedFile with
-                | SourceFile source -> source.exprsToEval)
-          |> Stdlib.List.flatten
-          |> Stdlib.List.map (fun arg ->
-            LanguageTools.WrittenTypesToProgramTypes.Expr.toPT onMissing arg)
+      let args =
+        args
+        |> Stdlib.List.map (fun arg ->
+          arg
+          |> LanguageTools.Parser.parseToSimplifiedTree
+          |> LanguageTools.Parser.parseFromTree
+          |> Builtin.unwrap
+          |> fun parsedFile ->
+              match parsedFile with
+              | SourceFile source -> source.exprsToEval)
+        |> Stdlib.List.flatten
+        |> Stdlib.List.map (fun arg ->
+          LanguageTools.WrittenTypesToProgramTypes.Expr.toPT onMissing arg)
 
-      match Builtin.cliExecuteFunctionWithNewParser fnName args with
+      match Builtin.cliExecuteFunction fnName args with
       | Ok result ->
         Builtin.printLine result
         0L
