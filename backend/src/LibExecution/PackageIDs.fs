@@ -110,6 +110,11 @@ module Type =
       let nameResolverOnMissing =
         p [] "OnMissing" "3c6057e7-143b-4af8-96c4-c193c1ccfeb3"
 
+    module WrittenTypes =
+      let private p addl = p ("WrittenTypes" :: addl)
+      let name = p [] "Name" "8381f3b9-2311-4eb3-b040-b4c144afa6f1"
+      let range = p [] "Range" "1f00b6b2-e29a-4eca-a14f-cc7a56d6ec89"
+
     module RuntimeError =
       let private p addl = p ("RuntimeErrors" :: addl)
 
@@ -329,6 +334,12 @@ module Fn =
         let toString = p [] "toString" "64a08e23-e4ea-474b-9f77-3d2b1b953879"
         let toErrorMessage =
           p [] "toErrorMessage" "d861d9c4-45da-4789-8f41-b0e481422190"
+    module NameResolver =
+      let private p addl = p ("NameResolver" :: addl)
+      module FnName =
+        let private p addl = p ("FnName" :: addl)
+        let resolve = p [] "resolve" "7532eda4-f3cf-44e5-a4d6-52fed5aa63f0"
+
 
     module Parser =
       let private p addl = p ("Parser" :: addl)

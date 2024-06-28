@@ -58,7 +58,7 @@ module Darklang =
       // TODO we can do this without a helper function,
       // by removing the recursion and using a fold.
       let namesToTryHelper
-        (modulesToPrepend: List<string>)
+        (modulesToPrepend: List<String>)
         (given: GenericName)
         : List<GenericName> =
         match Stdlib.List.splitLast modulesToPrepend with

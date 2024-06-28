@@ -20,6 +20,7 @@ module PackageIDs = LibExecution.PackageIDs
 module WT = LibParser.WrittenTypes
 module Json = BuiltinExecution.Libs.Json
 module NR = LibParser.NameResolver
+module C2DT = LibExecution.CommonToDarkTypes
 
 
 module ExecutionError =
@@ -204,8 +205,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-
-    // TODO: use the new parser
+    // TODO: better handling for functions that takes string args, and errors
     { name = fn "cliExecuteFunction" 0
       typeParams = []
       parameters =
@@ -245,20 +245,67 @@ let fns : List<BuiltInFn> =
               err msg metadata
 
             try
+              let resolveFn =
+                RT.FQFnName.FQFnName.Package
+                  PackageIDs.Fn.LanguageTools.NameResolver.FnName.resolve
+
+              let onMissingType =
+                RT.FQTypeName.FQTypeName.Package
+                  PackageIDs.Type.LanguageTools.NameResolver.nameResolverOnMissing
+              let onMissingAllow =
+                RT.Dval.DEnum(onMissingType, onMissingType, [], "Allow", [])
+
+              let parserRangeType =
+                RT.FQTypeName.FQTypeName.Package
+                  PackageIDs.Type.LanguageTools.Parser.range
+              let pointType =
+                RT.FQTypeName.FQTypeName.Package
+                  PackageIDs.Type.LanguageTools.Parser.point
+              let pointFields =
+                [ ("row", RT.Dval.DInt64 0); ("column", RT.Dval.DInt64 0) ]
+              let fields =
+                [ ("start",
+                   RT.Dval.DRecord(pointType, pointType, [], Map pointFields))
+                  ("end_", RT.Dval.DRecord(pointType, pointType, [], Map pointFields)) ]
+
+              let rangeParser =
+                RT.Dval.DRecord(parserRangeType, parserRangeType, [], Map fields)
+              let writtenTypesNameType =
+                RT.FQTypeName.FQTypeName.Package
+                  PackageIDs.Type.LanguageTools.WrittenTypes.name
+
               let parts = functionName.Split('.') |> List.ofArray
-              let name =
-                NEList.ofListUnsafe
-                  "Can't call `Cli.executeFunction` with an empty function name"
-                  []
-                  parts
+              let currentModule = RT.Dval.DList(VT.string, [])
+              let nameArg =
+                RT.Dval.DEnum(
+                  writtenTypesNameType,
+                  writtenTypesNameType,
+                  [],
+                  "Unresolved",
+                  [ rangeParser
+                    RT.Dval.DList(VT.string, parts |> List.map RT.Dval.DString) ]
+                )
+
+              let resolveFnArgs =
+                NEList.ofList onMissingAllow [ currentModule; nameArg ]
+
+              let! execResult = Exe.executeFunction state resolveFn [] resolveFnArgs
 
               let! fnName =
-                LibParser.NameResolver.resolveFnName
-                  (state.builtins.fns |> Map.keys |> Set)
-                  packageManagerPT
-                  NR.OnMissing.Allow // ok?
-                  []
-                  (WT.Unresolved name)
+                uply {
+                  match execResult with
+                  | Ok dval ->
+                    match C2DT.Result.fromDT PT2DT.FQFnName.fromDT dval identity with
+                    | Ok fnName -> return Ok fnName
+                    | Error _ ->
+                      return
+                        Exception.raiseInternal "Error converting Dval to FQName" []
+                  | Error(_, rte) ->
+                    return
+                      Exception.raiseInternal
+                        "Error executing resolve function"
+                        [ "rte", rte ]
+                }
 
               match fnName with
               | Ok fnName ->
