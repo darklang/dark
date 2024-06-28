@@ -201,11 +201,11 @@ let rec valueTypeUnifies
       let actual = vFirst :: vSecond :: vRest
       return! rMult expected actual
 
-    | TCustomType(Error _, _), _ ->
+    | TCustomType(Error err, _), _ ->
       return
         Exception.raiseInternal
-          $"Unexpected - Error typeName in TCustomType in unifyValueType"
-          []
+          $"Unexpected - can't unify valueType against unknown/error type reference"
+          [ "err", err ]
     | TCustomType(Ok _typeNameT, _typeArgsT),
       ValueType.Known(KTCustomType(_typeNameV, _typeArgsV)) ->
       // TODO: follow up here when:

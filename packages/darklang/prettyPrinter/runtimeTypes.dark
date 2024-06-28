@@ -303,7 +303,7 @@ module Darklang =
 
             typeStr ++ typeArgsPart ++ " {" ++ inl ++ elems ++ nl ++ "}"
 
-          | DDict d ->
+          | DDict(_, d) ->
             if d == Stdlib.Dict.empty then
               "{}"
             else

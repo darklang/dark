@@ -14,7 +14,7 @@ module Darklang =
 
           | ConstDoesntExist of RuntimeTypes.FQConstantName.FQConstantName
 
-          | FieldAccessNotRecord of RuntimeTypes.ValueType * string
+          | FieldAccessNotRecord of RuntimeTypes.ValueType * String
 
           | FieldAccessFieldDoesntExist of
             typeName: RuntimeTypes.FQTypeName.FQTypeName *
@@ -36,10 +36,10 @@ module Darklang =
             invalidFieldName: String
           | RecordConstructionMissingField of
             RuntimeTypes.FQTypeName.FQTypeName *
-            missingFieldName: string
+            missingFieldName: String
           | RecordConstructionDuplicateField of
             RuntimeTypes.FQTypeName.FQTypeName *
-            duplicateFieldName: string
+            duplicateFieldName: String
 
 
         let toSegments (e: Error) : ErrorOutput =

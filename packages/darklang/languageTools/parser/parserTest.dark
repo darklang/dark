@@ -16,7 +16,7 @@ module Darklang =
 
           let exprs =
             match sourceFile with
-            | SourceFile c -> c.exprsToEval
+            | SourceFile s -> s.exprsToEval
             | _ -> []
 
           let onMissing = LanguageTools.NameResolver.OnMissing.Allow
