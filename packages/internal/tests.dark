@@ -45,14 +45,18 @@ module Darklang =
 
         let lineNumber = wtTest.lineNumber
 
+        let pm = LanguageTools.PackageManager.pm ()
+
         let actual =
           LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
             LanguageTools.NameResolver.OnMissing.ThrowError
+            pm
             wtTest.actual
 
         let expected =
           LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
             LanguageTools.NameResolver.OnMissing.ThrowError
+            pm
             wtTest.expected
 
         PTTest

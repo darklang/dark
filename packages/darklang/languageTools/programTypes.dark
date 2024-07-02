@@ -403,6 +403,81 @@ module Darklang =
           constants: List<PackageConstant.PackageConstant>
           fns: List<PackageFn.PackageFn> }
 
+
+      /// Functionality written in Dark stored and managed outside of user space
+      ///
+      /// Note: It may be tempting to think the `getX` fns shouldn't return Options,
+      /// but there's a chance of Local <-> Cloud not being fully in sync,
+      /// for whatever reasons.
+      module PackageManager =
+        type PackageManager =
+          { findType: String -> Stdlib.Option.Option<FQTypeName.Package>
+            findConstant: String -> Stdlib.Option.Option<FQConstantName.Package>
+            findFn: String -> Stdlib.Option.Option<FQFnName.Package>
+
+            getType:
+              FQTypeName.Package -> Stdlib.Option.Option<PackageType.PackageType>
+            getConstant:
+              FQConstantName.Package
+                -> Stdlib.Option.Option<PackageConstant.PackageConstant>
+            getFn: FQFnName.Package -> Stdlib.Option.Option<PackageFn.PackageFn> }
+
+
+        /// Allows you to side-load a few 'extras' in-memory, along
+        /// the normal fetching functionality. (Mostly helpful for tests)
+        let withExtras
+          (pm: PackageManager.PackageManager)
+          (types: List<PackageType.PackageType>)
+          (constants: List<PackageConstant.PackageConstant>)
+          (fns: List<PackageFn.PackageFn>)
+          : PackageManager.PackageManager =
+          PackageManager.PackageManager
+            { findType =
+                fun name ->
+                  match types |> Stdlib.List.findFirst (fun t -> t.name == name) with
+                  | Some t -> Stdlib.Option.Option.Some t.id
+                  | None ->
+                    let fn = pm.findType
+                    fn name
+              findConstant =
+                fun name ->
+                  match
+                    constants |> Stdlib.List.findFirst (fun c -> c.name == name)
+                  with
+                  | Some c -> Stdlib.Option.Option.Some c.id
+                  | None ->
+                    let fn = pm.findConstant
+                    fn name
+              findFn =
+                fun name ->
+                  match fns |> Stdlib.List.findFirst (fun f -> f.name == name) with
+                  | Some f -> Stdlib.Option.Option.Some f.id
+                  | None ->
+                    let fn = pm.findFn
+                    fn name
+
+              getType =
+                fun id ->
+                  match types |> Stdlib.List.findFirst (fun t -> t.id == id) with
+                  | Some t -> Stdlib.Option.Option.Some t
+                  | None ->
+                    let getType = pm.getType
+                    getType id
+              getConstant =
+                fun id ->
+                  match constants |> Stdlib.List.findFirst (fun c -> c.id == id) with
+                  | Some c -> Stdlib.Option.Option.Some c
+                  | None ->
+                    let getConstant = pm.getConstant
+                    getConstant id
+              getFn =
+                fun id ->
+                  match fns |> Stdlib.List.findFirst (fun f -> f.id == id) with
+                  | Some f -> Stdlib.Option.Option.Some f
+                  | None ->
+                    let getFn = pm.getFn
+                    getFn id }
+
       type Definitions =
         { types: List<PackageType.PackageType>
           constants: List<PackageConstant.PackageConstant>
