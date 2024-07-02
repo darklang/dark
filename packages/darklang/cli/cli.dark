@@ -53,6 +53,7 @@ module Darklang =
 
     let runFunction (fnName: String) (args: List<String>) : Int64 =
       let onMissing = LanguageTools.NameResolver.OnMissing.Allow
+      let pm = LanguageTools.PackageManager.pm ()
 
       let args =
         args
@@ -66,7 +67,7 @@ module Darklang =
               | SourceFile source -> source.exprsToEval)
         |> Stdlib.List.flatten
         |> Stdlib.List.map (fun arg ->
-          LanguageTools.WrittenTypesToProgramTypes.Expr.toPT onMissing arg)
+          LanguageTools.WrittenTypesToProgramTypes.Expr.toPT onMissing pm arg)
 
       match Builtin.cliExecuteFunction fnName args with
       | Ok result ->
@@ -93,7 +94,6 @@ module Darklang =
         | Ok exitCode -> exitCode
         | Error e ->
           Builtin.printLine (LanguageTools.RuntimeErrors.Error.toString e)
-
           1L
 
       | Error e ->

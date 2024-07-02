@@ -9,6 +9,7 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
+    <Compile Include="Utils.fs" />
     <Compile Include="Libs/Cli.fs" />
     <Compile Include="Builtin.fs" />
   </ItemGroup>

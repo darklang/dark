@@ -17,10 +17,10 @@ module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module Exe = LibExecution.Execution
 module PackageIDs = LibExecution.PackageIDs
-module WT = LibParser.WrittenTypes
 module Json = BuiltinExecution.Libs.Json
-module NR = LibParser.NameResolver
 module C2DT = LibExecution.CommonToDarkTypes
+
+module Utils = BuiltinCliHost.Utils
 
 
 module ExecutionError =
@@ -87,7 +87,7 @@ let builtinsToUse : RT.Builtins =
 
 let execute
   (parentState : RT.ExecutionState)
-  (mod' : LibParser.Canvas.PTCanvasModule)
+  (mod' : Utils.Canvas.PTCanvasModule)
   (symtable : Map<string, RT.Dval>)
   : Ply<Result<RT.Dval, Option<CallStack> * RuntimeError>> =
   uply {
@@ -123,11 +123,17 @@ let execute
         CliRuntimeError.NoExpressionsToExecute |> CliRuntimeError.RTE.toRuntimeError
       return Error((None, rte))
     else // mod'.exprs.Length > 1
-      let exprs = mod'.exprs |> List.map PT2RT.Expr.toRT
+      // let rtExprs = List.map PT2RT.Expr.toRT mod'.exprs
+      // let asyncTasks = List.map (fun expr -> Exe.executeExpr state symtable expr |> Async.AwaitTask) rtExprs
+      // let! resultsArray = asyncTasks |> Async.Sequential
+      // let results = List.ofArray resultsArray
+      let exprs = List.map PT2RT.Expr.toRT mod'.exprs
       let results = List.map (Exe.executeExpr state symtable) exprs
-      let lastResult = List.last results
-      match lastResult with
-      | Some lastResult -> return! lastResult
+      // let lastResult = List.last results
+      match List.tryLast results with
+      | Some lastResult ->
+        // return lastResult
+        return! lastResult
       | None ->
         let rte =
           CliRuntimeError.NoExpressionsToExecute
@@ -160,21 +166,51 @@ let fns : List<BuiltInFn> =
               CliRuntimeError.UncaughtException(msg, metadata)
               |> CliRuntimeError.RTE.toRuntimeError
 
+            let onMissingType =
+              RT.FQTypeName.FQTypeName.Package
+                PackageIDs.Type.LanguageTools.NameResolver.nameResolverOnMissing
+            let onMissingAllow =
+              RT.Dval.DEnum(onMissingType, onMissingType, [], "Allow", [])
+
+            let name =
+              RT.FQFnName.FQFnName.Package
+                PackageIDs.Fn.LanguageTools.Parser.Canvas.parseCanvas
+
+            let pm =
+              RT.FQFnName.FQFnName.Package
+                PackageIDs.Fn.LanguageTools.PackageManager.pm
+
+            let! execResult =
+              Exe.executeFunction state pm [] (NEList.singleton RT.Dval.DUnit)
+            let! pm =
+              uply {
+                match execResult with
+                | Ok dval -> return dval
+                | Error(_, rte) ->
+                  return
+                    Exception.raiseInternal
+                      "Error executing pm function"
+                      [ "rte", rte ]
+              }
+            let args =
+              NEList.ofList
+                (RT.Dval.DString "CliScript")
+                [ RT.Dval.DString "CanvasName"
+                  onMissingAllow
+                  pm
+                  RT.Dval.DString filename
+                  RT.Dval.DString code ]
+            let! execResult = Exe.executeFunction state name [] args
+
             let! parsedScript =
               uply {
-                try
-                  return!
-                    LibParser.Canvas.parse
-                      "CliScript"
-                      "CanvasName"
-                      state.builtins
-                      packageManagerPT
-                      NR.OnMissing.Allow
-                      filename
-                      code
-                    |> Ply.map Ok
-                with e ->
-                  return Error(exnError e)
+                match execResult with
+                | Ok dval -> return (Utils.Canvas.fromDT dval) |> Ok
+                | err ->
+                  return
+                    Exception.raiseInternal
+                      "Error executing parseCanvas function"
+                      [ "error", err ]
               }
 
             try
@@ -286,8 +322,24 @@ let fns : List<BuiltInFn> =
                     RT.Dval.DList(VT.string, parts |> List.map RT.Dval.DString) ]
                 )
 
+              let pm =
+                RT.FQFnName.FQFnName.Package
+                  PackageIDs.Fn.LanguageTools.PackageManager.pm
+              let! execResult =
+                Exe.executeFunction state pm [] (NEList.singleton RT.Dval.DUnit)
+              let! pm =
+                uply {
+                  match execResult with
+                  | Ok dval -> return dval
+                  | Error(_, rte) ->
+                    return
+                      Exception.raiseInternal
+                        "Error executing pm function"
+                        [ "rte", rte ]
+                }
+
               let resolveFnArgs =
-                NEList.ofList onMissingAllow [ currentModule; nameArg ]
+                NEList.ofList onMissingAllow [ pm; currentModule; nameArg ]
 
               let! execResult = Exe.executeFunction state resolveFn [] resolveFnArgs
 
