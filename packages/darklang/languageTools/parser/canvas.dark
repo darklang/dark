@@ -1,0 +1,172 @@
+module Darklang =
+  module LanguageTools =
+    module Parser =
+      //CLEANUP: rename to CliScript, and stop reusing canvas stuff, make it more specific to cli scripts (eg. allow module declarations)
+      module Canvas =
+        type WTCanvasModule =
+          { owner: String
+            name: List<String>
+            types: List<LanguageTools.WrittenTypes.TypeReference.TypeReference>
+            constants:
+              List<LanguageTools.WrittenTypes.ConstantDeclaration.ConstantDeclaration>
+            fns: List<LanguageTools.WrittenTypes.FnDeclaration.FnDeclaration>
+            // dbs, handlers
+            exprs: List<LanguageTools.WrittenTypes.Expr> }
+
+        type PTCanvasModule =
+          { types: List<LanguageTools.ProgramTypes.PackageType.PackageType>
+            constants:
+              List<LanguageTools.ProgramTypes.PackageConstant.PackageConstant>
+            fns: List<LanguageTools.ProgramTypes.PackageFn.PackageFn>
+            // dbs, handlers
+            exprs: List<LanguageTools.ProgramTypes.Expr> }
+
+        let parseDecls
+          (owner: String)
+          (canvasName: String)
+          (source: LanguageTools.WrittenTypes.ParsedFile)
+          : Stdlib.Result.Result<WTCanvasModule, String> =
+          match source with
+          | SourceFile source ->
+            let types =
+              source.declarations
+              |> Stdlib.List.filterMap (fun decl ->
+                match decl with
+                | Type t -> Stdlib.Option.Option.Some t
+                | _ -> Stdlib.Option.Option.None)
+
+            let constants =
+              source.declarations
+              |> Stdlib.List.filterMap (fun decl ->
+                match decl with
+                | Constant c -> Stdlib.Option.Option.Some c
+                | _ -> Stdlib.Option.Option.None)
+
+            let fns =
+              source.declarations
+              |> Stdlib.List.filterMap (fun decl ->
+                match decl with
+                | Function f -> Stdlib.Option.Option.Some f
+                | _ -> Stdlib.Option.Option.None)
+
+            let exprs = source.exprsToEval
+
+            Stdlib.Result.Result.Ok(
+              WTCanvasModule
+                { owner = owner
+                  name = [ canvasName ]
+                  types = types
+                  constants = constants
+                  fns = fns
+                  exprs = exprs }
+            )
+
+          | _ -> Stdlib.Result.Result.Error "Invalid source file"
+
+
+        let toPT
+          (onMissing: NameResolver.OnMissing)
+          (pm: ProgramTypes.PackageManager.PackageManager)
+          (wt: WTCanvasModule)
+          : PTCanvasModule =
+          let types =
+            wt.types
+            |> Stdlib.List.map (fun t ->
+              LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT
+                onMissing
+                pm
+                wt.owner
+                []
+                t)
+
+          let constants =
+            wt.constants
+            |> Stdlib.List.map (fun c ->
+              WrittenTypesToProgramTypes.ConstantDeclaration.toPackageConstPT
+                onMissing
+                pm
+                wt.owner
+                []
+                c)
+
+          let fns =
+            wt.fns
+            |> Stdlib.List.map (fun f ->
+              WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT
+                onMissing
+                pm
+                wt.owner
+                []
+                f)
+
+          let exprs =
+            wt.exprs
+            |> Stdlib.List.map (fun e ->
+              LanguageTools.WrittenTypesToProgramTypes.Expr.toPT onMissing pm e)
+
+          PTCanvasModule
+            { types = types
+              constants = constants
+              fns = fns
+              exprs = exprs }
+
+
+        let parse
+          (owner: String)
+          (canvasName: String)
+          (onMissing: NameResolver.OnMissing)
+          (pm: ProgramTypes.PackageManager.PackageManager)
+          (filename: String)
+          (source: String)
+          : PTCanvasModule =
+          let parsedFile = source |> LanguageTools.Parser.ParserTest.initialParse
+          let moduleWT = (parseDecls owner canvasName parsedFile) |> Builtin.unwrap
+          let initialParse = toPT onMissing pm moduleWT
+
+          let pm =
+            ProgramTypes.PackageManager.withExtras
+              pm
+              initialParse.types
+              initialParse.constants
+              initialParse.fns
+
+          let result = toPT onMissing pm moduleWT
+
+          let adjusted =
+            PTCanvasModule
+              { types =
+                  result.types
+                  |> Stdlib.List.map (fun t ->
+                    { t with
+                        id =
+                          initialParse.types
+                          |> Stdlib.List.findFirst (fun original ->
+                            original.name == t.name)
+                          |> Stdlib.Option.mapWithDefault t.id (fun original ->
+                            original.id) })
+
+                constants =
+                  result.constants
+                  |> Stdlib.List.map (fun c ->
+                    { c with
+                        id =
+                          initialParse.constants
+                          |> Stdlib.List.findFirst (fun original ->
+                            original.name == c.name)
+                          |> Stdlib.Option.mapWithDefault c.id (fun original ->
+                            original.id) })
+
+                fns =
+                  result.fns
+                  |> Stdlib.List.map (fun f ->
+                    { f with
+                        id =
+                          initialParse.fns
+                          |> Stdlib.List.findFirst (fun original ->
+                            original.name == f.name)
+                          |> Stdlib.Option.mapWithDefault f.id (fun original ->
+                            original.id) })
+
+                exprs = result.exprs }
+
+          adjusted

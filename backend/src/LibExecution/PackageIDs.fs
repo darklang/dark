@@ -105,6 +105,11 @@ module Type =
       let range = p [] "Range" "e194e06f-a765-483d-b6a5-16856ed547f0"
       let parsedNode = p [] "ParsedNode" "3612c001-663c-4695-9b1c-d3a1582a8057"
 
+      module Canvas =
+        let private p addl = p ("Canvas" :: addl)
+        let pTCanvasModule =
+          p [] "PTCanvasModule" "4b7dcac5-03ee-4a15-8e97-7ce0ccc110fe"
+
     module NameResolver =
       let private p addl = p ("NameResolver" :: addl)
       let nameResolverOnMissing =
@@ -340,7 +345,6 @@ module Fn =
         let private p addl = p ("FnName" :: addl)
         let resolve = p [] "resolve" "7532eda4-f3cf-44e5-a4d6-52fed5aa63f0"
 
-
     module Parser =
       let private p addl = p ("Parser" :: addl)
       let parsePTExpr =
@@ -352,6 +356,13 @@ module Fn =
           "parseAndPrettyPrint"
           "361fb7f2-523b-4b50-8f29-cc99d5f03e3a"
 
+      module Canvas =
+        let private p addl = p ("Canvas" :: addl)
+        let parseCanvas = p [] "parse" "e7574db7-f7e6-4263-adc2-a05b14309cbc"
+
+    module PackageManager =
+      let private p addl = p ("PackageManager" :: addl)
+      let pm = p [] "pm" "591fa719-7986-40b8-a57f-6b78a1d0cd66"
 
   module PrettyPrinter =
     module RuntimeTypes =
