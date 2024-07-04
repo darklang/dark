@@ -122,7 +122,24 @@ module Darklang =
             let returnTypeNode =
               findAndParseRequired node "return_type" TypeReference.parse
 
-            let bodyNode = findAndParseRequired node "body" Expr.parse
+            let filterAndParseBody =
+              match findNodeByFieldName node "body" with
+              | Some body ->
+                body.children
+                |> Stdlib.List.filter (fun n ->
+                  n.typ != "indent" && n.typ != "dedent")
+                |> Stdlib.List.map (fun node -> Expr.parse node)
+                |> Stdlib.Result.combine
+              | _ -> createUnparseableErrorMsg node "Expected one expression in body"
+
+            let bodyNode =
+              match filterAndParseBody with
+              | Ok body when Stdlib.List.length body == 1L ->
+                body
+                |> Stdlib.List.head
+                |> Stdlib.Option.toResult "Expected one expression in body"
+              | _ -> createUnparseableErrorMsg node "Expected one expression in body"
+
             let keywordLetNode = findField node "keyword_let"
             let symColonNode = findField node "symbol_colon"
             let symEqualsNode = findField node "symbol_equals"
