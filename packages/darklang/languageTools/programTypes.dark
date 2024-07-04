@@ -362,6 +362,16 @@ module Darklang =
             description: String
             deprecated: Deprecation<FQTypeName.FQTypeName> }
 
+        let nameToString (typeName: Name) : String =
+          let owner = if typeName.owner == "" then "" else typeName.owner ++ "."
+
+          let modules =
+            match typeName.modules with
+            | [] -> ""
+            | modules -> (modules |> Stdlib.String.join ".") ++ "."
+
+          let name = typeName.name
+          owner ++ modules ++ name
 
       module PackageConstant =
         type Name =
@@ -376,6 +386,16 @@ module Darklang =
             description: String
             deprecated: Deprecation<FQFnName.FQFnName> }
 
+        let nameToString (constName: Name) : String =
+          let owner = if constName.owner == "" then "" else constName.owner ++ "."
+
+          let modules =
+            match constName.modules with
+            | [] -> ""
+            | modules -> (modules |> Stdlib.String.join ".") ++ "."
+
+          let name = constName.name
+          owner ++ modules ++ name
 
       module PackageFn =
         type Name =
@@ -398,10 +418,110 @@ module Darklang =
             description: String
             deprecated: Deprecation<FQFnName.FQFnName> }
 
+        let nameToString (fnName: Name) : String =
+          let owner = if fnName.owner == "" then "" else fnName.owner ++ "."
+
+          let modules =
+            match fnName.modules with
+            | [] -> ""
+            | modules -> (modules |> Stdlib.String.join ".") ++ "."
+
+          let name = fnName.name
+          owner ++ modules ++ name
+
       type Packages =
         { types: List<PackageType.PackageType>
           constants: List<PackageConstant.PackageConstant>
           fns: List<PackageFn.PackageFn> }
+
+
+      /// Functionality written in Dark stored and managed outside of user space
+      ///
+      /// Note: It may be tempting to think the `getX` fns shouldn't return Options,
+      /// but there's a chance of Local <-> Cloud not being fully in sync,
+      /// for whatever reasons.
+      module PackageManager =
+        type PackageManager =
+          { findType: String -> Stdlib.Option.Option<FQTypeName.Package>
+            findConstant: String -> Stdlib.Option.Option<FQConstantName.Package>
+            findFn: String -> Stdlib.Option.Option<FQFnName.Package>
+
+            getType:
+              FQTypeName.Package -> Stdlib.Option.Option<PackageType.PackageType>
+            getConstant:
+              FQConstantName.Package
+                -> Stdlib.Option.Option<PackageConstant.PackageConstant>
+            getFn: FQFnName.Package -> Stdlib.Option.Option<PackageFn.PackageFn> }
+
+
+        /// Allows you to side-load a few 'extras' in-memory, along
+        /// the normal fetching functionality. (Mostly helpful for tests)
+        let withExtras
+          (pm: PackageManager.PackageManager)
+          (types: List<PackageType.PackageType>)
+          (constants: List<PackageConstant.PackageConstant>)
+          (fns: List<PackageFn.PackageFn>)
+          : PackageManager.PackageManager =
+          PackageManager.PackageManager
+            { findType =
+                fun name ->
+                  match
+                    types
+                    |> Stdlib.List.findFirst (fun t ->
+                      let typeName = PackageType.nameToString t.name
+                      typeName == name)
+                  with
+                  | Some t -> Stdlib.Option.Option.Some t.id
+                  | None ->
+                    let findType = pm.findType
+                    findType name
+              findConstant =
+                fun name ->
+                  match
+                    constants
+                    |> Stdlib.List.findFirst (fun c ->
+                      let constName = PackageConstant.nameToString c.name
+                      constName == name)
+                  with
+                  | Some c -> Stdlib.Option.Option.Some c.id
+                  | None ->
+                    let findConstant = pm.findConstant
+                    findConstant name
+              findFn =
+                fun name ->
+                  match
+                    fns
+                    |> Stdlib.List.findFirst (fun f ->
+                      let fnName = PackageFn.nameToString f.name
+                      fnName == name)
+                  with
+                  | Some f -> Stdlib.Option.Option.Some f.id
+                  | None ->
+                    let findFn = pm.findFn
+                    findFn name
+
+              getType =
+                fun id ->
+                  match types |> Stdlib.List.findFirst (fun t -> t.id == id) with
+                  | Some t -> Stdlib.Option.Option.Some t
+                  | None ->
+                    let getType = pm.getType
+                    getType id
+              getConstant =
+                fun id ->
+                  match constants |> Stdlib.List.findFirst (fun c -> c.id == id) with
+                  | Some c -> Stdlib.Option.Option.Some c
+                  | None ->
+                    let getConstant = pm.getConstant
+                    getConstant id
+              getFn =
+                fun id ->
+                  match fns |> Stdlib.List.findFirst (fun f -> f.id == id) with
+                  | Some f -> Stdlib.Option.Option.Some f
+                  | None ->
+                    let getFn = pm.getFn
+                    getFn id }
+
 
       type Definitions =
         { types: List<PackageType.PackageType>

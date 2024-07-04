@@ -82,6 +82,7 @@ module Darklang =
 
 
         let tryResolve
+          (pm: ProgramTypes.PackageManager.PackageManager)
           (name: GenericName)
           : Stdlib.Result.Result<ProgramTypes.FQTypeName.FQTypeName, Unit> =
           match name.modules with
@@ -91,7 +92,9 @@ module Darklang =
               (Stdlib.List.flatten [ name.modules; [ name.name ] ])
               |> Stdlib.String.join "."
 
-            match PackageManager.Type.find nameForLookup with
+            let find = pm.findType
+
+            match find nameForLookup with
             | Some id ->
               (ProgramTypes.FQTypeName.FQTypeName.Package id)
               |> Stdlib.Result.Result.Ok
@@ -100,6 +103,7 @@ module Darklang =
 
         let resolve
           (onMissing: OnMissing)
+          (pm: ProgramTypes.PackageManager.PackageManager)
           (currentModule: List<String>)
           (name: WrittenTypes.Name)
           : ProgramTypes.NameResolution<ProgramTypes.FQTypeName.FQTypeName> =
@@ -130,7 +134,7 @@ module Darklang =
                     match currentResult with
                     | Ok _ -> currentResult
                     | Error _ ->
-                      match tryResolve nameToTry with
+                      match tryResolve pm nameToTry with
                       | Error() -> currentResult
                       | Ok success -> Stdlib.Result.Result.Ok success)
 
@@ -153,6 +157,7 @@ module Darklang =
           |> Stdlib.Option.isSome
 
         let tryResolve
+          (pm: ProgramTypes.PackageManager.PackageManager)
           (name: GenericName)
           : Stdlib.Result.Result<ProgramTypes.FQConstantName.FQConstantName, Unit> =
           match name.modules with
@@ -172,7 +177,9 @@ module Darklang =
               else
                 Error()
             else
-              match PackageManager.Constant.find nameForLookup with
+              let find = pm.findConstant
+
+              match find nameForLookup with
               | Some id ->
                 (ProgramTypes.FQConstantName.FQConstantName.Package id)
                 |> Stdlib.Result.Result.Ok
@@ -181,6 +188,7 @@ module Darklang =
 
         let resolve
           (onMissing: OnMissing)
+          (pm: ProgramTypes.PackageManager.PackageManager)
           (currentModule: List<String>)
           (name: WrittenTypes.Name)
           : ProgramTypes.NameResolution<ProgramTypes.FQConstantName.FQConstantName> =
@@ -211,7 +219,7 @@ module Darklang =
                     match currentResult with
                     | Ok _ -> currentResult
                     | Error _ ->
-                      match tryResolve nameToTry with
+                      match tryResolve pm nameToTry with
                       | Error() -> currentResult
                       | Ok success -> Stdlib.Result.Result.Ok success)
 
@@ -230,6 +238,7 @@ module Darklang =
 
 
         let tryResolve
+          (pm: ProgramTypes.PackageManager.PackageManager)
           (name: GenericName)
           : Stdlib.Result.Result<ProgramTypes.FQFnName.FQFnName, Unit> =
           match name.modules with
@@ -249,7 +258,10 @@ module Darklang =
                 (Stdlib.List.flatten [ name.modules; [ name.name ] ])
                 |> Stdlib.String.join "."
 
-              match PackageManager.Function.find nameForLookup with
+              // CLEANUP: allow this to be inline (i.e. `pm.findFn nameForLookup`)
+              let find = pm.findFn
+
+              match find nameForLookup with
               | Some id ->
                 (ProgramTypes.FQFnName.FQFnName.Package id)
                 |> Stdlib.Result.Result.Ok
@@ -258,6 +270,7 @@ module Darklang =
 
         let resolve
           (onMissing: OnMissing)
+          (pm: ProgramTypes.PackageManager.PackageManager)
           (currentModule: List<String>)
           (name: WrittenTypes.Name)
           : ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName> =
@@ -288,7 +301,7 @@ module Darklang =
                     match currentResult with
                     | Ok _ -> currentResult
                     | Error _ ->
-                      match tryResolve nameToTry with
+                      match tryResolve pm nameToTry with
                       | Error() -> currentResult
                       | Ok success -> Stdlib.Result.Result.Ok success)
 
