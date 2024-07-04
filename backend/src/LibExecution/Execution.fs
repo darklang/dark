@@ -189,3 +189,26 @@ let traceDvals () : Dictionary.T<id, RT.Dval> * RT.TraceDval =
     results[id] <- dval
 
   (results, trace)
+
+
+let rec rteToString
+  (state : RT.ExecutionState)
+  (rte : RT.RuntimeError)
+  : Ply<string> =
+  uply {
+    let errorMessageFn =
+      RT.FQFnName.fqPackage
+        PackageIDs.Fn.LanguageTools.RuntimeErrors.Error.toErrorMessage
+
+    let rte = RT.RuntimeError.toDT rte
+
+    let! rteMessage = executeFunction state errorMessageFn [] (NEList.ofList rte [])
+
+    match rteMessage with
+    | Ok(RT.DString msg) -> return msg
+    | Ok(other) -> return string other
+    | Error(_, rte) ->
+      debuG "Error converting RTE to string" rte
+      return! rteToString state rte
+
+  }

@@ -108,7 +108,12 @@ let parseSingleTestFromFile
 
     match execResult with
     | Ok dval -> return Internal.Test.fromDT dval
-    | Error _ -> return Exception.raiseInternal "Error executing function" []
+    | Error(_, rte) ->
+      let! rteString = Exe.rteToString state rte
+      return
+        Exception.raiseInternal
+          "Error executing parseSingleTestFromFile function"
+          [ "error", rteString ]
 
   }
 
