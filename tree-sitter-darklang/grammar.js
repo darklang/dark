@@ -183,23 +183,39 @@ module.exports = grammar({
     // e.g. `type Person = { name: String; age: Int }`
     // TODO: allow multi-line records where a newline is 'interpreted' as a record delimiter (i.e. no ; needed)
     type_decl_def_record: $ =>
-      seq(
-        field("symbol_open_brace", alias("{", $.symbol)),
-        optional(field("fields", $.type_decl_def_record_fields)),
-        field("symbol_close_brace", alias("}", $.symbol)),
+      choice(
+        seq(
+          field("symbol_open_brace", alias("{", $.symbol)),
+          optional(field("fields", $.type_decl_def_record_fields)),
+          field("symbol_close_brace", alias("}", $.symbol)),
+        ),
+        seq(
+          $.indent,
+          field("symbol_open_brace", alias("{", $.symbol)),
+          optional(field("fields", $.type_decl_def_record_fields)),
+          field("symbol_close_brace", alias("}", $.symbol)),
+          $.dedent,
+        ),
       ),
 
     type_decl_def_record_fields: $ =>
-      seq(
-        field("first", $.type_decl_def_record_field),
-        field(
-          "others",
-          repeat(
-            seq(
-              field("symbol_semicolon", alias(";", $.symbol)),
-              $.type_decl_def_record_field,
+      choice(
+        seq(
+          field("first", $.type_decl_def_record_field),
+          field(
+            "others",
+            repeat(
+              seq(
+                field("symbol_semicolon", alias(";", $.symbol)),
+                $.type_decl_def_record_field,
+              ),
             ),
           ),
+        ),
+        seq(
+          field("first", $.type_decl_def_record_field),
+          field("others", repeat(seq($.newline, $.type_decl_def_record_field))),
+          optional($.newline),
         ),
       ),
 

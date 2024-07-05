@@ -3812,6 +3812,20 @@
           }
         ]
       }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "dedent",
+          "named": true
+        },
+        {
+          "type": "indent",
+          "named": true
+        }
+      ]
     }
   },
   {
@@ -3869,6 +3883,10 @@
         "required": false,
         "types": [
           {
+            "type": "newline",
+            "named": true
+          },
+          {
             "type": "symbol",
             "named": true
           },
@@ -3888,6 +3906,16 @@
           }
         ]
       }
+    },
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "newline",
+          "named": true
+        }
+      ]
     }
   },
   {
