@@ -395,6 +395,26 @@ let typeDeclarations =
       []
       []
       false
+    t
+      "record, newlines as separators"
+      "type Person =\n  { name: String\n    age: Int64\n    hasPet: Bool\n    pet: Pet }"
+      "type Person =\n  { name: String\n    age: Int64\n    hasPet: Bool\n    pet: Pet }"
+      []
+      []
+      []
+      false
+    t
+      "record, newlines as separators 2"
+      """type Person =
+  { name: String
+    age: Int64
+    hasPet: Bool
+    pet: Pet }"""
+      "type Person =\n  { name: String\n    age: Int64\n    hasPet: Bool\n    pet: Pet }"
+      []
+      []
+      []
+      false
 
     // Enum type decls
     t

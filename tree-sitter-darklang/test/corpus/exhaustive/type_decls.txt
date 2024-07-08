@@ -134,6 +134,48 @@ type Cols2 = { col1: PACKAGE.Darklang.LanguageTools.Test; col2: Int64 }
 
 
 ==================
+type def Record - newlines as separators
+==================
+
+type Test =
+  { name : String
+    lineNumber : Int64
+    actual: LanguageTools.WrittenTypes.Expr
+    expected: LanguageTools.WrittenTypes.Expr }
+
+---
+
+(source_file
+  (type_decl
+    (keyword) (type_identifier) (symbol)
+    (type_decl_def
+      (type_decl_def_record
+        (indent)
+        (symbol)
+        (type_decl_def_record_fields
+          (type_decl_def_record_field (variable_identifier) (symbol) (type_reference (builtin_type)))
+          (newline)
+          (type_decl_def_record_field (variable_identifier) (symbol) (type_reference (builtin_type)))
+          (newline)
+          (type_decl_def_record_field
+            (variable_identifier) (symbol)
+            (type_reference (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)))
+          )
+          (newline)
+          (type_decl_def_record_field
+            (variable_identifier) (symbol)
+            (type_reference (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)))
+          )
+        )
+        (symbol)
+        (dedent)
+      )
+    )
+  )
+)
+
+
+==================
 type def Enum - one case, no fields
 ==================
 

@@ -1117,91 +1117,201 @@
       "name": "type_reference"
     },
     "type_decl_def_record": {
-      "type": "SEQ",
+      "type": "CHOICE",
       "members": [
         {
-          "type": "FIELD",
-          "name": "symbol_open_brace",
-          "content": {
-            "type": "ALIAS",
-            "content": {
-              "type": "STRING",
-              "value": "{"
-            },
-            "named": true,
-            "value": "symbol"
-          }
-        },
-        {
-          "type": "CHOICE",
+          "type": "SEQ",
           "members": [
             {
               "type": "FIELD",
-              "name": "fields",
+              "name": "symbol_open_brace",
               "content": {
-                "type": "SYMBOL",
-                "name": "type_decl_def_record_fields"
+                "type": "ALIAS",
+                "content": {
+                  "type": "STRING",
+                  "value": "{"
+                },
+                "named": true,
+                "value": "symbol"
               }
             },
             {
-              "type": "BLANK"
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "FIELD",
+                  "name": "fields",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "type_decl_def_record_fields"
+                  }
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
+            },
+            {
+              "type": "FIELD",
+              "name": "symbol_close_brace",
+              "content": {
+                "type": "ALIAS",
+                "content": {
+                  "type": "STRING",
+                  "value": "}"
+                },
+                "named": true,
+                "value": "symbol"
+              }
             }
           ]
         },
         {
-          "type": "FIELD",
-          "name": "symbol_close_brace",
-          "content": {
-            "type": "ALIAS",
-            "content": {
-              "type": "STRING",
-              "value": "}"
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "indent"
             },
-            "named": true,
-            "value": "symbol"
-          }
+            {
+              "type": "FIELD",
+              "name": "symbol_open_brace",
+              "content": {
+                "type": "ALIAS",
+                "content": {
+                  "type": "STRING",
+                  "value": "{"
+                },
+                "named": true,
+                "value": "symbol"
+              }
+            },
+            {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "FIELD",
+                  "name": "fields",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "type_decl_def_record_fields"
+                  }
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
+            },
+            {
+              "type": "FIELD",
+              "name": "symbol_close_brace",
+              "content": {
+                "type": "ALIAS",
+                "content": {
+                  "type": "STRING",
+                  "value": "}"
+                },
+                "named": true,
+                "value": "symbol"
+              }
+            },
+            {
+              "type": "SYMBOL",
+              "name": "dedent"
+            }
+          ]
         }
       ]
     },
     "type_decl_def_record_fields": {
-      "type": "SEQ",
+      "type": "CHOICE",
       "members": [
         {
-          "type": "FIELD",
-          "name": "first",
-          "content": {
-            "type": "SYMBOL",
-            "name": "type_decl_def_record_field"
-          }
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "first",
+              "content": {
+                "type": "SYMBOL",
+                "name": "type_decl_def_record_field"
+              }
+            },
+            {
+              "type": "FIELD",
+              "name": "others",
+              "content": {
+                "type": "REPEAT",
+                "content": {
+                  "type": "SEQ",
+                  "members": [
+                    {
+                      "type": "FIELD",
+                      "name": "symbol_semicolon",
+                      "content": {
+                        "type": "ALIAS",
+                        "content": {
+                          "type": "STRING",
+                          "value": ";"
+                        },
+                        "named": true,
+                        "value": "symbol"
+                      }
+                    },
+                    {
+                      "type": "SYMBOL",
+                      "name": "type_decl_def_record_field"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
         },
         {
-          "type": "FIELD",
-          "name": "others",
-          "content": {
-            "type": "REPEAT",
-            "content": {
-              "type": "SEQ",
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "first",
+              "content": {
+                "type": "SYMBOL",
+                "name": "type_decl_def_record_field"
+              }
+            },
+            {
+              "type": "FIELD",
+              "name": "others",
+              "content": {
+                "type": "REPEAT",
+                "content": {
+                  "type": "SEQ",
+                  "members": [
+                    {
+                      "type": "SYMBOL",
+                      "name": "newline"
+                    },
+                    {
+                      "type": "SYMBOL",
+                      "name": "type_decl_def_record_field"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "CHOICE",
               "members": [
                 {
-                  "type": "FIELD",
-                  "name": "symbol_semicolon",
-                  "content": {
-                    "type": "ALIAS",
-                    "content": {
-                      "type": "STRING",
-                      "value": ";"
-                    },
-                    "named": true,
-                    "value": "symbol"
-                  }
+                  "type": "SYMBOL",
+                  "name": "newline"
                 },
                 {
-                  "type": "SYMBOL",
-                  "name": "type_decl_def_record_field"
+                  "type": "BLANK"
                 }
               ]
             }
-          }
+          ]
         }
       ]
     },
