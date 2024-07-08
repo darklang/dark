@@ -244,7 +244,7 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // TODO: better handling for functions that takes string args, and errors
+    // TODO: better handling for functions that takes string args
     { name = fn "cliExecuteFunction" 0
       typeParams = []
       parameters =
@@ -385,7 +385,7 @@ let fns : List<BuiltInFn> =
                     |> List.collect (fun dval ->
                       match dval with
                       | DEnum(_, _, _, _, fields) -> fields |> List.tail
-                      | _ -> Exception.raiseInternal "Invalid Expr" [])
+                      | e -> Exception.raiseInternal "Invalid Expr" [ "e", e ])
 
                   let! result =
                     Exe.executeFunction

@@ -1,7 +1,6 @@
 module Darklang =
   module LanguageTools =
     module Parser =
-      //CLEANUP: rename to CliScript, and stop reusing canvas stuff, make it more specific to cli scripts (eg. allow module declarations)
       module Canvas =
         type WTCanvasModule =
           { owner: String

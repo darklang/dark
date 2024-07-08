@@ -3,25 +3,76 @@ module BuiltinCliHost.Utils
 open Prelude
 
 module PT = LibExecution.ProgramTypes
+module RT = LibExecution.RuntimeTypes
+module VT = RT.ValueType
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module PackageIDs = LibExecution.PackageIDs
 
 open LibExecution.RuntimeTypes
 
 module CliScript =
+  type Definitions =
+    { types : List<PT.PackageType.PackageType>
+      constants : List<PT.PackageConstant.PackageConstant>
+      fns : List<PT.PackageFn.PackageFn> }
+
   type PTCliScriptModule =
     { // These will end up in the package manager
       types : List<PT.PackageType.PackageType>
       constants : List<PT.PackageConstant.PackageConstant>
       fns : List<PT.PackageFn.PackageFn>
-      submodules : PT.Packages //TODO
+      submodules : Definitions
       exprs : List<PT.Expr> }
 
   let typeName =
     FQTypeName.fqPackage
       PackageIDs.Type.LanguageTools.Parser.CliScript.pTCliScriptModule
 
-  //TODO: toDT
+  let packageType =
+    FQTypeName.fqPackage
+      PackageIDs.Type.LanguageTools.ProgramTypes.PackageType.packageType
+  let packageConstant =
+    FQTypeName.fqPackage
+      PackageIDs.Type.LanguageTools.ProgramTypes.PackageConstant.packageConstant
+  let packageFn =
+    FQTypeName.fqPackage
+      PackageIDs.Type.LanguageTools.ProgramTypes.PackageFn.packageFn
+
+  let submoduleToDT (m : Definitions) : Dval =
+    let fields =
+      [ "types",
+        DList(
+          VT.customType packageType [],
+          m.types |> List.map PT2DT.PackageType.toDT
+        )
+        "constants",
+        DList(
+          VT.customType packageConstant [],
+          m.constants |> List.map PT2DT.PackageConstant.toDT
+        )
+        "fns",
+        DList(VT.customType packageFn [], m.fns |> List.map PT2DT.PackageFn.toDT) ]
+
+    DRecord(typeName, typeName, [], Map fields)
+
+  let toDT (m : PTCliScriptModule) : Dval =
+    let fields =
+      [ "types",
+        DList(
+          VT.customType packageType [],
+          m.types |> List.map PT2DT.PackageType.toDT
+        )
+        "constants",
+        DList(
+          VT.customType packageConstant [],
+          m.constants |> List.map PT2DT.PackageConstant.toDT
+        )
+        "fns",
+        DList(VT.customType packageFn [], m.fns |> List.map PT2DT.PackageFn.toDT)
+        "submodules", m.submodules |> submoduleToDT
+        "exprs", DList(VT.unknownTODO, m.exprs |> List.map PT2DT.Expr.toDT) ]
+
+    DRecord(typeName, typeName, [], Map fields)
 
   let fromDT (d : Dval) : PTCliScriptModule =
     match d with
@@ -45,7 +96,7 @@ module CliScript =
         | Some(DList(_, exprs)) -> List.map (fun e -> e |> PT2DT.Expr.fromDT) exprs
         | _ -> []
 
-      let submodules : PT.Packages =
+      let submodules : Definitions =
         match Map.tryFind "submodules" fields with
         | Some(DList(_, submodules)) ->
           let types =
