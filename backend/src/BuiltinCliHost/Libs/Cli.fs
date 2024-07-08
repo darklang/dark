@@ -87,7 +87,7 @@ let builtinsToUse : RT.Builtins =
 
 let execute
   (parentState : RT.ExecutionState)
-  (mod' : Utils.Canvas.PTCanvasModule)
+  (mod' : Utils.CliScript.PTCliScriptModule)
   (symtable : Map<string, RT.Dval>)
   : Ply<Result<RT.Dval, Option<CallStack> * RuntimeError>> =
   uply {
@@ -97,12 +97,23 @@ let execute
         secrets = []
         dbs = Map.empty }
 
+    let types =
+      List.concat
+        [ mod'.types |> List.map PT2RT.PackageType.toRT
+          mod'.submodules.types |> List.map PT2RT.PackageType.toRT ]
+
+    let constants =
+      List.concat
+        [ mod'.constants |> List.map PT2RT.PackageConstant.toRT
+          mod'.submodules.constants |> List.map PT2RT.PackageConstant.toRT ]
+
+    let fns =
+      List.concat
+        [ mod'.fns |> List.map PT2RT.PackageFn.toRT
+          mod'.submodules.fns |> List.map PT2RT.PackageFn.toRT ]
+
     let packageManager =
-      PackageManager.withExtras
-        packageManagerRT
-        (mod'.types |> List.map PT2RT.PackageType.toRT)
-        (mod'.constants |> List.map PT2RT.PackageConstant.toRT)
-        (mod'.fns |> List.map PT2RT.PackageFn.toRT)
+      PackageManager.withExtras packageManagerRT types constants fns
 
     let tracing = Exe.noTracing (CallStack.fromEntryPoint Script)
 
@@ -164,7 +175,7 @@ let fns : List<BuiltInFn> =
 
             let name =
               RT.FQFnName.FQFnName.Package
-                PackageIDs.Fn.LanguageTools.Parser.Canvas.parseCanvas
+                PackageIDs.Fn.LanguageTools.Parser.CliScript.parseCliScript
 
             let pm =
               RT.FQFnName.FQFnName.Package
@@ -196,7 +207,7 @@ let fns : List<BuiltInFn> =
             let! parsedScript =
               uply {
                 match execResult with
-                | Ok dval -> return (Utils.Canvas.fromDT dval) |> Ok
+                | Ok dval -> return (Utils.CliScript.fromDT dval) |> Ok
                 | Error(_callStack, rte) ->
                   let! rteString = Exe.rteToString state rte
                   return

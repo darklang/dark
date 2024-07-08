@@ -1,97 +1,258 @@
 module Darklang =
   module LanguageTools =
     module Parser =
-      let updateUnparseableStuff
-        (result: WrittenTypes.SourceFile.SourceFile)
-        (e: WrittenTypes.Unparseable)
-        : WrittenTypes.SourceFile.SourceFile =
-        { result with
-            unparseableStuff = Stdlib.List.pushBack result.unparseableStuff e }
+      module CliScript =
+        type WTCliScriptModule =
+          { owner: String
+            name: String
+            types: List<LanguageTools.WrittenTypes.TypeReference.TypeReference>
+            constants:
+              List<LanguageTools.WrittenTypes.ConstantDeclaration.ConstantDeclaration>
+            fns: List<LanguageTools.WrittenTypes.FnDeclaration.FnDeclaration>
+            submodules:
+              List<LanguageTools.WrittenTypes.ModuleDeclaration.ModuleDeclaration>
+            exprs: List<LanguageTools.WrittenTypes.Expr> }
 
-      let parseDeclaration
-        (result: Stdlib.Result.Result<WrittenTypes.SourceFile.SourceFile, String>)
-        (decl: ParsedNode)
-        : Stdlib.Result.Result<WrittenTypes.SourceFile.SourceFile, String> =
-        Stdlib.Result.map result (fun result ->
-          match decl.typ with
-          | "type_decl" ->
-            match TypeDeclaration.parse decl with
-            | Error e -> updateUnparseableStuff result e
-            | Ok parsedTypeDef ->
-              let newType =
-                WrittenTypes.SourceFile.SourceFileDeclaration.Type parsedTypeDef
+        type PTCliScriptModule =
+          { types: List<LanguageTools.ProgramTypes.PackageType.PackageType>
+            constants:
+              List<LanguageTools.ProgramTypes.PackageConstant.PackageConstant>
+            fns: List<LanguageTools.ProgramTypes.PackageFn.PackageFn>
+            submodules: List<LanguageTools.ProgramTypes.Definitions>
+            exprs: List<LanguageTools.ProgramTypes.Expr> }
 
-              { result with
-                  declarations = Stdlib.List.pushBack result.declarations newType }
+        let parseDecls
+          (owner: String)
+          (canvasName: String)
+          (source: LanguageTools.WrittenTypes.ParsedFile)
+          : Stdlib.Result.Result<WTCliScriptModule, String> =
+          match source with
+          | SourceFile source ->
+            let types =
+              source.declarations
+              |> Stdlib.List.filterMap (fun decl ->
+                match decl with
+                | Type t -> Stdlib.Option.Option.Some t
+                | _ -> Stdlib.Option.Option.None)
 
-          | "fn_decl" ->
-            match FunctionDeclaration.parse decl with
-            | Error e -> updateUnparseableStuff result e
+            let constants =
+              source.declarations
+              |> Stdlib.List.filterMap (fun decl ->
+                match decl with
+                | Constant c -> Stdlib.Option.Option.Some c
+                | _ -> Stdlib.Option.Option.None)
 
-            | Ok parsedFnDecl ->
-              let newFn =
-                WrittenTypes.SourceFile.SourceFileDeclaration.Function parsedFnDecl
+            let fns =
+              source.declarations
+              |> Stdlib.List.filterMap (fun decl ->
+                match decl with
+                | Function f -> Stdlib.Option.Option.Some f
+                | _ -> Stdlib.Option.Option.None)
 
-              { result with
-                  declarations = Stdlib.List.pushBack result.declarations newFn }
+            let submodules =
+              source.declarations
+              |> Stdlib.List.filterMap (fun decl ->
+                match decl with
+                | Module m -> Stdlib.Option.Option.Some m
+                | _ -> Stdlib.Option.Option.None)
 
-          | "const_decl" ->
-            match ConstantDeclaration.parse decl with
-            | Error e -> updateUnparseableStuff result e
+            let exprs = source.exprsToEval
 
-            | Ok parsedConstDecl ->
-              let newConst =
-                WrittenTypes.SourceFile.SourceFileDeclaration.Constant
-                  parsedConstDecl
+            Stdlib.Result.Result.Ok(
+              WTCliScriptModule
+                { owner = owner
+                  name = canvasName
+                  types = types
+                  constants = constants
+                  fns = fns
+                  submodules = submodules
+                  exprs = exprs }
+            )
 
-              { result with
-                  declarations = Stdlib.List.pushBack result.declarations newConst }
+          | _ -> Stdlib.Result.Result.Error "Invalid source file"
 
-          | "expression" ->
-            match Expr.parse decl with
-            | Error e -> updateUnparseableStuff result e
-            | Ok parsedExpr ->
-              { result with
-                  exprsToEval = Stdlib.List.pushBack result.exprsToEval parsedExpr }
 
-          | "module_decl" ->
-            match ModuleDeclaration.parse decl with
-            | Error e -> updateUnparseableStuff result e
-            | Ok parsedModuleDecl ->
-              let newModule =
-                WrittenTypes.SourceFile.SourceFileDeclaration.Module
-                  parsedModuleDecl
+        let toPT
+          (onMissing: NameResolver.OnMissing)
+          (pm: ProgramTypes.PackageManager.PackageManager)
+          (wt: WTCliScriptModule)
+          : PTCliScriptModule =
+          let types =
+            wt.types
+            |> Stdlib.List.map (fun t ->
+              LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT
+                onMissing
+                pm
+                wt.owner
+                []
+                t)
 
-              { result with
-                  declarations = Stdlib.List.pushBack result.declarations newModule }
-          | _ ->
-            updateUnparseableStuff
-              result
-              (WrittenTypes.Unparseable
-                { source = decl
-                  note = Stdlib.Option.Option.None }))
+          let constants =
+            wt.constants
+            |> Stdlib.List.map (fun c ->
+              WrittenTypesToProgramTypes.ConstantDeclaration.toPackageConstPT
+                onMissing
+                pm
+                wt.owner
+                []
+                c)
 
-      /// Map a ParsedNode to a WrittenTypes.ParsedFile
-      ///
-      /// This is the entrypoint for mapping a ParsedNode to WrittenTypes
-      let parseFromTree
-        (node: ParsedNode)
-        : Stdlib.Result.Result<WrittenTypes.ParsedFile, String> =
-        if node.typ == "source_file" then
-          let init =
-            WrittenTypes.SourceFile.SourceFile
-              { range = node.range
-                declarations = []
-                unparseableStuff = []
-                exprsToEval = [] }
+          let fns =
+            wt.fns
+            |> Stdlib.List.map (fun f ->
+              WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT
+                onMissing
+                pm
+                wt.owner
+                []
+                f)
 
-          let result =
-            Stdlib.List.fold
-              node.children
-              (Stdlib.Result.Result.Ok init)
-              Parser.parseDeclaration
+          let submodules =
+            wt.submodules
+            |> Stdlib.List.map (fun m ->
+              WrittenTypesToProgramTypes.ModuleDeclaration.submoduleToPT
+                onMissing
+                pm
+                wt.owner
+                []
+                m)
 
-          Stdlib.Result.map result (fun parsedResult ->
-            WrittenTypes.ParsedFile.SourceFile parsedResult)
-        else
-          Stdlib.Result.Result.Error $"Not a source_file: {node.typ}"
+          let exprs =
+            wt.exprs
+            |> Stdlib.List.map (fun e ->
+              LanguageTools.WrittenTypesToProgramTypes.Expr.toPT onMissing pm e)
+
+          PTCliScriptModule
+            { types = types
+              constants = constants
+              fns = fns
+              submodules = submodules
+              exprs = exprs }
+
+
+        let parse
+          (owner: String)
+          (canvasName: String)
+          (onMissing: NameResolver.OnMissing)
+          (pm: ProgramTypes.PackageManager.PackageManager)
+          (filename: String)
+          (source: String)
+          : PTCliScriptModule =
+          let parsedFile = source |> LanguageTools.Parser.ParserTest.initialParse
+          let moduleWT = (parseDecls owner canvasName parsedFile) |> Builtin.unwrap
+          let initialParse = toPT onMissing pm moduleWT
+
+          let types =
+            Stdlib.List.append
+              initialParse.types
+              (initialParse.submodules
+               |> Stdlib.List.map (fun m -> m.types)
+               |> Stdlib.List.flatten)
+
+          let constants =
+            Stdlib.List.append
+              initialParse.constants
+              (initialParse.submodules
+               |> Stdlib.List.map (fun m -> m.constants)
+               |> Stdlib.List.flatten)
+
+          let fns =
+            Stdlib.List.append
+              initialParse.fns
+              (initialParse.submodules
+               |> Stdlib.List.map (fun m -> m.fns)
+               |> Stdlib.List.flatten)
+
+          let pm =
+            ProgramTypes.PackageManager.withExtras
+              pm
+              initialParse.types
+              initialParse.constants
+              fns
+
+          let result = toPT onMissing pm moduleWT
+
+          let adjusted =
+            PTCliScriptModule
+              { types =
+                  result.types
+                  |> Stdlib.List.map (fun t ->
+                    { t with
+                        id =
+                          initialParse.types
+                          |> Stdlib.List.findFirst (fun original ->
+                            original.name == t.name)
+                          |> Stdlib.Option.mapWithDefault t.id (fun original ->
+                            original.id) })
+
+                constants =
+                  result.constants
+                  |> Stdlib.List.map (fun c ->
+                    { c with
+                        id =
+                          initialParse.constants
+                          |> Stdlib.List.findFirst (fun original ->
+                            original.name == c.name)
+                          |> Stdlib.Option.mapWithDefault c.id (fun original ->
+                            original.id) })
+
+                fns =
+                  result.fns
+                  |> Stdlib.List.map (fun f ->
+                    { f with
+                        id =
+                          initialParse.fns
+                          |> Stdlib.List.findFirst (fun original ->
+                            original.name == f.name)
+                          |> Stdlib.Option.mapWithDefault f.id (fun original ->
+                            original.id) })
+
+                submodules =
+                  result.submodules
+                  |> Stdlib.List.map (fun submodule ->
+                    { submodule with
+                        types =
+                          submodule.types
+                          |> Stdlib.List.map (fun t ->
+                            { t with
+                                id =
+                                  initialParse.submodules
+                                  |> Stdlib.List.map (fun m -> m.types)
+                                  |> Stdlib.List.flatten
+                                  |> Stdlib.List.findFirst (fun original ->
+                                    original.name == t.name)
+                                  |> Stdlib.Option.mapWithDefault
+                                    t.id
+                                    (fun original -> original.id) })
+
+                        constants =
+                          submodule.constants
+                          |> Stdlib.List.map (fun c ->
+                            { c with
+                                id =
+                                  initialParse.submodules
+                                  |> Stdlib.List.map (fun m -> m.constants)
+                                  |> Stdlib.List.flatten
+                                  |> Stdlib.List.findFirst (fun original ->
+                                    original.name == c.name)
+                                  |> Stdlib.Option.mapWithDefault
+                                    c.id
+                                    (fun original -> original.id) })
+
+                        fns =
+                          submodule.fns
+                          |> Stdlib.List.map (fun f ->
+                            { f with
+                                id =
+                                  initialParse.submodules
+                                  |> Stdlib.List.map (fun m -> m.fns)
+                                  |> Stdlib.List.flatten
+                                  |> Stdlib.List.findFirst (fun original ->
+                                    original.name == f.name)
+                                  |> Stdlib.Option.mapWithDefault
+                                    f.id
+                                    (fun original -> original.id) }) })
+
+                exprs = result.exprs }
+
+          adjusted

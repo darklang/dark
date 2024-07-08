@@ -1,0 +1,97 @@
+module Darklang =
+  module LanguageTools =
+    module Parser =
+      let updateUnparseableStuff
+        (result: WrittenTypes.SourceFile.SourceFile)
+        (e: WrittenTypes.Unparseable)
+        : WrittenTypes.SourceFile.SourceFile =
+        { result with
+            unparseableStuff = Stdlib.List.pushBack result.unparseableStuff e }
+
+      let parseDeclaration
+        (result: Stdlib.Result.Result<WrittenTypes.SourceFile.SourceFile, String>)
+        (decl: ParsedNode)
+        : Stdlib.Result.Result<WrittenTypes.SourceFile.SourceFile, String> =
+        Stdlib.Result.map result (fun result ->
+          match decl.typ with
+          | "type_decl" ->
+            match TypeDeclaration.parse decl with
+            | Error e -> updateUnparseableStuff result e
+            | Ok parsedTypeDef ->
+              let newType =
+                WrittenTypes.SourceFile.SourceFileDeclaration.Type parsedTypeDef
+
+              { result with
+                  declarations = Stdlib.List.pushBack result.declarations newType }
+
+          | "fn_decl" ->
+            match FunctionDeclaration.parse decl with
+            | Error e -> updateUnparseableStuff result e
+
+            | Ok parsedFnDecl ->
+              let newFn =
+                WrittenTypes.SourceFile.SourceFileDeclaration.Function parsedFnDecl
+
+              { result with
+                  declarations = Stdlib.List.pushBack result.declarations newFn }
+
+          | "const_decl" ->
+            match ConstantDeclaration.parse decl with
+            | Error e -> updateUnparseableStuff result e
+
+            | Ok parsedConstDecl ->
+              let newConst =
+                WrittenTypes.SourceFile.SourceFileDeclaration.Constant
+                  parsedConstDecl
+
+              { result with
+                  declarations = Stdlib.List.pushBack result.declarations newConst }
+
+          | "expression" ->
+            match Expr.parse decl with
+            | Error e -> updateUnparseableStuff result e
+            | Ok parsedExpr ->
+              { result with
+                  exprsToEval = Stdlib.List.pushBack result.exprsToEval parsedExpr }
+
+          | "module_decl" ->
+            match ModuleDeclaration.parse decl with
+            | Error e -> updateUnparseableStuff result e
+            | Ok parsedModuleDecl ->
+              let newModule =
+                WrittenTypes.SourceFile.SourceFileDeclaration.Module
+                  parsedModuleDecl
+
+              { result with
+                  declarations = Stdlib.List.pushBack result.declarations newModule }
+          | _ ->
+            updateUnparseableStuff
+              result
+              (WrittenTypes.Unparseable
+                { source = decl
+                  note = Stdlib.Option.Option.None }))
+
+      /// Map a ParsedNode to a WrittenTypes.ParsedFile
+      ///
+      /// This is the entrypoint for mapping a ParsedNode to WrittenTypes
+      let parseFromTree
+        (node: ParsedNode)
+        : Stdlib.Result.Result<WrittenTypes.ParsedFile, String> =
+        if node.typ == "source_file" then
+          let init =
+            WrittenTypes.SourceFile.SourceFile
+              { range = node.range
+                declarations = []
+                unparseableStuff = []
+                exprsToEval = [] }
+
+          let result =
+            Stdlib.List.fold
+              node.children
+              (Stdlib.Result.Result.Ok init)
+              Parser.parseDeclaration
+
+          Stdlib.Result.map result (fun parsedResult ->
+            WrittenTypes.ParsedFile.SourceFile parsedResult)
+        else
+          Stdlib.Result.Result.Error $"Not a source_file: {node.typ}"
