@@ -183,6 +183,13 @@ module.exports = grammar({
     // e.g. `type Person = { name: String; age: Int }`
     // TODO: allow multi-line records where a newline is 'interpreted' as a record delimiter (i.e. no ; needed)
     type_decl_def_record: $ =>
+      // CLEANUP consider supporting a mixed mode of these choices:
+      // ```
+      // type MyRecord =
+      //   { a: Bool; b: Bool
+      //     c: Bool }
+      // ```
+      // F#, for example, allows this
       choice(
         seq(
           field("symbol_open_brace", alias("{", $.symbol)),
