@@ -38,8 +38,7 @@ let emptyRootWTModule owner canvasName =
     exprs = [] }
 
 type PTCanvasModule =
-  { // These will end up in the package manager
-    types : List<PT.PackageType.PackageType>
+  { types : List<PT.PackageType.PackageType>
     constants : List<PT.PackageConstant.PackageConstant>
     fns : List<PT.PackageFn.PackageFn>
 

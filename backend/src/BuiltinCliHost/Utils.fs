@@ -17,8 +17,7 @@ module CliScript =
       fns : List<PT.PackageFn.PackageFn> }
 
   type PTCliScriptModule =
-    { // These will end up in the package manager
-      types : List<PT.PackageType.PackageType>
+    { types : List<PT.PackageType.PackageType>
       constants : List<PT.PackageConstant.PackageConstant>
       fns : List<PT.PackageFn.PackageFn>
       submodules : Definitions
@@ -81,20 +80,26 @@ module CliScript =
         match Map.tryFind "types" fields with
         | Some(DList(_, types)) ->
           List.map (fun t -> t |> PT2DT.PackageType.fromDT) types
-        | _ -> []
+        | _ ->
+          Exception.raiseInternal "Invalid PTCliScriptModule, missing types field" []
       let constants =
         match Map.tryFind "constants" fields with
         | Some(DList(_, constants)) ->
           List.map (fun c -> c |> PT2DT.PackageConstant.fromDT) constants
-        | _ -> []
+        | _ ->
+          Exception.raiseInternal
+            "Invalid PTCliScriptModule, missing constants field"
+            []
       let fns =
         match Map.tryFind "fns" fields with
         | Some(DList(_, fns)) -> List.map (fun f -> f |> PT2DT.PackageFn.fromDT) fns
-        | _ -> []
+        | _ ->
+          Exception.raiseInternal "Invalid PTCliScriptModule, missing fns field" []
       let exprs =
         match Map.tryFind "exprs" fields with
         | Some(DList(_, exprs)) -> List.map (fun e -> e |> PT2DT.Expr.fromDT) exprs
-        | _ -> []
+        | _ ->
+          Exception.raiseInternal "Invalid PTCliScriptModule, missing exprs field" []
 
       let submodules : Definitions =
         match Map.tryFind "submodules" fields with
@@ -107,8 +112,14 @@ module CliScript =
                 match Map.tryFind "types" m with
                 | Some(DList(_, types)) ->
                   List.map (fun t -> t |> PT2DT.PackageType.fromDT) types
-                | _ -> []
-              | _ -> [])
+                | _ ->
+                  Exception.raiseInternal
+                    "Invalid PTCliScriptModule, missing types field in submodule"
+                    []
+              | _ ->
+                Exception.raiseInternal
+                  "Invalid PTCliScriptModule, submodules field should be a record"
+                  [])
             |> List.concat
 
           let constants =
@@ -119,8 +130,14 @@ module CliScript =
                 match Map.tryFind "constants" m with
                 | Some(DList(_, constants)) ->
                   List.map (fun c -> c |> PT2DT.PackageConstant.fromDT) constants
-                | _ -> []
-              | _ -> [])
+                | _ ->
+                  Exception.raiseInternal
+                    "Invalid PTCliScriptModule, missing constants field in submodule"
+                    []
+              | _ ->
+                Exception.raiseInternal
+                  "Invalid PTCliScriptModule, submodules field should be a record"
+                  [])
             |> List.concat
 
           let fns =
@@ -131,12 +148,21 @@ module CliScript =
                 match Map.tryFind "fns" m with
                 | Some(DList(_, fns)) ->
                   List.map (fun f -> f |> PT2DT.PackageFn.fromDT) fns
-                | _ -> []
-              | _ -> [])
+                | _ ->
+                  Exception.raiseInternal
+                    "Invalid PTCliScriptModule, missing fns field in submodule"
+                    []
+              | _ ->
+                Exception.raiseInternal
+                  "Invalid PTCliScriptModule, submodules field should be a record"
+                  [])
             |> List.concat
 
           { types = types; constants = constants; fns = fns }
-        | _ -> { types = []; constants = []; fns = [] }
+        | _ ->
+          Exception.raiseInternal
+            "Invalid PTCliScriptModule, missing submodules field"
+            []
 
       { types = types
         constants = constants

@@ -33,6 +33,7 @@ module Darklang =
           Builtin.packageManagerGetFn id
 
 
+      // CLEANUP: update this to a constant rather than a function, once we have support for constant records
       let pm () : ProgramTypes.PackageManager.PackageManager =
         ProgramTypes.PackageManager.PackageManager
           { findType = PackageManager.Type.find
