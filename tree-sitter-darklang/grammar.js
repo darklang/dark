@@ -790,10 +790,12 @@ module.exports = grammar({
         field("keyword_let", alias("let", $.keyword)),
         field("identifier", $.variable_identifier),
         field("symbol_equals", alias("=", $.symbol)),
-        field("expr", $.expression),
-        "\n",
+        choice(seq(field("expr", $.expression), "\n"), $.indented_block),
         field("body", $.expression),
       ),
+
+    indented_block: $ =>
+      seq($.indent, field("expr", $.expression), $.dedent, optional("\n")),
 
     // ---------------------
     // Pipe expressions

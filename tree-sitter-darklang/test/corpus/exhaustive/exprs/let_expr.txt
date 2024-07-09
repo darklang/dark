@@ -1,0 +1,176 @@
+==================
+simple let_expression
+==================
+
+let x = 1L
+x
+
+---
+
+(source_file
+  (expression
+    (let_expression
+      (keyword) (variable_identifier) (symbol)
+      (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+      (expression (simple_expression (variable_identifier)))
+    )
+  )
+)
+
+
+==================
+simple let_expression -with indent
+==================
+
+let x =
+  1L
+x
+
+---
+
+(source_file
+  (expression
+    (let_expression
+      (keyword) (variable_identifier) (symbol)
+      (indented_block
+        (indent)
+        (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+        (dedent)
+      )
+      (expression (simple_expression (variable_identifier)))
+    )
+  )
+)
+
+
+
+==================
+let expression with pipes -inline
+==================
+
+let x = 1L |> Stdlib.Option.Option.Some
+x
+
+---
+
+(source_file
+  (expression
+    (let_expression
+      (keyword) (variable_identifier) (symbol)
+      (expression
+        (pipe_expression
+          (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+          (pipe_exprs
+            (symbol)
+            (pipe_expr
+              (pipe_enum
+                (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier))
+                (symbol) (enum_case_identifier)
+              )
+            )
+          )
+        )
+      )
+      (expression (simple_expression (variable_identifier)))
+    )
+  )
+)
+
+
+==================
+let expression with one pipe -indented
+==================
+
+let x =
+  1L
+  |> Stdlib.Option.Option.Some
+x
+
+---
+
+(source_file
+  (expression
+    (let_expression
+      (keyword) (variable_identifier) (symbol)
+      (indented_block
+        (indent)
+        (expression
+          (pipe_expression
+            (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+            (pipe_exprs
+              (symbol)
+              (pipe_expr
+                (pipe_enum
+                  (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier))
+                  (symbol) (enum_case_identifier)
+                )
+              )
+            )
+          )
+        )
+        (dedent)
+      )
+      (expression (simple_expression (variable_identifier)))
+    )
+  )
+)
+
+
+==================
+let expression with multiple pipes -indented
+==================
+
+let wtTest =
+  testSource
+  |> LanguageTools.Parser.ParserTest.initialParse
+  |> Test.parseTest
+  |> Builtin.unwrap
+wtTest
+
+---
+
+(source_file
+  (expression
+    (let_expression
+      (keyword)
+      (variable_identifier)
+      (symbol)
+      (indented_block
+        (indent)
+        (expression
+          (pipe_expression
+            (expression
+              (pipe_expression
+                (expression
+                  (pipe_expression
+                    (expression (simple_expression (variable_identifier)))
+                    (pipe_exprs
+                      (symbol)
+                      (pipe_expr
+                        (pipe_fn_call
+                          (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+                        )
+                      )
+                    )
+                  )
+                )
+                (pipe_exprs
+                  (symbol)
+                  (pipe_expr (pipe_fn_call (qualified_fn_name (module_identifier) (symbol) (fn_identifier))))
+                )
+              )
+            )
+            (pipe_exprs
+              (symbol)
+              (pipe_expr
+                (pipe_fn_call (qualified_fn_name (module_identifier) (symbol) (fn_identifier)))
+              )
+            )
+          )
+        )
+        (dedent)
+      )
+      (expression (simple_expression (variable_identifier)))
+    )
+  )
+)
