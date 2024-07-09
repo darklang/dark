@@ -790,8 +790,10 @@ module.exports = grammar({
         field("keyword_let", alias("let", $.keyword)),
         field("identifier", $.variable_identifier),
         field("symbol_equals", alias("=", $.symbol)),
-        field("expr", $.expression),
-        "\n",
+        choice(
+          seq(field("expr", $.expression), "\n"),
+          seq($.indent, field("expr", $.expression), $.dedent, optional("\n")),
+        ),
         field("body", $.expression),
       ),
 
@@ -1106,7 +1108,12 @@ function enum_literal_base($, enum_fields) {
       field("type_name", $.qualified_type_name),
       field("symbol_dot", alias(".", $.symbol)),
       field("case_name", $.enum_case_identifier),
-      optional(field("enum_fields", enum_fields)),
+      optional(
+        choice(
+          seq($.indent, field("enum_fields", enum_fields), $.dedent),
+          field("enum_fields", enum_fields),
+        ),
+      ),
     ),
   );
 }

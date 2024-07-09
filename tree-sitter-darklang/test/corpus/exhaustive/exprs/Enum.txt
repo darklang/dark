@@ -141,3 +141,54 @@ Stdlib.Option.Option.Some 1L
   )
 )
 
+==================
+Enum - fully qualified with indented args
+==================
+
+Stdlib.Option.Option.Some
+  1L
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (enum_literal
+        (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier))
+        (symbol)
+        (enum_case_identifier)
+        (indent)
+        (enum_fields (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol)))))
+        (dedent)
+      )
+    )
+  )
+)
+
+
+
+==================
+Enum - with two args no parens and indented
+==================
+
+MyEnum.TwoArgs
+  1L
+  2L
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (enum_literal
+        (qualified_type_name (type_identifier)) (symbol) (enum_case_identifier)
+        (indent)
+        (enum_fields
+          (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+          (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+        )
+        (dedent)
+      )
+    )
+  )
+)

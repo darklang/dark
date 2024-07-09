@@ -697,6 +697,7 @@ let exprs =
       false
     // TODO: this is ugly
     t "simple let expr" "let x = 1L\n  x" "let x =\n  1L\nx" [] [] [] false
+    t "let expr with indent" "let x =\n  1L\nx" "let x =\n  1L\nx" [] [] [] false
 
     // field access
     t "field access 1" "person.name" "person.name" [] [] [] false
