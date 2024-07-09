@@ -32,11 +32,9 @@ x
   (expression
     (let_expression
       (keyword) (variable_identifier) (symbol)
-      (indented_block
-        (indent)
-        (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
-        (dedent)
-      )
+      (indent)
+      (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+      (dedent)
       (expression (simple_expression (variable_identifier)))
     )
   )
@@ -92,24 +90,22 @@ x
   (expression
     (let_expression
       (keyword) (variable_identifier) (symbol)
-      (indented_block
-        (indent)
-        (expression
-          (pipe_expression
-            (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
-            (pipe_exprs
-              (symbol)
-              (pipe_expr
-                (pipe_enum
-                  (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier))
-                  (symbol) (enum_case_identifier)
-                )
+      (indent)
+      (expression
+        (pipe_expression
+          (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+          (pipe_exprs
+            (symbol)
+            (pipe_expr
+              (pipe_enum
+                (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier))
+                (symbol) (enum_case_identifier)
               )
             )
           )
         )
-        (dedent)
       )
+      (dedent)
       (expression (simple_expression (variable_identifier)))
     )
   )
@@ -135,41 +131,39 @@ wtTest
       (keyword)
       (variable_identifier)
       (symbol)
-      (indented_block
-        (indent)
-        (expression
-          (pipe_expression
-            (expression
-              (pipe_expression
-                (expression
-                  (pipe_expression
-                    (expression (simple_expression (variable_identifier)))
-                    (pipe_exprs
-                      (symbol)
-                      (pipe_expr
-                        (pipe_fn_call
-                          (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
-                        )
+      (indent)
+      (expression
+        (pipe_expression
+          (expression
+            (pipe_expression
+              (expression
+                (pipe_expression
+                  (expression (simple_expression (variable_identifier)))
+                  (pipe_exprs
+                    (symbol)
+                    (pipe_expr
+                      (pipe_fn_call
+                        (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
                       )
                     )
                   )
                 )
-                (pipe_exprs
-                  (symbol)
-                  (pipe_expr (pipe_fn_call (qualified_fn_name (module_identifier) (symbol) (fn_identifier))))
-                )
               )
-            )
-            (pipe_exprs
-              (symbol)
-              (pipe_expr
-                (pipe_fn_call (qualified_fn_name (module_identifier) (symbol) (fn_identifier)))
+              (pipe_exprs
+                (symbol)
+                (pipe_expr (pipe_fn_call (qualified_fn_name (module_identifier) (symbol) (fn_identifier))))
               )
             )
           )
+          (pipe_exprs
+            (symbol)
+            (pipe_expr
+              (pipe_fn_call (qualified_fn_name (module_identifier) (symbol) (fn_identifier)))
+            )
+          )
         )
-        (dedent)
       )
+      (dedent)
       (expression (simple_expression (variable_identifier)))
     )
   )

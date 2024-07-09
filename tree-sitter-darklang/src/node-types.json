@@ -1421,36 +1421,6 @@
     }
   },
   {
-    "type": "indented_block",
-    "named": true,
-    "fields": {
-      "expr": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "expression",
-            "named": true
-          }
-        ]
-      }
-    },
-    "children": {
-      "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "dedent",
-          "named": true
-        },
-        {
-          "type": "indent",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
     "type": "infix_operation",
     "named": true,
     "fields": {
@@ -1824,7 +1794,7 @@
       },
       "expr": {
         "multiple": false,
-        "required": false,
+        "required": true,
         "types": [
           {
             "type": "expression",
@@ -1864,11 +1834,15 @@
       }
     },
     "children": {
-      "multiple": false,
+      "multiple": true,
       "required": false,
       "types": [
         {
-          "type": "indented_block",
+          "type": "dedent",
+          "named": true
+        },
+        {
+          "type": "indent",
           "named": true
         }
       ]
