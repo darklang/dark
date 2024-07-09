@@ -1108,7 +1108,12 @@ function enum_literal_base($, enum_fields) {
       field("type_name", $.qualified_type_name),
       field("symbol_dot", alias(".", $.symbol)),
       field("case_name", $.enum_case_identifier),
-      optional(field("enum_fields", enum_fields)),
+      optional(
+        choice(
+          seq($.indent, field("enum_fields", enum_fields), $.dedent),
+          field("enum_fields", enum_fields),
+        ),
+      ),
     ),
   );
 }
