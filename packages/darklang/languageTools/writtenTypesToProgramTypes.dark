@@ -17,12 +17,14 @@ module Darklang =
           let toPT
             (onMissing: NameResolver.OnMissing)
             (pm: ProgramTypes.PackageManager.PackageManager)
+            (currentModule: List<String>)
             (i: WrittenTypes.QualifiedTypeIdentifier)
             : (ProgramTypes.NameResolution<ProgramTypes.FQTypeName.FQTypeName> *
               List<WrittenTypes.TypeReference.TypeReference>)
             =
             let typeArgs =
-              Stdlib.List.map i.typeArgs (fun t -> TypeReference.toPT onMissing pm t)
+              Stdlib.List.map i.typeArgs (fun t ->
+                TypeReference.toPT onMissing pm currentModule t)
 
             let nameToResolve =
               Stdlib.List.append
@@ -33,7 +35,7 @@ module Darklang =
               NameResolver.TypeName.resolve
                 onMissing
                 pm
-                []
+                currentModule
                 (WrittenTypes.Name.Unresolved(i.range, nameToResolve))
 
             (typeName, typeArgs)
@@ -46,6 +48,7 @@ module Darklang =
           let toPT
             (onMissing: NameResolver.OnMissing)
             (pm: ProgramTypes.PackageManager.PackageManager)
+            (currentModule: List<String>)
             (c: WrittenTypes.QualifiedConstantIdentifier)
             : ProgramTypes.NameResolution<ProgramTypes.FQConstantName.FQConstantName> =
             let nameToResolve =
@@ -56,7 +59,7 @@ module Darklang =
             NameResolver.ConstantName.resolve
               onMissing
               pm
-              []
+              currentModule
               (WrittenTypes.Name.Unresolved(c.range, nameToResolve))
 
 
@@ -67,6 +70,7 @@ module Darklang =
           let toPT
             (onMissing: NameResolver.OnMissing)
             (pm: ProgramTypes.PackageManager.PackageManager)
+            (currentModule: List<String>)
             (i: WrittenTypes.QualifiedFnIdentifier)
             : ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName> =
             let nameToResolve =
@@ -77,7 +81,7 @@ module Darklang =
             NameResolver.FnName.resolve
               onMissing
               pm
-              []
+              currentModule
               (WrittenTypes.Name.Unresolved(i.range, nameToResolve))
 
 
@@ -86,6 +90,7 @@ module Darklang =
           let toPT
             (onMissing: NameResolver.OnMissing)
             (pm: ProgramTypes.PackageManager.PackageManager)
+            (currentModule: List<String>)
             (t: WrittenTypes.TypeReference.Builtin)
             : ProgramTypes.TypeReference =
             match t with
@@ -108,35 +113,38 @@ module Darklang =
             | TUuid _range -> ProgramTypes.TypeReference.TUuid
 
             | TList(_range, _, _, typ, _) ->
-              let typ = TypeReference.toPT onMissing pm typ
+              let typ = TypeReference.toPT onMissing pm currentModule typ
               ProgramTypes.TypeReference.TList(typ)
 
             | TDict(_range, _, _, valueType, _) ->
-              let valueType = TypeReference.toPT onMissing pm valueType
+              let valueType = TypeReference.toPT onMissing pm currentModule valueType
 
               ProgramTypes.TypeReference.TDict valueType
 
             | TTuple(_range, firstType, _, secondType, restTypes, _, _) ->
-              let firstType = TypeReference.toPT onMissing pm firstType
-              let secondType = TypeReference.toPT onMissing pm secondType
+              let firstType = TypeReference.toPT onMissing pm currentModule firstType
+
+              let secondType =
+                TypeReference.toPT onMissing pm currentModule secondType
 
               let restTypes =
                 Stdlib.List.map restTypes (fun (_, t) ->
-                  TypeReference.toPT onMissing pm t)
+                  TypeReference.toPT onMissing pm currentModule t)
 
               ProgramTypes.TypeReference.TTuple(firstType, secondType, restTypes)
 
             | TFn(_range, args, returnType) ->
               let args =
                 Stdlib.List.map args (fun (t, _) ->
-                  TypeReference.toPT onMissing pm t)
+                  TypeReference.toPT onMissing pm currentModule t)
 
-              let returnType = TypeReference.toPT onMissing pm returnType
+              let returnType =
+                TypeReference.toPT onMissing pm currentModule returnType
 
               ProgramTypes.TypeReference.TFn(args, returnType)
 
             | TDB(_range, _, _, typ, _) ->
-              let typ = TypeReference.toPT onMissing pm typ
+              let typ = TypeReference.toPT onMissing pm currentModule typ
               ProgramTypes.TypeReference.TDB typ
 
             | TVariable(_range, _, (_, name)) ->
@@ -145,12 +153,14 @@ module Darklang =
         let toPT
           (onMissing: NameResolver.OnMissing)
           (pm: ProgramTypes.PackageManager.PackageManager)
+          (currentModule: List<String>)
           (t: WrittenTypes.TypeReference.TypeReference)
           : ProgramTypes.TypeReference =
           match t with
-          | Builtin b -> Builtin.toPT onMissing pm b
+          | Builtin b -> Builtin.toPT onMissing pm currentModule b
           | QualifiedName qn ->
-            let (typeName, typeArgs) = Identifiers.QualifiedType.toPT onMissing pm qn
+            let (typeName, typeArgs) =
+              Identifiers.QualifiedType.toPT onMissing pm currentModule qn
 
             ProgramTypes.TypeReference.TCustomType(typeName, typeArgs)
 
@@ -263,16 +273,17 @@ module Darklang =
           let toPT
             (onMissing: NameResolver.OnMissing)
             (pm: ProgramTypes.PackageManager.PackageManager)
+            (currentModule: List<String>)
             (pipeExpr: WrittenTypes.PipeExpr)
             : ProgramTypes.PipeExpr =
             match pipeExpr with
             | EPipeInfix(_, (_, infix), right) ->
-              let right = Expr.toPT onMissing pm right
+              let right = Expr.toPT onMissing pm currentModule right
 
               ProgramTypes.PipeExpr.EPipeInfix(gid (), Infix.toPT infix, right)
 
             | EPipeLambda(_, pats, body, _, _) ->
-              let body = Expr.toPT onMissing pm body
+              let body = Expr.toPT onMissing pm currentModule body
               let pats = Stdlib.List.map pats (fun p -> LetPattern.toPT p)
 
               ProgramTypes.PipeExpr.EPipeLambda(gid (), pats, body)
@@ -283,10 +294,12 @@ module Darklang =
                 NameResolver.TypeName.resolve
                   onMissing
                   pm
-                  []
+                  currentModule
                   (WrittenTypes.Name.Unresolved sr typeName)
 
-              let fields = Stdlib.List.map fields (fun e -> Expr.toPT onMissing pm e)
+              let fields =
+                Stdlib.List.map fields (fun e ->
+                  Expr.toPT onMissing pm currentModule e)
 
               ProgramTypes.PipeExpr.EPipeEnum(gid (), typeName, caseName, fields)
 
@@ -300,13 +313,16 @@ module Darklang =
                 NameResolver.FnName.resolve
                   onMissing
                   pm
-                  []
+                  currentModule
                   (WrittenTypes.Name.Unresolved(range, name))
 
               let typeArgs =
-                Stdlib.List.map typeArgs (fun t -> TypeReference.toPT onMissing pm t)
+                Stdlib.List.map typeArgs (fun t ->
+                  TypeReference.toPT onMissing pm currentModule t)
 
-              let args = Stdlib.List.map args (fun a -> Expr.toPT onMissing pm a)
+              let args =
+                Stdlib.List.map args (fun a ->
+                  Expr.toPT onMissing pm currentModule a)
 
               match resolved with
               | Ok _ ->
@@ -319,6 +335,7 @@ module Darklang =
         let toPT
           (onMissing: NameResolver.OnMissing)
           (pm: ProgramTypes.PackageManager.PackageManager)
+          (currentModule: List<String>)
           (e: WrittenTypes.Expr)
           : ProgramTypes.Expr =
           match e with
@@ -353,7 +370,8 @@ module Darklang =
           | EList(_, contents, _, _) ->
             ProgramTypes.Expr.EList(
               gid (),
-              Stdlib.List.map contents (fun (expr, _) -> toPT onMissing pm expr)
+              Stdlib.List.map contents (fun (expr, _) ->
+                toPT onMissing pm currentModule expr)
             )
 
           | EDict(_, contents, _, _, _) ->
@@ -361,13 +379,15 @@ module Darklang =
               gid (),
               Stdlib.List.map contents (fun (_, k, v) ->
                 let (_, k) = k
-                (k, toPT onMissing pm v))
+                (k, toPT onMissing pm currentModule v))
             )
 
           | ETuple(_, first, _, second, rest, _, _) ->
-            let first = toPT onMissing pm first
-            let second = toPT onMissing pm second
-            let rest = Stdlib.List.map rest (fun (_, e) -> toPT onMissing pm e)
+            let first = toPT onMissing pm currentModule first
+            let second = toPT onMissing pm currentModule second
+
+            let rest =
+              Stdlib.List.map rest (fun (_, e) -> toPT onMissing pm currentModule e)
 
             ProgramTypes.Expr.ETuple(gid (), first, second, rest)
 
@@ -377,18 +397,18 @@ module Darklang =
             let fields =
               Stdlib.List.map fields (fun (_, name, typeName) ->
                 let fieldName = name |> Stdlib.Tuple2.second
-                (fieldName, toPT onMissing pm typeName))
+                (fieldName, toPT onMissing pm currentModule typeName))
 
             ProgramTypes.Expr.ERecord(gid (), typeName, fields)
 
           | ERecordUpdate(_, record, updates, _, _, _) ->
-            let record = toPT onMissing pm record
+            let record = toPT onMissing pm currentModule record
 
             let updates =
               updates
               |> Stdlib.List.map (fun (name, _, expr) ->
                 let name = name |> Stdlib.Tuple2.second
-                (name, toPT onMissing pm expr))
+                (name, toPT onMissing pm currentModule expr))
 
             ProgramTypes.Expr.ERecordUpdate(gid (), record, updates)
 
@@ -397,10 +417,12 @@ module Darklang =
               NameResolver.TypeName.resolve
                 onMissing
                 pm
-                []
+                currentModule
                 (WrittenTypes.Name.Unresolved sr typeName)
 
-            let fields = Stdlib.List.map fields (fun expr -> toPT onMissing pm expr)
+            let fields =
+              Stdlib.List.map fields (fun expr ->
+                toPT onMissing pm currentModule expr)
 
             ProgramTypes.Expr.EEnum(gid (), typeName, caseName, fields)
 
@@ -409,35 +431,43 @@ module Darklang =
             ProgramTypes.Expr.ELet(
               gid (),
               LetPattern.toPT pat,
-              toPT onMissing pm rhs,
-              toPT onMissing pm body
+              toPT onMissing pm currentModule rhs,
+              toPT onMissing pm currentModule body
             )
 
           | EVariable(range, var) ->
             let unresolved = WrittenTypes.Name.Unresolved(range, [ var ])
 
             let constant =
-              NameResolver.ConstantName.resolve onMissing pm [] unresolved
+              NameResolver.ConstantName.resolve onMissing pm currentModule unresolved
 
             match constant with
             | Ok _ -> ProgramTypes.Expr.EConstant(gid (), constant)
             | Error _ -> ProgramTypes.Expr.EVariable (gid ()) var
 
           | EConstant(_, c) ->
-            let constant = Identifiers.QualifiedConst.toPT onMissing pm c
+            let constant =
+              Identifiers.QualifiedConst.toPT onMissing pm currentModule c
+
             ProgramTypes.Expr.EConstant(gid (), constant)
 
           | EFieldAccess(_, expr, (_, fieldName), _) ->
-            ProgramTypes.Expr.EFieldAccess(gid (), toPT onMissing pm expr, fieldName)
+            ProgramTypes.Expr.EFieldAccess(
+              gid (),
+              toPT onMissing pm currentModule expr,
+              fieldName
+            )
 
           | EIf(_, cond, thenExpr, elseExpr, _, _, _) ->
             let elseExpr =
-              elseExpr |> Stdlib.Option.map (fun es -> Expr.toPT onMissing pm es)
+              elseExpr
+              |> Stdlib.Option.map (fun es ->
+                Expr.toPT onMissing pm currentModule es)
 
             ProgramTypes.Expr.EIf(
               gid (),
-              toPT onMissing pm cond,
-              toPT onMissing pm thenExpr,
+              toPT onMissing pm currentModule cond,
+              toPT onMissing pm currentModule thenExpr,
               elseExpr
             )
 
@@ -449,23 +479,33 @@ module Darklang =
 
                 let whenCondition =
                   case.whenCondition
-                  |> Stdlib.Option.map (fun (_, e) -> toPT onMissing pm e)
+                  |> Stdlib.Option.map (fun (_, e) ->
+                    toPT onMissing pm currentModule e)
 
-                let rhs = toPT onMissing pm case.rhs
+                let rhs = toPT onMissing pm currentModule case.rhs
 
                 ProgramTypes.MatchCase
                   { pat = pat
                     whenCondition = whenCondition
                     rhs = rhs })
 
-            ProgramTypes.Expr.EMatch(gid (), toPT onMissing pm expr, cases)
+            ProgramTypes.Expr.EMatch(
+              gid (),
+              toPT onMissing pm currentModule expr,
+              cases
+            )
 
           | EPipe(_, expr, pipeExpr) ->
             let pipeExpr =
               pipeExpr
-              |> Stdlib.List.map (fun (_, e) -> PipeExpr.toPT onMissing pm e)
+              |> Stdlib.List.map (fun (_, e) ->
+                PipeExpr.toPT onMissing pm currentModule e)
 
-            ProgramTypes.Expr.EPipe(gid (), toPT onMissing pm expr, pipeExpr)
+            ProgramTypes.Expr.EPipe(
+              gid (),
+              toPT onMissing pm currentModule expr,
+              pipeExpr
+            )
 
           // fn calls
           | EInfix(_, (_, op), left, right) ->
@@ -474,27 +514,31 @@ module Darklang =
             ProgramTypes.Expr.EInfix(
               gid (),
               infix,
-              toPT onMissing pm left,
-              toPT onMissing pm right
+              toPT onMissing pm currentModule left,
+              toPT onMissing pm currentModule right
             )
 
           | ELambda(_, pats, body, _, _) ->
             let pats = Stdlib.List.map pats (fun p -> LetPattern.toPT p)
-            let body = Expr.toPT onMissing pm body
+            let body = Expr.toPT onMissing pm currentModule body
 
             ProgramTypes.Expr.ELambda(gid (), pats, body)
 
           | EFnName(_, fnName) ->
-            let fnName = Identifiers.QualifiedFn.toPT onMissing pm fnName
+            let fnName =
+              Identifiers.QualifiedFn.toPT onMissing pm currentModule fnName
+
             ProgramTypes.Expr.EFnName(gid (), fnName)
 
           | EApply(_, fn, typeArgs, args) ->
-            let fn = toPT onMissing pm fn
+            let fn = toPT onMissing pm currentModule fn
 
             let typeArgs =
-              Stdlib.List.map typeArgs (fun t -> TypeReference.toPT onMissing pm t)
+              Stdlib.List.map typeArgs (fun t ->
+                TypeReference.toPT onMissing pm currentModule t)
 
-            let args = Stdlib.List.map args (fun a -> toPT onMissing pm a)
+            let args =
+              Stdlib.List.map args (fun a -> toPT onMissing pm currentModule a)
 
             ProgramTypes.Expr.EApply(gid (), fn, typeArgs, args)
 
@@ -624,7 +668,7 @@ module Darklang =
             |> Stdlib.List.filterMap (fun d ->
               match d with
               | Expr e ->
-                let expr = Expr.toPT onMissing pm e
+                let expr = Expr.toPT onMissing pm modules e
                 let modules = Stdlib.List.push modules owner
                 Stdlib.Option.Option.Some((expr, modules))
               | _ -> Stdlib.Option.Option.None)
@@ -707,7 +751,7 @@ module Darklang =
             |> Stdlib.List.filterMap (fun d ->
               match d with
               | Expr e ->
-                let expr = Expr.toPT onMissing pm e
+                let expr = Expr.toPT onMissing pm [] e
                 Stdlib.Option.Option.Some((expr, [ owner ]))
               | _ -> Stdlib.Option.Option.None)
 
@@ -723,25 +767,27 @@ module Darklang =
           let toPT
             (onMissing: NameResolver.OnMissing)
             (pm: ProgramTypes.PackageManager.PackageManager)
+            (currentModule: List<String>)
             (f: WrittenTypes.TypeDeclaration.RecordField)
             : ProgramTypes.TypeDeclaration.RecordField =
             let (_, name) = f.name
 
             ProgramTypes.TypeDeclaration.RecordField
               { name = name
-                typ = TypeReference.toPT onMissing pm f.typ
+                typ = TypeReference.toPT onMissing pm currentModule f.typ
                 description = "" }
 
         module EnumField =
           let toPT
             (onMissing: NameResolver.OnMissing)
             (pm: ProgramTypes.PackageManager.PackageManager)
+            (currentModule: List<String>)
             (f: WrittenTypes.TypeDeclaration.EnumField)
             : ProgramTypes.TypeDeclaration.EnumField =
             let label = f.label |> Stdlib.Option.map Stdlib.Tuple2.second
 
             ProgramTypes.TypeDeclaration.EnumField
-              { typ = TypeReference.toPT onMissing pm f.typ
+              { typ = TypeReference.toPT onMissing pm currentModule f.typ
                 label = label
                 description = "" }
 
@@ -749,12 +795,14 @@ module Darklang =
           let toPT
             (onMissing: NameResolver.OnMissing)
             (pm: ProgramTypes.PackageManager.PackageManager)
+            (currentModule: List<String>)
             (c: WrittenTypes.TypeDeclaration.EnumCase)
             : ProgramTypes.TypeDeclaration.EnumCase =
             let (_, name) = c.name
 
             let fields =
-              Stdlib.List.map c.fields (fun f -> EnumField.toPT onMissing pm f)
+              Stdlib.List.map c.fields (fun f ->
+                EnumField.toPT onMissing pm currentModule f)
 
             ProgramTypes.TypeDeclaration.EnumCase
               { name = name
@@ -765,33 +813,36 @@ module Darklang =
           let toPT
             (onMissing: NameResolver.OnMissing)
             (pm: ProgramTypes.PackageManager.PackageManager)
+            (currentModule: List<String>)
             (d: WrittenTypes.TypeDeclaration.Definition)
             : ProgramTypes.TypeDeclaration.Definition =
 
             match d with
             | Alias typ ->
-              let typ = TypeReference.toPT onMissing pm typ
+              let typ = TypeReference.toPT onMissing pm currentModule typ
               ProgramTypes.TypeDeclaration.Definition.Alias typ
 
             | Record fields ->
               let fields =
                 Stdlib.List.map fields (fun (f, _) ->
-                  RecordField.toPT onMissing pm f)
+                  RecordField.toPT onMissing pm currentModule f)
 
               ProgramTypes.TypeDeclaration.Definition.Record fields
 
             | Enum cases ->
               let cases =
-                Stdlib.List.map cases (fun (_, c) -> EnumCase.toPT onMissing pm c)
+                Stdlib.List.map cases (fun (_, c) ->
+                  EnumCase.toPT onMissing pm currentModule c)
 
               ProgramTypes.TypeDeclaration.Definition.Enum cases
 
         let toPT
           (onMissing: NameResolver.OnMissing)
           (pm: ProgramTypes.PackageManager.PackageManager)
+          (currentModule: List<String>)
           (d: WrittenTypes.TypeDeclaration.TypeDeclaration)
           : ProgramTypes.TypeDeclaration.TypeDeclaration =
-          let def = Definition.toPT onMissing pm d.definition
+          let def = Definition.toPT onMissing pm currentModule d.definition
 
           ProgramTypes.TypeDeclaration.TypeDeclaration
             { typeParams =
@@ -815,7 +866,7 @@ module Darklang =
                     modules = modules
                     name = d.name.name }
               description = ""
-              declaration = toPT onMissing pm d
+              declaration = toPT onMissing pm modules d
               deprecated = ProgramTypes.Deprecation.NotDeprecated }
 
 
@@ -844,6 +895,7 @@ module Darklang =
           let toPackageFnParamPT
             (onMissing: NameResolver.OnMissing)
             (pm: ProgramTypes.PackageManager.PackageManager)
+            (currentModule: List<String>)
             (p: WrittenTypes.FnDeclaration.Parameter)
             : ProgramTypes.PackageFn.Parameter =
 
@@ -857,7 +909,7 @@ module Darklang =
             | Normal p ->
               ProgramTypes.PackageFn.Parameter
                 { name = p.name.name
-                  typ = TypeReference.toPT onMissing pm p.typ
+                  typ = TypeReference.toPT onMissing pm currentModule p.typ
                   description = "" }
 
         let toPackageFnPT
@@ -869,6 +921,8 @@ module Darklang =
           : ProgramTypes.PackageFn.PackageFn =
           let typeParams =
             fn.typeParams |> Stdlib.List.map (fun p -> p |> Stdlib.Tuple2.second)
+
+          let currentModule = Stdlib.List.append [ owner ] modules
 
           ProgramTypes.PackageFn.PackageFn
             // TODO: when relevant, use PacakgeIDs defined in F# land
@@ -882,11 +936,12 @@ module Darklang =
               parameters =
                 fn.parameters
                 |> Stdlib.List.map (fun p ->
-                  Parameter.toPackageFnParamPT onMissing pm p)
-              returnType = TypeReference.toPT onMissing pm fn.returnType
+                  Parameter.toPackageFnParamPT onMissing pm currentModule p)
+              returnType =
+                TypeReference.toPT onMissing pm currentModule fn.returnType
               description = ""
               deprecated = ProgramTypes.Deprecation.NotDeprecated
-              body = Expr.toPT onMissing pm fn.body }
+              body = Expr.toPT onMissing pm currentModule fn.body }
 
 
       let sourceFile
@@ -937,7 +992,7 @@ module Darklang =
             exprsToEval =
               source.exprsToEval
               |> Stdlib.List.map (fun e ->
-                Expr.toPT NameResolver.OnMissing.Allow pm e) }
+                Expr.toPT NameResolver.OnMissing.Allow pm [] e) }
 
 
       let parsedFileAsSourceFile

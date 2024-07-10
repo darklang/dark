@@ -84,7 +84,7 @@ module Darklang =
                 onMissing
                 pm
                 wt.owner
-                []
+                [ wt.name ]
                 t)
 
           let constants =
@@ -94,7 +94,7 @@ module Darklang =
                 onMissing
                 pm
                 wt.owner
-                []
+                [ wt.name ]
                 c)
 
           let fns =
@@ -104,7 +104,7 @@ module Darklang =
                 onMissing
                 pm
                 wt.owner
-                []
+                [ wt.name ]
                 f)
 
           let submodules =
@@ -114,13 +114,17 @@ module Darklang =
                 onMissing
                 pm
                 wt.owner
-                []
+                [ wt.name ]
                 m)
 
           let exprs =
             wt.exprs
             |> Stdlib.List.map (fun e ->
-              LanguageTools.WrittenTypesToProgramTypes.Expr.toPT onMissing pm e)
+              LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
+                onMissing
+                pm
+                [ wt.owner; wt.name ]
+                e)
 
           PTCliScriptModule
             { types = types

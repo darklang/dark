@@ -25,7 +25,7 @@ module Darklang =
 
           match exprs with
           | [ expr ] ->
-            (WrittenTypesToProgramTypes.Expr.toPT onMissing pm expr)
+            (WrittenTypesToProgramTypes.Expr.toPT onMissing pm [] expr)
             |> Stdlib.Result.Result.Ok
           | _ ->
             "Expected exactly one expression to be parsed"

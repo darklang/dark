@@ -173,16 +173,17 @@ let fns : List<BuiltInFn> =
             let onMissingAllow =
               RT.Dval.DEnum(onMissingType, onMissingType, [], "Allow", [])
 
-            let name =
-              RT.FQFnName.FQFnName.Package
-                PackageIDs.Fn.LanguageTools.Parser.CliScript.parseCliScript
-
-            let pm =
+            let getPmFnName =
               RT.FQFnName.FQFnName.Package
                 PackageIDs.Fn.LanguageTools.PackageManager.pm
 
             let! execResult =
-              Exe.executeFunction state pm [] (NEList.singleton RT.Dval.DUnit)
+              Exe.executeFunction
+                state
+                getPmFnName
+                []
+                (NEList.singleton RT.Dval.DUnit)
+
             let! pm =
               uply {
                 match execResult with
@@ -197,12 +198,17 @@ let fns : List<BuiltInFn> =
             let args =
               NEList.ofList
                 (RT.Dval.DString "CliScript")
-                [ RT.Dval.DString "CanvasName"
+                [ RT.Dval.DString "ScriptName"
                   onMissingAllow
                   pm
                   RT.Dval.DString filename
                   RT.Dval.DString code ]
-            let! execResult = Exe.executeFunction state name [] args
+
+            let parseCliScriptFnName =
+              RT.FQFnName.FQFnName.Package
+                PackageIDs.Fn.LanguageTools.Parser.CliScript.parseCliScript
+
+            let! execResult = Exe.executeFunction state parseCliScriptFnName [] args
 
             let! parsedScript =
               uply {

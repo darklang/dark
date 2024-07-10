@@ -63,12 +63,12 @@ module Darklang =
         : List<GenericName> =
         match Stdlib.List.splitLast modulesToPrepend with
         | None -> [ given ]
-        | Some(allButLast, _last) ->
+        | Some((allButLast, _last)) ->
           let newNameToTry =
             { given with
                 modules = Stdlib.List.append modulesToPrepend given.modules }
 
-          Stdlib.List.append [ newNameToTry ] (namesToTryHelper allButLast)
+          Stdlib.List.append [ newNameToTry ] (namesToTryHelper allButLast given)
 
 
       module TypeName =
@@ -293,9 +293,11 @@ module Darklang =
                     name = name
                     version = 0L }
 
+              let names = namesToTry currentModule genericName
+
               let result =
                 Stdlib.List.fold
-                  (namesToTry currentModule genericName)
+                  names
                   (err (RuntimeErrors.NameResolution.ErrorType.NotFound given))
                   (fun currentResult nameToTry ->
                     match currentResult with

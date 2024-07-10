@@ -101,7 +101,7 @@ module Darklang =
           let exprs =
             wt.exprs
             |> Stdlib.List.map (fun e ->
-              LanguageTools.WrittenTypesToProgramTypes.Expr.toPT onMissing pm e)
+              LanguageTools.WrittenTypesToProgramTypes.Expr.toPT onMissing pm [] e)
 
           PTCanvasModule
             { types = types
