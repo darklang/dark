@@ -123,7 +123,8 @@ module Darklang =
               LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
                 onMissing
                 pm
-                [ wt.owner; wt.name ]
+                wt.owner
+                [ wt.name ]
                 e)
 
           PTCliScriptModule

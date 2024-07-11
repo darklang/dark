@@ -67,7 +67,7 @@ module Darklang =
               | SourceFile source -> source.exprsToEval)
         |> Stdlib.List.flatten
         |> Stdlib.List.map (fun arg ->
-          LanguageTools.WrittenTypesToProgramTypes.Expr.toPT onMissing pm [] arg)
+          LanguageTools.WrittenTypesToProgramTypes.Expr.toPT onMissing pm "" [] arg)
 
       match Builtin.cliExecuteFunction fnName args with
       | Ok result ->

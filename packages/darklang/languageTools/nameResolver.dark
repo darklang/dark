@@ -40,6 +40,7 @@ module Darklang =
       /// - Option.Option
       /// , in that order (most specific first).
       let namesToTry
+        (owner: String)
         (currentModule: List<String>)
         (given: GenericName)
         : List<GenericName> =
@@ -53,6 +54,7 @@ module Darklang =
                   modules = Stdlib.List.append [ owner ] modules } ]
           | _ -> []
 
+        let currentModule = Stdlib.List.append [ owner ] currentModule
         Stdlib.List.append (namesToTryHelper currentModule given) addl
 
       // TODO we can do this without a helper function,
@@ -104,6 +106,7 @@ module Darklang =
         let resolve
           (onMissing: OnMissing)
           (pm: ProgramTypes.PackageManager.PackageManager)
+          (owner: String)
           (currentModule: List<String>)
           (name: WrittenTypes.Name)
           : ProgramTypes.NameResolution<ProgramTypes.FQTypeName.FQTypeName> =
@@ -128,7 +131,7 @@ module Darklang =
 
               let result =
                 Stdlib.List.fold
-                  (namesToTry currentModule genericName)
+                  (namesToTry owner currentModule genericName)
                   (err (RuntimeErrors.NameResolution.ErrorType.NotFound given))
                   (fun currentResult nameToTry ->
                     match currentResult with
@@ -189,6 +192,7 @@ module Darklang =
         let resolve
           (onMissing: OnMissing)
           (pm: ProgramTypes.PackageManager.PackageManager)
+          (owner: String)
           (currentModule: List<String>)
           (name: WrittenTypes.Name)
           : ProgramTypes.NameResolution<ProgramTypes.FQConstantName.FQConstantName> =
@@ -213,7 +217,7 @@ module Darklang =
 
               let result =
                 Stdlib.List.fold
-                  (namesToTry currentModule genericName)
+                  (namesToTry owner currentModule genericName)
                   (err (RuntimeErrors.NameResolution.ErrorType.NotFound given))
                   (fun currentResult nameToTry ->
                     match currentResult with
@@ -271,6 +275,7 @@ module Darklang =
         let resolve
           (onMissing: OnMissing)
           (pm: ProgramTypes.PackageManager.PackageManager)
+          (owner: String)
           (currentModule: List<String>)
           (name: WrittenTypes.Name)
           : ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName> =
@@ -293,7 +298,7 @@ module Darklang =
                     name = name
                     version = 0L }
 
-              let names = namesToTry currentModule genericName
+              let names = namesToTry owner currentModule genericName
 
               let result =
                 Stdlib.List.fold
