@@ -411,3 +411,62 @@ match true with
     )
   )
 )
+
+
+==================
+match expression - tuple
+==================
+
+match (name, value, keyword) with
+	| (Ok name, Ok value, Ok keyword) -> "success"
+	| _ -> "error"
+
+---
+
+(source_file
+  (expression
+    (match_expression
+      (keyword)
+      (expression
+        (tuple_literal
+          (symbol)
+          (expression (simple_expression (variable_identifier)))
+          (symbol)
+          (expression (simple_expression (variable_identifier)))
+          (tuple_literal_the_rest
+            (symbol)
+            (expression (simple_expression (variable_identifier)))
+          )
+          (symbol)
+        )
+      )
+      (keyword)
+      (match_case
+        (symbol)
+        (match_pattern
+          (tuple
+            (symbol)
+            (match_pattern
+              (enum (enum_case_identifier) (mp_enum_fields (match_pattern (variable))))
+            )
+            (symbol)
+            (match_pattern
+              (enum (enum_case_identifier) (mp_enum_fields (match_pattern (variable))))
+            )
+            (mp_tuple_the_rest
+              (symbol)
+              (match_pattern
+                (enum (enum_case_identifier) (mp_enum_fields (match_pattern (variable))))
+              )
+            )
+            (symbol)))
+        (symbol)
+        (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
+      )
+      (match_case
+        (symbol) (match_pattern (variable)) (symbol)
+        (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
+      )
+    )
+  )
+)

@@ -447,60 +447,60 @@ module TokenizeFunctionDeclaration =
                                                        (0L, 30L),
                                                        (0L, 31L)) ]
 
-  ("let add (a: Int64) (b: Int64) : Int64 = a + b" |> tokenize) = [ (TokenType.Keyword,
-                                                                     (0L, 0L),
-                                                                     (0L, 3L))
-                                                                    (TokenType.FunctionName,
-                                                                     (0L, 4L),
-                                                                     (0L, 7L))
-                                                                    (TokenType.Symbol,
-                                                                     (0L, 8L),
-                                                                     (0L, 9L))
-                                                                    (TokenType.ParameterName,
-                                                                     (0L, 9L),
-                                                                     (0L, 10L))
-                                                                    (TokenType.Symbol,
-                                                                     (0L, 10L),
-                                                                     (0L, 11L))
-                                                                    (TokenType.TypeName,
-                                                                     (0L, 12L),
-                                                                     (0L, 17L))
-                                                                    (TokenType.Symbol,
-                                                                     (0L, 17L),
-                                                                     (0L, 18L))
-                                                                    (TokenType.Symbol,
-                                                                     (0L, 19L),
-                                                                     (0L, 20L))
-                                                                    (TokenType.ParameterName,
-                                                                     (0L, 20L),
-                                                                     (0L, 21L))
-                                                                    (TokenType.Symbol,
-                                                                     (0L, 21L),
-                                                                     (0L, 22L))
-                                                                    (TokenType.TypeName,
-                                                                     (0L, 23L),
-                                                                     (0L, 28L))
-                                                                    (TokenType.Symbol,
-                                                                     (0L, 28L),
-                                                                     (0L, 29L))
-                                                                    (TokenType.Symbol,
-                                                                     (0L, 30L),
-                                                                     (0L, 31L))
-                                                                    (TokenType.TypeName,
-                                                                     (0L, 32L),
-                                                                     (0L, 37L))
-                                                                    (TokenType.Symbol,
-                                                                     (0L, 38L),
-                                                                     (0L, 39L))
-                                                                    (TokenType.VariableName,
-                                                                     (0L, 40L),
-                                                                     (0L, 41L))
-                                                                    (TokenType.Operator,
-                                                                     (0L, 42L),
-                                                                     (0L, 43L))
-                                                                    (TokenType.VariableName,
-                                                                     (0L, 44L),
-                                                                     (0L, 45L)) ]
+  ("let add (a: Int64) (b: Int64) : Int64 = (a + b)" |> tokenize) = [ (TokenType.Keyword,
+                                                                       (0L, 0L),
+                                                                       (0L, 3L))
+                                                                      (TokenType.FunctionName,
+                                                                       (0L, 4L),
+                                                                       (0L, 7L))
+                                                                      (TokenType.Symbol,
+                                                                       (0L, 8L),
+                                                                       (0L, 9L))
+                                                                      (TokenType.ParameterName,
+                                                                       (0L, 9L),
+                                                                       (0L, 10L))
+                                                                      (TokenType.Symbol,
+                                                                       (0L, 10L),
+                                                                       (0L, 11L))
+                                                                      (TokenType.TypeName,
+                                                                       (0L, 12L),
+                                                                       (0L, 17L))
+                                                                      (TokenType.Symbol,
+                                                                       (0L, 17L),
+                                                                       (0L, 18L))
+                                                                      (TokenType.Symbol,
+                                                                       (0L, 19L),
+                                                                       (0L, 20L))
+                                                                      (TokenType.ParameterName,
+                                                                       (0L, 20L),
+                                                                       (0L, 21L))
+                                                                      (TokenType.Symbol,
+                                                                       (0L, 21L),
+                                                                       (0L, 22L))
+                                                                      (TokenType.TypeName,
+                                                                       (0L, 23L),
+                                                                       (0L, 28L))
+                                                                      (TokenType.Symbol,
+                                                                       (0L, 28L),
+                                                                       (0L, 29L))
+                                                                      (TokenType.Symbol,
+                                                                       (0L, 30L),
+                                                                       (0L, 31L))
+                                                                      (TokenType.TypeName,
+                                                                       (0L, 32L),
+                                                                       (0L, 37L))
+                                                                      (TokenType.Symbol,
+                                                                       (0L, 38L),
+                                                                       (0L, 39L))
+                                                                      (TokenType.VariableName,
+                                                                       (0L, 41L),
+                                                                       (0L, 42L))
+                                                                      (TokenType.Operator,
+                                                                       (0L, 43L),
+                                                                       (0L, 44L))
+                                                                      (TokenType.VariableName,
+                                                                       (0L, 45L),
+                                                                       (0L, 46L)) ]
 
 
   ("let myFn<'a, 'b> (paramOne: 'a) (paramTwo: 'b): Unit = ()" |> tokenize) = [ (TokenType.Keyword,

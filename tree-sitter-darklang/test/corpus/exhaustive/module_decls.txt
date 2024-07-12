@@ -118,7 +118,7 @@ module Test =
         (symbol)
         (type_reference (builtin_type))
         (symbol)
-        (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
+        (simple_expression (string_literal (symbol) (string_content) (symbol)))
       )
     )
     (dedent)
@@ -167,7 +167,7 @@ module Test =
         (symbol)
         (type_reference (builtin_type))
         (symbol)
-        (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
+        (simple_expression (string_literal (symbol) (string_content) (symbol)))
       )
     )
     (dedent)
@@ -212,6 +212,90 @@ module Test =
           (const_decl
             (keyword) (constant_identifier) (symbol)
             (consts (bool_literal))
+          )
+        )
+        (dedent)
+      )
+    )
+    (dedent)
+  )
+)
+
+
+==================
+module decl - with functions
+==================
+
+module Darklang =
+  let returnsOptionNone () : Stdlib.Option.Option<'a> =
+    Stdlib.Option.Option.None
+
+  let returnsResultOk () : Stdlib.Result.Result<Int64, String> =
+    Stdlib.Result.Result.Ok 5L
+
+
+---
+
+(source_file
+  (module_decl
+    (keyword) (module_identifier) (symbol)
+    (indent)
+    (module_content
+      (fn_decl
+        (keyword) (fn_identifier) (fn_decl_params (unit)) (symbol)
+        (type_reference
+          (qualified_type_name
+            (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)
+            (type_args
+              (symbol)
+              (type_args_items
+                (type_reference
+                  (builtin_type (variable_type_reference  (symbol) (variable_identifier)))
+                )
+              )
+              (symbol)
+            )
+          )
+        )
+        (symbol)
+        (indent)
+        (expression
+          (simple_expression
+            (enum_literal
+              (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier))
+              (symbol)
+              (enum_case_identifier)
+            )
+          )
+        )
+        (dedent)
+      )
+    )
+    (module_content
+      (fn_decl
+        (keyword) (fn_identifier) (fn_decl_params (unit)) (symbol)
+        (type_reference
+          (qualified_type_name
+            (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)
+            (type_args
+              (symbol)
+              (type_args_items (type_reference (builtin_type)) (symbol) (type_reference (builtin_type)))
+              (symbol)
+            )
+          )
+        )
+        (symbol)
+        (indent)
+        (expression
+          (simple_expression
+            (enum_literal
+              (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier))
+              (symbol)
+              (enum_case_identifier)
+              (enum_fields
+                (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+              )
+            )
           )
         )
         (dedent)

@@ -22,7 +22,7 @@ let helloWorld (i: Int64): String = "Hello world"
     (symbol)
     (type_reference (builtin_type))
     (symbol)
-    (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
+    (simple_expression (string_literal (symbol) (string_content) (symbol)))
   )
 )
 
@@ -43,7 +43,7 @@ let emptyString (): String = ""
     (symbol)
     (type_reference (builtin_type))
     (symbol)
-    (expression (simple_expression (string_literal (symbol) (symbol))))
+    (simple_expression (string_literal (symbol) (symbol)))
   )
 )
 
@@ -68,14 +68,15 @@ let isHigher (a: Int64) (b: Int64): Bool =
     (symbol)
     (type_reference (builtin_type))
     (symbol)
+    (indent)
     (expression
       (apply
         (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
         (simple_expression (variable_identifier))
         (simple_expression (variable_identifier))
-        (newline)
       )
     )
+    (dedent)
   )
 )
 
@@ -84,8 +85,7 @@ let isHigher (a: Int64) (b: Int64): Bool =
 fn decl with type parameters
 ==================
 
-let myFn<'a> (param: 'a): Unit =
-  ()
+let myFn<'a> (param: 'a): Unit = ()
 
 ---
 
@@ -106,7 +106,7 @@ let myFn<'a> (param: 'a): Unit =
       (symbol)
       (type_reference (builtin_type))
       (symbol)
-      (expression (simple_expression (unit)))
+      (simple_expression (unit))
   )
 )
 
@@ -115,8 +115,7 @@ let myFn<'a> (param: 'a): Unit =
 fn decl with two type parameters
 ==================
 
-let myFn<'a, 'b> (param: 'a): 'b =
-  param
+let myFn<'a, 'b> (param: 'a): 'b = param
 
 ---
 (source_file
@@ -140,6 +139,6 @@ let myFn<'a, 'b> (param: 'a): 'b =
     (symbol)
     (type_reference (builtin_type (variable_type_reference (symbol) (variable_identifier))))
     (symbol)
-    (expression (simple_expression (variable_identifier)))
+    (simple_expression (variable_identifier))
   )
 )
