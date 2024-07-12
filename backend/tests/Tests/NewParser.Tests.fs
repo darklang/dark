@@ -1451,7 +1451,7 @@ let functionDeclarations =
 
     t
       "single package param"
-      "let double2 (i: PACKAGE.Darklang.LanguageTools.ID) : Int64 = i + i"
+      "let double2 (i: PACKAGE.Darklang.LanguageTools.ID) : Int64 = (i + i)"
       "let double2 (i: PACKAGE.Darklang.LanguageTools.ID): Int64 =\n  (i) + (i)"
       []
       []
@@ -1469,7 +1469,7 @@ let functionDeclarations =
 
     t
       "multiple param"
-      "let isHigher (a: Int64) (b: Int64) : Bool = Stdlib.Int64.greaterThan a b"
+      "let isHigher (a: Int64) (b: Int64) : Bool =\n  Stdlib.Int64.greaterThan a b"
       "let isHigher (a: Int64) (b: Int64): Bool =\n  PACKAGE.Darklang.Stdlib.Int64.greaterThan a b"
       []
       []
@@ -1487,7 +1487,7 @@ let functionDeclarations =
 
     t
       "two type params"
-      "let myFn<'a, 'b> (paramOne: 'a) (paramTwo: 'b): Unit  = ()"
+      "let myFn<'a, 'b> (paramOne: 'a) (paramTwo: 'b): Unit = ()"
       "let myFn<'a, 'b> (paramOne: 'a) (paramTwo: 'b): Unit =\n  ()"
       []
       []
@@ -1496,7 +1496,7 @@ let functionDeclarations =
 
     t
       "package fn call"
-      "let sum (a : Int64) (b : Int64) : Int64 = PACKAGE.Darklang.Stdlib.Int64.add a b"
+      "let sum (a : Int64) (b : Int64) : Int64 =\n  PACKAGE.Darklang.Stdlib.Int64.add a b"
       "let sum (a: Int64) (b: Int64): Int64 =\n  PACKAGE.Darklang.Stdlib.Int64.add a b"
       []
       []
