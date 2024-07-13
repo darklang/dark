@@ -726,10 +726,10 @@ module Darklang =
         let toPT
           (onMissing: NameResolver.OnMissing)
           (pm: ProgramTypes.PackageManager.PackageManager)
-          (owner: String)
           (currentModule: List<String>)
           (d: WrittenTypes.ModuleDeclaration.ModuleDeclaration)
           : ProgramTypes.Definitions =
+          let (_, owner) = d.name
 
           let types =
             d.declarations
