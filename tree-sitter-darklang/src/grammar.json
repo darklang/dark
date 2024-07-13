@@ -1093,32 +1093,6 @@
         }
       ]
     },
-    "fn_decl_body": {
-      "type": "CHOICE",
-      "members": [
-        {
-          "type": "SYMBOL",
-          "name": "expression"
-        },
-        {
-          "type": "SEQ",
-          "members": [
-            {
-              "type": "SYMBOL",
-              "name": "indent"
-            },
-            {
-              "type": "SYMBOL",
-              "name": "expression"
-            },
-            {
-              "type": "SYMBOL",
-              "name": "dedent"
-            }
-          ]
-        }
-      ]
-    },
     "type_decl": {
       "type": "SEQ",
       "members": [

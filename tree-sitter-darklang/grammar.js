@@ -156,8 +156,6 @@ module.exports = grammar({
         field("typ", $.type_reference),
         field("symbol_right_paren", alias(")", $.symbol)),
       ),
-    fn_decl_body: $ =>
-      choice($.expression, seq($.indent, $.expression, $.dedent)),
 
     // ---------------------
     // Type declarations
