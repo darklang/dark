@@ -23,7 +23,7 @@ module Darklang =
 
         let parseDecls
           (owner: String)
-          (canvasName: String)
+          (scriptName: String)
           (source: LanguageTools.WrittenTypes.ParsedFile)
           : Stdlib.Result.Result<WTCliScriptModule, String> =
           match source with
@@ -61,7 +61,7 @@ module Darklang =
             Stdlib.Result.Result.Ok(
               WTCliScriptModule
                 { owner = owner
-                  name = canvasName
+                  name = scriptName
                   types = types
                   constants = constants
                   fns = fns
@@ -137,14 +137,14 @@ module Darklang =
 
         let parse
           (owner: String)
-          (canvasName: String)
+          (scriptName: String)
           (onMissing: NameResolver.OnMissing)
           (pm: ProgramTypes.PackageManager.PackageManager)
           (filename: String)
           (source: String)
           : PTCliScriptModule =
           let parsedFile = source |> LanguageTools.Parser.ParserTest.initialParse
-          let moduleWT = (parseDecls owner canvasName parsedFile) |> Builtin.unwrap
+          let moduleWT = (parseDecls owner scriptName parsedFile) |> Builtin.unwrap
           let initialParse = toPT onMissing pm moduleWT
 
           let types =
@@ -168,12 +168,7 @@ module Darklang =
                |> Stdlib.List.map (fun m -> m.fns)
                |> Stdlib.List.flatten)
 
-          let pm =
-            ProgramTypes.PackageManager.withExtras
-              pm
-              initialParse.types
-              initialParse.constants
-              fns
+          let pm = ProgramTypes.PackageManager.withExtras pm types constants fns
 
           let result = toPT onMissing pm moduleWT
 

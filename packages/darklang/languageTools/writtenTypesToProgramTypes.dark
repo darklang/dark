@@ -726,9 +726,10 @@ module Darklang =
         let toPT
           (onMissing: NameResolver.OnMissing)
           (pm: ProgramTypes.PackageManager.PackageManager)
+          (owner: String)
+          (currentModule: List<String>)
           (d: WrittenTypes.ModuleDeclaration.ModuleDeclaration)
           : ProgramTypes.Definitions =
-          let (_, owner) = d.name
 
           let types =
             d.declarations
@@ -736,7 +737,7 @@ module Darklang =
               match d with
               | Type t ->
                 Stdlib.Option.Option.Some(
-                  TypeDeclaration.toPackageTypePT onMissing pm owner [] t
+                  TypeDeclaration.toPackageTypePT onMissing pm owner currentModule t
                 )
               | _ -> Stdlib.Option.Option.None)
 
@@ -746,7 +747,12 @@ module Darklang =
               match d with
               | Function f ->
                 Stdlib.Option.Option.Some(
-                  FunctionDeclaration.toPackageFnPT onMissing pm owner [] f
+                  FunctionDeclaration.toPackageFnPT
+                    onMissing
+                    pm
+                    owner
+                    currentModule
+                    f
                 )
               | _ -> Stdlib.Option.Option.None)
 
@@ -756,7 +762,12 @@ module Darklang =
               match d with
               | Constant c ->
                 Stdlib.Option.Option.Some(
-                  ConstantDeclaration.toPackageConstPT onMissing pm owner [] c
+                  ConstantDeclaration.toPackageConstPT
+                    onMissing
+                    pm
+                    owner
+                    currentModule
+                    c
                 )
               | _ -> Stdlib.Option.Option.None)
 
@@ -772,7 +783,9 @@ module Darklang =
             |> Stdlib.List.filterMap (fun d ->
               match d with
               | SubModule m ->
-                Stdlib.Option.Option.Some(submoduleToPT onMissing pm owner [] m)
+                Stdlib.Option.Option.Some(
+                  submoduleToPT onMissing pm owner currentModule m
+                )
               | _ -> Stdlib.Option.Option.Some init)
 
           let submodules = ModuleDeclaration.combineSubmodules submodules
@@ -782,7 +795,7 @@ module Darklang =
             |> Stdlib.List.filterMap (fun d ->
               match d with
               | Expr e ->
-                let expr = Expr.toPT onMissing pm "" [] e
+                let expr = Expr.toPT onMissing pm owner currentModule e
                 Stdlib.Option.Option.Some((expr, [ owner ]))
               | _ -> Stdlib.Option.Option.None)
 
@@ -1018,7 +1031,7 @@ module Darklang =
 
                 | Module m ->
                   ProgramTypes.SourceFile.Declaration.Module(
-                    ModuleDeclaration.toPT NameResolver.OnMissing.Allow pm m
+                    ModuleDeclaration.toPT NameResolver.OnMissing.Allow pm [] m
                   ))
 
             exprsToEval =
