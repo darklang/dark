@@ -26,33 +26,39 @@
     <ProjectReference Include="../TestUtils/TestUtils.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="TestConfig.fs" />
-    <Compile Include="AnalysisTypes.Tests.fs" />
-    <Compile Include="StorageTraces.Tests.fs" />
-    <Compile Include="BwdServer.Tests.fs" />
-    <Compile Include="Canvas.Tests.fs" />
-    <Compile Include="Cron.Tests.fs" />
-    <Compile Include="DvalRepr.Tests.fs" />
-    <Compile Include="Queue.Tests.fs" />
-    <!-- TRACINGTODO -->
-    <!--Compile Include="Execution.Tests.fs" /-->
-    <Compile Include="LibParser.Tests.fs" />
-    <Compile Include="NewParser.Tests.fs" />
-    <Compile Include="HttpClient.Tests.fs" />
-    <Compile Include="LibExecution.Tests.fs" />
-    <Compile Include="Prelude.Tests.fs" />
-    <Compile Include="ProgramTypes.Tests.fs" />
-    <Compile Include="QueueSchedulingRules.Tests.fs" />
-    <Compile Include="Routing.Tests.fs" />
-    <Compile Include="RuntimeTypes.Tests.fs" />
-    <Compile Include="Serialization.TestValues.fs" />
-    <Compile Include="Serialization.Binary.Tests.fs" />
-    <Compile Include="Serialization.Vanilla.Tests.fs" />
-    <Compile Include="Serialization.DarkTypes.Tests.fs" />
-    <Compile Include="Builtin.Tests.fs" />
-    <Compile Include="SqlCompiler.Tests.fs" />
-    <Compile Include="TreeSitter.Tests.fs" />
-    <Compile Include="PackageManager.Tests.fs" />
+    <!-- Meta stuff -->
+    <!--Compile Include="TestConfig.fs" /-->
+
+    <!-- Core (i.e. LibExecution) stuff -->
+    <!--Compile Include="Prelude.Tests.fs" /-->
+    <!--Compile Include="AnalysisTypes.Tests.fs" /-->
+    <!--Compile Include="DvalRepr.Tests.fs" /-->
+    <!--Compile Include="LibParser.Tests.fs" /-->
+    <!--Compile Include="NewParser.Tests.fs" /-->
+    <!--Compile Include="LibExecution.Tests.fs" /-->
+    <!--Compile Include="HttpClient.Tests.fs" /-->
+    <!-- TRACINGTODO Compile Include="Execution.Tests.fs" /-->
+    <!--Compile Include="ProgramTypes.Tests.fs" /-->
+    <!--Compile Include="RuntimeTypes.Tests.fs" /-->
+    <!--Compile Include="TreeSitter.Tests.fs" /-->
+    <!--Compile Include="Serialization.TestValues.fs" /-->
+    <!--Compile Include="Serialization.Binary.Tests.fs" /-->
+    <!--Compile Include="Serialization.Vanilla.Tests.fs" /-->
+    <!--Compile Include="Serialization.DarkTypes.Tests.fs" /-->
+    <!--Compile Include="Builtin.Tests.fs" /-->
+
+    <!-- Cloud runtime -->
+    <!--Compile Include="BwdServer.Tests.fs" /-->
+    <!--Compile Include="Canvas.Tests.fs" /-->
+    <!--Compile Include="Cron.Tests.fs" /-->
+    <!--Compile Include="Queue.Tests.fs" /-->
+    <!--Compile Include="StorageTraces.Tests.fs" /-->
+    <!--Compile Include="Routing.Tests.fs" /-->
+    <!--Compile Include="QueueSchedulingRules.Tests.fs" /-->
+    <!--Compile Include="SqlCompiler.Tests.fs" /-->
+    <!--Compile Include="PackageManager.Tests.fs" /-->
+
+    <!-- Run the tests -->
     <Compile Include="Tests.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

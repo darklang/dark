@@ -34,7 +34,7 @@ package_constants_v0
 , owner TEXT NOT NULL -- e.g. Darklang
 , modules TEXT NOT NULL -- e.g. Math.Geometry
 , name TEXT NOT NULL -- e.g. pi
-, definition BYTEA NOT NULL -- the whole thing serialized as binary, in ProgramTypes form
+, definition BYTEA NOT NULL -- the whole thing serialized as binary, in ProgramTypes form (todo: maybe this should really be named `values` with a RT.Dval here? if only RT.Dval were stable...)
 , created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
