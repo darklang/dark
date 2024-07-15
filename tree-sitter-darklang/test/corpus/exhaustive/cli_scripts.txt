@@ -60,3 +60,45 @@ Builtin.printLine (myFn ())
   )
 )
 
+
+==================
+script with fn decl and a function call
+==================
+
+let helloworld () : Int64 =
+  let _ = Builtin.printLine ("Hello, World!")
+  0L
+
+helloworld ()
+
+---
+
+(source_file
+  (fn_decl
+    (keyword) (fn_identifier) (fn_decl_params (unit)) (symbol)
+    (type_reference (builtin_type)) (symbol)
+    (indent)
+    (expression
+      (let_expression
+        (keyword)
+        (variable_identifier)
+        (symbol)
+        (expression
+          (apply
+            (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
+            (paren_expression
+              (symbol)
+              (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
+              (symbol)
+            )
+          )
+        )
+      (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol)))))
+    )
+    (dedent)
+  )
+
+  (expression
+    (apply (qualified_fn_name (fn_identifier)) (simple_expression (unit)) (newline))
+  )
+)

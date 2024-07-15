@@ -375,6 +375,8 @@ def mark(should, f):
 
   elif f.startswith("packages/") and f.endswith(".dark"):
     should.reload_all_packages = True
+    # refresh the server as the packages migh have been cached
+    should.reload_backend_server = True
 
   elif f.startswith("canvases/") and f.endswith(".dark"):
     should.reload_all_packages = True

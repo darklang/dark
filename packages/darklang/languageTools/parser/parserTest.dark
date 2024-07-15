@@ -1,6 +1,7 @@
 module Darklang =
   module LanguageTools =
     module Parser =
+      // CLEANUP: maybe rename this to just Test?
       module ParserTest =
         let initialParse (code: String) : WrittenTypes.ParsedFile =
           code
@@ -16,14 +17,15 @@ module Darklang =
 
           let exprs =
             match sourceFile with
-            | SourceFile c -> c.exprsToEval
+            | SourceFile s -> s.exprsToEval
             | _ -> []
 
           let onMissing = LanguageTools.NameResolver.OnMissing.Allow
+          let pm = LanguageTools.PackageManager.pm ()
 
           match exprs with
           | [ expr ] ->
-            (onMissing |> WrittenTypesToProgramTypes.Expr.toPT expr)
+            (WrittenTypesToProgramTypes.Expr.toPT onMissing pm "" [] expr)
             |> Stdlib.Result.Result.Ok
           | _ ->
             "Expected exactly one expression to be parsed"

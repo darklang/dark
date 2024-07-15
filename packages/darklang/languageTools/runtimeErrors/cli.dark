@@ -3,7 +3,6 @@ module Darklang =
     module RuntimeErrors =
       module Cli =
         type Error =
-          | MultipleExpressionsToExecute
           | NoExpressionsToExecute
           | UncaughtException of String * List<String * String>
           | NonIntReturned of actuallyReturned: LanguageTools.RuntimeTypes.Dval.Dval

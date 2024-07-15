@@ -251,7 +251,7 @@ module Darklang =
 
       let withExpr
         (ms: List<Module>)
-        (e: (LanguageTools.ProgramTypes.Expr * List<string>))
+        (e: (LanguageTools.ProgramTypes.Expr * List<String>))
         : List<Module> =
         let (expr, modules) = e
 

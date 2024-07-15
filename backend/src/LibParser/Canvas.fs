@@ -38,8 +38,7 @@ let emptyRootWTModule owner canvasName =
     exprs = [] }
 
 type PTCanvasModule =
-  { // These will end up in the package manager
-    types : List<PT.PackageType.PackageType>
+  { types : List<PT.PackageType.PackageType>
     constants : List<PT.PackageConstant.PackageConstant>
     fns : List<PT.PackageFn.PackageFn>
 
@@ -317,12 +316,50 @@ let parse
     let moduleWT = parseDecls owner canvasName decls
 
     // Initial pass, so we can re-parse with all names in context
-    let! result = toPT builtins pm onMissing moduleWT
+    let! initialResult = toPT builtins pm onMissing moduleWT
 
-    let pm = PT.PackageManager.withExtras pm result.types result.constants result.fns
+    let pm =
+      PT.PackageManager.withExtras
+        pm
+        initialResult.types
+        initialResult.constants
+        initialResult.fns
 
     // Now, parse again, but with the names in context (so fewer are marked as unresolved)
     let! result = toPT builtins pm onMissing moduleWT
 
-    return result
+    let adjusted =
+      { types =
+          result.types
+          |> List.map (fun typ ->
+            { typ with
+                id =
+                  initialResult.types
+                  |> List.find (fun original -> original.name = typ.name)
+                  |> Option.map _.id
+                  |> Option.defaultValue typ.id })
+        constants =
+          result.constants
+          |> List.map (fun c ->
+            { c with
+                id =
+                  initialResult.constants
+                  |> List.find (fun original -> original.name = c.name)
+                  |> Option.map _.id
+                  |> Option.defaultValue c.id })
+        fns =
+          result.fns
+          |> List.map (fun fn ->
+            { fn with
+                id =
+                  initialResult.fns
+                  |> List.find (fun original -> original.name = fn.name)
+                  |> Option.map _.id
+                  |> Option.defaultValue fn.id })
+
+        dbs = result.dbs
+        handlers = result.handlers
+        exprs = result.exprs }
+
+    return adjusted
   }
