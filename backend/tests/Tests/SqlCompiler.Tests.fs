@@ -9,32 +9,37 @@ open FSharp.Control.Tasks
 
 module PT = LibExecution.ProgramTypes
 open LibExecution.RuntimeTypes
-module NR = LibParser.NameResolver
 
 module C = LibCloud.SqlCompiler
 module S = TestUtils.RTShortcuts
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module PT2DT = LibExecution.ProgramTypesToDarkTypes
+module C2DT = LibExecution.CommonToDarkTypes
+module PackageIDs = LibExecution.PackageIDs
 
 let pmPT = LibCloud.PackageManager.pt
 
-let builtins = localBuiltIns pmPT
-
-let p (code : string) : Task<Expr> =
-  LibParser.Parser.parseRTExpr
-    builtins
-    pmPT
-    NR.OnMissing.ThrowError
-    "sqlcompiler.tests.fs"
-    code
-  |> Ply.toTask
-
 let parse (fns : List<PT.PackageFn.PackageFn>) (code : string) : Task<Expr> =
-  LibParser.Parser.parseRTExpr
-    builtins
-    (PT.PackageManager.withExtras pmPT [] [] fns)
-    NR.OnMissing.ThrowError
-    "sqlcompiler.tests.fs"
-    code
+  uply {
+    let pm = PT.PackageManager.withExtras pmPT [] [] fns
+    let! (state : ExecutionState) =
+      let canvasID = System.Guid.NewGuid()
+      executionStateFor pm canvasID false false Map.empty
+
+    let name =
+      FQFnName.FQFnName.Package PackageIDs.Fn.LanguageTools.Parser.parsePTExpr
+
+    let args = NEList.singleton (DString code)
+    let! execResult = LibExecution.Execution.executeFunction state name [] args
+
+    match execResult with
+    | Ok dval ->
+      match C2DT.Result.fromDT PT2DT.Expr.fromDT dval identity with
+      | Ok expr -> return expr |> PT2RT.Expr.toRT
+      | Error _ ->
+        return Exception.raiseInternal "Error converting Dval to PT.Expr" []
+    | _ -> return Exception.raiseInternal "Error executing parsePTExpr function" []
+  }
   |> Ply.toTask
 
 let compile
@@ -106,12 +111,12 @@ let compileTests =
   testList
     "compile tests"
     [ testTask "compile true" {
-        let! e = p "true"
+        let! e = parse [] "true"
         let! sql, args = compile Map.empty "value" ("myfield", PT.TBool) e
         matchSql sql @"\(@([A-Z]+)\)" args [ Sql.bool true ]
       }
       testTask "compile field" {
-        let! e = p "value.myfield"
+        let! e = parse [] "value.myfield"
         let! sql, args = compile Map.empty "value" ("myfield", PT.TBool) e
 
         matchSql sql @"\(CAST\(data::jsonb->>'myfield' as bool\)\)" args []
@@ -135,7 +140,7 @@ let compileTests =
           []
       }
       testTask "symtable values escaped" {
-        let! expr = p "var == value.name"
+        let! expr = parse [] "var == value.name"
         let symtable = Map.ofList [ "var", DString "';select * from user_data_v0;'" ]
 
         let! sql, args = compile symtable "value" ("name", PT.TString) expr
@@ -147,7 +152,7 @@ let compileTests =
           []
       }
       testTask "pipes expand correctly into nested functions" {
-        let! expr = p "value.age |> (-) 2L |> (+) value.age |> (<) 3L"
+        let! expr = parse [] "value.age |> (-) 2L |> (+) value.age |> (<) 3L"
         let! sql, args = compile Map.empty "value" ("age", PT.TInt64) expr
 
         matchSql
@@ -162,9 +167,9 @@ let inlineWorksAtRoot =
   testTask "inlineWorksAtRoot" {
     let! state = executionStateFor pmPT (System.Guid.NewGuid()) false false Map.empty
     let fns = ExecutionState.availableFunctions state
-    let! expr = p "let y = 5 in let x = 6 in (3 + (let x = 7 in y))"
+    let! expr = parse [] "let y = 5L\nlet x = 6L\n(3L + (let x = 7L\ny))"
 
-    let! expected = p "3 + 5"
+    let! expected = parse [] "3L + 5L"
     let! result = (C.inline' fns "value" Map.empty expr) |> Ply.toTask
     return Expect.equalExprIgnoringIDs result expected
   }
@@ -173,9 +178,9 @@ let inlineWorksWithNested =
   testTask "inlineWorksWithNested" {
     let! state = executionStateFor pmPT (System.Guid.NewGuid()) false false Map.empty
     let fns = ExecutionState.availableFunctions state
-    let! expr = p "let x = 5 in (let x = 6 in (3 + (let x = 7 in x)))"
+    let! expr = parse [] "let x = 5L\n(let x = 6L\n(3L + (let x = 7L\nx)))"
 
-    let! expected = p "3 + 7"
+    let! expected = parse [] "3L + 7L"
     let! result = (C.inline' fns "value" Map.empty expr) |> Ply.toTask
     return Expect.equalExprIgnoringIDs result expected
   }
@@ -186,10 +191,11 @@ let inlineWorksWithPackageFunctionsSqlBinOp =
     let! state = executionStateFor pmPT (System.Guid.NewGuid()) false false Map.empty
     let fns = ExecutionState.availableFunctions state
     let! expr =
-      p
-        "let x = true in (let y = false in (PACKAGE.Darklang.Stdlib.Bool.and_v0 x y))"
+      parse
+        []
+        "let x = true\n(let y = false\n(PACKAGE.Darklang.Stdlib.Bool.and x y))"
 
-    let! expected = p "true && false"
+    let! expected = parse [] "true && false"
     let! result = (C.inline' fns "value" Map.empty expr) |> Ply.toTask
     return Expect.equalExprIgnoringIDs result expected
   }
@@ -200,10 +206,13 @@ let inlineWorksWithPackageFunctionsSqlFunction =
     let! state = executionStateFor pmPT (System.Guid.NewGuid()) false false Map.empty
     let fns = ExecutionState.availableFunctions state
     let! expr =
-      p
-        """let x = "package" in (let y = "e" in (PACKAGE.Darklang.Stdlib.String.replaceAll_v0 x y "es"))"""
+      parse
+        []
+        """let x = "package"
+(let y = "e"
+(PACKAGE.Darklang.Stdlib.String.replaceAll x y "es"))"""
 
-    let! expected = p """Builtin.stringReplaceAll_v0 "package" "e" "es" """
+    let! expected = parse [] """Builtin.stringReplaceAll "package" "e" "es" """
     let! result = (C.inline' fns "value" Map.empty expr) |> Ply.toTask
     return Expect.equalExprIgnoringIDs result expected
   }
@@ -227,9 +236,9 @@ let inlineFunctionArguments =
         package = fun _name -> Ply(Some(PT2RT.PackageFn.toRT fn)) }
 
     let! expr =
-      parse [ fn ] "let a = 1 in let b = 9 in (p.height == Tests.userAdd 6 (b - 4))"
+      parse [ fn ] "let a = 1L\nlet b = 9L\n(p.height == Tests.userAdd 6L (b - 4L))"
 
-    let! expected = parse [ fn ] "p.height == 6 + (9 - 4)"
+    let! expected = parse [ fn ] "p.height == 6L + (9L - 4L)"
     let! result = (C.inline' fns "value" Map.empty expr) |> Ply.toTask
     return Expect.equalExprIgnoringIDs result expected
   }
@@ -243,7 +252,7 @@ let partialEvaluation =
         let canvasID = System.Guid.NewGuid()
         let! state = executionStateFor pmPT canvasID false false Map.empty
         let state = { state with symbolTable = Map vars }
-        let! expr = p expr
+        let! expr = parse [] expr
         let result = C.partiallyEvaluate state "x" expr
         let! (dvals, result) = Ply.TplPrimitives.runPlyAsTask result
         match result with
