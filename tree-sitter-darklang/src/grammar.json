@@ -2270,6 +2270,10 @@
         {
           "type": "SYMBOL",
           "name": "tuple_literal"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "qualified_const_name"
         }
       ]
     },
@@ -2315,10 +2319,6 @@
         {
           "type": "SYMBOL",
           "name": "record_update"
-        },
-        {
-          "type": "SYMBOL",
-          "name": "qualified_const_name"
         }
       ]
     },
