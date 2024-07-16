@@ -181,3 +181,106 @@ let helloworld () : Int64 =
   )
 )
 
+
+==================
+fn decl - nested match expression as body
+==================
+
+let processItem (item: Item) : Result<Items.Item, Error.ProcessingError> =
+  match item.typ with
+  | "items" ->
+    match item.subItems with
+    | [ singleItem ] ->
+      processItem singleItem
+    | _ -> createError item
+  | _ -> createError item
+
+---
+(source_file
+  (fn_decl
+    (keyword)
+    (fn_identifier)
+    (fn_decl_params
+      (fn_decl_param
+        (symbol)
+        (variable_identifier) (symbol)
+        (type_reference (qualified_type_name (type_identifier)))
+        (symbol)
+      )
+    )
+    (symbol)
+    (type_reference
+      (qualified_type_name
+        (type_identifier)
+        (type_args
+          (symbol)
+          (type_args_items
+            (type_reference (qualified_type_name (module_identifier) (symbol) (type_identifier)))
+            (symbol)
+            (type_reference (qualified_type_name (module_identifier) (symbol) (type_identifier)))
+          )
+          (symbol)
+        )
+      )
+    )
+    (symbol)
+    (indent)
+    (expression
+      (match_expression
+        (keyword)
+        (expression (simple_expression (field_access (variable_identifier) (symbol) (variable_identifier))))
+        (keyword)
+        (match_case
+          (symbol)
+          (match_pattern (string (symbol) (string_content) (symbol)))
+          (symbol)
+          (indent)
+          (expression
+            (match_expression
+              (keyword)
+              (expression (simple_expression (field_access (variable_identifier) (symbol) (variable_identifier))))
+              (keyword)
+              (match_case
+                (symbol)
+                (match_pattern (list (symbol) (mp_list_content (match_pattern (variable))) (symbol)))
+                (symbol)
+                (indent)
+                (expression
+                  (apply
+                    (qualified_fn_name (fn_identifier))
+                    (simple_expression (variable_identifier))
+                  )
+                )
+                (dedent)
+              )
+              (match_case
+                (symbol)
+                (match_pattern (variable))
+                (symbol)
+                (expression
+                  (apply
+                    (qualified_fn_name (fn_identifier))
+                    (simple_expression (variable_identifier))
+                  )
+                )
+              )
+            )
+          )
+          (dedent)
+        )
+        (match_case
+          (symbol)
+          (match_pattern (variable))
+          (symbol)
+          (expression
+            (apply
+              (qualified_fn_name (fn_identifier))
+              (simple_expression (variable_identifier))
+            )
+          )
+        )
+      )
+    )
+    (dedent)
+  )
+)

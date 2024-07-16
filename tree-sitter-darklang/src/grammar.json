@@ -4513,12 +4513,38 @@
           }
         },
         {
-          "type": "FIELD",
-          "name": "rhs",
-          "content": {
-            "type": "SYMBOL",
-            "name": "expression"
-          }
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "indent"
+                },
+                {
+                  "type": "FIELD",
+                  "name": "rhs",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "expression"
+                  }
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "dedent"
+                }
+              ]
+            },
+            {
+              "type": "FIELD",
+              "name": "rhs",
+              "content": {
+                "type": "SYMBOL",
+                "name": "expression"
+              }
+            }
+          ]
         }
       ]
     },

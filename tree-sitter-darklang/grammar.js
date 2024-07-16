@@ -767,7 +767,10 @@ module.exports = grammar({
           ),
         ),
         field("symbol_arrow", alias("->", $.symbol)),
-        field("rhs", $.expression),
+        choice(
+          seq($.indent, field("rhs", $.expression), $.dedent),
+          field("rhs", $.expression),
+        ),
       ),
 
     //

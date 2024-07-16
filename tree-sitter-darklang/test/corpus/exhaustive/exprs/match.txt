@@ -146,6 +146,7 @@ match [ true ] with
       (keyword)
       (match_case
         (symbol) (match_pattern (variable)) (symbol)
+        (indent)
         (expression
           (let_expression
             (keyword) (variable_identifier) (symbol)
@@ -158,6 +159,7 @@ match [ true ] with
             (expression (simple_expression (variable_identifier)))
           )
         )
+        (dedent)
       )
       (match_case
         (symbol)
