@@ -4,6 +4,7 @@
 
 set -euo pipefail
 
+# handle args
 for i in "$@" ; do
   case "${i}" in
     --arm64-sha256=*)
@@ -28,24 +29,41 @@ for i in "$@" ; do
     ;;
   esac
 done
+
+
+# decide on target filename
 DIR=${URL//[^0-9A-Za-z]/}
 FILENAME=$(basename $URL)
+
+# decide appropriate checksum, based on platform
 case $(dpkg --print-architecture) in
   arm64) CHECKSUM=$ARM64_SHA256;;
   amd64) CHECKSUM=$AMD64_SHA256;;
   *) exit 1;;
 esac
+
+# fetch file, by URL
 mkdir -p $DIR
 wget -P $DIR $URL
+
+# perform checksum
 echo "$CHECKSUM $DIR/$FILENAME" | sha256sum -c -
-ARCHIVE_TYPE=$(file --mime-type $DIR/$FILENAME | awk -F "/" '{print $NF}')
+
+ls -l $DIR
+
+# unzip
+ARCHIVE_TYPE=$(file --mime-type "$DIR/$FILENAME" | awk -F "/" '{print $NF}')
 echo "Archive type: $ARCHIVE_TYPE"
 case $ARCHIVE_TYPE in
   zip)  unzip $DIR/$FILENAME -d $DIR;;
   gzip | x-xz) tar xvf $DIR/$FILENAME -C $DIR;;
   *) exit 1;;
 esac
+
+# copy file to wherever specified
 ls -l $DIR
 sudo cp $DIR/${EXTRACT_FILE} ${TARGET}
+
+# make executable
 sudo chmod +x ${TARGET}
 rm -Rf $DIR
