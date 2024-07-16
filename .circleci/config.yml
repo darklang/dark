@@ -17,7 +17,7 @@ executors:
       IN_DEV_CONTAINER: true
     docker:
       # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-base:0f4a81f
+      - image: darklang/dark-base:a901028
 
 commands:
   show-large-files-and-directories:
@@ -226,7 +226,7 @@ jobs:
       - run: shasum backend/paket.lock backend/global.json <(date +"%U%Y") > ../checksum
       - restore_cache:
           keys:
-            - v4-backend-{{ checksum "../checksum" }}
+            - v5-backend-{{ checksum "../checksum" }}
             # Fails often enough that it's better not to have a fallback
       - show-large-files-and-directories
       # For tests
@@ -259,7 +259,7 @@ jobs:
             - /home/dark/.nuget
             - tree-sitter-darklang/node_modules
             - tree-sitter-darklang/build
-          key: v4-backend-{{ checksum "../checksum" }}
+          key: v5-backend-{{ checksum "../checksum" }}
       - store_artifacts: { path: rundir }
       - store_test_results: { path: rundir/test_results }
       - slack-notify-job-failure
