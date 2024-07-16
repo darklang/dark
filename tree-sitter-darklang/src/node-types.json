@@ -1082,10 +1082,6 @@
           "named": true
         },
         {
-          "type": "record_update",
-          "named": true
-        },
-        {
           "type": "simple_expression",
           "named": true
         }
@@ -3311,6 +3307,10 @@
         },
         {
           "type": "record_literal",
+          "named": true
+        },
+        {
+          "type": "record_update",
           "named": true
         },
         {

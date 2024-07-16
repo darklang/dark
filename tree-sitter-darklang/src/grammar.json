@@ -2274,6 +2274,10 @@
         {
           "type": "SYMBOL",
           "name": "qualified_const_name"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "record_update"
         }
       ]
     },
@@ -2315,10 +2319,6 @@
         {
           "type": "SYMBOL",
           "name": "pipe_expression"
-        },
-        {
-          "type": "SYMBOL",
-          "name": "record_update"
         }
       ]
     },

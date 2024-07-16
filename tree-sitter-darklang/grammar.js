@@ -392,6 +392,7 @@ module.exports = grammar({
         $.field_access,
         $.tuple_literal,
         $.qualified_const_name,
+        $.record_update,
       ),
 
     expression: $ =>
@@ -408,8 +409,6 @@ module.exports = grammar({
 
         $.lambda_expression,
         $.pipe_expression,
-
-        $.record_update,
       ),
 
     qualified_const_name: $ =>
