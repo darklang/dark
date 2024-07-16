@@ -390,13 +390,13 @@ module.exports = grammar({
         $.enum_literal,
         $.variable_identifier,
         $.field_access,
+        $.tuple_literal,
       ),
 
     expression: $ =>
       choice(
         $.paren_expression,
         $.simple_expression,
-        $.tuple_literal,
         $.if_expression,
         $.let_expression,
 

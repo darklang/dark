@@ -1092,10 +1092,6 @@
         {
           "type": "simple_expression",
           "named": true
-        },
-        {
-          "type": "tuple_literal",
-          "named": true
         }
       ]
     }
@@ -3319,6 +3315,10 @@
         },
         {
           "type": "string_literal",
+          "named": true
+        },
+        {
+          "type": "tuple_literal",
           "named": true
         },
         {
