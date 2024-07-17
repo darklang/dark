@@ -19,9 +19,9 @@
 # change.
 
 
-FROM ubuntu:22.04 as dark-base
+FROM ubuntu:24.04 AS dark-base
 
-ENV FORCE_BUILD 8
+ENV FORCE_BUILD=8
 
 # Creates variables to allow builds to work on both amd64 and arm64
 ARG TARGETARCH
@@ -51,10 +51,11 @@ RUN DEBIAN_FRONTEND=noninteractive \
       curl \
       apt-transport-https \
       ca-certificates \
-      lsb-core \
+      lsb-release \
       less \
       gpg \
       gpg-agent \
+      file \
       && apt clean \
       && rm -rf /var/lib/apt/lists/*
 
@@ -118,6 +119,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       python3-pip \
       python3-setuptools \
       python3-dev \
+      python3-venv \
       libsodium-dev \
       libssl-dev \
       zlib1g-dev \
@@ -131,7 +133,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       libc6 \
       libgcc1 \
       libgssapi-krb5-2 \
-      libicu70 \
+      libicu74 \
       libssl3 \
       libstdc++6 \
       zlib1g \
@@ -142,8 +144,17 @@ RUN DEBIAN_FRONTEND=noninteractive \
       # prodexec dependencies
       sshpass \
       # end prodexec dependencies
+      psmisc \
       && apt clean \
       && rm -rf /var/lib/apt/lists/*
+
+
+# As of Ubuntu 24.04, an install includes
+# an 'ubuntu' user, that we don't use,
+# who takes id 1000. Let's reassign the id.
+# https://bugs.launchpad.net/cloud-images/+bug/2005129
+RUN usermod -u 2000 ubuntu && groupmod -g 2000 ubuntu
+
 
 ############################
 # Dark user
@@ -168,9 +179,9 @@ RUN mkdir -p bin
 # Locales
 ############################
 RUN sudo locale-gen "en_US.UTF-8"
-ENV LANGUAGE en_US.UTF-8
-ENV LANG en_US.UTF-8
-ENV LC_ALL en_US.UTF-8
+ENV LANGUAGE=en_US.UTF-8
+ENV LANG=en_US.UTF-8
+ENV LC_ALL=en_US.UTF-8
 
 ############################
 # Frontend
@@ -209,7 +220,6 @@ COPY --chown=dark:dark --chmod=755 ./scripts/installers/* .
 ############################
 # Yugabyte
 ############################
-
 RUN /home/dark/install-yugabyte --version=2.20.1.3 --build=b3
 
 ############################
@@ -249,8 +259,9 @@ RUN /home/dark/install-targz-file \
 ############################
 # Pip packages
 ############################
-RUN sudo pip3 install --no-cache-dir yq yamllint watchfiles yapf==0.40.1
-ENV PATH "$PATH:/home/dark/.local/bin"
+RUN python3 -m venv /home/dark/.local \
+  && /home/dark/.local/bin/pip install --no-cache-dir setuptools yq yamllint watchfiles yapf==0.40.1
+ENV PATH="/home/dark/.local/bin:$PATH"
 
 ####################################
 # CircleCI
@@ -315,7 +326,7 @@ RUN /home/dark/install-dotnet8 \
 
 # formatting
 RUN dotnet tool install fantomas --version 6.2.3 -g
-ENV PATH "$PATH:/home/dark/bin:/home/dark/.dotnet/tools"
+ENV PATH="$PATH:/home/dark/bin:/home/dark/.dotnet/tools"
 
 # without this, dotnet restore seems to fail, accessing the wrong path
 ENV NUGET_SCRATCH=/tmp/NuGetScratch
@@ -331,7 +342,7 @@ RUN git clone https://github.com/emscripten-core/emsdk.git --depth 1 \
   # see: https://github.com/emscripten-core/emscripten/issues/19275
   && ./emsdk install latest \
   && ./emsdk activate latest
-ENV PATH "$PATH:/home/dark/emsdk/upstream/emscripten"
+ENV PATH="$PATH:/home/dark/emsdk/upstream/emscripten"
 
 
 #############
@@ -364,7 +375,7 @@ RUN set -e; \
   rm zig.tar.xz; \
   mv ~/zig/zig-linux-${ZIG_ARCH}-${ZIG_VERSION}/* ~/zig;
 
-ENV PATH "$PATH:~/zig"
+ENV PATH="$PATH:~/zig"
 
 
 ############################

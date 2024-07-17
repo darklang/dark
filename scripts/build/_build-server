@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.10
+#!/usr/bin/env python3.12
 
 # This is used, in concert with scripts/builder, to run Dark inside the dev
 # container. There is a strong connection between these files and
