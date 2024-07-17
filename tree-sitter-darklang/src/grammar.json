@@ -1000,17 +1000,8 @@
               "type": "FIELD",
               "name": "body",
               "content": {
-                "type": "CHOICE",
-                "members": [
-                  {
-                    "type": "SYMBOL",
-                    "name": "simple_expression"
-                  },
-                  {
-                    "type": "SYMBOL",
-                    "name": "paren_expression"
-                  }
-                ]
+                "type": "SYMBOL",
+                "name": "expression"
               }
             }
           ]
@@ -2266,6 +2257,18 @@
         {
           "type": "SYMBOL",
           "name": "field_access"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "tuple_literal"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "qualified_const_name"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "record_update"
         }
       ]
     },
@@ -2279,10 +2282,6 @@
         {
           "type": "SYMBOL",
           "name": "simple_expression"
-        },
-        {
-          "type": "SYMBOL",
-          "name": "tuple_literal"
         },
         {
           "type": "SYMBOL",
@@ -2311,14 +2310,6 @@
         {
           "type": "SYMBOL",
           "name": "pipe_expression"
-        },
-        {
-          "type": "SYMBOL",
-          "name": "record_update"
-        },
-        {
-          "type": "SYMBOL",
-          "name": "qualified_const_name"
         }
       ]
     },
@@ -4513,12 +4504,38 @@
           }
         },
         {
-          "type": "FIELD",
-          "name": "rhs",
-          "content": {
-            "type": "SYMBOL",
-            "name": "expression"
-          }
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "indent"
+                },
+                {
+                  "type": "FIELD",
+                  "name": "rhs",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "expression"
+                  }
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "dedent"
+                }
+              ]
+            },
+            {
+              "type": "FIELD",
+              "name": "rhs",
+              "content": {
+                "type": "SYMBOL",
+                "name": "expression"
+              }
+            }
+          ]
         }
       ]
     },

@@ -1082,19 +1082,7 @@
           "named": true
         },
         {
-          "type": "qualified_const_name",
-          "named": true
-        },
-        {
-          "type": "record_update",
-          "named": true
-        },
-        {
           "type": "simple_expression",
-          "named": true
-        },
-        {
-          "type": "tuple_literal",
           "named": true
         }
       ]
@@ -1158,14 +1146,6 @@
         "types": [
           {
             "type": "expression",
-            "named": true
-          },
-          {
-            "type": "paren_expression",
-            "named": true
-          },
-          {
-            "type": "simple_expression",
             "named": true
           }
         ]
@@ -2237,6 +2217,20 @@
           }
         ]
       }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "dedent",
+          "named": true
+        },
+        {
+          "type": "indent",
+          "named": true
+        }
+      ]
     }
   },
   {
@@ -3300,11 +3294,23 @@
           "named": true
         },
         {
+          "type": "qualified_const_name",
+          "named": true
+        },
+        {
           "type": "record_literal",
           "named": true
         },
         {
+          "type": "record_update",
+          "named": true
+        },
+        {
           "type": "string_literal",
+          "named": true
+        },
+        {
+          "type": "tuple_literal",
           "named": true
         },
         {

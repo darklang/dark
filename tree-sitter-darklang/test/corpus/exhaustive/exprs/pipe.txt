@@ -268,12 +268,14 @@ pipe expression - enum with tuple
             (enum_case_identifier)
             (pipe_enum_fields
               (expression
-                (tuple_literal
-                  (symbol)
-                  (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
-                  (symbol)
-                  (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
-                  (symbol)
+                (simple_expression
+                  (tuple_literal
+                    (symbol)
+                    (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                    (symbol)
+                    (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                    (symbol)
+                  )
                 )
               )
             )

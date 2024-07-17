@@ -8,20 +8,25 @@ tuple two
 
 (source_file
   (expression
-    (tuple_literal
-      (symbol)
-      (expression
-        (simple_expression (string_literal
-          (symbol)
-          (string_content)
-          (symbol))))
-      (symbol)
-      (expression
-        (simple_expression (int64_literal
-          (digits
-            (positive_digits))
-          (symbol))))
-      (symbol))))
+    (simple_expression
+      (tuple_literal
+        (symbol)
+        (expression
+          (simple_expression (string_literal
+            (symbol)
+            (string_content)
+            (symbol))))
+        (symbol)
+        (expression
+          (simple_expression (int64_literal
+            (digits
+              (positive_digits))
+            (symbol))))
+        (symbol)
+      )
+    )
+  )
+)
 
 
 ==================
@@ -34,24 +39,29 @@ tuple three
 
 (source_file
   (expression
-    (tuple_literal
-      (symbol)
-      (expression
-        (simple_expression (string_literal
-          (symbol)
-          (string_content)
-          (symbol))))
-      (symbol)
-      (expression
-        (simple_expression (int64_literal
-          (digits
-            (positive_digits))
-          (symbol))))
-      (tuple_literal_the_rest
+    (simple_expression
+      (tuple_literal
         (symbol)
         (expression
-          (simple_expression (float_literal))))
-      (symbol))))
+          (simple_expression (string_literal
+            (symbol)
+            (string_content)
+            (symbol))))
+        (symbol)
+        (expression
+          (simple_expression (int64_literal
+            (digits
+              (positive_digits))
+            (symbol))))
+        (tuple_literal_the_rest
+          (symbol)
+          (expression
+            (simple_expression (float_literal))))
+        (symbol)
+      )
+    )
+  )
+)
 
 
 ==================
@@ -64,24 +74,29 @@ tuple four
 
 (source_file
   (expression
-    (tuple_literal
-      (symbol)
-      (expression
-        (simple_expression (string_literal
-          (symbol)
-          (string_content)
-          (symbol))))
-      (symbol)
-      (expression
-        (simple_expression (int64_literal
-          (digits
-            (positive_digits))
-          (symbol))))
-          (tuple_literal_the_rest
+    (simple_expression
+      (tuple_literal
+        (symbol)
+        (expression
+          (simple_expression (string_literal
             (symbol)
-            (expression
-              (simple_expression (float_literal)))
-            (symbol)
-            (expression
-              (simple_expression (bool_literal))))
-      (symbol))))
+            (string_content)
+            (symbol))))
+        (symbol)
+        (expression
+          (simple_expression (int64_literal
+            (digits
+              (positive_digits))
+            (symbol))))
+            (tuple_literal_the_rest
+              (symbol)
+              (expression
+                (simple_expression (float_literal)))
+              (symbol)
+              (expression
+                (simple_expression (bool_literal))))
+        (symbol)
+      )
+    )
+  )
+)

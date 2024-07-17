@@ -8,37 +8,39 @@ record update - single field
 
 (source_file
   (expression
-    (record_update
-      (symbol)
-      (expression
-        (simple_expression (record_literal
-          (qualified_type_name (type_identifier))
-          (symbol)
-          (record_content
-            (record_pair
-              (variable_identifier)
+    (simple_expression
+      (record_update
+        (symbol)
+        (expression
+          (simple_expression (record_literal
+            (qualified_type_name (type_identifier))
+            (symbol)
+            (record_content
+              (record_pair
+                (variable_identifier)
+                (symbol)
+                (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+              )
               (symbol)
-              (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+              (record_pair
+                (variable_identifier)
+                (symbol)
+                (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+              )
             )
             (symbol)
-            (record_pair
-              (variable_identifier)
-              (symbol)
-              (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
-            )
-          )
-          (symbol)
-        ))
-      )
-      (keyword)
-      (record_update_fields
-        (record_update_field
-          (variable_identifier)
-          (symbol)
-          (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+          ))
         )
+        (keyword)
+        (record_update_fields
+          (record_update_field
+            (variable_identifier)
+            (symbol)
+            (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+          )
+        )
+        (symbol)
       )
-      (symbol)
     )
   )
 )
@@ -80,18 +82,20 @@ let myRec = RecordForUpdate { x = 4L; y = 1L }
         ))
       )
       (expression
-        (record_update
-          (symbol)
-          (expression (simple_expression (variable_identifier)))
-          (keyword)
-          (record_update_fields
-            (record_update_field
-              (variable_identifier)
-              (symbol)
-              (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+        (simple_expression
+          (record_update
+            (symbol)
+            (expression (simple_expression (variable_identifier)))
+            (keyword)
+            (record_update_fields
+              (record_update_field
+                (variable_identifier)
+                (symbol)
+                (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+              )
             )
+            (symbol)
           )
-          (symbol)
         )
       )
     )
@@ -141,24 +145,26 @@ let myRec = RecordForUpdateMultipe { x = 4L; y = 1L; z = 0L }
         ))
       )
       (expression
-        (record_update
-          (symbol)
-          (expression (simple_expression (variable_identifier)))
-          (keyword)
-          (record_update_fields
-            (record_update_field
-              (variable_identifier)
+        (simple_expression
+          (record_update
+            (symbol)
+            (expression (simple_expression (variable_identifier)))
+            (keyword)
+            (record_update_fields
+              (record_update_field
+                (variable_identifier)
+                (symbol)
+                (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+              )
               (symbol)
-              (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+              (record_update_field
+                (variable_identifier)
+                (symbol)
+                (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+              )
             )
             (symbol)
-            (record_update_field
-              (variable_identifier)
-              (symbol)
-              (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
-            )
           )
-          (symbol)
         )
       )
     )

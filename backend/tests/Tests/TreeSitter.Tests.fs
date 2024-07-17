@@ -13,14 +13,13 @@ let toStringTest =
   testCase "Basic function declaration parse test"
   <| fun _ ->
     let parser = new Parser(Language = DarklangLanguage.create ())
-    let source =
-      "let increment (i: Int64): Int64 = (i + 1L)" |> Encoding.UTF8.GetBytes
+    let source = "let increment (i: Int64): Int64 = i + 1L" |> Encoding.UTF8.GetBytes
 
     let tree = parser.Parse(source, InputEncoding.Utf8, None)
 
     Expect.equal
       (tree.Root.ToString())
-      "(source_file (fn_decl keyword_let: (keyword) name: (fn_identifier) params: (fn_decl_params (fn_decl_param symbol_left_paren: (symbol) identifier: (variable_identifier) symbol_colon: (symbol) typ: (type_reference (builtin_type)) symbol_right_paren: (symbol))) symbol_colon: (symbol) return_type: (type_reference (builtin_type)) symbol_equals: (symbol) body: (paren_expression symbol_left_paren: (symbol) expr: (expression (infix_operation left: (expression (simple_expression (variable_identifier))) operator: (operator) right: (expression (simple_expression (int64_literal digits: (digits (positive_digits)) suffix: (symbol)))))) symbol_right_paren: (symbol))))"
+      "(source_file (fn_decl keyword_let: (keyword) name: (fn_identifier) params: (fn_decl_params (fn_decl_param symbol_left_paren: (symbol) identifier: (variable_identifier) symbol_colon: (symbol) typ: (type_reference (builtin_type)) symbol_right_paren: (symbol))) symbol_colon: (symbol) return_type: (type_reference (builtin_type)) symbol_equals: (symbol) body: (expression (infix_operation left: (expression (simple_expression (variable_identifier))) operator: (operator) right: (expression (simple_expression (int64_literal digits: (digits (positive_digits)) suffix: (symbol))))))))"
       ""
 
 let tests = testList "TreeSitter" [ toStringTest ]
