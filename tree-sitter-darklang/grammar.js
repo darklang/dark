@@ -144,7 +144,7 @@ module.exports = grammar({
         field("symbol_equals", alias("=", $.symbol)),
         choice(
           seq($.indent, field("body", $.expression), $.dedent),
-          field("body", choice($.simple_expression, $.paren_expression)),
+          field("body", $.expression),
         ),
       ),
     fn_decl_params: $ => repeat1(choice($.unit, $.fn_decl_param)),

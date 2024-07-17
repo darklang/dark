@@ -22,7 +22,7 @@ let helloWorld (i: Int64): String = "Hello world"
     (symbol)
     (type_reference (builtin_type))
     (symbol)
-    (simple_expression (string_literal (symbol) (string_content) (symbol)))
+    (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
   )
 )
 
@@ -43,7 +43,7 @@ let emptyString (): String = ""
     (symbol)
     (type_reference (builtin_type))
     (symbol)
-    (simple_expression (string_literal (symbol) (symbol)))
+    (expression (simple_expression (string_literal (symbol) (symbol))))
   )
 )
 
@@ -108,7 +108,9 @@ let myFn<'a> (param: 'a): Unit = ()
     (symbol)
     (type_reference (builtin_type))
     (symbol)
-    (simple_expression (unit))))
+    (expression (simple_expression (unit)))
+  )
+)
 
 
 ==================
@@ -139,7 +141,7 @@ let myFn<'a, 'b> (param: 'a): 'b = param
     (symbol)
     (type_reference (builtin_type (variable_type_reference (symbol) (variable_identifier))))
     (symbol)
-    (simple_expression (variable_identifier))
+    (expression (simple_expression (variable_identifier)))
   )
 )
 

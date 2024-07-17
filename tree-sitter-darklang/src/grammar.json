@@ -1000,17 +1000,8 @@
               "type": "FIELD",
               "name": "body",
               "content": {
-                "type": "CHOICE",
-                "members": [
-                  {
-                    "type": "SYMBOL",
-                    "name": "simple_expression"
-                  },
-                  {
-                    "type": "SYMBOL",
-                    "name": "paren_expression"
-                  }
-                ]
+                "type": "SYMBOL",
+                "name": "expression"
               }
             }
           ]
