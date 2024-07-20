@@ -10,51 +10,51 @@
   <ItemGroup>
     <None Include="paket.references" />
 
-    <Compile Include="Libs/NoModule.fs" />
+    <!--Compile Include="Libs/NoModule.fs" /-->
 
-    <Compile Include="Libs/Bool.fs" />
+    <!--Compile Include="Libs/Bool.fs" /-->
 
-    <Compile Include="IntRuntimeError.fs" />
-    <Compile Include="Libs/Int8.fs" />
-    <Compile Include="Libs/UInt8.fs" />
-    <Compile Include="Libs/Int16.fs" />
-    <Compile Include="Libs/UInt16.fs" />
-    <Compile Include="Libs/Int32.fs" />
-    <Compile Include="Libs/UInt32.fs" />
-    <Compile Include="Libs/Int64.fs" />
-    <Compile Include="Libs/UInt64.fs" />
-    <Compile Include="Libs/Int128.fs" />
-    <Compile Include="Libs/UInt128.fs" />
+    <!--Compile Include="IntRuntimeError.fs" /-->
+    <!--Compile Include="Libs/Int8.fs" /-->
+    <!--Compile Include="Libs/UInt8.fs" /-->
+    <!--Compile Include="Libs/Int16.fs" /-->
+    <!--Compile Include="Libs/UInt16.fs" /-->
+    <!--Compile Include="Libs/Int32.fs" /-->
+    <!--Compile Include="Libs/UInt32.fs" /-->
+    <!--Compile Include="Libs/Int64.fs" /-->
+    <!--Compile Include="Libs/UInt64.fs" /-->
+    <!--Compile Include="Libs/Int128.fs" /-->
+    <!--Compile Include="Libs/UInt128.fs" /-->
 
-    <Compile Include="Libs/Float.fs" />
+    <!--Compile Include="Libs/Float.fs" /-->
 
-    <Compile Include="Libs/Math.fs" />
+    <!--Compile Include="Libs/Math.fs" /-->
 
-    <Compile Include="Libs/Bytes.fs" />
+    <!--Compile Include="Libs/Bytes.fs" /-->
 
-    <Compile Include="Libs/Char.fs" />
-    <Compile Include="Libs/String.fs" />
+    <!--Compile Include="Libs/Char.fs" /-->
+    <!--Compile Include="Libs/String.fs" /-->
 
-    <Compile Include="Libs/List.fs" />
-    <Compile Include="Libs/Dict.fs" />
+    <!--Compile Include="Libs/List.fs" /-->
+    <!--Compile Include="Libs/Dict.fs" /-->
 
-    <Compile Include="Libs/DateTime.fs" />
-    <Compile Include="Libs/Uuid.fs" />
+    <!--Compile Include="Libs/DateTime.fs" /-->
+    <!--Compile Include="Libs/Uuid.fs" /-->
 
-    <Compile Include="Libs/Base64.fs" />
+    <!--Compile Include="Libs/Base64.fs" /-->
 
-    <Compile Include="Libs/Json.fs" />
-    <Compile Include="Libs/AltJson.fs" />
+    <!--Compile Include="Libs/Json.fs" /-->
+    <!--Compile Include="Libs/AltJson.fs" /-->
 
-    <Compile Include="Libs/HttpClient.fs" />
+    <!--Compile Include="Libs/HttpClient.fs" /-->
 
-    <Compile Include="Libs/LanguageTools.fs" />
-    <Compile Include="Libs/Parser.fs" />
+    <!--Compile Include="Libs/LanguageTools.fs" /-->
+    <!--Compile Include="Libs/Parser.fs" /-->
 
-    <Compile Include="Libs/Crypto.fs" />
-    <Compile Include="Libs/X509.fs" />
+    <!--Compile Include="Libs/Crypto.fs" /-->
+    <!--Compile Include="Libs/X509.fs" /-->
 
-    <Compile Include="Libs/Packages.fs" />
+    <!--Compile Include="Libs/Packages.fs" /-->
 
     <Compile Include="Builtin.fs" />
   </ItemGroup>

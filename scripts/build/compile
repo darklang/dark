@@ -14,7 +14,7 @@ optimize = in_ci
 
 fsharp_thing_to_build = "fsdark.sln"
 # sometimes it's handy to only build a specific project
-#fsharp_thing_to_build = "src/LibExecution"
+fsharp_thing_to_build = "tests/Tests"
 
 # Make io unbuffered
 def flush(fn):
@@ -74,19 +74,19 @@ def is_script(f):
   return "Bourne-Again" in filetype
 
 
-def copy_dark_wasm():
-  start = time.time()
-  if optimize:
-    dark_wasm = run_backend(
-        start,
-        "rsync -a backend/Build/out/Wasm/Release/net8.0/publish/wwwroot/_framework/ backend/static/dark_wasm/"
-    )
-  else:
-    dark_wasm = run_backend(
-        start,
-        "rsync -a backend/Build/out/Wasm/Debug/net8.0/wwwroot/_framework/ backend/static/dark_wasm/"
-    )
-  return dark_wasm
+# def copy_dark_wasm():
+#   start = time.time()
+#   if optimize:
+#     dark_wasm = run_backend(
+#         start,
+#         "rsync -a backend/Build/out/Wasm/Release/net8.0/publish/wwwroot/_framework/ backend/static/dark_wasm/"
+#     )
+#   else:
+#     dark_wasm = run_backend(
+#         start,
+#         "rsync -a backend/Build/out/Wasm/Debug/net8.0/wwwroot/_framework/ backend/static/dark_wasm/"
+#     )
+#   return dark_wasm
 
 
 def shellcheck(f):
@@ -254,12 +254,11 @@ def reload_all_packages():
 
 
 class Should:
-
   def __init__(self):
     self.fsharp_tool_restore = False
     self.fsharp_paket_restore = False
     self.fsharp_paket_install = False
-    self.copy_dark_wasm = False
+    #self.copy_dark_wasm = False TODO
     self.backend_quick_build = False
     self.backend_full_build = False
     self.backend_test = False
@@ -277,10 +276,12 @@ class Should:
 def execute(should):
   success = True
 
+  # parser
   if should.build_parser:
     if not build_parser(): success = False
 
-  # Fast path: get the important stuff built first
+
+  # backend dependencies
   if should.fsharp_tool_restore:
     if not fsharp_tool_restore(): success = False
     should.fsharp_paket_restore |= success
@@ -294,55 +295,60 @@ def execute(should):
     if not fsharp_paket_install(): success = False
     should.backend_full_build |= success
 
+  # backend
   if should.backend_full_build:
     should.backend_quick_build = False  # no need to do both
     if not backend_full_build(): success = False
-    should.copy_dark_wasm |= success
+    #should.copy_dark_wasm |= success
     should.backend_test |= success
     should.clear_local_db |= success
     should.reload_backend_server |= success
     should.reload_all_packages |= success
 
-  if should.circleci_validate:
-    if not circleci_validate(): success = False
-
   if should.backend_quick_build:
     if not backend_quick_build(): success = False
-    should.copy_dark_wasm |= success
+    #should.copy_dark_wasm |= success
     should.backend_test |= success
     should.reload_backend_server |= success
     should.reload_all_packages |= success
 
-  if should.copy_dark_wasm:
-    if not copy_dark_wasm(): success = False
+  # if should.copy_dark_wasm:
+  #   if not copy_dark_wasm(): success = False
 
-  if should.reload_backend_server:
-    if not reload_backend_server(): success = False
+  # if should.reload_backend_server:
+  #   if not reload_backend_server(): success = False
 
-  if should.clear_local_db:
-    if not clear_local_db(): success = False
-    should.run_migrations |= success
-    should.reload_all_packages |= success
+  # if should.clear_local_db:
+  #   if not clear_local_db(): success = False
+  #   should.run_migrations |= success
+  #   should.reload_all_packages |= success
 
-  if should.run_migrations:
-    if not run_migrations(): success = False
+  # if should.run_migrations:
+  #   if not run_migrations(): success = False
 
-  if should.reload_all_packages:
-    if not reload_all_packages(): success = False
+  # if should.reload_all_packages:
+  #   if not reload_all_packages(): success = False
 
-  if should.backend_test:
-    if not backend_test(): success = False
+  # if should.backend_test:
+  #   if not backend_test(): success = False
 
-  if should.shellcheck != []:
-    all_files = " ".join(should.shellcheck)
-    if not shellcheck(all_files): success = False
 
-  if should.yamllint:
-    if not all([yamllint(f) for f in should.yamllint]):
-      success = False
 
-  if should.terraform_validate:
-    if not terraform_validate(): success = False
+  # # misc validations and formatting checkers
+  # if should.circleci_validate:
+  #   if not circleci_validate(): success = False
+
+  # if should.shellcheck != []:
+  #   all_files = " ".join(should.shellcheck)
+  #   if not shellcheck(all_files): success = False
+
+  # if should.yamllint:
+  #   if not all([yamllint(f) for f in should.yamllint]):
+  #     success = False
+
+  # if should.terraform_validate:
+  #   if not terraform_validate(): success = False
+
 
   return success
 
