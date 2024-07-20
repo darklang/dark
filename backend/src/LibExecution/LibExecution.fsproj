@@ -30,7 +30,6 @@
     <Compile Include="Builtin.fs" />
     <Compile Include="ProgramTypes.fs" />
     <!--Compile Include="ProgramTypesParser.fs" /-->
-    <!--Unused - remove totally? Compile Include="ProgramTypesAst.fs" /-->
     <Compile Include="ProgramTypesToRuntimeTypes.fs" />
     <!--Compile Include="ProgramTypesToDarkTypes.fs" /-->
   </ItemGroup>
