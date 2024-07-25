@@ -151,14 +151,14 @@ let executionStateFor
   //(dbs : Map<string, RT.DB.T>)
   : Task<RT.ExecutionState> =
   task {
-    let domains = []//Canvas.domainsForCanvasID canvasID
+    let domains = [] //Canvas.domainsForCanvasID canvasID
 
     let program : RT.Program =
       { canvasID = canvasID
         internalFnsAllowed = internalFnsAllowed
-        // dbs = dbs
-        // secrets = []
-        }
+      // dbs = dbs
+      // secrets = []
+      }
 
     let testContext : RT.TestContext =
       { sideEffectCount = 0
@@ -357,7 +357,7 @@ module Expect =
   // representation (in the event that there are multiple ways to represent
   // it). Think of this as a general form of string normalization.
   let rec isCanonical (dv : Dval) : bool =
-    //let check = isCanonical
+    let r = isCanonical
 
     match dv with
     | DUnit
@@ -380,16 +380,16 @@ module Expect =
     // | DUuid _
     | DFnVal _
     // | DDB _
-      -> true
+     -> true
 
     // | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
     | DString str -> str.IsNormalized()
 
-    // | DList(_, items) -> List.all check items
-    // | DTuple(first, second, rest) -> List.all check ([ first; second ] @ rest)
-    // | DDict(_, entries) -> entries |> Map.values |> List.all check
-    // | DRecord(_, _, _, fields) -> fields |> Map.values |> List.all check
-    // | DEnum(_, _, _, _, fields) -> fields |> List.all check
+    | DList(_, items) -> List.all r items
+  // | DTuple(first, second, rest) -> List.all r ([ first; second ] @ rest)
+  // | DDict(_, entries) -> entries |> Map.values |> List.all r
+  // | DRecord(_, _, _, fields) -> fields |> Map.values |> List.all r
+  // | DEnum(_, _, _, _, fields) -> fields |> List.all r
 
   type Path = string list
 
@@ -521,202 +521,202 @@ module Expect =
 
 
 
-  let rec exprEqualityBaseFn
-    (checkIDs : bool)
-    (path : Path)
-    (actual : Expr)
-    (expected : Expr)
-    (errorFn : Path -> string -> string -> unit)
-    : unit =
-    let eq path a e = exprEqualityBaseFn checkIDs path a e errorFn
+  // let rec exprEqualityBaseFn
+  //   (checkIDs : bool)
+  //   (path : Path)
+  //   (actual : Expr)
+  //   (expected : Expr)
+  //   (errorFn : Path -> string -> string -> unit)
+  //   : unit =
+  //   let eq path a e = exprEqualityBaseFn checkIDs path a e errorFn
 
-    let check path (a : 'a) (e : 'a) =
-      if a <> e then errorFn path (string actual) (string expected)
+  //   let check path (a : 'a) (e : 'a) =
+  //     if a <> e then errorFn path (string actual) (string expected)
 
-    let eqList path (l1 : List<RT.Expr>) (l2 : List<RT.Expr>) =
-      List.iteri2 (fun i -> eq (string i :: path)) l1 l2
-      check path (List.length l1) (List.length l2)
+  //   let eqList path (l1 : List<RT.Expr>) (l2 : List<RT.Expr>) =
+  //     List.iteri2 (fun i -> eq (string i :: path)) l1 l2
+  //     check path (List.length l1) (List.length l2)
 
-    let eqNEList path (l1 : NEList<RT.Expr>) (l2 : NEList<RT.Expr>) =
-      NEList.iteri2 (fun i -> eq (string i :: path)) l1 l2
-      check path (NEList.length l1) (NEList.length l2)
+  //   let eqNEList path (l1 : NEList<RT.Expr>) (l2 : NEList<RT.Expr>) =
+  //     NEList.iteri2 (fun i -> eq (string i :: path)) l1 l2
+  //     check path (NEList.length l1) (NEList.length l2)
 
-    if checkIDs then check path (Expr.toID actual) (Expr.toID expected)
+  //   if checkIDs then check path (Expr.toID actual) (Expr.toID expected)
 
-    match actual, expected with
-    // expressions with no values
-    | EUnit _, EUnit _ -> ()
+  //   match actual, expected with
+  //   // expressions with no values
+  //   | EUnit _, EUnit _ -> ()
 
 
-    // Simple exprs
-    | EBool(_, v), EBool(_, v') -> check path v v'
+  //   // Simple exprs
+  //   | EBool(_, v), EBool(_, v') -> check path v v'
 
-    // | EInt8(_, v), EInt8(_, v') -> check path v v'
-    // | EUInt8(_, v), EUInt8(_, v') -> check path v v'
-    // | EInt16(_, v), EInt16(_, v') -> check path v v'
-    // | EUInt16(_, v), EUInt16(_, v') -> check path v v'
-    // | EInt32(_, v), EInt32(_, v') -> check path v v'
-    // | EUInt32(_, v), EUInt32(_, v') -> check path v v'
-    | EInt64(_, v), EInt64(_, v') -> check path v v'
-    // | EUInt64(_, v), EUInt64(_, v') -> check path v v'
-    // | EInt128(_, v), EInt128(_, v') -> check path v v'
-    // | EUInt128(_, v), EUInt128(_, v') -> check path v v'
+  //   // | EInt8(_, v), EInt8(_, v') -> check path v v'
+  //   // | EUInt8(_, v), EUInt8(_, v') -> check path v v'
+  //   // | EInt16(_, v), EInt16(_, v') -> check path v v'
+  //   // | EUInt16(_, v), EUInt16(_, v') -> check path v v'
+  //   // | EInt32(_, v), EInt32(_, v') -> check path v v'
+  //   // | EUInt32(_, v), EUInt32(_, v') -> check path v v'
+  //   | EInt64(_, v), EInt64(_, v') -> check path v v'
+  //   // | EUInt64(_, v), EUInt64(_, v') -> check path v v'
+  //   // | EInt128(_, v), EInt128(_, v') -> check path v v'
+  //   // | EUInt128(_, v), EUInt128(_, v') -> check path v v'
 
-    // | EFloat(_, v), EFloat(_, v') -> check path v v'
+  //   // | EFloat(_, v), EFloat(_, v') -> check path v v'
 
-    // expressions with single string values
-    | EString(_, s), EString(_, s') ->
-      let rec checkSegment s s' =
-        match s, s' with
-        | StringText s, StringText s' -> check path s s'
-        | StringInterpolation e, StringInterpolation e' -> eq path e e'
-        | _ -> check path s s'
-      List.iter2 checkSegment s s'
+  //   // expressions with single string values
+  //   | EString(_, s), EString(_, s') ->
+  //     let rec checkSegment s s' =
+  //       match s, s' with
+  //       | StringText s, StringText s' -> check path s s'
+  //       | StringInterpolation e, StringInterpolation e' -> eq path e e'
+  //       | _ -> check path s s'
+  //     List.iter2 checkSegment s s'
 
-    // | EChar(_, v), EChar(_, v')
-    // | EVariable(_, v), EVariable(_, v') -> check path v v'
-    // | EConstant(_, name), EConstant(_, name') -> check path name name'
-    // | ELet(_, pat, rhs, body), ELet(_, pat', rhs', body') ->
-    //   letPatternEqualityBaseFn checkIDs path pat pat' errorFn
-    //   eq ("rhs" :: path) rhs rhs'
-    //   eq ("body" :: path) body body'
-    // | EIf(_, con, thn, els), EIf(_, con', thn', els') ->
-    //   eq ("cond" :: path) con con'
-    //   eq ("then" :: path) thn thn'
-    //   match els, els' with
-    //   | Some el, Some el' -> eq ("else" :: path) el el'
-    //   | None, None -> ()
-    //   | _ ->
-    //     errorFn ("else" :: path) (string actual) (string expected)
-    //     ()
+  //   // | EChar(_, v), EChar(_, v')
+  //   // | EVariable(_, v), EVariable(_, v') -> check path v v'
+  //   // | EConstant(_, name), EConstant(_, name') -> check path name name'
+  //   // | ELet(_, pat, rhs, body), ELet(_, pat', rhs', body') ->
+  //   //   letPatternEqualityBaseFn checkIDs path pat pat' errorFn
+  //   //   eq ("rhs" :: path) rhs rhs'
+  //   //   eq ("body" :: path) body body'
+  //   // | EIf(_, con, thn, els), EIf(_, con', thn', els') ->
+  //   //   eq ("cond" :: path) con con'
+  //   //   eq ("then" :: path) thn thn'
+  //   //   match els, els' with
+  //   //   | Some el, Some el' -> eq ("else" :: path) el el'
+  //   //   | None, None -> ()
+  //   //   | _ ->
+  //   //     errorFn ("else" :: path) (string actual) (string expected)
+  //   //     ()
 
-    // | EList(_, l), EList(_, l') -> eqList path l l'
-    // | ETuple(_, first, second, theRest), ETuple(_, first', second', theRest') ->
-    //   eq ("first" :: path) first first'
-    //   eq ("second" :: path) second second'
-    //   eqList path theRest theRest'
+  //   // | EList(_, l), EList(_, l') -> eqList path l l'
+  //   // | ETuple(_, first, second, theRest), ETuple(_, first', second', theRest') ->
+  //   //   eq ("first" :: path) first first'
+  //   //   eq ("second" :: path) second second'
+  //   //   eqList path theRest theRest'
 
-    | EApply(_, name, typeArgs, args), EApply(_, name', typeArgs', args') ->
-      let path = (string name :: path)
-      eq path name name'
+  //   | EApply(_, name, typeArgs, args), EApply(_, name', typeArgs', args') ->
+  //     let path = (string name :: path)
+  //     eq path name name'
 
-      check path (List.length typeArgs) (List.length typeArgs')
-      List.iteri2
-        (fun i l r -> dTypeEqualityBaseFn (string i :: path) l r errorFn)
-        typeArgs
-        typeArgs'
+  //     check path (List.length typeArgs) (List.length typeArgs')
+  //     List.iteri2
+  //       (fun i l r -> dTypeEqualityBaseFn (string i :: path) l r errorFn)
+  //       typeArgs
+  //       typeArgs'
 
-      eqNEList path args args'
+  //     eqNEList path args args'
 
-    | EFnName(_, name), EFnName(_, name') -> check path name name'
+  //   | EFnName(_, name), EFnName(_, name') -> check path name name'
 
-    // | ERecord(_, typeName, fields), ERecord(_, typeName', fields') ->
-    //   userTypeNameEqualityBaseFn path typeName typeName' errorFn
-    //   NEList.iter2
-    //     (fun (k, v) (k', v') ->
-    //       check path k k'
-    //       eq (k :: path) v v')
-    //     fields
-    //     fields'
-    // | ERecordUpdate(_, record, updates), ERecordUpdate(_, record', updates') ->
-    //   check path record record'
-    //   NEList.iter2
-    //     (fun (k, v) (k', v') ->
-    //       check path k k'
-    //       eq (k :: path) v v')
-    //     updates
-    //     updates'
-    // | EDict(_, fields), EDict(_, fields') ->
-    //   List.iter2
-    //     (fun (k, v) (k', v') ->
-    //       check ("key" :: path) k k'
-    //       eq ("value" :: path) v v')
-    //     fields
-    //     fields'
+  //   // | ERecord(_, typeName, fields), ERecord(_, typeName', fields') ->
+  //   //   userTypeNameEqualityBaseFn path typeName typeName' errorFn
+  //   //   NEList.iter2
+  //   //     (fun (k, v) (k', v') ->
+  //   //       check path k k'
+  //   //       eq (k :: path) v v')
+  //   //     fields
+  //   //     fields'
+  //   // | ERecordUpdate(_, record, updates), ERecordUpdate(_, record', updates') ->
+  //   //   check path record record'
+  //   //   NEList.iter2
+  //   //     (fun (k, v) (k', v') ->
+  //   //       check path k k'
+  //   //       eq (k :: path) v v')
+  //   //     updates
+  //   //     updates'
+  //   // | EDict(_, fields), EDict(_, fields') ->
+  //   //   List.iter2
+  //   //     (fun (k, v) (k', v') ->
+  //   //       check ("key" :: path) k k'
+  //   //       eq ("value" :: path) v v')
+  //   //     fields
+  //   //     fields'
 
-    // | EFieldAccess(_, e, f), EFieldAccess(_, e', f') ->
-    //   eq (f :: path) e e'
-    //   check path f f'
+  //   // | EFieldAccess(_, e, f), EFieldAccess(_, e', f') ->
+  //   //   eq (f :: path) e e'
+  //   //   check path f f'
 
-    // | EEnum(_, typeName, caseName, fields), EEnum(_, typeName', caseName', fields') ->
-    //   userTypeNameEqualityBaseFn path typeName typeName' errorFn
-    //   check path caseName caseName'
-    //   eqList path fields fields'
-    //   ()
+  //   // | EEnum(_, typeName, caseName, fields), EEnum(_, typeName', caseName', fields') ->
+  //   //   userTypeNameEqualityBaseFn path typeName typeName' errorFn
+  //   //   check path caseName caseName'
+  //   //   eqList path fields fields'
+  //   //   ()
 
-    // | ELambda(_, pats, e), ELambda(_, pats', e') ->
-    //   let path = ("lambda" :: path)
-    //   eq path e e'
-    //   NEList.iter2
-    //     (fun pat pat' -> letPatternEqualityBaseFn false path pat pat' errorFn)
-    //     pats
-    //     pats'
-    // | EMatch(_, e, branches), EMatch(_, e', branches') ->
-    //   eq ("matchCond" :: path) e e'
+  //   // | ELambda(_, pats, e), ELambda(_, pats', e') ->
+  //   //   let path = ("lambda" :: path)
+  //   //   eq path e e'
+  //   //   NEList.iter2
+  //   //     (fun pat pat' -> letPatternEqualityBaseFn false path pat pat' errorFn)
+  //   //     pats
+  //   //     pats'
+  //   // | EMatch(_, e, branches), EMatch(_, e', branches') ->
+  //   //   eq ("matchCond" :: path) e e'
 
-    //   check path (NEList.length branches) (NEList.length branches')
-    //   NEList.iteri2
-    //     (fun i branch branch' ->
-    //       let path = $"Case {i} - {branch.pat}" :: path
-    //       matchPatternEqualityBaseFn
-    //         checkIDs
-    //         ("pat" :: path)
-    //         branch.pat
-    //         branch'.pat
-    //         errorFn
-    //       match branch.whenCondition, branch'.whenCondition with
-    //       | Some cond, Some cond' -> eq ("whenCondition" :: path) cond cond'
-    //       | None, None -> ()
-    //       | _ ->
-    //         errorFn ("whenCondition" :: path) (string actual) (string expected)
-    //         ()
-    //       eq ("rhs" :: path) branch.rhs branch'.rhs)
-    //     branches
-    //     branches'
-    // | EAnd(_, l, r), EAnd(_, l', r') ->
-    //   eq ("left" :: path) l l'
-    //   eq ("right" :: path) r r'
-    // | EOr(_, l, r), EOr(_, l', r') ->
-    //   eq ("left" :: path) l l'
-    //   eq ("right" :: path) r r'
-    | EError(_, msg, exprs), EError(_, msg', exprs') ->
-      check path msg msg'
-      eqList path exprs exprs'
+  //   //   check path (NEList.length branches) (NEList.length branches')
+  //   //   NEList.iteri2
+  //   //     (fun i branch branch' ->
+  //   //       let path = $"Case {i} - {branch.pat}" :: path
+  //   //       matchPatternEqualityBaseFn
+  //   //         checkIDs
+  //   //         ("pat" :: path)
+  //   //         branch.pat
+  //   //         branch'.pat
+  //   //         errorFn
+  //   //       match branch.whenCondition, branch'.whenCondition with
+  //   //       | Some cond, Some cond' -> eq ("whenCondition" :: path) cond cond'
+  //   //       | None, None -> ()
+  //   //       | _ ->
+  //   //         errorFn ("whenCondition" :: path) (string actual) (string expected)
+  //   //         ()
+  //   //       eq ("rhs" :: path) branch.rhs branch'.rhs)
+  //   //     branches
+  //   //     branches'
+  //   // | EAnd(_, l, r), EAnd(_, l', r') ->
+  //   //   eq ("left" :: path) l l'
+  //   //   eq ("right" :: path) r r'
+  //   // | EOr(_, l, r), EOr(_, l', r') ->
+  //   //   eq ("left" :: path) l l'
+  //   //   eq ("right" :: path) r r'
+  //   | EError(_, msg, exprs), EError(_, msg', exprs') ->
+  //     check path msg msg'
+  //     eqList path exprs exprs'
 
-    // exhaustiveness check
-    | EUnit _, _
-    // | EInt8 _, _
-    // | EUInt8 _, _
-    // | EInt16 _, _
-    // | EUInt16 _, _
-    // | EInt32 _, _
-    // | EUInt32 _, _
-    | EInt64 _, _
-    // | EUInt64 _, _
-    // | EInt128 _, _
-    // | EUInt128 _, _
-    | EString _, _
-    // | EChar _, _
-    // | EVariable _, _
-    // | EConstant _, _
-    | EBool _, _
-    // | EFloat _, _
-    // | ELet _, _
-    // | EIf _, _
-    // | EList _, _
-    // | ETuple _, _
-    | EApply _, _
-    | EFnName _, _
-    // | ERecord _, _
-    // | ERecordUpdate _, _
-    // | EDict _, _
-    // | EFieldAccess _, _
-    // | EEnum _, _
-    // | ELambda _, _
-    // | EMatch _, _
-    // | EAnd _, _
-    // | EOr _, _
-    | EError _, _ -> check path actual expected
+  //   // exhaustiveness check
+  //   | EUnit _, _
+  //   // | EInt8 _, _
+  //   // | EUInt8 _, _
+  //   // | EInt16 _, _
+  //   // | EUInt16 _, _
+  //   // | EInt32 _, _
+  //   // | EUInt32 _, _
+  //   | EInt64 _, _
+  //   // | EUInt64 _, _
+  //   // | EInt128 _, _
+  //   // | EUInt128 _, _
+  //   | EString _, _
+  //   // | EChar _, _
+  //   // | EVariable _, _
+  //   // | EConstant _, _
+  //   | EBool _, _
+  //   // | EFloat _, _
+  //   // | ELet _, _
+  //   // | EIf _, _
+  //   // | EList _, _
+  //   // | ETuple _, _
+  //   | EApply _, _
+  //   | EFnName _, _
+  //   // | ERecord _, _
+  //   // | ERecordUpdate _, _
+  //   // | EDict _, _
+  //   // | EFieldAccess _, _
+  //   // | EEnum _, _
+  //   // | ELambda _, _
+  //   // | EMatch _, _
+  //   // | EAnd _, _
+  //   // | EOr _, _
+  //   | EError _, _ -> check path actual expected
 
 
 
@@ -728,16 +728,16 @@ module Expect =
     (expected : Dval)
     (errorFn : Path -> string -> string -> unit)
     : unit =
-    //let de p a e = dvalEqualityBaseFn p a e errorFn
+    let de p a e = dvalEqualityBaseFn p a e errorFn
     //let error path = errorFn path (string actual) (string expected)
 
     let check (path : Path) (a : 'a) (e : 'a) : unit =
       if a <> e then errorFn path (debugDval actual) (debugDval expected)
 
-    // let checkValueType (path : Path) (a : ValueType) (e : ValueType) : unit =
-    //   match VT.merge a e with
-    //   | Ok _merged -> ()
-    //   | Error() -> errorFn path (debugDval actual) (debugDval expected)
+    let checkValueType (path : Path) (a : ValueType) (e : ValueType) : unit =
+      match VT.merge a e with
+      | Ok _merged -> ()
+      | Error() -> errorFn path (debugDval actual) (debugDval expected)
 
     match actual, expected with
     // | DFloat l, DFloat r ->
@@ -769,11 +769,11 @@ module Expect =
     //   // equal if they print the same string.
     //   check path (string l) (string r)
 
-    // | DList(lType, ls), DList(rType, rs) ->
-    //   checkValueType ("Type" :: path) lType rType
+    | DList(lType, ls), DList(rType, rs) ->
+      checkValueType ("Type" :: path) lType rType
 
-    //   check ("Length" :: path) (List.length ls) (List.length rs)
-    //   List.iteri2 (fun i -> de ($"[{i}]" :: path)) ls rs
+      check ("Length" :: path) (List.length ls) (List.length rs)
+      List.iteri2 (fun i -> de ($"[{i}]" :: path)) ls rs
 
     // | DTuple(firstL, secondL, theRestL), DTuple(firstR, secondR, theRestR) ->
     //   de path firstL firstR
@@ -876,14 +876,14 @@ module Expect =
     | DString _, _
     // | DDateTime _, _
     // | DUuid _, _
-    // | DList _, _
+    | DList _, _
     // | DTuple _, _
     // | DDict _, _
     // | DRecord _, _
     // | DEnum _, _
     | DFnVal _, _
     // | DDB _, _
-      -> check path actual expected
+     -> check path actual expected
 
   let formatMsg (initialMsg : string) (path : Path) (actual : 'a) : string =
     let initial = if initialMsg = "" then "" else $"{initialMsg}\n\n"
@@ -908,13 +908,13 @@ module Expect =
   //   matchPatternEqualityBaseFn false [] actual expected (fun path a e ->
   //     Expect.equal a e (formatMsg "" path actual))
 
-  let rec equalExpr (actual : Expr) (expected : Expr) (msg : string) : unit =
-    exprEqualityBaseFn true [] actual expected (fun path a e ->
-      Expect.equal a e (formatMsg msg path actual))
+  // let rec equalExpr (actual : Expr) (expected : Expr) (msg : string) : unit =
+  //   exprEqualityBaseFn true [] actual expected (fun path a e ->
+  //     Expect.equal a e (formatMsg msg path actual))
 
-  let rec equalExprIgnoringIDs (actual : Expr) (expected : Expr) : unit =
-    exprEqualityBaseFn false [] actual expected (fun path a e ->
-      Expect.equal a e (formatMsg "" path actual))
+  // let rec equalExprIgnoringIDs (actual : Expr) (expected : Expr) : unit =
+  //   exprEqualityBaseFn false [] actual expected (fun path a e ->
+  //     Expect.equal a e (formatMsg "" path actual))
 
   let dvalEquality (left : Dval) (right : Dval) : bool =
     let mutable success = true
@@ -930,7 +930,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     // | DRecord(_, _, _, fields) ->
     //   Map.values fields |> List.map visit |> ignore<List<unit>>
     // | DEnum(_, _, _, _, fields) -> fields |> List.map visit |> ignore<List<unit>>
-    // | DList(_, items) -> List.map visit items |> ignore<List<unit>>
+    | DList(_, items) -> List.map visit items |> ignore<List<unit>>
     // | DTuple(first, second, theRest) ->
     //   List.map visit ([ first; second ] @ theRest) |> ignore<List<unit>>
 
@@ -949,12 +949,12 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     // | DUInt128 _
     // | DFloat _
     // | DChar _
-    | DString _  // TODO: should actually traverse in interpolations
+    | DString _ // TODO: should actually traverse in interpolations
     // | DUuid _
     // | DDateTime _
     | DFnVal _
     // | DDB _
-      -> f dv
+     -> f dv
     f dv
   visit dv
   state

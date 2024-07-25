@@ -115,14 +115,14 @@ module FQFnName =
 
 type NameResolution<'a> = Result<'a, NameResolutionError.Error>
 
-// type LetPattern =
-//   // | LPUnit of id
-//   // | LPTuple of
-//   //   id *
-//   //   first : LetPattern *
-//   //   second : LetPattern *
-//   //   theRest : List<LetPattern>
-//   | LPVariable of id * name : string
+type LetPattern =
+  | LPUnit of id
+  // | LPTuple of
+  //   id *
+  //   first : LetPattern *
+  //   second : LetPattern *
+  //   theRest : List<LetPattern>
+  | LPVariable of id * name : string
 
 // /// Used for pattern matching in a match statement
 // type MatchPattern =
@@ -154,13 +154,13 @@ type NameResolution<'a> = Result<'a, NameResolutionError.Error>
 
 //   | MPVariable of id * string
 
-// type BinaryOperation =
-//   | BinOpAnd
-//   | BinOpOr
+type BinaryOperation =
+  | BinOpAnd
+  | BinOpOr
 
-// type InfixFnName =
-//   | ArithmeticPlus
-//   | ArithmeticMinus
+type InfixFnName =
+  | ArithmeticPlus
+  | ArithmeticMinus
 //   | ArithmeticMultiply
 //   | ArithmeticDivide
 //   | ArithmeticModulo
@@ -173,9 +173,9 @@ type NameResolution<'a> = Result<'a, NameResolutionError.Error>
 //   | ComparisonNotEquals
 //   | StringConcat
 
-// type Infix =
-//   | InfixFnCall of InfixFnName
-//   | BinOp of BinaryOperation
+type Infix =
+  | InfixFnCall of InfixFnName
+  | BinOp of BinaryOperation
 
 /// Darklang's available types
 /// - `Int64`
@@ -194,36 +194,36 @@ type TypeReference =
   // | TInt32
   // | TUInt32
   | TInt64
-  // | TUInt64
-  // | TInt128
-  // | TUInt128
+// | TUInt64
+// | TInt128
+// | TUInt128
 
-  // | TFloat
+// | TFloat
 
-  // | TChar
-  | TString
+// | TChar
+//| TString
 
-  // | TUuid
-  // | TDateTime
+// | TUuid
+// | TDateTime
 
-  // | TList of TypeReference
-  // | TTuple of TypeReference * TypeReference * List<TypeReference>
-  // | TDict of TypeReference
+// | TList of TypeReference
+// | TTuple of TypeReference * TypeReference * List<TypeReference>
+// | TDict of TypeReference
 
-  //| TFn of arguments : NEList<TypeReference> * ret : TypeReference
+//| TFn of arguments : NEList<TypeReference> * ret : TypeReference
 
-  //| TDB of TypeReference
-  // A named variable, eg `a` in `List<a>`, matches anything
+//| TDB of TypeReference
+// A named variable, eg `a` in `List<a>`, matches anything
 
-  // /// A type defined by a standard library module, a canvas/user, or a package
-  // /// e.g. `Result<Int64, String>` is represented as `TCustomType("Result", [TInt64, TString])`
-  // /// `typeArgs` is the list of type arguments, if any
-  // | TCustomType of
-  //   // TODO: this reference should be by-hash
-  //   NameResolution<FQTypeName.FQTypeName> *
-  //   typeArgs : List<TypeReference>
+// /// A type defined by a standard library module, a canvas/user, or a package
+// /// e.g. `Result<Int64, String>` is represented as `TCustomType("Result", [TInt64, TString])`
+// /// `typeArgs` is the list of type arguments, if any
+// | TCustomType of
+//   // TODO: this reference should be by-hash
+//   NameResolution<FQTypeName.FQTypeName> *
+//   typeArgs : List<TypeReference>
 
-  //| TVariable of string
+//| TVariable of string
 
 /// Expressions - the main part of the language.
 type Expr =
@@ -250,7 +250,7 @@ type Expr =
   // /// A character is an Extended Grapheme Cluster (hence why we use a string). This
   // /// is equivalent to one screen-visible "character" in Unicode.
   // | EChar of id * string
-  | EString of id * List<StringSegment>
+  //| EString of id * List<StringSegment>
 
 
   // // -- Flow control --
@@ -270,26 +270,29 @@ type Expr =
   // // cases is a list to represent when a user starts typing but doesn't complete it
   // | EMatch of id * arg : Expr * cases : List<MatchCase>
 
-  // // <summary>
-  // // Composed of binding pattern, the expression to create bindings for,
-  // // and the expression that follows, where the bound values are available
-  // // </summary>
-  // //
-  // // <code>
-  // // let str = expr1
-  // // expr2
-  // // </code>
-  // | ELet of id * LetPattern * Expr * Expr
-  // // Reference some local variable by name
-  // //
-  // // i.e. after a `let binding = value`, any use of `binding`
-  // | EVariable of id * string
+  // <summary>
+  // Composed of binding pattern, the expression to create bindings for,
+  // and the expression that follows, where the bound values are available
+  // </summary>
+  //
+  // <code>
+  // let str = expr1
+  // expr2
+  // </code>
+  | ELet of id * LetPattern * Expr * Expr
+
+  // Reference some local variable by name
+  //
+  // i.e. after a `let binding = value`, any use of `binding`
+  | EVariable of id * string
+
+
   // // Access a field of some expression (e.g. `someExpr.fieldName`)
   // | EFieldAccess of id * Expr * string
 
 
   // -- Basic structures --
-  // | EList of id * List<Expr>
+  | EList of id * List<Expr>
   // | EDict of id * List<string * Expr>
   // | ETuple of id * Expr * Expr * List<Expr>
 
@@ -304,52 +307,52 @@ type Expr =
   /// Reference a function name, _usually_ so we can _apply_ it with args
   | EFnName of id * NameResolution<FQFnName.FQFnName>
 
-  // // Composed of a parameters * the expression itself
-  // // The id in the varname list is the analysis id, used to get a livevalue
-  // // from the analysis engine
-  // | ELambda of id * pats : NEList<LetPattern> * body : Expr
+// // Composed of a parameters * the expression itself
+// // The id in the varname list is the analysis id, used to get a livevalue
+// // from the analysis engine
+// | ELambda of id * pats : NEList<LetPattern> * body : Expr
 
-  // /// Calls upon an infix function
-  // | EInfix of id * Infix * lhs : Expr * rhs : Expr
+// /// Calls upon an infix function
+// | EInfix of id * Infix * lhs : Expr * rhs : Expr
 
 
-  // // -- References to custom types and data --
-  // | EConstant of
-  //   id *
-  //   // TODO: this reference should be by-hash
-  //   NameResolution<FQConstantName.FQConstantName>
+// // -- References to custom types and data --
+// | EConstant of
+//   id *
+//   // TODO: this reference should be by-hash
+//   NameResolution<FQConstantName.FQConstantName>
 
-  // // See NameResolution comment above
-  // | ERecord of
-  //   id *
-  //   // TODO: this reference should be by-hash
-  //   typeName : NameResolution<FQTypeName.FQTypeName> *
-  //   // User is allowed type `Name {}` even if that's an error
-  //   fields : List<string * Expr>
-  // | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
+// // See NameResolution comment above
+// | ERecord of
+//   id *
+//   // TODO: this reference should be by-hash
+//   typeName : NameResolution<FQTypeName.FQTypeName> *
+//   // User is allowed type `Name {}` even if that's an error
+//   fields : List<string * Expr>
+// | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
 
-  // // Enums include `Some`, `None`, `Error`, `Ok`, as well
-  // // as user-defined enums.
-  // //
-  // /// Given an Enum type of:
-  // ///   `type MyEnum = A | B of int | C of int * (label: string) | D of MyEnum`
-  // /// , this is the expression
-  // ///   `C (1, "title")`
-  // /// represented as
-  // ///   `EEnum(Some UserType.MyEnum, "C", [EInt64(1), EString("title")]`
-  // | EEnum of
-  //   id *
-  //   // TODO: this reference should be by-hash
-  //   typeName : NameResolution<FQTypeName.FQTypeName> *
-  //   caseName : string *
-  //   fields : List<Expr>
+// // Enums include `Some`, `None`, `Error`, `Ok`, as well
+// // as user-defined enums.
+// //
+// /// Given an Enum type of:
+// ///   `type MyEnum = A | B of int | C of int * (label: string) | D of MyEnum`
+// /// , this is the expression
+// ///   `C (1, "title")`
+// /// represented as
+// ///   `EEnum(Some UserType.MyEnum, "C", [EInt64(1), EString("title")]`
+// | EEnum of
+//   id *
+//   // TODO: this reference should be by-hash
+//   typeName : NameResolution<FQTypeName.FQTypeName> *
+//   caseName : string *
+//   fields : List<Expr>
 
 
 //and MatchCase = { pat : MatchPattern; whenCondition : Option<Expr>; rhs : Expr }
 
-and StringSegment =
-  | StringText of string
-  | StringInterpolation of Expr
+// and StringSegment =
+//   | StringText of string
+//   | StringInterpolation of Expr
 
 // and PipeExpr =
 //   | EPipeVariable of id * string * List<Expr> // value is an fn taking one or more arguments
@@ -383,18 +386,18 @@ module Expr =
     // | EInt128(id, _)
     // | EUInt128(id, _)
     // | EChar(id, _)
-    | EString(id, _)
+    //| EString(id, _)
     // | EFloat(id, _, _, _)
     // | EConstant(id, _)
-    // | ELet(id, _, _, _)
+    | ELet(id, _, _, _)
     // | EIf(id, _, _, _)
-    // | EInfix(id, _, _, _)
+    //| EInfix(id, _, _, _)
     // | ELambda(id, _, _)
     | EFnName(id, _)
     // | EFieldAccess(id, _, _)
-    // | EVariable(id, _)
+    | EVariable(id, _)
     | EApply(id, _, _, _)
-    // | EList(id, _)
+    | EList(id, _)
     // | EDict(id, _)
     // | ETuple(id, _, _, _)
     // | EPipe(id, _, _)
@@ -402,7 +405,7 @@ module Expr =
     // | ERecordUpdate(id, _, _)
     // | EEnum(id, _, _, _)
     // | EMatch(id, _, _)
-      -> id
+     -> id
 
 // module PipeExpr =
 //   let toID (expr : PipeExpr) : id =

@@ -10,10 +10,7 @@ let fnRenames =
   // eg: fn "Http" "respond" 0, fn "Http" "response" 0
   []
 
-let builtins
-  //(httpConfig : Libs.HttpClient.Configuration)
-  //(pm : LibExecution.ProgramTypes.PackageManager)
-  : Builtins =
+let builtins : Builtins =
   Builtin.combine
     [
       // Libs.NoModule.builtins
@@ -26,7 +23,7 @@ let builtins
       // Libs.UInt16.builtins
       // Libs.Int32.builtins
       // Libs.UInt32.builtins
-      // Libs.Int64.builtins
+      Libs.Int64.builtins
       // Libs.UInt64.builtins
       // Libs.Int128.builtins
       // Libs.UInt128.builtins

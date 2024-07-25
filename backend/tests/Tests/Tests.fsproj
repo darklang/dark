@@ -14,8 +14,8 @@
     <ProjectReference Include="../../src/Prelude/Prelude.fsproj" />
     <!--ProjectReference Include="../../src/LibParser/LibParser.fsproj" /-->
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../../src/LibTreeSitter/LibTreeSitter.fsproj" />
-    <ProjectReference Include="../../src/BuiltinExecution/BuiltinExecution.fsproj" />
+    <!--ProjectReference Include="../../src/LibTreeSitter/LibTreeSitter.fsproj" /-->
+    <!--ProjectReference Include="../../src/BuiltinExecution/BuiltinExecution.fsproj" /-->
 
     <!-- cloud -->
     <!--ProjectReference Include="../../src/LibClientTypes/LibClientTypes.fsproj" /-->
@@ -37,7 +37,9 @@
     <Compile Include="Prelude.Tests.fs" />
     <Compile Include="ProgramTypes.Tests.fs" />
     <!--Compile Include="RuntimeTypes.Tests.fs" /-->
-    <Compile Include="TreeSitter.Tests.fs" />
+    <Compile Include="PT2RT.Tests.fs" />
+    <Compile Include="Interpreter.Tests.fs" />
+    <!--Compile Include="TreeSitter.Tests.fs" /-->
 
     <!--Compile Include="AnalysisTypes.Tests.fs" /-->
     <!--Compile Include="StorageTraces.Tests.fs" /-->

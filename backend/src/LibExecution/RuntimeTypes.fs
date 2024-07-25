@@ -164,9 +164,9 @@ type KnownType =
   // | KTUuid
   // | KTDateTime
 
-  // /// let empty =    [] // KTList Unknown
-  // /// let intList = [1] // KTList (ValueType.Known KTInt64)
-  // | KTList of ValueType
+  /// let empty =    [] // KTList Unknown
+  /// let intList = [1] // KTList (ValueType.Known KTInt64)
+  | KTList of ValueType
 
   // /// Intuitively, since Dvals generate KnownTypes, you would think that we can
   // /// use KnownTypes in a KTTuple.
@@ -192,20 +192,20 @@ type KnownType =
   /// `[z1, z2]` is allowed now but might not be allowed later
   | KTFn of args : NEList<ValueType> * ret : ValueType
 
-  // /// At time of writing, all DBs are of a specific type, and DBs may only be
-  // /// referenced directly, but we expect to eventually allow references to DBs
-  // /// where the type may be unknown
-  // /// List.head ([]: List<DB<'a>>) // KTDB (Unknown)
-  // | KTDB of ValueType
+// /// At time of writing, all DBs are of a specific type, and DBs may only be
+// /// referenced directly, but we expect to eventually allow references to DBs
+// /// where the type may be unknown
+// /// List.head ([]: List<DB<'a>>) // KTDB (Unknown)
+// | KTDB of ValueType
 
-  // /// let n = None          // type args: [Unknown]
-  // /// let s = Some(5)       // type args: [Known KTInt64]
-  // /// let o = Ok (5)        // type args: [Known KTInt64, Unknown]
-  // /// let e = Error ("str") // type args: [Unknown, Known KTString]
-  // | KTCustomType of FQTypeName.FQTypeName * typeArgs : List<ValueType>
+// /// let n = None          // type args: [Unknown]
+// /// let s = Some(5)       // type args: [Known KTInt64]
+// /// let o = Ok (5)        // type args: [Known KTInt64, Unknown]
+// /// let e = Error ("str") // type args: [Unknown, Known KTString]
+// | KTCustomType of FQTypeName.FQTypeName * typeArgs : List<ValueType>
 
-  // /// let myDict = {} // KTDict Unknown
-  // | KTDict of ValueType
+// /// let myDict = {} // KTDict Unknown
+// | KTDict of ValueType
 
 /// Represents the actual type of a Dval
 ///
@@ -281,7 +281,7 @@ module ValueType =
       // | KTUuid -> "Uuid"
       // | KTDateTime -> "DateTime"
 
-      // | KTList inner -> $"List<{toString inner}>"
+      | KTList inner -> $"List<{toString inner}>"
       // | KTDict inner -> $"Dict<{toString inner}>"
       // | KTTuple(first, second, theRest) ->
       //   first :: second :: theRest
@@ -303,7 +303,7 @@ module ValueType =
       | KTFn(args, ret) ->
         NEList.toList args @ [ ret ] |> List.map toString |> String.concat " -> "
 
-      //| KTDB inner -> $"DB<{toString inner}>"
+  //| KTDB inner -> $"DB<{toString inner}>"
 
 
   let rec private mergeKnownTypes
@@ -424,6 +424,9 @@ module ValueType =
 //   | MPVariable of id * string
 
 
+// ------------
+// Instructions ("bytecode")
+// ------------
 type NameResolution<'a> = Result<'a, RuntimeError>
 
 and TypeReference =
@@ -444,7 +447,7 @@ and TypeReference =
   | TString
   // | TUuid
   // | TDateTime
-  // | TList of TypeReference
+  | TList of TypeReference
   // | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TFn of NEList<TypeReference> * TypeReference
   // | TDB of TypeReference
@@ -479,82 +482,128 @@ and TypeReference =
       | TString
       // | TUuid
       // | TDateTime
-        -> true
+       -> true
 
-      // | TList t -> isConcrete t
+      | TList t -> isConcrete t
       // | TTuple(t1, t2, ts) ->
       //   isConcrete t1 && isConcrete t2 && List.forall isConcrete ts
       | TFn(ts, t) -> NEList.forall isConcrete ts && isConcrete t
-      // | TDB t -> isConcrete t
-      // | TCustomType(_, ts) -> List.forall isConcrete ts
-      // | TDict t -> isConcrete t
+    // | TDB t -> isConcrete t
+    // | TCustomType(_, ts) -> List.forall isConcrete ts
+    // | TDict t -> isConcrete t
 
-      //| TVariable _-> false
+    //| TVariable _-> false
 
     isConcrete this
 
+and Register = int // TODO: unit of measure
 
-// Expressions here are runtime variants of the AST in ProgramTypes, having had
-// superfluous information removed.
-and Expr =
-  | EUnit of id
+// TODO: consider if each of these should include the Expr ID that they came from
+//
+// Would Expr ID be enough?
+// I don't _think_ we'd have to note the fn ID or TL ID or script name, but maybe?)
+and Instruction =
+  /// Push a ("constant") value into a register
+  | LoadVal of loadTo : Register * Dval
 
-  | EBool of id * bool
+  /// Apply some args (and maybe type args) to something
+  /// (a named function, or lambda, etc)
+  | Apply of
+    putResultIn : Register *
+    thingToApply : Register *
+    typeArgs : List<TypeReference> *
+    args : NEList<Register>
 
-  // | EInt8 of id * int8
-  // | EUInt8 of id * uint8
-  // | EInt16 of id * int16
-  // | EUInt16 of id * uint16
-  // | EInt32 of id * int32
-  // | EUInt32 of id * uint32
-  | EInt64 of id * int64
-  // | EUInt64 of id * uint64
-  // | EInt128 of id * System.Int128
-  // | EUInt128 of id * System.UInt128
+  /// Loads the value of a register into a variable
+  | SetVar of varName : string * loadFrom : Register
 
-  // | EFloat of id * double
+  /// Stores the value of a variable to a register
+  | GetVar of loadTo : Register * varName : string
 
-  // | EChar of id * string
-  | EString of id * List<StringSegment>
+  // | Jump of jumpTo: Register
+  // | JumpIfFalse of condition: Register * jumpTo: Register
 
-  // // flow control
-  // | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
-  // | EMatch of id * Expr * NEList<MatchCase>
-  // | EAnd of id * lhs : Expr * rhs : Expr
-  // | EOr of id * lhs : Expr * rhs : Expr
+  /// Add an item to an existing list
+  /// , and type-check to make sure it matches the ValueType of that list
+  ///
+  /// Note: lists are _created_ with `LoadVal`
+  /// (always an empty list of unknown type, to ensure type safety)
+  | AddItemToList of listRegister : Register * itemToAdd : Register
 
-  // // declaring and referencing vars
-  // | ELet of id * LetPattern * Expr * Expr
-  // | EVariable of id * string
-  // | EFieldAccess of id * Expr * string
+  /// Return whatever's in the noted register
+  /// (usually relevant only for branching logic like `if`, `match`)
+  | Return of from : Register
 
-  // calling fns and other things
-  | EFnName of id * FQFnName.FQFnName
-  | EApply of id * Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
-  //| ELambda of id * pats : NEList<LetPattern> * body : Expr
+  /// Fail if this is hit (basically "raise an exception")
+  | Fail of RuntimeError
 
-  // // structures
-  // | EList of id * List<Expr>
-  // | ETuple of id * Expr * Expr * List<Expr>
-  // | EDict of id * List<string * Expr>
 
-  // // working with custom types
-  // | EConstant of id * FQConstantName.FQConstantName
-  // | ERecord of id * FQTypeName.FQTypeName * NEList<string * Expr>
-  // | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
-  // | EEnum of id * FQTypeName.FQTypeName * caseName : string * fields : List<Expr>
+and Instructions = List<Instruction>
+and InstructionsWithContext =
+  // (rc, instructions, result register)
+  (int * Instructions * Register)
 
-  // A runtime error. This is included so that we can allow the program to run in the
-  // presence of compile-time errors (which are converted to this error). We may
-  // adapt this to include more information as we go. This list of exprs is the
-  // subexpressions to evaluate before evaluating the error.
-  | EError of id * RuntimeError * List<Expr>
+// // Expressions here are runtime variants of the AST in ProgramTypes, having had
+// // superfluous information removed.
+// and Expr =
+//   | EUnit of id
 
-// and MatchCase = { pat : MatchPattern; whenCondition : Option<Expr>; rhs : Expr }
+//   | EBool of id * bool
 
-and StringSegment =
-  | StringText of string
-  | StringInterpolation of Expr
+//   // | EInt8 of id * int8
+//   // | EUInt8 of id * uint8
+//   // | EInt16 of id * int16
+//   // | EUInt16 of id * uint16
+//   // | EInt32 of id * int32
+//   // | EUInt32 of id * uint32
+//   | EInt64 of id * int64
+//   // | EUInt64 of id * uint64
+//   // | EInt128 of id * System.Int128
+//   // | EUInt128 of id * System.UInt128
+
+//   // | EFloat of id * double
+
+//   // | EChar of id * string
+//   | EString of id * List<StringSegment>
+
+//   // // flow control
+//   // | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
+//   // | EMatch of id * Expr * NEList<MatchCase>
+//   // | EAnd of id * lhs : Expr * rhs : Expr
+//   // | EOr of id * lhs : Expr * rhs : Expr
+
+//   // // declaring and referencing vars
+//   // | ELet of id * LetPattern * Expr * Expr
+//   // | EVariable of id * string
+//   // | EFieldAccess of id * Expr * string
+
+//   // calling fns and other things
+//   | EFnName of id * FQFnName.FQFnName
+//   | EApply of id * Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
+//   //| ELambda of id * pats : NEList<LetPattern> * body : Expr
+
+//   // // structures
+//   // | EList of id * List<Expr>
+//   // | ETuple of id * Expr * Expr * List<Expr>
+//   // | EDict of id * List<string * Expr>
+
+//   // // working with custom types
+//   // | EConstant of id * FQConstantName.FQConstantName
+//   // | ERecord of id * FQTypeName.FQTypeName * NEList<string * Expr>
+//   // | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
+//   // | EEnum of id * FQTypeName.FQTypeName * caseName : string * fields : List<Expr>
+
+//   // A runtime error. This is included so that we can allow the program to run in the
+//   // presence of compile-time errors (which are converted to this error). We may
+//   // adapt this to include more information as we go. This list of exprs is the
+//   // subexpressions to evaluate before evaluating the error.
+//   | EError of id * RuntimeError * List<Expr>
+
+// // and MatchCase = { pat : MatchPattern; whenCondition : Option<Expr>; rhs : Expr }
+
+// and StringSegment =
+//   | StringText of string
+//   | StringInterpolation of Expr
 
 
 and DvalMap = Map<string, Dval>
@@ -604,8 +653,8 @@ and [<NoComparison>] Dval =
   // | DDateTime of DarkDateTime.T
   // | DUuid of System.Guid
 
-  // // Compound types
-  // | DList of ValueType * List<Dval>
+  // Compound types
+  | DList of ValueType * List<Dval>
   // | DTuple of first : Dval * second : Dval * theRest : List<Dval>
   // | DDict of
   //   // This is the type of the _values_, not the keys. Once users can specify the
@@ -634,8 +683,8 @@ and [<NoComparison>] Dval =
   // Functions
   | DFnVal of FnValImpl // VTTODO I'm not sure how ValueType fits in here
 
-  // // References
-  // | DDB of name : string
+// // References
+// | DDB of name : string
 
 
 and DvalTask = Ply<Dval>
@@ -735,31 +784,31 @@ module CallStack =
 
 
 module RuntimeError =
-//   let typeName =
-//     FQTypeName.fqPackage PackageIDs.Type.LanguageTools.RuntimeError.error
+  //   let typeName =
+  //     FQTypeName.fqPackage PackageIDs.Type.LanguageTools.RuntimeError.error
 
-//   let toDT (RuntimeError e : RuntimeError) : Dval = e
+  //   let toDT (RuntimeError e : RuntimeError) : Dval = e
 
-//   let fromDT (dv : Dval) : RuntimeError = RuntimeError dv
+  //   let fromDT (dv : Dval) : RuntimeError = RuntimeError dv
 
-//   let case (caseName : string) (fields : List<Dval>) : RuntimeError =
-//     DEnum(typeName, typeName, [], caseName, fields) |> RuntimeError
+  //   let case (caseName : string) (fields : List<Dval>) : RuntimeError =
+  //     DEnum(typeName, typeName, [], caseName, fields) |> RuntimeError
 
 
-//   let cliError field = case "CliError" [ field ]
+  //   let cliError field = case "CliError" [ field ]
 
-//   let nameResolutionError field = case "NameResolutionError" [ field ]
+  //   let nameResolutionError field = case "NameResolutionError" [ field ]
 
-//   let typeCheckerError field = case "TypeCheckerError" [ field ]
+  //   let typeCheckerError field = case "TypeCheckerError" [ field ]
 
-//   let jsonError field = case "JsonError" [ field ]
+  //   let jsonError field = case "JsonError" [ field ]
 
-//   let sqlCompilerRuntimeError (internalError : RuntimeError) =
-//     case "SqlCompilerRuntimeError" [ toDT internalError ]
+  //   let sqlCompilerRuntimeError (internalError : RuntimeError) =
+  //     case "SqlCompilerRuntimeError" [ toDT internalError ]
 
-//   let executionError field = case "ExecutionError" [ field ]
+  //   let executionError field = case "ExecutionError" [ field ]
 
-//   let intError field = case "IntError" [ field ]
+  //   let intError field = case "IntError" [ field ]
 
 
   // TODO remove all usages of this in favor of better error cases
@@ -832,49 +881,49 @@ type Deprecation<'name> =
 //   type T = { typeParams : List<string>; definition : Definition }
 
 
-// Functions for working with Dark runtime expressions
-module Expr =
-  let toID (expr : Expr) : id =
-    match expr with
-    | EUnit id
+// // Functions for working with Dark runtime expressions
+// module Expr =
+//   let toID (expr : Expr) : id =
+//     match expr with
+//     | EUnit id
 
-    | EBool(id, _)
+//     | EBool(id, _)
 
-    // | EInt8(id, _)
-    // | EUInt8(id, _)
-    // | EInt16(id, _)
-    // | EUInt16(id, _)
-    // | EInt32(id, _)
-    // | EUInt32(id, _)
-    | EInt64(id, _)
-    // | EUInt64(id, _)
-    // | EInt128(id, _)
-    // | EUInt128(id, _)
+//     // | EInt8(id, _)
+//     // | EUInt8(id, _)
+//     // | EInt16(id, _)
+//     // | EUInt16(id, _)
+//     // | EInt32(id, _)
+//     // | EUInt32(id, _)
+//     | EInt64(id, _)
+//     // | EUInt64(id, _)
+//     // | EInt128(id, _)
+//     // | EUInt128(id, _)
 
-    // | EFloat(id, _)
+//     // | EFloat(id, _)
 
-    // | EChar(id, _)
-    | EString(id, _)
+//     // | EChar(id, _)
+//     | EString(id, _)
 
-    // | EConstant(id, _)
-    // | EVariable(id, _)
-    // | EFieldAccess(id, _, _)
-    // | ELambda(id, _, _)
-    // | ELet(id, _, _, _)
-    // | EIf(id, _, _, _)
-    | EApply(id, _, _, _)
-    | EFnName(id, _)
-    // | EList(id, _)
-    // | ETuple(id, _, _, _)
-    // | ERecord(id, _, _)
-    // | ERecordUpdate(id, _, _)
-    // | EDict(id, _)
-    // | EEnum(id, _, _, _)
-    // | EMatch(id, _, _)
-    | EError(id, _, _)
-    // | EAnd(id, _, _)
-    // | EOr(id, _, _)
-      -> id
+//     // | EConstant(id, _)
+//     // | EVariable(id, _)
+//     // | EFieldAccess(id, _, _)
+//     // | ELambda(id, _, _)
+//     // | ELet(id, _, _, _)
+//     // | EIf(id, _, _, _)
+//     | EApply(id, _, _, _)
+//     | EFnName(id, _)
+//     // | EList(id, _)
+//     // | ETuple(id, _, _, _)
+//     // | ERecord(id, _, _)
+//     // | ERecordUpdate(id, _, _)
+//     // | EDict(id, _)
+//     // | EEnum(id, _, _, _)
+//     // | EMatch(id, _, _)
+//     | EError(id, _, _)
+//     // | EAnd(id, _, _)
+//     // | EOr(id, _, _)
+//       -> id
 
 // // Functions for working with Dark Let patterns
 // module LetPattern =
@@ -922,7 +971,7 @@ module Dval =
   // accuracy is better, as the runtime is perfectly accurate.
   // </summary>
   let rec typeMatches (typ : TypeReference) (dv : Dval) : bool =
-    //let r = typeMatches
+    let r = typeMatches
 
     match (dv, typ) with
     //| _, TVariable _ -> true
@@ -949,13 +998,14 @@ module Dval =
     // | DDateTime _, TDateTime
     // | DUuid _, TUuid
 
-    // | DDB _, TDB _ -> true
+    // | DDB _, TDB _
+     -> true
     // | DTuple(first, second, theRest), TTuple(firstType, secondType, otherTypes) ->
     //   let pairs =
     //     [ (first, firstType); (second, secondType) ] @ List.zip theRest otherTypes
 
     //   pairs |> List.all (fun (v, subtype) -> r subtype v)
-    // | DList(_vtTODO, l), TList t -> List.all (r t) l
+    | DList(_vtTODO, l), TList t -> List.all (r t) l
     // | DDict(_vtTODO, m), TDict t -> Map.all (r t) m
     // | DFnVal(Lambda l), TFn(parameters, _) ->
     //   NEList.length parameters = NEList.length l.parameters
@@ -993,13 +1043,13 @@ module Dval =
     // | DUuid _, _
     // | DChar _, _
     // | DDB _, _
-    // | DList _, _
+    | DList _, _
     // | DTuple _, _
     // | DDict _, _
     // | DRecord _, _
     | DFnVal _, _
     //| DEnum _, _
-      -> false
+     -> false
 
 
   let rec toValueType (dv : Dval) : ValueType =
@@ -1024,7 +1074,7 @@ module Dval =
     // | DDateTime _ -> ValueType.Known KTDateTime
     // | DUuid _ -> ValueType.Known KTUuid
 
-    // | DList(t, _) -> ValueType.Known(KTList t)
+    | DList(t, _) -> ValueType.Known(KTList t)
     // | DDict(t, _) -> ValueType.Known(KTDict t)
     // | DTuple(first, second, theRest) ->
     //   ValueType.Known(
@@ -1049,8 +1099,8 @@ module Dval =
       // VTTODO look up type, etc
       | NamedFn _named -> ValueType.Unknown
 
-    // // CLEANUP follow up when DDB has a typeReference
-    // | DDB _ -> ValueType.Unknown
+  // // CLEANUP follow up when DDB has a typeReference
+  // | DDB _ -> ValueType.Unknown
 
 
   // let asList (dv : Dval) : Option<List<Dval>> =
@@ -1138,10 +1188,10 @@ module Dval =
     | DBool b -> Some b
     | _ -> None
 
-  // let asUuid (dv : Dval) : Option<System.Guid> =
-  //   match dv with
-  //   | DUuid u -> Some u
-  //   | _ -> None
+// let asUuid (dv : Dval) : Option<System.Guid> =
+//   match dv with
+//   | DUuid u -> Some u
+//   | _ -> None
 
 
 // type Const =
@@ -1192,7 +1242,7 @@ module PackageFn =
       typeParams : List<string>
       parameters : NEList<Parameter>
       returnType : TypeReference
-      body : Expr }
+      body : InstructionsWithContext }
 
 
 // // ------------
@@ -1352,7 +1402,7 @@ and BuiltInFnSig =
 
 and FnImpl =
   | BuiltInFunction of BuiltInFnSig
-  | PackageFunction of FQFnName.Package * Expr
+  | PackageFunction of FQFnName.Package * InstructionsWithContext //* localCount: int
 
 
 and FunctionRecord = Source * FQFnName.FQFnName
@@ -1371,9 +1421,9 @@ and StoreFnResult = FunctionRecord -> NEList<Dval> -> Dval -> unit
 and Program =
   { canvasID : CanvasID
     internalFnsAllowed : bool
-    //dbs : Map<string, DB.T>
-    //secrets : List<Secret.T>
-    }
+  //dbs : Map<string, DB.T>
+  //secrets : List<Secret.T>
+  }
 
 /// Set of callbacks used to trace the interpreter, and other context needed to run code
 and Tracing =
@@ -1385,6 +1435,8 @@ and Tracing =
     callStack : CallStack }
 
 // Used for testing
+// TODO: maybe this belongs in Execution rather than RuntimeTypes?
+// and taken out of ExecutionState, where it's not really used?
 and TestContext =
   { mutable sideEffectCount : int
 
@@ -1471,16 +1523,22 @@ and ExecutionState =
 
 
     // -- Can change over time during execution --
-    packageManager : PackageManager // TODO update to availableTypes?
+    // (probably move these things to VMState)
 
+    // Maybe replace this and `builtins` with availTypes, availConsts, availFns?
+    // We're doing some ExecutionState -> (those) mappings at runtime on occasion,
+    // probably a lot more than we need
+    packageManager : PackageManager
+
+    // Is anything actually referencing this right now?
     symbolTable : Symtable
     typeSymbolTable : TypeSymbolTable
   }
 
 and Types =
   { typeSymbolTable : TypeSymbolTable
-    //package : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
-    }
+  //package : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
+  }
 
 // and Constants =
 //   { builtIn : Map<FQConstantName.Builtin, BuiltInConstant>
@@ -1495,8 +1553,8 @@ and Functions =
 module ExecutionState =
   let availableTypes (state : ExecutionState) : Types =
     { typeSymbolTable = state.typeSymbolTable
-      //package = state.packageManager.getType
-      }
+    //package = state.packageManager.getType
+    }
 
   // let availableConstants (state : ExecutionState) : Constants =
   //   { builtIn = state.builtins.constants

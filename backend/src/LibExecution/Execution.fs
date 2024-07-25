@@ -39,20 +39,21 @@ let createState
 
     packageManager = packageManager
     symbolTable = Map.empty
-    typeSymbolTable = Map.empty
-    }
+    typeSymbolTable = Map.empty }
 
 let executeExpr
   (state : RT.ExecutionState)
   (inputVars : RT.Symtable)
-  (expr : RT.Expr)
+  (instructions : RT.Instructions)
+  (resultReg : RT.Register)
   : Task<RT.ExecutionResult> =
   task {
     try
       try
         let state =
-          { state with symbolTable = Interpreter.withGlobals state inputVars }
-        let! result = Interpreter.eval state expr
+          //{ state with symbolTable = Interpreter.withGlobals state inputVars }
+          { state with symbolTable = inputVars }
+        let! result = Interpreter.eval state instructions resultReg
         return Ok result
       with RT.RuntimeErrorException(source, rte) ->
         return Error(source, rte)
@@ -74,7 +75,8 @@ let executeFunction
         let state =
           { state with
               tracing.callStack.entrypoint = RT.ExecutionPoint.Function name }
-        let! result = Interpreter.callFn state name typeArgs args
+        let! result =
+          Interpreter.call state (RT.DFnVal(RT.NamedFn name)) typeArgs args
         return Ok result
       with RT.RuntimeErrorException(source, rte) ->
         return Error(source, rte)

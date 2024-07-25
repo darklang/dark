@@ -62,7 +62,8 @@ let combine (libs : List<Builtins>) (fnRenames : FnRenames) : Builtins =
 
 let make
   //(constants : List<BuiltInConstant>)
-  (fns : List<BuiltInFn>) : Builtins =
+  (fns : List<BuiltInFn>)
+  : Builtins =
   { //constants = constants |> Map.fromListBy _.name
     fns = fns |> Map.fromListBy _.name }
 

@@ -21,7 +21,7 @@
     <!--Compile Include="Libs/UInt16.fs" /-->
     <!--Compile Include="Libs/Int32.fs" /-->
     <!--Compile Include="Libs/UInt32.fs" /-->
-    <!--Compile Include="Libs/Int64.fs" /-->
+    <Compile Include="Libs/Int64.fs" />
     <!--Compile Include="Libs/UInt64.fs" /-->
     <!--Compile Include="Libs/Int128.fs" /-->
     <!--Compile Include="Libs/UInt128.fs" /-->
@@ -61,7 +61,7 @@
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../LibTreeSitter/LibTreeSitter.fsproj" />
+    <!--ProjectReference Include="../LibTreeSitter/LibTreeSitter.fsproj" /-->
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

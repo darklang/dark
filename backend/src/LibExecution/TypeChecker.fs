@@ -39,87 +39,87 @@ type Context =
 type ErrorType =
   // TODO? swap these fields
   | ValueNotExpectedType of actualValue : Dval * expectedType : TypeReference
-  //| TypeDoesntExist of FQTypeName.FQTypeName
+//| TypeDoesntExist of FQTypeName.FQTypeName
 
 
 type Error = { errorType : ErrorType; context : Context }
 
 
 module Error =
-//   module RT2DT = RuntimeTypesToDarkTypes
+  //   module RT2DT = RuntimeTypesToDarkTypes
 
-//   module Context =
-//     let typeName =
-//       FQTypeName.Package
-//         PackageIDs.Type.LanguageTools.RuntimeError.TypeChecker.context
+  //   module Context =
+  //     let typeName =
+  //       FQTypeName.Package
+  //         PackageIDs.Type.LanguageTools.RuntimeError.TypeChecker.context
 
-//     let rec toDT (context : Context) : Dval =
-//       let (caseName, fields) =
-//         match context with
-//         | FunctionCallParameter(fnName, param, paramIndex) ->
-//           "FunctionCallParameter",
-//           [ RT2DT.FQFnName.toDT fnName; RT2DT.Param.toDT param; DInt64 paramIndex ]
+  //     let rec toDT (context : Context) : Dval =
+  //       let (caseName, fields) =
+  //         match context with
+  //         | FunctionCallParameter(fnName, param, paramIndex) ->
+  //           "FunctionCallParameter",
+  //           [ RT2DT.FQFnName.toDT fnName; RT2DT.Param.toDT param; DInt64 paramIndex ]
 
-//         | FunctionCallResult(fnName, returnType) ->
-//           "FunctionCallResult",
-//           [ RT2DT.FQFnName.toDT fnName; RT2DT.TypeReference.toDT returnType ]
+  //         | FunctionCallResult(fnName, returnType) ->
+  //           "FunctionCallResult",
+  //           [ RT2DT.FQFnName.toDT fnName; RT2DT.TypeReference.toDT returnType ]
 
-//         | RecordField(recordTypeName, fieldName, fieldType) ->
-//           "RecordField",
-//           [ RT2DT.FQTypeName.toDT recordTypeName
-//             DString fieldName
-//             RT2DT.TypeReference.toDT fieldType ]
+  //         | RecordField(recordTypeName, fieldName, fieldType) ->
+  //           "RecordField",
+  //           [ RT2DT.FQTypeName.toDT recordTypeName
+  //             DString fieldName
+  //             RT2DT.TypeReference.toDT fieldType ]
 
-//         | DictKey(key, typ) ->
-//           "DictKey", [ DString key; RT2DT.TypeReference.toDT typ ]
+  //         | DictKey(key, typ) ->
+  //           "DictKey", [ DString key; RT2DT.TypeReference.toDT typ ]
 
-//         | EnumField(enumTypeName, caseName, fieldIndex, fieldCount, fieldType) ->
-//           "EnumField",
-//           [ RT2DT.FQTypeName.toDT enumTypeName
-//             DString caseName
-//             DInt64 fieldIndex
-//             DInt64 fieldCount
-//             RT2DT.TypeReference.toDT fieldType ]
+  //         | EnumField(enumTypeName, caseName, fieldIndex, fieldCount, fieldType) ->
+  //           "EnumField",
+  //           [ RT2DT.FQTypeName.toDT enumTypeName
+  //             DString caseName
+  //             DInt64 fieldIndex
+  //             DInt64 fieldCount
+  //             RT2DT.TypeReference.toDT fieldType ]
 
-//         | DBQueryVariable(varName, expected) ->
-//           "DBQueryVariable", [ DString varName; RT2DT.TypeReference.toDT expected ]
+  //         | DBQueryVariable(varName, expected) ->
+  //           "DBQueryVariable", [ DString varName; RT2DT.TypeReference.toDT expected ]
 
-//         | DBSchemaType(name, expectedType) ->
-//           "DBSchemaType", [ DString name; RT2DT.TypeReference.toDT expectedType ]
+  //         | DBSchemaType(name, expectedType) ->
+  //           "DBSchemaType", [ DString name; RT2DT.TypeReference.toDT expectedType ]
 
-//         | ListIndex(index, listTyp, parent) ->
-//           "ListIndex",
-//           [ DInt64 index; RT2DT.TypeReference.toDT listTyp; toDT parent ]
+  //         | ListIndex(index, listTyp, parent) ->
+  //           "ListIndex",
+  //           [ DInt64 index; RT2DT.TypeReference.toDT listTyp; toDT parent ]
 
-//         | TupleIndex(index, elementType, parent) ->
-//           "TupleIndex",
-//           [ DInt64 index; RT2DT.TypeReference.toDT elementType; toDT parent ]
+  //         | TupleIndex(index, elementType, parent) ->
+  //           "TupleIndex",
+  //           [ DInt64 index; RT2DT.TypeReference.toDT elementType; toDT parent ]
 
-//         | FnValResult(returnType) ->
-//           "FnValResult", [ RT2DT.TypeReference.toDT returnType ]
+  //         | FnValResult(returnType) ->
+  //           "FnValResult", [ RT2DT.TypeReference.toDT returnType ]
 
-//       DEnum(typeName, typeName, [], caseName, fields)
+  //       DEnum(typeName, typeName, [], caseName, fields)
 
-//   module ErrorType =
-//     let typeName =
-//       FQTypeName.Package
-//         PackageIDs.Type.LanguageTools.RuntimeError.TypeChecker.errorType
+  //   module ErrorType =
+  //     let typeName =
+  //       FQTypeName.Package
+  //         PackageIDs.Type.LanguageTools.RuntimeError.TypeChecker.errorType
 
-//     let toDT (et : ErrorType) : Dval =
-//       let (caseName, fields) =
-//         match et with
-//         | ValueNotExpectedType(actualValue, expectedType) ->
-//           "ValueNotExpectedType",
-//           [ actualValue |> RT2DT.Dval.toDT
-//             expectedType |> RT2DT.TypeReference.toDT ]
+  //     let toDT (et : ErrorType) : Dval =
+  //       let (caseName, fields) =
+  //         match et with
+  //         | ValueNotExpectedType(actualValue, expectedType) ->
+  //           "ValueNotExpectedType",
+  //           [ actualValue |> RT2DT.Dval.toDT
+  //             expectedType |> RT2DT.TypeReference.toDT ]
 
-//         | TypeDoesntExist(typeName) ->
-//           "TypeDoesntExist", [ RT2DT.FQTypeName.toDT typeName ]
+  //         | TypeDoesntExist(typeName) ->
+  //           "TypeDoesntExist", [ RT2DT.FQTypeName.toDT typeName ]
 
-//       DEnum(typeName, typeName, [], caseName, fields)
+  //       DEnum(typeName, typeName, [], caseName, fields)
 
-//   let typeName =
-//     FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeError.TypeChecker.error
+  //   let typeName =
+  //     FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeError.TypeChecker.error
 
   let toRuntimeError (_e : Error) : RuntimeError =
     // let fields =
@@ -240,7 +240,7 @@ let rec valueTypeUnifies
 let rec unify
   (context : Context)
   (types : Types)
-  (_tst : TypeSymbolTable)
+  (tst : TypeSymbolTable)
   (expected : TypeReference)
   (value : Dval)
   : Ply<Result<unit, RuntimeError>> =
@@ -285,16 +285,16 @@ let rec unify
       // | TUuid, DUuid _ -> return Ok()
 
       // | TDB _, DDB _ -> return Ok() // TODO: check DB type
-      // | TList expected, DList(actual, _dvs) ->
-      //   match! valueTypeUnifies tst expected actual with
-      //   | false ->
-      //     return
-      //       { errorType = ValueNotExpectedType(value, TList expected)
-      //         context = context }
-      //       |> Error.toRuntimeError
-      //       |> Error
+      | TList expected, DList(actual, _dvs) ->
+        match! valueTypeUnifies tst expected actual with
+        | false ->
+          return
+            { errorType = ValueNotExpectedType(value, TList expected)
+              context = context }
+            |> Error.toRuntimeError
+            |> Error
 
-      //   | true -> return! Ply()
+        | true -> return! Ply()
 
       // | TDict _expected, DDict(_actual, _entries) ->
       //   // VTTODO uncomment this
@@ -443,14 +443,14 @@ let rec unify
       // | TCustomType _, _
       // | TVariable _, _
       | TString, _
-      // | TList _, _
+      | TList _, _
       // | TDateTime, _
       // | TDict _, _
       | TFn _, _
       // | TUuid, _
       // | TChar, _
       // | TDB _, _
-        ->
+       ->
         return
           { errorType = ValueNotExpectedType(value, expected); context = context }
           |> Error.toRuntimeError

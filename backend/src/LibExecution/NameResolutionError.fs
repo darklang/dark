@@ -106,7 +106,7 @@ module RTE =
     //Error.toDT e |> RT.RuntimeError.nameResolutionError
     "TODO" |> RT.RuntimeError.oldError
 
-  // let fromRuntimeError (re : RT.RuntimeError) : Error =
-  //   // TODO: this probably doesn't unwrap the type
-  //   // see above function
-  //   RT.RuntimeError.toDT re |> Error.fromDT
+// let fromRuntimeError (re : RT.RuntimeError) : Error =
+//   // TODO: this probably doesn't unwrap the type
+//   // see above function
+//   RT.RuntimeError.toDT re |> Error.fromDT

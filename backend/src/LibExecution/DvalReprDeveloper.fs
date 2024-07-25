@@ -28,7 +28,7 @@ let rec typeName (t : TypeReference) : string =
   // | TDateTime -> "DateTime"
   // | TUuid -> "Uuid"
 
-  // | TList nested -> $"List<{typeName nested}>"
+  | TList nested -> $"List<{typeName nested}>"
   // | TTuple(n1, n2, rest) ->
   //   let nested = (n1 :: n2 :: rest) |> List.map typeName |> String.concat ", "
   //   $"({nested})"
@@ -36,20 +36,20 @@ let rec typeName (t : TypeReference) : string =
 
   | TFn _ -> "Function"
 
-  // | TCustomType(Error _nre, _) -> "(Error during function resolution)"
-  // | TCustomType(Ok t, typeArgs) ->
-  //   let typeArgsPortion =
-  //     match typeArgs with
-  //     | [] -> ""
-  //     | args ->
-  //       args
-  //       |> List.map (fun t -> typeName t)
-  //       |> String.concat ", "
-  //       |> fun betweenBrackets -> "<" + betweenBrackets + ">"
-  //   FQTypeName.toString t + typeArgsPortion
+// | TCustomType(Error _nre, _) -> "(Error during function resolution)"
+// | TCustomType(Ok t, typeArgs) ->
+//   let typeArgsPortion =
+//     match typeArgs with
+//     | [] -> ""
+//     | args ->
+//       args
+//       |> List.map (fun t -> typeName t)
+//       |> String.concat ", "
+//       |> fun betweenBrackets -> "<" + betweenBrackets + ">"
+//   FQTypeName.toString t + typeArgsPortion
 
-  // | TDB _ -> "Datastore"
-  // | TVariable varname -> $"'{varname}"
+// | TDB _ -> "Datastore"
+// | TVariable varname -> $"'{varname}"
 
 
 let rec private knownTypeName (vt : KnownType) : string =
@@ -77,7 +77,7 @@ let rec private knownTypeName (vt : KnownType) : string =
   // | KTDateTime -> "DateTime"
   // | KTUuid -> "Uuid"
 
-  // | KTList typ -> $"List<{valueTypeName typ}>"
+  | KTList typ -> $"List<{valueTypeName typ}>"
   // | KTDict typ -> $"Dict<{valueTypeName typ}>"
   // | KTDB typ -> $"Datastore<{valueTypeName typ}>"
 
@@ -86,23 +86,23 @@ let rec private knownTypeName (vt : KnownType) : string =
     |> List.map valueTypeName
     |> String.concat " -> "
 
-  // | KTTuple(t1, t2, trest) ->
-  //   t1 :: t2 :: trest
-  //   |> List.map valueTypeName
-  //   |> String.concat ", "
-  //   |> fun s -> $"({s})"
+// | KTTuple(t1, t2, trest) ->
+//   t1 :: t2 :: trest
+//   |> List.map valueTypeName
+//   |> String.concat ", "
+//   |> fun s -> $"({s})"
 
-  // | KTCustomType(name, typeArgs) ->
-  //   let typeArgsPortion =
-  //     match typeArgs with
-  //     | [] -> ""
-  //     | args ->
-  //       args
-  //       |> List.map (fun t -> valueTypeName t)
-  //       |> String.concat ", "
-  //       |> fun betweenBrackets -> "<" + betweenBrackets + ">"
+// | KTCustomType(name, typeArgs) ->
+//   let typeArgsPortion =
+//     match typeArgs with
+//     | [] -> ""
+//     | args ->
+//       args
+//       |> List.map (fun t -> valueTypeName t)
+//       |> String.concat ", "
+//       |> fun betweenBrackets -> "<" + betweenBrackets + ">"
 
-  //   FQTypeName.toString name + typeArgsPortion
+//   FQTypeName.toString name + typeArgsPortion
 
 and private valueTypeName (typ : ValueType) : string =
   match typ with
@@ -121,13 +121,13 @@ let toTypeName (dv : Dval) : string = dv |> Dval.toValueType |> valueTypeName
 /// or other places a developer could rely on it (i.e. telemetry and error
 /// messages are OK)
 let toRepr (dv : Dval) : string =
-  let rec toRepr_ (_indent : int) (dv : Dval) : string =
-    // let makeSpaces len = "".PadRight(len, ' ')
-    // let nl = "\n" + makeSpaces indent
-    // let inl = "\n" + makeSpaces (indent + 2)
+  let rec toRepr_ (indent : int) (dv : Dval) : string =
+    let makeSpaces len = "".PadRight(len, ' ')
+    let nl = "\n" + makeSpaces indent
+    let inl = "\n" + makeSpaces (indent + 2)
     // let indent = indent + 2
-    //let typename = toTypeName dv
-    // let wrap str = $"<{typename}: {str}>"
+    let typename = toTypeName dv
+    let wrap str = $"<{typename}: {str}>"
 
     match dv with
     | DUnit -> "()"
@@ -164,12 +164,12 @@ let toRepr (dv : Dval) : string =
     // | DDB name -> wrap name
     // | DUuid uuid -> wrap (string uuid)
 
-    // | DList(_, l) ->
-    //   if List.isEmpty l then
-    //     wrap "[]"
-    //   else
-    //     let elems = String.concat ", " (List.map (toRepr_ indent) l)
-    //     $"[{inl}{elems}{nl}]"
+    | DList(_, l) ->
+      if List.isEmpty l then
+        wrap "[]"
+      else
+        let elems = String.concat ", " (List.map (toRepr_ indent) l)
+        $"[{inl}{elems}{nl}]"
 
     // | DTuple(first, second, theRest) ->
     //   let l = [ first; second ] @ theRest

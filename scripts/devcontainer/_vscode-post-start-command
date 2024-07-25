@@ -2,8 +2,8 @@
 
 set -euo pipefail
 
-echo "Fetching and building tree-sitter library"
-./scripts/build/build-tree-sitter.sh
+#echo "Fetching and building tree-sitter library"
+#./scripts/build/build-tree-sitter.sh
 
 echo "Starting build server"
 
