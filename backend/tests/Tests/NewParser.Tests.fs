@@ -531,6 +531,9 @@ let exprs =
     t "empty string" "\"\"" "\"\"" [] [] [] false
     t "hello" "\"hello\"" "\"hello\"" [] [] [] false
     t "hello tab world" "\"hello\\tworld\"" "\"hello\\tworld\"" [] [] [] false
+    t "egc" "\"👩‍👩‍👧‍👦\"" "\"👩‍👩‍👧‍👦\"" [] [] [] false
+    t "unicode" "\"żółw\"" "\"żółw\"" [] [] [] false
+    t "unicode" "\"Δბㄱ\"" "\"Δბㄱ\"" [] [] [] false
 
     // char literals
     t "the letter a" "'a'" "'a'" [] [] [] false

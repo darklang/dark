@@ -44,3 +44,45 @@ string with escape
     ))
   )
 )
+
+
+==================
+EGC
+==================
+
+"👩‍👩‍👧‍👦"
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (string_literal
+        symbol_open_quote: (symbol)
+        content: (string_content)
+        symbol_close_quote: (symbol)
+      )
+    )
+  )
+)
+
+
+==================
+unicode
+==================
+
+"żółw"
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (string_literal
+        symbol_open_quote: (symbol)
+        content: (string_content)
+        symbol_close_quote: (symbol)
+      )
+    )
+  )
+)
