@@ -130,12 +130,64 @@ module Darklang =
         let parseStringLiteral
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          let openQuoteNode = findField node "symbol_open_quote"
-          let closeQuoteNode = findField node "symbol_close_quote"
+          let stringSegment = node.children |> Stdlib.List.head |> Builtin.unwrap
+          let openQuoteNode = findField stringSegment "symbol_open_quote"
+          let closeQuoteNode = findField stringSegment "symbol_close_quote"
 
           let contents =
-            findAndParseOptional node "content" (fun stringPart ->
-              (stringPart.range, stringPart.text) |> Stdlib.Result.Result.Ok)
+            match stringSegment.typ with
+            | "string_literal" ->
+              let findContents =
+                findAndParseOptional stringSegment "content" (fun stringPart ->
+                  stringPart.text |> Stdlib.Result.Result.Ok)
+
+              let contents =
+                match findContents with
+                | Some contents -> contents
+                | None -> ""
+
+              [ WrittenTypes.StringSegment.StringText(stringSegment.range, contents) ]
+
+            | "string_interpolation" ->
+              let stringInterpolationContents =
+                stringSegment.children
+                |> Stdlib.List.filter (fun c ->
+                  c.typ == "string_interpolation_content")
+                |> Stdlib.List.head
+                |> Builtin.unwrap
+
+              let contents =
+                stringInterpolationContents.children
+                |> Stdlib.List.filterMap (fun c ->
+                  match c.typ with
+                  | "string_text" ->
+                    [ (WrittenTypes.StringSegment.StringText(c.range, c.text)) ]
+                    |> Stdlib.Option.Option.Some
+                  | "string_to_eval" ->
+                    let test =
+                      c.children
+                      |> Stdlib.List.filterMap (fun c ->
+                        match c.typ with
+                        | "expression" ->
+                          let expr =
+                            match Expr.parse c with
+                            | Ok expr ->
+                              Stdlib.Option.Option.Some(
+                                WrittenTypes.StringSegment.StringInterpolation(
+                                  c.range,
+                                  expr
+                                )
+                              )
+                            | Error _ -> Stdlib.Option.Option.None
+
+                          expr
+                        | _ -> Stdlib.Option.Option.None)
+
+                    test |> Stdlib.Option.Option.Some
+                  | _ -> Stdlib.Option.Option.None)
+                |> Stdlib.List.flatten
+
+              contents
 
           match openQuoteNode, closeQuoteNode with
           | Ok openQuote, Ok closeQuote ->
@@ -755,7 +807,7 @@ module Darklang =
           | "int128_literal" -> parseIntLiteral node
           | "uint128_literal" -> parseIntLiteral node
           | "float_literal" -> parseFloatLiteral node
-          | "string_literal" -> parseStringLiteral node
+          | "string_segment" -> parseStringLiteral node
           | "char_literal" -> parseCharLiteral node
 
           | "list_literal" -> parseListLiteral node

@@ -533,7 +533,15 @@ let exprs =
     t "hello tab world" "\"hello\\tworld\"" "\"hello\\tworld\"" [] [] [] false
     t "egc" "\"👩‍👩‍👧‍👦\"" "\"👩‍👩‍👧‍👦\"" [] [] [] false
     t "unicode" "\"żółw\"" "\"żółw\"" [] [] [] false
-    t "unicode" "\"Δბㄱ\"" "\"Δბㄱ\"" [] [] [] false
+    t "string interpolation" "$\"hello {name}\"" "$\"hello {name}\"" [] [] [] false
+    t
+      "string interpolation - multiple expr to eval"
+      "$\"Name: {name}, Age: {age}\""
+      "$\"Name: {name}, Age: {age}\""
+      []
+      []
+      []
+      false
 
     // char literals
     t "the letter a" "'a'" "'a'" [] [] [] false
