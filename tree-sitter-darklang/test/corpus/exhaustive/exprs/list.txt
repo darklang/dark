@@ -23,15 +23,16 @@ Single-item list
 
 (source_file
   (expression
-    (simple_expression (list_literal
-      (symbol)
-      (list_content
-        (expression
-          (simple_expression (string_literal
-            (symbol)
-            (string_content)
-            (symbol)))))
-      (symbol)))))
+    (simple_expression
+      (list_literal
+        (symbol)
+        (list_content
+          (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))))
+        (symbol)
+      )
+    )
+  )
+)
 
 
 ==================
@@ -286,7 +287,7 @@ Enum List
                 (enum_case_identifier)
                 (indent)
                 (enum_fields
-                  (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
+                  (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
                 )
                 (dedent)
               )

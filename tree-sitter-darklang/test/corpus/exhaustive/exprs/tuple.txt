@@ -11,11 +11,7 @@ tuple two
     (simple_expression
       (tuple_literal
         (symbol)
-        (expression
-          (simple_expression (string_literal
-            (symbol)
-            (string_content)
-            (symbol))))
+        (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
         (symbol)
         (expression
           (simple_expression (int64_literal
@@ -43,10 +39,8 @@ tuple three
       (tuple_literal
         (symbol)
         (expression
-          (simple_expression (string_literal
-            (symbol)
-            (string_content)
-            (symbol))))
+          (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))
+        )
         (symbol)
         (expression
           (simple_expression (int64_literal
@@ -78,10 +72,16 @@ tuple four
       (tuple_literal
         (symbol)
         (expression
-          (simple_expression (string_literal
-            (symbol)
-            (string_content)
-            (symbol))))
+          (simple_expression
+            (string_segment
+              (string_literal
+                (symbol)
+                (string_content)
+                (symbol)
+              )
+            )
+          )
+        )
         (symbol)
         (expression
           (simple_expression (int64_literal
