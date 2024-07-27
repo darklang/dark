@@ -2228,7 +2228,7 @@
         },
         {
           "type": "SYMBOL",
-          "name": "string_literal"
+          "name": "string_segment"
         },
         {
           "type": "SYMBOL",
@@ -2454,7 +2454,7 @@
               "value": 1,
               "content": {
                 "type": "PATTERN",
-                "value": "[^\\\\\"\\n]+"
+                "value": "[^\\\\\"]+"
               }
             }
           },
@@ -2464,6 +2464,159 @@
           }
         ]
       }
+    },
+    "string_interpolation": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "TOKEN",
+          "content": {
+            "type": "PREC",
+            "value": 1000,
+            "content": {
+              "type": "STRING",
+              "value": "$"
+            }
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "symbol_open_quote",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "\""
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "string_interpolation_content",
+              "content": {
+                "type": "SYMBOL",
+                "name": "string_interpolation_content"
+              }
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
+        },
+        {
+          "type": "FIELD",
+          "name": "symbol_close_quote",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "\""
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        }
+      ]
+    },
+    "string_interpolation_content": {
+      "type": "REPEAT1",
+      "content": {
+        "type": "CHOICE",
+        "members": [
+          {
+            "type": "SYMBOL",
+            "name": "string_to_eval"
+          },
+          {
+            "type": "SYMBOL",
+            "name": "string_text"
+          }
+        ]
+      }
+    },
+    "string_text": {
+      "type": "PREC_LEFT",
+      "value": 0,
+      "content": {
+        "type": "REPEAT1",
+        "content": {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "IMMEDIATE_TOKEN",
+              "content": {
+                "type": "PREC",
+                "value": 1,
+                "content": {
+                  "type": "PATTERN",
+                  "value": "[^\\\\\"{}\\n]"
+                }
+              }
+            },
+            {
+              "type": "SYMBOL",
+              "name": "char_or_string_escape_sequence"
+            }
+          ]
+        }
+      }
+    },
+    "string_to_eval": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "FIELD",
+          "name": "symbol_open_brace",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "{"
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "expr",
+          "content": {
+            "type": "SYMBOL",
+            "name": "expression"
+          }
+        },
+        {
+          "type": "FIELD",
+          "name": "symbol_close_brace",
+          "content": {
+            "type": "ALIAS",
+            "content": {
+              "type": "STRING",
+              "value": "}"
+            },
+            "named": true,
+            "value": "symbol"
+          }
+        }
+      ]
+    },
+    "string_segment": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "string_literal"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "string_interpolation"
+        }
+      ]
     },
     "char_literal": {
       "type": "SEQ",
