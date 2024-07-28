@@ -704,11 +704,12 @@ module Darklang =
           // "hello"
           | EString(_range, contentsMaybe, symbolOpenQuote, symbolCloseQuote) ->
             let contents =
-              match contentsMaybe with
-              | Some content ->
-                let (range, _) = content
-                [ makeToken range TokenType.String ]
-              | None -> []
+              contentsMaybe
+              |> Stdlib.List.map (fun content ->
+                match content with
+                | StringText(range, _) -> [ makeToken range TokenType.String ]
+                | StringInterpolation(range, expr) -> Expr.tokenize expr)
+              |> Stdlib.List.flatten
 
             [ // "
               [ makeToken symbolOpenQuote TokenType.Symbol ]

@@ -139,14 +139,16 @@ module Darklang =
             | "string_literal" ->
               let findContents =
                 findAndParseOptional stringSegment "content" (fun stringPart ->
-                  stringPart.text |> Stdlib.Result.Result.Ok)
+                  (stringPart.range, stringPart.text) |> Stdlib.Result.Result.Ok)
 
-              let contents =
+              let (range, contents) =
                 match findContents with
-                | Some contents -> contents
-                | None -> ""
+                | Some contents ->
+                  let (range, contents) = contents
+                  (range, contents)
+                | None -> (stringSegment.range, "")
 
-              [ WrittenTypes.StringSegment.StringText(stringSegment.range, contents) ]
+              [ WrittenTypes.StringSegment.StringText(range, contents) ]
 
             | "string_interpolation" ->
               let stringInterpolationContents =
