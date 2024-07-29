@@ -3547,21 +3547,6 @@
     }
   },
   {
-    "type": "string_text",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": false,
-      "types": [
-        {
-          "type": "char_or_string_escape_sequence",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
     "type": "string_to_eval",
     "named": true,
     "fields": {
@@ -4769,6 +4754,10 @@
   },
   {
     "type": "positive_digits",
+    "named": true
+  },
+  {
+    "type": "string_text",
     "named": true
   },
   {

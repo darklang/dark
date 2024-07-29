@@ -112,10 +112,42 @@ $"hello {name}"
           (symbol)
           (string_interpolation_content
             (string_text)
+            (string_to_eval
+              (symbol)
+              (expression (simple_expression (variable_identifier)))
+              (symbol)
+            )
+          )
+          (symbol)
+        )
+      )
+    )
+  )
+)
+
+
+==================
+string interpolation 2
+==================
+
+$"Name: {name}, Age: {age}"
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (string_segment
+        (string_interpolation
+          (symbol)
+          (symbol)
+          (string_interpolation_content
             (string_text)
-            (string_text)
-            (string_text)
-            (string_text)
+            (string_to_eval
+              (symbol)
+              (expression (simple_expression (variable_identifier)))
+              (symbol)
+            )
             (string_text)
             (string_to_eval
               (symbol)

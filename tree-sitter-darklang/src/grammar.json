@@ -2542,29 +2542,13 @@
       }
     },
     "string_text": {
-      "type": "PREC_LEFT",
-      "value": 0,
+      "type": "IMMEDIATE_TOKEN",
       "content": {
-        "type": "REPEAT1",
+        "type": "PREC_LEFT",
+        "value": 0,
         "content": {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "IMMEDIATE_TOKEN",
-              "content": {
-                "type": "PREC",
-                "value": 1,
-                "content": {
-                  "type": "PATTERN",
-                  "value": "[^\\\\\"{}\\n]"
-                }
-              }
-            },
-            {
-              "type": "SYMBOL",
-              "name": "char_or_string_escape_sequence"
-            }
-          ]
+          "type": "PATTERN",
+          "value": "[^{}\"\\n]+"
         }
       }
     },
