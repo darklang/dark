@@ -382,7 +382,7 @@ module.exports = grammar({
         $.int128_literal,
         $.uint128_literal,
         $.float_literal,
-        $.string_literal,
+        $.string_segment,
         $.char_literal,
         $.list_literal,
         $.dict_literal,
@@ -442,10 +442,35 @@ module.exports = grammar({
       repeat1(
         choice(
           // higher precedence than escape sequences
-          token.immediate(prec(1, /[^\\"\n]+/)),
+          token.immediate(prec(1, /[^\\"]+/)),
           $.char_or_string_escape_sequence,
         ),
       ),
+
+    // $"hello {name}
+    string_interpolation: $ =>
+      seq(
+        field("symbol_dollar_sign", alias("$", $.symbol)),
+        field("symbol_open_quote", alias('"', $.symbol)),
+        optional(
+          field("string_interpolation_content", $.string_interpolation_content),
+        ),
+        field("symbol_close_quote", alias('"', $.symbol)),
+      ),
+
+    string_interpolation_content: $ =>
+      repeat1(choice($.string_to_eval, $.string_text)),
+
+    string_text: $ => token.immediate(prec.left(/[^{}\\"]+/)),
+
+    string_to_eval: $ =>
+      seq(
+        field("symbol_open_brace", alias("{", $.symbol)),
+        field("expr", $.expression),
+        field("symbol_close_brace", alias("}", $.symbol)),
+      ),
+
+    string_segment: $ => choice($.string_literal, $.string_interpolation),
 
     //
     // Characters

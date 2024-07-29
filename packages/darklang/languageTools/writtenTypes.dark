@@ -200,6 +200,13 @@ module Darklang =
         | InfixFnCall of InfixFnName
         | BinOp of BinaryOperation
 
+      type StringSegment =
+        | StringText of Range * String
+        | StringInterpolation of
+          Range *
+          Expr *
+          symbolOpenBrace: Range *
+          symbolCloseBrace: Range
 
       type Expr =
         | EUnit of Range
@@ -221,7 +228,8 @@ module Darklang =
         | EFloat of Range * Sign * String * String
         | EString of
           Range *
-          contents: Stdlib.Option.Option<Range * String> *
+          symbolDollarSign: Stdlib.Option.Option<Range> *
+          contents: List<StringSegment> *
           symbolOpenQuote: Range *
           symbolCloseQuote: Range
         | EChar of

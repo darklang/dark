@@ -22,7 +22,7 @@ let helloWorld (i: Int64): String = "Hello world"
     (symbol)
     (type_reference (builtin_type))
     (symbol)
-    (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
+    (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
   )
 )
 
@@ -43,7 +43,7 @@ let emptyString (): String = ""
     (symbol)
     (type_reference (builtin_type))
     (symbol)
-    (expression (simple_expression (string_literal (symbol) (symbol))))
+    (expression (simple_expression (string_segment (string_literal (symbol) (symbol)))))
   )
 )
 
@@ -172,7 +172,7 @@ let helloworld () : Int64 =
             (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
             (paren_expression
               (symbol)
-              (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
+              (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
               (symbol)
             )
           )

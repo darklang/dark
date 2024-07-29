@@ -29,6 +29,12 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString sourceCode ] ->
+          // This was added to handle EGCs correctly
+          let byteIndexToCharIndex (byteIndex : int) (text : string) : int =
+            let bytes = Encoding.UTF8.GetBytes(text)
+            let subText = Encoding.UTF8.GetString(bytes, 0, byteIndex)
+            subText.Length
+
           let rec mapNodeAtCursor (cursor : TreeCursor) : Dval =
             let mutable children = []
 
@@ -53,6 +59,9 @@ let fns : List<BuiltInFn> =
                 let fields = [ "start", mapPoint startPos; "end_", mapPoint endPos ]
                 DRecord(rangeTypeName, rangeTypeName, [], Map fields)
 
+              let startCharIndex = byteIndexToCharIndex startPos.column sourceCode
+              let endCharIndex = byteIndexToCharIndex endPos.column sourceCode
+
               let sourceText =
                 let lines = String.splitOnNewline sourceCode
                 if lines.Length = 0 then
@@ -60,15 +69,15 @@ let fns : List<BuiltInFn> =
                 else
                   match startPos.row with
                   | row when row = endPos.row ->
-                    lines[row][startPos.column .. (endPos.column - 1)]
+                    lines[row][startCharIndex .. (endCharIndex - 1)]
                   | _ ->
-                    let firstLine = lines[startPos.row][startPos.column ..]
+                    let firstLine = lines[startPos.row][startCharIndex..]
                     let middleLines =
                       if startPos.row + 1 <= endPos.row - 1 then
                         lines[startPos.row + 1 .. endPos.row - 1]
                       else
                         []
-                    let lastLine = lines[endPos.row][.. endPos.column - 1]
+                    let lastLine = lines[endPos.row][.. (endCharIndex - 1)]
 
                     String.concat "\n" (firstLine :: middleLines @ [ lastLine ])
 

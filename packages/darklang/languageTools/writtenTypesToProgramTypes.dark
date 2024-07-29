@@ -368,14 +368,19 @@ module Darklang =
           | EInt128(_, (_, i), _) -> ProgramTypes.Expr.EInt128(gid (), i)
           | EUInt128(_, (_, i), _) -> ProgramTypes.Expr.EUInt128(gid (), i)
           | EFloat(_, s, w, f) -> ProgramTypes.Expr.EFloat(gid (), s, w, f)
-          | EString(_, contents, _, _) ->
-            match contents with
-            | None -> ProgramTypes.Expr.EString(gid (), [])
-            | Some((_, s)) ->
-              ProgramTypes.Expr.EString(
-                gid (),
-                [ ProgramTypes.StringSegment.StringText s ]
-              )
+          | EString(_, _, contents, _, _) ->
+            let segment =
+              contents
+              |> Stdlib.List.map (fun s ->
+                match s with
+                | StringText(_, s) -> ProgramTypes.StringSegment.StringText s
+                | StringInterpolation(_, expr, _, _) ->
+                  ProgramTypes.StringSegment.StringInterpolation(
+                    Expr.toPT onMissing pm owner currentModule expr
+                  ))
+
+            ProgramTypes.Expr.EString(gid (), segment)
+
           | EChar(_, c, _, _) ->
             match c with
             | None -> ProgramTypes.Expr.EChar(gid (), "")

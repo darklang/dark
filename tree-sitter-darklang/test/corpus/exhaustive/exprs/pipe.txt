@@ -60,7 +60,7 @@ pipe expression - function call with type arguments
 (source_file
   (expression
     (pipe_expression
-      (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
+      (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
       (pipe_exprs
         (symbol)
         (pipe_expr

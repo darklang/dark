@@ -531,6 +531,34 @@ let exprs =
     t "empty string" "\"\"" "\"\"" [] [] [] false
     t "hello" "\"hello\"" "\"hello\"" [] [] [] false
     t "hello tab world" "\"hello\\tworld\"" "\"hello\\tworld\"" [] [] [] false
+    t "egc" "\"👩‍👩‍👧‍👦\"" "\"👩‍👩‍👧‍👦\"" [] [] [] false
+    t "unicode" "\"żółw\"" "\"żółw\"" [] [] [] false
+    t "string interpolation" "$\"hello {name}\"" "$\"hello {name}\"" [] [] [] false
+    t
+      "string interpolation - multiple expr to eval"
+      "$\"Name: {name}, Age: {age}\""
+      "$\"Name: {name}, Age: {age}\""
+      []
+      []
+      []
+      false
+
+    t
+      "test"
+      "\"int64Multiply's 2nd argument (`b`) should be an Int64. However, a Float (1.0) was passed instead.
+
+
+
+		Expected: (b: Int64)
+
+		Actual: a Float: 1.0\""
+
+      "\"int64Multiply's 2nd argument (`b`) should be an Int64. However, a Float (1.0) was passed instead.\\n\\n\\n\\n\\t\\tExpected: (b: Int64)\\n\\n\\t\\tActual: a Float: 1.0\""
+      []
+      []
+      []
+      false
+
 
     // char literals
     t "the letter a" "'a'" "'a'" [] [] [] false

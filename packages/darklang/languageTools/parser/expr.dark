@@ -130,17 +130,83 @@ module Darklang =
         let parseStringLiteral
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          let openQuoteNode = findField node "symbol_open_quote"
-          let closeQuoteNode = findField node "symbol_close_quote"
+          let stringSegment = node.children |> Stdlib.List.head |> Builtin.unwrap
+          let openQuoteNode = findField stringSegment "symbol_open_quote"
+          let closeQuoteNode = findField stringSegment "symbol_close_quote"
+          let symbolDollarSign = findField stringSegment "symbol_dollar_sign"
 
           let contents =
-            findAndParseOptional node "content" (fun stringPart ->
-              (stringPart.range, stringPart.text) |> Stdlib.Result.Result.Ok)
+            match stringSegment.typ with
+            | "string_literal" ->
+              let findContents =
+                findAndParseOptional stringSegment "content" (fun stringPart ->
+                  (stringPart.range, stringPart.text) |> Stdlib.Result.Result.Ok)
+
+              let (range, contents) =
+                match findContents with
+                | Some contents ->
+                  let (range, contents) = contents
+                  (range, contents)
+                | None -> (stringSegment.range, "")
+
+              [ WrittenTypes.StringSegment.StringText(range, contents) ]
+
+            | "string_interpolation" ->
+              let stringInterpolationContents =
+                stringSegment.children
+                |> Stdlib.List.filter (fun c ->
+                  c.typ == "string_interpolation_content")
+                |> Stdlib.List.head
+                |> Builtin.unwrap
+
+              let contents =
+                stringInterpolationContents.children
+                |> Stdlib.List.filterMap (fun c ->
+                  match c.typ with
+                  | "string_text" ->
+                    [ (WrittenTypes.StringSegment.StringText(c.range, c.text)) ]
+                    |> Stdlib.Option.Option.Some
+                  | "string_to_eval" ->
+                    let symbolOpenBrace = findField c "symbol_open_brace"
+                    let symbolCloseBrace = findField c "symbol_close_brace"
+
+                    c.children
+                    |> Stdlib.List.filterMap (fun c ->
+                      match symbolOpenBrace, symbolCloseBrace with
+                      | Ok openBrace, Ok closeBrace ->
+                        match c.typ with
+                        | "expression" ->
+                          match Expr.parse c with
+                          | Ok expr ->
+                            Stdlib.Option.Option.Some(
+                              WrittenTypes.StringSegment.StringInterpolation(
+                                c.range,
+                                expr,
+                                openBrace.range,
+                                closeBrace.range
+                              )
+                            )
+                          | Error _ -> Stdlib.Option.Option.None
+                        | _ -> Stdlib.Option.Option.None
+                      | _ -> Stdlib.Option.Option.None)
+                    |> Stdlib.Option.Option.Some
+
+                  | _ -> Stdlib.Option.Option.None)
+                |> Stdlib.List.flatten
+
+              contents
+
+          let dollarSign =
+            match symbolDollarSign with
+            | Ok symbolDollarSign ->
+              symbolDollarSign.range |> Stdlib.Option.Option.Some
+            | _ -> Stdlib.Option.Option.None
 
           match openQuoteNode, closeQuoteNode with
           | Ok openQuote, Ok closeQuote ->
             (WrittenTypes.Expr.EString(
               node.range,
+              dollarSign,
               contents,
               openQuote.range,
               closeQuote.range
@@ -755,7 +821,7 @@ module Darklang =
           | "int128_literal" -> parseIntLiteral node
           | "uint128_literal" -> parseIntLiteral node
           | "float_literal" -> parseFloatLiteral node
-          | "string_literal" -> parseStringLiteral node
+          | "string_segment" -> parseStringLiteral node
           | "char_literal" -> parseCharLiteral node
 
           | "list_literal" -> parseListLiteral node

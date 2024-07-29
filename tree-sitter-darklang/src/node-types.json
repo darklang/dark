@@ -3306,7 +3306,7 @@
           "named": true
         },
         {
-          "type": "string_literal",
+          "type": "string_segment",
           "named": true
         },
         {
@@ -3427,6 +3427,71 @@
     }
   },
   {
+    "type": "string_interpolation",
+    "named": true,
+    "fields": {
+      "string_interpolation_content": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "string_interpolation_content",
+            "named": true
+          }
+        ]
+      },
+      "symbol_close_quote": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_dollar_sign": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_open_quote": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "string_interpolation_content",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "string_text",
+          "named": true
+        },
+        {
+          "type": "string_to_eval",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "string_literal",
     "named": true,
     "fields": {
@@ -3451,6 +3516,61 @@
         ]
       },
       "symbol_open_quote": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "string_segment",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "string_interpolation",
+          "named": true
+        },
+        {
+          "type": "string_literal",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "string_to_eval",
+    "named": true,
+    "fields": {
+      "expr": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      },
+      "symbol_close_brace": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_open_brace": {
         "multiple": false,
         "required": true,
         "types": [
@@ -4634,6 +4754,10 @@
   },
   {
     "type": "positive_digits",
+    "named": true
+  },
+  {
+    "type": "string_text",
     "named": true
   },
   {

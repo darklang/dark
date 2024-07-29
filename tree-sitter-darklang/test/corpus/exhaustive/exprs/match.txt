@@ -62,15 +62,15 @@ match 6L with
       (keyword) (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol)))) (keyword)
       (match_case
         (symbol) (match_pattern (variable)) (symbol)
-        (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
+        (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
       )
       (match_case
         (symbol) (match_pattern (int64 (digits (positive_digits)) (symbol))) (symbol)
-        (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
+        (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
       )
       (match_case
         (symbol) (match_pattern (int64 (digits (positive_digits)) (symbol))) (symbol)
-        (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
+        (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
       )
     )
   )
@@ -119,7 +119,7 @@ match [ true; false] with
       (match_case
         (symbol) (match_pattern (variable)) (symbol)
         (expression
-          (simple_expression (string_literal (symbol) (string_content) (symbol)))))
+          (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))))
     )
   )
 )
@@ -330,13 +330,13 @@ match [ 1L; 2L; 3L ] with
           (list_cons (match_pattern (variable)) (symbol) (match_pattern (variable)))
         )
         (symbol)
-        (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
+        (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
       )
       (match_case
         (symbol)
         (match_pattern (list (symbol) (symbol)))
         (symbol)
-        (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
+        (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
       )
     )
   )
@@ -467,11 +467,11 @@ match (name, value, keyword) with
             )
             (symbol)))
         (symbol)
-        (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
+        (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
       )
       (match_case
         (symbol) (match_pattern (variable)) (symbol)
-        (expression (simple_expression (string_literal (symbol) (string_content) (symbol))))
+        (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
       )
     )
   )

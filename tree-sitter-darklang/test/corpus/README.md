@@ -1,7 +1,5 @@
 Run these with `npm run test` in the `tree-sitter-darklang` directory.
 
-TODO: run in CI
-
 ---
 
 Note:
