@@ -143,11 +143,7 @@ module Darklang =
                   (stringPart.range, stringPart.text) |> Stdlib.Result.Result.Ok)
 
               let (range, contents) =
-                match findContents with
-                | Some contents ->
-                  let (range, contents) = contents
-                  (range, contents)
-                | None -> (stringSegment.range, "")
+                Stdlib.Option.withDefault findContents (stringSegment.range, "")
 
               [ WrittenTypes.StringSegment.StringText(range, contents) ]
 
@@ -465,21 +461,11 @@ module Darklang =
 
           match keywordLetNode, identifierNode, symbolEqualsNode, expr, body with
           | Ok keywordLet, Ok identifier, Ok symbolEquals, Ok expr, Ok body ->
-            match identifier.children with
-            | [ child ] when child.typ == "unit" ->
+            match parseLetPattern identifier with
+            | Ok pattern ->
               (WrittenTypes.Expr.ELet(
                 node.range,
-                WrittenTypes.LetPattern.LPUnit(identifier.range),
-                expr,
-                body,
-                keywordLet.range,
-                symbolEquals.range
-              ))
-
-            | [ child ] when child.typ == "variable_identifier" ->
-              (WrittenTypes.Expr.ELet(
-                node.range,
-                WrittenTypes.LetPattern.LPVariable(identifier.range, identifier.text),
+                pattern,
                 expr,
                 body,
                 keywordLet.range,
@@ -487,30 +473,7 @@ module Darklang =
               ))
               |> Stdlib.Result.Result.Ok
 
-            | [ child ] when child.typ == "lp_tuple" ->
-              baseParseTuple
-                Expr.parseLetPattern
-                child
-                (fun (range, first, comma, second, rest, openParen, closeParen) ->
-                  (WrittenTypes.Expr.ELet(
-                    node.range,
-                    (WrittenTypes.LetPattern.LPTuple(
-                      range,
-                      first,
-                      comma,
-                      second,
-                      rest,
-                      openParen,
-                      closeParen
-                    )),
-                    expr,
-                    body,
-                    keywordLet.range,
-                    symbolEquals.range
-                  ))
-                  |> Stdlib.Result.Result.Ok)
-
-          | _ -> createUnparseableError node
+            | Error _ -> createUnparseableError node
 
 
         let parseFieldAccess
