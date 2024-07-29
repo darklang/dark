@@ -4748,7 +4748,7 @@
           "name": "identifier",
           "content": {
             "type": "SYMBOL",
-            "name": "variable_identifier"
+            "name": "let_pattern"
           }
         },
         {

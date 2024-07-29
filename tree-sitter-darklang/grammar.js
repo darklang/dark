@@ -817,7 +817,7 @@ module.exports = grammar({
     let_expression: $ =>
       seq(
         field("keyword_let", alias("let", $.keyword)),
-        field("identifier", $.variable_identifier),
+        field("identifier", $.let_pattern),
         field("symbol_equals", alias("=", $.symbol)),
         choice(
           seq(field("expr", $.expression), "\n"),
@@ -949,6 +949,7 @@ module.exports = grammar({
     //
     // Tuple
     tuple_type_reference: $ =>
+      // CLEANUP: make the parens optional
       seq(
         field("symbol_left_paren", alias("(", $.symbol)),
         field("first", $.type_reference),

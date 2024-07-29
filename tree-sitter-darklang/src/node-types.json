@@ -1809,7 +1809,7 @@
         "required": true,
         "types": [
           {
-            "type": "variable_identifier",
+            "type": "let_pattern",
             "named": true
           }
         ]
