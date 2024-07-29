@@ -344,19 +344,6 @@ module Darklang =
                 let name = name |> Stdlib.List.last |> Builtin.unwrap
                 ProgramTypes.PipeExpr.EPipeVariable(gid (), name, typeArgs)
 
-        let stringSegmentToPT
-          (onMissing: NameResolver.OnMissing)
-          (pm: ProgramTypes.PackageManager.PackageManager)
-          (owner: String)
-          (currentModule: List<String>)
-          (segment: WrittenTypes.StringSegment)
-          : ProgramTypes.StringSegment =
-          match segment with
-          | StringText(_, s) -> ProgramTypes.StringSegment.StringText s
-          | StringInterpolation(_, expr, _, _) ->
-            ProgramTypes.StringSegment.StringInterpolation(
-              Expr.toPT onMissing pm owner currentModule expr
-            )
 
         let toPT
           (onMissing: NameResolver.OnMissing)
@@ -385,7 +372,12 @@ module Darklang =
             let segment =
               contents
               |> Stdlib.List.map (fun s ->
-                stringSegmentToPT onMissing pm owner currentModule s)
+                match s with
+                | StringText(_, s) -> ProgramTypes.StringSegment.StringText s
+                | StringInterpolation(_, expr, _, _) ->
+                  ProgramTypes.StringSegment.StringInterpolation(
+                    Expr.toPT onMissing pm owner currentModule expr
+                  ))
 
             ProgramTypes.Expr.EString(gid (), segment)
 
