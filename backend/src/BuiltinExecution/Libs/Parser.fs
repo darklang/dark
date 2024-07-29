@@ -29,6 +29,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, [ DString sourceCode ] ->
+          // This function converts a byte index into a character index. It was added to handle EGCs correctly
           let byteIndexToCharIndex (byteIndex : int) (text : string) : int =
             let bytes = Encoding.UTF8.GetBytes(text)
             let subText = Encoding.UTF8.GetString(bytes, 0, byteIndex)
