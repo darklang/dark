@@ -12,7 +12,7 @@ sum
   (expression
     (let_expression
       (keyword)
-      (variable_identifier)
+      (let_pattern (variable_identifier))
       (symbol)
       (expression (infix_operation (expression (simple_expression (variable_identifier))) (operator) (expression (simple_expression (variable_identifier)))))
       (expression (simple_expression (variable_identifier)))
@@ -34,7 +34,7 @@ let sum = i + i
   (expression
     (let_expression
       (keyword)
-      (variable_identifier)
+      (let_pattern (variable_identifier))
       (symbol)
       (expression (infix_operation (expression (simple_expression (variable_identifier))) (operator) (expression (simple_expression (variable_identifier)))))
       (expression (simple_expression (bool_literal (MISSING "bool_literal_token1"))))

@@ -59,7 +59,7 @@ let myRec = RecordForUpdate { x = 4L; y = 1L }
   (expression
     (let_expression
       (keyword)
-      (variable_identifier)
+      (let_pattern (variable_identifier))
       (symbol)
       (expression
         (simple_expression (record_literal
@@ -116,7 +116,7 @@ let myRec = RecordForUpdateMultipe { x = 4L; y = 1L; z = 0L }
   (expression
     (let_expression
       (keyword)
-      (variable_identifier)
+      (let_pattern (variable_identifier))
       (symbol)
       (expression
         (simple_expression (record_literal

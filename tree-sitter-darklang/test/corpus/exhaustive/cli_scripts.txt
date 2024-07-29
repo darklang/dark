@@ -30,7 +30,7 @@ Builtin.printLine (myFn ())
   (expression
     (let_expression
       (keyword)
-      (variable_identifier)
+      (let_pattern (variable_identifier))
       (symbol)
       (expression
         (infix_operation
@@ -81,7 +81,7 @@ helloworld ()
     (expression
       (let_expression
         (keyword)
-        (variable_identifier)
+        (let_pattern (variable_identifier))
         (symbol)
         (expression
           (apply
