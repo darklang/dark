@@ -202,7 +202,11 @@ module Darklang =
 
       type StringSegment =
         | StringText of Range * String
-        | StringInterpolation of Range * Expr
+        | StringInterpolation of
+          Range *
+          Expr *
+          symbolOpenBrace: Range *
+          symbolCloseBrace: Range
 
       type Expr =
         | EUnit of Range
@@ -224,6 +228,7 @@ module Darklang =
         | EFloat of Range * Sign * String * String
         | EString of
           Range *
+          symbolDollarSign: Stdlib.Option.Option<Range> *
           contents: List<StringSegment> *
           symbolOpenQuote: Range *
           symbolCloseQuote: Range

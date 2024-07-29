@@ -871,14 +871,17 @@ module TokenizeExpression =
                                 (TokenType.String, (0L, 1L), (0L, 6L))
                                 (TokenType.Symbol, (0L, 6L), (0L, 7L)) ]
 
-  ("$\"hello {name}\"" |> tokenize) = [ (TokenType.Symbol, (0L, 1L), (0L, 2L))
+  ("$\"hello {name}\"" |> tokenize) = [ (TokenType.Symbol, (0L, 0L), (0L, 1L))
+                                        (TokenType.Symbol, (0L, 1L), (0L, 2L))
                                         (TokenType.String, (0L, 2L), (0L, 3L))
                                         (TokenType.String, (0L, 3L), (0L, 4L))
                                         (TokenType.String, (0L, 4L), (0L, 5L))
                                         (TokenType.String, (0L, 5L), (0L, 6L))
                                         (TokenType.String, (0L, 6L), (0L, 7L))
                                         (TokenType.String, (0L, 7L), (0L, 8L))
+                                        (TokenType.Symbol, (0L, 8L), (0L, 9L))
                                         (TokenType.VariableName, (0L, 9L), (0L, 13L))
+                                        (TokenType.Symbol, (0L, 13L), (0L, 14L))
                                         (TokenType.Symbol, (0L, 14L), (0L, 15L)) ]
 
   ("'a'" |> tokenize) = [ (TokenType.Symbol, (0L, 0L), (0L, 1L))

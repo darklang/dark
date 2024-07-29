@@ -702,16 +702,30 @@ module Darklang =
             [ makeToken range TokenType.Number ]
 
           // "hello"
-          | EString(_range, contentsMaybe, symbolOpenQuote, symbolCloseQuote) ->
+          | EString(_range,
+                    symbolDollarSign,
+                    contentsMaybe,
+                    symbolOpenQuote,
+                    symbolCloseQuote) ->
+            let symbolDollarSign =
+              match symbolDollarSign with
+              | Some range -> [ makeToken range TokenType.Symbol ]
+              | None -> []
+
             let contents =
               contentsMaybe
               |> Stdlib.List.map (fun content ->
                 match content with
                 | StringText(range, _) -> [ makeToken range TokenType.String ]
-                | StringInterpolation(range, expr) -> Expr.tokenize expr)
+                | StringInterpolation(range, expr, openBrace, closeBrace) ->
+                  [ [ makeToken openBrace TokenType.Symbol ]
+                    Expr.tokenize expr
+                    [ makeToken closeBrace TokenType.Symbol ] ]
+                  |> Stdlib.List.flatten)
               |> Stdlib.List.flatten
 
-            [ // "
+            [ symbolDollarSign
+              // "
               [ makeToken symbolOpenQuote TokenType.Symbol ]
 
               // hello

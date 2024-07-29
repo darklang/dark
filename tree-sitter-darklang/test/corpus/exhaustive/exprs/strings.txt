@@ -109,6 +109,7 @@ $"hello {name}"
       (string_segment
         (string_interpolation
           (symbol)
+          (symbol)
           (string_interpolation_content
             (string_text)
             (string_text)

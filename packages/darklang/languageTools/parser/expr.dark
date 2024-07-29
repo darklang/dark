@@ -133,6 +133,7 @@ module Darklang =
           let stringSegment = node.children |> Stdlib.List.head |> Builtin.unwrap
           let openQuoteNode = findField stringSegment "symbol_open_quote"
           let closeQuoteNode = findField stringSegment "symbol_close_quote"
+          let symbolDollarSign = findField stringSegment "symbol_dollar_sign"
 
           let contents =
             match stringSegment.typ with
@@ -166,35 +167,46 @@ module Darklang =
                     [ (WrittenTypes.StringSegment.StringText(c.range, c.text)) ]
                     |> Stdlib.Option.Option.Some
                   | "string_to_eval" ->
-                    let test =
-                      c.children
-                      |> Stdlib.List.filterMap (fun c ->
+                    let symbolOpenBrace = findField c "symbol_open_brace"
+                    let symbolCloseBrace = findField c "symbol_close_brace"
+
+                    c.children
+                    |> Stdlib.List.filterMap (fun c ->
+                      match symbolOpenBrace, symbolCloseBrace with
+                      | Ok openBrace, Ok closeBrace ->
                         match c.typ with
                         | "expression" ->
-                          let expr =
-                            match Expr.parse c with
-                            | Ok expr ->
-                              Stdlib.Option.Option.Some(
-                                WrittenTypes.StringSegment.StringInterpolation(
-                                  c.range,
-                                  expr
-                                )
+                          match Expr.parse c with
+                          | Ok expr ->
+                            Stdlib.Option.Option.Some(
+                              WrittenTypes.StringSegment.StringInterpolation(
+                                c.range,
+                                expr,
+                                openBrace.range,
+                                closeBrace.range
                               )
-                            | Error _ -> Stdlib.Option.Option.None
+                            )
+                          | Error _ -> Stdlib.Option.Option.None
+                        | _ -> Stdlib.Option.Option.None
+                      | _ -> Stdlib.Option.Option.None)
+                    |> Stdlib.Option.Option.Some
 
-                          expr
-                        | _ -> Stdlib.Option.Option.None)
-
-                    test |> Stdlib.Option.Option.Some
                   | _ -> Stdlib.Option.Option.None)
                 |> Stdlib.List.flatten
 
               contents
 
+          let dollarSign =
+            match symbolDollarSign with
+            | Ok symbolDollarSign ->
+              symbolDollarSign.range |> Stdlib.Option.Option.Some
+            | _ -> Stdlib.Option.Option.None
+
           match openQuoteNode, closeQuoteNode with
           | Ok openQuote, Ok closeQuote ->
             (WrittenTypes.Expr.EString(
               node.range,
+              dollarSign,
               contents,
               openQuote.range,
               closeQuote.range

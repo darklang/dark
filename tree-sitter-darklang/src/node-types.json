@@ -3450,6 +3450,16 @@
           }
         ]
       },
+      "symbol_dollar_sign": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
       "symbol_open_quote": {
         "multiple": false,
         "required": true,
@@ -4671,10 +4681,6 @@
   },
   {
     "type": "!=",
-    "named": false
-  },
-  {
-    "type": "$",
     "named": false
   },
   {

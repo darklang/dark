@@ -450,7 +450,7 @@ module.exports = grammar({
     // $"hello {name}
     string_interpolation: $ =>
       seq(
-        token(prec(1000, "$")),
+        field("symbol_dollar_sign", alias("$", $.symbol)),
         field("symbol_open_quote", alias('"', $.symbol)),
         optional(
           field("string_interpolation_content", $.string_interpolation_content),
