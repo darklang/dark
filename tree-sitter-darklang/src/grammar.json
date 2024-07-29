@@ -2548,7 +2548,7 @@
         "value": 0,
         "content": {
           "type": "PATTERN",
-          "value": "[^{}\"\\n]+"
+          "value": "[^{}\\\\\"]+"
         }
       }
     },

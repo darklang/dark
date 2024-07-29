@@ -461,7 +461,7 @@ module.exports = grammar({
     string_interpolation_content: $ =>
       repeat1(choice($.string_to_eval, $.string_text)),
 
-    string_text: $ => token.immediate(prec.left(/[^{}"\n]+/)),
+    string_text: $ => token.immediate(prec.left(/[^{}\\"]+/)),
 
     string_to_eval: $ =>
       seq(
