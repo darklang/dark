@@ -4745,7 +4745,7 @@
         },
         {
           "type": "FIELD",
-          "name": "identifier",
+          "name": "pattern",
           "content": {
             "type": "SYMBOL",
             "name": "let_pattern"

@@ -1804,22 +1804,22 @@
           }
         ]
       },
-      "identifier": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "let_pattern",
-            "named": true
-          }
-        ]
-      },
       "keyword_let": {
         "multiple": false,
         "required": true,
         "types": [
           {
             "type": "keyword",
+            "named": true
+          }
+        ]
+      },
+      "pattern": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "let_pattern",
             "named": true
           }
         ]
