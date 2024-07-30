@@ -10,7 +10,7 @@ x
 (source_file
   (expression
     (let_expression
-      (keyword) (variable_identifier) (symbol)
+      (keyword) (let_pattern (variable_identifier)) (symbol)
       (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
       (expression (simple_expression (variable_identifier)))
     )
@@ -31,7 +31,7 @@ x
 (source_file
   (expression
     (let_expression
-      (keyword) (variable_identifier) (symbol)
+      (keyword) (let_pattern (variable_identifier)) (symbol)
       (indent)
       (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
       (dedent)
@@ -54,7 +54,7 @@ x
 (source_file
   (expression
     (let_expression
-      (keyword) (variable_identifier) (symbol)
+      (keyword) (let_pattern (variable_identifier)) (symbol)
       (expression
         (pipe_expression
           (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
@@ -89,7 +89,7 @@ x
 (source_file
   (expression
     (let_expression
-      (keyword) (variable_identifier) (symbol)
+      (keyword) (let_pattern (variable_identifier)) (symbol)
       (indent)
       (expression
         (pipe_expression
@@ -129,7 +129,7 @@ wtTest
   (expression
     (let_expression
       (keyword)
-      (variable_identifier)
+      (let_pattern (variable_identifier))
       (symbol)
       (indent)
       (expression
@@ -165,6 +165,46 @@ wtTest
       )
       (dedent)
       (expression (simple_expression (variable_identifier)))
+    )
+  )
+)
+
+
+==================
+lp_tuple
+==================
+
+let (tokensSoFar, startOfLastToken) = acc
+(tokensSoFar, startOfLastToken)
+
+---
+
+(source_file
+  (expression
+    (let_expression
+      (keyword)
+      (let_pattern
+        (lp_tuple
+          (symbol)
+          (let_pattern (variable_identifier))
+          (symbol)
+          (let_pattern (variable_identifier))
+          (symbol)
+        )
+      )
+      (symbol)
+      (expression (simple_expression (variable_identifier)))
+      (expression
+        (simple_expression
+          (tuple_literal
+            (symbol)
+            (expression (simple_expression (variable_identifier)))
+            (symbol)
+            (expression (simple_expression (variable_identifier)))
+            (symbol)
+          )
+        )
+      )
     )
   )
 )

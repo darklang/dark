@@ -149,7 +149,7 @@ match [ true ] with
         (indent)
         (expression
           (let_expression
-            (keyword) (variable_identifier) (symbol)
+            (keyword) (let_pattern (variable_identifier)) (symbol)
             (expression
               (apply
                 (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))

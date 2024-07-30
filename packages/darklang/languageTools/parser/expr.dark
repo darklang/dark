@@ -143,11 +143,7 @@ module Darklang =
                   (stringPart.range, stringPart.text) |> Stdlib.Result.Result.Ok)
 
               let (range, contents) =
-                match findContents with
-                | Some contents ->
-                  let (range, contents) = contents
-                  (range, contents)
-                | None -> (stringSegment.range, "")
+                Stdlib.Option.withDefault findContents (stringSegment.range, "")
 
               [ WrittenTypes.StringSegment.StringText(range, contents) ]
 
@@ -458,24 +454,26 @@ module Darklang =
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
           let keywordLetNode = findField node "keyword_let"
-          let identifierNode = findField node "identifier"
+          let patternNode = findField node "pattern"
           let symbolEqualsNode = findField node "symbol_equals"
           let expr = findAndParseRequired node "expr" Expr.parse
           let body = findAndParseRequired node "body" Expr.parse
 
-          match keywordLetNode, identifierNode, symbolEqualsNode, expr, body with
-          | Ok keywordLet, Ok identifier, Ok symbolEquals, Ok expr, Ok body ->
-            (WrittenTypes.Expr.ELet(
-              node.range,
-              WrittenTypes.LetPattern.LPVariable(identifier.range, identifier.text),
-              expr,
-              body,
-              keywordLet.range,
-              symbolEquals.range
-            ))
-            |> Stdlib.Result.Result.Ok
+          match keywordLetNode, patternNode, symbolEqualsNode, expr, body with
+          | Ok keywordLet, Ok pattern, Ok symbolEquals, Ok expr, Ok body ->
+            match parseLetPattern pattern with
+            | Ok pattern ->
+              (WrittenTypes.Expr.ELet(
+                node.range,
+                pattern,
+                expr,
+                body,
+                keywordLet.range,
+                symbolEquals.range
+              ))
+              |> Stdlib.Result.Result.Ok
 
-          | _ -> createUnparseableError node
+            | Error _ -> createUnparseableError node
 
 
         let parseFieldAccess

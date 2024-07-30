@@ -109,7 +109,7 @@ let fn = (fun x -> x + 1L)
 (source_file
   (expression
     (let_expression
-      (keyword) (variable_identifier) (symbol)
+      (keyword) (let_pattern (variable_identifier)) (symbol)
       (expression
         (paren_expression
           (symbol)

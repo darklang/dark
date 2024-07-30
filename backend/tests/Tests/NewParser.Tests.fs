@@ -727,6 +727,24 @@ let exprs =
     t "simple let expr" "let x = 1L\n  x" "let x =\n  1L\nx" [] [] [] false
     t "let expr with indent" "let x =\n  1L\nx" "let x =\n  1L\nx" [] [] [] false
 
+    t
+      "tuple destructuring"
+      "let (var1, var2) =\n  var3\n(var1, var2)"
+      "let (var1, var2) =\n  var3\n(var1, var2)"
+      []
+      []
+      []
+      false
+
+    t
+      "tuple destructuring 2"
+      "let (var1, var2) =\n  (var3, var4)\n(var1, var2)"
+      "let (var1, var2) =\n  (var3, var4)\n(var1, var2)"
+      []
+      []
+      []
+      false
+
     // field access
     t "field access 1" "person.name" "person.name" [] [] [] false
     t
