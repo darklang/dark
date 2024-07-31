@@ -79,29 +79,29 @@ module TypeReference =
 
     | PT.TBool -> RT.TBool
 
-    // | PT.TInt8 -> RT.TInt8
-    // | PT.TUInt8 -> RT.TUInt8
-    // | PT.TInt16 -> RT.TInt16
-    // | PT.TUInt16 -> RT.TUInt16
-    // | PT.TInt32 -> RT.TInt32
-    // | PT.TUInt32 -> RT.TUInt32
+    | PT.TInt8 -> RT.TInt8
+    | PT.TUInt8 -> RT.TUInt8
+    | PT.TInt16 -> RT.TInt16
+    | PT.TUInt16 -> RT.TUInt16
+    | PT.TInt32 -> RT.TInt32
+    | PT.TUInt32 -> RT.TUInt32
     | PT.TInt64 -> RT.TInt64
-// | PT.TUInt64 -> RT.TUInt64
-// | PT.TInt128 -> RT.TInt128
-// | PT.TUInt128 -> RT.TUInt128
+    | PT.TUInt64 -> RT.TUInt64
+    | PT.TInt128 -> RT.TInt128
+    | PT.TUInt128 -> RT.TUInt128
 
-// | PT.TFloat -> RT.TFloat
+    | PT.TFloat -> RT.TFloat
 
-// | PT.TChar -> RT.TChar
+    | PT.TChar -> RT.TChar
 //| PT.TString -> RT.TString
 
-// | PT.TList inner -> RT.TList(toRT inner)
+    | PT.TList inner -> RT.TList(toRT inner)
 // | PT.TTuple(first, second, theRest) ->
 //   RT.TTuple(toRT first, toRT second, theRest |> List.map toRT)
 // | PT.TDict typ -> RT.TDict(toRT typ)
 
-// | PT.TDateTime -> RT.TDateTime
-// | PT.TUuid -> RT.TUuid
+    | PT.TDateTime -> RT.TDateTime
+    | PT.TUuid -> RT.TUuid
 // | PT.TCustomType(typeName, typeArgs) ->
 //   RT.TCustomType(
 //     NameResolution.toRT FQTypeName.toRT typeName,
@@ -192,7 +192,23 @@ module Expr =
 
     | PT.EBool(_id, b) -> (rc + 1, [ RT.LoadVal(rc, RT.DBool b) ], rc)
 
+    | PT.EInt8(_id, num) -> (rc + 1, [ RT.LoadVal(rc, RT.DInt8 num) ], rc)
+    | PT.EInt16(_id, num) -> (rc + 1, [ RT.LoadVal(rc, RT.DInt16 num) ], rc)
+    | PT.EInt32(_id, num) -> (rc + 1, [ RT.LoadVal(rc, RT.DInt32 num) ], rc)
     | PT.EInt64(_id, num) -> (rc + 1, [ RT.LoadVal(rc, RT.DInt64 num) ], rc)
+    | PT.EInt128(_id, num) -> (rc + 1, [ RT.LoadVal(rc, RT.DInt128 num) ], rc)
+    | PT.EUInt8(_id, num) -> (rc + 1, [ RT.LoadVal(rc, RT.DUInt8 num) ], rc)
+    | PT.EUInt16(_id, num) -> (rc + 1, [ RT.LoadVal(rc, RT.DUInt16 num) ], rc)
+    | PT.EUInt32(_id, num) -> (rc + 1, [ RT.LoadVal(rc, RT.DUInt32 num) ], rc)
+    | PT.EUInt64(_id, num) -> (rc + 1, [ RT.LoadVal(rc, RT.DUInt64 num) ], rc)
+    | PT.EUInt128(_id, num) -> (rc + 1, [ RT.LoadVal(rc, RT.DUInt128 num) ], rc)
+
+    | PT.EFloat(_id, sign, whole, fraction) ->
+      let whole = if whole = "" then "0" else whole
+      let fraction = if fraction = "" then "0" else fraction
+      (rc + 1, [ RT.LoadVal(rc, RT.DFloat(makeFloat sign whole fraction)) ], rc)
+
+    | PT.EChar(_id, c) -> (rc + 1, [ RT.LoadVal(rc, RT.DChar c) ], rc)
 
 
     | PT.EList(_id, items) ->
@@ -209,6 +225,11 @@ module Expr =
           init
 
       (regCounter, instrs, listReg)
+
+    // | PT.ETuple(_id, first, second, theRest) ->
+    //   let tupleReg = rc
+    //   //TODO handle VT
+    //   let init = (rc + 1, [ RT.LoadVal(tupleReg, RT.DTuple(VT.unknown, VT.unknown, [])) ])
 
 
     // let x = 1

@@ -10,23 +10,23 @@ let rec typeName (t : TypeReference) : string =
   | TUnit -> "Unit"
   | TBool -> "Bool"
 
-  // | TInt8 -> "Int8"
-  // | TUInt8 -> "UInt8"
-  // | TInt16 -> "Int16"
-  // | TUInt16 -> "UInt16"
-  // | TInt32 -> "Int32"
-  // | TUInt32 -> "UInt32"
+  | TInt8 -> "Int8"
+  | TUInt8 -> "UInt8"
+  | TInt16 -> "Int16"
+  | TUInt16 -> "UInt16"
+  | TInt32 -> "Int32"
+  | TUInt32 -> "UInt32"
   | TInt64 -> "Int64"
-  // | TUInt64 -> "UInt64"
-  // | TInt128 -> "Int128"
-  // | TUInt128 -> "UInt128"
+  | TUInt64 -> "UInt64"
+  | TInt128 -> "Int128"
+  | TUInt128 -> "UInt128"
 
-  // | TFloat -> "Float"
-  // | TChar -> "Char"
+  | TFloat -> "Float"
+  | TChar -> "Char"
   | TString -> "String"
 
-  // | TDateTime -> "DateTime"
-  // | TUuid -> "Uuid"
+  | TDateTime -> "DateTime"
+  | TUuid -> "Uuid"
 
   | TList nested -> $"List<{typeName nested}>"
   // | TTuple(n1, n2, rest) ->
@@ -58,24 +58,24 @@ let rec private knownTypeName (vt : KnownType) : string =
 
   | KTBool -> "Bool"
 
-  // | KTInt8 -> "Int8"
-  // | KTUInt8 -> "UInt8"
-  // | KTInt16 -> "Int16"
-  // | KTUInt16 -> "UInt16"
-  // | KTInt32 -> "Int32"
-  // | KTUInt32 -> "UInt32"
+  | KTInt8 -> "Int8"
+  | KTUInt8 -> "UInt8"
+  | KTInt16 -> "Int16"
+  | KTUInt16 -> "UInt16"
+  | KTInt32 -> "Int32"
+  | KTUInt32 -> "UInt32"
   | KTInt64 -> "Int64"
-  // | KTUInt64 -> "UInt64"
-  // | KTInt128 -> "Int128"
-  // | KTUInt128 -> "UInt128"
+  | KTUInt64 -> "UInt64"
+  | KTInt128 -> "Int128"
+  | KTUInt128 -> "UInt128"
 
-  // | KTFloat -> "Float"
+  | KTFloat -> "Float"
 
-  // | KTChar -> "Char"
+  | KTChar -> "Char"
   | KTString -> "String"
 
-  // | KTDateTime -> "DateTime"
-  // | KTUuid -> "Uuid"
+  | KTDateTime -> "DateTime"
+  | KTUuid -> "Uuid"
 
   | KTList typ -> $"List<{valueTypeName typ}>"
   // | KTDict typ -> $"Dict<{valueTypeName typ}>"
@@ -135,34 +135,34 @@ let toRepr (dv : Dval) : string =
     | DBool true -> "true"
     | DBool false -> "false"
 
-    // | DInt8 i -> string i
-    // | DUInt8 i -> string i
-    // | DInt16 i -> string i
-    // | DUInt16 i -> string i
-    // | DInt32 i -> string i
-    // | DUInt32 i -> string i
+    | DInt8 i -> string i
+    | DUInt8 i -> string i
+    | DInt16 i -> string i
+    | DUInt16 i -> string i
+    | DInt32 i -> string i
+    | DUInt32 i -> string i
     | DInt64 i -> string i
-    // | DUInt64 i -> string i
-    // | DInt128 i -> string i
-    // | DUInt128 i -> string i
+    | DUInt64 i -> string i
+    | DInt128 i -> string i
+    | DUInt128 i -> string i
 
-    // | DFloat f ->
-    //   if System.Double.IsPositiveInfinity f then
-    //     "Infinity"
-    //   else if System.Double.IsNegativeInfinity f then
-    //     "-Infinity"
-    //   else if System.Double.IsNaN f then
-    //     "NaN"
-    //   else
-    //     let result = sprintf "%.12g" f
-    //     if result.Contains "." then result else $"{result}.0"
+    | DFloat f ->
+      if System.Double.IsPositiveInfinity f then
+        "Infinity"
+      else if System.Double.IsNegativeInfinity f then
+        "-Infinity"
+      else if System.Double.IsNaN f then
+        "NaN"
+      else
+        let result = sprintf "%.12g" f
+        if result.Contains "." then result else $"{result}.0"
 
-    // | DChar c -> $"'{c}'"
+    | DChar c -> $"'{c}'"
     | DString s -> $"\"{s}\""
 
-    // | DDateTime d -> wrap (DarkDateTime.toIsoString d)
+    | DDateTime d -> wrap (DarkDateTime.toIsoString d)
     // | DDB name -> wrap name
-    // | DUuid uuid -> wrap (string uuid)
+    | DUuid uuid -> wrap (string uuid)
 
     | DList(_, l) ->
       if List.isEmpty l then

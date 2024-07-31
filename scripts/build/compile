@@ -15,6 +15,7 @@ optimize = in_ci
 fsharp_thing_to_build = "fsdark.sln"
 # sometimes it's handy to only build a specific project
 fsharp_thing_to_build = "tests/Tests"
+#fsharp_thing_to_build = "src/LibExecution"
 
 # Make io unbuffered
 def flush(fn):

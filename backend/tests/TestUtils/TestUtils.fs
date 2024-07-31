@@ -363,26 +363,26 @@ module Expect =
     | DUnit
     | DBool _
 
-    // | DInt8 _
-    // | DUInt8 _
-    // | DInt16 _
-    // | DUInt16 _
-    // | DInt32 _
-    // | DUInt32 _
+    | DInt8 _
+    | DUInt8 _
+    | DInt16 _
+    | DUInt16 _
+    | DInt32 _
+    | DUInt32 _
     | DInt64 _
-    // | DUInt64 _
-    // | DInt128 _
-    // | DUInt128 _
+    | DUInt64 _
+    | DInt128 _
+    | DUInt128 _
 
-    // | DFloat _
+    | DFloat _
 
-    // | DDateTime _
-    // | DUuid _
+    | DDateTime _
+    | DUuid _
     | DFnVal _
     // | DDB _
      -> true
 
-    // | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
+    | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
     | DString str -> str.IsNormalized()
 
     | DList(_, items) -> List.all r items
@@ -729,7 +729,7 @@ module Expect =
     (errorFn : Path -> string -> string -> unit)
     : unit =
     let de p a e = dvalEqualityBaseFn p a e errorFn
-    //let error path = errorFn path (string actual) (string expected)
+    let error path = errorFn path (string actual) (string expected)
 
     let check (path : Path) (a : 'a) (e : 'a) : unit =
       if a <> e then errorFn path (debugDval actual) (debugDval expected)
@@ -740,34 +740,34 @@ module Expect =
       | Error() -> errorFn path (debugDval actual) (debugDval expected)
 
     match actual, expected with
-    // | DFloat l, DFloat r ->
-    //   if System.Double.IsNaN l && System.Double.IsNaN r then
-    //     // This isn't "true" equality, it's just for tests
-    //     ()
-    //   else if
-    //     System.Double.IsPositiveInfinity l && System.Double.IsPositiveInfinity r
-    //   then
-    //     ()
-    //   else if
-    //     System.Double.IsNegativeInfinity l && System.Double.IsNegativeInfinity r
-    //   then
-    //     ()
-    //   else if
-    //     System.Double.IsNaN l
-    //     || System.Double.IsNaN r
-    //     || System.Double.IsPositiveInfinity l
-    //     || System.Double.IsPositiveInfinity r
-    //     || System.Double.IsNegativeInfinity l
-    //     || System.Double.IsNegativeInfinity r
-    //   then
-    //     error path
-    //   else if not (Accuracy.areClose Accuracy.veryHigh l r) then
-    //     error path
-    // | DDateTime l, DDateTime r ->
-    //   // Two dates can be the same millisecond and not be equal if they don't
-    //   // have the same number of ticks. For testing, we shall consider them
-    //   // equal if they print the same string.
-    //   check path (string l) (string r)
+    | DFloat l, DFloat r ->
+      if System.Double.IsNaN l && System.Double.IsNaN r then
+        // This isn't "true" equality, it's just for tests
+        ()
+      else if
+        System.Double.IsPositiveInfinity l && System.Double.IsPositiveInfinity r
+      then
+        ()
+      else if
+        System.Double.IsNegativeInfinity l && System.Double.IsNegativeInfinity r
+      then
+        ()
+      else if
+        System.Double.IsNaN l
+        || System.Double.IsNaN r
+        || System.Double.IsPositiveInfinity l
+        || System.Double.IsPositiveInfinity r
+        || System.Double.IsNegativeInfinity l
+        || System.Double.IsNegativeInfinity r
+      then
+        error path
+      else if not (Accuracy.areClose Accuracy.veryHigh l r) then
+        error path
+    | DDateTime l, DDateTime r ->
+      // Two dates can be the same millisecond and not be equal if they don't
+      // have the same number of ticks. For testing, we shall consider them
+      // equal if they print the same string.
+      check path (string l) (string r)
 
     | DList(lType, ls), DList(rType, rs) ->
       checkValueType ("Type" :: path) lType rType
@@ -861,21 +861,21 @@ module Expect =
     // Keep for exhaustiveness checking
     | DUnit, _
     | DBool _, _
-    // | DInt8 _, _
-    // | DUInt8 _, _
-    // | DInt16 _, _
-    // | DUInt16 _, _
-    // | DInt32 _, _
-    // | DUInt32 _, _
+    | DInt8 _, _
+    | DUInt8 _, _
+    | DInt16 _, _
+    | DUInt16 _, _
+    | DInt32 _, _
+    | DUInt32 _, _
     | DInt64 _, _
-    // | DUInt64 _, _
-    // | DInt128 _, _
-    // | DUInt128 _, _
-    // | DFloat _, _
-    // | DChar _, _
+    | DUInt64 _, _
+    | DInt128 _, _
+    | DUInt128 _, _
+    | DFloat _, _
+    | DChar _, _
     | DString _, _
-    // | DDateTime _, _
-    // | DUuid _, _
+    | DDateTime _, _
+    | DUuid _, _
     | DList _, _
     // | DTuple _, _
     // | DDict _, _
@@ -937,21 +937,21 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     // Keep for exhaustiveness checking
     | DUnit
     | DBool _
-    // | DInt8 _
-    // | DUInt8 _
-    // | DInt16 _
-    // | DUInt16 _
-    // | DInt32 _
-    // | DUInt32 _
+    | DInt8 _
+    | DUInt8 _
+    | DInt16 _
+    | DUInt16 _
+    | DInt32 _
+    | DUInt32 _
     | DInt64 _
-    // | DUInt64 _
-    // | DInt128 _
-    // | DUInt128 _
-    // | DFloat _
-    // | DChar _
+    | DUInt64 _
+    | DInt128 _
+    | DUInt128 _
+    | DFloat _
+    | DChar _
     | DString _ // TODO: should actually traverse in interpolations
-    // | DUuid _
-    // | DDateTime _
+    | DUuid _
+    | DDateTime _
     | DFnVal _
     // | DDB _
      -> f dv

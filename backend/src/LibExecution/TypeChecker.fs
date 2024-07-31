@@ -265,24 +265,24 @@ let rec unify
       | TBool, DBool _ -> return Ok()
       | TUnit, DUnit -> return Ok()
 
-      // | TInt8, DInt8 _ -> return Ok()
-      // | TUInt8, DUInt8 _ -> return Ok()
-      // | TInt16, DInt16 _ -> return Ok()
-      // | TUInt16, DUInt16 _ -> return Ok()
-      // | TInt32, DInt32 _ -> return Ok()
-      // | TUInt32, DUInt32 _ -> return Ok()
+      | TInt8, DInt8 _ -> return Ok()
+      | TUInt8, DUInt8 _ -> return Ok()
+      | TInt16, DInt16 _ -> return Ok()
+      | TUInt16, DUInt16 _ -> return Ok()
+      | TInt32, DInt32 _ -> return Ok()
+      | TUInt32, DUInt32 _ -> return Ok()
       | TInt64, DInt64 _ -> return Ok()
-      // | TUInt64, DUInt64 _ -> return Ok()
-      // | TInt128, DInt128 _ -> return Ok()
-      // | TUInt128, DUInt128 _ -> return Ok()
+      | TUInt64, DUInt64 _ -> return Ok()
+      | TInt128, DInt128 _ -> return Ok()
+      | TUInt128, DUInt128 _ -> return Ok()
 
-      // | TFloat, DFloat _ -> return Ok()
+      | TFloat, DFloat _ -> return Ok()
 
-      //| TChar, DChar _ -> return Ok()
+      | TChar, DChar _ -> return Ok()
       | TString, DString _ -> return Ok()
 
-      // | TDateTime, DDateTime _ -> return Ok()
-      // | TUuid, DUuid _ -> return Ok()
+      | TDateTime, DDateTime _ -> return Ok()
+      | TUuid, DUuid _ -> return Ok()
 
       // | TDB _, DDB _ -> return Ok() // TODO: check DB type
       | TList expected, DList(actual, _dvs) ->
@@ -426,29 +426,29 @@ let rec unify
       | TUnit, _
       | TBool, _
 
-      // | TInt8, _
-      // | TUInt8, _
-      // | TInt16, _
-      // | TUInt16, _
-      // | TInt32, _
-      // | TUInt32, _
+      | TInt8, _
+      | TUInt8, _
+      | TInt16, _
+      | TUInt16, _
+      | TInt32, _
+      | TUInt32, _
       | TInt64, _
-      // | TUInt64, _
-      // | TInt128, _
-      // | TUInt128, _
+      | TUInt64, _
+      | TInt128, _
+      | TUInt128, _
 
-      // | TFloat, _
+      | TFloat, _
 
       // | TTuple _, _
       // | TCustomType _, _
       // | TVariable _, _
       | TString, _
       | TList _, _
-      // | TDateTime, _
+      | TDateTime, _
       // | TDict _, _
       | TFn _, _
-      // | TUuid, _
-      // | TChar, _
+      | TUuid, _
+      | TChar, _
       // | TDB _, _
        ->
         return

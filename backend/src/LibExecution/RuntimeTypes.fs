@@ -148,21 +148,21 @@ module FQFnName =
 type KnownType =
   | KTUnit
   | KTBool
-  // | KTInt8
-  // | KTUInt8
-  // | KTInt16
-  // | KTUInt16
-  // | KTInt32
-  // | KTUInt32
+  | KTInt8
+  | KTUInt8
+  | KTInt16
+  | KTUInt16
+  | KTInt32
+  | KTUInt32
   | KTInt64
-  // | KTUInt64
-  // | KTInt128
-  // | KTUInt128
-  // | KTFloat
-  // | KTChar
+  | KTUInt64
+  | KTInt128
+  | KTUInt128
+  | KTFloat
+  | KTChar
   | KTString
-  // | KTUuid
-  // | KTDateTime
+  | KTUuid
+  | KTDateTime
 
   /// let empty =    [] // KTList Unknown
   /// let intList = [1] // KTList (ValueType.Known KTInt64)
@@ -227,23 +227,23 @@ module ValueType =
 
   let unit = known KTUnit
   let bool = known KTBool
-  // let int8 = known KTInt8
-  // let uint8 = known KTUInt8
-  // let int16 = known KTInt16
-  // let uint16 = known KTUInt16
-  // let int32 = known KTInt32
-  // let uint32 = known KTUInt32
+  let int8 = known KTInt8
+  let uint8 = known KTUInt8
+  let int16 = known KTInt16
+  let uint16 = known KTUInt16
+  let int32 = known KTInt32
+  let uint32 = known KTUInt32
   let int64 = known KTInt64
-  // let uint64 = known KTUInt64
-  // let int128 = known KTInt128
-  // let uint128 = known KTUInt128
-  // let float = known KTFloat
-  // let char = known KTChar
+  let uint64 = known KTUInt64
+  let int128 = known KTInt128
+  let uint128 = known KTUInt128
+  let float = known KTFloat
+  let char = known KTChar
   let string = known KTString
-  // let dateTime = known KTDateTime
-  // let uuid = known KTUuid
+  let dateTime = known KTDateTime
+  let uuid = known KTUuid
 
-  // let list (inner : ValueType) : ValueType = known (KTList inner)
+  let list (inner : ValueType) : ValueType = known (KTList inner)
   // let dict (inner : ValueType) : ValueType = known (KTDict inner)
   // let tuple
   //   (first : ValueType)
@@ -265,21 +265,21 @@ module ValueType =
       match kt with
       | KTUnit -> "Unit"
       | KTBool -> "Bool"
-      // | KTInt8 -> "Int8"
-      // | KTUInt8 -> "UInt8"
-      // | KTInt16 -> "Int16"
-      // | KTUInt16 -> "UInt16"
-      // | KTInt32 -> "Int32"
-      // | KTUInt32 -> "UInt32"
+      | KTInt8 -> "Int8"
+      | KTUInt8 -> "UInt8"
+      | KTInt16 -> "Int16"
+      | KTUInt16 -> "UInt16"
+      | KTInt32 -> "Int32"
+      | KTUInt32 -> "UInt32"
       | KTInt64 -> "Int64"
-      // | KTUInt64 -> "UInt64"
-      // | KTInt128 -> "Int128"
-      // | KTUInt128 -> "UInt128"
-      // | KTFloat -> "Float"
-      // | KTChar -> "Char"
+      | KTUInt64 -> "UInt64"
+      | KTInt128 -> "Int128"
+      | KTUInt128 -> "UInt128"
+      | KTFloat -> "Float"
+      | KTChar -> "Char"
       | KTString -> "String"
-      // | KTUuid -> "Uuid"
-      // | KTDateTime -> "DateTime"
+      | KTUuid -> "Uuid"
+      | KTDateTime -> "DateTime"
 
       | KTList inner -> $"List<{toString inner}>"
       // | KTDict inner -> $"Dict<{toString inner}>"
@@ -314,23 +314,23 @@ module ValueType =
     match left, right with
     | KTUnit, KTUnit -> KTUnit |> Ok
     | KTBool, KTBool -> KTBool |> Ok
-    // | KTInt8, KTInt8 -> KTInt8 |> Ok
-    // | KTUInt8, KTUInt8 -> KTUInt8 |> Ok
-    // | KTInt16, KTInt16 -> KTInt16 |> Ok
-    // | KTUInt16, KTUInt16 -> KTUInt16 |> Ok
-    // | KTInt32, KTInt32 -> KTInt32 |> Ok
-    // | KTUInt32, KTUInt32 -> KTUInt32 |> Ok
+    | KTInt8, KTInt8 -> KTInt8 |> Ok
+    | KTUInt8, KTUInt8 -> KTUInt8 |> Ok
+    | KTInt16, KTInt16 -> KTInt16 |> Ok
+    | KTUInt16, KTUInt16 -> KTUInt16 |> Ok
+    | KTInt32, KTInt32 -> KTInt32 |> Ok
+    | KTUInt32, KTUInt32 -> KTUInt32 |> Ok
     | KTInt64, KTInt64 -> KTInt64 |> Ok
-    // | KTUInt64, KTUInt64 -> KTUInt64 |> Ok
-    // | KTInt128, KTInt128 -> KTInt128 |> Ok
-    // | KTUInt128, KTUInt128 -> KTUInt128 |> Ok
-    // | KTFloat, KTFloat -> KTFloat |> Ok
-    // | KTChar, KTChar -> KTChar |> Ok
+    | KTUInt64, KTUInt64 -> KTUInt64 |> Ok
+    | KTInt128, KTInt128 -> KTInt128 |> Ok
+    | KTUInt128, KTUInt128 -> KTUInt128 |> Ok
+    | KTFloat, KTFloat -> KTFloat |> Ok
+    | KTChar, KTChar -> KTChar |> Ok
     | KTString, KTString -> KTString |> Ok
-    // | KTUuid, KTUuid -> KTUuid |> Ok
-    // | KTDateTime, KTDateTime -> KTDateTime |> Ok
+    | KTUuid, KTUuid -> KTUuid |> Ok
+    | KTDateTime, KTDateTime -> KTDateTime |> Ok
 
-    // | KTList left, KTList right -> r left right |> Result.map KTList
+    | KTList left, KTList right -> r left right |> Result.map KTList
     // | KTDict left, KTDict right -> r left right |> Result.map KTDict
     // | KTTuple(l1, l2, ls), KTTuple(r1, r2, rs) ->
     //   let firstMerged = r l1 r1
@@ -432,21 +432,21 @@ type NameResolution<'a> = Result<'a, RuntimeError>
 and TypeReference =
   | TUnit
   | TBool
-  // | TInt8
-  // | TUInt8
-  // | TInt16
-  // | TUInt16
-  // | TInt32
-  // | TUInt32
+  | TInt8
+  | TUInt8
+  | TInt16
+  | TUInt16
+  | TInt32
+  | TUInt32
   | TInt64
-  // | TUInt64
-  // | TInt128
-  // | TUInt128
-  // | TFloat
-  // | TChar
+  | TUInt64
+  | TInt128
+  | TUInt128
+  | TFloat
+  | TChar
   | TString
-  // | TUuid
-  // | TDateTime
+  | TUuid
+  | TDateTime
   | TList of TypeReference
   // | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TFn of NEList<TypeReference> * TypeReference
@@ -467,21 +467,21 @@ and TypeReference =
       match t with
       | TUnit
       | TBool
-      // | TInt8
-      // | TUInt8
-      // | TInt16
-      // | TUInt16
-      // | TInt32
-      // | TUInt32
+      | TInt8
+      | TUInt8
+      | TInt16
+      | TUInt16
+      | TInt32
+      | TUInt32
       | TInt64
-      // | TUInt64
-      // | TInt128
-      // | TUInt128
-      // | TFloat
-      // | TChar
+      | TUInt64
+      | TInt128
+      | TUInt128
+      | TFloat
+      | TChar
       | TString
-      // | TUuid
-      // | TDateTime
+      | TUuid
+      | TDateTime
        -> true
 
       | TList t -> isConcrete t
@@ -546,20 +546,6 @@ and InstructionsWithContext =
 // // Expressions here are runtime variants of the AST in ProgramTypes, having had
 // // superfluous information removed.
 // and Expr =
-//   | EUnit of id
-
-//   | EBool of id * bool
-
-//   // | EInt8 of id * int8
-//   // | EUInt8 of id * uint8
-//   // | EInt16 of id * int16
-//   // | EUInt16 of id * uint16
-//   // | EInt32 of id * int32
-//   // | EUInt32 of id * uint32
-//   | EInt64 of id * int64
-//   // | EUInt64 of id * uint64
-//   // | EInt128 of id * System.Int128
-//   // | EUInt128 of id * System.UInt128
 
 //   // | EFloat of id * double
 
@@ -583,7 +569,6 @@ and InstructionsWithContext =
 //   //| ELambda of id * pats : NEList<LetPattern> * body : Expr
 
 //   // // structures
-//   // | EList of id * List<Expr>
 //   // | ETuple of id * Expr * Expr * List<Expr>
 //   // | EDict of id * List<string * Expr>
 
@@ -634,24 +619,24 @@ and [<NoComparison>] Dval =
   // Simple types
   | DBool of bool
 
-  // | DInt8 of int8
-  // | DUInt8 of uint8
-  // | DInt16 of int16
-  // | DUInt16 of uint16
-  // | DInt32 of int32
-  // | DUInt32 of uint32
+  | DInt8 of int8
+  | DUInt8 of uint8
+  | DInt16 of int16
+  | DUInt16 of uint16
+  | DInt32 of int32
+  | DUInt32 of uint32
   | DInt64 of int64
-  // | DUInt64 of uint64
-  // | DInt128 of System.Int128
-  // | DUInt128 of System.UInt128
+  | DUInt64 of uint64
+  | DInt128 of System.Int128
+  | DUInt128 of System.UInt128
 
-  // | DFloat of double
+  | DFloat of double
 
-  // | DChar of string // TextElements (extended grapheme clusters) are provided as strings
+  | DChar of string // TextElements (extended grapheme clusters) are provided as strings
   | DString of string
 
-  // | DDateTime of DarkDateTime.T
-  // | DUuid of System.Guid
+  | DDateTime of DarkDateTime.T
+  | DUuid of System.Guid
 
   // Compound types
   | DList of ValueType * List<Dval>
@@ -979,24 +964,24 @@ module Dval =
     | DUnit, TUnit
     | DBool _, TBool
 
-    // | DInt8 _, TInt8
-    // | DUInt8 _, TUInt8
-    // | DInt16 _, TInt16
-    // | DUInt16 _, TUInt16
-    // | DInt32 _, TInt32
-    // | DUInt32 _, TUInt32
+    | DInt8 _, TInt8
+    | DUInt8 _, TUInt8
+    | DInt16 _, TInt16
+    | DUInt16 _, TUInt16
+    | DInt32 _, TInt32
+    | DUInt32 _, TUInt32
     | DInt64 _, TInt64
-    // | DUInt64 _, TUInt64
-    // | DInt128 _, TInt128
-    // | DUInt128 _, TUInt128
+    | DUInt64 _, TUInt64
+    | DInt128 _, TInt128
+    | DUInt128 _, TUInt128
 
-    // | DFloat _, TFloat
+    | DFloat _, TFloat
 
-    // | DChar _, TChar
+    | DChar _, TChar
     | DString _, TString
 
-    // | DDateTime _, TDateTime
-    // | DUuid _, TUuid
+    | DDateTime _, TDateTime
+    | DUuid _, TUuid
 
     // | DDB _, TDB _
      -> true
@@ -1027,21 +1012,21 @@ module Dval =
     // exhaustiveness checking
     | DUnit, _
     | DBool _, _
-    // | DInt8 _, _
-    // | DUInt8 _, _
-    // | DInt16 _, _
-    // | DUInt16 _, _
-    // | DInt32 _, _
-    // | DUInt32 _, _
+    | DInt8 _, _
+    | DUInt8 _, _
+    | DInt16 _, _
+    | DUInt16 _, _
+    | DInt32 _, _
+    | DUInt32 _, _
     | DInt64 _, _
-    // | DUInt64 _, _
-    // | DInt128 _, _
-    // | DUInt128 _, _
-    // | DFloat _, _
+    | DUInt64 _, _
+    | DInt128 _, _
+    | DUInt128 _, _
+    | DFloat _, _
     | DString _, _
-    // | DDateTime _, _
-    // | DUuid _, _
-    // | DChar _, _
+    | DDateTime _, _
+    | DUuid _, _
+    | DChar _, _
     // | DDB _, _
     | DList _, _
     // | DTuple _, _
@@ -1058,21 +1043,21 @@ module Dval =
 
     | DBool _ -> ValueType.Known KTBool
 
-    // | DInt8 _ -> ValueType.Known KTInt8
-    // | DUInt8 _ -> ValueType.Known KTUInt8
-    // | DInt16 _ -> ValueType.Known KTInt16
-    // | DUInt16 _ -> ValueType.Known KTUInt16
-    // | DInt32 _ -> ValueType.Known KTInt32
-    // | DUInt32 _ -> ValueType.Known KTUInt32
+    | DInt8 _ -> ValueType.Known KTInt8
+    | DUInt8 _ -> ValueType.Known KTUInt8
+    | DInt16 _ -> ValueType.Known KTInt16
+    | DUInt16 _ -> ValueType.Known KTUInt16
+    | DInt32 _ -> ValueType.Known KTInt32
+    | DUInt32 _ -> ValueType.Known KTUInt32
     | DInt64 _ -> ValueType.Known KTInt64
-    // | DUInt64 _ -> ValueType.Known KTUInt64
-    // | DInt128 _ -> ValueType.Known KTInt128
-    // | DUInt128 _ -> ValueType.Known KTUInt128
-    // | DFloat _ -> ValueType.Known KTFloat
-    // | DChar _ -> ValueType.Known KTChar
+    | DUInt64 _ -> ValueType.Known KTUInt64
+    | DInt128 _ -> ValueType.Known KTInt128
+    | DUInt128 _ -> ValueType.Known KTUInt128
+    | DFloat _ -> ValueType.Known KTFloat
+    | DChar _ -> ValueType.Known KTChar
     | DString _ -> ValueType.Known KTString
-    // | DDateTime _ -> ValueType.Known KTDateTime
-    // | DUuid _ -> ValueType.Known KTUuid
+    | DDateTime _ -> ValueType.Known KTDateTime
+    | DUuid _ -> ValueType.Known KTUuid
 
     | DList(t, _) -> ValueType.Known(KTList t)
     // | DDict(t, _) -> ValueType.Known(KTDict t)
@@ -1103,10 +1088,10 @@ module Dval =
   // | DDB _ -> ValueType.Unknown
 
 
-  // let asList (dv : Dval) : Option<List<Dval>> =
-  //   match dv with
-  //   | DList(_, l) -> Some l
-  //   | _ -> None
+  let asList (dv : Dval) : Option<List<Dval>> =
+    match dv with
+    | DList(_, l) -> Some l
+    | _ -> None
 
   // let asDict (dv : Dval) : Option<Map<string, Dval>> =
   //   match dv with
@@ -1128,70 +1113,70 @@ module Dval =
     | DString s -> Some s
     | _ -> None
 
-  // let asInt8 (dv : Dval) : Option<int8> =
-  //   match dv with
-  //   | DInt8 i -> Some i
-  //   | _ -> None
+  let asInt8 (dv : Dval) : Option<int8> =
+    match dv with
+    | DInt8 i -> Some i
+    | _ -> None
 
-  // let asUInt8 (dv : Dval) : Option<uint8> =
-  //   match dv with
-  //   | DUInt8 i -> Some i
-  //   | _ -> None
+  let asUInt8 (dv : Dval) : Option<uint8> =
+    match dv with
+    | DUInt8 i -> Some i
+    | _ -> None
 
-  // let asInt16 (dv : Dval) : Option<int16> =
-  //   match dv with
-  //   | DInt16 i -> Some i
-  //   | _ -> None
+  let asInt16 (dv : Dval) : Option<int16> =
+    match dv with
+    | DInt16 i -> Some i
+    | _ -> None
 
-  // let asUInt16 (dv : Dval) : Option<uint16> =
-  //   match dv with
-  //   | DUInt16 i -> Some i
-  //   | _ -> None
+  let asUInt16 (dv : Dval) : Option<uint16> =
+    match dv with
+    | DUInt16 i -> Some i
+    | _ -> None
 
-  // let asInt32 (dv : Dval) : Option<int32> =
-  //   match dv with
-  //   | DInt32 i -> Some i
-  //   | _ -> None
+  let asInt32 (dv : Dval) : Option<int32> =
+    match dv with
+    | DInt32 i -> Some i
+    | _ -> None
 
-  // let asUInt32 (dv : Dval) : Option<uint32> =
-  //   match dv with
-  //   | DUInt32 i -> Some i
-  //   | _ -> None
+  let asUInt32 (dv : Dval) : Option<uint32> =
+    match dv with
+    | DUInt32 i -> Some i
+    | _ -> None
 
   let asInt64 (dv : Dval) : Option<int64> =
     match dv with
     | DInt64 i -> Some i
     | _ -> None
 
-  // let asUInt64 (dv : Dval) : Option<uint64> =
-  //   match dv with
-  //   | DUInt64 i -> Some i
-  //   | _ -> None
+  let asUInt64 (dv : Dval) : Option<uint64> =
+    match dv with
+    | DUInt64 i -> Some i
+    | _ -> None
 
-  // let asInt128 (dv : Dval) : Option<System.Int128> =
-  //   match dv with
-  //   | DInt128 i -> Some i
-  //   | _ -> None
+  let asInt128 (dv : Dval) : Option<System.Int128> =
+    match dv with
+    | DInt128 i -> Some i
+    | _ -> None
 
-  // let asUInt128 (dv : Dval) : Option<System.UInt128> =
-  //   match dv with
-  //   | DUInt128 i -> Some i
-  //   | _ -> None
+  let asUInt128 (dv : Dval) : Option<System.UInt128> =
+    match dv with
+    | DUInt128 i -> Some i
+    | _ -> None
 
-  // let asFloat (dv : Dval) : Option<double> =
-  //   match dv with
-  //   | DFloat f -> Some f
-  //   | _ -> None
+  let asFloat (dv : Dval) : Option<double> =
+    match dv with
+    | DFloat f -> Some f
+    | _ -> None
 
   let asBool (dv : Dval) : Option<bool> =
     match dv with
     | DBool b -> Some b
     | _ -> None
 
-// let asUuid (dv : Dval) : Option<System.Guid> =
-//   match dv with
-//   | DUuid u -> Some u
-//   | _ -> None
+  let asUuid (dv : Dval) : Option<System.Guid> =
+    match dv with
+    | DUuid u -> Some u
+    | _ -> None
 
 
 // type Const =

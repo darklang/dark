@@ -187,26 +187,26 @@ type TypeReference =
 
   | TBool
 
-  // | TInt8
-  // | TUInt8
-  // | TInt16
-  // | TUInt16
-  // | TInt32
-  // | TUInt32
+  | TInt8
+  | TUInt8
+  | TInt16
+  | TUInt16
+  | TInt32
+  | TUInt32
   | TInt64
-// | TUInt64
-// | TInt128
-// | TUInt128
+  | TUInt64
+  | TInt128
+  | TUInt128
 
-// | TFloat
+  | TFloat
 
-// | TChar
+  | TChar
 //| TString
 
-// | TUuid
-// | TDateTime
+  | TUuid
+  | TDateTime
 
-// | TList of TypeReference
+  | TList of TypeReference
 // | TTuple of TypeReference * TypeReference * List<TypeReference>
 // | TDict of TypeReference
 
@@ -231,25 +231,25 @@ type Expr =
   | EUnit of id
   | EBool of id * bool
 
-  // | EInt8 of id * int8
-  // | EUInt8 of id * uint8
-  // | EInt16 of id * int16
-  // | EUInt16 of id * uint16
-  // | EInt32 of id * int32
-  // | EUInt32 of id * uint32
+  | EInt8 of id * int8
+  | EUInt8 of id * uint8
+  | EInt16 of id * int16
+  | EUInt16 of id * uint16
+  | EInt32 of id * int32
+  | EUInt32 of id * uint32
   | EInt64 of id * int64
-  // | EUInt64 of id * uint64
-  // | EInt128 of id * System.Int128
-  // | EUInt128 of id * System.UInt128
+  | EUInt64 of id * uint64
+  | EInt128 of id * System.Int128
+  | EUInt128 of id * System.UInt128
 
-  // // Allow the user to have arbitrarily big numbers, even if they don't make sense as
-  // // floats. The float is split as we want to preserve what the user entered.
-  // // Strings are used as numbers lose the leading zeros (eg 7.00007)
-  // | EFloat of id * Sign * string * string
+  // Allow the user to have arbitrarily big numbers, even if they don't make sense as
+  // floats. The float is split as we want to preserve what the user entered.
+  // Strings are used as numbers lose the leading zeros (eg 7.00007)
+  | EFloat of id * Sign * string * string
 
-  // /// A character is an Extended Grapheme Cluster (hence why we use a string). This
-  // /// is equivalent to one screen-visible "character" in Unicode.
-  // | EChar of id * string
+  /// A character is an Extended Grapheme Cluster (hence why we use a string). This
+  /// is equivalent to one screen-visible "character" in Unicode.
+  | EChar of id * string
   //| EString of id * List<StringSegment>
 
 
@@ -375,19 +375,19 @@ module Expr =
     match expr with
     | EUnit id
     | EBool(id, _)
-    // | EInt8(id, _)
-    // | EUInt8(id, _)
-    // | EInt16(id, _)
-    // | EUInt16(id, _)
-    // | EInt32(id, _)
-    // | EUInt32(id, _)
+    | EInt8(id, _)
+    | EUInt8(id, _)
+    | EInt16(id, _)
+    | EUInt16(id, _)
+    | EInt32(id, _)
+    | EUInt32(id, _)
     | EInt64(id, _)
-    // | EUInt64(id, _)
-    // | EInt128(id, _)
-    // | EUInt128(id, _)
-    // | EChar(id, _)
+    | EUInt64(id, _)
+    | EInt128(id, _)
+    | EUInt128(id, _)
+    | EChar(id, _)
     //| EString(id, _)
-    // | EFloat(id, _, _, _)
+    | EFloat(id, _, _, _)
     // | EConstant(id, _)
     | ELet(id, _, _, _)
     // | EIf(id, _, _, _)
