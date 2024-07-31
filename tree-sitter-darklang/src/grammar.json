@@ -4727,24 +4727,71 @@
             }
           },
           {
-            "type": "FIELD",
-            "name": "args",
-            "content": {
-              "type": "REPEAT1",
-              "content": {
-                "type": "CHOICE",
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "FIELD",
+                "name": "args",
+                "content": {
+                  "type": "REPEAT1",
+                  "content": {
+                    "type": "CHOICE",
+                    "members": [
+                      {
+                        "type": "SYMBOL",
+                        "name": "paren_expression"
+                      },
+                      {
+                        "type": "SYMBOL",
+                        "name": "simple_expression"
+                      }
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "SEQ",
                 "members": [
                   {
                     "type": "SYMBOL",
-                    "name": "paren_expression"
+                    "name": "indent"
+                  },
+                  {
+                    "type": "FIELD",
+                    "name": "args",
+                    "content": {
+                      "type": "SEQ",
+                      "members": [
+                        {
+                          "type": "SYMBOL",
+                          "name": "expression"
+                        },
+                        {
+                          "type": "REPEAT",
+                          "content": {
+                            "type": "SEQ",
+                            "members": [
+                              {
+                                "type": "PATTERN",
+                                "value": "\\n"
+                              },
+                              {
+                                "type": "SYMBOL",
+                                "name": "expression"
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
                   },
                   {
                     "type": "SYMBOL",
-                    "name": "simple_expression"
+                    "name": "dedent"
                   }
                 ]
               }
-            }
+            ]
           },
           {
             "type": "CHOICE",

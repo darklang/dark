@@ -8,6 +8,10 @@
         "required": true,
         "types": [
           {
+            "type": "expression",
+            "named": true
+          },
+          {
             "type": "paren_expression",
             "named": true
           },
@@ -29,9 +33,17 @@
       }
     },
     "children": {
-      "multiple": false,
+      "multiple": true,
       "required": false,
       "types": [
+        {
+          "type": "dedent",
+          "named": true
+        },
+        {
+          "type": "indent",
+          "named": true
+        },
         {
           "type": "newline",
           "named": true
@@ -2581,6 +2593,11 @@
     }
   },
   {
+    "type": "newline",
+    "named": true,
+    "fields": {}
+  },
+  {
     "type": "operator",
     "named": true,
     "fields": {}
@@ -4758,10 +4775,6 @@
   },
   {
     "type": "negative_digits",
-    "named": true
-  },
-  {
-    "type": "newline",
     "named": true
   },
   {

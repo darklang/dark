@@ -407,11 +407,18 @@ if a > b then
         (if_expression
           (keyword)
           (expression (infix_operation (expression (simple_expression (variable_identifier))) (operator) (expression (simple_expression (variable_identifier))))) (keyword)
-          (ERROR (variable_identifier))
-          (indent)
           (expression
-            (simple_expression (variable_identifier)))
-          (dedent)))
-      (expression
-        (simple_expression (variable_identifier)))
-      (dedent))))
+            (apply
+              (qualified_fn_name (fn_identifier))
+              (indent)
+              (expression (simple_expression (variable_identifier)))
+              (dedent)
+            )
+          )
+        )
+      )
+      (expression (simple_expression (variable_identifier)))
+      (dedent)
+    )
+  )
+)

@@ -50,9 +50,9 @@ match expression - multiple cases
 ==================
 
 match 6L with
-  | var -> "pass"
-  | 6L -> "fail"
-  | 7L -> "pass"
+| var -> "pass"
+| 6L -> "fail"
+| 7L -> "pass"
 
 ---
 
@@ -82,9 +82,9 @@ match expression - test list
 ==================
 
 match [ true; false] with
-  | [] -> false
-  | [ true; false ] -> true
-  | var -> "fail"
+| [] -> false
+| [ true; false ] -> true
+| var -> "fail"
 
 ---
 
@@ -130,11 +130,11 @@ match expression - test let expression
 ==================
 
 match [ true ] with
-  | var ->
-    let length = Stdlib.List.length var
-    length
-  | [ true ] -> 1L
-  | [] -> 0L
+| var ->
+  let length = Stdlib.List.length var
+  length
+| [ true ] -> 1L
+| [] -> 0L
 
 ---
 
@@ -183,8 +183,8 @@ match expression - test when condition
 ==================
 
 match 5L with
-  | x when x > 0L -> true
-  | x -> false
+| x when x > 0L -> true
+| x -> false
 
 ---
 
@@ -215,8 +215,8 @@ match expression - test tuple
 ==================
 
 match (5L, 6L) with
-  | (w, x)  -> true
-  | (y, z) -> false
+| (w, x)  -> true
+| (y, z) -> false
 
 ---
 
@@ -261,8 +261,8 @@ match expression - test enum
 ==================
 
 match Stdlib.Result.Result.Ok 5L with
-  | Ok x -> x
-  | Error x -> x
+| Ok x -> x
+| Error x -> x
 
 ---
 
@@ -301,8 +301,8 @@ match expression - test list cons
 ==================
 
 match [ 1L; 2L; 3L ] with
-  | head :: tail -> "pass"
-  | [] -> "fail"
+| head :: tail -> "pass"
+| [] -> "fail"
 
 ---
 
@@ -348,7 +348,7 @@ match expression - test list cons with list
 ==================
 
 match [ 1L; 2L; 3L ] with
-  | 1L :: 2L :: [ 3L ] -> 6L
+| 1L :: 2L :: [ 3L ] -> 6L
 
 ---
 
@@ -403,7 +403,7 @@ match expression - test wildcard
 ==================
 
 match true with
-  | _ -> true
+| _ -> true
 
 ---
 
@@ -422,8 +422,8 @@ match expression - tuple
 ==================
 
 match (name, value, keyword) with
-	| (Ok name, Ok value, Ok keyword) -> "success"
-	| _ -> "error"
+| (Ok name, Ok value, Ok keyword) -> "success"
+| _ -> "error"
 
 ---
 

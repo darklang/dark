@@ -805,10 +805,18 @@ module.exports = grammar({
     apply: $ =>
       prec.right(
         seq(
+          // TODO: fn should be an expression
           field("fn", $.qualified_fn_name),
-          field(
-            "args",
-            repeat1(choice($.paren_expression, $.simple_expression)),
+          choice(
+            field(
+              "args",
+              repeat1(choice($.paren_expression, $.simple_expression)),
+            ),
+            seq(
+              $.indent,
+              field("args", seq($.expression, repeat(seq(/\n/, $.expression)))),
+              $.dedent,
+            ),
           ),
           // the new line is used as a delimiter
           optional($.newline),

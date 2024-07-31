@@ -464,3 +464,98 @@ PACKAGE.Darklang.Stdlib.Http.response request.body 200L
   )
 )
 
+==================
+fn_call - indented args
+==================
+
+Stdlib.Tuple3.mapAllThree
+  (fun x -> Stdlib.String.toUppercase x)
+  (fun x -> x - 2L)
+  (fun x -> Stdlib.String.toUppercase x)
+  ("one", 2L, "pi")
+
+
+---
+
+(source_file
+  (expression
+    (apply
+      (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+      (indent)
+      (expression
+        (paren_expression
+          (symbol)
+          (expression
+            (lambda_expression
+              (keyword)
+              (lambda_pats (let_pattern (variable_identifier)))
+              (symbol)
+              (expression
+                (apply
+                  (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+                  (simple_expression (variable_identifier))
+                )
+              )
+            )
+          )
+          (symbol)
+        )
+      )
+      (expression
+        (paren_expression
+          (symbol)
+          (expression
+            (lambda_expression
+              (keyword)
+              (lambda_pats (let_pattern (variable_identifier)))
+              (symbol)
+              (expression
+                (infix_operation
+                  (expression (simple_expression (variable_identifier)))
+                  (operator)
+                  (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                )
+              )
+            )
+          )
+          (symbol)
+        )
+      )
+      (expression
+        (paren_expression
+          (symbol)
+          (expression
+            (lambda_expression
+              (keyword)
+              (lambda_pats (let_pattern (variable_identifier)))
+              (symbol)
+              (expression
+                (apply
+                  (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+                  (simple_expression (variable_identifier))
+                )
+              )
+            )
+          )
+          (symbol)
+        )
+      )
+      (expression
+        (simple_expression
+          (tuple_literal
+            (symbol)
+            (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+            (symbol)
+            (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+            (tuple_literal_the_rest
+              (symbol)
+              (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+            )
+            (symbol)
+          )
+        )
+      )
+      (dedent)
+    )
+  )
+)
