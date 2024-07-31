@@ -706,8 +706,17 @@
           "type": "FIELD",
           "name": "key",
           "content": {
-            "type": "SYMBOL",
-            "name": "expression"
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "variable_identifier"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "double_backtick_identifier"
+              }
+            ]
           }
         },
         {
@@ -3557,8 +3566,17 @@
           "type": "FIELD",
           "name": "key",
           "content": {
-            "type": "SYMBOL",
-            "name": "expression"
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "variable_identifier"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "double_backtick_identifier"
+              }
+            ]
           }
         },
         {
@@ -5985,6 +6003,26 @@
     "unit": {
       "type": "STRING",
       "value": "()"
+    },
+    "double_backtick_identifier": {
+      "type": "TOKEN",
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "STRING",
+            "value": "``"
+          },
+          {
+            "type": "PATTERN",
+            "value": "[^`]+"
+          },
+          {
+            "type": "STRING",
+            "value": "``"
+          }
+        ]
+      }
     }
   },
   "extras": [

@@ -410,7 +410,7 @@ Builtin.printLine Dict {a = 1L}
           (symbol)
           (dict_content
             (dict_pair
-              (expression (simple_expression (variable_identifier)))
+              (variable_identifier)
               (symbol)
               (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
             )

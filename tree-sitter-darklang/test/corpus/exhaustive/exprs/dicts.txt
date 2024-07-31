@@ -30,8 +30,7 @@ Dict {a = 1L}
       (symbol)
       (dict_content
         (dict_pair
-          (expression
-            (simple_expression (variable_identifier)))
+          (variable_identifier)
           (symbol)
           (expression
             (simple_expression (int64_literal
@@ -56,8 +55,7 @@ Dict {a = 1L; b = 2L}
       (symbol)
       (dict_content
         (dict_pair
-          (expression
-            (simple_expression (variable_identifier)))
+          (variable_identifier)
           (symbol)
           (expression
             (simple_expression (int64_literal
@@ -66,8 +64,7 @@ Dict {a = 1L; b = 2L}
               (symbol)))))
         (symbol)
         (dict_pair
-          (expression
-            (simple_expression (variable_identifier)))
+          (variable_identifier)
           (symbol)
           (expression
             (simple_expression (int64_literal
@@ -92,8 +89,7 @@ Dict {a = 1L; b = 2L; c = 3L}
       (symbol)
       (dict_content
         (dict_pair
-          (expression
-            (simple_expression (variable_identifier)))
+          (variable_identifier)
           (symbol)
           (expression
             (simple_expression (int64_literal
@@ -102,8 +98,7 @@ Dict {a = 1L; b = 2L; c = 3L}
               (symbol)))))
         (symbol)
         (dict_pair
-          (expression
-            (simple_expression (variable_identifier)))
+          (variable_identifier)
           (symbol)
           (expression
             (simple_expression (int64_literal
@@ -112,8 +107,7 @@ Dict {a = 1L; b = 2L; c = 3L}
               (symbol)))))
         (symbol)
         (dict_pair
-          (expression
-            (simple_expression (variable_identifier)))
+          (variable_identifier)
           (symbol)
           (expression
             (simple_expression (int64_literal
@@ -121,3 +115,31 @@ Dict {a = 1L; b = 2L; c = 3L}
                 (positive_digits))
               (symbol))))))
       (symbol)))))
+
+
+==================
+dict - key is a double_backtick_identifier
+==================
+
+Dict { ``Content-Length`` = 1L }
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (dict_literal
+        (keyword)
+        (symbol)
+        (dict_content
+          (dict_pair
+            (double_backtick_identifier)
+            (symbol)
+            (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+          )
+        )
+        (symbol)
+      )
+    )
+  )
+)

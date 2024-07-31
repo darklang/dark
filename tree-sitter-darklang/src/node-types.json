@@ -298,7 +298,11 @@
         "required": true,
         "types": [
           {
-            "type": "expression",
+            "type": "double_backtick_identifier",
+            "named": true
+          },
+          {
+            "type": "variable_identifier",
             "named": true
           }
         ]
@@ -812,7 +816,11 @@
         "required": true,
         "types": [
           {
-            "type": "expression",
+            "type": "double_backtick_identifier",
+            "named": true
+          },
+          {
+            "type": "variable_identifier",
             "named": true
           }
         ]
@@ -4726,6 +4734,10 @@
   },
   {
     "type": "dedent",
+    "named": true
+  },
+  {
+    "type": "double_backtick_identifier",
     "named": true
   },
   {

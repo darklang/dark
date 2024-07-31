@@ -607,6 +607,14 @@ let exprs =
       []
       []
       false
+    t
+      "dict with double_backtick_identifier"
+      "Dict { ``Content-Length`` = 1L }"
+      "Dict { ``Content-Length`` = 1L }"
+      []
+      []
+      []
+      false
 
     // tuple literals
     t "tuple 2" "(1L, \"hello\")" "(1L, \"hello\")" [] [] [] false

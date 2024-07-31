@@ -349,13 +349,13 @@ const myDict = Dict{one = 1L; two = 2L}
         (symbol)
         (const_dict_content
           (const_dict_pair
-            (expression (simple_expression (variable_identifier)))
+            (variable_identifier)
             (symbol)
             (consts (int64_literal (digits (positive_digits)) (symbol)))
           )
           (symbol)
           (const_dict_pair
-            (expression (simple_expression (variable_identifier)))
+            (variable_identifier)
             (symbol)
             (consts (int64_literal (digits (positive_digits)) (symbol)))
           )

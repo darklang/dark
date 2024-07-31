@@ -128,7 +128,7 @@ module.exports = grammar({
 
     const_dict_literal: $ => dict_literal_base($, $.const_dict_content),
     const_dict_content: $ => dict_content_base($, $.const_dict_pair),
-    const_dict_pair: $ => dict_pair_base($, $.expression, $.consts),
+    const_dict_pair: $ => dict_pair_base($, $.consts),
 
     const_enum_literal: $ => enum_literal_base($, $.const_enum_fields),
     const_enum_fields: $ => enum_fields_base($, $.consts),
@@ -633,7 +633,7 @@ module.exports = grammar({
     // Dict
     dict_literal: $ => dict_literal_base($, $.dict_content),
     dict_content: $ => dict_content_base($, $.dict_pair),
-    dict_pair: $ => dict_pair_base($, $.expression, $.expression),
+    dict_pair: $ => dict_pair_base($, $.expression),
 
     //
     // Tuples
@@ -1076,6 +1076,8 @@ module.exports = grammar({
     newline: $ => /\n/,
 
     unit: $ => "()",
+
+    double_backtick_identifier: $ => token(seq("``", /[^`]+/, "``")),
   },
 });
 
@@ -1127,9 +1129,9 @@ function dict_content_base($, dict_pair) {
     repeat(seq(field("dict_separator", alias(";", $.symbol)), dict_pair)),
   );
 }
-function dict_pair_base($, key, value) {
+function dict_pair_base($, value) {
   return seq(
-    field("key", key),
+    field("key", choice($.variable_identifier, $.double_backtick_identifier)),
     field("symbol_equals", alias("=", $.symbol)),
     field("value", value),
   );
