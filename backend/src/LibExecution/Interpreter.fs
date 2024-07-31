@@ -50,8 +50,14 @@ let rec execute
 
       // later, `x`
       | GetVar(loadTo, varName) ->
-        let value = Map.find varName vmState.variables |> Option.defaultValue DUnit // TODO
+        let value =
+          Map.find varName vmState.variables
+          // TODO: handle missing variable
+          //return errStr callStack $"There is no variable named: {name}"
+          |> Option.defaultValue DUnit
+
         vmState.registers[loadTo] <- value
+
         return! execute state vmState instructions resultReg (counter + 1)
 
 
@@ -70,6 +76,11 @@ let rec execute
         match vmState.registers[listReg] with
         | DList(vt, list) ->
           // TODO: type checking of item-add; adjust vt
+
+          // Had:
+          //   let! results = Ply.List.mapSequentially (eval state) exprs
+          //   return TypeChecker.DvalCreator.list callStack VT.unknown results
+
           let itemToAdd = vmState.registers[itemToAddReg]
           vmState.registers[listReg] <- DList(vt, list @ [ itemToAdd ])
           return! execute state vmState instructions resultReg (counter + 1)
@@ -224,7 +235,8 @@ and execFn
             return result
           }
 
-        | PackageFunction(_id, _body) ->
+        | PackageFunction(_id, _instructionsWithContext) ->
+          //let _registersNeeded, instructions, resultReg = _instructionsWithContext
           // // maybe this should instead be something like `state.tracing.tracePackageFnCall tlid`?
           // // and the `caller` would be updated by that function? (maybe `caller` is a read-only thing.)
           // let executionPoint = ExecutionPoint.Function(FQFnName.Package id)
@@ -235,7 +247,9 @@ and execFn
           // //   { state with
           // //       tracing.callStack.lastCalled = (executionPoint, Some(Expr.toID body)) }
 
-          // eval state body
+          // and how can we pass the args in?
+          // maybe fns need some LoadVal instructions frontloaded or something? hmm.
+          //eval state instructions resultReg
           Ply DUnit // TODO
 
       match! TypeChecker.checkFunctionReturnType types typeSymbolTable fn result with
@@ -245,7 +259,7 @@ and execFn
 
 
 
-let rec eval
+and eval
   (state : ExecutionState)
   (instructions : Instructions)
   (resultReg : Register)

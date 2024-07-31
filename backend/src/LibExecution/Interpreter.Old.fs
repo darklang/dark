@@ -347,25 +347,6 @@ let rec eval (state : ExecutionState) (e : Instructions) : DvalTask =
 
   uply {
     match e with
-    | EUnit _ -> return DUnit
-
-    | EBool(_, b) -> return DBool b
-
-    // | EInt8(_, i) -> return DInt8 i
-    // | EUInt8(_, i) -> return DUInt8 i
-    // | EInt16(_, i) -> return DInt16 i
-    // | EUInt16(_, i) -> return DUInt16 i
-    // | EInt32(_, i) -> return DInt32 i
-    // | EUInt32(_, i) -> return DUInt32 i
-    | EInt64(_, i) -> return DInt64 i
-    // | EUInt64(_, i) -> return DUInt64 i
-    // | EInt128(_, i) -> return DInt128 i
-    // | EUInt128(_, i) -> return DUInt128 i
-
-    // | EFloat(_, value) -> return DFloat value
-
-    // | EChar(_, s) -> return DChar s
-
     | EString(_, [ StringText s ]) ->
       // We expect strings to be normalized during parsing
       return DString(s)
@@ -413,20 +394,11 @@ let rec eval (state : ExecutionState) (e : Instructions) : DvalTask =
 
     //   return! eval { state with symbolTable = newSymtable } body
 
-    // | EList(_, exprs) ->
-    //   let! results = Ply.List.mapSequentially (eval state) exprs
-    //   return TypeChecker.DvalCreator.list callStack VT.unknown results
-
     // | ETuple(_, first, second, theRest) ->
     //   let! firstResult = eval state first
     //   let! secondResult = eval state second
     //   let! otherResults = Ply.List.mapSequentially (eval state) theRest
     //   return DTuple(firstResult, secondResult, otherResults)
-
-    // | EVariable(_, name) ->
-    //   match Map.find name state.symbolTable with
-    //   | None -> return errStr callStack $"There is no variable named: {name}"
-    //   | Some other -> return other
 
 
     // | ERecord(_, typeName, fields) ->
