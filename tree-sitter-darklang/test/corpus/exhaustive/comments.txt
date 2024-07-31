@@ -1,0 +1,79 @@
+==================
+inline comment
+==================
+
+// All the comments should be ignored
+// start
+let x = 1L // left side
+let y = 2L // right side
+let z = x + y // sum
+// result
+z
+// end
+
+---
+
+(source_file
+  (expression
+    (let_expression
+      (keyword)
+      (let_pattern (variable_identifier))
+      (symbol)
+      (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+      (expression
+        (let_expression
+          (keyword)
+          (let_pattern (variable_identifier))
+          (symbol)
+          (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+          (expression
+            (let_expression
+              (keyword)
+              (let_pattern (variable_identifier))
+              (symbol)
+              (expression
+                (infix_operation
+                  (expression (simple_expression (variable_identifier)))
+                  (operator)
+                  (expression (simple_expression (variable_identifier)))
+                )
+              )
+              (expression (simple_expression (variable_identifier)))
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+
+==================
+inline comment 2
+==================
+
+// All the comments should be ignored
+
+---
+
+(source_file)
+
+
+==================
+inline comment 3
+==================
+
+// Testing a string with // in it
+"this is a string with // in it"
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (string_segment
+        (string_literal (symbol) (string_content) (symbol))
+      )
+    )
+  )
+)

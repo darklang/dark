@@ -40,6 +40,22 @@
         }
       ]
     },
+    "_inline_comment": {
+      "type": "TOKEN",
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "STRING",
+            "value": "//"
+          },
+          {
+            "type": "PATTERN",
+            "value": ".*"
+          }
+        ]
+      }
+    },
     "type_params": {
       "type": "SEQ",
       "members": [
@@ -5974,7 +5990,11 @@
   "extras": [
     {
       "type": "PATTERN",
-      "value": "\\s"
+      "value": "[\\s\\uFEFF\\u2060\\u200B\\u00A0]"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_inline_comment"
     }
   ],
   "conflicts": [

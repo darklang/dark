@@ -28,6 +28,7 @@ module.exports = grammar({
   name: "darklang",
 
   externals: $ => [$.indent, $.dedent],
+  extras: $ => [/[\s\uFEFF\u2060\u200B\u00A0]/, $._inline_comment],
 
   conflicts: $ => [[$.module_identifier, $.type_identifier]],
 
@@ -41,6 +42,8 @@ module.exports = grammar({
         // then the expressions to evaluate, in order
         repeat($.expression),
       ),
+
+    _inline_comment: _ => token(seq("//", /.*/)),
 
     type_params: $ =>
       seq(
