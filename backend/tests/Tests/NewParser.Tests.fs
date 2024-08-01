@@ -607,6 +607,14 @@ let exprs =
       []
       []
       false
+    t
+      "dict with double_backtick_identifier"
+      "Dict { ``Content-Length`` = 1L }"
+      "Dict { ``Content-Length`` = 1L }"
+      []
+      []
+      []
+      false
 
     // tuple literals
     t "tuple 2" "(1L, \"hello\")" "(1L, \"hello\")" [] [] [] false
@@ -1291,6 +1299,22 @@ else
       "fn call, builtin with type arg"
       "Builtin.jsonParse<Bool> \"true\""
       "Builtin.jsonParse<Bool> \"true\""
+      []
+      []
+      []
+      false
+    t
+      "fn call with indentation"
+      """Stdlib.Tuple3.mapAllThree
+  (fun x -> Stdlib.String.toUppercase x)
+  (fun x -> x - 2L)
+  (fun x -> Stdlib.String.toUppercase x)
+  ("one", 2L, "pi")
+"""
+      """PACKAGE.Darklang.Stdlib.Tuple3.mapAllThree (fun x ->
+  PACKAGE.Darklang.Stdlib.String.toUppercase x) (fun x ->
+  (x) - (2L)) (fun x ->
+  PACKAGE.Darklang.Stdlib.String.toUppercase x) ("one", 2L, "pi")"""
       []
       []
       []

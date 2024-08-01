@@ -28,6 +28,7 @@ module.exports = grammar({
   name: "darklang",
 
   externals: $ => [$.indent, $.dedent],
+  extras: $ => [/\s/, $._inline_comment],
 
   conflicts: $ => [[$.module_identifier, $.type_identifier]],
 
@@ -41,6 +42,8 @@ module.exports = grammar({
         // then the expressions to evaluate, in order
         repeat($.expression),
       ),
+
+    _inline_comment: _ => token(seq("//", /.*/)),
 
     type_params: $ =>
       seq(
@@ -125,7 +128,7 @@ module.exports = grammar({
 
     const_dict_literal: $ => dict_literal_base($, $.const_dict_content),
     const_dict_content: $ => dict_content_base($, $.const_dict_pair),
-    const_dict_pair: $ => dict_pair_base($, $.expression, $.consts),
+    const_dict_pair: $ => dict_pair_base($, $.consts),
 
     const_enum_literal: $ => enum_literal_base($, $.const_enum_fields),
     const_enum_fields: $ => enum_fields_base($, $.consts),
@@ -630,7 +633,7 @@ module.exports = grammar({
     // Dict
     dict_literal: $ => dict_literal_base($, $.dict_content),
     dict_content: $ => dict_content_base($, $.dict_pair),
-    dict_pair: $ => dict_pair_base($, $.expression, $.expression),
+    dict_pair: $ => dict_pair_base($, $.expression),
 
     //
     // Tuples
@@ -802,10 +805,18 @@ module.exports = grammar({
     apply: $ =>
       prec.right(
         seq(
+          // TODO: fn should be an expression
           field("fn", $.qualified_fn_name),
-          field(
-            "args",
-            repeat1(choice($.paren_expression, $.simple_expression)),
+          choice(
+            field(
+              "args",
+              repeat1(choice($.paren_expression, $.simple_expression)),
+            ),
+            seq(
+              $.indent,
+              field("args", seq($.expression, repeat(seq(/\n/, $.expression)))),
+              $.dedent,
+            ),
           ),
           // the new line is used as a delimiter
           optional($.newline),
@@ -1073,6 +1084,8 @@ module.exports = grammar({
     newline: $ => /\n/,
 
     unit: $ => "()",
+
+    double_backtick_identifier: $ => token(seq("``", /[^`]+/, "``")),
   },
 });
 
@@ -1124,9 +1137,10 @@ function dict_content_base($, dict_pair) {
     repeat(seq(field("dict_separator", alias(";", $.symbol)), dict_pair)),
   );
 }
-function dict_pair_base($, key, value) {
+function dict_pair_base($, value) {
   return seq(
-    field("key", key),
+    // CLEANUP this should allow for any string (i.e. `This`), without any backticks. may require alternative syntax.
+    field("key", choice($.variable_identifier, $.double_backtick_identifier)),
     field("symbol_equals", alias("=", $.symbol)),
     field("value", value),
   );
