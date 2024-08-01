@@ -47,6 +47,19 @@ module Expressions =
         PT.EList(gid (), [ PT.EBool(gid (), false); PT.EBool(gid (), true) ]) ]
     )
 
+  let simpleString : PT.Expr = PT.EString(gid (), [ PT.StringText("hello") ])
+
+  let stringWithInterpolation : PT.Expr =
+    PT.ELet(
+      gid (),
+      PT.LPVariable(gid (), "x"),
+      PT.EString(gid (), [ PT.StringText ", world" ]),
+      PT.EString(
+        gid (),
+        [ PT.StringText "hello"; PT.StringInterpolation(PT.EVariable(gid (), "x")) ]
+      )
+    )
+
 module E = Expressions
 
 
@@ -79,18 +92,15 @@ let onePlusTwo =
   }
 
 let defineAndUseVar =
-  testTask "let x = true in x" {
+  testTask "let x = true\n x" {
     let actual = PT2RT.Expr.toRT 0 E.defineAndUseVar
 
-    // TODO: re-evaluate if the 3 and 2 here cound be 2 and 1
-    // PT2RT uses a register to pass the pass the 'result' of the LP deconstruction
-    //, and maybe we could reduce that?
     let expected =
-      (3,
+      (2,
        [ RT.LoadVal(0, RT.DBool true)
          RT.SetVar("x", 0) // where the 'true' is stored
-         RT.GetVar(2, "x") ],
-       2)
+         RT.GetVar(1, "x") ],
+       1)
 
     return Expect.equal actual expected ""
   }
@@ -146,5 +156,47 @@ let boolListList =
     return Expect.equal actual expected ""
   }
 
+let simpleString =
+  testTask "[\"hello\"]" {
+    let actual = PT2RT.Expr.toRT 0 E.simpleString
+
+    let expected =
+      (2,
+       [ RT.LoadVal(0, RT.DString "")
+         RT.LoadVal(1, RT.DString "hello")
+         RT.AppendString(0, 1) ],
+       0)
+
+    return Expect.equal actual expected ""
+  }
+
+let stringWithInterpolation =
+  testTask "[let x = \"world\"\n$\"hello {x}\"]" {
+    let actual = PT2RT.Expr.toRT 0 E.stringWithInterpolation
+
+    let expected =
+      (5,
+       [ RT.LoadVal(0, RT.DString "")
+         RT.LoadVal(1, RT.DString ", world")
+         RT.AppendString(0, 1)
+         RT.SetVar("x", 0)
+         RT.LoadVal(2, RT.DString "")
+         RT.LoadVal(3, RT.DString "hello")
+         RT.AppendString(2, 3)
+         RT.GetVar(4, "x")
+         RT.AppendString(2, 4) ],
+       2)
+
+    return Expect.equal actual expected ""
+  }
+
 let tests =
-  testList "PT2RT" [ one; onePlusTwo; defineAndUseVar; boolList; boolListList ]
+  testList
+    "PT2RT"
+    [ one
+      onePlusTwo
+      defineAndUseVar
+      boolList
+      boolListList
+      simpleString
+      stringWithInterpolation ]

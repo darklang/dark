@@ -93,12 +93,12 @@ module TypeReference =
     | PT.TFloat -> RT.TFloat
 
     | PT.TChar -> RT.TChar
-//| PT.TString -> RT.TString
+    | PT.TString -> RT.TString
 
     | PT.TList inner -> RT.TList(toRT inner)
-// | PT.TTuple(first, second, theRest) ->
-//   RT.TTuple(toRT first, toRT second, theRest |> List.map toRT)
-// | PT.TDict typ -> RT.TDict(toRT typ)
+    // | PT.TTuple(first, second, theRest) ->
+    //   RT.TTuple(toRT first, toRT second, theRest |> List.map toRT)
+    // | PT.TDict typ -> RT.TDict(toRT typ)
 
     | PT.TDateTime -> RT.TDateTime
     | PT.TUuid -> RT.TUuid
@@ -150,7 +150,7 @@ module LetPattern =
     //     List.fold (fun (rc, instrs) pat -> compileLetPattern rc pat (valueReg + 2) instrs) (regCounter, instrs) rest
 
     | PT.LPVariable(_id, varName) ->
-      (regCounter + 1, instrs @ [ RT.SetVar(varName, valueReg) ])
+      (regCounter, instrs @ [ RT.SetVar(varName, valueReg) ])
 
 
 
@@ -186,7 +186,34 @@ module LetPattern =
 
 
 module Expr =
-  let rec toRT (rc : int) (e : PT.Expr) : (int * RT.Instructions * RT.Register) =
+  // CLEANUP clearly not the most efficient to do this, but probably fine for now
+  let rec compileString
+    (rc : int)
+    (segments : List<PT.StringSegment>)
+    : (int * RT.Instructions * RT.Register) =
+    let stringReg = rc
+    let init = (rc + 1, [ RT.LoadVal(stringReg, RT.DString "") ], stringReg)
+
+    segments
+    |> List.fold
+      (fun (rc, instrs, _) segment ->
+        match segment with
+        | PT.StringText text ->
+          let textReg = rc
+          let newRc = rc + 1
+          (newRc,
+           instrs
+           @ [ RT.LoadVal(textReg, RT.DString text)
+               RT.AppendString(stringReg, textReg) ],
+           stringReg)
+        | PT.StringInterpolation expr ->
+          let (newRc, exprInstrs, exprReg) = toRT rc expr
+          (newRc,
+           instrs @ exprInstrs @ [ RT.AppendString(stringReg, exprReg) ],
+           stringReg))
+      init
+
+  and toRT (rc : int) (e : PT.Expr) : (int * RT.Instructions * RT.Register) =
     match e with
     | PT.EUnit _id -> (rc + 1, [ RT.LoadVal(rc, RT.DUnit) ], rc)
 
@@ -210,6 +237,7 @@ module Expr =
 
     | PT.EChar(_id, c) -> (rc + 1, [ RT.LoadVal(rc, RT.DChar c) ], rc)
 
+    | PT.EString(_id, segments) -> compileString rc segments
 
     | PT.EList(_id, items) ->
       let listReg = rc
@@ -234,24 +262,18 @@ module Expr =
 
     // let x = 1
     | PT.ELet(_id, pat, expr, body) ->
-      // I should debug and breakpoint here to watch stuff.
-
-      // eval the expr before we attempt to deconstruct with the LP
       let (regCounter, exprInstrs, exprReg) = toRT rc expr
-
-      // deconstruct the expr per the pat
-      // TODO: do we need a resultReg thing here? hmm.
-      let (regCounter, patInstrs) = LetPattern.toRT regCounter pat exprReg [] // why is this an empty list?
-
-      // finally, get the instructions for the body
+      let (regCounter, patInstrs) = LetPattern.toRT regCounter pat exprReg []
       let (regCounter, bodyInstrs, bodyExprReg) = toRT regCounter body
-
       (regCounter, exprInstrs @ patInstrs @ bodyInstrs, bodyExprReg)
 
 
     | PT.EVariable(_id, varName) ->
       let reg = rc
       (rc + 1, [ RT.GetVar(reg, varName) ], reg)
+
+
+
 
 
     | PT.EFnName(_, Ok name) ->

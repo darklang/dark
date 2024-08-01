@@ -86,6 +86,13 @@ let rec execute
           return! execute state vmState instructions resultReg (counter + 1)
         | _ -> return DString "TODO can't operate list-add to a non-list"
 
+      | AppendString(targetReg, sourceReg) ->
+        match vmState.registers[targetReg], vmState.registers[sourceReg] with
+        | DString target, DString source ->
+          vmState.registers[targetReg] <- DString(target + source)
+          return! execute state vmState instructions resultReg (counter + 1)
+        | _, _ -> return DString "Error: Invalid string-append attempt"
+
       | Fail _rte -> return DUnit // TODO
   }
 
@@ -261,11 +268,12 @@ and execFn
 
 and eval
   (state : ExecutionState)
-  (instructions : Instructions)
-  (resultReg : Register)
+  (instructionsWithContext : InstructionsWithContext)
   : Ply<Dval> =
+  let registersNeeded, instructions, resultReg = instructionsWithContext
+
   let vmState =
-    { registers = Array.zeroCreate 256 // Or some other appropriate size
+    { registers = Array.zeroCreate registersNeeded
       variables = Map.empty
       callStack = [] }
 

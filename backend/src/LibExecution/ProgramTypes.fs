@@ -201,7 +201,7 @@ type TypeReference =
   | TFloat
 
   | TChar
-//| TString
+  | TString
 
   | TUuid
   | TDateTime
@@ -250,7 +250,7 @@ type Expr =
   /// A character is an Extended Grapheme Cluster (hence why we use a string). This
   /// is equivalent to one screen-visible "character" in Unicode.
   | EChar of id * string
-  //| EString of id * List<StringSegment>
+  | EString of id * List<StringSegment>
 
 
   // // -- Flow control --
@@ -350,9 +350,9 @@ type Expr =
 
 //and MatchCase = { pat : MatchPattern; whenCondition : Option<Expr>; rhs : Expr }
 
-// and StringSegment =
-//   | StringText of string
-//   | StringInterpolation of Expr
+and StringSegment =
+  | StringText of string
+  | StringInterpolation of Expr
 
 // and PipeExpr =
 //   | EPipeVariable of id * string * List<Expr> // value is an fn taking one or more arguments
@@ -386,7 +386,7 @@ module Expr =
     | EInt128(id, _)
     | EUInt128(id, _)
     | EChar(id, _)
-    //| EString(id, _)
+    | EString(id, _)
     | EFloat(id, _, _, _)
     // | EConstant(id, _)
     | ELet(id, _, _, _)

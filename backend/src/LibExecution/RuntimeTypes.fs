@@ -481,8 +481,7 @@ and TypeReference =
       | TChar
       | TString
       | TUuid
-      | TDateTime
-       -> true
+      | TDateTime -> true
 
       | TList t -> isConcrete t
       // | TTuple(t1, t2, ts) ->
@@ -530,6 +529,8 @@ and Instruction =
   /// (always an empty list of unknown type, to ensure type safety)
   | AddItemToList of listRegister : Register * itemToAdd : Register
 
+  | AppendString of targetReg : Register * sourceReg : Register
+
   /// Return whatever's in the noted register
   /// (usually relevant only for branching logic like `if`, `match`)
   | Return of from : Register
@@ -547,9 +548,6 @@ and InstructionsWithContext =
 // // superfluous information removed.
 // and Expr =
 
-//   // | EFloat of id * double
-
-//   // | EChar of id * string
 //   | EString of id * List<StringSegment>
 
 //   // // flow control
@@ -559,8 +557,6 @@ and InstructionsWithContext =
 //   // | EOr of id * lhs : Expr * rhs : Expr
 
 //   // // declaring and referencing vars
-//   // | ELet of id * LetPattern * Expr * Expr
-//   // | EVariable of id * string
 //   // | EFieldAccess of id * Expr * string
 
 //   // calling fns and other things

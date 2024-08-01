@@ -13,46 +13,58 @@ module E = Tests.ProgramTypesToRuntimeTypes.Expressions
 
 let eval pt =
   uply {
-    let _registersNeeded, instructions, resultReg = PT2RT.Expr.toRT 0 pt
+    let instructionsWithContext = PT2RT.Expr.toRT 0 pt
 
     let! executionState =
       executionStateFor PT.PackageManager.empty (System.Guid.NewGuid()) false false
 
-    return! LibExecution.Interpreter.eval executionState instructions resultReg
+    return! LibExecution.Interpreter.eval executionState instructionsWithContext
   }
 
 
 let onePlusTwo =
   testTask "1+2" {
     let! actual = eval E.onePlusTwo |> Ply.toTask
-    return Expect.equal actual (RT.DInt64 3L) ""
+    let expected = RT.DInt64 3L
+    return Expect.equal actual expected ""
   }
 
 let boolList =
   testTask "[true; false; true]" {
     let! actual = eval E.boolList |> Ply.toTask
-
-    return
-      Expect.equal
-        actual
-        (RT.DList(VT.unknown, [ RT.DBool true; RT.DBool false; RT.DBool true ]))
-        ""
+    let expected =
+      RT.DList(VT.unknown, [ RT.DBool true; RT.DBool false; RT.DBool true ])
+    return Expect.equal actual expected ""
   }
 
 let boolListList =
   testTask "[[true; false]; [false; true]]" {
     let! actual = eval E.boolListList |> Ply.toTask
+    let expected =
+      RT.DList(
+        VT.unknown,
+        [ RT.DList(VT.unknown, [ RT.DBool true; RT.DBool false ])
+          RT.DList(VT.unknown, [ RT.DBool false; RT.DBool true ]) ]
+      )
+    return Expect.equal actual expected ""
+  }
 
-    return
-      Expect.equal
-        actual
-        (RT.DList(
-          VT.unknown,
-          [ RT.DList(VT.unknown, [ RT.DBool true; RT.DBool false ])
-            RT.DList(VT.unknown, [ RT.DBool false; RT.DBool true ]) ]
-        ))
-        ""
+let simpleString =
+  testTask "[\"hello\"]" {
+    let! actual = eval E.simpleString |> Ply.toTask
+    let expected = RT.DString "hello"
+    return Expect.equal actual expected ""
+  }
+
+let stringWithInterpolation =
+  testTask "[let x = \"world\" in $\"hello {x}\"]" {
+    let! actual = eval E.stringWithInterpolation |> Ply.toTask
+    let expected = RT.DString "hello, world"
+    return Expect.equal actual expected ""
   }
 
 
-let tests = testList "Interpreter" [ onePlusTwo; boolList ]
+let tests =
+  testList
+    "Interpreter"
+    [ onePlusTwo; boolList; simpleString; stringWithInterpolation ]

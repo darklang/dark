@@ -44,8 +44,7 @@ let createState
 let executeExpr
   (state : RT.ExecutionState)
   (inputVars : RT.Symtable)
-  (instructions : RT.Instructions)
-  (resultReg : RT.Register)
+  (instructionsWithContext : RT.InstructionsWithContext)
   : Task<RT.ExecutionResult> =
   task {
     try
@@ -53,7 +52,7 @@ let executeExpr
         let state =
           //{ state with symbolTable = Interpreter.withGlobals state inputVars }
           { state with symbolTable = inputVars }
-        let! result = Interpreter.eval state instructions resultReg
+        let! result = Interpreter.eval state instructionsWithContext
         return Ok result
       with RT.RuntimeErrorException(source, rte) ->
         return Error(source, rte)
