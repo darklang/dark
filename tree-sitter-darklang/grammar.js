@@ -28,7 +28,7 @@ module.exports = grammar({
   name: "darklang",
 
   externals: $ => [$.indent, $.dedent],
-  extras: $ => [/[\s\uFEFF\u2060\u200B\u00A0]/, $._inline_comment],
+  extras: $ => [/\s/, $._inline_comment],
 
   conflicts: $ => [[$.module_identifier, $.type_identifier]],
 
@@ -1139,6 +1139,7 @@ function dict_content_base($, dict_pair) {
 }
 function dict_pair_base($, value) {
   return seq(
+    // CLEANUP this should allow for any string (i.e. `This`), without any backticks. may require alternative syntax.
     field("key", choice($.variable_identifier, $.double_backtick_identifier)),
     field("symbol_equals", alias("=", $.symbol)),
     field("value", value),

@@ -6075,7 +6075,7 @@
   "extras": [
     {
       "type": "PATTERN",
-      "value": "[\\s\\uFEFF\\u2060\\u200B\\u00A0]"
+      "value": "\\s"
     },
     {
       "type": "SYMBOL",
