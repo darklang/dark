@@ -29,10 +29,10 @@ let rec typeName (t : TypeReference) : string =
   | TUuid -> "Uuid"
 
   | TList nested -> $"List<{typeName nested}>"
+  | TDict nested -> $"Dict<{typeName nested}>"
   // | TTuple(n1, n2, rest) ->
   //   let nested = (n1 :: n2 :: rest) |> List.map typeName |> String.concat ", "
   //   $"({nested})"
-  // | TDict nested -> $"Dict<{typeName nested}>"
 
   | TFn _ -> "Function"
 
@@ -78,8 +78,7 @@ let rec private knownTypeName (vt : KnownType) : string =
   | KTUuid -> "Uuid"
 
   | KTList typ -> $"List<{valueTypeName typ}>"
-  // | KTDict typ -> $"Dict<{valueTypeName typ}>"
-  // | KTDB typ -> $"Datastore<{valueTypeName typ}>"
+  | KTDict typ -> $"Dict<{valueTypeName typ}>"
 
   | KTFn(argTypes, retType) ->
     (NEList.toList argTypes) @ [ retType ]
@@ -103,6 +102,8 @@ let rec private knownTypeName (vt : KnownType) : string =
 //       |> fun betweenBrackets -> "<" + betweenBrackets + ">"
 
 //   FQTypeName.toString name + typeArgsPortion
+
+// | KTDB typ -> $"Datastore<{valueTypeName typ}>"
 
 and private valueTypeName (typ : ValueType) : string =
   match typ with
@@ -182,17 +183,17 @@ let toRepr (dv : Dval) : string =
     //     $"({inl}{long}{nl})"
 
 
-    // | DDict(_valueTypeTODO, o) ->
-    //   if Map.isEmpty o then
-    //     "{}"
-    //   else
-    //     let strs =
-    //       o
-    //       |> Map.toList
-    //       |> List.map (fun (key, value) -> ($"{key}: {toRepr_ indent value}"))
+    | DDict(_valueTypeTODO, o) ->
+      if Map.isEmpty o then
+        "{}"
+      else
+        let strs =
+          o
+          |> Map.toList
+          |> List.map (fun (key, value) -> ($"{key}: {toRepr_ indent value}"))
 
-    //     let elems = String.concat $",{inl}" strs
-    //     "{" + $"{inl}{elems}{nl}" + "}"
+        let elems = String.concat $",{inl}" strs
+        "{" + $"{inl}{elems}{nl}" + "}"
 
     // | DRecord(_, typeName, _typeArgsTODO, fields) ->
     //   let fields =

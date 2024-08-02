@@ -284,7 +284,6 @@ let rec unify
       | TDateTime, DDateTime _ -> return Ok()
       | TUuid, DUuid _ -> return Ok()
 
-      // | TDB _, DDB _ -> return Ok() // TODO: check DB type
       | TList expected, DList(actual, _dvs) ->
         match! valueTypeUnifies tst expected actual with
         | false ->
@@ -296,17 +295,17 @@ let rec unify
 
         | true -> return! Ply()
 
-      // | TDict _expected, DDict(_actual, _entries) ->
-      //   // VTTODO uncomment this
-      //   // match! valueTypeUnifies tst expected actual with
-      //   // | false ->
-      //   //   return
-      //   //     ValueNotExpectedType(value, expected, context)
-      //   //     |> Error.toRuntimeError
-      //   //     |> Error
+      | TDict _expected, DDict(_actual, _entries) ->
+        // VTTODO uncomment this
+        // match! valueTypeUnifies tst expected actual with
+        // | false ->
+        //   return
+        //     ValueNotExpectedType(value, expected, context)
+        //     |> Error.toRuntimeError
+        //     |> Error
 
-      //   // | true -> return! Ply()
-      //   return Ok()
+        // | true -> return! Ply()
+        return Ok()
 
       | TFn(_argTypes, _returnType), DFnVal _fnVal -> return Ok() // TYPESTODO check lambdas and fnVals
       // | TTuple(t1, t2, tRest), DTuple(v1, v2, vRest) ->
@@ -421,6 +420,8 @@ let rec unify
       //               return err
       //       | _, _ -> return err
 
+      // | TDB _, DDB _ -> return Ok() // TODO: check DB type
+
       // See https://github.com/darklang/dark/issues/4239#issuecomment-1175182695
       // TODO: exhaustiveness check
       | TUnit, _
@@ -445,7 +446,7 @@ let rec unify
       | TString, _
       | TList _, _
       | TDateTime, _
-      // | TDict _, _
+      | TDict _, _
       | TFn _, _
       | TUuid, _
       | TChar, _

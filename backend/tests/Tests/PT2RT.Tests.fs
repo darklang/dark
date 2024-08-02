@@ -60,6 +60,18 @@ module Expressions =
       )
     )
 
+  let dictEmpty : PT.Expr = PT.EDict(gid (), [])
+  let dictSimple : PT.Expr = PT.EDict(gid (), [ "key", PT.EBool(gid (), true) ])
+  let dictMultEntries : PT.Expr =
+    PT.EDict(gid (), [ "t", PT.EBool(gid (), true); "f", PT.EBool(gid (), false) ])
+  let dictDupeKey : PT.Expr =
+    PT.EDict(
+      gid (),
+      [ "t", PT.EBool(gid (), true)
+        "f", PT.EBool(gid (), false)
+        "t", PT.EBool(gid (), false) ]
+    )
+
 module E = Expressions
 
 
@@ -190,6 +202,62 @@ let stringWithInterpolation =
     return Expect.equal actual expected ""
   }
 
+
+let dictEmpty =
+  testTask "Dict {}" {
+    let actual = PT2RT.Expr.toRT 0 E.dictEmpty
+
+    let expected = (1, [ RT.LoadVal(0, RT.DDict(VT.unknown, Map.empty)) ], 0)
+
+    return Expect.equal actual expected ""
+  }
+let dictSimple =
+  testTask "Dict { t: true}" {
+    let actual = PT2RT.Expr.toRT 0 E.dictSimple
+
+    let expected =
+      (2,
+       [ RT.LoadVal(0, RT.DDict(VT.unknown, Map.empty))
+         RT.LoadVal(1, RT.DBool true)
+         RT.AddDictEntry(0, "key", 1) ],
+       0)
+
+    return Expect.equal actual expected ""
+  }
+let dictMultEntries =
+  testTask "Dict {t: true; f: false}" {
+    let actual = PT2RT.Expr.toRT 0 E.dictMultEntries
+
+    let expected =
+      (3,
+       [ RT.LoadVal(0, RT.DDict(VT.unknown, Map.empty))
+         RT.LoadVal(1, RT.DBool true)
+         RT.AddDictEntry(0, "t", 1)
+         RT.LoadVal(2, RT.DBool false)
+         RT.AddDictEntry(0, "f", 2) ],
+       0)
+
+    return Expect.equal actual expected ""
+  }
+let dictDupeKey =
+  testTask "Dict {t: true; f: false; t: true}" {
+    let actual = PT2RT.Expr.toRT 0 E.dictDupeKey
+
+    let expected =
+      (4,
+       [ RT.LoadVal(0, RT.DDict(VT.unknown, Map.empty))
+         RT.LoadVal(1, RT.DBool true)
+         RT.AddDictEntry(0, "t", 1)
+         RT.LoadVal(2, RT.DBool false)
+         RT.AddDictEntry(0, "f", 2)
+         RT.LoadVal(3, RT.DBool false)
+         RT.AddDictEntry(0, "t", 3) ],
+       0)
+
+    return Expect.equal actual expected ""
+  }
+
+
 let tests =
   testList
     "PT2RT"
@@ -199,4 +267,8 @@ let tests =
       boolList
       boolListList
       simpleString
-      stringWithInterpolation ]
+      stringWithInterpolation
+      dictEmpty
+      dictSimple
+      dictMultEntries
+      dictDupeKey ]

@@ -86,6 +86,15 @@ let rec execute
           return! execute state vmState instructions resultReg (counter + 1)
         | _ -> return DString "TODO can't operate list-add to a non-list"
 
+      | AddDictEntry(dictReg, key, valueReg) ->
+        match vmState.registers[dictReg] with
+        | DDict(vt, entries) ->
+          // TODO: type checking of key and value; adjust vt
+          let value = vmState.registers[valueReg]
+          vmState.registers[dictReg] <- DDict(vt, Map.add key value entries)
+          return! execute state vmState instructions resultReg (counter + 1)
+        | _ -> return DString "TODO can't operate dict-add to a non-dict"
+
       | AppendString(targetReg, sourceReg) ->
         match vmState.registers[targetReg], vmState.registers[sourceReg] with
         | DString target, DString source ->

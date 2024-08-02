@@ -386,8 +386,9 @@ module Expect =
     | DString str -> str.IsNormalized()
 
     | DList(_, items) -> List.all r items
-  // | DTuple(first, second, rest) -> List.all r ([ first; second ] @ rest)
-  // | DDict(_, entries) -> entries |> Map.values |> List.all r
+    // | DTuple(first, second, rest) -> List.all r ([ first; second ] @ rest)
+    | DDict(_, entries) -> entries |> Map.values |> List.all r
+
   // | DRecord(_, _, _, fields) -> fields |> Map.values |> List.all r
   // | DEnum(_, _, _, _, fields) -> fields |> List.all r
 
@@ -783,26 +784,26 @@ module Expect =
     //   check ("Length" :: path) (List.length theRestL) (List.length theRestR)
     //   List.iteri2 (fun i -> de ($"[{i}]" :: path)) theRestL theRestR
 
-    // | DDict(lType, ls), DDict(rType, rs) ->
-    //   check ("Length" :: path) (Map.count ls) (Map.count rs)
+    | DDict(lType, ls), DDict(rType, rs) ->
+      check ("Length" :: path) (Map.count ls) (Map.count rs)
 
-    //   checkValueType ("Type" :: path) lType rType
+      checkValueType ("Type" :: path) lType rType
 
-    //   // check keys from ls are in both, check matching values
-    //   Map.iterWithIndex
-    //     (fun key v1 ->
-    //       match Map.find key rs with
-    //       | Some v2 -> de (key :: path) v1 v2
-    //       | None -> check (key :: path) ls rs)
-    //     ls
+      // check keys from ls are in both, check matching values
+      Map.iterWithIndex
+        (fun key v1 ->
+          match Map.find key rs with
+          | Some v2 -> de (key :: path) v1 v2
+          | None -> check (key :: path) ls rs)
+        ls
 
-    //   // check keys from rs are in both
-    //   Map.iterWithIndex
-    //     (fun key _ ->
-    //       match Map.find key rs with
-    //       | Some _ -> () // already checked
-    //       | None -> check (key :: path) ls rs)
-    //     rs
+      // check keys from rs are in both
+      Map.iterWithIndex
+        (fun key _ ->
+          match Map.find key rs with
+          | Some _ -> () // already checked
+          | None -> check (key :: path) ls rs)
+        rs
 
 
     // | DRecord(ltn, _, ltypeArgs, ls), DRecord(rtn, _, rtypeArgs, rs) ->
@@ -878,7 +879,7 @@ module Expect =
     | DUuid _, _
     | DList _, _
     // | DTuple _, _
-    // | DDict _, _
+    | DDict _, _
     // | DRecord _, _
     // | DEnum _, _
     | DFnVal _, _
@@ -926,7 +927,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
   let f dv = state <- f dv :: state
   let rec visit dv : unit =
     match dv with
-    // | DDict(_, entries) -> Map.values entries |> List.map visit |> ignore<List<unit>>
+    | DDict(_, entries) -> Map.values entries |> List.map visit |> ignore<List<unit>>
     // | DRecord(_, _, _, fields) ->
     //   Map.values fields |> List.map visit |> ignore<List<unit>>
     // | DEnum(_, _, _, _, fields) -> fields |> List.map visit |> ignore<List<unit>>

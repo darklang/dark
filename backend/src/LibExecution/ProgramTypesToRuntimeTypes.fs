@@ -254,6 +254,21 @@ module Expr =
 
       (regCounter, instrs, listReg)
 
+    | PT.EDict(_id, items) ->
+      let dictReg = rc
+      let init = (rc + 1, [ RT.LoadVal(dictReg, RT.DDict(VT.unknown, Map.empty)) ])
+
+      let (regCounter, instrs) =
+        items
+        |> List.fold
+          (fun (rc, instrs) (key, value) ->
+            let (newRc, valueInstrs, valueReg) = toRT rc value
+            (newRc,
+             instrs @ valueInstrs @ [ RT.AddDictEntry(dictReg, key, valueReg) ]))
+          init
+
+      (regCounter, instrs, dictReg)
+
     // | PT.ETuple(_id, first, second, theRest) ->
     //   let tupleReg = rc
     //   //TODO handle VT

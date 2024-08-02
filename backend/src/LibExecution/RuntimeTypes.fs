@@ -192,20 +192,20 @@ type KnownType =
   /// `[z1, z2]` is allowed now but might not be allowed later
   | KTFn of args : NEList<ValueType> * ret : ValueType
 
-// /// At time of writing, all DBs are of a specific type, and DBs may only be
-// /// referenced directly, but we expect to eventually allow references to DBs
-// /// where the type may be unknown
-// /// List.head ([]: List<DB<'a>>) // KTDB (Unknown)
-// | KTDB of ValueType
+  // /// At time of writing, all DBs are of a specific type, and DBs may only be
+  // /// referenced directly, but we expect to eventually allow references to DBs
+  // /// where the type may be unknown
+  // /// List.head ([]: List<DB<'a>>) // KTDB (Unknown)
+  // | KTDB of ValueType
 
-// /// let n = None          // type args: [Unknown]
-// /// let s = Some(5)       // type args: [Known KTInt64]
-// /// let o = Ok (5)        // type args: [Known KTInt64, Unknown]
-// /// let e = Error ("str") // type args: [Unknown, Known KTString]
-// | KTCustomType of FQTypeName.FQTypeName * typeArgs : List<ValueType>
+  // /// let n = None          // type args: [Unknown]
+  // /// let s = Some(5)       // type args: [Known KTInt64]
+  // /// let o = Ok (5)        // type args: [Known KTInt64, Unknown]
+  // /// let e = Error ("str") // type args: [Unknown, Known KTString]
+  // | KTCustomType of FQTypeName.FQTypeName * typeArgs : List<ValueType>
 
-// /// let myDict = {} // KTDict Unknown
-// | KTDict of ValueType
+  /// let myDict = {} // KTDict Unknown
+  | KTDict of ValueType
 
 /// Represents the actual type of a Dval
 ///
@@ -244,7 +244,7 @@ module ValueType =
   let uuid = known KTUuid
 
   let list (inner : ValueType) : ValueType = known (KTList inner)
-  // let dict (inner : ValueType) : ValueType = known (KTDict inner)
+  let dict (inner : ValueType) : ValueType = known (KTDict inner)
   // let tuple
   //   (first : ValueType)
   //   (second : ValueType)
@@ -282,7 +282,7 @@ module ValueType =
       | KTDateTime -> "DateTime"
 
       | KTList inner -> $"List<{toString inner}>"
-      // | KTDict inner -> $"Dict<{toString inner}>"
+      | KTDict inner -> $"Dict<{toString inner}>"
       // | KTTuple(first, second, theRest) ->
       //   first :: second :: theRest
       //   |> List.map toString
@@ -331,7 +331,7 @@ module ValueType =
     | KTDateTime, KTDateTime -> KTDateTime |> Ok
 
     | KTList left, KTList right -> r left right |> Result.map KTList
-    // | KTDict left, KTDict right -> r left right |> Result.map KTDict
+    | KTDict left, KTDict right -> r left right |> Result.map KTDict
     // | KTTuple(l1, l2, ls), KTTuple(r1, r2, rs) ->
     //   let firstMerged = r l1 r1
     //   let secondMerged = r l2 r2
@@ -455,7 +455,7 @@ and TypeReference =
   // | TCustomType of
   //   NameResolution<FQTypeName.FQTypeName> *
   //   typeArgs : List<TypeReference>
-  // | TDict of TypeReference // CLEANUP add key type
+  | TDict of TypeReference // CLEANUP add key type
 
   member this.isFn() : bool =
     match this with
@@ -487,9 +487,9 @@ and TypeReference =
       // | TTuple(t1, t2, ts) ->
       //   isConcrete t1 && isConcrete t2 && List.forall isConcrete ts
       | TFn(ts, t) -> NEList.forall isConcrete ts && isConcrete t
-    // | TDB t -> isConcrete t
-    // | TCustomType(_, ts) -> List.forall isConcrete ts
-    // | TDict t -> isConcrete t
+      // | TDB t -> isConcrete t
+      // | TCustomType(_, ts) -> List.forall isConcrete ts
+      | TDict t -> isConcrete t
 
     //| TVariable _-> false
 
@@ -505,13 +505,8 @@ and Instruction =
   /// Push a ("constant") value into a register
   | LoadVal of loadTo : Register * Dval
 
-  /// Apply some args (and maybe type args) to something
-  /// (a named function, or lambda, etc)
-  | Apply of
-    putResultIn : Register *
-    thingToApply : Register *
-    typeArgs : List<TypeReference> *
-    args : NEList<Register>
+  | AppendString of targetReg : Register * sourceReg : Register
+
 
   /// Loads the value of a register into a variable
   | SetVar of varName : string * loadFrom : Register
@@ -519,8 +514,10 @@ and Instruction =
   /// Stores the value of a variable to a register
   | GetVar of loadTo : Register * varName : string
 
+
   // | Jump of jumpTo: Register
   // | JumpIfFalse of condition: Register * jumpTo: Register
+
 
   /// Add an item to an existing list
   /// , and type-check to make sure it matches the ValueType of that list
@@ -529,7 +526,22 @@ and Instruction =
   /// (always an empty list of unknown type, to ensure type safety)
   | AddItemToList of listRegister : Register * itemToAdd : Register
 
-  | AppendString of targetReg : Register * sourceReg : Register
+  /// Add an item to an existing dict
+  /// , and type-check to make sure it matches the ValueType of that dict
+  ///
+  /// Note: dicts are _created_ with `LoadVal`
+  /// (always an empty dict of unknown type, to ensure type safety)
+  | AddDictEntry of dictRegister : Register * key : string * entryToAdd : Register
+
+
+  /// Apply some args (and maybe type args) to something
+  /// (a named function, or lambda, etc)
+  | Apply of
+    putResultIn : Register *
+    thingToApply : Register *
+    typeArgs : List<TypeReference> *
+    args : NEList<Register>
+
 
   /// Return whatever's in the noted register
   /// (usually relevant only for branching logic like `if`, `match`)
@@ -548,7 +560,6 @@ and InstructionsWithContext =
 // // superfluous information removed.
 // and Expr =
 
-//   | EString of id * List<StringSegment>
 
 //   // // flow control
 //   // | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
@@ -566,7 +577,6 @@ and InstructionsWithContext =
 
 //   // // structures
 //   // | ETuple of id * Expr * Expr * List<Expr>
-//   // | EDict of id * List<string * Expr>
 
 //   // // working with custom types
 //   // | EConstant of id * FQConstantName.FQConstantName
@@ -582,9 +592,6 @@ and InstructionsWithContext =
 
 // // and MatchCase = { pat : MatchPattern; whenCondition : Option<Expr>; rhs : Expr }
 
-// and StringSegment =
-//   | StringText of string
-//   | StringInterpolation of Expr
 
 
 and DvalMap = Map<string, Dval>
@@ -637,11 +644,11 @@ and [<NoComparison>] Dval =
   // Compound types
   | DList of ValueType * List<Dval>
   // | DTuple of first : Dval * second : Dval * theRest : List<Dval>
-  // | DDict of
-  //   // This is the type of the _values_, not the keys. Once users can specify the
-  //   // key type, we likely will need to add a `keyType: ValueType` field here.
-  //   valueType : ValueType *
-  //   entries : DvalMap
+  | DDict of
+    // This is the type of the _values_, not the keys. Once users can specify the
+    // key type, we likely will need to add a `keyType: ValueType` field here.
+    valueType : ValueType *
+    entries : DvalMap
 
   // // custom types
   // | DRecord of
@@ -987,7 +994,7 @@ module Dval =
 
     //   pairs |> List.all (fun (v, subtype) -> r subtype v)
     | DList(_vtTODO, l), TList t -> List.all (r t) l
-    // | DDict(_vtTODO, m), TDict t -> Map.all (r t) m
+    | DDict(_vtTODO, m), TDict t -> Map.all (r t) m
     // | DFnVal(Lambda l), TFn(parameters, _) ->
     //   NEList.length parameters = NEList.length l.parameters
 
@@ -1026,7 +1033,7 @@ module Dval =
     // | DDB _, _
     | DList _, _
     // | DTuple _, _
-    // | DDict _, _
+    | DDict _, _
     // | DRecord _, _
     | DFnVal _, _
     //| DEnum _, _
@@ -1056,7 +1063,7 @@ module Dval =
     | DUuid _ -> ValueType.Known KTUuid
 
     | DList(t, _) -> ValueType.Known(KTList t)
-    // | DDict(t, _) -> ValueType.Known(KTDict t)
+    | DDict(t, _) -> ValueType.Known(KTDict t)
     // | DTuple(first, second, theRest) ->
     //   ValueType.Known(
     //     KTTuple(toValueType first, toValueType second, List.map toValueType theRest)
@@ -1089,10 +1096,10 @@ module Dval =
     | DList(_, l) -> Some l
     | _ -> None
 
-  // let asDict (dv : Dval) : Option<Map<string, Dval>> =
-  //   match dv with
-  //   | DDict(_, d) -> Some d
-  //   | _ -> None
+  let asDict (dv : Dval) : Option<Map<string, Dval>> =
+    match dv with
+    | DDict(_, d) -> Some d
+    | _ -> None
 
   // let asTuple2 (dv : Dval) : Option<Dval * Dval> =
   //   match dv with

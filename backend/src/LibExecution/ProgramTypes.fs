@@ -293,7 +293,7 @@ type Expr =
 
   // -- Basic structures --
   | EList of id * List<Expr>
-  // | EDict of id * List<string * Expr>
+  | EDict of id * List<string * Expr>
   // | ETuple of id * Expr * Expr * List<Expr>
 
 
@@ -398,7 +398,7 @@ module Expr =
     | EVariable(id, _)
     | EApply(id, _, _, _)
     | EList(id, _)
-    // | EDict(id, _)
+    | EDict(id, _)
     // | ETuple(id, _, _, _)
     // | EPipe(id, _, _)
     // | ERecord(id, _, _)

@@ -63,8 +63,42 @@ let stringWithInterpolation =
     return Expect.equal actual expected ""
   }
 
+let dictEmpty =
+  testTask "Dict {}" {
+    let! actual = eval E.dictEmpty |> Ply.toTask
+    let expected = RT.DDict(VT.unknown, Map.empty)
+    return Expect.equal actual expected ""
+  }
+let dictSimple =
+  testTask "Dict { t: true}" {
+    let! actual = eval E.dictSimple |> Ply.toTask
+    let expected = RT.DDict(VT.unknown, Map [ "key", RT.DBool true ])
+    return Expect.equal actual expected ""
+  }
+let dictMultEntries =
+  testTask "Dict {t: true; f: false}" {
+    let! actual = eval E.dictMultEntries |> Ply.toTask
+    let expected =
+      RT.DDict(VT.unknown, Map [ "t", RT.DBool true; "f", RT.DBool false ])
+    return Expect.equal actual expected ""
+  }
+let dictDupeKey =
+  testTask "Dict {t: true; f: false; t: false}" {
+    let! actual = eval E.dictDupeKey |> Ply.toTask
+    let expected =
+      RT.DDict(VT.unknown, Map [ "t", RT.DBool false; "f", RT.DBool false ])
+    return Expect.equal actual expected ""
+  }
+
 
 let tests =
   testList
     "Interpreter"
-    [ onePlusTwo; boolList; simpleString; stringWithInterpolation ]
+    [ onePlusTwo
+      boolList
+      simpleString
+      stringWithInterpolation
+      dictEmpty
+      dictSimple
+      dictMultEntries
+      dictDupeKey ]
