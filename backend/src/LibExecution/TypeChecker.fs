@@ -152,23 +152,23 @@ let raiseFnValResultNotExpectedType
 
 
 let rec valueTypeUnifies
-  (_tst : TypeSymbolTable)
+  (tst : TypeSymbolTable)
   (expected : TypeReference)
   (actual : ValueType)
   : Ply<bool> =
-  // let r = valueTypeUnifies tst
+  let r = valueTypeUnifies tst
 
-  // let rMult (expected : List<TypeReference>) (actual : List<ValueType>) : Ply<bool> =
-  //   if List.length expected <> List.length actual then
-  //     Ply false
-  //   else
-  //     List.zip expected actual
-  //     |> Ply.List.foldSequentially
-  //       (fun acc (e, a) ->
-  //         match acc with
-  //         | false -> Ply acc
-  //         | true -> r e a)
-  //       true
+  let rMult (expected : List<TypeReference>) (actual : List<ValueType>) : Ply<bool> =
+    if List.length expected <> List.length actual then
+      Ply false
+    else
+      List.zip expected actual
+      |> Ply.List.foldSequentially
+        (fun acc (e, a) ->
+          match acc with
+          | false -> Ply acc
+          | true -> r e a)
+        true
 
   uply {
     match expected, actual with
@@ -177,31 +177,34 @@ let rec valueTypeUnifies
     | TUnit, ValueType.Known KTUnit -> return true
     | TBool, ValueType.Known KTBool -> return true
 
-    // | TInt8, ValueType.Known KTInt8 -> return true
-    // | TUInt8, ValueType.Known KTUInt8 -> return true
-    // | TInt16, ValueType.Known KTInt16 -> return true
-    // | TUInt16, ValueType.Known KTUInt16 -> return true
-    // | TInt32, ValueType.Known KTInt32 -> return true
-    // | TUInt32, ValueType.Known KTUInt32 -> return true
+    | TInt8, ValueType.Known KTInt8 -> return true
+    | TUInt8, ValueType.Known KTUInt8 -> return true
+    | TInt16, ValueType.Known KTInt16 -> return true
+    | TUInt16, ValueType.Known KTUInt16 -> return true
+    | TInt32, ValueType.Known KTInt32 -> return true
+    | TUInt32, ValueType.Known KTUInt32 -> return true
     | TInt64, ValueType.Known KTInt64 -> return true
-    // | TUInt64, ValueType.Known KTUInt64 -> return true
-    // | TInt128, ValueType.Known KTInt128 -> return true
-    // | TUInt128, ValueType.Known KTUInt128 -> return true
-    // | TFloat, ValueType.Known KTFloat -> return true
-    // | TChar, ValueType.Known KTChar -> return true
+    | TUInt64, ValueType.Known KTUInt64 -> return true
+    | TInt128, ValueType.Known KTInt128 -> return true
+    | TUInt128, ValueType.Known KTUInt128 -> return true
+
+    | TFloat, ValueType.Known KTFloat -> return true
+
+    | TChar, ValueType.Known KTChar -> return true
     | TString, ValueType.Known KTString -> return true
+
     // | TUuid, ValueType.Known KTUuid -> return true
     // | TDateTime, ValueType.Known KTDateTime -> return true
 
-    // | TList innerT, ValueType.Known(KTList innerV) -> return! r innerT innerV
+    | TList innerT, ValueType.Known(KTList innerV) -> return! r innerT innerV
 
-    // | TDict innerT, ValueType.Known(KTDict innerV) -> return! r innerT innerV
+    | TDict innerT, ValueType.Known(KTDict innerV) -> return! r innerT innerV
 
-    // | TTuple(tFirst, tSecond, tRest),
-    //   ValueType.Known(KTTuple(vFirst, vSecond, vRest)) ->
-    //   let expected = tFirst :: tSecond :: tRest
-    //   let actual = vFirst :: vSecond :: vRest
-    //   return! rMult expected actual
+    | TTuple(tFirst, tSecond, tRest),
+      ValueType.Known(KTTuple(vFirst, vSecond, vRest)) ->
+      let expected = tFirst :: tSecond :: tRest
+      let actual = vFirst :: vSecond :: vRest
+      return! rMult expected actual
 
     // | TCustomType(Error err, _), _ ->
     //   return
@@ -219,13 +222,13 @@ let rec valueTypeUnifies
     //   //return! rMult typeArgsT typeArgsV
     //   return true
 
-    | TFn(_argTypes, _returnType), ValueType.Known(KTFn(_vArgs, _vRet)) ->
-      // TODO: follow up here when type args are properly passed around and handled
+    // | TFn(_argTypes, _returnType), ValueType.Known(KTFn(_vArgs, _vRet)) ->
+    //   // TODO: follow up here when type args are properly passed around and handled
 
-      // let expected = returnType :: (NEList.toList argTypes)
-      // let actual = vRet :: (NEList.toList vArgs)
-      // return! rMult expected actual
-      return true
+    //   // let expected = returnType :: (NEList.toList argTypes)
+    //   // let actual = vRet :: (NEList.toList vArgs)
+    //   // return! rMult expected actual
+    //   return true
 
     //| TDB innerT, ValueType.Known(KTDB innerV) -> return! r innerT innerV
 
@@ -440,16 +443,21 @@ let rec unify
 
       | TFloat, _
 
-      // | TTuple _, _
-      // | TCustomType _, _
-      // | TVariable _, _
-      | TString, _
-      | TList _, _
-      | TDateTime, _
-      | TDict _, _
-      | TFn _, _
-      | TUuid, _
       | TChar, _
+      | TString, _
+
+      | TDateTime, _
+      | TUuid, _
+
+      | TList _, _
+      | TDict _, _
+      | TTuple _, _
+
+      // | TCustomType _, _
+
+      // | TVariable _, _
+
+      | TFn _, _
       // | TDB _, _
        ->
         return

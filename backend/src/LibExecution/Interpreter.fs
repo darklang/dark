@@ -86,6 +86,13 @@ let rec execute
           return! execute state vmState instructions resultReg (counter + 1)
         | _ -> return DString "TODO can't operate list-add to a non-list"
 
+      | CreateTuple(tupleReg, firstReg, secondReg, theRestRegs) ->
+        let first = vmState.registers[firstReg]
+        let second = vmState.registers[secondReg]
+        let theRest = theRestRegs |> List.map (fun r -> vmState.registers[r])
+        vmState.registers[tupleReg] <- DTuple(first, second, theRest)
+        return! execute state vmState instructions resultReg (counter + 1)
+
       | AddDictEntry(dictReg, key, valueReg) ->
         match vmState.registers[dictReg] with
         | DDict(vt, entries) ->
@@ -94,6 +101,7 @@ let rec execute
           vmState.registers[dictReg] <- DDict(vt, Map.add key value entries)
           return! execute state vmState instructions resultReg (counter + 1)
         | _ -> return DString "TODO can't operate dict-add to a non-dict"
+
 
       | AppendString(targetReg, sourceReg) ->
         match vmState.registers[targetReg], vmState.registers[sourceReg] with

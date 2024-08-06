@@ -386,7 +386,7 @@ module Expect =
     | DString str -> str.IsNormalized()
 
     | DList(_, items) -> List.all r items
-    // | DTuple(first, second, rest) -> List.all r ([ first; second ] @ rest)
+    | DTuple(first, second, rest) -> List.all r ([ first; second ] @ rest)
     | DDict(_, entries) -> entries |> Map.values |> List.all r
 
   // | DRecord(_, _, _, fields) -> fields |> Map.values |> List.all r
@@ -764,6 +764,7 @@ module Expect =
         error path
       else if not (Accuracy.areClose Accuracy.veryHigh l r) then
         error path
+
     | DDateTime l, DDateTime r ->
       // Two dates can be the same millisecond and not be equal if they don't
       // have the same number of ticks. For testing, we shall consider them
@@ -776,13 +777,13 @@ module Expect =
       check ("Length" :: path) (List.length ls) (List.length rs)
       List.iteri2 (fun i -> de ($"[{i}]" :: path)) ls rs
 
-    // | DTuple(firstL, secondL, theRestL), DTuple(firstR, secondR, theRestR) ->
-    //   de path firstL firstR
+    | DTuple(firstL, secondL, theRestL), DTuple(firstR, secondR, theRestR) ->
+      de path firstL firstR
 
-    //   de path secondL secondR
+      de path secondL secondR
 
-    //   check ("Length" :: path) (List.length theRestL) (List.length theRestR)
-    //   List.iteri2 (fun i -> de ($"[{i}]" :: path)) theRestL theRestR
+      check ("Length" :: path) (List.length theRestL) (List.length theRestR)
+      List.iteri2 (fun i -> de ($"[{i}]" :: path)) theRestL theRestR
 
     | DDict(lType, ls), DDict(rType, rs) ->
       check ("Length" :: path) (Map.count ls) (Map.count rs)
@@ -878,7 +879,7 @@ module Expect =
     | DDateTime _, _
     | DUuid _, _
     | DList _, _
-    // | DTuple _, _
+    | DTuple _, _
     | DDict _, _
     // | DRecord _, _
     // | DEnum _, _
@@ -927,13 +928,15 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
   let f dv = state <- f dv :: state
   let rec visit dv : unit =
     match dv with
+    | DList(_, items) -> List.map visit items |> ignore<List<unit>>
     | DDict(_, entries) -> Map.values entries |> List.map visit |> ignore<List<unit>>
+    | DTuple(first, second, theRest) ->
+      List.map visit ([ first; second ] @ theRest) |> ignore<List<unit>>
+
     // | DRecord(_, _, _, fields) ->
     //   Map.values fields |> List.map visit |> ignore<List<unit>>
+
     // | DEnum(_, _, _, _, fields) -> fields |> List.map visit |> ignore<List<unit>>
-    | DList(_, items) -> List.map visit items |> ignore<List<unit>>
-    // | DTuple(first, second, theRest) ->
-    //   List.map visit ([ first; second ] @ theRest) |> ignore<List<unit>>
 
     // Keep for exhaustiveness checking
     | DUnit

@@ -30,9 +30,9 @@ let rec typeName (t : TypeReference) : string =
 
   | TList nested -> $"List<{typeName nested}>"
   | TDict nested -> $"Dict<{typeName nested}>"
-  // | TTuple(n1, n2, rest) ->
-  //   let nested = (n1 :: n2 :: rest) |> List.map typeName |> String.concat ", "
-  //   $"({nested})"
+  | TTuple(n1, n2, rest) ->
+    let nested = (n1 :: n2 :: rest) |> List.map typeName |> String.concat ", "
+    $"({nested})"
 
   | TFn _ -> "Function"
 
@@ -79,17 +79,11 @@ let rec private knownTypeName (vt : KnownType) : string =
 
   | KTList typ -> $"List<{valueTypeName typ}>"
   | KTDict typ -> $"Dict<{valueTypeName typ}>"
-
-  | KTFn(argTypes, retType) ->
-    (NEList.toList argTypes) @ [ retType ]
+  | KTTuple(t1, t2, trest) ->
+    t1 :: t2 :: trest
     |> List.map valueTypeName
-    |> String.concat " -> "
-
-// | KTTuple(t1, t2, trest) ->
-//   t1 :: t2 :: trest
-//   |> List.map valueTypeName
-//   |> String.concat ", "
-//   |> fun s -> $"({s})"
+    |> String.concat ", "
+    |> fun s -> $"({s})"
 
 // | KTCustomType(name, typeArgs) ->
 //   let typeArgsPortion =
@@ -102,6 +96,11 @@ let rec private knownTypeName (vt : KnownType) : string =
 //       |> fun betweenBrackets -> "<" + betweenBrackets + ">"
 
 //   FQTypeName.toString name + typeArgsPortion
+
+// | KTFn(argTypes, retType) ->
+//   (NEList.toList argTypes) @ [ retType ]
+//   |> List.map valueTypeName
+//   |> String.concat " -> "
 
 // | KTDB typ -> $"Datastore<{valueTypeName typ}>"
 
@@ -172,15 +171,15 @@ let toRepr (dv : Dval) : string =
         let elems = String.concat ", " (List.map (toRepr_ indent) l)
         $"[{inl}{elems}{nl}]"
 
-    // | DTuple(first, second, theRest) ->
-    //   let l = [ first; second ] @ theRest
-    //   let short = String.concat ", " (List.map (toRepr_ indent) l)
+    | DTuple(first, second, theRest) ->
+      let l = [ first; second ] @ theRest
+      let short = String.concat ", " (List.map (toRepr_ indent) l)
 
-    //   if String.length short <= 80 then
-    //     $"({short})"
-    //   else
-    //     let long = String.concat $"{inl}, " (List.map (toRepr_ indent) l)
-    //     $"({inl}{long}{nl})"
+      if String.length short <= 80 then
+        $"({short})"
+      else
+        let long = String.concat $"{inl}, " (List.map (toRepr_ indent) l)
+        $"({inl}{long}{nl})"
 
 
     | DDict(_valueTypeTODO, o) ->

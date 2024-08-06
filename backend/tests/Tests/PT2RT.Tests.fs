@@ -89,6 +89,28 @@ module Expressions =
   let ifElseMissing : PT.Expr =
     PT.EIf(gid (), PT.EBool(gid (), false), PT.EInt64(gid (), 1), None)
 
+  /// (false, true)
+  let tuple2 : PT.Expr =
+    PT.ETuple(gid (), PT.EBool(gid (), false), PT.EBool(gid (), true), [])
+
+  /// (false, true, false)
+  let tuple3 : PT.Expr =
+    PT.ETuple(
+      gid (),
+      PT.EBool(gid (), false),
+      PT.EBool(gid (), true),
+      [ PT.EBool(gid (), false) ]
+    )
+
+  /// ((false, true), true, (true, false))
+  let tupleNested : PT.Expr =
+    PT.ETuple(
+      gid (),
+      PT.ETuple(gid (), PT.EBool(gid (), false), PT.EBool(gid (), true), []),
+      PT.EBool(gid (), true),
+      [ PT.ETuple(gid (), PT.EBool(gid (), true), PT.EBool(gid (), false), []) ]
+    )
+
 module E = Expressions
 
 
@@ -336,6 +358,62 @@ let ifElseMissing =
     return Expect.equal actual expected ""
   }
 
+let tuple2 =
+  testTask "(false, true)" {
+    let actual = PT2RT.Expr.toRT 0 E.tuple2
+
+    let expected =
+      (3,
+       [ RT.LoadVal(1, RT.DBool false)
+         RT.LoadVal(2, RT.DBool true)
+         RT.CreateTuple(0, 1, 2, []) ],
+       0)
+
+    return Expect.equal actual expected ""
+  }
+
+let tuple3 =
+  testTask "(false, true, false)" {
+    let actual = PT2RT.Expr.toRT 0 E.tuple3
+
+    let expected =
+      (4,
+       [ RT.LoadVal(1, RT.DBool false)
+         RT.LoadVal(2, RT.DBool true)
+         RT.LoadVal(3, RT.DBool false)
+         RT.CreateTuple(0, 1, 2, [ 3 ]) ],
+       0)
+
+    return Expect.equal actual expected ""
+  }
+
+let tupleNested =
+  testTask "((false, true), true, (true, false))" {
+    let actual = PT2RT.Expr.toRT 0 E.tupleNested
+
+    let expected =
+      (8,
+       [ // 0 "reserved" for outer tuple
+
+         // first inner tuple (1 "reserved")
+         RT.LoadVal(2, RT.DBool false)
+         RT.LoadVal(3, RT.DBool true)
+         RT.CreateTuple(1, 2, 3, [])
+
+         // middle value
+         RT.LoadVal(4, RT.DBool true)
+
+         // second inner tuple (5 "reserved")
+         RT.LoadVal(6, RT.DBool true)
+         RT.LoadVal(7, RT.DBool false)
+         RT.CreateTuple(5, 6, 7, [])
+
+         // wrap all in outer tuple
+         RT.CreateTuple(0, 1, 4, [ 5 ]) ],
+       0)
+
+    return Expect.equal actual expected ""
+  }
 
 let tests =
   testList
@@ -353,4 +431,7 @@ let tests =
       dictDupeKey
       ifGotoThenBranch
       ifGotoElseBranch
-      ifElseMissing ]
+      ifElseMissing
+      tuple2
+      tuple3
+      tupleNested ]

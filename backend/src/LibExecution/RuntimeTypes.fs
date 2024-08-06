@@ -168,29 +168,29 @@ type KnownType =
   /// let intList = [1] // KTList (ValueType.Known KTInt64)
   | KTList of ValueType
 
-  // /// Intuitively, since Dvals generate KnownTypes, you would think that we can
-  // /// use KnownTypes in a KTTuple.
-  // ///
-  // /// However, we sometimes construct a KTTuple to repesent the type of a Tuple
-  // /// which doesn't exist. For example, in `List.zip [] []`, we create the result
-  // /// from the types of the two lists, which themselves might be (and likely are)
-  // /// `Unknown`.
-  // | KTTuple of ValueType * ValueType * List<ValueType>
+  /// Intuitively, since Dvals generate KnownTypes, you would think that we can
+  /// use KnownTypes in a KTTuple.
+  ///
+  /// However, we sometimes construct a KTTuple to repesent the type of a Tuple
+  /// which doesn't exist. For example, in `List.zip [] []`, we create the result
+  /// from the types of the two lists, which themselves might be (and likely are)
+  /// `Unknown`.
+  | KTTuple of ValueType * ValueType * List<ValueType>
 
-  /// let f = (fun x -> x)        // KTFn([Unknown], Unknown)
-  /// let intF = (fun (x: Int) -> x) // KTFn([Known KTInt64], Unknown)
-  ///
-  /// Note that we could theoretically know some return types by analyzing the
-  /// code or type signatures of functions. We don't do this yet as it's
-  /// complicated. When we do decide to do this, some incorrect programs may stop
-  /// functioning (see example). Our goal is for correctly typed functions to
-  /// stay working so this might be ok.
-  ///
-  /// For example:
-  ///   let z1 = (fun x -> 5)
-  ///   let z2 = (fun x -> "str")
-  /// `[z1, z2]` is allowed now but might not be allowed later
-  | KTFn of args : NEList<ValueType> * ret : ValueType
+  // /// let f = (fun x -> x)        // KTFn([Unknown], Unknown)
+  // /// let intF = (fun (x: Int) -> x) // KTFn([Known KTInt64], Unknown)
+  // ///
+  // /// Note that we could theoretically know some return types by analyzing the
+  // /// code or type signatures of functions. We don't do this yet as it's
+  // /// complicated. When we do decide to do this, some incorrect programs may stop
+  // /// functioning (see example). Our goal is for correctly typed functions to
+  // /// stay working so this might be ok.
+  // ///
+  // /// For example:
+  // ///   let z1 = (fun x -> 5)
+  // ///   let z2 = (fun x -> "str")
+  // /// `[z1, z2]` is allowed now but might not be allowed later
+  // | KTFn of args : NEList<ValueType> * ret : ValueType
 
   // /// At time of writing, all DBs are of a specific type, and DBs may only be
   // /// referenced directly, but we expect to eventually allow references to DBs
@@ -245,12 +245,12 @@ module ValueType =
 
   let list (inner : ValueType) : ValueType = known (KTList inner)
   let dict (inner : ValueType) : ValueType = known (KTDict inner)
-  // let tuple
-  //   (first : ValueType)
-  //   (second : ValueType)
-  //   (theRest : List<ValueType>)
-  //   : ValueType =
-  //   KTTuple(first, second, theRest) |> known
+  let tuple
+    (first : ValueType)
+    (second : ValueType)
+    (theRest : List<ValueType>)
+    : ValueType =
+    KTTuple(first, second, theRest) |> known
 
   // let customType
   //   (typeName : FQTypeName.FQTypeName)
@@ -283,25 +283,26 @@ module ValueType =
 
       | KTList inner -> $"List<{toString inner}>"
       | KTDict inner -> $"Dict<{toString inner}>"
-      // | KTTuple(first, second, theRest) ->
-      //   first :: second :: theRest
-      //   |> List.map toString
-      //   |> String.concat " * "
-      //   |> fun inner -> $"({inner})"
-      // | KTCustomType(typeName, typeArgs) ->
-      //   let typeArgsPart =
-      //     match typeArgs with
-      //     | [] -> ""
-      //     | _ ->
-      //       typeArgs
-      //       |> List.map toString
-      //       |> String.concat ", "
-      //       |> fun inner -> $"<{inner}>"
+      | KTTuple(first, second, theRest) ->
+        first :: second :: theRest
+        |> List.map toString
+        |> String.concat " * "
+        |> fun inner -> $"({inner})"
 
-      //   $"{FQTypeName.toString typeName}{typeArgsPart}"
+  // | KTCustomType(typeName, typeArgs) ->
+  //   let typeArgsPart =
+  //     match typeArgs with
+  //     | [] -> ""
+  //     | _ ->
+  //       typeArgs
+  //       |> List.map toString
+  //       |> String.concat ", "
+  //       |> fun inner -> $"<{inner}>"
 
-      | KTFn(args, ret) ->
-        NEList.toList args @ [ ret ] |> List.map toString |> String.concat " -> "
+  //   $"{FQTypeName.toString typeName}{typeArgsPart}"
+
+  // | KTFn(args, ret) ->
+  //   NEList.toList args @ [ ret ] |> List.map toString |> String.concat " -> "
 
   //| KTDB inner -> $"DB<{toString inner}>"
 
@@ -332,14 +333,14 @@ module ValueType =
 
     | KTList left, KTList right -> r left right |> Result.map KTList
     | KTDict left, KTDict right -> r left right |> Result.map KTDict
-    // | KTTuple(l1, l2, ls), KTTuple(r1, r2, rs) ->
-    //   let firstMerged = r l1 r1
-    //   let secondMerged = r l2 r2
-    //   let restMerged = List.map2 r ls rs |> Result.collect
+    | KTTuple(l1, l2, ls), KTTuple(r1, r2, rs) ->
+      let firstMerged = r l1 r1
+      let secondMerged = r l2 r2
+      let restMerged = List.map2 r ls rs |> Result.collect
 
-    //   match firstMerged, secondMerged, restMerged with
-    //   | Ok first, Ok second, Ok rest -> Ok(KTTuple(first, second, rest))
-    //   | _ -> Error()
+      match firstMerged, secondMerged, restMerged with
+      | Ok first, Ok second, Ok rest -> Ok(KTTuple(first, second, rest))
+      | _ -> Error()
 
     // | KTCustomType(lName, lArgs), KTCustomType(rName, rArgs) ->
     //   if lName <> rName then
@@ -351,13 +352,13 @@ module ValueType =
     //     |> Result.collect
     //     |> Result.map (fun args -> KTCustomType(lName, args))
 
-    | KTFn(lArgs, lRet), KTFn(rArgs, rRet) ->
-      let argsMerged = NEList.map2 r lArgs rArgs |> Result.collectNE
-      let retMerged = r lRet rRet
+    // | KTFn(lArgs, lRet), KTFn(rArgs, rRet) ->
+    //   let argsMerged = NEList.map2 r lArgs rArgs |> Result.collectNE
+    //   let retMerged = r lRet rRet
 
-      match argsMerged, retMerged with
-      | Ok args, Ok ret -> Ok(KTFn(args, ret))
-      | _ -> Error()
+    //   match argsMerged, retMerged with
+    //   | Ok args, Ok ret -> Ok(KTFn(args, ret))
+    //   | _ -> Error()
 
     | _ -> Error()
 
@@ -452,7 +453,7 @@ and TypeReference =
   | TUuid
   | TDateTime
   | TList of TypeReference
-  // | TTuple of TypeReference * TypeReference * List<TypeReference>
+  | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TFn of NEList<TypeReference> * TypeReference
   // | TDB of TypeReference
   // | TVariable of string
@@ -488,8 +489,8 @@ and TypeReference =
       | TDateTime -> true
 
       | TList t -> isConcrete t
-      // | TTuple(t1, t2, ts) ->
-      //   isConcrete t1 && isConcrete t2 && List.forall isConcrete ts
+      | TTuple(t1, t2, ts) ->
+        isConcrete t1 && isConcrete t2 && List.forall isConcrete ts
       | TFn(ts, t) -> NEList.forall isConcrete ts && isConcrete t
       // | TDB t -> isConcrete t
       // | TCustomType(_, ts) -> List.forall isConcrete ts
@@ -528,7 +529,16 @@ and Instruction =
   ///
   /// Note: lists are _created_ with `LoadVal`
   /// (always an empty list of unknown type, to ensure type safety)
+  ///
+  /// TODO consider removing in favor of a bulk `CreateList` instruction.
+  /// Not sure what we're getting from this.
   | AddItemToList of listRegister : Register * itemToAdd : Register
+
+  | CreateTuple of
+    createTo : Register *
+    first : Register *
+    second : Register *
+    theRest : List<Register>
 
   /// Add an item to an existing dict
   /// , and type-check to make sure it matches the ValueType of that dict
@@ -574,7 +584,6 @@ and InstructionsWithContext =
 
 
 //   // // flow control
-//   // | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
 //   // | EMatch of id * Expr * NEList<MatchCase>
 //   // | EAnd of id * lhs : Expr * rhs : Expr
 //   // | EOr of id * lhs : Expr * rhs : Expr
@@ -583,12 +592,8 @@ and InstructionsWithContext =
 //   // | EFieldAccess of id * Expr * string
 
 //   // calling fns and other things
-//   | EFnName of id * FQFnName.FQFnName
 //   | EApply of id * Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
 //   //| ELambda of id * pats : NEList<LetPattern> * body : Expr
-
-//   // // structures
-//   // | ETuple of id * Expr * Expr * List<Expr>
 
 //   // // working with custom types
 //   // | EConstant of id * FQConstantName.FQConstantName
@@ -655,7 +660,7 @@ and [<NoComparison>] Dval =
 
   // Compound types
   | DList of ValueType * List<Dval>
-  // | DTuple of first : Dval * second : Dval * theRest : List<Dval>
+  | DTuple of first : Dval * second : Dval * theRest : List<Dval>
   | DDict of
     // This is the type of the _values_, not the keys. Once users can specify the
     // key type, we likely will need to add a `keyType: ValueType` field here.
@@ -998,17 +1003,15 @@ module Dval =
     | DDateTime _, TDateTime
     | DUuid _, TUuid
 
-    // | DDB _, TDB _
      -> true
-    // | DTuple(first, second, theRest), TTuple(firstType, secondType, otherTypes) ->
-    //   let pairs =
-    //     [ (first, firstType); (second, secondType) ] @ List.zip theRest otherTypes
 
-    //   pairs |> List.all (fun (v, subtype) -> r subtype v)
     | DList(_vtTODO, l), TList t -> List.all (r t) l
+    | DTuple(first, second, theRest), TTuple(firstType, secondType, otherTypes) ->
+      let pairs =
+        [ (first, firstType); (second, secondType) ] @ List.zip theRest otherTypes
+
+      pairs |> List.all (fun (v, subtype) -> r subtype v)
     | DDict(_vtTODO, m), TDict t -> Map.all (r t) m
-    // | DFnVal(Lambda l), TFn(parameters, _) ->
-    //   NEList.length parameters = NEList.length l.parameters
 
     // | DRecord(typeName, _, _typeArgsTODO, _fields),
     //   TCustomType(Ok typeName', _typeArgs) ->
@@ -1024,6 +1027,11 @@ module Dval =
     //   // against the typeArgs in the DEnum - their zipped values should merge OK
     //   typeName = typeName'
 
+    // | DFnVal(Lambda l), TFn(parameters, _) ->
+    //   NEList.length parameters = NEList.length l.parameters
+
+    // | DDB _, TDB _
+
     // exhaustiveness checking
     | DUnit, _
     | DBool _, _
@@ -1038,17 +1046,17 @@ module Dval =
     | DInt128 _, _
     | DUInt128 _, _
     | DFloat _, _
+    | DChar _, _
     | DString _, _
     | DDateTime _, _
     | DUuid _, _
-    | DChar _, _
-    // | DDB _, _
     | DList _, _
-    // | DTuple _, _
+    | DTuple _, _
     | DDict _, _
     // | DRecord _, _
-    | DFnVal _, _
     //| DEnum _, _
+    | DFnVal _, _
+    // | DDB _, _
      -> false
 
 
@@ -1076,10 +1084,10 @@ module Dval =
 
     | DList(t, _) -> ValueType.Known(KTList t)
     | DDict(t, _) -> ValueType.Known(KTDict t)
-    // | DTuple(first, second, theRest) ->
-    //   ValueType.Known(
-    //     KTTuple(toValueType first, toValueType second, List.map toValueType theRest)
-    //   )
+    | DTuple(first, second, theRest) ->
+      ValueType.Known(
+        KTTuple(toValueType first, toValueType second, List.map toValueType theRest)
+      )
 
     // | DRecord(typeName, _, typeArgs, _) ->
     //   KTCustomType(typeName, typeArgs) |> ValueType.Known
@@ -1113,15 +1121,15 @@ module Dval =
     | DDict(_, d) -> Some d
     | _ -> None
 
-  // let asTuple2 (dv : Dval) : Option<Dval * Dval> =
-  //   match dv with
-  //   | DTuple(first, second, _) -> Some(first, second)
-  //   | _ -> None
+  let asTuple2 (dv : Dval) : Option<Dval * Dval> =
+    match dv with
+    | DTuple(first, second, _) -> Some(first, second)
+    | _ -> None
 
-  // let asTuple3 (dv : Dval) : Option<Dval * Dval * Dval> =
-  //   match dv with
-  //   | DTuple(first, second, [ third ]) -> Some(first, second, third)
-  //   | _ -> None
+  let asTuple3 (dv : Dval) : Option<Dval * Dval * Dval> =
+    match dv with
+    | DTuple(first, second, [ third ]) -> Some(first, second, third)
+    | _ -> None
 
   let asString (dv : Dval) : Option<string> =
     match dv with

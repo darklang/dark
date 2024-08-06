@@ -14,7 +14,6 @@ module PT = ProgramTypes
 
 //     let fromRT (p : RT.FQTypeName.Package) : PT.FQTypeName.Package = p
 
-
 //   let toRT (fqtn : PT.FQTypeName.FQTypeName) : RT.FQTypeName.FQTypeName =
 //     match fqtn with
 //     | PT.FQTypeName.Package p -> RT.FQTypeName.Package(Package.toRT p)
@@ -36,7 +35,6 @@ module PT = ProgramTypes
 //     let toRT (c : PT.FQConstantName.Package) : RT.FQConstantName.Package = c
 
 //     let fromRT (c : RT.FQConstantName.Package) : PT.FQConstantName.Package = c
-
 
 //   let toRT
 //     (name : PT.FQConstantName.FQConstantName)
@@ -96,8 +94,8 @@ module TypeReference =
     | PT.TString -> RT.TString
 
     | PT.TList inner -> RT.TList(toRT inner)
-    // | PT.TTuple(first, second, theRest) ->
-    //   RT.TTuple(toRT first, toRT second, theRest |> List.map toRT)
+    | PT.TTuple(first, second, theRest) ->
+      RT.TTuple(toRT first, toRT second, theRest |> List.map toRT)
     | PT.TDict typ -> RT.TDict(toRT typ)
 
     | PT.TDateTime -> RT.TDateTime
@@ -269,10 +267,30 @@ module Expr =
 
       (regCounter, instrs, dictReg)
 
-    // | PT.ETuple(_id, first, second, theRest) ->
-    //   let tupleReg = rc
-    //   //TODO handle VT
-    //   let init = (rc + 1, [ RT.LoadVal(tupleReg, RT.DTuple(VT.unknown, VT.unknown, [])) ])
+    | PT.ETuple(_id, first, second, theRest) ->
+      // save the 'first' register for the result
+      let tupleReg, rc = rc, rc + 1
+
+      let (rcAfterFirst, firstInstrs, firstReg) = toRT rc first
+      let (rcAfterSecond, secondInstrs, secondReg) = toRT rcAfterFirst second
+      let (rcAfterAll, _rcsAfterTheRest, theRestInstrs, theRestRegs) =
+        theRest
+        |> List.fold
+          (fun (rc, rcs, instrs, resultRegs) item ->
+            let (rcAfterItem, itemInstrs, itemResultReg) = toRT rc item
+            (rcAfterItem,
+             rcs @ [ rcAfterItem ],
+             instrs @ itemInstrs,
+             resultRegs @ [ itemResultReg ]))
+          (rcAfterSecond, [], [], [])
+
+      let instrs =
+        firstInstrs
+        @ secondInstrs
+        @ theRestInstrs
+        @ [ RT.CreateTuple(tupleReg, firstReg, secondReg, theRestRegs) ]
+
+      (rcAfterAll, instrs, tupleReg)
 
 
     // let x = 1
@@ -385,36 +403,6 @@ module Expr =
 
 // let rec toRT (e : PT.Expr) : RT.Instructions =
 //   match e with
-//   | PT.EUnit id ->
-//     //RT.EUnit id
-//     [ RT.LoadVar(id, RT.DUnit) ]
-
-//   | PT.EBool(id, b) ->
-//     //RT.EBool(id, b)
-//     [ RT.LoadVar(id, RT.DBool b) ]
-
-//   // | PT.EInt8(id, num) -> RT.EInt8(id, num)
-//   // | PT.EUInt8(id, num) -> RT.EUInt8(id, num)
-//   // | PT.EInt16(id, num) -> RT.EInt16(id, num)
-//   // | PT.EUInt16(id, num) -> RT.EUInt16(id, num)
-//   // | PT.EInt32(id, num) -> RT.EInt32(id, num)
-//   // | PT.EUInt32(id, num) -> RT.EUInt32(id, num)
-//   | PT.EInt64(id, num) ->
-//     //RT.EInt64(id, num)
-//     [ RT.LoadVar(id, RT.DInt64 num) ]
-//   // | PT.EUInt64(id, num) -> RT.EUInt64(id, num)
-//   // | PT.EInt128(id, num) -> RT.EInt128(id, num)
-//   // | PT.EUInt128(id, num) -> RT.EUInt128(id, num)
-
-//   // | PT.EFloat(id, sign, whole, fraction) ->
-//   //   let whole = if whole = "" then "0" else whole
-//   //   let fraction = if fraction = "" then "0" else fraction
-//   //   RT.EFloat(id, makeFloat sign whole fraction)
-
-//   // | PT.EChar(id, char) -> RT.EChar(id, char)
-//   //| PT.EString(id, segments) -> RT.EString(id, List.map stringSegmentToRT segments)
-
-
 //   // | PT.EConstant(id, Ok name) -> RT.EConstant(id, FQConstantName.toRT name)
 //   // | PT.EConstant(id, Error err) ->
 //   //   RT.EError(id, NameResolutionError.RTE.toRuntimeError err, [])
@@ -457,17 +445,6 @@ module Expr =
 
 //   // | PT.ELambda(id, pats, body) ->
 //   //   RT.ELambda(id, NEList.map LetPattern.toRT pats, toRT body)
-
-//   // | PT.ELet(id, pattern, rhs, body) ->
-//   //   RT.ELet(id, LetPattern.toRT pattern, toRT rhs, toRT body)
-
-//   // | PT.EIf(id, cond, thenExpr, elseExpr) ->
-//   //   RT.EIf(id, toRT cond, toRT thenExpr, elseExpr |> Option.map toRT)
-
-//   // | PT.EList(id, exprs) -> RT.EList(id, List.map toRT exprs)
-
-//   // | PT.ETuple(id, first, second, theRest) ->
-//   //   RT.ETuple(id, toRT first, toRT second, List.map toRT theRest)
 
 //   // | PT.ERecord(id, Ok typeName, fields) ->
 //   //   match fields with
@@ -580,12 +557,6 @@ module Expr =
 
 //   // | PT.EDict(id, entries) ->
 //   //   RT.EDict(id, entries |> List.map (Tuple2.mapSecond toRT))
-
-
-// and stringSegmentToRT (segment : PT.StringSegment) : RT.StringSegment =
-//   match segment with
-//   | PT.StringText text -> RT.StringText text
-//   | PT.StringInterpolation expr -> RT.StringInterpolation(toRT expr)
 
 
 // module Const =

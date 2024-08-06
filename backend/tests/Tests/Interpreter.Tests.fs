@@ -111,6 +111,39 @@ let ifElseMissing =
     return Expect.equal actual expected ""
   }
 
+let tuple2 =
+  testTask "(false, true)" {
+    let! actual = eval E.tuple2 |> Ply.toTask
+    let expected = RT.DTuple(RT.DBool false, RT.DBool true, [])
+    return Expect.equal actual expected ""
+  }
+
+let tuple3 =
+  testTask "(false, true, false)" {
+    let! actual = eval E.tuple3 |> Ply.toTask
+    let expected = RT.DTuple(RT.DBool false, RT.DBool true, [ RT.DBool false ])
+    return Expect.equal actual expected ""
+  }
+
+let tupleNested =
+  testTask "((false, true), true, (true, false)))" {
+    let! actual = eval E.tupleNested |> Ply.toTask
+    let expected =
+      RT.DTuple(
+        RT.DTuple(RT.DBool false, RT.DBool true, []),
+        RT.DBool true,
+        [ RT.DTuple(RT.DBool true, RT.DBool false, []) ]
+      )
+    return Expect.equal actual expected ""
+  }
+
+// let TODO =
+//   testTask "TODO" {
+//     let! actual = eval E.TODO |> Ply.toTask
+//     let expected = RT.DUnit
+//     return Expect.equal actual expected ""
+//   }
+
 
 let tests =
   testList
@@ -125,4 +158,7 @@ let tests =
       dictDupeKey
       ifGotoThenBranch
       ifGotoElseBranch
-      ifElseMissing ]
+      ifElseMissing
+      tuple2
+      tuple3
+      tupleNested ]

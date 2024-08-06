@@ -207,7 +207,7 @@ type TypeReference =
   | TDateTime
 
   | TList of TypeReference
-  // | TTuple of TypeReference * TypeReference * List<TypeReference>
+  | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TDict of TypeReference
 
 //| TFn of arguments : NEList<TypeReference> * ret : TypeReference
@@ -294,7 +294,7 @@ type Expr =
   // -- Basic structures --
   | EList of id * List<Expr>
   | EDict of id * List<string * Expr>
-  // | ETuple of id * Expr * Expr * List<Expr>
+  | ETuple of id * Expr * Expr * List<Expr>
 
 
   // -- "Applying" args to things, such as fns and lambdas --
@@ -399,7 +399,7 @@ module Expr =
     | EApply(id, _, _, _)
     | EList(id, _)
     | EDict(id, _)
-    // | ETuple(id, _, _, _)
+    | ETuple(id, _, _, _)
     // | EPipe(id, _, _)
     // | ERecord(id, _, _)
     // | ERecordUpdate(id, _, _)
