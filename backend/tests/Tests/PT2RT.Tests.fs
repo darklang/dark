@@ -72,6 +72,23 @@ module Expressions =
         "t", PT.EBool(gid (), false) ]
     )
 
+  let ifGotoThenBranch : PT.Expr =
+    PT.EIf(
+      gid (),
+      PT.EBool(gid (), true),
+      PT.EInt64(gid (), 1),
+      Some(PT.EInt64(gid (), 2))
+    )
+  let ifGotoElseBranch : PT.Expr =
+    PT.EIf(
+      gid (),
+      PT.EBool(gid (), false),
+      PT.EInt64(gid (), 1),
+      Some(PT.EInt64(gid (), 2))
+    )
+  let ifElseMissing : PT.Expr =
+    PT.EIf(gid (), PT.EBool(gid (), false), PT.EInt64(gid (), 1), None)
+
 module E = Expressions
 
 
@@ -257,6 +274,68 @@ let dictDupeKey =
     return Expect.equal actual expected ""
   }
 
+let ifGotoThenBranch =
+  testTask "if true then 1 else 2" {
+    let actual = PT2RT.Expr.toRT 0 E.ifGotoThenBranch
+
+    let expected =
+      (4,
+       [ // cond
+         RT.LoadVal(1, RT.DBool true)
+         RT.JumpByIfFalse(3, 1)
+
+         // then
+         RT.LoadVal(2, RT.DInt64 1L)
+         RT.CopyVal(0, 2)
+         RT.JumpBy 2
+
+         // else
+         RT.LoadVal(3, RT.DInt64 2L)
+         RT.CopyVal(0, 3) ],
+       0)
+
+    return Expect.equal actual expected ""
+  }
+
+let ifGotoElseBranch =
+  testTask "if false then 1 else 2" {
+    let actual = PT2RT.Expr.toRT 0 E.ifGotoElseBranch
+
+    let expected =
+      (4,
+       [ // cond
+         RT.LoadVal(1, RT.DBool false)
+         RT.JumpByIfFalse(3, 1)
+
+         // then
+         RT.LoadVal(2, RT.DInt64 1L)
+         RT.CopyVal(0, 2)
+         RT.JumpBy 2
+
+         // else
+         RT.LoadVal(3, RT.DInt64 2L)
+         RT.CopyVal(0, 3) ],
+       0)
+
+    return Expect.equal actual expected ""
+  }
+
+let ifElseMissing =
+  testTask "if false then 1" {
+    let actual = PT2RT.Expr.toRT 0 E.ifElseMissing
+
+    let expected =
+      (3,
+       [ RT.LoadVal(0, RT.DUnit)
+         RT.LoadVal(1, RT.DBool false)
+         RT.JumpByIfFalse(2, 1)
+         RT.LoadVal(2, RT.DInt64 1L)
+         RT.CopyVal(0, 2) ],
+       0)
+
+    return Expect.equal actual expected ""
+  }
+
 
 let tests =
   testList
@@ -271,4 +350,7 @@ let tests =
       dictEmpty
       dictSimple
       dictMultEntries
-      dictDupeKey ]
+      dictDupeKey
+      ifGotoThenBranch
+      ifGotoElseBranch
+      ifElseMissing ]

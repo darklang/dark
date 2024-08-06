@@ -1,39 +1,36 @@
 /// Collection of helpful "shortcut" functions to create Dark values quickly
-module TestUtils.RTShortcuts
+module TestUtils.PTShortcuts
 
 open Prelude
-open LibExecution.RuntimeTypes
+open LibExecution.ProgramTypes
 
-module PT = LibExecution.ProgramTypes
-module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+let eUnit () : Expr = EUnit(gid ())
 
-// let eUnit () : Expr = EUnit(gid ())
+let eBool (b : bool) : Expr = EBool(gid (), b)
 
-// let eBool (b : bool) : Expr = EBool(gid (), b)
+let eInt8 (i : int8) : Expr = EInt8(gid (), i)
+let euInt8 (i : uint8) : Expr = EUInt8(gid (), i)
+let eInt16 (i : int16) : Expr = EInt16(gid (), i)
+let euInt16 (i : uint16) : Expr = EUInt16(gid (), i)
+let eInt32 (i : int32) : Expr = EInt32(gid (), i)
+let euInt32 (i : uint32) : Expr = EUInt32(gid (), i)
+let eInt64 (i : int64) : Expr = EInt64(gid (), i)
+let euInt64 (i : uint64) : Expr = EUInt64(gid (), i)
+let eInt128 (i : System.Int128) : Expr = EInt128(gid (), i)
+let euInt128 (i : System.UInt128) : Expr = EUInt128(gid (), i)
 
-// let eInt8 (i : int8) : Expr = EInt8(gid (), i)
-// let euInt8 (i : uint8) : Expr = EUInt8(gid (), i)
-// let eInt16 (i : int16) : Expr = EInt16(gid (), i)
-// let euInt16 (i : uint16) : Expr = EUInt16(gid (), i)
-// let eInt32 (i : int32) : Expr = EInt32(gid (), i)
-// let euInt32 (i : uint32) : Expr = EUInt32(gid (), i)
-// let eInt64 (i : int64) : Expr = EInt64(gid (), i)
-// let euInt64 (i : uint64) : Expr = EUInt64(gid (), i)
-// let eInt128 (i : System.Int128) : Expr = EInt128(gid (), i)
-// let euInt128 (i : System.UInt128) : Expr = EUInt128(gid (), i)
+let eFloat (sign : Sign) (whole : string) (fraction : string) : Expr =
+  EFloat(gid (), sign, whole, fraction)
 
-// let eFloat (sign : Sign) (whole : string) (fraction : string) : Expr =
-//   EFloat(gid (), makeFloat sign whole fraction)
-
-//let eChar (c : string) : Expr = EChar(gid (), c)
-// let eStr (str : string) : Expr = EString(gid (), [ StringText str ])
+let eChar (c : string) : Expr = EChar(gid (), c)
+let eStr (str : string) : Expr = EString(gid (), [ StringText str ])
 
 
 
 
-// let eList (elems : Expr list) : Expr = EList(gid (), elems)
+let eList (elems : Expr list) : Expr = EList(gid (), elems)
 
-// let eVar (name : string) : Expr = EVariable(gid (), name)
+let eVar (name : string) : Expr = EVariable(gid (), name)
 
 // let eFieldAccess (expr : Expr) (fieldName : string) : Expr =
 //   EFieldAccess(gid (), expr, fieldName)
@@ -74,13 +71,13 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 //   eFn' function_ version typeArgs args
 
 
-// let eApply
-//   (target : Expr)
-//   (typeArgs : List<TypeReference>)
-//   (args : List<Expr>)
-//   : Expr =
-//   let args = NEList.ofListUnsafe "eApply" [] args
-//   EApply(gid (), target, typeArgs, args)
+let eApply
+  (target : Expr)
+  (typeArgs : List<TypeReference>)
+  (args : List<Expr>)
+  : Expr =
+  let args = NEList.ofListUnsafe "eApply" [] args
+  EApply(gid (), target, typeArgs, args)
 
 // let eTuple (first : Expr) (second : Expr) (theRest : Expr list) : Expr =
 //   ETuple(gid (), first, second, theRest)

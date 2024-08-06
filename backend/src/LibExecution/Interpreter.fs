@@ -102,6 +102,23 @@ let rec execute
           return! execute state vmState instructions resultReg (counter + 1)
         | _, _ -> return DString "Error: Invalid string-append attempt"
 
+
+      | JumpByIfFalse(jumpBy, condReg) ->
+        match vmState.registers[condReg] with
+        | DBool false ->
+          return! execute state vmState instructions resultReg (counter + jumpBy + 1)
+        | DBool true ->
+          return! execute state vmState instructions resultReg (counter + 1)
+        | _ -> return DString "Error: Jump condition must be a boolean"
+
+      | JumpBy jumpBy ->
+        return! execute state vmState instructions resultReg (counter + jumpBy + 1)
+
+      | CopyVal(copyTo, copyFrom) ->
+        vmState.registers[copyTo] <- vmState.registers[copyFrom]
+        return! execute state vmState instructions resultReg (counter + 1)
+
+
       | Fail _rte -> return DUnit // TODO
   }
 

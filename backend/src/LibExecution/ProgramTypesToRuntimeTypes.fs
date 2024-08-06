@@ -98,7 +98,7 @@ module TypeReference =
     | PT.TList inner -> RT.TList(toRT inner)
     // | PT.TTuple(first, second, theRest) ->
     //   RT.TTuple(toRT first, toRT second, theRest |> List.map toRT)
-    // | PT.TDict typ -> RT.TDict(toRT typ)
+    | PT.TDict typ -> RT.TDict(toRT typ)
 
     | PT.TDateTime -> RT.TDateTime
     | PT.TUuid -> RT.TUuid
@@ -288,7 +288,57 @@ module Expr =
       (rc + 1, [ RT.GetVar(reg, varName) ], reg)
 
 
+    | PT.EIf(_id, cond, thenExpr, elseExpr) ->
+      // We need a consistent result register,
+      // so we'll create this, and copy to it at the end of each branch
+      let resultReg, rc = rc, rc + 1
 
+      let (rcAfterCond, condInstrs, condReg) = toRT rc cond
+      let jumpIfCondFalse jumpBy = [ RT.JumpByIfFalse(jumpBy, condReg) ]
+      let rcAfterCondJump = rcAfterCond // + 1 // to compensate for the jump instruction
+
+      let (rcAfterThen, thenInstrs, thenResultReg) = toRT rcAfterCondJump thenExpr
+      let copyThenToResultInstr = [ RT.CopyVal(resultReg, thenResultReg) ]
+
+      match elseExpr with
+      | None ->
+        let instrs =
+          [ RT.LoadVal(resultReg, RT.DUnit) ] // if `cond` is `false`, the (default) result should probably be Unit
+          @ condInstrs
+          @ jumpIfCondFalse (
+            // goto the first instruction past the `if`
+            // (the 1 is for the copy instruction)
+            List.length thenInstrs + 1
+          )
+          @ thenInstrs
+          @ copyThenToResultInstr
+
+        (rcAfterThen, instrs, resultReg)
+
+      | Some elseExpr ->
+        let (rcAfterElse, elseInstrs, elseResultReg) = toRT rcAfterThen elseExpr
+        let copyToResultInstr = [ RT.CopyVal(resultReg, elseResultReg) ]
+
+        let instrs =
+          // cond -- if cond `false`, jump to start of 'else' block
+          condInstrs
+          @ jumpIfCondFalse (
+            // goto the first instruction past the `if`
+            // (first 1 is for the copy instruction)
+            // (second 1 is for the jump instruction)
+            List.length thenInstrs + 1 + 1
+          )
+
+          // then
+          @ thenInstrs
+          @ copyThenToResultInstr
+          @ [ RT.JumpBy(List.length elseInstrs + 1) ]
+
+          // else
+          @ elseInstrs
+          @ copyToResultInstr
+
+        (rcAfterElse, instrs, resultReg)
 
 
     | PT.EFnName(_, Ok name) ->

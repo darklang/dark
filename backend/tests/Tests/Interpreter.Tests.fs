@@ -91,6 +91,27 @@ let dictDupeKey =
   }
 
 
+let ifGotoThenBranch =
+  testTask "if true then 1 else 2" {
+    let! actual = eval E.ifGotoThenBranch |> Ply.toTask
+    let expected = RT.DInt64 1L
+    return Expect.equal actual expected ""
+  }
+
+let ifGotoElseBranch =
+  testTask "if false then 1 else 2" {
+    let! actual = eval E.ifGotoElseBranch |> Ply.toTask
+    let expected = RT.DInt64 2L
+    return Expect.equal actual expected ""
+  }
+let ifElseMissing =
+  testTask "if false then 1" {
+    let! actual = eval E.ifElseMissing |> Ply.toTask
+    let expected = RT.DUnit
+    return Expect.equal actual expected ""
+  }
+
+
 let tests =
   testList
     "Interpreter"
@@ -101,4 +122,7 @@ let tests =
       dictEmpty
       dictSimple
       dictMultEntries
-      dictDupeKey ]
+      dictDupeKey
+      ifGotoThenBranch
+      ifGotoElseBranch
+      ifElseMissing ]

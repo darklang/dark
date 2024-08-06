@@ -207,8 +207,8 @@ type TypeReference =
   | TDateTime
 
   | TList of TypeReference
-// | TTuple of TypeReference * TypeReference * List<TypeReference>
-// | TDict of TypeReference
+  // | TTuple of TypeReference * TypeReference * List<TypeReference>
+  | TDict of TypeReference
 
 //| TFn of arguments : NEList<TypeReference> * ret : TypeReference
 
@@ -253,9 +253,9 @@ type Expr =
   | EString of id * List<StringSegment>
 
 
-  // // -- Flow control --
-  // /// `if cond then thenExpr else elseExpr`
-  // | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
+  // -- Flow control --
+  /// `if cond then thenExpr else elseExpr`
+  | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
 
   // /// `(1 + 2) |> fnName |> (+) 3`
   // | EPipe of id * Expr * List<PipeExpr>
@@ -390,7 +390,7 @@ module Expr =
     | EFloat(id, _, _, _)
     // | EConstant(id, _)
     | ELet(id, _, _, _)
-    // | EIf(id, _, _, _)
+    | EIf(id, _, _, _)
     //| EInfix(id, _, _, _)
     // | ELambda(id, _, _)
     | EFnName(id, _)

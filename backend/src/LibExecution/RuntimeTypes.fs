@@ -427,6 +427,10 @@ module ValueType =
 // ------------
 // Instructions ("bytecode")
 // ------------
+
+[<Measure>]
+type register
+
 type NameResolution<'a> = Result<'a, RuntimeError>
 
 and TypeReference =
@@ -495,7 +499,7 @@ and TypeReference =
 
     isConcrete this
 
-and Register = int // TODO: unit of measure
+and Register = int //<register> // TODO: unit of measure
 
 // TODO: consider if each of these should include the Expr ID that they came from
 //
@@ -532,6 +536,14 @@ and Instruction =
   /// Note: dicts are _created_ with `LoadVal`
   /// (always an empty dict of unknown type, to ensure type safety)
   | AddDictEntry of dictRegister : Register * key : string * entryToAdd : Register
+
+  | CopyVal of copyTo : Register * copyFrom : Register
+
+  /// Go n instructions forward, if the value in the register is false
+  | JumpByIfFalse of instrsToJump : int * conditionReg : Register
+
+  /// Go n instructions forward, unconditionally
+  | JumpBy of instrsToJump : int
 
 
   /// Apply some args (and maybe type args) to something
