@@ -318,7 +318,7 @@ module.exports = grammar({
     //
     // match pattern - list cons
     mp_list_cons: $ =>
-      prec.left(
+      prec.right(
         seq(
           field("head", $.match_pattern),
           field("symbol_double_colon", alias("::", $.symbol)),
@@ -1132,9 +1132,12 @@ function dict_literal_base($, contentRule) {
   );
 }
 function dict_content_base($, dict_pair) {
-  return seq(
-    dict_pair,
-    repeat(seq(field("dict_separator", alias(";", $.symbol)), dict_pair)),
+  return choice(
+    seq(
+      dict_pair,
+      repeat(seq(field("dict_separator", alias(";", $.symbol)), dict_pair)),
+    ),
+    seq(dict_pair, repeat(seq($.newline, dict_pair)), optional($.newline)),
   );
 }
 function dict_pair_base($, value) {

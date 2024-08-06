@@ -357,36 +357,41 @@ match [ 1L; 2L; 3L ] with
     (match_expression
       (keyword)
       (expression
-        (simple_expression (list_literal
-          (symbol)
-          (list_content
-            (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+        (simple_expression
+          (list_literal
             (symbol)
-            (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+            (list_content
+              (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+              (symbol)
+              (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+              (symbol)
+              (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+            )
             (symbol)
-            (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
           )
-          (symbol)
-        ))
+        )
       )
       (keyword)
       (match_case
         (symbol)
         (match_pattern
           (list_cons
+            (match_pattern (int64 (digits (positive_digits)) (symbol)))
+            (symbol)
             (match_pattern
               (list_cons
                 (match_pattern (int64 (digits (positive_digits)) (symbol)))
                 (symbol)
-                (match_pattern (int64 (digits (positive_digits)) (symbol)))
+                (match_pattern
+                  (list
+                    (symbol)
+                    (mp_list_content
+                      (match_pattern (int64 (digits (positive_digits)) (symbol)))
+                    )
+                    (symbol)
+                  )
+                )
               )
-            )
-            (symbol)
-            (match_pattern
-              (list
-                (symbol)
-                (mp_list_content (match_pattern (int64 (digits (positive_digits)) (symbol))))
-                (symbol))
             )
           )
         )

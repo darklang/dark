@@ -251,6 +251,10 @@
         {
           "type": "const_dict_pair",
           "named": true
+        },
+        {
+          "type": "newline",
+          "named": true
         }
       ]
     }
@@ -768,6 +772,10 @@
       "types": [
         {
           "type": "dict_pair",
+          "named": true
+        },
+        {
+          "type": "newline",
           "named": true
         }
       ]

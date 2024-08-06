@@ -143,3 +143,43 @@ Dict { ``Content-Length`` = 1L }
     )
   )
 )
+
+
+==================
+dict - multiple pairs indented
+==================
+
+Dict
+  { key1 = "val1"
+    key2 = "val1" }
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (dict_literal
+        (keyword)
+        (symbol)
+        (dict_content
+          (dict_pair
+            (variable_identifier)
+            (symbol)
+            (expression
+              (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))
+            )
+          )
+          (newline)
+          (dict_pair
+            (variable_identifier)
+            (symbol)
+            (expression
+              (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))
+            )
+          )
+        )
+        (symbol)
+      )
+    )
+  )
+)

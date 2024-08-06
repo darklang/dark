@@ -666,36 +666,78 @@
       ]
     },
     "const_dict_content": {
-      "type": "SEQ",
+      "type": "CHOICE",
       "members": [
         {
-          "type": "SYMBOL",
-          "name": "const_dict_pair"
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "const_dict_pair"
+            },
+            {
+              "type": "REPEAT",
+              "content": {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "FIELD",
+                    "name": "dict_separator",
+                    "content": {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "STRING",
+                        "value": ";"
+                      },
+                      "named": true,
+                      "value": "symbol"
+                    }
+                  },
+                  {
+                    "type": "SYMBOL",
+                    "name": "const_dict_pair"
+                  }
+                ]
+              }
+            }
+          ]
         },
         {
-          "type": "REPEAT",
-          "content": {
-            "type": "SEQ",
-            "members": [
-              {
-                "type": "FIELD",
-                "name": "dict_separator",
-                "content": {
-                  "type": "ALIAS",
-                  "content": {
-                    "type": "STRING",
-                    "value": ";"
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "const_dict_pair"
+            },
+            {
+              "type": "REPEAT",
+              "content": {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "SYMBOL",
+                    "name": "newline"
                   },
-                  "named": true,
-                  "value": "symbol"
-                }
-              },
-              {
-                "type": "SYMBOL",
-                "name": "const_dict_pair"
+                  {
+                    "type": "SYMBOL",
+                    "name": "const_dict_pair"
+                  }
+                ]
               }
-            ]
-          }
+            },
+            {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "newline"
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
+            }
+          ]
         }
       ]
     },
@@ -1928,7 +1970,7 @@
       ]
     },
     "mp_list_cons": {
-      "type": "PREC_LEFT",
+      "type": "PREC_RIGHT",
       "value": 0,
       "content": {
         "type": "SEQ",
@@ -3526,36 +3568,78 @@
       ]
     },
     "dict_content": {
-      "type": "SEQ",
+      "type": "CHOICE",
       "members": [
         {
-          "type": "SYMBOL",
-          "name": "dict_pair"
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "dict_pair"
+            },
+            {
+              "type": "REPEAT",
+              "content": {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "FIELD",
+                    "name": "dict_separator",
+                    "content": {
+                      "type": "ALIAS",
+                      "content": {
+                        "type": "STRING",
+                        "value": ";"
+                      },
+                      "named": true,
+                      "value": "symbol"
+                    }
+                  },
+                  {
+                    "type": "SYMBOL",
+                    "name": "dict_pair"
+                  }
+                ]
+              }
+            }
+          ]
         },
         {
-          "type": "REPEAT",
-          "content": {
-            "type": "SEQ",
-            "members": [
-              {
-                "type": "FIELD",
-                "name": "dict_separator",
-                "content": {
-                  "type": "ALIAS",
-                  "content": {
-                    "type": "STRING",
-                    "value": ";"
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "dict_pair"
+            },
+            {
+              "type": "REPEAT",
+              "content": {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "SYMBOL",
+                    "name": "newline"
                   },
-                  "named": true,
-                  "value": "symbol"
-                }
-              },
-              {
-                "type": "SYMBOL",
-                "name": "dict_pair"
+                  {
+                    "type": "SYMBOL",
+                    "name": "dict_pair"
+                  }
+                ]
               }
-            ]
-          }
+            },
+            {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "newline"
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
+            }
+          ]
         }
       ]
     },
