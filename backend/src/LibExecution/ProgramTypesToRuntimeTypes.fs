@@ -295,9 +295,8 @@ module Expr =
 
       let (rcAfterCond, condInstrs, condReg) = toRT rc cond
       let jumpIfCondFalse jumpBy = [ RT.JumpByIfFalse(jumpBy, condReg) ]
-      let rcAfterCondJump = rcAfterCond // + 1 // to compensate for the jump instruction
 
-      let (rcAfterThen, thenInstrs, thenResultReg) = toRT rcAfterCondJump thenExpr
+      let (rcAfterThen, thenInstrs, thenResultReg) = toRT rcAfterCond thenExpr
       let copyThenToResultInstr = [ RT.CopyVal(resultReg, thenResultReg) ]
 
       match elseExpr with
