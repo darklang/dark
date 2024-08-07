@@ -435,10 +435,18 @@ module.exports = grammar({
     // Strings
     // TODO: maybe add support for multiline strings (""")
     string_literal: $ =>
-      seq(
-        field("symbol_open_quote", alias('"', $.symbol)),
-        optional(field("content", $.string_content)),
-        field("symbol_close_quote", alias('"', $.symbol)),
+      choice(
+        seq(
+          field("symbol_open_quote", alias('"', $.symbol)),
+          optional(field("content", $.string_content)),
+          field("symbol_close_quote", alias('"', $.symbol)),
+        ),
+        // multiline strings
+        seq(
+          field("symbol_open_quote", alias('"""', $.symbol)),
+          optional(field("content", $.multiline_string_content)),
+          field("symbol_close_quote", alias('"""', $.symbol)),
+        ),
       ),
 
     string_content: $ =>
@@ -450,15 +458,40 @@ module.exports = grammar({
         ),
       ),
 
+    multiline_string_content: $ =>
+      repeat1(
+        choice(
+          token.immediate(prec(1, /[^\\"]+/)),
+          $.char_or_string_escape_sequence,
+        ),
+      ),
+
     // $"hello {name}
     string_interpolation: $ =>
-      seq(
-        field("symbol_dollar_sign", alias("$", $.symbol)),
-        field("symbol_open_quote", alias('"', $.symbol)),
-        optional(
-          field("string_interpolation_content", $.string_interpolation_content),
+      choice(
+        seq(
+          field("symbol_dollar_sign", alias("$", $.symbol)),
+          field("symbol_open_quote", alias('"', $.symbol)),
+          optional(
+            field(
+              "string_interpolation_content",
+              $.string_interpolation_content,
+            ),
+          ),
+          field("symbol_close_quote", alias('"', $.symbol)),
         ),
-        field("symbol_close_quote", alias('"', $.symbol)),
+        // multiline strings
+        seq(
+          field("symbol_dollar_sign", alias("$", $.symbol)),
+          field("symbol_open_quote", alias('"""', $.symbol)),
+          optional(
+            field(
+              "string_interpolation_content",
+              $.string_interpolation_content,
+            ),
+          ),
+          field("symbol_close_quote", alias('"""', $.symbol)),
+        ),
       ),
 
     string_interpolation_content: $ =>

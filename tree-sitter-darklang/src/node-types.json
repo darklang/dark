@@ -2601,6 +2601,21 @@
     }
   },
   {
+    "type": "multiline_string_content",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "char_or_string_escape_sequence",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "newline",
     "named": true,
     "fields": {}
@@ -3417,6 +3432,10 @@
         "required": false,
         "types": [
           {
+            "type": "multiline_string_content",
+            "named": true
+          },
+          {
             "type": "string_content",
             "named": true
           }
@@ -3532,6 +3551,10 @@
         "multiple": false,
         "required": false,
         "types": [
+          {
+            "type": "multiline_string_content",
+            "named": true
+          },
           {
             "type": "string_content",
             "named": true
