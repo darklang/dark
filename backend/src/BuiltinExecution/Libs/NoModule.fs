@@ -136,7 +136,8 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
     NEList.length pats1 = NEList.length pats2
     && NEList.forall2 (fun p1 p2 -> equalsLetPattern p1 p2) pats1 pats2
     && equalsExpr body1 body2
-  | EFieldAccess(_, target1, fieldName1), EFieldAccess(_, target2, fieldName2) ->
+  | ERecordFieldAccess(_, target1, fieldName1),
+    ERecordFieldAccess(_, target2, fieldName2) ->
     equalsExpr target1 target2 && fieldName1 = fieldName2
   | EVariable(_, name1), EVariable(_, name2) -> name1 = name2
   | EApply(_, name1, typeArgs1, args1), EApply(_, name2, typeArgs2, args2) ->
@@ -218,7 +219,7 @@ and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
   | ELet _, _
   | EIf _, _
   | ELambda _, _
-  | EFieldAccess _, _
+  | ERecordFieldAccess _, _
   | EVariable _, _
   | EApply _, _
   | EFnName _, _

@@ -331,10 +331,10 @@ let rec inline'
         | None ->
           // the variable might be in the symtable, so put it back to fill in later
           Ply expr
-      | EFieldAccess(id, expr, fieldname) ->
+      | ERecordFieldAccess(id, expr, fieldname) ->
         uply {
           let! newexpr = inline' fns paramName symtable expr
-          return EFieldAccess(id, newexpr, fieldname)
+          return ERecordFieldAccess(id, newexpr, fieldname)
         }
       | expr -> Ply expr
 
@@ -693,7 +693,7 @@ let rec lambdaToSql
           return $"(@{name})", [ name, Sql.jsonb v ], typ
 
 
-        | EFieldAccess(_, subExpr, fieldName) ->
+        | ERecordFieldAccess(_, subExpr, fieldName) ->
           // This is the core part of the query compiler - being able to query fields
           // of the DB rows.
           //
@@ -723,7 +723,7 @@ let rec lambdaToSql
             : (Option<string> * NEList<string>) =
             match subExpr with
             | EVariable(_, v) -> (Some v, pathSoFar)
-            | EFieldAccess(_, subExpr, childFieldName) ->
+            | ERecordFieldAccess(_, subExpr, childFieldName) ->
               getPath (NEList.push childFieldName pathSoFar) subExpr
             | _ -> error $"Invalid field access pattern: {subExpr}"
 
@@ -953,9 +953,9 @@ let partiallyEvaluate
         // interpreter instead of in the DB. Anything immutable should be good,
         // including literals and variables with known values (so not `paramName`)
         match expr with
-        | EFieldAccess(_, EVariable(_, name), _) when name <> paramName ->
+        | ERecordFieldAccess(_, EVariable(_, name), _) when name <> paramName ->
           return! exec expr
-        | EFieldAccess(_, ERecord _, _) ->
+        | ERecordFieldAccess(_, ERecord _, _) ->
           // inlining can create these situations
           return! exec expr
         | EAnd(_, EBool _, EBool _)
@@ -1017,7 +1017,7 @@ let partiallyEvaluate
         | ELet _
         | EIf _
         | ELambda _
-        | EFieldAccess _
+        | ERecordFieldAccess _
         | EVariable _
         | EList _
         | ETuple _
@@ -1077,9 +1077,9 @@ let partiallyEvaluate
                   | None -> return None
                 }
               return EIf(id, cond, ifExpr, elseExpr)
-            | EFieldAccess(id, expr, fieldname) ->
+            | ERecordFieldAccess(id, expr, fieldname) ->
               let! expr = r expr
-              return EFieldAccess(id, expr, fieldname)
+              return ERecordFieldAccess(id, expr, fieldname)
             | ELambda(id, names, expr) ->
               let! expr = r expr
               return ELambda(id, names, expr)
@@ -1180,8 +1180,8 @@ let compileLambda
   : Ply<Result<CompileLambdaResult, RuntimeError>> =
   uply {
     try
-      let fns = ExecutionState.availableFunctions state
-      let types = ExecutionState.availableTypes state
+      let fns = ExecutionState.fns state
+      let types = ExecutionState.types state
       let constants = ExecutionState.availableConstants state
 
       let! symtable, body =

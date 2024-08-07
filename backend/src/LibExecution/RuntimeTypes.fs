@@ -564,11 +564,6 @@ and Instruction =
     typeArgs : List<TypeReference> *
     args : NEList<Register>
 
-
-  /// Return whatever's in the noted register
-  /// (usually relevant only for branching logic like `if`, `match`)
-  | Return of from : Register
-
   /// Fail if this is hit (basically "raise an exception")
   | Fail of RuntimeError
 
@@ -589,7 +584,7 @@ and InstructionsWithContext =
 //   // | EOr of id * lhs : Expr * rhs : Expr
 
 //   // // declaring and referencing vars
-//   // | EFieldAccess of id * Expr * string
+//   // | ERecordFieldAccess of id * Expr * string
 
 //   // calling fns and other things
 //   | EApply of id * Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
@@ -912,7 +907,7 @@ type Deprecation<'name> =
 
 //     // | EConstant(id, _)
 //     // | EVariable(id, _)
-//     // | EFieldAccess(id, _, _)
+//     // | ERecordFieldAccess(id, _, _)
 //     // | ELambda(id, _, _)
 //     // | ELet(id, _, _, _)
 //     // | EIf(id, _, _, _)
@@ -1405,8 +1400,9 @@ and Fn =
   }
 
 and BuiltInFnSig =
-  // state * typeArgs * fnArgs -> result
-  (ExecutionState * List<TypeReference> * List<Dval>) -> DvalTask
+  // exeState * vmState * typeArgs * fnArgs -> result
+  // CLEANUP this is sort of a _lot_ to pass into every builtin fn call - reduce?
+  (ExecutionState * VMState * List<TypeReference> * List<Dval>) -> DvalTask
 
 and FnImpl =
   | BuiltInFunction of BuiltInFnSig
@@ -1426,6 +1422,7 @@ and LoadFnResult = FunctionRecord -> NEList<Dval> -> Option<Dval * NodaTime.Inst
 and StoreFnResult = FunctionRecord -> NEList<Dval> -> Dval -> unit
 
 /// Every part of a user's program
+/// CLEANUP rename to 'app'?
 and Program =
   { canvasID : CanvasID
     internalFnsAllowed : bool
@@ -1512,7 +1509,6 @@ and Notifier = ExecutionState -> string -> Metadata -> unit
 /// All state used while running a program
 and ExecutionState =
   { // -- Set consistently across a runtime --
-    builtins : Builtins
     tracing : Tracing
     test : TestContext
 
@@ -1533,15 +1529,44 @@ and ExecutionState =
     // -- Can change over time during execution --
     // (probably move these things to VMState)
 
-    // Maybe replace this and `builtins` with availTypes, availConsts, availFns?
-    // We're doing some ExecutionState -> (those) mappings at runtime on occasion,
-    // probably a lot more than we need
-    packageManager : PackageManager
+    // // Maybe replace this and `builtins` with availTypes, availConsts, availFns?
+    // // We're doing some ExecutionState -> (those) mappings at runtime on occasion,
+    // // probably a lot more than we need
+    // packageManager : PackageManager
+    // builtins : Builtins
 
-    // Is anything actually referencing this right now?
-    symbolTable : Symtable
-    typeSymbolTable : TypeSymbolTable
+    types : Types
+    fns : Functions
+  //availableConstants: Constants
+
   }
+
+and Registers = Dval array
+
+and VMState =
+  { instructions : Instruction array
+    registers : Registers
+    resultReg : Register
+
+    symbolTable : Symtable
+    typeSymbolTable : TypeSymbolTable }
+
+  static member empty =
+    { instructions = Array.empty
+      registers = Array.empty
+      resultReg = 0
+
+      symbolTable = Map.empty
+      typeSymbolTable = Map.empty }
+
+  static member fromInstructions(instructions : InstructionsWithContext) : VMState =
+    let registersNeeded, instructions, resultReg = instructions
+    { instructions = List.toArray instructions
+      registers = Array.zeroCreate registersNeeded
+      resultReg = resultReg
+
+      symbolTable = Map.empty
+      typeSymbolTable = Map.empty }
 
 and Types =
   { typeSymbolTable : TypeSymbolTable
@@ -1558,18 +1583,18 @@ and Functions =
 
 
 
-module ExecutionState =
-  let availableTypes (state : ExecutionState) : Types =
-    { typeSymbolTable = state.typeSymbolTable
-    //package = state.packageManager.getType
-    }
+// module ExecutionState =
+//   let availableTypes (state : ExecutionState) : Types =
+//     { typeSymbolTable = state.typeSymbolTable
+//     //package = state.packageManager.getType
+//     }
 
-  // let availableConstants (state : ExecutionState) : Constants =
-  //   { builtIn = state.builtins.constants
-  //     package = state.packageManager.getConstant }
+// let availableConstants (state : ExecutionState) : Constants =
+//   { builtIn = state.builtins.constants
+//     package = state.packageManager.getConstant }
 
-  let availableFunctions (state : ExecutionState) : Functions =
-    { builtIn = state.builtins.fns; package = state.packageManager.getFn }
+// let availableFunctions (state : ExecutionState) : Functions =
+//   { builtIn = state.builtins.fns; package = state.packageManager.getFn }
 
 
 

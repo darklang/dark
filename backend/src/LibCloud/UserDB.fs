@@ -58,7 +58,7 @@ let rec set
   uply {
     let id = System.Guid.NewGuid()
 
-    let types = RT.ExecutionState.availableTypes state
+    let types = RT.ExecutionState.types state
     // CLEANUP: the caller should do this type check instead, but we haven't
     // implemented nested types in the DB yet
     let context = LibExecution.TypeChecker.DBSchemaType(db.name, db.typ)
@@ -103,7 +103,7 @@ and getOption
   (key : string)
   : Ply<Option<RT.Dval>> =
   uply {
-    let types = RT.ExecutionState.availableTypes state
+    let types = RT.ExecutionState.types state
 
     let! result =
       Sql.query
@@ -135,7 +135,7 @@ and getMany
   (keys : string list)
   : Ply<List<RT.Dval>> =
   uply {
-    let types = RT.ExecutionState.availableTypes state
+    let types = RT.ExecutionState.types state
 
     let! result =
       Sql.query
@@ -168,7 +168,7 @@ and getManyWithKeys
   (keys : string list)
   : Ply<List<string * RT.Dval>> =
   uply {
-    let types = RT.ExecutionState.availableTypes state
+    let types = RT.ExecutionState.types state
 
     let! result =
       Sql.query
@@ -200,7 +200,7 @@ and getManyWithKeys
 
 let getAll (state : RT.ExecutionState) (db : RT.DB.T) : Ply<List<string * RT.Dval>> =
   uply {
-    let types = RT.ExecutionState.availableTypes state
+    let types = RT.ExecutionState.types state
 
     let! result =
       Sql.query
@@ -271,7 +271,7 @@ let query
   (b : RT.LambdaImpl)
   : Ply<Result<List<string * RT.Dval>, RT.RuntimeError>> =
   uply {
-    let types = RT.ExecutionState.availableTypes state
+    let types = RT.ExecutionState.types state
     let! query = doQuery state db b "key, data"
 
     match query with
@@ -299,7 +299,7 @@ let queryValues
   (b : RT.LambdaImpl)
   : Ply<Result<List<RT.Dval>, RT.RuntimeError>> =
   uply {
-    let types = RT.ExecutionState.availableTypes state
+    let types = RT.ExecutionState.types state
     let! query = doQuery state db b "data"
 
     match query with

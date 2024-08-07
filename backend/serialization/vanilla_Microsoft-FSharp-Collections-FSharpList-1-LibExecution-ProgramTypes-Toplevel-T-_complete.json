@@ -483,7 +483,7 @@
                                                               ]
                                                             },
                                                             {
-                                                              "EFieldAccess": [
+                                                              "ERecordFieldAccess": [
                                                                 123,
                                                                 {
                                                                   "EVariable": [
@@ -1956,7 +1956,7 @@
                                                               ]
                                                             },
                                                             {
-                                                              "EFieldAccess": [
+                                                              "ERecordFieldAccess": [
                                                                 123,
                                                                 {
                                                                   "EVariable": [
@@ -3432,7 +3432,7 @@
                                                               ]
                                                             },
                                                             {
-                                                              "EFieldAccess": [
+                                                              "ERecordFieldAccess": [
                                                                 123,
                                                                 {
                                                                   "EVariable": [
@@ -4905,7 +4905,7 @@
                                                               ]
                                                             },
                                                             {
-                                                              "EFieldAccess": [
+                                                              "ERecordFieldAccess": [
                                                                 123,
                                                                 {
                                                                   "EVariable": [

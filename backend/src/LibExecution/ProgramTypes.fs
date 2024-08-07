@@ -287,8 +287,6 @@ type Expr =
   | EVariable of id * string
 
 
-  // // Access a field of some expression (e.g. `someExpr.fieldName`)
-  // | EFieldAccess of id * Expr * string
 
 
   // -- Basic structures --
@@ -317,19 +315,21 @@ type Expr =
 
 
 // // -- References to custom types and data --
-// | EConstant of
-//   id *
-//   // TODO: this reference should be by-hash
-//   NameResolution<FQConstantName.FQConstantName>
 
-// // See NameResolution comment above
+// /// Construct a record
+// /// `SomeRecord { field1: value; field2: value }`
 // | ERecord of
 //   id *
 //   // TODO: this reference should be by-hash
 //   typeName : NameResolution<FQTypeName.FQTypeName> *
 //   // User is allowed type `Name {}` even if that's an error
 //   fields : List<string * Expr>
+
 // | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
+
+// /// Access a field of some record (e.g. `someExpr.fieldName`)
+// | ERecordFieldAccess of id * record: Expr * fieldName: string
+
 
 // // Enums include `Some`, `None`, `Error`, `Ok`, as well
 // // as user-defined enums.
@@ -346,6 +346,11 @@ type Expr =
 //   typeName : NameResolution<FQTypeName.FQTypeName> *
 //   caseName : string *
 //   fields : List<Expr>
+
+// | EConstant of
+//   id *
+//   // TODO: this reference should be by-hash
+//   NameResolution<FQConstantName.FQConstantName>
 
 
 //and MatchCase = { pat : MatchPattern; whenCondition : Option<Expr>; rhs : Expr }
@@ -394,7 +399,7 @@ module Expr =
     //| EInfix(id, _, _, _)
     // | ELambda(id, _, _)
     | EFnName(id, _)
-    // | EFieldAccess(id, _, _)
+    // | ERecordFieldAccess(id, _, _)
     | EVariable(id, _)
     | EApply(id, _, _, _)
     | EList(id, _)

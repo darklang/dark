@@ -387,18 +387,16 @@ module Expr =
             (newRc, instrs @ newInstrs, argResultRegs @ [ argResultReg ]))
           init
 
-      let resultReg = regCounter
+      let putResultIn = regCounter
       let callInstr =
         RT.Apply(
-          resultReg,
+          putResultIn,
           thingToApplyReg,
           List.map TypeReference.toRT typeArgs,
           NEList.ofListUnsafe "" [] argRegs
         )
 
-      (resultReg + 1,
-       thingToApplyInstrs @ argInstrs @ [ callInstr; RT.Return resultReg ],
-       resultReg)
+      (regCounter + 1, thingToApplyInstrs @ argInstrs @ [ callInstr ], putResultIn)
 
 
 // let rec toRT (e : PT.Expr) : RT.Instructions =
@@ -409,7 +407,7 @@ module Expr =
 
 //   // | PT.EVariable(id, var) -> RT.EVariable(id, var)
 
-//   // | PT.EFieldAccess(id, obj, fieldname) -> RT.EFieldAccess(id, toRT obj, fieldname)
+//   // | PT.ERecordFieldAccess(id, obj, fieldname) -> RT.ERecordFieldAccess(id, toRT obj, fieldname)
 
 //   | PT.EApply(id, fnName, typeArgs, args) ->
 //     // RT.EApply(

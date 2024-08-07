@@ -635,7 +635,7 @@ module Expect =
   //   //     fields
   //   //     fields'
 
-  //   // | EFieldAccess(_, e, f), EFieldAccess(_, e', f') ->
+  //   // | ERecordFieldAccess(_, e, f), ERecordFieldAccess(_, e', f') ->
   //   //   eq (f :: path) e e'
   //   //   check path f f'
 
@@ -711,7 +711,7 @@ module Expect =
   //   // | ERecord _, _
   //   // | ERecordUpdate _, _
   //   // | EDict _, _
-  //   // | EFieldAccess _, _
+  //   // | ERecordFieldAccess _, _
   //   // | EEnum _, _
   //   // | ELambda _, _
   //   // | EMatch _, _

@@ -189,9 +189,9 @@ module Expr =
         match constant with
         | Ok _ as name -> return PT.EConstant(id, name)
         | Error _ -> return PT.EVariable(id, var)
-      | WT.EFieldAccess(id, obj, fieldname) ->
+      | WT.ERecordFieldAccess(id, obj, fieldname) ->
         let! obj = toPT obj
-        return PT.EFieldAccess(id, obj, fieldname)
+        return PT.ERecordFieldAccess(id, obj, fieldname)
       | WT.EApply(id, (WT.EFnName(_, name)), [], { head = WT.EPlaceHolder }) ->
         // There are no arguments, so this could be a function name or a constant
         let! fnName =

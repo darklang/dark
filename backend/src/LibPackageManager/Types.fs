@@ -187,7 +187,7 @@ module ProgramTypes =
       fields : List<Expr>
 
     | ELet of ID * LetPattern * Expr * Expr
-    | EFieldAccess of ID * Expr * string
+    | ERecordFieldAccess of ID * Expr * string
     | EVariable of ID * string
 
     | EIf of ID * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>

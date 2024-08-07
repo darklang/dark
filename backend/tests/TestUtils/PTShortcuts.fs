@@ -33,7 +33,7 @@ let eList (elems : Expr list) : Expr = EList(gid (), elems)
 let eVar (name : string) : Expr = EVariable(gid (), name)
 
 // let eFieldAccess (expr : Expr) (fieldName : string) : Expr =
-//   EFieldAccess(gid (), expr, fieldName)
+//   ERecordFieldAccess(gid (), expr, fieldName)
 
 // let eLambda (pats : List<LetPattern>) (body : Expr) : Expr =
 //   let pats = NEList.ofListUnsafe "eLambda" [] pats

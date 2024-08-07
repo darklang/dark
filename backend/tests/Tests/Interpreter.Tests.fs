@@ -13,12 +13,12 @@ module E = Tests.ProgramTypesToRuntimeTypes.Expressions
 
 let eval pt =
   uply {
-    let instructionsWithContext = PT2RT.Expr.toRT 0 pt
+    let vmState = PT2RT.Expr.toRT 0 pt |> RT.VMState.fromInstructions
 
     let! executionState =
       executionStateFor PT.PackageManager.empty (System.Guid.NewGuid()) false false
 
-    return! LibExecution.Interpreter.eval executionState instructionsWithContext
+    return! LibExecution.Interpreter.eval executionState vmState
   }
 
 

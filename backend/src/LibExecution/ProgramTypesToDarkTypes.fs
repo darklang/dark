@@ -673,8 +673,8 @@ module Expr =
       | PT.ELet(id, lp, expr, body) ->
         "ELet", [ DInt64(int64 id); LetPattern.toDT lp; toDT expr; toDT body ]
 
-      | PT.EFieldAccess(id, expr, fieldName) ->
-        "EFieldAccess", [ DInt64(int64 id); toDT expr; DString fieldName ]
+      | PT.ERecordFieldAccess(id, expr, fieldName) ->
+        "ERecordFieldAccess", [ DInt64(int64 id); toDT expr; DString fieldName ]
 
       | PT.EVariable(id, varName) ->
         "EVariable", [ DInt64(int64 id); DString varName ]
@@ -839,8 +839,8 @@ module Expr =
     | DEnum(_, _, [], "ELet", [ DInt64 id; lp; expr; body ]) ->
       PT.ELet(uint64 id, LetPattern.fromDT lp, fromDT expr, fromDT body)
 
-    | DEnum(_, _, [], "EFieldAccess", [ DInt64 id; expr; DString fieldName ]) ->
-      PT.EFieldAccess(uint64 id, fromDT expr, fieldName)
+    | DEnum(_, _, [], "ERecordFieldAccess", [ DInt64 id; expr; DString fieldName ]) ->
+      PT.ERecordFieldAccess(uint64 id, fromDT expr, fieldName)
 
     | DEnum(_, _, [], "EVariable", [ DInt64 id; DString varName ]) ->
       PT.EVariable(uint64 id, varName)

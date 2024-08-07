@@ -130,7 +130,7 @@ module RuntimeTypes =
         ),
         RT.EUnit(id)
       )
-      RT.EFieldAccess(id, RT.EUnit(id), "field")
+      RT.ERecordFieldAccess(id, RT.EUnit(id), "field")
       RT.EVariable(id, "var4")
       RT.EApply(id, RT.EUnit(id), typeReferences, NEList.singleton (RT.EUnit(id)))
       RT.EApply(
@@ -376,7 +376,7 @@ module ProgramTypes =
                             PT.EInfix(
                               id,
                               PT.InfixFnCall(PT.ArithmeticPlus),
-                              PT.EFieldAccess(id, PT.EVariable(id, "x"), "y"),
+                              PT.ERecordFieldAccess(id, PT.EVariable(id, "x"), "y"),
                               PT.EApply(
                                 id,
                                 PT.EFnName(

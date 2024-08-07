@@ -156,7 +156,7 @@ let fns : List<BuiltInFn> =
       description = "Adds two integers together"
       fn =
         (function
-        | _, _, [ DInt64 a; DInt64 b ] -> Ply(DInt64(a + b))
+        | _, _, _, [ DInt64 a; DInt64 b ] -> Ply(DInt64(a + b))
         | _ -> incorrectArgs ())
       //sqlSpec = SqlBinOp "+"
       previewable = Pure

@@ -238,7 +238,7 @@ type Expr =
   | ELet of id * LetPattern * Expr * Expr
   | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
   | ELambda of id * pats : NEList<LetPattern> * body : Expr
-  | EFieldAccess of id * Expr * string
+  | ERecordFieldAccess of id * Expr * string
   | EVariable of id * string
   | EApply of id * Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
   | EList of id * List<Expr>

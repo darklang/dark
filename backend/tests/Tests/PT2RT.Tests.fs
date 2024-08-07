@@ -135,8 +135,7 @@ let onePlusTwo =
          )
          RT.LoadVal(1, RT.DInt64 1L)
          RT.LoadVal(2, RT.DInt64 2L)
-         RT.Apply(3, 0, [], { head = 1; tail = [ 2 ] })
-         RT.Return(3) ],
+         RT.Apply(3, 0, [], { head = 1; tail = [ 2 ] }) ],
        3)
 
     return Expect.equal actual expected ""

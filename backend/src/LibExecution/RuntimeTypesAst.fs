@@ -109,7 +109,8 @@ let rec preTraversal
   | ELet(id, pat, rhs, next) -> ELet(id, preTraversalLetPattern pat, f rhs, f next)
   | EIf(id, cond, ifexpr, elseexpr) ->
     EIf(id, f cond, f ifexpr, Option.map f elseexpr)
-  | EFieldAccess(id, expr, fieldname) -> EFieldAccess(id, f expr, fieldname)
+  | ERecordFieldAccess(id, expr, fieldname) ->
+    ERecordFieldAccess(id, f expr, fieldname)
   | EApply(id, name, typeArgs, args) ->
     EApply(id, f name, List.map preTraversalTypeRef typeArgs, NEList.map f args)
   | EFnName(id, name) -> EFnName(id, fqfnFn name)
@@ -248,7 +249,8 @@ let rec postTraversal
    | ELet(id, pat, rhs, next) -> ELet(id, postTraversalLetPattern pat, f rhs, f next)
    | EIf(id, cond, ifexpr, elseexpr) ->
      EIf(id, f cond, f ifexpr, Option.map f elseexpr)
-   | EFieldAccess(id, expr, fieldname) -> EFieldAccess(id, f expr, fieldname)
+   | ERecordFieldAccess(id, expr, fieldname) ->
+     ERecordFieldAccess(id, f expr, fieldname)
    | EApply(id, name, typeArgs, args) ->
      EApply(id, f name, List.map postTraversalTypeRef typeArgs, NEList.map f args)
    | EFnName(id, name) -> EFnName(id, fqfnFn name)
@@ -554,10 +556,10 @@ let rec postTraversalAsync
           let! fields = Ply.List.mapSequentially r fields
           return EEnum(id, typeName, caseName, fields)
         }
-      | EFieldAccess(id, expr, fieldname) ->
+      | ERecordFieldAccess(id, expr, fieldname) ->
         uply {
           let! expr = r expr
-          return EFieldAccess(id, expr, fieldname)
+          return ERecordFieldAccess(id, expr, fieldname)
         }
 
 

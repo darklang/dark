@@ -531,7 +531,7 @@ let rec eval (state : ExecutionState) (e : Instructions) : DvalTask =
             $"Expected a function value, got something else: {DvalReprDeveloper.toRepr other}"
 
 
-    // | EFieldAccess(_, e, fieldName) ->
+    // | ERecordFieldAccess(_, e, fieldName) ->
     //   let! obj = eval state e
 
     //   if fieldName = "" then

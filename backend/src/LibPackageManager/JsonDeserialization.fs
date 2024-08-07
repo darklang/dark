@@ -475,12 +475,12 @@ module ProgramTypes =
            (fun ctx -> decoder ctx)
            (fun ctx -> decoder ctx)
            (fun id pattern value body -> DU.ELet(id, pattern, value, body)))
-        ("EFieldAccess",
+        ("ERecordFieldAccess",
          Decoders.enum3Fields
            ID.decoder
            (fun ctx -> decoder ctx)
            Decoders.string
-           (fun id expr fieldName -> DU.EFieldAccess(id, expr, fieldName)))
+           (fun id expr fieldName -> DU.ERecordFieldAccess(id, expr, fieldName)))
         ("EVariable",
          Decoders.enum2Fields ID.decoder Decoders.string (fun id name ->
            DU.EVariable(id, name)))

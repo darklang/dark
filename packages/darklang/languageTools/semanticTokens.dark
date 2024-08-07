@@ -939,7 +939,7 @@ module Darklang =
           | EConstantOrFn(range, id) -> QualifiedConstOrFnIdentifier.tokenize id
 
           // person.name
-          | EFieldAccess(_range, expr, (r, fieldName), symbolDot) ->
+          | ERecordFieldAccess(_range, expr, (r, fieldName), symbolDot) ->
             [ // person
               Expr.tokenize expr
               // .

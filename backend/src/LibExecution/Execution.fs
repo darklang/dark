@@ -33,32 +33,40 @@ let createState
     test = noTestContext
     reportException = reportException
     notify = notify
-    builtins = builtins
 
     program = program
 
-    packageManager = packageManager
-    symbolTable = Map.empty
-    typeSymbolTable = Map.empty }
+    types = { typeSymbolTable = Map.empty }
+    fns = { builtIn = builtins.fns; package = packageManager.getFn } }
 
 let executeExpr
-  (state : RT.ExecutionState)
+  (exeState : RT.ExecutionState)
   (inputVars : RT.Symtable)
   (instructionsWithContext : RT.InstructionsWithContext)
   : Task<RT.ExecutionResult> =
   task {
+    let registersNeeded, instructions, resultReg = instructionsWithContext
     try
       try
-        let state =
+        let vmState : RT.VMState =
+          { instructions = List.toArray instructions
+            registers = Array.zeroCreate registersNeeded
+            resultReg = resultReg
+
+            symbolTable = inputVars
+            typeSymbolTable = Map.empty }
+
+        let vmState =
           //{ state with symbolTable = Interpreter.withGlobals state inputVars }
-          { state with symbolTable = inputVars }
-        let! result = Interpreter.eval state instructionsWithContext
+          { vmState with symbolTable = inputVars }
+
+        let! result = Interpreter.eval exeState vmState
         return Ok result
       with RT.RuntimeErrorException(source, rte) ->
         return Error(source, rte)
     finally
       // Does nothing in non-tests
-      state.test.postTestExecutionHook state.test
+      exeState.test.postTestExecutionHook exeState.test
   }
 
 
@@ -75,7 +83,12 @@ let executeFunction
           { state with
               tracing.callStack.entrypoint = RT.ExecutionPoint.Function name }
         let! result =
-          Interpreter.call state (RT.DFnVal(RT.NamedFn name)) typeArgs args
+          Interpreter.call
+            state
+            RT.VMState.empty
+            (RT.DFnVal(RT.NamedFn name))
+            typeArgs
+            args
         return Ok result
       with RT.RuntimeErrorException(source, rte) ->
         return Error(source, rte)
