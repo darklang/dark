@@ -186,3 +186,61 @@ string with newlines and tabs
     )
   )
 )
+
+
+==================
+multiline string
+==================
+
+"""int64Multiply's 2nd argument (`b`) should be an Int64. However, a Float (1.0) was passed instead.
+
+
+
+		Expected: (b: Int64)
+
+		Actual: a Float: 1.0"""
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (string_segment
+        (string_literal (symbol) (multiline_string_content) (symbol))
+      )
+    )
+  )
+)
+
+
+==================
+multiline string interpolation
+==================
+
+$"""test {"1"}"""
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (string_segment
+        (string_interpolation
+          (symbol)
+          (symbol)
+          (string_interpolation_content
+            (string_text)
+            (string_to_eval
+              (symbol)
+              (expression
+                (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))
+              )
+              (symbol)
+            )
+          )
+          (symbol)
+        )
+      )
+    )
+  )
+)
