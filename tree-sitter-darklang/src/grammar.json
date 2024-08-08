@@ -2312,10 +2312,6 @@
         },
         {
           "type": "SYMBOL",
-          "name": "enum_literal"
-        },
-        {
-          "type": "SYMBOL",
           "name": "variable_identifier"
         },
         {
@@ -2346,6 +2342,10 @@
         {
           "type": "SYMBOL",
           "name": "simple_expression"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "enum_literal"
         },
         {
           "type": "SYMBOL",

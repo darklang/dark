@@ -389,7 +389,6 @@ module.exports = grammar({
         $.list_literal,
         $.dict_literal,
         $.record_literal,
-        $.enum_literal,
         $.variable_identifier,
         $.field_access,
         $.tuple_literal,
@@ -401,6 +400,9 @@ module.exports = grammar({
       choice(
         $.paren_expression,
         $.simple_expression,
+
+        $.enum_literal,
+
         $.if_expression,
         $.let_expression,
 
@@ -432,7 +434,6 @@ module.exports = grammar({
 
     //
     // Strings
-    // TODO: maybe add support for multiline strings (""")
     string_literal: $ =>
       choice(
         seq(
