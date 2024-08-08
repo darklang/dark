@@ -7,15 +7,12 @@
         {
           "type": "REPEAT",
           "content": {
-            "type": "SYMBOL",
-            "name": "module_decl"
-          }
-        },
-        {
-          "type": "REPEAT",
-          "content": {
             "type": "CHOICE",
             "members": [
+              {
+                "type": "SYMBOL",
+                "name": "module_decl"
+              },
               {
                 "type": "SYMBOL",
                 "name": "type_decl"

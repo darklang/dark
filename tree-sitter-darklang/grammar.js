@@ -35,9 +35,8 @@ module.exports = grammar({
   rules: {
     source_file: $ =>
       seq(
-        repeat($.module_decl),
         // all type and fn and constant defs first
-        repeat(choice($.type_decl, $.fn_decl, $.const_decl)),
+        repeat(choice($.module_decl, $.type_decl, $.fn_decl, $.const_decl)),
 
         // then the expressions to evaluate, in order
         repeat($.expression),
