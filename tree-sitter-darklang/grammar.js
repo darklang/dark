@@ -35,9 +35,8 @@ module.exports = grammar({
   rules: {
     source_file: $ =>
       seq(
-        repeat($.module_decl),
         // all type and fn and constant defs first
-        repeat(choice($.type_decl, $.fn_decl, $.const_decl)),
+        repeat(choice($.module_decl, $.type_decl, $.fn_decl, $.const_decl)),
 
         // then the expressions to evaluate, in order
         repeat($.expression),
@@ -318,7 +317,7 @@ module.exports = grammar({
     //
     // match pattern - list cons
     mp_list_cons: $ =>
-      prec.left(
+      prec.right(
         seq(
           field("head", $.match_pattern),
           field("symbol_double_colon", alias("::", $.symbol)),
@@ -390,7 +389,6 @@ module.exports = grammar({
         $.list_literal,
         $.dict_literal,
         $.record_literal,
-        $.enum_literal,
         $.variable_identifier,
         $.field_access,
         $.tuple_literal,
@@ -402,6 +400,9 @@ module.exports = grammar({
       choice(
         $.paren_expression,
         $.simple_expression,
+
+        $.enum_literal,
+
         $.if_expression,
         $.let_expression,
 
@@ -433,18 +434,33 @@ module.exports = grammar({
 
     //
     // Strings
-    // TODO: maybe add support for multiline strings (""")
     string_literal: $ =>
-      seq(
-        field("symbol_open_quote", alias('"', $.symbol)),
-        optional(field("content", $.string_content)),
-        field("symbol_close_quote", alias('"', $.symbol)),
+      choice(
+        seq(
+          field("symbol_open_quote", alias('"', $.symbol)),
+          optional(field("content", $.string_content)),
+          field("symbol_close_quote", alias('"', $.symbol)),
+        ),
+        // multiline strings
+        seq(
+          field("symbol_open_quote", alias('"""', $.symbol)),
+          optional(field("content", $.multiline_string_content)),
+          field("symbol_close_quote", alias('"""', $.symbol)),
+        ),
       ),
 
     string_content: $ =>
       repeat1(
         choice(
           // higher precedence than escape sequences
+          token.immediate(prec(1, /[^\\"\n]+/)),
+          $.char_or_string_escape_sequence,
+        ),
+      ),
+
+    multiline_string_content: $ =>
+      repeat1(
+        choice(
           token.immediate(prec(1, /[^\\"]+/)),
           $.char_or_string_escape_sequence,
         ),
@@ -452,13 +468,30 @@ module.exports = grammar({
 
     // $"hello {name}
     string_interpolation: $ =>
-      seq(
-        field("symbol_dollar_sign", alias("$", $.symbol)),
-        field("symbol_open_quote", alias('"', $.symbol)),
-        optional(
-          field("string_interpolation_content", $.string_interpolation_content),
+      choice(
+        seq(
+          field("symbol_dollar_sign", alias("$", $.symbol)),
+          field("symbol_open_quote", alias('"', $.symbol)),
+          optional(
+            field(
+              "string_interpolation_content",
+              $.string_interpolation_content,
+            ),
+          ),
+          field("symbol_close_quote", alias('"', $.symbol)),
         ),
-        field("symbol_close_quote", alias('"', $.symbol)),
+        // multiline strings
+        seq(
+          field("symbol_dollar_sign", alias("$", $.symbol)),
+          field("symbol_open_quote", alias('"""', $.symbol)),
+          optional(
+            field(
+              "string_interpolation_content",
+              $.string_interpolation_content,
+            ),
+          ),
+          field("symbol_close_quote", alias('"""', $.symbol)),
+        ),
       ),
 
     string_interpolation_content: $ =>
@@ -1132,9 +1165,12 @@ function dict_literal_base($, contentRule) {
   );
 }
 function dict_content_base($, dict_pair) {
-  return seq(
-    dict_pair,
-    repeat(seq(field("dict_separator", alias(";", $.symbol)), dict_pair)),
+  return choice(
+    seq(
+      dict_pair,
+      repeat(seq(field("dict_separator", alias(";", $.symbol)), dict_pair)),
+    ),
+    seq(dict_pair, repeat(seq($.newline, dict_pair)), optional($.newline)),
   );
 }
 function dict_pair_base($, value) {

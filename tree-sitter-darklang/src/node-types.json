@@ -251,6 +251,10 @@
         {
           "type": "const_dict_pair",
           "named": true
+        },
+        {
+          "type": "newline",
+          "named": true
         }
       ]
     }
@@ -769,6 +773,10 @@
         {
           "type": "dict_pair",
           "named": true
+        },
+        {
+          "type": "newline",
+          "named": true
         }
       ]
     }
@@ -1071,6 +1079,10 @@
       "types": [
         {
           "type": "apply",
+          "named": true
+        },
+        {
+          "type": "enum_literal",
           "named": true
         },
         {
@@ -2593,6 +2605,21 @@
     }
   },
   {
+    "type": "multiline_string_content",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "char_or_string_escape_sequence",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "newline",
     "named": true,
     "fields": {}
@@ -3283,10 +3310,6 @@
           "named": true
         },
         {
-          "type": "enum_literal",
-          "named": true
-        },
-        {
           "type": "field_access",
           "named": true
         },
@@ -3409,6 +3432,10 @@
         "required": false,
         "types": [
           {
+            "type": "multiline_string_content",
+            "named": true
+          },
+          {
             "type": "string_content",
             "named": true
           }
@@ -3524,6 +3551,10 @@
         "multiple": false,
         "required": false,
         "types": [
+          {
+            "type": "multiline_string_content",
+            "named": true
+          },
           {
             "type": "string_content",
             "named": true
