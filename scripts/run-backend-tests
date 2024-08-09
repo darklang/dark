@@ -34,10 +34,10 @@ killall -9 Tests || true
 
 if [[ "$PUBLISHED" == "true" ]]; then
   EXE=Build/out/Tests/Release/net8.0/linux-x64/Tests
-  PRODEXEC=Build/out/ProdExec/Release/net8.0/linux-x64/ProdExec
+  # PRODEXEC=Build/out/ProdExec/Release/net8.0/linux-x64/ProdExec
 else
   EXE=Build/out/Tests/Debug/net8.0/Tests
-  PRODEXEC=Build/out/ProdExec/Debug/net8.0/ProdExec
+  # PRODEXEC=Build/out/ProdExec/Debug/net8.0/ProdExec
 fi
 
 case "$DB" in
@@ -68,8 +68,8 @@ esac
 
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
 
-./scripts/run-pubsub-emulator
-./scripts/run-cloud-storage-emulator
+# ./scripts/run-pubsub-emulator
+# ./scripts/run-cloud-storage-emulator
 
 # Use random to avoid old items being in the pubsub queue. Use this instead of
 # $RANDOM as RANDOM is only 5 digits
@@ -78,27 +78,27 @@ RANDOM_VALUE=$(cat /proc/sys/kernel/random/uuid)
 grey="\033[1;30m"
 reset="\033[0m"
 
-# Run the migrations before the other servers start
-echo -e "Running migrations ${grey}($LOGS/test-migrations.log)${reset}"
-cd backend && \
-  DARK_CONFIG_TELEMETRY_EXPORTER=none \
-  DARK_CONFIG_ROLLBAR_ENABLED=n \
-  DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
-  DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME=trace-test-${RANDOM_VALUE} \
-  "${PRODEXEC}" migrations run > "$LOGS/test-migrations.log" 2>&1
-cd ..
+# # Run the migrations before the other servers start
+# echo -e "Running migrations ${grey}($LOGS/test-migrations.log)${reset}"
+# cd backend && \
+#   DARK_CONFIG_TELEMETRY_EXPORTER=none \
+#   DARK_CONFIG_ROLLBAR_ENABLED=n \
+#   DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
+#   DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME=trace-test-${RANDOM_VALUE} \
+#   "${PRODEXEC}" migrations run > "$LOGS/test-migrations.log" 2>&1
+# cd ..
 
 # Reload packages
 
-if [[ -v CI ]]; then
-  echo "Running backend server"
-  ./scripts/run-backend-server $PUBLISHED_FLAG
-  echo "Reloading packages"
-  ./scripts/build/reload-packages $PUBLISHED_FLAG
-else
-  echo "Reloading packages"
-  ./scripts/build/reload-packages --test $PUBLISHED_FLAG
-fi
+# if [[ -v CI ]]; then
+#   echo "Running backend server"
+#   ./scripts/run-backend-server $PUBLISHED_FLAG
+#   echo "Reloading packages"
+#   ./scripts/build/reload-packages $PUBLISHED_FLAG
+# else
+#   echo "Reloading packages"
+#   ./scripts/build/reload-packages --test $PUBLISHED_FLAG
+# fi
 
 JUNIT_FILE="${DARK_CONFIG_RUNDIR}/test_results/backend.xml"
 

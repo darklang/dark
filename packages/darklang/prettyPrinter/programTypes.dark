@@ -586,13 +586,13 @@ module Darklang =
 
           $"let {patternPart} =\n{PrettyPrinter.indent rhsPart}\n{bodyPart}"
 
-        | EFieldAccess(_id, expr, fieldName) ->
+        | ERecordFieldAccess(_id, expr, fieldName) ->
           let exprPart = PrettyPrinter.ProgramTypes.expr expr
 
           // TODO: only sometimes need to wrap exprPart in parens
           match expr with
           | EVariable(_, _) -> $"{exprPart}.{fieldName}"
-          | EFieldAccess(_, _, _) -> $"{exprPart}.{fieldName}"
+          | ERecordFieldAccess(_, _, _) -> $"{exprPart}.{fieldName}"
           | _ -> $"({exprPart}).{fieldName}"
 
         | EVariable(_id, name) -> name

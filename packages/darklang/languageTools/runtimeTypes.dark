@@ -81,7 +81,7 @@ module Darklang =
           thenExpr: Expr *
           elseExpr: Stdlib.Option.Option<Expr>
         | ELambda of ID * List<ID * String> * Expr
-        | EFieldAccess of ID * Expr * String
+        | ERecordFieldAccess of ID * Expr * String
         | EVariable of ID * String
         | EApply of ID * Expr * typeArgs: List<TypeReference> * args: List<Expr>
         | EFnName of ID * FQFnName.FQFnName

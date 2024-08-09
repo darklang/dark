@@ -363,7 +363,8 @@ module Expr =
     | PT.EConstant(id, name) ->
       ST.EConstant(id, NameResolution.toST FQConstantName.toST name)
     | PT.EVariable(id, var) -> ST.EVariable(id, var)
-    | PT.EFieldAccess(id, obj, fieldname) -> ST.EFieldAccess(id, toST obj, fieldname)
+    | PT.ERecordFieldAccess(id, obj, fieldname) ->
+      ST.ERecordFieldAccess(id, toST obj, fieldname)
     | PT.EApply(id, fn, typeArgs, args) ->
       ST.EApply(
         id,
@@ -467,7 +468,8 @@ module Expr =
     | ST.EConstant(id, name) ->
       PT.EConstant(id, NameResolution.toPT FQConstantName.toPT name)
     | ST.EVariable(id, var) -> PT.EVariable(id, var)
-    | ST.EFieldAccess(id, obj, fieldname) -> PT.EFieldAccess(id, toPT obj, fieldname)
+    | ST.ERecordFieldAccess(id, obj, fieldname) ->
+      PT.ERecordFieldAccess(id, toPT obj, fieldname)
     | ST.EApply(id, fn, typeArgs, args) ->
       PT.EApply(
         id,

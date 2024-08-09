@@ -216,8 +216,8 @@ module Expr =
     | EPT.EConstant(id, name) ->
       PT.EConstant(id, NameResolution.toPT ConstantName.toPT name)
     | EPT.EVariable(id, var) -> PT.EVariable(id, var)
-    | EPT.EFieldAccess(id, obj, fieldname) ->
-      PT.EFieldAccess(id, toPT obj, fieldname)
+    | EPT.ERecordFieldAccess(id, obj, fieldname) ->
+      PT.ERecordFieldAccess(id, toPT obj, fieldname)
     | EPT.EApply(id, name, typeArgs, args) ->
       PT.EApply(
         id,
