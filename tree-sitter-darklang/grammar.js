@@ -453,7 +453,7 @@ module.exports = grammar({
       repeat1(
         choice(
           // higher precedence than escape sequences
-          token.immediate(prec(1, /[^\\"]+/)),
+          token.immediate(prec(1, /[^\\"\n]+/)),
           $.char_or_string_escape_sequence,
         ),
       ),
