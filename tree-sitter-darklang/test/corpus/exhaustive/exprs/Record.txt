@@ -66,9 +66,9 @@ Person {name = "John"; age = 30L; hobbies = ["reading"; "swimming"]}
             (expression (simple_expression (list_literal
               (symbol)
               (list_content
-                (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+                (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))
                 (symbol)
-                (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+                (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))
               )
               (symbol)))
             )
@@ -183,9 +183,9 @@ Person {
                 (list_literal
                   (symbol)
                   (list_content
-                    (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+                    (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))
                     (symbol)
-                    (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+                    (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))
                   )
                   (symbol)
                 )

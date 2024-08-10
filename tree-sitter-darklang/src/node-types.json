@@ -2023,11 +2023,15 @@
       "required": true,
       "types": [
         {
-          "type": "expression",
+          "type": "newline",
           "named": true
         },
         {
-          "type": "newline",
+          "type": "paren_expression",
+          "named": true
+        },
+        {
+          "type": "simple_expression",
           "named": true
         },
         {

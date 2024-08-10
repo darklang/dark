@@ -182,3 +182,50 @@ MyEnum.TwoArgs
     )
   )
 )
+
+
+==================
+test
+==================
+
+MyEnum.OneArg 1L
+2L
+
+---
+
+(source_file
+  (expression
+    (enum_literal
+      (qualified_type_name (type_identifier))
+      (symbol)
+      (enum_case_identifier)
+      (enum_fields
+        (expression
+          (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+        )
+      )
+    )
+  )
+  (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+)
+
+
+==================
+an enum followed by an expression
+==================
+
+Option.Option.None
+1L
+
+---
+
+(source_file
+  (expression
+    (enum_literal
+      (qualified_type_name (module_identifier) (symbol) (type_identifier))
+      (symbol)
+      (enum_case_identifier)
+    )
+  )
+  (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+)

@@ -318,6 +318,7 @@ module.exports = grammar({
     // match pattern - list cons
     mp_list_cons: $ =>
       prec.right(
+        1,
         seq(
           field("head", $.match_pattern),
           field("symbol_double_colon", alias("::", $.symbol)),
@@ -660,7 +661,8 @@ module.exports = grammar({
     // List
     // TODO: allow multi-line lists where a newline is 'interpreted' as a list delimiter (i.e. no ; needed)
     list_literal: $ => list_literal_base($, $.list_content),
-    list_content: $ => list_content_base($, $.expression),
+    list_content: $ =>
+      list_content_base($, choice($.paren_expression, $.simple_expression)),
 
     //
     // Dict
@@ -1194,6 +1196,7 @@ function enum_literal_base($, enum_fields) {
           field("enum_fields", enum_fields),
         ),
       ),
+      optional(/\n/),
     ),
   );
 }
@@ -1213,7 +1216,7 @@ function enum_fields_base($, fields) {
         ),
         field("symbol_close_paren", alias(")", $.symbol)),
       ),
-      prec.right(repeat1(prec.right(fields))),
+      prec.right(repeat1(fields)),
     ),
   );
 }
