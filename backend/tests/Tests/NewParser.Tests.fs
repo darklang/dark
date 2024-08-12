@@ -691,19 +691,26 @@ let exprs =
       false
 
     // enum literal
-    t "simple enum literal" "Color.Red" "Color.Red" [] [] [] false
-    t "option none, short" "Stdlib.Option.None" "Stdlib.Option.None" [] [] [] false
+    t "simple enum literal" "Color.Red()" "Color.Red()" [] [] [] false
+    t
+      "option none, short"
+      "Stdlib.Option.None()"
+      "Stdlib.Option.None()"
+      []
+      []
+      []
+      false
     t
       "option none, long"
-      "PACKAGE.Darklang.Stdlib.Option.Option.None"
-      "PACKAGE.Darklang.Stdlib.Option.Option.None"
+      "PACKAGE.Darklang.Stdlib.Option.Option.None()"
+      "PACKAGE.Darklang.Stdlib.Option.Option.None()"
       []
       []
       []
       false
     t
       "option some"
-      "PACKAGE.Darklang.Stdlib.Option.Option.Some 1L"
+      "PACKAGE.Darklang.Stdlib.Option.Option.Some(1L)"
       "PACKAGE.Darklang.Stdlib.Option.Option.Some(1L)"
       []
       []
@@ -711,13 +718,13 @@ let exprs =
       false
     t
       "custom enum tupled params"
-      "MyEnum.A(1L, 2L)"
+      "MyEnum.A((1L, 2L))"
       "MyEnum.A((1L, 2L))"
       []
       []
       []
       false
-    t "custom enum fn params" "MyEnum.A 1L 2L" "MyEnum.A(1L, 2L)" [] [] [] false
+    t "custom enum fn params" "MyEnum.A(1L, 2L)" "MyEnum.A(1L, 2L)" [] [] [] false
 
     // qualified constant
     t
@@ -1138,8 +1145,8 @@ else
       false
     t
       "match, enum"
-      "match Stdlib.Result.Result.Ok 5L with\n| Ok 5L -> true\n| Error e -> false"
-      "match PACKAGE.Darklang.Stdlib.Result.Result.Ok(5L) with\n| Ok 5L ->\n  true\n| Error e ->\n  false"
+      "match Stdlib.Result.Result.Ok(5L) with\n| Ok(5L) -> true\n| Error(e) -> false"
+      "match PACKAGE.Darklang.Stdlib.Result.Result.Ok(5L) with\n| Ok(5L) ->\n  true\n| Error(e) ->\n  false"
       []
       []
       []
@@ -1199,16 +1206,16 @@ else
       false
     t
       "pipe, into enum"
-      "3L |> Stdlib.Result.Result.Ok"
-      "3L\n|> PACKAGE.Darklang.Stdlib.Result.Result.Ok"
+      "3L |> Stdlib.Result.Result.Ok()"
+      "3L\n|> PACKAGE.Darklang.Stdlib.Result.Result.Ok()"
       []
       []
       []
       false
     t
       "pipe, into enum 2"
-      "33L |> MyEnum.A 21L"
-      "33L\n|> MyEnum.A (21L)"
+      "33L |> MyEnum.A(21L)"
+      "33L\n|> MyEnum.A(21L)"
       []
       []
       []
@@ -1484,15 +1491,15 @@ let constantDeclarations =
     // enums
     t
       "option, none"
-      "const none = Stdlib.Option.Option.None"
-      "const none = PACKAGE.Darklang.Stdlib.Option.Option.None"
+      "const none = Stdlib.Option.Option.None()"
+      "const none = PACKAGE.Darklang.Stdlib.Option.Option.None()"
       []
       []
       []
       false
     t
       "option, some 1"
-      "const some = Stdlib.Option.Option.Some 1L"
+      "const some = Stdlib.Option.Option.Some(1L)"
       "const some = PACKAGE.Darklang.Stdlib.Option.Option.Some(1L)"
       []
       []
@@ -1500,7 +1507,7 @@ let constantDeclarations =
       false
     t
       "enum, tupled args"
-      "const a = MyEnum.A(1L, 2L)"
+      "const a = MyEnum.A((1L, 2L))"
       "const a = MyEnum.A((1L, 2L))"
       []
       []
@@ -1508,7 +1515,7 @@ let constantDeclarations =
       false
     t
       "enum, fn args"
-      "const a = MyEnum.A 1L 2L"
+      "const a = MyEnum.A(1L, 2L)"
       "const a = MyEnum.A(1L, 2L)"
       []
       []
