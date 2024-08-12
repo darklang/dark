@@ -333,11 +333,11 @@ module.exports = grammar({
     //
     // match pattern - enum
     mp_enum: $ =>
-      prec.right(
-        seq(
-          field("case_name", $.enum_case_identifier),
-          optional(field("enum_fields", $.mp_enum_fields)),
-        ),
+      seq(
+        field("case_name", $.enum_case_identifier),
+        field("symbol_open_paren", alias("(", $.symbol)),
+        optional(field("enum_fields", $.mp_enum_fields)),
+        field("symbol_close_paren", alias(")", $.symbol)),
       ),
 
     mp_enum_fields: $ => enum_fields_base($, $.match_pattern),
@@ -1188,32 +1188,26 @@ function enum_literal_base($, enum_fields) {
       field("type_name", $.qualified_type_name),
       field("symbol_dot", alias(".", $.symbol)),
       field("case_name", $.enum_case_identifier),
-      optional(
-        choice(
-          seq($.indent, field("enum_fields", enum_fields), $.dedent),
-          field("enum_fields", enum_fields),
+      seq(
+        field("symbol_open_paren", alias("(", $.symbol)),
+        optional(
+          choice(
+            seq($.indent, field("enum_fields", enum_fields), $.dedent),
+            field("enum_fields", enum_fields),
+          ),
         ),
+        field("symbol_close_paren", alias(")", $.symbol)),
       ),
     ),
   );
 }
 function enum_fields_base($, fields) {
-  return prec(
-    1,
-    choice(
-      seq(
-        field("symbol_open_paren", alias("(", $.symbol)),
-        seq(
-          fields,
-          repeat(
-            prec.right(
-              seq(field("symbol_comma", alias(",", $.symbol)), fields),
-            ),
-          ),
-        ),
-        field("symbol_close_paren", alias(")", $.symbol)),
+  return prec.right(
+    seq(
+      fields,
+      repeat(
+        prec.right(seq(field("symbol_comma", alias(",", $.symbol)), fields)),
       ),
-      prec.right(repeat1(prec.right(fields))),
     ),
   );
 }
