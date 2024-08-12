@@ -267,8 +267,9 @@ Enum List
 ==================
 
 [
-  ErrorSegment.ErrorSegment.String
+  ErrorSegment.ErrorSegment.String(
     "RTETODO typeChecker.toSegments"
+  )
 ]
 
 ---
@@ -284,13 +285,16 @@ Enum List
               (qualified_type_name (module_identifier) (symbol) (type_identifier))
               (symbol)
               (enum_case_identifier)
+              (symbol)
               (indent)
               (enum_fields
                 (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
               )
               (dedent)
+              (symbol)
             )
           )
+          (newline)
         )
         (symbol)
       )

@@ -371,7 +371,7 @@ const myDict = Dict{one = 1L; two = 2L}
 const declaration - enum
 ==================
 
-const colorRed = Color.Red
+const colorRed = Color.Red()
 
 ---
 
@@ -385,6 +385,8 @@ const colorRed = Color.Red
         (qualified_type_name (type_identifier))
         (symbol)
         (enum_case_identifier)
+        (symbol)
+        (symbol)
       )
     )
   )
@@ -395,7 +397,7 @@ const colorRed = Color.Red
 const declaration - enum with one field
 ==================
 
-const someOne = Stdlib.Option.Option.Some 1L
+const someOne = Stdlib.Option.Option.Some(1L)
 
 ---
 
@@ -409,7 +411,9 @@ const someOne = Stdlib.Option.Option.Some 1L
         (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier))
         (symbol)
         (enum_case_identifier)
+        (symbol)
         (const_enum_fields (consts (int64_literal (digits (positive_digits)) (symbol))))
+        (symbol)
       )
     )
   )
@@ -418,32 +422,6 @@ const someOne = Stdlib.Option.Option.Some 1L
 
 ==================
 const declaration - enum with multiple fields
-==================
-
-const myEnum = MyEnum.MyCase 1L 2L
-
----
-
-(source_file
-  (const_decl
-    (keyword)
-    (constant_identifier)
-    (symbol)
-    (consts
-      (const_enum_literal
-        (qualified_type_name (type_identifier)) (symbol) (enum_case_identifier)
-        (const_enum_fields
-          (consts (int64_literal (digits (positive_digits)) (symbol)))
-          (consts (int64_literal (digits (positive_digits)) (symbol)))
-        )
-      )
-    )
-  )
-)
-
-
-==================
-const declaration - enum with tuple field
 ==================
 
 const myEnum = MyEnum.MyCase(1L, 2L)
@@ -458,6 +436,36 @@ const myEnum = MyEnum.MyCase(1L, 2L)
     (consts
       (const_enum_literal
         (qualified_type_name (type_identifier)) (symbol) (enum_case_identifier)
+        (symbol)
+        (const_enum_fields
+          (consts (int64_literal (digits (positive_digits)) (symbol)))
+          (symbol)
+          (consts (int64_literal (digits (positive_digits)) (symbol)))
+        )
+        (symbol)
+      )
+    )
+  )
+)
+
+
+==================
+const declaration - enum with tuple field
+==================
+
+const myEnum = MyEnum.MyCase((1L, 2L))
+
+---
+
+(source_file
+  (const_decl
+    (keyword)
+    (constant_identifier)
+    (symbol)
+    (consts
+      (const_enum_literal
+        (qualified_type_name (type_identifier)) (symbol) (enum_case_identifier)
+        (symbol)
         (const_enum_fields
           (consts
             (const_tuple_literal
@@ -469,6 +477,7 @@ const myEnum = MyEnum.MyCase(1L, 2L)
             )
           )
         )
+        (symbol)
       )
     )
   )
