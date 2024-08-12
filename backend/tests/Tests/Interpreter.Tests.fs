@@ -48,6 +48,24 @@ let boolListList =
       )
     return Expect.equal actual expected ""
   }
+let letSimple =
+  testTask "let x = true\nx" {
+    let! actual = eval E.letSimple |> Ply.toTask
+    let expected = RT.DBool true
+    return Expect.equal actual expected ""
+  }
+let letTuple =
+  testTask "let (x, y) = (1, 2)\nx" {
+    let! actual = eval E.letTuple |> Ply.toTask
+    let expected = RT.DInt64 1L
+    return Expect.equal actual expected ""
+  }
+let letTupleNested =
+  testTask "let (a, (b, c)) = (1, (2, 3))\nb" {
+    let! actual = eval E.letTupleNested |> Ply.toTask
+    let expected = RT.DInt64 2L
+    return Expect.equal actual expected ""
+  }
 
 let simpleString =
   testTask "[\"hello\"]" {
@@ -150,6 +168,10 @@ let tests =
     "Interpreter"
     [ onePlusTwo
       boolList
+      boolListList
+      letSimple
+      letTuple
+      letTupleNested
       simpleString
       stringWithInterpolation
       dictEmpty

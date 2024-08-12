@@ -117,11 +117,11 @@ type NameResolution<'a> = Result<'a, NameResolutionError.Error>
 
 type LetPattern =
   | LPUnit of id
-  // | LPTuple of
-  //   id *
-  //   first : LetPattern *
-  //   second : LetPattern *
-  //   theRest : List<LetPattern>
+  | LPTuple of
+    id *
+    first : LetPattern *
+    second : LetPattern *
+    theRest : List<LetPattern>
   | LPVariable of id * name : string
 
 // /// Used for pattern matching in a match statement

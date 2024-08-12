@@ -520,10 +520,6 @@ and Instruction =
   | GetVar of loadTo : Register * varName : string
 
 
-  // | Jump of jumpTo: Register
-  // | JumpIfFalse of condition: Register * jumpTo: Register
-
-
   /// Add an item to an existing list
   /// , and type-check to make sure it matches the ValueType of that list
   ///
@@ -555,6 +551,11 @@ and Instruction =
   /// Go n instructions forward, unconditionally
   | JumpBy of instrsToJump : int
 
+  | ExtractTupleItems of
+    extractFrom : Register *
+    firstReg : Register *
+    secondReg : Register *
+    restRegs : List<Register>
 
   /// Apply some args (and maybe type args) to something
   /// (a named function, or lambda, etc)

@@ -14,6 +14,8 @@ open RuntimeTypes
 ///
 /// Maybe rename ExecutionState to something else
 /// , like ExecutionContext or Execution
+///
+/// TODO potentially make this a loop instead of recursive
 let rec execute
   (exeState : ExecutionState)
   (vmState : VMState)
@@ -118,6 +120,17 @@ let rec execute
         vmState.registers[copyTo] <- vmState.registers[copyFrom]
         return! execute exeState vmState (counter + 1)
 
+      | ExtractTupleItems(extractFrom, firstReg, secondReg, restRegs) ->
+        match vmState.registers[extractFrom] with
+        | DTuple(first, second, rest) ->
+          vmState.registers[firstReg] <- first
+          vmState.registers[secondReg] <- second
+
+          List.zip restRegs rest
+          |> List.iter (fun (reg, value) -> vmState.registers[reg] <- value)
+
+          return! execute exeState vmState (counter + 1)
+        | _ -> return DString "Error: Expected a tuple for decomposition"
 
       | Fail _rte -> return DUnit // TODO
   }

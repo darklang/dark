@@ -131,24 +131,38 @@ module TypeReference =
 
 module LetPattern =
   let rec toRT
-    (regCounter : int)
-    (p : PT.LetPattern)
-    (valueReg : RT.Register)
-    (instrs : RT.Instructions)
+    (rc : int)
+    (pat : PT.LetPattern)
+    (rhsReg : RT.Register) // what we're binding to
     : (int * RT.Instructions) =
-    match p with
+    match pat with
     // No binding needed for unit pattern
     // (would also be the case if we have a `_ignore` pattern later)
-    | PT.LPUnit _ -> (regCounter, instrs)
+    | PT.LPUnit _ -> (rc, [])
 
-    // | LPTuple(_id, first, second, rest) ->
-    //     // Destructure the tuple value into registers and compile sub-patterns
-    //     let (regCounter, instrs) = compileLetPattern regCounter first valueReg instructions
-    //     let (regCounter, instrs) = compileLetPattern regCounter second (valueReg + 1) instrs
-    //     List.fold (fun (rc, instrs) pat -> compileLetPattern rc pat (valueReg + 2) instrs) (regCounter, instrs) rest
+    | PT.LPTuple(_id, first, second, theRest) ->
+      // reserve the first two registers
+      let firstReg, secondReg, rc = rc, rc + 1, rc + 2
 
-    | PT.LPVariable(_id, varName) ->
-      (regCounter, instrs @ [ RT.SetVar(varName, valueReg) ])
+      let (rcAfterFirst, firstInstrs) = toRT rc first firstReg
+      let (rcAfterSecond, secondInstrs) = toRT rcAfterFirst second secondReg
+
+      let (finalRc, restInstrs, restRegs) =
+        theRest
+        |> List.fold
+          (fun (currentRc, instrs, regs) restPattern ->
+            let restReg = currentRc
+            let (rcAfterPat, patternInstrs) =
+              toRT (currentRc + 1) restPattern restReg
+            (rcAfterPat, instrs @ patternInstrs, regs @ [ restReg ]))
+          (rcAfterSecond, [], [])
+
+      let extractInstructions =
+        [ RT.ExtractTupleItems(rhsReg, firstReg, secondReg, restRegs) ]
+
+      (finalRc, extractInstructions @ firstInstrs @ secondInstrs @ restInstrs)
+
+    | PT.LPVariable(_id, varName) -> (rc, [ RT.SetVar(varName, rhsReg) ])
 
 
 
@@ -296,7 +310,7 @@ module Expr =
     // let x = 1
     | PT.ELet(_id, pat, expr, body) ->
       let (regCounter, exprInstrs, exprReg) = toRT rc expr
-      let (regCounter, patInstrs) = LetPattern.toRT regCounter pat exprReg []
+      let (regCounter, patInstrs) = LetPattern.toRT regCounter pat exprReg
       let (regCounter, bodyInstrs, bodyExprReg) = toRT regCounter body
       (regCounter, exprInstrs @ patInstrs @ bodyInstrs, bodyExprReg)
 

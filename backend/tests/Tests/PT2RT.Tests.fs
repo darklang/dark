@@ -26,12 +26,42 @@ module Expressions =
 
   // TODO: try to use undefined variable
   // TODO: lpunit
-  let defineAndUseVar : PT.Expr =
+  let letSimple : PT.Expr =
     PT.ELet(
       gid (),
       PT.LPVariable(gid (), "x"),
       PT.EBool(gid (), true),
       PT.EVariable(gid (), "x")
+    )
+  let letTuple : PT.Expr =
+    PT.ELet(
+      gid (),
+      PT.LPTuple(gid (), PT.LPVariable(gid (), "x"), PT.LPVariable(gid (), "y"), []),
+      PT.ETuple(gid (), PT.EInt64(gid (), 1), PT.EInt64(gid (), 2), []),
+      PT.EVariable(gid (), "x")
+    )
+  /// `let (a, (b, c)) = (1, (2, 3)) in b`
+  let letTupleNested : PT.Expr =
+    PT.ELet(
+      gid (),
+      PT.LPTuple(
+        gid (),
+        PT.LPVariable(gid (), "a"),
+        PT.LPTuple(
+          gid (),
+          PT.LPVariable(gid (), "b"),
+          PT.LPVariable(gid (), "c"),
+          []
+        ),
+        []
+      ),
+      PT.ETuple(
+        gid (),
+        PT.EInt64(gid (), 1),
+        PT.ETuple(gid (), PT.EInt64(gid (), 2), PT.EInt64(gid (), 3), []),
+        []
+      ),
+      PT.EVariable(gid (), "b")
     )
 
   let boolList : PT.Expr =
@@ -141,9 +171,9 @@ let onePlusTwo =
     return Expect.equal actual expected ""
   }
 
-let defineAndUseVar =
+let letSimple =
   testTask "let x = true\n x" {
-    let actual = PT2RT.Expr.toRT 0 E.defineAndUseVar
+    let actual = PT2RT.Expr.toRT 0 E.letSimple
 
     let expected =
       (2,
@@ -154,6 +184,51 @@ let defineAndUseVar =
 
     return Expect.equal actual expected ""
   }
+
+let letTuple =
+  testTask "let (x, y) = (1, 2)\nx" {
+    let actual = PT2RT.Expr.toRT 0 E.letTuple
+
+    let expected =
+      (6,
+       [ // register 0 isn't exposed, but used to temporarily store the tuple
+         RT.LoadVal(1, RT.DInt64 1L)
+         RT.LoadVal(2, RT.DInt64 2L)
+         RT.CreateTuple(0, 1, 2, [])
+         RT.ExtractTupleItems(0, 3, 4, [])
+
+         RT.SetVar("x", 3)
+         RT.SetVar("y", 4)
+
+         RT.GetVar(5, "x") ],
+       5)
+
+    return Expect.equal actual expected ""
+  }
+let letTupleNested =
+  testTask "let (a, (b, c)) = (1, (2, 3)) in b" {
+    let actual = PT2RT.Expr.toRT 0 E.letTupleNested
+
+    let expected =
+      (10,
+       [ // reserve 0 for outer tuple
+         RT.LoadVal(1, RT.DInt64 1L)
+         // reserve 2 for inner tuple
+         RT.LoadVal(3, RT.DInt64 2L)
+         RT.LoadVal(4, RT.DInt64 3L)
+         RT.CreateTuple(2, 3, 4, []) // create inner tuple
+         RT.CreateTuple(0, 1, 2, []) // create outer tuple
+         RT.ExtractTupleItems(0, 5, 6, []) // extract outer tuple items
+         RT.SetVar("a", 5)
+         RT.ExtractTupleItems(6, 7, 8, [])
+         RT.SetVar("b", 7)
+         RT.SetVar("c", 8)
+         RT.GetVar(9, "b") ],
+       9)
+
+    return Expect.equal actual expected ""
+  }
+
 let boolList =
   testTask "[true, false, true]" {
     let actual = PT2RT.Expr.toRT 0 E.boolList
@@ -419,7 +494,9 @@ let tests =
     "PT2RT"
     [ one
       onePlusTwo
-      defineAndUseVar
+      letSimple
+      letTuple
+      letTupleNested
       boolList
       boolListList
       simpleString
