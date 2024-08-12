@@ -273,7 +273,7 @@ module Darklang =
             | Error e -> PrettyPrinter.ProgramTypes.nameResolutionError e
 
           match fields with
-          | [] -> $"{typeNamePart}.{caseName}"
+          | [] -> $"{typeNamePart}.{caseName}()"
           | fields ->
             let fieldPart =
               fields
@@ -359,9 +359,7 @@ module Darklang =
 
         | MPEnum(_id, caseName, fieldPats) ->
           match fieldPats with
-          | [] -> caseName
-          | [ single ] ->
-            $"{caseName} {PrettyPrinter.ProgramTypes.matchPattern single}"
+          | [] -> $"{caseName}()"
           | fieldPats ->
             let fieldPart =
               fieldPats
@@ -369,7 +367,7 @@ module Darklang =
                 PrettyPrinter.ProgramTypes.matchPattern pat)
               |> Stdlib.String.join ", "
 
-            $"{caseName} ({fieldPart})"
+            $"{caseName}({fieldPart})"
 
 
       let binaryOperation (b: LanguageTools.ProgramTypes.BinaryOperation) : String =
@@ -465,7 +463,7 @@ module Darklang =
             | Error e -> PrettyPrinter.ProgramTypes.nameResolutionError e
 
           match fields with
-          | [] -> $"{typeNamePart}.{caseName}"
+          | [] -> $"{typeNamePart}.{caseName}()"
           | fields ->
             let fieldPart =
               fields
@@ -473,7 +471,7 @@ module Darklang =
               |> Stdlib.List.map (fun field -> $"({field})")
               |> Stdlib.String.join " "
 
-            $"{typeNamePart}.{caseName} {fieldPart}"
+            $"{typeNamePart}.{caseName}{fieldPart}"
 
       let expr (e: LanguageTools.ProgramTypes.Expr) : String =
         match e with
@@ -566,7 +564,7 @@ module Darklang =
             | Error e -> PrettyPrinter.ProgramTypes.nameResolutionError e
 
           match fields with
-          | [] -> $"{typeNamePart}.{caseName}"
+          | [] -> $"{typeNamePart}.{caseName}()"
           | fields ->
             let fieldPart =
               fields
