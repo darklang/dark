@@ -92,20 +92,13 @@ MyEnum.TwoArgs(1L, 2L)
       (enum_case_identifier)
       (symbol)
       (enum_fields
-        (expression
-          (simple_expression
-            (int64_literal
-              (digits
-                (positive_digits))
-              (symbol))))
+        (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
         (symbol)
-        (expression
-          (simple_expression
-            (int64_literal
-              (digits
-                (positive_digits))
-              (symbol)))))
-      (symbol))))
+        (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol)))))
+      (symbol)
+    )
+  )
+)
 
 
 ==================
