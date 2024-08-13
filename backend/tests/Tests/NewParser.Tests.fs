@@ -725,6 +725,18 @@ let exprs =
       []
       false
     t "custom enum fn params" "MyEnum.A(1L, 2L)" "MyEnum.A(1L, 2L)" [] [] [] false
+    t
+      "custom enum indexed params"
+      """MyEnum.A(
+  1L,
+  2L
+)"""
+      """MyEnum.A(1L, 2L)"""
+      []
+      []
+      []
+      false
+
 
     // qualified constant
     t
