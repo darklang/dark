@@ -288,7 +288,12 @@ module Darklang =
           (findNodeByFieldName node "enum_fields")
           |> Stdlib.Option.map (fun enumFieldsNode ->
             enumFieldsNode.children
-            |> Stdlib.List.map (fun child -> parseFn child)
+            |> Stdlib.List.chunkBySize 2L
+            |> Builtin.unwrap
+            |> Stdlib.List.map (fun contentSymbolPair ->
+              match contentSymbolPair with
+              | [ contentNode; symbol ] -> parseFn contentNode
+              | [ contentNode ] -> parseFn contentNode)
             |> Stdlib.Result.collect)
 
           |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])

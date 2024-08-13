@@ -171,7 +171,7 @@ pipe expression - infix
 pipe expression - enum
 ==================
 
-3L |> Stdlib.Result.Result.Ok
+3L |> Stdlib.Result.Result.Ok()
 
 ---
 
@@ -183,7 +183,7 @@ pipe expression - enum
         (symbol)
         (pipe_expr
           (pipe_enum
-            (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)) (symbol) (enum_case_identifier)
+            (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)) (symbol) (enum_case_identifier) (symbol) (symbol)
           )
         )
       )
@@ -196,7 +196,7 @@ pipe expression - enum
 pipe expression - enum with two fields
 ==================
 
-33L |> MyEnum.A 21L
+33L |> MyEnum.A(21L)
 
 ---
 
@@ -209,7 +209,9 @@ pipe expression - enum with two fields
         (pipe_expr
           (pipe_enum
             (qualified_type_name (type_identifier)) (symbol) (enum_case_identifier)
+            (symbol)
             (pipe_enum_fields (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol)))))
+            (symbol)
           )
         )
       )
@@ -222,7 +224,7 @@ pipe expression - enum with two fields
 pipe expression - enum with three fields
 ==================
 
-33L |> MyEnum.B 21L 12L
+33L |> MyEnum.B(21L, 12L)
 
 ---
 
@@ -235,10 +237,13 @@ pipe expression - enum with three fields
         (pipe_expr
           (pipe_enum
             (qualified_type_name (type_identifier)) (symbol) (enum_case_identifier)
+            (symbol)
             (pipe_enum_fields
               (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+              (symbol)
               (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
             )
+            (symbol)
           )
         )
       )
@@ -251,7 +256,7 @@ pipe expression - enum with three fields
 pipe expression - enum with tuple
 ==================
 
-33L |> MyEnum.C(21L, 12L)
+33L |> MyEnum.C((21L, 12L))
 
 ---
 
@@ -266,6 +271,7 @@ pipe expression - enum with tuple
             (qualified_type_name (type_identifier))
             (symbol)
             (enum_case_identifier)
+            (symbol)
             (pipe_enum_fields
               (expression
                 (simple_expression
@@ -279,6 +285,7 @@ pipe expression - enum with tuple
                 )
               )
             )
+            (symbol)
           )
         )
       )

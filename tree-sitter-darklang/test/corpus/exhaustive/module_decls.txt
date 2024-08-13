@@ -227,10 +227,10 @@ module decl - with functions
 
 module Darklang =
   let returnsOptionNone () : Stdlib.Option.Option<'a> =
-    Stdlib.Option.Option.None
+    Stdlib.Option.Option.None()
 
   let returnsResultOk () : Stdlib.Result.Result<Int64, String> =
-    Stdlib.Result.Result.Ok 5L
+    Stdlib.Result.Result.Ok(5L)
 
 
 ---
@@ -259,10 +259,14 @@ module Darklang =
         (symbol)
         (indent)
         (expression
-          (enum_literal
-            (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier))
-            (symbol)
-            (enum_case_identifier)
+          (simple_expression
+            (enum_literal
+              (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier))
+              (symbol)
+              (enum_case_identifier)
+              (symbol)
+              (symbol)
+            )
           )
         )
         (dedent)
@@ -284,12 +288,16 @@ module Darklang =
         (symbol)
         (indent)
         (expression
-          (enum_literal
-            (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier))
-            (symbol)
-            (enum_case_identifier)
-            (enum_fields
-              (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+          (simple_expression
+            (enum_literal
+              (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier))
+              (symbol)
+              (enum_case_identifier)
+              (symbol)
+              (enum_fields
+                (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+              )
+              (symbol)
             )
           )
         )

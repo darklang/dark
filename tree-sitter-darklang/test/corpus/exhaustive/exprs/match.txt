@@ -260,9 +260,9 @@ match (5L, 6L) with
 match expression - test enum
 ==================
 
-match Stdlib.Result.Result.Ok 5L with
-| Ok x -> x
-| Error x -> x
+match Stdlib.Result.Result.Ok(5L) with
+| Ok(x) -> x
+| Error(x) -> x
 
 ---
 
@@ -271,20 +271,24 @@ match Stdlib.Result.Result.Ok 5L with
     (match_expression
       (keyword)
       (expression
-        (enum_literal
-          (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)) (symbol) (enum_case_identifier)
-          (enum_fields (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol)))))
+        (simple_expression
+          (enum_literal
+            (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)) (symbol) (enum_case_identifier)
+            (symbol)
+            (enum_fields (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol)))))
+            (symbol)
+          )
         )
       )
       (keyword)
       (match_case
         (symbol)
-        (match_pattern (enum (enum_case_identifier) (mp_enum_fields (match_pattern (variable)))))
+        (match_pattern (enum (enum_case_identifier) (symbol) (mp_enum_fields (match_pattern (variable))) (symbol) ))
         (symbol)
         (expression (simple_expression (variable_identifier))))
       (match_case
         (symbol)
-        (match_pattern (enum (enum_case_identifier) (mp_enum_fields (match_pattern (variable)))))
+        (match_pattern (enum (enum_case_identifier) (symbol) (mp_enum_fields (match_pattern (variable))) (symbol)))
         (symbol)
         (expression (simple_expression (variable_identifier)))
       )
@@ -425,7 +429,7 @@ match expression - tuple
 ==================
 
 match (name, value, keyword) with
-| (Ok name, Ok value, Ok keyword) -> "success"
+| (Ok(name), Ok(value), Ok(keyword)) -> "success"
 | _ -> "error"
 
 ---
@@ -456,24 +460,43 @@ match (name, value, keyword) with
           (tuple
             (symbol)
             (match_pattern
-              (enum (enum_case_identifier) (mp_enum_fields (match_pattern (variable))))
-            )
+              (enum
+                (enum_case_identifier)
+                (symbol)
+                (mp_enum_fields (match_pattern (variable)))
+                (symbol)
+              )
+              )
             (symbol)
             (match_pattern
-              (enum (enum_case_identifier) (mp_enum_fields (match_pattern (variable))))
+              (enum
+                (enum_case_identifier)
+                (symbol)
+                (mp_enum_fields (match_pattern  (variable)))
+                (symbol)
+              )
             )
             (mp_tuple_the_rest
               (symbol)
               (match_pattern
-                (enum (enum_case_identifier) (mp_enum_fields (match_pattern (variable))))
+                (enum
+                  (enum_case_identifier)
+                  (symbol)
+                  (mp_enum_fields (match_pattern (variable)))
+                  (symbol)
+                )
               )
             )
-            (symbol)))
+            (symbol)
+          )
+        )
         (symbol)
-        (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+        (expression (simple_expression  (string_segment (string_literal (symbol) (string_content) (symbol)))))
       )
       (match_case
-        (symbol) (match_pattern (variable)) (symbol)
+        (symbol)
+        (match_pattern (variable))
+        (symbol)
         (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
       )
     )

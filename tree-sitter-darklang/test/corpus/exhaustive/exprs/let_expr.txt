@@ -46,7 +46,7 @@ x
 let expression with pipes -inline
 ==================
 
-let x = 1L |> Stdlib.Option.Option.Some
+let x = 1L |> Stdlib.Option.Option.Some()
 x
 
 ---
@@ -63,7 +63,7 @@ x
             (pipe_expr
               (pipe_enum
                 (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier))
-                (symbol) (enum_case_identifier)
+                (symbol) (enum_case_identifier) (symbol) (symbol)
               )
             )
           )
@@ -81,7 +81,7 @@ let expression with one pipe -indented
 
 let x =
   1L
-  |> Stdlib.Option.Option.Some
+  |> Stdlib.Option.Option.Some()
 x
 
 ---
@@ -99,7 +99,7 @@ x
             (pipe_expr
               (pipe_enum
                 (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier))
-                (symbol) (enum_case_identifier)
+                (symbol) (enum_case_identifier) (symbol) (symbol)
               )
             )
           )
