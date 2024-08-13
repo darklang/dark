@@ -259,12 +259,14 @@ module Darklang =
         (symbol)
         (indent)
         (expression
-          (enum_literal
-            (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier))
-            (symbol)
-            (enum_case_identifier)
-            (symbol)
-            (symbol)
+          (simple_expression
+            (enum_literal
+              (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier))
+              (symbol)
+              (enum_case_identifier)
+              (symbol)
+              (symbol)
+            )
           )
         )
         (dedent)
@@ -286,15 +288,17 @@ module Darklang =
         (symbol)
         (indent)
         (expression
-          (enum_literal
-            (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier))
-            (symbol)
-            (enum_case_identifier)
-            (symbol)
-            (enum_fields
-              (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+          (simple_expression
+            (enum_literal
+              (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier))
+              (symbol)
+              (enum_case_identifier)
+              (symbol)
+              (enum_fields
+                (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+              )
+              (symbol)
             )
-            (symbol)
           )
         )
         (dedent)

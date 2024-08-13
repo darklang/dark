@@ -281,17 +281,19 @@ Enum List
         (symbol)
         (list_content
           (expression
-            (enum_literal
-              (qualified_type_name (module_identifier) (symbol) (type_identifier))
-              (symbol)
-              (enum_case_identifier)
-              (symbol)
-              (indent)
-              (enum_fields
-                (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+            (simple_expression
+              (enum_literal
+                (qualified_type_name (module_identifier) (symbol) (type_identifier))
+                (symbol)
+                (enum_case_identifier)
+                (symbol)
+                (indent)
+                (enum_fields
+                  (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+                )
+                (dedent)
+                (symbol)
               )
-              (dedent)
-              (symbol)
             )
           )
           (newline)

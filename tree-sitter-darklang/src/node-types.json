@@ -1102,10 +1102,6 @@
           "named": true
         },
         {
-          "type": "enum_literal",
-          "named": true
-        },
-        {
           "type": "if_expression",
           "named": true
         },
@@ -3307,6 +3303,10 @@
         },
         {
           "type": "dict_literal",
+          "named": true
+        },
+        {
+          "type": "enum_literal",
           "named": true
         },
         {

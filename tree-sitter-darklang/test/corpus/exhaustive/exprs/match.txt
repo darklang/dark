@@ -271,11 +271,13 @@ match Stdlib.Result.Result.Ok(5L) with
     (match_expression
       (keyword)
       (expression
-        (enum_literal
-          (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)) (symbol) (enum_case_identifier)
-          (symbol)
-          (enum_fields (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol)))))
-          (symbol)
+        (simple_expression
+          (enum_literal
+            (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)) (symbol) (enum_case_identifier)
+            (symbol)
+            (enum_fields (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol)))))
+            (symbol)
+          )
         )
       )
       (keyword)
