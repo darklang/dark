@@ -232,10 +232,10 @@ let rec valueTypeUnifies
 
     //| TDB innerT, ValueType.Known(KTDB innerV) -> return! r innerT innerV
 
-    // | TVariable name, _ ->
-    //   match Map.get name tst with
-    //   | None -> return true
-    //   | Some t -> return! r t actual
+    | TVariable name, _ ->
+      match Map.get name tst with
+      | None -> return true
+      | Some t -> return! r t actual
 
     | _, _ -> return false
   }
@@ -257,13 +257,13 @@ let rec unify
       // //
       // // Potentially needs to be removed before we use this type checker for DBs?
       // //   - Could always have a type checking context that allows/disallows any
-      // | TVariable name, _ ->
-      //   match Map.get name tst with
-      //   // for now, allow undefined type variables. In the future, we would create a
-      //   // type from the value and return any variables defined this way for usage in
-      //   // further arguments and return values.
-      //   | None -> return Ok()
-      //   | Some t -> return! unify context types tst t value
+      | TVariable name, _ ->
+        match Map.get name tst with
+        // for now, allow undefined type variables. In the future, we would create a
+        // type from the value and return any variables defined this way for usage in
+        // further arguments and return values.
+        | None -> return Ok()
+        | Some t -> return! unify context types tst t value
 
       | TBool, DBool _ -> return Ok()
       | TUnit, DUnit -> return Ok()
@@ -455,7 +455,7 @@ let rec unify
 
       // | TCustomType _, _
 
-      // | TVariable _, _
+      | TVariable _, _
 
       | TFn _, _
       // | TDB _, _

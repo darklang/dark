@@ -23,14 +23,34 @@ let eFloat (sign : Sign) (whole : string) (fraction : string) : Expr =
   EFloat(gid (), sign, whole, fraction)
 
 let eChar (c : string) : Expr = EChar(gid (), c)
-let eStr (str : string) : Expr = EString(gid (), [ StringText str ])
 
-
-
+let strText (str : string) : StringSegment = StringText str
+let strInterp (expr : Expr) : StringSegment = StringInterpolation expr
+let eStr (segments : List<StringSegment>) : Expr = EString(gid (), segments)
 
 let eList (elems : Expr list) : Expr = EList(gid (), elems)
+let eDict (entries : List<string * Expr>) : Expr = EDict(gid (), entries)
+let eTuple (first : Expr) (second : Expr) (theRest : Expr list) : Expr =
+  ETuple(gid (), first, second, theRest)
 
+
+let lpUnit () : LetPattern = LPUnit(gid ())
+let lpVar (name : string) : LetPattern = LPVariable(gid (), name)
+let lpTuple
+  (first : LetPattern)
+  (second : LetPattern)
+  (theRest : LetPattern list)
+  : LetPattern =
+  LPTuple(gid (), first, second, theRest)
+let eLet (pat : LetPattern) (value : Expr) (body : Expr) : Expr =
+  ELet(gid (), pat, value, body)
 let eVar (name : string) : Expr = EVariable(gid (), name)
+
+let eIf (cond : Expr) (thenBranch : Expr) (elseBranch : Option<Expr>) : Expr =
+  EIf(gid (), cond, thenBranch, elseBranch)
+
+let eMatch (expr : Expr) (cases : List<MatchCase>) : Expr =
+  EMatch(gid (), expr, cases)
 
 // let eFieldAccess (expr : Expr) (fieldName : string) : Expr =
 //   ERecordFieldAccess(gid (), expr, fieldName)
@@ -79,8 +99,7 @@ let eApply
   let args = NEList.ofListUnsafe "eApply" [] args
   EApply(gid (), target, typeArgs, args)
 
-// let eTuple (first : Expr) (second : Expr) (theRest : Expr list) : Expr =
-//   ETuple(gid (), first, second, theRest)
+
 
 
 // let customTypeRecord (fields : List<string * TypeReference>) : TypeDeclaration.T =

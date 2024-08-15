@@ -124,35 +124,35 @@ type LetPattern =
     theRest : List<LetPattern>
   | LPVariable of id * name : string
 
-// /// Used for pattern matching in a match statement
-// type MatchPattern =
-//   | MPUnit of id
+/// Used for pattern matching in a match statement
+type MatchPattern =
+  | MPUnit of id
 
-//   | MPBool of id * bool
+  | MPBool of id * bool
 
-//   | MPInt8 of id * int8
-//   | MPUInt8 of id * uint8
-//   | MPInt16 of id * int16
-//   | MPUInt16 of id * uint16
-//   | MPInt32 of id * int32
-//   | MPUInt32 of id * uint32
-//   | MPInt64 of id * int64
-//   | MPUInt64 of id * uint64
-//   | MPInt128 of id * System.Int128
-//   | MPUInt128 of id * System.UInt128
+  | MPInt8 of id * int8
+  | MPUInt8 of id * uint8
+  | MPInt16 of id * int16
+  | MPUInt16 of id * uint16
+  | MPInt32 of id * int32
+  | MPUInt32 of id * uint32
+  | MPInt64 of id * int64
+  | MPUInt64 of id * uint64
+  | MPInt128 of id * System.Int128
+  | MPUInt128 of id * System.UInt128
 
-//   | MPFloat of id * Sign * string * string
+  | MPFloat of id * Sign * string * string
 
-//   | MPChar of id * string
-//   | MPString of id * string
+  | MPChar of id * string
+  | MPString of id * string
 
-//   | MPList of id * List<MatchPattern>
-//   | MPListCons of id * head : MatchPattern * tail : MatchPattern
-//   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
+  | MPList of id * List<MatchPattern>
+  | MPListCons of id * head : MatchPattern * tail : MatchPattern
+  | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
 
-//   | MPEnum of id * caseName : string * fieldPats : List<MatchPattern>
+  //| MPEnum of id * caseName : string * fieldPats : List<MatchPattern>
 
-//   | MPVariable of id * string
+  | MPVariable of id * string
 
 type BinaryOperation =
   | BinOpAnd
@@ -260,15 +260,15 @@ type Expr =
   // /// `(1 + 2) |> fnName |> (+) 3`
   // | EPipe of id * Expr * List<PipeExpr>
 
-  // /// Supports `match` expressions
-  // /// ```fsharp
-  // /// match x + 2 with // arg
-  // /// | pattern -> expr // cases[0]
-  // /// | pattern -> expr
-  // /// | ...
-  // /// ```
-  // // cases is a list to represent when a user starts typing but doesn't complete it
-  // | EMatch of id * arg : Expr * cases : List<MatchCase>
+  /// Supports `match` expressions
+  /// ```fsharp
+  /// match x + 2 with // arg
+  /// | pattern -> expr // cases[0]
+  /// | pattern -> expr
+  /// | ...
+  /// ```
+  // cases is a list to represent when a user starts typing but doesn't complete it
+  | EMatch of id * arg : Expr * cases : List<MatchCase>
 
   // <summary>
   // Composed of binding pattern, the expression to create bindings for,
@@ -353,7 +353,7 @@ type Expr =
 //   NameResolution<FQConstantName.FQConstantName>
 
 
-//and MatchCase = { pat : MatchPattern; whenCondition : Option<Expr>; rhs : Expr }
+and MatchCase = { pat : MatchPattern; whenCondition : Option<Expr>; rhs : Expr }
 
 and StringSegment =
   | StringText of string
@@ -409,8 +409,7 @@ module Expr =
     // | ERecord(id, _, _)
     // | ERecordUpdate(id, _, _)
     // | EEnum(id, _, _, _)
-    // | EMatch(id, _, _)
-     -> id
+    | EMatch(id, _, _) -> id
 
 // module PipeExpr =
 //   let toID (expr : PipeExpr) : id =

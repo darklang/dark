@@ -13,7 +13,7 @@ module E = Tests.ProgramTypesToRuntimeTypes.Expressions
 
 let eval pt =
   uply {
-    let vmState = PT2RT.Expr.toRT 0 pt |> RT.VMState.fromInstructions
+    let vmState = pt |> PT2RT.Expr.toRT 0 |> RT.VMState.fromInstructions
 
     let! executionState =
       executionStateFor PT.PackageManager.empty (System.Guid.NewGuid()) false false
@@ -21,147 +21,118 @@ let eval pt =
     return! LibExecution.Interpreter.eval executionState vmState
   }
 
-
-let onePlusTwo =
-  testTask "1+2" {
-    let! actual = eval E.onePlusTwo |> Ply.toTask
-    let expected = RT.DInt64 3L
+let t name expr expected =
+  testTask name {
+    let! actual = eval expr |> Ply.toTask
     return Expect.equal actual expected ""
   }
+
+
+let onePlusTwo = t "1+2" E.onePlusTwo (RT.DInt64 3L)
 
 let boolList =
-  testTask "[true; false; true]" {
-    let! actual = eval E.boolList |> Ply.toTask
-    let expected =
-      RT.DList(VT.unknown, [ RT.DBool true; RT.DBool false; RT.DBool true ])
-    return Expect.equal actual expected ""
-  }
+  t
+    "[true; false; true]"
+    E.boolList
+    (RT.DList(VT.unknown, [ RT.DBool true; RT.DBool false; RT.DBool true ]))
 
 let boolListList =
-  testTask "[[true; false]; [false; true]]" {
-    let! actual = eval E.boolListList |> Ply.toTask
-    let expected =
-      RT.DList(
-        VT.unknown,
-        [ RT.DList(VT.unknown, [ RT.DBool true; RT.DBool false ])
-          RT.DList(VT.unknown, [ RT.DBool false; RT.DBool true ]) ]
-      )
-    return Expect.equal actual expected ""
-  }
-let letSimple =
-  testTask "let x = true\nx" {
-    let! actual = eval E.letSimple |> Ply.toTask
-    let expected = RT.DBool true
-    return Expect.equal actual expected ""
-  }
-let letTuple =
-  testTask "let (x, y) = (1, 2)\nx" {
-    let! actual = eval E.letTuple |> Ply.toTask
-    let expected = RT.DInt64 1L
-    return Expect.equal actual expected ""
-  }
+  t
+    "[[true; false]; [false; true]]"
+    E.boolListList
+    (RT.DList(
+      VT.unknown,
+      [ RT.DList(VT.unknown, [ RT.DBool true; RT.DBool false ])
+        RT.DList(VT.unknown, [ RT.DBool false; RT.DBool true ]) ]
+    ))
+let letSimple = t "let x = true\nx" E.letSimple (RT.DBool true)
+let letTuple = t "let (x, y) = (1, 2)\nx" E.letTuple (RT.DInt64 1L)
 let letTupleNested =
-  testTask "let (a, (b, c)) = (1, (2, 3))\nb" {
-    let! actual = eval E.letTupleNested |> Ply.toTask
-    let expected = RT.DInt64 2L
-    return Expect.equal actual expected ""
-  }
+  t "let (a, (b, c)) = (1, (2, 3))\nb" E.letTupleNested (RT.DInt64 2L)
 
-let simpleString =
-  testTask "[\"hello\"]" {
-    let! actual = eval E.simpleString |> Ply.toTask
-    let expected = RT.DString "hello"
-    return Expect.equal actual expected ""
-  }
+let simpleString = t "[\"hello\"]" E.simpleString (RT.DString "hello")
 
 let stringWithInterpolation =
-  testTask "[let x = \"world\" in $\"hello {x}\"]" {
-    let! actual = eval E.stringWithInterpolation |> Ply.toTask
-    let expected = RT.DString "hello, world"
-    return Expect.equal actual expected ""
-  }
+  t
+    "[let x = \"world\" in $\"hello {x}\"]"
+    E.stringWithInterpolation
+    (RT.DString "hello, world")
 
-let dictEmpty =
-  testTask "Dict {}" {
-    let! actual = eval E.dictEmpty |> Ply.toTask
-    let expected = RT.DDict(VT.unknown, Map.empty)
-    return Expect.equal actual expected ""
-  }
+let dictEmpty = t "Dict {}" E.dictEmpty (RT.DDict(VT.unknown, Map.empty))
 let dictSimple =
-  testTask "Dict { t: true}" {
-    let! actual = eval E.dictSimple |> Ply.toTask
-    let expected = RT.DDict(VT.unknown, Map [ "key", RT.DBool true ])
-    return Expect.equal actual expected ""
-  }
+  t
+    "Dict { t: true}"
+    E.dictSimple
+    (RT.DDict(VT.unknown, Map [ "key", RT.DBool true ]))
 let dictMultEntries =
-  testTask "Dict {t: true; f: false}" {
-    let! actual = eval E.dictMultEntries |> Ply.toTask
-    let expected =
-      RT.DDict(VT.unknown, Map [ "t", RT.DBool true; "f", RT.DBool false ])
-    return Expect.equal actual expected ""
-  }
+  t
+    "Dict {t: true; f: false}"
+    E.dictMultEntries
+    (RT.DDict(VT.unknown, Map [ "t", RT.DBool true; "f", RT.DBool false ]))
 let dictDupeKey =
-  testTask "Dict {t: true; f: false; t: false}" {
-    let! actual = eval E.dictDupeKey |> Ply.toTask
-    let expected =
-      RT.DDict(VT.unknown, Map [ "t", RT.DBool false; "f", RT.DBool false ])
-    return Expect.equal actual expected ""
-  }
+  t
+    "Dict {t: true; f: false; t: false}"
+    E.dictDupeKey
+    (RT.DDict(VT.unknown, Map [ "t", RT.DBool false; "f", RT.DBool false ]))
 
 
-let ifGotoThenBranch =
-  testTask "if true then 1 else 2" {
-    let! actual = eval E.ifGotoThenBranch |> Ply.toTask
-    let expected = RT.DInt64 1L
-    return Expect.equal actual expected ""
-  }
+let ifGotoThenBranch = t "if true then 1 else 2" E.ifGotoThenBranch (RT.DInt64 1L)
 
-let ifGotoElseBranch =
-  testTask "if false then 1 else 2" {
-    let! actual = eval E.ifGotoElseBranch |> Ply.toTask
-    let expected = RT.DInt64 2L
-    return Expect.equal actual expected ""
-  }
-let ifElseMissing =
-  testTask "if false then 1" {
-    let! actual = eval E.ifElseMissing |> Ply.toTask
-    let expected = RT.DUnit
-    return Expect.equal actual expected ""
-  }
+let ifGotoElseBranch = t "if false then 1 else 2" E.ifGotoElseBranch (RT.DInt64 2L)
+let ifElseMissing = t "if false then 1" E.ifElseMissing RT.DUnit
 
 let tuple2 =
-  testTask "(false, true)" {
-    let! actual = eval E.tuple2 |> Ply.toTask
-    let expected = RT.DTuple(RT.DBool false, RT.DBool true, [])
-    return Expect.equal actual expected ""
-  }
+  t "(false, true)" E.tuple2 (RT.DTuple(RT.DBool false, RT.DBool true, []))
 
 let tuple3 =
-  testTask "(false, true, false)" {
-    let! actual = eval E.tuple3 |> Ply.toTask
-    let expected = RT.DTuple(RT.DBool false, RT.DBool true, [ RT.DBool false ])
-    return Expect.equal actual expected ""
-  }
-
+  t
+    "(false, true, false)"
+    E.tuple3
+    (RT.DTuple(RT.DBool false, RT.DBool true, [ RT.DBool false ]))
 let tupleNested =
-  testTask "((false, true), true, (true, false)))" {
-    let! actual = eval E.tupleNested |> Ply.toTask
-    let expected =
-      RT.DTuple(
-        RT.DTuple(RT.DBool false, RT.DBool true, []),
-        RT.DBool true,
-        [ RT.DTuple(RT.DBool true, RT.DBool false, []) ]
-      )
-    return Expect.equal actual expected ""
-  }
+  t
+    "((false, true), true, (true, false)))"
+    E.tupleNested
+    (RT.DTuple(
+      RT.DTuple(RT.DBool false, RT.DBool true, []),
+      RT.DBool true,
+      [ RT.DTuple(RT.DBool true, RT.DBool false, []) ]
+    ))
 
-// let TODO =
-//   testTask "TODO" {
-//     let! actual = eval E.TODO |> Ply.toTask
-//     let expected = RT.DUnit
-//     return Expect.equal actual expected ""
-//   }
+let matchSimple =
+  t
+    "match true with\n| false -> \"first branch\"\n| true -> \"second branch\""
+    E.matchSimple
+    (RT.DString "second branch")
 
+let matchNotMatched =
+  t "match true with\n| false -> \"first branch\"" E.matchNotMatched RT.DUnit
+
+let matchWithVar = t "match true with\n| x -> x" E.matchWithVar (RT.DBool true)
+
+let matchWithVarAndWhenCondition =
+  t
+    "match 4 with\n| 1 -> \"first branch\"\n| x when x % 2 == 0 -> \"second branch\""
+    E.matchWithVarAndWhenCondition
+    (RT.DString "second branch")
+
+let matchList =
+  t
+    "match [1, 2] with\n| [1, 2] -> \"first branch\""
+    E.matchList
+    (RT.DString "first branch")
+
+let matchListCons =
+  t
+    "match [1, 2] with\n| 1 :: tail -> tail"
+    E.matchListCons
+    (RT.DList(VT.unknown, [ RT.DInt64 2L ]))
+
+let matchTuple =
+  t
+    "match (1, 2) with\n| (1, 2) -> \"first branch\""
+    E.matchTuple
+    (RT.DString "first branch")
 
 let tests =
   testList
@@ -183,4 +154,11 @@ let tests =
       ifElseMissing
       tuple2
       tuple3
-      tupleNested ]
+      tupleNested
+      matchSimple
+      matchNotMatched
+      matchWithVar
+      //matchWithVarAndWhenCondition
+      matchList
+      matchListCons
+      matchTuple ]

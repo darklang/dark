@@ -122,6 +122,9 @@ module FQFnName =
 
   let package (id : uuid) = id
 
+  let fqBuiltin (name : string) (version : int) : FQFnName =
+    Builtin { name = name; version = version }
+
   let fqPackage (id : uuid) : FQFnName = Package id
 
   let builtinToString (s : Builtin) : string =
@@ -456,7 +459,7 @@ and TypeReference =
   | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TFn of NEList<TypeReference> * TypeReference
   // | TDB of TypeReference
-  // | TVariable of string
+  | TVariable of string
   // | TCustomType of
   //   NameResolution<FQTypeName.FQTypeName> *
   //   typeArgs : List<TypeReference>
@@ -496,16 +499,44 @@ and TypeReference =
       // | TCustomType(_, ts) -> List.forall isConcrete ts
       | TDict t -> isConcrete t
 
-    //| TVariable _-> false
+      | TVariable _ -> false
 
     isConcrete this
 
 and Register = int //<register> // TODO: unit of measure
 
-// TODO: consider if each of these should include the Expr ID that they came from
-//
-// Would Expr ID be enough?
-// I don't _think_ we'd have to note the fn ID or TL ID or script name, but maybe?)
+and MatchPattern =
+  | MPUnit
+  | MPBool of bool
+  | MPInt8 of int8
+  | MPUInt8 of uint8
+  | MPInt16 of int16
+  | MPUInt16 of uint16
+  | MPInt32 of int32
+  | MPUInt32 of uint32
+  | MPInt64 of int64
+  | MPUInt64 of uint64
+  | MPInt128 of System.Int128
+  | MPUInt128 of System.UInt128
+  | MPFloat of float
+  | MPChar of string
+  | MPString of string
+  | MPList of List<MatchPattern>
+  | MPListCons of head : MatchPattern * tail : MatchPattern // TODO: but the tail is a list...
+  | MPTuple of
+    first : MatchPattern *
+    second : MatchPattern *
+    theRest : List<MatchPattern>
+  | MPVariable of string
+
+/// TODO: consider if each of these should include the Expr ID that they came from
+///
+/// Would Expr ID be enough?
+/// I don't _think_ we'd have to note the fn ID or TL ID or script name, but maybe?)
+///
+/// We could also record the Instruction Index -> ExprID mapping _adjacent_ to RT,
+/// and only load it when needed.
+/// That way, the Interpreter could be lighter-weight.
 and Instruction =
   /// Push a ("constant") value into a register
   | LoadVal of loadTo : Register * Dval
@@ -568,19 +599,30 @@ and Instruction =
   /// Fail if this is hit (basically "raise an exception")
   | Fail of RuntimeError
 
+  /// Check if the value in the noted register the noted pattern,
+  /// and extract vars per MPVariable as relevant.
+  | MatchValue of
+    valueReg : Register *  // what we're matching against
+    pat : MatchPattern *
+    //successJump : int *
+    failJump : int
+
+  /// Could not find matching case in a match expression
+  /// CLEANUP we probably need a way to reference back to PT so we can get useful RTEs
+  /// TODO maybe make this a special case of Fail
+  | MatchUnmatched
+
 
 and Instructions = List<Instruction>
 and InstructionsWithContext =
   // (rc, instructions, result register)
   (int * Instructions * Register)
 
+
 // // Expressions here are runtime variants of the AST in ProgramTypes, having had
 // // superfluous information removed.
 // and Expr =
-
-
 //   // // flow control
-//   // | EMatch of id * Expr * NEList<MatchCase>
 //   // | EAnd of id * lhs : Expr * rhs : Expr
 //   // | EOr of id * lhs : Expr * rhs : Expr
 
@@ -588,7 +630,6 @@ and InstructionsWithContext =
 //   // | ERecordFieldAccess of id * Expr * string
 
 //   // calling fns and other things
-//   | EApply of id * Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
 //   //| ELambda of id * pats : NEList<LetPattern> * body : Expr
 
 //   // // working with custom types
@@ -602,8 +643,6 @@ and InstructionsWithContext =
 //   // adapt this to include more information as we go. This list of exprs is the
 //   // subexpressions to evaluate before evaluating the error.
 //   | EError of id * RuntimeError * List<Expr>
-
-// // and MatchCase = { pat : MatchPattern; whenCondition : Option<Expr>; rhs : Expr }
 
 
 
@@ -619,6 +658,10 @@ and DvalMap = Map<string, Dval>
 //     body : Expr }
 
 and FnValImpl =
+  // TODO: consider inlining these cases (DLambnda, DNamedBuiltinFn, DNamedPackageFn)
+  // maybe this includes partially-applied stuff?
+  // or maybe we have a separate type for that? idk.
+
   //| Lambda of LambdaImpl
   | NamedFn of FQFnName.FQFnName
 
@@ -1545,7 +1588,10 @@ and ExecutionState =
 and Registers = Dval array
 
 and VMState =
-  { instructions : Instruction array
+  { // /// Program counter -- what instruction index are we pointing at?
+    //pc: int
+
+    instructions : Instruction array
     registers : Registers
     resultReg : Register
 

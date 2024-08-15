@@ -36,20 +36,20 @@ let rec typeName (t : TypeReference) : string =
 
   | TFn _ -> "Function"
 
-// | TCustomType(Error _nre, _) -> "(Error during function resolution)"
-// | TCustomType(Ok t, typeArgs) ->
-//   let typeArgsPortion =
-//     match typeArgs with
-//     | [] -> ""
-//     | args ->
-//       args
-//       |> List.map (fun t -> typeName t)
-//       |> String.concat ", "
-//       |> fun betweenBrackets -> "<" + betweenBrackets + ">"
-//   FQTypeName.toString t + typeArgsPortion
+  // | TCustomType(Error _nre, _) -> "(Error during function resolution)"
+  // | TCustomType(Ok t, typeArgs) ->
+  //   let typeArgsPortion =
+  //     match typeArgs with
+  //     | [] -> ""
+  //     | args ->
+  //       args
+  //       |> List.map (fun t -> typeName t)
+  //       |> String.concat ", "
+  //       |> fun betweenBrackets -> "<" + betweenBrackets + ">"
+  //   FQTypeName.toString t + typeArgsPortion
 
-// | TDB _ -> "Datastore"
-// | TVariable varname -> $"'{varname}"
+  // | TDB _ -> "Datastore"
+  | TVariable varname -> $"'{varname}"
 
 
 let rec private knownTypeName (vt : KnownType) : string =

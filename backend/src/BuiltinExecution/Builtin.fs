@@ -12,8 +12,7 @@ let fnRenames =
 
 let builtins : Builtins =
   Builtin.combine
-    [
-      // Libs.NoModule.builtins
+    [ Libs.NoModule.builtins
 
       // Libs.Bool.builtins
 

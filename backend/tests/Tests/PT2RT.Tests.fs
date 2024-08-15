@@ -10,484 +10,597 @@ module VT = RT.ValueType
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PackageIDs = LibExecution.PackageIDs
 
+open TestUtils.PTShortcuts
+
 // TODO: consider adding an Expect.equalInstructions,
 // which better points out the diffs in the lists
 
 module Expressions =
-  let one = PT.EInt64(gid (), 1)
+  let one = eInt64 1
 
-  let onePlusTwo : PT.Expr =
-    PT.EApply(
-      gid (),
-      PT.EFnName(gid (), Ok(PT.FQFnName.fqBuiltIn "int64Add" 0)),
-      [],
-      (NEList.ofList (PT.EInt64(gid (), 1)) [ PT.EInt64(gid (), 2) ])
-    )
+  let onePlusTwo =
+    eApply
+      (PT.EFnName(gid (), Ok(PT.FQFnName.fqBuiltIn "int64Add" 0)))
+      []
+      [ eInt64 1; eInt64 2 ]
 
   // TODO: try to use undefined variable
   // TODO: lpunit
-  let letSimple : PT.Expr =
-    PT.ELet(
-      gid (),
-      PT.LPVariable(gid (), "x"),
-      PT.EBool(gid (), true),
-      PT.EVariable(gid (), "x")
-    )
-  let letTuple : PT.Expr =
-    PT.ELet(
-      gid (),
-      PT.LPTuple(gid (), PT.LPVariable(gid (), "x"), PT.LPVariable(gid (), "y"), []),
-      PT.ETuple(gid (), PT.EInt64(gid (), 1), PT.EInt64(gid (), 2), []),
-      PT.EVariable(gid (), "x")
-    )
+  let letSimple = eLet (lpVar "x") (eBool true) (eVar "x")
+  let letTuple =
+    eLet
+      (lpTuple (lpVar "x") (lpVar "y") [])
+      (eTuple (eInt64 1) (eInt64 2) [])
+      (eVar "x")
   /// `let (a, (b, c)) = (1, (2, 3)) in b`
-  let letTupleNested : PT.Expr =
-    PT.ELet(
-      gid (),
-      PT.LPTuple(
-        gid (),
-        PT.LPVariable(gid (), "a"),
-        PT.LPTuple(
-          gid (),
-          PT.LPVariable(gid (), "b"),
-          PT.LPVariable(gid (), "c"),
-          []
-        ),
-        []
-      ),
-      PT.ETuple(
-        gid (),
-        PT.EInt64(gid (), 1),
-        PT.ETuple(gid (), PT.EInt64(gid (), 2), PT.EInt64(gid (), 3), []),
-        []
-      ),
-      PT.EVariable(gid (), "b")
-    )
+  let letTupleNested =
+    eLet
+      (lpTuple (lpVar "a") (lpTuple (lpVar "b") (lpVar "c") []) [])
+      (eTuple (eInt64 1) (eTuple (eInt64 2) (eInt64 3) []) [])
+      (eVar "b")
 
-  let boolList : PT.Expr =
-    PT.EList(
-      gid (),
-      [ PT.EBool(gid (), true); PT.EBool(gid (), false); PT.EBool(gid (), true) ]
-    )
+  let boolList = eList [ eBool true; eBool false; eBool true ]
 
-  let boolListList : PT.Expr =
-    PT.EList(
-      gid (),
-      [ PT.EList(gid (), [ PT.EBool(gid (), true); PT.EBool(gid (), false) ])
-        PT.EList(gid (), [ PT.EBool(gid (), false); PT.EBool(gid (), true) ]) ]
-    )
+  let boolListList =
+    eList [ eList [ eBool true; eBool false ]; eList [ eBool false; eBool true ] ]
 
-  let simpleString : PT.Expr = PT.EString(gid (), [ PT.StringText("hello") ])
+  let simpleString = eStr [ strText "hello" ]
 
-  let stringWithInterpolation : PT.Expr =
-    PT.ELet(
-      gid (),
-      PT.LPVariable(gid (), "x"),
-      PT.EString(gid (), [ PT.StringText ", world" ]),
-      PT.EString(
-        gid (),
-        [ PT.StringText "hello"; PT.StringInterpolation(PT.EVariable(gid (), "x")) ]
-      )
-    )
+  let stringWithInterpolation =
+    eLet
+      (lpVar "x")
+      (eStr [ strText ", world" ])
+      (eStr [ strText "hello"; strInterp (eVar "x") ])
 
-  let dictEmpty : PT.Expr = PT.EDict(gid (), [])
-  let dictSimple : PT.Expr = PT.EDict(gid (), [ "key", PT.EBool(gid (), true) ])
-  let dictMultEntries : PT.Expr =
-    PT.EDict(gid (), [ "t", PT.EBool(gid (), true); "f", PT.EBool(gid (), false) ])
-  let dictDupeKey : PT.Expr =
-    PT.EDict(
-      gid (),
-      [ "t", PT.EBool(gid (), true)
-        "f", PT.EBool(gid (), false)
-        "t", PT.EBool(gid (), false) ]
-    )
+  let dictEmpty = eDict []
+  let dictSimple = eDict [ "key", eBool true ]
+  let dictMultEntries = eDict [ "t", eBool true; "f", eBool false ]
+  let dictDupeKey = eDict [ "t", eBool true; "f", eBool false; "t", eBool false ]
 
-  let ifGotoThenBranch : PT.Expr =
-    PT.EIf(
-      gid (),
-      PT.EBool(gid (), true),
-      PT.EInt64(gid (), 1),
-      Some(PT.EInt64(gid (), 2))
-    )
-  let ifGotoElseBranch : PT.Expr =
-    PT.EIf(
-      gid (),
-      PT.EBool(gid (), false),
-      PT.EInt64(gid (), 1),
-      Some(PT.EInt64(gid (), 2))
-    )
-  let ifElseMissing : PT.Expr =
-    PT.EIf(gid (), PT.EBool(gid (), false), PT.EInt64(gid (), 1), None)
+  let ifGotoThenBranch = eIf (eBool true) (eInt64 1) (Some(eInt64 2))
+  let ifGotoElseBranch = eIf (eBool false) (eInt64 1) (Some(eInt64 2))
+  let ifElseMissing = eIf (eBool false) (eInt64 1) None
 
   /// (false, true)
-  let tuple2 : PT.Expr =
-    PT.ETuple(gid (), PT.EBool(gid (), false), PT.EBool(gid (), true), [])
+  let tuple2 = eTuple (eBool false) (eBool true) []
 
   /// (false, true, false)
-  let tuple3 : PT.Expr =
-    PT.ETuple(
-      gid (),
-      PT.EBool(gid (), false),
-      PT.EBool(gid (), true),
-      [ PT.EBool(gid (), false) ]
-    )
+  let tuple3 = eTuple (eBool false) (eBool true) [ eBool false ]
 
   /// ((false, true), true, (true, false))
-  let tupleNested : PT.Expr =
-    PT.ETuple(
-      gid (),
-      PT.ETuple(gid (), PT.EBool(gid (), false), PT.EBool(gid (), true), []),
-      PT.EBool(gid (), true),
-      [ PT.ETuple(gid (), PT.EBool(gid (), true), PT.EBool(gid (), false), []) ]
-    )
+  let tupleNested =
+    eTuple
+      (eTuple (eBool false) (eBool true) [])
+      (eBool true)
+      [ eTuple (eBool true) (eBool false) [] ]
+
+  /// match true with
+  /// | false -> "first branch"
+  /// | true -> "second branch"
+  let matchSimple =
+    eMatch
+      (eBool true)
+      [ { pat = PT.MPBool(gid (), false)
+          whenCondition = None
+          rhs = eStr [ strText "first branch" ] }
+        { pat = PT.MPBool(gid (), true)
+          whenCondition = None
+          rhs = eStr [ strText "second branch" ] } ]
+
+  /// match true with
+  /// | false -> "first branch"
+  let matchNotMatched =
+    eMatch
+      (eBool true)
+      [ { pat = PT.MPBool(gid (), false)
+          whenCondition = None
+          rhs = eStr [ strText "first branch" ] } ]
+
+  /// match true with
+  /// | x -> x
+  let matchWithVar =
+    eMatch
+      (eBool true)
+      [ { pat = PT.MPVariable(gid (), "x"); whenCondition = None; rhs = eVar "x" } ]
+
+  /// match 4 with
+  /// | 1 -> "first branch"
+  /// | x when x % 2 == 0 -> "second branch"
+  let matchWithVarAndWhenCondition =
+    eMatch
+      (eInt64 4)
+      [ { pat = PT.MPInt64(gid (), 1)
+          whenCondition = None
+          rhs = eStr [ strText "first branch" ] }
+        { pat = PT.MPVariable(gid (), "x")
+          // "is even"
+          whenCondition =
+            Some(
+              eApply
+                (PT.EFnName(gid (), Ok(PT.FQFnName.fqBuiltIn "equals" 0)))
+                []
+                [ eApply
+                    (PT.EFnName(gid (), Ok(PT.FQFnName.fqBuiltIn "int64Mod" 0)))
+                    []
+                    [ eVar "x" ]
+                  eInt64 2 ]
+            )
+          rhs = eStr [ strText "second branch" ] } ]
+
+  let matchList =
+    eMatch
+      (eList [ eInt64 1; eInt64 2 ])
+      [ { pat = PT.MPList(gid (), [ PT.MPInt64(gid (), 1); PT.MPInt64(gid (), 2) ])
+          whenCondition = None
+          rhs = eStr [ strText "first branch" ] } ]
+  let matchListCons =
+    eMatch
+      (eList [ eInt64 1; eInt64 2 ])
+      [ { pat =
+            PT.MPListCons(
+              gid (),
+              PT.MPInt64(gid (), 1),
+              PT.MPVariable(gid (), "tail")
+            )
+          whenCondition = None
+          rhs = eVar "tail" } ]
+  let matchTuple =
+    eMatch
+      (eTuple (eInt64 1) (eInt64 2) [])
+      [ { pat = PT.MPTuple(gid (), PT.MPInt64(gid (), 1), PT.MPInt64(gid (), 2), [])
+          whenCondition = None
+          rhs = eStr [ strText "first branch" ] } ]
 
 module E = Expressions
 
 
-let one =
-  testTask "1" {
-    let actual = PT2RT.Expr.toRT 0 E.one
-    let expected = (1, [ RT.LoadVal(0, RT.DInt64 1L) ], 0)
+let t name expr expected =
+  testTask name {
+    let actual = PT2RT.Expr.toRT 0 expr
     return Expect.equal actual expected ""
   }
+
+let one = t "1" E.one (1, [ RT.LoadVal(0, RT.DInt64 1L) ], 0)
+
 
 let onePlusTwo =
-  testTask "1+2" {
-    let actual = PT2RT.Expr.toRT 0 E.onePlusTwo
-
-    let expected =
-      (4,
-       [ RT.LoadVal(
-           0,
-           RT.DFnVal(
-             RT.NamedFn(RT.FQFnName.Builtin { name = "int64Add"; version = 0 })
-           )
+  t
+    "1+2"
+    E.onePlusTwo
+    (4,
+     [ RT.LoadVal(
+         0,
+         RT.DFnVal(
+           RT.NamedFn(RT.FQFnName.Builtin { name = "int64Add"; version = 0 })
          )
-         RT.LoadVal(1, RT.DInt64 1L)
-         RT.LoadVal(2, RT.DInt64 2L)
-         RT.Apply(3, 0, [], { head = 1; tail = [ 2 ] }) ],
-       3)
-
-    return Expect.equal actual expected ""
-  }
+       )
+       RT.LoadVal(1, RT.DInt64 1L)
+       RT.LoadVal(2, RT.DInt64 2L)
+       RT.Apply(3, 0, [], { head = 1; tail = [ 2 ] }) ],
+     3)
 
 let letSimple =
-  testTask "let x = true\n x" {
-    let actual = PT2RT.Expr.toRT 0 E.letSimple
-
-    let expected =
-      (2,
-       [ RT.LoadVal(0, RT.DBool true)
-         RT.SetVar("x", 0) // where the 'true' is stored
-         RT.GetVar(1, "x") ],
-       1)
-
-    return Expect.equal actual expected ""
-  }
+  t
+    "let x = true\n x"
+    E.letSimple
+    (2,
+     [ RT.LoadVal(0, RT.DBool true)
+       RT.SetVar("x", 0) // where the 'true' is stored
+       RT.GetVar(1, "x") ],
+     1)
 
 let letTuple =
-  testTask "let (x, y) = (1, 2)\nx" {
-    let actual = PT2RT.Expr.toRT 0 E.letTuple
+  t
+    "let (x, y) = (1, 2)\nx"
+    E.letTuple
+    (6,
+     [ // register 0 isn't exposed, but used to temporarily store the tuple
+       RT.LoadVal(1, RT.DInt64 1L)
+       RT.LoadVal(2, RT.DInt64 2L)
+       RT.CreateTuple(0, 1, 2, [])
+       RT.ExtractTupleItems(0, 3, 4, [])
 
-    let expected =
-      (6,
-       [ // register 0 isn't exposed, but used to temporarily store the tuple
-         RT.LoadVal(1, RT.DInt64 1L)
-         RT.LoadVal(2, RT.DInt64 2L)
-         RT.CreateTuple(0, 1, 2, [])
-         RT.ExtractTupleItems(0, 3, 4, [])
+       RT.SetVar("x", 3)
+       RT.SetVar("y", 4)
 
-         RT.SetVar("x", 3)
-         RT.SetVar("y", 4)
-
-         RT.GetVar(5, "x") ],
-       5)
-
-    return Expect.equal actual expected ""
-  }
+       RT.GetVar(5, "x") ],
+     5)
 let letTupleNested =
-  testTask "let (a, (b, c)) = (1, (2, 3)) in b" {
-    let actual = PT2RT.Expr.toRT 0 E.letTupleNested
-
-    let expected =
-      (10,
-       [ // reserve 0 for outer tuple
-         RT.LoadVal(1, RT.DInt64 1L)
-         // reserve 2 for inner tuple
-         RT.LoadVal(3, RT.DInt64 2L)
-         RT.LoadVal(4, RT.DInt64 3L)
-         RT.CreateTuple(2, 3, 4, []) // create inner tuple
-         RT.CreateTuple(0, 1, 2, []) // create outer tuple
-         RT.ExtractTupleItems(0, 5, 6, []) // extract outer tuple items
-         RT.SetVar("a", 5)
-         RT.ExtractTupleItems(6, 7, 8, [])
-         RT.SetVar("b", 7)
-         RT.SetVar("c", 8)
-         RT.GetVar(9, "b") ],
-       9)
-
-    return Expect.equal actual expected ""
-  }
+  t
+    "let (a, (b, c)) = (1, (2, 3)) in b"
+    E.letTupleNested
+    (10,
+     [ // reserve 0 for outer tuple
+       RT.LoadVal(1, RT.DInt64 1L)
+       // reserve 2 for inner tuple
+       RT.LoadVal(3, RT.DInt64 2L)
+       RT.LoadVal(4, RT.DInt64 3L)
+       RT.CreateTuple(2, 3, 4, []) // create inner tuple
+       RT.CreateTuple(0, 1, 2, []) // create outer tuple
+       RT.ExtractTupleItems(0, 5, 6, []) // extract outer tuple items
+       RT.SetVar("a", 5)
+       RT.ExtractTupleItems(6, 7, 8, [])
+       RT.SetVar("b", 7)
+       RT.SetVar("c", 8)
+       RT.GetVar(9, "b") ],
+     9)
 
 let boolList =
-  testTask "[true, false, true]" {
-    let actual = PT2RT.Expr.toRT 0 E.boolList
+  t
+    "[true, false, true]"
+    E.boolList
+    (4,
+     [ RT.LoadVal(0, RT.DList(VT.unknown, []))
 
-    let expected =
-      (4,
-       [ RT.LoadVal(0, RT.DList(VT.unknown, []))
+       RT.LoadVal(1, RT.DBool true)
+       RT.AddItemToList(0, 1)
 
-         RT.LoadVal(1, RT.DBool true)
-         RT.AddItemToList(0, 1)
+       RT.LoadVal(2, RT.DBool false)
+       RT.AddItemToList(0, 2)
 
-         RT.LoadVal(2, RT.DBool false)
-         RT.AddItemToList(0, 2)
-
-         RT.LoadVal(3, RT.DBool true)
-         RT.AddItemToList(0, 3) ],
-       0)
-
-    return Expect.equal actual expected ""
-  }
+       RT.LoadVal(3, RT.DBool true)
+       RT.AddItemToList(0, 3) ],
+     0)
 
 let boolListList =
-  testTask "[[true; false]; [false; true]]" {
-    let actual = PT2RT.Expr.toRT 0 E.boolListList
+  t
+    "[[true; false]; [false; true]]"
+    E.boolListList
+    (7,
+     [ // create outer list
+       RT.LoadVal(0, RT.DList(VT.unknown, []))
 
-    let expected =
-      (7,
-       [ // create outer list
-         RT.LoadVal(0, RT.DList(VT.unknown, []))
+       // first inner list
+       RT.LoadVal(1, RT.DList(VT.unknown, []))
+       RT.LoadVal(2, RT.DBool true)
+       RT.AddItemToList(1, 2)
+       RT.LoadVal(3, RT.DBool false)
+       RT.AddItemToList(1, 3)
+       // add it to outer
+       RT.AddItemToList(0, 1)
 
-         // first inner list
-         RT.LoadVal(1, RT.DList(VT.unknown, []))
-         RT.LoadVal(2, RT.DBool true)
-         RT.AddItemToList(1, 2)
-         RT.LoadVal(3, RT.DBool false)
-         RT.AddItemToList(1, 3)
-         // add it to outer
-         RT.AddItemToList(0, 1)
+       // second inner list
+       RT.LoadVal(4, RT.DList(VT.unknown, []))
+       RT.LoadVal(5, RT.DBool false)
+       RT.AddItemToList(4, 5)
+       RT.LoadVal(6, RT.DBool true)
+       RT.AddItemToList(4, 6)
+       // add it to outer
+       RT.AddItemToList(0, 4) ],
+     0)
 
-         // second inner list
-         RT.LoadVal(4, RT.DList(VT.unknown, []))
-         RT.LoadVal(5, RT.DBool false)
-         RT.AddItemToList(4, 5)
-         RT.LoadVal(6, RT.DBool true)
-         RT.AddItemToList(4, 6)
-         // add it to outer
-         RT.AddItemToList(0, 4) ],
-       0)
-
-    return Expect.equal actual expected ""
-  }
 
 let simpleString =
-  testTask "[\"hello\"]" {
-    let actual = PT2RT.Expr.toRT 0 E.simpleString
-
-    let expected =
-      (2,
-       [ RT.LoadVal(0, RT.DString "")
-         RT.LoadVal(1, RT.DString "hello")
-         RT.AppendString(0, 1) ],
-       0)
-
-    return Expect.equal actual expected ""
-  }
+  t
+    "[\"hello\"]"
+    E.simpleString
+    (2,
+     [ RT.LoadVal(0, RT.DString "")
+       RT.LoadVal(1, RT.DString "hello")
+       RT.AppendString(0, 1) ],
+     0)
 
 let stringWithInterpolation =
-  testTask "[let x = \"world\"\n$\"hello {x}\"]" {
-    let actual = PT2RT.Expr.toRT 0 E.stringWithInterpolation
+  t
+    "[let x = \"world\"\n$\"hello {x}\"]"
+    E.stringWithInterpolation
+    (5,
+     [ RT.LoadVal(0, RT.DString "")
+       RT.LoadVal(1, RT.DString ", world")
+       RT.AppendString(0, 1)
+       RT.SetVar("x", 0)
+       RT.LoadVal(2, RT.DString "")
+       RT.LoadVal(3, RT.DString "hello")
+       RT.AppendString(2, 3)
+       RT.GetVar(4, "x")
+       RT.AppendString(2, 4) ],
+     2)
 
-    let expected =
-      (5,
-       [ RT.LoadVal(0, RT.DString "")
-         RT.LoadVal(1, RT.DString ", world")
-         RT.AppendString(0, 1)
-         RT.SetVar("x", 0)
-         RT.LoadVal(2, RT.DString "")
-         RT.LoadVal(3, RT.DString "hello")
-         RT.AppendString(2, 3)
-         RT.GetVar(4, "x")
-         RT.AppendString(2, 4) ],
-       2)
-
-    return Expect.equal actual expected ""
-  }
 
 
 let dictEmpty =
-  testTask "Dict {}" {
-    let actual = PT2RT.Expr.toRT 0 E.dictEmpty
-
-    let expected = (1, [ RT.LoadVal(0, RT.DDict(VT.unknown, Map.empty)) ], 0)
-
-    return Expect.equal actual expected ""
-  }
+  t "Dict {}" E.dictEmpty (1, [ RT.LoadVal(0, RT.DDict(VT.unknown, Map.empty)) ], 0)
 let dictSimple =
-  testTask "Dict { t: true}" {
-    let actual = PT2RT.Expr.toRT 0 E.dictSimple
-
-    let expected =
-      (2,
-       [ RT.LoadVal(0, RT.DDict(VT.unknown, Map.empty))
-         RT.LoadVal(1, RT.DBool true)
-         RT.AddDictEntry(0, "key", 1) ],
-       0)
-
-    return Expect.equal actual expected ""
-  }
+  t
+    "Dict { t: true}"
+    E.dictSimple
+    (2,
+     [ RT.LoadVal(0, RT.DDict(VT.unknown, Map.empty))
+       RT.LoadVal(1, RT.DBool true)
+       RT.AddDictEntry(0, "key", 1) ],
+     0)
 let dictMultEntries =
-  testTask "Dict {t: true; f: false}" {
-    let actual = PT2RT.Expr.toRT 0 E.dictMultEntries
-
-    let expected =
-      (3,
-       [ RT.LoadVal(0, RT.DDict(VT.unknown, Map.empty))
-         RT.LoadVal(1, RT.DBool true)
-         RT.AddDictEntry(0, "t", 1)
-         RT.LoadVal(2, RT.DBool false)
-         RT.AddDictEntry(0, "f", 2) ],
-       0)
-
-    return Expect.equal actual expected ""
-  }
+  t
+    "Dict {t: true; f: false}"
+    E.dictMultEntries
+    (3,
+     [ RT.LoadVal(0, RT.DDict(VT.unknown, Map.empty))
+       RT.LoadVal(1, RT.DBool true)
+       RT.AddDictEntry(0, "t", 1)
+       RT.LoadVal(2, RT.DBool false)
+       RT.AddDictEntry(0, "f", 2) ],
+     0)
 let dictDupeKey =
-  testTask "Dict {t: true; f: false; t: true}" {
-    let actual = PT2RT.Expr.toRT 0 E.dictDupeKey
-
-    let expected =
-      (4,
-       [ RT.LoadVal(0, RT.DDict(VT.unknown, Map.empty))
-         RT.LoadVal(1, RT.DBool true)
-         RT.AddDictEntry(0, "t", 1)
-         RT.LoadVal(2, RT.DBool false)
-         RT.AddDictEntry(0, "f", 2)
-         RT.LoadVal(3, RT.DBool false)
-         RT.AddDictEntry(0, "t", 3) ],
-       0)
-
-    return Expect.equal actual expected ""
-  }
+  t
+    "Dict {t: true; f: false; t: true}"
+    E.dictDupeKey
+    (4,
+     [ RT.LoadVal(0, RT.DDict(VT.unknown, Map.empty))
+       RT.LoadVal(1, RT.DBool true)
+       RT.AddDictEntry(0, "t", 1)
+       RT.LoadVal(2, RT.DBool false)
+       RT.AddDictEntry(0, "f", 2)
+       RT.LoadVal(3, RT.DBool false)
+       RT.AddDictEntry(0, "t", 3) ],
+     0)
 
 let ifGotoThenBranch =
-  testTask "if true then 1 else 2" {
-    let actual = PT2RT.Expr.toRT 0 E.ifGotoThenBranch
+  t
+    "if true then 1 else 2"
+    E.ifGotoThenBranch
+    (4,
+     [ // reserve register 0 for the result
 
-    let expected =
-      (4,
-       [ // cond
-         RT.LoadVal(1, RT.DBool true)
-         RT.JumpByIfFalse(3, 1)
+       // cond
+       RT.LoadVal(1, RT.DBool true)
+       RT.JumpByIfFalse(3, 1)
 
-         // then
-         RT.LoadVal(2, RT.DInt64 1L)
-         RT.CopyVal(0, 2)
-         RT.JumpBy 2
+       // then
+       RT.LoadVal(2, RT.DInt64 1L)
+       RT.CopyVal(0, 2)
+       RT.JumpBy 2
 
-         // else
-         RT.LoadVal(3, RT.DInt64 2L)
-         RT.CopyVal(0, 3) ],
-       0)
+       // else
+       RT.LoadVal(3, RT.DInt64 2L)
+       RT.CopyVal(0, 3) ],
+     0)
 
-    return Expect.equal actual expected ""
-  }
 
 let ifGotoElseBranch =
-  testTask "if false then 1 else 2" {
-    let actual = PT2RT.Expr.toRT 0 E.ifGotoElseBranch
+  t
+    "if false then 1 else 2"
+    E.ifGotoElseBranch
+    (4,
+     [ // cond
+       RT.LoadVal(1, RT.DBool false)
+       RT.JumpByIfFalse(3, 1)
 
-    let expected =
-      (4,
-       [ // cond
-         RT.LoadVal(1, RT.DBool false)
-         RT.JumpByIfFalse(3, 1)
+       // then
+       RT.LoadVal(2, RT.DInt64 1L)
+       RT.CopyVal(0, 2)
+       RT.JumpBy 2
 
-         // then
-         RT.LoadVal(2, RT.DInt64 1L)
-         RT.CopyVal(0, 2)
-         RT.JumpBy 2
+       // else
+       RT.LoadVal(3, RT.DInt64 2L)
+       RT.CopyVal(0, 3) ],
+     0)
 
-         // else
-         RT.LoadVal(3, RT.DInt64 2L)
-         RT.CopyVal(0, 3) ],
-       0)
-
-    return Expect.equal actual expected ""
-  }
 
 let ifElseMissing =
-  testTask "if false then 1" {
-    let actual = PT2RT.Expr.toRT 0 E.ifElseMissing
+  t
+    "if false then 1"
+    E.ifElseMissing
+    (3,
+     [ RT.LoadVal(0, RT.DUnit)
+       RT.LoadVal(1, RT.DBool false)
+       RT.JumpByIfFalse(2, 1)
+       RT.LoadVal(2, RT.DInt64 1L)
+       RT.CopyVal(0, 2) ],
+     0)
 
-    let expected =
-      (3,
-       [ RT.LoadVal(0, RT.DUnit)
-         RT.LoadVal(1, RT.DBool false)
-         RT.JumpByIfFalse(2, 1)
-         RT.LoadVal(2, RT.DInt64 1L)
-         RT.CopyVal(0, 2) ],
-       0)
-
-    return Expect.equal actual expected ""
-  }
 
 let tuple2 =
-  testTask "(false, true)" {
-    let actual = PT2RT.Expr.toRT 0 E.tuple2
-
-    let expected =
-      (3,
-       [ RT.LoadVal(1, RT.DBool false)
-         RT.LoadVal(2, RT.DBool true)
-         RT.CreateTuple(0, 1, 2, []) ],
-       0)
-
-    return Expect.equal actual expected ""
-  }
+  t
+    "(false, true)"
+    E.tuple2
+    (3,
+     [ RT.LoadVal(1, RT.DBool false)
+       RT.LoadVal(2, RT.DBool true)
+       RT.CreateTuple(0, 1, 2, []) ],
+     0)
 
 let tuple3 =
-  testTask "(false, true, false)" {
-    let actual = PT2RT.Expr.toRT 0 E.tuple3
-
-    let expected =
-      (4,
-       [ RT.LoadVal(1, RT.DBool false)
-         RT.LoadVal(2, RT.DBool true)
-         RT.LoadVal(3, RT.DBool false)
-         RT.CreateTuple(0, 1, 2, [ 3 ]) ],
-       0)
-
-    return Expect.equal actual expected ""
-  }
+  t
+    "(false, true, false)"
+    E.tuple3
+    (4,
+     [ RT.LoadVal(1, RT.DBool false)
+       RT.LoadVal(2, RT.DBool true)
+       RT.LoadVal(3, RT.DBool false)
+       RT.CreateTuple(0, 1, 2, [ 3 ]) ],
+     0)
 
 let tupleNested =
-  testTask "((false, true), true, (true, false))" {
-    let actual = PT2RT.Expr.toRT 0 E.tupleNested
+  t
+    "((false, true), true, (true, false))"
+    E.tupleNested
+    (8,
+     [ // 0 "reserved" for outer tuple
 
-    let expected =
-      (8,
-       [ // 0 "reserved" for outer tuple
+       // first inner tuple (1 "reserved")
+       RT.LoadVal(2, RT.DBool false)
+       RT.LoadVal(3, RT.DBool true)
+       RT.CreateTuple(1, 2, 3, [])
 
-         // first inner tuple (1 "reserved")
-         RT.LoadVal(2, RT.DBool false)
-         RT.LoadVal(3, RT.DBool true)
-         RT.CreateTuple(1, 2, 3, [])
+       // middle value
+       RT.LoadVal(4, RT.DBool true)
 
-         // middle value
-         RT.LoadVal(4, RT.DBool true)
+       // second inner tuple (5 "reserved")
+       RT.LoadVal(6, RT.DBool true)
+       RT.LoadVal(7, RT.DBool false)
+       RT.CreateTuple(5, 6, 7, [])
 
-         // second inner tuple (5 "reserved")
-         RT.LoadVal(6, RT.DBool true)
-         RT.LoadVal(7, RT.DBool false)
-         RT.CreateTuple(5, 6, 7, [])
+       // wrap all in outer tuple
+       RT.CreateTuple(0, 1, 4, [ 5 ]) ],
+     0)
 
-         // wrap all in outer tuple
-         RT.CreateTuple(0, 1, 4, [ 5 ]) ],
-       0)
+let matchSimple =
+  t
+    "match true with\n| false -> \"first branch\"\n| true -> \"second branch\""
+    E.matchSimple
+    (4,
+     [ // handle the value we're matching on
+       RT.LoadVal(0, RT.DBool true)
 
-    return Expect.equal actual expected ""
-  }
+       // FIRST BRANCH
+       RT.MatchValue(0, RT.MPBool false, 5)
+       // rhs
+       RT.LoadVal(2, RT.DString "")
+       RT.LoadVal(3, RT.DString "first branch")
+       RT.AppendString(2, 3)
+       RT.CopyVal(1, 2)
+       RT.JumpBy 7
+
+       // SECOND BRANCH
+       RT.MatchValue(0, RT.MPBool true, 5)
+       // rhs
+       RT.LoadVal(2, RT.DString "")
+       RT.LoadVal(3, RT.DString "second branch")
+       RT.AppendString(2, 3)
+       RT.CopyVal(1, 2)
+       RT.JumpBy 1
+
+       // handle the case where no branches match
+       RT.MatchUnmatched ],
+     1)
+
+let matchNotMatched =
+  t
+    "match true with\n| false -> \"first branch\""
+    E.matchNotMatched
+    (4,
+     [ // handle the value we're matching on
+       RT.LoadVal(0, RT.DBool true)
+
+       // FIRST BRANCH
+       RT.MatchValue(0, RT.MPBool false, 5)
+       // rhs
+       RT.LoadVal(2, RT.DString "")
+       RT.LoadVal(3, RT.DString "first branch")
+       RT.AppendString(2, 3)
+       RT.CopyVal(1, 2)
+       RT.JumpBy 1
+
+       // handle the case where no branches match
+       RT.MatchUnmatched ],
+     1)
+
+let matchWithVar =
+  t
+    "match true with\n| x -> x"
+    E.matchWithVar
+    (3,
+     [ RT.LoadVal(0, RT.DBool true)
+
+       RT.MatchValue(0, RT.MPVariable "x", 3)
+       RT.GetVar(2, "x")
+       RT.CopyVal(1, 2)
+       RT.JumpBy 1
+
+       RT.MatchUnmatched ],
+     1)
+
+let matchWithVarAndWhenCondition =
+  t
+    "match 4 with\n| 1 -> \"first branch\"\n| x when x % 2 == 0 -> \"second branch\""
+    E.matchWithVarAndWhenCondition
+    (10,
+     [ RT.LoadVal(0, RT.DInt64 4L)
+
+       // first branch
+       RT.MatchValue(0, RT.MPInt64 1L, 5)
+       RT.LoadVal(2, RT.DString "")
+       RT.LoadVal(3, RT.DString "first branch")
+       RT.AppendString(2, 3)
+       RT.CopyVal(1, 2)
+       RT.JumpBy 14
+
+       // second branch
+       RT.MatchValue(0, RT.MPVariable "x", 12)
+       RT.LoadVal(2, (RT.DFnVal(RT.NamedFn(RT.FQFnName.fqBuiltin "equals" 0))))
+       RT.LoadVal(3, (RT.DFnVal(RT.NamedFn(RT.FQFnName.fqBuiltin "int64Mod" 0))))
+       RT.GetVar(4, "x")
+       RT.Apply(5, 3, [], NEList.ofList 4 [])
+       RT.LoadVal(6, RT.DInt64 2L)
+       RT.Apply(7, 2, [], NEList.ofList 5 [ 6 ])
+       RT.JumpByIfFalse(5, 7)
+       RT.LoadVal(8, RT.DString "")
+       RT.LoadVal(9, RT.DString "second branch")
+       RT.AppendString(8, 9)
+       RT.CopyVal(1, 8)
+       RT.JumpBy 1
+
+       // handle the case where no branches match
+       RT.MatchUnmatched ],
+     1)
+
+let matchList =
+  t
+    "match [1, 2] with\n| [1, 2] -> \"first branch\""
+    E.matchList
+    (6,
+     [ // expr, whose result we store in 0
+       RT.LoadVal(0, RT.DList(VT.unknown, []))
+       RT.LoadVal(1, RT.DInt64 1L)
+       RT.AddItemToList(0, 1)
+       RT.LoadVal(2, RT.DInt64 2L)
+       RT.AddItemToList(0, 2)
+
+       // first branch
+       RT.MatchValue(0, RT.MPList [ RT.MPInt64 1L; RT.MPInt64 2L ], 5)
+       RT.LoadVal(4, RT.DString "")
+       RT.LoadVal(5, RT.DString "first branch")
+       RT.AppendString(4, 5)
+       RT.CopyVal(3, 4)
+       RT.JumpBy 1
+
+       // handle the case where no branches match
+       RT.MatchUnmatched ],
+     3)
+
+let matchListCons =
+  t
+    "match [1, 2] with\n| 1 :: tail -> tail"
+    E.matchListCons
+    (5,
+     [ // expr, whose result we store in 0
+       RT.LoadVal(0, RT.DList(VT.unknown, []))
+       RT.LoadVal(1, RT.DInt64 1L)
+       RT.AddItemToList(0, 1)
+       RT.LoadVal(2, RT.DInt64 2L)
+       RT.AddItemToList(0, 2)
+
+       // first branch
+       RT.MatchValue(0, RT.MPListCons(RT.MPInt64 1L, RT.MPVariable "tail"), 3)
+       RT.GetVar(4, "tail")
+       RT.CopyVal(3, 4)
+       RT.JumpBy 1
+
+        // handle the case where no branches match
+       RT.MatchUnmatched ],
+     3)
+
+let matchTuple =
+  t
+    "match (1, 2) with\n| (1, 2) -> \"first branch\""
+    E.matchTuple
+    (6,
+     [ // expr, whose result we store in 0
+       RT.LoadVal(1, RT.DInt64 1L)
+       RT.LoadVal(2, RT.DInt64 2L)
+       RT.CreateTuple(0, 1, 2, [])
+
+        // first branch
+       RT.MatchValue(0, RT.MPTuple(RT.MPInt64 1L, RT.MPInt64 2L, []), 5)
+       RT.LoadVal(4, RT.DString "")
+       RT.LoadVal(5, RT.DString "first branch")
+       RT.AppendString(4, 5)
+       RT.CopyVal(3, 4)
+       RT.JumpBy 1
+
+        // handle the case where no branches match
+       RT.MatchUnmatched ],
+     3)
 
 let tests =
   testList
@@ -510,4 +623,11 @@ let tests =
       ifElseMissing
       tuple2
       tuple3
-      tupleNested ]
+      tupleNested
+      matchSimple
+      matchNotMatched
+      matchWithVar
+      //matchWithVarAndWhenCondition // -- disabled because of fn-calling issues
+      matchList
+      matchListCons
+      matchTuple ]

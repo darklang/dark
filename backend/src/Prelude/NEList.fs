@@ -42,7 +42,9 @@ let map2 (f : 'a -> 'b -> 'c) (l1 : NEList<'a>) (l2 : NEList<'b>) : NEList<'c> =
     match l1, l2 with
     | [], [] -> []
     | [], _
-    | _, [] -> Exception.raiseInternal "NEList.map2: lists have different lengths" []
+    | _, [] ->
+      System.Console.WriteLine((l1, l2))
+      Exception.raiseInternal "NEList.map2: lists have different lengths" []
     | x1 :: xs1, x2 :: xs2 -> f x1 x2 :: loop xs1 xs2
   { head = f l1.head l2.head; tail = loop l1.tail l2.tail }
 

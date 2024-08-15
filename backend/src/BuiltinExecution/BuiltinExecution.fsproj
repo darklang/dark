@@ -10,7 +10,7 @@
   <ItemGroup>
     <None Include="paket.references" />
 
-    <!--Compile Include="Libs/NoModule.fs" /-->
+    <Compile Include="Libs/NoModule.fs" />
 
     <!--Compile Include="Libs/Bool.fs" /-->
 

@@ -23,6 +23,7 @@ let rec execute
   : Ply<Dval> =
   uply {
     let instructions = vmState.instructions
+
     if counter >= instructions.Length then
       // is this OK?
       return vmState.registers[vmState.resultReg]
@@ -62,6 +63,7 @@ let rec execute
       | Apply(putResultIn, thingToCallReg, typeArgs, argRegs) ->
         // should we instead pass in register indices? probably...
         let args = argRegs |> NEList.map (fun r -> vmState.registers[r])
+        //debuG "args" (NEList.length args)
         let thingToCall = vmState.registers[thingToCallReg]
         let! result = call exeState vmState thingToCall typeArgs args
 
@@ -120,6 +122,103 @@ let rec execute
         vmState.registers[copyTo] <- vmState.registers[copyFrom]
         return! execute exeState vmState (counter + 1)
 
+      | MatchValue(valueReg, pat, failJump) ->
+        let rec matchPattern pat dv =
+          match pat, dv with
+          | MPVariable name, dv -> true, [ (name, dv) ]
+
+          | MPUnit, DUnit -> true, []
+
+          | MPBool l, DBool r -> l = r, []
+
+          | MPInt8 l, DInt8 r -> l = r, []
+          | MPUInt8 l, DUInt8 r -> l = r, []
+          | MPInt16 l, DInt16 r -> l = r, []
+          | MPUInt16 l, DUInt16 r -> l = r, []
+          | MPInt32 l, DInt32 r -> l = r, []
+          | MPUInt32 l, DUInt32 r -> l = r, []
+          | MPInt64 l, DInt64 r -> l = r, []
+          | MPUInt64 l, DUInt64 r -> l = r, []
+          | MPInt128 l, DInt128 r -> l = r, []
+          | MPUInt128 l, DUInt128 r -> l = r, []
+
+          | MPFloat l, DFloat r -> l = r, []
+
+          | MPChar l, DChar r -> l = r, []
+          | MPString l, DString r -> l = r, []
+
+          | MPList pats, DList(_, items) ->
+            let rec matchList pats items =
+              match pats, items with
+              | [], [] -> true, []
+              | [], _ -> false, []
+              | _, [] -> false, []
+              | pat :: otherPats, item :: items ->
+                let matches, vars = matchPattern pat item
+                if matches then
+                  let matchesRest, varsRest = matchList otherPats items
+                  if matchesRest then true, vars @ varsRest else false, []
+                else
+                  false, []
+            matchList pats items
+
+          | MPListCons(head, tail), DList(vt, items) ->
+            match items with
+            | [] -> false, []
+            | headItem :: tailItems ->
+              let matchesHead, varsHead = matchPattern head headItem
+              if matchesHead then
+                let matchesTail, varsTail = matchPattern tail (DList(vt, tailItems))
+                if matchesTail then true, varsHead @ varsTail else false, []
+              else
+                false, []
+
+          | MPTuple(first, second, theRest), DTuple(firstVal, secondVal, theRestVal) ->
+            // CLEANUP can probably be tidier
+            let matchesFirst, varsFirst = matchPattern first firstVal
+            if matchesFirst then
+              let matchesSecond, varsSecond = matchPattern second secondVal
+              if matchesSecond then
+                let rec matchRest pats vals =
+                  match pats, vals with
+                  | [], [] -> true, []
+                  | [], _ -> false, []
+                  | _, [] -> false, []
+                  | thirdPat :: otherPats, firstVal :: otherVals ->
+                    let matches, vars = matchPattern thirdPat firstVal
+                    if matches then
+                      let matchesRest, varsRest = matchRest otherPats otherVals
+                      if matchesRest then
+                        true, varsFirst @ varsSecond @ vars @ varsRest
+                      else
+                        false, []
+                    else
+                      false, []
+                matchRest theRest theRestVal
+              else
+                false, []
+            else
+              false, []
+
+          | _ -> false, []
+
+
+        let matches, vars = matchPattern pat vmState.registers[valueReg]
+
+        if matches then
+          let vmState =
+            vars
+            |> List.fold
+              (fun vmState (varName, value) ->
+                { vmState with
+                    symbolTable = Map.add varName value vmState.symbolTable })
+              vmState
+          return! execute exeState vmState (counter + 1)
+        else
+          return! execute exeState vmState (counter + failJump + 1)
+
+
+
       | ExtractTupleItems(extractFrom, firstReg, secondReg, restRegs) ->
         match vmState.registers[extractFrom] with
         | DTuple(first, second, rest) ->
@@ -133,6 +232,7 @@ let rec execute
         | _ -> return DString "Error: Expected a tuple for decomposition"
 
       | Fail _rte -> return DUnit // TODO
+      | MatchUnmatched -> return DUnit // TODO
   }
 
 

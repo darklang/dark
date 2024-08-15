@@ -38,43 +38,42 @@ module PackageIDs = LibExecution.PackageIDs
 
 
 let fns : List<BuiltInFn> =
-  [
-    // { name = fn "int64Mod" 0
-    //   typeParams = []
-    //   parameters = [ Param.make "a" TInt64 ""; Param.make "b" TInt64 "" ]
-    //   returnType = TInt64
-    //   description =
-    //     "Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
+  [ { name = fn "int64Mod" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt64 ""; Param.make "b" TInt64 "" ]
+      returnType = TInt64
+      description =
+        "Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
 
-    //      The modulus <param b> must be greater than 0.
+         The modulus <param b> must be greater than 0.
 
-    //      Use <fn Int64.remainder> if you want the remainder after division, which has
-    //      a different behavior for negative numbers."
-    //   fn =
-    //     (function
-    //     | state, _, [ DInt64 v; DInt64 m ] ->
-    //       if m = 0L then
-    //         IntRuntimeError.Error.ZeroModulus
-    //         |> IntRuntimeError.RTE.toRuntimeError
-    //         |> raiseRTE state.tracing.callStack
-    //         |> Ply
-    //       else if m < 0L then
-    //         IntRuntimeError.Error.NegativeModulus
-    //         |> IntRuntimeError.RTE.toRuntimeError
-    //         |> raiseRTE state.tracing.callStack
-    //         |> Ply
-    //       else
-    //         let result = v % m
-    //         let result = if result < 0L then m + result else result
-    //         Ply(DInt64(result))
-    //     | _ -> incorrectArgs ())
-    //   sqlSpec = SqlBinOp "%"
-    //   previewable = Pure
-    //   // TODO: Deprecate this when we can version infix operators
-    //   //  and when infix operators support Result return types
-    //   //  (https://github.com/darklang/dark/issues/4267)
-    //   // The current function returns an RTE (it used to rollbar) on negative `b`.
-    //   deprecated = NotDeprecated }
+         Use <fn Int64.remainder> if you want the remainder after division, which has
+         a different behavior for negative numbers."
+      fn =
+        (function
+        | _state, _, _, [ DInt64 v; DInt64 m ] ->
+          // if m = 0L then
+          //   IntRuntimeError.Error.ZeroModulus
+          //   |> IntRuntimeError.RTE.toRuntimeError
+          //   |> raiseRTE state.tracing.callStack
+          //   |> Ply
+          // else if m < 0L then
+          //   IntRuntimeError.Error.NegativeModulus
+          //   |> IntRuntimeError.RTE.toRuntimeError
+          //   |> raiseRTE state.tracing.callStack
+          //   |> Ply
+          // else
+          let result = v % m
+          let result = if result < 0L then m + result else result
+          Ply(DInt64(result))
+        | _ -> incorrectArgs ())
+      //sqlSpec = SqlBinOp "%"
+      previewable = Pure
+      // TODO: Deprecate this when we can version infix operators
+      //  and when infix operators support Result return types
+      //  (https://github.com/darklang/dark/issues/4267)
+      // The current function returns an RTE (it used to rollbar) on negative `b`.
+      deprecated = NotDeprecated }
 
 
     // See above for when to uncomment this
