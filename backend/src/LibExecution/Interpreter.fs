@@ -16,32 +16,29 @@ open RuntimeTypes
 /// , like ExecutionContext or Execution
 ///
 /// TODO potentially make this a loop instead of recursive
-let rec execute
-  (exeState : ExecutionState)
-  (vmState : VMState)
-  (counter : int)
-  : Ply<Dval> =
+let rec execute (exeState : ExecutionState) (initialVmState : VMState) : Ply<Dval> =
   uply {
-    let instructions = vmState.instructions
+    let mutable vmState = initialVmState
+    let mutable counter = 0 // what instruction (by index) we're on
 
-    if counter >= instructions.Length then
-      // is this OK?
-      return vmState.registers[vmState.resultReg]
-    else
-      let instruction = instructions[counter]
+    // if we encounter a runtime error, we store it here and then `raise` it at the end
+    let mutable rte : Option<RuntimeError> = None
+
+    while counter < vmState.instructions.Length && Option.isNone rte do
+      let instruction = vmState.instructions[counter]
 
       match instruction with
       // `1L` -> next register
       | LoadVal(reg, value) ->
         vmState.registers[reg] <- value
-        return! execute exeState vmState (counter + 1)
+        counter <- counter + 1
 
       // `let x = 1`
       | SetVar(varName, loadFrom) ->
         let value = vmState.registers[loadFrom]
-        let vmState =
+        vmState <-
           { vmState with symbolTable = Map.add varName value vmState.symbolTable }
-        return! execute exeState vmState (counter + 1)
+        counter <- counter + 1
 
       // later, `x`
       | GetVar(loadTo, varName) ->
@@ -53,7 +50,7 @@ let rec execute
 
         vmState.registers[loadTo] <- value
 
-        return! execute exeState vmState (counter + 1)
+        counter <- counter + 1
 
 
       // `add (increment 1L) (3L)` and store results in `putResultIn`
@@ -66,10 +63,8 @@ let rec execute
         //debuG "args" (NEList.length args)
         let thingToCall = vmState.registers[thingToCallReg]
         let! result = call exeState vmState thingToCall typeArgs args
-
         vmState.registers[putResultIn] <- result
-
-        return! execute exeState vmState (counter + 1)
+        counter <- counter + 1
 
       | AddItemToList(listReg, itemToAddReg) ->
         match vmState.registers[listReg] with
@@ -82,15 +77,17 @@ let rec execute
 
           let itemToAdd = vmState.registers[itemToAddReg]
           vmState.registers[listReg] <- DList(vt, list @ [ itemToAdd ])
-          return! execute exeState vmState (counter + 1)
-        | _ -> return DString "TODO can't operate list-add to a non-list"
+          counter <- counter + 1
+        | _ ->
+          rte <-
+            Some(RuntimeError.oldError "TODO can't operate list-add to a non-list")
 
       | CreateTuple(tupleReg, firstReg, secondReg, theRestRegs) ->
         let first = vmState.registers[firstReg]
         let second = vmState.registers[secondReg]
         let theRest = theRestRegs |> List.map (fun r -> vmState.registers[r])
         vmState.registers[tupleReg] <- DTuple(first, second, theRest)
-        return! execute exeState vmState (counter + 1)
+        counter <- counter + 1
 
       | AddDictEntry(dictReg, key, valueReg) ->
         match vmState.registers[dictReg] with
@@ -98,29 +95,37 @@ let rec execute
           // TODO: type checking of key and value; adjust vt
           let value = vmState.registers[valueReg]
           vmState.registers[dictReg] <- DDict(vt, Map.add key value entries)
-          return! execute exeState vmState (counter + 1)
-        | _ -> return DString "TODO can't operate dict-add to a non-dict"
+          counter <- counter + 1
+        | _ ->
+          rte <-
+            Some(RuntimeError.oldError "TODO can't operate dict-add to a non-dict")
 
 
       | AppendString(targetReg, sourceReg) ->
         match vmState.registers[targetReg], vmState.registers[sourceReg] with
         | DString target, DString source ->
           vmState.registers[targetReg] <- DString(target + source)
-          return! execute exeState vmState (counter + 1)
-        | _, _ -> return DString "Error: Invalid string-append attempt"
+          counter <- counter + 1
+        | _, _ ->
+          // TODO
+          rte <- Some(RuntimeError.oldError "Error: Invalid string-append attempt")
 
 
       | JumpByIfFalse(jumpBy, condReg) ->
         match vmState.registers[condReg] with
-        | DBool false -> return! execute exeState vmState (counter + jumpBy + 1)
-        | DBool true -> return! execute exeState vmState (counter + 1)
-        | _ -> return DString "Error: Jump condition must be a boolean"
+        | DBool false -> counter <- counter + jumpBy + 1
+        | DBool true -> counter <- counter + 1
+        | _ ->
+          // TODO
+          rte <-
+            Some(RuntimeError.oldError "Error: Jump condition must be a boolean")
 
-      | JumpBy jumpBy -> return! execute exeState vmState (counter + jumpBy + 1)
+      | JumpBy jumpBy -> counter <- counter + jumpBy + 1
+
 
       | CopyVal(copyTo, copyFrom) ->
         vmState.registers[copyTo] <- vmState.registers[copyFrom]
-        return! execute exeState vmState (counter + 1)
+        counter <- counter + 1
 
       | MatchValue(valueReg, pat, failJump) ->
         let rec matchPattern pat dv =
@@ -128,9 +133,7 @@ let rec execute
           | MPVariable name, dv -> true, [ (name, dv) ]
 
           | MPUnit, DUnit -> true, []
-
           | MPBool l, DBool r -> l = r, []
-
           | MPInt8 l, DInt8 r -> l = r, []
           | MPUInt8 l, DUInt8 r -> l = r, []
           | MPInt16 l, DInt16 r -> l = r, []
@@ -141,9 +144,7 @@ let rec execute
           | MPUInt64 l, DUInt64 r -> l = r, []
           | MPInt128 l, DInt128 r -> l = r, []
           | MPUInt128 l, DUInt128 r -> l = r, []
-
           | MPFloat l, DFloat r -> l = r, []
-
           | MPChar l, DChar r -> l = r, []
           | MPString l, DString r -> l = r, []
 
@@ -206,17 +207,16 @@ let rec execute
         let matches, vars = matchPattern pat vmState.registers[valueReg]
 
         if matches then
-          let vmState =
+          vmState <-
             vars
             |> List.fold
               (fun vmState (varName, value) ->
                 { vmState with
                     symbolTable = Map.add varName value vmState.symbolTable })
               vmState
-          return! execute exeState vmState (counter + 1)
+          counter <- counter + 1
         else
-          return! execute exeState vmState (counter + failJump + 1)
-
+          counter <- counter + failJump + 1
 
 
       | ExtractTupleItems(extractFrom, firstReg, secondReg, restRegs) ->
@@ -228,11 +228,24 @@ let rec execute
           List.zip restRegs rest
           |> List.iter (fun (reg, value) -> vmState.registers[reg] <- value)
 
-          return! execute exeState vmState (counter + 1)
-        | _ -> return DString "Error: Expected a tuple for decomposition"
+          counter <- counter + 1
+        | _ ->
+          // TODO
+          rte <-
+            Some(RuntimeError.oldError "Error: Expected a tuple for decomposition")
 
-      | Fail _rte -> return DUnit // TODO
-      | MatchUnmatched -> return DUnit // TODO
+      | Fail _rte -> rte <- Some(RuntimeError.oldError "TODO")
+
+      | MatchUnmatched -> rte <- Some(RuntimeError.oldError "match not matched")
+
+
+    // If we've reached the end of the instructions, return the result
+    match rte with
+    | None -> return vmState.registers[vmState.resultReg]
+    | Some rte ->
+      // TODO
+      //return raiseRTE exeState.tracing.callStack rte
+      return RuntimeError.toDT rte
   }
 
 
@@ -408,4 +421,4 @@ and execFn
 
 
 and eval (exeState : ExecutionState) (vmState : VMState) : Ply<Dval> =
-  execute exeState vmState 0
+  execute exeState vmState

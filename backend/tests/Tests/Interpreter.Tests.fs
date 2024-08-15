@@ -106,7 +106,10 @@ let matchSimple =
     (RT.DString "second branch")
 
 let matchNotMatched =
-  t "match true with\n| false -> \"first branch\"" E.matchNotMatched RT.DUnit
+  t
+    "match true with\n| false -> \"first branch\""
+    E.matchNotMatched
+    (RT.DString "match not matched")
 
 let matchWithVar = t "match true with\n| x -> x" E.matchWithVar (RT.DBool true)
 

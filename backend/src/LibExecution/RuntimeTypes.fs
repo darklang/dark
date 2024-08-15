@@ -669,7 +669,7 @@ and FnValImpl =
 /// primarily used for things where the user made an error, such as a type error, as
 /// opposed to a place where the runtime is flawed (use Exception.raiseInternal for those).
 /// See docs/errors.md for detailed discussion.
-and RuntimeError = private RuntimeError of string //Dval
+and RuntimeError = private RuntimeError of Dval
 
 // We use NoComparison here to avoid accidentally using structural comparison
 and [<NoComparison>] Dval =
@@ -831,7 +831,7 @@ module RuntimeError =
   //   let typeName =
   //     FQTypeName.fqPackage PackageIDs.Type.LanguageTools.RuntimeError.error
 
-  //   let toDT (RuntimeError e : RuntimeError) : Dval = e
+  let toDT (RuntimeError e : RuntimeError) : Dval = e
 
   //   let fromDT (dv : Dval) : RuntimeError = RuntimeError dv
 
@@ -858,7 +858,7 @@ module RuntimeError =
   // TODO remove all usages of this in favor of better error cases
   let oldError (msg : string) : RuntimeError =
     //case "OldStringErrorTODO" [ DString msg ]
-    RuntimeError msg
+    RuntimeError(DString msg)
 
 
 /// Note: in cases where it's awkward to niclude a CallStack,

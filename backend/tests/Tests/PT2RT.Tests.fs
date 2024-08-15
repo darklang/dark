@@ -576,7 +576,7 @@ let matchListCons =
        RT.CopyVal(3, 4)
        RT.JumpBy 1
 
-        // handle the case where no branches match
+       // handle the case where no branches match
        RT.MatchUnmatched ],
      3)
 
@@ -590,7 +590,7 @@ let matchTuple =
        RT.LoadVal(2, RT.DInt64 2L)
        RT.CreateTuple(0, 1, 2, [])
 
-        // first branch
+       // first branch
        RT.MatchValue(0, RT.MPTuple(RT.MPInt64 1L, RT.MPInt64 2L, []), 5)
        RT.LoadVal(4, RT.DString "")
        RT.LoadVal(5, RT.DString "first branch")
@@ -598,7 +598,7 @@ let matchTuple =
        RT.CopyVal(3, 4)
        RT.JumpBy 1
 
-        // handle the case where no branches match
+       // handle the case where no branches match
        RT.MatchUnmatched ],
      3)
 
