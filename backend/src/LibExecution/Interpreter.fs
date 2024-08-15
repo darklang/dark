@@ -16,7 +16,10 @@ open RuntimeTypes
 /// , like ExecutionContext or Execution
 ///
 /// TODO potentially make this a loop instead of recursive
-let rec execute (exeState : ExecutionState) (initialVmState : VMState) : Ply<Dval> =
+let rec private execute
+  (exeState : ExecutionState)
+  (initialVmState : VMState)
+  : Ply<Dval> =
   uply {
     let mutable vmState = initialVmState
     let mutable counter = 0 // what instruction (by index) we're on
@@ -129,6 +132,19 @@ let rec execute (exeState : ExecutionState) (initialVmState : VMState) : Ply<Dva
 
       | MatchValue(valueReg, pat, failJump) ->
         let rec matchPattern pat dv =
+          let rec matchList pats items =
+            match pats, items with
+            | [], [] -> true, []
+            | [], _ -> false, []
+            | _, [] -> false, []
+            | pat :: otherPats, item :: items ->
+              let matches, vars = matchPattern pat item
+              if matches then
+                let matchesRest, varsRest = matchList otherPats items
+                if matchesRest then true, vars @ varsRest else false, []
+              else
+                false, []
+
           match pat, dv with
           | MPVariable name, dv -> true, [ (name, dv) ]
 
@@ -148,20 +164,7 @@ let rec execute (exeState : ExecutionState) (initialVmState : VMState) : Ply<Dva
           | MPChar l, DChar r -> l = r, []
           | MPString l, DString r -> l = r, []
 
-          | MPList pats, DList(_, items) ->
-            let rec matchList pats items =
-              match pats, items with
-              | [], [] -> true, []
-              | [], _ -> false, []
-              | _, [] -> false, []
-              | pat :: otherPats, item :: items ->
-                let matches, vars = matchPattern pat item
-                if matches then
-                  let matchesRest, varsRest = matchList otherPats items
-                  if matchesRest then true, vars @ varsRest else false, []
-                else
-                  false, []
-            matchList pats items
+          | MPList pats, DList(_, items) -> matchList pats items
 
           | MPListCons(head, tail), DList(vt, items) ->
             match items with
@@ -175,32 +178,14 @@ let rec execute (exeState : ExecutionState) (initialVmState : VMState) : Ply<Dva
                 false, []
 
           | MPTuple(first, second, theRest), DTuple(firstVal, secondVal, theRestVal) ->
-            // CLEANUP can probably be tidier
-            let matchesFirst, varsFirst = matchPattern first firstVal
-            if matchesFirst then
-              let matchesSecond, varsSecond = matchPattern second secondVal
-              if matchesSecond then
-                let rec matchRest pats vals =
-                  match pats, vals with
-                  | [], [] -> true, []
-                  | [], _ -> false, []
-                  | _, [] -> false, []
-                  | thirdPat :: otherPats, firstVal :: otherVals ->
-                    let matches, vars = matchPattern thirdPat firstVal
-                    if matches then
-                      let matchesRest, varsRest = matchRest otherPats otherVals
-                      if matchesRest then
-                        true, varsFirst @ varsSecond @ vars @ varsRest
-                      else
-                        false, []
-                    else
-                      false, []
-                matchRest theRest theRestVal
-              else
-                false, []
-            else
-              false, []
+            match matchPattern first firstVal, matchPattern second secondVal with
+            | (true, varsFirst), (true, varsSecond) ->
+              match matchList theRest theRestVal with
+              | true, varsRest -> true, varsFirst @ varsSecond @ varsRest
+              | false, _ -> false, []
+            | _ -> false, []
 
+          // Dval didn't match the pattern even in a basic sense
           | _ -> false, []
 
 
