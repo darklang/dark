@@ -689,6 +689,20 @@ let exprs =
       []
       []
       false
+    t
+      "record update 4"
+      """(let myRec = RecordForUpdateMultipe { x = 4L; y = 1L; z = 0L }
+  { myRec with
+      z = 3L
+      x = 42L
+      y = 11L })"""
+      """let myRec =
+  RecordForUpdateMultipe { x = 4L; y = 1L; z = 0L }
+{ myRec with z = 3L; x = 42L; y = 11L }"""
+      []
+      []
+      []
+      false
 
     // enum literal
     t "simple enum literal" "Color.Red()" "Color.Red()" [] [] [] false

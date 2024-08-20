@@ -372,6 +372,8 @@ module Darklang =
             (findNodeByFieldName node "field_updates")
             |> Stdlib.Option.map (fun fieldUpdatesNode ->
               fieldUpdatesNode.children
+              |> Stdlib.List.filter (fun c ->
+                c.typ != "indent" && c.typ != "dedent")
               |> Stdlib.List.chunkBySize 2L
               |> Builtin.unwrap
               |> Stdlib.List.map (fun fieldSeparatorPair ->

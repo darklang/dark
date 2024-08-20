@@ -3279,6 +3279,18 @@
       "required": true,
       "types": [
         {
+          "type": "dedent",
+          "named": true
+        },
+        {
+          "type": "indent",
+          "named": true
+        },
+        {
+          "type": "newline",
+          "named": true
+        },
+        {
           "type": "record_update_field",
           "named": true
         }

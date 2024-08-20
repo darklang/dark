@@ -721,13 +721,21 @@ module.exports = grammar({
         field("symbol_close_brace", alias("}", $.symbol)),
       ),
     record_update_fields: $ =>
-      seq(
-        $.record_update_field,
-        repeat(
-          seq(
-            field("symbol_semicolon", alias(";", $.symbol)),
-            $.record_update_field,
+      choice(
+        seq(
+          $.record_update_field,
+          repeat(
+            seq(
+              field("symbol_semicolon", alias(";", $.symbol)),
+              $.record_update_field,
+            ),
           ),
+        ),
+        seq(
+          $.indent,
+          $.record_update_field,
+          repeat(seq($.newline, $.record_update_field)),
+          optional($.dedent),
         ),
       ),
     record_update_field: $ =>
