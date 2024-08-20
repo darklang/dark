@@ -1205,7 +1205,11 @@ function enum_literal_base($, enum_fields) {
         field("symbol_open_paren", alias("(", $.symbol)),
         optional(
           choice(
-            seq($.indent, field("enum_fields", enum_fields), $.dedent),
+            seq(
+              $.indent,
+              field("enum_fields", enum_fields),
+              optional($.dedent),
+            ),
             field("enum_fields", enum_fields),
           ),
         ),
