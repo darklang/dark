@@ -130,42 +130,18 @@ module TypeReference =
 
 
 module LetPattern =
-  let rec toRT
-    (rc : int)
-    (pat : PT.LetPattern)
-    (rhsReg : RT.Register) // what we're binding to
-    : (int * RT.Instructions) =
-    match pat with
-    // No binding needed for unit pattern
-    // (would also be the case if we have a `_ignore` pattern later)
-    | PT.LPUnit _ -> (rc, [])
+  let rec toRT (p : PT.LetPattern) : RT.LetPattern =
+    match p with
+    | PT.LPUnit _ -> RT.LPUnit
 
-    | PT.LPTuple(_id, first, second, theRest) ->
-      // reserve the first two registers
-      // TODO: why do we actually need registers, when we're just assigning variables?
-      // If RT.LetPattern were more like RT.MatchPattern, we could simply have one instruction that
-      // assigns the variables in one fell swoop, failing if anything doesn't deconstruct properly.
-      let firstReg, secondReg, rc = rc, rc + 1, rc + 2
+    | PT.LPTuple(_, first, second, theRest) ->
+      RT.LPTuple(toRT first, toRT second, List.map toRT theRest)
 
-      let (rcAfterFirst, firstInstrs) = toRT rc first firstReg
-      let (rcAfterSecond, secondInstrs) = toRT rcAfterFirst second secondReg
+    | PT.LPVariable(_, name) -> RT.LPVariable name
 
-      let (finalRc, restInstrs, restRegs) =
-        theRest
-        |> List.fold
-          (fun (currentRc, instrs, regs) restPattern ->
-            let restReg = currentRc
-            let (rcAfterPat, patternInstrs) =
-              toRT (currentRc + 1) restPattern restReg
-            (rcAfterPat, instrs @ patternInstrs, regs @ [ restReg ]))
-          (rcAfterSecond, [], [])
 
-      let extractInstructions =
-        [ RT.ExtractTupleItems(rhsReg, firstReg, secondReg, restRegs) ]
-
-      (finalRc, extractInstructions @ firstInstrs @ secondInstrs @ restInstrs)
-
-    | PT.LPVariable(_id, varName) -> (rc, [ RT.SetVar(varName, rhsReg) ])
+  let toInstr (valueReg : RT.Register) (p : PT.LetPattern) : RT.Instruction =
+    RT.CheckLetPatternAndExtractVars(valueReg, toRT p)
 
 
 
@@ -202,11 +178,11 @@ module MatchPattern =
 
 
   let toMatchInstr
-    (p : PT.MatchPattern)
     (valueReg : RT.Register)
-    (jumpByFail)
+    (p : PT.MatchPattern)
+    (jumpByFail : int)
     : RT.Instruction =
-    RT.MatchValue(valueReg, toRT p, jumpByFail)
+    RT.CheckMatchPatternAndExtractVars(valueReg, toRT p, jumpByFail)
 
 
 module MatchCase =
@@ -306,34 +282,32 @@ module Expr =
 
     | PT.EList(_id, items) ->
       let listReg = rc
-      let init = (rc + 1, [ RT.LoadVal(listReg, RT.DList(VT.unknown, [])) ])
+      let init = (rc + 1, [], [])
 
-      let (regCounter, instrs) =
+      let (regCounter, instrs, itemResultRegs) =
         items
         |> List.fold
-          (fun (rc, instrs) item ->
+          (fun (rc, instrs, itemResultRegs) item ->
             let (newRc, itemInstrs, innerResultReg) = toRT rc item
-            (newRc,
-             instrs @ itemInstrs @ [ RT.AddItemToList(listReg, innerResultReg) ]))
+            (newRc, instrs @ itemInstrs, itemResultRegs @ [ innerResultReg ]))
           init
 
-      (regCounter, instrs, listReg)
+      (regCounter, instrs @ [ RT.CreateList(listReg, itemResultRegs) ], listReg)
 
 
     | PT.EDict(_id, items) ->
       let dictReg = rc
-      let init = (rc + 1, [ RT.LoadVal(dictReg, RT.DDict(VT.unknown, Map.empty)) ])
+      let init = (rc + 1, [], [])
 
-      let (regCounter, instrs) =
+      let (regCounter, instrs, entryPairs) =
         items
         |> List.fold
-          (fun (rc, instrs) (key, value) ->
+          (fun (rc, instrs, entryPairs) (key, value) ->
             let (newRc, valueInstrs, valueReg) = toRT rc value
-            (newRc,
-             instrs @ valueInstrs @ [ RT.AddDictEntry(dictReg, key, valueReg) ]))
+            (newRc, instrs @ valueInstrs, entryPairs @ [ (key, valueReg) ]))
           init
 
-      (regCounter, instrs, dictReg)
+      (regCounter, instrs @ [ RT.CreateDict(dictReg, entryPairs) ], dictReg)
 
 
     | PT.ETuple(_id, first, second, theRest) ->
@@ -365,9 +339,9 @@ module Expr =
     // let x = 1
     | PT.ELet(_id, pat, expr, body) ->
       let (regCounter, exprInstrs, exprReg) = toRT rc expr
-      let (regCounter, patInstrs) = LetPattern.toRT regCounter pat exprReg
+      let patInstr = LetPattern.toInstr exprReg pat
       let (regCounter, bodyInstrs, bodyExprReg) = toRT regCounter body
-      (regCounter, exprInstrs @ patInstrs @ bodyInstrs, bodyExprReg)
+      (regCounter, exprInstrs @ [ patInstr ] @ bodyInstrs, bodyExprReg)
 
 
     | PT.EVariable(_id, varName) ->
@@ -502,7 +476,7 @@ module Expr =
           let rcAfterRhs, rhsInstrs, rhsResultReg = toRT rcAfterWhenCond c.rhs
 
           // return the intermediate results, as far along as they are
-          { matchValueInstrFn = MatchPattern.toMatchInstr c.pat exprResultReg
+          { matchValueInstrFn = MatchPattern.toMatchInstr exprResultReg c.pat
             whenCondInstructions = whenCondInstrs
             whenCondJump = whenCondJump
             rhsInstrs = rhsInstrs @ [ RT.CopyVal(resultReg, rhsResultReg) ]

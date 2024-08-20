@@ -185,7 +185,7 @@ let letSimple =
     E.letSimple
     (2,
      [ RT.LoadVal(0, RT.DBool true)
-       RT.SetVar("x", 0) // where the 'true' is stored
+       RT.CheckLetPatternAndExtractVars(0, RT.LPVariable "x")
        RT.GetVar(1, "x") ],
      1)
 
@@ -193,23 +193,24 @@ let letTuple =
   t
     "let (x, y) = (1, 2)\nx"
     E.letTuple
-    (6,
+    (4,
      [ // register 0 isn't exposed, but used to temporarily store the tuple
        RT.LoadVal(1, RT.DInt64 1L)
        RT.LoadVal(2, RT.DInt64 2L)
        RT.CreateTuple(0, 1, 2, [])
-       RT.ExtractTupleItems(0, 3, 4, [])
 
-       RT.SetVar("x", 3)
-       RT.SetVar("y", 4)
+       RT.CheckLetPatternAndExtractVars(
+         0,
+         RT.LPTuple(RT.LPVariable "x", RT.LPVariable "y", [])
+       )
 
-       RT.GetVar(5, "x") ],
-     5)
+       RT.GetVar(3, "x") ],
+     3)
 let letTupleNested =
   t
     "let (a, (b, c)) = (1, (2, 3)) in b"
     E.letTupleNested
-    (10,
+    (6,
      [ // reserve 0 for outer tuple
        RT.LoadVal(1, RT.DInt64 1L)
        // reserve 2 for inner tuple
@@ -217,29 +218,26 @@ let letTupleNested =
        RT.LoadVal(4, RT.DInt64 3L)
        RT.CreateTuple(2, 3, 4, []) // create inner tuple
        RT.CreateTuple(0, 1, 2, []) // create outer tuple
-       RT.ExtractTupleItems(0, 5, 6, []) // extract outer tuple items
-       RT.SetVar("a", 5)
-       RT.ExtractTupleItems(6, 7, 8, [])
-       RT.SetVar("b", 7)
-       RT.SetVar("c", 8)
-       RT.GetVar(9, "b") ],
-     9)
+       RT.CheckLetPatternAndExtractVars(
+         0,
+         RT.LPTuple(
+           RT.LPVariable "a",
+           RT.LPTuple(RT.LPVariable "b", RT.LPVariable "c", []),
+           []
+         )
+       )
+       RT.GetVar(5, "b") ],
+     5)
 
 let boolList =
   t
     "[true, false, true]"
     E.boolList
     (4,
-     [ RT.LoadVal(0, RT.DList(VT.unknown, []))
-
-       RT.LoadVal(1, RT.DBool true)
-       RT.AddItemToList(0, 1)
-
+     [ RT.LoadVal(1, RT.DBool true)
        RT.LoadVal(2, RT.DBool false)
-       RT.AddItemToList(0, 2)
-
        RT.LoadVal(3, RT.DBool true)
-       RT.AddItemToList(0, 3) ],
+       RT.CreateList(0, [ 1; 2; 3 ]) ],
      0)
 
 let boolListList =
@@ -247,26 +245,18 @@ let boolListList =
     "[[true; false]; [false; true]]"
     E.boolListList
     (7,
-     [ // create outer list
-       RT.LoadVal(0, RT.DList(VT.unknown, []))
-
-       // first inner list
-       RT.LoadVal(1, RT.DList(VT.unknown, []))
+     [ // first inner list
        RT.LoadVal(2, RT.DBool true)
-       RT.AddItemToList(1, 2)
        RT.LoadVal(3, RT.DBool false)
-       RT.AddItemToList(1, 3)
-       // add it to outer
-       RT.AddItemToList(0, 1)
+       RT.CreateList(1, [ 2; 3 ])
 
        // second inner list
-       RT.LoadVal(4, RT.DList(VT.unknown, []))
        RT.LoadVal(5, RT.DBool false)
-       RT.AddItemToList(4, 5)
        RT.LoadVal(6, RT.DBool true)
-       RT.AddItemToList(4, 6)
-       // add it to outer
-       RT.AddItemToList(0, 4) ],
+       RT.CreateList(4, [ 5; 6 ])
+
+       // outer list
+       RT.CreateList(0, [ 1; 4 ]) ],
      0)
 
 
@@ -288,50 +278,43 @@ let stringWithInterpolation =
      [ RT.LoadVal(0, RT.DString "")
        RT.LoadVal(1, RT.DString ", world")
        RT.AppendString(0, 1)
-       RT.SetVar("x", 0)
+
+       RT.CheckLetPatternAndExtractVars(0, RT.LPVariable "x")
+
        RT.LoadVal(2, RT.DString "")
        RT.LoadVal(3, RT.DString "hello")
        RT.AppendString(2, 3)
+
        RT.GetVar(4, "x")
        RT.AppendString(2, 4) ],
      2)
 
 
 
-let dictEmpty =
-  t "Dict {}" E.dictEmpty (1, [ RT.LoadVal(0, RT.DDict(VT.unknown, Map.empty)) ], 0)
+let dictEmpty = t "Dict {}" E.dictEmpty (1, [ RT.CreateDict(0, []) ], 0)
 let dictSimple =
   t
     "Dict { t: true}"
     E.dictSimple
-    (2,
-     [ RT.LoadVal(0, RT.DDict(VT.unknown, Map.empty))
-       RT.LoadVal(1, RT.DBool true)
-       RT.AddDictEntry(0, "key", 1) ],
-     0)
+    (2, [ RT.LoadVal(1, RT.DBool true); RT.CreateDict(0, [ ("key", 1) ]) ], 0)
 let dictMultEntries =
   t
     "Dict {t: true; f: false}"
     E.dictMultEntries
     (3,
-     [ RT.LoadVal(0, RT.DDict(VT.unknown, Map.empty))
-       RT.LoadVal(1, RT.DBool true)
-       RT.AddDictEntry(0, "t", 1)
+     [ RT.LoadVal(1, RT.DBool true)
        RT.LoadVal(2, RT.DBool false)
-       RT.AddDictEntry(0, "f", 2) ],
+       RT.CreateDict(0, [ ("t", 1); ("f", 2) ]) ],
      0)
 let dictDupeKey =
   t
     "Dict {t: true; f: false; t: true}"
     E.dictDupeKey
     (4,
-     [ RT.LoadVal(0, RT.DDict(VT.unknown, Map.empty))
-       RT.LoadVal(1, RT.DBool true)
-       RT.AddDictEntry(0, "t", 1)
+     [ RT.LoadVal(1, RT.DBool true)
        RT.LoadVal(2, RT.DBool false)
-       RT.AddDictEntry(0, "f", 2)
        RT.LoadVal(3, RT.DBool false)
-       RT.AddDictEntry(0, "t", 3) ],
+       RT.CreateDict(0, [ ("t", 1); ("f", 2); ("t", 3) ]) ],
      0)
 
 let ifGotoThenBranch =
@@ -443,7 +426,7 @@ let matchSimple =
        RT.LoadVal(0, RT.DBool true)
 
        // FIRST BRANCH
-       RT.MatchValue(0, RT.MPBool false, 5)
+       RT.CheckMatchPatternAndExtractVars(0, RT.MPBool false, 5)
        // rhs
        RT.LoadVal(2, RT.DString "")
        RT.LoadVal(3, RT.DString "first branch")
@@ -452,7 +435,7 @@ let matchSimple =
        RT.JumpBy 7
 
        // SECOND BRANCH
-       RT.MatchValue(0, RT.MPBool true, 5)
+       RT.CheckMatchPatternAndExtractVars(0, RT.MPBool true, 5)
        // rhs
        RT.LoadVal(2, RT.DString "")
        RT.LoadVal(3, RT.DString "second branch")
@@ -473,7 +456,7 @@ let matchNotMatched =
        RT.LoadVal(0, RT.DBool true)
 
        // FIRST BRANCH
-       RT.MatchValue(0, RT.MPBool false, 5)
+       RT.CheckMatchPatternAndExtractVars(0, RT.MPBool false, 5)
        // rhs
        RT.LoadVal(2, RT.DString "")
        RT.LoadVal(3, RT.DString "first branch")
@@ -492,7 +475,7 @@ let matchWithVar =
     (3,
      [ RT.LoadVal(0, RT.DBool true)
 
-       RT.MatchValue(0, RT.MPVariable "x", 3)
+       RT.CheckMatchPatternAndExtractVars(0, RT.MPVariable "x", 3)
        RT.GetVar(2, "x")
        RT.CopyVal(1, 2)
        RT.JumpBy 1
@@ -508,7 +491,7 @@ let matchWithVarAndWhenCondition =
      [ RT.LoadVal(0, RT.DInt64 4L)
 
        // first branch
-       RT.MatchValue(0, RT.MPInt64 1L, 5)
+       RT.CheckMatchPatternAndExtractVars(0, RT.MPInt64 1L, 5)
        RT.LoadVal(2, RT.DString "")
        RT.LoadVal(3, RT.DString "first branch")
        RT.AppendString(2, 3)
@@ -516,7 +499,7 @@ let matchWithVarAndWhenCondition =
        RT.JumpBy 14
 
        // second branch
-       RT.MatchValue(0, RT.MPVariable "x", 12)
+       RT.CheckMatchPatternAndExtractVars(0, RT.MPVariable "x", 12)
        RT.LoadVal(2, (RT.DFnVal(RT.NamedFn(RT.FQFnName.fqBuiltin "equals" 0))))
        RT.LoadVal(3, (RT.DFnVal(RT.NamedFn(RT.FQFnName.fqBuiltin "int64Mod" 0))))
        RT.GetVar(4, "x")
@@ -540,14 +523,16 @@ let matchList =
     E.matchList
     (6,
      [ // expr, whose result we store in 0
-       RT.LoadVal(0, RT.DList(VT.unknown, []))
        RT.LoadVal(1, RT.DInt64 1L)
-       RT.AddItemToList(0, 1)
        RT.LoadVal(2, RT.DInt64 2L)
-       RT.AddItemToList(0, 2)
+       RT.CreateList(0, [ 1; 2 ])
 
        // first branch
-       RT.MatchValue(0, RT.MPList [ RT.MPInt64 1L; RT.MPInt64 2L ], 5)
+       RT.CheckMatchPatternAndExtractVars(
+         0,
+         RT.MPList [ RT.MPInt64 1L; RT.MPInt64 2L ],
+         5
+       )
        RT.LoadVal(4, RT.DString "")
        RT.LoadVal(5, RT.DString "first branch")
        RT.AppendString(4, 5)
@@ -564,14 +549,16 @@ let matchListCons =
     E.matchListCons
     (5,
      [ // expr, whose result we store in 0
-       RT.LoadVal(0, RT.DList(VT.unknown, []))
        RT.LoadVal(1, RT.DInt64 1L)
-       RT.AddItemToList(0, 1)
        RT.LoadVal(2, RT.DInt64 2L)
-       RT.AddItemToList(0, 2)
+       RT.CreateList(0, [ 1; 2 ])
 
        // first branch
-       RT.MatchValue(0, RT.MPListCons(RT.MPInt64 1L, RT.MPVariable "tail"), 3)
+       RT.CheckMatchPatternAndExtractVars(
+         0,
+         RT.MPListCons(RT.MPInt64 1L, RT.MPVariable "tail"),
+         3
+       )
        RT.GetVar(4, "tail")
        RT.CopyVal(3, 4)
        RT.JumpBy 1
@@ -591,7 +578,11 @@ let matchTuple =
        RT.CreateTuple(0, 1, 2, [])
 
        // first branch
-       RT.MatchValue(0, RT.MPTuple(RT.MPInt64 1L, RT.MPInt64 2L, []), 5)
+       RT.CheckMatchPatternAndExtractVars(
+         0,
+         RT.MPTuple(RT.MPInt64 1L, RT.MPInt64 2L, []),
+         5
+       )
        RT.LoadVal(4, RT.DString "")
        RT.LoadVal(5, RT.DString "first branch")
        RT.AppendString(4, 5)

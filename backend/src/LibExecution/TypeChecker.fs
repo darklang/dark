@@ -515,51 +515,51 @@ let checkFunctionReturnType
   unify context types tst fn.returnType result
 
 
-// /// Helpers for creating type-checked Dvals
-// /// (lists, records, enums, etc.)
-// ///
-// /// Dvals should be created carefully:
-// /// - to have the correct valueTypes, where appropriate
-// ///  i.e. we should not have DList(Known KTInt64, [ DString("hi") ])
-// ///
-// /// - similarly, we should fail when trying to merge Dvals with conflicting valueTypes
-// ///   i.e. `List.append [1] ["hi"]` should fail
-// ///   because we can't merge `Known KTInt64` and `Known KTString`
-// ///
-// /// These functions are intended to help with both of these, in cases where
-// /// the functions in Dval.fs are insufficient (i.e. we don't know the Dark sub-types
-// /// of a Dval in some F# code).
-// ///
-// /// TODO: review _all_ usages of these functions
-// ///
-// /// TODO: ideally we don't require a callStack to be input here -- too much data-passing
-// /// (Ideally, upon error, we'd "fill in" the callstack in the Interpreter somewhere?)
-// module DvalCreator =
-//   // let list
-//   //   (callStack : CallStack)
-//   //   (initialType : ValueType)
-//   //   (list : List<Dval>)
-//   //   : Dval =
-//   //   let (typ, dvs) =
-//   //     List.fold
-//   //       (fun (typ, list) dv ->
-//   //         let dvalType = Dval.toValueType dv
+/// Helpers for creating type-checked Dvals
+/// (lists, records, enums, etc.)
+///
+/// Dvals should be created carefully:
+/// - to have the correct valueTypes, where appropriate
+///  i.e. we should not have DList(Known KTInt64, [ DString("hi") ])
+///
+/// - similarly, we should fail when trying to merge Dvals with conflicting valueTypes
+///   i.e. `List.append [1] ["hi"]` should fail
+///   because we can't merge `Known KTInt64` and `Known KTString`
+///
+/// These functions are intended to help with both of these, in cases where
+/// the functions in Dval.fs are insufficient (i.e. we don't know the Dark sub-types
+/// of a Dval in some F# code).
+///
+/// TODO: review _all_ usages of these functions
+///
+/// TODO: ideally we don't require a callStack to be input here -- too much data-passing
+/// (Ideally, upon error, we'd "fill in" the callstack in the Interpreter somewhere?)
+module DvalCreator =
+  let list
+    (callStack : CallStack)
+    (initialType : ValueType)
+    (list : List<Dval>)
+    : Dval =
+    let (typ, dvs) =
+      List.fold
+        (fun (typ, list) dv ->
+          let dvalType = Dval.toValueType dv
 
-//   //         match VT.merge typ dvalType with
-//   //         | Ok newType -> newType, dv :: list
-//   //         | Error() ->
-//   //           RuntimeError.oldError
-//   //             $"Could not merge types {ValueType.toString (VT.list typ)} and {ValueType.toString (VT.list dvalType)}"
-//   //           |> raiseRTE callStack)
-//   //       (initialType, [])
-//   //       (List.rev list)
+          match VT.merge typ dvalType with
+          | Ok newType -> newType, dv :: list
+          | Error() ->
+            RuntimeError.oldError
+              $"Could not merge types {ValueType.toString (VT.list typ)} and {ValueType.toString (VT.list dvalType)}"
+            |> raiseRTE callStack)
+        (initialType, [])
+        (List.rev list)
 
-//   //   DList(typ, dvs)
+    DList(typ, dvs)
 
 
-//   // let dict (typ : ValueType) (entries : List<string * Dval>) : Dval =
-//   //   // TODO: dictPush, etc.
-//   //   DDict(typ, Map entries)
+  let dict (typ : ValueType) (entries : List<string * Dval>) : Dval =
+    // TODO: dictPush, etc.
+    DDict(typ, Map entries)
 
 //   // let dictFromMap (typ : ValueType) (entries : Map<string, Dval>) : Dval =
 //   //   // TODO: dictPush, etc.

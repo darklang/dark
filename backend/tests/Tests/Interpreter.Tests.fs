@@ -34,16 +34,16 @@ let boolList =
   t
     "[true; false; true]"
     E.boolList
-    (RT.DList(VT.unknown, [ RT.DBool true; RT.DBool false; RT.DBool true ]))
+    (RT.DList(VT.bool, [ RT.DBool true; RT.DBool false; RT.DBool true ]))
 
 let boolListList =
   t
     "[[true; false]; [false; true]]"
     E.boolListList
     (RT.DList(
-      VT.unknown,
-      [ RT.DList(VT.unknown, [ RT.DBool true; RT.DBool false ])
-        RT.DList(VT.unknown, [ RT.DBool false; RT.DBool true ]) ]
+      VT.list VT.bool,
+      [ RT.DList(VT.bool, [ RT.DBool true; RT.DBool false ])
+        RT.DList(VT.bool, [ RT.DBool false; RT.DBool true ]) ]
     ))
 let letSimple = t "let x = true\nx" E.letSimple (RT.DBool true)
 let letTuple = t "let (x, y) = (1, 2)\nx" E.letTuple (RT.DInt64 1L)
@@ -129,7 +129,7 @@ let matchListCons =
   t
     "match [1, 2] with\n| 1 :: tail -> tail"
     E.matchListCons
-    (RT.DList(VT.unknown, [ RT.DInt64 2L ]))
+    (RT.DList(VT.int64, [ RT.DInt64 2L ]))
 
 let matchTuple =
   t

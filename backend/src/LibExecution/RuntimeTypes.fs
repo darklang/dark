@@ -379,53 +379,16 @@ module ValueType =
 // Exprs
 // ------------
 
-// /// The LHS pattern in
-// /// - a `let` binding (in `let x = 1`, the `x`)
-// /// - a lambda (in `fn (x, y) -> x + y`, the `(x, y)`
-// type LetPattern =
-//   | LPUnit of id
-//   | LPTuple of
-//     id *
-//     first : LetPattern *
-//     second : LetPattern *
-//     theRest : List<LetPattern>
-//   | LPVariable of id * name : string
+/// The LHS pattern in
+/// - a `let` binding (in `let x = 1`, the `x`)
+/// - a lambda (in `fn (x, y) -> x + y`, the `(x, y)`
+type LetPattern =
+  | LPUnit
+  //| LPParens of inner : LetPattern
+  | LPTuple of first : LetPattern * second : LetPattern * theRest : List<LetPattern>
+  | LPVariable of name : string
 
 
-// /// The LHS of a `match` case
-// ///
-// /// i.e. the `true` (`MPBool true`) in
-// /// ```fsharp
-// /// match x with
-// /// | true -> "some text"
-// /// ```
-// type MatchPattern =
-//   | MPUnit of id
-
-//   | MPBool of id * bool
-//   | MPInt8 of id * int8
-//   | MPUInt8 of id * uint8
-//   | MPInt16 of id * int16
-//   | MPUInt16 of id * uint16
-//   | MPInt32 of id * int32
-//   | MPUInt32 of id * uint32
-//   | MPInt64 of id * int64
-//   | MPUInt64 of id * uint64
-//   | MPInt128 of id * System.Int128
-//   | MPUInt128 of id * System.UInt128
-
-//   | MPFloat of id * double
-
-//   | MPChar of id * string
-//   | MPString of id * string
-
-//   | MPList of id * List<MatchPattern>
-//   | MPListCons of id * head : MatchPattern * tail : MatchPattern
-//   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
-
-//   | MPEnum of id * caseName : string * fieldPatterns : List<MatchPattern>
-
-//   | MPVariable of id * string
 
 
 // ------------
@@ -551,15 +514,8 @@ and Instruction =
   | GetVar of loadTo : Register * varName : string
 
 
-  /// Add an item to an existing list
-  /// , and type-check to make sure it matches the ValueType of that list
-  ///
-  /// Note: lists are _created_ with `LoadVal`
-  /// (always an empty list of unknown type, to ensure type safety)
-  ///
-  /// TODO consider removing in favor of a bulk `CreateList` instruction.
-  /// Not sure what we're getting from this.
-  | AddItemToList of listRegister : Register * itemToAdd : Register
+  /// Create a list, and type-check to ensure the items are of a consistent type
+  | CreateList of listRegister : Register * itemsToAdd : List<Register>
 
   | CreateTuple of
     createTo : Register *
@@ -567,12 +523,8 @@ and Instruction =
     second : Register *
     theRest : List<Register>
 
-  /// Add an item to an existing dict
-  /// , and type-check to make sure it matches the ValueType of that dict
-  ///
-  /// Note: dicts are _created_ with `LoadVal`
-  /// (always an empty dict of unknown type, to ensure type safety)
-  | AddDictEntry of dictRegister : Register * key : string * entryToAdd : Register
+  /// Create a dict, and type-check to ensure the entries are of a consistent type
+  | CreateDict of dictRegister : Register * entries : List<string * Register>
 
   | CopyVal of copyTo : Register * copyFrom : Register
 
@@ -582,11 +534,7 @@ and Instruction =
   /// Go n instructions forward, unconditionally
   | JumpBy of instrsToJump : int
 
-  | ExtractTupleItems of
-    extractFrom : Register *
-    firstReg : Register *
-    secondReg : Register *
-    restRegs : List<Register>
+  | CheckLetPatternAndExtractVars of valueReg : Register * pat : LetPattern
 
   /// Apply some args (and maybe type args) to something
   /// (a named function, or lambda, etc)
@@ -601,10 +549,11 @@ and Instruction =
 
   /// Check if the value in the noted register the noted pattern,
   /// and extract vars per MPVariable as relevant.
-  | MatchValue of
-    valueReg : Register *  // what we're matching against
+  | CheckMatchPatternAndExtractVars of
+    // what we're matching against
+    valueReg : Register *
     pat : MatchPattern *
-    //successJump : int *
+    // jump here if it doesn't match (to the next case, or to the "unmatched" instruction)
     failJump : int
 
   /// Could not find matching case in a match expression
@@ -925,82 +874,6 @@ type Deprecation<'name> =
 //   type T = { typeParams : List<string>; definition : Definition }
 
 
-// // Functions for working with Dark runtime expressions
-// module Expr =
-//   let toID (expr : Expr) : id =
-//     match expr with
-//     | EUnit id
-
-//     | EBool(id, _)
-
-//     // | EInt8(id, _)
-//     // | EUInt8(id, _)
-//     // | EInt16(id, _)
-//     // | EUInt16(id, _)
-//     // | EInt32(id, _)
-//     // | EUInt32(id, _)
-//     | EInt64(id, _)
-//     // | EUInt64(id, _)
-//     // | EInt128(id, _)
-//     // | EUInt128(id, _)
-
-//     // | EFloat(id, _)
-
-//     // | EChar(id, _)
-//     | EString(id, _)
-
-//     // | EConstant(id, _)
-//     // | EVariable(id, _)
-//     // | ERecordFieldAccess(id, _, _)
-//     // | ELambda(id, _, _)
-//     // | ELet(id, _, _, _)
-//     // | EIf(id, _, _, _)
-//     | EApply(id, _, _, _)
-//     | EFnName(id, _)
-//     // | EList(id, _)
-//     // | ETuple(id, _, _, _)
-//     // | ERecord(id, _, _)
-//     // | ERecordUpdate(id, _, _)
-//     // | EDict(id, _)
-//     // | EEnum(id, _, _, _)
-//     // | EMatch(id, _, _)
-//     | EError(id, _, _)
-//     // | EAnd(id, _, _)
-//     // | EOr(id, _, _)
-//       -> id
-
-// // Functions for working with Dark Let patterns
-// module LetPattern =
-//   let toID (pat : LetPattern) : id =
-//     match pat with
-//     | LPVariable(id, _) -> id
-//     | LPUnit id -> id
-//     | LPTuple(id, _, _, _) -> id
-
-// // Functions for working with Dark match patterns
-// module MatchPattern =
-//   let toID (pat : MatchPattern) : id =
-//     match pat with
-//     | MPInt64(id, _)
-//     | MPUInt64(id, _)
-//     | MPInt8(id, _)
-//     | MPUInt8(id, _)
-//     | MPInt16(id, _)
-//     | MPUInt16(id, _)
-//     | MPInt32(id, _)
-//     | MPUInt32(id, _)
-//     | MPInt128(id, _)
-//     | MPUInt128(id, _)
-//     | MPString(id, _)
-//     | MPChar(id, _)
-//     | MPBool(id, _)
-//     | MPUnit id
-//     | MPFloat(id, _)
-//     | MPVariable(id, _)
-//     | MPTuple(id, _, _, _)
-//     | MPEnum(id, _, _)
-//     | MPListCons(id, _, _)
-//     | MPList(id, _) -> id
 
 // Functions for working with Dark runtime values
 module Dval =

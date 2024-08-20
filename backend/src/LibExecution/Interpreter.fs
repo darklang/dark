@@ -7,7 +7,101 @@ open FSharp.Control.Tasks.Affine.Unsafe
 
 open Prelude
 open RuntimeTypes
+module VT = ValueType
 
+
+let rec checkAndExtractLetPattern
+  (pat : LetPattern)
+  (dv : Dval)
+  : bool * List<string * Dval> =
+  let r = checkAndExtractLetPattern
+
+  let rec rList pats items =
+    match pats, items with
+    | [], [] -> true, []
+    | [], _ -> false, []
+    | _, [] -> false, []
+    | pat :: otherPats, item :: items ->
+      let matches, vars = r pat item
+      if matches then
+        let matchesRest, varsRest = rList otherPats items
+        if matchesRest then true, vars @ varsRest else false, []
+      else
+        false, []
+
+  match pat, dv with
+  | LPVariable name, dv -> true, [ (name, dv) ]
+  | LPUnit, DUnit -> true, []
+  | LPTuple(first, second, theRest), DTuple(firstVal, secondVal, theRestVal) ->
+    match r first firstVal, r second secondVal with
+    | (true, varsFirst), (true, varsSecond) ->
+      match rList theRest theRestVal with
+      | true, varsRest -> true, varsFirst @ varsSecond @ varsRest
+      | false, _ -> false, []
+    | _ -> false, []
+  | _ -> false, []
+
+let rec checkAndExtractMatchPattern
+  (pat : MatchPattern)
+  (dv : Dval)
+  : bool * List<string * Dval> =
+  let r = checkAndExtractMatchPattern
+
+  let rec rList pats items =
+    match pats, items with
+    | [], [] -> true, []
+    | [], _ -> false, []
+    | _, [] -> false, []
+    | pat :: otherPats, item :: items ->
+      let matches, vars = r pat item
+      if matches then
+        let matchesRest, varsRest = rList otherPats items
+        if matchesRest then true, vars @ varsRest else false, []
+      else
+        false, []
+
+  match pat, dv with
+  | MPVariable name, dv -> true, [ (name, dv) ]
+
+  | MPUnit, DUnit -> true, []
+  | MPBool l, DBool r -> l = r, []
+  | MPInt8 l, DInt8 r -> l = r, []
+  | MPUInt8 l, DUInt8 r -> l = r, []
+  | MPInt16 l, DInt16 r -> l = r, []
+  | MPUInt16 l, DUInt16 r -> l = r, []
+  | MPInt32 l, DInt32 r -> l = r, []
+  | MPUInt32 l, DUInt32 r -> l = r, []
+  | MPInt64 l, DInt64 r -> l = r, []
+  | MPUInt64 l, DUInt64 r -> l = r, []
+  | MPInt128 l, DInt128 r -> l = r, []
+  | MPUInt128 l, DUInt128 r -> l = r, []
+  | MPFloat l, DFloat r -> l = r, []
+  | MPChar l, DChar r -> l = r, []
+  | MPString l, DString r -> l = r, []
+
+  | MPList pats, DList(_, items) -> rList pats items
+
+  | MPListCons(head, tail), DList(vt, items) ->
+    match items with
+    | [] -> false, []
+    | headItem :: tailItems ->
+      let matchesHead, varsHead = r head headItem
+      if matchesHead then
+        let matchesTail, varsTail = r tail (DList(vt, tailItems))
+        if matchesTail then true, varsHead @ varsTail else false, []
+      else
+        false, []
+
+  | MPTuple(first, second, theRest), DTuple(firstVal, secondVal, theRestVal) ->
+    match r first firstVal, r second secondVal with
+    | (true, varsFirst), (true, varsSecond) ->
+      match rList theRest theRestVal with
+      | true, varsRest -> true, varsFirst @ varsSecond @ varsRest
+      | false, _ -> false, []
+    | _ -> false, []
+
+  // Dval didn't match the pattern even in a basic sense
+  | _ -> false, []
 
 /// TODO: don't pass ExecutionState around so much?
 /// The parts that change, (e.g. `st` and `tst`) should probably all be part of VMState
@@ -31,7 +125,7 @@ let rec private execute
       let instruction = vmState.instructions[counter]
 
       match instruction with
-      // `1L` -> next register
+      // put a static Dval into a register
       | LoadVal(reg, value) ->
         vmState.registers[reg] <- value
         counter <- counter + 1
@@ -69,21 +163,25 @@ let rec private execute
         vmState.registers[putResultIn] <- result
         counter <- counter + 1
 
-      | AddItemToList(listReg, itemToAddReg) ->
-        match vmState.registers[listReg] with
-        | DList(vt, list) ->
-          // TODO: type checking of item-add; adjust vt
+      | CreateList(listReg, itemsToAddRegs) ->
+        // CLEANUP reference registers directly in DvalCreator.list,
+        // so we don't have to copy things
+        let itemsToAdd = itemsToAddRegs |> List.map (fun r -> vmState.registers[r])
+        vmState.registers[listReg] <-
+          TypeChecker.DvalCreator.list
+            exeState.tracing.callStack
+            VT.unknown
+            itemsToAdd
+        counter <- counter + 1
 
-          // Had:
-          //   let! results = Ply.List.mapSequentially (eval state) exprs
-          //   return TypeChecker.DvalCreator.list callStack VT.unknown results
-
-          let itemToAdd = vmState.registers[itemToAddReg]
-          vmState.registers[listReg] <- DList(vt, list @ [ itemToAdd ])
-          counter <- counter + 1
-        | _ ->
-          rte <-
-            Some(RuntimeError.oldError "TODO can't operate list-add to a non-list")
+      | CreateDict(dictReg, entries) ->
+        // CLEANUP reference registers directly in DvalCreator.dict,
+        // so we don't have to copy things
+        let entries =
+          entries
+          |> List.map (fun (key, valueReg) -> (key, vmState.registers[valueReg]))
+        vmState.registers[dictReg] <- TypeChecker.DvalCreator.dict VT.unknown entries
+        counter <- counter + 1
 
       | CreateTuple(tupleReg, firstReg, secondReg, theRestRegs) ->
         let first = vmState.registers[firstReg]
@@ -92,18 +190,22 @@ let rec private execute
         vmState.registers[tupleReg] <- DTuple(first, second, theRest)
         counter <- counter + 1
 
-      | AddDictEntry(dictReg, key, valueReg) ->
-        match vmState.registers[dictReg] with
-        | DDict(vt, entries) ->
-          // TODO: type checking of key and value; adjust vt
-          let value = vmState.registers[valueReg]
-          vmState.registers[dictReg] <- DDict(vt, Map.add key value entries)
-          counter <- counter + 1
-        | _ ->
-          rte <-
-            Some(RuntimeError.oldError "TODO can't operate dict-add to a non-dict")
 
-
+      // I'm not sure, but it also feels like string-creation doesn't need to be so many
+      // instructions. Maybe we should just have a CreateString instruction.
+      // Maybe that's a tad more complicated because of interpolation... but maybe not actually.
+      // If CreateString just references a list of registers, then the interpolation is already
+      // done by the time we get to CreateString.
+      // I don't think we need to worry about checking "is this string part really a string"
+      // before we get to CreateString.
+      // Oh, that said - if there's nested string interpolation (if that's legal?), would that
+      // result in nested CreateString instructions? Write out an example.
+      // OK did some quick search and it seems no language really allows nested string interpolation.
+      // So we're probably fine.
+      // That said, let's also consider the _normal_ case of a String with a simple StringText or StringInterpolation
+      // segment - this shouldn't result in many instructions.
+      // CreateString itself could contain a list of Text and Interpolation segments, where Interpolation
+      // segments just refer to a register with some (supposed) string value -- and we only have to cehck those.
       | AppendString(targetReg, sourceReg) ->
         match vmState.registers[targetReg], vmState.registers[sourceReg] with
         | DString target, DString source ->
@@ -130,66 +232,9 @@ let rec private execute
         vmState.registers[copyTo] <- vmState.registers[copyFrom]
         counter <- counter + 1
 
-      | MatchValue(valueReg, pat, failJump) ->
-        let rec matchPattern pat dv =
-          let rec matchList pats items =
-            match pats, items with
-            | [], [] -> true, []
-            | [], _ -> false, []
-            | _, [] -> false, []
-            | pat :: otherPats, item :: items ->
-              let matches, vars = matchPattern pat item
-              if matches then
-                let matchesRest, varsRest = matchList otherPats items
-                if matchesRest then true, vars @ varsRest else false, []
-              else
-                false, []
-
-          match pat, dv with
-          | MPVariable name, dv -> true, [ (name, dv) ]
-
-          | MPUnit, DUnit -> true, []
-          | MPBool l, DBool r -> l = r, []
-          | MPInt8 l, DInt8 r -> l = r, []
-          | MPUInt8 l, DUInt8 r -> l = r, []
-          | MPInt16 l, DInt16 r -> l = r, []
-          | MPUInt16 l, DUInt16 r -> l = r, []
-          | MPInt32 l, DInt32 r -> l = r, []
-          | MPUInt32 l, DUInt32 r -> l = r, []
-          | MPInt64 l, DInt64 r -> l = r, []
-          | MPUInt64 l, DUInt64 r -> l = r, []
-          | MPInt128 l, DInt128 r -> l = r, []
-          | MPUInt128 l, DUInt128 r -> l = r, []
-          | MPFloat l, DFloat r -> l = r, []
-          | MPChar l, DChar r -> l = r, []
-          | MPString l, DString r -> l = r, []
-
-          | MPList pats, DList(_, items) -> matchList pats items
-
-          | MPListCons(head, tail), DList(vt, items) ->
-            match items with
-            | [] -> false, []
-            | headItem :: tailItems ->
-              let matchesHead, varsHead = matchPattern head headItem
-              if matchesHead then
-                let matchesTail, varsTail = matchPattern tail (DList(vt, tailItems))
-                if matchesTail then true, varsHead @ varsTail else false, []
-              else
-                false, []
-
-          | MPTuple(first, second, theRest), DTuple(firstVal, secondVal, theRestVal) ->
-            match matchPattern first firstVal, matchPattern second secondVal with
-            | (true, varsFirst), (true, varsSecond) ->
-              match matchList theRest theRestVal with
-              | true, varsRest -> true, varsFirst @ varsSecond @ varsRest
-              | false, _ -> false, []
-            | _ -> false, []
-
-          // Dval didn't match the pattern even in a basic sense
-          | _ -> false, []
-
-
-        let matches, vars = matchPattern pat vmState.registers[valueReg]
+      | CheckMatchPatternAndExtractVars(valueReg, pat, failJump) ->
+        let matches, vars =
+          checkAndExtractMatchPattern pat vmState.registers[valueReg]
 
         if matches then
           vmState <-
@@ -204,20 +249,20 @@ let rec private execute
           counter <- counter + failJump + 1
 
 
-      | ExtractTupleItems(extractFrom, firstReg, secondReg, restRegs) ->
-        match vmState.registers[extractFrom] with
-        | DTuple(first, second, rest) ->
-          vmState.registers[firstReg] <- first
-          vmState.registers[secondReg] <- second
+      | CheckLetPatternAndExtractVars(valueReg, pat) ->
+        let matches, vars = checkAndExtractLetPattern pat vmState.registers[valueReg]
 
-          List.zip restRegs rest
-          |> List.iter (fun (reg, value) -> vmState.registers[reg] <- value)
-
+        if matches then
+          vmState <-
+            vars
+            |> List.fold
+              (fun vmState (varName, value) ->
+                { vmState with
+                    symbolTable = Map.add varName value vmState.symbolTable })
+              vmState
           counter <- counter + 1
-        | _ ->
-          // TODO
-          rte <-
-            Some(RuntimeError.oldError "Error: Expected a tuple for decomposition")
+        else
+          rte <- Some(RuntimeError.oldError "Let Pattern did not match")
 
       | Fail _rte -> rte <- Some(RuntimeError.oldError "TODO")
 
