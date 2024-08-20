@@ -140,7 +140,10 @@ module.exports = grammar({
         field("keyword_let", alias("let", $.keyword)),
         field("name", $.fn_identifier),
         optional(field("type_params", $.type_params)),
-        field("params", $.fn_decl_params),
+        choice(
+          field("params", $.fn_decl_params),
+          seq($.indent, field("params", $.fn_decl_params)),
+        ),
         field("symbol_colon", alias(":", $.symbol)),
         field("return_type", $.type_reference),
         field("symbol_equals", alias("=", $.symbol)),

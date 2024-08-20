@@ -286,3 +286,71 @@ let processItem (item: Item) : Result<Items.Item, Error.ProcessingError> =
     (dedent)
   )
 )
+
+
+
+==================
+fn decl - fn_params on new lines
+==================
+
+
+let myFn
+  (a: String)
+  (b: Int64)
+  (c: Bool)
+  : Bool =
+  true
+
+---
+
+(source_file
+  (fn_decl
+    (keyword)
+    (fn_identifier)
+    (indent)
+    (fn_decl_params
+      (fn_decl_param
+        (symbol) (variable_identifier) (symbol) (type_reference (builtin_type)) (symbol))
+      (fn_decl_param
+        (symbol) (variable_identifier) (symbol) (type_reference (builtin_type)) (symbol))
+      (fn_decl_param
+        (symbol) (variable_identifier) (symbol) (type_reference (builtin_type)) (symbol))
+    )
+    (symbol)
+    (type_reference (builtin_type))
+    (symbol)
+    (expression (simple_expression (bool_literal)))
+  )
+)
+
+
+==================
+fn decl - fn_params on new lines 2
+==================
+
+let myFn
+  (a: String) (b: Int64) (c: Bool)
+  : Bool =
+  true
+
+---
+
+(source_file
+  (fn_decl
+    (keyword)
+    (fn_identifier)
+    (indent)
+    (fn_decl_params
+      (fn_decl_param
+        (symbol) (variable_identifier) (symbol) (type_reference (builtin_type)) (symbol))
+      (fn_decl_param
+        (symbol) (variable_identifier) (symbol) (type_reference (builtin_type)) (symbol))
+      (fn_decl_param
+        (symbol) (variable_identifier) (symbol) (type_reference (builtin_type)) (symbol))
+    )
+    (symbol)
+    (type_reference (builtin_type))
+    (symbol)
+    (expression (simple_expression (bool_literal)))
+  )
+)

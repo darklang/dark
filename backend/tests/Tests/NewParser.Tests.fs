@@ -1599,6 +1599,19 @@ let functionDeclarations =
       []
       false
     t
+      "fn declaration with newline"
+      """let myFn
+  (a: String)
+  (b: Int64)
+  (c: Bool)
+  : Bool =
+  true"""
+      "let myFn (a: String) (b: Int64) (c: Bool): Bool =\n  true"
+      []
+      []
+      []
+      false
+    t
       "fn declaration with indented body"
       "let helloPerson (name: String): String =\n  let greeting = \"Hello \"\n  greeting ++ name"
       "let helloPerson (name: String): String =\n  let greeting =\n    \"Hello \"\n  (greeting) ++ (name)"
