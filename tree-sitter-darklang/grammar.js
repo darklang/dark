@@ -463,7 +463,10 @@ module.exports = grammar({
     multiline_string_content: $ =>
       repeat1(
         choice(
-          token.immediate(prec(1, /[^\\"]+/)),
+          // match any character that isn't a  backslash or a double quote
+          token.immediate(/[^\\"]/),
+          // match a single double quote
+          token.immediate(/"/),
           $.char_or_string_escape_sequence,
         ),
       ),
