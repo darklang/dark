@@ -1108,15 +1108,15 @@ module.exports = grammar({
       ),
 
     // e.g. `newline` in `const newline = '\n'`
-    constant_identifier: $ => /[a-z_][a-zA-Z0-9_]*/,
+    constant_identifier: $ => /[a-z_][a-zA-Z0-9_']*/,
 
     /** e.g. `x` in `let double (x: Int) = x + x`
      *
      * for let bindings, params, etc. */
-    variable_identifier: $ => prec(PREC.VAR_IDENTIFIER, /[a-z_][a-zA-Z0-9_]*/),
+    variable_identifier: $ => prec(PREC.VAR_IDENTIFIER, /[a-z_][a-zA-Z0-9_']*/),
 
     // e.g. `double` in `let double (x: Int) = x + x`
-    fn_identifier: $ => prec(PREC.FN_IDENTIFIER, /[a-z_][a-zA-Z0-9_]*/),
+    fn_identifier: $ => prec(PREC.FN_IDENTIFIER, /[a-z_][a-zA-Z0-9_']*/),
 
     // e.g. `Person` in `type MyPerson = ...`
     type_identifier: $ => /[A-Z][a-zA-Z0-9_]*/,
