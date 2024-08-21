@@ -32,6 +32,7 @@
   </ItemGroup>
   <ItemGroup>
     <!--Compile Include="TestConfig.fs" /-->
+    <Compile Include="TestValues.fs" />
 
     <!-- core stuff /-->
     <Compile Include="Prelude.Tests.fs" />

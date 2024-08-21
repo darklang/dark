@@ -39,6 +39,8 @@ let createState
     types = { typeSymbolTable = Map.empty }
     fns = { builtIn = builtins.fns; package = packageManager.getFn } }
 
+
+
 let executeExpr
   (exeState : RT.ExecutionState)
   (inputVars : RT.Symtable)
@@ -62,8 +64,18 @@ let executeExpr
 
         let! result = Interpreter.eval exeState vmState
         return Ok result
-      with RT.RuntimeErrorException(source, rte) ->
-        return Error(source, rte)
+
+      with
+      | RT.RuntimeErrorException(source, rte) -> return Error(source, rte)
+      | ex ->
+        let context : Metadata =
+          //[ "fn", fnDesc; "args", args; "typeArgs", typeArgs; "id", id ]
+          []
+        exeState.reportException exeState context ex
+        return
+          RT.raiseRTE
+            exeState.tracing.callStack
+            (RT.RuntimeError.oldError "Unknown error")
     finally
       // Does nothing in non-tests
       exeState.test.postTestExecutionHook exeState.test
@@ -71,7 +83,7 @@ let executeExpr
 
 
 let executeFunction
-  (state : RT.ExecutionState)
+  (exeState : RT.ExecutionState)
   (name : RT.FQFnName.FQFnName)
   (typeArgs : List<RT.TypeReference>)
   (args : NEList<RT.Dval>)
@@ -79,22 +91,31 @@ let executeFunction
   task {
     try
       try
-        let state =
-          { state with
+        let exeState =
+          { exeState with
               tracing.callStack.entrypoint = RT.ExecutionPoint.Function name }
         let! result =
           Interpreter.call
-            state
-            RT.VMState.empty
+            exeState
+            RT.VMState.empty // ok?
             (RT.DFnVal(RT.NamedFn name))
             typeArgs
             args
         return Ok result
-      with RT.RuntimeErrorException(source, rte) ->
-        return Error(source, rte)
+      with
+      | RT.RuntimeErrorException(source, rte) -> return Error(source, rte)
+      | ex ->
+        let context : Metadata =
+          //[ "fn", fnDesc; "args", args; "typeArgs", typeArgs; "id", id ]
+          []
+        exeState.reportException exeState context ex
+        return
+          RT.raiseRTE
+            exeState.tracing.callStack
+            (RT.RuntimeError.oldError "Unknown error")
     finally
       // Does nothing in non-tests
-      state.test.postTestExecutionHook state.test
+      exeState.test.postTestExecutionHook exeState.test
   }
 
 

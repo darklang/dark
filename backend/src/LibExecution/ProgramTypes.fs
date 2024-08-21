@@ -115,14 +115,27 @@ module FQFnName =
 
 type NameResolution<'a> = Result<'a, NameResolutionError.Error>
 
+
 type LetPattern =
-  | LPUnit of id
+  /// `let x = 1`
+  | LPVariable of id * name : string
+
+  // /// `let _ignored = 1`
+  // | LPIgnored
+
+  /// let (x) = 1
+  //| LPParens of inner : LetPattern
+
+  /// `let (x, _) = (1, 2)`
   | LPTuple of
     id *
     first : LetPattern *
     second : LetPattern *
     theRest : List<LetPattern>
-  | LPVariable of id * name : string
+
+  /// `let () = ()`
+  | LPUnit of id
+
 
 /// Used for pattern matching in a match statement
 type MatchPattern =

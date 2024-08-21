@@ -383,10 +383,18 @@ module ValueType =
 /// - a `let` binding (in `let x = 1`, the `x`)
 /// - a lambda (in `fn (x, y) -> x + y`, the `(x, y)`
 type LetPattern =
-  | LPUnit
-  //| LPParens of inner : LetPattern
-  | LPTuple of first : LetPattern * second : LetPattern * theRest : List<LetPattern>
+  /// `let x = 1`
   | LPVariable of name : string
+
+  // /// `let _ = 1`
+  // | LPIgnored
+
+  /// `let (x, y) = (1, 2)`
+  | LPTuple of first : LetPattern * second : LetPattern * theRest : List<LetPattern>
+
+  /// `let () = ()`
+  | LPUnit
+
 
 
 
@@ -782,7 +790,7 @@ module RuntimeError =
 
   let toDT (RuntimeError e : RuntimeError) : Dval = e
 
-  //   let fromDT (dv : Dval) : RuntimeError = RuntimeError dv
+  let fromDT (dv : Dval) : RuntimeError = RuntimeError dv
 
   //   let case (caseName : string) (fields : List<Dval>) : RuntimeError =
   //     DEnum(typeName, typeName, [], caseName, fields) |> RuntimeError

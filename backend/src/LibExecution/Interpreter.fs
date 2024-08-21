@@ -41,6 +41,7 @@ let rec checkAndExtractLetPattern
     | _ -> false, []
   | _ -> false, []
 
+
 let rec checkAndExtractMatchPattern
   (pat : MatchPattern)
   (dv : Dval)
@@ -139,15 +140,12 @@ let rec private execute
 
       // later, `x`
       | GetVar(loadTo, varName) ->
-        let value =
-          Map.find varName vmState.symbolTable
-          // TODO: handle missing variable
-          //return errStr callStack $"There is no variable named: {name}"
-          |> Option.defaultValue DUnit
-
-        vmState.registers[loadTo] <- value
-
-        counter <- counter + 1
+        match Map.find varName vmState.symbolTable with
+        | Some value ->
+          vmState.registers[loadTo] <- value
+          counter <- counter + 1
+        | None ->
+          rte <- Some(RuntimeError.oldError ("Variable not found: " + varName))
 
 
       // `add (increment 1L) (3L)` and store results in `putResultIn`
@@ -272,10 +270,7 @@ let rec private execute
     // If we've reached the end of the instructions, return the result
     match rte with
     | None -> return vmState.registers[vmState.resultReg]
-    | Some rte ->
-      // TODO
-      //return raiseRTE exeState.tracing.callStack rte
-      return RuntimeError.toDT rte
+    | Some rte -> return raiseRTE exeState.tracing.callStack rte
   }
 
 
