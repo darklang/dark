@@ -16,11 +16,24 @@
 
 cd ~/ || exit
 
+# Base output directory for compiled libraries
+output_base_dir="app/backend/src/LibTreeSitter/lib"
+
+# Check if target artifacts already exist
+if [[ -f "$output_base_dir/tree-sitter.so" && \
+      -f "$output_base_dir/tree-sitter-linux-x64.so" && \
+      -f "$output_base_dir/tree-sitter-linux-musl-x64.so" && \
+      -f "$output_base_dir/tree-sitter-linux-arm64.so" && \
+      -f "$output_base_dir/tree-sitter-linux-arm.so" && \
+      -f "$output_base_dir/tree-sitter-macos-x64.dylib" && \
+      -f "$output_base_dir/tree-sitter-macos-arm64.dylib" ]]; then
+    echo "Target Tree Sitters artifacts already exist. Skipping clone and build."
+    exit 0
+fi
+
 # Clone the specific branch of the tree-sitter repository
 git clone --depth 1 --branch v0.20.8 https://github.com/tree-sitter/tree-sitter.git
 
-# Base output directory for compiled libraries
-output_base_dir="app/backend/src/LibTreeSitter/lib"
 tree_sitter_sources="tree-sitter/lib/src/lib.c -I tree-sitter/lib/src -I tree-sitter/lib/src/../include"
 
 mkdir -p $output_base_dir
