@@ -529,7 +529,7 @@ module.exports = grammar({
       ),
 
     char_or_string_escape_sequence: _ =>
-      token.immediate(seq("\\", /(\"|\\|\/|b|f|n|r|t|u)/)),
+      token.immediate(seq("\\", /(\"|\'|\\|\/|a|b|f|n|r|t|v|u[0-9a-fA-F]{4})/)),
 
     //
     // Infix operations
@@ -815,7 +815,7 @@ module.exports = grammar({
 
     lp_tuple: $ => tuple_literal_base($, $.let_pattern, $.let_pattern_the_rest),
     let_pattern_the_rest: $ => tuple_literal_the_rest_base($, $.let_pattern),
-
+    //CLEANUP: add support for lp_parens (just a let_pattern wrapped in parens)
     let_pattern: $ => choice($.unit, $.lp_tuple, $.variable_identifier),
 
     //

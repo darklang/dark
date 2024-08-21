@@ -243,3 +243,27 @@ multiline string - with quotes inside the string
   )
 )
 
+
+==================
+string - escaped single quote
+==================
+
+"\'hi\'"
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (string_segment
+        (string_literal
+          (symbol)
+          (string_content
+            (char_or_string_escape_sequence)
+            (char_or_string_escape_sequence))
+          (symbol)
+        )
+      )
+    )
+  )
+)
