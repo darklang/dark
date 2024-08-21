@@ -689,6 +689,20 @@ let exprs =
       []
       []
       false
+    t
+      "record update 4"
+      """(let myRec = RecordForUpdateMultipe { x = 4L; y = 1L; z = 0L }
+  { myRec with
+      z = 3L
+      x = 42L
+      y = 11L })"""
+      """let myRec =
+  RecordForUpdateMultipe { x = 4L; y = 1L; z = 0L }
+{ myRec with z = 3L; x = 42L; y = 11L }"""
+      []
+      []
+      []
+      false
 
     // enum literal
     t "simple enum literal" "Color.Red()" "Color.Red()" [] [] [] false
@@ -1594,6 +1608,19 @@ let functionDeclarations =
       "package fn call"
       "let sum (a : Int64) (b : Int64) : Int64 =\n  PACKAGE.Darklang.Stdlib.Int64.add a b"
       "let sum (a: Int64) (b: Int64): Int64 =\n  PACKAGE.Darklang.Stdlib.Int64.add a b"
+      []
+      []
+      []
+      false
+    t
+      "fn declaration with newline"
+      """let myFn
+  (a: String)
+  (b: Int64)
+  (c: Bool)
+  : Bool =
+  true"""
+      "let myFn (a: String) (b: Int64) (c: Bool): Bool =\n  true"
       []
       []
       []

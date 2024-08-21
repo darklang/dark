@@ -140,7 +140,10 @@ module.exports = grammar({
         field("keyword_let", alias("let", $.keyword)),
         field("name", $.fn_identifier),
         optional(field("type_params", $.type_params)),
-        field("params", $.fn_decl_params),
+        choice(
+          field("params", $.fn_decl_params),
+          seq($.indent, field("params", $.fn_decl_params)),
+        ),
         field("symbol_colon", alias(":", $.symbol)),
         field("return_type", $.type_reference),
         field("symbol_equals", alias("=", $.symbol)),
@@ -460,7 +463,10 @@ module.exports = grammar({
     multiline_string_content: $ =>
       repeat1(
         choice(
-          token.immediate(prec(1, /[^\\"]+/)),
+          // match any character that isn't a  backslash or a double quote
+          token.immediate(/[^\\"]/),
+          // match a single double quote
+          token.immediate(/"/),
           $.char_or_string_escape_sequence,
         ),
       ),
@@ -523,7 +529,7 @@ module.exports = grammar({
       ),
 
     char_or_string_escape_sequence: _ =>
-      token.immediate(seq("\\", /(\"|\\|\/|b|f|n|r|t|u)/)),
+      token.immediate(seq("\\", /(\"|\'|\\|\/|a|b|f|n|r|t|v|u[0-9a-fA-F]{4})/)),
 
     //
     // Infix operations
@@ -715,13 +721,21 @@ module.exports = grammar({
         field("symbol_close_brace", alias("}", $.symbol)),
       ),
     record_update_fields: $ =>
-      seq(
-        $.record_update_field,
-        repeat(
-          seq(
-            field("symbol_semicolon", alias(";", $.symbol)),
-            $.record_update_field,
+      choice(
+        seq(
+          $.record_update_field,
+          repeat(
+            seq(
+              field("symbol_semicolon", alias(";", $.symbol)),
+              $.record_update_field,
+            ),
           ),
+        ),
+        seq(
+          $.indent,
+          $.record_update_field,
+          repeat(seq($.newline, $.record_update_field)),
+          optional($.dedent),
         ),
       ),
     record_update_field: $ =>
@@ -801,7 +815,7 @@ module.exports = grammar({
 
     lp_tuple: $ => tuple_literal_base($, $.let_pattern, $.let_pattern_the_rest),
     let_pattern_the_rest: $ => tuple_literal_the_rest_base($, $.let_pattern),
-
+    //CLEANUP: add support for lp_parens (just a let_pattern wrapped in parens)
     let_pattern: $ => choice($.unit, $.lp_tuple, $.variable_identifier),
 
     //
@@ -1094,15 +1108,15 @@ module.exports = grammar({
       ),
 
     // e.g. `newline` in `const newline = '\n'`
-    constant_identifier: $ => /[a-z_][a-zA-Z0-9_]*/,
+    constant_identifier: $ => /[a-z_][a-zA-Z0-9_']*/,
 
     /** e.g. `x` in `let double (x: Int) = x + x`
      *
      * for let bindings, params, etc. */
-    variable_identifier: $ => prec(PREC.VAR_IDENTIFIER, /[a-z_][a-zA-Z0-9_]*/),
+    variable_identifier: $ => prec(PREC.VAR_IDENTIFIER, /[a-z_][a-zA-Z0-9_']*/),
 
     // e.g. `double` in `let double (x: Int) = x + x`
-    fn_identifier: $ => prec(PREC.FN_IDENTIFIER, /[a-z_][a-zA-Z0-9_]*/),
+    fn_identifier: $ => prec(PREC.FN_IDENTIFIER, /[a-z_][a-zA-Z0-9_']*/),
 
     // e.g. `Person` in `type MyPerson = ...`
     type_identifier: $ => /[A-Z][a-zA-Z0-9_]*/,
@@ -1191,7 +1205,11 @@ function enum_literal_base($, enum_fields) {
         field("symbol_open_paren", alias("(", $.symbol)),
         optional(
           choice(
-            seq($.indent, field("enum_fields", enum_fields), $.dedent),
+            seq(
+              $.indent,
+              field("enum_fields", enum_fields),
+              optional($.dedent),
+            ),
             field("enum_fields", enum_fields),
           ),
         ),
