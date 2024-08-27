@@ -529,8 +529,15 @@ module.exports = grammar({
       ),
 
     char_or_string_escape_sequence: _ =>
-      token.immediate(seq("\\", /(\"|\'|\\|\/|a|b|f|n|r|t|v|u[0-9a-fA-F]{4})/)),
-
+      token.immediate(
+        choice(
+          seq("\\", /(\"|\'|\\|\/|a|b|f|n|r|t|v)/),
+          seq("\\", "x", /[0-9a-fA-F]{2}/),
+          seq("\\", "X", /[0-9a-fA-F]{4}/),
+          seq("\\", "u", /[0-9a-fA-F]{4}/),
+          seq("\\", "U", /[0-9a-fA-F]{8}/),
+        ),
+      ),
     //
     // Infix operations
     infix_operation: $ =>
