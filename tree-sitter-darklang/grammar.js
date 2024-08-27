@@ -406,8 +406,8 @@ module.exports = grammar({
         $.variable_identifier,
         $.field_access,
         $.tuple_literal,
-        $.qualified_const_name,
         $.record_update,
+        $.qualified_const_or_fn_name,
       ),
 
     expression: $ =>
@@ -427,10 +427,10 @@ module.exports = grammar({
         $.pipe_expression,
       ),
 
-    qualified_const_name: $ =>
+    qualified_const_or_fn_name: $ =>
       seq(
         repeat(seq($.module_identifier, alias(".", $.symbol))),
-        $.constant_identifier,
+        $.constant_or_fn_identifier,
       ),
 
     paren_expression: $ =>
@@ -1126,6 +1126,7 @@ module.exports = grammar({
 
     // e.g. `newline` in `const newline = '\n'`
     constant_identifier: $ => /[a-z_][a-zA-Z0-9_']*/,
+    constant_or_fn_identifier: $ => /[a-z_][a-zA-Z0-9_']*/,
 
     /** e.g. `x` in `let double (x: Int) = x + x`
      *

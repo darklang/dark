@@ -52,6 +52,9 @@ module Darklang =
         let parseConst (n: ParsedNode) : WrittenTypes.ConstantIdentifier =
           WrittenTypes.ConstantIdentifier { range = n.range; name = n.text }
 
+        let parseConstOrFn (n: ParsedNode) : WrittenTypes.ConstantOrFnIdentifier =
+          WrittenTypes.ConstantOrFnIdentifier { range = n.range; name = n.text }
+
         let extractTypeArgs
           (node: ParsedNode)
           : Stdlib.Result.Result<List<WrittenTypes.Range * String>, WrittenTypes.Unparseable> =
@@ -131,19 +134,18 @@ module Darklang =
               $"Can't parse qualified_fn_name from {node.typ}"
 
 
-        let parseQualifiedConstant
+        let parseQualifiedConstantOrFnName
           (node: ParsedNode)
-          : Stdlib.Result.Result<WrittenTypes.QualifiedConstantIdentifier, String> =
-          if node.typ == "qualified_const_name" then
-            let (modules, constIdentifierNode) =
-              extractModuleIdentifiers node.children
+          : Stdlib.Result.Result<WrittenTypes.QualifiedConstantOrFnIdentifier, String> =
+          if node.typ == "qualified_const_or_fn_name" then
+            let (modules, identifierNode) = extractModuleIdentifiers node.children
 
-            (WrittenTypes.QualifiedConstantIdentifier
+            (WrittenTypes.QualifiedConstantOrFnIdentifier
               { range = node.range
                 modules = modules
-                constant = parseConst constIdentifierNode })
+                constantOrFn = parseConstOrFn identifierNode })
             |> Stdlib.Result.Result.Ok
 
           else
             Stdlib.Result.Result.Error
-              $"Can't parse qualified_const_name from {node.typ}"
+              $"Can't parse qualified_const_or_fn_name from {node.typ}"

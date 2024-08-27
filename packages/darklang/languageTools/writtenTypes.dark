@@ -24,13 +24,12 @@ module Darklang =
 
       type ConstantIdentifier = { range: Range; name: String }
 
-      type QualifiedConstantIdentifier =
-        {
-          range: Range
-          /// the range corresponds to the `.` after the module name
+      type ConstantOrFnIdentifier = { range: Range; name: String }
+
+      type QualifiedConstantOrFnIdentifier =
+        { range: Range
           modules: List<ModuleIdentifier * Range>
-          constant: ConstantIdentifier
-        }
+          constantOrFn: ConstantOrFnIdentifier }
 
       type FnIdentifier = { range: Range; name: String }
 
@@ -334,7 +333,7 @@ module Darklang =
 
         | EFnName of Range * name: QualifiedFnIdentifier
 
-        | EConstant of Range * name: QualifiedConstantIdentifier
+        | EConstantOrFn of Range * name: QualifiedConstantOrFnIdentifier
 
       type PipeExpr =
         | EPipeInfix of Range * op: (Range * Infix) * Expr

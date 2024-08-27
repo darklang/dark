@@ -2374,11 +2374,11 @@
         },
         {
           "type": "SYMBOL",
-          "name": "qualified_const_name"
+          "name": "record_update"
         },
         {
           "type": "SYMBOL",
-          "name": "record_update"
+          "name": "qualified_const_or_fn_name"
         }
       ]
     },
@@ -2423,7 +2423,7 @@
         }
       ]
     },
-    "qualified_const_name": {
+    "qualified_const_or_fn_name": {
       "type": "SEQ",
       "members": [
         {
@@ -2449,7 +2449,7 @@
         },
         {
           "type": "SYMBOL",
-          "name": "constant_identifier"
+          "name": "constant_or_fn_identifier"
         }
       ]
     },
@@ -6377,6 +6377,10 @@
       ]
     },
     "constant_identifier": {
+      "type": "PATTERN",
+      "value": "[a-z_][a-zA-Z0-9_']*"
+    },
+    "constant_or_fn_identifier": {
       "type": "PATTERN",
       "value": "[a-z_][a-zA-Z0-9_']*"
     },
