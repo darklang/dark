@@ -82,7 +82,7 @@ type MatchPattern =
 
   | MPVariable of id * string
 
-  | MPEnum of id * caseName : string * fieldPats : List<MatchPattern>
+//| MPEnum of id * caseName : string * fieldPats : List<MatchPattern>
 
 type BinaryOperation =
   | BinOpAnd
@@ -137,7 +137,7 @@ type TypeReference =
 
   | TFn of NEList<TypeReference> * TypeReference
 
-  | TDB of TypeReference
+  //| TDB of TypeReference
 
   | TVariable of string
 

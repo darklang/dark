@@ -12,49 +12,50 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module VT = ValueType
+module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module TypeChecker = LibExecution.TypeChecker
 module Interpreter = LibExecution.Interpreter
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "stringMap" 0
-      typeParams = []
-      parameters =
-        [ Param.make "s" TString ""
-          Param.makeWithArgs
-            "fn"
-            (TFn(NEList.singleton TChar, TChar))
-            ""
-            [ "character" ] ]
-      returnType = TString
-      description =
-        "Iterate over each Char (EGC, not byte) in the string, performing the
-         operation in <param fn> on each one."
-      fn =
-        (function
-        | state, _, [ DString s; DFnVal b ] ->
-          (String.toEgcSeq s
-           |> Seq.toList
-           |> Ply.List.mapSequentially (fun te ->
-             let args = NEList.singleton (DChar te)
-             Interpreter.applyFnVal state b [] args)
-           |> Ply.bind (fun dvals ->
-             dvals
-             |> Ply.List.mapSequentially (function
-               | DChar c -> Ply c
-               | dv ->
-                 TypeChecker.raiseFnValResultNotExpectedType
-                   state.tracing.callStack
-                   dv
-                   TChar)
-             |> Ply.map (fun parts ->
-               parts |> String.concat "" |> String.normalize |> DString)))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
+  [
+    // { name = fn "stringMap" 0
+    //   typeParams = []
+    //   parameters =
+    //     [ Param.make "s" TString ""
+    //       Param.makeWithArgs
+    //         "fn"
+    //         (TFn(NEList.singleton TChar, TChar))
+    //         ""
+    //         [ "character" ] ]
+    //   returnType = TString
+    //   description =
+    //     "Iterate over each Char (EGC, not byte) in the string, performing the
+    //      operation in <param fn> on each one."
+    //   fn =
+    //     (function
+    //     | state, _, _, [ DString s; DFnVal b ] ->
+    //       (String.toEgcSeq s
+    //        |> Seq.toList
+    //        |> Ply.List.mapSequentially (fun te ->
+    //          let args = NEList.singleton (DChar te)
+    //          Interpreter.applyFnVal state b [] args)
+    //        |> Ply.bind (fun dvals ->
+    //          dvals
+    //          |> Ply.List.mapSequentially (function
+    //            | DChar c -> Ply c
+    //            | dv ->
+    //              TypeChecker.raiseFnValResultNotExpectedType
+    //                state.tracing.callStack
+    //                dv
+    //                TChar)
+    //          |> Ply.map (fun parts ->
+    //            parts |> String.concat "" |> String.normalize |> DString)))
+    //     | _ -> incorrectArgs ())
+    //   sqlSpec = NotQueryable
+    //   previewable = Pure
+    //   deprecated = NotDeprecated }
 
 
     { name = fn "stringToList" 0
@@ -64,7 +65,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the list of Characters (EGC, not byte) in the string"
       fn =
         (function
-        | _, _, [ DString s ] ->
+        | _, _, _, [ DString s ] ->
           s
           |> String.toEgcSeq
           |> Seq.map (fun c -> DChar c)
@@ -89,7 +90,7 @@ let fns : List<BuiltInFn> =
          replaceWith>"
       fn =
         (function
-        | _, _, [ DString s; DString search; DString replace ] ->
+        | _, _, _, [ DString s; DString search; DString replace ] ->
           if search = "" then
             if s = "" then
               Ply(DString replace)
@@ -117,7 +118,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the string, uppercased"
       fn =
         (function
-        | _, _, [ DString s ] -> Ply(DString(String.toUppercase s))
+        | _, _, _, [ DString s ] -> Ply(DString(String.toUppercase s))
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "upper"
       previewable = Pure
@@ -131,7 +132,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the string, lowercased"
       fn =
         (function
-        | _, _, [ DString s ] -> Ply(DString(String.toLowercase s))
+        | _, _, _, [ DString s ] -> Ply(DString(String.toLowercase s))
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "lower"
       previewable = Pure
@@ -145,7 +146,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the length of the string"
       fn =
         (function
-        | _, _, [ DString s ] ->
+        | _, _, _, [ DString s ] ->
           s |> String.lengthInEgcs |> int64 |> Dval.int64 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented // there isn't a unicode version of length
@@ -163,7 +164,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         // TODO add fuzzer to ensure all strings are normalized no matter what we do to them.
-        | _, _, [ DString s1; DString s2 ] ->
+        | _, _, _, [ DString s1; DString s2 ] ->
           (s1 + s2) |> String.normalize |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -182,7 +183,7 @@ let fns : List<BuiltInFn> =
          alphanumeric characters, joined by hyphens"
       fn =
         (function
-        | _, _, [ DString s ] ->
+        | _, _, _, [ DString s ] ->
           // Should work the same as https://blog.tersmitten.nl/slugify/
           // explicitly limit to (roman) alphanumeric for pretty urls
           let toRemove = "([^a-z0-9\\s_-]|\x0b)+"
@@ -211,7 +212,7 @@ let fns : List<BuiltInFn> =
       description = "Reverses <param string>"
       fn =
         (function
-        | _, _, [ DString s ] ->
+        | _, _, _, [ DString s ] ->
           String.toEgcSeq s |> Seq.rev |> String.concat "" |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "reverse"
@@ -228,7 +229,7 @@ let fns : List<BuiltInFn> =
         If the separator is not present, returns a list containing only the initial string."
       fn =
         (function
-        | _, _, [ DString s; DString sep ] ->
+        | _, _, _, [ DString s; DString sep ] ->
           let ecgStringSplit str sep =
             let startsWithSeparator str = sep = (str |> List.truncate sep.Length)
 
@@ -271,7 +272,7 @@ let fns : List<BuiltInFn> =
       description = "Combines a list of strings with the provided separator"
       fn =
         (function
-        | _, _, [ DList(_, l); DString sep ] ->
+        | _, _, _, [ DList(_, l); DString sep ] ->
           l
           |> List.map (fun s ->
             match s with
@@ -299,7 +300,7 @@ let fns : List<BuiltInFn> =
          Negative indices start counting from the end of <param string>."
       fn =
         (function
-        | _, _, [ DString s; DInt64 first; DInt64 last ] ->
+        | _, _, _, [ DString s; DInt64 first; DInt64 last ] ->
           let getLengthInTextElements s =
             System.Globalization.StringInfo(s).LengthInTextElements
 
@@ -347,7 +348,7 @@ let fns : List<BuiltInFn> =
          {{\"\\n\"}}"
       fn =
         (function
-        | _, _, [ DString toTrim ] -> toTrim.Trim() |> DString |> Ply
+        | _, _, _, [ DString toTrim ] -> toTrim.Trim() |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "trim"
       previewable = Pure
@@ -364,7 +365,7 @@ let fns : List<BuiltInFn> =
          includes {{\" \"}}, {{\"\\t\"}} and {{\"\\n\"}}"
       fn =
         (function
-        | _, _, [ DString toTrim ] -> Ply(DString(toTrim.TrimStart()))
+        | _, _, _, [ DString toTrim ] -> Ply(DString(toTrim.TrimStart()))
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "ltrim"
       previewable = Pure
@@ -381,7 +382,7 @@ let fns : List<BuiltInFn> =
          property, which includes {{\" \"}}, {{\"\\t\"}} and {{\"\\n\"}}."
       fn =
         (function
-        | _, _, [ DString toTrim ] -> Ply(DString(toTrim.TrimEnd()))
+        | _, _, _, [ DString toTrim ] -> Ply(DString(toTrim.TrimEnd()))
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "rtrim"
       previewable = Pure
@@ -396,7 +397,7 @@ let fns : List<BuiltInFn> =
         "Converts the given unicode string to a UTF8-encoded byte sequence."
       fn =
         (function
-        | _, _, [ DString str ] ->
+        | _, _, _, [ DString str ] ->
           let theBytes = System.Text.Encoding.UTF8.GetBytes str
           Ply(Dval.byteArrayToDvalList theBytes)
         | _ -> incorrectArgs ())
@@ -413,8 +414,8 @@ let fns : List<BuiltInFn> =
         "Converts the UTF8-encoded byte sequence into a string. Errors will be ignored by replacing invalid characters"
       fn =
         (function
-        | _, _, [ DList(_vt, bytes) ] ->
-          let bytes = Dval.DlistToByteArray bytes
+        | _, _, _, [ DList(_vt, bytes) ] ->
+          let bytes = Dval.dlistToByteArray bytes
           let str = System.Text.Encoding.UTF8.GetString bytes
           Ply(DString str)
         | _ -> incorrectArgs ())
@@ -431,9 +432,9 @@ let fns : List<BuiltInFn> =
         "Converts the UTF8-encoded byte sequence into a string. Errors will be ignored by replacing invalid characters"
       fn =
         (function
-        | _, _, [ DList(_vt, bytes) ] ->
+        | _, _, _, [ DList(_vt, bytes) ] ->
           try
-            let bytes = Dval.DlistToByteArray bytes
+            let bytes = Dval.dlistToByteArray bytes
             let str = System.Text.UTF8Encoding(false, true).GetString bytes
             Dval.optionSome KTString (DString str) |> Ply
           with e ->
@@ -457,7 +458,7 @@ let fns : List<BuiltInFn> =
         "Returns the index of the first occurrence of <param searchFor> in <param str>, or returns -1 if <param searchFor> does not occur."
       fn =
         (function
-        | _, _, [ DString str; DString search ] ->
+        | _, _, _, [ DString str; DString search ] ->
           let index = str.IndexOf(search)
           Ply(DInt64 index)
         | _ -> incorrectArgs ())
@@ -474,7 +475,7 @@ let fns : List<BuiltInFn> =
         "Returns {{Some char}} of the first character of <param str>, or returns {{None}} if <param str> is empty."
       fn =
         (function
-        | _, _, [ DString str ] ->
+        | _, _, _, [ DString str ] ->
           if str = "" then
             Dval.optionNone KTChar |> Ply
           else

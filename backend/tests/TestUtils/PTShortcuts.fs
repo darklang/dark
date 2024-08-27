@@ -4,6 +4,10 @@ module TestUtils.PTShortcuts
 open Prelude
 open LibExecution.ProgramTypes
 
+
+let typeNamePkg id = FQTypeName.fqPackage id
+
+
 let eUnit () : Expr = EUnit(gid ())
 
 let eBool (b : bool) : Expr = EBool(gid (), b)
@@ -52,12 +56,15 @@ let eIf (cond : Expr) (thenBranch : Expr) (elseBranch : Option<Expr>) : Expr =
 let eMatch (expr : Expr) (cases : List<MatchCase>) : Expr =
   EMatch(gid (), expr, cases)
 
-// let eFieldAccess (expr : Expr) (fieldName : string) : Expr =
-//   ERecordFieldAccess(gid (), expr, fieldName)
+let eRecord
+  (typeName : FQTypeName.FQTypeName)
+  (typeArgs : List<TypeReference>)
+  (fields : List<string * Expr>)
+  : Expr =
+  ERecord(gid (), Ok typeName, typeArgs, fields)
 
-// let eLambda (pats : List<LetPattern>) (body : Expr) : Expr =
-//   let pats = NEList.ofListUnsafe "eLambda" [] pats
-//   ELambda(gid (), pats, body)
+let eFieldAccess (expr : Expr) (fieldName : string) : Expr =
+  ERecordFieldAccess(gid (), expr, fieldName)
 
 // let eEnum
 //   (typeName : FQTypeName.FQTypeName)
@@ -71,6 +78,10 @@ let eMatch (expr : Expr) (cases : List<MatchCase>) : Expr =
 //   PT.FQFnName.fqBuiltIn name version
 //   |> PT2RT.FQFnName.toRT
 //   |> fun x -> EFnName(gid (), x)
+
+// let eLambda (pats : List<LetPattern>) (body : Expr) : Expr =
+//   let pats = NEList.ofListUnsafe "eLambda" [] pats
+//   ELambda(gid (), pats, body)
 
 
 // let eFn'
@@ -91,13 +102,13 @@ let eMatch (expr : Expr) (cases : List<MatchCase>) : Expr =
 //   eFn' function_ version typeArgs args
 
 
-let eApply
-  (target : Expr)
-  (typeArgs : List<TypeReference>)
-  (args : List<Expr>)
-  : Expr =
-  let args = NEList.ofListUnsafe "eApply" [] args
-  EApply(gid (), target, typeArgs, args)
+// let eApply
+//   (target : Expr)
+//   (typeArgs : List<TypeReference>)
+//   (args : List<Expr>)
+//   : Expr =
+//   let args = NEList.ofListUnsafe "eApply" [] args
+//   EApply(gid (), target, typeArgs, args)
 
 
 

@@ -1,4 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <TargetFramework>net8.0</TargetFramework>
@@ -8,33 +9,40 @@
     <IsTrimmable>false</IsTrimmable>
     <SelfContained>true</SelfContained>
   </PropertyGroup>
-  <ItemGroup>
-    <None Include="paket.references" />
-    <Compile Include="DarkDateTime.fs" />
-    <Compile Include="PackageIDs.fs" />
-    <Compile Include="RuntimeTypes.fs" />
-    <Compile Include="Dval.fs" />
-    <Compile Include="DvalDecoder.fs" />
-    <!--Compile Include="CommonToDarkTypes.fs" /-->
-    <!--Compile Include="RuntimeTypesToDarkTypes.fs" /-->
-    <Compile Include="NameResolutionError.fs" />
-    <!--Remove? Compile Include="RuntimeTypesAst.fs" /-->
-    <!--Compile Include="DvalReprInternalRoundtrippable.fs" /-->
-    <!--Compile Include="DvalReprInternalHash.fs" /-->
-    <Compile Include="DvalReprDeveloper.fs" />
-    <Compile Include="TypeChecker.fs" />
-    <!--Compile Include="DvalReprInternalQueryable.fs" /-->
-    <Compile Include="Interpreter.fs" />
-    <Compile Include="AnalysisTypes.fs" />
-    <Compile Include="Execution.fs" />
-    <Compile Include="Builtin.fs" />
-    <Compile Include="ProgramTypes.fs" />
-    <!--Compile Include="ProgramTypesParser.fs" /-->
-    <Compile Include="ProgramTypesToRuntimeTypes.fs" />
-    <!--Compile Include="ProgramTypesToDarkTypes.fs" /-->
-  </ItemGroup>
+
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+  <ItemGroup><None Include="paket.references" /></ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
   </ItemGroup>
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
+
+  <ItemGroup>
+    <Compile Include="DarkDateTime.fs" />
+    <Compile Include="PackageIDs.fs" />
+
+    <!-- Runtime /-->
+    <Compile Include="RuntimeTypes.fs" />
+    <Compile Include="ValueType.fs" />
+    <Compile Include="Dval.fs" />
+    <Compile Include="Builtin.fs" />
+    <Compile Include="TypeChecker.fs" />
+    <Compile Include="Interpreter.fs" />
+    <Compile Include="AnalysisTypes.fs" />
+    <Compile Include="Execution.fs" />
+
+    <!-- Dev-time, Language Design, Mental Model /-->
+    <Compile Include="ProgramTypes.fs" />
+    <Compile Include="ProgramTypesToRuntimeTypes.fs" />
+    <Compile Include="ProgramTypesParser.fs" />
+
+    <!-- User+Runtime I/O /-->
+    <Compile Include="DvalDecoder.fs" />
+    <Compile Include="CommonToDarkTypes.fs" />
+    <!--Compile Include="RuntimeTypesToDarkTypes.fs" /-->
+    <Compile Include="ProgramTypesToDarkTypes.fs" />
+
+    <!-- TODO move this to its own project, and try to decrease usage a ton. /-->
+    <!--Compile Include="DvalReprDeveloper.fs" /-->
+  </ItemGroup>
 </Project>

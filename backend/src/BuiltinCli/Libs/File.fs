@@ -65,7 +65,7 @@ let fns : List<BuiltInFn> =
               do!
                 System.IO.File.WriteAllBytesAsync(
                   path,
-                  Dval.DlistToByteArray contents
+                  Dval.dlistToByteArray contents
                 )
               return resultOk DUnit
             with e ->

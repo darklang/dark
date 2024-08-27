@@ -189,16 +189,16 @@ module MatchPattern =
     let id = gid ()
     let r = fromSynPat
 
-    let convertEnumArg (ast : SynPat) : List<WT.MatchPattern> =
-      // if the arg is a tuple with one paren around it, it's just arguments to the
-      // enum. But if it has two parens around it, it's a single tuple.
-      // eg: (Foo(1, 2)) vs (Foo((1, 2)))
-      match ast with
-      | SynPat.Paren(SynPat.Paren(SynPat.Tuple(_, t1 :: t2 :: trest, _, _), _), _) ->
-        [ WT.MPTuple(gid (), r t1, r t2, List.map r trest) ]
-      | SynPat.Paren(SynPat.Tuple(_, args, _, _), _) -> List.map r args
-      | SynPat.Tuple(_, args, _, _) -> List.map r args
-      | e -> [ r e ]
+    // let convertEnumArg (ast : SynPat) : List<WT.MatchPattern> =
+    //   // if the arg is a tuple with one paren around it, it's just arguments to the
+    //   // enum. But if it has two parens around it, it's a single tuple.
+    //   // eg: (Foo(1, 2)) vs (Foo((1, 2)))
+    //   match ast with
+    //   | SynPat.Paren(SynPat.Paren(SynPat.Tuple(_, t1 :: t2 :: trest, _, _), _), _) ->
+    //     [ WT.MPTuple(gid (), r t1, r t2, List.map r trest) ]
+    //   | SynPat.Paren(SynPat.Tuple(_, args, _, _), _) -> List.map r args
+    //   | SynPat.Tuple(_, args, _, _) -> List.map r args
+    //   | e -> [ r e ]
 
     match pat with
     | SynPat.Paren(pat, _) -> r pat
@@ -247,16 +247,16 @@ module MatchPattern =
 
 
     // parse enum pattern -- requires type name to be included
-    | SynPat.LongIdent(SynLongIdent(names, _, _), _, _, SynArgPats.Pats args, _, _) ->
-      let enumName =
-        List.last names |> Exception.unwrapOptionInternal "missing enum name" []
-      let modules = List.initial names |> List.map _.idText
-      if modules <> [] then
-        Exception.raiseInternal
-          "Module in enum pattern casename. Only use the casename in Enum patterns"
-          [ "pat", pat ]
-      let args = List.map convertEnumArg args |> List.concat
-      WT.MPEnum(id, enumName.idText, args)
+    // | SynPat.LongIdent(SynLongIdent(names, _, _), _, _, SynArgPats.Pats args, _, _) ->
+    //   let enumName =
+    //     List.last names |> Exception.unwrapOptionInternal "missing enum name" []
+    //   let modules = List.initial names |> List.map _.idText
+    //   if modules <> [] then
+    //     Exception.raiseInternal
+    //       "Module in enum pattern casename. Only use the casename in Enum patterns"
+    //       [ "pat", pat ]
+    //   let args = List.map convertEnumArg args |> List.concat
+    //   WT.MPEnum(id, enumName.idText, args)
 
     | SynPat.ArrayOrList(_, pats, _) -> WT.MPList(id, List.map r pats)
 

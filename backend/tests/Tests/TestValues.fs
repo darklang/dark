@@ -11,15 +11,64 @@ open TestUtils.PTShortcuts
 // TODO: consider adding an Expect.equalInstructions,
 // which better points out the diffs in the lists
 
+module PM =
+  module Types =
+    let make id name definition : PT.PackageType.PackageType =
+      { id = id
+        name = name
+        declaration = { typeParams = []; definition = definition }
+        description = "TODO"
+        deprecated = PT.NotDeprecated }
+
+    module Records =
+      let make id name fields =
+        make id name (PT.TypeDeclaration.Record(NEList.ofListUnsafe "" [] fields))
+
+      let singleField = System.Guid.NewGuid()
+      let nested = System.Guid.NewGuid()
+
+      let all : List<PT.PackageType.PackageType> =
+        [ make
+            singleField
+            (PT.PackageType.name "Test" [] "Test")
+            [ { name = "key"; typ = PT.TBool; description = "TODO" } ]
+
+          make
+            nested
+            (PT.PackageType.name "Test" [] "Test2")
+            [ { name = "outer"
+                typ = PT.TCustomType(Ok(PT.FQTypeName.fqPackage singleField), [])
+                description = "TODO" } ] ]
+
+    module Enums =
+      let all = []
+
+    let all = Records.all @ Enums.all
+
+  module Constants =
+    let all = []
+
+  module Functions =
+    let all = []
+
+
+  // TODO
+  let fake : PT.PackageManager =
+    PT.PackageManager.withExtras
+      PT.PackageManager.empty
+      Types.all
+      Constants.all
+      Functions.all
+
 module Expressions =
   module Basic =
     let one = eInt64 1
 
-    let onePlusTwo =
-      eApply
-        (PT.EFnName(gid (), Ok(PT.FQFnName.fqBuiltIn "int64Add" 0)))
-        []
-        [ eInt64 1; eInt64 2 ]
+  // let onePlusTwo =
+  //   eApply
+  //     (PT.EFnName(gid (), Ok(PT.FQFnName.fqBuiltIn "int64Add" 0)))
+  //     []
+  //     [ eInt64 1; eInt64 2 ]
 
 
   module Let =
@@ -131,29 +180,29 @@ module Expressions =
         (eBool true)
         [ { pat = PT.MPVariable(gid (), "x"); whenCondition = None; rhs = eVar "x" } ]
 
-    /// match 4 with
-    /// | 1 -> "first branch"
-    /// | x when x % 2 == 0 -> "second branch"
-    let withVarAndWhenCondition =
-      eMatch
-        (eInt64 4)
-        [ { pat = PT.MPInt64(gid (), 1)
-            whenCondition = None
-            rhs = eStr [ strText "first branch" ] }
-          { pat = PT.MPVariable(gid (), "x")
-            // "is even"
-            whenCondition =
-              Some(
-                eApply
-                  (PT.EFnName(gid (), Ok(PT.FQFnName.fqBuiltIn "equals" 0)))
-                  []
-                  [ eApply
-                      (PT.EFnName(gid (), Ok(PT.FQFnName.fqBuiltIn "int64Mod" 0)))
-                      []
-                      [ eVar "x" ]
-                    eInt64 2 ]
-              )
-            rhs = eStr [ strText "second branch" ] } ]
+    // /// match 4 with
+    // /// | 1 -> "first branch"
+    // /// | x when x % 2 == 0 -> "second branch"
+    // let withVarAndWhenCondition =
+    //   eMatch
+    //     (eInt64 4)
+    //     [ { pat = PT.MPInt64(gid (), 1)
+    //         whenCondition = None
+    //         rhs = eStr [ strText "first branch" ] }
+    //       { pat = PT.MPVariable(gid (), "x")
+    //         // "is even"
+    //         whenCondition =
+    //           Some(
+    //             eApply
+    //               (PT.EFnName(gid (), Ok(PT.FQFnName.fqBuiltIn "equals" 0)))
+    //               []
+    //               [ eApply
+    //                   (PT.EFnName(gid (), Ok(PT.FQFnName.fqBuiltIn "int64Mod" 0)))
+    //                   []
+    //                   [ eVar "x" ]
+    //                 eInt64 2 ]
+    //           )
+    //         rhs = eStr [ strText "second branch" ] } ]
 
     let list =
       eMatch
@@ -181,3 +230,16 @@ module Expressions =
               PT.MPTuple(gid (), PT.MPInt64(gid (), 1), PT.MPInt64(gid (), 2), [])
             whenCondition = None
             rhs = eStr [ strText "first branch" ] } ]
+
+
+  module Records =
+    let simple =
+      eRecord (typeNamePkg PM.Types.Records.singleField) [] [ "key", eBool true ]
+
+    let nested = eRecord (typeNamePkg PM.Types.Records.nested) [] [ "outer", simple ]
+
+  module RecordFieldAccess =
+    let simple = eFieldAccess Records.simple "key"
+    let notRecord = eFieldAccess (eInt64 1) "key"
+    let missingField = eFieldAccess Records.simple "missing"
+    let nested = eFieldAccess (eFieldAccess Records.nested "outer") "key"

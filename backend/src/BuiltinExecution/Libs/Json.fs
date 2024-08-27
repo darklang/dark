@@ -7,7 +7,7 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module DarkDateTime = LibExecution.DarkDateTime
-module VT = ValueType
+module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module TypeChecker = LibExecution.TypeChecker
 module PackageIDs = LibExecution.PackageIDs
@@ -763,7 +763,8 @@ let parse
     // Explicitly not supported
     | TVariable _, _
     | TFn _, _
-    | TDB _, _ -> RuntimeError.raiseUnsupportedType callStack typ
+    //| TDB _, _
+     -> RuntimeError.raiseUnsupportedType callStack typ
 
 
     // exhaust TypeReferences
@@ -808,60 +809,62 @@ let parse
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "jsonSerialize" 0
-      typeParams = [ "a" ]
-      parameters = [ Param.make "arg" (TVariable "a") "" ]
-      returnType = TString
-      description = "Serializes a Dark value to a JSON string."
-      fn =
-        (function
-        | state, [ typeToSerializeAs ], [ arg ] ->
-          uply {
-            // TODO: somehow collect list of TVariable -> TypeReference
-            // "'b = Int",
-            // so we can Json.serialize<'b>, if 'b is in the surrounding context
-            let types = ExecutionState.availableTypes state
-            let! response =
-              writeJson (fun w ->
-                serialize state.tracing.callStack types w typeToSerializeAs arg)
-            return DString response
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
+  [
+  // { name = fn "jsonSerialize" 0
+  //   typeParams = [ "a" ]
+  //   parameters = [ Param.make "arg" (TVariable "a") "" ]
+  //   returnType = TString
+  //   description = "Serializes a Dark value to a JSON string."
+  //   fn =
+  //     (function
+  //     | state, [ typeToSerializeAs ], [ arg ] ->
+  //       uply {
+  //         // TODO: somehow collect list of TVariable -> TypeReference
+  //         // "'b = Int",
+  //         // so we can Json.serialize<'b>, if 'b is in the surrounding context
+  //         let types = ExecutionState.availableTypes state
+  //         let! response =
+  //           writeJson (fun w ->
+  //             serialize state.tracing.callStack types w typeToSerializeAs arg)
+  //         return DString response
+  //       }
+  //     | _ -> incorrectArgs ())
+  //   sqlSpec = NotQueryable
+  //   previewable = Pure
+  //   deprecated = NotDeprecated }
 
 
-    { name = fn "jsonParse" 0
-      typeParams = [ "a" ]
-      parameters = [ Param.make "json" TString "" ]
-      returnType =
-        TypeReference.result
-          (TVariable "a")
-          (TCustomType(Ok ParseError.typeName, []))
-      description =
-        "Parses a JSON string <param json> as a Dark value, matching the type <typeParam a>"
-      fn =
-        (function
-        | state, [ typeArg ], [ DString arg ] ->
-          let callStack = state.tracing.callStack
+  // { name = fn "jsonParse" 0
+  //   typeParams = [ "a" ]
+  //   parameters = [ Param.make "json" TString "" ]
+  //   returnType =
+  //     TypeReference.result
+  //       (TVariable "a")
+  //       (TCustomType(Ok ParseError.typeName, []))
+  //   description =
+  //     "Parses a JSON string <param json> as a Dark value, matching the type <typeParam a>"
+  //   fn =
+  //     (function
+  //     | state, [ typeArg ], [ DString arg ] ->
+  //       let callStack = state.tracing.callStack
 
-          let okType = VT.unknownTODO // "a"
-          let errType = KTCustomType(ParseError.typeName, []) |> VT.known
-          let resultOk = TypeChecker.DvalCreator.resultOk callStack okType errType
-          let resultError =
-            TypeChecker.DvalCreator.resultError callStack okType errType
+  //       let okType = VT.unknownTODO // "a"
+  //       let errType = KTCustomType(ParseError.typeName, []) |> VT.known
+  //       let resultOk = TypeChecker.DvalCreator.resultOk callStack okType errType
+  //       let resultError =
+  //         TypeChecker.DvalCreator.resultError callStack okType errType
 
-          let types = ExecutionState.availableTypes state
-          uply {
-            match! parse callStack types typeArg arg with
-            | Ok v -> return resultOk v
-            | Error e -> return resultError (ParseError.toDT e)
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated } ]
+  //       let types = ExecutionState.availableTypes state
+  //       uply {
+  //         match! parse callStack types typeArg arg with
+  //         | Ok v -> return resultOk v
+  //         | Error e -> return resultError (ParseError.toDT e)
+  //       }
+  //     | _ -> incorrectArgs ())
+  //   sqlSpec = NotQueryable
+  //   previewable = Pure
+  //   deprecated = NotDeprecated }
+  ]
 
 
 let builtins = LibExecution.Builtin.make [] fns

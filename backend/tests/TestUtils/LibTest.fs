@@ -13,7 +13,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module VT = ValueType
+module VT = LibExecution.ValueType
 module PT = LibExecution.ProgramTypes
 module Dval = LibExecution.Dval
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
@@ -26,24 +26,24 @@ module PackageIDs = LibExecution.PackageIDs
 //let varB = TVariable "b"
 
 
-// let constants : List<BuiltInConstant> =
-//   [ { name = constant "testNan" 0
-//       typ = TFloat
-//       description = "Return a NaN"
-//       body = DFloat(System.Double.NaN)
-//       deprecated = NotDeprecated }
+let constants : List<BuiltInConstant> =
+  [ { name = constant "testNan" 0
+      typ = TFloat
+      description = "Return a NaN"
+      body = DFloat(System.Double.NaN)
+      deprecated = NotDeprecated }
 
-//     { name = constant "testInfinity" 0
-//       typ = TFloat
-//       description = "Returns positive infitity"
-//       body = DFloat(System.Double.PositiveInfinity)
-//       deprecated = NotDeprecated }
+    { name = constant "testInfinity" 0
+      typ = TFloat
+      description = "Returns positive infitity"
+      body = DFloat(System.Double.PositiveInfinity)
+      deprecated = NotDeprecated }
 
-//     { name = constant "testNegativeInfinity" 0
-//       typ = TFloat
-//       description = "Returns negative infinity"
-//       body = DFloat(System.Double.NegativeInfinity)
-//       deprecated = NotDeprecated } ]
+    { name = constant "testNegativeInfinity" 0
+      typ = TFloat
+      description = "Returns negative infinity"
+      body = DFloat(System.Double.NegativeInfinity)
+      deprecated = NotDeprecated } ]
 
 let fns : List<BuiltInFn> =
   [
@@ -277,4 +277,4 @@ let fns : List<BuiltInFn> =
   //   deprecated = NotDeprecated }
   ]
 
-let builtins = LibExecution.Builtin.make fns
+let builtins = LibExecution.Builtin.make constants fns

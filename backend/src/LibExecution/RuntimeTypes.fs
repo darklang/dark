@@ -35,7 +35,7 @@ open Prelude
 let modulePattern = @"^[A-Z][a-z0-9A-Z_]*$"
 let fnNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
 let builtinNamePattern = @"^(__|[a-z])[a-z0-9A-Z_]\w*$"
-//let constantNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
+let constantNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
 
 
 let assertBuiltin
@@ -47,52 +47,52 @@ let assertBuiltin
   assert_ "version can't be negative" [ "version", version ] (version >= 0)
 
 
-// /// Fully-Qualified Type Name
-// ///
-// /// Used to reference a type defined in a Package
-// module FQTypeName =
-//   /// The id of a type in the package manager
-//   type Package = uuid
+/// Fully-Qualified Type Name
+///
+/// Used to reference a type defined in a Package
+module FQTypeName =
+  /// The id of a type in the package manager
+  type Package = uuid
 
-//   type FQTypeName = Package of Package
+  type FQTypeName = Package of Package
 
-//   let package (id : uuid) : Package = id
+  let package (id : uuid) : Package = id
 
-//   let fqPackage (id : uuid) : FQTypeName = Package id
+  let fqPackage (id : uuid) : FQTypeName = Package id
 
-//   let toString (name : FQTypeName) : string =
-//     match name with
-//     | Package p -> string p // TODO: better
+// let toString (name : FQTypeName) : string =
+//   match name with
+//   | Package p -> string p // TODO: better
 
 
-// /// A Fully-Qualified Constant Name
-// ///
-// /// Used to reference a constant defined by the runtime or in a Package
-// module FQConstantName =
-//   /// A constant built into the runtime
-//   type Builtin = { name : string; version : int }
+/// A Fully-Qualified Constant Name
+///
+/// Used to reference a constant defined by the runtime or in a Package
+module FQConstantName =
+  /// A constant built into the runtime
+  type Builtin = { name : string; version : int }
 
-//   /// The id of a constant in the package manager
-//   type Package = uuid
+  /// The id of a constant in the package manager
+  type Package = uuid
 
-//   type FQConstantName =
-//     | Builtin of Builtin
-//     | Package of Package
+  type FQConstantName =
+    | Builtin of Builtin
+    | Package of Package
 
-//   let assertConstantName (name : string) : unit =
-//     assertRe "Constant name must match" constantNamePattern name
+  let assertConstantName (name : string) : unit =
+    assertRe "Constant name must match" constantNamePattern name
 
-//   let builtin (name : string) (version : int) : Builtin =
-//     assertBuiltin name version assertConstantName
-//     { name = name; version = version }
+  let builtin (name : string) (version : int) : Builtin =
+    assertBuiltin name version assertConstantName
+    { name = name; version = version }
 
-//   let package (id : uuid) : Package = id
+  let package (id : uuid) : Package = id
 
-//   let fqPackage (id : uuid) : FQConstantName = Package id
+  let fqPackage (id : uuid) : FQConstantName = Package id
 
-//   let builtinToString (s : Builtin) : string =
-//     let name = s.name
-//     if s.version = 0 then name else $"{name}_v{s.version}"
+  let builtinToString (s : Builtin) : string =
+    let name = s.name
+    if s.version = 0 then name else $"{name}_v{s.version}"
 
 //   let toString (name : FQConstantName) : string =
 //     match name with
@@ -201,11 +201,11 @@ type KnownType =
   // /// List.head ([]: List<DB<'a>>) // KTDB (Unknown)
   // | KTDB of ValueType
 
-  // /// let n = None          // type args: [Unknown]
-  // /// let s = Some(5)       // type args: [Known KTInt64]
-  // /// let o = Ok (5)        // type args: [Known KTInt64, Unknown]
-  // /// let e = Error ("str") // type args: [Unknown, Known KTString]
-  // | KTCustomType of FQTypeName.FQTypeName * typeArgs : List<ValueType>
+  /// let n = None          // type args: [Unknown]
+  /// let s = Some(5)       // type args: [Known KTInt64]
+  /// let o = Ok (5)        // type args: [Known KTInt64, Unknown]
+  /// let e = Error ("str") // type args: [Unknown, Known KTString]
+  | KTCustomType of FQTypeName.FQTypeName * typeArgs : List<ValueType>
 
   /// let myDict = {} // KTDict Unknown
   | KTDict of ValueType
@@ -217,162 +217,6 @@ type KnownType =
 and [<RequireQualifiedAccess>] ValueType =
   | Unknown
   | Known of KnownType
-
-[<RequireQualifiedAccess>]
-module ValueType =
-  // some helpers to reduce typing elsewhere
-  let unknown = ValueType.Unknown
-  let unknownTODO = ValueType.Unknown
-  let unknownDbTODO = ValueType.Unknown
-  let typeArgsTODO = []
-
-  let known inner = ValueType.Known inner
-
-  let unit = known KTUnit
-  let bool = known KTBool
-  let int8 = known KTInt8
-  let uint8 = known KTUInt8
-  let int16 = known KTInt16
-  let uint16 = known KTUInt16
-  let int32 = known KTInt32
-  let uint32 = known KTUInt32
-  let int64 = known KTInt64
-  let uint64 = known KTUInt64
-  let int128 = known KTInt128
-  let uint128 = known KTUInt128
-  let float = known KTFloat
-  let char = known KTChar
-  let string = known KTString
-  let dateTime = known KTDateTime
-  let uuid = known KTUuid
-
-  let list (inner : ValueType) : ValueType = known (KTList inner)
-  let dict (inner : ValueType) : ValueType = known (KTDict inner)
-  let tuple
-    (first : ValueType)
-    (second : ValueType)
-    (theRest : List<ValueType>)
-    : ValueType =
-    KTTuple(first, second, theRest) |> known
-
-  // let customType
-  //   (typeName : FQTypeName.FQTypeName)
-  //   (typeArgs : List<ValueType>)
-  //   : ValueType =
-  //   KTCustomType(typeName, typeArgs) |> known
-
-  let rec toString (vt : ValueType) : string =
-    match vt with
-    | ValueType.Unknown -> "_"
-    | ValueType.Known kt ->
-      match kt with
-      | KTUnit -> "Unit"
-      | KTBool -> "Bool"
-      | KTInt8 -> "Int8"
-      | KTUInt8 -> "UInt8"
-      | KTInt16 -> "Int16"
-      | KTUInt16 -> "UInt16"
-      | KTInt32 -> "Int32"
-      | KTUInt32 -> "UInt32"
-      | KTInt64 -> "Int64"
-      | KTUInt64 -> "UInt64"
-      | KTInt128 -> "Int128"
-      | KTUInt128 -> "UInt128"
-      | KTFloat -> "Float"
-      | KTChar -> "Char"
-      | KTString -> "String"
-      | KTUuid -> "Uuid"
-      | KTDateTime -> "DateTime"
-
-      | KTList inner -> $"List<{toString inner}>"
-      | KTDict inner -> $"Dict<{toString inner}>"
-      | KTTuple(first, second, theRest) ->
-        first :: second :: theRest
-        |> List.map toString
-        |> String.concat " * "
-        |> fun inner -> $"({inner})"
-
-  // | KTCustomType(typeName, typeArgs) ->
-  //   let typeArgsPart =
-  //     match typeArgs with
-  //     | [] -> ""
-  //     | _ ->
-  //       typeArgs
-  //       |> List.map toString
-  //       |> String.concat ", "
-  //       |> fun inner -> $"<{inner}>"
-
-  //   $"{FQTypeName.toString typeName}{typeArgsPart}"
-
-  // | KTFn(args, ret) ->
-  //   NEList.toList args @ [ ret ] |> List.map toString |> String.concat " -> "
-
-  //| KTDB inner -> $"DB<{toString inner}>"
-
-
-  let rec private mergeKnownTypes
-    (left : KnownType)
-    (right : KnownType)
-    : Result<KnownType, unit> =
-    let r = merge
-    match left, right with
-    | KTUnit, KTUnit -> KTUnit |> Ok
-    | KTBool, KTBool -> KTBool |> Ok
-    | KTInt8, KTInt8 -> KTInt8 |> Ok
-    | KTUInt8, KTUInt8 -> KTUInt8 |> Ok
-    | KTInt16, KTInt16 -> KTInt16 |> Ok
-    | KTUInt16, KTUInt16 -> KTUInt16 |> Ok
-    | KTInt32, KTInt32 -> KTInt32 |> Ok
-    | KTUInt32, KTUInt32 -> KTUInt32 |> Ok
-    | KTInt64, KTInt64 -> KTInt64 |> Ok
-    | KTUInt64, KTUInt64 -> KTUInt64 |> Ok
-    | KTInt128, KTInt128 -> KTInt128 |> Ok
-    | KTUInt128, KTUInt128 -> KTUInt128 |> Ok
-    | KTFloat, KTFloat -> KTFloat |> Ok
-    | KTChar, KTChar -> KTChar |> Ok
-    | KTString, KTString -> KTString |> Ok
-    | KTUuid, KTUuid -> KTUuid |> Ok
-    | KTDateTime, KTDateTime -> KTDateTime |> Ok
-
-    | KTList left, KTList right -> r left right |> Result.map KTList
-    | KTDict left, KTDict right -> r left right |> Result.map KTDict
-    | KTTuple(l1, l2, ls), KTTuple(r1, r2, rs) ->
-      let firstMerged = r l1 r1
-      let secondMerged = r l2 r2
-      let restMerged = List.map2 r ls rs |> Result.collect
-
-      match firstMerged, secondMerged, restMerged with
-      | Ok first, Ok second, Ok rest -> Ok(KTTuple(first, second, rest))
-      | _ -> Error()
-
-    // | KTCustomType(lName, lArgs), KTCustomType(rName, rArgs) ->
-    //   if lName <> rName then
-    //     Error()
-    //   else if List.length lArgs <> List.length rArgs then
-    //     Error()
-    //   else
-    //     List.map2 r lArgs rArgs
-    //     |> Result.collect
-    //     |> Result.map (fun args -> KTCustomType(lName, args))
-
-    // | KTFn(lArgs, lRet), KTFn(rArgs, rRet) ->
-    //   let argsMerged = NEList.map2 r lArgs rArgs |> Result.collectNE
-    //   let retMerged = r lRet rRet
-
-    //   match argsMerged, retMerged with
-    //   | Ok args, Ok ret -> Ok(KTFn(args, ret))
-    //   | _ -> Error()
-
-    | _ -> Error()
-
-  and merge (left : ValueType) (right : ValueType) : Result<ValueType, unit> =
-    match left, right with
-    | ValueType.Unknown, v
-    | v, ValueType.Unknown -> Ok v
-
-    | ValueType.Known left, ValueType.Known right ->
-      mergeKnownTypes left right |> Result.map ValueType.Known
-
 
 
 // ------------
@@ -406,7 +250,11 @@ type LetPattern =
 [<Measure>]
 type register
 
-type NameResolution<'a> = Result<'a, RuntimeError>
+type NameResolutionError =
+  | NotFound of List<string>
+  | InvalidName of List<string>
+
+type NameResolution<'a> = Result<'a, NameResolutionError>
 
 and TypeReference =
   | TUnit
@@ -431,9 +279,9 @@ and TypeReference =
   | TFn of NEList<TypeReference> * TypeReference
   // | TDB of TypeReference
   | TVariable of string
-  // | TCustomType of
-  //   NameResolution<FQTypeName.FQTypeName> *
-  //   typeArgs : List<TypeReference>
+  | TCustomType of
+    NameResolution<FQTypeName.FQTypeName> *
+    typeArgs : List<TypeReference>
   | TDict of TypeReference // CLEANUP add key type
 
   member this.isFn() : bool =
@@ -467,7 +315,7 @@ and TypeReference =
         isConcrete t1 && isConcrete t2 && List.forall isConcrete ts
       | TFn(ts, t) -> NEList.forall isConcrete ts && isConcrete t
       // | TDB t -> isConcrete t
-      // | TCustomType(_, ts) -> List.forall isConcrete ts
+      | TCustomType(_, ts) -> List.forall isConcrete ts
       | TDict t -> isConcrete t
 
       | TVariable _ -> false
@@ -500,6 +348,10 @@ and MatchPattern =
     theRest : List<MatchPattern>
   | MPVariable of string
 
+and StringSegment =
+  | Text of string
+  | Interpolated of Register
+
 /// TODO: consider if each of these should include the Expr ID that they came from
 ///
 /// Would Expr ID be enough?
@@ -509,52 +361,38 @@ and MatchPattern =
 /// and only load it when needed.
 /// That way, the Interpreter could be lighter-weight.
 and Instruction =
+  // == Simple register operations ==
   /// Push a ("constant") value into a register
   | LoadVal of loadTo : Register * Dval
 
-  | AppendString of targetReg : Register * sourceReg : Register
+  | CopyVal of copyTo : Register * copyFrom : Register
 
 
-  /// Loads the value of a register into a variable
-  | SetVar of varName : string * loadFrom : Register
+  // == Working with Variables ==
+  /// Extract values in a Register to 0 or more variables, per the pattern.
+  /// (e.g. `let (x, y) = (1, 2)`)
+  ///
+  /// Errors if the pattern doesn't match the value.
+  | CheckLetPatternAndExtractVars of valueReg : Register * pat : LetPattern
 
   /// Stores the value of a variable to a register
   | GetVar of loadTo : Register * varName : string
 
 
-  /// Create a list, and type-check to ensure the items are of a consistent type
-  | CreateList of listRegister : Register * itemsToAdd : List<Register>
+  // == Working with Basic Types ==
+  | CreateString of targetReg : Register * segments : List<StringSegment>
 
-  | CreateTuple of
-    createTo : Register *
-    first : Register *
-    second : Register *
-    theRest : List<Register>
 
-  /// Create a dict, and type-check to ensure the entries are of a consistent type
-  | CreateDict of dictRegister : Register * entries : List<string * Register>
+  // == Flow Control ==
 
-  | CopyVal of copyTo : Register * copyFrom : Register
-
-  /// Go n instructions forward, if the value in the register is false
+  // -- Jumps --
+  /// Go `n` instructions forward, if the value in the register is `false`
   | JumpByIfFalse of instrsToJump : int * conditionReg : Register
 
-  /// Go n instructions forward, unconditionally
+  /// Go `n` instructions forward, unconditionally
   | JumpBy of instrsToJump : int
 
-  | CheckLetPatternAndExtractVars of valueReg : Register * pat : LetPattern
-
-  /// Apply some args (and maybe type args) to something
-  /// (a named function, or lambda, etc)
-  | Apply of
-    putResultIn : Register *
-    thingToApply : Register *
-    typeArgs : List<TypeReference> *
-    args : NEList<Register>
-
-  /// Fail if this is hit (basically "raise an exception")
-  | Fail of RuntimeError
-
+  // -- Match --
   /// Check if the value in the noted register the noted pattern,
   /// and extract vars per MPVariable as relevant.
   | CheckMatchPatternAndExtractVars of
@@ -570,37 +408,66 @@ and Instruction =
   | MatchUnmatched
 
 
+  // == Working with Collections ==
+  | CreateTuple of
+    createTo : Register *
+    first : Register *
+    second : Register *
+    theRest : List<Register>
+
+  /// Create a list, and type-check to ensure the items are of a consistent type
+  | CreateList of listRegister : Register * itemsToAdd : List<Register>
+
+  /// Create a dict, and type-check to ensure the entries are of a consistent type
+  | CreateDict of dictRegister : Register * entries : List<string * Register>
+
+
+  // == Working with Custom Data ==
+  // -- Records --
+  | CreateRecord of
+    recordReg : Register *
+    typeName : FQTypeName.FQTypeName *
+    typeArgs : List<TypeReference> *
+    fields : List<string * Register>
+
+  // | CloneRecordWithUpdates of
+  //   targetReg : Register *
+  //   originalRecordReg : Register *
+  //   updates : List<string * Register>
+
+  | GetRecordField of
+    targetReg : Register *
+    recordReg : Register *
+    fieldName : string
+
+  // -- Enums --
+  | CreateEnum of
+    enumReg : Register *
+    typeName : FQTypeName.FQTypeName *
+    typeArgs : List<TypeReference> *
+    caseName : string *
+    fields : List<Register>
+
+
+  // == Working with things that Apply ==
+
+  // /// Apply some args (and maybe type args) to something
+  // /// (a named function, or lambda, etc)
+  // | Apply of
+  //   putResultIn : Register *
+  //   thingToApply : Register *
+  //   typeArgs : List<TypeReference> *
+  //   args : NEList<Register>
+
+  // == Errors ==
+  | RaiseNRE of NameResolutionError
+
+
+
 and Instructions = List<Instruction>
-and InstructionsWithContext =
-  // (rc, instructions, result register)
-  (int * Instructions * Register)
 
-
-// // Expressions here are runtime variants of the AST in ProgramTypes, having had
-// // superfluous information removed.
-// and Expr =
-//   // // flow control
-//   // | EAnd of id * lhs : Expr * rhs : Expr
-//   // | EOr of id * lhs : Expr * rhs : Expr
-
-//   // // declaring and referencing vars
-//   // | ERecordFieldAccess of id * Expr * string
-
-//   // calling fns and other things
-//   //| ELambda of id * pats : NEList<LetPattern> * body : Expr
-
-//   // // working with custom types
-//   // | EConstant of id * FQConstantName.FQConstantName
-//   // | ERecord of id * FQTypeName.FQTypeName * NEList<string * Expr>
-//   // | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
-//   // | EEnum of id * FQTypeName.FQTypeName * caseName : string * fields : List<Expr>
-
-//   // A runtime error. This is included so that we can allow the program to run in the
-//   // presence of compile-time errors (which are converted to this error). We may
-//   // adapt this to include more information as we go. This list of exprs is the
-//   // subexpressions to evaluate before evaluating the error.
-//   | EError of id * RuntimeError * List<Expr>
-
+/// (rc, instructions, result register)
+and InstructionsWithContext = (int * Instructions * Register)
 
 
 and DvalMap = Map<string, Dval>
@@ -622,11 +489,7 @@ and FnValImpl =
   //| Lambda of LambdaImpl
   | NamedFn of FQFnName.FQFnName
 
-/// RuntimeError is the major way of representing errors in the runtime. These are
-/// primarily used for things where the user made an error, such as a type error, as
-/// opposed to a place where the runtime is flawed (use Exception.raiseInternal for those).
-/// See docs/errors.md for detailed discussion.
-and RuntimeError = private RuntimeError of Dval
+
 
 // We use NoComparison here to avoid accidentally using structural comparison
 and [<NoComparison>] Dval =
@@ -659,27 +522,34 @@ and [<NoComparison>] Dval =
   | DTuple of first : Dval * second : Dval * theRest : List<Dval>
   | DDict of
     // This is the type of the _values_, not the keys. Once users can specify the
-    // key type, we likely will need to add a `keyType: ValueType` field here.
+    // key type, we likely will need to add a `keyType: ValueType` field here. TODO
     valueType : ValueType *
     entries : DvalMap
 
-  // // custom types
-  // | DRecord of
-  //   // CLEANUP nitpick: maybe move sourceTypeName before runtimeTypeName?
-  //   // CLEANUP we may need a sourceTypeArgs here as well
-  //   runtimeTypeName : FQTypeName.FQTypeName *
-  //   sourceTypeName : FQTypeName.FQTypeName *
-  //   typeArgs : List<ValueType> *
-  //   fields : DvalMap
+  // TODO: go through all instances of DRecord and DEnum
+  // and make sure the typeNames are in the correct order
 
-  // | DEnum of
-  //   // CLEANUP nitpick: maybe move sourceTypeName before runtimeTypeName?
-  //   // CLEANUP we may need a sourceTypeArgs here as well
-  //   runtimeTypeName : FQTypeName.FQTypeName *
-  //   sourceTypeName : FQTypeName.FQTypeName *
-  //   typeArgs : List<ValueType> *
-  //   caseName : string *
-  //   fields : List<Dval>
+  // -- custom types --
+  | DRecord of
+    // CLEANUP we may need a sourceTypeArgs here as well
+    sourceTypeName : FQTypeName.FQTypeName *
+    runtimeTypeName : FQTypeName.FQTypeName *
+    // do we need to split this into sourceTypeArgs and runtimeTypeArgs?
+    // What are we even using the source stuff for? error-reporting?
+    typeArgs : List<ValueType> *
+    fields : DvalMap // would a list be better? We can do the type-check fun _after_
+  // field access would be a tad slower, but there usually aren't that many fields
+  // and it's probably more convenient?
+  // Hmm for dicts, we could consider the same thing, but field-access perf is
+  // more important there.
+
+  | DEnum of
+    // CLEANUP we may need a sourceTypeArgs here as well
+    sourceTypeName : FQTypeName.FQTypeName *
+    runtimeTypeName : FQTypeName.FQTypeName *
+    typeArgs : List<ValueType> *  // same q here - split into sourceTypeArgs and runtimeTypeArgs?
+    caseName : string *
+    fields : List<Dval>
 
   // Functions
   | DFnVal of FnValImpl // VTTODO I'm not sure how ValueType fits in here
@@ -772,50 +642,298 @@ and BuiltInParam =
 and Param = { name : string; typ : TypeReference }
 
 
+// TODO really consider making this extensible without requiring a rebuild
+// (maybe reframe this as an `Exception`, maybe some new TL that users can add to)
+module RuntimeError =
+  module TypeChecker =
+    // TODO: move this somewhere..
+    type Context =
+      | FunctionCallParameter of
+        fnName : FQFnName.FQFnName *
+        parameter : Param *
+        paramIndex : int
+      | FunctionCallResult of fnName : FQFnName.FQFnName * returnType : TypeReference
+      | RecordField of
+        recordTypeName : FQTypeName.FQTypeName *
+        fieldName : string *
+        fieldType : TypeReference
+      | DictKey of key : string * typ : TypeReference
+      | EnumField of
+        enumTypeName : FQTypeName.FQTypeName *
+        caseName : string *
+        fieldIndex : int *
+        fieldCount : int *
+        fieldType : TypeReference
+      | DBQueryVariable of varName : string * expected : TypeReference
+      | DBSchemaType of name : string * expectedType : TypeReference
+      | ListIndex of index : int * listTyp : TypeReference * parent : Context
+      | TupleIndex of index : int * elementType : TypeReference * parent : Context
+      | FnValResult of returnType : TypeReference
+
+
+  // module Cli =
+  //   type Error =
+  //     | NoExpressionsToExecute
+  //     | UncaughtException of String * List<String * String>
+  //     | NonIntReturned of actuallyReturned: Dval.Dval
+
+
+  // module Json =
+  //   type Error = UnsupportedType of RuntimeTypes.TypeReference
+
+
+  module Ints =
+    type Error =
+      | DivideByZeroError
+      | OutOfRange
+      | NegativeExponent
+      | NegativeModulus
+      | ZeroModulus
+
+
+  // module Execution =
+  //   type Error =
+  //     | MatchExprUnmatched of RuntimeTypes.Dval.Dval
+  //     | NonStringInStringInterpolation of RuntimeTypes.Dval.Dval
+  //     | ConstDoesntExist of RuntimeTypes.FQConstantName.FQConstantName
+  //     | EnumConstructionCaseNotFound of typeName: RuntimeTypes.FQTypeName * caseName: String
+  //     | WrongNumberOfFnArgs of fn: RuntimeTypes.FQFnName * expectedTypeArgs: Int64 * expectedArgs: Int64 * actualTypeArgs: Int64 * actualArgs: Int64
+
+  //     // TODO: Record submodule
+  //     | RecordConstructionFieldDoesntExist of typeName: RuntimeTypes.FQTypeName * fieldName: String
+  //     | RecordConstructionMissingField of RuntimeTypes.FQTypeName * missingFieldName: String
+  //     | RecordConstructionDuplicateField of RuntimeTypes.FQTypeName * duplicateFieldName: String
+  //     | FieldAccessFieldDoesntExist of typeName: RuntimeTypes.FQTypeName * invalidFieldName: String
+  //     | FieldAccessNotRecord of RuntimeTypes.ValueType * String
+
+  // module Unwrap =
+  //   type Error =
+  //     | GotNone
+  //     | GotError of Dval
+  //     | NonOptionOrResult of Dval
+
+
+  module Lets =
+    // CLEANUP consider some kinda _path_ thing like with JSON errors
+    // type Details =
+    //   /// Unit pattern does not match
+    //   | UnitPatternDoesNotMatch
+
+    //   /// Tuple pattern does not match
+    //   | TuplePatternDoesNotMatch
+
+    //   /// Tuple pattern has wrong number of elements
+    //   | TuplePatternWrongLength of expected: Int * actual: Int
+
+    type Error =
+      /// Could not decompose `{someFn dval}` with pattern `{someFn pat}` in `let` expression
+      | PatternDoesNotMatch of dval : Dval * pat : LetPattern
+
+  // module Enum =
+  //   type Error =
+  //     /// $"When constructing enum value `typeName`.`{caseName}`,
+  //     /// expected {expectedFieldCount} fields but got {actualFieldCount}"
+  //     | WrongNumberOfFields of typeName * FQTypeName * caseName: String * expectedFieldCount: Int * actualFieldCount: Int
+
+  module Bools =
+    type Error =
+      // | AndOnlySupportsBooleans of gotInstead: Dval
+      // | OrOnlySupportsBooleans of gotInstead: Dval
+      | ConditionRequiresBool of actualValueType : ValueType * actualValue : Dval
+
+  module Strings =
+    type Error =
+      // "Error: Invalid string-append attempt"
+      | InvalidStringAppend
+
+
+  module Lists =
+    type Error =
+      /// Cannot add a {} ({}) to a list of {}
+      | TriedToAddMismatchedData of
+        expectedType : ValueType *
+        actualType : ValueType *
+        actualValue : Dval
+
+  // CLEANUP same here^
+  module Dicts =
+    type Error =
+      | TriedToAddKeyAfterAlreadyPresent of key : string
+
+      /// Cannot add a {} ({}) to a dict of {}
+      | TriedToAddMismatchedData of
+        expectedType : ValueType *
+        actualType : ValueType *
+        actualValue : Dval
+
+  module Records =
+    type Error =
+      | CreationEmptyKey
+      | CreationMissingField of fieldName : string
+      | CreationDuplicateField of fieldName : string
+      | CreationFieldOfWrongType of
+        fieldName : string *
+        expectedType : TypeReference *
+        actualType : ValueType
+
+      | FieldAccessFieldNotFound of fieldName : string
+      | FieldAccessNotRecord of actualType : ValueType
+
+
+
+  /// RuntimeError is the major way of representing errors in the runtime. These are
+  /// primarily used for things where the user made an error, such as a type error,
+  /// as opposed to a place where the runtime is flawed (use Exception.raiseInternal
+  /// for those). See docs/errors.md for detailed discussion.
+  /// CLEANUP rewrite this^
+  ///
+  ///
+  /// TODO: this needs a way to be extensible
+  /// users should have _some_ way to add their own RuntimeErrors
+  /// and we don't want to have to rebuild everything to add a new RTE
+  type Error =
+    | TypeDoesntExist of FQTypeName.FQTypeName
+
+    | NameResolution of NameResolutionError
+
+    | Bool of Bools.Error
+    | Int of Ints.Error
+    //| Json of Json.Error
+    | String of Strings.Error
+    | List of Lists.Error
+    | Dict of Dicts.Error
+    | Record of Records.Error
+    | Let of Lets.Error
+    // | Enum of Enum.Error
+
+    | MatchUnmatched
+
+
+    // /// "The condition for an `if` expression must be a `Bool`,
+    // /// but is here a `{someFn actualValueType}` (`{someFn actualValue}`)"
+    // | IfConditionNotBool of actualValue: Dval * actualValueType: ValueType
+
+    // | Unwrap of Unwrap.Error
+
+    | EqualityCheckOnIncompatibleTypes of left : ValueType * right : ValueType
+
+    | ValueNotExpectedType of
+      actualValue : Dval *
+      expectedType : TypeReference *
+      context : TypeChecker.Context
+
+    // | ExpectedBoolInCondition of Dval
+    | VariableNotFound of attemptedVarName : string
+
+
+    // //| SqlCompiler of SqlCompiler.Error // -- or maybe this should happen during PT2RT? hmm.
+
+    // // lol aren't they all execution errors?
+    // // remove this level...
+    // | Execution of Execution.Error
+
+
+    // /// || only supports Booleans
+    // | OrOnlySupportsBooleans of gotInstead: Dval
+
+    // /// && only supports Booleans
+    // | AndOnlySupportsBooleans of gotInstead: Dval
+
+
+    // //| Cli of Cli.Error
+
+
+    // TODO
+
+    // backend/src/BuiltinExecution/Libs/NoModule.fs:
+    // - $"unwrap called with multiple arguments: {multipleArgs}"
+
+
+    // backend/src/LibCloud/SqlCompiler.fs:
+    // 1223: | SqlCompilerException errStr -> return Error(RuntimeError.oldError errStr)
+    // 1224: // return Error(RuntimeError.oldError (errStr + $"\n\nIn body: {body}"))
+
+
+    // backend/src/LibExecution/Interpreter.fs:
+    // - "TODO"
+    // - $"Function {FQFnName.toString fnName} is not found"
+
+    // backend/src/LibExecution/Interpreter.Old.fs:
+    // - "TODO"
+    // - $"Invalid const name: {msg}"
+    // - $"Expected {expectedLength} arguments, got {actualLength}"
+    // - $"Function {FQFnName.toString fnToCall} is not found")
+    // - "Unknown error"
+
+
+    // backend/src/LibExecution/NameResolutionError.fs:
+    // - "TODO"
+
+
+    // backend/src/LibExecution/ProgramTypesToRuntimeTypes.fs:
+    // - "Couldn't find fn"
+    // - "Record must have at least one field"
+    // - "Match must have at least one case"
+
+
+    // backend/src/LibExecution/TypeChecker.fs:
+
+    //$"Could not merge types {ValueType.toString (VT.customType typeName [ innerType ])} and {ValueType.toString (VT.customType typeName [ dvalType ])}"
+    | CannotMergeValues of left : ValueType * right : ValueType
+    // - $"Could not merge types {ValueType.toString (VT.list typ)} and {ValueType.toString (VT.list dvalType)}"
+    // - $"Could not merge types {ValueType.toString (VT.customType typeName [ innerType ])} and {ValueType.toString (VT.customType typeName [ dvalType ])}"
+    // - $"Could not merge types {ValueType.toString (VT.customType Dval.resultType [ okType; errorType ])} and {ValueType.toString (VT.customType Dval.resultType [ dvalType; errorType ])}"
+    // - $"Could not merge types {ValueType.toString (VT.customType Dval.resultType [ okType; errorType ])} and {ValueType.toString (VT.customType Dval.resultType [ okType; dvalType ])}"
+    // - "Empty key"
+    // - $"Duplicate key: {k}"
+
+
+    // backend/tests/TestUtils/LibTest.fs:
+    // - update `Builtin.testRuntimeError` to take an `RTE` value instead of a string
+    // - update all usages
+
+
+    // backend/src/LibCloud/SqlCompiler.fs:
+    // 1223: | SqlCompilerException errStr -> return Error(RuntimeError.oldError errStr)
+    // 1224: // return Error(RuntimeError.oldError (errStr + $"\n\nIn body: {body}"))
+
+
+    // /home/dark/app/backend/src/LibExecution/Interpreter.Old.fs
+    // - $"Empty key for value `{dv}`"
+    // - "Expected a record in record update"
+    // - "Field name is empty"
+    // - "When condition should be a boolean" -- this _could_ warn _or_ error. which?
+    // - $"Expected a record but {typeStr} is something else"
+    // - $"Expected a function value, got something else: {DvalReprDeveloper.toRepr other}"
+
+    // - "Attempting to access field '{fieldName}' of a Datastore
+    // (use `DB.*` standard library functions to interact with Datastores. Field access only work with records)"
+
+    // incorrectArgs
+
+
+
+    /// Sometimes, very-unexpected things happen. This is a catch-all for those.
+    /// For local/private runtimes+hosting, allow users to see the details,
+    /// but for _our_ hosting, users shouldn't see the whole call stack or
+    /// whatever, for (our) safety. But, they can use the error ID to refer to
+    /// the error in a support ticket.
+    | UncaughtException of reference : uuid
+
+
+
 module CallStack =
   let fromEntryPoint (entrypoint : ExecutionPoint) : CallStack =
     { entrypoint = entrypoint; lastCalled = (entrypoint, None) }
 
-// module TypeReference =
-//   let result (t1 : TypeReference) (t2 : TypeReference) : TypeReference =
-//     TCustomType(Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.result), [ t1; t2 ])
+module TypeReference =
+  let result (t1 : TypeReference) (t2 : TypeReference) : TypeReference =
+    TCustomType(Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.result), [ t1; t2 ])
 
-//   let option (t : TypeReference) : TypeReference =
-//     TCustomType(Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.option), [ t ])
-
-
-module RuntimeError =
-  //   let typeName =
-  //     FQTypeName.fqPackage PackageIDs.Type.LanguageTools.RuntimeError.error
-
-  let toDT (RuntimeError e : RuntimeError) : Dval = e
-
-  let fromDT (dv : Dval) : RuntimeError = RuntimeError dv
-
-  //   let case (caseName : string) (fields : List<Dval>) : RuntimeError =
-  //     DEnum(typeName, typeName, [], caseName, fields) |> RuntimeError
+  let option (t : TypeReference) : TypeReference =
+    TCustomType(Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.option), [ t ])
 
 
-  //   let cliError field = case "CliError" [ field ]
-
-  //   let nameResolutionError field = case "NameResolutionError" [ field ]
-
-  //   let typeCheckerError field = case "TypeCheckerError" [ field ]
-
-  //   let jsonError field = case "JsonError" [ field ]
-
-  //   let sqlCompilerRuntimeError (internalError : RuntimeError) =
-  //     case "SqlCompilerRuntimeError" [ toDT internalError ]
-
-  //   let executionError field = case "ExecutionError" [ field ]
-
-  //   let intError field = case "IntError" [ field ]
-
-
-  // TODO remove all usages of this in favor of better error cases
-  let oldError (msg : string) : RuntimeError =
-    //case "OldStringErrorTODO" [ DString msg ]
-    RuntimeError(DString msg)
 
 
 /// Note: in cases where it's awkward to niclude a CallStack,
@@ -826,29 +944,30 @@ module RuntimeError =
 /// The tricky part is that we do want the CallStack around, to report on,
 /// and to use for debugging, but the way the Interpreter+Execution is set up,
 /// there's no great single place to `try/with` to supply the call stack.
-exception RuntimeErrorException of Option<CallStack> * RuntimeError
+exception RuntimeErrorException of Option<CallStack> * rte : RuntimeError.Error
 
-let raiseRTE (callStack : CallStack) (rte : RuntimeError) : 'a =
+
+let raiseRTE (callStack : CallStack) (rte : RuntimeError.Error) : 'a =
   raise (RuntimeErrorException(Some callStack, rte))
 
-// (only?) OK in builtins because we "fill in" the callstack in the Interpreter for such failures
-// CLEANUP maybe (somehow) restrict to only Builtins
-let raiseUntargetedRTE (rte : RuntimeError) : 'a =
-  raise (RuntimeErrorException(None, rte))
+// let raiseRTE (callStack : CallStack) (rte : RuntimeError) : 'a =
+//   raise (RuntimeErrorException(Some callStack, rte))
 
+// // (only?) OK in builtins because we "fill in" the callstack in the Interpreter for such failures
+// // CLEANUP maybe (somehow) restrict to only Builtins
+// let raiseUntargetedRTE (rte : RuntimeError) : 'a =
+//   raise (RuntimeErrorException(None, rte))
 
-// TODO remove all usages of this in favor of better error cases
-let raiseUntargetedString (s : string) : 'a =
-  raiseUntargetedRTE (RuntimeError.oldError s)
 
 /// Internally in the runtime, we allow throwing RuntimeErrorExceptions. At the
-/// boundary, typically in Execution.fs, we will catch the exception, and return this
-/// type.
-type ExecutionResult = Result<Dval, Option<CallStack> * RuntimeError>
+/// boundary, typically in Execution.fs, we will catch the exception, and return
+/// this type.
+type ExecutionResult = Result<Dval, Option<CallStack> * RuntimeError.Error>
 
 /// IncorrectArgs should never happen, as all functions are type-checked before
 /// calling. If it does happen, it means that the type parameters in the Fn structure
 /// do not match the args expected in the F# function definition.
+/// CLEANUP should this take more args, so we can find the error? Maybe just the fn name?
 let incorrectArgs () = Exception.raiseInternal "IncorrectArgs" []
 
 
@@ -869,17 +988,17 @@ type Deprecation<'name> =
   | DeprecatedBecause of string
 
 
-// module TypeDeclaration =
-//   type RecordField = { name : string; typ : TypeReference }
+module TypeDeclaration =
+  type RecordField = { name : string; typ : TypeReference }
 
-//   type EnumCase = { name : string; fields : List<TypeReference> }
+  //type EnumCase = { name : string; fields : List<TypeReference> }
 
-//   type Definition =
-//     | Alias of TypeReference
-//     | Record of NEList<RecordField>
-//     | Enum of NEList<EnumCase>
+  type Definition =
+    | Alias of TypeReference
+    | Record of NEList<RecordField>
+  //| Enum of NEList<EnumCase>
 
-//   type T = { typeParams : List<string>; definition : Definition }
+  type T = { typeParams : List<string>; definition : Definition }
 
 
 
@@ -933,19 +1052,19 @@ module Dval =
       pairs |> List.all (fun (v, subtype) -> r subtype v)
     | DDict(_vtTODO, m), TDict t -> Map.all (r t) m
 
-    // | DRecord(typeName, _, _typeArgsTODO, _fields),
-    //   TCustomType(Ok typeName', _typeArgs) ->
-    //   // TYPESCLEANUP: should load type by name
-    //   // TYPESCLEANUP: are we handling type arguments here?
-    //   // TYPESCLEANUP: do we need to check fields?
-    //   typeName = typeName'
+    | DRecord(typeName, _, _typeArgsTODO, _fields),
+      TCustomType(Ok typeName', _typeArgs) ->
+      // TYPESCLEANUP: should load type by name
+      // TYPESCLEANUP: are we handling type arguments here?
+      // TYPESCLEANUP: do we need to check fields?
+      typeName = typeName'
 
-    // | DEnum(typeName, _, _typeArgsDEnumTODO, _casename, _fields),
-    //   TCustomType(Ok typeName', _typeArgsExpected) ->
-    //   // TYPESCLEANUP: should load type by name
-    //   // TYPESCLEANUP: convert TCustomType's typeArgs to valueTypes, and compare
-    //   // against the typeArgs in the DEnum - their zipped values should merge OK
-    //   typeName = typeName'
+    | DEnum(_, typeName, _typeArgsDEnumTODO, _casename, _fields),
+      TCustomType(Ok typeName', _typeArgsExpected) ->
+      // TYPESCLEANUP: should load type by name
+      // TYPESCLEANUP: convert TCustomType's typeArgs to valueTypes, and compare
+      // against the typeArgs in the DEnum - their zipped values should merge OK
+      typeName = typeName'
 
     // | DFnVal(Lambda l), TFn(parameters, _) ->
     //   NEList.length parameters = NEList.length l.parameters
@@ -973,8 +1092,8 @@ module Dval =
     | DList _, _
     | DTuple _, _
     | DDict _, _
-    // | DRecord _, _
-    //| DEnum _, _
+    | DRecord _, _
+    | DEnum _, _
     | DFnVal _, _
     // | DDB _, _
      -> false
@@ -1009,11 +1128,11 @@ module Dval =
         KTTuple(toValueType first, toValueType second, List.map toValueType theRest)
       )
 
-    // | DRecord(typeName, _, typeArgs, _) ->
-    //   KTCustomType(typeName, typeArgs) |> ValueType.Known
+    | DRecord(typeName, _, typeArgs, _) ->
+      KTCustomType(typeName, typeArgs) |> ValueType.Known
 
-    // | DEnum(typeName, _, typeArgs, _, _) ->
-    //   KTCustomType(typeName, typeArgs) |> ValueType.Known
+    | DEnum(typeName, _, typeArgs, _, _) ->
+      KTCustomType(typeName, typeArgs) |> ValueType.Known
 
     | DFnVal fnImpl ->
       match fnImpl with
@@ -1027,139 +1146,50 @@ module Dval =
       // VTTODO look up type, etc
       | NamedFn _named -> ValueType.Unknown
 
-  // // CLEANUP follow up when DDB has a typeReference
-  // | DDB _ -> ValueType.Unknown
-
-
-  let asList (dv : Dval) : Option<List<Dval>> =
-    match dv with
-    | DList(_, l) -> Some l
-    | _ -> None
-
-  let asDict (dv : Dval) : Option<Map<string, Dval>> =
-    match dv with
-    | DDict(_, d) -> Some d
-    | _ -> None
-
-  let asTuple2 (dv : Dval) : Option<Dval * Dval> =
-    match dv with
-    | DTuple(first, second, _) -> Some(first, second)
-    | _ -> None
-
-  let asTuple3 (dv : Dval) : Option<Dval * Dval * Dval> =
-    match dv with
-    | DTuple(first, second, [ third ]) -> Some(first, second, third)
-    | _ -> None
-
-  let asString (dv : Dval) : Option<string> =
-    match dv with
-    | DString s -> Some s
-    | _ -> None
-
-  let asInt8 (dv : Dval) : Option<int8> =
-    match dv with
-    | DInt8 i -> Some i
-    | _ -> None
-
-  let asUInt8 (dv : Dval) : Option<uint8> =
-    match dv with
-    | DUInt8 i -> Some i
-    | _ -> None
-
-  let asInt16 (dv : Dval) : Option<int16> =
-    match dv with
-    | DInt16 i -> Some i
-    | _ -> None
-
-  let asUInt16 (dv : Dval) : Option<uint16> =
-    match dv with
-    | DUInt16 i -> Some i
-    | _ -> None
-
-  let asInt32 (dv : Dval) : Option<int32> =
-    match dv with
-    | DInt32 i -> Some i
-    | _ -> None
-
-  let asUInt32 (dv : Dval) : Option<uint32> =
-    match dv with
-    | DUInt32 i -> Some i
-    | _ -> None
-
-  let asInt64 (dv : Dval) : Option<int64> =
-    match dv with
-    | DInt64 i -> Some i
-    | _ -> None
-
-  let asUInt64 (dv : Dval) : Option<uint64> =
-    match dv with
-    | DUInt64 i -> Some i
-    | _ -> None
-
-  let asInt128 (dv : Dval) : Option<System.Int128> =
-    match dv with
-    | DInt128 i -> Some i
-    | _ -> None
-
-  let asUInt128 (dv : Dval) : Option<System.UInt128> =
-    match dv with
-    | DUInt128 i -> Some i
-    | _ -> None
-
-  let asFloat (dv : Dval) : Option<double> =
-    match dv with
-    | DFloat f -> Some f
-    | _ -> None
-
-  let asBool (dv : Dval) : Option<bool> =
-    match dv with
-    | DBool b -> Some b
-    | _ -> None
-
-  let asUuid (dv : Dval) : Option<System.Guid> =
-    match dv with
-    | DUuid u -> Some u
-    | _ -> None
-
-
-// type Const =
-//   | CUnit
-//   | CBool of bool
-
-//   | CInt8 of int8
-//   | CUInt8 of uint8
-//   | CInt16 of int16
-//   | CUInt16 of uint16
-//   | CInt32 of int32
-//   | CUInt32 of uint32
-//   | CInt64 of int64
-//   | CUInt64 of uint64
-//   | CInt128 of System.Int128
-//   | CUInt128 of System.UInt128
-
-//   | CFloat of Sign * string * string
-
-//   | CChar of string
-//   | CString of string
-
-//   | CList of List<Const>
-//   | CTuple of first : Const * second : Const * rest : List<Const>
-//   | CDict of List<string * Const>
-
-//   | CEnum of NameResolution<FQTypeName.FQTypeName> * caseName : string * List<Const>
+// // CLEANUP follow up when DDB has a typeReference
+// | DDB _ -> ValueType.Unknown
 
 
 
-// // ------------
-// // Package-Space
-// // ------------
-// module PackageType =
-//   // TODO: hash
-//   type PackageType = { id : uuid; declaration : TypeDeclaration.T }
 
-// module PackageConstant =
-//   // TODO: hash
-//   type PackageConstant = { id : uuid; body : Const }
+type Const =
+  | CUnit
+  | CBool of bool
+
+  | CInt8 of int8
+  | CUInt8 of uint8
+  | CInt16 of int16
+  | CUInt16 of uint16
+  | CInt32 of int32
+  | CUInt32 of uint32
+  | CInt64 of int64
+  | CUInt64 of uint64
+  | CInt128 of System.Int128
+  | CUInt128 of System.UInt128
+
+  | CFloat of Sign * string * string
+
+  | CChar of string
+  | CString of string
+
+  | CList of List<Const>
+  | CTuple of first : Const * second : Const * rest : List<Const>
+  | CDict of List<string * Const>
+
+  | CEnum of NameResolution<FQTypeName.FQTypeName> * caseName : string * List<Const>
+
+
+
+// ------------
+// Package-Space
+// ------------
+module PackageType =
+  // TODO: hash
+  type PackageType = { id : uuid; declaration : TypeDeclaration.T }
+
+module PackageConstant =
+  // TODO: hash
+  type PackageConstant = { id : uuid; body : Const }
 
 module PackageFn =
   type Parameter = { name : string; typ : TypeReference }
@@ -1181,33 +1211,6 @@ module PackageFn =
 
 // module Secret =
 //   type T = { name : string; value : string; version : int }
-
-// module Handler =
-//   type CronInterval =
-//     | EveryDay
-//     | EveryWeek
-//     | EveryFortnight
-//     | EveryHour
-//     | Every12Hours
-//     | EveryMinute
-
-//   type Spec =
-//     | HTTP of path : string * method : string
-//     | Worker of name : string
-//     | Cron of name : string * interval : CronInterval
-//     | REPL of name : string
-
-//   type T = { tlid : tlid; ast : Expr; spec : Spec }
-
-// module Toplevel =
-//   type T =
-//     | TLHandler of Handler.T
-//     | TLDB of DB.T
-
-//   let toTLID (tl : T) : tlid =
-//     match tl with
-//     | TLHandler h -> h.tlid
-//     | TLDB db -> db.tlid
 
 
 
@@ -1241,57 +1244,57 @@ type Previewable =
   | Impure
 
 
-// /// Used to mark whether a function has an equivalent that can be
-// /// used within a Postgres query.
-// type SqlSpec =
-//   /// Can be implemented, but we haven't yet
-//   | NotYetImplemented
+/// Used to mark whether a function has an equivalent that can be
+/// used within a Postgres query.
+type SqlSpec =
+  /// Can be implemented, but we haven't yet
+  | NotYetImplemented
 
-//   /// This is not a function which can be queried
-//   | NotQueryable
+  /// This is not a function which can be queried
+  | NotQueryable
 
-//   /// A query function (it can't be called inside a query, but its argument can be a query)
-//   | QueryFunction
+  /// A query function (it can't be called inside a query, but its argument can be a query)
+  | QueryFunction
 
-//   /// Can be implemented by a given builtin postgres 9.6 operator with 1 arg (eg `@ x`)
-//   | SqlUnaryOp of string
+  /// Can be implemented by a given builtin postgres 9.6 operator with 1 arg (eg `@ x`)
+  | SqlUnaryOp of string
 
-//   /// Can be implemented by a given builtin postgres 9.6 operator with 2 args (eg `x + y`)
-//   | SqlBinOp of string
+  /// Can be implemented by a given builtin postgres 9.6 operator with 2 args (eg `x + y`)
+  | SqlBinOp of string
 
-//   /// Can be implemented by a given builtin postgres 9.6 function
-//   | SqlFunction of string
+  /// Can be implemented by a given builtin postgres 9.6 function
+  | SqlFunction of string
 
-//   /// Can be implemented by a given builtin postgres 9.6 function with extra arguments that go first
-//   | SqlFunctionWithPrefixArgs of string * List<string>
+  /// Can be implemented by a given builtin postgres 9.6 function with extra arguments that go first
+  | SqlFunctionWithPrefixArgs of string * List<string>
 
-//   /// Can be implemented by a given builtin postgres 9.6 function with extra arguments that go last
-//   | SqlFunctionWithSuffixArgs of string * List<string>
+  /// Can be implemented by a given builtin postgres 9.6 function with extra arguments that go last
+  | SqlFunctionWithSuffixArgs of string * List<string>
 
-//   /// Can be implemented by given callback that receives 1 SQLified-string argument
-//   /// | SqlCallback of (string -> string)
-//   /// Can be implemented by given callback that receives 2 SQLified-string argument
-//   | SqlCallback2 of (string -> string -> string)
+  /// Can be implemented by given callback that receives 1 SQLified-string argument
+  /// | SqlCallback of (string -> string)
+  /// Can be implemented by given callback that receives 2 SQLified-string argument
+  | SqlCallback2 of (string -> string -> string)
 
-//   member this.isQueryable() : bool =
-//     match this with
-//     | NotYetImplemented
-//     | NotQueryable
-//     | QueryFunction -> false
-//     | SqlUnaryOp _
-//     | SqlBinOp _
-//     | SqlFunction _
-//     | SqlFunctionWithPrefixArgs _
-//     | SqlFunctionWithSuffixArgs _
-//     | SqlCallback2 _ -> true
+  member this.isQueryable() : bool =
+    match this with
+    | NotYetImplemented
+    | NotQueryable
+    | QueryFunction -> false
+    | SqlUnaryOp _
+    | SqlBinOp _
+    | SqlFunction _
+    | SqlFunctionWithPrefixArgs _
+    | SqlFunctionWithSuffixArgs _
+    | SqlCallback2 _ -> true
 
 
-// type BuiltInConstant =
-//   { name : FQConstantName.Builtin
-//     typ : TypeReference
-//     description : string
-//     deprecated : Deprecation<FQConstantName.FQConstantName>
-//     body : Dval }
+type BuiltInConstant =
+  { name : FQConstantName.Builtin
+    typ : TypeReference
+    description : string
+    deprecated : Deprecation<FQConstantName.FQConstantName>
+    body : Dval }
 
 
 /// A built-in standard library function
@@ -1306,7 +1309,7 @@ type BuiltInFn =
     description : string
     previewable : Previewable
     deprecated : Deprecation<FQFnName.FQFnName>
-    //sqlSpec : SqlSpec
+    sqlSpec : SqlSpec
     fn : BuiltInFnSig }
 
 and Fn =
@@ -1316,7 +1319,7 @@ and Fn =
     parameters : NEList<Param>
     returnType : TypeReference
     previewable : Previewable
-    //sqlSpec : SqlSpec
+    sqlSpec : SqlSpec
 
     /// <remarks>
     /// May throw an exception, though we're trying to get them to never throw exceptions.
@@ -1360,9 +1363,7 @@ and Tracing =
   { traceDval : TraceDval
     traceExecutionPoint : TraceExecutionPoint
     loadFnResult : LoadFnResult
-    storeFnResult : StoreFnResult
-
-    callStack : CallStack }
+    storeFnResult : StoreFnResult }
 
 // Used for testing
 // TODO: maybe this belongs in Execution rather than RuntimeTypes?
@@ -1376,7 +1377,7 @@ and TestContext =
 
 /// Functionally written in F# and shipped with the executable
 and Builtins =
-  { //constants : Map<FQConstantName.Builtin, BuiltInConstant>
+  { constants : Map<FQConstantName.Builtin, BuiltInConstant>
     fns : Map<FQFnName.Builtin, BuiltInFn> }
 
 /// Functionality written in Dark stored and managed outside of user space
@@ -1387,17 +1388,17 @@ and Builtins =
 /// not yet in the Cloud PM.
 /// (though, we'll likely demand deps. in the PM before committing something upstream...)
 and PackageManager =
-  { //getType : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
-    //getConstant :
-    //  FQConstantName.Package -> Ply<Option<PackageConstant.PackageConstant>>
+  { getType : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
+    getConstant :
+      FQConstantName.Package -> Ply<Option<PackageConstant.PackageConstant>>
     getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
 
     init : Ply<unit> }
 
   static member empty =
-    { //getType = (fun _ -> Ply None)
+    { getType = (fun _ -> Ply None)
       getFn = (fun _ -> Ply None)
-      //getConstant = (fun _ -> Ply None)
+      getConstant = (fun _ -> Ply None)
 
       init = uply { return () } }
 
@@ -1405,21 +1406,20 @@ and PackageManager =
   /// the normal fetching functionality. (Mostly helpful for tests)
   static member withExtras
     (pm : PackageManager)
-    //(types : List<PackageType.PackageType>)
-    //(constants : List<PackageConstant.PackageConstant>)
+    (types : List<PackageType.PackageType>)
+    (constants : List<PackageConstant.PackageConstant>)
     (fns : List<PackageFn.PackageFn>)
     : PackageManager =
-    {
-      // getType =
-      //   fun id ->
-      //     match types |> List.tryFind (fun t -> t.id = id) with
-      //     | Some t -> Some t |> Ply
-      //     | None -> pm.getType id
-      // getConstant =
-      //   fun id ->
-      //     match constants |> List.tryFind (fun c -> c.id = id) with
-      //     | Some c -> Some c |> Ply
-      //     | None -> pm.getConstant id
+    { getType =
+        fun id ->
+          match types |> List.tryFind (fun t -> t.id = id) with
+          | Some t -> Some t |> Ply
+          | None -> pm.getType id
+      getConstant =
+        fun id ->
+          match constants |> List.tryFind (fun c -> c.id = id) with
+          | Some c -> Some c |> Ply
+          | None -> pm.getConstant id
       getFn =
         fun id ->
           match fns |> List.tryFind (fun f -> f.id = id) with
@@ -1462,34 +1462,46 @@ and ExecutionState =
 
     types : Types
     fns : Functions
-  //availableConstants: Constants
-
+    constants : Constants
   }
 
 and Registers = Dval array
 
 and VMState =
-  { // /// Program counter -- what instruction index are we pointing at?
-    //pc: int
+  {
+    /// Program counter -- what instruction index are we pointing at?
+    mutable pc : int
 
     instructions : Instruction array
-    registers : Registers
+    registers : Registers // mutable because array?
     resultReg : Register
 
-    symbolTable : Symtable
-    typeSymbolTable : TypeSymbolTable }
+    mutable callStack : CallStack
 
-  static member empty =
-    { instructions = Array.empty
-      registers = Array.empty
-      resultReg = 0
+    mutable symbolTable : Symtable
+    mutable typeSymbolTable : TypeSymbolTable
+  }
 
-      symbolTable = Map.empty
-      typeSymbolTable = Map.empty }
+  // static member empty =
+  //   { pc = 0
+  //     callStack = CallStack.fromEntryPoint(ExecutionPoint.BuiltIn)
 
-  static member fromInstructions(instructions : InstructionsWithContext) : VMState =
+  //     instructions = Array.empty
+  //     registers = Array.empty
+  //     resultReg = 0
+
+  //     symbolTable = Map.empty
+  //     typeSymbolTable = Map.empty }
+
+  static member fromInstructions
+    (entrypoint)
+    (instructions : InstructionsWithContext)
+    : VMState =
     let registersNeeded, instructions, resultReg = instructions
-    { instructions = List.toArray instructions
+    { pc = 0
+      callStack = CallStack.fromEntryPoint entrypoint
+
+      instructions = List.toArray instructions
       registers = Array.zeroCreate registersNeeded
       resultReg = resultReg
 
@@ -1498,12 +1510,11 @@ and VMState =
 
 and Types =
   { typeSymbolTable : TypeSymbolTable
-  //package : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
-  }
+    package : FQTypeName.Package -> Ply<Option<PackageType.PackageType>> }
 
-// and Constants =
-//   { builtIn : Map<FQConstantName.Builtin, BuiltInConstant>
-//     package : FQConstantName.Package -> Ply<Option<PackageConstant.PackageConstant>> }
+and Constants =
+  { builtIn : Map<FQConstantName.Builtin, BuiltInConstant>
+    package : FQConstantName.Package -> Ply<Option<PackageConstant.PackageConstant>> }
 
 and Functions =
   { builtIn : Map<FQFnName.Builtin, BuiltInFn>
@@ -1526,17 +1537,16 @@ and Functions =
 
 
 
-// module Types =
-//   let empty = { typeSymbolTable = Map.empty; package = (fun _ -> Ply None) }
+module Types =
+  let empty = { typeSymbolTable = Map.empty; package = (fun _ -> Ply None) }
 
-//   let find
-//     // TODO: swap these args
-//     (name : FQTypeName.FQTypeName)
-//     (types : Types)
-//     : Ply<Option<TypeDeclaration.T>> =
-//     match name with
-//     | FQTypeName.Package pkg ->
-//       types.package pkg |> Ply.map (Option.map _.declaration)
+  let find
+    (types : Types)
+    (name : FQTypeName.FQTypeName)
+    : Ply<Option<TypeDeclaration.T>> =
+    match name with
+    | FQTypeName.Package pkg ->
+      types.package pkg |> Ply.map (Option.map _.declaration)
 
 //   /// Swap concrete types for type parameters
 //   let rec substitute
@@ -1589,24 +1599,6 @@ and Functions =
 
 
 
-let rec getTypeReferenceFromAlias
-  (_types : Types)
-  (typ : TypeReference)
-  : Ply<Result<TypeReference, RuntimeError>> =
-  match typ with
-  // | TCustomType(Ok outerTypeName, outerTypeArgs) ->
-  //   uply {
-  //     match! Types.find outerTypeName types with
-  //     | Some { definition = TypeDeclaration.Alias typ; typeParams = typeParams } ->
-  //       let typ = Types.substitute typeParams outerTypeArgs typ
-  //       return! getTypeReferenceFromAlias types typ
-  //     | _ -> return Ok typ
-  //   }
-
-  // | TCustomType(Error err, _) -> Ply(Error err)
-
-  | _ -> Ply(Ok typ)
-
 
 let consoleReporter : ExceptionReporter =
   fun _state (metadata : Metadata) (exn : exn) ->
@@ -1630,7 +1622,7 @@ let builtInFnToFn (fn : BuiltInFn) : Fn =
       |> NEList.ofListUnsafe "builtInFnToFn" [ "name", fn.name ]
     returnType = fn.returnType
     previewable = fn.previewable
-    //sqlSpec = fn.sqlSpec
+    sqlSpec = fn.sqlSpec
     fn = BuiltInFunction fn.fn }
 
 let packageFnToFn (fn : PackageFn.PackageFn) : Fn =
@@ -1641,5 +1633,5 @@ let packageFnToFn (fn : PackageFn.PackageFn) : Fn =
     parameters = fn.parameters |> NEList.map toParam
     returnType = fn.returnType
     previewable = Impure
-    //sqlSpec = NotQueryable
+    sqlSpec = NotQueryable
     fn = PackageFunction(fn.id, fn.body) }

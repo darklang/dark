@@ -34,34 +34,32 @@ let main (args : string array) : int =
     let tests =
       [ // core
         Tests.Prelude.tests
+        Tests.TreeSitter.tests
+        Tests.RuntimeTypes.tests
         Tests.ProgramTypes.tests
         Tests.ProgramTypesToRuntimeTypes.tests
         Tests.Interpreter.tests
-        //Tests.AnalysisTypes.tests
-        //Tests.TreeSitter.tests
-
-        // Tests.DvalRepr.tests
+        Tests.AnalysisTypes.tests
+        // Tests.Execution.tests
+        Tests.Builtin.tests
+        // Tests.DvalRepr.tests -- maybe this gets deleted TODO
         // Tests.PackageManager.tests
+        //Tests.LibParser.tests
+        // Tests.NewParser.tests
+        // Tests.HttpClient.tests
+
 
         // cloud
-
         // Tests.BwdServer.tests
         // Tests.Canvas.tests
         // Tests.Cron.tests
         // Tests.QueueSchedulingRules.tests
         // TODO: bring back Tests.Queue.tests
-        // TRACINGTODO
-        // Tests.Execution.tests
-        // Tests.LibParser.tests
-        // Tests.NewParser.tests
-        // Tests.HttpClient.tests
         // Tests.Routing.tests
-        // Tests.RuntimeTypes.tests
         // Tests.BinarySerialization.tests
         // Tests.VanillaSerialization.tests
         // Tests.DarkTypesSerialization.tests
         // Tests.SqlCompiler.tests
-        // Tests.Builtin.tests
         // Tests.StorageTraces.tests
 
         // cross-cutting

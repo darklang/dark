@@ -12,7 +12,7 @@ let modulePattern = @"^[A-Z][a-z0-9A-Z_]*$"
 //let typeNamePattern = @"^[A-Z][a-z0-9A-Z_]*$"
 let fnNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
 let builtinNamePattern = @"^(__|[a-z])[a-z0-9A-Z_]\w*$"
-//let constantNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
+let constantNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
 
 let assertBuiltin
   (name : string)
@@ -23,45 +23,47 @@ let assertBuiltin
   assert_ "version can't be negative" [ "version", version ] (version >= 0)
 
 
-// /// Fully-Qualified Type Name
-// ///
-// /// Used to reference a type defined in a Package or by a User
-// module FQTypeName =
-//   /// The id of a type in the package manager
-//   type Package = uuid
+/// Fully-Qualified Type Name
+///
+/// Used to reference a type defined in a Package or by a User
+module FQTypeName =
+  /// The id of a type in the package manager
+  type Package = uuid
 
-//   type FQTypeName = Package of Package
+  type FQTypeName = Package of Package
 
-//   let package (id : uuid) : Package = id
+  let package (id : uuid) : Package = id
 
-
-
-// /// A Fully-Qualified Constant Name
-// ///
-// /// Used to reference a constant defined by the runtime, in a Package, or by a User
-// module FQConstantName =
-//   /// A constant built into the runtime
-//   type Builtin = { name : string; version : int }
-
-//   /// The id of a constant in the package manager
-//   type Package = uuid
-
-//   type FQConstantName =
-//     | Builtin of Builtin
-//     | Package of Package
+  let fqPackage (id : uuid) : FQTypeName = Package id
 
 
-//   let assertConstantName (name : string) : unit =
-//     assertRe "Constant name must match" constantNamePattern name
 
-//   let builtIn (name : string) (version : int) : Builtin =
-//     assertBuiltin name version assertConstantName
-//     { name = name; version = version }
+/// A Fully-Qualified Constant Name
+///
+/// Used to reference a constant defined by the runtime, in a Package, or by a User
+module FQConstantName =
+  /// A constant built into the runtime
+  type Builtin = { name : string; version : int }
 
-//   let fqBuiltIn (name : string) (version : int) : FQConstantName =
-//     Builtin(builtIn name version)
+  /// The id of a constant in the package manager
+  type Package = uuid
 
-//   let package (id : uuid) : Package = id
+  type FQConstantName =
+    | Builtin of Builtin
+    | Package of Package
+
+
+  let assertConstantName (name : string) : unit =
+    assertRe "Constant name must match" constantNamePattern name
+
+  let builtIn (name : string) (version : int) : Builtin =
+    assertBuiltin name version assertConstantName
+    { name = name; version = version }
+
+  let fqBuiltIn (name : string) (version : int) : FQConstantName =
+    Builtin(builtIn name version)
+
+  let package (id : uuid) : Package = id
 
 
 
@@ -113,7 +115,11 @@ module FQFnName =
 // resolved name, and the Error case models the text name of the type and some error
 // information.
 
-type NameResolution<'a> = Result<'a, NameResolutionError.Error>
+type NameResolutionError =
+  | NotFound of List<string>
+  | InvalidName of List<string>
+
+type NameResolution<'a> = Result<'a, NameResolutionError>
 
 
 type LetPattern =
@@ -174,17 +180,17 @@ type BinaryOperation =
 type InfixFnName =
   | ArithmeticPlus
   | ArithmeticMinus
-//   | ArithmeticMultiply
-//   | ArithmeticDivide
-//   | ArithmeticModulo
-//   | ArithmeticPower
-//   | ComparisonGreaterThan
-//   | ComparisonGreaterThanOrEqual
-//   | ComparisonLessThan
-//   | ComparisonLessThanOrEqual
-//   | ComparisonEquals
-//   | ComparisonNotEquals
-//   | StringConcat
+  | ArithmeticMultiply
+  | ArithmeticDivide
+  | ArithmeticModulo
+  | ArithmeticPower
+  | ComparisonGreaterThan
+  | ComparisonGreaterThanOrEqual
+  | ComparisonLessThan
+  | ComparisonLessThanOrEqual
+  | ComparisonEquals
+  | ComparisonNotEquals
+  | StringConcat
 
 type Infix =
   | InfixFnCall of InfixFnName
@@ -223,20 +229,20 @@ type TypeReference =
   | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TDict of TypeReference
 
-//| TFn of arguments : NEList<TypeReference> * ret : TypeReference
+  /// A type defined by a standard library module, a canvas/user, or a package
+  /// e.g. `Result<Int64, String>` is represented as `TCustomType("Result", [TInt64, TString])`
+  /// `typeArgs` is the list of type arguments, if any
+  | TCustomType of
+    // TODO: this reference should be by-hash
+    NameResolution<FQTypeName.FQTypeName> *
+    typeArgs : List<TypeReference>
+
+  | TFn of arguments : NEList<TypeReference> * ret : TypeReference
+
+  | TVariable of string
 
 //| TDB of TypeReference
 // A named variable, eg `a` in `List<a>`, matches anything
-
-// /// A type defined by a standard library module, a canvas/user, or a package
-// /// e.g. `Result<Int64, String>` is represented as `TCustomType("Result", [TInt64, TString])`
-// /// `typeArgs` is the list of type arguments, if any
-// | TCustomType of
-//   // TODO: this reference should be by-hash
-//   NameResolution<FQTypeName.FQTypeName> *
-//   typeArgs : List<TypeReference>
-
-//| TVariable of string
 
 /// Expressions - the main part of the language.
 type Expr =
@@ -300,65 +306,66 @@ type Expr =
   | EVariable of id * string
 
 
-
-
   // -- Basic structures --
   | EList of id * List<Expr>
   | EDict of id * List<string * Expr>
   | ETuple of id * Expr * Expr * List<Expr>
 
-
-  // -- "Applying" args to things, such as fns and lambdas --
-  /// This is a function call, the first expression is the value of the function.
-  /// - `expr (args[0])`
-  /// - `expr (args[0]) (args[1])`
-  /// - `expr<typeArg[0]> (args[0])`
-  | EApply of id * expr : Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
+  // // -- "Applying" args to things, such as fns and lambdas --
+  // /// This is a function call, the first expression is the value of the function.
+  // /// - `expr (args[0])`
+  // /// - `expr (args[0]) (args[1])`
+  // /// - `expr<typeArg[0]> (args[0])`
+  // | EApply of id * expr : Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
 
   /// Reference a function name, _usually_ so we can _apply_ it with args
   | EFnName of id * NameResolution<FQFnName.FQFnName>
 
-// // Composed of a parameters * the expression itself
-// // The id in the varname list is the analysis id, used to get a livevalue
-// // from the analysis engine
-// | ELambda of id * pats : NEList<LetPattern> * body : Expr
+  // // Composed of a parameters * the expression itself
+  // // The id in the varname list is the analysis id, used to get a livevalue
+  // // from the analysis engine
+  // | ELambda of id * pats : NEList<LetPattern> * body : Expr
 
-// /// Calls upon an infix function
-// | EInfix of id * Infix * lhs : Expr * rhs : Expr
-
-
-// // -- References to custom types and data --
-
-// /// Construct a record
-// /// `SomeRecord { field1: value; field2: value }`
-// | ERecord of
-//   id *
-//   // TODO: this reference should be by-hash
-//   typeName : NameResolution<FQTypeName.FQTypeName> *
-//   // User is allowed type `Name {}` even if that's an error
-//   fields : List<string * Expr>
-
-// | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
-
-// /// Access a field of some record (e.g. `someExpr.fieldName`)
-// | ERecordFieldAccess of id * record: Expr * fieldName: string
+  // /// Calls upon an infix function
+  // | EInfix of id * Infix * lhs : Expr * rhs : Expr
 
 
-// // Enums include `Some`, `None`, `Error`, `Ok`, as well
-// // as user-defined enums.
-// //
-// /// Given an Enum type of:
-// ///   `type MyEnum = A | B of int | C of int * (label: string) | D of MyEnum`
-// /// , this is the expression
-// ///   `C (1, "title")`
-// /// represented as
-// ///   `EEnum(Some UserType.MyEnum, "C", [EInt64(1), EString("title")]`
-// | EEnum of
-//   id *
-//   // TODO: this reference should be by-hash
-//   typeName : NameResolution<FQTypeName.FQTypeName> *
-//   caseName : string *
-//   fields : List<Expr>
+  // -- References to custom types and data --
+
+  /// Construct a record
+  /// `SomeRecord { field1: value; field2: value }`
+  | ERecord of
+    id *
+    // TODO: this reference should be by-hash
+    typeName : NameResolution<FQTypeName.FQTypeName> *
+    typeArgs : List<TypeReference> *
+    // User is allowed type `Name {}` even if that's an error
+    fields : List<string * Expr>
+
+  /// Access a field of some record (e.g. `someExpr.fieldName`)
+  | ERecordFieldAccess of id * record : Expr * fieldName : string
+
+  // /// Clone a record, and update some of its values
+  // /// `{ r with key = value }`
+  // | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
+
+
+  // Enums include `Some`, `None`, `Error`, `Ok`, as well
+  // as user-defined enums.
+  //
+  /// Given an Enum type of:
+  ///   `type MyEnum = A | B of int | C of int * (label: string) | D of MyEnum`
+  /// , this is the expression
+  ///   `C (1, "title")`
+  /// represented as
+  ///   `EEnum(Some UserType.MyEnum, "C", [EInt64(1), EString("title")]`
+  | EEnum of
+    id *
+    // TODO: this reference should be by-hash
+    typeName : NameResolution<FQTypeName.FQTypeName> *
+    typeArgs : List<TypeReference> *
+    caseName : string *
+    fields : List<Expr>
 
 // | EConstant of
 //   id *
@@ -412,16 +419,16 @@ module Expr =
     //| EInfix(id, _, _, _)
     // | ELambda(id, _, _)
     | EFnName(id, _)
-    // | ERecordFieldAccess(id, _, _)
+    | ERecordFieldAccess(id, _, _)
     | EVariable(id, _)
-    | EApply(id, _, _, _)
+    //| EApply(id, _, _, _)
     | EList(id, _)
     | EDict(id, _)
     | ETuple(id, _, _, _)
     // | EPipe(id, _, _)
-    // | ERecord(id, _, _)
+    | ERecord(id, _, _, _)
     // | ERecordUpdate(id, _, _)
-    // | EEnum(id, _, _, _)
+    | EEnum(id, _, _, _, _)
     | EMatch(id, _, _) -> id
 
 // module PipeExpr =
@@ -434,56 +441,62 @@ module Expr =
 //     | EPipeEnum(id, _, _, _) -> id
 
 
-// /// A type defined by a package or canvas/user
-// module TypeDeclaration =
-//   type RecordField = { name : string; typ : TypeReference; description : string }
+/// A type defined by a package or canvas/user
+module TypeDeclaration =
+  type RecordField = { name : string; typ : TypeReference; description : string }
 
-//   type EnumField =
-//     { typ : TypeReference; label : Option<string>; description : string }
+  // type EnumField =
+  //   { typ : TypeReference; label : Option<string>; description : string }
 
-//   type EnumCase = { name : string; fields : List<EnumField>; description : string }
+  // type EnumCase = { name : string; fields : List<EnumField>; description : string }
 
-//   /// The right-hand-side of the declaration: eg List<'a>
-//   type Definition =
-//     /// `type MyAlias = Int64`
-//     | Alias of TypeReference
+  /// The right-hand-side of the declaration: eg List<'a>
+  type Definition =
+    /// `type MyAlias = Int64`
+    | Alias of TypeReference
 
-//     /// `type MyRecord = { a : int; b : string }`
-//     | Record of NEList<RecordField>
+    /// `type MyRecord = { a : int; b : string }`
+    | Record of NEList<RecordField>
 
-//     /// `type MyEnum = A | B of int | C of int * (label: string)`
-//     | Enum of NEList<EnumCase>
+  // /// `type MyEnum = A | B of int | C of int * (label: string)`
+  // | Enum of NEList<EnumCase>
 
-//   /// Combined the RHS definition, with the list of type parameters. Eg type
-//   /// MyType<'a> = List<'a>
-//   type T = { typeParams : List<string>; definition : Definition }
+  /// Combined the RHS definition, with the list of type parameters. Eg type
+  /// MyType<'a> = List<'a>
+  type T = { typeParams : List<string>; definition : Definition }
 
 
-// type Const =
-//   | CInt64 of int64
-//   | CUInt64 of uint64
-//   | CInt8 of int8
-//   | CUInt8 of uint8
-//   | CInt16 of int16
-//   | CUInt16 of uint16
-//   | CInt32 of int32
-//   | CUInt32 of uint32
-//   | CInt128 of System.Int128
-//   | CUInt128 of System.UInt128
-//   | CBool of bool
-//   | CString of string
-//   | CChar of string
-//   | CFloat of Sign * string * string
-//   | CUnit
-//   | CTuple of first : Const * second : Const * rest : List<Const>
+/// Replace this whole concept with just "Package Values" that store Dvals
+type Const =
+  | CUnit
 
-//   | CEnum of
-//     // TODO: this reference should be by-hash
-//     NameResolution<FQTypeName.FQTypeName> *
-//     caseName : string *
-//     fields : List<Const>
-//   | CList of List<Const>
-//   | CDict of List<string * Const>
+  | CBool of bool
+
+  | CInt8 of int8
+  | CUInt8 of uint8
+  | CInt16 of int16
+  | CUInt16 of uint16
+  | CInt32 of int32
+  | CUInt32 of uint32
+  | CInt64 of int64
+  | CUInt64 of uint64
+  | CInt128 of System.Int128
+  | CUInt128 of System.UInt128
+
+  | CFloat of Sign * string * string
+
+  | CChar of string
+  | CString of string
+
+  | CList of List<Const>
+  | CDict of List<string * Const>
+  | CTuple of first : Const * second : Const * rest : List<Const>
+
+  | CEnum of
+    // TODO: this reference should be by-hash
+    NameResolution<FQTypeName.FQTypeName> *
+    caseName : string *
+    fields : List<Const>
 
 
 
@@ -524,33 +537,33 @@ type Deprecation<'name> =
 //   nameParts |> String.concat "."
 
 
-// module PackageType =
-//   type Name = { owner : string; modules : List<string>; name : string }
+module PackageType =
+  type Name = { owner : string; modules : List<string>; name : string }
 
-//   let name (owner : string) (modules : List<string>) (name : string) : Name =
-//     // TODO: assert OK
-//     { owner = owner; modules = modules; name = name }
+  let name (owner : string) (modules : List<string>) (name : string) : Name =
+    // TODO: assert OK
+    { owner = owner; modules = modules; name = name }
 
-//   type PackageType =
-//     { id : uuid
-//       name : Name
-//       declaration : TypeDeclaration.T
-//       description : string
-//       deprecated : Deprecation<FQTypeName.FQTypeName> }
+  type PackageType =
+    { id : uuid
+      name : Name
+      declaration : TypeDeclaration.T
+      description : string
+      deprecated : Deprecation<FQTypeName.FQTypeName> }
 
-// module PackageConstant =
-//   type Name = { owner : string; modules : List<string>; name : string }
+module PackageConstant =
+  type Name = { owner : string; modules : List<string>; name : string }
 
-//   let name (owner : string) (modules : List<string>) (name : string) : Name =
-//     // TODO: assert OK
-//     { owner = owner; modules = modules; name = name }
+  let name (owner : string) (modules : List<string>) (name : string) : Name =
+    // TODO: assert OK
+    { owner = owner; modules = modules; name = name }
 
-//   type PackageConstant =
-//     { id : uuid
-//       name : Name
-//       description : string
-//       deprecated : Deprecation<FQConstantName.FQConstantName>
-//       body : Const }
+  type PackageConstant =
+    { id : uuid
+      name : Name
+      description : string
+      deprecated : Deprecation<FQConstantName.FQConstantName>
+      body : Const }
 
 module PackageFn =
   type Name = { owner : string; modules : List<string>; name : string }
@@ -572,13 +585,13 @@ module PackageFn =
       deprecated : Deprecation<FQFnName.FQFnName> }
 
 type Packages =
-  { //types : List<PackageType.PackageType>
-    //constants : List<PackageConstant.PackageConstant>
+  { types : List<PackageType.PackageType>
+    constants : List<PackageConstant.PackageConstant>
     fns : List<PackageFn.PackageFn> }
 
   static member combine(packages : List<Packages>) : Packages =
-    { //types = packages |> List.collect _.types
-      //constants = packages |> List.collect _.constants
+    { types = packages |> List.collect _.types
+      constants = packages |> List.collect _.constants
       fns = packages |> List.collect _.fns }
 
 
@@ -588,25 +601,25 @@ type Packages =
 /// but there's a chance of Local <-> Cloud not being fully in sync,
 /// for whatever reasons.
 type PackageManager =
-  { //findType : PackageType.Name -> Ply<Option<FQTypeName.Package>>
-    //findConstant : PackageConstant.Name -> Ply<Option<FQConstantName.Package>>
+  { findType : PackageType.Name -> Ply<Option<FQTypeName.Package>>
+    findConstant : PackageConstant.Name -> Ply<Option<FQConstantName.Package>>
     findFn : PackageFn.Name -> Ply<Option<FQFnName.Package>>
 
-    //getType : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
-    // getConstant :
-    //   FQConstantName.Package -> Ply<Option<PackageConstant.PackageConstant>>
+    getType : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
+    getConstant :
+      FQConstantName.Package -> Ply<Option<PackageConstant.PackageConstant>>
     getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
 
     init : Ply<unit> }
 
   static member empty =
-    { //findType = (fun _ -> Ply None)
+    { findType = (fun _ -> Ply None)
       findFn = (fun _ -> Ply None)
-      //findConstant = (fun _ -> Ply None)
+      findConstant = (fun _ -> Ply None)
 
-      //getType = (fun _ -> Ply None)
+      getType = (fun _ -> Ply None)
       getFn = (fun _ -> Ply None)
-      //getConstant = (fun _ -> Ply None)
+      getConstant = (fun _ -> Ply None)
 
       init = uply { return () } }
 
@@ -615,37 +628,36 @@ type PackageManager =
   /// the normal fetching functionality. (Mostly helpful for tests)
   static member withExtras
     (pm : PackageManager)
-    //(types : List<PackageType.PackageType>)
-    //(constants : List<PackageConstant.PackageConstant>)
+    (types : List<PackageType.PackageType>)
+    (constants : List<PackageConstant.PackageConstant>)
     (fns : List<PackageFn.PackageFn>)
     : PackageManager =
-    {
-      // findType =
-      //   fun name ->
-      //     match types |> List.tryFind (fun t -> t.name = name) with
-      //     | Some t -> Some t.id |> Ply
-      //     | None -> pm.findType name
-      // findConstant =
-      //   fun name ->
-      //     match constants |> List.tryFind (fun c -> c.name = name) with
-      //     | Some c -> Some c.id |> Ply
-      //     | None -> pm.findConstant name
+    { findType =
+        fun name ->
+          match types |> List.tryFind (fun t -> t.name = name) with
+          | Some t -> Some t.id |> Ply
+          | None -> pm.findType name
+      findConstant =
+        fun name ->
+          match constants |> List.tryFind (fun c -> c.name = name) with
+          | Some c -> Some c.id |> Ply
+          | None -> pm.findConstant name
       findFn =
         fun name ->
           match fns |> List.tryFind (fun f -> f.name = name) with
           | Some f -> Some f.id |> Ply
           | None -> pm.findFn name
 
-      // getType =
-      //   fun id ->
-      //     match types |> List.tryFind (fun t -> t.id = id) with
-      //     | Some t -> Ply(Some t)
-      //     | None -> pm.getType id
-      // getConstant =
-      //   fun id ->
-      //     match constants |> List.tryFind (fun c -> c.id = id) with
-      //     | Some c -> Ply(Some c)
-      //     | None -> pm.getConstant id
+      getType =
+        fun id ->
+          match types |> List.tryFind (fun t -> t.id = id) with
+          | Some t -> Ply(Some t)
+          | None -> pm.getType id
+      getConstant =
+        fun id ->
+          match constants |> List.tryFind (fun c -> c.id = id) with
+          | Some c -> Ply(Some c)
+          | None -> pm.getConstant id
       getFn =
         fun id ->
           match fns |> List.tryFind (fun f -> f.id = id) with
@@ -656,48 +668,48 @@ type PackageManager =
 
 
 
-// // --
-// // User things
-// // --
-// module DB =
-//   type T = { tlid : tlid; name : string; version : int; typ : TypeReference }
+// --
+// User things
+// --
+module DB =
+  type T = { tlid : tlid; name : string; version : int; typ : TypeReference }
 
-// module Secret =
-//   type T = { name : string; value : string; version : int }
+module Secret =
+  type T = { name : string; value : string; version : int }
 
-// module Handler =
-//   type CronInterval =
-//     | EveryDay
-//     | EveryWeek
-//     | EveryFortnight
-//     | EveryHour
-//     | Every12Hours
-//     | EveryMinute
+module Handler =
+  type CronInterval =
+    | EveryDay
+    | EveryWeek
+    | EveryFortnight
+    | EveryHour
+    | Every12Hours
+    | EveryMinute
 
-//   /// User to represent handlers in their lowest-level form: a triple of space * name * modifier
-//   /// "Space" is "HTTP", "WORKER", "REPL", etc.
-//   ///
-//   /// "Modifier" options differ based on space.
-//   /// e.g. HTTP handler may have "GET" modifier.
-//   ///
-//   /// Handlers which don't have modifiers (e.g. repl, worker) nearly
-//   /// always (but not actually always) have `_` as their modifier.
-//   type HandlerDesc = (string * string * string)
+  /// User to represent handlers in their lowest-level form: a triple of space * name * modifier
+  /// "Space" is "HTTP", "WORKER", "REPL", etc.
+  ///
+  /// "Modifier" options differ based on space.
+  /// e.g. HTTP handler may have "GET" modifier.
+  ///
+  /// Handlers which don't have modifiers (e.g. repl, worker) nearly
+  /// always (but not actually always) have `_` as their modifier.
+  type HandlerDesc = (string * string * string)
 
-//   type Spec =
-//     | HTTP of route : string * method : string
-//     | Worker of name : string
-//     | Cron of name : string * interval : CronInterval
-//     | REPL of name : string
+  type Spec =
+    | HTTP of route : string * method : string
+    | Worker of name : string
+    | Cron of name : string * interval : CronInterval
+    | REPL of name : string
 
-//   type T = { tlid : tlid; ast : Expr; spec : Spec }
+  type T = { tlid : tlid; ast : Expr; spec : Spec }
 
-// module Toplevel =
-//   type T =
-//     | TLDB of DB.T
-//     | TLHandler of Handler.T
+module Toplevel =
+  type T =
+    | TLDB of DB.T
+    | TLHandler of Handler.T
 
-//   let toTLID (tl : T) : tlid =
-//     match tl with
-//     | TLDB db -> db.tlid
-//     | TLHandler h -> h.tlid
+  let toTLID (tl : T) : tlid =
+    match tl with
+    | TLDB db -> db.tlid
+    | TLHandler h -> h.tlid

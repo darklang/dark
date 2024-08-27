@@ -9,10 +9,10 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module VT = ValueType
+module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module PackageIDs = LibExecution.PackageIDs
-module IntRuntimeError = BuiltinExecution.IntRuntimeError
+module RTE = RuntimeError
 
 
 module ParseError =
@@ -45,12 +45,9 @@ let fns : List<BuiltInFn> =
          a different behavior for negative numbers."
       fn =
         (function
-        | state, _, [ DUInt64 v; DUInt64 m ] ->
+        | _, vm, _, [ DUInt64 v; DUInt64 m ] ->
           if m = 0UL then
-            IntRuntimeError.Error.ZeroModulus
-            |> IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.callStack
-            |> Ply
+            RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.callStack
           else
             let result = v % m
             let result = if result < 0UL then m + result else result
@@ -68,14 +65,11 @@ let fns : List<BuiltInFn> =
       description = "Adds 64-bit unsigned integers together"
       fn =
         (function
-        | state, _, [ DUInt64 a; DUInt64 b ] ->
+        | _, vm, _, [ DUInt64 a; DUInt64 b ] ->
           try
             DUInt64(Checked.(+) a b) |> Ply
           with :? System.OverflowException ->
-            IntRuntimeError.Error.OutOfRange
-            |> IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.callStack
-            |> Ply
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.callStack
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -89,14 +83,11 @@ let fns : List<BuiltInFn> =
       description = "Subtracts 64-bit unsigned integers"
       fn =
         (function
-        | state, _, [ DUInt64 a; DUInt64 b ] ->
+        | _, vm, _, [ DUInt64 a; DUInt64 b ] ->
           try
             DUInt64(Checked.(-) a b) |> Ply
           with :? System.OverflowException ->
-            IntRuntimeError.Error.OutOfRange
-            |> IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.callStack
-            |> Ply
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.callStack
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -110,14 +101,11 @@ let fns : List<BuiltInFn> =
       description = "Multiplies 64-bit unsigned integers"
       fn =
         (function
-        | state, _, [ DUInt64 a; DUInt64 b ] ->
+        | _, vm, _, [ DUInt64 a; DUInt64 b ] ->
           try
             DUInt64(Checked.(*) a b) |> Ply
           with :? System.OverflowException ->
-            IntRuntimeError.Error.OutOfRange
-            |> IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.callStack
-            |> Ply
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.callStack
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -134,14 +122,11 @@ let fns : List<BuiltInFn> =
         Return value wrapped in a {{Result}} "
       fn =
         (function
-        | state, _, [ DUInt64 number; DUInt64 exp ] ->
+        | _, vm, _, [ DUInt64 number; DUInt64 exp ] ->
           (try
             (bigint number) ** (int exp) |> uint64 |> DUInt64 |> Ply
            with :? System.OverflowException ->
-             IntRuntimeError.Error.OutOfRange
-             |> IntRuntimeError.RTE.toRuntimeError
-             |> raiseRTE state.tracing.callStack
-             |> Ply)
+             RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.callStack)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -155,21 +140,15 @@ let fns : List<BuiltInFn> =
       description = "Divides 64-bit unsigned integers"
       fn =
         (function
-        | state, _, [ DUInt64 a; DUInt64 b ] ->
+        | _, vm, _, [ DUInt64 a; DUInt64 b ] ->
           if b = 0UL then
-            IntRuntimeError.Error.DivideByZeroError
-            |> IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.callStack
-            |> Ply
+            RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.callStack
           else
             let result = a / b
             if
               result < System.UInt64.MinValue || result > System.UInt64.MaxValue
             then
-              IntRuntimeError.Error.OutOfRange
-              |> IntRuntimeError.RTE.toRuntimeError
-              |> raiseRTE state.tracing.callStack
-              |> Ply
+              RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.callStack
             else
               Ply(DUInt64(result))
         | _ -> incorrectArgs ())
@@ -185,7 +164,7 @@ let fns : List<BuiltInFn> =
       description = "Returns {{true}} if <param a> is greater than <param b>"
       fn =
         (function
-        | _, _, [ DUInt64 a; DUInt64 b ] -> Ply(DBool(a > b))
+        | _, _, _, [ DUInt64 a; DUInt64 b ] -> Ply(DBool(a > b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -200,7 +179,7 @@ let fns : List<BuiltInFn> =
         "Returns {{true}} if <param a> is greater than or equal to <param b>"
       fn =
         (function
-        | _, _, [ DUInt64 a; DUInt64 b ] -> Ply(DBool(a >= b))
+        | _, _, _, [ DUInt64 a; DUInt64 b ] -> Ply(DBool(a >= b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -214,7 +193,7 @@ let fns : List<BuiltInFn> =
       description = "Returns {{true}} if <param a> is less than <param b>"
       fn =
         (function
-        | _, _, [ DUInt64 a; DUInt64 b ] -> Ply(DBool(a < b))
+        | _, _, _, [ DUInt64 a; DUInt64 b ] -> Ply(DBool(a < b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -229,7 +208,7 @@ let fns : List<BuiltInFn> =
         "Returns {{true}} if <param a> is less than or equal to <param b>"
       fn =
         (function
-        | _, _, [ DUInt64 a; DUInt64 b ] -> Ply(DBool(a <= b))
+        | _, _, _, [ DUInt64 a; DUInt64 b ] -> Ply(DBool(a <= b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -244,7 +223,7 @@ let fns : List<BuiltInFn> =
         "Returns a random integer between <param start> and <param end> (inclusive)"
       fn =
         (function
-        | _, _, [ DUInt64 a; DUInt64 b ] ->
+        | _, _, _, [ DUInt64 a; DUInt64 b ] ->
           let lower, upper = if a > b then (b, a) else (a, b)
 
           // .NET's "nextUInt64" is exclusive,
@@ -274,7 +253,7 @@ let fns : List<BuiltInFn> =
       description = "Get the square root of an <type UInt64>"
       fn =
         (function
-        | _, _, [ DUInt64 a ] -> Ply(DFloat(sqrt (float a)))
+        | _, _, _, [ DUInt64 a ] -> Ply(DFloat(sqrt (float a)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -288,7 +267,7 @@ let fns : List<BuiltInFn> =
       description = "Converts an <type UInt64> to a <type Float>"
       fn =
         (function
-        | _, _, [ DUInt64 a ] -> Ply(DFloat(float a))
+        | _, _, _, [ DUInt64 a ] -> Ply(DFloat(float a))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -311,7 +290,7 @@ let fns : List<BuiltInFn> =
         let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.uint64ParseError
         let resultError = Dval.resultError KTUInt64 (KTCustomType(typeName, []))
         (function
-        | _, _, [ DString s ] ->
+        | _, _, _, [ DString s ] ->
           try
             s |> System.Convert.ToUInt64 |> DUInt64 |> resultOk |> Ply
           with
@@ -332,7 +311,7 @@ let fns : List<BuiltInFn> =
       description = "Stringify <param int>"
       fn =
         (function
-        | _, _, [ DUInt64 int ] -> Ply(DString(string int))
+        | _, _, _, [ DUInt64 int ] -> Ply(DString(string int))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -347,7 +326,7 @@ let fns : List<BuiltInFn> =
         "Converts an Int8 to a 64-bit usigned integer. Returns {{None}} if the value is less than 0."
       fn =
         (function
-        | _, _, [ DInt8 a ] ->
+        | _, _, _, [ DInt8 a ] ->
           if (a < 0y) then
             Dval.optionNone KTUInt64 |> Ply
           else
@@ -365,7 +344,7 @@ let fns : List<BuiltInFn> =
       description = "Converts a UInt8 to a 64-bit usigned integer."
       fn =
         (function
-        | _, _, [ DUInt8 a ] -> DUInt64(uint64 a) |> Ply
+        | _, _, _, [ DUInt8 a ] -> DUInt64(uint64 a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -380,7 +359,7 @@ let fns : List<BuiltInFn> =
         "Converts an Int16 to a 64-bit usigned integer. Returns {{None}} if the value is less than 0."
       fn =
         (function
-        | _, _, [ DInt16 a ] ->
+        | _, _, _, [ DInt16 a ] ->
           if (a < 0s) then
             Dval.optionNone KTUInt64 |> Ply
           else
@@ -398,7 +377,7 @@ let fns : List<BuiltInFn> =
       description = "Converts a UInt16 to a 64-bit usigned integer."
       fn =
         (function
-        | _, _, [ DUInt16 a ] -> DUInt64(uint64 a) |> Ply
+        | _, _, _, [ DUInt16 a ] -> DUInt64(uint64 a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -413,7 +392,7 @@ let fns : List<BuiltInFn> =
         "Converts an Int32 to a 64-bit usigned integer. Returns {{None}} if the value is less than 0."
       fn =
         (function
-        | _, _, [ DInt32 a ] ->
+        | _, _, _, [ DInt32 a ] ->
           if (a < 0l) then
             Dval.optionNone KTUInt64 |> Ply
           else
@@ -431,7 +410,7 @@ let fns : List<BuiltInFn> =
       description = "Converts a UInt32 to a 64-bit usigned integer."
       fn =
         (function
-        | _, _, [ DUInt32 a ] -> DUInt64(uint64 a) |> Ply
+        | _, _, _, [ DUInt32 a ] -> DUInt64(uint64 a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -446,7 +425,7 @@ let fns : List<BuiltInFn> =
         "Converts an Int64 to a 64-bit usigned integer. Returns {{None}} if the value is less than 0."
       fn =
         (function
-        | _, _, [ DInt64 a ] ->
+        | _, _, _, [ DInt64 a ] ->
           if (a < 0L) then
             Dval.optionNone KTUInt64 |> Ply
           else
@@ -465,7 +444,7 @@ let fns : List<BuiltInFn> =
         "Converts an Int128 to a 64-bit usigned integer. Returns {{None}} if the value is less than 0 or greater than 18446744073709551615."
       fn =
         (function
-        | _, _, [ DInt128 a ] ->
+        | _, _, _, [ DInt128 a ] ->
           if
             (a < System.Int128.op_Implicit System.UInt64.MinValue)
             || (a > System.Int128.op_Implicit System.UInt64.MaxValue)
@@ -487,7 +466,7 @@ let fns : List<BuiltInFn> =
         "Converts a UInt128 to a 64-bit usigned integer. Returns {{None}} if the value is greater than 18446744073709551615."
       fn =
         (function
-        | _, _, [ DUInt128 a ] ->
+        | _, _, _, [ DUInt128 a ] ->
           if (a > System.UInt128.op_Implicit System.UInt64.MaxValue) then
             Dval.optionNone KTUInt64 |> Ply
           else

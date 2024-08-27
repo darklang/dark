@@ -2,15 +2,21 @@ module BuiltinExecution.Libs.NoModule
 
 open Prelude
 
-module DvalReprDeveloper = LibExecution.DvalReprDeveloper
-
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 module PackageIDs = LibExecution.PackageIDs
 module Dval = LibExecution.Dval
+module ValueType = LibExecution.ValueType
+module RTE = RuntimeError
 
 
+/// Note that type errors should be handled by the caller,
+/// by using `Dval.toValueType`, attempting to merge the types,
+/// and raising an RTE if the merge fails.
+/// Any type mis-matches found in this fn will just return `false`.
 let rec equals (a : Dval) (b : Dval) : bool =
+  let r = equals
+
   match a, b with
   | DUnit, DUnit -> true
 
@@ -39,35 +45,38 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DList(typA, a), DList(typB, b) ->
     Result.isOk (ValueType.merge typA typB)
     && a.Length = b.Length
-    && List.forall2 equals a b
+    && List.forall2 r a b
 
   | DTuple(a1, a2, a3), DTuple(b1, b2, b3) ->
     if a3.Length <> b3.Length then // special case - this is a type error
-      raiseUntargetedString "tuples must be the same length"
+      false
     else
-      equals a1 b1 && equals a2 b2 && List.forall2 equals a3 b3
+      r a1 b1 && r a2 b2 && List.forall2 r a3 b3
 
   | DDict(_vtTODO1, a), DDict(_vtTODO2, b) ->
     Map.count a = Map.count b
     && Map.forall
-      (fun k v -> Map.find k b |> Option.map (equals v) |> Option.defaultValue false)
+      (fun k v -> Map.find k b |> Option.map (r v) |> Option.defaultValue false)
       a
 
-  // | DRecord(tn1, _, _typeArgsTODO1, a), DRecord(tn2, _, _typeArgsTODO2, b) ->
-  //   tn1 = tn2 // these should be the fully resolved type
-  //   && Map.count a = Map.count b
-  //   && Map.forall
-  //     (fun k v -> Map.find k b |> Option.map (equals v) |> Option.defaultValue false)
-  //     a
+  | DRecord(tn1, _, _typeArgsTODO1, a), DRecord(tn2, _, _typeArgsTODO2, b) ->
+    tn1 = tn2 // these should be the fully resolved type
+    && Map.count a = Map.count b
+    && Map.forall
+      (fun k v -> Map.find k b |> Option.map (r v) |> Option.defaultValue false)
+      a
+
+  | DEnum(a1, _, _typeArgsTODO1, a2, a3), DEnum(b1, _, _typeArgsTODO2, b2, b3) -> // these should be the fully resolved type
+    a1 = b1 && a2 = b2 && a3.Length = b3.Length && List.forall2 r a3 b3
+
   | DFnVal a, DFnVal b ->
     match a, b with
     // | Lambda a, Lambda b -> equalsLambdaImpl a b
     | NamedFn a, NamedFn b -> a = b
   // | Lambda _, _
+
   //| NamedFn _, _ -> false
   // | DDB a, DDB b -> a = b
-  // | DEnum(a1, _, _typeArgsTODO1, a2, a3), DEnum(b1, _, _typeArgsTODO2, b2, b3) -> // these should be the fully resolved type
-  //   a1 = b1 && a2 = b2 && a3.Length = b3.Length && List.forall2 equals a3 b3
 
   // exhaustiveness check
   | DUnit, _
@@ -83,18 +92,20 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DInt128 _, _
   | DUInt128 _, _
   | DFloat _, _
-  | DString _, _
   | DChar _, _
+  | DString _, _
+  | DDateTime _, _
+  | DUuid _, _
   | DList _, _
   | DTuple _, _
   | DDict _, _
-  //| DRecord _, _
+  | DRecord _, _
+  | DEnum _, _
   | DFnVal _, _
-  | DDateTime _, _
-  | DUuid _, _
   // | DDB _, _
-  // | DEnum _, _
-   -> raiseUntargetedString "Both values must be the same type"
+   ->
+    // type errors; should be caught above by the caller
+    false
 
 // and equalsLambdaImpl (impl1 : LambdaImpl) (impl2 : LambdaImpl) : bool =
 //   // TODO what to do for TypeSymbolTable
@@ -343,25 +354,35 @@ let fns : List<BuiltInFn> =
       description = "Returns true if the two value are equal"
       fn =
         (function
-        | _, _, _, [ a; b ] -> equals a b |> DBool |> Ply
+        | _, vm, _, [ a; b ] ->
+          let (vtA, vtB) = (Dval.toValueType a, Dval.toValueType b)
+          match ValueType.merge vtA vtB with
+          | Error _ ->
+            raiseRTE vm.callStack (RTE.EqualityCheckOnIncompatibleTypes(vtA, vtB))
+          | Ok _ -> equals a b |> DBool |> Ply
         | _ -> incorrectArgs ())
-      //sqlSpec = SqlBinOp "="
+      sqlSpec = SqlBinOp "="
       previewable = Pure
       deprecated = NotDeprecated }
 
 
-    // { name = fn "notEquals" 0
-    //   typeParams = []
-    //   parameters = [ Param.make "a" varA ""; Param.make "b" varA "" ]
-    //   returnType = TBool
-    //   description = "Returns true if the two value are not equal"
-    //   fn =
-    //     (function
-    //     | _, _, [ a; b ] -> equals a b |> not |> DBool |> Ply
-    //     | _ -> incorrectArgs ())
-    //   sqlSpec = SqlBinOp "<>"
-    //   previewable = Pure
-    //   deprecated = NotDeprecated }
+    { name = fn "notEquals" 0
+      typeParams = []
+      parameters = [ Param.make "a" varA ""; Param.make "b" varA "" ]
+      returnType = TBool
+      description = "Returns true if the two value are not equal"
+      fn =
+        (function
+        | _, vm, _, [ a; b ] ->
+          let (vtA, vtB) = (Dval.toValueType a, Dval.toValueType b)
+          match ValueType.merge vtA vtB with
+          | Error _ ->
+            raiseRTE vm.callStack (RTE.EqualityCheckOnIncompatibleTypes(vtA, vtB))
+          | Ok _ -> equals a b |> not |> DBool |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = SqlBinOp "<>"
+      previewable = Pure
+      deprecated = NotDeprecated }
 
 
     // { name = fn "unwrap" 0
@@ -428,7 +449,7 @@ let fns : List<BuiltInFn> =
     //   description = "Prints the given <param value> to the standard output"
     //   fn =
     //     (function
-    //     | _, _, [ DString label; value ] ->
+    //     | _, _, _, [ DString label; value ] ->
     //       // TODO: call upon the Dark equivalent fn instead of rlying on DvalReprDeveloper
     //       print $"DEBUG: {label} - {DvalReprDeveloper.toRepr value}"
     //       Ply DUnit
@@ -460,4 +481,4 @@ let fns : List<BuiltInFn> =
     ]
 
 
-let builtins = LibExecution.Builtin.make fns
+let builtins = LibExecution.Builtin.make [] fns

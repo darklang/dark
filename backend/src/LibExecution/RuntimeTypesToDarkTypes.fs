@@ -13,7 +13,7 @@ module C2DT = LibExecution.CommonToDarkTypes
 let ownerField m = m |> D.stringField "owner"
 let modulesField m = m |> D.stringListField "modules"
 let nameField m = m |> D.stringField "name"
-let versionField m = m |> D.intField "version"
+let versionField m = m |> D.int32Field "version"
 
 
 module FQTypeName =
@@ -391,321 +391,321 @@ module StringSegment =
     | _ -> Exception.raiseInternal "Invalid StringSegment" []
 
 
-module Expr =
-  let typeName = FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.expr
-  let knownType = KTCustomType(typeName, [])
+// module Expr =
+//   let typeName = FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.expr
+//   let knownType = KTCustomType(typeName, [])
 
-  let rec toDT (e : Expr) : Dval =
-    let (caseName, fields) =
-      match e with
-      | EUnit id -> "EUnit", [ DInt64(int64 id) ]
+//   let rec toDT (e : Expr) : Dval =
+//     let (caseName, fields) =
+//       match e with
+//       | EUnit id -> "EUnit", [ DInt64(int64 id) ]
 
-      | EBool(id, b) -> "EBool", [ DInt64(int64 id); DBool b ]
-      | EInt64(id, i) -> "EInt64", [ DInt64(int64 id); DInt64 i ]
-      | EUInt64(id, i) -> "EUInt64", [ DInt64(int64 id); DUInt64 i ]
-      | EInt8(id, i) -> "EInt8", [ DInt64(int64 id); DInt8 i ]
-      | EUInt8(id, i) -> "EUInt8", [ DInt64(int64 id); DUInt8 i ]
-      | EInt16(id, i) -> "EInt16", [ DInt64(int64 id); DInt16 i ]
-      | EUInt16(id, i) -> "EUInt16", [ DInt64(int64 id); DUInt16 i ]
-      | EInt32(id, i) -> "EInt32", [ DInt64(int64 id); DInt32 i ]
-      | EUInt32(id, i) -> "EUInt32", [ DInt64(int64 id); DUInt32 i ]
-      | EInt128(id, i) -> "EInt128", [ DInt64(int64 id); DInt128 i ]
-      | EUInt128(id, i) -> "EUInt128", [ DInt64(int64 id); DUInt128 i ]
-      | EFloat(id, f) -> "EFloat", [ DInt64(int64 id); DFloat f ]
-      | EChar(id, c) -> "EChar", [ DInt64(int64 id); DString c ]
-      | EString(id, segments) ->
-        let segments =
-          DList(
-            VT.known StringSegment.knownType,
-            List.map (StringSegment.toDT toDT) segments
-          )
-        "EString", [ DInt64(int64 id); segments ]
+//       | EBool(id, b) -> "EBool", [ DInt64(int64 id); DBool b ]
+//       | EInt64(id, i) -> "EInt64", [ DInt64(int64 id); DInt64 i ]
+//       | EUInt64(id, i) -> "EUInt64", [ DInt64(int64 id); DUInt64 i ]
+//       | EInt8(id, i) -> "EInt8", [ DInt64(int64 id); DInt8 i ]
+//       | EUInt8(id, i) -> "EUInt8", [ DInt64(int64 id); DUInt8 i ]
+//       | EInt16(id, i) -> "EInt16", [ DInt64(int64 id); DInt16 i ]
+//       | EUInt16(id, i) -> "EUInt16", [ DInt64(int64 id); DUInt16 i ]
+//       | EInt32(id, i) -> "EInt32", [ DInt64(int64 id); DInt32 i ]
+//       | EUInt32(id, i) -> "EUInt32", [ DInt64(int64 id); DUInt32 i ]
+//       | EInt128(id, i) -> "EInt128", [ DInt64(int64 id); DInt128 i ]
+//       | EUInt128(id, i) -> "EUInt128", [ DInt64(int64 id); DUInt128 i ]
+//       | EFloat(id, f) -> "EFloat", [ DInt64(int64 id); DFloat f ]
+//       | EChar(id, c) -> "EChar", [ DInt64(int64 id); DString c ]
+//       | EString(id, segments) ->
+//         let segments =
+//           DList(
+//             VT.known StringSegment.knownType,
+//             List.map (StringSegment.toDT toDT) segments
+//           )
+//         "EString", [ DInt64(int64 id); segments ]
 
-      | EList(id, exprs) ->
-        "EList", [ DInt64(int64 id); Dval.list knownType (List.map toDT exprs) ]
+//       | EList(id, exprs) ->
+//         "EList", [ DInt64(int64 id); Dval.list knownType (List.map toDT exprs) ]
 
-      | EDict(id, entries) ->
-        let entries =
-          entries
-          |> List.map (fun (k, v) -> DTuple(DString k, toDT v, []))
-          |> fun entries ->
-              DList(VT.tuple VT.string (ValueType.known knownType) [], entries)
-        "EDict", [ DInt64(int64 id); entries ]
+//       | EDict(id, entries) ->
+//         let entries =
+//           entries
+//           |> List.map (fun (k, v) -> DTuple(DString k, toDT v, []))
+//           |> fun entries ->
+//               DList(VT.tuple VT.string (ValueType.known knownType) [], entries)
+//         "EDict", [ DInt64(int64 id); entries ]
 
-      | ETuple(id, first, second, theRest) ->
-        "ETuple",
-        [ DInt64(int64 id)
-          toDT first
-          toDT second
-          Dval.list knownType (List.map toDT theRest) ]
+//       | ETuple(id, first, second, theRest) ->
+//         "ETuple",
+//         [ DInt64(int64 id)
+//           toDT first
+//           toDT second
+//           Dval.list knownType (List.map toDT theRest) ]
 
-      | ERecord(id, typeName, fields) ->
-        let fields =
-          fields
-          |> NEList.toList
-          |> List.map (fun (name, expr) -> DTuple(DString name, toDT expr, []))
-          |> fun fields ->
-              DList(VT.tuple VT.string (ValueType.known knownType) [], fields)
-        "ERecord", [ DInt64(int64 id); FQTypeName.toDT typeName; fields ]
+//       | ERecord(id, typeName, fields) ->
+//         let fields =
+//           fields
+//           |> NEList.toList
+//           |> List.map (fun (name, expr) -> DTuple(DString name, toDT expr, []))
+//           |> fun fields ->
+//               DList(VT.tuple VT.string (ValueType.known knownType) [], fields)
+//         "ERecord", [ DInt64(int64 id); FQTypeName.toDT typeName; fields ]
 
-      | EEnum(id, typeName, caseName, fields) ->
-        "EEnum",
-        [ DInt64(int64 id)
-          FQTypeName.toDT typeName
-          DString caseName
-          Dval.list knownType (List.map toDT fields) ]
+//       | EEnum(id, typeName, caseName, fields) ->
+//         "EEnum",
+//         [ DInt64(int64 id)
+//           FQTypeName.toDT typeName
+//           DString caseName
+//           Dval.list knownType (List.map toDT fields) ]
 
-      // declaring and accessing variables
-      | ELet(id, lp, expr, body) ->
-        "ELet", [ DInt64(int64 id); LetPattern.toDT lp; toDT expr; toDT body ]
+//       // declaring and accessing variables
+//       | ELet(id, lp, expr, body) ->
+//         "ELet", [ DInt64(int64 id); LetPattern.toDT lp; toDT expr; toDT body ]
 
-      | ERecordFieldAccess(id, expr, fieldName) ->
-        "ERecordFieldAccess", [ DInt64(int64 id); toDT expr; DString fieldName ]
+//       | ERecordFieldAccess(id, expr, fieldName) ->
+//         "ERecordFieldAccess", [ DInt64(int64 id); toDT expr; DString fieldName ]
 
-      | EVariable(id, varName) -> "EVariable", [ DInt64(int64 id); DString varName ]
-
-
-      // control flow
-      | EIf(id, cond, thenExpr, elseExpr) ->
-        "EIf",
-        [ DInt64(int64 id)
-          toDT cond
-          toDT thenExpr
-          elseExpr |> Option.map toDT |> Dval.option knownType ]
-
-      | EMatch(id, arg, cases) ->
-        let matchCaseTypeName =
-          FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.matchCase
-
-        let cases =
-          cases
-          |> NEList.toList
-          |> List.map (fun case ->
-            let pattern = MatchPattern.toDT case.pat
-            let whenCondition =
-              case.whenCondition |> Option.map toDT |> Dval.option knownType
-            let expr = toDT case.rhs
-            DRecord(
-              matchCaseTypeName,
-              matchCaseTypeName,
-              [],
-              Map
-                [ ("pat", pattern)
-                  ("whenCondition", whenCondition)
-                  ("rhs", expr) ]
-            ))
-          |> Dval.list (KTCustomType(matchCaseTypeName, []))
-        "EMatch", [ DInt64(int64 id); toDT arg; cases ]
+//       | EVariable(id, varName) -> "EVariable", [ DInt64(int64 id); DString varName ]
 
 
-      | ELambda(id, pats, body) ->
-        let variables =
-          (NEList.toList pats)
-          |> List.map LetPattern.toDT
-          |> Dval.list (KTTuple(VT.int64, VT.string, []))
-        "ELambda", [ DInt64(int64 id); variables; toDT body ]
+//       // control flow
+//       | EIf(id, cond, thenExpr, elseExpr) ->
+//         "EIf",
+//         [ DInt64(int64 id)
+//           toDT cond
+//           toDT thenExpr
+//           elseExpr |> Option.map toDT |> Dval.option knownType ]
 
-      | EConstant(id, name) ->
-        "EConstant", [ DInt64(int64 id); FQConstantName.toDT name ]
+//       | EMatch(id, arg, cases) ->
+//         let matchCaseTypeName =
+//           FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.matchCase
 
-      | EApply(id, expr, typeArgs, args) ->
-        let typeArgs =
-          typeArgs
-          |> List.map TypeReference.toDT
-          |> Dval.list TypeReference.knownType
-        let args =
-          Dval.list TypeReference.knownType (args |> NEList.toList |> List.map toDT)
-        "EApply", [ DInt64(int64 id); toDT expr; typeArgs; args ]
-
-      | EFnName(id, name) -> "EFnName", [ DInt64(int64 id); FQFnName.toDT name ]
-
-      | ERecordUpdate(id, record, updates) ->
-        let updates =
-          NEList.toList updates
-          |> List.map (fun (name, expr) -> DTuple(DString name, toDT expr, []))
-          |> Dval.list (KTTuple(VT.string, VT.known knownType, []))
-        "ERecordUpdate", [ DInt64(int64 id); toDT record; updates ]
-
-      | EAnd(id, left, right) -> "EAnd", [ DInt64(int64 id); toDT left; toDT right ]
-
-      | EOr(id, left, right) -> "EOr", [ DInt64(int64 id); toDT left; toDT right ]
-
-      // Let the error straight through
-      | EError(id, rtError, exprs) ->
-        "EError",
-        [ DInt64(int64 id)
-          RuntimeTypes.RuntimeError.toDT rtError
-          Dval.list knownType (List.map toDT exprs) ]
+//         let cases =
+//           cases
+//           |> NEList.toList
+//           |> List.map (fun case ->
+//             let pattern = MatchPattern.toDT case.pat
+//             let whenCondition =
+//               case.whenCondition |> Option.map toDT |> Dval.option knownType
+//             let expr = toDT case.rhs
+//             DRecord(
+//               matchCaseTypeName,
+//               matchCaseTypeName,
+//               [],
+//               Map
+//                 [ ("pat", pattern)
+//                   ("whenCondition", whenCondition)
+//                   ("rhs", expr) ]
+//             ))
+//           |> Dval.list (KTCustomType(matchCaseTypeName, []))
+//         "EMatch", [ DInt64(int64 id); toDT arg; cases ]
 
 
-    DEnum(typeName, typeName, [], caseName, fields)
+//       | ELambda(id, pats, body) ->
+//         let variables =
+//           (NEList.toList pats)
+//           |> List.map LetPattern.toDT
+//           |> Dval.list (KTTuple(VT.int64, VT.string, []))
+//         "ELambda", [ DInt64(int64 id); variables; toDT body ]
 
-  let rec fromDT (d : Dval) : Expr =
-    match d with
-    | DEnum(_, _, [], "EUnit", [ DInt64 id ]) -> EUnit(uint64 id)
+//       | EConstant(id, name) ->
+//         "EConstant", [ DInt64(int64 id); FQConstantName.toDT name ]
 
-    | DEnum(_, _, [], "EBool", [ DInt64 id; DBool b ]) -> EBool(uint64 id, b)
-    | DEnum(_, _, [], "EInt64", [ DInt64 id; DInt64 i ]) -> EInt64(uint64 id, i)
-    | DEnum(_, _, [], "EUInt64", [ DInt64 id; DUInt64 i ]) -> EUInt64(uint64 id, i)
-    | DEnum(_, _, [], "EInt8", [ DInt64 id; DInt8 i ]) -> EInt8(uint64 id, i)
-    | DEnum(_, _, [], "EUInt8", [ DInt64 id; DUInt8 i ]) -> EUInt8(uint64 id, i)
-    | DEnum(_, _, [], "EInt16", [ DInt64 id; DInt16 i ]) -> EInt16(uint64 id, i)
-    | DEnum(_, _, [], "EUInt16", [ DInt64 id; DUInt16 i ]) -> EUInt16(uint64 id, i)
-    | DEnum(_, _, [], "EInt32", [ DInt64 id; DInt32 i ]) -> EInt32(uint64 id, i)
-    | DEnum(_, _, [], "EUInt32", [ DInt64 id; DUInt32 i ]) -> EUInt32(uint64 id, i)
-    | DEnum(_, _, [], "EInt128", [ DInt64 id; DInt128 i ]) -> EInt128(uint64 id, i)
-    | DEnum(_, _, [], "EUInt128", [ DInt64 id; DUInt128 i ]) ->
-      EUInt128(uint64 id, i)
-    | DEnum(_, _, [], "EFloat", [ DInt64 id; DFloat f ]) -> EFloat(uint64 id, f)
-    | DEnum(_, _, [], "EChar", [ DInt64 id; DString c ]) -> EChar(uint64 id, c)
-    | DEnum(_, _, [], "EString", [ DInt64 id; DList(_vtTODO, segments) ]) ->
-      EString(uint64 id, List.map (StringSegment.fromDT fromDT) segments)
+//       | EApply(id, expr, typeArgs, args) ->
+//         let typeArgs =
+//           typeArgs
+//           |> List.map TypeReference.toDT
+//           |> Dval.list TypeReference.knownType
+//         let args =
+//           Dval.list TypeReference.knownType (args |> NEList.toList |> List.map toDT)
+//         "EApply", [ DInt64(int64 id); toDT expr; typeArgs; args ]
 
+//       | EFnName(id, name) -> "EFnName", [ DInt64(int64 id); FQFnName.toDT name ]
 
-    | DEnum(_, _, [], "EList", [ DInt64 id; DList(_vtTODO, inner) ]) ->
-      EList(uint64 id, List.map fromDT inner)
+//       | ERecordUpdate(id, record, updates) ->
+//         let updates =
+//           NEList.toList updates
+//           |> List.map (fun (name, expr) -> DTuple(DString name, toDT expr, []))
+//           |> Dval.list (KTTuple(VT.string, VT.known knownType, []))
+//         "ERecordUpdate", [ DInt64(int64 id); toDT record; updates ]
 
-    | DEnum(_, _, [], "EDict", [ DInt64 id; DList(_vtTODO, pairsList) ]) ->
-      let pairs =
-        pairsList
-        // TODO: this should be a List.map, and raise an exception
-        |> List.collect (fun pair ->
-          match pair with
-          | DTuple(DString k, v, _) -> [ (k, fromDT v) ]
-          | _ -> []) // TODO: raise exception
-      EDict(uint64 id, pairs)
+//       | EAnd(id, left, right) -> "EAnd", [ DInt64(int64 id); toDT left; toDT right ]
 
+//       | EOr(id, left, right) -> "EOr", [ DInt64(int64 id); toDT left; toDT right ]
 
-    | DEnum(_, _, [], "ETuple", [ DInt64 id; first; second; DList(_vtTODO, theRest) ]) ->
-      ETuple(uint64 id, fromDT first, fromDT second, List.map fromDT theRest)
-
-    | DEnum(_, _, [], "ERecord", [ DInt64 id; typeName; DList(_vtTODO1, fieldsList) ]) ->
-      let fields =
-        fieldsList
-        |> List.collect (fun field ->
-          match field with
-          | DTuple(DString name, expr, _) -> [ (name, fromDT expr) ]
-          | _ -> [])
-      ERecord(
-        uint64 id,
-        FQTypeName.fromDT typeName,
-        NEList.ofListUnsafe
-          "RT2DT.Expr.fromDT expected at least one field in ERecord"
-          []
-          fields
-      )
-
-    | DEnum(_,
-            _,
-            [],
-            "EEnum",
-            [ DInt64 id; typeName; DString caseName; DList(_vtTODO, fields) ]) ->
-      EEnum(uint64 id, FQTypeName.fromDT typeName, caseName, List.map fromDT fields)
-
-    | DEnum(_, _, [], "ELet", [ DInt64 id; lp; expr; body ]) ->
-      ELet(uint64 id, LetPattern.fromDT lp, fromDT expr, fromDT body)
-
-    | DEnum(_, _, [], "ERecordFieldAccess", [ DInt64 id; expr; DString fieldName ]) ->
-      ERecordFieldAccess(uint64 id, fromDT expr, fieldName)
-
-    | DEnum(_, _, [], "EVariable", [ DInt64 id; DString varName ]) ->
-      EVariable(uint64 id, varName)
-
-    | DEnum(_, _, [], "EIf", [ DInt64 id; cond; thenExpr; elseExpr ]) ->
-      let elseExpr =
-        match elseExpr with
-        | DEnum(_, _, _typeArgsDEnumTODO, "Some", [ dv ]) -> Some(fromDT dv)
-        | DEnum(_, _, _typeArgsDEnumTODO, "None", []) -> None
-        | _ ->
-          Exception.raiseInternal "Invalid else expression" [ "elseExpr", elseExpr ]
-      EIf(uint64 id, fromDT cond, fromDT thenExpr, elseExpr)
-
-    | DEnum(_, _, [], "EMatch", [ DInt64 id; arg; DList(_vtTODO, cases) ]) ->
-      let cases =
-        cases
-        |> List.collect (fun case ->
-          match case with
-          | DRecord(_, _, _, fields) ->
-            let whenCondition =
-              match Map.tryFind "whenCondition" fields with
-              | Some(DEnum(_, _, _, "Some", [ value ])) -> Some(fromDT value)
-              | Some(DEnum(_, _, _, "None", [])) -> None
-              | _ -> None
-            match Map.tryFind "pat" fields, Map.tryFind "rhs" fields with
-            | Some pat, Some rhs ->
-              [ { pat = MatchPattern.fromDT pat
-                  whenCondition = whenCondition
-                  rhs = fromDT rhs } ]
-            | _ -> []
-          | _ -> [])
-      EMatch(
-        uint64 id,
-        fromDT arg,
-        NEList.ofListUnsafe
-          "RT2DT.Expr.fromDT expected at least one case in EMatch"
-          []
-          cases
-      )
-
-    | DEnum(_, _, [], "ELambda", [ DInt64 id; DList(_vtTODO, pats); body ]) ->
-      let pats =
-        pats
-        |> List.map LetPattern.fromDT
-        |> NEList.ofListUnsafe
-          "RT2DT.Expr.fromDT expected at least one bound variable in ELambda"
-          []
-      ELambda(uint64 id, pats, fromDT body)
+//       // Let the error straight through
+//       | EError(id, rtError, exprs) ->
+//         "EError",
+//         [ DInt64(int64 id)
+//           RuntimeTypes.RuntimeError.toDT rtError
+//           Dval.list knownType (List.map toDT exprs) ]
 
 
-    | DEnum(_,
-            _,
-            [],
-            "EApply",
-            [ DInt64 id; name; DList(_vtTODO1, typeArgs); DList(_vtTODO2, args) ]) ->
-      let args =
-        NEList.ofListUnsafe
-          "RT2DT.Expr.fromDT expected at least one argument in EApply"
-          []
-          args
+//     DEnum(typeName, typeName, [], caseName, fields)
 
-      EApply(
-        uint64 id,
-        fromDT name,
-        List.map TypeReference.fromDT typeArgs,
-        NEList.map fromDT args
-      )
+//   let rec fromDT (d : Dval) : Expr =
+//     match d with
+//     | DEnum(_, _, [], "EUnit", [ DInt64 id ]) -> EUnit(uint64 id)
 
-    | DEnum(_, _, [], "EFnName", [ DInt64 id; name ]) ->
-      EFnName(uint64 id, FQFnName.fromDT name)
-
-    | DEnum(_, _, [], "ERecordUpdate", [ DInt64 id; record; DList(_vtTODO, updates) ]) ->
-      let updates =
-        updates
-        |> List.collect (fun update ->
-          match update with
-          | DTuple(DString name, expr, _) -> [ (name, fromDT expr) ]
-          | _ -> [])
-      ERecordUpdate(
-        uint64 id,
-        fromDT record,
-        NEList.ofListUnsafe
-          "RT2DT.Expr.fromDT expected at least one field update in ERecordUpdate"
-          []
-          updates
-      )
-
-    // now for EAnd, EOr and EError
-    | DEnum(_, _, [], "EAnd", [ DInt64 id; left; right ]) ->
-      EAnd(uint64 id, fromDT left, fromDT right)
-
-    | DEnum(_, _, [], "EOr", [ DInt64 id; left; right ]) ->
-      EOr(uint64 id, fromDT left, fromDT right)
-
-    | DEnum(_, _, [], "EError", [ DInt64 id; rtError; DList(_vtTODO, exprs) ]) ->
-      EError(uint64 id, RuntimeError.fromDT rtError, List.map fromDT exprs)
+//     | DEnum(_, _, [], "EBool", [ DInt64 id; DBool b ]) -> EBool(uint64 id, b)
+//     | DEnum(_, _, [], "EInt64", [ DInt64 id; DInt64 i ]) -> EInt64(uint64 id, i)
+//     | DEnum(_, _, [], "EUInt64", [ DInt64 id; DUInt64 i ]) -> EUInt64(uint64 id, i)
+//     | DEnum(_, _, [], "EInt8", [ DInt64 id; DInt8 i ]) -> EInt8(uint64 id, i)
+//     | DEnum(_, _, [], "EUInt8", [ DInt64 id; DUInt8 i ]) -> EUInt8(uint64 id, i)
+//     | DEnum(_, _, [], "EInt16", [ DInt64 id; DInt16 i ]) -> EInt16(uint64 id, i)
+//     | DEnum(_, _, [], "EUInt16", [ DInt64 id; DUInt16 i ]) -> EUInt16(uint64 id, i)
+//     | DEnum(_, _, [], "EInt32", [ DInt64 id; DInt32 i ]) -> EInt32(uint64 id, i)
+//     | DEnum(_, _, [], "EUInt32", [ DInt64 id; DUInt32 i ]) -> EUInt32(uint64 id, i)
+//     | DEnum(_, _, [], "EInt128", [ DInt64 id; DInt128 i ]) -> EInt128(uint64 id, i)
+//     | DEnum(_, _, [], "EUInt128", [ DInt64 id; DUInt128 i ]) ->
+//       EUInt128(uint64 id, i)
+//     | DEnum(_, _, [], "EFloat", [ DInt64 id; DFloat f ]) -> EFloat(uint64 id, f)
+//     | DEnum(_, _, [], "EChar", [ DInt64 id; DString c ]) -> EChar(uint64 id, c)
+//     | DEnum(_, _, [], "EString", [ DInt64 id; DList(_vtTODO, segments) ]) ->
+//       EString(uint64 id, List.map (StringSegment.fromDT fromDT) segments)
 
 
-    | e -> Exception.raiseInternal "Invalid Expr" [ "e", e ]
+//     | DEnum(_, _, [], "EList", [ DInt64 id; DList(_vtTODO, inner) ]) ->
+//       EList(uint64 id, List.map fromDT inner)
+
+//     | DEnum(_, _, [], "EDict", [ DInt64 id; DList(_vtTODO, pairsList) ]) ->
+//       let pairs =
+//         pairsList
+//         // TODO: this should be a List.map, and raise an exception
+//         |> List.collect (fun pair ->
+//           match pair with
+//           | DTuple(DString k, v, _) -> [ (k, fromDT v) ]
+//           | _ -> []) // TODO: raise exception
+//       EDict(uint64 id, pairs)
+
+
+//     | DEnum(_, _, [], "ETuple", [ DInt64 id; first; second; DList(_vtTODO, theRest) ]) ->
+//       ETuple(uint64 id, fromDT first, fromDT second, List.map fromDT theRest)
+
+//     | DEnum(_, _, [], "ERecord", [ DInt64 id; typeName; DList(_vtTODO1, fieldsList) ]) ->
+//       let fields =
+//         fieldsList
+//         |> List.collect (fun field ->
+//           match field with
+//           | DTuple(DString name, expr, _) -> [ (name, fromDT expr) ]
+//           | _ -> [])
+//       ERecord(
+//         uint64 id,
+//         FQTypeName.fromDT typeName,
+//         NEList.ofListUnsafe
+//           "RT2DT.Expr.fromDT expected at least one field in ERecord"
+//           []
+//           fields
+//       )
+
+//     | DEnum(_,
+//             _,
+//             [],
+//             "EEnum",
+//             [ DInt64 id; typeName; DString caseName; DList(_vtTODO, fields) ]) ->
+//       EEnum(uint64 id, FQTypeName.fromDT typeName, caseName, List.map fromDT fields)
+
+//     | DEnum(_, _, [], "ELet", [ DInt64 id; lp; expr; body ]) ->
+//       ELet(uint64 id, LetPattern.fromDT lp, fromDT expr, fromDT body)
+
+//     | DEnum(_, _, [], "ERecordFieldAccess", [ DInt64 id; expr; DString fieldName ]) ->
+//       ERecordFieldAccess(uint64 id, fromDT expr, fieldName)
+
+//     | DEnum(_, _, [], "EVariable", [ DInt64 id; DString varName ]) ->
+//       EVariable(uint64 id, varName)
+
+//     | DEnum(_, _, [], "EIf", [ DInt64 id; cond; thenExpr; elseExpr ]) ->
+//       let elseExpr =
+//         match elseExpr with
+//         | DEnum(_, _, _typeArgsDEnumTODO, "Some", [ dv ]) -> Some(fromDT dv)
+//         | DEnum(_, _, _typeArgsDEnumTODO, "None", []) -> None
+//         | _ ->
+//           Exception.raiseInternal "Invalid else expression" [ "elseExpr", elseExpr ]
+//       EIf(uint64 id, fromDT cond, fromDT thenExpr, elseExpr)
+
+//     | DEnum(_, _, [], "EMatch", [ DInt64 id; arg; DList(_vtTODO, cases) ]) ->
+//       let cases =
+//         cases
+//         |> List.collect (fun case ->
+//           match case with
+//           | DRecord(_, _, _, fields) ->
+//             let whenCondition =
+//               match Map.tryFind "whenCondition" fields with
+//               | Some(DEnum(_, _, _, "Some", [ value ])) -> Some(fromDT value)
+//               | Some(DEnum(_, _, _, "None", [])) -> None
+//               | _ -> None
+//             match Map.tryFind "pat" fields, Map.tryFind "rhs" fields with
+//             | Some pat, Some rhs ->
+//               [ { pat = MatchPattern.fromDT pat
+//                   whenCondition = whenCondition
+//                   rhs = fromDT rhs } ]
+//             | _ -> []
+//           | _ -> [])
+//       EMatch(
+//         uint64 id,
+//         fromDT arg,
+//         NEList.ofListUnsafe
+//           "RT2DT.Expr.fromDT expected at least one case in EMatch"
+//           []
+//           cases
+//       )
+
+//     | DEnum(_, _, [], "ELambda", [ DInt64 id; DList(_vtTODO, pats); body ]) ->
+//       let pats =
+//         pats
+//         |> List.map LetPattern.fromDT
+//         |> NEList.ofListUnsafe
+//           "RT2DT.Expr.fromDT expected at least one bound variable in ELambda"
+//           []
+//       ELambda(uint64 id, pats, fromDT body)
+
+
+//     | DEnum(_,
+//             _,
+//             [],
+//             "EApply",
+//             [ DInt64 id; name; DList(_vtTODO1, typeArgs); DList(_vtTODO2, args) ]) ->
+//       let args =
+//         NEList.ofListUnsafe
+//           "RT2DT.Expr.fromDT expected at least one argument in EApply"
+//           []
+//           args
+
+//       EApply(
+//         uint64 id,
+//         fromDT name,
+//         List.map TypeReference.fromDT typeArgs,
+//         NEList.map fromDT args
+//       )
+
+//     | DEnum(_, _, [], "EFnName", [ DInt64 id; name ]) ->
+//       EFnName(uint64 id, FQFnName.fromDT name)
+
+//     | DEnum(_, _, [], "ERecordUpdate", [ DInt64 id; record; DList(_vtTODO, updates) ]) ->
+//       let updates =
+//         updates
+//         |> List.collect (fun update ->
+//           match update with
+//           | DTuple(DString name, expr, _) -> [ (name, fromDT expr) ]
+//           | _ -> [])
+//       ERecordUpdate(
+//         uint64 id,
+//         fromDT record,
+//         NEList.ofListUnsafe
+//           "RT2DT.Expr.fromDT expected at least one field update in ERecordUpdate"
+//           []
+//           updates
+//       )
+
+//     // now for EAnd, EOr and EError
+//     | DEnum(_, _, [], "EAnd", [ DInt64 id; left; right ]) ->
+//       EAnd(uint64 id, fromDT left, fromDT right)
+
+//     | DEnum(_, _, [], "EOr", [ DInt64 id; left; right ]) ->
+//       EOr(uint64 id, fromDT left, fromDT right)
+
+//     | DEnum(_, _, [], "EError", [ DInt64 id; rtError; DList(_vtTODO, exprs) ]) ->
+//       EError(uint64 id, RuntimeError.fromDT rtError, List.map fromDT exprs)
+
+
+//     | e -> Exception.raiseInternal "Invalid Expr" [ "e", e ]
 
 
 module RuntimeError =
@@ -880,13 +880,13 @@ module FnValImpl =
   let toDT (fnValImpl : FnValImpl) : Dval =
     let (caseName, fields) =
       match fnValImpl with
-      | Lambda lambda -> "Lambda", [ LambdaImpl.toDT lambda ]
+      //| Lambda lambda -> "Lambda", [ LambdaImpl.toDT lambda ]
       | NamedFn fnName -> "NamedFn", [ FQFnName.toDT fnName ]
     DEnum(typeName, typeName, [], caseName, fields)
 
   let fromDT (d : Dval) : FnValImpl =
     match d with
-    | DEnum(_, _, [], "Lambda", [ lambda ]) -> Lambda(LambdaImpl.fromDT lambda)
+    //| DEnum(_, _, [], "Lambda", [ lambda ]) -> Lambda(LambdaImpl.fromDT lambda)
     | DEnum(_, _, [], "NamedFn", [ fnName ]) -> NamedFn(FQFnName.fromDT fnName)
     | _ -> Exception.raiseInternal "Invalid FnValImpl" []
 

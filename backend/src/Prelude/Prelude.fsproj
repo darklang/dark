@@ -18,6 +18,7 @@
     <Compile Include="UTF8.fs" />
     <Compile Include="Lazy.fs" />
     <Compile Include="String.fs" />
+    <Compile Include="StringBuilder.fs" />
     <Compile Include="Map.fs" />
     <Compile Include="List.fs" />
     <Compile Include="Option.fs" />

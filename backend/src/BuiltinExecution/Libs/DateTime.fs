@@ -5,7 +5,7 @@ type Instant = NodaTime.Instant
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
-module VT = ValueType
+module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module DarkDateTime = LibExecution.DarkDateTime
 
@@ -39,7 +39,7 @@ let fns : List<BuiltInFn> =
         + "}} (for example: 2019-09-07T22:44:25Z) and returns the {{Date}} wrapped in a {{Result}}."
       fn =
         (function
-        | _, _, [ DString s ] ->
+        | _, _, _, [ DString s ] ->
           ISO8601DateParser s
           |> Result.map DDateTime
           |> Result.mapError (fun () -> DString "Invalid date format")
@@ -59,7 +59,7 @@ let fns : List<BuiltInFn> =
         "Stringify <param date> to the ISO 8601 format {{YYYY-MM-DD'T'hh:mm:ss'Z'}}"
       fn =
         (function
-        | _, _, [ DDateTime d ] ->
+        | _, _, _, [ DDateTime d ] ->
           let dt = DarkDateTime.toDateTimeUtc d
           dt.ToString("s", System.Globalization.CultureInfo.InvariantCulture) + "Z"
           |> DString
@@ -78,7 +78,7 @@ let fns : List<BuiltInFn> =
         "Stringify <param date> to the ISO 8601 basic format {{YYYYMMDD'T'hhmmss'Z'}}"
       fn =
         (function
-        | _, _, [ DDateTime d ] ->
+        | _, _, _, [ DDateTime d ] ->
           (DarkDateTime.toDateTimeUtc d).ToString("yyyyMMddTHHmmssZ")
           |> DString
           |> Ply
@@ -95,7 +95,7 @@ let fns : List<BuiltInFn> =
       description = "Stringify <param date> to the ISO 8601 basic format YYYYMMDD"
       fn =
         (function
-        | _, _, [ DDateTime d ] ->
+        | _, _, _, [ DDateTime d ] ->
           (DarkDateTime.toDateTimeUtc d).ToString("yyyyMMdd") |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -110,7 +110,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the current datetime"
       fn =
         (function
-        | _, _, [ DUnit ] ->
+        | _, _, _, [ DUnit ] ->
           Instant.now () |> DarkDateTime.fromInstant |> DDateTime |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -125,7 +125,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the <type DateTime> with the time set to midnight"
       fn =
         (function
-        | _, _, [ DUnit ] ->
+        | _, _, _, [ DUnit ] ->
           let now = DarkDateTime.fromInstant (Instant.now ())
           Ply(DDateTime(DarkDateTime.T(now.Year, now.Month, now.Day, 0, 0, 0)))
         | _ -> incorrectArgs ())
@@ -142,7 +142,7 @@ let fns : List<BuiltInFn> =
         "Returns a <type DateTime> <param seconds> seconds after <param d>"
       fn =
         (function
-        | _, _, [ DDateTime d; DInt64 s ] ->
+        | _, _, _, [ DDateTime d; DInt64 s ] ->
           d + (NodaTime.Period.FromSeconds s) |> DDateTime |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "+"
@@ -163,7 +163,7 @@ let fns : List<BuiltInFn> =
         "Returns a <type DateTime> <param seconds> seconds before <param d>"
       fn =
         (function
-        | _, _, [ DDateTime d; DInt64 s ] ->
+        | _, _, _, [ DDateTime d; DInt64 s ] ->
           d - (NodaTime.Period.FromSeconds s) |> DDateTime |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "-"
@@ -178,7 +178,7 @@ let fns : List<BuiltInFn> =
       description = "Returns whether {{<param d1> > <param d2>}}"
       fn =
         (function
-        | _, _, [ DDateTime d1; DDateTime d2 ] -> Ply(DBool(d1 > d2))
+        | _, _, _, [ DDateTime d1; DDateTime d2 ] -> Ply(DBool(d1 > d2))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp ">"
       previewable = Pure
@@ -192,7 +192,7 @@ let fns : List<BuiltInFn> =
       description = "Returns whether {{<param d1> < <param d2>}}"
       fn =
         (function
-        | _, _, [ DDateTime d1; DDateTime d2 ] -> Ply(DBool(d1 < d2))
+        | _, _, _, [ DDateTime d1; DDateTime d2 ] -> Ply(DBool(d1 < d2))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<"
       previewable = Pure
@@ -206,7 +206,7 @@ let fns : List<BuiltInFn> =
       description = "Returns whether {{<param d1> >= <param d2>}}"
       fn =
         (function
-        | _, _, [ DDateTime d1; DDateTime d2 ] -> Ply(DBool(d1 >= d2))
+        | _, _, _, [ DDateTime d1; DDateTime d2 ] -> Ply(DBool(d1 >= d2))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp ">="
       previewable = Pure
@@ -220,7 +220,7 @@ let fns : List<BuiltInFn> =
       description = "Returns whether {{<param d1> <= <param d2>}}"
       fn =
         (function
-        | _, _, [ DDateTime d1; DDateTime d2 ] -> Ply(DBool(d1 <= d2))
+        | _, _, _, [ DDateTime d1; DDateTime d2 ] -> Ply(DBool(d1 <= d2))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<="
       previewable = Pure
@@ -235,7 +235,7 @@ let fns : List<BuiltInFn> =
         "Converts <param date> to an <type Int64> representing seconds since the Unix epoch"
       fn =
         (function
-        | _, _, [ DDateTime d ] ->
+        | _, _, _, [ DDateTime d ] ->
           (DarkDateTime.toInstant d).ToUnixTimeSeconds() |> DInt64 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -251,7 +251,7 @@ let fns : List<BuiltInFn> =
         "Converts an <type Int64> representing seconds since the Unix epoch into a <type DateTime>"
       fn =
         (function
-        | _, _, [ DInt64 s ] ->
+        | _, _, _, [ DInt64 s ] ->
           s
           |> Instant.FromUnixTimeSeconds
           |> DarkDateTime.fromInstant
@@ -270,7 +270,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the year portion of <param date> as an <type Int64>"
       fn =
         (function
-        | _, _, [ DDateTime d ] -> d.Year |> int64 |> Dval.int64 |> Ply
+        | _, _, _, [ DDateTime d ] -> d.Year |> int64 |> Dval.int64 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'year'" ])
       previewable = Pure
@@ -285,7 +285,7 @@ let fns : List<BuiltInFn> =
         "Returns the month portion of <param date> as an <type Int64> between {{1}} and {{12}}"
       fn =
         (function
-        | _, _, [ DDateTime d ] -> d.Month |> int64 |> Dval.int64 |> Ply
+        | _, _, _, [ DDateTime d ] -> d.Month |> int64 |> Dval.int64 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'month'" ])
       previewable = Pure
@@ -299,7 +299,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the day portion of <param date> as an <type Int64>"
       fn =
         (function
-        | _, _, [ DDateTime d ] -> d.Day |> int64 |> Dval.int64 |> Ply
+        | _, _, _, [ DDateTime d ] -> d.Day |> int64 |> Dval.int64 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'day'" ])
       previewable = Pure
@@ -315,7 +315,7 @@ let fns : List<BuiltInFn> =
         Monday = {{1}}, Tuesday = {{2}}, ... Sunday = {{7}} (in accordance with ISO 8601)"
       fn =
         (function
-        | _, _, [ DDateTime d ] -> d.DayOfWeek |> int64 |> DInt64 |> Ply
+        | _, _, _, [ DDateTime d ] -> d.DayOfWeek |> int64 |> DInt64 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -329,7 +329,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the hour portion of <param date> as an <type Int64>"
       fn =
         (function
-        | _, _, [ DDateTime d ] -> Ply(Dval.int64 d.Hour)
+        | _, _, _, [ DDateTime d ] -> Ply(Dval.int64 d.Hour)
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'hour'" ])
       previewable = Pure
@@ -343,7 +343,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the minute portion of <param date> as an <type Int64>"
       fn =
         (function
-        | _, _, [ DDateTime d ] -> Ply(Dval.int64 d.Minute)
+        | _, _, _, [ DDateTime d ] -> Ply(Dval.int64 d.Minute)
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'minute'" ])
       previewable = Pure
@@ -357,7 +357,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the second portion of <param date> as an <type Int64>"
       fn =
         (function
-        | _, _, [ DDateTime d ] -> Ply(Dval.int64 d.Second)
+        | _, _, _, [ DDateTime d ] -> Ply(Dval.int64 d.Second)
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'second'" ])
       previewable = Pure
@@ -371,7 +371,7 @@ let fns : List<BuiltInFn> =
       description = "Returns <type date> with the time set to midnight"
       fn =
         (function
-        | _, _, [ DDateTime d ] ->
+        | _, _, _, [ DDateTime d ] ->
           DarkDateTime.T(d.Year, d.Month, d.Day, 0, 0, 0) |> DDateTime |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_trunc", [ "'day'" ])
@@ -391,7 +391,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the difference of the two dates, in seconds"
       fn =
         (function
-        | _, _, [ DDateTime endDate; DDateTime startDate ] ->
+        | _, _, _, [ DDateTime endDate; DDateTime startDate ] ->
           let diff =
             (DarkDateTime.toInstant endDate) - (DarkDateTime.toInstant startDate)
           diff.TotalSeconds |> System.Math.Round |> int64 |> DInt64 |> Ply

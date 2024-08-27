@@ -7,7 +7,7 @@ module WT = WrittenTypes
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module FS2WT = FSharpToWrittenTypes
-module NRE = LibExecution.NameResolutionError
+type NRE = PT.NameResolutionError
 module NR = NameResolver
 
 module InfixFnName =
@@ -75,7 +75,7 @@ module TypeReference =
         let! returnType = toPT returnType
         return PT.TFn(paramTypes, returnType)
 
-      | WT.TDB typ -> return! toPT typ |> Ply.map PT.TDB
+      //| WT.TDB typ -> return! toPT typ |> Ply.map PT.TDB
 
       | WT.TVariable(name) -> return PT.TVariable(name)
     }
@@ -104,8 +104,8 @@ module MatchPattern =
   let rec toPT (p : WT.MatchPattern) : PT.MatchPattern =
     match p with
     | WT.MPVariable(id, str) -> PT.MPVariable(id, str)
-    | WT.MPEnum(id, caseName, fieldPats) ->
-      PT.MPEnum(id, caseName, List.map toPT fieldPats)
+    // | WT.MPEnum(id, caseName, fieldPats) ->
+    //   PT.MPEnum(id, caseName, List.map toPT fieldPats)
     | WT.MPInt64(id, i) -> PT.MPInt64(id, i)
     | WT.MPUInt64(id, i) -> PT.MPUInt64(id, i)
     | WT.MPInt8(id, i) -> PT.MPInt8(id, i)
@@ -136,12 +136,7 @@ module Expr =
     (caseName : string) // used for errors
     : Ply<PT.NameResolution<PT.FQTypeName.FQTypeName>> =
     match names with
-    | [] ->
-      Ply(
-        Error(
-          { nameType = NRE.Type; errorType = NRE.MissingEnumModuleName caseName }
-        )
-      )
+    | [] -> Ply(Error(NRE.InvalidName [ caseName ]))
     | head :: tail ->
       let name = NEList.ofList head tail |> WT.Unresolved
       NR.resolveTypeName pm onMissing currentModule name
@@ -178,20 +173,21 @@ module Expr =
       | WT.EBool(id, b) -> return PT.EBool(id, b)
       | WT.EUnit id -> return PT.EUnit id
       | WT.EVariable(id, var) ->
-        // This could be a UserConstant
-        let! constant =
-          NR.resolveConstantName
-            (builtins.constants |> Map.keys |> Set)
-            pm
-            NR.OnMissing.Allow
-            currentModule
-            (WT.Unresolved(NEList.singleton var))
-        match constant with
-        | Ok _ as name -> return PT.EConstant(id, name)
-        | Error _ -> return PT.EVariable(id, var)
-      | WT.ERecordFieldAccess(id, obj, fieldname) ->
-        let! obj = toPT obj
-        return PT.ERecordFieldAccess(id, obj, fieldname)
+        // // This could be a UserConstant
+        // let! constant =
+        //   NR.resolveConstantName
+        //     (builtins.constants |> Map.keys |> Set)
+        //     pm
+        //     NR.OnMissing.Allow
+        //     currentModule
+        //     (WT.Unresolved(NEList.singleton var))
+        // match constant with
+        // | Ok _ as name -> return PT.EConstant(id, name)
+        // | Error _ ->
+        return PT.EVariable(id, var)
+      // | WT.ERecordFieldAccess(id, obj, fieldname) ->
+      //   let! obj = toPT obj
+      //   return PT.ERecordFieldAccess(id, obj, fieldname)
       | WT.EApply(id, (WT.EFnName(_, name)), [], { head = WT.EPlaceHolder }) ->
         // There are no arguments, so this could be a function name or a constant
         let! fnName =
@@ -350,78 +346,78 @@ module Expr =
       toPT builtins pm onMissing currentModule expr
       |> Ply.map (fun interpolated -> PT.StringInterpolation interpolated)
 
-  and pipeExprToPT
-    (builtins : RT.Builtins)
-    (pm : PT.PackageManager)
-    (onMissing : NR.OnMissing)
-    (currentModule : List<string>)
-    (pipeExpr : WT.PipeExpr)
-    : Ply<PT.PipeExpr> =
-    let toPT = toPT builtins pm onMissing currentModule
+// and pipeExprToPT
+//   (builtins : RT.Builtins)
+//   (pm : PT.PackageManager)
+//   (onMissing : NR.OnMissing)
+//   (currentModule : List<string>)
+//   (pipeExpr : WT.PipeExpr)
+//   : Ply<PT.PipeExpr> =
+//   let toPT = toPT builtins pm onMissing currentModule
 
-    uply {
-      match pipeExpr with
-      | WT.EPipeVariableOrFnCall(id, name) ->
-        let! resolved =
-          let asUserFnName = WT.Name.Unresolved(NEList.singleton name)
-          NR.resolveFnName
-            (builtins.fns |> Map.keys |> Set)
-            pm
-            NR.OnMissing.Allow
-            currentModule
-            asUserFnName
+//   uply {
+//     match pipeExpr with
+//     | WT.EPipeVariableOrFnCall(id, name) ->
+//       let! resolved =
+//         let asUserFnName = WT.Name.Unresolved(NEList.singleton name)
+//         NR.resolveFnName
+//           (builtins.fns |> Map.keys |> Set)
+//           pm
+//           NR.OnMissing.Allow
+//           currentModule
+//           asUserFnName
 
-        return
-          match resolved with
-          | Ok name -> PT.EPipeFnCall(id, Ok name, [], [])
-          | Error _ -> PT.EPipeVariable(id, name, [])
+//       return
+//         match resolved with
+//         | Ok name -> PT.EPipeFnCall(id, Ok name, [], [])
+//         | Error _ -> PT.EPipeVariable(id, name, [])
 
-      | WT.EPipeLambda(id, pats, body) ->
-        let! body = toPT body
-        return PT.EPipeLambda(id, NEList.map LetPattern.toPT pats, body)
+//     | WT.EPipeLambda(id, pats, body) ->
+//       let! body = toPT body
+//       return PT.EPipeLambda(id, NEList.map LetPattern.toPT pats, body)
 
-      | WT.EPipeInfix(id, infix, first) ->
-        let! first = toPT first
-        return PT.EPipeInfix(id, Infix.toPT infix, first)
+//     | WT.EPipeInfix(id, infix, first) ->
+//       let! first = toPT first
+//       return PT.EPipeInfix(id, Infix.toPT infix, first)
 
-      | WT.EPipeFnCall(id,
-                       (WT.Unresolved { head = varName; tail = [] } as name),
-                       [],
-                       args) ->
-        // Special case for variables with arguments. Since it could be a userfn, we
-        // need to check that first. We do a similar thing converting EFnNames.
-        let! fnName =
-          NR.resolveFnName
-            (builtins.fns |> Map.keys |> Set)
-            pm
-            NR.OnMissing.Allow
-            currentModule
-            name
-        let! args = Ply.List.mapSequentially toPT args
-        match fnName with
-        | Ok name -> return PT.EPipeFnCall(id, Ok name, [], args)
-        | Error _ -> return PT.EPipeVariable(id, varName, args)
+//     | WT.EPipeFnCall(id,
+//                      (WT.Unresolved { head = varName; tail = [] } as name),
+//                      [],
+//                      args) ->
+//       // Special case for variables with arguments. Since it could be a userfn, we
+//       // need to check that first. We do a similar thing converting EFnNames.
+//       let! fnName =
+//         NR.resolveFnName
+//           (builtins.fns |> Map.keys |> Set)
+//           pm
+//           NR.OnMissing.Allow
+//           currentModule
+//           name
+//       let! args = Ply.List.mapSequentially toPT args
+//       match fnName with
+//       | Ok name -> return PT.EPipeFnCall(id, Ok name, [], args)
+//       | Error _ -> return PT.EPipeVariable(id, varName, args)
 
-      | WT.EPipeFnCall(id, name, typeArgs, args) ->
-        let! fnName =
-          NR.resolveFnName
-            (builtins.fns |> Map.keys |> Set)
-            pm
-            onMissing
-            currentModule
-            name
-        let! typeArgs =
-          Ply.List.mapSequentially
-            (TypeReference.toPT pm onMissing currentModule)
-            typeArgs
-        let! args = Ply.List.mapSequentially toPT args
-        return PT.EPipeFnCall(id, fnName, typeArgs, args)
+//     | WT.EPipeFnCall(id, name, typeArgs, args) ->
+//       let! fnName =
+//         NR.resolveFnName
+//           (builtins.fns |> Map.keys |> Set)
+//           pm
+//           onMissing
+//           currentModule
+//           name
+//       let! typeArgs =
+//         Ply.List.mapSequentially
+//           (TypeReference.toPT pm onMissing currentModule)
+//           typeArgs
+//       let! args = Ply.List.mapSequentially toPT args
+//       return PT.EPipeFnCall(id, fnName, typeArgs, args)
 
-      | WT.EPipeEnum(id, typeName, caseName, fields) ->
-        let! typeName = resolveTypeName pm onMissing currentModule typeName caseName
-        let! fields = Ply.List.mapSequentially toPT fields
-        return PT.EPipeEnum(id, typeName, caseName, fields)
-    }
+//     | WT.EPipeEnum(id, typeName, caseName, fields) ->
+//       let! typeName = resolveTypeName pm onMissing currentModule typeName caseName
+//       let! fields = Ply.List.mapSequentially toPT fields
+//       return PT.EPipeEnum(id, typeName, caseName, fields)
+//   }
 
 module Const =
   let rec toPT

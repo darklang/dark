@@ -73,7 +73,7 @@ module Response =
         | Ok headers ->
           { statusCode = int code
             headers = lowercaseHeaderKeys headers
-            body = body |> Dval.DlistToByteArray }
+            body = body |> Dval.dlistToByteArray }
         | Error msg ->
           { statusCode = 500
             headers = [ "Content-Type", "text/plain; charset=utf-8" ]

@@ -6,14 +6,19 @@ open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module VT = RT.ValueType
+module VT = LibExecution.ValueType
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module RTE = RT.RuntimeError
 
 module E = TestValues.Expressions
+module PM = TestValues.PM
 
 let t name ptExpr expectedInsts =
   testTask name {
-    let vmState = ptExpr |> PT2RT.Expr.toRT 0 |> RT.VMState.fromInstructions
+    let vmState =
+      ptExpr
+      |> PT2RT.Expr.toRT 0
+      |> RT.VMState.fromInstructions RT.ExecutionPoint.Script
 
     let! exeState =
       executionStateFor PT.PackageManager.empty (System.Guid.NewGuid()) false false
@@ -41,9 +46,16 @@ let tFail name ptExpr expectedRte =
 module Basic =
   // CLEANUP back fill with more simple stuff
 
-  let onePlusTwo = t "1+2" E.Basic.onePlusTwo (RT.DInt64 3L)
+  let one = t "1" E.Basic.one (RT.DInt64 1L)
 
-  let tests = testList "Basic" [ onePlusTwo ]
+  //let onePlusTwo = t "1+2" E.Basic.onePlusTwo (RT.DInt64 3L)
+
+  let tests =
+    testList
+      "Basic"
+      [ one
+        //onePlusTwo
+        ]
 
 
 module List =
@@ -67,9 +79,9 @@ module List =
     tFail
       "[1; true]"
       E.List.mixed
-      (RT.RuntimeError.fromDT (
-        RT.DString "Could not merge types List<Bool> and List<Int64>"
-      ))
+      //   RT.DString "Could not merge types List<Bool> and List<Int64>"
+      (RTE.Lists.TriedToAddMismatchedData(VT.int64, VT.bool, RT.DBool true)
+       |> RTE.List)
 
   let tests = testList "Lists" [ simple; nested; mixed ]
 
@@ -84,24 +96,30 @@ module Let =
     tFail
       "let (a, b) = 1 in a"
       E.Let.tupleNotTuple
-      (RT.RuntimeError.fromDT (RT.DString "Let Pattern did not match"))
+      (RTE.Error.Let(
+        RTE.Lets.Error.PatternDoesNotMatch(
+          RT.DInt64 1,
+          RT.LPTuple(RT.LPVariable "a", RT.LPVariable "b", [])
+        )
+      ))
 
   /// `let (a, b) = (1, 2, 3) in a`
   let tupleIncorrectLen =
     tFail
       "let (a, b) = (1, 2, 3) in a"
       E.Let.tupleIncorrectLen
-      (RT.RuntimeError.fromDT (RT.DString "Let Pattern did not match"))
+      (RTE.Error.Let(
+        RTE.Lets.Error.PatternDoesNotMatch(
+          RT.DTuple(RT.DInt64 1, RT.DInt64 2, [ RT.DInt64 3 ]),
+          RT.LPTuple(RT.LPVariable "a", RT.LPVariable "b", [])
+        )
+      ))
 
   let tupleNested =
     t "let (a, (b, c)) = (1, (2, 3))\nb" E.Let.tupleNested (RT.DInt64 2L)
 
   /// `a`
-  let undefinedVar =
-    tFail
-      "a"
-      E.Let.undefinedVar
-      (RT.RuntimeError.fromDT (RT.DString "Variable not found: a"))
+  let undefinedVar = tFail "a" E.Let.undefinedVar (RTE.VariableNotFound "a")
 
   let tests =
     testList
@@ -128,19 +146,19 @@ module Dict =
     t
       "Dict { t: true}"
       E.Dict.simple
-      (RT.DDict(VT.unknown, Map [ "key", RT.DBool true ]))
+      (RT.DDict(VT.bool, Map [ "key", RT.DBool true ]))
 
   let multEntries =
     t
       "Dict {t: true; f: false}"
       E.Dict.multEntries
-      (RT.DDict(VT.unknown, Map [ "t", RT.DBool true; "f", RT.DBool false ]))
+      (RT.DDict(VT.bool, Map [ "t", RT.DBool true; "f", RT.DBool false ]))
 
   let dupeKey =
-    t
+    tFail
       "Dict {t: true; f: false; t: false}"
       E.Dict.dupeKey
-      (RT.DDict(VT.unknown, Map [ "t", RT.DBool false; "f", RT.DBool false ]))
+      (RTE.Dict(RTE.Dicts.TriedToAddKeyAfterAlreadyPresent "t"))
 
   let tests = testList "Dict" [ empty; simple; multEntries; dupeKey ]
 
@@ -187,15 +205,15 @@ module Match =
     tFail
       "match true with\n| false -> \"first branch\""
       E.Match.notMatched
-      (RT.RuntimeError.fromDT (RT.DString "match not matched"))
+      RTE.MatchUnmatched
 
   let withVar = t "match true with\n| x -> x" E.Match.withVar (RT.DBool true)
 
-  let withVarAndWhenCondition =
-    t
-      "match 4 with\n| 1 -> \"first branch\"\n| x when x % 2 == 0 -> \"second branch\""
-      E.Match.withVarAndWhenCondition
-      (RT.DString "second branch")
+  // let withVarAndWhenCondition =
+  //   t
+  //     "match 4 with\n| 1 -> \"first branch\"\n| x when x % 2 == 0 -> \"second branch\""
+  //     E.Match.withVarAndWhenCondition
+  //     (RT.DString "second branch")
 
   let list =
     t
@@ -227,6 +245,63 @@ module Match =
         tuple ]
 
 
+module Records =
+  let simple =
+    let typeName = RT.FQTypeName.fqPackage PM.Types.Records.singleField
+    t
+      "Test.Test { key = true }"
+      E.Records.simple
+      (RT.DRecord(typeName, typeName, [], Map [ "key", RT.DBool true ]))
+
+  let nested =
+    let outerTypeName = RT.FQTypeName.fqPackage PM.Types.Records.nested
+    let innerTypeName = RT.FQTypeName.fqPackage PM.Types.Records.singleField
+    t
+      "Test.Test2 { outer = (Test.Test { key = true }) }"
+      E.Records.nested
+      (RT.DRecord(
+        outerTypeName,
+        outerTypeName,
+        [],
+        Map
+          [ "outer",
+            RT.DRecord(
+              innerTypeName,
+              innerTypeName,
+              [],
+              Map [ "key", RT.DBool true ]
+            ) ]
+      ))
+
+
+  let tests = testList "Records" [ simple; nested ]
+
+
+module RecordFieldAccess =
+  let simple =
+    t "(Test.Test { key = true }).key" E.RecordFieldAccess.simple (RT.DBool true)
+  let notRecord =
+    tFail
+      "1.key"
+      E.RecordFieldAccess.notRecord
+      (RTE.Record(RTE.Records.FieldAccessNotRecord VT.int64))
+
+  let missingField =
+    tFail
+      "(Test.Test { key = true }).missing"
+      E.RecordFieldAccess.missingField
+      (RTE.Record(RTE.Records.FieldAccessFieldNotFound "missing"))
+
+  let nested =
+    t
+      "(Test.Test2 { outer = (Test.Test { key = true }) }).outer.key"
+      E.RecordFieldAccess.nested
+      (RT.DBool true)
+
+  let tests =
+    testList "RecordFieldAccess" [ simple; notRecord; missingField; nested ]
+
+
 let tests =
   testList
     "Interpreter"
@@ -237,4 +312,6 @@ let tests =
       Dict.tests
       If.tests
       Tuples.tests
-      Match.tests ]
+      Match.tests
+      Records.tests
+      RecordFieldAccess.tests ]

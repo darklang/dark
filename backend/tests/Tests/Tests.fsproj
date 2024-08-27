@@ -21,8 +21,8 @@
     <!--ProjectReference Include="../../src/LibClientTypes/LibClientTypes.fsproj" /-->
     <!--ProjectReference Include="../../src/LibBinarySerialization/LibBinarySerialization.fsproj" /-->
     <!--ProjectReference Include="../../src/BwdServer/BwdServer.fsproj" /-->
-    <!--ProjectReference Include="../../src/LibCloudExecution/LibCloudExecution.fsproj" /-->
     <!--ProjectReference Include="../../src/BuiltinCloudExecution/BuiltinCloudExecution.fsproj" /-->
+    <!--ProjectReference Include="../../src/LibCloudExecution/LibCloudExecution.fsproj" /-->
     <!--ProjectReference Include="../../src/BuiltinDarkInternal/BuiltinDarkInternal.fsproj" /-->
     <!--ProjectReference Include="../../src/QueueWorker/QueueWorker.fsproj" /-->
 
@@ -35,35 +35,38 @@
     <Compile Include="TestValues.fs" />
 
     <!-- core stuff /-->
+    <Compile Include="TreeSitter.Tests.fs" />
+
     <Compile Include="Prelude.Tests.fs" />
+
+    <Compile Include="RuntimeTypes.Tests.fs" />
     <Compile Include="ProgramTypes.Tests.fs" />
-    <!--Compile Include="RuntimeTypes.Tests.fs" /-->
     <Compile Include="PT2RT.Tests.fs" />
     <Compile Include="Interpreter.Tests.fs" />
-    <!--Compile Include="TreeSitter.Tests.fs" /-->
+    <Compile Include="Builtin.Tests.fs" />
+    <Compile Include="AnalysisTypes.Tests.fs" />
+    <!--Compile Include="Execution.Tests.fs" /-->
+    <!--Compile Include="LibParser.Tests.fs" /-->
+    <!--Compile Include="NewParser.Tests.fs" /-->
+    <!--Compile Include="HttpClient.Tests.fs" /-->
+    <!--Compile Include="LibExecution.Tests.fs" /-->
+    <!--Compile Include="PackageManager.Tests.fs" /-->
 
-    <!--Compile Include="AnalysisTypes.Tests.fs" /-->
+    <!-- cloud stuff /-->
     <!--Compile Include="StorageTraces.Tests.fs" /-->
     <!--Compile Include="BwdServer.Tests.fs" /-->
     <!--Compile Include="Canvas.Tests.fs" /-->
     <!--Compile Include="Cron.Tests.fs" /-->
     <!--Compile Include="DvalRepr.Tests.fs" /-->
     <!--Compile Include="Queue.Tests.fs" /-->
-    <!-- TRACINGTODO -->
-    <!--Compile Include="Execution.Tests.fs" /-->
-    <!--Compile Include="LibParser.Tests.fs" /-->
-    <!--Compile Include="NewParser.Tests.fs" /-->
-    <!--Compile Include="HttpClient.Tests.fs" /-->
-    <!--Compile Include="LibExecution.Tests.fs" /-->
     <!--Compile Include="QueueSchedulingRules.Tests.fs" /-->
     <!--Compile Include="Routing.Tests.fs" /-->
     <!--Compile Include="Serialization.TestValues.fs" /-->
     <!--Compile Include="Serialization.Binary.Tests.fs" /-->
     <!--Compile Include="Serialization.Vanilla.Tests.fs" /-->
     <!--Compile Include="Serialization.DarkTypes.Tests.fs" /-->
-    <!--Compile Include="Builtin.Tests.fs" /-->
     <!--Compile Include="SqlCompiler.Tests.fs" /-->
-    <!--Compile Include="PackageManager.Tests.fs" /-->
+
     <Compile Include="Tests.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
