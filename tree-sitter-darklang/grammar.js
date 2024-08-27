@@ -321,10 +321,20 @@ module.exports = grammar({
     // match pattern - list cons
     mp_list_cons: $ =>
       prec.right(
-        seq(
-          field("head", $.match_pattern),
-          field("symbol_double_colon", alias("::", $.symbol)),
-          field("tail", $.match_pattern),
+        choice(
+          seq(
+            field("head", $.match_pattern),
+            field("symbol_double_colon", alias("::", $.symbol)),
+            field("tail", $.match_pattern),
+          ),
+
+          seq(
+            field("symbol_open_paren", alias("(", $.symbol)),
+            field("head", $.match_pattern),
+            field("symbol_double_colon", alias("::", $.symbol)),
+            field("tail", $.match_pattern),
+            field("symbol_close_paren", alias(")", $.symbol)),
+          ),
         ),
       ),
 
