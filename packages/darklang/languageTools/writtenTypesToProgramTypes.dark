@@ -46,26 +46,50 @@ module Darklang =
         module Const =
           let toPT (c: WrittenTypes.ConstantIdentifier) : String = c.name
 
-        module QualifiedConst =
+        module ConstOrFn =
+          let toPT (c: WrittenTypes.ConstantOrFnIdentifier) : String = c.name
+
+
+        module QualifiedConstOrFn =
+          type ConstOrFn =
+            | Const of
+              ProgramTypes.NameResolution<ProgramTypes.FQConstantName.FQConstantName>
+            | Fn of ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName>
+
           let toPT
             (onMissing: NameResolver.OnMissing)
             (pm: ProgramTypes.PackageManager.PackageManager)
             (owner: String)
             (currentModule: List<String>)
-            (c: WrittenTypes.QualifiedConstantIdentifier)
-            : ProgramTypes.NameResolution<ProgramTypes.FQConstantName.FQConstantName> =
+            (c: WrittenTypes.QualifiedConstantOrFnIdentifier)
+            : ConstOrFn =
             let nameToResolve =
               Stdlib.List.append
-                (Stdlib.List.map c.modules (fun (cn, _) -> cn.name))
-                [ c.constant |> Const.toPT ]
+                (Stdlib.List.map c.modules (fun (id, _) -> id.name))
+                [ c.constantOrFn |> ConstOrFn.toPT ]
 
-            NameResolver.ConstantName.resolve
-              onMissing
-              pm
-              owner
-              currentModule
-              (WrittenTypes.Name.Unresolved(c.range, nameToResolve))
+            let isConstant =
+              NameResolver.ConstantName.resolve
+                onMissing
+                pm
+                owner
+                currentModule
+                (WrittenTypes.Name.Unresolved(c.range, nameToResolve))
 
+            let isFn =
+              NameResolver.FnName.resolve
+                onMissing
+                pm
+                owner
+                currentModule
+                (WrittenTypes.Name.Unresolved(c.range, nameToResolve))
+
+            match isFn with
+            | Ok _ -> isFn |> ConstOrFn.Fn
+            | Error _ ->
+              match isConstant with
+              | Ok _ -> isConstant |> ConstOrFn.Const
+              | Error _ -> isConstant
 
         module Fn =
           let toPT (fn: WrittenTypes.FnIdentifier) : String = fn.name
@@ -472,11 +496,13 @@ module Darklang =
             | Ok _ -> ProgramTypes.Expr.EConstant(gid (), constant)
             | Error _ -> ProgramTypes.Expr.EVariable (gid ()) var
 
-          | EConstant(_, c) ->
-            let constant =
-              Identifiers.QualifiedConst.toPT onMissing pm owner currentModule c
+          | EConstantOrFn(_, id) ->
+            let constantOrFn =
+              Identifiers.QualifiedConstOrFn.toPT onMissing pm owner currentModule id
 
-            ProgramTypes.Expr.EConstant(gid (), constant)
+            match constantOrFn with
+            | Const c -> ProgramTypes.Expr.EConstant(gid (), c)
+            | Fn f -> ProgramTypes.Expr.EFnName(gid (), f)
 
           | EFieldAccess(_, expr, (_, fieldName), _) ->
             ProgramTypes.Expr.EFieldAccess(

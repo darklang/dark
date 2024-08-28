@@ -23,6 +23,7 @@ let helloWorld (i: Int64): String = "Hello world"
     (type_reference (builtin_type))
     (symbol)
     (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+    (newline)
   )
 )
 
@@ -44,6 +45,7 @@ let emptyString (): String = ""
     (type_reference (builtin_type))
     (symbol)
     (expression (simple_expression (string_segment (string_literal (symbol) (symbol)))))
+    (newline)
   )
 )
 
@@ -109,6 +111,7 @@ let myFn<'a> (param: 'a): Unit = ()
     (type_reference (builtin_type))
     (symbol)
     (expression (simple_expression (unit)))
+    (newline)
   )
 )
 
@@ -142,6 +145,7 @@ let myFn<'a, 'b> (param: 'a): 'b = param
     (type_reference (builtin_type (variable_type_reference (symbol) (variable_identifier))))
     (symbol)
     (expression (simple_expression (variable_identifier)))
+    (newline)
   )
 )
 
@@ -307,7 +311,6 @@ let myFn
   (fn_decl
     (keyword)
     (fn_identifier)
-    (indent)
     (fn_decl_params
       (fn_decl_param
         (symbol) (variable_identifier) (symbol) (type_reference (builtin_type)) (symbol))
@@ -319,7 +322,7 @@ let myFn
     (symbol)
     (type_reference (builtin_type))
     (symbol)
-    (expression (simple_expression (bool_literal)))
+    (indent) (expression (simple_expression (bool_literal))) (dedent)
   )
 )
 
@@ -339,7 +342,6 @@ let myFn
   (fn_decl
     (keyword)
     (fn_identifier)
-    (indent)
     (fn_decl_params
       (fn_decl_param
         (symbol) (variable_identifier) (symbol) (type_reference (builtin_type)) (symbol))
@@ -351,6 +353,8 @@ let myFn
     (symbol)
     (type_reference (builtin_type))
     (symbol)
+    (indent)
     (expression (simple_expression (bool_literal)))
+    (dedent)
   )
 )

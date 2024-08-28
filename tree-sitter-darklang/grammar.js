@@ -140,16 +140,13 @@ module.exports = grammar({
         field("keyword_let", alias("let", $.keyword)),
         field("name", $.fn_identifier),
         optional(field("type_params", $.type_params)),
-        choice(
-          field("params", $.fn_decl_params),
-          seq($.indent, field("params", $.fn_decl_params)),
-        ),
+        field("params", $.fn_decl_params),
         field("symbol_colon", alias(":", $.symbol)),
         field("return_type", $.type_reference),
         field("symbol_equals", alias("=", $.symbol)),
         choice(
           seq($.indent, field("body", $.expression), $.dedent),
-          field("body", $.expression),
+          seq(field("body", $.expression), optional($.newline)),
         ),
       ),
     fn_decl_params: $ => repeat1(choice($.unit, $.fn_decl_param)),
@@ -321,10 +318,20 @@ module.exports = grammar({
     // match pattern - list cons
     mp_list_cons: $ =>
       prec.right(
-        seq(
-          field("head", $.match_pattern),
-          field("symbol_double_colon", alias("::", $.symbol)),
-          field("tail", $.match_pattern),
+        choice(
+          seq(
+            field("head", $.match_pattern),
+            field("symbol_double_colon", alias("::", $.symbol)),
+            field("tail", $.match_pattern),
+          ),
+
+          seq(
+            field("symbol_open_paren", alias("(", $.symbol)),
+            field("head", $.match_pattern),
+            field("symbol_double_colon", alias("::", $.symbol)),
+            field("tail", $.match_pattern),
+            field("symbol_close_paren", alias(")", $.symbol)),
+          ),
         ),
       ),
 
@@ -396,8 +403,8 @@ module.exports = grammar({
         $.variable_identifier,
         $.field_access,
         $.tuple_literal,
-        $.qualified_const_name,
         $.record_update,
+        $.qualified_const_or_fn_name,
       ),
 
     expression: $ =>
@@ -417,10 +424,10 @@ module.exports = grammar({
         $.pipe_expression,
       ),
 
-    qualified_const_name: $ =>
+    qualified_const_or_fn_name: $ =>
       seq(
         repeat(seq($.module_identifier, alias(".", $.symbol))),
-        $.constant_identifier,
+        $.constant_or_fn_identifier,
       ),
 
     paren_expression: $ =>
@@ -529,8 +536,15 @@ module.exports = grammar({
       ),
 
     char_or_string_escape_sequence: _ =>
-      token.immediate(seq("\\", /(\"|\'|\\|\/|a|b|f|n|r|t|v|u[0-9a-fA-F]{4})/)),
-
+      token.immediate(
+        choice(
+          seq("\\", /(\"|\'|\\|\/|a|b|f|n|r|t|v)/),
+          seq("\\", "x", /[0-9a-fA-F]{2}/),
+          seq("\\", "X", /[0-9a-fA-F]{4}/),
+          seq("\\", "u", /[0-9a-fA-F]{4}/),
+          seq("\\", "U", /[0-9a-fA-F]{8}/),
+        ),
+      ),
     //
     // Infix operations
     infix_operation: $ =>
@@ -1109,6 +1123,7 @@ module.exports = grammar({
 
     // e.g. `newline` in `const newline = '\n'`
     constant_identifier: $ => /[a-z_][a-zA-Z0-9_']*/,
+    constant_or_fn_identifier: $ => /[a-z_][a-zA-Z0-9_']*/,
 
     /** e.g. `x` in `let double (x: Int) = x + x`
      *

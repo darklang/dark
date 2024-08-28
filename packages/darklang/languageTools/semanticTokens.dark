@@ -87,9 +87,15 @@ module Darklang =
         let tokenize (c: WrittenTypes.ConstantIdentifier) : List<SemanticToken> =
           [ makeToken c.range TokenType.VariableName ]
 
-      module QualifiedConstIdentifier =
+      module ConstantOrFnIdentifier =
         let tokenize
-          (q: WrittenTypes.QualifiedConstantIdentifier)
+          (id: WrittenTypes.ConstantOrFnIdentifier)
+          : List<SemanticToken> =
+          [ makeToken id.range TokenType.VariableName ]
+
+      module QualifiedConstOrFnIdentifier =
+        let tokenize
+          (q: WrittenTypes.QualifiedConstantOrFnIdentifier)
           : List<SemanticToken> =
           [ // Darklang.Stdlib.List
             (q.modules
@@ -97,7 +103,7 @@ module Darklang =
              |> Stdlib.List.flatten)
 
             // empty
-            ConstantIdentifier.tokenize q.constant ]
+            ConstantOrFnIdentifier.tokenize q.constantOrFn ]
           |> Stdlib.List.flatten
 
       module FnIdentifier =
@@ -930,7 +936,7 @@ module Darklang =
           // x
           | EVariable(range, _varName) -> [ makeToken range TokenType.VariableName ]
 
-          | EConstant(range, c) -> QualifiedConstIdentifier.tokenize c
+          | EConstantOrFn(range, id) -> QualifiedConstOrFnIdentifier.tokenize id
 
           // person.name
           | EFieldAccess(_range, expr, (r, fieldName), symbolDot) ->

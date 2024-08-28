@@ -9,8 +9,8 @@ Stdlib.List.empty
 (source_file
   (expression
     (simple_expression
-      (qualified_const_name
-        (module_identifier) (symbol) (module_identifier) (symbol) (constant_identifier)
+      (qualified_const_or_fn_name
+        (module_identifier) (symbol) (module_identifier) (symbol) (constant_or_fn_identifier)
       )
     )
   )
