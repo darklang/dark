@@ -503,7 +503,6 @@ module Darklang =
             match constantOrFn with
             | Const c -> ProgramTypes.Expr.EConstant(gid (), c)
             | Fn f -> ProgramTypes.Expr.EFnName(gid (), f)
-            | _ -> ProgramTypes.Expr.EVariable (gid ()) id.constantOrFn.name
 
           | EFieldAccess(_, expr, (_, fieldName), _) ->
             ProgramTypes.Expr.EFieldAccess(
