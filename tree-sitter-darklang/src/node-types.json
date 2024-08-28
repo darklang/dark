@@ -1285,6 +1285,10 @@
         {
           "type": "indent",
           "named": true
+        },
+        {
+          "type": "newline",
+          "named": true
         }
       ]
     }

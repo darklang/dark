@@ -24,7 +24,7 @@ Builtin.printLine (myFn ())
     (symbol)
     (type_reference (builtin_type))
     (symbol)
-    (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+    (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))) (newline)
   )
   (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
   (expression
