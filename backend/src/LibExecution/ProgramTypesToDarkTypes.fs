@@ -949,7 +949,7 @@ module Const =
       | PT.Const.CUInt128 i -> "CUInt128", [ DUInt128 i ]
       | PT.Const.CFloat(sign, w, f) ->
         "CFloat", [ Sign.toDT sign; DString w; DString f ]
-      | PT.Const.CChar c -> "CChar", [ DChar c ]
+      | PT.Const.CChar c -> "CChar", [ DString c ]
       | PT.Const.CString s -> "CString", [ DString s ]
 
       | PT.Const.CTuple(first, second, theRest) ->
