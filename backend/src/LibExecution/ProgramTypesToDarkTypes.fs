@@ -921,6 +921,9 @@ module Expr =
             Exception.raiseInternal "Invalid record update" [ "update", update ])
       PT.ERecordUpdate(uint64 id, fromDT record, updates)
 
+    | DEnum(_, _, [], "EConstant", [ DInt64 id; name ]) ->
+      PT.EConstant(uint64 id, NameResolution.fromDT FQConstantName.fromDT name)
+
     | e -> Exception.raiseInternal "Invalid Expr" [ "e", e ]
 
 
@@ -987,6 +990,7 @@ module Const =
     | DEnum(_, _, [], "CBool", [ DBool b ]) -> PT.Const.CBool b
     | DEnum(_, _, [], "CString", [ DString s ]) -> PT.Const.CString s
     | DEnum(_, _, [], "CChar", [ DChar c ]) -> PT.Const.CChar c
+    | DEnum(_, _, [], "CChar", [ DString c ]) -> PT.Const.CChar c
     | DEnum(_, _, [], "CFloat", [ sign; DString w; DString f ]) ->
       PT.Const.CFloat(Sign.fromDT sign, w, f)
     | DEnum(_, _, [], "CUnit", []) -> PT.Const.CUnit
