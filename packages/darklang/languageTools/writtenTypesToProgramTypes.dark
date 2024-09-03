@@ -504,7 +504,8 @@ module Darklang =
             | Ok(Const c) -> ProgramTypes.Expr.EConstant(gid (), c)
             | Ok(Fn f) -> ProgramTypes.Expr.EFnName(gid (), f)
             | Error _ ->
-              ProgramTypes.Expr.EVariable (gid ()) constantOrFn.constantOrFn.name
+              // CLEANUP: Rethink this solution. It was added to allow failure during the first pass of parsing, where names aren't yet resolved
+              ProgramTypes.Expr.EVariable (gid ()) id.constantOrFn.name
 
           | EFieldAccess(_, expr, (_, fieldName), _) ->
             ProgramTypes.Expr.EFieldAccess(

@@ -989,7 +989,6 @@ module Const =
     | DEnum(_, _, [], "CUInt128", [ DUInt128 i ]) -> PT.Const.CUInt128 i
     | DEnum(_, _, [], "CBool", [ DBool b ]) -> PT.Const.CBool b
     | DEnum(_, _, [], "CString", [ DString s ]) -> PT.Const.CString s
-    | DEnum(_, _, [], "CChar", [ DChar c ]) -> PT.Const.CChar c
     | DEnum(_, _, [], "CChar", [ DString c ]) -> PT.Const.CChar c
     | DEnum(_, _, [], "CFloat", [ sign; DString w; DString f ]) ->
       PT.Const.CFloat(Sign.fromDT sign, w, f)
