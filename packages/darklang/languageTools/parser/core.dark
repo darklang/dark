@@ -45,6 +45,9 @@ module Darklang =
       let getText (node: ParsedNode) : String = node.text
       let getRange (node: ParsedNode) : Range = node.range
 
+      let emptyVar = "___"
+      let nameOrBlank (v: String) : String = if v == emptyVar then "" else v
+
       let findNodeByFieldName
         (node: ParsedNode)
         (fieldName: String)
@@ -228,7 +231,13 @@ module Darklang =
               | [ dictPairNode; _separator ] ->
                 let keyNode =
                   findAndParseRequired dictPairNode "key" (fun node ->
-                    (node.range, Parser.getText node) |> Stdlib.Result.Result.Ok)
+                    match node.typ with
+                    | "double_backtick_identifier" ->
+                      let key = node.text |> Stdlib.String.slice 2L -2L
+                      (node.range, key) |> Stdlib.Result.Result.Ok
+                    | _ ->
+                      (node.range, nameOrBlank (Parser.getText node))
+                      |> Stdlib.Result.Result.Ok)
 
                 let symbolEqualsNode = findField dictPairNode "symbol_equals"
 
@@ -242,7 +251,13 @@ module Darklang =
               | [ dictPairNode ] ->
                 let keyNode =
                   findAndParseRequired dictPairNode "key" (fun node ->
-                    (node.range, Parser.getText node) |> Stdlib.Result.Result.Ok)
+                    match node.typ with
+                    | "double_backtick_identifier" ->
+                      let key = node.text |> Stdlib.String.slice 2L -2L
+                      (node.range, key) |> Stdlib.Result.Result.Ok
+                    | _ ->
+                      (node.range, nameOrBlank (Parser.getText node))
+                      |> Stdlib.Result.Result.Ok)
 
                 let symbolEqualsNode = findField dictPairNode "symbol_equals"
 
