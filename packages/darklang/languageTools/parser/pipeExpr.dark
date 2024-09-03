@@ -105,33 +105,18 @@ module Darklang =
         let parsePipeEnum
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.PipeExpr, WrittenTypes.Unparseable> =
-          let typeNameNode = findField node "type_name"
-          let symbolDotNode = findField node "symbol_dot"
-          let caseNameNode = findField node "case_name"
-
-          let enumFieldsNode =
-            (findNodeByFieldName node "enum_fields")
-            |> Stdlib.Option.map (fun enumFieldsNode ->
-              enumFieldsNode.children
-              |> Stdlib.List.map (fun fieldNode -> Expr.parse fieldNode)
-              |> Stdlib.Result.collect)
-
-            |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
-
-          match typeNameNode, symbolDotNode, caseNameNode, enumFieldsNode with
-          | Ok typeNameNode, Ok symbolDotNode, Ok caseNameNode, Ok enumFieldsNode ->
-            let typeName = typeNameNode.text |> Stdlib.String.split "."
-
-            (WrittenTypes.PipeExpr.EPipeEnum(
-              node.range,
-              (typeNameNode.range, typeName),
-              (caseNameNode.range, caseNameNode.text),
-              enumFieldsNode,
-              symbolDotNode.range
-            ))
-            |> Stdlib.Result.Result.Ok
-
-          | _ -> createUnparseableError node
+          baseParseEnum
+            Expr.parse
+            node
+            (fun (range, typeName, caseName, enumFields, symbolDot) ->
+              (WrittenTypes.PipeExpr.EPipeEnum(
+                range,
+                typeName,
+                caseName,
+                enumFields,
+                symbolDot
+              ))
+              |> Stdlib.Result.Result.Ok)
 
 
         let parsePipeFnCall
