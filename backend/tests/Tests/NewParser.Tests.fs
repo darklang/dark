@@ -617,7 +617,7 @@ let exprs =
     t
       "dict with double_backtick_identifier"
       "Dict { ``Content-Length`` = 1L }"
-      "Dict { ``Content-Length`` = 1L }"
+      "Dict { Content-Length = 1L }"
       []
       []
       []

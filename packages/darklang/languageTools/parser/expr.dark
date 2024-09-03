@@ -490,7 +490,7 @@ module Darklang =
             (WrittenTypes.Expr.EFieldAccess(
               node.range,
               expr,
-              (field.range, field.text),
+              (field.range, nameOrBlank field.text),
               symbolDot.range
             ))
             |> Stdlib.Result.Result.Ok
@@ -597,8 +597,15 @@ module Darklang =
                   ))
                   |> Stdlib.Result.Result.Ok)
 
-          | _ -> createUnparseableError child
+          | _ -> createUnparseableError node
 
+        // Helper function for parseLambda
+        let skipEmptyVar (node: List<ParsedNode>) : List<ParsedNode> =
+          node
+          |> Stdlib.List.filter (fun c ->
+            match c.typ with
+            | "let_pattern" when c.text == "___" -> false
+            | _ -> true)
 
         let parseLambda
           (node: ParsedNode)
@@ -609,6 +616,7 @@ module Darklang =
             match findField node "pats" with
             | Ok paramsNode ->
               paramsNode.children
+              |> skipEmptyVar
               |> Stdlib.List.map (fun pat -> parseLetPattern pat)
               |> Stdlib.Result.collect
 

@@ -171,14 +171,14 @@ module Darklang =
               |> Stdlib.String.join "."
 
             if owner == "Builtin" && modules == [] then
-              if builtinThingExists nameForLookup then
+              if builtinThingExists name.name then
                 (ProgramTypes.FQConstantName.Builtin
                   { name = name.name
                     version = name.version })
                 |> ProgramTypes.FQConstantName.FQConstantName.Builtin
                 |> Stdlib.Result.Result.Ok
               else
-                Error()
+                Stdlib.Result.Result.Error()
             else
               let find = pm.findConstant
 

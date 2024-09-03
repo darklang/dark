@@ -62,7 +62,7 @@ module Darklang =
             (owner: String)
             (currentModule: List<String>)
             (c: WrittenTypes.QualifiedConstantOrFnIdentifier)
-            : ConstOrFn =
+            : Stdlib.Result.Result<ConstOrFn, ProgramTypes.NameResolution<ProgramTypes.FQConstantName.FQConstantName>> =
             let nameToResolve =
               Stdlib.List.append
                 (Stdlib.List.map c.modules (fun (id, _) -> id.name))
@@ -85,10 +85,10 @@ module Darklang =
                 (WrittenTypes.Name.Unresolved(c.range, nameToResolve))
 
             match isFn with
-            | Ok _ -> isFn |> ConstOrFn.Fn
+            | Ok _ -> isFn |> ConstOrFn.Fn |> Stdlib.Result.Result.Ok
             | Error _ ->
               match isConstant with
-              | Ok _ -> isConstant |> ConstOrFn.Const
+              | Ok _ -> isConstant |> ConstOrFn.Const |> Stdlib.Result.Result.Ok
               | Error _ -> isConstant
 
         module Fn =
@@ -501,8 +501,11 @@ module Darklang =
               Identifiers.QualifiedConstOrFn.toPT onMissing pm owner currentModule id
 
             match constantOrFn with
-            | Const c -> ProgramTypes.Expr.EConstant(gid (), c)
-            | Fn f -> ProgramTypes.Expr.EFnName(gid (), f)
+            | Ok(Const c) -> ProgramTypes.Expr.EConstant(gid (), c)
+            | Ok(Fn f) -> ProgramTypes.Expr.EFnName(gid (), f)
+            | Error _ ->
+              // CLEANUP: Rethink this solution. It was added to allow failure during the first pass of parsing, where names aren't yet resolved
+              ProgramTypes.Expr.EVariable (gid ()) id.constantOrFn.name
 
           | EFieldAccess(_, expr, (_, fieldName), _) ->
             ProgramTypes.Expr.EFieldAccess(
