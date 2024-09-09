@@ -79,9 +79,9 @@ let eFieldAccess (expr : Expr) (fieldName : string) : Expr =
 //   |> PT2RT.FQFnName.toRT
 //   |> fun x -> EFnName(gid (), x)
 
-// let eLambda (pats : List<LetPattern>) (body : Expr) : Expr =
-//   let pats = NEList.ofListUnsafe "eLambda" [] pats
-//   ELambda(gid (), pats, body)
+let eLambda id (pats : List<LetPattern>) (body : Expr) : Expr =
+  let pats = NEList.ofListUnsafe "eLambda" [] pats
+  ELambda(id, pats, body)
 
 
 // let eFn'
@@ -102,13 +102,13 @@ let eFieldAccess (expr : Expr) (fieldName : string) : Expr =
 //   eFn' function_ version typeArgs args
 
 
-// let eApply
-//   (target : Expr)
-//   (typeArgs : List<TypeReference>)
-//   (args : List<Expr>)
-//   : Expr =
-//   let args = NEList.ofListUnsafe "eApply" [] args
-//   EApply(gid (), target, typeArgs, args)
+let eApply
+  (target : Expr)
+  (typeArgs : List<TypeReference>)
+  (args : List<Expr>)
+  : Expr =
+  let args = NEList.ofListUnsafe "eApply" [] args
+  EApply(gid (), target, typeArgs, args)
 
 
 

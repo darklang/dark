@@ -376,7 +376,7 @@ module Expect =
 
     | DDateTime _
     | DUuid _
-    | DFnVal _
+    | DApplicable _
     // | DDB _
      -> true
 
@@ -881,7 +881,7 @@ module Expect =
     | DDict _, _
     | DRecord _, _
     | DEnum _, _
-    | DFnVal _, _
+    | DApplicable _, _
     // | DDB _, _
      -> check path actual expected
 
@@ -954,7 +954,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DString _ // TODO: should actually traverse in interpolations
     | DUuid _
     | DDateTime _
-    | DFnVal _
+    | DApplicable _
     // | DDB _
      -> f dv
     f dv

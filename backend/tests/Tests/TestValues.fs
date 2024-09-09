@@ -243,3 +243,13 @@ module Expressions =
     let notRecord = eFieldAccess (eInt64 1) "key"
     let missingField = eFieldAccess Records.simple "missing"
     let nested = eFieldAccess (eFieldAccess Records.nested "outer") "key"
+
+
+  //module RecordUpdate =
+
+  module Lambdas =
+    let identityID = gid ()
+
+    let identityUnapplied = eLambda identityID [ lpVar "x" ] (eVar "x")
+
+    let identityApplied = eApply identityUnapplied [] [ eInt64 1 ]

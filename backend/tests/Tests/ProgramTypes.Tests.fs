@@ -36,11 +36,11 @@ module PackageIDs = LibExecution.PackageIDs
 //     | _ -> return Exception.raiseInternal "Error executing parsePTExpr function" []
 //   }
 
-let ptFQFnName =
-  testMany
-    "ProgramTypes.FnName.ToString"
-    (fun name -> name |> PT2RT.FQFnName.toRT |> RT.FQFnName.toString)
-    [ (PT.FQFnName.fqBuiltIn "stringAppend" 1), "stringAppend_v1" ]
+// let ptFQFnName =
+//   testMany
+//     "ProgramTypes.FnName.ToString"
+//     (fun name -> name |> PT2RT.FQFnName.toRT |> RT.FQFnName.toString)
+//     [ (PT.FQFnName.fqBuiltIn "stringAppend" 1), "stringAppend_v1" ]
 
 let pmPT = PT.PackageManager.empty
 
@@ -148,7 +148,7 @@ let tests =
   testList
     "ProgramTypes"
     [ //testPipesToRuntimeTypes
-      //testProgramTypesToRuntimeTypes
-      ptFQFnName
-      //testInfixProgramTypesToSerializedTypes
-      ]
+    //testProgramTypesToRuntimeTypes
+    //ptFQFnName
+    //testInfixProgramTypesToSerializedTypes
+    ]

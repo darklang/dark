@@ -19,6 +19,7 @@ module PM = TestValues.PM
 let t name expr expected =
   testTask name {
     let actual = PT2RT.Expr.toRT 0 expr
+    let actual = (actual.registerCount, actual.instructions, actual.resultIn)
     return Expect.equal actual expected ""
   }
 
@@ -598,6 +599,46 @@ module RecordUpdate =
   let tests = testList "RecordUpdate" []
 
 
+module Lambda =
+  let identityUnapplied =
+    t
+      "fn x -> x"
+      E.Lambdas.identityUnapplied
+      (1,
+       [ RT.CreateLambda(
+           0,
+           { exprId = E.Lambdas.identityID
+             patterns = NEList.ofList (RT.LPVariable "x") []
+             symbolsToClose = [] |> Set.ofList
+             instructions =
+               { registerCount = 1
+                 instructions = [ RT.GetVar(0, "x") ]
+                 resultIn = 0 } }
+         ) ],
+       0)
+
+  let identityApplied =
+    t
+      "(fn x -> x) 1"
+      E.Lambdas.identityApplied
+      (3,
+       [ RT.CreateLambda(
+           0,
+           { exprId = E.Lambdas.identityID
+             patterns = NEList.ofList (RT.LPVariable "x") []
+             symbolsToClose = [] |> Set.ofList
+             instructions =
+               { registerCount = 1
+                 instructions = [ RT.GetVar(0, "x") ]
+                 resultIn = 0 } }
+         )
+         RT.LoadVal(1, RT.DInt64 1L)
+         RT.Apply(2, 0, [], NEList.ofList 1 []) ],
+       2)
+
+  let tests = testList "Lambda" [ identityUnapplied; identityApplied ]
+
+
 let tests =
   testList
     "PT2RT"
@@ -611,4 +652,5 @@ let tests =
       Match.tests
       Records.tests
       RecordFieldAccess.tests
-      RecordUpdate.tests ]
+      RecordUpdate.tests
+      Lambda.tests ]

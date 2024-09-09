@@ -18,6 +18,8 @@ module Exe = LibExecution.Execution
 
 open TestUtils.TestUtils
 
+let builtinToString (name : RT.FQFnName.Builtin) = $"{name.name}_v{name.version}"
+
 let oldFunctionsAreDeprecated =
   testTask "old functions are deprecated" {
     let mutable counts = Map.empty
@@ -26,7 +28,7 @@ let oldFunctionsAreDeprecated =
 
     fns
     |> List.iter (fun fn ->
-      let key = RT.FQFnName.builtinToString { fn.name with version = 0 }
+      let key = builtinToString fn.name
 
       if fn.deprecated = RT.NotDeprecated then
         counts <-

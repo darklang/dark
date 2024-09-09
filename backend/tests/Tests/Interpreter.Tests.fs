@@ -13,7 +13,12 @@ module RTE = RT.RuntimeError
 module E = TestValues.Expressions
 module PM = TestValues.PM
 
-let t name ptExpr expectedInsts =
+let tCheckVM
+  name
+  ptExpr
+  expectedInsts
+  (extraVmStateAssertions : RT.VMState -> unit)
+  =
   testTask name {
     let vmState =
       ptExpr
@@ -24,8 +29,15 @@ let t name ptExpr expectedInsts =
       executionStateFor PT.PackageManager.empty (System.Guid.NewGuid()) false false
 
     let! actual = LibExecution.Interpreter.eval exeState vmState |> Ply.toTask
-    return Expect.equal actual expectedInsts ""
+    Expect.equal actual expectedInsts ""
+
+    extraVmStateAssertions vmState
   }
+
+let t name ptExpr expectedInsts =
+  tCheckVM name ptExpr expectedInsts (ignore<RT.VMState>)
+
+
 
 let tFail name ptExpr expectedRte =
   testTask name {
@@ -302,6 +314,22 @@ module RecordFieldAccess =
     testList "RecordFieldAccess" [ simple; notRecord; missingField; nested ]
 
 
+module Lambdas =
+  let identityUnapplied =
+    tCheckVM
+      "fn x -> x"
+      E.Lambdas.identityUnapplied
+      (RT.DApplicable(
+        RT.Lambda
+          { exprId = E.Lambdas.identityID; symtable = Map.empty; argsSoFar = [] }
+      ))
+      (fun vm -> Expect.isFalse (Map.isEmpty vm.lambdas) "no lambdas in VMState")
+
+  let identityApplied = t "(fn x -> x) 1" E.Lambdas.identityApplied (RT.DInt64 1L)
+
+  let tests = testList "Lambdas" [ identityUnapplied; identityApplied ]
+
+
 let tests =
   testList
     "Interpreter"
@@ -314,4 +342,5 @@ let tests =
       Tuples.tests
       Match.tests
       Records.tests
-      RecordFieldAccess.tests ]
+      RecordFieldAccess.tests
+      Lambdas.tests ]

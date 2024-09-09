@@ -142,6 +142,17 @@ type LetPattern =
   /// `let () = ()`
   | LPUnit of id
 
+module LetPattern =
+  let rec symbolsUsed (pattern : LetPattern) : Set<string> =
+    match pattern with
+    | LPVariable(_, name) -> Set.singleton name
+    | LPTuple(_, first, second, rest) ->
+      Set.unionMany
+        [ symbolsUsed first
+          symbolsUsed second
+          rest |> List.map symbolsUsed |> Set.unionMany ]
+    | LPUnit _ -> Set.empty
+
 
 /// Used for pattern matching in a match statement
 type MatchPattern =
@@ -312,19 +323,19 @@ type Expr =
   | ETuple of id * Expr * Expr * List<Expr>
 
   // // -- "Applying" args to things, such as fns and lambdas --
-  // /// This is a function call, the first expression is the value of the function.
-  // /// - `expr (args[0])`
-  // /// - `expr (args[0]) (args[1])`
-  // /// - `expr<typeArg[0]> (args[0])`
-  // | EApply of id * expr : Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
+  /// This is a function call, the first expression is the value of the function.
+  /// - `expr (args[0])`
+  /// - `expr (args[0]) (args[1])`
+  /// - `expr<typeArg[0]> (args[0])`
+  | EApply of id * expr : Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
 
   /// Reference a function name, _usually_ so we can _apply_ it with args
   | EFnName of id * NameResolution<FQFnName.FQFnName>
 
-  // // Composed of a parameters * the expression itself
-  // // The id in the varname list is the analysis id, used to get a livevalue
-  // // from the analysis engine
-  // | ELambda of id * pats : NEList<LetPattern> * body : Expr
+  // Composed of a parameters * the expression itself
+  // The id in the varname list is the analysis id, used to get a livevalue
+  // from the analysis engine
+  | ELambda of id * pats : NEList<LetPattern> * body : Expr
 
   // /// Calls upon an infix function
   // | EInfix of id * Infix * lhs : Expr * rhs : Expr
@@ -417,11 +428,11 @@ module Expr =
     | ELet(id, _, _, _)
     | EIf(id, _, _, _)
     //| EInfix(id, _, _, _)
-    // | ELambda(id, _, _)
+    | ELambda(id, _, _)
     | EFnName(id, _)
     | ERecordFieldAccess(id, _, _)
     | EVariable(id, _)
-    //| EApply(id, _, _, _)
+    | EApply(id, _, _, _)
     | EList(id, _)
     | EDict(id, _)
     | ETuple(id, _, _, _)

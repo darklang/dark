@@ -162,8 +162,8 @@ let rec private execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
         segments
         |> List.iter (fun seg ->
           match seg with
-          | StringSegment.Text s -> sb.Append s |> ignore<System.Text.StringBuilder>
-          | StringSegment.Interpolated reg ->
+          | Text s -> sb.Append s |> ignore<System.Text.StringBuilder>
+          | Interpolated reg ->
             match vm.registers[reg] with
             | DString s -> sb.Append s |> ignore<System.Text.StringBuilder>
             | _ -> raiseRTE (RTE.String RTE.Strings.Error.InvalidStringAppend))
@@ -281,20 +281,48 @@ let rec private execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
         vm.registers[enumReg] <- DEnum(typeName, typeName, [], caseName, fields)
         counter <- counter + 1
 
+      | CreateLambda(lambdaReg, impl) ->
+        vm.lambdas <- Map.add impl.exprId impl vm.lambdas
+        vm.registers[lambdaReg] <-
+          { exprId = impl.exprId; symtable = Map.empty; argsSoFar = [] }
+          |> Applicable.Lambda
+          |> DApplicable
+        counter <- counter + 1
 
-      // == Working with things that Apply (like fns, lambdas) ==
-      // // `add (increment 1L) (3L)` and store results in `putResultIn`
-      // // At this point, the 'increment' has already been evaluated.
-      // // But maybe that's something we should change, (CLEANUP)
-      // // so that we don't execute things until they're needed
-      // | Apply(putResultIn, thingToCallReg, typeArgs, argRegs) ->
-      //   // should we instead pass in register indices? probably...
-      //   let args = argRegs |> NEList.map (fun r -> vm.registers[r])
-      //   //debuG "args" (NEList.length args)
-      //   let thingToCall = vm.registers[thingToCallReg]
-      //   let! result = call exeState vm thingToCall typeArgs args
-      //   vm.registers[putResultIn] <- result
-      //   counter <- counter + 1
+
+      // == Working with things that Apply (fns, lambdas) ==
+      // `add (increment 1L) (3L)` and store results in `putResultIn`
+      | Apply(putResultIn, thingToCallReg, _typeArgs, argRegs) ->
+        let thingToCall = vm.registers[thingToCallReg]
+
+        let result =
+          match thingToCall with
+          | DApplicable applicable ->
+            match applicable with
+            | Lambda lambda ->
+              let impl = Map.findUnsafe lambda.exprId vm.lambdas
+
+              // TODO: too many args
+              if
+                (NEList.length impl.patterns) = (lambda.argsSoFar.Length
+                                                 + NEList.length argRegs)
+              then
+                DUnit // TODO
+              else
+                // TODO
+                DApplicable applicable
+
+            | NamedFn _namedFn ->
+              // TODO
+              DApplicable applicable
+
+          | _ ->
+            RTE.ExpectedApplicableButNot(Dval.toValueType thingToCall, thingToCall)
+            |> raiseRTE
+
+        vm.registers[putResultIn] <- result
+
+        counter <- counter + 1
 
 
       | RaiseNRE nre -> raiseRTE (RTE.NameResolution nre)

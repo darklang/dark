@@ -215,7 +215,7 @@ module MatchCase =
       matchValueInstrFn : int -> RT.Instruction
 
       /// Evaluation of the `whenCondition` (if it exists -- might be empty)
-      whenCondInstructions : RT.Instructions
+      whenCondInstructions : List<RT.Instruction>
 
       /// (jumpBy) -> instr
       /// `RT.JumpByIfFalse(jumpBy, whenCondResultReg)`
@@ -225,7 +225,7 @@ module MatchCase =
       /// Evaluation of the RHS
       ///
       /// Includes `CopyVal(resultReg, rhsResultReg)`
-      rhsInstrs : RT.Instructions
+      rhsInstrs : List<RT.Instruction>
 
       /// RC after all instructions
       ///
@@ -236,35 +236,39 @@ module MatchCase =
 
 
 module Expr =
-  let rec toRT (rc : int) (e : PT.Expr) : (int * RT.Instructions * RT.Register) =
+  let rec toRT (rc : int) (e : PT.Expr) : RT.Instructions =
+    let justLoadDval dv : RT.Instructions =
+      { registerCount = rc + 1
+        instructions = [ RT.LoadVal(rc, dv) ]
+        resultIn = rc }
+
     match e with
-    | PT.EUnit _id -> (rc + 1, [ RT.LoadVal(rc, RT.DUnit) ], rc)
+    | PT.EUnit _id -> justLoadDval RT.DUnit
 
-    | PT.EBool(_id, b) -> (rc + 1, [ RT.LoadVal(rc, RT.DBool b) ], rc)
+    | PT.EBool(_id, b) -> justLoadDval (RT.DBool b)
 
-    | PT.EInt8(_id, num) -> (rc + 1, [ RT.LoadVal(rc, RT.DInt8 num) ], rc)
-    | PT.EInt16(_id, num) -> (rc + 1, [ RT.LoadVal(rc, RT.DInt16 num) ], rc)
-    | PT.EInt32(_id, num) -> (rc + 1, [ RT.LoadVal(rc, RT.DInt32 num) ], rc)
-    | PT.EInt64(_id, num) -> (rc + 1, [ RT.LoadVal(rc, RT.DInt64 num) ], rc)
-    | PT.EInt128(_id, num) -> (rc + 1, [ RT.LoadVal(rc, RT.DInt128 num) ], rc)
-    | PT.EUInt8(_id, num) -> (rc + 1, [ RT.LoadVal(rc, RT.DUInt8 num) ], rc)
-    | PT.EUInt16(_id, num) -> (rc + 1, [ RT.LoadVal(rc, RT.DUInt16 num) ], rc)
-    | PT.EUInt32(_id, num) -> (rc + 1, [ RT.LoadVal(rc, RT.DUInt32 num) ], rc)
-    | PT.EUInt64(_id, num) -> (rc + 1, [ RT.LoadVal(rc, RT.DUInt64 num) ], rc)
-    | PT.EUInt128(_id, num) -> (rc + 1, [ RT.LoadVal(rc, RT.DUInt128 num) ], rc)
+    | PT.EInt8(_id, num) -> justLoadDval (RT.DInt8 num)
+    | PT.EInt16(_id, num) -> justLoadDval (RT.DInt16 num)
+    | PT.EInt32(_id, num) -> justLoadDval (RT.DInt32 num)
+    | PT.EInt64(_id, num) -> justLoadDval (RT.DInt64 num)
+    | PT.EInt128(_id, num) -> justLoadDval (RT.DInt128 num)
+    | PT.EUInt8(_id, num) -> justLoadDval (RT.DUInt8 num)
+    | PT.EUInt16(_id, num) -> justLoadDval (RT.DUInt16 num)
+    | PT.EUInt32(_id, num) -> justLoadDval (RT.DUInt32 num)
+    | PT.EUInt64(_id, num) -> justLoadDval (RT.DUInt64 num)
+    | PT.EUInt128(_id, num) -> justLoadDval (RT.DUInt128 num)
 
     | PT.EFloat(_id, sign, whole, fraction) ->
       let whole = if whole = "" then "0" else whole
       let fraction = if fraction = "" then "0" else fraction
-      (rc + 1, [ RT.LoadVal(rc, RT.DFloat(makeFloat sign whole fraction)) ], rc)
+      justLoadDval (RT.DFloat(makeFloat sign whole fraction))
 
-    | PT.EChar(_id, c) -> (rc + 1, [ RT.LoadVal(rc, RT.DChar c) ], rc)
+    | PT.EChar(_id, c) -> justLoadDval (RT.DChar c)
 
     | PT.EString(_id, segments) ->
       match segments with
       // if there's only one segment, just load it directly
-      | [ PT.StringText text ] ->
-        (rc + 1, [ RT.LoadVal(rc, RT.DString text) ], rc)
+      | [ PT.StringText text ] -> justLoadDval (RT.DString text)
 
       // otherwise, handle each segment separately
       // and then create a string from the parts
@@ -277,14 +281,17 @@ module Expr =
                 (rc, instrs, segments @ [ RT.StringSegment.Text text ])
 
               | PT.StringInterpolation expr ->
-                let (rcAfterExpr, exprInstrs, exprReg) = toRT rc expr
-                (rcAfterExpr,
-                 instrs @ exprInstrs,
-                 segments @ [ RT.Interpolated exprReg ]))
+                let exprInstrs = toRT rc expr
+
+                (exprInstrs.registerCount,
+                 instrs @ exprInstrs.instructions,
+                 segments @ [ RT.Interpolated exprInstrs.resultIn ]))
             (rc, [], [])
             segments
 
-        (rc + 1, instrs @ [ RT.CreateString(rc, segments) ], rc)
+        { registerCount = rc + 1
+          instructions = instrs @ [ RT.CreateString(rc, segments) ]
+          resultIn = rc }
 
 
     | PT.EList(_id, items) ->
@@ -295,11 +302,15 @@ module Expr =
         items
         |> List.fold
           (fun (rc, instrs, itemResultRegs) item ->
-            let (newRc, itemInstrs, innerResultReg) = toRT rc item
-            (newRc, instrs @ itemInstrs, itemResultRegs @ [ innerResultReg ]))
+            let itemInstrs = toRT rc item
+            (itemInstrs.registerCount,
+             instrs @ itemInstrs.instructions,
+             itemResultRegs @ [ itemInstrs.resultIn ]))
           init
 
-      (regCounter, instrs @ [ RT.CreateList(listReg, itemResultRegs) ], listReg)
+      { registerCount = regCounter
+        instructions = instrs @ [ RT.CreateList(listReg, itemResultRegs) ]
+        resultIn = listReg }
 
 
     | PT.EDict(_id, items) ->
@@ -310,50 +321,58 @@ module Expr =
         items
         |> List.fold
           (fun (rc, instrs, entryPairs) (key, value) ->
-            let (newRc, valueInstrs, valueReg) = toRT rc value
-            (newRc, instrs @ valueInstrs, entryPairs @ [ (key, valueReg) ]))
+            let itemInstrs = toRT rc value
+            (itemInstrs.registerCount,
+             instrs @ itemInstrs.instructions,
+             entryPairs @ [ (key, itemInstrs.resultIn) ]))
           init
 
-      (regCounter, instrs @ [ RT.CreateDict(dictReg, entryPairs) ], dictReg)
+      { registerCount = regCounter
+        instructions = instrs @ [ RT.CreateDict(dictReg, entryPairs) ]
+        resultIn = dictReg }
 
 
     | PT.ETuple(_id, first, second, theRest) ->
       // save the 'first' register for the result
       let tupleReg, rc = rc, rc + 1
 
-      let (rcAfterFirst, firstInstrs, firstReg) = toRT rc first
-      let (rcAfterSecond, secondInstrs, secondReg) = toRT rcAfterFirst second
+      let first = toRT rc first
+      let second = toRT first.registerCount second
       let (rcAfterAll, _rcsAfterTheRest, theRestInstrs, theRestRegs) =
         theRest
         |> List.fold
           (fun (rc, rcs, instrs, resultRegs) item ->
-            let (rcAfterItem, itemInstrs, itemResultReg) = toRT rc item
-            (rcAfterItem,
-             rcs @ [ rcAfterItem ],
-             instrs @ itemInstrs,
-             resultRegs @ [ itemResultReg ]))
-          (rcAfterSecond, [], [], [])
+            let itemInstrs = toRT rc item
+            (itemInstrs.registerCount,
+             rcs @ [ itemInstrs.registerCount ],
+             instrs @ itemInstrs.instructions,
+             resultRegs @ [ itemInstrs.resultIn ]))
+          (second.registerCount, [], [], [])
 
-      let instrs =
-        firstInstrs
-        @ secondInstrs
-        @ theRestInstrs
-        @ [ RT.CreateTuple(tupleReg, firstReg, secondReg, theRestRegs) ]
-
-      (rcAfterAll, instrs, tupleReg)
+      { registerCount = rcAfterAll
+        instructions =
+          first.instructions
+          @ second.instructions
+          @ theRestInstrs
+          @ [ RT.CreateTuple(tupleReg, first.resultIn, second.resultIn, theRestRegs) ]
+        resultIn = tupleReg }
 
 
     // let x = 1
     | PT.ELet(_id, pat, expr, body) ->
-      let (regCounter, exprInstrs, exprReg) = toRT rc expr
-      let patInstr = LetPattern.toInstr exprReg pat
-      let (regCounter, bodyInstrs, bodyExprReg) = toRT regCounter body
-      (regCounter, exprInstrs @ [ patInstr ] @ bodyInstrs, bodyExprReg)
+      let exprInstrs = toRT rc expr
+      let patInstr = LetPattern.toInstr exprInstrs.resultIn pat
+      let bodyInstrs = toRT exprInstrs.registerCount body
+      { registerCount = bodyInstrs.registerCount
+        instructions =
+          exprInstrs.instructions @ [ patInstr ] @ bodyInstrs.instructions
+        resultIn = bodyInstrs.resultIn }
 
 
     | PT.EVariable(_id, varName) ->
-      let reg = rc
-      (rc + 1, [ RT.GetVar(reg, varName) ], reg)
+      { registerCount = rc + 1
+        instructions = [ RT.GetVar(rc, varName) ]
+        resultIn = rc }
 
 
     | PT.EIf(_id, cond, thenExpr, elseExpr) ->
@@ -361,56 +380,64 @@ module Expr =
       // so we'll create this, and copy to it at the end of each branch
       let resultReg, rc = rc, rc + 1
 
-      let (rcAfterCond, condInstrs, condReg) = toRT rc cond
-      let jumpIfCondFalse jumpBy = [ RT.JumpByIfFalse(jumpBy, condReg) ]
+      let cond = toRT rc cond
+      let jumpIfCondFalse jumpBy = [ RT.JumpByIfFalse(jumpBy, cond.resultIn) ]
 
-      let (rcAfterThen, thenInstrs, thenResultReg) = toRT rcAfterCond thenExpr
-      let copyThenToResultInstr = [ RT.CopyVal(resultReg, thenResultReg) ]
+      let thenInstrs = toRT cond.registerCount thenExpr
+      let copyThenToResultInstr = [ RT.CopyVal(resultReg, thenInstrs.resultIn) ]
 
       match elseExpr with
       | None ->
         let instrs =
           [ RT.LoadVal(resultReg, RT.DUnit) ] // if `cond` is `false`, the (default) result should probably be Unit
-          @ condInstrs
+          @ cond.instructions
           @ jumpIfCondFalse (
             // goto the first instruction past the `if`
             // (the 1 is for the copy instruction)
-            List.length thenInstrs + 1
+            List.length thenInstrs.instructions + 1
           )
-          @ thenInstrs
+          @ thenInstrs.instructions
           @ copyThenToResultInstr
 
-        (rcAfterThen, instrs, resultReg)
+        { registerCount = thenInstrs.registerCount
+          instructions = instrs
+          resultIn = resultReg }
 
       | Some elseExpr ->
-        let (rcAfterElse, elseInstrs, elseResultReg) = toRT rcAfterThen elseExpr
-        let copyToResultInstr = [ RT.CopyVal(resultReg, elseResultReg) ]
+        let elseInstrs = toRT thenInstrs.registerCount elseExpr
+        let copyToResultInstr = [ RT.CopyVal(resultReg, elseInstrs.resultIn) ]
 
         let instrs =
           // cond -- if cond `false`, jump to start of 'else' block
-          condInstrs
+          cond.instructions
           @ jumpIfCondFalse (
             // goto the first instruction past the `if`
             // (first 1 is for the copy instruction)
             // (second 1 is for the jump instruction)
-            List.length thenInstrs + 1 + 1
+            List.length thenInstrs.instructions + 1 + 1
           )
 
           // then
-          @ thenInstrs
+          @ thenInstrs.instructions
           @ copyThenToResultInstr
-          @ [ RT.JumpBy(List.length elseInstrs + 1) ]
+          @ [ RT.JumpBy(List.length elseInstrs.instructions + 1) ]
 
           // else
-          @ elseInstrs
+          @ elseInstrs.instructions
           @ copyToResultInstr
 
-        (rcAfterElse, instrs, resultReg)
+        { registerCount = elseInstrs.registerCount
+          instructions = instrs
+          resultIn = resultReg }
 
 
     | PT.EFnName(_, Ok name) ->
-      let reg = rc
-      (rc + 1, [ RT.LoadVal(reg, RT.DFnVal(RT.NamedFn(FQFnName.toRT name))) ], reg)
+      let namedFn : RT.ApplicableNamedFn =
+        { name = FQFnName.toRT name; argsSoFar = [] }
+      let applicable = RT.DApplicable(RT.NamedFn namedFn)
+      { registerCount = rc + 1
+        instructions = [ RT.LoadVal(rc, applicable) ]
+        resultIn = rc }
 
     | PT.EFnName(_, Error nre) ->
       // TODO improve
@@ -418,47 +445,51 @@ module Expr =
       // It's ok to _reference_ a bad name, so long as we don't try to `apply` it.
       // maybe the 'value' here is (still) some unresolved name?
       // (which should fail when we apply it)
-      (rc, [ RT.RaiseNRE(NameResolutionError.toRT nre) ], rc)
+      { registerCount = rc
+        instructions = [ RT.RaiseNRE(NameResolutionError.toRT nre) ]
+        resultIn = rc }
 
 
-    // | PT.EApply(_id, thingToApplyExpr, typeArgs, args) ->
-    //   let (regCounter, thingToApplyInstrs, thingToApplyReg) =
-    //     // (usually, a fn name)
-    //     toRT rc thingToApplyExpr
-    //   // TODO: maybe one or both of these lists should be an `NEList`?
+    | PT.EApply(_id, thingToApplyExpr, typeArgs, args) ->
+      let thingToApply = toRT rc thingToApplyExpr
+      // TODO: maybe one or both of these lists should be an `NEList`?
 
-    //   // CLEANUP find a way to get rid of silly NEList stuff
-    //   let (regCounter, argInstrs, argRegs) =
-    //     let init = (regCounter, [], [])
+      // CLEANUP find a way to get rid of silly NEList stuff
+      let (regCounter, argInstrs, argRegs) =
+        let init = (thingToApply.registerCount, [], [])
 
-    //     args
-    //     |> NEList.fold
-    //       (fun (rc, instrs, argResultRegs) arg ->
-    //         let (newRc, newInstrs, argResultReg) = toRT rc arg
-    //         (newRc, instrs @ newInstrs, argResultRegs @ [ argResultReg ]))
-    //       init
+        args
+        |> NEList.fold
+          (fun (rc, instrs, argResultRegs) arg ->
+            let newInstrs = toRT rc arg
+            (newInstrs.registerCount,
+             instrs @ newInstrs.instructions,
+             argResultRegs @ [ newInstrs.resultIn ]))
+          init
 
-    //   let putResultIn = regCounter
-    //   let callInstr =
-    //     RT.Apply(
-    //       putResultIn,
-    //       thingToApplyReg,
-    //       List.map TypeReference.toRT typeArgs,
-    //       NEList.ofListUnsafe "" [] argRegs
-    //     )
+      let putResultIn = regCounter
+      let callInstr =
+        RT.Apply(
+          putResultIn,
+          thingToApply.resultIn,
+          List.map TypeReference.toRT typeArgs,
+          NEList.ofListUnsafe "" [] argRegs
+        )
 
-    //   (regCounter + 1, thingToApplyInstrs @ argInstrs @ [ callInstr ], putResultIn)
+      { registerCount = regCounter + 1
+        instructions = thingToApply.instructions @ argInstrs @ [ callInstr ]
+        resultIn = putResultIn }
 
 
     | PT.EMatch(_id, expr, cases) ->
       // first, the easy part - compile the expression we're `match`ing against.
-      let (rcAfterExpr, exprInstrs, exprResultReg) = toRT rc expr
+      let expr = toRT rc expr
 
       // Shortly, we'll compile each of the cases.
       // We'll use this `resultReg` to store the final result of the match
       // , so we have a consistent place to look for it.
       // (similar to how we handle `EIf` -- refer to that for a simpler example)
-      let resultReg, rcAfterResult = rcAfterExpr, rcAfterExpr + 1
+      let resultReg, rcAfterResult = expr.registerCount, expr.registerCount + 1
 
       // We compile each `case` in two phases, because some instrs require knowing
       // how many instrs to jump over, which we can't know until we know the basics
@@ -473,21 +504,20 @@ module Expr =
             match c.whenCondition with
             | None -> (rcAfterResult, [], None)
             | Some whenCond ->
-              let (rcAfterWhenCond, whenCondInstrs, whenCondReg) =
-                toRT rcAfterResult whenCond
-              (rcAfterWhenCond,
-               whenCondInstrs,
-               Some(fun jumpBy -> RT.JumpByIfFalse(jumpBy, whenCondReg)))
+              let whenCond = toRT rcAfterResult whenCond
+              (whenCond.registerCount,
+               whenCond.instructions,
+               Some(fun jumpBy -> RT.JumpByIfFalse(jumpBy, whenCond.resultIn)))
 
           // compile the `rhs` of the case
-          let rcAfterRhs, rhsInstrs, rhsResultReg = toRT rcAfterWhenCond c.rhs
+          let rhs = toRT rcAfterWhenCond c.rhs
 
           // return the intermediate results, as far along as they are
-          { matchValueInstrFn = MatchPattern.toMatchInstr exprResultReg c.pat
+          { matchValueInstrFn = MatchPattern.toMatchInstr expr.resultIn c.pat
             whenCondInstructions = whenCondInstrs
             whenCondJump = whenCondJump
-            rhsInstrs = rhsInstrs @ [ RT.CopyVal(resultReg, rhsResultReg) ]
-            rc = rcAfterRhs })
+            rhsInstrs = rhs.instructions @ [ RT.CopyVal(resultReg, rhs.resultIn) ]
+            rc = rhs.registerCount })
 
       let countInstrsForCase (c : MatchCase.IntermediateValue) : int =
         1 // for the `MatchValue` instruction
@@ -535,17 +565,19 @@ module Expr =
             instrs @ caseInstrs)
           []
 
-      let instrs = exprInstrs @ caseInstrs @ [ RT.MatchUnmatched ]
+      let instrs = expr.instructions @ caseInstrs @ [ RT.MatchUnmatched ]
 
       let rcAtEnd = casesAfterFirstPhase |> List.map _.rc |> List.max
 
-      (rcAtEnd, instrs, resultReg)
+      { registerCount = rcAtEnd; instructions = instrs; resultIn = resultReg }
 
 
     // -- Records --
     | PT.ERecord(_id, Error nre, _typeArgs, _fields) ->
       let returnReg = 0 // TODO - not sure what to do here
-      (rc, [ RT.RaiseNRE(NameResolutionError.toRT nre) ], returnReg)
+      { registerCount = rc
+        instructions = [ RT.RaiseNRE(NameResolutionError.toRT nre) ]
+        resultIn = returnReg }
 
     | PT.ERecord(_id, Ok typeName, typeArgs, fields) ->
       // fields : List<string * Expr>
@@ -557,19 +589,34 @@ module Expr =
         fields
         |> List.fold
           (fun (rc, instrs, fieldRegs) (fieldName, fieldExpr) ->
-            let (newRc, newInstrs, fieldReg) = toRT rc fieldExpr
-            (newRc, instrs @ newInstrs, fieldRegs @ [ (fieldName, fieldReg) ]))
+            let field = toRT rc fieldExpr
+            (field.registerCount,
+             instrs @ field.instructions,
+             fieldRegs @ [ (fieldName, field.resultIn) ]))
           (rc, [], [])
 
-      (rcAfterFields,
-       instrs
-       @ [ RT.CreateRecord(
-             recordReg,
-             FQTypeName.toRT typeName,
-             List.map TypeReference.toRT typeArgs,
-             fields
-           ) ],
-       recordReg)
+
+
+      // (rcAfterFields,
+      //  instrs
+      //  @ [ RT.CreateRecord(
+      //        recordReg,
+      //        FQTypeName.toRT typeName,
+      //        List.map TypeReference.toRT typeArgs,
+      //        fields
+      //      ) ],
+      //  recordReg)
+
+      { registerCount = rcAfterFields
+        instructions =
+          instrs
+          @ [ RT.CreateRecord(
+                recordReg,
+                FQTypeName.toRT typeName,
+                List.map TypeReference.toRT typeArgs,
+                fields
+              ) ]
+        resultIn = recordReg }
 
     // | PT.ERecordUpdate(_id, expr, updates) ->
     //   let (rcAfterOriginalRecord, originalRecordInstrs, originalRecordReg) =
@@ -592,16 +639,21 @@ module Expr =
     //   (rc, instrs, targetReg)
 
     | PT.ERecordFieldAccess(_id, expr, fieldName) ->
-      let (rcAfterExpr, exprInstrs, exprReg) = toRT rc expr
-      (rcAfterExpr + 1,
-       exprInstrs @ [ RT.GetRecordField(rcAfterExpr, exprReg, fieldName) ],
-       rcAfterExpr)
+      let expr = toRT rc expr
+
+      { registerCount = expr.registerCount + 1
+        instructions =
+          expr.instructions
+          @ [ RT.GetRecordField(expr.registerCount, expr.resultIn, fieldName) ]
+        resultIn = expr.registerCount }
 
 
     // -- Enums --
     | PT.EEnum(_id, Error nre, _caseName, _typeArgs, _fields) ->
       let returnReg = 0 // TODO - not sure what to do here
-      (rc, [ RT.RaiseNRE(NameResolutionError.toRT nre) ], returnReg)
+      { registerCount = rc
+        instructions = [ RT.RaiseNRE(NameResolutionError.toRT nre) ]
+        resultIn = returnReg }
 
     | PT.EEnum(_id, Ok typeName, typeArgs, caseName, fields) ->
       // fields : List<string * Expr>
@@ -611,20 +663,46 @@ module Expr =
         fields
         |> List.fold
           (fun (rc, instrs, fieldRegs) fieldExpr ->
-            let (newRc, newInstrs, fieldReg) = toRT rc fieldExpr
-            (newRc, instrs @ newInstrs, fieldRegs @ [ fieldReg ]))
+            let afterField = toRT rc fieldExpr
+            (afterField.registerCount,
+             instrs @ afterField.instructions,
+             fieldRegs @ [ afterField.resultIn ]))
           (rc, [], [])
 
-      (rcAfterFields,
-       instrs
-       @ [ RT.CreateEnum(
-             enumReg,
-             FQTypeName.toRT typeName,
-             List.map TypeReference.toRT typeArgs,
-             caseName,
-             fields
-           ) ],
-       enumReg)
+      { registerCount = rcAfterFields
+        instructions =
+          instrs
+          @ [ RT.CreateEnum(
+                enumReg,
+                FQTypeName.toRT typeName,
+                List.map TypeReference.toRT typeArgs,
+                caseName,
+                fields
+              ) ]
+        resultIn = enumReg }
+
+
+    | PT.ELambda(id, pats, body) ->
+      let symbolsToClose =
+        // exclude symbols that are defined/overridden in the lambda's parameters/pats
+        let usedInBody = ProgramTypesAst.symbolsUsedIn body
+        let usedInPats =
+          pats
+          |> NEList.toList
+          |> List.map PT.LetPattern.symbolsUsed
+          |> Set.unionMany
+        Set.difference usedInBody usedInPats
+
+      let impl : RT.LambdaImpl =
+        { exprId = id
+          patterns = NEList.map LetPattern.toRT pats
+          symbolsToClose = symbolsToClose
+          instructions = toRT 0 body }
+
+      { registerCount = rc + 1
+        instructions = [ RT.CreateLambda(rc, impl) ]
+        resultIn = rc }
+
 
 
 

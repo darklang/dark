@@ -46,20 +46,20 @@ let createState
 let executeExpr
   (exeState : RT.ExecutionState)
   (inputVars : RT.Symtable)
-  (instructionsWithContext : RT.InstructionsWithContext)
+  (instrs : RT.Instructions)
   : Task<RT.ExecutionResult> =
   task {
-    let registersNeeded, instructions, resultReg = instructionsWithContext
     let vmState : RT.VMState =
       { pc = 0
-        instructions = List.toArray instructions
-        registers = Array.zeroCreate registersNeeded
-        resultReg = resultReg
+        instructions = List.toArray instrs.instructions
+        registers = Array.zeroCreate instrs.registerCount
+        resultReg = instrs.resultIn
 
         callStack = RT.CallStack.fromEntryPoint RT.ExecutionPoint.Script // TODO
 
         symbolTable = inputVars
-        typeSymbolTable = Map.empty }
+        typeSymbolTable = Map.empty
+        lambdas = Map.empty }
     try
       try
         vmState.symbolTable <-
