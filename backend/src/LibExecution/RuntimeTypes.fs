@@ -182,21 +182,6 @@ and [<RequireQualifiedAccess>] ValueType =
   | Known of KnownType
 
 
-/// The LHS pattern in
-/// - a `let` binding (in `let x = 1`, the `x`)
-/// - a lambda (in `fn (x, y) -> x + y`, the `(x, y)`
-type LetPattern =
-  /// `let x = 1`
-  | LPVariable of name : string
-
-  // /// `let _ = 1`
-  // | LPIgnored
-
-  /// `let (x, y) = (1, 2)`
-  | LPTuple of first : LetPattern * second : LetPattern * theRest : List<LetPattern>
-
-  /// `let () = ()`
-  | LPUnit
 
 
 type TypeReference =
@@ -277,6 +262,32 @@ type TypeReference =
 type TypeSymbolTable = Map<string, TypeReference>
 
 
+
+// ------------
+// Instructions ("bytecode")
+// ------------
+[<Measure>]
+type register
+
+type Register = int //<register> // TODO: unit of measure
+
+/// The LHS pattern in
+/// - a `let` binding (in `let x = 1`, the `x`)
+/// - a lambda (in `fn (x, y) -> x + y`, the `(x, y)`
+type LetPattern =
+  /// `let x = 1`
+  | LPVariable of extractTo : Register
+
+  // /// `let _ = 1`
+  // | LPIgnored
+
+  /// `let (x, y) = (1, 2)`
+  | LPTuple of first : LetPattern * second : LetPattern * theRest : List<LetPattern>
+
+  /// `let () = ()`
+  | LPUnit
+
+
 type MatchPattern =
   | MPUnit
   | MPBool of bool
@@ -301,15 +312,6 @@ type MatchPattern =
     theRest : List<MatchPattern>
   | MPVariable of string
 
-
-// ------------
-// Instructions ("bytecode")
-// ------------
-
-[<Measure>]
-type register
-
-type Register = int //<register> // TODO: unit of measure
 
 type StringSegment =
   | Text of string
@@ -338,37 +340,37 @@ type Instruction =
   /// Errors if the pattern doesn't match the value.
   | CheckLetPatternAndExtractVars of valueReg : Register * pat : LetPattern
 
-  /// Stores the value of a variable to a register
-  | GetVar of loadTo : Register * varName : string
+  // /// Stores the value of a variable to a register
+  // | GetVar of loadTo : Register * varName : string
 
 
   // == Working with Basic Types ==
-  | CreateString of targetReg : Register * segments : List<StringSegment>
+  | CreateString of createTo : Register * segments : List<StringSegment>
 
 
-  // == Flow Control ==
+  // // == Flow Control ==
 
-  // -- Jumps --
-  /// Go `n` instructions forward, if the value in the register is `false`
-  | JumpByIfFalse of instrsToJump : int * conditionReg : Register
+  // // -- Jumps --
+  // /// Go `n` instructions forward, if the value in the register is `false`
+  // | JumpByIfFalse of instrsToJump : int * conditionReg : Register
 
-  /// Go `n` instructions forward, unconditionally
-  | JumpBy of instrsToJump : int
+  // /// Go `n` instructions forward, unconditionally
+  // | JumpBy of instrsToJump : int
 
-  // -- Match --
-  /// Check if the value in the noted register the noted pattern,
-  /// and extract vars per MPVariable as relevant.
-  | CheckMatchPatternAndExtractVars of
-    // what we're matching against
-    valueReg : Register *
-    pat : MatchPattern *
-    // jump here if it doesn't match (to the next case, or to the "unmatched" instruction)
-    failJump : int
+  // // -- Match --
+  // /// Check if the value in the noted register the noted pattern,
+  // /// and extract vars per MPVariable as relevant.
+  // | CheckMatchPatternAndExtractVars of
+  //   // what we're matching against
+  //   valueReg : Register *
+  //   pat : MatchPattern *
+  //   // jump here if it doesn't match (to the next case, or to the "unmatched" instruction)
+  //   failJump : int
 
-  /// Could not find matching case in a match expression
-  /// CLEANUP we probably need a way to reference back to PT so we can get useful RTEs
-  /// TODO maybe make this a special case of Fail
-  | MatchUnmatched
+  // /// Could not find matching case in a match expression
+  // /// CLEANUP we probably need a way to reference back to PT so we can get useful RTEs
+  // /// TODO maybe make this a special case of Fail
+  // | MatchUnmatched
 
 
   // == Working with Collections ==
@@ -379,55 +381,59 @@ type Instruction =
     theRest : List<Register>
 
   /// Create a list, and type-check to ensure the items are of a consistent type
-  | CreateList of listRegister : Register * itemsToAdd : List<Register>
+  | CreateList of createTo : Register * itemsToAdd : List<Register>
 
   /// Create a dict, and type-check to ensure the entries are of a consistent type
-  | CreateDict of dictRegister : Register * entries : List<string * Register>
+  | CreateDict of createTo : Register * entries : List<string * Register>
 
 
-  // == Working with Custom Data ==
-  // -- Records --
-  | CreateRecord of
-    recordReg : Register *
-    typeName : FQTypeName.FQTypeName *
-    typeArgs : List<TypeReference> *
-    fields : List<string * Register>
+  // // == Working with Custom Data ==
+  // // -- Records --
+  // | CreateRecord of
+  //   createTo : Register *
+  //   typeName : FQTypeName.FQTypeName *
+  //   typeArgs : List<TypeReference> *
+  //   fields : List<string * Register>
 
-  // | CloneRecordWithUpdates of
+  // // | CloneRecordWithUpdates of
+  // //   createTo : Register *
+  // //   originalRecordReg : Register *
+  // //   updates : List<string * Register>
+
+  // | GetRecordField of
+  //   // todo: rename to "lhs"? Look into this.
   //   targetReg : Register *
-  //   originalRecordReg : Register *
-  //   updates : List<string * Register>
+  //   recordReg : Register *
+  //   fieldName : string
 
-  | GetRecordField of
-    targetReg : Register *
-    recordReg : Register *
-    fieldName : string
-
-  // -- Enums --
-  | CreateEnum of
-    enumReg : Register *
-    typeName : FQTypeName.FQTypeName *
-    typeArgs : List<TypeReference> *
-    caseName : string *
-    fields : List<Register>
+  // // -- Enums --
+  // | CreateEnum of
+  //   createTo : Register *
+  //   typeName : FQTypeName.FQTypeName *
+  //   typeArgs : List<TypeReference> *
+  //   caseName : string *
+  //   fields : List<Register>
 
 
-  // == Working with things that Apply ==
+  // // == Working with things that Apply ==
 
-  | CreateLambda of createTo : Register * lambda : LambdaImpl
+  // | CreateLambda of createTo : Register * lambda : LambdaImpl
 
-  /// Apply some args (and maybe type args) to something
-  /// (a named function, or lambda, etc)
-  | Apply of
-    putResultIn : Register *
-    thingToApply : Register *
-    //symbolsToClose : List<string> * // any symbols referenced in the thingToApply that should be closed
-    //typeSymbolsToClose : List<string> *
-    typeArgs : List<TypeReference> *
-    args : NEList<Register>
+  // /// Apply some args (and maybe type args) to something
+  // /// (a named function, or lambda, etc)
+  // | Apply of
+  //   createTo : Register *
+  //   thingToApply : Register *
+  //   //symbolsToClose : List<string> * // any symbols referenced in the thingToApply that should be closed
+  //   //typeSymbolsToClose : List<string> *
+  //   typeArgs : List<TypeReference> *
+  //   args : NEList<Register>
 
   // == Errors ==
   | RaiseNRE of NameResolutionError
+
+  | VarNotFound of name : string
+
 
 /// (rc, instructions, result register)
 and Instructions =
@@ -441,6 +447,26 @@ and Instructions =
     /// The register that will hold the result of the instructions
     resultIn : Register
   }
+
+// and InstructionsWithDebugSymbols =
+//   {
+//     /// How many registers are used in evaluating these instructions
+//     registerCount : int
+
+//     /// The instructions themselves -- but with source expr ID
+//     instructions : List<Instruction * id>
+
+//     /// The register that will hold the result of the instructions
+//     resultIn : Register
+//   }
+
+//   static member withoutDebugSymbols
+//     (self : InstructionsWithDebugSymbols)
+//     : Instructions =
+//     { registerCount = self.registerCount
+//       instructions = self.instructions |> List.map fst
+//       resultIn = self.resultIn }
+// and later, the expr sources are extracted out
 
 
 and DvalMap = Map<string, Dval>
@@ -477,54 +503,68 @@ and LambdaImpl =
 /// in a way that doesn't require us to go deeper in some call stack?
 and ApplicableNamedFn = { name : FQFnName.FQFnName; argsSoFar : List<Dval> }
 
+// if we're just evaluating a "raw expr," I suppose that's InputClosure?
+// eval probably handles whichever of these,
+// with a fn above that to coordinate things?
 and ApplicableLambda =
   {
     /// The lambda's ID, corresponding to the PT.Expr
     /// (the actual implementation is stored in the VMState)
     exprId : id
 
-    // TODO maybe we need a returnRegister or something
-    // or maybe that's handled by the apply
+    // we need registers here, right?
 
-    /// The symtable at the time of creation
-    /// (only copy what's noted in `symbolsToClose`)
-    symtable : Symtable
+
+    // /// The symtable at the time of creation (only copy what's noted in `symbolsToClose`)
+    // /// , along with anything created throughout processing so far
+    // symtable : Symtable
 
     // TODO: typeSymbolTable : TypeSymbolTable
 
     argsSoFar : List<Dval>
   }
-// member this.withAdditionalArgs (args : Dval) : ApplicableLambda =
-//   // ah but these should be type-checked as we add them. move this to TypeChecker instead.
-//   { this with argsSoFar = this.argsSoFar @ args  }
 
-/// Any thing that can be applied,
-/// along with anything needed within their application closure
-/// TODO: follow up with typeSymbols
-/// TODO needs a better name, clearly.
-and Applicable =
-  /// The details are in the LambdaImpl
-  /// , stored in the VMState after being loaded by a LoadLambda instruction
-  | Lambda of ApplicableLambda
+// // Is this a _kind_ of closure? I think so!
+// // So do we need
+// //
+// and CallFrameReference =
+//   | InputExpr
+//   | TopLevel of tlid
+//   | NamedFn of FQFnName.FQFnName
+//   | Lambda of id
 
-  | NamedFn of ApplicableNamedFn
+// /// TODO VMState holds a Map of these? and we fetch by ID?
+// /// specifically `Map<CallFrameReference, CallFrame>`? idk.
+// ///
+// /// Any of these things can be applied, and _somewhere_ have a set of instructions to evaluate
+// and CallFrame =
+//   /// for raw exprs, e.g. tests, one-off scripts, etc
+//   ///
+//   /// Thinking...
+//   /// I think this one actually needs its Instructions -- and maybe registers and such?
+//   /// This might be where more of VMState gets moved to.
+//   | InputExpr of parent : Option<CallFrameReference> * Instructions
+
+//   /// TODO probably good to 'migrate' some usages from "raw" expr evaluation to these.
+//   | TopLevel of parent : Option<CallFrameReference> * tlid
+
+//   | NamedFn of parent : Option<CallFrameReference> * ApplicableNamedFn
+
+//   /// Note: the impl details are stored "centrally" in the VMState
+//   /// in a LambdaImpl object, after being loaded by a LoadLambda instruction
+//   | Lambda of parent : CallFrameReference * ApplicableLambda
 
 
-(*
-let someOtherData = true
-let partiallyApplied = List.map (fun url -> (url, someOtherData, String.length url))
-let someOtherData = false
-let urls = ["https://stachu.net"; "https://darklang.com"]
-let urlsAndLengths = partiallyApplied urls
-*)
+// /// Any thing that can be applied,
+// /// along with anything needed within their application closure
+// /// TODO: follow up with typeSymbols
+// /// TODO needs a better name, clearly.
+// and Applicable =
+//   | Lambda of ApplicableLambda
 
-(*
-fn myAdd (x: Int) (y: Int): Int =
-  x + y
+//   | NamedFn of ApplicableNamedFn
 
-let increment = myAdd (3 - 2)
-let result = increment 5
-*)
+
 
 
 // We use NoComparison here to avoid accidentally using structural comparison
@@ -587,7 +627,7 @@ and [<NoComparison>] Dval =
     caseName : string *
     fields : List<Dval>
 
-  | DApplicable of Applicable
+//| DApplicable of Applicable
 
 // // References
 // | DDB of name : string
@@ -596,13 +636,13 @@ and [<NoComparison>] Dval =
 
 and DvalTask = Ply<Dval>
 
-/// Our record/tracking of any variable bindings in scope
-///
-/// i.e. within the execution of `x+y` in
-///  `let x = 1; let y = 2; x + y`
-/// , we would have a Symtable of
-///   `{ "x" => DInt64 1; "y" => DInt64 2 }`
-and Symtable = Map<string, Dval>
+// /// Our record/tracking of any variable bindings in scope
+// ///
+// /// i.e. within the execution of `x+y` in
+// ///  `let x = 1; let y = 2; x + y`
+// /// , we would have a Symtable of
+// ///   `{ "x" => DInt64 1; "y" => DInt64 2 }`
+// and Symtable = Map<string, Dval>
 
 
 and ExecutionPoint =
@@ -627,24 +667,26 @@ and ExecutionPoint =
 /// TODO maybe rename to ExprLocation
 and Source = ExecutionPoint * Option<id>
 
-and CallStack =
-  {
-    /// The entrypoint of the execution
-    /// (whatever we're executing for a user)
-    entrypoint : ExecutionPoint
+// and CallStack =
+//   {
+//     /// The entrypoint of the execution
+//     /// (whatever we're executing for a user)
+//     entrypoint : ExecutionPoint
 
-    // TODO: bring this back and do something with it,
-    // and improve it to be more useful
-    // (i.e. maintain order of calls, deal with recursions, etc.)
-    // See https://chatgpt.com/share/087935f9-44be-4686-8209-66e701e887b1
-    // /// All of the fns that have been called in this execution
-    // calledFns : Set<FQFnName.FQFnName>
+//     // TODO: bring this back and do something with it,
+//     // and improve it to be more useful
+//     // (i.e. maintain order of calls, deal with recursions, etc.)
+//     // See https://chatgpt.com/share/087935f9-44be-4686-8209-66e701e887b1
+//     // /// All of the fns that have been called in this execution
+//     // calledFns : Set<FQFnName.FQFnName>
 
-    /// The last-called thing (roughly)
-    ///
-    /// If we've encountered an exception, this should be where things failed
-    lastCalled : Source
-  }
+//     /// The last-called thing (roughly)
+//     ///
+//     /// If we've encountered an exception, this should be where things failed
+//     lastCalled : Source
+//   }
+
+and ThreadID = uuid
 
 and BuiltInParam =
   { name : string
@@ -954,9 +996,9 @@ module RuntimeError =
 
 
 
-module CallStack =
-  let fromEntryPoint (entrypoint : ExecutionPoint) : CallStack =
-    { entrypoint = entrypoint; lastCalled = (entrypoint, None) }
+// module CallStack =
+//   let fromEntryPoint (entrypoint : ExecutionPoint) : CallStack =
+//     { entrypoint = entrypoint; lastCalled = (entrypoint, None) }
 
 module TypeReference =
   let result (t1 : TypeReference) (t2 : TypeReference) : TypeReference =
@@ -976,11 +1018,11 @@ module TypeReference =
 /// The tricky part is that we do want the CallStack around, to report on,
 /// and to use for debugging, but the way the Interpreter+Execution is set up,
 /// there's no great single place to `try/with` to supply the call stack.
-exception RuntimeErrorException of Option<CallStack> * rte : RuntimeError.Error
+exception RuntimeErrorException of ThreadID * rte : RuntimeError.Error
 
 
-let raiseRTE (callStack : CallStack) (rte : RuntimeError.Error) : 'a =
-  raise (RuntimeErrorException(Some callStack, rte))
+let raiseRTE (threadId : ThreadID) (rte : RuntimeError.Error) : 'a =
+  raise (RuntimeErrorException(threadId, rte))
 
 // let raiseRTE (callStack : CallStack) (rte : RuntimeError) : 'a =
 //   raise (RuntimeErrorException(Some callStack, rte))
@@ -994,7 +1036,8 @@ let raiseRTE (callStack : CallStack) (rte : RuntimeError.Error) : 'a =
 /// Internally in the runtime, we allow throwing RuntimeErrorExceptions. At the
 /// boundary, typically in Execution.fs, we will catch the exception, and return
 /// this type.
-type ExecutionResult = Result<Dval, Option<CallStack> * RuntimeError.Error>
+/// TODO return a call stack or vmstate, or something, here
+type ExecutionResult = Result<Dval, RuntimeError.Error>
 
 /// IncorrectArgs should never happen, as all functions are type-checked before
 /// calling. If it does happen, it means that the type parameters in the Fn structure
@@ -1071,18 +1114,18 @@ module Dval =
     | DEnum(typeName, _, typeArgs, _, _) ->
       KTCustomType(typeName, typeArgs) |> ValueType.Known
 
-    | DApplicable applicable ->
-      match applicable with
-      | Lambda _lambda ->
-        // KTFn(
-        //   NEList.map (fun _ -> ValueType.Unknown) lambda.parameters,
-        //   ValueType.Unknown
-        // )
-        // |> ValueType.Known
-        ValueType.Unknown
+// | DApplicable applicable ->
+//   match applicable with
+//   | Lambda _lambda ->
+//     // KTFn(
+//     //   NEList.map (fun _ -> ValueType.Unknown) lambda.parameters,
+//     //   ValueType.Unknown
+//     // )
+//     // |> ValueType.Known
+//     ValueType.Unknown
 
-      // VTTODO look up type, etc
-      | NamedFn _named -> ValueType.Unknown
+//   // VTTODO look up type, etc
+//   | NamedFn _named -> ValueType.Unknown
 
 // // CLEANUP follow up when DDB has a typeReference
 // | DDB _ -> ValueType.Unknown
@@ -1136,8 +1179,13 @@ module PackageFn =
   type PackageFn =
     { id : uuid
       typeParams : List<string>
+
+      // CLEANUP I have an odd suspicion we might not need this field
+      // Maybe we just need a paramCount, and the Instructinos in PT2RT ????
       parameters : NEList<Parameter>
       returnType : TypeReference
+
+      // CLEANUP consider renaming - just `instructions` maybe?
       body : Instructions }
 
 
@@ -1405,35 +1453,77 @@ and ExecutionState =
 
 and Registers = Dval array
 
-and VMState =
-  {
-    /// Program counter -- what instruction index are we pointing at?
-    mutable pc : int
+and CallFrameContext =
+  | Source
+  | PackageFn of FQFnName.Package
 
-    instructions : Instruction array
+and CallFrame =
+  {
+    id : uuid
+
+    parent : Option<uuid>
+
+    argCount : int // TODO uint8
+
+    // TODO the instructions and resultReg should be extracted
+    // elsewhere so we have only one copy of them per CallFrameContext,
+    // in the VMState -- so we don't have to copy them around so much
+    context : CallFrameContext
+    instructions : Instruction array // move this elsewhere?
+    /// The register that the result of the program will be in
     resultReg : Register
 
 
-    mutable callStack : CallStack
+
+    /// Program counter (what instruction index we are currently 'at')
+    mutable pc : int
 
     registers : Registers // mutable because array?
-    mutable symbolTable : Symtable // should this be a ConcurrentDictionary rather than a Map that's `mutable`?
-    mutable typeSymbolTable : TypeSymbolTable // same here
-
-    mutable lambdas : Map<id, LambdaImpl>
   }
 
-  static member fromInstructions (entrypoint) (instrs : Instructions) : VMState =
-    { pc = 0
-      callStack = CallStack.fromEntryPoint entrypoint
 
-      instructions = List.toArray instrs.instructions
-      registers = Array.zeroCreate instrs.registerCount
-      resultReg = instrs.resultIn
+and VMState =
+  { callFrames : Map<uuid, CallFrame>
 
-      symbolTable = Map.empty
-      typeSymbolTable = Map.empty
-      lambdas = Map.empty }
+    currentFrame : uuid
+
+    //mutable lambdas : Map<id, LambdaImpl>
+
+    mutable threadID : uuid
+
+  // TODO: call stack separately
+
+  // Maybe these all belong in call frames.
+  // maybe the set of these _is_ the call frame?
+  //registers : Registers // mutable because array?
+  //mutable symbolTable : Symtable // should this be a ConcurrentDictionary rather than a Map that's `mutable`?
+  //mutable typeSymbolTable : TypeSymbolTable // same here
+  }
+
+  static member fromExpr(exprInstrs : Instructions) : VMState =
+    let callFrameId = System.Guid.NewGuid()
+
+    let callFrame : CallFrame =
+      { id = callFrameId
+        context = Source
+        pc = 0
+        argCount = 0
+        instructions = List.toArray exprInstrs.instructions
+        registers = Array.zeroCreate exprInstrs.registerCount
+        resultReg = exprInstrs.resultIn
+
+        parent = None }
+
+    { threadID = System.Guid.NewGuid()
+      currentFrame = callFrameId
+      callFrames = Map [ callFrameId, callFrame ] }
+
+
+
+//   // symbolTable = Map.empty
+//   // typeSymbolTable = Map.empty
+//   // lambdas = Map.empty
+//   }
 
 and Types =
   { typeSymbolTable : TypeSymbolTable
@@ -1536,29 +1626,29 @@ let consoleNotifier : Notifier =
     print $"A notification happened in the runtime:\n  {msg}\n  {tags}\n\n"
 
 
-let builtInParamToParam (p : BuiltInParam) : Param = { name = p.name; typ = p.typ }
+// let builtInParamToParam (p : BuiltInParam) : Param = { name = p.name; typ = p.typ }
 
-let builtInFnToFn (fn : BuiltInFn) : Fn =
-  { name = FQFnName.Builtin fn.name
-    typeParams = fn.typeParams
-    parameters =
-      fn.parameters
-      |> List.map builtInParamToParam
-      // We'd like to remove this and use NELists, but it's much too annoying to put
-      // this in every builtin fn definition
-      |> NEList.ofListUnsafe "builtInFnToFn" [ "name", fn.name ]
-    returnType = fn.returnType
-    previewable = fn.previewable
-    sqlSpec = fn.sqlSpec
-    fn = BuiltInFunction fn.fn }
+// let builtInFnToFn (fn : BuiltInFn) : Fn =
+//   { name = FQFnName.Builtin fn.name
+//     typeParams = fn.typeParams
+//     parameters =
+//       fn.parameters
+//       |> List.map builtInParamToParam
+//       // We'd like to remove this and use NELists, but it's much too annoying to put
+//       // this in every builtin fn definition
+//       |> NEList.ofListUnsafe "builtInFnToFn" [ "name", fn.name ]
+//     returnType = fn.returnType
+//     previewable = fn.previewable
+//     sqlSpec = fn.sqlSpec
+//     fn = BuiltInFunction fn.fn }
 
-let packageFnToFn (fn : PackageFn.PackageFn) : Fn =
-  let toParam (p : PackageFn.Parameter) : Param = { name = p.name; typ = p.typ }
+// let packageFnToFn (fn : PackageFn.PackageFn) : Fn =
+//   let toParam (p : PackageFn.Parameter) : Param = { name = p.name; typ = p.typ }
 
-  { name = FQFnName.Package fn.id
-    typeParams = fn.typeParams
-    parameters = fn.parameters |> NEList.map toParam
-    returnType = fn.returnType
-    previewable = Impure
-    sqlSpec = NotQueryable
-    fn = PackageFunction(fn.id, fn.body) }
+//   { name = FQFnName.Package fn.id
+//     typeParams = fn.typeParams
+//     parameters = fn.parameters |> NEList.map toParam
+//     returnType = fn.returnType
+//     previewable = Impure
+//     sqlSpec = NotQueryable
+//     fn = PackageFunction(fn.id, fn.body) }

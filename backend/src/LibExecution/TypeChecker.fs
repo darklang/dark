@@ -410,7 +410,7 @@ module RTE = RuntimeError
 /// (Ideally, upon error, we'd "fill in" the callstack in the Interpreter somewhere?)
 module DvalCreator =
 
-  let list (cs : CallStack) (typ : ValueType) (items : List<Dval>) : Dval =
+  let list (threadID : ThreadID) (typ : ValueType) (items : List<Dval>) : Dval =
     let (typ, items) =
       items
       |> List.fold
@@ -422,14 +422,14 @@ module DvalCreator =
           | Error() ->
             RTE.Lists.Error.TriedToAddMismatchedData(typ, dvalType, dv)
             |> RTE.Error.List
-            |> raiseRTE cs)
+            |> raiseRTE threadID)
         (typ, [])
 
     DList(typ, List.rev items)
 
 
   let dict
-    (cs : CallStack)
+    (threadID : ThreadID)
     (typ : ValueType)
     (entries : List<string * Dval>)
     : Dval =
@@ -440,7 +440,7 @@ module DvalCreator =
             // should we warn here instead? CLEANUP
             RTE.Dicts.Error.TriedToAddKeyAfterAlreadyPresent k
             |> RTE.Error.Dict
-            |> raiseRTE cs
+            |> raiseRTE threadID
 
           let vt = Dval.toValueType v
           match VT.merge typ vt with
@@ -448,7 +448,7 @@ module DvalCreator =
           | Error() ->
             RTE.Dicts.Error.TriedToAddMismatchedData(typ, vt, v)
             |> RTE.Error.Dict
-            |> raiseRTE cs)
+            |> raiseRTE threadID)
 
         (typ, Map.empty)
         entries
@@ -462,7 +462,7 @@ module DvalCreator =
     DEnum(Dval.optionType, Dval.optionType, [ innerType ], "None", [])
 
   let optionSome
-    (callStack : CallStack)
+    (threadID : ThreadID)
     (expectedType : ValueType)
     (dv : Dval)
     : Dval =
@@ -475,15 +475,15 @@ module DvalCreator =
     | Error() ->
       // TODO this should be a more general Enum RTE
       // (and make sure you include the Option wrapper type -- this loses that)
-      RuntimeError.CannotMergeValues(expectedType, vt) |> raiseRTE callStack
+      RuntimeError.CannotMergeValues(expectedType, vt) |> raiseRTE threadID
 
   let option
-    (callStack : CallStack)
+    (threadID : ThreadID)
     (expectedType : ValueType)
     (dv : Option<Dval>)
     : Dval =
     match dv with
-    | Some dv -> optionSome callStack expectedType dv
+    | Some dv -> optionSome threadID expectedType dv
     | None -> optionNone expectedType
 
 
@@ -491,7 +491,7 @@ module DvalCreator =
   //   let typeName = Dval.resultType
 
   //   let ok
-  //     (callStack : CallStack)
+  //     (threadID: ThreadID)
   //     (okType : ValueType)
   //     (errorType : ValueType)
   //     (dvOk : Dval)
@@ -506,7 +506,7 @@ module DvalCreator =
   //       |> raiseRTE callStack
 
   //   let error
-  //     (callStack : CallStack)
+  //     (threadID: ThreadID)
   //     (okType : ValueType)
   //     (errorType : ValueType)
   //     (dvError : Dval)
@@ -520,7 +520,7 @@ module DvalCreator =
   //       |> raiseRTE callStack
 
   //   let result
-  //     (callStack : CallStack)
+  //     (threadID: ThreadID)
   //     (okType : ValueType)
   //     (errorType : ValueType)
   //     (dv : Result<Dval, Dval>)
@@ -537,7 +537,7 @@ module DvalCreator =
   /// TODO this probably needs to both _take in_ and _return_ the typeSymbolTable
   /// (just pass it in as a ref -- but if this is happening concurrently with something else, ...)
   let record
-    (callStack : CallStack)
+    (threadID : ThreadID)
     (_types : Types) // is this Types thing what we want, or should we split tst and types?
     (typeName : FQTypeName.FQTypeName)
     (_typeArgs : List<TypeReference>)
@@ -556,11 +556,11 @@ module DvalCreator =
           match fields, k, v with
           // skip empty rows
           | _, "", _ ->
-            RTE.Records.CreationEmptyKey |> RTE.Record |> raiseRTE callStack
+            RTE.Records.CreationEmptyKey |> RTE.Record |> raiseRTE threadID
 
           // error if the key appears twice
           | fields, k, _v when Map.containsKey k fields ->
-            RTE.Records.CreationDuplicateField k |> RTE.Record |> raiseRTE callStack
+            RTE.Records.CreationDuplicateField k |> RTE.Record |> raiseRTE threadID
 
           // otherwise add it
           | fields, k, v ->

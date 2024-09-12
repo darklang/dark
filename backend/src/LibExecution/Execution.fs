@@ -45,33 +45,22 @@ let createState
 
 let executeExpr
   (exeState : RT.ExecutionState)
-  (inputVars : RT.Symtable)
   (instrs : RT.Instructions)
   : Task<RT.ExecutionResult> =
   task {
-    let vmState : RT.VMState =
-      { pc = 0
-        instructions = List.toArray instrs.instructions
-        registers = Array.zeroCreate instrs.registerCount
-        resultReg = instrs.resultIn
-
-        callStack = RT.CallStack.fromEntryPoint RT.ExecutionPoint.Script // TODO
-
-        symbolTable = inputVars
-        typeSymbolTable = Map.empty
-        lambdas = Map.empty }
+    let vmState = RT.VMState.fromExpr instrs
     try
       try
-        vmState.symbolTable <-
-          // todo
-          //Interpreter.withGlobals state inputVars
-          inputVars
+        // TODO: handle secrets and DBs by explicit references instead of relying on symbol table
+        // vmState.symbolTable <- Interpreter.withGlobals state inputVars
 
         let! result = Interpreter.eval exeState vmState
         return Ok result
 
       with
-      | RT.RuntimeErrorException(callStack, rte) -> return Error(callStack, rte)
+      | RT.RuntimeErrorException(_threadID, rte) ->
+        // TODO: we need some call stack or something on the RHS
+        return Error(rte)
       | ex ->
         let context : Metadata =
           //[ "fn", fnDesc; "args", args; "typeArgs", typeArgs; "id", id ]
@@ -79,7 +68,7 @@ let executeExpr
         exeState.reportException exeState context ex
         let id = System.Guid.NewGuid()
         // TODO: log the error and details or something
-        return (RTE.UncaughtException id) |> RT.raiseRTE vmState.callStack
+        return (RTE.UncaughtException id) |> RT.raiseRTE vmState.threadID
 
     finally
       // Does nothing in non-tests

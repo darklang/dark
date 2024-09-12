@@ -50,21 +50,21 @@ let eLet (pat : LetPattern) (value : Expr) (body : Expr) : Expr =
   ELet(gid (), pat, value, body)
 let eVar (name : string) : Expr = EVariable(gid (), name)
 
-let eIf (cond : Expr) (thenBranch : Expr) (elseBranch : Option<Expr>) : Expr =
-  EIf(gid (), cond, thenBranch, elseBranch)
+// let eIf (cond : Expr) (thenBranch : Expr) (elseBranch : Option<Expr>) : Expr =
+//   EIf(gid (), cond, thenBranch, elseBranch)
 
-let eMatch (expr : Expr) (cases : List<MatchCase>) : Expr =
-  EMatch(gid (), expr, cases)
+// let eMatch (expr : Expr) (cases : List<MatchCase>) : Expr =
+//   EMatch(gid (), expr, cases)
 
-let eRecord
-  (typeName : FQTypeName.FQTypeName)
-  (typeArgs : List<TypeReference>)
-  (fields : List<string * Expr>)
-  : Expr =
-  ERecord(gid (), Ok typeName, typeArgs, fields)
+// let eRecord
+//   (typeName : FQTypeName.FQTypeName)
+//   (typeArgs : List<TypeReference>)
+//   (fields : List<string * Expr>)
+//   : Expr =
+//   ERecord(gid (), Ok typeName, typeArgs, fields)
 
-let eFieldAccess (expr : Expr) (fieldName : string) : Expr =
-  ERecordFieldAccess(gid (), expr, fieldName)
+// let eFieldAccess (expr : Expr) (fieldName : string) : Expr =
+//   ERecordFieldAccess(gid (), expr, fieldName)
 
 // let eEnum
 //   (typeName : FQTypeName.FQTypeName)
@@ -79,9 +79,9 @@ let eFieldAccess (expr : Expr) (fieldName : string) : Expr =
 //   |> PT2RT.FQFnName.toRT
 //   |> fun x -> EFnName(gid (), x)
 
-let eLambda id (pats : List<LetPattern>) (body : Expr) : Expr =
-  let pats = NEList.ofListUnsafe "eLambda" [] pats
-  ELambda(id, pats, body)
+// let eLambda id (pats : List<LetPattern>) (body : Expr) : Expr =
+//   let pats = NEList.ofListUnsafe "eLambda" [] pats
+//   ELambda(id, pats, body)
 
 
 // let eFn'
@@ -102,13 +102,13 @@ let eLambda id (pats : List<LetPattern>) (body : Expr) : Expr =
 //   eFn' function_ version typeArgs args
 
 
-let eApply
-  (target : Expr)
-  (typeArgs : List<TypeReference>)
-  (args : List<Expr>)
-  : Expr =
-  let args = NEList.ofListUnsafe "eApply" [] args
-  EApply(gid (), target, typeArgs, args)
+// let eApply
+//   (target : Expr)
+//   (typeArgs : List<TypeReference>)
+//   (args : List<Expr>)
+//   : Expr =
+//   let args = NEList.ofListUnsafe "eApply" [] args
+//   EApply(gid (), target, typeArgs, args)
 
 
 

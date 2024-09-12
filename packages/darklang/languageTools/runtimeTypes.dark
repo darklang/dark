@@ -57,44 +57,6 @@ module Darklang =
           typeArgs: List<TypeReference>
         | TDict of TypeReference
 
-      type Expr =
-        | EInt64 of ID * Int64
-        | EUInt64 of ID * UInt64
-        | EInt8 of ID * Int8
-        | EUInt8 of ID * UInt8
-        | EInt16 of ID * Int16
-        | EUInt16 of ID * UInt16
-        | EInt32 of ID * Int32
-        | EUInt32 of ID * UInt32
-        | EInt128 of ID * Int128
-        | EUInt128 of ID * UInt128
-        | EBool of ID * Bool
-        | EString of ID * List<StringSegment>
-        | EChar of ID * String
-        | EFloat of ID * Float
-        | EUnit of ID
-        | EConstant of ID * FQConstantName.FQConstantName
-        | ELet of ID * LetPattern * Expr * Expr
-        | EIf of
-          ID *
-          cond: Expr *
-          thenExpr: Expr *
-          elseExpr: Stdlib.Option.Option<Expr>
-        | ELambda of ID * List<ID * String> * Expr
-        | ERecordFieldAccess of ID * Expr * String
-        | EVariable of ID * String
-        | EApply of ID * Expr * typeArgs: List<TypeReference> * args: List<Expr>
-        | EFnName of ID * FQFnName.FQFnName
-        | EList of ID * List<Expr>
-        | ETuple of ID * Expr * Expr * List<Expr>
-        | ERecord of ID * FQTypeName.FQTypeName * List<String * Expr>
-        | ERecordUpdate of ID * record: Expr * updates: List<String * Expr>
-        | EDict of ID * List<String * Expr>
-        | EEnum of ID * FQTypeName.FQTypeName * caseName: String * fields: List<Expr>
-        | EMatch of ID * Expr * List<MatchCase>
-        | EAnd of ID * Expr * Expr
-        | EOr of ID * Expr * Expr
-        | EError of ID * RuntimeError * List<Expr>
 
       type MatchCase =
         { pat: MatchPattern

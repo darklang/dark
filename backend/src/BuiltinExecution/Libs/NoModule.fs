@@ -69,19 +69,20 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DEnum(a1, _, _typeArgsTODO1, a2, a3), DEnum(b1, _, _typeArgsTODO2, b2, b3) -> // these should be the fully resolved type
     a1 = b1 && a2 = b2 && a3.Length = b3.Length && List.forall2 r a3 b3
 
-  | DApplicable a, DApplicable b ->
-    match a, b with
-    | Lambda _a, Lambda _b ->
-      //equalsLambdaImpl a b
-      // TODO
-      true
-    | NamedFn _a, NamedFn _b ->
-      //a = b
-      // TODO
-      true
-    | Lambda _, _
+  // | DApplicable a, DApplicable b ->
+  //   match a, b with
+  //   | Lambda _a, Lambda _b ->
+  //     //equalsLambdaImpl a b
+  //     // TODO
+  //     true
+  //   | NamedFn _a, NamedFn _b ->
+  //     //a = b
+  //     // TODO
+  //     true
+  //   | Lambda _, _
 
-    | NamedFn _, _ -> false
+  //   | NamedFn _, _ -> false
+
   // | DDB a, DDB b -> a = b
 
   // exhaustiveness check
@@ -107,7 +108,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DDict _, _
   | DRecord _, _
   | DEnum _, _
-  | DApplicable _, _
+  //| DApplicable _, _
   // | DDB _, _
    ->
     // type errors; should be caught above by the caller
@@ -364,7 +365,7 @@ let fns : List<BuiltInFn> =
           let (vtA, vtB) = (Dval.toValueType a, Dval.toValueType b)
           match ValueType.merge vtA vtB with
           | Error _ ->
-            raiseRTE vm.callStack (RTE.EqualityCheckOnIncompatibleTypes(vtA, vtB))
+            raiseRTE vm.threadID (RTE.EqualityCheckOnIncompatibleTypes(vtA, vtB))
           | Ok _ -> equals a b |> DBool |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "="
@@ -383,7 +384,7 @@ let fns : List<BuiltInFn> =
           let (vtA, vtB) = (Dval.toValueType a, Dval.toValueType b)
           match ValueType.merge vtA vtB with
           | Error _ ->
-            raiseRTE vm.callStack (RTE.EqualityCheckOnIncompatibleTypes(vtA, vtB))
+            raiseRTE vm.threadID (RTE.EqualityCheckOnIncompatibleTypes(vtA, vtB))
           | Ok _ -> equals a b |> not |> DBool |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<>"

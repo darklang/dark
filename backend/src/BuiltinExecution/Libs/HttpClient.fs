@@ -384,131 +384,133 @@ open LibExecution.Builtin.Shortcuts
 
 
 let fns (config : Configuration) : List<BuiltInFn> =
-  let httpClient = BaseClient.create config
-  [ { name = fn "httpClientRequest" 0
-      typeParams = []
-      parameters =
-        [ Param.make "method" TString ""
-          Param.make "uri" TString ""
-          Param.make "headers" headersType ""
-          Param.make "body" (TList TUInt8) "" ]
-      returnType =
-        TypeReference.result
-          (TCustomType(
-            Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.response),
-            []
-          ))
-          (TCustomType(
-            Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.requestError),
-            []
-          ))
-      description =
-        "Make blocking HTTP call to <param uri>. Returns a <type Result> where
-        the response is wrapped in {{ Ok }} if a response was successfully
-        received and parsed, and is wrapped in {{ Error }} otherwise"
-      fn =
-        let typ = FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.response
+  let _httpClient = BaseClient.create config
+  [
+  // { name = fn "httpClientRequest" 0
+  //   typeParams = []
+  //   parameters =
+  //     [ Param.make "method" TString ""
+  //       Param.make "uri" TString ""
+  //       Param.make "headers" headersType ""
+  //       Param.make "body" (TList TUInt8) "" ]
+  //   returnType =
+  //     TypeReference.result
+  //       (TCustomType(
+  //         Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.response),
+  //         []
+  //       ))
+  //       (TCustomType(
+  //         Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.requestError),
+  //         []
+  //       ))
+  //   description =
+  //     "Make blocking HTTP call to <param uri>. Returns a <type Result> where
+  //     the response is wrapped in {{ Ok }} if a response was successfully
+  //     received and parsed, and is wrapped in {{ Error }} otherwise"
+  //   fn =
+  //     let typ = FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.response
 
-        let responseType = KTCustomType(typ, [])
-        let resultOk = Dval.resultOk responseType KTString
-        let typeName =
-          FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.requestError
-        let resultError = Dval.resultError responseType (KTCustomType(typeName, []))
-        (function
-        | _,
-          vmState,
-          _,
-          [ DString method; DString uri; DList(_, reqHeaders); DList(_, reqBody) ] ->
-          uply {
-            let! (reqHeaders : Result<List<string * string>, BadHeader.BadHeader>) =
-              reqHeaders
-              |> Ply.List.mapSequentially (fun item ->
-                uply {
-                  match item with
-                  | DTuple(DString k, DString v, []) ->
-                    let k = String.trim k
-                    if k = "" then
-                      // CLEANUP reconsider if we should error here
-                      return Error BadHeader.BadHeader.EmptyKey
-                    else
-                      return Ok((k, v))
+  //     let responseType = KTCustomType(typ, [])
+  //     let resultOk = Dval.resultOk responseType KTString
+  //     let typeName =
+  //       FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.requestError
+  //     let resultError = Dval.resultError responseType (KTCustomType(typeName, []))
+  //     (function
+  //     | _,
+  //       vmState,
+  //       _,
+  //       [ DString method; DString uri; DList(_, reqHeaders); DList(_, reqBody) ] ->
+  //       uply {
+  //         let! (reqHeaders : Result<List<string * string>, BadHeader.BadHeader>) =
+  //           reqHeaders
+  //           |> Ply.List.mapSequentially (fun item ->
+  //             uply {
+  //               match item with
+  //               | DTuple(DString k, DString v, []) ->
+  //                 let k = String.trim k
+  //                 if k = "" then
+  //                   // CLEANUP reconsider if we should error here
+  //                   return Error BadHeader.BadHeader.EmptyKey
+  //                 else
+  //                   return Ok((k, v))
 
-                  | notAPair ->
-                    return!
-                      RuntimeError.ValueNotExpectedType(
-                        notAPair,
-                        TList(TTuple(TString, TString, [])),
-                        RTE.TypeChecker.Context.FunctionCallParameter(
-                          FQFnName.fqPackage PackageIDs.Fn.Stdlib.HttpClient.request,
-                          ({ name = "headers"; typ = headersType }),
-                          2
-                        )
-                      )
-                      |> raiseRTE vmState.callStack
+  //               | notAPair ->
+  //                 return!
+  //                   RuntimeError.ValueNotExpectedType(
+  //                     notAPair,
+  //                     TList(TTuple(TString, TString, [])),
+  //                     RTE.TypeChecker.Context.FunctionCallParameter(
+  //                       FQFnName.fqPackage PackageIDs.Fn.Stdlib.HttpClient.request,
+  //                       ({ name = "headers"; typ = headersType }),
+  //                       2
+  //                     )
+  //                   )
+  //                   |> raiseRTE vmState.callStack
 
-                })
-              |> Ply.map (Result.collect)
+  //             })
+  //           |> Ply.map (Result.collect)
 
-            let method =
-              try
-                Some(HttpMethod method)
-              with _ ->
-                None
+  //         let method =
+  //           try
+  //             Some(HttpMethod method)
+  //           with _ ->
+  //             None
 
-            let! (result : Result<Dval, RequestError.RequestError>) =
-              uply {
-                match reqHeaders, method with
-                | Ok reqHeaders, Some method ->
-                  let request =
-                    { url = uri
-                      method = method
-                      headers = reqHeaders
-                      body = Dval.dlistToByteArray reqBody }
+  //         let! (result : Result<Dval, RequestError.RequestError>) =
+  //           uply {
+  //             match reqHeaders, method with
+  //             | Ok reqHeaders, Some method ->
+  //               let request =
+  //                 { url = uri
+  //                   method = method
+  //                   headers = reqHeaders
+  //                   body = Dval.dlistToByteArray reqBody }
 
-                  let! response = makeRequest config httpClient request
+  //               let! response = makeRequest config httpClient request
 
-                  match response with
-                  | Ok response ->
-                    let responseHeaders =
-                      response.headers
-                      |> List.map (fun (k, v) ->
-                        DTuple(
-                          DString(String.toLowercase k),
-                          DString(String.toLowercase v),
-                          []
-                        ))
-                      |> Dval.list (KTTuple(VT.string, VT.string, []))
+  //               match response with
+  //               | Ok response ->
+  //                 let responseHeaders =
+  //                   response.headers
+  //                   |> List.map (fun (k, v) ->
+  //                     DTuple(
+  //                       DString(String.toLowercase k),
+  //                       DString(String.toLowercase v),
+  //                       []
+  //                     ))
+  //                   |> Dval.list (KTTuple(VT.string, VT.string, []))
 
-                    let typ =
-                      FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.response
+  //                 let typ =
+  //                   FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.response
 
-                    let fields =
-                      [ ("statusCode", DInt64(int64 response.statusCode))
-                        ("headers", responseHeaders)
-                        ("body", Dval.byteArrayToDvalList response.body) ]
+  //                 let fields =
+  //                   [ ("statusCode", DInt64(int64 response.statusCode))
+  //                     ("headers", responseHeaders)
+  //                     ("body", Dval.byteArrayToDvalList response.body) ]
 
-                    return Ok(DRecord(typ, typ, [], Map fields) |> resultOk)
+  //                 return Ok(DRecord(typ, typ, [], Map fields) |> resultOk)
 
-                  | Error err -> return Error err
+  //               | Error err -> return Error err
 
-                | Error reqHeadersErr, _ ->
-                  let reqHeadersErr = reqHeadersErr
-                  return Error(RequestError.RequestError.BadHeader reqHeadersErr)
+  //             | Error reqHeadersErr, _ ->
+  //               let reqHeadersErr = reqHeadersErr
+  //               return Error(RequestError.RequestError.BadHeader reqHeadersErr)
 
-                | _, None ->
-                  let error = RequestError.RequestError.BadMethod
-                  return Error error
-              }
-            match result with
-            | Ok result -> return result
-            | Error err ->
-              let err = RequestError.toDT err
-              return resultError err
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated } ]
+  //             | _, None ->
+  //               let error = RequestError.RequestError.BadMethod
+  //               return Error error
+  //           }
+  //         match result with
+  //         | Ok result -> return result
+  //         | Error err ->
+  //           let err = RequestError.toDT err
+  //           return resultError err
+  //       }
+  //     | _ -> incorrectArgs ())
+  //   sqlSpec = NotQueryable
+  //   previewable = Impure
+  //   deprecated = NotDeprecated }
+  ]
 
 
 let builtins config = Builtin.make [] (fns config)

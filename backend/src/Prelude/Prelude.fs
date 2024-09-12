@@ -391,6 +391,9 @@ let gid () : uint64 =
   with e ->
     Exception.raiseInternal $"gid failed" [ "message", e.Message; "inner", e ]
 
+let guuid(): uuid =
+  System.Guid.NewGuid()
+
 let randomString (length : int) : string =
   let result =
     Array.init length (fun _ -> char (RNG.GetInt32(int32 'A', int32 'Z')))

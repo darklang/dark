@@ -50,36 +50,36 @@ let rec symbolsUsedIn (expr : Expr) : Set<string> =
   | ELet(_, _, rhs, next) -> Set.union (r rhs) (r next)
 
 
-  // flow control
-  | EIf(_, condExpr, ifExpr, elseExprMaybe) ->
-    match elseExprMaybe with
-    | None -> Set.union (r condExpr) (r ifExpr)
-    | Some elseExpr -> Set.unionMany [ r condExpr; r ifExpr; r elseExpr ]
+// // flow control
+// | EIf(_, condExpr, ifExpr, elseExprMaybe) ->
+//   match elseExprMaybe with
+//   | None -> Set.union (r condExpr) (r ifExpr)
+//   | Some elseExpr -> Set.unionMany [ r condExpr; r ifExpr; r elseExpr ]
 
-  | EMatch(_, target, cases) ->
-    let targetVars = r target
-    let whenVars =
-      cases
-      |> List.map (fun c ->
-        match c.whenCondition with
-        | None -> Set.empty
-        | Some w -> r w)
-      |> Set.unionMany
-    let rhsVars = cases |> List.map _.rhs |> List.map r |> Set.unionMany
-    Set.unionMany [ targetVars; whenVars; rhsVars ]
+// | EMatch(_, target, cases) ->
+//   let targetVars = r target
+//   let whenVars =
+//     cases
+//     |> List.map (fun c ->
+//       match c.whenCondition with
+//       | None -> Set.empty
+//       | Some w -> r w)
+//     |> Set.unionMany
+//   let rhsVars = cases |> List.map _.rhs |> List.map r |> Set.unionMany
+//   Set.unionMany [ targetVars; whenVars; rhsVars ]
 
 
-  // custom data
-  | EEnum(_, _, _, _, fields) -> fields |> List.map r |> Set.unionMany
+// // custom data
+// | EEnum(_, _, _, _, fields) -> fields |> List.map r |> Set.unionMany
 
-  | ERecord(_, _, _, fields) ->
-    fields |> List.map (fun (_, e) -> r e) |> Set.unionMany
+// | ERecord(_, _, _, fields) ->
+//   fields |> List.map (fun (_, e) -> r e) |> Set.unionMany
 
-  | ERecordFieldAccess(_, expr, _) -> r expr
+// | ERecordFieldAccess(_, expr, _) -> r expr
 
-  // things that can be applied
-  | EFnName(_, _) -> Set.empty
-  | ELambda(_, _, body) -> r body
-  | EApply(_, thingToApply, _, args) ->
-    Set.unionMany
-      [ r thingToApply; args |> NEList.toList |> List.map r |> Set.unionMany ]
+// // things that can be applied
+// | EFnName(_, _) -> Set.empty
+// | ELambda(_, _, body) -> r body
+// | EApply(_, thingToApply, _, args) ->
+//   Set.unionMany
+//     [ r thingToApply; args |> NEList.toList |> List.map r |> Set.unionMany ]
