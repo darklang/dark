@@ -116,11 +116,11 @@ module Expressions =
   module String =
     let simple = eStr [ strText "hello" ]
 
-  //   let withInterpolation =
-  //     eLet
-  //       (lpVar "x")
-  //       (eStr [ strText ", world" ])
-  //       (eStr [ strText "hello"; strInterp (eVar "x") ])
+    let withInterpolation =
+      eLet
+        (lpVar "x")
+        (eStr [ strText ", world" ])
+        (eStr [ strText "hello"; strInterp (eVar "x") ])
 
 
   module Dict =
@@ -129,10 +129,10 @@ module Expressions =
     let multEntries = eDict [ "t", eBool true; "f", eBool false ]
     let dupeKey = eDict [ "t", eBool true; "f", eBool false; "t", eBool false ]
 
-  // module If =
-  //   let gotoThenBranch = eIf (eBool true) (eInt64 1) (Some(eInt64 2))
-  //   let gotoElseBranch = eIf (eBool false) (eInt64 1) (Some(eInt64 2))
-  //   let elseMissing = eIf (eBool false) (eInt64 1) None
+  module If =
+    let gotoThenBranch = eIf (eBool true) (eInt64 1) (Some(eInt64 2))
+    let gotoElseBranch = eIf (eBool false) (eInt64 1) (Some(eInt64 2))
+    let elseMissing = eIf (eBool false) (eInt64 1) None
 
 
   module Tuples =
@@ -232,17 +232,17 @@ module Expressions =
   //           rhs = eStr [ strText "first branch" ] } ]
 
 
-  // module Records =
-  //   let simple =
-  //     eRecord (typeNamePkg PM.Types.Records.singleField) [] [ "key", eBool true ]
+  module Records =
+    let simple =
+      eRecord (typeNamePkg PM.Types.Records.singleField) [] [ "key", eBool true ]
 
-  //   let nested = eRecord (typeNamePkg PM.Types.Records.nested) [] [ "outer", simple ]
+    let nested = eRecord (typeNamePkg PM.Types.Records.nested) [] [ "outer", simple ]
 
-  // module RecordFieldAccess =
-  //   let simple = eFieldAccess Records.simple "key"
-  //   let notRecord = eFieldAccess (eInt64 1) "key"
-  //   let missingField = eFieldAccess Records.simple "missing"
-  //   let nested = eFieldAccess (eFieldAccess Records.nested "outer") "key"
+  module RecordFieldAccess =
+    let simple = eFieldAccess Records.simple "key"
+    let notRecord = eFieldAccess (eInt64 1) "key"
+    let missingField = eFieldAccess Records.simple "missing"
+    let nested = eFieldAccess (eFieldAccess Records.nested "outer") "key"
 
 
   // //module RecordUpdate =

@@ -50,21 +50,21 @@ let eLet (pat : LetPattern) (value : Expr) (body : Expr) : Expr =
   ELet(gid (), pat, value, body)
 let eVar (name : string) : Expr = EVariable(gid (), name)
 
-// let eIf (cond : Expr) (thenBranch : Expr) (elseBranch : Option<Expr>) : Expr =
-//   EIf(gid (), cond, thenBranch, elseBranch)
+let eIf (cond : Expr) (thenBranch : Expr) (elseBranch : Option<Expr>) : Expr =
+  EIf(gid (), cond, thenBranch, elseBranch)
 
 // let eMatch (expr : Expr) (cases : List<MatchCase>) : Expr =
 //   EMatch(gid (), expr, cases)
 
-// let eRecord
-//   (typeName : FQTypeName.FQTypeName)
-//   (typeArgs : List<TypeReference>)
-//   (fields : List<string * Expr>)
-//   : Expr =
-//   ERecord(gid (), Ok typeName, typeArgs, fields)
+let eRecord
+  (typeName : FQTypeName.FQTypeName)
+  (typeArgs : List<TypeReference>)
+  (fields : List<string * Expr>)
+  : Expr =
+  ERecord(gid (), Ok typeName, typeArgs, fields)
 
-// let eFieldAccess (expr : Expr) (fieldName : string) : Expr =
-//   ERecordFieldAccess(gid (), expr, fieldName)
+let eFieldAccess (expr : Expr) (fieldName : string) : Expr =
+  ERecordFieldAccess(gid (), expr, fieldName)
 
 // let eEnum
 //   (typeName : FQTypeName.FQTypeName)

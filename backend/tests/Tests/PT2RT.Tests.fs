@@ -156,24 +156,18 @@ module Expr =
     let simple =
       t "[\"hello\"]" E.String.simple (1, [ RT.LoadVal(0, RT.DString "hello") ], 0)
 
-    //   let withInterpolation =
-    //     t
-    //       "[let x = \"world\"\n$\"hello {x}\"]"
-    //       E.String.withInterpolation
-    //       (3,
-    //        [ RT.LoadVal(0, RT.DString ", world")
-    //          RT.CheckLetPatternAndExtractVars(0, RT.LPVariable "x")
+    let withInterpolation =
+      t
+        "[let x = \"world\"\n$\"hello {x}\"]"
+        E.String.withInterpolation
+        (3,
+         [ RT.LoadVal(0, RT.DString ", world")
+           RT.CheckLetPatternAndExtractVars(0, RT.LPVariable 1)
 
-    //          RT.GetVar(1, "x")
-    //          RT.CreateString(2, [ RT.Text "hello"; RT.Interpolated 1 ]) ],
-    //        2)
+           RT.CreateString(2, [ RT.Text "hello"; RT.Interpolated 1 ]) ],
+         2)
 
-    let tests =
-      testList
-        "String"
-        [ simple
-          //withInterpolation
-          ]
+    let tests = testList "String" [ simple; withInterpolation ]
 
 
   module Dict =
@@ -209,61 +203,61 @@ module Expr =
     let tests = testList "Dict" [ empty; simple; multEntries; dupeKey ]
 
 
-  // module If =
-  //   let gotoThenBranch =
-  //     t
-  //       "if true then 1 else 2"
-  //       E.If.gotoThenBranch
-  //       (4,
-  //        [ // reserve register 0 for the result
+  module If =
+    let gotoThenBranch =
+      t
+        "if true then 1 else 2"
+        E.If.gotoThenBranch
+        (4,
+         [ // reserve register 0 for the result
 
-  //          // cond
-  //          RT.LoadVal(1, RT.DBool true)
-  //          RT.JumpByIfFalse(3, 1)
+           // cond
+           RT.LoadVal(1, RT.DBool true)
+           RT.JumpByIfFalse(3, 1)
 
-  //          // then
-  //          RT.LoadVal(2, RT.DInt64 1L)
-  //          RT.CopyVal(0, 2)
-  //          RT.JumpBy 2
+           // then
+           RT.LoadVal(2, RT.DInt64 1L)
+           RT.CopyVal(0, 2)
+           RT.JumpBy 2
 
-  //          // else
-  //          RT.LoadVal(3, RT.DInt64 2L)
-  //          RT.CopyVal(0, 3) ],
-  //        0)
+           // else
+           RT.LoadVal(3, RT.DInt64 2L)
+           RT.CopyVal(0, 3) ],
+         0)
 
 
-  //   let gotoElseBranch =
-  //     t
-  //       "if false then 1 else 2"
-  //       E.If.gotoElseBranch
-  //       (4,
-  //        [ // cond
-  //          RT.LoadVal(1, RT.DBool false)
-  //          RT.JumpByIfFalse(3, 1)
+    let gotoElseBranch =
+      t
+        "if false then 1 else 2"
+        E.If.gotoElseBranch
+        (4,
+         [ // cond
+           RT.LoadVal(1, RT.DBool false)
+           RT.JumpByIfFalse(3, 1)
 
-  //          // then
-  //          RT.LoadVal(2, RT.DInt64 1L)
-  //          RT.CopyVal(0, 2)
-  //          RT.JumpBy 2
+           // then
+           RT.LoadVal(2, RT.DInt64 1L)
+           RT.CopyVal(0, 2)
+           RT.JumpBy 2
 
-  //          // else
-  //          RT.LoadVal(3, RT.DInt64 2L)
-  //          RT.CopyVal(0, 3) ],
-  //        0)
+           // else
+           RT.LoadVal(3, RT.DInt64 2L)
+           RT.CopyVal(0, 3) ],
+         0)
 
-  //   let elseMissing =
-  //     t
-  //       "if false then 1"
-  //       E.If.elseMissing
-  //       (3,
-  //        [ RT.LoadVal(0, RT.DUnit)
-  //          RT.LoadVal(1, RT.DBool false)
-  //          RT.JumpByIfFalse(2, 1)
-  //          RT.LoadVal(2, RT.DInt64 1L)
-  //          RT.CopyVal(0, 2) ],
-  //        0)
+    let elseMissing =
+      t
+        "if false then 1"
+        E.If.elseMissing
+        (3,
+         [ RT.LoadVal(0, RT.DUnit)
+           RT.LoadVal(1, RT.DBool false)
+           RT.JumpByIfFalse(2, 1)
+           RT.LoadVal(2, RT.DInt64 1L)
+           RT.CopyVal(0, 2) ],
+         0)
 
-  //   let tests = testList "If" [ gotoThenBranch; gotoElseBranch; elseMissing ]
+    let tests = testList "If" [ gotoThenBranch; gotoElseBranch; elseMissing ]
 
 
   module Tuples =
@@ -494,111 +488,113 @@ module Expr =
   //         tuple ]
 
 
-  // module Records =
-  //   let simple =
-  //     t
-  //       "Test.Test { key = true }"
-  //       E.Records.simple
-  //       (2,
-  //        [ RT.LoadVal(1, RT.DBool true)
-  //          RT.CreateRecord(
-  //            0,
-  //            RT.FQTypeName.fqPackage PM.Types.Records.singleField,
-  //            [],
-  //            [ ("key", 1) ]
-  //          ) ],
-  //        0)
+  // TODO: add tests for Enums
 
-  //   let nested =
-  //     t
-  //       "Test.Test2 { outer = (Test.Test { key = true }) }"
-  //       E.Records.nested
-  //       (3,
-  //        [ RT.LoadVal(2, RT.DBool true)
+  module Records =
+    let simple =
+      t
+        "Test.Test { key = true }"
+        E.Records.simple
+        (2,
+         [ RT.LoadVal(1, RT.DBool true)
+           RT.CreateRecord(
+             0,
+             RT.FQTypeName.fqPackage PM.Types.Records.singleField,
+             [],
+             [ ("key", 1) ]
+           ) ],
+         0)
 
-  //          // inner record
-  //          RT.CreateRecord(
-  //            1,
-  //            RT.FQTypeName.fqPackage PM.Types.Records.singleField,
-  //            [],
-  //            [ ("key", 2) ]
-  //          )
+    let nested =
+      t
+        "Test.Test2 { outer = (Test.Test { key = true }) }"
+        E.Records.nested
+        (3,
+         [ RT.LoadVal(2, RT.DBool true)
 
-  //          // outer record
-  //          RT.CreateRecord(
-  //            0,
-  //            RT.FQTypeName.fqPackage PM.Types.Records.nested,
-  //            [],
-  //            [ ("outer", 1) ]
-  //          ) ],
-  //        0)
+           // inner record
+           RT.CreateRecord(
+             1,
+             RT.FQTypeName.fqPackage PM.Types.Records.singleField,
+             [],
+             [ ("key", 2) ]
+           )
 
-  //   let tests = testList "Records" [ simple; nested ]
+           // outer record
+           RT.CreateRecord(
+             0,
+             RT.FQTypeName.fqPackage PM.Types.Records.nested,
+             [],
+             [ ("outer", 1) ]
+           ) ],
+         0)
 
-
-  // module RecordFieldAccess =
-  //   let simple =
-  //     t
-  //       "let r = Test.Test { key = true }\nr.key"
-  //       E.RecordFieldAccess.simple
-  //       (3,
-  //        [ RT.LoadVal(1, RT.DBool true)
-  //          RT.CreateRecord(
-  //            0,
-  //            RT.FQTypeName.fqPackage PM.Types.Records.singleField,
-  //            [],
-  //            [ ("key", 1) ]
-  //          )
-  //          RT.GetRecordField(2, 0, "key") ],
-  //        2)
-
-  //   let notRecord =
-  //     t
-  //       "1.key"
-  //       E.RecordFieldAccess.notRecord
-  //       (2, [ RT.LoadVal(0, RT.DInt64 1L); RT.GetRecordField(1, 0, "key") ], 1)
-
-  //   let missingField =
-  //     t
-  //       "(Test.Test { key = true }).missing"
-  //       E.RecordFieldAccess.missingField
-  //       (3,
-  //        [ RT.LoadVal(1, RT.DBool true)
-  //          RT.CreateRecord(
-  //            0,
-  //            RT.FQTypeName.fqPackage PM.Types.Records.singleField,
-  //            [],
-  //            [ ("key", 1) ]
-  //          )
-  //          RT.GetRecordField(2, 0, "missing") ],
-  //        2)
-
-  //   let nested =
-  //     t
-  //       "(Test.Test2 { outer = Test.Test { key = true } }).outer.key"
-  //       E.RecordFieldAccess.nested
-  //       (5,
-  //        [ RT.LoadVal(2, RT.DBool true)
-  //          RT.CreateRecord(
-  //            1,
-  //            RT.FQTypeName.fqPackage PM.Types.Records.singleField,
-  //            [],
-  //            [ ("key", 2) ]
-  //          )
-
-  //          RT.CreateRecord(
-  //            0,
-  //            RT.FQTypeName.fqPackage PM.Types.Records.nested,
-  //            [],
-  //            [ ("outer", 1) ]
-  //          )
-  //          RT.GetRecordField(3, 0, "outer")
-  //          RT.GetRecordField(4, 3, "key") ],
-  //        4)
+    let tests = testList "Records" [ simple; nested ]
 
 
-  //   let tests =
-  //     testList "RecordFieldAccess" [ simple; notRecord; missingField; nested ]
+  module RecordFieldAccess =
+    let simple =
+      t
+        "let r = Test.Test { key = true }\nr.key"
+        E.RecordFieldAccess.simple
+        (3,
+         [ RT.LoadVal(1, RT.DBool true)
+           RT.CreateRecord(
+             0,
+             RT.FQTypeName.fqPackage PM.Types.Records.singleField,
+             [],
+             [ ("key", 1) ]
+           )
+           RT.GetRecordField(2, 0, "key") ],
+         2)
+
+    let notRecord =
+      t
+        "1.key"
+        E.RecordFieldAccess.notRecord
+        (2, [ RT.LoadVal(0, RT.DInt64 1L); RT.GetRecordField(1, 0, "key") ], 1)
+
+    let missingField =
+      t
+        "(Test.Test { key = true }).missing"
+        E.RecordFieldAccess.missingField
+        (3,
+         [ RT.LoadVal(1, RT.DBool true)
+           RT.CreateRecord(
+             0,
+             RT.FQTypeName.fqPackage PM.Types.Records.singleField,
+             [],
+             [ ("key", 1) ]
+           )
+           RT.GetRecordField(2, 0, "missing") ],
+         2)
+
+    let nested =
+      t
+        "(Test.Test2 { outer = Test.Test { key = true } }).outer.key"
+        E.RecordFieldAccess.nested
+        (5,
+         [ RT.LoadVal(2, RT.DBool true)
+           RT.CreateRecord(
+             1,
+             RT.FQTypeName.fqPackage PM.Types.Records.singleField,
+             [],
+             [ ("key", 2) ]
+           )
+
+           RT.CreateRecord(
+             0,
+             RT.FQTypeName.fqPackage PM.Types.Records.nested,
+             [],
+             [ ("outer", 1) ]
+           )
+           RT.GetRecordField(3, 0, "outer")
+           RT.GetRecordField(4, 3, "key") ],
+         4)
+
+
+    let tests =
+      testList "RecordFieldAccess" [ simple; notRecord; missingField; nested ]
 
 
   // module RecordUpdate =
@@ -655,11 +651,11 @@ module Expr =
         List.tests
         String.tests
         Dict.tests
-        // If.tests
+        If.tests
         Tuples.tests
         // Match.tests
-        // Records.tests
-        // RecordFieldAccess.tests
+        Records.tests
+        RecordFieldAccess.tests
         // RecordUpdate.tests
         // Lambda.tests
         ]
@@ -677,34 +673,39 @@ module PackageFn =
           description = "TODO"
           deprecated = PT.NotDeprecated }
 
-      let actual = PT2RT.PackageFn.toRT fn
-      return Expect.equal actual.body expected ""
+      let actual = PT2RT.PackageFn.toRT fn |> _.body
+      let actual = (actual.registerCount, actual.instructions, actual.resultIn)
+      return Expect.equal actual expected ""
     }
 
-  // module Basic =
-  //   let add =
-  //     t
-  //       "add"
-  //       "add"
-  //       []
-  //       [ { name = "a"; typ = PT.TInt64; description = "TODO" }
-  //         { name = "b"; typ = PT.TInt64; description = "TODO" } ]
-  //       PT.TInt64
-  //       (eVar "b")
-  //       (4,
-  //        [ RT.LoadVal(
-  //            0,
-  //            RT.DFnVal(
-  //              RT.NamedFn(RT.FQFnName.Builtin { name = "int64Add"; version = 0 })
-  //            )
-  //          )
-  //          RT.LoadVal(1, RT.DInt64 1L)
-  //          RT.LoadVal(2, RT.DInt64 2L)
-  //          RT.Apply(3, 0, [], NEList.ofListUnsafe "" [ 1; 2 ]) ],
-  //        3)
+  module Basic =
+    let returnSecondParam =
+      t
+        "returnSecondParam"
+        "returnSecondParam"
+        []
+        [ { name = "a"; typ = PT.TInt64; description = "TODO" }
+          { name = "b"; typ = PT.TInt64; description = "TODO" } ]
+        PT.TInt64
+        (eVar "b")
+        (2, [], 1)
+
+    let ignoresParamsAndReturnsStr =
+      t
+        "ignoresParamsAndReturnsStr"
+        "ignoresParamsAndReturnsStr"
+        []
+        [ { name = "a"; typ = PT.TInt64; description = "TODO" }
+          { name = "b"; typ = PT.TInt64; description = "TODO" } ]
+        PT.TInt64
+        (eStr [ strText "hello" ])
+        (3, [ RT.LoadVal(2, RT.DString "hello") ], 2)
+
+    let tests =
+      testList "PackageFn" [ returnSecondParam; ignoresParamsAndReturnsStr ]
 
 
-  let tests = testList "PackageFn" []
+  let tests = testList "PackageFn" [ Basic.tests ]
 
 
 let tests = testList "ProgramTypesToRuntimeTypes" [ Expr.tests; PackageFn.tests ]

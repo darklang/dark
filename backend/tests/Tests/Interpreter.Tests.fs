@@ -138,18 +138,13 @@ module Let =
 module String =
   let simple = t "[\"hello\"]" E.String.simple (RT.DString "hello")
 
-  // let withInterpolation =
-  //   t
-  //     "[let x = \"world\" in $\"hello {x}\"]"
-  //     E.String.withInterpolation
-  //     (RT.DString "hello, world")
+  let withInterpolation =
+    t
+      "[let x = \"world\" in $\"hello {x}\"]"
+      E.String.withInterpolation
+      (RT.DString "hello, world")
 
-  let tests =
-    testList
-      "Strings"
-      [ simple
-        //withInterpolation
-        ]
+  let tests = testList "Strings" [ simple; withInterpolation ]
 
 
 module Dict =
@@ -176,12 +171,12 @@ module Dict =
   let tests = testList "Dict" [ empty; simple; multEntries; dupeKey ]
 
 
-// module If =
-//   let gotoThenBranch = t "if true then 1 else 2" E.If.gotoThenBranch (RT.DInt64 1L)
-//   let gotoElseBranch = t "if false then 1 else 2" E.If.gotoElseBranch (RT.DInt64 2L)
-//   let elseMissing = t "if false then 1" E.If.elseMissing RT.DUnit
+module If =
+  let gotoThenBranch = t "if true then 1 else 2" E.If.gotoThenBranch (RT.DInt64 1L)
+  let gotoElseBranch = t "if false then 1 else 2" E.If.gotoElseBranch (RT.DInt64 2L)
+  let elseMissing = t "if false then 1" E.If.elseMissing RT.DUnit
 
-//   let tests = testList "If" [ gotoThenBranch; gotoElseBranch; elseMissing ]
+  let tests = testList "If" [ gotoThenBranch; gotoElseBranch; elseMissing ]
 
 
 module Tuples =
@@ -258,61 +253,61 @@ module Tuples =
 //         tuple ]
 
 
-// module Records =
-//   let simple =
-//     let typeName = RT.FQTypeName.fqPackage PM.Types.Records.singleField
-//     t
-//       "Test.Test { key = true }"
-//       E.Records.simple
-//       (RT.DRecord(typeName, typeName, [], Map [ "key", RT.DBool true ]))
+module Records =
+  let simple =
+    let typeName = RT.FQTypeName.fqPackage PM.Types.Records.singleField
+    t
+      "Test.Test { key = true }"
+      E.Records.simple
+      (RT.DRecord(typeName, typeName, [], Map [ "key", RT.DBool true ]))
 
-//   let nested =
-//     let outerTypeName = RT.FQTypeName.fqPackage PM.Types.Records.nested
-//     let innerTypeName = RT.FQTypeName.fqPackage PM.Types.Records.singleField
-//     t
-//       "Test.Test2 { outer = (Test.Test { key = true }) }"
-//       E.Records.nested
-//       (RT.DRecord(
-//         outerTypeName,
-//         outerTypeName,
-//         [],
-//         Map
-//           [ "outer",
-//             RT.DRecord(
-//               innerTypeName,
-//               innerTypeName,
-//               [],
-//               Map [ "key", RT.DBool true ]
-//             ) ]
-//       ))
-
-
-//   let tests = testList "Records" [ simple; nested ]
+  let nested =
+    let outerTypeName = RT.FQTypeName.fqPackage PM.Types.Records.nested
+    let innerTypeName = RT.FQTypeName.fqPackage PM.Types.Records.singleField
+    t
+      "Test.Test2 { outer = (Test.Test { key = true }) }"
+      E.Records.nested
+      (RT.DRecord(
+        outerTypeName,
+        outerTypeName,
+        [],
+        Map
+          [ "outer",
+            RT.DRecord(
+              innerTypeName,
+              innerTypeName,
+              [],
+              Map [ "key", RT.DBool true ]
+            ) ]
+      ))
 
 
-// module RecordFieldAccess =
-//   let simple =
-//     t "(Test.Test { key = true }).key" E.RecordFieldAccess.simple (RT.DBool true)
-//   let notRecord =
-//     tFail
-//       "1.key"
-//       E.RecordFieldAccess.notRecord
-//       (RTE.Record(RTE.Records.FieldAccessNotRecord VT.int64))
+  let tests = testList "Records" [ simple; nested ]
 
-//   let missingField =
-//     tFail
-//       "(Test.Test { key = true }).missing"
-//       E.RecordFieldAccess.missingField
-//       (RTE.Record(RTE.Records.FieldAccessFieldNotFound "missing"))
 
-//   let nested =
-//     t
-//       "(Test.Test2 { outer = (Test.Test { key = true }) }).outer.key"
-//       E.RecordFieldAccess.nested
-//       (RT.DBool true)
+module RecordFieldAccess =
+  let simple =
+    t "(Test.Test { key = true }).key" E.RecordFieldAccess.simple (RT.DBool true)
+  let notRecord =
+    tFail
+      "1.key"
+      E.RecordFieldAccess.notRecord
+      (RTE.Record(RTE.Records.FieldAccessNotRecord VT.int64))
 
-//   let tests =
-//     testList "RecordFieldAccess" [ simple; notRecord; missingField; nested ]
+  let missingField =
+    tFail
+      "(Test.Test { key = true }).missing"
+      E.RecordFieldAccess.missingField
+      (RTE.Record(RTE.Records.FieldAccessFieldNotFound "missing"))
+
+  let nested =
+    t
+      "(Test.Test2 { outer = (Test.Test { key = true }) }).outer.key"
+      E.RecordFieldAccess.nested
+      (RT.DBool true)
+
+  let tests =
+    testList "RecordFieldAccess" [ simple; notRecord; missingField; nested ]
 
 
 // module Lambdas =
@@ -339,10 +334,10 @@ let tests =
       Let.tests
       String.tests
       Dict.tests
-      // If.tests
+      If.tests
       Tuples.tests
       // Match.tests
-      // Records.tests
-      // RecordFieldAccess.tests
+      Records.tests
+      RecordFieldAccess.tests
       // Lambdas.tests
       ]

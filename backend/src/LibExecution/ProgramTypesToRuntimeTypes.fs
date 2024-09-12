@@ -156,37 +156,37 @@ module TypeReference =
 
 module LetPattern =
   let rec toRT
-    (rc : int)
     (symbols : Map<string, RT.Register>)
+    (rc : int)
     (p : PT.LetPattern)
-    : (RT.LetPattern * int * Map<string, RT.Register>) =
+    : (RT.LetPattern * Map<string, RT.Register> * int) =
     match p with
-    | PT.LPUnit _ -> RT.LPUnit, rc, Map.empty
+    | PT.LPUnit _ -> RT.LPUnit, Map.empty, rc
 
     | PT.LPTuple(_, first, second, theRest) ->
-      let first, rc, symbols = toRT rc symbols first
-      let second, rc, symbols = toRT rc symbols second
-      let (rc, symbols, theRest) =
+      let first, symbols, rc = toRT symbols rc first
+      let second, symbols, rc = toRT symbols rc second
+      let (symbols, rc, theRest) =
         theRest
         |> List.fold
-          (fun (rc, symbols, pats) pat ->
-            let pat, rc, symbols = toRT rc symbols pat
-            (rc, symbols, pats @ [ pat ]))
-          (rc, symbols, [])
+          (fun (symbols, rc, pats) pat ->
+            let pat, symbols, rc = toRT symbols rc pat
+            (symbols, rc, pats @ [ pat ]))
+          (symbols, rc, [])
 
-      RT.LPTuple(first, second, theRest), rc, symbols
+      RT.LPTuple(first, second, theRest), symbols, rc
 
     | PT.LPVariable(_, name) ->
       // "add a symbol" from name to rc
-      RT.LPVariable rc, rc + 1, (symbols |> Map.add name rc)
+      RT.LPVariable rc, (symbols |> Map.add name rc), rc + 1
 
 
   let toInstr
     (valueReg : RT.Register)
-    (rc)
+    (rc : int)
     (p : PT.LetPattern)
-    : (RT.Instruction * int * Map<string, RT.Register>) =
-    let (pat, rcAfterPat, symbols) = toRT rc Map.empty p
+    : (RT.Instruction * Map<string, RT.Register> * int) =
+    let (pat, rcAfterPat, symbols) = toRT Map.empty rc p
     RT.CheckLetPatternAndExtractVars(valueReg, pat), rcAfterPat, symbols
 
 
@@ -400,7 +400,7 @@ module Expr =
     // let x = 1
     | PT.ELet(_id, pat, expr, body) ->
       let exprInstrs = toRT symbols rc expr
-      let patInstr, rcAfterPat, newSymbols =
+      let patInstr, newSymbols, rcAfterPat =
         LetPattern.toInstr exprInstrs.resultIn exprInstrs.registerCount pat
       let symbols = Map.mergeFavoringRight symbols newSymbols
       let bodyInstrs = toRT symbols rcAfterPat body
@@ -422,311 +422,299 @@ module Expr =
             rc }
 
 
-// | PT.EIf(_id, cond, thenExpr, elseExpr) ->
-//   // We need a consistent result register,
-//   // so we'll create this, and copy to it at the end of each branch
-//   let resultReg, rc = rc, rc + 1
+    | PT.EIf(_id, cond, thenExpr, elseExpr) ->
+      // We need a consistent result register,
+      // so we'll create this, and copy to it at the end of each branch
+      let resultReg, rc = rc, rc + 1
 
-//   let cond = toRT rc cond
-//   let jumpIfCondFalse jumpBy = [ RT.JumpByIfFalse(jumpBy, cond.resultIn) ]
+      let cond = toRT symbols rc cond
+      let jumpIfCondFalse jumpBy = [ RT.JumpByIfFalse(jumpBy, cond.resultIn) ]
 
-//   let thenInstrs = toRT cond.registerCount thenExpr
-//   let copyThenToResultInstr = [ RT.CopyVal(resultReg, thenInstrs.resultIn) ]
+      let thenInstrs = toRT symbols cond.registerCount thenExpr
+      let copyThenToResultInstr = [ RT.CopyVal(resultReg, thenInstrs.resultIn) ]
 
-//   match elseExpr with
-//   | None ->
-//     let instrs =
-//       [ RT.LoadVal(resultReg, RT.DUnit) ] // if `cond` is `false`, the (default) result should probably be Unit
-//       @ cond.instructions
-//       @ jumpIfCondFalse (
-//         // goto the first instruction past the `if`
-//         // (the 1 is for the copy instruction)
-//         List.length thenInstrs.instructions + 1
-//       )
-//       @ thenInstrs.instructions
-//       @ copyThenToResultInstr
+      match elseExpr with
+      | None ->
+        let instrs =
+          [ RT.LoadVal(resultReg, RT.DUnit) ] // if `cond` is `false`, the (default) result should probably be Unit
+          @ cond.instructions
+          @ jumpIfCondFalse (
+            // goto the first instruction past the `if`
+            // (the 1 is for the copy instruction)
+            List.length thenInstrs.instructions + 1
+          )
+          @ thenInstrs.instructions
+          @ copyThenToResultInstr
 
-//     { registerCount = thenInstrs.registerCount
-//       instructions = instrs
-//       resultIn = resultReg }
+        { registerCount = thenInstrs.registerCount
+          instructions = instrs
+          resultIn = resultReg }
 
-//   | Some elseExpr ->
-//     let elseInstrs = toRT thenInstrs.registerCount elseExpr
-//     let copyToResultInstr = [ RT.CopyVal(resultReg, elseInstrs.resultIn) ]
+      | Some elseExpr ->
+        let elseInstrs = toRT symbols thenInstrs.registerCount elseExpr
+        let copyToResultInstr = [ RT.CopyVal(resultReg, elseInstrs.resultIn) ]
 
-//     let instrs =
-//       // cond -- if cond `false`, jump to start of 'else' block
-//       cond.instructions
-//       @ jumpIfCondFalse (
-//         // goto the first instruction past the `if`
-//         // (first 1 is for the copy instruction)
-//         // (second 1 is for the jump instruction)
-//         List.length thenInstrs.instructions + 1 + 1
-//       )
+        let instrs =
+          // cond -- if cond `false`, jump to start of 'else' block
+          cond.instructions
+          @ jumpIfCondFalse (
+            // goto the first instruction past the `if`
+            // (first 1 is for the copy instruction)
+            // (second 1 is for the jump instruction)
+            List.length thenInstrs.instructions + 1 + 1
+          )
 
-//       // then
-//       @ thenInstrs.instructions
-//       @ copyThenToResultInstr
-//       @ [ RT.JumpBy(List.length elseInstrs.instructions + 1) ]
+          // then
+          @ thenInstrs.instructions
+          @ copyThenToResultInstr
+          @ [ RT.JumpBy(List.length elseInstrs.instructions + 1) ]
 
-//       // else
-//       @ elseInstrs.instructions
-//       @ copyToResultInstr
+          // else
+          @ elseInstrs.instructions
+          @ copyToResultInstr
 
-//     { registerCount = elseInstrs.registerCount
-//       instructions = instrs
-//       resultIn = resultReg }
-
-
-// | PT.EFnName(_, Ok name) ->
-//   let namedFn : RT.ApplicableNamedFn =
-//     { name = FQFnName.toRT name; argsSoFar = [] }
-//   let applicable = RT.DApplicable(RT.Applicable.NamedFn namedFn)
-//   { registerCount = rc + 1
-//     instructions = [ RT.LoadVal(rc, applicable) ]
-//     resultIn = rc }
-
-// | PT.EFnName(_, Error nre) ->
-//   // TODO improve
-//   // hmm maybe we shouldn't fail yet here.
-//   // It's ok to _reference_ a bad name, so long as we don't try to `apply` it.
-//   // maybe the 'value' here is (still) some unresolved name?
-//   // (which should fail when we apply it)
-//   { registerCount = rc
-//     instructions = [ RT.RaiseNRE(NameResolutionError.toRT nre) ]
-//     resultIn = rc }
+        { registerCount = elseInstrs.registerCount
+          instructions = instrs
+          resultIn = resultReg }
 
 
-// | PT.EApply(_id, thingToApplyExpr, typeArgs, args) ->
-//   let thingToApply = toRT rc thingToApplyExpr
-//   // TODO: maybe one or both of these lists should be an `NEList`?
+    // | PT.EFnName(_, Ok name) ->
+    //   let namedFn : RT.ApplicableNamedFn =
+    //     { name = FQFnName.toRT name; argsSoFar = [] }
+    //   let applicable = RT.DApplicable(RT.Applicable.NamedFn namedFn)
+    //   { registerCount = rc + 1
+    //     instructions = [ RT.LoadVal(rc, applicable) ]
+    //     resultIn = rc }
 
-//   // CLEANUP find a way to get rid of silly NEList stuff
-//   let (regCounter, argInstrs, argRegs) =
-//     let init = (thingToApply.registerCount, [], [])
-
-//     args
-//     |> NEList.fold
-//       (fun (rc, instrs, argResultRegs) arg ->
-//         let newInstrs = toRT rc arg
-//         (newInstrs.registerCount,
-//          instrs @ newInstrs.instructions,
-//          argResultRegs @ [ newInstrs.resultIn ]))
-//       init
-
-//   let putResultIn = regCounter
-//   let callInstr =
-//     RT.Apply(
-//       putResultIn,
-//       thingToApply.resultIn,
-//       List.map TypeReference.toRT typeArgs,
-//       NEList.ofListUnsafe "" [] argRegs
-//     )
-
-//   { registerCount = regCounter + 1
-//     instructions = thingToApply.instructions @ argInstrs @ [ callInstr ]
-//     resultIn = putResultIn }
+    // | PT.EFnName(_, Error nre) ->
+    //   // TODO improve
+    //   // hmm maybe we shouldn't fail yet here.
+    //   // It's ok to _reference_ a bad name, so long as we don't try to `apply` it.
+    //   // maybe the 'value' here is (still) some unresolved name?
+    //   // (which should fail when we apply it)
+    //   { registerCount = rc
+    //     instructions = [ RT.RaiseNRE(NameResolutionError.toRT nre) ]
+    //     resultIn = rc }
 
 
-// | PT.EMatch(_id, expr, cases) ->
-//   // first, the easy part - compile the expression we're `match`ing against.
-//   let expr = toRT rc expr
+    // | PT.EApply(_id, thingToApplyExpr, typeArgs, args) ->
+    //   let thingToApply = toRT rc thingToApplyExpr
+    //   // TODO: maybe one or both of these lists should be an `NEList`?
 
-//   // Shortly, we'll compile each of the cases.
-//   // We'll use this `resultReg` to store the final result of the match
-//   // , so we have a consistent place to look for it.
-//   // (similar to how we handle `EIf` -- refer to that for a simpler example)
-//   let resultReg, rcAfterResult = expr.registerCount, expr.registerCount + 1
+    //   // CLEANUP find a way to get rid of silly NEList stuff
+    //   let (regCounter, argInstrs, argRegs) =
+    //     let init = (thingToApply.registerCount, [], [])
 
-//   // We compile each `case` in two phases, because some instrs require knowing
-//   // how many instrs to jump over, which we can't know until we know the basics
-//   // of all the cases.
-//   //
-//   // See `MatchCase.IntermediateValue` for more info.
-//   let casesAfterFirstPhase : List<MatchCase.IntermediateValue> =
-//     cases
-//     |> List.map (fun c ->
-//       // compile the `when` condition, if it exists, as much as we can
-//       let rcAfterWhenCond, whenCondInstrs, whenCondJump =
-//         match c.whenCondition with
-//         | None -> (rcAfterResult, [], None)
-//         | Some whenCond ->
-//           let whenCond = toRT rcAfterResult whenCond
-//           (whenCond.registerCount,
-//            whenCond.instructions,
-//            Some(fun jumpBy -> RT.JumpByIfFalse(jumpBy, whenCond.resultIn)))
+    //     args
+    //     |> NEList.fold
+    //       (fun (rc, instrs, argResultRegs) arg ->
+    //         let newInstrs = toRT rc arg
+    //         (newInstrs.registerCount,
+    //          instrs @ newInstrs.instructions,
+    //          argResultRegs @ [ newInstrs.resultIn ]))
+    //       init
 
-//       // compile the `rhs` of the case
-//       let rhs = toRT rcAfterWhenCond c.rhs
+    //   let putResultIn = regCounter
+    //   let callInstr =
+    //     RT.Apply(
+    //       putResultIn,
+    //       thingToApply.resultIn,
+    //       List.map TypeReference.toRT typeArgs,
+    //       NEList.ofListUnsafe "" [] argRegs
+    //     )
 
-//       // return the intermediate results, as far along as they are
-//       { matchValueInstrFn = MatchPattern.toMatchInstr expr.resultIn c.pat
-//         whenCondInstructions = whenCondInstrs
-//         whenCondJump = whenCondJump
-//         rhsInstrs = rhs.instructions @ [ RT.CopyVal(resultReg, rhs.resultIn) ]
-//         rc = rhs.registerCount })
-
-//   let countInstrsForCase (c : MatchCase.IntermediateValue) : int =
-//     1 // for the `MatchValue` instruction
-//     + List.length c.whenCondInstructions
-//     + (match c.whenCondJump with
-//        | Some _ -> 1
-//        | None -> 0)
-//     + List.length c.rhsInstrs
-//     + 1 // for the `JumpBy` instruction
-
-//   let (cases, _) : List<MatchCase.IntermediateValue * int> * int =
-//     casesAfterFirstPhase
-//     |> List.map (fun c ->
-//       let instrCount = countInstrsForCase c
-//       (c, instrCount))
-//     |> List.foldRight
-//       // CLEANUP this works, but hurts the brain a bit.
-//       (fun (acc, runningTotal) (c, instrCount) ->
-//         let newTotal = runningTotal + instrCount
-//         (acc @ [ c, runningTotal ], newTotal))
-//       ([], 0)
-//   let cases = List.rev cases
-
-//   let caseInstrs =
-//     cases
-//     |> List.fold
-//       (fun instrs (c, instrsAfterThisCaseUntilEndOfMatch) ->
-//         // note: `instrsAfterThisCaseUntilEndOfMatch` does not include
-//         // the final MatchUnmatched instruction
-
-//         let caseInstrs =
-//           [ c.matchValueInstrFn (
-//               countInstrsForCase c
-//               // because we can skip over the MatchValue instr
-//               - 1
-//             ) ]
-//           @ c.whenCondInstructions
-//           @ (match c.whenCondJump with
-//              // jump to next case if the when condition is false
-//              | Some jump -> [ jump (List.length c.rhsInstrs + 1) ]
-//              | None -> [])
-//           @ c.rhsInstrs
-//           @ [ RT.JumpBy(instrsAfterThisCaseUntilEndOfMatch + 1) ]
-
-//         instrs @ caseInstrs)
-//       []
-
-//   let instrs = expr.instructions @ caseInstrs @ [ RT.MatchUnmatched ]
-
-//   let rcAtEnd = casesAfterFirstPhase |> List.map _.rc |> List.max
-
-//   { registerCount = rcAtEnd; instructions = instrs; resultIn = resultReg }
+    //   { registerCount = regCounter + 1
+    //     instructions = thingToApply.instructions @ argInstrs @ [ callInstr ]
+    //     resultIn = putResultIn }
 
 
-// // -- Records --
-// | PT.ERecord(_id, Error nre, _typeArgs, _fields) ->
-//   let returnReg = 0 // TODO - not sure what to do here
-//   { registerCount = rc
-//     instructions = [ RT.RaiseNRE(NameResolutionError.toRT nre) ]
-//     resultIn = returnReg }
+    // | PT.EMatch(_id, expr, cases) ->
+    //   // first, the easy part - compile the expression we're `match`ing against.
+    //   let expr = toRT rc expr
 
-// | PT.ERecord(_id, Ok typeName, typeArgs, fields) ->
-//   // fields : List<string * Expr>
-//   let recordReg, rc = rc, rc + 1
+    //   // Shortly, we'll compile each of the cases.
+    //   // We'll use this `resultReg` to store the final result of the match
+    //   // , so we have a consistent place to look for it.
+    //   // (similar to how we handle `EIf` -- refer to that for a simpler example)
+    //   let resultReg, rcAfterResult = expr.registerCount, expr.registerCount + 1
 
-//   // CLEANUP: complain if there are no fields -- or maybe that should happen during interpretation?
-//   // - actually- is there anything _wrong_ with a fieldless record?
-//   let (rcAfterFields, instrs, fields) =
-//     fields
-//     |> List.fold
-//       (fun (rc, instrs, fieldRegs) (fieldName, fieldExpr) ->
-//         let field = toRT rc fieldExpr
-//         (field.registerCount,
-//          instrs @ field.instructions,
-//          fieldRegs @ [ (fieldName, field.resultIn) ]))
-//       (rc, [], [])
+    //   // We compile each `case` in two phases, because some instrs require knowing
+    //   // how many instrs to jump over, which we can't know until we know the basics
+    //   // of all the cases.
+    //   //
+    //   // See `MatchCase.IntermediateValue` for more info.
+    //   let casesAfterFirstPhase : List<MatchCase.IntermediateValue> =
+    //     cases
+    //     |> List.map (fun c ->
+    //       // compile the `when` condition, if it exists, as much as we can
+    //       let rcAfterWhenCond, whenCondInstrs, whenCondJump =
+    //         match c.whenCondition with
+    //         | None -> (rcAfterResult, [], None)
+    //         | Some whenCond ->
+    //           let whenCond = toRT rcAfterResult whenCond
+    //           (whenCond.registerCount,
+    //            whenCond.instructions,
+    //            Some(fun jumpBy -> RT.JumpByIfFalse(jumpBy, whenCond.resultIn)))
+
+    //       // compile the `rhs` of the case
+    //       let rhs = toRT rcAfterWhenCond c.rhs
+
+    //       // return the intermediate results, as far along as they are
+    //       { matchValueInstrFn = MatchPattern.toMatchInstr expr.resultIn c.pat
+    //         whenCondInstructions = whenCondInstrs
+    //         whenCondJump = whenCondJump
+    //         rhsInstrs = rhs.instructions @ [ RT.CopyVal(resultReg, rhs.resultIn) ]
+    //         rc = rhs.registerCount })
+
+    //   let countInstrsForCase (c : MatchCase.IntermediateValue) : int =
+    //     1 // for the `MatchValue` instruction
+    //     + List.length c.whenCondInstructions
+    //     + (match c.whenCondJump with
+    //        | Some _ -> 1
+    //        | None -> 0)
+    //     + List.length c.rhsInstrs
+    //     + 1 // for the `JumpBy` instruction
+
+    //   let (cases, _) : List<MatchCase.IntermediateValue * int> * int =
+    //     casesAfterFirstPhase
+    //     |> List.map (fun c ->
+    //       let instrCount = countInstrsForCase c
+    //       (c, instrCount))
+    //     |> List.foldRight
+    //       // CLEANUP this works, but hurts the brain a bit.
+    //       (fun (acc, runningTotal) (c, instrCount) ->
+    //         let newTotal = runningTotal + instrCount
+    //         (acc @ [ c, runningTotal ], newTotal))
+    //       ([], 0)
+    //   let cases = List.rev cases
+
+    //   let caseInstrs =
+    //     cases
+    //     |> List.fold
+    //       (fun instrs (c, instrsAfterThisCaseUntilEndOfMatch) ->
+    //         // note: `instrsAfterThisCaseUntilEndOfMatch` does not include
+    //         // the final MatchUnmatched instruction
+
+    //         let caseInstrs =
+    //           [ c.matchValueInstrFn (
+    //               countInstrsForCase c
+    //               // because we can skip over the MatchValue instr
+    //               - 1
+    //             ) ]
+    //           @ c.whenCondInstructions
+    //           @ (match c.whenCondJump with
+    //              // jump to next case if the when condition is false
+    //              | Some jump -> [ jump (List.length c.rhsInstrs + 1) ]
+    //              | None -> [])
+    //           @ c.rhsInstrs
+    //           @ [ RT.JumpBy(instrsAfterThisCaseUntilEndOfMatch + 1) ]
+
+    //         instrs @ caseInstrs)
+    //       []
+
+    //   let instrs = expr.instructions @ caseInstrs @ [ RT.MatchUnmatched ]
+
+    //   let rcAtEnd = casesAfterFirstPhase |> List.map _.rc |> List.max
+
+    //   { registerCount = rcAtEnd; instructions = instrs; resultIn = resultReg }
 
 
+    // -- Records --
+    | PT.ERecord(_id, Error nre, _typeArgs, _fields) ->
+      let returnReg = 0 // TODO - not sure what to do here
+      { registerCount = rc
+        instructions = [ RT.RaiseNRE(NameResolutionError.toRT nre) ]
+        resultIn = returnReg }
 
-//   // (rcAfterFields,
-//   //  instrs
-//   //  @ [ RT.CreateRecord(
-//   //        recordReg,
-//   //        FQTypeName.toRT typeName,
-//   //        List.map TypeReference.toRT typeArgs,
-//   //        fields
-//   //      ) ],
-//   //  recordReg)
+    | PT.ERecord(_id, Ok typeName, typeArgs, fields) ->
+      // fields : List<string * Expr>
+      let recordReg, rc = rc, rc + 1
 
-//   { registerCount = rcAfterFields
-//     instructions =
-//       instrs
-//       @ [ RT.CreateRecord(
-//             recordReg,
-//             FQTypeName.toRT typeName,
-//             List.map TypeReference.toRT typeArgs,
-//             fields
-//           ) ]
-//     resultIn = recordReg }
+      // CLEANUP: complain if there are no fields -- or maybe that should happen during interpretation?
+      // - actually- is there anything _wrong_ with a fieldless record?
+      let (rcAfterFields, instrs, fields) =
+        fields
+        |> List.fold
+          (fun (rc, instrs, fieldRegs) (fieldName, fieldExpr) ->
+            let field = toRT symbols rc fieldExpr
+            (field.registerCount,
+             instrs @ field.instructions,
+             fieldRegs @ [ (fieldName, field.resultIn) ]))
+          (rc, [], [])
 
-// // | PT.ERecordUpdate(_id, expr, updates) ->
-// //   let (rcAfterOriginalRecord, originalRecordInstrs, originalRecordReg) =
-// //     toRT rc expr
+      { registerCount = rcAfterFields
+        instructions =
+          instrs
+          @ [ RT.CreateRecord(
+                recordReg,
+                FQTypeName.toRT typeName,
+                List.map TypeReference.toRT typeArgs,
+                fields
+              ) ]
+        resultIn = recordReg }
 
-// //   let (rcAfterUpdates, updatesInstrs, updates) =
-// //     updates
-// //     |> NEList.fold
-// //       (fun (rc, instrs, regs) (fieldName, fieldExpr) ->
-// //         let (newRc, newInstrs, newReg) = toRT rc fieldExpr
-// //         (newRc, instrs @ newInstrs, regs @ [ (fieldName, newReg) ]))
-// //       (rcAfterOriginalRecord, [], [])
+    // | PT.ERecordUpdate(_id, expr, updates) ->
+    //   let (rcAfterOriginalRecord, originalRecordInstrs, originalRecordReg) =
+    //     toRT rc expr
 
-// //   let targetReg, rc = rcAfterUpdates, rcAfterUpdates + 1
-// //   let instrs =
-// //     originalRecordInstrs
-// //     @ updatesInstrs
-// //     @ [ RT.CloneRecordWithUpdates(targetReg, originalRecordReg, updates) ]
+    //   let (rcAfterUpdates, updatesInstrs, updates) =
+    //     updates
+    //     |> NEList.fold
+    //       (fun (rc, instrs, regs) (fieldName, fieldExpr) ->
+    //         let (newRc, newInstrs, newReg) = toRT rc fieldExpr
+    //         (newRc, instrs @ newInstrs, regs @ [ (fieldName, newReg) ]))
+    //       (rcAfterOriginalRecord, [], [])
 
-// //   (rc, instrs, targetReg)
+    //   let targetReg, rc = rcAfterUpdates, rcAfterUpdates + 1
+    //   let instrs =
+    //     originalRecordInstrs
+    //     @ updatesInstrs
+    //     @ [ RT.CloneRecordWithUpdates(targetReg, originalRecordReg, updates) ]
 
-// | PT.ERecordFieldAccess(_id, expr, fieldName) ->
-//   let expr = toRT rc expr
+    //   (rc, instrs, targetReg)
 
-//   { registerCount = expr.registerCount + 1
-//     instructions =
-//       expr.instructions
-//       @ [ RT.GetRecordField(expr.registerCount, expr.resultIn, fieldName) ]
-//     resultIn = expr.registerCount }
+    | PT.ERecordFieldAccess(_id, expr, fieldName) ->
+      let expr = toRT symbols rc expr
+
+      { registerCount = expr.registerCount + 1
+        instructions =
+          expr.instructions
+          @ [ RT.GetRecordField(expr.registerCount, expr.resultIn, fieldName) ]
+        resultIn = expr.registerCount }
 
 
-// // -- Enums --
-// | PT.EEnum(_id, Error nre, _caseName, _typeArgs, _fields) ->
-//   let returnReg = 0 // TODO - not sure what to do here
-//   { registerCount = rc
-//     instructions = [ RT.RaiseNRE(NameResolutionError.toRT nre) ]
-//     resultIn = returnReg }
+    // -- Enums --
+    | PT.EEnum(_id, Error nre, _caseName, _typeArgs, _fields) ->
+      let returnReg = 0 // TODO - not sure what to do here
+      { registerCount = rc
+        instructions = [ RT.RaiseNRE(NameResolutionError.toRT nre) ]
+        resultIn = returnReg }
 
-// | PT.EEnum(_id, Ok typeName, typeArgs, caseName, fields) ->
-//   // fields : List<string * Expr>
-//   let enumReg, rc = rc, rc + 1
+    | PT.EEnum(_id, Ok typeName, typeArgs, caseName, fields) ->
+      // fields : List<string * Expr>
+      let enumReg, rc = rc, rc + 1
 
-//   let (rcAfterFields, instrs, fields) =
-//     fields
-//     |> List.fold
-//       (fun (rc, instrs, fieldRegs) fieldExpr ->
-//         let afterField = toRT rc fieldExpr
-//         (afterField.registerCount,
-//          instrs @ afterField.instructions,
-//          fieldRegs @ [ afterField.resultIn ]))
-//       (rc, [], [])
+      let (rcAfterFields, instrs, fields) =
+        fields
+        |> List.fold
+          (fun (rc, instrs, fieldRegs) fieldExpr ->
+            let afterField = toRT symbols rc fieldExpr
+            (afterField.registerCount,
+             instrs @ afterField.instructions,
+             fieldRegs @ [ afterField.resultIn ]))
+          (rc, [], [])
 
-//   { registerCount = rcAfterFields
-//     instructions =
-//       instrs
-//       @ [ RT.CreateEnum(
-//             enumReg,
-//             FQTypeName.toRT typeName,
-//             List.map TypeReference.toRT typeArgs,
-//             caseName,
-//             fields
-//           ) ]
-//     resultIn = enumReg }
+      { registerCount = rcAfterFields
+        instructions =
+          instrs
+          @ [ RT.CreateEnum(
+                enumReg,
+                FQTypeName.toRT typeName,
+                List.map TypeReference.toRT typeArgs,
+                caseName,
+                fields
+              ) ]
+        resultIn = enumReg }
 
 
 // | PT.ELambda(id, pats, body) ->

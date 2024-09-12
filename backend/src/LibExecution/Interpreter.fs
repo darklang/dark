@@ -113,18 +113,18 @@ let rec checkAndExtractMatchPattern
 /// , like ExecutionContext or Execution
 ///
 /// TODO potentially make this a loop instead of recursive
-let rec private execute (_exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
+let rec private execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
   uply {
-    let callFrame = Map.findUnsafe vm.currentFrame vm.callFrames
+    let currentFrame = Map.findUnsafe vm.currentFrameID vm.callFrames
 
-    let mutable counter = callFrame.pc // what instruction (by index) we're on
-    let registers = callFrame.registers
+    let mutable counter = currentFrame.pc // what instruction (by index) we're on
+    let registers = currentFrame.registers
 
     let raiseRTE rte = raiseRTE vm.threadID rte
 
-    while counter < callFrame.instructions.Length do
+    while counter < currentFrame.instructions.Length do
 
-      match callFrame.instructions[counter] with
+      match currentFrame.instructions[counter] with
 
       // == Simple register operations ==
       | LoadVal(reg, value) ->
@@ -177,17 +177,17 @@ let rec private execute (_exeState : ExecutionState) (vm : VMState) : Ply<Dval> 
         counter <- counter + 1
 
 
-      // // == Flow Control ==
-      // // -- Jumps --
-      // | JumpBy jumpBy -> counter <- counter + jumpBy + 1
+      // == Flow Control ==
+      // -- Jumps --
+      | JumpBy jumpBy -> counter <- counter + jumpBy + 1
 
-      // | JumpByIfFalse(jumpBy, condReg) ->
-      //   match vm.registers[condReg] with
-      //   | DBool false -> counter <- counter + jumpBy + 1
-      //   | DBool true -> counter <- counter + 1
-      //   | dv ->
-      //     let vt = Dval.toValueType dv
-      //     raiseRTE (RTE.Bool(RTE.Bools.ConditionRequiresBool(vt, dv)))
+      | JumpByIfFalse(jumpBy, condReg) ->
+        match registers[condReg] with
+        | DBool false -> counter <- counter + jumpBy + 1
+        | DBool true -> counter <- counter + 1
+        | dv ->
+          let vt = Dval.toValueType dv
+          raiseRTE (RTE.Bool(RTE.Bools.ConditionRequiresBool(vt, dv)))
 
       // // -- Match --
       // | CheckMatchPatternAndExtractVars(valueReg, pat, failJump) ->
@@ -232,59 +232,59 @@ let rec private execute (_exeState : ExecutionState) (vm : VMState) : Ply<Dval> 
         counter <- counter + 1
 
 
-      // // == Working with Custom Data ==
-      // // -- Records --
-      // | CreateRecord(recordReg, typeName, typeArgs, fields) ->
-      //   let fields =
-      //     fields |> List.map (fun (name, valueReg) -> (name, vm.registers[valueReg]))
+      // == Working with Custom Data ==
+      // -- Records --
+      | CreateRecord(recordReg, typeName, typeArgs, fields) ->
+        let fields =
+          fields |> List.map (fun (name, valueReg) -> (name, registers[valueReg]))
 
-      //   let! record =
+        let! record =
+          TypeChecker.DvalCreator.record
+            vm.threadID
+            exeState.types
+            typeName
+            typeArgs
+            fields
+
+        registers[recordReg] <- record
+        counter <- counter + 1
+
+      // | CloneRecordWithUpdates(targetReg, originalRecordReg, updates) ->
+      //   let originalRecord = vm.registers[originalRecordReg]
+      //   let updates =
+      //     updates
+      //     |> List.map (fun (fieldName, valueReg) ->
+      //       (fieldName, vm.registers[valueReg]))
+      //   let updatedRecord =
       //     TypeChecker.DvalCreator.record
-      //       vm.callStack
-      //       exeState.types
+      //       exeState.tracing.callStack
       //       typeName
       //       typeArgs
-      //       fields
+      //       updates
 
-      //   vm.registers[recordReg] <- record
+      //   vm.registers[targetReg] <- updatedRecord
       //   counter <- counter + 1
 
-      // // | CloneRecordWithUpdates(targetReg, originalRecordReg, updates) ->
-      // //   let originalRecord = vm.registers[originalRecordReg]
-      // //   let updates =
-      // //     updates
-      // //     |> List.map (fun (fieldName, valueReg) ->
-      // //       (fieldName, vm.registers[valueReg]))
-      // //   let updatedRecord =
-      // //     TypeChecker.DvalCreator.record
-      // //       exeState.tracing.callStack
-      // //       typeName
-      // //       typeArgs
-      // //       updates
+      | GetRecordField(targetReg, recordReg, fieldName) ->
+        match registers[recordReg] with
+        | DRecord(_, _, _, fields) ->
+          match Map.find fieldName fields with
+          | Some value ->
+            registers[targetReg] <- value
+            counter <- counter + 1
+          | None ->
+            RTE.Records.FieldAccessFieldNotFound fieldName |> RTE.Record |> raiseRTE
+        | dv ->
+          RTE.Records.FieldAccessNotRecord(Dval.toValueType dv)
+          |> RTE.Record
+          |> raiseRTE
 
-      // //   vm.registers[targetReg] <- updatedRecord
-      // //   counter <- counter + 1
-
-      // | GetRecordField(targetReg, recordReg, fieldName) ->
-      //   match vm.registers[recordReg] with
-      //   | DRecord(_, _, _, fields) ->
-      //     match Map.find fieldName fields with
-      //     | Some value ->
-      //       vm.registers[targetReg] <- value
-      //       counter <- counter + 1
-      //     | None ->
-      //       RTE.Records.FieldAccessFieldNotFound fieldName |> RTE.Record |> raiseRTE
-      //   | dv ->
-      //     RTE.Records.FieldAccessNotRecord(Dval.toValueType dv)
-      //     |> RTE.Record
-      //     |> raiseRTE
-
-      // // -- Enums --
-      // | CreateEnum(enumReg, typeName, _typeArgs, caseName, fields) ->
-      //   // TODO: safe dval creation
-      //   let fields = fields |> List.map (fun (valueReg) -> vm.registers[valueReg])
-      //   vm.registers[enumReg] <- DEnum(typeName, typeName, [], caseName, fields)
-      //   counter <- counter + 1
+      // -- Enums --
+      | CreateEnum(enumReg, typeName, _typeArgs, caseName, fields) ->
+        // TODO: safe dval creation
+        let fields = fields |> List.map (fun (valueReg) -> registers[valueReg])
+        registers[enumReg] <- DEnum(typeName, typeName, [], caseName, fields)
+        counter <- counter + 1
 
       // | CreateLambda(lambdaReg, impl) ->
       //   vm.lambdas <- Map.add impl.exprId impl vm.lambdas
@@ -334,7 +334,7 @@ let rec private execute (_exeState : ExecutionState) (vm : VMState) : Ply<Dval> 
 
 
     // If we've reached the end of the instructions, return the result
-    return callFrame.registers[callFrame.resultReg]
+    return registers[currentFrame.resultReg]
   }
 
 

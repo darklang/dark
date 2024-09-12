@@ -129,7 +129,7 @@ type LetPattern =
   // /// `let _ignored = 1`
   // | LPIgnored
 
-  /// let (x) = 1
+  // /// let (x) = 1
   //| LPParens of inner : LetPattern
 
   /// `let (x, _) = (1, 2)`
@@ -255,6 +255,7 @@ type TypeReference =
 //| TDB of TypeReference
 // A named variable, eg `a` in `List<a>`, matches anything
 
+
 /// Expressions - the main part of the language.
 type Expr =
   // -- Simple exprs --
@@ -283,9 +284,9 @@ type Expr =
   | EString of id * List<StringSegment>
 
 
-  // // -- Flow control --
-  // /// `if cond then thenExpr else elseExpr`
-  // | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
+  // -- Flow control --
+  /// `if cond then thenExpr else elseExpr`
+  | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
 
   // /// `(1 + 2) |> fnName |> (+) 3`
   // | EPipe of id * Expr * List<PipeExpr>
@@ -322,61 +323,61 @@ type Expr =
   | EDict of id * List<string * Expr>
   | ETuple of id * Expr * Expr * List<Expr>
 
-// // // -- "Applying" args to things, such as fns and lambdas --
-// /// This is a function call, the first expression is the value of the function.
-// /// - `expr (args[0])`
-// /// - `expr (args[0]) (args[1])`
-// /// - `expr<typeArg[0]> (args[0])`
-// | EApply of id * expr : Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
+  // // // -- "Applying" args to things, such as fns and lambdas --
+  // /// This is a function call, the first expression is the value of the function.
+  // /// - `expr (args[0])`
+  // /// - `expr (args[0]) (args[1])`
+  // /// - `expr<typeArg[0]> (args[0])`
+  // | EApply of id * expr : Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
 
-// /// Reference a function name, _usually_ so we can _apply_ it with args
-// | EFnName of id * NameResolution<FQFnName.FQFnName>
+  // /// Reference a function name, _usually_ so we can _apply_ it with args
+  // | EFnName of id * NameResolution<FQFnName.FQFnName>
 
-// // Composed of a parameters * the expression itself
-// // The id in the varname list is the analysis id, used to get a livevalue
-// // from the analysis engine
-// | ELambda of id * pats : NEList<LetPattern> * body : Expr
+  // // Composed of a parameters * the expression itself
+  // // The id in the varname list is the analysis id, used to get a livevalue
+  // // from the analysis engine
+  // | ELambda of id * pats : NEList<LetPattern> * body : Expr
 
-// /// Calls upon an infix function
-// | EInfix of id * Infix * lhs : Expr * rhs : Expr
-
-
-// -- References to custom types and data --
-
-// /// Construct a record
-// /// `SomeRecord { field1: value; field2: value }`
-// | ERecord of
-//   id *
-//   // TODO: this reference should be by-hash
-//   typeName : NameResolution<FQTypeName.FQTypeName> *
-//   typeArgs : List<TypeReference> *
-//   // User is allowed type `Name {}` even if that's an error
-//   fields : List<string * Expr>
-
-// /// Access a field of some record (e.g. `someExpr.fieldName`)
-// | ERecordFieldAccess of id * record : Expr * fieldName : string
-
-// /// Clone a record, and update some of its values
-// /// `{ r with key = value }`
-// | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
+  // /// Calls upon an infix function
+  // | EInfix of id * Infix * lhs : Expr * rhs : Expr
 
 
-// // Enums include `Some`, `None`, `Error`, `Ok`, as well
-// // as user-defined enums.
-// //
-// /// Given an Enum type of:
-// ///   `type MyEnum = A | B of int | C of int * (label: string) | D of MyEnum`
-// /// , this is the expression
-// ///   `C (1, "title")`
-// /// represented as
-// ///   `EEnum(Some UserType.MyEnum, "C", [EInt64(1), EString("title")]`
-// | EEnum of
-//   id *
-//   // TODO: this reference should be by-hash
-//   typeName : NameResolution<FQTypeName.FQTypeName> *
-//   typeArgs : List<TypeReference> *
-//   caseName : string *
-//   fields : List<Expr>
+  // -- References to custom types and data --
+
+  /// Construct a record
+  /// `SomeRecord { field1: value; field2: value }`
+  | ERecord of
+    id *
+    // TODO: this reference should be by-hash
+    typeName : NameResolution<FQTypeName.FQTypeName> *
+    typeArgs : List<TypeReference> *
+    // User is allowed type `Name {}` even if that's an error
+    fields : List<string * Expr>
+
+  /// Access a field of some record (e.g. `someExpr.fieldName`)
+  | ERecordFieldAccess of id * record : Expr * fieldName : string
+
+  // /// Clone a record, and update some of its values
+  // /// `{ r with key = value }`
+  // | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
+
+
+  // Enums include `Some`, `None`, `Error`, `Ok`, as well
+  // as user-defined enums.
+  //
+  /// Given an Enum type of:
+  ///   `type MyEnum = A | B of int | C of int * (label: string) | D of MyEnum`
+  /// , this is the expression
+  ///   `C (1, "title")`
+  /// represented as
+  ///   `EEnum(Some UserType.MyEnum, "C", [EInt64(1), EString("title")]`
+  | EEnum of
+    id *
+    // TODO: this reference should be by-hash
+    typeName : NameResolution<FQTypeName.FQTypeName> *
+    typeArgs : List<TypeReference> *
+    caseName : string *
+    fields : List<Expr>
 
 // | EConstant of
 //   id *
@@ -426,20 +427,20 @@ module Expr =
     | EFloat(id, _, _, _)
     // | EConstant(id, _)
     | ELet(id, _, _, _)
-    // | EIf(id, _, _, _)
+    | EIf(id, _, _, _)
     //| EInfix(id, _, _, _)
     // | ELambda(id, _, _)
     // | EFnName(id, _)
-    // | ERecordFieldAccess(id, _, _)
     | EVariable(id, _)
     // | EApply(id, _, _, _)
     | EList(id, _)
     | EDict(id, _)
     | ETuple(id, _, _, _)
     // | EPipe(id, _, _)
-    // | ERecord(id, _, _, _)
+    | ERecord(id, _, _, _)
     // | ERecordUpdate(id, _, _)
-    // | EEnum(id, _, _, _, _)
+    | ERecordFieldAccess(id, _, _)
+    | EEnum(id, _, _, _, _)
     // | EMatch(id, _, _)
      -> id
 

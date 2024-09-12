@@ -340,22 +340,19 @@ type Instruction =
   /// Errors if the pattern doesn't match the value.
   | CheckLetPatternAndExtractVars of valueReg : Register * pat : LetPattern
 
-  // /// Stores the value of a variable to a register
-  // | GetVar of loadTo : Register * varName : string
-
 
   // == Working with Basic Types ==
   | CreateString of createTo : Register * segments : List<StringSegment>
 
 
-  // // == Flow Control ==
+  // == Flow Control ==
 
-  // // -- Jumps --
-  // /// Go `n` instructions forward, if the value in the register is `false`
-  // | JumpByIfFalse of instrsToJump : int * conditionReg : Register
+  // -- Jumps --
+  /// Go `n` instructions forward, if the value in the register is `false`
+  | JumpByIfFalse of instrsToJump : int * conditionReg : Register
 
-  // /// Go `n` instructions forward, unconditionally
-  // | JumpBy of instrsToJump : int
+  /// Go `n` instructions forward, unconditionally
+  | JumpBy of instrsToJump : int
 
   // // -- Match --
   // /// Check if the value in the noted register the noted pattern,
@@ -387,32 +384,32 @@ type Instruction =
   | CreateDict of createTo : Register * entries : List<string * Register>
 
 
-  // // == Working with Custom Data ==
-  // // -- Records --
-  // | CreateRecord of
+  // == Working with Custom Data ==
+  // -- Records --
+  | CreateRecord of
+    createTo : Register *
+    typeName : FQTypeName.FQTypeName *
+    typeArgs : List<TypeReference> *
+    fields : List<string * Register>
+
+  // | CloneRecordWithUpdates of
   //   createTo : Register *
-  //   typeName : FQTypeName.FQTypeName *
-  //   typeArgs : List<TypeReference> *
-  //   fields : List<string * Register>
+  //   originalRecordReg : Register *
+  //   updates : List<string * Register>
 
-  // // | CloneRecordWithUpdates of
-  // //   createTo : Register *
-  // //   originalRecordReg : Register *
-  // //   updates : List<string * Register>
+  | GetRecordField of
+    // todo: rename to "lhs"? Look into this.
+    targetReg : Register *
+    recordReg : Register *
+    fieldName : string
 
-  // | GetRecordField of
-  //   // todo: rename to "lhs"? Look into this.
-  //   targetReg : Register *
-  //   recordReg : Register *
-  //   fieldName : string
-
-  // // -- Enums --
-  // | CreateEnum of
-  //   createTo : Register *
-  //   typeName : FQTypeName.FQTypeName *
-  //   typeArgs : List<TypeReference> *
-  //   caseName : string *
-  //   fields : List<Register>
+  // -- Enums --
+  | CreateEnum of
+    createTo : Register *
+    typeName : FQTypeName.FQTypeName *
+    typeArgs : List<TypeReference> *
+    caseName : string *
+    fields : List<Register>
 
 
   // // == Working with things that Apply ==
@@ -1485,7 +1482,7 @@ and CallFrame =
 and VMState =
   { callFrames : Map<uuid, CallFrame>
 
-    currentFrame : uuid
+    currentFrameID : uuid
 
     //mutable lambdas : Map<id, LambdaImpl>
 
@@ -1515,7 +1512,7 @@ and VMState =
         parent = None }
 
     { threadID = System.Guid.NewGuid()
-      currentFrame = callFrameId
+      currentFrameID = callFrameId
       callFrames = Map [ callFrameId, callFrame ] }
 
 
