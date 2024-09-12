@@ -4,6 +4,7 @@ open Prelude
 open ProgramTypes
 
 /// TODO type symbols, too
+/// TODO I'm not sure if this is useful any more - wrote this when doing some Lambda work but idk
 let rec symbolsUsedIn (expr : Expr) : Set<string> =
   let r = symbolsUsedIn
 
@@ -56,17 +57,17 @@ let rec symbolsUsedIn (expr : Expr) : Set<string> =
     | None -> Set.union (r condExpr) (r ifExpr)
     | Some elseExpr -> Set.unionMany [ r condExpr; r ifExpr; r elseExpr ]
 
-  // | EMatch(_, target, cases) ->
-  //   let targetVars = r target
-  //   let whenVars =
-  //     cases
-  //     |> List.map (fun c ->
-  //       match c.whenCondition with
-  //       | None -> Set.empty
-  //       | Some w -> r w)
-  //     |> Set.unionMany
-  //   let rhsVars = cases |> List.map _.rhs |> List.map r |> Set.unionMany
-  //   Set.unionMany [ targetVars; whenVars; rhsVars ]
+  | EMatch(_, target, cases) ->
+    let targetVars = r target
+    let whenVars =
+      cases
+      |> List.map (fun c ->
+        match c.whenCondition with
+        | None -> Set.empty
+        | Some w -> r w)
+      |> Set.unionMany
+    let rhsVars = cases |> List.map _.rhs |> List.map r |> Set.unionMany
+    Set.unionMany [ targetVars; whenVars; rhsVars ]
 
 
   // custom data

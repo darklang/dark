@@ -291,15 +291,15 @@ type Expr =
   // /// `(1 + 2) |> fnName |> (+) 3`
   // | EPipe of id * Expr * List<PipeExpr>
 
-  // /// Supports `match` expressions
-  // /// ```fsharp
-  // /// match x + 2 with // arg
-  // /// | pattern -> expr // cases[0]
-  // /// | pattern -> expr
-  // /// | ...
-  // /// ```
-  // // cases is a list to represent when a user starts typing but doesn't complete it
-  // | EMatch of id * arg : Expr * cases : List<MatchCase>
+  /// Supports `match` expressions
+  /// ```fsharp
+  /// match x + 2 with // arg
+  /// | pattern -> expr // cases[0]
+  /// | pattern -> expr
+  /// | ...
+  /// ```
+  // cases is a list to represent when a user starts typing but doesn't complete it
+  | EMatch of id * arg : Expr * cases : List<MatchCase>
 
   // <summary>
   // Composed of binding pattern, the expression to create bindings for,
@@ -441,8 +441,7 @@ module Expr =
     // | ERecordUpdate(id, _, _)
     | ERecordFieldAccess(id, _, _)
     | EEnum(id, _, _, _, _)
-    // | EMatch(id, _, _)
-     -> id
+    | EMatch(id, _, _) -> id
 
 // module PipeExpr =
 //   let toID (expr : PipeExpr) : id =

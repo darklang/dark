@@ -140,20 +140,6 @@ module TypeReference =
 //     | PT.ComparisonNotEquals -> ("notEquals", 0)
 
 
-
-// let tpl = (true, (false, "panda"))
-// rc = 17
-// let (a, (b, c)) = tpl
-(*
-  [ .....
-  ....
-  17: true
-  18: false
-  19: "panda"
-  ]
-*)
-
-
 module LetPattern =
   let rec toRT
     (symbols : Map<string, RT.Register>)
@@ -177,7 +163,6 @@ module LetPattern =
       RT.LPTuple(first, second, theRest), symbols, rc
 
     | PT.LPVariable(_, name) ->
-      // "add a symbol" from name to rc
       RT.LPVariable rc, (symbols |> Map.add name rc), rc + 1
 
 
@@ -191,44 +176,84 @@ module LetPattern =
 
 
 
-// module MatchPattern =
-//   let rec toRT (p : PT.MatchPattern) : RT.MatchPattern =
-//     match p with
-//     | PT.MPUnit _ -> RT.MPUnit
+module MatchPattern =
+  let rec toRT
+    (symbols : Map<string, RT.Register>)
+    (rc : int)
+    (p : PT.MatchPattern)
+    : (RT.MatchPattern * Map<string, RT.Register> * int) =
+    match p with
+    | PT.MPUnit _ -> RT.MPUnit, symbols, rc
 
-//     | PT.MPBool(_, b) -> RT.MPBool b
+    | PT.MPBool(_, b) -> RT.MPBool b, symbols, rc
 
-//     | PT.MPInt8(_, i) -> RT.MPInt8 i
-//     | PT.MPUInt8(_, i) -> RT.MPUInt8 i
-//     | PT.MPInt16(_, i) -> RT.MPInt16 i
-//     | PT.MPUInt16(_, i) -> RT.MPUInt16 i
-//     | PT.MPInt32(_, i) -> RT.MPInt32 i
-//     | PT.MPUInt32(_, i) -> RT.MPUInt32 i
-//     | PT.MPInt64(_, i) -> RT.MPInt64 i
-//     | PT.MPUInt64(_, i) -> RT.MPUInt64 i
-//     | PT.MPInt128(_, i) -> RT.MPInt128 i
-//     | PT.MPUInt128(_, i) -> RT.MPUInt128 i
+    | PT.MPInt8(_, i) -> RT.MPInt8 i, symbols, rc
+    | PT.MPUInt8(_, i) -> RT.MPUInt8 i, symbols, rc
+    | PT.MPInt16(_, i) -> RT.MPInt16 i, symbols, rc
+    | PT.MPUInt16(_, i) -> RT.MPUInt16 i, symbols, rc
+    | PT.MPInt32(_, i) -> RT.MPInt32 i, symbols, rc
+    | PT.MPUInt32(_, i) -> RT.MPUInt32 i, symbols, rc
+    | PT.MPInt64(_, i) -> RT.MPInt64 i, symbols, rc
+    | PT.MPUInt64(_, i) -> RT.MPUInt64 i, symbols, rc
+    | PT.MPInt128(_, i) -> RT.MPInt128 i, symbols, rc
+    | PT.MPUInt128(_, i) -> RT.MPUInt128 i, symbols, rc
 
-//     | PT.MPFloat(_, sign, whole, frac) -> RT.MPFloat(makeFloat sign whole frac)
+    | PT.MPFloat(_, sign, whole, frac) ->
+      RT.MPFloat(makeFloat sign whole frac), symbols, rc
 
-//     | PT.MPChar(_, c) -> RT.MPChar c
-//     | PT.MPString(_, s) -> RT.MPString s
-
-//     | PT.MPList(_, pats) -> RT.MPList(List.map toRT pats)
-//     | PT.MPListCons(_, head, tail) -> RT.MPListCons(toRT head, toRT tail)
-
-//     | PT.MPTuple(_, first, second, theRest) ->
-//       RT.MPTuple(toRT first, toRT second, List.map toRT theRest)
-
-//     | PT.MPVariable(_, name) -> RT.MPVariable name
+    | PT.MPChar(_, c) -> RT.MPChar c, symbols, rc
+    | PT.MPString(_, s) -> RT.MPString s, symbols, rc
 
 
-//   let toMatchInstr
-//     (valueReg : RT.Register)
-//     (p : PT.MatchPattern)
-//     (jumpByFail : int)
-//     : RT.Instruction =
-//     RT.CheckMatchPatternAndExtractVars(valueReg, toRT p, jumpByFail)
+    (*
+    match [1;2;3] with
+    | [1; a; b] when a > 3 -> ...
+    *)
+    | PT.MPList(_, pats) ->
+      let pats, symbols, rc =
+        pats
+        |> List.fold
+          (fun (pats, symbols, rc) pat ->
+            let pat, symbols, rc = toRT symbols rc pat
+            (pats @ [ pat ], symbols, rc))
+          ([], symbols, rc)
+
+      RT.MPList pats, symbols, rc
+
+
+
+    | PT.MPListCons(_, head, tail) ->
+      let head, symbols, rc = toRT symbols rc head
+      let tail, symbols, rc = toRT symbols rc tail
+      RT.MPListCons(head, tail), symbols, rc
+
+    | PT.MPTuple(_, first, second, theRest) ->
+      let first, symbols, rc = toRT symbols rc first
+      let second, symbols, rc = toRT symbols rc second
+      let (symbols, rc, theRest) =
+        theRest
+        |> List.fold
+          (fun (symbols, rc, pats) pat ->
+            let pat, symbols, rc = toRT symbols rc pat
+            (symbols, rc, pats @ [ pat ]))
+          (symbols, rc, [])
+
+      RT.MPTuple(first, second, theRest), symbols, rc
+
+    | PT.MPVariable(_, name) ->
+      RT.MPVariable rc, (symbols |> Map.add name rc), rc + 1
+
+
+// let toMatchInstr
+//   (valueReg : RT.Register)
+//   (rc : int)
+//   (p : PT.MatchPattern)
+//   (jumpByFail : int)
+//   : (RT.Instruction * Map<string, RT.Register> * int) =
+//   let (pat, symbols, rcAfterPat) = toRT Map.empty rc p
+//   (RT.CheckMatchPatternAndExtractVars(valueReg, pat, jumpByFail),
+//    symbols,
+//    rcAfterPat)
 
 
 module MatchCase =
@@ -528,95 +553,101 @@ module Expr =
     //     resultIn = putResultIn }
 
 
-    // | PT.EMatch(_id, expr, cases) ->
-    //   // first, the easy part - compile the expression we're `match`ing against.
-    //   let expr = toRT rc expr
+    | PT.EMatch(_id, expr, cases) ->
+      // first, the easy part - compile the expression we're `match`ing against.
+      let expr = toRT symbols rc expr
 
-    //   // Shortly, we'll compile each of the cases.
-    //   // We'll use this `resultReg` to store the final result of the match
-    //   // , so we have a consistent place to look for it.
-    //   // (similar to how we handle `EIf` -- refer to that for a simpler example)
-    //   let resultReg, rcAfterResult = expr.registerCount, expr.registerCount + 1
+      // Shortly, we'll compile each of the cases.
+      // We'll use this `resultReg` to store the final result of the match
+      // , so we have a consistent place to look for it.
+      // (similar to how we handle `EIf` -- refer to that for a simpler example)
+      let resultReg, rcAfterResultIsReserved =
+        expr.registerCount, expr.registerCount + 1
 
-    //   // We compile each `case` in two phases, because some instrs require knowing
-    //   // how many instrs to jump over, which we can't know until we know the basics
-    //   // of all the cases.
-    //   //
-    //   // See `MatchCase.IntermediateValue` for more info.
-    //   let casesAfterFirstPhase : List<MatchCase.IntermediateValue> =
-    //     cases
-    //     |> List.map (fun c ->
-    //       // compile the `when` condition, if it exists, as much as we can
-    //       let rcAfterWhenCond, whenCondInstrs, whenCondJump =
-    //         match c.whenCondition with
-    //         | None -> (rcAfterResult, [], None)
-    //         | Some whenCond ->
-    //           let whenCond = toRT rcAfterResult whenCond
-    //           (whenCond.registerCount,
-    //            whenCond.instructions,
-    //            Some(fun jumpBy -> RT.JumpByIfFalse(jumpBy, whenCond.resultIn)))
+      // We compile each `case` in two phases, because some instrs require knowing
+      // how many instrs to jump over, which we can't know until we know the basics
+      // of all the cases.
+      //
+      // See `MatchCase.IntermediateValue` for more info.
+      let casesAfterFirstPhase : List<MatchCase.IntermediateValue> =
+        cases
+        |> List.map (fun c ->
+          let (pat, symbols, rcAfterPat) =
+            MatchPattern.toRT Map.empty rcAfterResultIsReserved c.pat
 
-    //       // compile the `rhs` of the case
-    //       let rhs = toRT rcAfterWhenCond c.rhs
+          // compile the `when` condition, if it exists, as much as we can
+          let rcAfterWhenCond, whenCondInstrs, whenCondJump =
+            match c.whenCondition with
+            | None -> (rcAfterPat, [], None)
+            | Some whenCond ->
+              let whenCond = toRT symbols rcAfterPat whenCond
+              (whenCond.registerCount,
+               whenCond.instructions,
+               Some(fun jumpBy -> RT.JumpByIfFalse(jumpBy, whenCond.resultIn)))
 
-    //       // return the intermediate results, as far along as they are
-    //       { matchValueInstrFn = MatchPattern.toMatchInstr expr.resultIn c.pat
-    //         whenCondInstructions = whenCondInstrs
-    //         whenCondJump = whenCondJump
-    //         rhsInstrs = rhs.instructions @ [ RT.CopyVal(resultReg, rhs.resultIn) ]
-    //         rc = rhs.registerCount })
+          // compile the `rhs` of the case
+          let rhs = toRT symbols rcAfterWhenCond c.rhs
 
-    //   let countInstrsForCase (c : MatchCase.IntermediateValue) : int =
-    //     1 // for the `MatchValue` instruction
-    //     + List.length c.whenCondInstructions
-    //     + (match c.whenCondJump with
-    //        | Some _ -> 1
-    //        | None -> 0)
-    //     + List.length c.rhsInstrs
-    //     + 1 // for the `JumpBy` instruction
+          // return the intermediate results, as far along as they are
+          { matchValueInstrFn =
+              fun jumpByFail ->
+                RT.CheckMatchPatternAndExtractVars(expr.resultIn, pat, jumpByFail)
+            whenCondInstructions = whenCondInstrs
+            whenCondJump = whenCondJump
+            rhsInstrs = rhs.instructions @ [ RT.CopyVal(resultReg, rhs.resultIn) ]
+            rc = rhs.registerCount })
 
-    //   let (cases, _) : List<MatchCase.IntermediateValue * int> * int =
-    //     casesAfterFirstPhase
-    //     |> List.map (fun c ->
-    //       let instrCount = countInstrsForCase c
-    //       (c, instrCount))
-    //     |> List.foldRight
-    //       // CLEANUP this works, but hurts the brain a bit.
-    //       (fun (acc, runningTotal) (c, instrCount) ->
-    //         let newTotal = runningTotal + instrCount
-    //         (acc @ [ c, runningTotal ], newTotal))
-    //       ([], 0)
-    //   let cases = List.rev cases
+      let countInstrsForCase (c : MatchCase.IntermediateValue) : int =
+        1 // for the `MatchValue` instruction
+        + List.length c.whenCondInstructions
+        + (match c.whenCondJump with
+           | Some _ -> 1
+           | None -> 0)
+        + List.length c.rhsInstrs
+        + 1 // for the `JumpBy` instruction
 
-    //   let caseInstrs =
-    //     cases
-    //     |> List.fold
-    //       (fun instrs (c, instrsAfterThisCaseUntilEndOfMatch) ->
-    //         // note: `instrsAfterThisCaseUntilEndOfMatch` does not include
-    //         // the final MatchUnmatched instruction
+      let (cases, _) : List<MatchCase.IntermediateValue * int> * int =
+        casesAfterFirstPhase
+        |> List.map (fun c ->
+          let instrCount = countInstrsForCase c
+          (c, instrCount))
+        |> List.foldRight
+          // CLEANUP this works, but hurts the brain a bit.
+          (fun (acc, runningTotal) (c, instrCount) ->
+            let newTotal = runningTotal + instrCount
+            (acc @ [ c, runningTotal ], newTotal))
+          ([], 0)
+      let cases = List.rev cases
 
-    //         let caseInstrs =
-    //           [ c.matchValueInstrFn (
-    //               countInstrsForCase c
-    //               // because we can skip over the MatchValue instr
-    //               - 1
-    //             ) ]
-    //           @ c.whenCondInstructions
-    //           @ (match c.whenCondJump with
-    //              // jump to next case if the when condition is false
-    //              | Some jump -> [ jump (List.length c.rhsInstrs + 1) ]
-    //              | None -> [])
-    //           @ c.rhsInstrs
-    //           @ [ RT.JumpBy(instrsAfterThisCaseUntilEndOfMatch + 1) ]
+      let caseInstrs =
+        cases
+        |> List.fold
+          (fun instrs (c, instrsAfterThisCaseUntilEndOfMatch) ->
+            // note: `instrsAfterThisCaseUntilEndOfMatch` does not include
+            // the final MatchUnmatched instruction
 
-    //         instrs @ caseInstrs)
-    //       []
+            let caseInstrs =
+              [ c.matchValueInstrFn (
+                  countInstrsForCase c
+                  // because we can skip over the MatchValue instr
+                  - 1
+                ) ]
+              @ c.whenCondInstructions
+              @ (match c.whenCondJump with
+                 // jump to next case if the when condition is false
+                 | Some jump -> [ jump (List.length c.rhsInstrs + 1) ]
+                 | None -> [])
+              @ c.rhsInstrs
+              @ [ RT.JumpBy(instrsAfterThisCaseUntilEndOfMatch + 1) ]
 
-    //   let instrs = expr.instructions @ caseInstrs @ [ RT.MatchUnmatched ]
+            instrs @ caseInstrs)
+          []
 
-    //   let rcAtEnd = casesAfterFirstPhase |> List.map _.rc |> List.max
+      let instrs = expr.instructions @ caseInstrs @ [ RT.MatchUnmatched ]
 
-    //   { registerCount = rcAtEnd; instructions = instrs; resultIn = resultReg }
+      let rcAtEnd = casesAfterFirstPhase |> List.map _.rc |> List.max
+
+      { registerCount = rcAtEnd; instructions = instrs; resultIn = resultReg }
 
 
     // -- Records --

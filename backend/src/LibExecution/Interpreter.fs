@@ -46,7 +46,7 @@ let rec checkAndExtractLetPattern
 let rec checkAndExtractMatchPattern
   (pat : MatchPattern)
   (dv : Dval)
-  : bool * List<string * Dval> =
+  : bool * List<Register * Dval> =
   let r = checkAndExtractMatchPattern
 
   let rec rList pats items =
@@ -63,7 +63,7 @@ let rec checkAndExtractMatchPattern
         false, []
 
   match pat, dv with
-  | MPVariable name, dv -> true, [ (name, dv) ]
+  | MPVariable reg, dv -> true, [ (reg, dv) ]
 
   | MPUnit, DUnit -> true, []
   | MPBool l, DBool r -> l = r, []
@@ -137,13 +137,6 @@ let rec private execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
 
 
       // // == Working with Variables ==
-      // | GetVar(loadTo, varName) ->
-      //   match Map.find varName vm.symbolTable with
-      //   | Some value ->
-      //     vm.registers[loadTo] <- value
-      //     counter <- counter + 1
-      //   | None -> raiseRTE (RTE.Error.VariableNotFound varName)
-
       | CheckLetPatternAndExtractVars(valueReg, pat) ->
         let dv = registers[valueReg]
         let doesMatch, registersToAssign = checkAndExtractLetPattern pat dv
@@ -189,21 +182,19 @@ let rec private execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
           let vt = Dval.toValueType dv
           raiseRTE (RTE.Bool(RTE.Bools.ConditionRequiresBool(vt, dv)))
 
-      // // -- Match --
-      // | CheckMatchPatternAndExtractVars(valueReg, pat, failJump) ->
-      //   let matches, vars = checkAndExtractMatchPattern pat vm.registers[valueReg]
+      // -- Match --
+      | CheckMatchPatternAndExtractVars(valueReg, pat, failJump) ->
+        let doesMatch, registersToAssign =
+          checkAndExtractMatchPattern pat registers[valueReg]
 
-      //   if matches then
-      //     vm.symbolTable <-
-      //       List.fold
-      //         (fun symbolTable (varName, value) -> Map.add varName value symbolTable)
-      //         vm.symbolTable
-      //         vars
-      //     counter <- counter + 1
-      //   else
-      //     counter <- counter + failJump + 1
+        if doesMatch then
+          registersToAssign
+          |> List.iter (fun (reg, value) -> registers[reg] <- value)
+          counter <- counter + 1
+        else
+          counter <- counter + failJump + 1
 
-      // | MatchUnmatched -> raiseRTE RTE.MatchUnmatched
+      | MatchUnmatched -> raiseRTE RTE.MatchUnmatched
 
 
       // == Working with Collections ==

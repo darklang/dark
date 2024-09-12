@@ -310,7 +310,7 @@ type MatchPattern =
     first : MatchPattern *
     second : MatchPattern *
     theRest : List<MatchPattern>
-  | MPVariable of string
+  | MPVariable of Register
 
 
 type StringSegment =
@@ -354,20 +354,20 @@ type Instruction =
   /// Go `n` instructions forward, unconditionally
   | JumpBy of instrsToJump : int
 
-  // // -- Match --
-  // /// Check if the value in the noted register the noted pattern,
-  // /// and extract vars per MPVariable as relevant.
-  // | CheckMatchPatternAndExtractVars of
-  //   // what we're matching against
-  //   valueReg : Register *
-  //   pat : MatchPattern *
-  //   // jump here if it doesn't match (to the next case, or to the "unmatched" instruction)
-  //   failJump : int
+  // -- Match --
+  /// Check if the value in the noted register the noted pattern,
+  /// and extract vars per MPVariable as relevant.
+  | CheckMatchPatternAndExtractVars of
+    // what we're matching against
+    valueReg : Register *
+    pat : MatchPattern *
+    // jump here if it doesn't match (to the next case, or to the "unmatched" instruction)
+    failJump : int
 
-  // /// Could not find matching case in a match expression
-  // /// CLEANUP we probably need a way to reference back to PT so we can get useful RTEs
-  // /// TODO maybe make this a special case of Fail
-  // | MatchUnmatched
+  /// Could not find matching case in a match expression
+  /// CLEANUP we probably need a way to reference back to PT so we can get useful RTEs
+  /// TODO maybe make this a special case of Fail
+  | MatchUnmatched
 
 
   // == Working with Collections ==

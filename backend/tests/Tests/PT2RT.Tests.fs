@@ -309,183 +309,181 @@ module Expr =
     let tests = testList "Tuples" [ two; three; nested ]
 
 
-  // module Match =
-  //   let simple =
-  //     t
-  //       "match true with\n| false -> \"first branch\"\n| true -> \"second branch\""
-  //       E.Match.simple
-  //       (3,
-  //        [ // handle the value we're matching on
-  //          RT.LoadVal(0, RT.DBool true)
+  module Match =
+    let simple =
+      t
+        "match true with\n| false -> \"first branch\"\n| true -> \"second branch\""
+        E.Match.simple
+        (3,
+         [ // handle the value we're matching on
+           RT.LoadVal(0, RT.DBool true)
 
-  //          // FIRST BRANCH
-  //          RT.CheckMatchPatternAndExtractVars(0, RT.MPBool false, 3)
-  //          // rhs
-  //          RT.LoadVal(2, RT.DString "first branch")
-  //          RT.CopyVal(1, 2)
-  //          RT.JumpBy 5
+           // FIRST BRANCH
+           RT.CheckMatchPatternAndExtractVars(0, RT.MPBool false, 3)
+           // rhs
+           RT.LoadVal(2, RT.DString "first branch")
+           RT.CopyVal(1, 2)
+           RT.JumpBy 5
 
-  //          // SECOND BRANCH
-  //          RT.CheckMatchPatternAndExtractVars(0, RT.MPBool true, 3)
-  //          // rhs
-  //          RT.LoadVal(2, RT.DString "second branch")
-  //          RT.CopyVal(1, 2)
-  //          RT.JumpBy 1
+           // SECOND BRANCH
+           RT.CheckMatchPatternAndExtractVars(0, RT.MPBool true, 3)
+           // rhs
+           RT.LoadVal(2, RT.DString "second branch")
+           RT.CopyVal(1, 2)
+           RT.JumpBy 1
 
-  //          // handle the case where no branches match
-  //          RT.MatchUnmatched ],
-  //        1)
+           // handle the case where no branches match
+           RT.MatchUnmatched ],
+         1)
 
-  //   let notMatched =
-  //     t
-  //       "match true with\n| false -> \"first branch\""
-  //       E.Match.notMatched
-  //       (3,
-  //        [ // handle the value we're matching on
-  //          RT.LoadVal(0, RT.DBool true)
+    let notMatched =
+      t
+        "match true with\n| false -> \"first branch\""
+        E.Match.notMatched
+        (3,
+         [ // handle the value we're matching on
+           RT.LoadVal(0, RT.DBool true)
 
-  //          // FIRST BRANCH
-  //          RT.CheckMatchPatternAndExtractVars(0, RT.MPBool false, 3)
-  //          // rhs
-  //          RT.LoadVal(2, RT.DString "first branch")
-  //          RT.CopyVal(1, 2)
-  //          RT.JumpBy 1
+           // FIRST BRANCH
+           RT.CheckMatchPatternAndExtractVars(0, RT.MPBool false, 3)
+           // rhs
+           RT.LoadVal(2, RT.DString "first branch")
+           RT.CopyVal(1, 2)
+           RT.JumpBy 1
 
-  //          // handle the case where no branches match
-  //          RT.MatchUnmatched ],
-  //        1)
+           // handle the case where no branches match
+           RT.MatchUnmatched ],
+         1)
 
-  //   let withVar =
-  //     t
-  //       "match true with\n| x -> x"
-  //       E.Match.withVar
-  //       (3,
-  //        [ RT.LoadVal(0, RT.DBool true)
+    let withVar =
+      t
+        "match true with\n| x -> x"
+        E.Match.withVar
+        (3,
+         [ RT.LoadVal(0, RT.DBool true)
 
-  //          RT.CheckMatchPatternAndExtractVars(0, RT.MPVariable "x", 3)
-  //          RT.GetVar(2, "x")
-  //          RT.CopyVal(1, 2)
-  //          RT.JumpBy 1
+           RT.CheckMatchPatternAndExtractVars(0, RT.MPVariable 2, 2)
+           RT.CopyVal(1, 2)
+           RT.JumpBy 1
 
-  //          RT.MatchUnmatched ],
-  //        1)
+           RT.MatchUnmatched ],
+         1)
 
-  //   // let withVarAndWhenCondition =
-  //   //   t
-  //   //     "match 4 with\n| 1 -> \"first branch\"\n| x when x % 2 == 0 -> \"second branch\""
-  //   //     E.Match.withVarAndWhenCondition
-  //   //     (10,
-  //   //      [ RT.LoadVal(0, RT.DInt64 4L)
+    // let withVarAndWhenCondition =
+    //   t
+    //     "match 4 with\n| 1 -> \"first branch\"\n| x when x % 2 == 0 -> \"second branch\""
+    //     E.Match.withVarAndWhenCondition
+    //     (10,
+    //      [ RT.LoadVal(0, RT.DInt64 4L)
 
-  //   //        // first branch
-  //   //        RT.CheckMatchPatternAndExtractVars(0, RT.MPInt64 1L, 5)
-  //   //        RT.LoadVal(2, RT.DString "")
-  //   //        RT.LoadVal(3, RT.DString "first branch")
-  //   //        RT.AppendString(2, 3)
-  //   //        RT.CopyVal(1, 2)
-  //   //        RT.JumpBy 14
+    //        // first branch
+    //        RT.CheckMatchPatternAndExtractVars(0, RT.MPInt64 1L, 5)
+    //        RT.LoadVal(2, RT.DString "")
+    //        RT.LoadVal(3, RT.DString "first branch")
+    //        RT.AppendString(2, 3)
+    //        RT.CopyVal(1, 2)
+    //        RT.JumpBy 14
 
-  //   //        // second branch
-  //   //        RT.CheckMatchPatternAndExtractVars(0, RT.MPVariable "x", 12)
-  //   //        RT.LoadVal(2, (RT.DFnVal(RT.NamedFn(RT.FQFnName.fqBuiltin "equals" 0))))
-  //   //        RT.LoadVal(3, (RT.DFnVal(RT.NamedFn(RT.FQFnName.fqBuiltin "int64Mod" 0))))
-  //   //        RT.GetVar(4, "x")
-  //   //        RT.Apply(5, 3, [], NEList.ofList 4 [])
-  //   //        RT.LoadVal(6, RT.DInt64 2L)
-  //   //        RT.Apply(7, 2, [], NEList.ofList 5 [ 6 ])
-  //   //        RT.JumpByIfFalse(5, 7)
-  //   //        RT.LoadVal(8, RT.DString "")
-  //   //        RT.LoadVal(9, RT.DString "second branch")
-  //   //        RT.AppendString(8, 9)
-  //   //        RT.CopyVal(1, 8)
-  //   //        RT.JumpBy 1
+    //        // second branch
+    //        RT.CheckMatchPatternAndExtractVars(0, RT.MPVariable "x", 12)
+    //        RT.LoadVal(2, (RT.DFnVal(RT.NamedFn(RT.FQFnName.fqBuiltin "equals" 0))))
+    //        RT.LoadVal(3, (RT.DFnVal(RT.NamedFn(RT.FQFnName.fqBuiltin "int64Mod" 0))))
+    //        RT.GetVar(4, "x")
+    //        RT.Apply(5, 3, [], NEList.ofList 4 [])
+    //        RT.LoadVal(6, RT.DInt64 2L)
+    //        RT.Apply(7, 2, [], NEList.ofList 5 [ 6 ])
+    //        RT.JumpByIfFalse(5, 7)
+    //        RT.LoadVal(8, RT.DString "")
+    //        RT.LoadVal(9, RT.DString "second branch")
+    //        RT.AppendString(8, 9)
+    //        RT.CopyVal(1, 8)
+    //        RT.JumpBy 1
 
-  //   //        // handle the case where no branches match
-  //   //        RT.MatchUnmatched ],
-  //   //      1)
+    //        // handle the case where no branches match
+    //        RT.MatchUnmatched ],
+    //      1)
 
-  //   let list =
-  //     t
-  //       "match [1, 2] with\n| [1, 2] -> \"first branch\""
-  //       E.Match.list
-  //       (5,
-  //        [ // expr, whose result we store in 0
-  //          RT.LoadVal(1, RT.DInt64 1L)
-  //          RT.LoadVal(2, RT.DInt64 2L)
-  //          RT.CreateList(0, [ 1; 2 ])
+    let list =
+      t
+        "match [1, 2] with\n| [1, 2] -> \"first branch\""
+        E.Match.list
+        (5,
+         [ // expr, whose result we store in 0
+           RT.LoadVal(1, RT.DInt64 1L)
+           RT.LoadVal(2, RT.DInt64 2L)
+           RT.CreateList(0, [ 1; 2 ])
 
-  //          // first branch
-  //          RT.CheckMatchPatternAndExtractVars(
-  //            0,
-  //            RT.MPList [ RT.MPInt64 1L; RT.MPInt64 2L ],
-  //            3
-  //          )
-  //          RT.LoadVal(4, RT.DString "first branch")
-  //          RT.CopyVal(3, 4)
-  //          RT.JumpBy 1
+           // first branch
+           RT.CheckMatchPatternAndExtractVars(
+             0,
+             RT.MPList [ RT.MPInt64 1L; RT.MPInt64 2L ],
+             3
+           )
+           RT.LoadVal(4, RT.DString "first branch")
+           RT.CopyVal(3, 4)
+           RT.JumpBy 1
 
-  //          // handle the case where no branches match
-  //          RT.MatchUnmatched ],
-  //        3)
+           // handle the case where no branches match
+           RT.MatchUnmatched ],
+         3)
 
-  //   let listCons =
-  //     t
-  //       "match [1, 2] with\n| 1 :: tail -> tail"
-  //       E.Match.listCons
-  //       (5,
-  //        [ // expr, whose result we store in 0
-  //          RT.LoadVal(1, RT.DInt64 1L)
-  //          RT.LoadVal(2, RT.DInt64 2L)
-  //          RT.CreateList(0, [ 1; 2 ])
+    let listCons =
+      t
+        "match [1, 2] with\n| 1 :: tail -> tail"
+        E.Match.listCons
+        (5,
+         [ // expr, whose result we store in 0
+           RT.LoadVal(1, RT.DInt64 1L)
+           RT.LoadVal(2, RT.DInt64 2L)
+           RT.CreateList(0, [ 1; 2 ])
 
-  //          // first branch
-  //          RT.CheckMatchPatternAndExtractVars(
-  //            0,
-  //            RT.MPListCons(RT.MPInt64 1L, RT.MPVariable "tail"),
-  //            3
-  //          )
-  //          RT.GetVar(4, "tail")
-  //          RT.CopyVal(3, 4)
-  //          RT.JumpBy 1
+           // first branch
+           RT.CheckMatchPatternAndExtractVars(
+             0,
+             RT.MPListCons(RT.MPInt64 1L, RT.MPVariable 4),
+             2
+           )
+           RT.CopyVal(3, 4)
+           RT.JumpBy 1
 
-  //          // handle the case where no branches match
-  //          RT.MatchUnmatched ],
-  //        3)
+           // handle the case where no branches match
+           RT.MatchUnmatched ],
+         3)
 
-  //   let tuple =
-  //     t
-  //       "match (1, 2) with\n| (1, 2) -> \"first branch\""
-  //       E.Match.tuple
-  //       (5,
-  //        [ // expr, whose result we store in 0
-  //          RT.LoadVal(1, RT.DInt64 1L)
-  //          RT.LoadVal(2, RT.DInt64 2L)
-  //          RT.CreateTuple(0, 1, 2, [])
+    let tuple =
+      t
+        "match (1, 2) with\n| (1, 2) -> \"first branch\""
+        E.Match.tuple
+        (5,
+         [ // expr, whose result we store in 0
+           RT.LoadVal(1, RT.DInt64 1L)
+           RT.LoadVal(2, RT.DInt64 2L)
+           RT.CreateTuple(0, 1, 2, [])
 
-  //          // first branch
-  //          RT.CheckMatchPatternAndExtractVars(
-  //            0,
-  //            RT.MPTuple(RT.MPInt64 1L, RT.MPInt64 2L, []),
-  //            3
-  //          )
-  //          RT.LoadVal(4, RT.DString "first branch")
-  //          RT.CopyVal(3, 4)
-  //          RT.JumpBy 1
+           // first branch
+           RT.CheckMatchPatternAndExtractVars(
+             0,
+             RT.MPTuple(RT.MPInt64 1L, RT.MPInt64 2L, []),
+             3
+           )
+           RT.LoadVal(4, RT.DString "first branch")
+           RT.CopyVal(3, 4)
+           RT.JumpBy 1
 
-  //          // handle the case where no branches match
-  //          RT.MatchUnmatched ],
-  //        3)
+           // handle the case where no branches match
+           RT.MatchUnmatched ],
+         3)
 
-  //   let tests =
-  //     testList
-  //       "Match"
-  //       [ simple
-  //         notMatched
-  //         withVar
-  //         //withVarAndWhenCondition // -- disabled because of fn-calling issues
-  //         list
-  //         listCons
-  //         tuple ]
+    let tests =
+      testList
+        "Match"
+        [ simple
+          notMatched
+          withVar
+          //withVarAndWhenCondition // -- disabled because of fn-calling issues
+          list
+          listCons
+          tuple ]
 
 
   // TODO: add tests for Enums
@@ -653,7 +651,7 @@ module Expr =
         Dict.tests
         If.tests
         Tuples.tests
-        // Match.tests
+        Match.tests
         Records.tests
         RecordFieldAccess.tests
         // RecordUpdate.tests

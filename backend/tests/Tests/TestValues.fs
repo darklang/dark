@@ -150,86 +150,86 @@ module Expressions =
         [ eTuple (eBool true) (eBool false) [] ]
 
 
-  // module Match =
-  //   /// match true with
-  //   /// | false -> "first branch"
-  //   /// | true -> "second branch"
-  //   let simple =
-  //     eMatch
-  //       (eBool true)
-  //       [ { pat = PT.MPBool(gid (), false)
-  //           whenCondition = None
-  //           rhs = eStr [ strText "first branch" ] }
-  //         { pat = PT.MPBool(gid (), true)
-  //           whenCondition = None
-  //           rhs = eStr [ strText "second branch" ] } ]
+  module Match =
+    /// match true with
+    /// | false -> "first branch"
+    /// | true -> "second branch"
+    let simple =
+      eMatch
+        (eBool true)
+        [ { pat = PT.MPBool(gid (), false)
+            whenCondition = None
+            rhs = eStr [ strText "first branch" ] }
+          { pat = PT.MPBool(gid (), true)
+            whenCondition = None
+            rhs = eStr [ strText "second branch" ] } ]
 
-  //   /// match true with
-  //   /// | false -> "first branch"
-  //   let notMatched =
-  //     eMatch
-  //       (eBool true)
-  //       [ { pat = PT.MPBool(gid (), false)
-  //           whenCondition = None
-  //           rhs = eStr [ strText "first branch" ] } ]
+    /// match true with
+    /// | false -> "first branch"
+    let notMatched =
+      eMatch
+        (eBool true)
+        [ { pat = PT.MPBool(gid (), false)
+            whenCondition = None
+            rhs = eStr [ strText "first branch" ] } ]
 
-  //   /// match true with
-  //   /// | x -> x
-  //   let withVar =
-  //     eMatch
-  //       (eBool true)
-  //       [ { pat = PT.MPVariable(gid (), "x"); whenCondition = None; rhs = eVar "x" } ]
+    /// match true with
+    /// | x -> x
+    let withVar =
+      eMatch
+        (eBool true)
+        [ { pat = PT.MPVariable(gid (), "x"); whenCondition = None; rhs = eVar "x" } ]
 
-  //   // /// match 4 with
-  //   // /// | 1 -> "first branch"
-  //   // /// | x when x % 2 == 0 -> "second branch"
-  //   // let withVarAndWhenCondition =
-  //   //   eMatch
-  //   //     (eInt64 4)
-  //   //     [ { pat = PT.MPInt64(gid (), 1)
-  //   //         whenCondition = None
-  //   //         rhs = eStr [ strText "first branch" ] }
-  //   //       { pat = PT.MPVariable(gid (), "x")
-  //   //         // "is even"
-  //   //         whenCondition =
-  //   //           Some(
-  //   //             eApply
-  //   //               (PT.EFnName(gid (), Ok(PT.FQFnName.fqBuiltIn "equals" 0)))
-  //   //               []
-  //   //               [ eApply
-  //   //                   (PT.EFnName(gid (), Ok(PT.FQFnName.fqBuiltIn "int64Mod" 0)))
-  //   //                   []
-  //   //                   [ eVar "x" ]
-  //   //                 eInt64 2 ]
-  //   //           )
-  //   //         rhs = eStr [ strText "second branch" ] } ]
+    // /// match 4 with
+    // /// | 1 -> "first branch"
+    // /// | x when x % 2 == 0 -> "second branch"
+    // let withVarAndWhenCondition =
+    //   eMatch
+    //     (eInt64 4)
+    //     [ { pat = PT.MPInt64(gid (), 1)
+    //         whenCondition = None
+    //         rhs = eStr [ strText "first branch" ] }
+    //       { pat = PT.MPVariable(gid (), "x")
+    //         // "is even"
+    //         whenCondition =
+    //           Some(
+    //             eApply
+    //               (PT.EFnName(gid (), Ok(PT.FQFnName.fqBuiltIn "equals" 0)))
+    //               []
+    //               [ eApply
+    //                   (PT.EFnName(gid (), Ok(PT.FQFnName.fqBuiltIn "int64Mod" 0)))
+    //                   []
+    //                   [ eVar "x" ]
+    //                 eInt64 2 ]
+    //           )
+    //         rhs = eStr [ strText "second branch" ] } ]
 
-  //   let list =
-  //     eMatch
-  //       (eList [ eInt64 1; eInt64 2 ])
-  //       [ { pat = PT.MPList(gid (), [ PT.MPInt64(gid (), 1); PT.MPInt64(gid (), 2) ])
-  //           whenCondition = None
-  //           rhs = eStr [ strText "first branch" ] } ]
+    let list =
+      eMatch
+        (eList [ eInt64 1; eInt64 2 ])
+        [ { pat = PT.MPList(gid (), [ PT.MPInt64(gid (), 1); PT.MPInt64(gid (), 2) ])
+            whenCondition = None
+            rhs = eStr [ strText "first branch" ] } ]
 
-  //   let listCons =
-  //     eMatch
-  //       (eList [ eInt64 1; eInt64 2 ])
-  //       [ { pat =
-  //             PT.MPListCons(
-  //               gid (),
-  //               PT.MPInt64(gid (), 1),
-  //               PT.MPVariable(gid (), "tail")
-  //             )
-  //           whenCondition = None
-  //           rhs = eVar "tail" } ]
+    let listCons =
+      eMatch
+        (eList [ eInt64 1; eInt64 2 ])
+        [ { pat =
+              PT.MPListCons(
+                gid (),
+                PT.MPInt64(gid (), 1),
+                PT.MPVariable(gid (), "tail")
+              )
+            whenCondition = None
+            rhs = eVar "tail" } ]
 
-  //   let tuple =
-  //     eMatch
-  //       (eTuple (eInt64 1) (eInt64 2) [])
-  //       [ { pat =
-  //             PT.MPTuple(gid (), PT.MPInt64(gid (), 1), PT.MPInt64(gid (), 2), [])
-  //           whenCondition = None
-  //           rhs = eStr [ strText "first branch" ] } ]
+    let tuple =
+      eMatch
+        (eTuple (eInt64 1) (eInt64 2) [])
+        [ { pat =
+              PT.MPTuple(gid (), PT.MPInt64(gid (), 1), PT.MPInt64(gid (), 2), [])
+            whenCondition = None
+            rhs = eStr [ strText "first branch" ] } ]
 
 
   module Records =

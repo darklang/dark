@@ -202,55 +202,55 @@ module Tuples =
   let tests = testList "Tuples" [ two; three; nested ]
 
 
-// module Match =
-//   let simple =
-//     t
-//       "match true with\n| false -> \"first branch\"\n| true -> \"second branch\""
-//       E.Match.simple
-//       (RT.DString "second branch")
+module Match =
+  let simple =
+    t
+      "match true with\n| false -> \"first branch\"\n| true -> \"second branch\""
+      E.Match.simple
+      (RT.DString "second branch")
 
-//   let notMatched =
-//     tFail
-//       "match true with\n| false -> \"first branch\""
-//       E.Match.notMatched
-//       RTE.MatchUnmatched
+  let notMatched =
+    tFail
+      "match true with\n| false -> \"first branch\""
+      E.Match.notMatched
+      RTE.MatchUnmatched
 
-//   let withVar = t "match true with\n| x -> x" E.Match.withVar (RT.DBool true)
+  let withVar = t "match true with\n| x -> x" E.Match.withVar (RT.DBool true)
 
-//   // let withVarAndWhenCondition =
-//   //   t
-//   //     "match 4 with\n| 1 -> \"first branch\"\n| x when x % 2 == 0 -> \"second branch\""
-//   //     E.Match.withVarAndWhenCondition
-//   //     (RT.DString "second branch")
+  // let withVarAndWhenCondition =
+  //   t
+  //     "match 4 with\n| 1 -> \"first branch\"\n| x when x % 2 == 0 -> \"second branch\""
+  //     E.Match.withVarAndWhenCondition
+  //     (RT.DString "second branch")
 
-//   let list =
-//     t
-//       "match [1, 2] with\n| [1, 2] -> \"first branch\""
-//       E.Match.list
-//       (RT.DString "first branch")
+  let list =
+    t
+      "match [1, 2] with\n| [1, 2] -> \"first branch\""
+      E.Match.list
+      (RT.DString "first branch")
 
-//   let listCons =
-//     t
-//       "match [1, 2] with\n| 1 :: tail -> tail"
-//       E.Match.listCons
-//       (RT.DList(VT.int64, [ RT.DInt64 2L ]))
+  let listCons =
+    t
+      "match [1, 2] with\n| 1 :: tail -> tail"
+      E.Match.listCons
+      (RT.DList(VT.int64, [ RT.DInt64 2L ]))
 
-//   let tuple =
-//     t
-//       "match (1, 2) with\n| (1, 2) -> \"first branch\""
-//       E.Match.tuple
-//       (RT.DString "first branch")
+  let tuple =
+    t
+      "match (1, 2) with\n| (1, 2) -> \"first branch\""
+      E.Match.tuple
+      (RT.DString "first branch")
 
-//   let tests =
-//     testList
-//       "Match"
-//       [ simple
-//         notMatched
-//         withVar
-//         //withVarAndWhenCondition
-//         list
-//         listCons
-//         tuple ]
+  let tests =
+    testList
+      "Match"
+      [ simple
+        notMatched
+        withVar
+        //withVarAndWhenCondition
+        list
+        listCons
+        tuple ]
 
 
 module Records =
@@ -336,7 +336,7 @@ let tests =
       Dict.tests
       If.tests
       Tuples.tests
-      // Match.tests
+      Match.tests
       Records.tests
       RecordFieldAccess.tests
       // Lambdas.tests
