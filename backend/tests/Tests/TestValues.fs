@@ -5,6 +5,7 @@ open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
 module PackageIDs = LibExecution.PackageIDs
+module RT = LibExecution.RuntimeTypes
 
 open TestUtils.PTShortcuts
 
@@ -254,4 +255,39 @@ module Expressions =
 
   //   let identityApplied = eApply identityUnapplied [] [ eInt64 1 ]
 
+  module Fns =
+    module Builtin =
+      let unapplied = eBuiltinFn "int64Add" 0
+      let partiallyApplied = eApply unapplied [] [ eInt64 1 ]
+      let fullyApplied = eApply unapplied [] [ eInt64 1; eInt64 2 ]
+      let twoStepApplication = eApply partiallyApplied [] [ eInt64 2 ]
+
+    module Package =
+      let myAddID = System.Guid.NewGuid()
+
+      let unapplied = ePackageFn myAddID
+      let partiallyApplied = eApply unapplied [] [ eInt64 1 ]
+      let fullyApplied = eApply unapplied [] [ eInt64 1; eInt64 2 ]
+      let stayIndented = true
+
+
+
   let stayIndented = true
+
+
+
+// let pm: RT.PackageManager =
+//   RT.PackageManager.empty
+//   |> RT.PackageManager.withExtras
+//     []
+//     []
+//     [ { id = uuid
+//         typeParams = List<string>
+
+//         // CLEANUP I have an odd suspicion we might not need this field
+//         // Maybe we just need a paramCount, and the Instructinos in PT2RT ????
+//         parameters = NEList<Parameter>
+//         returnType = TypeReference
+
+//         // CLEANUP consider renaming - just `instructions` maybe?
+//         body = Instructions }]

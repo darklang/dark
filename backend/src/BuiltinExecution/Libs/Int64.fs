@@ -47,9 +47,9 @@ let fns : List<BuiltInFn> =
         (function
         | _, vm, _, [ DInt64 v; DInt64 m ] ->
           if m = 0L then
-            RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.callStack
+            RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.threadID
           else if m < 0L then
-            RTE.Ints.NegativeModulus |> RTE.Int |> raiseRTE vm.callStack
+            RTE.Ints.NegativeModulus |> RTE.Int |> raiseRTE vm.threadID
           else
             let result = v % m
             let result = if result < 0L then m + result else result
@@ -121,7 +121,7 @@ let fns : List<BuiltInFn> =
             v % d |> DInt64 |> resultOk
            with e ->
              if d = 0L then
-               RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.callStack
+               RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
              else
                Exception.raiseInternal
                  "unexpected failure case in Int64.remainder"
@@ -188,11 +188,11 @@ let fns : List<BuiltInFn> =
         | _, vm, _, [ DInt64 number; DInt64 exp ] ->
           (try
             if exp < 0L then
-              RTE.Ints.NegativeExponent |> RTE.Int |> raiseRTE vm.callStack
+              RTE.Ints.NegativeExponent |> RTE.Int |> raiseRTE vm.threadID
             else
               (bigint number) ** (int exp) |> int64 |> DInt64 |> Ply
            with :? System.OverflowException ->
-             RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.callStack)
+             RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID)
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "^"
       previewable = Pure
@@ -208,7 +208,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, vm, _, [ DInt64 a; DInt64 b ] ->
           if b = 0L then
-            RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.callStack
+            RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
           else
             Ply(DInt64(a / b))
         | _ -> incorrectArgs ())

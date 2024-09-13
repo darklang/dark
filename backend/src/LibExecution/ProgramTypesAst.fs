@@ -78,9 +78,9 @@ let rec symbolsUsedIn (expr : Expr) : Set<string> =
 
   | ERecordFieldAccess(_, expr, _) -> r expr
 
-// // things that can be applied
-// | EFnName(_, _) -> Set.empty
-// | ELambda(_, _, body) -> r body
-// | EApply(_, thingToApply, _, args) ->
-//   Set.unionMany
-//     [ r thingToApply; args |> NEList.toList |> List.map r |> Set.unionMany ]
+  // things that can be applied
+  | EFnName(_, _) -> Set.empty
+  // | ELambda(_, _, body) -> r body
+  | EApply(_, thingToApply, _, args) ->
+    Set.unionMany
+      [ r thingToApply; args |> NEList.toList |> List.map r |> Set.unionMany ]

@@ -20,7 +20,7 @@
     <!--Compile Include="Libs/UInt16.fs" /-->
     <!--Compile Include="Libs/Int32.fs" /-->
     <!--Compile Include="Libs/UInt32.fs" /-->
-    <!--Compile Include="Libs/Int64.fs" /-->
+    <Compile Include="Libs/Int64.fs" />
     <!--Compile Include="Libs/UInt64.fs" /-->
     <!--Compile Include="Libs/Int128.fs" /-->
     <!--Compile Include="Libs/UInt128.fs" /-->

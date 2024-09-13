@@ -503,54 +503,55 @@ module Expr =
           resultIn = resultReg }
 
 
-    // | PT.EFnName(_, Ok name) ->
-    //   let namedFn : RT.ApplicableNamedFn =
-    //     { name = FQFnName.toRT name; argsSoFar = [] }
-    //   let applicable = RT.DApplicable(RT.Applicable.NamedFn namedFn)
-    //   { registerCount = rc + 1
-    //     instructions = [ RT.LoadVal(rc, applicable) ]
-    //     resultIn = rc }
+    | PT.EFnName(_, Ok name) ->
+      let namedFn : RT.ApplicableNamedFn =
+        { name = FQFnName.toRT name; argsSoFar = [] }
+      let applicable = RT.DApplicable(RT.Applicable.NamedFn namedFn)
 
-    // | PT.EFnName(_, Error nre) ->
-    //   // TODO improve
-    //   // hmm maybe we shouldn't fail yet here.
-    //   // It's ok to _reference_ a bad name, so long as we don't try to `apply` it.
-    //   // maybe the 'value' here is (still) some unresolved name?
-    //   // (which should fail when we apply it)
-    //   { registerCount = rc
-    //     instructions = [ RT.RaiseNRE(NameResolutionError.toRT nre) ]
-    //     resultIn = rc }
+      { registerCount = rc + 1
+        instructions = [ RT.LoadVal(rc, applicable) ]
+        resultIn = rc }
+
+    | PT.EFnName(_, Error nre) ->
+      // TODO improve
+      // hmm maybe we shouldn't fail yet here.
+      // It's ok to _reference_ a bad name, so long as we don't try to `apply` it.
+      // maybe the 'value' here is (still) some unresolved name?
+      // (which should fail when we apply it)
+      { registerCount = rc
+        instructions = [ RT.RaiseNRE(NameResolutionError.toRT nre) ]
+        resultIn = rc }
 
 
-    // | PT.EApply(_id, thingToApplyExpr, typeArgs, args) ->
-    //   let thingToApply = toRT rc thingToApplyExpr
-    //   // TODO: maybe one or both of these lists should be an `NEList`?
+    | PT.EApply(_id, thingToApplyExpr, typeArgs, args) ->
+      let thingToApply = toRT symbols rc thingToApplyExpr
+      // TODO: maybe one or both of these lists should be an `NEList`?
 
-    //   // CLEANUP find a way to get rid of silly NEList stuff
-    //   let (regCounter, argInstrs, argRegs) =
-    //     let init = (thingToApply.registerCount, [], [])
+      // CLEANUP find a way to get rid of silly NEList stuff
+      let (regCounter, argInstrs, argRegs) =
+        let init = (thingToApply.registerCount, [], [])
 
-    //     args
-    //     |> NEList.fold
-    //       (fun (rc, instrs, argResultRegs) arg ->
-    //         let newInstrs = toRT rc arg
-    //         (newInstrs.registerCount,
-    //          instrs @ newInstrs.instructions,
-    //          argResultRegs @ [ newInstrs.resultIn ]))
-    //       init
+        args
+        |> NEList.fold
+          (fun (rc, instrs, argResultRegs) arg ->
+            let newInstrs = toRT symbols rc arg
+            (newInstrs.registerCount,
+             instrs @ newInstrs.instructions,
+             argResultRegs @ [ newInstrs.resultIn ]))
+          init
 
-    //   let putResultIn = regCounter
-    //   let callInstr =
-    //     RT.Apply(
-    //       putResultIn,
-    //       thingToApply.resultIn,
-    //       List.map TypeReference.toRT typeArgs,
-    //       NEList.ofListUnsafe "" [] argRegs
-    //     )
+      let putResultIn = regCounter
+      let callInstr =
+        RT.Apply(
+          putResultIn,
+          thingToApply.resultIn,
+          List.map TypeReference.toRT typeArgs,
+          NEList.ofListUnsafe "" [] argRegs
+        )
 
-    //   { registerCount = regCounter + 1
-    //     instructions = thingToApply.instructions @ argInstrs @ [ callInstr ]
-    //     resultIn = putResultIn }
+      { registerCount = regCounter + 1
+        instructions = thingToApply.instructions @ argInstrs @ [ callInstr ]
+        resultIn = putResultIn }
 
 
     | PT.EMatch(_id, expr, cases) ->

@@ -640,6 +640,135 @@ module Expr =
 
   //   let tests = testList "Lambda" [ identityUnapplied; identityApplied ]
 
+  module Fns =
+    module Builtin =
+      let unapplied =
+        t
+          "Builtin.int64Add"
+          E.Fns.Builtin.unapplied
+          (1,
+           [ RT.LoadVal(
+               0,
+               RT.DApplicable(
+                 RT.NamedFn
+                   { name = RT.FQFnName.fqBuiltin "int64Add" 0; argsSoFar = [] }
+               )
+             ) ],
+           0)
+
+      let partiallyApplied =
+        t
+          "Builtin.int64Add 1"
+          E.Fns.Builtin.partiallyApplied
+          (3,
+           [ RT.LoadVal(
+               0,
+               RT.DApplicable(
+                 RT.NamedFn
+                   { name = RT.FQFnName.fqBuiltin "int64Add" 0; argsSoFar = [] }
+               )
+             )
+             RT.LoadVal(1, RT.DInt64 1L)
+             RT.Apply(2, 0, [], NEList.ofList 1 []) ],
+           2)
+
+      let fullyApplied =
+        t
+          "Builtin.int64Add 1 2"
+          E.Fns.Builtin.fullyApplied
+          (4,
+           [ RT.LoadVal(
+               0,
+               RT.DApplicable(
+                 RT.NamedFn
+                   { name = RT.FQFnName.fqBuiltin "int64Add" 0; argsSoFar = [] }
+               )
+             )
+             RT.LoadVal(1, RT.DInt64 1L)
+             RT.LoadVal(2, RT.DInt64 2L)
+             RT.Apply(3, 0, [], NEList.ofList 1 [ 2 ]) ],
+           3)
+
+      let twoStepApplication =
+        t
+          "(Builtin.int64Add 1) 2"
+          E.Fns.Builtin.twoStepApplication
+          (5,
+           [ RT.LoadVal(
+               0,
+               RT.DApplicable(
+                 RT.NamedFn
+                   { name = RT.FQFnName.fqBuiltin "int64Add" 0; argsSoFar = [] }
+               )
+             )
+             RT.LoadVal(1, RT.DInt64 1L)
+             RT.Apply(2, 0, [], NEList.ofList 1 [])
+             RT.LoadVal(3, RT.DInt64 2L)
+             RT.Apply(4, 2, [], NEList.ofList 3 []) ],
+           4)
+
+      let tests =
+        testList
+          "Fns"
+          [ unapplied; partiallyApplied; fullyApplied; twoStepApplication ]
+
+
+    module Package =
+      let unapplied =
+        t
+          "Test.myAdd"
+          E.Fns.Package.unapplied
+          (1,
+           [ RT.LoadVal(
+               0,
+               RT.DApplicable(
+                 RT.NamedFn
+                   { name = RT.FQFnName.fqPackage E.Fns.Package.myAddID
+                     argsSoFar = [] }
+               )
+             ) ],
+           0)
+
+      let partiallyApplied =
+        t
+          "Test.myAdd 1"
+          E.Fns.Package.partiallyApplied
+          (3,
+           [ RT.LoadVal(
+               0,
+               RT.DApplicable(
+                 RT.NamedFn
+                   { name = RT.FQFnName.fqPackage E.Fns.Package.myAddID
+                     argsSoFar = [] }
+               )
+             )
+             RT.LoadVal(1, RT.DInt64 1L)
+             RT.Apply(2, 0, [], NEList.ofList 1 []) ],
+           2)
+
+      let fullyApplied =
+        t
+          "Test.myAdd 1 2"
+          E.Fns.Package.fullyApplied
+          (4,
+           [ RT.LoadVal(
+               0,
+               RT.DApplicable(
+                 RT.NamedFn
+                   { name = RT.FQFnName.fqPackage E.Fns.Package.myAddID
+                     argsSoFar = [] }
+               )
+             )
+             RT.LoadVal(1, RT.DInt64 1L)
+             RT.LoadVal(2, RT.DInt64 2L)
+             RT.Apply(3, 0, [], NEList.ofList 1 [ 2 ]) ],
+           3)
+
+      let tests = testList "Fns" [ unapplied; partiallyApplied; fullyApplied ]
+
+
+    let tests = testList "Fns" [ Builtin.tests; Package.tests ]
+
 
   let tests =
     testList
@@ -656,7 +785,8 @@ module Expr =
         RecordFieldAccess.tests
         // RecordUpdate.tests
         // Lambda.tests
-        ]
+        Fns.tests ]
+
 
 module PackageFn =
   let t name fnName typeParams params' returnType expr expected =

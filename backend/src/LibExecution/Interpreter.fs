@@ -122,9 +122,26 @@ let rec private execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
 
     let raiseRTE rte = raiseRTE vm.threadID rte
 
-    while counter < currentFrame.instructions.Length do
+    let! something =
+      match currentFrame.context with
+      | Source -> Ply vm.sourceInfo
+      | PackageFn fn ->
+        uply {
+          match Map.find fn vm.packageFns with
+          | Some fn -> return fn
+          | None ->
+            match! exeState.fns.package fn with
+            | Some fn ->
+              return
+                { instructions = List.toArray fn.body.instructions
+                  resultReg = fn.body.resultIn }
+            | None -> return raiseRTE (RTE.FnNotFound(FQFnName.Package fn))
+        }
 
-      match currentFrame.instructions[counter] with
+
+    while counter < something.instructions.Length do
+
+      match something.instructions[counter] with
 
       // == Simple register operations ==
       | LoadVal(reg, value) ->
@@ -286,46 +303,84 @@ let rec private execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
       //   counter <- counter + 1
 
 
-      // // == Working with things that Apply (fns, lambdas) ==
-      // // `add (increment 1L) (3L)` and store results in `putResultIn`
-      // | Apply(putResultIn, thingToCallReg, _typeArgs, argRegs) ->
-      //   let thingToCall = vm.registers[thingToCallReg]
+      // == Working with things that Apply (fns, lambdas) ==
+      // `add (increment 1L) (3L)` and store results in `putResultIn`
+      | Apply(putResultIn, thingToCallReg, typeArgs, newArgRegs) ->
+        // CLEANUP
+        // only the first apply of an applicable should be allowed to provide type args
 
-      //   let result =
-      //     match thingToCall with
-      //     | DApplicable applicable ->
-      //       match applicable with
-      //       | Lambda lambda ->
-      //         let impl = Map.findUnsafe lambda.exprId vm.lambdas
+        // further constraint: only named fns can have type args? no, see below.
+        // let x = Json.parse
+        // x<Int64> "3"
 
-      //         // TODO: too many args
-      //         if
-      //           (NEList.length impl.patterns) = (lambda.argsSoFar.Length
-      //                                            + NEList.length argRegs)
-      //         then
-      //           DUnit // TODO
-      //         else
-      //           // TODO
-      //           DApplicable applicable
+        let thingToCall = registers[thingToCallReg]
 
-      //       | NamedFn _namedFn ->
-      //         // TODO
-      //         DApplicable applicable
+        let newArgDvals =
+          newArgRegs |> NEList.toList |> List.map (fun r -> registers[r])
 
-      //     | _ ->
-      //       RTE.ExpectedApplicableButNot(Dval.toValueType thingToCall, thingToCall)
-      //       |> raiseRTE
+        let applicable =
+          match thingToCall with
+          | DApplicable applicable -> applicable
+          | _ ->
+            raiseRTE (
+              RTE.ExpectedApplicableButNot(Dval.toValueType thingToCall, thingToCall)
+            )
 
-      //   vm.registers[putResultIn] <- result
+        let! result =
+          uply {
+            match applicable with
+            // | Lambda lambda -> DApplicable applicable
 
-      //   counter <- counter + 1
+            | NamedFn applicable ->
+              // TODO: typechecking
+              match applicable.name with
+              | FQFnName.Builtin builtin ->
+                match Map.find builtin exeState.fns.builtIn with
+                | None -> return RTE.FnNotFound(FQFnName.Builtin builtin) |> raiseRTE
+                | Some fn ->
+                  let allArgs = applicable.argsSoFar @ newArgDvals
+
+                  let argCount = List.length allArgs
+                  let paramCount = List.length fn.parameters
+
+                  let typeParamCount = List.length fn.typeParams
+                  let typeArgCount = List.length typeArgs
+                  // TODO: error on these not matching^, too.
+
+                  if argCount = paramCount then
+                    let! result = fn.fn (exeState, vm, [], allArgs)
+                    return result
+                  else if argCount > paramCount then
+                    return
+                      RTE.TooManyArgs(
+                        FQFnName.Builtin fn.name,
+                        typeParamCount,
+                        typeArgCount,
+                        paramCount,
+                        argCount
+                      )
+                      |> raiseRTE
+                  else
+                    return
+                      { applicable with argsSoFar = allArgs }
+                      |> NamedFn
+                      |> DApplicable
+
+              | FQFnName.Package _pkg ->
+                // TODO
+                return DUnit
+          }
+
+        registers[putResultIn] <- result
+
+        counter <- counter + 1
 
 
       | RaiseNRE nre -> raiseRTE (RTE.NameResolution nre)
 
 
     // If we've reached the end of the instructions, return the result
-    return registers[currentFrame.resultReg]
+    return registers[something.resultReg]
   }
 
 

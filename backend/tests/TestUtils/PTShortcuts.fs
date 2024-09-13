@@ -74,10 +74,11 @@ let eFieldAccess (expr : Expr) (fieldName : string) : Expr =
 //   EEnum(gid (), typeName, name, args)
 
 
-// let eBuiltinFnName (name : string) (version : int) : Expr =
-//   PT.FQFnName.fqBuiltIn name version
-//   |> PT2RT.FQFnName.toRT
-//   |> fun x -> EFnName(gid (), x)
+let eBuiltinFn (name : string) (version : int) : Expr =
+  EFnName(gid (), Ok(FQFnName.fqBuiltIn name version))
+
+let ePackageFn (id : uuid) : Expr = EFnName(gid (), Ok(FQFnName.fqPackage id))
+
 
 // let eLambda id (pats : List<LetPattern>) (body : Expr) : Expr =
 //   let pats = NEList.ofListUnsafe "eLambda" [] pats
@@ -102,13 +103,13 @@ let eFieldAccess (expr : Expr) (fieldName : string) : Expr =
 //   eFn' function_ version typeArgs args
 
 
-// let eApply
-//   (target : Expr)
-//   (typeArgs : List<TypeReference>)
-//   (args : List<Expr>)
-//   : Expr =
-//   let args = NEList.ofListUnsafe "eApply" [] args
-//   EApply(gid (), target, typeArgs, args)
+let eApply
+  (target : Expr)
+  (typeArgs : List<TypeReference>)
+  (args : List<Expr>)
+  : Expr =
+  let args = NEList.ofListUnsafe "eApply" [] args
+  EApply(gid (), target, typeArgs, args)
 
 
 

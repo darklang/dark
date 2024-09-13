@@ -323,15 +323,15 @@ type Expr =
   | EDict of id * List<string * Expr>
   | ETuple of id * Expr * Expr * List<Expr>
 
-  // // // -- "Applying" args to things, such as fns and lambdas --
-  // /// This is a function call, the first expression is the value of the function.
-  // /// - `expr (args[0])`
-  // /// - `expr (args[0]) (args[1])`
-  // /// - `expr<typeArg[0]> (args[0])`
-  // | EApply of id * expr : Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
+  // // -- "Applying" args to things, such as fns and lambdas --
+  /// This is a function call, the first expression is the value of the function.
+  /// - `expr (args[0])`
+  /// - `expr (args[0]) (args[1])`
+  /// - `expr<typeArg[0]> (args[0])`
+  | EApply of id * expr : Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
 
-  // /// Reference a function name, _usually_ so we can _apply_ it with args
-  // | EFnName of id * NameResolution<FQFnName.FQFnName>
+  /// Reference a function name, _usually_ so we can _apply_ it with args
+  | EFnName of id * NameResolution<FQFnName.FQFnName>
 
   // // Composed of a parameters * the expression itself
   // // The id in the varname list is the analysis id, used to get a livevalue
@@ -430,9 +430,9 @@ module Expr =
     | EIf(id, _, _, _)
     //| EInfix(id, _, _, _)
     // | ELambda(id, _, _)
-    // | EFnName(id, _)
+    | EFnName(id, _)
     | EVariable(id, _)
-    // | EApply(id, _, _, _)
+    | EApply(id, _, _, _)
     | EList(id, _)
     | EDict(id, _)
     | ETuple(id, _, _, _)

@@ -305,7 +305,7 @@ type MatchPattern =
   | MPChar of string
   | MPString of string
   | MPList of List<MatchPattern>
-  | MPListCons of head : MatchPattern * tail : MatchPattern // TODO: but the tail is a list...
+  | MPListCons of head : MatchPattern * tail : MatchPattern
   | MPTuple of
     first : MatchPattern *
     second : MatchPattern *
@@ -317,14 +317,7 @@ type StringSegment =
   | Text of string
   | Interpolated of Register
 
-/// TODO: consider if each of these should include the Expr ID that they came from
-///
-/// Would Expr ID be enough?
-/// I don't _think_ we'd have to note the fn ID or TL ID or script name, but maybe?)
-///
-/// We could also record the Instruction Index -> ExprID mapping _adjacent_ to RT,
-/// and only load it when needed.
-/// That way, the Interpreter could be lighter-weight.
+
 type Instruction =
   // == Simple register operations ==
   /// Push a ("constant") value into a register
@@ -332,17 +325,15 @@ type Instruction =
 
   | CopyVal of copyTo : Register * copyFrom : Register
 
+  // == Working with Basic Types ==
+  | CreateString of createTo : Register * segments : List<StringSegment>
 
   // == Working with Variables ==
-  /// Extract values in a Register to 0 or more variables, per the pattern.
+  /// Extract values in a Register to 0 or more registers, per the pattern.
   /// (e.g. `let (x, y) = (1, 2)`)
   ///
   /// Errors if the pattern doesn't match the value.
   | CheckLetPatternAndExtractVars of valueReg : Register * pat : LetPattern
-
-
-  // == Working with Basic Types ==
-  | CreateString of createTo : Register * segments : List<StringSegment>
 
 
   // == Flow Control ==
@@ -354,14 +345,16 @@ type Instruction =
   /// Go `n` instructions forward, unconditionally
   | JumpBy of instrsToJump : int
 
+
   // -- Match --
   /// Check if the value in the noted register the noted pattern,
-  /// and extract vars per MPVariable as relevant.
+  /// and extract values to registers per the nested patterns.
   | CheckMatchPatternAndExtractVars of
-    // what we're matching against
+    /// what we're matching against
     valueReg : Register *
     pat : MatchPattern *
-    // jump here if it doesn't match (to the next case, or to the "unmatched" instruction)
+    /// jump over the current `match` expr's instructions if it doesn't match
+    /// (to the next case, or to the "unmatched" instruction)
     failJump : int
 
   /// Could not find matching case in a match expression
@@ -412,19 +405,17 @@ type Instruction =
     fields : List<Register>
 
 
-  // // == Working with things that Apply ==
+  // == Working with things that Apply ==
 
   // | CreateLambda of createTo : Register * lambda : LambdaImpl
 
-  // /// Apply some args (and maybe type args) to something
-  // /// (a named function, or lambda, etc)
-  // | Apply of
-  //   createTo : Register *
-  //   thingToApply : Register *
-  //   //symbolsToClose : List<string> * // any symbols referenced in the thingToApply that should be closed
-  //   //typeSymbolsToClose : List<string> *
-  //   typeArgs : List<TypeReference> *
-  //   args : NEList<Register>
+  /// Apply some args (and maybe type args) to something
+  /// (a named function, or lambda, etc)
+  | Apply of
+    createTo : Register *
+    thingToApply : Register *
+    typeArgs : List<TypeReference> *
+    args : NEList<Register>
 
   // == Errors ==
   | RaiseNRE of NameResolutionError
@@ -445,35 +436,20 @@ and Instructions =
     resultIn : Register
   }
 
-// and InstructionsWithDebugSymbols =
-//   {
-//     /// How many registers are used in evaluating these instructions
-//     registerCount : int
-
-//     /// The instructions themselves -- but with source expr ID
-//     instructions : List<Instruction * id>
-
-//     /// The register that will hold the result of the instructions
-//     resultIn : Register
-//   }
-
-//   static member withoutDebugSymbols
-//     (self : InstructionsWithDebugSymbols)
-//     : Instructions =
-//     { registerCount = self.registerCount
-//       instructions = self.instructions |> List.map fst
-//       resultIn = self.resultIn }
-// and later, the expr sources are extracted out
-
 
 and DvalMap = Map<string, Dval>
+
+
+(*
+let
+
+*)
 
 /// Lambdas are a bit special:
 /// they have to close over variables, and have their own set of instructions, not embedded in the main set
 ///
-/// Note to self: trying to remove symTable and typeSymbolTable here
+/// Note to self: trying to remove typeSymbolTable here
 /// causes all sorts of scoping issues. Beware.
-/// (that said, typeSymbolTable seems the less-risky to remove...)
 and LambdaImpl =
   {
     // -- Things we know as soon as we create the lambda --
@@ -484,10 +460,24 @@ and LambdaImpl =
     ///
     /// When we've received as many args as there are patterns,
     /// we should either apply the lambda, or error.
-    patterns : NEList<LetPattern>
+    patterns : NEList<LetPattern> // LPVar 1
 
-    /// When the lambda is bound/used, what symbols should be closed?
-    symbolsToClose : Set<string>
+    /// When the lambda is defined,
+    /// we need to "close over" any symbols 'above' that are referenced.
+    ///
+    /// e.g. in
+    /// ```fsharp
+    /// let a = 1
+    /// let incr = fn x -> x + a
+    /// incr 2
+    /// ```
+    /// , the lambda `fn x -> x + a` closes over `a`,
+    /// which we record as `[(1, 2)]`
+    /// (copy from register '1' above into register '2' in this CF)
+    ///
+    /// PT2RT has the duty of creating and passing in (PT2RT-only)
+    /// symbtable for the evaluation of the expr on the RHS
+    registersToClose : List<Register * Register>
 
     // Hmm do these actually belong here, or somewhere else? idk how we get this to work.
     // do we need to call eval within eval or something? would love to avoid that.
@@ -495,10 +485,20 @@ and LambdaImpl =
     instructions : Instructions
   }
 
-/// Note: the fn's instructions are loaded to VMState
-/// but -- where is the pc and return address stored
-/// in a way that doesn't require us to go deeper in some call stack?
-and ApplicableNamedFn = { name : FQFnName.FQFnName; argsSoFar : List<Dval> }
+
+
+and ApplicableNamedFn =
+  {
+    name : FQFnName.FQFnName
+
+    // /// We need these around, even for a partially-applied fn
+    // /// , to make sure we can fail on type errors appropriately
+    // /// e.g. `Int64.add true` should fail before a second arg is provided.
+    // parameters : NEList<Param>
+
+    /// CLEANUP should this be a list of registers instead?
+    argsSoFar : List<Dval>
+  }
 
 // if we're just evaluating a "raw expr," I suppose that's InputClosure?
 // eval probably handles whichever of these,
@@ -552,14 +552,14 @@ and ApplicableLambda =
 //   | Lambda of parent : CallFrameReference * ApplicableLambda
 
 
-// /// Any thing that can be applied,
-// /// along with anything needed within their application closure
-// /// TODO: follow up with typeSymbols
-// /// TODO needs a better name, clearly.
-// and Applicable =
-//   | Lambda of ApplicableLambda
+/// Any thing that can be applied,
+/// along with anything needed within their application closure
+/// TODO: follow up with typeSymbols
+/// TODO needs a better name, clearly.
+and Applicable =
+  //| Lambda of ApplicableLambda
 
-//   | NamedFn of ApplicableNamedFn
+  | NamedFn of ApplicableNamedFn
 
 
 
@@ -624,7 +624,7 @@ and [<NoComparison>] Dval =
     caseName : string *
     fields : List<Dval>
 
-//| DApplicable of Applicable
+  | DApplicable of Applicable
 
 // // References
 // | DDB of name : string
@@ -760,13 +760,14 @@ module RuntimeError =
       | ZeroModulus
 
 
+
   // module Execution =
   //   type Error =
   //     | MatchExprUnmatched of RuntimeTypes.Dval.Dval
   //     | NonStringInStringInterpolation of RuntimeTypes.Dval.Dval
   //     | ConstDoesntExist of RuntimeTypes.FQConstantName.FQConstantName
   //     | EnumConstructionCaseNotFound of typeName: RuntimeTypes.FQTypeName * caseName: String
-  //     | WrongNumberOfFnArgs of fn: RuntimeTypes.FQFnName * expectedTypeArgs: Int64 * expectedArgs: Int64 * actualTypeArgs: Int64 * actualArgs: Int64
+  //
 
   //     // TODO: Record submodule
   //     | RecordConstructionFieldDoesntExist of typeName: RuntimeTypes.FQTypeName * fieldName: String
@@ -877,6 +878,14 @@ module RuntimeError =
 
     | MatchUnmatched
 
+    // TODO consider currying instead, at which point a `Int.add 0 1 2` would result in "can't apply 2 to 1"
+    | TooManyArgs of
+      fn : FQFnName.FQFnName *
+      expectedTypeArgs : int64 *
+      expectedArgs : int64 *
+      actualTypeArgs : int64 *
+      actualArgs : int64
+
 
     // /// "The condition for an `if` expression must be a `Bool`,
     // /// but is here a `{someFn actualValueType}` (`{someFn actualValue}`)"
@@ -925,7 +934,9 @@ module RuntimeError =
 
     // backend/src/LibExecution/Interpreter.fs:
     // - "TODO"
-    // - $"Function {FQFnName.toString fnName} is not found"
+
+    /// $"Function {FQFnName.toString fnName} is not found"
+    | FnNotFound of fnName : FQFnName.FQFnName
 
     // backend/src/LibExecution/Interpreter.Old.fs:
     // - "TODO"
@@ -1111,18 +1122,18 @@ module Dval =
     | DEnum(typeName, _, typeArgs, _, _) ->
       KTCustomType(typeName, typeArgs) |> ValueType.Known
 
-// | DApplicable applicable ->
-//   match applicable with
-//   | Lambda _lambda ->
-//     // KTFn(
-//     //   NEList.map (fun _ -> ValueType.Unknown) lambda.parameters,
-//     //   ValueType.Unknown
-//     // )
-//     // |> ValueType.Known
-//     ValueType.Unknown
+    | DApplicable applicable ->
+      match applicable with
+      // | Lambda _lambda ->
+      //   // KTFn(
+      //   //   NEList.map (fun _ -> ValueType.Unknown) lambda.parameters,
+      //   //   ValueType.Unknown
+      //   // )
+      //   // |> ValueType.Known
+      //   ValueType.Unknown
 
-//   // VTTODO look up type, etc
-//   | NamedFn _named -> ValueType.Unknown
+      // VTTODO look up type, etc
+      | NamedFn _named -> ValueType.Unknown
 
 // // CLEANUP follow up when DDB has a typeReference
 // | DDB _ -> ValueType.Unknown
@@ -1388,10 +1399,10 @@ and PackageManager =
   /// Allows you to side-load a few 'extras' in-memory, along
   /// the normal fetching functionality. (Mostly helpful for tests)
   static member withExtras
-    (pm : PackageManager)
     (types : List<PackageType.PackageType>)
     (constants : List<PackageConstant.PackageConstant>)
     (fns : List<PackageFn.PackageFn>)
+    (pm : PackageManager)
     : PackageManager =
     { getType =
         fun id ->
@@ -1451,8 +1462,22 @@ and ExecutionState =
 and Registers = Dval array
 
 and CallFrameContext =
-  | Source
+  | Source // from raw expr (for test) or TopLevel
   | PackageFn of FQFnName.Package
+//| Lambda of parent : CallFrameContext * id
+
+// all package fn applications (reaching into the interpreter)
+// - should be done with eApply with w/e args
+//   `eApply (fn, ???)`
+//
+
+(*
+let incr a =
+  Int.add 1 a
+
+let add3 a =
+  fun b -> add a b
+*)
 
 and CallFrame =
   {
@@ -1460,17 +1485,10 @@ and CallFrame =
 
     parent : Option<uuid>
 
-    argCount : int // TODO uint8
-
-    // TODO the instructions and resultReg should be extracted
-    // elsewhere so we have only one copy of them per CallFrameContext,
-    // in the VMState -- so we don't have to copy them around so much
+    // TODO the instructions and resultReg are not in the CallFrame itself
+    // -- multiple CFs may be operating on the same fn or w/e
+    // so we keep only one copy of such, in the root of the VMState
     context : CallFrameContext
-    instructions : Instruction array // move this elsewhere?
-    /// The register that the result of the program will be in
-    resultReg : Register
-
-
 
     /// Program counter (what instruction index we are currently 'at')
     mutable pc : int
@@ -1478,49 +1496,42 @@ and CallFrame =
     registers : Registers // mutable because array?
   }
 
+and Something =
+  {
+    instructions : Instruction array
 
-and VMState =
-  { callFrames : Map<uuid, CallFrame>
-
-    currentFrameID : uuid
-
-    //mutable lambdas : Map<id, LambdaImpl>
-
-    mutable threadID : uuid
-
-  // TODO: call stack separately
-
-  // Maybe these all belong in call frames.
-  // maybe the set of these _is_ the call frame?
-  //registers : Registers // mutable because array?
-  //mutable symbolTable : Symtable // should this be a ConcurrentDictionary rather than a Map that's `mutable`?
-  //mutable typeSymbolTable : TypeSymbolTable // same here
+    /// The register that the result of the block will be in
+    resultReg : Register
   }
 
-  static member fromExpr(exprInstrs : Instructions) : VMState =
+
+and VMState =
+  { mutable threadID : uuid
+
+    callFrames : Map<uuid, CallFrame>
+    currentFrameID : uuid
+
+    sourceInfo : Something
+    //mutable lambdas : Map<id, LambdaImpl>
+    mutable packageFns : Map<FQFnName.Package, Something> }
+
+  static member fromExpr(expr : Instructions) : VMState =
     let callFrameId = System.Guid.NewGuid()
 
     let callFrame : CallFrame =
       { id = callFrameId
         context = Source
         pc = 0
-        argCount = 0
-        instructions = List.toArray exprInstrs.instructions
-        registers = Array.zeroCreate exprInstrs.registerCount
-        resultReg = exprInstrs.resultIn
-
+        registers = Array.zeroCreate expr.registerCount
         parent = None }
 
     { threadID = System.Guid.NewGuid()
       currentFrameID = callFrameId
-      callFrames = Map [ callFrameId, callFrame ] }
+      callFrames = Map [ callFrameId, callFrame ]
+      sourceInfo =
+        { instructions = List.toArray expr.instructions; resultReg = expr.resultIn }
+      packageFns = Map.empty }
 
-
-
-//   // symbolTable = Map.empty
-//   // typeSymbolTable = Map.empty
-//   // lambdas = Map.empty
-//   }
 
 and Types =
   { typeSymbolTable : TypeSymbolTable

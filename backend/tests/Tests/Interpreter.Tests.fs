@@ -325,6 +325,55 @@ module RecordFieldAccess =
 
 //   let tests = testList "Lambdas" [ identityUnapplied; identityApplied ]
 
+module Fns =
+  module Builtin =
+    let unapplied =
+      t
+        "Builtin.int64Add"
+        E.Fns.Builtin.unapplied
+        (RT.DApplicable(
+          RT.NamedFn { name = RT.FQFnName.fqBuiltin "int64Add" 0; argsSoFar = [] }
+        ))
+
+    let partiallyApplied =
+      t
+        "Builtin.int64Add 1"
+        E.Fns.Builtin.partiallyApplied
+        (RT.DApplicable(
+          RT.NamedFn
+            { name = RT.FQFnName.fqBuiltin "int64Add" 0
+              argsSoFar = [ RT.DInt64 1 ] }
+        ))
+
+    let fullyApplied =
+      t "Builtin.int64Add 1 2" E.Fns.Builtin.fullyApplied (RT.DInt64 3L)
+
+    let twoStepApplied =
+      t "(Builtin.int64Add 1) 2" E.Fns.Builtin.twoStepApplication (RT.DInt64 3L)
+
+    let tests =
+      testList
+        "Builtin"
+        [ unapplied; partiallyApplied; fullyApplied; twoStepApplied ]
+
+
+  module Package =
+
+    let unapplied =
+      t
+        "packageFnAddWrapper"
+        E.Fns.Package.unapplied
+        (RT.DApplicable(
+          RT.NamedFn
+            { name = RT.FQFnName.fqPackage E.Fns.Package.myAddID; argsSoFar = [] }
+        ))
+
+    // TODO: partially- and fully-applied tests
+
+    let tests = testList "Package" [ unapplied ]
+
+  let tests = testList "Fns" [ Builtin.tests; Package.tests ]
+
 
 let tests =
   testList
@@ -340,4 +389,4 @@ let tests =
       Records.tests
       RecordFieldAccess.tests
       // Lambdas.tests
-      ]
+      Fns.tests ]
