@@ -1482,7 +1482,6 @@ let add3 a =
 and CallFrame =
   {
     id : uuid
-
     parent : Option<uuid>
 
     // TODO the instructions and resultReg are not in the CallFrame itself
@@ -1508,8 +1507,8 @@ and Something =
 and VMState =
   { mutable threadID : uuid
 
-    callFrames : Map<uuid, CallFrame>
-    currentFrameID : uuid
+    mutable callFrames : Map<uuid, CallFrame>
+    mutable currentFrameID : uuid
 
     sourceInfo : Something
     //mutable lambdas : Map<id, LambdaImpl>

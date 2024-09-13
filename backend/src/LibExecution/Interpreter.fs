@@ -113,16 +113,19 @@ let rec checkAndExtractMatchPattern
 /// , like ExecutionContext or Execution
 ///
 /// TODO potentially make this a loop instead of recursive
-let rec private execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
+let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
   uply {
-    let currentFrame = Map.findUnsafe vm.currentFrameID vm.callFrames
-
-    let mutable counter = currentFrame.pc // what instruction (by index) we're on
-    let registers = currentFrame.registers
-
     let raiseRTE rte = raiseRTE vm.threadID rte
 
-    let! something =
+    //while Map.count vm.callFrames > 1 do
+
+    let currentFrame = Map.findUnsafe vm.currentFrameID vm.callFrames
+
+    let mutable counter = currentFrame.pc
+    let registers = currentFrame.registers
+
+
+    let! instrData =
       match currentFrame.context with
       | Source -> Ply vm.sourceInfo
       | PackageFn fn ->
@@ -139,9 +142,9 @@ let rec private execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
         }
 
 
-    while counter < something.instructions.Length do
+    while counter < instrData.instructions.Length do
 
-      match something.instructions[counter] with
+      match instrData.instructions[counter] with
 
       // == Simple register operations ==
       | LoadVal(reg, value) ->
@@ -326,27 +329,28 @@ let rec private execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
               RTE.ExpectedApplicableButNot(Dval.toValueType thingToCall, thingToCall)
             )
 
-        let! result =
-          uply {
-            match applicable with
-            // | Lambda lambda -> DApplicable applicable
+        match applicable with
+        // | Lambda lambda -> DApplicable applicable
 
-            | NamedFn applicable ->
-              // TODO: typechecking
-              match applicable.name with
-              | FQFnName.Builtin builtin ->
-                match Map.find builtin exeState.fns.builtIn with
-                | None -> return RTE.FnNotFound(FQFnName.Builtin builtin) |> raiseRTE
-                | Some fn ->
-                  let allArgs = applicable.argsSoFar @ newArgDvals
+        | NamedFn applicable ->
+          // TODO: typechecking
+          // TODO: reduce duplication between branches
+          match applicable.name with
+          | FQFnName.Builtin builtin ->
+            match Map.find builtin exeState.fns.builtIn with
+            | None -> return RTE.FnNotFound(FQFnName.Builtin builtin) |> raiseRTE
+            | Some fn ->
+              let allArgs = applicable.argsSoFar @ newArgDvals
 
-                  let argCount = List.length allArgs
-                  let paramCount = List.length fn.parameters
+              let argCount = List.length allArgs
+              let paramCount = List.length fn.parameters
 
-                  let typeParamCount = List.length fn.typeParams
-                  let typeArgCount = List.length typeArgs
-                  // TODO: error on these not matching^, too.
+              let typeParamCount = List.length fn.typeParams
+              let typeArgCount = List.length typeArgs
+              // TODO: error on these not matching^, too.
 
+              let! result =
+                uply {
                   if argCount = paramCount then
                     let! result = fn.fn (exeState, vm, [], allArgs)
                     return result
@@ -365,13 +369,51 @@ let rec private execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                       { applicable with argsSoFar = allArgs }
                       |> NamedFn
                       |> DApplicable
+                }
 
-              | FQFnName.Package _pkg ->
-                // TODO
-                return DUnit
-          }
+              registers[putResultIn] <- result
 
-        registers[putResultIn] <- result
+          | FQFnName.Package pkg ->
+            match! exeState.fns.package pkg with
+            | None -> return RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE
+            | Some fn ->
+              let allArgs = applicable.argsSoFar @ newArgDvals
+
+              let argCount = List.length allArgs
+              let paramCount = NEList.length fn.parameters
+
+              let typeParamCount = List.length fn.typeParams
+              let typeArgCount = List.length typeArgs
+              // TODO: error on these not matching^, too.
+
+              if argCount = paramCount then
+                // fun with call frames
+                let newFrameID = guuid ()
+                let newFrame =
+                  { id = newFrameID
+                    parent = Some vm.currentFrameID
+                    pc = 0
+                    registers = Array.zeroCreate fn.body.registerCount
+                    context = PackageFn fn.id }
+
+                allArgs |> List.iteri (fun i arg -> newFrame.registers[i] <- arg)
+
+                vm.callFrames <- Map.add newFrameID newFrame vm.callFrames
+                vm.currentFrameID <- newFrameID
+
+              else if argCount > paramCount then
+                RTE.TooManyArgs(
+                  FQFnName.Package fn.id,
+                  typeParamCount,
+                  typeArgCount,
+                  paramCount,
+                  argCount
+                )
+                |> raiseRTE
+              else
+                registers[putResultIn] <-
+                  { applicable with argsSoFar = allArgs } |> NamedFn |> DApplicable
+
 
         counter <- counter + 1
 
@@ -380,9 +422,18 @@ let rec private execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
 
 
     // If we've reached the end of the instructions, return the result
-    return registers[something.resultReg]
+    return registers[instrData.resultReg]
+
+
+
+  // return registers[instrData.resultReg]
+
+
+
+  // if there are only 1 call frame left, and the counter is at the end of the instructions
+  // _then_ return registers[instrData.resultReg]
+
+  // if there are more than 1 call frame left, and the counter is at the end of the instructions
+  // _then_ pop the current frame, and continue executing the next instruction in the parent frame
+  // don't I need to return the result of the child frame?
   }
-
-
-and eval (exeState : ExecutionState) (vmState : VMState) : Ply<Dval> =
-  execute exeState vmState

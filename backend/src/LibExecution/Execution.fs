@@ -54,7 +54,7 @@ let executeExpr
         // TODO: handle secrets and DBs by explicit references instead of relying on symbol table
         // vmState.symbolTable <- Interpreter.withGlobals state inputVars
 
-        let! result = Interpreter.eval exeState vmState
+        let! result = Interpreter.execute exeState vmState
         return Ok result
 
       with
