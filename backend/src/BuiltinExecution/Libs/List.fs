@@ -500,7 +500,7 @@ let fns : List<BuiltInFn> =
         | _, vm, _, [ DList(vt1, l1); DList(_vt2, l2) ] ->
           // VTTODO should fail here in the case of vt1 conflicting with vt2?
           // (or is this handled by the interpreter?)
-          Ply(TypeChecker.DvalCreator.list vm.callStack vt1 (List.append l1 l2))
+          Ply(TypeChecker.DvalCreator.list vm.threadID vt1 (List.append l1 l2))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -670,7 +670,7 @@ let fns : List<BuiltInFn> =
           // long time.
           let index = RNG.GetInt32(l.Length)
           (List.tryItem index l)
-          |> TypeChecker.DvalCreator.option vm.callStack optType
+          |> TypeChecker.DvalCreator.option vm.threadID optType
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

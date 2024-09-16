@@ -506,7 +506,7 @@ module Expr =
     | PT.EFnName(_, Ok name) ->
       let namedFn : RT.ApplicableNamedFn =
         { name = FQFnName.toRT name; argsSoFar = [] }
-      let applicable = RT.DApplicable(RT.Applicable.NamedFn namedFn)
+      let applicable = RT.DApplicable(RT.AppNamedFn namedFn)
 
       { registerCount = rc + 1
         instructions = [ RT.LoadVal(rc, applicable) ]
@@ -749,26 +749,46 @@ module Expr =
         resultIn = enumReg }
 
 
-// | PT.ELambda(id, pats, body) ->
-//   let symbolsToClose =
-//     // exclude symbols that are defined/overridden in the lambda's parameters/pats
-//     let usedInBody = ProgramTypesAst.symbolsUsedIn body
-//     let usedInPats =
-//       pats
-//       |> NEList.toList
-//       |> List.map PT.LetPattern.symbolsUsed
-//       |> Set.unionMany
-//     Set.difference usedInBody usedInPats
+    | PT.ELambda(id, pats, body) ->
+      let symbolsUsedInBody = ProgramTypesAst.symbolsUsedIn body
+      let symbolsUsedInPats =
+        pats |> NEList.toList |> List.map PT.LetPattern.symbolsUsed |> Set.unionMany
+      let symbolsOnlyUsedInBody = Set.difference symbolsUsedInBody symbolsUsedInPats
 
-//   let impl : RT.LambdaImpl =
-//     { exprId = id
-//       patterns = NEList.map LetPattern.toRT pats
-//       symbolsToClose = symbolsToClose
-//       instructions = toRT 0 body }
+      let (pats, symbolsOfNewFrameAfterPats, rcOfNewFrameAfterPats)
+        : (List<RT.LetPattern> * Map<string, int> * int) =
+        pats
+        |> NEList.toList
+        |> List.fold
+          (fun (pats, symbols, rc) p ->
+            let (pat, newSymbols, rcAfterPat) = LetPattern.toRT symbols rc p
+            (pats @ [ pat ], Map.mergeFavoringRight symbols newSymbols, rcAfterPat))
+          ([], Map.empty, 0)
 
-//   { registerCount = rc + 1
-//     instructions = [ RT.CreateLambda(rc, impl) ]
-//     resultIn = rc }
+      let (registersToClose, symbolsOfNewFrameAfterOnesOnlyUsedInBoty, rcOfNewFrame)
+        : (List<RT.Register * RT.Register> * Map<string, int> * int) =
+        symbolsOnlyUsedInBody
+        |> Set.toList
+        |> List.fold
+          (fun (registersToClose, symbols, rc) name ->
+            let parentReg = Map.findUnsafe name symbols
+            let childReg = rc
+            (registersToClose @ [ parentReg, childReg ],
+             Map.add name childReg symbols,
+             rc + 1))
+          ([], symbolsOfNewFrameAfterPats, rcOfNewFrameAfterPats)
+
+
+      let impl : RT.LambdaImpl =
+        { exprId = id
+          patterns = pats |> NEList.ofListUnsafe "" []
+          registersToClose = registersToClose
+          instructions =
+            toRT symbolsOfNewFrameAfterOnesOnlyUsedInBoty rcOfNewFrame body }
+
+      { registerCount = rc + 1
+        instructions = [ RT.CreateLambda(rc, impl) ]
+        resultIn = rc }
 
 
 

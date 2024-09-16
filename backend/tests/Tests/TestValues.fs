@@ -241,12 +241,20 @@ module Expressions =
 
   // //module RecordUpdate =
 
-  // module Lambdas =
-  //   let identityID = gid ()
+  module Lambdas =
+    module Identity =
 
-  //   let identityUnapplied = eLambda identityID [ lpVar "x" ] (eVar "x")
+      let id = gid ()
 
-  //   let identityApplied = eApply identityUnapplied [] [ eInt64 1 ]
+      let unapplied = eLambda id [ lpVar "x" ] (eVar "x")
+
+      let applied = eApply unapplied [] [ eInt64 1 ]
+
+  // TODO:
+  // module Add =
+  // module AddWithClosedVar =
+  // SomethingWIthMultipleClosedVars
+  // TODO: partial application
 
   module Fns =
     module Builtin =

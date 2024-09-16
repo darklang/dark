@@ -310,20 +310,24 @@ module RecordFieldAccess =
     testList "RecordFieldAccess" [ simple; notRecord; missingField; nested ]
 
 
-// module Lambdas =
-//   let identityUnapplied =
-//     tCheckVM
-//       "fn x -> x"
-//       E.Lambdas.identityUnapplied
-//       (RT.DApplicable(
-//         RT.Applicable.Lambda
-//           { exprId = E.Lambdas.identityID; symtable = Map.empty; argsSoFar = [] }
-//       ))
-//       (fun vm -> Expect.isFalse (Map.isEmpty vm.lambdas) "no lambdas in VMState")
+module Lambdas =
+  module Identity =
+    let unapplied =
+      tCheckVM
+        "fn x -> x"
+        E.Lambdas.Identity.unapplied
+        (RT.DApplicable(
+          RT.AppLambda
+            { exprId = E.Lambdas.Identity.id; closedRegisters = []; argsSoFar = [] }
+        ))
+        (fun vm -> Expect.isFalse (Map.isEmpty vm.lambdas) "no lambdas in VMState")
 
-//   let identityApplied = t "(fn x -> x) 1" E.Lambdas.identityApplied (RT.DInt64 1L)
+    let applied = t "(fn x -> x) 1" E.Lambdas.Identity.applied (RT.DInt64 1L)
 
-//   let tests = testList "Lambdas" [ identityUnapplied; identityApplied ]
+    let tests = testList "Identity" [ unapplied; applied ]
+
+  let tests = testList "Lambdas" [ Identity.tests ]
+
 
 module Fns =
   module Builtin =
@@ -332,7 +336,7 @@ module Fns =
         "Builtin.int64Add"
         E.Fns.Builtin.unapplied
         (RT.DApplicable(
-          RT.NamedFn { name = RT.FQFnName.fqBuiltin "int64Add" 0; argsSoFar = [] }
+          RT.AppNamedFn { name = RT.FQFnName.fqBuiltin "int64Add" 0; argsSoFar = [] }
         ))
 
     let partiallyApplied =
@@ -340,7 +344,7 @@ module Fns =
         "Builtin.int64Add 1"
         E.Fns.Builtin.partiallyApplied
         (RT.DApplicable(
-          RT.NamedFn
+          RT.AppNamedFn
             { name = RT.FQFnName.fqBuiltin "int64Add" 0
               argsSoFar = [ RT.DInt64 1 ] }
         ))
@@ -365,7 +369,7 @@ module Fns =
           "Test.myAdd"
           E.Fns.Package.MyAdd.unapplied
           (RT.DApplicable(
-            RT.NamedFn
+            RT.AppNamedFn
               { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id; argsSoFar = [] }
           ))
 
@@ -374,7 +378,7 @@ module Fns =
           "Test.myAdd 1"
           E.Fns.Package.MyAdd.partiallyApplied
           (RT.DApplicable(
-            RT.NamedFn
+            RT.AppNamedFn
               { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id
                 argsSoFar = [ RT.DInt64 1 ] }
           ))
@@ -392,7 +396,7 @@ module Fns =
           "Test.fact"
           E.Fns.Package.Fact.unapplied
           (RT.DApplicable(
-            RT.NamedFn
+            RT.AppNamedFn
               { name = RT.FQFnName.fqPackage E.Fns.Package.Fact.id; argsSoFar = [] }
           ))
 
@@ -412,6 +416,12 @@ module Fns =
   let tests = testList "Fns" [ Builtin.tests; Package.tests ]
 
 
+(*
+((PACKAGE.Darklang.Stdlib.List.repeat_v0 348L 1L)
+ |> Builtin.unwrap
+ |> PACKAGE.Darklang.Stdlib.List.map (fun f -> f)) = []
+ *)
+
 let tests =
   testList
     "Interpreter"
@@ -425,5 +435,5 @@ let tests =
       Match.tests
       Records.tests
       RecordFieldAccess.tests
-      // Lambdas.tests
+      Lambdas.tests
       Fns.tests ]

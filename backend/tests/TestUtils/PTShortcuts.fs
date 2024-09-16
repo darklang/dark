@@ -80,9 +80,9 @@ let eBuiltinFn (name : string) (version : int) : Expr =
 let ePackageFn (id : uuid) : Expr = EFnName(gid (), Ok(FQFnName.fqPackage id))
 
 
-// let eLambda id (pats : List<LetPattern>) (body : Expr) : Expr =
-//   let pats = NEList.ofListUnsafe "eLambda" [] pats
-//   ELambda(id, pats, body)
+let eLambda id (pats : List<LetPattern>) (body : Expr) : Expr =
+  let pats = NEList.ofListUnsafe "eLambda" [] pats
+  ELambda(id, pats, body)
 
 
 // let eFn'

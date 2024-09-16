@@ -36,7 +36,7 @@ let builtins httpConfig : Builtins =
       // Libs.Char.builtins
       // Libs.String.builtins
 
-      // Libs.List.builtins
+      Libs.List.builtins
       // Libs.Dict.builtins
 
       // Libs.DateTime.builtins

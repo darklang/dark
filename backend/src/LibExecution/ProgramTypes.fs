@@ -333,10 +333,10 @@ type Expr =
   /// Reference a function name, _usually_ so we can _apply_ it with args
   | EFnName of id * NameResolution<FQFnName.FQFnName>
 
-  // // Composed of a parameters * the expression itself
-  // // The id in the varname list is the analysis id, used to get a livevalue
-  // // from the analysis engine
-  // | ELambda of id * pats : NEList<LetPattern> * body : Expr
+  // Composed of a parameters * the expression itself
+  // The id in the varname list is the analysis id, used to get a livevalue
+  // from the analysis engine
+  | ELambda of id * pats : NEList<LetPattern> * body : Expr
 
   // /// Calls upon an infix function
   // | EInfix of id * Infix * lhs : Expr * rhs : Expr
@@ -429,7 +429,7 @@ module Expr =
     | ELet(id, _, _, _)
     | EIf(id, _, _, _)
     //| EInfix(id, _, _, _)
-    // | ELambda(id, _, _)
+    | ELambda(id, _, _)
     | EFnName(id, _)
     | EVariable(id, _)
     | EApply(id, _, _, _)
@@ -442,6 +442,7 @@ module Expr =
     | ERecordFieldAccess(id, _, _)
     | EEnum(id, _, _, _, _)
     | EMatch(id, _, _) -> id
+
 
 // module PipeExpr =
 //   let toID (expr : PipeExpr) : id =

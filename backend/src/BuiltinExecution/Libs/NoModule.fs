@@ -71,17 +71,15 @@ let rec equals (a : Dval) (b : Dval) : bool =
 
   | DApplicable a, DApplicable b ->
     match a, b with
-    // | Lambda _a, Lambda _b ->
-    //   //equalsLambdaImpl a b
-    //   // TODO
-    //   true
-    | NamedFn _a, NamedFn _b ->
-      //a = b
+    | AppLambda _a, AppLambda _b ->
+      //equalsLambdaImpl a b
       // TODO
       true
-  //| Lambda _, _
 
-  //| NamedFn _, _ -> false
+    | AppNamedFn a, AppNamedFn b -> a = b
+
+    | AppLambda _, _
+    | AppNamedFn _, _ -> false
 
   // | DDB a, DDB b -> a = b
 

@@ -407,7 +407,7 @@ type Instruction =
 
   // == Working with things that Apply ==
 
-  // | CreateLambda of createTo : Register * lambda : LambdaImpl
+  | CreateLambda of createTo : Register * lambda : LambdaImpl
 
   /// Apply some args (and maybe type args) to something
   /// (a named function, or lambda, etc)
@@ -509,17 +509,19 @@ and ApplicableLambda =
     /// (the actual implementation is stored in the VMState)
     exprId : id
 
-    // we need registers here, right?
-
-
-    // /// The symtable at the time of creation (only copy what's noted in `symbolsToClose`)
-    // /// , along with anything created throughout processing so far
-    // symtable : Symtable
+    /// We _could_ have this be Register * Register
+    /// , but we run some risk of the register's value changing
+    /// between the time we create the lambda and the time we apply it.
+    /// (even though, at time of writing, this seems impossible.)
+    closedRegisters : List<Register * Dval>
 
     // TODO: typeSymbolTable : TypeSymbolTable
 
     argsSoFar : List<Dval>
   }
+
+
+
 
 // // Is this a _kind_ of closure? I think so!
 // // So do we need
@@ -557,9 +559,8 @@ and ApplicableLambda =
 /// TODO: follow up with typeSymbols
 /// TODO needs a better name, clearly.
 and Applicable =
-  //| Lambda of ApplicableLambda
-
-  | NamedFn of ApplicableNamedFn
+  | AppLambda of ApplicableLambda
+  | AppNamedFn of ApplicableNamedFn
 
 
 
@@ -880,7 +881,7 @@ module RuntimeError =
 
     // TODO consider currying instead, at which point a `Int.add 0 1 2` would result in "can't apply 2 to 1"
     | TooManyArgs of
-      fn : FQFnName.FQFnName *
+      fn : FQFnName.FQFnName *  // maybe this should expect either a named fn _or_ a lambda?
       expectedTypeArgs : int64 *
       expectedArgs : int64 *
       actualTypeArgs : int64 *
@@ -1124,16 +1125,16 @@ module Dval =
 
     | DApplicable applicable ->
       match applicable with
-      // | Lambda _lambda ->
-      //   // KTFn(
-      //   //   NEList.map (fun _ -> ValueType.Unknown) lambda.parameters,
-      //   //   ValueType.Unknown
-      //   // )
-      //   // |> ValueType.Known
-      //   ValueType.Unknown
+      | AppLambda _lambda ->
+        // KTFn(
+        //   NEList.map (fun _ -> ValueType.Unknown) lambda.parameters,
+        //   ValueType.Unknown
+        // )
+        // |> ValueType.Known
+        ValueType.Unknown
 
       // VTTODO look up type, etc
-      | NamedFn _named -> ValueType.Unknown
+      | AppNamedFn _named -> ValueType.Unknown
 
 // // CLEANUP follow up when DDB has a typeReference
 // | DDB _ -> ValueType.Unknown
@@ -1464,24 +1465,13 @@ and Registers = Dval array
 and CallFrameContext =
   | Source // from raw expr (for test) or TopLevel
   | PackageFn of FQFnName.Package
-//| Lambda of parent : CallFrameContext * id
+  | Lambda of parent : CallFrameContext * id
 
-// all package fn applications (reaching into the interpreter)
-// - should be done with eApply with w/e args
-//   `eApply (fn, ???)`
-//
-
-(*
-let incr a =
-  Int.add 1 a
-
-let add3 a =
-  fun b -> add a b
-*)
 
 and CallFrame =
   {
     id : uuid
+
     /// Id * where to put result in parent * pc of parent
     parent : Option<uuid * Register * int>
 
@@ -1494,11 +1484,9 @@ and CallFrame =
     mutable pc : int
 
     registers : Registers // mutable because array?
-
-  // putResultInParent : Option<Register>
   }
 
-and Something =
+and InstrData =
   {
     instructions : Instruction array
 
@@ -1513,9 +1501,9 @@ and VMState =
     mutable callFrames : Map<uuid, CallFrame>
     mutable currentFrameID : uuid
 
-    sourceInfo : Something
-    //mutable lambdas : Map<id, LambdaImpl>
-    mutable packageFns : Map<FQFnName.Package, Something> }
+    sourceInfo : InstrData
+    mutable lambdas : Map<CallFrameContext * id, LambdaImpl>
+    mutable packageFns : Map<FQFnName.Package, InstrData> }
 
   static member fromExpr(expr : Instructions) : VMState =
     let callFrameId = System.Guid.NewGuid()
@@ -1532,6 +1520,7 @@ and VMState =
       callFrames = Map [ callFrameId, callFrame ]
       sourceInfo =
         { instructions = List.toArray expr.instructions; resultReg = expr.resultIn }
+      lambdas = Map.empty
       packageFns = Map.empty }
 
 

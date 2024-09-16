@@ -80,7 +80,7 @@ let rec symbolsUsedIn (expr : Expr) : Set<string> =
 
   // things that can be applied
   | EFnName(_, _) -> Set.empty
-  // | ELambda(_, _, body) -> r body
+  | ELambda(_, _, body) -> r body
   | EApply(_, thingToApply, _, args) ->
     Set.unionMany
       [ r thingToApply; args |> NEList.toList |> List.map r |> Set.unionMany ]

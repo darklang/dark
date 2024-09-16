@@ -154,6 +154,15 @@ module Darklang =
       let uniqueBy (list: List<'a>) (fn: 'a -> 'b) : List<'a> =
         Builtin.listUniqueBy_v0 list fn
 
+      (*
+      // let uniqueBy' (list: List<'a>) (fn: 'a -> 'b) : List<'a> =
+      //   let projected = map list (fun dv -> (dv, fn dv))
+      //   projected
+      //   |> List.distinctBy snd
+      //   |> List.map fst
+      //   |> List.sortWith DvalComparator.compareDval
+      *)
+
 
       /// Returns the passed list, with only unique values.
       /// Only one of each value will be returned, but the

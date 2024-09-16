@@ -39,7 +39,7 @@ module Expr =
     //      [ RT.LoadVal(
     //          0,
     //          RT.DFnVal(
-    //            RT.NamedFn(RT.FQFnName.Builtin { name = "int64Add"; version = 0 })
+    //            RT.AppNamedFn(RT.FQFnName.Builtin { name = "int64Add"; version = 0 })
     //          )
     //        )
     //        RT.LoadVal(1, RT.DInt64 1L)
@@ -386,8 +386,8 @@ module Expr =
 
     //        // second branch
     //        RT.CheckMatchPatternAndExtractVars(0, RT.MPVariable "x", 12)
-    //        RT.LoadVal(2, (RT.DFnVal(RT.NamedFn(RT.FQFnName.fqBuiltin "equals" 0))))
-    //        RT.LoadVal(3, (RT.DFnVal(RT.NamedFn(RT.FQFnName.fqBuiltin "int64Mod" 0))))
+    //        RT.LoadVal(2, (RT.DFnVal(RT.AppNamedFn(RT.FQFnName.fqBuiltin "equals" 0))))
+    //        RT.LoadVal(3, (RT.DFnVal(RT.AppNamedFn(RT.FQFnName.fqBuiltin "int64Mod" 0))))
     //        RT.GetVar(4, "x")
     //        RT.Apply(5, 3, [], NEList.ofList 4 [])
     //        RT.LoadVal(6, RT.DInt64 2L)
@@ -601,44 +601,44 @@ module Expr =
   //   let tests = testList "RecordUpdate" []
 
 
-  // module Lambda =
-  //   let identityUnapplied =
-  //     t
-  //       "fn x -> x"
-  //       E.Lambdas.identityUnapplied
-  //       (1,
-  //        [ RT.CreateLambda(
-  //            0,
-  //            { exprId = E.Lambdas.identityID
-  //              patterns = NEList.ofList (RT.LPVariable "x") []
-  //              symbolsToClose = [] |> Set.ofList
-  //              instructions =
-  //                { registerCount = 1
-  //                  instructions = [ RT.GetVar(0, "x") ]
-  //                  resultIn = 0 } }
-  //          ) ],
-  //        0)
+  module Lambda =
+    module Identity =
 
-  //   let identityApplied =
-  //     t
-  //       "(fn x -> x) 1"
-  //       E.Lambdas.identityApplied
-  //       (3,
-  //        [ RT.CreateLambda(
-  //            0,
-  //            { exprId = E.Lambdas.identityID
-  //              patterns = NEList.ofList (RT.LPVariable "x") []
-  //              symbolsToClose = [] |> Set.ofList
-  //              instructions =
-  //                { registerCount = 1
-  //                  instructions = [ RT.GetVar(0, "x") ]
-  //                  resultIn = 0 } }
-  //          )
-  //          RT.LoadVal(1, RT.DInt64 1L)
-  //          RT.Apply(2, 0, [], NEList.ofList 1 []) ],
-  //        2)
+      let unapplied =
+        t
+          "fn x -> x"
+          E.Lambdas.Identity.unapplied
+          (1,
+           [ RT.CreateLambda(
+               0,
+               { exprId = E.Lambdas.Identity.id
+                 patterns = NEList.ofList (RT.LPVariable 0) []
+                 registersToClose = []
+                 instructions =
+                   { registerCount = 1; instructions = []; resultIn = 0 } }
+             ) ],
+           0)
 
-  //   let tests = testList "Lambda" [ identityUnapplied; identityApplied ]
+      let applied =
+        t
+          "(fn x -> x) 1"
+          E.Lambdas.Identity.applied
+          (3,
+           [ RT.CreateLambda(
+               0,
+               { exprId = E.Lambdas.Identity.id
+                 patterns = NEList.ofList (RT.LPVariable 0) []
+                 registersToClose = []
+                 instructions =
+                   { registerCount = 1; instructions = []; resultIn = 0 } }
+             )
+             RT.LoadVal(1, RT.DInt64 1L)
+             RT.Apply(2, 0, [], NEList.ofList 1 []) ],
+           2)
+
+      let tests = testList "Identity" [ unapplied; applied ]
+
+    let tests = testList "Lambda" [ Identity.tests ]
 
   module Fns =
     module Builtin =
@@ -650,7 +650,7 @@ module Expr =
            [ RT.LoadVal(
                0,
                RT.DApplicable(
-                 RT.NamedFn
+                 RT.AppNamedFn
                    { name = RT.FQFnName.fqBuiltin "int64Add" 0; argsSoFar = [] }
                )
              ) ],
@@ -664,7 +664,7 @@ module Expr =
            [ RT.LoadVal(
                0,
                RT.DApplicable(
-                 RT.NamedFn
+                 RT.AppNamedFn
                    { name = RT.FQFnName.fqBuiltin "int64Add" 0; argsSoFar = [] }
                )
              )
@@ -680,7 +680,7 @@ module Expr =
            [ RT.LoadVal(
                0,
                RT.DApplicable(
-                 RT.NamedFn
+                 RT.AppNamedFn
                    { name = RT.FQFnName.fqBuiltin "int64Add" 0; argsSoFar = [] }
                )
              )
@@ -697,7 +697,7 @@ module Expr =
            [ RT.LoadVal(
                0,
                RT.DApplicable(
-                 RT.NamedFn
+                 RT.AppNamedFn
                    { name = RT.FQFnName.fqBuiltin "int64Add" 0; argsSoFar = [] }
                )
              )
@@ -720,50 +720,50 @@ module Expr =
             "Test.myAdd"
             E.Fns.Package.MyAdd.unapplied
             (1,
-            [ RT.LoadVal(
-                0,
-                RT.DApplicable(
-                  RT.NamedFn
-                    { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id
-                      argsSoFar = [] }
-                )
-              ) ],
-            0)
+             [ RT.LoadVal(
+                 0,
+                 RT.DApplicable(
+                   RT.AppNamedFn
+                     { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id
+                       argsSoFar = [] }
+                 )
+               ) ],
+             0)
 
         let partiallyApplied =
           t
             "Test.myAdd 1"
             E.Fns.Package.MyAdd.partiallyApplied
             (3,
-            [ RT.LoadVal(
-                0,
-                RT.DApplicable(
-                  RT.NamedFn
-                    { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id
-                      argsSoFar = [] }
-                )
-              )
-              RT.LoadVal(1, RT.DInt64 1L)
-              RT.Apply(2, 0, [], NEList.ofList 1 []) ],
-            2)
+             [ RT.LoadVal(
+                 0,
+                 RT.DApplicable(
+                   RT.AppNamedFn
+                     { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id
+                       argsSoFar = [] }
+                 )
+               )
+               RT.LoadVal(1, RT.DInt64 1L)
+               RT.Apply(2, 0, [], NEList.ofList 1 []) ],
+             2)
 
         let fullyApplied =
           t
             "Test.myAdd 1 2"
             E.Fns.Package.MyAdd.fullyApplied
             (4,
-            [ RT.LoadVal(
-                0,
-                RT.DApplicable(
-                  RT.NamedFn
-                    { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id
-                      argsSoFar = [] }
-                )
-              )
-              RT.LoadVal(1, RT.DInt64 1L)
-              RT.LoadVal(2, RT.DInt64 2L)
-              RT.Apply(3, 0, [], NEList.ofList 1 [ 2 ]) ],
-            3)
+             [ RT.LoadVal(
+                 0,
+                 RT.DApplicable(
+                   RT.AppNamedFn
+                     { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id
+                       argsSoFar = [] }
+                 )
+               )
+               RT.LoadVal(1, RT.DInt64 1L)
+               RT.LoadVal(2, RT.DInt64 2L)
+               RT.Apply(3, 0, [], NEList.ofList 1 [ 2 ]) ],
+             3)
 
         let tests = testList "MyAdd" [ unapplied; partiallyApplied; fullyApplied ]
 
@@ -786,7 +786,7 @@ module Expr =
         Records.tests
         RecordFieldAccess.tests
         // RecordUpdate.tests
-        // Lambda.tests
+        Lambda.tests
         Fns.tests ]
 
 

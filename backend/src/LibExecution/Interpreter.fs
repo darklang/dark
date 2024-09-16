@@ -135,6 +135,13 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
         match currentFrame.context with
         | Source -> Ply vm.sourceInfo
 
+        | Lambda(parentContext, lambdaID) ->
+          let lambda =
+            Map.findUnsafe (parentContext, lambdaID) vm.lambdas |> _.instructions
+          { instructions = List.toArray lambda.instructions
+            resultReg = lambda.resultIn }
+          |> Ply
+
         | PackageFn fn ->
           uply {
             match Map.find fn vm.packageFns with
@@ -142,9 +149,12 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
             | None ->
               match! exeState.fns.package fn with
               | Some fn ->
-                return
+                let instrData =
                   { instructions = List.toArray fn.body.instructions
                     resultReg = fn.body.resultIn }
+                vm.packageFns <- Map.add fn.id instrData vm.packageFns
+                return instrData
+
               | None -> return raiseRTE (RTE.FnNotFound(FQFnName.Package fn))
           }
 
@@ -293,12 +303,18 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
           let fields = fields |> List.map (fun (valueReg) -> registers[valueReg])
           registers[enumReg] <- DEnum(typeName, typeName, [], caseName, fields)
 
-        // | CreateLambda(lambdaReg, impl) ->
-        //   vm.lambdas <- Map.add impl.exprId impl vm.lambdas
-        //   vm.registers[lambdaReg] <-
-        //     { exprId = impl.exprId; symtable = Map.empty; argsSoFar = [] }
-        //     |> Applicable.Lambda
-        //     |> DApplicable
+        | CreateLambda(lambdaReg, impl) ->
+          vm.lambdas <- Map.add (currentFrame.context, impl.exprId) impl vm.lambdas
+          registers[lambdaReg] <-
+            { exprId = impl.exprId
+              closedRegisters =
+                impl.registersToClose
+                |> List.map (fun (parentReg, childReg) ->
+                  childReg, registers[parentReg])
+              argsSoFar = [] }
+            |> AppLambda
+            |> DApplicable
+          ()
 
 
         // == Working with things that Apply (fns, lambdas) ==
@@ -327,10 +343,49 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                 )
               )
 
-          match applicable with
-          // | Lambda lambda -> DApplicable applicable
 
-          | NamedFn applicable ->
+          match applicable with
+          | AppLambda applicableLambda ->
+            let foundLambda =
+              Map.findUnsafe
+                (currentFrame.context, applicableLambda.exprId)
+                vm.lambdas
+
+            let allArgs = applicableLambda.argsSoFar @ newArgDvals
+
+            let argCount = List.length allArgs
+            let paramCount = NEList.length foundLambda.patterns
+
+            //let typeArgCount = List.length typeArgs
+            // TODO: fail if we try to apply a lambda with type args
+
+            if argCount = paramCount then
+              frameToPush <-
+                { id = guuid ()
+                  parent = Some(vm.currentFrameID, putResultIn, counter + 1)
+                  pc = 0
+                  registers =
+                    let r = Array.zeroCreate foundLambda.instructions.registerCount
+
+                    allArgs |> List.iteri (fun i arg -> r[i] <- arg)
+
+                    applicableLambda.closedRegisters
+                    |> List.iter (fun (reg, value) -> r[reg] <- value)
+
+                    r
+                  context = Lambda(currentFrame.context, applicableLambda.exprId) }
+                |> Some
+
+            else if argCount > paramCount then
+              // TODO
+              RTE.MatchUnmatched |> raiseRTE
+            else
+              registers[putResultIn] <-
+                { applicableLambda with argsSoFar = allArgs }
+                |> AppLambda
+                |> DApplicable
+
+          | AppNamedFn applicable ->
             // TODO: typechecking
             // TODO: reduce duplication between branches
             match applicable.name with
@@ -365,7 +420,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                     else
                       return
                         { applicable with argsSoFar = allArgs }
-                        |> NamedFn
+                        |> AppNamedFn
                         |> DApplicable
                   }
 
@@ -408,7 +463,9 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                   |> raiseRTE
                 else
                   registers[putResultIn] <-
-                    { applicable with argsSoFar = allArgs } |> NamedFn |> DApplicable
+                    { applicable with argsSoFar = allArgs }
+                    |> AppNamedFn
+                    |> DApplicable
 
         | RaiseNRE nre -> raiseRTE (RTE.NameResolution nre)
 
@@ -440,5 +497,4 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
     match finalResult with
     | Some dv -> return dv
     | None -> return raiseRTE RTE.MatchUnmatched // TODO better error
-
   }
