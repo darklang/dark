@@ -66,6 +66,9 @@ let eRecord
 let eFieldAccess (expr : Expr) (fieldName : string) : Expr =
   ERecordFieldAccess(gid (), expr, fieldName)
 
+let eRecordUpdate (expr : Expr) (updates : List<string * Expr>) : Expr =
+  ERecordUpdate(gid (), expr, NEList.ofListUnsafe "" [] updates)
+
 // let eEnum
 //   (typeName : FQTypeName.FQTypeName)
 //   (name : string)

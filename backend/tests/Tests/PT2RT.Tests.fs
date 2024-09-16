@@ -595,10 +595,67 @@ module Expr =
       testList "RecordFieldAccess" [ simple; notRecord; missingField; nested ]
 
 
-  // module RecordUpdate =
-  //   // TODO
+  module RecordUpdate =
 
-  //   let tests = testList "RecordUpdate" []
+    let simple =
+      t
+        "let r = Test.Test { key = true }\n{ r with key = false }"
+        E.RecordUpdate.simple
+        (4,
+         [ RT.LoadVal(1, RT.DBool true)
+           RT.CreateRecord(
+             0,
+             RT.FQTypeName.fqPackage PM.Types.Records.singleField,
+             [],
+             [ ("key", 1) ]
+           )
+           RT.LoadVal(2, RT.DBool false)
+           RT.CloneRecordWithUpdates(3, 0, [ ("key", 2) ]) ],
+         3)
+    let notRecord =
+      t
+        "1 with key = false"
+        E.RecordUpdate.notRecord
+        (3,
+         [ RT.LoadVal(0, RT.DInt64 1L)
+           RT.LoadVal(1, RT.DBool false)
+           RT.CloneRecordWithUpdates(2, 0, [ ("key", 1) ]) ],
+         2)
+    let fieldThatShouldNotExist =
+      t
+        "let r = Test.Test { key = true }\n{ r with bonus = false }"
+        E.RecordUpdate.fieldThatShouldNotExist
+        (4,
+         [ RT.LoadVal(1, RT.DBool true)
+           RT.CreateRecord(
+             0,
+             RT.FQTypeName.fqPackage PM.Types.Records.singleField,
+             [],
+             [ ("key", 1) ]
+           )
+           RT.LoadVal(2, RT.DBool false)
+           RT.CloneRecordWithUpdates(3, 0, [ ("bonus", 2) ]) ],
+         3)
+    let fieldWithWrongType =
+      t
+        "let r = Test.Test { key = true }\n{ r with key = 1 }"
+        E.RecordUpdate.fieldWithWrongType
+        (4,
+         [ RT.LoadVal(1, RT.DBool true)
+           RT.CreateRecord(
+             0,
+             RT.FQTypeName.fqPackage PM.Types.Records.singleField,
+             [],
+             [ ("key", 1) ]
+           )
+           RT.LoadVal(2, RT.DInt64 1L)
+           RT.CloneRecordWithUpdates(3, 0, [ ("key", 2) ]) ],
+         3)
+
+    let tests =
+      testList
+        "RecordUpdate"
+        [ simple; notRecord; fieldThatShouldNotExist; fieldWithWrongType ]
 
 
   module Lambda =
@@ -974,7 +1031,7 @@ module Expr =
         Match.tests
         Records.tests
         RecordFieldAccess.tests
-        // RecordUpdate.tests
+        RecordUpdate.tests
         Lambda.tests
         Fns.tests ]
 

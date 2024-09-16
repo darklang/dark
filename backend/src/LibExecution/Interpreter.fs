@@ -256,20 +256,27 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
 
           registers[recordReg] <- record
 
-        // | CloneRecordWithUpdates(targetReg, originalRecordReg, updates) ->
-        //   let originalRecord = vm.registers[originalRecordReg]
-        //   let updates =
-        //     updates
-        //     |> List.map (fun (fieldName, valueReg) ->
-        //       (fieldName, vm.registers[valueReg]))
-        //   let updatedRecord =
-        //     TypeChecker.DvalCreator.record
-        //       exeState.tracing.callStack
-        //       typeName
-        //       typeArgs
-        //       updates
 
-        //   vm.registers[targetReg] <- updatedRecord
+        | CloneRecordWithUpdates(targetReg, originalRecordReg, updates) ->
+          let originalRecord = registers[originalRecordReg]
+          match originalRecord with
+          | DRecord(_, typeName, typeArgs, originalFields) ->
+            // TODO: type-saftety
+            let fields =
+              List.fold
+                (fun acc (fieldName, valueReg) ->
+                  Map.add fieldName (registers[valueReg]) acc)
+                originalFields
+                updates
+
+            registers[targetReg] <- DRecord(typeName, typeName, typeArgs, fields)
+
+          | dv ->
+            Dval.toValueType dv
+            |> RTE.Records.UpdateNotRecord
+            |> RTE.Record
+            |> raiseRTE
+
 
         | GetRecordField(targetReg, recordReg, fieldName) ->
           match registers[recordReg] with
@@ -329,7 +336,6 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                   thingToCall
                 )
               )
-
 
           match applicable with
           | AppLambda applicableLambda ->

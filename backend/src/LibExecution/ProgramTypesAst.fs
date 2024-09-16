@@ -78,6 +78,11 @@ let rec symbolsUsedIn (expr : Expr) : Set<string> =
 
   | ERecordFieldAccess(_, expr, _) -> r expr
 
+  | ERecordUpdate(_, expr, updates) ->
+    Set.union
+      (r expr)
+      (updates |> NEList.toList |> List.map (fun (_, e) -> r e) |> Set.unionMany)
+
   // things that can be applied
   | EFnName(_, _) -> Set.empty
   | ELambda(_, _, body) -> r body

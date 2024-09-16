@@ -685,25 +685,27 @@ module Expr =
               ) ]
         resultIn = recordReg }
 
-    // | PT.ERecordUpdate(_id, expr, updates) ->
-    //   let (rcAfterOriginalRecord, originalRecordInstrs, originalRecordReg) =
-    //     toRT rc expr
+    | PT.ERecordUpdate(_id, expr, updates) ->
+      let expr = toRT symbols rc expr
 
-    //   let (rcAfterUpdates, updatesInstrs, updates) =
-    //     updates
-    //     |> NEList.fold
-    //       (fun (rc, instrs, regs) (fieldName, fieldExpr) ->
-    //         let (newRc, newInstrs, newReg) = toRT rc fieldExpr
-    //         (newRc, instrs @ newInstrs, regs @ [ (fieldName, newReg) ]))
-    //       (rcAfterOriginalRecord, [], [])
+      let (rcAfterUpdates, updatesInstrs, updates) =
+        updates
+        |> NEList.fold
+          (fun (rc, instrs, regs) (fieldName, fieldExpr) ->
+            let update = toRT symbols rc fieldExpr
+            (update.registerCount,
+             instrs @ update.instructions,
+             regs @ [ (fieldName, update.resultIn) ]))
+          (expr.registerCount, [], [])
 
-    //   let targetReg, rc = rcAfterUpdates, rcAfterUpdates + 1
-    //   let instrs =
-    //     originalRecordInstrs
-    //     @ updatesInstrs
-    //     @ [ RT.CloneRecordWithUpdates(targetReg, originalRecordReg, updates) ]
+      let targetReg, rc = rcAfterUpdates, rcAfterUpdates + 1
+      let instrs =
+        expr.instructions
+        @ updatesInstrs
+        @ [ RT.CloneRecordWithUpdates(targetReg, expr.resultIn, updates) ]
 
-    //   (rc, instrs, targetReg)
+      { registerCount = rc; instructions = instrs; resultIn = targetReg }
+
 
     | PT.ERecordFieldAccess(_id, expr, fieldName) ->
       let expr = toRT symbols rc expr
@@ -771,15 +773,10 @@ module Expr =
         symbolsUsedInBodyNotDefinedInPats
         |> Set.toList
         |> List.fold
-          (fun (registersToClose, newSymbols, rc) name ->
-            debuG "name" name
+          (fun (regs, newSymbols, rc) name ->
             let parentReg = Map.findUnsafe name symbols
-            let childReg = rc
-            (registersToClose @ [ parentReg, childReg ],
-             Map.add name childReg newSymbols,
-             rc + 1))
+            (regs @ [ parentReg, rc ], Map.add name rc newSymbols, rc + 1))
           ([], symbolsOfNewFrameAfterPats, rcOfNewFrameAfterPats)
-
 
       let impl : RT.LambdaImpl =
         { exprId = id

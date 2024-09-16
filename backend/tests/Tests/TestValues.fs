@@ -239,7 +239,13 @@ module Expressions =
     let nested = eFieldAccess (eFieldAccess Records.nested "outer") "key"
 
 
-  // //module RecordUpdate =
+  module RecordUpdate =
+    let simple = eRecordUpdate Records.simple [ "key", eBool false ]
+    let notRecord = eRecordUpdate (eInt64 1) [ "key", eBool false ]
+    let fieldThatShouldNotExist =
+      eRecordUpdate Records.simple [ "bonus", eBool false ]
+    let fieldWithWrongType = eRecordUpdate Records.simple [ "key", eInt64 1 ]
+
 
   // TODO: test nested lambdas
   module Lambdas =

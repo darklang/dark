@@ -309,6 +309,38 @@ module RecordFieldAccess =
   let tests =
     testList "RecordFieldAccess" [ simple; notRecord; missingField; nested ]
 
+module RecordUpdate =
+  let simple =
+    t
+      "let r = Test.Test { key = true }\nlet r2 = { r | key = false }"
+      E.RecordUpdate.simple
+      (RT.DRecord(
+        RT.FQTypeName.fqPackage PM.Types.Records.singleField,
+        RT.FQTypeName.fqPackage PM.Types.Records.singleField,
+        [],
+        Map [ "key", RT.DBool false ]
+      ))
+
+  let notRecord =
+    tFail
+      "let r = 1\nlet r2 = { r | key = false }"
+      E.RecordUpdate.notRecord
+      (RTE.Record(RTE.Records.UpdateNotRecord VT.int64))
+
+  // let fieldThatShouldNotExist =
+  //   tFail
+  //     "let r = Test.Test { key = true }\nlet r2 = { r | bonus = false }\nr2.key"
+  //     E.RecordUpdate.fieldThatShouldNotExist
+  //     (RTE.Record(RTE.Records.UpdateFieldNotExpected "bonus"))
+
+  // let fieldWithWrongType =
+  //   tFail
+  //     "let r = Test.Test { key = true }\nlet r2 = { r | key = 1 }\nr2.key"
+  //     E.RecordUpdate.fieldWithWrongType
+  //     (RTE.Record(RTE.Records.UpdateFieldOfWrongType("key", RT.TBool, VT.int64)))
+
+  let tests = testList "RecordUpdate" [ simple; notRecord ] // fieldThatShouldNotExist; fieldWithWrongType ]
+
 
 module Lambdas =
   module Identity =
@@ -483,5 +515,6 @@ let tests =
       Match.tests
       Records.tests
       RecordFieldAccess.tests
+      RecordUpdate.tests
       Lambdas.tests
       Fns.tests ]

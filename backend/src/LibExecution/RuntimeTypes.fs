@@ -385,10 +385,10 @@ type Instruction =
     typeArgs : List<TypeReference> *
     fields : List<string * Register>
 
-  // | CloneRecordWithUpdates of
-  //   createTo : Register *
-  //   originalRecordReg : Register *
-  //   updates : List<string * Register>
+  | CloneRecordWithUpdates of
+    createTo : Register *
+    originalRecordReg : Register *
+    updates : List<string * Register>
 
   | GetRecordField of
     // todo: rename to "lhs"? Look into this.
@@ -771,6 +771,7 @@ module RuntimeError =
       | CreationEmptyKey
       | CreationMissingField of fieldName : string
       | CreationDuplicateField of fieldName : string
+      | CreationFieldNotExpected of fieldName : string
       | CreationFieldOfWrongType of
         fieldName : string *
         expectedType : TypeReference *
@@ -778,6 +779,13 @@ module RuntimeError =
 
       | FieldAccessFieldNotFound of fieldName : string
       | FieldAccessNotRecord of actualType : ValueType
+
+      | UpdateNotRecord of actualType : ValueType
+      | UpdateFieldOfWrongType of
+        fieldName : string *
+        expectedType : TypeReference *
+        actualType : ValueType
+      | UpdateFieldNotExpected of fieldName : string
 
 
 

@@ -357,9 +357,9 @@ type Expr =
   /// Access a field of some record (e.g. `someExpr.fieldName`)
   | ERecordFieldAccess of id * record : Expr * fieldName : string
 
-  // /// Clone a record, and update some of its values
-  // /// `{ r with key = value }`
-  // | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
+  /// Clone a record, and update some of its values
+  /// `{ r with key = value }`
+  | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
 
 
   // Enums include `Some`, `None`, `Error`, `Ok`, as well
@@ -438,7 +438,7 @@ module Expr =
     | ETuple(id, _, _, _)
     // | EPipe(id, _, _)
     | ERecord(id, _, _, _)
-    // | ERecordUpdate(id, _, _)
+    | ERecordUpdate(id, _, _)
     | ERecordFieldAccess(id, _, _)
     | EEnum(id, _, _, _, _)
     | EMatch(id, _, _) -> id
