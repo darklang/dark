@@ -326,7 +326,55 @@ module Lambdas =
 
     let tests = testList "Identity" [ unapplied; applied ]
 
-  let tests = testList "Lambdas" [ Identity.tests ]
+  module Add =
+    let unapplied =
+      tCheckVM
+        "fn x y -> x + y"
+        E.Lambdas.Add.unapplied
+        (RT.DApplicable(
+          RT.AppLambda
+            { exprId = E.Lambdas.Add.id; closedRegisters = []; argsSoFar = [] }
+        ))
+        (fun vm -> Expect.isFalse (Map.isEmpty vm.lambdas) "no lambdas in VMState")
+
+    let partiallyApplied =
+      t
+        "(fn x y -> x + y) 1"
+        E.Lambdas.Add.partiallyApplied
+        (RT.DApplicable(
+          RT.AppLambda
+            { exprId = E.Lambdas.Add.id
+              closedRegisters = []
+              argsSoFar = [ RT.DInt64 1L ] }
+        ))
+
+    let fullyApplied =
+      t "(fn x y -> x + y) 1 2" E.Lambdas.Add.fullyApplied (RT.DInt64 3L)
+
+    let tests = testList "Add" [ unapplied; partiallyApplied; fullyApplied ]
+
+  module AddToClosedVars =
+    let unapplied =
+      tCheckVM
+        "let x = 5\nlet y=10\nfun a -> a + x + y"
+        E.Lambdas.AddToClosedVars.unapplied
+        (RT.DApplicable(
+          RT.AppLambda
+            { exprId = E.Lambdas.AddToClosedVars.id
+              closedRegisters = [ (1, RT.DInt64 5); (2, RT.DInt64 10) ]
+              argsSoFar = [] }
+        ))
+        (fun vm -> Expect.isFalse (Map.isEmpty vm.lambdas) "no lambdas in VMState")
+
+    let applied =
+      t
+        "let x = 5\nlet y=10\nlet addFifteen = fun a -> a + x + y\naddFifteen 25"
+        E.Lambdas.AddToClosedVars.applied
+        (RT.DInt64 40L)
+
+    let tests = testList "AddToClosedVars" [ unapplied; applied ]
+
+  let tests = testList "Lambdas" [ Identity.tests; Add.tests; AddToClosedVars.tests ]
 
 
 module Fns =

@@ -753,7 +753,8 @@ module Expr =
       let symbolsUsedInBody = ProgramTypesAst.symbolsUsedIn body
       let symbolsUsedInPats =
         pats |> NEList.toList |> List.map PT.LetPattern.symbolsUsed |> Set.unionMany
-      let symbolsOnlyUsedInBody = Set.difference symbolsUsedInBody symbolsUsedInPats
+      let symbolsUsedInBodyNotDefinedInPats =
+        Set.difference symbolsUsedInBody symbolsUsedInPats
 
       let (pats, symbolsOfNewFrameAfterPats, rcOfNewFrameAfterPats)
         : (List<RT.LetPattern> * Map<string, int> * int) =
@@ -767,14 +768,15 @@ module Expr =
 
       let (registersToClose, symbolsOfNewFrameAfterOnesOnlyUsedInBoty, rcOfNewFrame)
         : (List<RT.Register * RT.Register> * Map<string, int> * int) =
-        symbolsOnlyUsedInBody
+        symbolsUsedInBodyNotDefinedInPats
         |> Set.toList
         |> List.fold
-          (fun (registersToClose, symbols, rc) name ->
+          (fun (registersToClose, newSymbols, rc) name ->
+            debuG "name" name
             let parentReg = Map.findUnsafe name symbols
             let childReg = rc
             (registersToClose @ [ parentReg, childReg ],
-             Map.add name childReg symbols,
+             Map.add name childReg newSymbols,
              rc + 1))
           ([], symbolsOfNewFrameAfterPats, rcOfNewFrameAfterPats)
 

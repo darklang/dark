@@ -241,20 +241,55 @@ module Expressions =
 
   // //module RecordUpdate =
 
+  // TODO: test nested lambdas
   module Lambdas =
     module Identity =
-
       let id = gid ()
 
       let unapplied = eLambda id [ lpVar "x" ] (eVar "x")
 
       let applied = eApply unapplied [] [ eInt64 1 ]
 
-  // TODO:
-  // module Add =
-  // module AddWithClosedVar =
-  // SomethingWIthMultipleClosedVars
-  // TODO: partial application
+    module Add =
+      let id = gid ()
+      let unapplied =
+        eLambda
+          id
+          [ lpVar "a"; lpVar "b" ]
+          (eApply (eBuiltinFn "int64Add" 0) [] [ eVar "a"; eVar "b" ])
+      let partiallyApplied = eApply unapplied [] [ eInt64 1 ]
+      let fullyApplied = eApply unapplied [] [ eInt64 1; eInt64 2 ]
+
+    ///```fsharp
+    /// let x = 5
+    /// let y = 10
+    /// let addFifteen = fun a -> a + x + y
+    /// addFifteen 25
+    /// ```
+    module AddToClosedVars =
+      let id = gid ()
+      let unapplied =
+        eLet
+          (lpVar "x")
+          (eInt64 5)
+          (eLet
+            (lpVar "y")
+            (eInt64 10)
+            (eLambda
+              id
+              [ lpVar "a" ]
+              (eApply
+                (eBuiltinFn "int64Add" 0)
+                []
+                [ (eVar "a")
+                  (eApply (eBuiltinFn "int64Add" 0) [] [ eVar "x"; eVar "y" ]) ])))
+
+      let applied =
+        eLet
+          (lpVar "addFifteen")
+          unapplied
+          (eApply (eVar "addFifteen") [] [ eInt64 25 ])
+
 
   module Fns =
     module Builtin =

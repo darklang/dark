@@ -85,38 +85,37 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "dictFromListOverwritingDuplicates" 0
+      typeParams = []
+      parameters = [ Param.make "entries" (TList(TTuple(TString, varA, []))) "" ]
+      returnType = TDict varB
+      description =
+        "Returns a <type dict> with <param entries>. Each value in <param entries>
+          must be a {{(key, value)}} tuple, where <var key> is a <type String>.
 
-    // { name = fn "dictFromListOverwritingDuplicates" 0
-    //   typeParams = []
-    //   parameters = [ Param.make "entries" (TList(TTuple(TString, varA, []))) "" ]
-    //   returnType = TDict varB
-    //   description =
-    //     "Returns a <type dict> with <param entries>. Each value in <param entries>
-    //       must be a {{(key, value)}} tuple, where <var key> is a <type String>.
+          If <param entries> contains duplicate <var key>s, the last entry with that
+          key will be used in the resulting dictionary (use <fn Dict.fromList> if you
+          want to enforce unique keys).
 
-    //       If <param entries> contains duplicate <var key>s, the last entry with that
-    //       key will be used in the resulting dictionary (use <fn Dict.fromList> if you
-    //       want to enforce unique keys).
+          This function is the opposite of <fn Dict.toList>."
+      fn =
+        (function
+        | _, _, _, [ DList(_, l) ] ->
+          let f acc dv =
+            match dv with
+            | DTuple(DString k, value, []) -> Map.add k value acc
+            | _ ->
+              Exception.raiseInternal
+                "Not string tuples in fromListOverwritingDuplicates"
+                [ "dval", dv ]
 
-    //       This function is the opposite of <fn Dict.toList>."
-    //   fn =
-    //     (function
-    //     | _, _, _, [ DList(_, l) ] ->
-    //       let f acc dv =
-    //         match dv with
-    //         | DTuple(DString k, value, []) -> Map.add k value acc
-    //         | _ ->
-    //           Exception.raiseInternal
-    //             "Not string tuples in fromListOverwritingDuplicates"
-    //             [ "dval", dv ]
-
-    //       List.fold f Map.empty l
-    //       |> TypeChecker.DvalCreator.dictFromMap VT.unknownTODO
-    //       |> Ply
-    //     | _ -> incorrectArgs ())
-    //   sqlSpec = NotYetImplemented
-    //   previewable = Pure
-    //   deprecated = NotDeprecated }
+          List.fold f Map.empty l
+          |> TypeChecker.DvalCreator.dictFromMap VT.unknownTODO
+          |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
 
 
     { name = fn "dictFromList" 0

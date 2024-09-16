@@ -638,7 +638,196 @@ module Expr =
 
       let tests = testList "Identity" [ unapplied; applied ]
 
-    let tests = testList "Lambda" [ Identity.tests ]
+    module Add =
+      let unapplied =
+        t
+          "fn a b -> Builtin.int64Add a b"
+          E.Lambdas.Add.unapplied
+          (1,
+           [ RT.CreateLambda(
+               0,
+               { exprId = E.Lambdas.Add.id
+                 patterns = NEList.ofList (RT.LPVariable 0) [ RT.LPVariable 1 ]
+                 registersToClose = []
+                 instructions =
+                   { registerCount = 4
+                     instructions =
+                       [ RT.LoadVal(
+                           2,
+                           RT.DApplicable(
+                             RT.AppNamedFn
+                               { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 argsSoFar = [] }
+                           )
+                         )
+                         RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ]
+                     resultIn = 3 } }
+             ) ],
+           0)
+
+      let partiallyApplied =
+        t
+          "(fn a b -> Builtin.int64Add a b) 1"
+          E.Lambdas.Add.partiallyApplied
+          (3,
+           [ RT.CreateLambda(
+               0,
+               { exprId = E.Lambdas.Add.id
+                 patterns = NEList.ofList (RT.LPVariable 0) [ RT.LPVariable 1 ]
+                 registersToClose = []
+                 instructions =
+                   { registerCount = 4
+                     instructions =
+                       [ RT.LoadVal(
+                           2,
+                           RT.DApplicable(
+                             RT.AppNamedFn
+                               { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 argsSoFar = [] }
+                           )
+                         )
+                         RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ]
+                     resultIn = 3 } }
+             )
+             RT.LoadVal(1, RT.DInt64 1L)
+             RT.Apply(2, 0, [], NEList.ofList 1 []) ],
+           2)
+
+
+      let fullyApplied =
+        t
+          "(fn a b -> Builtin.int64Add a b) 1 2"
+          E.Lambdas.Add.fullyApplied
+          (4,
+           [ RT.CreateLambda(
+               0,
+               { exprId = E.Lambdas.Add.id
+                 patterns = NEList.ofList (RT.LPVariable 0) [ RT.LPVariable 1 ]
+                 registersToClose = []
+                 instructions =
+                   { registerCount = 4
+                     instructions =
+                       [ RT.LoadVal(
+                           2,
+                           RT.DApplicable(
+                             RT.AppNamedFn
+                               { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 argsSoFar = [] }
+                           )
+                         )
+                         RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ]
+                     resultIn = 3 } }
+             )
+             RT.LoadVal(1, RT.DInt64 1L)
+             RT.LoadVal(2, RT.DInt64 2L)
+             RT.Apply(3, 0, [], NEList.ofList 1 [ 2 ]) ],
+           3)
+
+
+      let tests = testList "Add" [ unapplied; partiallyApplied; fullyApplied ]
+
+    ///```fsharp
+    /// let x = 5
+    /// let y = 10
+    /// let addFifteen = fun a -> a + x + y
+    /// addFifteen 25
+    /// ```
+    module AddToClosedVars =
+      let unapplied =
+        t
+          "let x = 5\nlet y=10\nfun a -> a + x + y"
+          E.Lambdas.AddToClosedVars.unapplied
+          (5,
+           [ RT.LoadVal(0, RT.DInt64 5L)
+             RT.CheckLetPatternAndExtractVars(0, RT.LPVariable 1)
+
+             RT.LoadVal(2, RT.DInt64 10L)
+             RT.CheckLetPatternAndExtractVars(2, RT.LPVariable 3)
+
+             RT.CreateLambda(
+               4,
+               { exprId = E.Lambdas.AddToClosedVars.id
+                 patterns = NEList.ofList (RT.LPVariable 0) []
+                 registersToClose = [ (1, 1); (3, 2) ]
+                 instructions =
+                   { registerCount = 7
+                     instructions =
+                       [ RT.LoadVal(
+                           3,
+                           RT.DApplicable(
+                             RT.AppNamedFn
+                               { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 argsSoFar = [] }
+                           )
+                         )
+                         RT.LoadVal(
+                           4,
+                           RT.DApplicable(
+                             RT.AppNamedFn
+                               { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 argsSoFar = [] }
+                           )
+                         )
+                         RT.Apply(5, 4, [], NEList.ofList 1 [ 2 ])
+                         RT.Apply(6, 3, [], NEList.ofList 0 [ 5 ]) ]
+                     resultIn = 6 } }
+             ) ],
+           4)
+
+      let applied =
+        t
+          "let x = 5\nlet y=10\nlet addFifteen = fun a -> a + x + y\naddFifteen 25"
+          E.Lambdas.AddToClosedVars.applied
+          (8,
+           [ RT.LoadVal(0, RT.DInt64 5L)
+             RT.CheckLetPatternAndExtractVars(0, RT.LPVariable 1)
+
+             RT.LoadVal(2, RT.DInt64 10L)
+             RT.CheckLetPatternAndExtractVars(2, RT.LPVariable 3)
+
+             RT.CreateLambda(
+               4,
+               { exprId = E.Lambdas.AddToClosedVars.id
+                 patterns = NEList.ofList (RT.LPVariable 0) []
+                 registersToClose = [ (1, 1); (3, 2) ]
+                 instructions =
+                   { registerCount = 7
+                     instructions =
+                       [ RT.LoadVal(
+                           3,
+                           RT.DApplicable(
+                             RT.AppNamedFn
+                               { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 argsSoFar = [] }
+                           )
+                         )
+                         RT.LoadVal(
+                           4,
+                           RT.DApplicable(
+                             RT.AppNamedFn
+                               { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 argsSoFar = [] }
+                           )
+                         )
+                         RT.Apply(5, 4, [], NEList.ofList 1 [ 2 ])
+                         RT.Apply(6, 3, [], NEList.ofList 0 [ 5 ]) ]
+                     resultIn = 6 } }
+             )
+
+             RT.CheckLetPatternAndExtractVars(4, RT.LPVariable 5)
+
+             RT.LoadVal(6, RT.DInt64 25L)
+
+             RT.Apply(7, 5, [], NEList.ofList 6 []) ],
+           7)
+
+      let tests = testList "AddToClosedVars" [ unapplied; applied ]
+
+
+    let tests =
+      testList "Lambda" [ Identity.tests; Add.tests; AddToClosedVars.tests ]
+
+
 
   module Fns =
     module Builtin =

@@ -106,24 +106,12 @@ let rec checkAndExtractMatchPattern
   | _ -> false, []
 
 
-/// TODO: don't pass ExecutionState around so much?
-/// The parts that change, (e.g. `st` and `tst`) should probably all be part of VMState
-///
-/// Maybe rename ExecutionState to something else
-/// , like ExecutionContext or Execution
-///
-/// TODO potentially make this a loop instead of recursive
 let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
   uply {
     let raiseRTE rte = raiseRTE vm.threadID rte
 
-    //while Map.count vm.callFrames > 1 do
-
-    // If there's a parent frame to return to, continue execution
-    // let mutable continueExecution = true
     let mutable finalResult : Dval option = None
 
-    // while continueExecution && Map.containsKey vm.currentFrameID vm.callFrames do
     while Map.containsKey vm.currentFrameID vm.callFrames do
       let currentFrame = Map.findUnsafe vm.currentFrameID vm.callFrames
 
@@ -314,7 +302,6 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
               argsSoFar = [] }
             |> AppLambda
             |> DApplicable
-          ()
 
 
         // == Working with things that Apply (fns, lambdas) ==
@@ -440,7 +427,6 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                 // TODO: error on these not matching^, too.
 
                 if argCount = paramCount then
-                  // fun with call frames
                   frameToPush <-
                     { id = guuid ()
                       parent = Some(vm.currentFrameID, putResultIn, counter + 1)
