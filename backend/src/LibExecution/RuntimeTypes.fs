@@ -440,11 +440,6 @@ and Instructions =
 and DvalMap = Map<string, Dval>
 
 
-(*
-let
-
-*)
-
 /// Lambdas are a bit special:
 /// they have to close over variables, and have their own set of instructions, not embedded in the main set
 ///
@@ -486,15 +481,9 @@ and LambdaImpl =
   }
 
 
-
 and ApplicableNamedFn =
   {
     name : FQFnName.FQFnName
-
-    // /// We need these around, even for a partially-applied fn
-    // /// , to make sure we can fail on type errors appropriately
-    // /// e.g. `Int64.add true` should fail before a second arg is provided.
-    // parameters : NEList<Param>
 
     /// CLEANUP should this be a list of registers instead?
     argsSoFar : List<Dval>
@@ -521,43 +510,9 @@ and ApplicableLambda =
   }
 
 
-
-
-// // Is this a _kind_ of closure? I think so!
-// // So do we need
-// //
-// and CallFrameReference =
-//   | InputExpr
-//   | TopLevel of tlid
-//   | NamedFn of FQFnName.FQFnName
-//   | Lambda of id
-
-// /// TODO VMState holds a Map of these? and we fetch by ID?
-// /// specifically `Map<CallFrameReference, CallFrame>`? idk.
-// ///
-// /// Any of these things can be applied, and _somewhere_ have a set of instructions to evaluate
-// and CallFrame =
-//   /// for raw exprs, e.g. tests, one-off scripts, etc
-//   ///
-//   /// Thinking...
-//   /// I think this one actually needs its Instructions -- and maybe registers and such?
-//   /// This might be where more of VMState gets moved to.
-//   | InputExpr of parent : Option<CallFrameReference> * Instructions
-
-//   /// TODO probably good to 'migrate' some usages from "raw" expr evaluation to these.
-//   | TopLevel of parent : Option<CallFrameReference> * tlid
-
-//   | NamedFn of parent : Option<CallFrameReference> * ApplicableNamedFn
-
-//   /// Note: the impl details are stored "centrally" in the VMState
-//   /// in a LambdaImpl object, after being loaded by a LoadLambda instruction
-//   | Lambda of parent : CallFrameReference * ApplicableLambda
-
-
 /// Any thing that can be applied,
 /// along with anything needed within their application closure
 /// TODO: follow up with typeSymbols
-/// TODO needs a better name, clearly.
 and Applicable =
   | AppLambda of ApplicableLambda
   | AppNamedFn of ApplicableNamedFn
@@ -634,15 +589,7 @@ and [<NoComparison>] Dval =
 
 and DvalTask = Ply<Dval>
 
-// /// Our record/tracking of any variable bindings in scope
-// ///
-// /// i.e. within the execution of `x+y` in
-// ///  `let x = 1; let y = 2; x + y`
-// /// , we would have a Symtable of
-// ///   `{ "x" => DInt64 1; "y" => DInt64 2 }`
-// and Symtable = Map<string, Dval>
-
-
+// TODO mayube kill this?
 and ExecutionPoint =
   /// User is executing some "arbitrary" expression, passed in by a user.
   ///
@@ -665,24 +612,6 @@ and ExecutionPoint =
 /// TODO maybe rename to ExprLocation
 and Source = ExecutionPoint * Option<id>
 
-// and CallStack =
-//   {
-//     /// The entrypoint of the execution
-//     /// (whatever we're executing for a user)
-//     entrypoint : ExecutionPoint
-
-//     // TODO: bring this back and do something with it,
-//     // and improve it to be more useful
-//     // (i.e. maintain order of calls, deal with recursions, etc.)
-//     // See https://chatgpt.com/share/087935f9-44be-4686-8209-66e701e887b1
-//     // /// All of the fns that have been called in this execution
-//     // calledFns : Set<FQFnName.FQFnName>
-
-//     /// The last-called thing (roughly)
-//     ///
-//     /// If we've encountered an exception, this should be where things failed
-//     lastCalled : Source
-//   }
 
 and ThreadID = uuid
 
@@ -1005,10 +934,6 @@ module RuntimeError =
 
 
 
-// module CallStack =
-//   let fromEntryPoint (entrypoint : ExecutionPoint) : CallStack =
-//     { entrypoint = entrypoint; lastCalled = (entrypoint, None) }
-
 module TypeReference =
   let result (t1 : TypeReference) (t2 : TypeReference) : TypeReference =
     TCustomType(Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.result), [ t1; t2 ])
@@ -1033,8 +958,6 @@ exception RuntimeErrorException of ThreadID * rte : RuntimeError.Error
 let raiseRTE (threadId : ThreadID) (rte : RuntimeError.Error) : 'a =
   raise (RuntimeErrorException(threadId, rte))
 
-// let raiseRTE (callStack : CallStack) (rte : RuntimeError) : 'a =
-//   raise (RuntimeErrorException(Some callStack, rte))
 
 // // (only?) OK in builtins because we "fill in" the callstack in the Interpreter for such failures
 // // CLEANUP maybe (somehow) restrict to only Builtins
