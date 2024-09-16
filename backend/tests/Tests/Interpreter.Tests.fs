@@ -358,30 +358,56 @@ module Fns =
 
 
   module Package =
+    module MyAdd =
 
-    let unapplied =
-      t
-        "packageFnAddWrapper"
-        E.Fns.Package.unapplied
-        (RT.DApplicable(
-          RT.NamedFn
-            { name = RT.FQFnName.fqPackage E.Fns.Package.myAddID; argsSoFar = [] }
-        ))
+      let unapplied =
+        t
+          "Test.myAdd"
+          E.Fns.Package.MyAdd.unapplied
+          (RT.DApplicable(
+            RT.NamedFn
+              { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id; argsSoFar = [] }
+          ))
 
-    let partiallyApplied =
-      t
-        "packageFnAddWrapper 1"
-        E.Fns.Package.partiallyApplied
-        (RT.DApplicable(
-          RT.NamedFn
-            { name = RT.FQFnName.fqPackage E.Fns.Package.myAddID
-              argsSoFar = [ RT.DInt64 1 ] }
-        ))
+      let partiallyApplied =
+        t
+          "Test.myAdd 1"
+          E.Fns.Package.MyAdd.partiallyApplied
+          (RT.DApplicable(
+            RT.NamedFn
+              { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id
+                argsSoFar = [ RT.DInt64 1 ] }
+          ))
 
-    let fullyApplied =
-      t "packageFnAddWrapper 1 2" E.Fns.Package.fullyApplied (RT.DInt64 3L)
+      let fullyApplied =
+        t "Test.myAdd 1 2" E.Fns.Package.MyAdd.fullyApplied (RT.DInt64 3L)
 
-    let tests = testList "Package" [ unapplied; partiallyApplied; fullyApplied ]
+
+      let tests = testList "Myadd" [ unapplied; partiallyApplied; fullyApplied ]
+
+
+    module Fact =
+      let unapplied =
+        t
+          "Test.fact"
+          E.Fns.Package.Fact.unapplied
+          (RT.DApplicable(
+            RT.NamedFn
+              { name = RT.FQFnName.fqPackage E.Fns.Package.Fact.id; argsSoFar = [] }
+          ))
+
+      let appliedWith2 =
+        t "Test.fact 2" E.Fns.Package.Fact.appliedWith2 (RT.DInt64 2L)
+
+      let appliedWith20 =
+        t
+          "Test.fact 20"
+          E.Fns.Package.Fact.appliedWith20
+          (RT.DInt64 2432902008176640000L)
+
+      let tests = testList "Fact" [ unapplied; appliedWith2; appliedWith20 ]
+
+    let tests = testList "Package" [ MyAdd.tests; Fact.tests ]
 
   let tests = testList "Fns" [ Builtin.tests; Package.tests ]
 

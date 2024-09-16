@@ -714,58 +714,60 @@ module Expr =
 
 
     module Package =
-      let unapplied =
-        t
-          "Test.myAdd"
-          E.Fns.Package.unapplied
-          (1,
-           [ RT.LoadVal(
-               0,
-               RT.DApplicable(
-                 RT.NamedFn
-                   { name = RT.FQFnName.fqPackage E.Fns.Package.myAddID
-                     argsSoFar = [] }
-               )
-             ) ],
-           0)
+      module MyAdd =
+        let unapplied =
+          t
+            "Test.myAdd"
+            E.Fns.Package.MyAdd.unapplied
+            (1,
+            [ RT.LoadVal(
+                0,
+                RT.DApplicable(
+                  RT.NamedFn
+                    { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id
+                      argsSoFar = [] }
+                )
+              ) ],
+            0)
 
-      let partiallyApplied =
-        t
-          "Test.myAdd 1"
-          E.Fns.Package.partiallyApplied
-          (3,
-           [ RT.LoadVal(
-               0,
-               RT.DApplicable(
-                 RT.NamedFn
-                   { name = RT.FQFnName.fqPackage E.Fns.Package.myAddID
-                     argsSoFar = [] }
-               )
-             )
-             RT.LoadVal(1, RT.DInt64 1L)
-             RT.Apply(2, 0, [], NEList.ofList 1 []) ],
-           2)
+        let partiallyApplied =
+          t
+            "Test.myAdd 1"
+            E.Fns.Package.MyAdd.partiallyApplied
+            (3,
+            [ RT.LoadVal(
+                0,
+                RT.DApplicable(
+                  RT.NamedFn
+                    { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id
+                      argsSoFar = [] }
+                )
+              )
+              RT.LoadVal(1, RT.DInt64 1L)
+              RT.Apply(2, 0, [], NEList.ofList 1 []) ],
+            2)
 
-      let fullyApplied =
-        t
-          "Test.myAdd 1 2"
-          E.Fns.Package.fullyApplied
-          (4,
-           [ RT.LoadVal(
-               0,
-               RT.DApplicable(
-                 RT.NamedFn
-                   { name = RT.FQFnName.fqPackage E.Fns.Package.myAddID
-                     argsSoFar = [] }
-               )
-             )
-             RT.LoadVal(1, RT.DInt64 1L)
-             RT.LoadVal(2, RT.DInt64 2L)
-             RT.Apply(3, 0, [], NEList.ofList 1 [ 2 ]) ],
-           3)
+        let fullyApplied =
+          t
+            "Test.myAdd 1 2"
+            E.Fns.Package.MyAdd.fullyApplied
+            (4,
+            [ RT.LoadVal(
+                0,
+                RT.DApplicable(
+                  RT.NamedFn
+                    { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id
+                      argsSoFar = [] }
+                )
+              )
+              RT.LoadVal(1, RT.DInt64 1L)
+              RT.LoadVal(2, RT.DInt64 2L)
+              RT.Apply(3, 0, [], NEList.ofList 1 [ 2 ]) ],
+            3)
 
-      let tests = testList "Fns" [ unapplied; partiallyApplied; fullyApplied ]
+        let tests = testList "MyAdd" [ unapplied; partiallyApplied; fullyApplied ]
 
+      let tests = testList "Package" [ MyAdd.tests ]
 
     let tests = testList "Fns" [ Builtin.tests; Package.tests ]
 

@@ -256,11 +256,19 @@ module Expressions =
       let twoStepApplication = eApply partiallyApplied [] [ eInt64 2 ]
 
     module Package =
-      let myAddID = System.Guid.Parse "a180ed3b-e8ee-42e5-b3c6-9e7ca32ee273"
+      module MyAdd =
+        let id = System.Guid.Parse "a180ed3b-e8ee-42e5-b3c6-9e7ca32ee273"
 
-      let unapplied = ePackageFn myAddID
-      let partiallyApplied = eApply unapplied [] [ eInt64 1 ]
-      let fullyApplied = eApply unapplied [] [ eInt64 1; eInt64 2 ]
+        let unapplied = ePackageFn id
+        let partiallyApplied = eApply unapplied [] [ eInt64 1 ]
+        let fullyApplied = eApply unapplied [] [ eInt64 1; eInt64 2 ]
+
+
+      module Fact =
+        let id = System.Guid.Parse "34c0c7bb-2bfa-4dc3-85f9-b965ba3c7880"
+        let unapplied = ePackageFn id
+        let appliedWith2 = eApply unapplied [] [ eInt64 2 ]
+        let appliedWith20 = eApply unapplied [] [ eInt64 20 ]
 
 
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
@@ -270,7 +278,7 @@ let pm : PT.PackageManager =
   |> PT.PackageManager.withExtras
     []
     []
-    [ { id = Expressions.Fns.Package.myAddID
+    [ { id = Expressions.Fns.Package.MyAdd.id
         name = PT.PackageFn.name "Test" [] "add"
         typeParams = []
         parameters =
@@ -279,5 +287,29 @@ let pm : PT.PackageManager =
             [ { name = "b"; typ = PT.TInt64; description = "TODO" } ]
         returnType = PT.TInt64
         body = eApply (eBuiltinFn "int64Add" 0) [] [ eVar "a"; eVar "b" ]
+        description = "TODO"
+        deprecated = PT.NotDeprecated }
+
+      { id = Expressions.Fns.Package.Fact.id
+        name = PT.PackageFn.name "Test" [] "fact"
+        typeParams = []
+        parameters =
+          NEList.ofList { name = "a"; typ = PT.TInt64; description = "TODO" } []
+        returnType = PT.TInt64
+        body =
+          eIf
+            (eApply (eBuiltinFn "equals" 0) [] [ eVar "a"; eInt64 1 ])
+            (eInt64 1)
+            (Some(
+              eApply
+                (eBuiltinFn "int64Multiply" 0)
+                []
+                [ eVar "a"
+                  (eApply
+                    (ePackageFn Expressions.Fns.Package.Fact.id)
+                    []
+                    [ eApply (eBuiltinFn "int64Subtract" 0) [] [ eVar "a"; eInt64 1 ] ]) ]
+            ))
+
         description = "TODO"
         deprecated = PT.NotDeprecated } ]
