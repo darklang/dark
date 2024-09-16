@@ -1482,7 +1482,8 @@ let add3 a =
 and CallFrame =
   {
     id : uuid
-    parent : Option<uuid>
+    /// Id * where to put result in parent * pc of parent
+    parent : Option<uuid * Register * int>
 
     // TODO the instructions and resultReg are not in the CallFrame itself
     // -- multiple CFs may be operating on the same fn or w/e
@@ -1493,6 +1494,8 @@ and CallFrame =
     mutable pc : int
 
     registers : Registers // mutable because array?
+
+  // putResultInParent : Option<Register>
   }
 
 and Something =

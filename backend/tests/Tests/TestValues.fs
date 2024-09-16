@@ -53,13 +53,6 @@ module PM =
     let all = []
 
 
-  // TODO
-  let fake : PT.PackageManager =
-    PT.PackageManager.withExtras
-      PT.PackageManager.empty
-      Types.all
-      Constants.all
-      Functions.all
 
 module Expressions =
   module Basic =
@@ -263,31 +256,28 @@ module Expressions =
       let twoStepApplication = eApply partiallyApplied [] [ eInt64 2 ]
 
     module Package =
-      let myAddID = System.Guid.NewGuid()
+      let myAddID = System.Guid.Parse "a180ed3b-e8ee-42e5-b3c6-9e7ca32ee273"
 
       let unapplied = ePackageFn myAddID
       let partiallyApplied = eApply unapplied [] [ eInt64 1 ]
       let fullyApplied = eApply unapplied [] [ eInt64 1; eInt64 2 ]
-      let stayIndented = true
 
 
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
-  let stayIndented = true
-
-
-
-// let pm: RT.PackageManager =
-//   RT.PackageManager.empty
-//   |> RT.PackageManager.withExtras
-//     []
-//     []
-//     [ { id = uuid
-//         typeParams = List<string>
-
-//         // CLEANUP I have an odd suspicion we might not need this field
-//         // Maybe we just need a paramCount, and the Instructinos in PT2RT ????
-//         parameters = NEList<Parameter>
-//         returnType = TypeReference
-
-//         // CLEANUP consider renaming - just `instructions` maybe?
-//         body = Instructions }]
+let pm : PT.PackageManager =
+  PT.PackageManager.empty
+  |> PT.PackageManager.withExtras
+    []
+    []
+    [ { id = Expressions.Fns.Package.myAddID
+        name = PT.PackageFn.name "Test" [] "add"
+        typeParams = []
+        parameters =
+          NEList.ofList
+            { name = "a"; typ = PT.TInt64; description = "TODO" }
+            [ { name = "b"; typ = PT.TInt64; description = "TODO" } ]
+        returnType = PT.TInt64
+        body = eApply (eBuiltinFn "int64Add" 0) [] [ eVar "a"; eVar "b" ]
+        description = "TODO"
+        deprecated = PT.NotDeprecated } ]

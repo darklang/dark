@@ -23,7 +23,7 @@ let tCheckVM
     let vmState = ptExpr |> PT2RT.Expr.toRT Map.empty 0 |> RT.VMState.fromExpr
 
     let! exeState =
-      executionStateFor PT.PackageManager.empty (System.Guid.NewGuid()) false false
+      executionStateFor TestValues.pm (System.Guid.NewGuid()) false false
 
     let! actual = LibExecution.Interpreter.execute exeState vmState |> Ply.toTask
     Expect.equal actual expectedInsts ""
@@ -41,7 +41,7 @@ let tFail name ptExpr expectedRte =
     let instructions = ptExpr |> PT2RT.Expr.toRT Map.empty 0
 
     let! exeState =
-      executionStateFor PT.PackageManager.empty (System.Guid.NewGuid()) false false
+      executionStateFor TestValues.pm (System.Guid.NewGuid()) false false
 
     let! actual = LibExecution.Execution.executeExpr exeState instructions
 
@@ -368,9 +368,20 @@ module Fns =
             { name = RT.FQFnName.fqPackage E.Fns.Package.myAddID; argsSoFar = [] }
         ))
 
-    // TODO: partially- and fully-applied tests
+    let partiallyApplied =
+      t
+        "packageFnAddWrapper 1"
+        E.Fns.Package.partiallyApplied
+        (RT.DApplicable(
+          RT.NamedFn
+            { name = RT.FQFnName.fqPackage E.Fns.Package.myAddID
+              argsSoFar = [ RT.DInt64 1 ] }
+        ))
 
-    let tests = testList "Package" [ unapplied ]
+    let fullyApplied =
+      t "packageFnAddWrapper 1 2" E.Fns.Package.fullyApplied (RT.DInt64 3L)
+
+    let tests = testList "Package" [ unapplied; partiallyApplied; fullyApplied ]
 
   let tests = testList "Fns" [ Builtin.tests; Package.tests ]
 

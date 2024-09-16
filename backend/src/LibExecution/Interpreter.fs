@@ -119,321 +119,326 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
 
     //while Map.count vm.callFrames > 1 do
 
-    let currentFrame = Map.findUnsafe vm.currentFrameID vm.callFrames
+    // If there's a parent frame to return to, continue execution
+    // let mutable continueExecution = true
+    let mutable finalResult : Dval option = None
 
-    let mutable counter = currentFrame.pc
-    let registers = currentFrame.registers
+    // while continueExecution && Map.containsKey vm.currentFrameID vm.callFrames do
+    while Map.containsKey vm.currentFrameID vm.callFrames do
+      let currentFrame = Map.findUnsafe vm.currentFrameID vm.callFrames
 
-
-    let! instrData =
-      match currentFrame.context with
-      | Source -> Ply vm.sourceInfo
-      | PackageFn fn ->
-        uply {
-          match Map.find fn vm.packageFns with
-          | Some fn -> return fn
-          | None ->
-            match! exeState.fns.package fn with
-            | Some fn ->
-              return
-                { instructions = List.toArray fn.body.instructions
-                  resultReg = fn.body.resultIn }
-            | None -> return raiseRTE (RTE.FnNotFound(FQFnName.Package fn))
-        }
+      let mutable counter = currentFrame.pc
+      let registers = currentFrame.registers
 
 
-    while counter < instrData.instructions.Length do
+      let! instrData =
+        match currentFrame.context with
+        | Source -> Ply vm.sourceInfo
 
-      match instrData.instructions[counter] with
-
-      // == Simple register operations ==
-      | LoadVal(reg, value) ->
-        registers[reg] <- value
-        counter <- counter + 1
-
-      | CopyVal(copyTo, copyFrom) ->
-        registers[copyTo] <- registers[copyFrom]
-        counter <- counter + 1
-
-
-      // // == Working with Variables ==
-      | CheckLetPatternAndExtractVars(valueReg, pat) ->
-        let dv = registers[valueReg]
-        let doesMatch, registersToAssign = checkAndExtractLetPattern pat dv
-
-        if doesMatch then
-          registersToAssign
-          |> List.iter (fun (reg, value) -> registers[reg] <- value)
-
-          counter <- counter + 1
-        else
-          raiseRTE (RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, pat)))
+        | PackageFn fn ->
+          uply {
+            match Map.find fn vm.packageFns with
+            | Some fn -> return fn
+            | None ->
+              match! exeState.fns.package fn with
+              | Some fn ->
+                return
+                  { instructions = List.toArray fn.body.instructions
+                    resultReg = fn.body.resultIn }
+              | None -> return raiseRTE (RTE.FnNotFound(FQFnName.Package fn))
+          }
 
 
-      | VarNotFound varName -> raiseRTE (RTE.VariableNotFound varName)
+      let mutable frameToPush = None
+
+      while counter < instrData.instructions.Length && frameToPush = None do
+
+        let inst = instrData.instructions[counter]
+        match inst with
+
+        // == Simple register operations ==
+        | LoadVal(reg, value) -> registers[reg] <- value
+
+        | CopyVal(copyTo, copyFrom) -> registers[copyTo] <- registers[copyFrom]
 
 
-      // == Working with Basic Types ==
-      | CreateString(targetReg, segments) ->
-        let sb = new System.Text.StringBuilder()
+        // == Working with Variables ==
+        | CheckLetPatternAndExtractVars(valueReg, pat) ->
+          let dv = registers[valueReg]
+          let doesMatch, registersToAssign = checkAndExtractLetPattern pat dv
 
-        segments
-        |> List.iter (fun seg ->
-          match seg with
-          | Text s -> sb.Append s |> ignore<System.Text.StringBuilder>
-          | Interpolated reg ->
-            match registers[reg] with
-            | DString s -> sb.Append s |> ignore<System.Text.StringBuilder>
-            | _ -> raiseRTE (RTE.String RTE.Strings.Error.InvalidStringAppend))
-
-        registers[targetReg] <- DString(sb.ToString())
-        counter <- counter + 1
+          if doesMatch then
+            registersToAssign
+            |> List.iter (fun (reg, value) -> registers[reg] <- value)
+          else
+            raiseRTE (RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, pat)))
 
 
-      // == Flow Control ==
-      // -- Jumps --
-      | JumpBy jumpBy -> counter <- counter + jumpBy + 1
-
-      | JumpByIfFalse(jumpBy, condReg) ->
-        match registers[condReg] with
-        | DBool false -> counter <- counter + jumpBy + 1
-        | DBool true -> counter <- counter + 1
-        | dv ->
-          let vt = Dval.toValueType dv
-          raiseRTE (RTE.Bool(RTE.Bools.ConditionRequiresBool(vt, dv)))
-
-      // -- Match --
-      | CheckMatchPatternAndExtractVars(valueReg, pat, failJump) ->
-        let doesMatch, registersToAssign =
-          checkAndExtractMatchPattern pat registers[valueReg]
-
-        if doesMatch then
-          registersToAssign
-          |> List.iter (fun (reg, value) -> registers[reg] <- value)
-          counter <- counter + 1
-        else
-          counter <- counter + failJump + 1
-
-      | MatchUnmatched -> raiseRTE RTE.MatchUnmatched
+        | VarNotFound varName -> raiseRTE (RTE.VariableNotFound varName)
 
 
-      // == Working with Collections ==
-      | CreateList(listReg, itemsToAddRegs) ->
-        // CLEANUP reference registers directly in DvalCreator.list,
-        // so we don't have to copy things
-        let itemsToAdd = itemsToAddRegs |> List.map (fun r -> registers[r])
-        registers[listReg] <-
-          TypeChecker.DvalCreator.list vm.threadID VT.unknown itemsToAdd
-        counter <- counter + 1
+        // == Working with Basic Types ==
+        | CreateString(targetReg, segments) ->
+          let sb = new System.Text.StringBuilder()
 
-      | CreateDict(dictReg, entries) ->
-        // CLEANUP reference registers directly in DvalCreator.dict,
-        // so we don't have to copy things
-        let entries =
-          entries |> List.map (fun (key, valueReg) -> (key, registers[valueReg]))
-        registers[dictReg] <-
-          TypeChecker.DvalCreator.dict vm.threadID VT.unknown entries
-        counter <- counter + 1
+          segments
+          |> List.iter (fun seg ->
+            match seg with
+            | Text s -> sb.Append s |> ignore<System.Text.StringBuilder>
+            | Interpolated reg ->
+              match registers[reg] with
+              | DString s -> sb.Append s |> ignore<System.Text.StringBuilder>
+              | _ -> raiseRTE (RTE.String RTE.Strings.Error.InvalidStringAppend))
 
-      | CreateTuple(tupleReg, firstReg, secondReg, theRestRegs) ->
-        let first = registers[firstReg]
-        let second = registers[secondReg]
-        let theRest = theRestRegs |> List.map (fun r -> registers[r])
-        registers[tupleReg] <- DTuple(first, second, theRest)
-        counter <- counter + 1
+          registers[targetReg] <- DString(sb.ToString())
 
 
-      // == Working with Custom Data ==
-      // -- Records --
-      | CreateRecord(recordReg, typeName, typeArgs, fields) ->
-        let fields =
-          fields |> List.map (fun (name, valueReg) -> (name, registers[valueReg]))
+        // == Flow Control ==
+        // -- Jumps --
+        | JumpBy jumpBy -> counter <- counter + jumpBy
 
-        let! record =
-          TypeChecker.DvalCreator.record
-            vm.threadID
-            exeState.types
-            typeName
-            typeArgs
-            fields
+        | JumpByIfFalse(jumpBy, condReg) ->
+          match registers[condReg] with
+          | DBool false -> counter <- counter + jumpBy
+          | DBool true -> ()
+          | dv ->
+            let vt = Dval.toValueType dv
+            raiseRTE (RTE.Bool(RTE.Bools.ConditionRequiresBool(vt, dv)))
 
-        registers[recordReg] <- record
-        counter <- counter + 1
+        // -- Match --
+        | CheckMatchPatternAndExtractVars(valueReg, pat, failJump) ->
+          let doesMatch, registersToAssign =
+            checkAndExtractMatchPattern pat registers[valueReg]
 
-      // | CloneRecordWithUpdates(targetReg, originalRecordReg, updates) ->
-      //   let originalRecord = vm.registers[originalRecordReg]
-      //   let updates =
-      //     updates
-      //     |> List.map (fun (fieldName, valueReg) ->
-      //       (fieldName, vm.registers[valueReg]))
-      //   let updatedRecord =
-      //     TypeChecker.DvalCreator.record
-      //       exeState.tracing.callStack
-      //       typeName
-      //       typeArgs
-      //       updates
+          if doesMatch then
+            registersToAssign
+            |> List.iter (fun (reg, value) -> registers[reg] <- value)
+          else
+            counter <- counter + failJump
 
-      //   vm.registers[targetReg] <- updatedRecord
-      //   counter <- counter + 1
-
-      | GetRecordField(targetReg, recordReg, fieldName) ->
-        match registers[recordReg] with
-        | DRecord(_, _, _, fields) ->
-          match Map.find fieldName fields with
-          | Some value ->
-            registers[targetReg] <- value
-            counter <- counter + 1
-          | None ->
-            RTE.Records.FieldAccessFieldNotFound fieldName |> RTE.Record |> raiseRTE
-        | dv ->
-          RTE.Records.FieldAccessNotRecord(Dval.toValueType dv)
-          |> RTE.Record
-          |> raiseRTE
-
-      // -- Enums --
-      | CreateEnum(enumReg, typeName, _typeArgs, caseName, fields) ->
-        // TODO: safe dval creation
-        let fields = fields |> List.map (fun (valueReg) -> registers[valueReg])
-        registers[enumReg] <- DEnum(typeName, typeName, [], caseName, fields)
-        counter <- counter + 1
-
-      // | CreateLambda(lambdaReg, impl) ->
-      //   vm.lambdas <- Map.add impl.exprId impl vm.lambdas
-      //   vm.registers[lambdaReg] <-
-      //     { exprId = impl.exprId; symtable = Map.empty; argsSoFar = [] }
-      //     |> Applicable.Lambda
-      //     |> DApplicable
-      //   counter <- counter + 1
+        | MatchUnmatched -> raiseRTE RTE.MatchUnmatched
 
 
-      // == Working with things that Apply (fns, lambdas) ==
-      // `add (increment 1L) (3L)` and store results in `putResultIn`
-      | Apply(putResultIn, thingToCallReg, typeArgs, newArgRegs) ->
-        // CLEANUP
-        // only the first apply of an applicable should be allowed to provide type args
+        // == Working with Collections ==
+        | CreateList(listReg, itemsToAddRegs) ->
+          // CLEANUP reference registers directly in DvalCreator.list,
+          // so we don't have to copy things
+          let itemsToAdd = itemsToAddRegs |> List.map (fun r -> registers[r])
+          registers[listReg] <-
+            TypeChecker.DvalCreator.list vm.threadID VT.unknown itemsToAdd
 
-        // further constraint: only named fns can have type args? no, see below.
-        // let x = Json.parse
-        // x<Int64> "3"
+        | CreateDict(dictReg, entries) ->
+          // CLEANUP reference registers directly in DvalCreator.dict,
+          // so we don't have to copy things
+          let entries =
+            entries |> List.map (fun (key, valueReg) -> (key, registers[valueReg]))
+          registers[dictReg] <-
+            TypeChecker.DvalCreator.dict vm.threadID VT.unknown entries
 
-        let thingToCall = registers[thingToCallReg]
+        | CreateTuple(tupleReg, firstReg, secondReg, theRestRegs) ->
+          let first = registers[firstReg]
+          let second = registers[secondReg]
+          let theRest = theRestRegs |> List.map (fun r -> registers[r])
+          registers[tupleReg] <- DTuple(first, second, theRest)
 
-        let newArgDvals =
-          newArgRegs |> NEList.toList |> List.map (fun r -> registers[r])
 
-        let applicable =
-          match thingToCall with
-          | DApplicable applicable -> applicable
-          | _ ->
-            raiseRTE (
-              RTE.ExpectedApplicableButNot(Dval.toValueType thingToCall, thingToCall)
-            )
+        // == Working with Custom Data ==
+        // -- Records --
+        | CreateRecord(recordReg, typeName, typeArgs, fields) ->
+          let fields =
+            fields |> List.map (fun (name, valueReg) -> (name, registers[valueReg]))
 
-        match applicable with
-        // | Lambda lambda -> DApplicable applicable
+          let! record =
+            TypeChecker.DvalCreator.record
+              vm.threadID
+              exeState.types
+              typeName
+              typeArgs
+              fields
 
-        | NamedFn applicable ->
-          // TODO: typechecking
-          // TODO: reduce duplication between branches
-          match applicable.name with
-          | FQFnName.Builtin builtin ->
-            match Map.find builtin exeState.fns.builtIn with
-            | None -> return RTE.FnNotFound(FQFnName.Builtin builtin) |> raiseRTE
-            | Some fn ->
-              let allArgs = applicable.argsSoFar @ newArgDvals
+          registers[recordReg] <- record
 
-              let argCount = List.length allArgs
-              let paramCount = List.length fn.parameters
+        // | CloneRecordWithUpdates(targetReg, originalRecordReg, updates) ->
+        //   let originalRecord = vm.registers[originalRecordReg]
+        //   let updates =
+        //     updates
+        //     |> List.map (fun (fieldName, valueReg) ->
+        //       (fieldName, vm.registers[valueReg]))
+        //   let updatedRecord =
+        //     TypeChecker.DvalCreator.record
+        //       exeState.tracing.callStack
+        //       typeName
+        //       typeArgs
+        //       updates
 
-              let typeParamCount = List.length fn.typeParams
-              let typeArgCount = List.length typeArgs
-              // TODO: error on these not matching^, too.
+        //   vm.registers[targetReg] <- updatedRecord
 
-              let! result =
-                uply {
-                  if argCount = paramCount then
-                    let! result = fn.fn (exeState, vm, [], allArgs)
-                    return result
-                  else if argCount > paramCount then
-                    return
-                      RTE.TooManyArgs(
-                        FQFnName.Builtin fn.name,
-                        typeParamCount,
-                        typeArgCount,
-                        paramCount,
-                        argCount
-                      )
-                      |> raiseRTE
-                  else
-                    return
-                      { applicable with argsSoFar = allArgs }
-                      |> NamedFn
-                      |> DApplicable
-                }
+        | GetRecordField(targetReg, recordReg, fieldName) ->
+          match registers[recordReg] with
+          | DRecord(_, _, _, fields) ->
+            match Map.find fieldName fields with
+            | Some value -> registers[targetReg] <- value
+            | None ->
+              RTE.Records.FieldAccessFieldNotFound fieldName
+              |> RTE.Record
+              |> raiseRTE
+          | dv ->
+            RTE.Records.FieldAccessNotRecord(Dval.toValueType dv)
+            |> RTE.Record
+            |> raiseRTE
 
-              registers[putResultIn] <- result
+        // -- Enums --
+        | CreateEnum(enumReg, typeName, _typeArgs, caseName, fields) ->
+          // TODO: safe dval creation
+          let fields = fields |> List.map (fun (valueReg) -> registers[valueReg])
+          registers[enumReg] <- DEnum(typeName, typeName, [], caseName, fields)
 
-          | FQFnName.Package pkg ->
-            match! exeState.fns.package pkg with
-            | None -> return RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE
-            | Some fn ->
-              let allArgs = applicable.argsSoFar @ newArgDvals
+        // | CreateLambda(lambdaReg, impl) ->
+        //   vm.lambdas <- Map.add impl.exprId impl vm.lambdas
+        //   vm.registers[lambdaReg] <-
+        //     { exprId = impl.exprId; symtable = Map.empty; argsSoFar = [] }
+        //     |> Applicable.Lambda
+        //     |> DApplicable
 
-              let argCount = List.length allArgs
-              let paramCount = NEList.length fn.parameters
 
-              let typeParamCount = List.length fn.typeParams
-              let typeArgCount = List.length typeArgs
-              // TODO: error on these not matching^, too.
+        // == Working with things that Apply (fns, lambdas) ==
+        // `add (increment 1L) (3L)` and store results in `putResultIn`
+        | Apply(putResultIn, thingToCallReg, typeArgs, newArgRegs) ->
+          // CLEANUP
+          // only the first apply of an applicable should be allowed to provide type args
 
-              if argCount = paramCount then
-                // fun with call frames
-                let newFrameID = guuid ()
-                let newFrame =
-                  { id = newFrameID
-                    parent = Some vm.currentFrameID
-                    pc = 0
-                    registers = Array.zeroCreate fn.body.registerCount
-                    context = PackageFn fn.id }
+          // further constraint: only named fns can have type args? no, see below.
+          // let x = Json.parse
+          // x<Int64> "3"
 
-                allArgs |> List.iteri (fun i arg -> newFrame.registers[i] <- arg)
+          let thingToCall = registers[thingToCallReg]
 
-                vm.callFrames <- Map.add newFrameID newFrame vm.callFrames
-                vm.currentFrameID <- newFrameID
+          let newArgDvals =
+            newArgRegs |> NEList.toList |> List.map (fun r -> registers[r])
 
-              else if argCount > paramCount then
-                RTE.TooManyArgs(
-                  FQFnName.Package fn.id,
-                  typeParamCount,
-                  typeArgCount,
-                  paramCount,
-                  argCount
+          let applicable =
+            match thingToCall with
+            | DApplicable applicable -> applicable
+            | _ ->
+              raiseRTE (
+                RTE.ExpectedApplicableButNot(
+                  Dval.toValueType thingToCall,
+                  thingToCall
                 )
-                |> raiseRTE
-              else
-                registers[putResultIn] <-
-                  { applicable with argsSoFar = allArgs } |> NamedFn |> DApplicable
+              )
 
+          match applicable with
+          // | Lambda lambda -> DApplicable applicable
+
+          | NamedFn applicable ->
+            // TODO: typechecking
+            // TODO: reduce duplication between branches
+            match applicable.name with
+            | FQFnName.Builtin builtin ->
+              match Map.find builtin exeState.fns.builtIn with
+              | None -> return RTE.FnNotFound(FQFnName.Builtin builtin) |> raiseRTE
+              | Some fn ->
+                let allArgs = applicable.argsSoFar @ newArgDvals
+
+                let argCount = List.length allArgs
+                let paramCount = List.length fn.parameters
+
+                let typeParamCount = List.length fn.typeParams
+                let typeArgCount = List.length typeArgs
+                // TODO: error on these not matching^, too.
+
+                let! result =
+                  uply {
+                    if argCount = paramCount then
+                      let! result = fn.fn (exeState, vm, [], allArgs)
+                      return result
+                    else if argCount > paramCount then
+                      return
+                        RTE.TooManyArgs(
+                          FQFnName.Builtin fn.name,
+                          typeParamCount,
+                          typeArgCount,
+                          paramCount,
+                          argCount
+                        )
+                        |> raiseRTE
+                    else
+                      return
+                        { applicable with argsSoFar = allArgs }
+                        |> NamedFn
+                        |> DApplicable
+                  }
+
+                registers[putResultIn] <- result
+
+            | FQFnName.Package pkg ->
+              match! exeState.fns.package pkg with
+              | None -> return RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE
+              | Some fn ->
+                let allArgs = applicable.argsSoFar @ newArgDvals
+
+                let argCount = List.length allArgs
+                let paramCount = NEList.length fn.parameters
+
+                let typeParamCount = List.length fn.typeParams
+                let typeArgCount = List.length typeArgs
+                // TODO: error on these not matching^, too.
+
+                if argCount = paramCount then
+                  // fun with call frames
+                  frameToPush <-
+                    { id = guuid ()
+                      parent = Some(vm.currentFrameID, putResultIn, counter + 1)
+                      pc = 0
+                      registers =
+                        let r = Array.zeroCreate fn.body.registerCount
+                        allArgs |> List.iteri (fun i arg -> r[i] <- arg)
+                        r
+                      context = PackageFn fn.id }
+                    |> Some
+
+                else if argCount > paramCount then
+                  RTE.TooManyArgs(
+                    FQFnName.Package fn.id,
+                    typeParamCount,
+                    typeArgCount,
+                    paramCount,
+                    argCount
+                  )
+                  |> raiseRTE
+                else
+                  registers[putResultIn] <-
+                    { applicable with argsSoFar = allArgs } |> NamedFn |> DApplicable
+
+        | RaiseNRE nre -> raiseRTE (RTE.NameResolution nre)
 
         counter <- counter + 1
 
 
-      | RaiseNRE nre -> raiseRTE (RTE.NameResolution nre)
+      match frameToPush with
+      | None ->
+        // we are at the end of the instructions of the current frame
+        let resultOfFrame = registers[instrData.resultReg]
+        match currentFrame.parent with
+        | Some(parentID, regOfParentToPutResultInto, pcOfParent) ->
+          vm.callFrames <- Map.remove vm.currentFrameID vm.callFrames
+          vm.currentFrameID <- parentID
+          let parentFrame = Map.findUnsafe parentID vm.callFrames
+          parentFrame.registers[regOfParentToPutResultInto] <- resultOfFrame
+          parentFrame.pc <- pcOfParent
+
+        | None ->
+          vm.callFrames <- Map.remove vm.currentFrameID vm.callFrames
+          finalResult <- Some resultOfFrame
+
+      | Some newFrame ->
+        vm.callFrames <- Map.add newFrame.id newFrame vm.callFrames
+        vm.currentFrameID <- newFrame.id
 
 
     // If we've reached the end of the instructions, return the result
-    return registers[instrData.resultReg]
+    match finalResult with
+    | Some dv -> return dv
+    | None -> return raiseRTE RTE.MatchUnmatched // TODO better error
 
-
-
-  // return registers[instrData.resultReg]
-
-
-
-  // if there are only 1 call frame left, and the counter is at the end of the instructions
-  // _then_ return registers[instrData.resultReg]
-
-  // if there are more than 1 call frame left, and the counter is at the end of the instructions
-  // _then_ pop the current frame, and continue executing the next instruction in the parent frame
-  // don't I need to return the result of the child frame?
   }

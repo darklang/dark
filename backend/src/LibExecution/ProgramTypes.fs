@@ -639,10 +639,10 @@ type PackageManager =
   /// Allows you to side-load a few 'extras' in-memory, along
   /// the normal fetching functionality. (Mostly helpful for tests)
   static member withExtras
-    (pm : PackageManager)
     (types : List<PackageType.PackageType>)
     (constants : List<PackageConstant.PackageConstant>)
     (fns : List<PackageFn.PackageFn>)
+    (pm : PackageManager)
     : PackageManager =
     { findType =
         fun name ->
