@@ -12,10 +12,10 @@
   <ItemGroup>
     <!-- core -->
     <ProjectReference Include="../../src/Prelude/Prelude.fsproj" />
-    <!--ProjectReference Include="../../src/LibParser/LibParser.fsproj" /-->
+    <ProjectReference Include="../../src/LibParser/LibParser.fsproj" />
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
-    <!--ProjectReference Include="../../src/LibTreeSitter/LibTreeSitter.fsproj" /-->
-    <!--ProjectReference Include="../../src/BuiltinExecution/BuiltinExecution.fsproj" /-->
+    <ProjectReference Include="../../src/LibTreeSitter/LibTreeSitter.fsproj" />
+    <ProjectReference Include="../../src/BuiltinExecution/BuiltinExecution.fsproj" />
 
     <!-- cloud -->
     <!--ProjectReference Include="../../src/LibClientTypes/LibClientTypes.fsproj" /-->

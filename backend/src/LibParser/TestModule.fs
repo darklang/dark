@@ -42,20 +42,20 @@ type PTModule =
 let emptyPTModule =
   { name = []; types = []; fns = []; constants = []; dbs = []; tests = [] }
 
-type RTTest =
-  { name : string; lineNumber : int; actual : RT.Expr; expected : RT.Expr }
+// type RTTest =
+//   { name : string; lineNumber : int; actual : RT.Expr; expected : RT.Expr }
 
-type RTModule =
-  { name : List<string>
-    types : List<PT.PackageType.PackageType>
-    fns : List<PT.PackageFn.PackageFn>
-    constants : List<PT.PackageConstant.PackageConstant>
-    dbs : List<PT.DB.T>
-    tests : List<RTTest> }
+// type RTModule =
+//   { name : List<string>
+//     types : List<PT.PackageType.PackageType>
+//     fns : List<PT.PackageFn.PackageFn>
+//     constants : List<PT.PackageConstant.PackageConstant>
+//     dbs : List<PT.DB.T>
+//     tests : List<RTTest> }
 
 
-let emptyRTModule =
-  { name = []; types = []; fns = []; constants = []; dbs = []; tests = [] }
+// let emptyRTModule =
+//   { name = []; types = []; fns = []; constants = []; dbs = []; tests = [] }
 
 
 module UserDB =
@@ -273,11 +273,12 @@ let parseTestFile
 
     // Now, parse again, but with the names in context (so fewer are marked as unresolved)
     let pm =
-      PT.PackageManager.withExtras
-        pm
-        (afterFirstPass |> List.collect _.types)
-        (afterFirstPass |> List.collect _.constants)
-        (afterFirstPass |> List.collect _.fns)
+      pm
+      |> PT.PackageManager.withExtras
+          (afterFirstPass |> List.collect _.types)
+          (afterFirstPass |> List.collect _.constants)
+          (afterFirstPass |> List.collect _.fns)
+
     let! (afterSecondPass : List<PTModule>) =
       modulesWT |> Ply.List.mapSequentially (toPT owner builtins pm onMissing)
 
@@ -322,27 +323,27 @@ let parseTestFile
     return adjusted
   }
 
-let parseSingleTestFromFile
-  (builtins : RT.Builtins)
-  (pm : PT.PackageManager)
-  (onMissing : NR.OnMissing)
-  (filename : string)
-  (testSource : string)
-  : Ply<RTTest> =
-  uply {
-    let wtTest =
-      testSource
-      |> parseAsFSharpSourceFile filename
-      |> singleExprFromImplFile
-      |> parseTest
+// let parseSingleTestFromFile
+//   (builtins : RT.Builtins)
+//   (pm : PT.PackageManager)
+//   (onMissing : NR.OnMissing)
+//   (filename : string)
+//   (testSource : string)
+//   : Ply<RTTest> =
+//   uply {
+//     let wtTest =
+//       testSource
+//       |> parseAsFSharpSourceFile filename
+//       |> singleExprFromImplFile
+//       |> parseTest
 
-    let mapExpr = WT2PT.Expr.toPT builtins pm onMissing []
+//     let mapExpr = WT2PT.Expr.toPT builtins pm onMissing []
 
-    let! actual = wtTest.actual |> mapExpr |> Ply.map PT2RT.Expr.toRT
-    let! expected = wtTest.expected |> mapExpr |> Ply.map PT2RT.Expr.toRT
-    return
-      { actual = actual
-        expected = expected
-        lineNumber = wtTest.lineNumber
-        name = wtTest.name }
-  }
+//     let! actual = wtTest.actual |> mapExpr |> Ply.map PT2RT.Expr.toRT
+//     let! expected = wtTest.expected |> mapExpr |> Ply.map PT2RT.Expr.toRT
+//     return
+//       { actual = actual
+//         expected = expected
+//         lineNumber = wtTest.lineNumber
+//         name = wtTest.name }
+//   }

@@ -319,11 +319,11 @@ let parse
     let! initialResult = toPT builtins pm onMissing moduleWT
 
     let pm =
-      PT.PackageManager.withExtras
-        pm
-        initialResult.types
-        initialResult.constants
-        initialResult.fns
+      pm
+      |> PT.PackageManager.withExtras
+          initialResult.types
+          initialResult.constants
+          initialResult.fns
 
     // Now, parse again, but with the names in context (so fewer are marked as unresolved)
     let! result = toPT builtins pm onMissing moduleWT
