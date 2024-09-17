@@ -230,7 +230,8 @@ let rec serialize
             RTE.MatchUnmatched |> raiseRTE threadId
 
 
-    | TCustomType(Error err, _typeArgs), _dval -> raiseRTE threadId (RTE.NameResolution err)
+    | TCustomType(Error err, _typeArgs), _dval ->
+      raiseRTE threadId (RTE.NameResolution err)
 
 
     // Not supported
@@ -264,7 +265,9 @@ let rec serialize
     | TCustomType _, _
     | TDict _, _ ->
       // Internal error as this shouldn't get past the typechecker
-      RTE.Jsons.CannotSerializeTypeValueCombo(dv,typ) |> RTE.Json |> raiseRTE threadId
+      RTE.Jsons.CannotSerializeTypeValueCombo(dv, typ)
+      |> RTE.Json
+      |> raiseRTE threadId
   }
 
 module ParseError =

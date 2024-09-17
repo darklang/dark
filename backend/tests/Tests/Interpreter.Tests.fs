@@ -342,6 +342,17 @@ module RecordUpdate =
   let tests = testList "RecordUpdate" [ simple; notRecord ] // fieldThatShouldNotExist; fieldWithWrongType ]
 
 
+module Constants =
+  module Package =
+    let mySpecialNumber =
+      t
+        "Test.mySpecialNumber"
+        E.Constants.Package.MySpecialNumber.usage
+        (RT.DInt64 17L)
+    let tests = testList "Package" [ mySpecialNumber ]
+  let tests = testList "Constants" [ Package.tests ]
+
+
 module Infix =
   module And =
     let mixed = t "true && false" E.Infix.And.mixed (RT.DBool false)
@@ -542,6 +553,7 @@ let tests =
       Records.tests
       RecordFieldAccess.tests
       RecordUpdate.tests
+      Constants.tests
       Infix.tests
       Lambdas.tests
       Fns.tests ]

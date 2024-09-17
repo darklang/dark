@@ -409,6 +409,8 @@ type Instruction =
     fields : List<Register>
 
 
+  | LoadConstant of createTo : Register * FQConstantName.FQConstantName
+
   // == Working with things that Apply ==
 
   | CreateLambda of createTo : Register * lambda : LambdaImpl
@@ -882,9 +884,12 @@ module RuntimeError =
     /// $"Function {FQFnName.toString fnName} is not found"
     | FnNotFound of fnName : FQFnName.FQFnName
 
+    /// $"Invalid const name: {msg}"
+    | ConstNotFound of constName : FQConstantName.FQConstantName
+
     // backend/src/LibExecution/Interpreter.Old.fs:
     // - "TODO"
-    // - $"Invalid const name: {msg}"
+
     // - $"Expected {expectedLength} arguments, got {actualLength}"
     // - $"Function {FQFnName.toString fnToCall} is not found")
     // - "Unknown error"

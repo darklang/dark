@@ -128,6 +128,44 @@ let rec checkAndExtractMatchPattern
   | MPEnum _, _ -> false, []
 
 
+
+let rec evalConst (threadID : ThreadID) (c : Const) : Dval =
+  let r = evalConst threadID
+
+  match c with
+  | CUnit -> DUnit
+  | CBool b -> DBool b
+
+  | CInt8 i -> DInt8 i
+  | CUInt8 i -> DUInt8 i
+  | CInt16 i -> DInt16 i
+  | CUInt16 i -> DUInt16 i
+  | CInt32 i -> DInt32 i
+  | CUInt32 i -> DUInt32 i
+  | CInt64 i -> DInt64 i
+  | CUInt64 i -> DUInt64 i
+  | CInt128 i -> DInt128 i
+  | CUInt128 i -> DUInt128 i
+
+  | CFloat(sign, w, f) -> DFloat(makeFloat sign w f)
+
+  | CChar c -> DChar c
+  | CString s -> DString s
+
+  | CList items -> DList(ValueType.Unknown, (List.map r items))
+  | CTuple(first, second, rest) -> DTuple(r first, r second, List.map r rest)
+  | CDict items ->
+    DDict(ValueType.Unknown, (List.map (Tuple2.mapSecond r) items) |> Map.ofList)
+
+  | CEnum(Ok typeName, caseName, fields) ->
+    // TYPESTODO: this uses the original type name, so if it's an alias, it won't be equal to the
+    DEnum(typeName, typeName, VT.typeArgsTODO, caseName, List.map r fields)
+
+  | CEnum(Error nre, _caseName, _fields) ->
+    // TODO: ConstNotFound or something
+    raiseRTE threadID (RuntimeError.NameResolution nre)
+
+
 let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
   uply {
     let raiseRTE rte = raiseRTE vm.threadID rte
@@ -185,17 +223,17 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
           match registers[left], registers[right] with
           | DBool l, DBool r -> registers[createTo] <- DBool(l || r)
           | l, r ->
-            let lvt = Dval.toValueType l
-            let rvt = Dval.toValueType r
-            raiseRTE (RTE.Bool(RTE.Bools.OrOnlySupportsBooleans(lvt, rvt)))
+            RTE.Bools.OrOnlySupportsBooleans(Dval.toValueType l, Dval.toValueType r)
+            |> RTE.Bool
+            |> raiseRTE
 
         | And(createTo, left, right) ->
           match registers[left], registers[right] with
           | DBool l, DBool r -> registers[createTo] <- DBool(l && r)
           | l, r ->
-            let lvt = Dval.toValueType l
-            let rvt = Dval.toValueType r
-            raiseRTE (RTE.Bool(RTE.Bools.AndOnlySupportsBooleans(lvt, rvt)))
+            RTE.Bools.AndOnlySupportsBooleans(Dval.toValueType l, Dval.toValueType r)
+            |> RTE.Bool
+            |> raiseRTE
 
 
         // == Working with Variables ==
@@ -297,6 +335,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
 
         | CloneRecordWithUpdates(targetReg, originalRecordReg, updates) ->
           let originalRecord = registers[originalRecordReg]
+
           match originalRecord with
           | DRecord(_, typeName, typeArgs, originalFields) ->
             // TODO: type-saftety
@@ -344,6 +383,20 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
               fields
           registers[enumReg] <- enum
 
+
+        | LoadConstant(createTo, name) ->
+          match name with
+          | FQConstantName.Builtin builtin ->
+            match Map.find builtin exeState.constants.builtIn with
+            | Some c -> registers[createTo] <- c.body
+            | None -> raiseRTE (RTE.ConstNotFound(FQConstantName.Builtin builtin))
+
+          | FQConstantName.Package pkg ->
+            match! exeState.constants.package pkg with
+            | Some c -> registers[createTo] <- evalConst vm.threadID c.body
+            | None -> raiseRTE (RTE.ConstNotFound(FQConstantName.Package pkg))
+
+
         | CreateLambda(lambdaReg, impl) ->
           vm.lambdas <- Map.add (currentFrame.context, impl.exprId) impl vm.lambdas
           registers[lambdaReg] <-
@@ -355,6 +408,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
               argsSoFar = [] }
             |> AppLambda
             |> DApplicable
+
 
 
         // == Working with things that Apply (fns, lambdas) ==

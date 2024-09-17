@@ -80,35 +80,20 @@ let eRecordUpdate (expr : Expr) (updates : List<string * Expr>) : Expr =
 let eInfix (op : Infix) (left : Expr) (right : Expr) : Expr =
   EInfix(gid (), op, left, right)
 
+let eBuiltinConstant (name : string) (version : int) : Expr =
+  EConstant(gid (), Ok(FQConstantName.fqBuiltIn name version))
+
+let ePackageConstant (id : uuid) : Expr =
+  EConstant(gid (), Ok(FQConstantName.fqPackage id))
 
 let eBuiltinFn (name : string) (version : int) : Expr =
   EFnName(gid (), Ok(FQFnName.fqBuiltIn name version))
 
 let ePackageFn (id : uuid) : Expr = EFnName(gid (), Ok(FQFnName.fqPackage id))
 
-
 let eLambda id (pats : List<LetPattern>) (body : Expr) : Expr =
   let pats = NEList.ofListUnsafe "eLambda" [] pats
   ELambda(id, pats, body)
-
-
-// let eFn'
-//   (function_ : string)
-//   (version : int)
-//   (typeArgs : List<TypeReference>)
-//   (args : List<Expr>)
-//   : Expr =
-//   let args = NEList.ofListUnsafe "eFn'" [] args
-//   EApply(gid (), (eBuiltinFnName function_ version), typeArgs, args)
-
-// let eFn
-//   (function_ : string)
-//   (version : int)
-//   (typeArgs : List<TypeReference>)
-//   (args : List<Expr>)
-//   : Expr =
-//   eFn' function_ version typeArgs args
-
 
 let eApply
   (target : Expr)

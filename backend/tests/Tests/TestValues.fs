@@ -246,6 +246,19 @@ module Expressions =
       eRecordUpdate Records.simple [ "bonus", eBool false ]
     let fieldWithWrongType = eRecordUpdate Records.simple [ "key", eInt64 1 ]
 
+
+  module Constants =
+    // CLEANUP we don't really have builtin constants, so not bothering to test for now
+    // module Builtin =
+    //   let infinity = eBuiltinConstant "infinity" 0
+
+    module Package =
+      module MySpecialNumber =
+        // 17
+        let id = System.Guid.Parse "1823ae7e-cc59-4843-a884-18591398abb0"
+        let usage = ePackageConstant id
+
+
   module Infix =
     module And =
       let mixed = eInfix (PT.Infix.BinOp PT.BinOpAnd) (eBool true) (eBool false)
@@ -348,7 +361,11 @@ let pm : PT.PackageManager =
   PT.PackageManager.empty
   |> PT.PackageManager.withExtras
     []
-    []
+    [ { id = Expressions.Constants.Package.MySpecialNumber.id
+        name = PT.PackageConstant.name "Test" [] "seventeen"
+        description = "TODO"
+        deprecated = PT.NotDeprecated
+        body = PT.CInt64 17 } ]
     [ { id = Expressions.Fns.Package.MyAdd.id
         name = PT.PackageFn.name "Test" [] "add"
         typeParams = []

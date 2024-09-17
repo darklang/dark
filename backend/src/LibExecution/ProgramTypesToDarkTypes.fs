@@ -773,10 +773,10 @@ module Expr =
           )
         "ELambda", [ DInt64(int64 id); variables; toDT body ]
 
-      // | PT.EConstant(id, name) ->
-      //   "EConstant",
-      //   [ DInt64(int64 id)
-      //     NameResolution.toDT FQConstantName.knownType FQConstantName.toDT name ]
+      | PT.EConstant(id, name) ->
+        "EConstant",
+        [ DInt64(int64 id)
+          NameResolution.toDT FQConstantName.knownType FQConstantName.toDT name ]
 
       | PT.EApply(id, name, typeArgs, args) ->
         "EApply",

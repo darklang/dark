@@ -103,7 +103,11 @@ module DvalComparator =
     | DApplicable _, _ ->
       //| DDB _, _
       // TODO: Feels like this should hook into typechecker and ValueTypes somehow
-      RuntimeError.Error.EqualityCheckOnIncompatibleTypes (Dval.toValueType dv1, Dval.toValueType dv2) |> raiseUntargetedRTE
+      RuntimeError.Error.EqualityCheckOnIncompatibleTypes(
+        Dval.toValueType dv1,
+        Dval.toValueType dv2
+      )
+      |> raiseUntargetedRTE
 
 
   //   // and compareLetPatternsLists (l1 : List<LetPattern>) (l2 : List<LetPattern>) : int =

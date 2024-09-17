@@ -681,6 +681,22 @@ module Expr =
         eInfix (PT.Infix.InfixFnCall PT.ArithmeticMinus) (eInt64 1) (eInt64 2)*)
 
 
+  module Constants =
+    module Package =
+      let mySpecialNumber =
+        t
+          "Test.mySpecialNumber"
+          E.Constants.Package.MySpecialNumber.usage
+          (1,
+           [ RT.LoadConstant(
+               0,
+               RT.FQConstantName.Package E.Constants.Package.MySpecialNumber.id
+             ) ],
+           0)
+      let tests = testList "Package" [ mySpecialNumber ]
+    let tests = testList "Constants" [ Package.tests ]
+
+
   module Infix =
     module And =
       let mixed =
@@ -1092,6 +1108,7 @@ module Expr =
         Records.tests
         RecordFieldAccess.tests
         RecordUpdate.tests
+        Constants.tests
         Infix.tests
         Lambda.tests
         Fns.tests ]

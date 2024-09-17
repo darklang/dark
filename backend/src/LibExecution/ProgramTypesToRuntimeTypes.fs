@@ -23,25 +23,25 @@ module FQTypeName =
 //   | RT.FQTypeName.Package p -> PT.FQTypeName.Package(Package.fromRT p) |> Some
 
 
-// module FQConstantName =
-//   module Builtin =
-//     let toRT (c : PT.FQConstantName.Builtin) : RT.FQConstantName.Builtin =
-//       { name = c.name; version = c.version }
+module FQConstantName =
+  module Builtin =
+    let toRT (c : PT.FQConstantName.Builtin) : RT.FQConstantName.Builtin =
+      { name = c.name; version = c.version }
 
-//     let fromRT (c : RT.FQConstantName.Builtin) : PT.FQConstantName.Builtin =
-//       { name = c.name; version = c.version }
+  //     let fromRT (c : RT.FQConstantName.Builtin) : PT.FQConstantName.Builtin =
+  //       { name = c.name; version = c.version }
 
-//   module Package =
-//     let toRT (c : PT.FQConstantName.Package) : RT.FQConstantName.Package = c
+  module Package =
+    let toRT (c : PT.FQConstantName.Package) : RT.FQConstantName.Package = c
 
-//     let fromRT (c : RT.FQConstantName.Package) : PT.FQConstantName.Package = c
+  //     let fromRT (c : RT.FQConstantName.Package) : PT.FQConstantName.Package = c
 
-//   let toRT
-//     (name : PT.FQConstantName.FQConstantName)
-//     : RT.FQConstantName.FQConstantName =
-//     match name with
-//     | PT.FQConstantName.Builtin s -> RT.FQConstantName.Builtin(Builtin.toRT s)
-//     | PT.FQConstantName.Package p -> RT.FQConstantName.Package(Package.toRT p)
+  let toRT
+    (name : PT.FQConstantName.FQConstantName)
+    : RT.FQConstantName.FQConstantName =
+    match name with
+    | PT.FQConstantName.Builtin s -> RT.FQConstantName.Builtin(Builtin.toRT s)
+    | PT.FQConstantName.Package p -> RT.FQConstantName.Package(Package.toRT p)
 
 
 module FQFnName =
@@ -125,6 +125,7 @@ module TypeReference =
 module InfixFnName =
   let toFnName (name : PT.InfixFnName) : RT.FQFnName.Builtin =
     let make = RT.FQFnName.builtin
+
     match name with
     | PT.ArithmeticPlus -> make "int64Add" 0
     | PT.ArithmeticMinus -> make "int64Subtract" 0
@@ -534,6 +535,7 @@ module Expr =
     | PT.EInfix(_, PT.InfixFnCall infix, left, right) ->
       let left = toRT symbols rc left
       let right = toRT symbols left.registerCount right
+
       let infixInstr, infixRc, rcAfterInfix =
         RT.LoadVal(
           right.registerCount,
@@ -562,7 +564,20 @@ module Expr =
 
 
 
+    // constants
+    | PT.EConstant(_, Ok name) ->
+      { registerCount = rc + 1
+        instructions = [ RT.LoadConstant(rc, FQConstantName.toRT name) ]
+        resultIn = rc }
 
+    | PT.EConstant(_, Error nre) ->
+      // TODO improve (see notes for EFnName)
+      { registerCount = rc
+        instructions = [ RT.RaiseNRE(NameResolutionError.toRT nre) ]
+        resultIn = rc }
+
+
+    // functions
     | PT.EFnName(_, Ok name) ->
       let namedFn : RT.ApplicableNamedFn =
         { name = FQFnName.toRT name; argsSoFar = [] }
@@ -744,6 +759,7 @@ module Expr =
                 fields
               ) ]
         resultIn = recordReg }
+
 
     | PT.ERecordUpdate(_id, expr, updates) ->
       let expr = toRT symbols rc expr

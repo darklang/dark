@@ -65,6 +65,8 @@ module FQConstantName =
 
   let package (id : uuid) : Package = id
 
+  let fqPackage (id : uuid) : FQConstantName = Package id
+
 
 
 
@@ -379,10 +381,10 @@ type Expr =
     caseName : string *
     fields : List<Expr>
 
-// | EConstant of
-//   id *
-//   // TODO: this reference should be by-hash
-//   NameResolution<FQConstantName.FQConstantName>
+  | EConstant of
+    id *
+    // TODO: this reference should be by-hash
+    NameResolution<FQConstantName.FQConstantName>
 
 
 and MatchCase = { pat : MatchPattern; whenCondition : Option<Expr>; rhs : Expr }
@@ -425,7 +427,7 @@ module Expr =
     | EChar(id, _)
     | EString(id, _)
     | EFloat(id, _, _, _)
-    // | EConstant(id, _)
+    | EConstant(id, _)
     | ELet(id, _, _, _)
     | EIf(id, _, _, _)
     | EInfix(id, _, _, _)
