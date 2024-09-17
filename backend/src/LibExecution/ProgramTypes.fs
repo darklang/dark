@@ -290,8 +290,8 @@ type Expr =
   /// `if cond then thenExpr else elseExpr`
   | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
 
-  // /// `(1 + 2) |> fnName |> (+) 3`
-  // | EPipe of id * Expr * List<PipeExpr>
+  /// `(1 + 2) |> fnName |> (+) 3`
+  | EPipe of id * Expr * List<PipeExpr>
 
   /// Supports `match` expressions
   /// ```fsharp
@@ -393,21 +393,34 @@ and StringSegment =
   | StringText of string
   | StringInterpolation of Expr
 
-// and PipeExpr =
-//   | EPipeVariable of id * string * List<Expr> // value is an fn taking one or more arguments
-//   | EPipeLambda of id * pats : NEList<LetPattern> * body : Expr
-//   | EPipeInfix of id * Infix * Expr
-//   | EPipeFnCall of
-//     id *
-//     NameResolution<FQFnName.FQFnName> *
-//     typeArgs : List<TypeReference> *
-//     args : List<Expr>
-//   | EPipeEnum of
-//     id *
-//     // TODO: this reference should be by-hash
-//     typeName : NameResolution<FQTypeName.FQTypeName> *
-//     caseName : string *
-//     fields : List<Expr>
+and PipeExpr =
+  /// `1 |> fun x -> x + 1`
+  | EPipeLambda of id * pats : NEList<LetPattern> * body : Expr
+
+  /// `1 |> (+) 1`
+  | EPipeInfix of id * Infix * Expr
+
+  /// `1 |> Json.serialize<Int64>`
+  | EPipeFnCall of
+    id *
+    NameResolution<FQFnName.FQFnName> *
+    typeArgs : List<TypeReference> *
+    args : List<Expr>
+
+  /// `1 |> Option.Some`
+  | EPipeEnum of
+    id *
+    // TODO: this reference should be by-hash
+    typeName : NameResolution<FQTypeName.FQTypeName> *
+    caseName : string *
+    fields : List<Expr>
+
+  /// ```fsharp
+  /// let myLambda = fun x -> x + 1
+  /// 1 |> myLambda
+  /// ```
+  | EPipeVariable of id * varContainingPipeable : string * args : List<Expr>
+
 
 module Expr =
   let toID (expr : Expr) : id =
@@ -438,7 +451,7 @@ module Expr =
     | EList(id, _)
     | EDict(id, _)
     | ETuple(id, _, _, _)
-    // | EPipe(id, _, _)
+    | EPipe(id, _, _)
     | ERecord(id, _, _, _)
     | ERecordUpdate(id, _, _)
     | ERecordFieldAccess(id, _, _)

@@ -5,8 +5,8 @@ open ProgramTypes
 
 /// TODO type symbols, too
 /// TODO I'm not sure if this is useful any more - wrote this when doing some Lambda work but idk
-let rec symbolsUsedIn (expr : Expr) : Set<string> =
-  let r = symbolsUsedIn
+let rec symbolsUsedInExpr (expr : Expr) : Set<string> =
+  let r = symbolsUsedInExpr
 
   match expr with
   // simple values
@@ -69,6 +69,11 @@ let rec symbolsUsedIn (expr : Expr) : Set<string> =
     let rhsVars = cases |> List.map _.rhs |> List.map r |> Set.unionMany
     Set.unionMany [ targetVars; whenVars; rhsVars ]
 
+  | EPipe(_, expr, parts) ->
+    Set.union
+      (r expr)
+      (parts |> List.map (fun p -> symbolsUsedInPipeExpr p) |> Set.unionMany)
+
 
   // custom data
   | EEnum(_, _, _, _, fields) -> fields |> List.map r |> Set.unionMany
@@ -92,3 +97,12 @@ let rec symbolsUsedIn (expr : Expr) : Set<string> =
   | EApply(_, thingToApply, _, args) ->
     Set.unionMany
       [ r thingToApply; args |> NEList.toList |> List.map r |> Set.unionMany ]
+and symbolsUsedInPipeExpr (pipeExpr : PipeExpr) : Set<string> =
+  let r = symbolsUsedInExpr
+
+  match pipeExpr with
+  | EPipeLambda(_, _, body) -> r body
+  | EPipeInfix(_, _, expr) -> r expr
+  | EPipeFnCall(_, _, _, args) -> args |> List.map r |> Set.unionMany
+  | EPipeEnum(_, _, _, fields) -> fields |> List.map r |> Set.unionMany
+  | EPipeVariable(_, _, args) -> args |> List.map r |> Set.unionMany

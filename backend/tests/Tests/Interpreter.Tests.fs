@@ -252,6 +252,18 @@ module Match =
         listCons
         tuple ]
 
+module Pipes =
+  let lambda = t "1 |> fun x -> x" E.Pipes.lambda (RT.DInt64 1L)
+  let infix = t "1 |> (+) 2" E.Pipes.infix (RT.DInt64 3L)
+  let fnCall = t "1 |> Builtin.int64Add 2" E.Pipes.fnCall (RT.DInt64 3L)
+  let variable =
+    t "let myLambda = fun x -> x + 1\n1 |> myLambda" E.Pipes.variable (RT.DInt64 2L)
+  let multiple =
+    t
+      "let incr = fun x -> x + 1\n2 |> incr |> fun x -> x * 2 |> Builtin.int64Add 3 |> (+) 4"
+      E.Pipes.multiple
+      (RT.DInt64 13L)
+  let tests = testList "Pipes" [ lambda; infix; fnCall; variable; multiple ]
 
 module Records =
   let simple =
@@ -550,6 +562,7 @@ let tests =
       If.tests
       Tuples.tests
       Match.tests
+      Pipes.tests
       Records.tests
       RecordFieldAccess.tests
       RecordUpdate.tests

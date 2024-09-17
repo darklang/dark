@@ -69,12 +69,13 @@ let eFieldAccess (expr : Expr) (fieldName : string) : Expr =
 let eRecordUpdate (expr : Expr) (updates : List<string * Expr>) : Expr =
   ERecordUpdate(gid (), expr, NEList.ofListUnsafe "" [] updates)
 
-// let eEnum
-//   (typeName : FQTypeName.FQTypeName)
-//   (name : string)
-//   (args : Expr list)
-//   : Expr =
-//   EEnum(gid (), typeName, name, args)
+let eEnum
+  (typeName : FQTypeName.FQTypeName)
+  (typeArgs : List<TypeReference>)
+  (caseName : string)
+  (args : Expr list)
+  : Expr =
+  EEnum(gid (), Ok typeName, typeArgs, caseName, args)
 
 
 let eInfix (op : Infix) (left : Expr) (right : Expr) : Expr =
@@ -104,6 +105,29 @@ let eApply
   EApply(gid (), target, typeArgs, args)
 
 
+let pLambda (pats : List<LetPattern>) (body : Expr) : PipeExpr =
+  EPipeLambda(gid (), NEList.ofListUnsafe "pLambda" [] pats, body)
+
+let pInfix (op : Infix) (expr : Expr) : PipeExpr = EPipeInfix(gid (), op, expr)
+
+let pFnCall
+  (fn : FQFnName.FQFnName)
+  (typeArgs : List<TypeReference>)
+  (args : List<Expr>)
+  : PipeExpr =
+  EPipeFnCall(gid (), Ok fn, typeArgs, args)
+
+let pEnum
+  (typeName : FQTypeName.FQTypeName)
+  (caseName : string)
+  (fields : List<Expr>)
+  : PipeExpr =
+  EPipeEnum(gid (), Ok typeName, caseName, fields)
+
+let pVariable (varName : string) (args : List<Expr>) : PipeExpr =
+  EPipeVariable(gid (), varName, args)
+
+let ePipe (expr : Expr) (parts : List<PipeExpr>) : Expr = EPipe(gid (), expr, parts)
 
 
 // let customTypeRecord (fields : List<string * TypeReference>) : TypeDeclaration.T =

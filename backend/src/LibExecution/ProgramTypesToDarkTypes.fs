@@ -526,105 +526,105 @@ module StringSegment =
     | _ -> Exception.raiseInternal "Invalid StringSegment" []
 
 
-// module PipeExpr =
-//   let typeName =
-//     FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.pipeExpr
-//   let knownType = KTCustomType(typeName, [])
+module PipeExpr =
+  let typeName =
+    FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.pipeExpr
+  let knownType = KTCustomType(typeName, [])
 
-//   let toDT
-//     (exprKT : KnownType)
-//     (exprToDT : PT.Expr -> Dval)
-//     (s : PT.PipeExpr)
-//     : Dval =
-//     let (caseName, fields) =
-//       match s with
-//       | PT.EPipeVariable(id, varName, exprs) ->
-//         "EPipeVariable",
-//         [ DInt64(int64 id)
-//           DString varName
-//           DList(VT.known exprKT, List.map exprToDT exprs) ]
+  let toDT
+    (exprKT : KnownType)
+    (exprToDT : PT.Expr -> Dval)
+    (s : PT.PipeExpr)
+    : Dval =
+    let (caseName, fields) =
+      match s with
+      | PT.EPipeVariable(id, varName, exprs) ->
+        "EPipeVariable",
+        [ DInt64(int64 id)
+          DString varName
+          DList(VT.known exprKT, List.map exprToDT exprs) ]
 
-//       | PT.EPipeLambda(id, args, body) ->
-//         let variables =
-//           args
-//           |> NEList.toList
-//           |> List.map LetPattern.toDT
-//           |> Dval.list (KTTuple(VT.int64, VT.string, []))
-//         "EPipeLambda", [ DInt64(int64 id); variables; exprToDT body ]
+      | PT.EPipeLambda(id, args, body) ->
+        let variables =
+          args
+          |> NEList.toList
+          |> List.map LetPattern.toDT
+          |> Dval.list (KTTuple(VT.int64, VT.string, []))
+        "EPipeLambda", [ DInt64(int64 id); variables; exprToDT body ]
 
-//       | PT.EPipeInfix(id, infix, expr) ->
-//         "EPipeInfix", [ DInt64(int64 id); Infix.toDT infix; exprToDT expr ]
+      | PT.EPipeInfix(id, infix, expr) ->
+        "EPipeInfix", [ DInt64(int64 id); Infix.toDT infix; exprToDT expr ]
 
-//       | PT.EPipeFnCall(id, fnName, typeArgs, args) ->
-//         "EPipeFnCall",
-//         [ DInt64(int64 id)
-//           NameResolution.toDT FQFnName.knownType FQFnName.toDT fnName
-//           DList(
-//             VT.known TypeReference.knownType,
-//             List.map TypeReference.toDT typeArgs
-//           )
-//           DList(VT.known exprKT, List.map exprToDT args) ]
+      | PT.EPipeFnCall(id, fnName, typeArgs, args) ->
+        "EPipeFnCall",
+        [ DInt64(int64 id)
+          NameResolution.toDT FQFnName.knownType FQFnName.toDT fnName
+          DList(
+            VT.known TypeReference.knownType,
+            List.map TypeReference.toDT typeArgs
+          )
+          DList(VT.known exprKT, List.map exprToDT args) ]
 
-//       | PT.EPipeEnum(id, typeName, caseName, fields) ->
-//         "EPipeEnum",
-//         [ DInt64(int64 id)
-//           NameResolution.toDT FQTypeName.knownType FQTypeName.toDT typeName
-//           DString caseName
-//           DList(VT.known exprKT, List.map exprToDT fields) ]
+      | PT.EPipeEnum(id, typeName, caseName, fields) ->
+        "EPipeEnum",
+        [ DInt64(int64 id)
+          NameResolution.toDT FQTypeName.knownType FQTypeName.toDT typeName
+          DString caseName
+          DList(VT.known exprKT, List.map exprToDT fields) ]
 
-//     DEnum(typeName, typeName, [], caseName, fields)
+    DEnum(typeName, typeName, [], caseName, fields)
 
 
-//   let fromDT (exprFromDT : Dval -> PT.Expr) (d : Dval) : PT.PipeExpr =
-//     match d with
-//     | DEnum(_,
-//             _,
-//             [],
-//             "EPipeVariable",
-//             [ DInt64 id; DString varName; DList(_vtTODO, args) ]) ->
-//       PT.EPipeVariable(uint64 id, varName, args |> List.map exprFromDT)
+  let fromDT (exprFromDT : Dval -> PT.Expr) (d : Dval) : PT.PipeExpr =
+    match d with
+    | DEnum(_,
+            _,
+            [],
+            "EPipeVariable",
+            [ DInt64 id; DString varName; DList(_vtTODO, args) ]) ->
+      PT.EPipeVariable(uint64 id, varName, args |> List.map exprFromDT)
 
-//     | DEnum(_, _, [], "EPipeLambda", [ DInt64 id; variables; body ]) ->
-//       let variables =
-//         match variables with
-//         | DList(_vtTODO, pats) ->
-//           pats
-//           |> List.map LetPattern.fromDT
-//           |> NEList.ofListUnsafe
-//             "PT2DT.PipeExpr.fromDT expected at least one bound variable in EPipeLambda"
-//             []
-//         | _ -> Exception.raiseInternal "Invalid variables" []
+    | DEnum(_, _, [], "EPipeLambda", [ DInt64 id; variables; body ]) ->
+      let variables =
+        match variables with
+        | DList(_vtTODO, pats) ->
+          pats
+          |> List.map LetPattern.fromDT
+          |> NEList.ofListUnsafe
+            "PT2DT.PipeExpr.fromDT expected at least one bound variable in EPipeLambda"
+            []
+        | _ -> Exception.raiseInternal "Invalid variables" []
 
-//       PT.EPipeLambda(uint64 id, variables, exprFromDT body)
+      PT.EPipeLambda(uint64 id, variables, exprFromDT body)
 
-//     | DEnum(_, _, [], "EPipeInfix", [ DInt64 id; infix; expr ]) ->
-//       PT.EPipeInfix(uint64 id, Infix.fromDT infix, exprFromDT expr)
+    | DEnum(_, _, [], "EPipeInfix", [ DInt64 id; infix; expr ]) ->
+      PT.EPipeInfix(uint64 id, Infix.fromDT infix, exprFromDT expr)
 
-//     | DEnum(_,
-//             _,
-//             [],
-//             "EPipeFnCall",
-//             [ DInt64 id; fnName; DList(_vtTODO1, typeArgs); DList(_vtTODO2, args) ]) ->
-//       PT.EPipeFnCall(
-//         uint64 id,
-//         NameResolution.fromDT FQFnName.fromDT fnName,
-//         List.map TypeReference.fromDT typeArgs,
-//         List.map exprFromDT args
-//       )
+    | DEnum(_,
+            _,
+            [],
+            "EPipeFnCall",
+            [ DInt64 id; fnName; DList(_vtTODO1, typeArgs); DList(_vtTODO2, args) ]) ->
+      PT.EPipeFnCall(
+        uint64 id,
+        NameResolution.fromDT FQFnName.fromDT fnName,
+        List.map TypeReference.fromDT typeArgs,
+        List.map exprFromDT args
+      )
 
-//     | DEnum(_,
-//             _,
-//             [],
-//             "EPipeEnum",
-//             [ DInt64 id; typeName; DString caseName; DList(_vtTODO, fields) ]) ->
-//       PT.EPipeEnum(
-//         uint64 id,
-//         NameResolution.fromDT FQTypeName.fromDT typeName,
-//         caseName,
-//         List.map exprFromDT fields
-//       )
+    | DEnum(_,
+            _,
+            [],
+            "EPipeEnum",
+            [ DInt64 id; typeName; DString caseName; DList(_vtTODO, fields) ]) ->
+      PT.EPipeEnum(
+        uint64 id,
+        NameResolution.fromDT FQTypeName.fromDT typeName,
+        caseName,
+        List.map exprFromDT fields
+      )
 
-//     | _ -> Exception.raiseInternal "Invalid PipeExpr" []
+    | _ -> Exception.raiseInternal "Invalid PipeExpr" []
 
 
 module Expr =
@@ -751,14 +751,14 @@ module Expr =
 
         "EMatch", [ DInt64(int64 id); toDT arg; cases ]
 
-      // | PT.EPipe(id, expr, pipeExprs) ->
-      //   "EPipe",
-      //   [ DInt64(int64 id)
-      //     toDT expr
-      //     DList(
-      //       VT.known PipeExpr.knownType,
-      //       List.map (PipeExpr.toDT knownType toDT) pipeExprs
-      //     ) ]
+      | PT.EPipe(id, expr, pipeExprs) ->
+        "EPipe",
+        [ DInt64(int64 id)
+          toDT expr
+          DList(
+            VT.known PipeExpr.knownType,
+            List.map (PipeExpr.toDT knownType toDT) pipeExprs
+          ) ]
 
 
       // function calls

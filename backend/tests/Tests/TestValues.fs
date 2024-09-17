@@ -226,6 +226,57 @@ module Expressions =
             rhs = eStr [ strText "first branch" ] } ]
 
 
+  module Pipes =
+    /// `1 |> fun x -> x`
+    let lambda = ePipe (eInt64 1) [ pLambda [ lpVar "x" ] (eVar "x") ]
+
+    /// `1 |> (+) 2`
+    let infix =
+      ePipe (eInt64 1) [ pInfix (PT.Infix.InfixFnCall PT.ArithmeticPlus) (eInt64 2) ]
+
+    /// `1 |> Builtin.int64Add 2`
+    let fnCall =
+      ePipe
+        (eInt64 1)
+        [ pFnCall (PT.FQFnName.fqBuiltIn "int64Add" 0) [] [ eInt64 2 ] ]
+
+    //let enum = ePipe (eInt64 1) [ pEnum (PT.FQEnumName.fqPackage (System.Guid.NewGuid())) "variant" [] ]
+
+    /// let myLambda = fun x -> x + 1
+    /// 1 |> myLambda
+    let variable =
+      eLet
+        (lpVar "myLambda")
+        (eLambda
+          (gid ())
+          [ lpVar "x" ]
+          (eInfix (PT.Infix.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 1)))
+        (ePipe (eInt64 1) [ pVariable "myLambda" [] ])
+
+    /// ```fsharp
+    /// let incr = fun x -> x + 1
+    /// 2 |> incr |> fun x -> x * 2 |> Builtin.int64Add 3 |> (+) 4
+    /// ```
+    let multiple =
+      eLet
+        (lpVar "incr")
+        (eLambda
+          (gid ())
+          [ lpVar "x" ]
+          (eInfix (PT.Infix.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 1)))
+        (ePipe
+          (eInt64 2)
+          [ pVariable "incr" []
+            pLambda
+              [ lpVar "x" ]
+              (eInfix
+                (PT.Infix.InfixFnCall PT.ArithmeticMultiply)
+                (eVar "x")
+                (eInt64 2))
+            pFnCall (PT.FQFnName.fqBuiltIn "int64Add" 0) [] [ eInt64 3 ]
+            pInfix (PT.Infix.InfixFnCall PT.ArithmeticPlus) (eInt64 4) ])
+
+
   module Records =
     let simple =
       eRecord (typeNamePkg PM.Types.Records.singleField) [] [ "key", eBool true ]

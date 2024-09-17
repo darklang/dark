@@ -514,6 +514,34 @@ module Expr =
           instructions = instrs
           resultIn = resultReg }
 
+    | PT.EPipe(id, lhs, parts) ->
+      // unwrap the first 'part' of the pipeline,
+      // and punt the other work for later
+      match parts with
+      | [] -> toRT symbols rc lhs
+      | first :: parts ->
+        let newLHS =
+          match first with
+          | PT.EPipeLambda(id, pats, body) ->
+            PT.EApply(id, PT.ELambda(id, pats, body), [], NEList.ofList lhs [])
+
+          // `1 |> (+) 1`
+          | PT.EPipeInfix(id, infix, rhs) -> PT.EInfix(id, infix, lhs, rhs)
+
+          // `1 |> Json.serialize<Int64>`
+          | PT.EPipeFnCall(id, fnName, typeArgs, args) ->
+            PT.EApply(id, PT.EFnName(id, fnName), typeArgs, NEList.ofList lhs args)
+
+          // `1 |> Option.Some`
+          | PT.EPipeEnum(id, typeName, caseName, fields) ->
+            let typeArgs = [] // TODO
+            PT.EEnum(id, typeName, typeArgs, caseName, [ lhs ] @ fields)
+
+          // `1 |> myLambda`
+          | PT.EPipeVariable(id, varName, args) ->
+            PT.EApply(id, PT.EVariable(id, varName), [], NEList.ofList lhs args)
+
+        toRT symbols rc (PT.EPipe(id, newLHS, parts))
 
     | PT.EInfix(_, PT.BinOp op, left, right) ->
       let left = toRT symbols rc left
@@ -600,9 +628,7 @@ module Expr =
 
     | PT.EApply(_id, thingToApplyExpr, typeArgs, args) ->
       let thingToApply = toRT symbols rc thingToApplyExpr
-      // TODO: maybe one or both of these lists should be an `NEList`?
 
-      // CLEANUP find a way to get rid of silly NEList stuff
       let (regCounter, argInstrs, argRegs) =
         let init = (thingToApply.registerCount, [], [])
 
@@ -828,7 +854,7 @@ module Expr =
 
 
     | PT.ELambda(id, pats, body) ->
-      let symbolsUsedInBody = ProgramTypesAst.symbolsUsedIn body
+      let symbolsUsedInBody = ProgramTypesAst.symbolsUsedInExpr body
       let symbolsUsedInPats =
         pats |> NEList.toList |> List.map PT.LetPattern.symbolsUsed |> Set.unionMany
       let symbolsUsedInBodyNotDefinedInPats =

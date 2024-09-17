@@ -485,8 +485,43 @@ module Expr =
           listCons
           tuple ]
 
+  module Pipes =
+    let lambda =
+      t
+        "1 |> fun x -> x"
+        E.Pipes.lambda
+        (4,
+         [ RT.CreateLambda(
+             0,
+             { exprId = E.Lambdas.Identity.id
+               patterns = NEList.ofList (RT.LPVariable 0) []
+               registersToClose = []
+               instructions = { registerCount = 1; instructions = []; resultIn = 0 } }
+           )
+           RT.Apply(2, 0, [], NEList.ofList 1 []) ],
+         0)
 
-  // TODO: add tests for Enums
+    let infix = t "1 |> (+) 2" E.Pipes.infix (5, [], 0)
+
+    let fnCall = t "1 |> Builtin.int64Add 2" E.Pipes.fnCall (5, [], 0)
+
+    let variable =
+      t "let myLambda = fun x -> x + 1\n1 |> myLambda" E.Pipes.variable (7, [], 0)
+
+    let multiple =
+      t
+        "let incr = fun x -> x + 1\n2 |> incr |> fun x -> x * 2 |> Builtin.int64Add 3 |> (+) 4"
+        E.Pipes.multiple
+        (19, [], 0)
+
+    // TODO lazy
+    let tests = testList "Pipes" [] //[ lambda ]//; infix; fnCall; variable; multiple ]
+
+
+  module Enums =
+    // TODO
+    let tests = testList "Enums" []
+
 
   module Records =
     let simple =
@@ -1105,6 +1140,7 @@ module Expr =
         If.tests
         Tuples.tests
         Match.tests
+        Pipes.tests
         Records.tests
         RecordFieldAccess.tests
         RecordUpdate.tests
