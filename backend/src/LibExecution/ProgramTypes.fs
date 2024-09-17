@@ -180,7 +180,7 @@ type MatchPattern =
   | MPListCons of id * head : MatchPattern * tail : MatchPattern
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
 
-  //| MPEnum of id * caseName : string * fieldPats : List<MatchPattern>
+  | MPEnum of id * caseName : string * fieldPats : List<MatchPattern>
 
   | MPVariable of id * string
 
@@ -458,10 +458,10 @@ module Expr =
 module TypeDeclaration =
   type RecordField = { name : string; typ : TypeReference; description : string }
 
-  // type EnumField =
-  //   { typ : TypeReference; label : Option<string>; description : string }
+  type EnumField =
+    { typ : TypeReference; label : Option<string>; description : string }
 
-  // type EnumCase = { name : string; fields : List<EnumField>; description : string }
+  type EnumCase = { name : string; fields : List<EnumField>; description : string }
 
   /// The right-hand-side of the declaration: eg List<'a>
   type Definition =
@@ -471,8 +471,8 @@ module TypeDeclaration =
     /// `type MyRecord = { a : int; b : string }`
     | Record of NEList<RecordField>
 
-  // /// `type MyEnum = A | B of int | C of int * (label: string)`
-  // | Enum of NEList<EnumCase>
+    /// `type MyEnum = A | B of int | C of int * (label: string)`
+    | Enum of NEList<EnumCase>
 
   /// Combined the RHS definition, with the list of type parameters. Eg type
   /// MyType<'a> = List<'a>

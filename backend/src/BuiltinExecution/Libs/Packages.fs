@@ -53,7 +53,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       description = "Returns high-level stats of what's in the Package Manager"
       fn =
         (function
-        | _, _, [ DUnit ] ->
+        | _, _, _, [ DUnit ] ->
           uply {
             // TODO: real #s (requires updates in RuntimeTypes and some other places, I think?)
             let fields =
@@ -76,7 +76,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         let optType = KTUuid
         (function
-        | _, _, [ DString name ] ->
+        | _, _, _, [ DString name ] ->
           uply {
             let n = parseGenericName name
             let name = PT.PackageType.name n.owner n.modules n.name
@@ -98,7 +98,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         let optType = KTCustomType(PT2DT.PackageType.typeName, [])
         (function
-        | _, _, [ DUuid id ] ->
+        | _, _, _, [ DUuid id ] ->
           uply {
             match! pm.getType id with
             | Some f -> return f |> PT2DT.PackageType.toDT |> Dval.optionSome optType
@@ -120,7 +120,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         let optType = KTUuid
         (function
-        | _, _, [ DString name ] ->
+        | _, _, _, [ DString name ] ->
           uply {
             let n = parseGenericName name
             let name = PT.PackageConstant.name n.owner n.modules n.name
@@ -142,7 +142,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         let optType = KTCustomType(PT2DT.PackageConstant.typeName, [])
         (function
-        | _, _, [ DUuid id ] ->
+        | _, _, _, [ DUuid id ] ->
           uply {
             match! pm.getConstant id with
             | Some f ->
@@ -165,7 +165,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         let optType = KTUuid
         (function
-        | _, _, [ DString name ] ->
+        | _, _, _, [ DString name ] ->
           uply {
             let n = parseGenericName name
             let name = PT.PackageFn.name n.owner n.modules n.name
@@ -187,7 +187,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         let optType = KTCustomType(PT2DT.PackageFn.typeName, [])
         (function
-        | _, _, [ DUuid id ] ->
+        | _, _, _, [ DUuid id ] ->
           uply {
             match! pm.getFn id with
             | Some f -> return f |> PT2DT.PackageFn.toDT |> Dval.optionSome optType

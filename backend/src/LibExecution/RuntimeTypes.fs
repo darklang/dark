@@ -143,20 +143,20 @@ type KnownType =
   /// `Unknown`.
   | KTTuple of ValueType * ValueType * List<ValueType>
 
-  // /// let f = (fun x -> x)        // KTFn([Unknown], Unknown)
-  // /// let intF = (fun (x: Int) -> x) // KTFn([Known KTInt64], Unknown)
-  // ///
-  // /// Note that we could theoretically know some return types by analyzing the
-  // /// code or type signatures of functions. We don't do this yet as it's
-  // /// complicated. When we do decide to do this, some incorrect programs may stop
-  // /// functioning (see example). Our goal is for correctly typed functions to
-  // /// stay working so this might be ok.
-  // ///
-  // /// For example:
-  // ///   let z1 = (fun x -> 5)
-  // ///   let z2 = (fun x -> "str")
-  // /// `[z1, z2]` is allowed now but might not be allowed later
-  // | KTFn of args : NEList<ValueType> * ret : ValueType
+  /// let f = (fun x -> x)        // KTFn([Unknown], Unknown)
+  /// let intF = (fun (x: Int) -> x) // KTFn([Known KTInt64], Unknown)
+  ///
+  /// Note that we could theoretically know some return types by analyzing the
+  /// code or type signatures of functions. We don't do this yet as it's
+  /// complicated. When we do decide to do this, some incorrect programs may stop
+  /// functioning (see example). Our goal is for correctly typed functions to
+  /// stay working so this might be ok.
+  ///
+  /// For example:
+  ///   let z1 = (fun x -> 5)
+  ///   let z2 = (fun x -> "str")
+  /// `[z1, z2]` is allowed now but might not be allowed later
+  | KTFn of args : NEList<ValueType> * ret : ValueType
 
   // /// At time of writing, all DBs are of a specific type, and DBs may only be
   // /// referenced directly, but we expect to eventually allow references to DBs
@@ -310,6 +310,7 @@ type MatchPattern =
     first : MatchPattern *
     second : MatchPattern *
     theRest : List<MatchPattern>
+  | MPEnum of caseName : string * fields : List<MatchPattern>
   | MPVariable of Register
 
 
@@ -680,8 +681,10 @@ module RuntimeError =
   //     | NonIntReturned of actuallyReturned: Dval.Dval
 
 
-  // module Json =
-  //   type Error = UnsupportedType of RuntimeTypes.TypeReference
+  module Jsons =
+    type Error =
+      | UnsupportedType of TypeReference
+      | CannotSerializeTypeValueCombo of Dval * TypeReference
 
 
   module Ints =
@@ -809,7 +812,7 @@ module RuntimeError =
 
     | Bool of Bools.Error
     | Int of Ints.Error
-    //| Json of Json.Error
+    | Json of Jsons.Error
     | String of Strings.Error
     | List of Lists.Error
     | Dict of Dicts.Error
@@ -963,11 +966,14 @@ module TypeReference =
 /// The tricky part is that we do want the CallStack around, to report on,
 /// and to use for debugging, but the way the Interpreter+Execution is set up,
 /// there's no great single place to `try/with` to supply the call stack.
-exception RuntimeErrorException of ThreadID * rte : RuntimeError.Error
+exception RuntimeErrorException of Option<ThreadID> * rte : RuntimeError.Error
 
 
 let raiseRTE (threadId : ThreadID) (rte : RuntimeError.Error) : 'a =
-  raise (RuntimeErrorException(threadId, rte))
+  raise (RuntimeErrorException(Some threadId, rte))
+
+let raiseUntargetedRTE (rte : RuntimeError.Error) : 'a =
+  raise (RuntimeErrorException(None, rte))
 
 
 // // (only?) OK in builtins because we "fill in" the callstack in the Interpreter for such failures
@@ -1009,12 +1015,12 @@ type Deprecation<'name> =
 module TypeDeclaration =
   type RecordField = { name : string; typ : TypeReference }
 
-  //type EnumCase = { name : string; fields : List<TypeReference> }
+  type EnumCase = { name : string; fields : List<TypeReference> }
 
   type Definition =
     | Alias of TypeReference
     | Record of NEList<RecordField>
-  //| Enum of NEList<EnumCase>
+    | Enum of NEList<EnumCase>
 
   type T = { typeParams : List<string>; definition : Definition }
 
@@ -1498,54 +1504,54 @@ module Types =
     | FQTypeName.Package pkg ->
       types.package pkg |> Ply.map (Option.map _.declaration)
 
-//   /// Swap concrete types for type parameters
-//   let rec substitute
-//     (typeParams : List<string>)
-//     (typeArguments : List<TypeReference>)
-//     (typ : TypeReference)
-//     : TypeReference =
-//     let substitute = substitute typeParams typeArguments
-//     match typ with
-//     | TVariable v ->
-//       if typeParams.Length = typeArguments.Length then
-//         List.zip typeParams typeArguments
-//         |> List.find (fun (param, _) -> param = v)
-//         |> Option.map snd
-//         |> Exception.unwrapOptionInternal
-//           "No type argument found for type parameter"
-//           []
-//       else
-//         Exception.raiseInternal
-//           $"typeParams and typeArguments have different lengths"
-//           [ "typeParams", typeParams; "typeArguments", typeArguments ]
+  /// Swap concrete types for type parameters
+  let rec substitute
+    (typeParams : List<string>)
+    (typeArguments : List<TypeReference>)
+    (typ : TypeReference)
+    : TypeReference =
+    let substitute = substitute typeParams typeArguments
+    match typ with
+    | TVariable v ->
+      if typeParams.Length = typeArguments.Length then
+        List.zip typeParams typeArguments
+        |> List.find (fun (param, _) -> param = v)
+        |> Option.map snd
+        |> Exception.unwrapOptionInternal
+          "No type argument found for type parameter"
+          []
+      else
+        Exception.raiseInternal
+          $"typeParams and typeArguments have different lengths"
+          [ "typeParams", typeParams; "typeArguments", typeArguments ]
 
 
-//     | TUnit
-//     | TBool
-//     | TInt8
-//     | TUInt8
-//     | TInt16
-//     | TUInt16
-//     | TInt32
-//     | TUInt32
-//     | TInt64
-//     | TUInt64
-//     | TInt128
-//     | TUInt128
-//     | TFloat
-//     | TChar
-//     | TString
-//     | TUuid
-//     | TDateTime -> typ
+    | TUnit
+    | TBool
+    | TInt8
+    | TUInt8
+    | TInt16
+    | TUInt16
+    | TInt32
+    | TUInt32
+    | TInt64
+    | TUInt64
+    | TInt128
+    | TUInt128
+    | TFloat
+    | TChar
+    | TString
+    | TUuid
+    | TDateTime -> typ
 
-//     | TList t -> TList(substitute t)
-//     | TTuple(t1, t2, rest) ->
-//       TTuple(substitute t1, substitute t2, List.map substitute rest)
-//     | TFn _ -> typ // TYPESTODO
-//     | TDB _ -> typ // TYPESTODO
-//     | TCustomType(typeName, typeArgs) ->
-//       TCustomType(typeName, List.map substitute typeArgs)
-//     | TDict t -> TDict(substitute t)
+    | TList t -> TList(substitute t)
+    | TTuple(t1, t2, rest) ->
+      TTuple(substitute t1, substitute t2, List.map substitute rest)
+    | TFn _ -> typ // TYPESTODO
+    // | TDB _ -> typ // TYPESTODO
+    | TCustomType(typeName, typeArgs) ->
+      TCustomType(typeName, List.map substitute typeArgs)
+    | TDict t -> TDict(substitute t)
 
 
 

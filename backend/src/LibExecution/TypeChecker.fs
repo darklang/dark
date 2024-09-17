@@ -437,7 +437,6 @@ module DvalCreator =
       List.fold
         (fun (typ, entries) (k, v) ->
           if Map.containsKey k entries then
-            // should we warn here instead? CLEANUP
             RTE.Dicts.Error.TriedToAddKeyAfterAlreadyPresent k
             |> RTE.Error.Dict
             |> raiseRTE threadID
@@ -487,47 +486,42 @@ module DvalCreator =
     | None -> optionNone expectedType
 
 
-  // module Result =
-  //   let typeName = Dval.resultType
+  module Result =
+    let typeName = Dval.resultType
 
-  //   let ok
-  //     (threadID: ThreadID)
-  //     (okType : ValueType)
-  //     (errorType : ValueType)
-  //     (dvOk : Dval)
-  //     : Dval =
-  //     let dvalType = Dval.toValueType dvOk
-  //     match VT.merge okType dvalType with
-  //     | Ok typ ->
-  //       DEnum(typeName, typeName, [ typ; errorType ], "Ok", [ dvOk ])
-  //     | Error() ->
-  //       // RuntimeError.oldError
-  //       //   $"Could not merge types {ValueType.toString (VT.customType typeName [ okType; errorType ])} and {ValueType.toString (VT.customType typeName [ dvalType; errorType ])}"
-  //       |> raiseRTE callStack
+    let ok
+      (threadID : ThreadID)
+      (okType : ValueType)
+      (errorType : ValueType)
+      (dvOk : Dval)
+      : Dval =
+      let dvalType = Dval.toValueType dvOk
+      match VT.merge okType dvalType with
+      | Ok typ -> DEnum(typeName, typeName, [ typ; errorType ], "Ok", [ dvOk ])
+      | Error() ->
+        RuntimeError.CannotMergeValues(okType, dvalType) |> raiseRTE threadID
 
-  //   let error
-  //     (threadID: ThreadID)
-  //     (okType : ValueType)
-  //     (errorType : ValueType)
-  //     (dvError : Dval)
-  //     : Dval =
-  //     let dvalType = Dval.toValueType dvError
-  //     match VT.merge errorType dvalType with
-  //     | Ok typ -> DEnum(typeName, typeName, [ okType; typ ], "Error", [ dvError ])
-  //     | Error() ->
-  //       RuntimeError.oldError
-  //         $"Could not merge types {ValueType.toString (VT.customType Dval.resultType [ okType; errorType ])} and {ValueType.toString (VT.customType Dval.resultType [ okType; dvalType ])}"
-  //       |> raiseRTE callStack
+    let error
+      (threadID : ThreadID)
+      (okType : ValueType)
+      (errorType : ValueType)
+      (dvError : Dval)
+      : Dval =
+      let dvalType = Dval.toValueType dvError
+      match VT.merge errorType dvalType with
+      | Ok typ -> DEnum(typeName, typeName, [ okType; typ ], "Error", [ dvError ])
+      | Error() ->
+        RuntimeError.CannotMergeValues(errorType, dvalType) |> raiseRTE threadID
 
-  //   let result
-  //     (threadID: ThreadID)
-  //     (okType : ValueType)
-  //     (errorType : ValueType)
-  //     (dv : Result<Dval, Dval>)
-  //     : Dval =
-  //     match dv with
-  //     | Ok dv -> ok callStack okType errorType dv
-  //     | Error dv -> error callStack okType errorType dv
+    let result
+      (threadID : ThreadID)
+      (okType : ValueType)
+      (errorType : ValueType)
+      (dv : Result<Dval, Dval>)
+      : Dval =
+      match dv with
+      | Ok dv -> ok threadID okType errorType dv
+      | Error dv -> error threadID okType errorType dv
 
 
   /// Constructs a Dval.DRecord, ensuring that the fields match the expected shape
@@ -578,16 +572,17 @@ module DvalCreator =
     DRecord(resolvedTypeName, typeName, VT.typeArgsTODO, fields) |> Ply
 
 
-//   let enum
-//     (resolvedTypeName : FQTypeName.FQTypeName) // todo: remove
-//     (sourceTypeName : FQTypeName.FQTypeName)
-//     (caseName : string)
-//     (fields : List<Dval>)
-//     : Ply<Dval> =
-//     // TODO:
-//     // - use passed-in Types to determine type args of resultant Dval
-//     // - ensure fields match the expected shape (defined by type args and field defs)
-//     //   - this process should also effect the type args of the resultant Dval
+  let enum
+    (_threadID : ThreadID)
+    (_types : Types)
+    (typeName : FQTypeName.FQTypeName)
+    (_typeArgs : List<TypeReference>)
+    (caseName : string)
+    (fields : List<Dval>)
+    : Ply<Dval> =
+    // TODO:
+    // - use passed-in Types to determine type args of resultant Dval
+    // - ensure fields match the expected shape (defined by type args and field defs)
+    //   - this process should also effect the type args of the resultant Dval
 
-//     DEnum(resolvedTypeName, sourceTypeName, VT.typeArgsTODO, caseName, fields)
-//     |> Ply
+    DEnum(typeName, typeName, VT.typeArgsTODO, caseName, fields) |> Ply

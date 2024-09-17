@@ -46,9 +46,9 @@ let fns : List<BuiltInFn> =
         (function
         | _, vm, _, [ DInt8 v; DInt8 m ] ->
           if m = 0y then
-            RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.callStack
+            RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.threadID
           else if m < 0y then
-            RTE.Ints.NegativeModulus |> RTE.Int |> raiseRTE vm.callStack
+            RTE.Ints.NegativeModulus |> RTE.Int |> raiseRTE vm.threadID
           else
             let result = v % m
             let result = if result < 0y then m + result else result
@@ -81,7 +81,7 @@ let fns : List<BuiltInFn> =
             v % d |> DInt8 |> resultOk
            with e ->
              if d = 0y then
-               RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.callStack
+               RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
              else
                Exception.raiseInternal
                  "unexpected failure case in Int8.remainder"
@@ -104,7 +104,7 @@ let fns : List<BuiltInFn> =
           try
             DInt8(Checked.(+) a b) |> Ply
           with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.callStack
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -122,7 +122,7 @@ let fns : List<BuiltInFn> =
           try
             DInt8(Checked.(-) a b) |> Ply
           with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.callStack
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -140,7 +140,7 @@ let fns : List<BuiltInFn> =
           try
             DInt8(Checked.(*) a b) |> Ply
           with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.callStack
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -160,11 +160,11 @@ let fns : List<BuiltInFn> =
         | _, vm, _, [ DInt8 number; DInt8 exp ] ->
           (try
             if exp < 0y then
-              RTE.Ints.NegativeExponent |> RTE.Int |> raiseRTE vm.callStack
+              RTE.Ints.NegativeExponent |> RTE.Int |> raiseRTE vm.threadID
             else
               (bigint number) ** (int exp) |> int8 |> DInt8 |> Ply
            with :? System.OverflowException ->
-             RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.callStack)
+             RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -180,11 +180,11 @@ let fns : List<BuiltInFn> =
         (function
         | _, vm, _, [ DInt8 a; DInt8 b ] ->
           if b = int8 0 then
-            RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.callStack
+            RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
           else
             let result = int a / int b
             if result < -128 || result > 127 then
-              RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.callStack
+              RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
             else
               Ply(DInt8(int8 result))
         | _ -> incorrectArgs ())
@@ -203,7 +203,7 @@ let fns : List<BuiltInFn> =
         | _, vm, _, [ DInt8 a ] ->
           let result = -(int a)
           if result < -128 || result > 127 then
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.callStack
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
           else
             Ply(DInt8(int8 result))
         | _ -> incorrectArgs ())

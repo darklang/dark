@@ -131,11 +131,11 @@ module Type =
       //   let errorMessage =
       //     p [ "Error" ] "ErrorMessage" "3e526964-304f-46a8-919c-6d65bb6ff167"
 
-      // module NameResolution =
-      //   let private p addl = p ("NameResolution" :: addl)
-      //   let errorType = p [] "ErrorType" "ada30799-1227-4902-b580-76bca80c9e92"
-      //   let nameType = p [] "NameType" "aafe54e1-d970-4ce0-81a1-1569af86671f"
-      //   let error = p [] "Error" "85dea116-469e-41ca-a166-dc97f5e4fb1d"
+      module NameResolution =
+        let private p addl = p ("NameResolution" :: addl)
+        let errorType = p [] "ErrorType" "ada30799-1227-4902-b580-76bca80c9e92"
+        let nameType = p [] "NameType" "aafe54e1-d970-4ce0-81a1-1569af86671f"
+        let error = p [] "Error" "85dea116-469e-41ca-a166-dc97f5e4fb1d"
 
       // module TypeChecker =
       //   let private p addl = p ("TypeChecker" :: addl)
@@ -149,8 +149,8 @@ module Type =
       // module Int =
       //   let error = p [ "Int" ] "Error" "8f753bfe-9e35-4a9e-a47e-c1dbb5f83037"
 
-      // module Json =
-      //   let error = p [ "Json" ] "Error" "595907db-ab8d-4fe5-b9cf-d1bd8041e9bb"
+      module Json =
+        let error = p [ "Json" ] "Error" "595907db-ab8d-4fe5-b9cf-d1bd8041e9bb"
 
       // module Cli =
       //   let error = p [ "Cli" ] "Error" "6756f735-2a6a-41ac-a6a8-6e0b7354ca1b"
@@ -183,7 +183,7 @@ module Type =
       let letPattern = p [] "LetPattern" "5ca5d251-0703-49ce-a40d-28c2e4575431"
       let matchPattern = p [] "MatchPattern" "003c6684-4f9d-4085-bdba-a7f3bea7f587"
       let matchCase = p [] "MatchCase" "5fb0f282-5f7c-4fb8-b107-b63429080e69"
-      //let stringSegment = p [] "StringSegment" "ccadbf5b-1802-4db7-a30b-7b9073db78cd"
+      let stringSegment = p [] "StringSegment" "ccadbf5b-1802-4db7-a30b-7b9073db78cd"
       //let expr = p [] "Expr" "1f19e838-81f2-4a94-94b8-bad2ce7f7cf7"
 
       let dval = p [ "Dval" ] "Dval" "528b682c-a249-4a50-bd93-85e1e8cb529e"

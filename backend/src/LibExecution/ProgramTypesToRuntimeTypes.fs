@@ -222,7 +222,6 @@ module MatchPattern =
       RT.MPList pats, symbols, rc
 
 
-
     | PT.MPListCons(_, head, tail) ->
       let head, symbols, rc = toRT symbols rc head
       let tail, symbols, rc = toRT symbols rc tail
@@ -240,6 +239,17 @@ module MatchPattern =
           (symbols, rc, [])
 
       RT.MPTuple(first, second, theRest), symbols, rc
+
+    | PT.MPEnum(_, caseName, fieldPats) ->
+      let fieldPats, symbols, rc =
+        fieldPats
+        |> List.fold
+          (fun (fieldPats, symbols, rc) fieldPat ->
+            let pat, symbols, rc = toRT symbols rc fieldPat
+            (fieldPats @ [ pat ], symbols, rc))
+          ([], symbols, rc)
+
+      RT.MPEnum(caseName, fieldPats), symbols, rc
 
     | PT.MPVariable(_, name) ->
       RT.MPVariable rc, (symbols |> Map.add name rc), rc + 1
@@ -883,13 +893,13 @@ module TypeDeclaration =
     let toRT (f : PT.TypeDeclaration.RecordField) : RT.TypeDeclaration.RecordField =
       { name = f.name; typ = TypeReference.toRT f.typ }
 
-  // module EnumField =
-  //   let toRT (f : PT.TypeDeclaration.EnumField) : RT.TypeReference =
-  //     TypeReference.toRT f.typ
+  module EnumField =
+    let toRT (f : PT.TypeDeclaration.EnumField) : RT.TypeReference =
+      TypeReference.toRT f.typ
 
-  // module EnumCase =
-  //   let toRT (c : PT.TypeDeclaration.EnumCase) : RT.TypeDeclaration.EnumCase =
-  //     { name = c.name; fields = List.map EnumField.toRT c.fields }
+  module EnumCase =
+    let toRT (c : PT.TypeDeclaration.EnumCase) : RT.TypeDeclaration.EnumCase =
+      { name = c.name; fields = List.map EnumField.toRT c.fields }
 
   module Definition =
     let toRT (d : PT.TypeDeclaration.Definition) : RT.TypeDeclaration.Definition =
@@ -900,8 +910,8 @@ module TypeDeclaration =
       | PT.TypeDeclaration.Record fields ->
         RT.TypeDeclaration.Record(NEList.map RecordField.toRT fields)
 
-  // | PT.TypeDeclaration.Enum cases ->
-  //   RT.TypeDeclaration.Enum(NEList.map EnumCase.toRT cases)
+      | PT.TypeDeclaration.Enum cases ->
+        RT.TypeDeclaration.Enum(NEList.map EnumCase.toRT cases)
 
   let toRT (t : PT.TypeDeclaration.T) : RT.TypeDeclaration.T =
     { typeParams = t.typeParams; definition = Definition.toRT t.definition }

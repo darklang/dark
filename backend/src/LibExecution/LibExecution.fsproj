@@ -40,7 +40,7 @@
     <!-- User+Runtime I/O /-->
     <Compile Include="DvalDecoder.fs" />
     <Compile Include="CommonToDarkTypes.fs" />
-    <!--Compile Include="RuntimeTypesToDarkTypes.fs" /-->
+    <Compile Include="RuntimeTypesToDarkTypes.fs" />
     <Compile Include="ProgramTypesToDarkTypes.fs" />
 
     <!-- TODO move this to its own project, and try to decrease usage a ton. /-->

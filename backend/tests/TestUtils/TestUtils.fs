@@ -117,11 +117,11 @@ let nameToTestDomain (name : string) : string =
 
 let builtins
   (httpConfig : BuiltinExecution.Libs.HttpClient.Configuration)
-  (_pm : PT.PackageManager)
+  (pm : PT.PackageManager)
   : RT.Builtins =
   LibExecution.Builtin.combine
     [ LibTest.builtins
-      BuiltinExecution.Builtin.builtins httpConfig // pm
+      BuiltinExecution.Builtin.builtins httpConfig pm
       // BuiltinCloudExecution.Builtin.builtins
       // BuiltinDarkInternal.Builtin.builtins
       // BuiltinCli.Builtin.builtins

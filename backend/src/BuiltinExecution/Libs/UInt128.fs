@@ -46,7 +46,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, vm, _, [ DUInt128 v; DUInt128 m ] ->
           if m = System.UInt128.Zero then
-            RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.callStack
+            RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.threadID
           else
             let result = v % m
             let result = if result < System.UInt128.Zero then m + result else result
@@ -69,7 +69,7 @@ let fns : List<BuiltInFn> =
             let result = System.UInt128.op_CheckedAddition (a, b)
             Ply(DUInt128(result))
           with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.callStack
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -88,7 +88,7 @@ let fns : List<BuiltInFn> =
             let result = System.UInt128.op_CheckedSubtraction (a, b)
             Ply(DUInt128(result))
           with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.callStack
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -108,7 +108,7 @@ let fns : List<BuiltInFn> =
             let result = System.UInt128.op_CheckedMultiply (a, b)
             Ply(DUInt128(result))
           with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.callStack
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -131,9 +131,9 @@ let fns : List<BuiltInFn> =
             Ply(DUInt128(result))
           with
           | :? System.DivideByZeroException ->
-            RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.callStack
+            RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
           | :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.callStack
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

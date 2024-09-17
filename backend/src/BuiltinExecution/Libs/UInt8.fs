@@ -47,7 +47,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, vm, _, [ DUInt8 v; DUInt8 m ] ->
           if m = 0uy then
-            RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.callStack |> Ply
+            RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.threadID |> Ply
           else
             let result = v % m
             let result = if result < 0uy then m + result else result
@@ -69,7 +69,7 @@ let fns : List<BuiltInFn> =
           try
             DUInt8(Checked.(+) a b) |> Ply
           with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.callStack |> Ply
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -87,7 +87,7 @@ let fns : List<BuiltInFn> =
           try
             DUInt8(Checked.(-) a b) |> Ply
           with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.callStack |> Ply
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -105,7 +105,7 @@ let fns : List<BuiltInFn> =
           try
             DUInt8(Checked.(*) a b) |> Ply
           with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.callStack |> Ply
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -126,7 +126,7 @@ let fns : List<BuiltInFn> =
           (try
             (bigint number) ** (int exp) |> uint8 |> DUInt8 |> Ply
            with :? System.OverflowException ->
-             RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.callStack |> Ply)
+             RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -142,11 +142,11 @@ let fns : List<BuiltInFn> =
         (function
         | _, vm, _, [ DUInt8 a; DUInt8 b ] ->
           if b = 0uy then
-            RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.callStack |> Ply
+            RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID |> Ply
           else
             let result = int a / int b
             if result < 0 || result > 255 then
-              RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.callStack |> Ply
+              RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID |> Ply
             else
               Ply(DUInt8(uint8 result))
         | _ -> incorrectArgs ())

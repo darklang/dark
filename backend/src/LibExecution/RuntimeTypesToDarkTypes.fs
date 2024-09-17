@@ -10,10 +10,10 @@ module C2DT = LibExecution.CommonToDarkTypes
 
 
 // TODO: should these be elsewhere?
-let ownerField m = m |> D.stringField "owner"
-let modulesField m = m |> D.stringListField "modules"
-let nameField m = m |> D.stringField "name"
-let versionField m = m |> D.int32Field "version"
+let ownerField m = m |> D.field "owner" |> D.string
+let modulesField m = m |> D.field "modules" |> D.list D.string
+let nameField m = m |> D.field "name" |> D.string
+let versionField m = m |> D.field "version" |> D.int32
 
 
 module FQTypeName =
@@ -138,16 +138,16 @@ module NameResolution =
     FQTypeName.Package
       PackageIDs.Type.LanguageTools.RuntimeError.NameResolution.error
 
-  let toDT
-    (nameValueType : KnownType)
-    (f : 'p -> Dval)
-    (result : NameResolution<'p>)
-    : Dval =
-    let errType = KTCustomType(typeName, [])
-    C2DT.Result.toDT nameValueType errType result f RuntimeError.toDT
+// let toDT
+//   (nameValueType : KnownType)
+//   (f : 'p -> Dval)
+//   (result : NameResolution<'p>)
+//   : Dval =
+//   let errType = KTCustomType(typeName, [])
+//   C2DT.Result.toDT nameValueType errType result f RuntimeError.toDT
 
-  let fromDT (f : Dval -> 'a) (d : Dval) : NameResolution<'a> =
-    C2DT.Result.fromDT f d RuntimeError.fromDT
+// let fromDT (f : Dval -> 'a) (d : Dval) : NameResolution<'a> =
+//   C2DT.Result.fromDT f d RuntimeError.fromDT
 
 
 module TypeReference =
@@ -186,15 +186,18 @@ module TypeReference =
 
       | TDict inner -> "TDict", [ toDT inner ]
 
-      | TCustomType(typeName, typeArgs) ->
-        "TCustomType",
-        [ NameResolution.toDT FQTypeName.knownType FQTypeName.toDT typeName
-          DList(VT.known knownType, List.map toDT typeArgs) ]
+      // | TCustomType(typeName, typeArgs) ->
+      //   "TCustomType",
+      //   [ NameResolution.toDT FQTypeName.knownType FQTypeName.toDT typeName
+      //     DList(VT.known knownType, List.map toDT typeArgs) ]
 
-      | TDB inner -> "TDB", [ toDT inner ]
+      // | TDB inner -> "TDB", [ toDT inner ]
       | TFn(args, ret) ->
         let args = args |> NEList.toList |> List.map toDT |> Dval.list knownType
         "TFn", [ args; toDT ret ]
+
+      // TODO: remove this
+      | _ -> Exception.raiseInternal "Invalid TypeReference" []
 
     DEnum(typeName, typeName, [], caseName, fields)
 
@@ -227,13 +230,13 @@ module TypeReference =
 
     | DEnum(_, _, [], "TDict", [ inner ]) -> TDict(fromDT inner)
 
-    | DEnum(_, _, [], "TCustomType", [ typeName; DList(_vtTODO, typeArgs) ]) ->
-      TCustomType(
-        NameResolution.fromDT FQTypeName.fromDT typeName,
-        List.map fromDT typeArgs
-      )
+    // | DEnum(_, _, [], "TCustomType", [ typeName; DList(_vtTODO, typeArgs) ]) ->
+    //   TCustomType(
+    //     NameResolution.fromDT FQTypeName.fromDT typeName,
+    //     List.map fromDT typeArgs
+    //   )
 
-    | DEnum(_, _, [], "TDB", [ inner ]) -> TDB(fromDT inner)
+    // | DEnum(_, _, [], "TDB", [ inner ]) -> TDB(fromDT inner)
     | DEnum(_, _, [], "TFn", [ DList(_vtTODO, firstArg :: otherArgs); ret ]) ->
       TFn(NEList.ofList (fromDT firstArg) (List.map fromDT otherArgs), fromDT ret)
     | _ -> Exception.raiseInternal "Invalid TypeReference" [ "typeRef", d ]
@@ -255,28 +258,20 @@ module LetPattern =
   let rec toDT (p : LetPattern) : Dval =
     let (caseName, fields) =
       match p with
-      | LPVariable(id, name) -> "LPVariable", [ DInt64(int64 id); DString name ]
-      | LPUnit id -> "LPUnit", [ DInt64(int64 id) ]
-      | LPTuple(id, first, second, theRest) ->
+      | LPVariable reg -> "LPVariable", [ DInt32 reg ]
+      | LPUnit -> "LPUnit", []
+      | LPTuple(first, second, theRest) ->
         "LPTuple",
-        [ DInt64(int64 id)
-          toDT first
-          toDT second
-          DList(VT.known knownType, List.map toDT theRest) ]
+        [ toDT first; toDT second; DList(VT.known knownType, List.map toDT theRest) ]
 
     DEnum(typeName, typeName, [], caseName, fields)
 
   let rec fromDT (d : Dval) : LetPattern =
     match d with
-    | DEnum(_, _, [], "LPVariable", [ DInt64 id; DString name ]) ->
-      LPVariable(uint64 id, name)
-    | DEnum(_, _, [], "LPUnit", [ DInt64 id ]) -> LPUnit(uint64 id)
-    | DEnum(_,
-            _,
-            [],
-            "LPTuple",
-            [ DInt64 id; first; second; DList(_vtTODO, theRest) ]) ->
-      LPTuple(uint64 id, fromDT first, fromDT second, List.map fromDT theRest)
+    | DEnum(_, _, [], "LPVariable", [ DInt32 reg ]) -> LPVariable(reg)
+    | DEnum(_, _, [], "LPUnit", []) -> LPUnit
+    | DEnum(_, _, [], "LPTuple", [ first; second; DList(_vtTODO, theRest) ]) ->
+      LPTuple(fromDT first, fromDT second, List.map fromDT theRest)
     | _ -> Exception.raiseInternal "Invalid LetPattern" []
 
 
@@ -288,85 +283,67 @@ module MatchPattern =
   let rec toDT (p : MatchPattern) : Dval =
     let (caseName, fields) =
       match p with
-      | MPVariable(id, name) -> "MPVariable", [ DInt64(int64 id); DString name ]
+      | MPVariable(reg) -> "MPVariable", [ DInt32 reg ]
 
-      | MPUnit id -> "MPUnit", [ DInt64(int64 id) ]
-      | MPBool(id, b) -> "MPBool", [ DInt64(int64 id); DBool b ]
-      | MPInt8(id, i) -> "MPInt8", [ DInt64(int64 id); DInt8 i ]
-      | MPUInt8(id, i) -> "MPUInt8", [ DInt64(int64 id); DUInt8 i ]
-      | MPInt16(id, i) -> "MPInt16", [ DInt64(int64 id); DInt16 i ]
-      | MPUInt16(id, i) -> "MPUInt16", [ DInt64(int64 id); DUInt16 i ]
-      | MPInt32(id, i) -> "MPInt32", [ DInt64(int64 id); DInt32 i ]
-      | MPUInt32(id, i) -> "MPUInt32", [ DInt64(int64 id); DUInt32 i ]
-      | MPInt64(id, i) -> "MPInt64", [ DInt64(int64 id); DInt64 i ]
-      | MPUInt64(id, i) -> "MPUInt64", [ DInt64(int64 id); DUInt64 i ]
-      | MPInt128(id, i) -> "MPInt128", [ DInt64(int64 id); DInt128 i ]
-      | MPUInt128(id, i) -> "MPUInt128", [ DInt64(int64 id); DUInt128 i ]
-      | MPFloat(id, f) -> "MPFloat", [ DInt64(int64 id); DFloat f ]
-      | MPChar(id, c) -> "MPChar", [ DInt64(int64 id); DString c ]
-      | MPString(id, s) -> "MPString", [ DInt64(int64 id); DString s ]
+      | MPUnit -> "MPUnit", []
+      | MPBool b -> "MPBool", [ DBool b ]
+      | MPInt8 i -> "MPInt8", [ DInt8 i ]
+      | MPUInt8 i -> "MPUInt8", [ DUInt8 i ]
+      | MPInt16 i -> "MPInt16", [ DInt16 i ]
+      | MPUInt16 i -> "MPUInt16", [ DUInt16 i ]
+      | MPInt32 i -> "MPInt32", [ DInt32 i ]
+      | MPUInt32 i -> "MPUInt32", [ DUInt32 i ]
+      | MPInt64 i -> "MPInt64", [ DInt64 i ]
+      | MPUInt64 i -> "MPUInt64", [ DUInt64 i ]
+      | MPInt128 i -> "MPInt128", [ DInt128 i ]
+      | MPUInt128 i -> "MPUInt128", [ DUInt128 i ]
+      | MPFloat f -> "MPFloat", [ DFloat f ]
+      | MPChar c -> "MPChar", [ DString c ]
+      | MPString s -> "MPString", [ DString s ]
 
-      | MPList(id, inner) ->
-        "MPList",
-        [ DInt64(int64 id); DList(VT.known knownType, List.map toDT inner) ]
-      | MPListCons(id, head, tail) ->
-        "MPListCons", [ DInt64(int64 id); toDT head; toDT tail ]
+      | MPList inner -> "MPList", [ DList(VT.known knownType, List.map toDT inner) ]
+      | MPListCons(head, tail) -> "MPListCons", [ toDT head; toDT tail ]
 
-      | MPTuple(id, first, second, theRest) ->
+      | MPTuple(first, second, theRest) ->
         "MPTuple",
-        [ DInt64(int64 id)
-          toDT first
-          toDT second
-          DList(VT.known knownType, List.map toDT theRest) ]
+        [ toDT first; toDT second; DList(VT.known knownType, List.map toDT theRest) ]
 
-      | MPEnum(id, caseName, fieldPats) ->
+      | MPEnum(caseName, fieldPats) ->
         "MPEnum",
-        [ DInt64(int64 id)
-          DString caseName
-          DList(VT.known knownType, List.map toDT fieldPats) ]
+        [ DString caseName; DList(VT.known knownType, List.map toDT fieldPats) ]
 
     DEnum(typeName, typeName, [], caseName, fields)
 
   let rec fromDT (d : Dval) : MatchPattern =
     match d with
-    | DEnum(_, _, [], "MPVariable", [ DInt64 id; DString name ]) ->
-      MPVariable(uint64 id, name)
+    | DEnum(_, _, [], "MPVariable", [ DInt32 reg ]) -> MPVariable(reg)
 
-    | DEnum(_, _, [], "MPUnit", [ DInt64 id ]) -> MPUnit(uint64 id)
-    | DEnum(_, _, [], "MPBool", [ DInt64 id; DBool b ]) -> MPBool(uint64 id, b)
-    | DEnum(_, _, [], "MPInt8", [ DInt64 id; DInt8 i ]) -> MPInt8(uint64 id, i)
-    | DEnum(_, _, [], "MPUInt8", [ DInt64 id; DUInt8 i ]) -> MPUInt8(uint64 id, i)
-    | DEnum(_, _, [], "MPInt16", [ DInt64 id; DInt16 i ]) -> MPInt16(uint64 id, i)
-    | DEnum(_, _, [], "MPUInt16", [ DInt64 id; DUInt16 i ]) -> MPUInt16(uint64 id, i)
-    | DEnum(_, _, [], "MPInt32", [ DInt64 id; DInt32 i ]) -> MPInt32(uint64 id, i)
-    | DEnum(_, _, [], "MPUInt32", [ DInt64 id; DUInt32 i ]) -> MPUInt32(uint64 id, i)
-    | DEnum(_, _, [], "MPInt64", [ DInt64 id; DInt64 i ]) -> MPInt64(uint64 id, i)
-    | DEnum(_, _, [], "MPUInt64", [ DInt64 id; DUInt64 i ]) -> MPUInt64(uint64 id, i)
-    | DEnum(_, _, [], "MPInt128", [ DInt64 id; DInt128 i ]) -> MPInt128(uint64 id, i)
-    | DEnum(_, _, [], "MPUInt128", [ DInt64 id; DUInt128 i ]) ->
-      MPUInt128(uint64 id, i)
-    | DEnum(_, _, [], "MPFloat", [ DInt64 id; DFloat f ]) -> MPFloat(uint64 id, f)
-    | DEnum(_, _, [], "MPChar", [ DInt64 id; DString c ]) -> MPChar(uint64 id, c)
-    | DEnum(_, _, [], "MPString", [ DInt64 id; DString s ]) -> MPString(uint64 id, s)
+    | DEnum(_, _, [], "MPUnit", []) -> MPUnit
+    | DEnum(_, _, [], "MPBool", [ DBool b ]) -> MPBool b
+    | DEnum(_, _, [], "MPInt8", [ DInt8 i ]) -> MPInt8 i
+    | DEnum(_, _, [], "MPUInt8", [ DUInt8 i ]) -> MPUInt8 i
+    | DEnum(_, _, [], "MPInt16", [ DInt16 i ]) -> MPInt16 i
+    | DEnum(_, _, [], "MPUInt16", [ DUInt16 i ]) -> MPUInt16 i
+    | DEnum(_, _, [], "MPInt32", [ DInt32 i ]) -> MPInt32 i
+    | DEnum(_, _, [], "MPUInt32", [ DUInt32 i ]) -> MPUInt32 i
+    | DEnum(_, _, [], "MPInt64", [ DInt64 i ]) -> MPInt64 i
+    | DEnum(_, _, [], "MPUInt64", [ DUInt64 i ]) -> MPUInt64 i
+    | DEnum(_, _, [], "MPInt128", [ DInt128 i ]) -> MPInt128 i
+    | DEnum(_, _, [], "MPUInt128", [ DUInt128 i ]) -> MPUInt128(i)
+    | DEnum(_, _, [], "MPFloat", [ DFloat f ]) -> MPFloat f
+    | DEnum(_, _, [], "MPChar", [ DString c ]) -> MPChar c
+    | DEnum(_, _, [], "MPString", [ DString s ]) -> MPString s
 
-    | DEnum(_, _, [], "MPList", [ DInt64 id; DList(_vtTODO, inner) ]) ->
-      MPList(uint64 id, List.map fromDT inner)
-    | DEnum(_, _, [], "MPListCons", [ DInt64 id; head; tail ]) ->
-      MPListCons(uint64 id, fromDT head, fromDT tail)
+    | DEnum(_, _, [], "MPList", [ DList(_vtTODO, inner) ]) ->
+      MPList(List.map fromDT inner)
+    | DEnum(_, _, [], "MPListCons", [ head; tail ]) ->
+      MPListCons(fromDT head, fromDT tail)
 
-    | DEnum(_,
-            _,
-            [],
-            "MPTuple",
-            [ DInt64 id; first; second; DList(_vtTODO, theRest) ]) ->
-      MPTuple(uint64 id, fromDT first, fromDT second, List.map fromDT theRest)
+    | DEnum(_, _, [], "MPTuple", [ first; second; DList(_vtTODO, theRest) ]) ->
+      MPTuple(fromDT first, fromDT second, List.map fromDT theRest)
 
-    | DEnum(_,
-            _,
-            [],
-            "MPEnum",
-            [ DInt64 id; DString caseName; DList(_vtTODO, fieldPats) ]) ->
-      MPEnum(uint64 id, caseName, List.map fromDT fieldPats)
+    | DEnum(_, _, [], "MPEnum", [ DString caseName; DList(_vtTODO, fieldPats) ]) ->
+      MPEnum(caseName, List.map fromDT fieldPats)
 
     | _ -> Exception.raiseInternal "Invalid MatchPattern" []
 
@@ -376,344 +353,26 @@ module StringSegment =
     FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.stringSegment
   let knownType = KTCustomType(typeName, [])
 
-  let toDT (exprToDT : Expr -> Dval) (s : StringSegment) : Dval =
+  let toDT (regToDT : Register -> Dval) (s : StringSegment) : Dval =
     let (caseName, fields) =
       match s with
-      | StringText text -> "StringText", [ DString text ]
-      | StringInterpolation expr -> "StringInterpolation", [ exprToDT expr ]
+      | Text text -> "Text", [ DString text ]
+      | Interpolated reg -> "Interpolated", [ regToDT reg ]
     DEnum(typeName, typeName, [], caseName, fields)
 
-  let fromDT (exprFromDT : Dval -> Expr) (d : Dval) : StringSegment =
+  let fromDT (regFromDT : Dval -> Register) (d : Dval) : StringSegment =
     match d with
-    | DEnum(_, _, [], "StringText", [ DString text ]) -> StringText text
-    | DEnum(_, _, [], "StringInterpolation", [ expr ]) ->
-      StringInterpolation(exprFromDT expr)
+    | DEnum(_, _, [], "Text", [ DString text ]) -> Text text
+    | DEnum(_, _, [], "Interpolation", [ reg ]) -> Interpolated(regFromDT reg)
     | _ -> Exception.raiseInternal "Invalid StringSegment" []
 
 
-// module Expr =
-//   let typeName = FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.expr
-//   let knownType = KTCustomType(typeName, [])
+// module RuntimeError =
+//   let toDT (e : RuntimeError.Error) : Dval =
+//     e |> RuntimeTypes.RuntimeError.toDT |> Dval.toDT
 
-//   let rec toDT (e : Expr) : Dval =
-//     let (caseName, fields) =
-//       match e with
-//       | EUnit id -> "EUnit", [ DInt64(int64 id) ]
-
-//       | EBool(id, b) -> "EBool", [ DInt64(int64 id); DBool b ]
-//       | EInt64(id, i) -> "EInt64", [ DInt64(int64 id); DInt64 i ]
-//       | EUInt64(id, i) -> "EUInt64", [ DInt64(int64 id); DUInt64 i ]
-//       | EInt8(id, i) -> "EInt8", [ DInt64(int64 id); DInt8 i ]
-//       | EUInt8(id, i) -> "EUInt8", [ DInt64(int64 id); DUInt8 i ]
-//       | EInt16(id, i) -> "EInt16", [ DInt64(int64 id); DInt16 i ]
-//       | EUInt16(id, i) -> "EUInt16", [ DInt64(int64 id); DUInt16 i ]
-//       | EInt32(id, i) -> "EInt32", [ DInt64(int64 id); DInt32 i ]
-//       | EUInt32(id, i) -> "EUInt32", [ DInt64(int64 id); DUInt32 i ]
-//       | EInt128(id, i) -> "EInt128", [ DInt64(int64 id); DInt128 i ]
-//       | EUInt128(id, i) -> "EUInt128", [ DInt64(int64 id); DUInt128 i ]
-//       | EFloat(id, f) -> "EFloat", [ DInt64(int64 id); DFloat f ]
-//       | EChar(id, c) -> "EChar", [ DInt64(int64 id); DString c ]
-//       | EString(id, segments) ->
-//         let segments =
-//           DList(
-//             VT.known StringSegment.knownType,
-//             List.map (StringSegment.toDT toDT) segments
-//           )
-//         "EString", [ DInt64(int64 id); segments ]
-
-//       | EList(id, exprs) ->
-//         "EList", [ DInt64(int64 id); Dval.list knownType (List.map toDT exprs) ]
-
-//       | EDict(id, entries) ->
-//         let entries =
-//           entries
-//           |> List.map (fun (k, v) -> DTuple(DString k, toDT v, []))
-//           |> fun entries ->
-//               DList(VT.tuple VT.string (ValueType.known knownType) [], entries)
-//         "EDict", [ DInt64(int64 id); entries ]
-
-//       | ETuple(id, first, second, theRest) ->
-//         "ETuple",
-//         [ DInt64(int64 id)
-//           toDT first
-//           toDT second
-//           Dval.list knownType (List.map toDT theRest) ]
-
-//       | ERecord(id, typeName, fields) ->
-//         let fields =
-//           fields
-//           |> NEList.toList
-//           |> List.map (fun (name, expr) -> DTuple(DString name, toDT expr, []))
-//           |> fun fields ->
-//               DList(VT.tuple VT.string (ValueType.known knownType) [], fields)
-//         "ERecord", [ DInt64(int64 id); FQTypeName.toDT typeName; fields ]
-
-//       | EEnum(id, typeName, caseName, fields) ->
-//         "EEnum",
-//         [ DInt64(int64 id)
-//           FQTypeName.toDT typeName
-//           DString caseName
-//           Dval.list knownType (List.map toDT fields) ]
-
-//       // declaring and accessing variables
-//       | ELet(id, lp, expr, body) ->
-//         "ELet", [ DInt64(int64 id); LetPattern.toDT lp; toDT expr; toDT body ]
-
-//       | ERecordFieldAccess(id, expr, fieldName) ->
-//         "ERecordFieldAccess", [ DInt64(int64 id); toDT expr; DString fieldName ]
-
-//       | EVariable(id, varName) -> "EVariable", [ DInt64(int64 id); DString varName ]
-
-
-//       // control flow
-//       | EIf(id, cond, thenExpr, elseExpr) ->
-//         "EIf",
-//         [ DInt64(int64 id)
-//           toDT cond
-//           toDT thenExpr
-//           elseExpr |> Option.map toDT |> Dval.option knownType ]
-
-//       | EMatch(id, arg, cases) ->
-//         let matchCaseTypeName =
-//           FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.matchCase
-
-//         let cases =
-//           cases
-//           |> NEList.toList
-//           |> List.map (fun case ->
-//             let pattern = MatchPattern.toDT case.pat
-//             let whenCondition =
-//               case.whenCondition |> Option.map toDT |> Dval.option knownType
-//             let expr = toDT case.rhs
-//             DRecord(
-//               matchCaseTypeName,
-//               matchCaseTypeName,
-//               [],
-//               Map
-//                 [ ("pat", pattern)
-//                   ("whenCondition", whenCondition)
-//                   ("rhs", expr) ]
-//             ))
-//           |> Dval.list (KTCustomType(matchCaseTypeName, []))
-//         "EMatch", [ DInt64(int64 id); toDT arg; cases ]
-
-
-//       | ELambda(id, pats, body) ->
-//         let variables =
-//           (NEList.toList pats)
-//           |> List.map LetPattern.toDT
-//           |> Dval.list (KTTuple(VT.int64, VT.string, []))
-//         "ELambda", [ DInt64(int64 id); variables; toDT body ]
-
-//       | EConstant(id, name) ->
-//         "EConstant", [ DInt64(int64 id); FQConstantName.toDT name ]
-
-//       | EApply(id, expr, typeArgs, args) ->
-//         let typeArgs =
-//           typeArgs
-//           |> List.map TypeReference.toDT
-//           |> Dval.list TypeReference.knownType
-//         let args =
-//           Dval.list TypeReference.knownType (args |> NEList.toList |> List.map toDT)
-//         "EApply", [ DInt64(int64 id); toDT expr; typeArgs; args ]
-
-//       | EFnName(id, name) -> "EFnName", [ DInt64(int64 id); FQFnName.toDT name ]
-
-//       | ERecordUpdate(id, record, updates) ->
-//         let updates =
-//           NEList.toList updates
-//           |> List.map (fun (name, expr) -> DTuple(DString name, toDT expr, []))
-//           |> Dval.list (KTTuple(VT.string, VT.known knownType, []))
-//         "ERecordUpdate", [ DInt64(int64 id); toDT record; updates ]
-
-//       | EAnd(id, left, right) -> "EAnd", [ DInt64(int64 id); toDT left; toDT right ]
-
-//       | EOr(id, left, right) -> "EOr", [ DInt64(int64 id); toDT left; toDT right ]
-
-//       // Let the error straight through
-//       | EError(id, rtError, exprs) ->
-//         "EError",
-//         [ DInt64(int64 id)
-//           RuntimeTypes.RuntimeError.toDT rtError
-//           Dval.list knownType (List.map toDT exprs) ]
-
-
-//     DEnum(typeName, typeName, [], caseName, fields)
-
-//   let rec fromDT (d : Dval) : Expr =
-//     match d with
-//     | DEnum(_, _, [], "EUnit", [ DInt64 id ]) -> EUnit(uint64 id)
-
-//     | DEnum(_, _, [], "EBool", [ DInt64 id; DBool b ]) -> EBool(uint64 id, b)
-//     | DEnum(_, _, [], "EInt64", [ DInt64 id; DInt64 i ]) -> EInt64(uint64 id, i)
-//     | DEnum(_, _, [], "EUInt64", [ DInt64 id; DUInt64 i ]) -> EUInt64(uint64 id, i)
-//     | DEnum(_, _, [], "EInt8", [ DInt64 id; DInt8 i ]) -> EInt8(uint64 id, i)
-//     | DEnum(_, _, [], "EUInt8", [ DInt64 id; DUInt8 i ]) -> EUInt8(uint64 id, i)
-//     | DEnum(_, _, [], "EInt16", [ DInt64 id; DInt16 i ]) -> EInt16(uint64 id, i)
-//     | DEnum(_, _, [], "EUInt16", [ DInt64 id; DUInt16 i ]) -> EUInt16(uint64 id, i)
-//     | DEnum(_, _, [], "EInt32", [ DInt64 id; DInt32 i ]) -> EInt32(uint64 id, i)
-//     | DEnum(_, _, [], "EUInt32", [ DInt64 id; DUInt32 i ]) -> EUInt32(uint64 id, i)
-//     | DEnum(_, _, [], "EInt128", [ DInt64 id; DInt128 i ]) -> EInt128(uint64 id, i)
-//     | DEnum(_, _, [], "EUInt128", [ DInt64 id; DUInt128 i ]) ->
-//       EUInt128(uint64 id, i)
-//     | DEnum(_, _, [], "EFloat", [ DInt64 id; DFloat f ]) -> EFloat(uint64 id, f)
-//     | DEnum(_, _, [], "EChar", [ DInt64 id; DString c ]) -> EChar(uint64 id, c)
-//     | DEnum(_, _, [], "EString", [ DInt64 id; DList(_vtTODO, segments) ]) ->
-//       EString(uint64 id, List.map (StringSegment.fromDT fromDT) segments)
-
-
-//     | DEnum(_, _, [], "EList", [ DInt64 id; DList(_vtTODO, inner) ]) ->
-//       EList(uint64 id, List.map fromDT inner)
-
-//     | DEnum(_, _, [], "EDict", [ DInt64 id; DList(_vtTODO, pairsList) ]) ->
-//       let pairs =
-//         pairsList
-//         // TODO: this should be a List.map, and raise an exception
-//         |> List.collect (fun pair ->
-//           match pair with
-//           | DTuple(DString k, v, _) -> [ (k, fromDT v) ]
-//           | _ -> []) // TODO: raise exception
-//       EDict(uint64 id, pairs)
-
-
-//     | DEnum(_, _, [], "ETuple", [ DInt64 id; first; second; DList(_vtTODO, theRest) ]) ->
-//       ETuple(uint64 id, fromDT first, fromDT second, List.map fromDT theRest)
-
-//     | DEnum(_, _, [], "ERecord", [ DInt64 id; typeName; DList(_vtTODO1, fieldsList) ]) ->
-//       let fields =
-//         fieldsList
-//         |> List.collect (fun field ->
-//           match field with
-//           | DTuple(DString name, expr, _) -> [ (name, fromDT expr) ]
-//           | _ -> [])
-//       ERecord(
-//         uint64 id,
-//         FQTypeName.fromDT typeName,
-//         NEList.ofListUnsafe
-//           "RT2DT.Expr.fromDT expected at least one field in ERecord"
-//           []
-//           fields
-//       )
-
-//     | DEnum(_,
-//             _,
-//             [],
-//             "EEnum",
-//             [ DInt64 id; typeName; DString caseName; DList(_vtTODO, fields) ]) ->
-//       EEnum(uint64 id, FQTypeName.fromDT typeName, caseName, List.map fromDT fields)
-
-//     | DEnum(_, _, [], "ELet", [ DInt64 id; lp; expr; body ]) ->
-//       ELet(uint64 id, LetPattern.fromDT lp, fromDT expr, fromDT body)
-
-//     | DEnum(_, _, [], "ERecordFieldAccess", [ DInt64 id; expr; DString fieldName ]) ->
-//       ERecordFieldAccess(uint64 id, fromDT expr, fieldName)
-
-//     | DEnum(_, _, [], "EVariable", [ DInt64 id; DString varName ]) ->
-//       EVariable(uint64 id, varName)
-
-//     | DEnum(_, _, [], "EIf", [ DInt64 id; cond; thenExpr; elseExpr ]) ->
-//       let elseExpr =
-//         match elseExpr with
-//         | DEnum(_, _, _typeArgsDEnumTODO, "Some", [ dv ]) -> Some(fromDT dv)
-//         | DEnum(_, _, _typeArgsDEnumTODO, "None", []) -> None
-//         | _ ->
-//           Exception.raiseInternal "Invalid else expression" [ "elseExpr", elseExpr ]
-//       EIf(uint64 id, fromDT cond, fromDT thenExpr, elseExpr)
-
-//     | DEnum(_, _, [], "EMatch", [ DInt64 id; arg; DList(_vtTODO, cases) ]) ->
-//       let cases =
-//         cases
-//         |> List.collect (fun case ->
-//           match case with
-//           | DRecord(_, _, _, fields) ->
-//             let whenCondition =
-//               match Map.tryFind "whenCondition" fields with
-//               | Some(DEnum(_, _, _, "Some", [ value ])) -> Some(fromDT value)
-//               | Some(DEnum(_, _, _, "None", [])) -> None
-//               | _ -> None
-//             match Map.tryFind "pat" fields, Map.tryFind "rhs" fields with
-//             | Some pat, Some rhs ->
-//               [ { pat = MatchPattern.fromDT pat
-//                   whenCondition = whenCondition
-//                   rhs = fromDT rhs } ]
-//             | _ -> []
-//           | _ -> [])
-//       EMatch(
-//         uint64 id,
-//         fromDT arg,
-//         NEList.ofListUnsafe
-//           "RT2DT.Expr.fromDT expected at least one case in EMatch"
-//           []
-//           cases
-//       )
-
-//     | DEnum(_, _, [], "ELambda", [ DInt64 id; DList(_vtTODO, pats); body ]) ->
-//       let pats =
-//         pats
-//         |> List.map LetPattern.fromDT
-//         |> NEList.ofListUnsafe
-//           "RT2DT.Expr.fromDT expected at least one bound variable in ELambda"
-//           []
-//       ELambda(uint64 id, pats, fromDT body)
-
-
-//     | DEnum(_,
-//             _,
-//             [],
-//             "EApply",
-//             [ DInt64 id; name; DList(_vtTODO1, typeArgs); DList(_vtTODO2, args) ]) ->
-//       let args =
-//         NEList.ofListUnsafe
-//           "RT2DT.Expr.fromDT expected at least one argument in EApply"
-//           []
-//           args
-
-//       EApply(
-//         uint64 id,
-//         fromDT name,
-//         List.map TypeReference.fromDT typeArgs,
-//         NEList.map fromDT args
-//       )
-
-//     | DEnum(_, _, [], "EFnName", [ DInt64 id; name ]) ->
-//       EFnName(uint64 id, FQFnName.fromDT name)
-
-//     | DEnum(_, _, [], "ERecordUpdate", [ DInt64 id; record; DList(_vtTODO, updates) ]) ->
-//       let updates =
-//         updates
-//         |> List.collect (fun update ->
-//           match update with
-//           | DTuple(DString name, expr, _) -> [ (name, fromDT expr) ]
-//           | _ -> [])
-//       ERecordUpdate(
-//         uint64 id,
-//         fromDT record,
-//         NEList.ofListUnsafe
-//           "RT2DT.Expr.fromDT expected at least one field update in ERecordUpdate"
-//           []
-//           updates
-//       )
-
-//     // now for EAnd, EOr and EError
-//     | DEnum(_, _, [], "EAnd", [ DInt64 id; left; right ]) ->
-//       EAnd(uint64 id, fromDT left, fromDT right)
-
-//     | DEnum(_, _, [], "EOr", [ DInt64 id; left; right ]) ->
-//       EOr(uint64 id, fromDT left, fromDT right)
-
-//     | DEnum(_, _, [], "EError", [ DInt64 id; rtError; DList(_vtTODO, exprs) ]) ->
-//       EError(uint64 id, RuntimeError.fromDT rtError, List.map fromDT exprs)
-
-
-//     | e -> Exception.raiseInternal "Invalid Expr" [ "e", e ]
-
-
-module RuntimeError =
-  let toDT (e : RuntimeError) : Dval =
-    e |> RuntimeTypes.RuntimeError.toDT |> Dval.toDT
-
-  let fromDT (d : Dval) : RuntimeError =
-    d |> Dval.fromDT |> RuntimeTypes.RuntimeError.fromDT
+//   let fromDT (d : Dval) : RuntimeError.Error =
+//     d |> Dval.fromDT |> RuntimeTypes.RuntimeError.fromDT
 
 
 module KnownType =
@@ -762,7 +421,7 @@ module KnownType =
           |> Dval.list ValueType.knownType
         "KTFn", [ args; ValueType.toDT ret ]
 
-      | KTDB d -> "KTDB", [ ValueType.toDT d ]
+    // | KTDB d -> "KTDB", [ ValueType.toDT d ]
 
     DEnum(typeName, typeName, [], caseName, fields)
 
@@ -805,7 +464,7 @@ module KnownType =
           (List.map ValueType.fromDT otherArgs),
         ValueType.fromDT ret
       )
-    | DEnum(_, _, [], "KTDB", [ inner ]) -> KTDB(ValueType.fromDT inner)
+    // | DEnum(_, _, [], "KTDB", [ inner ]) -> KTDB(ValueType.fromDT inner)
 
     | _ -> Exception.raiseInternal "Invalid KnownType" []
 
@@ -831,64 +490,70 @@ module ValueType =
     | _ -> Exception.raiseInternal "Invalid ValueType" []
 
 
-module LambdaImpl =
-  let typeName =
-    FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.lambdaImpl
+// module LambdaImpl =
+//   let typeName =
+//     FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.lambdaImpl
 
-  let toDT (l : LambdaImpl) : Dval =
-    let parameters =
-      l.parameters
-      |> NEList.toList
-      |> List.map LetPattern.toDT
-      |> fun p -> DList(VT.tuple VT.int64 VT.string [], p)
-    let fields =
-      [ ("typeSymbolTable",
-         DDict(
-           VT.known TypeReference.knownType,
-           Map.map TypeReference.toDT l.typeSymbolTable
-         ))
-        ("symtable", DDict(VT.known Dval.knownType, Map.map Dval.toDT l.symtable))
-        ("parameters", parameters)
-        ("body", Expr.toDT l.body) ]
+//   let toDT (l : LambdaImpl) : Dval =
+//     let parameters =
+//       l.parameters
+//       |> NEList.toList
+//       |> List.map LetPattern.toDT
+//       |> fun p -> DList(VT.tuple VT.int64 VT.string [], p)
+//     let fields =
+//       [ ("typeSymbolTable",
+//          DDict(
+//            VT.known TypeReference.knownType,
+//            Map.map TypeReference.toDT l.typeSymbolTable
+//          ))
+//         ("symtable", DDict(VT.known Dval.knownType, Map.map Dval.toDT l.symtable))
+//         ("parameters", parameters)
+//         ("body", Expr.toDT l.body) ]
 
-    DRecord(typeName, typeName, [], Map fields)
+//     DRecord(typeName, typeName, [], Map fields)
 
-  let fromDT (d : Dval) : LambdaImpl =
-    match d with
-    | DRecord(_, _, _, fields) ->
-      { typeSymbolTable =
-          fields |> D.mapField "typeSymbolTable" |> Map.map TypeReference.fromDT
+//   let fromDT (d : Dval) : LambdaImpl =
+//     match d with
+//     | DRecord(_, _, _, fields) ->
+//       { typeSymbolTable =
+//           fields |> D.mapField "typeSymbolTable" |> Map.map TypeReference.fromDT
 
-        symtable = fields |> D.mapField "symtable" |> Map.map Dval.fromDT
+//         symtable = fields |> D.mapField "symtable" |> Map.map Dval.fromDT
 
-        parameters =
-          fields
-          |> D.listField "parameters"
-          |> List.map LetPattern.fromDT
-          |> NEList.ofListUnsafe
-            "RT2DT.Dval.fromDT expected at least one parameter in LambdaImpl"
-            []
+//         parameters =
+//           fields
+//           |> D.listField "parameters"
+//           |> List.map LetPattern.fromDT
+//           |> NEList.ofListUnsafe
+//             "RT2DT.Dval.fromDT expected at least one parameter in LambdaImpl"
+//             []
 
-        body = fields |> D.field "body" |> Expr.fromDT }
+//         body = fields |> D.field "body" |> Expr.fromDT }
 
-    | _ -> Exception.raiseInternal "Invalid LambdaImpl" []
+//     | _ -> Exception.raiseInternal "Invalid LambdaImpl" []
 
-module FnValImpl =
-  let typeName =
-    FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.fnValImpl
+// module FnValImpl =
+//   let typeName =
+//     FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.fnValImpl
 
-  let toDT (fnValImpl : FnValImpl) : Dval =
-    let (caseName, fields) =
-      match fnValImpl with
-      //| Lambda lambda -> "Lambda", [ LambdaImpl.toDT lambda ]
-      | NamedFn fnName -> "NamedFn", [ FQFnName.toDT fnName ]
-    DEnum(typeName, typeName, [], caseName, fields)
+//   let toDT (fnValImpl : FnValImpl) : Dval =
+//     let (caseName, fields) =
+//       match fnValImpl with
+//       //| Lambda lambda -> "Lambda", [ LambdaImpl.toDT lambda ]
+//       | NamedFn fnName -> "NamedFn", [ FQFnName.toDT fnName ]
+//     DEnum(typeName, typeName, [], caseName, fields)
 
-  let fromDT (d : Dval) : FnValImpl =
-    match d with
-    //| DEnum(_, _, [], "Lambda", [ lambda ]) -> Lambda(LambdaImpl.fromDT lambda)
-    | DEnum(_, _, [], "NamedFn", [ fnName ]) -> NamedFn(FQFnName.fromDT fnName)
-    | _ -> Exception.raiseInternal "Invalid FnValImpl" []
+//   let fromDT (d : Dval) : FnValImpl =
+//     match d with
+//     //| DEnum(_, _, [], "Lambda", [ lambda ]) -> Lambda(LambdaImpl.fromDT lambda)
+//     | DEnum(_, _, [], "NamedFn", [ fnName ]) -> NamedFn(FQFnName.fromDT fnName)
+//     | _ -> Exception.raiseInternal "Invalid FnValImpl" []
+
+module Applicable =
+  let toDT (applicable : Applicable) : Dval =
+    match applicable with
+    | AppLambda _lambda -> DUnit // TODO
+    | AppNamedFn fnName -> FQFnName.toDT fnName.name
 
 
 
@@ -925,9 +590,9 @@ module Dval =
         "DTuple",
         [ toDT first; toDT second; DList(VT.known knownType, List.map toDT theRest) ]
 
-      | DFnVal fnImpl -> "DFnVal", [ FnValImpl.toDT fnImpl ]
+      // | DDB name -> "DDB", [ DString name ]
 
-      | DDB name -> "DDB", [ DString name ]
+      | DApplicable applicable -> "DApplicable", [ Applicable.toDT applicable ]
 
       | DDict(vt, entries) ->
         "DDict",
@@ -974,9 +639,9 @@ module Dval =
     | DEnum(_, _, [], "DTuple", [ first; second; DList(_vtTODO, theRest) ]) ->
       DTuple(fromDT first, fromDT second, List.map fromDT theRest)
 
-    | DEnum(_, _, [], "DFnVal", [ fnImpl ]) -> DFnVal(FnValImpl.fromDT fnImpl)
+    // | DEnum(_, _, [], "DDB", [ DString name ]) -> DDB name
 
-    | DEnum(_, _, [], "DDB", [ DString name ]) -> DDB name
+    // | DEnum(_, _, [], "DApplicable", [ applicable ]) -> DApplicable(Applicable.fromDT applicable)
 
     | DEnum(_, _, [], "DDateTime", [ DDateTime d ]) -> DDateTime d
     | DEnum(_, _, [], "DUuid", [ DUuid u ]) -> DUuid u
@@ -1013,3 +678,26 @@ module Dval =
       )
 
     | _ -> Exception.raiseInternal "Invalid Dval" []
+
+
+
+// module RuntimeError =
+//   module RT2DT = LibExecution.RuntimeTypesToDarkTypes
+
+//   type Error =
+//     /// In the future, we will add a trait to indicate types which can be serialized. For
+//     /// now, we'll raise a RuntimeError instead if any of those types are present.
+//     /// Helpfully, this allows us keep `serialize` from having to return an Error.
+//     | UnsupportedType of TypeReference
+
+//   let toRuntimeError (e : Error) : RuntimeError =
+//     let (caseName, fields) =
+//       match e with
+//       | UnsupportedType typ -> "UnsupportedType", [ RT2DT.TypeReference.toDT typ ]
+
+//     let typeName =
+//       FQTypeName.fqPackage PackageIDs.Type.LanguageTools.RuntimeError.Json.error
+//     DEnum(typeName, typeName, [], caseName, fields) |> RuntimeError.jsonError
+
+//   let raiseUnsupportedType (callStack : CallStack) (typ : TypeReference) : 'a =
+//     UnsupportedType(typ) |> toRuntimeError |> raiseRTE callStack

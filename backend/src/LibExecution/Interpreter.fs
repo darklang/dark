@@ -102,8 +102,30 @@ let rec checkAndExtractMatchPattern
       | false, _ -> false, []
     | _ -> false, []
 
+  | MPEnum(caseName, fields), DEnum(_, _, _, caseNameActual, fieldsActual) ->
+    if caseName = caseNameActual then rList fields fieldsActual else false, []
+
   // Dval didn't match the pattern even in a basic sense
-  | _ -> false, []
+  | MPVariable _, _
+  | MPUnit, _
+  | MPBool _, _
+  | MPInt64 _, _
+  | MPUInt64 _, _
+  | MPInt8 _, _
+  | MPUInt8 _, _
+  | MPInt16 _, _
+  | MPUInt16 _, _
+  | MPInt32 _, _
+  | MPUInt32 _, _
+  | MPInt128 _, _
+  | MPUInt128 _, _
+  | MPChar _, _
+  | MPString _, _
+  | MPFloat _, _
+  | MPTuple _, _
+  | MPListCons _, _
+  | MPList _, _
+  | MPEnum _, _ -> false, []
 
 
 let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
@@ -309,10 +331,18 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
             |> raiseRTE
 
         // -- Enums --
-        | CreateEnum(enumReg, typeName, _typeArgs, caseName, fields) ->
+        | CreateEnum(enumReg, typeName, typeArgs, caseName, fields) ->
           // TODO: safe dval creation
           let fields = fields |> List.map (fun (valueReg) -> registers[valueReg])
-          registers[enumReg] <- DEnum(typeName, typeName, [], caseName, fields)
+          let! enum =
+            TypeChecker.DvalCreator.enum
+              vm.threadID
+              exeState.types
+              typeName
+              typeArgs
+              caseName
+              fields
+          registers[enumReg] <- enum
 
         | CreateLambda(lambdaReg, impl) ->
           vm.lambdas <- Map.add (currentFrame.context, impl.exprId) impl vm.lambdas

@@ -100,7 +100,7 @@ let fns : List<BuiltInFn> =
           This function is the opposite of <fn Dict.toList>."
       fn =
         (function
-        | _, _, _, [ DList(_, l) ] ->
+        | _, vm, _, [ DList(listType, l) ] ->
           let f acc dv =
             match dv with
             | DTuple(DString k, value, []) -> Map.add k value acc
@@ -110,7 +110,9 @@ let fns : List<BuiltInFn> =
                 [ "dval", dv ]
 
           List.fold f Map.empty l
-          |> TypeChecker.DvalCreator.dictFromMap VT.unknownTODO
+          // CLEANUP: performance
+          |> Map.toList
+          |> TypeChecker.DvalCreator.dict vm.threadID listType
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -150,7 +152,7 @@ let fns : List<BuiltInFn> =
           match result with
           | Some entries ->
             DDict(dictType, entries)
-            |> TypeChecker.DvalCreator.optionSome vmState.callStack optType
+            |> TypeChecker.DvalCreator.optionSome vmState.threadID optType
             |> Ply
           | None -> TypeChecker.DvalCreator.optionNone optType |> Ply
         | _ -> incorrectArgs ())
@@ -159,23 +161,23 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // { name = fn "dictGet" 0
-    //   typeParams = []
-    //   parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TString "" ]
-    //   returnType = TypeReference.option varA
-    //   description =
-    //     "If the <param dict> contains <param key>, returns the corresponding value,
-    //      wrapped in an <type Option>: {{Some value}}. Otherwise, returns {{None}}."
-    //   fn =
-    //     (function
-    //     | state, _, [ DDict(_vtTODO, o); DString s ] ->
-    //       Map.find s o
-    //       |> TypeChecker.DvalCreator.option vmState.callStack VT.unknownTODO
-    //       |> Ply
-    //     | _ -> incorrectArgs ())
-    //   sqlSpec = NotYetImplemented
-    //   previewable = Pure
-    //   deprecated = NotDeprecated }
+    { name = fn "dictGet" 0
+      typeParams = []
+      parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TString "" ]
+      returnType = TypeReference.option varA
+      description =
+        "If the <param dict> contains <param key>, returns the corresponding value,
+         wrapped in an <type Option>: {{Some value}}. Otherwise, returns {{None}}."
+      fn =
+        (function
+        | _, vm, _, [ DDict(_vtTODO, o); DString s ] ->
+          Map.find s o
+          |> TypeChecker.DvalCreator.option vm.threadID VT.unknownTODO
+          |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
 
 
     { name = fn "dictMember" 0
@@ -245,7 +247,7 @@ let fns : List<BuiltInFn> =
     //     "Evaluates {{fn key value}} on every entry in <param dict>. Returns {{()}}."
     //   fn =
     //     (function
-    //     | state, _, [ DDict(_, o); DFnVal b ] ->
+    //     | state, _, _,  [ DDict(_, o); DFnVal b ] ->
     //       uply {
     //         do!
     //           Map.toList o
@@ -285,7 +287,7 @@ let fns : List<BuiltInFn> =
     //      returned {{true}}."
     //   fn =
     //     (function
-    //     | state, _, [ DDict(_vtTODO, o); DFnVal b ] ->
+    //     | state, _, _, [ DDict(_vtTODO, o); DFnVal b ] ->
     //       uply {
     //         let f (key : string) (data : Dval) : Ply<bool> =
     //           uply {
@@ -325,7 +327,7 @@ let fns : List<BuiltInFn> =
     //       This function combines <fn Dict.filter> and <fn Dict.map>."
     //   fn =
     //     (function
-    //     | state, _, [ DDict(_vtTODO, o); DFnVal b ] ->
+    //     | state, _, _, [ DDict(_vtTODO, o); DFnVal b ] ->
     //       uply {
     //         let f (key : string) (data : Dval) : Ply<Option<Dval>> =
     //           uply {
@@ -375,25 +377,27 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // { name = fn "dictMerge" 0
-    //   typeParams = []
-    //   parameters =
-    //     [ Param.make "left" (TDict varA) ""; Param.make "right" (TDict varA) "" ]
-    //   returnType = TDict varA
-    //   description =
-    //     "Returns a combined dictionary with both dictionaries' entries.
-    //     If the same key exists in both <param left> and <param right>,
-    //       it will have the value from <param right>."
-    //   fn =
-    //     (function
-    //     | _, _, _, [ DDict(_vtTODO1, l); DDict(_vtTODO2, r) ] ->
-    //       Map.mergeFavoringRight l r
-    //       |> TypeChecker.DvalCreator.dictFromMap VT.unknownTODO
-    //       |> Ply
-    //     | _ -> incorrectArgs ())
-    //   sqlSpec = NotYetImplemented
-    //   previewable = Pure
-    //   deprecated = NotDeprecated }
+    { name = fn "dictMerge" 0
+      typeParams = []
+      parameters =
+        [ Param.make "left" (TDict varA) ""; Param.make "right" (TDict varA) "" ]
+      returnType = TDict varA
+      description =
+        "Returns a combined dictionary with both dictionaries' entries.
+        If the same key exists in both <param left> and <param right>,
+          it will have the value from <param right>."
+      fn =
+        (function
+        | _, vm, _, [ DDict(_vtTODO1, l); DDict(_vtTODO2, r) ] ->
+          Map.mergeFavoringRight l r
+          // CLEANUP: performance
+          |> Map.toList
+          |> TypeChecker.DvalCreator.dict vm.threadID VT.unknownTODO
+          |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
 
 
     { name = fn "dictSet" 0

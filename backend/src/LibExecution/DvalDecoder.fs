@@ -115,11 +115,6 @@ let field (name : string) (m : DvalMap) : Dval =
   | Some dv -> dv
   | None -> Exception.raiseInternal $"Expected '{name}' field" []
 
-// let stringField (name : string) (m : DvalMap) : string =
-//   m
-//   |> field name
-//   |> getString
-//   |> unwrap $"Expected '{name}' field to be a string" []
 
 // let listField (name : string) (m : DvalMap) : List<Dval> =
 //   m
