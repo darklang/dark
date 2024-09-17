@@ -342,6 +342,32 @@ module RecordUpdate =
   let tests = testList "RecordUpdate" [ simple; notRecord ] // fieldThatShouldNotExist; fieldWithWrongType ]
 
 
+module Infix =
+  module And =
+    let mixed = t "true && false" E.Infix.And.mixed (RT.DBool false)
+    let nested = t "true && (true && false)" E.Infix.And.nested (RT.DBool false)
+    let bothTrue = t "true && true" E.Infix.And.bothTrue (RT.DBool true)
+    let bothFalse = t "false && false" E.Infix.And.bothFalse (RT.DBool false)
+    let tests = testList "And" [ mixed; nested; bothTrue; bothFalse ]
+
+  module Or =
+    let mixed = t "true || false" E.Infix.Or.mixed (RT.DBool true)
+    let nested = t "true || (true || false)" E.Infix.Or.nested (RT.DBool true)
+    let bothTrue = t "true || true" E.Infix.Or.bothTrue (RT.DBool true)
+    let bothFalse = t "false || false" E.Infix.Or.bothFalse (RT.DBool false)
+    let tests = testList "Or" [ mixed; nested; bothTrue; bothFalse ]
+
+  module Add =
+    let simple = t "1 + 2" E.Infix.Add.simple (RT.DInt64 3L)
+    let tests = testList "Add" [ simple ]
+
+  module Subtract =
+    let simple = t "1 - 2" E.Infix.Subtract.simple (RT.DInt64(-1L))
+    let tests = testList "Subtract" [ simple ]
+
+  let tests = testList "Infix" [ And.tests; Or.tests; Add.tests; Subtract.tests ]
+
+
 module Lambdas =
   module Identity =
     let unapplied =
@@ -516,5 +542,6 @@ let tests =
       Records.tests
       RecordFieldAccess.tests
       RecordUpdate.tests
+      Infix.tests
       Lambdas.tests
       Fns.tests ]

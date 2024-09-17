@@ -159,6 +159,22 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
 
         | CopyVal(copyTo, copyFrom) -> registers[copyTo] <- registers[copyFrom]
 
+        | Or(createTo, left, right) ->
+          match registers[left], registers[right] with
+          | DBool l, DBool r -> registers[createTo] <- DBool(l || r)
+          | l, r ->
+            let lvt = Dval.toValueType l
+            let rvt = Dval.toValueType r
+            raiseRTE (RTE.Bool(RTE.Bools.OrOnlySupportsBooleans(lvt, rvt)))
+
+        | And(createTo, left, right) ->
+          match registers[left], registers[right] with
+          | DBool l, DBool r -> registers[createTo] <- DBool(l && r)
+          | l, r ->
+            let lvt = Dval.toValueType l
+            let rvt = Dval.toValueType r
+            raiseRTE (RTE.Bool(RTE.Bools.AndOnlySupportsBooleans(lvt, rvt)))
+
 
         // == Working with Variables ==
         | CheckLetPatternAndExtractVars(valueReg, pat) ->

@@ -122,22 +122,23 @@ module TypeReference =
 //| PT.TDB typ -> RT.TDB(toRT typ)
 
 
-// module InfixFnName =
-//   let toFnName (name : PT.InfixFnName) : (string * int) =
-//     match name with
-//     | PT.ArithmeticPlus -> ("int64Add", 0)
-//     | PT.ArithmeticMinus -> ("int64Subtract", 0)
-//     | PT.ArithmeticMultiply -> ("int64Multiply", 0)
-//     | PT.ArithmeticDivide -> ("floatDivide", 0)
-//     | PT.ArithmeticModulo -> ("int64Mod", 0)
-//     | PT.ArithmeticPower -> ("int64Power", 0)
-//     | PT.ComparisonGreaterThan -> ("int64GreaterThan", 0)
-//     | PT.ComparisonGreaterThanOrEqual -> ("int64GreaterThanOrEqualTo", 0)
-//     | PT.ComparisonLessThan -> ("int64LessThan", 0)
-//     | PT.ComparisonLessThanOrEqual -> ("int64LessThanOrEqualTo", 0)
-//     | PT.StringConcat -> ("stringAppend", 0)
-//     | PT.ComparisonEquals -> ("equals", 0)
-//     | PT.ComparisonNotEquals -> ("notEquals", 0)
+module InfixFnName =
+  let toFnName (name : PT.InfixFnName) : RT.FQFnName.Builtin =
+    let make = RT.FQFnName.builtin
+    match name with
+    | PT.ArithmeticPlus -> make "int64Add" 0
+    | PT.ArithmeticMinus -> make "int64Subtract" 0
+    | PT.ArithmeticMultiply -> make "int64Multiply" 0
+    | PT.ArithmeticDivide -> make "floatDivide" 0
+    | PT.ArithmeticModulo -> make "int64Mod" 0
+    | PT.ArithmeticPower -> make "int64Power" 0
+    | PT.ComparisonGreaterThan -> make "int64GreaterThan" 0
+    | PT.ComparisonGreaterThanOrEqual -> make "int64GreaterThanOrEqualTo" 0
+    | PT.ComparisonLessThan -> make "int64LessThan" 0
+    | PT.ComparisonLessThanOrEqual -> make "int64LessThanOrEqualTo" 0
+    | PT.StringConcat -> make "stringAppend" 0
+    | PT.ComparisonEquals -> make "equals" 0
+    | PT.ComparisonNotEquals -> make "notEquals" 0
 
 
 module LetPattern =
@@ -501,6 +502,55 @@ module Expr =
         { registerCount = elseInstrs.registerCount
           instructions = instrs
           resultIn = resultReg }
+
+
+    | PT.EInfix(_, PT.BinOp op, left, right) ->
+      let left = toRT symbols rc left
+      let right = toRT symbols left.registerCount right
+
+      let resultReg, rcAfterResult = right.registerCount, right.registerCount + 1
+
+      let opInstr =
+        match op with
+        | PT.BinOpOr -> RT.Or(resultReg, left.resultIn, right.resultIn)
+        | PT.BinOpAnd -> RT.And(resultReg, left.resultIn, right.resultIn)
+
+      { registerCount = rcAfterResult
+        instructions = left.instructions @ right.instructions @ [ opInstr ]
+        resultIn = resultReg }
+
+
+
+    | PT.EInfix(_, PT.InfixFnCall infix, left, right) ->
+      let left = toRT symbols rc left
+      let right = toRT symbols left.registerCount right
+      let infixInstr, infixRc, rcAfterInfix =
+        RT.LoadVal(
+          right.registerCount,
+          RT.AppNamedFn
+            { name = InfixFnName.toFnName infix |> RT.FQFnName.Builtin
+              argsSoFar = [] }
+          |> RT.DApplicable
+        ),
+        right.registerCount,
+        right.registerCount + 1
+
+      let resultReg, rcAfterResult = rcAfterInfix, rcAfterInfix + 1
+
+      { registerCount = rcAfterResult
+        instructions =
+          left.instructions
+          @ right.instructions
+          @ [ infixInstr ]
+          @ [ RT.Apply(
+                resultReg,
+                infixRc,
+                [],
+                NEList.ofList left.resultIn [ right.resultIn ]
+              ) ]
+        resultIn = resultReg }
+
+
 
 
     | PT.EFnName(_, Ok name) ->

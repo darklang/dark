@@ -77,6 +77,10 @@ let eRecordUpdate (expr : Expr) (updates : List<string * Expr>) : Expr =
 //   EEnum(gid (), typeName, name, args)
 
 
+let eInfix (op : Infix) (left : Expr) (right : Expr) : Expr =
+  EInfix(gid (), op, left, right)
+
+
 let eBuiltinFn (name : string) (version : int) : Expr =
   EFnName(gid (), Ok(FQFnName.fqBuiltIn name version))
 

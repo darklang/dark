@@ -246,6 +246,28 @@ module Expressions =
       eRecordUpdate Records.simple [ "bonus", eBool false ]
     let fieldWithWrongType = eRecordUpdate Records.simple [ "key", eInt64 1 ]
 
+  module Infix =
+    module And =
+      let mixed = eInfix (PT.Infix.BinOp PT.BinOpAnd) (eBool true) (eBool false)
+      let nested = eInfix (PT.Infix.BinOp PT.BinOpAnd) mixed (eBool true)
+      let bothTrue = eInfix (PT.Infix.BinOp PT.BinOpAnd) (eBool true) (eBool true)
+      let bothFalse = eInfix (PT.Infix.BinOp PT.BinOpAnd) (eBool false) (eBool false)
+
+    module Or =
+      let mixed = eInfix (PT.Infix.BinOp PT.BinOpOr) (eBool true) (eBool false)
+      let nested = eInfix (PT.Infix.BinOp PT.BinOpOr) mixed (eBool true)
+      let bothTrue = eInfix (PT.Infix.BinOp PT.BinOpOr) (eBool true) (eBool true)
+      let bothFalse = eInfix (PT.Infix.BinOp PT.BinOpOr) (eBool false) (eBool false)
+
+    module Add =
+      let simple =
+        eInfix (PT.Infix.InfixFnCall PT.ArithmeticPlus) (eInt64 1) (eInt64 2)
+
+    module Subtract =
+      let simple =
+        eInfix (PT.Infix.InfixFnCall PT.ArithmeticMinus) (eInt64 1) (eInt64 2)
+
+
 
   // TODO: test nested lambdas
   module Lambdas =

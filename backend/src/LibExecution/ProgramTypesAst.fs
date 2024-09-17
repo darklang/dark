@@ -84,6 +84,7 @@ let rec symbolsUsedIn (expr : Expr) : Set<string> =
       (updates |> NEList.toList |> List.map (fun (_, e) -> r e) |> Set.unionMany)
 
   // things that can be applied
+  | EInfix(_, _, left, right) -> Set.union (r left) (r right)
   | EFnName(_, _) -> Set.empty
   | ELambda(_, _, body) -> r body
   | EApply(_, thingToApply, _, args) ->

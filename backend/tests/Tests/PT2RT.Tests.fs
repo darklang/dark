@@ -658,6 +658,66 @@ module Expr =
         [ simple; notRecord; fieldThatShouldNotExist; fieldWithWrongType ]
 
 
+  (*
+  module Infix =
+    module And =
+      let mixed = eInfix (PT.Infix.BinOp PT.BinOpAnd) (eBool true) (eBool false)
+      let nested = eInfix (PT.Infix.BinOp PT.BinOpAnd) mixed (eBool true)
+      let bothTrue = eInfix (PT.Infix.BinOp PT.BinOpAnd) (eBool true) (eBool true)
+      let bothFalse = eInfix (PT.Infix.BinOp PT.BinOpAnd) (eBool false) (eBool false)
+
+    module Or =
+      let mixed = eInfix (PT.Infix.BinOp PT.BinOpOr) (eBool true) (eBool false)
+      let nested = eInfix (PT.Infix.BinOp PT.BinOpOr) mixed (eBool true)
+      let bothTrue = eInfix (PT.Infix.BinOp PT.BinOpOr) (eBool true) (eBool true)
+      let bothFalse = eInfix (PT.Infix.BinOp PT.BinOpOr) (eBool false) (eBool false)
+
+    module Add =
+      let simple =
+        eInfix (PT.Infix.InfixFnCall PT.ArithmeticPlus) (eInt64 1) (eInt64 2)
+
+    module Subtract =
+      let simple =
+        eInfix (PT.Infix.InfixFnCall PT.ArithmeticMinus) (eInt64 1) (eInt64 2)*)
+
+
+  module Infix =
+    module And =
+      let mixed =
+        t
+          "true && false"
+          E.Infix.And.mixed
+          (3,
+           [ RT.LoadVal(0, RT.DBool true)
+             RT.LoadVal(1, RT.DBool false)
+             RT.And(2, 0, 1) ],
+           2)
+      let tests = testList "And" [ mixed ]
+
+    module Add =
+      let simple =
+        t
+          "1 + 2"
+          E.Infix.Add.simple
+          (4,
+           [ RT.LoadVal(0, RT.DInt64 1L)
+             RT.LoadVal(1, RT.DInt64 2L)
+             RT.LoadVal(
+               2,
+               RT.DApplicable(
+                 RT.AppNamedFn
+                   { name = RT.FQFnName.fqBuiltin "int64Add" 0; argsSoFar = [] }
+               )
+             )
+             RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ],
+           3)
+      let tests = testList "Add" [ simple ]
+
+
+    let tests = testList "Infix" [ And.tests; Add.tests ]
+
+
+
   module Lambda =
     module Identity =
 
@@ -1032,6 +1092,7 @@ module Expr =
         Records.tests
         RecordFieldAccess.tests
         RecordUpdate.tests
+        Infix.tests
         Lambda.tests
         Fns.tests ]
 

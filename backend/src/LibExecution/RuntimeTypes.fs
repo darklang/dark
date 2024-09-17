@@ -325,6 +325,9 @@ type Instruction =
 
   | CopyVal of copyTo : Register * copyFrom : Register
 
+  | Or of createTo : Register * lhs : Register * rhs : Register
+  | And of createTo : Register * lhs : Register * rhs : Register
+
   // == Working with Basic Types ==
   | CreateString of createTo : Register * segments : List<StringSegment>
 
@@ -737,8 +740,8 @@ module RuntimeError =
 
   module Bools =
     type Error =
-      // | AndOnlySupportsBooleans of gotInstead: Dval
-      // | OrOnlySupportsBooleans of gotInstead: Dval
+      | AndOnlySupportsBooleans of gotLeft : ValueType * gotRight : ValueType
+      | OrOnlySupportsBooleans of gotRight : ValueType * gotLeft : ValueType
       | ConditionRequiresBool of actualValueType : ValueType * actualValue : Dval
 
   module Strings =

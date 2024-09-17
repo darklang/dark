@@ -338,8 +338,8 @@ type Expr =
   // from the analysis engine
   | ELambda of id * pats : NEList<LetPattern> * body : Expr
 
-  // /// Calls upon an infix function
-  // | EInfix of id * Infix * lhs : Expr * rhs : Expr
+  /// Calls upon an infix function
+  | EInfix of id * Infix * lhs : Expr * rhs : Expr
 
 
   // -- References to custom types and data --
@@ -428,7 +428,7 @@ module Expr =
     // | EConstant(id, _)
     | ELet(id, _, _, _)
     | EIf(id, _, _, _)
-    //| EInfix(id, _, _, _)
+    | EInfix(id, _, _, _)
     | ELambda(id, _, _)
     | EFnName(id, _)
     | EVariable(id, _)
