@@ -16,80 +16,30 @@ module NEList =
 
 
 module NameResolutionError =
-  module NameType =
-    let toST
-      (nameType : LibExecution.NameResolutionError.NameType)
-      : ST.NameResolutionError.NameType =
-      match nameType with
-      | LibExecution.NameResolutionError.Type -> ST.NameResolutionError.Type
-      | LibExecution.NameResolutionError.Function -> ST.NameResolutionError.Function
-      | LibExecution.NameResolutionError.Constant -> ST.NameResolutionError.Constant
-
-    let toPT
-      (nameType : ST.NameResolutionError.NameType)
-      : LibExecution.NameResolutionError.NameType =
-      match nameType with
-      | ST.NameResolutionError.Type -> LibExecution.NameResolutionError.Type
-      | ST.NameResolutionError.Function -> LibExecution.NameResolutionError.Function
-      | ST.NameResolutionError.Constant -> LibExecution.NameResolutionError.Constant
+  let toST (err : PT.NameResolutionError) : ST.NameResolutionError =
+    match err with
+    | PT.NameResolutionError.NotFound names -> ST.NameResolutionError.NotFound names
+    | PT.NameResolutionError.InvalidName names ->
+      ST.NameResolutionError.InvalidName names
 
 
-  module ErrorType =
-    let toST
-      (err : LibExecution.NameResolutionError.ErrorType)
-      : ST.NameResolutionError.ErrorType =
-      match err with
-      | LibExecution.NameResolutionError.NotFound names ->
-        ST.NameResolutionError.NotFound names
-      | LibExecution.NameResolutionError.MissingEnumModuleName caseName ->
-        ST.NameResolutionError.MissingEnumModuleName caseName
-      | LibExecution.NameResolutionError.InvalidPackageName names ->
-        ST.NameResolutionError.InvalidPackageName names
-      | LibExecution.NameResolutionError.ExpectedEnumButNot packageTypeID ->
-        ST.NameResolutionError.ExpectedEnumButNot packageTypeID
-      | LibExecution.NameResolutionError.ExpectedRecordButNot packageTypeID ->
-        ST.NameResolutionError.ExpectedRecordButNot packageTypeID
-
-
-    let toPT
-      (err : ST.NameResolutionError.ErrorType)
-      : LibExecution.NameResolutionError.ErrorType =
-      match err with
-      | ST.NameResolutionError.ErrorType.NotFound names ->
-        LibExecution.NameResolutionError.NotFound names
-      | ST.NameResolutionError.MissingEnumModuleName caseName ->
-        LibExecution.NameResolutionError.MissingEnumModuleName caseName
-      | ST.NameResolutionError.InvalidPackageName names ->
-        LibExecution.NameResolutionError.InvalidPackageName names
-      | ST.NameResolutionError.ExpectedEnumButNot packageTypeID ->
-        LibExecution.NameResolutionError.ExpectedEnumButNot packageTypeID
-      | ST.NameResolutionError.ExpectedRecordButNot packageTypeID ->
-        LibExecution.NameResolutionError.ExpectedRecordButNot packageTypeID
-
-  module Error =
-    let toST
-      (err : LibExecution.NameResolutionError.Error)
-      : ST.NameResolutionError.Error =
-      { nameType = NameType.toST err.nameType
-        errorType = ErrorType.toST err.errorType }
-
-    let toPT
-      (err : ST.NameResolutionError.Error)
-      : LibExecution.NameResolutionError.Error =
-      { errorType = ErrorType.toPT err.errorType
-        nameType = NameType.toPT err.nameType }
+  let toPT (err : ST.NameResolutionError) : PT.NameResolutionError =
+    match err with
+    | ST.NameResolutionError.NotFound names -> PT.NameResolutionError.NotFound names
+    | ST.NameResolutionError.InvalidName names ->
+      PT.NameResolutionError.InvalidName names
 
 
 module NameResolution =
   let toST (f : 'p -> 's) (result : PT.NameResolution<'p>) : ST.NameResolution<'s> =
     match result with
     | Ok name -> Ok(f name)
-    | Error err -> Error(NameResolutionError.Error.toST err)
+    | Error err -> Error(NameResolutionError.toST err)
 
   let toPT (f : 's -> 'p) (result : ST.NameResolution<'s>) : PT.NameResolution<'p> =
     match result with
     | Ok name -> Ok(f name)
-    | Error err -> Error(NameResolutionError.Error.toPT err)
+    | Error err -> Error(NameResolutionError.toPT err)
 
 
 module FQTypeName =
@@ -213,7 +163,7 @@ module TypeReference =
     | PT.TTuple(first, second, theRest) ->
       ST.TTuple(toST first, toST second, List.map toST theRest)
     | PT.TDict typ -> ST.TDict(toST typ)
-    | PT.TDB typ -> ST.TDB(toST typ)
+    //| PT.TDB typ -> ST.TDB(toST typ)
     | PT.TDateTime -> ST.TDateTime
     | PT.TChar -> ST.TChar
     | PT.TUuid -> ST.TUuid
@@ -243,7 +193,7 @@ module TypeReference =
     | ST.TTuple(firstType, secondType, otherTypes) ->
       PT.TTuple(toPT firstType, toPT secondType, List.map toPT otherTypes)
     | ST.TDict typ -> PT.TDict(toPT typ)
-    | ST.TDB typ -> PT.TDB(toPT typ)
+    //| ST.TDB typ -> PT.TDB(toPT typ)
     | ST.TDateTime -> PT.TDateTime
     | ST.TChar -> PT.TChar
     | ST.TUuid -> PT.TUuid
@@ -385,10 +335,11 @@ module Expr =
     | PT.EList(id, exprs) -> ST.EList(id, List.map toST exprs)
     | PT.ETuple(id, first, second, theRest) ->
       ST.ETuple(id, toST first, toST second, List.map toST theRest)
-    | PT.ERecord(id, typeName, fields) ->
+    | PT.ERecord(id, typeName, typeArgs, fields) ->
       ST.ERecord(
         id,
         NameResolution.toST FQTypeName.toST typeName,
+        List.map TypeReference.toST typeArgs,
         List.map (Tuple2.mapSecond toST) fields
       )
     | PT.ERecordUpdate(id, record, updates) ->
@@ -399,10 +350,11 @@ module Expr =
       )
     | PT.EPipe(pipeID, expr1, rest) ->
       ST.EPipe(pipeID, toST expr1, List.map pipeExprToST rest)
-    | PT.EEnum(id, typeName, caseName, fields) ->
+    | PT.EEnum(id, typeName, typeArgs, caseName, fields) ->
       ST.EEnum(
         id,
         NameResolution.toST FQTypeName.toST typeName,
+        List.map TypeReference.toST typeArgs,
         caseName,
         List.map toST fields
       )
@@ -486,10 +438,11 @@ module Expr =
     | ST.EList(id, exprs) -> PT.EList(id, List.map toPT exprs)
     | ST.ETuple(id, first, second, theRest) ->
       PT.ETuple(id, toPT first, toPT second, List.map toPT theRest)
-    | ST.ERecord(id, typeName, fields) ->
+    | ST.ERecord(id, typeName, typeArgs, fields) ->
       PT.ERecord(
         id,
         NameResolution.toPT FQTypeName.toPT typeName,
+        List.map TypeReference.toPT typeArgs,
         List.map (Tuple2.mapSecond toPT) fields
       )
     | ST.ERecordUpdate(id, record, updates) ->
@@ -500,10 +453,11 @@ module Expr =
       )
     | ST.EPipe(pipeID, expr1, rest) ->
       PT.EPipe(pipeID, toPT expr1, List.map pipeExprToPT rest)
-    | ST.EEnum(id, typeName, caseName, exprs) ->
+    | ST.EEnum(id, typeName, typeArgs, caseName, exprs) ->
       PT.EEnum(
         id,
         NameResolution.toPT FQTypeName.toPT typeName,
+        List.map TypeReference.toPT typeArgs,
         caseName,
         List.map toPT exprs
       )

@@ -19,7 +19,7 @@
 
     <!-- cloud -->
     <!--ProjectReference Include="../../src/LibClientTypes/LibClientTypes.fsproj" /-->
-    <!--ProjectReference Include="../../src/LibBinarySerialization/LibBinarySerialization.fsproj" /-->
+    <ProjectReference Include="../../src/LibBinarySerialization/LibBinarySerialization.fsproj" />
     <!--ProjectReference Include="../../src/BwdServer/BwdServer.fsproj" /-->
     <!--ProjectReference Include="../../src/BuiltinCloudExecution/BuiltinCloudExecution.fsproj" /-->
     <!--ProjectReference Include="../../src/LibCloudExecution/LibCloudExecution.fsproj" /-->

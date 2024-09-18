@@ -275,9 +275,9 @@ let parseTestFile
     let pm =
       pm
       |> PT.PackageManager.withExtras
-          (afterFirstPass |> List.collect _.types)
-          (afterFirstPass |> List.collect _.constants)
-          (afterFirstPass |> List.collect _.fns)
+        (afterFirstPass |> List.collect _.types)
+        (afterFirstPass |> List.collect _.constants)
+        (afterFirstPass |> List.collect _.fns)
 
     let! (afterSecondPass : List<PTModule>) =
       modulesWT |> Ply.List.mapSequentially (toPT owner builtins pm onMissing)

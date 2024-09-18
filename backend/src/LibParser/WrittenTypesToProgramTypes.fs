@@ -270,7 +270,7 @@ module Expr =
                 return (fieldName, fieldExpr)
               })
             fields
-        let typeArgs = []// TODO
+        let typeArgs = [] // TODO
         return PT.ERecord(id, typeName, typeArgs, fields)
       | WT.ERecordUpdate(id, record, updates) ->
         let! record = toPT record
@@ -383,9 +383,9 @@ module Expr =
         return PT.EPipeInfix(id, Infix.toPT infix, first)
 
       | WT.EPipeFnCall(id,
-                      (WT.Unresolved { head = varName; tail = [] } as name),
-                      [],
-                      args) ->
+                       (WT.Unresolved { head = varName; tail = [] } as name),
+                       [],
+                       args) ->
         // Special case for variables with arguments. Since it could be a userfn, we
         // need to check that first. We do a similar thing converting EFnNames.
         let! fnName =

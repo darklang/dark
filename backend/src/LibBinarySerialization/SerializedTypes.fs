@@ -96,30 +96,13 @@ module FQFnName =
     | Package of Package
 
 
-module NameResolutionError =
-  [<MessagePack.MessagePackObject>]
-  type ErrorType =
-    | NotFound of names : List<string>
-    | ExpectedEnumButNot of packageTypeID : uuid
-    | ExpectedRecordButNot of packageTypeID : uuid
-    | MissingEnumModuleName of caseName : string
-    | InvalidPackageName of names : List<string>
-
-  [<MessagePack.MessagePackObject>]
-  type NameType =
-    | Function
-    | Type
-    | Constant
-
-  [<MessagePack.MessagePackObject>]
-  type Error =
-    { [<MessagePack.Key 0>]
-      errorType : ErrorType
-      [<MessagePack.Key 1>]
-      nameType : NameType }
+[<MessagePack.MessagePackObject>]
+type NameResolutionError =
+  | NotFound of List<string>
+  | InvalidName of List<string>
 
 [<MessagePack.MessagePackObject>]
-type NameResolution<'a> = Result<'a, NameResolutionError.Error>
+type NameResolution<'a> = Result<'a, NameResolutionError>
 
 
 
@@ -141,7 +124,7 @@ type TypeReference =
   | TString
   | TList of TypeReference
   | TDict of TypeReference
-  | TDB of TypeReference
+  //| TDB of TypeReference
   | TDateTime
   | TChar
   | TUuid
@@ -245,12 +228,14 @@ type Expr =
   | ERecord of
     id *
     typeName : NameResolution<FQTypeName.FQTypeName> *
+    typeArgs : List<TypeReference> *
     fields : List<string * Expr>
   | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
   | EPipe of id * Expr * List<PipeExpr>
   | EEnum of
     id *
     typeName : NameResolution<FQTypeName.FQTypeName> *
+    typeArgs : List<TypeReference> *
     caseName : string *
     fields : List<Expr>
   | EMatch of id * Expr * List<MatchCase>
