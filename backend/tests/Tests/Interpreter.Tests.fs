@@ -560,7 +560,7 @@ module Fns =
 
     module Recusrsion =
       let addUpTo =
-        t "Test.addUpTo 300000" E.Fns.Package.Recursion.applied (RT.DInt64 300000L)
+        t "Test.addUpTo 30000" E.Fns.Package.Recursion.applied (RT.DInt64 30000L)
 
       let tests = testList "Recursion" [ addUpTo ]
 

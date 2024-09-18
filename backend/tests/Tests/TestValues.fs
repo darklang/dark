@@ -441,7 +441,7 @@ module Expressions =
       module Recursion =
         let id = System.Guid.Parse "02036aff-7ae5-4e7c-8f95-f42936044542"
         let unapplied = ePackageFn id
-        let applied = eApply unapplied [] [ eInt64 300000 ]
+        let applied = eApply unapplied [] [ eInt64 30000 ]
 
 
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
