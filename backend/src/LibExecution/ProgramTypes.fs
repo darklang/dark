@@ -155,6 +155,12 @@ module LetPattern =
           rest |> List.map symbolsUsed |> Set.unionMany ]
     | LPUnit _ -> Set.empty
 
+  let toID (pattern : LetPattern) : id =
+    match pattern with
+    | LPVariable(id, _)
+    | LPTuple(id, _, _, _)
+    | LPUnit id -> id
+
 
 /// Used for pattern matching in a match statement
 type MatchPattern =
@@ -278,7 +284,7 @@ type Expr =
   // Allow the user to have arbitrarily big numbers, even if they don't make sense as
   // floats. The float is split as we want to preserve what the user entered.
   // Strings are used as numbers lose the leading zeros (eg 7.00007)
-  | EFloat of id * Sign * string * string
+  | EFloat of id * Sign * whole: string * part: string
 
   /// A character is an Extended Grapheme Cluster (hence why we use a string). This
   /// is equivalent to one screen-visible "character" in Unicode.

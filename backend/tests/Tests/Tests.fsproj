@@ -47,7 +47,7 @@
     <Compile Include="AnalysisTypes.Tests.fs" />
     <!--Compile Include="Execution.Tests.fs" /-->
     <Compile Include="PackageManager.Tests.fs" />
-    <!--Compile Include="LibParser.Tests.fs" /-->
+    <Compile Include="LibParser.Tests.fs" />
     <!--Compile Include="NewParser.Tests.fs" /-->
     <!--Compile Include="HttpClient.Tests.fs" /-->
     <!--Compile Include="LibExecution.Tests.fs" /-->

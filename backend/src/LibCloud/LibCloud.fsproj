@@ -14,7 +14,7 @@
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
-    <!--ProjectReference Include="../LibBinarySerialization/LibBinarySerialization.fsproj" /-->
+    <ProjectReference Include="../LibBinarySerialization/LibBinarySerialization.fsproj" />
     <ProjectReference Include="../LibService/LibService.fsproj" />
   </ItemGroup>
   <ItemGroup>
@@ -31,7 +31,7 @@
     <!--Compile Include="SqlCompiler.fs" /-->
     <!--Compile Include="UserDB.fs" /-->
     <!--Compile Include="Serialize.fs" /-->
-    <!--Compile Include="PackageManager.fs" /-->
+    <Compile Include="PackageManager.fs" />
     <!--Compile Include="TraceCloudStorage.fs" /-->
     <Compile Include="QueueSchedulingRules.fs" />
     <Compile Include="Pusher.fs" />

@@ -399,46 +399,10 @@ module Expect =
       let path = path @ [ "value" ] |> List.reverse |> String.concat "."
       $" `{path}` of"
 
-  // let rec letPatternEqualityBaseFn
-  //   (checkIDs : bool)
-  //   (path : Path)
-  //   (actual : LetPattern)
-  //   (expected : LetPattern)
-  //   (errorFn : Path -> string -> string -> unit)
-  //   : unit =
-  //   let check path (a : 'a) (e : 'a) =
-  //     if a <> e then errorFn path (string actual) (string expected)
-
-  //   if checkIDs then check path (LetPattern.toID actual) (LetPattern.toID expected)
-
-  //   match actual, expected with
-  //   | LPVariable(_, name), LPVariable(_, name') -> check path name name'
-  //   | LPUnit(_), LPUnit(_) -> ()
-  //   | LPTuple(_, first, second, theRest), LPTuple(_, first', second', theRest') ->
-  //     let all = first :: second :: theRest
-  //     let all' = first' :: second' :: theRest'
-  //     let zipped = List.zip all all'
-  //     List.iter
-  //       (fun (a, e) ->
-  //         letPatternEqualityBaseFn checkIDs (path @ [ "tuple" ]) a e errorFn)
-  //       zipped
-
-  //   // exhaustive match
-  //   | LPVariable _, _
-  //   | LPUnit _, _
-  //   | LPTuple _, _ -> errorFn path (string actual) (string expected)
 
 
-  let rec userTypeNameEqualityBaseFn
-    (path : Path)
-    (actual : FQTypeName.FQTypeName)
-    (expected : FQTypeName.FQTypeName)
-    (errorFn : Path -> string -> string -> unit)
-    : unit =
-    let err () = errorFn path (string actual) (string expected)
 
-    match actual, expected with
-    | FQTypeName.Package a, FQTypeName.Package e -> if a <> e then err ()
+
 
   // let rec matchPatternEqualityBaseFn
   //   (checkIDs : bool)
@@ -507,391 +471,546 @@ module Expect =
   //   | MPListCons _, _
   //   | MPList _, _ -> check path actual expected
 
-
-
-  let dTypeEqualityBaseFn
-    (path : Path)
-    (actual : TypeReference)
-    (expected : TypeReference)
-    (errorFn : Path -> string -> string -> unit)
-    : unit =
-    // as long as TypeReferences don't get IDs, depending on structural equality is OK
-    if actual <> expected then errorFn path (string actual) (string expected)
-
-
-
-  // let rec exprEqualityBaseFn
-  //   (checkIDs : bool)
-  //   (path : Path)
-  //   (actual : Expr)
-  //   (expected : Expr)
-  //   (errorFn : Path -> string -> string -> unit)
-  //   : unit =
-  //   let eq path a e = exprEqualityBaseFn checkIDs path a e errorFn
-
-  //   let check path (a : 'a) (e : 'a) =
-  //     if a <> e then errorFn path (string actual) (string expected)
-
-  //   let eqList path (l1 : List<RT.Expr>) (l2 : List<RT.Expr>) =
-  //     List.iteri2 (fun i -> eq (string i :: path)) l1 l2
-  //     check path (List.length l1) (List.length l2)
-
-  //   let eqNEList path (l1 : NEList<RT.Expr>) (l2 : NEList<RT.Expr>) =
-  //     NEList.iteri2 (fun i -> eq (string i :: path)) l1 l2
-  //     check path (NEList.length l1) (NEList.length l2)
-
-  //   if checkIDs then check path (Expr.toID actual) (Expr.toID expected)
-
-  //   match actual, expected with
-  //   // expressions with no values
-  //   | EUnit _, EUnit _ -> ()
-
-
-  //   // Simple exprs
-  //   | EBool(_, v), EBool(_, v') -> check path v v'
-
-  //   // | EInt8(_, v), EInt8(_, v') -> check path v v'
-  //   // | EUInt8(_, v), EUInt8(_, v') -> check path v v'
-  //   // | EInt16(_, v), EInt16(_, v') -> check path v v'
-  //   // | EUInt16(_, v), EUInt16(_, v') -> check path v v'
-  //   // | EInt32(_, v), EInt32(_, v') -> check path v v'
-  //   // | EUInt32(_, v), EUInt32(_, v') -> check path v v'
-  //   | EInt64(_, v), EInt64(_, v') -> check path v v'
-  //   // | EUInt64(_, v), EUInt64(_, v') -> check path v v'
-  //   // | EInt128(_, v), EInt128(_, v') -> check path v v'
-  //   // | EUInt128(_, v), EUInt128(_, v') -> check path v v'
-
-  //   // | EFloat(_, v), EFloat(_, v') -> check path v v'
-
-  //   // expressions with single string values
-  //   | EString(_, s), EString(_, s') ->
-  //     let rec checkSegment s s' =
-  //       match s, s' with
-  //       | StringText s, StringText s' -> check path s s'
-  //       | StringInterpolation e, StringInterpolation e' -> eq path e e'
-  //       | _ -> check path s s'
-  //     List.iter2 checkSegment s s'
-
-  //   // | EChar(_, v), EChar(_, v')
-  //   // | EVariable(_, v), EVariable(_, v') -> check path v v'
-  //   // | EConstant(_, name), EConstant(_, name') -> check path name name'
-  //   // | ELet(_, pat, rhs, body), ELet(_, pat', rhs', body') ->
-  //   //   letPatternEqualityBaseFn checkIDs path pat pat' errorFn
-  //   //   eq ("rhs" :: path) rhs rhs'
-  //   //   eq ("body" :: path) body body'
-  //   // | EIf(_, con, thn, els), EIf(_, con', thn', els') ->
-  //   //   eq ("cond" :: path) con con'
-  //   //   eq ("then" :: path) thn thn'
-  //   //   match els, els' with
-  //   //   | Some el, Some el' -> eq ("else" :: path) el el'
-  //   //   | None, None -> ()
-  //   //   | _ ->
-  //   //     errorFn ("else" :: path) (string actual) (string expected)
-  //   //     ()
-
-  //   // | EList(_, l), EList(_, l') -> eqList path l l'
-  //   // | ETuple(_, first, second, theRest), ETuple(_, first', second', theRest') ->
-  //   //   eq ("first" :: path) first first'
-  //   //   eq ("second" :: path) second second'
-  //   //   eqList path theRest theRest'
-
-  //   | EApply(_, name, typeArgs, args), EApply(_, name', typeArgs', args') ->
-  //     let path = (string name :: path)
-  //     eq path name name'
-
-  //     check path (List.length typeArgs) (List.length typeArgs')
-  //     List.iteri2
-  //       (fun i l r -> dTypeEqualityBaseFn (string i :: path) l r errorFn)
-  //       typeArgs
-  //       typeArgs'
-
-  //     eqNEList path args args'
-
-  //   | EFnName(_, name), EFnName(_, name') -> check path name name'
-
-  //   // | ERecord(_, typeName, fields), ERecord(_, typeName', fields') ->
-  //   //   userTypeNameEqualityBaseFn path typeName typeName' errorFn
-  //   //   NEList.iter2
-  //   //     (fun (k, v) (k', v') ->
-  //   //       check path k k'
-  //   //       eq (k :: path) v v')
-  //   //     fields
-  //   //     fields'
-  //   // | ERecordUpdate(_, record, updates), ERecordUpdate(_, record', updates') ->
-  //   //   check path record record'
-  //   //   NEList.iter2
-  //   //     (fun (k, v) (k', v') ->
-  //   //       check path k k'
-  //   //       eq (k :: path) v v')
-  //   //     updates
-  //   //     updates'
-  //   // | EDict(_, fields), EDict(_, fields') ->
-  //   //   List.iter2
-  //   //     (fun (k, v) (k', v') ->
-  //   //       check ("key" :: path) k k'
-  //   //       eq ("value" :: path) v v')
-  //   //     fields
-  //   //     fields'
-
-  //   // | ERecordFieldAccess(_, e, f), ERecordFieldAccess(_, e', f') ->
-  //   //   eq (f :: path) e e'
-  //   //   check path f f'
-
-  //   // | EEnum(_, typeName, caseName, fields), EEnum(_, typeName', caseName', fields') ->
-  //   //   userTypeNameEqualityBaseFn path typeName typeName' errorFn
-  //   //   check path caseName caseName'
-  //   //   eqList path fields fields'
-  //   //   ()
-
-  //   // | ELambda(_, pats, e), ELambda(_, pats', e') ->
-  //   //   let path = ("lambda" :: path)
-  //   //   eq path e e'
-  //   //   NEList.iter2
-  //   //     (fun pat pat' -> letPatternEqualityBaseFn false path pat pat' errorFn)
-  //   //     pats
-  //   //     pats'
-  //   // | EMatch(_, e, branches), EMatch(_, e', branches') ->
-  //   //   eq ("matchCond" :: path) e e'
-
-  //   //   check path (NEList.length branches) (NEList.length branches')
-  //   //   NEList.iteri2
-  //   //     (fun i branch branch' ->
-  //   //       let path = $"Case {i} - {branch.pat}" :: path
-  //   //       matchPatternEqualityBaseFn
-  //   //         checkIDs
-  //   //         ("pat" :: path)
-  //   //         branch.pat
-  //   //         branch'.pat
-  //   //         errorFn
-  //   //       match branch.whenCondition, branch'.whenCondition with
-  //   //       | Some cond, Some cond' -> eq ("whenCondition" :: path) cond cond'
-  //   //       | None, None -> ()
-  //   //       | _ ->
-  //   //         errorFn ("whenCondition" :: path) (string actual) (string expected)
-  //   //         ()
-  //   //       eq ("rhs" :: path) branch.rhs branch'.rhs)
-  //   //     branches
-  //   //     branches'
-  //   // | EAnd(_, l, r), EAnd(_, l', r') ->
-  //   //   eq ("left" :: path) l l'
-  //   //   eq ("right" :: path) r r'
-  //   // | EOr(_, l, r), EOr(_, l', r') ->
-  //   //   eq ("left" :: path) l l'
-  //   //   eq ("right" :: path) r r'
-  //   | EError(_, msg, exprs), EError(_, msg', exprs') ->
-  //     check path msg msg'
-  //     eqList path exprs exprs'
-
-  //   // exhaustiveness check
-  //   | EUnit _, _
-  //   // | EInt8 _, _
-  //   // | EUInt8 _, _
-  //   // | EInt16 _, _
-  //   // | EUInt16 _, _
-  //   // | EInt32 _, _
-  //   // | EUInt32 _, _
-  //   | EInt64 _, _
-  //   // | EUInt64 _, _
-  //   // | EInt128 _, _
-  //   // | EUInt128 _, _
-  //   | EString _, _
-  //   // | EChar _, _
-  //   // | EVariable _, _
-  //   // | EConstant _, _
-  //   | EBool _, _
-  //   // | EFloat _, _
-  //   // | ELet _, _
-  //   // | EIf _, _
-  //   // | EList _, _
-  //   // | ETuple _, _
-  //   | EApply _, _
-  //   | EFnName _, _
-  //   // | ERecord _, _
-  //   // | ERecordUpdate _, _
-  //   // | EDict _, _
-  //   // | ERecordFieldAccess _, _
-  //   // | EEnum _, _
-  //   // | ELambda _, _
-  //   // | EMatch _, _
-  //   // | EAnd _, _
-  //   // | EOr _, _
-  //   | EError _, _ -> check path actual expected
-
-
-
-  // If the dvals are not the same, call errorFn. This is in this form to allow
-  // both an equality function and a test expectation function
-  let rec dvalEqualityBaseFn
-    (path : Path)
-    (actual : Dval)
-    (expected : Dval)
-    (errorFn : Path -> string -> string -> unit)
-    : unit =
-    let de p a e = dvalEqualityBaseFn p a e errorFn
-    let error path = errorFn path (string actual) (string expected)
-
-    let check (path : Path) (a : 'a) (e : 'a) : unit =
-      if a <> e then errorFn path (debugDval actual) (debugDval expected)
-
-    let checkValueType (path : Path) (a : ValueType) (e : ValueType) : unit =
-      match VT.merge a e with
-      | Ok _merged -> ()
-      | Error() -> errorFn path (debugDval actual) (debugDval expected)
-
-    match actual, expected with
-    | DFloat l, DFloat r ->
-      if System.Double.IsNaN l && System.Double.IsNaN r then
-        // This isn't "true" equality, it's just for tests
-        ()
-      else if
-        System.Double.IsPositiveInfinity l && System.Double.IsPositiveInfinity r
-      then
-        ()
-      else if
-        System.Double.IsNegativeInfinity l && System.Double.IsNegativeInfinity r
-      then
-        ()
-      else if
-        System.Double.IsNaN l
-        || System.Double.IsNaN r
-        || System.Double.IsPositiveInfinity l
-        || System.Double.IsPositiveInfinity r
-        || System.Double.IsNegativeInfinity l
-        || System.Double.IsNegativeInfinity r
-      then
-        error path
-      else if not (Accuracy.areClose Accuracy.veryHigh l r) then
-        error path
-
-    | DDateTime l, DDateTime r ->
-      // Two dates can be the same millisecond and not be equal if they don't
-      // have the same number of ticks. For testing, we shall consider them
-      // equal if they print the same string.
-      check path (string l) (string r)
-
-    | DList(lType, ls), DList(rType, rs) ->
-      checkValueType ("Type" :: path) lType rType
-
-      check ("Length" :: path) (List.length ls) (List.length rs)
-      List.iteri2 (fun i -> de ($"[{i}]" :: path)) ls rs
-
-    | DTuple(firstL, secondL, theRestL), DTuple(firstR, secondR, theRestR) ->
-      de path firstL firstR
-
-      de path secondL secondR
-
-      check ("Length" :: path) (List.length theRestL) (List.length theRestR)
-      List.iteri2 (fun i -> de ($"[{i}]" :: path)) theRestL theRestR
-
-    | DDict(lType, ls), DDict(rType, rs) ->
-      check ("Length" :: path) (Map.count ls) (Map.count rs)
-
-      checkValueType ("Type" :: path) lType rType
-
-      // check keys from ls are in both, check matching values
-      Map.iterWithIndex
-        (fun key v1 ->
-          match Map.find key rs with
-          | Some v2 -> de (key :: path) v1 v2
-          | None -> check (key :: path) ls rs)
-        ls
-
-      // check keys from rs are in both
-      Map.iterWithIndex
-        (fun key _ ->
-          match Map.find key rs with
-          | Some _ -> () // already checked
-          | None -> check (key :: path) ls rs)
-        rs
-
-
-    | DRecord(ltn, _, ltypeArgs, ls), DRecord(rtn, _, rtypeArgs, rs) ->
-      // check type name
-      userTypeNameEqualityBaseFn path ltn rtn errorFn
-
-      // check type args
-      check
-        ("TypeArgsLength" :: path)
-        (List.length ltypeArgs)
-        (List.length rtypeArgs)
-      List.iteri2 (fun i -> checkValueType (string i :: path)) ltypeArgs rtypeArgs
-
-      check ("Length" :: path) (Map.count ls) (Map.count rs)
-
-      // check keys
-      // -- keys from ls are in both, check matching values
-      Map.iterWithIndex
-        (fun key v1 ->
-          match Map.find key rs with
-          | Some v2 -> de (key :: path) v1 v2
-          | None -> check (key :: path) ls rs)
-        ls
-
-      // -- keys from rs are in both
-      Map.iterWithIndex
-        (fun key _ ->
-          match Map.find key rs with
-          | Some _ -> () // already checked
-          | None -> check (key :: path) ls rs)
-        rs
-
-
-    | DEnum(_, typeName, typeArgs, caseName, fields),
-      DEnum(_, typeName', typeArgs', caseName', fields') ->
-      userTypeNameEqualityBaseFn path typeName typeName' errorFn
-      check ("caseName" :: path) caseName caseName'
-
-      check ("TypeArgsLength" :: path) (List.length typeArgs) (List.length typeArgs')
-      List.iteri2 (fun i -> checkValueType (string i :: path)) typeArgs typeArgs'
-
-      check ("fields.Length" :: path) (List.length fields) (List.length fields)
-      List.iteri2 (fun i -> de ($"[{i}]" :: path)) fields fields'
-      ()
-
-    // | DFnVal(Lambda l1), DFnVal(Lambda l2) ->
-    //   NEList.iter2
-    //     (fun pat pat' -> letPatternEqualityBaseFn false path pat pat' errorFn)
-    //     l1.parameters
-    //     l2.parameters
-    //   check ("symbtable" :: path) l1.symtable l2.symtable // TODO: use dvalEquality
-    //   exprEqualityBaseFn false path l1.body l2.body errorFn
-
-    | DString _, DString _ -> check path (debugDval actual) (debugDval expected)
-
-    // Keep for exhaustiveness checking
-    | DUnit, _
-    | DBool _, _
-    | DInt8 _, _
-    | DUInt8 _, _
-    | DInt16 _, _
-    | DUInt16 _, _
-    | DInt32 _, _
-    | DUInt32 _, _
-    | DInt64 _, _
-    | DUInt64 _, _
-    | DInt128 _, _
-    | DUInt128 _, _
-    | DFloat _, _
-    | DChar _, _
-    | DString _, _
-    | DDateTime _, _
-    | DUuid _, _
-    | DList _, _
-    | DTuple _, _
-    | DDict _, _
-    | DRecord _, _
-    | DEnum _, _
-    | DApplicable _, _
-    // | DDB _, _
-     -> check path actual expected
-
   let formatMsg (initialMsg : string) (path : Path) (actual : 'a) : string =
     let initial = if initialMsg = "" then "" else $"{initialMsg}\n\n"
     $"{initial}Error was found in{pathToString path}:\nError was:\n{actual})\n\n"
 
-  let rec equalDval (actual : Dval) (expected : Dval) (msg : string) : unit =
-    dvalEqualityBaseFn [] actual expected (fun path a e ->
-      Expect.equal a e (formatMsg msg path actual))
+  module RT =
+    // CLEANUP remove if unused
+    let dTypeEqualityBaseFn
+      (path : Path)
+      (actual : TypeReference)
+      (expected : TypeReference)
+      (errorFn : Path -> string -> string -> unit)
+      : unit =
+      // as long as TypeReferences don't get IDs, depending on structural equality is OK
+      if actual <> expected then errorFn path (string actual) (string expected)
+
+    let rec typeNameEqualityBaseFn
+      (path : Path)
+      (actual : FQTypeName.FQTypeName)
+      (expected : FQTypeName.FQTypeName)
+      (errorFn : Path -> string -> string -> unit)
+      : unit =
+      let err () = errorFn path (string actual) (string expected)
+
+      match actual, expected with
+      | FQTypeName.Package a, FQTypeName.Package e -> if a <> e then err ()
+
+    // If the dvals are not the same, call errorFn. This is in this form to allow
+    // both an equality function and a test expectation function
+    let rec dvalEqualityBaseFn
+      (path : Path)
+      (actual : Dval)
+      (expected : Dval)
+      (errorFn : Path -> string -> string -> unit)
+      : unit =
+      let de p a e = dvalEqualityBaseFn p a e errorFn
+      let error path = errorFn path (string actual) (string expected)
+
+      let check (path : Path) (a : 'a) (e : 'a) : unit =
+        if a <> e then errorFn path (debugDval actual) (debugDval expected)
+
+      let checkValueType (path : Path) (a : ValueType) (e : ValueType) : unit =
+        match VT.merge a e with
+        | Ok _merged -> ()
+        | Error() -> errorFn path (debugDval actual) (debugDval expected)
+
+      match actual, expected with
+      | DFloat l, DFloat r ->
+        if System.Double.IsNaN l && System.Double.IsNaN r then
+          // This isn't "true" equality, it's just for tests
+          ()
+        else if
+          System.Double.IsPositiveInfinity l && System.Double.IsPositiveInfinity r
+        then
+          ()
+        else if
+          System.Double.IsNegativeInfinity l && System.Double.IsNegativeInfinity r
+        then
+          ()
+        else if
+          System.Double.IsNaN l
+          || System.Double.IsNaN r
+          || System.Double.IsPositiveInfinity l
+          || System.Double.IsPositiveInfinity r
+          || System.Double.IsNegativeInfinity l
+          || System.Double.IsNegativeInfinity r
+        then
+          error path
+        else if not (Accuracy.areClose Accuracy.veryHigh l r) then
+          error path
+
+      | DDateTime l, DDateTime r ->
+        // Two dates can be the same millisecond and not be equal if they don't
+        // have the same number of ticks. For testing, we shall consider them
+        // equal if they print the same string.
+        check path (string l) (string r)
+
+      | DList(lType, ls), DList(rType, rs) ->
+        checkValueType ("Type" :: path) lType rType
+
+        check ("Length" :: path) (List.length ls) (List.length rs)
+        List.iteri2 (fun i -> de ($"[{i}]" :: path)) ls rs
+
+      | DTuple(firstL, secondL, theRestL), DTuple(firstR, secondR, theRestR) ->
+        de path firstL firstR
+
+        de path secondL secondR
+
+        check ("Length" :: path) (List.length theRestL) (List.length theRestR)
+        List.iteri2 (fun i -> de ($"[{i}]" :: path)) theRestL theRestR
+
+      | DDict(lType, ls), DDict(rType, rs) ->
+        check ("Length" :: path) (Map.count ls) (Map.count rs)
+
+        checkValueType ("Type" :: path) lType rType
+
+        // check keys from ls are in both, check matching values
+        Map.iterWithIndex
+          (fun key v1 ->
+            match Map.find key rs with
+            | Some v2 -> de (key :: path) v1 v2
+            | None -> check (key :: path) ls rs)
+          ls
+
+        // check keys from rs are in both
+        Map.iterWithIndex
+          (fun key _ ->
+            match Map.find key rs with
+            | Some _ -> () // already checked
+            | None -> check (key :: path) ls rs)
+          rs
+
+
+      | DRecord(ltn, _, ltypeArgs, ls), DRecord(rtn, _, rtypeArgs, rs) ->
+        // check type name
+        typeNameEqualityBaseFn path ltn rtn errorFn
+
+        // check type args
+        check
+          ("TypeArgsLength" :: path)
+          (List.length ltypeArgs)
+          (List.length rtypeArgs)
+        List.iteri2 (fun i -> checkValueType (string i :: path)) ltypeArgs rtypeArgs
+
+        check ("Length" :: path) (Map.count ls) (Map.count rs)
+
+        // check keys
+        // -- keys from ls are in both, check matching values
+        Map.iterWithIndex
+          (fun key v1 ->
+            match Map.find key rs with
+            | Some v2 -> de (key :: path) v1 v2
+            | None -> check (key :: path) ls rs)
+          ls
+
+        // -- keys from rs are in both
+        Map.iterWithIndex
+          (fun key _ ->
+            match Map.find key rs with
+            | Some _ -> () // already checked
+            | None -> check (key :: path) ls rs)
+          rs
+
+
+      | DEnum(_, typeName, typeArgs, caseName, fields),
+        DEnum(_, typeName', typeArgs', caseName', fields') ->
+        typeNameEqualityBaseFn path typeName typeName' errorFn
+        check ("caseName" :: path) caseName caseName'
+
+        check ("TypeArgsLength" :: path) (List.length typeArgs) (List.length typeArgs')
+        List.iteri2 (fun i -> checkValueType (string i :: path)) typeArgs typeArgs'
+
+        check ("fields.Length" :: path) (List.length fields) (List.length fields)
+        List.iteri2 (fun i -> de ($"[{i}]" :: path)) fields fields'
+        ()
+
+      // | DFnVal(Lambda l1), DFnVal(Lambda l2) ->
+      //   NEList.iter2
+      //     (fun pat pat' -> letPatternEqualityBaseFn false path pat pat' errorFn)
+      //     l1.parameters
+      //     l2.parameters
+      //   check ("symbtable" :: path) l1.symtable l2.symtable // TODO: use dvalEquality
+      //   exprEqualityBaseFn false path l1.body l2.body errorFn
+
+      | DString _, DString _ -> check path (debugDval actual) (debugDval expected)
+
+      // Keep for exhaustiveness checking
+      | DUnit, _
+      | DBool _, _
+      | DInt8 _, _
+      | DUInt8 _, _
+      | DInt16 _, _
+      | DUInt16 _, _
+      | DInt32 _, _
+      | DUInt32 _, _
+      | DInt64 _, _
+      | DUInt64 _, _
+      | DInt128 _, _
+      | DUInt128 _, _
+      | DFloat _, _
+      | DChar _, _
+      | DString _, _
+      | DDateTime _, _
+      | DUuid _, _
+      | DList _, _
+      | DTuple _, _
+      | DDict _, _
+      | DRecord _, _
+      | DEnum _, _
+      | DApplicable _, _
+      // | DDB _, _
+        -> check path actual expected
+
+
+    let dvalEquality (left : Dval) (right : Dval) : bool =
+      let mutable success = true
+      dvalEqualityBaseFn [] left right (fun _ _ _ -> success <- false)
+      success
+
+    let rec equalDval (actual : Dval) (expected : Dval) (msg : string) : unit =
+        dvalEqualityBaseFn [] actual expected (fun path a e ->
+          Expect.equal a e (formatMsg msg path actual))
+
+  module PT =
+    open LibExecution.ProgramTypes
+
+    let dTypeEqualityBaseFn
+      (path : Path)
+      (actual : TypeReference)
+      (expected : TypeReference)
+      (errorFn : Path -> string -> string -> unit)
+      : unit =
+      // as long as TypeReferences don't get IDs, depending on structural equality is OK
+      if actual <> expected then errorFn path (string actual) (string expected)
+
+    let typeNameEqualityBaseFn
+      (path : Path)
+      (actual : FQTypeName.FQTypeName)
+      (expected : FQTypeName.FQTypeName)
+      (errorFn : Path -> string -> string -> unit)
+      : unit =
+      let err () = errorFn path (string actual) (string expected)
+
+      match actual, expected with
+      | FQTypeName.Package a, FQTypeName.Package e -> if a <> e then err ()
+
+
+    // let nameResolutionEqualityBaseFn<'a>
+    //   (path : Path)
+    //   (actual : NameResolution<'a>)
+    //   (expected : NameResolution<'a>)
+    //   (fn: )
+    //   (errorFn : Path -> string -> string -> unit)
+    //   : unit =
+    //   let err () = errorFn path (string actual) (string expected)
+
+    //   match actual, expected with
+    //   | NRNotFound, NRNotFound -> ()
+    //   | NRName a, NRName e -> if a <> e then err ()
+    //   | NRType a, NRType e -> if a <> e then err ()
+
+
+    let rec letPatternEqualityBaseFn
+      (checkIDs : bool)
+      (path : Path)
+      (actual : LetPattern)
+      (expected : LetPattern)
+      (errorFn : Path -> string -> string -> unit)
+      : unit =
+      let check path (a : 'a) (e : 'a) =
+        if a <> e then errorFn path (string actual) (string expected)
+
+      if checkIDs then check path (LetPattern.toID actual) (LetPattern.toID expected)
+
+      match actual, expected with
+      | LPVariable(_, name), LPVariable(_, name') -> check path name name'
+      | LPUnit(_), LPUnit(_) -> ()
+      | LPTuple(_, first, second, theRest), LPTuple(_, first', second', theRest') ->
+        let all = first :: second :: theRest
+        let all' = first' :: second' :: theRest'
+        let zipped = List.zip all all'
+        List.iter
+          (fun (a, e) ->
+            letPatternEqualityBaseFn checkIDs (path @ [ "tuple" ]) a e errorFn)
+          zipped
+
+      // exhaustive match
+      | LPVariable _, _
+      | LPUnit _, _
+      | LPTuple _, _ -> errorFn path (string actual) (string expected)
+
+
+
+    let rec pipeExprEqualityBaseFn
+      (checkIDs : bool)
+      (path : Path)
+      (actual : PipeExpr)
+      (expected : PipeExpr)
+      (errorFn : Path -> string -> string -> unit)
+      : unit =
+      let check path (a : 'a) (e : 'a) =
+        if a <> e then errorFn path (string actual) (string expected)
+
+      match actual, expected with
+      | EPipeLambda(_, pats, body), EPipeLambda(_, pats', body') ->
+        NEList.iteri2
+          (fun i l r -> letPatternEqualityBaseFn checkIDs (string i :: path) l r errorFn)
+          pats
+          pats'
+        exprEqualityBaseFn checkIDs ("body" :: path) body body' errorFn
+
+      | EPipeInfix(_, op, e), EPipeInfix(_, op', e') ->
+        check path op op'
+        exprEqualityBaseFn checkIDs  ("expr" :: path) e e' errorFn
+
+      | EPipeFnCall(_, name, typeArgs, args), EPipeFnCall(_, name', typeArgs', args') ->
+        let path = (string name :: path)
+        check path name name'
+        check path (List.length typeArgs) (List.length typeArgs')
+        List.iteri2
+          (fun i l r -> dTypeEqualityBaseFn (string i :: path) l r errorFn)
+          typeArgs
+          typeArgs'
+        List.iteri2
+          (fun i l r -> exprEqualityBaseFn checkIDs (string i :: path) l r errorFn)
+          args
+          args'
+
+      // | EPipeEnum(_, typeName, caseName, fields), EPipeEnum(_, typeName', caseName', fields') ->
+      //   typeNameEqualityBaseFn path typeName typeName' errorFn
+      //   check path caseName caseName'
+      //   List.iteri2
+      //     (fun i l r -> exprEqualityBaseFn checkIDs (string i :: path) l r errorFn)
+      //     fields
+      //     fields'
+
+      | EPipeVariable(_, varContainingPipeable, args), EPipeVariable(_, varContainingPipeable', args') ->
+        check path varContainingPipeable varContainingPipeable'
+        List.iteri2
+          (fun i l r -> exprEqualityBaseFn checkIDs (string i :: path) l r errorFn)
+          args
+          args'
+
+      // exhaustive match
+      | EPipeLambda _, _
+      | EPipeInfix _, _
+      | EPipeFnCall _, _
+      | EPipeEnum _, _
+      | EPipeVariable _, _ -> errorFn path (string actual) (string expected)
+
+
+    and exprEqualityBaseFn
+      (checkIDs : bool)
+      (path : Path)
+      (actual : Expr)
+      (expected : Expr)
+      (errorFn : Path -> string -> string -> unit)
+      : unit =
+      let eq path a e = exprEqualityBaseFn checkIDs path a e errorFn
+
+      let check path (a : 'a) (e : 'a) =
+        if a <> e then errorFn path (string actual) (string expected)
+
+      let eqList path (l1 : List<PT.Expr>) (l2 : List<PT.Expr>) =
+        List.iteri2 (fun i -> eq (string i :: path)) l1 l2
+        check path (List.length l1) (List.length l2)
+
+      let eqNEList path (l1 : NEList<PT.Expr>) (l2 : NEList<PT.Expr>) =
+        NEList.iteri2 (fun i -> eq (string i :: path)) l1 l2
+        check path (NEList.length l1) (NEList.length l2)
+
+      if checkIDs then check path (PT.Expr.toID actual) (PT.Expr.toID expected)
+
+      match actual, expected with
+      // expressions with no values
+      | EUnit _, EUnit _ -> ()
+
+
+      // Simple exprs
+      | EBool(_, v), EBool(_, v') -> check path v v'
+
+      | EInt8(_, v), EInt8(_, v') -> check path v v'
+      | EUInt8(_, v), EUInt8(_, v') -> check path v v'
+      | EInt16(_, v), EInt16(_, v') -> check path v v'
+      | EUInt16(_, v), EUInt16(_, v') -> check path v v'
+      | EInt32(_, v), EInt32(_, v') -> check path v v'
+      | EUInt32(_, v), EUInt32(_, v') -> check path v v'
+      | EInt64(_, v), EInt64(_, v') -> check path v v'
+      | EUInt64(_, v), EUInt64(_, v') -> check path v v'
+      | EInt128(_, v), EInt128(_, v') -> check path v v'
+      | EUInt128(_, v), EUInt128(_, v') -> check path v v'
+
+      | EFloat(_, sign, whole, part), EFloat(_, sign', whole', part') ->
+        check path sign sign'
+        check path whole whole'
+        check path part part'
+
+      | EInfix(_, op, l, r), EInfix(_, op', l', r') ->
+        check path op op'
+        eq ("lhs" :: path) l l'
+        eq ("rhs" :: path) r r'
+
+      // expressions with single string values
+      | EString(_, s), EString(_, s') ->
+        let rec checkSegment s s' =
+          match s, s' with
+          | StringText s, StringText s' -> check path s s'
+          | StringInterpolation e, StringInterpolation e' -> eq path e e'
+          | _ -> check path s s'
+        List.iter2 checkSegment s s'
+
+      | EChar(_, v), EChar(_, v')
+      | EVariable(_, v), EVariable(_, v') -> check path v v'
+      | EConstant(_, name), EConstant(_, name') -> check path name name'
+      | ELet(_, pat, rhs, body), ELet(_, pat', rhs', body') ->
+        letPatternEqualityBaseFn checkIDs path pat pat' errorFn
+        eq ("rhs" :: path) rhs rhs'
+        eq ("body" :: path) body body'
+      | EIf(_, con, thn, els), EIf(_, con', thn', els') ->
+        eq ("cond" :: path) con con'
+        eq ("then" :: path) thn thn'
+        match els, els' with
+        | Some el, Some el' -> eq ("else" :: path) el el'
+        | None, None -> ()
+        | _ ->
+          errorFn ("else" :: path) (string actual) (string expected)
+          ()
+
+      | EList(_, l), EList(_, l') -> eqList path l l'
+      | ETuple(_, first, second, theRest), ETuple(_, first', second', theRest') ->
+        eq ("first" :: path) first first'
+        eq ("second" :: path) second second'
+        eqList path theRest theRest'
+
+      | EApply(_, name, typeArgs, args), EApply(_, name', typeArgs', args') ->
+        let path = (string name :: path)
+        eq path name name'
+        check path (List.length typeArgs) (List.length typeArgs')
+        List.iteri2
+          (fun i l r -> dTypeEqualityBaseFn (string i :: path) l r errorFn)
+          typeArgs
+          typeArgs'
+        eqNEList path args args'
+
+      | EFnName(_, name), EFnName(_, name') -> check path name name'
+
+      // | ERecord(_, typeName, typeArgs, fields), ERecord(_, typeName', typeArgs', fields') ->
+      //   typeNameEqualityBaseFn path typeName typeName' errorFn
+      //   List.iteri2
+      //     (fun i l r -> dTypeEqualityBaseFn (string i :: path) l r errorFn)
+      //     typeArgs
+      //     typeArgs'
+      //   NEList.iter2
+      //     (fun (k, v) (k', v') ->
+      //       check path k k'
+      //       eq (k :: path) v v')
+      //     fields
+      //     fields'
+
+      | ERecordUpdate(_, record, updates), ERecordUpdate(_, record', updates') ->
+        check path record record'
+        NEList.iter2
+          (fun (k, v) (k', v') ->
+            check path k k'
+            eq (k :: path) v v')
+          updates
+          updates'
+      | EDict(_, fields), EDict(_, fields') ->
+        List.iter2
+          (fun (k, v) (k', v') ->
+            check ("key" :: path) k k'
+            eq ("value" :: path) v v')
+          fields
+          fields'
+
+      | ERecordFieldAccess(_, e, f), ERecordFieldAccess(_, e', f') ->
+        eq (f :: path) e e'
+        check path f f'
+
+      // | EEnum(_, typeName, caseName, fields), EEnum(_, typeName', caseName', fields') ->
+      //   typeNameEqualityBaseFn path typeName typeName' errorFn
+      //   check path caseName caseName'
+      //   eqList path fields fields'
+      //   ()
+
+      | ELambda(_, pats, e), ELambda(_, pats', e') ->
+        let path = ("lambda" :: path)
+        eq path e e'
+        NEList.iter2
+          (fun pat pat' -> letPatternEqualityBaseFn false path pat pat' errorFn)
+          pats
+          pats'
+
+      // | EMatch(_, e, branches), EMatch(_, e', branches') ->
+      //   eq ("matchCond" :: path) e e'
+
+      //   check path (NEList.length branches) (NEList.length branches')
+      //   NEList.iteri2
+      //     (fun i branch branch' ->
+      //       let path = $"Case {i} - {branch.pat}" :: path
+      //       matchPatternEqualityBaseFn
+      //         checkIDs
+      //         ("pat" :: path)
+      //         branch.pat
+      //         branch'.pat
+      //         errorFn
+      //       match branch.whenCondition, branch'.whenCondition with
+      //       | Some cond, Some cond' -> eq ("whenCondition" :: path) cond cond'
+      //       | None, None -> ()
+      //       | _ ->
+      //         errorFn ("whenCondition" :: path) (string actual) (string expected)
+      //         ()
+      //       eq ("rhs" :: path) branch.rhs branch'.rhs)
+      //     branches
+      //     branches'
+
+      // exhaustiveness check
+      | EUnit _, _
+      | EInt8 _, _
+      | EUInt8 _, _
+      | EInt16 _, _
+      | EUInt16 _, _
+      | EInt32 _, _
+      | EUInt32 _, _
+      | EInt64 _, _
+      | EUInt64 _, _
+      | EInt128 _, _
+      | EUInt128 _, _
+      | EString _, _
+      | EChar _, _
+      | EVariable _, _
+      | EConstant _, _
+      | EBool _, _
+      | EFloat _, _
+      | ELet _, _
+      | EIf _, _
+      | EList _, _
+      | ETuple _, _
+      | EApply _, _
+      | EFnName _, _
+      | ERecord _, _
+      | ERecordUpdate _, _
+      | EDict _, _
+      | ERecordFieldAccess _, _
+      | EEnum _, _
+      | ELambda _, _
+      | EInfix _, _
+      | EPipe _, _ // TODO: make case above
+      | EMatch _, _ -> check path actual expected
+
+
+    let rec equalExprIgnoringIDs (actual : Expr) (expected : Expr) : unit =
+      exprEqualityBaseFn false [] actual expected (fun path a e ->
+        Expect.equal a e (formatMsg "" path actual))
+
+
+
+
+
+
+
 
   // let rec equalMatchPattern
   //   (actual : MatchPattern)
@@ -912,14 +1031,10 @@ module Expect =
   //   exprEqualityBaseFn true [] actual expected (fun path a e ->
   //     Expect.equal a e (formatMsg msg path actual))
 
-  // let rec equalExprIgnoringIDs (actual : Expr) (expected : Expr) : unit =
-  //   exprEqualityBaseFn false [] actual expected (fun path a e ->
-  //     Expect.equal a e (formatMsg "" path actual))
 
-  let dvalEquality (left : Dval) (right : Dval) : bool =
-    let mutable success = true
-    dvalEqualityBaseFn [] left right (fun _ _ _ -> success <- false)
-    success
+
+
+
 
 let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
   let mutable state = []
