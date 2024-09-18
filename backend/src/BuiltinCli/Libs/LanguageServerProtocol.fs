@@ -20,7 +20,7 @@ let fns : List<BuiltInFn> =
       description = "Reads a single incoming request from an LSP client, over stdin."
       fn =
         (function
-        | _, _, [ DUnit ] ->
+        | _, _, _, [ DUnit ] ->
           let tryReadHeader (input : StreamReader) =
             let mutable contentLength = None
             let mutable complete = false

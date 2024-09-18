@@ -152,8 +152,8 @@ module Type =
       module Json =
         let error = p [ "Json" ] "Error" "595907db-ab8d-4fe5-b9cf-d1bd8041e9bb"
 
-      // module Cli =
-      //   let error = p [ "Cli" ] "Error" "6756f735-2a6a-41ac-a6a8-6e0b7354ca1b"
+      module Cli =
+        let error = p [ "Cli" ] "Error" "6756f735-2a6a-41ac-a6a8-6e0b7354ca1b"
 
       let error = p [] "Error" "722cd3b3-d6af-4d28-96f2-87afd44c3898"
 

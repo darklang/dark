@@ -24,8 +24,12 @@ module Darklang =
           | Package of Package
 
 
+      type NameResolutionError =
+        | NotFound of List<String>
+        | InvalidName of List<String>
+
       type NameResolution<'a> =
-        Stdlib.Result.Result<'a, RuntimeErrors.NameResolution.Error>
+        Stdlib.Result.Result<'a, NameResolutionError>
 
 
       /// Darklang's available types (int, List<T>, user-defined types, etc.)

@@ -714,11 +714,12 @@ module RuntimeError =
   //     | FieldAccessFieldDoesntExist of typeName: RuntimeTypes.FQTypeName * invalidFieldName: String
   //     | FieldAccessNotRecord of RuntimeTypes.ValueType * String
 
-  // module Unwrap =
-  //   type Error =
-  //     | GotNone
-  //     | GotError of Dval
-  //     | NonOptionOrResult of Dval
+  module Unwraps =
+    type Error =
+      | GotNone
+      | GotError of Dval
+      | NonOptionOrResult of Dval
+      | MultipleArgs of List<Dval>
 
 
   module Lets =
@@ -837,7 +838,7 @@ module RuntimeError =
     // /// but is here a `{someFn actualValueType}` (`{someFn actualValue}`)"
     // | IfConditionNotBool of actualValue: Dval * actualValueType: ValueType
 
-    // | Unwrap of Unwrap.Error
+    | Unwrap of Unwraps.Error
 
     | EqualityCheckOnIncompatibleTypes of left : ValueType * right : ValueType
 

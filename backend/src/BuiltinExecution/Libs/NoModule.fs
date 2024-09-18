@@ -390,59 +390,61 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // { name = fn "unwrap" 0
-    //   typeParams = []
-    //   parameters = [ Param.make "value" (TVariable "optOrRes") "" ]
-    //   returnType = TVariable "a"
-    //   description =
-    //     "Unwrap an Option or Result, returning the value or raising a RuntimeError if None"
-    //   fn =
-    //     (function
-    //     | _, _, [] -> incorrectArgs ()
-    //     | _, _, [ dval ] ->
-    //       match dval with
+    { name = fn "unwrap" 0
+      typeParams = []
+      parameters = [ Param.make "value" (TVariable "optOrRes") "" ]
+      returnType = TVariable "a"
+      description =
+        "Unwrap an Option or Result, returning the value or raising a RuntimeError if None"
+      fn =
+        (function
+        | _, _, _, [] -> incorrectArgs ()
+        | _, vm, _, [ dval ] ->
+          match dval with
 
-    //       // success: extract `Some` out of an Option
-    //       | DEnum(FQTypeName.Package id, _, _, "Some", [ value ]) when
-    //         id = PackageIDs.Type.Stdlib.option
-    //         ->
-    //         Ply value
+          // success: extract `Some` out of an Option
+          | DEnum(FQTypeName.Package id, _, _, "Some", [ value ]) when
+            id = PackageIDs.Type.Stdlib.option
+            ->
+            Ply value
 
-    //       // success: extract `Ok` out of a Result
-    //       | DEnum(FQTypeName.Package id, _, _, "Ok", [ value ]) when
-    //         id = PackageIDs.Type.Stdlib.result
-    //         ->
-    //         Ply value
+          // success: extract `Ok` out of a Result
+          | DEnum(FQTypeName.Package id, _, _, "Ok", [ value ]) when
+            id = PackageIDs.Type.Stdlib.result
+            ->
+            Ply value
 
-    //       // Error: expected Some, got None
-    //       | DEnum(FQTypeName.Package id, _, _, "None", []) when
-    //         id = PackageIDs.Type.Stdlib.option
-    //         ->
-    //         "expected Some, got None" |> RuntimeError.oldError |> raiseUntargetedRTE
+          // Error: expected Some, got None
+          | DEnum(FQTypeName.Package id, _, _, "None", []) when
+            id = PackageIDs.Type.Stdlib.option
+            ->
+            RuntimeError.Unwraps.GotNone
+            |> RuntimeError.Unwrap
+            |> raiseRTE vm.threadID
 
-    //       // Error: expected Ok, got Error
-    //       | DEnum(FQTypeName.Package id, _, _, "Error", [ value ]) when
-    //         id = PackageIDs.Type.Stdlib.result
-    //         ->
-    //         $"expected Ok, got Error:\n{value |> DvalReprDeveloper.toRepr}"
-    //         |> RuntimeError.oldError
-    //         |> raiseUntargetedRTE
+          // Error: expected Ok, got Error
+          | DEnum(FQTypeName.Package id, _, _, "Error", [ value ]) when
+            id = PackageIDs.Type.Stdlib.result
+            ->
+            RuntimeError.Unwraps.GotError value
+            |> RuntimeError.Unwrap
+            |> raiseRTE vm.threadID
 
 
-    //       // Error: single dval, but not an Option or Result
-    //       | otherDval ->
-    //         $"Unwrap called with non-Option/non-Result {otherDval}"
-    //         |> RuntimeError.oldError
-    //         |> raiseUntargetedRTE
+          // Error: single dval, but not an Option or Result
+          | otherDval ->
+            RuntimeError.Unwraps.NonOptionOrResult otherDval
+            |> RuntimeError.Unwrap
+            |> raiseRTE vm.threadID
 
-    //     | _, _, multipleArgs ->
-    //       $"unwrap called with multiple arguments: {multipleArgs}"
-    //       |> RuntimeError.oldError
-    //       |> raiseUntargetedRTE)
+        | _, vm, _, multipleArgs ->
+            RuntimeError.Unwraps.MultipleArgs multipleArgs
+            |> RuntimeError.Unwrap
+            |> raiseRTE vm.threadID)
 
-    //   sqlSpec = NotQueryable
-    //   previewable = Pure
-    //   deprecated = NotDeprecated }
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
 
 
     // { name = fn "debug" 0

@@ -82,7 +82,7 @@ type MatchPattern =
 
   | MPVariable of id * string
 
-//| MPEnum of id * caseName : string * fieldPats : List<MatchPattern>
+  | MPEnum of id * caseName : string * fieldPats : List<MatchPattern>
 
 type BinaryOperation =
   | BinOpAnd

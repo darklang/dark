@@ -20,7 +20,7 @@ let fns : List<BuiltInFn> =
         "Prints the given <param value> to the standard output, followed by a newline."
       fn =
         (function
-        | _, _, [ DString str ] ->
+        | _, _, _, [ DString str ] ->
           print str
           Ply DUnit
         | _ -> incorrectArgs ())
@@ -36,7 +36,7 @@ let fns : List<BuiltInFn> =
       description = "Prints the given <param value> to the standard output."
       fn =
         (function
-        | _, _, [ DString str ] ->
+        | _, _, _, [ DString str ] ->
           printInline str
           Ply DUnit
         | _ -> incorrectArgs ())

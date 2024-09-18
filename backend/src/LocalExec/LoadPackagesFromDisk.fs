@@ -20,6 +20,7 @@ let load (builtins : RT.Builtins) : Ply<PT.Packages> =
     let filesWithContents =
       "/home/dark/app/packages"
       |> listDirectoryRecursive
+      |> List.filter (String.contains "_" >> not)
       |> List.filter (fun x -> x |> String.endsWith ".dark")
       |> List.map (fun fileName -> (fileName, System.IO.File.ReadAllText fileName))
 

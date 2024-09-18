@@ -8,7 +8,7 @@ open Prelude
 open TestUtils.TestUtils
 
 module RT = LibExecution.RuntimeTypes
-module VT = RT.ValueType
+module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 

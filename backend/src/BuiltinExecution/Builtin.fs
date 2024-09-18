@@ -47,7 +47,7 @@ let builtins
 
       Libs.Base64.builtins
 
-      // Libs.Json.builtins
+      Libs.Json.builtins
       Libs.AltJson.builtins
 
       Libs.HttpClient.builtins httpConfig

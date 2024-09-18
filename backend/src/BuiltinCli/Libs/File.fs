@@ -22,7 +22,7 @@ let fns : List<BuiltInFn> =
         let resultOk = Dval.resultOk (KTList(ValueType.Known KTUInt8)) KTString
         let resultError = Dval.resultError (KTList(ValueType.Known KTUInt8)) KTString
         (function
-        | _, _, [ DString path ] ->
+        | _, _, _, [ DString path ] ->
           uply {
             try
               let path =
@@ -53,7 +53,7 @@ let fns : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTUnit KTString
         let resultError = Dval.resultError KTUnit KTString
         (function
-        | _, _, [ DList(_, contents); DString path ] ->
+        | _, _, _, [ DList(_, contents); DString path ] ->
           uply {
             try
               let path =
@@ -84,7 +84,7 @@ let fns : List<BuiltInFn> =
       description = "Deletes the file specified by <param path>"
       fn =
         (function
-        | _, _, [ DString path ] ->
+        | _, _, _, [ DString path ] ->
           uply {
             try
               System.IO.File.Delete path
@@ -112,7 +112,7 @@ let fns : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTUnit KTString
         let resultError = Dval.resultError KTUnit KTString
         (function
-        | _, _, [ DString path; DString content ] ->
+        | _, _, _, [ DString path; DString content ] ->
           uply {
             try
               do! System.IO.File.AppendAllTextAsync(path, content)
@@ -136,7 +136,7 @@ let fns : List<BuiltInFn> =
         let resultOk r = Dval.resultOk KTString KTString r |> Ply
         let resultError r = Dval.resultError KTString KTString r |> Ply
         (function
-        | _, _, [ DUnit ] ->
+        | _, _, _, [ DUnit ] ->
           try
             let tempPath = System.IO.Path.GetTempFileName()
             resultOk (DString tempPath)
@@ -156,7 +156,7 @@ let fns : List<BuiltInFn> =
         "Returns true if the file specified by <param path> is a directory, or false if it is a file or does not exist"
       fn =
         (function
-        | _, _, [ DString path ] ->
+        | _, _, _, [ DString path ] ->
           uply {
             try
               let attrs = System.IO.File.GetAttributes(path)
@@ -179,7 +179,7 @@ let fns : List<BuiltInFn> =
         "Returns true if the file specified by <param path> is a normal file (not a directory), or false if it is a directory or does not exist"
       fn =
         (function
-        | _, _, [ DString path ] ->
+        | _, _, _, [ DString path ] ->
           uply {
             try
               let attrs = System.IO.File.GetAttributes(path)
@@ -204,7 +204,7 @@ let fns : List<BuiltInFn> =
         "Returns true if a file or directory exists at the specified <param path>, or false otherwise"
       fn =
         (function
-        | _, _, [ DString path ] ->
+        | _, _, _,  [ DString path ] ->
           uply {
             try
               let exists =
@@ -229,7 +229,7 @@ let fns : List<BuiltInFn> =
         let resultOk r = Dval.resultOk KTInt64 KTString r |> Ply
         let resultError r = Dval.resultError KTInt64 KTString r |> Ply
         (function
-        | _, _, [ DString path ] ->
+        | _, _, _, [ DString path ] ->
           try
             let fileInfo = System.IO.FileInfo(path)
             resultOk (DInt64 fileInfo.Length)

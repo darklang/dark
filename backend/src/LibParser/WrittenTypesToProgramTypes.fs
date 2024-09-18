@@ -104,8 +104,8 @@ module MatchPattern =
   let rec toPT (p : WT.MatchPattern) : PT.MatchPattern =
     match p with
     | WT.MPVariable(id, str) -> PT.MPVariable(id, str)
-    // | WT.MPEnum(id, caseName, fieldPats) ->
-    //   PT.MPEnum(id, caseName, List.map toPT fieldPats)
+    | WT.MPEnum(id, caseName, fieldPats) ->
+      PT.MPEnum(id, caseName, List.map toPT fieldPats)
     | WT.MPInt64(id, i) -> PT.MPInt64(id, i)
     | WT.MPUInt64(id, i) -> PT.MPUInt64(id, i)
     | WT.MPInt8(id, i) -> PT.MPInt8(id, i)
