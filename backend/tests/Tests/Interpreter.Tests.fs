@@ -353,6 +353,24 @@ module RecordUpdate =
 
   let tests = testList "RecordUpdate" [ simple; notRecord ] // fieldThatShouldNotExist; fieldWithWrongType ]
 
+// TODO: add more tests
+module Enum =
+  let simple =
+    let typeName = RT.FQTypeName.fqPackage PM.Types.Enums.withoutFields
+    t
+      "Test.ColorEnum.Blue"
+      E.Enums.simple
+      (RT.DEnum(typeName, typeName, [], "Blue", []))
+
+  let withFields =
+    let typeName = RT.FQTypeName.fqPackage PM.Types.Enums.withFields
+    t
+      "Test.MyOption.Some 1"
+      E.Enums.withFields
+      (RT.DEnum(typeName, typeName, [], "Some", [ RT.DInt64 1L ]))
+
+  let tests = testList "Enum" [ simple; withFields ]
+
 
 module Constants =
   module Package =
@@ -540,7 +558,14 @@ module Fns =
 
       let tests = testList "Fact" [ unapplied; appliedWith2; appliedWith20 ]
 
-    let tests = testList "Package" [ MyAdd.tests; Fact.tests ]
+    module Recusrsion =
+      let addUpTo =
+        t "Test.addUpTo 300000" E.Fns.Package.Recursion.applied (RT.DInt64 300000L)
+
+      let tests = testList "Recursion" [ addUpTo ]
+
+
+    let tests = testList "Package" [ MyAdd.tests; Fact.tests; Recusrsion.tests ]
 
   let tests = testList "Fns" [ Builtin.tests; Package.tests ]
 
@@ -566,6 +591,7 @@ let tests =
       Records.tests
       RecordFieldAccess.tests
       RecordUpdate.tests
+      Enum.tests
       Constants.tests
       Infix.tests
       Lambdas.tests

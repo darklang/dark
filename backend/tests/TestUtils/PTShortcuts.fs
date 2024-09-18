@@ -105,27 +105,29 @@ let eApply
   EApply(gid (), target, typeArgs, args)
 
 
-let pLambda (pats : List<LetPattern>) (body : Expr) : PipeExpr =
-  EPipeLambda(gid (), NEList.ofListUnsafe "pLambda" [] pats, body)
+let pLambda id (pats : List<LetPattern>) (body : Expr) : PipeExpr =
+  EPipeLambda(id, NEList.ofListUnsafe "pLambda" [] pats, body)
 
-let pInfix (op : Infix) (expr : Expr) : PipeExpr = EPipeInfix(gid (), op, expr)
+let pInfix id (op : Infix) (expr : Expr) : PipeExpr = EPipeInfix(id, op, expr)
 
 let pFnCall
+  id
   (fn : FQFnName.FQFnName)
   (typeArgs : List<TypeReference>)
   (args : List<Expr>)
   : PipeExpr =
-  EPipeFnCall(gid (), Ok fn, typeArgs, args)
+  EPipeFnCall(id, Ok fn, typeArgs, args)
 
 let pEnum
+  id
   (typeName : FQTypeName.FQTypeName)
   (caseName : string)
   (fields : List<Expr>)
   : PipeExpr =
-  EPipeEnum(gid (), Ok typeName, caseName, fields)
+  EPipeEnum(id, Ok typeName, caseName, fields)
 
-let pVariable (varName : string) (args : List<Expr>) : PipeExpr =
-  EPipeVariable(gid (), varName, args)
+let pVariable id (varName : string) (args : List<Expr>) : PipeExpr =
+  EPipeVariable(id, varName, args)
 
 let ePipe (expr : Expr) (parts : List<PipeExpr>) : Expr = EPipe(gid (), expr, parts)
 

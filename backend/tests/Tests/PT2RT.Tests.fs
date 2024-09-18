@@ -490,37 +490,188 @@ module Expr =
       t
         "1 |> fun x -> x"
         E.Pipes.lambda
-        (4,
+        (3,
          [ RT.CreateLambda(
              0,
-             { exprId = E.Lambdas.Identity.id
+             { exprId = E.Pipes.pipeID
                patterns = NEList.ofList (RT.LPVariable 0) []
                registersToClose = []
                instructions = { registerCount = 1; instructions = []; resultIn = 0 } }
            )
+           RT.LoadVal(1, RT.DInt64 1L)
            RT.Apply(2, 0, [], NEList.ofList 1 []) ],
-         0)
+         2)
 
-    let infix = t "1 |> (+) 2" E.Pipes.infix (5, [], 0)
+    let infix =
+      t
+        "1 |> (+) 2"
+        E.Pipes.infix
+        (4,
+         [ RT.LoadVal(0, RT.DInt64 1L)
+           RT.LoadVal(1, RT.DInt64 2L)
+           RT.LoadVal(
+             2,
+             RT.DApplicable(
+               RT.AppNamedFn
+                 { name = RT.FQFnName.fqBuiltin "int64Add" 0; argsSoFar = [] }
+             )
+           )
+           RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ],
+         3)
 
-    let fnCall = t "1 |> Builtin.int64Add 2" E.Pipes.fnCall (5, [], 0)
+    let fnCall =
+      // why are we loading the fn first?
+      t
+        "1 |> Builtin.int64Add 2"
+        E.Pipes.fnCall
+        (4,
+         [ RT.LoadVal(
+             0,
+             RT.DApplicable(
+               RT.AppNamedFn
+                 { name = RT.FQFnName.fqBuiltin "int64Add" 0; argsSoFar = [] }
+             )
+           )
+           RT.LoadVal(1, RT.DInt64 1L)
+           RT.LoadVal(2, RT.DInt64 2L)
+           RT.Apply(3, 0, [], NEList.ofList 1 [ 2 ]) ],
+         3)
 
     let variable =
-      t "let myLambda = fun x -> x + 1\n1 |> myLambda" E.Pipes.variable (7, [], 0)
+      t
+        "let myLambda = fun x -> x + 1\n1 |> myLambda"
+        E.Pipes.variable
+        (4,
+         [ RT.CreateLambda(
+             0,
+             { exprId = E.Pipes.lambdaID
+               patterns = NEList.ofList (RT.LPVariable 0) []
+               registersToClose = []
+               instructions =
+                 { registerCount = 4
+                   instructions =
+                     [ RT.LoadVal(1, RT.DInt64 1L)
+                       RT.LoadVal(
+                         2,
+                         RT.DApplicable(
+                           RT.AppNamedFn
+                             { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                               argsSoFar = [] }
+                         )
+                       )
+                       RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ]
+                   resultIn = 3 } }
+           )
+           RT.CheckLetPatternAndExtractVars(0, RT.LPVariable 1)
+           RT.LoadVal(2, RT.DInt64 1L)
+           RT.Apply(3, 1, [], NEList.ofList 2 []) ],
+         3)
 
     let multiple =
       t
         "let incr = fun x -> x + 1\n2 |> incr |> fun x -> x * 2 |> Builtin.int64Add 3 |> (+) 4"
         E.Pipes.multiple
-        (19, [], 0)
+        (12,
+         [ RT.CreateLambda(
+             0,
+             { exprId = E.Pipes.lambdaID
+               patterns = NEList.ofList (RT.LPVariable 0) []
+               registersToClose = []
+               instructions =
+                 { registerCount = 4
+                   instructions =
+                     [ RT.LoadVal(1, RT.DInt64 1L)
+                       RT.LoadVal(
+                         2,
+                         (RT.DApplicable(
+                           RT.AppNamedFn
+                             { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                               argsSoFar = [] }
+                         ))
+                       )
+                       RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ]
+                   resultIn = 3 } }
+           )
+           RT.CheckLetPatternAndExtractVars(0, RT.LPVariable 1)
+           RT.LoadVal(
+             2,
+             RT.DApplicable(
+               RT.AppNamedFn
+                 { name = RT.FQFnName.fqBuiltin "int64Add" 0; argsSoFar = [] }
+             )
+           )
+           RT.CreateLambda(
+             3,
+             { exprId = E.Pipes.pipeID
+               patterns = NEList.ofList (RT.LPVariable 0) []
+               registersToClose = []
+               instructions =
+                 { registerCount = 4
+                   instructions =
+                     [ RT.LoadVal(1, RT.DInt64 2L)
+                       RT.LoadVal(
+                         2,
+                         (RT.DApplicable(
+                           RT.AppNamedFn
+                             { name = RT.FQFnName.fqBuiltin "int64Multiply" 0
+                               argsSoFar = [] }
+                         ))
+                       )
+                       RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ]
+                   resultIn = 3 } }
+           )
+           RT.LoadVal(4, RT.DInt64 2L)
+           RT.Apply(5, 1, [], NEList.ofList 4 [])
+           RT.Apply(6, 3, [], NEList.ofList 5 [])
+           RT.LoadVal(7, RT.DInt64 3L)
+           RT.Apply(8, 2, [], NEList.ofList 6 [ 7 ])
+           RT.LoadVal(9, RT.DInt64 4L)
+           RT.LoadVal(
+             10,
+             RT.DApplicable(
+               RT.AppNamedFn
+                 { name = RT.FQFnName.fqBuiltin "int64Add" 0; argsSoFar = [] }
+             )
+           )
+           RT.Apply(11, 10, [], NEList.ofList 8 [ 9 ]) ],
+         11)
 
-    // TODO lazy
-    let tests = testList "Pipes" [] //[ lambda ]//; infix; fnCall; variable; multiple ]
+
+
+    let tests = testList "Pipes" [ lambda; infix; fnCall; variable; multiple ]
 
 
   module Enums =
-    // TODO
-    let tests = testList "Enums" []
+    let simple =
+      t
+        "Test.Color.Blue"
+        E.Enums.simple
+        (1,
+         [ RT.CreateEnum(
+             0,
+             RT.FQTypeName.fqPackage PM.Types.Enums.withoutFields,
+             [],
+             "Blue",
+             []
+           ) ],
+         0)
+
+    let withFields =
+      t
+        "Test.MyOption.Some 1"
+        E.Enums.withFields
+        (2,
+         [ RT.LoadVal(1, RT.DInt64 1L)
+           RT.CreateEnum(
+             0,
+             RT.FQTypeName.fqPackage PM.Types.Enums.withFields,
+             [],
+             "Some",
+             [ 1 ]
+           ) ],
+         0)
+
+    let tests = testList "Enums" [ simple; withFields ]
 
 
   module Records =
@@ -1144,6 +1295,7 @@ module Expr =
         Records.tests
         RecordFieldAccess.tests
         RecordUpdate.tests
+        Enums.tests
         Constants.tests
         Infix.tests
         Lambda.tests

@@ -522,6 +522,7 @@ module Expr =
       | first :: parts ->
         let newLHS =
           match first with
+          // `1 |> fun x -> x + 1`
           | PT.EPipeLambda(id, pats, body) ->
             PT.EApply(id, PT.ELambda(id, pats, body), [], NEList.ofList lhs [])
 

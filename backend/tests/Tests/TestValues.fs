@@ -42,7 +42,30 @@ module PM =
                 description = "TODO" } ] ]
 
     module Enums =
-      let all = []
+      let withoutFields = guuid ()
+      let withFields = guuid ()
+      let make id name cases =
+        make id name (PT.TypeDeclaration.Enum(NEList.ofListUnsafe "" [] cases))
+
+      let colorEnum =
+        make
+          withoutFields
+          (PT.PackageType.name "Test" [] "ColorEnum")
+          [ { name = "Red"; fields = []; description = "TODO" }
+            { name = "Green"; fields = []; description = "TODO" }
+            { name = "Blue"; fields = []; description = "TODO" } ]
+
+      let MyOption =
+        make
+          withFields
+          (PT.PackageType.name "Test" [] "MyOption")
+          [ { name = "None"; fields = []; description = "TODO" }
+            { name = "Some"
+              fields = [ { typ = PT.TInt64; label = None; description = "TODO" } ]
+              description = "TODO" } ]
+
+      let all : List<PT.PackageType.PackageType> = [ colorEnum; MyOption ]
+
 
     let all = Records.all @ Enums.all
 
@@ -227,18 +250,22 @@ module Expressions =
 
 
   module Pipes =
+    let lambdaID = gid ()
+    let pipeID = gid ()
     /// `1 |> fun x -> x`
-    let lambda = ePipe (eInt64 1) [ pLambda [ lpVar "x" ] (eVar "x") ]
+    let lambda = ePipe (eInt64 1) [ pLambda pipeID [ lpVar "x" ] (eVar "x") ]
 
     /// `1 |> (+) 2`
     let infix =
-      ePipe (eInt64 1) [ pInfix (PT.Infix.InfixFnCall PT.ArithmeticPlus) (eInt64 2) ]
+      ePipe
+        (eInt64 1)
+        [ pInfix pipeID (PT.Infix.InfixFnCall PT.ArithmeticPlus) (eInt64 2) ]
 
     /// `1 |> Builtin.int64Add 2`
     let fnCall =
       ePipe
         (eInt64 1)
-        [ pFnCall (PT.FQFnName.fqBuiltIn "int64Add" 0) [] [ eInt64 2 ] ]
+        [ pFnCall pipeID (PT.FQFnName.fqBuiltIn "int64Add" 0) [] [ eInt64 2 ] ]
 
     //let enum = ePipe (eInt64 1) [ pEnum (PT.FQEnumName.fqPackage (System.Guid.NewGuid())) "variant" [] ]
 
@@ -248,10 +275,10 @@ module Expressions =
       eLet
         (lpVar "myLambda")
         (eLambda
-          (gid ())
+          lambdaID
           [ lpVar "x" ]
           (eInfix (PT.Infix.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 1)))
-        (ePipe (eInt64 1) [ pVariable "myLambda" [] ])
+        (ePipe (eInt64 1) [ pVariable pipeID "myLambda" [] ])
 
     /// ```fsharp
     /// let incr = fun x -> x + 1
@@ -261,20 +288,21 @@ module Expressions =
       eLet
         (lpVar "incr")
         (eLambda
-          (gid ())
+          lambdaID
           [ lpVar "x" ]
           (eInfix (PT.Infix.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 1)))
         (ePipe
           (eInt64 2)
-          [ pVariable "incr" []
+          [ pVariable pipeID "incr" []
             pLambda
+              pipeID
               [ lpVar "x" ]
               (eInfix
                 (PT.Infix.InfixFnCall PT.ArithmeticMultiply)
                 (eVar "x")
                 (eInt64 2))
-            pFnCall (PT.FQFnName.fqBuiltIn "int64Add" 0) [] [ eInt64 3 ]
-            pInfix (PT.Infix.InfixFnCall PT.ArithmeticPlus) (eInt64 4) ])
+            pFnCall pipeID (PT.FQFnName.fqBuiltIn "int64Add" 0) [] [ eInt64 3 ]
+            pInfix pipeID (PT.Infix.InfixFnCall PT.ArithmeticPlus) (eInt64 4) ])
 
 
   module Records =
@@ -297,6 +325,11 @@ module Expressions =
       eRecordUpdate Records.simple [ "bonus", eBool false ]
     let fieldWithWrongType = eRecordUpdate Records.simple [ "key", eInt64 1 ]
 
+
+  module Enums =
+    let simple = eEnum (typeNamePkg PM.Types.Enums.withoutFields) [] "Blue" []
+    let withFields =
+      eEnum (typeNamePkg PM.Types.Enums.withFields) [] "Some" [ eInt64 1 ]
 
   module Constants =
     // CLEANUP we don't really have builtin constants, so not bothering to test for now
@@ -405,9 +438,16 @@ module Expressions =
         let appliedWith2 = eApply unapplied [] [ eInt64 2 ]
         let appliedWith20 = eApply unapplied [] [ eInt64 20 ]
 
+      module Recursion =
+        let id = System.Guid.Parse "02036aff-7ae5-4e7c-8f95-f42936044542"
+        let unapplied = ePackageFn id
+        let applied = eApply unapplied [] [ eInt64 300000 ]
+
 
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
+
+//CLEANUP: Migrate this to the top
 let pm : PT.PackageManager =
   PT.PackageManager.empty
   |> PT.PackageManager.withExtras
@@ -450,5 +490,37 @@ let pm : PT.PackageManager =
                     [ eApply (eBuiltinFn "int64Subtract" 0) [] [ eVar "a"; eInt64 1 ] ]) ]
             ))
 
+        description = "TODO"
+        deprecated = PT.NotDeprecated }
+
+      // let addUpTO (n : Int64) : Int64 =
+      //   if n <= 0 then 0
+      //   else 1 + addUpTo (n - 1)
+      { id = Expressions.Fns.Package.Recursion.id
+        name = PT.PackageFn.name "Test" [] "addUpTo"
+        typeParams = []
+        parameters =
+          NEList.ofList { name = "n"; typ = PT.TInt64; description = "TODO" } []
+        returnType = PT.TInt64
+        body =
+          eIf
+            (eApply
+              (eBuiltinFn "int64LessThanOrEqualTo" 0)
+              []
+              [ eVar "n"; eInt64 0L ])
+            (eInt64 0L)
+            (Some(
+              eApply
+                (eBuiltinFn "int64Add" 0)
+                []
+                [ eInt64 1L
+                  (eApply
+                    (ePackageFn Expressions.Fns.Package.Recursion.id)
+                    []
+                    [ eApply
+                        (eBuiltinFn "int64Subtract" 0)
+                        []
+                        [ eVar "n"; eInt64 1L ] ]) ]
+            ))
         description = "TODO"
         deprecated = PT.NotDeprecated } ]
