@@ -18,29 +18,31 @@ let fnRenames : Builtin.FnRenames =
 
 // only accessible to the LibCloud.Config.allowedDarkInternalCanvasID canvas
 let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
-  (fun (state, typeArgs, args) ->
+  (fun (exeState, vmState, typeArgs, args) ->
     uply {
-      if state.program.internalFnsAllowed then
-        return! f (state, typeArgs, args)
+      if exeState.program.internalFnsAllowed then
+        return! f (exeState, vmState, typeArgs, args)
       else
         return
           Exception.raiseInternal
             "internal function attempted to be used in another canvas"
-            [ "canavasId", state.program.canvasID ]
+            [ "canavasId", exeState.program.canvasID ]
     })
 
 
 let builtins : Builtins =
   let builtins =
     Builtin.combine
-      [ Libs.Canvases.builtins
-        Libs.DBs.builtins
-        Libs.Domains.builtins
-        Libs.F404.builtins
-        Libs.Infra.builtins
-        Libs.Secrets.builtins
-        Libs.Users.builtins
-        Libs.Workers.builtins ]
+      [
+        // Libs.Canvases.builtins
+        // Libs.DBs.builtins
+        // Libs.Domains.builtins
+        // Libs.F404.builtins
+        // Libs.Infra.builtins
+        // Libs.Secrets.builtins
+        // Libs.Users.builtins
+        // Libs.Workers.builtins
+        ]
       fnRenames
 
   { builtins with

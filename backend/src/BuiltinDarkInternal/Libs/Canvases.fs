@@ -8,7 +8,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module VT = ValueType
+module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 module Canvas = LibCloud.Canvas
@@ -24,7 +24,7 @@ let fns : List<BuiltInFn> =
       description = "Get a list of all canvas IDs"
       fn =
         (function
-        | _, _, [ DUnit ] ->
+        | _, _, _, [ DUnit ] ->
           uply {
             let! hosts = Canvas.allCanvasIDs ()
             return DList(VT.uuid, List.map DUuid hosts)
