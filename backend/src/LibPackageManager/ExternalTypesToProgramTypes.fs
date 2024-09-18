@@ -16,43 +16,18 @@ open Types
 module EPT = ProgramTypes
 
 module NameResolutionError =
-  module NameType =
-    let toPT
-      (nameType : NameResolutionError.NameType)
-      : LibExecution.NameResolutionError.NameType =
-      match nameType with
-      | NameResolutionError.Type -> LibExecution.NameResolutionError.Type
-      | NameResolutionError.Function -> LibExecution.NameResolutionError.Function
-      | NameResolutionError.Constant -> LibExecution.NameResolutionError.Constant
+  let toPT (err : NameResolutionError) : PT.NameResolutionError =
+    match err with
+    | NotFound names -> PT.NameResolutionError.NotFound names
+    | InvalidName names -> PT.NameResolutionError.InvalidName names
 
-  module ErrorType =
-    let toPT
-      (err : NameResolutionError.ErrorType)
-      : LibExecution.NameResolutionError.ErrorType =
-      match err with
-      | NameResolutionError.ErrorType.NotFound names ->
-        LibExecution.NameResolutionError.NotFound names
-      | NameResolutionError.MissingEnumModuleName caseName ->
-        LibExecution.NameResolutionError.MissingEnumModuleName caseName
-      | NameResolutionError.InvalidPackageName names ->
-        LibExecution.NameResolutionError.InvalidPackageName names
-      | NameResolutionError.ExpectedEnumButNot packageTypeID ->
-        LibExecution.NameResolutionError.ExpectedEnumButNot packageTypeID
-      | NameResolutionError.ExpectedRecordButNot packageTypeID ->
-        LibExecution.NameResolutionError.ExpectedRecordButNot packageTypeID
 
-  module Error =
-    let toPT
-      (err : NameResolutionError.Error)
-      : LibExecution.NameResolutionError.Error =
-      { errorType = ErrorType.toPT err.errorType
-        nameType = NameType.toPT err.nameType }
 
 module NameResolution =
   let toPT (f : 's -> 'p) (result : EPT.NameResolution<'s>) : PT.NameResolution<'p> =
     match result with
     | Ok name -> Ok(f name)
-    | Error err -> Error(NameResolutionError.Error.toPT err)
+    | Error err -> Error(NameResolutionError.toPT err)
 
 
 module Sign =
@@ -138,7 +113,7 @@ module TypeReference =
     | EPT.TTuple(firstType, secondType, otherTypes) ->
       PT.TTuple(toPT firstType, toPT secondType, List.map toPT otherTypes)
     | EPT.TDict typ -> PT.TDict(toPT typ)
-    | EPT.TDB typ -> PT.TDB(toPT typ)
+    //| EPT.TDB typ -> PT.TDB(toPT typ)
     | EPT.TDateTime -> PT.TDateTime
     | EPT.TChar -> PT.TChar
     | EPT.TUuid -> PT.TUuid
@@ -234,10 +209,11 @@ module Expr =
     | EPT.EList(id, exprs) -> PT.EList(id, List.map toPT exprs)
     | EPT.ETuple(id, first, second, theRest) ->
       PT.ETuple(id, toPT first, toPT second, List.map toPT theRest)
-    | EPT.ERecord(id, typeName, fields) ->
+    | EPT.ERecord(id, typeName, typeArgs, fields) ->
       PT.ERecord(
         id,
         NameResolution.toPT TypeName.toPT typeName,
+        List.map TypeReference.toPT typeArgs,
         List.map (Tuple2.mapSecond toPT) fields
       )
     | EPT.ERecordUpdate(id, record, updates) ->
@@ -248,10 +224,11 @@ module Expr =
       )
     | EPT.EPipe(pipeID, expr1, rest) ->
       PT.EPipe(pipeID, toPT expr1, List.map pipeExprToPT rest)
-    | EPT.EEnum(id, typeName, caseName, exprs) ->
+    | EPT.EEnum(id, typeName, typeArgs, caseName, exprs) ->
       PT.EEnum(
         id,
         NameResolution.toPT TypeName.toPT typeName,
+        List.map TypeReference.toPT typeArgs,
         caseName,
         List.map toPT exprs
       )

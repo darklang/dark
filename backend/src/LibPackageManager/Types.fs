@@ -17,24 +17,13 @@ type Sign =
   | Negative
 
 
-module NameResolutionError =
-  type ErrorType =
-    | NotFound of names : List<string>
-    | ExpectedEnumButNot of packageTypeID : uuid
-    | ExpectedRecordButNot of packageTypeID : uuid
-    | MissingEnumModuleName of caseName : string
-    | InvalidPackageName of names : List<string>
-
-  type NameType =
-    | Function
-    | Type
-    | Constant
-
-  type Error = { errorType : ErrorType; nameType : NameType }
+type NameResolutionError =
+  | NotFound of names : List<string>
+  | InvalidName of names : List<string>
 
 
 module ProgramTypes =
-  type NameResolution<'a> = Result<'a, NameResolutionError.Error>
+  type NameResolution<'a> = Result<'a, NameResolutionError>
 
   module FQTypeName =
     type Package = uuid
@@ -84,7 +73,7 @@ module ProgramTypes =
     | TCustomType of
       NameResolution<FQTypeName.FQTypeName> *
       typeArgs : List<TypeReference>
-    | TDB of TypeReference
+    //| TDB of TypeReference
     | TFn of NEList<TypeReference> * TypeReference
 
   type LetPattern =
@@ -179,10 +168,15 @@ module ProgramTypes =
     | EList of ID * List<Expr>
     | EDict of ID * List<string * Expr>
     | ETuple of ID * Expr * Expr * List<Expr>
-    | ERecord of ID * NameResolution<FQTypeName.FQTypeName> * List<string * Expr>
+    | ERecord of
+      ID *
+      NameResolution<FQTypeName.FQTypeName> *
+      List<TypeReference> *
+      List<string * Expr>
     | EEnum of
       ID *
       typeName : NameResolution<FQTypeName.FQTypeName> *
+      List<TypeReference> *
       caseName : string *
       fields : List<Expr>
 

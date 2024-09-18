@@ -13,6 +13,7 @@ let fnRenames : Builtin.FnRenames =
 let builtins =
   Builtin.combine
     [
-      //Libs.DB.builtins;
-      //Libs.Event.builtins
-      ] fnRenames
+    //Libs.DB.builtins;
+    //Libs.Event.builtins
+    ]
+    fnRenames
