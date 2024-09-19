@@ -438,9 +438,9 @@ let fns : List<BuiltInFn> =
             |> raiseRTE vm.threadID
 
         | _, vm, _, multipleArgs ->
-            RuntimeError.Unwraps.MultipleArgs multipleArgs
-            |> RuntimeError.Unwrap
-            |> raiseRTE vm.threadID)
+          RuntimeError.Unwraps.MultipleArgs multipleArgs
+          |> RuntimeError.Unwrap
+          |> raiseRTE vm.threadID)
 
       sqlSpec = NotQueryable
       previewable = Pure

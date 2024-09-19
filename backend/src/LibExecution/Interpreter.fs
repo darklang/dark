@@ -402,7 +402,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
           registers[lambdaReg] <-
             { exprId = impl.exprId
               closedRegisters =
-                impl.registersToClose
+                impl.registersToCloseOver
                 |> List.map (fun (parentReg, childReg) ->
                   childReg, registers[parentReg])
               argsSoFar = [] }

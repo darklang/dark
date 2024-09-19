@@ -619,7 +619,10 @@ module Expect =
         typeNameEqualityBaseFn path typeName typeName' errorFn
         check ("caseName" :: path) caseName caseName'
 
-        check ("TypeArgsLength" :: path) (List.length typeArgs) (List.length typeArgs')
+        check
+          ("TypeArgsLength" :: path)
+          (List.length typeArgs)
+          (List.length typeArgs')
         List.iteri2 (fun i -> checkValueType (string i :: path)) typeArgs typeArgs'
 
         check ("fields.Length" :: path) (List.length fields) (List.length fields)
@@ -661,7 +664,7 @@ module Expect =
       | DEnum _, _
       | DApplicable _, _
       // | DDB _, _
-        -> check path actual expected
+       -> check path actual expected
 
 
     let dvalEquality (left : Dval) (right : Dval) : bool =
@@ -670,8 +673,8 @@ module Expect =
       success
 
     let rec equalDval (actual : Dval) (expected : Dval) (msg : string) : unit =
-        dvalEqualityBaseFn [] actual expected (fun path a e ->
-          Expect.equal a e (formatMsg msg path actual))
+      dvalEqualityBaseFn [] actual expected (fun path a e ->
+        Expect.equal a e (formatMsg msg path actual))
 
   module PT =
     open LibExecution.ProgramTypes
@@ -756,14 +759,15 @@ module Expect =
       match actual, expected with
       | EPipeLambda(_, pats, body), EPipeLambda(_, pats', body') ->
         NEList.iteri2
-          (fun i l r -> letPatternEqualityBaseFn checkIDs (string i :: path) l r errorFn)
+          (fun i l r ->
+            letPatternEqualityBaseFn checkIDs (string i :: path) l r errorFn)
           pats
           pats'
         exprEqualityBaseFn checkIDs ("body" :: path) body body' errorFn
 
       | EPipeInfix(_, op, e), EPipeInfix(_, op', e') ->
         check path op op'
-        exprEqualityBaseFn checkIDs  ("expr" :: path) e e' errorFn
+        exprEqualityBaseFn checkIDs ("expr" :: path) e e' errorFn
 
       | EPipeFnCall(_, name, typeArgs, args), EPipeFnCall(_, name', typeArgs', args') ->
         let path = (string name :: path)
@@ -786,7 +790,8 @@ module Expect =
       //     fields
       //     fields'
 
-      | EPipeVariable(_, varContainingPipeable, args), EPipeVariable(_, varContainingPipeable', args') ->
+      | EPipeVariable(_, varContainingPipeable, args),
+        EPipeVariable(_, varContainingPipeable', args') ->
         check path varContainingPipeable varContainingPipeable'
         List.iteri2
           (fun i l r -> exprEqualityBaseFn checkIDs (string i :: path) l r errorFn)
@@ -1012,24 +1017,24 @@ module Expect =
 
 
 
-  // let rec equalMatchPattern
-  //   (actual : MatchPattern)
-  //   (expected : MatchPattern)
-  //   (msg : string)
-  //   : unit =
-  //   matchPatternEqualityBaseFn true [] actual expected (fun path a e ->
-  //     Expect.equal a e (formatMsg msg path actual))
+// let rec equalMatchPattern
+//   (actual : MatchPattern)
+//   (expected : MatchPattern)
+//   (msg : string)
+//   : unit =
+//   matchPatternEqualityBaseFn true [] actual expected (fun path a e ->
+//     Expect.equal a e (formatMsg msg path actual))
 
-  // let rec equalMatchPatternIgnoringIDs
-  //   (actual : MatchPattern)
-  //   (expected : MatchPattern)
-  //   : unit =
-  //   matchPatternEqualityBaseFn false [] actual expected (fun path a e ->
-  //     Expect.equal a e (formatMsg "" path actual))
+// let rec equalMatchPatternIgnoringIDs
+//   (actual : MatchPattern)
+//   (expected : MatchPattern)
+//   : unit =
+//   matchPatternEqualityBaseFn false [] actual expected (fun path a e ->
+//     Expect.equal a e (formatMsg "" path actual))
 
-  // let rec equalExpr (actual : Expr) (expected : Expr) (msg : string) : unit =
-  //   exprEqualityBaseFn true [] actual expected (fun path a e ->
-  //     Expect.equal a e (formatMsg msg path actual))
+// let rec equalExpr (actual : Expr) (expected : Expr) (msg : string) : unit =
+//   exprEqualityBaseFn true [] actual expected (fun path a e ->
+//     Expect.equal a e (formatMsg msg path actual))
 
 
 

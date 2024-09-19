@@ -26,7 +26,7 @@ let fns : List<BuiltInFn> =
       returnType = TCustomType(Ok executionOutcomeTypeName, [])
       fn =
         (function
-        | _, _, _,  [ DString command ] ->
+        | _, _, _, [ DString command ] ->
           let command =
             command.Replace(
               "$HOME",
@@ -38,14 +38,14 @@ let fns : List<BuiltInFn> =
               "cmd.exe", $"/c {command}"
             // TODO: run in whatever the default shell is -- not just bash.
             else
-            // if
-            //   RuntimeInformation.IsOSPlatform OSPlatform.Linux
-            //   || RuntimeInformation.IsOSPlatform OSPlatform.OSX
-            //then
+              // if
+              //   RuntimeInformation.IsOSPlatform OSPlatform.Linux
+              //   || RuntimeInformation.IsOSPlatform OSPlatform.OSX
+              //then
               "/bin/bash", $"-c \"{command}\""
-            // else
-            //   "Executing CLI commands is not supported for your operating system (Linux, Windows, or Mac not detected)"
-            //   |> raiseUntargetedString
+          // else
+          //   "Executing CLI commands is not supported for your operating system (Linux, Windows, or Mac not detected)"
+          //   |> raiseUntargetedString
 
           let psi =
             System.Diagnostics.ProcessStartInfo(

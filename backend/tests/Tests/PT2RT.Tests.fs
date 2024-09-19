@@ -495,7 +495,7 @@ module Expr =
              0,
              { exprId = E.Pipes.pipeID
                patterns = NEList.ofList (RT.LPVariable 0) []
-               registersToClose = []
+               registersToCloseOver = []
                instructions = { registerCount = 1; instructions = []; resultIn = 0 } }
            )
            RT.LoadVal(1, RT.DInt64 1L)
@@ -546,7 +546,7 @@ module Expr =
              0,
              { exprId = E.Pipes.lambdaID
                patterns = NEList.ofList (RT.LPVariable 0) []
-               registersToClose = []
+               registersToCloseOver = []
                instructions =
                  { registerCount = 4
                    instructions =
@@ -576,7 +576,7 @@ module Expr =
              0,
              { exprId = E.Pipes.lambdaID
                patterns = NEList.ofList (RT.LPVariable 0) []
-               registersToClose = []
+               registersToCloseOver = []
                instructions =
                  { registerCount = 4
                    instructions =
@@ -604,7 +604,7 @@ module Expr =
              3,
              { exprId = E.Pipes.pipeID
                patterns = NEList.ofList (RT.LPVariable 0) []
-               registersToClose = []
+               registersToCloseOver = []
                instructions =
                  { registerCount = 4
                    instructions =
@@ -932,7 +932,7 @@ module Expr =
                0,
                { exprId = E.Lambdas.Identity.id
                  patterns = NEList.ofList (RT.LPVariable 0) []
-                 registersToClose = []
+                 registersToCloseOver = []
                  instructions =
                    { registerCount = 1; instructions = []; resultIn = 0 } }
              ) ],
@@ -947,7 +947,7 @@ module Expr =
                0,
                { exprId = E.Lambdas.Identity.id
                  patterns = NEList.ofList (RT.LPVariable 0) []
-                 registersToClose = []
+                 registersToCloseOver = []
                  instructions =
                    { registerCount = 1; instructions = []; resultIn = 0 } }
              )
@@ -967,7 +967,7 @@ module Expr =
                0,
                { exprId = E.Lambdas.Add.id
                  patterns = NEList.ofList (RT.LPVariable 0) [ RT.LPVariable 1 ]
-                 registersToClose = []
+                 registersToCloseOver = []
                  instructions =
                    { registerCount = 4
                      instructions =
@@ -993,7 +993,7 @@ module Expr =
                0,
                { exprId = E.Lambdas.Add.id
                  patterns = NEList.ofList (RT.LPVariable 0) [ RT.LPVariable 1 ]
-                 registersToClose = []
+                 registersToCloseOver = []
                  instructions =
                    { registerCount = 4
                      instructions =
@@ -1022,7 +1022,7 @@ module Expr =
                0,
                { exprId = E.Lambdas.Add.id
                  patterns = NEList.ofList (RT.LPVariable 0) [ RT.LPVariable 1 ]
-                 registersToClose = []
+                 registersToCloseOver = []
                  instructions =
                    { registerCount = 4
                      instructions =
@@ -1067,7 +1067,7 @@ module Expr =
                4,
                { exprId = E.Lambdas.AddToClosedVars.id
                  patterns = NEList.ofList (RT.LPVariable 0) []
-                 registersToClose = [ (1, 1); (3, 2) ]
+                 registersToCloseOver = [ (1, 1); (3, 2) ]
                  instructions =
                    { registerCount = 7
                      instructions =
@@ -1108,7 +1108,7 @@ module Expr =
                4,
                { exprId = E.Lambdas.AddToClosedVars.id
                  patterns = NEList.ofList (RT.LPVariable 0) []
-                 registersToClose = [ (1, 1); (3, 2) ]
+                 registersToCloseOver = [ (1, 1); (3, 2) ]
                  instructions =
                    { registerCount = 7
                      instructions =

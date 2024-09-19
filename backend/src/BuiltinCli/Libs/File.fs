@@ -204,7 +204,7 @@ let fns : List<BuiltInFn> =
         "Returns true if a file or directory exists at the specified <param path>, or false otherwise"
       fn =
         (function
-        | _, _, _,  [ DString path ] ->
+        | _, _, _, [ DString path ] ->
           uply {
             try
               let exists =

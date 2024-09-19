@@ -60,8 +60,8 @@ module CliRuntimeError =
         DEnum(typeName, typeName, [], caseName, fields)
 
 
-    // let toRuntimeError (e : Error) : RT.RuntimeError =
-    //   Error.toDT e |> RT.RuntimeError.fromDT
+// let toRuntimeError (e : Error) : RT.RuntimeError =
+//   Error.toDT e |> RT.RuntimeError.fromDT
 
 
 
@@ -145,8 +145,7 @@ let builtinsToUse : RT.Builtins =
 
 
 let fns : List<BuiltInFn> =
-  [
-    { name = fn "cliParseAndExecuteScript" 0
+  [ { name = fn "cliParseAndExecuteScript" 0
       typeParams = []
       parameters =
         [ Param.make "filename" TString ""
@@ -160,7 +159,10 @@ let fns : List<BuiltInFn> =
         // let resultOk = Dval.resultOk KTInt64 errType
         // let resultError = Dval.resultError KTInt64 errType
         (function
-        | _exeState, _, [], [ DString _filename; DString _code; DDict(_vtTODO, _symtable) ] ->
+        | _exeState,
+          _,
+          [],
+          [ DString _filename; DString _code; DDict(_vtTODO, _symtable) ] ->
           uply {
             // let exnError (e : exn) : RuntimeError =
             //   let msg = Exception.getMessages e |> String.concat "\n"

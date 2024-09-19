@@ -871,8 +871,9 @@ module Expr =
             (pats @ [ pat ], Map.mergeFavoringRight symbols newSymbols, rcAfterPat))
           ([], Map.empty, 0)
 
-      let (registersToClose, symbolsOfNewFrameAfterOnesOnlyUsedInBoty, rcOfNewFrame)
-        : (List<RT.Register * RT.Register> * Map<string, int> * int) =
+      let (registersToCloseOver,
+           symbolsOfNewFrameAfterOnesOnlyUsedInBoty,
+           rcOfNewFrame) : (List<RT.Register * RT.Register> * Map<string, int> * int) =
         symbolsUsedInBodyNotDefinedInPats
         |> Set.toList
         |> List.fold
@@ -884,7 +885,7 @@ module Expr =
       let impl : RT.LambdaImpl =
         { exprId = id
           patterns = pats |> NEList.ofListUnsafe "" []
-          registersToClose = registersToClose
+          registersToCloseOver = registersToCloseOver
           instructions =
             toRT symbolsOfNewFrameAfterOnesOnlyUsedInBoty rcOfNewFrame body }
 

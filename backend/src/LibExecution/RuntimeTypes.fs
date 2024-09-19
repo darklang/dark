@@ -478,7 +478,7 @@ and LambdaImpl =
     ///
     /// PT2RT has the duty of creating and passing in (PT2RT-only)
     /// symbtable for the evaluation of the expr on the RHS
-    registersToClose : List<Register * Register>
+    registersToCloseOver : List<Register * Register>
 
     // Hmm do these actually belong here, or somewhere else? idk how we get this to work.
     // do we need to call eval within eval or something? would love to avoid that.
@@ -1441,13 +1441,14 @@ and InstrData =
   }
 
 
+
 and VMState =
   { mutable threadID : uuid
 
     mutable callFrames : Map<uuid, CallFrame>
     mutable currentFrameID : uuid
 
-    sourceInfo : InstrData
+    sourceInfo : InstrData // probably could be arg of interpreter -- rename to rootInstrData or something
     mutable lambdas : Map<CallFrameContext * id, LambdaImpl>
     mutable packageFns : Map<FQFnName.Package, InstrData> }
 
