@@ -319,36 +319,35 @@ def execute(should):
   # if should.reload_backend_server:
   #   if not reload_backend_server(): success = False
 
-  # if should.clear_local_db:
-  #   if not clear_local_db(): success = False
-  #   should.run_migrations |= success
-  #   should.reload_all_packages |= success
+  if should.clear_local_db:
+    if not clear_local_db(): success = False
+    should.run_migrations |= success
+    should.reload_all_packages |= success
 
-  # if should.run_migrations:
-  #   if not run_migrations(): success = False
+  if should.run_migrations:
+    if not run_migrations(): success = False
 
-  # if should.reload_all_packages:
-  #   if not reload_all_packages(): success = False
+  if should.reload_all_packages:
+    if not reload_all_packages(): success = False
 
-  # if should.backend_test:
-  #   if not backend_test(): success = False
+  if should.backend_test:
+    if not backend_test(): success = False
 
 
+  # misc validations and formatting checkers
+  if should.circleci_validate:
+    if not circleci_validate(): success = False
 
-  # # misc validations and formatting checkers
-  # if should.circleci_validate:
-  #   if not circleci_validate(): success = False
+  if should.shellcheck != []:
+    all_files = " ".join(should.shellcheck)
+    if not shellcheck(all_files): success = False
 
-  # if should.shellcheck != []:
-  #   all_files = " ".join(should.shellcheck)
-  #   if not shellcheck(all_files): success = False
+  if should.yamllint:
+    if not all([yamllint(f) for f in should.yamllint]):
+      success = False
 
-  # if should.yamllint:
-  #   if not all([yamllint(f) for f in should.yamllint]):
-  #     success = False
-
-  # if should.terraform_validate:
-  #   if not terraform_validate(): success = False
+  if should.terraform_validate:
+    if not terraform_validate(): success = False
 
 
   return success
