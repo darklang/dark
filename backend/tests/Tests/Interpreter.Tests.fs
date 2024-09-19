@@ -20,7 +20,7 @@ let tCheckVM
   (extraVmStateAssertions : RT.VMState -> unit)
   =
   testTask name {
-    let vmState = ptExpr |> PT2RT.Expr.toRT Map.empty 0 |> RT.VMState.fromExpr
+    let vmState = ptExpr |> PT2RT.Expr.toRT Map.empty 0 |> RT.VMState.create
 
     let! exeState =
       executionStateFor TestValues.pm (System.Guid.NewGuid()) false false
@@ -419,7 +419,8 @@ module Lambdas =
           RT.AppLambda
             { exprId = E.Lambdas.Identity.id; closedRegisters = []; argsSoFar = [] }
         ))
-        (fun vm -> Expect.isFalse (Map.isEmpty vm.lambdas) "no lambdas in VMState")
+        (fun vm ->
+          Expect.isFalse (Map.isEmpty vm.lambdaInstrCache) "no lambdas in VMState")
 
     let applied = t "(fn x -> x) 1" E.Lambdas.Identity.applied (RT.DInt64 1L)
 
@@ -434,7 +435,8 @@ module Lambdas =
           RT.AppLambda
             { exprId = E.Lambdas.Add.id; closedRegisters = []; argsSoFar = [] }
         ))
-        (fun vm -> Expect.isFalse (Map.isEmpty vm.lambdas) "no lambdas in VMState")
+        (fun vm ->
+          Expect.isFalse (Map.isEmpty vm.lambdaInstrCache) "no lambdas in VMState")
 
     let partiallyApplied =
       t
@@ -463,7 +465,8 @@ module Lambdas =
               closedRegisters = [ (1, RT.DInt64 5); (2, RT.DInt64 10) ]
               argsSoFar = [] }
         ))
-        (fun vm -> Expect.isFalse (Map.isEmpty vm.lambdas) "no lambdas in VMState")
+        (fun vm ->
+          Expect.isFalse (Map.isEmpty vm.lambdaInstrCache) "no lambdas in VMState")
 
     let applied =
       t

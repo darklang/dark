@@ -202,15 +202,16 @@ type TypeReference =
   | TString
   | TUuid
   | TDateTime
-  | TList of TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>
+  | TList of TypeReference
+  | TDict of TypeReference // CLEANUP add key type
   | TFn of NEList<TypeReference> * TypeReference
-  // | TDB of TypeReference
-  | TVariable of string
   | TCustomType of
     NameResolution<FQTypeName.FQTypeName> *
     typeArgs : List<TypeReference>
-  | TDict of TypeReference // CLEANUP add key type
+  | TVariable of string
+  // | TDB of TypeReference
+
 
   member this.isFn() : bool =
     match this with
@@ -595,7 +596,7 @@ and [<NoComparison>] Dval =
 
 and DvalTask = Ply<Dval>
 
-// TODO mayube kill this?
+// TODO mayube kill this? in favor of CallFrameContext
 and ExecutionPoint =
   /// User is executing some "arbitrary" expression, passed in by a user.
   ///
@@ -612,6 +613,7 @@ and ExecutionPoint =
 
 // Executing some lambda
 //| Lambda of parent: ExecutionPoint * exprId: id
+
 
 /// Record the source expression of an error.
 /// This is to show the code that was responsible for it.
@@ -982,11 +984,6 @@ let raiseUntargetedRTE (rte : RuntimeError.Error) : 'a =
   raise (RuntimeErrorException(None, rte))
 
 
-// // (only?) OK in builtins because we "fill in" the callstack in the Interpreter for such failures
-// // CLEANUP maybe (somehow) restrict to only Builtins
-// let raiseUntargetedRTE (rte : RuntimeError) : 'a =
-//   raise (RuntimeErrorException(None, rte))
-
 
 /// Internally in the runtime, we allow throwing RuntimeErrorExceptions. At the
 /// boundary, typically in Execution.fs, we will catch the exception, and return
@@ -1072,11 +1069,11 @@ module Dval =
     | DApplicable applicable ->
       match applicable with
       | AppLambda _lambda ->
-        // KTFn(
-        //   NEList.map (fun _ -> ValueType.Unknown) lambda.parameters,
-        //   ValueType.Unknown
-        // )
-        // |> ValueType.Known
+        //   KTFn(
+        //     NEList.map (fun _ -> ValueType.Unknown) lambda.parameters,
+        //     ValueType.Unknown
+        //   )
+        //   |> ValueType.Known
         ValueType.Unknown
 
       // VTTODO look up type, etc
@@ -1084,6 +1081,7 @@ module Dval =
 
 // // CLEANUP follow up when DDB has a typeReference
 // | DDB _ -> ValueType.Unknown
+
 
 
 
@@ -1142,6 +1140,54 @@ module PackageFn =
 
       // CLEANUP consider renaming - just `instructions` maybe?
       body : Instructions }
+
+
+/// Functionality written in Dark stored and managed outside of user space
+///
+/// Note: it may be tempting to think these shouldn't return Options,
+/// but if/when Package items may live (for some time) only on local systems,
+/// there's a chance some code will be committed, referencing something
+/// not yet in the Cloud PM.
+/// (though, we'll likely demand deps. in the PM before committing something upstream...)
+type PackageManager =
+  { getType : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
+    getConstant :
+      FQConstantName.Package -> Ply<Option<PackageConstant.PackageConstant>>
+    getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
+
+    init : Ply<unit> }
+
+  static member empty =
+    { getType = (fun _ -> Ply None)
+      getFn = (fun _ -> Ply None)
+      getConstant = (fun _ -> Ply None)
+
+      init = uply { return () } }
+
+  /// Allows you to side-load a few 'extras' in-memory, along
+  /// the normal fetching functionality. (Mostly helpful for tests)
+  static member withExtras
+    (types : List<PackageType.PackageType>)
+    (constants : List<PackageConstant.PackageConstant>)
+    (fns : List<PackageFn.PackageFn>)
+    (pm : PackageManager)
+    : PackageManager =
+    { getType =
+        fun id ->
+          match types |> List.tryFind (fun t -> t.id = id) with
+          | Some t -> Some t |> Ply
+          | None -> pm.getType id
+      getConstant =
+        fun id ->
+          match constants |> List.tryFind (fun c -> c.id = id) with
+          | Some c -> Some c |> Ply
+          | None -> pm.getConstant id
+      getFn =
+        fun id ->
+          match fns |> List.tryFind (fun f -> f.id = id) with
+          | Some f -> Some f |> Ply
+          | None -> pm.getFn id
+      init = pm.init }
 
 
 // // ------------
@@ -1253,31 +1299,19 @@ type BuiltInFn =
     sqlSpec : SqlSpec
     fn : BuiltInFnSig }
 
-and Fn =
-  {
-    name : FQFnName.FQFnName
-    typeParams : List<string>
-    parameters : NEList<Param>
-    returnType : TypeReference
-    previewable : Previewable
-    sqlSpec : SqlSpec
-
-    /// <remarks>
-    /// May throw an exception, though we're trying to get them to never throw exceptions.
-    /// </remarks>
-    fn : FnImpl
-  }
-
 and BuiltInFnSig =
-  // exeState * vmState * typeArgs * fnArgs -> result
-  // CLEANUP this is sort of a _lot_ to pass into every builtin fn call - reduce?
+  // (exeState * vmState * typeArgs * fnArgs) -> result
   (ExecutionState * VMState * List<TypeReference> * List<Dval>) -> DvalTask
 
-and FnImpl =
-  | BuiltInFunction of BuiltInFnSig
-  | PackageFunction of FQFnName.Package * Instructions //* localCount: int
+
+/// Functionally written in F# and shipped with the executable
+and Builtins =
+  { constants : Map<FQConstantName.Builtin, BuiltInConstant>
+    fns : Map<FQFnName.Builtin, BuiltInFn> }
 
 
+// Tracing -- TODO: move this into its own module,
+// and stop defining it recursively with the other things here
 and FunctionRecord = Source * FQFnName.FQFnName
 
 and TraceDval = id -> Dval -> unit
@@ -1290,8 +1324,17 @@ and LoadFnResult = FunctionRecord -> NEList<Dval> -> Option<Dval * NodaTime.Inst
 
 and StoreFnResult = FunctionRecord -> NEList<Dval> -> Dval -> unit
 
+/// Set of callbacks used to trace the interpreter, and other context needed to run code
+and Tracing =
+  { traceDval : TraceDval
+    traceExecutionPoint : TraceExecutionPoint
+    loadFnResult : LoadFnResult
+    storeFnResult : StoreFnResult }
+
+
+
 /// Every part of a user's program
-/// CLEANUP rename to 'app'?
+/// CLEANUP rename to 'app' or 'canvas'?
 and Program =
   { canvasID : CanvasID
     internalFnsAllowed : bool
@@ -1299,12 +1342,7 @@ and Program =
   //secrets : List<Secret.T>
   }
 
-/// Set of callbacks used to trace the interpreter, and other context needed to run code
-and Tracing =
-  { traceDval : TraceDval
-    traceExecutionPoint : TraceExecutionPoint
-    loadFnResult : LoadFnResult
-    storeFnResult : StoreFnResult }
+
 
 // Used for testing
 // TODO: maybe this belongs in Execution rather than RuntimeTypes?
@@ -1316,57 +1354,9 @@ and TestContext =
     mutable expectedExceptionCount : int
     postTestExecutionHook : TestContext -> unit }
 
-/// Functionally written in F# and shipped with the executable
-and Builtins =
-  { constants : Map<FQConstantName.Builtin, BuiltInConstant>
-    fns : Map<FQFnName.Builtin, BuiltInFn> }
 
-/// Functionality written in Dark stored and managed outside of user space
-///
-/// Note: it may be tempting to think these shouldn't return Options,
-/// but if/when Package items may live (for some time) only on local systems,
-/// there's a chance some code will be committed, referencing something
-/// not yet in the Cloud PM.
-/// (though, we'll likely demand deps. in the PM before committing something upstream...)
-and PackageManager =
-  { getType : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
-    getConstant :
-      FQConstantName.Package -> Ply<Option<PackageConstant.PackageConstant>>
-    getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
 
-    init : Ply<unit> }
 
-  static member empty =
-    { getType = (fun _ -> Ply None)
-      getFn = (fun _ -> Ply None)
-      getConstant = (fun _ -> Ply None)
-
-      init = uply { return () } }
-
-  /// Allows you to side-load a few 'extras' in-memory, along
-  /// the normal fetching functionality. (Mostly helpful for tests)
-  static member withExtras
-    (types : List<PackageType.PackageType>)
-    (constants : List<PackageConstant.PackageConstant>)
-    (fns : List<PackageFn.PackageFn>)
-    (pm : PackageManager)
-    : PackageManager =
-    { getType =
-        fun id ->
-          match types |> List.tryFind (fun t -> t.id = id) with
-          | Some t -> Some t |> Ply
-          | None -> pm.getType id
-      getConstant =
-        fun id ->
-          match constants |> List.tryFind (fun c -> c.id = id) with
-          | Some c -> Some c |> Ply
-          | None -> pm.getConstant id
-      getFn =
-        fun id ->
-          match fns |> List.tryFind (fun f -> f.id = id) with
-          | Some f -> Some f |> Ply
-          | None -> pm.getFn id
-      init = pm.init }
 
 and ExceptionReporter = ExecutionState -> Metadata -> exn -> unit
 
@@ -1388,18 +1378,9 @@ and ExecutionState =
     /// users are doing, etc.
     notify : Notifier
 
+
     // -- Set at the start of an execution --
     program : Program // TODO: rename to Canvas?
-
-
-    // -- Can change over time during execution --
-    // (probably move these things to VMState)
-
-    // // Maybe replace this and `builtins` with availTypes, availConsts, availFns?
-    // // We're doing some ExecutionState -> (those) mappings at runtime on occasion,
-    // // probably a lot more than we need
-    // packageManager : PackageManager
-    // builtins : Builtins
 
     types : Types
     fns : Functions
@@ -1409,27 +1390,30 @@ and ExecutionState =
 and Registers = Dval array
 
 and CallFrameContext =
-  | Source // from raw expr (for test) or TopLevel
+  /// from raw expr (for test) or TopLevel
+  | Source
   | PackageFn of FQFnName.Package
-  | Lambda of parent : CallFrameContext * id
+  | Lambda of parent : CallFrameContext * exprId : id
 
 
 and CallFrame =
   {
     id : uuid
 
-    /// Id * where to put result in parent * pc of parent
+    /// (Id * where to put result in parent * pc of parent to return to)
     parent : Option<uuid * Register * int>
 
-    // TODO the instructions and resultReg are not in the CallFrame itself
-    // -- multiple CFs may be operating on the same fn or w/e
+    // The instructions and resultReg are not in the CallFrame itself.
+    // Multiple CFs may be operating on the same fn/lambda/etc.,
     // so we keep only one copy of such, in the root of the VMState
     context : CallFrameContext
 
-    /// Program counter (what instruction index we are currently 'at')
-    mutable pc : int
+    /// What instruction index we are currently 'at'
+    mutable programCounter : int
 
-    registers : Registers // mutable because array?
+    registers : Registers
+
+  // TODO: typeSymbolTable (or some version of it) probably belongs here
   }
 
 and InstrData =
@@ -1441,39 +1425,38 @@ and InstrData =
   }
 
 
-
 and VMState =
   { mutable threadID : uuid
 
     mutable callFrames : Map<uuid, CallFrame>
     mutable currentFrameID : uuid
 
-    sourceInfo : InstrData // probably could be arg of interpreter -- rename to rootInstrData or something
-    mutable lambdas : Map<CallFrameContext * id, LambdaImpl>
-    mutable packageFns : Map<FQFnName.Package, InstrData> }
+    // The inst data for each fn/lambda/etc. is stored here, so that
+    // it doesn't have to be copied into each CallFrame.
+    rootInstrData : InstrData
+    mutable lambdaInstrCache : Map<CallFrameContext * id, LambdaImpl>
+    mutable packageFnInstrCache : Map<FQFnName.Package, InstrData> }
 
-  static member fromExpr(expr : Instructions) : VMState =
+  static member create(expr : Instructions) : VMState =
     let callFrameId = System.Guid.NewGuid()
 
     let callFrame : CallFrame =
       { id = callFrameId
         context = Source
-        pc = 0
+        programCounter = 0
         registers = Array.zeroCreate expr.registerCount
         parent = None }
 
     { threadID = System.Guid.NewGuid()
       currentFrameID = callFrameId
       callFrames = Map [ callFrameId, callFrame ]
-      sourceInfo =
+      rootInstrData =
         { instructions = List.toArray expr.instructions; resultReg = expr.resultIn }
-      lambdas = Map.empty
-      packageFns = Map.empty }
+      lambdaInstrCache = Map.empty
+      packageFnInstrCache = Map.empty }
 
 
-and Types =
-  { typeSymbolTable : TypeSymbolTable
-    package : FQTypeName.Package -> Ply<Option<PackageType.PackageType>> }
+and Types = { package : FQTypeName.Package -> Ply<Option<PackageType.PackageType>> }
 
 and Constants =
   { builtIn : Map<FQConstantName.Builtin, BuiltInConstant>
@@ -1485,23 +1468,8 @@ and Functions =
 
 
 
-// module ExecutionState =
-//   let availableTypes (state : ExecutionState) : Types =
-//     { typeSymbolTable = state.typeSymbolTable
-//     //package = state.packageManager.getType
-//     }
-
-// let availableConstants (state : ExecutionState) : Constants =
-//   { builtIn = state.builtins.constants
-//     package = state.packageManager.getConstant }
-
-// let availableFunctions (state : ExecutionState) : Functions =
-//   { builtIn = state.builtins.fns; package = state.packageManager.getFn }
-
-
-
 module Types =
-  let empty = { typeSymbolTable = Map.empty; package = (fun _ -> Ply None) }
+  let empty = { package = (fun _ -> Ply None) }
 
   let find
     (types : Types)
@@ -1551,14 +1519,17 @@ module Types =
     | TUuid
     | TDateTime -> typ
 
-    | TList t -> TList(substitute t)
     | TTuple(t1, t2, rest) ->
       TTuple(substitute t1, substitute t2, List.map substitute rest)
+    | TList t -> TList(substitute t)
+    | TDict t -> TDict(substitute t)
+
     | TFn _ -> typ // TYPESTODO
-    // | TDB _ -> typ // TYPESTODO
+
     | TCustomType(typeName, typeArgs) ->
       TCustomType(typeName, List.map substitute typeArgs)
-    | TDict t -> TDict(substitute t)
+
+// | TDB _ -> typ // TYPESTODO
 
 
 
@@ -1570,31 +1541,3 @@ let consoleReporter : ExceptionReporter =
 let consoleNotifier : Notifier =
   fun _state msg tags ->
     print $"A notification happened in the runtime:\n  {msg}\n  {tags}\n\n"
-
-
-// let builtInParamToParam (p : BuiltInParam) : Param = { name = p.name; typ = p.typ }
-
-// let builtInFnToFn (fn : BuiltInFn) : Fn =
-//   { name = FQFnName.Builtin fn.name
-//     typeParams = fn.typeParams
-//     parameters =
-//       fn.parameters
-//       |> List.map builtInParamToParam
-//       // We'd like to remove this and use NELists, but it's much too annoying to put
-//       // this in every builtin fn definition
-//       |> NEList.ofListUnsafe "builtInFnToFn" [ "name", fn.name ]
-//     returnType = fn.returnType
-//     previewable = fn.previewable
-//     sqlSpec = fn.sqlSpec
-//     fn = BuiltInFunction fn.fn }
-
-// let packageFnToFn (fn : PackageFn.PackageFn) : Fn =
-//   let toParam (p : PackageFn.Parameter) : Param = { name = p.name; typ = p.typ }
-
-//   { name = FQFnName.Package fn.id
-//     typeParams = fn.typeParams
-//     parameters = fn.parameters |> NEList.map toParam
-//     returnType = fn.returnType
-//     previewable = Impure
-//     sqlSpec = NotQueryable
-//     fn = PackageFunction(fn.id, fn.body) }

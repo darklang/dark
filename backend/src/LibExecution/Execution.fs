@@ -36,7 +36,7 @@ let createState
 
     program = program
 
-    types = { typeSymbolTable = Map.empty; package = packageManager.getType }
+    types = { package = packageManager.getType }
     fns = { builtIn = builtins.fns; package = packageManager.getFn }
     constants =
       { builtIn = builtins.constants; package = packageManager.getConstant } }
@@ -48,7 +48,7 @@ let executeExpr
   (instrs : RT.Instructions)
   : Task<RT.ExecutionResult> =
   task {
-    let vmState = RT.VMState.fromExpr instrs
+    let vmState = RT.VMState.create instrs
     try
       try
         // TODO: handle secrets and DBs by explicit references instead of relying on symbol table

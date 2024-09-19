@@ -175,24 +175,25 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
     while Map.containsKey vm.currentFrameID vm.callFrames do
       let currentFrame = Map.findUnsafe vm.currentFrameID vm.callFrames
 
-      let mutable counter = currentFrame.pc
+      let mutable counter = currentFrame.programCounter
       let registers = currentFrame.registers
 
 
       let! instrData =
         match currentFrame.context with
-        | Source -> Ply vm.sourceInfo
+        | Source -> Ply vm.rootInstrData
 
         | Lambda(parentContext, lambdaID) ->
           let lambda =
-            Map.findUnsafe (parentContext, lambdaID) vm.lambdas |> _.instructions
+            Map.findUnsafe (parentContext, lambdaID) vm.lambdaInstrCache
+            |> _.instructions
           { instructions = List.toArray lambda.instructions
             resultReg = lambda.resultIn }
           |> Ply
 
         | PackageFn fn ->
           uply {
-            match Map.find fn vm.packageFns with
+            match Map.find fn vm.packageFnInstrCache with
             | Some fn -> return fn
             | None ->
               match! exeState.fns.package fn with
@@ -200,7 +201,8 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                 let instrData =
                   { instructions = List.toArray fn.body.instructions
                     resultReg = fn.body.resultIn }
-                vm.packageFns <- Map.add fn.id instrData vm.packageFns
+                vm.packageFnInstrCache <-
+                  Map.add fn.id instrData vm.packageFnInstrCache
                 return instrData
 
               | None -> return raiseRTE (RTE.FnNotFound(FQFnName.Package fn))
@@ -398,7 +400,8 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
 
 
         | CreateLambda(lambdaReg, impl) ->
-          vm.lambdas <- Map.add (currentFrame.context, impl.exprId) impl vm.lambdas
+          vm.lambdaInstrCache <-
+            Map.add (currentFrame.context, impl.exprId) impl vm.lambdaInstrCache
           registers[lambdaReg] <-
             { exprId = impl.exprId
               closedRegisters =
@@ -442,7 +445,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
             let foundLambda =
               Map.findUnsafe
                 (currentFrame.context, applicableLambda.exprId)
-                vm.lambdas
+                vm.lambdaInstrCache
 
             let allArgs = applicableLambda.argsSoFar @ newArgDvals
 
@@ -456,7 +459,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
               frameToPush <-
                 { id = guuid ()
                   parent = Some(vm.currentFrameID, putResultIn, counter + 1)
-                  pc = 0
+                  programCounter = 0
                   registers =
                     let r = Array.zeroCreate foundLambda.instructions.registerCount
 
@@ -536,7 +539,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                   frameToPush <-
                     { id = guuid ()
                       parent = Some(vm.currentFrameID, putResultIn, counter + 1)
-                      pc = 0
+                      programCounter = 0
                       registers =
                         let r = Array.zeroCreate fn.body.registerCount
                         allArgs |> List.iteri (fun i arg -> r[i] <- arg)
@@ -574,7 +577,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
           vm.currentFrameID <- parentID
           let parentFrame = Map.findUnsafe parentID vm.callFrames
           parentFrame.registers[regOfParentToPutResultInto] <- resultOfFrame
-          parentFrame.pc <- pcOfParent
+          parentFrame.programCounter <- pcOfParent
 
         | None ->
           vm.callFrames <- Map.remove vm.currentFrameID vm.callFrames
