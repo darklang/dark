@@ -1276,127 +1276,38 @@ type SqlSpec =
     | SqlCallback2 _ -> true
 
 
-type BuiltInConstant =
-  { name : FQConstantName.Builtin
-    typ : TypeReference
-    description : string
-    deprecated : Deprecation<FQConstantName.FQConstantName>
-    body : Dval }
+module Tracing =
+  type FunctionRecord = Source * FQFnName.FQFnName
+
+  type TraceDval = id -> Dval -> unit
+
+  type TraceExecutionPoint = ExecutionPoint -> unit
+
+  // why do we need the Dvals here? those are the args, right - do we really need them?
+  // ah, because we could call the same fn twice, from the same place, but with different args. hmm.
+  type LoadFnResult =
+    FunctionRecord -> NEList<Dval> -> Option<Dval * NodaTime.Instant>
+
+  type StoreFnResult = FunctionRecord -> NEList<Dval> -> Dval -> unit
+
+  /// Set of callbacks used to trace the interpreter, and other context needed to run code
+  type Tracing =
+    { traceDval : TraceDval
+      traceExecutionPoint : TraceExecutionPoint
+      loadFnResult : LoadFnResult
+      storeFnResult : StoreFnResult }
 
 
-/// A built-in standard library function
-///
-/// (Generally shouldn't be accessed directly,
-/// except by a single stdlib Package fn that wraps it)
-type BuiltInFn =
-  { name : FQFnName.Builtin
-    typeParams : List<string>
-    parameters : List<BuiltInParam> // TODO: should be NEList but there's so much to change!
-    returnType : TypeReference
-    description : string
-    previewable : Previewable
-    deprecated : Deprecation<FQFnName.FQFnName>
-    sqlSpec : SqlSpec
-    fn : BuiltInFnSig }
+// -- The VM --
+type Registers = Dval array
 
-and BuiltInFnSig =
-  // (exeState * vmState * typeArgs * fnArgs) -> result
-  (ExecutionState * VMState * List<TypeReference> * List<Dval>) -> DvalTask
-
-
-/// Functionally written in F# and shipped with the executable
-and Builtins =
-  { constants : Map<FQConstantName.Builtin, BuiltInConstant>
-    fns : Map<FQFnName.Builtin, BuiltInFn> }
-
-
-// Tracing -- TODO: move this into its own module,
-// and stop defining it recursively with the other things here
-and FunctionRecord = Source * FQFnName.FQFnName
-
-and TraceDval = id -> Dval -> unit
-
-and TraceExecutionPoint = ExecutionPoint -> unit
-
-// why do we need the Dvals here? those are the args, right - do we really need them?
-// ah, because we could call the same fn twice, from the same place, but with different args. hmm.
-and LoadFnResult = FunctionRecord -> NEList<Dval> -> Option<Dval * NodaTime.Instant>
-
-and StoreFnResult = FunctionRecord -> NEList<Dval> -> Dval -> unit
-
-/// Set of callbacks used to trace the interpreter, and other context needed to run code
-and Tracing =
-  { traceDval : TraceDval
-    traceExecutionPoint : TraceExecutionPoint
-    loadFnResult : LoadFnResult
-    storeFnResult : StoreFnResult }
-
-
-
-/// Every part of a user's program
-/// CLEANUP rename to 'app' or 'canvas'?
-and Program =
-  { canvasID : CanvasID
-    internalFnsAllowed : bool
-  //dbs : Map<string, DB.T>
-  //secrets : List<Secret.T>
-  }
-
-
-
-// Used for testing
-// TODO: maybe this belongs in Execution rather than RuntimeTypes?
-// and taken out of ExecutionState, where it's not really used?
-and TestContext =
-  { mutable sideEffectCount : int
-
-    mutable exceptionReports : List<string * string * Metadata>
-    mutable expectedExceptionCount : int
-    postTestExecutionHook : TestContext -> unit }
-
-
-
-
-
-and ExceptionReporter = ExecutionState -> Metadata -> exn -> unit
-
-and Notifier = ExecutionState -> string -> Metadata -> unit
-
-/// All state used while running a program
-and ExecutionState =
-  { // -- Set consistently across a runtime --
-    tracing : Tracing
-    test : TestContext
-
-    /// Called to report exceptions
-    reportException : ExceptionReporter
-
-    /// Called to notify that something of interest (that isn't an exception)
-    /// has happened.
-    ///
-    /// Useful for tracking behaviour we want to deprecate, understanding what
-    /// users are doing, etc.
-    notify : Notifier
-
-
-    // -- Set at the start of an execution --
-    program : Program // TODO: rename to Canvas?
-
-    types : Types
-    fns : Functions
-    constants : Constants
-  }
-
-and Registers = Dval array
-
-and CallFrameContext =
+type CallFrameContext =
   /// from raw expr (for test) or TopLevel
   | Source
   | PackageFn of FQFnName.Package
   | Lambda of parent : CallFrameContext * exprId : id
 
-
-and CallFrame =
+type CallFrame =
   {
     id : uuid
 
@@ -1416,7 +1327,7 @@ and CallFrame =
   // TODO: typeSymbolTable (or some version of it) probably belongs here
   }
 
-and InstrData =
+type InstrData =
   {
     instructions : Instruction array
 
@@ -1424,8 +1335,7 @@ and InstrData =
     resultReg : Register
   }
 
-
-and VMState =
+type VMState =
   { mutable threadID : uuid
 
     mutable callFrames : Map<uuid, CallFrame>
@@ -1454,6 +1364,98 @@ and VMState =
         { instructions = List.toArray expr.instructions; resultReg = expr.resultIn }
       lambdaInstrCache = Map.empty
       packageFnInstrCache = Map.empty }
+
+
+
+// -- Builtins --
+type BuiltInConstant =
+  { name : FQConstantName.Builtin
+    typ : TypeReference
+    description : string
+    deprecated : Deprecation<FQConstantName.FQConstantName>
+    body : Dval }
+
+/// A built-in standard library function
+///
+/// (Generally shouldn't be accessed directly,
+/// except by a single stdlib Package fn that wraps it)
+type BuiltInFn =
+  { name : FQFnName.Builtin
+    typeParams : List<string>
+    parameters : List<BuiltInParam> // TODO: should be NEList but there's so much to change!
+    returnType : TypeReference
+    description : string
+    previewable : Previewable
+    deprecated : Deprecation<FQFnName.FQFnName>
+    sqlSpec : SqlSpec
+    fn : BuiltInFnSig }
+
+and BuiltInFnSig =
+  // (exeState * vmState * typeArgs * fnArgs) -> result
+  (ExecutionState * VMState * List<TypeReference> * List<Dval>) -> DvalTask
+
+
+/// Functionally written in F# and shipped with the executable
+and Builtins =
+  { constants : Map<FQConstantName.Builtin, BuiltInConstant>
+    fns : Map<FQFnName.Builtin, BuiltInFn> }
+
+
+
+
+
+/// Every part of a user's program
+/// CLEANUP rename to 'app' or 'canvas'?
+and Program =
+  { canvasID : CanvasID
+    internalFnsAllowed : bool
+  //dbs : Map<string, DB.T>
+  //secrets : List<Secret.T>
+  }
+
+
+// Used for testing
+// TODO: maybe this belongs in Execution rather than RuntimeTypes?
+// and taken out of ExecutionState, where it's not really used?
+and TestContext =
+  { mutable sideEffectCount : int
+
+    mutable exceptionReports : List<string * string * Metadata>
+    mutable expectedExceptionCount : int
+    postTestExecutionHook : TestContext -> unit }
+
+
+
+and ExceptionReporter = ExecutionState -> Metadata -> exn -> unit
+
+and Notifier = ExecutionState -> string -> Metadata -> unit
+
+/// All state set when starting an execution; non-changing
+/// (as opposed to the VMState, which changes as the execution progresses)
+and ExecutionState =
+  { // -- Set consistently across a runtime --
+    tracing : Tracing.Tracing
+    test : TestContext
+
+    /// Called to report exceptions
+    reportException : ExceptionReporter
+
+    /// Called to notify that something of interest (that isn't an exception)
+    /// has happened.
+    ///
+    /// Useful for tracking behaviour we want to deprecate, understanding what
+    /// users are doing, etc.
+    notify : Notifier
+
+
+    // -- Set per-execution --
+    program : Program // TODO: rename to Canvas?
+
+    types : Types
+    fns : Functions
+    constants : Constants
+  }
+
 
 
 and Types = { package : FQTypeName.Package -> Ply<Option<PackageType.PackageType>> }

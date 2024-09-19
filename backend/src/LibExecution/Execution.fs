@@ -8,7 +8,7 @@ open Prelude
 module RT = RuntimeTypes
 module RTE = RT.RuntimeError
 
-let noTracing : RT.Tracing =
+let noTracing : RT.Tracing.Tracing =
   { traceDval = fun _ _ -> ()
     traceExecutionPoint = fun _ -> ()
     loadFnResult = fun _ _ -> None
@@ -24,7 +24,7 @@ let noTestContext : RT.TestContext =
 let createState
   (builtins : RT.Builtins)
   (packageManager : RT.PackageManager)
-  (tracing : RT.Tracing)
+  (tracing : RT.Tracing.Tracing)
   (reportException : RT.ExceptionReporter)
   (notify : RT.Notifier)
   (program : RT.Program)
@@ -211,7 +211,7 @@ let executeExpr
 /// Return a function to trace Dvals (add it to state via
 /// state.tracing.traceDval), and a mutable dictionary which updates when the
 /// traceFn is used
-let traceDvals () : Dictionary.T<id, RT.Dval> * RT.TraceDval =
+let traceDvals () : Dictionary.T<id, RT.Dval> * RT.Tracing.TraceDval =
   let results = Dictionary.empty ()
 
   let trace (id : id) (dval : RT.Dval) : unit =
