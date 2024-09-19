@@ -10,18 +10,29 @@ module Darklang =
     // i.e. common, typeReference, expr, declarations, packages, sourceFile
     module ProgramTypes =
 
-      let nameResolutionError
-        (nr: LanguageTools.RuntimeErrors.NameResolution.Error)
-        : String =
-        match nr.errorType with
+      // let nameResolutionError
+      //   (nr: LanguageTools.RuntimeErrors.NameResolution.Error)
+      //   : String =
+      //   match nr.errorType with
+      //   | NotFound names -> Stdlib.String.join names "."
+      //   | InvalidPackageName names -> Stdlib.String.join names "."
+      //   | ExpectedEnumButNot ->
+      //     "Unexpected: stringification of NRE in RT Pretty-Printer for ExpectedEnumButNot"
+      //   | ExpectedRecordButNot ->
+      //     "Unexpected: stringification of NRE in RT Pretty-Printer for ExpectedRecordButNot"
+      //   | MissingEnumModuleName ->
+      //     "Unexpected: stringification of NRE in RT Pretty-Printer for MissingEnumModuleName"
+
+      type NameResolutionError =
+        | NotFound of List<String>
+        | InvalidName of List<String>
+
+      type NameResolution<'a> = Stdlib.Result.Result<'a, NameResolutionError>
+
+      let nameResolutionError (nr: NameResolutionError) : String =
+        match nr with
         | NotFound names -> Stdlib.String.join names "."
-        | InvalidPackageName names -> Stdlib.String.join names "."
-        | ExpectedEnumButNot ->
-          "Unexpected: stringification of NRE in RT Pretty-Printer for ExpectedEnumButNot"
-        | ExpectedRecordButNot ->
-          "Unexpected: stringification of NRE in RT Pretty-Printer for ExpectedRecordButNot"
-        | MissingEnumModuleName ->
-          "Unexpected: stringification of NRE in RT Pretty-Printer for MissingEnumModuleName"
+        | InvalidName names -> Stdlib.String.join names "."
 
 
       let packageName
