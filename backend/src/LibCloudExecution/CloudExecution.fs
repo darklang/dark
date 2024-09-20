@@ -57,7 +57,11 @@ let createState
       //let metadata = extraMetadata state @ metadata
       LibService.Rollbar.notify msg metadata
 
-    let sendException (_state : RT.ExecutionState) (metadata : Metadata) (exn : exn) =
+    let sendException
+      (_state : RT.ExecutionState)
+      (metadata : Metadata)
+      (exn : exn)
+      =
       //let metadata = extraMetadata state @ metadata
       LibService.Rollbar.sendException None metadata exn
 

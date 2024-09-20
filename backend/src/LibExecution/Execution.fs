@@ -76,41 +76,34 @@ let executeExpr
   }
 
 
-// let executeFunction
-//   (exeState : RT.ExecutionState)
-//   (name : RT.FQFnName.FQFnName)
-//   (typeArgs : List<RT.TypeReference>)
-//   (args : NEList<RT.Dval>)
-//   : Task<RT.ExecutionResult> =
-//   task {
-//     try
-//       try
-//         let exeState =
-//           { exeState with
-//               tracing.callStack.entrypoint = RT.ExecutionPoint.Function name }
-//         let! result =
-//           Interpreter.call
-//             exeState
-//             RT.VMState.empty // ok?
-//             (RT.DFnVal(RT.NamedFn name))
-//             typeArgs
-//             args
-//         return Ok result
-//       with
-//       | RT.RuntimeErrorException(source, rte) -> return Error(source, rte)
-//       | ex ->
-//         let context : Metadata =
-//           //[ "fn", fnDesc; "args", args; "typeArgs", typeArgs; "id", id ]
-//           []
-//         exeState.reportException exeState context ex
-//         return
-//           RT.raiseRTE
-//             exeState.tracing.callStack
-//             (RT.RuntimeError.oldError "Unknown error")
-//     finally
-//       // Does nothing in non-tests
-//       exeState.test.postTestExecutionHook exeState.test
-//   }
+let executeFunction
+  (exeState : RT.ExecutionState)
+  (name : RT.FQFnName.FQFnName)
+  (typeArgs : List<RT.TypeReference>)
+  (args : NEList<RT.Dval>)
+  : Task<RT.ExecutionResult> =
+  let resultReg, rc = 0, 1
+
+  let fnInstr, fnReg, rc =
+    let namedFn : RT.ApplicableNamedFn = { name = name; argsSoFar = [] }
+    let applicable = RT.DApplicable(RT.AppNamedFn namedFn)
+    RT.LoadVal(rc, applicable), rc, rc + 1
+
+  let argInstrs, argRegs, rc =
+    args
+    |> NEList.fold
+      (fun (instrs, argRegs, rc) arg ->
+        instrs @ [ RT.LoadVal(rc, arg) ], argRegs @ [ rc ], rc + 1)
+      ([], [], rc)
+
+  let applyInstr =
+    RT.Apply(resultReg, fnReg, typeArgs, argRegs |> NEList.ofListUnsafe "" [])
+
+  let instrs : RT.Instructions =
+    { registerCount = rc
+      instructions = [ fnInstr ] @ argInstrs @ [ applyInstr ]
+      resultIn = 0 }
+  executeExpr exeState instrs
 
 
 // let runtimeErrorToString

@@ -67,7 +67,7 @@ module FormatV0 =
 
         | KTCustomType of FQTypeName.FQTypeName * typeArgs : List<ValueType>
 
-        //| KTDB of ValueType
+      //| KTDB of ValueType
 
       let rec toRT (kt : KnownType) : RT.KnownType =
         match kt with
@@ -104,7 +104,7 @@ module FormatV0 =
         | KTCustomType(typeName, typeArgs) ->
           RT.KTCustomType(FQTypeName.toRT typeName, List.map ValueType.toRT typeArgs)
 
-        //| KTDB vt -> RT.KTDB(ValueType.toRT vt)
+      //| KTDB vt -> RT.KTDB(ValueType.toRT vt)
 
       let rec fromRT (kt : RT.KnownType) : KnownType =
         match kt with
@@ -144,7 +144,7 @@ module FormatV0 =
             List.map ValueType.fromRT typeArgs
           )
 
-        //| RT.KTDB vt -> KTDB(ValueType.fromRT vt)
+    //| RT.KTDB vt -> KTDB(ValueType.fromRT vt)
 
     [<RequireQualifiedAccess>]
     type ValueType =

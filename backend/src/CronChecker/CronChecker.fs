@@ -15,7 +15,8 @@ let run () : Task<unit> =
     while not shouldShutdown do
       try
         use (_span : Telemetry.Span.T) = Telemetry.createRoot "CronChecker.run"
-        do! LibCloud.Cron.checkAndScheduleWorkForAllCrons ()
+        //do! LibCloud.Cron.checkAndScheduleWorkForAllCrons ()
+        ()
       with e ->
         // If there's an exception, alert and continue
         Rollbar.sendException None [] e
@@ -24,9 +25,9 @@ let run () : Task<unit> =
   }
 
 let initSerializers () =
-  Json.Vanilla.allow<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
-    "RoundtrippableSerializationFormatV0.Dval"
-  Json.Vanilla.allow<LibCloud.Queue.NotificationData> "eventqueue storage"
+  // Json.Vanilla.allow<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
+  //   "RoundtrippableSerializationFormatV0.Dval"
+  // Json.Vanilla.allow<LibCloud.Queue.NotificationData> "eventqueue storage"
   Json.Vanilla.allow<LibService.Rollbar.HoneycombJson> "Rollbar"
 
 [<EntryPoint>]
