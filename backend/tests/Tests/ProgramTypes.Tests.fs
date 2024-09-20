@@ -9,7 +9,6 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 //module PT2ST = LibBinarySerialization.ProgramTypesToSerializedTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
-module S = TestUtils.RTShortcuts
 module PackageIDs = LibExecution.PackageIDs
 // module PT2DT = LibExecution.ProgramTypesToDarkTypes
 // module C2DT = LibExecution.CommonToDarkTypes

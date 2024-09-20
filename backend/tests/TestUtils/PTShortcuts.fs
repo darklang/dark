@@ -130,14 +130,3 @@ let pVariable id (varName : string) (args : List<Expr>) : PipeExpr =
   EPipeVariable(id, varName, args)
 
 let ePipe (expr : Expr) (parts : List<PipeExpr>) : Expr = EPipe(gid (), expr, parts)
-
-
-// let customTypeRecord (fields : List<string * TypeReference>) : TypeDeclaration.T =
-//   let fields =
-//     fields
-//     |> List.map (fun (name, typ) ->
-//       { name = name; typ = typ } : TypeDeclaration.RecordField)
-//   match fields with
-//   | [] -> Exception.raiseInternal "userRecord must have at least one field" []
-//   | hd :: rest ->
-//     { typeParams = []; definition = TypeDeclaration.Record(NEList.ofList hd rest) }

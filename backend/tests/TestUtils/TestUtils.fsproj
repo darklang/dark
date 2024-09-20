@@ -15,7 +15,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="PTShortcuts.fs" />
-    <Compile Include="RTShortcuts.fs" />
     <Compile Include="LibTest.fs" />
     <Compile Include="TestUtils.fs" />
   </ItemGroup>

@@ -934,8 +934,8 @@ module Expr =
           | _ -> [])
       PT.EMatch(uint64 id, fromDT arg, cases)
 
-    // | DEnum(_, _, [], "EPipe", [ DInt64 id; expr; DList(_vtTODO, pipeExprs) ]) ->
-    //   PT.EPipe(uint64 id, fromDT expr, List.map (PipeExpr.fromDT fromDT) pipeExprs)
+    | DEnum(_, _, [], "EPipe", [ DInt64 id; expr; DList(_vtTODO, pipeExprs) ]) ->
+      PT.EPipe(uint64 id, fromDT expr, List.map (PipeExpr.fromDT fromDT) pipeExprs)
 
     // function calls
     | DEnum(_, _, [], "EInfix", [ DInt64 id; infix; lhs; rhs ]) ->

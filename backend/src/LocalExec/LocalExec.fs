@@ -36,15 +36,15 @@ module HandleCommand =
     }
 
 
-// let reloadDarkPackagesCanvas () : Ply<Result<unit, string>> =
-//   uply {
-//     let! (canvasId, toplevels) =
-//       Canvas.loadFromDisk LibCloud.PackageManager.pt "dark-packages"
+  let reloadDarkPackagesCanvas () : Ply<Result<unit, string>> =
+    uply {
+      // let! (canvasId, toplevels) =
+      //   Canvas.loadFromDisk LibCloud.PackageManager.pt "dark-packages"
 
-//     print $"Loaded canvas {canvasId} with {List.length toplevels} toplevels"
+      // print $"Loaded canvas {canvasId} with {List.length toplevels} toplevels"
 
-//     return Ok()
-//   }
+      return Ok()
+    }
 
 
 
@@ -90,10 +90,10 @@ let main (args : string[]) : int =
         "reading, parsing packages from `packages` directory, and saving to internal SQL tables"
         (HandleCommand.loadPackagesToInternalSqlTables ())
 
-    // | [ "reload-dark-packages" ] ->
-    //   handleCommand
-    //     $"purging, re-creating, and seeding `dark-packages` canvas"
-    //     (HandleCommand.reloadDarkPackagesCanvas ())
+    | [ "reload-dark-packages" ] ->
+      handleCommand
+        $"purging, re-creating, and seeding `dark-packages` canvas"
+        (HandleCommand.reloadDarkPackagesCanvas ())
 
     | _ ->
       print "Invalid arguments"

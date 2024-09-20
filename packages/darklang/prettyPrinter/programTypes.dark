@@ -16,12 +16,6 @@ module Darklang =
       //   match nr.errorType with
       //   | NotFound names -> Stdlib.String.join names "."
       //   | InvalidPackageName names -> Stdlib.String.join names "."
-      //   | ExpectedEnumButNot ->
-      //     "Unexpected: stringification of NRE in RT Pretty-Printer for ExpectedEnumButNot"
-      //   | ExpectedRecordButNot ->
-      //     "Unexpected: stringification of NRE in RT Pretty-Printer for ExpectedRecordButNot"
-      //   | MissingEnumModuleName ->
-      //     "Unexpected: stringification of NRE in RT Pretty-Printer for MissingEnumModuleName"
 
       type NameResolutionError =
         | NotFound of List<String>

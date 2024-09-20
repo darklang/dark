@@ -25,7 +25,6 @@ module Exe = LibExecution.Execution
 
 // module Account = LibCloud.Account
 // module Canvas = LibCloud.Canvas
-module S = RTShortcuts
 
 module PackageIDs = LibExecution.PackageIDs
 // module C2DT = LibExecution.CommonToDarkTypes

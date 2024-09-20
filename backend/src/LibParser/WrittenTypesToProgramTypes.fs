@@ -173,18 +173,16 @@ module Expr =
       | WT.EBool(id, b) -> return PT.EBool(id, b)
       | WT.EUnit id -> return PT.EUnit id
       | WT.EVariable(id, var) ->
-        // // This could be a UserConstant
-        // let! constant =
-        //   NR.resolveConstantName
-        //     (builtins.constants |> Map.keys |> Set)
-        //     pm
-        //     NR.OnMissing.Allow
-        //     currentModule
-        //     (WT.Unresolved(NEList.singleton var))
-        // match constant with
-        // | Ok _ as name -> return PT.EConstant(id, name)
-        // | Error _ ->
-        return PT.EVariable(id, var)
+        let! constant =
+          NR.resolveConstantName
+            (builtins.constants |> Map.keys |> Set)
+            pm
+            NR.OnMissing.Allow
+            currentModule
+            (WT.Unresolved(NEList.singleton var))
+        match constant with
+        | Ok _ as name -> return PT.EConstant(id, name)
+        | Error _ -> return PT.EVariable(id, var)
       | WT.ERecordFieldAccess(id, obj, fieldname) ->
         let! obj = toPT obj
         return PT.ERecordFieldAccess(id, obj, fieldname)

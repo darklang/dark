@@ -40,17 +40,6 @@ let parseSimple
   parsePTExpr builtins pm onMissing filename code
 
 
-// let parseRTExpr
-//   (builtins : RT.Builtins)
-//   (pm : PT.PackageManager)
-//   (onMissing : NR.OnMissing)
-//   (filename : string)
-//   (code : string)
-//   : Ply<LibExecution.RuntimeTypes.Expr> =
-//   code
-//   |> parsePTExpr builtins pm onMissing filename
-//   |> Ply.map LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT
-
 
 let parsePackageFile
   (builtins : RT.Builtins)

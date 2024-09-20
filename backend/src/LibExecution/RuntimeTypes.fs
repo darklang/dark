@@ -62,10 +62,6 @@ module FQConstantName =
 
   let fqPackage (id : uuid) : FQConstantName = Package id
 
-  let builtinToString (s : Builtin) : string =
-    let name = s.name
-    if s.version = 0 then name else $"{name}_v{s.version}"
-
 
 /// A Fully-Qualified Function Name
 ///
