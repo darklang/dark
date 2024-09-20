@@ -162,11 +162,15 @@ module Map =
 
   Stdlib.String.map "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" (fun x -> 'c') = "cccc"
 
+  // CLEANUP: it should be a type error on the function not returning a Char
   Stdlib.String.map "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" (fun x -> 5L) = Builtin.testDerrorMessage
-    """Function return value should be a Char. However, an Int64 (5) was returned instead.
+    """PACKAGE.Darklang.Stdlib.String.fromList's 1st argument (`lst`) should be a List<Char>. However, a List<Int64> ([  5, 5, ...) was passed instead.
 
-Expected: Char
-Actual: an Int64: 5"""
+Expected: (lst: List<Char>)
+Actual: a List<Int64>: [
+  5, 5, 5, 5
+]"""
+
 
   // Check that map executes the right number of times
   (let v =

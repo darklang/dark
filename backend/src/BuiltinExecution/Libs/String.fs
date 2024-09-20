@@ -19,46 +19,7 @@ module Interpreter = LibExecution.Interpreter
 
 
 let fns : List<BuiltInFn> =
-  [
-    // { name = fn "stringMap" 0
-    //   typeParams = []
-    //   parameters =
-    //     [ Param.make "s" TString ""
-    //       Param.makeWithArgs
-    //         "fn"
-    //         (TFn(NEList.singleton TChar, TChar))
-    //         ""
-    //         [ "character" ] ]
-    //   returnType = TString
-    //   description =
-    //     "Iterate over each Char (EGC, not byte) in the string, performing the
-    //      operation in <param fn> on each one."
-    //   fn =
-    //     (function
-    //     | state, _, _, [ DString s; DFnVal b ] ->
-    //       (String.toEgcSeq s
-    //        |> Seq.toList
-    //        |> Ply.List.mapSequentially (fun te ->
-    //          let args = NEList.singleton (DChar te)
-    //          Interpreter.applyFnVal state b [] args)
-    //        |> Ply.bind (fun dvals ->
-    //          dvals
-    //          |> Ply.List.mapSequentially (function
-    //            | DChar c -> Ply c
-    //            | dv ->
-    //              TypeChecker.raiseFnValResultNotExpectedType
-    //                state.tracing.callStack
-    //                dv
-    //                TChar)
-    //          |> Ply.map (fun parts ->
-    //            parts |> String.concat "" |> String.normalize |> DString)))
-    //     | _ -> incorrectArgs ())
-    //   sqlSpec = NotQueryable
-    //   previewable = Pure
-    //   deprecated = NotDeprecated }
-
-
-    { name = fn "stringToList" 0
+  [ { name = fn "stringToList" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TList TChar

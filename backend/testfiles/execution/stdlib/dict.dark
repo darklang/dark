@@ -11,14 +11,15 @@ module FilterMap =
     else
       (Stdlib.Option.Option.Some(key ++ value))) = (Dict { c = "cz"; a = "ax" })
 
+  // CLEANUP: it should be a type error on the function not returning a Bool
   (Stdlib.Dict.filterMap_v0 (Dict { a = "x"; b = "y"; c = "z" }) (fun key value ->
     if value == "y" then
       false
     else
       Stdlib.Option.Option.Some(key ++ value))) = Builtin.testDerrorMessage
-    """Function return value should be a PACKAGE.Darklang.Stdlib.Option.Option<'b>. However, a Bool (false) was returned instead.
+    """PACKAGE.Darklang.Stdlib.Option.map's 1st argument (`option`) should be a PACKAGE.Darklang.Stdlib.Option.Option<'a>. However, a Bool (false) was passed instead.
 
-Expected: PACKAGE.Darklang.Stdlib.Option.Option<'b>
+Expected: (option: PACKAGE.Darklang.Stdlib.Option.Option<'a>)
 Actual: a Bool: false"""
 
 
@@ -32,11 +33,9 @@ module Filter =
 
   Stdlib.Dict.filter (Dict { }) (fun k v -> 0L) = (Dict { })
 
+  // CLEANUP: this should be a type error on the function not returning a Bool
   Stdlib.Dict.filter (Dict { a = 1L; b = 2L; c = 3L }) (fun k v -> 2L) = Builtin.testDerrorMessage
-    """Function return value should be a Bool. However, an Int64 (2) was returned instead.
-
-Expected: Bool
-Actual: an Int64: 2"""
+    "If only supports Booleans"
 
 
 module FromListOverwritingDuplicates =

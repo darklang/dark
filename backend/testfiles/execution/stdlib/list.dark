@@ -296,14 +296,18 @@ Stdlib.List.sort_v0 [ "6"; "2"; "8"; "3" ] = [ "2"; "3"; "6"; "8" ]
 Stdlib.List.sort_v0 [ 6L; 2L; 8L; 3L ] = [ 2L; 3L; 6L; 8L ]
 Stdlib.List.sort_v0 [] = []
 
+// CLEANUP: it should be a type error on the function not returning an Int64
 Stdlib.List.sortByComparator_v0 [ 3L; 1L; 2L ] (fun a b -> 0.1) = Builtin.testDerrorMessage
-  "Function return value should be an Int64. However, a Float (0.1) was returned instead.\n\nExpected: Int64\nActual: a Float: 0.1"
+  // "Function return value should be an Int64. However, a Float (0.1) was returned instead.\n\nExpected: Int64\nActual: a Float: 0.1"
+  "Both values must be the same type"
 
 Stdlib.List.sortByComparator_v0 [ 3L; 1L; 2L ] (fun a b -> 3L) = Stdlib.Result.Result.Error
   "Expected comparator function to return -1, 0, or 1, but it returned 3"
 
+// CLEANUP: it should be a type error on the function not returning an Int64
 Stdlib.List.sortByComparator_v0 [ 1L; 2L; 3L ] (fun a b -> "㧑༷釺") = Builtin.testDerrorMessage
-  "Function return value should be an Int64. However, a String (\"㧑༷釺\") was returned instead.\n\nExpected: Int64\nActual: a String: \"㧑༷釺\""
+  // "Function return value should be an Int64. However, a String (\"㧑༷釺\") was returned instead.\n\nExpected: Int64\nActual: a String: \"㧑༷釺\""
+  "Both values must be the same type"
 
 Stdlib.List.sortByComparator_v0 [ 3L; 1L; 2L ] (fun a b ->
   if Stdlib.Int64.lessThan_v0 a b then -1L else 1L) = Stdlib.Result.Result.Ok
