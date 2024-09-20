@@ -85,9 +85,6 @@ let string (dv : Dval) : string =
   | DString s -> s
   | _ -> f "string" dv
 
-
-
-
 let tuple2 (dv : Dval) : Dval * Dval =
   match dv with
   | DTuple(first, second, _) -> (first, second)
@@ -114,3 +111,4 @@ let field (name : string) (m : DvalMap) : Dval =
   match m |> Map.get name with
   | Some dv -> dv
   | None -> Exception.raiseInternal $"Expected '{name}' field" []
+

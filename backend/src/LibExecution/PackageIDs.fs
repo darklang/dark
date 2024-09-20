@@ -127,9 +127,9 @@ module Type =
         let private p addl = p ("Lists" :: addl)
         let error = p [] "Error" "f327ad98-ec15-4cfe-bcfe-6f0f5a444349"
 
-      // module Error =
-      //   let errorMessage =
-      //     p [ "Error" ] "ErrorMessage" "3e526964-304f-46a8-919c-6d65bb6ff167"
+      module Error =
+        let errorMessage =
+          p [ "Error" ] "ErrorMessage" "3e526964-304f-46a8-919c-6d65bb6ff167"
 
       module NameResolution =
         let private p addl = p ("NameResolution" :: addl)

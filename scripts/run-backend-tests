@@ -90,15 +90,15 @@ cd ..
 
 # Reload packages
 
-# if [[ -v CI ]]; then
-#   echo "Running backend server"
-#   ./scripts/run-backend-server $PUBLISHED_FLAG
-#   echo "Reloading packages"
-#   ./scripts/build/reload-packages $PUBLISHED_FLAG
-# else
-#   echo "Reloading packages"
-#   ./scripts/build/reload-packages --test $PUBLISHED_FLAG
-# fi
+if [[ -v CI ]]; then
+  echo "Running backend server"
+  ./scripts/run-backend-server $PUBLISHED_FLAG
+  echo "Reloading packages"
+  ./scripts/build/reload-packages $PUBLISHED_FLAG
+else
+  echo "Reloading packages"
+  ./scripts/build/reload-packages --test $PUBLISHED_FLAG
+fi
 
 JUNIT_FILE="${DARK_CONFIG_RUNDIR}/test_results/backend.xml"
 

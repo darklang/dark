@@ -249,20 +249,21 @@ let storeToCloudStorage
   (traceID : AT.TraceID.T)
   (touchedTLIDs : List<tlid>)
   (inputVars : List<string * RT.Dval>)
-  (functionResults : Dictionary.T<FunctionResultKey, FunctionResultValue>)
+  (_functionResults : Dictionary.T<FunctionResultKey, FunctionResultValue>)
   : Task<unit> =
   task {
     let functionResults =
-      functionResults
-      |> Dictionary.toList
-      |> List.map (fun ((tlid, fnName, id, hash), (dval, _)) ->
-        // TODO do we really want to parse and unparse fnName?
-        tlid,
-        id,
-        RT.FQFnName.toString fnName,
-        LibExecution.DvalReprInternalHash.currentHashVersion,
-        hash,
-        Roundtrippable.fromRT dval)
+      // functionResults
+      // |> Dictionary.toList
+      // |> List.map (fun ((tlid, fnName, id, hash), (dval, _)) ->
+      //   // TODO do we really want to parse and unparse fnName?
+      //   tlid,
+      //   id,
+      //   RT.FQFnName.toString fnName,
+      //   LibExecution.DvalReprInternalHash.currentHashVersion,
+      //   hash,
+      //   Roundtrippable.fromRT dval)
+      []
 
     let inputVars =
       inputVars |> List.map (fun (name, dval) -> (name, Roundtrippable.fromRT dval))

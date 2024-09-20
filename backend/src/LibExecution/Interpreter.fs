@@ -222,17 +222,41 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
         | CopyVal(copyTo, copyFrom) -> registers[copyTo] <- registers[copyFrom]
 
         | Or(createTo, left, right) ->
-          match registers[left], registers[right] with
-          | DBool l, DBool r -> registers[createTo] <- DBool(l || r)
-          | l, r ->
+          // match registers[left], registers[right] with
+          // | DBool l, DBool r -> registers[createTo] <- DBool(l || r)
+          // | l, r ->
+          //   RTE.Bools.OrOnlySupportsBooleans(Dval.toValueType l, Dval.toValueType r)
+          //   |> RTE.Bool
+          //   |> raiseRTE
+          match registers[left] with
+          | DBool true -> registers[createTo] <- DBool true
+          | DBool false ->
+            match registers[right] with
+            | DBool true -> registers[createTo] <- DBool true
+            | DBool false -> registers[createTo] <- DBool false
+            | r ->
+              RTE.Bools.OrOnlySupportsBooleans(VT.bool, Dval.toValueType r)
+              |> RTE.Bool
+              |> raiseRTE
+          | l ->
+            let r = registers[right]
             RTE.Bools.OrOnlySupportsBooleans(Dval.toValueType l, Dval.toValueType r)
             |> RTE.Bool
             |> raiseRTE
 
         | And(createTo, left, right) ->
-          match registers[left], registers[right] with
-          | DBool l, DBool r -> registers[createTo] <- DBool(l && r)
-          | l, r ->
+          match registers[left] with
+          | DBool false -> registers[createTo] <- DBool false
+          | DBool true ->
+            match registers[right] with
+            | DBool true -> registers[createTo] <- DBool true
+            | DBool false -> registers[createTo] <- DBool false
+            | r ->
+              RTE.Bools.AndOnlySupportsBooleans(VT.bool, Dval.toValueType r)
+              |> RTE.Bool
+              |> raiseRTE
+          | l ->
+            let r = registers[right]
             RTE.Bools.AndOnlySupportsBooleans(Dval.toValueType l, Dval.toValueType r)
             |> RTE.Bool
             |> raiseRTE

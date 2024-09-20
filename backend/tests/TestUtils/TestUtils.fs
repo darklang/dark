@@ -23,16 +23,16 @@ module D = LibExecution.DvalDecoder
 module PackageIDs = LibExecution.PackageIDs
 module Exe = LibExecution.Execution
 
-// module Account = LibCloud.Account
-// module Canvas = LibCloud.Canvas
+module Account = LibCloud.Account
+module Canvas = LibCloud.Canvas
 
 module PackageIDs = LibExecution.PackageIDs
-// module C2DT = LibExecution.CommonToDarkTypes
-// module PT2DT = LibExecution.ProgramTypesToDarkTypes
+module C2DT = LibExecution.CommonToDarkTypes
+module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
 //let pmPT = LibCloud.PackageManager.pt
 
-//let testOwner : Lazy<Task<UserID>> = lazy (Account.createUser ())
+let testOwner : Lazy<Task<UserID>> = lazy (Account.createUser ())
 
 let nameToTestDomain (name : string) : string =
   let name =
@@ -47,27 +47,27 @@ let nameToTestDomain (name : string) : string =
   |> FsRegEx.replace "[-_]+" "-"
   |> fun s -> $"{s}.dlio.localhost"
 
-// let initializeCanvasForOwner
-//   (ownerID : UserID)
-//   (name : string)
-//   : Task<CanvasID * string> =
-//   task {
-//     let domain = nameToTestDomain name
-//     let! canvasID = Canvas.create ownerID domain
-//     return (canvasID, domain)
-//   }
+let initializeCanvasForOwner
+  (ownerID : UserID)
+  (name : string)
+  : Task<CanvasID * string> =
+  task {
+    let domain = nameToTestDomain name
+    let! canvasID = Canvas.create ownerID domain
+    return (canvasID, domain)
+  }
 
-// let initializeTestCanvas' (name : string) : Task<CanvasID * string> =
-//   task {
-//     let! owner = testOwner.Force()
-//     return! initializeCanvasForOwner owner name
-//   }
+let initializeTestCanvas' (name : string) : Task<CanvasID * string> =
+  task {
+    let! owner = testOwner.Force()
+    return! initializeCanvasForOwner owner name
+  }
 
-// let initializeTestCanvas (name : string) : Task<CanvasID> =
-//   task {
-//     let! (canvasID, _domain) = initializeTestCanvas' name
-//     return canvasID
-//   }
+let initializeTestCanvas (name : string) : Task<CanvasID> =
+  task {
+    let! (canvasID, _domain) = initializeTestCanvas' name
+    return canvasID
+  }
 
 
 // let testHttpRouteHandler
@@ -1601,29 +1601,29 @@ module Http =
 //   }
 //   |> Ply.toTask
 
-// module Internal =
-//   module Test =
-//     type PTTest =
-//       { name : string; lineNumber : int; actual : PT.Expr; expected : PT.Expr }
+module Internal =
+  module Test =
+    type PTTest =
+      { name : string; lineNumber : int; actual : PT.Expr; expected : PT.Expr }
 
-//     type RTTest =
-//       { name : string; lineNumber : int; actual : RT.Expr; expected : RT.Expr }
+    //     type RTTest =
+    //       { name : string; lineNumber : int; actual : RT.Expr; expected : RT.Expr }
 
-//     let typeName = FQTypeName.fqPackage PackageIDs.Type.Internal.Test.ptTest
+    //     let typeName = FQTypeName.fqPackage PackageIDs.Type.Internal.Test.ptTest
 
-//     let toDt (t : PTTest) : Dval =
-//       let fields =
-//         [ "name", DString t.name
-//           "lineNumber", DInt64 t.lineNumber
-//           "actual", PT2DT.Expr.toDT t.actual
-//           "expected", PT2DT.Expr.toDT t.expected ]
-//       DRecord(typeName, typeName, [], Map fields)
+    //     let toDt (t : PTTest) : Dval =
+    //       let fields =
+    //         [ "name", DString t.name
+    //           "lineNumber", DInt64 t.lineNumber
+    //           "actual", PT2DT.Expr.toDT t.actual
+    //           "expected", PT2DT.Expr.toDT t.expected ]
+    //       DRecord(typeName, typeName, [], Map fields)
 
-//     let fromDT (d : Dval) : PTTest =
-//       match d with
-//       | DRecord(_, _, _, fields) ->
-//         { name = fields |> D.stringField "name"
-//           lineNumber = fields |> D.int32Field "lineNumber"
-//           actual = fields |> D.field "actual" |> PT2DT.Expr.fromDT
-//           expected = fields |> D.field "expected" |> PT2DT.Expr.fromDT }
-//       | _ -> Exception.raiseInternal "Invalid Test" []
+    let fromDT (d : Dval) : PTTest =
+      match d with
+      | DRecord(_, _, _, fields) ->
+        { name = fields |> D.field "name" |> D.string
+          lineNumber = fields |> D.field "lineNumber" |> D.int32
+          actual = fields |> D.field "actual" |> PT2DT.Expr.fromDT
+          expected = fields |> D.field "expected" |> PT2DT.Expr.fromDT }
+      | _ -> Exception.raiseInternal "Invalid Test" []

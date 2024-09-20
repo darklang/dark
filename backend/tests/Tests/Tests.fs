@@ -8,26 +8,26 @@ open System.Threading.Tasks
 open Prelude
 
 module PT = LibExecution.ProgramTypes
-//module Telemetry = LibService.Telemetry
+module Telemetry = LibService.Telemetry
 
 let initSerializers () =
-  //BwdServer.Server.initSerializers ()
+  BwdServer.Server.initSerializers ()
 
   // These are serializers used in the tests that are not used in the main program
   Json.Vanilla.allow<Map<string, string>> "tests"
   Json.Vanilla.allow<LibExecution.AnalysisTypes.TraceData> "testTraceData"
-  // Json.Vanilla.allow<PT.PackageType.PackageType> "Canvas.loadJsonFromDisk"
-  // Json.Vanilla.allow<PT.PackageConstant.PackageConstant> "Canvas.loadJsonFromDisk"
+  Json.Vanilla.allow<PT.PackageType.PackageType> "Canvas.loadJsonFromDisk"
+  Json.Vanilla.allow<PT.PackageConstant.PackageConstant> "Canvas.loadJsonFromDisk"
   Json.Vanilla.allow<PT.PackageFn.PackageFn> "Canvas.loadJsonFromDisk"
 
 
 [<EntryPoint>]
 let main (args : string array) : int =
   try
-    //let name = "Tests"
-    // LibService.Init.init name
-    // (LibCloud.Init.init LibCloud.Init.WaitForDB name).Result
-    //(LibCloudExecution.Init.init name).Result
+    let name = "Tests"
+    LibService.Init.init name
+    (LibCloud.Init.init LibCloud.Init.WaitForDB name).Result
+    (LibCloudExecution.Init.init name).Result
 
     initSerializers ()
 
@@ -63,7 +63,7 @@ let main (args : string array) : int =
         // Tests.StorageTraces.tests
 
         // cross-cutting
-        // Tests.LibExecution.tests.Force()
+        Tests.LibExecution.tests.Force()
         ]
 
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()

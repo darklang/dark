@@ -42,30 +42,36 @@ module FormatV0 =
     module KnownType =
       type KnownType =
         | KTUnit
+
         | KTBool
-        | KTInt64
-        | KTUInt64
+
         | KTInt8
         | KTUInt8
         | KTInt16
         | KTUInt16
         | KTInt32
         | KTUInt32
+        | KTInt64
+        | KTUInt64
         | KTInt128
         | KTUInt128
+
         | KTFloat
+
         | KTChar
         | KTString
+
         | KTUuid
+
         | KTDateTime
 
-        | KTList of ValueType
         | KTTuple of ValueType * ValueType * List<ValueType>
+        | KTList of ValueType
         | KTDict of ValueType
 
-        | KTFn of NEList<ValueType> * ValueType
-
         | KTCustomType of FQTypeName.FQTypeName * typeArgs : List<ValueType>
+
+        | KTFn of NEList<ValueType> * ValueType
 
       //| KTDB of ValueType
 
@@ -168,28 +174,26 @@ module FormatV0 =
   type DvalMap = Map<string, Dval>
 
   and Dval =
-    | DInt64 of int64
-    | DUInt64 of uint64
+    | DUnit
+    | DBool of bool
     | DInt8 of int8
     | DUInt8 of uint8
     | DInt16 of int16
     | DUInt16 of uint16
     | DInt32 of int32
     | DUInt32 of uint32
+    | DInt64 of int64
+    | DUInt64 of uint64
     | DInt128 of System.Int128
     | DUInt128 of System.UInt128
     | DFloat of double
-    | DBool of bool
-    | DUnit
-    | DString of string
     | DChar of string
-    | DList of ValueType.ValueType * List<Dval>
-    | DTuple of Dval * Dval * List<Dval>
-    | DLambda // See docs/dblock-serialization.md
-    | DDict of ValueType.ValueType * DvalMap
-    | DDB of string
+    | DString of string
     | DDateTime of NodaTime.LocalDateTime
     | DUuid of System.Guid
+    | DTuple of Dval * Dval * List<Dval>
+    | DList of ValueType.ValueType * List<Dval>
+    | DDict of ValueType.ValueType * DvalMap
     | DRecord of
       runtimeTypeName : FQTypeName.FQTypeName *
       sourceTypeName : FQTypeName.FQTypeName *
@@ -201,40 +205,44 @@ module FormatV0 =
       typeArgs : List<ValueType.ValueType> *
       caseName : string *
       fields : List<Dval>
+    | DLambda // See docs/dblock-serialization.md
+  //| DDB of string
 
 
   let rec toRT (dv : Dval) : RT.Dval =
     match dv with
-    | DString s -> RT.DString s
-    | DChar c -> RT.DChar c
-    | DInt64 i -> RT.DInt64 i
-    | DUInt64 i -> RT.DUInt64 i
+    | DUnit -> RT.DUnit
+
+    | DBool b -> RT.DBool b
+
     | DInt8 i -> RT.DInt8 i
     | DUInt8 i -> RT.DUInt8 i
     | DInt16 i -> RT.DInt16 i
     | DUInt16 i -> RT.DUInt16 i
     | DInt32 i -> RT.DInt32 i
     | DUInt32 i -> RT.DUInt32 i
+    | DInt64 i -> RT.DInt64 i
+    | DUInt64 i -> RT.DUInt64 i
     | DInt128 i -> RT.DInt128 i
     | DUInt128 i -> RT.DUInt128 i
-    | DBool b -> RT.DBool b
+
     | DFloat f -> RT.DFloat f
-    | DUnit -> RT.DUnit
-    | DLambda ->
-      RT.DFnVal(
-        RT.Lambda
-          { typeSymbolTable = Map []
-            symtable = Map []
-            parameters = NEList.singleton (RT.LPVariable(gid (), "var"))
-            body = RT.Expr.EUnit 0UL }
-      )
+
+    | DChar c -> RT.DChar c
+    | DString s -> RT.DString s
+
     | DDateTime d -> RT.DDateTime d
-    | DDB name -> RT.DDB name
+
     | DUuid uuid -> RT.DUuid uuid
-    | DList(typ, l) -> RT.DList(ValueType.toRT typ, List.map toRT l)
+
     | DTuple(first, second, theRest) ->
       RT.DTuple(toRT first, toRT second, List.map toRT theRest)
+
+    | DList(typ, l) -> RT.DList(ValueType.toRT typ, List.map toRT l)
+
     | DDict(typ, entries) -> RT.DDict(ValueType.toRT typ, Map.map toRT entries)
+
+
     | DRecord(typeName, original, typeArgs, o) ->
       RT.DRecord(
         FQTypeName.toRT typeName,
@@ -242,6 +250,7 @@ module FormatV0 =
         List.map ValueType.toRT typeArgs,
         Map.map toRT o
       )
+
     | DEnum(typeName, original, typeArgs, caseName, fields) ->
       RT.DEnum(
         FQTypeName.toRT typeName,
@@ -251,33 +260,46 @@ module FormatV0 =
         List.map toRT fields
       )
 
+    | DLambda ->
+      RT.DApplicable(
+        RT.AppLambda { exprId = gid (); closedRegisters = []; argsSoFar = [] }
+      )
+
+  //| DDB name -> RT.DDB name
+
 
 
   let rec fromRT (dv : RT.Dval) : Dval =
     match dv with
-    | RT.DString s -> DString s
-    | RT.DChar c -> DChar c
-    | RT.DInt64 i -> DInt64 i
-    | RT.DUInt64 i -> DUInt64 i
+    | RT.DUnit -> DUnit
+
+    | RT.DBool b -> DBool b
+
     | RT.DInt8 i -> DInt8 i
     | RT.DUInt8 i -> DUInt8 i
     | RT.DInt16 i -> DInt16 i
     | RT.DUInt16 i -> DUInt16 i
     | RT.DInt32 i -> DInt32 i
     | RT.DUInt32 i -> DUInt32 i
+    | RT.DInt64 i -> DInt64 i
+    | RT.DUInt64 i -> DUInt64 i
     | RT.DInt128 i -> DInt128 i
     | RT.DUInt128 i -> DUInt128 i
-    | RT.DBool b -> DBool b
+
     | RT.DFloat f -> DFloat f
-    | RT.DUnit -> DUnit
-    | RT.DFnVal _ -> DLambda
+
+    | RT.DChar c -> DChar c
+    | RT.DString s -> DString s
+
     | RT.DDateTime d -> DDateTime d
-    | RT.DDB name -> DDB name
+
     | RT.DUuid uuid -> DUuid uuid
-    | RT.DList(typ, l) -> DList(ValueType.fromRT typ, List.map fromRT l)
+
     | RT.DTuple(first, second, theRest) ->
       DTuple(fromRT first, fromRT second, List.map fromRT theRest)
+    | RT.DList(typ, l) -> DList(ValueType.fromRT typ, List.map fromRT l)
     | RT.DDict(typ, entries) -> DDict(ValueType.fromRT typ, Map.map fromRT entries)
+
     | RT.DRecord(typeName, original, typeArgs, o) ->
       DRecord(
         FQTypeName.fromRT typeName,
@@ -285,6 +307,7 @@ module FormatV0 =
         List.map ValueType.fromRT typeArgs,
         Map.map fromRT o
       )
+
     | RT.DEnum(typeName, original, typeArgs, caseName, fields) ->
       DEnum(
         FQTypeName.fromRT typeName,
@@ -293,6 +316,10 @@ module FormatV0 =
         caseName,
         List.map fromRT fields
       )
+
+    | RT.DApplicable _ -> DLambda
+
+// | RT.DDB name -> DDB name
 
 
 let toJsonV0 (dv : RT.Dval) : string =
@@ -333,8 +360,7 @@ module Test =
     | RT.DUuid _
     | RT.DDateTime _ -> true
 
-    | RT.DEnum(_typeName, _, _typeArgsDEnumTODO, _caseName, fields) ->
-      List.all isRoundtrippableDval fields
+    | RT.DTuple(v1, v2, rest) -> List.all isRoundtrippableDval (v1 :: v2 :: rest)
 
     | RT.DList(_, dvals) -> List.all isRoundtrippableDval dvals
 
@@ -342,8 +368,9 @@ module Test =
 
     | RT.DRecord(_, _, _, map) -> map |> Map.values |> List.all isRoundtrippableDval
 
-    | RT.DTuple(v1, v2, rest) -> List.all isRoundtrippableDval (v1 :: v2 :: rest)
+    | RT.DEnum(_typeName, _, _typeArgsDEnumTODO, _caseName, fields) ->
+      List.all isRoundtrippableDval fields
 
-    | RT.DDB _ -> true
+    | RT.DApplicable _ -> false // not supported
 
-    | RT.DFnVal _ -> false // not supported
+//| RT.DDB _ -> true

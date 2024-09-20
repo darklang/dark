@@ -23,15 +23,15 @@
     <ProjectReference Include="../../src/LibBinarySerialization/LibBinarySerialization.fsproj" />
     <ProjectReference Include="../../src/BuiltinCloudExecution/BuiltinCloudExecution.fsproj" />
     <ProjectReference Include="../../src/BuiltinDarkInternal/BuiltinDarkInternal.fsproj" />
-    <!--ProjectReference Include="../../src/LibCloudExecution/LibCloudExecution.fsproj" /-->
-    <!--ProjectReference Include="../../src/BwdServer/BwdServer.fsproj" /-->
-    <!--ProjectReference Include="../../src/QueueWorker/QueueWorker.fsproj" /-->
+    <ProjectReference Include="../../src/LibCloudExecution/LibCloudExecution.fsproj" />
+    <ProjectReference Include="../../src/BwdServer/BwdServer.fsproj" />
+    <ProjectReference Include="../../src/QueueWorker/QueueWorker.fsproj" />
 
     <!-- cross-cutting -->
     <ProjectReference Include="../TestUtils/TestUtils.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <!--Compile Include="TestConfig.fs" /-->
+    <Compile Include="TestConfig.fs" />
     <Compile Include="TestValues.fs" />
 
     <!-- core stuff /-->
@@ -50,10 +50,10 @@
     <Compile Include="LibParser.Tests.fs" />
     <!--Compile Include="NewParser.Tests.fs" /-->
     <!--Compile Include="HttpClient.Tests.fs" /-->
-    <!--Compile Include="LibExecution.Tests.fs" /-->
+    <Compile Include="LibExecution.Tests.fs" />
 
     <!-- cloud stuff /-->
-    <!--Compile Include="StorageTraces.Tests.fs" /-->
+    <Compile Include="StorageTraces.Tests.fs" />
     <!--Compile Include="BwdServer.Tests.fs" /-->
     <!--Compile Include="Canvas.Tests.fs" /-->
     <!--Compile Include="Cron.Tests.fs" /-->
