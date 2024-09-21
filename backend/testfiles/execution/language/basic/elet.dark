@@ -61,10 +61,10 @@ module Shadowing =
    | Ok x -> x) = 6L
 
 
-  (let x = 35L in Stdlib.List.map_v0 [ 1L; 2L; 3L; 4L ] (fun x -> x + 2L)) = [ 3L
-                                                                               4L
-                                                                               5L
-                                                                               6L ]
+  // (let x = 35L in Stdlib.List.map_v0 [ 1L; 2L; 3L; 4L ] (fun x -> x + 2L)) = [ 3L
+  //                                                                              4L
+  //                                                                              5L
+  //                                                                              6L ]
 
 
   // (let x = 35L

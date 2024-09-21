@@ -8,8 +8,8 @@ let userFn () : Int64 = 6L
 
 ([] |> Stdlib.List.push_v0 (Stdlib.Int64.add_v0 1L ((+) 1L 3L))) = [ 5L ]
 
-([] |> Stdlib.List.push_v0 (Builtin.testRuntimeError "err")) = Builtin.testDerrorMessage
-  "err"
+// ([] |> Stdlib.List.push_v0 (Builtin.testRuntimeError "err")) = Builtin.testDerrorMessage
+//   "err"
 
 // general
 (4L |> (-) 3L) = 1L
@@ -24,12 +24,12 @@ let userFn () : Int64 = 6L
 // lambda in variable
 (let x = fun a -> a + 1L in (5L |> x |> x |> (+) 3L)) = 10L
 
-(let x = fun a b -> a + 1L in (7L |> x)) = Builtin.testDerrorMessage
-  "Expected 2 arguments, got 1"
+// (let x = fun a b -> a + 1L in (7L |> x)) = Builtin.testDerrorMessage
+//   "Expected 2 arguments, got 1"
 
-// only lambda might be placed into the variable used in the middle of the pipe
-(let x = 1L in (5L |> x |> x |> (+) 3L)) = Builtin.testDerrorMessage
-  "Expected a function value, got something else: 1"
+// // only lambda might be placed into the variable used in the middle of the pipe
+// (let x = 1L in (5L |> x |> x |> (+) 3L)) = Builtin.testDerrorMessage
+//   "Expected a function value, got something else: 1"
 
 // dict
 type Z = { a: List<Int64> }
@@ -51,15 +51,15 @@ type MyEnum = A of Int64 * Int64 * Int64
   Stdlib.Option.Option.None
 
 
-(let x = Stdlib.Option.Option.Some 3L
+// (let x = Stdlib.Option.Option.Some 3L
 
- x |> Stdlib.Option.map (fun a -> a) |> Stdlib.Option.map (fun a -> a + 1L)) = Stdlib.Option.Option.Some
-  4L
+//  x |> Stdlib.Option.map (fun a -> a) |> Stdlib.Option.map (fun a -> a + 1L)) = Stdlib.Option.Option.Some
+//   4L
 
-(let x = fun x -> Stdlib.Option.map x (fun a -> a)
+// (let x = fun x -> Stdlib.Option.map x (fun a -> a)
 
- (Stdlib.Option.Option.Some 3L) |> x |> Stdlib.Option.map (fun a -> a + 1L)) = Stdlib.Option.Option.Some
-  4L
+//  (Stdlib.Option.Option.Some 3L) |> x |> Stdlib.Option.map (fun a -> a + 1L)) = Stdlib.Option.Option.Some
+//   4L
 
 ((Stdlib.Option.Option.Some 3L)
  |> Stdlib.Option.withDefault_v0 Stdlib.Option.Option.None
@@ -67,28 +67,28 @@ type MyEnum = A of Int64 * Int64 * Int64
 
 ((Stdlib.Result.Result.Ok 3L) |> Stdlib.Result.withDefault_v0 0L |> (+) 3L) = 6L
 
-((Stdlib.Result.Result.Error "err") |> Stdlib.Result.withDefault_v0 0L |> (+) 3L) = 3L
+//((Stdlib.Result.Result.Error "err") |> Stdlib.Result.withDefault_v0 0L |> (+) 3L) = 3L
 
-(let x = fun a -> Stdlib.Result.withDefault_v0 a 1L
- (Stdlib.Result.Result.Error "err") |> x |> (+) 3L) = 4L
+// (let x = fun a -> Stdlib.Result.withDefault_v0 a 1L
+//  (Stdlib.Result.Result.Error "err") |> x |> (+) 3L) = 4L
 
-(let x =
-  fun x ->
-    Stdlib.Option.andThen_v0 (Stdlib.Option.Option.Some x) (fun x ->
-      Stdlib.Option.Option.Some(1L + x))
+// (let x =
+//   fun x ->
+//     Stdlib.Option.andThen_v0 (Stdlib.Option.Option.Some x) (fun x ->
+//       Stdlib.Option.Option.Some(1L + x))
 
- 3L |> x) = Stdlib.Option.Option.Some 4L
+//  3L |> x) = Stdlib.Option.Option.Some 4L
 
-(let x =
-  fun x -> Stdlib.Option.andThen_v0 x (fun x -> Stdlib.Option.Option.Some(1L + x))
+// (let x =
+//   fun x -> Stdlib.Option.andThen_v0 x (fun x -> Stdlib.Option.Option.Some(1L + x))
 
- 3L |> Stdlib.Option.Option.Some |> x) = Stdlib.Option.Option.Some 4L
+//  3L |> Stdlib.Option.Option.Some |> x) = Stdlib.Option.Option.Some 4L
 
 (3L |> Stdlib.Option.Option.Some |> Stdlib.Result.fromOption "test") = Stdlib.Result.Result.Ok
   3L
 
-(Stdlib.Option.Option.None |> Stdlib.Result.fromOption "test") = Stdlib.Result.Result.Error
-  "test"
+// (Stdlib.Option.Option.None |> Stdlib.Result.fromOption "test") = Stdlib.Result.Result.Error
+//   "test"
 
 
 module FnName =

@@ -1,5 +1,3 @@
-// CLEANUP move all these to LibMisc
-
 module Equals =
   type ERec = { x: Int64; y: Int64 }
   type ERec2 = ERec

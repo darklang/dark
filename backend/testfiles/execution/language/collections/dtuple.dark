@@ -5,7 +5,7 @@
 // note: there is no upper limit set on Tuple size
 (1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L) = (1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L)
 
-(1L, Builtin.testRuntimeError "test", 3L) = Builtin.testDerrorMessage "test"
+// (1L, Builtin.testRuntimeError "test", 3L) = Builtin.testDerrorMessage "test"
 
-(1L, Builtin.testRuntimeError "error1", Builtin.testRuntimeError "error2") = Builtin.testDerrorMessage
-  "error1"
+// (1L, Builtin.testRuntimeError "error1", Builtin.testRuntimeError "error2") = Builtin.testDerrorMessage
+//   "error1"

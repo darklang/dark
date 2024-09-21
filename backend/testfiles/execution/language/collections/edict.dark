@@ -1,0 +1,5 @@
+// ((Dict { a = 5L }) |> Stdlib.Dict.get "a") = Stdlib.Option.Option.Some 5L
+
+// ((Dict { ___ = 5L }) |> Stdlib.Dict.get "") = Stdlib.Option.Option.Some 5L
+
+// ((Dict { a = 5L }) |> Stdlib.Dict.get "b") = Stdlib.Option.Option.None

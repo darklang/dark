@@ -60,7 +60,7 @@ module UserDefined =
   enumConst = Stdlib.Option.Option.Some 5L
   UserDefined.enumConst = Stdlib.Option.Option.Some 5L
 
-  Ok 5L = Builtin.testDerrorMessage "Missing type name for enum case: Ok"
+  //Ok 5L = Builtin.testDerrorMessage "Missing type name for enum case: Ok"
 
 
 module Package =

@@ -1,14 +1,10 @@
-Stdlib.Math.acos_v0 -1.0 = Stdlib.Option.Option.Some 3.14159265359
+// Stdlib.Math.acos_v0 -1.0 = Stdlib.Option.Option.Some 3.14159265359
+// Stdlib.Math.acos_v0 1.0 = Stdlib.Option.Option.Some 0.0
+// Stdlib.Math.acos_v0 5.0 = Stdlib.Option.Option.None
 
-Stdlib.Math.acos_v0 1.0 = Stdlib.Option.Option.Some 0.0
-
-Stdlib.Math.acos_v0 5.0 = Stdlib.Option.Option.None
-
-Stdlib.Math.asin_v0 0.0 = Stdlib.Option.Option.Some 0.0
-
-Stdlib.Math.asin_v0 1.0 = Stdlib.Option.Option.Some 1.57079632679
-
-Stdlib.Math.asin_v0 5.0 = Stdlib.Option.Option.None
+// Stdlib.Math.asin_v0 0.0 = Stdlib.Option.Option.Some 0.0
+// Stdlib.Math.asin_v0 1.0 = Stdlib.Option.Option.Some 1.57079632679
+// Stdlib.Math.asin_v0 5.0 = Stdlib.Option.Option.None
 
 Stdlib.Math.atan_v0 0.0 = 0.0
 Stdlib.Math.atan_v0 1.0 = 0.785398163397

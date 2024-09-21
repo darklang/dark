@@ -1,0 +1,205 @@
+Stdlib.Option.Option.None = Stdlib.Option.Option.None
+
+((Stdlib.List.head []) == Stdlib.Option.Option.None) = true
+
+(Stdlib.List.head []) = Stdlib.Option.Option.None
+
+// Stdlib.Result.Result.Ok(Builtin.testRuntimeError "err") = Builtin.testDerrorMessage
+//   "err"
+
+// Stdlib.Option.Option.Some(Builtin.testRuntimeError "err") = Builtin.testDerrorMessage
+//   "err"
+
+// Stdlib.Result.Result.Error(Builtin.testRuntimeError "err") = Builtin.testDerrorMessage
+//   "err"
+
+module Errors =
+  // module Builtins =
+  //   Stdlib.Option.Option.None 5 = Builtin.testDerrorMessage
+  //     "Case `None` expected 0 fields but got 1"
+
+  //   Stdlib.Option.Option.Some(5, 6) = Builtin.testDerrorMessage
+  //     "Case `Some` expected 1 fields but got 2"
+
+  module User =
+    type MyEnum =
+      | A
+      | B
+      | C of String
+
+//     MyEnum.D = Builtin.testDerrorMessage
+//       "There is no case named `D` in Errors.User.MyEnum"
+
+//     MyEnum.C = Builtin.testDerrorMessage "Case `C` expected 1 fields but got 0"
+//     MyEnum.B 5L = Builtin.testDerrorMessage "Case `B` expected 0 fields but got 1"
+
+//     (match MyEnum.C "test" with
+//      | C v -> v) = "test"
+//     // TYPESCLEANUP
+//     // (match MyEnum.C "test" with | C -> v) = Builtin.testRuntimeError "TODO"
+//     // (match MyEnum.C "test" with | D -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok" | C _ -> v) = Builtin.testRuntimeError "TODO"
+//     // (match MyEnum.C "test" with | 5 -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok" | C _ -> v) = Builtin.testRuntimeError "TODO"
+//     (MyEnum.C 5L) = Builtin.testDerrorMessage
+//       "Errors.User.MyEnum.C's 1st argument should be a String. However, an Int64 (5) was passed instead.
+
+// Expected: Errors.User.MyEnum.C (String)
+// Actual: Errors.User.MyEnum.C (Int64)"
+
+
+module Simple =
+  type AorB =
+    | A
+    | B
+
+  (let a = AorB.A
+   let b = AorB.B
+   a == b) = false
+
+  (let a1 = AorB.A
+   let a2 = AorB.A
+   a1 == a2) = true
+
+  (AorB.A == AorB.A) = true
+  (AorB.A == AorB.B) = false
+
+  Stdlib.List.unique_v0 [ AorB.A; AorB.B; AorB.A; AorB.A; AorB.B ] = [ AorB.A
+                                                                       AorB.B ]
+
+  module EnumReference =
+    type CorD =
+      | C of Int64
+      | D of AorB
+
+    (CorD.C 5L != CorD.D AorB.B) = true
+    (CorD.D AorB.A == CorD.D AorB.A) = true
+
+module MixedCases =
+  type EnumOfMixedCases =
+    | W
+    | X of String
+    | Y of i: Int64
+    | Z of c: String * i: Int64
+
+  (EnumOfMixedCases.W == (EnumOfMixedCases.Y 1L)) = false
+  (EnumOfMixedCases.Y 1L == EnumOfMixedCases.Y 1L) = true
+
+  // EnumOfMixedCases.X 1L = Builtin.testDerrorMessage
+  //   "MixedCases.EnumOfMixedCases.X's 1st argument should be a String. However, an Int64 (1) was passed instead.\n\nExpected: MixedCases.EnumOfMixedCases.X (String)\nActual: MixedCases.EnumOfMixedCases.X (Int64)"
+
+  // EnumOfMixedCases.Y "test" = Builtin.testDerrorMessage
+  //   "MixedCases.EnumOfMixedCases.Y's 1st argument should be an Int64. However, a String (\"test\") was passed instead.\n\nExpected: MixedCases.EnumOfMixedCases.Y (Int64)\nActual: MixedCases.EnumOfMixedCases.Y (String)"
+
+  // EnumOfMixedCases.Z 1L = Builtin.testDerrorMessage
+  //   "Case `Z` expected 2 fields but got 1"
+  // // Test ordering of evaluation
+  // EnumOfMixedCases.Z(Builtin.testRuntimeError "1", Builtin.testRuntimeError "2") = Builtin.testDerrorMessage
+  //   "1"
+
+  // (let values =
+  //   [ EnumOfMixedCases.W
+  //     EnumOfMixedCases.X "testX"
+  //     EnumOfMixedCases.Y(5L)
+  //     EnumOfMixedCases.Z("testZ", 2L) ]
+
+  //  match Stdlib.List.getAt values 3L with
+  //  | Some z -> Stdlib.Result.Result.Ok z
+  //  | None -> Stdlib.Result.Result.Error "Failure") = PACKAGE
+  //   .Darklang
+  //   .Stdlib
+  //   .Result
+  //   .Result
+  //   .Ok(EnumOfMixedCases.Z("testZ", 2L))
+
+  // ([ EnumOfMixedCases.W
+  //    EnumOfMixedCases.X "testX"
+  //    EnumOfMixedCases.Y(5L)
+  //    EnumOfMixedCases.Z("testZ", 2L) ]
+  //  |> Stdlib.List.map_v0 (fun v ->
+  //    match v with
+  //    | X s -> "X " ++ s
+  //    | Z(s, _i) -> "Z " ++ s
+  //    | Y y -> "Y " ++ (Stdlib.Int64.toString_v0 y)
+  //    | W -> "a simple W")) = [ "a simple W"; "X testX"; "Y 5"; "Z testZ" ]
+
+module TuplesVsNonTuples =
+  type Tuples =
+    | NotTuple of String * Int64
+    | Tuple of (String * Int64)
+
+  (match Tuples.NotTuple("printer broke", 7L) with
+   | NotTuple(reason, 7L) -> reason) = "printer broke"
+
+  // (Tuples.NotTuple(("printer broke", 7L))) = Builtin.testDerrorMessage
+  //   "Case `NotTuple` expected 2 fields but got 1"
+
+  (match Tuples.Tuple(("printer broke", 7L)) with
+   | Tuple((reason, 7L)) -> reason) = "printer broke"
+
+  // Tuples.Tuple("printer broke", 7L) = Builtin.testDerrorMessage
+  //   "Case `Tuple` expected 1 fields but got 2"
+
+
+module Recursive =
+  type Tree =
+    | Leaf
+    | Node of Tree * Tree
+
+  Tree.Node(Tree.Leaf, Tree.Leaf) = Tree.Node(Tree.Leaf, Tree.Leaf)
+
+  (Tree.Node(Tree.Leaf, Tree.Leaf)
+   == Tree.Node(Tree.Leaf, Tree.Node(Tree.Leaf, Tree.Leaf))) = false
+
+module Polymorphism =
+  // Define a red-black tree
+  type Color =
+    | Red
+    | Black
+
+  type RBTree<'a> =
+    | Empty
+    | Node of color: Color * left: RBTree<'a> * value: 'a * right: RBTree<'a>
+
+  let singleton (value: 'a) : RBTree<'a> =
+    RBTree.Node(Color.Red, RBTree.Empty, value, RBTree.Empty)
+
+  let insert' (tree: RBTree<'a>) (value: 'a) (cmp: ('a * 'a) -> Int64) : RBTree<'a> =
+    match tree with
+    | Empty -> singleton value
+    | Node(color, left, v, right) ->
+      // CLEANUP we should allow cmp to call two arguments, and not use a weird
+      // tuple-pipe thing
+      let c = (value, v) |> cmp
+
+      if c < 0L then
+        RBTree.Node(color, insert' left value cmp, v, right)
+      elif c > 0L then
+        RBTree.Node(color, left, v, insert' right value cmp)
+      else
+        RBTree.Node(color, left, value, right)
+
+  let insert (tree: RBTree<'a>) (value: 'a) (cmp: ('a * 'a) -> Int64) : RBTree<'a> =
+    insert' tree value cmp
+
+  let ofList (values: List<'a>) (cmp: ('a * 'a) -> Int64) : RBTree<'a> =
+    Stdlib.List.fold_v0 values RBTree.Empty (fun tree value -> insert tree value cmp)
+
+  let toList' (tree: RBTree<'a>) (acc: List<'a>) : List<'a> =
+    match tree with
+    | Empty -> acc
+    | Node(_, left, value, right) ->
+      toList' left (Stdlib.List.push (toList' right acc) value)
+
+  let toList (tree: RBTree<'a>) : List<'a> = toList' tree []
+
+  // // CLEANUP: we should support tuple destructuring in lambdas
+  // // i.e. update to `fun (x, y) -> ...`
+  // (let intCmp =
+  //   fun pair ->
+  //     let (x, y) = pair
+
+  //     if x < y then -1L
+  //     elif x > y then 1L
+  //     else 0L
+
+  //  ([ 1L; -2L; 5L; 3L ] |> ofList intCmp |> toList)
+  //  == ([ 3L; 5L; -2L; 1L ] |> ofList intCmp |> toList)) = true
