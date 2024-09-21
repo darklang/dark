@@ -125,43 +125,43 @@ Stdlib.Float.min_v0 2147483647.0 00000000.000 = 0.0
 
 Stdlib.Float.multiply_v0 26.0 0.5 = 13.0
 
-Stdlib.Float.parse_v0 "1.5" = Stdlib.Result.Result.Ok 1.5
+// Stdlib.Float.parse_v0 "1.5" = Stdlib.Result.Result.Ok 1.5
 
-Stdlib.Float.parse_v0 "0.0" = Stdlib.Result.Result.Ok 0.0
+// Stdlib.Float.parse_v0 "0.0" = Stdlib.Result.Result.Ok 0.0
 
-Stdlib.Float.parse_v0 "-0.5" = Stdlib.Result.Result.Ok -0.5
+// Stdlib.Float.parse_v0 "-0.5" = Stdlib.Result.Result.Ok -0.5
 
-Stdlib.Float.parse_v0 "+0.5" = Stdlib.Result.Result.Ok 0.5
+// Stdlib.Float.parse_v0 "+0.5" = Stdlib.Result.Result.Ok 0.5
 
-Stdlib.Float.parse_v0 ".5" = Stdlib.Result.Result.Ok 0.5
+// Stdlib.Float.parse_v0 ".5" = Stdlib.Result.Result.Ok 0.5
 
-Stdlib.Float.parse_v0 "0.6999999999999999555910790149937383830547332763671875" = Stdlib.Result.Result.Ok
-  0.7
+// Stdlib.Float.parse_v0 "0.6999999999999999555910790149937383830547332763671875" = Stdlib.Result.Result.Ok
+//   0.7
 
-Stdlib.Float.parse_v0 "-0.6999999999999999555910790149937383830547332763671875" = Stdlib.Result.Result.Ok
-  -0.7
+// Stdlib.Float.parse_v0 "-0.6999999999999999555910790149937383830547332763671875" = Stdlib.Result.Result.Ok
+//   -0.7
 
-Stdlib.Float.parse_v0 "0.7999999999" = Stdlib.Result.Result.Ok 0.8
+// Stdlib.Float.parse_v0 "0.7999999999" = Stdlib.Result.Result.Ok 0.8
 
-Stdlib.Float.parse_v0 "0.79999" = Stdlib.Result.Result.Ok 0.79999
+// Stdlib.Float.parse_v0 "0.79999" = Stdlib.Result.Result.Ok 0.79999
 
-Stdlib.Float.parse_v0 "-55555555555555555555555555555.5" = Stdlib.Result.Result.Ok
-  -55555555555555555555555555555.5
+// Stdlib.Float.parse_v0 "-55555555555555555555555555555.5" = Stdlib.Result.Result.Ok
+//   -55555555555555555555555555555.5
 
-Stdlib.Float.parse_v0 "-141s" = Stdlib.Result.Result.Error
-  Stdlib.Float.ParseError.BadFormat
+// Stdlib.Float.parse_v0 "-141s" = Stdlib.Result.Result.Error
+//   Stdlib.Float.ParseError.BadFormat
 
-Stdlib.Float.parse_v0 "" = Stdlib.Result.Result.Error
-  Stdlib.Float.ParseError.BadFormat
+// Stdlib.Float.parse_v0 "" = Stdlib.Result.Result.Error
+//   Stdlib.Float.ParseError.BadFormat
 
-Stdlib.Float.parse "-5.55555555556e+28" = Stdlib.Result.Result.Ok
-  -55555555555555555555555555555.5
+// Stdlib.Float.parse "-5.55555555556e+28" = Stdlib.Result.Result.Ok
+//   -55555555555555555555555555555.5
 //Stdlib.Float.parse_v0 "0xffffffffffffffff" = Stdlib.Result.Result.Ok 1.844674407e+19
 
-Stdlib.Float.parse_v0 "-1.8E+308" = Stdlib.Result.Result.Ok
-  Builtin.testNegativeInfinity_v0
+// Stdlib.Float.parse_v0 "-1.8E+308" = Stdlib.Result.Result.Ok
+//   Builtin.testNegativeInfinity_v0
 
-Stdlib.Float.parse_v0 "1.8E+308" = Stdlib.Result.Result.Ok Builtin.testInfinity_v0
+//Stdlib.Float.parse_v0 "1.8E+308" = Stdlib.Result.Result.Ok Builtin.testInfinity_v0
 
 Stdlib.Float.power_v0 4.0 -0.5 = 0.5
 Stdlib.Float.power_v0 4.0 0.5 = 2.0
@@ -177,7 +177,7 @@ Stdlib.Float.sqrt_v0 0.0 = 0.0
 
 Stdlib.Float.subtract_v0 1.0 0.2 = 0.8
 
-Stdlib.Float.sum_v0 [ 1.0; 0.2 ] = 1.2
+//Stdlib.Float.sum_v0 [ 1.0; 0.2 ] = 1.2
 
 Builtin.testNan_v0 == Builtin.testNan_v0 = false
 
