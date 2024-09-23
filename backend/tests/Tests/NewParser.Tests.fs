@@ -1358,6 +1358,14 @@ else
       []
       []
       []
+      false
+    t
+      "fn call with db reference"
+      """Stdlib.DB.set (Test { x = "x" }) "key" TestDB"""
+      """PACKAGE.Darklang.Stdlib.DB.set Test { x = "x" } "key" TestDB"""
+      []
+      []
+      []
       false ]
   |> testList "exprs"
 

@@ -861,6 +861,9 @@ module Darklang =
           | "apply" -> parseFunctionCall node
 
           | "qualified_const_or_fn_name" -> parseConstanrOrFnName node
+          | "dbReference" ->
+            (WrittenTypes.Expr.EVariable(node.range, getText node))
+            |> Stdlib.Result.Result.Ok
 
           | _ -> createUnparseableError node
 

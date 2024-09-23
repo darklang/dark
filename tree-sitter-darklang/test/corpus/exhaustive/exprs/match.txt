@@ -93,11 +93,13 @@ match [ true; false] with
     (match_expression
       (keyword)
       (expression
-        (simple_expression (list_literal
-          (symbol)
-          (list_content (expression (simple_expression (bool_literal))) (symbol) (expression (simple_expression (bool_literal))))
-          (symbol)
-        ))
+        (simple_expression
+          (list_literal
+            (symbol)
+            (list_content (simple_expression (bool_literal)) (symbol) (simple_expression (bool_literal)))
+            (symbol)
+          )
+        )
       )
       (keyword)
       (match_case
@@ -142,7 +144,7 @@ match [ true ] with
   (expression
     (match_expression
       (keyword)
-      (expression (simple_expression (list_literal (symbol) (list_content (expression (simple_expression (bool_literal)))) (symbol))))
+      (expression (simple_expression (list_literal (symbol) (list_content (simple_expression (bool_literal))) (symbol))))
       (keyword)
       (match_case
         (symbol) (match_pattern (variable)) (symbol)
@@ -316,11 +318,11 @@ match [ 1L; 2L; 3L ] with
         (simple_expression (list_literal
           (symbol)
           (list_content
-            (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+            (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
             (symbol)
-            (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+            (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
             (symbol)
-            (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+            (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
           )
           (symbol)
         ))
@@ -363,11 +365,11 @@ match [ 1L; 2L; 3L ] with
           (list_literal
             (symbol)
             (list_content
-              (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+              (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
               (symbol)
-              (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+              (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
               (symbol)
-              (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+              (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
             )
             (symbol)
           )

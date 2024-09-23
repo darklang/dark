@@ -711,6 +711,21 @@
     }
   },
   {
+    "type": "dbReference",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "type_identifier",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "db_type_reference",
     "named": true,
     "fields": {
@@ -2068,11 +2083,15 @@
       "required": true,
       "types": [
         {
-          "type": "expression",
+          "type": "newline",
           "named": true
         },
         {
-          "type": "newline",
+          "type": "paren_expression",
+          "named": true
+        },
+        {
+          "type": "simple_expression",
           "named": true
         },
         {
@@ -3158,6 +3177,20 @@
           }
         ]
       }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "dedent",
+          "named": true
+        },
+        {
+          "type": "indent",
+          "named": true
+        }
+      ]
     }
   },
   {
@@ -3189,7 +3222,11 @@
         "required": true,
         "types": [
           {
-            "type": "expression",
+            "type": "paren_expression",
+            "named": true
+          },
+          {
+            "type": "simple_expression",
             "named": true
           }
         ]
@@ -3281,7 +3318,11 @@
         "required": true,
         "types": [
           {
-            "type": "expression",
+            "type": "paren_expression",
+            "named": true
+          },
+          {
+            "type": "simple_expression",
             "named": true
           }
         ]
@@ -3340,6 +3381,10 @@
         },
         {
           "type": "char_literal",
+          "named": true
+        },
+        {
+          "type": "dbReference",
           "named": true
         },
         {
