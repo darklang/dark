@@ -75,7 +75,7 @@ else
 (source_file
   (expression
     (if_expression
-      (keyword) (expression (infix_operation (expression (simple_expression (variable_identifier))) (operator) (expression (simple_expression (variable_identifier))))) (keyword)
+      (keyword) (expression (simple_expression (infix_operation (simple_expression (variable_identifier)) (operator) (simple_expression (variable_identifier))))) (keyword)
       (indent) (expression (simple_expression (variable_identifier)))
       (dedent) (keyword)
       (indent) (expression (simple_expression (variable_identifier)))
@@ -97,7 +97,7 @@ if a > b then
 (source_file
   (expression
     (if_expression
-      (keyword) (expression (infix_operation (expression (simple_expression (variable_identifier))) (operator) (expression (simple_expression (variable_identifier))))) (keyword)
+      (keyword) (expression (simple_expression (infix_operation (simple_expression (variable_identifier)) (operator) (simple_expression (variable_identifier))))) (keyword)
       (indent) (expression (simple_expression (variable_identifier)))
       (dedent)
     )
@@ -110,7 +110,7 @@ if a > b then
 ambiguous if/else statement (the else is for the outer if statement)
 ==================
 
-if a  then
+if a then
   if b then
     c
 else
@@ -196,25 +196,25 @@ else
 (source_file
   (expression
     (if_expression
-      (keyword) (expression (infix_operation (expression (simple_expression (variable_identifier))) (operator) (expression (simple_expression (variable_identifier))))) (keyword)
+      (keyword) (expression (simple_expression (infix_operation (simple_expression (variable_identifier)) (operator) (simple_expression (variable_identifier))))) (keyword)
       (indent)
       (expression
         (if_expression
-          (keyword) (expression (infix_operation (expression (simple_expression (variable_identifier))) (operator) (expression (simple_expression (variable_identifier))))) (keyword)
+          (keyword) (expression (simple_expression (infix_operation (simple_expression (variable_identifier)) (operator) (simple_expression (variable_identifier))))) (keyword)
           (indent) (expression (simple_expression (variable_identifier)))
           (dedent)
           (keyword)
           (indent)
           (expression
             (if_expression
-              (keyword) (expression (infix_operation (expression (simple_expression (variable_identifier))) (operator) (expression (simple_expression (variable_identifier))))) (keyword)
+              (keyword) (expression (simple_expression (infix_operation (simple_expression (variable_identifier)) (operator) (simple_expression (variable_identifier))))) (keyword)
               (indent) (expression (simple_expression (variable_identifier)))
               (dedent)
               (keyword)
               (indent)
               (expression
                 (if_expression
-                  (keyword) (expression (infix_operation (expression (simple_expression (variable_identifier))) (operator) (expression (simple_expression (variable_identifier))))) (keyword)
+                  (keyword) (expression (simple_expression (infix_operation (simple_expression (variable_identifier)) (operator) (simple_expression (variable_identifier))))) (keyword)
                   (indent) (expression (simple_expression (variable_identifier)))
                   (dedent)
                   (keyword)
@@ -256,12 +256,12 @@ else
 (source_file
   (expression
     (if_expression
-      (keyword) (expression (infix_operation (expression (simple_expression (variable_identifier))) (operator) (expression (simple_expression (variable_identifier))))) (keyword)
+      (keyword) (expression (simple_expression (infix_operation (simple_expression (variable_identifier)) (operator) (simple_expression (variable_identifier))))) (keyword)
       (indent) (expression (simple_expression (variable_identifier)))
       (dedent) (keyword)
       (expression
         (if_expression
-          (keyword) (expression (infix_operation (expression (simple_expression (variable_identifier))) (operator) (expression (simple_expression (variable_identifier))))) (keyword)
+          (keyword) (expression (simple_expression (infix_operation (simple_expression (variable_identifier)) (operator) (simple_expression (variable_identifier))))) (keyword)
           (indent) (expression (simple_expression (variable_identifier)))
           (dedent) (keyword)
           (indent) (expression (simple_expression (variable_identifier)))
@@ -288,12 +288,12 @@ else if c > d then
 (source_file
   (expression
     (if_expression
-      (keyword) (expression (infix_operation (expression (simple_expression (variable_identifier))) (operator) (expression (simple_expression (variable_identifier))))) (keyword)
+      (keyword) (expression (simple_expression (infix_operation (simple_expression (variable_identifier)) (operator) (simple_expression (variable_identifier))))) (keyword)
       (indent) (expression (simple_expression (variable_identifier)))
       (dedent) (keyword)
       (expression
         (if_expression
-          (keyword) (expression (infix_operation (expression (simple_expression (variable_identifier))) (operator) (expression (simple_expression (variable_identifier))))) (keyword)
+          (keyword) (expression (simple_expression (infix_operation (simple_expression (variable_identifier)) (operator) (simple_expression (variable_identifier))))) (keyword)
           (indent) (expression (simple_expression (variable_identifier)))
           (dedent)
         )
@@ -318,7 +318,7 @@ else
 (source_file
   (expression
     (if_expression
-      (keyword) (expression (infix_operation (expression (simple_expression (variable_identifier))) (operator) (expression (simple_expression (variable_identifier))))) (keyword)
+      (keyword) (expression (simple_expression (infix_operation (simple_expression (variable_identifier)) (operator) (simple_expression (variable_identifier))))) (keyword)
       (indent) (expression (simple_expression (variable_identifier)))
       (dedent) (keyword)
       (indent) (expression (simple_expression (variable_identifier)))
@@ -342,7 +342,7 @@ else
 (source_file
   (expression
     (if_expression
-      (keyword) (expression (infix_operation (expression (simple_expression (variable_identifier))) (operator) (expression (simple_expression (variable_identifier))))) (keyword)
+      (keyword) (expression (simple_expression (infix_operation (simple_expression (variable_identifier)) (operator) (simple_expression (variable_identifier))))) (keyword)
       (indent) (expression (simple_expression (variable_identifier)))
       (dedent) (keyword)
       (indent) (expression (simple_expression (variable_identifier)))
@@ -368,11 +368,11 @@ if a > b then
 (source_file
   (expression
     (if_expression
-      (keyword) (expression (infix_operation (expression (simple_expression (variable_identifier))) (operator) (expression (simple_expression (variable_identifier))))) (keyword)
+      (keyword) (expression (simple_expression (infix_operation (simple_expression (variable_identifier)) (operator) (simple_expression (variable_identifier))))) (keyword)
       (indent)
       (expression
         (if_expression
-          (keyword) (expression (infix_operation (expression (simple_expression (variable_identifier))) (operator) (expression (simple_expression (variable_identifier))))) (keyword)
+          (keyword) (expression (simple_expression (infix_operation (simple_expression (variable_identifier)) (operator) (simple_expression (variable_identifier))))) (keyword)
           (indent) (expression (simple_expression (variable_identifier)))
           (dedent)
           (keyword)
@@ -401,12 +401,12 @@ if a > b then
 (source_file
   (expression
     (if_expression
-      (keyword) (expression (infix_operation (expression (simple_expression (variable_identifier))) (operator) (expression (simple_expression (variable_identifier))))) (keyword)
+      (keyword) (expression (simple_expression (infix_operation (simple_expression (variable_identifier)) (operator) (simple_expression (variable_identifier))))) (keyword)
       (indent)
       (expression
         (if_expression
           (keyword)
-          (expression (infix_operation (expression (simple_expression (variable_identifier))) (operator) (expression (simple_expression (variable_identifier))))) (keyword)
+          (expression (simple_expression (infix_operation (simple_expression (variable_identifier)) (operator) (simple_expression (variable_identifier))))) (keyword)
           (expression
             (apply
               (qualified_fn_name (fn_identifier))

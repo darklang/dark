@@ -1126,10 +1126,6 @@
           "named": true
         },
         {
-          "type": "infix_operation",
-          "named": true
-        },
-        {
           "type": "lambda_expression",
           "named": true
         },
@@ -1503,7 +1499,11 @@
         "required": true,
         "types": [
           {
-            "type": "expression",
+            "type": "paren_expression",
+            "named": true
+          },
+          {
+            "type": "simple_expression",
             "named": true
           }
         ]
@@ -1523,7 +1523,11 @@
         "required": true,
         "types": [
           {
-            "type": "expression",
+            "type": "paren_expression",
+            "named": true
+          },
+          {
+            "type": "simple_expression",
             "named": true
           }
         ]
@@ -3401,6 +3405,10 @@
         },
         {
           "type": "float_literal",
+          "named": true
+        },
+        {
+          "type": "infix_operation",
           "named": true
         },
         {

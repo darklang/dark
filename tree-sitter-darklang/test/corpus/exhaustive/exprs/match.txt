@@ -199,8 +199,10 @@ match 5L with
         (match_pattern (variable))
         (keyword)
         (expression
-          (infix_operation
-            (expression (simple_expression (variable_identifier))) (operator) (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+          (simple_expression
+            (infix_operation
+              (simple_expression (variable_identifier)) (operator) (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+            )
           )
         )
         (symbol) (expression (simple_expression (bool_literal)))

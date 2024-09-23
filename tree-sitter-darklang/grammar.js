@@ -407,6 +407,7 @@ module.exports = grammar({
         $.record_update,
         $.qualified_const_or_fn_name,
         $.dbReference,
+        $.infix_operation,
       ),
 
     expression: $ =>
@@ -419,7 +420,6 @@ module.exports = grammar({
 
         $.match_expression,
 
-        $.infix_operation,
         $.apply,
 
         $.lambda_expression,
@@ -709,9 +709,9 @@ module.exports = grammar({
         prec.right(
           PREC.EXPONENT,
           seq(
-            field("left", $.expression),
+            field("left", choice($.simple_expression, $.paren_expression)),
             field("operator", alias(exponentOperator, $.operator)),
-            field("right", $.expression),
+            field("right", choice($.simple_expression, $.paren_expression)),
           ),
         ),
 
@@ -719,9 +719,9 @@ module.exports = grammar({
         prec.left(
           PREC.PRODUCT,
           seq(
-            field("left", $.expression),
+            field("left", choice($.simple_expression, $.paren_expression)),
             field("operator", alias(multiplicativeOperators, $.operator)),
-            field("right", $.expression),
+            field("right", choice($.simple_expression, $.paren_expression)),
           ),
         ),
 
@@ -729,9 +729,9 @@ module.exports = grammar({
         prec.left(
           PREC.SUM,
           seq(
-            field("left", $.expression),
+            field("left", choice($.simple_expression, $.paren_expression)),
             field("operator", alias(additiveOperators, $.operator)),
-            field("right", $.expression),
+            field("right", choice($.simple_expression, $.paren_expression)),
           ),
         ),
 
@@ -739,9 +739,9 @@ module.exports = grammar({
         prec.left(
           PREC.COMPARISON,
           seq(
-            field("left", $.expression),
+            field("left", choice($.simple_expression, $.paren_expression)),
             field("operator", alias(comparisonOperators, $.operator)),
-            field("right", $.expression),
+            field("right", choice($.simple_expression, $.paren_expression)),
           ),
         ),
 
@@ -749,17 +749,17 @@ module.exports = grammar({
         prec.left(
           PREC.LOGICAL_AND,
           seq(
-            field("left", $.expression),
+            field("left", choice($.simple_expression, $.paren_expression)),
             field("operator", alias(logicalOperators, $.operator)),
-            field("right", $.expression),
+            field("right", choice($.simple_expression, $.paren_expression)),
           ),
         ),
         prec.left(
           PREC.LOGICAL_OR,
           seq(
-            field("left", $.expression),
+            field("left", choice($.simple_expression, $.paren_expression)),
             field("operator", alias(logicalOperators, $.operator)),
-            field("right", $.expression),
+            field("right", choice($.simple_expression, $.paren_expression)),
           ),
         ),
 
@@ -767,9 +767,9 @@ module.exports = grammar({
         prec.left(
           PREC.SUM,
           seq(
-            field("left", $.expression),
+            field("left", choice($.simple_expression, $.paren_expression)),
             field("operator", alias(stringConcatOperator, $.operator)),
-            field("right", $.expression),
+            field("right", choice($.simple_expression, $.paren_expression)),
           ),
         ),
       ),
