@@ -1,0 +1,262 @@
+Stdlib.Int32.absoluteValue_v0 -5l = 5l
+Stdlib.Int32.absoluteValue_v0 5l = 5l
+
+Stdlib.Int32.max_v0 5l 6l = 6l
+Stdlib.Int32.max_v0 10l 1l = 10l
+Stdlib.Int32.max_v0 -5l 6l = 6l
+Stdlib.Int32.max_v0 -100l -20000l = -100l
+Stdlib.Int32.max_v0 250l -26l = 250l
+
+Stdlib.Int32.min_v0 5l 6l = 5l
+Stdlib.Int32.min_v0 50l -10l = -10l
+Stdlib.Int32.min_v0 -5l 6l = -5l
+Stdlib.Int32.min_v0 -100l -20000l = -20000l
+Stdlib.Int32.min_v0 250l -26l = -26l
+
+Stdlib.Int32.clamp_v0 -5l -2l 5l = -2l // in bounds
+Stdlib.Int32.clamp_v0 -3l -2l 1l = -2l // below min
+Stdlib.Int32.clamp_v0 -5l 1l 1l = 1l // at limit
+Stdlib.Int32.clamp_v0 1l 2l 1l = 1l // above max
+Stdlib.Int32.clamp_v0 3l 0l 2l = 2l //  below in
+Stdlib.Int32.clamp_v0 -100l 0l 0l = 0l
+Stdlib.Int32.clamp_v0 100l 0l 0l = 0l
+Stdlib.Int32.clamp_v0 -100l 0l -1l = -1l
+Stdlib.Int32.clamp_v0 100l 0l -1l = 0l
+Stdlib.Int32.clamp_v0 -100l -1l 0l = -1l
+Stdlib.Int32.clamp_v0 100l -1l 0l = 0l
+Stdlib.Int32.clamp_v0 -100l 1l 0l = 0l
+Stdlib.Int32.clamp_v0 100l 1l 0l = 1l
+Stdlib.Int32.clamp_v0 -2147483647l 250l -26l = -26l
+Stdlib.Int32.clamp_v0 2147483647l 250l -26l = 250l
+
+Stdlib.Int32.negate_v0 -5l = 5l
+Stdlib.Int32.negate_v0 5l = -5l
+Stdlib.Int32.negate_v0 0l = 0l
+Stdlib.Int32.negate_v0 -0l = 0l
+
+// Stdlib.Int32.remainder_v0 15l 6l = Stdlib.Result.Result.Ok 3l
+// Stdlib.Int32.remainder_v0 20l 8l = Stdlib.Result.Result.Ok 4l
+// Stdlib.Int32.remainder_v0 -20l 8l = Stdlib.Result.Result.Ok -4l
+// Stdlib.Int32.remainder_v0 -20l -8l = Stdlib.Result.Result.Ok -4l
+// Stdlib.Int32.remainder_v0 -15l 6l = Stdlib.Result.Result.Ok -3l
+// Stdlib.Int32.remainder_v0 5l 0l = Builtin.testDerrorMessage "Division by zero"
+
+
+Stdlib.Int32.mod_v0 15l 5l = 0l
+Stdlib.Int32.mod_v0 15l 6l = 3l
+Stdlib.Int32.mod_v0 0l 15l = 0l
+Stdlib.Int32.mod_v0 -1l 2l = 1l
+Stdlib.Int32.mod_v0 -754l 53l = 41l
+Stdlib.Int32.mod_v0 222222222l 3l = 0l
+// Stdlib.Int32.mod_v0 5l 0l = Builtin.testDerrorMessage "Zero modulus"
+// Stdlib.Int32.mod_v0 5l -5l = Builtin.testDerrorMessage "Negative modulus"
+
+Stdlib.Int32.power_v0 2l 3l = 8l
+Stdlib.Int32.power_v0 0l 1l = 0l
+Stdlib.Int32.power_v0 1l 0l = 1l
+Stdlib.Int32.power_v0 0l 0l = 1l
+Stdlib.Int32.power_v0 -2l 5l = -32l
+Stdlib.Int32.power_v0 -1l 5l = -1l
+Stdlib.Int32.power_v0 -1l 6l = 1l
+Stdlib.Int32.power_v0 1l 2147483647l = 1l
+// Stdlib.Int32.power_v0 2l 31l = Builtin.testDerrorMessage "Out of range"
+// Stdlib.Int32.power_v0 120l 20l = Builtin.testDerrorMessage "Out of range"
+// Stdlib.Int32.power_v0 2l -3l = Builtin.testDerrorMessage "Negative exponent"
+
+
+Stdlib.Int32.greaterThan_v0 20l 1l = true
+
+Stdlib.Int32.greaterThanOrEqualTo_v0 0l 1l = false
+Stdlib.Int32.greaterThanOrEqualTo_v0 1l 0l = true
+Stdlib.Int32.greaterThanOrEqualTo_v0 6l 1l = true
+Stdlib.Int32.greaterThanOrEqualTo_v0 6l 8l = false
+Stdlib.Int32.greaterThanOrEqualTo_v0 -5l -20l = true
+Stdlib.Int32.greaterThanOrEqualTo_v0 -20l -1l = false
+Stdlib.Int32.greaterThanOrEqualTo_v0 -20l -20l = true
+
+Stdlib.Int32.lessThanOrEqualTo_v0 6l 8l = true
+Stdlib.Int32.lessThanOrEqualTo_v0 10l 1l = false
+Stdlib.Int32.lessThanOrEqualTo_v0 0l 1l = true
+Stdlib.Int32.lessThanOrEqualTo_v0 1l 0l = false
+Stdlib.Int32.lessThanOrEqualTo_v0 -100l 22544l = true
+Stdlib.Int32.lessThanOrEqualTo_v0 -999l -9999l = false
+Stdlib.Int32.lessThanOrEqualTo_v0 -8888l -8888l = true
+
+Stdlib.Int32.lessThan_v0 6l 8l = true
+Stdlib.Int32.lessThan_v0 10l 1l = false
+Stdlib.Int32.lessThan_v0 0l 1l = true
+Stdlib.Int32.lessThan_v0 1l 0l = false
+Stdlib.Int32.lessThan_v0 -100l 22544l = true
+Stdlib.Int32.lessThan_v0 -999l -9999l = false
+Stdlib.Int32.lessThan_v0 -8888l -8888l = false
+
+Stdlib.Int32.sqrt_v0 4l = 2.0
+Stdlib.Int32.sqrt_v0 100l = 10.0
+Stdlib.Int32.sqrt_v0 86l = 9.273618495495704
+
+Stdlib.Int32.toFloat_v0 2l = 2.0
+Stdlib.Int32.toFloat_v0 955656l = 955656.0
+Stdlib.Int32.toFloat_v0 -10l = -10.0
+
+Stdlib.Int32.add_v0 10l 9l = 19l
+Stdlib.Int32.add_v0 88l 9l = 97l
+Stdlib.Int32.add_v0 -1l 2l = 1l
+Stdlib.Int32.add_v0 1l 0l = 1l
+Stdlib.Int32.add_v0 -55l 55l = 0l
+Stdlib.Int32.add_v0 2147483646l 1l = 2147483647l
+
+// Overflow tests
+Stdlib.Int32.add_v0 2147483647l 1l = -2147483648l
+Stdlib.Int32.add_v0 55l 2147483647l = -2147483594l
+Stdlib.Int32.add_v0 -2147483648l -1l = 2147483647l
+
+
+Stdlib.Int32.subtract_v0 10l 9l = 1l
+Stdlib.Int32.subtract_v0 88l 9l = 79l
+Stdlib.Int32.subtract_v0 0l 1l = -1l
+Stdlib.Int32.subtract_v0 1l 0l = 1l
+Stdlib.Int32.subtract_v0 -55l -55l = 0l
+
+Stdlib.Int32.multiply_v0 8l 8l = 64l
+Stdlib.Int32.multiply_v0 5145l 5145l = 26471025l
+
+Stdlib.Int32.divide_v0 10l 5l = 2l
+Stdlib.Int32.divide_v0 17l 3l = 5l
+Stdlib.Int32.divide_v0 -8l 5l = -1l
+Stdlib.Int32.divide_v0 0l 1l = 0l
+
+// Stdlib.Int32.divide_v0 1l 0l = Builtin.testDerrorMessage "Division by zero"
+
+// (Stdlib.List.range_v0 1L 5L)
+// |> Stdlib.List.map_v0 (fun x -> Stdlib.Int32.random 1l 2l)
+// |> Stdlib.List.map_v0 (fun x ->
+//   (Stdlib.Int32.greaterThanOrEqualTo x 1l)
+//   && (Stdlib.Int32.lessThanOrEqualTo x 2l)) = [ true; true; true; true; true ]
+
+// (Stdlib.List.range_v0 1L 5L)
+// |> Stdlib.List.map_v0 (fun x -> Stdlib.Int32.random 10l 20l)
+// |> Stdlib.List.map_v0 (fun x ->
+//   (Stdlib.Int32.greaterThanOrEqualTo x 10l)
+//   && (Stdlib.Int32.lessThanOrEqualTo x 20l)) = [ true; true; true; true; true ]
+
+// (Stdlib.List.range_v0 1L 5L)
+// |> Stdlib.List.map_v0 (fun x -> Stdlib.Int32.random 2l 1l)
+// |> Stdlib.List.map_v0 (fun x ->
+//   (Stdlib.Int32.greaterThanOrEqualTo x 1l)
+//   && (Stdlib.Int32.lessThanOrEqualTo x 2l)) = [ true; true; true; true; true ]
+
+// (Stdlib.List.range_v0 1L 5L)
+// |> Stdlib.List.map_v0 (fun x -> Stdlib.Int32.random 20l 10l)
+// |> Stdlib.List.map_v0 (fun x ->
+//   (Stdlib.Int32.greaterThanOrEqualTo x 10l)
+//   && (Stdlib.Int32.lessThanOrEqualTo x 20l)) = [ true; true; true; true; true ]
+
+// ((Stdlib.List.range_v0 1L 100L)
+//  |> Stdlib.List.map_v0 (fun x -> Stdlib.Int32.random 0l 1l)
+//  |> Stdlib.List.unique_v0) = [ 0l; 1l ]
+
+
+// ((Stdlib.List.range_v0 1L 100L)
+//  |> Stdlib.List.map_v0 (fun x -> Stdlib.Int32.random 0l 2l)
+//  |> Stdlib.List.unique_v0) = [ 0l; 1l; 2l ]
+
+
+//Stdlib.Int32.sum_v0 [ 1l; 2l ] = 3l
+
+// Stdlib.Int32.parse_v0 "0" = Stdlib.Result.Result.Ok 0l
+// Stdlib.Int32.parse_v0 "1" = Stdlib.Result.Result.Ok 1l
+// Stdlib.Int32.parse_v0 " 1" = Stdlib.Result.Result.Ok 1l
+// Stdlib.Int32.parse_v0 "1 " = Stdlib.Result.Result.Ok 1l
+// Stdlib.Int32.parse_v0 "+1" = Stdlib.Result.Result.Ok 1l
+// Stdlib.Int32.parse_v0 " +1 " = Stdlib.Result.Result.Ok 1l
+// Stdlib.Int32.parse_v0 "-1" = Stdlib.Result.Result.Ok -1l
+// Stdlib.Int32.parse_v0 "078" = Stdlib.Result.Result.Ok 78l // "octal" format ignored
+// Stdlib.Int32.parse_v0 "-00001" = Stdlib.Result.Result.Ok -1l
+// Stdlib.Int32.parse_v0 "-10001" = Stdlib.Result.Result.Ok -10001l
+// Stdlib.Int32.parse_v0 "-2147483648" = Stdlib.Result.Result.Ok -2147483648l
+// Stdlib.Int32.parse_v0 "2147483647" = Stdlib.Result.Result.Ok 2147483647l
+// Stdlib.Int32.parse_v0 "2147483648" = Stdlib.Result.Result.Error
+//   Stdlib.Int32.ParseError.OutOfRange
+// Stdlib.Int32.parse_v0 "-2147483649" = Stdlib.Result.Result.Error
+//   Stdlib.Int32.ParseError.OutOfRange
+// Stdlib.Int32.parse_v0 "1 2 3" = Stdlib.Result.Result.Error
+//   Stdlib.Int32.ParseError.BadFormat
+// Stdlib.Int32.parse_v0 "+ 1" = Stdlib.Result.Result.Error
+//   Stdlib.Int32.ParseError.BadFormat
+// Stdlib.Int32.parse_v0 "- 1" = Stdlib.Result.Result.Error
+//   Stdlib.Int32.ParseError.BadFormat
+// Stdlib.Int32.parse_v0 "0xA" = Stdlib.Result.Result.Error
+//   Stdlib.Int32.ParseError.BadFormat
+// Stdlib.Int32.parse_v0 "0x123" = Stdlib.Result.Result.Error
+//   Stdlib.Int32.ParseError.BadFormat
+// Stdlib.Int32.parse_v0 "0b0100" = Stdlib.Result.Result.Error
+//   Stdlib.Int32.ParseError.BadFormat
+// Stdlib.Int32.parse_v0 "pi" = Stdlib.Result.Result.Error
+//   Stdlib.Int32.ParseError.BadFormat
+// Stdlib.Int32.parse_v0 "PACKAGE.Darklang.Stdlib.Math.pi" = Stdlib.Result.Result.Error
+//   Stdlib.Int32.ParseError.BadFormat
+// Stdlib.Int32.parse_v0 "1.23E+04" = Stdlib.Result.Result.Error
+//   Stdlib.Int32.ParseError.BadFormat
+// Stdlib.Int32.parse_v0 "" = Stdlib.Result.Result.Error
+//   Stdlib.Int32.ParseError.BadFormat
+// Stdlib.Int32.parse_v0 "1I" = Stdlib.Result.Result.Error
+//   Stdlib.Int32.ParseError.BadFormat
+// Stdlib.Int32.parse_v0 "one" = Stdlib.Result.Result.Error
+//   Stdlib.Int32.ParseError.BadFormat
+// Stdlib.Int32.parse_v0 "XIV" = Stdlib.Result.Result.Error
+//   Stdlib.Int32.ParseError.BadFormat
+
+
+// Stdlib.Int32.toString 0l = "0"
+// Stdlib.Int32.toString 1l = "1"
+// Stdlib.Int32.toString -1l = "-1"
+// Stdlib.Int32.toString -2147483648l = "-2147483648" // Int32 lower limit
+// Stdlib.Int32.toString 2147483647l = "2147483647" // Int32 upper limit
+
+// Stdlib.Int32.fromInt8_v0 0y = 0l
+// Stdlib.Int32.fromInt8_v0 1y = 1l
+// Stdlib.Int32.fromInt8_v0 127y = 127l
+// Stdlib.Int32.fromInt8_v0 (-128y) = -128l
+
+// Stdlib.Int32.fromUInt8_v0 0uy = 0l
+// Stdlib.Int32.fromUInt8_v0 1uy = 1l
+// Stdlib.Int32.fromUInt8_v0 255uy = 255l
+
+// Stdlib.Int32.fromInt16_v0 0s = 0l
+// Stdlib.Int32.fromInt16_v0 1s = 1l
+// Stdlib.Int32.fromInt16_v0 32767s = 32767l
+// Stdlib.Int32.fromInt16_v0 (-32768s) = -32768l
+
+// Stdlib.Int32.fromUInt16_v0 0us = 0l
+// Stdlib.Int32.fromUInt16_v0 1us = 1l
+// Stdlib.Int32.fromUInt16_v0 65535us = 65535l
+
+// Stdlib.Int32.fromUInt32_v0 0ul = Stdlib.Option.Option.Some 0l
+// Stdlib.Int32.fromUInt32_v0 1ul = Stdlib.Option.Option.Some 1l
+// Stdlib.Int32.fromUInt32_v0 4294967295ul = Stdlib.Option.Option.None
+
+// Stdlib.Int32.fromInt64_v0 0L = Stdlib.Option.Option.Some 0l
+// Stdlib.Int32.fromInt64_v0 1L = Stdlib.Option.Option.Some 1l
+// Stdlib.Int32.fromInt64_v0 2147483647L = Stdlib.Option.Option.Some 2147483647l
+// Stdlib.Int32.fromInt64_v0 2147483648L = Stdlib.Option.Option.None
+// Stdlib.Int32.fromInt64_v0 (-1L) = Stdlib.Option.Option.Some -1l
+// Stdlib.Int32.fromInt64_v0 (-2147483648L) = Stdlib.Option.Option.Some -2147483648l
+// Stdlib.Int32.fromInt64_v0 (-2147483649L) = Stdlib.Option.Option.None
+
+// Stdlib.Int32.fromUInt64_v0 0UL = Stdlib.Option.Option.Some 0l
+// Stdlib.Int32.fromUInt64_v0 1UL = Stdlib.Option.Option.Some 1l
+// Stdlib.Int32.fromUInt64_v0 2147483647UL = Stdlib.Option.Option.Some 2147483647l
+// Stdlib.Int32.fromUInt64_v0 2147483648UL = Stdlib.Option.Option.None
+
+// Stdlib.Int32.fromInt128_v0 0Q = Stdlib.Option.Option.Some 0l
+// Stdlib.Int32.fromInt128_v0 1Q = Stdlib.Option.Option.Some 1l
+// Stdlib.Int32.fromInt128_v0 2147483647Q = Stdlib.Option.Option.Some 2147483647l
+// Stdlib.Int32.fromInt128_v0 2147483648Q = Stdlib.Option.Option.None
+// Stdlib.Int32.fromInt128_v0 (-1Q) = Stdlib.Option.Option.Some -1l
+// Stdlib.Int32.fromInt128_v0 (-2147483648Q) = Stdlib.Option.Option.Some -2147483648l
+// Stdlib.Int32.fromInt128_v0 (-2147483649Q) = Stdlib.Option.Option.None
+
+// Stdlib.Int32.fromUInt128_v0 0Z = Stdlib.Option.Option.Some 0l
+// Stdlib.Int32.fromUInt128_v0 1Z = Stdlib.Option.Option.Some 1l
+// Stdlib.Int32.fromUInt128_v0 2147483647Z = Stdlib.Option.Option.Some 2147483647l
+// Stdlib.Int32.fromUInt128_v0 2147483648Z = Stdlib.Option.Option.None

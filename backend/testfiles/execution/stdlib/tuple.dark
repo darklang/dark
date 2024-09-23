@@ -1,0 +1,77 @@
+// Tuple2
+Stdlib.Tuple2.create "one" 2L = ("one", 2L)
+Stdlib.Tuple2.create 1L "two" = (1L, "two")
+
+Stdlib.Tuple2.first ("one", 2L) = "one"
+Stdlib.Tuple2.first (1L, "two") = 1L
+Stdlib.Tuple2.second ("one", 2L) = 2L
+Stdlib.Tuple2.second (1L, "two") = "two"
+
+Stdlib.Tuple2.swap ("one", 2L) = (2L, "one")
+Stdlib.Tuple2.swap (1L, "two") = ("two", 1L)
+
+Stdlib.Tuple2.swap (Stdlib.Tuple2.swap ("two swaps", "back to original")) = ("two swaps",
+                                                                             "back to original")
+
+// Stdlib.Tuple2.mapFirst (fun x -> Stdlib.String.toUppercase x) ("one", 2L) = ("ONE",
+//                                                                              2L)
+
+// Stdlib.Tuple2.mapFirst (fun x -> x - 2L) (1L, "two") = (-1L, "two")
+// Stdlib.Tuple2.mapSecond (fun x -> x - 2L) ("one", 2L) = ("one", 0L)
+
+// Stdlib.Tuple2.mapSecond (fun x -> Stdlib.String.toUppercase x) (1L, "two") = (1L,
+//                                                                               "TWO")
+
+// Stdlib.Tuple2.mapBoth
+//   (fun x -> Stdlib.String.toUppercase x)
+//   (fun x -> x - 2L)
+//   ("one", 2L) = ("ONE", 0L)
+
+// Stdlib.Tuple2.mapBoth
+//   (fun x -> x - 2L)
+//   (fun x -> Stdlib.String.toUppercase x)
+//   (1L, "two") = (-1L, "TWO")
+
+
+// Tuple3
+Stdlib.Tuple3.create "one" 2L "pi" = ("one", 2L, "pi")
+Stdlib.Tuple3.create 1L "two" 3.14 = (1L, "two", 3.14)
+
+Stdlib.Tuple3.first (1L, "two", 3.14) = 1L
+Stdlib.Tuple3.first ("one", 2L, "pi") = "one"
+Stdlib.Tuple3.second (1L, "two", 3.14) = "two"
+Stdlib.Tuple3.second ("one", 2L, "pi") = 2L
+Stdlib.Tuple3.third (1L, "two", 3.14) = 3.14
+Stdlib.Tuple3.third ("one", 2L, "pi") = "pi"
+
+// Stdlib.Tuple3.mapFirst (fun x -> Stdlib.String.toUppercase x) ("one", 2L, "pi") = ("ONE",
+//                                                                                    2L,
+//                                                                                    "pi")
+
+// Stdlib.Tuple3.mapFirst (fun x -> x - 2L) (1L, "two", 3.14) = (-1L, "two", 3.14)
+
+// Stdlib.Tuple3.mapSecond (fun x -> x - 2L) ("one", 2L, "pi") = ("one", 0L, "pi")
+
+// Stdlib.Tuple3.mapSecond (fun x -> Stdlib.String.toUppercase x) (1L, "two", 3.14) = (1L,
+//                                                                                     "TWO",
+//                                                                                     3.14)
+
+// Stdlib.Tuple3.mapThird (fun x -> Stdlib.String.toUppercase x) ("one", 2L, "pi") = ("one",
+//                                                                                    2L,
+//                                                                                    "PI")
+
+// Stdlib.Tuple3.mapThird (fun x -> Stdlib.Float.roundDown_v0 x) (1L, "two", 3.14) = (1L,
+//                                                                                    "two",
+//                                                                                    3L)
+
+// Stdlib.Tuple3.mapAllThree
+//   (fun x -> Stdlib.String.toUppercase x)
+//   (fun x -> x - 2L)
+//   (fun x -> Stdlib.String.toUppercase x)
+//   ("one", 2L, "pi") = ("ONE", 0L, "PI")
+
+// Stdlib.Tuple3.mapAllThree
+//   (fun x -> x - 2L)
+//   (fun x -> Stdlib.String.toUppercase x)
+//   (fun x -> Stdlib.Float.roundDown_v0 x)
+//   (1L, "two", 3.14) = (-1L, "TWO", 3L)
