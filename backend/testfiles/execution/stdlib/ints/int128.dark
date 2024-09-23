@@ -1,8 +1,8 @@
 Stdlib.Int128.absoluteValue_v0 -5Q = 5Q
 Stdlib.Int128.absoluteValue_v0 5Q = 5Q
 
-Stdlib.Int128.absoluteValue_v0 -170141183460469231731687303715884105728Q = Builtin.testDerrorMessage
-  "Out of range"
+// Stdlib.Int128.absoluteValue_v0 -170141183460469231731687303715884105728Q = Builtin.testDerrorMessage
+//   "Out of range"
 
 Stdlib.Int128.max_v0 5Q 6Q = 6Q
 Stdlib.Int128.max_v0 10Q 1Q = 10Q
@@ -39,20 +39,20 @@ Stdlib.Int128.negate_v0 5Q = -5Q
 Stdlib.Int128.negate_v0 0Q = 0Q
 Stdlib.Int128.negate_v0 -0Q = 0Q
 
-Stdlib.Int128.negate_v0 -170141183460469231731687303715884105728Q = Builtin.testDerrorMessage
-  "Out of range"
+// Stdlib.Int128.negate_v0 -170141183460469231731687303715884105728Q = Builtin.testDerrorMessage
+//   "Out of range"
 
-Stdlib.Int128.remainder_v0 15Q 6Q = Stdlib.Result.Result.Ok 3Q
+// Stdlib.Int128.remainder_v0 15Q 6Q = Stdlib.Result.Result.Ok 3Q
 
-Stdlib.Int128.remainder_v0 20Q 8Q = Stdlib.Result.Result.Ok 4Q
+// Stdlib.Int128.remainder_v0 20Q 8Q = Stdlib.Result.Result.Ok 4Q
 
-Stdlib.Int128.remainder_v0 -20Q 8Q = Stdlib.Result.Result.Ok -4Q
+// Stdlib.Int128.remainder_v0 -20Q 8Q = Stdlib.Result.Result.Ok -4Q
 
-Stdlib.Int128.remainder_v0 -20Q -8Q = Stdlib.Result.Result.Ok -4Q
+// Stdlib.Int128.remainder_v0 -20Q -8Q = Stdlib.Result.Result.Ok -4Q
 
-Stdlib.Int128.remainder_v0 -15Q 6Q = Stdlib.Result.Result.Ok -3Q
+// Stdlib.Int128.remainder_v0 -15Q 6Q = Stdlib.Result.Result.Ok -3Q
 
-Stdlib.Int128.remainder_v0 5Q 0Q = Builtin.testDerrorMessage "Division by zero"
+// Stdlib.Int128.remainder_v0 5Q 0Q = Builtin.testDerrorMessage "Division by zero"
 
 Stdlib.Int128.add_v0 10Q 9Q = 19Q
 Stdlib.Int128.add_v0 88Q 9Q = 97Q
@@ -62,8 +62,8 @@ Stdlib.Int128.add_v0 -55Q 55Q = 0Q
 Stdlib.Int128.add_v0 55Q 55Q = 110Q
 Stdlib.Int128.add_v0 9223372036854775807Q 2Q = 9223372036854775809Q
 
-Stdlib.Int128.add_v0 170141183460469231731687303715884105726Q 4Q = Builtin.testDerrorMessage
-  "Out of range"
+// Stdlib.Int128.add_v0 170141183460469231731687303715884105726Q 4Q = Builtin.testDerrorMessage
+//   "Out of range"
 
 
 
@@ -73,8 +73,8 @@ Stdlib.Int128.subtract_v0 0Q 1Q = -1Q
 Stdlib.Int128.subtract_v0 1Q 0Q = 1Q
 Stdlib.Int128.subtract_v0 -55Q -55Q = 0Q
 
-Stdlib.Int128.subtract_v0 -55Q 170141183460469231731687303715884105726Q = Builtin.testDerrorMessage
-  "Out of range"
+// Stdlib.Int128.subtract_v0 -55Q 170141183460469231731687303715884105726Q = Builtin.testDerrorMessage
+//   "Out of range"
 
 Stdlib.Int128.multiply_v0 8Q 8Q = 64Q
 Stdlib.Int128.multiply_v0 1Q 0Q = 0Q
@@ -84,10 +84,10 @@ Stdlib.Int128.divide_v0 17Q 3Q = 5Q
 Stdlib.Int128.divide_v0 -8Q 5Q = -1Q
 Stdlib.Int128.divide_v0 0Q 1Q = 0Q
 
-Stdlib.Int128.divide_v0 1Q 0Q = Builtin.testDerrorMessage "Division by zero"
+// Stdlib.Int128.divide_v0 1Q 0Q = Builtin.testDerrorMessage "Division by zero"
 
-Stdlib.Int128.divide_v0 -170141183460469231731687303715884105728Q -1Q = Builtin.testDerrorMessage
-  "Out of range"
+// Stdlib.Int128.divide_v0 -170141183460469231731687303715884105728Q -1Q = Builtin.testDerrorMessage
+//   "Out of range"
 
 
 Stdlib.Int128.greaterThan_v0 20Q 1Q = true
@@ -144,78 +144,78 @@ Stdlib.Int128.mod_v0 -1Q 2Q = 1Q
 Stdlib.Int128.mod_v0 -128Q 53Q = 31Q
 Stdlib.Int128.mod_v0 127Q 3Q = 1Q
 
-Stdlib.Int128.mod_v0 5Q 0Q = Builtin.testDerrorMessage "Zero modulus"
+// Stdlib.Int128.mod_v0 5Q 0Q = Builtin.testDerrorMessage "Zero modulus"
 
-Stdlib.Int128.mod_v0 5Q -5Q = Builtin.testDerrorMessage "Negative modulus"
+// Stdlib.Int128.mod_v0 5Q -5Q = Builtin.testDerrorMessage "Negative modulus"
 
-Stdlib.Int128.parse_v0 "0" = Stdlib.Result.Result.Ok 0Q
+// Stdlib.Int128.parse_v0 "0" = Stdlib.Result.Result.Ok 0Q
 
-Stdlib.Int128.parse_v0 "1" = Stdlib.Result.Result.Ok 1Q
+// Stdlib.Int128.parse_v0 "1" = Stdlib.Result.Result.Ok 1Q
 
-Stdlib.Int128.parse_v0 " 1" = Stdlib.Result.Result.Ok 1Q
+// Stdlib.Int128.parse_v0 " 1" = Stdlib.Result.Result.Ok 1Q
 
-Stdlib.Int128.parse_v0 "1 " = Stdlib.Result.Result.Ok 1Q
+// Stdlib.Int128.parse_v0 "1 " = Stdlib.Result.Result.Ok 1Q
 
-Stdlib.Int128.parse_v0 "+1" = Stdlib.Result.Result.Ok 1Q
+// Stdlib.Int128.parse_v0 "+1" = Stdlib.Result.Result.Ok 1Q
 
-Stdlib.Int128.parse_v0 " +1 " = Stdlib.Result.Result.Ok 1Q
+// Stdlib.Int128.parse_v0 " +1 " = Stdlib.Result.Result.Ok 1Q
 
-Stdlib.Int128.parse_v0 "-1" = Stdlib.Result.Result.Ok -1Q
+// Stdlib.Int128.parse_v0 "-1" = Stdlib.Result.Result.Ok -1Q
 
-Stdlib.Int128.parse_v0 "078" = Stdlib.Result.Result.Ok 78Q // "octal" format ignored
+// Stdlib.Int128.parse_v0 "078" = Stdlib.Result.Result.Ok 78Q // "octal" format ignored
 
-Stdlib.Int128.parse_v0 "-00001" = Stdlib.Result.Result.Ok -1Q
+// Stdlib.Int128.parse_v0 "-00001" = Stdlib.Result.Result.Ok -1Q
 
-Stdlib.Int128.parse_v0 "170141183460469231731687303715884105727" = Stdlib.Result.Result.Ok
-  170141183460469231731687303715884105727Q
+// Stdlib.Int128.parse_v0 "170141183460469231731687303715884105727" = Stdlib.Result.Result.Ok
+//   170141183460469231731687303715884105727Q
 
-Stdlib.Int128.parse_v0 "-170141183460469231731687303715884105728" = Stdlib.Result.Result.Ok
-  -170141183460469231731687303715884105728Q
+// Stdlib.Int128.parse_v0 "-170141183460469231731687303715884105728" = Stdlib.Result.Result.Ok
+//   -170141183460469231731687303715884105728Q
 
-Stdlib.Int128.parse_v0 "170141183460469231731687303715884105729" = Stdlib.Result.Result.Error
-  Stdlib.Int128.ParseError.OutOfRange
+// Stdlib.Int128.parse_v0 "170141183460469231731687303715884105729" = Stdlib.Result.Result.Error
+//   Stdlib.Int128.ParseError.OutOfRange
 
-Stdlib.Int128.parse_v0 "-170141183460469231731687303715884105729" = Stdlib.Result.Result.Error
-  Stdlib.Int128.ParseError.OutOfRange
+// Stdlib.Int128.parse_v0 "-170141183460469231731687303715884105729" = Stdlib.Result.Result.Error
+//   Stdlib.Int128.ParseError.OutOfRange
 
-Stdlib.Int128.parse_v0 "1 2 3" = Stdlib.Result.Result.Error
-  Stdlib.Int128.ParseError.BadFormat
+// Stdlib.Int128.parse_v0 "1 2 3" = Stdlib.Result.Result.Error
+//   Stdlib.Int128.ParseError.BadFormat
 
-Stdlib.Int128.parse_v0 "+ 1" = Stdlib.Result.Result.Error
-  Stdlib.Int128.ParseError.BadFormat
+// Stdlib.Int128.parse_v0 "+ 1" = Stdlib.Result.Result.Error
+//   Stdlib.Int128.ParseError.BadFormat
 
-Stdlib.Int128.parse_v0 "- 1" = Stdlib.Result.Result.Error
-  Stdlib.Int128.ParseError.BadFormat
+// Stdlib.Int128.parse_v0 "- 1" = Stdlib.Result.Result.Error
+//   Stdlib.Int128.ParseError.BadFormat
 
-Stdlib.Int128.parse_v0 "0xA" = Stdlib.Result.Result.Error
-  Stdlib.Int128.ParseError.BadFormat
+// Stdlib.Int128.parse_v0 "0xA" = Stdlib.Result.Result.Error
+//   Stdlib.Int128.ParseError.BadFormat
 
-Stdlib.Int128.parse_v0 "0x123" = Stdlib.Result.Result.Error
-  Stdlib.Int128.ParseError.BadFormat
+// Stdlib.Int128.parse_v0 "0x123" = Stdlib.Result.Result.Error
+//   Stdlib.Int128.ParseError.BadFormat
 
-Stdlib.Int128.parse_v0 "0b0100" = Stdlib.Result.Result.Error
-  Stdlib.Int128.ParseError.BadFormat
+// Stdlib.Int128.parse_v0 "0b0100" = Stdlib.Result.Result.Error
+//   Stdlib.Int128.ParseError.BadFormat
 
-Stdlib.Int128.parse_v0 "pi" = Stdlib.Result.Result.Error
-  Stdlib.Int128.ParseError.BadFormat
+// Stdlib.Int128.parse_v0 "pi" = Stdlib.Result.Result.Error
+//   Stdlib.Int128.ParseError.BadFormat
 
-Stdlib.Int128.parse_v0 "PACKAGE.Darklang.Stdlib.Math.pi" = Stdlib.Result.Result.Error
-  Stdlib.Int128.ParseError.BadFormat
+// Stdlib.Int128.parse_v0 "PACKAGE.Darklang.Stdlib.Math.pi" = Stdlib.Result.Result.Error
+//   Stdlib.Int128.ParseError.BadFormat
 
-Stdlib.Int128.parse_v0 "1.23E+04" = Stdlib.Result.Result.Error
-  Stdlib.Int128.ParseError.BadFormat
+// Stdlib.Int128.parse_v0 "1.23E+04" = Stdlib.Result.Result.Error
+//   Stdlib.Int128.ParseError.BadFormat
 
-Stdlib.Int128.parse_v0 "" = Stdlib.Result.Result.Error
-  Stdlib.Int128.ParseError.BadFormat
+// Stdlib.Int128.parse_v0 "" = Stdlib.Result.Result.Error
+//   Stdlib.Int128.ParseError.BadFormat
 
-Stdlib.Int128.parse_v0 "1Q" = Stdlib.Result.Result.Error
-  Stdlib.Int128.ParseError.BadFormat
+// Stdlib.Int128.parse_v0 "1Q" = Stdlib.Result.Result.Error
+//   Stdlib.Int128.ParseError.BadFormat
 
-Stdlib.Int128.parse_v0 "one" = Stdlib.Result.Result.Error
-  Stdlib.Int128.ParseError.BadFormat
+// Stdlib.Int128.parse_v0 "one" = Stdlib.Result.Result.Error
+//   Stdlib.Int128.ParseError.BadFormat
 
-Stdlib.Int128.parse_v0 "XQV" = Stdlib.Result.Result.Error
-  Stdlib.Int128.ParseError.BadFormat
+// Stdlib.Int128.parse_v0 "XQV" = Stdlib.Result.Result.Error
+//   Stdlib.Int128.ParseError.BadFormat
 
 
 Stdlib.Int128.fromInt8_v0 0y = 0Q
