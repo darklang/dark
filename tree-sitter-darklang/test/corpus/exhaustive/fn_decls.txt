@@ -174,10 +174,12 @@ let helloworld () : Int64 =
         (expression
           (apply
             (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
-            (paren_expression
-              (symbol)
-              (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
-              (symbol)
+            (simple_expression
+              (paren_expression
+                (symbol)
+                (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+                (symbol)
+              )
             )
           )
         )

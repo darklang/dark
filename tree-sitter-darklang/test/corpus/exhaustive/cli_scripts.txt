@@ -47,13 +47,15 @@ Builtin.printLine (myFn ())
             (module_identifier)
             (symbol)
             (fn_identifier))
-          (paren_expression
-            (symbol)
-            (expression
-              (apply
-                (qualified_fn_name (fn_identifier))
-                (simple_expression (unit))))
-            (symbol)
+          (simple_expression
+            (paren_expression
+              (symbol)
+              (expression
+                (apply
+                  (qualified_fn_name (fn_identifier))
+                  (simple_expression (unit))))
+              (symbol)
+            )
           )
           (newline)
         )
@@ -88,10 +90,12 @@ helloworld ()
         (expression
           (apply
             (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
-            (paren_expression
-              (symbol)
-              (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
-              (symbol)
+            (simple_expression
+              (paren_expression
+                (symbol)
+                (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+                (symbol)
+              )
             )
           )
         )

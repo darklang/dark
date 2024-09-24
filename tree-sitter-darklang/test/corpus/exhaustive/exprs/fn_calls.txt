@@ -303,16 +303,18 @@ Bool.and (Bool.and true false) false
   (expression
     (apply
       (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
-      (paren_expression
-        (symbol)
-        (expression
-          (apply
-            (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
-            (simple_expression (bool_literal))
-            (simple_expression (bool_literal))
+      (simple_expression
+        (paren_expression
+          (symbol)
+          (expression
+            (apply
+              (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
+              (simple_expression (bool_literal))
+              (simple_expression (bool_literal))
+            )
           )
+          (symbol)
         )
-        (symbol)
       )
       (simple_expression (bool_literal))
       (newline)
@@ -335,11 +337,13 @@ Builtin.printLine (getTitle curiousGeorgeBookId)
   (expression
     (apply
       (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
-      (paren_expression
-        (symbol)
-        (expression
-          (apply (qualified_fn_name (fn_identifier)) (simple_expression (variable_identifier))))
-        (symbol)
+      (simple_expression
+        (paren_expression
+          (symbol)
+          (expression
+            (apply (qualified_fn_name (fn_identifier)) (simple_expression (variable_identifier))))
+          (symbol)
+        )
       )
       (newline)
     )
@@ -507,63 +511,69 @@ Stdlib.Tuple3.mapAllThree
       (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
       (indent)
       (expression
-        (paren_expression
-          (symbol)
-          (expression
-            (lambda_expression
-              (keyword)
-              (lambda_pats (let_pattern (variable_identifier)))
-              (symbol)
-              (expression
-                (apply
-                  (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
-                  (simple_expression (variable_identifier))
-                )
-              )
-            )
-          )
-          (symbol)
-        )
-      )
-      (expression
-        (paren_expression
-          (symbol)
-          (expression
-            (lambda_expression
-              (keyword)
-              (lambda_pats (let_pattern (variable_identifier)))
-              (symbol)
-              (expression
-                (simple_expression
-                  (infix_operation
+        (simple_expression
+          (paren_expression
+            (symbol)
+            (expression
+              (lambda_expression
+                (keyword)
+                (lambda_pats (let_pattern (variable_identifier)))
+                (symbol)
+                (expression
+                  (apply
+                    (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
                     (simple_expression (variable_identifier))
-                    (operator)
-                    (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
                   )
                 )
               )
             )
+            (symbol)
           )
-          (symbol)
         )
       )
       (expression
-        (paren_expression
-          (symbol)
-          (expression
-            (lambda_expression
-              (keyword)
-              (lambda_pats (let_pattern (variable_identifier)))
-              (symbol)
-              (expression
-                (apply
-                  (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
-                  (simple_expression (variable_identifier))
+        (simple_expression
+          (paren_expression
+            (symbol)
+            (expression
+              (lambda_expression
+                (keyword)
+                (lambda_pats (let_pattern (variable_identifier)))
+                (symbol)
+                (expression
+                  (simple_expression
+                    (infix_operation
+                      (simple_expression (variable_identifier))
+                      (operator)
+                      (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+                    )
+                  )
                 )
               )
             )
+            (symbol)
           )
-          (symbol)
+        )
+      )
+      (expression
+        (simple_expression
+          (paren_expression
+            (symbol)
+            (expression
+              (lambda_expression
+                (keyword)
+                (lambda_pats (let_pattern (variable_identifier)))
+                (symbol)
+                (expression
+                  (apply
+                    (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+                    (simple_expression (variable_identifier))
+                  )
+                )
+              )
+            )
+            (symbol)
+          )
         )
       )
       (expression
