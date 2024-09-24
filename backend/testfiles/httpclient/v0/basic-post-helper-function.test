@@ -14,7 +14,7 @@ Hello back
 
 [test]
 (let response = (PACKAGE.Darklang.Stdlib.HttpClient.post "http://URL" [] ("-1" |> PACKAGE.Darklang.Stdlib.String.toBytes)) |> Builtin.unwrap
- let respHeaders = response.headers |> PACKAGE.Darklang.Stdlib.List.filter (fun h -> PACKAGE.Darklang.Stdlib.Tuple2.first h != "date")
+ let respHeaders = response.headers |> PACKAGE.Darklang.Stdlib.List.filter (fun h -> (PACKAGE.Darklang.Stdlib.Tuple2.first h) != "date")
  {response with headers = respHeaders}) ==
    PACKAGE.Darklang.Stdlib.HttpClient.Response
     { statusCode = 200L
@@ -23,4 +23,4 @@ Hello back
           ("content-length", "LENGTH")
           ("content-type", "text/plain; charset=utf-8")
       ]
-      body = "Hello back" |> PACKAGE.Darklang.Stdlib.String.toBytes }
+      body = ("Hello back" |> PACKAGE.Darklang.Stdlib.String.toBytes) }

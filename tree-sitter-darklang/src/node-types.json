@@ -711,6 +711,21 @@
     }
   },
   {
+    "type": "dbReference",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "type_identifier",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "db_type_reference",
     "named": true,
     "fields": {
@@ -1111,10 +1126,6 @@
           "named": true
         },
         {
-          "type": "infix_operation",
-          "named": true
-        },
-        {
           "type": "lambda_expression",
           "named": true
         },
@@ -1488,7 +1499,11 @@
         "required": true,
         "types": [
           {
-            "type": "expression",
+            "type": "paren_expression",
+            "named": true
+          },
+          {
+            "type": "simple_expression",
             "named": true
           }
         ]
@@ -1508,7 +1523,11 @@
         "required": true,
         "types": [
           {
-            "type": "expression",
+            "type": "paren_expression",
+            "named": true
+          },
+          {
+            "type": "simple_expression",
             "named": true
           }
         ]
@@ -2068,11 +2087,15 @@
       "required": true,
       "types": [
         {
-          "type": "expression",
+          "type": "newline",
           "named": true
         },
         {
-          "type": "newline",
+          "type": "paren_expression",
+          "named": true
+        },
+        {
+          "type": "simple_expression",
           "named": true
         },
         {
@@ -3158,6 +3181,20 @@
           }
         ]
       }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "dedent",
+          "named": true
+        },
+        {
+          "type": "indent",
+          "named": true
+        }
+      ]
     }
   },
   {
@@ -3189,7 +3226,11 @@
         "required": true,
         "types": [
           {
-            "type": "expression",
+            "type": "paren_expression",
+            "named": true
+          },
+          {
+            "type": "simple_expression",
             "named": true
           }
         ]
@@ -3281,7 +3322,11 @@
         "required": true,
         "types": [
           {
-            "type": "expression",
+            "type": "paren_expression",
+            "named": true
+          },
+          {
+            "type": "simple_expression",
             "named": true
           }
         ]
@@ -3343,6 +3388,10 @@
           "named": true
         },
         {
+          "type": "dbReference",
+          "named": true
+        },
+        {
           "type": "dict_literal",
           "named": true
         },
@@ -3356,6 +3405,10 @@
         },
         {
           "type": "float_literal",
+          "named": true
+        },
+        {
+          "type": "infix_operation",
           "named": true
         },
         {

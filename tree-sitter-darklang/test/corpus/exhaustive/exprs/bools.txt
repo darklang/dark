@@ -28,8 +28,7 @@ TRUE
 
 ---
 
-(source_file
-  (ERROR (module_identifier)))
+(source_file (expression (simple_expression (dbReference (type_identifier)))))
 
 
 ==================
@@ -40,9 +39,7 @@ FALSE
 
 ---
 
-(source_file
-  (ERROR (module_identifier)))
-
+(source_file (expression (simple_expression (dbReference (type_identifier)))))
 
 
 ==================
@@ -53,8 +50,8 @@ True
 
 ---
 
-(source_file
-  (ERROR (module_identifier)))
+(source_file (expression (simple_expression (dbReference (type_identifier)))))
+
 
 ==================
 False (error)
@@ -64,5 +61,4 @@ False
 
 ---
 
-(source_file
-  (ERROR (module_identifier)))
+(source_file (expression (simple_expression (dbReference (type_identifier)))))

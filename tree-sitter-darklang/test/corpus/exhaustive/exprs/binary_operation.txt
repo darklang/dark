@@ -8,12 +8,15 @@ true && true
 
 (source_file
   (expression
-    (infix_operation
-      (expression
-        (simple_expression (bool_literal)))
-      (operator)
-      (expression
-        (simple_expression (bool_literal))))))
+    (simple_expression
+      (infix_operation
+        (simple_expression (bool_literal))
+        (operator)
+        (simple_expression (bool_literal))
+      )
+    )
+  )
+)
 
 
 
@@ -26,9 +29,12 @@ true || true
 
 (source_file
   (expression
-    (infix_operation
-      (expression
-        (simple_expression (bool_literal)))
-      (operator)
-      (expression
-        (simple_expression (bool_literal))))))
+    (simple_expression
+      (infix_operation
+        (simple_expression (bool_literal))
+        (operator)
+        (simple_expression (bool_literal))
+      )
+    )
+  )
+)

@@ -119,10 +119,12 @@ let fn = (fun x -> x + 1L)
               (lambda_pats (let_pattern (variable_identifier)))
               (symbol)
               (expression
-                (infix_operation
-                  (expression (simple_expression (variable_identifier)))
-                  (operator)
-                  (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                (simple_expression
+                  (infix_operation
+                    (simple_expression (variable_identifier))
+                    (operator)
+                    (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+                  )
                 )
               )
             )
@@ -315,10 +317,12 @@ pipe expression - lambda without parens
               (lambda_pats (let_pattern (variable_identifier)))
               (symbol)
               (expression
-                (infix_operation
-                  (expression (simple_expression (variable_identifier)))
-                  (operator)
-                  (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                (simple_expression
+                  (infix_operation
+                    (simple_expression (variable_identifier))
+                    (operator)
+                    (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+                  )
                 )
               )
             )
@@ -354,10 +358,12 @@ pipe expression - lambda with parens
                 (lambda_pats (let_pattern (variable_identifier)))
                 (symbol)
                 (expression
-                  (infix_operation
-                    (expression (simple_expression (variable_identifier)))
-                    (operator)
-                    (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                  (simple_expression
+                    (infix_operation
+                      (simple_expression (variable_identifier))
+                      (operator)
+                      (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+                    )
                   )
                 )
               )
@@ -422,9 +428,9 @@ pipe expression - multiple pipe expressions
               (list_literal
                 (symbol)
                 (list_content
-                  (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                  (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
                   (symbol)
-                  (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                  (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
                 )
                 (symbol)
               )

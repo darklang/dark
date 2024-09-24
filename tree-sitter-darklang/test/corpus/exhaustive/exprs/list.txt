@@ -6,11 +6,7 @@ empty list
 
 ---
 
-(source_file
-  (expression
-    (simple_expression (list_literal
-      (symbol)
-      (symbol)))))
+(source_file (expression (simple_expression (list_literal (symbol) (symbol)))))
 
 
 ==================
@@ -27,7 +23,7 @@ Single-item list
       (list_literal
         (symbol)
         (list_content
-          (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))))
+          (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
         (symbol)
       )
     )
@@ -45,21 +41,19 @@ Two-item list
 
 (source_file
   (expression
-    (simple_expression (list_literal
-      (symbol)
-      (list_content
-        (expression
-          (simple_expression (int64_literal
-            (digits
-              (positive_digits))
-            (symbol))))
+    (simple_expression
+      (list_literal
         (symbol)
-        (expression
-          (simple_expression (int64_literal
-            (digits
-              (positive_digits))
-            (symbol)))))
-      (symbol)))))
+        (list_content
+          (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+          (symbol)
+          (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+        )
+        (symbol)
+      )
+    )
+  )
+)
 
 
 ==================
@@ -72,21 +66,23 @@ Multiple-item list
 
 (source_file
   (expression
-    (simple_expression (list_literal
-      (symbol)
-      (list_content
-        (expression
-          (simple_expression (bool_literal)))
+    (simple_expression
+      (list_literal
         (symbol)
-        (expression
-          (simple_expression (bool_literal)))
+        (list_content
+          (simple_expression (bool_literal))
+          (symbol)
+          (simple_expression (bool_literal))
+          (symbol)
+          (simple_expression (bool_literal))
+          (symbol)
+          (simple_expression (bool_literal))
+        )
         (symbol)
-        (expression
-          (simple_expression (bool_literal)))
-        (symbol)
-        (expression
-          (simple_expression (bool_literal))))
-      (symbol)))))
+      )
+    )
+  )
+)
 
 
 
@@ -100,31 +96,38 @@ Nested list
 
 (source_file
   (expression
-    (simple_expression (list_literal
-      (symbol)
-      (list_content
-        (expression
-          (simple_expression (list_literal
-            (symbol)
-            (list_content
-              (expression
-                (simple_expression (bool_literal)))
-              (symbol)
-              (expression
-                (simple_expression (bool_literal))))
-            (symbol))))
+    (simple_expression
+      (list_literal
         (symbol)
-        (expression
-          (simple_expression (list_literal
-            (symbol)
-            (list_content
-              (expression
+        (list_content
+          (simple_expression
+            (list_literal
+              (symbol)
+              (list_content
+                (simple_expression (bool_literal))
+                (symbol)
+                (simple_expression (bool_literal))
+              )
+              (symbol)
+            )
+          )
+          (symbol)
+          (simple_expression
+            (list_literal
+              (symbol)
+              (list_content
+                (simple_expression (bool_literal))
+                (symbol)
                 (simple_expression (bool_literal)))
               (symbol)
-              (expression
-                (simple_expression (bool_literal))))
-            (symbol)))))
-      (symbol)))))
+            )
+          )
+        )
+        (symbol)
+      )
+    )
+  )
+)
 
 
 ==================
@@ -137,16 +140,20 @@ List with trailing semicolon
 
 (source_file
   (expression
-    (simple_expression (list_literal
-      (symbol)
-      (list_content
-        (expression
-          (simple_expression (bool_literal)))
+    (simple_expression
+      (list_literal
         (symbol)
-        (expression
-          (simple_expression (bool_literal)))
-        (symbol))
-      (symbol)))))
+        (list_content
+          (simple_expression (bool_literal))
+          (symbol)
+          (simple_expression (bool_literal))
+          (symbol)
+        )
+        (symbol)
+      )
+    )
+  )
+)
 
 
 ==================
@@ -159,17 +166,21 @@ List starting with semicolon
 
 (source_file
   (expression
-    (simple_expression (list_literal
-      (symbol)
-      (ERROR
-        (symbol))
-      (list_content
-        (expression
-          (simple_expression (bool_literal)))
+    (simple_expression
+      (list_literal
         (symbol)
-        (expression
-          (simple_expression (bool_literal))))
-        (symbol)))))
+        (ERROR
+          (symbol))
+        (list_content
+          (simple_expression (bool_literal))
+          (symbol)
+          (simple_expression (bool_literal))
+        )
+        (symbol)
+      )
+    )
+  )
+)
 
 
 ==================
@@ -184,11 +195,12 @@ List with missing semicolon
   (expression
     (simple_expression (list_literal
       (symbol)
-      (list_content
-        (expression
-          (simple_expression (bool_literal))))
+      (list_content (simple_expression (bool_literal)))
       (ERROR)
-      (symbol)))))
+      (symbol))
+    )
+  )
+)
 
 
 ==================
@@ -201,17 +213,20 @@ List with missing item
 
 (source_file
   (expression
-    (simple_expression (list_literal
-      (symbol)
-      (list_content
-        (expression
-          (simple_expression (bool_literal)))
-        (ERROR
-          (symbol))
+    (simple_expression
+      (list_literal
         (symbol)
-        (expression
-          (simple_expression (bool_literal))))
-      (symbol)))))
+        (list_content
+          (simple_expression (bool_literal))
+          (ERROR
+            (symbol))
+          (symbol)
+          (simple_expression (bool_literal)))
+        (symbol)
+      )
+    )
+  )
+)
 
 
 ==================
@@ -224,11 +239,15 @@ List with just a semicolon
 
 (source_file
   (expression
-    (simple_expression (list_literal
-      (symbol)
-      (ERROR
-        (symbol))
-      (symbol)))))
+    (simple_expression
+      (list_literal
+        (symbol)
+        (ERROR (symbol))
+        (symbol)
+      )
+    )
+  )
+)
 
 
 ==================
@@ -248,13 +267,13 @@ List with newlines
       (list_literal
         (symbol)
         (list_content
-          (expression (simple_expression (bool_literal)))
+          (simple_expression (bool_literal))
           (newline)
-          (expression (simple_expression (bool_literal)))
+          (simple_expression (bool_literal))
           (newline)
-          (expression (simple_expression (bool_literal)))
+          (simple_expression (bool_literal))
           (newline)
-          (expression (simple_expression (bool_literal))))
+          (simple_expression (bool_literal)))
         (symbol)
       )
     )
@@ -280,22 +299,54 @@ Enum List
       (list_literal
         (symbol)
         (list_content
-          (expression
-            (simple_expression
-              (enum_literal
-                (qualified_type_name (module_identifier) (symbol) (type_identifier))
-                (symbol)
-                (enum_case_identifier)
-                (symbol)
-                (indent)
-                (enum_fields
-                  (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
-                )
-                (dedent)
-                (symbol)
+          (simple_expression
+            (enum_literal
+              (qualified_type_name (module_identifier) (symbol) (type_identifier))
+              (symbol)
+              (enum_case_identifier)
+              (symbol)
+              (indent)
+              (enum_fields
+                (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
               )
+              (dedent)
+              (symbol)
             )
           )
+          (newline)
+        )
+        (symbol)
+      )
+    )
+  )
+)
+
+
+==================
+List of constants
+==================
+
+[ intConst
+  floatConst
+  stringConst
+  boolConst
+]
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (list_literal
+        (symbol)
+        (list_content
+          (simple_expression (variable_identifier))
+          (newline)
+          (simple_expression (variable_identifier))
+          (newline)
+          (simple_expression (variable_identifier))
+          (newline)
+          (simple_expression (variable_identifier))
           (newline)
         )
         (symbol)

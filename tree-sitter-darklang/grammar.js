@@ -1,5 +1,4 @@
 // TODOs:
-// - int64 literals (e.g. `0L`)
 // - deal with keywords
 // - better support for partially-written code (i.e. `let x =`)
 // - consider using Supertype Nodes for rules whose definitions are a simple choice eg. `simple_expression`, `consts`, etc.
@@ -116,6 +115,7 @@ module.exports = grammar({
         $.const_dict_literal,
         $.const_enum_literal,
         $.unit,
+        // TODO: should we allow a const_identifier here?
       ),
 
     const_list_literal: $ => list_literal_base($, $.const_list_content),
@@ -171,7 +171,7 @@ module.exports = grammar({
         field("typ", $.type_decl_def),
       ),
 
-    // definition
+    // Definition
     type_decl_def: $ =>
       choice(
         $.type_decl_def_alias,
@@ -186,7 +186,6 @@ module.exports = grammar({
     //
     // Record
     // e.g. `type Person = { name: String; age: Int }`
-    // TODO: allow multi-line records where a newline is 'interpreted' as a record delimiter (i.e. no ; needed)
     type_decl_def_record: $ =>
       // CLEANUP consider supporting a mixed mode of these choices:
       // ```
@@ -241,6 +240,7 @@ module.exports = grammar({
     //
     // Enums
     // e.g. `type Color = Red | Green | Blue`
+    // TODO: don't require the | for the first enum field in a single line enum
     type_decl_def_enum: $ =>
       field(
         "content",
@@ -310,6 +310,7 @@ module.exports = grammar({
         alias($.variable_identifier, $.variable),
       ),
 
+    //
     // match pattern - list
     mp_list: $ => list_literal_base($, $.mp_list_content),
     mp_list_content: $ => list_content_base($, $.match_pattern),
@@ -405,6 +406,8 @@ module.exports = grammar({
         $.tuple_literal,
         $.record_update,
         $.qualified_const_or_fn_name,
+        $.dbReference,
+        $.infix_operation,
       ),
 
     expression: $ =>
@@ -417,17 +420,10 @@ module.exports = grammar({
 
         $.match_expression,
 
-        $.infix_operation,
         $.apply,
 
         $.lambda_expression,
         $.pipe_expression,
-      ),
-
-    qualified_const_or_fn_name: $ =>
-      seq(
-        repeat(seq($.module_identifier, alias(".", $.symbol))),
-        $.constant_or_fn_identifier,
       ),
 
     paren_expression: $ =>
@@ -440,6 +436,89 @@ module.exports = grammar({
     //
     // Booleans
     bool_literal: $ => choice(/true/, /false/),
+
+    //
+    // Integers
+    //CLEANUP: we are using .NET suffixes for integers (e.g. `1L` for Int64) temporarily until we remove the old parser.
+
+    digits: $ => choice($.positive_digits, $.negative_digits),
+    negative_digits: $ => /-\d+/,
+    positive_digits: $ => /\d+/,
+
+    int8_literal: $ =>
+      seq(field("digits", $.digits), field("suffix", alias("y", $.symbol))),
+
+    uint8_literal: $ =>
+      seq(
+        field("digits", $.positive_digits),
+        field("suffix", alias("uy", $.symbol)),
+      ),
+
+    int16_literal: $ =>
+      seq(field("digits", $.digits), field("suffix", alias("s", $.symbol))),
+
+    uint16_literal: $ =>
+      seq(
+        field("digits", $.positive_digits),
+        field("suffix", alias("us", $.symbol)),
+      ),
+
+    int32_literal: $ =>
+      seq(field("digits", $.digits), field("suffix", alias("l", $.symbol))),
+
+    uint32_literal: $ =>
+      seq(
+        field("digits", $.positive_digits),
+        field("suffix", alias("ul", $.symbol)),
+      ),
+
+    int64_literal: $ =>
+      seq(field("digits", $.digits), field("suffix", alias("L", $.symbol))),
+
+    uint64_literal: $ =>
+      seq(
+        field("digits", $.positive_digits),
+        field("suffix", alias("UL", $.symbol)),
+      ),
+
+    int128_literal: $ =>
+      seq(field("digits", $.digits), field("suffix", alias("Q", $.symbol))),
+
+    uint128_literal: $ =>
+      seq(
+        field("digits", $.positive_digits),
+        field("suffix", alias("Z", $.symbol)),
+      ),
+
+    //
+    // Floats
+    float_literal: $ => /[+-]?[0-9]+\.[0-9]+/,
+
+    //
+    // Characters
+    char_or_string_escape_sequence: _ =>
+      token.immediate(
+        choice(
+          seq("\\", /(\"|\'|\\|\/|a|b|f|n|r|t|v)/),
+          seq("\\", "x", /[0-9a-fA-F]{2}/),
+          seq("\\", "X", /[0-9a-fA-F]{4}/),
+          seq("\\", "u", /[0-9a-fA-F]{4}/),
+          seq("\\", "U", /[0-9a-fA-F]{8}/),
+        ),
+      ),
+
+    char_literal: $ =>
+      seq(
+        field("symbol_open_single_quote", alias("'", $.symbol)),
+        field("content", $.character),
+        field("symbol_close_single_quote", alias("'", $.symbol)),
+      ),
+    character: $ =>
+      choice(
+        // higher precedence than escape sequences
+        token.immediate(prec(1, /[^'\\\n]/)),
+        $.char_or_string_escape_sequence,
+      ),
 
     //
     // Strings
@@ -521,165 +600,10 @@ module.exports = grammar({
     string_segment: $ => choice($.string_literal, $.string_interpolation),
 
     //
-    // Characters
-    char_literal: $ =>
-      seq(
-        field("symbol_open_single_quote", alias("'", $.symbol)),
-        field("content", $.character),
-        field("symbol_close_single_quote", alias("'", $.symbol)),
-      ),
-    character: $ =>
-      choice(
-        // higher precedence than escape sequences
-        token.immediate(prec(1, /[^'\\\n]/)),
-        $.char_or_string_escape_sequence,
-      ),
-
-    char_or_string_escape_sequence: _ =>
-      token.immediate(
-        choice(
-          seq("\\", /(\"|\'|\\|\/|a|b|f|n|r|t|v)/),
-          seq("\\", "x", /[0-9a-fA-F]{2}/),
-          seq("\\", "X", /[0-9a-fA-F]{4}/),
-          seq("\\", "u", /[0-9a-fA-F]{4}/),
-          seq("\\", "U", /[0-9a-fA-F]{8}/),
-        ),
-      ),
-    //
-    // Infix operations
-    infix_operation: $ =>
-      // given `1 + 2 * 3`, this will parse as `1 + (2 * 3)`
-      choice(
-        // Power
-        prec.right(
-          PREC.EXPONENT,
-          seq(
-            field("left", $.expression),
-            field("operator", alias(exponentOperator, $.operator)),
-            field("right", $.expression),
-          ),
-        ),
-
-        // multiplication, division, modulo
-        prec.left(
-          PREC.PRODUCT,
-          seq(
-            field("left", $.expression),
-            field("operator", alias(multiplicativeOperators, $.operator)),
-            field("right", $.expression),
-          ),
-        ),
-
-        // addition, subtraction
-        prec.left(
-          PREC.SUM,
-          seq(
-            field("left", $.expression),
-            field("operator", alias(additiveOperators, $.operator)),
-            field("right", $.expression),
-          ),
-        ),
-
-        // Comparison
-        prec.left(
-          PREC.COMPARISON,
-          seq(
-            field("left", $.expression),
-            field("operator", alias(comparisonOperators, $.operator)),
-            field("right", $.expression),
-          ),
-        ),
-
-        // Logical operations
-        prec.left(
-          PREC.LOGICAL_AND,
-          seq(
-            field("left", $.expression),
-            field("operator", alias(logicalOperators, $.operator)),
-            field("right", $.expression),
-          ),
-        ),
-        prec.left(
-          PREC.LOGICAL_OR,
-          seq(
-            field("left", $.expression),
-            field("operator", alias(logicalOperators, $.operator)),
-            field("right", $.expression),
-          ),
-        ),
-
-        // String concatenation
-        prec.left(
-          PREC.SUM,
-          seq(
-            field("left", $.expression),
-            field("operator", alias(stringConcatOperator, $.operator)),
-            field("right", $.expression),
-          ),
-        ),
-      ),
-
-    //
-    // Integers
-    //CLEANUP: we are using .NET suffixes for integers (e.g. `1L` for Int64) temporarily until we remove the old parser.
-    int8_literal: $ =>
-      seq(field("digits", $.digits), field("suffix", alias("y", $.symbol))),
-
-    uint8_literal: $ =>
-      seq(
-        field("digits", $.positive_digits),
-        field("suffix", alias("uy", $.symbol)),
-      ),
-
-    int16_literal: $ =>
-      seq(field("digits", $.digits), field("suffix", alias("s", $.symbol))),
-
-    uint16_literal: $ =>
-      seq(
-        field("digits", $.positive_digits),
-        field("suffix", alias("us", $.symbol)),
-      ),
-
-    int32_literal: $ =>
-      seq(field("digits", $.digits), field("suffix", alias("l", $.symbol))),
-
-    uint32_literal: $ =>
-      seq(
-        field("digits", $.positive_digits),
-        field("suffix", alias("ul", $.symbol)),
-      ),
-
-    int64_literal: $ =>
-      seq(field("digits", $.digits), field("suffix", alias("L", $.symbol))),
-
-    uint64_literal: $ =>
-      seq(
-        field("digits", $.positive_digits),
-        field("suffix", alias("UL", $.symbol)),
-      ),
-
-    int128_literal: $ =>
-      seq(field("digits", $.digits), field("suffix", alias("Q", $.symbol))),
-
-    uint128_literal: $ =>
-      seq(
-        field("digits", $.positive_digits),
-        field("suffix", alias("Z", $.symbol)),
-      ),
-
-    digits: $ => choice($.positive_digits, $.negative_digits),
-    negative_digits: $ => /-\d+/,
-    positive_digits: $ => /\d+/,
-
-    //
-    // Floats
-    float_literal: $ => /[+-]?[0-9]+\.[0-9]+/,
-
-    //
     // List
-    // TODO: allow multi-line lists where a newline is 'interpreted' as a list delimiter (i.e. no ; needed)
     list_literal: $ => list_literal_base($, $.list_content),
-    list_content: $ => list_content_base($, $.expression),
+    list_content: $ =>
+      list_content_base($, choice($.simple_expression, $.paren_expression)),
 
     //
     // Dict
@@ -696,11 +620,23 @@ module.exports = grammar({
     //
     // Record
     record_literal: $ =>
-      seq(
-        field("type_name", $.qualified_type_name),
-        field("symbol_open_brace", alias("{", $.symbol)),
-        optional(field("content", $.record_content)),
-        field("symbol_close_brace", alias("}", $.symbol)),
+      prec.right(
+        choice(
+          seq(
+            field("type_name", $.qualified_type_name),
+            field("symbol_open_brace", alias("{", $.symbol)),
+            optional(field("content", $.record_content)),
+            field("symbol_close_brace", alias("}", $.symbol)),
+          ),
+          seq(
+            field("type_name", $.qualified_type_name),
+            $.indent,
+            field("symbol_open_brace", alias("{", $.symbol)),
+            optional(field("content", $.record_content)),
+            field("symbol_close_brace", alias("}", $.symbol)),
+            optional($.dedent),
+          ),
+        ),
       ),
     record_content: $ =>
       choice(
@@ -720,7 +656,7 @@ module.exports = grammar({
       seq(
         field("field", $.variable_identifier),
         field("symbol_equals", alias("=", $.symbol)),
-        field("value", $.expression),
+        field("value", choice($.simple_expression, $.paren_expression)),
       ),
 
     //
@@ -756,13 +692,87 @@ module.exports = grammar({
       seq(
         field("field_name", $.variable_identifier),
         field("symbol_equals", alias("=", $.symbol)),
-        field("value", $.expression),
+        field("value", choice($.simple_expression, $.paren_expression)),
       ),
 
     //
     // Enum
     enum_literal: $ => enum_literal_base($, $.enum_fields),
     enum_fields: $ => enum_fields_base($, $.expression),
+
+    //
+    // Infix operations
+    infix_operation: $ =>
+      // given `1 + 2 * 3`, this will parse as `1 + (2 * 3)`
+      choice(
+        // Power
+        prec.right(
+          PREC.EXPONENT,
+          seq(
+            field("left", choice($.simple_expression, $.paren_expression)),
+            field("operator", alias(exponentOperator, $.operator)),
+            field("right", choice($.simple_expression, $.paren_expression)),
+          ),
+        ),
+
+        // multiplication, division, modulo
+        prec.left(
+          PREC.PRODUCT,
+          seq(
+            field("left", choice($.simple_expression, $.paren_expression)),
+            field("operator", alias(multiplicativeOperators, $.operator)),
+            field("right", choice($.simple_expression, $.paren_expression)),
+          ),
+        ),
+
+        // addition, subtraction
+        prec.left(
+          PREC.SUM,
+          seq(
+            field("left", choice($.simple_expression, $.paren_expression)),
+            field("operator", alias(additiveOperators, $.operator)),
+            field("right", choice($.simple_expression, $.paren_expression)),
+          ),
+        ),
+
+        // Comparison
+        prec.left(
+          PREC.COMPARISON,
+          seq(
+            field("left", choice($.simple_expression, $.paren_expression)),
+            field("operator", alias(comparisonOperators, $.operator)),
+            field("right", choice($.simple_expression, $.paren_expression)),
+          ),
+        ),
+
+        // Logical operations
+        prec.left(
+          PREC.LOGICAL_AND,
+          seq(
+            field("left", choice($.simple_expression, $.paren_expression)),
+            field("operator", alias(logicalOperators, $.operator)),
+            field("right", choice($.simple_expression, $.paren_expression)),
+          ),
+        ),
+        prec.left(
+          PREC.LOGICAL_OR,
+          seq(
+            field("left", choice($.simple_expression, $.paren_expression)),
+            field("operator", alias(logicalOperators, $.operator)),
+            field("right", choice($.simple_expression, $.paren_expression)),
+          ),
+        ),
+
+        // String concatenation
+        prec.left(
+          PREC.SUM,
+          seq(
+            field("left", choice($.simple_expression, $.paren_expression)),
+            field("operator", alias(stringConcatOperator, $.operator)),
+            field("right", choice($.simple_expression, $.paren_expression)),
+          ),
+        ),
+      ),
 
     //
     // If expressions
@@ -817,6 +827,18 @@ module.exports = grammar({
       ),
 
     //
+    // DB reference
+    dbReference: $ => $.type_identifier,
+
+    //
+    // Qualified constant or function name
+    qualified_const_or_fn_name: $ =>
+      seq(
+        repeat(seq($.module_identifier, alias(".", $.symbol))),
+        $.constant_or_fn_identifier,
+      ),
+
+    //
     // Lambda expressions
     lambda_expression: $ =>
       seq(
@@ -831,6 +853,20 @@ module.exports = grammar({
     let_pattern_the_rest: $ => tuple_literal_the_rest_base($, $.let_pattern),
     //CLEANUP: add support for lp_parens (just a let_pattern wrapped in parens)
     let_pattern: $ => choice($.unit, $.lp_tuple, $.variable_identifier),
+
+    //
+    // Let expression
+    let_expression: $ =>
+      seq(
+        field("keyword_let", alias("let", $.keyword)),
+        field("pattern", $.let_pattern),
+        field("symbol_equals", alias("=", $.symbol)),
+        choice(
+          seq(field("expr", $.expression), "\n"),
+          seq($.indent, field("expr", $.expression), $.dedent, optional("\n")),
+        ),
+        field("body", $.expression),
+      ),
 
     //
     // Match expression
@@ -881,20 +917,6 @@ module.exports = grammar({
           // the new line is used as a delimiter
           optional($.newline),
         ),
-      ),
-
-    //
-    // Let expression
-    let_expression: $ =>
-      seq(
-        field("keyword_let", alias("let", $.keyword)),
-        field("pattern", $.let_pattern),
-        field("symbol_equals", alias("=", $.symbol)),
-        choice(
-          seq(field("expr", $.expression), "\n"),
-          seq($.indent, field("expr", $.expression), $.dedent, optional("\n")),
-        ),
-        field("body", $.expression),
       ),
 
     // ---------------------
@@ -1067,6 +1089,7 @@ module.exports = grammar({
         ),
       ),
 
+    //
     // DB type reference
     // DB<'a>
     db_type_reference: $ =>
@@ -1099,12 +1122,15 @@ module.exports = grammar({
       ),
 
     qualified_type_name: $ =>
-      seq(
+      prec(
+        1,
         seq(
-          repeat(seq($.module_identifier, alias(".", $.symbol))),
-          field("type_identifier", $.type_identifier),
+          seq(
+            repeat(seq($.module_identifier, alias(".", $.symbol))),
+            field("type_identifier", $.type_identifier),
+          ),
+          optional(field("type_args", $.type_args)),
         ),
-        optional(field("type_args", $.type_args)),
       ),
 
     type_args: $ =>
@@ -1121,35 +1147,41 @@ module.exports = grammar({
         ),
       ),
 
+    // e.g. `LanguageTools in `PACKAGE.Darklang.LanguageTools.SomeType`
+    module_identifier: $ => /[A-Z][a-zA-Z0-9_]*/,
+
+    // e.g. `Person` in `type MyPerson = ...`
+    type_identifier: $ => /[A-Z][a-zA-Z0-9_]*/,
+
     // e.g. `newline` in `const newline = '\n'`
     constant_identifier: $ => /[a-z_][a-zA-Z0-9_']*/,
     constant_or_fn_identifier: $ => /[a-z_][a-zA-Z0-9_']*/,
+
+    // e.g. `double` in `let double (x: Int) = x + x`
+    fn_identifier: $ => prec(PREC.FN_IDENTIFIER, /[a-z_][a-zA-Z0-9_']*/),
 
     /** e.g. `x` in `let double (x: Int) = x + x`
      *
      * for let bindings, params, etc. */
     variable_identifier: $ => prec(PREC.VAR_IDENTIFIER, /[a-z_][a-zA-Z0-9_']*/),
 
-    // e.g. `double` in `let double (x: Int) = x + x`
-    fn_identifier: $ => prec(PREC.FN_IDENTIFIER, /[a-z_][a-zA-Z0-9_']*/),
+    // e.g. `Dict { ``Content-Length`` } = "0"`
+    double_backtick_identifier: $ => token(seq("``", /[^`]+/, "``")),
 
-    // e.g. `Person` in `type MyPerson = ...`
-    type_identifier: $ => /[A-Z][a-zA-Z0-9_]*/,
-
-    // e.g. `LanguageTools in `PACKAGE.Darklang.LanguageTools.SomeType`
-    module_identifier: $ => /[A-Z][a-zA-Z0-9_]*/,
-
-    //
     enum_case_identifier: $ => /[A-Z][a-zA-Z0-9_]*/,
 
     newline: $ => /\n/,
 
     unit: $ => "()",
-
-    double_backtick_identifier: $ => token(seq("``", /[^`]+/, "``")),
   },
 });
 
+// ---------------------
+// Helper functions
+// ---------------------
+
+//
+// List
 function list_literal_base($, contentRule) {
   return seq(
     field("symbol_open_bracket", alias("[", $.symbol)),
@@ -1168,6 +1200,8 @@ function list_content_base($, content) {
   );
 }
 
+//
+// Tuple
 function tuple_literal_base($, firstOrSecond, rest) {
   return seq(
     field("symbol_left_paren", alias("(", $.symbol)),
@@ -1184,6 +1218,8 @@ function tuple_literal_the_rest_base($, rest) {
   );
 }
 
+//
+// Dict
 function dict_literal_base($, contentRule) {
   return seq(
     field("keyword_dict", alias("Dict", $.keyword)),
@@ -1210,6 +1246,8 @@ function dict_pair_base($, value) {
   );
 }
 
+//
+// Enum
 function enum_literal_base($, enum_fields) {
   return prec.right(
     seq(
