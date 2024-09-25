@@ -133,7 +133,7 @@ match expression - test let expression
 
 match [ true ] with
 | var ->
-  let length = Stdlib.List.length var
+  let length = (Stdlib.List.length var)
   length
 | [ true ] -> 1L
 | [] -> 0L
@@ -152,12 +152,18 @@ match [ true ] with
         (expression
           (let_expression
             (keyword) (let_pattern (variable_identifier)) (symbol)
-            (expression
-              (apply
-                (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
-                (simple_expression (variable_identifier))
-              )
+            (simple_expression
+              (paren_expression
+                (symbol)
+                (expression
+                  (apply
+                    (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+                    (simple_expression (variable_identifier))
+                  )
+                )
+              (symbol)
             )
+          )
             (expression (simple_expression (variable_identifier)))
           )
         )

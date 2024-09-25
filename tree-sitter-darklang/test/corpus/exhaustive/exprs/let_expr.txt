@@ -11,7 +11,7 @@ x
   (expression
     (let_expression
       (keyword) (let_pattern (variable_identifier)) (symbol)
-      (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+      (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
       (expression (simple_expression (variable_identifier)))
     )
   )
@@ -46,7 +46,8 @@ x
 let expression with pipes -inline
 ==================
 
-let x = 1L |> Stdlib.Option.Option.Some()
+let x =
+  1L |> Stdlib.Option.Option.Some()
 x
 
 ---
@@ -55,6 +56,7 @@ x
   (expression
     (let_expression
       (keyword) (let_pattern (variable_identifier)) (symbol)
+      (indent)
       (expression
         (pipe_expression
           (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
@@ -69,6 +71,7 @@ x
           )
         )
       )
+      (dedent)
       (expression (simple_expression (variable_identifier)))
     )
   )
@@ -193,7 +196,7 @@ let (tokensSoFar, startOfLastToken) = acc
         )
       )
       (symbol)
-      (expression (simple_expression (variable_identifier)))
+      (simple_expression (variable_identifier))
       (expression
         (simple_expression
           (tuple_literal

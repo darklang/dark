@@ -1881,6 +1881,10 @@
           {
             "type": "expression",
             "named": true
+          },
+          {
+            "type": "simple_expression",
+            "named": true
           }
         ]
       },

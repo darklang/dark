@@ -861,7 +861,7 @@ module.exports = grammar({
         field("pattern", $.let_pattern),
         field("symbol_equals", alias("=", $.symbol)),
         choice(
-          seq(field("expr", $.expression), "\n"),
+          seq(field("expr", $.simple_expression), "\n"),
           seq($.indent, field("expr", $.expression), $.dedent, optional("\n")),
         ),
         field("body", $.expression),

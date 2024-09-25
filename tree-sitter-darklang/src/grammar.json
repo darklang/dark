@@ -5059,7 +5059,7 @@
                   "name": "expr",
                   "content": {
                     "type": "SYMBOL",
-                    "name": "expression"
+                    "name": "simple_expression"
                   }
                 },
                 {
