@@ -1,3 +1,6 @@
+Stdlib.List.map [1L; 2L] (fun x -> x + 1L) = [ 2L; 3L]
+
+
 // CLEANUP the following tests should fail on having mixed types
 //[1; 2.3] = Builtin.testDerrorMessage "Cannot form a list of mixed types - the 2nd element does not match the type of previous elements"
 //[(1,10);10;(3,30)] = Builtin.testDerrorMessage "Cannot form a list of mixed types ..."
@@ -12,7 +15,6 @@
 
 
 Stdlib.List.append_v0 [ 1L; 2L; 3L ] [ 4L; 5L; 6L ] = [ 1L; 2L; 3L; 4L; 5L; 6L ]
-
 Stdlib.List.append_v0 [ 3L; 4L ] [ 5L; 6L ] = [ 3L; 4L; 5L; 6L ]
 Stdlib.List.append_v0 [ 1L ] [ 2L ] = [ 1L; 2L ]
 Stdlib.List.append_v0 [] [] = []
@@ -35,13 +37,9 @@ Stdlib.List.drop_v0 [] 4L = []
 
 // Stdlib.List.dropWhile_v0 [ 1L; 2L; 3L; 4L ] (fun item -> 0L - 1L) = Builtin.testDerrorMessage
 //   "If only supports Booleans"
-
 // Stdlib.List.dropWhile_v0 [ 1L; 2L; 3L; 4L ] (fun item -> item < 3L) = [ 3L; 4L ]
-
 // Stdlib.List.dropWhile_v0 [ 1L; 2L; 3L; 4L ] (fun item -> item >= 1L) = []
-
 // Stdlib.List.dropWhile_v0 [ 1L; 5L; 2L; 2L ] (fun item -> item < 3L) = [ 5L; 2L; 2L ]
-
 // Stdlib.List.dropWhile_v0 [] (fun item -> item < 3L) = []
 
 Stdlib.List.empty_v0 = []
