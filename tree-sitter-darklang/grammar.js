@@ -961,6 +961,8 @@ module.exports = grammar({
         seq(
           field("fn", $.qualified_fn_name),
           field("args", repeat($.simple_expression)),
+          // the new line is used as a delimiter
+          optional(/\n/),
         ),
       ),
 
