@@ -8,10 +8,12 @@ parens expr
 
 (source_file
   (expression
-    (paren_expression
-      (symbol)
-      (expression (simple_expression (bool_literal)))
-      (symbol)
+    (simple_expression
+      (paren_expression
+        (symbol)
+        (expression (simple_expression (bool_literal)))
+        (symbol)
+      )
     )
   )
 )

@@ -408,11 +408,11 @@ module.exports = grammar({
         $.qualified_const_or_fn_name,
         $.dbReference,
         $.infix_operation,
+        $.paren_expression,
       ),
 
     expression: $ =>
       choice(
-        $.paren_expression,
         $.simple_expression,
 
         $.if_expression,
@@ -602,8 +602,7 @@ module.exports = grammar({
     //
     // List
     list_literal: $ => list_literal_base($, $.list_content),
-    list_content: $ =>
-      list_content_base($, choice($.simple_expression, $.paren_expression)),
+    list_content: $ => list_content_base($, $.simple_expression),
 
     //
     // Dict
@@ -656,7 +655,7 @@ module.exports = grammar({
       seq(
         field("field", $.variable_identifier),
         field("symbol_equals", alias("=", $.symbol)),
-        field("value", choice($.simple_expression, $.paren_expression)),
+        field("value", $.simple_expression),
       ),
 
     //
@@ -692,7 +691,7 @@ module.exports = grammar({
       seq(
         field("field_name", $.variable_identifier),
         field("symbol_equals", alias("=", $.symbol)),
-        field("value", choice($.simple_expression, $.paren_expression)),
+        field("value", $.simple_expression),
       ),
 
     //
@@ -709,9 +708,9 @@ module.exports = grammar({
         prec.right(
           PREC.EXPONENT,
           seq(
-            field("left", choice($.simple_expression, $.paren_expression)),
+            field("left", $.simple_expression),
             field("operator", alias(exponentOperator, $.operator)),
-            field("right", choice($.simple_expression, $.paren_expression)),
+            field("right", $.simple_expression),
           ),
         ),
 
@@ -719,9 +718,9 @@ module.exports = grammar({
         prec.left(
           PREC.PRODUCT,
           seq(
-            field("left", choice($.simple_expression, $.paren_expression)),
+            field("left", $.simple_expression),
             field("operator", alias(multiplicativeOperators, $.operator)),
-            field("right", choice($.simple_expression, $.paren_expression)),
+            field("right", $.simple_expression),
           ),
         ),
 
@@ -729,9 +728,9 @@ module.exports = grammar({
         prec.left(
           PREC.SUM,
           seq(
-            field("left", choice($.simple_expression, $.paren_expression)),
+            field("left", $.simple_expression),
             field("operator", alias(additiveOperators, $.operator)),
-            field("right", choice($.simple_expression, $.paren_expression)),
+            field("right", $.simple_expression),
           ),
         ),
 
@@ -739,9 +738,9 @@ module.exports = grammar({
         prec.left(
           PREC.COMPARISON,
           seq(
-            field("left", choice($.simple_expression, $.paren_expression)),
+            field("left", $.simple_expression),
             field("operator", alias(comparisonOperators, $.operator)),
-            field("right", choice($.simple_expression, $.paren_expression)),
+            field("right", $.simple_expression),
           ),
         ),
 
@@ -749,17 +748,17 @@ module.exports = grammar({
         prec.left(
           PREC.LOGICAL_AND,
           seq(
-            field("left", choice($.simple_expression, $.paren_expression)),
+            field("left", $.simple_expression),
             field("operator", alias(logicalOperators, $.operator)),
-            field("right", choice($.simple_expression, $.paren_expression)),
+            field("right", $.simple_expression),
           ),
         ),
         prec.left(
           PREC.LOGICAL_OR,
           seq(
-            field("left", choice($.simple_expression, $.paren_expression)),
+            field("left", $.simple_expression),
             field("operator", alias(logicalOperators, $.operator)),
-            field("right", choice($.simple_expression, $.paren_expression)),
+            field("right", $.simple_expression),
           ),
         ),
 
@@ -767,9 +766,9 @@ module.exports = grammar({
         prec.left(
           PREC.SUM,
           seq(
-            field("left", choice($.simple_expression, $.paren_expression)),
+            field("left", $.simple_expression),
             field("operator", alias(stringConcatOperator, $.operator)),
-            field("right", choice($.simple_expression, $.paren_expression)),
+            field("right", $.simple_expression),
           ),
         ),
       ),
@@ -862,7 +861,7 @@ module.exports = grammar({
         field("pattern", $.let_pattern),
         field("symbol_equals", alias("=", $.symbol)),
         choice(
-          seq(field("expr", $.expression), "\n"),
+          seq(field("expr", $.simple_expression), "\n"),
           seq($.indent, field("expr", $.expression), $.dedent, optional("\n")),
         ),
         field("body", $.expression),
@@ -904,10 +903,7 @@ module.exports = grammar({
           // TODO: fn should be an expression
           field("fn", $.qualified_fn_name),
           choice(
-            field(
-              "args",
-              repeat1(choice($.paren_expression, $.simple_expression)),
-            ),
+            field("args", repeat1($.simple_expression)),
             seq(
               $.indent,
               field("args", seq($.expression, repeat(seq(/\n/, $.expression)))),
@@ -964,10 +960,9 @@ module.exports = grammar({
       prec.right(
         seq(
           field("fn", $.qualified_fn_name),
-          field(
-            "args",
-            repeat(choice($.paren_expression, $.simple_expression)),
-          ),
+          field("args", repeat($.simple_expression)),
+          // the new line is used as a delimiter
+          optional(/\n/),
         ),
       ),
 
@@ -1073,6 +1068,16 @@ module.exports = grammar({
     // Function type reference
     //  'a -> 'b -> 'c
     fn_type_reference: $ =>
+      choice(
+        seq(
+          field("symbol_left_paren", alias("(", $.symbol)),
+          $._function_type_sequence,
+          field("symbol_right_paren", alias(")", $.symbol)),
+        ),
+        $._function_type_sequence,
+      ),
+
+    _function_type_sequence: $ =>
       prec.right(
         2,
         seq(

@@ -133,7 +133,7 @@ match expression - test let expression
 
 match [ true ] with
 | var ->
-  let length = Stdlib.List.length var
+  let length = (Stdlib.List.length var)
   length
 | [ true ] -> 1L
 | [] -> 0L
@@ -152,12 +152,18 @@ match [ true ] with
         (expression
           (let_expression
             (keyword) (let_pattern (variable_identifier)) (symbol)
-            (expression
-              (apply
-                (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
-                (simple_expression (variable_identifier))
-              )
+            (simple_expression
+              (paren_expression
+                (symbol)
+                (expression
+                  (apply
+                    (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+                    (simple_expression (variable_identifier))
+                  )
+                )
+              (symbol)
             )
+          )
             (expression (simple_expression (variable_identifier)))
           )
         )
@@ -502,6 +508,73 @@ match (name, value, keyword) with
         (match_pattern (variable))
         (symbol)
         (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+      )
+    )
+  )
+)
+
+
+==================
+match expression - test apply, constant, pipe, and variable
+==================
+
+match var with
+| 5L -> Stdlib.Int64.add var 1L
+| 6L -> MyModule.myConst
+| 7L -> 7L |> Stdlib.Int64.add 1L
+| 8L -> myVar
+
+---
+
+(source_file
+  (expression
+    (match_expression
+      (keyword)
+      (expression (simple_expression (variable_identifier)))
+      (keyword)
+      (match_case
+        (symbol)
+        (match_pattern (int64 (digits (positive_digits)) (symbol)))
+        (symbol)
+        (expression
+          (apply
+            (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+            (simple_expression (variable_identifier))
+            (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+            (newline)
+          )
+        )
+      )
+      (match_case
+        (symbol)
+        (match_pattern (int64 (digits (positive_digits)) (symbol)))
+        (symbol)
+        (expression (simple_expression (qualified_const_or_fn_name (module_identifier) (symbol) (constant_or_fn_identifier))))
+      )
+      (match_case
+        (symbol)
+        (match_pattern (int64 (digits (positive_digits)) (symbol)))
+        (symbol)
+        (expression
+          (pipe_expression
+            (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+            (pipe_exprs
+              (symbol)
+              (pipe_expr
+                (pipe_fn_call
+                  (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+                  (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+                )
+              )
+            )
+          )
+        )
+      )
+      (match_case
+        (symbol)
+        (match_pattern (int64 (digits (positive_digits)) (symbol)))
+        (symbol)
+        (expression (simple_expression (variable_identifier)))
       )
     )
   )

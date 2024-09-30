@@ -12,10 +12,6 @@
             "named": true
           },
           {
-            "type": "paren_expression",
-            "named": true
-          },
-          {
             "type": "simple_expression",
             "named": true
           }
@@ -1138,10 +1134,6 @@
           "named": true
         },
         {
-          "type": "paren_expression",
-          "named": true
-        },
-        {
           "type": "pipe_expression",
           "named": true
         },
@@ -1397,6 +1389,26 @@
             "named": true
           }
         ]
+      },
+      "symbol_left_paren": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_right_paren": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
       }
     },
     "children": {
@@ -1499,10 +1511,6 @@
         "required": true,
         "types": [
           {
-            "type": "paren_expression",
-            "named": true
-          },
-          {
             "type": "simple_expression",
             "named": true
           }
@@ -1522,10 +1530,6 @@
         "multiple": false,
         "required": true,
         "types": [
-          {
-            "type": "paren_expression",
-            "named": true
-          },
           {
             "type": "simple_expression",
             "named": true
@@ -1877,6 +1881,10 @@
           {
             "type": "expression",
             "named": true
+          },
+          {
+            "type": "simple_expression",
+            "named": true
           }
         ]
       },
@@ -2088,10 +2096,6 @@
       "types": [
         {
           "type": "newline",
-          "named": true
-        },
-        {
-          "type": "paren_expression",
           "named": true
         },
         {
@@ -2907,10 +2911,6 @@
         "required": false,
         "types": [
           {
-            "type": "paren_expression",
-            "named": true
-          },
-          {
             "type": "simple_expression",
             "named": true
           }
@@ -3226,10 +3226,6 @@
         "required": true,
         "types": [
           {
-            "type": "paren_expression",
-            "named": true
-          },
-          {
             "type": "simple_expression",
             "named": true
           }
@@ -3321,10 +3317,6 @@
         "multiple": false,
         "required": true,
         "types": [
-          {
-            "type": "paren_expression",
-            "named": true
-          },
           {
             "type": "simple_expression",
             "named": true
@@ -3433,6 +3425,10 @@
         },
         {
           "type": "list_literal",
+          "named": true
+        },
+        {
+          "type": "paren_expression",
           "named": true
         },
         {

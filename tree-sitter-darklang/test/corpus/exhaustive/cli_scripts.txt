@@ -32,13 +32,11 @@ Builtin.printLine (myFn ())
       (keyword)
       (let_pattern (variable_identifier))
       (symbol)
-      (expression
-        (simple_expression
-          (infix_operation
-            (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
-            (operator)
-            (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
-          )
+      (simple_expression
+        (infix_operation
+          (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+          (operator)
+          (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
         )
       )
       (expression
@@ -47,13 +45,15 @@ Builtin.printLine (myFn ())
             (module_identifier)
             (symbol)
             (fn_identifier))
-          (paren_expression
-            (symbol)
-            (expression
-              (apply
-                (qualified_fn_name (fn_identifier))
-                (simple_expression (unit))))
-            (symbol)
+          (simple_expression
+            (paren_expression
+              (symbol)
+              (expression
+                (apply
+                  (qualified_fn_name (fn_identifier))
+                  (simple_expression (unit))))
+              (symbol)
+            )
           )
           (newline)
         )
@@ -68,7 +68,8 @@ script with fn decl and a function call
 ==================
 
 let helloworld () : Int64 =
-  let _ = Builtin.printLine ("Hello, World!")
+  let _ =
+    Builtin.printLine ("Hello, World!")
   0L
 
 helloworld ()
@@ -85,16 +86,20 @@ helloworld ()
         (keyword)
         (let_pattern (variable_identifier))
         (symbol)
+        (indent)
         (expression
           (apply
             (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
-            (paren_expression
-              (symbol)
-              (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
-              (symbol)
+            (simple_expression
+              (paren_expression
+                (symbol)
+                (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+                (symbol)
+              )
             )
           )
         )
+        (dedent)
       (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol)))))
     )
     (dedent)

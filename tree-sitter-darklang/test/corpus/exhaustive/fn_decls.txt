@@ -156,7 +156,8 @@ fn decl - with printLine call
 ==================
 
 let helloworld () : Int64 =
-  let _ = Builtin.printLine ("Hello, World!")
+  let _ =
+    Builtin.printLine "Hello, World!"
   0L
 
 ---
@@ -171,16 +172,14 @@ let helloworld () : Int64 =
         (keyword)
         (let_pattern (variable_identifier))
         (symbol)
+        (indent)
         (expression
           (apply
             (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
-            (paren_expression
-              (symbol)
-              (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
-              (symbol)
-            )
+            (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))
           )
         )
+        (dedent)
         (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol)))))
       )
     (dedent)
