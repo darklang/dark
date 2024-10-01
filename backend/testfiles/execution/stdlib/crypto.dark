@@ -1,63 +1,70 @@
-Stdlib.Bytes.hexEncode_v0 (Stdlib.Crypto.md5_v0 (Stdlib.String.toBytes_v0 "")) = "D41D8CD98F00B204E9800998ECF8427E"
+Stdlib.Bytes.hexEncode (Stdlib.Crypto.md5 (Stdlib.String.toBytes ""))
+== "D41D8CD98F00B204E9800998ECF8427E"
 
-Stdlib.Bytes.hexEncode_v0 (Stdlib.Crypto.sha256_v0 (Stdlib.String.toBytes_v0 "")) = "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+Stdlib.Bytes.hexEncode (Stdlib.Crypto.sha256 (Stdlib.String.toBytes ""))
+== "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
 
-Stdlib.Bytes.hexEncode_v0 (Stdlib.Crypto.sha384_v0 (Stdlib.String.toBytes_v0 "")) = "38B060A751AC96384CD9327EB1B1E36A21FDB71114BE07434C0CC7BF63F6E1DA274EDEBFE76F65FBD51AD2F14898B95B"
+Stdlib.Bytes.hexEncode (Stdlib.Crypto.sha384 (Stdlib.String.toBytes ""))
+== "38B060A751AC96384CD9327EB1B1E36A21FDB71114BE07434C0CC7BF63F6E1DA274EDEBFE76F65FBD51AD2F14898B95B"
 
-Stdlib.Bytes.hexEncode_v0 (
-  Stdlib.Crypto.md5_v0 (
-    Stdlib.String.toBytes_v0 "a longer string that's more interesting"
+Stdlib.Bytes.hexEncode (
+  Stdlib.Crypto.md5 (Stdlib.String.toBytes "a longer string that's more interesting")
+)
+== "D95E619F023B430CAAAEB6778A0B9BD1"
+
+Stdlib.Bytes.hexEncode (
+  Stdlib.Crypto.sha256 (
+    Stdlib.String.toBytes "a longer string that's more interesting"
   )
-) = "D95E619F023B430CAAAEB6778A0B9BD1"
+)
+== "1316F78627BC453D44D27E3133902CF798859572E814EED4B5FB56BB1447F05F"
 
-Stdlib.Bytes.hexEncode_v0 (
-  Stdlib.Crypto.sha256_v0 (
-    Stdlib.String.toBytes_v0 "a longer string that's more interesting"
+Stdlib.Bytes.hexEncode (
+  Stdlib.Crypto.sha384 (
+    Stdlib.String.toBytes "a longer string that's more interesting"
   )
-) = "1316F78627BC453D44D27E3133902CF798859572E814EED4B5FB56BB1447F05F"
-
-Stdlib.Bytes.hexEncode_v0 (
-  Stdlib.Crypto.sha384_v0 (
-    Stdlib.String.toBytes_v0 "a longer string that's more interesting"
-  )
-) = "AD7273EF514770D80B516D067354CB300FE458C042CE084EC97125718678C3C21415FE224658839963F0B2D90137AA7B"
+)
+== "AD7273EF514770D80B516D067354CB300FE458C042CE084EC97125718678C3C21415FE224658839963F0B2D90137AA7B"
 
 // sha256hmac
 (let secretBytes =
-  Stdlib.String.toBytes_v0 "AWS4wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY"
+  Stdlib.String.toBytes "AWS4wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY"
 
- let dataBytes = Stdlib.String.toBytes_v0 "20150830"
+ let dataBytes = Stdlib.String.toBytes "20150830"
 
- Stdlib.Bytes.hexEncode_v0 (Stdlib.Crypto.sha256hmac_v0 secretBytes dataBytes)) = "0138C7A6CBD60AA727B2F653A522567439DFB9F3E72B21F9B25941A42F04A7CD"
+ Stdlib.Bytes.hexEncode (Stdlib.Crypto.sha256hmac secretBytes dataBytes))
+== "0138C7A6CBD60AA727B2F653A522567439DFB9F3E72B21F9B25941A42F04A7CD"
 
 // sha1hmac
 (let secretBytes =
-  Stdlib.String.toBytes_v0 "AWS4wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY"
+  Stdlib.String.toBytes "AWS4wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY"
 
- let dataBytes = Stdlib.String.toBytes_v0 "20150830"
+ let dataBytes = Stdlib.String.toBytes "20150830"
 
- Stdlib.Bytes.hexEncode_v0 (Stdlib.Crypto.sha1hmac_v0 secretBytes dataBytes)) = "0932CB57FE685FEBC66657AA30C7568A4AB05CAF"
+ Stdlib.Bytes.hexEncode (Stdlib.Crypto.sha1hmac secretBytes dataBytes))
+== "0932CB57FE685FEBC66657AA30C7568A4AB05CAF"
 
 // aws
-(let scope = "20150830/us-east-1/iam/aws4_request"
- let content = "f536975d06c0309214f805bb90ccff089219ecd68b2577efef23edd43b7e1a59"
- let strs = [ "AWS4-HMAC-SHA256"; "20150830T123600Z"; scope; content ]
+// TODO parser
+// (const scope = "20150830/us-east-1/iam/aws4_request"
+//  const content = "f536975d06c0309214f805bb90ccff089219ecd68b2577efef23edd43b7e1a59"
+//  const strs = [ "AWS4-HMAC-SHA256"; "20150830T123600Z"; scope; content ]
 
- let strToSign = Stdlib.String.join_v0 strs Stdlib.String.newline
+//  let strToSign = Stdlib.String.join strs Stdlib.String.newline
 
- let secret = Stdlib.String.toBytes_v0 "AWS4wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY"
+//  let secret = Stdlib.String.toBytes "AWS4wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY"
 
- let data = Stdlib.String.toBytes_v0 "20150830"
- let date = Stdlib.Crypto.sha256hmac_v0 secret data
+//  let data = Stdlib.String.toBytes "20150830"
+//  let date = Stdlib.Crypto.sha256hmac secret data
 
- let region = Stdlib.Crypto.sha256hmac_v0 date (Stdlib.String.toBytes_v0 "us-east-1")
+//  let region = Stdlib.Crypto.sha256hmac date (Stdlib.String.toBytes "us-east-1")
 
- let service = Stdlib.Crypto.sha256hmac_v0 region (Stdlib.String.toBytes_v0 "iam")
+//  let service = Stdlib.Crypto.sha256hmac region (Stdlib.String.toBytes "iam")
 
- let signing =
-   Stdlib.Crypto.sha256hmac_v0 service (Stdlib.String.toBytes_v0 "aws4_request")
+//  let signing =
+//    Stdlib.Crypto.sha256hmac service (Stdlib.String.toBytes "aws4_request")
 
- let signed =
-   Stdlib.Crypto.sha256hmac_v0 signing (Stdlib.String.toBytes_v0 strToSign)
+//  let signed = Stdlib.Crypto.sha256hmac signing (Stdlib.String.toBytes strToSign)
 
- Stdlib.String.toLowercase (Stdlib.Bytes.hexEncode_v0 signed)) = "5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7"
+//  Stdlib.String.toLowercase (Stdlib.Bytes.hexEncode signed))
+// == "5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7"

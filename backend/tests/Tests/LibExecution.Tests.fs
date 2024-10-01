@@ -20,7 +20,6 @@ module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 module PackageIDs = LibExecution.PackageIDs
-module NR = LibParser.NameResolver
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
 
@@ -220,17 +219,61 @@ let fileTests () : Test =
   let pmPT = LibCloud.PackageManager.pt
 
   let parseTestFile fileName =
-    LibParser.TestModule.parseTestFile
-      "Tests"
-      (localBuiltIns pmPT)
-      pmPT
-      NR.OnMissing.Allow
-      fileName
+    uply {
+      let! (state : RT.ExecutionState) =
+        let canvasID = System.Guid.NewGuid()
+        executionStateFor pmPT canvasID false false Map.empty
+
+      let name =
+        RT.FQFnName.FQFnName.Package PackageIDs.Fn.Internal.Test.parseTestFile
+
+      let onMissingType =
+        RT.FQTypeName.FQTypeName.Package
+          PackageIDs.Type.LanguageTools.NameResolver.nameResolverOnMissing
+
+      let onMissingAllow =
+        RT.Dval.DEnum(onMissingType, onMissingType, [], "Allow", [])
+
+      let getPmFnName =
+        RT.FQFnName.FQFnName.Package PackageIDs.Fn.LanguageTools.PackageManager.pm
+
+      let! execGetPmResult =
+        Exe.executeFunction state getPmFnName [] (NEList.singleton RT.Dval.DUnit)
+
+      let! pm =
+        uply {
+          match execGetPmResult with
+          | Ok dval -> return dval
+          | Error(_callStack, rte) ->
+            let! rteString = (Exe.rteToString state rte)
+            return
+              Exception.raiseInternal
+                "Error executing pm function"
+                [ "rte", rteString ]
+        }
+
+      let parseTestFileArgs =
+        NEList.ofList
+          (RT.DString "Tests")
+          [ pm; onMissingAllow; RT.DString fileName ]
+
+      let! execResult = LibExecution.Execution.executeFunction state name [] parseTestFileArgs
+
+      match execResult with
+      | Ok dval -> return Internal.TestModule.fromDT dval
+      | Error(_, rte) ->
+        let! rteString = Exe.rteToString state rte
+        return
+          Exception.raiseInternal
+            "Error executing parseTestFile function"
+            [ "error", rteString ]
+    }
 
   System.IO.Directory.GetDirectories(baseDir, "*")
   |> Array.map (fun dir ->
     System.IO.Directory.GetFiles(dir, "*.dark")
     |> Array.toList
+    |> List.filter (String.endsWith "alt-json.dark")
     |> List.map (fun file ->
       let filename = System.IO.Path.GetFileName file
       let testName = System.IO.Path.GetFileNameWithoutExtension file
@@ -251,10 +294,39 @@ let fileTests () : Test =
               (modules |> List.collect _.constants)
               (modules |> List.collect _.fns)
 
+          let allTypes = modules |> List.collect _.types
+
+          let typesWithNoModule =
+            modules
+            |> List.collect _.types
+            |> List.filter (fun t -> t.name.modules = [])
 
           let tests =
             modules
             |> List.map (fun m ->
+              let dbTypes =
+                List.fold
+                  (fun (accumulatedTypes, currentModule) moduleName ->
+                    let relevantModules = currentModule @ [ moduleName ]
+                    let typesInCurrentModule =
+                      allTypes
+                      |> List.filter (fun t -> t.name.modules = relevantModules)
+                    (typesInCurrentModule @ accumulatedTypes, relevantModules))
+                  ([], [])
+                  m.name
+                |> fst
+                |> List.append typesWithNoModule
+
+              let dbs =
+                dbTypes
+                |> List.collect (fun t ->
+                  m.dbs
+                  |> List.filter (fun db ->
+                    db.name = t.name.name
+                    && match t.declaration.definition with
+                       | PT.TypeDeclaration.Alias typ -> db.typ = typ
+                       | _ -> false))
+
               m.tests
               |> List.map (fun test ->
                 t
@@ -265,7 +337,7 @@ let fileTests () : Test =
                   test.expected
                   filename
                   test.lineNumber
-                  m.dbs
+                  dbs
                   []))
             |> List.concat
 

@@ -1,0 +1,462 @@
+module Darklang =
+  module Internal =
+    module Test =
+      type WTTest =
+        { name: String
+          lineNumber: Int64
+          actual: LanguageTools.WrittenTypes.Expr
+          expected: LanguageTools.WrittenTypes.Expr }
+
+      type PTTest =
+        { name: String
+          lineNumber: Int64
+          actual: LanguageTools.ProgramTypes.Expr
+          expected: LanguageTools.ProgramTypes.Expr }
+
+      let parseTest
+        (pf: LanguageTools.WrittenTypes.ParsedFile)
+        : Stdlib.Result.Result<WTTest, String> =
+        let exprsToEval =
+          match pf with
+          | SourceFile s -> s.exprsToEval
+          | _ -> []
+
+        match exprsToEval with
+        | [] -> Stdlib.Result.Result.Error "no exprs to eval"
+        | [ e ] ->
+          match e with
+          | EInfix(r, _, actual, expected) ->
+            (WTTest
+              { name = "test"
+                lineNumber = r.start.row
+                actual = actual
+                expected = expected })
+            |> Stdlib.Result.Result.Ok
+
+          | _ -> Stdlib.Result.Result.Error "expected x = y format"
+
+      // CLEANUP: return result?
+      let parseSingleTestFromFile (filename: String) (testSource: String) : PTTest =
+        let wtTest =
+          testSource
+          |> LanguageTools.Parser.ParserTest.initialParse
+          |> Test.parseTest
+          |> Builtin.unwrap
+
+        let lineNumber = wtTest.lineNumber
+        let pm = LanguageTools.PackageManager.pm ()
+
+        let actual =
+          LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
+            LanguageTools.NameResolver.OnMissing.ThrowError
+            pm
+            ""
+            []
+            wtTest.actual
+
+        let expected =
+          LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
+            LanguageTools.NameResolver.OnMissing.ThrowError
+            pm
+            ""
+            []
+            wtTest.expected
+
+        PTTest
+          { name = "test"
+            lineNumber = lineNumber
+            actual = actual
+            expected = expected }
+
+      type WTModule =
+        { name: List<String>
+          types: List<LanguageTools.WrittenTypes.TypeReference.TypeReference>
+          constants:
+            List<LanguageTools.WrittenTypes.ConstantDeclaration.ConstantDeclaration>
+          fns: List<LanguageTools.WrittenTypes.FnDeclaration.FnDeclaration>
+          tests: List<WTTest> }
+
+      type PTModule =
+        { name: List<String>
+          types: List<LanguageTools.ProgramTypes.PackageType.PackageType>
+          fns: List<LanguageTools.ProgramTypes.PackageFn.PackageFn>
+          constants: List<LanguageTools.ProgramTypes.PackageConstant.PackageConstant>
+          dbs: List<LanguageTools.ProgramTypes.DB>
+          tests: List<PTTest> }
+
+
+      let toPT
+        (owner: String)
+        (onMissing: LanguageTools.NameResolver.OnMissing)
+        (pm: LanguageTools.ProgramTypes.PackageManager.PackageManager)
+        (m: WTModule)
+        : PTModule =
+        let types =
+          m.types
+          |> Stdlib.List.map (fun t ->
+            LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT
+              onMissing
+              pm
+              owner
+              m.name
+              t)
+
+        let constants =
+          m.constants
+          |> Stdlib.List.map (fun c ->
+            LanguageTools.WrittenTypesToProgramTypes.ConstantDeclaration.toPackageConstPT
+              onMissing
+              pm
+              owner
+              m.name
+              c)
+
+        let fns =
+          m.fns
+          |> Stdlib.List.map (fun f ->
+            LanguageTools.WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT
+              onMissing
+              pm
+              owner
+              m.name
+              f)
+
+        let tests =
+          m.tests
+          |> Stdlib.List.map (fun t ->
+            let currentModule = Stdlib.List.append m.name [ t.name ]
+
+            PTTest
+              { name = t.name
+                lineNumber = t.lineNumber
+                actual =
+                  LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
+                    onMissing
+                    pm
+                    owner
+                    currentModule
+                    t.actual
+                expected =
+                  LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
+                    onMissing
+                    pm
+                    owner
+                    currentModule
+                    t.expected })
+
+        let dbs = []
+
+        PTModule
+          { name = m.name
+            types = types
+            constants = constants
+            fns = fns
+            dbs = dbs
+            tests = tests }
+
+
+      let parseModule
+        (currentModule: List<String>)
+        (m: LanguageTools.WrittenTypes.ModuleDeclaration.ModuleDeclaration)
+        : List<WTModule> =
+        let types =
+          m.declarations
+          |> Stdlib.List.filterMap (fun d ->
+            match d with
+            | Type t -> Stdlib.Option.Option.Some t
+            | _ -> Stdlib.Option.Option.None)
+
+        let constants =
+          m.declarations
+          |> Stdlib.List.filterMap (fun d ->
+            match d with
+            | Constant c -> Stdlib.Option.Option.Some c
+            | _ -> Stdlib.Option.Option.None)
+
+        let fns =
+          m.declarations
+          |> Stdlib.List.filterMap (fun d ->
+            match d with
+            | Function f -> Stdlib.Option.Option.Some f
+            | _ -> Stdlib.Option.Option.None)
+
+        let tests =
+          m.declarations
+          |> Stdlib.List.filterMap (fun decl ->
+            match decl with
+            | Expr e ->
+              match e with
+              | EInfix(r, _, actual, expected) ->
+                let (_, name) = m.name
+
+                Stdlib.Option.Option.Some(
+                  WTTest
+                    { name = name
+                      lineNumber = r.start.row
+                      actual = actual
+                      expected = expected }
+                )
+              | _ -> Stdlib.Option.Option.None
+            | _ -> Stdlib.Option.Option.None)
+
+        let submodules =
+          m.declarations
+          |> Stdlib.List.filterMap (fun decl ->
+            match decl with
+            | SubModule m ->
+              let (_, name) = m.name
+              let names = Stdlib.List.append currentModule [ name ]
+              Stdlib.Option.Option.Some(parseModule names m)
+            | _ -> Stdlib.Option.Option.None)
+          |> Stdlib.List.flatten
+
+        Stdlib.List.append
+          [ WTModule
+              { name = currentModule
+                types = types
+                constants = constants
+                fns = fns
+                tests = tests } ]
+          submodules
+
+
+      let parseFile
+        (parsedFile: LanguageTools.WrittenTypes.ParsedFile)
+        (owner: String)
+        : List<WTModule> =
+        match parsedFile with
+        | SourceFile source ->
+          let modules =
+            source.declarations
+            |> Stdlib.List.filterMap (fun d ->
+              match d with
+              | Module m -> Stdlib.Option.Option.Some m
+              | _ -> Stdlib.Option.Option.None)
+
+          let parsedModule =
+            modules
+            |> Stdlib.List.map (fun m ->
+              let (_, name) = m.name
+              parseModule [ name ] m)
+            |> Stdlib.List.flatten
+
+          let rootTypes =
+            source.declarations
+            |> Stdlib.List.filterMap (fun d ->
+              match d with
+              | Type t -> Stdlib.Option.Option.Some t
+              | _ -> Stdlib.Option.Option.None)
+
+          let rootConstants =
+            source.declarations
+            |> Stdlib.List.filterMap (fun d ->
+              match d with
+              | Constant c -> Stdlib.Option.Option.Some c
+              | _ -> Stdlib.Option.Option.None)
+
+          let rootFns =
+            source.declarations
+            |> Stdlib.List.filterMap (fun d ->
+              match d with
+              | Function f -> Stdlib.Option.Option.Some f
+              | _ -> Stdlib.Option.Option.None)
+
+          let rootTests =
+            source.exprsToEval
+            |> Stdlib.List.filterMap (fun e ->
+              match e with
+              | EInfix(r, _, actual, expected) ->
+                (WTTest
+                  { name = "test"
+                    lineNumber = r.start.row
+                    actual = actual
+                    expected = expected })
+                |> Stdlib.Option.Option.Some
+              | _ -> Stdlib.Option.Option.None)
+
+
+          let rootModule =
+            [ WTModule
+                { name = []
+                  types = rootTypes
+                  constants = rootConstants
+                  fns = rootFns
+                  tests = rootTests } ]
+
+          Stdlib.List.flatten [ rootModule; parsedModule ]
+
+
+      let processLine
+        (acc: String * List<String * String> * Bool * Bool)
+        (line: String)
+        : (String * List<String * String> * Bool * Bool) =
+        let (content, dbTypes, isPreviousDB, wasEmptyLine) = acc
+
+        let trimmedLine = Stdlib.String.trim line
+        let isEmptyLine = trimmedLine == ""
+
+        if Stdlib.String.startsWith trimmedLine "[<DB>]" then
+          (content, dbTypes, true, isEmptyLine)
+        else if isPreviousDB then
+          let newContent =
+            if wasEmptyLine then
+              Stdlib.String.append content "\n\n"
+            else
+              Stdlib.String.append content "\n"
+
+          let dbTypeTuple =
+            match Stdlib.String.split trimmedLine "=" with
+            | [ typeName; typeDef ] ->
+              let cleanTypeName =
+                Stdlib.String.trim (Stdlib.String.replaceAll typeName "type" "")
+
+              let cleanTypeDef = Stdlib.String.trim typeDef
+              (cleanTypeName, cleanTypeDef)
+            | _ -> ("", "") // Invalid line
+
+          (Stdlib.String.append newContent (Stdlib.String.append line "\n"),
+           Stdlib.List.append dbTypes [ dbTypeTuple ],
+           false,
+           false)
+        else
+          // consider using sting join
+          (Stdlib.String.append content (Stdlib.String.append line "\n"),
+           dbTypes,
+           false,
+           isEmptyLine)
+
+
+      let removeDBTagsAndCollectDBTypes
+        (content: String)
+        : (String * List<String * String>) =
+        let lines = Stdlib.String.splitOnNewline content
+
+        let (contentWithoutDB, dbTypes, _, _) =
+          Stdlib.List.fold lines ("", [], false, false) Test.processLine
+
+        (contentWithoutDB, dbTypes)
+
+
+      let makeDbs
+        (types: List<LanguageTools.ProgramTypes.PackageType.PackageType>)
+        : List<LanguageTools.ProgramTypes.DB> =
+        types
+        |> Stdlib.List.map (fun t ->
+          let typ =
+            match t.declaration.definition with
+            | Alias a -> a
+
+          LanguageTools.ProgramTypes.DB
+            { tlid = LanguageTools.WrittenTypesToProgramTypes.gtlid ()
+              name = t.name.name
+              version = 0L
+              typ = typ })
+
+
+      let parseTestFile
+        (owner: String)
+        (pm: LanguageTools.ProgramTypes.PackageManager.PackageManager)
+        (onMissing: LanguageTools.NameResolver.OnMissing)
+        (filename: String)
+        : List<PTModule> =
+        let (modulesWT, dbs) =
+          match Builtin.fileRead filename with
+          | Ok content ->
+            let (contentWithoutDB, dbTypes) =
+              content
+              |> Stdlib.String.fromBytesWithReplacement
+              |> removeDBTagsAndCollectDBTypes
+
+            let content =
+              contentWithoutDB
+              |> LanguageTools.Parser.ParserTest.initialParse
+              |> parseFile owner
+
+            (content, dbTypes)
+
+          | Error _ -> Stdlib.Result.Result.Error $"error reading file {filename}"
+
+        let afterFirstPass =
+          modulesWT |> Stdlib.List.map (fun m -> toPT owner onMissing pm m)
+
+        let afterFirstPassFns =
+          (afterFirstPass |> Stdlib.List.map (fun m -> m.fns) |> Stdlib.List.flatten)
+
+        let afterFirstPassConstants =
+          (afterFirstPass
+           |> Stdlib.List.map (fun m -> m.constants)
+           |> Stdlib.List.flatten)
+
+        let afterFirstPassTypes =
+          (afterFirstPass
+           |> Stdlib.List.map (fun m -> m.types)
+           |> Stdlib.List.flatten)
+
+        let afterFirstPassTests =
+          (afterFirstPass
+           |> Stdlib.List.map (fun m -> m.tests)
+           |> Stdlib.List.flatten)
+
+        let pm =
+          LanguageTools.ProgramTypes.PackageManager.withExtras
+            pm
+            afterFirstPassTypes
+            afterFirstPassConstants
+            afterFirstPassFns
+
+        let afterSecondPass =
+          modulesWT |> Stdlib.List.map (fun m -> toPT owner onMissing pm m)
+
+
+        let dbTypeNames = dbs |> Stdlib.List.map (fun (dbName, _) -> dbName)
+
+        let filteredTypes =
+          afterSecondPass
+          |> Stdlib.List.map (fun m -> m.types)
+          |> Stdlib.List.flatten
+          |> Stdlib.List.filter (fun t ->
+            Stdlib.List.``member`` dbTypeNames t.name.name)
+
+        let dbs = makeDbs filteredTypes
+
+        let adjusted =
+          afterSecondPass
+          |> Stdlib.List.map (fun m ->
+            PTModule
+              { name = m.name
+                types =
+                  m.types
+                  |> Stdlib.List.map (fun t ->
+                    { t with
+                        id =
+                          afterFirstPassTypes
+                          |> Stdlib.List.findFirst (fun original ->
+                            original.name == t.name)
+                          |> Stdlib.Option.mapWithDefault t.id (fun original ->
+                            original.id) })
+
+                constants =
+                  m.constants
+                  |> Stdlib.List.map (fun c ->
+                    { c with
+                        id =
+                          afterFirstPassConstants
+                          |> Stdlib.List.findFirst (fun original ->
+                            original.name == c.name)
+                          |> Stdlib.Option.mapWithDefault c.id (fun original ->
+                            original.id) })
+                fns =
+                  m.fns
+                  |> Stdlib.List.map (fun f ->
+                    { f with
+                        id =
+                          afterFirstPassFns
+                          |> Stdlib.List.findFirst (fun original ->
+                            original.name == f.name)
+                          |> Stdlib.Option.mapWithDefault f.id (fun original ->
+                            original.id) })
+
+                dbs = dbs
+                tests = m.tests })
+
+        adjusted

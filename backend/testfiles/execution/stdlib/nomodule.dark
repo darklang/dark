@@ -102,242 +102,304 @@ module Equals =
 
   type EEnum2UInt128 = EEnumUInt128
 
-  (5Q == 5Q) = true
-  (5Q != 6Q) = true
+  (5Q == 5Q) == true
+  (5Q != 6Q) == true
 
-  (5Z == 5Z) = true
-  (5Z != 6Z) = true
+  (5Z == 5Z) == true
+  (5Z != 6Z) == true
 
-  (5L == 5L) = true
-  (5L != 6L) = true
+  (5L == 5L) == true
+  (5L != 6L) == true
 
-  (5l == 5l) = true
-  (5l != 6l) = true
+  (5l == 5l) == true
+  (5l != 6l) == true
 
-  (5ul == 5ul) = true
-  (5ul != 6ul) = true
+  (5ul == 5ul) == true
+  (5ul != 6ul) == true
 
-  (5y == 5y) = true
-  (5y != 6y) = true
+  (5y == 5y) == true
+  (5y != 6y) == true
 
-  (5uy == 5uy) = true
-  (5uy != 6uy) = true
+  (5uy == 5uy) == true
+  (5uy != 6uy) == true
 
-  (5s == 5s) = true
-  (5s != 6s) = true
+  (5s == 5s) == true
+  (5s != 6s) == true
 
-  (5us == 5us) = true
-  (5us != 6us) = true
+  (5us == 5us) == true
+  (5us != 6us) == true
 
-  (5.6 == 5.6) = true
-  (-55555555555555555555555555555.5 == -55555555555555555555555555555.5) = true
-  (5.6 != 5.7) = true
+  (5.6 == 5.6) == true
+  (-55555555555555555555555555555.5 == -55555555555555555555555555555.5) == true
+  (5.6 != 5.7) == true
+  (0.0 == -0.0) == true
 
-  ("asd" == "asd") = true
-  ("asd" != "sad") = true
+  ("asd" == "asd") == true
+  ("asd" != "sad") == true
 
-  (true == true) = true
-  (false == false) = true
-  (true != false) = true
+  (true == true) == true
+  (false == false) == true
+  (true != false) == true
 
-  (() == ()) = true
+  (() == ()) == true
 
-  ([ 1L; 2L; 3L ] == [ 1L; 2L; 3L ]) = true
-  ([ 1L; 2L; 3L ] != [ 3L; 2L; 1L ]) = true
-  ([ 1l; 2l; 3l ] == [ 1l; 2l; 3l ]) = true
-  ([ 1l; 2l; 3l ] != [ 3l; 2l; 1l ]) = true
-  ([ 1ul; 2ul; 3ul ] == [ 1ul; 2ul; 3ul ]) = true
-  ([ 1ul; 2ul; 3ul ] != [ 3ul; 2ul; 1ul ]) = true
-  ([ 1s; 2s; 3s ] == [ 1s; 2s; 3s ]) = true
-  ([ 1s; 2s; 3s ] != [ 3s; 2s; 1s ]) = true
-  ([ 1us; 2us; 3us ] == [ 1us; 2us; 3us ]) = true
-  ([ 1us; 2us; 3us ] != [ 3us; 2us; 1us ]) = true
-  ([ 1y; 2y; 3y ] == [ 1y; 2y; 3y ]) = true
-  ([ 1y; 2y; 3y ] != [ 3y; 2y; 1y ]) = true
-  ([ 1uy; 2uy; 3uy ] == [ 1uy; 2uy; 3uy ]) = true
-  ([ 1uy; 2uy; 3uy ] != [ 3uy; 2uy; 1uy ]) = true
+  ([ 1L; 2L; 3L ] == [ 1L; 2L; 3L ]) == true
+  ([ 1L; 2L; 3L ] != [ 3L; 2L; 1L ]) == true
+  ([ 1l; 2l; 3l ] == [ 1l; 2l; 3l ]) == true
+  ([ 1l; 2l; 3l ] != [ 3l; 2l; 1l ]) == true
+  ([ 1ul; 2ul; 3ul ] == [ 1ul; 2ul; 3ul ]) == true
+  ([ 1ul; 2ul; 3ul ] != [ 3ul; 2ul; 1ul ]) == true
+  ([ 1s; 2s; 3s ] == [ 1s; 2s; 3s ]) == true
+  ([ 1s; 2s; 3s ] != [ 3s; 2s; 1s ]) == true
+  ([ 1us; 2us; 3us ] == [ 1us; 2us; 3us ]) == true
+  ([ 1us; 2us; 3us ] != [ 3us; 2us; 1us ]) == true
+  ([ 1y; 2y; 3y ] == [ 1y; 2y; 3y ]) == true
+  ([ 1y; 2y; 3y ] != [ 3y; 2y; 1y ]) == true
+  ([ 1uy; 2uy; 3uy ] == [ 1uy; 2uy; 3uy ]) == true
+  ([ 1uy; 2uy; 3uy ] != [ 3uy; 2uy; 1uy ]) == true
 
-  ((Stdlib.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")
-   == (Stdlib.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")) = true
+  ((Stdlib.String.toBytes "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼")
+    == (Stdlib.String.toBytes "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼"))
+  == true
 
   ((Stdlib.DateTime.parse "2019-07-28T22:42:36Z")
-   == (Stdlib.DateTime.parse "2019-07-28T22:42:36Z")) = true
+   == (Stdlib.DateTime.parse "2019-07-28T22:42:36Z"))
+  == true
 
   ((Stdlib.DateTime.parse "2019-07-28T22:42:37Z")
-   != (Stdlib.DateTime.parse "2019-07-28T22:42:36Z")) = true
+   != (Stdlib.DateTime.parse "2019-07-28T22:42:36Z"))
+  == true
 
-  (Stdlib.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d"
-   == Stdlib.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
+  (Stdlib.Uuid.parse "3700adbc-7a46-4ff4-81d3-45afb03f6e2d"
+   == Stdlib.Uuid.parse "3700adbc-7a46-4ff4-81d3-45afb03f6e2d")
+  == true
 
-  (Stdlib.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2e"
-   != Stdlib.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
+  (Stdlib.Uuid.parse "3700adbc-7a46-4ff4-81d3-45afb03f6e2e"
+   != Stdlib.Uuid.parse "3700adbc-7a46-4ff4-81d3-45afb03f6e2d")
+  == true
 
-  (fun x -> y) = (fun x -> y)
-  ((fun x -> let y = 1Q in y) == (fun x -> let y = 1Q in y)) = true
-  ((fun x -> let y = 1Q in y) != (fun x -> let y = 2Q in x)) = true
+  (fun x -> y) == (fun x -> y)
+  ((fun x -> let y = 1Q
+    y) ==
+    (fun x -> let y = 1Q
+     y)) == true
+  ((fun x -> let y = 1Q
+    y) !=
+   (fun x -> let y = 2Q
+    x)) == true
 
-  ((fun x -> let y = 1Z in y) == (fun x -> let y = 1Z in y)) = true
-  ((fun x -> let y = 1Z in y) != (fun x -> let y = 2Z in x)) = true
+  ((fun x -> let y = 1Z
+    y) ==
+   (fun x -> let y = 1Z
+    y)) == true
+  ((fun x -> let y = 1Z
+    y) !=
+   (fun x -> let y = 2Z
+    x)) == true
 
-  ((fun x -> let y = 1L in y) == (fun x -> let y = 1L in y)) = true
-  ((fun x -> let y = 1L in y) != (fun x -> let y = 2L in x)) = true
+  ((fun x -> let y = 1L
+    y) ==
+   (fun x -> let y = 1L
+    y)) == true
+  ((fun x -> let y = 1L
+    y) !=
+   (fun x -> let y = 2L
+    x)) == true
 
-  ((fun x -> let y = 1l in y) == (fun x -> let y = 1l in y)) = true
-  ((fun x -> let y = 1l in y) != (fun x -> let y = 2l in x)) = true
+  ((fun x -> let y = 1l
+    y) ==
+   (fun x -> let y = 1l
+    y)) == true
+  ((fun x -> let y = 1l
+    y) !=
+   (fun x -> let y = 2l
+    x)) == true
 
-  ((fun x -> let y = 1ul in y) == (fun x -> let y = 1ul in y)) = true
-  ((fun x -> let y = 1ul in y) != (fun x -> let y = 2ul in x)) = true
+  ((fun x -> let y = 1ul
+    y) ==
+   (fun x -> let y = 1ul
+    y)) == true
+  ((fun x -> let y = 1ul
+    y) !=
+   (fun x -> let y = 2ul
+    x)) == true
 
-  ((fun x -> let y = 1s in y) == (fun x -> let y = 1s in y)) = true
-  ((fun x -> let y = 1s in y) != (fun x -> let y = 2s in x)) = true
+  ((fun x -> let y = 1s
+    y) ==
+   (fun x -> let y = 1s
+    y)) == true
+  ((fun x -> let y = 1s
+    y) !=
+   (fun x -> let y = 2s
+    x)) == true
 
-  ((fun x -> let y = 1us in y) == (fun x -> let y = 1us in y)) = true
-  ((fun x -> let y = 1us in y) != (fun x -> let y = 2us in x)) = true
+  ((fun x -> let y = 1us
+    y) ==
+   (fun x -> let y = 1us
+    y)) == true
+  ((fun x -> let y = 1us
+    y) !=
+   (fun x -> let y = 2us
+   x)) == true
 
-  ((fun x -> let y = 1y in y) == (fun x -> let y = 1y in y)) = true
-  ((fun x -> let y = 1y in y) != (fun x -> let y = 2y in x)) = true
+  ((fun x -> let y = 1y
+    y) ==
+   (fun x -> let y = 1y
+    y)) == true
+  ((fun x -> let y = 1y
+    y) !=
+   (fun x -> let y = 2y
+    x)) == true
 
-  ((fun x -> let y = 1uy in y) == (fun x -> let y = 1uy in y)) = true
-  ((fun x -> let y = 1uy in y) != (fun x -> let y = 2uy in x)) = true
+  ((fun x -> let y = 1uy
+    y) ==
+   (fun x -> let y = 1uy
+    y)) == true
+  ((fun x -> let y = 1uy
+    y) !=
+   (fun x -> let y = 2uy
+    x)) == true
 
 
-  (ERecInt128 { x = 6Q; y = 7Q } == ERecInt128 { x = 6Q; y = 7Q }) = true
-  (ERecInt128 { x = 6Q; y = 7Q } == ERecInt128 { y = 7Q; x = 6Q }) = true
-  (ERecInt128 { x = 6Q; y = 7Q } != ERecInt128 { x = 7Q; y = 6Q }) = true
-  (ERecInt128 { x = 6Q; y = 7Q } == ERec2Int128 { y = 7Q; x = 6Q }) = true
+  (ERecInt128 { x = 6Q; y = 7Q } == ERecInt128 { x = 6Q; y = 7Q }) == true
+  (ERecInt128 { x = 6Q; y = 7Q } == ERecInt128 { y = 7Q; x = 6Q }) == true
+  (ERecInt128 { x = 6Q; y = 7Q } != ERecInt128 { x = 7Q; y = 6Q }) == true
+  (ERecInt128 { x = 6Q; y = 7Q } == ERec2Int128 { y = 7Q; x = 6Q }) == true
 
-  (ERecUInt128 { x = 6Z; y = 7Z } == ERecUInt128 { x = 6Z; y = 7Z }) = true
-  (ERecUInt128 { x = 6Z; y = 7Z } == ERecUInt128 { y = 7Z; x = 6Z }) = true
-  (ERecUInt128 { x = 6Z; y = 7Z } != ERecUInt128 { x = 7Z; y = 6Z }) = true
-  (ERecUInt128 { x = 6Z; y = 7Z } == ERec2UInt128 { y = 7Z; x = 6Z }) = true
+  (ERecUInt128 { x = 6Z; y = 7Z } == ERecUInt128 { x = 6Z; y = 7Z }) == true
+  (ERecUInt128 { x = 6Z; y = 7Z } == ERecUInt128 { y = 7Z; x = 6Z }) == true
+  (ERecUInt128 { x = 6Z; y = 7Z } != ERecUInt128 { x = 7Z; y = 6Z }) == true
+  (ERecUInt128 { x = 6Z; y = 7Z } == ERec2UInt128 { y = 7Z; x = 6Z }) == true
 
-  (ERec { x = 6L; y = 7L } == ERec { x = 6L; y = 7L }) = true
-  (ERec { x = 6L; y = 7L } == ERec { y = 7L; x = 6L }) = true
-  (ERec { x = 6L; y = 7L } != ERec { x = 7L; y = 6L }) = true
-  (ERec { x = 6L; y = 7L } == ERec2 { y = 7L; x = 6L }) = true
+  (ERec { x = 6L; y = 7L } == ERec { x = 6L; y = 7L }) == true
+  (ERec { x = 6L; y = 7L } == ERec { y = 7L; x = 6L }) == true
+  (ERec { x = 6L; y = 7L } != ERec { x = 7L; y = 6L }) == true
+  (ERec { x = 6L; y = 7L } == ERec2 { y = 7L; x = 6L }) == true
 
-  (ERecUInt64 { x = 6UL; y = 7UL } == ERecUInt64 { x = 6UL; y = 7UL }) = true
-  (ERecUInt64 { x = 6UL; y = 7UL } == ERecUInt64 { y = 7UL; x = 6UL }) = true
-  (ERecUInt64 { x = 6UL; y = 7UL } != ERecUInt64 { x = 7UL; y = 6UL }) = true
-  (ERecUInt64 { x = 6UL; y = 7UL } == ERec2UInt64 { y = 7UL; x = 6UL }) = true
+  (ERecUInt64 { x = 6UL; y = 7UL } == ERecUInt64 { x = 6UL; y = 7UL }) == true
+  (ERecUInt64 { x = 6UL; y = 7UL } == ERecUInt64 { y = 7UL; x = 6UL }) == true
+  (ERecUInt64 { x = 6UL; y = 7UL } != ERecUInt64 { x = 7UL; y = 6UL }) == true
+  (ERecUInt64 { x = 6UL; y = 7UL } == ERec2UInt64 { y = 7UL; x = 6UL }) == true
 
-  (ERecInt32 { x = 6l; y = 7l } == ERecInt32 { x = 6l; y = 7l }) = true
-  (ERecInt32 { x = 6l; y = 7l } == ERecInt32 { y = 7l; x = 6l }) = true
-  (ERecInt32 { x = 6l; y = 7l } != ERecInt32 { x = 7l; y = 6l }) = true
-  (ERecInt32 { x = 6l; y = 7l } == ERec2Int32 { y = 7l; x = 6l }) = true
+  (ERecInt32 { x = 6l; y = 7l } == ERecInt32 { x = 6l; y = 7l }) == true
+  (ERecInt32 { x = 6l; y = 7l } == ERecInt32 { y = 7l; x = 6l }) == true
+  (ERecInt32 { x = 6l; y = 7l } != ERecInt32 { x = 7l; y = 6l }) == true
+  (ERecInt32 { x = 6l; y = 7l } == ERec2Int32 { y = 7l; x = 6l }) == true
 
-  (ERecUInt32 { x = 6ul; y = 7ul } == ERecUInt32 { x = 6ul; y = 7ul }) = true
-  (ERecUInt32 { x = 6ul; y = 7ul } == ERecUInt32 { y = 7ul; x = 6ul }) = true
-  (ERecUInt32 { x = 6ul; y = 7ul } != ERecUInt32 { x = 7ul; y = 6ul }) = true
-  (ERecUInt32 { x = 6ul; y = 7ul } == ERec2UInt32 { y = 7ul; x = 6ul }) = true
+  (ERecUInt32 { x = 6ul; y = 7ul } == ERecUInt32 { x = 6ul; y = 7ul }) == true
+  (ERecUInt32 { x = 6ul; y = 7ul } == ERecUInt32 { y = 7ul; x = 6ul }) == true
+  (ERecUInt32 { x = 6ul; y = 7ul } != ERecUInt32 { x = 7ul; y = 6ul }) == true
+  (ERecUInt32 { x = 6ul; y = 7ul } == ERec2UInt32 { y = 7ul; x = 6ul }) == true
 
-  (ERecInt16 { x = 6s; y = 7s } == ERecInt16 { x = 6s; y = 7s }) = true
-  (ERecInt16 { x = 6s; y = 7s } == ERecInt16 { y = 7s; x = 6s }) = true
-  (ERecInt16 { x = 6s; y = 7s } != ERecInt16 { x = 7s; y = 6s }) = true
-  (ERecInt16 { x = 6s; y = 7s } == ERec2Int16 { y = 7s; x = 6s }) = true
+  (ERecInt16 { x = 6s; y = 7s } == ERecInt16 { x = 6s; y = 7s }) == true
+  (ERecInt16 { x = 6s; y = 7s } == ERecInt16 { y = 7s; x = 6s }) == true
+  (ERecInt16 { x = 6s; y = 7s } != ERecInt16 { x = 7s; y = 6s }) == true
+  (ERecInt16 { x = 6s; y = 7s } == ERec2Int16 { y = 7s; x = 6s }) == true
 
-  (ERecUInt16 { x = 6us; y = 7us } == ERecUInt16 { x = 6us; y = 7us }) = true
-  (ERecUInt16 { x = 6us; y = 7us } == ERecUInt16 { y = 7us; x = 6us }) = true
-  (ERecUInt16 { x = 6us; y = 7us } != ERecUInt16 { x = 7us; y = 6us }) = true
-  (ERecUInt16 { x = 6us; y = 7us } == ERec2UInt16 { y = 7us; x = 6us }) = true
+  (ERecUInt16 { x = 6us; y = 7us } == ERecUInt16 { x = 6us; y = 7us }) == true
+  (ERecUInt16 { x = 6us; y = 7us } == ERecUInt16 { y = 7us; x = 6us }) == true
+  (ERecUInt16 { x = 6us; y = 7us } != ERecUInt16 { x = 7us; y = 6us }) == true
+  (ERecUInt16 { x = 6us; y = 7us } == ERec2UInt16 { y = 7us; x = 6us }) == true
 
-  (ERecInt8 { x = 6y; y = 7y } == ERecInt8 { x = 6y; y = 7y }) = true
-  (ERecInt8 { x = 6y; y = 7y } == ERecInt8 { y = 7y; x = 6y }) = true
-  (ERecInt8 { x = 6y; y = 7y } != ERecInt8 { x = 7y; y = 6y }) = true
-  (ERecInt8 { x = 6y; y = 7y } == ERec2Int8 { y = 7y; x = 6y }) = true
+  (ERecInt8 { x = 6y; y = 7y } == ERecInt8 { x = 6y; y = 7y }) == true
+  (ERecInt8 { x = 6y; y = 7y } == ERecInt8 { y = 7y; x = 6y }) == true
+  (ERecInt8 { x = 6y; y = 7y } != ERecInt8 { x = 7y; y = 6y }) == true
+  (ERecInt8 { x = 6y; y = 7y } == ERec2Int8 { y = 7y; x = 6y }) == true
 
-  (ERecUInt8 { x = 6uy; y = 7uy } == ERecUInt8 { x = 6uy; y = 7uy }) = true
-  (ERecUInt8 { x = 6uy; y = 7uy } == ERecUInt8 { y = 7uy; x = 6uy }) = true
-  (ERecUInt8 { x = 6uy; y = 7uy } != ERecUInt8 { x = 7uy; y = 6uy }) = true
+  (ERecUInt8 { x = 6uy; y = 7uy } == ERecUInt8 { x = 6uy; y = 7uy }) == true
+  (ERecUInt8 { x = 6uy; y = 7uy } == ERecUInt8 { y = 7uy; x = 6uy }) == true
+  (ERecUInt8 { x = 6uy; y = 7uy } != ERecUInt8 { x = 7uy; y = 6uy }) == true
 
-  (EEnumInt128.E1 == EEnumInt128.E1) = true
-  (EEnumInt128.E1 != EEnumInt128.E2) = true
-  (EEnumUInt128.E1 == EEnumUInt128.E1) = true
-  (EEnumUInt128.E1 != EEnumUInt128.E2) = true
-  (EEnumInt128.E3 5Q == EEnumInt128.E3 5Q) = true
-  (EEnumInt128.E3 5Q != EEnumInt128.E3 6Q) = true
+  (EEnumInt128.E1() == EEnumInt128.E1()) == true
+  (EEnumInt128.E1() != EEnumInt128.E2()) == true
+  (EEnumUInt128.E1() == EEnumUInt128.E1()) == true
+  (EEnumUInt128.E1() != EEnumUInt128.E2()) == true
+  (EEnumInt128.E3 5Q == EEnumInt128.E3 5Q) == true
+  (EEnumInt128.E3 5Q != EEnumInt128.E3 6Q) == true
 
-  (EEnum.E1 == EEnum.E1) = true
-  (EEnum.E1 != EEnum.E2) = true
-  (EEnum.E3 5L == EEnum.E3 5L) = true
-  (EEnum.E3 5L != EEnum.E3 6L) = true
+  (EEnum.E1() == EEnum.E1()) == true
+  (EEnum.E1() != EEnum.E2()) == true
+  (EEnum.E3 5L == EEnum.E3 5L) == true
+  (EEnum.E3 5L != EEnum.E3 6L) == true
 
-  (EEnumUIn64.E1 == EEnumUIn64.E1) = true
-  (EEnumUIn64.E1 != EEnumUIn64.E2) = true
-  (EEnumUIn64.E3 5UL == EEnumUIn64.E3 5UL) = true
-  (EEnumUIn64.E3 5UL != EEnumUIn64.E3 6UL) = true
+  (EEnumUIn64.E1() == EEnumUIn64.E1()) == true
+  (EEnumUIn64.E1() != EEnumUIn64.E2()) == true
+  (EEnumUIn64.E3 5UL == EEnumUIn64.E3 5UL) == true
+  (EEnumUIn64.E3 5UL != EEnumUIn64.E3 6UL) == true
 
-  (EEnumInt32.E1 == EEnumInt32.E1) = true
-  (EEnumInt32.E1 != EEnumInt32.E2) = true
-  (EEnumInt32.E3 5l == EEnumInt32.E3 5l) = true
-  (EEnumInt32.E3 5l != EEnumInt32.E3 6l) = true
+  (EEnumInt32.E1() == EEnumInt32.E1()) == true
+  (EEnumInt32.E1() != EEnumInt32.E2()) == true
+  (EEnumInt32.E3 5l == EEnumInt32.E3 5l) == true
+  (EEnumInt32.E3 5l != EEnumInt32.E3 6l) == true
 
-  (EEnumUInt32.E1 == EEnumUInt32.E1) = true
-  (EEnumUInt32.E1 != EEnumUInt32.E2) = true
-  (EEnumUInt32.E3 5ul == EEnumUInt32.E3 5ul) = true
-  (EEnumUInt32.E3 5ul != EEnumUInt32.E3 6ul) = true
+  (EEnumUInt32.E1() == EEnumUInt32.E1()) == true
+  (EEnumUInt32.E1() != EEnumUInt32.E2()) == true
+  (EEnumUInt32.E3 5ul == EEnumUInt32.E3 5ul) == true
+  (EEnumUInt32.E3 5ul != EEnumUInt32.E3 6ul) == true
 
-  (EEnumInt16.E1 == EEnumInt16.E1) = true
-  (EEnumInt16.E1 != EEnumInt16.E2) = true
-  (EEnumInt16.E3 5s == EEnumInt16.E3 5s) = true
-  (EEnumInt16.E3 5s != EEnumInt16.E3 6s) = true
+  (EEnumInt16.E1() == EEnumInt16.E1()) == true
+  (EEnumInt16.E1() != EEnumInt16.E2()) == true
+  (EEnumInt16.E3 5s == EEnumInt16.E3 5s) == true
+  (EEnumInt16.E3 5s != EEnumInt16.E3 6s) == true
 
-  (EEnumUInt16.E1 == EEnumUInt16.E1) = true
-  (EEnumUInt16.E1 != EEnumUInt16.E2) = true
-  (EEnumUInt16.E3 5us == EEnumUInt16.E3 5us) = true
-  (EEnumUInt16.E3 5us != EEnumUInt16.E3 6us) = true
+  (EEnumUInt16.E1() == EEnumUInt16.E1()) == true
+  (EEnumUInt16.E1() != EEnumUInt16.E2()) == true
+  (EEnumUInt16.E3 5us == EEnumUInt16.E3 5us) == true
+  (EEnumUInt16.E3 5us != EEnumUInt16.E3 6us) == true
 
-  (EEnumInt8.E1 == EEnumInt8.E1) = true
-  (EEnumInt8.E1 != EEnumInt8.E2) = true
-  (EEnumInt8.E3 5y == EEnumInt8.E3 5y) = true
-  (EEnumInt8.E3 5y != EEnumInt8.E3 6y) = true
+  (EEnumInt8.E1() == EEnumInt8.E1()) == true
+  (EEnumInt8.E1() != EEnumInt8.E2()) == true
+  (EEnumInt8.E3 5y == EEnumInt8.E3 5y) == true
+  (EEnumInt8.E3 5y != EEnumInt8.E3 6y) == true
 
   // aliases
-  (EEnum2Int128.E1 == EEnumInt128.E1) = true
-  (EEnum2Int128.E1 != EEnumInt128.E2) = true
-  (EEnum2UInt128.E1 == EEnumUInt128.E1) = true
-  (EEnum2UInt128.E1 != EEnumUInt128.E2) = true
+  (EEnum2Int128.E1() == EEnumInt128.E1()) == true
+  (EEnum2Int128.E1() != EEnumInt128.E2()) == true
+  (EEnum2UInt128.E1() == EEnumUInt128.E1()) == true
+  (EEnum2UInt128.E1() != EEnumUInt128.E2()) == true
 
-  (EEnum2.E1 == EEnum.E1) = true
-  (EEnum2.E1 != EEnum.E2) = true
-  (EEnum2UIn64.E1 == EEnumUIn64.E1) = true
-  (EEnum2UIn64.E1 != EEnumUIn64.E2) = true
+  (EEnum2.E1() == EEnum.E1()) == true
+  (EEnum2.E1() != EEnum.E2()) == true
+  (EEnum2UIn64.E1() == EEnumUIn64.E1()) == true
+  (EEnum2UIn64.E1() != EEnumUIn64.E2()) == true
 
-  (EEnum2Int32.E1 == EEnumInt32.E1) = true
-  (EEnum2Int32.E1 != EEnumInt32.E2) = true
-  (EEnum2UInt32.E1 == EEnumUInt32.E1) = true
-  (EEnum2UInt32.E1 != EEnumUInt32.E2) = true
+  (EEnum2Int32.E1() == EEnumInt32.E1()) == true
+  (EEnum2Int32.E1() != EEnumInt32.E2()) == true
+  (EEnum2UInt32.E1() == EEnumUInt32.E1()) == true
+  (EEnum2UInt32.E1() != EEnumUInt32.E2()) == true
 
-  (EEnum2Int16.E1 == EEnumInt16.E1) = true
-  (EEnum2Int16.E1 != EEnumInt16.E2) = true
-  (EEnum2UInt16.E1 == EEnumUInt16.E1) = true
-  (EEnum2UInt16.E1 != EEnumUInt16.E2) = true
+  (EEnum2Int16.E1() == EEnumInt16.E1()) == true
+  (EEnum2Int16.E1() != EEnumInt16.E2()) == true
+  (EEnum2UInt16.E1() == EEnumUInt16.E1()) == true
+  (EEnum2UInt16.E1() != EEnumUInt16.E2()) == true
 
-  (EEnum2Int8.E1 == EEnumInt8.E1) = true
-  (EEnum2Int8.E1 != EEnumInt8.E2) = true
-  (EEnum2UInt8.E1 == EEnumUInt8.E1) = true
-  (EEnum2UInt8.E1 != EEnumUInt8.E2) = true
+  (EEnum2Int8.E1() == EEnumInt8.E1()) == true
+  (EEnum2Int8.E1() != EEnumInt8.E2()) == true
+  (EEnum2UInt8.E1() == EEnumUInt8.E1()) == true
+  (EEnum2UInt8.E1() != EEnumUInt8.E2()) == true
 
 
-  (Stdlib.Option.Option.None == Stdlib.Option.Option.None) = true
+  (Stdlib.Option.Option.None() == Stdlib.Option.Option.None()) == true
 
-  (Stdlib.Option.Option.None != Stdlib.Option.Option.Some Stdlib.Option.Option.None) = true
+  (Stdlib.Option.Option.None() != Stdlib.Option.Option.Some(Stdlib.Option.Option.None()))
+  == true
 
-  (Stdlib.Option.Option.Some 5L == Stdlib.Option.Option.Some 5L) = true
+  ((Stdlib.Option.Option.Some(5L)) == Stdlib.Option.Option.Some(5L)) == true
 
-  (Stdlib.Option.Option.Some 5L != Stdlib.Option.Option.Some 6L) = true
+  (Stdlib.Option.Option.Some(5L) != Stdlib.Option.Option.Some(6L)) == true
 
-  (Stdlib.Option.Option.Some(Stdlib.Option.Option.Some 0L)
-   != Stdlib.Option.Option.Some(Stdlib.Option.Option.Some 1L)) = true
+  (Stdlib.Option.Option.Some(Stdlib.Option.Option.Some(0L))
+   != Stdlib.Option.Option.Some(Stdlib.Option.Option.Some(1L)))
+  == true
 
-  (Stdlib.Option.Option.Some(Stdlib.Option.Option.Some 0L)
-   == Stdlib.Option.Option.Some(Stdlib.Option.Option.Some 0L)) = true
+  (Stdlib.Option.Option.Some(Stdlib.Option.Option.Some(0L))
+   == Stdlib.Option.Option.Some(Stdlib.Option.Option.Some(0L)))
+  == (Stdlib.Result.Result.Error(0L) == Stdlib.Result.Result.Error(0L))
+  == true
 
-  (Stdlib.Result.Result.Error 0L == Stdlib.Result.Result.Error 0L) = true
+  (Stdlib.Result.Result.Ok(0L) == Stdlib.Result.Result.Ok(0L)) == true
 
-  (Stdlib.Result.Result.Ok 0L == Stdlib.Result.Result.Ok 0L) = true
-
-  (Stdlib.Result.Result.Ok 0L != Stdlib.Result.Result.Error 0L) = true
+  (Stdlib.Result.Result.Ok(0L) != Stdlib.Result.Result.Error(0L)) == true
 
 
   type MyDBType = { x: String; y: String }
@@ -345,124 +407,126 @@ module Equals =
   [<DB>]
   type MyDB = MyDBType
 
-  (MyDB == MyDB) = true
+  (MyDB == MyDB) == true
 
-  module TypeErrors =
-    (5.7 != 6L) = Builtin.testDerrorMessage "Both values must be the same type"
-    (5.7 != 5L) = Builtin.testDerrorMessage "Both values must be the same type"
+module TypeErrors =
+  (5.7 != 6L) == Builtin.testDerrorMessage "Both values must be the same type"
+  (5.7 != 5L) == Builtin.testDerrorMessage "Both values must be the same type"
 
-    (5us == 5s) = Builtin.testDerrorMessage "Both values must be the same type"
-    (5y == 5l) = Builtin.testDerrorMessage "Both values must be the same type"
-    (5L == 5l) = Builtin.testDerrorMessage "Both values must be the same type"
-    (5us != 6s) = Builtin.testDerrorMessage "Both values must be the same type"
+  (5us == 5s) == Builtin.testDerrorMessage "Both values must be the same type"
+  (5y == 5l) == Builtin.testDerrorMessage "Both values must be the same type"
+  (5L == 5l) == Builtin.testDerrorMessage "Both values must be the same type"
+  (5us != 6s) == Builtin.testDerrorMessage "Both values must be the same type"
 
-    (Builtin.testRuntimeError "test" != Builtin.testRuntimeError "different msg") = Builtin.testDerrorMessage
-      "test"
+  (Builtin.testRuntimeError "test" != Builtin.testRuntimeError "different msg")
+  == Builtin.testDerrorMessage "test"
 
-    (() != Stdlib.Option.Option.None) = Builtin.testDerrorMessage
-      "Both values must be the same type"
+  (() != Stdlib.Option.Option.None())
+  == Builtin.testDerrorMessage "Both values must be the same type"
 
-    (() != false) = Builtin.testDerrorMessage "Both values must be the same type"
-    (() != 0) = Builtin.testDerrorMessage "Both values must be the same type"
-    (() != 0.0) = Builtin.testDerrorMessage "Both values must be the same type"
-    (MyDB != 5L) = Builtin.testDerrorMessage "Both values must be the same type"
+  (() != false) == Builtin.testDerrorMessage "Both values must be the same type"
+  (() != 0) == Builtin.testDerrorMessage "Both values must be the same type"
+  (() != 0.0) == Builtin.testDerrorMessage "Both values must be the same type"
+  // (MyDB != 5L) == Builtin.testDerrorMessage "Both values must be the same type"
 
   // Other ways to call it
-  Stdlib.equals_v0 1Q 1Q = true
-  (==) 1Q 1Q = true
-  1Q == 1Q = true
+  Stdlib.equals 1Q 1Q == true
+  // (==) 1Q 1Q == true
+  1Q == 1Q == true
 
-  Stdlib.equals_v0 1Z 1Z = true
-  (==) 1Z 1Z = true
-  1Z == 1Z = true
+  Stdlib.equals 1Z 1Z == true
+  // (==) 1Z 1Z == true
+  1Z == 1Z == true
 
-  Stdlib.equals_v0 1L 1L = true
-  (==) 1L 1L = true
-  1L == 1L = true
+  Stdlib.equals 1L 1L == true
+  //   (==) 1L 1L == true
+  1L == 1L == true
 
-  Stdlib.equals_v0 1l 1l = true
-  (==) 1l 1l = true
-  1l == 1l = true
+  Stdlib.equals 1l 1l == true
+  //   (==) 1l 1l == true
+  1l == 1l == true
 
-  Stdlib.equals_v0 1ul 1ul = true
-  (==) 1ul 1ul = true
-  1ul == 1ul = true
+  Stdlib.equals 1ul 1ul == true
+  //   (==) 1ul 1ul == true
+  1ul == 1ul == true
 
-  Stdlib.equals_v0 1s 1s = true
-  (==) 1s 1s = true
-  1s == 1s = true
+  Stdlib.equals 1s 1s == true
+  // (==) 1s 1s == true
+  1s == 1s == true
 
-  Stdlib.equals_v0 1us 1us = true
-  (==) 1us 1us = true
-  1us == 1us = true
+  Stdlib.equals 1us 1us == true
+  // (==) 1us 1us == true
+  1us == 1us == true
 
-  Stdlib.equals_v0 1y 1y = true
-  (==) 1y 1y = true
-  1y == 1y = true
+  Stdlib.equals 1y 1y == true
+  // (==) 1y 1y == true
+  1y == 1y == true
 
-  Stdlib.equals_v0 1uy 1uy = true
-  (==) 1uy 1uy = true
-  1uy == 1uy = true
-
+  Stdlib.equals 1uy 1uy == true
+  // (==) 1uy 1uy == true
+  1uy == 1uy == true
 
 module NotEquals =
-  Stdlib.notEquals_v0 1Q 1Q = false
-  Stdlib.notEquals_v0 1Z 1Z = false
-  Stdlib.notEquals_v0 1L 1L = false
-  Stdlib.notEquals_v0 1l 1l = false
-  Stdlib.notEquals_v0 1ul 1ul = false
-  Stdlib.notEquals_v0 1s 1s = false
-  Stdlib.notEquals_v0 1us 1us = false
-  Stdlib.notEquals_v0 1y 1y = false
-  Stdlib.notEquals_v0 1uy 1uy = false
-  Stdlib.notEquals_v0 "abc" "abc" = false
-  Stdlib.notEquals_v0 "abd" "abc" = true
+  Stdlib.notEquals 1Q 1Q == false
+  Stdlib.notEquals 1Z 1Z == false
+  Stdlib.notEquals 1L 1L == false
+  Stdlib.notEquals 1l 1l == false
+  Stdlib.notEquals 1ul 1ul == false
+  Stdlib.notEquals 1s 1s == false
+  Stdlib.notEquals 1us 1us == false
+  Stdlib.notEquals 1y 1y == false
+  Stdlib.notEquals 1uy 1uy == false
+  Stdlib.notEquals "abc" "abc" == false
+  Stdlib.notEquals "abd" "abc" == true
 
-  Stdlib.notEquals_v0
+  Stdlib.notEquals
     (Stdlib.DateTime.parse "2021-07-28T22:42:36Z")
-    (Stdlib.DateTime.parse "2019-07-28T22:42:36Z") = true
+    (Stdlib.DateTime.parse "2019-07-28T22:42:36Z")
+  == true
 
-  (!=) 1Q 1Q = false
-  (!=) 1Z 1Z = false
-  (!=) 1L 1L = false
-  (!=) 1l 1l = false
-  (!=) 1ul 1ul = false
-  (!=) 1s 1s = false
-  (!=) 1us 1us = false
-  (!=) 1y 1y = false
-  (!=) 1uy 1uy = false
-  (!=) "abc" "abc" = false
-  (!=) "abd" "abc" = true
+  // (!=) 1Q 1Q == false
+  // (!=) 1Z 1Z == false
+  // (!=) 1L 1L == false
+  // (!=) 1l 1l == false
+  // (!=) 1ul 1ul == false
+  // (!=) 1s 1s == false
+  // (!=) 1us 1us == false
+  // (!=) 1y 1y == false
+  // (!=) 1uy 1uy == false
+  // (!=) "abc" "abc" == false
+  // (!=) "abd" "abc" == true
 
-  (!=)
-    (Stdlib.DateTime.parse "2021-07-28T22:42:36Z")
-    (Stdlib.DateTime.parse "2019-07-28T22:42:36Z") = true
+  //   (!=)
+  //     (Stdlib.DateTime.parse "2021-07-28T22:42:36Z")
+  //     (Stdlib.DateTime.parse "2019-07-28T22:42:36Z")
+  //   == true
 
-  1Q != 1Q = false
-  1Z != 1Z = false
-  1L != 1L = false
-  1l != 1l = false
-  1ul != 1ul = false
-  1s != 1s = false
-  1us != 1us = false
-  1y != 1y = false
-  1uy != 1uy = false
-  "abc" != "abc" = false
-  "abd" != "abc" = true
+  1Q != 1Q == false
+  1Z != 1Z == false
+  1L != 1L == false
+  1l != 1l == false
+  1ul != 1ul == false
+  1s != 1s == false
+  1us != 1us == false
+  1y != 1y == false
+  1uy != 1uy == false
+  "abc" != "abc" == false
+  "abd" != "abc" == true
 
   (Stdlib.DateTime.parse "2021-07-28T22:42:36Z")
-  != (Stdlib.DateTime.parse "2019-07-28T22:42:36Z") = true
+  != (Stdlib.DateTime.parse "2019-07-28T22:42:36Z")
+  == true
 
 
 // Moving to packages
-// AWS.urlencode_v0 "%" = ""
-// AWS.urlencode_v0 "%%" = ""
-// AWS.urlencode_v0 "%A" = "A"
-// AWS.urlencode_v0 "%AA" = "%AA"
-// AWS.urlencode_v0 "" = ""
-// AWS.urlencode_v0 "殢" = "%E6%AE%A2"
-// AWS.urlencode_v0 "https://google.com?q=left shark&l=en" = "https%3A//google.com%3Fq%3Dleft%20shark%26l%3Den" // Test fails without a comment here
-// AWS.urlencode_v0 "گچپژ" = "%DA%AF%DA%86%D9%BE%DA%98"
-// AWS.urlencode_v0 "<foo val=”bar“ />" = "%3Cfoo%20val%3D%E2%80%9Dbar%E2%80%9C%20/%3E"
-// AWS.urlencode_v0 "表ポあA鷗ŒéＢ逍Üßªąñ丂㐀𠀀" = "%E8%A1%A8%E3%83%9D%E3%81%82A%E9%B7%97%C5%92%C3%A9%EF%BC%A2%E9%80%8D%C3%9C%C3%9F%C2%AA%C4%85%C3%B1%E4%B8%82%E3%90%80%F0%A0%80%80"
-// Twitter.urlencode_v0 "https://google.com?q=left shark&l=en" = "https%3A%2F%2Fgoogle.com%3Fq%3Dleft%20shark%26l%3Den" // URL percent encoding
+// AWS.urlencode "%" = ""
+// AWS.urlencode "%%" = ""
+// AWS.urlencode "%A" = "A"
+// AWS.urlencode "%AA" = "%AA"
+// AWS.urlencode "" = ""
+// AWS.urlencode "殢" = "%E6%AE%A2"
+// AWS.urlencode "https://google.com?q=left shark&l=en" = "https%3A//google.com%3Fq%3Dleft%20shark%26l%3Den" // Test fails without a comment here
+// AWS.urlencode "گچپژ" = "%DA%AF%DA%86%D9%BE%DA%98"
+// AWS.urlencode "<foo val=”bar“ />" = "%3Cfoo%20val%3D%E2%80%9Dbar%E2%80%9C%20/%3E"
+// AWS.urlencode "表ポあA鷗ŒéＢ逍Üßªąñ丂㐀𠀀" = "%E8%A1%A8%E3%83%9D%E3%81%82A%E9%B7%97%C5%92%C3%A9%EF%BC%A2%E9%80%8D%C3%9C%C3%9F%C2%AA%C4%85%C3%B1%E4%B8%82%E3%90%80%F0%A0%80%80"
+// Twitter.urlencode "https://google.com?q=left shark&l=en" = "https%3A%2F%2Fgoogle.com%3Fq%3Dleft%20shark%26l%3Den" // URL percent encoding

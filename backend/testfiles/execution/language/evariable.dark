@@ -1,2 +1,3 @@
-myvar = Builtin.testDerrorMessage "There is no variable named: myvar"
-(let x = 5L in x) = 5L
+myvar == Builtin.testDerrorMessage "There is no variable named: myvar"
+(let x = 5L
+  x) == 5L

@@ -3,6 +3,8 @@ module BuiltinExecution.Libs.Parser
 open FSharp.Control.Tasks
 open System.Threading.Tasks
 open System.Text
+open System.Globalization
+open System
 
 open Prelude
 open LibExecution.RuntimeTypes
@@ -33,7 +35,21 @@ let fns : List<BuiltInFn> =
           let byteIndexToCharIndex (byteIndex : int) (text : string) : int =
             let bytes = Encoding.UTF8.GetBytes(text)
             let subText = Encoding.UTF8.GetString(bytes, 0, byteIndex)
-            subText.Length
+            StringInfo.ParseCombiningCharacters(subText).Length
+
+          let getUnicodeAwareSubstring
+            (line : string)
+            (startIndex : int)
+            (endIndex : int)
+            =
+            let textElements = StringInfo.GetTextElementEnumerator(line)
+            let mutable result = ""
+            let mutable currentIndex = 0
+            while textElements.MoveNext() do
+              if currentIndex >= startIndex && currentIndex < endIndex then
+                result <- result + (textElements.GetTextElement())
+              currentIndex <- currentIndex + 1
+            result
 
           let rec mapNodeAtCursor (cursor : TreeCursor) : Dval =
             let mutable children = []
@@ -48,8 +64,9 @@ let fns : List<BuiltInFn> =
 
             let fields =
               let mapPoint (point : Point) =
+                let pointRow = point.row + 1
                 let fields =
-                  [ "row", DInt64 point.row; "column", DInt64 point.column ]
+                  [ "row", DInt64 pointRow; "column", DInt64 point.column ]
                 DRecord(pointTypeName, pointTypeName, [], Map fields)
 
               let startPos = cursor.Current.StartPosition
@@ -59,26 +76,33 @@ let fns : List<BuiltInFn> =
                 let fields = [ "start", mapPoint startPos; "end_", mapPoint endPos ]
                 DRecord(rangeTypeName, rangeTypeName, [], Map fields)
 
-              let startCharIndex = byteIndexToCharIndex startPos.column sourceCode
-              let endCharIndex = byteIndexToCharIndex endPos.column sourceCode
-
               let sourceText =
                 let lines = String.splitOnNewline sourceCode
                 if lines.Length = 0 then
                   ""
                 else
+                  let startLine = lines[startPos.row]
+                  let endLine = lines[endPos.row]
+                  let startCharIndex = byteIndexToCharIndex startPos.column startLine
+                  let endCharIndex = byteIndexToCharIndex endPos.column endLine
+
                   match startPos.row with
                   | row when row = endPos.row ->
-                    lines[row][startCharIndex .. (endCharIndex - 1)]
+                    getUnicodeAwareSubstring startLine startCharIndex endCharIndex
                   | _ ->
-                    let firstLine = lines[startPos.row][startCharIndex..]
+                    let firstLine =
+                      getUnicodeAwareSubstring
+                        startLine
+                        startCharIndex
+                        startLine.Length
                     let middleLines =
                       if startPos.row + 1 <= endPos.row - 1 then
                         lines[startPos.row + 1 .. endPos.row - 1]
+                        |> List.map (fun line ->
+                          getUnicodeAwareSubstring line 0 line.Length)
                       else
                         []
-                    let lastLine = lines[endPos.row][.. (endCharIndex - 1)]
-
+                    let lastLine = getUnicodeAwareSubstring endLine 0 endCharIndex
                     String.concat "\n" (firstLine :: middleLines @ [ lastLine ])
 
               let fieldName =

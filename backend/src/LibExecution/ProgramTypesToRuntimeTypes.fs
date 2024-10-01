@@ -163,9 +163,49 @@ module MatchPattern =
 
 
 module Expr =
+  let replaceEscapeSequences (s : string) : string =
+    s
+    |> fun s -> s.Replace(@"\t", "\t")
+    |> fun s -> s.Replace(@"\n", "\n")
+    |> fun s -> s.Replace(@"\r", "\r")
+    |> fun s -> s.Replace(@"\b", "\b")
+    |> fun s -> s.Replace(@"\f", "\f")
+    |> fun s -> s.Replace(@"\v", "\v")
+    |> fun s -> s.Replace(@"\""", "\"")
+    |> fun s -> s.Replace(@"\'", "'")
+    |> fun s -> s.Replace(@"\\", "\\")
+
+  let replaceHex (text : string) : string =
+    // matches hexadecimal escape sequences (e.g. `\x01`)
+    let regex = System.Text.RegularExpressions.Regex(@"\\x([0-9A-Fa-f]{2})")
+
+    regex.Replace(
+      text,
+      fun (m : System.Text.RegularExpressions.Match) ->
+        // Groups[1] refers to the first captured group (the two hex digits)
+        m.Groups[1].Value
+        |> fun hex -> System.Convert.ToByte(hex, 16)
+        |> char
+        |> string
+    )
+
+  let replaceUnicode (text : string) : string =
+    // matches unicode escape sequences (e.g. `\u0001`)
+    let regex = System.Text.RegularExpressions.Regex(@"\\u([0-9A-Fa-f]{4})")
+
+    regex.Replace(
+      text,
+      fun (m : System.Text.RegularExpressions.Match) ->
+        // Groups[1] refers to the first captured group (the four hex digits)
+        m.Groups[1].Value
+        |> fun hex -> System.Convert.ToInt32(hex, 16)
+        |> char
+        |> string
+    )
+
   let rec toRT (e : PT.Expr) : RT.Expr =
     match e with
-    | PT.EChar(id, char) -> RT.EChar(id, char)
+    | PT.EChar(id, char) -> RT.EChar(id, char |> replaceEscapeSequences)
     | PT.EInt64(id, num) -> RT.EInt64(id, num)
     | PT.EUInt64(id, num) -> RT.EUInt64(id, num)
     | PT.EInt8(id, num) -> RT.EInt8(id, num)
@@ -350,7 +390,8 @@ module Expr =
 
   and stringSegmentToRT (segment : PT.StringSegment) : RT.StringSegment =
     match segment with
-    | PT.StringText text -> RT.StringText text
+    | PT.StringText text ->
+      text |> replaceEscapeSequences |> replaceHex |> replaceUnicode  |> RT.StringText
     | PT.StringInterpolation expr -> RT.StringInterpolation(toRT expr)
 
 

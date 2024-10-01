@@ -6,17 +6,19 @@ type AnEnum =
   | B
   | C
 
-Cols2 { col1 = 1L; col2 = 3L } = Cols2 { col1 = 1L; col2 = 3L }
+module General =
+  Cols2 { col1 = 1L; col2 = 3L } == Cols2 { col1 = 1L; col2 = 3L }
 
-Cols2
-  { col1 = 2L
-    col2 = Builtin.testRuntimeError "test" } = Builtin.testDerrorMessage "test"
+  Cols2
+    { col1 = 2L
+      col2 = Builtin.testRuntimeError "test" }
+  == Builtin.testDerrorMessage "test"
 
 module WithTypeArgs =
   type Owner<'a> = { item: 'a }
   type CoOwner<'a> = Owner<'a>
 
-  Owner { item = 5L } = CoOwner { item = 5L }
+  Owner { item = 5L } == CoOwner { item = 5L }
 
   type C<'c> = { v: 'c }
   type B<'b> = { c: C<'b> }
@@ -24,88 +26,96 @@ module WithTypeArgs =
 
   let getC (a: A<Int64>) : Int64 = a.b.c.v
 
-  getC (A { b = B { c = C { v = 5L } } }) = 5L
+  getC (A { b = B { c = C { v = 5L } } }) == 5L
 
 
 module InvalidCols =
-  Cols1 { col1 = 1L; col1 = 2L } = Builtin.testDerrorMessage
+  Cols1 { col1 = 1L; col1 = 2L } == Builtin.testDerrorMessage
     "Duplicate field `col1` in Cols1"
 
-  Cols2 { col1 = 2L; ___ = 3L } = Builtin.testDerrorMessage
-    "Unexpected field `` in Cols2"
+  //TODO Parser: the error message changed
+  Cols2 { col1 = 2L; ___ = 3L } == Builtin.testDerrorMessage
+    "Unexpected field `___` in Cols2"
 
-  Cols2 { col1 = 2L } = Builtin.testDerrorMessage "Missing field `col2` in Cols2"
+  Cols2 { col1 = 2L } == Builtin.testDerrorMessage "Missing field `col2` in Cols2"
 
-  Cols2 { col1 = 2L; other = 3L } = Builtin.testDerrorMessage
+  Cols2 { col1 = 2L; other = 3L } == Builtin.testDerrorMessage
     "Unexpected field `other` in Cols2"
 
-  Cols2 { col1 = 2L; col2 = 3L; col3 = 4L } = Builtin.testDerrorMessage
+  Cols2 { col1 = 2L; col2 = 3L; col3 = 4L } == Builtin.testDerrorMessage
     "Unexpected field `col3` in Cols2"
 
-  Cols1 { col1 = "" } = Builtin.testDerrorMessage
+  Cols1 { col1 = "" } == Builtin.testDerrorMessage
     "Cols1's `col1` field should be an Int64. However, a String (\"\") was passed instead.\n\nExpected: ({ col1: Int64; ... })\nActual: a String: \"\""
 
 
 module InvalidType =
-  MyNonExistantType { col1 = 2L } = Builtin.testDerrorMessage
+  MyNonExistantType { col1 = 2L } == Builtin.testDerrorMessage
     "There is no type named MyNonExistantType"
 
-  AnEnum { col1 = 2L } = Builtin.testDerrorMessage
+  AnEnum { col1 = 2L } == Builtin.testDerrorMessage
     "Expected a record but AnEnum is an enum"
 
 module Polymorphism =
   type MyRecord<'a> = { col1: 'a; col2: Int64 }
-  (MyRecord { col1 = (); col2 = 1L }).col2 = 1L
+  (MyRecord { col1 = (); col2 = 1L }).col2 == 1L
 
+  // CLEANUP Parser: had to align parens
   (MyRecord
-    { col1 = Stdlib.Option.Option.Some(Stdlib.Result.Result.Ok 1L)
-      col2 = 1L })
-    .col1 = Stdlib.Option.Option.Some(Stdlib.Result.Result.Ok 1L)
+    { col1 = Stdlib.Option.Option.Some(Stdlib.Result.Result.Ok(1L))
+      col2 = 1L }
+  ).col1
+  == Stdlib.Option.Option.Some(Stdlib.Result.Result.Ok(1L))
 
 
 module Nested =
   type NestedRecordA = { col1: Int64 }
   type NestedRecordB = { col1: NestedRecordA }
-  (NestedRecordB { col1 = NestedRecordA { col1 = 1L } }).col1.col1 = 1L
+  (NestedRecordB { col1 = NestedRecordA { col1 = 1L } }).col1.col1 == 1L
 
 
 module Update =
   type RecordForUpdate = { x: Int64; y: Int64 }
   type RecordForUpdateMultipe = { x: Int64; y: Int64; z: Int64 }
 
-  ({ RecordForUpdate { x = 4L; y = 1L } with
-      y = 2L }) = RecordForUpdate { x = 4L; y = 2L }
+  ({ RecordForUpdate { x = 4L; y = 1L } with y = 2L })
+  == RecordForUpdate { x = 4L; y = 2L }
 
-  (let myRec = RecordForUpdate { x = 4L; y = 1L } in { myRec with y = 2L }) = RecordForUpdate
-    { x = 4L; y = 2L }
+  (let myRec = RecordForUpdate { x = 4L; y = 1L }
+   { myRec with y = 2L })
+  == RecordForUpdate { x = 4L; y = 2L }
 
-  (let myRec = RecordForUpdate { x = 4L; y = 1L } in { myRec with y = 22L; y = 42L }) = RecordForUpdate
-    { x = 4L; y = 42L }
-
-  (let myRec = RecordForUpdateMultipe { x = 4L; y = 1L; z = 0L }
-   { myRec with y = 2L; z = 42L }) = RecordForUpdateMultipe
-    { x = 4L; y = 2L; z = 42L }
+  (let myRec = RecordForUpdate { x = 4L; y = 1L }
+   { myRec with y = 22L; y = 42L })
+  == RecordForUpdate { x = 4L; y = 42L }
 
   (let myRec = RecordForUpdateMultipe { x = 4L; y = 1L; z = 0L }
-   { myRec with z = 3L; x = 42L }) = RecordForUpdateMultipe
-    { x = 42L; y = 1L; z = 3L }
+   { myRec with y = 2L; z = 42L })
+  == RecordForUpdateMultipe { x = 4L; y = 2L; z = 42L }
 
   (let myRec = RecordForUpdateMultipe { x = 4L; y = 1L; z = 0L }
-   { myRec with z = 3L; x = 42L; y = 11L }) = RecordForUpdateMultipe
-    { x = 42L; y = 11L; z = 3L }
+   { myRec with z = 3L; x = 42L })
+  == RecordForUpdateMultipe { x = 42L; y = 1L; z = 3L }
+
+  (let myRec = RecordForUpdateMultipe { x = 4L; y = 1L; z = 0L }
+   { myRec with z = 3L; x = 42L; y = 11L })
+  == RecordForUpdateMultipe { x = 42L; y = 11L; z = 3L }
 
   module Invalid =
+    // TODO Parser: had to align parens to make it work
     (let myRec = RecordForUpdateMultipe { x = 4L; y = 1L; z = 0L }
-
      { myRec with
-         z = 3L
-         x = 42L
-         y = 11L
-         p = 10L }) = Builtin.testDerrorMessage
-      "Unexpected field `p` in Update.RecordForUpdateMultipe"
+        z = 3L
+        x = 42L
+        y = 11L
+        p = 10L }
+    ) == Builtin.testDerrorMessage "Unexpected field `p` in Update.RecordForUpdateMultipe"
 
-    (let myRec = RecordForUpdate { x = 4L; y = 1L } in { myRec with other = 2L }) = Builtin.testDerrorMessage
-      "Unexpected field `other` in Update.RecordForUpdate"
+    (let myRec = RecordForUpdate { x = 4L; y = 1L }
+     { myRec with other = 2L })
+    == Builtin.testDerrorMessage "Unexpected field `other` in Update.RecordForUpdate"
 
-    (let myRec = RecordForUpdate { x = 4L; y = 1L } in { myRec with y = "2" }) = Builtin.testDerrorMessage
+    (let myRec = RecordForUpdate { x = 4L; y = 1L }
+     { myRec with y = "2" })
+    == Builtin.testDerrorMessage
       "Update.RecordForUpdate's `y` field should be an Int64. However, a String (\"2\") was passed instead.\n\nExpected: ({ y: Int64; ... })\nActual: a String: \"2\""

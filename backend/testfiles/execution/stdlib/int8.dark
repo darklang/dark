@@ -1,370 +1,369 @@
-Stdlib.Int8.absoluteValue_v0 -5y = 5y
-Stdlib.Int8.absoluteValue_v0 5y = 5y
+Stdlib.Int8.absoluteValue -5y == 5y
+Stdlib.Int8.absoluteValue 5y == 5y
 
-Stdlib.Int8.absoluteValue_v0 -128y = Builtin.testDerrorMessage "Out of range"
+Stdlib.Int8.absoluteValue -128y == Builtin.testDerrorMessage "Out of range"
 
-Stdlib.Int8.max_v0 5y 6y = 6y
-Stdlib.Int8.max_v0 10y 1y = 10y
-Stdlib.Int8.max_v0 -5y 6y = 6y
-Stdlib.Int8.max_v0 127y -128y = 127y
+Stdlib.Int8.max 5y 6y == 6y
+Stdlib.Int8.max 10y 1y == 10y
+Stdlib.Int8.max -5y 6y == 6y
+Stdlib.Int8.max 127y -128y == 127y
 
-Stdlib.Int8.min_v0 5y 6y = 5y
-Stdlib.Int8.min_v0 50y -10y = -10y
-Stdlib.Int8.min_v0 -5y 6y = -5y
-Stdlib.Int8.min_v0 127y -128y = -128y
-
-
-Stdlib.Int8.clamp_v0 -5y -2y 5y = -2y
-Stdlib.Int8.clamp_v0 -3y -2y 1y = -2y
-Stdlib.Int8.clamp_v0 -5y 1y 1y = 1y
-Stdlib.Int8.clamp_v0 1y 2y 1y = 1y
-Stdlib.Int8.clamp_v0 3y 0y 2y = 2y
-Stdlib.Int8.clamp_v0 -100y 0y 0y = 0y
-Stdlib.Int8.clamp_v0 100y 0y 0y = 0y
-Stdlib.Int8.clamp_v0 -100y 0y -1y = -1y
-Stdlib.Int8.clamp_v0 100y 0y -1y = 0y
-Stdlib.Int8.clamp_v0 -100y -1y 0y = -1y
-Stdlib.Int8.clamp_v0 -100y 1y 0y = 0y
-Stdlib.Int8.clamp_v0 100y 1y 0y = 1y
-
-Stdlib.Int8.negate_v0 -5y = 5y
-Stdlib.Int8.negate_v0 5y = -5y
-Stdlib.Int8.negate_v0 0y = 0y
-Stdlib.Int8.negate_v0 -0y = 0y
-
-Stdlib.Int8.negate_v0 -128y = Builtin.testDerrorMessage "Out of range"
-
-Stdlib.Int8.remainder_v0 15y 6y = Stdlib.Result.Result.Ok 3y
-
-Stdlib.Int8.remainder_v0 20y 8y = Stdlib.Result.Result.Ok 4y
-
-Stdlib.Int8.remainder_v0 -20y 8y = Stdlib.Result.Result.Ok -4y
-
-Stdlib.Int8.remainder_v0 -20y -8y = Stdlib.Result.Result.Ok -4y
-
-Stdlib.Int8.remainder_v0 -15y 6y = Stdlib.Result.Result.Ok -3y
-
-Stdlib.Int8.remainder_v0 5y 0y = Builtin.testDerrorMessage "Division by zero"
+Stdlib.Int8.min 5y 6y == 5y
+Stdlib.Int8.min 50y -10y == -10y
+Stdlib.Int8.min -5y 6y == -5y
+Stdlib.Int8.min 127y -128y == -128y
 
 
-Stdlib.Int8.add_v0 10y 9y = 19y
-Stdlib.Int8.add_v0 10y 0y = 10y
-Stdlib.Int8.add_v0 88y 9y = 97y
-Stdlib.Int8.add_v0 -1y 2y = 1y
-Stdlib.Int8.add_v0 1y 0y = 1y
-Stdlib.Int8.add_v0 -55y 55y = 0y
-Stdlib.Int8.add_v0 55y 55y = 110y
-Stdlib.Int8.add_v0 PACKAGE.Darklang.Test.Constants.int8Const 5y = 10y
+Stdlib.Int8.clamp -5y -2y 5y == -2y
+Stdlib.Int8.clamp -3y -2y 1y == -2y
+Stdlib.Int8.clamp -5y 1y 1y == 1y
+Stdlib.Int8.clamp 1y 2y 1y == 1y
+Stdlib.Int8.clamp 3y 0y 2y == 2y
+Stdlib.Int8.clamp -100y 0y 0y == 0y
+Stdlib.Int8.clamp 100y 0y 0y == 0y
+Stdlib.Int8.clamp -100y 0y -1y == -1y
+Stdlib.Int8.clamp 100y 0y -1y == 0y
+Stdlib.Int8.clamp -100y -1y 0y == -1y
+Stdlib.Int8.clamp -100y 1y 0y == 0y
+Stdlib.Int8.clamp 100y 1y 0y == 1y
 
-Stdlib.Int8.add_v0 127y 1y = Builtin.testDerrorMessage "Out of range"
+Stdlib.Int8.negate -5y == 5y
+Stdlib.Int8.negate 5y == -5y
+Stdlib.Int8.negate 0y == 0y
+Stdlib.Int8.negate -0y == 0y
 
-Stdlib.Int8.add_v0 -128y -1y = Builtin.testDerrorMessage "Out of range"
+Stdlib.Int8.negate -128y == Builtin.testDerrorMessage "Out of range"
 
-Stdlib.Int8.add_v0 -100y -30y = Builtin.testDerrorMessage "Out of range"
+Stdlib.Int8.remainder 15y 6y == Stdlib.Result.Result.Ok(3y)
 
-Stdlib.Int8.add_v0 100y 30y = Builtin.testDerrorMessage "Out of range"
+Stdlib.Int8.remainder 20y 8y == Stdlib.Result.Result.Ok(4y)
 
-Stdlib.Int8.subtract_v0 10y 9y = 1y
-Stdlib.Int8.subtract_v0 88y 9y = 79y
-Stdlib.Int8.subtract_v0 0y 1y = -1y
-Stdlib.Int8.subtract_v0 1y 0y = 1y
-Stdlib.Int8.subtract_v0 -55y -55y = 0y
+Stdlib.Int8.remainder -20y 8y == Stdlib.Result.Result.Ok(-4y)
 
-Stdlib.Int8.subtract_v0 -2y 127y = Builtin.testDerrorMessage "Out of range"
+Stdlib.Int8.remainder -20y -8y == Stdlib.Result.Result.Ok(-4y)
 
-Stdlib.Int8.subtract_v0 -55y 100y = Builtin.testDerrorMessage "Out of range"
+Stdlib.Int8.remainder -15y 6y == Stdlib.Result.Result.Ok(-3y)
 
-Stdlib.Int8.multiply_v0 8y 8y = 64y
-Stdlib.Int8.multiply_v0 1y 0y = 0y
-
-Stdlib.Int8.multiply_v0 64y 2y = Builtin.testDerrorMessage "Out of range"
-
-Stdlib.Int8.multiply_v0 -128y -1y = Builtin.testDerrorMessage "Out of range"
-
-Stdlib.Int8.power_v0 2y 3y = 8y
-Stdlib.Int8.power_v0 0y 1y = 0y
-Stdlib.Int8.power_v0 1y 0y = 1y
-Stdlib.Int8.power_v0 0y 0y = 1y
-Stdlib.Int8.power_v0 -2y 5y = -32y
-Stdlib.Int8.power_v0 -1y 5y = -1y
-Stdlib.Int8.power_v0 -1y 6y = 1y
-Stdlib.Int8.power_v0 1y 127y = 1y
-
-Stdlib.Int8.power_v0 3y 5y = Builtin.testDerrorMessage "Out of range"
-
-Stdlib.Int8.power_v0 120y 20y = Builtin.testDerrorMessage "Out of range"
-
-Stdlib.Int8.power_v0 2y -3y = Builtin.testDerrorMessage "Negative exponent"
+Stdlib.Int8.remainder 5y 0y == Builtin.testDerrorMessage "Division by zero"
 
 
-Stdlib.Int8.divide_v0 10y 5y = 2y
-Stdlib.Int8.divide_v0 17y 3y = 5y
-Stdlib.Int8.divide_v0 -8y 5y = -1y
-Stdlib.Int8.divide_v0 0y 1y = 0y
+Stdlib.Int8.add 10y 9y == 19y
+Stdlib.Int8.add 10y 0y == 10y
+Stdlib.Int8.add 88y 9y == 97y
+Stdlib.Int8.add -1y 2y == 1y
+Stdlib.Int8.add 1y 0y == 1y
+Stdlib.Int8.add -55y 55y == 0y
+Stdlib.Int8.add 55y 55y == 110y
+Stdlib.Int8.add PACKAGE.Darklang.Test.Constants.int8Const 5y == 10y
 
-Stdlib.Int8.divide_v0 1y 0y = Builtin.testDerrorMessage "Division by zero"
+Stdlib.Int8.add 127y 1y == Builtin.testDerrorMessage "Out of range"
 
-Stdlib.Int8.divide_v0 -128y -1y = Builtin.testDerrorMessage "Out of range"
+Stdlib.Int8.add -128y -1y == Builtin.testDerrorMessage "Out of range"
+
+Stdlib.Int8.add -100y -30y == Builtin.testDerrorMessage "Out of range"
+
+Stdlib.Int8.add 100y 30y == Builtin.testDerrorMessage "Out of range"
+
+Stdlib.Int8.subtract 10y 9y == 1y
+Stdlib.Int8.subtract 88y 9y == 79y
+Stdlib.Int8.subtract 0y 1y == -1y
+Stdlib.Int8.subtract 1y 0y == 1y
+Stdlib.Int8.subtract -55y -55y == 0y
+
+Stdlib.Int8.subtract -2y 127y == Builtin.testDerrorMessage "Out of range"
+
+Stdlib.Int8.subtract -55y 100y == Builtin.testDerrorMessage "Out of range"
+
+Stdlib.Int8.multiply 8y 8y == 64y
+Stdlib.Int8.multiply 1y 0y == 0y
+
+Stdlib.Int8.multiply 64y 2y == Builtin.testDerrorMessage "Out of range"
+
+Stdlib.Int8.multiply -128y -1y == Builtin.testDerrorMessage "Out of range"
+
+Stdlib.Int8.power 2y 3y == 8y
+Stdlib.Int8.power 0y 1y == 0y
+Stdlib.Int8.power 1y 0y == 1y
+Stdlib.Int8.power 0y 0y == 1y
+Stdlib.Int8.power -2y 5y == -32y
+Stdlib.Int8.power -1y 5y == -1y
+Stdlib.Int8.power -1y 6y == 1y
+Stdlib.Int8.power 1y 127y == 1y
+
+Stdlib.Int8.power 3y 5y == Builtin.testDerrorMessage "Out of range"
+
+Stdlib.Int8.power 120y 20y == Builtin.testDerrorMessage "Out of range"
+
+Stdlib.Int8.power 2y -3y == Builtin.testDerrorMessage "Negative exponent"
 
 
-Stdlib.Int8.greaterThan_v0 20y 1y = true
-Stdlib.Int8.greaterThan_v0 20y 127y = false
-Stdlib.Int8.greaterThanOrEqualTo_v0 0y 1y = false
-Stdlib.Int8.greaterThanOrEqualTo_v0 1y 0y = true
-Stdlib.Int8.greaterThanOrEqualTo_v0 6y 1y = true
-Stdlib.Int8.greaterThanOrEqualTo_v0 6y 8y = false
-Stdlib.Int8.greaterThanOrEqualTo_v0 -5y -20y = true
-Stdlib.Int8.greaterThanOrEqualTo_v0 -20y -1y = false
-Stdlib.Int8.greaterThanOrEqualTo_v0 -20y -20y = true
-Stdlib.Int8.greaterThanOrEqualTo_v0 -128y -20y = false
+Stdlib.Int8.divide 10y 5y == 2y
+Stdlib.Int8.divide 17y 3y == 5y
+Stdlib.Int8.divide -8y 5y == -1y
+Stdlib.Int8.divide 0y 1y == 0y
 
-Stdlib.Int8.lessThanOrEqualTo_v0 6y 8y = true
-Stdlib.Int8.lessThanOrEqualTo_v0 10y 1y = false
-Stdlib.Int8.lessThanOrEqualTo_v0 0y 1y = true
-Stdlib.Int8.lessThanOrEqualTo_v0 1y 0y = false
-Stdlib.Int8.lessThan_v0 -128y 127y = true
+Stdlib.Int8.divide 1y 0y == Builtin.testDerrorMessage "Division by zero"
 
-Stdlib.Int8.lessThan_v0 6y 8y = true
-Stdlib.Int8.lessThan_v0 10y 1y = false
-Stdlib.Int8.lessThan_v0 0y 1y = true
-Stdlib.Int8.lessThan_v0 1y 0y = false
-Stdlib.Int8.lessThan_v0 -128y 127y = true
+Stdlib.Int8.divide -128y -1y == Builtin.testDerrorMessage "Out of range"
 
-Stdlib.Int8.toString 0y = "0"
-Stdlib.Int8.toString 1y = "1"
-Stdlib.Int8.toString -1y = "-1"
-Stdlib.Int8.toString -128y = "-128" // Int8 lower limit
-Stdlib.Int8.toString 127y = "127" // Int8 upper limit
 
-Stdlib.Int8.toFloat_v0 2y = 2.0
-Stdlib.Int8.toFloat_v0 127y = 127.0
-Stdlib.Int8.toFloat_v0 -128y = -128.0
-Stdlib.Int8.toFloat_v0 -10y = -10.0
+Stdlib.Int8.greaterThan 20y 1y == true
+Stdlib.Int8.greaterThan 20y 127y == false
+Stdlib.Int8.greaterThanOrEqualTo 0y 1y == false
+Stdlib.Int8.greaterThanOrEqualTo 1y 0y == true
+Stdlib.Int8.greaterThanOrEqualTo 6y 1y == true
+Stdlib.Int8.greaterThanOrEqualTo 6y 8y == false
+Stdlib.Int8.greaterThanOrEqualTo -5y -20y == true
+Stdlib.Int8.greaterThanOrEqualTo -20y -1y == false
+Stdlib.Int8.greaterThanOrEqualTo -20y -20y == true
+Stdlib.Int8.greaterThanOrEqualTo -128y -20y == false
 
-Stdlib.Int8.sqrt_v0 4y = 2.0
-Stdlib.Int8.sqrt_v0 100y = 10.0
-Stdlib.Int8.sqrt_v0 86y = 9.273618495495704
+Stdlib.Int8.lessThanOrEqualTo 6y 8y == true
+Stdlib.Int8.lessThanOrEqualTo 10y 1y == false
+Stdlib.Int8.lessThanOrEqualTo 0y 1y == true
+Stdlib.Int8.lessThanOrEqualTo 1y 0y == false
+Stdlib.Int8.lessThan -128y 127y == true
 
-Stdlib.Int8.mod_v0 15y 5y = 0y
-Stdlib.Int8.mod_v0 15y 6y = 3y
-Stdlib.Int8.mod_v0 0y 15y = 0y
-Stdlib.Int8.mod_v0 -1y 2y = 1y
-Stdlib.Int8.mod_v0 -128y 53y = 31y
-Stdlib.Int8.mod_v0 127y 3y = 1y
+Stdlib.Int8.lessThan 6y 8y == true
+Stdlib.Int8.lessThan 10y 1y == false
+Stdlib.Int8.lessThan 0y 1y == true
+Stdlib.Int8.lessThan 1y 0y == false
+Stdlib.Int8.lessThan -128y 127y == true
 
-Stdlib.Int8.mod_v0 5y 0y = Builtin.testDerrorMessage "Zero modulus"
+Stdlib.Int8.toString 0y == "0"
+Stdlib.Int8.toString 1y == "1"
+Stdlib.Int8.toString -1y == "-1"
+Stdlib.Int8.toString -128y == "-128" // Int8 lower limit
+Stdlib.Int8.toString 127y == "127" // Int8 upper limit
 
-Stdlib.Int8.mod_v0 5y -5y = Builtin.testDerrorMessage "Negative modulus"
+Stdlib.Int8.toFloat 2y == 2.0
+Stdlib.Int8.toFloat 127y == 127.0
+Stdlib.Int8.toFloat -128y == -128.0
+Stdlib.Int8.toFloat -10y == -10.0
 
-(Stdlib.List.range_v0 1L 5L)
-|> Stdlib.List.map_v0 (fun x -> Stdlib.Int8.random 1y 2y)
-|> Stdlib.List.map_v0 (fun x ->
-  (Stdlib.Int8.greaterThanOrEqualTo x 1y) && (Stdlib.Int8.lessThanOrEqualTo x 2y)) = [ true
-                                                                                       true
-                                                                                       true
-                                                                                       true
-                                                                                       true ]
+Stdlib.Int8.sqrt 4y == 2.0
+Stdlib.Int8.sqrt 100y == 10.0
+Stdlib.Int8.sqrt 86y == 9.273618495495704
 
-(Stdlib.List.range_v0 1L 5L)
-|> Stdlib.List.map_v0 (fun x -> Stdlib.Int8.random 10y 20y)
-|> Stdlib.List.map_v0 (fun x ->
+Stdlib.Int8.mod 15y 5y == 0y
+Stdlib.Int8.mod 15y 6y == 3y
+Stdlib.Int8.mod 0y 15y == 0y
+Stdlib.Int8.mod -1y 2y == 1y
+Stdlib.Int8.mod -128y 53y == 31y
+Stdlib.Int8.mod 127y 3y == 1y
+
+Stdlib.Int8.mod 5y 0y == Builtin.testDerrorMessage "Zero modulus"
+
+Stdlib.Int8.mod 5y -5y == Builtin.testDerrorMessage "Negative modulus"
+
+(Stdlib.List.range 1L 5L)
+|> Stdlib.List.map (fun x -> Stdlib.Int8.random 1y 2y)
+|> Stdlib.List.map (fun x ->
+  (Stdlib.Int8.greaterThanOrEqualTo x 1y) && (Stdlib.Int8.lessThanOrEqualTo x 2y)) == [ true
+                                                                                        true
+                                                                                        true
+                                                                                        true
+                                                                                        true ]
+
+(Stdlib.List.range 1L 5L)
+|> Stdlib.List.map (fun x -> Stdlib.Int8.random 10y 20y)
+|> Stdlib.List.map (fun x ->
   (Stdlib.Int8.greaterThanOrEqualTo x 10y)
-  && (Stdlib.Int8.lessThanOrEqualTo x 20y)) = [ true; true; true; true; true ]
+  && (Stdlib.Int8.lessThanOrEqualTo x 20y)) == [ true; true; true; true; true ]
 
-(Stdlib.List.range_v0 1L 5L)
-|> Stdlib.List.map_v0 (fun x -> Stdlib.Int8.random 2y 1y)
-|> Stdlib.List.map_v0 (fun x ->
-  (Stdlib.Int8.greaterThanOrEqualTo x 1y) && (Stdlib.Int8.lessThanOrEqualTo x 2y)) = [ true
-                                                                                       true
-                                                                                       true
-                                                                                       true
-                                                                                       true ]
+(Stdlib.List.range 1L 5L)
+|> Stdlib.List.map (fun x -> Stdlib.Int8.random 2y 1y)
+|> Stdlib.List.map (fun x ->
+  (Stdlib.Int8.greaterThanOrEqualTo x 1y) && (Stdlib.Int8.lessThanOrEqualTo x 2y)) == [ true
+                                                                                        true
+                                                                                        true
+                                                                                        true
+                                                                                        true ]
 
-(Stdlib.List.range_v0 1L 5L)
-|> Stdlib.List.map_v0 (fun x -> Stdlib.Int8.random 20y 10y)
-|> Stdlib.List.map_v0 (fun x ->
+(Stdlib.List.range 1L 5L)
+|> Stdlib.List.map (fun x -> Stdlib.Int8.random 20y 10y)
+|> Stdlib.List.map (fun x ->
   (Stdlib.Int8.greaterThanOrEqualTo x 10y)
-  && (Stdlib.Int8.lessThanOrEqualTo x 20y)) = [ true; true; true; true; true ]
+  && (Stdlib.Int8.lessThanOrEqualTo x 20y)) == [ true; true; true; true; true ]
 
-((Stdlib.List.range_v0 1L 100L)
- |> Stdlib.List.map_v0 (fun x -> Stdlib.Int8.random 0y 1y)
- |> Stdlib.List.unique_v0) = [ 0y; 1y ]
+((Stdlib.List.range 1L 100L)
+ |> Stdlib.List.map (fun x -> Stdlib.Int8.random 0y 1y)
+ |> Stdlib.List.unique) == [ 0y; 1y ]
 
 
-((Stdlib.List.range_v0 1L 100L)
- |> Stdlib.List.map_v0 (fun x -> Stdlib.Int8.random 0y 2y)
- |> Stdlib.List.unique_v0) = [ 0y; 1y; 2y ]
+((Stdlib.List.range 1L 100L)
+ |> Stdlib.List.map (fun x -> Stdlib.Int8.random 0y 2y)
+ |> Stdlib.List.unique) == [ 0y; 1y; 2y ]
 
 
-Stdlib.Int8.parse_v0 "0" = Stdlib.Result.Result.Ok(0y)
+Stdlib.Int8.parse "0" == Stdlib.Result.Result.Ok(0y)
 
-Stdlib.Int8.parse_v0 "1" = Stdlib.Result.Result.Ok(1y)
+Stdlib.Int8.parse "1" == Stdlib.Result.Result.Ok(1y)
 
-Stdlib.Int8.parse_v0 " 1" = Stdlib.Result.Result.Ok(1y)
+Stdlib.Int8.parse " 1" == Stdlib.Result.Result.Ok(1y)
 
-Stdlib.Int8.parse_v0 "1 " = Stdlib.Result.Result.Ok(1y)
+Stdlib.Int8.parse "1 " == Stdlib.Result.Result.Ok(1y)
 
-Stdlib.Int8.parse_v0 "+1" = Stdlib.Result.Result.Ok(1y)
+Stdlib.Int8.parse "+1" == Stdlib.Result.Result.Ok(1y)
 
-Stdlib.Int8.parse_v0 " +1 " = Stdlib.Result.Result.Ok(1y)
+Stdlib.Int8.parse " +1 " == Stdlib.Result.Result.Ok(1y)
 
-Stdlib.Int8.parse_v0 "-1" = Stdlib.Result.Result.Ok(-1y)
+Stdlib.Int8.parse "-1" == Stdlib.Result.Result.Ok(-1y)
 
-Stdlib.Int8.parse_v0 "078" = Stdlib.Result.Result.Ok(78y) // "octal" format ignored
+Stdlib.Int8.parse "078" == Stdlib.Result.Result.Ok(78y) // "octal" format ignored
 
-Stdlib.Int8.parse_v0 "-00001" = Stdlib.Result.Result.Ok(-1y)
+Stdlib.Int8.parse "-00001" == Stdlib.Result.Result.Ok(-1y)
 
-Stdlib.Int8.parse_v0 "-10001" = Stdlib.Result.Result.Error
-  Stdlib.Int8.ParseError.OutOfRange
+Stdlib.Int8.parse "-10001" == Stdlib.Result.Result.Error(
+  Stdlib.Int8.ParseError.OutOfRange())
 
-Stdlib.Int8.parse_v0 "127" = Stdlib.Result.Result.Ok(127y)
+Stdlib.Int8.parse "127" == Stdlib.Result.Result.Ok(127y)
 
-Stdlib.Int8.parse_v0 "-128" = Stdlib.Result.Result.Ok(-128y)
+Stdlib.Int8.parse "-128" == Stdlib.Result.Result.Ok(-128y)
 
-Stdlib.Int8.parse_v0 "128" = Stdlib.Result.Result.Error
-  Stdlib.Int8.ParseError.OutOfRange
+Stdlib.Int8.parse "128" == Stdlib.Result.Result.Error(
+  Stdlib.Int8.ParseError.OutOfRange())
 
-Stdlib.Int8.parse_v0 "-129" = Stdlib.Result.Result.Error
-  Stdlib.Int8.ParseError.OutOfRange
+Stdlib.Int8.parse "-129" == Stdlib.Result.Result.Error(
+  Stdlib.Int8.ParseError.OutOfRange())
 
-Stdlib.Int8.parse_v0 "1 2 3" = Stdlib.Result.Result.Error
-  Stdlib.Int8.ParseError.BadFormat
+Stdlib.Int8.parse "1 2 3" == Stdlib.Result.Result.Error(
+  Stdlib.Int8.ParseError.BadFormat())
 
-Stdlib.Int8.parse_v0 "+ 1" = Stdlib.Result.Result.Error
-  Stdlib.Int8.ParseError.BadFormat
+Stdlib.Int8.parse "+ 1" == Stdlib.Result.Result.Error(
+  Stdlib.Int8.ParseError.BadFormat())
 
-Stdlib.Int8.parse_v0 "- 1" = Stdlib.Result.Result.Error
-  Stdlib.Int8.ParseError.BadFormat
+Stdlib.Int8.parse "- 1" == Stdlib.Result.Result.Error(
+  Stdlib.Int8.ParseError.BadFormat())
 
-Stdlib.Int8.parse_v0 "0xA" = Stdlib.Result.Result.Error
-  Stdlib.Int8.ParseError.BadFormat
+Stdlib.Int8.parse "0xA" == Stdlib.Result.Result.Error(
+  Stdlib.Int8.ParseError.BadFormat())
 
-Stdlib.Int8.parse_v0 "0x123" = Stdlib.Result.Result.Error
-  Stdlib.Int8.ParseError.BadFormat
+Stdlib.Int8.parse "0x123" == Stdlib.Result.Result.Error(
+  Stdlib.Int8.ParseError.BadFormat())
 
-Stdlib.Int8.parse_v0 "0b0100" = Stdlib.Result.Result.Error
-  Stdlib.Int8.ParseError.BadFormat
+Stdlib.Int8.parse "0b0100" == Stdlib.Result.Result.Error(
+  Stdlib.Int8.ParseError.BadFormat())
 
-Stdlib.Int8.parse_v0 "pi" = Stdlib.Result.Result.Error
-  Stdlib.Int8.ParseError.BadFormat
+Stdlib.Int8.parse "pi" == Stdlib.Result.Result.Error(
+  Stdlib.Int8.ParseError.BadFormat())
 
-Stdlib.Int8.parse_v0 "PACKAGE.Darklang.Stdlib.Math.pi" = Stdlib.Result.Result.Error
-  Stdlib.Int8.ParseError.BadFormat
+Stdlib.Int8.parse "PACKAGE.Darklang.Stdlib.Math.pi" == Stdlib.Result.Result.Error(
+  Stdlib.Int8.ParseError.BadFormat())
 
-Stdlib.Int8.parse_v0 "1.23E+04" = Stdlib.Result.Result.Error
-  Stdlib.Int8.ParseError.BadFormat
+Stdlib.Int8.parse "1.23E+04" == Stdlib.Result.Result.Error(
+  Stdlib.Int8.ParseError.BadFormat())
 
-Stdlib.Int8.parse_v0 "" = Stdlib.Result.Result.Error Stdlib.Int8.ParseError.BadFormat
+Stdlib.Int8.parse "" == Stdlib.Result.Result.Error(Stdlib.Int8.ParseError.BadFormat())
+Stdlib.Int8.parse "1I" == Stdlib.Result.Result.Error(
+  Stdlib.Int8.ParseError.BadFormat())
 
-Stdlib.Int8.parse_v0 "1I" = Stdlib.Result.Result.Error
-  Stdlib.Int8.ParseError.BadFormat
+Stdlib.Int8.parse "one" == Stdlib.Result.Result.Error(
+  Stdlib.Int8.ParseError.BadFormat())
 
-Stdlib.Int8.parse_v0 "one" = Stdlib.Result.Result.Error
-  Stdlib.Int8.ParseError.BadFormat
+Stdlib.Int8.parse "XIV" == Stdlib.Result.Result.Error(
+  Stdlib.Int8.ParseError.BadFormat())
 
-Stdlib.Int8.parse_v0 "XIV" = Stdlib.Result.Result.Error
-  Stdlib.Int8.ParseError.BadFormat
 
+Stdlib.Int8.fromUInt8 0uy == Stdlib.Option.Option.Some(0y)
 
-Stdlib.Int8.fromUInt8_v0 0uy = Stdlib.Option.Option.Some 0y
+Stdlib.Int8.fromUInt8 1uy == Stdlib.Option.Option.Some(1y)
 
-Stdlib.Int8.fromUInt8_v0 1uy = Stdlib.Option.Option.Some 1y
+Stdlib.Int8.fromUInt8 127uy == Stdlib.Option.Option.Some(127y)
 
-Stdlib.Int8.fromUInt8_v0 127uy = Stdlib.Option.Option.Some 127y
+Stdlib.Int8.fromUInt8 128uy == Stdlib.Option.Option.None()
+Stdlib.Int8.fromUInt8 255uy == Stdlib.Option.Option.None()
 
-Stdlib.Int8.fromUInt8_v0 128uy = Stdlib.Option.Option.None
-Stdlib.Int8.fromUInt8_v0 255uy = Stdlib.Option.Option.None
+Stdlib.Int8.fromInt16 0s == Stdlib.Option.Option.Some(0y)
 
-Stdlib.Int8.fromInt16_v0 0s = Stdlib.Option.Option.Some 0y
+Stdlib.Int8.fromInt16 1s == Stdlib.Option.Option.Some(1y)
 
-Stdlib.Int8.fromInt16_v0 1s = Stdlib.Option.Option.Some 1y
+Stdlib.Int8.fromInt16 127s == Stdlib.Option.Option.Some(127y)
 
-Stdlib.Int8.fromInt16_v0 127s = Stdlib.Option.Option.Some 127y
+Stdlib.Int8.fromInt16 128s == Stdlib.Option.Option.None()
 
-Stdlib.Int8.fromInt16_v0 128s = Stdlib.Option.Option.None
+Stdlib.Int8.fromInt16 (-1s) == Stdlib.Option.Option.Some(-1y)
 
-Stdlib.Int8.fromInt16_v0 (-1s) = Stdlib.Option.Option.Some -1y
+Stdlib.Int8.fromInt16 (-128s) == Stdlib.Option.Option.Some(-128y)
 
-Stdlib.Int8.fromInt16_v0 (-128s) = Stdlib.Option.Option.Some -128y
+Stdlib.Int8.fromInt16 (-129s) == Stdlib.Option.Option.None()
 
-Stdlib.Int8.fromInt16_v0 (-129s) = Stdlib.Option.Option.None
+Stdlib.Int8.fromUInt16 0us == Stdlib.Option.Option.Some(0y)
 
-Stdlib.Int8.fromUInt16_v0 0us = Stdlib.Option.Option.Some 0y
+Stdlib.Int8.fromUInt16 1us == Stdlib.Option.Option.Some(1y)
 
-Stdlib.Int8.fromUInt16_v0 1us = Stdlib.Option.Option.Some 1y
+Stdlib.Int8.fromUInt16 127us == Stdlib.Option.Option.Some(127y)
 
-Stdlib.Int8.fromUInt16_v0 127us = Stdlib.Option.Option.Some 127y
+Stdlib.Int8.fromUInt16 128us == Stdlib.Option.Option.None()
+Stdlib.Int8.fromUInt16 255us == Stdlib.Option.Option.None()
 
-Stdlib.Int8.fromUInt16_v0 128us = Stdlib.Option.Option.None
-Stdlib.Int8.fromUInt16_v0 255us = Stdlib.Option.Option.None
+Stdlib.Int8.fromInt32 0l == Stdlib.Option.Option.Some(0y)
 
-Stdlib.Int8.fromInt32_v0 0l = Stdlib.Option.Option.Some 0y
+Stdlib.Int8.fromInt32 1l == Stdlib.Option.Option.Some(1y)
 
-Stdlib.Int8.fromInt32_v0 1l = Stdlib.Option.Option.Some 1y
+Stdlib.Int8.fromInt32 127l == Stdlib.Option.Option.Some(127y)
 
-Stdlib.Int8.fromInt32_v0 127l = Stdlib.Option.Option.Some 127y
+Stdlib.Int8.fromInt32 128l == Stdlib.Option.Option.None()
 
-Stdlib.Int8.fromInt32_v0 128l = Stdlib.Option.Option.None
+Stdlib.Int8.fromInt32 (-1l) == Stdlib.Option.Option.Some(-1y)
 
-Stdlib.Int8.fromInt32_v0 (-1l) = Stdlib.Option.Option.Some -1y
+Stdlib.Int8.fromInt32 (-128l) == Stdlib.Option.Option.Some(-128y)
 
-Stdlib.Int8.fromInt32_v0 (-128l) = Stdlib.Option.Option.Some -128y
+Stdlib.Int8.fromInt32 (-129l) == Stdlib.Option.Option.None()
 
-Stdlib.Int8.fromInt32_v0 (-129l) = Stdlib.Option.Option.None
+Stdlib.Int8.fromInt32 2147483647l == Stdlib.Option.Option.None()
 
-Stdlib.Int8.fromInt32_v0 2147483647l = Stdlib.Option.Option.None
+Stdlib.Int8.fromUInt32 0ul == Stdlib.Option.Option.Some(0y)
 
-Stdlib.Int8.fromUInt32_v0 0ul = Stdlib.Option.Option.Some 0y
+Stdlib.Int8.fromUInt32 1ul == Stdlib.Option.Option.Some(1y)
 
-Stdlib.Int8.fromUInt32_v0 1ul = Stdlib.Option.Option.Some 1y
+Stdlib.Int8.fromUInt32 127ul == Stdlib.Option.Option.Some(127y)
 
-Stdlib.Int8.fromUInt32_v0 127ul = Stdlib.Option.Option.Some 127y
+Stdlib.Int8.fromUInt32 128ul == Stdlib.Option.Option.None()
+Stdlib.Int8.fromUInt32 4294967295ul == Stdlib.Option.Option.None()
 
-Stdlib.Int8.fromUInt32_v0 128ul = Stdlib.Option.Option.None
-Stdlib.Int8.fromUInt32_v0 4294967295ul = Stdlib.Option.Option.None
+Stdlib.Int8.fromInt64 0L == Stdlib.Option.Option.Some(0y)
 
-Stdlib.Int8.fromInt64_v0 0L = Stdlib.Option.Option.Some 0y
+Stdlib.Int8.fromInt64 1L == Stdlib.Option.Option.Some(1y)
 
-Stdlib.Int8.fromInt64_v0 1L = Stdlib.Option.Option.Some 1y
+Stdlib.Int8.fromInt64 127L == Stdlib.Option.Option.Some(127y)
 
-Stdlib.Int8.fromInt64_v0 127L = Stdlib.Option.Option.Some 127y
+Stdlib.Int8.fromInt64 128L == Stdlib.Option.Option.None()
 
-Stdlib.Int8.fromInt64_v0 128L = Stdlib.Option.Option.None
+Stdlib.Int8.fromInt64 (-1L) == Stdlib.Option.Option.Some(-1y)
 
-Stdlib.Int8.fromInt64_v0 (-1L) = Stdlib.Option.Option.Some -1y
+Stdlib.Int8.fromInt64 (-128L) == Stdlib.Option.Option.Some(-128y)
 
-Stdlib.Int8.fromInt64_v0 (-128L) = Stdlib.Option.Option.Some -128y
+Stdlib.Int8.fromInt64 (-129L) == Stdlib.Option.Option.None()
 
-Stdlib.Int8.fromInt64_v0 (-129L) = Stdlib.Option.Option.None
+Stdlib.Int8.fromUInt64 0UL == Stdlib.Option.Option.Some(0y)
 
-Stdlib.Int8.fromUInt64_v0 0UL = Stdlib.Option.Option.Some 0y
+Stdlib.Int8.fromUInt64 1UL == Stdlib.Option.Option.Some(1y)
 
-Stdlib.Int8.fromUInt64_v0 1UL = Stdlib.Option.Option.Some 1y
+Stdlib.Int8.fromUInt64 127UL == Stdlib.Option.Option.Some(127y)
 
-Stdlib.Int8.fromUInt64_v0 127UL = Stdlib.Option.Option.Some 127y
+Stdlib.Int8.fromUInt64 128UL == Stdlib.Option.Option.None()
+Stdlib.Int8.fromUInt64 255UL == Stdlib.Option.Option.None()
 
-Stdlib.Int8.fromUInt64_v0 128UL = Stdlib.Option.Option.None
-Stdlib.Int8.fromUInt64_v0 255UL = Stdlib.Option.Option.None
+Stdlib.Int8.fromInt128 0Q == Stdlib.Option.Option.Some(0y)
 
-Stdlib.Int8.fromInt128_v0 0Q = Stdlib.Option.Option.Some 0y
+Stdlib.Int8.fromInt128 1Q == Stdlib.Option.Option.Some(1y)
 
-Stdlib.Int8.fromInt128_v0 1Q = Stdlib.Option.Option.Some 1y
+Stdlib.Int8.fromInt128 127Q == Stdlib.Option.Option.Some(127y)
 
-Stdlib.Int8.fromInt128_v0 127Q = Stdlib.Option.Option.Some 127y
+Stdlib.Int8.fromInt128 128Q == Stdlib.Option.Option.None()
 
-Stdlib.Int8.fromInt128_v0 128Q = Stdlib.Option.Option.None
+Stdlib.Int8.fromInt128 -1Q == Stdlib.Option.Option.Some(-1y)
 
-Stdlib.Int8.fromInt128_v0 (-1Q) = Stdlib.Option.Option.Some -1y
+Stdlib.Int8.fromInt128 -128Q == Stdlib.Option.Option.Some(-128y)
 
-Stdlib.Int8.fromInt128_v0 (-128Q) = Stdlib.Option.Option.Some -128y
+Stdlib.Int8.fromInt128 -129Q == Stdlib.Option.Option.None()
 
-Stdlib.Int8.fromInt128_v0 (-129Q) = Stdlib.Option.Option.None
+Stdlib.Int8.fromUInt128 0Z == Stdlib.Option.Option.Some(0y)
 
-Stdlib.Int8.fromUInt128_v0 0Z = Stdlib.Option.Option.Some 0y
+Stdlib.Int8.fromUInt128 1Z == Stdlib.Option.Option.Some(1y)
 
-Stdlib.Int8.fromUInt128_v0 1Z = Stdlib.Option.Option.Some 1y
+Stdlib.Int8.fromUInt128 127Z == Stdlib.Option.Option.Some(127y)
 
-Stdlib.Int8.fromUInt128_v0 127Z = Stdlib.Option.Option.Some 127y
-
-Stdlib.Int8.fromUInt128_v0 128Z = Stdlib.Option.Option.None
-Stdlib.Int8.fromUInt128_v0 255Z = Stdlib.Option.Option.None
+Stdlib.Int8.fromUInt128 128Z == Stdlib.Option.Option.None()
+Stdlib.Int8.fromUInt128 255Z == Stdlib.Option.Option.None()

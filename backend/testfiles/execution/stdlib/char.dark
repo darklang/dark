@@ -1,5 +1,5 @@
 let smiley () : Char =
-  "😂" |> Stdlib.String.head |> Builtin.unwrap
+  ("😂" |> Stdlib.String.head |> Builtin.unwrap)
 
 let hand () : Char =
   "✋🏿" |> Stdlib.String.head |> Builtin.unwrap
@@ -7,214 +7,216 @@ let hand () : Char =
 let family () : Char =
   "👩‍👩‍👧‍👦" |> Stdlib.String.head |> Builtin.unwrap
 
-Stdlib.Char.toLowercase 'A' = 'a'
-Stdlib.Char.toLowercase 'a' = 'a'
-Stdlib.Char.toLowercase 'Á' = 'á'
-Stdlib.Char.toLowercase '3' = '3'
-Stdlib.Char.toLowercase (smiley ()) = smiley ()
-Stdlib.Char.toLowercase 'Ż' = 'ż'
-Stdlib.Char.toLowercase 'Ó' = 'ó'
-Stdlib.Char.toLowercase 'Ł' = 'ł'
-Stdlib.Char.toLowercase (hand ()) = hand ()
-Stdlib.Char.toLowercase 'Ჾ' = 'ჾ'
-Stdlib.Char.toLowercase 'ჾ' = 'ჾ'
+(Stdlib.Char.toLowercase 'A') == 'a'
+(Stdlib.Char.toLowercase 'a') == 'a'
+(Stdlib.Char.toLowercase 'Á') == 'á'
+(Stdlib.Char.toLowercase '3') == '3'
+(Stdlib.Char.toLowercase (smiley ())) == smiley ()
+(Stdlib.Char.toLowercase 'Ż') == 'ż'
+(Stdlib.Char.toLowercase 'Ó') == 'ó'
+(Stdlib.Char.toLowercase 'Ł') == 'ł'
+(Stdlib.Char.toLowercase (hand ())) == hand ()
+(Stdlib.Char.toLowercase 'Ჾ') == 'ჾ'
+(Stdlib.Char.toLowercase 'ჾ') == 'ჾ'
 
 
-Stdlib.Char.toUppercase 'a' = 'A'
-Stdlib.Char.toUppercase 'A' = 'A'
-Stdlib.Char.toUppercase 'á' = 'Á'
-Stdlib.Char.toUppercase '3' = '3'
-Stdlib.Char.toUppercase (smiley ()) = smiley ()
-Stdlib.Char.toUppercase 'ż' = 'Ż'
-Stdlib.Char.toUppercase 'ó' = 'Ó'
-Stdlib.Char.toUppercase 'ł' = 'Ł'
-Stdlib.Char.toUppercase (hand ()) = hand ()
-Stdlib.Char.toUppercase 'ჾ' = 'Ჾ'
-Stdlib.Char.toUppercase 'Ჾ' = 'Ჾ'
+(Stdlib.Char.toUppercase 'a') == 'A'
+(Stdlib.Char.toUppercase 'A') == 'A'
+(Stdlib.Char.toUppercase 'á') == 'Á'
+(Stdlib.Char.toUppercase '3') == '3'
+(Stdlib.Char.toUppercase (smiley ())) == smiley ()
+(Stdlib.Char.toUppercase 'ż') == 'Ż'
+(Stdlib.Char.toUppercase 'ó') == 'Ó'
+(Stdlib.Char.toUppercase 'ł') == 'Ł'
+(Stdlib.Char.toUppercase (hand ())) == hand ()
+(Stdlib.Char.toUppercase 'ჾ') == 'Ჾ'
+(Stdlib.Char.toUppercase 'Ჾ') == 'Ჾ'
 
 
-Stdlib.Char.isLowercase_v0 'a' = true
-Stdlib.Char.isLowercase_v0 'A' = false
-Stdlib.Char.isLowercase_v0 'á' = true
-Stdlib.Char.isLowercase_v0 'Á' = false
-Stdlib.Char.isLowercase_v0 '3' = false
-Stdlib.Char.isLowercase_v0 (smiley ()) = false
-Stdlib.Char.isLowercase_v0 'ż' = true
-Stdlib.Char.isLowercase_v0 'Ż' = false
-Stdlib.Char.isLowercase_v0 'ó' = true
-Stdlib.Char.isLowercase_v0 'Ó' = false
-Stdlib.Char.isLowercase_v0 'ł' = true
-Stdlib.Char.isLowercase_v0 'Ł' = false
-Stdlib.Char.isLowercase_v0 (hand ()) = false
-Stdlib.Char.isLowercase_v0 'ჾ' = true
-Stdlib.Char.isLowercase_v0 'Ჾ' = false
+(Stdlib.Char.isLowercase 'a') == true
+(Stdlib.Char.isLowercase 'A') == false
+(Stdlib.Char.isLowercase 'á') == true
+(Stdlib.Char.isLowercase 'Á') == false
+(Stdlib.Char.isLowercase '3') == false
+(Stdlib.Char.isLowercase (smiley ())) == false
+(Stdlib.Char.isLowercase 'ż') == true
+(Stdlib.Char.isLowercase 'Ż') == false
+(Stdlib.Char.isLowercase 'ó') == true
+(Stdlib.Char.isLowercase 'Ó') == false
+(Stdlib.Char.isLowercase 'ł') == true
+(Stdlib.Char.isLowercase 'Ł') == false
+(Stdlib.Char.isLowercase (hand ())) == false
+(Stdlib.Char.isLowercase 'ჾ') == true
+(Stdlib.Char.isLowercase 'Ჾ') == false
 
 
-Stdlib.Char.isUppercase_v0 'a' = false
-Stdlib.Char.isUppercase_v0 'A' = true
-Stdlib.Char.isUppercase_v0 'á' = false
-Stdlib.Char.isUppercase_v0 'Á' = true
-Stdlib.Char.isUppercase_v0 '3' = false
-Stdlib.Char.isUppercase_v0 (smiley ()) = false
-Stdlib.Char.isUppercase_v0 'ż' = false
-Stdlib.Char.isUppercase_v0 'Ż' = true
-Stdlib.Char.isUppercase_v0 'ó' = false
-Stdlib.Char.isUppercase_v0 'Ó' = true
-Stdlib.Char.isUppercase_v0 'ł' = false
-Stdlib.Char.isUppercase_v0 'Ł' = true
-Stdlib.Char.isUppercase_v0 (hand ()) = false
-Stdlib.Char.isUppercase_v0 'ჾ' = false
-Stdlib.Char.isUppercase_v0 'Ჾ' = true
+(Stdlib.Char.isUppercase 'a') == false
+(Stdlib.Char.isUppercase 'A') == true
+(Stdlib.Char.isUppercase 'á') == false
+(Stdlib.Char.isUppercase 'Á') == true
+(Stdlib.Char.isUppercase '3') == false
+(Stdlib.Char.isUppercase (smiley ())) == false
+(Stdlib.Char.isUppercase 'ż') == false
+(Stdlib.Char.isUppercase 'Ż') == true
+(Stdlib.Char.isUppercase 'ó') == false
+(Stdlib.Char.isUppercase 'Ó') == true
+(Stdlib.Char.isUppercase 'ł') == false
+(Stdlib.Char.isUppercase 'Ł') == true
+(Stdlib.Char.isUppercase (hand ())) == false
+(Stdlib.Char.isUppercase 'ჾ') == false
+(Stdlib.Char.isUppercase 'Ჾ') == true
 
 
-Stdlib.Char.isDigit_v0 'a' = false
-Stdlib.Char.isDigit_v0 'A' = false
-Stdlib.Char.isDigit_v0 'á' = false
-Stdlib.Char.isDigit_v0 'Á' = false
-Stdlib.Char.isDigit_v0 '0' = true
-Stdlib.Char.isDigit_v0 '1' = true
-Stdlib.Char.isDigit_v0 '2' = true
-Stdlib.Char.isDigit_v0 '3' = true
-Stdlib.Char.isDigit_v0 '4' = true
-Stdlib.Char.isDigit_v0 '5' = true
-Stdlib.Char.isDigit_v0 '6' = true
-Stdlib.Char.isDigit_v0 '7' = true
-Stdlib.Char.isDigit_v0 '8' = true
-Stdlib.Char.isDigit_v0 '9' = true
-Stdlib.Char.isDigit_v0 (smiley ()) = false
-Stdlib.Char.isDigit_v0 'ż' = false
-Stdlib.Char.isDigit_v0 'Ż' = false
-Stdlib.Char.isDigit_v0 'ó' = false
-Stdlib.Char.isDigit_v0 'Ó' = false
-Stdlib.Char.isDigit_v0 'ł' = false
-Stdlib.Char.isDigit_v0 'Ł' = false
-Stdlib.Char.isDigit_v0 (hand ()) = false
-Stdlib.Char.isDigit_v0 'ჾ' = false
-Stdlib.Char.isDigit_v0 'Ჾ' = false
-Stdlib.Char.isDigit_v0 ' ' = false
-Stdlib.Char.isDigit_v0 '\t' = false
+(Stdlib.Char.isDigit 'a') == false
+(Stdlib.Char.isDigit 'A') == false
+(Stdlib.Char.isDigit 'á') == false
+(Stdlib.Char.isDigit 'Á') == false
+(Stdlib.Char.isDigit '0')  == true
+(Stdlib.Char.isDigit '1')  == true
+(Stdlib.Char.isDigit '2')  == true
+(Stdlib.Char.isDigit '3')  == true
+(Stdlib.Char.isDigit '4')  == true
+(Stdlib.Char.isDigit '5')  == true
+(Stdlib.Char.isDigit '6')  == true
+(Stdlib.Char.isDigit '7')  == true
+(Stdlib.Char.isDigit '8')  == true
+(Stdlib.Char.isDigit '9')  == true
+(Stdlib.Char.isDigit (smiley ())) == false
 
 
-Stdlib.Char.isASCIILetter_v0 'a' = true
-Stdlib.Char.isASCIILetter_v0 'A' = true
-Stdlib.Char.isASCIILetter_v0 'á' = false
-Stdlib.Char.isASCIILetter_v0 'Á' = false
-Stdlib.Char.isASCIILetter_v0 '3' = false
-Stdlib.Char.isASCIILetter_v0 ',' = false
-Stdlib.Char.isASCIILetter_v0 (smiley ()) = false
-Stdlib.Char.isASCIILetter_v0 'ż' = false
-Stdlib.Char.isASCIILetter_v0 'Ż' = false
-Stdlib.Char.isASCIILetter_v0 'ó' = false
-Stdlib.Char.isASCIILetter_v0 'Ó' = false
-Stdlib.Char.isASCIILetter_v0 'ł' = false
-Stdlib.Char.isASCIILetter_v0 'Ł' = false
-Stdlib.Char.isASCIILetter_v0 (hand ()) = false
-Stdlib.Char.isASCIILetter_v0 'ჾ' = false
-Stdlib.Char.isASCIILetter_v0 'Ჾ' = false
-Stdlib.Char.isASCIILetter_v0 ' ' = false
-Stdlib.Char.isASCIILetter_v0 '\t' = false
+(Stdlib.Char.isDigit 'ż') == false
+(Stdlib.Char.isDigit 'Ż') == false
+(Stdlib.Char.isDigit 'ó') == false
+(Stdlib.Char.isDigit 'Ó') == false
+(Stdlib.Char.isDigit 'ł') == false
+(Stdlib.Char.isDigit 'Ł') == false
+(Stdlib.Char.isDigit (hand ())) == false
+(Stdlib.Char.isDigit 'ჾ') == false
+(Stdlib.Char.isDigit 'Ჾ') == false
+(Stdlib.Char.isDigit ' ') == false
+(Stdlib.Char.isDigit '\t') == false
 
 
-Stdlib.Char.isASCII_v0 'a' = true
-Stdlib.Char.isASCII_v0 'A' = true
-Stdlib.Char.isASCII_v0 'á' = false
-Stdlib.Char.isASCII_v0 'Á' = false
-Stdlib.Char.isASCII_v0 '3' = true
-Stdlib.Char.isASCII_v0 (smiley ()) = false
-Stdlib.Char.isASCII_v0 'ż' = false
-Stdlib.Char.isASCII_v0 'Ż' = false
-Stdlib.Char.isASCII_v0 'ó' = false
-Stdlib.Char.isASCII_v0 'Ó' = false
-Stdlib.Char.isASCII_v0 'ł' = false
-Stdlib.Char.isASCII_v0 'Ł' = false
-Stdlib.Char.isASCII_v0 (hand ()) = false
-Stdlib.Char.isASCII_v0 'ჾ' = false
-Stdlib.Char.isASCII_v0 'Ჾ' = false
-Stdlib.Char.isASCII_v0 ' ' = true
-Stdlib.Char.isASCII_v0 '\t' = true
+(Stdlib.Char.isASCIILetter 'a')  == true
+(Stdlib.Char.isASCIILetter 'A')  == true
+(Stdlib.Char.isASCIILetter 'á') == false
+(Stdlib.Char.isASCIILetter 'Á') == false
+(Stdlib.Char.isASCIILetter '3') == false
+(Stdlib.Char.isASCIILetter ',') == false
+(Stdlib.Char.isASCIILetter (smiley ())) == false
+(Stdlib.Char.isASCIILetter 'ż') == false
+(Stdlib.Char.isASCIILetter 'Ż') == false
+(Stdlib.Char.isASCIILetter 'ó') == false
+(Stdlib.Char.isASCIILetter 'Ó') == false
+(Stdlib.Char.isASCIILetter 'ł') == false
+(Stdlib.Char.isASCIILetter 'Ł') == false
+(Stdlib.Char.isASCIILetter (hand ())) == false
+(Stdlib.Char.isASCIILetter 'ჾ') == false
+(Stdlib.Char.isASCIILetter 'Ჾ') == false
+(Stdlib.Char.isASCIILetter ' ') == false
+(Stdlib.Char.isASCIILetter '\t') == false
 
 
-Stdlib.Char.toAsciiCode 'a' = Stdlib.Option.Option.Some 97L
-
-Stdlib.Char.toAsciiCode 'A' = Stdlib.Option.Option.Some 65L
-
-Stdlib.Char.toAsciiCode 'á' = Stdlib.Option.Option.Some 225L
-
-Stdlib.Char.toAsciiCode 'Á' = Stdlib.Option.Option.Some 193L
-
-Stdlib.Char.toAsciiCode '3' = Stdlib.Option.Option.Some 51L
-
-Stdlib.Char.toAsciiCode (smiley ()) = Stdlib.Option.Option.None
-
-Stdlib.Char.toAsciiCode 'ż' = Stdlib.Option.Option.None
-
-Stdlib.Char.toAsciiCode 'Ż' = Stdlib.Option.Option.None
-
-Stdlib.Char.toAsciiCode 'ó' = Stdlib.Option.Option.Some 243L
-
-Stdlib.Char.toAsciiCode 'Ó' = Stdlib.Option.Option.Some 211L
-
-Stdlib.Char.toAsciiCode 'ł' = Stdlib.Option.Option.None
-
-Stdlib.Char.toAsciiCode 'Ł' = Stdlib.Option.Option.None
-
-Stdlib.Char.toAsciiCode (hand ()) = Stdlib.Option.Option.None
-
-Stdlib.Char.toAsciiCode 'ჾ' = Stdlib.Option.Option.None
-
-Stdlib.Char.toAsciiCode 'Ჾ' = Stdlib.Option.Option.None
-
-Stdlib.Char.toAsciiCode ' ' = Stdlib.Option.Option.Some 32L
-
-Stdlib.Char.toAsciiCode '\t' = Stdlib.Option.Option.Some 9L
+(Stdlib.Char.isASCII 'a') == true
+(Stdlib.Char.isASCII 'A') == true
+(Stdlib.Char.isASCII 'á') == false
+(Stdlib.Char.isASCII 'Á') == false
+(Stdlib.Char.isASCII '3') == true
+(Stdlib.Char.isASCII (smiley ())) == false
+(Stdlib.Char.isASCII 'ż') == false
+(Stdlib.Char.isASCII 'Ż') == false
+(Stdlib.Char.isASCII 'ó') == false
+(Stdlib.Char.isASCII 'Ó') == false
+(Stdlib.Char.isASCII 'ł') == false
+(Stdlib.Char.isASCII 'Ł') == false
+(Stdlib.Char.isASCII (hand ())) == false
+(Stdlib.Char.isASCII 'ჾ') == false
+(Stdlib.Char.isASCII 'Ჾ') == false
+(Stdlib.Char.isASCII ' ') == true
+(Stdlib.Char.isASCII '\t') == true
 
 
-Stdlib.Char.isLessThan_v0 'a' 'b' = true
-Stdlib.Char.isLessThan_v0 'a' 'A' = false
-Stdlib.Char.isLessThan_v0 'b' 'A' = false
-Stdlib.Char.isLessThan_v0 'a' 'á' = true
-Stdlib.Char.isLessThan_v0 'b' 'á' = true
-Stdlib.Char.isLessThan_v0 'a' 'ჾ' = true
-Stdlib.Char.isLessThan_v0 'a' 'Ჾ' = true
-Stdlib.Char.isLessThan_v0 'a' 'ł' = true
-Stdlib.Char.isLessThan_v0 'a' 'Ł' = true
-Stdlib.Char.isLessThan_v0 'a' ' ' = false
-Stdlib.Char.isLessThan_v0 'a' '\t' = false
-Stdlib.Char.isLessThan_v0 'a' '1' = false
-Stdlib.Char.isLessThan_v0 '2' '1' = false
-Stdlib.Char.isLessThan_v0 'a' (smiley ()) = true
-Stdlib.Char.isLessThan_v0 'a' (hand ()) = true
-Stdlib.Char.isLessThan_v0 'a' (family ()) = true
-Stdlib.Char.isLessThan_v0 (smiley ()) (hand ()) = false
+(Stdlib.Char.toAsciiCode 'a') == Stdlib.Option.Option.Some(97L)
+
+(Stdlib.Char.toAsciiCode 'A') == Stdlib.Option.Option.Some(65L)
+
+(Stdlib.Char.toAsciiCode 'á') == Stdlib.Option.Option.Some(225L)
+
+(Stdlib.Char.toAsciiCode 'Á') == Stdlib.Option.Option.Some(193L)
+
+(Stdlib.Char.toAsciiCode '3') == Stdlib.Option.Option.Some(51L)
+
+(Stdlib.Char.toAsciiCode (smiley ())) == Stdlib.Option.Option.None()
+
+(Stdlib.Char.toAsciiCode 'ż') == Stdlib.Option.Option.None()
+
+(Stdlib.Char.toAsciiCode 'Ż') == Stdlib.Option.Option.None()
+
+(Stdlib.Char.toAsciiCode 'ó') == Stdlib.Option.Option.Some(243L)
+
+(Stdlib.Char.toAsciiCode 'Ó') == Stdlib.Option.Option.Some(211L)
+
+(Stdlib.Char.toAsciiCode 'ł') == Stdlib.Option.Option.None()
+
+(Stdlib.Char.toAsciiCode 'Ł') == Stdlib.Option.Option.None()
+
+(Stdlib.Char.toAsciiCode (hand ())) == Stdlib.Option.Option.None()
+
+(Stdlib.Char.toAsciiCode 'ჾ') == Stdlib.Option.Option.None()
+
+(Stdlib.Char.toAsciiCode 'Ჾ') == Stdlib.Option.Option.None()
+
+(Stdlib.Char.toAsciiCode ' ') == Stdlib.Option.Option.Some(32L)
+
+(Stdlib.Char.toAsciiCode '\t') == Stdlib.Option.Option.Some(9L)
 
 
-Stdlib.Char.isGreaterThan_v0 'a' 'b' = false
-Stdlib.Char.isGreaterThan_v0 'a' 'A' = true
-Stdlib.Char.isGreaterThan_v0 'b' 'A' = true
-Stdlib.Char.isGreaterThan_v0 'a' 'á' = false
-Stdlib.Char.isGreaterThan_v0 'b' 'á' = false
-Stdlib.Char.isGreaterThan_v0 'a' 'ჾ' = false
-Stdlib.Char.isGreaterThan_v0 'a' 'Ჾ' = false
-Stdlib.Char.isGreaterThan_v0 'a' 'ł' = false
-Stdlib.Char.isGreaterThan_v0 'a' 'Ł' = false
-Stdlib.Char.isGreaterThan_v0 'a' ' ' = true
-Stdlib.Char.isGreaterThan_v0 'a' '\t' = true
-Stdlib.Char.isGreaterThan_v0 'a' '1' = true
-Stdlib.Char.isGreaterThan_v0 '2' '1' = true
-Stdlib.Char.isGreaterThan_v0 'a' (smiley ()) = false
-Stdlib.Char.isGreaterThan_v0 'a' (hand ()) = false
-Stdlib.Char.isGreaterThan_v0 'a' (family ()) = false
-Stdlib.Char.isGreaterThan_v0 (smiley ()) (hand ()) = true
+(Stdlib.Char.isLessThan 'a' 'b') == true
+(Stdlib.Char.isLessThan 'a' 'A') == false
+(Stdlib.Char.isLessThan 'b' 'A') == false
+(Stdlib.Char.isLessThan 'a' 'á') == true
+(Stdlib.Char.isLessThan 'b' 'á') == true
+(Stdlib.Char.isLessThan 'a' 'ჾ') == true
+(Stdlib.Char.isLessThan 'a' 'Ჾ') == true
+(Stdlib.Char.isLessThan 'a' 'ł') == true
+(Stdlib.Char.isLessThan 'a' 'Ł') == true
+(Stdlib.Char.isLessThan 'a' ' ') == false
+(Stdlib.Char.isLessThan 'a' '\t') == false
+(Stdlib.Char.isLessThan 'a' '1') == false
+(Stdlib.Char.isLessThan '2' '1') == false
+(Stdlib.Char.isLessThan 'a' (smiley ())) == true
+(Stdlib.Char.isLessThan 'a' (hand ())) == true
+(Stdlib.Char.isLessThan 'a' (family ())) == true
+(Stdlib.Char.isLessThan (smiley ()) (hand ())) == false
 
 
-Stdlib.Char.toString 'A' = "A"
-Stdlib.Char.toString 'a' = "a"
-Stdlib.Char.toString 'Á' = "Á"
-Stdlib.Char.toString '3' = "3"
-Stdlib.Char.toString (smiley ()) = "😂"
-Stdlib.Char.toString 'Ż' = "Ż"
-Stdlib.Char.toString 'Ó' = "Ó"
-Stdlib.Char.toString 'Ł' = "Ł"
-Stdlib.Char.toString (hand ()) = "✋🏿"
-Stdlib.Char.toString 'Ჾ' = "Ჾ"
-Stdlib.Char.toString 'ჾ' = "ჾ"
+(Stdlib.Char.isGreaterThan 'a' 'b') == false
+(Stdlib.Char.isGreaterThan 'a' 'A') == true
+(Stdlib.Char.isGreaterThan 'b' 'A') == true
+(Stdlib.Char.isGreaterThan 'a' 'á') == false
+(Stdlib.Char.isGreaterThan 'b' 'á') == false
+(Stdlib.Char.isGreaterThan 'a' 'ჾ') == false
+(Stdlib.Char.isGreaterThan 'a' 'Ჾ') == false
+(Stdlib.Char.isGreaterThan 'a' 'ł') == false
+(Stdlib.Char.isGreaterThan 'a' 'Ł') == false
+(Stdlib.Char.isGreaterThan 'a' ' ') == true
+(Stdlib.Char.isGreaterThan 'a' '\t') == true
+(Stdlib.Char.isGreaterThan 'a' '1') == true
+(Stdlib.Char.isGreaterThan '2' '1') == true
+(Stdlib.Char.isGreaterThan 'a' (smiley ())) == false
+(Stdlib.Char.isGreaterThan 'a' (hand ())) == false
+(Stdlib.Char.isGreaterThan 'a' (family ())) == false
+(Stdlib.Char.isGreaterThan (smiley ()) (hand ())) == true
+
+
+(Stdlib.Char.toString 'A') == "A"
+(Stdlib.Char.toString 'a') == "a"
+(Stdlib.Char.toString 'Á') == "Á"
+(Stdlib.Char.toString '3') == "3"
+(Stdlib.Char.toString (smiley ())) == "😂"
+(Stdlib.Char.toString 'Ż') == "Ż"
+(Stdlib.Char.toString 'Ó') == "Ó"
+(Stdlib.Char.toString 'Ł') == "Ł"
+(Stdlib.Char.toString (hand ())) == "✋🏿"
+(Stdlib.Char.toString 'Ჾ') == "Ჾ"
+(Stdlib.Char.toString 'ჾ') == "ჾ"

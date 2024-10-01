@@ -383,6 +383,9 @@ module Fn =
       let parseSingleTestFromFile =
         p [] "parseSingleTestFromFile" "53f3fbc6-25fd-427a-ab0d-ba0559543c99"
 
+      let parseTestFile =
+        p [] "parseTestFile" "95dc8d95-dd38-4df2-aaac-9e78187a17be"
+
   // what we expose to the outside world
   let idForName
     (owner : string)
