@@ -1,16 +1,23 @@
 type MyRecord = { col1: Int64 }
 
-(let x = MyRecord { col1 = 1L } in x.col1) = 1L
+module General =
+  (let x = MyRecord { col1 = 1L }
+   x.col1)
+  == 1L
 
 module Errors =
+  (let x = MyRecord { col1 = 1L }
+    x.___)
+  == Builtin.testDerrorMessage "Field name is empty"
 
-  (let x = MyRecord { col1 = 1L } in x.___) = Builtin.testDerrorMessage
-    "Field name is empty"
+  (let x = MyRecord { col1 = 1L }
+   x.fieldName)
+  == (Builtin.testDerrorMessage "No field named `fieldName` in MyRecord record")
 
-  (let x = MyRecord { col1 = 1L } in x.fieldName) = Builtin.testDerrorMessage
-    "No field named `fieldName` in MyRecord record"
+  (Builtin.testRuntimeError "error").fieldName
+  == (Builtin.testDerrorMessage "error")
 
-  (Builtin.testRuntimeError "error").fieldName = Builtin.testDerrorMessage "error"
-
-  (let x = 6L in x.fieldName) = Builtin.testDerrorMessage
-    "Attempting to access field `fieldName` of a Int64 (field access only works with records)"
+  (let x = 6L
+   x.fieldName)
+  == (Builtin.testDerrorMessage
+    "Attempting to access field `fieldName` of a Int64 (field access only works with records)")

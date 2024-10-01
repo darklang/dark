@@ -1,254 +1,254 @@
-Stdlib.UInt32.max_v0 5ul 6ul = 6ul
-Stdlib.UInt32.max_v0 10ul 1ul = 10ul
-Stdlib.UInt32.max_v0 0ul 6ul = 6ul
-Stdlib.UInt32.max_v0 4294967295ul 0ul = 4294967295ul
+Stdlib.UInt32.max 5ul 6ul == 6ul
+Stdlib.UInt32.max 10ul 1ul == 10ul
+Stdlib.UInt32.max 0ul 6ul == 6ul
+Stdlib.UInt32.max 4294967295ul 0ul == 4294967295ul
 
-Stdlib.UInt32.min_v0 5ul 6ul = 5ul
-Stdlib.UInt32.min_v0 10ul 10ul = 10ul
-Stdlib.UInt32.min_v0 4294967295ul 0ul = 0ul
+Stdlib.UInt32.min 5ul 6ul == 5ul
+Stdlib.UInt32.min 10ul 10ul == 10ul
+Stdlib.UInt32.min 4294967295ul 0ul == 0ul
 
-Stdlib.UInt32.clamp_v0 1ul 2ul 1ul = 1ul
-Stdlib.UInt32.clamp_v0 3ul 0ul 2ul = 2ul
-Stdlib.UInt32.clamp_v0 100ul 0ul 0ul = 0ul
-Stdlib.UInt32.clamp_v0 100ul 0ul 1ul = 1ul
-Stdlib.UInt32.clamp_v0 100ul 1ul 0ul = 1ul
-
-
-Stdlib.UInt32.add_v0 10ul 9ul = 19ul
-Stdlib.UInt32.add_v0 88ul 9ul = 97ul
-Stdlib.UInt32.add_v0 1ul 0ul = 1ul
-Stdlib.UInt32.add_v0 4294967294ul 1ul = 4294967295ul
-
-Stdlib.UInt32.add_v0 4294967295ul 1ul = Builtin.testDerrorMessage "Out of range"
-
-Stdlib.UInt32.subtract_v0 10ul 9ul = 1ul
-Stdlib.UInt32.subtract_v0 88ul 9ul = 79ul
-
-Stdlib.UInt32.subtract_v0 0ul 1ul = Builtin.testDerrorMessage "Out of range"
-
-Stdlib.UInt32.subtract_v0 1ul 0ul = 1ul
-Stdlib.UInt32.subtract_v0 4294967295ul 1ul = 4294967294ul
-
-Stdlib.UInt32.multiply_v0 8ul 8ul = 64ul
-Stdlib.UInt32.multiply_v0 8ul 0ul = 0ul
-Stdlib.UInt32.multiply_v0 2147483647ul 2ul = 4294967294ul
-
-Stdlib.UInt32.multiply_v0 2147483648ul 2ul = Builtin.testDerrorMessage "Out of range"
-
-Stdlib.UInt32.power_v0 2ul 3ul = 8ul
-Stdlib.UInt32.power_v0 0ul 1ul = 0ul
-Stdlib.UInt32.power_v0 1ul 0ul = 1ul
-Stdlib.UInt32.power_v0 0ul 0ul = 1ul
-Stdlib.UInt32.power_v0 1ul 255ul = 1ul
-
-Stdlib.UInt32.power_v0 65536ul 2ul = Builtin.testDerrorMessage "Out of range"
+Stdlib.UInt32.clamp 1ul 2ul 1ul == 1ul
+Stdlib.UInt32.clamp 3ul 0ul 2ul == 2ul
+Stdlib.UInt32.clamp 100ul 0ul 0ul == 0ul
+Stdlib.UInt32.clamp 100ul 0ul 1ul == 1ul
+Stdlib.UInt32.clamp 100ul 1ul 0ul == 1ul
 
 
-Stdlib.UInt32.divide_v0 10ul 5ul = 2ul
-Stdlib.UInt32.divide_v0 17ul 3ul = 5ul
-Stdlib.UInt32.divide_v0 8ul 5ul = 1ul
-Stdlib.UInt32.divide_v0 0ul 1ul = 0ul
-Stdlib.UInt32.divide_v0 4294967295ul 2ul = 2147483647ul
+Stdlib.UInt32.add 10ul 9ul == 19ul
+Stdlib.UInt32.add 88ul 9ul == 97ul
+Stdlib.UInt32.add 1ul 0ul == 1ul
+Stdlib.UInt32.add 4294967294ul 1ul == 4294967295ul
 
-Stdlib.UInt32.divide_v0 1ul 0ul = Builtin.testDerrorMessage "Division by zero"
+Stdlib.UInt32.add 4294967295ul 1ul == Builtin.testDerrorMessage "Out of range"
 
-Stdlib.UInt32.greaterThan_v0 20ul 1ul = true
+Stdlib.UInt32.subtract 10ul 9ul == 1ul
+Stdlib.UInt32.subtract 88ul 9ul == 79ul
 
-Stdlib.UInt32.greaterThanOrEqualTo_v0 0ul 1ul = false
-Stdlib.UInt32.greaterThanOrEqualTo_v0 1ul 0ul = true
-Stdlib.UInt32.greaterThanOrEqualTo_v0 6ul 1ul = true
-Stdlib.UInt32.greaterThanOrEqualTo_v0 6ul 8ul = false
-Stdlib.UInt32.greaterThanOrEqualTo_v0 4294967295ul 0ul = true
-Stdlib.UInt32.greaterThanOrEqualTo_v0 0ul 4294967295ul = false
+Stdlib.UInt32.subtract 0ul 1ul == Builtin.testDerrorMessage "Out of range"
 
-Stdlib.UInt32.lessThanOrEqualTo_v0 6ul 8ul = true
-Stdlib.UInt32.lessThanOrEqualTo_v0 10ul 1ul = false
-Stdlib.UInt32.lessThanOrEqualTo_v0 0ul 1ul = true
-Stdlib.UInt32.lessThanOrEqualTo_v0 1ul 0ul = false
-Stdlib.UInt32.lessThanOrEqualTo_v0 4294967295ul 0ul = false
-Stdlib.UInt32.lessThanOrEqualTo_v0 0ul 4294967295ul = true
-Stdlib.UInt32.lessThanOrEqualTo_v0 4294967295ul 4294967295ul = true
+Stdlib.UInt32.subtract 1ul 0ul == 1ul
+Stdlib.UInt32.subtract 4294967295ul 1ul == 4294967294ul
 
-Stdlib.UInt32.lessThan_v0 6ul 8ul = true
-Stdlib.UInt32.lessThan_v0 10ul 1ul = false
-Stdlib.UInt32.lessThan_v0 0ul 1ul = true
-Stdlib.UInt32.lessThan_v0 1ul 0ul = false
-Stdlib.UInt32.lessThan_v0 0ul 4294967295ul = true
-Stdlib.UInt32.lessThan_v0 4294967295ul 4294967295ul = false
+Stdlib.UInt32.multiply 8ul 8ul == 64ul
+Stdlib.UInt32.multiply 8ul 0ul == 0ul
+Stdlib.UInt32.multiply 2147483647ul 2ul == 4294967294ul
 
-Stdlib.UInt32.toString 120ul = "120"
-Stdlib.UInt32.toString 1ul = "1"
-Stdlib.UInt32.toString 0ul = "0" // UInt32 lower limit
-Stdlib.UInt32.toString 4294967295ul = "4294967295" // UInt32 upper limit
+Stdlib.UInt32.multiply 2147483648ul 2ul == Builtin.testDerrorMessage "Out of range"
 
-Stdlib.UInt32.toFloat_v0 2ul = 2.0
-Stdlib.UInt32.toFloat_v0 0ul = 0.0
+Stdlib.UInt32.power 2ul 3ul == 8ul
+Stdlib.UInt32.power 0ul 1ul == 0ul
+Stdlib.UInt32.power 1ul 0ul == 1ul
+Stdlib.UInt32.power 0ul 0ul == 1ul
+Stdlib.UInt32.power 1ul 255ul == 1ul
 
-Stdlib.UInt32.sqrt_v0 4ul = 2.0
-Stdlib.UInt32.sqrt_v0 100ul = 10.0
-Stdlib.UInt32.sqrt_v0 86ul = 9.273618495495704
-
-Stdlib.UInt32.mod_v0 15ul 5ul = 0ul
-Stdlib.UInt32.mod_v0 15ul 6ul = 3ul
-Stdlib.UInt32.mod_v0 0ul 15ul = 0ul
-Stdlib.UInt32.mod_v0 1ul 2ul = 1ul
-Stdlib.UInt32.mod_v0 32768ul 53ul = 14ul
-Stdlib.UInt32.mod_v0 4294967295ul 3ul = 0ul
-
-Stdlib.UInt32.mod_v0 5ul 0ul = Builtin.testDerrorMessage "Zero modulus"
+Stdlib.UInt32.power 65536ul 2ul == Builtin.testDerrorMessage "Out of range"
 
 
-(Stdlib.List.range_v0 1L 5L)
-|> Stdlib.List.map_v0 (fun x -> Stdlib.UInt32.random 1ul 2ul)
-|> Stdlib.List.map_v0 (fun x ->
+Stdlib.UInt32.divide 10ul 5ul == 2ul
+Stdlib.UInt32.divide 17ul 3ul == 5ul
+Stdlib.UInt32.divide 8ul 5ul == 1ul
+Stdlib.UInt32.divide 0ul 1ul == 0ul
+Stdlib.UInt32.divide 4294967295ul 2ul == 2147483647ul
+
+Stdlib.UInt32.divide 1ul 0ul == Builtin.testDerrorMessage "Division by zero"
+
+Stdlib.UInt32.greaterThan 20ul 1ul == true
+
+Stdlib.UInt32.greaterThanOrEqualTo 0ul 1ul == false
+Stdlib.UInt32.greaterThanOrEqualTo 1ul 0ul == true
+Stdlib.UInt32.greaterThanOrEqualTo 6ul 1ul == true
+Stdlib.UInt32.greaterThanOrEqualTo 6ul 8ul == false
+Stdlib.UInt32.greaterThanOrEqualTo 4294967295ul 0ul == true
+Stdlib.UInt32.greaterThanOrEqualTo 0ul 4294967295ul == false
+
+Stdlib.UInt32.lessThanOrEqualTo 6ul 8ul == true
+Stdlib.UInt32.lessThanOrEqualTo 10ul 1ul == false
+Stdlib.UInt32.lessThanOrEqualTo 0ul 1ul == true
+Stdlib.UInt32.lessThanOrEqualTo 1ul 0ul == false
+Stdlib.UInt32.lessThanOrEqualTo 4294967295ul 0ul == false
+Stdlib.UInt32.lessThanOrEqualTo 0ul 4294967295ul == true
+Stdlib.UInt32.lessThanOrEqualTo 4294967295ul 4294967295ul == true
+
+Stdlib.UInt32.lessThan 6ul 8ul == true
+Stdlib.UInt32.lessThan 10ul 1ul == false
+Stdlib.UInt32.lessThan 0ul 1ul == true
+Stdlib.UInt32.lessThan 1ul 0ul == false
+Stdlib.UInt32.lessThan 0ul 4294967295ul == true
+Stdlib.UInt32.lessThan 4294967295ul 4294967295ul == false
+
+Stdlib.UInt32.toString 120ul == "120"
+Stdlib.UInt32.toString 1ul == "1"
+Stdlib.UInt32.toString 0ul == "0" // UInt32 lower limit
+Stdlib.UInt32.toString 4294967295ul == "4294967295" // UInt32 upper limit
+
+Stdlib.UInt32.toFloat 2ul == 2.0
+Stdlib.UInt32.toFloat 0ul == 0.0
+
+Stdlib.UInt32.sqrt 4ul == 2.0
+Stdlib.UInt32.sqrt 100ul == 10.0
+Stdlib.UInt32.sqrt 86ul == 9.273618495495704
+
+Stdlib.UInt32.mod 15ul 5ul == 0ul
+Stdlib.UInt32.mod 15ul 6ul == 3ul
+Stdlib.UInt32.mod 0ul 15ul == 0ul
+Stdlib.UInt32.mod 1ul 2ul == 1ul
+Stdlib.UInt32.mod 32768ul 53ul == 14ul
+Stdlib.UInt32.mod 4294967295ul 3ul == 0ul
+
+Stdlib.UInt32.mod 5ul 0ul == Builtin.testDerrorMessage "Zero modulus"
+
+
+(Stdlib.List.range 1L 5L)
+|> Stdlib.List.map (fun x -> Stdlib.UInt32.random 1ul 2ul)
+|> Stdlib.List.map (fun x ->
   (Stdlib.UInt32.greaterThanOrEqualTo x 1ul)
-  && (Stdlib.UInt32.lessThanOrEqualTo x 2ul)) = [ true; true; true; true; true ]
+  && (Stdlib.UInt32.lessThanOrEqualTo x 2ul)) == [ true; true; true; true; true ]
 
-(Stdlib.List.range_v0 1L 5L)
-|> Stdlib.List.map_v0 (fun x -> Stdlib.UInt32.random 10ul 20ul)
-|> Stdlib.List.map_v0 (fun x ->
+(Stdlib.List.range 1L 5L)
+|> Stdlib.List.map (fun x -> Stdlib.UInt32.random 10ul 20ul)
+|> Stdlib.List.map (fun x ->
   (Stdlib.UInt32.greaterThanOrEqualTo x 10ul)
-  && (Stdlib.UInt32.lessThanOrEqualTo x 20ul)) = [ true; true; true; true; true ]
+  && (Stdlib.UInt32.lessThanOrEqualTo x 20ul)) == [ true; true; true; true; true ]
 
-(Stdlib.List.range_v0 1L 5L)
-|> Stdlib.List.map_v0 (fun x -> Stdlib.UInt32.random 2ul 1ul)
-|> Stdlib.List.map_v0 (fun x ->
+(Stdlib.List.range 1L 5L)
+|> Stdlib.List.map (fun x -> Stdlib.UInt32.random 2ul 1ul)
+|> Stdlib.List.map (fun x ->
   (Stdlib.UInt32.greaterThanOrEqualTo x 1ul)
-  && (Stdlib.UInt32.lessThanOrEqualTo x 2ul)) = [ true; true; true; true; true ]
+  && (Stdlib.UInt32.lessThanOrEqualTo x 2ul)) == [ true; true; true; true; true ]
 
-(Stdlib.List.range_v0 1L 5L)
-|> Stdlib.List.map_v0 (fun x -> Stdlib.UInt32.random 20ul 10ul)
-|> Stdlib.List.map_v0 (fun x ->
+(Stdlib.List.range 1L 5L)
+|> Stdlib.List.map (fun x -> Stdlib.UInt32.random 20ul 10ul)
+|> Stdlib.List.map (fun x ->
   (Stdlib.UInt32.greaterThanOrEqualTo x 10ul)
-  && (Stdlib.UInt32.lessThanOrEqualTo x 20ul)) = [ true; true; true; true; true ]
+  && (Stdlib.UInt32.lessThanOrEqualTo x 20ul)) == [ true; true; true; true; true ]
 
-((Stdlib.List.range_v0 1L 100L)
- |> Stdlib.List.map_v0 (fun x -> Stdlib.UInt32.random 0ul 1ul)
- |> Stdlib.List.unique_v0) = [ 0ul; 1ul ]
+((Stdlib.List.range 1L 100L)
+ |> Stdlib.List.map (fun x -> Stdlib.UInt32.random 0ul 1ul)
+ |> Stdlib.List.unique) == [ 0ul; 1ul ]
 
-((Stdlib.List.range_v0 1L 100L)
- |> Stdlib.List.map_v0 (fun x -> Stdlib.UInt32.random 0ul 2ul)
- |> Stdlib.List.unique_v0) = [ 0ul; 1ul; 2ul ]
+((Stdlib.List.range 1L 100L)
+ |> Stdlib.List.map (fun x -> Stdlib.UInt32.random 0ul 2ul)
+ |> Stdlib.List.unique) == [ 0ul; 1ul; 2ul ]
 
-Stdlib.UInt32.sum_v0 [ 1ul; 2ul ] = 3ul
+Stdlib.UInt32.sum [ 1ul; 2ul ] == 3ul
 
-Stdlib.UInt32.sum_v0 [ 1ul; 4294967295ul ] = Builtin.testDerrorMessage "Out of range"
+Stdlib.UInt32.sum [ 1ul; 4294967295ul ] == Builtin.testDerrorMessage "Out of range"
 
-Stdlib.UInt32.parse_v0 "-129" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.OutOfRange
+Stdlib.UInt32.parse "-129" == Stdlib.Result.Result.Error(
+  Stdlib.UInt32.ParseError.OutOfRange)
 
-Stdlib.UInt32.parse_v0 "4294967296" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.OutOfRange
+Stdlib.UInt32.parse "4294967296" == Stdlib.Result.Result.Error(
+  Stdlib.UInt32.ParseError.OutOfRange)
 
-Stdlib.UInt32.parse_v0 "4294967296ul" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.BadFormat
+Stdlib.UInt32.parse "4294967296ul" == Stdlib.Result.Result.Error(
+  Stdlib.UInt32.ParseError.BadFormat)
 
-Stdlib.UInt32.parse_v0 "1 2 3" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.BadFormat
+Stdlib.UInt32.parse "1 2 3" == Stdlib.Result.Result.Error(
+  Stdlib.UInt32.ParseError.BadFormat)
 
-Stdlib.UInt32.parse_v0 "+ 1" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.BadFormat
+Stdlib.UInt32.parse "+ 1" == Stdlib.Result.Result.Error(
+  Stdlib.UInt32.ParseError.BadFormat)
 
-Stdlib.UInt32.parse_v0 "- 1" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.BadFormat
+Stdlib.UInt32.parse "- 1" == Stdlib.Result.Result.Error(
+  Stdlib.UInt32.ParseError.BadFormat)
 
-Stdlib.UInt32.parse_v0 "0xA" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.BadFormat
+Stdlib.UInt32.parse "0xA" == Stdlib.Result.Result.Error(
+  Stdlib.UInt32.ParseError.BadFormat)
 
-Stdlib.UInt32.parse_v0 "0x123" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.BadFormat
+Stdlib.UInt32.parse "0x123" == Stdlib.Result.Result.Error(
+  Stdlib.UInt32.ParseError.BadFormat)
 
-Stdlib.UInt32.parse_v0 "0b0100" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.BadFormat
+Stdlib.UInt32.parse "0b0100" == Stdlib.Result.Result.Error(
+  Stdlib.UInt32.ParseError.BadFormat)
 
-Stdlib.UInt32.parse_v0 "pi" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.BadFormat
+Stdlib.UInt32.parse "pi" == Stdlib.Result.Result.Error(
+  Stdlib.UInt32.ParseError.BadFormat)
 
-Stdlib.UInt32.parse_v0 "PACKAGE.Darklang.Stdlib.Math.pi" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.BadFormat
+Stdlib.UInt32.parse "PACKAGE.Darklang.Stdlib.Math.pi" == Stdlib.Result.Result.Error(
+  Stdlib.UInt32.ParseError.BadFormat)
 
-Stdlib.UInt32.parse_v0 "1.23E+04" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.BadFormat
+Stdlib.UInt32.parse "1.23E+04" == Stdlib.Result.Result.Error(
+  Stdlib.UInt32.ParseError.BadFormat)
 
-Stdlib.UInt32.parse_v0 "" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.BadFormat
+Stdlib.UInt32.parse "" == Stdlib.Result.Result.Error(
+  Stdlib.UInt32.ParseError.BadFormat)
 
-Stdlib.UInt32.parse_v0 "1I" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.BadFormat
+Stdlib.UInt32.parse "1I" == Stdlib.Result.Result.Error(
+  Stdlib.UInt32.ParseError.BadFormat)
 
-Stdlib.UInt32.parse_v0 "one" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.BadFormat
+Stdlib.UInt32.parse "one" == Stdlib.Result.Result.Error(
+  Stdlib.UInt32.ParseError.BadFormat)
 
-Stdlib.UInt32.parse_v0 "XIV" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.BadFormat
+Stdlib.UInt32.parse "XIV" == Stdlib.Result.Result.Error(
+  Stdlib.UInt32.ParseError.BadFormat)
 
 
-Stdlib.UInt32.fromInt8_v0 0y = Stdlib.Option.Option.Some 0ul
+Stdlib.UInt32.fromInt8 0y == Stdlib.Option.Option.Some(0ul)
 
-Stdlib.UInt32.fromInt8_v0 1y = Stdlib.Option.Option.Some 1ul
+Stdlib.UInt32.fromInt8 1y == Stdlib.Option.Option.Some(1ul)
 
-Stdlib.UInt32.fromInt8_v0 127y = Stdlib.Option.Option.Some 127ul
+Stdlib.UInt32.fromInt8 127y == Stdlib.Option.Option.Some(127ul)
 
-Stdlib.UInt32.fromInt8_v0 (-128y) = Stdlib.Option.Option.None
+Stdlib.UInt32.fromInt8 (-128y) == Stdlib.Option.Option.None()
 
-Stdlib.UInt32.fromUInt8_v0 0uy = 0ul
+Stdlib.UInt32.fromUInt8 0uy == 0ul
 
-Stdlib.UInt32.fromUInt8_v0 1uy = 1ul
+Stdlib.UInt32.fromUInt8 1uy == 1ul
 
-Stdlib.UInt32.fromUInt8_v0 255uy = 255ul
+Stdlib.UInt32.fromUInt8 255uy == 255ul
 
-Stdlib.UInt32.fromInt16_v0 0s = Stdlib.Option.Option.Some 0ul
+Stdlib.UInt32.fromInt16 0s == Stdlib.Option.Option.Some(0ul)
 
-Stdlib.UInt32.fromInt16_v0 1s = Stdlib.Option.Option.Some 1ul
+Stdlib.UInt32.fromInt16 1s == Stdlib.Option.Option.Some(1ul)
 
-Stdlib.UInt32.fromInt16_v0 32767s = Stdlib.Option.Option.Some 32767ul
+Stdlib.UInt32.fromInt16 32767s == Stdlib.Option.Option.Some(32767ul)
 
-Stdlib.UInt32.fromInt16_v0 (-32768s) = Stdlib.Option.Option.None
+Stdlib.UInt32.fromInt16 (-32768s) == Stdlib.Option.Option.None()
 
-Stdlib.UInt32.fromUInt16_v0 0us = 0ul
+Stdlib.UInt32.fromUInt16 0us == 0ul
 
-Stdlib.UInt32.fromUInt16_v0 1us = 1ul
+Stdlib.UInt32.fromUInt16 1us == 1ul
 
-Stdlib.UInt32.fromUInt16_v0 65535us = 65535ul
+Stdlib.UInt32.fromUInt16 65535us == 65535ul
 
-Stdlib.UInt32.fromInt32_v0 0l = Stdlib.Option.Option.Some 0ul
+Stdlib.UInt32.fromInt32 0l == Stdlib.Option.Option.Some(0ul)
 
-Stdlib.UInt32.fromInt32_v0 1l = Stdlib.Option.Option.Some 1ul
+Stdlib.UInt32.fromInt32 1l == Stdlib.Option.Option.Some(1ul)
 
-Stdlib.UInt32.fromInt32_v0 2147483647l = Stdlib.Option.Option.Some 2147483647ul
+Stdlib.UInt32.fromInt32 2147483647l == Stdlib.Option.Option.Some(2147483647ul)
 
-Stdlib.UInt32.fromInt32_v0 (-2147483648l) = Stdlib.Option.Option.None
+Stdlib.UInt32.fromInt32 (-2147483648l) == Stdlib.Option.Option.None()
 
-Stdlib.UInt32.fromInt64_v0 0L = Stdlib.Option.Option.Some 0ul
+Stdlib.UInt32.fromInt64 0L == Stdlib.Option.Option.Some(0ul)
 
-Stdlib.UInt32.fromInt64_v0 1L = Stdlib.Option.Option.Some 1ul
+Stdlib.UInt32.fromInt64 1L == Stdlib.Option.Option.Some(1ul)
 
-Stdlib.UInt32.fromInt64_v0 4294967295L = Stdlib.Option.Option.Some 4294967295ul
+Stdlib.UInt32.fromInt64 4294967295L == Stdlib.Option.Option.Some(4294967295ul)
 
-Stdlib.UInt32.fromInt64_v0 4294967296L = Stdlib.Option.Option.None
-Stdlib.UInt32.fromInt64_v0 (-1L) = Stdlib.Option.Option.None
+Stdlib.UInt32.fromInt64 4294967296L == Stdlib.Option.Option.None()
+Stdlib.UInt32.fromInt64 (-1L) == Stdlib.Option.Option.None()
 
-Stdlib.UInt32.fromUInt64_v0 0UL = Stdlib.Option.Option.Some 0ul
+Stdlib.UInt32.fromUInt64 0UL == Stdlib.Option.Option.Some(0ul)
 
-Stdlib.UInt32.fromUInt64_v0 1UL = Stdlib.Option.Option.Some 1ul
+Stdlib.UInt32.fromUInt64 1UL == Stdlib.Option.Option.Some(1ul)
 
-Stdlib.UInt32.fromUInt64_v0 4294967295UL = Stdlib.Option.Option.Some 4294967295ul
+Stdlib.UInt32.fromUInt64 4294967295UL == Stdlib.Option.Option.Some(4294967295ul)
 
-Stdlib.UInt32.fromUInt64_v0 4294967296UL = Stdlib.Option.Option.None
+Stdlib.UInt32.fromUInt64 4294967296UL == Stdlib.Option.Option.None()
 
-Stdlib.UInt32.fromInt128_v0 0Q = Stdlib.Option.Option.Some 0ul
+Stdlib.UInt32.fromInt128 0Q == Stdlib.Option.Option.Some(0ul)
 
-Stdlib.UInt32.fromInt128_v0 1Q = Stdlib.Option.Option.Some 1ul
+Stdlib.UInt32.fromInt128 1Q == Stdlib.Option.Option.Some(1ul)
 
-Stdlib.UInt32.fromInt128_v0 4294967295Q = Stdlib.Option.Option.Some 4294967295ul
+Stdlib.UInt32.fromInt128 4294967295Q == Stdlib.Option.Option.Some(4294967295ul)
 
-Stdlib.UInt32.fromInt128_v0 4294967296Q = Stdlib.Option.Option.None
-Stdlib.UInt32.fromInt128_v0 (-1Q) = Stdlib.Option.Option.None
+Stdlib.UInt32.fromInt128 4294967296Q == Stdlib.Option.Option.None()
+Stdlib.UInt32.fromInt128 (-1Q) == Stdlib.Option.Option.None()
 
-Stdlib.UInt32.fromUInt128_v0 0Z = Stdlib.Option.Option.Some 0ul
+Stdlib.UInt32.fromUInt128 0Z == Stdlib.Option.Option.Some(0ul)
 
-Stdlib.UInt32.fromUInt128_v0 1Z = Stdlib.Option.Option.Some 1ul
+Stdlib.UInt32.fromUInt128 1Z == Stdlib.Option.Option.Some(1ul)
 
-Stdlib.UInt32.fromUInt128_v0 4294967295Z = Stdlib.Option.Option.Some 4294967295ul
+Stdlib.UInt32.fromUInt128 4294967295Z == Stdlib.Option.Option.Some(4294967295ul)
 
-Stdlib.UInt32.fromUInt128_v0 4294967296Z = Stdlib.Option.Option.None
+Stdlib.UInt32.fromUInt128 4294967296Z == Stdlib.Option.Option.None()

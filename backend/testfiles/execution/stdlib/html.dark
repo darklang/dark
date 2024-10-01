@@ -10,10 +10,10 @@ let stringNode (str: String) : Node = Stdlib.Html.stringNode str
 
 let htmlTag
   (n: String)
-  (a: List<String * Stdlib.Option.Option<String>>)
+  (a: List<(String * Stdlib.Option.Option<String>)>)
   (c: List<Node>)
   : Node =
-  Stdlib.Html.htmlTagNode n a c
+    Stdlib.Html.htmlTagNode n a c
 
 
 let tidyHtml (html: String) : String =
@@ -24,105 +24,111 @@ let tidyHtml (html: String) : String =
 
 
 // -- basic testing of low-level fns
-(htmlTag "div" [] []) |> nodeToString = "<div></div>"
+(htmlTag "div" [] []) |> nodeToString == "<div></div>"
 
-(htmlTag "div" [] [ stringNode "yolo" ]) |> nodeToString = "<div>yolo</div>"
+(htmlTag "div" [] [ stringNode "yolo" ]) |> nodeToString == "<div>yolo</div>"
 
-(htmlTag "div" [ ("id", (Stdlib.Option.Option.Some "my-div")) ] [ stringNode "yolo" ])
-|> nodeToString = "<div id=\"my-div\">yolo</div>"
+(htmlTag "div" [ ("id", (Stdlib.Option.Option.Some("my-div"))) ] [ stringNode "yolo" ])
+|> nodeToString
+== "<div id=\"my-div\">yolo</div>"
 
 (htmlTag "div" [] [ htmlTag "button" [] [ stringNode "click me" ] ])
-|> nodeToString = "<div><button>click me</button></div>"
+|> nodeToString
+== "<div><button>click me</button></div>"
 
 
 // -- testing of simple html node helpers
-(Stdlib.Html.comment "hello") |> nodeToString = "<!-- hello -->"
+(Stdlib.Html.comment "hello") |> nodeToString == "<!-- hello -->"
 
-(Stdlib.Html.br ()) |> nodeToString = "<br>"
-(Stdlib.Html.div [] []) |> nodeToString = "<div></div>"
-(Stdlib.Html.span [] []) |> nodeToString = "<span></span>"
+(Stdlib.Html.br ()) |> nodeToString == "<br>"
+(Stdlib.Html.div [] []) |> nodeToString == "<div></div>"
+(Stdlib.Html.span [] []) |> nodeToString == "<span></span>"
 
-(Stdlib.Html.h1 [] []) |> nodeToString = "<h1></h1>"
-(Stdlib.Html.h2 [] []) |> nodeToString = "<h2></h2>"
-(Stdlib.Html.h3 [] []) |> nodeToString = "<h3></h3>"
-(Stdlib.Html.h4 [] []) |> nodeToString = "<h4></h4>"
-(Stdlib.Html.h5 [] []) |> nodeToString = "<h5></h5>"
-(Stdlib.Html.h6 [] []) |> nodeToString = "<h6></h6>"
+(Stdlib.Html.h1 [] []) |> nodeToString == "<h1></h1>"
+(Stdlib.Html.h2 [] []) |> nodeToString == "<h2></h2>"
+(Stdlib.Html.h3 [] []) |> nodeToString == "<h3></h3>"
+(Stdlib.Html.h4 [] []) |> nodeToString == "<h4></h4>"
+(Stdlib.Html.h5 [] []) |> nodeToString == "<h5></h5>"
+(Stdlib.Html.h6 [] []) |> nodeToString == "<h6></h6>"
 
-(Stdlib.Html.p [] []) |> nodeToString = "<p></p>"
-(Stdlib.Html.ul [] []) |> nodeToString = "<ul></ul>"
-(Stdlib.Html.ol [] []) |> nodeToString = "<ol></ol>"
-(Stdlib.Html.li [] []) |> nodeToString = "<li></li>"
+(Stdlib.Html.p [] []) |> nodeToString == "<p></p>"
+(Stdlib.Html.ul [] []) |> nodeToString == "<ul></ul>"
+(Stdlib.Html.ol [] []) |> nodeToString == "<ol></ol>"
+(Stdlib.Html.li [] []) |> nodeToString == "<li></li>"
 
-(Stdlib.Html.table [] []) |> nodeToString = "<table></table>"
-(Stdlib.Html.tr [] []) |> nodeToString = "<tr></tr>"
-(Stdlib.Html.td [] []) |> nodeToString = "<td></td>"
-(Stdlib.Html.th [] []) |> nodeToString = "<th></th>"
-(Stdlib.Html.tbody [] []) |> nodeToString = "<tbody></tbody>"
-(Stdlib.Html.thead [] []) |> nodeToString = "<thead></thead>"
-(Stdlib.Html.tfoot [] []) |> nodeToString = "<tfoot></tfoot>"
+(Stdlib.Html.table [] []) |> nodeToString == "<table></table>"
+(Stdlib.Html.tr [] []) |> nodeToString == "<tr></tr>"
+(Stdlib.Html.td [] []) |> nodeToString == "<td></td>"
+(Stdlib.Html.th [] []) |> nodeToString == "<th></th>"
+(Stdlib.Html.tbody [] []) |> nodeToString == "<tbody></tbody>"
+(Stdlib.Html.thead [] []) |> nodeToString == "<thead></thead>"
+(Stdlib.Html.tfoot [] []) |> nodeToString == "<tfoot></tfoot>"
 
-(Stdlib.Html.caption [] []) |> nodeToString = "<caption></caption>"
+(Stdlib.Html.caption [] []) |> nodeToString == "<caption></caption>"
 
-(Stdlib.Html.colgroup [] []) |> nodeToString = "<colgroup></colgroup>"
-(Stdlib.Html.col [] []) |> nodeToString = "<col>"
+(Stdlib.Html.colgroup [] []) |> nodeToString == "<colgroup></colgroup>"
+(Stdlib.Html.col [] []) |> nodeToString == "<col>"
 
-(Stdlib.Html.img []) |> nodeToString = "<img>"
+(Stdlib.Html.img []) |> nodeToString == "<img>"
 
-(Stdlib.Html.img [ ("src", Stdlib.Option.Option.Some "foo.png") ])
-|> nodeToString = "<img src=\"foo.png\">"
+(Stdlib.Html.img [ ("src", Stdlib.Option.Option.Some("foo.png")) ])
+|> nodeToString
+== "<img src=\"foo.png\">"
 
-(Stdlib.Html.svg [] []) |> nodeToString = "<svg></svg>"
-(Stdlib.Html.path []) |> nodeToString = "<path></path>"
+(Stdlib.Html.svg [] []) |> nodeToString == "<svg></svg>"
+(Stdlib.Html.path []) |> nodeToString == "<path></path>"
 
-(Stdlib.Html.i [] []) |> nodeToString = "<i></i>"
+(Stdlib.Html.i [] []) |> nodeToString == "<i></i>"
 
-(Stdlib.Html.meta [ ("charset", Stdlib.Option.Option.Some "UTF-8") ])
-|> nodeToString = "<meta charset=\"UTF-8\">"
+(Stdlib.Html.meta [ ("charset", Stdlib.Option.Option.Some("UTF-8")) ])
+|> nodeToString
+== "<meta charset=\"UTF-8\">"
 
 (Stdlib.Html.link
-  [ ("rel", Stdlib.Option.Option.Some "stylesheet")
-    ("href", Stdlib.Option.Option.Some "./style.css") ])
-|> nodeToString = "<link rel=\"stylesheet\" href=\"./style.css\">"
+  [ ("rel", Stdlib.Option.Option.Some("stylesheet"))
+    ("href", Stdlib.Option.Option.Some("./style.css")) ])
+|> nodeToString
+== "<link rel=\"stylesheet\" href=\"./style.css\">"
 
-(Stdlib.Html.script
-  [ ("src", Stdlib.Option.Option.Some "https://cdn.tailwindcss.com") ]
-  [])
-|> nodeToString = "<script src=\"https://cdn.tailwindcss.com\"></script>"
+(Stdlib.Html.script [ ("src", Stdlib.Option.Option.Some("https://cdn.tailwindcss.com")) ] [])
+|> nodeToString
+== "<script src=\"https://cdn.tailwindcss.com\"></script>"
 
-(Stdlib.Html.form [ ("id", Stdlib.Option.Option.Some "my-form") ] [])
-|> nodeToString = "<form id=\"my-form\"></form>"
+(Stdlib.Html.form [ ("id", Stdlib.Option.Option.Some("my-form")) ] [])
+|> nodeToString
+== "<form id=\"my-form\"></form>"
 
 (Stdlib.Html.input
-  [ ("type", Stdlib.Option.Option.Some "text")
-    ("name", Stdlib.Option.Option.Some "name")
-    ("id", Stdlib.Option.Option.Some "name") ])
-|> nodeToString = "<input type=\"text\" name=\"name\" id=\"name\">"
+  [ ("type", Stdlib.Option.Option.Some("text"))
+    ("name", Stdlib.Option.Option.Some("name"))
+    ("id", Stdlib.Option.Option.Some("name")) ])
+|> nodeToString
+== "<input type=\"text\" name=\"name\" id=\"name\">"
 
-(Stdlib.Html.label
-  [ ("for", Stdlib.Option.Option.Some "name") ]
-  [ stringNode "Name" ])
-|> nodeToString = "<label for=\"name\">Name</label>"
+(Stdlib.Html.label [ ("for", Stdlib.Option.Option.Some("name")) ] [ stringNode "Name" ])
+|> nodeToString
+== "<label for=\"name\">Name</label>"
 
-(Stdlib.Html.section [] []) |> nodeToString = "<section></section>"
+(Stdlib.Html.section [] []) |> nodeToString == "<section></section>"
 
 // code
-(Stdlib.Html.code [] []) |> nodeToString = "<code></code>"
-(Stdlib.Html.pre [] []) |> nodeToString = "<pre></pre>"
+(Stdlib.Html.code [] []) |> nodeToString == "<code></code>"
+(Stdlib.Html.pre [] []) |> nodeToString == "<pre></pre>"
 
-(Stdlib.Html.nav [] []) |> nodeToString = "<nav></nav>"
-(Stdlib.Html.footer [] []) |> nodeToString = "<footer></footer>"
+(Stdlib.Html.nav [] []) |> nodeToString == "<nav></nav>"
+(Stdlib.Html.footer [] []) |> nodeToString == "<footer></footer>"
 
 // -- test writing out a full document
 
 ([ Stdlib.Html.html
-     []
-     [ Stdlib.Html.head [] [ Stdlib.Html.title [] [ stringNode "Darklang.com" ] ]
-
-       Stdlib.Html.body [] [ Stdlib.Html.p [] [ stringNode "welcome to darklang" ] ] ] ]
- |> Stdlib.Html.document) = ("<!DOCTYPE html>
+    []
+    [ Stdlib.Html.head [] [ Stdlib.Html.title [] [ stringNode "Darklang.com" ] ]
+      Stdlib.Html.body [] [ Stdlib.Html.p [] [ stringNode "welcome to darklang" ] ] ]
+  ]
+ |> Stdlib.Html.document)
+== ("<!DOCTYPE html>
     <html>
       <head><title>Darklang.com</title></head>
       <body><p>welcome to darklang</p></body>
     </html>"
-                             |> tidyHtml)
+    |> tidyHtml)

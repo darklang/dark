@@ -1516,3 +1516,56 @@ module Internal =
           actual = fields |> D.field "actual" |> PT2DT.Expr.fromDT
           expected = fields |> D.field "expected" |> PT2DT.Expr.fromDT }
       | _ -> Exception.raiseInternal "Invalid Test" []
+
+
+  module TestModule =
+    type PTModule =
+      { name : List<string>
+        types : List<PT.PackageType.PackageType>
+        fns : List<PT.PackageFn.PackageFn>
+        constants : List<PT.PackageConstant.PackageConstant>
+        dbs : List<PT.DB.T>
+        tests : List<Test.PTTest> }
+
+    let fromDT (d : Dval) : List<PTModule> =
+      // TODO Parser: Recheck this (why having to match with a list of PTModule)
+      match d with
+      | DList(_, d)->
+        d
+        |> List.map (fun d ->
+          match d with
+          | DRecord(_, _, _, fields) ->
+            let types =
+              match Map.tryFind "types" fields with
+              | Some(DList(_, types)) -> types |> List.map PT2DT.PackageType.fromDT
+              | _ -> Exception.raiseInternal "missing types field" []
+
+            let constants =
+              match Map.tryFind "constants" fields with
+              | Some(DList(_, constants)) -> constants |> List.map PT2DT.PackageConstant.fromDT
+              | _ -> Exception.raiseInternal "missing constants field" []
+
+            let fns =
+              match Map.tryFind "fns" fields with
+              | Some(DList(_, fns)) -> fns |> List.map PT2DT.PackageFn.fromDT
+              | _ -> Exception.raiseInternal "missing fns field" []
+
+            let tests =
+              match Map.tryFind "tests" fields with
+              | Some(DList(_, tests)) -> tests |> List.map Test.fromDT
+              | _ -> Exception.raiseInternal "missing tests field" []
+
+            let dbs =
+              match Map.tryFind "dbs" fields with
+              | Some(DList(_, dbs)) -> dbs |> List.map PT2DT.DB.fromDT
+              | _ -> Exception.raiseInternal "missing dbs field" []
+
+            { name = fields |> D.stringListField "name"
+              types = types
+              fns = fns
+              constants = constants
+              dbs = dbs
+              tests = tests }
+
+          | _ -> Exception.raiseInternal "Invalid PTModule" [])
+      | _ -> Exception.raiseInternal "Invalid PTModule" []

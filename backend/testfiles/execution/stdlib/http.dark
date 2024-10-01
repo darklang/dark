@@ -18,12 +18,14 @@
 //   Stdlib.Http.setCookie "myCookie" "myVal" { Fake = "fake"} = Builtin.Test.runtimeError "Keys must be `Expires`, `Max-Age`, `Domain`, `Path`, `Secure`, `HttpOnly`, and/or `SameSite`, but one of the keys was Fake"
 
 
-Stdlib.Http.badRequest_v0 "Your request resulted in an error" = Stdlib.Http.Response
+Stdlib.Http.badRequest "Your request resulted in an error"
+== Stdlib.Http.Response
   { statusCode = 400L
     headers = []
     body = Stdlib.String.toBytes "Your request resulted in an error" }
 
-Stdlib.Http.response (Stdlib.String.toBytes "test") 200L = Stdlib.Http.Response
+Stdlib.Http.response (Stdlib.String.toBytes "test") 200L
+== Stdlib.Http.Response
   { statusCode = 200L
     headers = []
     body = Stdlib.String.toBytes "test" }
@@ -31,52 +33,50 @@ Stdlib.Http.response (Stdlib.String.toBytes "test") 200L = Stdlib.Http.Response
 Stdlib.Http.responseWithHeaders
   (Stdlib.String.toBytes "test")
   [ ("Content-Type", "text/html; charset=utf-8") ]
-  200L = Stdlib.Http.Response
+  200L
+== Stdlib.Http.Response
   { statusCode = 200L
     headers = [ ("Content-Type", "text/html; charset=utf-8") ]
     body = Stdlib.String.toBytes "test" }
 
-Stdlib.Http.notFound () = Stdlib.Http.response [] 404L
+Stdlib.Http.notFound () == Stdlib.Http.response [] 404L
 
-Stdlib.Http.unauthorized () = Stdlib.Http.response [] 401L
+Stdlib.Http.unauthorized () == Stdlib.Http.response [] 401L
 
-Stdlib.Http.forbidden () = Stdlib.Http.response [] 403L
+Stdlib.Http.forbidden () == Stdlib.Http.response [] 403L
 
-Stdlib.Http.success (Stdlib.String.toBytes "test") = Stdlib.Http.response
-  (Stdlib.String.toBytes "test")
-  200L
+Stdlib.Http.success (Stdlib.String.toBytes "test")
+== Stdlib.Http.response (Stdlib.String.toBytes "test") 200L
 
-Stdlib.Http.responseWithHtml "test" 200L = Stdlib.Http.responseWithHeaders
+Stdlib.Http.responseWithHtml "test" 200L
+== Stdlib.Http.responseWithHeaders
   (Stdlib.String.toBytes "test")
   [ ("Content-Type", "text/html; charset=utf-8") ]
   200L
 
-Stdlib.Http.responseWithText "test" 200L = Stdlib.Http.responseWithHeaders
+Stdlib.Http.responseWithText "test" 200L
+== Stdlib.Http.responseWithHeaders
   (Stdlib.String.toBytes "test")
   [ ("Content-Type", "text/plain; charset=utf-8") ]
   200L
 
-Stdlib.Http.responseWithJson "test" 200L = Stdlib.Http.responseWithHeaders
+Stdlib.Http.responseWithJson "test" 200L
+== Stdlib.Http.responseWithHeaders
   (Stdlib.String.toBytes "test")
   [ ("Content-Type", "application/json") ]
   200L
 
-(Stdlib.Http.redirectTo "") = Stdlib.Http.responseWithHeaders
-  []
-  [ ("Location", "") ]
-  302L
+(Stdlib.Http.redirectTo "")
+== Stdlib.Http.responseWithHeaders [] [ ("Location", "") ] 302L
 
-(Stdlib.Http.redirectTo "bad url") = Stdlib.Http.responseWithHeaders
-  []
-  [ ("Location", "bad url") ]
-  302L
+(Stdlib.Http.redirectTo "bad url")
+== Stdlib.Http.responseWithHeaders [] [ ("Location", "bad url") ] 302L
 
-(Stdlib.Http.redirectTo_v0 "http://someothersite.com") = Stdlib.Http.responseWithHeaders
+(Stdlib.Http.redirectTo "http://someothersite.com")
+== Stdlib.Http.responseWithHeaders
   []
   [ ("Location", "http://someothersite.com") ]
   302L
 
-(Stdlib.Http.redirectTo_v0 "/relativeUrl") = Stdlib.Http.responseWithHeaders
-  []
-  [ ("Location", "/relativeUrl") ]
-  302L
+(Stdlib.Http.redirectTo "/relativeUrl")
+== Stdlib.Http.responseWithHeaders [] [ ("Location", "/relativeUrl") ] 302L

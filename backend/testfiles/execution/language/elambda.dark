@@ -1,56 +1,74 @@
-Stdlib.List.push_v0 [] (fun x -> -4.611686018e+18) = [ (fun x -> -4.611686018e+18) ]
+// Stdlib.List.push [] (fun x -> -4.611686018e+18)
+// == [ (fun x -> -4.611686018e+18) ]
 
 // Test that empty parameters are removed
-(let y = (fun x ___ -> x + 1L) in Stdlib.List.map_v0 [ 1L; 2L; 3L; 4L ] y) = [ 2L
-                                                                               3L
-                                                                               4L
-                                                                               5L ]
+(let y = (fun x ___ -> x + 1L)
+ Stdlib.List.map [ 1L; 2L; 3L; 4L ] y)
+== [ 2L; 3L; 4L; 5L ]
 
-(let y = (fun x -> x + 1L) in Stdlib.List.map_v0 [ 1L; 2L; 3L; 4L ] y) = [ 2L
-                                                                           3L
-                                                                           4L
-                                                                           5L ]
+(let y = (fun x -> x + 1L)
+ Stdlib.List.map [ 1L; 2L; 3L; 4L ] y)
+== [ 2L; 3L; 4L; 5L ]
 
 (let y = (fun msg -> Builtin.testRuntimeError msg)
- Stdlib.List.map_v0 [ "1"; "2"; "3"; "4" ] y) = Builtin.testDerrorMessage "1"
+ Stdlib.List.map [ "1"; "2"; "3"; "4" ] y)
+== Builtin.testDerrorMessage "1"
 
-(let y = (fun msg -> Builtin.testRuntimeError msg) in Stdlib.List.map_v0 [] y) = []
+(let y = (fun msg -> Builtin.testRuntimeError msg)
+ Stdlib.List.map [] y)
+== []
 // (let y = (fun a b -> a + b) in y 2 3) = 5 // TODO: allow
-(let y = (fun a b -> a * b) in Stdlib.List.fold_v0 [ 1L; 2L; 3L; 4L ] 1L y) = 24L
+(let y = (fun a b -> a * b)
+ Stdlib.List.fold [ 1L; 2L; 3L; 4L ] 1L y)
+== 24L
 
-(Stdlib.List.fold_v0 [ 4L ] 1L (Builtin.testRuntimeError "test")) = Builtin.testDerrorMessage
-  "test"
+(Stdlib.List.fold [ 4L ] 1L (Builtin.testRuntimeError "test"))
+== Builtin.testDerrorMessage "test"
 
 (let x = 5L
  let y = (fun c -> x + c)
  let x = 6L
- [ 1L; 2L; 3L; 4L ] |> Stdlib.List.map_v0 y) = [ 6L; 7L; 8L; 9L ]
+ [ 1L; 2L; 3L; 4L ] |> Stdlib.List.map y)
+== [ 6L; 7L; 8L; 9L ]
 
-(Stdlib.String.join_v0
-  (Stdlib.List.map_v0 (Stdlib.String.toList "some string") (fun var ->
-    Stdlib.String.toUppercase (Stdlib.String.fromChar var)))
-  "") = "SOME STRING"
+(Stdlib.String.join
+  (Stdlib.List.map
+    (Stdlib.String.toList "some string")
+    (fun var -> Stdlib.String.toUppercase (Stdlib.String.fromChar var))
+  )
+  ""
+)
+== "SOME STRING"
 
 (let y = (fun c -> if c > 2L then Builtin.testRuntimeError "err" else 18L)
- [ 1L; 2L; 3L; 4L ] |> Stdlib.List.map_v0 y) = Builtin.testDerrorMessage "err"
+ [ 1L; 2L; 3L; 4L ] |> Stdlib.List.map y)
+== Builtin.testDerrorMessage "err"
 
 (let y = (fun c -> if c > 2L then Builtin.testRuntimeError "err" else 18L)
- [ 1L; 2L ] |> Stdlib.List.map_v0 y) = [ 18L; 18L ]
+ [ 1L; 2L ] |> Stdlib.List.map y)
+== [ 18L; 18L ]
 
-(let t = true in Stdlib.List.all [ 1L; 2L ] (fun _ -> t)) = true
-(let f = false in Stdlib.List.all [ 1L; 2L ] (fun _ -> f)) = false
+(let t = true
+ Stdlib.List.all [ 1L; 2L ] (fun _ -> t))
+== true
+
+(let f = false
+ Stdlib.List.all [ 1L; 2L ] (fun _ -> f))
+== false
 
 (let x = 1L
- let f = fun _ -> x
+ let f = (fun _ -> x)
  let x = 2L
- Stdlib.List.map [ 1L; 2L; 3L ] f) = [ 1L; 1L; 1L ]
+ Stdlib.List.map [ 1L; 2L; 3L ] f)
+== [ 1L; 1L; 1L ]
 
 
 (let pairs = [ (1L, "one"); (2L, "two"); (3L, "three") ]
 
  let transformer = fun (num, str) -> $"{Stdlib.Int64.toString num}:{str}"
 
- Stdlib.List.map_v0 pairs transformer) = [ "1:one"; "2:two"; "3:three" ]
+ Stdlib.List.map pairs transformer)
+== [ "1:one"; "2:two"; "3:three" ]
 
 (let triplets = [ (1L, "one", true); (2L, "two", false) ]
 
@@ -61,49 +79,55 @@ Stdlib.List.push_v0 [] (fun x -> -4.611686018e+18) = [ (fun x -> -4.611686018e+1
      else
        $"{Stdlib.Int64.toString num}:{str}:FALSE"
 
- Stdlib.List.map_v0 triplets transformer) = [ "1:one:TRUE"; "2:two:FALSE" ]
+ Stdlib.List.map triplets transformer)
+== [ "1:one:TRUE"; "2:two:FALSE" ]
 
 // nested
 (let sing = [ (("1"), "2"); (("3"), "4") ]
+ // CLEANUP Parser: reintroduce parens around str1 in the lambda_pats (lp_parens)
+ let transformer = (fun (str1, str2) -> str1 ++ str2)
+ Stdlib.List.map sing transformer)
+== [ "12"; "34" ]
 
- let transformer = fun ((str1), str2) -> str1 ++ str2
- Stdlib.List.map_v0 sing transformer) = [ "12"; "34" ]
 
 // TODO:
 // There is weird parser behavior for nested tuples with more than one member.
 // We will need to check the case with a new parser like the Treesitter.
 //
-// (let triplets = [ ((1, "one"), true); ((2,"two"), false) ]
+(let triplets = [ ((1L, "one"), true); ((2L, "two"), false) ]
 
-//  let transformer =
-//    fun ((num, str), flag) ->
-//      if flag then
-//        $"{Stdlib.Int64.toString num}:{str}:TRUE"
-//      else
-//        $"{Stdlib.Int64.toString num}:{str}:FALSE"
+ let transformer =
+   fun ((num, str), flag) ->
+     if flag then
+       $"{Stdlib.Int64.toString num}:{str}:TRUE"
+     else
+       $"{Stdlib.Int64.toString num}:{str}:FALSE"
 
-//  Stdlib.List.map_v0 triplets transformer) = [ "1:one:TRUE"
-//                                                                "2:two:FALSE" ]
+ Stdlib.List.map triplets transformer)
+== [ "1:one:TRUE"; "2:two:FALSE" ]
 
 (let triplets = [ (1L, "one", true); (2L, "two", false) ]
 
  let transformer = fun (num, str) -> $"{Stdlib.Int64.toString num}:{str}"
 
- Stdlib.List.map_v0 triplets transformer) = Builtin.testDerrorMessage
-  "Tuple pattern has wrong number of elements"
+ Stdlib.List.map triplets transformer)
+== Builtin.testDerrorMessage "Tuple pattern has wrong number of elements"
 
-Stdlib.Dict.map_v0
+(Stdlib.Dict.map
   (Dict
     { key1 = ("val11", "val12")
       key2 = ("val21", "val22") })
-  (fun x (y, z) -> x ++ y ++ z) = (Dict
+  (fun x (y, z) -> x ++ y ++ z)
+)
+== (Dict
   { key2 = "key2val21val22"
     key1 = "key1val11val12" })
 
-Stdlib.Dict.map_v0
+Stdlib.Dict.map
   (Dict
     { key1 = ("val11", "val12")
       key2 = ("val21", "val22") })
-  (fun x (_, z) -> x ++ z) = (Dict
+  (fun x (_, z) -> x ++ z)
+== (Dict
   { key2 = "key2val22"
     key1 = "key1val12" })

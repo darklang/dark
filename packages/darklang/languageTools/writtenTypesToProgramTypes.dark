@@ -366,7 +366,7 @@ module Darklang =
                 ProgramTypes.PipeExpr.EPipeFnCall(gid (), resolved, typeArgs, args)
               | Error _ ->
                 let name = name |> Stdlib.List.last |> Builtin.unwrap
-                ProgramTypes.PipeExpr.EPipeVariable(gid (), name, typeArgs)
+                ProgramTypes.PipeExpr.EPipeVariable(gid (), name, args)
 
 
         let toPT

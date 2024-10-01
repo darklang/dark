@@ -1,162 +1,157 @@
-Stdlib.UInt128.max_v0 5Z 6Z = 6Z
-Stdlib.UInt128.max_v0 10Z 1Z = 10Z
+Stdlib.UInt128.max 5Z 6Z == 6Z
+Stdlib.UInt128.max 10Z 1Z == 10Z
 
-Stdlib.UInt128.min_v0 5Z 6Z = 5Z
-Stdlib.UInt128.min_v0 10Z 10Z = 10Z
-Stdlib.UInt128.min_v0 340282366920938463463374607431768211455Z 0Z = 0Z
+Stdlib.UInt128.min 5Z 6Z == 5Z
+Stdlib.UInt128.min 10Z 10Z == 10Z
+Stdlib.UInt128.min 340282366920938463463374607431768211455Z 0Z == 0Z
 
-Stdlib.UInt128.clamp_v0 1Z 2Z 1Z = 1Z
-Stdlib.UInt128.clamp_v0 3Z 0Z 2Z = 2Z
-Stdlib.UInt128.clamp_v0 100Z 0Z 0Z = 0Z
-Stdlib.UInt128.clamp_v0 100Z 1Z 0Z = 1Z
+Stdlib.UInt128.clamp 1Z 2Z 1Z == 1Z
+Stdlib.UInt128.clamp 3Z 0Z 2Z == 2Z
+Stdlib.UInt128.clamp 100Z 0Z 0Z == 0Z
+Stdlib.UInt128.clamp 100Z 1Z 0Z == 1Z
 
 
-Stdlib.UInt128.add_v0 10Z 9Z = 19Z
-Stdlib.UInt128.add_v0 88Z 9Z = 97Z
-Stdlib.UInt128.add_v0 1Z 0Z = 1Z
-Stdlib.UInt128.add_v0 55Z 55Z = 110Z
-Stdlib.UInt128.add_v0 9223372036854775807Z 2Z = 9223372036854775809Z
+Stdlib.UInt128.add 10Z 9Z == 19Z
+Stdlib.UInt128.add 88Z 9Z == 97Z
+Stdlib.UInt128.add 1Z 0Z == 1Z
+Stdlib.UInt128.add 55Z 55Z == 110Z
+Stdlib.UInt128.add 9223372036854775807Z 2Z == 9223372036854775809Z
 
-Stdlib.UInt128.add_v0 170141183460469231731687303715884105726Z 4Z = 170141183460469231731687303715884105730Z
+Stdlib.UInt128.add 170141183460469231731687303715884105726Z 4Z == 170141183460469231731687303715884105730Z
 
-Stdlib.UInt128.add_v0 340282366920938463463374607431768211455Z 1Z = Builtin.testDerrorMessage
+Stdlib.UInt128.add 340282366920938463463374607431768211455Z 1Z == Builtin.testDerrorMessage
   "Out of range"
 
-Stdlib.UInt128.subtract_v0 10Z 9Z = 1Z
-Stdlib.UInt128.subtract_v0 88Z 9Z = 79Z
-Stdlib.UInt128.subtract_v0 1Z 0Z = 1Z
+Stdlib.UInt128.subtract 10Z 9Z == 1Z
+Stdlib.UInt128.subtract 88Z 9Z == 79Z
+Stdlib.UInt128.subtract 1Z 0Z == 1Z
 
-Stdlib.UInt128.multiply_v0 8Z 8Z = 64Z
-Stdlib.UInt128.multiply_v0 1Z 0Z = 0Z
+Stdlib.UInt128.multiply 8Z 8Z == 64Z
+Stdlib.UInt128.multiply 1Z 0Z == 0Z
 
-Stdlib.UInt128.multiply_v0 340282366920938463463374607431768211455Z 2Z = Builtin.testDerrorMessage
+Stdlib.UInt128.multiply 340282366920938463463374607431768211455Z 2Z == Builtin.testDerrorMessage
   "Out of range"
 
-Stdlib.UInt128.divide_v0 10Z 5Z = 2Z
-Stdlib.UInt128.divide_v0 17Z 3Z = 5Z
-Stdlib.UInt128.divide_v0 0Z 1Z = 0Z
+Stdlib.UInt128.divide 10Z 5Z == 2Z
+Stdlib.UInt128.divide 17Z 3Z == 5Z
+Stdlib.UInt128.divide 0Z 1Z == 0Z
 
-Stdlib.UInt128.divide_v0 1Z 0Z = Builtin.testDerrorMessage "Division by zero"
+Stdlib.UInt128.divide 1Z 0Z == Builtin.testDerrorMessage "Division by zero"
 
-Stdlib.UInt128.greaterThan_v0 20Z 1Z = true
+Stdlib.UInt128.greaterThan 20Z 1Z == true
 
-Stdlib.UInt128.greaterThan_v0 (20Z) (170141183460469231731687303715884105727Z) = false
+Stdlib.UInt128.greaterThan (20Z) (170141183460469231731687303715884105727Z) == false
 
-Stdlib.UInt128.greaterThanOrEqualTo_v0 0Z 1Z = false
-Stdlib.UInt128.greaterThanOrEqualTo_v0 1Z 0Z = true
-Stdlib.UInt128.greaterThanOrEqualTo_v0 6Z 1Z = true
-Stdlib.UInt128.greaterThanOrEqualTo_v0 6Z 8Z = false
+Stdlib.UInt128.greaterThanOrEqualTo 0Z 1Z == false
+Stdlib.UInt128.greaterThanOrEqualTo 1Z 0Z == true
+Stdlib.UInt128.greaterThanOrEqualTo 6Z 1Z == true
+Stdlib.UInt128.greaterThanOrEqualTo 6Z 8Z == false
 
-Stdlib.UInt128.lessThanOrEqualTo_v0 6Z 8Z = true
-Stdlib.UInt128.lessThanOrEqualTo_v0 10Z 1Z = false
-Stdlib.UInt128.lessThanOrEqualTo_v0 0Z 1Z = true
-Stdlib.UInt128.lessThanOrEqualTo_v0 1Z 0Z = false
+Stdlib.UInt128.lessThanOrEqualTo 6Z 8Z == true
+Stdlib.UInt128.lessThanOrEqualTo 10Z 1Z == false
+Stdlib.UInt128.lessThanOrEqualTo 0Z 1Z == true
+Stdlib.UInt128.lessThanOrEqualTo 1Z 0Z == false
 
-Stdlib.UInt128.lessThan_v0 6Z 8Z = true
-Stdlib.UInt128.lessThan_v0 10Z 1Z = false
-Stdlib.UInt128.lessThan_v0 0Z 1Z = true
-Stdlib.UInt128.lessThan_v0 1Z 0Z = false
+Stdlib.UInt128.lessThan 6Z 8Z == true
+Stdlib.UInt128.lessThan 10Z 1Z == false
+Stdlib.UInt128.lessThan 0Z 1Z == true
+Stdlib.UInt128.lessThan 1Z 0Z == false
 
-Stdlib.UInt128.toString 0Z = "0"
-Stdlib.UInt128.toString 1Z = "1"
-Stdlib.UInt128.toString 340282366920938463463374607431768211455Z = "340282366920938463463374607431768211455"
+Stdlib.UInt128.toString 0Z == "0"
+Stdlib.UInt128.toString 1Z == "1"
+Stdlib.UInt128.toString 340282366920938463463374607431768211455Z == "340282366920938463463374607431768211455"
 
-Stdlib.UInt128.toFloat_v0 2Z = 2.0
-Stdlib.UInt128.toFloat_v0 340282366920938463463374607431768211455Z = 340282366920938463463374607431768211455.0
+Stdlib.UInt128.toFloat 2Z == 2.0
+Stdlib.UInt128.toFloat 340282366920938463463374607431768211455Z == 340282366920938463463374607431768211455.0
 
-Stdlib.UInt128.sqrt_v0 4Z = 2.0
-Stdlib.UInt128.sqrt_v0 100Z = 10.0
-Stdlib.UInt128.sqrt_v0 86Z = 9.273618495495704
+Stdlib.UInt128.sqrt 4Z == 2.0
+Stdlib.UInt128.sqrt 100Z == 10.0
+Stdlib.UInt128.sqrt 86Z == 9.273618495495704
 
-Stdlib.UInt128.mod_v0 15Z 5Z = 0Z
-Stdlib.UInt128.mod_v0 15Z 6Z = 3Z
-Stdlib.UInt128.mod_v0 0Z 15Z = 0Z
-Stdlib.UInt128.mod_v0 127Z 3Z = 1Z
+Stdlib.UInt128.mod 15Z 5Z == 0Z
+Stdlib.UInt128.mod 15Z 6Z == 3Z
+Stdlib.UInt128.mod 0Z 15Z == 0Z
+Stdlib.UInt128.mod 127Z 3Z == 1Z
 
-Stdlib.UInt128.mod_v0 5Z 0Z = Builtin.testDerrorMessage "Zero modulus"
+Stdlib.UInt128.mod 5Z 0Z == Builtin.testDerrorMessage "Zero modulus"
 
-Stdlib.UInt128.parse_v0 "0" = Stdlib.Result.Result.Ok(0Z)
+Stdlib.UInt128.parse "0" == Stdlib.Result.Result.Ok(0Z)
 
-Stdlib.UInt128.parse_v0 "1" = Stdlib.Result.Result.Ok(1Z)
+Stdlib.UInt128.parse "1" == Stdlib.Result.Result.Ok(1Z)
 
-Stdlib.UInt128.parse_v0 " 1" = Stdlib.Result.Result.Ok(1Z)
+Stdlib.UInt128.parse " 1" == Stdlib.Result.Result.Ok(1Z)
 
-Stdlib.UInt128.parse_v0 "1 " = Stdlib.Result.Result.Ok(1Z)
+Stdlib.UInt128.parse "1 " == Stdlib.Result.Result.Ok(1Z)
 
-Stdlib.UInt128.parse_v0 "+1" = Stdlib.Result.Result.Ok(1Z)
+Stdlib.UInt128.parse "+1" == Stdlib.Result.Result.Ok(1Z)
 
-Stdlib.UInt128.parse_v0 " +1 " = Stdlib.Result.Result.Ok(1Z)
+Stdlib.UInt128.parse " +1 " == Stdlib.Result.Result.Ok(1Z)
 
-Stdlib.UInt128.parse_v0 "078" = Stdlib.Result.Result.Ok(78Z) // "octal" format ignored
+Stdlib.UInt128.parse "078" == Stdlib.Result.Result.Ok(78Z) // "octal" format ignored
 
-Stdlib.UInt128.parse_v0 "170141183460469231731687303715884105727" = PACKAGE
-  .Darklang
-  .Stdlib
-  .Result
-  .Result
-  .Ok(170141183460469231731687303715884105727Z)
+Stdlib.UInt128.parse "170141183460469231731687303715884105727"
+== PACKAGE.Darklang.Stdlib.Result.Result.Ok(170141183460469231731687303715884105727Z)
 
 
-Stdlib.UInt128.parse_v0 "170141183460469231731687303715884105729" = Stdlib.Result.Result.Ok
-  170141183460469231731687303715884105729Z
+Stdlib.UInt128.parse "170141183460469231731687303715884105729" == Stdlib.Result.Result.Ok(170141183460469231731687303715884105729Z)
 
-Stdlib.UInt128.parse_v0 "1 2 3" = Stdlib.Result.Result.Error
-  Stdlib.UInt128.ParseError.BadFormat
+Stdlib.UInt128.parse "1 2 3" == Stdlib.Result.Result.Error(
+  Stdlib.UInt128.ParseError.BadFormat)
 
-Stdlib.UInt128.parse_v0 "+ 1" = Stdlib.Result.Result.Error
-  Stdlib.UInt128.ParseError.BadFormat
+Stdlib.UInt128.parse "+ 1" == Stdlib.Result.Result.Error(
+  Stdlib.UInt128.ParseError.BadFormat)
 
-Stdlib.UInt128.parse_v0 "0xA" = Stdlib.Result.Result.Error
-  Stdlib.UInt128.ParseError.BadFormat
+Stdlib.UInt128.parse "0xA" == Stdlib.Result.Result.Error(
+  Stdlib.UInt128.ParseError.BadFormat)
 
-Stdlib.UInt128.parse_v0 "0x123" = Stdlib.Result.Result.Error
-  Stdlib.UInt128.ParseError.BadFormat
+Stdlib.UInt128.parse "0x123" == Stdlib.Result.Result.Error(
+  Stdlib.UInt128.ParseError.BadFormat)
 
-Stdlib.UInt128.parse_v0 "0b0100" = Stdlib.Result.Result.Error
-  Stdlib.UInt128.ParseError.BadFormat
+Stdlib.UInt128.parse "0b0100" == Stdlib.Result.Result.Error(
+  Stdlib.UInt128.ParseError.BadFormat)
 
-Stdlib.UInt128.parse_v0 "pi" = Stdlib.Result.Result.Error
-  Stdlib.UInt128.ParseError.BadFormat
+Stdlib.UInt128.parse "pi" == Stdlib.Result.Result.Error(
+  Stdlib.UInt128.ParseError.BadFormat)
 
-Stdlib.UInt128.parse_v0 "Stdlib.Math.pi" = Stdlib.Result.Result.Error
-  Stdlib.UInt128.ParseError.BadFormat
+Stdlib.UInt128.parse "Stdlib.Math.pi" == Stdlib.Result.Result.Error(
+  Stdlib.UInt128.ParseError.BadFormat)
 
-Stdlib.UInt128.parse_v0 "1.23E+04" = Stdlib.Result.Result.Error
-  Stdlib.UInt128.ParseError.BadFormat
+Stdlib.UInt128.parse "1.23E+04" == Stdlib.Result.Result.Error(
+  Stdlib.UInt128.ParseError.BadFormat)
 
-Stdlib.UInt128.parse_v0 "" = Stdlib.Result.Result.Error
-  Stdlib.UInt128.ParseError.BadFormat
+Stdlib.UInt128.parse "" == Stdlib.Result.Result.Error(
+  Stdlib.UInt128.ParseError.BadFormat)
 
-Stdlib.UInt128.parse_v0 "1I" = Stdlib.Result.Result.Error
-  Stdlib.UInt128.ParseError.BadFormat
+Stdlib.UInt128.parse "1I" == Stdlib.Result.Result.Error(
+  Stdlib.UInt128.ParseError.BadFormat)
 
-Stdlib.UInt128.parse_v0 "one" = Stdlib.Result.Result.Error
-  Stdlib.UInt128.ParseError.BadFormat
+Stdlib.UInt128.parse "one" == Stdlib.Result.Result.Error(
+  Stdlib.UInt128.ParseError.BadFormat)
 
-Stdlib.UInt128.parse_v0 "XIV" = Stdlib.Result.Result.Error
-  Stdlib.UInt128.ParseError.BadFormat
+Stdlib.UInt128.parse "XIV" == Stdlib.Result.Result.Error(
+  Stdlib.UInt128.ParseError.BadFormat)
 
 
-Stdlib.UInt128.fromUInt8_v0 0uy = 0Z
+Stdlib.UInt128.fromUInt8 0uy == 0Z
 
-Stdlib.UInt128.fromUInt8_v0 1uy = 1Z
+Stdlib.UInt128.fromUInt8 1uy == 1Z
 
-Stdlib.UInt128.fromUInt8_v0 255uy = 255Z
+Stdlib.UInt128.fromUInt8 255uy == 255Z
 
-Stdlib.UInt128.fromUInt16_v0 0us = 0Z
+Stdlib.UInt128.fromUInt16 0us == 0Z
 
-Stdlib.UInt128.fromUInt16_v0 1us = 1Z
+Stdlib.UInt128.fromUInt16 1us == 1Z
 
-Stdlib.UInt128.fromUInt16_v0 65535us = 65535Z
+Stdlib.UInt128.fromUInt16 65535us == 65535Z
 
-Stdlib.UInt128.fromUInt32_v0 0ul = 0Z
+Stdlib.UInt128.fromUInt32 0ul == 0Z
 
-Stdlib.UInt128.fromUInt32_v0 1ul = 1Z
+Stdlib.UInt128.fromUInt32 1ul == 1Z
 
-Stdlib.UInt128.fromUInt32_v0 4294967295ul = 4294967295Z
+Stdlib.UInt128.fromUInt32 4294967295ul == 4294967295Z
 
-Stdlib.UInt128.fromUInt64_v0 0UL = 0Z
+Stdlib.UInt128.fromUInt64 0UL == 0Z
 
-Stdlib.UInt128.fromUInt64_v0 1UL = 1Z
+Stdlib.UInt128.fromUInt64 1UL == 1Z
 
-Stdlib.UInt128.fromUInt64_v0 18446744073709551615UL = 18446744073709551615Z
+Stdlib.UInt128.fromUInt64 18446744073709551615UL == 18446744073709551615Z

@@ -1,46 +1,49 @@
 module BigTestCase =
   (let str = "a string to be used as the test case"
-   let bytes = Stdlib.String.toBytes_v0 str
-   let base64Encode = Stdlib.Base64.urlEncode_v0 bytes
-   let hexEncode = Stdlib.Bytes.hexEncode_v0 bytes
+   let bytes = Stdlib.String.toBytes str
+   let base64Encode = Stdlib.Base64.urlEncode bytes
+   let hexEncode = Stdlib.Bytes.hexEncode bytes
    let sl = Stdlib.String.length str
    let bl = Stdlib.List.length bytes
    let t = true
    let f = false
 
-   let r = (Stdlib.Bool.xor_v0 t f) |> Stdlib.Bool.not_v0
+   let r = (Stdlib.Bool.xor t f) |> Stdlib.Bool.not
 
    let d0 = 1234567.987654
 
    let d1 =
-     d0
-     |> Stdlib.Float.power_v0 2.1
-     |> Stdlib.Float.add_v0 1.0
-     |> Stdlib.Float.sqrt_v0
+    d0
+    |> Stdlib.Float.power 2.1
+    |> Stdlib.Float.add 1.0
+    |> Stdlib.Float.sqrt
 
-   let reverse = Stdlib.String.reverse_v0 str
-   let contains = Stdlib.String.contains_v0 "a string" str
+   let reverse = Stdlib.String.reverse str
+   let contains = Stdlib.String.contains "a string" str
 
-   let uuid = Stdlib.Uuid.parse_v0 "9c59ba07-1e20-4ce2-a2de-6a95391d67b2"
+   let uuid = Stdlib.Uuid.parse "9c59ba07-1e20-4ce2-a2de-6a95391d67b2"
 
-   str
-   |> (++) "\nbase64Encode: "
-   |> (++) base64Encode
-   |> (++) "\nhex64Encode: "
-   |> (++) hexEncode
-   |> (++) "\nstring length: "
-   |> (++) (Stdlib.Int64.toString_v0 sl)
-   |> (++) "\nbytes length: "
-   |> (++) (Stdlib.Int64.toString_v0 bl)
-   |> (++) "\nbool: "
-   |> (++) (Stdlib.Bool.toString_v0 r)
-   |> (++) "\nfloat: "
-   |> (++) (Stdlib.Float.toString_v0 d0)
-   |> (++) "\nanother double: "
-   |> (++) (Stdlib.Float.toString_v0 d1)
-   |> (++) "\nstring reverse: "
-   |> (++) reverse
-   |> (++) "\nstring contains: "
-   |> (++) (Stdlib.Bool.toString_v0 contains)
-   |> (++) "\nuuid: "
-   |> (++) (Stdlib.Uuid.toString_v0 (Builtin.unwrap uuid))) = "a string to be used as the test case\nbase64Encode: YSBzdHJpbmcgdG8gYmUgdXNlZCBhcyB0aGUgdGVzdCBjYXNl\nhex64Encode: 6120737472696E6720746F20626520757365642061732074686520746573742063617365\nstring length: 36\nbytes length: 36\nbool: false\nfloat: 1234567.98765\nanother double: 2489377.51259\nstring reverse: esac tset eht sa desu eb ot gnirts a\nstring contains: false\nuuid: 9c59ba07-1e20-4ce2-a2de-6a95391d67b2"
+  // CLEANUP parser: we shouldn't have to remove the space we had
+  str
+  |> (++) "\nbase64Encode: "
+  |> (++) base64Encode
+  |> (++) "\nhex64Encode: "
+  |> (++) hexEncode
+  |> (++) "\nstring length: "
+  |> (++) (Stdlib.Int64.toString sl)
+  |> (++) "\nbytes length: "
+  |> (++) (Stdlib.Int64.toString bl)
+  |> (++) "\nbool: "
+  |> (++) (Stdlib.Bool.toString r)
+  |> (++) "\nfloat: "
+  |> (++) (Stdlib.Float.toString d0)
+  |> (++) "\nanother double: "
+  |> (++) (Stdlib.Float.toString d1)
+  |> (++) "\nstring reverse: "
+  |> (++) reverse
+  |> (++) "\nstring contains: "
+  |> (++) (Stdlib.Bool.toString contains)
+  |> (++) "\nuuid: "
+  |> (++) (Stdlib.Uuid.toString (Builtin.unwrap uuid))
+  )
+  == "a string to be used as the test case\nbase64Encode: YSBzdHJpbmcgdG8gYmUgdXNlZCBhcyB0aGUgdGVzdCBjYXNl\nhex64Encode: 6120737472696E6720746F20626520757365642061732074686520746573742063617365\nstring length: 36\nbytes length: 36\nbool: false\nfloat: 1234567.98765\nanother double: 2489377.51259\nstring reverse: esac tset eht sa desu eb ot gnirts a\nstring contains: false\nuuid: 9c59ba07-1e20-4ce2-a2de-6a95391d67b2"

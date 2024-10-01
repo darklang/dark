@@ -1,35 +1,35 @@
-(if true then "correct" else 0L) = "correct"
+(if true then "correct" else 0L) == "correct"
 
-(if true then Builtin.testRuntimeError "a" else 0L) = Builtin.testDerrorMessage "a"
+(if true then Builtin.testRuntimeError "a" else 0L) == (Builtin.testDerrorMessage "a")
 
-(if false then 0L else Builtin.testRuntimeError "a") = Builtin.testDerrorMessage "a"
+(if false then 0L else Builtin.testRuntimeError "a") == (Builtin.testDerrorMessage "a")
 
-(if false then Builtin.testRuntimeError "a" else 0L) = 0L
-(if true then 0L else Builtin.testRuntimeError "a") = 0L
-(if false then "" else "correct") = "correct"
-(if () then "" else "") = Builtin.testDerrorMessage "If only supports Booleans"
+(if false then Builtin.testRuntimeError "a" else 0L) == 0L
+(if true then 0L else Builtin.testRuntimeError "a") == 0L
+(if false then "" else "correct") == "correct"
+(if () then "" else "") == (Builtin.testDerrorMessage "If only supports Booleans")
 
-(if Builtin.testRuntimeError "msg" then "" else "") = Builtin.testDerrorMessage "msg"
+(if Builtin.testRuntimeError "msg" then "" else "") == Builtin.testDerrorMessage "msg"
 
-(if 5L then "" else "") = Builtin.testDerrorMessage "If only supports Booleans"
+(if 5L then "" else "") == (Builtin.testDerrorMessage "If only supports Booleans")
 
 (if true then
-   ()) = ()
+   ()) == ()
 
 (if 1L > 3L then
-   4L) = ()
+   4L) == ()
 
 (if 1L < 3L then
-   4L) = 4L
+   4L) == 4L
 
 (if 1L < 3L then
-   "msg") = "msg"
+   "msg") == "msg"
 
 (if () then
-   "msg") = Builtin.testDerrorMessage "If only supports Booleans"
+   "msg") == (Builtin.testDerrorMessage "If only supports Booleans")
 
 (if true then
-   Builtin.testRuntimeError "a") = Builtin.testDerrorMessage "a"
+   Builtin.testRuntimeError "a") == (Builtin.testDerrorMessage "a")
 
 (if Builtin.testRuntimeError "msg" then
-   "") = Builtin.testDerrorMessage "msg"
+   "") == (Builtin.testDerrorMessage "msg")

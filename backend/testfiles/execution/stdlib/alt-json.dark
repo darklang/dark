@@ -20,34 +20,34 @@ let format (json: Json) : String = Stdlib.AltJson.format json
 
 
 let parsedOk (json: Json) : Stdlib.Result.Result<Json, ParseError> =
-  Stdlib.Result.Result.Ok json
+  Stdlib.Result.Result.Ok(json)
 
 let parseError (err: ParseError) : Stdlib.Result.Result<Json, ParseError> =
-  Stdlib.Result.Result.Error err
+  Stdlib.Result.Result.Error(err)
 // </helpers>
 
 // tests
 module Null =
-  format Json.Null = "null"
-  parse "null" = parsedOk Json.Null
+  (format Json.Null()) == "null"
+  (parse "null") == (parsedOk Json.Null())
 
-  parse "NULL" = parseError ParseError.NotJson
-  parse "Null" = parseError ParseError.NotJson
-  parse "unit" = parseError ParseError.NotJson
-  parse "()" = parseError ParseError.NotJson
-  parse "" = parseError ParseError.NotJson
+  (parse "NULL") == (parseError ParseError.NotJson())
+  (parse "Null") == (parseError ParseError.NotJson())
+  (parse "unit") == (parseError ParseError.NotJson())
+  (parse "()") == (parseError ParseError.NotJson())
+  (parse "") == (parseError ParseError.NotJson())
 
 
 module Bool =
-  format (Json.Bool true) = "true"
-  format (Json.Bool false) = "false"
-  parse "true" = parsedOk (Json.Bool true)
-  parse "false" = parsedOk (Json.Bool false)
+  (format Json.Bool(true)) == "true"
+  (format Json.Bool(false)) == "false"
+  (parse "true") == (parsedOk Json.Bool(true))
+  (parse "false") == (parsedOk Json.Bool(false))
 
-  parse "False" = parseError ParseError.NotJson
-  parse "f" = parseError ParseError.NotJson
-  parse "True" = parseError ParseError.NotJson
-  parse "t" = parseError ParseError.NotJson
+  (parse "False") == (parseError ParseError.NotJson())
+  (parse "f") == (parseError ParseError.NotJson())
+  (parse "True") == (parseError ParseError.NotJson())
+  (parse "t") == (parseError ParseError.NotJson())
 
 
 module Number =
@@ -56,29 +56,28 @@ module Number =
   // - NaN
   // - huge numbers (esp at Float's limits)
   // - other notation
-  format (Json.Number 0.0) = "0" // TODO: any reason we need to make this `0.0`?
-  parse "0" = parsedOk (Json.Number 0.0)
+  (format Json.Number(0.0)) == "0" // TODO: any reason we need to make this `0.0`?
+  (parse "0") == (parsedOk Json.Number(0.0))
 
-  format (Json.Number 0.1) = "0.1"
-  parse "0.1" = parsedOk (Json.Number 0.1)
+  (format Json.Number(0.1)) == "0.1"
+  (parse "0.1") == (parsedOk Json.Number(0.1))
 
-  format (Json.Number -1.0) = "-1"
-  parse "-1" = parsedOk (Json.Number -1.0)
+  (format Json.Number(-1.0)) == "-1"
+  (parse "-1") == (parsedOk Json.Number(-1.0))
 
-  format (Json.Number -1337.0) = "-1337"
-  parse "-1337" = parsedOk (Json.Number -1337.0)
-
+  (format Json.Number(-1337.0)) == "-1337"
+  (parse "-1337") == (parsedOk Json.Number(-1337.0))
 
 
 module String =
   // TODO:
   // - strings with quotes in them
   // - ' instead of "
-  format (Json.String "hi") = "\"hi\""
-  parse "\"hi\"" = parsedOk (Json.String "hi")
+  (format Json.String("hi")) == "\"hi\""
+  (parse "\"hi\"") == (parsedOk Json.String("hi"))
 
-  parse "hi" = parseError ParseError.NotJson
-  parse "\'hi\'" = parseError ParseError.NotJson
+  (parse "hi") == (parseError ParseError.NotJson())
+  (parse "\'hi\'") == (parseError ParseError.NotJson())
 
 
 module Array =
@@ -86,107 +85,112 @@ module Array =
   // - huge arrays
 
   // empty
-  format (Json.Array []) = "[]"
-  parse "[]" = parsedOk (Json.Array [])
+  (format Json.Array([])) == "[]"
+  (parse "[]") == (parsedOk Json.Array([]))
 
   // simple single null
-  format (Json.Array [ Json.Null ]) = "[null]"
-  parse "[ null ]" = parsedOk (Json.Array [ Json.Null ])
+  (format Json.Array([ Json.Null() ])) == "[null]"
+  (parse "[ null ]") == (parsedOk Json.Array([ Json.Null() ]))
 
   // first fibonnaci numbers
-  format (
+  (format
     Json.Array
-      [ Json.Number 0.0
-        Json.Number 1.0
-        Json.Number 1.0
-        Json.Number 2.0
-        Json.Number 3.0
-        Json.Number 5.0
-        Json.Number 8.0
-        Json.Number 13.0
-        Json.Number 21.0
-        Json.Number 34.0 ]
-  ) = "[0,1,1,2,3,5,8,13,21,34]"
+      ([  Json.Number(0.0)
+          Json.Number(1.0)
+          Json.Number(1.0)
+          Json.Number(2.0)
+          Json.Number(3.0)
+          Json.Number(5.0)
+          Json.Number(8.0)
+          Json.Number(13.0)
+          Json.Number(21.0)
+          Json.Number(34.0) ])
+  ) == "[0,1,1,2,3,5,8,13,21,34]"
 
-  parse "[0, 1, 1, 2, 3, 5, 8, 13, 21, 34]" = parsedOk (
-    Json.Array
-      [ Json.Number 0.0
-        Json.Number 1.0
-        Json.Number 1.0
-        Json.Number 2.0
-        Json.Number 3.0
-        Json.Number 5.0
-        Json.Number 8.0
-        Json.Number 13.0
-        Json.Number 21.0
-        Json.Number 34.0 ]
+  (parse "[0, 1, 1, 2, 3, 5, 8, 13, 21, 34]") == (parsedOk
+    Json.Array(
+      [ Json.Number(0.0)
+        Json.Number(1.0)
+        Json.Number(1.0)
+        Json.Number(2.0)
+        Json.Number(3.0)
+        Json.Number(5.0)
+        Json.Number(8.0)
+        Json.Number(13.0)
+        Json.Number(21.0)
+        Json.Number(34.0) ]
+    )
   )
 
   // nested arrays
-  parse
+  (parse
     """
       [ [1, 2, 3],
         [4, 5, 6],
-        [7, 8, 9] ]""" = parsedOk (
-    Json.Array
-      [ Json.Array [ Json.Number 1.0; Json.Number 2.0; Json.Number 3.0 ]
-        Json.Array [ Json.Number 4.0; Json.Number 5.0; Json.Number 6.0 ]
-        Json.Array [ Json.Number 7.0; Json.Number 8.0; Json.Number 9.0 ] ]
+        [7, 8, 9] ]""")
+  ==
+  (parsedOk
+    Json.Array(
+      [ Json.Array([ Json.Number(1.0); Json.Number(2.0); Json.Number(3.0) ])
+        Json.Array([ Json.Number(4.0); Json.Number(5.0); Json.Number(6.0) ])
+        Json.Array([ Json.Number(7.0); Json.Number(8.0); Json.Number(9.0) ]) ]
+    )
   )
 
-  format (
-    Json.Array
-      [ Json.Array [ Json.Number 1.0; Json.Number 2.0; Json.Number 3.0 ]
-        Json.Array [ Json.Number 4.0; Json.Number 5.0; Json.Number 6.0 ]
-        Json.Array [ Json.Number 7.0; Json.Number 8.0; Json.Number 9.0 ] ]
-  ) = "[[1,2,3],[4,5,6],[7,8,9]]"
+
+  (format
+    Json.Array(
+      [ Json.Array([ Json.Number(1.0); Json.Number(2.0); Json.Number(3.0) ])
+        Json.Array([ Json.Number(4.0); Json.Number(5.0); Json.Number(6.0) ])
+        Json.Array([ Json.Number(7.0); Json.Number(8.0); Json.Number(9.0) ]) ]
+    )
+  ) == "[[1,2,3],[4,5,6],[7,8,9]]"
 
 
   // mixed types
-  format (Json.Array [ Json.Null; Json.Number 1.2 ]) = "[null,1.2]"
+  (format Json.Array([ Json.Null(); Json.Number(1.2) ])) == "[null,1.2]"
 
-  parse "[ null, 1.2 ]" = parsedOk (Json.Array [ Json.Null; Json.Number 1.2 ])
-
+  (parse "[ null, 1.2 ]") == (parsedOk Json.Array([ Json.Null(); Json.Number(1.2) ]))
 
 
 module Object =
   // blank
-  format (Json.Object []) = """{}"""
-  parse """{}""" = parsedOk (Json.Object [])
+  (format Json.Object([])) == """{}"""
+  (parse """{}""") == (parsedOk Json.Object([]))
 
 
   // single name
-  format (Json.Object [ ("n", Json.Null) ]) = """{"n":null}"""
+  (format Json.Object([ ("n", Json.Null()) ])) == """{"n":null}"""
 
-  parse """{ "n": null }""" = parsedOk (Json.Object[("n", Json.Null)])
+  (parse """{ "n": null }""") == (parsedOk Json.Object([ ("n", Json.Null()) ]))
 
 
   // dupe name
-  parse """{ "n": null, "n": 1 }""" = parsedOk (
-    Json.Object [ ("n", Json.Null); ("n", Json.Number 1.0) ]
-  )
+  (parse """{ "n": null, "n": 1 }""")
+  == (parsedOk Json.Object([ ("n", Json.Null()); ("n", Json.Number(1.0)) ]))
 
-  format (Json.Object [ ("n", Json.Null); ("n", Json.Number 1.0) ]) = """{"n":null,"n":1}"""
+  (format Json.Object([ ("n", Json.Null()); ("n", Json.Number(1.0)) ]))
+  == """{"n":null,"n":1}"""
 
 
   // blank name
-  format (Json.Object [ ("", Json.Null) ]) = """{"":null}"""
+  (format Json.Object([ ("", Json.Null()) ])) == """{"":null}"""
 
-  parse """{ "": null }""" = parsedOk (Json.Object[("", Json.Null)])
+  (parse """{ "": null }""") == (parsedOk Json.Object([ ("", Json.Null()) ]))
 
   // name with newline
   // TODO not sure what's right here
-  //format (Json.Object [ ("a\nb", Json.Null) ]) = "{\"a\nb\": null}"
-  // parse  "{\"a\nb\": null}" = parsedOk (Json.Object [ ("a\nb", Json.Null) ])
+  // format (Json.Object([ ("a\nb", Json.Null()) ])) == "{\"a\nb\": null}"
+  // parse "{\"a\nb\": null}" == parsedOk (Json.Object([ ("a\nb", Json.Null()) ]))
 
   module Errors =
     // names must be strings
-    parse """{ 1: 1}""" = parseError ParseError.NotJson
+    (parse """{ 1: 1}""") == (parseError ParseError.NotJson())
 
-    parse """{ null: 1}""" = parseError ParseError.NotJson
+    (parse """{ null: 1}""") == (parseError ParseError.NotJson())
 
     // names must be in quotes
-    parse """{ invalidName: 1}""" = parseError ParseError.NotJson
+    (parse """{ invalidName: 1}""") == (parseError ParseError.NotJson())
 
     // ..._double_ quotes
-    parse """{ 'invalidName': 1}""" = parseError ParseError.NotJson
+    (parse """{ 'invalidName': 1}""") == (parseError ParseError.NotJson())

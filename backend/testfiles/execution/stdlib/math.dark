@@ -1,57 +1,56 @@
-Stdlib.Math.acos_v0 -1.0 = Stdlib.Option.Option.Some 3.14159265359
+Stdlib.Math.acos -1.0 == Stdlib.Option.Option.Some(3.14159265359)
 
-Stdlib.Math.acos_v0 1.0 = Stdlib.Option.Option.Some 0.0
+Stdlib.Math.acos 1.0 == Stdlib.Option.Option.Some(0.0)
 
-Stdlib.Math.acos_v0 5.0 = Stdlib.Option.Option.None
+Stdlib.Math.acos 5.0 == Stdlib.Option.Option.None()
 
-Stdlib.Math.asin_v0 0.0 = Stdlib.Option.Option.Some 0.0
+Stdlib.Math.asin 0.0 == Stdlib.Option.Option.Some(0.0)
 
-Stdlib.Math.asin_v0 1.0 = Stdlib.Option.Option.Some 1.57079632679
+Stdlib.Math.asin 1.0 == Stdlib.Option.Option.Some(1.57079632679)
 
-Stdlib.Math.asin_v0 5.0 = Stdlib.Option.Option.None
+Stdlib.Math.asin 5.0 == Stdlib.Option.Option.None()
 
-Stdlib.Math.atan_v0 0.0 = 0.0
-Stdlib.Math.atan_v0 1.0 = 0.785398163397
+Stdlib.Math.atan 0.0 == 0.0
+Stdlib.Math.atan 1.0 == 0.785398163397
 
-Stdlib.Math.atan2_v0 -1.0 -1.0 = -2.35619449019
-Stdlib.Math.atan2_v0 -1.0 1.0 = -0.785398163397
-Stdlib.Math.atan2_v0 0.0 1.0 = 0.0
-Stdlib.Math.atan2_v0 1.0 -1.0 = 2.35619449019
-Stdlib.Math.atan2_v0 1.0 1.0 = 0.785398163397
+Stdlib.Math.atan2 -1.0 -1.0 == -2.35619449019
+Stdlib.Math.atan2 -1.0 1.0 == -0.785398163397
+Stdlib.Math.atan2 0.0 1.0 == 0.0
+Stdlib.Math.atan2 1.0 -1.0 == 2.35619449019
+Stdlib.Math.atan2 1.0 1.0 == 0.785398163397
 
-Stdlib.Math.cos_v0 0.0 = 1.0
-Stdlib.Math.cos_v0 Stdlib.Math.pi = -1.0
+Stdlib.Math.cos 0.0 == 1.0
+Stdlib.Math.cos Stdlib.Math.pi == -1.0
 
-Stdlib.Math.cosh_v0 0.0 = 1.0
+Stdlib.Math.cosh 0.0 == 1.0
 
-Stdlib.Math.degrees_v0 -180.0 = Stdlib.Float.negate_v0 Stdlib.Math.pi
+Stdlib.Math.degrees -180.0 == Stdlib.Float.negate Stdlib.Math.pi
 
-Stdlib.Math.degrees_v0 360.0 = Stdlib.Float.multiply_v0 2.0 Stdlib.Math.pi
+Stdlib.Math.degrees 360.0 == Stdlib.Float.multiply 2.0 Stdlib.Math.pi
 
-Stdlib.Math.pi = 3.14159265359
+Stdlib.Math.pi == 3.14159265359
 
-Stdlib.Math.radians_v0 (Stdlib.Float.negate_v0 3.141592653589793) = Stdlib.Float.negate_v0
-  Stdlib.Math.pi
+Stdlib.Math.radians (Stdlib.Float.negate 3.141592653589793)
+== Stdlib.Float.negate Stdlib.Math.pi
 
-Stdlib.Math.radians_v0 6.283185307179586 = Stdlib.Float.multiply_v0
-  2.0
-  Stdlib.Math.pi
+Stdlib.Math.radians 6.283185307179586
+== Stdlib.Float.multiply 2.0 Stdlib.Math.pi
 
-Stdlib.Math.sin_v0 (Stdlib.Float.divide_v0 Stdlib.Math.pi 2.0) = 1.0
+Stdlib.Math.sin (Stdlib.Float.divide Stdlib.Math.pi 2.0) == 1.0
 
-Stdlib.Math.sin_v0 0.0 = 0.0
+Stdlib.Math.sin 0.0 == 0.0
 
-Stdlib.Math.sinh_v0 0.0 = 0.0
-Stdlib.Math.sinh_v0 1.0 = 1.17520119364
+Stdlib.Math.sinh 0.0 == 0.0
+Stdlib.Math.sinh 1.0 == 1.17520119364
 
-Stdlib.Math.tan_v0 (Stdlib.Float.divide_v0 Stdlib.Math.pi 4.0) = 1.0
+Stdlib.Math.tan (Stdlib.Float.divide Stdlib.Math.pi 4.0) == 1.0
 
-Stdlib.Math.tan_v0 0.0 = 0.0
-Stdlib.Math.tanh_v0 0.0 = 0.0
+Stdlib.Math.tan 0.0 == 0.0
+Stdlib.Math.tanh 0.0 == 0.0
 
-Stdlib.Math.tau = Stdlib.Float.multiply_v0 2.0 Stdlib.Math.pi
+Stdlib.Math.tau == Stdlib.Float.multiply 2.0 Stdlib.Math.pi
 
-Stdlib.Math.turns_v0 (Stdlib.Float.negate_v0 0.5) = Stdlib.Float.negate_v0
-  Stdlib.Math.pi
+Stdlib.Math.turns (Stdlib.Float.negate 0.5)
+== Stdlib.Float.negate Stdlib.Math.pi
 
-Stdlib.Math.turns_v0 1.0 = Stdlib.Float.multiply_v0 2.0 Stdlib.Math.pi
+Stdlib.Math.turns 1.0 == Stdlib.Float.multiply 2.0 Stdlib.Math.pi
