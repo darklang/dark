@@ -675,21 +675,23 @@ module Expr =
       let casesAfterFirstPhase : List<MatchCase.IntermediateValue> =
         cases
         |> List.map (fun c ->
-          let (pat, symbols, rcAfterPat) =
+          let (pat, patSymbols, rcAfterPat) =
             MatchPattern.toRT Map.empty rcAfterResultIsReserved c.pat
+
+          let mergedSymbols = Map.mergeFavoringRight symbols patSymbols
 
           // compile the `when` condition, if it exists, as much as we can
           let rcAfterWhenCond, whenCondInstrs, whenCondJump =
             match c.whenCondition with
             | None -> (rcAfterPat, [], None)
             | Some whenCond ->
-              let whenCond = toRT symbols rcAfterPat whenCond
+              let whenCond = toRT mergedSymbols rcAfterPat whenCond
               (whenCond.registerCount,
                whenCond.instructions,
                Some(fun jumpBy -> RT.JumpByIfFalse(jumpBy, whenCond.resultIn)))
 
           // compile the `rhs` of the case
-          let rhs = toRT symbols rcAfterWhenCond c.rhs
+          let rhs = toRT mergedSymbols rcAfterWhenCond c.rhs
 
           // return the intermediate results, as far along as they are
           { matchValueInstrFn =
@@ -872,7 +874,7 @@ module Expr =
           ([], Map.empty, 0)
 
       let (registersToCloseOver,
-           symbolsOfNewFrameAfterOnesOnlyUsedInBoty,
+           symbolsOfNewFrameAfterOnesOnlyUsedInBody,
            rcOfNewFrame) : (List<RT.Register * RT.Register> * Map<string, int> * int) =
         symbolsUsedInBodyNotDefinedInPats
         |> Set.toList
@@ -887,7 +889,7 @@ module Expr =
           patterns = pats |> NEList.ofListUnsafe "" []
           registersToCloseOver = registersToCloseOver
           instructions =
-            toRT symbolsOfNewFrameAfterOnesOnlyUsedInBoty rcOfNewFrame body }
+            toRT symbolsOfNewFrameAfterOnesOnlyUsedInBody rcOfNewFrame body }
 
       { registerCount = rc + 1
         instructions = [ RT.CreateLambda(rc, impl) ]

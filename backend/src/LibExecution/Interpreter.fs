@@ -185,8 +185,14 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
 
         | Lambda(parentContext, lambdaID) ->
           let lambda =
-            Map.findUnsafe (parentContext, lambdaID) vm.lambdaInstrCache
+            (match Map.tryFind (parentContext, lambdaID) vm.lambdaInstrCache with
+             | Some l -> l
+             | None ->
+               match Map.tryFind (Source, lambdaID) vm.lambdaInstrCache with
+               | Some l -> l
+               | None -> raiseRTE (RTE.VariableNotFound "lambda not found")) // TODO better error
             |> _.instructions
+
           { instructions = List.toArray lambda.instructions
             resultReg = lambda.resultIn }
           |> Ply
@@ -425,7 +431,10 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
 
         | CreateLambda(lambdaReg, impl) ->
           vm.lambdaInstrCache <-
-            Map.add (currentFrame.context, impl.exprId) impl vm.lambdaInstrCache
+            vm.lambdaInstrCache
+            |> Map.add (currentFrame.context, impl.exprId) impl
+            |> Map.add (Source, impl.exprId) impl
+
           registers[lambdaReg] <-
             { exprId = impl.exprId
               closedRegisters =
@@ -467,9 +476,18 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
           match applicable with
           | AppLambda applicableLambda ->
             let foundLambda =
-              Map.findUnsafe
-                (currentFrame.context, applicableLambda.exprId)
-                vm.lambdaInstrCache
+              match
+                Map.tryFind
+                  (currentFrame.context, applicableLambda.exprId)
+                  vm.lambdaInstrCache
+              with
+              | Some lambda -> lambda
+              | None ->
+                match
+                  Map.tryFind (Source, applicableLambda.exprId) vm.lambdaInstrCache
+                with
+                | Some lambda -> lambda
+                | None -> raiseRTE (RTE.VariableNotFound "lambda not found") // TODO better error
 
             let allArgs = applicableLambda.argsSoFar @ newArgDvals
 
@@ -480,7 +498,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
             // TODO: fail if we try to apply a lambda with type args
 
             if argCount = paramCount then
-              frameToPush <-
+              let newFrame =
                 { id = guuid ()
                   parent = Some(vm.currentFrameID, putResultIn, counter + 1)
                   programCounter = 0
@@ -494,7 +512,8 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
 
                     r
                   context = Lambda(currentFrame.context, applicableLambda.exprId) }
-                |> Some
+
+              frameToPush <- Some newFrame
 
             else if argCount > paramCount then
               // TODO

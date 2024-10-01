@@ -1275,7 +1275,50 @@ module Expr =
 
         let tests = testList "MyAdd" [ unapplied; partiallyApplied; fullyApplied ]
 
-      let tests = testList "Package" [ MyAdd.tests ]
+      module MyFnThatTakesALambda =
+        let myMap =
+          t
+            "Test.myMap [1L; 2L] (fun x -> x + 1L)"
+            E.Fns.Package.MyFnThatTakesALambda.fullyApplied
+            (6,
+             [ RT.LoadVal(
+                 0,
+                 RT.DApplicable(
+                   RT.AppNamedFn
+                     { name =
+                         RT.FQFnName.fqPackage E.Fns.Package.MyFnThatTakesALambda.id
+                       argsSoFar = [] }
+                 )
+               )
+               RT.LoadVal(2, RT.DInt64 1L)
+               RT.LoadVal(3, RT.DInt64 2L)
+               RT.CreateList(1, [ 2; 3 ])
+               RT.CreateLambda(
+                 4,
+                 { exprId = E.Fns.Package.MyFnThatTakesALambda.lambdaID
+                   patterns = { head = RT.LPVariable 0; tail = [] }
+                   registersToCloseOver = []
+                   instructions =
+                     { registerCount = 4
+                       instructions =
+                         [ RT.LoadVal(1, RT.DInt64 1L)
+                           RT.LoadVal(
+                             2,
+                             RT.DApplicable(
+                               RT.AppNamedFn
+                                 { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                   argsSoFar = [] }
+                             )
+                           )
+                           RT.Apply(3, 2, [], { head = 0; tail = [ 1 ] }) ]
+                       resultIn = 3 } }
+               )
+               RT.Apply(5, 0, [], { head = 1; tail = [ 4 ] }) ],
+             5)
+
+        let tests = testList "MyFnThatTakesALambda" [ myMap ]
+
+      let tests = testList "Package" [ MyAdd.tests; MyFnThatTakesALambda.tests ]
 
     let tests = testList "Fns" [ Builtin.tests; Package.tests ]
 

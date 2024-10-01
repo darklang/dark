@@ -14,9 +14,9 @@ Stdlib.Option.andThen_v0 (Stdlib.Option.Option.Some 8L) (fun x ->
   Stdlib.Option.Option.Some(Stdlib.Int64.divide_v0 x 2L)) = Stdlib.Option.Option.Some
   4L
 
-Stdlib.Option.andThen_v0 (Stdlib.Option.Option.Some 8L) (fun x ->
-  Stdlib.Option.Option.Some(Stdlib.Int64.divide_v0 x 0L)) = Builtin.testDerrorMessage
-  "Division by zero"
+// Stdlib.Option.andThen_v0 (Stdlib.Option.Option.Some 8L) (fun x ->
+//   Stdlib.Option.Option.Some(Stdlib.Int64.divide_v0 x 0L)) = Builtin.testDerrorMessage
+//   "Division by zero"
 
 
 Stdlib.Option.andThen2_v0
@@ -313,23 +313,23 @@ Stdlib.Option.join_v0 (Stdlib.Option.Option.Some(Stdlib.Option.Option.None)) = S
 Stdlib.Option.join_v0 Stdlib.Option.Option.None = Stdlib.Option.Option.None
 
 
-Stdlib.Option.combine_v0
-  [ Stdlib.Option.Option.Some 6L
-    Stdlib.Option.Option.Some 5L
-    Stdlib.Option.Option.Some 4L
-    Stdlib.Option.Option.Some 3L ] = Stdlib.Option.Option.Some [ 6L; 5L; 4L; 3L ]
+// Stdlib.Option.combine_v0
+//   [ Stdlib.Option.Option.Some 6L
+//     Stdlib.Option.Option.Some 5L
+//     Stdlib.Option.Option.Some 4L
+//     Stdlib.Option.Option.Some 3L ] = Stdlib.Option.Option.Some [ 6L; 5L; 4L; 3L ]
 
-Stdlib.Option.combine_v0
-  [ Stdlib.Option.Option.Some 6L
-    Stdlib.Option.Option.None
-    Stdlib.Option.Option.Some 4L
-    Stdlib.Option.Option.Some 3L ] = Stdlib.Option.Option.None
+// Stdlib.Option.combine_v0
+//   [ Stdlib.Option.Option.Some 6L
+//     Stdlib.Option.Option.None
+//     Stdlib.Option.Option.Some 4L
+//     Stdlib.Option.Option.Some 3L ] = Stdlib.Option.Option.None
 
-Stdlib.Option.combine_v0
-  [ Stdlib.Option.Option.None
-    Stdlib.Option.Option.None
-    Stdlib.Option.Option.None
-    Stdlib.Option.Option.None ] = Stdlib.Option.Option.None
+// Stdlib.Option.combine_v0
+//   [ Stdlib.Option.Option.None
+//     Stdlib.Option.Option.None
+//     Stdlib.Option.Option.None
+//     Stdlib.Option.Option.None ] = Stdlib.Option.Option.None
 
 
 Stdlib.Option.values

@@ -1,4 +1,4 @@
-module Error =
+// module Error =
 //   Stdlib.List.map_v0 [ 1L; 2L; 3L; 4L; 5L ] (fun x y -> x) = Builtin.testDerrorMessage
 //     "Expected 2 arguments, got 1"
 

@@ -444,6 +444,31 @@ module Expressions =
         let applied = eApply unapplied [] [ eInt64 30000 ]
 
 
+      module MyFnThatTakesALambda =
+        let lambdaID = gid ()
+        let id = System.Guid.Parse "25179761-0259-4d52-a505-d75f0738e45c"
+        let unapplied = ePackageFn id
+
+        let fullyApplied =
+          let list = eList [ eInt64 1L; eInt64 2L ]
+          let lambda =
+            eLambda
+              lambdaID
+              [ lpVar "x" ]
+              (eInfix (PT.Infix.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 1))
+          eApply unapplied [] [ list; lambda ]
+
+
+        let fullyApplied2 =
+          let lambda =
+            eLambda
+              lambdaID
+              [ lpVar "x" ]
+              (eInfix (PT.Infix.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 11))
+
+          eApply unapplied [] [ eInt64 4L; lambda ]
+
+
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 
@@ -522,5 +547,20 @@ let pm : PT.PackageManager =
                         []
                         [ eVar "n"; eInt64 1L ] ]) ]
             ))
+        description = "TODO"
+        deprecated = PT.NotDeprecated }
+
+      { id = Expressions.Fns.Package.MyFnThatTakesALambda.id
+        name = PT.PackageFn.name "Test" [] "myFnThatTakesALambda"
+        typeParams = []
+        parameters =
+          NEList.ofList
+            { name = "x"; typ = PT.TInt64; description = "TODO" }
+            [ { name = "fn"
+                typ =
+                  PT.TFn({ head = PT.TVariable "a"; tail = [] }, PT.TVariable "b")
+                description = "TODO" } ]
+        returnType = PT.TInt64
+        body = eApply (eVar "fn") [] [ eVar "x" ]
         description = "TODO"
         deprecated = PT.NotDeprecated } ]

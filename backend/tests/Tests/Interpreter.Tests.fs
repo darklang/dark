@@ -568,7 +568,19 @@ module Fns =
       let tests = testList "Recursion" [ addUpTo ]
 
 
-    let tests = testList "Package" [ MyAdd.tests; Fact.tests; Recusrsion.tests ]
+    module MyFnThatTakesALambda =
+      let fullyApplied =
+        t
+          "Test.myFnThatTakesALambda 4L (fun x -> x + 11L)"
+          E.Fns.Package.MyFnThatTakesALambda.fullyApplied2
+          (RT.DInt64 15L)
+
+      let tests = testList "MyFnThatTakesALambda" [ fullyApplied ]
+
+    let tests =
+      testList
+        "Package"
+        [ MyAdd.tests; Fact.tests; Recusrsion.tests; MyFnThatTakesALambda.tests ]
 
   let tests = testList "Fns" [ Builtin.tests; Package.tests ]
 
