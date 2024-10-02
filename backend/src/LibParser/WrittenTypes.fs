@@ -137,7 +137,7 @@ type TypeReference =
 
   | TFn of NEList<TypeReference> * TypeReference
 
-  | TDB of TypeReference
+  //| TDB of TypeReference
 
   | TVariable of string
 
@@ -172,7 +172,7 @@ type Expr =
 
   | ELet of id * LetPattern * Expr * Expr
   | EVariable of id * string
-  | EFieldAccess of id * Expr * string
+  | ERecordFieldAccess of id * Expr * string
 
   | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
   // CLEANUP: why is this not an NEList?

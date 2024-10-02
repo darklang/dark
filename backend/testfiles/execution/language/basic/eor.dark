@@ -1,0 +1,17 @@
+(true || true) = true
+(true || false) = true
+(false || true) = true
+(false || false) = false
+// (true || Builtin.testRuntimeError "msg") = true
+(true || 5L) = true
+// (false || Builtin.testRuntimeError "msg") = Builtin.testDerrorMessage "msg"
+// (false || 5L) = Builtin.testDerrorMessage "|| only supports Booleans"
+
+// (Builtin.testRuntimeError "msg1" || Builtin.testRuntimeError "msg2") = Builtin.testDerrorMessage
+//   "msg1"
+
+// (5L || true) = Builtin.testDerrorMessage "|| only supports Booleans"
+(true |> (||) true) = true
+(true |> (||) false) = true
+(false |> (||) true) = true
+(false |> (||) false) = false

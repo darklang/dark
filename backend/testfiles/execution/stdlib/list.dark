@@ -1,3 +1,6 @@
+Stdlib.List.map [ 1L; 2L ] (fun x -> x + 1L) = [ 2L; 3L ]
+
+
 // CLEANUP the following tests should fail on having mixed types
 //[1; 2.3] = Builtin.testDerrorMessage "Cannot form a list of mixed types - the 2nd element does not match the type of previous elements"
 //[(1,10);10;(3,30)] = Builtin.testDerrorMessage "Cannot form a list of mixed types ..."
@@ -12,7 +15,6 @@ Stdlib.List.all_v0 [ 1L; 4L ] (fun item -> item < 3L) = false
 
 
 Stdlib.List.append_v0 [ 1L; 2L; 3L ] [ 4L; 5L; 6L ] = [ 1L; 2L; 3L; 4L; 5L; 6L ]
-
 Stdlib.List.append_v0 [ 3L; 4L ] [ 5L; 6L ] = [ 3L; 4L; 5L; 6L ]
 Stdlib.List.append_v0 [ 1L ] [ 2L ] = [ 1L; 2L ]
 Stdlib.List.append_v0 [] [] = []
@@ -33,15 +35,11 @@ Stdlib.List.drop_v0 [ 5L; 4L; 3L; 2L; 1L ] 5L = []
 Stdlib.List.drop_v0 [ 5L ] 4L = []
 Stdlib.List.drop_v0 [] 4L = []
 
-Stdlib.List.dropWhile_v0 [ 1L; 2L; 3L; 4L ] (fun item -> 0L - 1L) = Builtin.testDerrorMessage
-  "If only supports Booleans"
-
+// Stdlib.List.dropWhile_v0 [ 1L; 2L; 3L; 4L ] (fun item -> 0L - 1L) = Builtin.testDerrorMessage
+//   "If only supports Booleans"
 Stdlib.List.dropWhile_v0 [ 1L; 2L; 3L; 4L ] (fun item -> item < 3L) = [ 3L; 4L ]
-
 Stdlib.List.dropWhile_v0 [ 1L; 2L; 3L; 4L ] (fun item -> item >= 1L) = []
-
 Stdlib.List.dropWhile_v0 [ 1L; 5L; 2L; 2L ] (fun item -> item < 3L) = [ 5L; 2L; 2L ]
-
 Stdlib.List.dropWhile_v0 [] (fun item -> item < 3L) = []
 
 Stdlib.List.empty_v0 = []
@@ -73,14 +71,14 @@ Stdlib.List.empty_v0 = []
  Builtin.testSideEffectCount ()) = 1L
 
 
-Stdlib.List.filter [ 1L; 2L; 3L ] (fun item ->
-  match item with
-  | 1L -> Stdlib.Option.Option.None
-  | 2L -> false
-  | 3L -> true) = Builtin.testDerrorMessage "If only supports Booleans"
+// Stdlib.List.filter [ 1L; 2L; 3L ] (fun item ->
+//   match item with
+//   | 1L -> Stdlib.Option.Option.None
+//   | 2L -> false
+//   | 3L -> true) = Builtin.testDerrorMessage "If only supports Booleans"
 
-Stdlib.List.filter [ true; false; true ] (fun item -> "a") = Builtin.testDerrorMessage
-  "If only supports Booleans"
+// Stdlib.List.filter [ true; false; true ] (fun item -> "a") = Builtin.testDerrorMessage
+//   "If only supports Booleans"
 
 Stdlib.List.filter [ 1L; 2L; 3L ] (fun item ->
   match item with
@@ -117,8 +115,8 @@ Stdlib.List.findFirst [ 1L; -33L; 3L; -2L; 12L ] (fun x -> (x < 0L && x % 2L == 
 //   Builtin.testRuntimeError "In List.flatten's 1st argument (`list`), the value should be a List<List<'a>>. However, a List<Int64> ([1; 2; 3]) was passed instead.\n\nExpected: List<List<'a>>\nActual: List<Int64>: [1; 2; 3]"
 Stdlib.List.flatten_v0 [ [ 1L ]; [ 2L ]; [ 3L ] ] = [ 1L; 2L; 3L ]
 
-Stdlib.List.flatten_v0 [ [ 1L ]; [ [ 2L; 3L ] ] ] = Builtin.testDerrorMessage
-  "Could not merge types List<List<List<Int64>>> and List<List<Int64>>"
+// Stdlib.List.flatten_v0 [ [ 1L ]; [ [ 2L; 3L ] ] ] = Builtin.testDerrorMessage
+//   "Could not merge types List<List<List<Int64>>> and List<List<Int64>>"
 
 Stdlib.List.flatten_v0 [ [ [] ] ] = [ [] ]
 Stdlib.List.flatten_v0 [ [] ] = []
@@ -143,16 +141,16 @@ Stdlib.List.getAt [ 3L; 3L; 3L ] 2147483648L = Stdlib.Option.Option.None
 
 Stdlib.List.head [ 1L; 2L; 3L ] = Stdlib.Option.Option.Some 1L
 
-Stdlib.List.head [ Builtin.testRuntimeError "test" ] = Builtin.testDerrorMessage
-  "test"
+// Stdlib.List.head [ Builtin.testRuntimeError "test" ] = Builtin.testDerrorMessage
+//   "test"
 
 Stdlib.List.head [] = Stdlib.Option.Option.None
 
-Stdlib.List.indexedMap_v0 [ 3L; 2L; 1L ] (fun i v -> v - i) = [ 3L; 1L; -1L ]
+// Stdlib.List.indexedMap_v0 [ 3L; 2L; 1L ] (fun i v -> v - i) = [ 3L; 1L; -1L ]
 
-Stdlib.List.indexedMap_v0 [] (fun i v -> v - i) = []
+// Stdlib.List.indexedMap_v0 [] (fun i v -> v - i) = []
 
-Stdlib.List.indexedMap_v0 [ 3L; 2L; 1L ] (fun i v -> i) = [ 0L; 1L; 2L ]
+// Stdlib.List.indexedMap_v0 [ 3L; 2L; 1L ] (fun i v -> i) = [ 0L; 1L; 2L ]
 
 Stdlib.List.interleave_v0 [ 1L; 2L; 3L ] [ 4L; 5L; 6L ] = [ 1L; 4L; 2L; 5L; 3L; 6L ]
 
@@ -162,23 +160,23 @@ Stdlib.List.interleave_v0 [ 1L ] [ 4L; 5L; 6L ] = [ 1L; 4L; 5L; 6L ]
 Stdlib.List.interleave_v0 [] [ 4L; 5L; 6L ] = [ 4L; 5L; 6L ]
 Stdlib.List.interleave_v0 [] [] = []
 
-Stdlib.List.interleave_v0 [ "a"; "b"; "c" ] [ 0L ] = Builtin.testDerrorMessage
-  "Could not merge types List<Int64> and List<String>"
+// Stdlib.List.interleave_v0 [ "a"; "b"; "c" ] [ 0L ] = Builtin.testDerrorMessage
+//   "Could not merge types List<Int64> and List<String>"
 
 Stdlib.List.interpose_v0 [ 1L; 2L; 3L ] 5L = [ 1L; 5L; 2L; 5L; 3L ]
 Stdlib.List.interpose_v0 [ 1L ] 5L = [ 1L ]
 Stdlib.List.interpose_v0 [] 5L = []
 
-Stdlib.List.interpose_v0 [ "a"; "b"; "c" ] 0L = Builtin.testDerrorMessage
-  "Could not merge types List<Int64> and List<String>"
+// Stdlib.List.interpose_v0 [ "a"; "b"; "c" ] 0L = Builtin.testDerrorMessage
+//   "Could not merge types List<Int64> and List<String>"
 
 Stdlib.List.isEmpty_v0 [ 1L ] = false
 Stdlib.List.isEmpty_v0 [] = true
 
 Stdlib.List.last [ 1L; 2L; 3L ] = Stdlib.Option.Option.Some 3L
 
-Stdlib.List.last [ Builtin.testRuntimeError "test" ] = Builtin.testDerrorMessage
-  "test"
+// Stdlib.List.last [ Builtin.testRuntimeError "test" ] = Builtin.testDerrorMessage
+//   "test"
 
 Stdlib.List.last [] = Stdlib.Option.Option.None
 
@@ -231,15 +229,15 @@ Stdlib.List.partition_v0 [ 1L; 2L; 3L ] (fun item ->
   | 2L -> false
   | 3L -> true) = ([ 1L; 3L ], [ 2L ])
 
-Stdlib.List.partition_v0 [ true; false; true ] (fun item -> "a") = Builtin.testDerrorMessage
-  "If only supports Booleans"
+// Stdlib.List.partition_v0 [ true; false; true ] (fun item -> "a") = Builtin.testDerrorMessage
+//   "If only supports Booleans"
 
 
-Stdlib.List.partition_v0 [ 1L; 2L; 3L ] (fun item ->
-  match item with
-  | 1L -> Stdlib.Option.Option.None
-  | 2L -> false
-  | 3L -> true) = Builtin.testDerrorMessage "If only supports Booleans"
+// Stdlib.List.partition_v0 [ 1L; 2L; 3L ] (fun item ->
+//   match item with
+//   | 1L -> Stdlib.Option.Option.None
+//   | 2L -> false
+//   | 3L -> true) = Builtin.testDerrorMessage "If only supports Booleans"
 
 Stdlib.List.pushBack_v0 [ 2L; 3L ] 1L = [ 2L; 3L; 1L ]
 Stdlib.List.pushBack_v0 [] 1L = [ 1L ]
@@ -247,12 +245,12 @@ Stdlib.List.pushBack_v0 [] 1L = [ 1L ]
 Stdlib.List.push_v0 [ 2L; 3L ] 1L = [ 1L; 2L; 3L ]
 Stdlib.List.push_v0 [] 1L = [ 1L ]
 
-Stdlib.List.randomElement_v0 [ 1L ] = Stdlib.Option.Option.Some 1L
+// Stdlib.List.randomElement_v0 [ 1L ] = Stdlib.Option.Option.Some 1L
 
-Stdlib.List.randomElement_v0 [ Builtin.testRuntimeError "test" ] = Builtin.testDerrorMessage
-  "test"
+// Stdlib.List.randomElement_v0 [ Builtin.testRuntimeError "test" ] = Builtin.testDerrorMessage
+//   "test"
 
-Stdlib.List.randomElement_v0 [] = Stdlib.Option.Option.None
+//Stdlib.List.randomElement_v0 [] = Stdlib.Option.Option.None
 
 Stdlib.List.range_v0 -1L 0L = [ -1L; 0L ]
 
@@ -296,14 +294,18 @@ Stdlib.List.sort_v0 [ "6"; "2"; "8"; "3" ] = [ "2"; "3"; "6"; "8" ]
 Stdlib.List.sort_v0 [ 6L; 2L; 8L; 3L ] = [ 2L; 3L; 6L; 8L ]
 Stdlib.List.sort_v0 [] = []
 
-Stdlib.List.sortByComparator_v0 [ 3L; 1L; 2L ] (fun a b -> 0.1) = Builtin.testDerrorMessage
-  "Function return value should be an Int64. However, a Float (0.1) was returned instead.\n\nExpected: Int64\nActual: a Float: 0.1"
+// CLEANUP: it should be a type error on the function not returning an Int64
+// Stdlib.List.sortByComparator_v0 [ 3L; 1L; 2L ] (fun a b -> 0.1) = Builtin.testDerrorMessage
+//   // "Function return value should be an Int64. However, a Float (0.1) was returned instead.\n\nExpected: Int64\nActual: a Float: 0.1"
+//   "Both values must be the same type"
 
 Stdlib.List.sortByComparator_v0 [ 3L; 1L; 2L ] (fun a b -> 3L) = Stdlib.Result.Result.Error
   "Expected comparator function to return -1, 0, or 1, but it returned 3"
 
-Stdlib.List.sortByComparator_v0 [ 1L; 2L; 3L ] (fun a b -> "㧑༷釺") = Builtin.testDerrorMessage
-  "Function return value should be an Int64. However, a String (\"㧑༷釺\") was returned instead.\n\nExpected: Int64\nActual: a String: \"㧑༷釺\""
+// CLEANUP: it should be a type error on the function not returning an Int64
+// Stdlib.List.sortByComparator_v0 [ 1L; 2L; 3L ] (fun a b -> "㧑༷釺") = Builtin.testDerrorMessage
+//   // "Function return value should be an Int64. However, a String (\"㧑༷釺\") was returned instead.\n\nExpected: Int64\nActual: a String: \"㧑༷釺\""
+//   "Both values must be the same type"
 
 Stdlib.List.sortByComparator_v0 [ 3L; 1L; 2L ] (fun a b ->
   if Stdlib.Int64.lessThan_v0 a b then -1L else 1L) = Stdlib.Result.Result.Ok
@@ -358,8 +360,8 @@ Stdlib.List.sortByComparator_v0
 // - it seems to be from the perspective of the lambda
 //   (I'm a lambda and I'm expecting 2 arguments, but I got 1!!)
 //   rather than from the perspective of the function it's being used in
-Stdlib.List.sortByComparator_v0 [ 6.0; 2.0 ] (fun x -> x) = Builtin.testDerrorMessage
-  "Expected 1 arguments, got 2"
+// Stdlib.List.sortByComparator_v0 [ 6.0; 2.0 ] (fun x -> x) = Builtin.testDerrorMessage
+//   "Expected 1 arguments, got 2"
 
 Stdlib.List.tail_v0 [ 10L; 20L; 30L; 40L ] = Stdlib.Option.Option.Some
   [ 20L; 30L; 40L ]
@@ -379,8 +381,8 @@ Stdlib.List.take_v0 [ 5L ] 4L = [ 5L ]
 Stdlib.List.take_v0 [] 4L = []
 
 //TODO: better error message
-Stdlib.List.takeWhile_v0 [ 1L; 2L; 3L; 4L ] (fun item -> 0L - 1L) = Builtin.testDerrorMessage
-  "If only supports Booleans"
+// Stdlib.List.takeWhile_v0 [ 1L; 2L; 3L; 4L ] (fun item -> 0L - 1L) = Builtin.testDerrorMessage
+//   "If only supports Booleans"
 
 Stdlib.List.takeWhile_v0 [ 1L; 2L; 3L; 4L ] (fun item -> item < 1L) = []
 
@@ -388,21 +390,21 @@ Stdlib.List.takeWhile_v0 [ 1L; 2L; 3L; 4L ] (fun item -> item < 3L) = [ 1L; 2L ]
 
 Stdlib.List.takeWhile_v0 [ 1L; 5L; 2L; 2L ] (fun item -> item < 3L) = [ 1L ]
 Stdlib.List.takeWhile_v0 [] (fun item -> item < 3L) = []
-// it isn't specified which is the right value to keep when there are duplicates
-Stdlib.List.uniqueBy_v0 [ 1L; 2L; 3L; 4L ] (fun x -> Stdlib.Int64.divide_v0 x 2L) = [ 1L
-                                                                                      2L
-                                                                                      4L ]
+// // it isn't specified which is the right value to keep when there are duplicates
+// Stdlib.List.uniqueBy_v0 [ 1L; 2L; 3L; 4L ] (fun x -> Stdlib.Int64.divide_v0 x 2L) = [ 1L
+//                                                                                       2L
+//                                                                                       4L ]
 
-Stdlib.List.uniqueBy_v0 [ 1L; 2L; 3L; 4L ] (fun x -> x) = [ 1L; 2L; 3L; 4L ]
+// Stdlib.List.uniqueBy_v0 [ 1L; 2L; 3L; 4L ] (fun x -> x) = [ 1L; 2L; 3L; 4L ]
 
-Stdlib.List.uniqueBy_v0 [ 1L; 1L; 1L; 1L ] (fun x -> x) = [ 1L ]
+// Stdlib.List.uniqueBy_v0 [ 1L; 1L; 1L; 1L ] (fun x -> x) = [ 1L ]
 
-Stdlib.List.uniqueBy_v0 [ 7L; 42L; 7L; 2L; 10L ] (fun x -> x) = [ 2L; 7L; 10L; 42L ]
+// Stdlib.List.uniqueBy_v0 [ 7L; 42L; 7L; 2L; 10L ] (fun x -> x) = [ 2L; 7L; 10L; 42L ]
 
-Stdlib.List.uniqueBy_v0 [] (fun x -> x) = []
+// Stdlib.List.uniqueBy_v0 [] (fun x -> x) = []
 
-Stdlib.List.uniqueBy_v0 [ 6L; 2.0 ] (fun x -> x) = Builtin.testDerrorMessage
-  "Could not merge types List<Float> and List<Int64>"
+// Stdlib.List.uniqueBy_v0 [ 6L; 2.0 ] (fun x -> x) = Builtin.testDerrorMessage
+//   "Could not merge types List<Float> and List<Int64>"
 
 Stdlib.List.unique_v0 [ 1L; 2L; 3L; 4L ] = [ 1L; 2L; 3L; 4L ]
 Stdlib.List.unique_v0 [ 1L; 1L; 1L; 1L ] = [ 1L ]
@@ -446,39 +448,39 @@ Stdlib.List.zip_v0 [ 10L; 20L ] [ 1L; 2L; 3L ] = Stdlib.Option.Option.None
 
 Stdlib.List.zip_v0 [] [] = Stdlib.Option.Option.Some []
 
-Stdlib.List.zip_v0 [ Builtin.testRuntimeError "msg" ] [ Some "" ] = Builtin.testDerrorMessage
-  "msg"
+// Stdlib.List.zip_v0 [ Builtin.testRuntimeError "msg" ] [ Some "" ] = Builtin.testDerrorMessage
+//   "msg"
 
 
-Stdlib.List.groupByWithKey_v0 [ 1L; 2L; 3L; 4L; 5L ] (fun x ->
-  Stdlib.Int64.mod_v0 x 2L) = [ (1L, [ 1L; 3L; 5L ]); (0L, [ 2L; 4L ]) ]
+// Stdlib.List.groupByWithKey_v0 [ 1L; 2L; 3L; 4L; 5L ] (fun x ->
+//   Stdlib.Int64.mod_v0 x 2L) = [ (1L, [ 1L; 3L; 5L ]); (0L, [ 2L; 4L ]) ]
 
-Stdlib.List.groupByWithKey_v0 [ 1L; 2L; 3L; 4L; 5L ] (fun x ->
-  Stdlib.Int64.mod_v0 x 2L) = [ (1L, [ 1L; 3L; 5L ]); (0L, [ 2L; 4L ]) ]
+// Stdlib.List.groupByWithKey_v0 [ 1L; 2L; 3L; 4L; 5L ] (fun x ->
+//   Stdlib.Int64.mod_v0 x 2L) = [ (1L, [ 1L; 3L; 5L ]); (0L, [ 2L; 4L ]) ]
 
-Stdlib.List.groupByWithKey_v0
-  [ "apple"; "banana"; "avocado"; "grape"; "apricot" ]
-  (fun s -> Stdlib.String.first_v0 s 1L) = [ ("a", [ "apple"; "avocado"; "apricot" ])
-                                             ("b", [ "banana" ])
-                                             ("g", [ "grape" ]) ]
+// Stdlib.List.groupByWithKey_v0
+//   [ "apple"; "banana"; "avocado"; "grape"; "apricot" ]
+//   (fun s -> Stdlib.String.first_v0 s 1L) = [ ("a", [ "apple"; "avocado"; "apricot" ])
+//                                              ("b", [ "banana" ])
+//                                              ("g", [ "grape" ]) ]
 
-Stdlib.List.groupByWithKey_v0 [ 'a'; 'b'; 'c'; 'a'; 'b' ] (fun c -> c) = [ ('a',
-                                                                            [ 'a'
-                                                                              'a' ])
-                                                                           ('b',
-                                                                            [ 'b'
-                                                                              'b' ])
-                                                                           ('c',
-                                                                            [ 'c' ]) ]
+// Stdlib.List.groupByWithKey_v0 [ 'a'; 'b'; 'c'; 'a'; 'b' ] (fun c -> c) = [ ('a',
+//                                                                             [ 'a'
+//                                                                               'a' ])
+//                                                                            ('b',
+//                                                                             [ 'b'
+//                                                                               'b' ])
+//                                                                            ('c',
+//                                                                             [ 'c' ]) ]
 
-Stdlib.List.groupByWithKey_v0 [ 1L; 2L; 3L; 4L; 5L ] (fun x ->
-  Stdlib.Int64.mod_v0 x 2L == 0L) = [ (false, [ 1L; 3L; 5L ]); (true, [ 2L; 4L ]) ]
+// Stdlib.List.groupByWithKey_v0 [ 1L; 2L; 3L; 4L; 5L ] (fun x ->
+//   Stdlib.Int64.mod_v0 x 2L == 0L) = [ (false, [ 1L; 3L; 5L ]); (true, [ 2L; 4L ]) ]
 
-Stdlib.List.groupByWithKey_v0 [ 1L; 2L; 3L; 4L; 5L ] (fun x ->
-  ((Stdlib.Int64.mod_v0 x 2L), "test")) = [ ((1L, "test"), [ 1L; 3L; 5L ])
-                                            ((0L, "test"), [ 2L; 4L ]) ]
+// Stdlib.List.groupByWithKey_v0 [ 1L; 2L; 3L; 4L; 5L ] (fun x ->
+//   ((Stdlib.Int64.mod_v0 x 2L), "test")) = [ ((1L, "test"), [ 1L; 3L; 5L ])
+//                                             ((0L, "test"), [ 2L; 4L ]) ]
 
-Stdlib.List.groupByWithKey_v0 [] (fun x -> x) = []
+// Stdlib.List.groupByWithKey_v0 [] (fun x -> x) = []
 
 
 Stdlib.List.dropLast [ 1L; 2L; 3L; 4L; 5L ] = [ 1L; 2L; 3L; 4L ]

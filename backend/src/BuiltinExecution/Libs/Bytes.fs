@@ -17,7 +17,7 @@ let fns : List<BuiltInFn> =
         with [RFC 4648 section 8](https://www.rfc-editor.org/rfc/rfc4648.html#section-8)."
       fn =
         (function
-        | _, _, [ DList(_, bytes) ] ->
+        | _, _, _, [ DList(_, bytes) ] ->
           let hexUppercaseLookup = "0123456789ABCDEF"
           let len = bytes.Length
           let buf = new StringBuilder(len * 2)

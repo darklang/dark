@@ -6,7 +6,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module VT = ValueType
+module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module PackageIDs = LibExecution.PackageIDs
 
@@ -185,7 +185,7 @@ let fns : List<BuiltInFn> =
       description = "Formats a JSON value as a JSON string."
       fn =
         (function
-        | _, [], [ jtDval ] ->
+        | _, _, [], [ jtDval ] ->
           let jt = Json.fromDT jtDval
           let jsonString = Serialize.writeJson (fun w -> Serialize.writeToken w jt)
           Ply(DString jsonString)
@@ -204,7 +204,7 @@ let fns : List<BuiltInFn> =
         let result = Dval.result Json.knownType ParseError.knownType
 
         (function
-        | _, [], [ DString jsonString ] ->
+        | _, _, [], [ DString jsonString ] ->
           match Parsing.parse jsonString with
           | Ok jt -> jt |> Json.toDT |> Ok |> result |> Ply
           | Error e -> e |> ParseError.toDT |> Error |> result |> Ply

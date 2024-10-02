@@ -507,8 +507,8 @@ module Darklang =
               // CLEANUP: Rethink this solution. It was added to allow failure during the first pass of parsing, where names aren't yet resolved
               ProgramTypes.Expr.EVariable (gid ()) id.constantOrFn.name
 
-          | EFieldAccess(_, expr, (_, fieldName), _) ->
-            ProgramTypes.Expr.EFieldAccess(
+          | ERecordFieldAccess(_, expr, (_, fieldName), _) ->
+            ProgramTypes.Expr.ERecordFieldAccess(
               gid (),
               toPT onMissing pm owner currentModule expr,
               fieldName

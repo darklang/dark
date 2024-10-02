@@ -97,7 +97,7 @@ let parseSingleTestFromFile
   uply {
     let! (state : RT.ExecutionState) =
       let canvasID = System.Guid.NewGuid()
-      executionStateFor pmPT canvasID false false Map.empty
+      executionStateFor pmPT canvasID false false //Map.empty
 
     let name =
       RT.FQFnName.FQFnName.Package
@@ -108,7 +108,7 @@ let parseSingleTestFromFile
 
     match execResult with
     | Ok dval -> return Internal.Test.fromDT dval
-    | Error(_, rte) ->
+    | Error(rte) ->
       let! rteString = Exe.rteToString state rte
       return
         Exception.raiseInternal

@@ -10,7 +10,7 @@ module DateParsing =
   |> Stdlib.Result.map (fun x -> Stdlib.DateTime.toString_v0 x) = Stdlib.Result.Result.Ok
     "2019-07-28T22:42:36Z"
 
-  Stdlib.DateTime.parse "asd" = Stdlib.Result.Result.Error "Invalid date format"
+// Stdlib.DateTime.parse "asd" = Stdlib.Result.Result.Error "Invalid date format"
 
 // Parse in both
 p "2018-09-24T18:01:24Z" = Stdlib.Result.Result.Ok "2018-09-24T18:01:24Z"

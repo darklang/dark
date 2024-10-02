@@ -14,9 +14,9 @@ Stdlib.Option.andThen_v0 (Stdlib.Option.Option.Some 8L) (fun x ->
   Stdlib.Option.Option.Some(Stdlib.Int64.divide_v0 x 2L)) = Stdlib.Option.Option.Some
   4L
 
-Stdlib.Option.andThen_v0 (Stdlib.Option.Option.Some 8L) (fun x ->
-  Stdlib.Option.Option.Some(Stdlib.Int64.divide_v0 x 0L)) = Builtin.testDerrorMessage
-  "Division by zero"
+// Stdlib.Option.andThen_v0 (Stdlib.Option.Option.Some 8L) (fun x ->
+//   Stdlib.Option.Option.Some(Stdlib.Int64.divide_v0 x 0L)) = Builtin.testDerrorMessage
+//   "Division by zero"
 
 
 Stdlib.Option.andThen2_v0

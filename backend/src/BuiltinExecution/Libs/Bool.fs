@@ -19,7 +19,7 @@ let fns : List<BuiltInFn> =
         and {{false}} if <param b> is {{true}}"
       fn =
         (function
-        | _, _, [ DBool b ] -> Ply(DBool(not b))
+        | _, _, _, [ DBool b ] -> Ply(DBool(not b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "not"
       previewable = Pure

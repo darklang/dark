@@ -93,16 +93,16 @@ let usesDB (options : Options) =
   | ConvertST2RTAll
   | Help -> false
 
-let convertToRT (canvasID : CanvasID) : Task<unit> =
-  task {
-    let! canvas = LibCloud.Canvas.loadAll canvasID
-    let _program = LibCloud.Canvas.toProgram canvas
-    let _handlers =
-      canvas.handlers
-      |> Map.values
-      |> List.map (fun h -> LibExecution.ProgramTypesToRuntimeTypes.Handler.toRT h)
-    return ()
-  }
+// let convertToRT (canvasID : CanvasID) : Task<unit> =
+//   task {
+//     let! canvas = LibCloud.Canvas.loadAll canvasID
+//     let _program = LibCloud.Canvas.toProgram canvas
+//     let _handlers =
+//       canvas.handlers
+//       |> Map.values
+//       |> List.map (fun h -> LibExecution.ProgramTypesToRuntimeTypes.Handler.toRT h)
+//     return ()
+//   }
 
 
 
@@ -134,13 +134,13 @@ let run (options : Options) : Task<int> =
 
     | TriggerPagingRollbar -> return triggerPagingRollbar ()
 
-    | ConvertST2RT canvasID ->
-      do! convertToRT canvasID
+    | ConvertST2RT _canvasID ->
+      //   do! convertToRT canvasID
       return 0
 
     | ConvertST2RTAll ->
-      let! allIDs = LibCloud.Canvas.allCanvasIDs ()
-      do! Task.iterWithConcurrency 25 convertToRT allIDs
+      //   let! allIDs = LibCloud.Canvas.allCanvasIDs ()
+      //   do! Task.iterWithConcurrency 25 convertToRT allIDs
       return 0
 
     | Help ->
@@ -158,11 +158,11 @@ let initSerializers () =
   // we probably don't need most of these, but it's key that ProdExec doesn't ever
   // fail, so we're extra-cautious, and include _everything_.
   Json.Vanilla.allow<LibExecution.ProgramTypes.Toplevel.T> "Canvas.loadJsonFromDisk"
-  Json.Vanilla.allow<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
-    "RoundtrippableSerializationFormatV0.Dval"
-  Json.Vanilla.allow<LibCloud.Queue.NotificationData> "eventqueue storage"
-  Json.Vanilla.allow<LibCloud.TraceCloudStorage.CloudStorageFormat>
-    "TraceCloudStorageFormat"
+  // Json.Vanilla.allow<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
+  //   "RoundtrippableSerializationFormatV0.Dval"
+  //Json.Vanilla.allow<LibCloud.Queue.NotificationData> "eventqueue storage"
+  // Json.Vanilla.allow<LibCloud.TraceCloudStorage.CloudStorageFormat>
+  //   "TraceCloudStorageFormat"
   Json.Vanilla.allow<LibService.Rollbar.HoneycombJson> "Rollbar"
 
   // for Pusher.com payloads

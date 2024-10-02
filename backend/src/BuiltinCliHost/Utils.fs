@@ -4,7 +4,7 @@ open Prelude
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module VT = RT.ValueType
+module VT = LibExecution.ValueType
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module PackageIDs = LibExecution.PackageIDs
 

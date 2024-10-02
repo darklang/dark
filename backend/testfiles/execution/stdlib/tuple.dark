@@ -13,14 +13,12 @@ Stdlib.Tuple2.swap (1L, "two") = ("two", 1L)
 Stdlib.Tuple2.swap (Stdlib.Tuple2.swap ("two swaps", "back to original")) = ("two swaps",
                                                                              "back to original")
 
-Stdlib.Tuple2.mapFirst (fun x -> Stdlib.String.toUppercase x) ("one", 2L) = ("ONE",
-                                                                             2L)
+Stdlib.Tuple2.mapFirst (fun x -> Stdlib.String.toUppercase x) ("one", 2L) = ("ONE", 2L)
 
 Stdlib.Tuple2.mapFirst (fun x -> x - 2L) (1L, "two") = (-1L, "two")
 Stdlib.Tuple2.mapSecond (fun x -> x - 2L) ("one", 2L) = ("one", 0L)
 
-Stdlib.Tuple2.mapSecond (fun x -> Stdlib.String.toUppercase x) (1L, "two") = (1L,
-                                                                              "TWO")
+Stdlib.Tuple2.mapSecond (fun x -> Stdlib.String.toUppercase x) (1L, "two") = (1L, "TWO")
 
 Stdlib.Tuple2.mapBoth
   (fun x -> Stdlib.String.toUppercase x)

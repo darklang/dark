@@ -7,7 +7,7 @@ open FSharp.Control.Tasks
 open Prelude
 open LibExecution.RuntimeTypes
 
-module VT = ValueType
+module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
@@ -22,7 +22,7 @@ let fns : List<BuiltInFn> =
         "Gets the value of the environment variable with the given <param varName> if it exists."
       fn =
         (function
-        | _, _, [ DString varName ] ->
+        | _, _, _, [ DString varName ] ->
           let envValue = System.Environment.GetEnvironmentVariable(varName)
 
           if isNull envValue then
@@ -43,7 +43,7 @@ let fns : List<BuiltInFn> =
         "Returns a list of tuples containing all the environment variables and their values."
       fn =
         (function
-        | _, _, [ DUnit ] ->
+        | _, _, _, [ DUnit ] ->
           let envVars = System.Environment.GetEnvironmentVariables()
 
           let envMap =

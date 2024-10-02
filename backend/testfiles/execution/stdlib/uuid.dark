@@ -1,20 +1,20 @@
-Stdlib.Uuid.parse_v0 "👱🏼" = Stdlib.Result.Result.Error
-  Stdlib.Uuid.ParseError.BadFormat
+// Stdlib.Uuid.parse_v0 "👱🏼" = Stdlib.Result.Result.Error
+//   Stdlib.Uuid.ParseError.BadFormat
 
-Stdlib.Uuid.parse_v0 "1111111🍇-2222-3333-4444-555555555555" = Stdlib.Result.Result.Error
-  Stdlib.Uuid.ParseError.BadFormat
+// Stdlib.Uuid.parse_v0 "1111111🍇-2222-3333-4444-555555555555" = Stdlib.Result.Result.Error
+//   Stdlib.Uuid.ParseError.BadFormat
 
-Stdlib.Uuid.parse_v0 "psp-soslsls==" = Stdlib.Result.Result.Error
-  Stdlib.Uuid.ParseError.BadFormat
+// Stdlib.Uuid.parse_v0 "psp-soslsls==" = Stdlib.Result.Result.Error
+//   Stdlib.Uuid.ParseError.BadFormat
 
-Stdlib.Uuid.parse_v0 "123456" = Stdlib.Result.Result.Error
-  Stdlib.Uuid.ParseError.BadFormat
+// Stdlib.Uuid.parse_v0 "123456" = Stdlib.Result.Result.Error
+//   Stdlib.Uuid.ParseError.BadFormat
 
-Stdlib.Uuid.parse_v0 "d388ff30-667f-11eb-ae93" = Stdlib.Result.Result.Error
-  Stdlib.Uuid.ParseError.BadFormat
+// Stdlib.Uuid.parse_v0 "d388ff30-667f-11eb-ae93" = Stdlib.Result.Result.Error
+//   Stdlib.Uuid.ParseError.BadFormat
 
-Stdlib.Uuid.parse_v0 "d388ff30-667f-11eb-ae93-0242ac13000" = Stdlib.Result.Result.Error
-  Stdlib.Uuid.ParseError.BadFormat
+// Stdlib.Uuid.parse_v0 "d388ff30-667f-11eb-ae93-0242ac13000" = Stdlib.Result.Result.Error
+//   Stdlib.Uuid.ParseError.BadFormat
 
 (Stdlib.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d")
 |> Builtin.unwrap

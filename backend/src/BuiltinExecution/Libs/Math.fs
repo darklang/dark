@@ -9,7 +9,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module VT = ValueType
+module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 
 let varA = TVariable "a"
@@ -28,7 +28,7 @@ let fns : List<BuiltInFn> =
          hypotenuse."
       fn =
         (function
-        | _, _, [ DFloat a ] -> Ply(DFloat(System.Math.Cos a))
+        | _, _, _, [ DFloat a ] -> Ply(DFloat(System.Math.Cos a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -46,7 +46,7 @@ let fns : List<BuiltInFn> =
          the ratio of the lengths of the side opposite the angle and the hypotenuse"
       fn =
         (function
-        | _, _, [ DFloat a ] -> Ply(DFloat(System.Math.Sin a))
+        | _, _, _, [ DFloat a ] -> Ply(DFloat(System.Math.Sin a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -65,7 +65,7 @@ let fns : List<BuiltInFn> =
          adjacent to the angle."
       fn =
         (function
-        | _, _, [ DFloat a ] -> Ply(DFloat(System.Math.Tan a))
+        | _, _, _, [ DFloat a ] -> Ply(DFloat(System.Math.Tan a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -86,7 +86,7 @@ let fns : List<BuiltInFn> =
          This function is the inverse of <fn Math.cos>."
       fn =
         (function
-        | _, _, [ DFloat r ] ->
+        | _, _, _, [ DFloat r ] ->
           let res = System.Math.Acos r in
 
           if System.Double.IsNaN res then
@@ -113,7 +113,7 @@ let fns : List<BuiltInFn> =
          This function is the inverse of <fn Math.sin>."
       fn =
         (function
-        | _, _, [ DFloat r ] ->
+        | _, _, _, [ DFloat r ] ->
           let res = System.Math.Asin r in
 
           if System.Double.IsNaN res then
@@ -138,7 +138,7 @@ let fns : List<BuiltInFn> =
          output range, if you know the numerator and denominator of <param ratio>."
       fn =
         (function
-        | _, _, [ DFloat a ] -> Ply(DFloat(System.Math.Atan a))
+        | _, _, _, [ DFloat a ] -> Ply(DFloat(System.Math.Atan a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -159,7 +159,7 @@ let fns : List<BuiltInFn> =
          individual values <param x> and <param y>."
       fn =
         (function
-        | _, _, [ DFloat y; DFloat x ] -> Ply(DFloat(System.Math.Atan2(y, x)))
+        | _, _, _, [ DFloat y; DFloat x ] -> Ply(DFloat(System.Math.Atan2(y, x)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -173,7 +173,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the hyperbolic cosine of <param angleInRadians>"
       fn =
         (function
-        | _, _, [ DFloat a ] -> Ply(DFloat(System.Math.Cosh a))
+        | _, _, _, [ DFloat a ] -> Ply(DFloat(System.Math.Cosh a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -187,7 +187,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the hyperbolic sine of <param angleInRadians>"
       fn =
         (function
-        | _, _, [ DFloat a ] -> Ply(DFloat(System.Math.Sinh a))
+        | _, _, _, [ DFloat a ] -> Ply(DFloat(System.Math.Sinh a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -201,7 +201,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the hyperbolic tangent of <param angleInRadians>"
       fn =
         (function
-        | _, _, [ DFloat a ] -> Ply(DFloat(System.Math.Sinh a))
+        | _, _, _, [ DFloat a ] -> Ply(DFloat(System.Math.Sinh a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

@@ -6,7 +6,6 @@ open RuntimeTypes
 
 module PT = ProgramTypes
 module VT = ValueType
-module NRE = LibExecution.NameResolutionError
 module D = LibExecution.DvalDecoder
 module C2DT = LibExecution.CommonToDarkTypes
 
@@ -32,10 +31,10 @@ module Sign =
 
 
 // TODO: should these be elsewhere?
-let ownerField m = m |> D.stringField "owner"
-let modulesField m = m |> D.stringListField "modules"
-let nameField m = m |> D.stringField "name"
-let versionField m = m |> D.intField "version"
+let ownerField m = m |> D.field "owner" |> D.string
+let modulesField m = m |> D.field "modules" |> D.list D.string
+let nameField m = m |> D.field "name" |> D.string
+let versionField m = m |> D.field "version" |> D.int32
 
 
 module FQTypeName =
@@ -158,17 +157,49 @@ module FQConstantName =
     | _ -> Exception.raiseInternal "Invalid FQConstantName" []
 
 
+module NameResolutionError =
+  let typeName =
+    FQTypeName.fqPackage
+      PackageIDs.Type.LanguageTools.ProgramTypes.nameResolutionError
+
+  let knownType = KTCustomType(typeName, [])
+
+  let toDT (e : PT.NameResolutionError) : Dval =
+    let (caseName, fields) =
+      match e with
+      | PT.NotFound names ->
+        "NotFound", [ DList(VT.string, List.map Dval.string names) ]
+      | PT.InvalidName names ->
+        "InvalidName", [ DList(VT.string, List.map Dval.string names) ]
+    DEnum(typeName, typeName, [], caseName, fields)
+
+  let fromDT (d : Dval) : PT.NameResolutionError =
+    match d with
+    | DEnum(_, _, [], "NotFound", [ names ]) ->
+      PT.NameResolutionError.NotFound(names |> D.list D.string)
+
+    | DEnum(_, _, [], "InvalidName", [ names ]) ->
+      PT.NameResolutionError.InvalidName(names |> D.list D.string)
+
+    | _ -> Exception.raiseInternal "Invalid NameResolutionError" []
+
+
+
 module NameResolution =
   let toDT
     (nameValueType : KnownType)
     (f : 'p -> Dval)
     (result : PT.NameResolution<'p>)
     : Dval =
-    let errType = KTCustomType(NameResolutionError.RTE.Error.typeName, [])
-    C2DT.Result.toDT nameValueType errType result f NRE.RTE.Error.toDT
+    C2DT.Result.toDT
+      nameValueType
+      NameResolutionError.knownType
+      result
+      f
+      NameResolutionError.toDT
 
   let fromDT (f : Dval -> 'a) (d : Dval) : PT.NameResolution<'a> =
-    C2DT.Result.fromDT f d NRE.RTE.Error.fromDT
+    C2DT.Result.fromDT f d NameResolutionError.fromDT
 
 
 module TypeReference =
@@ -212,7 +243,7 @@ module TypeReference =
         [ NameResolution.toDT FQTypeName.knownType FQTypeName.toDT typeName
           DList(VT.known knownType, List.map toDT typeArgs) ]
 
-      | PT.TDB inner -> "TDB", [ toDT inner ]
+      // | PT.TDB inner -> "TDB", [ toDT inner ]
 
       | PT.TFn(args, ret) ->
         "TFn",
@@ -256,7 +287,7 @@ module TypeReference =
         List.map fromDT typeArgs
       )
 
-    | DEnum(_, _, [], "TDB", [ inner ]) -> PT.TDB(fromDT inner)
+    // | DEnum(_, _, [], "TDB", [ inner ]) -> PT.TDB(fromDT inner)
     | DEnum(_, _, [], "TFn", [ DList(_vtTODO, head :: tail); ret ]) ->
       PT.TFn(NEList.ofList head tail |> NEList.map fromDT, fromDT ret)
     | _ -> Exception.raiseInternal "Invalid TypeReference" []
@@ -649,7 +680,7 @@ module Expr =
           toDT second
           DList(VT.known knownType, List.map toDT theRest) ]
 
-      | PT.ERecord(id, typeName, fields) ->
+      | PT.ERecord(id, typeName, typeArgs, fields) ->
         let fields =
           DList(
             VT.tuple VT.string (VT.known knownType) [],
@@ -660,12 +691,20 @@ module Expr =
         "ERecord",
         [ DInt64(int64 id)
           NameResolution.toDT FQTypeName.knownType FQTypeName.toDT typeName
+          DList(
+            VT.known TypeReference.knownType,
+            List.map TypeReference.toDT typeArgs
+          )
           fields ]
 
-      | PT.EEnum(id, typeName, caseName, fields) ->
+      | PT.EEnum(id, typeName, typeArgs, caseName, fields) ->
         "EEnum",
         [ DInt64(int64 id)
           NameResolution.toDT FQTypeName.knownType FQTypeName.toDT typeName
+          DList(
+            VT.known TypeReference.knownType,
+            List.map TypeReference.toDT typeArgs
+          )
           DString caseName
           DList(VT.known knownType, List.map toDT fields) ]
 
@@ -673,8 +712,8 @@ module Expr =
       | PT.ELet(id, lp, expr, body) ->
         "ELet", [ DInt64(int64 id); LetPattern.toDT lp; toDT expr; toDT body ]
 
-      | PT.EFieldAccess(id, expr, fieldName) ->
-        "EFieldAccess", [ DInt64(int64 id); toDT expr; DString fieldName ]
+      | PT.ERecordFieldAccess(id, expr, fieldName) ->
+        "ERecordFieldAccess", [ DInt64(int64 id); toDT expr; DString fieldName ]
 
       | PT.EVariable(id, varName) ->
         "EVariable", [ DInt64(int64 id); DString varName ]
@@ -813,24 +852,44 @@ module Expr =
     | DEnum(_, _, [], "ETuple", [ DInt64 id; first; second; DList(_vtTODO, theRest) ]) ->
       PT.ETuple(uint64 id, fromDT first, fromDT second, List.map fromDT theRest)
 
-    | DEnum(_, _, [], "ERecord", [ DInt64 id; typeName; DList(_vtTODO, fieldsList) ]) ->
+    | DEnum(_,
+            _,
+            [],
+            "ERecord",
+            [ DInt64 id
+              typeName
+              DList(_vtTODOTypeArgs, typeArgs)
+              DList(_vtTODO, fieldsList) ]) ->
+      let typeArgs = List.map TypeReference.fromDT typeArgs
       let fields =
         fieldsList
         |> List.collect (fun field ->
           match field with
           | DTuple(DString name, expr, _) -> [ (name, fromDT expr) ]
           | _ -> [])
-      PT.ERecord(uint64 id, NameResolution.fromDT FQTypeName.fromDT typeName, fields)
+      PT.ERecord(
+        uint64 id,
+        NameResolution.fromDT FQTypeName.fromDT typeName,
+        typeArgs,
+        fields
+      )
 
 
     | DEnum(_,
             _,
             [],
             "EEnum",
-            [ DInt64 id; typeName; DString caseName; DList(_vtTODO, fields) ]) ->
+            [ DInt64 id
+              typeName
+              DList(_vtTODOTypeArgs, typeArgs)
+              DString caseName
+              DList(_vtTODO, fields) ]) ->
+      let typeArgs = List.map TypeReference.fromDT typeArgs
+
       PT.EEnum(
         uint64 id,
         NameResolution.fromDT FQTypeName.fromDT typeName,
+        typeArgs,
         caseName,
         List.map fromDT fields
       )
@@ -839,8 +898,8 @@ module Expr =
     | DEnum(_, _, [], "ELet", [ DInt64 id; lp; expr; body ]) ->
       PT.ELet(uint64 id, LetPattern.fromDT lp, fromDT expr, fromDT body)
 
-    | DEnum(_, _, [], "EFieldAccess", [ DInt64 id; expr; DString fieldName ]) ->
-      PT.EFieldAccess(uint64 id, fromDT expr, fieldName)
+    | DEnum(_, _, [], "ERecordFieldAccess", [ DInt64 id; expr; DString fieldName ]) ->
+      PT.ERecordFieldAccess(uint64 id, fromDT expr, fieldName)
 
     | DEnum(_, _, [], "EVariable", [ DInt64 id; DString varName ]) ->
       PT.EVariable(uint64 id, varName)
@@ -921,9 +980,6 @@ module Expr =
             Exception.raiseInternal "Invalid record update" [ "update", update ])
       PT.ERecordUpdate(uint64 id, fromDT record, updates)
 
-    | DEnum(_, _, [], "EConstant", [ DInt64 id; name ]) ->
-      PT.EConstant(uint64 id, NameResolution.fromDT FQConstantName.fromDT name)
-
     | e -> Exception.raiseInternal "Invalid Expr" [ "e", e ]
 
 
@@ -949,7 +1005,7 @@ module Const =
       | PT.Const.CUInt128 i -> "CUInt128", [ DUInt128 i ]
       | PT.Const.CFloat(sign, w, f) ->
         "CFloat", [ Sign.toDT sign; DString w; DString f ]
-      | PT.Const.CChar c -> "CChar", [ DString c ]
+      | PT.Const.CChar c -> "CChar", [ DChar c ]
       | PT.Const.CString s -> "CString", [ DString s ]
 
       | PT.Const.CTuple(first, second, theRest) ->
@@ -989,7 +1045,7 @@ module Const =
     | DEnum(_, _, [], "CUInt128", [ DUInt128 i ]) -> PT.Const.CUInt128 i
     | DEnum(_, _, [], "CBool", [ DBool b ]) -> PT.Const.CBool b
     | DEnum(_, _, [], "CString", [ DString s ]) -> PT.Const.CString s
-    | DEnum(_, _, [], "CChar", [ DString c ]) -> PT.Const.CChar c
+    | DEnum(_, _, [], "CChar", [ DChar c ]) -> PT.Const.CChar c
     | DEnum(_, _, [], "CFloat", [ sign; DString w; DString f ]) ->
       PT.Const.CFloat(Sign.fromDT sign, w, f)
     | DEnum(_, _, [], "CUnit", []) -> PT.Const.CUnit
@@ -1040,13 +1096,7 @@ module Deprecation =
       | PT.Deprecation.ReplacedBy replacement -> "ReplacedBy", [ inner replacement ]
       | PT.Deprecation.DeprecatedBecause reason ->
         "DeprecatedBecause", [ DString reason ]
-    DEnum(
-      typeName,
-      typeName,
-      Dval.ignoreAndUseEmpty [ VT.known innerType ],
-      caseName,
-      fields
-    )
+    DEnum(typeName, typeName, [ VT.known innerType ], caseName, fields)
 
   let fromDT (inner : Dval -> 'a) (d : Dval) : PT.Deprecation<'a> =
     match d with
@@ -1082,9 +1132,9 @@ module TypeDeclaration =
     let fromDT (d : Dval) : PT.TypeDeclaration.RecordField =
       match d with
       | DRecord(_, _, _, fields) ->
-        { name = fields |> D.stringField "name"
+        { name = fields |> D.field "name" |> D.string
           typ = fields |> D.field "typ" |> TypeReference.fromDT
-          description = fields |> D.stringField "description" }
+          description = fields |> D.field "description" |> D.string }
       | _ -> Exception.raiseInternal "Invalid RecordField" []
 
   module EnumField =
@@ -1111,7 +1161,7 @@ module TypeDeclaration =
             | Some(DEnum(_, _, _typeArgsDEnumTODO, "None", [])) -> None
             | _ ->
               Exception.raiseInternal "Expected label to be an option of string" []
-          description = fields |> D.stringField "description" }
+          description = fields |> D.field "description" |> D.string }
       | _ -> Exception.raiseInternal "Invalid EnumField" []
 
 
@@ -1132,9 +1182,9 @@ module TypeDeclaration =
     let fromDT (d : Dval) : PT.TypeDeclaration.EnumCase =
       match d with
       | DRecord(_, _, _, fields) ->
-        { name = fields |> D.stringField "name"
-          fields = fields |> D.listField "fields" |> List.map EnumField.fromDT
-          description = fields |> D.stringField "description" }
+        { name = fields |> D.field "name" |> D.string
+          fields = fields |> D.field "fields" |> D.list EnumField.fromDT
+          description = fields |> D.field "description" |> D.string }
 
       | _ -> Exception.raiseInternal "Invalid EnumCase" []
 
@@ -1191,126 +1241,126 @@ module TypeDeclaration =
   let fromDT (d : Dval) : PT.TypeDeclaration.T =
     match d with
     | DRecord(_, _, _, fields) ->
-      { typeParams = fields |> D.stringListField "typeParams"
+      { typeParams = fields |> D.field "typeParams" |> D.list D.string
         definition = fields |> D.field "definition" |> Definition.fromDT }
     | _ -> Exception.raiseInternal "Invalid TypeDeclaration" []
 
 
-module Handler =
-  module CronInterval =
-    let typeName =
-      FQTypeName.fqPackage
-        PackageIDs.Type.LanguageTools.ProgramTypes.Handler.cronInterval
+// module Handler =
+//   module CronInterval =
+//     let typeName =
+//       FQTypeName.fqPackage
+//         PackageIDs.Type.LanguageTools.ProgramTypes.Handler.cronInterval
 
-    let toDT (ci : PT.Handler.CronInterval) : Dval =
-      let (caseName, fields) =
-        match ci with
-        | PT.Handler.CronInterval.EveryMinute -> "EveryMinute", []
-        | PT.Handler.CronInterval.EveryHour -> "EveryHour", []
-        | PT.Handler.CronInterval.Every12Hours -> "Every12Hours", []
-        | PT.Handler.CronInterval.EveryDay -> "EveryDay", []
-        | PT.Handler.CronInterval.EveryWeek -> "EveryWeek", []
-        | PT.Handler.CronInterval.EveryFortnight -> "EveryFortnight", []
+//     let toDT (ci : PT.Handler.CronInterval) : Dval =
+//       let (caseName, fields) =
+//         match ci with
+//         | PT.Handler.CronInterval.EveryMinute -> "EveryMinute", []
+//         | PT.Handler.CronInterval.EveryHour -> "EveryHour", []
+//         | PT.Handler.CronInterval.Every12Hours -> "Every12Hours", []
+//         | PT.Handler.CronInterval.EveryDay -> "EveryDay", []
+//         | PT.Handler.CronInterval.EveryWeek -> "EveryWeek", []
+//         | PT.Handler.CronInterval.EveryFortnight -> "EveryFortnight", []
 
-      DEnum(typeName, typeName, [], caseName, fields)
+//       DEnum(typeName, typeName, [], caseName, fields)
 
-    let fromDT (d : Dval) : PT.Handler.CronInterval =
-      match d with
-      | DEnum(_, _, [], "EveryMinute", []) -> PT.Handler.CronInterval.EveryMinute
-      | DEnum(_, _, [], "EveryHour", []) -> PT.Handler.CronInterval.EveryHour
-      | DEnum(_, _, [], "Every12Hours", []) -> PT.Handler.CronInterval.Every12Hours
-      | DEnum(_, _, [], "EveryDay", []) -> PT.Handler.CronInterval.EveryDay
-      | DEnum(_, _, [], "EveryWeek", []) -> PT.Handler.CronInterval.EveryWeek
-      | DEnum(_, _, [], "EveryFortnight", []) ->
-        PT.Handler.CronInterval.EveryFortnight
-      | _ -> Exception.raiseInternal "Invalid CronInterval" []
-
-
-  module Spec =
-    let typeName =
-      FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.Handler.spec
-
-    let toDT (s : PT.Handler.Spec) : Dval =
-      let (caseName, fields) =
-        match s with
-        | PT.Handler.Spec.HTTP(route, method) ->
-          "HTTP", [ DString route; DString method ]
-        | PT.Handler.Spec.Worker name -> "Worker", [ DString name ]
-        | PT.Handler.Spec.Cron(name, interval) ->
-          "Cron", [ DString name; CronInterval.toDT interval ]
-        | PT.Handler.Spec.REPL name -> "REPL", [ DString name ]
-
-      DEnum(typeName, typeName, [], caseName, fields)
-
-    let fromDT (d : Dval) : PT.Handler.Spec =
-      match d with
-      | DEnum(_, _, [], "HTTP", [ DString route; DString method ]) ->
-        PT.Handler.Spec.HTTP(route, method)
-      | DEnum(_, _, [], "Worker", [ DString name ]) -> PT.Handler.Spec.Worker(name)
-      | DEnum(_, _, [], "Cron", [ DString name; interval ]) ->
-        PT.Handler.Spec.Cron(name, CronInterval.fromDT interval)
-      | DEnum(_, _, [], "REPL", [ DString name ]) -> PT.Handler.Spec.REPL(name)
-      | _ -> Exception.raiseInternal "Invalid Spec" []
-
-  let typeName =
-    FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.Handler.handler
-
-  let toDT (h : PT.Handler.T) : Dval =
-    let fields =
-      [ "tlid", DUInt64(uint64 h.tlid)
-        "ast", Expr.toDT h.ast
-        "spec", Spec.toDT h.spec ]
-    DRecord(typeName, typeName, [], Map fields)
+//     let fromDT (d : Dval) : PT.Handler.CronInterval =
+//       match d with
+//       | DEnum(_, _, [], "EveryMinute", []) -> PT.Handler.CronInterval.EveryMinute
+//       | DEnum(_, _, [], "EveryHour", []) -> PT.Handler.CronInterval.EveryHour
+//       | DEnum(_, _, [], "Every12Hours", []) -> PT.Handler.CronInterval.Every12Hours
+//       | DEnum(_, _, [], "EveryDay", []) -> PT.Handler.CronInterval.EveryDay
+//       | DEnum(_, _, [], "EveryWeek", []) -> PT.Handler.CronInterval.EveryWeek
+//       | DEnum(_, _, [], "EveryFortnight", []) ->
+//         PT.Handler.CronInterval.EveryFortnight
+//       | _ -> Exception.raiseInternal "Invalid CronInterval" []
 
 
-  let fromDT (d : Dval) : PT.Handler.T =
-    match d with
-    | DRecord(_, _, _, fields) ->
-      { tlid = fields |> D.uint64Field "tlid"
-        ast = fields |> D.field "ast" |> Expr.fromDT
-        spec = fields |> D.field "spec" |> Spec.fromDT }
-    | _ -> Exception.raiseInternal "Invalid Handler" []
+//   module Spec =
+//     let typeName =
+//       FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.Handler.spec
+
+//     let toDT (s : PT.Handler.Spec) : Dval =
+//       let (caseName, fields) =
+//         match s with
+//         | PT.Handler.Spec.HTTP(route, method) ->
+//           "HTTP", [ DString route; DString method ]
+//         | PT.Handler.Spec.Worker name -> "Worker", [ DString name ]
+//         | PT.Handler.Spec.Cron(name, interval) ->
+//           "Cron", [ DString name; CronInterval.toDT interval ]
+//         | PT.Handler.Spec.REPL name -> "REPL", [ DString name ]
+
+//       DEnum(typeName, typeName, [], caseName, fields)
+
+//     let fromDT (d : Dval) : PT.Handler.Spec =
+//       match d with
+//       | DEnum(_, _, [], "HTTP", [ DString route; DString method ]) ->
+//         PT.Handler.Spec.HTTP(route, method)
+//       | DEnum(_, _, [], "Worker", [ DString name ]) -> PT.Handler.Spec.Worker(name)
+//       | DEnum(_, _, [], "Cron", [ DString name; interval ]) ->
+//         PT.Handler.Spec.Cron(name, CronInterval.fromDT interval)
+//       | DEnum(_, _, [], "REPL", [ DString name ]) -> PT.Handler.Spec.REPL(name)
+//       | _ -> Exception.raiseInternal "Invalid Spec" []
+
+//   let typeName =
+//     FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.Handler.handler
+
+//   let toDT (h : PT.Handler.T) : Dval =
+//     let fields =
+//       [ "tlid", DUInt64(uint64 h.tlid)
+//         "ast", Expr.toDT h.ast
+//         "spec", Spec.toDT h.spec ]
+//     DRecord(typeName, typeName, [], Map fields)
 
 
-module DB =
-  let typeName = FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.db
-
-  let toDT (db : PT.DB.T) : Dval =
-    let fields =
-      [ "tlid", DUInt64(uint64 db.tlid)
-        "name", DString db.name
-        "version", DInt64 db.version
-        "typ", TypeReference.toDT db.typ ]
-    DRecord(typeName, typeName, [], Map fields)
-
-  let fromDT (d : Dval) : PT.DB.T =
-    match d with
-    | DRecord(_, _, _, fields) ->
-      { tlid = fields |> D.uint64Field "tlid"
-        name = fields |> D.stringField "name"
-        version = fields |> D.intField "version"
-        typ = fields |> D.field "typ" |> TypeReference.fromDT }
-    | _ -> Exception.raiseInternal "Invalid DB" []
+//   let fromDT (d : Dval) : PT.Handler.T =
+//     match d with
+//     | DRecord(_, _, _, fields) ->
+//       { tlid = fields |> D.uint64Field "tlid"
+//         ast = fields |> D.field "ast" |> Expr.fromDT
+//         spec = fields |> D.field "spec" |> Spec.fromDT }
+//     | _ -> Exception.raiseInternal "Invalid Handler" []
 
 
-module Secret =
-  let typeName =
-    FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.secret
+// module DB =
+//   let typeName = FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.db
 
-  let toDT (s : PT.Secret.T) : Dval =
-    let fields =
-      [ "name", DString s.name
-        "value", DString s.value
-        "version", DInt64 s.version ]
-    DRecord(typeName, typeName, [], Map fields)
+//   let toDT (db : PT.DB.T) : Dval =
+//     let fields =
+//       [ "tlid", DUInt64(uint64 db.tlid)
+//         "name", DString db.name
+//         "version", DInt64 db.version
+//         "typ", TypeReference.toDT db.typ ]
+//     DRecord(typeName, typeName, [], Map fields)
 
-  let fromDT (d : Dval) : PT.Secret.T =
-    match d with
-    | DRecord(_, _, _, fields) ->
-      { name = fields |> D.stringField "name"
-        value = fields |> D.stringField "value"
-        version = fields |> D.intField "version" }
-    | _ -> Exception.raiseInternal "Invalid Secret" []
+//   let fromDT (d : Dval) : PT.DB.T =
+//     match d with
+//     | DRecord(_, _, _, fields) ->
+//       { tlid = fields |> D.uint64Field "tlid"
+//         name = fields |> D.field "name" |> D.string
+//         version = fields |> D.int32Field "version"
+//         typ = fields |> D.field "typ" |> TypeReference.fromDT }
+//     | _ -> Exception.raiseInternal "Invalid DB" []
+
+
+// module Secret =
+//   let typeName =
+//     FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.secret
+
+//   let toDT (s : PT.Secret.T) : Dval =
+//     let fields =
+//       [ "name", DString s.name
+//         "value", DString s.value
+//         "version", DInt64 s.version ]
+//     DRecord(typeName, typeName, [], Map fields)
+
+//   let fromDT (d : Dval) : PT.Secret.T =
+//     match d with
+//     | DRecord(_, _, _, fields) ->
+//       { name = fields |> D.field "name" |> D.string
+//         value = fields |> D.field "value" |> D.string
+//         version = fields |> D.int32Field "version" }
+//     | _ -> Exception.raiseInternal "Invalid Secret" []
 
 
 module PackageType =
@@ -1329,9 +1379,9 @@ module PackageType =
     let fromDT (d : Dval) : PT.PackageType.Name =
       match d with
       | DRecord(_, _, _, fields) ->
-        { owner = fields |> D.stringField "owner"
-          modules = fields |> D.stringListField "modules"
-          name = fields |> D.stringField "name" }
+        { owner = fields |> D.field "owner" |> D.string
+          modules = fields |> D.field "modules" |> D.list D.string
+          name = fields |> D.field "name" |> D.string }
       | _ -> Exception.raiseInternal "Invalid PackageType.Name" []
 
 
@@ -1353,10 +1403,10 @@ module PackageType =
   let fromDT (d : Dval) : PT.PackageType.PackageType =
     match d with
     | DRecord(_, _, _, fields) ->
-      { id = fields |> D.uuidField "id"
+      { id = fields |> D.field "id" |> D.uuid
         name = fields |> D.field "name" |> Name.fromDT
         declaration = fields |> D.field "declaration" |> TypeDeclaration.fromDT
-        description = fields |> D.stringField "description"
+        description = fields |> D.field "description" |> D.string
         deprecated =
           fields |> D.field "deprecated" |> Deprecation.fromDT FQTypeName.fromDT }
     | _ -> Exception.raiseInternal "Invalid PackageType" []
@@ -1378,9 +1428,9 @@ module PackageConstant =
     let fromDT (d : Dval) : PT.PackageConstant.Name =
       match d with
       | DRecord(_, _, _, fields) ->
-        { owner = fields |> D.stringField "owner"
-          modules = fields |> D.stringListField "modules"
-          name = fields |> D.stringField "name" }
+        { owner = fields |> D.field "owner" |> D.string
+          modules = fields |> D.field "modules" |> D.list D.string
+          name = fields |> D.field "name" |> D.string }
       | _ -> Exception.raiseInternal "Invalid PackageConstant.Name" []
 
 
@@ -1401,10 +1451,10 @@ module PackageConstant =
   let fromDT (d : Dval) : PT.PackageConstant.PackageConstant =
     match d with
     | DRecord(_, _, _, fields) ->
-      { id = fields |> D.uuidField "id"
+      { id = fields |> D.field "id" |> D.uuid
         name = fields |> D.field "name" |> Name.fromDT
         body = fields |> D.field "body" |> Const.fromDT
-        description = fields |> D.stringField "description"
+        description = fields |> D.field "description" |> D.string
         deprecated =
           fields |> D.field "deprecated" |> Deprecation.fromDT FQConstantName.fromDT }
     | _ -> Exception.raiseInternal "Invalid PackageConstant" []
@@ -1425,9 +1475,9 @@ module PackageFn =
     let fromDT (d : Dval) : PT.PackageFn.Name =
       match d with
       | DRecord(_, _, _, fields) ->
-        { owner = fields |> D.stringField "owner"
-          modules = fields |> D.stringListField "modules"
-          name = fields |> D.stringField "name" }
+        { owner = fields |> D.field "owner" |> D.string
+          modules = fields |> D.field "modules" |> D.list D.string
+          name = fields |> D.field "name" |> D.string }
       | _ -> Exception.raiseInternal "Invalid PackageFn.Name" []
 
 
@@ -1449,9 +1499,9 @@ module PackageFn =
     let fromDT (d : Dval) : PT.PackageFn.Parameter =
       match d with
       | DRecord(_, _, _, fields) ->
-        { name = fields |> D.stringField "name"
+        { name = fields |> D.field "name" |> D.string
           typ = fields |> D.field "typ" |> TypeReference.fromDT
-          description = fields |> D.stringField "description" }
+          description = fields |> D.field "description" |> D.string }
       | _ -> Exception.raiseInternal "Invalid PackageFn.Parameter" []
 
 
@@ -1480,17 +1530,17 @@ module PackageFn =
   let fromDT (d : Dval) : PT.PackageFn.PackageFn =
     match d with
     | DRecord(_, _, _, fields) ->
-      { id = fields |> D.uuidField "id"
+      { id = fields |> D.field "id" |> D.uuid
         name = fields |> D.field "name" |> Name.fromDT
         body = fields |> D.field "body" |> Expr.fromDT
-        typeParams = fields |> D.stringListField "typeParams"
+        typeParams = fields |> D.field "typeParams" |> D.list D.string
         parameters =
           fields
-          |> D.listField "parameters"
-          |> List.map Parameter.fromDT
+          |> D.field "parameters"
+          |> D.list Parameter.fromDT
           |> NEList.ofListUnsafe "PackageFn.fromDT" []
         returnType = fields |> D.field "returnType" |> TypeReference.fromDT
-        description = fields |> D.stringField "description"
+        description = fields |> D.field "description" |> D.string
         deprecated =
           fields |> D.field "deprecated" |> Deprecation.fromDT FQFnName.fromDT }
     | _ -> Exception.raiseInternal "Invalid PackageFn" []

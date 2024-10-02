@@ -12,8 +12,6 @@ open TestUtils.TestUtils
 
 open LibExecution.RuntimeTypes
 
-module Shortcuts = TestUtils.RTShortcuts
-
 module Canvas = LibCloud.Canvas
 module AT = LibExecution.AnalysisTypes
 module PT = LibExecution.ProgramTypes

@@ -4,43 +4,39 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module VT = ValueType
+module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
-module Interpreter = LibExecution.Interpreter
 module TypeChecker = LibExecution.TypeChecker
-module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module PackageIDs = LibExecution.PackageIDs
+module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 
-
-let typeNameToStr = DvalReprDeveloper.typeName
 
 let fns : List<BuiltInFn> =
   [ { name = fn "languageToolsAllBuiltinConstants" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType =
-        TList(
-          TCustomType(
-            Ok(FQTypeName.fqPackage PackageIDs.Type.LanguageTools.builtinConstant),
-            []
-          )
+        TCustomType(
+          Ok(FQTypeName.fqPackage PackageIDs.Type.LanguageTools.builtinConstant),
+          []
         )
+        |> TList
       description =
         "Returns a list of the Builtin constants (usually not to be accessed directly)."
       fn =
         (function
-        | state, _, [ DUnit ] ->
+        | exeState, _, _, [ DUnit ] ->
           let constTypeName =
             FQTypeName.fqPackage PackageIDs.Type.LanguageTools.builtinConstant
 
           let consts =
-            state.builtins.constants
+            exeState.constants.builtIn
             |> Map.toList
             |> List.map (fun (name, data) ->
               let fields =
-                [ "name", DString(FQConstantName.builtinToString name)
+                [ "name", RT2DT.FQConstantName.Builtin.toDT name
                   "description", DString data.description
-                  "returnType", DString(typeNameToStr data.typ) ]
+                  "returnType", RT2DT.TypeReference.toDT data.typ ]
 
               DRecord(constTypeName, constTypeName, [], Map fields))
 
@@ -55,24 +51,23 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType =
-        TList(
-          TCustomType(
-            Ok(FQTypeName.fqPackage PackageIDs.Type.LanguageTools.builtinFn),
-            []
-          )
+        TCustomType(
+          Ok(FQTypeName.fqPackage PackageIDs.Type.LanguageTools.builtinFn),
+          []
         )
+        |> TList
       description =
         "Returns a list of the Builtin functions (usually not to be accessed directly)."
       fn =
         (function
-        | state, _, [ DUnit ] ->
+        | exeState, _, _, [ DUnit ] ->
           let fnParamTypeName =
             FQTypeName.fqPackage PackageIDs.Type.LanguageTools.builtinFnParam
           let fnTypeName =
             FQTypeName.fqPackage PackageIDs.Type.LanguageTools.builtinFn
 
           let fns =
-            state.builtins.fns
+            exeState.fns.builtIn
             |> Map.toList
             |> List.map (fun (name, data) ->
               let parameters =
@@ -80,15 +75,15 @@ let fns : List<BuiltInFn> =
                 |> List.map (fun p ->
                   let fields =
                     [ "name", DString p.name
-                      "type", DString(typeNameToStr p.typ) ]
+                      "type", RT2DT.TypeReference.toDT p.typ ]
                   DRecord(fnParamTypeName, fnParamTypeName, [], Map fields))
                 |> Dval.list (KTCustomType(fnParamTypeName, []))
 
               let fields =
-                [ "name", DString(FQFnName.builtinToString name)
+                [ "name", RT2DT.FQFnName.Builtin.toDT name
                   "description", DString data.description
                   "parameters", parameters
-                  "returnType", DString(typeNameToStr data.returnType) ]
+                  "returnType", RT2DT.TypeReference.toDT data.returnType ]
 
               DRecord(fnTypeName, fnTypeName, [], Map fields))
 
@@ -109,10 +104,10 @@ let fns : List<BuiltInFn> =
       description = "Returns whether or not some builtin fn exists"
       fn =
         (function
-        | state, _, [ DString name; DInt64 version ] ->
+        | exeState, _, _, [ DString name; DInt64 version ] ->
           let name : FQFnName.Builtin = { name = name; version = int version }
 
-          let found = state.builtins.fns |> Map.find name |> Option.isSome
+          let found = exeState.fns.builtIn |> Map.find name |> Option.isSome
 
           DBool found |> Ply
         | _ -> incorrectArgs ())

@@ -11,7 +11,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module VT = ValueType
+module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 
 
@@ -23,8 +23,8 @@ let fns : List<BuiltInFn> =
       description = "Computes the SHA-256 digest of the given <param data>"
       fn =
         (function
-        | _, _, [ DList(_vt, data) ] ->
-          let data = Dval.DlistToByteArray data
+        | _, _, _, [ DList(_vt, data) ] ->
+          let data = Dval.dlistToByteArray data
           let hash = SHA256.HashData(System.ReadOnlySpan(data))
           Dval.byteArrayToDvalList hash |> Ply
         | _ -> incorrectArgs ())
@@ -40,8 +40,8 @@ let fns : List<BuiltInFn> =
       description = "Computes the SHA-384 digest of the given <param data>"
       fn =
         (function
-        | _, _, [ DList(_vt, data) ] ->
-          let data = Dval.DlistToByteArray data
+        | _, _, _, [ DList(_vt, data) ] ->
+          let data = Dval.dlistToByteArray data
           let hash = SHA384.HashData(System.ReadOnlySpan data)
           Dval.byteArrayToDvalList hash |> Ply
         | _ -> incorrectArgs ())
@@ -58,8 +58,8 @@ let fns : List<BuiltInFn> =
         "Computes the md5 digest of the given <param data>. NOTE: There are multiple security problems with md5, see https://en.wikipedia.org/wiki/MD5#Security"
       fn =
         (function
-        | _, _, [ DList(_vt, data) ] ->
-          let data = Dval.DlistToByteArray data
+        | _, _, _, [ DList(_vt, data) ] ->
+          let data = Dval.dlistToByteArray data
           let hash = MD5.HashData(System.ReadOnlySpan data)
           Dval.byteArrayToDvalList hash |> Ply
         | _ -> incorrectArgs ())
@@ -77,10 +77,10 @@ let fns : List<BuiltInFn> =
         "Computes the SHA-256 HMAC (hash-based message authentication code) digest of the given <param key> and <param data>."
       fn =
         (function
-        | _, _, [ DList(_, key); DList(_, data) ] ->
-          let key = Dval.DlistToByteArray key
+        | _, _, _, [ DList(_, key); DList(_, data) ] ->
+          let key = Dval.dlistToByteArray key
           let hmac = new HMACSHA256(key)
-          let data = Dval.DlistToByteArray data
+          let data = Dval.dlistToByteArray data
           let hash = hmac.ComputeHash(data)
           Dval.byteArrayToDvalList hash |> Ply
         | _ -> incorrectArgs ())
@@ -98,10 +98,10 @@ let fns : List<BuiltInFn> =
         "Computes the SHA1-HMAC (hash-based message authentication code) digest of the given <param key> and <param data>."
       fn =
         (function
-        | _, _, [ DList(_, key); DList(_, data) ] ->
-          let key = Dval.DlistToByteArray key
+        | _, _, _, [ DList(_, key); DList(_, data) ] ->
+          let key = Dval.dlistToByteArray key
           let hmac = new HMACSHA1(key)
-          let data = Dval.DlistToByteArray data
+          let data = Dval.dlistToByteArray data
           let hash = hmac.ComputeHash(data)
           Dval.byteArrayToDvalList hash |> Ply
         | _ -> incorrectArgs ())
