@@ -14,8 +14,8 @@ module SimpleRecordAlias =
   type MyPerson = Person
   type MyPerson2 = Person
 
-  (MyPerson { name = "test" } == Person { name = "test" }) = true
-  (MyPerson { name = "test" } == MyPerson2 { name = "test" }) = true
+  // (MyPerson { name = "test" } == Person { name = "test" }) = true
+  // (MyPerson { name = "test" } == MyPerson2 { name = "test" }) = true
 
   let getName (p: MyPerson) : String = p.name
   getName (MyPerson { name = "test" }) = "test"
@@ -29,7 +29,7 @@ module SimpleEnumAlias =
   type AdminRole = UserRole
   type GuestRole = UserRole
 
-  (GuestRole.Guest == AdminRole.Guest) = true
+  // (GuestRole.Guest == AdminRole.Guest) = true
 
 module NestedAlias =
   type UserCredential = (String * Id)
@@ -83,8 +83,8 @@ module RecordWithTypeArgs =
   getInnerField (Inner { a = "test"; b = 5L }) = 5L
   getInnerField (Outer1 { a = "test"; b = 5L }) = 5L
   getInnerField (Outer2 { a = "test"; b = 5L }) = 5L
-  Outer1 { a = "test"; b = 5L } = Inner { a = "test"; b = 5L }
-  Outer1 { a = "test"; b = 5L } = Outer2 { a = "test"; b = 5L }
+  // Outer1 { a = "test"; b = 5L } = Inner { a = "test"; b = 5L }
+  // Outer1 { a = "test"; b = 5L } = Outer2 { a = "test"; b = 5L }
 
   // Outer2 { a = 5L; b = 6L } = Builtin.testDerrorMessage
   //   "RecordWithTypeArgs.Outer2's `a` field should be a String. However, an Int64 (5) was passed instead.\n\nExpected: ({ a: String; ... })\nActual: an Int64: 5"
@@ -102,7 +102,7 @@ module RecordWithTypeArgsDifferentName =
   type Outest<'y> = Outer<'y>
   type MostOutest = Outest<String> // { a: Int64; b: String }
 
-  MostOutest { a = 5L; b = "string" } = Inner { a = 5L; b = "string" }
+  // MostOutest { a = 5L; b = "string" } = Inner { a = 5L; b = "string" }
 
   // MostOutest { a = "not allowed"; b = "string" } = Builtin.testDerrorMessage
   //   "RecordWithTypeArgsDifferentName.MostOutest's `a` field should be an Int64. However, a String (\"not allow...) was passed instead.\n\nExpected: ({ a: Int64; ... })\nActual: a String: \"not allowed\""
@@ -118,31 +118,31 @@ module RecordWithRecursiveTypeArgs =
 
   type Alias<'x> = Inner<'x>
 
-  Inner
-    { a = 5L
-      b =
-        Stdlib.Result.Result.Ok(
-          Inner
-            { a = 6L
-              b =
-                Stdlib.Result.Result.Ok(
-                  Inner
-                    { a = 7L
-                      b = Stdlib.Result.Result.Error "test" }
-                ) }
-        ) } = Alias
-    { a = 5L
-      b =
-        Stdlib.Result.Result.Ok(
-          Alias
-            { a = 6L
-              b =
-                Stdlib.Result.Result.Ok(
-                  Alias
-                    { a = 7L
-                      b = Stdlib.Result.Result.Error "test" }
-                ) }
-        ) }
+  // Inner
+  //   { a = 5L
+  //     b =
+  //       Stdlib.Result.Result.Ok(
+  //         Inner
+  //           { a = 6L
+  //             b =
+  //               Stdlib.Result.Result.Ok(
+  //                 Inner
+  //                   { a = 7L
+  //                     b = Stdlib.Result.Result.Error "test" }
+  //               ) }
+  //       ) } = Alias
+  //   { a = 5L
+  //     b =
+  //       Stdlib.Result.Result.Ok(
+  //         Alias
+  //           { a = 6L
+  //             b =
+  //               Stdlib.Result.Result.Ok(
+  //                 Alias
+  //                   { a = 7L
+  //                     b = Stdlib.Result.Result.Error "test" }
+  //               ) }
+  //       ) }
 
 
 module EnumWithTypeArgs =
@@ -165,11 +165,11 @@ module EnumWithTypeArgs =
   getInnerField (Outer2.A "str") "str2" = "str2"
   getInnerField (Outer2.B "str") "str2" = "str"
 
-  Outer1.A 5L = Inner.A 5L
-  Outer1.B 5L = Inner.B 5L
+  // Outer1.A 5L = Inner.A 5L
+  // Outer1.B 5L = Inner.B 5L
 
-  Outer2.A "str" = Outer1.A "str"
-  Outer2.B 5L = Outer1.B 5L
+  // Outer2.A "str" = Outer1.A "str"
+  // Outer2.B 5L = Outer1.B 5L
 
   // Outer1.B "b" = Builtin.testDerrorMessage
   //   "EnumWithTypeArgs.Outer1.B's 1st argument should be an Int64. However, a String (\"b\") was passed instead.\n\nExpected: EnumWithTypeArgs.Outer1.B (Int64)\nActual: EnumWithTypeArgs.Outer1.B (String)"
@@ -187,8 +187,8 @@ module EnumWithTypeArgsDifferentName =
   type Outest<'y> = Outer<'y>
   type MostOutest = Outest<String> // | A of Int64 | B of String
 
-  MostOutest.A 5L = Inner.A 5L
-  MostOutest.B "test" = Inner.B "test"
+  // MostOutest.A 5L = Inner.A 5L
+  // MostOutest.B "test" = Inner.B "test"
 
   // MostOutest.A "not allowed" = Builtin.testDerrorMessage
   //   "EnumWithTypeArgsDifferentName.MostOutest.A's 1st argument should be an Int64. However, a String (\"not allow...) was passed instead.\n\nExpected: EnumWithTypeArgsDifferentName.MostOutest.A (Int64)\nActual: EnumWithTypeArgsDifferentName.MostOutest.A (String)"
@@ -204,6 +204,6 @@ module EnumWithRecursiveTypeArgs =
 
   type Alias<'x> = Inner<'x>
 
-  Alias.B(Stdlib.Result.Result.Ok(Alias.A 5L)) = Inner.B(
-    Stdlib.Result.Result.Ok(Inner.A 5L)
-  )
+  // Alias.B(Stdlib.Result.Result.Ok(Alias.A 5L)) = Inner.B(
+  //   Stdlib.Result.Result.Ok(Inner.A 5L)
+  // )

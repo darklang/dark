@@ -113,37 +113,37 @@ Stdlib.Int16.toString 32767s = "32767" // Int16 upper limit
 Stdlib.Int16.toFloat_v0 2s = 2.0
 Stdlib.Int16.toFloat_v0 -10s = -10.0
 
-// (Stdlib.List.range_v0 1L 5L)
-// |> Stdlib.List.map_v0 (fun x -> Stdlib.Int16.random 1s 2s)
-// |> Stdlib.List.map_v0 (fun x ->
-//   (Stdlib.Int16.greaterThanOrEqualTo x 1s)
-//   && (Stdlib.Int16.lessThanOrEqualTo x 2s)) = [ true; true; true; true; true ]
+(Stdlib.List.range_v0 1L 5L)
+|> Stdlib.List.map_v0 (fun x -> Stdlib.Int16.random 1s 2s)
+|> Stdlib.List.map_v0 (fun x ->
+  (Stdlib.Int16.greaterThanOrEqualTo x 1s)
+  && (Stdlib.Int16.lessThanOrEqualTo x 2s)) = [ true; true; true; true; true ]
 
-// (Stdlib.List.range_v0 1L 5L)
-// |> Stdlib.List.map_v0 (fun x -> Stdlib.Int16.random 10s 20s)
-// |> Stdlib.List.map_v0 (fun x ->
-//   (Stdlib.Int16.greaterThanOrEqualTo x 10s)
-//   && (Stdlib.Int16.lessThanOrEqualTo x 20s)) = [ true; true; true; true; true ]
+(Stdlib.List.range_v0 1L 5L)
+|> Stdlib.List.map_v0 (fun x -> Stdlib.Int16.random 10s 20s)
+|> Stdlib.List.map_v0 (fun x ->
+  (Stdlib.Int16.greaterThanOrEqualTo x 10s)
+  && (Stdlib.Int16.lessThanOrEqualTo x 20s)) = [ true; true; true; true; true ]
 
-// (Stdlib.List.range_v0 1L 5L)
-// |> Stdlib.List.map_v0 (fun x -> Stdlib.Int16.random 2s 1s)
-// |> Stdlib.List.map_v0 (fun x ->
-//   (Stdlib.Int16.greaterThanOrEqualTo x 1s)
-//   && (Stdlib.Int16.lessThanOrEqualTo x 2s)) = [ true; true; true; true; true ]
+(Stdlib.List.range_v0 1L 5L)
+|> Stdlib.List.map_v0 (fun x -> Stdlib.Int16.random 2s 1s)
+|> Stdlib.List.map_v0 (fun x ->
+  (Stdlib.Int16.greaterThanOrEqualTo x 1s)
+  && (Stdlib.Int16.lessThanOrEqualTo x 2s)) = [ true; true; true; true; true ]
 
-// (Stdlib.List.range_v0 1L 5L)
-// |> Stdlib.List.map_v0 (fun x -> Stdlib.Int16.random 20s 10s)
-// |> Stdlib.List.map_v0 (fun x ->
-//   (Stdlib.Int16.greaterThanOrEqualTo x 10s)
-//   && (Stdlib.Int16.lessThanOrEqualTo x 20s)) = [ true; true; true; true; true ]
+(Stdlib.List.range_v0 1L 5L)
+|> Stdlib.List.map_v0 (fun x -> Stdlib.Int16.random 20s 10s)
+|> Stdlib.List.map_v0 (fun x ->
+  (Stdlib.Int16.greaterThanOrEqualTo x 10s)
+  && (Stdlib.Int16.lessThanOrEqualTo x 20s)) = [ true; true; true; true; true ]
 
-// ((Stdlib.List.range_v0 1L 100L)
-//  |> Stdlib.List.map_v0 (fun x -> Stdlib.Int16.random 0s 1s)
-//  |> Stdlib.List.unique_v0) = [ 0s; 1s ]
+((Stdlib.List.range_v0 1L 100L)
+ |> Stdlib.List.map_v0 (fun x -> Stdlib.Int16.random 0s 1s)
+ |> Stdlib.List.unique_v0) = [ 0s; 1s ]
 
-// ((Stdlib.List.range_v0 1L 100L)
-//  |> Stdlib.List.map_v0 (fun x -> Stdlib.Int16.random 0s 2s)
-//  |> Stdlib.List.unique_v0) = [ 0s; 1s; 2s ]
+((Stdlib.List.range_v0 1L 100L)
+ |> Stdlib.List.map_v0 (fun x -> Stdlib.Int16.random 0s 2s)
+ |> Stdlib.List.unique_v0) = [ 0s; 1s; 2s ]
 
 
 // Stdlib.Int16.parse_v0 "0" = Stdlib.Result.Result.Ok 0s

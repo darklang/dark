@@ -313,23 +313,23 @@ Stdlib.Option.join_v0 (Stdlib.Option.Option.Some(Stdlib.Option.Option.None)) = S
 Stdlib.Option.join_v0 Stdlib.Option.Option.None = Stdlib.Option.Option.None
 
 
-// Stdlib.Option.combine_v0
-//   [ Stdlib.Option.Option.Some 6L
-//     Stdlib.Option.Option.Some 5L
-//     Stdlib.Option.Option.Some 4L
-//     Stdlib.Option.Option.Some 3L ] = Stdlib.Option.Option.Some [ 6L; 5L; 4L; 3L ]
+Stdlib.Option.combine_v0
+  [ Stdlib.Option.Option.Some 6L
+    Stdlib.Option.Option.Some 5L
+    Stdlib.Option.Option.Some 4L
+    Stdlib.Option.Option.Some 3L ] = Stdlib.Option.Option.Some [ 6L; 5L; 4L; 3L ]
 
-// Stdlib.Option.combine_v0
-//   [ Stdlib.Option.Option.Some 6L
-//     Stdlib.Option.Option.None
-//     Stdlib.Option.Option.Some 4L
-//     Stdlib.Option.Option.Some 3L ] = Stdlib.Option.Option.None
+Stdlib.Option.combine_v0
+  [ Stdlib.Option.Option.Some 6L
+    Stdlib.Option.Option.None
+    Stdlib.Option.Option.Some 4L
+    Stdlib.Option.Option.Some 3L ] = Stdlib.Option.Option.None
 
-// Stdlib.Option.combine_v0
-//   [ Stdlib.Option.Option.None
-//     Stdlib.Option.Option.None
-//     Stdlib.Option.Option.None
-//     Stdlib.Option.Option.None ] = Stdlib.Option.Option.None
+Stdlib.Option.combine_v0
+  [ Stdlib.Option.Option.None
+    Stdlib.Option.Option.None
+    Stdlib.Option.Option.None
+    Stdlib.Option.Option.None ] = Stdlib.Option.Option.None
 
 
 Stdlib.Option.values

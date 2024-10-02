@@ -880,8 +880,10 @@ module Expr =
         |> Set.toList
         |> List.fold
           (fun (regs, newSymbols, rc) name ->
-            let parentReg = Map.findUnsafe name symbols
-            (regs @ [ parentReg, rc ], Map.add name rc newSymbols, rc + 1))
+            match Map.tryFind name symbols with
+            | Some parentReg ->
+              (regs @ [ parentReg, rc ], Map.add name rc newSymbols, rc + 1)
+            | None -> (regs, newSymbols, rc)) // should we raise an error here? or should we just ignore it, and let the runtime raise an error?
           ([], symbolsOfNewFrameAfterPats, rcOfNewFrameAfterPats)
 
       let impl : RT.LambdaImpl =

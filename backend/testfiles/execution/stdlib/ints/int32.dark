@@ -127,41 +127,41 @@ Stdlib.Int32.divide_v0 0l 1l = 0l
 
 // Stdlib.Int32.divide_v0 1l 0l = Builtin.testDerrorMessage "Division by zero"
 
-// (Stdlib.List.range_v0 1L 5L)
-// |> Stdlib.List.map_v0 (fun x -> Stdlib.Int32.random 1l 2l)
-// |> Stdlib.List.map_v0 (fun x ->
-//   (Stdlib.Int32.greaterThanOrEqualTo x 1l)
-//   && (Stdlib.Int32.lessThanOrEqualTo x 2l)) = [ true; true; true; true; true ]
+(Stdlib.List.range_v0 1L 5L)
+|> Stdlib.List.map_v0 (fun x -> Stdlib.Int32.random 1l 2l)
+|> Stdlib.List.map_v0 (fun x ->
+  (Stdlib.Int32.greaterThanOrEqualTo x 1l)
+  && (Stdlib.Int32.lessThanOrEqualTo x 2l)) = [ true; true; true; true; true ]
 
-// (Stdlib.List.range_v0 1L 5L)
-// |> Stdlib.List.map_v0 (fun x -> Stdlib.Int32.random 10l 20l)
-// |> Stdlib.List.map_v0 (fun x ->
-//   (Stdlib.Int32.greaterThanOrEqualTo x 10l)
-//   && (Stdlib.Int32.lessThanOrEqualTo x 20l)) = [ true; true; true; true; true ]
+(Stdlib.List.range_v0 1L 5L)
+|> Stdlib.List.map_v0 (fun x -> Stdlib.Int32.random 10l 20l)
+|> Stdlib.List.map_v0 (fun x ->
+  (Stdlib.Int32.greaterThanOrEqualTo x 10l)
+  && (Stdlib.Int32.lessThanOrEqualTo x 20l)) = [ true; true; true; true; true ]
 
-// (Stdlib.List.range_v0 1L 5L)
-// |> Stdlib.List.map_v0 (fun x -> Stdlib.Int32.random 2l 1l)
-// |> Stdlib.List.map_v0 (fun x ->
-//   (Stdlib.Int32.greaterThanOrEqualTo x 1l)
-//   && (Stdlib.Int32.lessThanOrEqualTo x 2l)) = [ true; true; true; true; true ]
+(Stdlib.List.range_v0 1L 5L)
+|> Stdlib.List.map_v0 (fun x -> Stdlib.Int32.random 2l 1l)
+|> Stdlib.List.map_v0 (fun x ->
+  (Stdlib.Int32.greaterThanOrEqualTo x 1l)
+  && (Stdlib.Int32.lessThanOrEqualTo x 2l)) = [ true; true; true; true; true ]
 
-// (Stdlib.List.range_v0 1L 5L)
-// |> Stdlib.List.map_v0 (fun x -> Stdlib.Int32.random 20l 10l)
-// |> Stdlib.List.map_v0 (fun x ->
-//   (Stdlib.Int32.greaterThanOrEqualTo x 10l)
-//   && (Stdlib.Int32.lessThanOrEqualTo x 20l)) = [ true; true; true; true; true ]
+(Stdlib.List.range_v0 1L 5L)
+|> Stdlib.List.map_v0 (fun x -> Stdlib.Int32.random 20l 10l)
+|> Stdlib.List.map_v0 (fun x ->
+  (Stdlib.Int32.greaterThanOrEqualTo x 10l)
+  && (Stdlib.Int32.lessThanOrEqualTo x 20l)) = [ true; true; true; true; true ]
 
-// ((Stdlib.List.range_v0 1L 100L)
-//  |> Stdlib.List.map_v0 (fun x -> Stdlib.Int32.random 0l 1l)
-//  |> Stdlib.List.unique_v0) = [ 0l; 1l ]
-
-
-// ((Stdlib.List.range_v0 1L 100L)
-//  |> Stdlib.List.map_v0 (fun x -> Stdlib.Int32.random 0l 2l)
-//  |> Stdlib.List.unique_v0) = [ 0l; 1l; 2l ]
+((Stdlib.List.range_v0 1L 100L)
+ |> Stdlib.List.map_v0 (fun x -> Stdlib.Int32.random 0l 1l)
+ |> Stdlib.List.unique_v0) = [ 0l; 1l ]
 
 
-//Stdlib.Int32.sum_v0 [ 1l; 2l ] = 3l
+((Stdlib.List.range_v0 1L 100L)
+ |> Stdlib.List.map_v0 (fun x -> Stdlib.Int32.random 0l 2l)
+ |> Stdlib.List.unique_v0) = [ 0l; 1l; 2l ]
+
+
+Stdlib.Int32.sum_v0 [ 1l; 2l ] = 3l
 
 // Stdlib.Int32.parse_v0 "0" = Stdlib.Result.Result.Ok 0l
 // Stdlib.Int32.parse_v0 "1" = Stdlib.Result.Result.Ok 1l
@@ -207,29 +207,29 @@ Stdlib.Int32.divide_v0 0l 1l = 0l
 //   Stdlib.Int32.ParseError.BadFormat
 
 
-// Stdlib.Int32.toString 0l = "0"
-// Stdlib.Int32.toString 1l = "1"
-// Stdlib.Int32.toString -1l = "-1"
-// Stdlib.Int32.toString -2147483648l = "-2147483648" // Int32 lower limit
-// Stdlib.Int32.toString 2147483647l = "2147483647" // Int32 upper limit
+Stdlib.Int32.toString 0l = "0"
+Stdlib.Int32.toString 1l = "1"
+Stdlib.Int32.toString -1l = "-1"
+Stdlib.Int32.toString -2147483648l = "-2147483648" // Int32 lower limit
+Stdlib.Int32.toString 2147483647l = "2147483647" // Int32 upper limit
 
-// Stdlib.Int32.fromInt8_v0 0y = 0l
-// Stdlib.Int32.fromInt8_v0 1y = 1l
-// Stdlib.Int32.fromInt8_v0 127y = 127l
-// Stdlib.Int32.fromInt8_v0 (-128y) = -128l
+Stdlib.Int32.fromInt8_v0 0y = 0l
+Stdlib.Int32.fromInt8_v0 1y = 1l
+Stdlib.Int32.fromInt8_v0 127y = 127l
+Stdlib.Int32.fromInt8_v0 (-128y) = -128l
 
-// Stdlib.Int32.fromUInt8_v0 0uy = 0l
-// Stdlib.Int32.fromUInt8_v0 1uy = 1l
-// Stdlib.Int32.fromUInt8_v0 255uy = 255l
+Stdlib.Int32.fromUInt8_v0 0uy = 0l
+Stdlib.Int32.fromUInt8_v0 1uy = 1l
+Stdlib.Int32.fromUInt8_v0 255uy = 255l
 
-// Stdlib.Int32.fromInt16_v0 0s = 0l
-// Stdlib.Int32.fromInt16_v0 1s = 1l
-// Stdlib.Int32.fromInt16_v0 32767s = 32767l
-// Stdlib.Int32.fromInt16_v0 (-32768s) = -32768l
+Stdlib.Int32.fromInt16_v0 0s = 0l
+Stdlib.Int32.fromInt16_v0 1s = 1l
+Stdlib.Int32.fromInt16_v0 32767s = 32767l
+Stdlib.Int32.fromInt16_v0 (-32768s) = -32768l
 
-// Stdlib.Int32.fromUInt16_v0 0us = 0l
-// Stdlib.Int32.fromUInt16_v0 1us = 1l
-// Stdlib.Int32.fromUInt16_v0 65535us = 65535l
+Stdlib.Int32.fromUInt16_v0 0us = 0l
+Stdlib.Int32.fromUInt16_v0 1us = 1l
+Stdlib.Int32.fromUInt16_v0 65535us = 65535l
 
 // Stdlib.Int32.fromUInt32_v0 0ul = Stdlib.Option.Option.Some 0l
 // Stdlib.Int32.fromUInt32_v0 1ul = Stdlib.Option.Option.Some 1l

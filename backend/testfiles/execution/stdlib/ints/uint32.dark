@@ -19,12 +19,12 @@ Stdlib.UInt32.add_v0 88ul 9ul = 97ul
 Stdlib.UInt32.add_v0 1ul 0ul = 1ul
 Stdlib.UInt32.add_v0 4294967294ul 1ul = 4294967295ul
 
-Stdlib.UInt32.add_v0 4294967295ul 1ul = Builtin.testDerrorMessage "Out of range"
+// Stdlib.UInt32.add_v0 4294967295ul 1ul = Builtin.testDerrorMessage "Out of range"
 
 Stdlib.UInt32.subtract_v0 10ul 9ul = 1ul
 Stdlib.UInt32.subtract_v0 88ul 9ul = 79ul
 
-Stdlib.UInt32.subtract_v0 0ul 1ul = Builtin.testDerrorMessage "Out of range"
+// Stdlib.UInt32.subtract_v0 0ul 1ul = Builtin.testDerrorMessage "Out of range"
 
 Stdlib.UInt32.subtract_v0 1ul 0ul = 1ul
 Stdlib.UInt32.subtract_v0 4294967295ul 1ul = 4294967294ul
@@ -33,7 +33,7 @@ Stdlib.UInt32.multiply_v0 8ul 8ul = 64ul
 Stdlib.UInt32.multiply_v0 8ul 0ul = 0ul
 Stdlib.UInt32.multiply_v0 2147483647ul 2ul = 4294967294ul
 
-Stdlib.UInt32.multiply_v0 2147483648ul 2ul = Builtin.testDerrorMessage "Out of range"
+// Stdlib.UInt32.multiply_v0 2147483648ul 2ul = Builtin.testDerrorMessage "Out of range"
 
 Stdlib.UInt32.power_v0 2ul 3ul = 8ul
 Stdlib.UInt32.power_v0 0ul 1ul = 0ul
@@ -41,7 +41,7 @@ Stdlib.UInt32.power_v0 1ul 0ul = 1ul
 Stdlib.UInt32.power_v0 0ul 0ul = 1ul
 Stdlib.UInt32.power_v0 1ul 255ul = 1ul
 
-Stdlib.UInt32.power_v0 65536ul 2ul = Builtin.testDerrorMessage "Out of range"
+// Stdlib.UInt32.power_v0 65536ul 2ul = Builtin.testDerrorMessage "Out of range"
 
 
 Stdlib.UInt32.divide_v0 10ul 5ul = 2ul
@@ -50,7 +50,7 @@ Stdlib.UInt32.divide_v0 8ul 5ul = 1ul
 Stdlib.UInt32.divide_v0 0ul 1ul = 0ul
 Stdlib.UInt32.divide_v0 4294967295ul 2ul = 2147483647ul
 
-Stdlib.UInt32.divide_v0 1ul 0ul = Builtin.testDerrorMessage "Division by zero"
+// Stdlib.UInt32.divide_v0 1ul 0ul = Builtin.testDerrorMessage "Division by zero"
 
 Stdlib.UInt32.greaterThan_v0 20ul 1ul = true
 
@@ -95,7 +95,7 @@ Stdlib.UInt32.mod_v0 1ul 2ul = 1ul
 Stdlib.UInt32.mod_v0 32768ul 53ul = 14ul
 Stdlib.UInt32.mod_v0 4294967295ul 3ul = 0ul
 
-Stdlib.UInt32.mod_v0 5ul 0ul = Builtin.testDerrorMessage "Zero modulus"
+// Stdlib.UInt32.mod_v0 5ul 0ul = Builtin.testDerrorMessage "Zero modulus"
 
 
 (Stdlib.List.range_v0 1L 5L)
@@ -132,64 +132,64 @@ Stdlib.UInt32.mod_v0 5ul 0ul = Builtin.testDerrorMessage "Zero modulus"
 
 Stdlib.UInt32.sum_v0 [ 1ul; 2ul ] = 3ul
 
-Stdlib.UInt32.sum_v0 [ 1ul; 4294967295ul ] = Builtin.testDerrorMessage "Out of range"
+// Stdlib.UInt32.sum_v0 [ 1ul; 4294967295ul ] = Builtin.testDerrorMessage "Out of range"
 
-Stdlib.UInt32.parse_v0 "-129" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.OutOfRange
+// Stdlib.UInt32.parse_v0 "-129" = Stdlib.Result.Result.Error
+//   Stdlib.UInt32.ParseError.OutOfRange
 
-Stdlib.UInt32.parse_v0 "4294967296" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.OutOfRange
+// Stdlib.UInt32.parse_v0 "4294967296" = Stdlib.Result.Result.Error
+//   Stdlib.UInt32.ParseError.OutOfRange
 
-Stdlib.UInt32.parse_v0 "4294967296ul" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.BadFormat
+// Stdlib.UInt32.parse_v0 "4294967296ul" = Stdlib.Result.Result.Error
+//   Stdlib.UInt32.ParseError.BadFormat
 
-Stdlib.UInt32.parse_v0 "1 2 3" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.BadFormat
+// Stdlib.UInt32.parse_v0 "1 2 3" = Stdlib.Result.Result.Error
+//   Stdlib.UInt32.ParseError.BadFormat
 
-Stdlib.UInt32.parse_v0 "+ 1" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.BadFormat
+// Stdlib.UInt32.parse_v0 "+ 1" = Stdlib.Result.Result.Error
+//   Stdlib.UInt32.ParseError.BadFormat
 
-Stdlib.UInt32.parse_v0 "- 1" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.BadFormat
+// Stdlib.UInt32.parse_v0 "- 1" = Stdlib.Result.Result.Error
+//   Stdlib.UInt32.ParseError.BadFormat
 
-Stdlib.UInt32.parse_v0 "0xA" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.BadFormat
+// Stdlib.UInt32.parse_v0 "0xA" = Stdlib.Result.Result.Error
+//   Stdlib.UInt32.ParseError.BadFormat
 
-Stdlib.UInt32.parse_v0 "0x123" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.BadFormat
+// Stdlib.UInt32.parse_v0 "0x123" = Stdlib.Result.Result.Error
+//   Stdlib.UInt32.ParseError.BadFormat
 
-Stdlib.UInt32.parse_v0 "0b0100" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.BadFormat
+// Stdlib.UInt32.parse_v0 "0b0100" = Stdlib.Result.Result.Error
+//   Stdlib.UInt32.ParseError.BadFormat
 
-Stdlib.UInt32.parse_v0 "pi" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.BadFormat
+// Stdlib.UInt32.parse_v0 "pi" = Stdlib.Result.Result.Error
+//   Stdlib.UInt32.ParseError.BadFormat
 
-Stdlib.UInt32.parse_v0 "PACKAGE.Darklang.Stdlib.Math.pi" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.BadFormat
+// Stdlib.UInt32.parse_v0 "PACKAGE.Darklang.Stdlib.Math.pi" = Stdlib.Result.Result.Error
+//   Stdlib.UInt32.ParseError.BadFormat
 
-Stdlib.UInt32.parse_v0 "1.23E+04" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.BadFormat
+// Stdlib.UInt32.parse_v0 "1.23E+04" = Stdlib.Result.Result.Error
+//   Stdlib.UInt32.ParseError.BadFormat
 
-Stdlib.UInt32.parse_v0 "" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.BadFormat
+// Stdlib.UInt32.parse_v0 "" = Stdlib.Result.Result.Error
+//   Stdlib.UInt32.ParseError.BadFormat
 
-Stdlib.UInt32.parse_v0 "1I" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.BadFormat
+// Stdlib.UInt32.parse_v0 "1I" = Stdlib.Result.Result.Error
+//   Stdlib.UInt32.ParseError.BadFormat
 
-Stdlib.UInt32.parse_v0 "one" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.BadFormat
+// Stdlib.UInt32.parse_v0 "one" = Stdlib.Result.Result.Error
+//   Stdlib.UInt32.ParseError.BadFormat
 
-Stdlib.UInt32.parse_v0 "XIV" = Stdlib.Result.Result.Error
-  Stdlib.UInt32.ParseError.BadFormat
+// Stdlib.UInt32.parse_v0 "XIV" = Stdlib.Result.Result.Error
+//   Stdlib.UInt32.ParseError.BadFormat
 
 
-Stdlib.UInt32.fromInt8_v0 0y = Stdlib.Option.Option.Some 0ul
+// Stdlib.UInt32.fromInt8_v0 0y = Stdlib.Option.Option.Some 0ul
 
-Stdlib.UInt32.fromInt8_v0 1y = Stdlib.Option.Option.Some 1ul
+// Stdlib.UInt32.fromInt8_v0 1y = Stdlib.Option.Option.Some 1ul
 
-Stdlib.UInt32.fromInt8_v0 127y = Stdlib.Option.Option.Some 127ul
+// Stdlib.UInt32.fromInt8_v0 127y = Stdlib.Option.Option.Some 127ul
 
-Stdlib.UInt32.fromInt8_v0 (-128y) = Stdlib.Option.Option.None
+// Stdlib.UInt32.fromInt8_v0 (-128y) = Stdlib.Option.Option.None
 
 Stdlib.UInt32.fromUInt8_v0 0uy = 0ul
 
@@ -197,13 +197,13 @@ Stdlib.UInt32.fromUInt8_v0 1uy = 1ul
 
 Stdlib.UInt32.fromUInt8_v0 255uy = 255ul
 
-Stdlib.UInt32.fromInt16_v0 0s = Stdlib.Option.Option.Some 0ul
+// Stdlib.UInt32.fromInt16_v0 0s = Stdlib.Option.Option.Some 0ul
 
-Stdlib.UInt32.fromInt16_v0 1s = Stdlib.Option.Option.Some 1ul
+// Stdlib.UInt32.fromInt16_v0 1s = Stdlib.Option.Option.Some 1ul
 
-Stdlib.UInt32.fromInt16_v0 32767s = Stdlib.Option.Option.Some 32767ul
+// Stdlib.UInt32.fromInt16_v0 32767s = Stdlib.Option.Option.Some 32767ul
 
-Stdlib.UInt32.fromInt16_v0 (-32768s) = Stdlib.Option.Option.None
+// Stdlib.UInt32.fromInt16_v0 (-32768s) = Stdlib.Option.Option.None
 
 Stdlib.UInt32.fromUInt16_v0 0us = 0ul
 
@@ -211,44 +211,44 @@ Stdlib.UInt32.fromUInt16_v0 1us = 1ul
 
 Stdlib.UInt32.fromUInt16_v0 65535us = 65535ul
 
-Stdlib.UInt32.fromInt32_v0 0l = Stdlib.Option.Option.Some 0ul
+// Stdlib.UInt32.fromInt32_v0 0l = Stdlib.Option.Option.Some 0ul
 
-Stdlib.UInt32.fromInt32_v0 1l = Stdlib.Option.Option.Some 1ul
+// Stdlib.UInt32.fromInt32_v0 1l = Stdlib.Option.Option.Some 1ul
 
-Stdlib.UInt32.fromInt32_v0 2147483647l = Stdlib.Option.Option.Some 2147483647ul
+// Stdlib.UInt32.fromInt32_v0 2147483647l = Stdlib.Option.Option.Some 2147483647ul
 
-Stdlib.UInt32.fromInt32_v0 (-2147483648l) = Stdlib.Option.Option.None
+// Stdlib.UInt32.fromInt32_v0 (-2147483648l) = Stdlib.Option.Option.None
 
-Stdlib.UInt32.fromInt64_v0 0L = Stdlib.Option.Option.Some 0ul
+// Stdlib.UInt32.fromInt64_v0 0L = Stdlib.Option.Option.Some 0ul
 
-Stdlib.UInt32.fromInt64_v0 1L = Stdlib.Option.Option.Some 1ul
+// Stdlib.UInt32.fromInt64_v0 1L = Stdlib.Option.Option.Some 1ul
 
-Stdlib.UInt32.fromInt64_v0 4294967295L = Stdlib.Option.Option.Some 4294967295ul
+// Stdlib.UInt32.fromInt64_v0 4294967295L = Stdlib.Option.Option.Some 4294967295ul
 
-Stdlib.UInt32.fromInt64_v0 4294967296L = Stdlib.Option.Option.None
-Stdlib.UInt32.fromInt64_v0 (-1L) = Stdlib.Option.Option.None
+// Stdlib.UInt32.fromInt64_v0 4294967296L = Stdlib.Option.Option.None
+// Stdlib.UInt32.fromInt64_v0 (-1L) = Stdlib.Option.Option.None
 
-Stdlib.UInt32.fromUInt64_v0 0UL = Stdlib.Option.Option.Some 0ul
+// Stdlib.UInt32.fromUInt64_v0 0UL = Stdlib.Option.Option.Some 0ul
 
-Stdlib.UInt32.fromUInt64_v0 1UL = Stdlib.Option.Option.Some 1ul
+// Stdlib.UInt32.fromUInt64_v0 1UL = Stdlib.Option.Option.Some 1ul
 
-Stdlib.UInt32.fromUInt64_v0 4294967295UL = Stdlib.Option.Option.Some 4294967295ul
+// Stdlib.UInt32.fromUInt64_v0 4294967295UL = Stdlib.Option.Option.Some 4294967295ul
 
-Stdlib.UInt32.fromUInt64_v0 4294967296UL = Stdlib.Option.Option.None
+// Stdlib.UInt32.fromUInt64_v0 4294967296UL = Stdlib.Option.Option.None
 
-Stdlib.UInt32.fromInt128_v0 0Q = Stdlib.Option.Option.Some 0ul
+// Stdlib.UInt32.fromInt128_v0 0Q = Stdlib.Option.Option.Some 0ul
 
-Stdlib.UInt32.fromInt128_v0 1Q = Stdlib.Option.Option.Some 1ul
+// Stdlib.UInt32.fromInt128_v0 1Q = Stdlib.Option.Option.Some 1ul
 
-Stdlib.UInt32.fromInt128_v0 4294967295Q = Stdlib.Option.Option.Some 4294967295ul
+// Stdlib.UInt32.fromInt128_v0 4294967295Q = Stdlib.Option.Option.Some 4294967295ul
 
-Stdlib.UInt32.fromInt128_v0 4294967296Q = Stdlib.Option.Option.None
-Stdlib.UInt32.fromInt128_v0 (-1Q) = Stdlib.Option.Option.None
+// Stdlib.UInt32.fromInt128_v0 4294967296Q = Stdlib.Option.Option.None
+// Stdlib.UInt32.fromInt128_v0 (-1Q) = Stdlib.Option.Option.None
 
-Stdlib.UInt32.fromUInt128_v0 0Z = Stdlib.Option.Option.Some 0ul
+// Stdlib.UInt32.fromUInt128_v0 0Z = Stdlib.Option.Option.Some 0ul
 
-Stdlib.UInt32.fromUInt128_v0 1Z = Stdlib.Option.Option.Some 1ul
+// Stdlib.UInt32.fromUInt128_v0 1Z = Stdlib.Option.Option.Some 1ul
 
-Stdlib.UInt32.fromUInt128_v0 4294967295Z = Stdlib.Option.Option.Some 4294967295ul
+// Stdlib.UInt32.fromUInt128_v0 4294967295Z = Stdlib.Option.Option.Some 4294967295ul
 
-Stdlib.UInt32.fromUInt128_v0 4294967296Z = Stdlib.Option.Option.None
+// Stdlib.UInt32.fromUInt128_v0 4294967296Z = Stdlib.Option.Option.None

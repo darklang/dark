@@ -134,44 +134,44 @@ Stdlib.Int8.mod_v0 127y 3y = 1y
 // Stdlib.Int8.mod_v0 5y 0y = Builtin.testDerrorMessage "Zero modulus"
 // Stdlib.Int8.mod_v0 5y -5y = Builtin.testDerrorMessage "Negative modulus"
 
-// (Stdlib.List.range_v0 1L 5L)
-// |> Stdlib.List.map_v0 (fun x -> Stdlib.Int8.random 1y 2y)
-// |> Stdlib.List.map_v0 (fun x ->
-//   (Stdlib.Int8.greaterThanOrEqualTo x 1y) && (Stdlib.Int8.lessThanOrEqualTo x 2y)) = [ true
-//                                                                                        true
-//                                                                                        true
-//                                                                                        true
-//                                                                                        true ]
+(Stdlib.List.range_v0 1L 5L)
+|> Stdlib.List.map_v0 (fun x -> Stdlib.Int8.random 1y 2y)
+|> Stdlib.List.map_v0 (fun x ->
+  (Stdlib.Int8.greaterThanOrEqualTo x 1y) && (Stdlib.Int8.lessThanOrEqualTo x 2y)) = [ true
+                                                                                       true
+                                                                                       true
+                                                                                       true
+                                                                                       true ]
 
-// (Stdlib.List.range_v0 1L 5L)
-// |> Stdlib.List.map_v0 (fun x -> Stdlib.Int8.random 10y 20y)
-// |> Stdlib.List.map_v0 (fun x ->
-//   (Stdlib.Int8.greaterThanOrEqualTo x 10y)
-//   && (Stdlib.Int8.lessThanOrEqualTo x 20y)) = [ true; true; true; true; true ]
+(Stdlib.List.range_v0 1L 5L)
+|> Stdlib.List.map_v0 (fun x -> Stdlib.Int8.random 10y 20y)
+|> Stdlib.List.map_v0 (fun x ->
+  (Stdlib.Int8.greaterThanOrEqualTo x 10y)
+  && (Stdlib.Int8.lessThanOrEqualTo x 20y)) = [ true; true; true; true; true ]
 
-// (Stdlib.List.range_v0 1L 5L)
-// |> Stdlib.List.map_v0 (fun x -> Stdlib.Int8.random 2y 1y)
-// |> Stdlib.List.map_v0 (fun x ->
-//   (Stdlib.Int8.greaterThanOrEqualTo x 1y) && (Stdlib.Int8.lessThanOrEqualTo x 2y)) = [ true
-//                                                                                        true
-//                                                                                        true
-//                                                                                        true
-//                                                                                        true ]
+(Stdlib.List.range_v0 1L 5L)
+|> Stdlib.List.map_v0 (fun x -> Stdlib.Int8.random 2y 1y)
+|> Stdlib.List.map_v0 (fun x ->
+  (Stdlib.Int8.greaterThanOrEqualTo x 1y) && (Stdlib.Int8.lessThanOrEqualTo x 2y)) = [ true
+                                                                                       true
+                                                                                       true
+                                                                                       true
+                                                                                       true ]
 
-// (Stdlib.List.range_v0 1L 5L)
-// |> Stdlib.List.map_v0 (fun x -> Stdlib.Int8.random 20y 10y)
-// |> Stdlib.List.map_v0 (fun x ->
-//   (Stdlib.Int8.greaterThanOrEqualTo x 10y)
-//   && (Stdlib.Int8.lessThanOrEqualTo x 20y)) = [ true; true; true; true; true ]
+(Stdlib.List.range_v0 1L 5L)
+|> Stdlib.List.map_v0 (fun x -> Stdlib.Int8.random 20y 10y)
+|> Stdlib.List.map_v0 (fun x ->
+  (Stdlib.Int8.greaterThanOrEqualTo x 10y)
+  && (Stdlib.Int8.lessThanOrEqualTo x 20y)) = [ true; true; true; true; true ]
 
-// ((Stdlib.List.range_v0 1L 100L)
-//  |> Stdlib.List.map_v0 (fun x -> Stdlib.Int8.random 0y 1y)
-//  |> Stdlib.List.unique_v0) = [ 0y; 1y ]
+((Stdlib.List.range_v0 1L 100L)
+ |> Stdlib.List.map_v0 (fun x -> Stdlib.Int8.random 0y 1y)
+ |> Stdlib.List.unique_v0) = [ 0y; 1y ]
 
 
-// ((Stdlib.List.range_v0 1L 100L)
-//  |> Stdlib.List.map_v0 (fun x -> Stdlib.Int8.random 0y 2y)
-//  |> Stdlib.List.unique_v0) = [ 0y; 1y; 2y ]
+((Stdlib.List.range_v0 1L 100L)
+ |> Stdlib.List.map_v0 (fun x -> Stdlib.Int8.random 0y 2y)
+ |> Stdlib.List.unique_v0) = [ 0y; 1y; 2y ]
 
 
 // Stdlib.Int8.parse_v0 "0" = Stdlib.Result.Result.Ok(0y)

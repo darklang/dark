@@ -1,0 +1,591 @@
+// Most of the httpclient tests are in testfiles/httpclient.
+
+
+// Tests that don't use the internet
+module NoInternal =
+  Stdlib.HttpClient.ContentType.form_v0 = ("content-type",
+                                           "application/x-www-form-urlencoded")
+
+  Stdlib.HttpClient.ContentType.json_v0 = ("content-type", "application/json")
+
+  Stdlib.HttpClient.ContentType.plainText_v0 = ("content-type",
+                                                "text/plain; charset=utf-8")
+
+  Stdlib.HttpClient.ContentType.html_v0 = ("content-type", "text/html; charset=utf-8")
+
+  Stdlib.HttpClient.bearerToken "YWxhZGRpbjpvcGVuc2VzYW1l" = (("authorization",
+                                                               "bearer YWxhZGRpbjpvcGVuc2VzYW1l"))
+
+//   Stdlib.HttpClient.basicAuth "username" "password" = PACKAGE
+//     .Darklang
+//     .Stdlib
+//     .Result
+//     .Result
+//     .Ok(("authorization", "basic dXNlcm5hbWU6cGFzc3dvcmQ="))
+
+//   Stdlib.HttpClient.basicAuth "" "" = Stdlib.Result.Result.Ok(
+//     ("authorization", "basic Og==")
+//   )
+
+//   Stdlib.HttpClient.basicAuth "-" "" = Stdlib.Result.Result.Error
+//     "Username cannot contain a hyphen"
+
+//   Stdlib.HttpClient.basicAuth "" "-" = Stdlib.Result.Result.Ok(
+//     ("authorization", "basic Oi0=")
+//   )
+
+//   Stdlib.HttpClient.basicAuth ":" "" = Stdlib.Result.Result.Ok(
+//     ("authorization", "basic Ojo=")
+//   )
+
+//   Stdlib.HttpClient.basicAuth "" ":" = Stdlib.Result.Result.Ok(
+//     ("authorization", "basic Ojo=")
+//   )
+
+//   Stdlib.HttpClient.basicAuth "hello>" "world" = PACKAGE
+//     .Darklang
+//     .Stdlib
+//     .Result
+//     .Result
+//     .Ok(("authorization", "basic aGVsbG8+Ondvcmxk"))
+
+//   Stdlib.HttpClient.basicAuth "hello" "world?" = PACKAGE
+//     .Darklang
+//     .Stdlib
+//     .Result
+//     .Result
+//     .Ok(("authorization", "basic aGVsbG86d29ybGQ/"))
+
+
+
+// // Tests that try to make requests to the internet
+
+// // basic requests work
+// (((Stdlib.HttpClient.request "get" "https://example.com" [] []))
+//  |> Stdlib.Result.map (fun response -> response.statusCode)) = Stdlib.Result.Result.Ok
+//   200L
+
+// (((Stdlib.HttpClient.request "get" "http://example.com" [] []))
+//  |> Stdlib.Result.map (fun response -> response.statusCode)) = Stdlib.Result.Result.Ok
+//   200L
+
+// Stdlib.HttpClient.request "get" "https://darklang.com" [ 1L ] [] = Builtin.testDerrorMessage
+//   "PACKAGE.Darklang.Stdlib.HttpClient.request's 3rd argument (`headers`) should be a List<(String * String)>. However, a List<Int64> ([  1]) was passed instead.
+
+// Expected: (headers: List<(String * String)>)
+// Actual: a List<Int64>: [\n  1\n]"
+
+// Stdlib.HttpClient.request "get" "https://darklang.com" [ ("", "") ] [] = Stdlib
+//   .Result
+//   .Result
+//   .Error(
+//     Stdlib.HttpClient.RequestError.BadHeader(Stdlib.HttpClient.BadHeader.EmptyKey)
+//   )
+
+
+// // type errors for bad `method` are OK
+// Stdlib.HttpClient.request "" "https://darklang.com" [] [] = PACKAGE
+//   .Darklang
+//   .Stdlib
+//   .Result
+//   .Result
+//   .Error(Stdlib.HttpClient.RequestError.BadMethod)
+
+// Stdlib.HttpClient.request " get " "https://darklang.com" [] [] = PACKAGE
+//   .Darklang
+//   .Stdlib
+//   .Result
+//   .Result
+//   .Error(Stdlib.HttpClient.RequestError.BadMethod)
+
+// Stdlib.HttpClient.request "🇵🇷" "https://darklang.com" [] [] = PACKAGE
+//   .Darklang
+//   .Stdlib
+//   .Result
+//   .Result
+//   .Error(Stdlib.HttpClient.RequestError.BadMethod)
+
+// // unsupported protocols
+// Stdlib.HttpClient.request "get" "ftp://darklang.com" [] [] = PACKAGE
+//   .Darklang
+//   .Stdlib
+//   .Result
+//   .Result
+//   .Error(
+//     Stdlib.HttpClient.RequestError.BadUrl(
+//       Stdlib.HttpClient.BadUrlDetails.UnsupportedProtocol
+//     )
+//   )
+
+// Stdlib.HttpClient.request "put" "file:///etc/passwd" [] [] = PACKAGE
+//   .Darklang
+//   .Stdlib
+//   .Result
+//   .Result
+//   .Error(
+//     Stdlib.HttpClient.RequestError.BadUrl(
+//       Stdlib.HttpClient.BadUrlDetails.UnsupportedProtocol
+//     )
+//   )
+
+// Stdlib.HttpClient.request "put" "/just-a-path" [] [] = PACKAGE
+//   .Darklang
+//   .Stdlib
+//   .Result
+//   .Result
+//   .Error(
+//     Stdlib.HttpClient.RequestError.BadUrl(
+//       Stdlib.HttpClient.BadUrlDetails.UnsupportedProtocol
+//     )
+//   )
+
+// // totally bogus URLs
+// Stdlib.HttpClient.request "get" "" [] [] = PACKAGE
+//   .Darklang
+//   .Stdlib
+//   .Result
+//   .Result
+//   .Error(
+//     Stdlib.HttpClient.RequestError.BadUrl(Stdlib.HttpClient.BadUrlDetails.InvalidUri)
+//   )
+
+
+// Stdlib.HttpClient.request "post" "{ ] nonsense ^#( :" [] [] = PACKAGE
+//   .Darklang
+//   .Stdlib
+//   .Result
+//   .Result
+//   .Error(
+//     Stdlib.HttpClient.RequestError.BadUrl(Stdlib.HttpClient.BadUrlDetails.InvalidUri)
+//   )
+
+// // URLs we can't actually communicate with
+// Stdlib.HttpClient.request "get" "http://google.com:79" [] [] = PACKAGE
+//   .Darklang
+//   .Stdlib
+//   .Result
+//   .Result
+//   .Error(Stdlib.HttpClient.RequestError.Timeout)
+
+// // Check for banned urls in the host name
+// module Disallowed =
+
+//   Stdlib.HttpClient.request "get" "http://0.0.0.0" [] [] = PACKAGE
+//     .Darklang
+//     .Stdlib
+//     .Result
+//     .Result
+//     .Error(
+//       Stdlib.HttpClient.RequestError.BadUrl(
+//         Stdlib.HttpClient.BadUrlDetails.InvalidHost
+//       )
+//     )
+
+//   Stdlib.HttpClient.request "get" "http://0" [] [] = PACKAGE
+//     .Darklang
+//     .Stdlib
+//     .Result
+//     .Result
+//     .Error(
+//       Stdlib.HttpClient.RequestError.BadUrl(
+//         Stdlib.HttpClient.BadUrlDetails.InvalidHost
+//       )
+//     )
+
+// // Check for banned urls in the host name
+// module Disallowed =
+
+//   Stdlib.HttpClient.request "get" "http://0.0.0.0" [] [] = PACKAGE
+//     .Darklang
+//     .Stdlib
+//     .Result
+//     .Result
+//     .Error(
+//       Stdlib.HttpClient.RequestError.BadUrl(
+//         Stdlib.HttpClient.BadUrlDetails.InvalidHost
+//       )
+//     )
+
+//   Stdlib.HttpClient.request "get" "http://0" [] [] = PACKAGE
+//     .Darklang
+//     .Stdlib
+//     .Result
+//     .Result
+//     .Error(
+//       Stdlib.HttpClient.RequestError.BadUrl(
+//         Stdlib.HttpClient.BadUrlDetails.InvalidHost
+//       )
+//     )
+
+//   Stdlib.HttpClient.request "get" "http://[0:0:0:0:0:0:0:0]" [] [] = PACKAGE
+//     .Darklang
+//     .Stdlib
+//     .Result
+//     .Result
+//     .Error(Stdlib.HttpClient.RequestError.NetworkError)
+
+//   Stdlib.HttpClient.request "get" "localhost" [] [] = PACKAGE
+//     .Darklang
+//     .Stdlib
+//     .Result
+//     .Result
+//     .Error(
+//       Stdlib.HttpClient.RequestError.BadUrl(
+//         Stdlib.HttpClient.BadUrlDetails.InvalidUri
+//       )
+//     )
+
+//   Stdlib.HttpClient.request "get" "http://localhost" [] [] = PACKAGE
+//     .Darklang
+//     .Stdlib
+//     .Result
+//     .Result
+//     .Error(
+//       Stdlib.HttpClient.RequestError.BadUrl(
+//         Stdlib.HttpClient.BadUrlDetails.InvalidHost
+//       )
+//     )
+
+//   Stdlib.HttpClient.request "get" "http://127.0.0.1" [] [] = PACKAGE
+//     .Darklang
+//     .Stdlib
+//     .Result
+//     .Result
+//     .Error(
+//       Stdlib.HttpClient.RequestError.BadUrl(
+//         Stdlib.HttpClient.BadUrlDetails.InvalidHost
+//       )
+//     )
+
+//   Stdlib.HttpClient.request "get" "http://[::1]" [] [] = PACKAGE
+//     .Darklang
+//     .Stdlib
+//     .Result
+//     .Result
+//     .Error(
+//       Stdlib.HttpClient.RequestError.BadUrl(
+//         Stdlib.HttpClient.BadUrlDetails.InvalidHost
+//       )
+//     )
+
+//   Stdlib.HttpClient.request "get" "http://[0:0:0:0:0:0:0:1]" [] [] = PACKAGE
+//     .Darklang
+//     .Stdlib
+//     .Result
+//     .Result
+//     .Error(
+//       Stdlib.HttpClient.RequestError.BadUrl(
+//         Stdlib.HttpClient.BadUrlDetails.InvalidHost
+//       )
+//     )
+
+
+//   Stdlib.HttpClient.request
+//     "get"
+//     "http://[0000:0000:0000:0000:0000:0000:0000:0001]"
+//     []
+//     [] = Stdlib.Result.Result.Error(
+//     Stdlib.HttpClient.RequestError.BadUrl(
+//       Stdlib.HttpClient.BadUrlDetails.InvalidHost
+//     )
+//   )
+
+//   Stdlib.HttpClient.request "get" "http://127.0.0.17" [] [] = PACKAGE
+//     .Darklang
+//     .Stdlib
+//     .Result
+//     .Result
+//     .Error(
+//       Stdlib.HttpClient.RequestError.BadUrl(
+//         Stdlib.HttpClient.BadUrlDetails.InvalidHost
+//       )
+//     )
+
+
+//   Stdlib.HttpClient.request "get" "http://[::ffff:7f00:11]" [] [] = PACKAGE
+//     .Darklang
+//     .Stdlib
+//     .Result
+//     .Result
+//     .Error(
+//       Stdlib.HttpClient.RequestError.BadUrl(
+//         Stdlib.HttpClient.BadUrlDetails.InvalidHost
+//       )
+//     )
+
+//   Stdlib.HttpClient.request "get" "http://[0:0:0:0:0:ffff:7f00:0011]" [] [] = Stdlib
+//     .Result
+//     .Result
+//     .Error(
+//       Stdlib.HttpClient.RequestError.BadUrl(
+//         Stdlib.HttpClient.BadUrlDetails.InvalidHost
+//       )
+//     )
+
+//   Stdlib.HttpClient.request
+//     "get"
+//     "http://[0000:0000:0000:0000:0000:ffff:7f00:0011]"
+//     []
+//     [] = Stdlib.Result.Result.Error(
+//     Stdlib.HttpClient.RequestError.BadUrl(
+//       Stdlib.HttpClient.BadUrlDetails.InvalidHost
+//     )
+//   )
+
+//   Stdlib.HttpClient.request "get" "http://127.255.174.17" [] [] = PACKAGE
+//     .Darklang
+//     .Stdlib
+//     .Result
+//     .Result
+//     .Error(
+//       Stdlib.HttpClient.RequestError.BadUrl(
+//         Stdlib.HttpClient.BadUrlDetails.InvalidHost
+//       )
+//     )
+
+
+//   Stdlib.HttpClient.request "get" "http://metadata.google.internal" [] [] = Stdlib
+//     .Result
+//     .Result
+//     .Error(
+//       Stdlib.HttpClient.RequestError.BadUrl(
+//         Stdlib.HttpClient.BadUrlDetails.InvalidHost
+//       )
+//     )
+
+//   Stdlib.HttpClient.request "get" "http://metadata" [] [] = PACKAGE
+//     .Darklang
+//     .Stdlib
+//     .Result
+//     .Result
+//     .Error(
+//       Stdlib.HttpClient.RequestError.BadUrl(
+//         Stdlib.HttpClient.BadUrlDetails.InvalidHost
+//       )
+//     )
+
+//   Stdlib.HttpClient.request "get" "http://169.254.169.254" [] [] = PACKAGE
+//     .Darklang
+//     .Stdlib
+//     .Result
+//     .Result
+//     .Error(
+//       Stdlib.HttpClient.RequestError.BadUrl(
+//         Stdlib.HttpClient.BadUrlDetails.InvalidHost
+//       )
+//     )
+
+//   Stdlib.HttpClient.request "get" "http://[::ffff:a9fe:a9fe]" [] [] = PACKAGE
+//     .Darklang
+//     .Stdlib
+//     .Result
+//     .Result
+//     .Error(
+//       Stdlib.HttpClient.RequestError.BadUrl(
+//         Stdlib.HttpClient.BadUrlDetails.InvalidHost
+//       )
+//     )
+
+//   Stdlib.HttpClient.request "get" "http://[0:0:0:0:0:ffff:a9fe:a9fe]" [] [] = Stdlib
+//     .Result
+//     .Result
+//     .Error(
+//       Stdlib.HttpClient.RequestError.BadUrl(
+//         Stdlib.HttpClient.BadUrlDetails.InvalidHost
+//       )
+//     )
+
+//   Stdlib.HttpClient.request
+//     "get"
+//     "http://[0000:0000:0000:0000:0000:ffff:a9fe:a9fe]"
+//     []
+//     [] = Stdlib.Result.Result.Error(
+//     Stdlib.HttpClient.RequestError.BadUrl(
+//       Stdlib.HttpClient.BadUrlDetails.InvalidHost
+//     )
+//   )
+
+//   Stdlib.HttpClient.request "get" "http://169.254.0.0" [] [] = PACKAGE
+//     .Darklang
+//     .Stdlib
+//     .Result
+//     .Result
+//     .Error(
+//       Stdlib.HttpClient.RequestError.BadUrl(
+//         Stdlib.HttpClient.BadUrlDetails.InvalidHost
+//       )
+//     )
+
+//   Stdlib.HttpClient.request "get" "http://172.16.0.1" [] [] = PACKAGE
+//     .Darklang
+//     .Stdlib
+//     .Result
+//     .Result
+//     .Error(
+//       Stdlib.HttpClient.RequestError.BadUrl(
+//         Stdlib.HttpClient.BadUrlDetails.InvalidHost
+//       )
+//     )
+
+//   Stdlib.HttpClient.request "get" "http://[::ffff:ac10:1]" [] [] = PACKAGE
+//     .Darklang
+//     .Stdlib
+//     .Result
+//     .Result
+//     .Error(
+//       Stdlib.HttpClient.RequestError.BadUrl(
+//         Stdlib.HttpClient.BadUrlDetails.InvalidHost
+//       )
+//     )
+
+//   Stdlib.HttpClient.request "get" "http://[0:0:0:0:0:ffff:ac10:0001]" [] [] = Stdlib
+//     .Result
+//     .Result
+//     .Error(
+//       Stdlib.HttpClient.RequestError.BadUrl(
+//         Stdlib.HttpClient.BadUrlDetails.InvalidHost
+//       )
+//     )
+
+//   Stdlib.HttpClient.request
+//     "get"
+//     "http://[0000:0000:0000:0000:0000:ffff:ac10:0001]"
+//     []
+//     [] = Stdlib.Result.Result.Error(
+//     Stdlib.HttpClient.RequestError.BadUrl(
+//       Stdlib.HttpClient.BadUrlDetails.InvalidHost
+//     )
+//   )
+
+//   Stdlib.HttpClient.request "get" "http://192.168.1.1" [] [] = PACKAGE
+//     .Darklang
+//     .Stdlib
+//     .Result
+//     .Result
+//     .Error(
+//       Stdlib.HttpClient.RequestError.BadUrl(
+//         Stdlib.HttpClient.BadUrlDetails.InvalidHost
+//       )
+//     )
+
+//   Stdlib.HttpClient.request "get" "http://[::ffff:c0a8:101]" [] [] = PACKAGE
+//     .Darklang
+//     .Stdlib
+//     .Result
+//     .Result
+//     .Error(
+//       Stdlib.HttpClient.RequestError.BadUrl(
+//         Stdlib.HttpClient.BadUrlDetails.InvalidHost
+//       )
+//     )
+
+//   Stdlib.HttpClient.request "get" "http://[0:0:0:0:0:ffff:c0a8:0101]" [] [] = Stdlib
+//     .Result
+//     .Result
+//     .Error(
+//       Stdlib.HttpClient.RequestError.BadUrl(
+//         Stdlib.HttpClient.BadUrlDetails.InvalidHost
+//       )
+//     )
+
+//   Stdlib.HttpClient.request
+//     "get"
+//     "http://[0000:0000:0000:0000:0000:ffff:c0a8:0101]"
+//     []
+//     [] = Stdlib.Result.Result.Error(
+//     Stdlib.HttpClient.RequestError.BadUrl(
+//       Stdlib.HttpClient.BadUrlDetails.InvalidHost
+//     )
+//   )
+
+//   // Check for sneaky banned urls - blocked via connection callback
+//   // 127.0.0.1
+//   Stdlib.HttpClient.request "get" "http://localtest.me" [] [] = PACKAGE
+//     .Darklang
+//     .Stdlib
+//     .Result
+//     .Result
+//     .Error(Stdlib.HttpClient.RequestError.NetworkError)
+//   // 0.0.0.0
+//   Stdlib.HttpClient.request "get" "http://c.cx" [] [] = PACKAGE
+//     .Darklang
+//     .Stdlib
+//     .Result
+//     .Result
+//     .Error(Stdlib.HttpClient.RequestError.NetworkError)
+
+//   // invalid headers
+//   Stdlib.HttpClient.request
+//     "get"
+//     "http://google.com"
+//     [ ("Metadata-Flavor", "Google") ]
+//     [] = Stdlib.Result.Result.Error(
+//     Stdlib.HttpClient.RequestError.BadUrl(
+//       Stdlib.HttpClient.BadUrlDetails.InvalidRequest
+//     )
+//   )
+
+//   Stdlib.HttpClient.request
+//     "get"
+//     "http://google.com"
+//     [ ("metadata-flavor", "Google") ]
+//     [] = Stdlib.Result.Result.Error(
+//     Stdlib.HttpClient.RequestError.BadUrl(
+//       Stdlib.HttpClient.BadUrlDetails.InvalidRequest
+//     )
+//   )
+
+//   Stdlib.HttpClient.request
+//     "get"
+//     "http://google.com"
+//     [ ("Metadata-Flavor", "google") ]
+//     [] = Stdlib.Result.Result.Error(
+//     Stdlib.HttpClient.RequestError.BadUrl(
+//       Stdlib.HttpClient.BadUrlDetails.InvalidRequest
+//     )
+//   )
+
+//   Stdlib.HttpClient.request
+//     "get"
+//     "http://google.com"
+//     [ ("Metadata-Flavor", " Google ") ]
+//     [] = Stdlib.Result.Result.Error(
+//     Stdlib.HttpClient.RequestError.BadUrl(
+//       Stdlib.HttpClient.BadUrlDetails.InvalidRequest
+//     )
+//   )
+
+//   Stdlib.HttpClient.request
+//     "get"
+//     "http://google.com"
+//     [ ("X-Google-Metadata-Request", " True ") ]
+//     [] = Stdlib.Result.Result.Error(
+//     Stdlib.HttpClient.RequestError.BadUrl(
+//       Stdlib.HttpClient.BadUrlDetails.InvalidRequest
+//     )
+//   )
+
+//   Stdlib.HttpClient.request
+//     "get"
+//     "http://google.com"
+//     [ (" x-Google-metaData-Request", " True ") ]
+//     [] = Stdlib.Result.Result.Error(
+//     Stdlib.HttpClient.RequestError.BadUrl(
+//       Stdlib.HttpClient.BadUrlDetails.InvalidRequest
+//     )
+//   )
+
+// module BadSSL =
+//   Stdlib.HttpClient.request "get" "http://thenonexistingurlforsure.com" [] [] = Stdlib
+//     .Result
+//     .Result
+//     .Error(Stdlib.HttpClient.RequestError.NetworkError)
+
+//   Stdlib.HttpClient.request "get" "https://self-signed.badssl.com" [] [] = Stdlib
+//     .Result
+//     .Result
+//     .Error(Stdlib.HttpClient.RequestError.NetworkError)
+
+
+
+// // TODO: http2, http3
