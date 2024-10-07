@@ -24,17 +24,18 @@ module Darklang =
                     semanticTokensProvider =
                       Stdlib.Option.Option.Some(
                         SemanticTokens.hardcodedServerCapabilities ()
+                      )
 
-                      // diagnosticProvider =
-                      //   Stdlib.Option.Option.Some(
-                      //     LanguageServerProtocol.PublishDiagnosticsClientCapabilities.PublishDiagnosticsClientCapabilities
-                      //       { relatedInformation = Stdlib.Option.Option.Some true
-                      //         tagSupport = Stdlib.Option.Option.None
-                      //         versionSupport = Stdlib.Option.Option.Some true
-                      //         codeDescriptionSupport = Stdlib.Option.Option.Some true
-                      //         dataSupport = Stdlib.Option.Option.Some true }
-                      //   )
-                      ) } }
+                  // diagnosticProvider =
+                  //   Stdlib.Option.Option.Some(
+                  //     LanguageServerProtocol.PublishDiagnosticsClientCapabilities.PublishDiagnosticsClientCapabilities
+                  //       { relatedInformation = Stdlib.Option.Option.Some true
+                  //         tagSupport = Stdlib.Option.Option.None
+                  //         versionSupport = Stdlib.Option.Option.Some true
+                  //         codeDescriptionSupport = Stdlib.Option.Option.Some true
+                  //         dataSupport = Stdlib.Option.Option.Some true }
+                  //   )
+                  } }
 
 
         let initializeResponse =
