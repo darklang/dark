@@ -69,6 +69,24 @@ module Darklang =
           | Some text ->
             let parsed = text |> Parser.parseToSimplifiedTree |> Parser.parseFromTree
 
+            match parsed with
+            | Ok parsedFile ->
+              match parsedFile with
+              | SourceFile parsed when parsed.unparseableStuff != [] ->
+                let diagnostics =
+                  parsed.unparseableStuff
+                  |> Stdlib.List.map (fun unparseable ->
+                    createErrorDiagnostic
+                      unparseable.source.range
+                      "Couldn't parse this part of the file")
+
+                sendDiagnostic request.textDocument.uri diagnostics
+
+              | _ -> sendDiagnostic request.textDocument.uri []
+            | _ -> log "Couldn't parse the file"
+            // TODO
+
+
             { state with
                 documentsInScope =
                   Stdlib.Dict.set
