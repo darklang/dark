@@ -76,16 +76,23 @@ module Darklang =
             log "TODO: fail - we shouldn't be seeing a second one of these"
             { state with initialized = true }
 
-          | Initialized -> // notification or request?
+          | Initialized -> // notification
             log "(ignore)"
             state
 
-          | SetTrace -> // notification or request?
+          | SetTrace -> // notification
             log "TODO we should do something with this"
             state
 
-          | Shutdown -> // notification or request?
+          // asks the server to shut down but not exit
+          | Shutdown -> // request
             log "shutting down"
+
+            let response =
+              (JsonRPC.Response.Ok.make (Some r.id) Json.Null)
+              |> Stdlib.AltJson.format
+
+            logAndSendToClient response
             { state with shouldShutdown = true }
 
 
@@ -118,6 +125,29 @@ module Darklang =
             log $"got hover request for {requestParams.textDocument.uri}"
             Hover.handleHoverRequest state requestId requestParams
 
+          // // The server should exit with success code 0 if the shutdown request has been received before; otherwise with error code 1
+          // | Exit ->
+          //   log "Exit notification received"
+          //   if state.shouldShutdown then
+          //     log "Exiting with success code 0 (shutdown request received)"
+          //     //TODO
+          //   else
+          //     log "Exiting with error code 1 (shutdown request not received)"
+          //     //TODO
+          //   state
+
+          // | _ when state.shouldShutdown ->
+          //   log "Request received after shutdown, responding with InvalidRequest"
+          //   let response =
+          //     (JsonRPC.Response.Error.make
+          //       (Stdlib.Option.Option.Some r.id)
+          //       JsonRPC.Response.Error.KnownErrorCodes.invalidRequest
+          //       "Invalid request: server is shutting down"
+          //       Stdlib.Option.Option.None)
+          //     |> Stdlib.AltJson.format
+
+          //   logAndSendToClient response
+          //   state
 
           // -- other
           | Other jsonRpcRequest ->
