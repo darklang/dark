@@ -113,6 +113,11 @@ module Darklang =
             log $"got semanticTokens request for {requestParams.textDocument.uri}"
             SemanticTokens.handleSemanticTokensRequest state requestId requestParams
 
+          // -- hover
+          | TextDocumentHoverRequest(requestId, requestParams) ->
+            log $"got hover request for {requestParams.textDocument.uri}"
+            Hover.handleHoverRequest state requestId requestParams
+
 
           // -- other
           | Other jsonRpcRequest ->

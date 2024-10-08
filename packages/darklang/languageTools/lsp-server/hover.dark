@@ -1,0 +1,31 @@
+module Darklang =
+  module LanguageTools =
+    module LspServer =
+      module Hover =
+        let handleHoverRequest
+          (state: LspState)
+          (requestId: JsonRPC.RequestId)
+          (params: LanguageServerProtocol.Hover.HoverRequest.HoverParams.HoverParams)
+          : LspState =
+          //get position
+          let position = params.position
+
+          //TODO: get hover information
+          // Create a hover response with Markdown content
+          let hover =
+            LanguageServerProtocol.Hover.Hover
+              { contents =
+                  LanguageServerProtocol.Hover.MarkupContent
+                    { kind = LanguageServerProtocol.Hover.MarkupKind.Markdown
+                      value = "got a **hover** response \n\n yay!" }
+                range = Stdlib.Option.Option.None }
+
+          let response =
+            hover
+            |> LanguageServerProtocol.Hover.toJson
+            |> (fun r ->
+              JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) r)
+            |> Stdlib.AltJson.format
+
+          logAndSendToClient response
+          state

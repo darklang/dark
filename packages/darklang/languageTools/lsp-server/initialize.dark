@@ -26,6 +26,8 @@ module Darklang =
                         SemanticTokens.hardcodedServerCapabilities ()
                       )
 
+                    hoverProvider = Stdlib.Option.Option.Some true
+
                   // diagnosticProvider =
                   //   Stdlib.Option.Option.Some(
                   //     LanguageServerProtocol.PublishDiagnosticsClientCapabilities.PublishDiagnosticsClientCapabilities
