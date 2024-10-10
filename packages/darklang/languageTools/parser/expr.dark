@@ -90,6 +90,8 @@ module Darklang =
 
               | Error _ -> createUnparseableError node
 
+            | _ -> createUnparseableError node
+
           else
             createUnparseableError node
 
@@ -476,6 +478,8 @@ module Darklang =
               |> Stdlib.Result.Result.Ok
 
             | Error _ -> createUnparseableError node
+
+          | _ -> createUnparseableError node
 
 
         let parseFieldAccess

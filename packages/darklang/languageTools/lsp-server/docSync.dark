@@ -43,6 +43,8 @@ module Darklang =
             |> Parser.parseToSimplifiedTree
             |> Parser.parseFromTree
 
+          Diagnostics.gatherAndReportDiagnostics parsed
+
           { state with
               documentsInScope =
                 Stdlib.Dict.set
@@ -68,6 +70,7 @@ module Darklang =
 
           | Some text ->
             let parsed = text |> Parser.parseToSimplifiedTree |> Parser.parseFromTree
+            Diagnostics.gatherAndReportDiagnostics parsed
 
             { state with
                 documentsInScope =

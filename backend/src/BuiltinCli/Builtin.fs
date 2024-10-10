@@ -19,6 +19,5 @@ let builtins =
       Libs.Execution.builtins
       Libs.Output.builtins
       Libs.Stdin.builtins
-      Libs.LanguageServerProtocol.builtins
       Libs.Time.builtins ]
     fnRenames

@@ -2,7 +2,256 @@ module Darklang =
   module LanguageTools =
     module LspServer =
       module Diagnostics =
-        let foo = "bar"
+
+        let gatherAndReportDiagnostics
+          (parsedText: Stdlib.Result.Result<WrittenTypes.ParsedFile, String>)
+          : Unit =
+          match parsedText with
+          | Ok parsedFile ->
+            match parsedFile with
+            // TODO: we need to do what is in the second branch here as well
+            | SourceFile parsed when parsed.unparseableStuff != [] ->
+              let diagnostics =
+                parsed.unparseableStuff
+                |> Stdlib.List.map (fun unparseable ->
+                  createErrorDiagnostic
+                    unparseable.source.range
+                    "Couldn't parse this part of the file")
+
+              sendDiagnostic request.textDocument.uri diagnostics
+
+            | SourceFile parsed ->
+              let parsedToPT = parsed |> WrittenTypesToProgramTypes.sourceFile
+              // Thought: what if WrittenTypes had an ID (instead of waiting until ProgramTypes to generate one),
+              // maybe that would make it easier to lookup things by ID
+              // (i.e. get the range of the thing that errored where ID in ProgramTypes matches the ID in WrittenTypes) idk
+
+              // TODO: what other errors we need to report on, other than name resolution errors?
+              let collectErrors =
+                parsedToPT.declarations
+                |> Stdlib.List.map (fun decl ->
+                  match decl with
+                  | Function f -> extractFunctionErrors parsed f
+                  | Type t -> extractTypeErrors parsed t
+                  | Constant c -> [] // TODO
+                  | Module m -> [] // TODO
+                  | _ -> [])
+
+              let collectExprErrors =
+                parsedToPT.exprsToEval
+                |> Stdlib.List.map (fun e -> extractExprErrors parsed e)
+
+              let collectErrors = Stdlib.List.append collectErrors collectExprErrors
+
+              sendDiagnostic
+                request.textDocument.uri
+                (Stdlib.List.flatten collectErrors)
+
+            | _ -> sendDiagnostic request.textDocument.uri []
+            | _ -> log "Couldn't parse the file"
+
+
+        let nameResolutionErrorToString
+          (e: RuntimeErrors.NameResolution.Error)
+          : String =
+          (RuntimeErrors.NameResolution.toSegments e)
+          |> (fun e -> RuntimeErrors.ErrorSegment.toString e.summary)
+
+
+        let extractFunctionErrors
+          (parsed: WrittenTypes.SourceFile.SourceFile)
+          (fn: ProgramTypes.PackageFn.PackageFn)
+          : List<LanguageServerProtocol.Diagnostic.Diagnostic> =
+          let paramErrors =
+            // weirdly if I use f.parameters here, it works even though the parameter is named fn
+            fn.parameters
+            |> Stdlib.List.filterMap (fun param ->
+              match param.typ with
+              | TCustomType(Error(e), _) ->
+                let range = findRangeForParameter parsed fn.name.name param.name
+
+                let errorString = nameResolutionErrorToString e
+
+                match range with
+                | Some range ->
+                  Stdlib.Option.Option.Some(
+                    createWarningDiagnostic range errorString
+                  )
+                | _ -> Stdlib.Option.Option.None
+              | _ -> Stdlib.Option.Option.None)
+
+          let returnTypeError =
+            match fn.returnType with
+            | TCustomType(Error(e), _) ->
+              let range = findRangeForReturnType parsed fn.name.name
+
+              let errorString = nameResolutionErrorToString e
+
+              // would using mapWithDefault be better here?
+              (Stdlib.Option.map range (fun range ->
+                createWarningDiagnostic range errorString))
+              |> Stdlib.Option.toList
+
+            | _ -> []
+
+          // TODO
+          // let bodyErrors =
+          // extractExprErrors parsed fn.body
+
+          Stdlib.List.append paramErrors returnTypeError
+
+        let findRangeForParameter
+          (parsed: WrittenTypes.SourceFile.SourceFile)
+          (fnName: String)
+          (paramName: String)
+          : Stdlib.Option.Option<LanguageServerProtocol.Range.Range> =
+          let findFunction =
+            parsed.declarations
+            |> Stdlib.List.findFirst (fun decl ->
+              match decl with
+              | Function f when f.name.name == fnName -> true
+              | _ -> false)
+
+          match findFunction with
+          | Some(Function f) ->
+            let findParam =
+              f.parameters
+              |> Stdlib.List.findFirst (fun param ->
+                match param with
+                | Normal p when p.name.name == paramName ->
+                  match p.typ with
+                  | QualifiedName _ -> true
+                  | _ -> false
+                | _ -> false)
+
+            match findParam with
+            | Some(Normal p) ->
+              match p.typ with
+              | QualifiedName qn -> Stdlib.Option.Option.Some qn.typ.range
+              | _ -> Stdlib.Option.Option.None
+            | _ -> Stdlib.Option.Option.None
+          | _ -> Stdlib.Option.Option.None
+
+        let findRangeForReturnType
+          (parsed: WrittenTypes.SourceFile.SourceFile)
+          (fnName: String)
+          : Stdlib.Option.Option<LanguageServerProtocol.Range.Range> =
+          let findFunction =
+            parsed.declarations
+            |> Stdlib.List.findFirst (fun decl ->
+              match decl with
+              | Function f when f.name.name == fnName -> true
+              | _ -> false)
+
+          match findFunction with
+          | Some(Function f) ->
+            match f.returnType with
+            | QualifiedName qn -> Stdlib.Option.Option.Some qn.typ.range
+            | _ -> Stdlib.Option.Option.None
+          | _ -> Stdlib.Option.Option.None
+
+        // TODO: typeArgs
+
+
+        let extractTypeErrors
+          (parsed: WrittenTypes.SourceFile.SourceFile)
+          (t: ProgramTypes.PackageType.PackageType)
+          : List<LanguageServerProtocol.Diagnostic.Diagnostic> =
+
+          let typeErrors =
+            match t.declaration.definition with
+            | Alias a ->
+              match a with
+              | TCustomType(Error(e), _) ->
+                let range = findRangeForType parsed t.name.name
+
+                let errorString = nameResolutionErrorToString e
+
+                match range with
+                | Some range ->
+                  Stdlib.Option.Option.Some(
+                    createWarningDiagnostic range errorString
+                  )
+                | _ -> Stdlib.Option.Option.None
+              | _ -> Stdlib.Option.Option.None
+
+            | Record r -> Stdlib.Option.Option.None // TODO
+            | Enum e -> Stdlib.Option.Option.None // TODO
+            | _ -> Stdlib.Option.Option.None
+
+          Stdlib.Option.toList typeErrors
+
+        let findRangeForType
+          (parsed: WrittenTypes.SourceFile.SourceFile)
+          (typeName: String)
+          : Stdlib.Option.Option<LanguageServerProtocol.Range.Range> =
+          let findType =
+            parsed.declarations
+            |> Stdlib.List.findFirst (fun decl ->
+              match decl with
+              | Type t when t.name.name == typeName -> true
+              | _ -> false)
+
+          match findType with
+          | Some(Type t) ->
+            match t.definition with
+            | Alias a ->
+              match a with
+              | QualifiedName qn -> qn.typ.range |> Stdlib.Option.Option.Some
+              | _ -> Stdlib.Option.Option.None
+
+            | Record r -> Stdlib.Option.Option.None // TODO
+            | Enum e -> Stdlib.Option.Option.None // TODO
+
+            | _ -> Stdlib.Option.Option.None
+          | _ -> Stdlib.Option.Option.None
+
+
+        let extractExprErrors
+          (parsed: WrittenTypes.SourceFile.SourceFile)
+          (e: ProgramTypes.Expr)
+          : List<LanguageServerProtocol.Diagnostic.Diagnostic> =
+          // All the cases where a name resolution error could occur
+          match e with
+          // | EString _ -> []
+          // | EList _ -> []
+          // | ERecord _ -> []
+          // | EEnum _ -> []
+          // | ELet _ -> []
+          // | EFieldAccess _ -> []
+          // | EIf _ -> []
+          // | EMatch _ -> []
+          // | EPipe _ -> []
+          // | EInfix _ -> []
+          // | ELambda _ -> []
+          // | EFnName _ -> []
+          // | ERecordUpdate _ -> []
+          // TODO handle args, typeArgs, and when apply isn't a function
+          | EApply(_, (EFnName(_, fnn)), _, _) ->
+            match fnn with
+            | Error(e) ->
+              let fnName =
+                match e.errorType with
+                | NotFound names -> names |> Stdlib.String.join "."
+                | _ -> ""
+
+              let range = findRangeForExpr parsed fnName
+
+              let errorString = nameResolutionErrorToString e
+
+              match range with
+              | Some range -> [ createWarningDiagnostic range errorString ]
+              | _ -> []
+            | _ -> []
+          | _ -> []
+
+        let findRangeForExpr
+          (parsed: WrittenTypes.SourceFile.SourceFile)
+          (exprName: String)
+          : Stdlib.Option.Option<LanguageServerProtocol.Range.Range> =
+          // TODO
+          Stdlib.Option.Option.None
+
 
 (* future: report diagnostics on content update or save
 

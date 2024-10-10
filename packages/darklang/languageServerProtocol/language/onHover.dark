@@ -1,5 +1,95 @@
 // What happens when you 'hover' on something in the editor?
 
+module Darklang =
+  module LanguageServerProtocol =
+    module Hover =
+      type MarkupKind =
+        | PlainText
+        | Markdown
+
+      ///  A `MarkupContent` literal represents a string value which content is
+      ///  interpreted base on its kind flag. Currently the protocol supports
+      ///  `plaintext` and `markdown` as markup kinds.
+      ///  If the kind is `markdown` then the value can contain fenced code blocks like
+      ///  in GitHub issues.
+      type MarkupContent =
+        {
+          /// The type of the Markup
+          kind: MarkupKind
+          /// The content itself
+          value: String
+        }
+
+      type HoverContentKind = MarkupContent of MarkupContent
+      // | MarkedString
+      // | MarkedStringList
+
+      type Hover =
+        {
+          /// The hover's content
+          contents: MarkupContent
+          /// An optional range inside the text document that is used to
+          /// visualize the hover, e.g. by changing the background color.
+          range: Stdlib.Option.Option<LanguageServerProtocol.Range.Range>
+        }
+
+      let toJson (hover: Hover) : Json =
+        let kindJson =
+          match hover.contents.kind with
+          | PlainText -> "plaintext" |> Json.String
+          | Markdown -> "markdown" |> Json.String
+
+        let contentsJson =
+          Json.Object
+            [ ("kind", kindJson); ("value", hover.contents.value |> Json.String) ]
+
+        let fields =
+          [ ("contents", contentsJson)
+            ("range",
+             match hover.range with
+             | Some range -> Range.toJson range
+             | None -> Json.Null) ]
+
+        Json.Object fields
+
+      module HoverRequest =
+        let method = "textDocument/hover"
+
+        module HoverParams =
+          type HoverParams =
+            { textDocument: TextDocumentIdentifier.TextDocumentIdentifier
+              position: Position.Position }
+
+          let fromJson (json: Json) : Stdlib.Result.Result<HoverParams, string> =
+            match json with
+            | Object fields ->
+              let textDocument =
+                match
+                  Stdlib.List.findFirst fields (fun (k, _) -> k == "textDocument")
+                with
+                | Some((_, textDocument)) ->
+                  TextDocumentIdentifier.fromJson textDocument
+                | None -> Stdlib.Result.Result.Error()
+
+              let position =
+                match
+                  Stdlib.List.findFirst fields (fun (k, _) -> k == "position")
+                with
+                | Some((_, position)) -> Position.fromJson position
+                | None -> Stdlib.Result.Result.Error()
+
+              match textDocument, position with
+              | Ok textDocument, Ok position ->
+                (HoverParams
+                  { textDocument = textDocument
+                    position = position })
+                |> Stdlib.Result.Result.Ok
+
+              | _ -> Stdlib.Result.Result.Error()
+            | _ -> Stdlib.Result.Result.Error()
+
+
+
 (*
   /// The result of a hover request.
   export interface Hover {

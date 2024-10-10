@@ -78,9 +78,9 @@ module Darklang =
             state
 
 
-          | NotJson ->
+          | NotJson err ->
             log
-              $"Error parsing incoming message as json:\n{incomingMessageRaw}\nError: {Stdlib.AltJson.ParseError.toString err}"
+              $"Error parsing incoming message as json:\n{incomingMessageRaw}\nError: {err}"
 
             logAndSendToClient
               """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
@@ -104,8 +104,28 @@ module Darklang =
           runServerCliLoop updatedState
 
 
+      let tryReadHeader
+        (contentLength: Stdlib.Option.Option<Int64>)
+        : Stdlib.Result.Result<Int64, String> =
+        let line = Builtin.stdinReadLine ()
+
+        if line == "" then
+          contentLength |> Stdlib.Option.toResult "No Content-Length header found"
+        else if Stdlib.String.startsWith line "Content-Length: " then
+          let lengthStr = Stdlib.String.dropFirst line 16L
+
+          match Stdlib.Int64.parse lengthStr with
+          | Ok length -> tryReadHeader (Stdlib.Option.Option.Some length)
+          | Error _ -> Stdlib.Result.Result.Error "Invalid Content-Length value"
+
 
       // TODO maybe this should return a Result eventually,
       // and Error if we don't get a proper LSP message
       let readMessageFromClient () : String =
-        Builtin.dangerLanguageServerProtocolReadNextMessage ()
+        let contentLength = tryReadHeader Stdlib.Option.Option.None
+
+        match contentLength with
+        | Ok contentLength -> Builtin.stdinReadExactly contentLength
+        | Error err ->
+          log $"Error reading message from client: {err}"
+          ""

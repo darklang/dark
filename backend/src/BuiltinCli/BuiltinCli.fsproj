@@ -12,7 +12,6 @@
     <Compile Include="Libs/Directory.fs" />
     <Compile Include="Libs/Environment.fs" />
     <Compile Include="Libs/File.fs" />
-    <Compile Include="Libs/LanguageServerProtocol.fs" />
     <Compile Include="Libs/Output.fs" />
     <Compile Include="Libs/Execution.fs" />
     <Compile Include="Libs/Stdin.fs" />

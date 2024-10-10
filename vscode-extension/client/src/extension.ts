@@ -22,7 +22,7 @@ export function activate(context: ExtensionContext) {
       isDebugMode ? "./scripts/run-cli" : "darklang",
       "--skip-self-update",
       "@PACKAGE.Darklang.LanguageTools.LspServer.runServerCli",
-      "null", // 'parses' to () - TODO clean this up once we switch over to new parser
+      "()", // 'parses' to () - TODO clean this up once we switch over to new parser
     ],
     transport: TransportKind.stdio,
   };

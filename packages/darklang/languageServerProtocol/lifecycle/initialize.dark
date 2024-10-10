@@ -461,6 +461,7 @@ module Darklang =
 
               // /// The server provides hover support.
               // hoverProvider?: boolean | HoverOptions;
+              hoverProvider: Stdlib.Option.Option<Bool>
 
               // /// The server provides signature help support.
               // signatureHelpProvider?: SignatureHelpOptions;
@@ -577,7 +578,10 @@ module Darklang =
               capabilities.semanticTokensProvider
               |> Stdlib.Option.map (fun p ->
                 ("semanticTokensProvider",
-                 SemanticTokens.SemanticTokenProviderOptions.toJson p)) ]
+                 SemanticTokens.SemanticTokenProviderOptions.toJson p))
+
+              capabilities.hoverProvider
+              |> Stdlib.Option.map (fun p -> ("hoverProvider", Json.Bool p)) ]
 
             |> Stdlib.Option.values
             |> Json.Object
