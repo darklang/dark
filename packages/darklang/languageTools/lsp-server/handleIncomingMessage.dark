@@ -41,6 +41,42 @@ module Darklang =
             relatedInformation = Stdlib.Option.Option.None
             data = Stdlib.Option.Option.None }
 
+
+      let createWarningDiagnostic
+        (range: Parser.Range)
+        (message: String)
+        : LanguageServerProtocol.Diagnostic.Diagnostic =
+        LanguageServerProtocol.Diagnostic.Diagnostic
+          { range = convertParserRangeToLspRange range
+            severity =
+              Stdlib.Option.Option.Some
+                LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity.Warning
+            code = Stdlib.Option.Option.None
+            codeDescription = Stdlib.Option.Option.None
+            source = Stdlib.Option.Option.None
+            message = message
+            tags = Stdlib.Option.Option.None
+            relatedInformation = Stdlib.Option.Option.None
+            data = Stdlib.Option.Option.None }
+
+      // TODO: is this useful, should it replace createErrorDiagnostic, and createWarningDiagnostic?
+      // let createDiagnostic
+      //   (range: Parser.Range)
+      //   (severity: LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity)
+      //   (message: String)
+      //   : LanguageServerProtocol.Diagnostic.Diagnostic =
+      //   LanguageServerProtocol.Diagnostic.Diagnostic
+      //     { range = convertParserRangeToLspRange range
+      //       severity = Stdlib.Option.Option.Some severity
+      //       code = Stdlib.Option.Option.None
+      //       codeDescription = Stdlib.Option.Option.None
+      //       source = Stdlib.Option.Option.None
+      //       message = message
+      //       tags = Stdlib.Option.Option.None
+      //       relatedInformation = Stdlib.Option.Option.None
+      //       data = Stdlib.Option.Option.None }
+
+
       let sendDiagnostic
         (uri: LanguageServerProtocol.DocumentUri)
         (diagnostic:
