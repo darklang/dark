@@ -36,9 +36,14 @@ let init (shouldWaitForDB : WaitForDB) (serviceName : string) : Task<unit> =
     printTime $"Initing LibCloud in {serviceName}"
     let dbTask = waitForDB shouldWaitForDB
 
-    let queueTask = Queue.init ()
-    let traceStorageTask = TraceCloudStorage.init ()
-    let! (_ : List<unit>) = Task.flatten [ queueTask; traceStorageTask; dbTask ]
+    //let queueTask = Queue.init ()
+    //let traceStorageTask = TraceCloudStorage.init ()
+    let! (_ : List<unit>) =
+      Task.flatten
+        [
+          // queueTask
+          // traceStorageTask
+          dbTask ]
 
     printTime $" Inited LibCloud in {serviceName}"
   }

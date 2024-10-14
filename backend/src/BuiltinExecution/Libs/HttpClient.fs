@@ -10,7 +10,8 @@ open FSharp.Control.Tasks
 open Prelude
 open LibExecution
 open LibExecution.RuntimeTypes
-module VT = ValueType
+module VT = LibExecution.ValueType
+module RTE = RuntimeError
 
 type Method = HttpMethod
 
@@ -403,8 +404,8 @@ let fns (config : Configuration) : List<BuiltInFn> =
           ))
       description =
         "Make blocking HTTP call to <param uri>. Returns a <type Result> where
-        the response is wrapped in {{ Ok }} if a response was successfully
-        received and parsed, and is wrapped in {{ Error }} otherwise"
+      the response is wrapped in {{ Ok }} if a response was successfully
+      received and parsed, and is wrapped in {{ Error }} otherwise"
       fn =
         let typ = FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.response
 
@@ -414,7 +415,8 @@ let fns (config : Configuration) : List<BuiltInFn> =
           FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.requestError
         let resultError = Dval.resultError responseType (KTCustomType(typeName, []))
         (function
-        | state,
+        | _,
+          vm,
           _,
           [ DString method; DString uri; DList(_, reqHeaders); DList(_, reqBody) ] ->
           uply {
@@ -426,23 +428,24 @@ let fns (config : Configuration) : List<BuiltInFn> =
                   | DTuple(DString k, DString v, []) ->
                     let k = String.trim k
                     if k = "" then
+                      // CLEANUP reconsider if we should error here
                       return Error BadHeader.BadHeader.EmptyKey
                     else
                       return Ok((k, v))
 
                   | notAPair ->
-                    let context =
-                      TypeChecker.Context.FunctionCallParameter(
-                        FQFnName.fqPackage PackageIDs.Fn.Stdlib.HttpClient.request,
-                        ({ name = "headers"; typ = headersType }),
-                        2
-                      )
                     return!
-                      TypeChecker.raiseValueNotExpectedType
-                        state.tracing.callStack
-                        notAPair
-                        (TList(TTuple(TString, TString, [])))
-                        context
+                      RuntimeError.ValueNotExpectedType(
+                        notAPair,
+                        TList(TTuple(TString, TString, [])),
+                        RTE.TypeChecker.Context.FunctionCallParameter(
+                          FQFnName.fqPackage PackageIDs.Fn.Stdlib.HttpClient.request,
+                          ({ name = "headers"; typ = headersType }),
+                          2
+                        )
+                      )
+                      |> raiseRTE vm.threadID
+
                 })
               |> Ply.map (Result.collect)
 
@@ -460,7 +463,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
                     { url = uri
                       method = method
                       headers = reqHeaders
-                      body = Dval.DlistToByteArray reqBody }
+                      body = Dval.dlistToByteArray reqBody }
 
                   let! response = makeRequest config httpClient request
 

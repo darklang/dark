@@ -14,7 +14,6 @@
 
     <Compile Include="Libs/Bool.fs" />
 
-    <Compile Include="IntRuntimeError.fs" />
     <Compile Include="Libs/Int8.fs" />
     <Compile Include="Libs/UInt8.fs" />
     <Compile Include="Libs/Int16.fs" />

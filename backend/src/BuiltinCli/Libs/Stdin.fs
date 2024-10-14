@@ -15,7 +15,7 @@ let fns : List<BuiltInFn> =
       description = "Reads a single line from the standard input."
       fn =
         (function
-        | _, _, [ DUnit ] ->
+        | _, _, _, [ DUnit ] ->
           let input = System.Console.ReadLine()
           Ply(DString input)
         | _ -> incorrectArgs ())

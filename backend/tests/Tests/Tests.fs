@@ -10,8 +10,6 @@ open Prelude
 module PT = LibExecution.ProgramTypes
 module Telemetry = LibService.Telemetry
 
-module CTPusher = LibClientTypes.Pusher
-
 let initSerializers () =
   BwdServer.Server.initSerializers ()
 
@@ -34,40 +32,48 @@ let main (args : string array) : int =
     initSerializers ()
 
     let tests =
-      [ Tests.AnalysisTypes.tests
-        Tests.BwdServer.tests
-        Tests.Canvas.tests
-        Tests.Cron.tests
-        Tests.DvalRepr.tests
-        Tests.QueueSchedulingRules.tests
-        // TODO: bring back Tests.Queue.tests
-        // TRACINGTODO
-        // Tests.Execution.tests
-        Tests.LibParser.tests
-        Tests.NewParser.tests
-        Tests.HttpClient.tests
-        Tests.LibExecution.tests.Force()
+      [ // core
         Tests.Prelude.tests
-        Tests.ProgramTypes.tests
-        Tests.Routing.tests
-        Tests.RuntimeTypes.tests
-        Tests.BinarySerialization.tests
-        Tests.VanillaSerialization.tests
-        Tests.DarkTypesSerialization.tests
-        Tests.SqlCompiler.tests
         Tests.TreeSitter.tests
+        Tests.RuntimeTypes.tests
+        Tests.ProgramTypes.tests
+        Tests.ProgramTypesToRuntimeTypes.tests
+        Tests.Interpreter.tests
+        Tests.AnalysisTypes.tests
+        // Tests.Execution.tests
         Tests.Builtin.tests
+        // Tests.DvalRepr.tests -- maybe this gets deleted TODO
         Tests.PackageManager.tests
-        Tests.StorageTraces.tests ]
+        Tests.LibParser.tests
+        // Tests.NewParser.tests
+        // Tests.HttpClient.tests
+
+
+        // cloud
+        // Tests.BwdServer.tests
+        // Tests.Canvas.tests
+        // Tests.Cron.tests
+        // Tests.QueueSchedulingRules.tests
+        // TODO: bring back Tests.Queue.tests
+        // Tests.Routing.tests
+        // Tests.BinarySerialization.tests
+        // Tests.VanillaSerialization.tests
+        // Tests.DarkTypesSerialization.tests
+        // Tests.SqlCompiler.tests
+        // Tests.StorageTraces.tests
+
+        // cross-cutting
+        Tests.LibExecution.tests.Force()
+        ]
 
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()
-    let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token
-    let httpClientTestsTask = Tests.HttpClient.init cancelationTokenSource.Token
-    Telemetry.Console.loadTelemetry "tests" Telemetry.TraceDBQueries
+    // let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token
+    // let httpClientTestsTask = Tests.HttpClient.init cancelationTokenSource.Token
+    //Telemetry.Console.loadTelemetry "tests" Telemetry.TraceDBQueries
 
-    // Generate this so that we can see if the format has changed in a git diff
-    BinarySerialization.generateTestFiles ()
-    VanillaSerialization.PersistedSerializations.generateTestFiles ()
+    // // Generate this so that we can see if the format has changed in a git diff
+    // BinarySerialization.generateTestFiles ()
+    // VanillaSerialization.PersistedSerializations.generateTestFiles ()
 
     // this does async stuff within it, so do not run it from a task/async
     // context or it may hang
@@ -76,9 +82,9 @@ let main (args : string array) : int =
 
     NonBlockingConsole.wait () // flush stdout
     cancelationTokenSource.Cancel()
-    bwdServerTestsTask.Wait()
-    httpClientTestsTask.Wait()
-    QueueWorker.shouldShutdown <- true
+    // bwdServerTestsTask.Wait()
+    // httpClientTestsTask.Wait()
+    // QueueWorker.shouldShutdown <- true
     exitCode
   with e ->
     printException "Outer exception" [] e

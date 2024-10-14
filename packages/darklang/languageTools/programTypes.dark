@@ -24,8 +24,11 @@ module Darklang =
           | Package of Package
 
 
-      type NameResolution<'a> =
-        Stdlib.Result.Result<'a, RuntimeErrors.NameResolution.Error>
+      type NameResolutionError =
+        | NotFound of List<String>
+        | InvalidName of List<String>
+
+      type NameResolution<'a> = Stdlib.Result.Result<'a, NameResolutionError>
 
 
       /// Darklang's available types (int, List<T>, user-defined types, etc.)
@@ -241,7 +244,7 @@ module Darklang =
 
         // declaring and accessing variables
         | ELet of ID * LetPattern * Expr * Expr
-        | EFieldAccess of ID * Expr * String
+        | ERecordFieldAccess of ID * Expr * String
         | EVariable of ID * String
         | EConstant of ID * NameResolution<FQConstantName.FQConstantName>
 
@@ -293,7 +296,7 @@ module Darklang =
           | EIf(id, _, _, _) -> id
           | EInfix(id, _, _, _) -> id
           | ELambda(id, _, _) -> id
-          | EFieldAccess(id, _, _) -> id
+          | ERecordFieldAccess(id, _, _) -> id
           | EVariable(id, _) -> id
           | EApply(id, _, _, _) -> id
           | EList(id, _) -> id

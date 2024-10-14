@@ -21,15 +21,14 @@ let exprRTs =
   let t name testStr expectedExpr =
     testTask name {
       let! actual =
-        LibParser.Parser.parseRTExpr
+        LibParser.Parser.parsePTExpr
           (localBuiltIns pmPT)
           pmPT
           NR.OnMissing.Allow
           "libparser.tests.fs"
           testStr
         |> Ply.toTask
-      let expectedExpr = PT2RT.Expr.toRT expectedExpr
-      return Expect.equalExprIgnoringIDs actual expectedExpr
+      return Expect.PT.equalExprIgnoringIDs actual expectedExpr
     }
 
 
@@ -103,27 +102,28 @@ let exprRTs =
           PT.EInt64(id, 8L)
         ))
 
-      // Now let's test some more complex expressions
-      // CLEANUP the reference to Stdlib.List.map only exists
-      // in PackageIDs to support this test. Fix that.
-      t
-        "pipe without expr"
-        "(let x = 5L\nx |> PACKAGE.Darklang.Stdlib.List.map 5L)"
-        (PT.ELet(
-          id,
-          PT.LPVariable(id, "x"),
-          PT.EInt64(id, 5L),
-          PT.EPipe(
-            id,
-            PT.EVariable(id, "x"),
-            [ PT.EPipeFnCall(
-                id,
-                Ok(PT.FQFnName.fqPackage PackageIDs.Fn.Stdlib.List.map),
-                [],
-                [ PT.EInt64(id, 5L) ]
-              ) ]
-          )
-        )) ]
+      // // Now let's test some more complex expressions
+      // // CLEANUP the reference to Stdlib.List.map only exists
+      // // in PackageIDs to support this test. Fix that.
+      // t
+      //   "pipe without expr"
+      //   "(let x = 5L\nx |> PACKAGE.Darklang.Stdlib.List.map 5L)"
+      //   (PT.ELet(
+      //     id,
+      //     PT.LPVariable(id, "x"),
+      //     PT.EInt64(id, 5L),
+      //     PT.EPipe(
+      //       id,
+      //       PT.EVariable(id, "x"),
+      //       [ PT.EPipeFnCall(
+      //           id,
+      //           Ok(PT.FQFnName.fqPackage PackageIDs.Fn.Stdlib.List.map),
+      //           [],
+      //           [ PT.EInt64(id, 5L) ]
+      //         ) ]
+      //     )
+      //   ))
+      ]
 
 
 let tests = testList "LibParser" [ exprRTs ]

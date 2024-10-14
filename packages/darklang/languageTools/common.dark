@@ -9,17 +9,22 @@ module Darklang =
       | Positive
       | Negative
 
-    type BuiltinFunctionParameter = { name: String; ``type``: String }
+    type BuiltinFunctionParameter =
+      { name: String
+        ``type``: RuntimeTypes.TypeReference }
 
     /// A Darklang builtin function
     type BuiltinFunction =
-      { name: String
+      { name: RuntimeTypes.FQFnName.Builtin
         description: String
         parameters: List<BuiltinFunctionParameter>
-        returnType: String }
+        returnType: RuntimeTypes.TypeReference }
 
     /// A Darklang builtin constant
     type BuiltinConstant =
-      { name: String
+      { name: RuntimeTypes.FQConstantName.Builtin
         description: String
-        ``type``: String }
+        ``type``: RuntimeTypes.TypeReference }
+
+// TODO: update usages given the updates from `type: String` to `type: RuntimeTypes.TypeReference`
+// TODO: and `name` updates

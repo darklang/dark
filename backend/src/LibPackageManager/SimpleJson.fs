@@ -283,6 +283,33 @@ module Decoders =
         | _, _, _, Error err -> Error err
       | _ -> Error(ctx, "Expected four fields")
 
+  let enum5Fields
+    (d1 : JsonDecoder<'T1>)
+    (d2 : JsonDecoder<'T2>)
+    (d3 : JsonDecoder<'T3>)
+    (d4 : JsonDecoder<'T4>)
+    (d5 : JsonDecoder<'T5>)
+    (ctor : 'T1 -> 'T2 -> 'T3 -> 'T4 -> 'T5 -> 'T)
+    (fields : List<Json>)
+    : JsonDecoder<'T> =
+    fun ctx ->
+      match fields with
+      | [ f1; f2; f3; f4; f5 ] ->
+        match
+          d1 (ctx.Index 1 f1),
+          d2 (ctx.Index 2 f2),
+          d3 (ctx.Index 3 f3),
+          d4 (ctx.Index 4 f4),
+          d5 (ctx.Index 5 f5)
+        with
+        | Ok f1, Ok f2, Ok f3, Ok f4, Ok f5 -> Ok(ctor f1 f2 f3 f4 f5)
+        | Error err, _, _, _, _
+        | _, Error err, _, _, _
+        | _, _, Error err, _, _
+        | _, _, _, Error err, _
+        | _, _, _, _, Error err -> Error err
+      | _ -> Error(ctx, "Expected four fields")
+
 
   let du (cases : Map<string, List<Json> -> JsonDecoder<'T>>) : JsonDecoder<'T> =
     fun ctx ->
