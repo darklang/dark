@@ -77,7 +77,7 @@ module Darklang =
           (pm: ProgramTypes.PackageManager.PackageManager)
           (wt: WTCliScriptModule)
           : PTCliScriptModule =
-          let types =
+          let (types, _unres) =
             wt.types
             |> Stdlib.List.map (fun t ->
               LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT
@@ -86,8 +86,9 @@ module Darklang =
                 wt.owner
                 [ wt.name ]
                 t)
+            |> Stdlib.List.unzip
 
-          let constants =
+          let (constants, _unres) =
             wt.constants
             |> Stdlib.List.map (fun c ->
               WrittenTypesToProgramTypes.ConstantDeclaration.toPackageConstPT
@@ -96,8 +97,9 @@ module Darklang =
                 wt.owner
                 [ wt.name ]
                 c)
+            |> Stdlib.List.unzip
 
-          let fns =
+          let (fns, _unres) =
             wt.fns
             |> Stdlib.List.map (fun f ->
               WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT
@@ -106,8 +108,9 @@ module Darklang =
                 wt.owner
                 [ wt.name ]
                 f)
+            |> Stdlib.List.unzip
 
-          let submodules =
+          let (submodules, _unres) =
             wt.submodules
             |> Stdlib.List.map (fun m ->
               WrittenTypesToProgramTypes.ModuleDeclaration.submoduleToPT
@@ -116,8 +119,9 @@ module Darklang =
                 wt.owner
                 [ wt.name ]
                 m)
+            |> Stdlib.List.unzip
 
-          let exprs =
+          let (exprs, _unres) =
             wt.exprs
             |> Stdlib.List.map (fun e ->
               LanguageTools.WrittenTypesToProgramTypes.Expr.toPT

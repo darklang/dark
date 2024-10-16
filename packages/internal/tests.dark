@@ -46,7 +46,7 @@ module Darklang =
         let lineNumber = wtTest.lineNumber
         let pm = LanguageTools.PackageManager.pm ()
 
-        let actual =
+        let (actual, _unres) =
           LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
             LanguageTools.NameResolver.OnMissing.ThrowError
             pm
@@ -54,7 +54,7 @@ module Darklang =
             []
             wtTest.actual
 
-        let expected =
+        let (expected, _unres) =
           LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
             LanguageTools.NameResolver.OnMissing.ThrowError
             pm
