@@ -1215,8 +1215,14 @@ module TokenizePipeExpression =
                                                 (TokenType.Operator,
                                                  (0L, 3L),
                                                  (0L, 5L))
-                                                (TokenType.FunctionName,
+                                                (TokenType.ModuleName,
                                                  (0L, 6L),
+                                                 (0L, 12L))
+                                                (TokenType.ModuleName,
+                                                 (0L, 13L),
+                                                 (0L, 18L))
+                                                (TokenType.FunctionName,
+                                                 (0L, 19L),
                                                  (0L, 22L))
                                                 (TokenType.Number,
                                                  (0L, 23L),
@@ -1224,6 +1230,28 @@ module TokenizePipeExpression =
                                                 (TokenType.Symbol,
                                                  (0L, 24L),
                                                  (0L, 25L)) ]
+
+  ("\"true\" |> Builtin.jsonParse<Bool>" |> tokenize) = [ (TokenType.Symbol,
+                                                           (0L, 0L),
+                                                           (0L, 1L))
+                                                          (TokenType.String,
+                                                           (0L, 1L),
+                                                           (0L, 5L))
+                                                          (TokenType.Symbol,
+                                                           (0L, 5L),
+                                                           (0L, 6L))
+                                                          (TokenType.Operator,
+                                                           (0L, 7L),
+                                                           (0L, 9L))
+                                                          (TokenType.ModuleName,
+                                                           (0L, 10L),
+                                                           (0L, 17L))
+                                                          (TokenType.TypeName,
+                                                           (0L, 28L),
+                                                           (0L, 32L))
+                                                          (TokenType.FunctionName,
+                                                           (0L, 18L),
+                                                           (0L, 27L)) ]
 
   ("1L |> x" |> tokenize) = [ (TokenType.Number, (0L, 0L), (0L, 1L))
                               (TokenType.Symbol, (0L, 1L), (0L, 2L))
