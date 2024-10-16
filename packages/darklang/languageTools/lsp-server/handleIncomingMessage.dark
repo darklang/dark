@@ -59,7 +59,7 @@ module Darklang =
             relatedInformation = Stdlib.Option.Option.None
             data = Stdlib.Option.Option.None }
 
-      // TODO: is this useful, should it replace createErrorDiagnostic, and createWarningDiagnostic?
+      // CLEANUP: is this useful, should it replace createErrorDiagnostic, createWarningDiagnostic?
       // let createDiagnostic
       //   (range: Parser.Range)
       //   (severity: LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity)
@@ -161,7 +161,7 @@ module Darklang =
             log $"got hover request for {requestParams.textDocument.uri}"
             Hover.handleHoverRequest state requestId requestParams
 
-          // // The server should exit with success code 0 if the shutdown request has been received before; otherwise with error code 1
+          // // -- The server should exit with success code 0 if the shutdown request has been received before; otherwise with error code 1
           // | Exit ->
           //   log "Exit notification received"
           //   if state.shouldShutdown then
@@ -190,22 +190,5 @@ module Darklang =
             log $"TODO: we don't yet support this method: {jsonRpcRequest.method}"
             // TODO: log more than just the method
             state
-
-        state.documentsInScope
-        |> Stdlib.Dict.iter (fun uri document ->
-          match document.parsed with
-          | Ok parsedFile ->
-            match parsedFile with
-            | SourceFile parsed when parsed.unparseableStuff != [] ->
-              let diagnostics =
-                parsed.unparseableStuff
-                |> Stdlib.List.map (fun unparseable ->
-                  createErrorDiagnostic
-                    unparseable.source.range
-                    "Couldn't parse this part of the file")
-
-              sendDiagnostic uri diagnostics
-            | _ -> ()
-          | _ -> ())
 
         currentState
