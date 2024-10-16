@@ -43,7 +43,19 @@ module Darklang =
             |> Parser.parseToSimplifiedTree
             |> Parser.parseFromTree
 
-          Diagnostics.gatherAndReportDiagnostics parsed
+          match parsed with
+          | Ok parsedFile ->
+            match parsedFile with
+            | SourceFile sf ->
+              let (parsedToPT, unresolvedNames) =
+                sf |> WrittenTypesToProgramTypes.sourceFile
+
+              Diagnostics.gatherAndReportDiagnostics
+                sf
+                (unresolvedNames |> Stdlib.List.flatten)
+
+          | Error err -> log err
+
 
           { state with
               documentsInScope =
@@ -70,7 +82,19 @@ module Darklang =
 
           | Some text ->
             let parsed = text |> Parser.parseToSimplifiedTree |> Parser.parseFromTree
-            Diagnostics.gatherAndReportDiagnostics parsed
+
+            match parsed with
+            | Ok parsedFile ->
+              match parsedFile with
+              | SourceFile sf ->
+                let (parsedToPT, unresolvedNames) =
+                  sf |> WrittenTypesToProgramTypes.sourceFile
+
+                Diagnostics.gatherAndReportDiagnostics
+                  sf
+                  (unresolvedNames |> Stdlib.List.flatten)
+
+            | Error err -> log err
 
             { state with
                 documentsInScope =
