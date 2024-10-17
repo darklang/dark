@@ -435,10 +435,16 @@ module Darklang =
                 (ProgramTypes.PipeExpr.EPipeFnCall(gid (), fnName, typeArgs, args),
                  unresolvedNames)
 
-              | Error _ ->
-                (ProgramTypes.PipeExpr.EPipeVariable(gid (), fn.fn.name, args),
-                 unresolvedNames)
+              | Error e ->
+                if fn.modules |> Stdlib.List.isEmpty then
+                  (ProgramTypes.PipeExpr.EPipeVariable(gid (), fn.fn.name, args),
+                   unresolvedNames)
+                else
+                  let unresolvedNames =
+                    Stdlib.List.append unresolvedNames [ (fn.range, e) ]
 
+                  (ProgramTypes.PipeExpr.EPipeFnCall(gid (), fnName, typeArgs, args),
+                   unresolvedNames)
 
         let toPT
           (onMissing: NameResolver.OnMissing)
