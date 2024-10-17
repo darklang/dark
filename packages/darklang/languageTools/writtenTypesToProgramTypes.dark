@@ -1386,43 +1386,33 @@ module Darklang =
           (ProgramTypes.SourceFile.Declaration.Module m, unresolvedNames)
 
 
-      let sourceFile
-        (source: WrittenTypes.SourceFile.SourceFile)
-        (pm: ProgramTypes.PackageManager.PackageManager)
-        : (ProgramTypes.SourceFile.SourceFile *
-          List<Parser.Range * RuntimeErrors.NameResolution.Error>)
-        =
-        // CLEANUP potentially complain about unparsable stuff?
-        let (declarations, declarationsUnresolvedNames) =
-          source.declarations
-          |> Stdlib.List.map WrittenTypesToProgramTypes.declarationsToPT
-          |> Stdlib.List.unzip
-
-        let (exprsToEval, exprsToEvalUnresolvedNames) =
-          source.exprsToEval
-          |> Stdlib.List.map (fun e ->
-            Expr.toPT NameResolver.OnMissing.Allow pm "" [] e)
-          |> Stdlib.List.unzip
-
-        let unresolvedNames =
-          Stdlib.List.flatten
-            [ declarationsUnresolvedNames; exprsToEvalUnresolvedNames ]
-
-        let sourceFile =
-          ProgramTypes.SourceFile.SourceFile
-            { declarations = declarations
-              exprsToEval = exprsToEval }
-
-        (sourceFile, unresolvedNames)
-
-
-      // TODO: maybe this should return a result type?
       let parsedFileAsSourceFile
         (parsedFile: WrittenTypes.ParsedFile)
         : (ProgramTypes.SourceFile.SourceFile *
           List<Parser.Range * RuntimeErrors.NameResolution.Error>)
         =
         let pm = LanguageTools.PackageManager.pm ()
-
+        // CLEANUP potentially complain about unparsable stuff?
         match parsedFile with
-        | SourceFile source -> sourceFile source pm
+        | SourceFile source ->
+          let (declarations, declarationsUnresolvedNames) =
+            source.declarations
+            |> Stdlib.List.map WrittenTypesToProgramTypes.declarationsToPT
+            |> Stdlib.List.unzip
+
+          let (exprsToEval, exprsToEvalUnresolvedNames) =
+            source.exprsToEval
+            |> Stdlib.List.map (fun e ->
+              Expr.toPT NameResolver.OnMissing.Allow pm "" [] e)
+            |> Stdlib.List.unzip
+
+          let unresolvedNames =
+            Stdlib.List.flatten
+              [ declarationsUnresolvedNames; exprsToEvalUnresolvedNames ]
+
+          let sourceFile =
+            ProgramTypes.SourceFile.SourceFile
+              { declarations = declarations
+                exprsToEval = exprsToEval }
+
+          (sourceFile, unresolvedNames)
