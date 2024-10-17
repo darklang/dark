@@ -31,6 +31,38 @@ module Darklang =
                     ) }
             )
 
+        let parseAndreportDiagnostics
+          (requestText: String)
+          : Stdlib.Result.Result<WrittenTypes.ParsedFile, String> =
+          let onMissing = LanguageTools.NameResolver.OnMissing.Allow
+          let pm = LanguageTools.PackageManager.pm ()
+
+          let parsed =
+            requestText |> Parser.parseToSimplifiedTree |> Parser.parseFromTree
+
+          let sourceFile =
+            match parsed with
+            | Ok parsedFile ->
+              match parsedFile with
+              | SourceFile sf -> sf
+              | _ -> log "Invalid source file"
+            | Error err -> log err
+
+          let (_ptCliScriptModule, unresolvedNames) =
+            Parser.CliScript.parse
+              "LSP"
+              "scriptName"
+              onMissing
+              pm
+              "fileName"
+              requestText
+
+          Diagnostics.gatherAndReportDiagnostics
+            sourceFile
+            (unresolvedNames |> Stdlib.List.flatten)
+
+          parsed
+
         // -- message-handling
 
         let handleTextDocumentDidOpen
@@ -38,24 +70,7 @@ module Darklang =
           (request:
             LanguageServerProtocol.DocumentSync.TextDocument.DidOpenTextDocumentNotification.DidOpenTextDocumentParams.DidOpenTextDocumentParams)
           : LspState =
-          let parsed =
-            request.textDocument.text
-            |> Parser.parseToSimplifiedTree
-            |> Parser.parseFromTree
-
-          match parsed with
-          | Ok parsedFile ->
-            match parsedFile with
-            | SourceFile sf ->
-              let (parsedToPT, unresolvedNames) =
-                sf |> WrittenTypesToProgramTypes.sourceFile
-
-              Diagnostics.gatherAndReportDiagnostics
-                sf
-                (unresolvedNames |> Stdlib.List.flatten)
-
-          | Error err -> log err
-
+          let parsed = parseAndreportDiagnostics request.textDocument.text
 
           { state with
               documentsInScope =
@@ -81,20 +96,7 @@ module Darklang =
             state
 
           | Some text ->
-            let parsed = text |> Parser.parseToSimplifiedTree |> Parser.parseFromTree
-
-            match parsed with
-            | Ok parsedFile ->
-              match parsedFile with
-              | SourceFile sf ->
-                let (parsedToPT, unresolvedNames) =
-                  sf |> WrittenTypesToProgramTypes.sourceFile
-
-                Diagnostics.gatherAndReportDiagnostics
-                  sf
-                  (unresolvedNames |> Stdlib.List.flatten)
-
-            | Error err -> log err
+            let parsed = parseAndreportDiagnostics text
 
             { state with
                 documentsInScope =

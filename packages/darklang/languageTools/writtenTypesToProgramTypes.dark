@@ -1382,10 +1382,10 @@ module Darklang =
 
       let sourceFile
         (source: WrittenTypes.SourceFile.SourceFile)
+        (pm: ProgramTypes.PackageManager.PackageManager)
         : (ProgramTypes.SourceFile.SourceFile *
           List<Parser.Range * RuntimeErrors.NameResolution.Error>)
         =
-        let pm = PackageManager.pm ()
         // CLEANUP potentially complain about unparsable stuff?
         let (declarations, declarationsUnresolvedNames) =
           source.declarations
@@ -1416,5 +1416,7 @@ module Darklang =
         : (ProgramTypes.SourceFile.SourceFile *
           List<Parser.Range * RuntimeErrors.NameResolution.Error>)
         =
+        let pm = LanguageTools.PackageManager.pm ()
+
         match parsedFile with
-        | SourceFile source -> sourceFile source
+        | SourceFile source -> sourceFile source pm
