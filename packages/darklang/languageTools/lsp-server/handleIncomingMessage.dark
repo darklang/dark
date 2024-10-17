@@ -24,15 +24,15 @@ module Darklang =
                 { line = lineEnd
                   character = characterEnd } }
 
-      let createErrorDiagnostic
+
+      let createDiagnostic
+        (severity: LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity)
         (range: Parser.Range)
         (message: String)
         : LanguageServerProtocol.Diagnostic.Diagnostic =
         LanguageServerProtocol.Diagnostic.Diagnostic
           { range = convertParserRangeToLspRange range
-            severity =
-              Stdlib.Option.Option.Some
-                LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity.Error
+            severity = Stdlib.Option.Option.Some severity
             code = Stdlib.Option.Option.None
             codeDescription = Stdlib.Option.Option.None
             source = Stdlib.Option.Option.None
@@ -40,41 +40,42 @@ module Darklang =
             tags = Stdlib.Option.Option.None
             relatedInformation = Stdlib.Option.Option.None
             data = Stdlib.Option.Option.None }
-
 
       let createWarningDiagnostic
         (range: Parser.Range)
         (message: String)
         : LanguageServerProtocol.Diagnostic.Diagnostic =
-        LanguageServerProtocol.Diagnostic.Diagnostic
-          { range = convertParserRangeToLspRange range
-            severity =
-              Stdlib.Option.Option.Some
-                LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity.Warning
-            code = Stdlib.Option.Option.None
-            codeDescription = Stdlib.Option.Option.None
-            source = Stdlib.Option.Option.None
-            message = message
-            tags = Stdlib.Option.Option.None
-            relatedInformation = Stdlib.Option.Option.None
-            data = Stdlib.Option.Option.None }
+        createDiagnostic
+          LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity.Warning
+          range
+          message
 
-      // CLEANUP: is this useful, should it replace createErrorDiagnostic, createWarningDiagnostic?
-      // let createDiagnostic
-      //   (range: Parser.Range)
-      //   (severity: LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity)
-      //   (message: String)
-      //   : LanguageServerProtocol.Diagnostic.Diagnostic =
-      //   LanguageServerProtocol.Diagnostic.Diagnostic
-      //     { range = convertParserRangeToLspRange range
-      //       severity = Stdlib.Option.Option.Some severity
-      //       code = Stdlib.Option.Option.None
-      //       codeDescription = Stdlib.Option.Option.None
-      //       source = Stdlib.Option.Option.None
-      //       message = message
-      //       tags = Stdlib.Option.Option.None
-      //       relatedInformation = Stdlib.Option.Option.None
-      //       data = Stdlib.Option.Option.None }
+      let createErrorDiagnostic
+        (range: Parser.Range)
+        (message: String)
+        : LanguageServerProtocol.Diagnostic.Diagnostic =
+        createDiagnostic
+          LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity.Error
+          range
+          message
+
+      let createInfoDiagnostic
+        (range: Parser.Range)
+        (message: String)
+        : LanguageServerProtocol.Diagnostic.Diagnostic =
+        createDiagnostic
+          LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity.Information
+          range
+          message
+
+      let createHintDiagnostic
+        (range: Parser.Range)
+        (message: String)
+        : LanguageServerProtocol.Diagnostic.Diagnostic =
+        createDiagnostic
+          LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity.Hint
+          range
+          message
 
 
       let sendDiagnostic
