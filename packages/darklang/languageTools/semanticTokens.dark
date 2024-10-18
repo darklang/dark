@@ -118,12 +118,12 @@ module Darklang =
              |> Stdlib.List.map (fun (m, _) -> ModuleIdentifier.tokenize m)
              |> Stdlib.List.flatten)
 
+            // map
+            FnIdentifier.tokenize q.fn
+
             (q.typeArgs
              |> Stdlib.List.map (fun typeArg -> TypeReference.tokenize typeArg)
-             |> Stdlib.List.flatten)
-
-            // map
-            FnIdentifier.tokenize q.fn ]
+             |> Stdlib.List.flatten) ]
           |> Stdlib.List.flatten
 
 
