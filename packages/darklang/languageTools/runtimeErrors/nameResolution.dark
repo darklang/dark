@@ -84,3 +84,7 @@ module Darklang =
                 extraExplanation = []
                 actual = []
                 expected = [] }
+
+
+        let toString (e: Error) : String =
+          (toSegments e).summary |> ErrorSegment.toString

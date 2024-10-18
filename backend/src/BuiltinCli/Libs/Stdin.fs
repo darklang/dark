@@ -21,7 +21,30 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated }
+
+
+    { name = fn "stdinReadExactly" 0
+      typeParams = []
+      parameters = [ Param.make "length" TInt64 "The number of characters to read." ]
+      returnType = TString
+      description = "Reads a specified number of characters from the standard input."
+      fn =
+        (function
+        | _, _, [ DInt64 length ] ->
+          if length < 0 then
+            Exception.raiseInternal "Length must be non-negative" []
+          else
+            let buffer = Array.zeroCreate (int length)
+            let bytesRead = System.Console.In.Read(buffer, 0, (int length))
+            let input = System.String(buffer, 0, bytesRead)
+            Ply(DString input)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+    ]
 
 
 let builtins : Builtins = Builtin.make [] fns

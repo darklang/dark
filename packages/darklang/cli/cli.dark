@@ -55,7 +55,7 @@ module Darklang =
       let onMissing = LanguageTools.NameResolver.OnMissing.Allow
       let pm = LanguageTools.PackageManager.pm ()
 
-      let args =
+      let (args, _unres) =
         args
         |> Stdlib.List.map (fun arg ->
           arg
@@ -68,6 +68,7 @@ module Darklang =
         |> Stdlib.List.flatten
         |> Stdlib.List.map (fun arg ->
           LanguageTools.WrittenTypesToProgramTypes.Expr.toPT onMissing pm "" [] arg)
+        |> Stdlib.List.unzip
 
       match Builtin.cliExecuteFunction fnName args with
       | Ok result ->

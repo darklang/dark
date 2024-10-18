@@ -76,8 +76,10 @@ module Darklang =
           (onMissing: NameResolver.OnMissing)
           (pm: ProgramTypes.PackageManager.PackageManager)
           (wt: WTCliScriptModule)
-          : PTCliScriptModule =
-          let types =
+          : (PTCliScriptModule *
+            List<Parser.Range * RuntimeErrors.NameResolution.Error>)
+          =
+          let (types, unresolvedNamesInTypes) =
             wt.types
             |> Stdlib.List.map (fun t ->
               LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT
@@ -86,8 +88,9 @@ module Darklang =
                 wt.owner
                 [ wt.name ]
                 t)
+            |> Stdlib.List.unzip
 
-          let constants =
+          let (constants, unresolvedNamesInConstants) =
             wt.constants
             |> Stdlib.List.map (fun c ->
               WrittenTypesToProgramTypes.ConstantDeclaration.toPackageConstPT
@@ -96,8 +99,9 @@ module Darklang =
                 wt.owner
                 [ wt.name ]
                 c)
+            |> Stdlib.List.unzip
 
-          let fns =
+          let (fns, unresolvedNamesInFns) =
             wt.fns
             |> Stdlib.List.map (fun f ->
               WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT
@@ -106,8 +110,9 @@ module Darklang =
                 wt.owner
                 [ wt.name ]
                 f)
+            |> Stdlib.List.unzip
 
-          let submodules =
+          let (submodules, unresolvedNamesInSubModules) =
             wt.submodules
             |> Stdlib.List.map (fun m ->
               WrittenTypesToProgramTypes.ModuleDeclaration.submoduleToPT
@@ -116,8 +121,9 @@ module Darklang =
                 wt.owner
                 [ wt.name ]
                 m)
+            |> Stdlib.List.unzip
 
-          let exprs =
+          let (exprs, unresolvedNamesInExprs) =
             wt.exprs
             |> Stdlib.List.map (fun e ->
               LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
@@ -126,13 +132,23 @@ module Darklang =
                 wt.owner
                 [ wt.name ]
                 e)
+            |> Stdlib.List.unzip
 
-          PTCliScriptModule
+          let unresolvedNames =
+            Stdlib.List.flatten
+              [ unresolvedNamesInTypes
+                unresolvedNamesInConstants
+                unresolvedNamesInFns
+                unresolvedNamesInSubModules
+                unresolvedNamesInExprs ]
+
+          (PTCliScriptModule
             { types = types
               constants = constants
               fns = fns
               submodules = submodules
-              exprs = exprs }
+              exprs = exprs },
+           unresolvedNames)
 
 
         let parse
@@ -142,10 +158,12 @@ module Darklang =
           (pm: ProgramTypes.PackageManager.PackageManager)
           (filename: String)
           (source: String)
-          : PTCliScriptModule =
+          : (PTCliScriptModule *
+            List<Parser.Range * RuntimeErrors.NameResolution.Error>)
+          =
           let parsedFile = source |> LanguageTools.Parser.ParserTest.initialParse
           let moduleWT = (parseDecls owner scriptName parsedFile) |> Builtin.unwrap
-          let initialParse = toPT onMissing pm moduleWT
+          let (initialParse, _) = toPT onMissing pm moduleWT
 
           let types =
             Stdlib.List.append
@@ -170,7 +188,7 @@ module Darklang =
 
           let pm = ProgramTypes.PackageManager.withExtras pm types constants fns
 
-          let result = toPT onMissing pm moduleWT
+          let (result, unresolvedNames) = toPT onMissing pm moduleWT
 
           let adjusted =
             PTCliScriptModule
@@ -255,4 +273,4 @@ module Darklang =
 
                 exprs = result.exprs }
 
-          adjusted
+          (adjusted, unresolvedNames)

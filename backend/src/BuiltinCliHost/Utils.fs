@@ -75,7 +75,7 @@ module CliScript =
 
   let fromDT (d : Dval) : PTCliScriptModule =
     match d with
-    | DRecord(_, _, _, fields) ->
+    | DTuple(DRecord(_, _, _, fields), _, _) ->
       let types =
         match Map.tryFind "types" fields with
         | Some(DList(_, types)) ->

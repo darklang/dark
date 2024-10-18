@@ -351,11 +351,7 @@ module Darklang =
           fields: List<Expr> *
           /// between the typeName and the caseName
           symbolDot: Range
-        | EPipeFnCall of
-          Range *
-          fnName: Name *
-          typeArgs: List<TypeReference.TypeReference> *
-          args: List<Expr>
+        | EPipeFnCall of Range * fnName: QualifiedFnIdentifier * args: List<Expr>
         | EPipeVariableOrFnCall of Range * String
 
 
