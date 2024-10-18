@@ -15,8 +15,8 @@ module Darklang =
           let hover =
             LanguageServerProtocol.Hover.Hover
               { contents =
-                  LanguageServerProtocol.Hover.MarkupContent
-                    { kind = LanguageServerProtocol.Hover.MarkupKind.Markdown
+                  LanguageServerProtocol.MarkupContent
+                    { kind = LanguageServerProtocol.MarkupKind.Markdown
                       value = "got a **hover** response \n\n yay!" }
                 range = Stdlib.Option.Option.None }
 

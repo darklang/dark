@@ -31,7 +31,7 @@ module Darklang =
                     ) }
             )
 
-        let parseAndreportDiagnostics
+        let parseAndReportDiagnostics
           (requestText: String)
           : Stdlib.Result.Result<WrittenTypes.ParsedFile, String> =
           let onMissing = LanguageTools.NameResolver.OnMissing.Allow
@@ -70,7 +70,7 @@ module Darklang =
           (request:
             LanguageServerProtocol.DocumentSync.TextDocument.DidOpenTextDocumentNotification.DidOpenTextDocumentParams.DidOpenTextDocumentParams)
           : LspState =
-          let parsed = parseAndreportDiagnostics request.textDocument.text
+          let parsed = parseAndReportDiagnostics request.textDocument.text
 
           { state with
               documentsInScope =
@@ -96,7 +96,7 @@ module Darklang =
             state
 
           | Some text ->
-            let parsed = parseAndreportDiagnostics text
+            let parsed = parseAndReportDiagnostics text
 
             { state with
                 documentsInScope =

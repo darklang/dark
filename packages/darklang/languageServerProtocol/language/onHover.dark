@@ -3,27 +3,11 @@
 module Darklang =
   module LanguageServerProtocol =
     module Hover =
-      type MarkupKind =
-        | PlainText
-        | Markdown
-
-      ///  A `MarkupContent` literal represents a string value which content is
-      ///  interpreted base on its kind flag. Currently the protocol supports
-      ///  `plaintext` and `markdown` as markup kinds.
-      ///  If the kind is `markdown` then the value can contain fenced code blocks like
-      ///  in GitHub issues.
-      type MarkupContent =
-        {
-          /// The type of the Markup
-          kind: MarkupKind
-          /// The content itself
-          value: String
-        }
-
       type HoverContentKind = MarkupContent of MarkupContent
       // | MarkedString
       // | MarkedStringList
 
+      /// The result of a hover request
       type Hover =
         {
           /// The hover's content
@@ -57,8 +41,12 @@ module Darklang =
 
         module HoverParams =
           type HoverParams =
-            { textDocument: TextDocumentIdentifier.TextDocumentIdentifier
-              position: Position.Position }
+            {
+              /// The text document
+              textDocument: TextDocumentIdentifier.TextDocumentIdentifier
+              /// The position inside the text document
+              position: Position.Position
+            }
 
           let fromJson (json: Json) : Stdlib.Result.Result<HoverParams, string> =
             match json with
@@ -91,17 +79,6 @@ module Darklang =
 
 
 (*
-  /// The result of a hover request.
-  export interface Hover {
-    /// The hover's content
-    contents: MarkupContent;
-
-    /// An optional range inside the text document that is used to
-    /// visualize the hover, e.g. by changing the background color.
-    range?: Range;
-  }
-
-
   export interface HoverClientCapabilities {
     /// Whether hover supports dynamic registration.
     dynamicRegistration?: boolean;
