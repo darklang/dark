@@ -466,6 +466,28 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "stringLastIndexOf" 0
+      typeParams = []
+      parameters =
+        [ Param.make "str" TString "The string to search in"
+          Param.make
+            "searchFor"
+            TString
+            "The string to search for within <param str>" ]
+      returnType = TInt64
+      description =
+        "Returns the index of the last occurrence of <param searchFor> in <param str>, or returns -1 if <param searchFor> does not occur."
+      fn =
+        (function
+        | _, _, [ DString str; DString search ] ->
+          let index = str.LastIndexOf(search)
+          Ply(DInt64 index)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
     { name = fn "stringHead" 0
       typeParams = []
       parameters = [ Param.make "str" TString "" ]
