@@ -161,7 +161,7 @@ module Darklang =
           : (PTCliScriptModule *
             List<Parser.Range * RuntimeErrors.NameResolution.Error>)
           =
-          let parsedFile = source |> LanguageTools.Parser.ParserTest.initialParse
+          let parsedFile = source |> LanguageTools.Parser.TestParsing.initialParse
           let moduleWT = (parseDecls owner scriptName parsedFile) |> Builtin.unwrap
           let (initialParse, _) = toPT onMissing pm moduleWT
 

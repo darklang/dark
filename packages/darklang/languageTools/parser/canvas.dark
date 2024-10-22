@@ -127,7 +127,7 @@ module Darklang =
           (filename: String)
           (source: String)
           : PTCanvasModule =
-          let parsedFile = source |> LanguageTools.Parser.ParserTest.initialParse
+          let parsedFile = source |> LanguageTools.Parser.TestParsing.initialParse
           let moduleWT = (parseDecls owner canvasName parsedFile) |> Builtin.unwrap
           let initialParse = toPT onMissing pm moduleWT
 
