@@ -17,6 +17,9 @@ module Darklang =
       | TextDocumentDidOpenNotification of
         DocumentSync.TextDocument.DidOpenTextDocumentNotification.DidOpenTextDocumentParams.DidOpenTextDocumentParams
 
+      | TextDocumentDidChangeNotification of
+        DocumentSync.TextDocument.DidChangeTextDocumentNotification.DidChangeTextDocumentParams.DidChangeTextDocumentParams
+
       | TextDocumentDidSaveNotification of
         DocumentSync.TextDocument.DidSaveTextDocumentNotification.DidSaveTextDocumentParams.DidSaveTextDocumentParams
 
@@ -58,6 +61,12 @@ module Darklang =
         |> DocumentSync.TextDocument.DidOpenTextDocumentNotification.DidOpenTextDocumentParams.fromJson
         |> Builtin.unwrap
         |> IncomingMessage.TextDocumentDidOpenNotification
+
+      | ("textDocument/didChange", None, Some(Object p)) ->
+        (Stdlib.AltJson.Json.Object p)
+        |> DocumentSync.TextDocument.DidChangeTextDocumentNotification.DidChangeTextDocumentParams.fromJson
+        |> Builtin.unwrap
+        |> IncomingMessage.TextDocumentDidChangeNotification
 
       | ("textDocument/didSave", None, Some(Object p)) ->
         (Stdlib.AltJson.Json.Object p)

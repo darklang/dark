@@ -187,6 +187,7 @@ module Darklang =
 
 
     module TextDocumentIdentifier =
+      /// A literal to identify a text document in the client.
       type TextDocumentIdentifier =
         {
           /// The text document's URI.
@@ -833,24 +834,6 @@ module Darklang =
       [id: ChangeAnnotationIdentifier]: ChangeAnnotation;
     };
   }
-
-
-
-  /// A literal to identify a text document in the client.
-  export interface TextDocumentIdentifier {
-    /// The text document's uri.
-    uri: DocumentUri;
-  }
-
-  /// A text document identifier to denote a specific version of a text document.
-  export interface VersionedTextDocumentIdentifier
-    extends
-      TextDocumentIdentifier {
-
-    /// The version number of this document.
-    version: integer;
-  }
-
 
   /// A text document identifier to optionally denote a specific version of a text document.
   export interface OptionalVersionedTextDocumentIdentifier

@@ -83,6 +83,24 @@ module Darklang =
                       parsed = parsed }) }
 
 
+        let handleTextDocumentDidChange
+          (state: LspState)
+          (request:
+            LanguageServerProtocol.DocumentSync.TextDocument.DidChangeTextDocumentNotification.DidChangeTextDocumentParams.DidChangeTextDocumentParams)
+          : LspState =
+          let text = request.contentChanges |> Stdlib.List.head |> Builtin.unwrap
+
+          { state with
+              documentsInScope =
+                Stdlib.Dict.set
+                  state.documentsInScope
+                  request.textDocument.uri
+                  (LanguageTools.LspServer.DocumentInScope
+                    { uri = request.textDocument.uri
+                      text = text.text
+                      parsed = parseAndReportDiagnostics text.text }) }
+
+
         let handleTextDocumentDidSave
           (state: LspState)
           (request:
