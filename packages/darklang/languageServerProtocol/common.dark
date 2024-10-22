@@ -663,14 +663,15 @@ module Darklang =
 
 
   /// A text edit applicable to a text document.
-  export interface TextEdit {
-    /// The range of the text document to be manipulated. To insert
-    /// text into a document create a range where start === end.
-    range: Range;
+  type TextEdit =
+    {
+      /// The range of the text document to be manipulated. To insert
+      /// text into a document create a range where start === end.
+      range: Range.Range
 
-    /// The string to be inserted. For delete operations use an empty string.
-    newText: string;
-  }
+      /// The string to be inserted. For delete operations use an empty string.
+      newText: String
+    }
 
 
   /// Additional information that describes document changes.

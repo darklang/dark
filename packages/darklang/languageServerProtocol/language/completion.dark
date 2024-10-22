@@ -143,6 +143,7 @@ module Darklang =
             // /// *Note 2:* If an `InsertReplaceEdit` is returned the edit's insert range
             // /// must be a prefix of the edit's replace range, that means it must be
             // /// contained and starting at the same position.
+            // textEdit: Stdlib.Option.Option<TextEdit>
             // textEdit?: TextEdit | InsertReplaceEdit;
 
             /// The edit text used if the completion item is part of a CompletionList and

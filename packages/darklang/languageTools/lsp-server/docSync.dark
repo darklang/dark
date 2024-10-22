@@ -90,6 +90,10 @@ module Darklang =
           : LspState =
           let text = request.contentChanges |> Stdlib.List.head |> Builtin.unwrap
 
+          let existingDoc =
+            (Stdlib.Dict.get state.documentsInScope request.textDocument.uri)
+            |> Builtin.unwrap
+
           { state with
               documentsInScope =
                 Stdlib.Dict.set
@@ -98,7 +102,9 @@ module Darklang =
                   (LanguageTools.LspServer.DocumentInScope
                     { uri = request.textDocument.uri
                       text = text.text
-                      parsed = parseAndReportDiagnostics text.text }) }
+                      // don't re-parse the text, just use the existing parsed value
+                      // TODO maybe we should re-parse, currently it breaks the LSP server
+                      parsed = existingDoc.parsed }) }
 
 
         let handleTextDocumentDidSave
