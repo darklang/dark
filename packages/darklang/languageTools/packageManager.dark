@@ -32,6 +32,7 @@ module Darklang =
         let get (id: Uuid) : Stdlib.Option.Option<ProgramTypes.PackageFn.PackageFn> =
           Builtin.packageManagerGetFn id
 
+        let getAll () : List<String> = Builtin.packageManagerGetAllFns ()
 
       // CLEANUP: update this to a constant rather than a function, once we have support for constant records
       let pm () : ProgramTypes.PackageManager.PackageManager =
@@ -41,4 +42,5 @@ module Darklang =
             findFn = PackageManager.Function.find
             getFn = PackageManager.Function.get
             getConstant = PackageManager.Constant.get
-            getType = PackageManager.Type.get }
+            getType = PackageManager.Type.get
+            getAllFns = PackageManager.Function.getAll }

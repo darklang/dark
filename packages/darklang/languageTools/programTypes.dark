@@ -451,7 +451,9 @@ module Darklang =
             getConstant:
               FQConstantName.Package
                 -> Stdlib.Option.Option<PackageConstant.PackageConstant>
-            getFn: FQFnName.Package -> Stdlib.Option.Option<PackageFn.PackageFn> }
+            getFn: FQFnName.Package -> Stdlib.Option.Option<PackageFn.PackageFn>
+
+            getAllFns: Unit -> List<String> }
 
 
         /// Allows you to side-load a few 'extras' in-memory, along
@@ -520,7 +522,8 @@ module Darklang =
                   | Some f -> Stdlib.Option.Option.Some f
                   | None ->
                     let getFn = pm.getFn
-                    getFn id }
+                    getFn id
+              getAllFns = pm.getAllFns }
 
 
       type Definitions =

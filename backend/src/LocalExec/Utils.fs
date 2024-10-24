@@ -23,6 +23,8 @@ let inMemPackageManagerFromPackages (p : PT.Packages) : PT.PackageManager =
     getFn = fun id -> p.fns |> List.find (fun f -> f.id = id) |> Ply
     getConstant = fun id -> p.constants |> List.find (fun c -> c.id = id) |> Ply
 
+    getAllFns = fun _ -> Ply [] //TODO
+
     init = uply { return () } }
 
 

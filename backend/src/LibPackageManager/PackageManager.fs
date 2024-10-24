@@ -191,4 +191,15 @@ let pt (baseUrl : string) : PT.PackageManager =
         ET2PT.PackageConstant.toPT
       |> withCache
 
+    getAllFns =
+      (fun () ->
+        uply {
+          let url = $"{baseUrl}/function/get/all"
+          let! response = url |> httpClient.GetAsync
+          let! responseStr = response.Content.ReadAsStringAsync()
+
+          return responseStr.Split('\n') |> Array.toList
+        })
+
+
     init = uply { return () } }
