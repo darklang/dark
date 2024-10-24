@@ -56,32 +56,56 @@ module Darklang =
           /// The kind of a completion entry.
           type CompletionItemKind =
             | Text
+            | Method
             | Function
+            | Constructor
             | Field
             | Variable
+            | Class
+            | Interface
             | Module
+            | Property
             | Unit
             | Value
             | Enum
-            | EnumMember
             | Keyword
+            | Snippet
+            | Color
+            | File
+            | Reference
+            | Folder
+            | EnumMember
             | Constant
+            | Struct
+            | Event
             | Operator
             | TypeParameter
 
           let toJson (kind: CompletionItemKind) : Json =
             match kind with
             | Text -> Json.Number 1.0
+            | Method -> Json.Number 2.0
             | Function -> Json.Number 3.0
+            | Constructor -> Json.Number 4.0
             | Field -> Json.Number 5.0
             | Variable -> Json.Number 6.0
+            | Class -> Json.Number 7.0
+            | Interface -> Json.Number 8.0
             | Module -> Json.Number 9.0
+            | Property -> Json.Number 10.0
             | Unit -> Json.Number 11.0
             | Value -> Json.Number 12.0
             | Enum -> Json.Number 13.0
-            | EnumMember -> Json.Number 20.0
             | Keyword -> Json.Number 14.0
+            | Snippet -> Json.Number 15.0
+            | Color -> Json.Number 16.0
+            | File -> Json.Number 17.0
+            | Reference -> Json.Number 18.0
+            | Folder -> Json.Number 19.0
+            | EnumMember -> Json.Number 20.0
             | Constant -> Json.Number 21.0
+            | Struct -> Json.Number 22.0
+            | Event -> Json.Number 23.0
             | Operator -> Json.Number 24.0
             | TypeParameter -> Json.Number 25.0
 
