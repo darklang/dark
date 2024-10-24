@@ -83,6 +83,30 @@ module Darklang =
                       parsed = parsed }) }
 
 
+        let handleTextDocumentDidChange
+          (state: LspState)
+          (request:
+            LanguageServerProtocol.DocumentSync.TextDocument.DidChangeTextDocumentNotification.DidChangeTextDocumentParams.DidChangeTextDocumentParams)
+          : LspState =
+          let text = request.contentChanges |> Stdlib.List.head |> Builtin.unwrap
+
+          let existingDoc =
+            (Stdlib.Dict.get state.documentsInScope request.textDocument.uri)
+            |> Builtin.unwrap
+
+          { state with
+              documentsInScope =
+                Stdlib.Dict.set
+                  state.documentsInScope
+                  request.textDocument.uri
+                  (LanguageTools.LspServer.DocumentInScope
+                    { uri = request.textDocument.uri
+                      text = text.text
+                      // don't re-parse the text, just use the existing parsed value
+                      // TODO maybe we should re-parse, currently it breaks the LSP server
+                      parsed = existingDoc.parsed }) }
+
+
         let handleTextDocumentDidSave
           (state: LspState)
           (request:

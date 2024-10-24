@@ -121,7 +121,7 @@ let expression with multiple pipes -indented
 
 let wtTest =
   testSource
-  |> LanguageTools.Parser.ParserTest.initialParse
+  |> LanguageTools.Parser.TestParsing.initialParse
   |> Test.parseTest
   |> Builtin.unwrap
 wtTest

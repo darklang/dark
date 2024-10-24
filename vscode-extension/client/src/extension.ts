@@ -84,14 +84,11 @@ export function activate(context: ExtensionContext) {
     terminal.show(true);
 
     if (isDebugMode()) {
-      let changeDirCommand = `cd /home/dark/app`;
-      let scriptCommand = `./scripts/run-cli  "${filePath}" --skip-self-update`;
-      terminal.sendText(changeDirCommand, true);
+      let scriptCommand = `cd /home/dark/app && { TIMEFORMAT=$'Script executed in: %3lR'; time ./scripts/run-cli "${filePath}" --skip-self-update; }`;
+
       terminal.sendText(scriptCommand, true);
     } else {
-      let changeDirCommand = `cd ${os.homedir()}`;
-      let scriptCommand = `darklang "${filePath}" --skip-self-update`;
-      terminal.sendText(changeDirCommand, true);
+      let scriptCommand = `cd ${os.homedir()} && { TIMEFORMAT=$'Script executed in: %3lR'; time darklang "${filePath}" --skip-self-update; }`;
       terminal.sendText(scriptCommand, true);
     }
   });

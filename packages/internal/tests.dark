@@ -39,7 +39,7 @@ module Darklang =
       let parseSingleTestFromFile (filename: String) (testSource: String) : PTTest =
         let wtTest =
           testSource
-          |> LanguageTools.Parser.ParserTest.initialParse
+          |> LanguageTools.Parser.TestParsing.initialParse
           |> Test.parseTest
           |> Builtin.unwrap
 

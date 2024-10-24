@@ -6,49 +6,132 @@ module Darklang =
           ()
           : LanguageServerProtocol.Completions.CompletionOptions.CompletionOptions =
           LanguageServerProtocol.Completions.CompletionOptions.CompletionOptions
-            { triggerCharacters = Stdlib.Option.Option.None
-              allCommitCharacters = Stdlib.Option.Option.None
+            { triggerCharacters = Stdlib.Option.Option.Some [ "." ]
+              allCommitCharacters = Stdlib.Option.Option.Some [ "\t" ]
               resolveProvider = Stdlib.Option.Option.Some false // just return all info at once
               completionItem = Stdlib.Option.Option.None }
+
+        let createCompletionItem
+          (label: String)
+          (detail: String)
+          (kind: String)
+          (insertText: String)
+          : LanguageServerProtocol.Completions.CompletionItem.CompletionItem =
+          LanguageServerProtocol.Completions.CompletionItem.CompletionItem
+            { label = label
+              detail = Stdlib.Option.Option.Some detail
+              preselect = Stdlib.Option.Option.Some true
+              sortText = Stdlib.Option.Option.Some label
+              filterText = Stdlib.Option.Option.Some label
+              insertText = Stdlib.Option.Option.Some insertText
+              insertTextFormat =
+                Stdlib.Option.Option.Some
+                  LanguageServerProtocol.Completions.InsertTextFormat.InsertTextFormat.PlainText
+              insertTextMode = Stdlib.Option.Option.None
+              // textEdit = Stdlib.Option.Option.None
+              textEditText = Stdlib.Option.Option.None
+              commitCharacters = Stdlib.Option.Option.Some [ " " ]
+              data = Stdlib.Option.Option.Some(Json.String kind) }
+
+        let createCompletions
+          (wordUnderCursor: String)
+          : List<LanguageServerProtocol.Completions.CompletionItem.CompletionItem> =
+          let keywords =
+            [ "module"
+              "type"
+              "const"
+              "let"
+              "if"
+              "then"
+              "else"
+              "match"
+              "with"
+              "fun" ]
+            |> Stdlib.List.map (fun k ->
+              createCompletionItem k "keyword" "keyword" k)
+
+          let functions =
+            (PackageManager.Function.getAllFnNames ())
+            |> Stdlib.List.map (fun f ->
+              let currentPrefix =
+                match wordUnderCursor |> Stdlib.String.lastIndexOf "." with
+                | Some i -> Stdlib.String.slice wordUnderCursor 0L (i + 1L)
+                | None -> ""
+
+              let prefixLength = Stdlib.String.length currentPrefix
+
+              // Calculate what text to insert when item is selected from the completion list
+              let insertText =
+                if prefixLength > 0L then
+                  if Stdlib.String.startsWith f currentPrefix then
+                    Stdlib.String.slice f prefixLength (Stdlib.String.length f)
+                  else
+                    f
+                else
+                  f
+
+              createCompletionItem f "function" "function" insertText)
+
+          let completions = Stdlib.List.flatten [ keywords; functions ]
+
+          completions
 
 
         /// handles `textDocument/completion` requests
         let handleCompletionRequest
           (state: LspState)
           (requestId: JsonRPC.RequestId)
-          (_requestParams:
+          (requestParams:
             LanguageServerProtocol.Completions.CompletionRequest.CompletionParams.CompletionParams)
           : LspState =
-          // TODO: prepare and return a 'real' response
-          let bogusResponse =
-            LanguageServerProtocol
-              .Completions
-              .CompletionRequest
-              .CompletionResult
-              .CompletionResult
-              .SimpleList(
-                [ LanguageServerProtocol.Completions.CompletionItem.CompletionItem
-                    { label =
-                        "bogus completion response | a b c d e f g h i j k l m n o p q r s t u v w x y z"
-                      detail = Stdlib.Option.Option.None
-                      preselect = Stdlib.Option.Option.Some true
-                      sortText = Stdlib.Option.Option.None
-                      filterText = Stdlib.Option.Option.None
-                      insertText = Stdlib.Option.Option.None
-                      insertTextFormat = Stdlib.Option.Option.None
-                      insertTextMode = Stdlib.Option.Option.None
-                      textEditText = Stdlib.Option.Option.None
-                      commitCharacters = Stdlib.Option.Option.None
-                      data = Stdlib.Option.Option.None } ]
-              )
+          let content =
+            (state.documentsInScope
+             |> Stdlib.Dict.get requestParams.textDocument.uri
+             |> Builtin.unwrap)
 
-          let bogusResponseJson =
-            bogusResponse
-            |> LanguageServerProtocol.Completions.CompletionRequest.CompletionResult.toJson
+          let currentLine =
+            content.text
+            |> Stdlib.String.split "\n"
+            |> Stdlib.List.getAt (
+              requestParams.position.line
+              |> Stdlib.Int64.fromUInt64
+              |> Builtin.unwrap
+            )
+            |> Builtin.unwrap
+
+          let lineToCursor =
+            currentLine
+            |> Stdlib.String.slice
+              0L
+              (requestParams.position.character
+               |> Stdlib.Int64.fromUInt64
+               |> Builtin.unwrap)
+
+          let wordUnderCursor =
+            lineToCursor
+            |> Stdlib.String.split " "
+            |> Stdlib.List.last
+            |> Builtin.unwrap
+
+          let completions =
+            (createCompletions wordUnderCursor)
+            |> Stdlib.List.filter (fun c ->
+              c.label |> Stdlib.String.startsWith wordUnderCursor)
+
+
+          let response =
+            LanguageServerProtocol.Completions.CompletionList.CompletionList
+              { isIncomplete = true
+                itemDefaults = Stdlib.Option.Option.None
+                items = completions }
+
+          let responseJson =
+            response
+            |> LanguageServerProtocol.Completions.CompletionList.toJson
             |> (fun r ->
               JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) r)
             |> Stdlib.AltJson.format
 
-          logAndSendToClient bogusResponseJson
+          logAndSendToClient responseJson
 
           state

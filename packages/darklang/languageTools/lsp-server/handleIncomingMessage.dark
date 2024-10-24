@@ -141,6 +141,10 @@ module Darklang =
           | TextDocumentDidSaveNotification requestParams ->
             DocSync.handleTextDocumentDidSave state requestParams
 
+          | TextDocumentDidChangeNotification requestParams ->
+            log $"updating document {requestParams.textDocument.uri}"
+            DocSync.handleTextDocumentDidChange state requestParams
+
           | TextDocumentDidCloseNotification requestParams ->
             log $"removing document from documentsInScope"
             DocSync.handleTextDocumentDidClose state requestParams

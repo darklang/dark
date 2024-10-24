@@ -187,6 +187,7 @@ module Darklang =
 
 
     module TextDocumentIdentifier =
+      /// A literal to identify a text document in the client.
       type TextDocumentIdentifier =
         {
           /// The text document's URI.
@@ -662,14 +663,15 @@ module Darklang =
 
 
   /// A text edit applicable to a text document.
-  export interface TextEdit {
-    /// The range of the text document to be manipulated. To insert
-    /// text into a document create a range where start === end.
-    range: Range;
+  type TextEdit =
+    {
+      /// The range of the text document to be manipulated. To insert
+      /// text into a document create a range where start === end.
+      range: Range.Range
 
-    /// The string to be inserted. For delete operations use an empty string.
-    newText: string;
-  }
+      /// The string to be inserted. For delete operations use an empty string.
+      newText: String
+    }
 
 
   /// Additional information that describes document changes.
@@ -833,24 +835,6 @@ module Darklang =
       [id: ChangeAnnotationIdentifier]: ChangeAnnotation;
     };
   }
-
-
-
-  /// A literal to identify a text document in the client.
-  export interface TextDocumentIdentifier {
-    /// The text document's uri.
-    uri: DocumentUri;
-  }
-
-  /// A text document identifier to denote a specific version of a text document.
-  export interface VersionedTextDocumentIdentifier
-    extends
-      TextDocumentIdentifier {
-
-    /// The version number of this document.
-    version: integer;
-  }
-
 
   /// A text document identifier to optionally denote a specific version of a text document.
   export interface OptionalVersionedTextDocumentIdentifier
