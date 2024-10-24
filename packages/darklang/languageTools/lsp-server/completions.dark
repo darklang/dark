@@ -13,12 +13,14 @@ module Darklang =
 
         let createCompletionItem
           (label: String)
+          (kind:
+            LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind)
           (detail: String)
-          (kind: String)
           (insertText: String)
           : LanguageServerProtocol.Completions.CompletionItem.CompletionItem =
           LanguageServerProtocol.Completions.CompletionItem.CompletionItem
             { label = label
+              kind = Stdlib.Option.Option.Some kind
               detail = Stdlib.Option.Option.Some detail
               preselect = Stdlib.Option.Option.Some true
               sortText = Stdlib.Option.Option.Some label
@@ -31,7 +33,7 @@ module Darklang =
               // textEdit = Stdlib.Option.Option.None
               textEditText = Stdlib.Option.Option.None
               commitCharacters = Stdlib.Option.Option.Some [ " " ]
-              data = Stdlib.Option.Option.Some(Json.String kind) }
+              data = Stdlib.Option.Option.None }
 
         let createCompletions
           (wordUnderCursor: String)
@@ -48,7 +50,11 @@ module Darklang =
               "with"
               "fun" ]
             |> Stdlib.List.map (fun k ->
-              createCompletionItem k "keyword" "keyword" k)
+              createCompletionItem
+                k
+                LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind.Keyword
+                "keyword"
+                k)
 
           let functions =
             (PackageManager.Function.getAllFnNames ())
@@ -70,7 +76,11 @@ module Darklang =
                 else
                   f
 
-              createCompletionItem f "function" "function" insertText)
+              createCompletionItem
+                f
+                LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind.Function
+                "function"
+                insertText)
 
           let completions = Stdlib.List.flatten [ keywords; functions ]
 
