@@ -121,7 +121,7 @@ let getFn (id : uuid) : Ply<Option<PT.PackageFn.PackageFn>> =
   }
 
 
-let getAllFns () : Ply<List<string>> =
+let getAllFnNames () : Ply<List<string>> =
   uply {
     let! fqName =
       "SELECT modules, name
@@ -253,6 +253,6 @@ let pt : PT.PackageManager =
     getFn = withCache getFn
     getConstant = withCache getConstant
 
-    getAllFns = getAllFns
+    getAllFnNames = getAllFnNames
 
     init = uply { return () } }

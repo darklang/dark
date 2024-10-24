@@ -91,5 +91,5 @@ let _handler _req =
 
 [<HttpHandler("GET", "/function/get/all")>]
 let _handler _req =
-  let fns = Builtin.packageManagerGetAllFns ()
+  let fns = Builtin.packageManagerGetAllFnNames ()
   Stdlib.Http.response (Stdlib.String.toBytes (fns |> Stdlib.String.join "\n")) 200L

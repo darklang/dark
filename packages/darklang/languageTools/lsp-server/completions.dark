@@ -51,7 +51,7 @@ module Darklang =
               createCompletionItem k "keyword" "keyword" k)
 
           let functions =
-            (PackageManager.Function.getAll ())
+            (PackageManager.Function.getAllFnNames ())
             |> Stdlib.List.map (fun f ->
               let currentPrefix =
                 match wordUnderCursor |> Stdlib.String.lastIndexOf "." with

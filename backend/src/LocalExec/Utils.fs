@@ -23,7 +23,13 @@ let inMemPackageManagerFromPackages (p : PT.Packages) : PT.PackageManager =
     getFn = fun id -> p.fns |> List.find (fun f -> f.id = id) |> Ply
     getConstant = fun id -> p.constants |> List.find (fun c -> c.id = id) |> Ply
 
-    getAllFns = fun _ -> Ply [] //TODO
+    getAllFnNames =
+      fun _ ->
+        p.fns
+        |> List.map (fun f ->
+          let modules = f.name.modules |> String.concat "."
+          $"{modules}.{f.name.name}")
+        |> Ply
 
     init = uply { return () } }
 

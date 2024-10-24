@@ -191,7 +191,7 @@ let pt (baseUrl : string) : PT.PackageManager =
         ET2PT.PackageConstant.toPT
       |> withCache
 
-    getAllFns =
+    getAllFnNames =
       (fun () ->
         uply {
           let url = $"{baseUrl}/function/get/all"

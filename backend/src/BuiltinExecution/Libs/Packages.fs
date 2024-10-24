@@ -199,7 +199,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "packageManagerGetAllFns" 0
+    { name = fn "packageManagerGetAllFnNames" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TList(TString)
@@ -208,7 +208,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | _, _, [ DUnit ] ->
           uply {
-            let! fns = pm.getAllFns ()
+            let! fns = pm.getAllFnNames ()
             let dval = fns |> List.map (fun f -> DString f) |> Dval.list KTString
             return dval
           }
