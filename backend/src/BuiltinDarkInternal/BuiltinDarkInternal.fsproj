@@ -17,14 +17,14 @@
   <ItemGroup>
     <None Include="paket.references" />
     <Compile Include="Helpers/Permissions.fs" />
-    <!--Compile Include="Libs/Canvases.fs" /-->
-    <!--Compile Include="Libs/DBs.fs" /-->
-    <!--Compile Include="Libs/Domains.fs" /-->
-    <!--Compile Include="Libs/F404s.fs" /-->
-    <!--Compile Include="Libs/Infra.fs" /-->
-    <!--Compile Include="Libs/Secrets.fs" /-->
-    <!--Compile Include="Libs/Users.fs" /-->
-    <!--Compile Include="Libs/Workers.fs" /-->
+    <Compile Include="Libs/Canvases.fs" />
+    <Compile Include="Libs/DBs.fs" />
+    <Compile Include="Libs/Domains.fs" />
+    <Compile Include="Libs/F404s.fs" />
+    <Compile Include="Libs/Infra.fs" />
+    <Compile Include="Libs/Secrets.fs" />
+    <Compile Include="Libs/Users.fs" />
+    <Compile Include="Libs/Workers.fs" />
     <Compile Include="Builtin.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
