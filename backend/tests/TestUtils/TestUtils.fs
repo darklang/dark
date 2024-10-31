@@ -30,7 +30,7 @@ module PackageIDs = LibExecution.PackageIDs
 module C2DT = LibExecution.CommonToDarkTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
-//let pmPT = LibCloud.PackageManager.pt
+let pmPT = LibCloud.PackageManager.pt
 
 let testOwner : Lazy<Task<UserID>> = lazy (Account.createUser ())
 
@@ -87,25 +87,25 @@ let initializeTestCanvas (name : string) : Task<CanvasID> =
 // let testWorker (name : string) (ast : PT.Expr) : PT.Handler.T =
 //   { tlid = gid (); ast = ast; spec = PT.Handler.Worker name }
 
-// let testPackageFn
-//   (owner : string)
-//   (name : string)
-//   (typeParams : List<string>)
-//   (parameters : NEList<string>)
-//   (returnType : PT.TypeReference)
-//   (body : PT.Expr)
-//   : PT.PackageFn.PackageFn =
-//   { id = System.Guid.NewGuid()
-//     body = body
-//     description = ""
-//     name = PT.PackageFn.name owner [] name
-//     typeParams = typeParams
-//     deprecated = PT.NotDeprecated
-//     parameters =
-//       NEList.map
-//         (fun p -> { name = p; typ = PT.TVariable "b"; description = "test" })
-//         parameters
-//     returnType = returnType }
+let testPackageFn
+  (owner : string)
+  (name : string)
+  (typeParams : List<string>)
+  (parameters : NEList<string>)
+  (returnType : PT.TypeReference)
+  (body : PT.Expr)
+  : PT.PackageFn.PackageFn =
+  { id = System.Guid.NewGuid()
+    body = body
+    description = ""
+    name = PT.PackageFn.name owner [] name
+    typeParams = typeParams
+    deprecated = PT.NotDeprecated
+    parameters =
+      NEList.map
+        (fun p -> { name = p; typ = PT.TVariable "b"; description = "test" })
+        parameters
+    returnType = returnType }
 
 
 

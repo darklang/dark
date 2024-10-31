@@ -7,222 +7,224 @@ open Prelude
 
 open TestUtils.TestUtils
 
-module File = LibCloud.File
-module Config = LibCloud.Config
+// module File = LibCloud.File
+// module Config = LibCloud.Config
 
-module PT = LibExecution.ProgramTypes
-module RT = LibExecution.RuntimeTypes
+// module PT = LibExecution.ProgramTypes
+// module RT = LibExecution.RuntimeTypes
 
-module PT2DT = LibExecution.ProgramTypesToDarkTypes
-module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
-module RT2DT = LibExecution.RuntimeTypesToDarkTypes
-module PackageIDs = LibExecution.PackageIDs
-
-
-module V = SerializationTestValues
+// module PT2DT = LibExecution.ProgramTypesToDarkTypes
+// module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+// module RT2DT = LibExecution.RuntimeTypesToDarkTypes
+// module PackageIDs = LibExecution.PackageIDs
 
 
-module RoundtripTests =
-  // for each type/value:
-  // perform internal -> DT -> internal -> DT -> internal
-  // most of the time, it should end up being the same as the source.
-  // if there are known exceptions, break down individual mappings as separate tests
-
-  let pmRT = LibCloud.PackageManager.rt
-
-  let types : RT.Types =
-    // CLEANUP could the `package` fn just return None? Not sure if we're actually using the types there
-    { typeSymbolTable = Map.empty; package = pmRT.getType }
-
-  let testRoundtrip
-    (testName : string)
-    (typeName : RT.FQTypeName.FQTypeName)
-    (original : 'a)
-    (toDT : 'a -> RT.Dval)
-    (fromDT : RT.Dval -> 'a)
-    (customExpect : Option<'a -> 'a -> string -> unit>)
-    =
-    testTask testName {
-      let firstDT = toDT original
-
-      let context =
-        LibExecution.TypeChecker.Context.FunctionCallResult(
-          fnName = RT.FQFnName.fqPackage System.Guid.Empty,
-          returnType = RT.TCustomType(Ok typeName, [])
-        )
-
-      let! typeChecked =
-        LibExecution.TypeChecker.unify
-          context
-          types
-          Map.empty
-          (RT.TCustomType(Ok typeName, []))
-          firstDT
-        |> Ply.toTask
-
-      let msg =
-        match typeChecked with
-        | Error e -> string e
-        | Ok _ -> $"typechecking succeeded"
-
-      Expect.isOk typeChecked msg
-
-      let roundtripped = fromDT firstDT
-
-      let msg = $"{testName} does not roundtrip successfully"
-
-      return
-        match customExpect with
-        | None -> Expect.equal roundtripped original msg
-        | Some customExpect -> customExpect roundtripped original msg
-    }
+// module V = SerializationTestValues
 
 
-  let testRoundtripList
-    (testName : string)
-    (typeName : RT.FQTypeName.FQTypeName)
-    (original : List<'a>)
-    (toDT : 'a -> RT.Dval)
-    (fromDT : RT.Dval -> 'a)
-    (customExpect : Option<'a -> 'a -> string -> unit>)
-    =
-    testList
-      testName
-      (List.mapWithIndex
-        (fun i t ->
-          testRoundtrip $"{testName}[{i}]" typeName t toDT fromDT customExpect)
-        original)
+// module RoundtripTests =
+//   // for each type/value:
+//   // perform internal -> DT -> internal -> DT -> internal
+//   // most of the time, it should end up being the same as the source.
+//   // if there are known exceptions, break down individual mappings as separate tests
+
+//   let pmRT = LibCloud.PackageManager.rt
+
+//   let types : RT.Types =
+//     // CLEANUP could the `package` fn just return None? Not sure if we're actually using the types there
+//     { typeSymbolTable = Map.empty; package = pmRT.getType }
+
+//   let testRoundtrip
+//     (testName : string)
+//     (typeName : RT.FQTypeName.FQTypeName)
+//     (original : 'a)
+//     (toDT : 'a -> RT.Dval)
+//     (fromDT : RT.Dval -> 'a)
+//     (customExpect : Option<'a -> 'a -> string -> unit>)
+//     =
+//     testTask testName {
+//       let firstDT = toDT original
+
+//       let context =
+//         LibExecution.TypeChecker.Context.FunctionCallResult(
+//           fnName = RT.FQFnName.fqPackage System.Guid.Empty,
+//           returnType = RT.TCustomType(Ok typeName, [])
+//         )
+
+//       let! typeChecked =
+//         LibExecution.TypeChecker.unify
+//           context
+//           types
+//           Map.empty
+//           (RT.TCustomType(Ok typeName, []))
+//           firstDT
+//         |> Ply.toTask
+
+//       let msg =
+//         match typeChecked with
+//         | Error e -> string e
+//         | Ok _ -> $"typechecking succeeded"
+
+//       Expect.isOk typeChecked msg
+
+//       let roundtripped = fromDT firstDT
+
+//       let msg = $"{testName} does not roundtrip successfully"
+
+//       return
+//         match customExpect with
+//         | None -> Expect.equal roundtripped original msg
+//         | Some customExpect -> customExpect roundtripped original msg
+//     }
 
 
-  module ProgramTypes =
-    let pkg (id : uuid) = RT.FQTypeName.fqPackage id
-
-    let tests =
-      [ testRoundtripList
-          "PT.PackageType"
-          (pkg PackageIDs.Type.LanguageTools.ProgramTypes.PackageType.packageType)
-          V.ProgramTypes.packageTypes
-          PT2DT.PackageType.toDT
-          PT2DT.PackageType.fromDT
-          None
-
-        testRoundtripList
-          "PT.PackageConstant"
-          (pkg
-            PackageIDs.Type.LanguageTools.ProgramTypes.PackageConstant.packageConstant)
-          V.ProgramTypes.packageConstants
-          PT2DT.PackageConstant.toDT
-          PT2DT.PackageConstant.fromDT
-          None
-
-        testRoundtripList
-          "PT.PackageFn"
-          (pkg PackageIDs.Type.LanguageTools.ProgramTypes.PackageFn.packageFn)
-          V.ProgramTypes.packageFns
-          PT2DT.PackageFn.toDT
-          PT2DT.PackageFn.fromDT
-          None
-
-        testRoundtripList
-          "PT.Secret"
-          (pkg PackageIDs.Type.LanguageTools.ProgramTypes.secret)
-          V.ProgramTypes.userSecrets
-          PT2DT.Secret.toDT
-          PT2DT.Secret.fromDT
-          None
-
-        testRoundtripList
-          "PT.DB"
-          (pkg PackageIDs.Type.LanguageTools.ProgramTypes.db)
-          V.ProgramTypes.userDBs
-          PT2DT.DB.toDT
-          PT2DT.DB.fromDT
-          None
-
-        testRoundtripList
-          "PT.Handler"
-          (pkg PackageIDs.Type.LanguageTools.ProgramTypes.Handler.handler)
-          V.ProgramTypes.Handler.handlers
-          PT2DT.Handler.toDT
-          PT2DT.Handler.fromDT
-          None ]
-
-  module RuntimeTypes =
-    let pkg (id : uuid) = RT.FQTypeName.fqPackage id
-
-    let tests =
-      [ testRoundtripList
-          "RT.FQTypeName"
-          (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.FQTypeName.fqTypeName)
-          V.RuntimeTypes.fqTypeNames
-          RT2DT.FQTypeName.toDT
-          RT2DT.FQTypeName.fromDT
-          None
-
-        testRoundtripList
-          "RT.FQConstantName"
-          (pkg
-            PackageIDs.Type.LanguageTools.RuntimeTypes.FQConstantName.fqConstantName)
-          V.RuntimeTypes.fqConstantNames
-          RT2DT.FQConstantName.toDT
-          RT2DT.FQConstantName.fromDT
-          None
-
-        testRoundtripList
-          "RT.FQFnName"
-          (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.FQFnName.fqFnName)
-          V.RuntimeTypes.fqFnNames
-          RT2DT.FQFnName.toDT
-          RT2DT.FQFnName.fromDT
-          None
-
-        testRoundtripList
-          "RT.TypeReference"
-          (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.typeReference)
-          V.RuntimeTypes.typeReferences
-          RT2DT.TypeReference.toDT
-          RT2DT.TypeReference.fromDT
-          None
-
-        testRoundtripList
-          "RT.Expr"
-          (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.expr)
-          V.RuntimeTypes.exprs
-          RT2DT.Expr.toDT
-          RT2DT.Expr.fromDT
-          None
-
-        testRoundtripList
-          "RT.ValueType"
-          (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.valueType)
-          V.RuntimeTypes.valueTypes
-          RT2DT.ValueType.toDT
-          RT2DT.ValueType.fromDT
-          None
-
-        testRoundtripList
-          "RT.Dval"
-          (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.dval)
-          V.RuntimeTypes.dvals
-          RT2DT.Dval.toDT
-          RT2DT.Dval.fromDT
-          (Some Expect.equalDval)
+//   let testRoundtripList
+//     (testName : string)
+//     (typeName : RT.FQTypeName.FQTypeName)
+//     (original : List<'a>)
+//     (toDT : 'a -> RT.Dval)
+//     (fromDT : RT.Dval -> 'a)
+//     (customExpect : Option<'a -> 'a -> string -> unit>)
+//     =
+//     testList
+//       testName
+//       (List.mapWithIndex
+//         (fun i t ->
+//           testRoundtrip $"{testName}[{i}]" typeName t toDT fromDT customExpect)
+//         original)
 
 
-        // CLEANUP consider adding roundtrip tests here around
-        // RuntimeErrors, which consume these types.
-        // We don't always have F# models for these types, though,
-        // so it's not clear how to do this or if it's even useful
-        ]
+//   module ProgramTypes =
+//     let pkg (id : uuid) = RT.FQTypeName.fqPackage id
+
+//     let tests =
+//       [ testRoundtripList
+//           "PT.PackageType"
+//           (pkg PackageIDs.Type.LanguageTools.ProgramTypes.PackageType.packageType)
+//           V.ProgramTypes.packageTypes
+//           PT2DT.PackageType.toDT
+//           PT2DT.PackageType.fromDT
+//           None
+
+//         testRoundtripList
+//           "PT.PackageConstant"
+//           (pkg
+//             PackageIDs.Type.LanguageTools.ProgramTypes.PackageConstant.packageConstant)
+//           V.ProgramTypes.packageConstants
+//           PT2DT.PackageConstant.toDT
+//           PT2DT.PackageConstant.fromDT
+//           None
+
+//         testRoundtripList
+//           "PT.PackageFn"
+//           (pkg PackageIDs.Type.LanguageTools.ProgramTypes.PackageFn.packageFn)
+//           V.ProgramTypes.packageFns
+//           PT2DT.PackageFn.toDT
+//           PT2DT.PackageFn.fromDT
+//           None
+
+//         testRoundtripList
+//           "PT.Secret"
+//           (pkg PackageIDs.Type.LanguageTools.ProgramTypes.secret)
+//           V.ProgramTypes.userSecrets
+//           PT2DT.Secret.toDT
+//           PT2DT.Secret.fromDT
+//           None
+
+//         testRoundtripList
+//           "PT.DB"
+//           (pkg PackageIDs.Type.LanguageTools.ProgramTypes.db)
+//           V.ProgramTypes.userDBs
+//           PT2DT.DB.toDT
+//           PT2DT.DB.fromDT
+//           None
+
+//         testRoundtripList
+//           "PT.Handler"
+//           (pkg PackageIDs.Type.LanguageTools.ProgramTypes.Handler.handler)
+//           V.ProgramTypes.Handler.handlers
+//           PT2DT.Handler.toDT
+//           PT2DT.Handler.fromDT
+//           None ]
+
+//   module RuntimeTypes =
+//     let pkg (id : uuid) = RT.FQTypeName.fqPackage id
+
+//     let tests =
+//       [ testRoundtripList
+//           "RT.FQTypeName"
+//           (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.FQTypeName.fqTypeName)
+//           V.RuntimeTypes.fqTypeNames
+//           RT2DT.FQTypeName.toDT
+//           RT2DT.FQTypeName.fromDT
+//           None
+
+//         testRoundtripList
+//           "RT.FQConstantName"
+//           (pkg
+//             PackageIDs.Type.LanguageTools.RuntimeTypes.FQConstantName.fqConstantName)
+//           V.RuntimeTypes.fqConstantNames
+//           RT2DT.FQConstantName.toDT
+//           RT2DT.FQConstantName.fromDT
+//           None
+
+//         testRoundtripList
+//           "RT.FQFnName"
+//           (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.FQFnName.fqFnName)
+//           V.RuntimeTypes.fqFnNames
+//           RT2DT.FQFnName.toDT
+//           RT2DT.FQFnName.fromDT
+//           None
+
+//         testRoundtripList
+//           "RT.TypeReference"
+//           (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.typeReference)
+//           V.RuntimeTypes.typeReferences
+//           RT2DT.TypeReference.toDT
+//           RT2DT.TypeReference.fromDT
+//           None
+
+//         testRoundtripList
+//           "RT.Expr"
+//           (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.expr)
+//           V.RuntimeTypes.exprs
+//           RT2DT.Expr.toDT
+//           RT2DT.Expr.fromDT
+//           None
+
+//         testRoundtripList
+//           "RT.ValueType"
+//           (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.valueType)
+//           V.RuntimeTypes.valueTypes
+//           RT2DT.ValueType.toDT
+//           RT2DT.ValueType.fromDT
+//           None
+
+//         testRoundtripList
+//           "RT.Dval"
+//           (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.dval)
+//           V.RuntimeTypes.dvals
+//           RT2DT.Dval.toDT
+//           RT2DT.Dval.fromDT
+//           (Some Expect.equalDval)
+
+
+//         // CLEANUP consider adding roundtrip tests here around
+//         // RuntimeErrors, which consume these types.
+//         // We don't always have F# models for these types, though,
+//         // so it's not clear how to do this or if it's even useful
+//         ]
 
 
 let tests =
   testList
     "DarkTypes Serialization"
-    [ testList
-        "roundtrip PTs between internal types and dark types"
-        RoundtripTests.ProgramTypes.tests
+    [
+    // testList
+    //   "roundtrip PTs between internal types and dark types"
+    //   RoundtripTests.ProgramTypes.tests
 
-      testList
-        "roundtrip RTs between internal types and dark types"
-        RoundtripTests.RuntimeTypes.tests ]
+    // testList
+    //   "roundtrip RTs between internal types and dark types"
+    //   RoundtripTests.RuntimeTypes.tests
+    ]

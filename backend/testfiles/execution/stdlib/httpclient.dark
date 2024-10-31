@@ -65,38 +65,38 @@ Stdlib.HttpClient.request "get" "http://google.com:79" [] [] = Stdlib.Result.Res
 
 // Check for banned urls in the host name
 module Disallowed =
-  let expectInvalidHost (url: String): Bool =
+  let errInvalidHost (url: String): Bool =
     (Stdlib.HttpClient.request "get" url [] []) == Stdlib.Result.Result.Error(Stdlib.HttpClient.RequestError.BadUrl(Stdlib.HttpClient.BadUrlDetails.InvalidHost))
 
-  //(expectInvalidHost "http://0.0.0.0") = true
-  // (expectInvalidHost "http://0") = true
-  // (expectInvalidHost "http://[0:0:0:0:0:0:0:0]" [] []) = true
-  // (expectInvalidHost "localhost") = true
-  // (expectInvalidHost "http://localhost") = true
-  // (expectInvalidHost "http://127.0.0.1") = true
-  // (expectInvalidHost "http://[::1]") = true
-  // (expectInvalidHost "http://[0:0:0:0:0:0:0:1]") = true
-  // (expectInvalidHost "http://[0000:0000:0000:0000:0000:0000:0000:0001]") = true
-  // (expectInvalidHost "http://127.0.0.17") = true
-  // (expectInvalidHost "http://[::ffff:7f00:11]") = true
-  // (expectInvalidHost "http://[0:0:0:0:0:ffff:7f00:0011]") = true
-  // (expectInvalidHost "http://[0000:0000:0000:0000:0000:ffff:7f00:0011]") = true
-  // (expectInvalidHost "http://127.255.174.17") = true
-  // (expectInvalidHost "http://metadata.google.internal") = true
-  // (expectInvalidHost "http://metadata") = true
-  // (expectInvalidHost "http://169.254.169.254") = true
-  // (expectInvalidHost "http://[::ffff:a9fe:a9fe]") = true
-  // (expectInvalidHost "http://[0:0:0:0:0:ffff:a9fe:a9fe]") = true
-  // (expectInvalidHost "http://[0000:0000:0000:0000:0000:ffff:a9fe:a9fe]") = true
-  // (expectInvalidHost "http://169.254.0.0") = true
-  // (expectInvalidHost "http://172.16.0.1") = true
-  // (expectInvalidHost "http://[::ffff:ac10:1]") = true
-  // (expectInvalidHost "http://[0:0:0:0:0:ffff:ac10:0001]") = true
-  // (expectInvalidHost "http://[0000:0000:0000:0000:0000:ffff:ac10:0001]") = true
-  // (expectInvalidHost "http://192.168.1.1") = true
-  // (expectInvalidHost "http://[::ffff:c0a8:101]") = true
-  // (expectInvalidHost "http://[0:0:0:0:0:ffff:c0a8:0101]") = true
-  // (expectInvalidHost "http://[0000:0000:0000:0000:0000:ffff:c0a8:0101]") = true
+  //(errInvalidHost "http://0.0.0.0") = true
+  // (errInvalidHost "http://0") = true
+  // (errInvalidHost "http://[0:0:0:0:0:0:0:0]" [] []) = true
+  // (errInvalidHost "localhost") = true
+  // (errInvalidHost "http://localhost") = true
+  // (errInvalidHost "http://127.0.0.1") = true
+  // (errInvalidHost "http://[::1]") = true
+  // (errInvalidHost "http://[0:0:0:0:0:0:0:1]") = true
+  // (errInvalidHost "http://[0000:0000:0000:0000:0000:0000:0000:0001]") = true
+  // (errInvalidHost "http://127.0.0.17") = true
+  // (errInvalidHost "http://[::ffff:7f00:11]") = true
+  // (errInvalidHost "http://[0:0:0:0:0:ffff:7f00:0011]") = true
+  // (errInvalidHost "http://[0000:0000:0000:0000:0000:ffff:7f00:0011]") = true
+  // (errInvalidHost "http://127.255.174.17") = true
+  // (errInvalidHost "http://metadata.google.internal") = true
+  // (errInvalidHost "http://metadata") = true
+  // (errInvalidHost "http://169.254.169.254") = true
+  // (errInvalidHost "http://[::ffff:a9fe:a9fe]") = true
+  // (errInvalidHost "http://[0:0:0:0:0:ffff:a9fe:a9fe]") = true
+  // (errInvalidHost "http://[0000:0000:0000:0000:0000:ffff:a9fe:a9fe]") = true
+  // (errInvalidHost "http://169.254.0.0") = true
+  // (errInvalidHost "http://172.16.0.1") = true
+  // (errInvalidHost "http://[::ffff:ac10:1]") = true
+  // (errInvalidHost "http://[0:0:0:0:0:ffff:ac10:0001]") = true
+  // (errInvalidHost "http://[0000:0000:0000:0000:0000:ffff:ac10:0001]") = true
+  // (errInvalidHost "http://192.168.1.1") = true
+  // (errInvalidHost "http://[::ffff:c0a8:101]") = true
+  // (errInvalidHost "http://[0:0:0:0:0:ffff:c0a8:0101]") = true
+  // (errInvalidHost "http://[0000:0000:0000:0000:0000:ffff:c0a8:0101]") = true
 
 //   // Check for sneaky banned urls - blocked via connection callback
 //   // 127.0.0.1
