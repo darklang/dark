@@ -876,221 +876,328 @@ module Darklang =
 
             (ProgramTypes.Const.CEnum(typeName, caseName, fields), unresolvedNames)
 
-
       module ModuleDeclaration =
-        let combineSubmodules
-          (submodules: List<ProgramTypes.Definitions>)
-          : ProgramTypes.Definitions =
-          let init =
-            ProgramTypes.Definitions
-              { types = []
-                constants = []
-                fns = []
-                exprs = [] }
-
-          submodules
-          |> Stdlib.List.fold init (fun acc m ->
-            ProgramTypes.Definitions
-              { types = acc.types |> Stdlib.List.append m.types
-                constants = acc.constants |> Stdlib.List.append m.constants
-                fns = acc.fns |> Stdlib.List.append m.fns
-                exprs = acc.exprs |> Stdlib.List.append m.exprs })
-
-        let submoduleToPT
-          (onMissing: NameResolver.OnMissing)
-          (pm: ProgramTypes.PackageManager.PackageManager)
-          (owner: String)
-          (modules: List<String>)
-          (submodule: WrittenTypes.ModuleDeclaration.ModuleDeclaration)
-          : (ProgramTypes.Definitions *
-            List<Parser.Range * RuntimeErrors.NameResolution.Error>)
-          =
-          let (_, m) = submodule.name
-          let modules = Stdlib.List.append modules [ m ]
-
-          let (types, typesUnresolvedNames) =
-            submodule.declarations
-            |> Stdlib.List.filterMap (fun d ->
-              match d with
-              | Type t ->
-                let (t, unresolvedNames) =
-                  TypeDeclaration.toPackageTypePT onMissing pm owner modules t
-
-                Stdlib.Option.Option.Some((t, unresolvedNames))
-              | _ -> Stdlib.Option.Option.None)
-            |> Stdlib.List.unzip
-
-          let (fns, fnUnresolvedNames) =
-            submodule.declarations
-            |> Stdlib.List.filterMap (fun d ->
-              match d with
-              | Function f ->
-                let (f, unresolvedNames) =
-                  FunctionDeclaration.toPackageFnPT onMissing pm owner modules f
-
-                Stdlib.Option.Option.Some((f, unresolvedNames))
-              | _ -> Stdlib.Option.Option.None)
-            |> Stdlib.List.unzip
-
-          let (constants, constUnresolvedNames) =
-            submodule.declarations
-            |> Stdlib.List.filterMap (fun d ->
-              match d with
-              | Constant c ->
-                let (c, unresolvedNames) =
-                  ConstantDeclaration.toPackageConstPT onMissing pm owner modules c
-
-                Stdlib.Option.Option.Some((c, unresolvedNames))
-              | _ -> Stdlib.Option.Option.None)
-            |> Stdlib.List.unzip
-
-          let (exprs, exprUnresolvedNames) =
-            submodule.declarations
-            |> Stdlib.List.filterMap (fun d ->
-              match d with
-              | Expr e ->
-                let (expr, exprUnresolvedNames) =
-                  Expr.toPT onMissing pm owner modules e
-
-                let modules = Stdlib.List.push modules owner
-                Stdlib.Option.Option.Some(((expr, modules), exprUnresolvedNames))
-              | _ -> Stdlib.Option.Option.None)
-            |> Stdlib.List.unzip
-
-          let (submodules, subModUnresolvedNames) =
-            submodule.declarations
-            |> Stdlib.List.filterMap (fun d ->
-              match d with
-              | SubModule m ->
-                Stdlib.Option.Option.Some(
-                  submoduleToPT onMissing pm owner modules m
-                )
-              | _ -> Stdlib.Option.Option.None)
-            |> Stdlib.List.unzip
-
-          let submodules = combineSubmodules submodules
-
-          let unresolvedNames =
-            Stdlib.List.flatten
-              [ typesUnresolvedNames |> Stdlib.List.flatten
-                fnUnresolvedNames |> Stdlib.List.flatten
-                constUnresolvedNames |> Stdlib.List.flatten
-                exprUnresolvedNames |> Stdlib.List.flatten
-                subModUnresolvedNames |> Stdlib.List.flatten ]
-
-          (ProgramTypes.Definitions
-            { types = types |> Stdlib.List.append submodules.types
-              constants = constants |> Stdlib.List.append submodules.constants
-              fns = fns |> Stdlib.List.append submodules.fns
-              exprs = exprs |> Stdlib.List.append submodules.exprs },
-           unresolvedNames)
-
-
         let toPT
           (onMissing: NameResolver.OnMissing)
           (pm: ProgramTypes.PackageManager.PackageManager)
+          (owner: String)
           (currentModule: List<String>)
           (d: WrittenTypes.ModuleDeclaration.ModuleDeclaration)
           : (ProgramTypes.Definitions *
             List<Parser.Range * RuntimeErrors.NameResolution.Error>)
           =
-          let (_, owner) = d.name
+          let (_, moduleName) = d.name
+          // Builtin.debug "ModuleDeclaration.toPT: moduleName: " moduleName
+          let updatedCurrentModule =
+            // Stdlib.List.append currentModule [ moduleName ]
+            currentModule
 
-          let (types, typesUnresolvedNames) =
+          let (defs, unresolvedNames) =
             d.declarations
-            |> Stdlib.List.filterMap (fun d ->
-              match d with
-              | Type t ->
-                let (t, unresolvedNames) =
-                  TypeDeclaration.toPackageTypePT onMissing pm owner currentModule t
+            |> Stdlib.List.filterMap (fun decl ->
+              match decl with
+              | SourceFileDeclaration sf ->
+                let (defs, unresolvedNames) =
+                  declarationsToPT owner updatedCurrentModule sf
 
-                Stdlib.Option.Option.Some((t, unresolvedNames))
+                Stdlib.Option.Option.Some((defs, unresolvedNames))
               | _ -> Stdlib.Option.Option.None)
+
             |> Stdlib.List.unzip
 
-          let (fns, fnUnresolvedNames) =
-            d.declarations
+          // Builtin.debug "ModuleDeclaration.toPT: defs: " defs
+
+          let modules =
+            defs
             |> Stdlib.List.filterMap (fun d ->
               match d with
-              | Function f ->
-                let (f, unresolvedNames) =
-                  FunctionDeclaration.toPackageFnPT
-                    onMissing
-                    pm
-                    owner
-                    currentModule
-                    f
-
-                Stdlib.Option.Option.Some((f, unresolvedNames))
+              | Module m -> Stdlib.Option.Option.Some m
               | _ -> Stdlib.Option.Option.None)
-            |> Stdlib.List.unzip
 
-          let (constants, constUnresolvedNames) =
-            d.declarations
-            |> Stdlib.List.filterMap (fun d ->
-              match d with
-              | Constant c ->
-                let (c, unresolvedNames) =
-                  ConstantDeclaration.toPackageConstPT
-                    onMissing
-                    pm
-                    owner
-                    currentModule
-                    c
+          let types =
+            let rootTypes =
+              defs
+              |> Stdlib.List.filterMap (fun d ->
+                match d with
+                | Type t -> Stdlib.Option.Option.Some t
+                | _ -> Stdlib.Option.Option.None)
 
-                Stdlib.Option.Option.Some((c, unresolvedNames))
-              | _ -> Stdlib.Option.Option.None)
-            |> Stdlib.List.unzip
+            let subModuleTypes =
+              modules |> Stdlib.List.map (fun m -> m.types) |> Stdlib.List.flatten
+
+            Stdlib.List.append rootTypes subModuleTypes
+
+          let constants =
+            let rootConstants =
+              defs
+              |> Stdlib.List.filterMap (fun d ->
+                match d with
+                | Constant c -> Stdlib.Option.Option.Some c
+                | _ -> Stdlib.Option.Option.None)
+
+            let subModuleConstants =
+              modules
+              |> Stdlib.List.map (fun m -> m.constants)
+              |> Stdlib.List.flatten
+
+            Stdlib.List.append rootConstants subModuleConstants
+
+          let fns =
+            let rootFns =
+              defs
+              |> Stdlib.List.filterMap (fun d ->
+                match d with
+                | Function f -> Stdlib.Option.Option.Some f
+                | _ -> Stdlib.Option.Option.None)
+
+            let subModuleFns =
+              modules |> Stdlib.List.map (fun m -> m.fns) |> Stdlib.List.flatten
+
+            Stdlib.List.append rootFns subModuleFns
 
           let (exprs, exprUnresolvedNames) =
             d.declarations
-            |> Stdlib.List.filterMap (fun d ->
-              match d with
+            |> Stdlib.List.filterMap (fun decl ->
+              match decl with
               | Expr e ->
-                let (expr, unresolvedNames) =
+                let (expr, exprUnresolvedNames) =
                   Expr.toPT onMissing pm owner currentModule e
 
-                Stdlib.Option.Option.Some(((expr, [ owner ]), unresolvedNames))
-              | _ -> Stdlib.Option.Option.None)
-            |> Stdlib.List.unzip
-
-          let moduleUnresolvedNames =
-            Stdlib.List.flatten
-              [ typesUnresolvedNames |> Stdlib.List.flatten
-                fnUnresolvedNames |> Stdlib.List.flatten
-                constUnresolvedNames |> Stdlib.List.flatten
-                exprUnresolvedNames |> Stdlib.List.flatten ]
-
-          let init =
-            ProgramTypes.Definitions
-              { types = []
-                constants = []
-                fns = []
-                exprs = [] }
-
-          let (submodules, subModUnresolvedNames) =
-            d.declarations
-            |> Stdlib.List.filterMap (fun d ->
-              match d with
-              | SubModule m ->
                 Stdlib.Option.Option.Some(
-                  submoduleToPT onMissing pm owner currentModule m
+                  ((expr, updatedCurrentModule), exprUnresolvedNames)
                 )
-              | _ -> Stdlib.Option.Option.Some((init, [])))
+              | _ -> Stdlib.Option.Option.None)
+
             |> Stdlib.List.unzip
 
-          let submodules = ModuleDeclaration.combineSubmodules submodules
-
-          let unresolvedNames =
-            Stdlib.List.flatten
-              [ moduleUnresolvedNames; subModUnresolvedNames |> Stdlib.List.flatten ]
+          let allExprs =
+            Stdlib.List.append
+              exprs
+              (modules |> Stdlib.List.map (fun m -> m.exprs) |> Stdlib.List.flatten)
 
           (ProgramTypes.Definitions
-            { types = types |> Stdlib.List.append submodules.types
-              constants = constants |> Stdlib.List.append submodules.constants
-              fns = fns |> Stdlib.List.append submodules.fns
-              exprs = exprs |> Stdlib.List.append submodules.exprs },
+            { types = types
+              constants = constants
+              fns = fns
+              exprs = allExprs },
            unresolvedNames)
+
+
+
+
+      // let combineSubmodules
+      //   (submodules: List<ProgramTypes.Definitions>)
+      //   : ProgramTypes.Definitions =
+      //   let init =
+      //     ProgramTypes.Definitions
+      //       { types = []
+      //         constants = []
+      //         fns = []
+      //         exprs = [] }
+
+      //   submodules
+      //   |> Stdlib.List.fold init (fun acc m ->
+      //     ProgramTypes.Definitions
+      //       { types = acc.types |> Stdlib.List.append m.types
+      //         constants = acc.constants |> Stdlib.List.append m.constants
+      //         fns = acc.fns |> Stdlib.List.append m.fns
+      //         exprs = acc.exprs |> Stdlib.List.append m.exprs })
+
+      // let submoduleToPT
+      //   (onMissing: NameResolver.OnMissing)
+      //   (pm: ProgramTypes.PackageManager.PackageManager)
+      //   (owner: String)
+      //   (modules: List<String>)
+      //   (submodule: WrittenTypes.ModuleDeclaration.ModuleDeclaration)
+      //   : (ProgramTypes.Definitions *
+      //     List<Parser.Range * RuntimeErrors.NameResolution.Error>)
+      //   =
+      //   let (_, m) = submodule.name
+      //   let modules = Stdlib.List.append modules [ m ]
+
+      //   let (types, typesUnresolvedNames) =
+      //     submodule.declarations
+      //     |> Stdlib.List.filterMap (fun d ->
+      //       match d with
+      //       | Type t ->
+      //         let (t, unresolvedNames) =
+      //           TypeDeclaration.toPackageTypePT onMissing pm owner modules t
+
+      //         Stdlib.Option.Option.Some((t, unresolvedNames))
+      //       | _ -> Stdlib.Option.Option.None)
+      //     |> Stdlib.List.unzip
+
+      //   let (fns, fnUnresolvedNames) =
+      //     submodule.declarations
+      //     |> Stdlib.List.filterMap (fun d ->
+      //       match d with
+      //       | Function f ->
+      //         let (f, unresolvedNames) =
+      //           FunctionDeclaration.toPackageFnPT onMissing pm owner modules f
+
+      //         Stdlib.Option.Option.Some((f, unresolvedNames))
+      //       | _ -> Stdlib.Option.Option.None)
+      //     |> Stdlib.List.unzip
+
+      //   let (constants, constUnresolvedNames) =
+      //     submodule.declarations
+      //     |> Stdlib.List.filterMap (fun d ->
+      //       match d with
+      //       | Constant c ->
+      //         let (c, unresolvedNames) =
+      //           ConstantDeclaration.toPackageConstPT onMissing pm owner modules c
+
+      //         Stdlib.Option.Option.Some((c, unresolvedNames))
+      //       | _ -> Stdlib.Option.Option.None)
+      //     |> Stdlib.List.unzip
+
+      //   let (exprs, exprUnresolvedNames) =
+      //     submodule.declarations
+      //     |> Stdlib.List.filterMap (fun d ->
+      //       match d with
+      //       | Expr e ->
+      //         let (expr, exprUnresolvedNames) =
+      //           Expr.toPT onMissing pm owner modules e
+
+      //         let modules = Stdlib.List.push modules owner
+      //         Stdlib.Option.Option.Some(((expr, modules), exprUnresolvedNames))
+      //       | _ -> Stdlib.Option.Option.None)
+      //     |> Stdlib.List.unzip
+
+      //   let (submodules, subModUnresolvedNames) =
+      //     submodule.declarations
+      //     |> Stdlib.List.filterMap (fun d ->
+      //       match d with
+      //       | SubModule m ->
+      //         Stdlib.Option.Option.Some(
+      //           submoduleToPT onMissing pm owner modules m
+      //         )
+      //       | _ -> Stdlib.Option.Option.None)
+      //     |> Stdlib.List.unzip
+
+      //   let submodules = combineSubmodules submodules
+
+      //   let unresolvedNames =
+      //     Stdlib.List.flatten
+      //       [ typesUnresolvedNames |> Stdlib.List.flatten
+      //         fnUnresolvedNames |> Stdlib.List.flatten
+      //         constUnresolvedNames |> Stdlib.List.flatten
+      //         exprUnresolvedNames |> Stdlib.List.flatten
+      //         subModUnresolvedNames |> Stdlib.List.flatten ]
+
+      //   (ProgramTypes.Definitions
+      //     { types = types |> Stdlib.List.append submodules.types
+      //       constants = constants |> Stdlib.List.append submodules.constants
+      //       fns = fns |> Stdlib.List.append submodules.fns
+      //       exprs = exprs |> Stdlib.List.append submodules.exprs },
+      //    unresolvedNames)
+
+
+      // let toPT
+      //   (onMissing: NameResolver.OnMissing)
+      //   (pm: ProgramTypes.PackageManager.PackageManager)
+      //   (currentModule: List<String>)
+      //   (d: WrittenTypes.ModuleDeclaration.ModuleDeclaration)
+      //   : (ProgramTypes.Definitions *
+      //     List<Parser.Range * RuntimeErrors.NameResolution.Error>)
+      //   =
+      //   let (_, owner) = d.name
+
+      //   let (types, typesUnresolvedNames) =
+      //     d.declarations
+      //     |> Stdlib.List.filterMap (fun d ->
+      //       match d with
+      //       | Type t ->
+      //         let (t, unresolvedNames) =
+      //           TypeDeclaration.toPackageTypePT onMissing pm owner currentModule t
+
+      //         Stdlib.Option.Option.Some((t, unresolvedNames))
+      //       | _ -> Stdlib.Option.Option.None)
+      //     |> Stdlib.List.unzip
+
+      //   let (fns, fnUnresolvedNames) =
+      //     d.declarations
+      //     |> Stdlib.List.filterMap (fun d ->
+      //       match d with
+      //       | Function f ->
+      //         let (f, unresolvedNames) =
+      //           FunctionDeclaration.toPackageFnPT
+      //             onMissing
+      //             pm
+      //             owner
+      //             currentModule
+      //             f
+
+      //         Stdlib.Option.Option.Some((f, unresolvedNames))
+      //       | _ -> Stdlib.Option.Option.None)
+      //     |> Stdlib.List.unzip
+
+      //   let (constants, constUnresolvedNames) =
+      //     d.declarations
+      //     |> Stdlib.List.filterMap (fun d ->
+      //       match d with
+      //       | Constant c ->
+      //         let (c, unresolvedNames) =
+      //           ConstantDeclaration.toPackageConstPT
+      //             onMissing
+      //             pm
+      //             owner
+      //             currentModule
+      //             c
+
+      //         Stdlib.Option.Option.Some((c, unresolvedNames))
+      //       | _ -> Stdlib.Option.Option.None)
+      //     |> Stdlib.List.unzip
+
+      //   let (exprs, exprUnresolvedNames) =
+      //     d.declarations
+      //     |> Stdlib.List.filterMap (fun d ->
+      //       match d with
+      //       | Expr e ->
+      //         let (expr, unresolvedNames) =
+      //           Expr.toPT onMissing pm owner currentModule e
+
+      //         Stdlib.Option.Option.Some(((expr, [ owner ]), unresolvedNames))
+      //       | _ -> Stdlib.Option.Option.None)
+      //     |> Stdlib.List.unzip
+
+      //   let moduleUnresolvedNames =
+      //     Stdlib.List.flatten
+      //       [ typesUnresolvedNames |> Stdlib.List.flatten
+      //         fnUnresolvedNames |> Stdlib.List.flatten
+      //         constUnresolvedNames |> Stdlib.List.flatten
+      //         exprUnresolvedNames |> Stdlib.List.flatten ]
+
+      //   let init =
+      //     ProgramTypes.Definitions
+      //       { types = []
+      //         constants = []
+      //         fns = []
+      //         exprs = [] }
+
+      //   let (submodules, subModUnresolvedNames) =
+      //     d.declarations
+      //     |> Stdlib.List.filterMap (fun d ->
+      //       match d with
+      //       | SubModule m ->
+      //         Stdlib.Option.Option.Some(
+      //           submoduleToPT onMissing pm owner currentModule m
+      //         )
+      //       | _ -> Stdlib.Option.Option.Some((init, [])))
+      //     |> Stdlib.List.unzip
+
+      //   let submodules = ModuleDeclaration.combineSubmodules submodules
+
+      //   let unresolvedNames =
+      //     Stdlib.List.flatten
+      //       [ moduleUnresolvedNames; subModUnresolvedNames |> Stdlib.List.flatten ]
+
+      //   (ProgramTypes.Definitions
+      //     { types = types |> Stdlib.List.append submodules.types
+      //       constants = constants |> Stdlib.List.append submodules.constants
+      //       fns = fns |> Stdlib.List.append submodules.fns
+      //       exprs = exprs |> Stdlib.List.append submodules.exprs },
+      //    unresolvedNames)
 
 
       module TypeDeclaration =
@@ -1339,6 +1446,8 @@ module Darklang =
            unresolvedNames)
 
       let declarationsToPT
+        (owner: String)
+        (currentModules: List<String>)
         (d: WrittenTypes.SourceFile.SourceFileDeclaration)
         : (ProgramTypes.SourceFile.Declaration *
           List<Parser.Range * RuntimeErrors.NameResolution.Error>)
@@ -1349,8 +1458,8 @@ module Darklang =
             TypeDeclaration.toPackageTypePT
               NameResolver.OnMissing.Allow
               pm
-              "Tests"
-              []
+              owner
+              currentModules
               t
 
           (ProgramTypes.SourceFile.Declaration.Type t, unresolvedNames)
@@ -1360,8 +1469,8 @@ module Darklang =
             ConstantDeclaration.toPackageConstPT
               NameResolver.OnMissing.Allow
               pm
-              "Tests"
-              []
+              owner
+              currentModules
               c
 
           (ProgramTypes.SourceFile.Declaration.Constant c, unresolvedNames)
@@ -1372,16 +1481,23 @@ module Darklang =
             FunctionDeclaration.toPackageFnPT
               NameResolver.OnMissing.Allow
               pm
-              "Tests"
-              []
+              owner
+              currentModules
               f
 
           (ProgramTypes.SourceFile.Declaration.Function f, unresolvedNames)
 
         | Module m ->
-          // TODO: should owner be added to ModuleDeclaration.toPT?
+          let (_, moduleName) = m.name
+          let currentModules = Stdlib.List.append currentModules [ moduleName ]
+
           let (m, unresolvedNames) =
-            ModuleDeclaration.toPT NameResolver.OnMissing.Allow pm [] m
+            ModuleDeclaration.toPT
+              NameResolver.OnMissing.Allow
+              pm
+              owner
+              currentModules
+              m
 
           (ProgramTypes.SourceFile.Declaration.Module m, unresolvedNames)
 
@@ -1397,7 +1513,8 @@ module Darklang =
         | SourceFile source ->
           let (declarations, declarationsUnresolvedNames) =
             source.declarations
-            |> Stdlib.List.map WrittenTypesToProgramTypes.declarationsToPT
+            |> Stdlib.List.map (fun x ->
+              WrittenTypesToProgramTypes.declarationsToPT "" [] x)
             |> Stdlib.List.unzip
 
           let (exprsToEval, exprsToEvalUnresolvedNames) =
@@ -1416,3 +1533,5 @@ module Darklang =
                 exprsToEval = exprsToEval }
 
           (sourceFile, unresolvedNames)
+
+        | e -> Builtin.debug "got here" e

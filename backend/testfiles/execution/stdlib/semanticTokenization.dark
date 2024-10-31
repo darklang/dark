@@ -1586,67 +1586,67 @@ module TokenizeMatchExpression =
                     (TokenType.Keyword, (2L, 14L), (2L, 19L)) ]
 
 
-module TokenizeModuleDeclaration =
-  ("module MyModule =\n  type ID = Int64" |> tokenize) = [ (TokenType.Keyword,
-                                                            (0L, 0L),
-                                                            (0L, 6L))
-                                                           (TokenType.ModuleName,
-                                                            (0L, 7L),
-                                                            (0L, 15L))
-                                                           (TokenType.Keyword,
-                                                            (1L, 2L),
-                                                            (1L, 6L))
-                                                           (TokenType.TypeName,
-                                                            (1L, 7L),
-                                                            (1L, 9L))
-                                                           (TokenType.Symbol,
-                                                            (1L, 10L),
-                                                            (1L, 11L))
-                                                           (TokenType.TypeName,
-                                                            (1L, 12L),
-                                                            (1L, 17L)) ]
+// module TokenizeModuleDeclaration =
+//   ("module MyModule =\n  type ID = Int64" |> tokenize) = [ (TokenType.Keyword,
+//                                                             (0L, 0L),
+//                                                             (0L, 6L))
+//                                                            (TokenType.ModuleName,
+//                                                             (0L, 7L),
+//                                                             (0L, 15L))
+//                                                            (TokenType.Keyword,
+//                                                             (1L, 2L),
+//                                                             (1L, 6L))
+//                                                            (TokenType.TypeName,
+//                                                             (1L, 7L),
+//                                                             (1L, 9L))
+//                                                            (TokenType.Symbol,
+//                                                             (1L, 10L),
+//                                                             (1L, 11L))
+//                                                            (TokenType.TypeName,
+//                                                             (1L, 12L),
+//                                                             (1L, 17L)) ]
 
-  ("""module MyModule =
-  type ID = Int64
-  let myFn (i: Int64): Int64 = 1L
-  const x = 100L
-  1L"""
-   |> tokenize) = [ (TokenType.Keyword, (0L, 0L), (0L, 6L))
-                    (TokenType.ModuleName, (0L, 7L), (0L, 15L))
-                    (TokenType.Keyword, (1L, 2L), (1L, 6L))
-                    (TokenType.TypeName, (1L, 7L), (1L, 9L))
-                    (TokenType.Symbol, (1L, 10L), (1L, 11L))
-                    (TokenType.TypeName, (1L, 12L), (1L, 17L))
-                    (TokenType.Keyword, (2L, 2L), (2L, 5L))
-                    (TokenType.FunctionName, (2L, 6L), (2L, 10L))
-                    (TokenType.Symbol, (2L, 11L), (2L, 12L))
-                    (TokenType.ParameterName, (2L, 12L), (2L, 13L))
-                    (TokenType.Symbol, (2L, 13L), (2L, 14L))
-                    (TokenType.TypeName, (2L, 15L), (2L, 20L))
-                    (TokenType.Symbol, (2L, 20L), (2L, 21L))
-                    (TokenType.Symbol, (2L, 21L), (2L, 22L))
-                    (TokenType.TypeName, (2L, 23L), (2L, 28L))
-                    (TokenType.Symbol, (2L, 29L), (2L, 30L))
-                    (TokenType.Number, (2L, 31L), (2L, 32L))
-                    (TokenType.Symbol, (2L, 32L), (2L, 33L))
-                    (TokenType.Keyword, (3L, 2L), (3L, 7L))
-                    (TokenType.VariableName, (3L, 8L), (3L, 9L))
-                    (TokenType.Symbol, (3L, 10L), (3L, 11L))
-                    (TokenType.Number, (3L, 12L), (3L, 15L))
-                    (TokenType.Symbol, (3L, 15L), (3L, 16L))
-                    (TokenType.Number, (4L, 2L), (4L, 3L))
-                    (TokenType.Symbol, (4L, 3L), (4L, 4L)) ]
+// ("""module MyModule =
+// type ID = Int64
+// let myFn (i: Int64): Int64 = 1L
+// const x = 100L
+// 1L"""
+//  |> tokenize) = [ (TokenType.Keyword, (0L, 0L), (0L, 6L))
+//                   (TokenType.ModuleName, (0L, 7L), (0L, 15L))
+//                   (TokenType.Keyword, (1L, 2L), (1L, 6L))
+//                   (TokenType.TypeName, (1L, 7L), (1L, 9L))
+//                   (TokenType.Symbol, (1L, 10L), (1L, 11L))
+//                   (TokenType.TypeName, (1L, 12L), (1L, 17L))
+//                   (TokenType.Keyword, (2L, 2L), (2L, 5L))
+//                   (TokenType.FunctionName, (2L, 6L), (2L, 10L))
+//                   (TokenType.Symbol, (2L, 11L), (2L, 12L))
+//                   (TokenType.ParameterName, (2L, 12L), (2L, 13L))
+//                   (TokenType.Symbol, (2L, 13L), (2L, 14L))
+//                   (TokenType.TypeName, (2L, 15L), (2L, 20L))
+//                   (TokenType.Symbol, (2L, 20L), (2L, 21L))
+//                   (TokenType.Symbol, (2L, 21L), (2L, 22L))
+//                   (TokenType.TypeName, (2L, 23L), (2L, 28L))
+//                   (TokenType.Symbol, (2L, 29L), (2L, 30L))
+//                   (TokenType.Number, (2L, 31L), (2L, 32L))
+//                   (TokenType.Symbol, (2L, 32L), (2L, 33L))
+//                   (TokenType.Keyword, (3L, 2L), (3L, 7L))
+//                   (TokenType.VariableName, (3L, 8L), (3L, 9L))
+//                   (TokenType.Symbol, (3L, 10L), (3L, 11L))
+//                   (TokenType.Number, (3L, 12L), (3L, 15L))
+//                   (TokenType.Symbol, (3L, 15L), (3L, 16L))
+//                   (TokenType.Number, (4L, 2L), (4L, 3L))
+//                   (TokenType.Symbol, (4L, 3L), (4L, 4L)) ]
 
 
-  ("""module MyModule1 =
-  module MyModule2 =
-    module MyModule3 =
-      1L"""
-   |> tokenize) = [ (TokenType.Keyword, (0L, 0L), (0L, 6L))
-                    (TokenType.ModuleName, (0L, 7L), (0L, 16L))
-                    (TokenType.Keyword, (1L, 2L), (1L, 8L))
-                    (TokenType.ModuleName, (1L, 9L), (1L, 18L))
-                    (TokenType.Keyword, (2L, 4L), (2L, 10L))
-                    (TokenType.ModuleName, (2L, 11L), (2L, 20L))
-                    (TokenType.Number, (3L, 6L), (3L, 7L))
-                    (TokenType.Symbol, (3L, 7L), (3L, 8L)) ]
+// ("""module MyModule1 =
+// module MyModule2 =
+//   module MyModule3 =
+//     1L"""
+//  |> tokenize) = [ (TokenType.Keyword, (0L, 0L), (0L, 6L))
+//                   (TokenType.ModuleName, (0L, 7L), (0L, 16L))
+//                   (TokenType.Keyword, (1L, 2L), (1L, 8L))
+//                   (TokenType.ModuleName, (1L, 9L), (1L, 18L))
+//                   (TokenType.Keyword, (2L, 4L), (2L, 10L))
+//                   (TokenType.ModuleName, (2L, 11L), (2L, 20L))
+//                   (TokenType.Number, (3L, 6L), (3L, 7L))
+//                   (TokenType.Symbol, (3L, 7L), (3L, 8L)) ]

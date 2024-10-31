@@ -409,11 +409,12 @@ module Darklang =
       // Module declarations
       module ModuleDeclaration =
         type Declaration =
-          | Type of TypeDeclaration.TypeDeclaration
-          | Function of FnDeclaration.FnDeclaration
-          | Constant of ConstantDeclaration.ConstantDeclaration
-          | SubModule of ModuleDeclaration.ModuleDeclaration
+          // | Type of TypeDeclaration.TypeDeclaration
+          // | Function of FnDeclaration.FnDeclaration
+          // | Constant of ConstantDeclaration.ConstantDeclaration
+          // | SubModule of ModuleDeclaration.ModuleDeclaration
           // TODO: handle http handler and db
+          | SourceFileDeclaration of SourceFile.SourceFileDeclaration
           | Expr of Expr
 
         type ModuleDeclaration =
