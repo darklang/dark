@@ -129,41 +129,70 @@ let rec checkAndExtractMatchPattern
 
 
 
-let rec evalConst (threadID : ThreadID) (c : Const) : Dval =
-  let r = evalConst threadID
+let rec evalConst
+  (types : Types)
+  (threadID : ThreadID)
+  (tst : TypeSymbolTable)
+  (c : Const)
+  : Ply<Dval> =
+  uply {
+    let r = evalConst types threadID tst
 
-  match c with
-  | CUnit -> DUnit
-  | CBool b -> DBool b
+    match c with
+    | CUnit -> return DUnit
+    | CBool b -> return DBool b
 
-  | CInt8 i -> DInt8 i
-  | CUInt8 i -> DUInt8 i
-  | CInt16 i -> DInt16 i
-  | CUInt16 i -> DUInt16 i
-  | CInt32 i -> DInt32 i
-  | CUInt32 i -> DUInt32 i
-  | CInt64 i -> DInt64 i
-  | CUInt64 i -> DUInt64 i
-  | CInt128 i -> DInt128 i
-  | CUInt128 i -> DUInt128 i
+    | CInt8 i -> return DInt8 i
+    | CUInt8 i -> return DUInt8 i
+    | CInt16 i -> return DInt16 i
+    | CUInt16 i -> return DUInt16 i
+    | CInt32 i -> return DInt32 i
+    | CUInt32 i -> return DUInt32 i
+    | CInt64 i -> return DInt64 i
+    | CUInt64 i -> return DUInt64 i
+    | CInt128 i -> return DInt128 i
+    | CUInt128 i -> return DUInt128 i
 
-  | CFloat(sign, w, f) -> DFloat(makeFloat sign w f)
+    | CFloat(sign, w, f) -> return DFloat(makeFloat sign w f)
 
-  | CChar c -> DChar c
-  | CString s -> DString s
+    | CChar c -> return DChar c
+    | CString s -> return DString s
 
-  | CList items -> DList(ValueType.Unknown, (List.map r items))
-  | CTuple(first, second, rest) -> DTuple(r first, r second, List.map r rest)
-  | CDict items ->
-    DDict(ValueType.Unknown, (List.map (Tuple2.mapSecond r) items) |> Map.ofList)
+    | CTuple(first, second, theRest) ->
+      let! first = r first
+      let! second = r second
+      let! theRest = theRest |> Ply.List.mapSequentially r
+      return DTuple(first, second, theRest)
 
-  | CEnum(Ok typeName, caseName, fields) ->
-    // TYPESTODO: this uses the original type name, so if it's an alias, it won't be equal to the
-    DEnum(typeName, typeName, VT.typeArgsTODO, caseName, List.map r fields)
+    | CList items ->
+      let! items = items |> Ply.List.mapSequentially r
+      return TypeChecker.DvalCreator.list threadID ValueType.Unknown items
 
-  | CEnum(Error nre, _caseName, _fields) ->
-    // TODO: ConstNotFound or something
-    raiseRTE threadID (RuntimeError.ParseTimeNameResolution nre)
+    | CDict entries ->
+      let! entries =
+        entries
+        |> Ply.List.mapSequentially (fun (k, v) -> r v |> Ply.map (fun v -> k, v))
+      return TypeChecker.DvalCreator.dict threadID ValueType.Unknown entries
+
+
+    | CEnum(Ok typeName, caseName, fields) ->
+      let typeArgs = [] // they're implicit I guess
+      let! fields = fields |> Ply.List.mapSequentially r
+      let! (enum, _updatedTst) =
+        TypeChecker.DvalCreator.enum
+          types
+          threadID
+          tst
+          typeName
+          typeArgs
+          caseName
+          fields
+      return enum
+
+    | CEnum(Error nre, _caseName, _fields) ->
+      // TODO: ConstNotFound or something
+      return raiseRTE threadID (RuntimeError.ParseTimeNameResolution nre)
+  }
 
 
 let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
@@ -435,7 +464,14 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
 
           | FQConstantName.Package pkg ->
             match! exeState.constants.package pkg with
-            | Some c -> registers[createTo] <- evalConst vm.threadID c.body
+            | Some c ->
+              let! dv =
+                evalConst
+                  exeState.types
+                  vm.threadID
+                  currentFrame.typeSymbolTable
+                  c.body
+              registers[createTo] <- dv
             | None -> raiseRTE (RTE.ConstNotFound(FQConstantName.Package pkg))
 
 
