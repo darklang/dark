@@ -9,26 +9,25 @@ open Expecto
 
 open Prelude
 
-// open Npgsql.FSharp
-// open Npgsql
-// open LibCloud.Db
+open Npgsql.FSharp
+open Npgsql
+open LibCloud.Db
 
-// open TestUtils.TestUtils
+open TestUtils.TestUtils
 
-// module PT = LibExecution.ProgramTypes
-// module RT = LibExecution.RuntimeTypes
-// module EQ = LibCloud.Queue
-// module Canvas = LibCloud.Canvas
-// module Serialize = LibCloud.Serialize
-// module SR = LibCloud.QueueSchedulingRules
+module PT = LibExecution.ProgramTypes
+module RT = LibExecution.RuntimeTypes
+module EQ = LibCloud.Queue
+module Canvas = LibCloud.Canvas
+module Serialize = LibCloud.Serialize
+module SR = LibCloud.QueueSchedulingRules
 
-// module TCS = LibCloud.TraceCloudStorage
+module TCS = LibCloud.TraceCloudStorage
 
-// let pmPT = LibCloud.PackageManager.pt
+let pmPT = LibCloud.PackageManager.pt
 
 
 // // This doesn't actually test input, since it's a cron handler and not an actual event handler
-
 // let initializeCanvas (name : string) : Task<CanvasID * tlid> =
 //   task {
 //     // set up handler

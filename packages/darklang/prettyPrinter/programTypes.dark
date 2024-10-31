@@ -9,14 +9,6 @@ module Darklang =
     // CLEANUP split into a few files - easier to manage, at this point.
     // i.e. common, typeReference, expr, declarations, packages, sourceFile
     module ProgramTypes =
-
-      // let nameResolutionError
-      //   (nr: LanguageTools.RuntimeErrors.NameResolution.Error)
-      //   : String =
-      //   match nr.errorType with
-      //   | NotFound names -> Stdlib.String.join names "."
-      //   | InvalidPackageName names -> Stdlib.String.join names "."
-
       type NameResolutionError =
         | NotFound of List<String>
         | InvalidName of List<String>

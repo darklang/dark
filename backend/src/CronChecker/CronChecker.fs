@@ -15,7 +15,7 @@ let run () : Task<unit> =
     while not shouldShutdown do
       try
         use (_span : Telemetry.Span.T) = Telemetry.createRoot "CronChecker.run"
-        //do! LibCloud.Cron.checkAndScheduleWorkForAllCrons ()
+        do! LibCloud.Cron.checkAndScheduleWorkForAllCrons ()
         ()
       with e ->
         // If there's an exception, alert and continue

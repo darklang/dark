@@ -194,66 +194,68 @@ module Darklang =
         |> List.map (Tuple2.second)
 
 
-      // Helper functions for sortByComparator
-      let validateComparator
-        (comparator: 'a -> 'a -> Int64)
-        (x: 'a)
-        (y: 'a)
-        : Result.Result<Int64, String> =
-        let result = comparator x y
+      /// Helper functions for sortByComparator
+      ///
+      /// This is a bit much. CLEANUP tidy this up
+      module SortByComparatorHelpers =
+        let validate
+          (comparator: 'a -> 'a -> Int64)
+          (x: 'a)
+          (y: 'a)
+          : Result.Result<Int64, String> =
+          let result = comparator x y
 
-        if result == -1L || result == 0L || result == 1L then
-          Result.Result.Ok result
-        else
-          Result.Result.Error
-            $"Expected comparator function to return -1, 0, or 1, but it returned {Int64.toString result}"
+          if result == -1L || result == 0L || result == 1L then
+            Result.Result.Ok result
+          else
+            Result.Result.Error
+              $"Expected comparator function to return -1, 0, or 1, but it returned {Int64.toString result}"
 
-      let rec spcHelperMerge
-        (comparator: 'a -> 'a -> Int64)
-        (left: List<'a>)
-        (right: List<'a>)
-        : Result.Result<List<'a>, String> =
-        match left, right with
-        | [], _ -> Result.Result.Ok right
-        | _, [] -> Result.Result.Ok left
-        | (x :: xs, y :: ys) ->
-          match validateComparator comparator x y with
-          | Error msg -> Result.Result.Error msg
-          | Ok result ->
-            if result <= 0L then
-              match spcHelperMerge comparator xs right with
-              | Error msg -> Result.Result.Error msg
-              | Ok merged -> Result.Result.Ok(List.push merged x)
-            else
-              match spcHelperMerge comparator left ys with
-              | Error msg -> Result.Result.Error msg
-              | Ok merged -> Result.Result.Ok(List.push merged y)
-
-      let spcHelperSplitList (lst: List<'a>) : List<'a> * List<'a> =
-        match lst with
-        | [] -> [], []
-        | [ x ] -> [ x ], []
-        | x :: y :: xs ->
-          let (left, right) = spcHelperSplitList xs
-          (List.push left x, List.push right y)
-
-      let rec spcHelperMergeSort
-        (comparator: 'a -> 'a -> Int64)
-        (lst: List<'a>)
-        : Result.Result<List<'a>, String> =
-        match lst with
-        | [] -> Result.Result.Ok []
-        | [ x ] -> Result.Result.Ok [ x ]
-        | lst ->
-          let left, right = spcHelperSplitList lst
-
-          match spcHelperMergeSort comparator left with
-          | Error msg -> Result.Result.Error msg
-          | Ok sortedLeft ->
-            match spcHelperMergeSort comparator right with
+        let rec merge
+          (comparator: 'a -> 'a -> Int64)
+          (left: List<'a>)
+          (right: List<'a>)
+          : Result.Result<List<'a>, String> =
+          match left, right with
+          | [], _ -> Result.Result.Ok right
+          | _, [] -> Result.Result.Ok left
+          | (x :: xs, y :: ys) ->
+            match validate comparator x y with
             | Error msg -> Result.Result.Error msg
-            | Ok sortedRight -> spcHelperMerge comparator sortedLeft sortedRight
+            | Ok result ->
+              if result <= 0L then
+                match merge comparator xs right with
+                | Error msg -> Result.Result.Error msg
+                | Ok merged -> Result.Result.Ok(List.push merged x)
+              else
+                match merge comparator left ys with
+                | Error msg -> Result.Result.Error msg
+                | Ok merged -> Result.Result.Ok(List.push merged y)
 
+        let splitList (lst: List<'a>) : List<'a> * List<'a> =
+          match lst with
+          | [] -> [], []
+          | [ x ] -> [ x ], []
+          | x :: y :: xs ->
+            let (left, right) = splitList xs
+            (List.push left x, List.push right y)
+
+        let rec mergeSort
+          (comparator: 'a -> 'a -> Int64)
+          (lst: List<'a>)
+          : Result.Result<List<'a>, String> =
+          match lst with
+          | [] -> Result.Result.Ok []
+          | [ x ] -> Result.Result.Ok [ x ]
+          | lst ->
+            let left, right = splitList lst
+
+            match mergeSort comparator left with
+            | Error msg -> Result.Result.Error msg
+            | Ok sortedLeft ->
+              match mergeSort comparator right with
+              | Error msg -> Result.Result.Error msg
+              | Ok sortedRight -> merge comparator sortedLeft sortedRight
 
       /// Returns a copy of <param list>, sorted using {{fn a b}} to compare values
       /// <var a> and <var b>.
@@ -266,7 +268,7 @@ module Darklang =
         (list: List<'a>)
         (fn: 'a -> 'a -> Int64)
         : Stdlib.Result.Result<List<'a>, String> =
-        spcHelperMergeSort fn list
+        SortByComparatorHelpers.mergeSort fn list
 
 
       /// Returns a new list with all values in <param as> followed by all values in <param bs>,
