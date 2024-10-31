@@ -368,7 +368,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
     //     return! noHandlerResponse ctx
     //   | _ -> return! moreThanOneHandlerResponse ctx
     // | None ->
-      return! canvasNotFoundResponse ctx
+    return! canvasNotFoundResponse ctx
   }
 
 // ---------------
