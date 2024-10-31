@@ -134,23 +134,23 @@ Stdlib.Char.isASCII_v0 ' ' = true
 Stdlib.Char.isASCII_v0 '\t' = true
 
 
-//Stdlib.Char.toAsciiCode 'a' = Stdlib.Option.Option.Some 97L
-//Stdlib.Char.toAsciiCode 'A' = Stdlib.Option.Option.Some 65L
-//Stdlib.Char.toAsciiCode 'á' = Stdlib.Option.Option.Some 225L
-//Stdlib.Char.toAsciiCode 'Á' = Stdlib.Option.Option.Some 193L
-//Stdlib.Char.toAsciiCode '3' = Stdlib.Option.Option.Some 51L
-// Stdlib.Char.toAsciiCode (smiley ()) = Stdlib.Option.Option.None
-// Stdlib.Char.toAsciiCode 'ż' = Stdlib.Option.Option.None
-// Stdlib.Char.toAsciiCode 'Ż' = Stdlib.Option.Option.None
-//Stdlib.Char.toAsciiCode 'ó' = Stdlib.Option.Option.Some 243L
-//Stdlib.Char.toAsciiCode 'Ó' = Stdlib.Option.Option.Some 211L
-// Stdlib.Char.toAsciiCode 'ł' = Stdlib.Option.Option.None
-// Stdlib.Char.toAsciiCode 'Ł' = Stdlib.Option.Option.None
-// Stdlib.Char.toAsciiCode (hand ()) = Stdlib.Option.Option.None
-// Stdlib.Char.toAsciiCode 'ჾ' = Stdlib.Option.Option.None
-// Stdlib.Char.toAsciiCode 'Ჾ' = Stdlib.Option.Option.None
-//Stdlib.Char.toAsciiCode ' ' = Stdlib.Option.Option.Some 32L
-//Stdlib.Char.toAsciiCode '\t' = Stdlib.Option.Option.Some 9L
+Stdlib.Char.toAsciiCode 'a' = Stdlib.Option.Option.Some 97L
+Stdlib.Char.toAsciiCode 'A' = Stdlib.Option.Option.Some 65L
+Stdlib.Char.toAsciiCode 'á' = Stdlib.Option.Option.Some 225L
+Stdlib.Char.toAsciiCode 'Á' = Stdlib.Option.Option.Some 193L
+Stdlib.Char.toAsciiCode '3' = Stdlib.Option.Option.Some 51L
+Stdlib.Char.toAsciiCode (smiley ()) = Stdlib.Option.Option.None
+Stdlib.Char.toAsciiCode 'ż' = Stdlib.Option.Option.None
+Stdlib.Char.toAsciiCode 'Ż' = Stdlib.Option.Option.None
+Stdlib.Char.toAsciiCode 'ó' = Stdlib.Option.Option.Some 243L
+Stdlib.Char.toAsciiCode 'Ó' = Stdlib.Option.Option.Some 211L
+Stdlib.Char.toAsciiCode 'ł' = Stdlib.Option.Option.None
+Stdlib.Char.toAsciiCode 'Ł' = Stdlib.Option.Option.None
+Stdlib.Char.toAsciiCode (hand ()) = Stdlib.Option.Option.None
+Stdlib.Char.toAsciiCode 'ჾ' = Stdlib.Option.Option.None
+Stdlib.Char.toAsciiCode 'Ჾ' = Stdlib.Option.Option.None
+Stdlib.Char.toAsciiCode ' ' = Stdlib.Option.Option.Some 32L
+Stdlib.Char.toAsciiCode '\t' = Stdlib.Option.Option.Some 9L
 
 
 Stdlib.Char.isLessThan_v0 'a' 'b' = true

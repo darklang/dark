@@ -10,10 +10,10 @@ open Prelude
 module PTParser = LibExecution.ProgramTypesParser
 module AT = LibExecution.AnalysisTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
-//module EQ = LibCloud.Queue
+module EQ = LibCloud.Queue
 module Pusher = LibCloud.Pusher
 module CloudExecution = LibCloudExecution.CloudExecution
-//module Canvas = LibCloud.Canvas
+module Canvas = LibCloud.Canvas
 //module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
 module LD = LibService.LaunchDarkly
@@ -22,7 +22,7 @@ module Rollbar = LibService.Rollbar
 
 module CTPusher = LibClientTypes.Pusher
 
-//open LibCloud.Db
+open LibCloud.Db
 
 
 let mutable shouldShutdown = false
@@ -289,8 +289,7 @@ let run () : Task<unit> =
         //   // else
         //     List.iter (runInBackground semaphore) //notifications
         // else
-        //   do! Task.Delay(LD.queueDelayBetweenPullsInMillis ())
-        ()
+        do! Task.Delay(LD.queueDelayBetweenPullsInMillis ())
 
       with e ->
         // No matter where else we catch it, this is essential or else the loop won't

@@ -124,11 +124,14 @@ let rec private mergeKnownTypes
   | KTTuple(l1, l2, ls), KTTuple(r1, r2, rs) ->
     let firstMerged = r l1 r1
     let secondMerged = r l2 r2
-    let restMerged = List.map2 r ls rs |> Result.collect
+    if List.length ls <> List.length rs then
+      Error()
+    else
+      let restMerged = List.map2 r ls rs |> Result.collect
 
-    match firstMerged, secondMerged, restMerged with
-    | Ok first, Ok second, Ok rest -> Ok(KTTuple(first, second, rest))
-    | _ -> Error()
+      match firstMerged, secondMerged, restMerged with
+      | Ok first, Ok second, Ok rest -> Ok(KTTuple(first, second, rest))
+      | _ -> Error()
 
   | KTCustomType(lName, lArgs), KTCustomType(rName, rArgs) ->
     if lName <> rName then

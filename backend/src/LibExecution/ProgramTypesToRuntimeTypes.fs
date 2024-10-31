@@ -570,6 +570,7 @@ module Expr =
           right.registerCount,
           RT.AppNamedFn
             { name = InfixFnName.toFnName infix |> RT.FQFnName.Builtin
+              typeArgs = []
               argsSoFar = [] }
           |> RT.DApplicable
         ),
@@ -609,7 +610,7 @@ module Expr =
     // functions
     | PT.EFnName(_, Ok name) ->
       let namedFn : RT.ApplicableNamedFn =
-        { name = FQFnName.toRT name; argsSoFar = [] }
+        { name = FQFnName.toRT name; typeArgs = []; argsSoFar = [] }
       let applicable = RT.DApplicable(RT.AppNamedFn namedFn)
 
       { registerCount = rc + 1

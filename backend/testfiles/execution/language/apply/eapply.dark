@@ -1,0 +1,196 @@
+// TODO: actually, this test is reasonable now.
+// Stdlib.Int64.add_v0 5L = Builtin.testDerrorMessage
+//   "PACKAGE.Darklang.Stdlib.Int64.add has 0 type parameters and 2 parameters, but here was called with 0 type arguments and 1 argument."
+
+(let fn = (fun x -> x + 1L)
+ fn 6L) = 7L
+
+(let fn = Stdlib.Int64.add
+ fn 3L 4L) = 7L
+
+(let fn = Stdlib.Int64.max
+ fn 3L 7L) = 7L
+
+// // ---------------------------
+// // DarkInternal tests are internal
+// // ---------------------------
+// module Darkinternal =
+//   (let _ = Builtin.testSetExpectedExceptionCount 1L
+//    Builtin.darkInternalInfraSchedulingRuleList ()) =
+//      (Builtin.testDerrorMessage "Unknown error")
+
+// ---------------------------
+// User-defined Functions
+// Should match packages/darklang/test/test.dark
+// ---------------------------
+
+module UserDefined =
+
+  let stringFn (key: String) : String = key ++ " appended string"
+
+  let fnWithTypeArgAndOneParam<'a> (arg: 'a) : 'a = arg
+
+  let twoStringFn (str1: String) (str2: String) : String =
+    str1 ++ " appended " ++ str2
+
+  let returnsInt () : Int64 = 5L
+
+  let returnsString () : String = "string"
+
+  let returnsOptionSome () : Stdlib.Option.Option<Int64> =
+    Stdlib.Option.Option.Some 5L
+
+  let returnsOptionNone () : Stdlib.Option.Option<Int64> = Stdlib.Option.Option.None
+
+  let returnsResultOk () : Stdlib.Result.Result<Int64, 'err> =
+    Stdlib.Result.Result.Ok 5L
+
+  let returnsResultError () : Stdlib.Result.Result<String, Bool> =
+    Stdlib.Result.Result.Error false
+
+  let throwsException () : 'a =
+    Builtin.testRaiseException "throwsException message"
+
+  let derrorFn (msg: String) : String = msg ++ Builtin.testRuntimeError msg
+
+  let fnWithTypeArgs<'a, 'b> (a: 'a) (b: 'b) : 'a = a
+
+  let fnWithTypedReturn<'a> () : 'a = 5L // errors unless Int64 passed for 'a
+
+  type X<'a> =
+    | A of Int64
+    | B of 'a
+
+  let polyFn (a: X<'a>) : X<'a> = a
+  let strFn (a: X<String>) : X<String> = a
+  let definedPolyFn<'a> (a: X<'a>) : X<'a> = a
+
+
+
+  stringFn "string" = "string appended string"
+  twoStringFn "str1" "str2" = "str1 appended str2"
+  returnsInt () = 5L
+  returnsString () = "string"
+  returnsOptionSome () = Stdlib.Option.Option.Some 5L
+  (returnsOptionSome ()) |> Builtin.unwrap = 5L
+  returnsOptionNone () = Stdlib.Option.Option.None
+  returnsResultOk () = Stdlib.Result.Result.Ok 5L
+  (returnsResultOk ()) |> Builtin.unwrap = 5L
+  fnWithTypeArgAndOneParam<Int64> 1L = 1L
+  fnWithTypeArgs<Int64, String> 5L "x" = 5L
+  fnWithTypedReturn<Int64> () = 5L
+
+  polyFn (X.A 5L) = X.A 5L
+  polyFn (X.B "str") = X.B "str"
+
+  strFn (X.A 5L) = strFn (X.A 5L)
+  strFn (X.B "str") = X.B "str"
+
+  // TYPESCLEANUP - support userFn declaration with type arguments
+  // TODO in this PR: you shouldn't have to supply type arguments to definedPolyFn
+  // we should be able to infer that based on the data passed in
+  // definedPolyFn<String>(X.A 5L) = definedPolyFn (X.A 5L)
+  // definedPolyFn<String>(X.B "str") = definedPolyFn (X.B "str")
+
+
+
+  module InvalidFnCalls =
+    (functionWhichDoesntExist 6L) =
+      (Builtin.testDerrorMessage "There is no variable named: functionWhichDoesntExist")
+
+//     stringFn 5L = Builtin.testDerrorMessage
+//       "UserDefined.stringFn's 1st argument (`key`) should be a String. However, an Int64 (5) was passed instead.\n\nExpected: (key: String)\nActual: an Int64: 5"
+
+//     stringFn "str1" "str2" = Builtin.testDerrorMessage
+//       "UserDefined.stringFn has 0 type parameters and 1 parameter, but here was called with 0 type arguments and 2 arguments."
+
+//     fnWithTypeArgAndOneParam 1L = Builtin.testDerrorMessage
+//       "UserDefined.fnWithTypeArgAndOneParam has 1 type parameter and 1 parameter, but here was called with 0 type arguments and 1 argument."
+
+//     fnWithTypeArgAndOneParam<Int64> 1L "str2" = Builtin.testDerrorMessage
+//       "UserDefined.fnWithTypeArgAndOneParam has 1 type parameter and 1 parameter, but here was called with 1 type argument and 2 arguments."
+
+//     fnWithTypeArgAndOneParam<Int64, String> 1L = Builtin.testDerrorMessage
+//       "UserDefined.fnWithTypeArgAndOneParam has 1 type parameter and 1 parameter, but here was called with 2 type arguments and 1 argument."
+
+//     fnWithTypeArgAndOneParam<Int64, String> 1L "str" = Builtin.testDerrorMessage
+//       "UserDefined.fnWithTypeArgAndOneParam has 1 type parameter and 1 parameter, but here was called with 2 type arguments and 2 arguments."
+
+//     fnWithTypeArgAndOneParam<Int64> "str2" = Builtin.testDerrorMessage
+//       "UserDefined.fnWithTypeArgAndOneParam's 1st argument (`arg`) should be an Int64. However, a String (\"str2\") was passed instead.\n\nExpected: (arg: 'a)\nActual: a String: \"str2\""
+
+//     fnWithTypedReturn<String> () = Builtin.testDerrorMessage
+//       "UserDefined.fnWithTypedReturn's return value should be a String. However, an Int64 (5) was returned instead.\n\nExpected: 'a\nActual: an Int64: 5"
+
+//     (let _ = Builtin.testSetExpectedExceptionCount 1L in throwsException ()) = Builtin.testDerrorMessage
+//       "Unknown error"
+
+//     derrorFn "msg" = Builtin.testDerrorMessage "msg"
+
+
+// ---------------------------
+// Package manager function calls
+// Uses functions/types from packages/darklang/test/test.dark
+// ---------------------------
+module Packages =
+  PACKAGE.Darklang.Test.stringFn "string" = "string appended string"
+  PACKAGE.Darklang.Test.twoStringFn "str1" "str2" = "str1 appended str2"
+  PACKAGE.Darklang.Test.returnsInt () = 5L
+  PACKAGE.Darklang.Test.returnsString () = "string"
+
+  PACKAGE.Darklang.Test.returnsOptionSome () = Stdlib.Option.Option.Some 5L
+
+  (PACKAGE.Darklang.Test.returnsOptionSome ()) |> Builtin.unwrap = 5L
+  PACKAGE.Darklang.Test.returnsOptionNone () = Stdlib.Option.Option.None
+
+  PACKAGE.Darklang.Test.returnsResultOk () = Stdlib.Result.Result.Ok 5L
+  (PACKAGE.Darklang.Test.returnsResultOk ()) |> Builtin.unwrap = 5L
+
+  PACKAGE.Darklang.Test.returnsResultError () = Stdlib.Result.Result.Error false
+
+  PACKAGE.Darklang.Test.polyFn (PACKAGE.Darklang.Test.X.A 5L) = PACKAGE.Darklang.Test.X.A 5L
+  PACKAGE.Darklang.Test.polyFn (PACKAGE.Darklang.Test.X.B "str") = PACKAGE.Darklang.Test.X.B "str"
+
+  PACKAGE.Darklang.Test.strFn (PACKAGE.Darklang.Test.X.A 5L) =
+    PACKAGE.Darklang.Test.strFn (PACKAGE.Darklang.Test.X.A 5L)
+
+  PACKAGE.Darklang.Test.strFn (PACKAGE.Darklang.Test.X.B "str") =
+    PACKAGE.Darklang.Test.X.B "str"
+
+  // TYPESCLEANUP - support packageFn declaration with type arguments
+  // PACKAGE.Darklang.Test.definedPolyFn<String>(X.A 5) = PACKAGE.Darklang.Test.definedPolyFn (X.A 5)
+  // PACKAGE.Darklang.Test.definedPolyFn<String>(X.B "str") = PACKAGE.Darklang.Test.definedPolyFn (X.B "str")
+
+
+
+//   module Invalid =
+//     PACKAGE.Darklang.Test.stringFn 5L =
+//       (Builtin.testDerrorMessage
+//         "PACKAGE.Darklang.Test.stringFn's 1st argument (`key`) should be a String. However, an Int64 (5) was passed instead.\n\nExpected: (key: String)\nActual: an Int64: 5")
+
+//     PACKAGE.Darklang.Test.stringFn "str1" "str2" =
+//       (Builtin.testDerrorMessage
+//         "PACKAGE.Darklang.Test.stringFn has 0 type parameters and 1 parameter, but here was called with 0 type arguments and 2 arguments.")
+
+//     PACKAGE.Darklang.Test.derrorFn "test" =
+//       Builtin.testDerrorMessage "test"
+
+//     (let _ = Builtin.testSetExpectedExceptionCount 1L
+//      PACKAGE.Darklang.Test.throwsException ()) =
+//       Builtin.testDerrorMessage "Unknown error"
+
+//     PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam 1L =
+//       (Builtin.testDerrorMessage
+//         "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameter and 1 parameter, but here was called with 0 type arguments and 1 argument.")
+
+//     PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int64> 1L "str2" =
+//       (Builtin.testDerrorMessage
+//         "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameter and 1 parameter, but here was called with 1 type argument and 2 arguments.")
+
+//     PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int64, String> 1L =
+//       (Builtin.testDerrorMessage
+//         "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameter and 1 parameter, but here was called with 2 type arguments and 1 argument.")
+
+//     PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int64, String> 1L "str" =
+//       (Builtin.testDerrorMessage
+//         "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameter and 1 parameter, but here was called with 2 type arguments and 2 arguments.")

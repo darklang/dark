@@ -65,13 +65,13 @@ let fns : List<BuiltInFn> =
 
 
     // See above for when to uncomment this
-    // TODO: A future version should support all non-zero modulus values and should include the infix "%"
+    // TODO: A future version should support all non-A divisor of zero is not allowed values and should include the infix "%"
     // { name = fn "mod" 0
-    //   parameters = [ Param.make "value" TInt64 ""; Param.make "modulus" TInt64 "" ]
+    //   parameters = [ Param.make "dividend" TInt64 ""; Param.make "divisor" TInt64 "" ]
     //   returnType = TypeReference.result TInt64 TString
     //   description =
-    //     "Returns the result of wrapping <param value> around so that {{0 <= res < modulus}}, as a <type Result>.
-    //      If <param modulus> is positive, returns {{Ok res}}. Returns an {{Error}} if <param modulus> is {{0}} or negative.
+    //     "Returns the result of wrapping <param dividend> around so that {{0 <= res < divisor}}, as a <type Result>.
+    //      If <param divisor> is positive, returns {{Ok res}}. Returns an {{Error}} if <param divisor> is {{0}} or negative.
     //     Use <fn Int64.remainder> if you want the remainder after division, which has a different behavior for negative numbers."
     //   fn =
     //     (function
@@ -101,14 +101,15 @@ let fns : List<BuiltInFn> =
 
     { name = fn "int64Remainder" 0
       typeParams = []
-      parameters = [ Param.make "value" TInt64 ""; Param.make "divisor" TInt64 "" ]
+      parameters =
+        [ Param.make "dividend" TInt64 ""; Param.make "divisor" TInt64 "" ]
       returnType = TypeReference.result TInt64 TString
       description =
-        "Returns the integer remainder left over after dividing <param value> by
+        "Returns the integer remainder left over after dividing <param dividend> by
          <param divisor>, as a <type Result>.
 
          For example, {{Int64.remainder 15 6 == Ok 3}}. The remainder will be
-         negative only if {{<var value> < 0}}.
+         negative only if {{<var dividend> < 0}}.
 
          The sign of <param divisor> doesn't influence the outcome.
 
@@ -341,30 +342,30 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // { name = fn "int64Parse" 0
-    //   typeParams = []
-    //   parameters = [ Param.make "s" TString "" ]
-    //   returnType =
-    //     let errorType = FQTypeName.fqPackage PackageIDs.Type.Stdlib.int64ParseError
-    //     TypeReference.result TInt64 (TCustomType(Ok errorType, []))
-    //   description = "Returns the <type Int64> value of a <type String>"
-    //   fn =
-    //     let resultOk = Dval.resultOk KTInt64 KTString
-    //     let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.int64ParseError
-    //     let resultError = Dval.resultError KTInt64 (KTCustomType(typeName, []))
-    //     (function
-    //     | _, _, [ DString s ] ->
-    //       try
-    //         s |> System.Convert.ToInt64 |> DInt64 |> resultOk |> Ply
-    //       with
-    //       | :? System.FormatException ->
-    //         ParseError.BadFormat |> ParseError.toDT |> resultError |> Ply
-    //       | :? System.OverflowException ->
-    //         ParseError.OutOfRange |> ParseError.toDT |> resultError |> Ply
-    //     | _ -> incorrectArgs ())
-    //   sqlSpec = NotYetImplemented
-    //   previewable = Pure
-    //   deprecated = NotDeprecated }
+    { name = fn "int64Parse" 0
+      typeParams = []
+      parameters = [ Param.make "s" TString "" ]
+      returnType =
+        let errorType = FQTypeName.fqPackage PackageIDs.Type.Stdlib.int64ParseError
+        TypeReference.result TInt64 (TCustomType(Ok errorType, []))
+      description = "Returns the <type Int64> value of a <type String>"
+      fn =
+        let resultOk = Dval.resultOk KTInt64 KTString
+        let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.int64ParseError
+        let resultError = Dval.resultError KTInt64 (KTCustomType(typeName, []))
+        (function
+        | _, _, _, [ DString s ] ->
+          try
+            s |> System.Convert.ToInt64 |> DInt64 |> resultOk |> Ply
+          with
+          | :? System.FormatException ->
+            ParseError.BadFormat |> ParseError.toDT |> resultError |> Ply
+          | :? System.OverflowException ->
+            ParseError.OutOfRange |> ParseError.toDT |> resultError |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
 
 
     { name = fn "int64ToString" 0

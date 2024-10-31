@@ -23,11 +23,11 @@ do
 done
 
 
-# If servers are running and we don't need to restart, then don't
+# # If servers are running and we don't need to restart, then don't
 RUNNING=true
-if [[ $(pgrep BwdServer -c) -eq 0 ]]; then RUNNING=false; fi
-if [[ $(pgrep CronChecker -c) -eq 0 ]]; then RUNNING=false; fi
-if [[ $(pgrep QueueWorker -c) -eq 0 ]]; then RUNNING=false; fi
+# if [[ $(pgrep BwdServer -c) -eq 0 ]]; then RUNNING=false; fi
+# if [[ $(pgrep CronChecker -c) -eq 0 ]]; then RUNNING=false; fi
+# if [[ $(pgrep QueueWorker -c) -eq 0 ]]; then RUNNING=false; fi
 
 
 if [[ "${RUNNING}" == "true" && "${RESTART}" == "false" ]]; then
@@ -36,35 +36,35 @@ if [[ "${RUNNING}" == "true" && "${RESTART}" == "false" ]]; then
 fi
 
 if [[ "$PUBLISHED" == "true" ]]; then
-  BWDSERVER_BINPATH="backend/Build/out/BwdServer/Release/net8.0/linux-x64/publish"
-  CRONCHECKER_BINPATH="backend/Build/out/CronChecker/Release/net8.0/linux-x64/publish"
-  QUEUEWORKER_BINPATH="backend/Build/out/QueueWorker/Release/net8.0/linux-x64/publish"
+  # BWDSERVER_BINPATH="backend/Build/out/BwdServer/Release/net8.0/linux-x64/publish"
+  # CRONCHECKER_BINPATH="backend/Build/out/CronChecker/Release/net8.0/linux-x64/publish"
+  # QUEUEWORKER_BINPATH="backend/Build/out/QueueWorker/Release/net8.0/linux-x64/publish"
   PRODEXEC_BINPATH="backend/Build/out/ProdExec/Release/net8.0/linux-x64/publish"
   LOCALEXEC_BINPATH="backend/Build/out/LocalExec/Release/net8.0/linux-x64/publish"
 else
-  BWDSERVER_BINPATH="backend/Build/out/BwdServer/Debug/net8.0"
-  CRONCHECKER_BINPATH="backend/Build/out/CronChecker/Debug/net8.0"
-  QUEUEWORKER_BINPATH="backend/Build/out/QueueWorker/Debug/net8.0"
+  # BWDSERVER_BINPATH="backend/Build/out/BwdServer/Debug/net8.0"
+  # CRONCHECKER_BINPATH="backend/Build/out/CronChecker/Debug/net8.0"
+  # QUEUEWORKER_BINPATH="backend/Build/out/QueueWorker/Debug/net8.0"
   PRODEXEC_BINPATH="backend/Build/out/ProdExec/Debug/net8.0"
   LOCALEXEC_BINPATH="backend/Build/out/LocalExec/Debug/net8.0"
 fi
 
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
 
-BWDSERVER_EXE="${BWDSERVER_BINPATH}/BwdServer"
-CRONCHECKER_EXE="${CRONCHECKER_BINPATH}/CronChecker"
-QUEUEWORKER_EXE="${QUEUEWORKER_BINPATH}/QueueWorker"
+# BWDSERVER_EXE="${BWDSERVER_BINPATH}/BwdServer"
+# CRONCHECKER_EXE="${CRONCHECKER_BINPATH}/CronChecker"
+# QUEUEWORKER_EXE="${QUEUEWORKER_BINPATH}/QueueWorker"
 PRODEXEC_EXE="${PRODEXEC_BINPATH}/ProdExec"
 LOCALEXEC_EXE="${LOCALEXEC_BINPATH}/LocalExec"
 
-# Stop the server processes
-echo "Stopping servers"
-sudo pkill -f "BwdServer" || true
-sudo pkill -f "CronChecker" || true
-sudo pkill -f "QueueWorker" || true
+# # Stop the server processes
+# echo "Stopping servers"
+# sudo pkill -f "BwdServer" || true
+# sudo pkill -f "CronChecker" || true
+# sudo pkill -f "QueueWorker" || true
 
-./scripts/run-pubsub-emulator
-./scripts/run-cloud-storage-emulator
+# ./scripts/run-pubsub-emulator
+# ./scripts/run-cloud-storage-emulator
 
 echo "Waiting for postgres"
 ./scripts/devcontainer/_wait-for-postgres
@@ -73,22 +73,23 @@ echo "Waiting for postgres"
 echo "Waiting for compiled servers"
 for ((i=1;i<=1000;i++));
 do
-  if [[ ! -f "${BWDSERVER_EXE}" \
-     || ! -f "${CRONCHECKER_EXE}" \
-     || ! -f "${QUEUEWORKER_EXE}" \
-     || ! -f "${PRODEXEC_EXE}" \
-     || ! -f "${LOCALEXEC_EXE}" ]]; then
+  if [[
+    #  ! -f "${BWDSERVER_EXE}" || \
+    #  ! -f "${CRONCHECKER_EXE}" || \
+    #  ! -f "${QUEUEWORKER_EXE}" || \
+     ! -f "${PRODEXEC_EXE}" || \
+     ! -f "${LOCALEXEC_EXE}" ]]; then
     sleep 0.01
   fi
 done
 echo "Done waiting for compiled servers"
 
-# Wait for cloud-storage-emulator (can be slow on CI)
-echo "Waiting for cloud-storage-emulator"
-until curl -s -o /dev/null "localhost:4444" ; do
-  printf '.'
-  sleep 0.1
-done
+# # Wait for cloud-storage-emulator (can be slow on CI)
+# echo "Waiting for cloud-storage-emulator"
+# until curl -s -o /dev/null "localhost:4444" ; do
+#   printf '.'
+#   sleep 0.1
+# done
 
 grey="\033[1;30m"
 reset="\033[0m"
@@ -107,16 +108,16 @@ announce "Running migrations" "${MIGRATIONS_LOG}"
 # processes), then make ir run in the foreground again.
 "${PRODEXEC_EXE}" migrations run > "${MIGRATIONS_LOG}" 2>&1
 
-BWDSERVER_LOG="$LOGS/bwdserver.log"
-announce "Running bwdserver" "${BWDSERVER_LOG}"
-"${BWDSERVER_EXE}" > "${BWDSERVER_LOG}" 2>&1 &
+# BWDSERVER_LOG="$LOGS/bwdserver.log"
+# announce "Running bwdserver" "${BWDSERVER_LOG}"
+# "${BWDSERVER_EXE}" > "${BWDSERVER_LOG}" 2>&1 &
 
-CRONCHECKER_LOG="$LOGS/cronchecker.log"
-announce "Running cronchecker" "${CRONCHECKER_LOG}"
-"${CRONCHECKER_EXE}" > "${CRONCHECKER_LOG}" 2>&1 &
+# CRONCHECKER_LOG="$LOGS/cronchecker.log"
+# announce "Running cronchecker" "${CRONCHECKER_LOG}"
+# "${CRONCHECKER_EXE}" > "${CRONCHECKER_LOG}" 2>&1 &
 
-QUEUEWORKER_LOG="$LOGS/queueworker.log"
-announce "Running queueworker" "${QUEUEWORKER_LOG}"
-"${QUEUEWORKER_EXE}" > "${QUEUEWORKER_LOG}" 2>&1 &
+# QUEUEWORKER_LOG="$LOGS/queueworker.log"
+# announce "Running queueworker" "${QUEUEWORKER_LOG}"
+# "${QUEUEWORKER_EXE}" > "${QUEUEWORKER_LOG}" 2>&1 &
 
 echo "Finished loading servers"

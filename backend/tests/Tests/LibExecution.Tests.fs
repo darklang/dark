@@ -18,6 +18,7 @@ open Prelude
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module Exe = LibExecution.Execution
 module PackageIDs = LibExecution.PackageIDs
 module NR = LibParser.NameResolver
@@ -80,14 +81,24 @@ let t
       let underline = "\u001b[4m"
       let reset = "\u001b[0m"
 
-      let rhsMsg =
-        $"{underline}Right-hand-side test code{reset} (aka {bold}\"expected\"{reset}):\n{green}\n{expected}\n{reset}"
+      let msg (expectedDv : Option<RT.Dval>) (actualDv : Option<RT.Dval>) =
+        let lhsPreamble =
+          $"{underline}Left-hand side{reset} ({bold}\"actual\"{reset}):"
+        let rhsPreamble =
+          $"{underline}Right-hand side{reset} ({bold}\"expected\"{reset}):"
 
-      let lhsMsg =
-        $"{underline}Left-hand-side test code{reset} (aka {bold}\"actual\"{reset}):\n{red}\n{actual}\n{reset}"
+        let dvMsg (dv : Option<RT.Dval>) : string =
+          match dv with
+          | Some dv -> $"{dv}"
+          | None -> "(no Dval -- error we couldn't handle)"
 
-      let msg =
-        $"\n\n{rhsMsg}\n\n{lhsMsg}\n\nTest location: {bold}{underline}{filename}:{lineNumber}{reset}"
+        let lhs =
+          $"{lhsPreamble}\nsource:\n{red}{actual}\n{reset}value:\n{red}{dvMsg actualDv}\n{reset}"
+
+        let rhs =
+          $"{rhsPreamble}\nsource:\n{green}{expected}\n{reset}value:\n{green}{dvMsg expectedDv}\n{reset}"
+
+        $"\n\n{lhs}\n\n{rhs}\n\nTest location: {bold}{underline}{filename}:{lineNumber}{reset}"
 
       let expected = expected |> PT2RT.Expr.toRT Map.empty 0
       let! expected = Exe.executeExpr state expected
@@ -105,7 +116,7 @@ let t
 
       // Run the actual program (left-hand-side of the =)
       let actual = actual |> PT2RT.Expr.toRT Map.empty 0
-      let! actual = Exe.executeExpr state actual
+      let! (actual : RT.ExecutionResult) = Exe.executeExpr state actual
 
       if System.Environment.GetEnvironmentVariable "DEBUG" <> null then
         debuGList "results" (Dictionary.toList results |> List.sortBy fst)
@@ -121,82 +132,88 @@ let t
           debugDval actual |> debuG "not canonicalized"
           Expect.isTrue canonical "expected is canonicalized"
 
-      // // CLEANUP consider not doing the toErrorMessage call
-      // // just test the actual RuntimeError Dval,
-      // // and have separate tests around pretty-printing the error
-      // let! actual =
-      //   uply {
-      //     match actual with
-      //     | Ok _ -> return actual
-      //     // "alleged" because sometimes we incorrectly construct an RTE... (should be rare, and only during big refactors)
-      //     | Error(_, allegedRTE) ->
-      //       let actual = RT.RuntimeError.toDT allegedRTE
-      //       let errorMessageFn =
-      //         RT.FQFnName.fqPackage
-      //           PackageIDs.Fn.LanguageTools.RuntimeErrors.Error.toErrorMessage
+      // CLEANUP consider not doing the toErrorMessage call
+      // just test the actual RuntimeError Dval,
+      // and have separate tests around pretty-printing the error
+      let! actual =
+        uply {
+          match actual with
+          | Ok _ -> return actual
 
-      //       let! typeChecked =
-      //         let expected =
-      //           RT.TCustomType(
-      //             Ok(
-      //               RT.FQTypeName.fqPackage
-      //                 PackageIDs.Type.LanguageTools.RuntimeError.error
-      //             ),
-      //             []
-      //           )
+          // "alleged" because sometimes we incorrectly construct an RTE... (should be rare, and only during big refactors)
+          | Error(allegedRTE) ->
+            let actual = RT2DT.RuntimeError.toDT allegedRTE
+            let errorMessageFn =
+              RT.FQFnName.fqPackage
+                PackageIDs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toErrorMessage
 
-      //         let context =
-      //           LibExecution.TypeChecker.Context.FunctionCallParameter(
-      //             errorMessageFn,
-      //             { name = ""; typ = expected },
-      //             0
-      //           )
-      //         let types = RT.ExecutionState.availableTypes state
-      //         LibExecution.TypeChecker.unify context types Map.empty expected actual
+            let! typeChecked =
+              // let expected =
+              //   RT.TCustomType(
+              //     Ok(
+              //       RT.FQTypeName.fqPackage
+              //         PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.error
+              //     ),
+              //     []
+              //   )
 
-      //       match typeChecked with
-      //       | Ok _ ->
-      //         // The result was correctly a RuntimeError, try to stringify it
-      //         let! result =
-      //           LibExecution.Execution.executeFunction
-      //             state
-      //             errorMessageFn
-      //             []
-      //             (NEList.ofList actual [])
+              // let context =
+              //   LibExecution.TypeChecker.Context.FunctionCallParameter(
+              //     errorMessageFn,
+              //     { name = ""; typ = expected },
+              //     0
+              //   )
+              // let types = RT.ExecutionState.availableTypes state
+              // LibExecution.TypeChecker.unify context types Map.empty expected actual
+              Ply(Ok())
 
-      //         match result with
-      //         | Error(_, result) ->
-      //           let result = RT.RuntimeError.toDT result
-      //           print $"{state.test.exceptionReports}"
-      //           return
-      //             Exception.raiseInternal
-      //               ("We received an RTE, and when trying to stringify it, there was another RTE error.
-      //               There is probably a bug in Darklang.LanguageTools.RuntimeErrors.Error.toString")
-      //               [ "originalError", LibExecution.DvalReprDeveloper.toRepr actual
-      //                 "stringified", LibExecution.DvalReprDeveloper.toRepr result ]
-      //         | Ok(RT.DEnum(_, _, [], "ErrorString", [ RT.DString _ ])) ->
-      //           return result
-      //         | Ok _ ->
-      //           return
-      //             Exception.raiseInternal
-      //               "We received an RTE, and when trying to stringify it, got a non-ErrorString response. Instead we got"
-      //               [ "result", result ]
 
-      //       | Error e ->
-      //         debuG "Alleged RTE was not an RTE" e
-      //         // The result was not a RuntimeError, try to stringify the typechecker error
-      //         return!
-      //           LibExecution.Execution.executeFunction
-      //             state
-      //             errorMessageFn
-      //             []
-      //             (NEList.ofList (RT.RuntimeError.toDT e) [])
-      //   }
-      //   |> Ply.toTask
+            match typeChecked with
+            | Ok _ ->
+              // The result was correctly a RuntimeError, try to stringify it
+              let! result =
+                LibExecution.Execution.executeFunction
+                  state
+                  errorMessageFn
+                  []
+                  (NEList.ofList actual [])
+
+              match result with
+              | Ok(RT.DEnum(_, _, [], "ErrorString", [ RT.DString _ ])) ->
+                return result
+              | Ok _ ->
+                return
+                  Exception.raiseInternal
+                    "We received an RTE, and when trying to stringify it, got a non-ErrorString response. Instead we got"
+                    [ "result", result ]
+              | Error(result) ->
+                let _result = RT2DT.RuntimeError.toDT result
+                print $"{state.test.exceptionReports}"
+                return
+                  Exception.raiseInternal
+                    ("We received an RTE, and when trying to stringify it, there was another RTE error.
+                    There is probably a bug in Darklang.LanguageTools.RuntimeErrors.Error.toString")
+                    // [ "originalError", LibExecution.DvalReprDeveloper.toRepr actual
+                    //   "stringified", LibExecution.DvalReprDeveloper.toRepr result ]
+                    []
+
+            | Error e ->
+              debuG "Alleged RTE was not an RTE" e
+              // The result was not a RuntimeError, try to stringify the typechecker error
+              return!
+                LibExecution.Execution.executeFunction
+                  state
+                  errorMessageFn
+                  []
+                  (NEList.ofList (RT2DT.RuntimeError.toDT e) [])
+        }
+        |> Ply.toTask
 
       match actual, expected with
-      | Ok actual, Ok expected -> return Expect.RT.equalDval actual expected msg
-      | _ -> return Expect.equal actual expected msg
+      | Ok actual, Ok expected ->
+        return
+          Expect.RT.equalDval actual expected (msg (Some expected) (Some actual))
+      | _ -> return Expect.equal actual expected (msg None None)
     with
     | :? Expecto.AssertException as e -> Exception.reraise e
     | e ->
@@ -227,7 +244,11 @@ let fileTests () : Test =
       NR.OnMissing.Allow
       fileName
 
-  System.IO.Directory.GetDirectories(baseDir, "*", System.IO.SearchOption.AllDirectories)
+  System.IO.Directory.GetDirectories(
+    baseDir,
+    "*",
+    System.IO.SearchOption.AllDirectories
+  )
   |> Array.map (fun dir ->
     System.IO.Directory.GetFiles(dir, "*.dark")
     |> Array.toList

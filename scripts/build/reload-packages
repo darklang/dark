@@ -3,8 +3,8 @@
 
 set -euo pipefail
 
-grey="\033[1;30m"
-reset="\033[0m"
+# grey="\033[1;30m"
+# reset="\033[0m"
 
 TEST=false
 PUBLISHED_FLAG=
@@ -33,17 +33,17 @@ fi
 echo -e "Done loading packages to internal SQL tables"
 
 
-if [[ "$TEST" != "true" ]]; then
-  echo "Waiting for BwdServer to be ready, so we can reload dark-packages canvas"
-  for i in {1..100}; do
-    if curl -s -o /dev/null "localhost:${DARK_CONFIG_BWDSERVER_KUBERNETES_PORT}" ; then
-      break
-    fi
-    printf '.'
-    sleep 0.1
-  done
+# if [[ "$TEST" != "true" ]]; then
+#   echo "Waiting for BwdServer to be ready, so we can reload dark-packages canvas"
+#   for i in {1..100}; do
+#     if curl -s -o /dev/null "localhost:${DARK_CONFIG_BWDSERVER_KUBERNETES_PORT}" ; then
+#       break
+#     fi
+#     printf '.'
+#     sleep 0.1
+#   done
 
-  echo -e "Reloading dark-packages canvas ${grey}($LOG_CANVAS)${reset}"
-  ./scripts/run-local-exec $PUBLISHED_FLAG reload-dark-packages >> $LOG_CANVAS 2>&1
-  echo -e "Done reloading dark-packages canvas"
-fi
+#   echo -e "Reloading dark-packages canvas ${grey}($LOG_CANVAS)${reset}"
+#   ./scripts/run-local-exec $PUBLISHED_FLAG reload-dark-packages >> $LOG_CANVAS 2>&1
+#   echo -e "Done reloading dark-packages canvas"
+# fi

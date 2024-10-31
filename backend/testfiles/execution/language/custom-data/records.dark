@@ -1,0 +1,108 @@
+type Cols1 = { col1: Int64 }
+type Cols2 = { col1: Int64; col2: Int64 }
+
+type AnEnum = | A | B | C
+
+Cols2 { col1 = 1L; col2 = 3L } = Cols2 { col1 = 1L; col2 = 3L }
+
+// Cols2 { col1 = 2L; col2 = Builtin.testRuntimeError "test" } =
+//   (Builtin.testDerrorMessage "test")
+
+
+module WithTypeArgs =
+  type Owner<'a> = { item: 'a }
+  type CoOwner<'a> = Owner<'a>
+
+  Owner { item = 5L } = CoOwner { item = 5L }
+
+  type C<'c> = { v: 'c }
+  type B<'b> = { c: C<'b> }
+  type A<'a> = { b: B<'a> }
+
+  let getC (a: A<Int64>) : Int64 = a.b.c.v
+
+  getC (A { b = B { c = C { v = 5L } } }) = 5L
+
+
+module InvalidCols =
+  Cols1 { col1 = 1L; col1 = 2L } =
+    (Builtin.testDerrorMessage "Duplicate field `col1`")
+
+  Cols2 { col1 = 2L; ___ = 3L } =
+    (Builtin.testDerrorMessage "Empty key in record creation")
+
+  Cols2 { col1 = 2L } =
+    (Builtin.testDerrorMessage "Missing field `col2`")
+
+  Cols2 { col1 = 2L; other = 3L } =
+    (Builtin.testDerrorMessage "No field named `other`")
+
+  Cols2 { col1 = 2L; col2 = 3L; col3 = 4L } =
+    (Builtin.testDerrorMessage "No field named `col3`")
+
+  Cols1 { col1 = "" } =
+    (Builtin.testDerrorMessage "Expected Int64 for field `col1`, but got String")
+
+
+module InvalidType =
+  (MyNonExistantType { col1 = 2L }) =
+    (Builtin.testDerrorMessage "MyNonExistantType not found")
+
+  AnEnum { col1 = 2L } =
+    (Builtin.testDerrorMessage "Expected a record, but AnEnum is not one")
+
+module Polymorphism =
+  type MyRecord<'a> = { col1: 'a; col2: Int64 }
+  (MyRecord { col1 = (); col2 = 1L }).col2 = 1L
+
+  (MyRecord
+    { col1 = Stdlib.Option.Option.Some(Stdlib.Result.Result.Ok 1L)
+      col2 = 1L })
+    .col1 = Stdlib.Option.Option.Some(Stdlib.Result.Result.Ok 1L)
+
+
+module Nested =
+  type NestedRecordA = { col1: Int64 }
+  type NestedRecordB = { col1: NestedRecordA }
+  (NestedRecordB { col1 = NestedRecordA { col1 = 1L } }).col1.col1 = 1L
+
+
+module Update =
+  type RecordForUpdate = { x: Int64; y: Int64 }
+  type RecordForUpdateMultiple = { x: Int64; y: Int64; z: Int64 }
+
+  ({ RecordForUpdate { x = 4L; y = 1L } with y = 2L }) =
+    RecordForUpdate { x = 4L; y = 2L }
+
+  (let myRec = RecordForUpdate { x = 4L; y = 1L }
+   { myRec with y = 2L }) =
+    RecordForUpdate { x = 4L; y = 2L }
+
+  (let myRec = RecordForUpdate { x = 4L; y = 1L }
+   { myRec with y = 22L; y = 42L }) =
+    RecordForUpdate { x = 4L; y = 42L }
+
+  (let myRec = RecordForUpdateMultiple { x = 4L; y = 1L; z = 0L }
+   { myRec with y = 2L; z = 42L }) =
+    (RecordForUpdateMultiple { x = 4L; y = 2L; z = 42L })
+
+  (let myRec = RecordForUpdateMultiple { x = 4L; y = 1L; z = 0L }
+   { myRec with z = 3L; x = 42L }) =
+    (RecordForUpdateMultiple { x = 42L; y = 1L; z = 3L })
+
+  (let myRec = RecordForUpdateMultiple { x = 4L; y = 1L; z = 0L }
+   { myRec with z = 3L; x = 42L; y = 11L }) =
+    (RecordForUpdateMultiple { x = 42L; y = 11L; z = 3L })
+
+  module Invalid =
+    (let myRec = RecordForUpdateMultiple { x = 4L; y = 1L; z = 0L }
+     { myRec with z = 3L; x = 42L; y = 11L; p = 10L }) =
+      (Builtin.testDerrorMessage "No field named `p`")
+
+    (let myRec = RecordForUpdate { x = 4L; y = 1L }
+     { myRec with other = 2L }) =
+      (Builtin.testDerrorMessage "No field named `other`")
+
+    (let myRec = RecordForUpdate { x = 4L; y = 1L }
+     { myRec with y = "2" }) =
+      (Builtin.testDerrorMessage "Expected Int64 for field `y`, but got String")

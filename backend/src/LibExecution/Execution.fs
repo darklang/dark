@@ -48,13 +48,13 @@ let executeExpr
   (instrs : RT.Instructions)
   : Task<RT.ExecutionResult> =
   task {
-    let vmState = RT.VMState.create instrs
+    let vm = RT.VMState.create instrs
     try
       try
         // TODO: handle secrets and DBs by explicit references instead of relying on symbol table
-        // vmState.symbolTable <- Interpreter.withGlobals state inputVars
+        // vm.symbolTable <- Interpreter.withGlobals state inputVars
 
-        let! result = Interpreter.execute exeState vmState
+        let! result = Interpreter.execute exeState vm
         return Ok result
 
       with
@@ -68,7 +68,11 @@ let executeExpr
         exeState.reportException exeState context ex
         let id = System.Guid.NewGuid()
         // TODO: log the error and details or something
-        return (RTE.UncaughtException id) |> RT.raiseRTE vmState.threadID
+
+        let currentFrame = Map.findUnsafe vm.currentFrameID vm.callFrames
+        debuG "Uncaught exception" currentFrame.context // TODO do something w/ the context (match against it)
+
+        return (RTE.UncaughtException id) |> RT.raiseRTE vm.threadID
 
     finally
       // Does nothing in non-tests
@@ -85,7 +89,8 @@ let executeFunction
   let resultReg, rc = 0, 1
 
   let fnInstr, fnReg, rc =
-    let namedFn : RT.ApplicableNamedFn = { name = name; argsSoFar = [] }
+    let namedFn : RT.ApplicableNamedFn =
+      { name = name; argsSoFar = []; typeArgs = typeArgs }
     let applicable = RT.DApplicable(RT.AppNamedFn namedFn)
     RT.LoadVal(rc, applicable), rc, rc + 1
 
@@ -97,6 +102,7 @@ let executeFunction
       ([], [], rc)
 
   let applyInstr =
+    // TODO: does apply really need the type args? Maybe not.
     RT.Apply(resultReg, fnReg, typeArgs, argRegs |> NEList.ofListUnsafe "" [])
 
   let instrs : RT.Instructions =

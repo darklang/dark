@@ -476,12 +476,17 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 let pm : PT.PackageManager =
   PT.PackageManager.empty
   |> PT.PackageManager.withExtras
-    []
+    // Types
+    PM.Types.all
+
+    // constants
     [ { id = Expressions.Constants.Package.MySpecialNumber.id
         name = PT.PackageConstant.name "Test" [] "seventeen"
         description = "TODO"
         deprecated = PT.NotDeprecated
         body = PT.CInt64 17 } ]
+
+    // fns
     [ { id = Expressions.Fns.Package.MyAdd.id
         name = PT.PackageFn.name "Test" [] "add"
         typeParams = []

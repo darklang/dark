@@ -1,5 +1,12 @@
+
 module Empty =
   Stdlib.Dict.empty = Dict { }
+
+
+module ConstructionErrors =
+  Dict { a = 1; a = 2 } = Builtin.testDerrorMessage "Key already present: a"
+
+  Dict { a = 1; b = "two" } = Builtin.testDerrorMessage "Cannot add a String (\"two\") to a dict of Int32"
 
 
 module FilterMap =
@@ -25,8 +32,9 @@ module FilterMap =
 
 
 module Filter =
-  // Stdlib.Dict.filter (Dict { key1 = "val1"; key2 = "val2" }) (fun k v -> k == "key1") = (Dict
-  //   { key1 = "val1" })
+  // (Stdlib.Dict.filter
+  //   (Dict { key1 = "val1"; key2 = "val2" })
+  //   (fun k v -> k == "key1")) = (Dict { key1 = "val1" })
 
   // Stdlib.Dict.filter (Dict { key1 = 1L; key2 = 3L }) (fun k v -> v < 2L) = (Dict
   //   { key1 = 1L })
@@ -35,7 +43,7 @@ module Filter =
 
   // CLEANUP: this should be a type error on the function not returning a Bool
   // Stdlib.Dict.filter (Dict { a = 1L; b = 2L; c = 3L }) (fun k v -> 2L) = Builtin.testDerrorMessage
-  //   "If only supports Booleans"
+  //   "Encountered a condition that must be a Bool, but got an Int64 (-1)"
 
 
 module FromListOverwritingDuplicates =
@@ -89,8 +97,7 @@ module FromListOverwritingDuplicates =
 
 //   Stdlib.Dict.fromList_v0 [] = Stdlib.Option.Option.Some(Dict { })
 
-//   Stdlib.Dict.fromList_v0 [ Builtin.testRuntimeError "" ] = Builtin.testDerrorMessage
-//     ""
+//   Stdlib.Dict.fromList_v0 [ Builtin.testRuntimeError "" ] = Builtin.testDerrorMessage ""
 
 //   // CLEANUP this error message is the goal once Dvals include typeRefs:
 //   //Test.runtimeError "In Dict.fromList's 1st argument (`entries`), the nested value `entries[0][0]` should be a String. However, an Int64 (1) was passed instead.\n\nExpected: String\nActual: an Int64: 1"
@@ -128,8 +135,8 @@ module Map =
   //     key2 = true
   //     key1 = false })
 
-  // Stdlib.Dict.map_v0 (Dict { a = 1L; b = 2L }) (fun k x -> x + 1L) = (Dict
-  //   { b = 3L; a = 2L })
+  // Stdlib.Dict.map_v0 (Dict { a = 1L; b = 2L }) (fun k x -> x + 1L) =
+  //   (Dict { b = 3L; a = 2L })
 
   Stdlib.Dict.map_v0 (Dict { }) (fun key value -> 0L) = (Dict { })
 
@@ -157,13 +164,12 @@ module Set =
   Stdlib.Dict.set_v0 (Dict { key1 = "val1" }) "key2" "val2" = (Dict
     { key1 = "val1"; key2 = "val2" })
 
-  // Dicts do not currently enforce value typing, therefore the following tests pass
-  // VTTODO: this should fail
-  // Stdlib.Dict.set_v0 (Dict { key1 = "val1" }) "key2" 2L = (Dict
-  //   { key1 = "val1"; key2 = 2L })
+  // TODO: move these tests to top and make them work or something
+  // Stdlib.Dict.set_v0 (Dict { key1 = "val1" }) "key2" 2L =
+  //   (Dict { key1 = "val1"; key2 = 2L })
 
-  // Stdlib.Dict.set_v0 (Dict { key1 = 1 }) "key1" "changedTypeValue" = (Dict
-  //   { key1 = "changedTypeValue" })
+  // Stdlib.Dict.set_v0 (Dict { key1 = 1 }) "key1" "changedTypeValue" =
+  //   (Dict { key1 = "changedTypeValue" })
 
 
 module Singleton =

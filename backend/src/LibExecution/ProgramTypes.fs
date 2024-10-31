@@ -297,7 +297,7 @@ type Expr =
   | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
 
   /// `(1 + 2) |> fnName |> (+) 3`
-  | EPipe of id * Expr * List<PipeExpr>
+  | EPipe of id * lhs : Expr * parts : List<PipeExpr>
 
   /// Supports `match` expressions
   /// ```fsharp

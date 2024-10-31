@@ -132,22 +132,43 @@ module FQFnName =
 
 
 
+module NameResolutionError =
+  let typeName =
+    FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.nameResolutionError
+
+  let toDT (nre : NameResolutionError) : Dval =
+    let (caseName, fields) =
+      match nre with
+      | NotFound names -> "NotFound", [ DList(VT.string, List.map DString names) ]
+      | InvalidName names ->
+        "InvalidName", [ DList(VT.string, List.map DString names) ]
+
+    DEnum(typeName, typeName, [], caseName, fields)
+
+  let fromDT (d : Dval) : NameResolutionError =
+    match d with
+    | DEnum(_, _, [], "NotFound", [ names ]) -> names |> D.list D.string |> NotFound
+    | DEnum(_, _, [], "InvalidName", [ names ]) ->
+      names |> D.list D.string |> InvalidName
+    | _ -> Exception.raiseInternal "Invalid NameResolutionError" []
+
+
+
 
 module NameResolution =
   let typeName =
-    FQTypeName.Package
-      PackageIDs.Type.LanguageTools.RuntimeError.NameResolution.error
+    FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.nameResolution
 
-// let toDT
-//   (nameValueType : KnownType)
-//   (f : 'p -> Dval)
-//   (result : NameResolution<'p>)
-//   : Dval =
-//   let errType = KTCustomType(typeName, [])
-//   C2DT.Result.toDT nameValueType errType result f RuntimeError.toDT
+  let toDT
+    (nameValueType : KnownType)
+    (f : 'p -> Dval)
+    (result : NameResolution<'p>)
+    : Dval =
+    let errType = KTCustomType(typeName, [])
+    C2DT.Result.toDT nameValueType errType result f NameResolutionError.toDT
 
-// let fromDT (f : Dval -> 'a) (d : Dval) : NameResolution<'a> =
-//   C2DT.Result.fromDT f d RuntimeError.fromDT
+  let fromDT (f : Dval -> 'a) (d : Dval) : NameResolution<'a> =
+    C2DT.Result.fromDT f d NameResolutionError.fromDT
 
 
 module TypeReference =
@@ -162,14 +183,14 @@ module TypeReference =
 
       | TUnit -> "TUnit", []
       | TBool -> "TBool", []
-      | TInt64 -> "TInt64", []
-      | TUInt64 -> "TUInt64", []
       | TInt8 -> "TInt8", []
       | TUInt8 -> "TUInt8", []
       | TInt16 -> "TInt16", []
       | TUInt16 -> "TUInt16", []
       | TInt32 -> "TInt32", []
       | TUInt32 -> "TUInt32", []
+      | TInt64 -> "TInt64", []
+      | TUInt64 -> "TUInt64", []
       | TInt128 -> "TInt128", []
       | TUInt128 -> "TUInt128", []
       | TFloat -> "TFloat", []
@@ -186,18 +207,17 @@ module TypeReference =
 
       | TDict inner -> "TDict", [ toDT inner ]
 
-      // | TCustomType(typeName, typeArgs) ->
-      //   "TCustomType",
-      //   [ NameResolution.toDT FQTypeName.knownType FQTypeName.toDT typeName
-      //     DList(VT.known knownType, List.map toDT typeArgs) ]
+      | TCustomType(typeName, typeArgs) ->
+        "TCustomType",
+        [ NameResolution.toDT FQTypeName.knownType FQTypeName.toDT typeName
+          DList(VT.known knownType, List.map toDT typeArgs) ]
 
-      // | TDB inner -> "TDB", [ toDT inner ]
       | TFn(args, ret) ->
         let args = args |> NEList.toList |> List.map toDT |> Dval.list knownType
         "TFn", [ args; toDT ret ]
 
-      // TODO: remove this
-      | _ -> Exception.raiseInternal "Invalid TypeReference" []
+    // | TDB inner -> "TDB", [ toDT inner ]
+
 
     DEnum(typeName, typeName, [], caseName, fields)
 
@@ -207,14 +227,14 @@ module TypeReference =
 
     | DEnum(_, _, [], "TUnit", []) -> TUnit
     | DEnum(_, _, [], "TBool", []) -> TBool
-    | DEnum(_, _, [], "TInt64", []) -> TInt64
-    | DEnum(_, _, [], "TUInt64", []) -> TUInt64
     | DEnum(_, _, [], "TInt8", []) -> TInt8
     | DEnum(_, _, [], "TUInt8", []) -> TUInt8
     | DEnum(_, _, [], "TInt16", []) -> TInt16
     | DEnum(_, _, [], "TUInt16", []) -> TUInt16
     | DEnum(_, _, [], "TInt32", []) -> TInt32
     | DEnum(_, _, [], "TUInt32", []) -> TUInt32
+    | DEnum(_, _, [], "TInt64", []) -> TInt64
+    | DEnum(_, _, [], "TUInt64", []) -> TUInt64
     | DEnum(_, _, [], "TInt128", []) -> TInt128
     | DEnum(_, _, [], "TUInt128", []) -> TUInt128
     | DEnum(_, _, [], "TFloat", []) -> TFloat
@@ -223,22 +243,24 @@ module TypeReference =
     | DEnum(_, _, [], "TDateTime", []) -> TDateTime
     | DEnum(_, _, [], "TUuid", []) -> TUuid
 
-    | DEnum(_, _, [], "TList", [ inner ]) -> TList(fromDT inner)
-
     | DEnum(_, _, [], "TTuple", [ first; second; DList(_vtTODO, theRest) ]) ->
       TTuple(fromDT first, fromDT second, List.map fromDT theRest)
 
+    | DEnum(_, _, [], "TList", [ inner ]) -> TList(fromDT inner)
+
     | DEnum(_, _, [], "TDict", [ inner ]) -> TDict(fromDT inner)
 
-    // | DEnum(_, _, [], "TCustomType", [ typeName; DList(_vtTODO, typeArgs) ]) ->
-    //   TCustomType(
-    //     NameResolution.fromDT FQTypeName.fromDT typeName,
-    //     List.map fromDT typeArgs
-    //   )
+    | DEnum(_, _, [], "TCustomType", [ typeName; DList(_vtTODO, typeArgs) ]) ->
+      TCustomType(
+        NameResolution.fromDT FQTypeName.fromDT typeName,
+        List.map fromDT typeArgs
+      )
 
-    // | DEnum(_, _, [], "TDB", [ inner ]) -> TDB(fromDT inner)
     | DEnum(_, _, [], "TFn", [ DList(_vtTODO, firstArg :: otherArgs); ret ]) ->
       TFn(NEList.ofList (fromDT firstArg) (List.map fromDT otherArgs), fromDT ret)
+
+    // | DEnum(_, _, [], "TDB", [ inner ]) -> TDB(fromDT inner)
+
     | _ -> Exception.raiseInternal "Invalid TypeReference" [ "typeRef", d ]
 
 
@@ -301,12 +323,12 @@ module MatchPattern =
       | MPChar c -> "MPChar", [ DString c ]
       | MPString s -> "MPString", [ DString s ]
 
-      | MPList inner -> "MPList", [ DList(VT.known knownType, List.map toDT inner) ]
-      | MPListCons(head, tail) -> "MPListCons", [ toDT head; toDT tail ]
-
       | MPTuple(first, second, theRest) ->
         "MPTuple",
         [ toDT first; toDT second; DList(VT.known knownType, List.map toDT theRest) ]
+
+      | MPList inner -> "MPList", [ DList(VT.known knownType, List.map toDT inner) ]
+      | MPListCons(head, tail) -> "MPListCons", [ toDT head; toDT tail ]
 
       | MPEnum(caseName, fieldPats) ->
         "MPEnum",
@@ -334,13 +356,13 @@ module MatchPattern =
     | DEnum(_, _, [], "MPChar", [ DString c ]) -> MPChar c
     | DEnum(_, _, [], "MPString", [ DString s ]) -> MPString s
 
+    | DEnum(_, _, [], "MPTuple", [ first; second; DList(_vtTODO, theRest) ]) ->
+      MPTuple(fromDT first, fromDT second, List.map fromDT theRest)
+
     | DEnum(_, _, [], "MPList", [ DList(_vtTODO, inner) ]) ->
       MPList(List.map fromDT inner)
     | DEnum(_, _, [], "MPListCons", [ head; tail ]) ->
       MPListCons(fromDT head, fromDT tail)
-
-    | DEnum(_, _, [], "MPTuple", [ first; second; DList(_vtTODO, theRest) ]) ->
-      MPTuple(fromDT first, fromDT second, List.map fromDT theRest)
 
     | DEnum(_, _, [], "MPEnum", [ DString caseName; DList(_vtTODO, fieldPats) ]) ->
       MPEnum(caseName, List.map fromDT fieldPats)
@@ -367,12 +389,6 @@ module StringSegment =
     | _ -> Exception.raiseInternal "Invalid StringSegment" []
 
 
-// module RuntimeError =
-//   let toDT (e : RuntimeError.Error) : Dval =
-//     e |> RuntimeTypes.RuntimeError.toDT |> Dval.toDT
-
-//   let fromDT (d : Dval) : RuntimeError.Error =
-//     d |> Dval.fromDT |> RuntimeTypes.RuntimeError.fromDT
 
 
 module KnownType =
@@ -384,14 +400,14 @@ module KnownType =
       match kt with
       | KTUnit -> "KTUnit", []
       | KTBool -> "KTBool", []
-      | KTInt64 -> "KTInt64", []
-      | KTUInt64 -> "KTUInt64", []
       | KTInt8 -> "KTInt8", []
       | KTUInt8 -> "KTUInt8", []
       | KTInt16 -> "KTInt16", []
       | KTUInt16 -> "KTUInt16", []
       | KTInt32 -> "KTInt32", []
       | KTUInt32 -> "KTUInt32", []
+      | KTInt64 -> "KTInt64", []
+      | KTUInt64 -> "KTUInt64", []
       | KTInt128 -> "KTInt128", []
       | KTUInt128 -> "KTUInt128", []
       | KTFloat -> "KTFloat", []
@@ -400,12 +416,12 @@ module KnownType =
       | KTUuid -> "KTUuid", []
       | KTDateTime -> "KTDateTime", []
 
-      | KTList inner -> "KTList", [ ValueType.toDT inner ]
       | KTTuple(first, second, theRest) ->
         "KTTuple",
         [ ValueType.toDT first
           ValueType.toDT second
           DList(VT.known ValueType.knownType, List.map ValueType.toDT theRest) ]
+      | KTList inner -> "KTList", [ ValueType.toDT inner ]
       | KTDict inner -> "KTDict", [ ValueType.toDT inner ]
 
       | KTCustomType(typeName, typeArgs) ->
@@ -429,14 +445,14 @@ module KnownType =
     match d with
     | DEnum(_, _, [], "KTUnit", []) -> KTUnit
     | DEnum(_, _, [], "KTBool", []) -> KTBool
-    | DEnum(_, _, [], "KTInt64", []) -> KTInt64
-    | DEnum(_, _, [], "KTUInt64", []) -> KTUInt64
     | DEnum(_, _, [], "KTInt8", []) -> KTInt8
     | DEnum(_, _, [], "KTUInt8", []) -> KTUInt8
     | DEnum(_, _, [], "KTInt16", []) -> KTInt16
     | DEnum(_, _, [], "KTUInt16", []) -> KTUInt16
     | DEnum(_, _, [], "KTInt32", []) -> KTInt32
     | DEnum(_, _, [], "KTUInt32", []) -> KTUInt32
+    | DEnum(_, _, [], "KTInt64", []) -> KTInt64
+    | DEnum(_, _, [], "KTUInt64", []) -> KTUInt64
     | DEnum(_, _, [], "KTInt128", []) -> KTInt128
     | DEnum(_, _, [], "KTUInt128", []) -> KTUInt128
     | DEnum(_, _, [], "KTFloat", []) -> KTFloat
@@ -445,13 +461,13 @@ module KnownType =
     | DEnum(_, _, [], "KTUuid", []) -> KTUuid
     | DEnum(_, _, [], "KTDateTime", []) -> KTDateTime
 
-    | DEnum(_, _, [], "KTList", [ inner ]) -> KTList(ValueType.fromDT inner)
     | DEnum(_, _, [], "KTTuple", [ first; second; DList(_vtTODO, theRest) ]) ->
       KTTuple(
         ValueType.fromDT first,
         ValueType.fromDT second,
         List.map ValueType.fromDT theRest
       )
+    | DEnum(_, _, [], "KTList", [ inner ]) -> KTList(ValueType.fromDT inner)
     | DEnum(_, _, [], "KTDict", [ inner ]) -> KTDict(ValueType.fromDT inner)
 
     | DEnum(_, _, [], "KTCustomType", [ typeName; DList(_vtTODO, typeArgs) ]) ->
@@ -488,6 +504,8 @@ module ValueType =
     | DEnum(_, _, [], "Unknown", []) -> ValueType.Unknown
     | DEnum(_, _, [], "Known", [ kt ]) -> ValueType.Known(KnownType.fromDT kt)
     | _ -> Exception.raiseInternal "Invalid ValueType" []
+
+
 
 
 // module LambdaImpl =
@@ -566,14 +584,14 @@ module Dval =
       match dv with
       | DUnit -> "DUnit", []
       | DBool b -> "DBool", [ DBool b ]
-      | DInt64 i -> "DInt64", [ DInt64 i ]
-      | DUInt64 i -> "DUInt64", [ DUInt64 i ]
       | DInt8 i -> "DInt8", [ DInt8 i ]
       | DUInt8 i -> "DUInt8", [ DUInt8 i ]
       | DInt16 i -> "DInt16", [ DInt16 i ]
       | DUInt16 i -> "DUInt16", [ DUInt16 i ]
       | DInt32 i -> "DInt32", [ DInt32 i ]
       | DUInt32 i -> "DUInt32", [ DUInt32 i ]
+      | DInt64 i -> "DInt64", [ DInt64 i ]
+      | DUInt64 i -> "DUInt64", [ DUInt64 i ]
       | DInt128 i -> "DInt128", [ DInt128 i ]
       | DUInt128 i -> "DUInt128", [ DUInt128 i ]
       | DFloat f -> "DFloat", [ DFloat f ]
@@ -582,21 +600,18 @@ module Dval =
       | DUuid u -> "DUuid", [ DUuid u ]
       | DDateTime d -> "DDateTime", [ DDateTime d ]
 
-      | DList(vt, items) ->
-        "DList",
-        [ ValueType.toDT vt; DList(VT.known knownType, List.map toDT items) ]
-
       | DTuple(first, second, theRest) ->
         "DTuple",
         [ toDT first; toDT second; DList(VT.known knownType, List.map toDT theRest) ]
 
-      // | DDB name -> "DDB", [ DString name ]
-
-      | DApplicable applicable -> "DApplicable", [ Applicable.toDT applicable ]
+      | DList(vt, items) ->
+        "DList",
+        [ ValueType.toDT vt; DList(VT.known knownType, List.map toDT items) ]
 
       | DDict(vt, entries) ->
         "DDict",
         [ ValueType.toDT vt; DDict(VT.known knownType, Map.map toDT entries) ]
+
 
       | DRecord(runtimeTypeName, sourceTypeName, typeArgs, fields) ->
         "DRecord",
@@ -613,38 +628,38 @@ module Dval =
           DString caseName
           DList(VT.known knownType, List.map toDT fields) ]
 
+      | DApplicable applicable -> "DApplicable", [ Applicable.toDT applicable ]
+
+    // | DDB name -> "DDB", [ DString name ]
+
     DEnum(typeName, typeName, [], caseName, fields)
 
 
   let fromDT (d : Dval) : Dval =
     match d with
-    | DEnum(_, _, [], "DInt64", [ DInt64 i ]) -> DInt64 i
-    | DEnum(_, _, [], "DUInt64", [ DUInt64 i ]) -> DUInt64 i
+    | DEnum(_, _, [], "DUnit", []) -> DUnit
+    | DEnum(_, _, [], "DBool", [ DBool b ]) -> DBool b
     | DEnum(_, _, [], "DInt8", [ DInt8 i ]) -> DInt8 i
     | DEnum(_, _, [], "DUInt8", [ DUInt8 i ]) -> DUInt8 i
     | DEnum(_, _, [], "DInt16", [ DInt16 i ]) -> DInt16 i
     | DEnum(_, _, [], "DUInt16", [ DUInt16 i ]) -> DUInt16 i
     | DEnum(_, _, [], "DInt32", [ DInt32 i ]) -> DInt32 i
     | DEnum(_, _, [], "DUInt32", [ DUInt32 i ]) -> DUInt32 i
+    | DEnum(_, _, [], "DInt64", [ DInt64 i ]) -> DInt64 i
+    | DEnum(_, _, [], "DUInt64", [ DUInt64 i ]) -> DUInt64 i
     | DEnum(_, _, [], "DInt128", [ DInt128 i ]) -> DInt128 i
     | DEnum(_, _, [], "DUInt128", [ DUInt128 i ]) -> DUInt128 i
     | DEnum(_, _, [], "DFloat", [ DFloat f ]) -> DFloat f
-    | DEnum(_, _, [], "DBool", [ DBool b ]) -> DBool b
-    | DEnum(_, _, [], "DUnit", []) -> DUnit
-    | DEnum(_, _, [], "DString", [ DString s ]) -> DString s
     | DEnum(_, _, [], "DChar", [ DChar c ]) -> DChar c
+    | DEnum(_, _, [], "DString", [ DString s ]) -> DString s
+    | DEnum(_, _, [], "DDateTime", [ DDateTime d ]) -> DDateTime d
+    | DEnum(_, _, [], "DUuid", [ DUuid u ]) -> DUuid u
 
-    | DEnum(_, _, [], "DList", [ vt; DList(_vtTODO, l) ]) ->
-      DList(ValueType.fromDT vt, List.map fromDT l)
     | DEnum(_, _, [], "DTuple", [ first; second; DList(_vtTODO, theRest) ]) ->
       DTuple(fromDT first, fromDT second, List.map fromDT theRest)
 
-    // | DEnum(_, _, [], "DDB", [ DString name ]) -> DDB name
-
-    // | DEnum(_, _, [], "DApplicable", [ applicable ]) -> DApplicable(Applicable.fromDT applicable)
-
-    | DEnum(_, _, [], "DDateTime", [ DDateTime d ]) -> DDateTime d
-    | DEnum(_, _, [], "DUuid", [ DUuid u ]) -> DUuid u
+    | DEnum(_, _, [], "DList", [ vt; DList(_vtTODO, l) ]) ->
+      DList(ValueType.fromDT vt, List.map fromDT l)
 
     | DEnum(_, _, [], "DDict", [ vt; DDict(_vtTODO, map) ]) ->
       DDict(ValueType.fromDT vt, Map.map fromDT map)
@@ -653,51 +668,596 @@ module Dval =
             _,
             [],
             "DRecord",
-            [ runtimeTypeName; sourceTypeName; DList(_, typeArgs); DDict(_, entries) ]) ->
+            [ runtimeTypeName; sourceTypeName; typeArgs; entries ]) ->
       DRecord(
         FQTypeName.fromDT runtimeTypeName,
         FQTypeName.fromDT sourceTypeName,
-        List.map ValueType.fromDT typeArgs,
-        Map.map fromDT entries
+        typeArgs |> D.list ValueType.fromDT,
+        entries |> D.dict |> Map.map fromDT
       )
+
     | DEnum(_,
             _,
             [],
             "DEnum",
-            [ runtimeTypeName
-              sourceTypeName
-              DList(_vtTODO1, typeArgs)
-              DString caseName
-              DList(_vtTODO2, fields) ]) ->
+            [ runtimeTypeName; sourceTypeName; typeArgs; caseName; fields ]) ->
       DEnum(
         FQTypeName.fromDT runtimeTypeName,
         FQTypeName.fromDT sourceTypeName,
-        List.map ValueType.fromDT typeArgs,
-        caseName,
-        List.map fromDT fields
+        typeArgs |> D.list ValueType.fromDT,
+        D.string caseName,
+        fields |> D.list fromDT
       )
+
+    //| DEnum(_, _, [], "DApplicable", [ applicable ]) -> DApplicable(Applicable.fromDT applicable)
+
+    // | DEnum(_, _, [], "DDB", [ DString name ]) -> DDB name
 
     | _ -> Exception.raiseInternal "Invalid Dval" []
 
 
+(*for reference,
+module RuntimeError =
+  module TypeCheckers =
+    type PathPart =
+      | TuplePart of index : int
+      | ListItem of index : int
+      | DictEntry of key : string
+      | RecordField of typeName : FQTypeName.FQTypeName * fieldName : string
+      | EnumField of typeName : FQTypeName.FQTypeName * caseName : string * fieldIndex : int * fieldName : Option<string> * fieldCount : int
+      | FunctionCallParameter of fnName : FQFnName.FQFnName * paramName : string * paramIndex : int
+      | FunctionCallResult of fnName : FQFnName.FQFnName
 
-// module RuntimeError =
-//   module RT2DT = LibExecution.RuntimeTypesToDarkTypes
+    type Path = List<PathPart>
 
-//   type Error =
-//     /// In the future, we will add a trait to indicate types which can be serialized. For
-//     /// now, we'll raise a RuntimeError instead if any of those types are present.
-//     /// Helpfully, this allows us keep `serialize` from having to return an Error.
-//     | UnsupportedType of TypeReference
+    type Error =
+      | ValueNotExpectedType of path : Path * expected : TypeReference * actual : Dval
 
-//   let toRuntimeError (e : Error) : RuntimeError =
-//     let (caseName, fields) =
-//       match e with
-//       | UnsupportedType typ -> "UnsupportedType", [ RT2DT.TypeReference.toDT typ ]
+  type Error =
+    | CannotMergeValues of left : ValueType * right : ValueType
+    | TypeChecker of err : TypeCheckers.Error
+    | UncaughtException of reference : uuid
+*)
 
-//     let typeName =
-//       FQTypeName.fqPackage PackageIDs.Type.LanguageTools.RuntimeError.Json.error
-//     DEnum(typeName, typeName, [], caseName, fields) |> RuntimeError.jsonError
 
-//   let raiseUnsupportedType (callStack : CallStack) (typ : TypeReference) : 'a =
-//     UnsupportedType(typ) |> toRuntimeError |> raiseRTE callStack
+// TODO: make sure we've tested all of these RTEs
+module RuntimeError =
+  module Bools =
+    let toDT (e : RuntimeError.Bools.Error) : Dval =
+      let typeName =
+        FQTypeName.fqPackage
+          PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.Bools.error
+
+      let (caseName, fields) =
+        match e with
+        | RuntimeError.Bools.AndOnlySupportsBooleans(gotLeft, gotRight) ->
+          "AndOnlySupportsBooleans",
+          [ ValueType.toDT gotLeft; ValueType.toDT gotRight ]
+        | RuntimeError.Bools.OrOnlySupportsBooleans(gotRight, gotLeft) ->
+          "OrOnlySupportsBooleans",
+          [ ValueType.toDT gotRight; ValueType.toDT gotLeft ]
+        | RuntimeError.Bools.ConditionRequiresBool(actualValueType, actualValue) ->
+          "ConditionRequiresBool",
+          [ ValueType.toDT actualValueType; Dval.toDT actualValue ]
+
+      DEnum(typeName, typeName, [], caseName, fields)
+
+    let fromDT (d : Dval) : RuntimeError.Bools.Error =
+      match d with
+      | DEnum(_, _, [], "AndOnlySupportsBooleans", [ gotLeft; gotRight ]) ->
+        RuntimeError.Bools.AndOnlySupportsBooleans(
+          ValueType.fromDT gotLeft,
+          ValueType.fromDT gotRight
+        )
+      | DEnum(_, _, [], "OrOnlySupportsBooleans", [ gotRight; gotLeft ]) ->
+        RuntimeError.Bools.OrOnlySupportsBooleans(
+          ValueType.fromDT gotRight,
+          ValueType.fromDT gotLeft
+        )
+      | DEnum(_, _, [], "ConditionRequiresBool", [ actualValueType; actualValue ]) ->
+        RuntimeError.Bools.ConditionRequiresBool(
+          ValueType.fromDT actualValueType,
+          Dval.fromDT actualValue
+        )
+      | _ -> Exception.raiseInternal "Invalid Bools.Error" []
+
+  module Ints =
+    let toDT (e : RuntimeError.Ints.Error) : Dval =
+      let typeName =
+        FQTypeName.fqPackage
+          PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.Ints.error
+
+      let (caseName, fields) =
+        match e with
+        | RuntimeError.Ints.DivideByZeroError -> "DivideByZeroError", []
+        | RuntimeError.Ints.OutOfRange -> "OutOfRange", []
+        | RuntimeError.Ints.NegativeExponent -> "NegativeExponent", []
+        | RuntimeError.Ints.NegativeModulus -> "NegativeModulus", []
+        | RuntimeError.Ints.ZeroModulus -> "ZeroModulus", []
+
+      DEnum(typeName, typeName, [], caseName, fields)
+
+    let fromDT (d : Dval) : RuntimeError.Ints.Error =
+      match d with
+      | DEnum(_, _, [], "DivideByZeroError", []) ->
+        RuntimeError.Ints.DivideByZeroError
+      | DEnum(_, _, [], "OutOfRange", []) -> RuntimeError.Ints.OutOfRange
+      | DEnum(_, _, [], "NegativeExponent", []) -> RuntimeError.Ints.NegativeExponent
+      | DEnum(_, _, [], "NegativeModulus", []) -> RuntimeError.Ints.NegativeModulus
+      | DEnum(_, _, [], "ZeroModulus", []) -> RuntimeError.Ints.ZeroModulus
+      | _ -> Exception.raiseInternal "Invalid Ints.Error" []
+
+  module Strings =
+    let toDT (e : RuntimeError.Strings.Error) : Dval =
+      let typeName =
+        FQTypeName.fqPackage
+          PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.Strings.error
+
+      let (caseName, fields) =
+        match e with
+        | RuntimeError.Strings.NonStringInInterpolation(vt, dv) ->
+          "NonStringInInterpolation", [ ValueType.toDT vt; Dval.toDT dv ]
+
+      DEnum(typeName, typeName, [], caseName, fields)
+
+    let fromDT (d : Dval) : RuntimeError.Strings.Error =
+      match d with
+      | DEnum(_, _, [], "NonStringInInterpolation", [ vt; dv ]) ->
+        RuntimeError.Strings.NonStringInInterpolation(
+          ValueType.fromDT vt,
+          Dval.fromDT dv
+        )
+      | _ -> Exception.raiseInternal "Invalid Strings.Error" []
+
+  module Lists =
+    let toDT (e : RuntimeError.Lists.Error) : Dval =
+      let typeName =
+        FQTypeName.fqPackage
+          PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.Lists.error
+
+      let (caseName, fields) =
+        match e with
+        | RuntimeError.Lists.TriedToAddMismatchedData(expectedType,
+                                                      actualType,
+                                                      actualValue) ->
+          "TriedToAddMismatchedData",
+          [ ValueType.toDT expectedType
+            ValueType.toDT actualType
+            Dval.toDT actualValue ]
+
+      DEnum(typeName, typeName, [], caseName, fields)
+
+    let fromDT (d : Dval) : RuntimeError.Lists.Error =
+      match d with
+      | DEnum(_,
+              _,
+              [],
+              "TriedToAddMismatchedData",
+              [ expectedType; actualType; actualValue ]) ->
+        RuntimeError.Lists.TriedToAddMismatchedData(
+          ValueType.fromDT expectedType,
+          ValueType.fromDT actualType,
+          Dval.fromDT actualValue
+        )
+      | _ -> Exception.raiseInternal "Invalid Lists.Error" []
+
+  module Dicts =
+    let toDT (e : RuntimeError.Dicts.Error) : Dval =
+      let typeName =
+        FQTypeName.fqPackage
+          PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.Dicts.error
+
+      let (caseName, fields) =
+        match e with
+        | RuntimeError.Dicts.TriedToAddKeyAfterAlreadyPresent key ->
+          "TriedToAddKeyAfterAlreadyPresent", [ DString key ]
+        | RuntimeError.Dicts.TriedToAddMismatchedData(expectedType,
+                                                      actualType,
+                                                      actualValue) ->
+          "TriedToAddMismatchedData",
+          [ ValueType.toDT expectedType
+            ValueType.toDT actualType
+            Dval.toDT actualValue ]
+
+      DEnum(typeName, typeName, [], caseName, fields)
+
+    let fromDT (d : Dval) : RuntimeError.Dicts.Error =
+      match d with
+      | DEnum(_, _, [], "TriedToAddKeyAfterAlreadyPresent", [ DString key ]) ->
+        RuntimeError.Dicts.TriedToAddKeyAfterAlreadyPresent key
+      | DEnum(_,
+              _,
+              [],
+              "TriedToAddMismatchedData",
+              [ expectedType; actualType; actualValue ]) ->
+        RuntimeError.Dicts.TriedToAddMismatchedData(
+          ValueType.fromDT expectedType,
+          ValueType.fromDT actualType,
+          Dval.fromDT actualValue
+        )
+      | _ -> Exception.raiseInternal "Invalid Dicts.Error" []
+
+  module Lets =
+    let toDT (e : RuntimeError.Lets.Error) : Dval =
+      let typeName =
+        FQTypeName.fqPackage
+          PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.Lets.error
+
+      let (caseName, fields) =
+        match e with
+        | RuntimeError.Lets.PatternDoesNotMatch(dval, pat) ->
+          "PatternDoesNotMatch", [ Dval.toDT dval; LetPattern.toDT pat ]
+
+      DEnum(typeName, typeName, [], caseName, fields)
+
+    let fromDT (d : Dval) : RuntimeError.Lets.Error =
+      match d with
+      | DEnum(_, _, [], "PatternDoesNotMatch", [ dval; pat ]) ->
+        RuntimeError.Lets.PatternDoesNotMatch(
+          Dval.fromDT dval,
+          LetPattern.fromDT pat
+        )
+      | _ -> Exception.raiseInternal "Invalid Lets.Error" []
+
+  module Matches =
+    let toDT (e : RuntimeError.Matches.Error) : Dval =
+      let typeName =
+        FQTypeName.fqPackage
+          PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.Matches.error
+
+      let (caseName, fields) =
+        match e with
+        | RuntimeError.Matches.MatchUnmatched -> "MatchUnmatched", []
+
+      DEnum(typeName, typeName, [], caseName, fields)
+
+    let fromDT (d : Dval) : RuntimeError.Matches.Error =
+      match d with
+      | DEnum(_, _, [], "MatchUnmatched", []) -> RuntimeError.Matches.MatchUnmatched
+      | _ -> Exception.raiseInternal "Invalid Matches.Error" []
+
+  module Records =
+    let toDT (e : RuntimeError.Records.Error) : Dval =
+      let typeName =
+        FQTypeName.fqPackage
+          PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.Records.error
+
+      let (caseName, fields) =
+        match e with
+        | RuntimeError.Records.CreationEmptyKey -> "CreationEmptyKey", []
+        | RuntimeError.Records.CreationMissingField fieldName ->
+          "CreationMissingField", [ DString fieldName ]
+        | RuntimeError.Records.CreationDuplicateField fieldName ->
+          "CreationDuplicateField", [ DString fieldName ]
+        | RuntimeError.Records.CreationTypeNotRecord name ->
+          "CreationTypeNotRecord", [ FQTypeName.toDT name ]
+        | RuntimeError.Records.CreationFieldNotExpected fieldName ->
+          "CreationFieldNotExpected", [ DString fieldName ]
+        | RuntimeError.Records.CreationFieldOfWrongType(fieldName,
+                                                        expectedType,
+                                                        actualType) ->
+          "CreationFieldOfWrongType",
+          [ DString fieldName
+            ValueType.toDT expectedType
+            ValueType.toDT actualType ]
+        | RuntimeError.Records.FieldAccessFieldNotFound fieldName ->
+          "FieldAccessFieldNotFound", [ DString fieldName ]
+        | RuntimeError.Records.FieldAccessNotRecord actualType ->
+          "FieldAccessNotRecord", [ ValueType.toDT actualType ]
+        | RuntimeError.Records.UpdateNotRecord actualType ->
+          "UpdateNotRecord", [ ValueType.toDT actualType ]
+        | RuntimeError.Records.UpdateFieldOfWrongType(fieldName,
+                                                      expectedType,
+                                                      actualType) ->
+          "UpdateFieldOfWrongType",
+          [ DString fieldName
+            TypeReference.toDT expectedType
+            ValueType.toDT actualType ]
+        | RuntimeError.Records.UpdateFieldNotExpected fieldName ->
+          "UpdateFieldNotExpected", [ DString fieldName ]
+
+      DEnum(typeName, typeName, [], caseName, fields)
+
+    let fromDT (d : Dval) : RuntimeError.Records.Error =
+      match d with
+      | DEnum(_, _, [], "CreationEmptyKey", []) ->
+        RuntimeError.Records.CreationEmptyKey
+      | DEnum(_, _, [], "CreationMissingField", [ DString fieldName ]) ->
+        RuntimeError.Records.CreationMissingField fieldName
+      | DEnum(_, _, [], "CreationDuplicateField", [ DString fieldName ]) ->
+        RuntimeError.Records.CreationDuplicateField fieldName
+      | DEnum(_, _, [], "CreationTypeNotRecord", [ name ]) ->
+        RuntimeError.Records.CreationTypeNotRecord(FQTypeName.fromDT name)
+      | DEnum(_, _, [], "CreationFieldNotExpected", [ DString fieldName ]) ->
+        RuntimeError.Records.CreationFieldNotExpected fieldName
+      | DEnum(_,
+              _,
+              [],
+              "CreationFieldOfWrongType",
+              [ DString fieldName; expectedType; actualType ]) ->
+        RuntimeError.Records.CreationFieldOfWrongType(
+          fieldName,
+          ValueType.fromDT expectedType,
+          ValueType.fromDT actualType
+        )
+      | DEnum(_, _, [], "FieldAccessFieldNotFound", [ DString fieldName ]) ->
+        RuntimeError.Records.FieldAccessFieldNotFound fieldName
+      | DEnum(_, _, [], "FieldAccessNotRecord", [ actualType ]) ->
+        RuntimeError.Records.FieldAccessNotRecord(ValueType.fromDT actualType)
+      | DEnum(_, _, [], "UpdateNotRecord", [ actualType ]) ->
+        RuntimeError.Records.UpdateNotRecord(ValueType.fromDT actualType)
+      | DEnum(_,
+              _,
+              [],
+              "UpdateFieldOfWrongType",
+              [ DString fieldName; expectedType; actualType ]) ->
+        RuntimeError.Records.UpdateFieldOfWrongType(
+          fieldName,
+          TypeReference.fromDT expectedType,
+          ValueType.fromDT actualType
+        )
+      | DEnum(_, _, [], "UpdateFieldNotExpected", [ DString fieldName ]) ->
+        RuntimeError.Records.UpdateFieldNotExpected fieldName
+      | _ -> Exception.raiseInternal "Invalid Records.Error" []
+
+  module Enums =
+    let toDT (e : RuntimeError.Enums.Error) : Dval =
+      let typeName =
+        FQTypeName.fqPackage
+          PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.Enums.error
+
+      let (caseName, fields) =
+        match e with
+        | RuntimeError.Enums.ConstructionWrongNumberOfFields(typeName,
+                                                             caseName,
+                                                             expectedFieldCount,
+                                                             actualFieldCount) ->
+          "ConstructionWrongNumberOfFields",
+          [ FQTypeName.toDT typeName
+            DString caseName
+            DInt64 expectedFieldCount
+            DInt64 actualFieldCount ]
+        | RuntimeError.Enums.ConstructionCaseNotFound(typeName, caseName) ->
+          "ConstructionCaseNotFound", [ FQTypeName.toDT typeName; DString caseName ]
+        | RuntimeError.Enums.ConstructionFieldOfWrongType(caseName,
+                                                          fieldIndex,
+                                                          expectedType,
+                                                          actualType,
+                                                          actualValue) ->
+          "ConstructionFieldOfWrongType",
+          [ DString caseName
+            DInt64 fieldIndex
+            TypeReference.toDT expectedType
+            ValueType.toDT actualType
+            Dval.toDT actualValue ]
+
+      DEnum(typeName, typeName, [], caseName, fields)
+
+    let fromDT (d : Dval) : RuntimeError.Enums.Error =
+      match d with
+      | DEnum(_,
+              _,
+              [],
+              "ConstructionWrongNumberOfFields",
+              [ typeName; caseName; expectedFieldCount; actualFieldCount ]) ->
+        RuntimeError.Enums.ConstructionWrongNumberOfFields(
+          FQTypeName.fromDT typeName,
+          D.string caseName,
+          D.int64 expectedFieldCount,
+          D.int64 actualFieldCount
+        )
+      | DEnum(_, _, [], "ConstructionCaseNotFound", [ typeName; caseName ]) ->
+        RuntimeError.Enums.ConstructionCaseNotFound(
+          FQTypeName.fromDT typeName,
+          D.string caseName
+        )
+      | DEnum(_,
+              _,
+              [],
+              "ConstructionFieldOfWrongType",
+              [ caseName; fieldIndex; expectedType; actualType; actualValue ]) ->
+        RuntimeError.Enums.ConstructionFieldOfWrongType(
+          D.string caseName,
+          D.int64 fieldIndex,
+          TypeReference.fromDT expectedType,
+          ValueType.fromDT actualType,
+          Dval.fromDT actualValue
+        )
+      | _ -> Exception.raiseInternal "Invalid Enums.Error" []
+
+  module Unwraps =
+    let toDT (e : RuntimeError.Unwraps.Error) : Dval =
+      let typeName =
+        FQTypeName.fqPackage
+          PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.Unwraps.error
+
+      let (caseName, fields) =
+        match e with
+        | RuntimeError.Unwraps.GotNone -> "GotNone", []
+        | RuntimeError.Unwraps.GotError err -> "GotError", [ Dval.toDT err ]
+        | RuntimeError.Unwraps.NonOptionOrResult actual ->
+          "NonOptionOrResult", [ Dval.toDT actual ]
+        | RuntimeError.Unwraps.MultipleArgs args ->
+          "MultipleArgs", [ DList(VT.known Dval.knownType, List.map Dval.toDT args) ]
+
+      DEnum(typeName, typeName, [], caseName, fields)
+
+    let fromDT (d : Dval) : RuntimeError.Unwraps.Error =
+      match d with
+      | DEnum(_, _, [], "GotNone", []) -> RuntimeError.Unwraps.GotNone
+      | DEnum(_, _, [], "GotError", [ err ]) ->
+        RuntimeError.Unwraps.GotError(Dval.fromDT err)
+      | DEnum(_, _, [], "NonOptionOrResult", [ actual ]) ->
+        RuntimeError.Unwraps.NonOptionOrResult(Dval.fromDT actual)
+      | DEnum(_, _, [], "MultipleArgs", [ args ]) ->
+        args |> D.list Dval.fromDT |> RuntimeError.Unwraps.MultipleArgs
+      | _ -> Exception.raiseInternal "Invalid Unwraps.Error" []
+
+  module Jsons =
+    let toDT (e : RuntimeError.Jsons.Error) : Dval =
+      let typeName =
+        FQTypeName.fqPackage
+          PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.Jsons.error
+
+      let (caseName, fields) =
+        match e with
+        | RuntimeError.Jsons.UnsupportedType actual ->
+          "UnsupportedType", [ TypeReference.toDT actual ]
+        | RuntimeError.Jsons.CannotSerializeTypeValueCombo(actualValue, actualType) ->
+          "CannotSerializeTypeValueCombo",
+          [ Dval.toDT actualValue; TypeReference.toDT actualType ]
+
+      DEnum(typeName, typeName, [], caseName, fields)
+
+    let fromDT (d : Dval) : RuntimeError.Jsons.Error =
+      match d with
+      | DEnum(_, _, [], "UnsupportedType", [ actual ]) ->
+        RuntimeError.Jsons.UnsupportedType(TypeReference.fromDT actual)
+      | DEnum(_, _, [], "CannotSerializeTypeValueCombo", [ actualValue; actualType ]) ->
+        RuntimeError.Jsons.CannotSerializeTypeValueCombo(
+          Dval.fromDT actualValue,
+          TypeReference.fromDT actualType
+        )
+      | _ -> Exception.raiseInternal "Invalid Jsons.Error" []
+
+  module CLIs =
+    let toDT (e : RuntimeError.CLIs.Error) : Dval =
+      let typeName =
+        FQTypeName.fqPackage
+          PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.CLIs.error
+
+      let (caseName, fields) =
+        match e with
+        | RuntimeError.CLIs.NoExpressionsToExecute -> "NoExpressionsToExecute", []
+        | RuntimeError.CLIs.NonIntReturned actualReturned ->
+          "NonIntReturned", [ Dval.toDT actualReturned ]
+
+      DEnum(typeName, typeName, [], caseName, fields)
+
+    let fromDT (d : Dval) : RuntimeError.CLIs.Error =
+      match d with
+      | DEnum(_, _, [], "NoExpressionsToExecute", []) ->
+        RuntimeError.CLIs.NoExpressionsToExecute
+      | DEnum(_, _, [], "NonIntReturned", [ actualReturned ]) ->
+        RuntimeError.CLIs.NonIntReturned(Dval.fromDT actualReturned)
+      | _ -> Exception.raiseInternal "Invalid CLIs.Error" []
+
+  let toDT (e : RuntimeError.Error) : Dval =
+    let typeName =
+      FQTypeName.fqPackage
+        PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.error
+
+    let (caseName, fields) =
+      match e with
+      | RuntimeError.Bool e -> "Bool", [ Bools.toDT e ]
+      | RuntimeError.Int e -> "Int", [ Ints.toDT e ]
+      | RuntimeError.String e -> "String", [ Strings.toDT e ]
+      | RuntimeError.List e -> "List", [ Lists.toDT e ]
+      | RuntimeError.Dict e -> "Dict", [ Dicts.toDT e ]
+      | RuntimeError.Let e -> "Let", [ Lets.toDT e ]
+      | RuntimeError.VariableNotFound attemptedVarName ->
+        "VariableNotFound", [ DString attemptedVarName ]
+      | RuntimeError.EqualityCheckOnIncompatibleTypes(left, right) ->
+        "EqualityCheckOnIncompatibleTypes",
+        [ ValueType.toDT left; ValueType.toDT right ]
+      | RuntimeError.IfConditionNotBool(actualValue, actualValueType) ->
+        "IfConditionNotBool",
+        [ Dval.toDT actualValue; ValueType.toDT actualValueType ]
+      | RuntimeError.Match e -> "Match", [ Matches.toDT e ]
+      | RuntimeError.ParseTimeNameResolution e ->
+        "ParseTimeNameResolution", [ NameResolutionError.toDT e ]
+      | RuntimeError.TypeNotFound name -> "TypeNotFound", [ FQTypeName.toDT name ]
+      | RuntimeError.ConstNotFound name ->
+        "ConstNotFound", [ FQConstantName.toDT name ]
+      | RuntimeError.FnNotFound name -> "FnNotFound", [ FQFnName.toDT name ]
+      | RuntimeError.WrongNumberOfTypeArgsForType(fn, expected, actual) ->
+        "WrongNumberOfTypeArgsForType",
+        [ FQTypeName.toDT fn; DInt64 expected; DInt64 actual ]
+      | RuntimeError.Record e -> "Record", [ Records.toDT e ]
+      | RuntimeError.Enum e -> "Enum", [ Enums.toDT e ]
+      | RuntimeError.Unwrap e -> "Unwrap", [ Unwraps.toDT e ]
+      | RuntimeError.WrongNumberOfTypeArgsForFn(fn, expected, actual) ->
+        "WrongNumberOfTypeArgsForFn",
+        [ FQFnName.toDT fn; DInt64 expected; DInt64 actual ]
+      | RuntimeError.TooManyArgsForFn(fn, expected, actual) ->
+        "TooManyArgsForFn", [ FQFnName.toDT fn; DInt64 expected; DInt64 actual ]
+      | RuntimeError.TooManyArgsForLambda(lambdaExprId, expected, actual) ->
+        "TooManyArgsForLambda",
+        [ DUInt64 lambdaExprId; DInt64 expected; DInt64 actual ]
+      | RuntimeError.ExpectedApplicableButNot(actualTyp, actualValue) ->
+        "ExpectedApplicableButNot",
+        [ ValueType.toDT actualTyp; Dval.toDT actualValue ]
+      | RuntimeError.Json e -> "Json", [ Jsons.toDT e ]
+      | RuntimeError.CLI e -> "CLI", [ CLIs.toDT e ]
+      | RuntimeError.UncaughtException reference ->
+        "UncaughtException", [ DUuid reference ]
+      | e -> Exception.raiseInternal "Unhandled RuntimeError.Error" [ "e", e ]
+
+    DEnum(typeName, typeName, [], caseName, fields)
+
+  let fromDT (d : Dval) : RuntimeError.Error =
+    match d with
+    | DEnum(_, _, [], "Bool", [ e ]) -> RuntimeError.Bool(Bools.fromDT e)
+    | DEnum(_, _, [], "Int", [ e ]) -> RuntimeError.Int(Ints.fromDT e)
+    | DEnum(_, _, [], "String", [ e ]) -> RuntimeError.String(Strings.fromDT e)
+    | DEnum(_, _, [], "List", [ e ]) -> RuntimeError.List(Lists.fromDT e)
+    | DEnum(_, _, [], "Dict", [ e ]) -> RuntimeError.Dict(Dicts.fromDT e)
+    | DEnum(_, _, [], "Let", [ e ]) -> RuntimeError.Let(Lets.fromDT e)
+    | DEnum(_, _, [], "VariableNotFound", [ DString attemptedVarName ]) ->
+      RuntimeError.VariableNotFound attemptedVarName
+    | DEnum(_, _, [], "EqualityCheckOnIncompatibleTypes", [ left; right ]) ->
+      RuntimeError.EqualityCheckOnIncompatibleTypes(
+        ValueType.fromDT left,
+        ValueType.fromDT right
+      )
+    | DEnum(_, _, [], "IfConditionNotBool", [ actualValue; actualValueType ]) ->
+      RuntimeError.IfConditionNotBool(
+        Dval.fromDT actualValue,
+        ValueType.fromDT actualValueType
+      )
+    | DEnum(_, _, [], "Match", [ e ]) -> RuntimeError.Match(Matches.fromDT e)
+    | DEnum(_, _, [], "ParseTimeNameResolution", [ e ]) ->
+      RuntimeError.ParseTimeNameResolution(NameResolutionError.fromDT e)
+    | DEnum(_, _, [], "TypeNotFound", [ name ]) ->
+      RuntimeError.TypeNotFound(FQTypeName.fromDT name)
+    | DEnum(_, _, [], "ConstNotFound", [ name ]) ->
+      RuntimeError.ConstNotFound(FQConstantName.fromDT name)
+    | DEnum(_, _, [], "FnNotFound", [ name ]) ->
+      RuntimeError.FnNotFound(FQFnName.fromDT name)
+    | DEnum(_, _, [], "WrongNumberOfTypeArgsForType", [ fn; expected; actual ]) ->
+      RuntimeError.WrongNumberOfTypeArgsForType(
+        FQTypeName.fromDT fn,
+        D.int64 expected,
+        D.int64 actual
+      )
+    | DEnum(_, _, [], "Record", [ e ]) -> RuntimeError.Record(Records.fromDT e)
+    | DEnum(_, _, [], "Enum", [ e ]) -> RuntimeError.Enum(Enums.fromDT e)
+    | DEnum(_, _, [], "Unwrap", [ e ]) -> RuntimeError.Unwrap(Unwraps.fromDT e)
+    | DEnum(_, _, [], "WrongNumberOfTypeArgsForFn", [ fn; expected; actual ]) ->
+      RuntimeError.WrongNumberOfTypeArgsForFn(
+        FQFnName.fromDT fn,
+        D.int64 expected,
+        D.int64 actual
+      )
+    | DEnum(_, _, [], "TooManyArgsForFn", [ fn; expected; actual ]) ->
+      RuntimeError.TooManyArgsForFn(
+        FQFnName.fromDT fn,
+        D.int64 expected,
+        D.int64 actual
+      )
+    | DEnum(_, _, [], "TooManyArgsForLambda", [ lambdaExprId; expected; actual ]) ->
+      RuntimeError.TooManyArgsForLambda(
+        D.uInt64 lambdaExprId,
+        D.int64 expected,
+        D.int64 actual
+      )
+    | DEnum(_, _, [], "ExpectedApplicableButNot", [ actualTyp; actualValue ]) ->
+      RuntimeError.ExpectedApplicableButNot(
+        ValueType.fromDT actualTyp,
+        Dval.fromDT actualValue
+      )
+    | DEnum(_, _, [], "Json", [ e ]) -> RuntimeError.Json(Jsons.fromDT e)
+    | DEnum(_, _, [], "CLI", [ e ]) -> RuntimeError.CLI(CLIs.fromDT e)
+    | DEnum(_, _, [], "UncaughtException", [ reference ]) ->
+      RuntimeError.UncaughtException(D.uuid reference)
+    | _ -> Exception.raiseInternal "Invalid RuntimeError.Error" [ "d", d ]

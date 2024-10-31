@@ -35,14 +35,14 @@ module Darklang =
       type TypeReference =
         | TUnit
         | TBool
-        | TInt64
-        | TUInt64
         | TInt8
         | TUInt8
         | TInt16
         | TUInt16
         | TInt32
         | TUInt32
+        | TInt64
+        | TUInt64
         | TInt128
         | TUInt128
         | TFloat
@@ -50,221 +50,151 @@ module Darklang =
         | TString
         | TUuid
         | TDateTime
-        | TList of TypeReference
         | TTuple of TypeReference * TypeReference * List<TypeReference>
-        | TFn of List<TypeReference> * TypeReference
-        | TDB of TypeReference
-        | TVariable of String
+        | TList of TypeReference
+        | TDict of TypeReference
         | TCustomType of
           NameResolution<FQTypeName.FQTypeName> *
           typeArgs: List<TypeReference>
-        | TDict of TypeReference
+        | TFn of List<TypeReference> * TypeReference
+        //| TDB of TypeReference
+        | TVariable of String
+
+      type TypeSymbolTable = Dict<TypeReference>
 
 
-// type MatchCase =
-//   { pat: MatchPattern
-//     whenCondition: Stdlib.Option.Option<Expr>
-//     rhs: Expr }
+      type KnownType =
+        | KTUnit
+        | KTBool
+        | KTInt8
+        | KTUInt8
+        | KTInt16
+        | KTUInt16
+        | KTInt32
+        | KTUInt32
+        | KTInt64
+        | KTUInt64
+        | KTInt128
+        | KTUInt128
+        | KTFloat
+        | KTChar
+        | KTString
+        | KTUuid
+        | KTDateTime
+        | KTTuple of ValueType * ValueType * List<ValueType>
+        | KTList of ValueType
+        | KTDict of ValueType
 
-// type LetPattern =
-//   | LPVariable of ID * name: String
-//   | LPTuple of
-//     ID *
-//     first: LetPattern *
-//     second: LetPattern *
-//     theRest: List<LetPattern>
+        | KTFn of List<ValueType> * ValueType
 
-// type StringSegment =
-//   | StringText of String
-//   | StringInterpolation of Expr
+        | KTCustomType of FQTypeName.FQTypeName * typeArgs: List<ValueType>
 
-// type MatchPattern =
-//   | MPVariable of ID * String
-//   | MPEnum of ID * caseName: String * fieldPatterns: List<MatchPattern>
-//   | MPInt64 of ID * Int64
-//   | MPUInt64 of ID * UInt64
-//   | MPInt8 of ID * Int8
-//   | MPUInt8 of ID * UInt8
-//   | MPInt16 of ID * Int16
-//   | MPUInt16 of ID * UInt16
-//   | MPInt32 of ID * Int32
-//   | MPUInt32 of ID * UInt32
-//   | MPInt128 of ID * Int128
-//   | MPUInt128 of ID * UInt128
-//   | MPBool of ID * Bool
-//   | MPChar of ID * String
-//   | MPString of ID * String
-//   | MPFloat of ID * Float
-//   | MPUnit of ID
-//   | MPTuple of ID * MatchPattern * MatchPattern * List<MatchPattern>
-//   | MPList of ID * List<MatchPattern>
-//   | MPListCons of ID * head: MatchPattern * tail: MatchPattern
+      //| KTDB of ValueType
 
-// type DvalMap = Dict<Dval.Dval>
-
-// type LambdaImpl =
-//   { typeSymbolTable: TypeSymbolTable
-//     symtable: Symtable
-//     parameters: List<ID * String>
-//     body: Expr }
-
-// type FnValImpl =
-//   | Lambda of LambdaImpl
-//   | NamedFn of FQFnName.FQFnName
-
-// type RuntimeError = RuntimeError of Dval.Dval
-
-// type KnownType =
-//   | KTUnit
-//   | KTBool
-//   | KTInt64
-//   | KTUInt64
-//   | KTInt8
-//   | KTUInt8
-//   | KTInt16
-//   | KTUInt16
-//   | KTInt32
-//   | KTUInt32
-//   | KTInt128
-//   | KTUInt128
-//   | KTFloat
-//   | KTChar
-//   | KTString
-//   | KTUuid
-//   | KTDateTime
-//   | KTList of ValueType
-//   | KTTuple of ValueType * ValueType * List<ValueType>
-//   | KTFn of List<ValueType> * ValueType
-
-//   | KTDB of ValueType
-//   | KTCustomType of FQTypeName.FQTypeName * typeArgs: List<ValueType>
-
-//   | KTDict of ValueType
-
-// type ValueType =
-//   | Unknown
-//   | Known of KnownType
+      type ValueType =
+        | Unknown
+        | Known of KnownType
 
 
-// module Dval =
-//   type Dval =
-//     | DUnit
-//     | DBool of Bool
-//     | DInt64 of Int64
-//     | DUInt64 of UInt64
-//     | DInt8 of Int8
-//     | DUInt8 of UInt8
-//     | DInt16 of Int16
-//     | DUInt16 of UInt16
-//     | DInt32 of Int32
-//     | DUInt32 of UInt32
-//     | DInt128 of Int128
-//     | DUInt128 of UInt128
-//     | DFloat of Float
-//     | DChar of String
-//     | DString of String
-//     | DDateTime of DateTime
-//     | DUuid of Uuid
+      type LetPattern =
+        | LPVariable of name: String
+        | LPUnit
+        | LPTuple of
+          first: LetPattern *
+          second: LetPattern *
+          theRest: List<LetPattern>
 
-//     | DList of ValueType * List<Dval>
-//     | DDict of ValueType * DvalMap
-//     | DTuple of Dval * Dval * List<Dval>
+      type MatchPattern =
+        | MPUnit
+        | MPBool of Bool
+        | MPInt8 of Int8
+        | MPUInt8 of UInt8
+        | MPInt16 of Int16
+        | MPUInt16 of UInt16
+        | MPInt32 of Int32
+        | MPUInt32 of UInt32
+        | MPInt64 of Int64
+        | MPUInt64 of UInt64
+        | MPInt128 of Int128
+        | MPUInt128 of UInt128
+        | MPFloat of Float
+        | MPChar of String
+        | MPString of String
+        | MPTuple of MatchPattern * MatchPattern * List<MatchPattern>
+        | MPList of List<MatchPattern>
+        | MPListCons of head: MatchPattern * tail: MatchPattern
+        | MPEnum of caseName: String * fieldPatterns: List<MatchPattern>
+        | MPVariable of String
 
-//     | DFnVal of FnValImpl
+      type Register = Int32
 
-//     | DDB of String
+      type DvalMap = Dict<Dval>
 
-//     | DRecord of
-//       runtimeTypeName: FQTypeName.FQTypeName *
-//       sourceTypeName: FQTypeName.FQTypeName *
-//       typeArgs: List<ValueType> *
-//       fields: DvalMap
+      type LambdaImpl =
+        // TODO: fill in more?
+        { patterns: List<LetPattern> }
 
-//     | DEnum of
-//       runtimeTypeName: FQTypeName.FQTypeName *
-//       sourceTypeName: FQTypeName.FQTypeName *
-//       typeArgs: List<ValueType> *
-//       caseName: String *
-//       fields: List<Dval>
+      type ApplicableNamedFn =
+        { name: FQFnName.FQFnName
+          argsSoFar: List<Dval> }
 
+      type ApplicableLambda =
+        { exprId: ID
+          closedRegisters: List<Register * Dval>
+          typeSymbolTable: TypeSymbolTable
+          argsSoFar: List<Dval> }
 
-//   let toValueType (dv: Dval) : ValueType =
-//     let dvalValueTypeTODO = ValueType.Unknown
-
-//     match dv with
-//     | DUnit -> ValueType.Known KnownType.KTUnit
-//     | DBool _ -> ValueType.Known KnownType.KTBool
-//     | DInt64 _ -> ValueType.Known KnownType.KTInt64
-//     | DUInt64 _ -> ValueType.Known KnownType.KTUInt64
-//     | DInt8 _ -> ValueType.Known KnownType.KTInt8
-//     | DUInt8 _ -> ValueType.Known KnownType.KTUInt8
-//     | DInt16 _ -> ValueType.Known KnownType.KTInt16
-//     | DUInt16 _ -> ValueType.Known KnownType.KTUInt16
-//     | DInt32 _ -> ValueType.Known KnownType.KTInt32
-//     | DUInt32 _ -> ValueType.Known KnownType.KTUInt32
-//     | DInt128 _ -> ValueType.Known KnownType.KTInt128
-//     | DUInt128 _ -> ValueType.Known KnownType.KTUInt128
-//     | DFloat _ -> ValueType.Known KnownType.KTFloat
-//     | DChar _ -> ValueType.Known KnownType.KTChar
-//     | DString _ -> ValueType.Known KnownType.KTString
-//     | DUuid _ -> ValueType.Known KnownType.KTUuid
-//     | DDateTime _ -> ValueType.Known KnownType.KTDateTime
-
-//     | DList(t, _) -> ValueType.Known(KnownType.KTList t)
-//     | DDict(t, _) -> ValueType.Known(KnownType.KTDict t)
-//     | DTuple(first, second, theRest) ->
-//       (KnownType.KTTuple(
-//         toValueType first,
-//         toValueType second,
-//         theRest |> Stdlib.List.map (fun item -> toValueType item)
-//       ))
-//       |> ValueType.Known
-
-//     | DRecord(typeName, _, typeArgs, fields) ->
-//       ValueType.Known(KnownType.KTCustomType(typeName, typeArgs))
-
-//     | DEnum(typeName, _, typeArgs, _caseName, _fields) ->
-//       ValueType.Known(KnownType.KTCustomType(typeName, typeArgs))
-
-//     | DFnVal fnImpl ->
-//       match fnImpl with
-//       | Lambda lambda ->
-//         let ps = Stdlib.List.map lambda.parameters (fun _ -> ValueType.Unknown)
-
-//         ValueType.Known(KnownType.KTFn(ps, ValueType.Unknown))
-
-//       // VTTODO look up type, etc?
-//       | NamedFn _named -> dvalValueTypeTODO
-
-//     // CLEANUP follow up when DDB has a typeReference
-//     // or look up the type of the DB by name
-//     | DDB _ -> ValueType.Unknown
-
-// /// our record of any variable bindings in scope
-// ///
-// /// i.e. within the execution of `x+y` in
-// ///  `let x = 1; let y = 2; x + y`
-// /// , we would have a Symtable of
-// ///   `{ "x" => DInt64 1; "y" => DInt64 2 }`
-// type Symtable = Dict<Dval.Dval>
-
-// type TypeSymbolTable = Dict<TypeReference>
+      type Applicable =
+        | AppLambda of ApplicableLambda
+        | AppNamedFn of ApplicableNamedFn
 
 
-// // Record the source of an incomplete or error. Would be useful to add more
-// // information later, such as the iteration count that led to this, or
-// // something like a stack trace
-// type DvalSource =
-//   // We do not have context to supply an identifier
-//   | SourceNone
+      type Dval =
+        | DUnit
+        | DBool of Bool
+        | DInt8 of Int8
+        | DUInt8 of UInt8
+        | DInt16 of Int16
+        | DUInt16 of UInt16
+        | DInt32 of Int32
+        | DUInt32 of UInt32
+        | DInt64 of Int64
+        | DUInt64 of UInt64
+        | DInt128 of Int128
+        | DUInt128 of UInt128
+        | DFloat of Float
+        | DChar of String
+        | DString of String
+        | DDateTime of DateTime
+        | DUuid of Uuid
 
-//   // Caused by an expression of `id` within the given `tlid`
-//   | SourceID of TLID * ID
+        | DTuple of Dval * Dval * List<Dval>
+        | DList of ValueType * List<Dval>
+        | DDict of ValueType * DvalMap
 
-// type BuiltInParam =
-//   { name: String
-//     typ: TypeReference
-//     blockArgs: List<String>
-//     description: String }
+        | DRecord of
+          runtimeTypeName: FQTypeName.FQTypeName *
+          sourceTypeName: FQTypeName.FQTypeName *
+          typeArgs: List<ValueType> *
+          fields: DvalMap
 
-// type Param = { name: String; typ: TypeReference }
+        | DEnum of
+          runtimeTypeName: FQTypeName.FQTypeName *
+          sourceTypeName: FQTypeName.FQTypeName *
+          typeArgs: List<ValueType> *
+          caseName: String *
+          fields: List<Dval>
+
+        | DApplicable of Applicable
+
+      // References
+      //| DDB of String
+
+      type BuiltInParam =
+        { name: String
+          typ: TypeReference
+          blockArgs: List<String>
+          description: String }
+
+
+      type Param = { name: String; typ: TypeReference }

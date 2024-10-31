@@ -143,7 +143,7 @@ module BaseClient =
 
             if not (Array.forall config.allowedIP ips) then
               // Use this to hide more specific errors when looking at loopback
-              Exception.raiseInternal "Could not connect" []
+              Exception.raiseInternal "Could not connect" [] // RTE
 
             let socket =
               new System.Net.Sockets.Socket(
@@ -155,7 +155,7 @@ module BaseClient =
             do! socket.ConnectAsync(context.DnsEndPoint, cancellationToken)
             return new System.Net.Sockets.NetworkStream(socket, true)
           with :? System.ArgumentException ->
-            return Exception.raiseInternal "Could not connect" []
+            return Exception.raiseInternal "Could not connect" [] // RTE
         }
       new SocketsHttpHandler(
         // Avoid DNS problems
@@ -435,15 +435,17 @@ let fns (config : Configuration) : List<BuiltInFn> =
 
                   | notAPair ->
                     return!
-                      RuntimeError.ValueNotExpectedType(
-                        notAPair,
-                        TList(TTuple(TString, TString, [])),
-                        RTE.TypeChecker.Context.FunctionCallParameter(
-                          FQFnName.fqPackage PackageIDs.Fn.Stdlib.HttpClient.request,
-                          ({ name = "headers"; typ = headersType }),
-                          2
-                        )
+                      RTE.TypeCheckers.ValueNotExpectedType(
+                        // [ RTE.TypeCheckers.PathPart.FunctionCallParameter(
+                        //     FQFnName.fqPackage
+                        //       PackageIDs.Fn.Stdlib.HttpClient.request,
+                        //     "headers",
+                        //     2
+                        //   ) ],
+                        headersType,
+                        notAPair
                       )
+                      |> RTE.TypeChecker
                       |> raiseRTE vm.threadID
 
                 })

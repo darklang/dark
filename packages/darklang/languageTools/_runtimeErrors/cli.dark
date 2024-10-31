@@ -1,8 +1,0 @@
-module Darklang =
-  module LanguageTools =
-    module RuntimeErrors =
-      module Cli =
-        type Error =
-          | NoExpressionsToExecute
-          | UncaughtException of String * List<String * String>
-          | NonIntReturned of actuallyReturned: LanguageTools.RuntimeTypes.Dval.Dval

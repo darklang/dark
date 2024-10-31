@@ -121,10 +121,9 @@ let builtins
   LibExecution.Builtin.combine
     [ LibTest.builtins
       BuiltinExecution.Builtin.builtins httpConfig pm
-      // BuiltinCloudExecution.Builtin.builtins
-      // BuiltinDarkInternal.Builtin.builtins
-      // BuiltinCli.Builtin.builtins
-      ]
+      BuiltinCloudExecution.Builtin.builtins
+      BuiltinDarkInternal.Builtin.builtins
+      BuiltinCli.Builtin.builtins ]
     []
 
 // let cloudBuiltIns (pm : PT.PackageManager) =
@@ -393,7 +392,7 @@ module Expect =
 
   let pathToString (path : Path) : string =
     if path = [] then
-      ""
+      "(root)"
     else
       let path = path @ [ "value" ] |> List.reverse |> String.concat "."
       $" `{path}` of"
@@ -472,7 +471,7 @@ module Expect =
 
   let formatMsg (initialMsg : string) (path : Path) (actual : 'a) : string =
     let initial = if initialMsg = "" then "" else $"{initialMsg}\n\n"
-    $"{initial}Error was found in{pathToString path}:\nError was:\n{actual})\n\n"
+    $"{initial}Error was found in: {pathToString path}\nError was:\n{actual})\n\n"
 
   module RT =
     // CLEANUP remove if unused
@@ -498,6 +497,8 @@ module Expect =
 
     // If the dvals are not the same, call errorFn. This is in this form to allow
     // both an equality function and a test expectation function
+    //
+    // TODO remind myself why we can't use the built-in equality function
     let rec dvalEqualityBaseFn
       (path : Path)
       (actual : Dval)
@@ -582,7 +583,7 @@ module Expect =
           rs
 
 
-      | DRecord(ltn, _, ltypeArgs, ls), DRecord(rtn, _, rtypeArgs, rs) ->
+      | DRecord(_, ltn, ltypeArgs, ls), DRecord(_, rtn, rtypeArgs, rs) ->
         // check type name
         typeNameEqualityBaseFn path ltn rtn errorFn
 

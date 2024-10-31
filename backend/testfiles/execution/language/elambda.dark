@@ -1,25 +1,24 @@
-// Stdlib.List.push_v0 [] (fun x -> -4.611686018e+18) = [ (fun x -> -4.611686018e+18) ]
+//Stdlib.List.push_v0 [] (fun x -> -4.611686018e+18) = [ (fun x -> -4.611686018e+18) ]
 
 // Test that empty parameters are removed
-(let y = (fun x ___ -> x + 1L) in Stdlib.List.map_v0 [ 1L; 2L; 3L; 4L ] y) = [ 2L
-                                                                               3L
-                                                                               4L
-                                                                               5L ]
+(let y = (fun x ___ -> x + 1L)
+ Stdlib.List.map_v0 [ 1L; 2L; 3L; 4L ] y) =
+   [ 2L; 3L; 4L; 5L ]
 
-(let y = (fun x -> x + 1L) in Stdlib.List.map_v0 [ 1L; 2L; 3L; 4L ] y) = [ 2L
-                                                                           3L
-                                                                           4L
-                                                                           5L ]
+(let y = (fun x -> x + 1L)
+ Stdlib.List.map_v0 [ 1L; 2L; 3L; 4L ] y) =
+   [ 2L; 3L; 4L; 5L ]
 
 // (let y = (fun msg -> Builtin.testRuntimeError msg)
-//  Stdlib.List.map_v0 [ "1"; "2"; "3"; "4" ] y) = Builtin.testDerrorMessage "1"
+//  Stdlib.List.map_v0 [ "1"; "2"; "3"; "4" ] y) =
+//    (Builtin.testDerrorMessage "1")
 
 (let y = (fun msg -> Builtin.testRuntimeError msg) in Stdlib.List.map_v0 [] y) = []
 // (let y = (fun a b -> a + b) in y 2 3) = 5 // TODO: allow
 (let y = (fun a b -> a * b) in Stdlib.List.fold_v0 [ 1L; 2L; 3L; 4L ] 1L y) = 24L
 
-// (Stdlib.List.fold_v0 [ 4L ] 1L (Builtin.testRuntimeError "test")) = Builtin.testDerrorMessage
-//   "test"
+// (Stdlib.List.fold_v0 [ 4L ] 1L (Builtin.testRuntimeError "test")) =
+//   (Builtin.testDerrorMessage "test")
 
 (let x = 5L
  let y = (fun c -> x + c)
@@ -47,10 +46,10 @@
 
 
 // (let pairs = [ (1L, "one"); (2L, "two"); (3L, "three") ]
-
 //  let transformer = fun (num, str) -> $"{Stdlib.Int64.toString num}:{str}"
+//  Stdlib.List.map_v0 pairs transformer) =
+//   [ "1:one"; "2:two"; "3:three" ]
 
-//  Stdlib.List.map_v0 pairs transformer) = [ "1:one"; "2:two"; "3:three" ]
 
 // (let triplets = [ (1L, "one", true); (2L, "two", false) ]
 
@@ -61,7 +60,8 @@
 //      else
 //        $"{Stdlib.Int64.toString num}:{str}:FALSE"
 
-//  Stdlib.List.map_v0 triplets transformer) = [ "1:one:TRUE"; "2:two:FALSE" ]
+//  Stdlib.List.map_v0 triplets transformer
+//  ) = [ "1:one:TRUE"; "2:two:FALSE" ]
 
 // nested
 // (let sing = [ (("1"), "2"); (("3"), "4") ]
@@ -100,10 +100,7 @@
 //   { key2 = "key2val21val22"
 //     key1 = "key1val11val12" })
 
-// Stdlib.Dict.map_v0
-//   (Dict
-//     { key1 = ("val11", "val12")
-//       key2 = ("val21", "val22") })
-//   (fun x (_, z) -> x ++ z) = (Dict
-//   { key2 = "key2val22"
-//     key1 = "key1val12" })
+// (Stdlib.Dict.map_v0
+//   (Dict { key1 = ("val11", "val12"); key2 = ("val21", "val22") })
+//   (fun x (_, z) -> x ++ z)) =
+//   (Dict { key2 = "key2val22"; key1 = "key1val12" })

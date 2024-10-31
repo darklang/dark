@@ -1,3 +1,5 @@
+TODO: revise this a bit.
+
 # Error Handling
 
 Within the Darklang F# codebase, there are a number of different ways to handle errors. This document explains which error handling mechanism to use.

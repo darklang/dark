@@ -136,12 +136,12 @@ module Darklang =
       /// Returns a list with the first value from <param l1> then the first value
       /// from <param l2>, then the second value from <param l1> then the second value
       /// other list.
-      let interleave (l1: List<'a>) (l2: List<'a>) : List<'a> =
-        match l1 with
-        | [] -> l2
+      let interleave (lA: List<'a>) (lB: List<'a>) : List<'a> =
+        match lA with
+        | [] -> lB
         | aHead :: aTail ->
-          match l2 with
-          | [] -> l1
+          match lB with
+          | [] -> lA
           | bHead :: bTail ->
             (Stdlib.List.interleave aTail bTail)
             |> Stdlib.List.push_v0 bHead

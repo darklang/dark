@@ -1,0 +1,789 @@
+module Darklang =
+  module PrettyPrinter =
+    module RuntimeTypes =
+      // <aliases>
+      type FQFnName = LanguageTools.RuntimeTypes.FQFnName.FQFnName
+      type FQTypeName = LanguageTools.RuntimeTypes.FQTypeName.FQTypeName
+      type FQConstantName = LanguageTools.RuntimeTypes.FQConstantName.FQConstantName
+      type TypeReference = LanguageTools.RuntimeTypes.TypeReference
+      type ValueType = LanguageTools.RuntimeTypes.ValueType
+      type Dval = LanguageTools.RuntimeTypes.Dval
+      // </aliases>
+
+      module RuntimeError =
+        /// Error pretty printing
+        /// ---------------
+        /// Segments allow us to build error messages where the UI and CLI can both
+        /// decorate/link to the sources in a native way
+        type ErrorSegment =
+          // -- Basic types
+          | String of String
+          | Int of Int64
+          | Ordinal of Int64 // 1st, 2nd, etc
+          | IndefiniteArticle // "a" or "an" (chosen based on the next segment)
+          | Count of Int64 * singular: ErrorSegment * plural: ErrorSegment // 2 errors, 1 error, etc
+
+          // -- Functions
+          | FunctionName of FQFnName
+          /// Description from StdLib description fields.
+          /// Note: may include markers like `<param name>`, to be parsed and displayed differently.
+          | Description of String
+          | ParamName of String
+          | InlineParamName of String
+
+          // -- Types
+          | TypeName of FQTypeName
+          | ShortTypeName of FQTypeName
+          | TypeReference of TypeReference
+          | TypeOfValue of Dval // CLEANUP should these all just be ValueTypes?
+          | ValueType of ValueType
+          | FieldName of String // records and enums
+          | InlineFieldName of String // records and enums
+
+          // -- Constants
+          | ConstantName of FQConstantName
+
+          // -- Variables
+          //| DBName of String
+          | VarName of String
+          | InlineVarName of String
+
+          // -- Dvals
+          | InlineValue of Dval // possibly shortened to be shown inline
+          | FullValue of Dval
+
+
+        type ES = ErrorSegment
+
+
+        type ErrorSegments = List<ErrorSegment>
+
+
+        let segmentsToString (segments: ErrorSegments) : String =
+          let reversed = Stdlib.List.reverse segments
+
+          let parts =
+            Stdlib.List.fold reversed [] (fun prevSegments segment ->
+              let newSegment =
+                match segment with
+                | String s -> s
+                | Int i -> Stdlib.Int64.toString i
+                | Ordinal i -> Stdlib.String.toOrdinal i
+                | Count(i, singular, plural) ->
+                  let count = Stdlib.Int64.toString i
+
+                  if i == 1L then
+                    let segment = segmentsToString [ singular ]
+                    $"{count} {segment}"
+                  else
+                    let segment = segmentsToString [ plural ]
+                    $"{count} {segment}"
+
+                | IndefiniteArticle ->
+                  match Stdlib.List.head prevSegments with
+                  | None -> ""
+                  | Some prev -> Stdlib.String.articleFor prev ++ " "
+
+                | FunctionName fn -> fnName fn
+
+                | Description d -> d
+                | ParamName p -> $"`{p}`"
+                | InlineParamName p -> p // Inline versions don't have quotes
+                | TypeName t -> typeName t
+                | ConstantName c -> constantName c
+                | ShortTypeName t ->
+                  // TODO: make it short
+                  typeName t
+                | TypeReference t -> typeReference t
+                | TypeOfValue dv -> Dval.valueTypeName dv
+                | ValueType vt -> valueType vt
+                | FieldName f -> $"`{f}`"
+                | InlineFieldName f -> f
+                | DBName db -> db
+                | VarName v -> $"`{v}`"
+                | InlineVarName v -> v
+                | InlineValue dv ->
+                  (dval dv)
+                  |> Stdlib.String.ellipsis 10L
+                  |> Stdlib.String.splitOnNewline
+                  |> Stdlib.String.join ""
+                | FullValue dv -> dval dv
+                | segment ->
+                  $"(RTETODO segmentsToString parts {(Builtin.jsonSerialize<ErrorSegment> segment)})"
+
+              Stdlib.List.push prevSegments newSegment)
+
+          Stdlib.String.join parts ""
+
+
+        let toSegments
+          (e: LanguageTools.RuntimeTypes.RuntimeError.Error)
+          : ErrorSegments =
+          match e with
+
+          // module TypeCheckers =
+          //   type PathPart =
+          //     | TuplePart of index: Int32
+          //     | ListItem of index: Int32
+          //     | DictEntry of key: String
+          //     | RecordField of typeName: FQTypeName.FQTypeName * fieldName: String
+          //     | EnumField of typeName: FQTypeName.FQTypeName * caseName: String * fieldIndex: Int32 * fieldName: Option<String> * fieldCount: Int32
+          //     | FunctionCallParameter of fnName: FQFnName.FQFnName * paramName: String * paramIndex: Int32
+          //     | FunctionCallResult of fnName: FQFnName.FQFnName
+
+          //   type Path = List<PathPart>
+
+          //   type Error =
+          //     | ValueNotExpectedType of path: Path * expected: TypeReference * actual: Dval
+
+
+          | Bool err ->
+            match err with
+            | AndOnlySupportsBooleans(_gotLeft, _gotRight) ->
+              // CLEANUP something like this:
+              // [ ES.String "Cannot use `&&` with "
+              //   ES.ValueType gotLeft
+              //   ES.String " and "
+              //   ES.ValueType gotRight ]
+              [ ES.String "&& only supports Booleans" ]
+
+            | OrOnlySupportsBooleans(_gotLeft, _gotRight) ->
+              // CLEANUP something like this:
+              // [ ES.String "Cannot use `||` with "
+              //   ES.ValueType gotLeft
+              //   ES.String " and "
+              //   ES.ValueType gotRight ]
+              [ ES.String "|| only supports Booleans" ]
+
+            | ConditionRequiresBool(actualValueType, actualValue) ->
+              [ ES.String "Encountered a condition that must be a Bool, but got "
+                ES.IndefiniteArticle
+                ES.ValueType actualValueType
+                ES.String " ("
+                ES.FullValue actualValue
+                ES.String ")" ]
+
+          | Int DivideByZeroError -> [ ES.String "Division by zero" ]
+          | Int OutOfRange -> [ ES.String "Out of range" ]
+          | Int NegativeExponent -> [ ES.String "Negative exponent" ]
+          | Int NegativeModulus -> [ ES.String "Negative divisors are not allowed" ]
+          | Int ZeroModulus -> [ ES.String "A divisor of zero is not allowed" ]
+
+          | String (NonStringInInterpolation(vt, dv)) ->
+            [ ES.String "Expected String in string interpolation, got "
+              ES.IndefiniteArticle
+              ES.ValueType vt
+              ES.String " ("
+              ES.InlineValue dv
+              ES.String ") instead" ]
+
+          | List (TriedToAddMismatchedData (expectedType, actualType, actualValue)) ->
+            [ ES.String "Cannot add "
+              ES.IndefiniteArticle
+              ES.ValueType actualType
+              ES.String " ("
+              ES.FullValue actualValue
+              ES.String ") to a list of "
+              ES.ValueType expectedType ]
+
+          | Dict err ->
+            match err with
+            | TriedToAddKeyAfterAlreadyPresent key -> [ ES.String ("Key already present: " ++ key) ]
+            | TriedToAddMismatchedData (expectedType, actualType, actualValue) ->
+              [ ES.String "Cannot add "
+                ES.IndefiniteArticle
+                ES.ValueType actualType
+                ES.String " ("
+                ES.FullValue actualValue
+                ES.String ") to a dict of "
+                ES.ValueType expectedType ]
+
+          | Let (PatternDoesNotMatch (dval, pat)) ->
+            [ ES.String "Could not deconstruct value "
+              ES.FullValue dval
+              ES.String " into pattern "
+              ES.String "TODO" ]
+
+          | VariableNotFound attemptedVarName ->
+            [ ES.String $"There is no variable named: {attemptedVarName}" ]
+
+          | EqualityCheckOnIncompatibleTypes (left, right) ->
+            [ ES.String "Cannot perform equality check on "
+              ES.ValueType left
+              ES.String " and "
+              ES.ValueType right ]
+
+          | IfConditionNotBool (actualValue, actualValueType) ->
+            [ ES.String "If condition must be a Bool, but got "
+              ES.ValueType actualValueType
+              ES.String " ("
+              ES.FullValue actualValue
+              ES.String ")" ]
+
+          | Match err ->
+            match err with
+            | MatchUnmatched -> [ ES.String "No matching case found"]
+
+          | ParseTimeNameResolution err ->
+            [ES.String (nameResolutionError err)]
+
+          | TypeNotFound name ->
+            [ ES.String "Type "
+              ES.TypeName name
+              ES.String " couldn't be found" ]
+          | ConstNotFound name ->
+            [ ES.String "Constant "
+              ES.ConstantName name
+              ES.String " couldn't be found" ]
+          | FnNotFound name ->
+            [ ES.String "Function "
+              ES.FunctionName name
+              ES.String " couldn't be found" ]
+
+          //| WrongNumberOfTypeArgsForType of fn: FQTypeName.FQTypeName * expected: Int64 * actual: Int64
+
+          | Record err ->
+            match err with
+            | CreationEmptyKey -> [ ES.String "Empty key in record creation" ]
+            | CreationMissingField fieldName ->
+              [ ES.String "Missing field "
+                ES.FieldName fieldName
+                // ES.String " in "
+                // ES.TypeName typeName
+                ]
+            | CreationDuplicateField fieldName ->
+              [ ES.String "Duplicate field "
+                ES.FieldName fieldName
+                // ES.String " in "
+                // ES.TypeName typeName
+                ]
+            | CreationTypeNotRecord name ->
+              [ ES.String "Expected a record, but "
+                ES.TypeName name
+                ES.String " is not one" ]
+            | CreationFieldNotExpected fieldName ->
+              [ ES.String "No field named "
+                ES.FieldName fieldName
+                // ES.String " in "
+                // ES.TypeName typeName
+                // ES.String " record"
+                ]
+            | CreationFieldOfWrongType (fieldName,  expectedType,  actualType) ->
+              [ ES.String "Expected "
+                ES.ValueType expectedType
+                ES.String " for field "
+                ES.FieldName fieldName
+                ES.String ", but got "
+                ES.ValueType actualType ]
+
+            | FieldAccessFieldNotFound fieldName ->
+              [ ES.String "Unexpected field "
+                ES.FieldName fieldName
+                // ES.String " in "
+                // ES.TypeName typeName
+                ]
+            | FieldAccessNotRecord actualType ->
+              [ ES.String "Attempting to access field "
+                //ES.FieldName fieldName
+                ES.String " of a "
+                ES.ValueType vt
+                ES.String " (field access only works with records)" ]
+
+            | UpdateNotRecord actualType ->
+              [ ES.String "Cannot apply a record-update to a "
+                ES.ValueType actualType ]
+            | UpdateFieldOfWrongType(fieldName, expectedType,  actualType) ->
+              [ ES.String "Expected "
+                ES.TypeReference expectedType
+                ES.String " for field "
+                ES.FieldName fieldName
+                ES.String ", but got "
+                ES.ValueType actualType ]
+            | UpdateFieldNotExpected fieldName ->
+              [ ES.String "No field named "
+                ES.FieldName fieldName
+                // ES.String " in "
+                // ES.TypeName typeName
+                // ES.String " record"
+                ]
+
+
+          | Enum err ->
+            match err with
+            | ConstructionWrongNumberOfFields (typeName, caseName, expectedFieldCount, actualFieldCount) ->
+              [ ES.String "Expected "
+                ES.Int expectedFieldCount
+                ES.String " fields in "
+                ES.TypeName typeName
+                ES.String "."
+                ES.FieldName caseName
+                ES.String ", but got "
+                ES.Int actualFieldCount ]
+
+            | ConstructionCaseNotFound (typeName, caseName) ->
+              [ ES.String "There is no case named "
+                ES.FieldName caseName
+                ES.String " in "
+                ES.TypeName typeName ]
+
+            | ConstructionFieldOfWrongType (caseName, fieldIndex, expectedType, actualType, actualValue) ->
+              [ ES.String "Expected "
+                ES.TypeReference expectedType
+                ES.String " for field "
+                ES.Int fieldIndex
+                ES.String " in "
+                ES.FieldName caseName
+                ES.String ", but got "
+                ES.ValueType actualType
+                ES.String " ("
+                ES.FullValue actualValue
+                ES.String ")" ]
+
+          | Unwrap err ->
+            match err with
+            | GotNone -> [ ES.String "Cannot unwrap None" ]
+            | GotError err -> [ ES.String "Cannot unwrap Error: "; ES.FullValue err ]
+            | NonOptionOrResult actual -> [ ES.String "Can only unwrap Options and Results, yet got "; ES.FullValue actual ]
+            | MultipleArgs args ->
+              [ ES.String "Unwrap expects a single argument, but got "
+                ES.Int(Stdlib.List.length args) ]
+
+          | WrongNumberOfTypeArgsForFn (fn, expected, actual) ->
+            [ ES.FunctionName fn
+              ES.String " expects "
+              ES.Count(expected, ES.String "type argument", ES.String "type arguments")
+              ES.String ", but got "
+              ES.Count(actual, ES.String "type argument", ES.String "type arguments") ]
+
+          | TooManyArgsForFn (fn, expected, actual) ->
+            [ ES.FunctionName fn
+              ES.String " expects "
+              ES.Count(expected, ES.String "argument", ES.String "arguments")
+              ES.String ", but got "
+              ES.Count(actual, ES.String "argument", ES.String "arguments") ]
+
+          //| TooManyArgsForLambda of lambdaExprId: id * expected: Int64 * actual: Int64
+          | TooManyArgsForLambda (_lambdaExprId, expected, actual) ->
+            [ ES.String "Lambda expects "
+              ES.Count(expected, ES.String "argument", ES.String "arguments")
+              ES.String ", but got "
+              ES.Count(actual, ES.String "argument", ES.String "arguments") ]
+
+          | ExpectedApplicableButNot (actualTyp, actualValue) ->
+            [ ES.String "Expected something we could apply to, such as a lambda or function, but got "
+              ES.IndefiniteArticle
+              ES.ValueType actualTyp
+              ES.String " ("
+              ES.FullValue actualValue
+              ES.String ")" ]
+
+          | Json err ->
+            match err with
+            | UnsupportedType typ ->
+              [ ES.String "Unsupported type in JSON: "
+                ES.TypeReference typ ]
+            | CannotSerializeTypeValueCombo (dv, typ) ->
+              [ ES.String "Cannot serialize "
+                ES.FullValue dv
+                ES.String " as a "
+                ES.TypeReference typ ]
+
+          | CLI err ->
+            match err with
+            | NoExpressionsToExecute -> [ ES.String "TODO NoExpressionsToExecute" ]
+            | NonIntReturned actuallyReturnedOfDval -> [ ES.String "TODO NonIntReturned" ]
+
+          // //| CannotMergeValues of left: ValueType * right: ValueType
+
+          // //| TypeChecker of err: TypeCheckers.Error
+
+          // //| UncaughtException of reference: Uuid
+
+
+          // // CLEANUP when we bring lambda->sql compilation back
+          // // | SqlCompilerRuntimeError err ->
+          // //   let sqlErrorTemplate =
+          // //     "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably fast.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Darklang's functionality, but will be expanding it in the future.\n\nSome Darklang code is not supported in DB::query lambdas for now, and some of it won't be supported because it's an odd thing to do in a datastore query. If you think your operation should be supported, let us know in #general in Discord.\n\n  Error: "
+          // //   let innerOutput = toSegments err
+          // //   { innerOutput with summary = Stdlib.List.append [ (ES.String sqlErrorTemplate) ] innerOutput.summary }
+
+          | unhandled ->
+            let serialized = Builtin.jsonSerialize<LanguageTools.RuntimeTypes.RuntimeError.Error> unhandled
+            [ ES.String $"TODO: {serialized}" ]
+
+
+
+        let toString (e: LanguageTools.RuntimeTypes.RuntimeError.Error) : String =
+          e |> toSegments |> segmentsToString
+
+
+        type ErrorMessage = ErrorString of String
+
+        let toErrorMessage
+          (e: LanguageTools.RuntimeTypes.RuntimeError.Error)
+          : ErrorMessage =
+          ErrorMessage.ErrorString(toString e)
+
+
+(*
+module Execution =
+  let toSegments (e: Error) : ErrorOutput =
+    match e with
+    | WrongNumberOfFnArgs(fn,
+                          expectedTypeArgs,
+                          expectedArgs,
+                          actualTypeArgs,
+                          actualArgs) ->
+      [ ES.FunctionName fn
+        ES.String " has "
+        ES.Count(
+          expectedTypeArgs,
+          ES.String "type parameter",
+          ES.String "type parameters"
+        )
+        ES.String " and "
+        ES.Count(
+          expectedArgs,
+          ES.String "parameter",
+          ES.String "parameters"
+        )
+        ES.String ", but here was called with "
+        ES.Count(
+          actualTypeArgs,
+          ES.String "type argument",
+          ES.String "type arguments"
+        )
+        ES.String " and "
+        ES.Count(
+          actualArgs,
+          ES.String "argument",
+          ES.String "arguments"
+        )
+        ES.String "." ]
+*)
+
+
+(*
+module Json =
+  match e with
+  | UnsupportedType typ ->
+    let summary =
+      [ ES.String "Unsupported type in JSON: "
+        ES.TypeReference typ ]
+
+    let extraExplanation =
+      let parse =
+        RuntimeTypes.FQFnName.FQFnName.Builtin(
+          RuntimeTypes.FQFnName.Builtin { name = "jsonParse"; version = 0L }
+        )
+
+      let serialize =
+        RuntimeTypes.FQFnName.FQFnName.Builtin(
+          RuntimeTypes.FQFnName.Builtin { name = "jsonSerialize"; version = 0L }
+        )
+
+      [ ES.String
+          ". Some types are not supported in Json serialization, and cannot be used as arguments to "
+        ES.FunctionName parse
+        ES.String " or "
+        ES.FunctionName serialize ]
+
+    ErrorOutput
+      { summary = summary
+        extraExplanation = extraExplanation
+        actual = [ ES.TypeReference typ ]
+        expected = [ ES.String "A supported type (Int64, String, etc)" ] }
+*)
+
+
+(*
+module NameResolution =
+  let toSegments (e: Error) : ErrorOutput =
+    match e.errorType with
+    | NotFound names ->
+      let nameType =
+        match e.nameType with
+        | Function -> "function"
+        | Type -> "type"
+        | Constant -> "constant"
+
+      ErrorOutput
+        { summary =
+            [ ES.String $"There is no {nameType} named "
+              ES.InlineVarName( Stdlib.String.join names "." ) ]
+          extraExplanation = []
+          actual = []
+          expected = [] }
+
+    | MissingEnumModuleName caseName ->
+      [ ES.String "Missing type name for enum case"
+        ES.String ": "
+        ES.String caseName ]
+
+    | InvalidPackageName names ->
+      [ ES.String "Invalid package name "
+        ES.InlineVarName(Stdlib.String.join names ".") ]
+
+    | ExpectedRecordButNot packageTypeID ->
+      [ ES.String "Expected a record but "
+        ES.TypeName(RuntimeTypes.FQTypeName.FQTypeName.Package packageTypeID)
+        ES.String " is an enum" ]
+*)
+
+
+
+(*
+module TypeChecker =
+  module Error =
+    /// Return the segments describing the context as a short name, used in the description of errors
+    let contextSummary (context: Context) : List<ErrorSegment> =
+      match context with
+      | FunctionCallParameter(fnName, parameter, paramIndex) ->
+        [ ES.FunctionName fnName
+          ES.String "'s "
+          ES.Ordinal(paramIndex + 1L)
+          ES.String " argument ("
+          ES.ParamName parameter.name
+          ES.String ")" ]
+
+      | FunctionCallResult(fnName, returnType) ->
+        [ ES.FunctionName fnName
+          ES.String "'s return value" ]
+
+
+      | RecordField(recordType, fieldName, _) ->
+        [ ES.TypeName recordType
+          ES.String "'s "
+          ES.FieldName fieldName
+          ES.String " field" ]
+
+      // | DictKey(key, _) ->
+      //   let typeName =
+      //     FQName.BuiltIn { name = TypeName.TypeName "Dict"; modules = []; version = 0 }
+      //   [ TypeName typeName; String "'s "; FieldName key; String " value" ]
+
+      | EnumField(enumType, caseName, fieldIndex, _, _) ->
+        [ ES.TypeName enumType
+          ES.String "."
+          ES.InlineFieldName caseName
+          ES.String "'s "
+          ES.Ordinal(fieldIndex + 1L)
+          ES.String " argument" ]
+
+      | DBSchemaType(dbName, expectedType) ->
+        [ ES.String "DB "
+          ES.DBName dbName
+          ES.String "'s value" ]
+
+      | DBQueryVariable(varName, _) ->
+        [ ES.String "Variable "
+          ES.VarName varName ]
+
+      | TupleIndex(index, typ, parent) ->
+        let rootContext = rootContext parent
+
+        [ String "In " ]
+        @ contextSummary rootContext
+        @ [ String ", the nested value "; VarName(valuePath context) ]
+
+      | ListIndex(index, typ, parent) ->
+        let rootContext = rootContext parent
+
+        [ String "In " ]
+        @ contextSummary rootContext
+        @ [ String ", the nested value "; VarName(valuePath context) ]
+
+
+
+    let rec contextAsActualExpected
+      (argument: RuntimeTypes.Dval.Dval)
+      (context: Context)
+      : List<ErrorSegment> * List<ErrorSegment> =
+
+      // RTETODO: We do actual and expected in the same function so that we can display
+      // them the same way. This hasn't been ported for all Context types, but
+      // should be.
+      let defaultActual =
+        [ ES.IndefiniteArticle
+          ES.TypeOfValue argument
+          ES.String ": "
+          ES.FullValue argument ]
+
+      match context with
+      | FunctionCallParameter(fnName, parameter, paramIndex) ->
+        let segments =
+          [ ES.String "("
+            ES.InlineParamName parameter.name
+            ES.String ": "
+            ES.TypeReference parameter.typ
+            ES.String ")" ]
+
+        (defaultActual, segments)
+
+
+      | FunctionCallResult(fnName, returnType) ->
+        // format:
+        // Option<String>
+        let segment = [ ES.TypeReference returnType ]
+        (defaultActual, segment)
+
+
+      | RecordField(recordType, fieldName, fieldType) ->
+        // format:
+        // ({ name : string; ... }) // some description
+
+        // TODO: fetch the type and lookup the field definition as a comment
+        let comment = []
+        // let comment =
+        //   if fieldDef.description = "" then
+        //     []
+        //   else
+        //     [ String " /// "; Description fieldDef.description ]
+
+        let segment =
+          Stdlib.List.append
+            [ ES.String "({ "
+              ES.InlineFieldName fieldName
+              ES.String ": "
+              ES.TypeReference fieldType
+              ES.String "; ... })" ]
+            comment
+
+        (defaultActual, segment)
+
+
+      | DictKey(key, typ) ->
+        // format:
+        // ({ "name" : String; ... })
+        let segment =
+          [ ES.String "({ "
+            ES.InlineFieldName key
+            ES.String ": "
+            ES.TypeReference typ
+            ES.String "; ... })" ]
+
+        defaultActual, segment
+
+
+      | EnumField(enumType, caseName, fieldIndex, fieldCount, fieldType) ->
+        // format:
+        //   Ok (..., string, ...) // some description
+        // RTETODO: extract description from the type definition later
+
+        let prefix =
+          if fieldIndex == 0L then
+            []
+          else
+            [ ES.String "..., " ]
+
+        let suffix =
+          if fieldIndex == fieldCount - 1L then
+            []
+          else
+            [ ES.String ", ..." ]
+
+        let openParen =
+          if fieldCount > 0L then
+            [ ES.String "(" ]
+          else
+            []
+
+        let closeParen =
+          if fieldCount > 0L then
+            [ ES.String ")" ]
+          else
+            []
+
+        //CLEANUP de-duplicate these 2 segments a bit
+        let fieldTypeSegment =
+          [ ES.ShortTypeName enumType
+            ES.String "."
+            ES.InlineFieldName caseName
+            ES.String " " ]
+          |> Stdlib.List.append openParen
+          |> Stdlib.List.append prefix
+          |> Stdlib.List.append
+            [ ES.TypeReference fieldType ]
+          |> Stdlib.List.append suffix
+          |> Stdlib.List.append closeParen
+
+        let argumentSegment =
+          [ ES.ShortTypeName enumType
+            ES.String "."
+            ES.InlineFieldName caseName
+            ES.String " " ]
+          |> Stdlib.List.append openParen
+          |> Stdlib.List.append prefix
+          |> Stdlib.List.append
+            [ ES.TypeOfValue argument ]
+          |> Stdlib.List.append suffix
+          |> Stdlib.List.append closeParen
+
+        (argumentSegment, fieldTypeSegment)
+
+
+      // | DBSchemaType(dbName, expectedType) ->
+      //   let segment = [ ES.TypeReference expectedType ]
+      //   (defaultActual, segment)
+
+
+      // | DBQueryVariable(varName, expected) ->
+      //   let segment =
+      //     [ ES.String "("
+      //       ES.InlineVarName varName
+      //       ES.String ": "
+      //       ES.TypeReference expected
+      //       ES.String ")" ]
+
+      //   (defaultActual, segment)
+
+      | ListIndex(index, typ, parent) ->
+        defaultActual, [ ES.TypeReference typ ]
+
+      | TupleIndex(index, typ, parent) ->
+        defaultActual, [ ES.TypeReference typ ]
+
+
+    let contextVerb (context: Context) : String =
+      match context with
+      | FunctionCallParameter _ -> "passed"
+      | FunctionCallResult _ -> "returned"
+      | RecordField _ -> "passed"
+      | DictKey _ -> "passed"
+      | EnumField _ -> "passed"
+      | DBSchemaType _ -> "passed"
+      | DBQueryVariable _ -> "passed"
+      | ListIndex _ -> "passed"
+      | TupleIndex _ -> "passed"
+
+    let toSegments (e: Error) : REErrorOutput =
+      match e.errorType with
+      | ValueNotExpectedType(argument, expected) ->
+        let summary =
+          Stdlib.List.append
+            (contextSummary e.context)
+            [ ES.String " should be "
+              ES.IndefiniteArticle
+              ES.TypeReference expected ]
+
+        let extraExplanation =
+          [ ES.String ". However, "
+            ES.IndefiniteArticle
+            ES.TypeOfValue argument
+            ES.String " ("
+            ES.InlineValue argument
+            ES.String ") was "
+            ES.String(contextVerb e.context)
+            ES.String " instead." ]
+
+        let (actual, expected) = contextAsActualExpected argument e.context
+
+        ErrorOutput
+          { summary = summary
+            extraExplanation = extraExplanation
+            actual = actual
+            expected = expected }
+
+      | _ ->
+        [ ES.String "RTETODO typeChecker.toSegments" ]
+*)

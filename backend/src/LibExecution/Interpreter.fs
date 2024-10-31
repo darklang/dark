@@ -163,7 +163,7 @@ let rec evalConst (threadID : ThreadID) (c : Const) : Dval =
 
   | CEnum(Error nre, _caseName, _fields) ->
     // TODO: ConstNotFound or something
-    raiseRTE threadID (RuntimeError.NameResolution nre)
+    raiseRTE threadID (RuntimeError.ParseTimeNameResolution nre)
 
 
 let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
@@ -228,12 +228,6 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
         | CopyVal(copyTo, copyFrom) -> registers[copyTo] <- registers[copyFrom]
 
         | Or(createTo, left, right) ->
-          // match registers[left], registers[right] with
-          // | DBool l, DBool r -> registers[createTo] <- DBool(l || r)
-          // | l, r ->
-          //   RTE.Bools.OrOnlySupportsBooleans(Dval.toValueType l, Dval.toValueType r)
-          //   |> RTE.Bool
-          //   |> raiseRTE
           match registers[left] with
           | DBool true -> registers[createTo] <- DBool true
           | DBool false ->
@@ -294,7 +288,11 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
             | Interpolated reg ->
               match registers[reg] with
               | DString s -> sb.Append s |> ignore<System.Text.StringBuilder>
-              | _ -> raiseRTE (RTE.String RTE.Strings.Error.InvalidStringAppend))
+              | dv ->
+                let vt = Dval.toValueType dv
+                raiseRTE (
+                  RTE.String(RTE.Strings.Error.NonStringInInterpolation(vt, dv))
+                ))
 
           registers[targetReg] <- DString(sb.ToString())
 
@@ -322,20 +320,16 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
           else
             counter <- counter + failJump
 
-        | MatchUnmatched -> raiseRTE RTE.MatchUnmatched
+        | MatchUnmatched -> raiseRTE (RTE.Match RTE.Matches.MatchUnmatched)
 
 
         // == Working with Collections ==
         | CreateList(listReg, itemsToAddRegs) ->
-          // CLEANUP reference registers directly in DvalCreator.list,
-          // so we don't have to copy things
           let itemsToAdd = itemsToAddRegs |> List.map (fun r -> registers[r])
           registers[listReg] <-
             TypeChecker.DvalCreator.list vm.threadID VT.unknown itemsToAdd
 
         | CreateDict(dictReg, entries) ->
-          // CLEANUP reference registers directly in DvalCreator.dict,
-          // so we don't have to copy things
           let entries =
             entries |> List.map (fun (key, valueReg) -> (key, registers[valueReg]))
           registers[dictReg] <-
@@ -350,35 +344,48 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
 
         // == Working with Custom Data ==
         // -- Records --
-        | CreateRecord(recordReg, typeName, typeArgs, fields) ->
+        | CreateRecord(recordReg, sourceTypeName, typeArgs, fields) ->
           let fields =
             fields |> List.map (fun (name, valueReg) -> (name, registers[valueReg]))
 
-          let! record =
+
+          // What if we typeArgs but `(String, ValueType)` instead? but String only for unknowns... hmm should Uknown have a String in it? no, but maybe another thing would be useful.
+
+          let! (record, _updatedTst) =
             TypeChecker.DvalCreator.record
-              vm.threadID
               exeState.types
-              typeName
+              vm.threadID
+              currentFrame.typeSymbolTable
+              sourceTypeName
               typeArgs
               fields
 
+          //currentFrame.typeSymbolTable <- updatedTst
           registers[recordReg] <- record
 
 
-        | CloneRecordWithUpdates(targetReg, originalRecordReg, updates) ->
+        | CloneRecordWithUpdates(targetReg, originalRecordReg, fieldUpdates) ->
           let originalRecord = registers[originalRecordReg]
 
           match originalRecord with
-          | DRecord(_, typeName, typeArgs, originalFields) ->
-            // TODO: type-saftety
-            let fields =
-              List.fold
-                (fun acc (fieldName, valueReg) ->
-                  Map.add fieldName (registers[valueReg]) acc)
-                originalFields
-                updates
+          | DRecord(sourceTypeName, resolvedTypeName, typeArgs, originalFields) ->
+            let fieldUpdates =
+              fieldUpdates
+              |> List.map (fun (name, valueReg) -> (name, registers[valueReg]))
 
-            registers[targetReg] <- DRecord(typeName, typeName, typeArgs, fields)
+            let! (updatedRecord, _updatedTst) =
+              TypeChecker.DvalCreator.recordUpdate
+                exeState.types
+                vm.threadID
+                currentFrame.typeSymbolTable
+                sourceTypeName
+                resolvedTypeName
+                typeArgs
+                originalFields
+                fieldUpdates
+
+            //currentFrame.typeSymbolTable <- updatedTst
+            registers[targetReg] <- updatedRecord
 
           | dv ->
             Dval.toValueType dv
@@ -401,19 +408,22 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
             |> RTE.Record
             |> raiseRTE
 
+
         // -- Enums --
         | CreateEnum(enumReg, typeName, typeArgs, caseName, fields) ->
-          // TODO: safe dval creation
           let fields = fields |> List.map (fun (valueReg) -> registers[valueReg])
-          let! enum =
+          let! (newEnum, _updatedTst) =
             TypeChecker.DvalCreator.enum
-              vm.threadID
               exeState.types
+              vm.threadID
+              currentFrame.typeSymbolTable
               typeName
               typeArgs
               caseName
               fields
-          registers[enumReg] <- enum
+
+          //currentFrame.typeSymbolTable <- updatedTst
+          registers[enumReg] <- newEnum
 
 
         | LoadConstant(createTo, name) ->
@@ -441,6 +451,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                 impl.registersToCloseOver
                 |> List.map (fun (parentReg, childReg) ->
                   childReg, registers[parentReg])
+              typeSymbolTable = currentFrame.typeSymbolTable
               argsSoFar = [] }
             |> AppLambda
             |> DApplicable
@@ -475,6 +486,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
 
           match applicable with
           | AppLambda applicableLambda ->
+            let exprId = applicableLambda.exprId
             let foundLambda =
               match
                 Map.tryFind
@@ -511,13 +523,13 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                     |> List.iter (fun (reg, value) -> r[reg] <- value)
 
                     r
+                  typeSymbolTable = applicableLambda.typeSymbolTable // TODO do we need to merge any into this?
                   context = Lambda(currentFrame.context, applicableLambda.exprId) }
 
               frameToPush <- Some newFrame
 
             else if argCount > paramCount then
-              // TODO
-              RTE.MatchUnmatched |> raiseRTE
+              RTE.TooManyArgsForLambda(exprId, paramCount, argCount) |> raiseRTE
             else
               registers[putResultIn] <-
                 { applicableLambda with argsSoFar = allArgs }
@@ -532,6 +544,10 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
               match Map.find builtin exeState.fns.builtIn with
               | None -> return RTE.FnNotFound(FQFnName.Builtin builtin) |> raiseRTE
               | Some fn ->
+                let typeArgs =
+                  // TODO: probably prevent this -- type args should be applied all at once
+                  // _AND_, enforce that no type args are applied after any args are applied
+                  applicable.typeArgs @ typeArgs
                 let allArgs = applicable.argsSoFar @ newArgDvals
 
                 let argCount = List.length allArgs
@@ -543,22 +559,28 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
 
                 let! result =
                   uply {
-                    if argCount = paramCount then
-                      let! result = fn.fn (exeState, vm, [], allArgs)
+                    if argCount = paramCount && typeArgCount = typeParamCount then
+                      let! result = fn.fn (exeState, vm, typeArgs, allArgs)
                       return result
                     else if argCount > paramCount then
                       return
-                        RTE.TooManyArgs(
+                        RTE.TooManyArgsForFn(
                           FQFnName.Builtin fn.name,
-                          typeParamCount,
-                          typeArgCount,
                           paramCount,
                           argCount
                         )
                         |> raiseRTE
+                    else if typeArgCount <> typeParamCount then
+                      return
+                        RTE.WrongNumberOfTypeArgsForFn(
+                          FQFnName.Builtin fn.name,
+                          typeParamCount,
+                          typeArgCount
+                        )
+                        |> raiseRTE
                     else
                       return
-                        { applicable with argsSoFar = allArgs }
+                        { applicable with typeArgs = typeArgs; argsSoFar = allArgs }
                         |> AppNamedFn
                         |> DApplicable
                   }
@@ -578,7 +600,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                 let typeArgCount = List.length typeArgs
                 // TODO: error on these not matching^, too.
 
-                if argCount = paramCount then
+                if argCount = paramCount && typeArgCount = typeParamCount then
                   frameToPush <-
                     { id = guuid ()
                       parent = Some(vm.currentFrameID, putResultIn, counter + 1)
@@ -587,16 +609,18 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                         let r = Array.zeroCreate fn.body.registerCount
                         allArgs |> List.iteri (fun i arg -> r[i] <- arg)
                         r
+                      typeSymbolTable = currentFrame.typeSymbolTable // copy. probably also need to _extend_ here.
                       context = PackageFn fn.id }
                     |> Some
 
                 else if argCount > paramCount then
-                  RTE.TooManyArgs(
+                  RTE.TooManyArgsForFn(FQFnName.Package fn.id, paramCount, argCount)
+                  |> raiseRTE
+                else if typeArgCount <> typeParamCount then
+                  RTE.WrongNumberOfTypeArgsForFn(
                     FQFnName.Package fn.id,
                     typeParamCount,
-                    typeArgCount,
-                    paramCount,
-                    argCount
+                    typeArgCount
                   )
                   |> raiseRTE
                 else
@@ -605,7 +629,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                     |> AppNamedFn
                     |> DApplicable
 
-        | RaiseNRE nre -> raiseRTE (RTE.NameResolution nre)
+        | RaiseNRE nre -> raiseRTE (RTE.ParseTimeNameResolution nre)
 
         counter <- counter + 1
 
@@ -634,5 +658,5 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
     // If we've reached the end of the instructions, return the result
     match finalResult with
     | Some dv -> return dv
-    | None -> return raiseRTE RTE.MatchUnmatched // TODO better error
+    | None -> return raiseRTE (RTE.UncaughtException System.Guid.Empty) // TODO better error
   }

@@ -29,25 +29,25 @@ let parseError (err: ParseError) : Stdlib.Result.Result<Json, ParseError> =
 // tests
 module Null =
   format Json.Null = "null"
-// parse "null" = parsedOk Json.Null
+  // parse "null" = parsedOk Json.Null
 
-// parse "NULL" = parseError ParseError.NotJson
-// parse "Null" = parseError ParseError.NotJson
-// parse "unit" = parseError ParseError.NotJson
-// parse "()" = parseError ParseError.NotJson
-// parse "" = parseError ParseError.NotJson
+  // parse "NULL" = parseError ParseError.NotJson
+  // parse "Null" = parseError ParseError.NotJson
+  // parse "unit" = parseError ParseError.NotJson
+  // parse "()" = parseError ParseError.NotJson
+  // parse "" = parseError ParseError.NotJson
 
 
 module Bool =
   format (Json.Bool true) = "true"
   format (Json.Bool false) = "false"
-// parse "true" = parsedOk (Json.Bool true)
-// parse "false" = parsedOk (Json.Bool false)
+  // parse "true" = parsedOk (Json.Bool true)
+  // parse "false" = parsedOk (Json.Bool false)
 
-// parse "False" = parseError ParseError.NotJson
-// parse "f" = parseError ParseError.NotJson
-// parse "True" = parseError ParseError.NotJson
-// parse "t" = parseError ParseError.NotJson
+  // parse "False" = parseError ParseError.NotJson
+  // parse "f" = parseError ParseError.NotJson
+  // parse "True" = parseError ParseError.NotJson
+  // parse "t" = parseError ParseError.NotJson
 
 
 module Number =

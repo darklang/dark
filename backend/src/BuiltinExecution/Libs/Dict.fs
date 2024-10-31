@@ -106,7 +106,7 @@ let fns : List<BuiltInFn> =
             | DTuple(DString k, value, []) -> Map.add k value acc
             | _ ->
               Exception.raiseInternal
-                "Not string tuples in fromListOverwritingDuplicates"
+                "Not string tuples in fromListOverwritingDuplicates" // RTE bad fn arg
                 [ "dval", dv ]
 
           List.fold f Map.empty l
@@ -145,7 +145,7 @@ let fns : List<BuiltInFn> =
             | Some acc, DTuple(DString k, value, []) -> Some(Map.add k value acc)
             | Some _, DTuple(_, _, [])
             | Some _, _ ->
-              Exception.raiseInternal "Not string tuples in fromList" [ "dval", dv ]
+              Exception.raiseInternal "Not string tuples in fromList" [ "dval", dv ] // RTE bad fn arg
 
           let result = List.fold f (Some Map.empty) l
 

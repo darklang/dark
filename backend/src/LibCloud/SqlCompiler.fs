@@ -221,7 +221,7 @@ let typecheckDval
   (types : Types)
   (dval : Dval)
   (expectedType : TypeReference)
-  =
+  : Ply<Result<TypeSymbolTable, RTE.TypeCheckers.Error>> =
   uply {
     let context = TypeChecker.DBQueryVariable(name, expectedType)
     match! TypeChecker.unify context types Map.empty expectedType dval with
@@ -1197,7 +1197,7 @@ let compileLambda
 
 
       // Resolve typeArgs/aliases in the definition
-      let! dbType = getTypeReferenceFromAlias types dbType
+      let! dbType = unwrapAlias types dbType
       match dbType with
       | Ok dbType ->
         let! compiled =

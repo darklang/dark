@@ -1,24 +1,21 @@
 Stdlib.UInt64.max_v0 5UL 6UL = 6UL
 Stdlib.UInt64.max_v0 10UL 1UL = 10UL
 
-
 Stdlib.UInt64.min_v0 5UL 6UL = 5UL
 Stdlib.UInt64.min_v0 10UL 10UL = 10UL
 Stdlib.UInt64.min_v0 18446744073709551615UL 0UL = 0UL
-
 
 Stdlib.UInt64.clamp_v0 1UL 2UL 1UL = 1UL
 Stdlib.UInt64.clamp_v0 3UL 0UL 2UL = 2UL
 Stdlib.UInt64.clamp_v0 100UL 0UL 0UL = 0UL
 Stdlib.UInt64.clamp_v0 100UL 1UL 0UL = 1UL
 
-
 Stdlib.UInt64.mod_v0 15UL 5UL = 0UL
 Stdlib.UInt64.mod_v0 15UL 6UL = 3UL
 Stdlib.UInt64.mod_v0 0UL 15UL = 0UL
 Stdlib.UInt64.mod_v0 9999999999998UL 3UL = 2UL
 
-// Stdlib.UInt64.mod_v0 5UL 0UL = Builtin.testDerrorMessage "Zero modulus"
+Stdlib.UInt64.mod_v0 5UL 0UL = Builtin.testDerrorMessage "A divisor of zero is not allowed"
 
 
 Stdlib.UInt64.power_v0 8UL 5UL = 32768UL
@@ -27,7 +24,7 @@ Stdlib.UInt64.power_v0 0UL 0UL = 1UL
 Stdlib.UInt64.power_v0 1UL 0UL = 1UL
 Stdlib.UInt64.power_v0 1000UL 0UL = 1UL
 
-// Stdlib.UInt64.power_v0 200UL 20UL = Builtin.testDerrorMessage "Out of range"
+Stdlib.UInt64.power_v0 200UL 20UL = Builtin.testDerrorMessage "Out of range"
 
 Stdlib.UInt64.power_v0 200UL 7UL = 12800000000000000UL
 
@@ -66,11 +63,9 @@ Stdlib.UInt64.add_v0 1UL 0UL = 1UL
 Stdlib.UInt64.add_v0 18446744073709551614UL 1UL = 18446744073709551615UL
 
 // Overflow tests
-// Stdlib.UInt64.add_v0 18446744073709551615UL 1UL = Builtin.testDerrorMessage
-//   "Out of range"
+Stdlib.UInt64.add_v0 18446744073709551615UL 1UL = Builtin.testDerrorMessage "Out of range"
 
-// Stdlib.UInt64.add_v0 55UL 18446744073709551615UL = Builtin.testDerrorMessage
-//   "Out of range"
+Stdlib.UInt64.add_v0 55UL 18446744073709551615UL = Builtin.testDerrorMessage "Out of range"
 
 
 Stdlib.UInt64.subtract_v0 10UL 9UL = 1UL
@@ -80,14 +75,13 @@ Stdlib.UInt64.subtract_v0 1UL 0UL = 1UL
 Stdlib.UInt64.multiply_v0 8UL 8UL = 64UL
 Stdlib.UInt64.multiply_v0 5145UL 5145UL = 26471025UL
 
-// Stdlib.UInt64.multiply_v0 9223372036854775808UL 2UL = Builtin.testDerrorMessage
-//   "Out of range"
+Stdlib.UInt64.multiply_v0 9223372036854775808UL 2UL = Builtin.testDerrorMessage "Out of range"
 
 Stdlib.UInt64.divide_v0 10UL 5UL = 2UL
 Stdlib.UInt64.divide_v0 17UL 3UL = 5UL
 Stdlib.UInt64.divide_v0 0UL 1UL = 0UL
 
-// Stdlib.UInt64.divide_v0 1UL 0UL = Builtin.testDerrorMessage "Division by zero"
+Stdlib.UInt64.divide_v0 1UL 0UL = Builtin.testDerrorMessage "Division by zero"
 
 (Stdlib.List.range_v0 1L 5L)
 |> Stdlib.List.map_v0 (fun x -> Stdlib.UInt64.random 1UL 2UL)
@@ -123,76 +117,49 @@ Stdlib.UInt64.divide_v0 0UL 1UL = 0UL
 
 Stdlib.UInt64.sum_v0 [ 1UL; 2UL ] = 3UL
 
-// Stdlib.UInt64.parse_v0 "0" = Stdlib.Result.Result.Ok 0UL
+// parses OK
+Stdlib.UInt64.parse_v0 "0" = Stdlib.Result.Result.Ok 0UL
 
-// Stdlib.UInt64.parse_v0 "1" = Stdlib.Result.Result.Ok 1UL
+Stdlib.UInt64.parse_v0 "1" = Stdlib.Result.Result.Ok 1UL
 
-// Stdlib.UInt64.parse_v0 " 1" = Stdlib.Result.Result.Ok 1UL
+Stdlib.UInt64.parse_v0 " 1" = Stdlib.Result.Result.Ok 1UL
 
-// Stdlib.UInt64.parse_v0 "1 " = Stdlib.Result.Result.Ok 1UL
+Stdlib.UInt64.parse_v0 "1 " = Stdlib.Result.Result.Ok 1UL
 
-// Stdlib.UInt64.parse_v0 "+1" = Stdlib.Result.Result.Ok 1UL
+Stdlib.UInt64.parse_v0 "+1" = Stdlib.Result.Result.Ok 1UL
 
-// Stdlib.UInt64.parse_v0 " +1 " = Stdlib.Result.Result.Ok 1UL
+Stdlib.UInt64.parse_v0 " +1 " = Stdlib.Result.Result.Ok 1UL
 
-// Stdlib.UInt64.parse_v0 "-1" = Stdlib.Result.Result.Error
-//   Stdlib.UInt64.ParseError.OutOfRange
+Stdlib.UInt64.parse_v0 "-1" = Stdlib.Result.Result.Error
+  Stdlib.UInt64.ParseError.OutOfRange
 
-// Stdlib.UInt64.parse_v0 "078" = Stdlib.Result.Result.Ok 78UL // "octal" format ignored
+Stdlib.UInt64.parse_v0 "078" = Stdlib.Result.Result.Ok 78UL // "octal" format ignored
 
-// Stdlib.UInt64.parse_v0 "-00001" = Stdlib.Result.Result.Error
-//   Stdlib.UInt64.ParseError.OutOfRange
+Stdlib.UInt64.parse_v0 "-00001" = Stdlib.Result.Result.Error
+  Stdlib.UInt64.ParseError.OutOfRange
 
-// Stdlib.UInt64.parse_v0 "-10001" = Stdlib.Result.Result.Error
-//   Stdlib.UInt64.ParseError.OutOfRange
+Stdlib.UInt64.parse_v0 "-10001" = Stdlib.Result.Result.Error
+  Stdlib.UInt64.ParseError.OutOfRange
 
-// Stdlib.UInt64.parse_v0 "18446744073709551615" = Stdlib.Result.Result.Ok
-//   18446744073709551615UL
 
-// Stdlib.UInt64.parse_v0 "18446744073709551616" = Stdlib.Result.Result.Error
-//   Stdlib.UInt64.ParseError.OutOfRange
+Stdlib.UInt64.parse_v0 "18446744073709551615" = Stdlib.Result.Result.Ok 18446744073709551615UL
+Stdlib.UInt64.parse_v0 "18446744073709551616" = Stdlib.Result.Result.Error Stdlib.UInt64.ParseError.OutOfRange
 
-// Stdlib.UInt64.parse_v0 "1 2 3" = Stdlib.Result.Result.Error
-//   Stdlib.UInt64.ParseError.BadFormat
 
-// Stdlib.UInt64.parse_v0 "+ 1" = Stdlib.Result.Result.Error
-//   Stdlib.UInt64.ParseError.BadFormat
-
-// Stdlib.UInt64.parse_v0 "- 1" = Stdlib.Result.Result.Error
-//   Stdlib.UInt64.ParseError.BadFormat
-
-// Stdlib.UInt64.parse_v0 "0xA" = Stdlib.Result.Result.Error
-//   Stdlib.UInt64.ParseError.BadFormat
-
-// Stdlib.UInt64.parse_v0 "0x123" = Stdlib.Result.Result.Error
-//   Stdlib.UInt64.ParseError.BadFormat
-
-// Stdlib.UInt64.parse_v0 "0b0100" = Stdlib.Result.Result.Error
-//   Stdlib.UInt64.ParseError.BadFormat
-
-// Stdlib.UInt64.parse_v0 "pi" = Stdlib.Result.Result.Error
-//   Stdlib.UInt64.ParseError.BadFormat
-
-// Stdlib.UInt64.parse_v0 "PACKAGE.Darklang.Stdlib.Math.pi" = Stdlib.Result.Result.Error
-//   Stdlib.UInt64.ParseError.BadFormat
-
-// Stdlib.UInt64.parse_v0 "1.23E+04" = Stdlib.Result.Result.Error
-//   Stdlib.UInt64.ParseError.BadFormat
-
-// Stdlib.UInt64.parse_v0 "18446744073709551616" = Stdlib.Result.Result.Error
-//   Stdlib.UInt64.ParseError.OutOfRange
-
-// Stdlib.UInt64.parse_v0 "" = Stdlib.Result.Result.Error
-//   Stdlib.UInt64.ParseError.BadFormat
-
-// Stdlib.UInt64.parse_v0 "1I" = Stdlib.Result.Result.Error
-//   Stdlib.UInt64.ParseError.BadFormat
-
-// Stdlib.UInt64.parse_v0 "one" = Stdlib.Result.Result.Error
-//   Stdlib.UInt64.ParseError.BadFormat
-
-// Stdlib.UInt64.parse_v0 "XIV" = Stdlib.Result.Result.Error
-//   Stdlib.UInt64.ParseError.BadFormat
+// bad format
+Stdlib.UInt64.parse_v0 "1 2 3" = Stdlib.Result.Result.Error Stdlib.UInt64.ParseError.BadFormat
+Stdlib.UInt64.parse_v0 "+ 1" = Stdlib.Result.Result.Error Stdlib.UInt64.ParseError.BadFormat
+Stdlib.UInt64.parse_v0 "- 1" = Stdlib.Result.Result.Error Stdlib.UInt64.ParseError.BadFormat
+Stdlib.UInt64.parse_v0 "0xA" = Stdlib.Result.Result.Error Stdlib.UInt64.ParseError.BadFormat
+Stdlib.UInt64.parse_v0 "0x123" = Stdlib.Result.Result.Error Stdlib.UInt64.ParseError.BadFormat
+Stdlib.UInt64.parse_v0 "0b0100" = Stdlib.Result.Result.Error Stdlib.UInt64.ParseError.BadFormat
+Stdlib.UInt64.parse_v0 "pi" = Stdlib.Result.Result.Error Stdlib.UInt64.ParseError.BadFormat
+Stdlib.UInt64.parse_v0 "PACKAGE.Darklang.Stdlib.Math.pi" = Stdlib.Result.Result.Error Stdlib.UInt64.ParseError.BadFormat
+Stdlib.UInt64.parse_v0 "1.23E+04" = Stdlib.Result.Result.Error Stdlib.UInt64.ParseError.BadFormat
+Stdlib.UInt64.parse_v0 "" = Stdlib.Result.Result.Error Stdlib.UInt64.ParseError.BadFormat
+Stdlib.UInt64.parse_v0 "1I" = Stdlib.Result.Result.Error Stdlib.UInt64.ParseError.BadFormat
+Stdlib.UInt64.parse_v0 "one" = Stdlib.Result.Result.Error Stdlib.UInt64.ParseError.BadFormat
+Stdlib.UInt64.parse_v0 "XIV" = Stdlib.Result.Result.Error Stdlib.UInt64.ParseError.BadFormat
 
 
 Stdlib.UInt64.toString 0UL = "0"
@@ -200,74 +167,46 @@ Stdlib.UInt64.toString 1UL = "1"
 Stdlib.UInt64.toString 18446744073709551615UL = "18446744073709551615"
 
 
-// Stdlib.UInt64.fromInt8_v0 0y = Stdlib.Option.Option.Some 0UL
-
-// Stdlib.UInt64.fromInt8_v0 1y = Stdlib.Option.Option.Some 1UL
-
-// Stdlib.UInt64.fromInt8_v0 127y = Stdlib.Option.Option.Some 127UL
-
-// Stdlib.UInt64.fromInt8_v0 -128y = Stdlib.Option.Option.None
+Stdlib.UInt64.fromInt8_v0 0y = Stdlib.Option.Option.Some 0UL
+Stdlib.UInt64.fromInt8_v0 1y = Stdlib.Option.Option.Some 1UL
+Stdlib.UInt64.fromInt8_v0 127y = Stdlib.Option.Option.Some 127UL
+Stdlib.UInt64.fromInt8_v0 -128y = Stdlib.Option.Option.None
 
 Stdlib.UInt64.fromUInt8_v0 0uy = 0UL
-
 Stdlib.UInt64.fromUInt8_v0 1uy = 1UL
-
 Stdlib.UInt64.fromUInt8_v0 255uy = 255UL
 
-// Stdlib.UInt64.fromInt16_v0 0s = Stdlib.Option.Option.Some 0UL
-
-// Stdlib.UInt64.fromInt16_v0 1s = Stdlib.Option.Option.Some 1UL
-
-// Stdlib.UInt64.fromInt16_v0 32767s = Stdlib.Option.Option.Some 32767UL
-
-// Stdlib.UInt64.fromInt16_v0 -32768s = Stdlib.Option.Option.None
+Stdlib.UInt64.fromInt16_v0 0s = Stdlib.Option.Option.Some 0UL
+Stdlib.UInt64.fromInt16_v0 1s = Stdlib.Option.Option.Some 1UL
+Stdlib.UInt64.fromInt16_v0 32767s = Stdlib.Option.Option.Some 32767UL
+Stdlib.UInt64.fromInt16_v0 -32768s = Stdlib.Option.Option.None
 
 Stdlib.UInt64.fromUInt16_v0 0us = 0UL
-
 Stdlib.UInt64.fromUInt16_v0 1us = 1UL
-
 Stdlib.UInt64.fromUInt16_v0 65535us = 65535UL
 
-// Stdlib.UInt64.fromInt32_v0 0l = Stdlib.Option.Option.Some 0UL
-
-// Stdlib.UInt64.fromInt32_v0 1l = Stdlib.Option.Option.Some 1UL
-
-// Stdlib.UInt64.fromInt32_v0 2147483647l = Stdlib.Option.Option.Some 2147483647UL
-
-// Stdlib.UInt64.fromInt32_v0 -1l = Stdlib.Option.Option.None
+Stdlib.UInt64.fromInt32_v0 0l = Stdlib.Option.Option.Some 0UL
+Stdlib.UInt64.fromInt32_v0 1l = Stdlib.Option.Option.Some 1UL
+Stdlib.UInt64.fromInt32_v0 2147483647l = Stdlib.Option.Option.Some 2147483647UL
+Stdlib.UInt64.fromInt32_v0 -1l = Stdlib.Option.Option.None
 
 Stdlib.UInt64.fromUInt32_v0 0ul = 0UL
-
 Stdlib.UInt64.fromUInt32_v0 1ul = 1UL
-
 Stdlib.UInt64.fromUInt32_v0 4294967295ul = 4294967295UL
 
-// Stdlib.UInt64.fromInt64_v0 0L = Stdlib.Option.Option.Some 0UL
+Stdlib.UInt64.fromInt64_v0 0L = Stdlib.Option.Option.Some 0UL
+Stdlib.UInt64.fromInt64_v0 1L = Stdlib.Option.Option.Some 1UL
+Stdlib.UInt64.fromInt64_v0 9223372036854775807L = Stdlib.Option.Option.Some 9223372036854775807UL
+Stdlib.UInt64.fromInt64_v0 -1L = Stdlib.Option.Option.None
 
-// Stdlib.UInt64.fromInt64_v0 1L = Stdlib.Option.Option.Some 1UL
+Stdlib.UInt64.fromInt128_v0 0Q = Stdlib.Option.Option.Some 0UL
+Stdlib.UInt64.fromInt128_v0 1Q = Stdlib.Option.Option.Some 1UL
+Stdlib.UInt64.fromInt128_v0 -1Q = Stdlib.Option.Option.None
+Stdlib.UInt64.fromInt128_v0 18446744073709551616Q = Stdlib.Option.Option.None
+Stdlib.UInt64.fromInt128_v0 170141183460469231731687303715884105727Q = Stdlib.Option.Option.None
 
-// Stdlib.UInt64.fromInt64_v0 9223372036854775807L = Stdlib.Option.Option.Some
-//   9223372036854775807UL
-
-// Stdlib.UInt64.fromInt64_v0 -1L = Stdlib.Option.Option.None
-
-// Stdlib.UInt64.fromInt128_v0 0Q = Stdlib.Option.Option.Some 0UL
-
-// Stdlib.UInt64.fromInt128_v0 1Q = Stdlib.Option.Option.Some 1UL
-
-// Stdlib.UInt64.fromInt128_v0 -1Q = Stdlib.Option.Option.None
-
-// Stdlib.UInt64.fromInt128_v0 18446744073709551616Q = Stdlib.Option.Option.None
-
-// Stdlib.UInt64.fromInt128_v0 170141183460469231731687303715884105727Q = Stdlib.Option.Option.None
-
-// Stdlib.UInt64.fromUInt128_v0 0Z = Stdlib.Option.Option.Some 0UL
-
-// Stdlib.UInt64.fromUInt128_v0 1Z = Stdlib.Option.Option.Some 1UL
-
-// Stdlib.UInt64.fromUInt128_v0 18446744073709551615Z = Stdlib.Option.Option.Some
-//   18446744073709551615UL
-
-// Stdlib.UInt64.fromUInt128_v0 18446744073709551616Z = Stdlib.Option.Option.None
-
-// Stdlib.UInt64.fromUInt128_v0 340282366920938463463374607431768211455Z = Stdlib.Option.Option.None
+Stdlib.UInt64.fromUInt128_v0 0Z = Stdlib.Option.Option.Some 0UL
+Stdlib.UInt64.fromUInt128_v0 1Z = Stdlib.Option.Option.Some 1UL
+Stdlib.UInt64.fromUInt128_v0 18446744073709551615Z = Stdlib.Option.Option.Some 18446744073709551615UL
+Stdlib.UInt64.fromUInt128_v0 18446744073709551616Z = Stdlib.Option.Option.None
+Stdlib.UInt64.fromUInt128_v0 340282366920938463463374607431768211455Z = Stdlib.Option.Option.None

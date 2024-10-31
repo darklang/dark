@@ -1,22 +1,30 @@
-Stdlib.Option.andThen_v0 (Stdlib.Option.Option.Some 5L) (fun x ->
-  Stdlib.Option.Option.Some(1L + x)) = Stdlib.Option.Option.Some 6L
+(Stdlib.Option.andThen_v0
+  (Stdlib.Option.Option.Some 5L)
+  (fun x -> Stdlib.Option.Option.Some(1L + x))
+ ) = Stdlib.Option.Option.Some 6L
 
-Stdlib.Option.andThen_v0 (Stdlib.Option.Option.Some 5L) (fun x ->
-  Stdlib.Option.Option.None) = Stdlib.Option.Option.None
+(Stdlib.Option.andThen_v0
+  (Stdlib.Option.Option.Some 5L)
+  (fun x -> Stdlib.Option.Option.None)
+ ) = Stdlib.Option.Option.None
 
-Stdlib.Option.andThen_v0 Stdlib.Option.Option.None (fun x ->
-  Stdlib.Option.Option.Some 5L) = Stdlib.Option.Option.None
+(Stdlib.Option.andThen_v0
+  Stdlib.Option.Option.None
+  (fun x -> Stdlib.Option.Option.Some 5L)
+ ) = Stdlib.Option.Option.None
 
-Stdlib.Option.andThen_v0 Stdlib.Option.Option.None (fun x ->
-  Stdlib.Option.Option.None) = Stdlib.Option.Option.None
+(Stdlib.Option.andThen_v0
+  Stdlib.Option.Option.None
+  (fun x -> Stdlib.Option.Option.None)
+ ) = Stdlib.Option.Option.None
 
 Stdlib.Option.andThen_v0 (Stdlib.Option.Option.Some 8L) (fun x ->
-  Stdlib.Option.Option.Some(Stdlib.Int64.divide_v0 x 2L)) = Stdlib.Option.Option.Some
-  4L
+  Stdlib.Option.Option.Some(Stdlib.Int64.divide_v0 x 2L)) =
+  (Stdlib.Option.Option.Some 4L)
 
-// Stdlib.Option.andThen_v0 (Stdlib.Option.Option.Some 8L) (fun x ->
-//   Stdlib.Option.Option.Some(Stdlib.Int64.divide_v0 x 0L)) = Builtin.testDerrorMessage
-//   "Division by zero"
+Stdlib.Option.andThen_v0 (Stdlib.Option.Option.Some 8L) (fun x ->
+  Stdlib.Option.Option.Some(Stdlib.Int64.divide_v0 x 0L)) =
+  (Builtin.testDerrorMessage "Division by zero")
 
 
 Stdlib.Option.andThen2_v0
@@ -271,33 +279,37 @@ Stdlib.Option.isNone_v0 (Stdlib.Option.Option.Some 6L) = false
 Stdlib.Option.isNone_v0 Stdlib.Option.Option.None = true
 
 
-Stdlib.Option.toResult_v0 (Stdlib.Option.Option.Some 6L) 5L = Stdlib.Result.Result.Ok
-  6L
+Stdlib.Option.toResult_v0 (Stdlib.Option.Option.Some 6L) 5L =
+  Stdlib.Result.Result.Ok 6L
 
-Stdlib.Option.toResult_v0 Stdlib.Option.Option.None "error" = Stdlib.Result.Result.Error
-  "error"
-
-
-Stdlib.Option.and_v0 (Stdlib.Option.Option.Some 6L) (Stdlib.Option.Option.Some 5L) = Stdlib.Option.Option.Some
-  5L
-
-Stdlib.Option.and_v0 (Stdlib.Option.Option.Some 6L) Stdlib.Option.Option.None = Stdlib.Option.Option.None
-
-Stdlib.Option.and_v0 Stdlib.Option.Option.None (Stdlib.Option.Option.Some 5L) = Stdlib.Option.Option.None
-
-Stdlib.Option.and_v0 Stdlib.Option.Option.None Stdlib.Option.Option.None = Stdlib.Option.Option.None
+Stdlib.Option.toResult_v0 Stdlib.Option.Option.None "error" =
+  Stdlib.Result.Result.Error "error"
 
 
-Stdlib.Option.or_v0 (Stdlib.Option.Option.Some 6L) (Stdlib.Option.Option.Some 5L) = Stdlib.Option.Option.Some
-  6L
+Stdlib.Option.and_v0 (Stdlib.Option.Option.Some 6L) (Stdlib.Option.Option.Some 5L) =
+  Stdlib.Option.Option.Some 5L
 
-Stdlib.Option.or_v0 (Stdlib.Option.Option.Some 6L) Stdlib.Option.Option.None = Stdlib.Option.Option.Some
-  6L
+Stdlib.Option.and_v0 (Stdlib.Option.Option.Some 6L) Stdlib.Option.Option.None =
+  Stdlib.Option.Option.None
 
-Stdlib.Option.or_v0 Stdlib.Option.Option.None (Stdlib.Option.Option.Some 5L) = Stdlib.Option.Option.Some
-  5L
+Stdlib.Option.and_v0 Stdlib.Option.Option.None (Stdlib.Option.Option.Some 5L) =
+  Stdlib.Option.Option.None
 
-Stdlib.Option.or_v0 Stdlib.Option.Option.None Stdlib.Option.Option.None = Stdlib.Option.Option.None
+Stdlib.Option.and_v0 Stdlib.Option.Option.None Stdlib.Option.Option.None =
+  Stdlib.Option.Option.None
+
+
+Stdlib.Option.or_v0 (Stdlib.Option.Option.Some 6L) (Stdlib.Option.Option.Some 5L) =
+  Stdlib.Option.Option.Some 6L
+
+Stdlib.Option.or_v0 (Stdlib.Option.Option.Some 6L) Stdlib.Option.Option.None =
+  Stdlib.Option.Option.Some 6L
+
+Stdlib.Option.or_v0 Stdlib.Option.Option.None (Stdlib.Option.Option.Some 5L) =
+  Stdlib.Option.Option.Some 5L
+
+Stdlib.Option.or_v0 Stdlib.Option.Option.None Stdlib.Option.Option.None =
+  Stdlib.Option.Option.None
 
 
 Stdlib.Option.toList_v0 (Stdlib.Option.Option.Some 6L) = [ 6L ]
@@ -305,12 +317,14 @@ Stdlib.Option.toList_v0 (Stdlib.Option.Option.Some 6L) = [ 6L ]
 Stdlib.Option.toList_v0 Stdlib.Option.Option.None = []
 
 
-Stdlib.Option.join_v0 (Stdlib.Option.Option.Some(Stdlib.Option.Option.Some 6L)) = Stdlib.Option.Option.Some
-  6L
+Stdlib.Option.join_v0 (Stdlib.Option.Option.Some(Stdlib.Option.Option.Some 6L)) =
+  Stdlib.Option.Option.Some 6L
 
-Stdlib.Option.join_v0 (Stdlib.Option.Option.Some(Stdlib.Option.Option.None)) = Stdlib.Option.Option.None
+Stdlib.Option.join_v0 (Stdlib.Option.Option.Some(Stdlib.Option.Option.None)) =
+  Stdlib.Option.Option.None
 
-Stdlib.Option.join_v0 Stdlib.Option.Option.None = Stdlib.Option.Option.None
+Stdlib.Option.join_v0 Stdlib.Option.Option.None =
+  Stdlib.Option.Option.None
 
 
 Stdlib.Option.combine_v0

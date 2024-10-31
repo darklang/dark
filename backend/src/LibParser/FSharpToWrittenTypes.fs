@@ -48,7 +48,6 @@ let parseTypeName (t : SynType) : Result<NEList<string>, string> =
 
 
 module TypeReference =
-
   let rec fromNamesAndTypeArgs
     (names : NEList<string>)
     (typeArgs : List<SynType>)

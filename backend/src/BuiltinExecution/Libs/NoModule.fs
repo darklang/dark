@@ -59,15 +59,39 @@ let rec equals (a : Dval) (b : Dval) : bool =
       (fun k v -> Map.find k b |> Option.map (r v) |> Option.defaultValue false)
       a
 
-  | DRecord(tn1, _, _typeArgsTODO1, a), DRecord(tn2, _, _typeArgsTODO2, b) ->
-    tn1 = tn2 // these should be the fully resolved type
-    && Map.count a = Map.count b
+  | DRecord(_, typeNameA, typeArgsA, fieldsA),
+    DRecord(_, typeNameB, typeArgsB, fieldsB) ->
+    // same _resolved_ type name
+    typeNameA = typeNameB
+    // same type args (at least _mergeable_ -- ignores Unknowns)
+    && typeArgsA.Length = typeArgsB.Length
+    && List.forall2
+      (fun typeArgA typeArgB -> Result.isOk (ValueType.merge typeArgA typeArgB))
+      typeArgsA
+      typeArgsB
+    // same fields
+    && Map.count fieldsA = Map.count fieldsB
     && Map.forall
-      (fun k v -> Map.find k b |> Option.map (r v) |> Option.defaultValue false)
-      a
+      (fun k v ->
+        Map.find k fieldsB |> Option.map (r v) |> Option.defaultValue false)
+      fieldsA
 
-  | DEnum(a1, _, _typeArgsTODO1, a2, a3), DEnum(b1, _, _typeArgsTODO2, b2, b3) -> // these should be the fully resolved type
-    a1 = b1 && a2 = b2 && a3.Length = b3.Length && List.forall2 r a3 b3
+  | DEnum(_, typeNameA, typeArgsA, caseNameA, fieldsA),
+    DEnum(_, typeNameB, typeArgsB, caseNameB, fieldsB) -> // these should be the fully resolved type
+    // same _resolved_ type name
+    typeNameA = typeNameB
+    // same type args (at least _mergeable_ -- ignores Unknowns)
+    && typeArgsA.Length = typeArgsB.Length
+    && List.forall2
+      (fun typeArgA typeArgB -> Result.isOk (ValueType.merge typeArgA typeArgB))
+      typeArgsA
+      typeArgsB
+    // same case name
+    && caseNameA = caseNameB
+    // same fields
+    && fieldsA.Length = fieldsB.Length
+    && List.forall2 r fieldsA fieldsB
+
 
   | DApplicable a, DApplicable b ->
     match a, b with
@@ -363,7 +387,7 @@ let fns : List<BuiltInFn> =
           let (vtA, vtB) = (Dval.toValueType a, Dval.toValueType b)
           match ValueType.merge vtA vtB with
           | Error _ ->
-            raiseRTE vm.threadID (RTE.EqualityCheckOnIncompatibleTypes(vtA, vtB))
+            RTE.EqualityCheckOnIncompatibleTypes(vtA, vtB) |> raiseRTE vm.threadID
           | Ok _ -> equals a b |> DBool |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "="
@@ -382,7 +406,7 @@ let fns : List<BuiltInFn> =
           let (vtA, vtB) = (Dval.toValueType a, Dval.toValueType b)
           match ValueType.merge vtA vtB with
           | Error _ ->
-            raiseRTE vm.threadID (RTE.EqualityCheckOnIncompatibleTypes(vtA, vtB))
+            RTE.EqualityCheckOnIncompatibleTypes(vtA, vtB) |> raiseRTE vm.threadID
           | Ok _ -> equals a b |> not |> DBool |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<>"
@@ -447,23 +471,23 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // { name = fn "debug" 0
-    //   typeParams = []
-    //   parameters =
-    //     [ Param.make "label" TString "The label to be printed."
-    //       Param.make "value" (TVariable "a") "The value to be printed." ]
-    //   returnType = TUnit
-    //   description = "Prints the given <param value> to the standard output"
-    //   fn =
-    //     (function
-    //     | _, _, _, [ DString label; value ] ->
-    //       // TODO: call upon the Dark equivalent fn instead of rlying on DvalReprDeveloper
-    //       print $"DEBUG: {label} - {DvalReprDeveloper.toRepr value}"
-    //       Ply DUnit
-    //     | _ -> incorrectArgs ())
-    //   sqlSpec = NotQueryable
-    //   previewable = Impure
-    //   deprecated = NotDeprecated }
+    { name = fn "debug" 0
+      typeParams = []
+      parameters =
+        [ Param.make "label" TString "The label to be printed."
+          Param.make "value" (TVariable "a") "The value to be printed." ]
+      returnType = TUnit
+      description = "Prints the given <param value> to the standard output"
+      fn =
+        (function
+        | _, _, _, [ DString label; _value ] ->
+          // TODO: call upon the Dark equivalent fn instead of rlying on DvalReprDeveloper
+          print $"DEBUG: {label}" //" - {DvalReprDeveloper.toRepr value}"
+          Ply DUnit
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
 
 
     // { name = fn "debugSymbolTable" 0

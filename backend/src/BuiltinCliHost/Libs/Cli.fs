@@ -36,29 +36,6 @@ module CliRuntimeError =
     | UncaughtException of string * metadata : List<string * string>
     | NonIntReturned of actuallyReturned : Dval
 
-  /// to RuntimeError
-  module RTE =
-    module Error =
-      let toDT (et : Error) : RT.Dval =
-        let (caseName, fields) =
-          match et with
-          | NoExpressionsToExecute -> "NoExpressionsToExecute", []
-
-          | UncaughtException(msg, metadata) ->
-            let metadata =
-              metadata
-              |> List.map (fun (k, v) -> DTuple(DString k, DString v, []))
-              |> Dval.list (KTTuple(VT.string, VT.string, []))
-
-            "UncaughtException", [ DString msg; metadata ]
-
-          | NonIntReturned actuallyReturned ->
-            "NonIntReturned", [ RT2DT.Dval.toDT actuallyReturned ]
-
-        let typeName =
-          FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeError.Cli.error
-        DEnum(typeName, typeName, [], caseName, fields)
-
 
 // let toRuntimeError (e : Error) : RT.RuntimeError =
 //   Error.toDT e |> RT.RuntimeError.fromDT

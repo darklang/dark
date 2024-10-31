@@ -513,7 +513,9 @@ module Expr =
              2,
              RT.DApplicable(
                RT.AppNamedFn
-                 { name = RT.FQFnName.fqBuiltin "int64Add" 0; argsSoFar = [] }
+                 { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                   typeArgs = []
+                   argsSoFar = [] }
              )
            )
            RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ],
@@ -529,7 +531,9 @@ module Expr =
              0,
              RT.DApplicable(
                RT.AppNamedFn
-                 { name = RT.FQFnName.fqBuiltin "int64Add" 0; argsSoFar = [] }
+                 { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                   typeArgs = []
+                   argsSoFar = [] }
              )
            )
            RT.LoadVal(1, RT.DInt64 1L)
@@ -556,6 +560,7 @@ module Expr =
                          RT.DApplicable(
                            RT.AppNamedFn
                              { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                               typeArgs = []
                                argsSoFar = [] }
                          )
                        )
@@ -586,6 +591,7 @@ module Expr =
                          (RT.DApplicable(
                            RT.AppNamedFn
                              { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                               typeArgs = []
                                argsSoFar = [] }
                          ))
                        )
@@ -597,7 +603,9 @@ module Expr =
              2,
              RT.DApplicable(
                RT.AppNamedFn
-                 { name = RT.FQFnName.fqBuiltin "int64Add" 0; argsSoFar = [] }
+                 { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                   typeArgs = []
+                   argsSoFar = [] }
              )
            )
            RT.CreateLambda(
@@ -614,6 +622,7 @@ module Expr =
                          (RT.DApplicable(
                            RT.AppNamedFn
                              { name = RT.FQFnName.fqBuiltin "int64Multiply" 0
+                               typeArgs = []
                                argsSoFar = [] }
                          ))
                        )
@@ -630,7 +639,9 @@ module Expr =
              10,
              RT.DApplicable(
                RT.AppNamedFn
-                 { name = RT.FQFnName.fqBuiltin "int64Add" 0; argsSoFar = [] }
+                 { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                   typeArgs = []
+                   argsSoFar = [] }
              )
            )
            RT.Apply(11, 10, [], NEList.ofList 8 [ 9 ]) ],
@@ -908,7 +919,9 @@ module Expr =
                2,
                RT.DApplicable(
                  RT.AppNamedFn
-                   { name = RT.FQFnName.fqBuiltin "int64Add" 0; argsSoFar = [] }
+                   { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                     typeArgs = []
+                     argsSoFar = [] }
                )
              )
              RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ],
@@ -976,6 +989,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 typeArgs = []
                                  argsSoFar = [] }
                            )
                          )
@@ -1002,6 +1016,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 typeArgs = []
                                  argsSoFar = [] }
                            )
                          )
@@ -1031,6 +1046,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 typeArgs = []
                                  argsSoFar = [] }
                            )
                          )
@@ -1076,6 +1092,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 typeArgs = []
                                  argsSoFar = [] }
                            )
                          )
@@ -1084,6 +1101,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 typeArgs = []
                                  argsSoFar = [] }
                            )
                          )
@@ -1117,6 +1135,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 typeArgs = []
                                  argsSoFar = [] }
                            )
                          )
@@ -1125,6 +1144,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 typeArgs = []
                                  argsSoFar = [] }
                            )
                          )
@@ -1159,7 +1179,9 @@ module Expr =
                0,
                RT.DApplicable(
                  RT.AppNamedFn
-                   { name = RT.FQFnName.fqBuiltin "int64Add" 0; argsSoFar = [] }
+                   { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                     typeArgs = []
+                     argsSoFar = [] }
                )
              ) ],
            0)
@@ -1173,7 +1195,9 @@ module Expr =
                0,
                RT.DApplicable(
                  RT.AppNamedFn
-                   { name = RT.FQFnName.fqBuiltin "int64Add" 0; argsSoFar = [] }
+                   { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                     typeArgs = []
+                     argsSoFar = [] }
                )
              )
              RT.LoadVal(1, RT.DInt64 1L)
@@ -1189,7 +1213,9 @@ module Expr =
                0,
                RT.DApplicable(
                  RT.AppNamedFn
-                   { name = RT.FQFnName.fqBuiltin "int64Add" 0; argsSoFar = [] }
+                   { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                     typeArgs = []
+                     argsSoFar = [] }
                )
              )
              RT.LoadVal(1, RT.DInt64 1L)
@@ -1206,7 +1232,9 @@ module Expr =
                0,
                RT.DApplicable(
                  RT.AppNamedFn
-                   { name = RT.FQFnName.fqBuiltin "int64Add" 0; argsSoFar = [] }
+                   { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                     typeArgs = []
+                     argsSoFar = [] }
                )
              )
              RT.LoadVal(1, RT.DInt64 1L)
@@ -1233,6 +1261,7 @@ module Expr =
                  RT.DApplicable(
                    RT.AppNamedFn
                      { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id
+                       typeArgs = []
                        argsSoFar = [] }
                  )
                ) ],
@@ -1248,6 +1277,7 @@ module Expr =
                  RT.DApplicable(
                    RT.AppNamedFn
                      { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id
+                       typeArgs = []
                        argsSoFar = [] }
                  )
                )
@@ -1265,6 +1295,7 @@ module Expr =
                  RT.DApplicable(
                    RT.AppNamedFn
                      { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id
+                       typeArgs = []
                        argsSoFar = [] }
                  )
                )
@@ -1287,6 +1318,7 @@ module Expr =
                    RT.AppNamedFn
                      { name =
                          RT.FQFnName.fqPackage E.Fns.Package.MyFnThatTakesALambda.id
+                       typeArgs = []
                        argsSoFar = [] }
                  )
                )
@@ -1307,6 +1339,7 @@ module Expr =
                              RT.DApplicable(
                                RT.AppNamedFn
                                  { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                   typeArgs = []
                                    argsSoFar = [] }
                              )
                            )

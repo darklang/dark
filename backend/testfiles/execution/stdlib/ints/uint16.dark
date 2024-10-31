@@ -19,12 +19,12 @@ Stdlib.UInt16.add_v0 88us 9us = 97us
 Stdlib.UInt16.add_v0 1us 0us = 1us
 Stdlib.UInt16.add_v0 65534us 1us = 65535us
 
-// Stdlib.UInt16.add_v0 65535us 1us = Builtin.testDerrorMessage "Out of range"
+Stdlib.UInt16.add_v0 65535us 1us = Builtin.testDerrorMessage "Out of range"
 
 Stdlib.UInt16.subtract_v0 10us 9us = 1us
 Stdlib.UInt16.subtract_v0 88us 9us = 79us
 
-// Stdlib.UInt16.subtract_v0 0us 1us = Builtin.testDerrorMessage "Out of range"
+Stdlib.UInt16.subtract_v0 0us 1us = Builtin.testDerrorMessage "Out of range"
 
 Stdlib.UInt16.subtract_v0 1us 0us = 1us
 Stdlib.UInt16.subtract_v0 65535us 1us = 65534us
@@ -33,9 +33,9 @@ Stdlib.UInt16.multiply_v0 8us 8us = 64us
 Stdlib.UInt16.multiply_v0 8us 0us = 0us
 Stdlib.UInt16.multiply_v0 32767us 2us = 65534us
 
-// Stdlib.UInt16.multiply_v0 32768us 2us = Builtin.testDerrorMessage "Out of range"
+Stdlib.UInt16.multiply_v0 32768us 2us = Builtin.testDerrorMessage "Out of range"
 
-// Stdlib.UInt16.multiply_v0 65535us 2us = Builtin.testDerrorMessage "Out of range"
+Stdlib.UInt16.multiply_v0 65535us 2us = Builtin.testDerrorMessage "Out of range"
 
 Stdlib.UInt16.power_v0 2us 3us = 8us
 Stdlib.UInt16.power_v0 0us 1us = 0us
@@ -43,7 +43,7 @@ Stdlib.UInt16.power_v0 1us 0us = 1us
 Stdlib.UInt16.power_v0 0us 0us = 1us
 Stdlib.UInt16.power_v0 1us 255us = 1us
 
-// Stdlib.UInt16.power_v0 256us 2us = Builtin.testDerrorMessage "Out of range"
+Stdlib.UInt16.power_v0 256us 2us = Builtin.testDerrorMessage "Out of range"
 
 Stdlib.UInt16.divide_v0 10us 5us = 2us
 Stdlib.UInt16.divide_v0 17us 3us = 5us
@@ -51,7 +51,7 @@ Stdlib.UInt16.divide_v0 8us 5us = 1us
 Stdlib.UInt16.divide_v0 0us 1us = 0us
 Stdlib.UInt16.divide_v0 65535us 2us = 32767us
 
-// Stdlib.UInt16.divide_v0 1us 0us = Builtin.testDerrorMessage "Division by zero"
+Stdlib.UInt16.divide_v0 1us 0us = Builtin.testDerrorMessage "Division by zero"
 
 Stdlib.UInt16.greaterThan_v0 20us 1us = true
 
@@ -96,7 +96,7 @@ Stdlib.UInt16.mod_v0 1us 2us = 1us
 Stdlib.UInt16.mod_v0 32768us 53us = 14us
 Stdlib.UInt16.mod_v0 65535us 3us = 0us
 
-// Stdlib.UInt16.mod_v0 5us 0us = Builtin.testDerrorMessage "Zero modulus"
+Stdlib.UInt16.mod_v0 5us 0us = Builtin.testDerrorMessage "A divisor of zero is not allowed"
 
 
 (Stdlib.List.range_v0 1L 5L)
@@ -133,127 +133,75 @@ Stdlib.UInt16.mod_v0 65535us 3us = 0us
 
 Stdlib.UInt16.sum_v0 [ 1us; 2us ] = 3us
 
-// Stdlib.UInt16.sum_v0 [ 1us; 65535us ] = Builtin.testDerrorMessage "Out of range"
+Stdlib.UInt16.sum_v0 [ 1us; 65535us ] = Builtin.testDerrorMessage "Out of range"
 
-// Stdlib.UInt16.parse_v0 "-129" = Stdlib.Result.Result.Error
-//   Stdlib.UInt16.ParseError.OutOfRange
 
-// Stdlib.UInt16.parse_v0 "65536" = Stdlib.Result.Result.Error
-//   Stdlib.UInt16.ParseError.OutOfRange
+// out of range
+Stdlib.UInt16.parse_v0 "-129" = Stdlib.Result.Result.Error Stdlib.UInt16.ParseError.OutOfRange
+Stdlib.UInt16.parse_v0 "65536" = Stdlib.Result.Result.Error Stdlib.UInt16.ParseError.OutOfRange
 
-// Stdlib.UInt16.parse_v0 "65536us" = Stdlib.Result.Result.Error
-//   Stdlib.UInt16.ParseError.BadFormat
+// bad format
+Stdlib.UInt16.parse_v0 "65536us" = Stdlib.Result.Result.Error Stdlib.UInt16.ParseError.BadFormat
+Stdlib.UInt16.parse_v0 "1 2 3" = Stdlib.Result.Result.Error Stdlib.UInt16.ParseError.BadFormat
+Stdlib.UInt16.parse_v0 "+ 1" = Stdlib.Result.Result.Error Stdlib.UInt16.ParseError.BadFormat
+Stdlib.UInt16.parse_v0 "- 1" = Stdlib.Result.Result.Error Stdlib.UInt16.ParseError.BadFormat
+Stdlib.UInt16.parse_v0 "0xA" = Stdlib.Result.Result.Error Stdlib.UInt16.ParseError.BadFormat
+Stdlib.UInt16.parse_v0 "0x123" = Stdlib.Result.Result.Error Stdlib.UInt16.ParseError.BadFormat
+Stdlib.UInt16.parse_v0 "0b0100" = Stdlib.Result.Result.Error Stdlib.UInt16.ParseError.BadFormat
+Stdlib.UInt16.parse_v0 "pi" = Stdlib.Result.Result.Error Stdlib.UInt16.ParseError.BadFormat
+Stdlib.UInt16.parse_v0 "PACKAGE.Darklang.Stdlib.Math.pi" = Stdlib.Result.Result.Error Stdlib.UInt16.ParseError.BadFormat
+Stdlib.UInt16.parse_v0 "1.23E+04" = Stdlib.Result.Result.Error Stdlib.UInt16.ParseError.BadFormat
+Stdlib.UInt16.parse_v0 "" = Stdlib.Result.Result.Error Stdlib.UInt16.ParseError.BadFormat
+Stdlib.UInt16.parse_v0 "1I" = Stdlib.Result.Result.Error Stdlib.UInt16.ParseError.BadFormat
+Stdlib.UInt16.parse_v0 "one" = Stdlib.Result.Result.Error Stdlib.UInt16.ParseError.BadFormat
+Stdlib.UInt16.parse_v0 "XIV" = Stdlib.Result.Result.Error Stdlib.UInt16.ParseError.BadFormat
 
-// Stdlib.UInt16.parse_v0 "1 2 3" = Stdlib.Result.Result.Error
-//   Stdlib.UInt16.ParseError.BadFormat
 
-// Stdlib.UInt16.parse_v0 "+ 1" = Stdlib.Result.Result.Error
-//   Stdlib.UInt16.ParseError.BadFormat
-
-// Stdlib.UInt16.parse_v0 "- 1" = Stdlib.Result.Result.Error
-//   Stdlib.UInt16.ParseError.BadFormat
-
-// Stdlib.UInt16.parse_v0 "0xA" = Stdlib.Result.Result.Error
-//   Stdlib.UInt16.ParseError.BadFormat
-
-// Stdlib.UInt16.parse_v0 "0x123" = Stdlib.Result.Result.Error
-//   Stdlib.UInt16.ParseError.BadFormat
-
-// Stdlib.UInt16.parse_v0 "0b0100" = Stdlib.Result.Result.Error
-//   Stdlib.UInt16.ParseError.BadFormat
-
-// Stdlib.UInt16.parse_v0 "pi" = Stdlib.Result.Result.Error
-//   Stdlib.UInt16.ParseError.BadFormat
-
-// Stdlib.UInt16.parse_v0 "PACKAGE.Darklang.Stdlib.Math.pi" = Stdlib.Result.Result.Error
-//   Stdlib.UInt16.ParseError.BadFormat
-
-// Stdlib.UInt16.parse_v0 "1.23E+04" = Stdlib.Result.Result.Error
-//   Stdlib.UInt16.ParseError.BadFormat
-
-// Stdlib.UInt16.parse_v0 "" = Stdlib.Result.Result.Error
-//   Stdlib.UInt16.ParseError.BadFormat
-
-// Stdlib.UInt16.parse_v0 "1I" = Stdlib.Result.Result.Error
-//   Stdlib.UInt16.ParseError.BadFormat
-
-// Stdlib.UInt16.parse_v0 "one" = Stdlib.Result.Result.Error
-//   Stdlib.UInt16.ParseError.BadFormat
-
-// Stdlib.UInt16.parse_v0 "XIV" = Stdlib.Result.Result.Error
-//   Stdlib.UInt16.ParseError.BadFormat
-
-// Stdlib.UInt16.fromInt8_v0 0y = Stdlib.Option.Option.Some 0us
-
-// Stdlib.UInt16.fromInt8_v0 1y = Stdlib.Option.Option.Some 1us
-
-// Stdlib.UInt16.fromInt8_v0 127y = Stdlib.Option.Option.Some 127us
-
-// Stdlib.UInt16.fromInt8_v0 (-1y) = Stdlib.Option.Option.None
-// Stdlib.UInt16.fromInt8_v0 (-128y) = Stdlib.Option.Option.None
+Stdlib.UInt16.fromInt8_v0 0y = Stdlib.Option.Option.Some 0us
+Stdlib.UInt16.fromInt8_v0 1y = Stdlib.Option.Option.Some 1us
+Stdlib.UInt16.fromInt8_v0 127y = Stdlib.Option.Option.Some 127us
+Stdlib.UInt16.fromInt8_v0 (-1y) = Stdlib.Option.Option.None
+Stdlib.UInt16.fromInt8_v0 (-128y) = Stdlib.Option.Option.None
 
 Stdlib.UInt16.fromUInt8_v0 0uy = 0us
-
 Stdlib.UInt16.fromUInt8_v0 1uy = 1us
-
 Stdlib.UInt16.fromUInt8_v0 255uy = 255us
 
-// Stdlib.UInt16.fromInt16_v0 0s = Stdlib.Option.Option.Some 0us
+Stdlib.UInt16.fromInt16_v0 0s = Stdlib.Option.Option.Some 0us
+Stdlib.UInt16.fromInt16_v0 1s = Stdlib.Option.Option.Some 1us
+Stdlib.UInt16.fromInt16_v0 32767s = Stdlib.Option.Option.Some 32767us
+Stdlib.UInt16.fromInt16_v0 (-1s) = Stdlib.Option.Option.None
+Stdlib.UInt16.fromInt16_v0 (-32768s) = Stdlib.Option.Option.None
 
-// Stdlib.UInt16.fromInt16_v0 1s = Stdlib.Option.Option.Some 1us
+Stdlib.UInt16.fromInt32_v0 0l = Stdlib.Option.Option.Some 0us
+Stdlib.UInt16.fromInt32_v0 1l = Stdlib.Option.Option.Some 1us
+Stdlib.UInt16.fromInt32_v0 65535l = Stdlib.Option.Option.Some 65535us
+Stdlib.UInt16.fromInt32_v0 65536l = Stdlib.Option.Option.None
+Stdlib.UInt16.fromInt32_v0 (-1l) = Stdlib.Option.Option.None
 
-// Stdlib.UInt16.fromInt16_v0 32767s = Stdlib.Option.Option.Some 32767us
+Stdlib.UInt16.fromUInt32_v0 0ul = Stdlib.Option.Option.Some 0us
+Stdlib.UInt16.fromUInt32_v0 1ul = Stdlib.Option.Option.Some 1us
+Stdlib.UInt16.fromUInt32_v0 65535ul = Stdlib.Option.Option.Some 65535us
+Stdlib.UInt16.fromUInt32_v0 65536ul = Stdlib.Option.Option.None
 
-// Stdlib.UInt16.fromInt16_v0 (-1s) = Stdlib.Option.Option.None
-// Stdlib.UInt16.fromInt16_v0 (-32768s) = Stdlib.Option.Option.None
+Stdlib.UInt16.fromInt64_v0 0L = Stdlib.Option.Option.Some 0us
+Stdlib.UInt16.fromInt64_v0 1L = Stdlib.Option.Option.Some 1us
+Stdlib.UInt16.fromInt64_v0 65535L = Stdlib.Option.Option.Some 65535us
+Stdlib.UInt16.fromInt64_v0 65536L = Stdlib.Option.Option.None
+Stdlib.UInt16.fromInt64_v0 (-1L) = Stdlib.Option.Option.None
 
-// Stdlib.UInt16.fromInt32_v0 0l = Stdlib.Option.Option.Some 0us
+Stdlib.UInt16.fromUInt64_v0 0UL = Stdlib.Option.Option.Some 0us
+Stdlib.UInt16.fromUInt64_v0 1UL = Stdlib.Option.Option.Some 1us
+Stdlib.UInt16.fromUInt64_v0 65535UL = Stdlib.Option.Option.Some 65535us
+Stdlib.UInt16.fromUInt64_v0 65536UL = Stdlib.Option.Option.None
 
-// Stdlib.UInt16.fromInt32_v0 1l = Stdlib.Option.Option.Some 1us
+Stdlib.UInt16.fromInt128_v0 0Q = Stdlib.Option.Option.Some 0us
+Stdlib.UInt16.fromInt128_v0 1Q = Stdlib.Option.Option.Some 1us
+Stdlib.UInt16.fromInt128_v0 65535Q = Stdlib.Option.Option.Some 65535us
+Stdlib.UInt16.fromInt128_v0 65536Q = Stdlib.Option.Option.None
+Stdlib.UInt16.fromInt128_v0 (-1Q) = Stdlib.Option.Option.None
 
-// Stdlib.UInt16.fromInt32_v0 65535l = Stdlib.Option.Option.Some 65535us
-
-// Stdlib.UInt16.fromInt32_v0 65536l = Stdlib.Option.Option.None
-// Stdlib.UInt16.fromInt32_v0 (-1l) = Stdlib.Option.Option.None
-
-// Stdlib.UInt16.fromUInt32_v0 0ul = Stdlib.Option.Option.Some 0us
-
-// Stdlib.UInt16.fromUInt32_v0 1ul = Stdlib.Option.Option.Some 1us
-
-// Stdlib.UInt16.fromUInt32_v0 65535ul = Stdlib.Option.Option.Some 65535us
-
-// Stdlib.UInt16.fromUInt32_v0 65536ul = Stdlib.Option.Option.None
-
-// Stdlib.UInt16.fromInt64_v0 0L = Stdlib.Option.Option.Some 0us
-
-// Stdlib.UInt16.fromInt64_v0 1L = Stdlib.Option.Option.Some 1us
-
-// Stdlib.UInt16.fromInt64_v0 65535L = Stdlib.Option.Option.Some 65535us
-
-// Stdlib.UInt16.fromInt64_v0 65536L = Stdlib.Option.Option.None
-// Stdlib.UInt16.fromInt64_v0 (-1L) = Stdlib.Option.Option.None
-
-// Stdlib.UInt16.fromUInt64_v0 0UL = Stdlib.Option.Option.Some 0us
-
-// Stdlib.UInt16.fromUInt64_v0 1UL = Stdlib.Option.Option.Some 1us
-
-// Stdlib.UInt16.fromUInt64_v0 65535UL = Stdlib.Option.Option.Some 65535us
-
-// Stdlib.UInt16.fromUInt64_v0 65536UL = Stdlib.Option.Option.None
-
-// Stdlib.UInt16.fromInt128_v0 0Q = Stdlib.Option.Option.Some 0us
-
-// Stdlib.UInt16.fromInt128_v0 1Q = Stdlib.Option.Option.Some 1us
-
-// Stdlib.UInt16.fromInt128_v0 65535Q = Stdlib.Option.Option.Some 65535us
-
-// Stdlib.UInt16.fromInt128_v0 65536Q = Stdlib.Option.Option.None
-// Stdlib.UInt16.fromInt128_v0 (-1Q) = Stdlib.Option.Option.None
-
-// Stdlib.UInt16.fromUInt128_v0 0Z = Stdlib.Option.Option.Some 0us
-
-// Stdlib.UInt16.fromUInt128_v0 1Z = Stdlib.Option.Option.Some 1us
-
-// Stdlib.UInt16.fromUInt128_v0 65535Z = Stdlib.Option.Option.Some 65535us
-
-// Stdlib.UInt16.fromUInt128_v0 65536Z = Stdlib.Option.Option.None
+Stdlib.UInt16.fromUInt128_v0 0Z = Stdlib.Option.Option.Some 0us
+Stdlib.UInt16.fromUInt128_v0 1Z = Stdlib.Option.Option.Some 1us
+Stdlib.UInt16.fromUInt128_v0 65535Z = Stdlib.Option.Option.Some 65535us
+Stdlib.UInt16.fromUInt128_v0 65536Z = Stdlib.Option.Option.None

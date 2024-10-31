@@ -262,7 +262,11 @@ module FormatV0 =
 
     | DLambda ->
       RT.DApplicable(
-        RT.AppLambda { exprId = gid (); closedRegisters = []; argsSoFar = [] }
+        RT.AppLambda
+          { exprId = gid ()
+            closedRegisters = []
+            argsSoFar = []
+            typeSymbolTable = Map.empty }
       )
 
   //| DDB name -> RT.DDB name

@@ -111,4 +111,3 @@ let field (name : string) (m : DvalMap) : Dval =
   match m |> Map.get name with
   | Some dv -> dv
   | None -> Exception.raiseInternal $"Expected '{name}' field" []
-

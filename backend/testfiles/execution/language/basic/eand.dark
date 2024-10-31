@@ -2,15 +2,14 @@
 (true && false) = false
 (false && true) = false
 (false && false) = false
-// (true && Builtin.testRuntimeError "msg") = Builtin.testDerrorMessage "msg"
-// (true && 5L) = Builtin.testDerrorMessage "&& only supports Booleans"
-// (false && Builtin.testRuntimeError "msg") = false
+//(true && Builtin.testRuntimeError "msg") = Builtin.testDerrorMessage "msg"
+(true && 5L) = Builtin.testDerrorMessage "&& only supports Booleans"
+//(false && Builtin.testRuntimeError "msg") = false
 (false && 5L) = false
 
-// (Builtin.testRuntimeError "msg" && Builtin.testRuntimeError "msg") = Builtin.testDerrorMessage
-//   "msg"
+//(Builtin.testRuntimeError "msg1" && Builtin.testRuntimeError "msg2") = Builtin.testDerrorMessage "msg1"
 
-// (5 && true) = Builtin.testDerrorMessage "&& only supports Booleans"
+(5 && true) = Builtin.testDerrorMessage "&& only supports Booleans"
 (true |> (&&) true) = true
 (true |> (&&) false) = false
 (false |> (&&) true) = false

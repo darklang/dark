@@ -3,9 +3,7 @@ type TokenType = PACKAGE.Darklang.LanguageTools.SemanticTokens.TokenType
 
 let tokenize
   (text: String)
-  : List<(PACKAGE.Darklang.LanguageTools.SemanticTokens.TokenType *
-    (Int64 * Int64) *
-    (Int64 * Int64))>
+  : List<(PACKAGE.Darklang.LanguageTools.SemanticTokens.TokenType * (Int64 * Int64) * (Int64 * Int64))>
   =
   text
   |> PACKAGE.Darklang.LanguageTools.Parser.parseToSimplifiedTree
@@ -19,79 +17,77 @@ let tokenize
 
 
 module TokenizeTypeReference =
-  ("type MyUnit = Unit" |> tokenize) = [ (TokenType.Keyword, (0L, 0L), (0L, 4L))
-                                         (TokenType.TypeName, (0L, 5L), (0L, 11L))
-                                         (TokenType.Symbol, (0L, 12L), (0L, 13L))
-                                         (TokenType.TypeName, (0L, 14L), (0L, 18L)) ]
+  ("type MyUnit = Unit" |> tokenize) =
+    [ (TokenType.Keyword, (0L, 0L), (0L, 4L))
+      (TokenType.TypeName, (0L, 5L), (0L, 11L))
+      (TokenType.Symbol, (0L, 12L), (0L, 13L))
+      (TokenType.TypeName, (0L, 14L), (0L, 18L)) ]
 
-  ("type MyBool = Bool" |> tokenize) = [ (TokenType.Keyword, (0L, 0L), (0L, 4L))
-                                         (TokenType.TypeName, (0L, 5L), (0L, 11L))
-                                         (TokenType.Symbol, (0L, 12L), (0L, 13L))
-                                         (TokenType.TypeName, (0L, 14L), (0L, 18L)) ]
+  ("type MyBool = Bool" |> tokenize) =
+    [ (TokenType.Keyword, (0L, 0L), (0L, 4L))
+      (TokenType.TypeName, (0L, 5L), (0L, 11L))
+      (TokenType.Symbol, (0L, 12L), (0L, 13L))
+      (TokenType.TypeName, (0L, 14L), (0L, 18L)) ]
 
-  ("type MyInt8 = Int8" |> tokenize) = [ (TokenType.Keyword, (0L, 0L), (0L, 4L))
-                                         (TokenType.TypeName, (0L, 5L), (0L, 11L))
-                                         (TokenType.Symbol, (0L, 12L), (0L, 13L))
-                                         (TokenType.TypeName, (0L, 14L), (0L, 18L)) ]
+  ("type MyInt8 = Int8" |> tokenize) =
+    [ (TokenType.Keyword, (0L, 0L), (0L, 4L))
+      (TokenType.TypeName, (0L, 5L), (0L, 11L))
+      (TokenType.Symbol, (0L, 12L), (0L, 13L))
+      (TokenType.TypeName, (0L, 14L), (0L, 18L)) ]
 
-  ("type MyUInt8 = UInt8" |> tokenize) = [ (TokenType.Keyword, (0L, 0L), (0L, 4L))
-                                           (TokenType.TypeName, (0L, 5L), (0L, 12L))
-                                           (TokenType.Symbol, (0L, 13L), (0L, 14L))
-                                           (TokenType.TypeName, (0L, 15L), (0L, 20L)) ]
+  ("type MyUInt8 = UInt8" |> tokenize) =
+    [ (TokenType.Keyword, (0L, 0L), (0L, 4L))
+      (TokenType.TypeName, (0L, 5L), (0L, 12L))
+      (TokenType.Symbol, (0L, 13L), (0L, 14L))
+      (TokenType.TypeName, (0L, 15L), (0L, 20L)) ]
 
-  ("type MyInt16 = Int16" |> tokenize) = [ (TokenType.Keyword, (0L, 0L), (0L, 4L))
-                                           (TokenType.TypeName, (0L, 5L), (0L, 12L))
-                                           (TokenType.Symbol, (0L, 13L), (0L, 14L))
-                                           (TokenType.TypeName, (0L, 15L), (0L, 20L)) ]
+  ("type MyInt16 = Int16" |> tokenize) =
+    [ (TokenType.Keyword, (0L, 0L), (0L, 4L))
+      (TokenType.TypeName, (0L, 5L), (0L, 12L))
+      (TokenType.Symbol, (0L, 13L), (0L, 14L))
+      (TokenType.TypeName, (0L, 15L), (0L, 20L)) ]
 
-  ("type MyUInt16 = UInt16" |> tokenize) = [ (TokenType.Keyword, (0L, 0L), (0L, 4L))
-                                             (TokenType.TypeName, (0L, 5L), (0L, 13L))
-                                             (TokenType.Symbol, (0L, 14L), (0L, 15L))
-                                             (TokenType.TypeName,
-                                              (0L, 16L),
-                                              (0L, 22L)) ]
+  ("type MyUInt16 = UInt16" |> tokenize) =
+    [ (TokenType.Keyword, (0L, 0L), (0L, 4L))
+      (TokenType.TypeName, (0L, 5L), (0L, 13L))
+      (TokenType.Symbol, (0L, 14L), (0L, 15L))
+      (TokenType.TypeName, (0L, 16L), (0L, 22L)) ]
 
-  ("type MyInt32 = Int32" |> tokenize) = [ (TokenType.Keyword, (0L, 0L), (0L, 4L))
-                                           (TokenType.TypeName, (0L, 5L), (0L, 12L))
-                                           (TokenType.Symbol, (0L, 13L), (0L, 14L))
-                                           (TokenType.TypeName, (0L, 15L), (0L, 20L)) ]
+  ("type MyInt32 = Int32" |> tokenize) =
+    [ (TokenType.Keyword, (0L, 0L), (0L, 4L))
+      (TokenType.TypeName, (0L, 5L), (0L, 12L))
+      (TokenType.Symbol, (0L, 13L), (0L, 14L))
+      (TokenType.TypeName, (0L, 15L), (0L, 20L)) ]
 
-  ("type MyUInt32 = UInt32" |> tokenize) = [ (TokenType.Keyword, (0L, 0L), (0L, 4L))
-                                             (TokenType.TypeName, (0L, 5L), (0L, 13L))
-                                             (TokenType.Symbol, (0L, 14L), (0L, 15L))
-                                             (TokenType.TypeName,
-                                              (0L, 16L),
-                                              (0L, 22L)) ]
+  ("type MyUInt32 = UInt32" |> tokenize) =
+    [ (TokenType.Keyword, (0L, 0L), (0L, 4L))
+      (TokenType.TypeName, (0L, 5L), (0L, 13L))
+      (TokenType.Symbol, (0L, 14L), (0L, 15L))
+      (TokenType.TypeName, (0L, 16L), (0L, 22L)) ]
 
-  ("type MyInt64 = Int64" |> tokenize) = [ (TokenType.Keyword, (0L, 0L), (0L, 4L))
-                                           (TokenType.TypeName, (0L, 5L), (0L, 12L))
-                                           (TokenType.Symbol, (0L, 13L), (0L, 14L))
-                                           (TokenType.TypeName, (0L, 15L), (0L, 20L)) ]
+  ("type MyInt64 = Int64" |> tokenize) =
+    [ (TokenType.Keyword, (0L, 0L), (0L, 4L))
+      (TokenType.TypeName, (0L, 5L), (0L, 12L))
+      (TokenType.Symbol, (0L, 13L), (0L, 14L))
+      (TokenType.TypeName, (0L, 15L), (0L, 20L)) ]
 
-  ("type MyUInt64 = UInt64" |> tokenize) = [ (TokenType.Keyword, (0L, 0L), (0L, 4L))
-                                             (TokenType.TypeName, (0L, 5L), (0L, 13L))
-                                             (TokenType.Symbol, (0L, 14L), (0L, 15L))
-                                             (TokenType.TypeName,
-                                              (0L, 16L),
-                                              (0L, 22L)) ]
+  ("type MyUInt64 = UInt64" |> tokenize) =
+    [ (TokenType.Keyword, (0L, 0L), (0L, 4L))
+      (TokenType.TypeName, (0L, 5L), (0L, 13L))
+      (TokenType.Symbol, (0L, 14L), (0L, 15L))
+      (TokenType.TypeName, (0L, 16L), (0L, 22L)) ]
 
-  ("type MyInt128 = Int128" |> tokenize) = [ (TokenType.Keyword, (0L, 0L), (0L, 4L))
-                                             (TokenType.TypeName, (0L, 5L), (0L, 13L))
-                                             (TokenType.Symbol, (0L, 14L), (0L, 15L))
-                                             (TokenType.TypeName,
-                                              (0L, 16L),
-                                              (0L, 22L)) ]
+  ("type MyInt128 = Int128" |> tokenize) =
+    [ (TokenType.Keyword, (0L, 0L), (0L, 4L))
+      (TokenType.TypeName, (0L, 5L), (0L, 13L))
+      (TokenType.Symbol, (0L, 14L), (0L, 15L))
+      (TokenType.TypeName, (0L, 16L), (0L, 22L)) ]
 
-  ("type MyUInt128 = UInt128" |> tokenize) = [ (TokenType.Keyword, (0L, 0L), (0L, 4L))
-                                               (TokenType.TypeName,
-                                                (0L, 5L),
-                                                (0L, 14L))
-                                               (TokenType.Symbol,
-                                                (0L, 15L),
-                                                (0L, 16L))
-                                               (TokenType.TypeName,
-                                                (0L, 17L),
-                                                (0L, 24L)) ]
+  ("type MyUInt128 = UInt128" |> tokenize) =
+    [ (TokenType.Keyword, (0L, 0L), (0L, 4L))
+      (TokenType.TypeName, (0L, 5L), (0L, 14L))
+      (TokenType.Symbol, (0L, 15L), (0L, 16L))
+      (TokenType.TypeName, (0L, 17L), (0L, 24L)) ]
 
   ("type MyFloat = Float" |> tokenize) = [ (TokenType.Keyword, (0L, 0L), (0L, 4L))
                                            (TokenType.TypeName, (0L, 5L), (0L, 12L))

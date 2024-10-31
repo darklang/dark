@@ -92,8 +92,9 @@ module JsonPath =
 let rec serialize
   (threadId : ThreadID)
   (types : Types)
+  // do we need a TST? or maybe that should have been handled earlier?
   (w : Utf8JsonWriter)
-  (typ : TypeReference)
+  (typ : TypeReference) // would a valueType be better here somehow?
   (dv : Dval)
   : Ply<unit> =
   let r = serialize threadId types w
@@ -167,7 +168,6 @@ let rec serialize
           Ply.List.iterSequentially (fun (t, d) -> r t d) zipped)
 
     | TCustomType(Ok typeName, typeArgs), dval ->
-
       match! Types.find types typeName with
       | None -> Exception.raiseInternal "Couldn't find type" [ "typeName", typeName ]
       | Some decl ->
@@ -219,19 +219,13 @@ let rec serialize
                     Types.substitute decl.typeParams typeArgs matchingFieldDef.typ
                   r typ dval))
           | _ ->
-            //TODO
-            // Exception.raiseInternal
-            //   "Expected a DRecord but got something else"
-            //   [ "actualDval", dval
-            //     "actualType", LibExecution.DvalReprDeveloper.toTypeName dval
-            //     "expectedType", typeName
-            //     "expectedFields", fields ]
-
-            RTE.MatchUnmatched |> raiseRTE threadId
+            RTE.Records.CreationTypeNotRecord typeName
+            |> RTE.Record
+            |> raiseRTE threadId
 
 
     | TCustomType(Error err, _typeArgs), _dval ->
-      raiseRTE threadId (RTE.NameResolution err)
+      raiseRTE threadId (RTE.ParseTimeNameResolution err)
 
 
     // Not supported
@@ -749,7 +743,7 @@ let parse
     | TVariable _, _
     | TFn _, _
     //| TDB _, _
-     -> (RTE.Jsons.UnsupportedType typ) |> RTE.Json |> raiseRTE threadId //  RuntimeError.raiseUnsupportedType threadId typ
+     -> (RTE.Jsons.UnsupportedType typ) |> RTE.Json |> raiseRTE threadId
 
 
     // exhaust TypeReferences
@@ -812,7 +806,12 @@ let fns : List<BuiltInFn> =
                 serialize vm.threadID types w typeToSerializeAs arg)
             return DString response
           }
-        | _ -> incorrectArgs ())
+        | _, _, typeArgs, args ->
+          debuG "typeArgs" (List.length typeArgs)
+          debuG "args" (List.length args)
+          incorrectArgs ()
+        //| _ -> incorrectArgs (
+        )
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }

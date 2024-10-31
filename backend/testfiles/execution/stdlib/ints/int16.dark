@@ -1,6 +1,6 @@
 Stdlib.Int16.absoluteValue_v0 -5s = 5s
 Stdlib.Int16.absoluteValue_v0 5s = 5s
-//Stdlib.Int16.absoluteValue_v0 -32768s = Builtin.testDerrorMessage "Out of range"
+Stdlib.Int16.absoluteValue_v0 -32768s = Builtin.testDerrorMessage "Out of range"
 
 Stdlib.Int16.clamp_v0 -5s -2s 5s = -2s
 Stdlib.Int16.clamp_v0 -3s -2s 1s = -2s
@@ -33,8 +33,8 @@ Stdlib.Int16.add_v0 1s 0s = 1s
 Stdlib.Int16.add_v0 -55s 55s = 0s
 Stdlib.Int16.add_v0 30000s 2767s = 32767s
 Stdlib.Int16.add_v0 -30000s -2768s = -32768s
-// Stdlib.Int16.add_v0 -30000s -2769s = Builtin.testDerrorMessage "Out of range"
-//Stdlib.Int16.add_v0 30000s 2768s = Builtin.testDerrorMessage "Out of range"
+Stdlib.Int16.add_v0 -30000s -2769s = Builtin.testDerrorMessage "Out of range"
+Stdlib.Int16.add_v0 30000s 2768s = Builtin.testDerrorMessage "Out of range"
 
 
 Stdlib.Int16.subtract_v0 10s 9s = 1s
@@ -42,11 +42,11 @@ Stdlib.Int16.subtract_v0 88s 9s = 79s
 Stdlib.Int16.subtract_v0 0s 1s = -1s
 Stdlib.Int16.subtract_v0 1s 0s = 1s
 Stdlib.Int16.subtract_v0 -55s -55s = 0s
-//Stdlib.Int16.subtract_v0 -2769s 30000s = Builtin.testDerrorMessage "Out of range"
+Stdlib.Int16.subtract_v0 -2769s 30000s = Builtin.testDerrorMessage "Out of range"
 
 Stdlib.Int16.multiply_v0 8s 8s = 64s
 Stdlib.Int16.multiply_v0 1s 0s = 0s
-//Stdlib.Int16.multiply_v0 5145s 5145s = Builtin.testDerrorMessage "Out of range"
+Stdlib.Int16.multiply_v0 5145s 5145s = Builtin.testDerrorMessage "Out of range"
 
 Stdlib.Int16.power_v0 2s 3s = 8s
 Stdlib.Int16.power_v0 0s 1s = 0s
@@ -56,17 +56,17 @@ Stdlib.Int16.power_v0 -2s 5s = -32s
 Stdlib.Int16.power_v0 -1s 5s = -1s
 Stdlib.Int16.power_v0 -1s 6s = 1s
 Stdlib.Int16.power_v0 1s 32767s = 1s
-// Stdlib.Int16.power_v0 2s 15s = Builtin.testDerrorMessage "Out of range"
-// Stdlib.Int16.power_v0 120s 20s = Builtin.testDerrorMessage "Out of range"
-// Stdlib.Int16.power_v0 2s -3s = Builtin.testDerrorMessage "Negative exponent"
+Stdlib.Int16.power_v0 2s 15s = Builtin.testDerrorMessage "Out of range"
+Stdlib.Int16.power_v0 120s 20s = Builtin.testDerrorMessage "Out of range"
+Stdlib.Int16.power_v0 2s -3s = Builtin.testDerrorMessage "Negative exponent"
 
 
 Stdlib.Int16.divide_v0 10s 5s = 2s
 Stdlib.Int16.divide_v0 17s 3s = 5s
 Stdlib.Int16.divide_v0 -8s 5s = -1s
 Stdlib.Int16.divide_v0 0s 1s = 0s
-// Stdlib.Int16.divide_v0 1s 0s = Builtin.testDerrorMessage "Division by zero"
-// Stdlib.Int16.divide_v0 -32768s -1s = Builtin.testDerrorMessage "Out of range"
+Stdlib.Int16.divide_v0 1s 0s = Builtin.testDerrorMessage "Division by zero"
+Stdlib.Int16.divide_v0 -32768s -1s = Builtin.testDerrorMessage "Out of range"
 Stdlib.Int16.divide_v0 -32768s 1s = -32768s
 
 
@@ -74,7 +74,7 @@ Stdlib.Int16.negate_v0 -5s = 5s
 Stdlib.Int16.negate_v0 5s = -5s
 Stdlib.Int16.negate_v0 0s = 0s
 Stdlib.Int16.negate_v0 -0s = 0s
-//Stdlib.Int16.negate_v0 -32768s = Builtin.testDerrorMessage "Out of range"
+Stdlib.Int16.negate_v0 -32768s = Builtin.testDerrorMessage "Out of range"
 
 Stdlib.Int16.greaterThan_v0 20s 1s = true
 Stdlib.Int16.greaterThan_v0 20s 130s = false
@@ -146,47 +146,34 @@ Stdlib.Int16.toFloat_v0 -10s = -10.0
  |> Stdlib.List.unique_v0) = [ 0s; 1s; 2s ]
 
 
-// Stdlib.Int16.parse_v0 "0" = Stdlib.Result.Result.Ok 0s
-// Stdlib.Int16.parse_v0 "1" = Stdlib.Result.Result.Ok 1s
-// Stdlib.Int16.parse_v0 " 1" = Stdlib.Result.Result.Ok 1s
-// Stdlib.Int16.parse_v0 "1 " = Stdlib.Result.Result.Ok 1s
-// Stdlib.Int16.parse_v0 "+1" = Stdlib.Result.Result.Ok 1s
-// Stdlib.Int16.parse_v0 " +1 " = Stdlib.Result.Result.Ok 1s
-// Stdlib.Int16.parse_v0 "-1" = Stdlib.Result.Result.Ok -1s
-// Stdlib.Int16.parse_v0 "078" = Stdlib.Result.Result.Ok 78s // "octal" format ignored
-// Stdlib.Int16.parse_v0 "-00001" = Stdlib.Result.Result.Ok -1s
-// Stdlib.Int16.parse_v0 "32767" = Stdlib.Result.Result.Ok 32767s
-// Stdlib.Int16.parse_v0 "-32768" = Stdlib.Result.Result.Ok -32768s
-// Stdlib.Int16.parse_v0 "32768" = Stdlib.Result.Result.Error
-//   Stdlib.Int16.ParseError.OutOfRange
-// Stdlib.Int16.parse_v0 "-32769" = Stdlib.Result.Result.Error
-//   Stdlib.Int16.ParseError.OutOfRange
-// Stdlib.Int16.parse_v0 "1 2 3" = Stdlib.Result.Result.Error
-//   Stdlib.Int16.ParseError.BadFormat
-// Stdlib.Int16.parse_v0 "+ 1" = Stdlib.Result.Result.Error
-//   Stdlib.Int16.ParseError.BadFormat
-// Stdlib.Int16.parse_v0 "- 1" = Stdlib.Result.Result.Error
-//   Stdlib.Int16.ParseError.BadFormat
-// Stdlib.Int16.parse_v0 "0xA" = Stdlib.Result.Result.Error
-//   Stdlib.Int16.ParseError.BadFormat
-// Stdlib.Int16.parse_v0 "0x123" = Stdlib.Result.Result.Error
-//   Stdlib.Int16.ParseError.BadFormat
-// Stdlib.Int16.parse_v0 "0b0100" = Stdlib.Result.Result.Error
-//   Stdlib.Int16.ParseError.BadFormat
-// Stdlib.Int16.parse_v0 "pi" = Stdlib.Result.Result.Error
-//   Stdlib.Int16.ParseError.BadFormat
-// Stdlib.Int16.parse_v0 "PACKAGE.Darklang.Stdlib.Math.pi" = Stdlib.Result.Result.Error
-//   Stdlib.Int16.ParseError.BadFormat
-// Stdlib.Int16.parse_v0 "1.23E+04" = Stdlib.Result.Result.Error
-//   Stdlib.Int16.ParseError.BadFormat
-// Stdlib.Int16.parse_v0 "" = Stdlib.Result.Result.Error
-//   Stdlib.Int16.ParseError.BadFormat
-// Stdlib.Int16.parse_v0 "1I" = Stdlib.Result.Result.Error
-//   Stdlib.Int16.ParseError.BadFormat
-// Stdlib.Int16.parse_v0 "one" = Stdlib.Result.Result.Error
-//   Stdlib.Int16.ParseError.BadFormat
-// Stdlib.Int16.parse_v0 "XIV" = Stdlib.Result.Result.Error
-//   Stdlib.Int16.ParseError.BadFormat
+Stdlib.Int16.parse_v0 "0" = Stdlib.Result.Result.Ok 0s
+Stdlib.Int16.parse_v0 "1" = Stdlib.Result.Result.Ok 1s
+Stdlib.Int16.parse_v0 " 1" = Stdlib.Result.Result.Ok 1s
+Stdlib.Int16.parse_v0 "1 " = Stdlib.Result.Result.Ok 1s
+Stdlib.Int16.parse_v0 "+1" = Stdlib.Result.Result.Ok 1s
+Stdlib.Int16.parse_v0 " +1 " = Stdlib.Result.Result.Ok 1s
+Stdlib.Int16.parse_v0 "-1" = Stdlib.Result.Result.Ok -1s
+Stdlib.Int16.parse_v0 "078" = Stdlib.Result.Result.Ok 78s // "octal" format ignored
+Stdlib.Int16.parse_v0 "-00001" = Stdlib.Result.Result.Ok -1s
+Stdlib.Int16.parse_v0 "32767" = Stdlib.Result.Result.Ok 32767s
+Stdlib.Int16.parse_v0 "-32768" = Stdlib.Result.Result.Ok -32768s
+
+// out of range
+Stdlib.Int16.parse_v0 "32768" = Stdlib.Result.Result.Error Stdlib.Int16.ParseError.OutOfRange
+Stdlib.Int16.parse_v0 "-32769" = Stdlib.Result.Result.Error Stdlib.Int16.ParseError.OutOfRange
+Stdlib.Int16.parse_v0 "1 2 3" = Stdlib.Result.Result.Error Stdlib.Int16.ParseError.BadFormat
+Stdlib.Int16.parse_v0 "+ 1" = Stdlib.Result.Result.Error Stdlib.Int16.ParseError.BadFormat
+Stdlib.Int16.parse_v0 "- 1" = Stdlib.Result.Result.Error Stdlib.Int16.ParseError.BadFormat
+Stdlib.Int16.parse_v0 "0xA" = Stdlib.Result.Result.Error Stdlib.Int16.ParseError.BadFormat
+Stdlib.Int16.parse_v0 "0x123" = Stdlib.Result.Result.Error Stdlib.Int16.ParseError.BadFormat
+Stdlib.Int16.parse_v0 "0b0100" = Stdlib.Result.Result.Error Stdlib.Int16.ParseError.BadFormat
+Stdlib.Int16.parse_v0 "pi" = Stdlib.Result.Result.Error Stdlib.Int16.ParseError.BadFormat
+Stdlib.Int16.parse_v0 "PACKAGE.Darklang.Stdlib.Math.pi" = Stdlib.Result.Result.Error Stdlib.Int16.ParseError.BadFormat
+Stdlib.Int16.parse_v0 "1.23E+04" = Stdlib.Result.Result.Error Stdlib.Int16.ParseError.BadFormat
+Stdlib.Int16.parse_v0 "" = Stdlib.Result.Result.Error Stdlib.Int16.ParseError.BadFormat
+Stdlib.Int16.parse_v0 "1I" = Stdlib.Result.Result.Error Stdlib.Int16.ParseError.BadFormat
+Stdlib.Int16.parse_v0 "one" = Stdlib.Result.Result.Error Stdlib.Int16.ParseError.BadFormat
+Stdlib.Int16.parse_v0 "XIV" = Stdlib.Result.Result.Error Stdlib.Int16.ParseError.BadFormat
 
 
 Stdlib.Int16.fromInt8_v0 0y = 0s
@@ -198,45 +185,45 @@ Stdlib.Int16.fromUInt8_v0 0uy = 0s
 Stdlib.Int16.fromUInt8_v0 1uy = 1s
 Stdlib.Int16.fromUInt8_v0 255uy = 255s
 
-// Stdlib.Int16.fromUInt16_v0 0us = Stdlib.Option.Option.Some 0s
-// Stdlib.Int16.fromUInt16_v0 1us = Stdlib.Option.Option.Some 1s
-// Stdlib.Int16.fromUInt16_v0 32767us = Stdlib.Option.Option.Some 32767s
+Stdlib.Int16.fromUInt16_v0 0us = Stdlib.Option.Option.Some 0s
+Stdlib.Int16.fromUInt16_v0 1us = Stdlib.Option.Option.Some 1s
+Stdlib.Int16.fromUInt16_v0 32767us = Stdlib.Option.Option.Some 32767s
 
-// Stdlib.Int16.fromInt32_v0 0l = Stdlib.Option.Option.Some 0s
-// Stdlib.Int16.fromInt32_v0 1l = Stdlib.Option.Option.Some 1s
-// Stdlib.Int16.fromInt32_v0 32767l = Stdlib.Option.Option.Some 32767s
-// Stdlib.Int16.fromInt32_v0 32768l = Stdlib.Option.Option.None
-// Stdlib.Int16.fromInt32_v0 (-1l) = Stdlib.Option.Option.Some -1s
-// Stdlib.Int16.fromInt32_v0 (-32768l) = Stdlib.Option.Option.Some -32768s
-// Stdlib.Int16.fromInt32_v0 (-32769l) = Stdlib.Option.Option.None
+Stdlib.Int16.fromInt32_v0 0l = Stdlib.Option.Option.Some 0s
+Stdlib.Int16.fromInt32_v0 1l = Stdlib.Option.Option.Some 1s
+Stdlib.Int16.fromInt32_v0 32767l = Stdlib.Option.Option.Some 32767s
+Stdlib.Int16.fromInt32_v0 32768l = Stdlib.Option.Option.None
+Stdlib.Int16.fromInt32_v0 (-1l) = Stdlib.Option.Option.Some -1s
+Stdlib.Int16.fromInt32_v0 (-32768l) = Stdlib.Option.Option.Some -32768s
+Stdlib.Int16.fromInt32_v0 (-32769l) = Stdlib.Option.Option.None
 
-// Stdlib.Int16.fromUInt32_v0 0ul = Stdlib.Option.Option.Some 0s
-// Stdlib.Int16.fromUInt32_v0 1ul = Stdlib.Option.Option.Some 1s
-// Stdlib.Int16.fromUInt32_v0 32767ul = Stdlib.Option.Option.Some 32767s
-// Stdlib.Int16.fromUInt32_v0 32768ul = Stdlib.Option.Option.None
+Stdlib.Int16.fromUInt32_v0 0ul = Stdlib.Option.Option.Some 0s
+Stdlib.Int16.fromUInt32_v0 1ul = Stdlib.Option.Option.Some 1s
+Stdlib.Int16.fromUInt32_v0 32767ul = Stdlib.Option.Option.Some 32767s
+Stdlib.Int16.fromUInt32_v0 32768ul = Stdlib.Option.Option.None
 
-// Stdlib.Int16.fromInt64_v0 0L = Stdlib.Option.Option.Some 0s
-// Stdlib.Int16.fromInt64_v0 1L = Stdlib.Option.Option.Some 1s
-// Stdlib.Int16.fromInt64_v0 32767L = Stdlib.Option.Option.Some 32767s
-// Stdlib.Int16.fromInt64_v0 32768L = Stdlib.Option.Option.None
-// Stdlib.Int16.fromInt64_v0 (-1L) = Stdlib.Option.Option.Some -1s
-// Stdlib.Int16.fromInt64_v0 (-32768L) = Stdlib.Option.Option.Some -32768s
-// Stdlib.Int16.fromInt64_v0 (-32769L) = Stdlib.Option.Option.None
+Stdlib.Int16.fromInt64_v0 0L = Stdlib.Option.Option.Some 0s
+Stdlib.Int16.fromInt64_v0 1L = Stdlib.Option.Option.Some 1s
+Stdlib.Int16.fromInt64_v0 32767L = Stdlib.Option.Option.Some 32767s
+Stdlib.Int16.fromInt64_v0 32768L = Stdlib.Option.Option.None
+Stdlib.Int16.fromInt64_v0 (-1L) = Stdlib.Option.Option.Some -1s
+Stdlib.Int16.fromInt64_v0 (-32768L) = Stdlib.Option.Option.Some -32768s
+Stdlib.Int16.fromInt64_v0 (-32769L) = Stdlib.Option.Option.None
 
-// Stdlib.Int16.fromUInt64_v0 0UL = Stdlib.Option.Option.Some 0s
-// Stdlib.Int16.fromUInt64_v0 1UL = Stdlib.Option.Option.Some 1s
-// Stdlib.Int16.fromUInt64_v0 32767UL = Stdlib.Option.Option.Some 32767s
-// Stdlib.Int16.fromUInt64_v0 32768UL = Stdlib.Option.Option.None
+Stdlib.Int16.fromUInt64_v0 0UL = Stdlib.Option.Option.Some 0s
+Stdlib.Int16.fromUInt64_v0 1UL = Stdlib.Option.Option.Some 1s
+Stdlib.Int16.fromUInt64_v0 32767UL = Stdlib.Option.Option.Some 32767s
+Stdlib.Int16.fromUInt64_v0 32768UL = Stdlib.Option.Option.None
 
-// Stdlib.Int16.fromInt128_v0 0Q = Stdlib.Option.Option.Some 0s
-// Stdlib.Int16.fromInt128_v0 1Q = Stdlib.Option.Option.Some 1s
-// Stdlib.Int16.fromInt128_v0 32767Q = Stdlib.Option.Option.Some 32767s
-// Stdlib.Int16.fromInt128_v0 32768Q = Stdlib.Option.Option.None
-// Stdlib.Int16.fromInt128_v0 (-1Q) = Stdlib.Option.Option.Some -1s
-// Stdlib.Int16.fromInt128_v0 (-32768Q) = Stdlib.Option.Option.Some -32768s
-// Stdlib.Int16.fromInt128_v0 (-32769Q) = Stdlib.Option.Option.None
+Stdlib.Int16.fromInt128_v0 0Q = Stdlib.Option.Option.Some 0s
+Stdlib.Int16.fromInt128_v0 1Q = Stdlib.Option.Option.Some 1s
+Stdlib.Int16.fromInt128_v0 32767Q = Stdlib.Option.Option.Some 32767s
+Stdlib.Int16.fromInt128_v0 32768Q = Stdlib.Option.Option.None
+Stdlib.Int16.fromInt128_v0 (-1Q) = Stdlib.Option.Option.Some -1s
+Stdlib.Int16.fromInt128_v0 (-32768Q) = Stdlib.Option.Option.Some -32768s
+Stdlib.Int16.fromInt128_v0 (-32769Q) = Stdlib.Option.Option.None
 
-// Stdlib.Int16.fromUInt128_v0 0Z = Stdlib.Option.Option.Some 0s
-// Stdlib.Int16.fromUInt128_v0 1Z = Stdlib.Option.Option.Some 1s
-// Stdlib.Int16.fromUInt128_v0 32767Z = Stdlib.Option.Option.Some 32767s
-// Stdlib.Int16.fromUInt128_v0 32768Z = Stdlib.Option.Option.None
+Stdlib.Int16.fromUInt128_v0 0Z = Stdlib.Option.Option.Some 0s
+Stdlib.Int16.fromUInt128_v0 1Z = Stdlib.Option.Option.Some 1s
+Stdlib.Int16.fromUInt128_v0 32767Z = Stdlib.Option.Option.Some 32767s
+Stdlib.Int16.fromUInt128_v0 32768Z = Stdlib.Option.Option.None

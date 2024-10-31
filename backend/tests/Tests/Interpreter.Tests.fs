@@ -213,7 +213,7 @@ module Match =
     tFail
       "match true with\n| false -> \"first branch\""
       E.Match.notMatched
-      RTE.MatchUnmatched
+      (RTE.Match RTE.Matches.MatchUnmatched)
 
   let withVar = t "match true with\n| x -> x" E.Match.withVar (RT.DBool true)
 
@@ -417,7 +417,10 @@ module Lambdas =
         E.Lambdas.Identity.unapplied
         (RT.DApplicable(
           RT.AppLambda
-            { exprId = E.Lambdas.Identity.id; closedRegisters = []; argsSoFar = [] }
+            { exprId = E.Lambdas.Identity.id
+              closedRegisters = []
+              argsSoFar = []
+              typeSymbolTable = Map.empty }
         ))
         (fun vm ->
           Expect.isFalse (Map.isEmpty vm.lambdaInstrCache) "no lambdas in VMState")
@@ -433,7 +436,10 @@ module Lambdas =
         E.Lambdas.Add.unapplied
         (RT.DApplicable(
           RT.AppLambda
-            { exprId = E.Lambdas.Add.id; closedRegisters = []; argsSoFar = [] }
+            { exprId = E.Lambdas.Add.id
+              closedRegisters = []
+              argsSoFar = []
+              typeSymbolTable = Map.empty }
         ))
         (fun vm ->
           Expect.isFalse (Map.isEmpty vm.lambdaInstrCache) "no lambdas in VMState")
@@ -446,7 +452,8 @@ module Lambdas =
           RT.AppLambda
             { exprId = E.Lambdas.Add.id
               closedRegisters = []
-              argsSoFar = [ RT.DInt64 1L ] }
+              argsSoFar = [ RT.DInt64 1L ]
+              typeSymbolTable = Map.empty }
         ))
 
     let fullyApplied =
@@ -463,7 +470,8 @@ module Lambdas =
           RT.AppLambda
             { exprId = E.Lambdas.AddToClosedVars.id
               closedRegisters = [ (1, RT.DInt64 5); (2, RT.DInt64 10) ]
-              argsSoFar = [] }
+              argsSoFar = []
+              typeSymbolTable = Map.empty }
         ))
         (fun vm ->
           Expect.isFalse (Map.isEmpty vm.lambdaInstrCache) "no lambdas in VMState")
@@ -486,7 +494,10 @@ module Fns =
         "Builtin.int64Add"
         E.Fns.Builtin.unapplied
         (RT.DApplicable(
-          RT.AppNamedFn { name = RT.FQFnName.fqBuiltin "int64Add" 0; argsSoFar = [] }
+          RT.AppNamedFn
+            { name = RT.FQFnName.fqBuiltin "int64Add" 0
+              typeArgs = []
+              argsSoFar = [] }
         ))
 
     let partiallyApplied =
@@ -496,6 +507,7 @@ module Fns =
         (RT.DApplicable(
           RT.AppNamedFn
             { name = RT.FQFnName.fqBuiltin "int64Add" 0
+              typeArgs = []
               argsSoFar = [ RT.DInt64 1 ] }
         ))
 
@@ -520,7 +532,9 @@ module Fns =
           E.Fns.Package.MyAdd.unapplied
           (RT.DApplicable(
             RT.AppNamedFn
-              { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id; argsSoFar = [] }
+              { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id
+                typeArgs = []
+                argsSoFar = [] }
           ))
 
       let partiallyApplied =
@@ -530,6 +544,7 @@ module Fns =
           (RT.DApplicable(
             RT.AppNamedFn
               { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id
+                typeArgs = []
                 argsSoFar = [ RT.DInt64 1 ] }
           ))
 
@@ -547,7 +562,9 @@ module Fns =
           E.Fns.Package.Fact.unapplied
           (RT.DApplicable(
             RT.AppNamedFn
-              { name = RT.FQFnName.fqPackage E.Fns.Package.Fact.id; argsSoFar = [] }
+              { name = RT.FQFnName.fqPackage E.Fns.Package.Fact.id
+                typeArgs = []
+                argsSoFar = [] }
           ))
 
       let appliedWith2 =

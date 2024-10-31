@@ -34,38 +34,40 @@ Stdlib.Int64.negate_v0 5L = -5L
 Stdlib.Int64.negate_v0 0L = 0L
 Stdlib.Int64.negate_v0 -0L = 0L
 
-// Stdlib.Int64.remainder_v0 15L 6L = Stdlib.Result.Result.Ok 3L
-// Stdlib.Int64.remainder_v0 20L 8L = Stdlib.Result.Result.Ok 4L
-// Stdlib.Int64.remainder_v0 -20L 8L = Stdlib.Result.Result.Ok -4L
-// Stdlib.Int64.remainder_v0 -20L -8L = Stdlib.Result.Result.Ok -4L
-// Stdlib.Int64.remainder_v0 -15L 6L = Stdlib.Result.Result.Ok -3L
-// Stdlib.Int64.remainder_v0 5L 0L = Builtin.testDerrorMessage "Division by zero"
+Stdlib.Int64.remainder_v0 15L 6L = Stdlib.Result.Result.Ok 3L
+Stdlib.Int64.remainder_v0 20L 8L = Stdlib.Result.Result.Ok 4L
+Stdlib.Int64.remainder_v0 -20L 8L = Stdlib.Result.Result.Ok -4L
+Stdlib.Int64.remainder_v0 -20L -8L = Stdlib.Result.Result.Ok -4L
+Stdlib.Int64.remainder_v0 -15L 6L = Stdlib.Result.Result.Ok -3L
+Stdlib.Int64.remainder_v0 5L 0L = Builtin.testDerrorMessage "Division by zero"
 
-// Stdlib.List.map_v0 (Stdlib.List.range_v0 -5L 5L) (fun v ->
-//   Stdlib.Int64.remainder_v0 v -4L) = [ Stdlib.Result.Result.Ok -1L
-//                                        Stdlib.Result.Result.Ok 0L
-//                                        Stdlib.Result.Result.Ok -3L
-//                                        Stdlib.Result.Result.Ok -2L
-//                                        Stdlib.Result.Result.Ok -1L
-//                                        Stdlib.Result.Result.Ok 0L
-//                                        Stdlib.Result.Result.Ok 1L
-//                                        Stdlib.Result.Result.Ok 2L
-//                                        Stdlib.Result.Result.Ok 3L
-//                                        Stdlib.Result.Result.Ok 0L
-//                                        Stdlib.Result.Result.Ok 1L ]
+(Stdlib.List.map_v0
+  (Stdlib.List.range_v0 -5L 5L)
+  (fun v -> Stdlib.Int64.remainder_v0 v -4L)
+ ) =  [ Stdlib.Result.Result.Ok -1L
+        Stdlib.Result.Result.Ok 0L
+        Stdlib.Result.Result.Ok -3L
+        Stdlib.Result.Result.Ok -2L
+        Stdlib.Result.Result.Ok -1L
+        Stdlib.Result.Result.Ok 0L
+        Stdlib.Result.Result.Ok 1L
+        Stdlib.Result.Result.Ok 2L
+        Stdlib.Result.Result.Ok 3L
+        Stdlib.Result.Result.Ok 0L
+        Stdlib.Result.Result.Ok 1L ]
 
-// Stdlib.List.map_v0 (Stdlib.List.range_v0 -5L 5L) (fun v ->
-//   Stdlib.Int64.remainder_v0 v 4L) = [ Stdlib.Result.Result.Ok -1L
-//                                       Stdlib.Result.Result.Ok 0L
-//                                       Stdlib.Result.Result.Ok -3L
-//                                       Stdlib.Result.Result.Ok -2L
-//                                       Stdlib.Result.Result.Ok -1L
-//                                       Stdlib.Result.Result.Ok 0L
-//                                       Stdlib.Result.Result.Ok 1L
-//                                       Stdlib.Result.Result.Ok 2L
-//                                       Stdlib.Result.Result.Ok 3L
-//                                       Stdlib.Result.Result.Ok 0L
-//                                       Stdlib.Result.Result.Ok 1L ]
+Stdlib.List.map_v0 (Stdlib.List.range_v0 -5L 5L) (fun v ->
+  Stdlib.Int64.remainder_v0 v 4L) = [ Stdlib.Result.Result.Ok -1L
+                                      Stdlib.Result.Result.Ok 0L
+                                      Stdlib.Result.Result.Ok -3L
+                                      Stdlib.Result.Result.Ok -2L
+                                      Stdlib.Result.Result.Ok -1L
+                                      Stdlib.Result.Result.Ok 0L
+                                      Stdlib.Result.Result.Ok 1L
+                                      Stdlib.Result.Result.Ok 2L
+                                      Stdlib.Result.Result.Ok 3L
+                                      Stdlib.Result.Result.Ok 0L
+                                      Stdlib.Result.Result.Ok 1L ]
 
 Stdlib.Int64.mod_v0 15L 5L = 0L
 Stdlib.Int64.mod_v0 15L 6L = 3L
@@ -74,28 +76,19 @@ Stdlib.Int64.mod_v0 -1L 2L = 1L
 Stdlib.Int64.mod_v0 -754L 53L = 41L
 Stdlib.Int64.mod_v0 9999999999998L 3L = 2L
 
-// Stdlib.Int64.mod_v0 5L 0L = Builtin.testDerrorMessage "Zero modulus"
+Stdlib.Int64.mod_v0 5L 0L = Builtin.testDerrorMessage "A divisor of zero is not allowed"
 
-// Stdlib.Int64.mod_v0 5L -5L = Builtin.testDerrorMessage "Negative modulus"
+Stdlib.Int64.mod_v0 5L -5L = Builtin.testDerrorMessage "Negative divisors are not allowed"
 
-// Stdlib.List.map_v0 (Stdlib.List.range_v0 -5L 5L) (fun v ->
-//  Stdlib.Int64.mod_v0 v 4L) = [ 3L 0L 1L 2L 3L 0L 1L 2L 3L 0L 1L ]
+Stdlib.List.map_v0 (Stdlib.List.range_v0 -5L 5L) (fun v ->
+ Stdlib.Int64.mod_v0 v 4L) = [ 3L; 0L; 1L; 2L; 3L; 0L; 1L; 2L; 3L; 0L; 1L ]
 
 15L % 5L = 0L
-// 5L % 0L = Builtin.testDerrorMessage "Zero modulus"
-// 5L % -5L = Builtin.testDerrorMessage "Negative modulus"
+5L % 0L = Builtin.testDerrorMessage "A divisor of zero is not allowed"
+5L % -5L = Builtin.testDerrorMessage "Negative divisors are not allowed"
 
-Stdlib.List.map_v0 (Stdlib.List.range_v0 -5L 5L) (fun v -> v % 4L) = [ 3L
-                                                                       0L
-                                                                       1L
-                                                                       2L
-                                                                       3L
-                                                                       0L
-                                                                       1L
-                                                                       2L
-                                                                       3L
-                                                                       0L
-                                                                       1L ]
+Stdlib.List.map_v0 (Stdlib.List.range_v0 -5L 5L) (fun v -> v % 4L) =
+  [ 3L; 0L; 1L; 2L; 3L; 0L; 1L; 2L; 3L; 0L; 1L ]
 
 Stdlib.Int64.power_v0 8L 5L = 32768L
 Stdlib.Int64.power_v0 0L 1L = 0L
@@ -103,11 +96,11 @@ Stdlib.Int64.power_v0 0L 0L = 1L
 Stdlib.Int64.power_v0 1L 0L = 1L
 Stdlib.Int64.power_v0 1000L 0L = 1L
 Stdlib.Int64.power_v0 -8L 5L = -32768L
-//Stdlib.Int64.power_v0 200L 20L = Builtin.testDerrorMessage "Out of range"
+Stdlib.Int64.power_v0 200L 20L = Builtin.testDerrorMessage "Out of range"
 Stdlib.Int64.power_v0 200L 7L = 12800000000000000L
 Stdlib.Int64.power_v0 1L 2147483649L = 1L
 Stdlib.Int64.power_v0 -1L 2147483649L = -1L
-//Stdlib.Int64.power_v0 2L -3L = Builtin.testDerrorMessage "Negative exponent"
+Stdlib.Int64.power_v0 2L -3L = Builtin.testDerrorMessage "Negative exponent"
 
 5L ^ 2L = 25L
 -8L ^ 5L = -32768L
@@ -210,39 +203,23 @@ Stdlib.Int64.divide_v0 17L 3L = 5L
 Stdlib.Int64.divide_v0 -8L 5L = -1L
 Stdlib.Int64.divide_v0 0L 1L = 0L
 
-// Stdlib.Int64.divide_v0 1L 0L = Builtin.testDerrorMessage "Division by zero"
+Stdlib.Int64.divide_v0 1L 0L = Builtin.testDerrorMessage "Division by zero"
 
 (Stdlib.List.range_v0 1L 5L)
 |> Stdlib.List.map_v0 (fun x -> Stdlib.Int64.random 1L 2L)
-|> Stdlib.List.map_v0 (fun x -> (x >= 1L) && (x <= 2L)) = [ true
-                                                            true
-                                                            true
-                                                            true
-                                                            true ]
+|> Stdlib.List.map_v0 (fun x -> (x >= 1L) && (x <= 2L)) = [ true; true; true; true; true ]
 
 (Stdlib.List.range_v0 1L 5L)
 |> Stdlib.List.map_v0 (fun x -> Stdlib.Int64.random 10L 20L)
-|> Stdlib.List.map_v0 (fun x -> (x >= 10L) && (x <= 20L)) = [ true
-                                                              true
-                                                              true
-                                                              true
-                                                              true ]
+|> Stdlib.List.map_v0 (fun x -> (x >= 10L) && (x <= 20L)) = [ true; true; true; true; true ]
 
 (Stdlib.List.range_v0 1L 5L)
 |> Stdlib.List.map_v0 (fun x -> Stdlib.Int64.random 2L 1L)
-|> Stdlib.List.map_v0 (fun x -> (x >= 1L) && (x <= 2L)) = [ true
-                                                            true
-                                                            true
-                                                            true
-                                                            true ]
+|> Stdlib.List.map_v0 (fun x -> (x >= 1L) && (x <= 2L)) = [ true; true; true; true; true ]
 
 (Stdlib.List.range_v0 1L 5L)
 |> Stdlib.List.map_v0 (fun x -> Stdlib.Int64.random 20L 10L)
-|> Stdlib.List.map_v0 (fun x -> (x >= 10L) && (x <= 20L)) = [ true
-                                                              true
-                                                              true
-                                                              true
-                                                              true ]
+|> Stdlib.List.map_v0 (fun x -> (x >= 10L) && (x <= 20L)) = [ true; true; true; true; true ]
 
 ((Stdlib.List.range_v0 1L 100L)
  |> Stdlib.List.map_v0 (fun x -> Stdlib.Int64.random 0L 1L)
@@ -254,60 +231,43 @@ Stdlib.Int64.divide_v0 0L 1L = 0L
 
 Stdlib.Int64.sum_v0 [ 1L; 2L ] = 3L
 
-// Stdlib.Int64.parse_v0 "0" = Stdlib.Result.Result.Ok 0L
-// Stdlib.Int64.parse_v0 "1" = Stdlib.Result.Result.Ok 1L
-// Stdlib.Int64.parse_v0 " 1" = Stdlib.Result.Result.Ok 1L
-// Stdlib.Int64.parse_v0 "1 " = Stdlib.Result.Result.Ok 1L
-// Stdlib.Int64.parse_v0 "+1" = Stdlib.Result.Result.Ok 1L
-// Stdlib.Int64.parse_v0 " +1 " = Stdlib.Result.Result.Ok 1L
-// Stdlib.Int64.parse_v0 "-1" = Stdlib.Result.Result.Ok -1L
-// Stdlib.Int64.parse_v0 "078" = Stdlib.Result.Result.Ok 78L // "octal" format ignored
-// Stdlib.Int64.parse_v0 "-00001" = Stdlib.Result.Result.Ok -1L
-// Stdlib.Int64.parse_v0 "-10001" = Stdlib.Result.Result.Ok -10001L
-// Stdlib.Int64.parse_v0 "-4611686018427387904" = Stdlib.Result.Result.Ok
-//   -4611686018427387904L // int63 lower limit
-// Stdlib.Int64.parse_v0 "-4611686018427387905" = Stdlib.Result.Result.Ok
-//   -4611686018427387905L // past the int63 upper limit
-// Stdlib.Int64.parse_v0 "-9223372036854775808" = Stdlib.Result.Result.Ok
-//   -9223372036854775808L // .NET lower limit
-// Stdlib.Int64.parse_v0 "-9223372036854775809" = Stdlib.Result.Result.Error
-//   Stdlib.Int64.ParseError.OutOfRange
-// Stdlib.Int64.parse_v0 "4611686018427387903" = Stdlib.Result.Result.Ok
-//   4611686018427387903L // int63 upper limit
-// Stdlib.Int64.parse_v0 "4611686018427387904" = Stdlib.Result.Result.Ok
-//   4611686018427387904L // past the int63 upper limit
-// Stdlib.Int64.parse_v0 "9223372036854775807" = Stdlib.Result.Result.Ok
-//   9223372036854775807L // .NET upper limit
-// Stdlib.Int64.parse_v0 "9223372036854775808" = Stdlib.Result.Result.Error
-//   Stdlib.Int64.ParseError.OutOfRange
-// Stdlib.Int64.parse_v0 "1 2 3" = Stdlib.Result.Result.Error
-//   Stdlib.Int64.ParseError.BadFormat
-// Stdlib.Int64.parse_v0 "+ 1" = Stdlib.Result.Result.Error
-//   Stdlib.Int64.ParseError.BadFormat
-// Stdlib.Int64.parse_v0 "- 1" = Stdlib.Result.Result.Error
-//   Stdlib.Int64.ParseError.BadFormat
-// Stdlib.Int64.parse_v0 "0xA" = Stdlib.Result.Result.Error
-//   Stdlib.Int64.ParseError.BadFormat
-// Stdlib.Int64.parse_v0 "0x123" = Stdlib.Result.Result.Error
-//   Stdlib.Int64.ParseError.BadFormat
-// Stdlib.Int64.parse_v0 "0b0100" = Stdlib.Result.Result.Error
-//   Stdlib.Int64.ParseError.BadFormat
-// Stdlib.Int64.parse_v0 "pi" = Stdlib.Result.Result.Error
-//   Stdlib.Int64.ParseError.BadFormat
-// Stdlib.Int64.parse_v0 "PACKAGE.Darklang.Stdlib.Math.pi" = Stdlib.Result.Result.Error
-//   Stdlib.Int64.ParseError.BadFormat
-// Stdlib.Int64.parse_v0 "1.23E+04" = Stdlib.Result.Result.Error
-//   Stdlib.Int64.ParseError.BadFormat
-// Stdlib.Int64.parse_v0 "9223372036854775808" = Stdlib.Result.Result.Error
-//   Stdlib.Int64.ParseError.OutOfRange
-// Stdlib.Int64.parse_v0 "" = Stdlib.Result.Result.Error
-//   Stdlib.Int64.ParseError.BadFormat
-// Stdlib.Int64.parse_v0 "1I" = Stdlib.Result.Result.Error
-//   Stdlib.Int64.ParseError.BadFormat
-// Stdlib.Int64.parse_v0 "one" = Stdlib.Result.Result.Error
-//   Stdlib.Int64.ParseError.BadFormat
-// Stdlib.Int64.parse_v0 "XIV" = Stdlib.Result.Result.Error
-//   Stdlib.Int64.ParseError.BadFormat
+
+// parses ok
+Stdlib.Int64.parse_v0 "0" = Stdlib.Result.Result.Ok 0L
+Stdlib.Int64.parse_v0 "1" = Stdlib.Result.Result.Ok 1L
+Stdlib.Int64.parse_v0 " 1" = Stdlib.Result.Result.Ok 1L
+Stdlib.Int64.parse_v0 "1 " = Stdlib.Result.Result.Ok 1L
+Stdlib.Int64.parse_v0 "+1" = Stdlib.Result.Result.Ok 1L
+Stdlib.Int64.parse_v0 " +1 " = Stdlib.Result.Result.Ok 1L
+Stdlib.Int64.parse_v0 "-1" = Stdlib.Result.Result.Ok -1L
+Stdlib.Int64.parse_v0 "078" = Stdlib.Result.Result.Ok 78L // "octal" format ignored
+Stdlib.Int64.parse_v0 "-00001" = Stdlib.Result.Result.Ok -1L
+Stdlib.Int64.parse_v0 "-10001" = Stdlib.Result.Result.Ok -10001L
+
+// testing upper and lower bounds
+Stdlib.Int64.parse_v0 "-4611686018427387904" = Stdlib.Result.Result.Ok -4611686018427387904L // int63 lower limit
+Stdlib.Int64.parse_v0 "-4611686018427387905" = Stdlib.Result.Result.Ok -4611686018427387905L // past the int63 upper limit
+Stdlib.Int64.parse_v0 "-9223372036854775808" = Stdlib.Result.Result.Ok -9223372036854775808L // .NET lower limit
+Stdlib.Int64.parse_v0 "-9223372036854775809" = Stdlib.Result.Result.Error Stdlib.Int64.ParseError.OutOfRange
+Stdlib.Int64.parse_v0 "4611686018427387903" = Stdlib.Result.Result.Ok 4611686018427387903L // int63 upper limit
+Stdlib.Int64.parse_v0 "4611686018427387904" = Stdlib.Result.Result.Ok 4611686018427387904L // past the int63 upper limit
+Stdlib.Int64.parse_v0 "9223372036854775807" = Stdlib.Result.Result.Ok 9223372036854775807L // .NET upper limit
+Stdlib.Int64.parse_v0 "9223372036854775808" = Stdlib.Result.Result.Error Stdlib.Int64.ParseError.OutOfRange
+
+// bad format
+Stdlib.Int64.parse_v0 "1 2 3" = Stdlib.Result.Result.Error Stdlib.Int64.ParseError.BadFormat
+Stdlib.Int64.parse_v0 "+ 1" = Stdlib.Result.Result.Error Stdlib.Int64.ParseError.BadFormat
+Stdlib.Int64.parse_v0 "- 1" = Stdlib.Result.Result.Error Stdlib.Int64.ParseError.BadFormat
+Stdlib.Int64.parse_v0 "0xA" = Stdlib.Result.Result.Error Stdlib.Int64.ParseError.BadFormat
+Stdlib.Int64.parse_v0 "0x123" = Stdlib.Result.Result.Error Stdlib.Int64.ParseError.BadFormat
+Stdlib.Int64.parse_v0 "0b0100" = Stdlib.Result.Result.Error Stdlib.Int64.ParseError.BadFormat
+Stdlib.Int64.parse_v0 "pi" = Stdlib.Result.Result.Error Stdlib.Int64.ParseError.BadFormat
+Stdlib.Int64.parse_v0 "PACKAGE.Darklang.Stdlib.Math.pi" = Stdlib.Result.Result.Error Stdlib.Int64.ParseError.BadFormat
+Stdlib.Int64.parse_v0 "1.23E+04" = Stdlib.Result.Result.Error Stdlib.Int64.ParseError.BadFormat
+Stdlib.Int64.parse_v0 "" = Stdlib.Result.Result.Error Stdlib.Int64.ParseError.BadFormat
+Stdlib.Int64.parse_v0 "1I" = Stdlib.Result.Result.Error Stdlib.Int64.ParseError.BadFormat
+Stdlib.Int64.parse_v0 "one" = Stdlib.Result.Result.Error Stdlib.Int64.ParseError.BadFormat
+Stdlib.Int64.parse_v0 "XIV" = Stdlib.Result.Result.Error Stdlib.Int64.ParseError.BadFormat
 
 
 Stdlib.Int64.toString 0L = "0"
@@ -347,23 +307,19 @@ Stdlib.Int64.fromUInt32_v0 0ul = 0L
 Stdlib.Int64.fromUInt32_v0 1ul = 1L
 Stdlib.Int64.fromUInt32_v0 4294967295ul = 4294967295L
 
-// Stdlib.Int64.fromUInt64_v0 0UL = Stdlib.Option.Option.Some 0L
-// Stdlib.Int64.fromUInt64_v0 1UL = Stdlib.Option.Option.Some 1L
-// Stdlib.Int64.fromUInt64_v0 9223372036854775807UL = Stdlib.Option.Option.Some
-//   9223372036854775807L
-// Stdlib.Int64.fromUInt64_v0 18446744073709551615UL = Stdlib.Option.Option.None
+Stdlib.Int64.fromUInt64_v0 0UL = Stdlib.Option.Option.Some 0L
+Stdlib.Int64.fromUInt64_v0 1UL = Stdlib.Option.Option.Some 1L
+Stdlib.Int64.fromUInt64_v0 9223372036854775807UL = Stdlib.Option.Option.Some 9223372036854775807L
+Stdlib.Int64.fromUInt64_v0 18446744073709551615UL = Stdlib.Option.Option.None
 
-// Stdlib.Int64.fromInt128_v0 0Q = Stdlib.Option.Option.Some 0L
-// Stdlib.Int64.fromInt128_v0 1Q = Stdlib.Option.Option.Some 1L
-// Stdlib.Int64.fromInt128_v0 9223372036854775807Q = Stdlib.Option.Option.Some
-//   9223372036854775807L
-// Stdlib.Int64.fromInt128_v0 -9223372036854775808Q = Stdlib.Option.Option.Some
-//   -9223372036854775808L
-// Stdlib.Int64.fromInt128_v0 9223372036854775808Q = Stdlib.Option.Option.None
-// Stdlib.Int64.fromInt128_v0 -9223372036854775809Q = Stdlib.Option.Option.None
+Stdlib.Int64.fromInt128_v0 0Q = Stdlib.Option.Option.Some 0L
+Stdlib.Int64.fromInt128_v0 1Q = Stdlib.Option.Option.Some 1L
+Stdlib.Int64.fromInt128_v0 9223372036854775807Q = Stdlib.Option.Option.Some 9223372036854775807L
+Stdlib.Int64.fromInt128_v0 -9223372036854775808Q = Stdlib.Option.Option.Some -9223372036854775808L
+Stdlib.Int64.fromInt128_v0 9223372036854775808Q = Stdlib.Option.Option.None
+Stdlib.Int64.fromInt128_v0 -9223372036854775809Q = Stdlib.Option.Option.None
 
-// Stdlib.Int64.fromUInt128_v0 0Z = Stdlib.Option.Option.Some 0L
-// Stdlib.Int64.fromUInt128_v0 1Z = Stdlib.Option.Option.Some 1L
-// Stdlib.Int64.fromUInt128_v0 9223372036854775807Z = Stdlib.Option.Option.Some
-//   9223372036854775807L
-// Stdlib.Int64.fromUInt128_v0 18446744073709551615Z = Stdlib.Option.Option.None
+Stdlib.Int64.fromUInt128_v0 0Z = Stdlib.Option.Option.Some 0L
+Stdlib.Int64.fromUInt128_v0 1Z = Stdlib.Option.Option.Some 1L
+Stdlib.Int64.fromUInt128_v0 9223372036854775807Z = Stdlib.Option.Option.Some 9223372036854775807L
+Stdlib.Int64.fromUInt128_v0 18446744073709551615Z = Stdlib.Option.Option.None
