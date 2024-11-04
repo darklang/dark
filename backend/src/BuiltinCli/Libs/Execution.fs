@@ -36,16 +36,16 @@ let fns : List<BuiltInFn> =
           let cmdName, cmdArgs =
             if RuntimeInformation.IsOSPlatform OSPlatform.Windows then
               "cmd.exe", $"/c {command}"
-            // TODO: run in whatever the default shell is -- not just bash.
-            else
-              // if
-              //   RuntimeInformation.IsOSPlatform OSPlatform.Linux
-              //   || RuntimeInformation.IsOSPlatform OSPlatform.OSX
-              //then
+            else if
+              RuntimeInformation.IsOSPlatform OSPlatform.Linux
+              || RuntimeInformation.IsOSPlatform OSPlatform.OSX
+            then
+              // TODO: run in whatever the default shell is -- not just bash.
               "/bin/bash", $"-c \"{command}\""
-          // else
-          //   "Executing CLI commands is not supported for your operating system (Linux, Windows, or Mac not detected)"
-          //   |> raiseUntargetedString
+            else
+              Exception.raiseInternal
+                "Executing CLI commands is not supported for your operating system (Linux, Windows, or Mac not detected)"
+                []
 
           let psi =
             System.Diagnostics.ProcessStartInfo(

@@ -52,7 +52,7 @@ let fns : List<BuiltInFn> =
           | Some length when length > 0 ->
             let body = readBody reader length
             Ply(DString body)
-          | _ -> Exception.raiseInternal "Can't read incoming LSP message" [] // return Result instead? or custom RTE.
+          | _ -> Exception.raiseInternal "Can't read incoming LSP message" []
 
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

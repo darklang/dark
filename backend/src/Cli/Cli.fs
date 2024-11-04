@@ -72,8 +72,6 @@ let state () =
     //secrets = []
     }
 
-  let tracing = Exe.noTracing // (RT.CallStack.fromEntryPoint RT.Script)
-
   let notify (_state : RT.ExecutionState) (_msg : string) (_metadata : Metadata) =
     // let metadata = extraMetadata state @ metadata
     // LibService.Rollbar.notify msg metadata
@@ -82,7 +80,13 @@ let state () =
   let sendException (_ : RT.ExecutionState) (metadata : Metadata) (exn : exn) =
     printException "Internal error" metadata exn
 
-  Exe.createState builtins packageManagerRT tracing sendException notify program
+  Exe.createState
+    builtins
+    packageManagerRT
+    Exe.noTracing
+    sendException
+    notify
+    program
 
 
 

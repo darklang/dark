@@ -30,7 +30,7 @@ let fns : List<BuiltInFn> =
                 .Append(hexUppercaseLookup[((byte >>> 4) &&& 0xF)])
                 .Append(hexUppercaseLookup[(byte &&& 0xF)])
               |> ignore<StringBuilder>
-            | _ -> Exception.raiseInternal "hexEncode: expected UInt8" [] // bad fn arg
+            | _ -> Exception.raiseInternal "hexEncode: expected UInt8" []
 
           buf.ToString() |> DString |> Ply
         | _ -> incorrectArgs ())
