@@ -87,25 +87,30 @@ module Darklang =
 
         module Records =
           type Error =
+            // -- Creation --
+            | CreationTypeNotRecord of name: FQTypeName.FQTypeName
             | CreationEmptyKey
             | CreationMissingField of fieldName: String
             | CreationDuplicateField of fieldName: String
-            | CreationTypeNotRecord of name: FQTypeName.FQTypeName
             | CreationFieldNotExpected of fieldName: String
             | CreationFieldOfWrongType of
               fieldName: String *
               expectedType: ValueType *
               actualType: ValueType
 
-            | FieldAccessFieldNotFound of fieldName: String
-            | FieldAccessNotRecord of actualType: ValueType
-
+            // -- Update --
             | UpdateNotRecord of actualType: ValueType
+            | UpdateEmptyKey
+            | UpdateDuplicateField of fieldName: String
+            | UpdateFieldNotExpected of fieldName: String
             | UpdateFieldOfWrongType of
               fieldName: String *
-              expectedType: TypeReference *
+              expectedType: ValueType *
               actualType: ValueType
-            | UpdateFieldNotExpected of fieldName: String
+
+            // -- Field Access --
+            | FieldAccessFieldNotFound of fieldName: String
+            | FieldAccessNotRecord of actualType: ValueType
 
         module Unwraps =
           type Error =

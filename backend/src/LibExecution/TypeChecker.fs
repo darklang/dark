@@ -818,66 +818,88 @@ module DvalCreator =
     (tst : TypeSymbolTable)
     (sourceTypeName : FQTypeName.FQTypeName)
     (resolvedTypeName : FQTypeName.FQTypeName)
-    (resolvedTypeArgs : List<ValueType>)
+    (typeArgsBeforeUpdate : List<ValueType>)
     (currentFields : Map<string, Dval>)
     (fieldUpdates : List<string * Dval>)
     : Ply<Dval * TypeSymbolTable> =
     uply {
-      // TODO maybe we should call the same helper fn as .record,
-      // but complain (somehow -- probably Internal -- out here)
-      // if somehow the resolved type name differs from the one input
+      let! (_resolvedTypeName, resolvedTypeArgs, expectedFields) =
+        resolveRecordType types threadID tst sourceTypeName []
 
-      let! fieldsExpected =
-        uply {
-          match! Types.find types resolvedTypeName with
-          | Some { definition = TypeDeclaration.Record fieldsExpected } ->
-            return fieldsExpected
-          | _ ->
-            // TODO fix
-            return
-              RTE.Records.UpdateNotRecord VT.bool |> RTE.Record |> raiseRTE threadID
-        }
+      let resolvedTypeArgs =
+        List.zip typeArgsBeforeUpdate resolvedTypeArgs
+        |> List.map (fun (beforeUpdate, (name, _)) -> (name, beforeUpdate))
 
-      // Note: maybe resolvedTypeArgs gets updated as we process fields? Hmm...
-
-      let! (updatedFields, updatedTST) =
+      let! (updatedFields, finalTypeArgs, updatedTST) =
         Ply.List.foldSequentially
-          (fun (fieldsSoFar, tst) (k, v) ->
+          (fun (fieldsSoFar, currentTypeArgs, tst) (fieldName, fieldValue) ->
             uply {
-              if k = "" then
+              if fieldName = "" then
                 return
                   RTE.Records.CreationEmptyKey |> RTE.Record |> raiseRTE threadID
 
-              // TODO this shouldn't be a problem the first time (already OK)
+              // This isn't a problem the first time (already OK)
               // but _should_ be a problem if it happens more than once (CLEANUP)
               // else if Map.containsKey k fieldsSoFar then
-              //   return RTE.Records.CreationDuplicateField k |> RTE.Record |> raiseRTE threadID
+              //   return RTE.Records.UpdateDuplicateField k |> RTE.Record |> raiseRTE threadID
+
               else
-                match fieldsExpected |> NEList.find (fun f -> f.name = k) with
+                match
+                  expectedFields |> NEList.find (fun f -> f.name = fieldName)
+                with
                 | None ->
                   return
-                    RTE.Records.UpdateFieldNotExpected k
+                    RTE.Records.UpdateFieldNotExpected fieldName
                     |> RTE.Record
                     |> raiseRTE threadID
+
                 | Some fieldDef ->
-                  match! unify types tst fieldDef.typ v with
+                  match! unify types tst fieldDef.typ fieldValue with
                   | Error _path ->
-                    // todo: involve path, somehow?
+                    // CLEANUP involve path, somehow
                     return
                       RTE.Records.UpdateFieldOfWrongType(
-                        k,
-                        fieldDef.typ,
-                        Dval.toValueType v
+                        fieldName,
+                        TypeReference.toVT tst fieldDef.typ,
+                        Dval.toValueType fieldValue
                       )
                       |> RTE.Record
                       |> raiseRTE threadID
-                  | Ok updatedTst -> return (Map.add k v fieldsSoFar, updatedTst)
+                  | Ok updatedTst ->
+                    // Update resultant typeArgs based on what we learned from this field
+                    // , by checking the TST.
+                    let newTypeArgs =
+                      currentTypeArgs
+                      |> List.map (fun (paramName, vt) ->
+                        match vt with
+                        | ValueType.Unknown ->
+                          match Map.tryFind paramName updatedTst with
+                          | Some known -> (paramName, known)
+                          | None -> (paramName, vt)
+
+                        | known ->
+                          match ValueType.merge known vt with
+                          | Ok merged -> (paramName, merged)
+                          | Error() ->
+                            RTE.Records.UpdateFieldOfWrongType(
+                              fieldName,
+                              TypeReference.toVT tst fieldDef.typ,
+                              Dval.toValueType fieldValue
+                            )
+                            |> RTE.Record
+                            |> raiseRTE threadID)
+
+                    let fields = Map.add fieldName fieldValue fieldsSoFar
+
+                    return (fields, newTypeArgs, updatedTst)
             })
-          (currentFields, tst)
+          (currentFields, resolvedTypeArgs, tst)
           fieldUpdates
 
+      let finalTypeArgs = finalTypeArgs |> List.map Tuple2.second
+
       let updatedRecord =
-        DRecord(sourceTypeName, resolvedTypeName, resolvedTypeArgs, updatedFields)
+        DRecord(sourceTypeName, resolvedTypeName, finalTypeArgs, updatedFields)
 
       return (updatedRecord, updatedTST)
     }

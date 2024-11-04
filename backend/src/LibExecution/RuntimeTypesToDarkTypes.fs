@@ -924,13 +924,13 @@ module RuntimeError =
 
       let (caseName, fields) =
         match e with
+        | RuntimeError.Records.CreationTypeNotRecord name ->
+          "CreationTypeNotRecord", [ FQTypeName.toDT name ]
         | RuntimeError.Records.CreationEmptyKey -> "CreationEmptyKey", []
         | RuntimeError.Records.CreationMissingField fieldName ->
           "CreationMissingField", [ DString fieldName ]
         | RuntimeError.Records.CreationDuplicateField fieldName ->
           "CreationDuplicateField", [ DString fieldName ]
-        | RuntimeError.Records.CreationTypeNotRecord name ->
-          "CreationTypeNotRecord", [ FQTypeName.toDT name ]
         | RuntimeError.Records.CreationFieldNotExpected fieldName ->
           "CreationFieldNotExpected", [ DString fieldName ]
         | RuntimeError.Records.CreationFieldOfWrongType(fieldName,
@@ -940,64 +940,74 @@ module RuntimeError =
           [ DString fieldName
             ValueType.toDT expectedType
             ValueType.toDT actualType ]
-        | RuntimeError.Records.FieldAccessFieldNotFound fieldName ->
-          "FieldAccessFieldNotFound", [ DString fieldName ]
-        | RuntimeError.Records.FieldAccessNotRecord actualType ->
-          "FieldAccessNotRecord", [ ValueType.toDT actualType ]
+
         | RuntimeError.Records.UpdateNotRecord actualType ->
           "UpdateNotRecord", [ ValueType.toDT actualType ]
+        | RuntimeError.Records.UpdateEmptyKey -> "UpdateEmptyKey", []
+        | RuntimeError.Records.UpdateDuplicateField fieldName ->
+          "UpdateDuplicateField", [ DString fieldName ]
+        | RuntimeError.Records.UpdateFieldNotExpected fieldName ->
+          "UpdateFieldNotExpected", [ DString fieldName ]
         | RuntimeError.Records.UpdateFieldOfWrongType(fieldName,
                                                       expectedType,
                                                       actualType) ->
           "UpdateFieldOfWrongType",
           [ DString fieldName
-            TypeReference.toDT expectedType
+            ValueType.toDT expectedType
             ValueType.toDT actualType ]
-        | RuntimeError.Records.UpdateFieldNotExpected fieldName ->
-          "UpdateFieldNotExpected", [ DString fieldName ]
+
+        | RuntimeError.Records.FieldAccessFieldNotFound fieldName ->
+          "FieldAccessFieldNotFound", [ DString fieldName ]
+        | RuntimeError.Records.FieldAccessNotRecord actualType ->
+          "FieldAccessNotRecord", [ ValueType.toDT actualType ]
 
       DEnum(typeName, typeName, [], caseName, fields)
 
     let fromDT (d : Dval) : RuntimeError.Records.Error =
       match d with
-      | DEnum(_, _, [], "CreationEmptyKey", []) ->
-        RuntimeError.Records.CreationEmptyKey
-      | DEnum(_, _, [], "CreationMissingField", [ DString fieldName ]) ->
-        RuntimeError.Records.CreationMissingField fieldName
-      | DEnum(_, _, [], "CreationDuplicateField", [ DString fieldName ]) ->
-        RuntimeError.Records.CreationDuplicateField fieldName
       | DEnum(_, _, [], "CreationTypeNotRecord", [ name ]) ->
         RuntimeError.Records.CreationTypeNotRecord(FQTypeName.fromDT name)
-      | DEnum(_, _, [], "CreationFieldNotExpected", [ DString fieldName ]) ->
-        RuntimeError.Records.CreationFieldNotExpected fieldName
+      | DEnum(_, _, [], "CreationEmptyKey", []) ->
+        RuntimeError.Records.CreationEmptyKey
+      | DEnum(_, _, [], "CreationMissingField", [ fieldName ]) ->
+        RuntimeError.Records.CreationMissingField(D.string fieldName)
+      | DEnum(_, _, [], "CreationDuplicateField", [ fieldName ]) ->
+        RuntimeError.Records.CreationDuplicateField(D.string fieldName)
+      | DEnum(_, _, [], "CreationFieldNotExpected", [ fieldName ]) ->
+        RuntimeError.Records.CreationFieldNotExpected(D.string fieldName)
       | DEnum(_,
               _,
               [],
               "CreationFieldOfWrongType",
-              [ DString fieldName; expectedType; actualType ]) ->
+              [ fieldName; expectedType; actualType ]) ->
         RuntimeError.Records.CreationFieldOfWrongType(
-          fieldName,
+          D.string fieldName,
           ValueType.fromDT expectedType,
           ValueType.fromDT actualType
         )
-      | DEnum(_, _, [], "FieldAccessFieldNotFound", [ DString fieldName ]) ->
-        RuntimeError.Records.FieldAccessFieldNotFound fieldName
-      | DEnum(_, _, [], "FieldAccessNotRecord", [ actualType ]) ->
-        RuntimeError.Records.FieldAccessNotRecord(ValueType.fromDT actualType)
+
       | DEnum(_, _, [], "UpdateNotRecord", [ actualType ]) ->
         RuntimeError.Records.UpdateNotRecord(ValueType.fromDT actualType)
+      | DEnum(_, _, [], "UpdateEmptyKey", []) -> RuntimeError.Records.UpdateEmptyKey
+      | DEnum(_, _, [], "UpdateDuplicateField", [ fieldName ]) ->
+        RuntimeError.Records.UpdateDuplicateField(D.string fieldName)
+      | DEnum(_, _, [], "UpdateFieldNotExpected", [ fieldName ]) ->
+        RuntimeError.Records.UpdateFieldNotExpected(D.string fieldName)
       | DEnum(_,
               _,
               [],
               "UpdateFieldOfWrongType",
-              [ DString fieldName; expectedType; actualType ]) ->
+              [ fieldName; expectedType; actualType ]) ->
         RuntimeError.Records.UpdateFieldOfWrongType(
-          fieldName,
-          TypeReference.fromDT expectedType,
+          D.string fieldName,
+          ValueType.fromDT expectedType,
           ValueType.fromDT actualType
         )
-      | DEnum(_, _, [], "UpdateFieldNotExpected", [ DString fieldName ]) ->
-        RuntimeError.Records.UpdateFieldNotExpected fieldName
+
+      | DEnum(_, _, [], "FieldAccessFieldNotFound", [ fieldName ]) ->
+        RuntimeError.Records.FieldAccessFieldNotFound(D.string fieldName)
+      | DEnum(_, _, [], "FieldAccessNotRecord", [ actualType ]) ->
+        RuntimeError.Records.FieldAccessNotRecord(ValueType.fromDT actualType)
       | _ -> Exception.raiseInternal "Invalid Records.Error" []
 
   module Enums =

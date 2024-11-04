@@ -773,32 +773,30 @@ module RuntimeError =
     // I'm not totally convinced, though - `type WIP = {}` seems useful.
 
     type Error =
+      // -- Creation --
       | CreationTypeNotRecord of name : FQTypeName.FQTypeName
-      /// $"Empty key for value `{dv}`"
-      /// CLEANUP remove this -- dicts should be of variable type,
-      /// and even in the meantime an empty string seems a
-      /// reasonable key
-      | CreationEmptyKey
+      | CreationEmptyKey // I'm not quite sure how this can be reached(?)
       | CreationMissingField of fieldName : string
       | CreationDuplicateField of fieldName : string
-      /// $"Expected a record but {x} is something else (e.g. an Enum)"
       | CreationFieldNotExpected of fieldName : string
       | CreationFieldOfWrongType of
         fieldName : string *
         expectedType : ValueType *
         actualType : ValueType
 
-      // TODO "Field name is empty"
-      | FieldAccessFieldNotFound of fieldName : string
-      | FieldAccessNotRecord of actualType : ValueType
-
-      /// "Expected a record in record update, but found {x}"
+      // -- Update --
       | UpdateNotRecord of actualType : ValueType
+      | UpdateEmptyKey
+      | UpdateDuplicateField of fieldName : string
+      | UpdateFieldNotExpected of fieldName : string
       | UpdateFieldOfWrongType of
         fieldName : string *
-        expectedType : TypeReference *
+        expectedType : ValueType *
         actualType : ValueType
-      | UpdateFieldNotExpected of fieldName : string
+
+      // -- Field Access --
+      | FieldAccessFieldNotFound of fieldName : string
+      | FieldAccessNotRecord of actualType : ValueType
 
   module Unwraps =
     type Error =

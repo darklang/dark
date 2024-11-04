@@ -244,6 +244,11 @@ module Darklang =
 
           | Record err ->
             match err with
+            // -- Creation --
+            | CreationTypeNotRecord name ->
+              [ ES.String "Expected a record, but "
+                ES.TypeName name
+                ES.String " is not one" ]
             | CreationEmptyKey -> [ ES.String "Empty key in record creation" ]
             | CreationMissingField fieldName ->
               [ ES.String "Missing field "
@@ -257,10 +262,6 @@ module Darklang =
                 // ES.String " in "
                 // ES.TypeName typeName
                 ]
-            | CreationTypeNotRecord name ->
-              [ ES.String "Expected a record, but "
-                ES.TypeName name
-                ES.String " is not one" ]
             | CreationFieldNotExpected fieldName ->
               [ ES.String "No field named "
                 ES.FieldName fieldName
@@ -276,6 +277,33 @@ module Darklang =
                 ES.String ", but got "
                 ES.ValueType actualType ]
 
+            // -- Update --
+            | UpdateNotRecord actualType ->
+              [ ES.String "Cannot apply a record-update to a "
+                ES.ValueType actualType ]
+            | UpdateEmptyKey -> [ ES.String "Empty key in record update" ]
+            | UpdateDuplicateField fieldName ->
+              [ ES.String "Duplicate field "
+                ES.FieldName fieldName
+                // ES.String " in "
+                // ES.TypeName typeName
+                ]
+            | UpdateFieldNotExpected fieldName ->
+              [ ES.String "No field named "
+                ES.FieldName fieldName
+                // ES.String " in "
+                // ES.TypeName typeName
+                // ES.String " record"
+                ]
+            | UpdateFieldOfWrongType(fieldName, expectedType,  actualType) ->
+              [ ES.String "Expected "
+                ES.ValueType expectedType
+                ES.String " for field "
+                ES.FieldName fieldName
+                ES.String ", but got "
+                ES.ValueType actualType ]
+
+            // -- Field Access --
             | FieldAccessFieldNotFound fieldName ->
               [ ES.String "Unexpected field "
                 ES.FieldName fieldName
@@ -289,23 +317,6 @@ module Darklang =
                 ES.ValueType vt
                 ES.String " (field access only works with records)" ]
 
-            | UpdateNotRecord actualType ->
-              [ ES.String "Cannot apply a record-update to a "
-                ES.ValueType actualType ]
-            | UpdateFieldOfWrongType(fieldName, expectedType,  actualType) ->
-              [ ES.String "Expected "
-                ES.TypeReference expectedType
-                ES.String " for field "
-                ES.FieldName fieldName
-                ES.String ", but got "
-                ES.ValueType actualType ]
-            | UpdateFieldNotExpected fieldName ->
-              [ ES.String "No field named "
-                ES.FieldName fieldName
-                // ES.String " in "
-                // ES.TypeName typeName
-                // ES.String " record"
-                ]
 
 
           | Enum err ->
