@@ -40,34 +40,33 @@ let main (args : string array) : int =
         Tests.ProgramTypesToRuntimeTypes.tests
         Tests.Interpreter.tests
         Tests.AnalysisTypes.tests
-        // Tests.Execution.tests
+        Tests.Execution.tests
         Tests.Builtin.tests
         // Tests.DvalRepr.tests -- maybe this gets deleted TODO
         Tests.PackageManager.tests
         Tests.LibParser.tests
-        // Tests.NewParser.tests
-        // Tests.HttpClient.tests
-
+        Tests.NewParser.tests
+        Tests.HttpClient.tests
 
         // cloud
-        // Tests.BwdServer.tests
-        // Tests.Canvas.tests
-        // Tests.Cron.tests
-        // Tests.QueueSchedulingRules.tests
+        Tests.BwdServer.tests
+        Tests.Canvas.tests
+        Tests.Cron.tests
+        Tests.QueueSchedulingRules.tests
         // TODO: bring back Tests.Queue.tests
-        // Tests.Routing.tests
-        // Tests.BinarySerialization.tests
-        // Tests.VanillaSerialization.tests
-        // Tests.DarkTypesSerialization.tests
-        // Tests.SqlCompiler.tests
-        // Tests.StorageTraces.tests
+        Tests.Routing.tests
+        Tests.BinarySerialization.tests
+        Tests.VanillaSerialization.tests
+        Tests.DarkTypesSerialization.tests
+        Tests.SqlCompiler.tests
+        Tests.StorageTraces.tests
 
         // cross-cutting
         Tests.LibExecution.tests.Force() ]
 
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()
     // let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token
-    // let httpClientTestsTask = Tests.HttpClient.init cancelationTokenSource.Token
+    let httpClientTestsTask = Tests.HttpClient.init cancelationTokenSource.Token
     //Telemetry.Console.loadTelemetry "tests" Telemetry.TraceDBQueries
 
     // // Generate this so that we can see if the format has changed in a git diff
@@ -82,7 +81,7 @@ let main (args : string array) : int =
     NonBlockingConsole.wait () // flush stdout
     cancelationTokenSource.Cancel()
     // bwdServerTestsTask.Wait()
-    // httpClientTestsTask.Wait()
+    httpClientTestsTask.Wait()
     // QueueWorker.shouldShutdown <- true
     exitCode
   with e ->

@@ -84,8 +84,8 @@ let initializeTestCanvas (name : string) : Task<CanvasID> =
 //   : PT.Handler.T =
 //   { tlid = gid (); ast = ast; spec = PT.Handler.Cron(name, interval) }
 
-// let testWorker (name : string) (ast : PT.Expr) : PT.Handler.T =
-//   { tlid = gid (); ast = ast; spec = PT.Handler.Worker name }
+let testWorker (name : string) (ast : PT.Expr) : PT.Handler.T =
+  { tlid = gid (); ast = ast; spec = PT.Handler.Worker name }
 
 let testPackageFn
   (owner : string)
@@ -1470,87 +1470,86 @@ let interestingInts : List<string * int64> =
 module Http =
   type T = { status : string; headers : (string * string) list; body : byte array }
 
-// let setHeadersToCRLF (text : byte array) : byte array =
-//   // We keep our test files with an LF line ending, but the HTTP spec
-//   // requires headers (but not the body, nor the first line) to have CRLF
-//   // line endings
-//   let mutable justSawNewline = false
-//   let mutable inBody = false
+  let setHeadersToCRLF (text : byte array) : byte array =
+    // We keep our test files with an LF line ending, but the HTTP spec
+    // requires headers (but not the body, nor the first line) to have CRLF
+    // line endings
+    let mutable justSawNewline = false
+    let mutable inBody = false
 
-//   text
-//   |> Array.toList
-//   |> List.collect (fun b ->
-//     if not inBody && b = byte '\n' then
-//       if justSawNewline then inBody <- true
-//       justSawNewline <- true
-//       [ byte '\r'; b ]
-//     else
-//       justSawNewline <- false
-//       [ b ])
-//   |> List.toArray
+    text
+    |> Array.toList
+    |> List.collect (fun b ->
+      if not inBody && b = byte '\n' then
+        if justSawNewline then inBody <- true
+        justSawNewline <- true
+        [ byte '\r'; b ]
+      else
+        justSawNewline <- false
+        [ b ])
+    |> List.toArray
 
-// let split (response : byte array) : T =
-//   // read a single line of bytes (a line ends with \r\n)
-//   let rec consume (existing : byte list) (l : byte list) : byte list * byte list =
-//     match l with
-//     | [] -> [], []
-//     | 13uy :: 10uy :: tail -> existing, tail
-//     | head :: tail -> consume (existing @ [ head ]) tail
+  let split (response : byte array) : T =
+    // read a single line of bytes (a line ends with \r\n)
+    let rec consume (existing : byte list) (l : byte list) : byte list * byte list =
+      match l with
+      | [] -> [], []
+      | 13uy :: 10uy :: tail -> existing, tail
+      | head :: tail -> consume (existing @ [ head ]) tail
 
-//   // read all headers (ends when we get two \r\n in a row), return headers
-//   // and remaining byte string (the body). Assumes the status line is not
-//   // present. Headers are returned reversed
-//   let rec consumeHeaders
-//     (headers : string list)
-//     (l : byte list)
-//     : string list * byte list =
-//     let (line, remaining) = consume [] l
+    // read all headers (ends when we get two \r\n in a row), return headers
+    // and remaining byte string (the body). Assumes the status line is not
+    // present. Headers are returned reversed
+    let rec consumeHeaders
+      (headers : string list)
+      (l : byte list)
+      : string list * byte list =
+      let (line, remaining) = consume [] l
 
-//     if line = [] then
-//       (headers, remaining)
-//     else
-//       let str = line |> Array.ofList |> UTF8.ofBytesUnsafe
-//       consumeHeaders (str :: headers) remaining
+      if line = [] then
+        (headers, remaining)
+      else
+        let str = line |> Array.ofList |> UTF8.ofBytesUnsafe
+        consumeHeaders (str :: headers) remaining
 
-//   let bytes = Array.toList response
+    let bytes = Array.toList response
 
-//   // read the status like (eg HTTP 200 OK)
-//   let status, bytes = consume [] bytes
+    // read the status like (eg HTTP 200 OK)
+    let status, bytes = consume [] bytes
 
-//   let headers, body = consumeHeaders [] bytes
+    let headers, body = consumeHeaders [] bytes
 
-//   let headers =
-//     headers
-//     |> List.reverse
-//     |> List.map (fun s ->
-//       match String.split ":" s with
-//       | k :: vs -> (k, vs |> String.concat ":" |> String.trimLeft)
-//       | _ -> Exception.raiseInternal $"not a valid header" [ "header", s ])
+    let headers =
+      headers
+      |> List.reverse
+      |> List.map (fun s ->
+        match String.split ":" s with
+        | k :: vs -> (k, vs |> String.concat ":" |> String.trimLeft)
+        | _ -> Exception.raiseInternal $"not a valid header" [ "header", s ])
 
+    { status = status |> List.toArray |> UTF8.ofBytesUnsafe
+      headers = headers
+      body = List.toArray body }
 
-//   { status = status |> List.toArray |> UTF8.ofBytesUnsafe
-//     headers = headers
-//     body = List.toArray body }
+// For an ASP.NET http server, remove the default loggers and add a file logger that
+// saves the output in rundir/logs
+open Microsoft.Extensions.Logging
+open Microsoft.Extensions.DependencyInjection
+open NReco.Logging.File
 
-// // For an ASP.NET http server, remove the default loggers and add a file logger that
-// // saves the output in rundir/logs
-// open Microsoft.Extensions.Logging
-// open Microsoft.Extensions.DependencyInjection
-// open NReco.Logging.File
-
-// let configureLogging
-//   (name : string)
-//   (builder : Microsoft.Extensions.Logging.ILoggingBuilder)
-//   : unit =
-//   // This removes the default ConsoleLogger. Having two console loggers (this one and
-//   // also the one in Main), caused a deadlock (possibly from having two different
-//   // console logging threads).
-//   builder
-//     .ClearProviders()
-//     .Services.AddLogging(fun loggingBuilder ->
-//       loggingBuilder.AddFile($"{LibCloud.Config.logDir}{name}.log", append = false)
-//       |> ignore<ILoggingBuilder>)
-//   |> ignore<IServiceCollection>
+let configureLogging
+  (name : string)
+  (builder : Microsoft.Extensions.Logging.ILoggingBuilder)
+  : unit =
+  // This removes the default ConsoleLogger. Having two console loggers (this one and
+  // also the one in Main), caused a deadlock (possibly from having two different
+  // console logging threads).
+  builder
+    .ClearProviders()
+    .Services.AddLogging(fun loggingBuilder ->
+      loggingBuilder.AddFile($"{LibCloud.Config.logDir}{name}.log", append = false)
+      |> ignore<ILoggingBuilder>)
+  |> ignore<IServiceCollection>
 
 
 // let unwrapExecutionResult
@@ -1579,27 +1578,27 @@ module Http =
 //       | _ -> return RT.DString(string rte)
 //   }
 
-// let parsePTExpr (code : string) : Task<PT.Expr> =
-//   uply {
-//     let! (state : RT.ExecutionState) =
-//       let canvasID = System.Guid.NewGuid()
-//       executionStateFor pmPT canvasID false false Map.empty
+let parsePTExpr (code : string) : Task<PT.Expr> =
+  uply {
+    let! (state : RT.ExecutionState) =
+      let canvasID = System.Guid.NewGuid()
+      executionStateFor pmPT canvasID false false //Map.empty
 
-//     let name =
-//       RT.FQFnName.FQFnName.Package PackageIDs.Fn.LanguageTools.Parser.parsePTExpr
+    let name =
+      RT.FQFnName.FQFnName.Package PackageIDs.Fn.LanguageTools.Parser.parsePTExpr
 
-//     let args = NEList.singleton (RT.DString code)
-//     let! execResult = LibExecution.Execution.executeFunction state name [] args
+    let args = NEList.singleton (RT.DString code)
+    let! execResult = LibExecution.Execution.executeFunction state name [] args
 
-//     match execResult with
-//     | Ok dval ->
-//       match C2DT.Result.fromDT PT2DT.Expr.fromDT dval identity with
-//       | Ok expr -> return expr
-//       | Error _ ->
-//         return Exception.raiseInternal "Error converting Dval to PT.Expr" []
-//     | _ -> return Exception.raiseInternal "Error executing parsePTExpr function" []
-//   }
-//   |> Ply.toTask
+    match execResult with
+    | Ok dval ->
+      match C2DT.Result.fromDT PT2DT.Expr.fromDT dval identity with
+      | Ok expr -> return expr
+      | Error _ ->
+        return Exception.raiseInternal "Error converting Dval to PT.Expr" []
+    | _ -> return Exception.raiseInternal "Error executing parsePTExpr function" []
+  }
+  |> Ply.toTask
 
 module Internal =
   module Test =

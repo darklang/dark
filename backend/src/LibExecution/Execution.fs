@@ -220,23 +220,25 @@ let traceDvals () : Dictionary.T<id, RT.Dval> * RT.Tracing.TraceDval =
   (results, trace)
 
 
-// let rec rteToString
-//   (state : RT.ExecutionState)
-//   (rte : RT.RuntimeError)
-//   : Ply<string> =
-//   uply {
-//     let errorMessageFn =
-//       RT.FQFnName.fqPackage
-//         PackageIDs.Fn.LanguageTools.RuntimeErrors.Error.toErrorMessage
+let rec rteToString
+  (rteToDval : RT.RuntimeError.Error -> RT.Dval)
+  (state : RT.ExecutionState)
+  (rte : RT.RuntimeError.Error)
+  : Ply<string> =
+  uply {
+    let errorMessageFn =
+      RT.FQFnName.fqPackage
+        PackageIDs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toErrorMessage
 
-//     let rte = RT.RuntimeError.toDT rte
+    let rteDval = rteToDval rte
 
-//     let! rteMessage = executeFunction state errorMessageFn [] (NEList.ofList rte [])
+    let! rteMessage =
+      executeFunction state errorMessageFn [] (NEList.ofList rteDval [])
 
-//     match rteMessage with
-//     | Ok(RT.DString msg) -> return msg
-//     | Ok(other) -> return string other
-//     | Error(_, rte) ->
-//       debuG "Error converting RTE to string" rte
-//       return! rteToString state rte
-//   }
+    match rteMessage with
+    | Ok(RT.DString msg) -> return msg
+    | Ok(other) -> return string other
+    | Error(rte) ->
+      debuG "Error converting RTE to string" rte
+      return! rteToString rteToDval state rte
+  }
