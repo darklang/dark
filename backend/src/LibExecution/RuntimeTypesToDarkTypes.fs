@@ -714,7 +714,6 @@ module RuntimeError =
       | ValueNotExpectedType of path : Path * expected : TypeReference * actual : Dval
 
   type Error =
-    | CannotMergeValues of left : ValueType * right : ValueType
     | TypeChecker of err : TypeCheckers.Error
     | UncaughtException of reference : uuid
 *)
@@ -1041,7 +1040,7 @@ module RuntimeError =
           "ConstructionFieldOfWrongType",
           [ DString caseName
             DInt64 fieldIndex
-            TypeReference.toDT expectedType
+            ValueType.toDT expectedType
             ValueType.toDT actualType
             Dval.toDT actualValue ]
 
@@ -1073,7 +1072,7 @@ module RuntimeError =
         RuntimeError.Enums.ConstructionFieldOfWrongType(
           D.string caseName,
           D.int64 fieldIndex,
-          TypeReference.fromDT expectedType,
+          ValueType.fromDT expectedType,
           ValueType.fromDT actualType,
           Dval.fromDT actualValue
         )

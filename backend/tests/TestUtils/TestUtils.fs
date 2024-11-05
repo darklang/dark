@@ -1599,30 +1599,3 @@ let parsePTExpr (code : string) : Task<PT.Expr> =
     | _ -> return Exception.raiseInternal "Error executing parsePTExpr function" []
   }
   |> Ply.toTask
-
-module Internal =
-  module Test =
-    type PTTest =
-      { name : string; lineNumber : int; actual : PT.Expr; expected : PT.Expr }
-
-    //     type RTTest =
-    //       { name : string; lineNumber : int; actual : RT.Expr; expected : RT.Expr }
-
-    //     let typeName = FQTypeName.fqPackage PackageIDs.Type.Internal.Test.ptTest
-
-    //     let toDt (t : PTTest) : Dval =
-    //       let fields =
-    //         [ "name", DString t.name
-    //           "lineNumber", DInt64 t.lineNumber
-    //           "actual", PT2DT.Expr.toDT t.actual
-    //           "expected", PT2DT.Expr.toDT t.expected ]
-    //       DRecord(typeName, typeName, [], Map fields)
-
-    let fromDT (d : Dval) : PTTest =
-      match d with
-      | DRecord(_, _, _, fields) ->
-        { name = fields |> D.field "name" |> D.string
-          lineNumber = fields |> D.field "lineNumber" |> D.int32
-          actual = fields |> D.field "actual" |> PT2DT.Expr.fromDT
-          expected = fields |> D.field "expected" |> PT2DT.Expr.fromDT }
-      | _ -> Exception.raiseInternal "Invalid Test" []

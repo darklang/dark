@@ -748,8 +748,6 @@ module RuntimeError =
 
   module Enums =
     type Error =
-      /// $"When constructing enTypeCheckersum value `typeName`.`{caseName}`,
-      /// expected {expectedFieldCount} fields but got {actualFieldCount}"
       | ConstructionWrongNumberOfFields of
         typeName : FQTypeName.FQTypeName *
         caseName : string *
@@ -763,7 +761,7 @@ module RuntimeError =
       | ConstructionFieldOfWrongType of
         caseName : string *
         fieldIndex : int64 *
-        expectedType : TypeReference *
+        expectedType : ValueType *
         actualType : ValueType *
         actualValue : Dval
 
@@ -869,8 +867,6 @@ module RuntimeError =
 
     | EqualityCheckOnIncompatibleTypes of left : ValueType * right : ValueType
 
-    /// "The condition for an `if` expression must be a `Bool`,
-    /// but is here a `{someFn actualValueType}` (`{someFn actualValue}`)"
     | IfConditionNotBool of actualValue : Dval * actualValueType : ValueType
 
     | Match of Matches.Error
@@ -897,11 +893,7 @@ module RuntimeError =
 
     | CLI of CLIs.Error
 
-    // TODO: these really should be better,
-    // likely squashed into a specific Enum or general TypeChecker case
-    //$"Could not merge types {left} and {right}"
-    | CannotMergeValues of left : ValueType * right : ValueType
-
+    // TODO: I think we can remove this.
     | TypeChecker of err : TypeCheckers.Error
 
 

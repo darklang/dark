@@ -325,9 +325,16 @@ module DvalCreator =
     match VT.merge expectedType vt with
     | Ok typ -> DEnum(typeName, typeName, [ typ ], "Some", [ dv ])
     | Error() ->
-      // TODO this should be a more general Enum RTE
-      // (and make sure you include the Option wrapper type -- this loses that)
-      RuntimeError.CannotMergeValues(expectedType, vt) |> raiseRTE threadID
+      RuntimeError.Enums.ConstructionFieldOfWrongType(
+        "Some",
+        0,
+        expectedType,
+        vt,
+        dv
+      )
+      |> RuntimeError.Enum
+      |> raiseRTE threadID
+
 
   let option
     (threadID : ThreadID)
@@ -352,7 +359,15 @@ module DvalCreator =
       match VT.merge okType dvalType with
       | Ok typ -> DEnum(typeName, typeName, [ typ; errorType ], "Ok", [ dvOk ])
       | Error() ->
-        RuntimeError.CannotMergeValues(okType, dvalType) |> raiseRTE threadID
+        RuntimeError.Enums.ConstructionFieldOfWrongType(
+          "Ok",
+          0,
+          okType,
+          dvalType,
+          dvOk
+        )
+        |> RuntimeError.Enum
+        |> raiseRTE threadID
 
     let error
       // maybe this needs some 'path' or something?
@@ -365,7 +380,15 @@ module DvalCreator =
       match VT.merge errorType dvalType with
       | Ok typ -> DEnum(typeName, typeName, [ okType; typ ], "Error", [ dvError ])
       | Error() ->
-        RuntimeError.CannotMergeValues(errorType, dvalType) |> raiseRTE threadID
+        RuntimeError.Enums.ConstructionFieldOfWrongType(
+          "Error",
+          0,
+          errorType,
+          dvalType,
+          dvError
+        )
+        |> RuntimeError.Enum
+        |> raiseRTE threadID
 
     let result
       (threadID : ThreadID)
@@ -378,10 +401,7 @@ module DvalCreator =
       | Error dv -> error threadID okType errorType dv
 
 
-  // LOL these aren't used??
-
   // Create a mapping from type parameters to their provided arguments
-
   // TODO move this to RT.Types module
   let createTypeParamMapping
     (typeParams : List<string>)
@@ -572,7 +592,7 @@ module DvalCreator =
                     RTE.Enums.ConstructionFieldOfWrongType(
                       caseName,
                       fieldIndex,
-                      fieldDef,
+                      TypeReference.toVT tst fieldDef,
                       Dval.toValueType actualField,
                       actualField
                     )
@@ -598,7 +618,7 @@ module DvalCreator =
                           RTE.Enums.ConstructionFieldOfWrongType(
                             caseName,
                             fieldIndex,
-                            fieldDef,
+                            TypeReference.toVT tst fieldDef,
                             Dval.toValueType actualField,
                             actualField
                           )

@@ -340,7 +340,7 @@ module Darklang =
 
             | ConstructionFieldOfWrongType (caseName, fieldIndex, expectedType, actualType, actualValue) ->
               [ ES.String "Expected "
-                ES.TypeReference expectedType
+                ES.ValueType expectedType
                 ES.String " for field "
                 ES.Int fieldIndex
                 ES.String " in "
@@ -426,8 +426,6 @@ module Darklang =
             match err with
             | NoExpressionsToExecute -> [ ES.String "TODO NoExpressionsToExecute" ]
             | NonIntReturned actuallyReturnedOfDval -> [ ES.String "TODO NonIntReturned" ]
-
-          // //| CannotMergeValues of left: ValueType * right: ValueType
 
           // //| TypeChecker of err: TypeCheckers.Error
 

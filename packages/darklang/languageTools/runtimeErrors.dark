@@ -81,7 +81,7 @@ module Darklang =
             | ConstructionFieldOfWrongType of
               caseName: String *
               fieldIndex: Int64 *
-              expectedType: TypeReference *
+              expectedType: ValueType *
               actualType: ValueType *
               actualValue: Dval
 
@@ -167,6 +167,5 @@ module Darklang =
           | Apply of Applications.Error
           | Json of Jsons.Error
           | CLI of CLIs.Error
-          | CannotMergeValues of left: ValueType * right: ValueType
           | TypeChecker of err: TypeCheckers.Error
           | UncaughtException of reference: Uuid

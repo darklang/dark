@@ -165,10 +165,10 @@ module EnumWithTypeArgs =
   Outer2.B 5L = Outer1.B 5L
 
   Outer2.A 5L =
-    (Builtin.testDerrorMessage "Expected 'a for field 0 in `A`, but got Int64 (5)")
+    (Builtin.testDerrorMessage "Expected String for field 0 in `A`, but got Int64 (5)")
 
   Outer1.B "b" =
-    (Builtin.testDerrorMessage "Expected 'b for field 0 in `B`, but got String (\"b\")")
+    (Builtin.testDerrorMessage "Expected Int64 for field 0 in `B`, but got String (\"b\")")
 
 
 module EnumWithTypeArgsDifferentName =
@@ -185,10 +185,10 @@ module EnumWithTypeArgsDifferentName =
   MostOutest.B "test" = Inner.B "test"
 
   MostOutest.A "not allowed" =
-    (Builtin.testDerrorMessage "Expected 'a for field 0 in `A`, but got String (\"not allowed\")")
+    (Builtin.testDerrorMessage "Expected Int64 for field 0 in `A`, but got String (\"not allowed\")")
 
   MostOutest.B 6L =
-    (Builtin.testDerrorMessage "Expected 'b for field 0 in `B`, but got Int64 (6)")
+    (Builtin.testDerrorMessage "Expected String for field 0 in `B`, but got Int64 (6)")
 
 
 module EnumWithRecursiveTypeArgs =
