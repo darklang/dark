@@ -126,12 +126,12 @@ let builtins
       BuiltinCli.Builtin.builtins ]
     []
 
-// let cloudBuiltIns (pm : PT.PackageManager) =
-//   let httpConfig =
-//     { LibCloudExecution.HttpClient.configuration with
-//         timeoutInMs = 5000
-//         allowedIP = (fun _ -> true) }
-//   builtins httpConfig pm
+let cloudBuiltIns (pm : PT.PackageManager) =
+  let httpConfig =
+    { LibCloudExecution.HttpClient.configuration with
+        timeoutInMs = 5000
+        allowedIP = (fun _ -> true) }
+  builtins httpConfig pm
 
 let localBuiltIns (pm : PT.PackageManager) =
   let httpConfig =
@@ -144,7 +144,7 @@ let executionStateFor
   (pmPT : PT.PackageManager)
   (canvasID : CanvasID)
   (internalFnsAllowed : bool)
-  (_allowLocalHttpAccess : bool)
+  (allowLocalHttpAccess : bool)
   //(dbs : Map<string, RT.DB.T>)
   : Task<RT.ExecutionState> =
   task {
@@ -197,8 +197,7 @@ let executionStateFor
     let notifier : RT.Notifier = fun _state _msg _tags -> ()
 
     let builtins =
-      //if allowLocalHttpAccess then localBuiltIns pmPT else cloudBuiltIns pmPT
-      localBuiltIns pmPT
+      if allowLocalHttpAccess then localBuiltIns pmPT else cloudBuiltIns pmPT
     let state =
       let pmRT = PT2RT.PackageManager.toRT pmPT
       Exe.createState builtins pmRT Exe.noTracing exceptionReporter notifier program
