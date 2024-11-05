@@ -304,6 +304,8 @@ module Darklang =
                 ES.ValueType actualType ]
 
             // -- Field Access --
+            | FieldAccessEmptyFieldName ->
+              [ ES.String "Field name is empty" ]
             | FieldAccessFieldNotFound fieldName ->
               [ ES.String "Unexpected field "
                 ES.FieldName fieldName
@@ -311,11 +313,10 @@ module Darklang =
                 // ES.TypeName typeName
                 ]
             | FieldAccessNotRecord actualType ->
-              [ ES.String "Attempting to access field "
-                //ES.FieldName fieldName
-                ES.String " of a "
-                ES.ValueType vt
-                ES.String " (field access only works with records)" ]
+              [ ES.String "Attempting to perform field access of "
+                ES.IndefiniteArticle
+                ES.ValueType actualType
+                ES.String ", but this only works with records" ]
 
 
 
@@ -359,34 +360,56 @@ module Darklang =
               [ ES.String "Unwrap expects a single argument, but got "
                 ES.Int(Stdlib.List.length args) ]
 
-          | WrongNumberOfTypeArgsForFn (fn, expected, actual) ->
-            [ ES.FunctionName fn
-              ES.String " expects "
-              ES.Count(expected, ES.String "type argument", ES.String "type arguments")
-              ES.String ", but got "
-              ES.Count(actual, ES.String "type argument", ES.String "type arguments") ]
+          | Apply err ->
+            match err with
+            | ExpectedApplicableButNot (actualTyp, actualValue) ->
+              [ ES.String "Expected something we could apply to, such as a lambda or function, but got "
+                ES.IndefiniteArticle
+                ES.ValueType actualTyp
+                ES.String " ("
+                ES.FullValue actualValue
+                ES.String ")" ]
 
-          | TooManyArgsForFn (fn, expected, actual) ->
-            [ ES.FunctionName fn
-              ES.String " expects "
-              ES.Count(expected, ES.String "argument", ES.String "arguments")
-              ES.String ", but got "
-              ES.Count(actual, ES.String "argument", ES.String "arguments") ]
+            | WrongNumberOfTypeArgsForFn (fn, expected, actual) ->
+              [ ES.FunctionName fn
+                ES.String " expects "
+                ES.Count(expected, ES.String "type argument", ES.String "type arguments")
+                ES.String ", but got "
+                ES.Count(actual, ES.String "type argument", ES.String "type arguments") ]
+            | TooManyArgsForFn (fn, expected, actual) ->
+              [ ES.FunctionName fn
+                ES.String " expects "
+                ES.Count(expected, ES.String "argument", ES.String "arguments")
+                ES.String ", but got "
+                ES.Count(actual, ES.String "argument", ES.String "arguments") ]
+            | FnParameterNotExpectedType(fnName, paramIndex, paramName, expectedType, actualType, actualValue) ->
+              [ ES.FunctionName fnName
+                ES.String "'s "
+                ES.Ordinal(paramIndex + 1L)
+                ES.String " parameter "
+                ES.ParamName paramName
+                ES.String " expects "
+                ES.ValueType expectedType
+                ES.String ", but got "
+                ES.ValueType actualType
+                ES.String " ("
+                ES.FullValue actualValue
+                ES.String ")" ]
+            | FnResultNotExpectedType(fnName, expectedType, actualType, actualValue) ->
+              [ ES.FunctionName fnName
+                ES.String "'s return value expects "
+                ES.ValueType expectedType
+                ES.String ", but got "
+                ES.ValueType actualType
+                ES.String " ("
+                ES.FullValue actualValue
+                ES.String ")" ]
 
-          //| TooManyArgsForLambda of lambdaExprId: id * expected: Int64 * actual: Int64
-          | TooManyArgsForLambda (_lambdaExprId, expected, actual) ->
-            [ ES.String "Lambda expects "
-              ES.Count(expected, ES.String "argument", ES.String "arguments")
-              ES.String ", but got "
-              ES.Count(actual, ES.String "argument", ES.String "arguments") ]
-
-          | ExpectedApplicableButNot (actualTyp, actualValue) ->
-            [ ES.String "Expected something we could apply to, such as a lambda or function, but got "
-              ES.IndefiniteArticle
-              ES.ValueType actualTyp
-              ES.String " ("
-              ES.FullValue actualValue
-              ES.String ")" ]
+            | TooManyArgsForLambda (_lambdaExprId, expected, actual) ->
+              [ ES.String "Lambda expects "
+                ES.Count(expected, ES.String "argument", ES.String "arguments")
+                ES.String ", but got "
+                ES.Count(actual, ES.String "argument", ES.String "arguments") ]
 
           | Json err ->
             match err with

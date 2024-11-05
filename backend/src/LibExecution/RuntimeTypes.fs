@@ -795,8 +795,41 @@ module RuntimeError =
         actualType : ValueType
 
       // -- Field Access --
+      | FieldAccessEmptyFieldName
       | FieldAccessFieldNotFound of fieldName : string
       | FieldAccessNotRecord of actualType : ValueType
+
+
+  /// Errors that occur when trying to apply a function or lambda
+  module Applications =
+    type Error =
+      | ExpectedApplicableButNot of actualTyp : ValueType * actualValue : Dval
+
+      // specific to fns
+      | WrongNumberOfTypeArgsForFn of
+        fn : FQFnName.FQFnName *
+        expected : int64 *
+        actual : int64
+      | TooManyArgsForFn of
+        fn : FQFnName.FQFnName *
+        expected : int64 *
+        actual : int64
+      | FnParameterNotExpectedType of
+        fnName : FQFnName.FQFnName *
+        paramIndex : int64 *
+        paramName : string *
+        expectedType : ValueType *
+        actualType : ValueType *
+        actualValue : Dval
+      | FnResultNotExpectedType of
+        fnName : FQFnName.FQFnName *
+        expectedType : ValueType *
+        actualType : ValueType *
+        actualValue : Dval
+
+      // specific to lambdas
+      | TooManyArgsForLambda of lambdaExprId : id * expected : int64 * actual : int64
+
 
   module Unwraps =
     type Error =
@@ -844,47 +877,25 @@ module RuntimeError =
 
     | ParseTimeNameResolution of NameResolutionError
 
-    /// $"Type {name} was not found"
     | TypeNotFound of name : FQTypeName.FQTypeName
-    /// $"Function {name} was not found"
     | FnNotFound of name : FQFnName.FQFnName
-    /// $"Function {name} was not found"
     | ConstNotFound of name : FQConstantName.FQConstantName
 
-
-    // TODO not sure where this should live
     | WrongNumberOfTypeArgsForType of
       fn : FQTypeName.FQTypeName *
       expected : int64 *
       actual : int64
 
-
     | Record of Records.Error
-
     | Enum of Enums.Error
 
+    | Apply of Applications.Error
+
     | Unwrap of Unwraps.Error
-
-
-    // TODO: put this in some Applying or Fn-Calling submodule
-    | WrongNumberOfTypeArgsForFn of
-      fn : FQFnName.FQFnName *
-      expected : int64 *
-      actual : int64
-
-    | TooManyArgsForFn of fn : FQFnName.FQFnName * expected : int64 * actual : int64
-
-    | TooManyArgsForLambda of lambdaExprId : id * expected : int64 * actual : int64
-
-
-    /// "Expected something we could 'apply' (fn, lambda),
-    /// but got a {type} ({value})."
-    | ExpectedApplicableButNot of actualTyp : ValueType * actualValue : Dval
 
     | Json of Jsons.Error
 
     | CLI of CLIs.Error
-
 
     // TODO: these really should be better,
     // likely squashed into a specific Enum or general TypeChecker case
@@ -892,8 +903,6 @@ module RuntimeError =
     | CannotMergeValues of left : ValueType * right : ValueType
 
     | TypeChecker of err : TypeCheckers.Error
-
-
 
 
     // soon, but not quite yet

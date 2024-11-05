@@ -426,12 +426,15 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
         | GetRecordField(targetReg, recordReg, fieldName) ->
           match registers[recordReg] with
           | DRecord(_, _, _, fields) ->
-            match Map.find fieldName fields with
-            | Some value -> registers[targetReg] <- value
-            | None ->
-              RTE.Records.FieldAccessFieldNotFound fieldName
-              |> RTE.Record
-              |> raiseRTE
+            if fieldName = "" then
+              RTE.Records.FieldAccessEmptyFieldName |> RTE.Record |> raiseRTE
+            else
+              match Map.find fieldName fields with
+              | Some value -> registers[targetReg] <- value
+              | None ->
+                RTE.Records.FieldAccessFieldNotFound fieldName
+                |> RTE.Record
+                |> raiseRTE
           | dv ->
             RTE.Records.FieldAccessNotRecord(Dval.toValueType dv)
             |> RTE.Record
@@ -513,12 +516,12 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
             match thingToCall with
             | DApplicable applicable -> applicable
             | _ ->
-              raiseRTE (
-                RTE.ExpectedApplicableButNot(
-                  Dval.toValueType thingToCall,
-                  thingToCall
-                )
+              RTE.Applications.ExpectedApplicableButNot(
+                Dval.toValueType thingToCall,
+                thingToCall
               )
+              |> RTE.Apply
+              |> raiseRTE
 
           match applicable with
           | AppLambda applicableLambda ->
@@ -565,7 +568,9 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
               frameToPush <- Some newFrame
 
             else if argCount > paramCount then
-              RTE.TooManyArgsForLambda(exprId, paramCount, argCount) |> raiseRTE
+              RTE.Applications.TooManyArgsForLambda(exprId, paramCount, argCount)
+              |> RTE.Apply
+              |> raiseRTE
             else
               registers[putResultIn] <-
                 { applicableLambda with argsSoFar = allArgs }
@@ -573,6 +578,29 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                 |> DApplicable
 
           | AppNamedFn applicable ->
+            // some helpers
+            let name = applicable.name
+
+            let handleTooManyArgs expected actual =
+              RTE.Applications.TooManyArgsForFn(name, expected, actual)
+              |> RTE.Apply
+              |> raiseRTE
+
+            let handleWrongTypeArgCount expected actual =
+              RTE.Applications.WrongNumberOfTypeArgsForFn(name, expected, actual)
+              |> RTE.Apply
+              |> raiseRTE
+
+            // let _typeCheckParam fnName paramIndex paramName expected actual =
+            //   let actualVT = Dval.toValueType actual
+            //   // TODO we can learn some things about the TST here., and/or type args or something
+            //   match ValueType.merge expected actualVT with
+            //   | Some merged ->
+            //     RTE.Applications.FnParameterNotExpectedType(fnName, paramIndex, paramName, expected, actualVT, actual)
+            //     |> RTE.Apply
+            //     |> raiseRTE
+            //   else ()
+
             // TODO: typechecking
             // TODO: reduce duplication between branches
             match applicable.name with
@@ -586,39 +614,28 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                   applicable.typeArgs @ typeArgs
                 let allArgs = applicable.argsSoFar @ newArgDvals
 
-                let argCount = List.length allArgs
-                let paramCount = List.length fn.parameters
-
-                let typeParamCount = List.length fn.typeParams
-                let typeArgCount = List.length typeArgs
-                // TODO: error on these not matching^, too.
+                let paramCount, argCount =
+                  (List.length fn.parameters, List.length allArgs)
+                let typeParamCount, typeArgCount =
+                  (List.length fn.typeParams, List.length typeArgs)
 
                 let! result =
                   uply {
-                    if argCount = paramCount && typeArgCount = typeParamCount then
-                      let! result = fn.fn (exeState, vm, typeArgs, allArgs)
-                      return result
+                    if typeArgCount <> typeParamCount then
+                      return handleWrongTypeArgCount typeParamCount typeArgCount
                     else if argCount > paramCount then
-                      return
-                        RTE.TooManyArgsForFn(
-                          FQFnName.Builtin fn.name,
-                          paramCount,
-                          argCount
-                        )
-                        |> raiseRTE
-                    else if typeArgCount <> typeParamCount then
-                      return
-                        RTE.WrongNumberOfTypeArgsForFn(
-                          FQFnName.Builtin fn.name,
-                          typeParamCount,
-                          typeArgCount
-                        )
-                        |> raiseRTE
-                    else
+                      return handleTooManyArgs paramCount argCount
+                    else if argCount < paramCount then
+                      // CLEANUP type-check even when we don't have all the args
                       return
                         { applicable with typeArgs = typeArgs; argsSoFar = allArgs }
                         |> AppNamedFn
                         |> DApplicable
+                    else
+                      // TODO: type-checking of args
+                      let! result = fn.fn (exeState, vm, typeArgs, allArgs)
+                      // TODO: type-checking of result
+                      return result
                   }
 
                 registers[putResultIn] <- result
@@ -629,14 +646,28 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
               | Some fn ->
                 let allArgs = applicable.argsSoFar @ newArgDvals
 
-                let argCount = List.length allArgs
-                let paramCount = NEList.length fn.parameters
+                let paramCount, argCount =
+                  (NEList.length fn.parameters, List.length allArgs)
+                let typeParamCount, typeArgCount =
+                  (List.length fn.typeParams, List.length typeArgs)
 
-                let typeParamCount = List.length fn.typeParams
-                let typeArgCount = List.length typeArgs
-                // TODO: error on these not matching^, too.
+                if typeArgCount <> typeParamCount then
+                  return handleWrongTypeArgCount typeParamCount typeArgCount
+                else if argCount > paramCount then
+                  return handleTooManyArgs paramCount argCount
+                else if argCount < paramCount then
+                  // CLEANUP type-check even when we don't have all the args
+                  registers[putResultIn] <-
+                    { applicable with typeArgs = typeArgs; argsSoFar = allArgs }
+                    |> AppNamedFn
+                    |> DApplicable
+                else
+                  // TODO type-checking of fn args and result.
+                  // The args are relatively simple, but the result is more complex,
+                  // because the actual processing is happening in another interpreter loop, after we lose context.
 
-                if argCount = paramCount && typeArgCount = typeParamCount then
+                  // push a new frame to execute the function
+                  // , and the interpreter will evaluate it shortly
                   frameToPush <-
                     { id = guuid ()
                       parent = Some(vm.currentFrameID, putResultIn, counter + 1)
@@ -649,33 +680,31 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                       context = PackageFn fn.id }
                     |> Some
 
-                else if argCount > paramCount then
-                  RTE.TooManyArgsForFn(FQFnName.Package fn.id, paramCount, argCount)
-                  |> raiseRTE
-                else if typeArgCount <> typeParamCount then
-                  RTE.WrongNumberOfTypeArgsForFn(
-                    FQFnName.Package fn.id,
-                    typeParamCount,
-                    typeArgCount
-                  )
-                  |> raiseRTE
-                else
-                  registers[putResultIn] <-
-                    { applicable with argsSoFar = allArgs }
-                    |> AppNamedFn
-                    |> DApplicable
-
         | RaiseNRE nre -> raiseRTE (RTE.ParseTimeNameResolution nre)
 
         counter <- counter + 1
 
 
+      // exited loop -- either pushed a frame or finished the current frame
+
       match frameToPush with
+      | Some newFrame ->
+        // Something in this eval just pushed a frame -- don't do the "normal" processing
+        vm.callFrames <- Map.add newFrame.id newFrame vm.callFrames
+        vm.currentFrameID <- newFrame.id
+
       | None ->
-        // we are at the end of the instructions of the current frame
+        // We are at the end of the instructions of the current frame
+        // Either we're done with the whole eval, or we need to return a value to the parent frame
         let resultOfFrame = registers[instrData.resultReg]
+
         match currentFrame.parent with
         | Some(parentID, regOfParentToPutResultInto, pcOfParent) ->
+          // We just finished processing a frame, and we need to return a value to the parent frame
+
+          // TODO this might be where the type-checking of a fn result needs to happen.
+          // But when here, it's not always a fn call - could also be for a lambda.
+
           vm.callFrames <- Map.remove vm.currentFrameID vm.callFrames
           vm.currentFrameID <- parentID
           let parentFrame = Map.findUnsafe parentID vm.callFrames
@@ -686,9 +715,6 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
           vm.callFrames <- Map.remove vm.currentFrameID vm.callFrames
           finalResult <- Some resultOfFrame
 
-      | Some newFrame ->
-        vm.callFrames <- Map.add newFrame.id newFrame vm.callFrames
-        vm.currentFrameID <- newFrame.id
 
 
     // If we've reached the end of the instructions, return the result

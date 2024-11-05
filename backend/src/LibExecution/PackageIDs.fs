@@ -204,6 +204,10 @@ module Type =
         module Records =
           let error = p [ "Records" ] "Error" "5b53bb20-7a3e-4f96-bd1c-5a090b491d8d"
 
+        module Applications =
+          let error =
+            p [ "Applications" ] "Error" "8eda2125-db3e-4ef8-b185-80c202f3e1e3"
+
         module Unwraps =
           let error = p [ "Unwraps" ] "Error" "a69d2c00-2839-449e-9d19-c4d3b5b27550"
 

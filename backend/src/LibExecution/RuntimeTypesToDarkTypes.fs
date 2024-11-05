@@ -956,6 +956,8 @@ module RuntimeError =
             ValueType.toDT expectedType
             ValueType.toDT actualType ]
 
+        | RuntimeError.Records.FieldAccessEmptyFieldName ->
+          "FieldAccessEmptyFieldName", []
         | RuntimeError.Records.FieldAccessFieldNotFound fieldName ->
           "FieldAccessFieldNotFound", [ DString fieldName ]
         | RuntimeError.Records.FieldAccessNotRecord actualType ->
@@ -1004,6 +1006,8 @@ module RuntimeError =
           ValueType.fromDT actualType
         )
 
+      | DEnum(_, _, [], "FieldAccessEmptyFieldName", []) ->
+        RuntimeError.Records.FieldAccessEmptyFieldName
       | DEnum(_, _, [], "FieldAccessFieldNotFound", [ fieldName ]) ->
         RuntimeError.Records.FieldAccessFieldNotFound(D.string fieldName)
       | DEnum(_, _, [], "FieldAccessNotRecord", [ actualType ]) ->
@@ -1074,6 +1078,109 @@ module RuntimeError =
           Dval.fromDT actualValue
         )
       | _ -> Exception.raiseInternal "Invalid Enums.Error" []
+
+  module Applications =
+    let toDT (e : RuntimeError.Applications.Error) : Dval =
+      let typeName =
+        FQTypeName.fqPackage
+          PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.Applications.error
+
+      let (caseName, fields) =
+        match e with
+        | RuntimeError.Applications.ExpectedApplicableButNot(actualTyp, actualValue) ->
+          "ExpectedApplicableButNot",
+          [ ValueType.toDT actualTyp; Dval.toDT actualValue ]
+
+        | RuntimeError.Applications.WrongNumberOfTypeArgsForFn(fn, expected, actual) ->
+          "WrongNumberOfTypeArgsForFn",
+          [ FQFnName.toDT fn; DInt64 expected; DInt64 actual ]
+        | RuntimeError.Applications.TooManyArgsForFn(fn, expected, actual) ->
+          "TooManyArgsForFn", [ FQFnName.toDT fn; DInt64 expected; DInt64 actual ]
+        | RuntimeError.Applications.FnParameterNotExpectedType(fnName,
+                                                               paramIndex,
+                                                               paramName,
+                                                               expectedType,
+                                                               actualType,
+                                                               actualValue) ->
+          "FnParameterNotExpectedType",
+          [ FQFnName.toDT fnName
+            DInt64 paramIndex
+            DString paramName
+            ValueType.toDT expectedType
+            ValueType.toDT actualType
+            Dval.toDT actualValue ]
+        | RuntimeError.Applications.FnResultNotExpectedType(fnName,
+                                                            expectedType,
+                                                            actualType,
+                                                            actualValue) ->
+          "FnResultNotExpectedType",
+          [ FQFnName.toDT fnName
+            ValueType.toDT expectedType
+            ValueType.toDT actualType
+            Dval.toDT actualValue ]
+
+        | RuntimeError.Applications.TooManyArgsForLambda(lambdaExprId,
+                                                         expected,
+                                                         actual) ->
+          "TooManyArgsForLambda",
+          [ DUInt64 lambdaExprId; DInt64 expected; DInt64 actual ]
+
+      DEnum(typeName, typeName, [], caseName, fields)
+
+    let fromDT (d : Dval) : RuntimeError.Applications.Error =
+      match d with
+      | DEnum(_, _, [], "ExpectedApplicableButNot", [ actualTyp; actualValue ]) ->
+        RuntimeError.Applications.ExpectedApplicableButNot(
+          ValueType.fromDT actualTyp,
+          Dval.fromDT actualValue
+        )
+
+      | DEnum(_, _, [], "WrongNumberOfTypeArgsForFn", [ fn; expected; actual ]) ->
+        RuntimeError.Applications.WrongNumberOfTypeArgsForFn(
+          FQFnName.fromDT fn,
+          D.int64 expected,
+          D.int64 actual
+        )
+      | DEnum(_, _, [], "TooManyArgsForFn", [ fn; expected; actual ]) ->
+        RuntimeError.Applications.TooManyArgsForFn(
+          FQFnName.fromDT fn,
+          D.int64 expected,
+          D.int64 actual
+        )
+      | DEnum(_,
+              _,
+              [],
+              "FnParameterNotExpectedType",
+              [ fnName; paramIndex; paramName; expectedType; actualType; actualValue ]) ->
+        RuntimeError.Applications.FnParameterNotExpectedType(
+          FQFnName.fromDT fnName,
+          D.int64 paramIndex,
+          D.string paramName,
+          ValueType.fromDT expectedType,
+          ValueType.fromDT actualType,
+          Dval.fromDT actualValue
+        )
+      | DEnum(_,
+              _,
+              [],
+              "FnResultNotExpectedType",
+              [ fnName; expectedType; actualType; actualValue ]) ->
+        RuntimeError.Applications.FnResultNotExpectedType(
+          FQFnName.fromDT fnName,
+          ValueType.fromDT expectedType,
+          ValueType.fromDT actualType,
+          Dval.fromDT actualValue
+        )
+
+      | DEnum(_, _, [], "TooManyArgsForLambda", [ lambdaExprId; expected; actual ]) ->
+        RuntimeError.Applications.TooManyArgsForLambda(
+          D.uInt64 lambdaExprId,
+          D.int64 expected,
+          D.int64 actual
+        )
+      | _ -> Exception.raiseInternal "Invalid Applications.Error" []
+
+
 
   module Unwraps =
     let toDT (e : RuntimeError.Unwraps.Error) : Dval =
@@ -1186,17 +1293,7 @@ module RuntimeError =
       | RuntimeError.Record e -> "Record", [ Records.toDT e ]
       | RuntimeError.Enum e -> "Enum", [ Enums.toDT e ]
       | RuntimeError.Unwrap e -> "Unwrap", [ Unwraps.toDT e ]
-      | RuntimeError.WrongNumberOfTypeArgsForFn(fn, expected, actual) ->
-        "WrongNumberOfTypeArgsForFn",
-        [ FQFnName.toDT fn; DInt64 expected; DInt64 actual ]
-      | RuntimeError.TooManyArgsForFn(fn, expected, actual) ->
-        "TooManyArgsForFn", [ FQFnName.toDT fn; DInt64 expected; DInt64 actual ]
-      | RuntimeError.TooManyArgsForLambda(lambdaExprId, expected, actual) ->
-        "TooManyArgsForLambda",
-        [ DUInt64 lambdaExprId; DInt64 expected; DInt64 actual ]
-      | RuntimeError.ExpectedApplicableButNot(actualTyp, actualValue) ->
-        "ExpectedApplicableButNot",
-        [ ValueType.toDT actualTyp; Dval.toDT actualValue ]
+      | RuntimeError.Apply e -> "Apply", [ Applications.toDT e ]
       | RuntimeError.Json e -> "Json", [ Jsons.toDT e ]
       | RuntimeError.CLI e -> "CLI", [ CLIs.toDT e ]
       | RuntimeError.UncaughtException reference ->
@@ -1242,30 +1339,8 @@ module RuntimeError =
       )
     | DEnum(_, _, [], "Record", [ e ]) -> RuntimeError.Record(Records.fromDT e)
     | DEnum(_, _, [], "Enum", [ e ]) -> RuntimeError.Enum(Enums.fromDT e)
+    | DEnum(_, _, [], "Apply", [ e ]) -> RuntimeError.Apply(Applications.fromDT e)
     | DEnum(_, _, [], "Unwrap", [ e ]) -> RuntimeError.Unwrap(Unwraps.fromDT e)
-    | DEnum(_, _, [], "WrongNumberOfTypeArgsForFn", [ fn; expected; actual ]) ->
-      RuntimeError.WrongNumberOfTypeArgsForFn(
-        FQFnName.fromDT fn,
-        D.int64 expected,
-        D.int64 actual
-      )
-    | DEnum(_, _, [], "TooManyArgsForFn", [ fn; expected; actual ]) ->
-      RuntimeError.TooManyArgsForFn(
-        FQFnName.fromDT fn,
-        D.int64 expected,
-        D.int64 actual
-      )
-    | DEnum(_, _, [], "TooManyArgsForLambda", [ lambdaExprId; expected; actual ]) ->
-      RuntimeError.TooManyArgsForLambda(
-        D.uInt64 lambdaExprId,
-        D.int64 expected,
-        D.int64 actual
-      )
-    | DEnum(_, _, [], "ExpectedApplicableButNot", [ actualTyp; actualValue ]) ->
-      RuntimeError.ExpectedApplicableButNot(
-        ValueType.fromDT actualTyp,
-        Dval.fromDT actualValue
-      )
     | DEnum(_, _, [], "Json", [ e ]) -> RuntimeError.Json(Jsons.fromDT e)
     | DEnum(_, _, [], "CLI", [ e ]) -> RuntimeError.CLI(CLIs.fromDT e)
     | DEnum(_, _, [], "UncaughtException", [ reference ]) ->

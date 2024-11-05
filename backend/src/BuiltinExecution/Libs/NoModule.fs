@@ -480,9 +480,10 @@ let fns : List<BuiltInFn> =
       description = "Prints the given <param value> to the standard output"
       fn =
         (function
-        | _, _, _, [ DString label; _value ] ->
+        | _, _, _, [ DString label; value ] ->
           // TODO: call upon the Dark equivalent fn instead of rlying on DvalReprDeveloper
-          print $"DEBUG: {label}" //" - {DvalReprDeveloper.toRepr value}"
+          let value = $"{value}"
+          print $"DEBUG: {label}: {value}"
           Ply DUnit
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

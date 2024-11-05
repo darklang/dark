@@ -109,8 +109,21 @@ module Darklang =
               actualType: ValueType
 
             // -- Field Access --
+            | FieldAccessEmptyFieldName
             | FieldAccessFieldNotFound of fieldName: String
             | FieldAccessNotRecord of actualType: ValueType
+
+        module Applications =
+          type Error =
+            | ExpectedApplicableButNot of actualTyp: ValueType * actualValue: Dval
+
+            | WrongNumberOfTypeArgsForFn of fn: FQFnName.FQFnName * expected: Int64 * actual: Int64
+            | TooManyArgsForFn of fn: FQFnName.FQFnName * expected: Int64 * actual: Int64
+            | FnParameterNotExpectedType of fnName : FQFnName.FQFnName * paramIndex: Int64 * paramName : string * expectedType : ValueType * actualType : ValueType * actualValue : Dval
+            | FnResultNotExpectedType of fnName : FQFnName.FQFnName * expectedType : ValueType * actualType : ValueType * actualValue : Dval
+
+            | TooManyArgsForLambda of lambdaExprId: id * expected: Int64 * actual: Int64
+
 
         module Unwraps =
           type Error =
@@ -151,19 +164,7 @@ module Darklang =
           | Record of Records.Error
           | Enum of Enums.Error
           | Unwrap of Unwraps.Error
-          | WrongNumberOfTypeArgsForFn of
-            fn: FQFnName.FQFnName *
-            expected: Int64 *
-            actual: Int64
-          | TooManyArgsForFn of
-            fn: FQFnName.FQFnName *
-            expected: Int64 *
-            actual: Int64
-          | TooManyArgsForLambda of
-            lambdaExprId: id *
-            expected: Int64 *
-            actual: Int64
-          | ExpectedApplicableButNot of actualTyp: ValueType * actualValue: Dval
+          | Apply of Applications.Error
           | Json of Jsons.Error
           | CLI of CLIs.Error
           | CannotMergeValues of left: ValueType * right: ValueType

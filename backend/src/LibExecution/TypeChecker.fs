@@ -835,8 +835,7 @@ module DvalCreator =
           (fun (fieldsSoFar, currentTypeArgs, tst) (fieldName, fieldValue) ->
             uply {
               if fieldName = "" then
-                return
-                  RTE.Records.CreationEmptyKey |> RTE.Record |> raiseRTE threadID
+                return RTE.Records.UpdateEmptyKey |> RTE.Record |> raiseRTE threadID
 
               // This isn't a problem the first time (already OK)
               // but _should_ be a problem if it happens more than once (CLEANUP)
