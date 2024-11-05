@@ -1360,7 +1360,7 @@ type CallFrame =
     //, or just what's 'new' to this call frame?
     // Do we even expect to need to 'look up' in above call frames for type symbols?
     // actually, probably, for nested fn calls or something. (unless we copy all, of course)
-    typeSymbolTable : TypeSymbolTable
+    mutable typeSymbolTable : TypeSymbolTable
   }
 
 type InstrData =

@@ -176,7 +176,13 @@ let rec evalConst
 
 
     | CEnum(Ok typeName, caseName, fields) ->
-      let typeArgs = [] // they're implicit I guess
+      let typeArgs =
+        // At this point, we don't support explicit type args for constant enums
+        // once (CLEANUP) we make some big changes to how Constants work
+        // (so they're eval'd at dev-time rather than run-time)
+        // , we can support this.
+        []
+
       let! fields = fields |> Ply.List.mapSequentially r
       let! (enum, _updatedTst) =
         TypeChecker.DvalCreator.enum
@@ -187,10 +193,12 @@ let rec evalConst
           typeArgs
           caseName
           fields
+      // CLEANUP might need to do something with the updated TST
+
       return enum
 
     | CEnum(Error nre, _caseName, _fields) ->
-      // TODO: ConstNotFound or something
+      // CLEANUP ConstNotFound would be better
       return raiseRTE threadID (RuntimeError.ParseTimeNameResolution nre)
   }
 
@@ -377,10 +385,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
           let fields =
             fields |> List.map (fun (name, valueReg) -> (name, registers[valueReg]))
 
-
-          // What if we typeArgs but `(String, ValueType)` instead? but String only for unknowns... hmm should Uknown have a String in it? no, but maybe another thing would be useful.
-
-          let! (record, _updatedTst) =
+          let! (record, updatedTst) =
             TypeChecker.DvalCreator.record
               exeState.types
               vm.threadID
@@ -389,7 +394,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
               typeArgs
               fields
 
-          //currentFrame.typeSymbolTable <- updatedTst
+          currentFrame.typeSymbolTable <- updatedTst
           registers[recordReg] <- record
 
 
@@ -402,7 +407,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
               fieldUpdates
               |> List.map (fun (name, valueReg) -> (name, registers[valueReg]))
 
-            let! (updatedRecord, _updatedTst) =
+            let! (updatedRecord, updatedTst) =
               TypeChecker.DvalCreator.recordUpdate
                 exeState.types
                 vm.threadID
@@ -413,7 +418,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                 originalFields
                 fieldUpdates
 
-            //currentFrame.typeSymbolTable <- updatedTst
+            currentFrame.typeSymbolTable <- updatedTst
             registers[targetReg] <- updatedRecord
 
           | dv ->
@@ -444,7 +449,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
         // -- Enums --
         | CreateEnum(enumReg, typeName, typeArgs, caseName, fields) ->
           let fields = fields |> List.map (fun (valueReg) -> registers[valueReg])
-          let! (newEnum, _updatedTst) =
+          let! (newEnum, updatedTst) =
             TypeChecker.DvalCreator.enum
               exeState.types
               vm.threadID
@@ -454,7 +459,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
               caseName
               fields
 
-          //currentFrame.typeSymbolTable <- updatedTst
+          currentFrame.typeSymbolTable <- updatedTst
           registers[enumReg] <- newEnum
 
 
@@ -463,7 +468,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
           | FQConstantName.Builtin builtin ->
             match Map.find builtin exeState.constants.builtIn with
             | Some c -> registers[createTo] <- c.body
-            | None -> raiseRTE (RTE.ConstNotFound(FQConstantName.Builtin builtin))
+            | None -> raiseRTE (RTE.ConstNotFound name)
 
           | FQConstantName.Package pkg ->
             match! exeState.constants.package pkg with
@@ -475,7 +480,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                   currentFrame.typeSymbolTable
                   c.body
               registers[createTo] <- dv
-            | None -> raiseRTE (RTE.ConstNotFound(FQConstantName.Package pkg))
+            | None -> raiseRTE (RTE.ConstNotFound name)
 
 
         | CreateLambda(lambdaReg, impl) ->
@@ -503,10 +508,6 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
           // CLEANUP
           // only the first apply of an applicable should be allowed to provide type args
 
-          // further constraint: only named fns can have type args? no, see below.
-          // let x = Json.parse
-          // x<Int64> "3"
-
           let thingToCall = registers[thingToCallReg]
 
           let newArgDvals =
@@ -524,23 +525,24 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
               |> raiseRTE
 
           match applicable with
-          | AppLambda applicableLambda ->
-            let exprId = applicableLambda.exprId
+          | AppLambda appLambda ->
+            let exprId = appLambda.exprId
             let foundLambda =
               match
                 Map.tryFind
-                  (currentFrame.context, applicableLambda.exprId)
+                  (currentFrame.context, appLambda.exprId)
                   vm.lambdaInstrCache
               with
               | Some lambda -> lambda
               | None ->
-                match
-                  Map.tryFind (Source, applicableLambda.exprId) vm.lambdaInstrCache
-                with
+                match Map.tryFind (Source, appLambda.exprId) vm.lambdaInstrCache with
                 | Some lambda -> lambda
-                | None -> raiseRTE (RTE.VariableNotFound "lambda not found") // TODO better error
+                | None ->
+                  Exception.raiseInternal
+                    "lambda not found"
+                    [ "exprId", appLambda.exprId ]
 
-            let allArgs = applicableLambda.argsSoFar @ newArgDvals
+            let allArgs = appLambda.argsSoFar @ newArgDvals
 
             let argCount = List.length allArgs
             let paramCount = NEList.length foundLambda.patterns
@@ -558,12 +560,12 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
 
                     allArgs |> List.iteri (fun i arg -> r[i] <- arg)
 
-                    applicableLambda.closedRegisters
+                    appLambda.closedRegisters
                     |> List.iter (fun (reg, value) -> r[reg] <- value)
 
                     r
-                  typeSymbolTable = applicableLambda.typeSymbolTable // TODO do we need to merge any into this?
-                  context = Lambda(currentFrame.context, applicableLambda.exprId) }
+                  typeSymbolTable = appLambda.typeSymbolTable // TODO do we need to merge any into this?
+                  context = Lambda(currentFrame.context, appLambda.exprId) }
 
               frameToPush <- Some newFrame
 
@@ -573,9 +575,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
               |> raiseRTE
             else
               registers[putResultIn] <-
-                { applicableLambda with argsSoFar = allArgs }
-                |> AppLambda
-                |> DApplicable
+                { appLambda with argsSoFar = allArgs } |> AppLambda |> DApplicable
 
           | AppNamedFn applicable ->
             // some helpers
@@ -716,9 +716,13 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
           finalResult <- Some resultOfFrame
 
 
-
     // If we've reached the end of the instructions, return the result
     match finalResult with
     | Some dv -> return dv
-    | None -> return raiseRTE (RTE.UncaughtException System.Guid.Empty) // TODO better error
+    | None ->
+      let currentFrame = Map.findUnsafe vm.currentFrameID vm.callFrames
+      return
+        Exception.raiseInternal
+          "no finalResult found"
+          [ "currentFrame", currentFrame ]
   }
