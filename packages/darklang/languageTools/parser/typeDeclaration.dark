@@ -80,11 +80,13 @@ module Darklang =
                       (parseRecordField fieldNode, Stdlib.Option.Option.None)
 
                     | [ fieldNode; separator ] ->
-                      (parseRecordField fieldNode,
-                       Stdlib.Option.Option.Some separator.range)
+                      if separator.typ == "newline" then
+                        (parseRecordField fieldNode, Stdlib.Option.Option.None)
+                      else
+                        (parseRecordField fieldNode,
+                         Stdlib.Option.Option.Some separator.range)
                     | _ ->
-                      (createUnparseableError fieldsNode,
-                       Stdlib.Option.Option.Some separator.range))
+                      (createUnparseableError fieldsNode, Stdlib.Option.Option.None))
 
                 | None -> createUnparseableError child
 
