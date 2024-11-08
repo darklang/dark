@@ -4,7 +4,8 @@ module Darklang =
       type DocumentInScope =
         { uri: String
           text: String
-          parsed: Stdlib.Result.Result<WrittenTypes.ParsedFile, String> }
+          parsed: Stdlib.Result.Result<WrittenTypes.ParsedFile, String>
+          parsedToPT: Stdlib.Option.Option<ProgramTypes.SourceFile.SourceFile> }
 
       type LspState =
         {
