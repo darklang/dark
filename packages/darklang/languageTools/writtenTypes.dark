@@ -276,7 +276,7 @@ module Darklang =
 
         | EEnum of
           Range *
-          typeName: (Range * List<String>) *
+          typeName: QualifiedTypeIdentifier *
           caseName: (Range * String) *
           fields: List<Expr> *
           /// between the typeName and the caseName
@@ -345,8 +345,7 @@ module Darklang =
           symbolArrow: Range
         | EPipeEnum of
           Range *
-          // CLEANUP: this probably should be (Range * List<Range * String>)
-          typeName: (Range * List<String>) *
+          typeName: QualifiedTypeIdentifier *
           caseName: (Range * String) *
           fields: List<Expr> *
           /// between the typeName and the caseName
@@ -400,7 +399,7 @@ module Darklang =
           symbolCloseParen: Range
         | CEnum of
           Range *
-          typeName: (Range * List<String>) *
+          typeName: QualifiedTypeIdentifier *
           caseName: (Range * String) *
           fields: List<Const> *
           symbolDot: Range

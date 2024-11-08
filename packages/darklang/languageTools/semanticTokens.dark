@@ -599,10 +599,7 @@ module Darklang =
 
             | EPipeEnum(_, typeName, caseName, fields, symbolDot) ->
               // CLEANUP: typeName should be tokenized as a QualifiedTypeIdentifier
-              let typeName =
-                match typeName with
-                | (range, _) -> [ makeToken range TokenType.TypeName ]
-                | _ -> []
+              let typeName = QualifiedTypeIdentifier.tokenize typeName
 
               let caseName =
                 match caseName with
@@ -890,10 +887,7 @@ module Darklang =
 
           // Option.Option.Some 1L
           | EEnum(range, typeName, caseName, fields, symbolDot) ->
-            let typeName =
-              match typeName with
-              | (range, _) -> [ makeToken range TokenType.TypeName ]
-              | _ -> []
+            let typeName = QualifiedTypeIdentifier.tokenize typeName
 
             let caseName =
               match caseName with
@@ -1217,10 +1211,7 @@ module Darklang =
             |> Stdlib.List.flatten
 
           | CEnum(range, typeName, caseName, fields, symbolDot) ->
-            let typeName =
-              match typeName with
-              | (range, _) -> [ makeToken range TokenType.TypeName ]
-              | _ -> []
+            let typeName = QualifiedTypeIdentifier.tokenize typeName
 
             let caseName =
               match caseName with

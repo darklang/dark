@@ -380,19 +380,14 @@ module Darklang =
 
               (ProgramTypes.PipeExpr.EPipeLambda(gid (), pats, body), unresolvedNames)
 
-            | EPipeEnum(_, (sr, typeName), (_, caseName), fields, _) ->
-              let typeName =
-                NameResolver.TypeName.resolve
+            | EPipeEnum(_, typeName, (_, caseName), fields, _) ->
+              let (typeName, typeArgs, typeNameUnresolvedNames) =
+                Identifiers.QualifiedType.toPT
                   onMissing
                   pm
                   owner
                   currentModule
-                  (WrittenTypes.Name.Unresolved sr typeName)
-
-              let typNameUnresolvedNames =
-                match typeName with
-                | Ok _ -> []
-                | Error e -> [ (sr, e) ]
+                  typeName
 
               let (fields, fieldsUnresolvedNames) =
                 fields
@@ -402,7 +397,7 @@ module Darklang =
 
               let unresolvedNames =
                 Stdlib.List.flatten
-                  [ typNameUnresolvedNames
+                  [ typeNameUnresolvedNames
                     fieldsUnresolvedNames |> Stdlib.List.flatten ]
 
               (ProgramTypes.PipeExpr.EPipeEnum(gid (), typeName, caseName, fields),
@@ -574,19 +569,14 @@ module Darklang =
             (ProgramTypes.Expr.ERecordUpdate(gid (), record, updates),
              unresolvedNames)
 
-          | EEnum(_, (sr, typeName), (_, caseName), fields, _) ->
-            let typeName =
-              NameResolver.TypeName.resolve
+          | EEnum(_, typeName, (_, caseName), fields, _) ->
+            let (typeName, typeArgs, typeNameUnresolvedNames) =
+              Identifiers.QualifiedType.toPT
                 onMissing
                 pm
                 owner
                 currentModule
-                (WrittenTypes.Name.Unresolved sr typeName)
-
-            let typNameUnresolvedNames =
-              match typeName with
-              | Ok _ -> []
-              | Error e -> [ (sr, e) ]
+                typeName
 
             let (fields, fieldsUnresolvedNames) =
               fields
@@ -596,7 +586,7 @@ module Darklang =
 
             let unresolvedNames =
               Stdlib.List.flatten
-                [ typNameUnresolvedNames
+                [ typeNameUnresolvedNames
                   fieldsUnresolvedNames |> Stdlib.List.flatten ]
 
             (ProgramTypes.Expr.EEnum(gid (), typeName, caseName, fields),
@@ -850,19 +840,14 @@ module Darklang =
 
             (ProgramTypes.Const.CTuple(first, second, rest), unresolvedNames)
 
-          | CEnum(_, (sr, typeName), (_, caseName), fields, _) ->
-            let typeName =
-              NameResolver.TypeName.resolve
+          | CEnum(_, typeName, (_, caseName), fields, _) ->
+            let (typeName, typeArgs, typeNameUnresolvedNames) =
+              Identifiers.QualifiedType.toPT
                 onMissing
                 pm
                 owner
                 currentModule
-                (WrittenTypes.Name.Unresolved sr typeName)
-
-            let typeNameUnresolvedNames =
-              match typeName with
-              | Ok _ -> []
-              | Error e -> [ (sr, e) ]
+                typeName
 
             let (fields, fieldsUnresolvedNames) =
               fields
@@ -1408,7 +1393,8 @@ module Darklang =
 
           let unresolvedNames =
             Stdlib.List.flatten
-              [ declarationsUnresolvedNames; exprsToEvalUnresolvedNames ]
+              [ declarationsUnresolvedNames |> Stdlib.List.flatten
+                exprsToEvalUnresolvedNames |> Stdlib.List.flatten ]
 
           let sourceFile =
             ProgramTypes.SourceFile.SourceFile
