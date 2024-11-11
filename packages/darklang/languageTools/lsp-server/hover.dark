@@ -10,14 +10,75 @@ module Darklang =
           //get position
           let position = params.position
 
+          /// Find the document in scope
+          let doc =
+            state.documentsInScope
+            |> Stdlib.Dict.get params.textDocument.uri
+            |> Builtin.unwrap
+
+          /// Get the parsed document
+          let parsed = doc |> (fun doc -> doc.parsed)
+
           //TODO: get hover information
+
+          /// Find the node at the hover position, and get the hover information
+          let info =
+            match parsed with
+            | Ok(SourceFile s) ->
+              let decls =
+                s.declarations
+                |> HoverInformation.collectNodeHoverInfoAtPos position []
+
+              // First try to find a declaration at the position, then try to find expressions
+              match decls with
+              | Some _ -> decls
+              | None ->
+                s.exprsToEval
+                |> Stdlib.List.filterMap (fun e ->
+                  HoverInformation.collectExpressionHoverInfoAtPos e position [])
+                |> Stdlib.List.head
+
+            | _ -> Stdlib.Option.Option.None
+
+
+          /// Get the text, metadata, and description for the hover
+          let (hoveringOn, metadata, description) =
+            match info with
+            | Some i ->
+              let text =
+                doc
+                |> (fun doc -> doc.text)
+                |> (fun text ->
+                  match HoverInformation.getTextAtRange text i.range with
+                  | Some t -> t
+                  | None -> "")
+
+              let metadata =
+                i.metadata |> Stdlib.Option.withDefault "No metadata available"
+
+              let description =
+                match i.description with
+                | Some d -> "\n\nDescription: \n\n" ++ d
+                | None -> "no description available"
+
+              (text, metadata, description)
+
+            | None -> ("", "No metadata available", "No description available") // TODO: remove this, we shouldn't show hover if there's no info
+
+
           // Create a hover response with Markdown content
           let hover =
             LanguageServerProtocol.Hover.Hover
               { contents =
                   LanguageServerProtocol.MarkupContent
                     { kind = LanguageServerProtocol.MarkupKind.Markdown
-                      value = "got a **hover** response \n\n yay!" }
+                      value =
+                        (HoverInformation.createCodeSnippet hoveringOn)
+                        ++ "\n\n"
+                        ++ metadata
+                        ++ "\n\n"
+                        ++ description }
+
                 range = Stdlib.Option.Option.None }
 
           let response =
