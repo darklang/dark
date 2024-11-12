@@ -24,7 +24,7 @@ module Darklang =
         | _ :: tail -> Stdlib.Option.Option.Some tail
 
 
-      /// Add element <param val> to front of <type list> <param list>
+      /// Add element <param value> to front of <type list> <param list>
       let push (list: List<'a>) (value: 'a) : List<'a> =
         Stdlib.List.append_v0 [ value ] list
 
