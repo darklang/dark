@@ -23,7 +23,7 @@ do
 done
 
 
-# # If servers are running and we don't need to restart, then don't
+# If servers are running and we don't need to restart, then don't
 RUNNING=true
 if [[ $(pgrep BwdServer -c) -eq 0 ]]; then RUNNING=false; fi
 if [[ $(pgrep CronChecker -c) -eq 0 ]]; then RUNNING=false; fi
