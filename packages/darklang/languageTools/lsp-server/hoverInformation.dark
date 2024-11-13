@@ -311,17 +311,28 @@ module Darklang =
               match checkIfPositionWithinRange position qn.typ.range with
               | Some r ->
                 let modules = qn.modules |> Stdlib.List.map (fun (m, _) -> m.name)
-                let fqName = Stdlib.List.append modules [ qn.typ.name ]
+                let typeName = Stdlib.List.append modules [ qn.typ.name ]
 
-                let typ = tryGetPkgType fqName pm owner currentModules
+                let typ = tryGetPkgType typeName pm owner currentModules
 
                 let prettyType =
                   match typ with
                   | Some t -> PrettyPrinter.ProgramTypes.packageType t
                   | None -> "could not get type"
 
+                let fqName =
+                  match typ with
+                  | Some t ->
+                    let fqName = Stdlib.List.append t.name.modules [ t.name.name ]
+                    Stdlib.String.join fqName "."
+                  | None -> typeName |> Stdlib.String.join "."
+
                 let metadata =
-                  Stdlib.Option.Option.Some(createCodeSnippet prettyType)
+                  Stdlib.Option.Option.Some(
+                    createCodeSnippet prettyType
+                    ++ "\n\n"
+                    ++ $"Fully qualified name: {fqName}"
+                  )
 
                 let description =
                   Stdlib.Option.Option.Some(
