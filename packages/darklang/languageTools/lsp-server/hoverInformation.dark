@@ -25,9 +25,20 @@ module Darklang =
 {text}
 ```"""
 
+        let fnSignature (f: ProgramTypes.PackageFn.PackageFn) : String =
+          let params =
+            f.parameters
+            |> Stdlib.List.map (fun p ->
+              p |> PrettyPrinter.ProgramTypes.PackageFn.parameter)
+            |> Stdlib.String.join ", "
+
+          let returnType = f.returnType |> PrettyPrinter.ProgramTypes.typeReference
+
+          params ++ " -> " ++ returnType
+
 
         /// Helper function to find and get package functions, types, and constants by name from the package manager
-        let tryGetPkgFn
+        let tryGetFn
           (fnName: List<String>)
           (pm: ProgramTypes.PackageManager.PackageManager)
           (owner: String)
@@ -42,12 +53,12 @@ module Darklang =
 
           match resolvedFn with
           | Ok fn ->
-            let f =
-              match fn with
-              | Package f -> f
+            match fn with
+            | Package f ->
+              let getFn = pm.getFn
+              getFn f
+            | Builtin b -> Stdlib.Option.Option.None // TODO handle builtin fns
 
-            let getFn = pm.getFn
-            getFn f
           | _ -> Stdlib.Option.Option.None
 
 
@@ -1428,16 +1439,28 @@ module Darklang =
 
                   let name = fnName.fn.name
                   let range = fnName.fn.range
-                  let fqName = Stdlib.List.append modules [ name ]
+                  let fn = Stdlib.List.append modules [ name ]
 
-                  let fn = tryGetPkgFn fqName pm owner currentModules
+                  let getFunction = tryGetFn fn pm owner currentModules
 
-                  match fn with
+                  match getFunction with
                   | Some f ->
                     let prettyFn = PrettyPrinter.ProgramTypes.packageFn f
+                    let signature = fnSignature f
+
+                    let fqName =
+                      (Stdlib.List.append f.name.modules [ f.name.name ])
+                      |> Stdlib.String.join "."
 
                     let metadata =
-                      Stdlib.Option.Option.Some(createCodeSnippet prettyFn)
+                      Stdlib.Option.Option.Some(
+                        "Fully qualified name: "
+                        ++ fqName
+                        ++ "\n\n"
+                        ++ (createCodeSnippet signature)
+                        ++ "\n\n"
+                        ++ (createCodeSnippet prettyFn)
+                      )
 
                     let description =
                       Stdlib.Option.Option.Some("//TODO: add description")
@@ -1465,13 +1488,26 @@ module Darklang =
             // check if position is within the PipeExpr range
             match checkIfPositionWithinRange position r with
             | Some _ ->
-              let checkIfFn = tryGetPkgFn name pm owner currentModules
+              let checkIfFn = tryGetFn name pm owner currentModules
 
               match checkIfFn with
               | Some f ->
                 let prettyFn = PrettyPrinter.ProgramTypes.packageFn f
+                let signature = fnSignature f
 
-                let metadata = Stdlib.Option.Option.Some(createCodeSnippet prettyFn)
+                let fqName =
+                  (Stdlib.List.append f.name.modules [ f.name.name ])
+                  |> Stdlib.String.join "."
+
+                let metadata =
+                  Stdlib.Option.Option.Some(
+                    "Fully qualified name: "
+                    ++ fqName
+                    ++ "\n\n"
+                    ++ (createCodeSnippet signature)
+                    ++ "\n\n"
+                    ++ (createCodeSnippet prettyFn)
+                  )
 
                 let description =
                   Stdlib.Option.Option.Some("//TODO: add description")
@@ -1934,41 +1970,34 @@ module Darklang =
             match checkIfPositionWithinRange position name.fn.range with
             | Some r ->
               let modules = name.modules |> Stdlib.List.map (fun (m, _) -> m.name)
+              let fnName = Stdlib.List.append modules [ name.fn.name ]
 
-              let fqName = Stdlib.List.append modules [ name.fn.name ]
-              let fqNameAsString = fqName |> Stdlib.String.join "."
+              let getFunction = tryGetFn fnName pm owner currentModules
 
-              let getFunction = tryGetPkgFn fqName pm owner currentModules
+              match getFunction with
+              | Some f ->
+                let signature = fnSignature f
 
-              let signature =
-                match getFunction with
-                | Some f ->
-                  let params =
-                    f.parameters
-                    |> Stdlib.List.map (fun p ->
-                      p |> PrettyPrinter.ProgramTypes.PackageFn.parameter)
-                    |> Stdlib.String.join ", "
+                let fqName =
+                  (Stdlib.List.append f.name.modules [ f.name.name ])
+                  |> Stdlib.String.join "."
 
-                  let returnType =
-                    f.returnType |> PrettyPrinter.ProgramTypes.typeReference
+                let metadata =
+                  Stdlib.Option.Option.Some(
+                    "Fully qualified name: "
+                    ++ fqName
+                    ++ "\n\n"
+                    ++ (createCodeSnippet signature)
+                  )
 
-                  params ++ " -> " ++ returnType
-                | None -> "could not get Fn "
+                let description =
+                  Stdlib.Option.Option.Some(
+                    "TODO: add description when /// comments are supported"
+                  )
 
-              let metadata =
-                Stdlib.Option.Option.Some(
-                  "Fully qualified name: "
-                  ++ fqNameAsString
-                  ++ "\n\n"
-                  ++ (createCodeSnippet signature)
-                )
+                Stdlib.Option.Option.Some(createHoverInfo r description metadata)
 
-              let description =
-                Stdlib.Option.Option.Some(
-                  "TODO: add description when /// comments are supported"
-                )
-
-              Stdlib.Option.Option.Some(createHoverInfo r description metadata)
+              | None -> Stdlib.Option.Option.None
 
             | None ->
               name.modules
@@ -2009,24 +2038,34 @@ module Darklang =
             | Some r -> Stdlib.Option.Option.Some r
             | None ->
               let modules =
-                fnOrConstName.modules
-                |> Stdlib.List.map (fun (m, _) -> m.name)
-                |> Stdlib.String.join "."
+                fnOrConstName.modules |> Stdlib.List.map (fun (m, _) -> m.name)
 
-              let fqName =
+              let fnOrConstantName =
                 Stdlib.List.append modules [ fnOrConstName.constantOrFn.name ]
 
               match checkIfPositionWithinRange position r with
               | Some r ->
                 // check if we are hovering over a function
-                let getFunction = tryGetPkgFn fqName pm owner currentModules
+                let getFunction = tryGetFn fnOrConstantName pm owner currentModules
 
                 match getFunction with
                 | Some f ->
                   let prettyFn = PrettyPrinter.ProgramTypes.packageFn f
+                  let signature = fnSignature f
+
+                  let fqName =
+                    (Stdlib.List.append f.name.modules [ f.name.name ])
+                    |> Stdlib.String.join "."
 
                   let metadata =
-                    Stdlib.Option.Option.Some(createCodeSnippet prettyFn)
+                    Stdlib.Option.Option.Some(
+                      "Fully qualified name: "
+                      ++ fqName
+                      ++ "\n\n"
+                      ++ (createCodeSnippet signature)
+                      ++ "\n\n"
+                      ++ (createCodeSnippet prettyFn)
+                    )
 
                   let description =
                     Stdlib.Option.Option.Some("//TODO: add description")
@@ -2040,7 +2079,8 @@ module Darklang =
 
                 | None ->
                   // check if we are hovering over a constant
-                  let getConstant = tryGetPkgConst fqName pm owner currentModules
+                  let getConstant =
+                    tryGetPkgConst fnOrConstantName pm owner currentModules
 
                   match getConstant with
                   | Some c ->
