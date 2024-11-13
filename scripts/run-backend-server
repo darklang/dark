@@ -26,8 +26,8 @@ done
 # # If servers are running and we don't need to restart, then don't
 RUNNING=true
 if [[ $(pgrep BwdServer -c) -eq 0 ]]; then RUNNING=false; fi
-# if [[ $(pgrep CronChecker -c) -eq 0 ]]; then RUNNING=false; fi
-# if [[ $(pgrep QueueWorker -c) -eq 0 ]]; then RUNNING=false; fi
+if [[ $(pgrep CronChecker -c) -eq 0 ]]; then RUNNING=false; fi
+if [[ $(pgrep QueueWorker -c) -eq 0 ]]; then RUNNING=false; fi
 
 
 if [[ "${RUNNING}" == "true" && "${RESTART}" == "false" ]]; then
@@ -37,14 +37,14 @@ fi
 
 if [[ "$PUBLISHED" == "true" ]]; then
   BWDSERVER_BINPATH="backend/Build/out/BwdServer/Release/net8.0/linux-x64/publish"
-  # CRONCHECKER_BINPATH="backend/Build/out/CronChecker/Release/net8.0/linux-x64/publish"
-  # QUEUEWORKER_BINPATH="backend/Build/out/QueueWorker/Release/net8.0/linux-x64/publish"
+  CRONCHECKER_BINPATH="backend/Build/out/CronChecker/Release/net8.0/linux-x64/publish"
+  QUEUEWORKER_BINPATH="backend/Build/out/QueueWorker/Release/net8.0/linux-x64/publish"
   PRODEXEC_BINPATH="backend/Build/out/ProdExec/Release/net8.0/linux-x64/publish"
   LOCALEXEC_BINPATH="backend/Build/out/LocalExec/Release/net8.0/linux-x64/publish"
 else
   BWDSERVER_BINPATH="backend/Build/out/BwdServer/Debug/net8.0"
-  # CRONCHECKER_BINPATH="backend/Build/out/CronChecker/Debug/net8.0"
-  # QUEUEWORKER_BINPATH="backend/Build/out/QueueWorker/Debug/net8.0"
+  CRONCHECKER_BINPATH="backend/Build/out/CronChecker/Debug/net8.0"
+  QUEUEWORKER_BINPATH="backend/Build/out/QueueWorker/Debug/net8.0"
   PRODEXEC_BINPATH="backend/Build/out/ProdExec/Debug/net8.0"
   LOCALEXEC_BINPATH="backend/Build/out/LocalExec/Debug/net8.0"
 fi
@@ -52,16 +52,16 @@ fi
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
 
 BWDSERVER_EXE="${BWDSERVER_BINPATH}/BwdServer"
-# CRONCHECKER_EXE="${CRONCHECKER_BINPATH}/CronChecker"
-# QUEUEWORKER_EXE="${QUEUEWORKER_BINPATH}/QueueWorker"
+CRONCHECKER_EXE="${CRONCHECKER_BINPATH}/CronChecker"
+QUEUEWORKER_EXE="${QUEUEWORKER_BINPATH}/QueueWorker"
 PRODEXEC_EXE="${PRODEXEC_BINPATH}/ProdExec"
 LOCALEXEC_EXE="${LOCALEXEC_BINPATH}/LocalExec"
 
 # Stop the server processes
 echo "Stopping servers"
 sudo pkill -f "BwdServer" || true
-# sudo pkill -f "CronChecker" || true
-# sudo pkill -f "QueueWorker" || true
+sudo pkill -f "CronChecker" || true
+sudo pkill -f "QueueWorker" || true
 
 ./scripts/run-pubsub-emulator
 ./scripts/run-cloud-storage-emulator
@@ -75,8 +75,8 @@ for ((i=1;i<=1000;i++));
 do
   if [[
      ! -f "${BWDSERVER_EXE}" || \
-      #  ! -f "${CRONCHECKER_EXE}" ||
-      #  ! -f "${QUEUEWORKER_EXE}" ||
+     ! -f "${CRONCHECKER_EXE}" || \
+     ! -f "${QUEUEWORKER_EXE}" || \
      ! -f "${PRODEXEC_EXE}" || \
      ! -f "${LOCALEXEC_EXE}" ]]; then
     sleep 0.01
@@ -112,12 +112,12 @@ BWDSERVER_LOG="$LOGS/bwdserver.log"
 announce "Running bwdserver" "${BWDSERVER_LOG}"
 "${BWDSERVER_EXE}" > "${BWDSERVER_LOG}" 2>&1 &
 
-# CRONCHECKER_LOG="$LOGS/cronchecker.log"
-# announce "Running cronchecker" "${CRONCHECKER_LOG}"
-# "${CRONCHECKER_EXE}" > "${CRONCHECKER_LOG}" 2>&1 &
+CRONCHECKER_LOG="$LOGS/cronchecker.log"
+announce "Running cronchecker" "${CRONCHECKER_LOG}"
+"${CRONCHECKER_EXE}" > "${CRONCHECKER_LOG}" 2>&1 &
 
-# QUEUEWORKER_LOG="$LOGS/queueworker.log"
-# announce "Running queueworker" "${QUEUEWORKER_LOG}"
-# "${QUEUEWORKER_EXE}" > "${QUEUEWORKER_LOG}" 2>&1 &
+QUEUEWORKER_LOG="$LOGS/queueworker.log"
+announce "Running queueworker" "${QUEUEWORKER_LOG}"
+"${QUEUEWORKER_EXE}" > "${QUEUEWORKER_LOG}" 2>&1 &
 
 echo "Finished loading servers"
