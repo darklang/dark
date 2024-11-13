@@ -8,38 +8,36 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module Dval = LibExecution.Dval
-//module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module PackageIDs = LibExecution.PackageIDs
 module Telemetry = LibService.Telemetry
 
 
 let fns : List<BuiltInFn> =
-  [
-    //     { name = fn "darkInternalInfraLog" 0
-    //       typeParams = []
-    //       parameters =
-    //         [ Param.make "level" TString ""
-    //           Param.make "name" TString ""
-    //           Param.make "log" (TDict TString) "" ]
-    //       returnType = TDict TString
-    //       description =
-    //         "Write the log object to a honeycomb log, along with whatever enrichment the backend provides. Returns its input"
-    //       fn =
-    //         (function
-    //         | _, _, [ DString level; DString name; DDict(_, log) as result ] ->
-    //           let args =
-    //             log
-    //             |> Map.toList
-    //             // We could just leave the dval vals as strings and use params, but
-    //             // then we can't do numeric things (MAX, AVG, >, etc) with these
-    //             // logs
-    //             |> List.map (fun (k, v) -> (k, DvalReprDeveloper.toRepr v :> obj))
-    //           Telemetry.addEvent name (("level", level) :: args)
-    //           Ply result
-    //         | _ -> incorrectArgs ())
-    //       sqlSpec = NotQueryable
-    //       previewable = Impure
-    //       deprecated = NotDeprecated }
+  [ { name = fn "darkInternalInfraLog" 0
+      typeParams = []
+      parameters =
+        [ Param.make "level" TString ""
+          Param.make "name" TString ""
+          Param.make "log" (TDict TString) "" ]
+      returnType = TDict TString
+      description =
+        "Write the log object to a honeycomb log, along with whatever enrichment the backend provides. Returns its input"
+      fn =
+        (function
+        | _, _, _, [ DString level; DString name; DDict(_, log) as result ] ->
+          let args =
+            log
+            |> Map.toList
+            // We could just leave the dval vals as strings and use params, but
+            // then we can't do numeric things (MAX, AVG, >, etc) with these
+            // logs
+            |> List.map (fun (k, v) -> (k, DvalReprDeveloper.toRepr v :> obj))
+          Telemetry.addEvent name (("level", level) :: args)
+          Ply result
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
 
 
     { name = fn "darkInternalInfraGetAndLogTableSizes" 0

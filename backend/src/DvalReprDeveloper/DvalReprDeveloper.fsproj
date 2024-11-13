@@ -1,21 +1,20 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <LangVersion>8.0</LangVersion>
+    <!-- Publishing configuration -->
     <IsPublishable>false</IsPublishable>
+    <IsTrimmable>false</IsTrimmable>
   </PropertyGroup>
   <ItemGroup>
-    <None Include="paket.references" />
-  </ItemGroup>
-  <ItemGroup>
+    <ProjectReference Include="../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../DvalReprDeveloper/DvalReprDeveloper.fsproj" />
-    <ProjectReference Include="../LibCloud/LibCloud.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Http.fs" />
+    <None Include="paket.references" />
+    <Compile Include="DvalReprDeveloper.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

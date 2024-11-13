@@ -144,8 +144,8 @@ let main (args : string[]) =
 
       1
     | Ok(RT.DInt64 i) -> (int i)
-    | Ok _dval ->
-      let output = "LibExecution.DvalReprDeveloper.toRepr dval" // TODO
+    | Ok dval ->
+      let output = DvalReprDeveloper.toRepr dval
       System.Console.WriteLine
         $"Error: main function must return an int (returned {output})"
       1

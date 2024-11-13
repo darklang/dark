@@ -186,16 +186,15 @@ let t
                   Exception.raiseInternal
                     "We received an RTE, and when trying to stringify it, got a non-ErrorString response. Instead we got"
                     [ "result", result ]
-              | Error(result, _cs) ->
-                let _result = RT2DT.RuntimeError.toDT result
+              | Error(rte, _cs) ->
+                let rte = RT2DT.RuntimeError.toDT rte
                 print $"{state.test.exceptionReports}"
                 return
                   Exception.raiseInternal
                     ("We received an RTE, and when trying to stringify it, there was another RTE error.
                     There is probably a bug in Darklang.LanguageTools.RuntimeErrors.Error.toString")
-                    // [ "originalError", LibExecution.DvalReprDeveloper.toRepr actual
-                    //   "stringified", LibExecution.DvalReprDeveloper.toRepr result ]
-                    []
+                    [ "originalError", DvalReprDeveloper.toRepr actual
+                      "stringified", DvalReprDeveloper.toRepr rte ]
 
             | Error e ->
               debuG "Alleged RTE was not an RTE" e

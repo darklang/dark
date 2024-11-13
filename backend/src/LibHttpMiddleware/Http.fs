@@ -95,16 +95,15 @@ module Response =
       { statusCode = 500
         headers = [ "Content-Type", "text/plain; charset=utf-8" ]
         body =
-          // let typeName = LibExecution.DvalReprDeveloper.toTypeName result
-          // let message =
-          //   [ $"Application error: expected a HTTP response, got:"
-          //     $"type {typeName}:"
-          //     $"  {LibExecution.DvalReprDeveloper.toRepr result}"
-          //     "\nHTTP handlers should return results in the form:"
-          //     "  PACKAGE.Darklang.Stdlib.Http.Response {"
-          //     "    statusCode : Int64"
-          //     "    headers : List<String*String>"
-          //     "    body : Bytes"
-          //     "  }" ]
-          let message = [ $"TODO toHttpResponse error\n{result}" ]
+          let typeName = DvalReprDeveloper.toTypeName result
+          let message =
+            [ $"Application error: expected a HTTP response, got:"
+              $"type {typeName}:"
+              $"  {DvalReprDeveloper.toRepr result}"
+              "\nHTTP handlers should return results in the form:"
+              "  PACKAGE.Darklang.Stdlib.Http.Response {"
+              "    statusCode : Int64"
+              "    headers : List<String*String>"
+              "    body : Bytes"
+              "  }" ]
           message |> String.concat "\n" |> UTF8.toBytes }

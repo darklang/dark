@@ -81,7 +81,7 @@ let fns : List<BuiltInFn> =
     //                Error(
     //                  DString(
     //                    "`modulus` must be positive but was "
-    //                    + LibExecution.DvalReprDeveloper.toRepr (DInt64 m)
+    //                    + DvalReprDeveloper.toRepr (DInt64 m)
     //                  )
     //                )
     //              )

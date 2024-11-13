@@ -359,21 +359,20 @@ let fns : List<BuiltInFn> =
                       (NEList.ofList newArgs.Head newArgs.Tail)
 
                   match result with
-                  | Error(_e) ->
+                  | Error(rte, _cs) ->
                     // TODO we should probably return the error here as-is, and handle by calling the
                     // toSegments on the error within the CLI
                     return
-                      "e
-                      |> RuntimeError.toDT
-                      |> LibExecution.DvalReprDeveloper.toRepr"
+                      rte
+                      |> RT2DT.RuntimeError.toDT
+                      |> DvalReprDeveloper.toRepr
                       |> DString
                       |> resultError
                   | Ok value ->
                     match value with
                     | DString s -> return resultOk (DString s)
                     | _ ->
-                      let asString =
-                        "TODO LibExecution.DvalReprDeveloper.toRepr value"
+                      let asString = DvalReprDeveloper.toRepr value
                       return resultOk (DString asString)
               | _ -> return incorrectArgs ()
             with e ->

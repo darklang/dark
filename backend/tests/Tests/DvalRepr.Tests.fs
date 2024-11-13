@@ -7,15 +7,14 @@ open Expecto
 open Prelude
 open TestUtils.TestUtils
 
-// module RT = LibExecution.RuntimeTypes
-// module VT = LibExecution.ValueType
-// module Dval = LibExecution.Dval
-// module PT = LibExecution.ProgramTypes
+module RT = LibExecution.RuntimeTypes
+module VT = LibExecution.ValueType
+module Dval = LibExecution.Dval
+module PT = LibExecution.ProgramTypes
 
-// module DvalReprDeveloper = LibExecution.DvalReprDeveloper
-// module DvalReprInternalQueryable = LibExecution.DvalReprInternalQueryable
-// module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippable
-// module DvalReprInternalHash = LibExecution.DvalReprInternalHash
+module DvalReprInternalQueryable = LibExecution.DvalReprInternalQueryable
+module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippable
+module DvalReprInternalHash = LibExecution.DvalReprInternalHash
 // module S = TestUtils.RTShortcuts
 
 

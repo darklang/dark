@@ -12,7 +12,6 @@ open Prelude
 
 open LibExecution.RuntimeTypes
 
-//module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module DvalReprInternalQueryable = LibExecution.DvalReprInternalQueryable
 module TypeChecker = LibExecution.TypeChecker
 

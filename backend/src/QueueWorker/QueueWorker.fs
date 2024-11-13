@@ -14,7 +14,6 @@ module EQ = LibCloud.Queue
 module Pusher = LibCloud.Pusher
 module CloudExecution = LibCloudExecution.CloudExecution
 module Canvas = LibCloud.Canvas
-//module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
 module LD = LibService.LaunchDarkly
 module Telemetry = LibService.Telemetry
@@ -79,7 +78,7 @@ let processNotification
         [ "event.handler.name", event.name
           "event.handler.modifier", event.modifier
           "event.handler.module", event.module'
-          //"event.value.type", (event.value |> DvalReprDeveloper.toTypeName :> obj)
+          "event.value.type", (event.value |> DvalReprDeveloper.toTypeName :> obj)
           "event.locked_at", event.lockedAt
           "event.enqueued_at", event.enqueuedAt ]
 
@@ -204,7 +203,7 @@ let processNotification
                   // CLEANUP Set a time limit of 3m
                   try
                     let! program = Canvas.toProgram c
-                    let! (_result, traceResults) =
+                    let! (result, traceResults) =
                       CloudExecution.executeHandler
                         LibClientTypesToCloudTypes.Pusher.eventSerializer
                         h
@@ -218,7 +217,7 @@ let processNotification
                         ))
 
                     Telemetry.addTags
-                      [ //"result_type", DvalReprDeveloper.toTypeName result
+                      [ "result_type", DvalReprDeveloper.toTypeName result
                         "queue.success", true
                         "executed_tlids", HashSet.toList traceResults.tlids
                         "queue.completion_reason", "completed" ]

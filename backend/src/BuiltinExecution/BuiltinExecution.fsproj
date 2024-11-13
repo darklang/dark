@@ -60,6 +60,7 @@
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../DvalReprDeveloper/DvalReprDeveloper.fsproj" />
     <ProjectReference Include="../LibTreeSitter/LibTreeSitter.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
