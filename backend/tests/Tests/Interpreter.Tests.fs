@@ -20,10 +20,11 @@ let tCheckVM
   (extraVmStateAssertions : RT.VMState -> unit)
   =
   testTask name {
-    let vmState = ptExpr |> PT2RT.Expr.toRT Map.empty 0 |> RT.VMState.create
+    let vmState =
+      ptExpr |> PT2RT.Expr.toRT Map.empty 0 |> RT.VMState.createWithoutTLID
 
     let! exeState =
-      executionStateFor TestValues.pm (System.Guid.NewGuid()) false false
+      executionStateFor TestValues.pm (System.Guid.NewGuid()) false false Map.empty
 
     let! actual = LibExecution.Interpreter.execute exeState vmState |> Ply.toTask
     Expect.equal actual expectedInsts ""
@@ -41,13 +42,13 @@ let tFail name ptExpr expectedRte =
     let instructions = ptExpr |> PT2RT.Expr.toRT Map.empty 0
 
     let! exeState =
-      executionStateFor TestValues.pm (System.Guid.NewGuid()) false false
+      executionStateFor TestValues.pm (System.Guid.NewGuid()) false false Map.empty
 
     let! actual = LibExecution.Execution.executeExpr exeState instructions
 
     match actual with
     | Ok _ -> return Expect.equal 1 2 "Expected an RTE, but got a successful result"
-    | Error(actualRte) -> return Expect.equal actualRte expectedRte ""
+    | Error(actualRte, _) -> return Expect.equal actualRte expectedRte ""
   }
 
 

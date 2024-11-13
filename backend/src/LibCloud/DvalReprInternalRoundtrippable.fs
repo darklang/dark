@@ -73,7 +73,7 @@ module FormatV0 =
 
         | KTFn of NEList<ValueType> * ValueType
 
-      //| KTDB of ValueType
+        | KTDB of ValueType
 
       let rec toRT (kt : KnownType) : RT.KnownType =
         match kt with
@@ -110,7 +110,7 @@ module FormatV0 =
         | KTCustomType(typeName, typeArgs) ->
           RT.KTCustomType(FQTypeName.toRT typeName, List.map ValueType.toRT typeArgs)
 
-      //| KTDB vt -> RT.KTDB(ValueType.toRT vt)
+        | KTDB vt -> RT.KTDB(ValueType.toRT vt)
 
       let rec fromRT (kt : RT.KnownType) : KnownType =
         match kt with
@@ -150,7 +150,7 @@ module FormatV0 =
             List.map ValueType.fromRT typeArgs
           )
 
-    //| RT.KTDB vt -> KTDB(ValueType.fromRT vt)
+        | RT.KTDB vt -> KTDB(ValueType.fromRT vt)
 
     [<RequireQualifiedAccess>]
     type ValueType =
@@ -206,7 +206,7 @@ module FormatV0 =
       caseName : string *
       fields : List<Dval>
     | DLambda // See docs/dblock-serialization.md
-  //| DDB of string
+    | DDB of string
 
 
   let rec toRT (dv : Dval) : RT.Dval =
@@ -269,7 +269,7 @@ module FormatV0 =
             typeSymbolTable = Map.empty }
       )
 
-  //| DDB name -> RT.DDB name
+    | DDB name -> RT.DDB name
 
 
 
@@ -323,7 +323,7 @@ module FormatV0 =
 
     | RT.DApplicable _ -> DLambda
 
-// | RT.DDB name -> DDB name
+    | RT.DDB name -> DDB name
 
 
 let toJsonV0 (dv : RT.Dval) : string =
@@ -377,4 +377,4 @@ module Test =
 
     | RT.DApplicable _ -> false // not supported
 
-//| RT.DDB _ -> true
+    | RT.DDB _ -> true

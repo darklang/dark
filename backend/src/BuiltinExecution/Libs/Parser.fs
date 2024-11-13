@@ -1,7 +1,5 @@
 module BuiltinExecution.Libs.Parser
 
-open FSharp.Control.Tasks
-open System.Threading.Tasks
 open System.Text
 
 open Prelude
@@ -13,7 +11,6 @@ open LibTreeSitter
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module IDs = LibExecution.PackageIDs.Type.LanguageTools.Parser
-
 
 
 let pointTypeName = FQTypeName.fqPackage IDs.point

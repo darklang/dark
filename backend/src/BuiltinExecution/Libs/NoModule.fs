@@ -48,13 +48,14 @@ let rec equals (a : Dval) (b : Dval) : bool =
     && List.forall2 r a b
 
   | DTuple(a1, a2, a3), DTuple(b1, b2, b3) ->
-    if a3.Length <> b3.Length then // special case - this is a type error
+    if a3.Length <> b3.Length then
       false
     else
       r a1 b1 && r a2 b2 && List.forall2 r a3 b3
 
-  | DDict(_vtTODO1, a), DDict(_vtTODO2, b) ->
-    Map.count a = Map.count b
+  | DDict(typeA, a), DDict(typeB, b) ->
+    Result.isOk (ValueType.merge typeA typeB)
+    && Map.count a = Map.count b
     && Map.forall
       (fun k v -> Map.find k b |> Option.map (r v) |> Option.defaultValue false)
       a
@@ -77,7 +78,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
       fieldsA
 
   | DEnum(_, typeNameA, typeArgsA, caseNameA, fieldsA),
-    DEnum(_, typeNameB, typeArgsB, caseNameB, fieldsB) -> // these should be the fully resolved type
+    DEnum(_, typeNameB, typeArgsB, caseNameB, fieldsB) ->
     // same _resolved_ type name
     typeNameA = typeNameB
     // same type args (at least _mergeable_ -- ignores Unknowns)
@@ -95,17 +96,17 @@ let rec equals (a : Dval) (b : Dval) : bool =
 
   | DApplicable a, DApplicable b ->
     match a, b with
-    | AppLambda _a, AppLambda _b ->
-      //equalsLambdaImpl a b
-      // TODO
-      true
+    | AppLambda a, AppLambda b ->
+      // CLANUP this is very incomplete,
+      // but/because fully checking for equality of LambdaImpls may require some heavy refactoring.
+      a.exprId = b.exprId
 
     | AppNamedFn a, AppNamedFn b -> a = b
 
     | AppLambda _, _
     | AppNamedFn _, _ -> false
 
-  // | DDB a, DDB b -> a = b
+  | DDB a, DDB b -> a = b
 
   // exhaustiveness check
   | DUnit, _
@@ -131,246 +132,9 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DRecord _, _
   | DEnum _, _
   | DApplicable _, _
-  // | DDB _, _
-   ->
+  | DDB _, _ ->
     // type errors; should be caught above by the caller
     false
-
-// and equalsLambdaImpl (impl1 : LambdaImpl) (impl2 : LambdaImpl) : bool =
-//   // TODO what to do for TypeSymbolTable
-//   NEList.length impl1.parameters = NEList.length impl2.parameters
-//   && NEList.forall2
-//     (fun p1 p2 -> equalsLetPattern p1 p2)
-//     impl1.parameters
-//     impl2.parameters
-//   && equalsSymtable impl1.symtable impl2.symtable
-//   && equalsExpr impl1.body impl2.body
-
-// and equalsSymtable (a : Symtable) (b : Symtable) : bool =
-//   Map.count a = Map.count b
-//   && Map.forall
-//     (fun k v -> Map.find k b |> Option.map (equals v) |> Option.defaultValue false)
-//     a
-
-// and equalsExpr (expr1 : Expr) (expr2 : Expr) : bool =
-//   match expr1, expr2 with
-//   | EInt64(_, int1), EInt64(_, int2) -> int1 = int2
-//   | EUInt64(_, int1), EUInt64(_, int2) -> int1 = int2
-//   | EInt8(_, int1), EInt8(_, int2) -> int1 = int2
-//   | EUInt8(_, int1), EUInt8(_, int2) -> int1 = int2
-//   | EInt16(_, int1), EInt16(_, int2) -> int1 = int2
-//   | EUInt16(_, int1), EUInt16(_, int2) -> int1 = int2
-//   | EInt32(_, int1), EInt32(_, int2) -> int1 = int2
-//   | EUInt32(_, int1), EUInt32(_, int2) -> int1 = int2
-//   | EInt128(_, int1), EInt128(_, int2) -> int1 = int2
-//   | EUInt128(_, int1), EUInt128(_, int2) -> int1 = int2
-//   | EBool(_, bool1), EBool(_, bool2) -> bool1 = bool2
-//   | EString(_, segments1), EString(_, segments2) ->
-//     equalsStringSegments segments1 segments2
-//   | EChar(_, char1), EChar(_, char2) -> char1 = char2
-//   | EFloat(_, float1), EFloat(_, float2) -> float1 = float2
-//   | EUnit _, EUnit _ -> true
-//   | EConstant(_, name1), EConstant(_, name2) -> name1 = name2
-//   | ELet(_, pattern1, expr1, body1), ELet(_, pattern2, expr2, body2) ->
-//     equalsLetPattern pattern1 pattern2
-//     && equalsExpr expr1 expr2
-//     && equalsExpr body1 body2
-//   | EIf(_, cond1, then1, else1), EIf(_, cond2, then2, else2) ->
-//     let equalsElseExpr else1 else2 =
-//       match else1, else2 with
-//       | Some else1, Some else2 -> equalsExpr else1 else2
-//       | None, None -> true
-//       | _, _ -> false
-//     equalsExpr cond1 cond2 && equalsExpr then1 then2 && equalsElseExpr else1 else2
-
-//   // | ELambda(_, pats1, body1), ELambda(_, pats2, body2) ->
-//   //   NEList.length pats1 = NEList.length pats2
-//   //   && NEList.forall2 (fun p1 p2 -> equalsLetPattern p1 p2) pats1 pats2
-//   //   && equalsExpr body1 body2
-//   // | ERecordFieldAccess(_, target1, fieldName1),
-//   //   ERecordFieldAccess(_, target2, fieldName2) ->
-//   //   equalsExpr target1 target2 && fieldName1 = fieldName2
-//   | EVariable(_, name1), EVariable(_, name2) -> name1 = name2
-//   | EApply(_, name1, typeArgs1, args1), EApply(_, name2, typeArgs2, args2) ->
-//     equalsExpr name1 name2
-//     && List.forall2 (=) typeArgs1 typeArgs2
-//     && NEList.forall2 equalsExpr args1 args2
-//   | EFnName(_, name1), EFnName(_, name2) -> name1 = name2
-//   | EList(_, elems1), EList(_, elems2) ->
-//     elems1.Length = elems2.Length && List.forall2 equalsExpr elems1 elems2
-//   | ETuple(_, elem1_1, elem2_1, elems1), ETuple(_, elem1_2, elem2_2, elems2) ->
-//     equalsExpr elem1_1 elem1_2
-//     && equalsExpr elem2_1 elem2_2
-//     && elems1.Length = elems2.Length
-//     && List.forall2 equalsExpr elems1 elems2
-//   // | ERecord(_, typeName, fields1), ERecord(_, typeName', fields2) ->
-//   //   typeName = typeName'
-//   //   && NEList.length fields1 = NEList.length fields2
-//   //   && NEList.forall2
-//   //     (fun (name1, expr1) (name2, expr2) -> name1 = name2 && equalsExpr expr1 expr2)
-//   //     fields1
-//   //     fields2
-//   // | ERecordUpdate(_, record1, updates1), ERecordUpdate(_, record2, updates2) ->
-//   //   record1 = record2
-//   //   && NEList.length updates1 = NEList.length updates2
-//   //   && NEList.forall2
-//   //     (fun (name1, expr1) (name2, expr2) -> name1 = name2 && equalsExpr expr1 expr2)
-//   //     updates1
-//   //     updates2
-//   // | EEnum(_, typeName, caseName, fields), EEnum(_, typeName', caseName', fields') ->
-//   //   typeName = typeName'
-//   //   && caseName = caseName'
-//   //   && fields.Length = fields'.Length
-//   //   && List.forall2 equalsExpr fields fields'
-//   | EMatch(_, target1, cases1), EMatch(_, target2, cases2) ->
-//     equalsExpr target1 target2
-//     && NEList.length cases1 = NEList.length cases2
-//     && NEList.forall2
-//       (fun case1 case2 ->
-//         let equalsWhenCondition when1 when2 =
-//           match when1, when2 with
-//           | Some when1, Some when2 -> equalsExpr when1 when2
-//           | None, None -> true
-//           | _, _ -> false
-//         equalsMatchPattern case1.pat case2.pat
-//         && equalsWhenCondition case1.whenCondition case2.whenCondition
-//         && equalsExpr case1.rhs case2.rhs)
-//       cases1
-//       cases2
-//   | EAnd(_, lhs1, rhs1), EAnd(_, lhs2, rhs2) ->
-//     equalsExpr lhs1 lhs2 && equalsExpr rhs1 rhs2
-//   | EOr(_, lhs1, rhs1), EOr(_, lhs2, rhs2) ->
-//     equalsExpr lhs1 lhs2 && equalsExpr rhs1 rhs2
-//   | EDict(_, fields1), EDict(_, fields2) ->
-//     fields1.Length = fields2.Length
-//     && List.forall2
-//       (fun (k1, v1) (k2, v2) -> k1 = k2 && equalsExpr v1 v2)
-//       fields1
-//       fields2
-//   | EError(_, msg, exprs), EError(_, msg2, exprs2) ->
-//     msg = msg2 && List.forall2 equalsExpr exprs exprs2
-
-//   // exhaustiveness check
-//   | EInt64 _, _
-//   | EUInt64 _, _
-//   | EInt8 _, _
-//   | EUInt8 _, _
-//   | EInt16 _, _
-//   | EUInt16 _, _
-//   | EInt32 _, _
-//   | EUInt32 _, _
-//   | EInt128 _, _
-//   | EUInt128 _, _
-//   | EBool _, _
-//   | EString _, _
-//   | EChar _, _
-//   | EFloat _, _
-//   | EUnit _, _
-//   // | EConstant _, _
-//   | ELet _, _
-//   | EIf _, _
-//   // | ELambda _, _
-//   // | ERecordFieldAccess _, _
-//   | EVariable _, _
-//   | EApply _, _
-//   | EFnName _, _
-//   | EList _, _
-//   | ETuple _, _
-//   // | ERecord _, _
-//   // | ERecordUpdate _, _
-//   // | EEnum _, _
-//   | EMatch _, _
-//   | EAnd _, _
-//   | EOr _, _
-//   | EDict _, _
-//   // | EEnum _, _
-//   | EError _, _ -> false
-
-
-// and equalsLetPattern (pattern1 : LetPattern) (pattern2 : LetPattern) : bool =
-//   match pattern1, pattern2 with
-//   | LPVariable(_, name1), LPVariable(_, name2) -> name1 = name2
-//   | LPUnit _, LPUnit _ -> true
-
-//   | LPTuple(_, first, second, theRest), LPTuple(_, first', second', theRest') ->
-//     let all = first :: second :: theRest
-//     let all' = first' :: second' :: theRest'
-//     all.Length = all'.Length && List.forall2 equalsLetPattern all all'
-
-//   | LPTuple _, _
-//   | LPUnit _, _
-//   | LPVariable _, _ -> false
-
-// and equalsStringSegments
-//   (segments1 : List<StringSegment>)
-//   (segments2 : List<StringSegment>)
-//   : bool =
-//   segments1.Length = segments2.Length
-//   && List.forall2 equalsStringSegment segments1 segments2
-
-// and equalsStringSegment
-//   (segment1 : StringSegment)
-//   (segment2 : StringSegment)
-//   : bool =
-//   match segment1, segment2 with
-//   | StringText text1, StringText text2 -> text1 = text2
-//   | StringInterpolation expr1, StringInterpolation expr2 -> equalsExpr expr1 expr2
-//   // exhaustiveness check
-//   | StringText _, _
-//   | StringInterpolation _, _ -> false
-
-// and equalsMatchPattern (pattern1 : MatchPattern) (pattern2 : MatchPattern) : bool =
-//   match pattern1, pattern2 with
-//   | MPVariable(_, name1), MPVariable(_, name2) -> name1 = name2
-//   // | MPEnum(_, tag1, args1), MPEnum(_, tag2, args2) ->
-//   //   tag1 = tag2
-//   //   && args1.Length = args2.Length
-//   //   && List.forall2 equalsMatchPattern args1 args2
-//   | MPInt64(_, int1), MPInt64(_, int2) -> int1 = int2
-//   | MPUInt64(_, int1), MPUInt64(_, int2) -> int1 = int2
-//   | MPInt8(_, int1), MPInt8(_, int2) -> int1 = int2
-//   | MPUInt8(_, int1), MPUInt8(_, int2) -> int1 = int2
-//   | MPInt16(_, int1), MPInt16(_, int2) -> int1 = int2
-//   | MPUInt16(_, int1), MPUInt16(_, int2) -> int1 = int2
-//   | MPInt32(_, int1), MPInt32(_, int2) -> int1 = int2
-//   | MPUInt32(_, int1), MPUInt32(_, int2) -> int1 = int2
-//   | MPInt128(_, int1), MPInt128(_, int2) -> int1 = int2
-//   | MPUInt128(_, int1), MPUInt128(_, int2) -> int1 = int2
-//   | MPBool(_, bool1), MPBool(_, bool2) -> bool1 = bool2
-//   | MPChar(_, char1), MPChar(_, char2) -> char1 = char2
-//   | MPString(_, str1), MPString(_, str2) -> str1 = str2
-//   | MPFloat(_, float1), MPFloat(_, float2) -> float1 = float2
-//   | MPUnit _, MPUnit _ -> true
-//   | MPTuple(_, elem1_1, elem2_1, elems1), MPTuple(_, elem1_2, elem2_2, elems2) ->
-//     equalsMatchPattern elem1_1 elem1_2
-//     && equalsMatchPattern elem2_1 elem2_2
-//     && elems1.Length = elems2.Length
-//     && List.forall2 equalsMatchPattern elems1 elems2
-//   | MPList(_, elems1), MPList(_, elems2) ->
-//     elems1.Length = elems2.Length && List.forall2 equalsMatchPattern elems1 elems2
-//   | MPListCons(_, head, tail), MPListCons(_, head', tail') ->
-//     equalsMatchPattern head head' && equalsMatchPattern tail tail'
-//   // exhaustiveness check
-//   | MPVariable _, _
-//   // | MPEnum _, _
-//   | MPInt64 _, _
-//   | MPUInt64 _, _
-//   | MPInt8 _, _
-//   | MPUInt8 _, _
-//   | MPInt16 _, _
-//   | MPUInt16 _, _
-//   | MPInt32 _, _
-//   | MPUInt32 _, _
-//   | MPInt128 _, _
-//   | MPUInt128 _, _
-//   | MPBool _, _
-//   | MPChar _, _
-//   | MPString _, _
-//   | MPFloat _, _
-//   | MPUnit _, _
-//   | MPTuple _, _
-//   | MPListCons _, _
-//   | MPList _, _ -> false
 
 
 let varA = TVariable "a"
@@ -426,13 +190,13 @@ let fns : List<BuiltInFn> =
         | _, vm, _, [ dval ] ->
           match dval with
 
-          // success: extract `Some` out of an Option
+          // Success: extract `Some` out of an Option
           | DEnum(FQTypeName.Package id, _, _, "Some", [ value ]) when
             id = PackageIDs.Type.Stdlib.option
             ->
             Ply value
 
-          // success: extract `Ok` out of a Result
+          // Success: extract `Ok` out of a Result
           | DEnum(FQTypeName.Package id, _, _, "Ok", [ value ]) when
             id = PackageIDs.Type.Stdlib.result
             ->
@@ -454,13 +218,13 @@ let fns : List<BuiltInFn> =
             |> RuntimeError.Unwrap
             |> raiseRTE vm.threadID
 
-
           // Error: single dval, but not an Option or Result
           | otherDval ->
             RuntimeError.Unwraps.NonOptionOrResult otherDval
             |> RuntimeError.Unwrap
             |> raiseRTE vm.threadID
 
+        // Error: multiple arguments
         | _, vm, _, multipleArgs ->
           RuntimeError.Unwraps.MultipleArgs multipleArgs
           |> RuntimeError.Unwrap
@@ -481,36 +245,15 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [ DString label; value ] ->
-          // TODO: call upon the Dark equivalent fn instead of rlying on DvalReprDeveloper
+          // TODO: call upon the Dark equivalent fn instead of relying on DvalReprDeveloper
+          // and/or, bring back DvalReprDeveloper.toRepr in some capacity
           let value = $"{value}"
           print $"DEBUG: {label}: {value}"
           Ply DUnit
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    // { name = fn "debugSymbolTable" 0
-    //   typeParams = []
-    //   parameters = [ Param.make "unit" TUnit "" ]
-    //   returnType = TUnit
-    //   description = "Prints the current symbol table to the standard output"
-    //   fn =
-    //     (function
-    //     | state, _, [ DUnit ] ->
-    //       state.symbolTable
-    //       |> Map.toList
-    //       |> List.map (fun (key, dv) -> $"- {key}: {DvalReprDeveloper.toRepr dv}")
-    //       |> String.concat "\n"
-    //       |> fun lines -> print $"DEBUG: symTable\n{lines}"
-
-    //       Ply DUnit
-    //     | _ -> incorrectArgs ())
-    //   sqlSpec = NotQueryable
-    //   previewable = Impure
-    //   deprecated = NotDeprecated }
-    ]
+      deprecated = NotDeprecated } ]
 
 
 let builtins = LibExecution.Builtin.make [] fns

@@ -230,8 +230,8 @@ let rec serialize
 
     // Not supported
     | TVariable _, _
-    | TFn _, _ ->
-      // | TDB _, _
+    | TFn _, _
+    | TDB _, _ ->
       return! (RTE.Jsons.UnsupportedType typ) |> RTE.Json |> raiseRTE threadId
 
 
@@ -255,7 +255,6 @@ let rec serialize
     | TDateTime, _
     | TList _, _
     | TTuple _, _
-    // | TDB _, _
     | TCustomType _, _
     | TDict _, _ ->
       // Internal error as this shouldn't get past the typechecker
@@ -742,8 +741,7 @@ let parse
     // Explicitly not supported
     | TVariable _, _
     | TFn _, _
-    //| TDB _, _
-     -> (RTE.Jsons.UnsupportedType typ) |> RTE.Json |> raiseRTE threadId
+    | TDB _, _ -> (RTE.Jsons.UnsupportedType typ) |> RTE.Json |> raiseRTE threadId
 
 
     // exhaust TypeReferences
@@ -806,12 +804,7 @@ let fns : List<BuiltInFn> =
                 serialize vm.threadID types w typeToSerializeAs arg)
             return DString response
           }
-        | _, _, typeArgs, args ->
-          debuG "typeArgs" (List.length typeArgs)
-          debuG "args" (List.length args)
-          incorrectArgs ()
-        //| _ -> incorrectArgs (
-        )
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }

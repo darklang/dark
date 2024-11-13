@@ -145,7 +145,7 @@ let executionStateFor
   (canvasID : CanvasID)
   (internalFnsAllowed : bool)
   (allowLocalHttpAccess : bool)
-  //(dbs : Map<string, RT.DB.T>)
+  (dbs : Map<string, RT.DB.T>)
   : Task<RT.ExecutionState> =
   task {
     let domains = [] //Canvas.domainsForCanvasID canvasID
@@ -153,9 +153,8 @@ let executionStateFor
     let program : RT.Program =
       { canvasID = canvasID
         internalFnsAllowed = internalFnsAllowed
-      // dbs = dbs
-      // secrets = []
-      }
+        dbs = dbs
+        secrets = [] }
 
     let testContext : RT.TestContext =
       { sideEffectCount = 0
@@ -374,8 +373,7 @@ module Expect =
     | DDateTime _
     | DUuid _
     | DApplicable _
-    // | DDB _
-     -> true
+    | DDB _ -> true
 
     | DChar str -> str.IsNormalized() && String.lengthInEgcs str = 1
     | DString str -> str.IsNormalized()
@@ -662,8 +660,7 @@ module Expect =
       | DRecord _, _
       | DEnum _, _
       | DApplicable _, _
-      // | DDB _, _
-       -> check path actual expected
+      | DDB _, _ -> check path actual expected
 
 
     let dvalEquality (left : Dval) (right : Dval) : bool =
@@ -1074,8 +1071,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DUuid _
     | DDateTime _
     | DApplicable _
-    // | DDB _
-     -> f dv
+    | DDB _ -> f dv
     f dv
   visit dv
   state
@@ -1582,7 +1578,7 @@ let parsePTExpr (code : string) : Task<PT.Expr> =
   uply {
     let! (state : RT.ExecutionState) =
       let canvasID = System.Guid.NewGuid()
-      executionStateFor pmPT canvasID false false //Map.empty
+      executionStateFor pmPT canvasID false false Map.empty
 
     let name =
       RT.FQFnName.FQFnName.Package PackageIDs.Fn.LanguageTools.Parser.parsePTExpr

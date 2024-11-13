@@ -448,15 +448,14 @@ module Expr =
 
 
     | PT.EVariable(_id, varName) ->
-      // todo handle missing var
       match Map.find varName symbols with
       | Some reg -> { registerCount = rc; instructions = []; resultIn = reg }
       | None ->
-        { registerCount = rc
-          instructions = [ RT.VarNotFound varName ]
-          resultIn =
-            // TODO: this is a hack
-            rc }
+        // CLEANUP see note in interpreter around VarNotFound
+        // (work should be done around _references_)
+        { registerCount = rc + 1
+          instructions = [ RT.VarNotFound(rc, varName) ]
+          resultIn = rc }
 
 
     | PT.EIf(_id, cond, thenExpr, elseExpr) ->
@@ -1000,23 +999,6 @@ module PackageFn =
       returnType = f.returnType |> TypeReference.toRT }
 
 
-
-// // --
-// // User stuff
-// // --
-// module DB =
-//   let toRT (db : PT.DB.T) : RT.DB.T =
-//     { tlid = db.tlid
-//       name = db.name
-//       version = db.version
-//       typ = TypeReference.toRT db.typ }
-
-// module Secret =
-//   let toRT (s : PT.Secret.T) : RT.Secret.T =
-//     { name = s.name; value = s.value; version = s.version }
-
-
-
 module PackageManager =
   let toRT (pm : PT.PackageManager) : RT.PackageManager =
     { getType = fun id -> pm.getType id |> Ply.map (Option.map PackageType.toRT)
@@ -1025,3 +1007,40 @@ module PackageManager =
       getFn = fun id -> pm.getFn id |> Ply.map (Option.map PackageFn.toRT)
 
       init = pm.init }
+
+
+// --
+// User stuff
+// --
+module DB =
+  let toRT (db : PT.DB.T) : RT.DB.T =
+    { tlid = db.tlid
+      name = db.name
+      version = db.version
+      typ = TypeReference.toRT db.typ }
+
+module Secret =
+  let toRT (s : PT.Secret.T) : RT.Secret.T =
+    { name = s.name; value = s.value; version = s.version }
+
+
+// TODO: remove this eventually -- PT2RT should happen generally at dev-time
+// (in any case, params should be handled differntly - by index or something, not by name as loose symbols)
+module Handler =
+  let toRT (inputVars : Map<string, RT.Dval>) (expr : PT.Expr) : RT.Instructions =
+
+    let (initialInstrs, rcAfterInputVars, symbols)
+      : (List<RT.Instruction> * int * Map<string, int>) =
+      inputVars
+      |> Map.fold
+        (fun (instrs, rc, symbols) inputVarName inputVarVal ->
+          let instrs = instrs @ [ RT.LoadVal(rc, inputVarVal) ]
+          let symbols = Map.add inputVarName rc symbols
+          (instrs, rc + 1, Map.add inputVarName rc symbols))
+        ([], 0, Map.empty)
+
+    let exprInstrs = Expr.toRT symbols rcAfterInputVars expr
+
+    { registerCount = exprInstrs.registerCount
+      instructions = initialInstrs @ exprInstrs.instructions
+      resultIn = exprInstrs.resultIn }

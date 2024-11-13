@@ -1,10 +1,5 @@
 module BuiltinExecution.Libs.Int16
 
-open FSharp.Control.Tasks
-open System.Threading.Tasks
-
-open System.Numerics
-
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts

@@ -216,7 +216,7 @@ module TypeReference =
         let args = args |> NEList.toList |> List.map toDT |> Dval.list knownType
         "TFn", [ args; toDT ret ]
 
-    // | TDB inner -> "TDB", [ toDT inner ]
+      | TDB inner -> "TDB", [ toDT inner ]
 
 
     DEnum(typeName, typeName, [], caseName, fields)
@@ -437,7 +437,7 @@ module KnownType =
           |> Dval.list ValueType.knownType
         "KTFn", [ args; ValueType.toDT ret ]
 
-    // | KTDB d -> "KTDB", [ ValueType.toDT d ]
+      | KTDB d -> "KTDB", [ ValueType.toDT d ]
 
     DEnum(typeName, typeName, [], caseName, fields)
 
@@ -480,7 +480,7 @@ module KnownType =
           (List.map ValueType.fromDT otherArgs),
         ValueType.fromDT ret
       )
-    // | DEnum(_, _, [], "KTDB", [ inner ]) -> KTDB(ValueType.fromDT inner)
+    | DEnum(_, _, [], "KTDB", [ inner ]) -> KTDB(ValueType.fromDT inner)
 
     | _ -> Exception.raiseInternal "Invalid KnownType" []
 
@@ -630,7 +630,7 @@ module Dval =
 
       | DApplicable applicable -> "DApplicable", [ Applicable.toDT applicable ]
 
-    // | DDB name -> "DDB", [ DString name ]
+      | DDB name -> "DDB", [ DString name ]
 
     DEnum(typeName, typeName, [], caseName, fields)
 
@@ -691,7 +691,7 @@ module Dval =
 
     //| DEnum(_, _, [], "DApplicable", [ applicable ]) -> DApplicable(Applicable.fromDT applicable)
 
-    // | DEnum(_, _, [], "DDB", [ DString name ]) -> DDB name
+    | DEnum(_, _, [], "DDB", [ DString name ]) -> DDB name
 
     | _ -> Exception.raiseInternal "Invalid Dval" []
 

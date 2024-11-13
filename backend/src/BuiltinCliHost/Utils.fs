@@ -1,9 +1,11 @@
 module BuiltinCliHost.Utils
 
+// CLEANUP consider migrating the contents of this to a ?T2DT module
+// (or just rebranding some of the stuff here under a such-named submodule)
+
 open Prelude
 
 module PT = LibExecution.ProgramTypes
-module RT = LibExecution.RuntimeTypes
 module VT = LibExecution.ValueType
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module PackageIDs = LibExecution.PackageIDs

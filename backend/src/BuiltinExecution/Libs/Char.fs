@@ -1,9 +1,5 @@
 module BuiltinExecution.Libs.Char
 
-open System.Threading.Tasks
-open System.Numerics
-open FSharp.Control.Tasks
-
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts

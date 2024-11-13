@@ -437,6 +437,8 @@ module DvalCreator =
     | TFn(args, ret) -> TFn(NEList.map r args, r ret)
     | TCustomType(name, args) -> TCustomType(name, List.map r args)
 
+    | TDB inner -> TDB(r inner)
+
     // for exhaustiveness
     | TUnit -> TUnit
     | TBool -> TBool

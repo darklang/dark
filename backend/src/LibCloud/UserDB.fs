@@ -1,6 +1,6 @@
 /// <summary>
 /// Supports anything relating to Datastores on a user canvas.
-/// Namely, this file is responsible for managing this user data, including CRUD and type checking.
+/// Namely, this file is responsible for managing such user data, including CRUD and type-checking.
 /// </summary>
 ///
 /// <remarks>
@@ -30,41 +30,45 @@ module DvalReprInternalQueryable = LibExecution.DvalReprInternalQueryable
 // ! you should definitely notify the entire engineering team about this
 let currentDarkVersion = 0
 
-type Uuid = System.Guid
-
 let rec dbToDval
-  (callStack : RT.CallStack)
   (types : RT.Types)
+  (threadID : RT.ThreadID)
+  (tst : RT.TypeSymbolTable)
   (db : RT.DB.T)
   (dbValue : string)
   : Ply<RT.Dval> =
-  DvalReprInternalQueryable.parseJsonV0 callStack types db.typ dbValue
+  DvalReprInternalQueryable.parseJsonV0 types threadID tst db.typ dbValue
 
 let dvalToDB
-  (callStack : RT.CallStack)
+  (threadID : RT.ThreadID)
   (types : RT.Types)
   (db : RT.DB.T)
   (dv : RT.Dval)
   : Ply<string> =
-  DvalReprInternalQueryable.toJsonStringV0 callStack types db.typ dv
+  DvalReprInternalQueryable.toJsonStringV0 threadID types db.typ dv
 
 let rec set
-  (state : RT.ExecutionState)
+  (exeState : RT.ExecutionState)
+  (threadID : RT.ThreadID)
   (upsert : bool)
   (db : RT.DB.T)
   (key : string)
   (dv : RT.Dval)
-  : Ply<Result<Uuid, RT.RuntimeError>> =
+  : Ply<Result<uuid, RT.RuntimeError.Error>> =
   uply {
     let id = System.Guid.NewGuid()
 
-    let types = RT.ExecutionState.types state
+    let types = exeState.types
     // CLEANUP: the caller should do this type check instead, but we haven't
     // implemented nested types in the DB yet
-    let context = LibExecution.TypeChecker.DBSchemaType(db.name, db.typ)
+    //let context = LibExecution.TypeChecker.DBSchemaType(db.name, db.typ)
 
-    match! LibExecution.TypeChecker.unify context types Map.empty db.typ dv with
-    | Error err -> return Error err
+
+    // TODO: should we be passing in a TST?
+    match! LibExecution.TypeChecker.unify types Map.empty db.typ dv with
+    | Error _errPath ->
+      // TODO: include path
+      return Error(RT.RuntimeError.DBSetOfWrongType(db.typ, RT.Dval.toValueType dv))
 
     | Ok _ ->
       let upsertQuery =
@@ -73,7 +77,7 @@ let rec set
         else
           ""
 
-      let! data = dvalToDB state.tracing.callStack types db dv
+      let! data = dvalToDB threadID types db dv
 
       do!
         Sql.query
@@ -84,7 +88,7 @@ let rec set
           {upsertQuery}"
         |> Sql.parameters
           [ "id", Sql.uuid id
-            "canvasID", Sql.uuid state.program.canvasID
+            "canvasID", Sql.uuid exeState.program.canvasID
             "tlid", Sql.id db.tlid
             "userVersion", Sql.int db.version
             "darkVersion", Sql.int currentDarkVersion
@@ -98,12 +102,13 @@ let rec set
 
 
 and getOption
-  (state : RT.ExecutionState)
+  (exeState : RT.ExecutionState)
+  (threadID : RT.ThreadID)
   (db : RT.DB.T)
   (key : string)
   : Ply<Option<RT.Dval>> =
   uply {
-    let types = RT.ExecutionState.types state
+    let types = exeState.types
 
     let! result =
       Sql.query
@@ -116,7 +121,7 @@ and getOption
           AND key = @key"
       |> Sql.parameters
         [ "tlid", Sql.tlid db.tlid
-          "canvasID", Sql.uuid state.program.canvasID
+          "canvasID", Sql.uuid exeState.program.canvasID
           "userVersion", Sql.int db.version
           "darkVersion", Sql.int currentDarkVersion
           "key", Sql.string key ]
@@ -125,17 +130,20 @@ and getOption
     match result with
     | None -> return None
     | Some dval ->
-      return! dbToDval state.tracing.callStack types db dval |> Ply.map Some
+      let tst = Map.empty // OK?
+      return! dbToDval types threadID tst db dval |> Ply.map Some
   }
 
 
 and getMany
-  (state : RT.ExecutionState)
+  (exeState : RT.ExecutionState)
+  (threadID : RT.ThreadID)
+  (tst : RT.TypeSymbolTable)
   (db : RT.DB.T)
   (keys : string list)
   : Ply<List<RT.Dval>> =
   uply {
-    let types = RT.ExecutionState.types state
+    let types = exeState.types
 
     let! result =
       Sql.query
@@ -148,27 +156,26 @@ and getMany
           AND key = ANY (@keys)"
       |> Sql.parameters
         [ "tlid", Sql.tlid db.tlid
-          "canvasID", Sql.uuid state.program.canvasID
+          "canvasID", Sql.uuid exeState.program.canvasID
           "userVersion", Sql.int db.version
           "darkVersion", Sql.int currentDarkVersion
           "keys", Sql.stringArray (Array.ofList keys) ]
       |> Sql.executeAsync (fun read -> read.string "data")
 
-    return!
-      result
-      |> List.map (dbToDval state.tracing.callStack types db)
-      |> Ply.List.flatten
+    return! result |> List.map (dbToDval types threadID tst db) |> Ply.List.flatten
   }
 
 
 
 and getManyWithKeys
-  (state : RT.ExecutionState)
+  (exeState : RT.ExecutionState)
+  (threadID : RT.ThreadID)
+  (tst : RT.TypeSymbolTable)
   (db : RT.DB.T)
   (keys : string list)
   : Ply<List<string * RT.Dval>> =
   uply {
-    let types = RT.ExecutionState.types state
+    let types = exeState.types
 
     let! result =
       Sql.query
@@ -181,7 +188,7 @@ and getManyWithKeys
           AND key = ANY (@keys)"
       |> Sql.parameters
         [ "tlid", Sql.tlid db.tlid
-          "canvasID", Sql.uuid state.program.canvasID
+          "canvasID", Sql.uuid exeState.program.canvasID
           "userVersion", Sql.int db.version
           "darkVersion", Sql.int currentDarkVersion
           "keys", Sql.stringArray (Array.ofList keys) ]
@@ -191,17 +198,19 @@ and getManyWithKeys
 
       result
       |> List.map (fun (key, data) ->
-        dbToDval state.tracing.callStack types db data
-        |> Ply.map (fun dval -> (key, dval)))
+        dbToDval types threadID tst db data |> Ply.map (fun dval -> (key, dval)))
       |> Ply.List.flatten
   }
 
 
 
-let getAll (state : RT.ExecutionState) (db : RT.DB.T) : Ply<List<string * RT.Dval>> =
+let getAll
+  (exeState : RT.ExecutionState)
+  (threadID : RT.ThreadID)
+  (tst : RT.TypeSymbolTable)
+  (db : RT.DB.T)
+  : Ply<List<string * RT.Dval>> =
   uply {
-    let types = RT.ExecutionState.types state
-
     let! result =
       Sql.query
         "SELECT key, data
@@ -212,7 +221,7 @@ let getAll (state : RT.ExecutionState) (db : RT.DB.T) : Ply<List<string * RT.Dva
           AND dark_version = @darkVersion"
       |> Sql.parameters
         [ "tlid", Sql.tlid db.tlid
-          "canvasID", Sql.uuid state.program.canvasID
+          "canvasID", Sql.uuid exeState.program.canvasID
           "userVersion", Sql.int db.version
           "darkVersion", Sql.int currentDarkVersion ]
       |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
@@ -220,116 +229,116 @@ let getAll (state : RT.ExecutionState) (db : RT.DB.T) : Ply<List<string * RT.Dva
     return!
       result
       |> List.map (fun (key, data) ->
-        dbToDval state.tracing.callStack types db data
+        dbToDval exeState.types threadID tst db data
         |> Ply.map (fun dval -> (key, dval)))
       |> Ply.List.flatten
   }
 
-// Reusable function that provides the template for the SqlCompiler query functions
-let doQuery
-  (state : RT.ExecutionState)
-  (db : RT.DB.T)
-  (b : RT.LambdaImpl)
-  (queryFor : string)
-  : Ply<Result<Sql.SqlProps, RT.RuntimeError>> =
-  uply {
-    let paramName =
-      match b.parameters with
-      | { head = RT.LPVariable(_, name); tail = [] } -> name
-      | _ -> Exception.raiseInternal "wrong number of args" [ "args", b.parameters ]
+// // Reusable function that provides the template for the SqlCompiler query functions
+// let doQuery
+//   (exeState : RT.ExecutionState)
+//   (db : RT.DB.T)
+//   (b : RT.LambdaImpl)
+//   (queryFor : string)
+//   : Ply<Result<Sql.SqlProps, RT.RuntimeError>> =
+//   uply {
+//     let paramName =
+//       match b.parameters with
+//       | { head = RT.LPVariable(_, name); tail = [] } -> name
+//       | _ -> Exception.raiseInternal "wrong number of args" [ "args", b.parameters ]
 
-    let state =
-      { state with symbolTable = b.symtable; typeSymbolTable = b.typeSymbolTable }
+//     let exeState =
+//       { exeState with symbolTable = b.symtable; typeSymbolTable = b.typeSymbolTable }
 
-    let! compiled = SqlCompiler.compileLambda state paramName db.typ b.body
+//     let! compiled = SqlCompiler.compileLambda exeState paramName db.typ b.body
 
-    match compiled with
-    | Error err -> return Error err
-    | Ok compiled ->
-      return
-        Sql.query
-          $"SELECT {queryFor}
-          FROM user_data_v0
-          WHERE table_tlid = @tlid
-            AND canvas_id = @canvasID
-            AND user_version = @userVersion
-            AND dark_version = @darkVersion
-            AND {compiled.sql}"
-        |> Sql.parameters (
-          compiled.vars
-          @ [ "tlid", Sql.tlid db.tlid
-              "canvasID", Sql.uuid state.program.canvasID
-              "userVersion", Sql.int db.version
-              "darkVersion", Sql.int currentDarkVersion ]
-        )
-        |> Ok
-  }
+//     match compiled with
+//     | Error err -> return Error err
+//     | Ok compiled ->
+//       return
+//         Sql.query
+//           $"SELECT {queryFor}
+//           FROM user_data_v0
+//           WHERE table_tlid = @tlid
+//             AND canvas_id = @canvasID
+//             AND user_version = @userVersion
+//             AND dark_version = @darkVersion
+//             AND {compiled.sql}"
+//         |> Sql.parameters (
+//           compiled.vars
+//           @ [ "tlid", Sql.tlid db.tlid
+//               "canvasID", Sql.uuid exeState.program.canvasID
+//               "userVersion", Sql.int db.version
+//               "darkVersion", Sql.int currentDarkVersion ]
+//         )
+//         |> Ok
+//   }
 
-let query
-  (state : RT.ExecutionState)
-  (db : RT.DB.T)
-  (b : RT.LambdaImpl)
-  : Ply<Result<List<string * RT.Dval>, RT.RuntimeError>> =
-  uply {
-    let types = RT.ExecutionState.types state
-    let! query = doQuery state db b "key, data"
+// let query
+//   (exeState : RT.ExecutionState)
+//   (db : RT.DB.T)
+//   (b : RT.LambdaImpl)
+//   : Ply<Result<List<string * RT.Dval>, RT.RuntimeError>> =
+//   uply {
+//     let types = RT.ExecutionState.types exeState
+//     let! query = doQuery exeState db b "key, data"
 
-    match query with
-    | Error err -> return (Error err)
-    | Ok query ->
+//     match query with
+//     | Error err -> return (Error err)
+//     | Ok query ->
 
-      let! results =
-        query
-        |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
+//       let! results =
+//         query
+//         |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
 
-      return!
-        results
-        |> List.map (fun (key, data) ->
-          uply {
-            let! dval = dbToDval state.tracing.callStack types db data
-            return (key, dval)
-          })
-        |> Ply.List.flatten
-        |> Ply.map Ok
-  }
+//       return!
+//         results
+//         |> List.map (fun (key, data) ->
+//           uply {
+//             let! dval = dbToDval exeState.tracing.callStack types db data
+//             return (key, dval)
+//           })
+//         |> Ply.List.flatten
+//         |> Ply.map Ok
+//   }
 
-let queryValues
-  (state : RT.ExecutionState)
-  (db : RT.DB.T)
-  (b : RT.LambdaImpl)
-  : Ply<Result<List<RT.Dval>, RT.RuntimeError>> =
-  uply {
-    let types = RT.ExecutionState.types state
-    let! query = doQuery state db b "data"
+// let queryValues
+//   (exeState : RT.ExecutionState)
+//   (db : RT.DB.T)
+//   (b : RT.LambdaImpl)
+//   : Ply<Result<List<RT.Dval>, RT.RuntimeError>> =
+//   uply {
+//     let types = RT.ExecutionState.types exeState
+//     let! query = doQuery exeState db b "data"
 
-    match query with
-    | Error err -> return Error err
-    | Ok query ->
-      let! results = query |> Sql.executeAsync (fun read -> read.string "data")
+//     match query with
+//     | Error err -> return Error err
+//     | Ok query ->
+//       let! results = query |> Sql.executeAsync (fun read -> read.string "data")
 
-      return!
-        results
-        |> List.map (dbToDval state.tracing.callStack types db)
-        |> Ply.List.flatten
-        |> Ply.map Ok
-  }
+//       return!
+//         results
+//         |> List.map (dbToDval exeState.tracing.callStack types db)
+//         |> Ply.List.flatten
+//         |> Ply.map Ok
+//   }
 
-let queryCount
-  (state : RT.ExecutionState)
-  (db : RT.DB.T)
-  (b : RT.LambdaImpl)
-  : Ply<Result<int, RT.RuntimeError>> =
-  uply {
-    let! query = doQuery state db b "COUNT(*)"
+// let queryCount
+//   (exeState : RT.ExecutionState)
+//   (db : RT.DB.T)
+//   (b : RT.LambdaImpl)
+//   : Ply<Result<int, RT.RuntimeError>> =
+//   uply {
+//     let! query = doQuery exeState db b "COUNT(*)"
 
-    match query with
-    | Error err -> return Error err
-    | Ok query ->
-      return!
-        query |> Sql.executeRowAsync (fun read -> read.int "count") |> Task.map Ok
-  }
+//     match query with
+//     | Error err -> return Error err
+//     | Ok query ->
+//       return!
+//         query |> Sql.executeRowAsync (fun read -> read.int "count") |> Task.map Ok
+//   }
 
-let getAllKeys (state : RT.ExecutionState) (db : RT.DB.T) : Task<List<string>> =
+let getAllKeys (exeState : RT.ExecutionState) (db : RT.DB.T) : Task<List<string>> =
   Sql.query
     "SELECT key
     FROM user_data_v0
@@ -339,12 +348,12 @@ let getAllKeys (state : RT.ExecutionState) (db : RT.DB.T) : Task<List<string>> =
       AND dark_version = @darkVersion"
   |> Sql.parameters
     [ "tlid", Sql.tlid db.tlid
-      "canvasID", Sql.uuid state.program.canvasID
+      "canvasID", Sql.uuid exeState.program.canvasID
       "userVersion", Sql.int db.version
       "darkVersion", Sql.int currentDarkVersion ]
   |> Sql.executeAsync (fun read -> read.string "key")
 
-let count (state : RT.ExecutionState) (db : RT.DB.T) : Task<int> =
+let count (exeState : RT.ExecutionState) (db : RT.DB.T) : Task<int> =
   Sql.query
     "SELECT COUNT(*)
     FROM user_data_v0
@@ -354,12 +363,16 @@ let count (state : RT.ExecutionState) (db : RT.DB.T) : Task<int> =
       AND dark_version = @darkVersion"
   |> Sql.parameters
     [ "tlid", Sql.tlid db.tlid
-      "canvasID", Sql.uuid state.program.canvasID
+      "canvasID", Sql.uuid exeState.program.canvasID
       "userVersion", Sql.int db.version
       "darkVersion", Sql.int currentDarkVersion ]
   |> Sql.executeRowAsync (fun read -> read.int "count")
 
-let delete (state : RT.ExecutionState) (db : RT.DB.T) (key : string) : Task<unit> =
+let delete
+  (exeState : RT.ExecutionState)
+  (db : RT.DB.T)
+  (key : string)
+  : Task<unit> =
   Sql.query
     "DELETE
     FROM user_data_v0
@@ -371,12 +384,12 @@ let delete (state : RT.ExecutionState) (db : RT.DB.T) (key : string) : Task<unit
   |> Sql.parameters
     [ "key", Sql.string key
       "tlid", Sql.tlid db.tlid
-      "canvasID", Sql.uuid state.program.canvasID
+      "canvasID", Sql.uuid exeState.program.canvasID
       "userVersion", Sql.int db.version
       "darkVersion", Sql.int currentDarkVersion ]
   |> Sql.executeStatementAsync
 
-let deleteAll (state : RT.ExecutionState) (db : RT.DB.T) : Task<unit> =
+let deleteAll (exeState : RT.ExecutionState) (db : RT.DB.T) : Task<unit> =
   //   covered by idx_user_data_current_data_for_tlid
   Sql.query
     "DELETE FROM user_data_v0
@@ -386,7 +399,7 @@ let deleteAll (state : RT.ExecutionState) (db : RT.DB.T) : Task<unit> =
       AND dark_version = @darkVersion"
   |> Sql.parameters
     [ "tlid", Sql.tlid db.tlid
-      "canvasID", Sql.uuid state.program.canvasID
+      "canvasID", Sql.uuid exeState.program.canvasID
       "userVersion", Sql.int db.version
       "darkVersion", Sql.int currentDarkVersion ]
   |> Sql.executeStatementAsync
@@ -415,7 +428,7 @@ let deleteAll (state : RT.ExecutionState) (db : RT.DB.T) : Task<unit> =
 //                           "darkVersion", Sql.int currentDarkVersion ]
 //       |> Sql.executeRowOptionAsync (fun read ->
 //         (read.string "data", read.string "key"))
-//     return result |> Option.map (fun (data, key) -> (dbToDval state db data, key))
+//     return result |> Option.map (fun (data, key) -> (dbToDval exeState db data, key))
 //   }
 
 let statsCount (canvasID : CanvasID) (db : RT.DB.T) : Task<int> =

@@ -17,8 +17,6 @@
 /// without some sort of such caching.
 module BuiltinExecution.Libs.Packages
 
-open System.Threading.Tasks
-
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts

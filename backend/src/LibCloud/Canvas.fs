@@ -464,18 +464,17 @@ let healthCheck : LibService.Kubernetes.HealthCheck =
 
 let toProgram (c : T) : Ply<RT.Program> =
   uply {
-    // let dbs =
-    //   c.dbs
-    //   |> Map.values
-    //   |> List.map (fun db -> (db.name, PT2RT.DB.toRT db))
-    //   |> Map.ofList
+    let dbs =
+      c.dbs
+      |> Map.values
+      |> List.map (fun db -> (db.name, PT2RT.DB.toRT db))
+      |> Map.ofList
 
-    // let secrets = c.secrets |> Map.values |> List.map PT2RT.Secret.toRT
+    let secrets = c.secrets |> Map.values |> List.map PT2RT.Secret.toRT
 
     return
       { canvasID = c.id
         internalFnsAllowed = List.contains c.id Config.allowedDarkInternalCanvasIDs
-      //dbs = dbs
-      //secrets = secrets
-      }
+        dbs = dbs
+        secrets = secrets }
   }

@@ -106,5 +106,5 @@ module Response =
           //     "    headers : List<String*String>"
           //     "    body : Bytes"
           //     "  }" ]
-          let message = [ "TODO" ]
+          let message = [ $"TODO toHttpResponse error\n{result}" ]
           message |> String.concat "\n" |> UTF8.toBytes }

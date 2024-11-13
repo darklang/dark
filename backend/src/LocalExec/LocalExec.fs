@@ -38,10 +38,10 @@ module HandleCommand =
 
   let reloadDarkPackagesCanvas () : Ply<Result<unit, string>> =
     uply {
-      // let! (canvasId, toplevels) =
-      //   Canvas.loadFromDisk LibCloud.PackageManager.pt "dark-packages"
+      let! (canvasId, toplevels) =
+        Canvas.loadFromDisk LibCloud.PackageManager.pt "dark-packages"
 
-      // print $"Loaded canvas {canvasId} with {List.length toplevels} toplevels"
+      print $"Loaded canvas {canvasId} with {List.length toplevels} toplevels"
 
       return Ok()
     }

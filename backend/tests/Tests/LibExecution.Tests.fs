@@ -41,11 +41,11 @@ let setupWorkers (canvasID : CanvasID) (workers : List<string>) : Task<unit> =
     do! Canvas.saveTLIDs canvasID tls
   }
 
-// let setupDBs (canvasID : CanvasID) (dbs : List<PT.DB.T>) : Task<unit> =
-//   task {
-//     let tls = dbs |> List.map (fun db -> PT.Toplevel.TLDB db, Serialize.NotDeleted)
-//     do! Canvas.saveTLIDs canvasID tls
-//   }
+let setupDBs (canvasID : CanvasID) (dbs : List<PT.DB.T>) : Task<unit> =
+  task {
+    let tls = dbs |> List.map (fun db -> PT.Toplevel.TLDB db, Serialize.NotDeleted)
+    do! Canvas.saveTLIDs canvasID tls
+  }
 
 
 let t
@@ -69,11 +69,11 @@ let t
         else
           System.Guid.NewGuid() |> Task.FromResult
 
-      // let rtDBs =
-      //   dbs |> List.map (fun db -> (db.name, PT2RT.DB.toRT db)) |> Map.ofList
+      let rtDBs =
+        dbs |> List.map (fun db -> (db.name, PT2RT.DB.toRT db)) |> Map.ofList
 
       let! (state : RT.ExecutionState) =
-        executionStateFor pmPT canvasID internalFnsAllowed false //rtDBs
+        executionStateFor pmPT canvasID internalFnsAllowed false rtDBs
 
       let red = "\u001b[31m"
       let green = "\u001b[32m"
@@ -105,7 +105,7 @@ let t
 
       // Initialize
       if workers <> [] then do! setupWorkers canvasID workers
-      //if dbs <> [] then do! setupDBs canvasID dbs
+      if dbs <> [] then do! setupDBs canvasID dbs
 
       let results, traceDvalFn = Exe.traceDvals ()
       let state =
@@ -141,7 +141,7 @@ let t
           | Ok _ -> return actual
 
           // "alleged" because sometimes we incorrectly construct an RTE... (should be rare, and only during big refactors)
-          | Error(allegedRTE) ->
+          | Error(allegedRTE, _cs) ->
             let actual = RT2DT.RuntimeError.toDT allegedRTE
             let errorMessageFn =
               RT.FQFnName.fqPackage
@@ -186,7 +186,7 @@ let t
                   Exception.raiseInternal
                     "We received an RTE, and when trying to stringify it, got a non-ErrorString response. Instead we got"
                     [ "result", result ]
-              | Error(result) ->
+              | Error(result, _cs) ->
                 let _result = RT2DT.RuntimeError.toDT result
                 print $"{state.test.exceptionReports}"
                 return

@@ -6,29 +6,27 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
-module TypeChecker = LibExecution.TypeChecker
 module PackageIDs = LibExecution.PackageIDs
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 
+
+let builtinConstant =
+  FQTypeName.fqPackage PackageIDs.Type.LanguageTools.builtinConstant
+
+let builtinFnParam =
+  FQTypeName.fqPackage PackageIDs.Type.LanguageTools.builtinFnParam
+let builtinFn = FQTypeName.fqPackage PackageIDs.Type.LanguageTools.builtinFn
 
 let fns : List<BuiltInFn> =
   [ { name = fn "languageToolsAllBuiltinConstants" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType =
-        TCustomType(
-          Ok(FQTypeName.fqPackage PackageIDs.Type.LanguageTools.builtinConstant),
-          []
-        )
-        |> TList
+      returnType = TCustomType(Ok builtinConstant, []) |> TList
       description =
         "Returns a list of the Builtin constants (usually not to be accessed directly)."
       fn =
         (function
         | exeState, _, _, [ DUnit ] ->
-          let constTypeName =
-            FQTypeName.fqPackage PackageIDs.Type.LanguageTools.builtinConstant
-
           let consts =
             exeState.constants.builtIn
             |> Map.toList
@@ -38,9 +36,9 @@ let fns : List<BuiltInFn> =
                   "description", DString data.description
                   "returnType", RT2DT.TypeReference.toDT data.typ ]
 
-              DRecord(constTypeName, constTypeName, [], Map fields))
+              DRecord(builtinConstant, builtinConstant, [], Map fields))
 
-          DList(VT.customType constTypeName [], consts) |> Ply
+          DList(VT.customType builtinConstant [], consts) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -50,22 +48,12 @@ let fns : List<BuiltInFn> =
     { name = fn "languageToolsAllBuiltinFns" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType =
-        TCustomType(
-          Ok(FQTypeName.fqPackage PackageIDs.Type.LanguageTools.builtinFn),
-          []
-        )
-        |> TList
+      returnType = TCustomType(Ok builtinFn, []) |> TList
       description =
         "Returns a list of the Builtin functions (usually not to be accessed directly)."
       fn =
         (function
         | exeState, _, _, [ DUnit ] ->
-          let fnParamTypeName =
-            FQTypeName.fqPackage PackageIDs.Type.LanguageTools.builtinFnParam
-          let fnTypeName =
-            FQTypeName.fqPackage PackageIDs.Type.LanguageTools.builtinFn
-
           let fns =
             exeState.fns.builtIn
             |> Map.toList
@@ -76,8 +64,8 @@ let fns : List<BuiltInFn> =
                   let fields =
                     [ "name", DString p.name
                       "type", RT2DT.TypeReference.toDT p.typ ]
-                  DRecord(fnParamTypeName, fnParamTypeName, [], Map fields))
-                |> Dval.list (KTCustomType(fnParamTypeName, []))
+                  DRecord(builtinFnParam, builtinFnParam, [], Map fields))
+                |> Dval.list (KTCustomType(builtinFnParam, []))
 
               let fields =
                 [ "name", RT2DT.FQFnName.Builtin.toDT name
@@ -85,9 +73,9 @@ let fns : List<BuiltInFn> =
                   "parameters", parameters
                   "returnType", RT2DT.TypeReference.toDT data.returnType ]
 
-              DRecord(fnTypeName, fnTypeName, [], Map fields))
+              DRecord(builtinFn, builtinFn, [], Map fields))
 
-          DList(VT.customType fnTypeName [], fns) |> Ply
+          DList(VT.customType builtinFn [], fns) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

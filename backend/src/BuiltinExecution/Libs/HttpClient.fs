@@ -10,10 +10,14 @@ open FSharp.Control.Tasks
 open Prelude
 open LibExecution
 open LibExecution.RuntimeTypes
-module VT = LibExecution.ValueType
+module VT = ValueType
 module RTE = RuntimeError
 
 type Method = HttpMethod
+
+let responseOKType = FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.response
+let responseErrorType =
+  FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.requestError
 
 module Headers =
   type Header = string * string
@@ -56,7 +60,7 @@ module BadUrl =
 
     let typeName =
       FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.badUrlDetails
-    Dval.DEnum(typeName, typeName, [], caseName, fields)
+    DEnum(typeName, typeName, [], caseName, fields)
 
 module RequestError =
   // inspired by Elm's HttpError type
@@ -71,13 +75,9 @@ module RequestError =
   let toDT (err : RequestError) : Dval =
     let (caseName, fields) =
       match err with
-      | BadUrl details ->
-        let details = BadUrl.toDT details
-        "BadUrl", [ details ]
+      | BadUrl details -> "BadUrl", [ BadUrl.toDT details ]
       | Timeout -> "Timeout", []
-      | BadHeader err ->
-        let err = BadHeader.toDT err
-        "BadHeader", [ err ]
+      | BadHeader err -> "BadHeader", [ BadHeader.toDT err ]
       | NetworkError -> "NetworkError", []
       | BadMethod -> "BadMethod", []
 
@@ -143,7 +143,7 @@ module BaseClient =
 
             if not (Array.forall config.allowedIP ips) then
               // Use this to hide more specific errors when looking at loopback
-              Exception.raiseInternal "Could not connect" [] // RTE
+              Exception.raiseInternal "Could not connect" []
 
             let socket =
               new System.Net.Sockets.Socket(
@@ -266,8 +266,7 @@ let makeRequest
               // https://learn.microsoft.com/en-us/dotnet/api/system.net.http.httpversionpolicy?view=net-7.0
               // TODO: test this (against requestbin or something that allows us to control the HTTP protocol version)
               Version = System.Net.HttpVersion.Version30,
-              VersionPolicy =
-                System.Net.Http.HttpVersionPolicy.RequestVersionOrLower
+              VersionPolicy = HttpVersionPolicy.RequestVersionOrLower
             )
 
           // headers
@@ -347,7 +346,7 @@ let makeRequest
       | :? TaskCanceledException ->
         config.telemetryAddTag "error" true
         config.telemetryAddTag "error.msg" "Timeout"
-        return Error RequestError.RequestError.Timeout
+        return Error RequestError.Timeout
 
       | :? System.ArgumentException as e when
         e.Message = "Only 'http' and 'https' schemes are allowed. (Parameter 'value')"
@@ -394,26 +393,17 @@ let fns (config : Configuration) : List<BuiltInFn> =
           Param.make "body" (TList TUInt8) "" ]
       returnType =
         TypeReference.result
-          (TCustomType(
-            Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.response),
-            []
-          ))
-          (TCustomType(
-            Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.requestError),
-            []
-          ))
+          (TCustomType(Ok responseOKType, []))
+          (TCustomType(Ok responseErrorType, []))
       description =
         "Make blocking HTTP call to <param uri>. Returns a <type Result> where
       the response is wrapped in {{ Ok }} if a response was successfully
       received and parsed, and is wrapped in {{ Error }} otherwise"
       fn =
-        let typ = FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.response
-
-        let responseType = KTCustomType(typ, [])
-        let resultOk = Dval.resultOk responseType KTString
-        let typeName =
-          FQTypeName.fqPackage PackageIDs.Type.Stdlib.HttpClient.requestError
-        let resultError = Dval.resultError responseType (KTCustomType(typeName, []))
+        let responseTypeOK = KTCustomType(responseOKType, [])
+        let responseTypeErr = KTCustomType(responseErrorType, [])
+        let resultOk = Dval.resultOk responseTypeOK responseTypeErr
+        let resultError = Dval.resultError responseTypeOK responseTypeErr
         (function
         | _,
           vm,
@@ -429,27 +419,25 @@ let fns (config : Configuration) : List<BuiltInFn> =
                     let k = String.trim k
                     if k = "" then
                       // CLEANUP reconsider if we should error here
-                      return Error BadHeader.BadHeader.EmptyKey
+                      return Error BadHeader.EmptyKey
                     else
                       return Ok((k, v))
 
                   | notAPair ->
-                    return!
-                      RTE.TypeCheckers.ValueNotExpectedType(
-                        // [ RTE.TypeCheckers.PathPart.FunctionCallParameter(
-                        //     FQFnName.fqPackage
-                        //       PackageIDs.Fn.Stdlib.HttpClient.request,
-                        //     "headers",
-                        //     2
-                        //   ) ],
-                        headersType,
+                    return
+                      RTE.Applications.FnParameterNotExpectedType(
+                        FQFnName.Package PackageIDs.Fn.Stdlib.HttpClient.request,
+                        2,
+                        "headers",
+                        TypeReference.toVT Map.empty headersType,
+                        Dval.toValueType notAPair,
                         notAPair
                       )
-                      |> RTE.TypeChecker
+                      |> RTE.Apply
                       |> raiseRTE vm.threadID
 
                 })
-              |> Ply.map (Result.collect)
+              |> Ply.map Result.collect
 
             let method =
               try
@@ -494,18 +482,13 @@ let fns (config : Configuration) : List<BuiltInFn> =
                   | Error err -> return Error err
 
                 | Error reqHeadersErr, _ ->
-                  let reqHeadersErr = reqHeadersErr
-                  return Error(RequestError.RequestError.BadHeader reqHeadersErr)
+                  return Error(RequestError.BadHeader reqHeadersErr)
 
-                | _, None ->
-                  let error = RequestError.RequestError.BadMethod
-                  return Error error
+                | _, None -> return Error RequestError.BadMethod
               }
             match result with
             | Ok result -> return result
-            | Error err ->
-              let err = RequestError.toDT err
-              return resultError err
+            | Error err -> return resultError (RequestError.toDT err)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

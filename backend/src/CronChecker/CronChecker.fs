@@ -25,9 +25,9 @@ let run () : Task<unit> =
   }
 
 let initSerializers () =
-  // Json.Vanilla.allow<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
-  //   "RoundtrippableSerializationFormatV0.Dval"
-  // Json.Vanilla.allow<LibCloud.Queue.NotificationData> "eventqueue storage"
+  Json.Vanilla.allow<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
+    "RoundtrippableSerializationFormatV0.Dval"
+  Json.Vanilla.allow<LibCloud.Queue.NotificationData> "eventqueue storage"
   Json.Vanilla.allow<LibService.Rollbar.HoneycombJson> "Rollbar"
 
 [<EntryPoint>]

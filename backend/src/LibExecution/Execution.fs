@@ -7,6 +7,7 @@ open Prelude
 
 module RT = RuntimeTypes
 module RTE = RT.RuntimeError
+module RT2DT = RuntimeTypesToDarkTypes
 
 let noTracing : RT.Tracing.Tracing =
   { traceDval = fun _ _ -> ()
@@ -42,10 +43,23 @@ let createState
       { builtIn = builtins.constants; package = packageManager.getConstant } }
 
 
+let rec callStackFromVM
+  (vm : RT.VMState)
+  (frameID : uuid)
+  (soFar : RT.CallStack)
+  : RT.CallStack =
+  match vm.callFrames |> Map.find frameID with
+  | None -> soFar // CLEANUP should probably be an error here
+  | Some frame ->
+    match frame.parent with
+    | None -> soFar
+    | Some(parentFrameID, _, _) ->
+      callStackFromVM vm parentFrameID (frame.executionPoint :: soFar)
 
-let executeExpr
+
+let execute
   (exeState : RT.ExecutionState)
-  (instrs : RT.Instructions)
+  (instrs : Option<tlid> * RT.Instructions)
   : Task<RT.ExecutionResult> =
   task {
     let vm = RT.VMState.create instrs
@@ -59,8 +73,9 @@ let executeExpr
 
       with
       | RT.RuntimeErrorException(_threadID, rte) ->
-        // TODO: we need some call stack or something on the RHS
-        return Error(rte)
+        let callStack = callStackFromVM vm vm.currentFrameID []
+
+        return Error(rte, callStack)
       | ex ->
         let context : Metadata =
           //[ "fn", fnDesc; "args", args; "typeArgs", typeArgs; "id", id ]
@@ -69,8 +84,10 @@ let executeExpr
         let id = System.Guid.NewGuid()
         // TODO: log the error and details or something
 
-        let currentFrame = Map.findUnsafe vm.currentFrameID vm.callFrames
-        debuG "Uncaught exception" currentFrame.context // TODO do something w/ the context (match against it)
+        // let currentFrame = Map.findUnsafe vm.currentFrameID vm.callFrames
+        // debuG "Uncaught exception" currentFrame.executionPoint // TODO do something w/ the context (match against it)
+
+        //let callStack = callStackFromVM vm vm.currentFrameID []
 
         return (RTE.UncaughtException id) |> RT.raiseRTE vm.threadID
 
@@ -79,6 +96,18 @@ let executeExpr
       exeState.test.postTestExecutionHook exeState.test
   }
 
+let executeExpr
+  (exeState : RT.ExecutionState)
+  (instrs : RT.Instructions)
+  : Task<RT.ExecutionResult> =
+  execute exeState (None, instrs)
+
+let executeToplevel
+  (exeState : RT.ExecutionState)
+  (tlid : tlid)
+  (instrs : RT.Instructions)
+  : Task<RT.ExecutionResult> =
+  execute exeState (Some tlid, instrs)
 
 let executeFunction
   (exeState : RT.ExecutionState)
@@ -112,16 +141,16 @@ let executeFunction
   executeExpr exeState instrs
 
 
-// let runtimeErrorToString
-//   (state : RT.ExecutionState)
-//   (rte : RT.RuntimeError)
-//   : Task<Result<RT.Dval, Option<RT.CallStack> * RT.RuntimeError>> =
-//   task {
-//     let fnName =
-//       RT.FQFnName.fqPackage PackageIDs.Fn.LanguageTools.RuntimeErrors.Error.toString
-//     let args = NEList.singleton (RT.RuntimeError.toDT rte)
-//     return! executeFunction state fnName [] args
-//   }
+let runtimeErrorToString
+  (state : RT.ExecutionState)
+  (rte : RT.RuntimeError.Error)
+  : Task<RT.ExecutionResult> =
+  task {
+    let fnName =
+      RT.FQFnName.fqPackage PackageIDs.Fn.LanguageTools.RuntimeErrors.Error.toString
+    let args = NEList.singleton (RT2DT.RuntimeError.toDT rte)
+    return! executeFunction state fnName [] args
+  }
 
 
 // let exprString
@@ -167,35 +196,49 @@ let executeFunction
 //     | Some expr -> prettyPrint expr
 
 
-// // TODO: consider dumping symTable while we're at it.
-// // (beware of secrets in scope, though)
-// let callStackString
-//   (state : RT.ExecutionState)
-//   (callStack : Option<RT.CallStack>)
-//   : Ply<string> =
-//   match callStack with
-//   | None -> Ply "No call stack"
-//   | Some cs ->
-//     let (executionPoint, exprId) = cs.lastCalled
+/// TODO: move this impl to darklang
+///
+/// TODO: consider dumping symTable while we're at it.
+/// (beware of secrets in scope, though)
+let callStackString
+  (_state : RT.ExecutionState)
+  (callStack : RT.CallStack) // Note: in reverse order
+  : Ply<string> =
 
-//     let handleFn (fn : Option<RT.PackageFn.PackageFn>) : Ply<string> =
-//       uply {
-//         match fn with
-//         | None -> return "<Couldn't find package function>"
-//         | Some fn ->
-//           let fnName = string fn.id
-//           let! exprString = exprString state fn.body exprId
-//           return fnName + ": " + exprString
-//       }
+  // let handleFn (fn : Option<RT.PackageFn.PackageFn>) : Ply<string> =
+  //   uply {
+  //     match fn with
+  //     | None -> return "<Couldn't find package function>"
+  //     | Some fn ->
+  //       let fnName = string fn.id
+  //       let! exprString = exprString state fn.body exprId
+  //       return fnName + ": " + exprString
+  //   }
 
-//     match executionPoint with
-//     | RT.ExecutionPoint.Script -> Ply "Input script"
-//     | RT.ExecutionPoint.Toplevel tlid -> Ply $"Toplevel {tlid}"
-//     | RT.ExecutionPoint.Function fnName ->
-//       match fnName with
-//       | RT.FQFnName.Package name ->
-//         state.packageManager.getFn name |> Ply.bind handleFn
-//       | RT.FQFnName.Builtin name -> Ply $"Builtin {name}"
+  // match executionPoint with
+  // | RT.ExecutionPoint.Script -> Ply "Input script"
+  // | RT.ExecutionPoint.Function fnName ->
+  //   match fnName with
+  //   | RT.FQFnName.Package name ->
+  //     state.packageManager.getFn name |> Ply.bind handleFn
+  //   | RT.FQFnName.Builtin name -> Ply $"Builtin {name}"
+
+
+  List.fold
+    (fun acc executionPoint ->
+      let part =
+        match executionPoint with
+        | RT.Source -> "Source"
+        | RT.Function(RT.FQFnName.Package name) -> $"Package Function {name}"
+        | RT.Function(RT.FQFnName.Builtin fnName) -> $"Builtin Function {fnName}" // TODO actually fetch the fn, etc
+        | RT.Lambda(_parent, exprId) -> "Lambda " + string exprId
+
+      $"{acc}\n- {part}")
+    "Call stack:"
+    (List.rev callStack)
+  |> Ply
+
+
 
 
 // /// Return a function to trace TLIDs (add it to state via
@@ -238,7 +281,7 @@ let rec rteToString
     match rteMessage with
     | Ok(RT.DString msg) -> return msg
     | Ok(other) -> return string other
-    | Error(rte) ->
+    | Error(rte, _cs) ->
       debuG "Error converting RTE to string" rte
       return! rteToString rteToDval state rte
   }

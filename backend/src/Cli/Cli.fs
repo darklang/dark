@@ -68,9 +68,8 @@ let state () =
   let program : RT.Program =
     { canvasID = System.Guid.NewGuid()
       internalFnsAllowed = false
-    //dbs = Map.empty
-    //secrets = []
-    }
+      dbs = Map.empty
+      secrets = [] }
 
   let notify (_state : RT.ExecutionState) (_msg : string) (_metadata : Metadata) =
     // let metadata = extraMetadata state @ metadata
@@ -91,7 +90,7 @@ let state () =
 
 
 
-let execute (args : List<string>) : Task<Result<RT.Dval, RT.RuntimeError.Error>> =
+let execute (args : List<string>) : Task<RT.ExecutionResult> =
   task {
     let state = state ()
     let fnName = RT.FQFnName.fqPackage PackageIDs.Fn.Cli.executeCliCommand
@@ -110,47 +109,46 @@ let initSerializers () =
   ()
 
 [<EntryPoint>]
-let main (_args : string[]) =
+let main (args : string[]) =
   try
     initSerializers ()
 
     packageManagerRT.init.Result
 
-    // let result = execute (Array.toList args)
-    // let result = result.Result
+    let result = execute (Array.toList args)
+    let result = result.Result
 
-    // NonBlockingConsole.wait ()
+    NonBlockingConsole.wait ()
 
-    // match result with
-    // | Error(callStack, rte) ->
-    //   let state = state ()
+    match result with
+    | Error(rte, callStack) ->
+      let state = state ()
 
-    //   let errorCallStackStr = LibExecution.Execution.callStackString state callStack
+      let errorCallStackStr = LibExecution.Execution.callStackString state callStack
 
-    //   match (LibExecution.Execution.runtimeErrorToString state rte).Result with
-    //   | Ok(RT.DString s) ->
-    //     System.Console.WriteLine $"Error source: {errorCallStackStr}\n  {s}"
+      match (LibExecution.Execution.runtimeErrorToString state rte).Result with
+      | Ok(RT.DString s) ->
+        System.Console.WriteLine $"Error source: {errorCallStackStr}\n  {s}"
 
-    //   | Ok otherVal ->
-    //     System.Console.WriteLine
-    //       $"Unexpected value while stringifying error.\nCallStack: {errorCallStackStr}\n"
-    //     System.Console.WriteLine $"Original Error: {rte}"
-    //     System.Console.WriteLine $"Value is:\n{otherVal}"
+      | Ok otherVal ->
+        System.Console.WriteLine
+          $"Unexpected value while stringifying error.\nCallStack: {errorCallStackStr}\n"
+        System.Console.WriteLine $"Original Error: {rte}"
+        System.Console.WriteLine $"Value is:\n{otherVal}"
 
-    //   | Error(_, newErr) ->
-    //     System.Console.WriteLine
-    //       $"Error while stringifying error.\n CallStack: {errorCallStackStr}\n"
-    //     System.Console.WriteLine $"Original Error: {rte}"
-    //     System.Console.WriteLine $"New Error is:\n{newErr}"
+      | Error(newErr) ->
+        System.Console.WriteLine
+          $"Error while stringifying error.\n CallStack: {errorCallStackStr}\n"
+        System.Console.WriteLine $"Original Error: {rte}"
+        System.Console.WriteLine $"New Error is:\n{newErr}"
 
-    //   1
-    // | Ok(RT.DInt64 i) -> (int i)
-    // | Ok dval ->
-    //   let output = LibExecution.DvalReprDeveloper.toRepr dval
-    //   System.Console.WriteLine
-    //     $"Error: main function must return an int (returned {output})"
-    //   1
-    1
+      1
+    | Ok(RT.DInt64 i) -> (int i)
+    | Ok _dval ->
+      let output = "LibExecution.DvalReprDeveloper.toRepr dval" // TODO
+      System.Console.WriteLine
+        $"Error: main function must return an int (returned {output})"
+      1
 
   with e ->
     printException "Error starting Darklang CLI" [] e

@@ -18,11 +18,6 @@
     <ProjectReference Include="../LibService/LibService.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <!-- disabling DB stuff for now /-->
-    <!--Compile Include="DvalReprInternalQueryable.fs" /-->
-    <!--Compile Include="SqlCompiler.fs" /-->
-    <!--Compile Include="UserDB.fs" /-->
-
     <Compile Include="DvalReprInternalRoundtrippable.fs" />
     <Compile Include="DvalReprInternalHash.fs" />
 
@@ -42,9 +37,15 @@
     <Compile Include="Queue.fs" />
     <Compile Include="Cron.fs" />
     <Compile Include="Tracing.fs" />
+
+    <Compile Include="Init.fs" />
+
+    <Compile Include="DvalReprInternalQueryable.fs" />
+    <Compile Include="SqlCompiler.fs" />
+    <Compile Include="UserDB.fs" />
+
     <Compile Include="Stats.fs" />
     <Compile Include="Migrations.fs" />
-    <Compile Include="Init.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

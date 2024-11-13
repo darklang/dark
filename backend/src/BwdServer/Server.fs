@@ -1,11 +1,7 @@
-/// This is the webserver for darklang.io, often referred to as "BWD" (named after
-/// our old domain - builtwithdark.com)
+/// Handles all HTTP handlers for Darklang.
+/// Written with darklang.io/builtwithdark.com in mind.
 ///
-/// All Dark HTTP handlers are handled by this service
-/// our grand-users hit this server, and BWD handles the requests.
-///
-/// It uses ASP.NET directly, instead of a web framework, so we can tune the exact
-/// behaviour of headers and such.
+/// See README.md for more details.
 module BwdServer.Server
 
 open FSharp.Control.Tasks
@@ -29,7 +25,6 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
-module Account = LibCloud.Account
 module Canvas = LibCloud.Canvas
 module Routing = LibCloud.Routing
 module Pusher = LibCloud.Pusher
@@ -267,108 +262,106 @@ exception NotFoundException of msg : string with
 /// ---------------
 let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
   task {
-    // let domain = Exception.catch (fun () -> ctx.Request.Host.Host)
-    // let! canvasID =
-    //   match domain with
-    //   | None -> Task.FromResult None
-    //   | Some domain ->
-    //     ctx.Items["canvasDomain"] <- domain // store for exception tracking
-    //     Telemetry.addTags [ "canvas.domain", domain ]
-    //     Canvas.canvasIDForDomain domain
+    let domain = Exception.catch (fun () -> ctx.Request.Host.Host)
+    let! canvasID =
+      match domain with
+      | None -> Task.FromResult None
+      | Some domain ->
+        ctx.Items["canvasDomain"] <- domain // store for exception tracking
+        Telemetry.addTags [ "canvas.domain", domain ]
+        Canvas.canvasIDForDomain domain
 
-    // match canvasID with
-    // | Some canvasID ->
-    //   let traceID = LibExecution.AnalysisTypes.TraceID.create ()
-    //   let requestMethod = ctx.Request.Method
-    //   let requestPath = ctx.Request.Path.Value |> Routing.sanitizeUrlPath
+    match canvasID with
+    | Some canvasID ->
+      let traceID = LibExecution.AnalysisTypes.TraceID.create ()
+      let requestMethod = ctx.Request.Method
+      let requestPath = ctx.Request.Path.Value |> Routing.sanitizeUrlPath
 
-    //   // TODO: stop storing all the handler types together...
-    //   let desc = ("HTTP", requestPath, requestMethod)
+      // TODO: stop storing all the handler types together...
+      let desc = ("HTTP", requestPath, requestMethod)
 
-    //   Telemetry.addTags [ "canvas.id", canvasID; "trace_id", traceID ]
+      Telemetry.addTags [ "canvas.id", canvasID; "trace_id", traceID ]
 
-    //   // redirect HEADs to GET. We pass the actual HEAD method to the engine,
-    //   // and leave it to middleware to say what it wants to do with that
-    //   let searchMethod = if requestMethod = "HEAD" then "GET" else requestMethod
+      // redirect HEADs to GET. We pass the actual HEAD method to the engine,
+      // and leave it to middleware to say what it wants to do with that
+      let searchMethod = if requestMethod = "HEAD" then "GET" else requestMethod
 
-    //   // Canvas to process request against, with enough loaded to handle this
-    //   // request
-    //   let! canvas = Canvas.loadHttpHandlers canvasID requestPath searchMethod
+      // Canvas to process request against, with enough loaded to handle this request
+      let! canvas = Canvas.loadHttpHandlers canvasID requestPath searchMethod
 
-    //   let url : string = ctx.Request.GetEncodedUrl() |> canonicalizeURL (isHttps ctx)
+      let url : string = ctx.Request.GetEncodedUrl() |> canonicalizeURL (isHttps ctx)
 
-    //   // Filter down canvas' handlers to those (hopefully only one) that match
-    //   let pages =
-    //     Routing.filterMatchingHandlers requestPath (Map.values canvas.handlers)
+      // Filter down canvas' handlers to those (hopefully only one) that match
+      let pages =
+        Routing.filterMatchingHandlers requestPath (Map.values canvas.handlers)
 
-    //   match pages with
-    //   // matching handler found - process normally
-    //   | [ { spec = PT.Handler.HTTP(route = route); tlid = tlid } as handler ] ->
-    //     Telemetry.addTags [ "handler.route", route; "handler.tlid", tlid ]
+      match pages with
+      // matching handler found - process normally
+      | [ { spec = PT.Handler.HTTP(route = route); tlid = tlid } as handler ] ->
+        Telemetry.addTags [ "handler.route", route; "handler.tlid", tlid ]
 
-    //     let routeVars = Routing.routeInputVars route requestPath
+        let routeVars = Routing.routeInputVars route requestPath
 
-    //     let! reqBody = getBody ctx
-    //     let reqHeaders = getHeadersWithoutMergingKeys ctx
+        let! reqBody = getBody ctx
+        let reqHeaders = getHeadersWithoutMergingKeys ctx
 
-    //     match routeVars with
-    //     | Some routeVars ->
-    //       Telemetry.addTag "handler.routeVars" routeVars
+        match routeVars with
+        | Some routeVars ->
+          Telemetry.addTag "handler.routeVars" routeVars
 
-    //       // Do request
-    //       use _ = Telemetry.child "executeHandler" []
+          // Do request
+          use _ = Telemetry.child "executeHandler" []
 
-    //       let request = LibHttpMiddleware.Request.fromRequest url reqHeaders reqBody
-    //       let inputVars = routeVars |> Map |> Map.add "request" request
+          let request = LibHttpMiddleware.Request.fromRequest url reqHeaders reqBody
+          let inputVars = routeVars |> Map |> Map.add "request" request
 
-    //       let! canvas = Canvas.toProgram canvas
-    //       let! (result, _) =
-    //         CloudExe.executeHandler
-    //           LibClientTypesToCloudTypes.Pusher.eventSerializer
-    //           (PT2RT.Handler.toRT handler)
-    //           canvas
-    //           traceID
-    //           inputVars
-    //           (CloudExe.InitialExecution(desc, "request", request))
+          let! canvas = Canvas.toProgram canvas
+          let! (result, _) =
+            CloudExe.executeHandler
+              LibClientTypesToCloudTypes.Pusher.eventSerializer
+              handler
+              canvas
+              traceID
+              inputVars
+              (CloudExe.InitialExecution(desc, "request", request))
 
-    //       let result = LibHttpMiddleware.Response.toHttpResponse result
+          let result = LibHttpMiddleware.Response.toHttpResponse result
 
-    //       do! writeResponseToContext ctx result.statusCode result.headers result.body
-    //       Telemetry.addTag "http.completion_reason" "success"
+          do! writeResponseToContext ctx result.statusCode result.headers result.body
+          Telemetry.addTag "http.completion_reason" "success"
 
-    //       return ctx
+          return ctx
 
-    //     | None -> // vars didn't parse
-    //       // TODO: reenable using CloudStorage
-    //       // FireAndForget.fireAndForgetTask "store-event" (fun () ->
-    //       //   let request = LibHttpMiddleware.Request.fromRequest url reqHeaders reqBody
-    //       //   TI.storeEvent canvasID traceID desc request)
+        | None -> // vars didn't parse
+          // TODO: reenable using CloudStorage
+          // FireAndForget.fireAndForgetTask "store-event" (fun () ->
+          //   let request = LibHttpMiddleware.Request.fromRequest url reqHeaders reqBody
+          //   TI.storeEvent canvasID traceID desc request)
 
-    //       return! unmatchedRouteResponse ctx requestPath route
+          return! unmatchedRouteResponse ctx requestPath route
 
-    //   | [] when string ctx.Request.Path = "/favicon.ico" ->
-    //     return! faviconResponse ctx
+      | [] when string ctx.Request.Path = "/favicon.ico" ->
+        return! faviconResponse ctx
 
-    //   // no matching route found - store as 404
-    //   | [] ->
-    //     // TODO: reenable using CloudStorage
-    //     // let! reqBody = getBody ctx
-    //     // let reqHeaders = getHeadersWithoutMergingKeys ctx
-    //     // let event = LibHttpMiddleware.Request.fromRequest url reqHeaders reqBody
-    //     // let! timestamp = TI.storeEvent canvasID traceID desc event
+      // no matching route found - store as 404
+      | [] ->
+        // TODO: reenable using CloudStorage
+        // let! reqBody = getBody ctx
+        // let reqHeaders = getHeadersWithoutMergingKeys ctx
+        // let event = LibHttpMiddleware.Request.fromRequest url reqHeaders reqBody
+        // let! timestamp = TI.storeEvent canvasID traceID desc event
 
-    //     // CLEANUP: move pusher into storeEvent
-    //     // Send to pusher - do not resolve task, send this into the ether
-    //     // Pusher.push
-    //     //   LibClientTypesToCloudTypes.Pusher.eventSerializer
-    //     //   canvasID
-    //     //   (Pusher.New404("HTTP", requestPath, requestMethod, timestamp, traceID))
-    //     //   None
+        // CLEANUP: move pusher into storeEvent
+        // Send to pusher - do not resolve task, send this into the ether
+        // Pusher.push
+        //   LibClientTypesToCloudTypes.Pusher.eventSerializer
+        //   canvasID
+        //   (Pusher.New404("HTTP", requestPath, requestMethod, timestamp, traceID))
+        //   None
 
-    //     return! noHandlerResponse ctx
-    //   | _ -> return! moreThanOneHandlerResponse ctx
-    // | None ->
-    return! canvasNotFoundResponse ctx
+        return! noHandlerResponse ctx
+      | _ -> return! moreThanOneHandlerResponse ctx
+    | None -> return! canvasNotFoundResponse ctx
   }
 
 // ---------------
@@ -470,12 +463,12 @@ let initSerializers () =
   // universally-serializable types
 
   // one-off types used internally
-  // Json.Vanilla.allow<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
-  //   "RoundtrippableSerializationFormatV0.Dval"
+  Json.Vanilla.allow<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
+    "RoundtrippableSerializationFormatV0.Dval"
   Json.Vanilla.allow<List<LibExecution.ProgramTypes.Toplevel.T>>
     "Canvas.loadJsonFromDisk"
   Json.Vanilla.allow<LibExecution.ProgramTypes.Toplevel.T> "Canvas.loadJsonFromDisk"
-  // Json.Vanilla.allow<LibCloud.Queue.NotificationData> "eventqueue storage"
+  Json.Vanilla.allow<LibCloud.Queue.NotificationData> "eventqueue storage"
   Json.Vanilla.allow<LibCloud.TraceCloudStorage.CloudStorageFormat>
     "TraceCloudStorageFormat"
   Json.Vanilla.allow<LibService.Rollbar.HoneycombJson> "Rollbar"

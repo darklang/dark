@@ -75,7 +75,7 @@ module DvalComparator =
     //   let c = compareLetPatternsLists l1' l2'
     //   if c = 0 then compareExprs l1.body l2.body else c
 
-    //| DDB name1, DDB name2 -> compare name1 name2
+    | DDB name1, DDB name2 -> compare name1 name2
 
     // exhaustiveness check
     | DUnit, _
@@ -100,8 +100,8 @@ module DvalComparator =
     | DUuid _, _
     | DRecord _, _
     | DEnum _, _
-    | DApplicable _, _ ->
-      //| DDB _, _
+    | DApplicable _, _
+    | DDB _, _ ->
       // TODO: Feels like this should hook into typechecker and ValueTypes somehow
       RuntimeError.Error.EqualityCheckOnIncompatibleTypes(
         Dval.toValueType dv1,

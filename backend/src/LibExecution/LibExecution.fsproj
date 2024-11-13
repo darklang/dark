@@ -29,7 +29,6 @@
     <Compile Include="TypeChecker.fs" />
     <Compile Include="Interpreter.fs" />
     <Compile Include="AnalysisTypes.fs" />
-    <Compile Include="Execution.fs" />
 
     <!-- Dev-time, Language Design, Mental Model /-->
     <Compile Include="ProgramTypes.fs" />
@@ -42,6 +41,9 @@
     <Compile Include="CommonToDarkTypes.fs" />
     <Compile Include="RuntimeTypesToDarkTypes.fs" />
     <Compile Include="ProgramTypesToDarkTypes.fs" />
+
+    <!-- Expose the runtime to the outside world /-->
+    <Compile Include="Execution.fs" />
 
     <!-- TODO move this to its own project, and try to decrease usage a ton. /-->
     <!--Compile Include="DvalReprDeveloper.fs" /-->

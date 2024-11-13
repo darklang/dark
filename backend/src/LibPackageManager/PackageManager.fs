@@ -60,6 +60,7 @@ let fetch
     let! responseStr = response.Content.ReadAsStringAsync()
     try
       if response.StatusCode = System.Net.HttpStatusCode.OK then
+        debuG "responseStr" responseStr
         let deserializedMaybe =
           SimpleJson.deserialize<'serverType> decoder responseStr
 

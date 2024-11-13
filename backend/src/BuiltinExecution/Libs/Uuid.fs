@@ -1,9 +1,5 @@
 module BuiltinExecution.Libs.Uuid
 
-open System.Threading.Tasks
-open System.Numerics
-open FSharp.Control.Tasks
-
 open LibExecution.RuntimeTypes
 open Prelude
 open LibExecution.Builtin.Shortcuts
@@ -35,9 +31,10 @@ let fns : List<BuiltInFn> =
         | _, _, _, [ DUnit ] -> Ply(DUuid(System.Guid.NewGuid()))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
-      // similarly to DateTime.now, it's not particularly fun for this to change
-      // when live programming
-      previewable = Impure
+      previewable =
+        // Similarly to DateTime.now, it's not particularly fun for this to change
+        // when live programming, so let's keep this as Impure rather than ImpurePreviewable
+        Impure
       deprecated = NotDeprecated }
 
 

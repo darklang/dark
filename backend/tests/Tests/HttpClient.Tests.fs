@@ -115,7 +115,7 @@ let parseSingleTestFromFile
   uply {
     let! (state : RT.ExecutionState) =
       let canvasID = System.Guid.NewGuid()
-      executionStateFor pmPT canvasID false false //Map.empty
+      executionStateFor pmPT canvasID false false Map.empty
 
     let name =
       RT.FQFnName.FQFnName.Package
@@ -126,7 +126,7 @@ let parseSingleTestFromFile
 
     match execResult with
     | Ok dval -> return Internal.Test.fromDT dval
-    | Error rte ->
+    | Error(rte, _) ->
       debuG "rte" rte
       let! rteString = Exe.rteToString RT2DT.RuntimeError.toDT state rte
       debuG "rteString" rteString
@@ -208,7 +208,7 @@ let makeTest versionName filename =
     else
       // Set up the canvas
       let canvasID = System.Guid.NewGuid()
-      let! exeState = executionStateFor pmPT canvasID false true // Map.empty
+      let! exeState = executionStateFor pmPT canvasID false true Map.empty
 
       // Parse the Dark code
       let! (test : Internal.Test.PTTest) =

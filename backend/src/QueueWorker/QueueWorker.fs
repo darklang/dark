@@ -195,7 +195,7 @@ let processNotification
 
                   do! EQ.deleteEvent event
                   return! stop "MissingHandler" NoRetry
-                | Some _h ->
+                | Some h ->
 
                   // If we acknowledge the event here, and the machine goes down,
                   // PubSub will retry this once the ack deadline runs out
@@ -203,24 +203,24 @@ let processNotification
 
                   // CLEANUP Set a time limit of 3m
                   try
-                    let! _program = Canvas.toProgram c
-                    // let! (result, traceResults) =
-                    //   CloudExecution.executeHandler
-                    //     LibClientTypesToCloudTypes.Pusher.eventSerializer
-                    //     (PT2RT.Handler.toRT h)
-                    //     program
-                    //     traceID
-                    //     (Map [ "event", event.value ])
-                    //     (CloudExecution.InitialExecution(
-                    //       EQ.toEventDesc event,
-                    //       "event",
-                    //       event.value
-                    //     ))
+                    let! program = Canvas.toProgram c
+                    let! (_result, traceResults) =
+                      CloudExecution.executeHandler
+                        LibClientTypesToCloudTypes.Pusher.eventSerializer
+                        h
+                        program
+                        traceID
+                        (Map [ "event", event.value ])
+                        (CloudExecution.InitialExecution(
+                          EQ.toEventDesc event,
+                          "event",
+                          event.value
+                        ))
 
                     Telemetry.addTags
                       [ //"result_type", DvalReprDeveloper.toTypeName result
                         "queue.success", true
-                        //"executed_tlids", HashSet.toList traceResults.tlids
+                        "executed_tlids", HashSet.toList traceResults.tlids
                         "queue.completion_reason", "completed" ]
                     // ExecutesToCompletion
 
@@ -273,23 +273,23 @@ let run () : Task<unit> =
     // decided somewhat dynamically by a feature flag. So just pick a high number,
     // and then use the semaphore to count the events in progress.
     let initialCount = 100000 // just be a high number
-    let _semaphore = new System.Threading.SemaphoreSlim(initialCount)
+    let semaphore = new System.Threading.SemaphoreSlim(initialCount)
 
-    let _maxEventsFn = LD.queueMaxConcurrentEventsPerWorker
+    let maxEventsFn = LD.queueMaxConcurrentEventsPerWorker
     while not shouldShutdown do
-      let _timeout = System.TimeSpan.FromSeconds 5
+      let timeout = System.TimeSpan.FromSeconds 5
       try
-        // // TODO: include memory and CPU usage checks in here
-        // let runningCount = initialCount - semaphore.CurrentCount
-        // let remainingSlots = maxEventsFn () - runningCount
-        // if remainingSlots > 0 then
-        //   // let! notifications = EQ.dequeue timeout remainingSlots
-        //   // if notifications = [] then
-        //   //   do! Task.Delay(LD.queueDelayBetweenPullsInMillis ())
-        //   // else
-        //     List.iter (runInBackground semaphore) //notifications
-        // else
-        do! Task.Delay(LD.queueDelayBetweenPullsInMillis ())
+        // TODO: include memory and CPU usage checks in here
+        let runningCount = initialCount - semaphore.CurrentCount
+        let remainingSlots = maxEventsFn () - runningCount
+        if remainingSlots > 0 then
+          let! notifications = EQ.dequeue timeout remainingSlots
+          if notifications = [] then
+            do! Task.Delay(LD.queueDelayBetweenPullsInMillis ())
+          else
+            List.iter (runInBackground semaphore) notifications
+        else
+          do! Task.Delay(LD.queueDelayBetweenPullsInMillis ())
 
       with e ->
         // No matter where else we catch it, this is essential or else the loop won't
@@ -305,8 +305,8 @@ let initSerializers () =
   // universally-serializable types
 
   // one-off types used internally
-  // Json.Vanilla.allow<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
-  //   "RoundtrippableSerializationFormatV0.Dval"
+  Json.Vanilla.allow<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
+    "RoundtrippableSerializationFormatV0.Dval"
   Json.Vanilla.allow<LibExecution.ProgramTypes.Toplevel.T> "Canvas.loadJsonFromDisk"
   //Json.Vanilla.allow<LibCloud.Queue.NotificationData> "eventqueue storage"
   Json.Vanilla.allow<LibCloud.TraceCloudStorage.CloudStorageFormat>

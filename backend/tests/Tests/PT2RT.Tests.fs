@@ -103,7 +103,7 @@ module Expr =
            ) ],
          6)
 
-    let undefinedVar = t "a" E.Let.undefinedVar (0, [ RT.VarNotFound "a" ], 0)
+    let undefinedVar = t "a" E.Let.undefinedVar (1, [ RT.VarNotFound(0, "a") ], 0)
 
     let tests = testList "Let" [ simple; tuple; tupleNested; undefinedVar ]
 

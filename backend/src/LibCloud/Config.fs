@@ -71,7 +71,7 @@ let httpclientTimeoutInMs = int "DARK_CONFIG_HTTPCLIENT_TIMEOUT_IN_MS"
 // -------------------------
 
 let rollbarClientAccessToken =
-  (* This is what the rollbar UI calls it *)
+  // This is what the rollbar UI calls it
   match credentials "DARK_CONFIG_ROLLBAR_POST_CLIENT_ITEM" with
   | "none" -> None
   | item -> Some item

@@ -217,8 +217,8 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
 
 
       let! instrData =
-        match currentFrame.context with
-        | Source -> Ply vm.rootInstrData
+        match currentFrame.executionPoint with
+        | Source -> Ply(snd vm.rootInstrData)
 
         | Lambda(parentContext, lambdaID) ->
           let lambda =
@@ -227,14 +227,21 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
              | None ->
                match Map.tryFind (Source, lambdaID) vm.lambdaInstrCache with
                | Some l -> l
-               | None -> raiseRTE (RTE.VariableNotFound "lambda not found")) // TODO better error
+               | None ->
+                 Exception.raiseInternal
+                   "lambda not found"
+                   [ "lambdaID", lambdaID; "parentContext", parentContext ])
             |> _.instructions
 
           { instructions = List.toArray lambda.instructions
             resultReg = lambda.resultIn }
           |> Ply
 
-        | PackageFn fn ->
+        | Function(FQFnName.Builtin _) ->
+          // we should error better (TODO) but the point is that callstacks shouldn't be created for builtin fn calls
+          raiseRTE (RTE.FnNotFound(FQFnName.fqBuiltin "builtin" 0))
+
+        | Function(FQFnName.Package fn) ->
           uply {
             match Map.find fn vm.packageFnInstrCache with
             | Some fn -> return fn
@@ -311,7 +318,21 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
             raiseRTE (RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, pat)))
 
 
-        | VarNotFound varName -> raiseRTE (RTE.VariableNotFound varName)
+        // CLEANUP References to DBs and Secrets should be resolved at parse-time
+        // , not runtime. For consistency, safety, etc. We should have specific
+        // EReferenceSecretR and EReferenceDB constructs that we respect,
+        // all throughout WT, NR, PT, RT, PT2RT, etc.
+        // I don't even think this would be that hard -- good to do sooner rather than later.
+        | VarNotFound(targetRegIfSecretOrDB, varName) ->
+          match exeState.program.dbs |> Map.get varName with
+          | Some _foundDB -> registers[targetRegIfSecretOrDB] <- DDB varName
+          | None ->
+            match
+              exeState.program.secrets |> List.find (fun s -> s.name = varName)
+            with
+            | Some found -> registers[targetRegIfSecretOrDB] <- DString found.value
+            | None -> raiseRTE (RTE.VariableNotFound varName)
+
 
 
         // == Working with Basic Types ==
@@ -486,7 +507,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
         | CreateLambda(lambdaReg, impl) ->
           vm.lambdaInstrCache <-
             vm.lambdaInstrCache
-            |> Map.add (currentFrame.context, impl.exprId) impl
+            |> Map.add (currentFrame.executionPoint, impl.exprId) impl
             |> Map.add (Source, impl.exprId) impl
 
           registers[lambdaReg] <-
@@ -530,7 +551,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
             let foundLambda =
               match
                 Map.tryFind
-                  (currentFrame.context, appLambda.exprId)
+                  (currentFrame.executionPoint, appLambda.exprId)
                   vm.lambdaInstrCache
               with
               | Some lambda -> lambda
@@ -565,7 +586,8 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
 
                     r
                   typeSymbolTable = appLambda.typeSymbolTable // TODO do we need to merge any into this?
-                  context = Lambda(currentFrame.context, appLambda.exprId) }
+                  executionPoint =
+                    Lambda(currentFrame.executionPoint, appLambda.exprId) }
 
               frameToPush <- Some newFrame
 
@@ -677,7 +699,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                         allArgs |> List.iteri (fun i arg -> r[i] <- arg)
                         r
                       typeSymbolTable = currentFrame.typeSymbolTable // copy. probably also need to _extend_ here.
-                      context = PackageFn fn.id }
+                      executionPoint = Function(FQFnName.Package fn.id) }
                     |> Some
 
         | RaiseNRE nre -> raiseRTE (RTE.ParseTimeNameResolution nre)

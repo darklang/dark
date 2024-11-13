@@ -157,11 +157,11 @@ type KnownType =
   /// `[z1, z2]` is allowed now but might not be allowed later
   | KTFn of args : NEList<ValueType> * ret : ValueType
 
-  // /// At time of writing, all DBs are of a specific type, and DBs may only be
-  // /// referenced directly, but we expect to eventually allow references to DBs
-  // /// where the type may be unknown
-  // /// List.head ([]: List<DB<'a>>) // KTDB (Unknown)
-  // | KTDB of ValueType
+  /// At time of writing, all DBs are of a specific type, and DBs may only be
+  /// referenced directly, but we expect to eventually allow references to DBs
+  /// where the type may be unknown
+  /// List.head ([]: List<DB<'a>>) // KTDB (Unknown)
+  | KTDB of ValueType
 
   /// let n = None          // type args: [Unknown]
   /// let s = Some(5)       // type args: [Known KTInt64]
@@ -209,7 +209,7 @@ type TypeReference =
     NameResolution<FQTypeName.FQTypeName> *
     typeArgs : List<TypeReference>
   | TVariable of string
-  // | TDB of TypeReference
+  | TDB of TypeReference
 
 
   member this.isFn() : bool =
@@ -247,7 +247,7 @@ type TypeReference =
 
       | TFn(ts, t) -> NEList.forall isConcrete ts && isConcrete t
 
-      // | TDB t -> isConcrete t
+      | TDB t -> isConcrete t
 
       | TVariable _ -> false
 
@@ -429,10 +429,9 @@ type Instruction =
   // == Errors ==
   | RaiseNRE of NameResolutionError
 
-  | VarNotFound of name : string
+  | VarNotFound of targetRegIfSecretOrDB : Register * name : string
 
 
-/// (rc, instructions, result register)
 and Instructions =
   {
     /// How many registers are used in evaluating these instructions
@@ -507,6 +506,9 @@ and ApplicableLambda =
   {
     /// The lambda's ID, corresponding to the PT.Expr
     /// (the actual implementation is stored in the VMState)
+    ///
+    /// CLEANUP including the TLID of the expr here would be useful
+    /// (exprId alone isn't enough to perform equality checks, etc.)
     exprId : id
 
     /// We _could_ have this be Register * Register
@@ -595,8 +597,8 @@ and [<NoComparison>] Dval =
 
   | DApplicable of Applicable
 
-// // References
-// | DDB of name : string
+  // References
+  | DDB of name : string
 
 
 
@@ -903,6 +905,8 @@ module RuntimeError =
     // - update all usages
 
 
+    | DBSetOfWrongType of expected : TypeReference * actual : ValueType
+
     // punting these until DBs are supported again
     // - "Attempting to access field '{fieldName}' of a Datastore
     // (use `DB.*` standard library functions to interact with Datastores. Field access only work with records)"
@@ -962,6 +966,7 @@ module TypeReference =
       | None -> ValueType.Unknown
     | TFn(argTypes, returnType) ->
       KTFn(NEList.map r argTypes, r returnType) |> ValueType.Known
+    | TDB inner -> ValueType.Known(KTDB(r inner))
 
 
 
@@ -983,12 +988,28 @@ let raiseUntargetedRTE (rte : RuntimeError.Error) : 'a =
   raise (RuntimeErrorException(None, rte))
 
 
+type ExecutionPoint =
+  /// User is executing some "arbitrary" expression, passed in by a user.
+  /// This should only be at the `entrypoint` of a CallStack.
+  ///
+  /// Executing some top-level handler,
+  /// such as a saved Script, an HTTP handler, or a Cron
+  | Source
+
+  // Executing some function
+  | Function of FQFnName.FQFnName
+
+  /// Executing some lambda
+  | Lambda of parent : ExecutionPoint * lambdaExprId : id
+
+/// Not: in reverse order
+type CallStack = List<ExecutionPoint>
 
 /// Internally in the runtime, we allow throwing RuntimeErrorExceptions. At the
 /// boundary, typically in Execution.fs, we will catch the exception, and return
 /// this type.
 /// TODO return a call stack or vmstate, or something, here
-type ExecutionResult = Result<Dval, RuntimeError.Error>
+type ExecutionResult = Result<Dval, RuntimeError.Error * CallStack>
 
 /// IncorrectArgs should never happen, as all functions are type-checked before
 /// calling. If it does happen, it means that the type parameters in the Fn structure
@@ -1081,8 +1102,8 @@ module Dval =
       // (probably forces us to make this fn async?)
       | AppNamedFn _named -> ValueType.Unknown
 
-// // CLEANUP follow up when DDB has a typeReference
-// | DDB _ -> ValueType.Unknown
+    // CLEANUP follow up when DDB has a typeReference
+    | DDB _ -> ValueType.Unknown
 
 
 
@@ -1192,14 +1213,15 @@ type PackageManager =
       init = pm.init }
 
 
-// // ------------
-// // User-/Canvas- Space
-// // ------------
-// module DB =
-//   type T = { tlid : tlid; name : string; typ : TypeReference; version : int }
+// ------------
+// User-/Canvas- Space
+// ------------
+module DB =
+  // CLEANUP consider making typ a ValueType instead
+  type T = { tlid : tlid; name : string; typ : TypeReference; version : int }
 
-// module Secret =
-//   type T = { name : string; value : string; version : int }
+module Secret =
+  type T = { name : string; value : string; version : int }
 
 
 
@@ -1279,22 +1301,6 @@ type SqlSpec =
 
 
 module Tracing =
-  type ExecutionPoint =
-    /// User is executing some "arbitrary" expression, passed in by a user.
-    /// This should only be at the `entrypoint` of a CallStack.
-    | Script //TODO of name: string
-
-    /// Executing some top-level handler,
-    /// such as a saved Script, an HTTP handler, or a Cron
-    | Toplevel of tlid
-
-    // Executing some function
-    | Function of FQFnName.FQFnName
-
-    /// Executing some lambda
-    | Lambda of parent : ExecutionPoint * lambdaExprId : id
-
-
   /// Record the source expression of an error.
   /// This is to show the code that was responsible for it.
   /// TODO maybe rename to ExprLocation
@@ -1325,12 +1331,6 @@ module Tracing =
 // -- The VM --
 type Registers = Dval array
 
-type CallFrameContext =
-  /// from raw expr (for test) or TopLevel
-  | Source
-  | PackageFn of FQFnName.Package
-  | Lambda of parent : CallFrameContext * exprId : id
-
 type CallFrame =
   {
     id : uuid
@@ -1341,7 +1341,7 @@ type CallFrame =
     // The instructions and resultReg are not in the CallFrame itself.
     // Multiple CFs may be operating on the same fn/lambda/etc.,
     // so we keep only one copy of such, in the root of the VMState
-    context : CallFrameContext
+    executionPoint : ExecutionPoint
 
     /// What instruction index we are currently 'at'
     mutable programCounter : int
@@ -1371,28 +1371,39 @@ type VMState =
 
     // The inst data for each fn/lambda/etc. is stored here, so that
     // it doesn't have to be copied into each CallFrame.
-    rootInstrData : InstrData
-    mutable lambdaInstrCache : Map<CallFrameContext * id, LambdaImpl>
+    rootInstrData : Option<tlid> * InstrData
+    mutable lambdaInstrCache : Map<ExecutionPoint * id, LambdaImpl>
     mutable packageFnInstrCache : Map<FQFnName.Package, InstrData> }
 
-  static member create(expr : Instructions) : VMState =
-    let callFrameId = System.Guid.NewGuid()
+  static member create(instrs : Option<tlid> * Instructions) : VMState =
+    let tlid, instrs = instrs
 
-    let callFrame : CallFrame =
-      { id = callFrameId
-        context = Source
+    let rootCallFrameID = System.Guid.NewGuid()
+
+    let rootCallFrame : CallFrame =
+      { id = rootCallFrameID
+        executionPoint = Source
         programCounter = 0
-        registers = Array.zeroCreate expr.registerCount
+        registers = Array.zeroCreate instrs.registerCount
         typeSymbolTable = Map.empty
         parent = None }
 
     { threadID = System.Guid.NewGuid()
-      currentFrameID = callFrameId
-      callFrames = Map [ callFrameId, callFrame ]
+      currentFrameID = rootCallFrameID
+      callFrames = Map [ rootCallFrameID, rootCallFrame ]
       rootInstrData =
-        { instructions = List.toArray expr.instructions; resultReg = expr.resultIn }
+        let instrs =
+          { instructions = List.toArray instrs.instructions
+            resultReg = instrs.resultIn }
+        (tlid, instrs)
       lambdaInstrCache = Map.empty
       packageFnInstrCache = Map.empty }
+
+  static member createWithoutTLID(instrs : Instructions) : VMState =
+    VMState.create (None, instrs)
+
+  static member creatWithTLID (tlid : tlid) (instrs : Instructions) : VMState =
+    VMState.create (Some tlid, instrs)
 
 
 
@@ -1438,9 +1449,8 @@ and Builtins =
 and Program =
   { canvasID : CanvasID
     internalFnsAllowed : bool
-  //dbs : Map<string, DB.T>
-  //secrets : List<Secret.T>
-  }
+    dbs : Map<string, DB.T>
+    secrets : List<Secret.T> }
 
 
 // Used for testing
@@ -1543,7 +1553,7 @@ module Types =
     | TCustomType(typ, args) -> TCustomType(typ, List.map r args)
 
     | TFn _ -> typ // TYPESTODO
-    // | TDB _ -> typ // TYPESTODO
+    | TDB _ -> typ // TYPESTODO
 
     | TVariable v ->
       // WHY WOULDN'T THIS JUST USE A TST??

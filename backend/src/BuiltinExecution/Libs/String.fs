@@ -1,10 +1,6 @@
 module BuiltinExecution.Libs.String
 
-open System.Threading.Tasks
-open FSharp.Control.Tasks
-
 open System.Globalization
-open System.Security.Cryptography
 open System.Text
 open System.Text.RegularExpressions
 
@@ -29,7 +25,7 @@ let fns : List<BuiltInFn> =
         | _, _, _, [ DString s ] ->
           s
           |> String.toEgcSeq
-          |> Seq.map (fun c -> DChar c)
+          |> Seq.map DChar
           |> Seq.toList
           |> Dval.list KTChar
           |> Ply
@@ -238,7 +234,9 @@ let fns : List<BuiltInFn> =
           |> List.map (fun s ->
             match s with
             | DString st -> st
-            | dv -> Exception.raiseInternal "expected string in join" [ "dval", dv ])
+            | dv ->
+              // CLEANUP should be a proper "bad param" RTE
+              Exception.raiseInternal "expected string in join" [ "dval", dv ])
           |> String.concat sep
           |> String.normalize
           |> DString
@@ -262,8 +260,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [ DString s; DInt64 first; DInt64 last ] ->
-          let getLengthInTextElements s =
-            System.Globalization.StringInfo(s).LengthInTextElements
+          let getLengthInTextElements s = StringInfo(s).LengthInTextElements
 
           // Handle negative indexes (which allow counting from the end)
           let first =
@@ -396,9 +393,9 @@ let fns : List<BuiltInFn> =
         | _, _, _, [ DList(_vt, bytes) ] ->
           try
             let bytes = Dval.dlistToByteArray bytes
-            let str = System.Text.UTF8Encoding(false, true).GetString bytes
+            let str = UTF8Encoding(false, true).GetString bytes
             Dval.optionSome KTString (DString str) |> Ply
-          with e ->
+          with _e ->
             Dval.optionNone KTString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

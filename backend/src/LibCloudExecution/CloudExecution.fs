@@ -10,6 +10,7 @@ open Prelude
 
 module RT = LibExecution.RuntimeTypes
 module Dval = LibExecution.Dval
+module VT = LibExecution.ValueType
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module AT = LibExecution.AnalysisTypes
@@ -77,120 +78,122 @@ type ExecutionReason =
   /// A reexecution is a trace that already exists, being amended with new values
   | ReExecution
 
-// /// Execute handler.
-// /// This could be
-// /// - the first execution, which will
-// ///   - have an ExecutionReason of InitialExecution
-// ///   - initialize traces
-// ///   - send pushes
-// /// - or ReExecution, which will
-// ///   - update existing traces
-// ///   - not send pushes
-// let executeHandler
-//   (pusherSerializer : Pusher.PusherEventSerializer)
-//   (h : RT.Handler.T)
-//   (program : RT.Program)
-//   (traceID : AT.TraceID.T)
-//   (inputVars : Map<string, RT.Dval>)
-//   (reason : ExecutionReason)
-//   : Task<RT.Dval * Tracing.TraceResults.T> =
-//   task {
-//     let tracing = Tracing.create program.canvasID h.tlid traceID
+/// Execute handler.
+/// This could be
+/// - the first execution, which will
+///   - have an ExecutionReason of InitialExecution
+///   - initialize traces
+///   - send pushes
+/// - or ReExecution, which will
+///   - update existing traces
+///   - not send pushes
+let executeHandler
+  (pusherSerializer : Pusher.PusherEventSerializer)
+  (h : PT.Handler.T)
+  (program : RT.Program)
+  (traceID : AT.TraceID.T)
+  (inputVars : Map<string, RT.Dval>)
+  (reason : ExecutionReason)
+  : Task<RT.Dval * Tracing.TraceResults.T> =
+  task {
+    let tracing = Tracing.create program.canvasID h.tlid traceID
 
-//     // Store the inputs of the trace (i.e. the arguments to the handler)
-//     match reason with
-//     | InitialExecution(desc, varname, inputVar) ->
-//       tracing.storeTraceInput desc varname inputVar
-//     | ReExecution -> ()
+    // Store the inputs of the trace (i.e. the arguments to the handler)
+    match reason with
+    | InitialExecution(desc, varname, inputVar) ->
+      tracing.storeTraceInput desc varname inputVar
+    | ReExecution -> ()
 
-//     let! state = createState traceID program tracing.executionTracing
-//     let state =
-//       { state with tracing.callStack.entrypoint = RT.ExecutionPoint.Toplevel h.tlid }
-//     HashSet.add h.tlid tracing.results.tlids
-//     let! result = Exe.executeExpr state inputVars h.ast
+    let! state = createState traceID program tracing.executionTracing
 
-//     let callStackString = Exe.callStackString state
+    // TODO we shouldn't PT2RT here -- we should fetch from the PM instead
 
-//     let error (msg : string) : RT.Dval =
-//       let typeName = RT.FQTypeName.fqPackage PackageIDs.Type.Stdlib.Http.response
+    let instrs = PT2RT.Handler.toRT inputVars h.ast
 
-//       let fields =
-//         [ ("statusCode", RT.DInt64 500)
-//           ("headers",
-//            [] |> Dval.list (RT.KTTuple(RT.ValueType.string, RT.ValueType.string, [])))
-//           ("body", msg |> UTF8.toBytes |> Dval.byteArrayToDvalList) ]
+    HashSet.add h.tlid tracing.results.tlids
+    let! result = Exe.executeToplevel state h.tlid instrs
 
-//       RT.DRecord(typeName, typeName, [], Map fields)
+    let callStackString = Exe.callStackString state
 
-//     // CLEANUP This is a temporary hack to make it easier to work on local dev
-//     // servers. We should restrict this to dev mode only
-//     let! result =
-//       task {
-//         match result with
-//         | Ok result -> return result
-//         | Error(originalCallStack, originalRTE) ->
-//           let! originalCallStack = callStackString originalCallStack
+    let error (msg : string) : RT.Dval =
+      let typeName = RT.FQTypeName.fqPackage PackageIDs.Type.Stdlib.Http.response
 
-//           match! Exe.runtimeErrorToString state originalRTE with
-//           | Ok(RT.DString msg) ->
-//             let msg = $"Error: {msg}\n\nSource: {originalCallStack}"
-//             return error msg
-//           | Ok result -> return result
-//           | Error(firstErrorCallStack, firstErrorRTE) ->
-//             let! firstErrorCallStack = callStackString firstErrorCallStack
-//             match! Exe.runtimeErrorToString state firstErrorRTE with
-//             | Ok(RT.DString msg) ->
-//               return
-//                 error (
-//                   $"An error occured trying to print a runtime error."
-//                   + $"\n\nThe formatting error occurred in {firstErrorCallStack}. The error was:\n{msg}"
-//                   + $"\n\nThe original error is ({originalCallStack}) {originalRTE}"
-//                 )
-//             | Ok result -> return result
-//             | Error(secondErrorCallStack, secondErrorRTE) ->
-//               let! secondErrorCallStack = callStackString secondErrorCallStack
-//               return
-//                 error (
-//                   $"Two errors occured trying to print a runtime error."
-//                   + $"\n\nThe 2nd formatting error occurred in {secondErrorCallStack}. The error was:\n{secondErrorRTE}"
-//                   + $"\n\nThe first formatting error occurred in {firstErrorCallStack}. The error was:\n{firstErrorRTE}"
-//                   + $"\n\nThe original error is ({originalCallStack}) {originalRTE}"
-//                 )
-//       }
+      let fields =
+        [ ("statusCode", RT.DInt64 500)
+          ("headers", [] |> Dval.list (RT.KTTuple(VT.string, VT.string, [])))
+          ("body", msg |> UTF8.toBytes |> Dval.byteArrayToDvalList) ]
 
-//     tracing.storeTraceResults ()
+      RT.DRecord(typeName, typeName, [], Map fields)
 
-//     match reason with
-//     | ReExecution -> ()
-//     | InitialExecution _ ->
-//       if tracing.enabled then
-//         let tlids = HashSet.toList tracing.results.tlids
-//         Pusher.push
-//           pusherSerializer
-//           program.canvasID
-//           (Pusher.NewTrace(traceID, tlids))
-//           None
+    // CLEANUP This is a temporary hack to make it easier to work on local dev
+    // servers. We should restrict this to dev mode only
+    let! result =
+      task {
+        match result with
+        | Ok result -> return result
+        | Error(originalRTE, originalCallStack) ->
+          let! originalCallStack = callStackString originalCallStack
 
-//     return (result, tracing.results)
-//   }
+          match! Exe.runtimeErrorToString state originalRTE with
+          | Ok(RT.DString msg) ->
+            let msg = $"Error: {msg}\n\nSource: {originalCallStack}"
+            return error msg
+          | Ok result -> return result
+          | Error(firstErrorRTE, firstErrorCallStack) ->
+            let! firstErrorCallStack = callStackString firstErrorCallStack
+            match! Exe.runtimeErrorToString state firstErrorRTE with
+            | Ok(RT.DString msg) ->
+              return
+                error (
+                  $"An error occured trying to print a runtime error."
+                  + $"\n\nThe formatting error occurred in {firstErrorCallStack}. The error was:\n{msg}"
+                  + $"\n\nThe original error is ({originalCallStack}) {originalRTE}"
+                )
+            | Ok result -> return result
+            | Error(secondErrorRTE, secondErrorCallStack) ->
+              let! secondErrorCallStack = callStackString secondErrorCallStack
+              return
+                error (
+                  $"Two errors occured trying to print a runtime error."
+                  + $"\n\nThe 2nd formatting error occurred in {secondErrorCallStack}. The error was:\n{secondErrorRTE}"
+                  + $"\n\nThe first formatting error occurred in {firstErrorCallStack}. The error was:\n{firstErrorRTE}"
+                  + $"\n\nThe original error is ({originalCallStack}) {originalRTE}"
+                )
+      }
 
-// /// We call this reexecuteFunction because it always runs in an existing trace.
-// let reexecuteFunction
-//   (canvasID : CanvasID)
-//   (program : RT.Program)
-//   (traceID : AT.TraceID.T)
-//   (rootTLID : tlid)
-//   (name : RT.FQFnName.FQFnName)
-//   (typeArgs : List<RT.TypeReference>)
-//   (args : NEList<RT.Dval>)
-//   : Task<RT.ExecutionResult * Tracing.TraceResults.T> =
-//   task {
-//     let tracing = Tracing.create canvasID rootTLID traceID
-//     let! state = createState traceID program tracing.executionTracing
-//     let! result = Exe.executeFunction state name typeArgs args
-//     tracing.storeTraceResults ()
-//     return result, tracing.results
-//   }
+    tracing.storeTraceResults ()
+
+    match reason with
+    | ReExecution -> ()
+    | InitialExecution _ ->
+      if tracing.enabled then
+        let tlids = HashSet.toList tracing.results.tlids
+        Pusher.push
+          pusherSerializer
+          program.canvasID
+          (Pusher.NewTrace(traceID, tlids))
+          None
+
+    return (result, tracing.results)
+  }
+
+/// We call this reexecuteFunction because it always runs in an existing trace.
+let reexecuteFunction
+  (canvasID : CanvasID)
+  (program : RT.Program)
+  (traceID : AT.TraceID.T)
+  (rootTLID : tlid)
+  (name : RT.FQFnName.FQFnName)
+  (typeArgs : List<RT.TypeReference>)
+  (args : NEList<RT.Dval>)
+  : Task<RT.ExecutionResult * Tracing.TraceResults.T> =
+  task {
+    let tracing = Tracing.create canvasID rootTLID traceID
+    let! state = createState traceID program tracing.executionTracing
+    let! result = Exe.executeFunction state name typeArgs args
+    tracing.storeTraceResults ()
+    return result, tracing.results
+  }
 
 
 /// Ensure library is ready to be called. Throws if it cannot initialize.

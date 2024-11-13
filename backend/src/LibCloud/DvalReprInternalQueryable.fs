@@ -1,9 +1,7 @@
-/// <summary>
-/// Ways of converting Dvals to/from strings, to be used exclusively internally.
+/// Ways of converting Dvals to/from Postgres-compatible JSON blobs.
 ///
-/// That is, they should not be used in libraries, in the BwdServer, in HttpClient,
-/// etc.
-/// </summary>
+/// These are intended to be used exclusively internally.
+/// That is, they should not be used in libraries, BwdServer, HttpClient, etc.
 module LibExecution.DvalReprInternalQueryable
 
 open System.Text.Json
@@ -67,40 +65,33 @@ type Utf8JsonWriter with
 // doesn't support (notably a record with both "type" and "value" keys in the right
 // shape). Does not redact.
 
-// The only formats allowed in the DB so far:
-// Int
-// Float
-// Boolean
-// String
-// List
-// Dict
-// Date
-// UUID
-
 let rec private toJsonV0
   (w : Utf8JsonWriter)
-  (callStack : CallStack)
+  (threadID : ThreadID)
   (types : Types)
   (typ : TypeReference)
   (dv : Dval)
   : Ply<unit> =
   uply {
-    let writeDval = toJsonV0 w callStack types
+    let writeDval = toJsonV0 w threadID types
 
     match typ, dv with
     // basic types
-    | TUnit, DUnit -> w.WriteNumberValue(0)
+    | TUnit, DUnit -> w.WriteNumberValue 0
+
     | TBool, DBool b -> w.WriteBooleanValue b
-    | TInt64, DInt64 i -> w.WriteNumberValue i // CLEANUP if the number is outside the range, store as a string?
-    | TUInt64, DUInt64 i -> w.WriteNumberValue i
+
     | TInt8, DInt8 i -> w.WriteNumberValue i
     | TUInt8, DUInt8 i -> w.WriteNumberValue i
     | TInt16, DInt16 i -> w.WriteNumberValue i
     | TUInt16, DUInt16 i -> w.WriteNumberValue i
     | TInt32, DInt32 i -> w.WriteNumberValue i
     | TUInt32, DUInt32 i -> w.WriteNumberValue i
+    | TInt64, DInt64 i -> w.WriteNumberValue i
+    | TUInt64, DUInt64 i -> w.WriteNumberValue i
     | TInt128, DInt128 i -> w.WriteRawValue(i.ToString())
     | TUInt128, DUInt128 i -> w.WriteRawValue(i.ToString())
+
     | TFloat, DFloat f ->
       if System.Double.IsNaN f then
         w.WriteStringValue "NaN"
@@ -112,20 +103,23 @@ let rec private toJsonV0
         let result = sprintf "%.12g" f
         let result = if result.Contains "." then result else $"{result}.0"
         w.WriteRawValue result
+
     | TChar, DChar c -> w.WriteStringValue c
     | TString, DString s -> w.WriteStringValue s
+
     | TUuid, DUuid uuid -> w.WriteStringValue(string uuid)
+
     | TDateTime, DDateTime date -> w.WriteStringValue(DarkDateTime.toIsoString date)
 
     // nested types
-    | TList ltype, DList(_, l) ->
-      do! w.writeArray (fun () -> Ply.List.iterSequentially (writeDval ltype) l)
-
     | TTuple(t1, t2, trest), DTuple(d1, d2, rest) ->
       let zipped = List.zip (t1 :: t2 :: trest) (d1 :: d2 :: rest)
       do!
         w.writeArray (fun () ->
           Ply.List.iterSequentially (fun (t, d) -> writeDval t d) zipped)
+
+    | TList ltype, DList(_, l) ->
+      do! w.writeArray (fun () -> Ply.List.iterSequentially (writeDval ltype) l)
 
     | TDict objType, DDict(_typeArgsTODO, o) ->
       do!
@@ -139,7 +133,7 @@ let rec private toJsonV0
             (Map.toList o))
 
     | TCustomType(Ok typeName, typeArgs), dv ->
-      match! Types.find typeName types with
+      match! Types.find types typeName with
       | None -> Exception.raiseInternal "Type not found" [ "typeName", typeName ]
       | Some decl ->
         match decl.definition, dv with
@@ -198,39 +192,40 @@ let rec private toJsonV0
             "Value to be stored does not match a declared type"
             [ "value", dv; "type", typ; "typeName", typeName ]
 
-    | TCustomType(Error err, _), _ -> raiseRTE callStack err
+    | TCustomType(Error err, _), _ ->
+      raiseRTE threadID (RuntimeError.ParseTimeNameResolution err)
 
     // Not supported
     | TVariable _, _
-    | TFn _, DFnVal _
+    | TFn _, DApplicable _
     | TDB _, DDB _ ->
       Exception.raiseInternal
         "Not supported in queryable"
         [ "value", dv; "type", typ ]
 
     // exhaustiveness checking
-    | TInt64, _
-    | TUInt64, _
+    | TUnit, _
+    | TBool, _
     | TInt8, _
     | TUInt8, _
     | TInt16, _
     | TUInt16, _
     | TInt32, _
     | TUInt32, _
+    | TInt64, _
+    | TUInt64, _
     | TInt128, _
     | TUInt128, _
     | TFloat, _
-    | TBool, _
-    | TUnit, _
-    | TString, _
-    | TList _, _
-    | TDict _, _
     | TChar, _
+    | TString, _
     | TDateTime, _
     | TUuid, _
     | TTuple _, _
-    | TDB _, _
-    | TFn _, _ ->
+    | TList _, _
+    | TDict _, _
+    | TFn _, _
+    | TDB _, _ ->
       Exception.raiseInternal
         "Value to be stored does not match Datastore type"
         [ "value", dv; "type", typ ]
@@ -239,17 +234,18 @@ let rec private toJsonV0
 
 
 let toJsonStringV0
-  (callStack : CallStack)
+  (threadID : ThreadID)
   (types : Types)
   (typ : TypeReference)
   (dval : Dval)
   : Ply<string> =
-  writeJson (fun w -> toJsonV0 w callStack types typ dval)
+  writeJson (fun w -> toJsonV0 w threadID types typ dval)
 
 
 let parseJsonV0
-  (callStack : CallStack)
   (types : Types)
+  (threadID : ThreadID)
+  (tst : TypeSymbolTable)
   (typ : TypeReference)
   (str : string)
   : Ply<Dval> =
@@ -257,20 +253,23 @@ let parseJsonV0
     match typ, j.ValueKind with
     // simple cases
     | TUnit, JsonValueKind.Number -> DUnit |> Ply
+
     | TBool, JsonValueKind.True -> DBool true |> Ply
     | TBool, JsonValueKind.False -> DBool false |> Ply
-    | TInt64, JsonValueKind.Number -> j.GetInt64() |> DInt64 |> Ply
-    | TUInt64, JsonValueKind.Number -> j.GetUInt64() |> DUInt64 |> Ply
+
     | TInt8, JsonValueKind.Number -> j.GetSByte() |> DInt8 |> Ply
     | TUInt8, JsonValueKind.Number -> j.GetByte() |> DUInt8 |> Ply
     | TInt16, JsonValueKind.Number -> j.GetInt16() |> DInt16 |> Ply
     | TUInt16, JsonValueKind.Number -> j.GetUInt16() |> DUInt16 |> Ply
     | TInt32, JsonValueKind.Number -> j.GetInt32() |> DInt32 |> Ply
     | TUInt32, JsonValueKind.Number -> j.GetUInt32() |> DUInt32 |> Ply
+    | TInt64, JsonValueKind.Number -> j.GetInt64() |> DInt64 |> Ply
+    | TUInt64, JsonValueKind.Number -> j.GetUInt64() |> DUInt64 |> Ply
     | TInt128, JsonValueKind.Number ->
       j.GetRawText() |> System.Int128.Parse |> DInt128 |> Ply
     | TUInt128, JsonValueKind.Number ->
       j.GetRawText() |> System.UInt128.Parse |> DUInt128 |> Ply
+
     | TFloat, JsonValueKind.Number -> j.GetDouble() |> DFloat |> Ply
     | TFloat, JsonValueKind.String ->
       match j.GetString() with
@@ -279,9 +278,12 @@ let parseJsonV0
       | "-Infinity" -> DFloat System.Double.NegativeInfinity
       | v -> Exception.raiseInternal "Invalid float" [ "value", v ]
       |> Ply
+
     | TChar, JsonValueKind.String -> DChar(j.GetString()) |> Ply
     | TString, JsonValueKind.String -> DString(j.GetString()) |> Ply
+
     | TUuid, JsonValueKind.String -> DUuid(System.Guid(j.GetString())) |> Ply
+
     | TDateTime, JsonValueKind.String ->
       j.GetString()
       |> NodaTime.Instant.ofIsoString
@@ -291,13 +293,6 @@ let parseJsonV0
 
 
     // nested structures
-    | TList nested, JsonValueKind.Array ->
-      j.EnumerateArray()
-      |> Seq.map (convert nested)
-      |> Seq.toList
-      |> Ply.List.flatten
-      |> Ply.map (TypeChecker.DvalCreator.list callStack VT.unknownTODO)
-
     | TTuple(t1, t2, rest), JsonValueKind.Array ->
       let arr = j.EnumerateArray() |> Seq.toList
       if List.length arr = 2 + List.length rest then
@@ -310,6 +305,13 @@ let parseJsonV0
       else
         Exception.raiseInternal "Invalid tuple" []
 
+    | TList nested, JsonValueKind.Array ->
+      j.EnumerateArray()
+      |> Seq.map (convert nested)
+      |> Seq.toList
+      |> Ply.List.flatten
+      |> Ply.map (TypeChecker.DvalCreator.list threadID VT.unknownTODO)
+
     | TDict typ, JsonValueKind.Object ->
       let objFields =
         j.EnumerateObject() |> Seq.map (fun jp -> (jp.Name, jp.Value)) |> Map
@@ -318,12 +320,12 @@ let parseJsonV0
       |> Map.toList
       |> List.map (fun (k, v) -> convert typ v |> Ply.map (fun v -> k, v))
       |> Ply.List.flatten
-      |> Ply.map (TypeChecker.DvalCreator.dict VT.unknownTODO)
+      |> Ply.map (TypeChecker.DvalCreator.dict threadID VT.unknownTODO)
 
 
     | TCustomType(Ok typeName, typeArgs), valueKind ->
       uply {
-        match! Types.find typeName types with
+        match! Types.find types typeName with
         | None ->
           return Exception.raiseInternal "Type not found" [ "typeName", typeName ]
         | Some decl ->
@@ -385,8 +387,16 @@ let parseJsonV0
                 |> Seq.toList
                 |> Ply.List.flatten
 
-              // TYPESCLEANUP: I don't think the sourceTypeName is right here?
-              return! TypeChecker.DvalCreator.enum typeName typeName caseName fields
+              let! (enum, _updatedTst) =
+                TypeChecker.DvalCreator.enum
+                  types
+                  threadID
+                  tst
+                  typeName
+                  []
+                  caseName
+                  fields
+              return enum
           | _, _ ->
             return
               Exception.raiseInternal
@@ -400,14 +410,14 @@ let parseJsonV0
     // Exhaustiveness checking
     | TUnit, _
     | TBool, _
-    | TInt64, _
-    | TUInt64, _
     | TInt8, _
     | TUInt8, _
     | TInt16, _
     | TUInt16, _
     | TInt32, _
     | TUInt32, _
+    | TInt64, _
+    | TUInt64, _
     | TInt128, _
     | TUInt128, _
     | TFloat, _
@@ -449,9 +459,9 @@ module Test =
     | DUuid _ -> true
 
     // VTTODO these should probably just check the valueType, not any internal data
+    | DTuple(d1, d2, rest) -> List.all isQueryableDval (d1 :: d2 :: rest)
     | DList(_, dvals) -> List.all isQueryableDval dvals
     | DDict(_, map) -> map |> Map.values |> List.all isQueryableDval
-    | DTuple(d1, d2, rest) -> List.all isQueryableDval (d1 :: d2 :: rest)
 
     | DEnum(_typeName, _, _, _caseName, fields) -> fields |> List.all isQueryableDval
 
@@ -459,5 +469,5 @@ module Test =
     | DRecord _ // TYPESCLEANUP
 
     // Maybe never support
-    | DFnVal _
+    | DApplicable _
     | DDB _ -> false
