@@ -65,12 +65,12 @@ let main (args : string array) : int =
         Tests.LibExecution.tests.Force() ]
 
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()
-    // let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token
+    let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token
     let httpClientTestsTask = Tests.HttpClient.init cancelationTokenSource.Token
     //Telemetry.Console.loadTelemetry "tests" Telemetry.TraceDBQueries
 
-    // // Generate this so that we can see if the format has changed in a git diff
-    // BinarySerialization.generateTestFiles ()
+    // Generate this so that we can see if the format has changed in a git diff
+    BinarySerialization.generateTestFiles ()
     // VanillaSerialization.PersistedSerializations.generateTestFiles ()
 
     // this does async stuff within it, so do not run it from a task/async
@@ -80,7 +80,7 @@ let main (args : string array) : int =
 
     NonBlockingConsole.wait () // flush stdout
     cancelationTokenSource.Cancel()
-    // bwdServerTestsTask.Wait()
+    bwdServerTestsTask.Wait()
     httpClientTestsTask.Wait()
     // QueueWorker.shouldShutdown <- true
     exitCode

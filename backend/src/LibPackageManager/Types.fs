@@ -73,7 +73,7 @@ module ProgramTypes =
     | TCustomType of
       NameResolution<FQTypeName.FQTypeName> *
       typeArgs : List<TypeReference>
-    //| TDB of TypeReference
+    | TDB of TypeReference
     | TFn of NEList<TypeReference> * TypeReference
 
   type LetPattern =

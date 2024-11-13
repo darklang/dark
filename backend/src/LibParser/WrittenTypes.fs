@@ -137,7 +137,7 @@ type TypeReference =
 
   | TFn of NEList<TypeReference> * TypeReference
 
-  //| TDB of TypeReference
+  | TDB of TypeReference
 
   | TVariable of string
 

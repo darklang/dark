@@ -8,7 +8,6 @@ module FS2WT = FSharpToWrittenTypes
 module WT = WrittenTypes
 module WT2PT = WrittenTypesToProgramTypes
 module PT = LibExecution.ProgramTypes
-module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT = LibExecution.RuntimeTypes
 module NR = NameResolver
 
@@ -41,21 +40,6 @@ type PTModule =
 
 let emptyPTModule =
   { name = []; types = []; fns = []; constants = []; dbs = []; tests = [] }
-
-// type RTTest =
-//   { name : string; lineNumber : int; actual : RT.Expr; expected : RT.Expr }
-
-// type RTModule =
-//   { name : List<string>
-//     types : List<PT.PackageType.PackageType>
-//     fns : List<PT.PackageFn.PackageFn>
-//     constants : List<PT.PackageConstant.PackageConstant>
-//     dbs : List<PT.DB.T>
-//     tests : List<RTTest> }
-
-
-// let emptyRTModule =
-//   { name = []; types = []; fns = []; constants = []; dbs = []; tests = [] }
 
 
 module UserDB =
@@ -322,28 +306,3 @@ let parseTestFile
 
     return adjusted
   }
-
-// let parseSingleTestFromFile
-//   (builtins : RT.Builtins)
-//   (pm : PT.PackageManager)
-//   (onMissing : NR.OnMissing)
-//   (filename : string)
-//   (testSource : string)
-//   : Ply<RTTest> =
-//   uply {
-//     let wtTest =
-//       testSource
-//       |> parseAsFSharpSourceFile filename
-//       |> singleExprFromImplFile
-//       |> parseTest
-
-//     let mapExpr = WT2PT.Expr.toPT builtins pm onMissing []
-
-//     let! actual = wtTest.actual |> mapExpr |> Ply.map PT2RT.Expr.toRT
-//     let! expected = wtTest.expected |> mapExpr |> Ply.map PT2RT.Expr.toRT
-//     return
-//       { actual = actual
-//         expected = expected
-//         lineNumber = wtTest.lineNumber
-//         name = wtTest.name }
-//   }

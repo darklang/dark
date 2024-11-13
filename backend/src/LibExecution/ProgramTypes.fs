@@ -258,10 +258,10 @@ type TypeReference =
 
   | TFn of arguments : NEList<TypeReference> * ret : TypeReference
 
+  /// A named variable, eg `a` in `List<a>`, matches anything
   | TVariable of string
 
-//| TDB of TypeReference
-// A named variable, eg `a` in `List<a>`, matches anything
+  | TDB of TypeReference
 
 
 /// Expressions - the main part of the language.

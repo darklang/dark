@@ -57,7 +57,7 @@ module Darklang =
           NameResolution<FQTypeName.FQTypeName> *
           typeArgs: List<TypeReference>
         | TFn of List<TypeReference> * TypeReference
-        //| TDB of TypeReference
+        | TDB of TypeReference
         | TVariable of String
 
       type TypeSymbolTable = Dict<TypeReference>

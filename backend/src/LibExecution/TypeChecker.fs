@@ -169,7 +169,8 @@ let rec unifyValueType
       // return! rMult expected actual
       return Ok tst
 
-    //| TDB innerT, ValueType.Known(KTDB innerV) -> return! r innerT innerV
+    | TDB innerT, ValueType.Known(KTDB innerV) ->
+      return! r tst pathSoFar innerT innerV
 
     | _, _ -> return Error pathSoFar
   }

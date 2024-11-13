@@ -171,7 +171,7 @@ module TypeReference =
     | PT.TVariable name -> ST.TVariable name
     | PT.TFn(paramTypes, returnType) ->
       ST.TFn(paramTypes |> NEList.map toST |> NEList.toST, toST returnType)
-  //| PT.TDB typ -> ST.TDB(toST typ)
+    | PT.TDB typ -> ST.TDB(toST typ)
 
   let rec toPT (t : ST.TypeReference) : PT.TypeReference =
     match t with
@@ -201,7 +201,7 @@ module TypeReference =
     | ST.TVariable name -> PT.TVariable name
     | ST.TFn(paramTypes, returnType) ->
       PT.TFn(paramTypes |> NEList.toPT |> NEList.map toPT, toPT returnType)
-//| ST.TDB typ -> PT.TDB(toPT typ)
+    | ST.TDB typ -> PT.TDB(toPT typ)
 
 module BinaryOperation =
   let toST (op : PT.BinaryOperation) : ST.BinaryOperation =

@@ -16,7 +16,6 @@ let run () : Task<unit> =
       try
         use (_span : Telemetry.Span.T) = Telemetry.createRoot "CronChecker.run"
         do! LibCloud.Cron.checkAndScheduleWorkForAllCrons ()
-        ()
       with e ->
         // If there's an exception, alert and continue
         Rollbar.sendException None [] e

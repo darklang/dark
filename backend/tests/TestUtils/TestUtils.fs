@@ -70,19 +70,19 @@ let initializeTestCanvas (name : string) : Task<CanvasID> =
   }
 
 
-// let testHttpRouteHandler
-//   (route : string)
-//   (method : string)
-//   (ast : PT.Expr)
-//   : PT.Handler.T =
-//   { tlid = gid (); ast = ast; spec = PT.Handler.HTTP(route, method) }
+let testHttpRouteHandler
+  (route : string)
+  (method : string)
+  (ast : PT.Expr)
+  : PT.Handler.T =
+  { tlid = gid (); ast = ast; spec = PT.Handler.HTTP(route, method) }
 
-// let testCron
-//   (name : string)
-//   (interval : PT.Handler.CronInterval)
-//   (ast : PT.Expr)
-//   : PT.Handler.T =
-//   { tlid = gid (); ast = ast; spec = PT.Handler.Cron(name, interval) }
+let testCron
+  (name : string)
+  (interval : PT.Handler.CronInterval)
+  (ast : PT.Expr)
+  : PT.Handler.T =
+  { tlid = gid (); ast = ast; spec = PT.Handler.Cron(name, interval) }
 
 let testWorker (name : string) (ast : PT.Expr) : PT.Handler.T =
   { tlid = gid (); ast = ast; spec = PT.Handler.Worker name }
@@ -109,8 +109,8 @@ let testPackageFn
 
 
 
-// let testDB (name : string) (typ : PT.TypeReference) : PT.DB.T =
-//   { tlid = gid (); name = name; typ = typ; version = 0 }
+let testDB (name : string) (typ : PT.TypeReference) : PT.DB.T =
+  { tlid = gid (); name = name; typ = typ; version = 0 }
 
 
 

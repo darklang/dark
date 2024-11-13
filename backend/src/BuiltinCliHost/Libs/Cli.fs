@@ -81,7 +81,7 @@ let execute
     let packageManager =
       packageManagerRT |> PackageManager.withExtras types constants fns
 
-    let tracing = Exe.noTracing // (CallStack.fromEntryPoint Script)
+    let tracing = Exe.noTracing
 
     let state =
       Exe.createState
@@ -92,21 +92,22 @@ let execute
         parentState.notify
         program
 
-    if mod'.exprs.Length = 0 then
+    match mod'.exprs with
+    | [] ->
       return
         RuntimeError.CLIs.NoExpressionsToExecute
         |> RuntimeError.CLI
         |> raiseUntargetedRTE
-    else // mod'.exprs.Length > 1
-      let exprInsrts = mod'.exprs |> List.map (PT2RT.Expr.toRT Map.empty 0)
+    | exprs ->
+      let exprInsrts = exprs |> List.map (PT2RT.Expr.toRT Map.empty 0)
       let results = exprInsrts |> List.map (Exe.executeExpr state)
       match List.tryLast results with
       | Some lastResult -> return! lastResult
       | None ->
         return
-          RuntimeError.CLIs.NoExpressionsToExecute // CLEANUP not quite right -- this should prob be an internal error
-          |> RuntimeError.CLI
-          |> raiseUntargetedRTE
+          Exception.raiseInternal
+            "No results from executing expressions (which should be impossible..)"
+            []
   }
 
 

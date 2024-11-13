@@ -119,7 +119,7 @@ module TypeReference =
     | PT.TFn(paramTypes, returnType) ->
       RT.TFn(NEList.map toRT paramTypes, toRT returnType)
 
-//| PT.TDB typ -> RT.TDB(toRT typ)
+    | PT.TDB typ -> RT.TDB(toRT typ)
 
 
 module InfixFnName =

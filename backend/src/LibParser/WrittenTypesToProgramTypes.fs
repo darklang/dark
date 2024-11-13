@@ -39,14 +39,14 @@ module TypeReference =
       match t with
       | WT.TUnit -> return PT.TUnit
       | WT.TBool -> return PT.TBool
-      | WT.TInt64 -> return PT.TInt64
-      | WT.TUInt64 -> return PT.TUInt64
       | WT.TInt8 -> return PT.TInt8
       | WT.TUInt8 -> return PT.TUInt8
       | WT.TInt16 -> return PT.TInt16
       | WT.TUInt16 -> return PT.TUInt16
       | WT.TInt32 -> return PT.TInt32
       | WT.TUInt32 -> return PT.TUInt32
+      | WT.TInt64 -> return PT.TInt64
+      | WT.TUInt64 -> return PT.TUInt64
       | WT.TInt128 -> return PT.TInt128
       | WT.TUInt128 -> return PT.TUInt128
       | WT.TFloat -> return PT.TFloat
@@ -75,7 +75,7 @@ module TypeReference =
         let! returnType = toPT returnType
         return PT.TFn(paramTypes, returnType)
 
-      //| WT.TDB typ -> return! toPT typ |> Ply.map PT.TDB
+      | WT.TDB typ -> return! toPT typ |> Ply.map PT.TDB
 
       | WT.TVariable(name) -> return PT.TVariable(name)
     }

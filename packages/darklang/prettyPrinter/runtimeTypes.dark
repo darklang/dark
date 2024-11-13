@@ -163,7 +163,7 @@ module Darklang =
           $"{argPart} -> {typeReference ret}"
 
 
-        //| TDB inner -> $"DB<{typeReference inner}>"
+        | TDB inner -> $"DB<{typeReference inner}>"
 
 
         | TVariable varName -> "'" ++ varName
