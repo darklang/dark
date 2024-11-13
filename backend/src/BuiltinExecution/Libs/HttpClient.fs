@@ -1,4 +1,3 @@
-/// Builtin functions in the HttpClient module
 module BuiltinExecution.Libs.HttpClient
 
 open System.IO
@@ -155,7 +154,7 @@ module BaseClient =
             do! socket.ConnectAsync(context.DnsEndPoint, cancellationToken)
             return new System.Net.Sockets.NetworkStream(socket, true)
           with :? System.ArgumentException ->
-            return Exception.raiseInternal "Could not connect" [] // RTE
+            return Exception.raiseInternal "Could not connect" []
         }
       new SocketsHttpHandler(
         // Avoid DNS problems
