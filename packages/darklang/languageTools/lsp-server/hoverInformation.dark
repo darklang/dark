@@ -27,7 +27,6 @@ module Darklang =
 
 
         /// Helper function to find and get package functions, types, and constants by name from the package manager
-        // CLEANUP: should we move these to the package manager module?
         let tryGetPkgFn
           (fnName: List<String>)
           (pm: ProgramTypes.PackageManager.PackageManager)
@@ -887,7 +886,9 @@ module Darklang =
                 let metadata = Stdlib.Option.Option.None
 
                 let description =
-                  Stdlib.Option.Option.Some("TODO: List cons symbol description")
+                  Stdlib.Option.Option.Some(
+                    "Cons operator: used to decompose a list into its head (first element) and tail (remaining elements)"
+                  )
 
                 Stdlib.Option.Option.Some(createHoverInfo r description metadata)
 
@@ -927,15 +928,30 @@ module Darklang =
             | None -> Stdlib.Option.Option.None
 
           | MPVariable(r, _) -> Stdlib.Option.Option.None
-          | MPEnum(r, _, fieldPats) ->
+          | MPEnum(r, caseName, fieldPats) ->
             // check if position is within the Enum range
             match checkIfPositionWithinRange position r with
-            | Some r ->
-              // check if we are hovering over the field patterns
-              fieldPats
-              |> Stdlib.List.filterMap (fun mp ->
-                collectMatchPatternHoverInfoAtPos mp position currentModules)
-              |> Stdlib.List.head
+            | Some _ ->
+              // check if we are hovering over the enum case name
+              let (caseNameRange, _) = caseName
+
+              match checkIfPositionWithinRange position caseNameRange with
+              | Some r ->
+                let metadata = Stdlib.Option.Option.Some("TODO: MPEnum case")
+
+                let description =
+                  Stdlib.Option.Option.Some(
+                    "TODO: add description when /// comments are supported"
+                  )
+
+                Stdlib.Option.Option.Some(createHoverInfo r description metadata)
+
+              | None ->
+                // check if we are hovering over the field patterns
+                fieldPats
+                |> Stdlib.List.filterMap (fun mp ->
+                  collectMatchPatternHoverInfoAtPos mp position currentModules)
+                |> Stdlib.List.head
             | None -> Stdlib.Option.Option.None
 
           | _ -> Stdlib.Option.Option.None
@@ -1159,7 +1175,6 @@ module Darklang =
         let collectLetPatternHoverInfoAtPos
           (lp: WrittenTypes.LetPattern)
           (position: LanguageServerProtocol.Position.Position)
-          (currentModules: List<String>)
           : Stdlib.Option.Option<Info> =
           match lp with
           | LPUnit r ->
@@ -1173,28 +1188,33 @@ module Darklang =
 
             | None -> Stdlib.Option.Option.None
 
-          | LPVariable(r, _) -> Stdlib.Option.Option.None
+          | LPVariable(r, _) ->
+            // check if position is within the Variable range
+            match checkIfPositionWithinRange position r with
+            | Some r ->
+              let metadata = Stdlib.Option.Option.Some("TODO: LPVariable")
+              let description = Stdlib.Option.Option.None
+
+              Stdlib.Option.Option.Some(createHoverInfo r description metadata)
+
+            | None -> Stdlib.Option.Option.None
 
           | LPTuple(r, first, _, second, rest, _, _) ->
             // check if position is within the Tuple range
             match checkIfPositionWithinRange position r with
             | Some r ->
               // check if we are hovering over the first let pattern
-              match
-                collectLetPatternHoverInfoAtPos first position currentModules
-              with
+              match collectLetPatternHoverInfoAtPos first position with
               | Some r -> Stdlib.Option.Option.Some r
               | None ->
                 // check if we are hovering over the second let pattern
-                match
-                  collectLetPatternHoverInfoAtPos second position currentModules
-                with
+                match collectLetPatternHoverInfoAtPos second position with
                 | Some r -> Stdlib.Option.Option.Some r
                 | None ->
                   // check if we are hovering over one of the rest let patterns
                   rest
                   |> Stdlib.List.filterMap (fun (_, lp) ->
-                    collectLetPatternHoverInfoAtPos lp position currentModules)
+                    collectLetPatternHoverInfoAtPos lp position)
                   |> Stdlib.List.head
 
             | None -> Stdlib.Option.Option.None
@@ -1334,7 +1354,7 @@ module Darklang =
                 let pats =
                   pats
                   |> Stdlib.List.filterMap (fun lp ->
-                    collectLetPatternHoverInfoAtPos lp position currentModules)
+                    collectLetPatternHoverInfoAtPos lp position)
                   |> Stdlib.List.head
 
                 match pats with
@@ -1487,8 +1507,29 @@ module Darklang =
               | None ->
                 // check if we are hovering over one of the Dict contents
                 contents
-                |> Stdlib.List.filterMap (fun (_, _, v) ->
-                  collectExpressionHoverInfoAtPos v position pm owner currentModules)
+                |> Stdlib.List.filterMap (fun (_, k, v) ->
+                  let (keyRange, key) = k
+
+                  match checkIfPositionWithinRange position keyRange with
+                  | Some r ->
+                    let metadata = Stdlib.Option.Option.Some("Dict key")
+
+                    let description =
+                      Stdlib.Option.Option.Some(
+                        "TODO: add description when /// comments are supported"
+                      )
+
+                    Stdlib.Option.Option.Some(
+                      createHoverInfo r description metadata
+                    )
+
+                  | None ->
+                    collectExpressionHoverInfoAtPos
+                      v
+                      position
+                      pm
+                      owner
+                      currentModules)
                 |> Stdlib.List.head
 
             | None -> Stdlib.Option.Option.None
@@ -1638,9 +1679,7 @@ module Darklang =
 
             | None ->
               // check if we are hovering over the let pattern
-              match
-                collectLetPatternHoverInfoAtPos letPattern position currentModules
-              with
+              match collectLetPatternHoverInfoAtPos letPattern position with
               | Some r -> Stdlib.Option.Option.Some r
               | None ->
                 // check if we are hovering over the let expression
@@ -1852,7 +1891,7 @@ module Darklang =
               let pats =
                 pats
                 |> Stdlib.List.filterMap (fun lp ->
-                  collectLetPatternHoverInfoAtPos lp position currentModules)
+                  collectLetPatternHoverInfoAtPos lp position)
                 |> Stdlib.List.head
 
               match pats with
