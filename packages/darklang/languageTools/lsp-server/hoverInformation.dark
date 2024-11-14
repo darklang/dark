@@ -141,6 +141,16 @@ module Darklang =
               Stdlib.Option.Option.None
           | _, _ -> Stdlib.Option.Option.None
 
+        let isLineNumberInRange
+          (position: LanguageServerProtocol.Position.Position)
+          (range: WrittenTypes.Range)
+          : Bool =
+          let line = position.line |> Stdlib.Int64.fromUInt64 |> Builtin.unwrap
+          let rangeStartLine = range.start.row
+          let rangeEndLine = range.end_.row
+
+          line >= rangeStartLine && line <= rangeEndLine
+
 
         /// Helper function for `collectBuiltinTypeHoverInfoAtPos`
         let createBuiltinTypeInfoIfInRange
@@ -183,8 +193,7 @@ module Darklang =
 
           | TList(r, keywordRange, _, typ, _) ->
             // check if position is within the List range
-            match checkIfPositionWithinRange position r with
-            | Some r ->
+            if isLineNumberInRange position r then
               // check if we are hovering over the List keyword
               match checkIfPositionWithinRange position keywordRange with
               | Some r ->
@@ -195,12 +204,12 @@ module Darklang =
               | None ->
                 // check if we are hovering over the type reference
                 collectTypeRefHoverInfoAtPos typ position pm owner currentModules
-            | None -> Stdlib.Option.Option.None
+            else
+              Stdlib.Option.Option.None
 
           | TDict(r, keywordRange, _, typ, _) ->
             // check if position is within the Dict range
-            match checkIfPositionWithinRange position r with
-            | Some _ ->
+            if isLineNumberInRange position r then
               // check if we are hovering over the Dict keyword
               match checkIfPositionWithinRange position keywordRange with
               | Some r ->
@@ -212,12 +221,12 @@ module Darklang =
                 // check if we are hovering over the type reference
                 collectTypeRefHoverInfoAtPos typ position pm owner currentModules
 
-            | None -> Stdlib.Option.Option.None
+            else
+              Stdlib.Option.Option.None
 
           | TTuple(range, f, _, s, rest, _, _) ->
             // check if position is within the Tuple range
-            match checkIfPositionWithinRange position range with
-            | Some _ ->
+            if isLineNumberInRange position r then
               // check if we are hovering over the first type reference
               match
                 collectTypeRefHoverInfoAtPos f position pm owner currentModules
@@ -235,26 +244,29 @@ module Darklang =
                   |> Stdlib.List.filterMap (fun (_, t) ->
                     collectTypeRefHoverInfoAtPos t position pm owner currentModules)
                   |> Stdlib.List.head
-            | None -> Stdlib.Option.Option.None
+            else
+              Stdlib.Option.Option.None
 
           | TFn(r, args, ret) ->
-            // TODO: check if position is within the Fn range first
-            // check if we are hovering over the return type
-            match
-              collectTypeRefHoverInfoAtPos ret position pm owner currentModules
-            with
-            | Some r -> Stdlib.Option.Option.Some(r)
-            | None ->
-              // check if we are hovering over the arguments
-              args
-              |> Stdlib.List.filterMap (fun (t, _) ->
-                collectTypeRefHoverInfoAtPos t position pm owner currentModules)
-              |> Stdlib.List.head
+            // check if position is within the Fn range
+            if isLineNumberInRange position r then
+              // check if we are hovering over the return type
+              match
+                collectTypeRefHoverInfoAtPos ret position pm owner currentModules
+              with
+              | Some r -> Stdlib.Option.Option.Some(r)
+              | None ->
+                // check if we are hovering over the arguments
+                args
+                |> Stdlib.List.filterMap (fun (t, _) ->
+                  collectTypeRefHoverInfoAtPos t position pm owner currentModules)
+                |> Stdlib.List.head
+            else
+              Stdlib.Option.Option.None
 
           | TDB(r, keywordRange, _, typ, _) ->
             // check if position is within the DB range
-            match checkIfPositionWithinRange position r with
-            | Some _ ->
+            if isLineNumberInRange position r then
               // check if we are hovering over the DB keyword
               match checkIfPositionWithinRange position keywordRange with
               | Some r ->
@@ -265,7 +277,8 @@ module Darklang =
               | None ->
                 // check if we are hovering over the type reference
                 collectTypeRefHoverInfoAtPos typ position pm owner currentModules
-            | None -> Stdlib.Option.Option.None
+            else
+              Stdlib.Option.Option.None
 
           | TVariable(r, _, name) ->
             match checkIfPositionWithinRange position r with
@@ -615,74 +628,87 @@ module Darklang =
 
           | CList(r, contents, _sob, _scb) ->
             // check if we are hovering over a List constant
-            match checkIfPositionWithinRange position r with
-            | Some r ->
+            if isLineNumberInRange position r then
               // check if we are hovering over one of the list elements
               contents
               |> Stdlib.List.filterMap (fun (c, _) ->
                 collectConstBodyHoverInfoAtPos c position currentModules)
               |> Stdlib.List.head
-            | None -> Stdlib.Option.Option.None
+            else
+              Stdlib.Option.Option.None
 
           | CDict(r, contents, keywordDict, _sob, _scb) ->
-            // TODO: check if we are hovering over a Dict constant first
-            // check if we are hovering over the Dict keyword
-            match checkIfPositionWithinRange position keywordDict with
-            | Some r ->
-              let metadata = Stdlib.Option.Option.Some("")
-              let description = KeywordDescription.getKeywordDescription "Dict"
+            // check if we are hovering over a Dict constant
+            if isLineNumberInRange position r then
+              // check if we are hovering over the Dict keyword
+              match checkIfPositionWithinRange position keywordDict with
+              | Some r ->
+                let metadata = Stdlib.Option.Option.Some("")
+                let description = KeywordDescription.getKeywordDescription "Dict"
 
-              Stdlib.Option.Option.Some(createHoverInfo r description metadata)
+                Stdlib.Option.Option.Some(createHoverInfo r description metadata)
 
-            | None ->
-              // check if we are hovering over one of the dict elements
-              contents
-              |> Stdlib.List.filterMap (fun (_, key, c) ->
-                let (keyRange, _) = key
+              | None ->
+                // check if we are hovering over one of the dict elements
+                contents
+                |> Stdlib.List.filterMap (fun (_, key, c) ->
+                  let (keyRange, _) = key
 
-                match checkIfPositionWithinRange position keyRange with
-                | Some r ->
-                  let metadata = Stdlib.Option.Option.Some("TODO: Dict key")
+                  match checkIfPositionWithinRange position keyRange with
+                  | Some r ->
+                    let metadata = Stdlib.Option.Option.Some("TODO: Dict key")
 
-                  let description =
+                    let description =
+                      Stdlib.Option.Option.Some(
+                        "TODO: add description when /// comments are supported"
+                      )
+
                     Stdlib.Option.Option.Some(
-                      "TODO: add description when /// comments are supported"
+                      createHoverInfo r description metadata
                     )
-
-                  Stdlib.Option.Option.Some(createHoverInfo r description metadata)
-                | None -> collectConstBodyHoverInfoAtPos c position currentModules)
-              |> Stdlib.List.head
+                  | None -> collectConstBodyHoverInfoAtPos c position currentModules)
+                |> Stdlib.List.head
+            else
+              Stdlib.Option.Option.None
 
 
           | CTuple(r, first, _sc, second, rest, _sop, _scp) ->
-            // TODO: check if position is within the Tuple constant range first
-            // check if we are hovering over the first constant
-            match collectConstBodyHoverInfoAtPos first position currentModules with
-            | Some r -> Stdlib.Option.Option.Some r
-            | None ->
-              // check if we are hovering over the second constant
-              match
-                collectConstBodyHoverInfoAtPos second position currentModules
-              with
+            // check if position is within the Tuple constant range
+            if isLineNumberInRange position r then
+              // check if we are hovering over the first constant
+              match collectConstBodyHoverInfoAtPos first position currentModules with
               | Some r -> Stdlib.Option.Option.Some r
               | None ->
-                // check if we are hovering over one of the rest constants
-                rest
-                |> Stdlib.List.filterMap (fun (_, c) ->
-                  collectConstBodyHoverInfoAtPos c position currentModules)
-                |> Stdlib.List.head
+                // check if we are hovering over the second constant
+                match
+                  collectConstBodyHoverInfoAtPos second position currentModules
+                with
+                | Some r -> Stdlib.Option.Option.Some r
+                | None ->
+                  // check if we are hovering over one of the rest constants
+                  rest
+                  |> Stdlib.List.filterMap (fun (_, c) ->
+                    collectConstBodyHoverInfoAtPos c position currentModules)
+                  |> Stdlib.List.head
+            else
+              Stdlib.Option.Option.None
 
           | CEnum(r, typeName, caseName, fields, _sd) ->
-            collectEnumHoverInfo
-              typeName
-              caseName
-              fields
-              position
-              r
-              pm
-              owner
-              currentModules
-              HoverInformation.collectConstBodyHoverInfoAtPos
+            // check if position is within the Enum constant range
+            if isLineNumberInRange position r then
+              collectEnumHoverInfo
+                typeName
+                caseName
+                fields
+                position
+                r
+                pm
+                owner
+                currentModules
+                HoverInformation.collectConstBodyHoverInfoAtPos
+            else
+              Stdlib.Option.Option.None
+
           | _ -> Stdlib.Option.Option.None
 
         /// Collect hover information for a constant declaration at a given position
@@ -904,8 +930,7 @@ module Darklang =
 
           | MPListCons(r, head, tail, symbolCons) ->
             // check if position is within the List cons range
-            match checkIfPositionWithinRange position r with
-            | Some _ ->
+            if isLineNumberInRange position r then
               // check if we are hovering over the cons symbol
               match checkIfPositionWithinRange position symbolCons with
               | Some r ->
@@ -927,12 +952,12 @@ module Darklang =
                 | None ->
                   // check if we are hovering over the tail
                   collectMatchPatternHoverInfoAtPos tail position currentModules
-            | None -> Stdlib.Option.Option.None
+            else
+              Stdlib.Option.Option.None
 
           | MPTuple(r, first, _, second, rest, _, _) ->
             // check if position is within the Tuple range
-            match checkIfPositionWithinRange position r with
-            | Some r ->
+            if isLineNumberInRange position r then
               // check if we are hovering over the first match pattern
               match
                 collectMatchPatternHoverInfoAtPos first position currentModules
@@ -951,13 +976,13 @@ module Darklang =
                     collectMatchPatternHoverInfoAtPos mp position currentModules)
                   |> Stdlib.List.head
 
-            | None -> Stdlib.Option.Option.None
+            else
+              Stdlib.Option.Option.None
 
           | MPVariable(r, _) -> Stdlib.Option.Option.None
           | MPEnum(r, caseName, fieldPats) ->
             // check if position is within the Enum range
-            match checkIfPositionWithinRange position r with
-            | Some _ ->
+            if isLineNumberInRange position r then
               // check if we are hovering over the enum case name
               let (caseNameRange, _) = caseName
 
@@ -978,7 +1003,8 @@ module Darklang =
                 |> Stdlib.List.filterMap (fun mp ->
                   collectMatchPatternHoverInfoAtPos mp position currentModules)
                 |> Stdlib.List.head
-            | None -> Stdlib.Option.Option.None
+            else
+              Stdlib.Option.Option.None
 
           | _ -> Stdlib.Option.Option.None
 
@@ -1084,6 +1110,7 @@ module Darklang =
               )
 
             Stdlib.Option.Option.Some(createHoverInfo range description metadata)
+
           | ArithmeticPower ->
             let metadata = Stdlib.Option.Option.Some("Arithmetic power")
 
@@ -1144,6 +1171,7 @@ module Darklang =
               )
 
             Stdlib.Option.Option.Some(createHoverInfo range description metadata)
+
           | ComparisonNotEquals ->
             let metadata = Stdlib.Option.Option.Some("Comparison not equals")
 
@@ -1153,6 +1181,7 @@ module Darklang =
               )
 
             Stdlib.Option.Option.Some(createHoverInfo range description metadata)
+
           | StringConcat ->
             let metadata = Stdlib.Option.Option.Some("String concat")
 
@@ -1227,8 +1256,7 @@ module Darklang =
 
           | LPTuple(r, first, _, second, rest, _, _) ->
             // check if position is within the Tuple range
-            match checkIfPositionWithinRange position r with
-            | Some r ->
+            if isLineNumberInRange position r then
               // check if we are hovering over the first let pattern
               match collectLetPatternHoverInfoAtPos first position with
               | Some r -> Stdlib.Option.Option.Some r
@@ -1243,7 +1271,8 @@ module Darklang =
                     collectLetPatternHoverInfoAtPos lp position)
                   |> Stdlib.List.head
 
-            | None -> Stdlib.Option.Option.None
+            else
+              Stdlib.Option.Option.None
 
         let collectEnumHoverInfo
           (typeName: WrittenTypes.QualifiedTypeIdentifier)
@@ -1260,7 +1289,6 @@ module Darklang =
               -> List<String>
               -> Stdlib.Option.Option<Info>)
           : Stdlib.Option.Option<Info> =
-          // TODO: check if we are hovering over the Enum range first
           // check if we are hovering over the fully qualified type name
           match checkIfPositionWithinRange position typeName.range with
           | Some r ->
@@ -1346,132 +1374,148 @@ module Darklang =
           : Stdlib.Option.Option<Info> =
           match pe with
           | EPipeInfix(r, op, expr) ->
-            // TODO: check if position is within the PipeInfix range first
-            let (range, infix) = op
-            // check if we are hovering over an infix operator
-            match checkIfPositionWithinRange position range with
-            | Some r -> collectInfixHoverInfoAtPos infix r
-            | None ->
-              // check if we are hovering over the expression
-              collectExpressionHoverInfoAtPos expr position pm owner currentModules
+            // check if position is within the PipeInfix range
+            if isLineNumberInRange position r then
+              let (range, infix) = op
+              // check if we are hovering over an infix operator
+              match checkIfPositionWithinRange position range with
+              | Some r -> collectInfixHoverInfoAtPos infix r
+              | None ->
+                // check if we are hovering over the expression
+                collectExpressionHoverInfoAtPos expr position pm owner currentModules
+            else
+              Stdlib.Option.Option.None
 
           | EPipeLambda(r, pats, body, keywordFun, _symbolArrow) ->
-            // TODO: check if position is within the PipeLambda range first
-            // check if we are hovering over the fun keyword
-            match checkIfPositionWithinRange position keywordFun with
-            | Some r ->
-              let metadata = Stdlib.Option.Option.None
-              let description = KeywordDescription.getKeywordDescription "fun"
+            // check if position is within the PipeLambda range
+            if isLineNumberInRange position r then
+              // check if we are hovering over the fun keyword
+              match checkIfPositionWithinRange position keywordFun with
+              | Some r ->
+                let metadata = Stdlib.Option.Option.None
+                let description = KeywordDescription.getKeywordDescription "fun"
 
-              Stdlib.Option.Option.Some(createHoverInfo r description metadata)
+                Stdlib.Option.Option.Some(createHoverInfo r description metadata)
 
-            | None ->
-              // check if we are hovering over one of the let patterns
-              let pats =
-                pats
-                |> Stdlib.List.filterMap (fun lp ->
-                  collectLetPatternHoverInfoAtPos lp position)
-                |> Stdlib.List.head
-
-              match pats with
-              | Some r -> Stdlib.Option.Option.Some r
               | None ->
-                // check if we are hovering over the body
-                collectExpressionHoverInfoAtPos body position pm owner currentModules
+                // check if we are hovering over one of the let patterns
+                let pats =
+                  pats
+                  |> Stdlib.List.filterMap (fun lp ->
+                    collectLetPatternHoverInfoAtPos lp position)
+                  |> Stdlib.List.head
+
+                match pats with
+                | Some r -> Stdlib.Option.Option.Some r
+                | None ->
+                  // check if we are hovering over the body
+                  collectExpressionHoverInfoAtPos
+                    body
+                    position
+                    pm
+                    owner
+                    currentModules
+            else
+              Stdlib.Option.Option.None
 
 
           | EPipeEnum(r, typeName, caseName, fields, _symbolDot) ->
-            collectEnumHoverInfo
-              typeName
-              caseName
-              fields
-              position
-              r
-              pm
-              owner
-              currentModules
-              HoverInformation.collectExpressionHoverInfoAtPos
+            if isLineNumberInRange position r then
+              collectEnumHoverInfo
+                typeName
+                caseName
+                fields
+                position
+                r
+                pm
+                owner
+                currentModules
+                HoverInformation.collectExpressionHoverInfoAtPos
+            else
+              Stdlib.Option.Option.None
 
-          //TODO Builtin fns?
           | EPipeFnCall(r, fnName, args) ->
-            //TODO: check if position is within the PipeFnCall range first
-            match checkIfPositionWithinRange position fnName.range with
-            | Some r ->
-              // check if we are hovering over one of the module names
-              let modules =
-                fnName.modules
-                |> Stdlib.List.filterMap (fun (m, _) ->
-                  match checkIfPositionWithinRange position m.range with
-                  | Some r ->
-                    let metadata = Stdlib.Option.Option.Some("Module name")
+            // check if position is within the PipeFnCall range first
+            if isLineNumberInRange position r then
+              // check if we are hovering over the fn name
+              match checkIfPositionWithinRange position fnName.range with
+              | Some r ->
+                // check if we are hovering over one of the module names
+                let modules =
+                  fnName.modules
+                  |> Stdlib.List.filterMap (fun (m, _) ->
+                    match checkIfPositionWithinRange position m.range with
+                    | Some r ->
+                      let metadata = Stdlib.Option.Option.Some("Module name")
 
-                    let description =
+                      let description =
+                        Stdlib.Option.Option.Some(
+                          "TODO: add description when /// comments are supported"
+                        )
+
                       Stdlib.Option.Option.Some(
-                        "TODO: add description when /// comments are supported"
+                        createHoverInfo r description metadata
                       )
 
+                    | None -> Stdlib.Option.Option.None)
+                  |> Stdlib.List.head
+
+                match modules with
+                | Some r -> Stdlib.Option.Option.Some r
+                | None ->
+                  let modules =
+                    fnName.modules |> Stdlib.List.map (fun (name, _) -> name.name)
+
+                  let name = fnName.fn.name
+                  let range = fnName.fn.range
+                  let fn = Stdlib.List.append modules [ name ]
+
+                  let getFunction = tryGetFn fn pm owner currentModules
+
+                  match getFunction with
+                  | Some f ->
+                    let prettyFn = PrettyPrinter.ProgramTypes.packageFn f
+                    let signature = fnSignature f
+
+                    let fqName =
+                      (Stdlib.List.append f.name.modules [ f.name.name ])
+                      |> Stdlib.String.join "."
+
+                    let metadata =
+                      Stdlib.Option.Option.Some(
+                        "Fully qualified name: "
+                        ++ fqName
+                        ++ "\n\n"
+                        ++ (createCodeSnippet signature)
+                        ++ "\n\n"
+                        ++ (createCodeSnippet prettyFn)
+                      )
+
+                    let description =
+                      Stdlib.Option.Option.Some("//TODO: add description")
+
                     Stdlib.Option.Option.Some(
-                      createHoverInfo r description metadata
+                      createHoverInfo range description metadata
                     )
+                  | None -> Stdlib.Option.Option.None // TODO typeargs
 
-                  | None -> Stdlib.Option.Option.None)
-                |> Stdlib.List.head
-
-              match modules with
-              | Some r -> Stdlib.Option.Option.Some r
               | None ->
-                let modules =
-                  fnName.modules |> Stdlib.List.map (fun (name, _) -> name.name)
-
-                let name = fnName.fn.name
-                let range = fnName.fn.range
-                let fn = Stdlib.List.append modules [ name ]
-
-                let getFunction = tryGetFn fn pm owner currentModules
-
-                match getFunction with
-                | Some f ->
-                  let prettyFn = PrettyPrinter.ProgramTypes.packageFn f
-                  let signature = fnSignature f
-
-                  let fqName =
-                    (Stdlib.List.append f.name.modules [ f.name.name ])
-                    |> Stdlib.String.join "."
-
-                  let metadata =
-                    Stdlib.Option.Option.Some(
-                      "Fully qualified name: "
-                      ++ fqName
-                      ++ "\n\n"
-                      ++ (createCodeSnippet signature)
-                      ++ "\n\n"
-                      ++ (createCodeSnippet prettyFn)
-                    )
-
-                  let description =
-                    Stdlib.Option.Option.Some("//TODO: add description")
-
-                  Stdlib.Option.Option.Some(
-                    createHoverInfo range description metadata
-                  )
-                | None -> Stdlib.Option.Option.None // TODO typeargs
-
-            | None ->
-              // check if we are hovering over one of the arguments
-              args
-              |> Stdlib.List.filterMap (fun expr ->
-                collectExpressionHoverInfoAtPos
-                  expr
-                  position
-                  pm
-                  owner
-                  currentModules)
-              |> Stdlib.List.head
+                // check if we are hovering over one of the arguments
+                args
+                |> Stdlib.List.filterMap (fun expr ->
+                  collectExpressionHoverInfoAtPos
+                    expr
+                    position
+                    pm
+                    owner
+                    currentModules)
+                |> Stdlib.List.head
+            else
+              Stdlib.Option.Option.None
 
           | EPipeVariableOrFnCall(r, name) ->
             // check if position is within the PipeExpr range
-            match checkIfPositionWithinRange position r with
-            | Some _ ->
+            if isLineNumberInRange position r then
               let checkIfFn = tryGetFn name pm owner currentModules
 
               match checkIfFn with
@@ -1500,7 +1544,8 @@ module Darklang =
 
               | None -> Stdlib.Option.Option.None // TODO: EPipeVariable
 
-            | None -> Stdlib.Option.Option.None
+            else
+              Stdlib.Option.Option.None
 
 
         let collectExpressionHoverInfoAtPos
@@ -1512,56 +1557,64 @@ module Darklang =
           : Stdlib.Option.Option<Info> =
           match e with
           | EList(r, contents, sob, scb) ->
-            // TODO: check if position is within the List range first
-            // check if we are hovering over one of the List contents
-            contents
-            |> Stdlib.List.filterMap (fun (c, _) ->
-              collectExpressionHoverInfoAtPos c position pm owner currentModules)
-            |> Stdlib.List.head
+            // check if position is within the List range
+            if isLineNumberInRange position r then
+              // check if we are hovering over one of the List contents
+              contents
+              |> Stdlib.List.filterMap (fun (c, _) ->
+                collectExpressionHoverInfoAtPos c position pm owner currentModules)
+              |> Stdlib.List.head
+            else
+              Stdlib.Option.Option.None
 
           | EDict(r, contents, keywordDict, sob, scb) ->
-            // TODO: check if position is within the Dict range first
-            // check if we are hovering over the Dict keyword
-            match checkIfPositionWithinRange position keywordDict with
-            | Some r ->
-              let metadata = Stdlib.Option.Option.None
-              let description = KeywordDescription.getKeywordDescription "Dict"
+            // check if position is within the Dict range
+            if isLineNumberInRange position r then
+              // check if we are hovering over the Dict keyword
+              match checkIfPositionWithinRange position keywordDict with
+              | Some r ->
+                let metadata = Stdlib.Option.Option.None
+                let description = KeywordDescription.getKeywordDescription "Dict"
 
-              Stdlib.Option.Option.Some(createHoverInfo r description metadata)
+                Stdlib.Option.Option.Some(createHoverInfo r description metadata)
 
-            | None ->
-              // check if we are hovering over one of the Dict contents
-              contents
-              |> Stdlib.List.filterMap (fun (_, k, v) ->
-                let (keyRange, key) = k
+              | None ->
+                // check if we are hovering over one of the Dict contents
+                contents
+                |> Stdlib.List.filterMap (fun (_, k, v) ->
+                  let (keyRange, key) = k
 
-                match checkIfPositionWithinRange position keyRange with
-                | Some r ->
-                  let metadata = Stdlib.Option.Option.Some("Dict key")
+                  match checkIfPositionWithinRange position keyRange with
+                  | Some r ->
+                    let metadata = Stdlib.Option.Option.Some("Dict key")
 
-                  let description =
+                    let description =
+                      Stdlib.Option.Option.Some(
+                        "TODO: add description when /// comments are supported"
+                      )
+
                     Stdlib.Option.Option.Some(
-                      "TODO: add description when /// comments are supported"
+                      createHoverInfo r description metadata
                     )
 
-                  Stdlib.Option.Option.Some(createHoverInfo r description metadata)
-
-                | None ->
-                  collectExpressionHoverInfoAtPos v position pm owner currentModules)
-              |> Stdlib.List.head
+                  | None ->
+                    collectExpressionHoverInfoAtPos
+                      v
+                      position
+                      pm
+                      owner
+                      currentModules)
+                |> Stdlib.List.head
+            else
+              Stdlib.Option.Option.None
 
           | ETuple(r, first, sc, second, rest, _, _) ->
-            // TODO: check if position is within the Tuple range first
-            // check if we are hovering over the first expression
-            match
-              collectExpressionHoverInfoAtPos first position pm owner currentModules
-            with
-            | Some r -> Stdlib.Option.Option.Some r
-            | None ->
-              // check if we are hovering over the second expression
+            // check if position is within the Tuple range
+            if isLineNumberInRange position r then
+              // check if we are hovering over the first expression
               match
                 collectExpressionHoverInfoAtPos
-                  second
+                  first
                   position
                   pm
                   owner
@@ -1569,102 +1622,81 @@ module Darklang =
               with
               | Some r -> Stdlib.Option.Option.Some r
               | None ->
-                // check if we are hovering over one of the rest expressions
-                rest
-                |> Stdlib.List.filterMap (fun (_, e) ->
-                  collectExpressionHoverInfoAtPos e position pm owner currentModules)
-                |> Stdlib.List.head
+                // check if we are hovering over the second expression
+                match
+                  collectExpressionHoverInfoAtPos
+                    second
+                    position
+                    pm
+                    owner
+                    currentModules
+                with
+                | Some r -> Stdlib.Option.Option.Some r
+                | None ->
+                  // check if we are hovering over one of the rest expressions
+                  rest
+                  |> Stdlib.List.filterMap (fun (_, e) ->
+                    collectExpressionHoverInfoAtPos
+                      e
+                      position
+                      pm
+                      owner
+                      currentModules)
+                  |> Stdlib.List.head
+            else
+              Stdlib.Option.Option.None
 
           | ERecord(r, typeName, fields, _, _) ->
-            // TODO: check if position is within the Record range first
-            let (tnRange, typeName) =
-              match typeName with
-              | Unresolved(range, name) -> (range, name)
+            // check if position is within the Record range
+            if isLineNumberInRange position r then
+              let (tnRange, typeName) =
+                match typeName with
+                | Unresolved(range, name) -> (range, name)
 
-            match checkIfPositionWithinRange position tnRange with
-            | Some range ->
-              let typ = tryGetPkgType typeName pm owner currentModules
+              match checkIfPositionWithinRange position tnRange with
+              | Some range ->
+                let typ = tryGetPkgType typeName pm owner currentModules
 
-              match typ with
-              | Some t ->
-                let prettyType = PrettyPrinter.ProgramTypes.packageType t
+                match typ with
+                | Some t ->
+                  let prettyType = PrettyPrinter.ProgramTypes.packageType t
 
-                let fqName =
-                  (Stdlib.List.append t.name.modules [ t.name.name ])
-                  |> Stdlib.String.join "."
+                  let fqName =
+                    (Stdlib.List.append t.name.modules [ t.name.name ])
+                    |> Stdlib.String.join "."
 
-                let metadata =
-                  Stdlib.Option.Option.Some(
-                    "Fully qualified name: "
-                    ++ fqName
-                    ++ "\n\n"
-                    ++ createCodeSnippet prettyType
-                  )
-
-                let description =
-                  Stdlib.Option.Option.Some(
-                    "TODO: add description when /// comments are supported"
-                  )
-
-                Stdlib.Option.Option.Some(createHoverInfo range description metadata)
-
-              | None -> Stdlib.Option.Option.None
-
-            | None ->
-              fields
-              |> Stdlib.List.filterMap (fun (_, fieldName, expr) ->
-                let (fieldNameRange, name) = fieldName
-
-                match checkIfPositionWithinRange position fieldNameRange with
-                | Some r ->
-                  let metadata = Stdlib.Option.Option.Some("Field name")
+                  let metadata =
+                    Stdlib.Option.Option.Some(
+                      "Fully qualified name: "
+                      ++ fqName
+                      ++ "\n\n"
+                      ++ createCodeSnippet prettyType
+                    )
 
                   let description =
                     Stdlib.Option.Option.Some(
                       "TODO: add description when /// comments are supported"
                     )
 
-                  Stdlib.Option.Option.Some(createHoverInfo r description metadata)
+                  Stdlib.Option.Option.Some(
+                    createHoverInfo range description metadata
+                  )
 
-                | None ->
-                  collectExpressionHoverInfoAtPos
-                    expr
-                    position
-                    pm
-                    owner
-                    currentModules)
+                | None -> Stdlib.Option.Option.None
 
-              |> Stdlib.List.head
-
-          // | None -> Stdlib.Option.Option.None
-
-          | ERecordUpdate(r, record, updates, _sob, _scb, keywordWith) ->
-            // TODO: check if position is within the RecordUpdate range first
-            // check if we are hovering over the record expression
-            match
-              collectExpressionHoverInfoAtPos record position pm owner currentModules
-            with
-            | Some r -> Stdlib.Option.Option.Some r
-            | None ->
-              // check if we are hovering over the with keyword
-              match checkIfPositionWithinRange position keywordWith with
-              | Some r ->
-                let metadata = Stdlib.Option.Option.None
-                let description = KeywordDescription.getKeywordDescription "with"
-
-                Stdlib.Option.Option.Some(createHoverInfo r description metadata)
               | None ->
-                // check if we are hovering over one of the updates
-                updates
-                |> Stdlib.List.filterMap (fun (fieldName, _, expr) ->
-                  let (range, name) = fieldName
+                fields
+                |> Stdlib.List.filterMap (fun (_, fieldName, expr) ->
+                  let (fieldNameRange, name) = fieldName
 
-                  match checkIfPositionWithinRange position range with
+                  match checkIfPositionWithinRange position fieldNameRange with
                   | Some r ->
                     let metadata = Stdlib.Option.Option.Some("Field name")
 
                     let description =
-                      Stdlib.Option.Option.Some("//TODO: add description")
+                      Stdlib.Option.Option.Some(
+                        "TODO: add description when /// comments are supported"
+                      )
 
                     Stdlib.Option.Option.Some(
                       createHoverInfo r description metadata
@@ -1677,53 +1709,112 @@ module Darklang =
                       pm
                       owner
                       currentModules)
+
                 |> Stdlib.List.head
 
-          | EEnum(r, typeName, caseName, fields, _) ->
-            collectEnumHoverInfo
-              typeName
-              caseName
-              fields
-              position
-              r
-              pm
-              owner
-              currentModules
-              HoverInformation.collectExpressionHoverInfoAtPos
+            else
+              Stdlib.Option.Option.None
 
-          | ELet(r, letPattern, expr, body, keywordLet, _) ->
-            // TODO: check if position is within the Let range first
-            // check if we are hovering over the let keyword
-            match checkIfPositionWithinRange position keywordLet with
-            | Some r ->
-              let metadata = Stdlib.Option.Option.None
-              let description = KeywordDescription.getKeywordDescription "let"
-
-              Stdlib.Option.Option.Some(createHoverInfo r description metadata)
-
-            | None ->
-              // check if we are hovering over the let pattern
-              match collectLetPatternHoverInfoAtPos letPattern position with
+          | ERecordUpdate(r, record, updates, _sob, _scb, keywordWith) ->
+            // check if position is within the RecordUpdate range
+            if isLineNumberInRange position r then
+              // check if we are hovering over the record expression
+              match
+                collectExpressionHoverInfoAtPos
+                  record
+                  position
+                  pm
+                  owner
+                  currentModules
+              with
               | Some r -> Stdlib.Option.Option.Some r
               | None ->
-                // check if we are hovering over the let expression
-                match
-                  collectExpressionHoverInfoAtPos
-                    expr
-                    position
-                    pm
-                    owner
-                    currentModules
-                with
+                // check if we are hovering over the with keyword
+                match checkIfPositionWithinRange position keywordWith with
+                | Some r ->
+                  let metadata = Stdlib.Option.Option.None
+                  let description = KeywordDescription.getKeywordDescription "with"
+
+                  Stdlib.Option.Option.Some(createHoverInfo r description metadata)
+                | None ->
+                  // check if we are hovering over one of the updates
+                  updates
+                  |> Stdlib.List.filterMap (fun (fieldName, _, expr) ->
+                    let (range, name) = fieldName
+
+                    match checkIfPositionWithinRange position range with
+                    | Some r ->
+                      let metadata = Stdlib.Option.Option.Some("Field name")
+
+                      let description =
+                        Stdlib.Option.Option.Some("//TODO: add description")
+
+                      Stdlib.Option.Option.Some(
+                        createHoverInfo r description metadata
+                      )
+
+                    | None ->
+                      collectExpressionHoverInfoAtPos
+                        expr
+                        position
+                        pm
+                        owner
+                        currentModules)
+                  |> Stdlib.List.head
+            else
+              Stdlib.Option.Option.None
+
+          | EEnum(r, typeName, caseName, fields, _) ->
+            if isLineNumberInRange position r then
+              collectEnumHoverInfo
+                typeName
+                caseName
+                fields
+                position
+                r
+                pm
+                owner
+                currentModules
+                HoverInformation.collectExpressionHoverInfoAtPos
+            else
+              Stdlib.Option.Option.None
+
+          | ELet(r, letPattern, expr, body, keywordLet, _) ->
+            // check if position is within the Let range
+            if isLineNumberInRange position r then
+              // check if we are hovering over the let keyword
+              match checkIfPositionWithinRange position keywordLet with
+              | Some r ->
+                let metadata = Stdlib.Option.Option.None
+                let description = KeywordDescription.getKeywordDescription "let"
+
+                Stdlib.Option.Option.Some(createHoverInfo r description metadata)
+
+              | None ->
+                // check if we are hovering over the let pattern
+                match collectLetPatternHoverInfoAtPos letPattern position with
                 | Some r -> Stdlib.Option.Option.Some r
                 | None ->
-                  // check if we are hovering over the let body
-                  collectExpressionHoverInfoAtPos
-                    body
-                    position
-                    pm
-                    owner
-                    currentModules
+                  // check if we are hovering over the let expression
+                  match
+                    collectExpressionHoverInfoAtPos
+                      expr
+                      position
+                      pm
+                      owner
+                      currentModules
+                  with
+                  | Some r -> Stdlib.Option.Option.Some r
+                  | None ->
+                    // check if we are hovering over the let body
+                    collectExpressionHoverInfoAtPos
+                      body
+                      position
+                      pm
+                      owner
+                      currentModules
+            else
+              Stdlib.Option.Option.None
 
           | EVariable(r, name) ->
             match checkIfPositionWithinRange position r with
@@ -1740,297 +1831,273 @@ module Darklang =
             | None -> Stdlib.Option.Option.None
 
           | EFieldAccess(r, expr, fieldName, _symbolDot) ->
-            // TODO: check if we are hovering over a field access expression range first
-            // check if we are hovering over the expression
-            match
-              collectExpressionHoverInfoAtPos expr position pm owner currentModules
-            with
-            | Some r -> Stdlib.Option.Option.Some r
-            | None ->
-              // check if we are hovering over the field name
-              let (fnRange, name) = fieldName
-
-              match checkIfPositionWithinRange position fnRange with
-              | Some r ->
-                let metadata = Stdlib.Option.Option.Some("Field name")
-
-                let description =
-                  Stdlib.Option.Option.Some(
-                    "TODO: add description when /// comments are supported"
-                  )
-
-                Stdlib.Option.Option.Some(createHoverInfo r description metadata)
-
-              | None -> Stdlib.Option.Option.None
-
-          | EIf(r, cond, thenExpr, elseExpr, keywordIf, keywordThen, keywordElse) ->
-            // TODO: check if we are hovering over an if expression range first
-            // check if we are hovering over the if keyword
-            match checkIfPositionWithinRange position keywordIf with
-            | Some r ->
-              let metadata = Stdlib.Option.Option.None
-              let description = KeywordDescription.getKeywordDescription "if"
-
-              Stdlib.Option.Option.Some(createHoverInfo r description metadata)
-
-            | None ->
-              // check if we are hovering over the condition
-              match
-                collectExpressionHoverInfoAtPos cond position pm owner currentModules
-              with
-              | Some c -> Stdlib.Option.Option.Some(c)
-              | None ->
-                // check if we are hovering over the then keyword
-                match checkIfPositionWithinRange position keywordThen with
-                | Some r ->
-                  let metadata = Stdlib.Option.Option.None
-                  let description = KeywordDescription.getKeywordDescription "then"
-
-                  Stdlib.Option.Option.Some(createHoverInfo r description metadata)
-
-                | None ->
-                  // check if we are hovering over the then expression
-                  match
-                    collectExpressionHoverInfoAtPos
-                      thenExpr
-                      position
-                      pm
-                      owner
-                      currentModules
-                  with
-                  | Some t -> Stdlib.Option.Option.Some(t)
-                  | None ->
-                    // check if we are hovering over the else keyword
-                    match keywordElse with
-                    | Some r ->
-                      match checkIfPositionWithinRange position r with
-                      | Some r ->
-                        let metadata = Stdlib.Option.Option.None
-
-                        let description =
-                          KeywordDescription.getKeywordDescription "else"
-
-                        Stdlib.Option.Option.Some(
-                          createHoverInfo r description metadata
-                        )
-
-                      | None ->
-                        // check if we are hovering over the else expression
-                        match elseExpr with
-                        | Some e ->
-                          collectExpressionHoverInfoAtPos
-                            e
-                            position
-                            pm
-                            owner
-                            currentModules
-                        | None -> Stdlib.Option.Option.None
-
-                    | None -> Stdlib.Option.Option.None
-
-          | EMatch(r, expr, cases, keywordMatch, keywordWith) ->
-            // TODO: check if we are hovering over a match expression range first
-            // check if we are hovering over the match keyword
-            match checkIfPositionWithinRange position keywordMatch with
-            | Some r ->
-              let metadata = Stdlib.Option.Option.None
-              let description = KeywordDescription.getKeywordDescription "match"
-
-              Stdlib.Option.Option.Some(createHoverInfo r description metadata)
-            | None ->
+            // check if we are hovering over a field access expression range
+            if isLineNumberInRange position r then
               // check if we are hovering over the expression
               match
                 collectExpressionHoverInfoAtPos expr position pm owner currentModules
               with
               | Some r -> Stdlib.Option.Option.Some r
               | None ->
-                // check if we are hovering over the with keyword
-                match checkIfPositionWithinRange position keywordWith with
+                // check if we are hovering over the field name
+                let (fnRange, name) = fieldName
+
+                match checkIfPositionWithinRange position fnRange with
                 | Some r ->
-                  let metadata = Stdlib.Option.Option.None
-                  let description = KeywordDescription.getKeywordDescription "with"
+                  let metadata = Stdlib.Option.Option.Some("Field name")
+
+                  let description =
+                    Stdlib.Option.Option.Some(
+                      "TODO: add description when /// comments are supported"
+                    )
 
                   Stdlib.Option.Option.Some(createHoverInfo r description metadata)
 
+                | None -> Stdlib.Option.Option.None
+
+            else
+              Stdlib.Option.Option.None
+
+          | EIf(r, cond, thenExpr, elseExpr, keywordIf, keywordThen, keywordElse) ->
+            // check if we are hovering over an if expression range
+            if isLineNumberInRange position r then
+              // check if we are hovering over the if keyword
+              match checkIfPositionWithinRange position keywordIf with
+              | Some r ->
+                let metadata = Stdlib.Option.Option.None
+                let description = KeywordDescription.getKeywordDescription "if"
+
+                Stdlib.Option.Option.Some(createHoverInfo r description metadata)
+
+              | None ->
+                // check if we are hovering over the condition
+                match
+                  collectExpressionHoverInfoAtPos
+                    cond
+                    position
+                    pm
+                    owner
+                    currentModules
+                with
+                | Some c -> Stdlib.Option.Option.Some(c)
                 | None ->
-                  // check if we are hovering over one of the match cases
-                  cases
-                  |> Stdlib.List.filterMap (fun c ->
-                    collectMatchCaseHoverInfoAtPos
-                      c
+                  // check if we are hovering over the then keyword
+                  match checkIfPositionWithinRange position keywordThen with
+                  | Some r ->
+                    let metadata = Stdlib.Option.Option.None
+                    let description = KeywordDescription.getKeywordDescription "then"
+
+                    Stdlib.Option.Option.Some(createHoverInfo r description metadata)
+
+                  | None ->
+                    // check if we are hovering over the then expression
+                    match
+                      collectExpressionHoverInfoAtPos
+                        thenExpr
+                        position
+                        pm
+                        owner
+                        currentModules
+                    with
+                    | Some t -> Stdlib.Option.Option.Some(t)
+                    | None ->
+                      // check if we are hovering over the else keyword
+                      match keywordElse with
+                      | Some r ->
+                        match checkIfPositionWithinRange position r with
+                        | Some r ->
+                          let metadata = Stdlib.Option.Option.None
+
+                          let description =
+                            KeywordDescription.getKeywordDescription "else"
+
+                          Stdlib.Option.Option.Some(
+                            createHoverInfo r description metadata
+                          )
+
+                        | None ->
+                          // check if we are hovering over the else expression
+                          match elseExpr with
+                          | Some e ->
+                            collectExpressionHoverInfoAtPos
+                              e
+                              position
+                              pm
+                              owner
+                              currentModules
+                          | None -> Stdlib.Option.Option.None
+
+                      | None -> Stdlib.Option.Option.None
+            else
+              Stdlib.Option.Option.None
+
+          | EMatch(r, expr, cases, keywordMatch, keywordWith) ->
+            // check if we are hovering over a match expression range
+            if isLineNumberInRange position r then
+              // check if we are hovering over the match keyword
+              match checkIfPositionWithinRange position keywordMatch with
+              | Some r ->
+                let metadata = Stdlib.Option.Option.None
+                let description = KeywordDescription.getKeywordDescription "match"
+
+                Stdlib.Option.Option.Some(createHoverInfo r description metadata)
+              | None ->
+                // check if we are hovering over the expression
+                match
+                  collectExpressionHoverInfoAtPos
+                    expr
+                    position
+                    pm
+                    owner
+                    currentModules
+                with
+                | Some r -> Stdlib.Option.Option.Some r
+                | None ->
+                  // check if we are hovering over the with keyword
+                  match checkIfPositionWithinRange position keywordWith with
+                  | Some r ->
+                    let metadata = Stdlib.Option.Option.None
+                    let description = KeywordDescription.getKeywordDescription "with"
+
+                    Stdlib.Option.Option.Some(createHoverInfo r description metadata)
+
+                  | None ->
+                    // check if we are hovering over one of the match cases
+                    cases
+                    |> Stdlib.List.filterMap (fun c ->
+                      collectMatchCaseHoverInfoAtPos
+                        c
+                        position
+                        pm
+                        owner
+                        currentModules)
+                    |> Stdlib.List.head
+
+            else
+              Stdlib.Option.Option.None
+
+          | EPipe(r, expr, pipeExprs) ->
+            // check if we are hovering over a pipe expression range
+            if isLineNumberInRange position r then
+              // check if we are hovering over the expression
+              match
+                collectExpressionHoverInfoAtPos expr position pm owner currentModules
+              with
+              | Some r -> Stdlib.Option.Option.Some r
+              | None ->
+                // check if we are hovering over the pipe expression
+                pipeExprs
+                |> Stdlib.List.filterMap (fun (_, pe) ->
+                  collectPipeExprHoverInfoAtPos pe position pm owner currentModules)
+                |> Stdlib.List.head
+            else
+              Stdlib.Option.Option.None
+
+          | EInfix(r, op, left, right) ->
+            if isLineNumberInRange position r then
+              let (opRange, op) = op
+
+              match checkIfPositionWithinRange position opRange with
+              | Some range ->
+                match collectInfixHoverInfoAtPos op range with
+                | Some r -> Stdlib.Option.Option.Some r
+                | None -> Stdlib.Option.Option.None
+
+              | None ->
+                match
+                  collectExpressionHoverInfoAtPos
+                    left
+                    position
+                    pm
+                    owner
+                    currentModules
+                with
+                | Some r -> Stdlib.Option.Option.Some r
+                | None ->
+                  collectExpressionHoverInfoAtPos
+                    right
+                    position
+                    pm
+                    owner
+                    currentModules
+
+            else
+              Stdlib.Option.Option.None
+
+          | ELambda(r, pats, body, keywordFun, _symbolArrow) ->
+            // check if position is within the Lambda range
+            if isLineNumberInRange position r then
+              // check if we are hovering over the fun keyword
+              match checkIfPositionWithinRange position keywordFun with
+              | Some r ->
+                let metadata = Stdlib.Option.Option.None
+                let description = KeywordDescription.getKeywordDescription "fun"
+
+                Stdlib.Option.Option.Some(createHoverInfo r description metadata)
+
+              | None ->
+                // check if we are hovering over one of the lambda patterns
+                let pats =
+                  pats
+                  |> Stdlib.List.filterMap (fun lp ->
+                    collectLetPatternHoverInfoAtPos lp position)
+                  |> Stdlib.List.head
+
+                match pats with
+                | Some r -> Stdlib.Option.Option.Some r
+                | None ->
+                  // check if we are hovering over the lambda body
+                  collectExpressionHoverInfoAtPos
+                    body
+                    position
+                    pm
+                    owner
+                    currentModules
+
+            else
+              Stdlib.Option.Option.None
+
+          | EApply(r, lhs, typeArgs, args) ->
+            // check if position is within the EApply range
+            if isLineNumberInRange position r then
+              // check if we are hovering over the lhs expression
+              match
+                collectExpressionHoverInfoAtPos lhs position pm owner currentModules
+              with
+              | Some r -> Stdlib.Option.Option.Some r
+              | None ->
+                match
+                  typeArgs
+                  |> Stdlib.List.filterMap (fun tr ->
+                    collectTypeRefHoverInfoAtPos tr position pm owner currentModules)
+                  |> Stdlib.List.head
+                with
+                | Some r -> Stdlib.Option.Option.Some r
+                | None ->
+                  args
+                  |> Stdlib.List.filterMap (fun e ->
+                    collectExpressionHoverInfoAtPos
+                      e
                       position
                       pm
                       owner
                       currentModules)
                   |> Stdlib.List.head
-
-          | EPipe(r, expr, pipeExprs) ->
-            // TODO: check if we are hovering over a pipe expression range first
-            // check if we are hovering over the expression
-            match
-              collectExpressionHoverInfoAtPos expr position pm owner currentModules
-            with
-            | Some r -> Stdlib.Option.Option.Some r
-            | None ->
-              // check if we are hovering over the pipe expression
-              pipeExprs
-              |> Stdlib.List.filterMap (fun (_, pe) ->
-                collectPipeExprHoverInfoAtPos pe position pm owner currentModules)
-              |> Stdlib.List.head
-
-          | EInfix(r, op, left, right) ->
-            let (opRange, op) = op
-
-            match checkIfPositionWithinRange position opRange with
-            | Some range ->
-              match collectInfixHoverInfoAtPos op range with
-              | Some r -> Stdlib.Option.Option.Some r
-              | None -> Stdlib.Option.Option.None
-
-            | None ->
-              match
-                collectExpressionHoverInfoAtPos left position pm owner currentModules
-              with
-              | Some r -> Stdlib.Option.Option.Some r
-              | None ->
-                collectExpressionHoverInfoAtPos
-                  right
-                  position
-                  pm
-                  owner
-                  currentModules
-
-          | ELambda(r, pats, body, keywordFun, _symbolArrow) ->
-            // TODO: check if position is within the Lambda range first
-            // check if we are hovering over the fun keyword
-            match checkIfPositionWithinRange position keywordFun with
-            | Some r ->
-              let metadata = Stdlib.Option.Option.None
-              let description = KeywordDescription.getKeywordDescription "fun"
-
-              Stdlib.Option.Option.Some(createHoverInfo r description metadata)
-
-            | None ->
-              // check if we are hovering over one of the lambda patterns
-              let pats =
-                pats
-                |> Stdlib.List.filterMap (fun lp ->
-                  collectLetPatternHoverInfoAtPos lp position)
-                |> Stdlib.List.head
-
-              match pats with
-              | Some r -> Stdlib.Option.Option.Some r
-              | None ->
-                // check if we are hovering over the lambda body
-                collectExpressionHoverInfoAtPos body position pm owner currentModules
-
-          | EApply(r, lhs, typeArgs, args) ->
-            // TODO: check if position is within the EApply range first
-            match
-              collectExpressionHoverInfoAtPos lhs position pm owner currentModules
-            with
-            | Some r -> Stdlib.Option.Option.Some r
-            | None ->
-              match
-                typeArgs
-                |> Stdlib.List.filterMap (fun tr ->
-                  collectTypeRefHoverInfoAtPos tr position pm owner currentModules)
-                |> Stdlib.List.head
-              with
-              | Some r -> Stdlib.Option.Option.Some r
-              | None ->
-                args
-                |> Stdlib.List.filterMap (fun e ->
-                  collectExpressionHoverInfoAtPos e position pm owner currentModules)
-                |> Stdlib.List.head
+            else
+              Stdlib.Option.Option.None
 
           | EFnName(r, name) ->
-            // TODO: check if position is within the EFnName range first
-            match checkIfPositionWithinRange position name.fn.range with
-            | Some r ->
-              let modules = name.modules |> Stdlib.List.map (fun (m, _) -> m.name)
-              let fnName = Stdlib.List.append modules [ name.fn.name ]
-
-              let getFunction = tryGetFn fnName pm owner currentModules
-
-              match getFunction with
-              | Some f ->
-                let signature = fnSignature f
-
-                let fqName =
-                  (Stdlib.List.append f.name.modules [ f.name.name ])
-                  |> Stdlib.String.join "."
-
-                let metadata =
-                  Stdlib.Option.Option.Some(
-                    "Fully qualified name: "
-                    ++ fqName
-                    ++ "\n\n"
-                    ++ (createCodeSnippet signature)
-                  )
-
-                let description =
-                  Stdlib.Option.Option.Some(
-                    "TODO: add description when /// comments are supported"
-                  )
-
-                Stdlib.Option.Option.Some(createHoverInfo r description metadata)
-
-              | None -> Stdlib.Option.Option.None
-
-            | None ->
-              name.modules
-              |> Stdlib.List.filterMap (fun (m, _) ->
-                match checkIfPositionWithinRange position m.range with
-                | Some r ->
-                  let metadata = Stdlib.Option.Option.Some("Module name")
-
-                  let description =
-                    Stdlib.Option.Option.Some(
-                      "TODO: add description when /// comments are supported"
-                    )
-
-                  Stdlib.Option.Option.Some(createHoverInfo r description metadata)
-
-                | None -> Stdlib.Option.Option.None)
-              |> Stdlib.List.head
-
-          | EConstantOrFn(r, fnOrConstName) ->
-            // TODO: check if position is within the EConstantOrFn range first
-            let modules =
-              fnOrConstName.modules
-              |> Stdlib.List.filterMap (fun (m, _) ->
-                match checkIfPositionWithinRange position m.range with
-                | Some r ->
-                  let metadata = Stdlib.Option.Option.Some("Module name")
-
-                  let description =
-                    Stdlib.Option.Option.Some(
-                      "TODO: add description when /// comments are supported"
-                    )
-
-                  Stdlib.Option.Option.Some(createHoverInfo r description metadata)
-                | None -> Stdlib.Option.Option.None)
-
-              |> Stdlib.List.head
-
-            match modules with
-            | Some r -> Stdlib.Option.Option.Some r
-            | None ->
-              let modules =
-                fnOrConstName.modules |> Stdlib.List.map (fun (m, _) -> m.name)
-
-              let fnOrConstantName =
-                Stdlib.List.append modules [ fnOrConstName.constantOrFn.name ]
-
-              match checkIfPositionWithinRange position r with
+            // check if position is within the EFnName range
+            if isLineNumberInRange position r then
+              match checkIfPositionWithinRange position name.fn.range with
               | Some r ->
-                // check if we are hovering over a function
-                let getFunction = tryGetFn fnOrConstantName pm owner currentModules
+                let modules = name.modules |> Stdlib.List.map (fun (m, _) -> m.name)
+                let fnName = Stdlib.List.append modules [ name.fn.name ]
+
+                let getFunction = tryGetFn fnName pm owner currentModules
 
                 match getFunction with
                 | Some f ->
-                  let prettyFn = PrettyPrinter.ProgramTypes.packageFn f
                   let signature = fnSignature f
 
                   let fqName =
@@ -2043,31 +2110,82 @@ module Darklang =
                       ++ fqName
                       ++ "\n\n"
                       ++ (createCodeSnippet signature)
-                      ++ "\n\n"
-                      ++ (createCodeSnippet prettyFn)
                     )
 
                   let description =
-                    Stdlib.Option.Option.Some("//TODO: add description")
+                    Stdlib.Option.Option.Some(
+                      "TODO: add description when /// comments are supported"
+                    )
 
-                  Stdlib.Option.Option.Some(
-                    createHoverInfo
-                      fnOrConstName.constantOrFn.range
-                      description
-                      metadata
-                  )
+                  Stdlib.Option.Option.Some(createHoverInfo r description metadata)
 
-                | None ->
-                  // check if we are hovering over a constant
-                  let getConstant =
-                    tryGetPkgConst fnOrConstantName pm owner currentModules
+                | None -> Stdlib.Option.Option.None
 
-                  match getConstant with
-                  | Some c ->
-                    let prettyConst = PrettyPrinter.ProgramTypes.packageConstant c
+              | None ->
+                name.modules
+                |> Stdlib.List.filterMap (fun (m, _) ->
+                  match checkIfPositionWithinRange position m.range with
+                  | Some r ->
+                    let metadata = Stdlib.Option.Option.Some("Module name")
+
+                    let description =
+                      Stdlib.Option.Option.Some(
+                        "TODO: add description when /// comments are supported"
+                      )
+
+                    Stdlib.Option.Option.Some(
+                      createHoverInfo r description metadata
+                    )
+
+                  | None -> Stdlib.Option.Option.None)
+                |> Stdlib.List.head
+
+            else
+              Stdlib.Option.Option.None
+
+          | EConstantOrFn(r, fnOrConstName) ->
+            // check if position is within the EConstantOrFn range
+            if isLineNumberInRange position r then
+              let modules =
+                fnOrConstName.modules
+                |> Stdlib.List.filterMap (fun (m, _) ->
+                  match checkIfPositionWithinRange position m.range with
+                  | Some r ->
+                    let metadata = Stdlib.Option.Option.Some("Module name")
+
+                    let description =
+                      Stdlib.Option.Option.Some(
+                        "TODO: add description when /// comments are supported"
+                      )
+
+                    Stdlib.Option.Option.Some(
+                      createHoverInfo r description metadata
+                    )
+                  | None -> Stdlib.Option.Option.None)
+
+                |> Stdlib.List.head
+
+              match modules with
+              | Some r -> Stdlib.Option.Option.Some r
+              | None ->
+                let modules =
+                  fnOrConstName.modules |> Stdlib.List.map (fun (m, _) -> m.name)
+
+                let fnOrConstantName =
+                  Stdlib.List.append modules [ fnOrConstName.constantOrFn.name ]
+
+                match checkIfPositionWithinRange position r with
+                | Some r ->
+                  // check if we are hovering over a function
+                  let getFunction = tryGetFn fnOrConstantName pm owner currentModules
+
+                  match getFunction with
+                  | Some f ->
+                    let prettyFn = PrettyPrinter.ProgramTypes.packageFn f
+                    let signature = fnSignature f
 
                     let fqName =
-                      (Stdlib.List.append c.name.modules [ c.name.name ])
+                      (Stdlib.List.append f.name.modules [ f.name.name ])
                       |> Stdlib.String.join "."
 
                     let metadata =
@@ -2075,7 +2193,9 @@ module Darklang =
                         "Fully qualified name: "
                         ++ fqName
                         ++ "\n\n"
-                        ++ createCodeSnippet prettyConst
+                        ++ (createCodeSnippet signature)
+                        ++ "\n\n"
+                        ++ (createCodeSnippet prettyFn)
                       )
 
                     let description =
@@ -2088,8 +2208,42 @@ module Darklang =
                         metadata
                     )
 
-                  | None -> Stdlib.Option.Option.None
-              | None -> Stdlib.Option.Option.None
+                  | None ->
+                    // check if we are hovering over a constant
+                    let getConstant =
+                      tryGetPkgConst fnOrConstantName pm owner currentModules
+
+                    match getConstant with
+                    | Some c ->
+                      let prettyConst = PrettyPrinter.ProgramTypes.packageConstant c
+
+                      let fqName =
+                        (Stdlib.List.append c.name.modules [ c.name.name ])
+                        |> Stdlib.String.join "."
+
+                      let metadata =
+                        Stdlib.Option.Option.Some(
+                          "Fully qualified name: "
+                          ++ fqName
+                          ++ "\n\n"
+                          ++ createCodeSnippet prettyConst
+                        )
+
+                      let description =
+                        Stdlib.Option.Option.Some("//TODO: add description")
+
+                      Stdlib.Option.Option.Some(
+                        createHoverInfo
+                          fnOrConstName.constantOrFn.range
+                          description
+                          metadata
+                      )
+
+                    | None -> Stdlib.Option.Option.None
+                | None -> Stdlib.Option.Option.None
+
+            else
+              Stdlib.Option.Option.None
 
           | _ -> Stdlib.Option.Option.None
 
@@ -2104,161 +2258,130 @@ module Darklang =
           (currentModules: List<String>)
           (pm: ProgramTypes.PackageManager.PackageManager)
           : Stdlib.Option.Option<Info> =
-          let positionLine = position.line |> Stdlib.Int64.fromUInt64
+          let node =
+            decls
+            |> Stdlib.List.filterMap (fun decl ->
+              match decl with
+              | Type t ->
+                // Check if position is within type range for early escape
+                if isLineNumberInRange position t.range then
+                  collectTypeHoverInfoAtPosition t position pm currentModules
+                else
+                  Stdlib.Option.Option.None
 
-          match positionLine with
-          | Some positionLine ->
-            let node =
-              decls
-              |> Stdlib.List.filterMap (fun decl ->
-                match decl with
-                | Type t ->
-                  // Check if position is within type range for early escape
-                  if
-                    positionLine >= t.range.start.row
-                    && positionLine <= t.range.end_.row
-                  then
-                    collectTypeHoverInfoAtPosition t position pm currentModules
-                  else
-                    Stdlib.Option.Option.None
+              | Constant c ->
+                // Check if position is within const range for early escape
+                if isLineNumberInRange position c.range then
+                  collectConstHoverInfoAtPos c position currentModules
+                else
+                  Stdlib.Option.Option.None
 
-                | Constant c ->
-                  // Check if position is within const range for early escape
-                  if
-                    positionLine >= c.range.start.row
-                    && positionLine <= c.range.end_.row
-                  then
-                    collectConstHoverInfoAtPos c position currentModules
-                  else
-                    Stdlib.Option.Option.None
+              | Function f ->
+                // Check if position is within function range for early escape
+                if isLineNumberInRange position f.range then
+                  collectFnHoverInfoAtPos f position pm owner currentModules
+                else
+                  Stdlib.Option.Option.None
 
-                | Function f ->
-                  // Check if position is within function range for early escape
-                  if
-                    positionLine >= f.range.start.row
-                    && positionLine <= f.range.end_.row
-                  then
-                    collectFnHoverInfoAtPos f position pm owner currentModules
-                  else
-                    Stdlib.Option.Option.None
+              | Expr e ->
+                collectExpressionHoverInfoAtPos e position pm owner currentModules
 
-                | Expr e ->
-                  collectExpressionHoverInfoAtPos e position pm owner currentModules
+              | Module m ->
+                // Check if position is within module range for early escape
+                if isLineNumberInRange position m.range then
+                  match checkIfPositionWithinRange position m.keywordModule with
+                  | Some r ->
+                    let metadata = Stdlib.Option.Option.Some("")
 
-                | Module m ->
-                  // Check if position is within module range for early escape
-                  if
-                    positionLine >= m.range.start.row
-                    && positionLine <= m.range.end_.row
-                  then
-                    match checkIfPositionWithinRange position m.keywordModule with
+                    let description =
+                      KeywordDescription.getKeywordDescription "module"
+
+                    Stdlib.Option.Option.Some(
+                      createHoverInfo r description metadata
+                    )
+
+                  | None ->
+                    let (nameRange, name) = m.name
+
+                    match checkIfPositionWithinRange position nameRange with
                     | Some r ->
-                      let metadata = Stdlib.Option.Option.Some("")
+                      let metadata =
+                        Stdlib.Option.Option.Some("Fully qualified name: " ++ name)
 
                       let description =
-                        KeywordDescription.getKeywordDescription "module"
+                        Stdlib.Option.Option.Some(
+                          "TODO: add description when /// comments are supported"
+                        )
 
                       Stdlib.Option.Option.Some(
                         createHoverInfo r description metadata
                       )
 
                     | None ->
-                      let (nameRange, name) = m.name
+                      let currentModules =
+                        Stdlib.List.append currentModules [ name ]
 
-                      match checkIfPositionWithinRange position nameRange with
-                      | Some r ->
-                        let metadata =
-                          Stdlib.Option.Option.Some(
-                            "Fully qualified name: " ++ name
-                          )
+                      m.declarations
+                      |> collectNodeHoverInfoAtPos position owner currentModules pm
 
-                        let description =
-                          Stdlib.Option.Option.Some(
-                            "TODO: add description when /// comments are supported"
-                          )
+                else
+                  Stdlib.Option.Option.None
 
+              | SubModule m ->
+                // Check if position is within submodule range for early escape
+                if isLineNumberInRange position m.range then
+                  match checkIfPositionWithinRange position m.keywordModule with
+                  | Some r ->
+                    let metadata = Stdlib.Option.Option.None
+
+                    let description =
+                      KeywordDescription.getKeywordDescription "module"
+
+                    Stdlib.Option.Option.Some(
+                      createHoverInfo r description metadata
+                    )
+
+                  | None ->
+                    let (nameRange, subModuleName) = m.name
+
+                    match checkIfPositionWithinRange position nameRange with
+                    | Some r ->
+                      let fqName =
+                        (Stdlib.String.join currentModules ".")
+                        |> (fun currentModules ->
+                          if currentModules == "" then
+                            subModuleName
+                          else
+                            currentModules ++ "." ++ subModuleName)
+
+                      let metadata =
                         Stdlib.Option.Option.Some(
-                          createHoverInfo r description metadata
+                          "Fully qualified name: " ++ fqName
                         )
 
-                      | None ->
-                        let currentModules =
-                          Stdlib.List.append currentModules [ name ]
-
-                        m.declarations
-                        |> collectNodeHoverInfoAtPos
-                          position
-                          owner
-                          currentModules
-                          pm
-
-                  else
-                    Stdlib.Option.Option.None
-
-                | SubModule m ->
-                  // Check if position is within submodule range for early escape
-                  if
-                    positionLine >= m.range.start.row
-                    && positionLine <= m.range.end_.row
-                  then
-                    match checkIfPositionWithinRange position m.keywordModule with
-                    | Some r ->
-                      let metadata = Stdlib.Option.Option.None
-
                       let description =
-                        KeywordDescription.getKeywordDescription "module"
+                        Stdlib.Option.Option.Some(
+                          "TODO: add description when /// comments are supported"
+                        )
 
                       Stdlib.Option.Option.Some(
                         createHoverInfo r description metadata
                       )
 
+
                     | None ->
-                      let (nameRange, subModuleName) = m.name
+                      let currentModules =
+                        Stdlib.List.append currentModules [ subModuleName ]
 
-                      match checkIfPositionWithinRange position nameRange with
-                      | Some r ->
-                        let fqName =
-                          (Stdlib.String.join currentModules ".")
-                          |> (fun currentModules ->
-                            if currentModules == "" then
-                              subModuleName
-                            else
-                              currentModules ++ "." ++ subModuleName)
+                      m.declarations
+                      |> collectNodeHoverInfoAtPos position owner currentModules pm
 
-                        let metadata =
-                          Stdlib.Option.Option.Some(
-                            "Fully qualified name: " ++ fqName
-                          )
+                else
+                  Stdlib.Option.Option.None
 
-                        let description =
-                          Stdlib.Option.Option.Some(
-                            "TODO: add description when /// comments are supported"
-                          )
+              | _ -> Stdlib.Option.Option.None)
 
-                        Stdlib.Option.Option.Some(
-                          createHoverInfo r description metadata
-                        )
-
-
-                      | None ->
-                        let currentModules =
-                          Stdlib.List.append currentModules [ subModuleName ]
-
-                        m.declarations
-                        |> collectNodeHoverInfoAtPos
-                          position
-                          owner
-                          currentModules
-                          pm
-
-                  else
-                    Stdlib.Option.Option.None
-
-                | _ -> Stdlib.Option.Option.None)
-
-            node |> Stdlib.List.head
-
-          | None -> Stdlib.Option.Option.None
+          node |> Stdlib.List.head
 
 
         let getTextAtRange
