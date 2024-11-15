@@ -2187,36 +2187,6 @@ module Darklang =
                       currentModules
                   with
                   | Some r -> Stdlib.Option.Option.Some r
-
-                  // match getFunction with
-                  // | Some f ->
-                  //   let prettyFn = PrettyPrinter.ProgramTypes.packageFn f
-                  //   let signature = fnSignature f
-
-                  //   let fqName =
-                  //     (Stdlib.List.append f.name.modules [ f.name.name ])
-                  //     |> Stdlib.String.join "."
-
-                  //   let metadata =
-                  //     Stdlib.Option.Option.Some(
-                  //       "Fully qualified name: "
-                  //       ++ fqName
-                  //       ++ "\n\n"
-                  //       ++ (createCodeSnippet signature)
-                  //       ++ "\n\n"
-                  //       ++ (createCodeSnippet prettyFn)
-                  //     )
-
-                  //   let description =
-                  //     Stdlib.Option.Option.Some("//TODO: add description")
-
-                  //   Stdlib.Option.Option.Some(
-                  //     createHoverInfo
-                  //       fnOrConstName.constantOrFn.range
-                  //       description
-                  //       metadata
-                  //   )
-
                   | None ->
                     // check if we are hovering over a constant
                     let getConstant =
