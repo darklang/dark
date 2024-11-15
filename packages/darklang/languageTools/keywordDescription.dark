@@ -1,0 +1,67 @@
+module Darklang =
+  module LanguageTools =
+    module KeywordDescription =
+      type KeywordDescription = { name: String; description: String }
+
+      let keywords () : List<KeywordDescription> =
+        [ KeywordDescription
+            { name = "module"
+              description =
+                "Used to associate a name with a group of related types, values, and functions, to logically separate it from other code." }
+          KeywordDescription
+            { name = "const"
+              description = "Keyword to specify a constant literal." }
+          KeywordDescription
+            { name = "let"
+              description = "Binds a name to a value or function." }
+          KeywordDescription
+            { name = "type"
+              description =
+                "Used to declare an alias, record, or an enumeration type." }
+          KeywordDescription
+            { name = "of"
+              description =
+                "Used in enum cases to specify the type of data it contains" }
+          KeywordDescription
+            { name = "with"
+              description =
+                "Used in record updates to specify which fields to modify and in match expressions to separate args from match cases" }
+          KeywordDescription
+            { name = "if"
+              description = "Used in conditional expressions." }
+          KeywordDescription
+            { name = "then"
+              description =
+                "Specifies the code block to execute when the preceding if condition evaluates to true." }
+          KeywordDescription
+            { name = "else"
+              description =
+                "Specifies the alternative code block to execute when the preceding if condition evaluates to false." }
+          KeywordDescription
+            { name = "fun"
+              description =
+                "Introduces an anonymous function (lambda) definition, allowing creation of functions without naming them." }
+          KeywordDescription
+            { name = "match"
+              description = "Begins a pattern matching expression." }
+          KeywordDescription
+            { name = "when"
+              description =
+                "Used in pattern matching to specify additional boolean conditions (guards) that must be satisfied for a pattern to match." }
+          KeywordDescription
+            { name = "List"
+              description =
+                "Built-in type constructor for creating sequences of elements of the same type." }
+          KeywordDescription
+            { name = "Dict"
+              description =
+                "Built-in type constructor for creating immutable key-value collections where keys must be strings." }
+          KeywordDescription
+            { name = "DB"
+              description =
+                "Built-in type constructor for working with database references." } ]
+
+      let getKeywordDescription (name: String) : Stdlib.Option.Option<String> =
+        (keywords ())
+        |> Stdlib.List.findFirst (fun k -> k.name == name)
+        |> Stdlib.Option.map (fun k -> k.description)
