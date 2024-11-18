@@ -114,7 +114,7 @@ Stdlib.List.findFirst [ 0L; 5L; -6L; -10L ] (fun x -> x < 0L) = Stdlib.Option.Op
 Stdlib.List.findFirst [ 1L; -33L; 3L; -2L; 12L ] (fun x -> (x < 0L && x % 2L == 0L)) = Stdlib.Option.Option.Some -2L
 
 // CLEANUP once DList contains typeRefs, this test may be uncommented and the error message updated:
-// Stdlib.List.flatten_v0 [1;2;3] =
+// Stdlib.List.flatten_v0 [ 1; 2; 3] =
 //   Builtin.testRuntimeError "In List.flatten's 1st argument (`list`), the value should be a List<List<'a>>. However, a List<Int64> ([1; 2; 3]) was passed instead.\n\nExpected: List<List<'a>>\nActual: List<Int64>: [1; 2; 3]"
 Stdlib.List.flatten_v0 [ [ 1L ]; [ 2L ]; [ 3L ] ] = [ 1L; 2L; 3L ]
 
@@ -144,7 +144,8 @@ Stdlib.List.getAt [ 3L; 3L; 3L ] 2147483648L = Stdlib.Option.Option.None
 
 Stdlib.List.head [ 1L; 2L; 3L ] = Stdlib.Option.Option.Some 1L
 
-// Stdlib.List.head [ Builtin.testRuntimeError "test" ] = Builtin.testDerrorMessage "test"
+Stdlib.List.head [ Builtin.testRuntimeError "test" ] =
+  Builtin.testDerrorMessage "Uncaught exception: test"
 
 Stdlib.List.head [] = Stdlib.Option.Option.None
 
@@ -173,8 +174,8 @@ Stdlib.List.interpose_v0 [] 5L = []
 
 Stdlib.List.last [ 1L; 2L; 3L ] = Stdlib.Option.Option.Some 3L
 
-// Stdlib.List.last [ Builtin.testRuntimeError "test" ] =
-//   Builtin.testDerrorMessage "test"
+Stdlib.List.last [ Builtin.testRuntimeError "test" ] =
+  Builtin.testDerrorMessage "Uncaught exception: test"
 
 Stdlib.List.last [] = Stdlib.Option.Option.None
 
@@ -232,7 +233,8 @@ Stdlib.List.push_v0 [] 1L = [ 1L ]
 Stdlib.List.randomElement_v0 [ 1L ] = Stdlib.Option.Option.Some 1L
 Stdlib.List.randomElement_v0 [] = Stdlib.Option.Option.None
 
-//Stdlib.List.randomElement_v0 [ Builtin.testRuntimeError "test" ] = Builtin.testDerrorMessage "test"
+Stdlib.List.randomElement_v0 [ Builtin.testRuntimeError "test" ] =
+  Builtin.testDerrorMessage "Uncaught exception: test"
 
 Stdlib.List.range_v0 -1L 0L = [ -1L; 0L ]
 Stdlib.List.range_v0 -5L 5L = [ -5L; -4L; -3L; -2L; -1L; 0L; 1L; 2L; 3L; 4L; 5L ]
@@ -342,7 +344,7 @@ module Zipping =
   Stdlib.List.zip_v0 [ 10L; 20L; 30L ] [ 1L; 2L; 3L ] = Stdlib.Option.Option.Some [ (10L, 1L); (20L, 2L); (30L, 3L) ]
   Stdlib.List.zip_v0 [ 10L; 20L ] [ 1L; 2L; 3L ] = Stdlib.Option.Option.None
   Stdlib.List.zip_v0 [] [] = Stdlib.Option.Option.Some []
-  // Stdlib.List.zip_v0 [ Builtin.testRuntimeError "msg" ] [ Some "" ] = Builtin.testDerrorMessage "msg"
+  Stdlib.List.zip_v0 [ Builtin.testRuntimeError "msg" ] [ Some "" ] = Builtin.testDerrorMessage "Uncaught exception: msg"
 
 module GroupByWithKey =
   // Stdlib.List.groupByWithKey_v0 [ 1L; 2L; 3L; 4L; 5L ] (fun x ->

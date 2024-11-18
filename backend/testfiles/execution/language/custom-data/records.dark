@@ -5,8 +5,8 @@ type AnEnum = | A | B | C
 
 Cols2 { col1 = 1L; col2 = 3L } = Cols2 { col1 = 1L; col2 = 3L }
 
-// Cols2 { col1 = 2L; col2 = Builtin.testRuntimeError "test" } =
-//   (Builtin.testDerrorMessage "test")
+Cols2 { col1 = 2L; col2 = Builtin.testRuntimeError "test" } =
+  (Builtin.testDerrorMessage "Uncaught exception: test")
 
 
 module WithTypeArgs =

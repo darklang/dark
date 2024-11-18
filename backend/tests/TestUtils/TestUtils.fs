@@ -6,9 +6,9 @@ open Expecto
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-// open Npgsql.FSharp
-// open Npgsql
-// open LibCloud.Db
+open Npgsql.FSharp
+open Npgsql
+open LibCloud.Db
 
 open Prelude
 
@@ -19,6 +19,7 @@ module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 module AT = LibExecution.AnalysisTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module D = LibExecution.DvalDecoder
 module PackageIDs = LibExecution.PackageIDs
 module Exe = LibExecution.Execution
@@ -311,8 +312,8 @@ let rec debugDval (v : Dval) : string =
   // most Dvals print out reasonably nice-looking values automatically,
   // but in these cases we'd like to print something a bit prettier
 
-  | DString s ->
-    $"DString '{s}'(len {s.Length}, {System.BitConverter.ToString(UTF8.toBytes s)})"
+  // | DString s ->
+  //   $"DString '{s}'(len {s.Length}, {System.BitConverter.ToString(UTF8.toBytes s)})"
 
   // | DDateTime d ->
   //   $"DDateTime '{DarkDateTime.toIsoString d}': (millies {d.InUtc().Millisecond})"
@@ -1548,31 +1549,34 @@ let configureLogging
   |> ignore<IServiceCollection>
 
 
-// let unwrapExecutionResult
-//   (exeResult : RT.ExecutionResult)
-//   (state : RT.ExecutionState)
-//   : Ply.Ply<RT.Dval> =
-//   uply {
-//     match exeResult with
-//     | Ok dval -> return dval
-//     | Error(_callStack, rte) ->
-//       let errorMessageFn =
-//         RT.FQFnName.fqPackage
-//           PackageIDs.Fn.LanguageTools.RuntimeErrors.Error.toErrorMessage
+let unwrapExecutionResult
+  (state : RT.ExecutionState)
+  (exeResult : RT.ExecutionResult)
+  : Ply.Ply<RT.Dval> =
+  uply {
+    debuG "unwrapping execution result" ()
+    match exeResult with
+    | Ok dval -> return dval
+    | Error(rte, callStack) ->
+      let errorMessageFn =
+        RT.FQFnName.fqPackage
+          PackageIDs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toString
 
-//       let rte = RT.RuntimeError.toDT rte
+      let rte = RT2DT.RuntimeError.toDT rte
 
-//       let! rteMessage =
-//         LibExecution.Execution.executeFunction
-//           state
-//           errorMessageFn
-//           []
-//           (NEList.ofList rte [])
+      let! rteMessage =
+        LibExecution.Execution.executeFunction
+          state
+          errorMessageFn
+          []
+          (NEList.ofList rte [])
 
-//       match rteMessage with
-//       | Ok(RT.DString msg) -> return RT.DString msg
-//       | _ -> return RT.DString(string rte)
-//   }
+      let! cs = LibExecution.Execution.callStackString state callStack
+
+      match rteMessage with
+      | Ok(RT.DString msg) -> return RT.DString(msg + "\n" + cs)
+      | _ -> return RT.DString(string rteMessage)
+  }
 
 let parsePTExpr (code : string) : Task<PT.Expr> =
   uply {

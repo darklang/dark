@@ -9,16 +9,16 @@
  Stdlib.List.map_v0 [ 1L; 2L; 3L; 4L ] y) =
    [ 2L; 3L; 4L; 5L ]
 
-// (let y = (fun msg -> Builtin.testRuntimeError msg)
-//  Stdlib.List.map_v0 [ "1"; "2"; "3"; "4" ] y) =
-//    (Builtin.testDerrorMessage "1")
+(let y = (fun msg -> Builtin.testRuntimeError msg)
+ Stdlib.List.map_v0 [ "1"; "2"; "3"; "4" ] y) =
+   (Builtin.testDerrorMessage "Uncaught exception: 1")
 
 (let y = (fun msg -> Builtin.testRuntimeError msg) in Stdlib.List.map_v0 [] y) = []
 // (let y = (fun a b -> a + b) in y 2 3) = 5 // TODO: allow
 (let y = (fun a b -> a * b) in Stdlib.List.fold_v0 [ 1L; 2L; 3L; 4L ] 1L y) = 24L
 
-// (Stdlib.List.fold_v0 [ 4L ] 1L (Builtin.testRuntimeError "test")) =
-//   (Builtin.testDerrorMessage "test")
+(Stdlib.List.fold_v0 [ 4L ] 1L (Builtin.testRuntimeError "test")) =
+  (Builtin.testDerrorMessage "Uncaught exception: test")
 
 (let x = 5L
  let y = (fun c -> x + c)
@@ -30,8 +30,9 @@
     Stdlib.String.toUppercase (Stdlib.String.fromChar var)))
   "") = "SOME STRING"
 
-// (let y = (fun c -> if c > 2L then Builtin.testRuntimeError "err" else 18L)
-//  [ 1L; 2L; 3L; 4L ] |> Stdlib.List.map_v0 y) = Builtin.testDerrorMessage "err"
+(let y = (fun c -> if c > 2L then Builtin.testRuntimeError "err" else 18L)
+ [ 1L; 2L; 3L; 4L ] |> Stdlib.List.map_v0 y) =
+  Builtin.testDerrorMessage "Uncaught exception: err"
 
 (let y = (fun c -> if c > 2L then Builtin.testRuntimeError "err" else 18L)
  [ 1L; 2L ] |> Stdlib.List.map_v0 y) = [ 18L; 18L ]

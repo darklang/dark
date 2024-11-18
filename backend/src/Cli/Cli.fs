@@ -1,5 +1,6 @@
 module Cli.Main
 
+open System
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
@@ -124,29 +125,33 @@ let main (args : string[]) =
     | Error(rte, callStack) ->
       let state = state ()
 
-      let errorCallStackStr = LibExecution.Execution.callStackString state callStack
+      let errorCallStackStr =
+        (LibExecution.Execution.callStackString state callStack).Result
 
       match (LibExecution.Execution.runtimeErrorToString state rte).Result with
       | Ok(RT.DString s) ->
-        System.Console.WriteLine $"Error source: {errorCallStackStr}\n  {s}"
+        Console.WriteLine
+          $"Encountered a Runtime Error:\n{s}\n\n{errorCallStackStr}\n  "
 
       | Ok otherVal ->
-        System.Console.WriteLine
-          $"Unexpected value while stringifying error.\nCallStack: {errorCallStackStr}\n"
-        System.Console.WriteLine $"Original Error: {rte}"
-        System.Console.WriteLine $"Value is:\n{otherVal}"
+        Console.WriteLine
+          $"Encountered a Runtime Error, stringified it, but somehow a non-string was returned.\n"
+        Console.WriteLine $"Runtime Error: {rte}"
+        Console.WriteLine $"'Stringified':\n{otherVal}"
+        Console.WriteLine $"{errorCallStackStr}"
 
       | Error(newErr) ->
-        System.Console.WriteLine
-          $"Error while stringifying error.\n CallStack: {errorCallStackStr}\n"
-        System.Console.WriteLine $"Original Error: {rte}"
-        System.Console.WriteLine $"New Error is:\n{newErr}"
+        Console.WriteLine
+          $"Encountered a Runtime Error, tried to stringify it, and then _that_ failed."
+        Console.WriteLine $"Original Error: {rte}"
+        Console.WriteLine $"{errorCallStackStr}"
+        Console.WriteLine $"\nError encountered when trying to stringify:\n{newErr}"
 
       1
     | Ok(RT.DInt64 i) -> (int i)
     | Ok dval ->
       let output = DvalReprDeveloper.toRepr dval
-      System.Console.WriteLine
+      Console.WriteLine
         $"Error: main function must return an int (returned {output})"
       1
 

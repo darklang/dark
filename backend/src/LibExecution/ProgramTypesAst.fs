@@ -12,7 +12,6 @@ let rec symbolsUsedInExpr (expr : Expr) : Set<string> =
   // simple values
   | EUnit _
   | EBool _
-
   | EInt8 _
   | EUInt8 _
   | EInt16 _
@@ -23,9 +22,7 @@ let rec symbolsUsedInExpr (expr : Expr) : Set<string> =
   | EUInt64 _
   | EInt128 _
   | EUInt128 _
-
   | EFloat _
-
   | EChar _ -> Set.empty
 
   | EString(_, segments) ->
@@ -88,7 +85,7 @@ let rec symbolsUsedInExpr (expr : Expr) : Set<string> =
       (r expr)
       (updates |> NEList.toList |> List.map (fun (_, e) -> r e) |> Set.unionMany)
 
-  | EConstant(_, _) -> Set.empty
+  | EConstant(_, _) -> Set.empty // CLEANUP
 
   // things that can be applied
   | EInfix(_, _, left, right) -> Set.union (r left) (r right)
@@ -97,6 +94,7 @@ let rec symbolsUsedInExpr (expr : Expr) : Set<string> =
   | EApply(_, thingToApply, _, args) ->
     Set.unionMany
       [ r thingToApply; args |> NEList.toList |> List.map r |> Set.unionMany ]
+
 and symbolsUsedInPipeExpr (pipeExpr : PipeExpr) : Set<string> =
   let r = symbolsUsedInExpr
 

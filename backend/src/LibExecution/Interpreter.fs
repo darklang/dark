@@ -579,6 +579,8 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                   registers =
                     let r = Array.zeroCreate foundLambda.instructions.registerCount
 
+                    // TODO: deal with tuple args (respect the same stuff as let patterns)
+                    //
                     allArgs |> List.iteri (fun i arg -> r[i] <- arg)
 
                     appLambda.closedRegisters

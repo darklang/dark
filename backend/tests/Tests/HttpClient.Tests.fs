@@ -9,7 +9,7 @@
 module Tests.HttpClient
 
 let baseDirectory = "testfiles/httpclient"
-let versions = [ "v0" ]
+let versions = [] //[ "v0" ]
 
 open Expecto
 
@@ -127,27 +127,12 @@ let parseSingleTestFromFile
     match execResult with
     | Ok dval -> return Internal.Test.fromDT dval
     | Error(rte, _) ->
-      debuG "rte" rte
       let! rteString = Exe.rteToString RT2DT.RuntimeError.toDT state rte
-      debuG "rteString" rteString
       return
         Exception.raiseInternal
           "Error executing parseSingleTestFromFile function"
           [ "error", rteString ]
   }
-
-// let parseTest (filename : string) (test : string) : Ply<Internal.Test.RTTest> =
-//   uply {
-//     let! ptTest = (parseSingleTestFromFile filename test)
-//     let actual = ptTest.actual |> PT2RT.Expr.toRT
-//     let expected = ptTest.expected |> PT2RT.Expr.toRT
-
-//     return
-//       { actual = actual
-//         expected = expected
-//         lineNumber = ptTest.lineNumber
-//         name = ptTest.name }
-//   }
 
 let makeTest versionName filename =
   // Parse the file contents now, rather than later, so that tests that refer to
@@ -426,7 +411,6 @@ let testsFromFiles version =
   |> List.map (makeTest version)
 
 let tests =
-  []
-  //versions TODO bring these back.
+  versions
   |> List.map (fun v -> testList v (testsFromFiles v))
   |> testList "HttpClient"

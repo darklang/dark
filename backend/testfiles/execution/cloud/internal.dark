@@ -37,21 +37,21 @@ module Canvas =
 
 
 module Domains =
-  // module Roundtrip =
-  //   ((Builtin.testGetCanvasID ())
-  //    |> Builtin.darkInternalCanvasDomainGet
-  //    |> Stdlib.List.head
-  //    |> Builtin.unwrap
-  //    |> Builtin.darkInternalCanvasDomainToCanvasID) =
-  //     PACKAGE.Darklang.Stdlib.Result.Result.Ok(Builtin.testGetCanvasID ())
+  module Roundtrip =
+    ((Builtin.testGetCanvasID ())
+     |> Builtin.darkInternalCanvasDomainGet
+     |> Stdlib.List.head
+     |> Builtin.unwrap
+     |> Builtin.darkInternalCanvasDomainToCanvasID) =
+      Stdlib.Result.Result.Ok(Builtin.testGetCanvasID ())
 
   module Errors =
     Builtin.darkInternalCanvasDomainGet (
       (Stdlib.Uuid.parse_v0 "7d9e5495-b068-4364-a2cc-3633ab4d13e6") |> Builtin.unwrap
     ) = []
 
-    // Builtin.darkInternalCanvasDomainToCanvasID "not-a-real-domain" =
-    //   Stdlib.Result.Result.Error "Canvas not found"
+    Builtin.darkInternalCanvasDomainToCanvasID "not-a-real-domain" =
+      Stdlib.Result.Result.Error "Canvas not found"
 
 
 module Secrets =
@@ -64,16 +64,17 @@ module Secrets =
      [ PACKAGE.Darklang.Internal.Canvas.Secret
          { name = "SECRET"; value = "VALUE"; version = 0L } ]
 
-  // // insert twice
-  // (let _ =
-  //   (Builtin.testGetCanvasID ())
-  //   |> Builtin.darkInternalCanvasSecretInsert "SECRET" "VALUE" 1L
-  //  // Does not work
-  //  Builtin.darkInternalCanvasSecretInsert
-  //    (Builtin.testGetCanvasID ())
-  //    "SECRET"
-  //    "OTHERVALUE"
-  //    1L) = Stdlib.Result.Result.Error "Error inserting secret"
+  // insert twice
+  (let _ =
+    (Builtin.testGetCanvasID ())
+    |> Builtin.darkInternalCanvasSecretInsert "SECRET" "VALUE" 1L
+   // Does not work
+   Builtin.darkInternalCanvasSecretInsert
+     (Builtin.testGetCanvasID ())
+     "SECRET"
+     "OTHERVALUE"
+     1L
+  ) = Stdlib.Result.Result.Error "Error inserting secret"
 
   // delete
   Builtin.darkInternalCanvasSecretDelete (Builtin.testGetCanvasID ()) "SECRET" 2L = ()
@@ -88,23 +89,23 @@ module Secrets =
 module F404s =
   1L = 1L
   // TODO
-// DarkInternal.Canvas.F404.recent (Test.getCanvasID ()) = []
-// DarkInternal.Canvas.F404.delete (Test.getCanvasID ()) "" "" "" = ()
+  // DarkInternal.Canvas.F404.recent (Test.getCanvasID ()) = []
+  // DarkInternal.Canvas.F404.delete (Test.getCanvasID ()) "" "" "" = ()
 
 
 module Toplevels =
-  // module WithDB =
-  //   type X = { x: String }
+  module WithDB =
+    type X = { x: String }
 
-  //   [<DB>]
-  //   type TLXDB = X
+    [<DB>]
+    type TLXDB = X
 
-  //   (Builtin.testGetCanvasID ())
-  //   |> Builtin.darkInternalCanvasDBUnlocked
-  //   |> Stdlib.List.length = 1L
+    (Builtin.testGetCanvasID ())
+    |> Builtin.darkInternalCanvasDBUnlocked
+    |> Stdlib.List.length = 1L
 
   module NoDB =
-    //(Builtin.testGetCanvasID ()) |> Builtin.darkInternalCanvasDBUnlocked = []
+    (Builtin.testGetCanvasID ()) |> Builtin.darkInternalCanvasDBUnlocked = []
 
     (Builtin.testGetCanvasID ())
     |> Builtin.darkInternalCanvasDeleteToplevelForever 1UL = false
@@ -112,21 +113,21 @@ module Toplevels =
 
 module UnlockedDB =
   // none
-  //(Builtin.testGetCanvasID ()) |> Builtin.darkInternalCanvasDBUnlocked = []
+  (Builtin.testGetCanvasID ()) |> Builtin.darkInternalCanvasDBUnlocked = []
 
-  // module WithDB =
-  //   type X = { x: String }
+  module WithDB =
+    type X = { x: String }
 
-  //   [<DB>]
-  //   type UXDB = X
-  //   // one
-  //   (Builtin.testGetCanvasID ())
-  //   |> Builtin.darkInternalCanvasDBUnlocked
-  //   |> Stdlib.List.length = 1L
+    [<DB>]
+    type UXDB = X
+    // one
+    (Builtin.testGetCanvasID ())
+    |> Builtin.darkInternalCanvasDBUnlocked
+    |> Stdlib.List.length = 1L
 
-  //   // one but locked
-  //   (let _ = Builtin.dbSet (X { x = "str" }) "test" UXDB
-  //    (Builtin.testGetCanvasID ()) |> Builtin.darkInternalCanvasDBUnlocked) = []
+    // one but locked
+    (let _ = Builtin.dbSet (X { x = "str" }) "test" UXDB
+     (Builtin.testGetCanvasID ()) |> Builtin.darkInternalCanvasDBUnlocked) = []
 
 module Queue =
   // TODO: DarkInternal.Canvas.Queue.count

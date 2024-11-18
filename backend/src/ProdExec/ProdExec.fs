@@ -15,6 +15,7 @@ open Prelude
 module Telemetry = LibService.Telemetry
 module Rollbar = LibService.Rollbar
 module CTPusher = LibClientTypes.Pusher
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 
 let runMigrations () : unit =
@@ -93,16 +94,16 @@ let usesDB (options : Options) =
   | ConvertST2RTAll
   | Help -> false
 
-// let convertToRT (canvasID : CanvasID) : Task<unit> =
-//   task {
-//     let! canvas = LibCloud.Canvas.loadAll canvasID
-//     let _program = LibCloud.Canvas.toProgram canvas
-//     let _handlers =
-//       canvas.handlers
-//       |> Map.values
-//       |> List.map (fun h -> LibExecution.ProgramTypesToRuntimeTypes.Handler.toRT h)
-//     return ()
-//   }
+let convertToRT (canvasID : CanvasID) : Task<unit> =
+  task {
+    let! canvas = LibCloud.Canvas.loadAll canvasID
+    let _program = LibCloud.Canvas.toProgram canvas
+    let _handlers =
+      canvas.handlers
+      |> Map.values
+      |> List.map (fun h -> PT2RT.Handler.toRT Map.empty h.ast)
+    return ()
+  }
 
 
 
@@ -134,13 +135,13 @@ let run (options : Options) : Task<int> =
 
     | TriggerPagingRollbar -> return triggerPagingRollbar ()
 
-    | ConvertST2RT _canvasID ->
-      //   do! convertToRT canvasID
+    | ConvertST2RT canvasID ->
+      do! convertToRT canvasID
       return 0
 
     | ConvertST2RTAll ->
-      //   let! allIDs = LibCloud.Canvas.allCanvasIDs ()
-      //   do! Task.iterWithConcurrency 25 convertToRT allIDs
+      let! allIDs = LibCloud.Canvas.allCanvasIDs ()
+      do! Task.iterWithConcurrency 25 convertToRT allIDs
       return 0
 
     | Help ->

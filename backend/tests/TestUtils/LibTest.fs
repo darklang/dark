@@ -70,20 +70,19 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated }
 
-    // // CLEANUP consider renaming to `oldError` or something more clear
-    // { name = fn "testRuntimeError" 0
-    //   typeParams = []
-    //   parameters = [ Param.make "errorString" TString "" ]
-    //   returnType = TInt64
-    //   description = "Return a value representing a type error"
-    //   fn =
-    //     (function
-    //     | _, _, [ DString errorString ] ->
-    //       raiseUntargetedRTE (RuntimeError.oldError errorString)
-    //     | _ -> incorrectArgs ())
-    //   sqlSpec = NotQueryable
-    //   previewable = Pure
-    //   deprecated = NotDeprecated }
+    { name = fn "testRuntimeError" 0
+      typeParams = []
+      parameters = [ Param.make "errorString" TString "" ]
+      returnType = TInt64
+      description = "Return a value representing a type error"
+      fn =
+        (function
+        | _, _, _, [ DString errorString ] ->
+          raiseUntargetedRTE (RuntimeError.UncaughtException(errorString, []))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated }
 
 
     // { name = fn "testDerrorSqlMessage" 0

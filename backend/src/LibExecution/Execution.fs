@@ -77,19 +77,18 @@ let execute
 
         return Error(rte, callStack)
       | ex ->
-        let context : Metadata =
-          //[ "fn", fnDesc; "args", args; "typeArgs", typeArgs; "id", id ]
-          []
-        exeState.reportException exeState context ex
-        let id = System.Guid.NewGuid()
-        // TODO: log the error and details or something
-
+        let metadata : Metadata =
+          Exception.toMetadata ex |> List.map (fun (k, v) -> k, string v)
+        exeState.reportException exeState metadata ex
         // let currentFrame = Map.findUnsafe vm.currentFrameID vm.callFrames
         // debuG "Uncaught exception" currentFrame.executionPoint // TODO do something w/ the context (match against it)
 
         //let callStack = callStackFromVM vm vm.currentFrameID []
 
-        return (RTE.UncaughtException id) |> RT.raiseRTE vm.threadID
+
+        let metadata = metadata |> List.map (fun (k, v) -> k, RT.DString(string v))
+        return
+          (RTE.UncaughtException(ex.Message, metadata)) |> RT.raiseRTE vm.threadID
 
     finally
       // Does nothing in non-tests
@@ -147,7 +146,8 @@ let runtimeErrorToString
   : Task<RT.ExecutionResult> =
   task {
     let fnName =
-      RT.FQFnName.fqPackage PackageIDs.Fn.LanguageTools.RuntimeErrors.Error.toString
+      RT.FQFnName.fqPackage
+        PackageIDs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toString
     let args = NEList.singleton (RT2DT.RuntimeError.toDT rte)
     return! executeFunction state fnName [] args
   }
@@ -204,39 +204,41 @@ let callStackString
   (_state : RT.ExecutionState)
   (callStack : RT.CallStack) // Note: in reverse order
   : Ply<string> =
+  uply {
+    // let handleFn (fn : Option<RT.PackageFn.PackageFn>) : Ply<string> =
+    //   uply {
+    //     match fn with
+    //     | None -> return "<Couldn't find package function>"
+    //     | Some fn ->
+    //       let fnName = string fn.id
+    //       let! exprString = exprString state fn.body exprId
+    //       return fnName + ": " + exprString
+    //   }
 
-  // let handleFn (fn : Option<RT.PackageFn.PackageFn>) : Ply<string> =
-  //   uply {
-  //     match fn with
-  //     | None -> return "<Couldn't find package function>"
-  //     | Some fn ->
-  //       let fnName = string fn.id
-  //       let! exprString = exprString state fn.body exprId
-  //       return fnName + ": " + exprString
-  //   }
-
-  // match executionPoint with
-  // | RT.ExecutionPoint.Script -> Ply "Input script"
-  // | RT.ExecutionPoint.Function fnName ->
-  //   match fnName with
-  //   | RT.FQFnName.Package name ->
-  //     state.packageManager.getFn name |> Ply.bind handleFn
-  //   | RT.FQFnName.Builtin name -> Ply $"Builtin {name}"
+    // match executionPoint with
+    // | RT.ExecutionPoint.Script -> Ply "Input script"
+    // | RT.ExecutionPoint.Function fnName ->
+    //   match fnName with
+    //   | RT.FQFnName.Package name ->
+    //     state.packageManager.getFn name |> Ply.bind handleFn
+    //   | RT.FQFnName.Builtin name -> Ply $"Builtin {name}"
 
 
-  List.fold
-    (fun acc executionPoint ->
-      let part =
-        match executionPoint with
-        | RT.Source -> "Source"
-        | RT.Function(RT.FQFnName.Package name) -> $"Package Function {name}"
-        | RT.Function(RT.FQFnName.Builtin fnName) -> $"Builtin Function {fnName}" // TODO actually fetch the fn, etc
-        | RT.Lambda(_parent, exprId) -> "Lambda " + string exprId
+    return!
+      Ply.List.foldSequentially
+        (fun acc executionPoint ->
+          let part =
+            match executionPoint with
+            | RT.Source -> "Source"
+            | RT.Function(RT.FQFnName.Package id) -> $"Package Function {id}"
+            | RT.Function(RT.FQFnName.Builtin fnName) ->
+              $"Builtin Function {fnName}" // TODO actually fetch the fn, etc
+            | RT.Lambda(_parent, exprId) -> "Lambda " + string exprId
 
-      $"{acc}\n- {part}")
-    "Call stack:"
-    (List.rev callStack)
-  |> Ply
+          Ply $"{acc}\n- {part}")
+        "Call stack (last call at bottom):"
+        callStack
+  }
 
 
 

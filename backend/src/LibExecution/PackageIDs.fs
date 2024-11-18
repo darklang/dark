@@ -377,11 +377,6 @@ module Fn =
 
   module LanguageTools =
     let private p addl = p ("LanguageTools" :: addl)
-    module RuntimeErrors =
-      let private p addl = p ("RuntimeErrors" :: addl)
-      module Error =
-        let private p addl = p ("Error" :: addl)
-        let toString = p [] "toString" "64a08e23-e4ea-474b-9f77-3d2b1b953879"
     module NameResolver =
       let private p addl = p ("NameResolver" :: addl)
       module FnName =
@@ -415,6 +410,7 @@ module Fn =
 
       module RuntimeError =
         let private p addl = p ("RuntimeError" :: addl)
+        let toString = p [] "toString" "75debdd5-1e4f-4437-8124-38d7afaea931"
         let toErrorMessage =
           p [] "toErrorMessage" "d861d9c4-45da-4789-8f41-b0e481422190"
 

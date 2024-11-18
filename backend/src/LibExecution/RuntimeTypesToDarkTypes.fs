@@ -1295,8 +1295,13 @@ module RuntimeError =
       | RuntimeError.Apply e -> "Apply", [ Applications.toDT e ]
       | RuntimeError.Json e -> "Json", [ Jsons.toDT e ]
       | RuntimeError.CLI e -> "CLI", [ CLIs.toDT e ]
-      | RuntimeError.UncaughtException reference ->
-        "UncaughtException", [ DUuid reference ]
+      | RuntimeError.UncaughtException(msg, metadata) ->
+        "UncaughtException",
+        [ DString msg
+          DList(
+            VT.tuple VT.string (VT.known Dval.knownType) [],
+            metadata |> List.map (fun (k, v) -> DTuple(DString k, Dval.toDT v, []))
+          ) ]
       | e -> Exception.raiseInternal "Unhandled RuntimeError.Error" [ "e", e ]
 
     DEnum(typeName, typeName, [], caseName, fields)
@@ -1342,6 +1347,13 @@ module RuntimeError =
     | DEnum(_, _, [], "Unwrap", [ e ]) -> RuntimeError.Unwrap(Unwraps.fromDT e)
     | DEnum(_, _, [], "Json", [ e ]) -> RuntimeError.Json(Jsons.fromDT e)
     | DEnum(_, _, [], "CLI", [ e ]) -> RuntimeError.CLI(CLIs.fromDT e)
-    | DEnum(_, _, [], "UncaughtException", [ reference ]) ->
-      RuntimeError.UncaughtException(D.uuid reference)
+    | DEnum(_, _, [], "UncaughtException", [ DString msg; DList(_, metadata) ]) ->
+      RuntimeError.UncaughtException(
+        msg,
+        metadata
+        |> List.map (fun d ->
+          match Dval.fromDT d with
+          | DTuple(DString k, v, []) -> (k, v)
+          | _ -> Exception.raiseInternal "Invalid metadata" [])
+      )
     | _ -> Exception.raiseInternal "Invalid RuntimeError.Error" [ "d", d ]

@@ -4,14 +4,14 @@ Stdlib.Option.Option.None = Stdlib.Option.Option.None
 
 (Stdlib.List.head []) = Stdlib.Option.Option.None
 
-// Stdlib.Result.Result.Ok(Builtin.testRuntimeError "err") =
-//   (Builtin.testDerrorMessage "err")
+Stdlib.Result.Result.Ok(Builtin.testRuntimeError "err") =
+  (Builtin.testDerrorMessage "Uncaught exception: err")
 
-// Stdlib.Option.Option.Some(Builtin.testRuntimeError "err") =
-//   (Builtin.testDerrorMessage "err")
+Stdlib.Option.Option.Some(Builtin.testRuntimeError "err") =
+  (Builtin.testDerrorMessage "Uncaught exception: err")
 
-// Stdlib.Result.Result.Error(Builtin.testRuntimeError "err") =
-//   (Builtin.testDerrorMessage "err")
+Stdlib.Result.Result.Error(Builtin.testRuntimeError "err") =
+  (Builtin.testDerrorMessage "Uncaught exception: err")
 
 module Errors =
   module Builtins =
@@ -84,9 +84,9 @@ module MixedCases =
   EnumOfMixedCases.Z 1L =
     (Builtin.testDerrorMessage "Expected 2 fields in MixedCases.EnumOfMixedCases.`Z`, but got 1")
 
-  // // Test ordering of evaluation
-  // EnumOfMixedCases.Z(Builtin.testRuntimeError "1", Builtin.testRuntimeError "2") =
-  //   (Builtin.testDerrorMessage "1")
+  // Test ordering of evaluation
+  EnumOfMixedCases.Z(Builtin.testRuntimeError "1", Builtin.testRuntimeError "2") =
+    (Builtin.testDerrorMessage "Uncaught exception: 1")
 
   (let values =
     [ EnumOfMixedCases.W

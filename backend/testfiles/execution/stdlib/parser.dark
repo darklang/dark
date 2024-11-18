@@ -27,132 +27,106 @@ module ParseToSimplifiedTree =
    parsed.typ) = "source_file"
 
 
-// simplest type alias
-// ("type ID = Int64" |> Builtin.parserParseToSimplifiedTree) = ParsedNode
-//   { typ = "source_file"
-//     fieldName = Stdlib.Option.Option.None
-//     text = "type ID = Int64"
-//     range = range (0L, 0L) (0L, 15L)
-//     children =
-//       [ ParsedNode
-//           { fieldName = Stdlib.Option.Option.None
-//             typ = "type_decl"
-//             text = "type ID = Int64"
-//             range = range (0L, 0L) (0L, 15L)
-//             children =
-//               [ ParsedNode
-//                   { fieldName = Stdlib.Option.Option.Some "keyword_type"
-//                     typ = "keyword"
-//                     text = "type"
-//                     range = range (0L, 0L) (0L, 4L)
-//                     children = [] }
+  // simplest type alias
+  ("type ID = Int64" |> Builtin.parserParseToSimplifiedTree) =
+    ParsedNode
+      { typ = "source_file"
+        fieldName = Stdlib.Option.Option.None
+        text = "type ID = Int64"
+        range = range (0L, 0L) (0L, 15L)
+        children =
+          [ ParsedNode
+              { fieldName = Stdlib.Option.Option.None
+                typ = "type_decl"
+                text = "type ID = Int64"
+                range = range (0L, 0L) (0L, 15L)
+                children =
+                  [ ParsedNode
+                      { fieldName = Stdlib.Option.Option.Some "keyword_type"
+                        typ = "keyword"
+                        text = "type"
+                        range = range (0L, 0L) (0L, 4L)
+                        children = [] }
 
-//                 ParsedNode
-//                   { fieldName = Stdlib.Option.Option.Some "name"
-//                     typ = "type_identifier"
-//                     text = "ID"
-//                     range = range (0L, 5L) (0L, 7L)
-//                     children = [] }
+                    ParsedNode
+                      { fieldName = Stdlib.Option.Option.Some "name"
+                        typ = "type_identifier"
+                        text = "ID"
+                        range = range (0L, 5L) (0L, 7L)
+                        children = [] }
 
-//                 ParsedNode
-//                   { fieldName = Stdlib.Option.Option.Some "symbol_equals"
-//                     typ = "symbol"
-//                     text = "="
-//                     range = range (0L, 8L) (0L, 9L)
-//                     children = [] }
+                    ParsedNode
+                      { fieldName = Stdlib.Option.Option.Some "symbol_equals"
+                        typ = "symbol"
+                        text = "="
+                        range = range (0L, 8L) (0L, 9L)
+                        children = [] }
 
-//                 ParsedNode
-//                   { fieldName = Stdlib.Option.Option.Some "typ"
-//                     typ = "type_decl_def"
-//                     text = "Int64"
-//                     range = range (0L, 10L) (0L, 15L)
-//                     children =
-//                       [ ParsedNode
-//                           { fieldName = Stdlib.Option.Option.None
-//                             typ = "type_decl_def_alias"
-//                             text = "Int64"
-//                             range = range (0L, 10L) (0L, 15L)
-//                             children =
-//                               [ ParsedNode
-//                                   { fieldName = Stdlib.Option.Option.None
-//                                     typ = "type_reference"
-//                                     text = "Int64"
-//                                     range = range (0L, 10L) (0L, 15L)
-//                                     children =
-//                                       [ ParsedNode
-//                                           { fieldName = Stdlib.Option.Option.None
-//                                             typ = "builtin_type"
-//                                             text = "Int64"
-//                                             range = range (0L, 10L) (0L, 15L)
-//                                             children = [] } ] } ] } ] } ] } ] }
+                    ParsedNode
+                      { fieldName = Stdlib.Option.Option.Some "typ"
+                        typ = "type_decl_def"
+                        text = "Int64"
+                        range = range (0L, 10L) (0L, 15L)
+                        children =
+                          [ ParsedNode
+                              { fieldName = Stdlib.Option.Option.None
+                                typ = "type_decl_def_alias"
+                                text = "Int64"
+                                range = range (0L, 10L) (0L, 15L)
+                                children =
+                                  [ ParsedNode
+                                      { fieldName = Stdlib.Option.Option.None
+                                        typ = "type_reference"
+                                        text = "Int64"
+                                        range = range (0L, 10L) (0L, 15L)
+                                        children =
+                                          [ ParsedNode
+                                              { fieldName = Stdlib.Option.Option.None
+                                                typ = "builtin_type"
+                                                text = "Int64"
+                                                range = range (0L, 10L) (0L, 15L)
+                                                children = [] } ] } ] } ] } ] } ] }
 
 
-//   ("" |> Builtin.parserParseToSimplifiedTree) = ParsedNode
-//     { typ = "source_file"
-//       fieldName = Stdlib.Option.Option.None
-//       text = ""
-//       range = range (0L, 0L) (0L, 0L)
-//       children = [] }
+  ("" |> Builtin.parserParseToSimplifiedTree) =
+    ParsedNode
+      { typ = "source_file"
+        fieldName = Stdlib.Option.Option.None
+        text = ""
+        range = range (0L, 0L) (0L, 0L)
+        children = [] }
 
-// // These tests are a huge pain to write and maintain
-// // Let's focus on roundtripping tests, largely,
-// // and just have one of these for some base-line checking.
-// ///
-// /// TODO: make that one test much more comprehensive
-// module ParseNodeToWrittenTypes =
-//   ("type MyID = Int64"
-//    |> PACKAGE.Darklang.LanguageTools.Parser.parseToSimplifiedTree
-//    |> PACKAGE.Darklang.LanguageTools.Parser.parseFromTree
-//    |> Builtin.unwrap) = PACKAGE
-//     .Darklang
-//     .LanguageTools
-//     .WrittenTypes
-//     .ParsedFile
-//     .SourceFile(
-//       PACKAGE.Darklang.LanguageTools.WrittenTypes.SourceFile.SourceFile
-//         { range = range (0L, 0L) (0L, 17L)
-//           declarations =
-//             [ PACKAGE
-//                 .Darklang
-//                 .LanguageTools
-//                 .WrittenTypes
-//                 .SourceFile
-//                 .SourceFileDeclaration
-//                 .Type(
-//                   (PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeDeclaration.TypeDeclaration
-//                     { range = range (0L, 0L) (0L, 17L)
-//                       name =
-//                         PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeIdentifier
-//                           { range = range (0L, 5L) (0L, 9L)
-//                             name = "MyID" }
-//                       typeParams = []
-//                       definition =
-//                         PACKAGE
-//                           .Darklang
-//                           .LanguageTools
-//                           .WrittenTypes
-//                           .TypeDeclaration
-//                           .Definition
-//                           .Alias(
-//                             PACKAGE
-//                               .Darklang
-//                               .LanguageTools
-//                               .WrittenTypes
-//                               .TypeReference
-//                               .TypeReference
-//                               .Builtin(
-//                                 PACKAGE
-//                                   .Darklang
-//                                   .LanguageTools
-//                                   .WrittenTypes
-//                                   .TypeReference
-//                                   .Builtin
-//                                   .TInt64(range (0L, 12L) (0L, 17L))
-//                               )
-//                           )
-//                       keywordType = range (0L, 0L) (0L, 4L)
-//                       symbolEquals = range (0L, 10L) (0L, 11L) })
-//                 ) ]
-//           unparseableStuff = []
-//           exprsToEval = [] }
-//     )
+
+// These tests are a huge pain to write and maintain
+// Let's focus on roundtripping tests, largely,
+// and just have one of these for some base-line checking.
+///
+/// TODO: make that one test much more comprehensive
+module ParseNodeToWrittenTypes =
+  ("type MyID = Int64"
+   |> PACKAGE.Darklang.LanguageTools.Parser.parseToSimplifiedTree
+   |> PACKAGE.Darklang.LanguageTools.Parser.parseFromTree
+   |> Builtin.unwrap) =
+    PACKAGE.Darklang.LanguageTools.WrittenTypes.ParsedFile.SourceFile(
+      PACKAGE.Darklang.LanguageTools.WrittenTypes.SourceFile.SourceFile
+        { range = range (0L, 0L) (0L, 17L)
+          declarations =
+            [ PACKAGE.Darklang.LanguageTools.WrittenTypes.SourceFile.SourceFileDeclaration.Type(
+                PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeDeclaration.TypeDeclaration
+                  { range = range (0L, 0L) (0L, 17L)
+                    name =
+                      PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeIdentifier
+                        { range = range (0L, 5L) (0L, 9L); name = "MyID" }
+                    typeParams = []
+                    definition =
+                      PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeDeclaration.Definition.Alias(
+                        PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeReference.TypeReference.Builtin(
+                          PACKAGE.Darklang.LanguageTools.WrittenTypes.TypeReference.Builtin.TInt64(range (0L, 12L) (0L, 17L))
+                        )
+                      )
+                    keywordType = range (0L, 0L) (0L, 4L)
+                    symbolEquals = range (0L, 10L) (0L, 11L) }
+            ) ]
+          unparseableStuff = []
+          exprsToEval = [] }
+    )

@@ -415,7 +415,11 @@ module Darklang =
             match err with
             | UnsupportedType typ ->
               [ ES.String "Unsupported type in JSON: "
-                ES.TypeReference typ ]
+                ES.TypeReference typ
+                ES.String ". Some types are not supported in Json serialization, and cannot be used as arguments to "
+                ES.FunctionName (LanguageTools.RuntimeTypes.FQFnName.FQFnName.Builtin(LanguageTools.RuntimeTypes.FQFnName.Builtin { name = "jsonParse"; version = 0L }))
+                ES.String " or "
+                ES.FunctionName (LanguageTools.RuntimeTypes.FQFnName.FQFnName.Builtin(LanguageTools.RuntimeTypes.FQFnName.Builtin { name = "jsonSerialize"; version = 0L })) ]
             | CannotSerializeTypeValueCombo (dv, typ) ->
               [ ES.String "Cannot serialize "
                 ES.FullValue dv
@@ -427,9 +431,20 @@ module Darklang =
             | NoExpressionsToExecute -> [ ES.String "TODO NoExpressionsToExecute" ]
             | NonIntReturned actuallyReturnedOfDval -> [ ES.String "TODO NonIntReturned" ]
 
-          // //| TypeChecker of err: TypeCheckers.Error
+          //| TypeChecker of err: TypeCheckers.Error
 
-          // //| UncaughtException of reference: Uuid
+          | UncaughtException (msg, metadata) ->
+            let withMetadata =
+              match metadata with
+              | [] -> []
+              | metadata ->
+                let preamble = [ ES.String " with metadata: TODO" ]
+                let todo = [ ES.String "TODO" ]
+                Stdlib.List.append preamble todo
+
+            Stdlib.List.append
+              [ ES.String "Uncaught exception: "; ES.String msg ]
+              withMetadata
 
 
           // // CLEANUP when we bring lambda->sql compilation back
@@ -492,39 +507,6 @@ module Execution =
           ES.String "arguments"
         )
         ES.String "." ]
-*)
-
-
-(*
-module Json =
-  match e with
-  | UnsupportedType typ ->
-    let summary =
-      [ ES.String "Unsupported type in JSON: "
-        ES.TypeReference typ ]
-
-    let extraExplanation =
-      let parse =
-        RuntimeTypes.FQFnName.FQFnName.Builtin(
-          RuntimeTypes.FQFnName.Builtin { name = "jsonParse"; version = 0L }
-        )
-
-      let serialize =
-        RuntimeTypes.FQFnName.FQFnName.Builtin(
-          RuntimeTypes.FQFnName.Builtin { name = "jsonSerialize"; version = 0L }
-        )
-
-      [ ES.String
-          ". Some types are not supported in Json serialization, and cannot be used as arguments to "
-        ES.FunctionName parse
-        ES.String " or "
-        ES.FunctionName serialize ]
-
-    ErrorOutput
-      { summary = summary
-        extraExplanation = extraExplanation
-        actual = [ ES.TypeReference typ ]
-        expected = [ ES.String "A supported type (Int64, String, etc)" ] }
 *)
 
 

@@ -538,7 +538,8 @@ module Darklang =
           |> Stdlib.String.join ", "
           |> fun parts -> "(" ++ parts ++ ")"
 
-        | ERecord(_id, typeName, fields) ->
+        | ERecord(_id, typeName, _typeArgs, fields) ->
+          // TODO: include type args
           let typeNamePart =
             match typeName with
             | Ok name -> PrettyPrinter.ProgramTypes.FQTypeName.fullForReference name
@@ -554,7 +555,8 @@ module Darklang =
 
           $"{typeNamePart} {fieldPart}"
 
-        | EEnum(_id, typeName, caseName, fields) ->
+        | EEnum(_id, typeName, _typeArgs, caseName, fields) ->
+          // TODO: include type args
           let typeNamePart =
             match typeName with
             | Ok name -> PrettyPrinter.ProgramTypes.FQTypeName.fullForReference name

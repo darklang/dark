@@ -9,8 +9,8 @@ module Errors =
   (let x = MyRecord { col1 = 1L } in x.fieldName) =
     (Builtin.testDerrorMessage "Unexpected field `fieldName`")
 
-  // (Builtin.testRuntimeError "error").fieldName =
-  //   (Builtin.testDerrorMessage "error")
+  (Builtin.testRuntimeError "error").fieldName =
+    (Builtin.testDerrorMessage "Uncaught exception: error")
 
   (let x = 6L in x.fieldName) =
     (Builtin.testDerrorMessage

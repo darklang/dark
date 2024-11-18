@@ -331,7 +331,7 @@ type Expr =
   | EDict of id * List<string * Expr>
   | ETuple of id * Expr * Expr * List<Expr>
 
-  // // -- "Applying" args to things, such as fns and lambdas --
+  // -- "Applying" args to things, such as fns and lambdas --
   /// This is a function call, the first expression is the value of the function.
   /// - `expr (args[0])`
   /// - `expr (args[0]) (args[1])`
@@ -464,15 +464,6 @@ module Expr =
     | EEnum(id, _, _, _, _)
     | EMatch(id, _, _) -> id
 
-
-// module PipeExpr =
-//   let toID (expr : PipeExpr) : id =
-//     match expr with
-//     | EPipeVariable(id, _, _)
-//     | EPipeLambda(id, _, _)
-//     | EPipeInfix(id, _, _)
-//     | EPipeFnCall(id, _, _, _)
-//     | EPipeEnum(id, _, _, _) -> id
 
 
 /// A type defined by a package or canvas/user

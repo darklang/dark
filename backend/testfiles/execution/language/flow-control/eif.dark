@@ -1,15 +1,18 @@
 (if true then "correct" else 0L) = "correct"
 
-// (if true then Builtin.testRuntimeError "a" else 0L) = Builtin.testDerrorMessage "a"
+(if true then Builtin.testRuntimeError "a" else 0L) =
+  Builtin.testDerrorMessage "Uncaught exception: a"
 
-// (if false then 0L else Builtin.testRuntimeError "a") = Builtin.testDerrorMessage "a"
+(if false then 0L else Builtin.testRuntimeError "a") =
+  Builtin.testDerrorMessage "Uncaught exception: a"
 
-// (if false then Builtin.testRuntimeError "a" else 0L) = 0L
-// (if true then 0L else Builtin.testRuntimeError "a") = 0L
+(if false then Builtin.testRuntimeError "a" else 0L) = 0L
+(if true then 0L else Builtin.testRuntimeError "a") = 0L
 (if false then "" else "correct") = "correct"
 // (if () then "" else "") = Builtin.testDerrorMessage "Encountered a condition that must be a Bool, but got an Int64 (-1)"
 
-// (if Builtin.testRuntimeError "msg" then "" else "") = Builtin.testDerrorMessage "msg"
+(if Builtin.testRuntimeError "msg" then "" else "") =
+  Builtin.testDerrorMessage "Uncaught exception: msg"
 
 // (if 5L then "" else "") = Builtin.testDerrorMessage "Encountered a condition that must be a Bool, but got an Int64 (-1)"
 
@@ -21,8 +24,8 @@
 // (if () then "msg") =
 //   (Builtin.testDerrorMessage "Encountered a condition that must be a Bool, but got an Int64 (-1)")
 
-// (if true then Builtin.testRuntimeError "a") =
-//   (Builtin.testDerrorMessage "a")
+(if true then Builtin.testRuntimeError "a") =
+  (Builtin.testDerrorMessage "Uncaught exception: a")
 
-// (if Builtin.testRuntimeError "msg" then "") =
-//   (Builtin.testDerrorMessage "msg")
+(if Builtin.testRuntimeError "msg" then "") =
+  (Builtin.testDerrorMessage "Uncaught exception: msg")

@@ -168,4 +168,4 @@ module Darklang =
           | Json of Jsons.Error
           | CLI of CLIs.Error
           | TypeChecker of err: TypeCheckers.Error
-          | UncaughtException of reference: Uuid
+          | UncaughtException of msg : String * metadata : List<String * Dval>

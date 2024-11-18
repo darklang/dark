@@ -651,39 +651,39 @@ module Errors =
   (match "nothing matches" with
    | "not this" -> "fail") = Builtin.testDerrorMessage "No matching case found"
 
-//   (match Builtin.testRuntimeError "cond is error" with
-//    | 5L -> "fail"
-//    | 6L -> "pass"
-//    | var -> "fail") = Builtin.testDerrorMessage "cond is error"
+  (match Builtin.testRuntimeError "cond is error" with
+   | 5L -> "fail"
+   | 6L -> "pass"
+   | var -> "fail") = Builtin.testDerrorMessage "Uncaught exception: cond is error"
 
-//   (match Builtin.testRuntimeError "cond is error, wildcard" with
-//    | 5L -> 5L
-//    | _ -> 6L) = Builtin.testDerrorMessage "cond is error, wildcard"
+  (match Builtin.testRuntimeError "cond is error, wildcard" with
+   | 5L -> 5L
+   | _ -> 6L) = Builtin.testDerrorMessage "Uncaught exception: cond is error, wildcard"
 
-//   (match 1L with
-//    | 1L -> Builtin.testRuntimeError "a"
-//    | 6L -> "pass"
-//    | var -> "fail") = Builtin.testDerrorMessage "a"
+  (match 1L with
+   | 1L -> Builtin.testRuntimeError "a"
+   | 6L -> "pass"
+   | var -> "fail") = Builtin.testDerrorMessage "Uncaught exception: a"
 
-//   (match 1L with
-//    | 2L -> Builtin.testRuntimeError "a"
-//    | 1L -> "pass"
-//    | var -> "fail") = "pass"
+  (match 1L with
+   | 2L -> Builtin.testRuntimeError "Uncaught exception: a"
+   | 1L -> "pass"
+   | var -> "fail") = "pass"
 
-//   (match 1L with
-//    | 1L -> "pass"
-//    | 6L -> Builtin.testRuntimeError "a"
-//    | var -> "fail") = "pass"
+  (match 1L with
+   | 1L -> "pass"
+   | 6L -> Builtin.testRuntimeError "a"
+   | var -> "fail") = "pass"
 
-//   (match 1L with
-//    | 2L -> "pass"
-//    | 1L -> Builtin.testRuntimeError "a"
-//    | var -> "fail") = Builtin.testDerrorMessage "a"
+  (match 1L with
+   | 2L -> "pass"
+   | 1L -> Builtin.testRuntimeError "a"
+   | var -> "fail") = Builtin.testDerrorMessage "Uncaught exception: a"
 
-//   (match 3L with
-//    | 2L -> "pass"
-//    | 1L -> Builtin.testRuntimeError "a"
-//    | var -> "pass") = "pass"
+  (match 3L with
+   | 2L -> "pass"
+   | 1L -> Builtin.testRuntimeError "a"
+   | var -> "pass") = "pass"
 
 
 // module TypeErrors =

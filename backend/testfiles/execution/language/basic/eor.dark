@@ -12,7 +12,7 @@
 (false |> (||) true) = true
 (false |> (||) false) = false
 
-//(true || Builtin.testRuntimeError "msg") = true
-//(false || Builtin.testRuntimeError "msg") = Builtin.testDerrorMessage "msg"
+//(true || Builtin.testRuntimeError "msg") = true TODO fix short-circuiting?
+(false || Builtin.testRuntimeError "msg") = Builtin.testDerrorMessage "Uncaught exception: msg"
 
-//(Builtin.testRuntimeError "msg1" || Builtin.testRuntimeError "msg2") = Builtin.testDerrorMessage "msg1"
+(Builtin.testRuntimeError "msg1" || Builtin.testRuntimeError "msg2") = Builtin.testDerrorMessage "Uncaught exception: msg1"

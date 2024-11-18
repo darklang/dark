@@ -85,7 +85,7 @@ module Darklang =
             first: TypeReference *
             symbolAsterisk: Range *
             second: TypeReference *
-            rest: List<Stdlib.Option.Option<Range> * TypeReference> *
+            rest: List<Range * TypeReference> *
             openParen: Range *
             closeParen: Range
 

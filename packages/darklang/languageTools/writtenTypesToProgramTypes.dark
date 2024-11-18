@@ -153,26 +153,29 @@ module Darklang =
 
               ProgramTypes.TypeReference.TDict valueType
 
-            | TTuple(_range, firstType, _, secondType, restTypes, _, _) ->
-              let firstType =
-                TypeReference.toPT onMissing pm owner currentModule firstType
-
-              let secondType =
-                TypeReference.toPT onMissing pm owner currentModule secondType
-
-              let restTypes =
-                Stdlib.List.map restTypes (fun (_, t) ->
+            | TTuple(_range, first, _, second, theRest, _, _) ->
+              let first = TypeReference.toPT onMissing pm owner currentModule first
+              let second = TypeReference.toPT onMissing pm owner currentModule second
+              let theRest =
+                theRest |> Stdlib.List.map (fun t ->
+                  Builtin.debug "here" t
+                  let (_, t) = t
                   TypeReference.toPT onMissing pm owner currentModule t)
 
-              ProgramTypes.TypeReference.TTuple(firstType, secondType, restTypes)
+              ProgramTypes.TypeReference.TTuple(first, second, theRest)
 
             | TFn(_range, args, returnType) ->
+              Builtin.debug "Tfn" ()
               let args =
-                Stdlib.List.map args (fun (t, _) ->
+                args
+                |> Stdlib.List.map  (fun t ->
+                  let (t, _) = t
+                  //Builtin.debug "arg in TFn" t
                   TypeReference.toPT onMissing pm owner currentModule t)
+              Builtin.debug "Tfn args in wt2pt" args
 
-              let returnType =
-                TypeReference.toPT onMissing pm owner currentModule returnType
+              let returnType = TypeReference.toPT onMissing pm owner currentModule returnType
+              Builtin.debug "returnType" returnType
 
               ProgramTypes.TypeReference.TFn(args, returnType)
 
@@ -183,6 +186,9 @@ module Darklang =
             | TVariable(_range, _, (_, name)) ->
               ProgramTypes.TypeReference.TVariable name
 
+            // | uncaught ->
+            //   Builtin.debug "uncaught" uncaught
+
         let toPT
           (onMissing: NameResolver.OnMissing)
           (pm: ProgramTypes.PackageManager.PackageManager)
@@ -190,6 +196,8 @@ module Darklang =
           (currentModule: List<String>)
           (t: WrittenTypes.TypeReference.TypeReference)
           : ProgramTypes.TypeReference =
+          Builtin.debug "what" t
+
           match t with
           | Builtin b -> Builtin.toPT onMissing pm owner currentModule b
           | QualifiedName qn ->
@@ -197,6 +205,7 @@ module Darklang =
               Identifiers.QualifiedType.toPT onMissing pm owner currentModule qn
 
             ProgramTypes.TypeReference.TCustomType(typeName, typeArgs)
+          //| uncaught -> Builtin.debug "uncaught" uncaught
 
 
       module InfixFnName =
@@ -444,7 +453,9 @@ module Darklang =
                 let fieldName = name |> Stdlib.Tuple2.second
                 (fieldName, toPT onMissing pm owner currentModule typeName))
 
-            ProgramTypes.Expr.ERecord(gid (), typeName, fields)
+            let typeArgs = [] // TODO: make this real
+
+            ProgramTypes.Expr.ERecord(gid (), typeName, typeArgs, fields)
 
           | ERecordUpdate(_, record, updates, _, _, _) ->
             let record = toPT onMissing pm owner currentModule record
@@ -470,7 +481,9 @@ module Darklang =
               Stdlib.List.map fields (fun expr ->
                 toPT onMissing pm owner currentModule expr)
 
-            ProgramTypes.Expr.EEnum(gid (), typeName, caseName, fields)
+            let typeArgs = [] // TODO: make this real
+
+            ProgramTypes.Expr.EEnum(gid (), typeName, typeArgs, caseName, fields)
 
           // declaring and accessing variables
           | ELet(_, pat, rhs, body, _, _) ->

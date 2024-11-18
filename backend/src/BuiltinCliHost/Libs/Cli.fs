@@ -132,12 +132,11 @@ let fns : List<BuiltInFn> =
           [ DString filename; DString code; DDict(_vtTODO, symtable) ] ->
           uply {
             let exnError (e : exn) : RuntimeError.Error =
-              let _msg = Exception.getMessages e |> String.concat "\n"
-              let _metadata =
-                Exception.toMetadata e |> List.map (fun (k, v) -> k, string v)
-              RuntimeError.UncaughtException(guuid ())
-            //CliRuntimeError.UncaughtException(msg, metadata)
-            //|> CliRuntimeError.RTE.toRuntimeError
+              RuntimeError.UncaughtException(
+                Exception.getMessages e |> String.concat "\n",
+                Exception.toMetadata e
+                |> List.map (fun (k, v) -> (k, DString(string v)))
+              )
 
             let onMissingType =
               FQTypeName.Package

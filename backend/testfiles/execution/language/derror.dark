@@ -19,44 +19,44 @@ module Error =
 
 
 module ErrorPropagation =
-  // Stdlib.List.head (Builtin.testRuntimeError "test") =
-  //   Builtin.testDerrorMessage "test"
+  Stdlib.List.head (Builtin.testRuntimeError "test") =
+    Builtin.testDerrorMessage "Uncaught exception: test"
 
-  // (if Builtin.testRuntimeError "test" then 5L else 6L) =
-  //   Builtin.testDerrorMessage "test"
+  (if Builtin.testRuntimeError "test" then 5L else 6L) =
+    Builtin.testDerrorMessage "Uncaught exception: test"
 
-  // (Stdlib.List.head (Builtin.testRuntimeError "test")).field =
-  //   Builtin.testDerrorMessage "test"
+  (Stdlib.List.head (Builtin.testRuntimeError "test")).field =
+    Builtin.testDerrorMessage "Uncaught exception: test"
 
-  // [ 5L; 6L; Stdlib.List.head (Builtin.testRuntimeError "test") ] =
-  //   Builtin.testDerrorMessage "test"
+  [ 5L; 6L; Stdlib.List.head (Builtin.testRuntimeError "test") ] =
+    Builtin.testDerrorMessage "Uncaught exception: test"
 
-  // [ 5L; 6L; Builtin.testRuntimeError "test" ] =
-  //   Builtin.testDerrorMessage "test"
-
-
-  // 5L |> (+) (Builtin.testRuntimeError "test") |> (+) 3564L =
-  //   Builtin.testDerrorMessage "test"
-
-  // 5L |> (+) (Builtin.testRuntimeError "test") =
-  //   Builtin.testDerrorMessage "test"
-
-  // ("test" |> Builtin.testRuntimeError) =
-  //   Builtin.testDerrorMessage "test"
-
-  // Stdlib.Option.Option.Some(Builtin.testRuntimeError "test") =
-  //   Builtin.testDerrorMessage "test"
-
-  // Stdlib.Result.Result.Error(Builtin.testRuntimeError "test") =
-  //   Builtin.testDerrorMessage "test"
-
-  // Stdlib.Result.Result.Ok(Builtin.testRuntimeError "test") =
-  //   Builtin.testDerrorMessage "test"
+  [ 5L; 6L; Builtin.testRuntimeError "test" ] =
+    Builtin.testDerrorMessage "Uncaught exception: test"
 
 
-  // // pipe into error
-  // ("test" |> Builtin.testRuntimeError |> (++) "3") =
-  //   Builtin.testDerrorMessage "test"
+  5L |> (+) (Builtin.testRuntimeError "test") |> (+) 3564L =
+    Builtin.testDerrorMessage "Uncaught exception: test"
+
+  5L |> (+) (Builtin.testRuntimeError "test") =
+    Builtin.testDerrorMessage "Uncaught exception: test"
+
+  ("test" |> Builtin.testRuntimeError) =
+    Builtin.testDerrorMessage "Uncaught exception: test"
+
+  Stdlib.Option.Option.Some(Builtin.testRuntimeError "test") =
+    Builtin.testDerrorMessage "Uncaught exception: test"
+
+  Stdlib.Result.Result.Error(Builtin.testRuntimeError "test") =
+    Builtin.testDerrorMessage "Uncaught exception: test"
+
+  Stdlib.Result.Result.Ok(Builtin.testRuntimeError "test") =
+    Builtin.testDerrorMessage "Uncaught exception: test"
+
+
+  // pipe into error
+  ("test" |> Builtin.testRuntimeError |> (++) "3") =
+    Builtin.testDerrorMessage "Uncaught exception: test"
 
 
   type EPRec =
@@ -65,8 +65,8 @@ module ErrorPropagation =
       j: Int64
       n: Int64 }
 
-  // EPRec
-  //   { i = Builtin.testRuntimeError "1"
-  //     m = 5L
-  //     j = Stdlib.List.head (Builtin.testRuntimeError "2")
-  //     n = 6L } = Builtin.testDerrorMessage "1"
+  EPRec
+    { i = Builtin.testRuntimeError "1"
+      m = 5L
+      j = Stdlib.List.head (Builtin.testRuntimeError "2")
+      n = 6L } = Builtin.testDerrorMessage "Uncaught exception: 1"

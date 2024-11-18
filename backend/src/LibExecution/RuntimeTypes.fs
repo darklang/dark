@@ -8,9 +8,6 @@
 /// CLEANUP there's some useful "reference things by hash" work to be done.
 module LibExecution.RuntimeTypes
 
-open System.Threading.Tasks
-open FSharp.Control.Tasks
-
 open Prelude
 
 let builtinNamePattern = @"^(__|[a-z])[a-z0-9A-Z_]\w*$"
@@ -457,12 +454,14 @@ and LambdaImpl =
   {
     // -- Things we know as soon as we create the lambda --
     // maybe we need the TL ID as well?
+    // CLEANUP maybe incldue word 'source' or something in this field name?
     exprId : id
 
     /// How should the arguments be deconstructed?
     ///
     /// When we've received as many args as there are patterns,
     /// we should either apply the lambda, or error.
+    /// CLEANUP is this enough? in order to support let patterns, idk...
     patterns : NEList<LetPattern> // LPVar 1
 
     /// When the lambda is defined,
@@ -917,11 +916,12 @@ module RuntimeError =
 
 
     /// Sometimes, very-unexpected things happen. This is a catch-all for those.
+    ///
     /// For local/private runtimes+hosting, allow users to see the details,
-    /// but for _our_ hosting, users shouldn't see the whole call stack or
-    /// whatever, for (our) safety. But, they can use the error ID to refer to
+    /// but (TODO) for _our_ hosting, users shouldn't see the whole call stack or
+    /// whatever, for (our) safety. Perhaps we can provide an opaque ID refer to
     /// the error in a support ticket.
-    | UncaughtException of reference : uuid
+    | UncaughtException of msg : string * metadata : List<string * Dval>
 
 
 

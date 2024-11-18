@@ -306,8 +306,8 @@ module Equals =
     (5L == 5l) = Builtin.testDerrorMessage "Cannot perform equality check on Int64 and Int32"
     (5us != 6s) = Builtin.testDerrorMessage "Cannot perform equality check on UInt16 and Int16"
 
-    //(Builtin.testRuntimeError "test" != Builtin.testRuntimeError "different msg") =
-    //  (Builtin.testDerrorMessage "test")
+    (Builtin.testRuntimeError "test" != Builtin.testRuntimeError "different msg") =
+     (Builtin.testDerrorMessage "Uncaught exception: test")
 
     (() != Stdlib.Option.Option.None) =
       (Builtin.testDerrorMessage "Cannot perform equality check on Unit and PACKAGE.Darklang.Stdlib.Option.Option<_>")

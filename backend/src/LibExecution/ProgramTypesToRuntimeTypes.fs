@@ -256,17 +256,6 @@ module MatchPattern =
       RT.MPVariable rc, (symbols |> Map.add name rc), rc + 1
 
 
-// let toMatchInstr
-//   (valueReg : RT.Register)
-//   (rc : int)
-//   (p : PT.MatchPattern)
-//   (jumpByFail : int)
-//   : (RT.Instruction * Map<string, RT.Register> * int) =
-//   let (pat, symbols, rcAfterPat) = toRT Map.empty rc p
-//   (RT.CheckMatchPatternAndExtractVars(valueReg, pat, jumpByFail),
-//    symbols,
-//    rcAfterPat)
-
 
 module MatchCase =
   /// Compiling a MatchCase happens in two phases, because many instructions
@@ -472,10 +461,12 @@ module Expr =
       match elseExpr with
       | None ->
         let instrs =
-          [ RT.LoadVal(resultReg, RT.DUnit) ] // if `cond` is `false`, the (default) result should probably be Unit
+          [ // if `cond` is `false`, assign a fake result of unit --
+            // this will be ignored anyway
+            RT.LoadVal(resultReg, RT.DUnit) ]
           @ cond.instructions
           @ jumpIfCondFalse (
-            // goto the first instruction past the `if`
+            // go to the first instruction past the `if`
             // (the 1 is for the copy instruction)
             List.length thenInstrs.instructions + 1
           )
@@ -592,7 +583,6 @@ module Expr =
         resultIn = resultReg }
 
 
-
     // constants
     | PT.EConstant(_, Ok name) ->
       { registerCount = rc + 1
@@ -617,11 +607,7 @@ module Expr =
         resultIn = rc }
 
     | PT.EFnName(_, Error nre) ->
-      // TODO improve
-      // hmm maybe we shouldn't fail yet here.
-      // It's ok to _reference_ a bad name, so long as we don't try to `apply` it.
-      // maybe the 'value' here is (still) some unresolved name?
-      // (which should fail when we apply it)
+      // CLEANUP make it ok to _reference_ a bad name, so long as we don't try to `apply` it.
       { registerCount = rc
         instructions = [ RT.RaiseNRE(NameResolutionError.toRT nre) ]
         resultIn = rc }
@@ -766,7 +752,8 @@ module Expr =
       // fields : List<string * Expr>
       let recordReg, rc = rc, rc + 1
 
-      // CLEANUP: complain if there are no fields -- or maybe that should happen during interpretation?
+      // CLEANUP: complain if there are no fields
+      // , or maybe that should happen during interpretation?
       // - actually- is there anything _wrong_ with a fieldless record?
       let (rcAfterFields, instrs, fields) =
         fields
@@ -824,13 +811,12 @@ module Expr =
 
     // -- Enums --
     | PT.EEnum(_id, Error nre, _caseName, _typeArgs, _fields) ->
-      let returnReg = 0 // TODO - not sure what to do here
+      let returnReg = 0 // CLEANUP this is just to fill the field, but meh
       { registerCount = rc
         instructions = [ RT.RaiseNRE(NameResolutionError.toRT nre) ]
         resultIn = returnReg }
 
     | PT.EEnum(_id, Ok typeName, typeArgs, caseName, fields) ->
-      // fields : List<string * Expr>
       let enumReg, rc = rc, rc + 1
 
       let (rcAfterFields, instrs, fields) =
