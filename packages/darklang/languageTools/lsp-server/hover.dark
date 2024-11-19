@@ -2,6 +2,26 @@ module Darklang =
   module LanguageTools =
     module LspServer =
       module Hover =
+        let getTextAtRange
+          (text: String)
+          (range: WrittenTypes.Range)
+          : Stdlib.Option.Option<String> =
+          let startLine = range.start.row
+          let startColumn = range.start.column
+          let endColumn = range.end_.column
+
+          let lines = text |> Stdlib.String.split "\n"
+          let textLines = lines |> Stdlib.List.getAt startLine
+
+          match textLines with
+          | Some line ->
+            line
+            |> Stdlib.String.slice startColumn endColumn
+            |> Stdlib.Option.Option.Some
+
+          | None -> Stdlib.Option.Option.None
+
+
         let handleHoverRequest
           (state: LspState)
           (requestId: JsonRPC.RequestId)
@@ -34,9 +54,9 @@ module Darklang =
                 s.declarations
                 |> HoverInformation.collectNodeHoverInfoAtPos
                   position
+                  pmWithExtras
                   owner
                   []
-                  pmWithExtras
 
               // First try to find a declaration at the position, then try to find expressions
               match decls with
@@ -63,9 +83,9 @@ module Darklang =
                 doc
                 |> (fun doc -> doc.text)
                 |> (fun text ->
-                  match HoverInformation.getTextAtRange text i.range with
+                  match getTextAtRange text i.range with
                   | Some t -> t
-                  | None -> "")
+                  | None -> "something went wrong")
 
               let metadata =
                 i.metadata |> Stdlib.Option.withDefault "No metadata available"

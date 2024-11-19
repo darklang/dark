@@ -27,14 +27,6 @@ module Darklang =
         }
 
 
-      let createRange (s: Int64 * Int64) (e: Int64 * Int64) : Range =
-        let (startRow, startColumn) = s
-        let (endRow, endColumn) = e
-
-        Range
-          { start = Point { row = startRow; column = startColumn }
-            end_ = Point { row = endRow; column = endColumn } }
-
       let parseToSimplifiedTree (text: String) : ParsedNode =
         Builtin.parserParseToSimplifiedTree text
 
