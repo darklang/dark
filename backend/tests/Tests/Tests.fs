@@ -67,11 +67,11 @@ let main (args : string array) : int =
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()
     let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token
     let httpClientTestsTask = Tests.HttpClient.init cancelationTokenSource.Token
-    //Telemetry.Console.loadTelemetry "tests" Telemetry.TraceDBQueries
+    Telemetry.Console.loadTelemetry "tests" Telemetry.TraceDBQueries
 
     // Generate this so that we can see if the format has changed in a git diff
     BinarySerialization.generateTestFiles ()
-    // VanillaSerialization.PersistedSerializations.generateTestFiles ()
+    VanillaSerialization.PersistedSerializations.generateTestFiles ()
 
     // this does async stuff within it, so do not run it from a task/async
     // context or it may hang
@@ -82,7 +82,7 @@ let main (args : string array) : int =
     cancelationTokenSource.Cancel()
     bwdServerTestsTask.Wait()
     httpClientTestsTask.Wait()
-    // QueueWorker.shouldShutdown <- true
+    QueueWorker.shouldShutdown <- true
     exitCode
   with e ->
     printException "Outer exception" [] e

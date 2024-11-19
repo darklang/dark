@@ -1094,38 +1094,38 @@ let interestingStrings : List<string * string> =
 
 
 
-// let interestingFloats : List<string * float> =
-//   let initial =
-//     // interesting cause we used to use 31 bit ints
-//     [ "min 31 bit", System.Math.Pow(2.0, 30.0) - 1.0
-//       "max 31 bit", - System.Math.Pow(2.0, 30.0)
-//       // interesting cause boundary of 32 bit ints
-//       "min 32 bit", System.Math.Pow(2.0, 31.0) - 1.0
-//       "max 32 bit", - System.Math.Pow(2.0, 31.0)
-//       // interesting cause doubles support up to 53-bit ints
-//       "min 53 bit", System.Math.Pow(2.0, 52.0) - 1.0
-//       "max 53 bit", - System.Math.Pow(2.0, 52.0)
-//       // interesting cause we used to have 63 bit ints
-//       "min 63 bit", System.Math.Pow(2.0, 62.0) - 1.0
-//       "max 63 bit", - System.Math.Pow(2.0, 62.0)
-//       // interesting cause boundary of 64 bit ints
-//       "min 64 bit", System.Math.Pow(2.0, 63.0) - 1.0
-//       "max 64 bit", - System.Math.Pow(2.0, 63.0)
-//       // Interesting anyway
-//       "zero", 0.0
-//       "negative zero", -0.0
-//       "NaN", nan
-//       "infinity", infinity
-//       "-infinity", -infinity
-//       // Mathy values
-//       "e", System.Math.E
-//       "pi", System.Math.PI
-//       "tau", System.Math.Tau ]
+let interestingFloats : List<string * float> =
+  let initial =
+    // interesting cause we used to use 31 bit ints
+    [ "min 31 bit", System.Math.Pow(2.0, 30.0) - 1.0
+      "max 31 bit", - System.Math.Pow(2.0, 30.0)
+      // interesting cause boundary of 32 bit ints
+      "min 32 bit", System.Math.Pow(2.0, 31.0) - 1.0
+      "max 32 bit", - System.Math.Pow(2.0, 31.0)
+      // interesting cause doubles support up to 53-bit ints
+      "min 53 bit", System.Math.Pow(2.0, 52.0) - 1.0
+      "max 53 bit", - System.Math.Pow(2.0, 52.0)
+      // interesting cause we used to have 63 bit ints
+      "min 63 bit", System.Math.Pow(2.0, 62.0) - 1.0
+      "max 63 bit", - System.Math.Pow(2.0, 62.0)
+      // interesting cause boundary of 64 bit ints
+      "min 64 bit", System.Math.Pow(2.0, 63.0) - 1.0
+      "max 64 bit", - System.Math.Pow(2.0, 63.0)
+      // Interesting anyway
+      "zero", 0.0
+      "negative zero", -0.0
+      "NaN", nan
+      "infinity", infinity
+      "-infinity", -infinity
+      // Mathy values
+      "e", System.Math.E
+      "pi", System.Math.PI
+      "tau", System.Math.Tau ]
 
-//   initial
-//   |> List.map (fun (doc, v) ->
-//     [ ($"float {doc} - 1", v - 1.0); ($"{doc} + 0", v); ($"{doc} + 1", v + 1.0) ])
-//   |> List.flatten
+  initial
+  |> List.map (fun (doc, v) ->
+    [ ($"float {doc} - 1", v - 1.0); ($"{doc} + 0", v); ($"{doc} + 1", v + 1.0) ])
+  |> List.flatten
 
 let interestingInts : List<string * int64> =
   [ ("int0", 0L)
@@ -1146,322 +1146,304 @@ let interestingInts : List<string * int64> =
   |> List.flatten
 
 
-// // https://github.com/minimaxir/big-list-of-naughty-strings
-// let naughtyStrings : List<string * string> =
-//   LibCloud.File.readfile LibCloud.Config.Testdata "naughty-strings.txt"
-//   |> String.splitOnNewline
-//   |> List.mapWithIndex (fun i s -> $"naughty string line {i + 1}", s)
-//   // 139 is the Unicode BOM on line 140, which is tough to get .NET to put in a string
-//   |> List.filterWithIndex (fun i (_, str) ->
-//     i <> 139 && not (String.startsWith "#" str))
+// https://github.com/minimaxir/big-list-of-naughty-strings
+let naughtyStrings : List<string * string> =
+  LibCloud.File.readfile LibCloud.Config.Testdata "naughty-strings.txt"
+  |> String.splitOnNewline
+  |> List.mapWithIndex (fun i s -> $"naughty string line {i + 1}", s)
+  // 139 is the Unicode BOM on line 140, which is tough to get .NET to put in a string
+  |> List.filterWithIndex (fun i (_, str) ->
+    i <> 139 && not (String.startsWith "#" str))
 
 
-// let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
-//   let uuid = System.Guid.Parse "dca045b1-e2af-41d8-ad1b-35261b25a426"
+let interestingDvals : List<string * RT.Dval * RT.TypeReference> =
+  let uuid = System.Guid.Parse "dca045b1-e2af-41d8-ad1b-35261b25a426"
 
-//   [ ("float", DFloat 7.2, TFloat)
-//     ("float2", DFloat -7.2, TFloat)
-//     ("float3", DFloat 15.0, TFloat)
-//     ("float4", DFloat -15.0, TFloat)
-//     ("int5", DInt64 5L, TInt64)
-//     ("int_8_bits", DInt8 127y, TInt8)
-//     ("int_16_bits", DInt16 32767s, TInt16)
-//     ("int_32_bits", DInt32 2147483647l, TInt32)
-//     ("int_128_bits", DInt128 170141183460469231731687303715884105727Q, TInt128)
-//     ("uint_8_bits", DUInt8 255uy, TUInt8)
-//     ("uint_16_bits", DUInt16 65535us, TUInt16)
-//     ("uint_32_bits", DUInt32 4294967295ul, TUInt32)
-//     ("uint_64_bits", DUInt64 18446744073709551615UL, TUInt64)
-//     ("uint_128_bits", DUInt128 340282366920938463463374607431768211455Z, TUInt128)
-//     ("true", DBool true, TBool)
-//     ("false", DBool false, TBool)
-//     ("unit", DUnit, TUnit)
-//     ("datastore", DDB "Visitors", TDB TInt64)
-//     ("string", DString "incredibly this was broken", TString)
-//     // Json.NET has a habit of converting things automatically based on the type in the string
-//     ("date string", DString "2018-09-14T00:31:41Z", TString)
-//     ("int string", DString "1039485", TString)
-//     ("int string2", DString "-1039485", TString)
-//     ("int string3", DString "0", TString)
-//     ("uuid string", DString "7d9e5495-b068-4364-a2cc-3633ab4d13e6", TString)
-//     ("list", DList(ValueType.Known KTInt64, [ Dval.int64 4 ]), TList TInt64)
+  [ ("float", DFloat 7.2, TFloat)
+    ("float2", DFloat -7.2, TFloat)
+    ("float3", DFloat 15.0, TFloat)
+    ("float4", DFloat -15.0, TFloat)
+    ("int5", DInt64 5L, TInt64)
+    ("int_8_bits", DInt8 127y, TInt8)
+    ("int_16_bits", DInt16 32767s, TInt16)
+    ("int_32_bits", DInt32 2147483647l, TInt32)
+    ("int_128_bits", DInt128 170141183460469231731687303715884105727Q, TInt128)
+    ("uint_8_bits", DUInt8 255uy, TUInt8)
+    ("uint_16_bits", DUInt16 65535us, TUInt16)
+    ("uint_32_bits", DUInt32 4294967295ul, TUInt32)
+    ("uint_64_bits", DUInt64 18446744073709551615UL, TUInt64)
+    ("uint_128_bits", DUInt128 340282366920938463463374607431768211455Z, TUInt128)
+    ("true", DBool true, TBool)
+    ("false", DBool false, TBool)
+    ("unit", DUnit, TUnit)
+    ("datastore", DDB "Visitors", TDB TInt64)
+    ("string", DString "incredibly this was broken", TString)
+    // Json.NET has a habit of converting things automatically based on the type in the string
+    ("date string", DString "2018-09-14T00:31:41Z", TString)
+    ("int string", DString "1039485", TString)
+    ("int string2", DString "-1039485", TString)
+    ("int string3", DString "0", TString)
+    ("uuid string", DString "7d9e5495-b068-4364-a2cc-3633ab4d13e6", TString)
+    ("list", DList(ValueType.Known KTInt64, [ Dval.int64 4 ]), TList TInt64)
 
-//     ("record",
-//      DRecord(
-//        FQTypeName.Package uuid,
-//        FQTypeName.Package uuid,
-//        [],
-//        Map.ofList
-//          [ "url", DString "https://darklang.com"
-//            "headers", Dval.list (KTTuple(VT.string, VT.string, [])) []
-//            "body", Dval.list KTUInt8 [] ]
-//      ),
-//      TCustomType(Ok(FQTypeName.Package uuid), []))
+    ("record",
+     DRecord(
+       FQTypeName.Package uuid,
+       FQTypeName.Package uuid,
+       [],
+       Map.ofList
+         [ "url", DString "https://darklang.com"
+           "headers", Dval.list (KTTuple(VT.string, VT.string, [])) []
+           "body", Dval.list KTUInt8 [] ]
+     ),
+     TCustomType(Ok(FQTypeName.Package uuid), []))
 
-//     ("enum",
-//      DEnum(
-//        FQTypeName.Package PackageIDs.Type.Stdlib.AltJson.json,
-//        FQTypeName.Package PackageIDs.Type.Stdlib.AltJson.json,
-//        [],
-//        "String",
-//        [ DString "test" ]
-//      ),
-//      TCustomType(Ok(FQTypeName.Package PackageIDs.Type.Stdlib.AltJson.json), []))
+    ("enum",
+     DEnum(
+       FQTypeName.Package PackageIDs.Type.Stdlib.AltJson.json,
+       FQTypeName.Package PackageIDs.Type.Stdlib.AltJson.json,
+       [],
+       "String",
+       [ DString "test" ]
+     ),
+     TCustomType(Ok(FQTypeName.Package PackageIDs.Type.Stdlib.AltJson.json), []))
 
-//     // TODO: extract what's useful in here, and create smaller tests for each
-//     ("record2",
-//      DRecord(
-//        FQTypeName.Package uuid,
-//        FQTypeName.Package uuid,
-//        [ VT.unknown; VT.bool ],
-//        Map.ofList [ ("type", DString "weird"); ("value", DUnit) ]
-//      ),
-//      TCustomType(Ok(FQTypeName.Package uuid), []))
-//     ("record3",
-//      DRecord(
-//        FQTypeName.Package uuid,
-//        FQTypeName.Package uuid,
-//        [],
-//        Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]
-//      ),
-//      TCustomType(Ok(FQTypeName.Package uuid), []))
-//     // More Json.NET tests
-//     ("record4",
-//      DRecord(
-//        FQTypeName.Package uuid,
-//        FQTypeName.Package uuid,
-//        [ VT.bool; VT.char; (VT.customType (FQTypeName.Package uuid)) [] ],
-//        Map.ofList [ "foo\\\\bar", Dval.int64 5 ]
-//      ),
-//      TCustomType(Ok(FQTypeName.Package uuid), []))
-//     ("record5",
-//      DRecord(
-//        FQTypeName.Package uuid,
-//        FQTypeName.Package uuid,
-//        [],
-//        Map.ofList [ "$type", Dval.int64 5 ]
-//      ),
-//      TCustomType(Ok(FQTypeName.Package uuid), []))
-//     ("dict", DDict(VT.unknown, Map [ "foo", Dval.int64 5 ]), TDict TInt64)
-//     ("dict3",
-//      DDict(VT.unknown, Map [ ("type", DString "weird"); ("value", DString "x") ]),
-//      TDict TString)
-//     // More Json.NET tests
-//     ("dict4", DDict(VT.unknown, Map [ "foo\\\\bar", Dval.int64 5 ]), TDict TInt64)
-//     ("dict5", DDict(VT.unknown, Map [ "$type", Dval.int64 5 ]), TDict TInt64)
-//     ("lambda",
-//      DFnVal(
-//        Lambda
-//          { body = RT.EUnit(id 1234)
-//            typeSymbolTable = Map.empty
-//            symtable = Map.empty
-//            parameters = NEList.singleton (RT.LPVariable(id 5678, "a")) }
-//      ),
-//      TFn(NEList.singleton TInt64, TUnit))
-//     ("lambda with pipe",
-//      DFnVal(
-//        Lambda
-//          { body =
-//              EApply(
-//                92356985UL,
-//                (EFnName(
-//                  957274UL,
-//                  FQFnName.Builtin { name = "listPush"; version = 0 }
-//                )),
-//                [],
-//                NEList.singleton (
-//                  EApply(
-//                    93459985UL,
-//                    (EFnName(123123UL, FQFnName.Builtin { name = "+"; version = 0 })),
-//                    [],
-//                    (NEList.doubleton
-//                      (EApply(
-//                        394567785UL,
-//                        (EFnName(
-//                          95723UL,
-//                          FQFnName.Builtin { name = "+"; version = 0 }
-//                        )),
-//                        [],
-//                        (NEList.doubleton
-//                          (EApply(
-//                            44444485UL,
-//                            (EFnName(
-//                              9473UL,
-//                              FQFnName.Builtin { name = "+"; version = 0 }
-//                            )),
-//                            [],
-//                            (NEList.doubleton
-//                              (EInt64(234213618UL, 5))
-//                              (EInt64(923423468UL, 6)))
-//                          ))
-//                          (EInt64(648327618UL, 7)))
-//                      ))
-//                      (EInt64(325843618UL, 8)))
-//                  )
-//                )
-//              )
-//            symtable = Map.empty
-//            typeSymbolTable = Map.empty
-//            parameters = NEList.singleton (RT.LPVariable(id 5678, "a")) }
-//      ),
-//      TFn(NEList.singleton TInt64, TInt64))
-//     ("db", DDB "Visitors", TDB TInt64)
-//     ("date",
-//      DDateTime(
-//        DarkDateTime.fromInstant (NodaTime.Instant.ofIsoString "2018-09-14T00:31:41Z")
-//      ),
-//      TDateTime)
-//     ("uuid", DUuid(System.Guid.Parse "7d9e5495-b068-4364-a2cc-3633ab4d13e6"), TUuid)
-//     ("uuid0", DUuid(System.Guid.Parse "00000000-0000-0000-0000-000000000000"), TUuid)
-//     ("option",
-//      DEnum(
-//        Dval.optionType,
-//        Dval.optionType,
-//        [ VT.int64 ],
-//        "None",
-//        []
-//      ),
-//      TypeReference.option TInt64)
-//     ("option2",
-//      DEnum(
-//        Dval.optionType,
-//        Dval.optionType,
-//        [ VT.int64 ],
-//        "Some",
-//        [ Dval.int64 15 ]
-//      ),
-//      TypeReference.option TInt64)
-//     ("option3",
-//      DEnum(
-//        Dval.optionType,
-//        Dval.optionType,
-//        [ VT.string ],
-//        "Some",
-//        [ DString "a string" ]
-//      ),
-//      TypeReference.option TString)
-//     ("option4",
-//      DEnum(
-//        Dval.optionType,
-//        Dval.optionType,
-//        [ VT.int8 ],
-//        "Some",
-//        [ Dval.int8 15y ]
-//      ),
-//      TypeReference.option TInt8)
-//     ("option5",
-//      DEnum(
-//        Dval.optionType,
-//        Dval.optionType,
-//        [ VT.uint8 ],
-//        "Some",
-//        [ Dval.uint8 15uy ]
-//      ),
-//      TypeReference.option TUInt8)
-//     ("option6",
-//      DEnum(
-//        Dval.optionType,
-//        Dval.optionType,
-//        [ VT.int16 ],
-//        "Some",
-//        [ Dval.int16 16s ]
-//      ),
-//      TypeReference.option TInt16)
-//     ("option7",
-//      DEnum(
-//        Dval.optionType,
-//        Dval.optionType,
-//        [ VT.uint16 ],
-//        "Some",
-//        [ Dval.uint16 16us ]
-//      ),
-//      TypeReference.option TUInt16)
-//     ("option8",
-//      DEnum(
-//        Dval.optionType,
-//        Dval.optionType,
-//        [ VT.int32 ],
-//        "Some",
-//        [ Dval.int32 32l ]
-//      ),
-//      TypeReference.option TInt32)
-//     ("option9",
-//      DEnum(
-//        Dval.optionType,
-//        Dval.optionType,
-//        [ VT.uint32 ],
-//        "Some",
-//        [ Dval.uint32 32ul ]
-//      ),
-//      TypeReference.option TUInt32)
-//     ("option10",
-//      DEnum(
-//        Dval.optionType,
-//        Dval.optionType,
-//        [ VT.int128 ],
-//        "Some",
-//        [ Dval.int128 128Q ]
-//      ),
-//      TypeReference.option TInt128)
-//     ("option11",
-//      DEnum(
-//        Dval.optionType,
-//        Dval.optionType,
-//        [ VT.uint128 ],
-//        "Some",
-//        [ Dval.uint128 128Z ]
-//      ),
-//      TypeReference.option TUInt128)
-//     ("option12",
-//      DEnum(
-//        Dval.optionType,
-//        Dval.optionType,
-//        [ VT.uint64 ],
-//        "Some",
-//        [ Dval.uint64 64UL ]
-//      ),
-//      TypeReference.option TUInt64)
-//     ("character", DChar "s", TChar)
-//     ("bytes",
-//      ((System.Convert.FromBase64String "JyIoXCg=") |> Dval.byteArrayToDvalList),
-//      (TList TUInt8))
-//     // use image bytes here to test for any weird bytes forms
-//     ("bytes2",
-//      // TODO: deeply nested data
-//      (LibCloud.File.readfileBytes LibCloud.Config.Testdata "sample_image_bytes.png")
-//      |> Dval.byteArrayToDvalList,
-//      (TList TUInt8))
-//     ("simple2Tuple",
-//      DTuple(Dval.int64 1, Dval.int64 2, []),
-//      TTuple(TInt64, TInt64, []))
-//     ("simple3Tuple",
-//      DTuple(Dval.int64 1, Dval.int64 2, [ Dval.int64 3 ]),
-//      TTuple(TInt64, TInt64, [ TInt64 ]))
-//     ("tupleWithUnit",
-//      DTuple(Dval.int64 1, Dval.int64 2, [ DUnit ]),
-//      TTuple(TInt64, TInt64, [ TUnit ]))
-//     ("tupleWithError",
-//      DTuple(
-//        Dval.int64 1,
-//        DEnum(
-//          Dval.resultType,
-//          Dval.resultType,
-//          [ VT.unknown; VT.string ],
-//          "Error",
-//          [ DString "error" ]
-//        ),
-//        []
-//      ),
-//      TTuple(TInt64, TypeReference.result TInt64 TString, [])) ]
+    // TODO: extract what's useful in here, and create smaller tests for each
+    ("record2",
+     DRecord(
+       FQTypeName.Package uuid,
+       FQTypeName.Package uuid,
+       [ VT.unknown; VT.bool ],
+       Map.ofList [ ("type", DString "weird"); ("value", DUnit) ]
+     ),
+     TCustomType(Ok(FQTypeName.Package uuid), []))
+    ("record3",
+     DRecord(
+       FQTypeName.Package uuid,
+       FQTypeName.Package uuid,
+       [],
+       Map.ofList [ ("type", DString "weird"); ("value", DString "x") ]
+     ),
+     TCustomType(Ok(FQTypeName.Package uuid), []))
+    // More Json.NET tests
+    ("record4",
+     DRecord(
+       FQTypeName.Package uuid,
+       FQTypeName.Package uuid,
+       [ VT.bool; VT.char; (VT.customType (FQTypeName.Package uuid)) [] ],
+       Map.ofList [ "foo\\\\bar", Dval.int64 5 ]
+     ),
+     TCustomType(Ok(FQTypeName.Package uuid), []))
+    ("record5",
+     DRecord(
+       FQTypeName.Package uuid,
+       FQTypeName.Package uuid,
+       [],
+       Map.ofList [ "$type", Dval.int64 5 ]
+     ),
+     TCustomType(Ok(FQTypeName.Package uuid), []))
+    ("dict", DDict(VT.unknown, Map [ "foo", Dval.int64 5 ]), TDict TInt64)
+    ("dict3",
+     DDict(VT.unknown, Map [ ("type", DString "weird"); ("value", DString "x") ]),
+     TDict TString)
+    // More Json.NET tests
+    ("dict4", DDict(VT.unknown, Map [ "foo\\\\bar", Dval.int64 5 ]), TDict TInt64)
+    ("dict5", DDict(VT.unknown, Map [ "$type", Dval.int64 5 ]), TDict TInt64)
+    // ("lambda",
+    //  DApplicable(
+    //    Lambda
+    //      { body = RT.EUnit(id 1234)
+    //        typeSymbolTable = Map.empty
+    //        symtable = Map.empty
+    //        parameters = NEList.singleton (RT.LPVariable(id 5678, "a")) }
+    //  ),
+    //  TFn(NEList.singleton TInt64, TUnit))
+    // ("lambda with pipe",
+    //  DFnVal(
+    //    Lambda
+    //      { body =
+    //          EApply(
+    //            92356985UL,
+    //            (EFnName(
+    //              957274UL,
+    //              FQFnName.Builtin { name = "listPush"; version = 0 }
+    //            )),
+    //            [],
+    //            NEList.singleton (
+    //              EApply(
+    //                93459985UL,
+    //                (EFnName(123123UL, FQFnName.Builtin { name = "+"; version = 0 })),
+    //                [],
+    //                (NEList.doubleton
+    //                  (EApply(
+    //                    394567785UL,
+    //                    (EFnName(
+    //                      95723UL,
+    //                      FQFnName.Builtin { name = "+"; version = 0 }
+    //                    )),
+    //                    [],
+    //                    (NEList.doubleton
+    //                      (EApply(
+    //                        44444485UL,
+    //                        (EFnName(
+    //                          9473UL,
+    //                          FQFnName.Builtin { name = "+"; version = 0 }
+    //                        )),
+    //                        [],
+    //                        (NEList.doubleton
+    //                          (EInt64(234213618UL, 5))
+    //                          (EInt64(923423468UL, 6)))
+    //                      ))
+    //                      (EInt64(648327618UL, 7)))
+    //                  ))
+    //                  (EInt64(325843618UL, 8)))
+    //              )
+    //            )
+    //          )
+    //        symtable = Map.empty
+    //        typeSymbolTable = Map.empty
+    //        parameters = NEList.singleton (RT.LPVariable(id 5678, "a")) }
+    //  ),
+    //  TFn(NEList.singleton TInt64, TInt64))
+    ("db", DDB "Visitors", TDB TInt64)
+    ("date",
+     DDateTime(
+       DarkDateTime.fromInstant (NodaTime.Instant.ofIsoString "2018-09-14T00:31:41Z")
+     ),
+     TDateTime)
+    ("uuid", DUuid(System.Guid.Parse "7d9e5495-b068-4364-a2cc-3633ab4d13e6"), TUuid)
+    ("uuid0", DUuid(System.Guid.Parse "00000000-0000-0000-0000-000000000000"), TUuid)
+    ("option",
+     DEnum(Dval.optionType, Dval.optionType, [ VT.int64 ], "None", []),
+     TypeReference.option TInt64)
+    ("option2",
+     DEnum(Dval.optionType, Dval.optionType, [ VT.int64 ], "Some", [ Dval.int64 15 ]),
+     TypeReference.option TInt64)
+    ("option3",
+     DEnum(
+       Dval.optionType,
+       Dval.optionType,
+       [ VT.string ],
+       "Some",
+       [ DString "a string" ]
+     ),
+     TypeReference.option TString)
+    ("option4",
+     DEnum(Dval.optionType, Dval.optionType, [ VT.int8 ], "Some", [ Dval.int8 15y ]),
+     TypeReference.option TInt8)
+    ("option5",
+     DEnum(
+       Dval.optionType,
+       Dval.optionType,
+       [ VT.uint8 ],
+       "Some",
+       [ Dval.uint8 15uy ]
+     ),
+     TypeReference.option TUInt8)
+    ("option6",
+     DEnum(
+       Dval.optionType,
+       Dval.optionType,
+       [ VT.int16 ],
+       "Some",
+       [ Dval.int16 16s ]
+     ),
+     TypeReference.option TInt16)
+    ("option7",
+     DEnum(
+       Dval.optionType,
+       Dval.optionType,
+       [ VT.uint16 ],
+       "Some",
+       [ Dval.uint16 16us ]
+     ),
+     TypeReference.option TUInt16)
+    ("option8",
+     DEnum(
+       Dval.optionType,
+       Dval.optionType,
+       [ VT.int32 ],
+       "Some",
+       [ Dval.int32 32l ]
+     ),
+     TypeReference.option TInt32)
+    ("option9",
+     DEnum(
+       Dval.optionType,
+       Dval.optionType,
+       [ VT.uint32 ],
+       "Some",
+       [ Dval.uint32 32ul ]
+     ),
+     TypeReference.option TUInt32)
+    ("option10",
+     DEnum(
+       Dval.optionType,
+       Dval.optionType,
+       [ VT.int128 ],
+       "Some",
+       [ Dval.int128 128Q ]
+     ),
+     TypeReference.option TInt128)
+    ("option11",
+     DEnum(
+       Dval.optionType,
+       Dval.optionType,
+       [ VT.uint128 ],
+       "Some",
+       [ Dval.uint128 128Z ]
+     ),
+     TypeReference.option TUInt128)
+    ("option12",
+     DEnum(
+       Dval.optionType,
+       Dval.optionType,
+       [ VT.uint64 ],
+       "Some",
+       [ Dval.uint64 64UL ]
+     ),
+     TypeReference.option TUInt64)
+    ("character", DChar "s", TChar)
+    ("bytes",
+     ((System.Convert.FromBase64String "JyIoXCg=") |> Dval.byteArrayToDvalList),
+     (TList TUInt8))
+    // use image bytes here to test for any weird bytes forms
+    ("bytes2",
+     // TODO: deeply nested data
+     (LibCloud.File.readfileBytes LibCloud.Config.Testdata "sample_image_bytes.png")
+     |> Dval.byteArrayToDvalList,
+     (TList TUInt8))
+    ("simple2Tuple",
+     DTuple(Dval.int64 1, Dval.int64 2, []),
+     TTuple(TInt64, TInt64, []))
+    ("simple3Tuple",
+     DTuple(Dval.int64 1, Dval.int64 2, [ Dval.int64 3 ]),
+     TTuple(TInt64, TInt64, [ TInt64 ]))
+    ("tupleWithUnit",
+     DTuple(Dval.int64 1, Dval.int64 2, [ DUnit ]),
+     TTuple(TInt64, TInt64, [ TUnit ]))
+    ("tupleWithError",
+     DTuple(
+       Dval.int64 1,
+       DEnum(
+         Dval.resultType,
+         Dval.resultType,
+         [ VT.unknown; VT.string ],
+         "Error",
+         [ DString "error" ]
+       ),
+       []
+     ),
+     TTuple(TInt64, TypeReference.result TInt64 TString, [])) ]
 
-// let sampleDvals : List<string * (Dval * TypeReference)> =
-//   List.concat
-//     [ List.map (fun (k, v) -> k, DInt64 v, TInt64) interestingInts
-//       List.map (fun (k, v) -> k, DFloat v, TFloat) interestingFloats
-//       List.map (fun (k, v) -> k, DString v, TString) interestingStrings
-//       List.map (fun (k, v) -> k, DString v, TString) naughtyStrings
-//       interestingDvals ]
-//   |> List.map (fun (k, v, t) -> k, (v, t))
+let sampleDvals : List<string * (Dval * TypeReference)> =
+  List.concat
+    [ List.map (fun (k, v) -> k, DInt64 v, TInt64) interestingInts
+      List.map (fun (k, v) -> k, DFloat v, TFloat) interestingFloats
+      List.map (fun (k, v) -> k, DString v, TString) interestingStrings
+      List.map (fun (k, v) -> k, DString v, TString) naughtyStrings
+      interestingDvals ]
+  |> List.map (fun (k, v, t) -> k, (v, t))
 
 // Utilties shared among tests
 module Http =
