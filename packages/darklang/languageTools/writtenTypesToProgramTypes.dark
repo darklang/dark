@@ -224,8 +224,6 @@ module Darklang =
             | TVariable(_range, _, (_, name)) ->
               (ProgramTypes.TypeReference.TVariable name, [])
 
-            // | uncaught ->
-            //   Builtin.debug "uncaught" uncaught
 
         let toPT
           (onMissing: NameResolver.OnMissing)

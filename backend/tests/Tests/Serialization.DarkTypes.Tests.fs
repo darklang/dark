@@ -1,7 +1,6 @@
 module Tests.DarkTypesSerialization
 
 open Expecto
-open System.Text.RegularExpressions
 
 open Prelude
 
@@ -14,7 +13,6 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
-module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module PackageIDs = LibExecution.PackageIDs
 
@@ -108,43 +106,43 @@ module RoundtripTests =
           PT2DT.PackageConstant.fromDT
           None
 
-        // testRoundtripList
-        //   "PT.PackageFn"
-        //   (pkg PackageIDs.Type.LanguageTools.ProgramTypes.PackageFn.packageFn)
-        //   V.ProgramTypes.packageFns
-        //   PT2DT.PackageFn.toDT
-        //   PT2DT.PackageFn.fromDT
-        //   None
+        testRoundtripList
+          "PT.PackageFn"
+          (pkg PackageIDs.Type.LanguageTools.ProgramTypes.PackageFn.packageFn)
+          V.ProgramTypes.packageFns
+          PT2DT.PackageFn.toDT
+          PT2DT.PackageFn.fromDT
+          None
 
-        // testRoundtripList
-        //   "PT.Secret"
-        //   (pkg PackageIDs.Type.LanguageTools.ProgramTypes.secret)
-        //   V.ProgramTypes.userSecrets
-        //   PT2DT.Secret.toDT
-        //   PT2DT.Secret.fromDT
-        //   None
+        testRoundtripList
+          "PT.Secret"
+          (pkg PackageIDs.Type.LanguageTools.ProgramTypes.secret)
+          V.ProgramTypes.userSecrets
+          PT2DT.Secret.toDT
+          PT2DT.Secret.fromDT
+          None
 
-        // testRoundtripList
-        //   "PT.DB"
-        //   (pkg PackageIDs.Type.LanguageTools.ProgramTypes.db)
-        //   V.ProgramTypes.userDBs
-        //   PT2DT.DB.toDT
-        //   PT2DT.DB.fromDT
-        //   None
+        testRoundtripList
+          "PT.DB"
+          (pkg PackageIDs.Type.LanguageTools.ProgramTypes.db)
+          V.ProgramTypes.userDBs
+          PT2DT.DB.toDT
+          PT2DT.DB.fromDT
+          None
 
-        // testRoundtripList
-        //   "PT.Handler"
-        //   (pkg PackageIDs.Type.LanguageTools.ProgramTypes.Handler.handler)
-        //   V.ProgramTypes.Handler.handlers
-        //   PT2DT.Handler.toDT
-        //   PT2DT.Handler.fromDT
-        //   None
-        ]
+        testRoundtripList
+          "PT.Handler"
+          (pkg PackageIDs.Type.LanguageTools.ProgramTypes.Handler.handler)
+          V.ProgramTypes.Handler.handlers
+          PT2DT.Handler.toDT
+          PT2DT.Handler.fromDT
+          None ]
 
   module RuntimeTypes =
     let pkg (id : uuid) = RT.FQTypeName.fqPackage id
 
     let tests =
+      // CLEANUP backfill with more things from RT
       [ testRoundtripList
           "RT.FQTypeName"
           (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.FQTypeName.fqTypeName)
@@ -153,22 +151,22 @@ module RoundtripTests =
           RT2DT.FQTypeName.fromDT
           None
 
-        // testRoundtripList
-        //   "RT.FQConstantName"
-        //   (pkg
-        //     PackageIDs.Type.LanguageTools.RuntimeTypes.FQConstantName.fqConstantName)
-        //   V.RuntimeTypes.fqConstantNames
-        //   RT2DT.FQConstantName.toDT
-        //   RT2DT.FQConstantName.fromDT
-        //   None
+        testRoundtripList
+          "RT.FQConstantName"
+          (pkg
+            PackageIDs.Type.LanguageTools.RuntimeTypes.FQConstantName.fqConstantName)
+          V.RuntimeTypes.fqConstantNames
+          RT2DT.FQConstantName.toDT
+          RT2DT.FQConstantName.fromDT
+          None
 
-        // testRoundtripList
-        //   "RT.FQFnName"
-        //   (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.FQFnName.fqFnName)
-        //   V.RuntimeTypes.fqFnNames
-        //   RT2DT.FQFnName.toDT
-        //   RT2DT.FQFnName.fromDT
-        //   None
+        testRoundtripList
+          "RT.FQFnName"
+          (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.FQFnName.fqFnName)
+          V.RuntimeTypes.fqFnNames
+          RT2DT.FQFnName.toDT
+          RT2DT.FQFnName.fromDT
+          None
 
         testRoundtripList
           "RT.TypeReference"
@@ -178,29 +176,21 @@ module RoundtripTests =
           RT2DT.TypeReference.fromDT
           None
 
-        // testRoundtripList
-        //   "RT.Expr"
-        //   (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.expr)
-        //   V.RuntimeTypes.exprs
-        //   RT2DT.Expr.toDT
-        //   RT2DT.Expr.fromDT
-        //   None
+        testRoundtripList
+          "RT.ValueType"
+          (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.valueType)
+          V.RuntimeTypes.valueTypes
+          RT2DT.ValueType.toDT
+          RT2DT.ValueType.fromDT
+          None
 
-        // testRoundtripList
-        //   "RT.ValueType"
-        //   (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.valueType)
-        //   V.RuntimeTypes.valueTypes
-        //   RT2DT.ValueType.toDT
-        //   RT2DT.ValueType.fromDT
-        //   None
-
-        // testRoundtripList
-        //   "RT.Dval"
-        //   (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.dval)
-        //   V.RuntimeTypes.dvals
-        //   RT2DT.Dval.toDT
-        //   RT2DT.Dval.fromDT
-        //   (Some Expect.equalDval)
+        testRoundtripList
+          "RT.Dval"
+          (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.dval)
+          V.RuntimeTypes.dvals
+          RT2DT.Dval.toDT
+          RT2DT.Dval.fromDT
+          (Some Expect.RT.equalDval)
 
 
         // CLEANUP consider adding roundtrip tests here around

@@ -59,116 +59,9 @@ module RuntimeTypes =
 
       RT.TCustomType(Ok(RT.FQTypeName.Package uuid), [ RT.TBool ])
 
-      //RT.TDB RT.TBool
+      RT.TDB RT.TBool
 
       RT.TVariable "test" ]
-
-  // let letPatterns : List<RT.LetPattern> =
-  //   [ RT.LPVariable(id, "test")
-  //     RT.LPUnit(id)
-  //     RT.LPTuple(id, RT.LPUnit id, RT.LPUnit id, []) ]
-
-  //   let matchPatterns : List<RT.MatchPattern> =
-  //     [ RT.MPVariable(id, "test")
-  //       RT.MPEnum(id, "Some", [ RT.MPVariable(id, "var") ])
-  //       RT.MPInt64(id, 7857395)
-  //       RT.MPUInt64(id, 756386UL)
-  //       RT.MPInt8(id, 127y)
-  //       RT.MPUInt8(id, 255uy)
-  //       RT.MPInt16(id, 32767s)
-  //       RT.MPUInt16(id, 65535us)
-  //       RT.MPInt32(id, 2147483647l)
-  //       RT.MPUInt32(id, 4294967295ul)
-  //       RT.MPInt128(id, 170141183460Q)
-  //       RT.MPUInt128(id, 340282366920938Z)
-  //       RT.MPBool(id, true)
-  //       RT.MPChar(id, "8jgkdjsfg")
-  //       RT.MPString(id, "iklfijo13294")
-  //       RT.MPUnit(id)
-  //       RT.MPTuple(
-  //         id,
-  //         RT.MPUnit(id),
-  //         RT.MPString(id, "1243sdfsadf"),
-  //         [ RT.MPVariable(id, "var2") ]
-  //       )
-  //       RT.MPFloat(id, 79375.847583)
-  //       RT.MPList(id, [ RT.MPString(id, "1234") ])
-  //       RT.MPListCons(
-  //         id,
-  //         RT.MPString(id, "val1"),
-  //         RT.MPListCons(
-  //           id,
-  //           RT.MPString(id, "val2"),
-  //           RT.MPList(id, [ RT.MPString(id, "val3") ])
-  //         )
-  //       ) ]
-
-  //   let exprs : List<RT.Expr> =
-  //     [ RT.EInt64(id, 7L)
-  //       RT.EUInt64(id, 7UL)
-  //       RT.EInt8(id, 7y)
-  //       RT.EUInt8(id, 7uy)
-  //       RT.EInt16(id, 7s)
-  //       RT.EUInt16(id, 7us)
-  //       RT.EInt32(id, 7l)
-  //       RT.EUInt32(id, 7ul)
-  //       RT.EInt128(id, 7Q)
-  //       RT.EUInt128(id, 7Z)
-  //       RT.EBool(id, false)
-  //       RT.EString(
-  //         id,
-  //         [ RT.StringText "asdfasedf"
-  //           RT.StringInterpolation(RT.EVariable(id, "var")) ]
-  //       )
-  //       RT.EUnit(id)
-  //       RT.ELet(
-  //         id,
-  //         RT.LPVariable(id, "binding"),
-  //         RT.EUnit(id),
-  //         RT.EVariable(id, "binding")
-  //       )
-  //       RT.EIf(id, RT.EUnit(id), RT.EUnit(id), Some(RT.EUnit(id)))
-  //       RT.EIf(id, RT.EUnit(id), RT.EUnit(id), None)
-  //       RT.ELambda(id, NEList.singleton (RT.LPVariable(id, "var3")), RT.EUnit(id))
-  //       RT.ELambda(
-  //         id,
-  //         NEList.singleton (
-  //           RT.LPTuple(id, RT.LPVariable(id, "var11"), RT.LPVariable(id, "var12"), [])
-  //         ),
-  //         RT.EUnit(id)
-  //       )
-  //       RT.ERecordFieldAccess(id, RT.EUnit(id), "field")
-  //       RT.EVariable(id, "var4")
-  //       RT.EApply(id, RT.EUnit(id), typeReferences, NEList.singleton (RT.EUnit(id)))
-  //       RT.EApply(
-  //         id,
-  //         RT.EFnName(id, RT.FQFnName.Package uuid),
-  //         [],
-  //         (NEList.singleton (RT.EUnit(id)))
-  //       )
-  //       RT.EList(id, [ RT.EUnit(id) ])
-  //       RT.ETuple(id, RT.EUnit(id), RT.EUnit(id), [ RT.EUnit(id) ])
-  //       RT.ERecord(
-  //         id,
-  //         RT.FQTypeName.Package uuid,
-  //         NEList.singleton ("a9df8", RT.EUnit(id))
-  //       )
-  //       RT.ERecordUpdate(
-  //         id,
-  //         RT.EVariable(id, "myRec"),
-  //         NEList.singleton ("y", RT.EInt64(id, 2L))
-  //       )
-  //       RT.EMatch(
-  //         id,
-  //         RT.EInt64(id, 123),
-  //         NEList.singleton
-  //           { pat = RT.MPVariable(id, "i")
-  //             whenCondition = None
-  //             rhs = RT.EVariable(id, "i") }
-  //       )
-  //       RT.EAnd(id, RT.EBool(id, true), RT.EBool(id, false))
-  //       RT.EOr(id, RT.EBool(id, true), RT.EBool(id, false))
-  //       RT.EEnum(id, RT.FQTypeName.Package uuid, "A", [ RT.EUnit(id) ]) ]
 
 
   let valueTypes : List<RT.ValueType> =
@@ -203,8 +96,7 @@ module RuntimeTypes =
 
       known (RT.KnownType.KTFn(NEList.singleton ktUnit, ktUnit))
 
-      //known (RT.KnownType.KTDB ktUnit)
-      ]
+      known (RT.KnownType.KTDB ktUnit) ]
 
   let dvals : List<RT.Dval> =
     // TODO: is this exhaustive? I haven't checked.
@@ -653,23 +545,23 @@ module ProgramTypes =
 
 
   let constValue : Const =
-    Const.CTuple(
-      Const.CInt64(314L),
-      Const.CBool(true),
-      [ Const.CString("string")
-        Const.CUnit
-        Const.CFloat(Positive, "3", "14")
-        Const.CChar("c")
-        Const.CUnit
-        Const.CUInt64(3UL)
-        Const.CInt8(4y)
-        Const.CUInt8(3uy)
-        Const.CInt16(4s)
-        Const.CUInt16(3us)
-        Const.CInt32(4l)
-        Const.CUInt32(3ul)
-        Const.CInt128(-1Q)
-        Const.CUInt128(1Z) ]
+    CTuple(
+      CInt64(314L),
+      CBool(true),
+      [ CString("string")
+        CUnit
+        CFloat(Positive, "3", "14")
+        CChar("c")
+        CUnit
+        CUInt64(3UL)
+        CInt8(4y)
+        CUInt8(3uy)
+        CInt16(4s)
+        CUInt16(3us)
+        CInt32(4l)
+        CUInt32(3ul)
+        CInt128(-1Q)
+        CUInt128(1Z) ]
     )
 
 
