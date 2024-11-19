@@ -31,6 +31,38 @@ module Darklang =
                     ) }
             )
 
+        let parseAndReportDiagnostics
+          (requestText: String)
+          : Stdlib.Result.Result<WrittenTypes.ParsedFile, String> =
+          let onMissing = LanguageTools.NameResolver.OnMissing.Allow
+          let pm = LanguageTools.PackageManager.pm ()
+
+          let parsed =
+            requestText |> Parser.parseToSimplifiedTree |> Parser.parseFromTree
+
+          let sourceFile =
+            match parsed with
+            | Ok parsedFile ->
+              match parsedFile with
+              | SourceFile sf -> sf
+              | _ -> log "Invalid source file"
+            | Error err -> log err
+
+          let (_ptCliScriptModule, unresolvedNames) =
+            Parser.CliScript.parse
+              "LSP"
+              "scriptName"
+              onMissing
+              pm
+              "fileName"
+              requestText
+
+          Diagnostics.gatherAndReportDiagnostics
+            sourceFile
+            (unresolvedNames |> Stdlib.List.flatten)
+
+          parsed
+
         // -- message-handling
 
         let handleTextDocumentDidOpen
@@ -38,10 +70,16 @@ module Darklang =
           (request:
             LanguageServerProtocol.DocumentSync.TextDocument.DidOpenTextDocumentNotification.DidOpenTextDocumentParams.DidOpenTextDocumentParams)
           : LspState =
-          let parsed =
-            request.textDocument.text
-            |> Parser.parseToSimplifiedTree
-            |> Parser.parseFromTree
+          let parsed = parseAndReportDiagnostics request.textDocument.text
+
+          let parsedToPT =
+            match parsed with
+            | Ok parsedFile ->
+              (WrittenTypesToProgramTypes.parsedFileAsSourceFile parsedFile)
+              |> Stdlib.Tuple2.first
+              |> Stdlib.Option.Option.Some
+
+            | _ -> Stdlib.Option.Option.None
 
           { state with
               documentsInScope =
@@ -51,7 +89,33 @@ module Darklang =
                   (LanguageTools.LspServer.DocumentInScope
                     { uri = request.textDocument.uri
                       text = request.textDocument.text
-                      parsed = parsed }) }
+                      parsed = parsed
+                      parsedToPT = parsedToPT }) }
+
+
+        let handleTextDocumentDidChange
+          (state: LspState)
+          (request:
+            LanguageServerProtocol.DocumentSync.TextDocument.DidChangeTextDocumentNotification.DidChangeTextDocumentParams.DidChangeTextDocumentParams)
+          : LspState =
+          let text = request.contentChanges |> Stdlib.List.head |> Builtin.unwrap
+
+          let existingDoc =
+            (Stdlib.Dict.get state.documentsInScope request.textDocument.uri)
+            |> Builtin.unwrap
+
+          { state with
+              documentsInScope =
+                Stdlib.Dict.set
+                  state.documentsInScope
+                  request.textDocument.uri
+                  (LanguageTools.LspServer.DocumentInScope
+                    { uri = request.textDocument.uri
+                      text = text.text
+                      // don't re-parse the text, just use the existing parsed value
+                      // TODO maybe we should re-parse, currently it breaks the LSP server
+                      parsed = existingDoc.parsed
+                      parsedToPT = existingDoc.parsedToPT }) }
 
 
         let handleTextDocumentDidSave
@@ -67,7 +131,16 @@ module Darklang =
             state
 
           | Some text ->
-            let parsed = text |> Parser.parseToSimplifiedTree |> Parser.parseFromTree
+            let parsed = parseAndReportDiagnostics text
+
+            let parsedToPT =
+              match parsed with
+              | Ok parsedFile ->
+                (WrittenTypesToProgramTypes.parsedFileAsSourceFile parsedFile)
+                |> Stdlib.Tuple2.first
+                |> Stdlib.Option.Option.Some
+
+              | _ -> Stdlib.Option.Option.None
 
             { state with
                 documentsInScope =
@@ -77,7 +150,8 @@ module Darklang =
                     (LanguageTools.LspServer.DocumentInScope
                       { uri = request.textDocument.uri
                         text = text
-                        parsed = parsed }) }
+                        parsed = parsed
+                        parsedToPT = parsedToPT }) }
 
 
         let handleTextDocumentDidClose

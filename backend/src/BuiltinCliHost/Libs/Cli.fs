@@ -309,7 +309,9 @@ let fns : List<BuiltInFn> =
                 }
 
               let resolveFnArgs =
-                NEList.ofList onMissingAllow [ pm; currentModule; nameArg ]
+                NEList.ofList
+                  onMissingAllow
+                  [ pm; RT.DString "Cli"; currentModule; nameArg ]
 
               let! execResult =
                 Exe.executeFunction exeState resolveFn [] resolveFnArgs
@@ -349,6 +351,8 @@ let fns : List<BuiltInFn> =
                       match dval with
                       | DEnum(_, _, _, _, fields) -> fields |> List.tail
                       | e -> Exception.raiseInternal "Invalid Expr" [ "e", e ])
+
+                  let newArgs = if newArgs = [] then [ RT.DUnit ] else newArgs
 
                   let! result =
                     Exe.executeFunction

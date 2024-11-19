@@ -236,7 +236,7 @@ open TestUtils.TestUtils
 //         package = fun _name -> Ply(Some(PT2RT.PackageFn.toRT fn)) }
 
 //     let! expr =
-//       parse [ fn ] "let a = 1L\nlet b = 9L\n(p.height == Tests.userAdd 6L (b - 4L))"
+//       parse [ fn ] "let a = 1L\nlet b = 9L\n(p.height == (Tests.userAdd 6L (b - 4L)))"
 
 //     let! expected = parse [ fn ] "p.height == 6L + (9L - 4L)"
 //     let! result = (C.inline' fns "value" Map.empty expr) |> Ply.toTask

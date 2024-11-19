@@ -1,8 +1,7 @@
 module Darklang =
   module LanguageTools =
     module Parser =
-      // CLEANUP: maybe rename this to just Test?
-      module ParserTest =
+      module TestParsing =
         let initialParse (code: String) : WrittenTypes.ParsedFile =
           code
           |> LanguageTools.Parser.parseToSimplifiedTree
@@ -13,7 +12,7 @@ module Darklang =
         let parsePTExpr
           (code: String)
           : Stdlib.Result.Result<ProgramTypes.Expr, String> =
-          let sourceFile = code |> ParserTest.initialParse
+          let sourceFile = code |> TestParsing.initialParse
 
           let exprs =
             match sourceFile with
@@ -25,18 +24,21 @@ module Darklang =
 
           match exprs with
           | [ expr ] ->
-            (WrittenTypesToProgramTypes.Expr.toPT onMissing pm "" [] expr)
-            |> Stdlib.Result.Result.Ok
+            let (expr, _) =
+              WrittenTypesToProgramTypes.Expr.toPT onMissing pm "" [] expr
+
+            expr |> Stdlib.Result.Result.Ok
           | _ ->
             "Expected exactly one expression to be parsed"
             |> Stdlib.Result.Result.Error
 
         let parsePTSourceFile (code: String) : ProgramTypes.SourceFile.SourceFile =
           code
-          |> ParserTest.initialParse
+          |> TestParsing.initialParse
           |> WrittenTypesToProgramTypes.parsedFileAsSourceFile
+          |> Stdlib.Tuple2.first
 
         let parseAndPrettyPrint (code: String) : String =
           code
-          |> ParserTest.parsePTSourceFile
+          |> TestParsing.parsePTSourceFile
           |> PrettyPrinter.ProgramTypes.sourceFile

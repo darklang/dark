@@ -362,6 +362,19 @@ module Darklang =
           Stdlib.Option.Option.Some(Builtin.stringIndexOf str searchFor)
 
 
+      /// Returns {{Just index}} of the last occurrence of <param searchFor> in <param str>,
+      /// or returns {{Nothing}} if <param searchFor> does not occur.
+      let lastIndexOf
+        (str: String)
+        (searchFor: String)
+        : Stdlib.Option.Option<Int64> =
+        let lastIndex = Builtin.stringLastIndexOf str searchFor
+
+        if lastIndex == -1L then
+          Stdlib.Option.Option.None
+        else
+          Stdlib.Option.Option.Some(lastIndex)
+
 
       /// Returns the <param string> repeated for a specified <param count> times.
       /// If <param count> is less than or equal to 0, returns an empty string.

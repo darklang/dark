@@ -90,6 +90,8 @@ module Darklang =
 
               | Error _ -> createUnparseableError node
 
+            | _ -> createUnparseableError node
+
           else
             createUnparseableError node
 
@@ -477,6 +479,8 @@ module Darklang =
 
             | Error _ -> createUnparseableError node
 
+          | _ -> createUnparseableError node
+
 
         let parseFieldAccess
           (node: ParsedNode)
@@ -783,7 +787,7 @@ module Darklang =
           match fnNameNode, args with
           | Ok fnName, Ok args ->
             let typeArgs = fnName.typeArgs
-            let fnName = WrittenTypes.Expr.EFnName(node.range, fnName)
+            let fnName = WrittenTypes.Expr.EFnName(fnName.range, fnName)
 
             (WrittenTypes.Expr.EApply(node.range, fnName, typeArgs, args))
             |> Stdlib.Result.Result.Ok
@@ -861,6 +865,9 @@ module Darklang =
           | "apply" -> parseFunctionCall node
 
           | "qualified_const_or_fn_name" -> parseConstanrOrFnName node
+          | "dbReference" ->
+            (WrittenTypes.Expr.EVariable(node.range, getText node))
+            |> Stdlib.Result.Result.Ok
 
           | _ -> createUnparseableError node
 

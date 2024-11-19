@@ -1364,6 +1364,14 @@ let exprs =
   //       []
   //       []
   //       false
+  // t
+  //     "fn call with db reference"
+  //     """Stdlib.DB.set (Test { x = "x" }) "key" TestDB"""
+  //     """PACKAGE.Darklang.Stdlib.DB.set Test { x = "x" } "key" TestDB"""
+  //     []
+  //     []
+  //     []
+  //     false
   ]
   |> testList "exprs"
 
@@ -1713,7 +1721,7 @@ let sourceFiles =
   // type BookID = Int64
 
   // let getTitle (bookId: BookID): String =
-  //   let book = Library.getBook bookId
+  //   let book = (Library.getBook bookId)
   //   getNameFromBook book
 
   // let curiousGeorgeBookId = 101L

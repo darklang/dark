@@ -2,7 +2,30 @@ module Darklang =
   module LanguageTools =
     module LspServer =
       module Diagnostics =
-        let foo = "bar"
+        let gatherAndReportDiagnostics
+          (parsedText: WrittenTypes.SourceFile.SourceFile)
+          (unresolvedNames: List<Parser.Range * ProgramTypes.NameResolutionError>)
+          : Unit =
+          let warningDiagnostics =
+            unresolvedNames
+            |> Stdlib.List.map (fun (range, error) ->
+              createWarningDiagnostic
+                range
+                (RuntimeErrors.NameResolution.toString error))
+
+          let errorDiagnostics =
+            parsedText.unparseableStuff
+            |> Stdlib.List.map (fun unparseable ->
+              createErrorDiagnostic
+                unparseable.source.range
+                "Couldn't parse this part of the file")
+
+          let diagnostics = Stdlib.List.append warningDiagnostics errorDiagnostics
+
+          sendDiagnostic request.textDocument.uri diagnostics
+
+
+
 
 (* future: report diagnostics on content update or save
 

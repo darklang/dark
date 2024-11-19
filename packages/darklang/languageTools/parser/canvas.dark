@@ -68,7 +68,7 @@ module Darklang =
           (pm: ProgramTypes.PackageManager.PackageManager)
           (wt: WTCanvasModule)
           : PTCanvasModule =
-          let types =
+          let (types, _) =
             wt.types
             |> Stdlib.List.map (fun t ->
               LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT
@@ -77,8 +77,9 @@ module Darklang =
                 wt.owner
                 []
                 t)
+            |> Stdlib.List.unzip
 
-          let constants =
+          let (constants, _) =
             wt.constants
             |> Stdlib.List.map (fun c ->
               WrittenTypesToProgramTypes.ConstantDeclaration.toPackageConstPT
@@ -87,8 +88,9 @@ module Darklang =
                 wt.owner
                 []
                 c)
+            |> Stdlib.List.unzip
 
-          let fns =
+          let (fns, _) =
             wt.fns
             |> Stdlib.List.map (fun f ->
               WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT
@@ -97,8 +99,9 @@ module Darklang =
                 wt.owner
                 []
                 f)
+            |> Stdlib.List.unzip
 
-          let exprs =
+          let (exprs, _) =
             wt.exprs
             |> Stdlib.List.map (fun e ->
               LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
@@ -107,6 +110,7 @@ module Darklang =
                 wt.owner
                 []
                 e)
+            |> Stdlib.List.unzip
 
           PTCanvasModule
             { types = types
@@ -123,7 +127,7 @@ module Darklang =
           (filename: String)
           (source: String)
           : PTCanvasModule =
-          let parsedFile = source |> LanguageTools.Parser.ParserTest.initialParse
+          let parsedFile = source |> LanguageTools.Parser.TestParsing.initialParse
           let moduleWT = (parseDecls owner canvasName parsedFile) |> Builtin.unwrap
           let initialParse = toPT onMissing pm moduleWT
 

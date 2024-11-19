@@ -39,8 +39,8 @@ let parseGenericName (name : string) : GenericName =
     match List.rev modulesAndName with
     | name :: modulesInReverse ->
       { owner = owner; modules = List.rev modulesInReverse; name = name }
-    | [] -> failwithf "Invalid name (no name): %s" name
-  | [] -> failwithf "Invalid name (no owner): %s" name
+    | [] -> Exception.raiseInternal "Invalid name (no name)" [ "name", name ]
+  | [] -> Exception.raiseInternal "Invalid name (no owner)" [ "name", name ]
 
 
 let fns (pm : PT.PackageManager) : List<BuiltInFn> =
@@ -190,6 +190,25 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             match! pm.getFn id with
             | Some f -> return f |> PT2DT.PackageFn.toDT |> Dval.optionSome optType
             | None -> return Dval.optionNone optType
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "packageManagerGetAllFnNames" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TList(TString)
+      description = "Returns a list of all package functions fully qualified names"
+      fn =
+        (function
+        | _, _, _, [ DUnit ] ->
+          uply {
+            let! fns = pm.getAllFnNames ()
+            let dval = fns |> List.map (fun f -> DString f) |> Dval.list KTString
+            return dval
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

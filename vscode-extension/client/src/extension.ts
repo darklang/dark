@@ -22,7 +22,7 @@ export function activate(context: ExtensionContext) {
       isDebugMode ? "./scripts/run-cli" : "darklang",
       "--skip-self-update",
       "@PACKAGE.Darklang.LanguageTools.LspServer.runServerCli",
-      "null", // 'parses' to () - TODO clean this up once we switch over to new parser
+      "()", // 'parses' to () - TODO clean this up once we switch over to new parser
     ],
     transport: TransportKind.stdio,
   };
@@ -84,14 +84,11 @@ export function activate(context: ExtensionContext) {
     terminal.show(true);
 
     if (isDebugMode()) {
-      let changeDirCommand = `cd /home/dark/app`;
-      let scriptCommand = `./scripts/run-cli  "${filePath}" --skip-self-update`;
-      terminal.sendText(changeDirCommand, true);
+      let scriptCommand = `cd /home/dark/app && { TIMEFORMAT=$'Script executed in: %3lR'; time ./scripts/run-cli "${filePath}" --skip-self-update; }`;
+
       terminal.sendText(scriptCommand, true);
     } else {
-      let changeDirCommand = `cd ${os.homedir()}`;
-      let scriptCommand = `darklang "${filePath}" --skip-self-update`;
-      terminal.sendText(changeDirCommand, true);
+      let scriptCommand = `cd ${os.homedir()} && { TIMEFORMAT=$'Script executed in: %3lR'; time darklang "${filePath}" --skip-self-update; }`;
       terminal.sendText(scriptCommand, true);
     }
   });

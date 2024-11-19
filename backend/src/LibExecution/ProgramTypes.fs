@@ -634,6 +634,7 @@ type PackageManager =
     getConstant :
       FQConstantName.Package -> Ply<Option<PackageConstant.PackageConstant>>
     getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
+    getAllFnNames : unit -> Ply<List<string>>
 
     init : Ply<unit> }
 
@@ -645,6 +646,7 @@ type PackageManager =
       getType = (fun _ -> Ply None)
       getFn = (fun _ -> Ply None)
       getConstant = (fun _ -> Ply None)
+      getAllFnNames = (fun _ -> Ply [])
 
       init = uply { return () } }
 
@@ -689,6 +691,7 @@ type PackageManager =
           | Some f -> Ply(Some f)
           | None -> pm.getFn id
 
+      getAllFnNames = pm.getAllFnNames
       init = pm.init }
 
 

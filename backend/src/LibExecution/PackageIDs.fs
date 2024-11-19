@@ -386,11 +386,11 @@ module Fn =
     module Parser =
       let private p addl = p ("Parser" :: addl)
       let parsePTExpr =
-        p [ "ParserTest" ] "parsePTExpr" "d96d3e6b-6c0d-4559-ae36-353eaf738fa9"
+        p [ "TestParsing" ] "parsePTExpr" "d96d3e6b-6c0d-4559-ae36-353eaf738fa9"
 
       let parseAndPrettyPrint =
         p
-          [ "ParserTest" ]
+          [ "TestParsing" ]
           "parseAndPrettyPrint"
           "361fb7f2-523b-4b50-8f29-cc99d5f03e3a"
 

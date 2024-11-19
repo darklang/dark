@@ -309,7 +309,7 @@ module Darklang =
 //               | Ok _ -> currentResult
 //               | Error _ ->
 //                 match tryResolve pm nameToTry with
-//                 | Error() -> currentResult
+//                 | Error _ -> currentResult
 //                 | Ok success -> Stdlib.Result.Result.Ok success)
 
 //         throwIfRelevant onMissing result

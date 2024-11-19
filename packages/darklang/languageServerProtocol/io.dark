@@ -17,6 +17,9 @@ module Darklang =
       | TextDocumentDidOpenNotification of
         DocumentSync.TextDocument.DidOpenTextDocumentNotification.DidOpenTextDocumentParams.DidOpenTextDocumentParams
 
+      | TextDocumentDidChangeNotification of
+        DocumentSync.TextDocument.DidChangeTextDocumentNotification.DidChangeTextDocumentParams.DidChangeTextDocumentParams
+
       | TextDocumentDidSaveNotification of
         DocumentSync.TextDocument.DidSaveTextDocumentNotification.DidSaveTextDocumentParams.DidSaveTextDocumentParams
 
@@ -33,6 +36,10 @@ module Darklang =
         requestId: JsonRPC.RequestId *
         SemanticTokens.SemanticTokensRequest.SemanticTokensParams.SemanticTokensParams
 
+      // hover
+      | TextDocumentHoverRequest of
+        requestId: JsonRPC.RequestId *
+        Hover.HoverRequest.HoverParams.HoverParams
 
       // diagnostics
       // | PublishDiagnostics of
@@ -55,6 +62,12 @@ module Darklang =
         |> Builtin.unwrap
         |> IncomingMessage.TextDocumentDidOpenNotification
 
+      | ("textDocument/didChange", None, Some(Object p)) ->
+        (Stdlib.AltJson.Json.Object p)
+        |> DocumentSync.TextDocument.DidChangeTextDocumentNotification.DidChangeTextDocumentParams.fromJson
+        |> Builtin.unwrap
+        |> IncomingMessage.TextDocumentDidChangeNotification
+
       | ("textDocument/didSave", None, Some(Object p)) ->
         (Stdlib.AltJson.Json.Object p)
         |> DocumentSync.TextDocument.DidSaveTextDocumentNotification.DidSaveTextDocumentParams.fromJson
@@ -67,7 +80,6 @@ module Darklang =
         |> Builtin.unwrap
         |> IncomingMessage.TextDocumentDidCloseNotification
 
-
       // -- completion (autocomplete)
       | ("textDocument/completion", Some requestId, Some(Object p)) ->
         (Stdlib.AltJson.Json.Object p)
@@ -75,13 +87,18 @@ module Darklang =
         |> Builtin.unwrap
         |> fun p -> IncomingMessage.TextDocumentCompletionRequest(requestId, p)
 
-
       // -- semantic tokens (which provides syntax highlighting)
       | ("textDocument/semanticTokens/full", Some requestId, Some(Object p)) ->
         (Stdlib.AltJson.Json.Object p)
         |> SemanticTokens.SemanticTokensRequest.SemanticTokensParams.fromJson
         |> Builtin.unwrap
         |> fun p -> IncomingMessage.TextDocumentSemanticTokensRequest(requestId, p)
+
+      | ("textDocument/hover", Some requestId, Some(Object p)) ->
+        (Stdlib.AltJson.Json.Object p)
+        |> Hover.HoverRequest.HoverParams.fromJson
+        |> Builtin.unwrap
+        |> fun p -> IncomingMessage.TextDocumentHoverRequest(requestId, p)
 
 
       // // -- diagnostics

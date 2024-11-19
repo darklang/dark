@@ -121,6 +121,21 @@ let getFn (id : uuid) : Ply<Option<PT.PackageFn.PackageFn>> =
   }
 
 
+let getAllFnNames () : Ply<List<string>> =
+  uply {
+    let! fqName =
+      "SELECT modules, name
+      FROM package_functions_v0"
+      |> Sql.query
+      |> Sql.parameters []
+      |> Sql.executeAsync (fun read ->
+        let modules = read.string "modules"
+        let name = read.string "name"
+        modules + "." + name)
+    return fqName
+  }
+
+
 let findType (name : PT.PackageType.Name) : Ply<Option<PT.FQTypeName.Package>> =
   uply {
     return!
@@ -236,5 +251,7 @@ let pt : PT.PackageManager =
     getType = withCache getType
     getFn = withCache getFn
     getConstant = withCache getConstant
+
+    getAllFnNames = getAllFnNames
 
     init = uply { return () } }

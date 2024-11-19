@@ -39,14 +39,14 @@ module Darklang =
       let parseSingleTestFromFile (filename: String) (testSource: String) : PTTest =
         let wtTest =
           testSource
-          |> LanguageTools.Parser.ParserTest.initialParse
+          |> LanguageTools.Parser.TestParsing.initialParse
           |> Test.parseTest
           |> Builtin.unwrap
 
         let lineNumber = wtTest.lineNumber
         let pm = LanguageTools.PackageManager.pm ()
 
-        let actual =
+        let (actual, _unres) =
           LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
             LanguageTools.NameResolver.OnMissing.ThrowError
             pm
@@ -54,7 +54,7 @@ module Darklang =
             []
             wtTest.actual
 
-        let expected =
+        let (expected, _unres) =
           LanguageTools.WrittenTypesToProgramTypes.Expr.toPT
             LanguageTools.NameResolver.OnMissing.ThrowError
             pm
