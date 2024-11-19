@@ -2,6 +2,26 @@ module Darklang =
   module LanguageTools =
     module LspServer =
       module Hover =
+        let getTextAtRange
+          (text: String)
+          (range: WrittenTypes.Range)
+          : Stdlib.Option.Option<String> =
+          let startLine = range.start.row
+          let startColumn = range.start.column
+          let endColumn = range.end_.column
+
+          let lines = text |> Stdlib.String.split "\n"
+          let textLines = lines |> Stdlib.List.getAt startLine
+
+          match textLines with
+          | Some line ->
+            line
+            |> Stdlib.String.slice startColumn endColumn
+            |> Stdlib.Option.Option.Some
+
+          | None -> Stdlib.Option.Option.None
+
+
         let handleHoverRequest
           (state: LspState)
           (requestId: JsonRPC.RequestId)
@@ -10,14 +30,89 @@ module Darklang =
           //get position
           let position = params.position
 
-          //TODO: get hover information
+          /// Find the document in scope
+          let doc =
+            state.documentsInScope
+            |> Stdlib.Dict.get params.textDocument.uri
+            |> Builtin.unwrap
+
+          /// Get the parsed document
+          let parsed = doc |> (fun doc -> doc.parsed)
+
+          let onMissing = LanguageTools.NameResolver.OnMissing.Allow
+          let pm = LanguageTools.PackageManager.pm ()
+          let owner = "LspHover"
+
+          let pmWithExtras =
+            Parser.CliScript.pmWithExtras owner "" onMissing pm "" doc.text
+
+          /// Find the node at the hover position, and get the hover information
+          let info =
+            match parsed with
+            | Ok(SourceFile s) ->
+              let decls =
+                s.declarations
+                |> HoverInformation.collectNodeHoverInfoAtPos
+                  position
+                  pmWithExtras
+                  owner
+                  []
+
+              // First try to find a declaration at the position, then try to find expressions
+              match decls with
+              | Some _ -> decls
+              | None ->
+                s.exprsToEval
+                |> Stdlib.List.filterMap (fun e ->
+                  HoverInformation.collectExpressionHoverInfoAtPos
+                    e
+                    position
+                    pmWithExtras
+                    owner
+                    [])
+                |> Stdlib.List.head
+
+            | _ -> Stdlib.Option.Option.None
+
+
+          /// Get the text, metadata, and description for the hover
+          let (hoveringOn, metadata, description) =
+            match info with
+            | Some i ->
+              let text =
+                doc
+                |> (fun doc -> doc.text)
+                |> (fun text ->
+                  match getTextAtRange text i.range with
+                  | Some t -> t
+                  | None -> "something went wrong")
+
+              let metadata =
+                i.metadata |> Stdlib.Option.withDefault "No metadata available"
+
+              let description =
+                match i.description with
+                | Some d -> "\n\nDescription: \n\n" ++ d
+                | None -> "no description available"
+
+              (text, metadata, description)
+
+            | None -> ("", "No metadata available", "No description available") // TODO: remove this, we shouldn't show hover if there's no info
+
+
           // Create a hover response with Markdown content
           let hover =
             LanguageServerProtocol.Hover.Hover
               { contents =
                   LanguageServerProtocol.MarkupContent
                     { kind = LanguageServerProtocol.MarkupKind.Markdown
-                      value = "got a **hover** response \n\n yay!" }
+                      value =
+                        (HoverInformation.createCodeSnippet hoveringOn)
+                        ++ "\n\n"
+                        ++ metadata
+                        ++ "\n\n"
+                        ++ description }
+
                 range = Stdlib.Option.Option.None }
 
           let response =

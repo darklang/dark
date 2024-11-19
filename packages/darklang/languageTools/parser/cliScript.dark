@@ -79,6 +79,8 @@ module Darklang =
           : (PTCliScriptModule *
             List<Parser.Range * RuntimeErrors.NameResolution.Error>)
           =
+          let modules = if wt.name == "" then [] else [ wt.name ]
+
           let (types, unresolvedNamesInTypes) =
             wt.types
             |> Stdlib.List.map (fun t ->
@@ -86,7 +88,7 @@ module Darklang =
                 onMissing
                 pm
                 wt.owner
-                [ wt.name ]
+                modules
                 t)
             |> Stdlib.List.unzip
 
@@ -108,7 +110,7 @@ module Darklang =
                 onMissing
                 pm
                 wt.owner
-                [ wt.name ]
+                modules
                 f)
             |> Stdlib.List.unzip
 
@@ -119,7 +121,7 @@ module Darklang =
                 onMissing
                 pm
                 wt.owner
-                [ wt.name ]
+                modules
                 m)
             |> Stdlib.List.unzip
 
@@ -130,7 +132,7 @@ module Darklang =
                 onMissing
                 pm
                 wt.owner
-                [ wt.name ]
+                modules
                 e)
             |> Stdlib.List.unzip
 
@@ -274,3 +276,40 @@ module Darklang =
                 exprs = result.exprs }
 
           (adjusted, unresolvedNames)
+
+
+        let pmWithExtras
+          (owner: String)
+          (scriptName: String)
+          (onMissing: NameResolver.OnMissing)
+          (pm: ProgramTypes.PackageManager.PackageManager)
+          (filename: String)
+          (source: String)
+          : ProgramTypes.PackageManager.PackageManager =
+          let parsedFile = source |> LanguageTools.Parser.TestParsing.initialParse
+          let moduleWT = (parseDecls owner scriptName parsedFile) |> Builtin.unwrap
+          let (initialParse, _) = toPT onMissing pm moduleWT
+
+          let types =
+            Stdlib.List.append
+              initialParse.types
+              (initialParse.submodules
+               |> Stdlib.List.map (fun m -> m.types)
+               |> Stdlib.List.flatten)
+          // Builtin.debug "types" types
+
+          let constants =
+            Stdlib.List.append
+              initialParse.constants
+              (initialParse.submodules
+               |> Stdlib.List.map (fun m -> m.constants)
+               |> Stdlib.List.flatten)
+
+          let fns =
+            Stdlib.List.append
+              initialParse.fns
+              (initialParse.submodules
+               |> Stdlib.List.map (fun m -> m.fns)
+               |> Stdlib.List.flatten)
+
+          ProgramTypes.PackageManager.withExtras pm types constants fns

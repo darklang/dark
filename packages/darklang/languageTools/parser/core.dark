@@ -295,7 +295,9 @@ module Darklang =
           (Range * (Range * List<String>) * (Range * String) * List<'a> * Range)
             -> 'a)
         : Stdlib.Result.Result<'a, WrittenTypes.Unparseable> =
-        let typeNameNode = findField node "type_name"
+        let typeNameNode =
+          findAndParseRequired node "type_name" Identifiers.parseQualifiedType
+
         let symbolDotNode = findField node "symbol_dot"
         let caseNameNode = findField node "case_name"
 
@@ -315,11 +317,10 @@ module Darklang =
 
         match typeNameNode, symbolDotNode, caseNameNode, enumFieldsNode with
         | Ok typeNameNode, Ok symbolDotNode, Ok caseNameNode, Ok enumFieldsNode ->
-          let typeName = typeNameNode.text |> Stdlib.String.split "."
 
           ctor (
             node.range,
-            (typeNameNode.range, typeName),
+            typeNameNode,
             (caseNameNode.range, caseNameNode.text),
             enumFieldsNode,
             symbolDotNode.range

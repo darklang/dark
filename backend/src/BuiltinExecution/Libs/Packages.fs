@@ -41,8 +41,8 @@ let parseGenericName (name : string) : GenericName =
     match List.rev modulesAndName with
     | name :: modulesInReverse ->
       { owner = owner; modules = List.rev modulesInReverse; name = name }
-    | [] -> failwithf "Invalid name (no name): %s" name
-  | [] -> failwithf "Invalid name (no owner): %s" name
+    | [] -> Exception.raiseInternal "Invalid name (no name)" [ "name", name ]
+  | [] -> Exception.raiseInternal "Invalid name (no owner)" [ "name", name ]
 
 
 let fns (pm : PT.PackageManager) : List<BuiltInFn> =

@@ -783,8 +783,14 @@ module TokenizeConstantDeclaration =
                                                                       (TokenType.Symbol,
                                                                        (0L, 16L),
                                                                        (0L, 17L))
-                                                                      (TokenType.TypeName,
+                                                                      (TokenType.ModuleName,
                                                                        (0L, 18L),
+                                                                       (0L, 24L))
+                                                                      (TokenType.ModuleName,
+                                                                       (0L, 25L),
+                                                                       (0L, 31L))
+                                                                      (TokenType.TypeName,
+                                                                       (0L, 32L),
                                                                        (0L, 38L))
                                                                       (TokenType.Symbol,
                                                                        (0L, 38L),
@@ -1200,8 +1206,14 @@ module TokenizePipeExpression =
                                                       (TokenType.Operator,
                                                        (0L, 3L),
                                                        (0L, 5L))
-                                                      (TokenType.TypeName,
+                                                      (TokenType.ModuleName,
                                                        (0L, 6L),
+                                                       (0L, 12L))
+                                                      (TokenType.ModuleName,
+                                                       (0L, 13L),
+                                                       (0L, 19L))
+                                                      (TokenType.TypeName,
+                                                       (0L, 20L),
                                                        (0L, 26L))
                                                       (TokenType.Symbol,
                                                        (0L, 26L),
@@ -1567,7 +1579,9 @@ module TokenizeMatchExpression =
 
   ("match Stdlib.Result.Result.Ok(5L) with\n| Ok(5L) -> true\n| Error(e) -> false"
    |> tokenize) = [ (TokenType.Keyword, (0L, 0L), (0L, 5L))
-                    (TokenType.TypeName, (0L, 6L), (0L, 26L))
+                    (TokenType.ModuleName, (0L, 6L), (0L, 12L))
+                    (TokenType.ModuleName, (0L, 13L), (0L, 19L))
+                    (TokenType.TypeName, (0L, 20L), (0L, 26L))
                     (TokenType.Symbol, (0L, 26L), (0L, 27L))
                     (TokenType.EnumMember, (0L, 27L), (0L, 29L))
                     (TokenType.Number, (0L, 30L), (0L, 31L))

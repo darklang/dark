@@ -889,6 +889,19 @@ module Darklang =
           // TODO: /// for description
           $"({p.name}: {PrettyPrinter.ProgramTypes.typeReference p.typ})"
 
+
+        let signature (f: LanguageTools.ProgramTypes.PackageFn.PackageFn) : String =
+          let params =
+            f.parameters
+            |> Stdlib.List.map (fun p ->
+              p |> PrettyPrinter.ProgramTypes.PackageFn.parameter)
+            |> Stdlib.String.join ", "
+
+          let returnType = f.returnType |> PrettyPrinter.ProgramTypes.typeReference
+
+          params ++ " -> " ++ returnType
+
+
       let packageFn (p: LanguageTools.ProgramTypes.PackageFn.PackageFn) : String =
         // TODO: handle `deprecated`, `description`
         let typeParamPart =
@@ -911,3 +924,13 @@ module Darklang =
         let bodyPart = PrettyPrinter.ProgramTypes.expr p.body
 
         $"let {p.name.name}{typeParamPart} {paramPart}: {retPart} =\n{PrettyPrinter.indent bodyPart}"
+
+
+      module BuiltinFn =
+        let signature (f: LanguageTools.BuiltinFunction) : String =
+          let parameters =
+            f.parameters
+            |> Stdlib.List.map (fun p -> $"({p.name} : {p.``type``})")
+            |> Stdlib.String.join ", "
+
+          parameters ++ " -> " ++ f.returnType

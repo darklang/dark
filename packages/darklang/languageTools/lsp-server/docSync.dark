@@ -72,6 +72,15 @@ module Darklang =
           : LspState =
           let parsed = parseAndReportDiagnostics request.textDocument.text
 
+          let parsedToPT =
+            match parsed with
+            | Ok parsedFile ->
+              (WrittenTypesToProgramTypes.parsedFileAsSourceFile parsedFile)
+              |> Stdlib.Tuple2.first
+              |> Stdlib.Option.Option.Some
+
+            | _ -> Stdlib.Option.Option.None
+
           { state with
               documentsInScope =
                 Stdlib.Dict.set
@@ -80,7 +89,8 @@ module Darklang =
                   (LanguageTools.LspServer.DocumentInScope
                     { uri = request.textDocument.uri
                       text = request.textDocument.text
-                      parsed = parsed }) }
+                      parsed = parsed
+                      parsedToPT = parsedToPT }) }
 
 
         let handleTextDocumentDidChange
@@ -104,7 +114,8 @@ module Darklang =
                       text = text.text
                       // don't re-parse the text, just use the existing parsed value
                       // TODO maybe we should re-parse, currently it breaks the LSP server
-                      parsed = existingDoc.parsed }) }
+                      parsed = existingDoc.parsed
+                      parsedToPT = existingDoc.parsedToPT }) }
 
 
         let handleTextDocumentDidSave
@@ -122,6 +133,15 @@ module Darklang =
           | Some text ->
             let parsed = parseAndReportDiagnostics text
 
+            let parsedToPT =
+              match parsed with
+              | Ok parsedFile ->
+                (WrittenTypesToProgramTypes.parsedFileAsSourceFile parsedFile)
+                |> Stdlib.Tuple2.first
+                |> Stdlib.Option.Option.Some
+
+              | _ -> Stdlib.Option.Option.None
+
             { state with
                 documentsInScope =
                   Stdlib.Dict.set
@@ -130,7 +150,8 @@ module Darklang =
                     (LanguageTools.LspServer.DocumentInScope
                       { uri = request.textDocument.uri
                         text = text
-                        parsed = parsed }) }
+                        parsed = parsed
+                        parsedToPT = parsedToPT }) }
 
 
         let handleTextDocumentDidClose

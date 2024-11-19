@@ -80,14 +80,12 @@ module Darklang =
         |> Builtin.unwrap
         |> IncomingMessage.TextDocumentDidCloseNotification
 
-
       // -- completion (autocomplete)
       | ("textDocument/completion", Some requestId, Some(Object p)) ->
         (Stdlib.AltJson.Json.Object p)
         |> Completions.CompletionRequest.CompletionParams.fromJson
         |> Builtin.unwrap
         |> fun p -> IncomingMessage.TextDocumentCompletionRequest(requestId, p)
-
 
       // -- semantic tokens (which provides syntax highlighting)
       | ("textDocument/semanticTokens/full", Some requestId, Some(Object p)) ->

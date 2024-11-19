@@ -1,0 +1,101 @@
+module Darklang =
+  module LanguageTools =
+    module LspServer =
+      module CursorPosition =
+        type ThingAtPosition =
+          | Keyword of keywordName: String
+          | ModuleName of String * description: Stdlib.Option.Option<String>
+          | SubModuleName of
+            fqName: String *
+            description: Stdlib.Option.Option<String>
+          | FnName of String * description: Stdlib.Option.Option<String>
+          | PackageConstant of
+            ProgramTypes.PackageConstant.PackageConstant *
+            description: Stdlib.Option.Option<String>
+          | BuiltinFn of
+            signature: String *
+            description: Stdlib.Option.Option<String>
+          | PackageFn of
+            ProgramTypes.PackageFn.PackageFn *
+            description: Stdlib.Option.Option<String>
+          | BuiltinType of
+            signature: String *
+            description: Stdlib.Option.Option<String>
+          | PackageType of
+            ProgramTypes.PackageType.PackageType *
+            description: Stdlib.Option.Option<String>
+          | Variable of String * description: Stdlib.Option.Option<String>
+          | Operator of description: String
+          | EnumCase of String * description: Stdlib.Option.Option<String>
+          | FieldName of String * description: Stdlib.Option.Option<String>
+          | Parameter of
+            name: String *
+            typ: String *
+            description: Stdlib.Option.Option<String>
+          | TypeParameter of description: Stdlib.Option.Option<String>
+          | DictKey of String * description: Stdlib.Option.Option<String>
+          | EnumLabel of description: Stdlib.Option.Option<String>
+
+
+        let wordUnderCursor
+          (text: String)
+          (cursorPosition: LanguageServerProtocol.Position.Position)
+          : String =
+          let currentLine =
+            text
+            |> Stdlib.String.split "\n"
+            |> Stdlib.List.getAt (
+              cursorPosition.line |> Stdlib.Int64.fromUInt64 |> Builtin.unwrap
+            )
+            |> Builtin.unwrap
+
+          let lineToCursor =
+            currentLine
+            |> Stdlib.String.slice
+              0L
+              (cursorPosition.character |> Stdlib.Int64.fromUInt64 |> Builtin.unwrap)
+
+          let wordUnderCursor =
+            lineToCursor
+            |> Stdlib.String.split " "
+            |> Stdlib.List.last
+            |> Builtin.unwrap
+
+          wordUnderCursor
+
+
+        /// Check if the position falls within the node's range
+        let checkIfPositionWithinRange
+          (position: LanguageServerProtocol.Position.Position)
+          (range: WrittenTypes.Range)
+          : Stdlib.Option.Option<WrittenTypes.Range> =
+          let line = position.line |> Stdlib.Int64.fromUInt64
+          let character = position.character |> Stdlib.Int64.fromUInt64
+
+          let rangeStartLine = range.start.row
+          let rangeEndLine = range.end_.row
+          let rangeStartCharacter = range.start.column
+          let rangeEndCharacter = range.end_.column
+
+          match line, character with
+          | Some line, Some character ->
+            if
+              line == rangeStartLine
+              && character >= rangeStartCharacter
+              && character <= rangeEndCharacter
+            then
+              Stdlib.Option.Option.Some(range)
+            else
+              Stdlib.Option.Option.None
+          | _, _ -> Stdlib.Option.Option.None
+
+
+        let isLineNumberInRange
+          (position: LanguageServerProtocol.Position.Position)
+          (range: WrittenTypes.Range)
+          : Bool =
+          let line = position.line |> Stdlib.Int64.fromUInt64 |> Builtin.unwrap
+          let rangeStartLine = range.start.row
+          let rangeEndLine = range.end_.row
+
+          line >= rangeStartLine && line <= rangeEndLine
