@@ -417,9 +417,9 @@ module Darklang =
               [ ES.String "Unsupported type in JSON: "
                 ES.TypeReference typ
                 ES.String ". Some types are not supported in Json serialization, and cannot be used as arguments to "
-                ES.FunctionName (LanguageTools.RuntimeTypes.FQFnName.FQFnName.Builtin(LanguageTools.RuntimeTypes.FQFnName.Builtin { name = "jsonParse"; version = 0L }))
+                ES.FunctionName (LanguageTools.RuntimeTypes.FQFnName.FQFnName.Builtin(LanguageTools.RuntimeTypes.FQFnName.Builtin { name = "jsonParse"; version = 0 }))
                 ES.String " or "
-                ES.FunctionName (LanguageTools.RuntimeTypes.FQFnName.FQFnName.Builtin(LanguageTools.RuntimeTypes.FQFnName.Builtin { name = "jsonSerialize"; version = 0L })) ]
+                ES.FunctionName (LanguageTools.RuntimeTypes.FQFnName.FQFnName.Builtin(LanguageTools.RuntimeTypes.FQFnName.Builtin { name = "jsonSerialize"; version = 0 })) ]
             | CannotSerializeTypeValueCombo (dv, typ) ->
               [ ES.String "Cannot serialize "
                 ES.FullValue dv

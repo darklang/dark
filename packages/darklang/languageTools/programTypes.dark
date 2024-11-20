@@ -8,7 +8,7 @@ module Darklang =
         type FQTypeName = Package of Package
 
       module FQConstantName =
-        type Builtin = { name: String; version: Int64 }
+        type Builtin = { name: String; version: Int32 }
         type Package = Uuid
 
         type FQConstantName =
@@ -16,7 +16,7 @@ module Darklang =
           | Package of Package
 
       module FQFnName =
-        type Builtin = { name: String; version: Int64 }
+        type Builtin = { name: String; version: Int32 }
         type Package = Uuid
 
         type FQFnName =
@@ -539,14 +539,14 @@ module Darklang =
       type DB =
         { tlid: TLID
           name: String
-          version: Int64
+          version: Int32
           typ: TypeReference }
 
 
       type Secret =
         { name: String
           value: String
-          version: Int64 }
+          version: Int32 }
 
 
       module Handler =

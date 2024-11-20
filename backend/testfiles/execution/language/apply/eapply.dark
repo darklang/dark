@@ -125,7 +125,7 @@ module UserDefined =
 //     (let _ = Builtin.testSetExpectedExceptionCount 1L in throwsException ()) = Builtin.testDerrorMessage
 //       "Unknown error"
 
-//     derrorFn "msg" = Builtin.testDerrorMessage "msg"
+    derrorFn "msg" = Builtin.testDerrorMessage "Uncaught exception: msg"
 
 
 // ---------------------------
@@ -163,25 +163,24 @@ module Packages =
 
 
 
-//   module Invalid =
+  module Invalid =
 //     PACKAGE.Darklang.Test.stringFn 5L =
 //       (Builtin.testDerrorMessage
 //         "PACKAGE.Darklang.Test.stringFn's 1st argument (`key`) should be a String. However, an Int64 (5) was passed instead.\n\nExpected: (key: String)\nActual: an Int64: 5")
 
-//     PACKAGE.Darklang.Test.stringFn "str1" "str2" =
-//       (Builtin.testDerrorMessage
-//         "PACKAGE.Darklang.Test.stringFn has 0 type parameters and 1 parameter, but here was called with 0 type arguments and 2 arguments.")
+    PACKAGE.Darklang.Test.stringFn "str1" "str2" =
+      (Builtin.testDerrorMessage "PACKAGE.Darklang.Test.stringFn expects 1 argument, but got 2 arguments")
 
-//     PACKAGE.Darklang.Test.derrorFn "test" =
-//       Builtin.testDerrorMessage "test"
+    PACKAGE.Darklang.Test.derrorFn "test" =
+      Builtin.testDerrorMessage "Uncaught exception: test"
 
 //     (let _ = Builtin.testSetExpectedExceptionCount 1L
 //      PACKAGE.Darklang.Test.throwsException ()) =
 //       Builtin.testDerrorMessage "Unknown error"
 
-//     PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam 1L =
-//       (Builtin.testDerrorMessage
-//         "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameter and 1 parameter, but here was called with 0 type arguments and 1 argument.")
+    // PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam 1L =
+    //   (Builtin.testDerrorMessage
+    //     "PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam has 1 type parameter and 1 parameter, but here was called with 0 type arguments and 1 argument.")
 
 //     PACKAGE.Darklang.Test.fnWithTypeArgAndOneParam<Int64> 1L "str2" =
 //       (Builtin.testDerrorMessage

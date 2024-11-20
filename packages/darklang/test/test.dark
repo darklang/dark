@@ -26,7 +26,8 @@ module Darklang =
     let throwsException () : DateTime =
       Builtin.testRaiseException "throwsException message"
 
-    let derrorFn (msg: String) : String = msg ++ Builtin.testRuntimeError msg
+    let derrorFn (msg: String) : String =
+      msg ++ (Builtin.testRuntimeError msg)
 
     type X<'a> =
       | A of Int64

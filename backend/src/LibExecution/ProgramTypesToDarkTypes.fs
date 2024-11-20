@@ -79,7 +79,7 @@ module FQFnName =
         PackageIDs.Type.LanguageTools.ProgramTypes.FQFnName.builtin
 
     let toDT (u : PT.FQFnName.Builtin) : Dval =
-      let fields = [ "name", DString u.name; "version", DInt64 u.version ]
+      let fields = [ "name", DString u.name; "version", DInt32 u.version ]
       DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : PT.FQFnName.Builtin =
@@ -122,7 +122,7 @@ module FQConstantName =
       FQTypeName.fqPackage
         PackageIDs.Type.LanguageTools.ProgramTypes.FQConstantName.builtin
     let toDT (u : PT.FQConstantName.Builtin) : Dval =
-      let fields = [ "name", DString u.name; "version", DInt64 u.version ]
+      let fields = [ "name", DString u.name; "version", DInt32 u.version ]
       DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : PT.FQConstantName.Builtin =
@@ -1517,7 +1517,7 @@ module DB =
     let fields =
       [ "tlid", DUInt64(uint64 db.tlid)
         "name", DString db.name
-        "version", DInt64 db.version
+        "version", DInt32 db.version
         "typ", TypeReference.toDT db.typ ]
     DRecord(typeName, typeName, [], Map fields)
 
@@ -1539,7 +1539,7 @@ module Secret =
     let fields =
       [ "name", DString s.name
         "value", DString s.value
-        "version", DInt64 s.version ]
+        "version", DInt32 s.version ]
     DRecord(typeName, typeName, [], Map fields)
 
   let fromDT (d : Dval) : PT.Secret.T =

@@ -55,7 +55,7 @@ module FQConstantName =
 
   module Builtin =
     let toDT (u : FQConstantName.Builtin) : Dval =
-      let fields = [ "name", DString u.name; "version", DInt64 u.version ]
+      let fields = [ "name", DString u.name; "version", DInt32 u.version ]
       let typeName =
         FQTypeName.Package
           PackageIDs.Type.LanguageTools.RuntimeTypes.FQConstantName.builtin
@@ -99,7 +99,7 @@ module FQFnName =
       FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.FQFnName.builtin
 
     let toDT (u : FQFnName.Builtin) : Dval =
-      let fields = [ "name", DString u.name; "version", DInt64 u.version ]
+      let fields = [ "name", DString u.name; "version", DInt32 u.version ]
       DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : FQFnName.Builtin =
@@ -259,7 +259,7 @@ module TypeReference =
     | DEnum(_, _, [], "TFn", [ DList(_vtTODO, firstArg :: otherArgs); ret ]) ->
       TFn(NEList.ofList (fromDT firstArg) (List.map fromDT otherArgs), fromDT ret)
 
-    // | DEnum(_, _, [], "TDB", [ inner ]) -> TDB(fromDT inner)
+    | DEnum(_, _, [], "TDB", [ inner ]) -> TDB(fromDT inner)
 
     | _ -> Exception.raiseInternal "Invalid TypeReference" [ "typeRef", d ]
 

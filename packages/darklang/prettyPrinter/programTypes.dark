@@ -77,10 +77,10 @@ module Darklang =
             let namePart = t.name
 
             let versionPart =
-              if t.version == 0L then
+              if t.version == 0 then
                 ""
               else
-                $"_v{Stdlib.Int64.toString t.version}"
+                $"_v{Stdlib.Int32.toString t.version}"
 
             $"Builtin.{namePart}{versionPart}"
 
@@ -129,10 +129,10 @@ module Darklang =
             let namePart = t.name
 
             let versionPart =
-              if t.version == 0L then
+              if t.version == 0 then
                 ""
               else
-                $"_v{Stdlib.Int64.toString t.version}"
+                $"_v{Stdlib.Int32.toString t.version}"
 
             $"Builtin.{namePart}{versionPart}"
 
@@ -832,10 +832,10 @@ module Darklang =
 
       let db (db: LanguageTools.ProgramTypes.DB) : String =
         let versionPart =
-          if db.version == 0L then
+          if db.version == 0 then
             ""
           else
-            $"_v{Stdlib.Int64.toString db.version}"
+            $"_v{Stdlib.Int32.toString db.version}"
 
         let typPart = PrettyPrinter.ProgramTypes.typeReference db.typ
 
@@ -851,7 +851,7 @@ module Darklang =
 
 
       // let secret (s: Stdlib.Secret.T) : String =
-      //   let versionPart = if s.version == 0 then "" else $"_v{Stdlib.Int64.toString s.version}"
+      //   let versionPart = if s.version == 0 then "" else $"_v{Stdlib.Int32.toString s.version}"
 
       //   $"let {s.name}{versionPart} = \"*****\""
 
