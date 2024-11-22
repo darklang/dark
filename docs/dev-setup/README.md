@@ -39,8 +39,6 @@ That said, you can run Dark in WSL2 (Windows Subsystem for Linux):
 - You need to clone the dark repo with the git `core.autocrlf` setting set to
   `false`. You can configure this by running `git config --global core.autocrlf false`.
   If you have already cloned dark, you will need to reclone it.
-- This section of the guide is incomplete. Please [create an
-  issue](https://github.com/darklang/dark/issues) if you find something doesn't work.
 
 ## Building and running for the first time
 
