@@ -188,6 +188,36 @@ export function activate(context: ExtensionContext) {
     }
   });
 
+  let testRemoteFileCommand = commands.registerCommand(
+    "darklang.testRemoteFile",
+    async () => {
+      try {
+        const input = await window.showInputBox({
+          prompt: "Enter the GitHub raw URL",
+          placeHolder: "e.g. type/Darklang/Stdlib/Option/Option",
+        });
+
+        if (!input) return;
+        const virtualUri = Uri.parse(`darklang://${input}.dark`);
+        const doc = await workspace.openTextDocument(virtualUri);
+        await window.showTextDocument(doc);
+      } catch (error) {
+        window.showErrorMessage(`Failed to read remote file: ${error}`);
+      }
+    },
+  );
+
+  const provider = new SimpleRemoteFileProvider();
+  const registration = workspace.registerFileSystemProvider(
+    "darklang",
+    provider,
+    {
+      isCaseSensitive: true,
+    },
+  );
+
+  context.subscriptions.push(registration);
+  context.subscriptions.push(testRemoteFileCommand);
   context.subscriptions.push(disposable);
 }
 
