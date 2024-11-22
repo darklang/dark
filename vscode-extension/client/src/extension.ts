@@ -1,4 +1,13 @@
-import { workspace, ExtensionContext, commands, window } from "vscode";
+import {
+  workspace,
+  ExtensionContext,
+  commands,
+  window,
+  Uri,
+  FileSystemProvider,
+  FileType,
+  EventEmitter,
+} from "vscode";
 import * as os from "os";
 import * as vscode from "vscode";
 import { SemanticTokensFeature } from "vscode-languageclient/lib/common/semanticTokens";
@@ -11,6 +20,89 @@ import {
 } from "vscode-languageclient/node";
 
 let client: LanguageClient;
+
+interface LSPFileResponse {
+  content: string;
+}
+
+class SimpleRemoteFileProvider implements FileSystemProvider {
+  private _emitter = new EventEmitter<vscode.FileChangeEvent[]>();
+  readonly onDidChangeFile = this._emitter.event;
+
+  static fileContents = new Map<string, Uint8Array>();
+
+  async readFile(uri: Uri): Promise<Uint8Array> {
+    try {
+      // Forward the request to LSP and get the response
+      const response = await client.sendRequest<LSPFileResponse>(
+        "fileSystem/read",
+        {
+          uri: uri.toString(),
+        },
+      );
+
+      if (!response || typeof response.content !== "string") {
+        throw new Error("Invalid response from LSP server");
+      }
+
+      // Convert response content to Uint8Array and cache it
+      const content = new TextEncoder().encode(response.content);
+      SimpleRemoteFileProvider.fileContents.set(uri.toString(), content);
+      return content;
+    } catch (error) {
+      console.error("LSP read request failed:", error);
+      throw vscode.FileSystemError.FileNotFound(uri);
+    }
+  }
+
+  async writeFile(
+    uri: Uri,
+    content: Uint8Array,
+    options: { create: boolean; overwrite: boolean },
+  ): Promise<void> {
+    try {
+      // Convert the Uint8Array content to a string
+      const contentString = new TextDecoder().decode(content);
+
+      // Send write request to LSP server
+      await client.sendRequest("fileSystem/write", {
+        uri: uri.toString(),
+        content: contentString,
+        options: {
+          create: options.create,
+          overwrite: options.overwrite,
+        },
+      });
+
+      // Update the file content with the new content
+      SimpleRemoteFileProvider.fileContents.set(uri.toString(), content);
+    } catch (error) {
+      console.error("LSP write request failed:", error);
+
+      if (!options.create) {
+        throw vscode.FileSystemError.FileNotFound(uri);
+      }
+      if (!options.overwrite) {
+        throw vscode.FileSystemError.FileExists(uri);
+      }
+
+      throw vscode.FileSystemError.Unavailable(uri);
+    }
+  }
+  watch(): vscode.Disposable {
+    return new vscode.Disposable(() => {});
+  }
+  stat(): vscode.FileStat {
+    return { type: FileType.File, ctime: 0, mtime: 0, size: 0 };
+  }
+  readDirectory(): [string, FileType][] {
+    return [];
+  }
+  createDirectory(): void {}
+
+  delete(): void {}
+  rename(): void {}
+}
 
 export function activate(context: ExtensionContext) {
   const isDebugMode = () => process.env.VSCODE_DEBUG_MODE === "true";
@@ -32,7 +124,10 @@ export function activate(context: ExtensionContext) {
   };
 
   const clientOptions: LanguageClientOptions = {
-    documentSelector: [{ scheme: "file", language: "darklang" }],
+    documentSelector: [
+      { scheme: "file", language: "darklang" },
+      { scheme: "darklang", language: "darklang" },
+    ],
     synchronize: {
       fileEvents: workspace.createFileSystemWatcher("**/*.dark"),
     },
