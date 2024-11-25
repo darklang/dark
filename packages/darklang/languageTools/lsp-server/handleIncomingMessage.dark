@@ -236,9 +236,8 @@ module Darklang =
               state
 
           | _ ->
-            log
-              $"TODO: we don't yet support this method: {jsonRpcRequest.method}"
-              // TODO: log more than just the method
-              state
+            log $"TODO: we don't yet support this method: {jsonRpcRequest.method}"
+            // TODO: log more than just the method
+            state
 
         currentState
