@@ -198,9 +198,8 @@ export function activate(context: ExtensionContext) {
         });
 
         if (!input) return;
-        await client.sendRequest("fileSystem/read", {
-          uri: `darklang://${input}.dark`,
-        });
+        const uri = Uri.parse(`darklang://${input}.dark`);
+        await provider.readFile(uri);
       } catch (error) {
         window.showErrorMessage(`Failed to read remote file: ${error}`);
       }
