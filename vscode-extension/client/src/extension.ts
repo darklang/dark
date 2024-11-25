@@ -198,9 +198,9 @@ export function activate(context: ExtensionContext) {
         });
 
         if (!input) return;
-        const virtualUri = Uri.parse(`darklang://${input}.dark`);
-        const doc = await workspace.openTextDocument(virtualUri);
-        await window.showTextDocument(doc);
+        await client.sendRequest("fileSystem/read", {
+          uri: `darklang://${input}.dark`,
+        });
       } catch (error) {
         window.showErrorMessage(`Failed to read remote file: ${error}`);
       }

@@ -82,7 +82,7 @@ module Darklang =
               parts |> Stdlib.List.tail |> Builtin.unwrap |> Stdlib.String.join "."
 
             let pm = LanguageTools.PackageManager.pm ()
-            // type/Darklang/Stdlib/Option/Option
+            // e.g.type/Darklang/Stdlib/Option/Option
             match elementType with
             | "type" ->
               let findType = pm.findType
@@ -108,6 +108,12 @@ module Darklang =
                   |> Stdlib.AltJson.format
 
                 logAndSendToClient responseJson
+
+                // send a showDocument request
+                let showDocRequestString =
+                  ShowDocument.makeShowDocumentRequest params.uri requestId
+
+                logAndSendToClient showDocRequestString
                 state
 
               | None ->
@@ -121,9 +127,15 @@ module Darklang =
                   |> Stdlib.AltJson.format
 
                 logAndSendToClient responseJson
+
+                // send a showDocument request (the content will be "Type not found")
+                let showDocRequestString =
+                  ShowDocument.makeShowDocumentRequest params.uri requestId
+
+                logAndSendToClient showDocRequestString
                 state
 
-            // function/Darklang/Stdlib/Option/map
+            // e.g. function/Darklang/Stdlib/Option/map
             | "function" ->
               let findFn = pm.findFn
               let getFn = pm.getFn
@@ -148,6 +160,12 @@ module Darklang =
                   |> Stdlib.AltJson.format
 
                 logAndSendToClient responseJson
+
+                // send a showDocument request
+                let showDocRequestString =
+                  ShowDocument.makeShowDocumentRequest params.uri requestId
+
+                logAndSendToClient showDocRequestString
                 state
 
               | None ->
@@ -162,9 +180,15 @@ module Darklang =
                   |> Stdlib.AltJson.format
 
                 logAndSendToClient responseJson
+
+                // send a showDocument request
+                let showDocRequestString =
+                  ShowDocument.makeShowDocumentRequest params.uri requestId
+
+                logAndSendToClient showDocRequestString
                 state
 
-            // constant/Darklang/Stdlib/List/empty
+            // e.g. constant/Darklang/Stdlib/List/empty
             | "constant" ->
               let findConst = pm.findConstant
               let getConst = pm.getConstant
@@ -190,6 +214,12 @@ module Darklang =
                   |> Stdlib.AltJson.format
 
                 logAndSendToClient responseJson
+
+                // send a showDocument request
+                let showDocRequestString =
+                  ShowDocument.makeShowDocumentRequest params.uri requestId
+
+                logAndSendToClient showDocRequestString
                 state
 
               | None ->
@@ -204,6 +234,12 @@ module Darklang =
                   |> Stdlib.AltJson.format
 
                 logAndSendToClient responseJson
+
+                // send a showDocument request
+                let showDocRequestString =
+                  ShowDocument.makeShowDocumentRequest params.uri requestId
+
+                logAndSendToClient showDocRequestString
                 state
 
             | elem ->
@@ -216,6 +252,12 @@ module Darklang =
                 |> Stdlib.AltJson.format
 
               logAndSendToClient responseJson
+              // send a showDocument request
+              let showDocRequestString =
+                ShowDocument.makeShowDocumentRequest params.uri requestId
+
+              logAndSendToClient showDocRequestString
+
               state
 
 
