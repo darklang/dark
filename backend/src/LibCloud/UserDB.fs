@@ -45,7 +45,7 @@ let dvalToDB
   (db : RT.DB.T)
   (dv : RT.Dval)
   : Ply<string> =
-  DvalReprInternalQueryable.toJsonStringV0 threadID types db.typ dv
+  DvalReprInternalQueryable.toJsonStringV0 types threadID db.typ dv
 
 let rec set
   (exeState : RT.ExecutionState)

@@ -1,4 +1,3 @@
-// Should match testfiles/execution/languages.tests -> UserDefined
 module Darklang =
   module Test =
     let stringFn (key: String) : String = key ++ " appended string"

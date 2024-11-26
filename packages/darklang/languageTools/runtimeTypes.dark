@@ -89,7 +89,7 @@ module Darklang =
 
         | KTCustomType of FQTypeName.FQTypeName * typeArgs: List<ValueType>
 
-      //| KTDB of ValueType
+        | KTDB of ValueType
 
       type ValueType =
         | Unknown
@@ -187,8 +187,8 @@ module Darklang =
 
         | DApplicable of Applicable
 
-      // References
-      //| DDB of String
+        // References
+        | DDB of String
 
       type BuiltInParam =
         { name: String

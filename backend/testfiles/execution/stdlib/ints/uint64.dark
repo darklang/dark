@@ -15,7 +15,7 @@ Stdlib.UInt64.mod_v0 15UL 6UL = 3UL
 Stdlib.UInt64.mod_v0 0UL 15UL = 0UL
 Stdlib.UInt64.mod_v0 9999999999998UL 3UL = 2UL
 
-Stdlib.UInt64.mod_v0 5UL 0UL = Builtin.testDerrorMessage "A divisor of zero is not allowed"
+Stdlib.UInt64.mod_v0 5UL 0UL = Builtin.testDerrorMessage "Cannot evaluate modulus against 0"
 
 
 Stdlib.UInt64.power_v0 8UL 5UL = 32768UL
@@ -24,7 +24,7 @@ Stdlib.UInt64.power_v0 0UL 0UL = 1UL
 Stdlib.UInt64.power_v0 1UL 0UL = 1UL
 Stdlib.UInt64.power_v0 1000UL 0UL = 1UL
 
-Stdlib.UInt64.power_v0 200UL 20UL = Builtin.testDerrorMessage "Out of range"
+Stdlib.UInt64.power_v0 200UL 20UL = Builtin.testDerrorMessage "Encountered out-of-range value for type of Int"
 
 Stdlib.UInt64.power_v0 200UL 7UL = 12800000000000000UL
 
@@ -63,9 +63,9 @@ Stdlib.UInt64.add_v0 1UL 0UL = 1UL
 Stdlib.UInt64.add_v0 18446744073709551614UL 1UL = 18446744073709551615UL
 
 // Overflow tests
-Stdlib.UInt64.add_v0 18446744073709551615UL 1UL = Builtin.testDerrorMessage "Out of range"
+Stdlib.UInt64.add_v0 18446744073709551615UL 1UL = Builtin.testDerrorMessage "Encountered out-of-range value for type of Int"
 
-Stdlib.UInt64.add_v0 55UL 18446744073709551615UL = Builtin.testDerrorMessage "Out of range"
+Stdlib.UInt64.add_v0 55UL 18446744073709551615UL = Builtin.testDerrorMessage "Encountered out-of-range value for type of Int"
 
 
 Stdlib.UInt64.subtract_v0 10UL 9UL = 1UL
@@ -75,13 +75,13 @@ Stdlib.UInt64.subtract_v0 1UL 0UL = 1UL
 Stdlib.UInt64.multiply_v0 8UL 8UL = 64UL
 Stdlib.UInt64.multiply_v0 5145UL 5145UL = 26471025UL
 
-Stdlib.UInt64.multiply_v0 9223372036854775808UL 2UL = Builtin.testDerrorMessage "Out of range"
+Stdlib.UInt64.multiply_v0 9223372036854775808UL 2UL = Builtin.testDerrorMessage "Encountered out-of-range value for type of Int"
 
 Stdlib.UInt64.divide_v0 10UL 5UL = 2UL
 Stdlib.UInt64.divide_v0 17UL 3UL = 5UL
 Stdlib.UInt64.divide_v0 0UL 1UL = 0UL
 
-Stdlib.UInt64.divide_v0 1UL 0UL = Builtin.testDerrorMessage "Division by zero"
+Stdlib.UInt64.divide_v0 1UL 0UL = Builtin.testDerrorMessage "Cannot divide by 0"
 
 (Stdlib.List.range_v0 1L 5L)
 |> Stdlib.List.map_v0 (fun x -> Stdlib.UInt64.random 1UL 2UL)

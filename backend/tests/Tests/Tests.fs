@@ -42,7 +42,7 @@ let main (args : string array) : int =
         Tests.AnalysisTypes.tests
         Tests.Execution.tests
         Tests.Builtin.tests
-        // Tests.DvalRepr.tests -- maybe this gets deleted TODO
+        Tests.DvalRepr.tests
         Tests.PackageManager.tests
         Tests.LibParser.tests
         Tests.NewParser.tests

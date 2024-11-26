@@ -88,8 +88,7 @@ module List =
     tFail
       "[1; true]"
       E.List.mixed
-      //   RT.DString "Could not merge types List<Bool> and List<Int64>"
-      (RTE.Lists.TriedToAddMismatchedData(VT.int64, VT.bool, RT.DBool true)
+      (RTE.Lists.TriedToAddMismatchedData(1, VT.int64, VT.bool, RT.DBool true)
        |> RTE.List)
 
   let tests = testList "Lists" [ simple; nested; mixed ]
@@ -100,7 +99,6 @@ module Let =
 
   let tuple = t "let (x, y) = (1, 2)\nx" E.Let.tuple (RT.DInt64 1L)
 
-  /// `let (a, b) = 1 in a`
   let tupleNotTuple =
     tFail
       "let (a, b) = 1 in a"
@@ -112,7 +110,6 @@ module Let =
         )
       ))
 
-  /// `let (a, b) = (1, 2, 3) in a`
   let tupleIncorrectLen =
     tFail
       "let (a, b) = (1, 2, 3) in a"
@@ -127,7 +124,6 @@ module Let =
   let tupleNested =
     t "let (a, (b, c)) = (1, (2, 3))\nb" E.Let.tupleNested (RT.DInt64 2L)
 
-  /// `a`
   let undefinedVar = tFail "a" E.Let.undefinedVar (RTE.VariableNotFound "a")
 
   let tests =
@@ -462,6 +458,29 @@ module Lambdas =
 
     let tests = testList "Add" [ unapplied; partiallyApplied; fullyApplied ]
 
+
+  module AddTuple =
+    let unapplied =
+      tCheckVM
+        "fn (x, y) -> x + y"
+        E.Lambdas.AddTuple.unapplied
+        (RT.DApplicable(
+          RT.AppLambda
+            { exprId = E.Lambdas.AddTuple.id
+              closedRegisters = []
+              argsSoFar = []
+              typeSymbolTable = Map.empty }
+        ))
+        (fun vm ->
+          Expect.isFalse (Map.isEmpty vm.lambdaInstrCache) "no lambdas in VMState")
+
+    let applied =
+      t "(fn (x, y) -> x + y) (1, 2)" E.Lambdas.AddTuple.applied (RT.DInt64 3L)
+
+    let tests = testList "AddTuple" [ unapplied; applied ]
+
+
+
   module AddToClosedVars =
     let unapplied =
       tCheckVM
@@ -485,7 +504,10 @@ module Lambdas =
 
     let tests = testList "AddToClosedVars" [ unapplied; applied ]
 
-  let tests = testList "Lambdas" [ Identity.tests; Add.tests; AddToClosedVars.tests ]
+  let tests =
+    testList
+      "Lambdas"
+      [ Identity.tests; Add.tests; AddTuple.tests; AddToClosedVars.tests ]
 
 
 module Fns =

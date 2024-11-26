@@ -24,7 +24,7 @@ Stdlib.Option.andThen_v0 (Stdlib.Option.Option.Some 8L) (fun x ->
 
 Stdlib.Option.andThen_v0 (Stdlib.Option.Option.Some 8L) (fun x ->
   Stdlib.Option.Option.Some(Stdlib.Int64.divide_v0 x 0L)) =
-  (Builtin.testDerrorMessage "Division by zero")
+  (Builtin.testDerrorMessage "Cannot divide by 0")
 
 
 Stdlib.Option.andThen2_v0

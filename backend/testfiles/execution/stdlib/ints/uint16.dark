@@ -19,12 +19,12 @@ Stdlib.UInt16.add_v0 88us 9us = 97us
 Stdlib.UInt16.add_v0 1us 0us = 1us
 Stdlib.UInt16.add_v0 65534us 1us = 65535us
 
-Stdlib.UInt16.add_v0 65535us 1us = Builtin.testDerrorMessage "Out of range"
+Stdlib.UInt16.add_v0 65535us 1us = Builtin.testDerrorMessage "Encountered out-of-range value for type of Int"
 
 Stdlib.UInt16.subtract_v0 10us 9us = 1us
 Stdlib.UInt16.subtract_v0 88us 9us = 79us
 
-Stdlib.UInt16.subtract_v0 0us 1us = Builtin.testDerrorMessage "Out of range"
+Stdlib.UInt16.subtract_v0 0us 1us = Builtin.testDerrorMessage "Encountered out-of-range value for type of Int"
 
 Stdlib.UInt16.subtract_v0 1us 0us = 1us
 Stdlib.UInt16.subtract_v0 65535us 1us = 65534us
@@ -33,9 +33,9 @@ Stdlib.UInt16.multiply_v0 8us 8us = 64us
 Stdlib.UInt16.multiply_v0 8us 0us = 0us
 Stdlib.UInt16.multiply_v0 32767us 2us = 65534us
 
-Stdlib.UInt16.multiply_v0 32768us 2us = Builtin.testDerrorMessage "Out of range"
+Stdlib.UInt16.multiply_v0 32768us 2us = Builtin.testDerrorMessage "Encountered out-of-range value for type of Int"
 
-Stdlib.UInt16.multiply_v0 65535us 2us = Builtin.testDerrorMessage "Out of range"
+Stdlib.UInt16.multiply_v0 65535us 2us = Builtin.testDerrorMessage "Encountered out-of-range value for type of Int"
 
 Stdlib.UInt16.power_v0 2us 3us = 8us
 Stdlib.UInt16.power_v0 0us 1us = 0us
@@ -43,7 +43,7 @@ Stdlib.UInt16.power_v0 1us 0us = 1us
 Stdlib.UInt16.power_v0 0us 0us = 1us
 Stdlib.UInt16.power_v0 1us 255us = 1us
 
-Stdlib.UInt16.power_v0 256us 2us = Builtin.testDerrorMessage "Out of range"
+Stdlib.UInt16.power_v0 256us 2us = Builtin.testDerrorMessage "Encountered out-of-range value for type of Int"
 
 Stdlib.UInt16.divide_v0 10us 5us = 2us
 Stdlib.UInt16.divide_v0 17us 3us = 5us
@@ -51,7 +51,7 @@ Stdlib.UInt16.divide_v0 8us 5us = 1us
 Stdlib.UInt16.divide_v0 0us 1us = 0us
 Stdlib.UInt16.divide_v0 65535us 2us = 32767us
 
-Stdlib.UInt16.divide_v0 1us 0us = Builtin.testDerrorMessage "Division by zero"
+Stdlib.UInt16.divide_v0 1us 0us = Builtin.testDerrorMessage "Cannot divide by 0"
 
 Stdlib.UInt16.greaterThan_v0 20us 1us = true
 
@@ -96,7 +96,7 @@ Stdlib.UInt16.mod_v0 1us 2us = 1us
 Stdlib.UInt16.mod_v0 32768us 53us = 14us
 Stdlib.UInt16.mod_v0 65535us 3us = 0us
 
-Stdlib.UInt16.mod_v0 5us 0us = Builtin.testDerrorMessage "A divisor of zero is not allowed"
+Stdlib.UInt16.mod_v0 5us 0us = Builtin.testDerrorMessage "Cannot evaluate modulus against 0"
 
 
 (Stdlib.List.range_v0 1L 5L)
@@ -133,7 +133,7 @@ Stdlib.UInt16.mod_v0 5us 0us = Builtin.testDerrorMessage "A divisor of zero is n
 
 Stdlib.UInt16.sum_v0 [ 1us; 2us ] = 3us
 
-Stdlib.UInt16.sum_v0 [ 1us; 65535us ] = Builtin.testDerrorMessage "Out of range"
+Stdlib.UInt16.sum_v0 [ 1us; 65535us ] = Builtin.testDerrorMessage "Encountered out-of-range value for type of Int"
 
 
 // out of range

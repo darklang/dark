@@ -39,7 +39,7 @@ Stdlib.Int32.remainder_v0 20l 8l = Stdlib.Result.Result.Ok 4l
 Stdlib.Int32.remainder_v0 -20l 8l = Stdlib.Result.Result.Ok -4l
 Stdlib.Int32.remainder_v0 -20l -8l = Stdlib.Result.Result.Ok -4l
 Stdlib.Int32.remainder_v0 -15l 6l = Stdlib.Result.Result.Ok -3l
-Stdlib.Int32.remainder_v0 5l 0l = Builtin.testDerrorMessage "Division by zero"
+Stdlib.Int32.remainder_v0 5l 0l = Builtin.testDerrorMessage "Cannot divide by 0"
 
 
 Stdlib.Int32.mod_v0 15l 5l = 0l
@@ -48,8 +48,8 @@ Stdlib.Int32.mod_v0 0l 15l = 0l
 Stdlib.Int32.mod_v0 -1l 2l = 1l
 Stdlib.Int32.mod_v0 -754l 53l = 41l
 Stdlib.Int32.mod_v0 222222222l 3l = 0l
-Stdlib.Int32.mod_v0 5l 0l = Builtin.testDerrorMessage "A divisor of zero is not allowed"
-Stdlib.Int32.mod_v0 5l -5l = Builtin.testDerrorMessage "Negative divisors are not allowed"
+Stdlib.Int32.mod_v0 5l 0l = Builtin.testDerrorMessage "Cannot evaluate modulus against 0"
+Stdlib.Int32.mod_v0 5l -5l = Builtin.testDerrorMessage "Cannot evaluate modulus against a negative number"
 
 Stdlib.Int32.power_v0 2l 3l = 8l
 Stdlib.Int32.power_v0 0l 1l = 0l
@@ -59,9 +59,9 @@ Stdlib.Int32.power_v0 -2l 5l = -32l
 Stdlib.Int32.power_v0 -1l 5l = -1l
 Stdlib.Int32.power_v0 -1l 6l = 1l
 Stdlib.Int32.power_v0 1l 2147483647l = 1l
-Stdlib.Int32.power_v0 2l 31l = Builtin.testDerrorMessage "Out of range"
-Stdlib.Int32.power_v0 120l 20l = Builtin.testDerrorMessage "Out of range"
-Stdlib.Int32.power_v0 2l -3l = Builtin.testDerrorMessage "Negative exponent"
+Stdlib.Int32.power_v0 2l 31l = Builtin.testDerrorMessage "Encountered out-of-range value for type of Int"
+Stdlib.Int32.power_v0 120l 20l = Builtin.testDerrorMessage "Encountered out-of-range value for type of Int"
+Stdlib.Int32.power_v0 2l -3l = Builtin.testDerrorMessage "Cannot raise integer to a negative exponent"
 
 
 Stdlib.Int32.greaterThan_v0 20l 1l = true
@@ -125,7 +125,7 @@ Stdlib.Int32.divide_v0 17l 3l = 5l
 Stdlib.Int32.divide_v0 -8l 5l = -1l
 Stdlib.Int32.divide_v0 0l 1l = 0l
 
-Stdlib.Int32.divide_v0 1l 0l = Builtin.testDerrorMessage "Division by zero"
+Stdlib.Int32.divide_v0 1l 0l = Builtin.testDerrorMessage "Cannot divide by 0"
 
 (Stdlib.List.range_v0 1L 5L)
 |> Stdlib.List.map_v0 (fun x -> Stdlib.Int32.random 1l 2l)

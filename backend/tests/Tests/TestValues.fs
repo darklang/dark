@@ -385,6 +385,15 @@ module Expressions =
       let partiallyApplied = eApply unapplied [] [ eInt64 1 ]
       let fullyApplied = eApply unapplied [] [ eInt64 1; eInt64 2 ]
 
+    module AddTuple =
+      let id = gid ()
+      let unapplied =
+        eLambda
+          id
+          [ lpTuple (lpVar "a") (lpVar "b") [] ]
+          (eApply (eBuiltinFn "int64Add" 0) [] [ eVar "a"; eVar "b" ])
+      let applied = eApply unapplied [] [ eTuple (eInt64 1) (eInt64 2) [] ]
+
     ///```fsharp
     /// let x = 5
     /// let y = 10

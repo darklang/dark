@@ -7,7 +7,7 @@ Something { ID = "2"; Data = "test" } = Something { ID = "2"; Data = "test" }
 
 // CELANUP: would be better if this noted that `Id` is an alias for `String`
 Something { ID = 2L; Data = "test" } =
-  Builtin.testDerrorMessage "Expected Id for field `ID`, but got Int64"
+  Builtin.testDerrorMessage "Expected Id for field `ID`, but got 2 (an Int64)"
 
 
 module SimpleRecordAlias =
@@ -39,8 +39,8 @@ module NestedAlias =
 
   getUserID (("Alice", "EMP123")) = "EMP123"
 
-  // getUserID (("Alice", 123L)) =
-  //   (Builtin.testDerrorMessage "NestedAlias.getUserID's return value should be a String. However, an Int64 (123) was returned instead.\n\nExpected: Id\nActual: an Int64: 123")
+  getUserID (("Alice", 123L)) =
+    (Builtin.testDerrorMessage "NestedAlias.getUserID's return value expects Id, but got Int64 (123)")
 
   type UserProfile =
     { credential: UserCredential
@@ -66,7 +66,6 @@ module ListAlias =
 
 
 module ResultAlias =
-  // result alias
   type IntResult = Stdlib.Result.Result<Int64, String>
 
   let getIntResultValue (ir: IntResult) : Int64 = Stdlib.Result.withDefault_v0 ir 0L
@@ -95,27 +94,27 @@ module RecordWithTypeArgs =
   // Inner<String, Int64> { a = "test"; b = "five" } = Builtin.testDerrorMessage "TODO: error message"
 
   Outer2 { a = 5L; b = 6L } =
-    (Builtin.testDerrorMessage "Expected String for field `a`, but got Int64")
+    (Builtin.testDerrorMessage "Expected String for field `a`, but got 5 (an Int64)")
 
   Outer1 { a = "a"; b = "b" } =
-    (Builtin.testDerrorMessage "Expected Int64 for field `b`, but got String")
+    (Builtin.testDerrorMessage "Expected Int64 for field `b`, but got \"b\" (a String)")
 
 
 module RecordWithTypeArgsDifferentName =
   type Inner<'a, 'b> = { a: 'a; b: 'b }
   type LessInner<'b, 'a> = Inner<'a, 'b>
-  type Outer<'x> = LessInner<'x, Int64>
-  type Outest<'y> = Outer<'y>
+  type Outer<'x> = LessInner<'x, Int64> // { a: 'x; b: Int64 }
+  type Outest<'y> = Outer<'y> // { a: 'y; b: Int64 }
   type MostOutest = Outest<String> // { a: Int64; b: String }
 
   MostOutest { a = 5L; b = "string" } =
     Inner { a = 5L; b = "string" }
 
   MostOutest { a = "not allowed"; b = "string" } =
-    (Builtin.testDerrorMessage "Expected Int64 for field `a`, but got String")
+    (Builtin.testDerrorMessage "Expected Int64 for field `a`, but got \"not allow... (a String)")
 
   MostOutest { a = 5L; b = 6L } =
-    (Builtin.testDerrorMessage "Expected String for field `b`, but got Int64")
+    (Builtin.testDerrorMessage "Expected String for field `b`, but got 6 (an Int64)")
 
 
 module RecordWithRecursiveTypeArgs =

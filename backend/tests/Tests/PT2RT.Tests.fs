@@ -1061,6 +1061,75 @@ module Expr =
 
       let tests = testList "Add" [ unapplied; partiallyApplied; fullyApplied ]
 
+
+    module AddTuple =
+      let unapplied =
+        t
+          "fn (a, b) -> Builtin.int64Add a b"
+          E.Lambdas.AddTuple.unapplied
+          (1,
+           [ RT.CreateLambda(
+               0,
+               { exprId = E.Lambdas.AddTuple.id
+                 patterns =
+                   NEList.ofList
+                     (RT.LPTuple(RT.LPVariable 0, RT.LPVariable 1, []))
+                     []
+                 registersToCloseOver = []
+                 instructions =
+                   { registerCount = 4
+                     instructions =
+                       [ RT.LoadVal(
+                           2,
+                           RT.DApplicable(
+                             RT.AppNamedFn
+                               { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 typeArgs = []
+                                 argsSoFar = [] }
+                           )
+                         )
+                         RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ]
+                     resultIn = 3 } }
+             ) ],
+           0)
+
+      let applied =
+        t
+          "(fn (a, b) -> Builtin.int64Add a b) (1, 2)"
+          E.Lambdas.AddTuple.applied
+          (5,
+           [ RT.CreateLambda(
+               0,
+               { exprId = E.Lambdas.AddTuple.id
+                 patterns =
+                   NEList.ofList
+                     (RT.LPTuple(RT.LPVariable 0, RT.LPVariable 1, []))
+                     []
+                 registersToCloseOver = []
+                 instructions =
+                   { registerCount = 4
+                     instructions =
+                       [ RT.LoadVal(
+                           2,
+                           RT.DApplicable(
+                             RT.AppNamedFn
+                               { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 typeArgs = []
+                                 argsSoFar = [] }
+                           )
+                         )
+                         RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ]
+                     resultIn = 3 } }
+             )
+             RT.LoadVal(2, RT.DInt64 1L)
+             RT.LoadVal(3, RT.DInt64 2L)
+             RT.CreateTuple(1, 2, 3, [])
+             RT.Apply(4, 0, [], NEList.ofList 1 []) ],
+           4)
+
+
+      let tests = testList "AddTuple" [ unapplied; applied ]
+
     ///```fsharp
     /// let x = 5
     /// let y = 10
@@ -1164,7 +1233,9 @@ module Expr =
 
 
     let tests =
-      testList "Lambda" [ Identity.tests; Add.tests; AddToClosedVars.tests ]
+      testList
+        "Lambda"
+        [ Identity.tests; Add.tests; AddTuple.tests; AddToClosedVars.tests ]
 
 
 

@@ -29,14 +29,10 @@ module Errors =
     MyEnum.C = Builtin.testDerrorMessage "Expected 1 fields in Errors.User.MyEnum.`C`, but got 0"
     MyEnum.B 5L = Builtin.testDerrorMessage "Expected 0 fields in Errors.User.MyEnum.`B`, but got 1"
 
-    (match MyEnum.C "test" with
-     | C v -> v) = "test"
-
-    // TYPESCLEANUP
-    // TODO evaluate if this is the PR that we should resolve these.
-    // (match MyEnum.C "test" with | C -> v) = Builtin.testRuntimeError "TODO"
-    // (match MyEnum.C "test" with | D -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok" | C _ -> v) = Builtin.testRuntimeError "TODO"
-    // (match MyEnum.C "test" with | 5 -> "PACKAGE.Darklang.Stdlib.Result.Result.Ok" | C _ -> v) = Builtin.testRuntimeError "TODO"
+    (match MyEnum.C "test" with | C v -> v) = "test"
+    (match MyEnum.C "test" with | 5 -> "unmatched because it's not an int" | C v -> v) = "test"
+    (match MyEnum.C "test" with | C -> "unmatched because we didn't provide a space for the field") = Builtin.testDerrorMessage "No matching case found"
+    (match MyEnum.C "test" with | D -> "unmatched because case name does not exist" | C _ -> 2) = 2
 
     (MyEnum.C 5L) = Builtin.testDerrorMessage "Expected String for field 0 in `C`, but got Int64 (5)"
 
@@ -177,15 +173,11 @@ module Polymorphism =
 
   let toList (tree: RBTree<'a>) : List<'a> = toList' tree []
 
-// // CLEANUP: we should support tuple destructuring in lambdas
-// // i.e. update to `fun (x, y) -> ...`
-// (let intCmp =
-//   fun pair ->
-//     let (x, y) = pair
 
-//     if x < y then -1L
-//     elif x > y then 1L
-//     else 0L
-
-//  ([ 1L; -2L; 5L; 3L ] |> ofList intCmp |> toList)
-//  == ([ 3L; 5L; -2L; 1L ] |> ofList intCmp |> toList)) = true
+  (let intCmp =
+    fun (x, y) ->
+      if x < y then -1L
+      elif x > y then 1L
+      else 0L
+  ([ 1L; -2L; 5L; 3L ] |> ofList intCmp |> toList)
+  == ([ 3L; 5L; -2L; 1L ] |> ofList intCmp |> toList)) = true

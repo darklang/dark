@@ -2,7 +2,7 @@ Stdlib.Int128.absoluteValue_v0 -5Q = 5Q
 Stdlib.Int128.absoluteValue_v0 5Q = 5Q
 
 Stdlib.Int128.absoluteValue_v0 -170141183460469231731687303715884105728Q =
-  Builtin.testDerrorMessage "Out of range"
+  Builtin.testDerrorMessage "Encountered out-of-range value for type of Int"
 
 Stdlib.Int128.max_v0 5Q 6Q = 6Q
 Stdlib.Int128.max_v0 10Q 1Q = 10Q
@@ -38,14 +38,14 @@ Stdlib.Int128.negate_v0 0Q = 0Q
 Stdlib.Int128.negate_v0 -0Q = 0Q
 
 Stdlib.Int128.negate_v0 -170141183460469231731687303715884105728Q =
- Builtin.testDerrorMessage "Out of range"
+ Builtin.testDerrorMessage "Encountered out-of-range value for type of Int"
 
 Stdlib.Int128.remainder_v0 15Q 6Q = Stdlib.Result.Result.Ok 3Q
 Stdlib.Int128.remainder_v0 20Q 8Q = Stdlib.Result.Result.Ok 4Q
 Stdlib.Int128.remainder_v0 -20Q 8Q = Stdlib.Result.Result.Ok -4Q
 Stdlib.Int128.remainder_v0 -20Q -8Q = Stdlib.Result.Result.Ok -4Q
 Stdlib.Int128.remainder_v0 -15Q 6Q = Stdlib.Result.Result.Ok -3Q
-Stdlib.Int128.remainder_v0 5Q 0Q = Builtin.testDerrorMessage "Division by zero"
+Stdlib.Int128.remainder_v0 5Q 0Q = Builtin.testDerrorMessage "Cannot divide by 0"
 
 Stdlib.Int128.add_v0 10Q 9Q = 19Q
 Stdlib.Int128.add_v0 88Q 9Q = 97Q
@@ -56,7 +56,7 @@ Stdlib.Int128.add_v0 55Q 55Q = 110Q
 Stdlib.Int128.add_v0 9223372036854775807Q 2Q = 9223372036854775809Q
 
 Stdlib.Int128.add_v0 170141183460469231731687303715884105726Q 4Q =
-  Builtin.testDerrorMessage "Out of range"
+  Builtin.testDerrorMessage "Encountered out-of-range value for type of Int"
 
 
 Stdlib.Int128.subtract_v0 10Q 9Q = 1Q
@@ -66,7 +66,7 @@ Stdlib.Int128.subtract_v0 1Q 0Q = 1Q
 Stdlib.Int128.subtract_v0 -55Q -55Q = 0Q
 
 Stdlib.Int128.subtract_v0 -55Q 170141183460469231731687303715884105726Q =
-  Builtin.testDerrorMessage "Out of range"
+  Builtin.testDerrorMessage "Encountered out-of-range value for type of Int"
 
 Stdlib.Int128.multiply_v0 8Q 8Q = 64Q
 Stdlib.Int128.multiply_v0 1Q 0Q = 0Q
@@ -77,10 +77,10 @@ Stdlib.Int128.divide_v0 -8Q 5Q = -1Q
 Stdlib.Int128.divide_v0 0Q 1Q = 0Q
 
 Stdlib.Int128.divide_v0 1Q 0Q =
-  Builtin.testDerrorMessage "Division by zero"
+  Builtin.testDerrorMessage "Cannot divide by 0"
 
 Stdlib.Int128.divide_v0 -170141183460469231731687303715884105728Q -1Q =
-  Builtin.testDerrorMessage "Out of range"
+  Builtin.testDerrorMessage "Encountered out-of-range value for type of Int"
 
 
 Stdlib.Int128.greaterThan_v0 20Q 1Q = true
@@ -137,9 +137,9 @@ Stdlib.Int128.mod_v0 -1Q 2Q = 1Q
 Stdlib.Int128.mod_v0 -128Q 53Q = 31Q
 Stdlib.Int128.mod_v0 127Q 3Q = 1Q
 
-Stdlib.Int128.mod_v0 5Q 0Q = Builtin.testDerrorMessage "A divisor of zero is not allowed"
+Stdlib.Int128.mod_v0 5Q 0Q = Builtin.testDerrorMessage "Cannot evaluate modulus against 0"
 
-Stdlib.Int128.mod_v0 5Q -5Q = Builtin.testDerrorMessage "Negative divisors are not allowed"
+Stdlib.Int128.mod_v0 5Q -5Q = Builtin.testDerrorMessage "Cannot evaluate modulus against a negative number"
 
 // parse OK
 Stdlib.Int128.parse_v0 "0" = Stdlib.Result.Result.Ok 0Q

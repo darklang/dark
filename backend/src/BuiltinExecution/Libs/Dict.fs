@@ -97,7 +97,9 @@ let fns : List<BuiltInFn> =
           This function is the opposite of <fn Dict.toList>."
       fn =
         (function
-        | _, vm, _, [ DList(listType, l) ] ->
+        | _, _, _, [ DList(_, []) ] -> DDict(VT.unknown, Map.empty) |> Ply
+
+        | _, vm, _, [ DList(ValueType.Known(KTTuple(_keyType, valueType, [])), l) ] ->
           let f acc dv =
             match dv with
             | DTuple(DString k, value, []) -> Map.add k value acc
@@ -109,7 +111,7 @@ let fns : List<BuiltInFn> =
           List.fold f Map.empty l
           // CLEANUP: performance
           |> Map.toList
-          |> TypeChecker.DvalCreator.dict vm.threadID listType
+          |> TypeChecker.DvalCreator.dict vm.threadID valueType
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -227,7 +229,10 @@ let fns : List<BuiltInFn> =
         "Returns a copy of <param dict> with the <param key> set to <param val>"
       fn =
         (function
-        | _, _, _, [ DDict(vt, o); DString k; v ] -> DDict(vt, Map.add k v o) |> Ply
+        | _, vm, _, [ DDict(vt, o); DString k; v ] ->
+          // CLEANUP terrible perf
+          TypeChecker.DvalCreator.dict vm.threadID vt ((Map.toList o) @ [ (k, v) ])
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

@@ -2,31 +2,17 @@ module Darklang =
   module LanguageTools =
     module RuntimeTypes =
       module RuntimeError =
-        module TypeCheckers =
-          type PathPart =
-            | TuplePart of index: Int32
-            | ListItem of index: Int32
-            | DictEntry of key: String
-            | RecordField of typeName: FQTypeName.FQTypeName * fieldName: String
-            | EnumField of
-              typeName: FQTypeName.FQTypeName *
-              caseName: String *
-              fieldIndex: Int32 *
-              fieldName: Option<String> *
-              fieldCount: Int32
-            | FunctionCallParameter of
-              fnName: FQFnName.FQFnName *
-              paramName: String *
-              paramIndex: Int32
-            | FunctionCallResult of fnName: FQFnName.FQFnName
 
-          type Path = List<PathPart>
+        module TypeChecking =
+          type TypeCheckPathPart =
+            | ListType
+            | DictValueType
+            | TupleLength of expected : Int32 * actual : Int32
+            | TupleAtIndex of Int32
+            | EnumField of caseName : String * fieldIndex : Int32
+            | RecordField of fieldName : String
 
-          type Error =
-            | ValueNotExpectedType of
-              path: Path *
-              expected: TypeReference *
-              actual: Dval
+          type ReverseTypeCheckPath = List<TypeCheckPathPart>
 
         module Bools =
           type Error =
@@ -39,17 +25,17 @@ module Darklang =
             | DivideByZeroError
             | OutOfRange
             | NegativeExponent
-            | NegativeModulus // negative divisors are not allowed
-            | ZeroModulus // a divisor of zero is not allowed
+            | NegativeModulus
+            | ZeroModulus
 
         module Strings =
           type Error =
             | NonStringInInterpolation of vt: ValueType * dv: Dval
-            | InvalidStringAppend
 
         module Lists =
           type Error =
             | TriedToAddMismatchedData of
+              index: Int32 *
               expectedType: ValueType *
               actualType: ValueType *
               actualValue: Dval
@@ -57,16 +43,20 @@ module Darklang =
         module Dicts =
           type Error =
             | TriedToAddKeyAfterAlreadyPresent of key: String
+
             | TriedToAddMismatchedData of
+              key: String *
               expectedType: ValueType *
               actualType: ValueType *
               actualValue: Dval
 
         module Lets =
-          type Error = PatternDoesNotMatch of dval: Dval * pat: LetPattern
+          type Error =
+            | PatternDoesNotMatch of dval: Dval * pat: LetPattern
 
         module Matches =
-          type Error = | MatchUnmatched
+          type Error =
+            | MatchUnmatched
 
         module Enums =
           type Error =
@@ -75,9 +65,11 @@ module Darklang =
               caseName: String *
               expectedFieldCount: Int64 *
               actualFieldCount: Int64
+
             | ConstructionCaseNotFound of
               typeName: FQTypeName.FQTypeName *
               caseName: String
+
             | ConstructionFieldOfWrongType of
               caseName: String *
               fieldIndex: Int64 *
@@ -96,7 +88,8 @@ module Darklang =
             | CreationFieldOfWrongType of
               fieldName: String *
               expectedType: ValueType *
-              actualType: ValueType
+              actualType: ValueType *
+              actualValue: Dval
 
             // -- Update --
             | UpdateNotRecord of actualType: ValueType
@@ -106,7 +99,8 @@ module Darklang =
             | UpdateFieldOfWrongType of
               fieldName: String *
               expectedType: ValueType *
-              actualType: ValueType
+              actualType: ValueType *
+              actualValue : Dval
 
             // -- Field Access --
             | FieldAccessEmptyFieldName
@@ -146,26 +140,38 @@ module Darklang =
           | Bool of Bools.Error
           | Int of Ints.Error
           | String of Strings.Error
+
           | List of Lists.Error
           | Dict of Dicts.Error
+
           | Let of Lets.Error
           | VariableNotFound of attemptedVarName: String
+
           | EqualityCheckOnIncompatibleTypes of left: ValueType * right: ValueType
+
           | IfConditionNotBool of actualValue: Dval * actualValueType: ValueType
+
           | Match of Matches.Error
+
           | ParseTimeNameResolution of NameResolutionError
+
           | TypeNotFound of name: FQTypeName.FQTypeName
           | FnNotFound of name: FQFnName.FQFnName
           | ConstNotFound of name: FQConstantName.FQConstantName
-          | WrongNumberOfTypeArgsForType of
-            fn: FQTypeName.FQTypeName *
-            expected: Int64 *
-            actual: Int64
+
+          | WrongNumberOfTypeArgsForType of fn: FQTypeName.FQTypeName * expected: Int64 * actual: Int64
+
           | Record of Records.Error
           | Enum of Enums.Error
-          | Unwrap of Unwraps.Error
+
           | Apply of Applications.Error
+
+          | Unwrap of Unwraps.Error
+
           | Json of Jsons.Error
+
           | CLI of CLIs.Error
-          | TypeChecker of err: TypeCheckers.Error
+
+          | DBSetOfWrongType of expected: TypeReference * actual: ValueType
+
           | UncaughtException of msg : String * metadata : List<String * Dval>

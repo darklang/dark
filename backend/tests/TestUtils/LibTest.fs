@@ -237,7 +237,7 @@ let fns : List<BuiltInFn> =
       description = "A function that raises an F# exception"
       fn =
         (function
-        | _, _, _, [ DString message ] -> raise (System.Exception(message))
+        | _, _, _, [ DString message ] -> raise (System.Exception message)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

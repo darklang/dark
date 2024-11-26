@@ -816,11 +816,13 @@ module RuntimeError =
 
       let (caseName, fields) =
         match e with
-        | RuntimeError.Lists.TriedToAddMismatchedData(expectedType,
+        | RuntimeError.Lists.TriedToAddMismatchedData(index,
+                                                      expectedType,
                                                       actualType,
                                                       actualValue) ->
           "TriedToAddMismatchedData",
-          [ ValueType.toDT expectedType
+          [ DInt32 index
+            ValueType.toDT expectedType
             ValueType.toDT actualType
             Dval.toDT actualValue ]
 
@@ -832,8 +834,9 @@ module RuntimeError =
               _,
               [],
               "TriedToAddMismatchedData",
-              [ expectedType; actualType; actualValue ]) ->
+              [ index; expectedType; actualType; actualValue ]) ->
         RuntimeError.Lists.TriedToAddMismatchedData(
+          D.int32 index,
           ValueType.fromDT expectedType,
           ValueType.fromDT actualType,
           Dval.fromDT actualValue
@@ -850,11 +853,13 @@ module RuntimeError =
         match e with
         | RuntimeError.Dicts.TriedToAddKeyAfterAlreadyPresent key ->
           "TriedToAddKeyAfterAlreadyPresent", [ DString key ]
-        | RuntimeError.Dicts.TriedToAddMismatchedData(expectedType,
+        | RuntimeError.Dicts.TriedToAddMismatchedData(key,
+                                                      expectedType,
                                                       actualType,
                                                       actualValue) ->
           "TriedToAddMismatchedData",
-          [ ValueType.toDT expectedType
+          [ DString key
+            ValueType.toDT expectedType
             ValueType.toDT actualType
             Dval.toDT actualValue ]
 
@@ -868,8 +873,9 @@ module RuntimeError =
               _,
               [],
               "TriedToAddMismatchedData",
-              [ expectedType; actualType; actualValue ]) ->
+              [ key; expectedType; actualType; actualValue ]) ->
         RuntimeError.Dicts.TriedToAddMismatchedData(
+          D.string key,
           ValueType.fromDT expectedType,
           ValueType.fromDT actualType,
           Dval.fromDT actualValue
@@ -934,11 +940,13 @@ module RuntimeError =
           "CreationFieldNotExpected", [ DString fieldName ]
         | RuntimeError.Records.CreationFieldOfWrongType(fieldName,
                                                         expectedType,
-                                                        actualType) ->
+                                                        actualType,
+                                                        actual) ->
           "CreationFieldOfWrongType",
           [ DString fieldName
             ValueType.toDT expectedType
-            ValueType.toDT actualType ]
+            ValueType.toDT actualType
+            Dval.toDT actual ]
 
         | RuntimeError.Records.UpdateNotRecord actualType ->
           "UpdateNotRecord", [ ValueType.toDT actualType ]
@@ -949,11 +957,13 @@ module RuntimeError =
           "UpdateFieldNotExpected", [ DString fieldName ]
         | RuntimeError.Records.UpdateFieldOfWrongType(fieldName,
                                                       expectedType,
-                                                      actualType) ->
+                                                      actualType,
+                                                      actual) ->
           "UpdateFieldOfWrongType",
           [ DString fieldName
             ValueType.toDT expectedType
-            ValueType.toDT actualType ]
+            ValueType.toDT actualType
+            Dval.toDT actual ]
 
         | RuntimeError.Records.FieldAccessEmptyFieldName ->
           "FieldAccessEmptyFieldName", []
@@ -980,11 +990,12 @@ module RuntimeError =
               _,
               [],
               "CreationFieldOfWrongType",
-              [ fieldName; expectedType; actualType ]) ->
+              [ fieldName; expectedType; actualType; actual ]) ->
         RuntimeError.Records.CreationFieldOfWrongType(
           D.string fieldName,
           ValueType.fromDT expectedType,
-          ValueType.fromDT actualType
+          ValueType.fromDT actualType,
+          Dval.fromDT actual
         )
 
       | DEnum(_, _, [], "UpdateNotRecord", [ actualType ]) ->
@@ -998,11 +1009,12 @@ module RuntimeError =
               _,
               [],
               "UpdateFieldOfWrongType",
-              [ fieldName; expectedType; actualType ]) ->
+              [ fieldName; expectedType; actualType; actual ]) ->
         RuntimeError.Records.UpdateFieldOfWrongType(
           D.string fieldName,
           ValueType.fromDT expectedType,
-          ValueType.fromDT actualType
+          ValueType.fromDT actualType,
+          Dval.fromDT actual
         )
 
       | DEnum(_, _, [], "FieldAccessEmptyFieldName", []) ->

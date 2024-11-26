@@ -326,6 +326,13 @@ type Instruction =
 
   | CopyVal of copyTo : Register * copyFrom : Register
 
+  // TODO: update both of these to take a _single_ arg,
+  // and replace the 'rhs' component with a 'jumpIfFalse' component
+  // hmm or maybe jumpIfTrue.
+  // the point here is to allow for short-circuiting, allowing the RHS instructions to be skipped
+  // if the first argument resolves the condition.
+  // So I guess Or needs jumpIfTrue, and And needs jumpIfFalse.
+  // and the jumpIfFalse/jumpIfTrue might have a 0-instr skip for the RHS.
   | Or of createTo : Register * lhs : Register * rhs : Register
   | And of createTo : Register * lhs : Register * rhs : Register
 
@@ -634,43 +641,29 @@ and Param = { name : string; typ : TypeReference }
 
 
 module RuntimeError =
-  module TypeCheckers =
-    type PathPart =
-      | TuplePart of index : int
+  module TypeChecking =
 
-      | ListItem of index : int
+    type TypeCheckPathPart =
+      | ListType
 
-      | DictEntry of key : string
+      | DictValueType
+      // TODO add DictKeyType here, once Dicts support non-string keys
 
-      | RecordField of typeName : FQTypeName.FQTypeName * fieldName : string
+      | TupleLength of expected : int * actual : int
+      | TupleAtIndex of int
 
+      // TODO try to add these fields
       | EnumField of
-        typeName : FQTypeName.FQTypeName *
+        // typeName : FQTypeName.FQTypeName *
         caseName : string *
-        fieldIndex : int *
-        fieldName : Option<string> *
-        /// we only need this count to help provide a pretty error.
-        fieldCount : int
+        fieldIndex : int
+      // fieldName : Option<string> *
+      // /// we only need this count to help provide a pretty error.
+      // fieldCount : int
 
-      | FunctionCallParameter of
-        fnName : FQFnName.FQFnName *
-        paramName : string *
-        paramIndex : int
-      | FunctionCallResult of fnName : FQFnName.FQFnName
+      | RecordField of fieldName : string
 
-    // | DBQueryVariable of varName : string
-    // | DBSchemaType of name : string
-
-    type Path = List<PathPart>
-
-    // CLEANUP There's a general question still in the air, of
-    // "when should we use/extend this error, as opposed to a case
-    // in a specific submodule." I don't yet have a good answer here.
-    type Error =
-      | ValueNotExpectedType of
-        //path : Path *
-        expected : TypeReference *
-        actual : Dval
+    type ReverseTypeCheckPath = List<TypeCheckPathPart>
 
 
   module Bools =
@@ -681,50 +674,37 @@ module RuntimeError =
 
   module Ints =
     type Error =
-      /// Cannot divide by 0
       | DivideByZeroError
-
-      /// Encountered out-of-range value for type of Int
-      | OutOfRange // TODO: include value?
-
-      /// Cannot raise integer to a negative exponent
+      | OutOfRange // TODO include value?
       | NegativeExponent
-
-      /// Cannot evaluatie modulus against a negative number
       | NegativeModulus
-
-      /// Cannot evaluate modulus against 0
       | ZeroModulus
 
   module Strings =
-    type Error =
-      /// Cannot include non-string ({vt}) in string interpolation.
-      | NonStringInInterpolation of vt : ValueType * dv : Dval
+    type Error = NonStringInInterpolation of vt : ValueType * dv : Dval
 
 
   module Lists =
     type Error =
-      /// Cannot add a {} ({}) to a list of {}
       | TriedToAddMismatchedData of
+        index : int *
         expectedType : ValueType *
         actualType : ValueType *
         actualValue : Dval
 
   module Dicts =
     type Error =
-      /// Cannot add two dictionary entries with the same key "{key}".
       | TriedToAddKeyAfterAlreadyPresent of key : string
 
-      /// Cannot include a {} ({}) in a dictionary of {}
       | TriedToAddMismatchedData of
+        key : string *
         expectedType : ValueType *
         actualType : ValueType *
         actualValue : Dval
 
 
   module Lets =
-    // TODO consider some kinda _path_ thing like with JSON errors
-    // , and these "Details":
+    // TODO consider some kinda _path_ thing like with JSON errors:
     // type Details =
     //   /// Unit pattern does not match
     //   | UnitPatternDoesNotMatch
@@ -735,13 +715,18 @@ module RuntimeError =
     //   /// Tuple pattern has wrong number of elements
     //   | TuplePatternWrongLength of expected: Int * actual: Int
 
+    // maybe it'd be better to present:
+    // - top-level path we're matching against
+    // - the path to failure
+    // - (?) ??
+
     type Error =
       /// Could not decompose `{someFn dval}` with pattern `{someFn pat}` in `let` expression
       | PatternDoesNotMatch of dval : Dval * pat : LetPattern
 
   module Matches =
-    //TODO "When condition should be a boolean" -- this _could_ warn _or_ error. which?
-    //TODO "Match must have at least one case"
+    // TODO "When condition should be a boolean" -- this could warn _or_ error -- which do we want?
+    // CLEANUP "Match must have at least one case"
     type Error =
       /// CLEANUP probably need the value -- though if the trace contains
       /// enough info, this may be enough? enh.
@@ -768,8 +753,9 @@ module RuntimeError =
 
 
   module Records =
-    // TODO _maybe_ "Record must have at least one field" (Q: for defs, or instances?)
+    // CLEANUP _maybe_ "Record must have at least one field" (Q: for defs, or instances?)
     // I'm not totally convinced, though - `type WIP = {}` seems useful.
+    // Later note -- this^ should be in some separate error tree for _dev-time_ errors
 
     type Error =
       // -- Creation --
@@ -781,7 +767,8 @@ module RuntimeError =
       | CreationFieldOfWrongType of
         fieldName : string *
         expectedType : ValueType *
-        actualType : ValueType
+        actualType : ValueType *
+        actualValue : Dval
 
       // -- Update --
       | UpdateNotRecord of actualType : ValueType
@@ -791,7 +778,8 @@ module RuntimeError =
       | UpdateFieldOfWrongType of
         fieldName : string *
         expectedType : ValueType *
-        actualType : ValueType
+        actualType : ValueType *
+        actualValue : Dval
 
       // -- Field Access --
       | FieldAccessEmptyFieldName
@@ -809,10 +797,12 @@ module RuntimeError =
         fn : FQFnName.FQFnName *
         expected : int64 *
         actual : int64
+
       | TooManyArgsForFn of
         fn : FQFnName.FQFnName *
         expected : int64 *
         actual : int64
+
       | FnParameterNotExpectedType of
         fnName : FQFnName.FQFnName *
         paramIndex : int64 *
@@ -820,6 +810,7 @@ module RuntimeError =
         expectedType : ValueType *
         actualType : ValueType *
         actualValue : Dval
+
       | FnResultNotExpectedType of
         fnName : FQFnName.FQFnName *
         expectedType : ValueType *
@@ -883,8 +874,8 @@ module RuntimeError =
       expected : int64 *
       actual : int64
 
-    | Record of Records.Error
     | Enum of Enums.Error
+    | Record of Records.Error
 
     | Apply of Applications.Error
 
@@ -892,27 +883,21 @@ module RuntimeError =
 
     | Json of Jsons.Error
 
+
+    // stuff that isn't _quite _ "core", and maybe should belong elsewhere
+    // , once RTEs are (somehow) more extensible
+
     | CLI of CLIs.Error
-
-    // TODO: I think we can remove this.
-    | TypeChecker of err : TypeCheckers.Error
-
-
-    // soon, but not quite yet
-    // backend/tests/TestUtils/LibTest.fs:
-    // - update `Builtin.testRuntimeError` to take an `RTE` value instead of a string
-    // - update all usages
-
 
     | DBSetOfWrongType of expected : TypeReference * actual : ValueType
 
+
     // punting these until DBs are supported again
-    // - "Attempting to access field '{fieldName}' of a Datastore
-    // (use `DB.*` standard library functions to interact with Datastores. Field access only work with records)"
-    // backend/src/LibCloud/SqlCompiler.fs:
-    // 1223: | SqlCompilerException errStr -> return Error(RuntimeError.oldError errStr)
-    // 1224: // return Error(RuntimeError.oldError (errStr + $"\n\nIn body: {body}"))
-    // //| SqlCompiler of SqlCompiler.Error // -- or maybe this should happen during PT2RT? hmm.
+    // - bring back this RTE where/when relevant "Attempting to access field '{fieldName}' of a Datastore (use `DB.*` standard library functions to interact with Datastores. Field access only work with records)"
+    // - in backend/src/LibCloud/SqlCompiler.fs:
+    //   - 1223: | SqlCompilerException errStr -> return Error(RuntimeError.oldError errStr)
+    //   - 1224: // return Error(RuntimeError.oldError (errStr + $"\n\nIn body: {body}"))
+    //   - | SqlCompiler of SqlCompiler.Error // -- or maybe this should happen during PT2RT? hmm.
 
 
     /// Sometimes, very-unexpected things happen. This is a catch-all for those.
@@ -953,31 +938,24 @@ module TypeReference =
     | TString -> ValueType.Known KTString
     | TUuid -> ValueType.Known KTUuid
     | TDateTime -> ValueType.Known KTDateTime
-    | TList inner -> ValueType.Known(KTList(r inner))
-    | TDict inner -> ValueType.Known(KTDict(r inner))
+
     | TTuple(first, second, rest) ->
       KTTuple(r first, r second, rest |> List.map r) |> ValueType.Known
+    | TList inner -> ValueType.Known(KTList(r inner))
+    | TDict inner -> ValueType.Known(KTDict(r inner))
+
     | TCustomType(Ok typeName, typeArgs) ->
       KTCustomType(typeName, typeArgs |> List.map r) |> ValueType.Known
     | TCustomType(Error _err, _) -> ValueType.Unknown // TODO: RTE here instead
-    | TVariable name ->
-      match Map.get name tst with
-      | Some vt -> vt
-      | None -> ValueType.Unknown
-    | TFn(argTypes, returnType) ->
-      KTFn(NEList.map r argTypes, r returnType) |> ValueType.Known
+
+    | TVariable name -> tst |> Map.get name |> Option.defaultValue ValueType.Unknown
+
+    | TFn(args, result) -> KTFn(NEList.map r args, r result) |> ValueType.Known
+
     | TDB inner -> ValueType.Known(KTDB(r inner))
 
 
-
-/// Note: in cases where it's awkward to include a CallStack,
-/// the Interpreter should try to inject it where it can
-///
-/// CLEANUP: ideally, the CallStack isn't required as part of the exception.
-/// This would clean up a _lot_ of code.
-/// The tricky part is that we do want the CallStack around, to report on,
-/// and to use for debugging, but the way the Interpreter+Execution is set up,
-/// there's no great single place to `try/with` to supply the call stack.
+// CLEANUP the ThreadID isn't useful yet -- consider abandoning for now.
 exception RuntimeErrorException of Option<ThreadID> * rte : RuntimeError.Error
 
 
@@ -993,7 +971,7 @@ type ExecutionPoint =
   /// This should only be at the `entrypoint` of a CallStack.
   ///
   /// Executing some top-level handler,
-  /// such as a saved Script, an HTTP handler, or a Cron
+  /// such as a saved Script, an HTTP handler, or a Cron.
   | Source
 
   // Executing some function
@@ -1008,12 +986,12 @@ type CallStack = List<ExecutionPoint>
 /// Internally in the runtime, we allow throwing RuntimeErrorExceptions. At the
 /// boundary, typically in Execution.fs, we will catch the exception, and return
 /// this type.
-/// TODO return a call stack or vmstate, or something, here
+/// CLEANUP return a call stack or vmstate, or something, here
 type ExecutionResult = Result<Dval, RuntimeError.Error * CallStack>
 
 /// IncorrectArgs should never happen, as all functions are type-checked before
 /// calling. If it does happen, it means that the type parameters in the Fn structure
-/// do not match the args expected in the F# function definition.
+/// do not match the args expected in the Builtin function definition.
 /// CLEANUP should this take more args, so we can find the error? Maybe just the fn name?
 let incorrectArgs () = Exception.raiseInternal "IncorrectArgs" []
 
@@ -1032,12 +1010,10 @@ type Deprecation<'name> =
   | ReplacedBy of 'name
 
   /// This has been deprecated and not replaced, provide a message for the user
-  | DeprecatedBecause of string
+  | DeprecatedBecause of reason : string
 
 
 module TypeDeclaration =
-  // TODO: add fields for descriptions -- how are those not here yet?
-
   type RecordField = { name : string; typ : TypeReference }
 
   type EnumCase = { name : string; fields : List<TypeReference> }
@@ -1091,6 +1067,7 @@ module Dval =
     | DApplicable applicable ->
       match applicable with
       | AppLambda _lambda ->
+        // TODO something
         //   KTFn(
         //     NEList.map (fun _ -> ValueType.Unknown) lambda.parameters,
         //     ValueType.Unknown
@@ -1098,7 +1075,7 @@ module Dval =
         //   |> ValueType.Known
         ValueType.Unknown
 
-      // VTTODO look up type, etc
+      // TODO look up type, etc
       // (probably forces us to make this fn async?)
       | AppNamedFn _named -> ValueType.Unknown
 
@@ -1155,9 +1132,6 @@ module PackageFn =
   type PackageFn =
     { id : uuid
       typeParams : List<string>
-
-      // CLEANUP I have an odd suspicion we might not need this field
-      // Maybe we just need a paramCount, and the Instructinos in PT2RT ????
       parameters : NEList<Parameter>
       returnType : TypeReference
 

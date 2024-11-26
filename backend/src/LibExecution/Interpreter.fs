@@ -1,10 +1,6 @@
 /// Interprets Dark instructions resulting in (tasks of) Dvals
 module LibExecution.Interpreter
 
-open System.Threading.Tasks
-open FSharp.Control.Tasks
-open FSharp.Control.Tasks.Affine.Unsafe
-
 open Prelude
 open RuntimeTypes
 module RTE = RuntimeError
@@ -25,8 +21,8 @@ let rec checkAndExtractLetPattern
     | pat :: otherPats, item :: items ->
       let matches, vars = r pat item
       if matches then
-        let matchesRest, varsRest = rList otherPats items
-        if matchesRest then true, vars @ varsRest else false, []
+        let matchesOtherPats, varsFromOtherParts = rList otherPats items
+        if matchesOtherPats then true, vars @ varsFromOtherParts else false, []
       else
         false, []
 
@@ -57,8 +53,8 @@ let rec checkAndExtractMatchPattern
     | pat :: otherPats, item :: items ->
       let matches, vars = r pat item
       if matches then
-        let matchesRest, varsRest = rList otherPats items
-        if matchesRest then true, vars @ varsRest else false, []
+        let matchesOtherPats, varsFromOtherPats = rList otherPats items
+        if matchesOtherPats then true, vars @ varsFromOtherPats else false, []
       else
         false, []
 
@@ -109,26 +105,27 @@ let rec checkAndExtractMatchPattern
   | MPVariable _, _
   | MPUnit, _
   | MPBool _, _
-  | MPInt64 _, _
-  | MPUInt64 _, _
   | MPInt8 _, _
   | MPUInt8 _, _
   | MPInt16 _, _
   | MPUInt16 _, _
   | MPInt32 _, _
   | MPUInt32 _, _
+  | MPInt64 _, _
+  | MPUInt64 _, _
   | MPInt128 _, _
   | MPUInt128 _, _
+  | MPFloat _, _
   | MPChar _, _
   | MPString _, _
-  | MPFloat _, _
   | MPTuple _, _
   | MPListCons _, _
   | MPList _, _
   | MPEnum _, _ -> false, []
 
 
-
+// CLEANUP evaluate constants/values at dev-time, not interpreter time,
+// and remove the Const structure
 let rec evalConst
   (types : Types)
   (threadID : ThreadID)
@@ -238,7 +235,8 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
           |> Ply
 
         | Function(FQFnName.Builtin _) ->
-          // we should error better (TODO) but the point is that callstacks shouldn't be created for builtin fn calls
+          // we should error in some better way (CLEANUP)
+          // , but the point is that callstacks shouldn't be created for builtin fn calls
           raiseRTE (RTE.FnNotFound(FQFnName.fqBuiltin "builtin" 0))
 
         | Function(FQFnName.Package fn) ->
@@ -318,9 +316,10 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
             raiseRTE (RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, pat)))
 
 
-        // CLEANUP References to DBs and Secrets should be resolved at parse-time
-        // , not runtime. For consistency, safety, etc. We should have specific
-        // EReferenceSecretR and EReferenceDB constructs that we respect,
+        // TODO References to DBs and Secrets should be resolved at parse-time
+        // , not runtime. For consistency, safety, etc.
+        // We should have specific
+        // EReferenceSecret and EReferenceDB constructs that we respect,
         // all throughout WT, NR, PT, RT, PT2RT, etc.
         // I don't even think this would be that hard -- good to do sooner rather than later.
         | VarNotFound(targetRegIfSecretOrDB, varName) ->
@@ -364,8 +363,9 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
           | DBool false -> counter <- counter + jumpBy
           | DBool true -> ()
           | dv ->
-            let vt = Dval.toValueType dv
-            raiseRTE (RTE.Bool(RTE.Bools.ConditionRequiresBool(vt, dv)))
+            raiseRTE (
+              RTE.Bool(RTE.Bools.ConditionRequiresBool(Dval.toValueType dv, dv))
+            )
 
         // -- Match --
         | CheckMatchPatternAndExtractVars(valueReg, pat, failJump) ->
@@ -422,6 +422,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
         | CloneRecordWithUpdates(targetReg, originalRecordReg, fieldUpdates) ->
           let originalRecord = registers[originalRecordReg]
 
+          // CLEANUP maybe some of this logic should be in the typechecker
           match originalRecord with
           | DRecord(sourceTypeName, resolvedTypeName, typeArgs, originalFields) ->
             let fieldUpdates =
@@ -469,7 +470,8 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
 
         // -- Enums --
         | CreateEnum(enumReg, typeName, typeArgs, caseName, fields) ->
-          let fields = fields |> List.map (fun (valueReg) -> registers[valueReg])
+          let fields = fields |> List.map (fun valueReg -> registers[valueReg])
+
           let! (newEnum, updatedTst) =
             TypeChecker.DvalCreator.enum
               exeState.types
@@ -508,6 +510,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
           vm.lambdaInstrCache <-
             vm.lambdaInstrCache
             |> Map.add (currentFrame.executionPoint, impl.exprId) impl
+            // CLEANUP why do we need this? ask Ocean for a reminder. I really feel like we shouldn't.
             |> Map.add (Source, impl.exprId) impl
 
           registers[lambdaReg] <-
@@ -579,10 +582,19 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                   registers =
                     let r = Array.zeroCreate foundLambda.instructions.registerCount
 
-                    // TODO: deal with tuple args (respect the same stuff as let patterns)
-                    //
-                    allArgs |> List.iteri (fun i arg -> r[i] <- arg)
+                    // extract and copy over the args
+                    List.zip (NEList.toList foundLambda.patterns) allArgs
+                    |> List.iter (fun (pat, arg) ->
+                      let doesMatch, registersToAssign =
+                        checkAndExtractLetPattern pat arg
 
+                      if doesMatch then
+                        registersToAssign
+                        |> List.iter (fun (reg, value) -> r[reg] <- value)
+                      else
+                        raiseRTE (RTE.Let(RTE.Lets.PatternDoesNotMatch(arg, pat))))
+
+                    // copy over closed registers
                     appLambda.closedRegisters
                     |> List.iter (fun (reg, value) -> r[reg] <- value)
 
@@ -686,9 +698,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                     |> AppNamedFn
                     |> DApplicable
                 else
-                  // TODO type-checking of fn args and result.
-                  // The args are relatively simple, but the result is more complex,
-                  // because the actual processing is happening in another interpreter loop, after we lose context.
+                  // TODO type-checking of fn args
 
                   // push a new frame to execute the function
                   // , and the interpreter will evaluate it shortly
@@ -729,8 +739,49 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
           // TODO this might be where the type-checking of a fn result needs to happen.
           // But when here, it's not always a fn call - could also be for a lambda.
 
-          vm.callFrames <- Map.remove vm.currentFrameID vm.callFrames
+          // Type-check results of fns
+          match currentFrame.executionPoint with
+          | Source -> ()
+          | Lambda _ -> ()
+          | Function fnName ->
+            let! expectedReturnType =
+              match fnName with
+              | FQFnName.Package id ->
+                uply {
+                  let! fn = exeState.fns.package id
+                  match fn with
+                  | None -> return RTE.FnNotFound fnName |> raiseRTE
+                  | Some fn -> return fn.returnType
+                }
+
+              | FQFnName.Builtin builtin ->
+                let fn = Map.findUnsafe builtin exeState.fns.builtIn
+                Ply fn.returnType
+
+            let tst = currentFrame.typeSymbolTable
+            match!
+              TypeChecker.unify exeState.types tst expectedReturnType resultOfFrame
+            with
+            | Ok _updatedTst ->
+              //currentFrame.typeSymbolTable <- updatedTst
+              // CLEANUP is this^ or something like it worthwhile?
+              ()
+            | Error _path ->
+              return
+                RuntimeError.Applications.FnResultNotExpectedType(
+                  fnName,
+                  TypeReference.toVT tst expectedReturnType,
+                  Dval.toValueType resultOfFrame,
+                  resultOfFrame
+                )
+                |> RuntimeError.Apply
+                |> raiseRTE
+
+          // TODO think about if/when we should actually do this.
+          //vm.callFrames <- Map.remove vm.currentFrameID vm.callFrames
+
           vm.currentFrameID <- parentID
+
           let parentFrame = Map.findUnsafe parentID vm.callFrames
           parentFrame.registers[regOfParentToPutResultInto] <- resultOfFrame
           parentFrame.programCounter <- pcOfParent
@@ -743,10 +794,5 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
     // If we've reached the end of the instructions, return the result
     match finalResult with
     | Some dv -> return dv
-    | None ->
-      let currentFrame = Map.findUnsafe vm.currentFrameID vm.callFrames
-      return
-        Exception.raiseInternal
-          "no finalResult found"
-          [ "currentFrame", currentFrame ]
+    | None -> return Exception.raiseInternal "No finalResult found" []
   }

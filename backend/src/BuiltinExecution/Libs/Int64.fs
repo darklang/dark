@@ -60,7 +60,7 @@ let fns : List<BuiltInFn> =
 
 
     // See above for when to uncomment this
-    // TODO: A future version should support all non-A divisor of zero is not allowed values and should include the infix "%"
+    // TODO: A future version should support all non-0 values and should include the infix "%"
     // { name = fn "mod" 0
     //   parameters = [ Param.make "dividend" TInt64 ""; Param.make "divisor" TInt64 "" ]
     //   returnType = TypeReference.result TInt64 TString

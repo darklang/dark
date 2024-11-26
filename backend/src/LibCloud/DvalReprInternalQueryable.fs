@@ -234,8 +234,8 @@ let rec private toJsonV0
 
 
 let toJsonStringV0
-  (threadID : ThreadID)
   (types : Types)
+  (threadID : ThreadID)
   (typ : TypeReference)
   (dval : Dval)
   : Ply<string> =

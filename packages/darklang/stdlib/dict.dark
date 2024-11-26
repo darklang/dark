@@ -31,8 +31,8 @@ module Darklang =
       /// key will be used in the resulting dictionary (use <fn Dict.fromList> if you
       /// want to enforce unique keys).
       /// This function is the opposite of <fn Dict.toList>.
-      let fromListOverwritingDuplicates (entries: List<(String * 'a)>) : Dict<'a> =
-        Builtin.dictFromListOverwritingDuplicates_v0 entries
+      let fromListOverwritingDuplicates (entries: List<String * 'a>) : Dict<'a> =
+        Builtin.dictFromListOverwritingDuplicates entries
 
 
       /// Each value in <param entries> must be a {{(key, value)}} tuple, where <var
@@ -94,7 +94,9 @@ module Darklang =
         dict
         |> Dict.toList
         |> List.filterMap (fun (k, v) ->
-          (fn k v) |> Option.map (fun newValue -> (k, newValue)))
+          match fn k v with
+          | None -> Option.Option.None
+          | Some newValue -> Option.Option.Some ((k, newValue)))
         |> Dict.fromListOverwritingDuplicates
 
 

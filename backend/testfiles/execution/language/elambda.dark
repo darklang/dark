@@ -13,8 +13,9 @@
  Stdlib.List.map_v0 [ "1"; "2"; "3"; "4" ] y) =
    (Builtin.testDerrorMessage "Uncaught exception: 1")
 
+(let y = (fun a b -> a + b) in y 2L 3L) = 5L // TODO: allow
+//(let y = (fun (a, b) -> a + b in y (2L, 3L)) = 5L)
 (let y = (fun msg -> Builtin.testRuntimeError msg) in Stdlib.List.map_v0 [] y) = []
-// (let y = (fun a b -> a + b) in y 2 3) = 5 // TODO: allow
 (let y = (fun a b -> a * b) in Stdlib.List.fold_v0 [ 1L; 2L; 3L; 4L ] 1L y) = 24L
 
 (Stdlib.List.fold_v0 [ 4L ] 1L (Builtin.testRuntimeError "test")) =
@@ -83,8 +84,8 @@
 //      else
 //        $"{Stdlib.Int64.toString num}:{str}:FALSE"
 
-//  Stdlib.List.map_v0 triplets transformer) = [ "1:one:TRUE"
-//                                                                "2:two:FALSE" ]
+//  Stdlib.List.map_v0 triplets transformer) =
+//   [ "1:one:TRUE"; "2:two:FALSE" ]
 
 // (let triplets = [ (1L, "one", true); (2L, "two", false) ]
 
@@ -105,3 +106,12 @@
 //   (Dict { key1 = ("val11", "val12"); key2 = ("val21", "val22") })
 //   (fun x (_, z) -> x ++ z)) =
 //   (Dict { key2 = "key2val22"; key1 = "key1val12" })
+
+
+// CLEANUP include this once we've switched over to the new parser.
+// module LambdaInRecordField =
+//   type RecordWithFn = { fn: Int64 -> Int64 }
+
+//   // check: can we apply a function from a record field directly?
+//   (let record = RecordWithFn { fn = fun x -> x + 1L }
+//    (record.fn 6L)) = 7L

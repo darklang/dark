@@ -19,7 +19,7 @@ Stdlib.UInt128.add_v0 9223372036854775807Z 2Z = 9223372036854775809Z
 
 Stdlib.UInt128.add_v0 170141183460469231731687303715884105726Z 4Z = 170141183460469231731687303715884105730Z
 
-Stdlib.UInt128.add_v0 340282366920938463463374607431768211455Z 1Z = Builtin.testDerrorMessage "Out of range"
+Stdlib.UInt128.add_v0 340282366920938463463374607431768211455Z 1Z = Builtin.testDerrorMessage "Encountered out-of-range value for type of Int"
 
 Stdlib.UInt128.subtract_v0 10Z 9Z = 1Z
 Stdlib.UInt128.subtract_v0 88Z 9Z = 79Z
@@ -29,13 +29,13 @@ Stdlib.UInt128.multiply_v0 8Z 8Z = 64Z
 Stdlib.UInt128.multiply_v0 1Z 0Z = 0Z
 
 Stdlib.UInt128.multiply_v0 340282366920938463463374607431768211455Z 2Z = Builtin.testDerrorMessage
-  "Out of range"
+  "Encountered out-of-range value for type of Int"
 
 Stdlib.UInt128.divide_v0 10Z 5Z = 2Z
 Stdlib.UInt128.divide_v0 17Z 3Z = 5Z
 Stdlib.UInt128.divide_v0 0Z 1Z = 0Z
 
-Stdlib.UInt128.divide_v0 1Z 0Z = Builtin.testDerrorMessage "Division by zero"
+Stdlib.UInt128.divide_v0 1Z 0Z = Builtin.testDerrorMessage "Cannot divide by 0"
 
 Stdlib.UInt128.greaterThan_v0 20Z 1Z = true
 
@@ -72,7 +72,7 @@ Stdlib.UInt128.mod_v0 15Z 6Z = 3Z
 Stdlib.UInt128.mod_v0 0Z 15Z = 0Z
 Stdlib.UInt128.mod_v0 127Z 3Z = 1Z
 
-Stdlib.UInt128.mod_v0 5Z 0Z = Builtin.testDerrorMessage "A divisor of zero is not allowed"
+Stdlib.UInt128.mod_v0 5Z 0Z = Builtin.testDerrorMessage "Cannot evaluate modulus against 0"
 
 // parses OK
 Stdlib.UInt128.parse_v0 "0" = Stdlib.Result.Result.Ok(0Z)

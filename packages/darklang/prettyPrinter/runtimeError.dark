@@ -103,6 +103,7 @@ module Darklang =
                 | VarName v -> $"`{v}`"
                 | InlineVarName v -> v
                 | InlineValue dv ->
+                  // CLEANUP for strings that are cut off, the closing `"` seems to be missing.
                   (dval dv)
                   |> Stdlib.String.ellipsis 10L
                   |> Stdlib.String.splitOnNewline
@@ -163,11 +164,11 @@ module Darklang =
                 ES.FullValue actualValue
                 ES.String ")" ]
 
-          | Int DivideByZeroError -> [ ES.String "Division by zero" ]
-          | Int OutOfRange -> [ ES.String "Out of range" ]
-          | Int NegativeExponent -> [ ES.String "Negative exponent" ]
-          | Int NegativeModulus -> [ ES.String "Negative divisors are not allowed" ]
-          | Int ZeroModulus -> [ ES.String "A divisor of zero is not allowed" ]
+          | Int DivideByZeroError -> [ ES.String "Cannot divide by 0" ]
+          | Int OutOfRange -> [ ES.String "Encountered out-of-range value for type of Int" ]
+          | Int NegativeExponent -> [ ES.String "Cannot raise integer to a negative exponent" ]
+          | Int NegativeModulus -> [ ES.String "Cannot evaluate modulus against a negative number" ]
+          | Int ZeroModulus -> [ ES.String "Cannot evaluate modulus against 0" ]
 
           | String (NonStringInInterpolation(vt, dv)) ->
             [ ES.String "Expected String in string interpolation, got "
@@ -177,26 +178,34 @@ module Darklang =
               ES.InlineValue dv
               ES.String ") instead" ]
 
-          | List (TriedToAddMismatchedData (expectedType, actualType, actualValue)) ->
+          | List (TriedToAddMismatchedData (index, expectedType, actualType, actualValue)) ->
             [ ES.String "Cannot add "
               ES.IndefiniteArticle
               ES.ValueType actualType
               ES.String " ("
               ES.FullValue actualValue
               ES.String ") to a list of "
-              ES.ValueType expectedType ]
+              ES.ValueType expectedType
+              ES.String ". Failed at index "
+              ES.Int (Stdlib.Int64.fromInt32 index)
+              ES.String "."]
 
           | Dict err ->
             match err with
-            | TriedToAddKeyAfterAlreadyPresent key -> [ ES.String ("Key already present: " ++ key) ]
-            | TriedToAddMismatchedData (expectedType, actualType, actualValue) ->
+            | TriedToAddKeyAfterAlreadyPresent key ->
+              [ ES.String "Cannot add two dictionary entries with the same key "
+                ES.FieldName key ]
+            | TriedToAddMismatchedData (key, expectedType, actualType, actualValue) ->
               [ ES.String "Cannot add "
                 ES.IndefiniteArticle
                 ES.ValueType actualType
                 ES.String " ("
                 ES.FullValue actualValue
                 ES.String ") to a dict of "
-                ES.ValueType expectedType ]
+                ES.ValueType expectedType
+                ES.String ". Failed at key "
+                ES.FieldName key
+                ES.String "." ]
 
           | Let (PatternDoesNotMatch (dval, pat)) ->
             [ ES.String "Could not deconstruct value "
@@ -269,13 +278,17 @@ module Darklang =
                 // ES.TypeName typeName
                 // ES.String " record"
                 ]
-            | CreationFieldOfWrongType (fieldName,  expectedType,  actualType) ->
+            | CreationFieldOfWrongType (fieldName,  expectedType,  actualType, actualValue) ->
               [ ES.String "Expected "
                 ES.ValueType expectedType
                 ES.String " for field "
                 ES.FieldName fieldName
                 ES.String ", but got "
-                ES.ValueType actualType ]
+                ES.InlineValue actualValue
+                ES.String " ("
+                ES.IndefiniteArticle
+                ES.ValueType actualType
+                ES.String ")" ]
 
             // -- Update --
             | UpdateNotRecord actualType ->
@@ -295,13 +308,17 @@ module Darklang =
                 // ES.TypeName typeName
                 // ES.String " record"
                 ]
-            | UpdateFieldOfWrongType(fieldName, expectedType,  actualType) ->
+            | UpdateFieldOfWrongType(fieldName, expectedType,  actualType, actualValue) ->
               [ ES.String "Expected "
                 ES.ValueType expectedType
                 ES.String " for field "
                 ES.FieldName fieldName
                 ES.String ", but got "
-                ES.ValueType actualType ]
+                ES.InlineValue actualValue
+                ES.String " ("
+                ES.IndefiniteArticle
+                ES.ValueType actualType
+                ES.String ")" ]
 
             // -- Field Access --
             | FieldAccessEmptyFieldName ->

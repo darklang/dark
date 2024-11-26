@@ -26,27 +26,19 @@ let rec unwrapAlias
   | _ -> Ply(Ok typ)
 
 
-// TODO try this, otherwise just return a Unit for now
-type TypePathPart =
-  | ListType
-  | DictValueType // TODO: index type
-  | TupleLength of expected : int * actual : int
-  | TupleAtIndex of int
-  | RecordField of string
-  | EnumField of caseName : string * fieldIndex : int
-type ReverseTypePath = List<TypePathPart>
-
+type TypeCheckPathPart = RuntimeError.TypeChecking.TypeCheckPathPart
+type ReverseTypeCheckPath = RuntimeError.TypeChecking.ReverseTypeCheckPath
 
 let rec unifyValueType
   (types : Types)
   (tst : TypeSymbolTable)
-  (pathSoFar : ReverseTypePath)
+  (pathSoFar : ReverseTypeCheckPath)
   (expected : TypeReference)
   (actual : ValueType)
-  : Ply<Result<TypeSymbolTable, ReverseTypePath>> =
+  : Ply<Result<TypeSymbolTable, ReverseTypeCheckPath>> =
   let r = unifyValueType types
 
-  // let rMult tst pathSoFar (expected : List<TypeReference>) (actual : List<ValueType>) : Ply<Result<TypeSymbolTable, ReverseTypePath>> =
+  // let rMult tst pathSoFar (expected : List<TypeReference>) (actual : List<ValueType>) : Ply<Result<TypeSymbolTable, ReverseTypeCheckPath>> =
   //   if List.length expected <> List.length actual then
   //     Ply (Error pathSoFar)
   //   else
@@ -95,10 +87,10 @@ let rec unifyValueType
     | TDateTime, ValueType.Known KTDateTime -> return Ok tst
 
     | TList innerT, ValueType.Known(KTList innerV) ->
-      return! r tst (ListType :: pathSoFar) innerT innerV
+      return! r tst (TypeCheckPathPart.ListType :: pathSoFar) innerT innerV
 
     | TDict innerT, ValueType.Known(KTDict innerV) ->
-      return! r tst (DictValueType :: pathSoFar) innerT innerV
+      return! r tst (TypeCheckPathPart.DictValueType :: pathSoFar) innerT innerV
 
     | TTuple(tFirst, tSecond, tRest),
       ValueType.Known(KTTuple(vFirst, vSecond, vRest)) ->
@@ -106,7 +98,8 @@ let rec unifyValueType
       let expectedLen = 2 + List.length tRest
       let actualLen = 2 + List.length vRest
       if expectedLen <> actualLen then
-        return Error(TupleLength(expectedLen, actualLen) :: pathSoFar)
+        return
+          Error(TypeCheckPathPart.TupleLength(expectedLen, actualLen) :: pathSoFar)
       else
         // then, make sure that the tuple elements match
         let expected = tFirst :: tSecond :: tRest
@@ -116,7 +109,7 @@ let rec unifyValueType
             (fun acc (i, e, a) ->
               match acc with
               | Error _path -> Ply acc
-              | Ok tst -> r tst (TupleAtIndex i :: pathSoFar) e a)
+              | Ok tst -> r tst (TypeCheckPathPart.TupleAtIndex i :: pathSoFar) e a)
             (Ok tst)
             (List.zip expected actual |> List.mapi (fun i (e, a) -> (i, e, a)))
 
@@ -181,7 +174,7 @@ let unify
   (tst : TypeSymbolTable)
   (expected : TypeReference)
   (actual : Dval)
-  : Ply<Result<TypeSymbolTable, ReverseTypePath>> =
+  : Ply<Result<TypeSymbolTable, ReverseTypeCheckPath>> =
   uply {
     let actualType = Dval.toValueType actual
     match! unifyValueType types tst [] expected actualType with
@@ -190,23 +183,6 @@ let unify
   }
 
 
-// given a function
-// ```fsharp
-// let f<'a>(x: 'a, y: int): List<'a> =
-//   ...
-// ```
-// - we should check that `x` is compatible with `'a`
-// - we should check that the return type is compatible with `List<'a>`
-//
-// also, given the function
-// ```fsharp
-// let f<'a, 'a, 'b>(x: 'a, y: int): List<'a> =
-//   ...
-// ```
-// - we should raise an error on the same type param name being used more than once
-// - we should raise an error/warning that 'b isn't used anywhere
-//
-// These will involve updates in both `checkFunctionCall` and `checkFunctionReturnType`.
 
 // let checkFunctionCallParam
 //   (types : Types)
@@ -242,6 +218,7 @@ let unify
 
 
 
+
 /// Helpers for creating type-checked Dvals
 /// (lists, records, enums, etc.)
 ///
@@ -260,21 +237,21 @@ let unify
 /// Doing this at-construction is important to ensure efficient run-time type-checking.
 ///
 /// CLEANUP consider: stop type-checking after the first N elements in .list and .dict, for performance
-/// CLENAUP but first, measure that ^ performance.
 module DvalCreator =
+  // CLEANUP consider skipping type-checking after N elements or after the type args are fully resolved, whichever comes last.
+  //   In order to support this^, add another param or two so that direct [] interpretation is differentiated from calls to this from Builtins and other places.
+  //   (or split this into 2 separate fns with clearer names)
   let list (threadID : ThreadID) (typ : ValueType) (items : List<Dval>) : Dval =
     let (typ, items) =
       items
-      |> List.fold
-        (fun (typ, list) dv ->
+      |> List.foldWithIndex
+        (fun i (typ, list) dv ->
           let dvalType = Dval.toValueType dv
 
           match VT.merge typ dvalType with
           | Ok newType -> newType, dv :: list
           | Error() ->
-            // This _could_ be a generic typeChecker error, with the 'path'
-            // , and the index here passed in... might make sense CLEANUP
-            RTE.Lists.Error.TriedToAddMismatchedData(typ, dvalType, dv)
+            RTE.Lists.Error.TriedToAddMismatchedData(i, typ, dvalType, dv)
             |> RTE.Error.List
             |> raiseRTE threadID)
         (typ, [])
@@ -282,6 +259,7 @@ module DvalCreator =
     DList(typ, List.rev items)
 
 
+  // CLEANUP see notes in `list` above
   let dict
     (threadID : ThreadID)
     (typ : ValueType)
@@ -296,10 +274,11 @@ module DvalCreator =
             |> raiseRTE threadID
 
           let vt = Dval.toValueType v
+
           match VT.merge typ vt with
           | Ok merged -> (merged, Map.add k v entries)
           | Error() ->
-            RTE.Dicts.Error.TriedToAddMismatchedData(typ, vt, v)
+            RTE.Dicts.Error.TriedToAddMismatchedData(k, typ, vt, v)
             |> RTE.Error.Dict
             |> raiseRTE threadID)
 
@@ -773,7 +752,8 @@ module DvalCreator =
                     RTE.Records.CreationFieldOfWrongType(
                       fieldName,
                       TypeReference.toVT tst fieldDef.typ,
-                      Dval.toValueType fieldValue
+                      Dval.toValueType fieldValue,
+                      fieldValue
                     )
                     |> RTE.Record
                     |> raiseRTE threadID
@@ -797,7 +777,8 @@ module DvalCreator =
                           RTE.Records.CreationFieldOfWrongType(
                             fieldName,
                             TypeReference.toVT tst fieldDef.typ,
-                            Dval.toValueType fieldValue
+                            Dval.toValueType fieldValue,
+                            fieldValue
                           )
                           |> RTE.Record
                           |> raiseRTE threadID)
@@ -883,7 +864,8 @@ module DvalCreator =
                       RTE.Records.UpdateFieldOfWrongType(
                         fieldName,
                         TypeReference.toVT tst fieldDef.typ,
-                        Dval.toValueType fieldValue
+                        Dval.toValueType fieldValue,
+                        fieldValue
                       )
                       |> RTE.Record
                       |> raiseRTE threadID
@@ -906,7 +888,8 @@ module DvalCreator =
                             RTE.Records.UpdateFieldOfWrongType(
                               fieldName,
                               TypeReference.toVT tst fieldDef.typ,
-                              Dval.toValueType fieldValue
+                              Dval.toValueType fieldValue,
+                              fieldValue
                             )
                             |> RTE.Record
                             |> raiseRTE threadID)

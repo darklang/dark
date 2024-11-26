@@ -169,8 +169,7 @@ module UInt64 =
     Builtin.jsonSerialize<UInt64> 18446744073709551615UL = "18446744073709551615"
     Builtin.jsonParse<UInt64> "0" = Result.Ok 0UL
 
-    Builtin.jsonParse<UInt64> "18446744073709551615" = Result.Ok
-      18446744073709551615UL
+    Builtin.jsonParse<UInt64> "18446744073709551615" = Result.Ok 18446744073709551615UL
 
     // First number that doesn't fit in an int64
     // TODO : The two commented tests below are failing due to a bug in the conversion from a double to a uint64 in dotnet runtime.
@@ -179,8 +178,7 @@ module UInt64 =
     // "Can't parse JSON `18446744073709551616` as type `UInt64` at path: `root`"
 
     // This is a float that is a valid uint64
-    // Builtin.jsonParse<UInt64> "1.8446744073709551615E19" = Result.Ok
-    //   18446744073709551615UL
+    // Builtin.jsonParse<UInt64> "1.8446744073709551615E19" =  Result.Ok 18446744073709551615UL
 
     // This is a float that is slightly above the uint64 max
     (Builtin.jsonParse<UInt64> "1.9E19") |> err = Result.Error
@@ -994,14 +992,12 @@ module List =
       Dict { name = "Charlie"; role = "user" } ]
 
   module Errors =
-//     Builtin.jsonSerialize<List<Int64>> [ 1L, 2L, "three" ] = Builtin.testDerrorMessage
-//       "jsonSerialize's 1st argument (`arg`) should be a List<Int64>. However, an (Int64, Int64, String) ((1, 2, \"th...) was passed instead.
+    // Builtin.jsonSerialize<List<Int64>> [ 1L, 2L, "three" ] =
+    //   Builtin.testDerrorMessage
+    //     "jsonSerialize's 1st argument (`arg`) should be a List<Int64>. However, an (Int64, Int64, String) ((1, 2, \"th...) was passed instead."
 
-// Expected: (arg: 'a)
-// Actual: an (Int64, Int64, String): (1, 2, \"three\")"
-
-    (Builtin.jsonParse<List<Int64>> "[1, 2, \"three\"]") |> err = Result.Error
-      "Can't parse JSON `\"three\"` as type `Int64` at path: `root[2]`"
+    (Builtin.jsonParse<List<Int64>> "[1, 2, \"three\"]") |> err =
+      Result.Error "Can't parse JSON `\"three\"` as type `Int64` at path: `root[2]`"
 
     (Builtin.jsonParse<List<Int64>> "[1, 2, ]") |> err = Result.Error "Not JSON"
 
@@ -1164,13 +1160,8 @@ module Result =
         (Stdlib.Dict.singleton "c" "d", Option.None) ]
   ) = "{\"Ok\":[[[{\"a\":\"b\"},{\"Some\":[1]}],[{\"c\":\"d\"},{\"None\":[]}]]]}"
 
-  // Builtin.jsonParse<Result<List<Dict<String> * Option<Int64>>, String>>
-  //   "{\"Ok\":[[[{\"a\":\"b\"},{\"Some\":[1]}],[{\"c\":\"d\"},{\"None\":[]}]]]}" = Result
-  //   .Ok(
-  //     Result.Ok
-  //       [ (Stdlib.Dict.singleton "a" "b", Option.Some 1L)
-  //         (Stdlib.Dict.singleton "c" "d", Option.None) ]
-  //   )
+  // Builtin.jsonParse<Result<List<Dict<String> * Option<Int64>>, String>>"{\"Ok\":[[[{\"a\":\"b\"},{\"Some\":[1]}],[{\"c\":\"d\"},{\"None\":[]}]]]}" =
+  //   Result.Ok(Result.Ok [ (Stdlib.Dict.singleton "a" "b", Option.Some 1L); (Stdlib.Dict.singleton "c" "d", Option.None) ])
 
   Builtin.jsonSerialize<Result<Result<Int64, String>, String>> (
     Result.Ok(Result.Ok 1L)
@@ -1180,13 +1171,11 @@ module Result =
     Result.Ok(Result.Error "err message")
   ) = "{\"Ok\":[{\"Error\":[\"err message\"]}]}"
 
-  // Builtin.jsonParse<Result<Result<Int64, String>, String>> "{\"Ok\":[{\"Ok\":[1]}]}" = Result
-  //   .Ok(Result.Ok(Result.Ok 1L))
+  // Builtin.jsonParse<Result<Result<Int64, String>, String>> "{\"Ok\":[{\"Ok\":[1]}]}" =
+  //   Result.Ok(Result.Ok(Result.Ok 1L))
 
-  // Builtin.jsonParse<Result<Result<Int64, String>, String>>
-  //   "{\"Ok\":[{\"Error\":[\"err message\"]}]}" = Result.Ok(
-  //   Result.Ok(Result.Error "err message")
-  // )
+  // Builtin.jsonParse<Result<Result<Int64, String>, String>> "{\"Ok\":[{\"Error\":[\"err message\"]}]}" =
+  //   Result.Ok(Result.Ok(Result.Error "err message"))
 
   Builtin.jsonSerialize<Result<Result<Option<Result<Int64, String>>, String>, String>> (
     Result.Ok(Result.Ok(Option.Some(Result.Ok 1L)))
@@ -1197,23 +1186,17 @@ module Result =
   //   Result.Ok(Result.Ok(Option.Some(Result.Ok 1L)))
   // )
 
-// module Dict =
+module Dict =
+  Builtin.jsonSerialize<Dict<String>> (Stdlib.Dict.singleton "a" "b") = """{"a":"b"}"""
 
-//   Builtin.jsonSerialize<Dict<String>> (Stdlib.Dict.singleton "a" "b") = """{"a":"b"}"""
+  Builtin.jsonParse<Dict<String>> """{"a":"b"}""" = Result.Ok(Stdlib.Dict.singleton "a" "b")
 
-//   Builtin.jsonParse<Dict<String>> """{"a":"b"}""" = Result.Ok(
-//     Stdlib.Dict.singleton "a" "b"
-//   )
+  Builtin.jsonSerialize<Dict<String>> (Dict { a = "b"; c = "d" }) = """{"a":"b","c":"d"}"""
 
-//   Builtin.jsonSerialize<Dict<String>> (Dict { a = "b"; c = "d" }) = """{"a":"b","c":"d"}"""
+  Builtin.jsonParse<Dict<String>> """{"a":"b","c":"d"}""" = Result.Ok(Dict { a = "b"; c = "d" })
 
-//   Builtin.jsonParse<Dict<String>> """{"a":"b","c":"d"}""" = Result.Ok(
-//     Dict { a = "b"; c = "d" }
-//   )
-
-//   module Errors =
-//     (Builtin.jsonParse<Dict<Int64>> """{1:"b",2:"d"}""") |> err = Result.Error
-//       "Not JSON"
+  module Errors =
+    (Builtin.jsonParse<Dict<Int64>> """{1:"b",2:"d"}""") |> err = Result.Error "Not JSON"
 
 
 module UserDefinedEnums =

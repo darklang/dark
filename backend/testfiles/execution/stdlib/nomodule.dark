@@ -292,10 +292,10 @@ module Equals =
 
   type MyDBType = { x: String; y: String }
 
-  // [<DB>]
-  // type MyDB = MyDBType
+  [<DB>]
+  type MyDB = MyDBType
 
-  // (MyDB == MyDB) = true
+  (MyDB == MyDB) = true
 
   module TypeErrors =
     (5.7 != 6L) = Builtin.testDerrorMessage "Cannot perform equality check on Float and Int64"
@@ -315,6 +315,8 @@ module Equals =
     (() != false) = Builtin.testDerrorMessage "Cannot perform equality check on Unit and Bool"
     (() != 0) = Builtin.testDerrorMessage "Cannot perform equality check on Unit and Int32"
     (() != 0.0) = Builtin.testDerrorMessage "Cannot perform equality check on Unit and Float"
+
+    // CLEANUP follow up here when DB references are fully resolved at parse-time
     //(MyDB != 5L) = Builtin.testDerrorMessage "Cannot perform equality check on TODO and TODO"
 
   // Other ways to call it
