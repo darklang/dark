@@ -1,4 +1,4 @@
-/// Helper functions for stdlibs
+/// Helper functions for declaraing built-in functions and constants
 module LibExecution.Builtin
 
 open Prelude

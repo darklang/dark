@@ -83,7 +83,7 @@ let LoadClient (canvasName : string) : Task<string> =
           functions = clientSource.fns
           currentState = result }
 
-      return LibExecution.DvalReprDeveloper.toRepr result
+      return DvalReprDeveloper.toRepr result
 
     | Error err ->
       // TODO convert to a string
@@ -113,7 +113,7 @@ let HandleEvent (serializedEvent : string) : Task<string> =
 
 
     match result with
-    | Ok result -> return LibExecution.DvalReprDeveloper.toRepr result
+    | Ok result -> return DvalReprDeveloper.toRepr result
     | Error err ->
       // TODO convert to a string
       // WasmHelpers.callJSFunction "console.error" [ err ]

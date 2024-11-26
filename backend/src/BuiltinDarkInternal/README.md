@@ -1,3 +1,3 @@
 # BuiltinDarkInternal
 
-DarkInternal functions - intended to be used to build the editor.
+Builtin functions to be used by `dark-editor`.

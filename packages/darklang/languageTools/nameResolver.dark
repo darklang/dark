@@ -73,243 +73,243 @@ module Darklang =
           Stdlib.List.append [ newNameToTry ] (namesToTryHelper allButLast given)
 
 
-      module TypeName =
-        let err
-          (errType: RuntimeErrors.NameResolution.ErrorType)
-          : ProgramTypes.NameResolution<ProgramTypes.FQTypeName.FQTypeName> =
-          (LanguageTools.RuntimeErrors.NameResolution.Error
-            { nameType = LanguageTools.RuntimeErrors.NameResolution.NameType.Type
-              errorType = errType })
-          |> Stdlib.Result.Result.Error
+// module TypeName =
+//   let err
+//     (errType: RuntimeErrors.NameResolution.ErrorType)
+//     : ProgramTypes.NameResolution<ProgramTypes.FQTypeName.FQTypeName> =
+//     (LanguageTools.RuntimeErrors.NameResolution.Error
+//       { nameType = LanguageTools.RuntimeErrors.NameResolution.NameType.Type
+//         errorType = errType })
+//     |> Stdlib.Result.Result.Error
 
 
-        let tryResolve
-          (pm: ProgramTypes.PackageManager.PackageManager)
-          (name: GenericName)
-          : Stdlib.Result.Result<ProgramTypes.FQTypeName.FQTypeName, Unit> =
-          match name.modules with
-          | [] -> Stdlib.Result.Result.Error()
-          | owner :: modules ->
-            let nameForLookup =
-              (Stdlib.List.flatten [ name.modules; [ name.name ] ])
-              |> Stdlib.String.join "."
+//   let tryResolve
+//     (pm: ProgramTypes.PackageManager.PackageManager)
+//     (name: GenericName)
+//     : Stdlib.Result.Result<ProgramTypes.FQTypeName.FQTypeName, Unit> =
+//     match name.modules with
+//     | [] -> Stdlib.Result.Result.Error()
+//     | owner :: modules ->
+//       let nameForLookup =
+//         (Stdlib.List.flatten [ name.modules; [ name.name ] ])
+//         |> Stdlib.String.join "."
 
-            let find = pm.findType
+//       let find = pm.findType
 
-            match find nameForLookup with
-            | Some id ->
-              (ProgramTypes.FQTypeName.FQTypeName.Package id)
-              |> Stdlib.Result.Result.Ok
-            | None -> Stdlib.Result.Result.Error()
-
-
-        let resolve
-          (onMissing: OnMissing)
-          (pm: ProgramTypes.PackageManager.PackageManager)
-          (owner: String)
-          (currentModule: List<String>)
-          (name: WrittenTypes.Name)
-          : ProgramTypes.NameResolution<ProgramTypes.FQTypeName.FQTypeName> =
-          match name with
-          // TODO remodel things appropriately so this is not needed
-          | KnownBuiltin(_name, _version) -> "Builtin types don't exist" // TODO: error
-
-          | Unresolved(_range, given) ->
-            let modules = Stdlib.List.dropLast given
-            let name = Stdlib.List.last given
-
-            // TODO: handle versions... (parse out the _v[n] part if present)
-            match name with
-            | None ->
-              err (RuntimeErrors.NameResolution.ErrorType.InvalidPackageName given)
-            | Some name ->
-              let genericName =
-                GenericName
-                  { modules = modules
-                    name = name
-                    version = 0L }
-
-              let result =
-                Stdlib.List.fold
-                  (namesToTry owner currentModule genericName)
-                  (err (RuntimeErrors.NameResolution.ErrorType.NotFound given))
-                  (fun currentResult nameToTry ->
-                    match currentResult with
-                    | Ok _ -> currentResult
-                    | Error _ ->
-                      match tryResolve pm nameToTry with
-                      | Error() -> currentResult
-                      | Ok success -> Stdlib.Result.Result.Ok success)
-
-              throwIfRelevant onMissing result
+//       match find nameForLookup with
+//       | Some id ->
+//         (ProgramTypes.FQTypeName.FQTypeName.Package id)
+//         |> Stdlib.Result.Result.Ok
+//       | None -> Stdlib.Result.Result.Error()
 
 
+//   let resolve
+//     (onMissing: OnMissing)
+//     (pm: ProgramTypes.PackageManager.PackageManager)
+//     (owner: String)
+//     (currentModule: List<String>)
+//     (name: WrittenTypes.Name)
+//     : ProgramTypes.NameResolution<ProgramTypes.FQTypeName.FQTypeName> =
+//     match name with
+//     // TODO remodel things appropriately so this is not needed
+//     | KnownBuiltin(_name, _version) -> "Builtin types don't exist" // TODO: error
 
-      module ConstantName =
-        let err
-          (errType: RuntimeErrors.NameResolution.ErrorType)
-          : ProgramTypes.NameResolution<ProgramTypes.FQConstantName.FQConstantName> =
-          (LanguageTools.RuntimeErrors.NameResolution.Error
-            { nameType = LanguageTools.RuntimeErrors.NameResolution.NameType.Constant
-              errorType = errType })
-          |> Stdlib.Result.Result.Error
+//     | Unresolved(_range, given) ->
+//       let modules = Stdlib.List.dropLast given
+//       let name = Stdlib.List.last given
 
-        let builtinThingExists (name: String) : Bool =
-          (Builtin.languageToolsAllBuiltinConstants ())
-          |> Stdlib.List.findFirst (fun f -> f.name == name)
-          |> Stdlib.Option.isSome
+//       // TODO: handle versions... (parse out the _v[n] part if present)
+//       match name with
+//       | None ->
+//         err (RuntimeErrors.NameResolution.ErrorType.InvalidPackageName given)
+//       | Some name ->
+//         let genericName =
+//           GenericName
+//             { modules = modules
+//               name = name
+//               version = 0L }
 
-        let tryResolve
-          (pm: ProgramTypes.PackageManager.PackageManager)
-          (name: GenericName)
-          : Stdlib.Result.Result<ProgramTypes.FQConstantName.FQConstantName, Unit> =
-          match name.modules with
-          | [] -> Stdlib.Result.Result.Error()
-          | owner :: modules ->
-            let nameForLookup =
-              (Stdlib.List.flatten [ name.modules; [ name.name ] ])
-              |> Stdlib.String.join "."
+//         let result =
+//           Stdlib.List.fold
+//             (namesToTry owner currentModule genericName)
+//             (err (RuntimeErrors.NameResolution.ErrorType.NotFound given))
+//             (fun currentResult nameToTry ->
+//               match currentResult with
+//               | Ok _ -> currentResult
+//               | Error _ ->
+//                 match tryResolve pm nameToTry with
+//                 | Error() -> currentResult
+//                 | Ok success -> Stdlib.Result.Result.Ok success)
 
-            if owner == "Builtin" && modules == [] then
-              if builtinThingExists name.name then
-                (ProgramTypes.FQConstantName.Builtin
-                  { name = name.name
-                    version = name.version })
-                |> ProgramTypes.FQConstantName.FQConstantName.Builtin
-                |> Stdlib.Result.Result.Ok
-              else
-                Stdlib.Result.Result.Error()
-            else
-              let find = pm.findConstant
-
-              match find nameForLookup with
-              | Some id ->
-                (ProgramTypes.FQConstantName.FQConstantName.Package id)
-                |> Stdlib.Result.Result.Ok
-              | None -> Stdlib.Result.Result.Error()
-
-
-        let resolve
-          (onMissing: OnMissing)
-          (pm: ProgramTypes.PackageManager.PackageManager)
-          (owner: String)
-          (currentModule: List<String>)
-          (name: WrittenTypes.Name)
-          : ProgramTypes.NameResolution<ProgramTypes.FQConstantName.FQConstantName> =
-          match name with
-          // TODO remodel things appropriately so this is not needed
-          | KnownBuiltin(_name, _version) -> "Builtin types don't exist" // TODO: error
-
-          | Unresolved(_range, given) ->
-            let modules = Stdlib.List.dropLast given
-            let name = Stdlib.List.last given
-
-            // TODO: handle versions... (parse out the _v[n] part if present)
-            match name with
-            | None ->
-              err (RuntimeErrors.NameResolution.ErrorType.InvalidPackageName given)
-            | Some name ->
-              let genericName =
-                GenericName
-                  { modules = modules
-                    name = name
-                    version = 0L }
-
-              let result =
-                Stdlib.List.fold
-                  (namesToTry owner currentModule genericName)
-                  (err (RuntimeErrors.NameResolution.ErrorType.NotFound given))
-                  (fun currentResult nameToTry ->
-                    match currentResult with
-                    | Ok _ -> currentResult
-                    | Error _ ->
-                      match tryResolve pm nameToTry with
-                      | Error() -> currentResult
-                      | Ok success -> Stdlib.Result.Result.Ok success)
-
-              throwIfRelevant onMissing result
+//         throwIfRelevant onMissing result
 
 
 
-      module FnName =
-        let err
-          (errType: RuntimeErrors.NameResolution.ErrorType)
-          : ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName> =
-          (LanguageTools.RuntimeErrors.NameResolution.Error
-            { nameType = LanguageTools.RuntimeErrors.NameResolution.NameType.Function
-              errorType = errType })
-          |> Stdlib.Result.Result.Error
+// module ConstantName =
+//   let err
+//     (errType: RuntimeErrors.NameResolution.ErrorType)
+//     : ProgramTypes.NameResolution<ProgramTypes.FQConstantName.FQConstantName> =
+//     (LanguageTools.RuntimeErrors.NameResolution.Error
+//       { nameType = LanguageTools.RuntimeErrors.NameResolution.NameType.Constant
+//         errorType = errType })
+//     |> Stdlib.Result.Result.Error
+
+//   let builtinThingExists (name: String) : Bool =
+//     (Builtin.languageToolsAllBuiltinConstants ())
+//     |> Stdlib.List.findFirst (fun f -> f.name == name)
+//     |> Stdlib.Option.isSome
+
+//   let tryResolve
+//     (pm: ProgramTypes.PackageManager.PackageManager)
+//     (name: GenericName)
+//     : Stdlib.Result.Result<ProgramTypes.FQConstantName.FQConstantName, Unit> =
+//     match name.modules with
+//     | [] -> Stdlib.Result.Result.Error()
+//     | owner :: modules ->
+//       let nameForLookup =
+//         (Stdlib.List.flatten [ name.modules; [ name.name ] ])
+//         |> Stdlib.String.join "."
+
+//       if owner == "Builtin" && modules == [] then
+//         if builtinThingExists name.name then
+//           (ProgramTypes.FQConstantName.Builtin
+//             { name = name.name
+//               version = name.version })
+//           |> ProgramTypes.FQConstantName.FQConstantName.Builtin
+//           |> Stdlib.Result.Result.Ok
+//         else
+//           Stdlib.Result.Result.Error()
+//       else
+//         let find = pm.findConstant
+
+//         match find nameForLookup with
+//         | Some id ->
+//           (ProgramTypes.FQConstantName.FQConstantName.Package id)
+//           |> Stdlib.Result.Result.Ok
+//         | None -> Stdlib.Result.Result.Error()
 
 
-        let tryResolve
-          (pm: ProgramTypes.PackageManager.PackageManager)
-          (name: GenericName)
-          : Stdlib.Result.Result<ProgramTypes.FQFnName.FQFnName, Unit> =
-          match name.modules with
-          | [] -> Stdlib.Result.Result.Error()
-          | owner :: modules ->
-            if owner == "Builtin" && modules == [] then
-              if Builtin.languageToolsBuiltinFnExists name.name name.version then
-                (ProgramTypes.FQFnName.Builtin
-                  { name = name.name
-                    version = name.version })
-                |> ProgramTypes.FQFnName.FQFnName.Builtin
-                |> Stdlib.Result.Result.Ok
-              else
-                Stdlib.Result.Result.Error()
-            else
-              let nameForLookup =
-                (Stdlib.List.flatten [ name.modules; [ name.name ] ])
-                |> Stdlib.String.join "."
+//   let resolve
+//     (onMissing: OnMissing)
+//     (pm: ProgramTypes.PackageManager.PackageManager)
+//     (owner: String)
+//     (currentModule: List<String>)
+//     (name: WrittenTypes.Name)
+//     : ProgramTypes.NameResolution<ProgramTypes.FQConstantName.FQConstantName> =
+//     match name with
+//     // TODO remodel things appropriately so this is not needed
+//     | KnownBuiltin(_name, _version) -> "Builtin types don't exist" // TODO: error
 
-              // CLEANUP: allow this to be inline (i.e. `pm.findFn nameForLookup`)
-              let find = pm.findFn
+//     | Unresolved(_range, given) ->
+//       let modules = Stdlib.List.dropLast given
+//       let name = Stdlib.List.last given
 
-              match find nameForLookup with
-              | Some id ->
-                (ProgramTypes.FQFnName.FQFnName.Package id)
-                |> Stdlib.Result.Result.Ok
-              | None -> Stdlib.Result.Result.Error()
+//       // TODO: handle versions... (parse out the _v[n] part if present)
+//       match name with
+//       | None ->
+//         err (RuntimeErrors.NameResolution.ErrorType.InvalidPackageName given)
+//       | Some name ->
+//         let genericName =
+//           GenericName
+//             { modules = modules
+//               name = name
+//               version = 0L }
+
+//         let result =
+//           Stdlib.List.fold
+//             (namesToTry owner currentModule genericName)
+//             (err (RuntimeErrors.NameResolution.ErrorType.NotFound given))
+//             (fun currentResult nameToTry ->
+//               match currentResult with
+//               | Ok _ -> currentResult
+//               | Error _ ->
+//                 match tryResolve pm nameToTry with
+//                 | Error() -> currentResult
+//                 | Ok success -> Stdlib.Result.Result.Ok success)
+
+//         throwIfRelevant onMissing result
 
 
-        let resolve
-          (onMissing: OnMissing)
-          (pm: ProgramTypes.PackageManager.PackageManager)
-          (owner: String)
-          (currentModule: List<String>)
-          (name: WrittenTypes.Name)
-          : ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName> =
-          match name with
-          // TODO remodel things appropriately so this is not needed
-          | KnownBuiltin(_name, _version) -> "Builtin types don't exist" // TODO: error
 
-          | Unresolved(_range, given) ->
-            let modules = Stdlib.List.dropLast given
-            let name = Stdlib.List.last given
+// module FnName =
+//   let err
+//     (errType: RuntimeErrors.NameResolution.ErrorType)
+//     : ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName> =
+//     (LanguageTools.RuntimeErrors.NameResolution.Error
+//       { nameType = LanguageTools.RuntimeErrors.NameResolution.NameType.Function
+//         errorType = errType })
+//     |> Stdlib.Result.Result.Error
 
-            // TODO: handle versions... (parse out the _v[n] part if present)
-            match name with
-            | None ->
-              err (RuntimeErrors.NameResolution.ErrorType.InvalidPackageName given)
-            | Some name ->
-              let genericName =
-                GenericName
-                  { modules = modules
-                    name = name
-                    version = 0L }
 
-              let names = namesToTry owner currentModule genericName
+//   let tryResolve
+//     (pm: ProgramTypes.PackageManager.PackageManager)
+//     (name: GenericName)
+//     : Stdlib.Result.Result<ProgramTypes.FQFnName.FQFnName, Unit> =
+//     match name.modules with
+//     | [] -> Stdlib.Result.Result.Error()
+//     | owner :: modules ->
+//       if owner == "Builtin" && modules == [] then
+//         if Builtin.languageToolsBuiltinFnExists name.name name.version then
+//           (ProgramTypes.FQFnName.Builtin
+//             { name = name.name
+//               version = name.version })
+//           |> ProgramTypes.FQFnName.FQFnName.Builtin
+//           |> Stdlib.Result.Result.Ok
+//         else
+//           Stdlib.Result.Result.Error()
+//       else
+//         let nameForLookup =
+//           (Stdlib.List.flatten [ name.modules; [ name.name ] ])
+//           |> Stdlib.String.join "."
 
-              let result =
-                Stdlib.List.fold
-                  names
-                  (err (RuntimeErrors.NameResolution.ErrorType.NotFound given))
-                  (fun currentResult nameToTry ->
-                    match currentResult with
-                    | Ok _ -> currentResult
-                    | Error _ ->
-                      match tryResolve pm nameToTry with
-                      | Error _ -> currentResult
-                      | Ok success -> Stdlib.Result.Result.Ok success)
+//         // CLEANUP: allow this to be inline (i.e. `pm.findFn nameForLookup`)
+//         let find = pm.findFn
 
-              throwIfRelevant onMissing result
+//         match find nameForLookup with
+//         | Some id ->
+//           (ProgramTypes.FQFnName.FQFnName.Package id)
+//           |> Stdlib.Result.Result.Ok
+//         | None -> Stdlib.Result.Result.Error()
+
+
+//   let resolve
+//     (onMissing: OnMissing)
+//     (pm: ProgramTypes.PackageManager.PackageManager)
+//     (owner: String)
+//     (currentModule: List<String>)
+//     (name: WrittenTypes.Name)
+//     : ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName> =
+//     match name with
+//     // TODO remodel things appropriately so this is not needed
+//     | KnownBuiltin(_name, _version) -> "Builtin types don't exist" // TODO: error
+
+//     | Unresolved(_range, given) ->
+//       let modules = Stdlib.List.dropLast given
+//       let name = Stdlib.List.last given
+
+//       // TODO: handle versions... (parse out the _v[n] part if present)
+//       match name with
+//       | None ->
+//         err (RuntimeErrors.NameResolution.ErrorType.InvalidPackageName given)
+//       | Some name ->
+//         let genericName =
+//           GenericName
+//             { modules = modules
+//               name = name
+//               version = 0L }
+
+//         let names = namesToTry owner currentModule genericName
+
+//         let result =
+//           Stdlib.List.fold
+//             names
+//             (err (RuntimeErrors.NameResolution.ErrorType.NotFound given))
+//             (fun currentResult nameToTry ->
+//               match currentResult with
+//               | Ok _ -> currentResult
+//               | Error _ ->
+//                 match tryResolve pm nameToTry with
+//                 | Error _ -> currentResult
+//                 | Ok success -> Stdlib.Result.Result.Ok success)
+
+//         throwIfRelevant onMissing result

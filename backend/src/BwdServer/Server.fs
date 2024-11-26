@@ -1,11 +1,7 @@
-/// This is the webserver for darklang.io, often referred to as "BWD" (named after
-/// our old domain - builtwithdark.com)
+/// Handles all HTTP handlers for Darklang.
+/// Written with darklang.io/builtwithdark.com in mind.
 ///
-/// All Dark HTTP handlers are handled by this service
-/// our grand-users hit this server, and BWD handles the requests.
-///
-/// It uses ASP.NET directly, instead of a web framework, so we can tune the exact
-/// behaviour of headers and such.
+/// See README.md for more details.
 module BwdServer.Server
 
 open FSharp.Control.Tasks
@@ -29,7 +25,6 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
-module Account = LibCloud.Account
 module Canvas = LibCloud.Canvas
 module Routing = LibCloud.Routing
 module Pusher = LibCloud.Pusher
@@ -291,8 +286,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
       // and leave it to middleware to say what it wants to do with that
       let searchMethod = if requestMethod = "HEAD" then "GET" else requestMethod
 
-      // Canvas to process request against, with enough loaded to handle this
-      // request
+      // Canvas to process request against, with enough loaded to handle this request
       let! canvas = Canvas.loadHttpHandlers canvasID requestPath searchMethod
 
       let url : string = ctx.Request.GetEncodedUrl() |> canonicalizeURL (isHttps ctx)
@@ -325,7 +319,7 @@ let runDarkHandler (ctx : HttpContext) : Task<HttpContext> =
           let! (result, _) =
             CloudExe.executeHandler
               LibClientTypesToCloudTypes.Pusher.eventSerializer
-              (PT2RT.Handler.toRT handler)
+              handler
               canvas
               traceID
               inputVars
@@ -427,6 +421,7 @@ let configureApp (healthCheckPort : int) (app : IApplicationBuilder) =
   |> Kubernetes.configureApp healthCheckPort
   |> Logging.addHttpLogging
   |> fun app -> app.Run(RequestDelegate handler)
+
 
 let configureServices (services : IServiceCollection) : unit =
   services

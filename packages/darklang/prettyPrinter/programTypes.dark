@@ -9,19 +9,16 @@ module Darklang =
     // CLEANUP split into a few files - easier to manage, at this point.
     // i.e. common, typeReference, expr, declarations, packages, sourceFile
     module ProgramTypes =
+      type NameResolutionError =
+        | NotFound of List<String>
+        | InvalidName of List<String>
 
-      let nameResolutionError
-        (nr: LanguageTools.RuntimeErrors.NameResolution.Error)
-        : String =
-        match nr.errorType with
+      type NameResolution<'a> = Stdlib.Result.Result<'a, NameResolutionError>
+
+      let nameResolutionError (nr: NameResolutionError) : String =
+        match nr with
         | NotFound names -> Stdlib.String.join names "."
-        | InvalidPackageName names -> Stdlib.String.join names "."
-        | ExpectedEnumButNot ->
-          "Unexpected: stringification of NRE in RT Pretty-Printer for ExpectedEnumButNot"
-        | ExpectedRecordButNot ->
-          "Unexpected: stringification of NRE in RT Pretty-Printer for ExpectedRecordButNot"
-        | MissingEnumModuleName ->
-          "Unexpected: stringification of NRE in RT Pretty-Printer for MissingEnumModuleName"
+        | InvalidName names -> Stdlib.String.join names "."
 
 
       let packageName
@@ -80,10 +77,10 @@ module Darklang =
             let namePart = t.name
 
             let versionPart =
-              if t.version == 0L then
+              if t.version == 0 then
                 ""
               else
-                $"_v{Stdlib.Int64.toString t.version}"
+                $"_v{Stdlib.Int32.toString t.version}"
 
             $"Builtin.{namePart}{versionPart}"
 
@@ -132,10 +129,10 @@ module Darklang =
             let namePart = t.name
 
             let versionPart =
-              if t.version == 0L then
+              if t.version == 0 then
                 ""
               else
-                $"_v{Stdlib.Int64.toString t.version}"
+                $"_v{Stdlib.Int32.toString t.version}"
 
             $"Builtin.{namePart}{versionPart}"
 
@@ -541,7 +538,8 @@ module Darklang =
           |> Stdlib.String.join ", "
           |> fun parts -> "(" ++ parts ++ ")"
 
-        | ERecord(_id, typeName, fields) ->
+        | ERecord(_id, typeName, _typeArgs, fields) ->
+          // TODO: include type args
           let typeNamePart =
             match typeName with
             | Ok name -> PrettyPrinter.ProgramTypes.FQTypeName.fullForReference name
@@ -557,7 +555,8 @@ module Darklang =
 
           $"{typeNamePart} {fieldPart}"
 
-        | EEnum(_id, typeName, caseName, fields) ->
+        | EEnum(_id, typeName, _typeArgs, caseName, fields) ->
+          // TODO: include type args
           let typeNamePart =
             match typeName with
             | Ok name -> PrettyPrinter.ProgramTypes.FQTypeName.fullForReference name
@@ -584,13 +583,13 @@ module Darklang =
 
           $"let {patternPart} =\n{PrettyPrinter.indent rhsPart}\n{bodyPart}"
 
-        | EFieldAccess(_id, expr, fieldName) ->
+        | ERecordFieldAccess(_id, expr, fieldName) ->
           let exprPart = PrettyPrinter.ProgramTypes.expr expr
 
           // TODO: only sometimes need to wrap exprPart in parens
           match expr with
           | EVariable(_, _) -> $"{exprPart}.{fieldName}"
-          | EFieldAccess(_, _, _) -> $"{exprPart}.{fieldName}"
+          | ERecordFieldAccess(_, _, _) -> $"{exprPart}.{fieldName}"
           | _ -> $"({exprPart}).{fieldName}"
 
         | EVariable(_id, name) -> name
@@ -833,10 +832,10 @@ module Darklang =
 
       let db (db: LanguageTools.ProgramTypes.DB) : String =
         let versionPart =
-          if db.version == 0L then
+          if db.version == 0 then
             ""
           else
-            $"_v{Stdlib.Int64.toString db.version}"
+            $"_v{Stdlib.Int32.toString db.version}"
 
         let typPart = PrettyPrinter.ProgramTypes.typeReference db.typ
 
@@ -852,7 +851,7 @@ module Darklang =
 
 
       // let secret (s: Stdlib.Secret.T) : String =
-      //   let versionPart = if s.version == 0 then "" else $"_v{Stdlib.Int64.toString s.version}"
+      //   let versionPart = if s.version == 0 then "" else $"_v{Stdlib.Int32.toString s.version}"
 
       //   $"let {s.name}{versionPart} = \"*****\""
 

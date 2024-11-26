@@ -13,7 +13,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module VT = ValueType
+module VT = LibExecution.ValueType
 module PT = LibExecution.ProgramTypes
 module Dval = LibExecution.Dval
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
@@ -53,24 +53,23 @@ let fns : List<BuiltInFn> =
         TCustomType(
           Ok(
             FQTypeName.Package
-              PackageIDs.Type.LanguageTools.RuntimeError.Error.errorMessage
+              PackageIDs.Type.PrettyPrinter.RuntimeTypes.RuntimeError.errorMessage
           ),
           []
         )
       description = "Return a value representing a runtime type error"
       fn =
         (function
-        | _, _, [ DString error ] ->
+        | _, _, _, [ DString error ] ->
           let typeName =
             FQTypeName.Package
-              PackageIDs.Type.LanguageTools.RuntimeError.Error.errorMessage
+              PackageIDs.Type.PrettyPrinter.RuntimeTypes.RuntimeError.errorMessage
           DEnum(typeName, typeName, [], "ErrorString", [ DString error ]) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
-    // CLEANUP consider renaming to `oldError` or something more clear
     { name = fn "testRuntimeError" 0
       typeParams = []
       parameters = [ Param.make "errorString" TString "" ]
@@ -78,37 +77,38 @@ let fns : List<BuiltInFn> =
       description = "Return a value representing a type error"
       fn =
         (function
-        | _, _, [ DString errorString ] ->
-          raiseUntargetedRTE (RuntimeError.oldError errorString)
+        | _, _, _, [ DString errorString ] ->
+          raiseUntargetedRTE (RuntimeError.UncaughtException(errorString, []))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated }
 
-    { name = fn "testDerrorSqlMessage" 0
-      typeParams = []
-      parameters = [ Param.make "errorString" TString "" ]
-      returnType =
-        TCustomType(
-          Ok(
-            FQTypeName.Package
-              PackageIDs.Type.LanguageTools.RuntimeError.Error.errorMessage
-          ),
-          []
-        )
-      description = "Return a value that matches errors thrown by the SqlCompiler"
-      fn =
-        (function
-        | _, _, [ DString errorString ] ->
-          let msg = LibCloud.SqlCompiler.errorTemplate + errorString
-          let typeName =
-            FQTypeName.Package
-              PackageIDs.Type.LanguageTools.RuntimeError.Error.errorMessage
-          DEnum(typeName, typeName, [], "ErrorString", [ DString msg ]) |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
+
+    // { name = fn "testDerrorSqlMessage" 0
+    //   typeParams = []
+    //   parameters = [ Param.make "errorString" TString "" ]
+    //   returnType =
+    //     TCustomType(
+    //       Ok(
+    //         FQTypeName.Package
+    //           PackageIDs.Type.LanguageTools.RuntimeError.Error.errorMessage
+    //       ),
+    //       []
+    //     )
+    //   description = "Return a value that matches errors thrown by the SqlCompiler"
+    //   fn =
+    //     (function
+    //     | _, _, [ DString errorString ] ->
+    //       let msg = LibCloud.SqlCompiler.errorTemplate + errorString
+    //       let typeName =
+    //         FQTypeName.Package
+    //           PackageIDs.Type.LanguageTools.RuntimeError.Error.errorMessage
+    //       DEnum(typeName, typeName, [], "ErrorString", [ DString msg ]) |> Ply
+    //     | _ -> incorrectArgs ())
+    //   sqlSpec = NotQueryable
+    //   previewable = Pure
+    //   deprecated = NotDeprecated }
 
     { name = fn "testToChar" 0
       typeParams = []
@@ -117,7 +117,7 @@ let fns : List<BuiltInFn> =
       description = "Turns a string of length 1 into a character"
       fn =
         (function
-        | _, _, [ DString s ] ->
+        | _, _, _, [ DString s ] ->
           let chars = String.toEgcSeq s
 
           if Seq.length chars = 1 then
@@ -144,7 +144,7 @@ let fns : List<BuiltInFn> =
         "Increases the side effect counter by one, to test real-world side-effects. Returns its argument."
       fn =
         (function
-        | state, _, [ arg ] ->
+        | state, _, _, [ arg ] ->
           state.test.sideEffectCount <- state.test.sideEffectCount + 1
           Ply(arg)
         | _ -> incorrectArgs ())
@@ -160,7 +160,7 @@ let fns : List<BuiltInFn> =
       description = "Return the value of the side-effect counter"
       fn =
         (function
-        | state, _, [ DUnit ] -> Ply(Dval.int64 state.test.sideEffectCount)
+        | state, _, _, [ DUnit ] -> Ply(Dval.int64 state.test.sideEffectCount)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -174,7 +174,7 @@ let fns : List<BuiltInFn> =
       description = "Prints the value into stdout"
       fn =
         (function
-        | _, _, [ v; DString msg ] ->
+        | _, _, _, [ v; DString msg ] ->
           print $"{msg}: {v}"
           Ply v
         | _ -> incorrectArgs ())
@@ -190,7 +190,7 @@ let fns : List<BuiltInFn> =
       description = "Delete a user (test only)"
       fn =
         (function
-        | _, _, [ DString username ] ->
+        | _, _, _, [ DString username ] ->
           uply {
             do!
               // This is unsafe. A user has canvases, and canvases have traces. It
@@ -206,28 +206,28 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "testGetQueue" 0
-      typeParams = []
-      parameters = [ Param.make "eventName" TString "" ]
-      returnType = TList TString
-      description = "Fetch a queue (test only)"
-      fn =
-        (function
-        | state, _, [ DString eventName ] ->
-          uply {
-            let canvasID = state.program.canvasID
-            let! results =
-              LibCloud.Queue.Test.loadEvents canvasID ("WORKER", eventName, "_")
-            let results =
-              results
-              |> List.map LibExecution.DvalReprDeveloper.toRepr
-              |> List.map DString
-            return DList(VT.string, results)
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
+    // { name = fn "testGetQueue" 0
+    //   typeParams = []
+    //   parameters = [ Param.make "eventName" TString "" ]
+    //   returnType = TList TString
+    //   description = "Fetch a queue (test only)"
+    //   fn =
+    //     (function
+    //     | state, _, _, [ DString eventName ] ->
+    //       uply {
+    //         let canvasID = state.program.canvasID
+    //         let! results =
+    //           LibCloud.Queue.Test.loadEvents canvasID ("WORKER", eventName, "_")
+    //         let results =
+    //           results
+    //           |> List.map LibExecution.DvalReprDeveloper.toRepr
+    //           |> List.map DString
+    //         return DList(VT.string, results)
+    //       }
+    //     | _ -> incorrectArgs ())
+    //   sqlSpec = NotQueryable
+    //   previewable = Impure
+    //   deprecated = NotDeprecated }
 
 
     { name = fn "testRaiseException" 0
@@ -237,25 +237,7 @@ let fns : List<BuiltInFn> =
       description = "A function that raises an F# exception"
       fn =
         (function
-        | _, _, [ DString message ] -> raise (System.Exception(message))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "testRegexReplace" 0
-      typeParams = []
-      parameters =
-        [ Param.make "subject" TString ""
-          Param.make "pattern" TString ""
-          Param.make "replacement" TString "" ]
-      returnType = TString
-      description = "Replaces regex patterns in a string"
-      fn =
-        (function
-        | _, _, [ DString str; DString pattern; DString replacement ] ->
-          FsRegEx.replace pattern replacement str |> DString |> Ply
+        | _, _, _, [ DString message ] -> raise (System.Exception message)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -269,7 +251,7 @@ let fns : List<BuiltInFn> =
       description = "Get the name of the canvas that's running"
       fn =
         (function
-        | state, _, [ DUnit ] -> state.program.canvasID |> DUuid |> Ply
+        | state, _, _, [ DUnit ] -> state.program.canvasID |> DUuid |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -283,7 +265,7 @@ let fns : List<BuiltInFn> =
       description = "Set the expected exception count for the current test"
       fn =
         (function
-        | state, _, [ DInt64 count ] ->
+        | state, _, _, [ DInt64 count ] ->
           uply {
             state.test.expectedExceptionCount <- int count
             return DUnit

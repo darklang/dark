@@ -112,7 +112,7 @@ type T =
     storeTraceResults : unit -> unit
 
     /// The functions to run tracing during execution
-    executionTracing : RT.Tracing
+    executionTracing : RT.Tracing.Tracing
 
     /// Results of the execution
     results : TraceResults.T
@@ -201,10 +201,7 @@ let createNonTracer (_canvasID : CanvasID) (_traceID : AT.TraceID.T) : T =
   let results = TraceResults.empty ()
   { enabled = false
     results = results
-    executionTracing =
-      LibExecution.Execution.noTracing (
-        RT.CallStack.fromEntryPoint RT.ExecutionPoint.Script
-      )
+    executionTracing = LibExecution.Execution.noTracing
     storeTraceResults = fun () -> ()
     storeTraceInput = fun _ _ _ -> () }
 

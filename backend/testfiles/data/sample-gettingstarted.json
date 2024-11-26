@@ -508,7 +508,7 @@
         714315755,
         "",
         [
-          "EFieldAccess",
+          "ERecordFieldAccess",
           1130637733,
           [
             "EVariable",
@@ -544,7 +544,7 @@
         714315755,
         "b",
         [
-          "EFieldAccess",
+          "ERecordFieldAccess",
           1130637733,
           [
             "EVariable",
@@ -580,7 +580,7 @@
         714315755,
         "bo",
         [
-          "EFieldAccess",
+          "ERecordFieldAccess",
           1130637733,
           [
             "EVariable",
@@ -616,7 +616,7 @@
         714315755,
         "bod",
         [
-          "EFieldAccess",
+          "ERecordFieldAccess",
           1130637733,
           [
             "EVariable",
@@ -652,7 +652,7 @@
         714315755,
         "body",
         [
-          "EFieldAccess",
+          "ERecordFieldAccess",
           1130637733,
           [
             "EVariable",
@@ -684,7 +684,7 @@
     {
       "tlid": 666433085,
       "ast": [
-        "EFieldAccess",
+        "ERecordFieldAccess",
         1130637733,
         [
           "EVariable",
@@ -979,7 +979,7 @@
         564987523,
         "",
         [
-          "EFieldAccess",
+          "ERecordFieldAccess",
           2115087762,
           [
             "EVariable",
@@ -1015,7 +1015,7 @@
         564987523,
         "b",
         [
-          "EFieldAccess",
+          "ERecordFieldAccess",
           2115087762,
           [
             "EVariable",
@@ -1051,7 +1051,7 @@
         564987523,
         "bo",
         [
-          "EFieldAccess",
+          "ERecordFieldAccess",
           2115087762,
           [
             "EVariable",
@@ -1087,7 +1087,7 @@
         564987523,
         "bod",
         [
-          "EFieldAccess",
+          "ERecordFieldAccess",
           2115087762,
           [
             "EVariable",
@@ -1123,7 +1123,7 @@
         564987523,
         "body",
         [
-          "EFieldAccess",
+          "ERecordFieldAccess",
           2115087762,
           [
             "EVariable",
@@ -1155,7 +1155,7 @@
     {
       "tlid": 262224779,
       "ast": [
-        "EFieldAccess",
+        "ERecordFieldAccess",
         2115087762,
         [
           "EVariable",

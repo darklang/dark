@@ -17,7 +17,7 @@ let fns : List<BuiltInFn> =
       description = "Creates a user, and returns their userID."
       fn =
         (function
-        | _, _, [ DUnit ] ->
+        | _, _, _, [ DUnit ] ->
           uply {
             let! canvasID = LibCloud.Account.createUser ()
             return DUuid canvasID

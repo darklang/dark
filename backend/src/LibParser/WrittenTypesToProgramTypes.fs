@@ -7,7 +7,7 @@ module WT = WrittenTypes
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module FS2WT = FSharpToWrittenTypes
-module NRE = LibExecution.NameResolutionError
+type NRE = PT.NameResolutionError
 module NR = NameResolver
 
 module InfixFnName =
@@ -39,14 +39,14 @@ module TypeReference =
       match t with
       | WT.TUnit -> return PT.TUnit
       | WT.TBool -> return PT.TBool
-      | WT.TInt64 -> return PT.TInt64
-      | WT.TUInt64 -> return PT.TUInt64
       | WT.TInt8 -> return PT.TInt8
       | WT.TUInt8 -> return PT.TUInt8
       | WT.TInt16 -> return PT.TInt16
       | WT.TUInt16 -> return PT.TUInt16
       | WT.TInt32 -> return PT.TInt32
       | WT.TUInt32 -> return PT.TUInt32
+      | WT.TInt64 -> return PT.TInt64
+      | WT.TUInt64 -> return PT.TUInt64
       | WT.TInt128 -> return PT.TInt128
       | WT.TUInt128 -> return PT.TUInt128
       | WT.TFloat -> return PT.TFloat
@@ -136,12 +136,7 @@ module Expr =
     (caseName : string) // used for errors
     : Ply<PT.NameResolution<PT.FQTypeName.FQTypeName>> =
     match names with
-    | [] ->
-      Ply(
-        Error(
-          { nameType = NRE.Type; errorType = NRE.MissingEnumModuleName caseName }
-        )
-      )
+    | [] -> Ply(Error(NRE.InvalidName [ caseName ]))
     | head :: tail ->
       let name = NEList.ofList head tail |> WT.Unresolved
       NR.resolveTypeName pm onMissing currentModule name
@@ -178,7 +173,6 @@ module Expr =
       | WT.EBool(id, b) -> return PT.EBool(id, b)
       | WT.EUnit id -> return PT.EUnit id
       | WT.EVariable(id, var) ->
-        // This could be a UserConstant
         let! constant =
           NR.resolveConstantName
             (builtins.constants |> Map.keys |> Set)
@@ -189,9 +183,9 @@ module Expr =
         match constant with
         | Ok _ as name -> return PT.EConstant(id, name)
         | Error _ -> return PT.EVariable(id, var)
-      | WT.EFieldAccess(id, obj, fieldname) ->
+      | WT.ERecordFieldAccess(id, obj, fieldname) ->
         let! obj = toPT obj
-        return PT.EFieldAccess(id, obj, fieldname)
+        return PT.ERecordFieldAccess(id, obj, fieldname)
       | WT.EApply(id, (WT.EFnName(_, name)), [], { head = WT.EPlaceHolder }) ->
         // There are no arguments, so this could be a function name or a constant
         let! fnName =
@@ -274,7 +268,8 @@ module Expr =
                 return (fieldName, fieldExpr)
               })
             fields
-        return PT.ERecord(id, typeName, fields)
+        let typeArgs = [] // TODO
+        return PT.ERecord(id, typeName, typeArgs, fields)
       | WT.ERecordUpdate(id, record, updates) ->
         let! record = toPT record
         let! updates =
@@ -295,7 +290,8 @@ module Expr =
       | WT.EEnum(id, typeName, caseName, exprs) ->
         let! typeName = resolveTypeName pm onMissing currentModule typeName caseName
         let! exprs = Ply.List.mapSequentially toPT exprs
-        return PT.EEnum(id, typeName, caseName, exprs)
+        let typeArgs = [] // TODO
+        return PT.EEnum(id, typeName, typeArgs, caseName, exprs)
       | WT.EMatch(id, mexpr, cases) ->
         let! mexpr = toPT mexpr
         let! cases =

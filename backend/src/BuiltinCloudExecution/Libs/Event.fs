@@ -20,9 +20,9 @@ let fns : List<BuiltInFn> =
       description = "Emit a <param event> to the <param name> worker"
       fn =
         (function
-        | state, _, [ data; DString name ] ->
+        | exeState, _, _, [ data; DString name ] ->
           uply {
-            let canvasID = state.program.canvasID
+            let canvasID = exeState.program.canvasID
 
             do!
               // Handlers in our Postgres DB are all stored in the same table.

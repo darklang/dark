@@ -8,7 +8,6 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module Dval = LibExecution.Dval
-module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module PackageIDs = LibExecution.PackageIDs
 module Telemetry = LibService.Telemetry
 
@@ -25,7 +24,7 @@ let fns : List<BuiltInFn> =
         "Write the log object to a honeycomb log, along with whatever enrichment the backend provides. Returns its input"
       fn =
         (function
-        | _, _, [ DString level; DString name; DDict(_, log) as result ] ->
+        | _, _, _, [ DString level; DString name; DDict(_, log) as result ] ->
           let args =
             log
             |> Map.toList
@@ -58,7 +57,7 @@ via the backend; its primary purpose is to send data to Honeycomb, but also give
 human-readable data."
       fn =
         (function
-        | _, _, [ DUnit ] ->
+        | _, _, _, [ DUnit ] ->
           uply {
             let! tableStats = LibCloud.Db.tableStats ()
 
@@ -112,7 +111,7 @@ human-readable data."
         and exception tracking, not for any real use."
       fn =
         (function
-        | _, _, [ arg ] ->
+        | _, _, _, [ arg ] ->
           Exception.raiseInternal
             "DarkInternal.raiseInternalException"
             [ "arg", arg ]
@@ -129,7 +128,7 @@ human-readable data."
       description = "Returns the git hash of the server's current deploy"
       fn =
         (function
-        | _, _, [ DUnit ] -> LibService.Config.buildHash |> DString |> Ply
+        | _, _, _, [ DUnit ] -> LibService.Config.buildHash |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

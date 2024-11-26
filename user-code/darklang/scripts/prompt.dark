@@ -43,7 +43,7 @@ let promptText =
     "..."
     allCodeFromFile "LibExecution/ProgramTypes.fs"
     "..."
-    allCodeFromFile "LibExecution/DvalReprDeveloper.fs"
+    allCodeFromFile "DvalReprDeveloper/DvalReprDeveloper.fs"
     "few other files that might be good to look at"
     allCodeFromFile "LibExecution/Interpreter.fs"
     allCodeFromFile "LibExecution/Execution.fs"

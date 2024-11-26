@@ -1,6 +1,7 @@
 # `darklang` CLI executable
 
-TODO improve this readme
+This is a project that yields a `darklang` executable artifact.
+It builds to many platforms -- see the .fsproj file for details.
 
 ## Usage
 
@@ -9,13 +10,12 @@ TODO improve this readme
 
 ## Structure
 
-- LibCli
+- `Cli`
+  - binary that runs dark code
+  - supported greatly by `LibCli`
+- `LibCli`
   - stdlib fns and types for filesystem and other posix stuff
   - print to stdout (and stderr?)
   - read stdin (start processing once it closes)
-  - Directory.\*
-  - File.\*
-- Cli
-  - binary that runs dark programs, compiled with libcli
-- prompt.txt
-  - used in addition to the user prompt
+  - `Directory.\*`
+  - `File.\*`

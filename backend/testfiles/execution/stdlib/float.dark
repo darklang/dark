@@ -154,9 +154,8 @@ Stdlib.Float.parse_v0 "-141s" = Stdlib.Result.Result.Error
 Stdlib.Float.parse_v0 "" = Stdlib.Result.Result.Error
   Stdlib.Float.ParseError.BadFormat
 
-Stdlib.Float.parse "-5.55555555556e+28" = Stdlib.Result.Result.Ok
-  -55555555555555555555555555555.5
-//Stdlib.Float.parse_v0 "0xffffffffffffffff" = Stdlib.Result.Result.Ok 1.844674407e+19
+Stdlib.Float.parse "-5.55555555556e+28" = Stdlib.Result.Result.Ok -55555555555555555555555555555.5
+//Stdlib.Float.parse_v0 "0xffffffffffffffff" = Stdlib.Result.Result.Ok 1.844674407e+19 // TODO review this.
 
 Stdlib.Float.parse_v0 "-1.8E+308" = Stdlib.Result.Result.Ok
   Builtin.testNegativeInfinity_v0

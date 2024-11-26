@@ -9,7 +9,7 @@ type NamePrinter<'name> = 'name -> string
 
 // Lowercase starting letter for modules and users
 let modulePattern = @"^[A-Z][a-z0-9A-Z_]*$"
-let typeNamePattern = @"^[A-Z][a-z0-9A-Z_]*$"
+//let typeNamePattern = @"^[A-Z][a-z0-9A-Z_]*$"
 let fnNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
 let builtinNamePattern = @"^(__|[a-z])[a-z0-9A-Z_]\w*$"
 let constantNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
@@ -33,6 +33,8 @@ module FQTypeName =
   type FQTypeName = Package of Package
 
   let package (id : uuid) : Package = id
+
+  let fqPackage (id : uuid) : FQTypeName = Package id
 
 
 
@@ -62,6 +64,8 @@ module FQConstantName =
     Builtin(builtIn name version)
 
   let package (id : uuid) : Package = id
+
+  let fqPackage (id : uuid) : FQConstantName = Package id
 
 
 
@@ -113,16 +117,50 @@ module FQFnName =
 // resolved name, and the Error case models the text name of the type and some error
 // information.
 
-type NameResolution<'a> = Result<'a, NameResolutionError.Error>
+type NameResolutionError =
+  | NotFound of List<string>
+  | InvalidName of List<string>
+
+type NameResolution<'a> = Result<'a, NameResolutionError>
+
 
 type LetPattern =
-  | LPUnit of id
+  /// `let x = 1`
+  | LPVariable of id * name : string
+
+  // /// `let _ignored = 1`
+  // | LPIgnored
+
+  // /// let (x) = 1
+  //| LPParens of inner : LetPattern
+
+  /// `let (x, _) = (1, 2)`
   | LPTuple of
     id *
     first : LetPattern *
     second : LetPattern *
     theRest : List<LetPattern>
-  | LPVariable of id * name : string
+
+  /// `let () = ()`
+  | LPUnit of id
+
+module LetPattern =
+  let rec symbolsUsed (pattern : LetPattern) : Set<string> =
+    match pattern with
+    | LPVariable(_, name) -> Set.singleton name
+    | LPTuple(_, first, second, rest) ->
+      Set.unionMany
+        [ symbolsUsed first
+          symbolsUsed second
+          rest |> List.map symbolsUsed |> Set.unionMany ]
+    | LPUnit _ -> Set.empty
+
+  let toID (pattern : LetPattern) : id =
+    match pattern with
+    | LPVariable(id, _)
+    | LPTuple(id, _, _, _)
+    | LPUnit id -> id
+
 
 /// Used for pattern matching in a match statement
 type MatchPattern =
@@ -210,11 +248,6 @@ type TypeReference =
   | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TDict of TypeReference
 
-  | TFn of arguments : NEList<TypeReference> * ret : TypeReference
-
-  | TDB of TypeReference
-  // A named variable, eg `a` in `List<a>`, matches anything
-
   /// A type defined by a standard library module, a canvas/user, or a package
   /// e.g. `Result<Int64, String>` is represented as `TCustomType("Result", [TInt64, TString])`
   /// `typeArgs` is the list of type arguments, if any
@@ -223,7 +256,13 @@ type TypeReference =
     NameResolution<FQTypeName.FQTypeName> *
     typeArgs : List<TypeReference>
 
+  | TFn of arguments : NEList<TypeReference> * ret : TypeReference
+
+  /// A named variable, eg `a` in `List<a>`, matches anything
   | TVariable of string
+
+  | TDB of TypeReference
+
 
 /// Expressions - the main part of the language.
 type Expr =
@@ -245,7 +284,7 @@ type Expr =
   // Allow the user to have arbitrarily big numbers, even if they don't make sense as
   // floats. The float is split as we want to preserve what the user entered.
   // Strings are used as numbers lose the leading zeros (eg 7.00007)
-  | EFloat of id * Sign * string * string
+  | EFloat of id * Sign * whole : string * part : string
 
   /// A character is an Extended Grapheme Cluster (hence why we use a string). This
   /// is equivalent to one screen-visible "character" in Unicode.
@@ -258,7 +297,7 @@ type Expr =
   | EIf of id * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>
 
   /// `(1 + 2) |> fnName |> (+) 3`
-  | EPipe of id * Expr * List<PipeExpr>
+  | EPipe of id * lhs : Expr * parts : List<PipeExpr>
 
   /// Supports `match` expressions
   /// ```fsharp
@@ -280,19 +319,17 @@ type Expr =
   // expr2
   // </code>
   | ELet of id * LetPattern * Expr * Expr
+
   // Reference some local variable by name
   //
   // i.e. after a `let binding = value`, any use of `binding`
   | EVariable of id * string
-  // Access a field of some expression (e.g. `someExpr.fieldName`)
-  | EFieldAccess of id * Expr * string
 
 
   // -- Basic structures --
   | EList of id * List<Expr>
   | EDict of id * List<string * Expr>
   | ETuple of id * Expr * Expr * List<Expr>
-
 
   // -- "Applying" args to things, such as fns and lambdas --
   /// This is a function call, the first expression is the value of the function.
@@ -314,19 +351,24 @@ type Expr =
 
 
   // -- References to custom types and data --
-  | EConstant of
-    id *
-    // TODO: this reference should be by-hash
-    NameResolution<FQConstantName.FQConstantName>
 
-  // See NameResolution comment above
+  /// Construct a record
+  /// `SomeRecord { field1: value; field2: value }`
   | ERecord of
     id *
     // TODO: this reference should be by-hash
     typeName : NameResolution<FQTypeName.FQTypeName> *
+    typeArgs : List<TypeReference> *
     // User is allowed type `Name {}` even if that's an error
     fields : List<string * Expr>
+
+  /// Access a field of some record (e.g. `someExpr.fieldName`)
+  | ERecordFieldAccess of id * record : Expr * fieldName : string
+
+  /// Clone a record, and update some of its values
+  /// `{ r with key = value }`
   | ERecordUpdate of id * record : Expr * updates : NEList<string * Expr>
+
 
   // Enums include `Some`, `None`, `Error`, `Ok`, as well
   // as user-defined enums.
@@ -341,8 +383,14 @@ type Expr =
     id *
     // TODO: this reference should be by-hash
     typeName : NameResolution<FQTypeName.FQTypeName> *
+    typeArgs : List<TypeReference> *
     caseName : string *
     fields : List<Expr>
+
+  | EConstant of
+    id *
+    // TODO: this reference should be by-hash
+    NameResolution<FQConstantName.FQConstantName>
 
 
 and MatchCase = { pat : MatchPattern; whenCondition : Option<Expr>; rhs : Expr }
@@ -352,14 +400,20 @@ and StringSegment =
   | StringInterpolation of Expr
 
 and PipeExpr =
-  | EPipeVariable of id * string * List<Expr> // value is an fn taking one or more arguments
+  /// `1 |> fun x -> x + 1`
   | EPipeLambda of id * pats : NEList<LetPattern> * body : Expr
+
+  /// `1 |> (+) 1`
   | EPipeInfix of id * Infix * Expr
+
+  /// `1 |> Json.serialize<Int64>`
   | EPipeFnCall of
     id *
     NameResolution<FQFnName.FQFnName> *
     typeArgs : List<TypeReference> *
     args : List<Expr>
+
+  /// `1 |> Option.Some`
   | EPipeEnum of
     id *
     // TODO: this reference should be by-hash
@@ -367,50 +421,49 @@ and PipeExpr =
     caseName : string *
     fields : List<Expr>
 
+  /// ```fsharp
+  /// let myLambda = fun x -> x + 1
+  /// 1 |> myLambda
+  /// ```
+  | EPipeVariable of id * varContainingPipeable : string * args : List<Expr>
+
+
 module Expr =
   let toID (expr : Expr) : id =
     match expr with
-    | EInt64(id, _)
-    | EUInt64(id, _)
+    | EUnit id
+    | EBool(id, _)
     | EInt8(id, _)
     | EUInt8(id, _)
     | EInt16(id, _)
     | EUInt16(id, _)
     | EInt32(id, _)
     | EUInt32(id, _)
+    | EInt64(id, _)
+    | EUInt64(id, _)
     | EInt128(id, _)
     | EUInt128(id, _)
-    | EBool(id, _)
-    | EString(id, _)
     | EChar(id, _)
+    | EString(id, _)
     | EFloat(id, _, _, _)
-    | EUnit id
     | EConstant(id, _)
     | ELet(id, _, _, _)
     | EIf(id, _, _, _)
     | EInfix(id, _, _, _)
     | ELambda(id, _, _)
     | EFnName(id, _)
-    | EFieldAccess(id, _, _)
     | EVariable(id, _)
     | EApply(id, _, _, _)
     | EList(id, _)
     | EDict(id, _)
     | ETuple(id, _, _, _)
     | EPipe(id, _, _)
-    | ERecord(id, _, _)
+    | ERecord(id, _, _, _)
     | ERecordUpdate(id, _, _)
-    | EEnum(id, _, _, _)
+    | ERecordFieldAccess(id, _, _)
+    | EEnum(id, _, _, _, _)
     | EMatch(id, _, _) -> id
 
-module PipeExpr =
-  let toID (expr : PipeExpr) : id =
-    match expr with
-    | EPipeVariable(id, _, _)
-    | EPipeLambda(id, _, _)
-    | EPipeInfix(id, _, _)
-    | EPipeFnCall(id, _, _, _)
-    | EPipeEnum(id, _, _, _) -> id
 
 
 /// A type defined by a package or canvas/user
@@ -438,22 +491,30 @@ module TypeDeclaration =
   type T = { typeParams : List<string>; definition : Definition }
 
 
+/// Replace this whole concept with just "Package Values" that store Dvals
 type Const =
-  | CInt64 of int64
-  | CUInt64 of uint64
+  | CUnit
+
+  | CBool of bool
+
   | CInt8 of int8
   | CUInt8 of uint8
   | CInt16 of int16
   | CUInt16 of uint16
   | CInt32 of int32
   | CUInt32 of uint32
+  | CInt64 of int64
+  | CUInt64 of uint64
   | CInt128 of System.Int128
   | CUInt128 of System.UInt128
-  | CBool of bool
-  | CString of string
-  | CChar of string
+
   | CFloat of Sign * string * string
-  | CUnit
+
+  | CChar of string
+  | CString of string
+
+  | CList of List<Const>
+  | CDict of List<string * Const>
   | CTuple of first : Const * second : Const * rest : List<Const>
 
   | CEnum of
@@ -461,8 +522,6 @@ type Const =
     NameResolution<FQTypeName.FQTypeName> *
     caseName : string *
     fields : List<Const>
-  | CList of List<Const>
-  | CDict of List<string * Const>
 
 
 
@@ -595,10 +654,10 @@ type PackageManager =
   /// Allows you to side-load a few 'extras' in-memory, along
   /// the normal fetching functionality. (Mostly helpful for tests)
   static member withExtras
-    (pm : PackageManager)
     (types : List<PackageType.PackageType>)
     (constants : List<PackageConstant.PackageConstant>)
     (fns : List<PackageFn.PackageFn>)
+    (pm : PackageManager)
     : PackageManager =
     { findType =
         fun name ->

@@ -7,10 +7,11 @@ open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
 module DarkDateTime = LibExecution.DarkDateTime
-module VT = ValueType
+module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module TypeChecker = LibExecution.TypeChecker
 module PackageIDs = LibExecution.PackageIDs
+module RTE = RuntimeError
 
 
 // parsing
@@ -61,27 +62,6 @@ type Utf8JsonWriter with
     }
 
 
-module RuntimeError =
-  module RT2DT = LibExecution.RuntimeTypesToDarkTypes
-
-  type Error =
-    /// In the future, we will add a trait to indicate types which can be serialized. For
-    /// now, we'll raise a RuntimeError instead if any of those types are present.
-    /// Helpfully, this allows us keep `serialize` from having to return an Error.
-    | UnsupportedType of TypeReference
-
-  let toRuntimeError (e : Error) : RuntimeError =
-    let (caseName, fields) =
-      match e with
-      | UnsupportedType typ -> "UnsupportedType", [ RT2DT.TypeReference.toDT typ ]
-
-    let typeName =
-      FQTypeName.fqPackage PackageIDs.Type.LanguageTools.RuntimeError.Json.error
-    DEnum(typeName, typeName, [], caseName, fields) |> RuntimeError.jsonError
-
-  let raiseUnsupportedType (callStack : CallStack) (typ : TypeReference) : 'a =
-    UnsupportedType(typ) |> toRuntimeError |> raiseRTE callStack
-
 
 module JsonPath =
   module Part =
@@ -110,13 +90,14 @@ module JsonPath =
 
 
 let rec serialize
-  (callStack : CallStack)
+  (threadID : ThreadID)
   (types : Types)
+  // CLEANUP do we need a TST? or maybe that should have been handled earlier?
   (w : Utf8JsonWriter)
-  (typ : TypeReference)
+  (typ : TypeReference) // CLEANUP would a valueType be better here somehow?
   (dv : Dval)
   : Ply<unit> =
-  let r = serialize callStack types w
+  let r = serialize threadID types w
   uply {
     match typ, dv with
     // basic types
@@ -124,26 +105,15 @@ let rec serialize
 
     | TBool, DBool b -> w.WriteBooleanValue b
 
-    | TInt64, DInt64 i ->
-      // CLEANUP if the number is outside the range, store as a string?
-      w.WriteNumberValue i
-
-    | TUInt64, DUInt64 i -> w.WriteNumberValue i
-
     | TInt8, DInt8 i -> w.WriteNumberValue i
-
     | TUInt8, DUInt8 i -> w.WriteNumberValue i
-
     | TInt16, DInt16 i -> w.WriteNumberValue i
-
     | TUInt16, DUInt16 i -> w.WriteNumberValue i
-
     | TInt32, DInt32 i -> w.WriteNumberValue i
-
     | TUInt32, DUInt32 i -> w.WriteNumberValue i
-
+    | TInt64, DInt64 i -> w.WriteNumberValue i
+    | TUInt64, DUInt64 i -> w.WriteNumberValue i
     | TInt128, DInt128 i -> w.WriteRawValue(i.ToString())
-
     | TUInt128, DUInt128 i -> w.WriteRawValue(i.ToString())
 
     | TFloat, DFloat f ->
@@ -166,6 +136,12 @@ let rec serialize
     | TUuid, DUuid uuid -> w.WriteStringValue(string uuid)
 
     // Nested types
+    | TTuple(t1, t2, trest), DTuple(d1, d2, rest) ->
+      let zipped = List.zip (t1 :: t2 :: trest) (d1 :: d2 :: rest)
+      do!
+        w.writeArray (fun () ->
+          Ply.List.iterSequentially (fun (t, d) -> r t d) zipped)
+
     | TList ltype, DList(_, l) ->
       do! w.writeArray (fun () -> Ply.List.iterSequentially (r ltype) l)
 
@@ -180,15 +156,10 @@ let rec serialize
               do! r dictType v
             }))
 
-    | TTuple(t1, t2, trest), DTuple(d1, d2, rest) ->
-      let zipped = List.zip (t1 :: t2 :: trest) (d1 :: d2 :: rest)
-      do!
-        w.writeArray (fun () ->
-          Ply.List.iterSequentially (fun (t, d) -> r t d) zipped)
 
+    // Enums and Records
     | TCustomType(Ok typeName, typeArgs), dval ->
-
-      match! Types.find typeName types with
+      match! Types.find types typeName with
       | None -> Exception.raiseInternal "Couldn't find type" [ "typeName", typeName ]
       | Some decl ->
 
@@ -239,21 +210,20 @@ let rec serialize
                     Types.substitute decl.typeParams typeArgs matchingFieldDef.typ
                   r typ dval))
           | _ ->
-            Exception.raiseInternal
-              "Expected a DRecord but got something else"
-              [ "actualDval", dval
-                "actualType", LibExecution.DvalReprDeveloper.toTypeName dval
-                "expectedType", typeName
-                "expectedFields", fields ]
+            RTE.Records.CreationTypeNotRecord typeName
+            |> RTE.Record
+            |> raiseRTE threadID
 
 
-    | TCustomType(Error err, _typeArgs), _dval -> raiseRTE callStack err
+    | TCustomType(Error err, _typeArgs), _dval ->
+      raiseRTE threadID (RTE.ParseTimeNameResolution err)
 
 
     // Not supported
     | TVariable _, _
     | TFn _, _
-    | TDB _, _ -> return! RuntimeError.raiseUnsupportedType callStack typ
+    | TDB _, _ ->
+      return! (RTE.Jsons.UnsupportedType typ) |> RTE.Json |> raiseRTE threadID
 
 
     // Exhaust the types
@@ -276,13 +246,12 @@ let rec serialize
     | TDateTime, _
     | TList _, _
     | TTuple _, _
-    | TDB _, _
     | TCustomType _, _
     | TDict _, _ ->
       // Internal error as this shouldn't get past the typechecker
-      Exception.raiseInternal
-        "Can't serialize this type/value combination"
-        [ "value", dv; "type", DString(LibExecution.DvalReprDeveloper.typeName typ) ]
+      RTE.Jsons.CannotSerializeTypeValueCombo(dv, typ)
+      |> RTE.Json
+      |> raiseRTE threadID
   }
 
 module ParseError =
@@ -356,18 +325,20 @@ let raiseCantMatchWithType
 
 
 let parse
-  (callStack : CallStack)
+  (threadID : ThreadID)
   (types : Types)
   (typ : TypeReference)
   (str : string)
   : Ply<Result<Dval, ParseError.ParseError>> =
-  let err = raiseError
+
+  let tst = Map.empty // TODO consider passing this in.. somehow?
 
   let rec convert
     (typ : TypeReference)
     (pathSoFar : JsonPath.JsonPath)
     (j : JsonElement)
     : Ply<Dval> =
+
     match typ, j.ValueKind with
     // basic types
     | TUnit, JsonValueKind.Null -> DUnit |> Ply
@@ -611,7 +582,7 @@ let parse
       |> Seq.mapi (fun i v -> convert nested (JsonPath.Part.Index i :: pathSoFar) v)
       |> Seq.toList
       |> Ply.List.flatten
-      |> Ply.map (TypeChecker.DvalCreator.list callStack VT.unknownTODO)
+      |> Ply.map (TypeChecker.DvalCreator.list threadID VT.unknownTODO)
 
     | TTuple(t1, t2, rest), JsonValueKind.Array ->
       let values = j.EnumerateArray() |> Seq.toList
@@ -637,11 +608,11 @@ let parse
         })
       |> Seq.toList
       |> Ply.List.flatten
-      |> Ply.map (TypeChecker.DvalCreator.dict VT.unknownTODO)
+      |> Ply.map (TypeChecker.DvalCreator.dict threadID VT.unknownTODO)
 
     | TCustomType(Ok typeName, typeArgs), jsonValueKind ->
       uply {
-        match! Types.find typeName types with
+        match! Types.find types typeName with
         | None ->
           return
             Exception.raiseInternal "Couldn't find type" [ "typeName", typeName ]
@@ -667,7 +638,9 @@ let parse
                 match cases |> NEList.find (fun c -> c.name = caseName) with
                 | Some c -> c
                 | None ->
-                  err (ParseError.EnumInvalidCasename(typ, caseName, pathSoFar))
+                  raiseError (
+                    ParseError.EnumInvalidCasename(typ, caseName, pathSoFar)
+                  )
 
               let j = j.EnumerateArray() |> Seq.toList
 
@@ -700,7 +673,9 @@ let parse
                       "expectedFields", matchingCase.fields
                       "actualFields", j ]
                 return
-                  err (ParseError.EnumMissingField(expectedType, index, casePath))
+                  raiseError (
+                    ParseError.EnumMissingField(expectedType, index, casePath)
+                  )
               else if expectedFieldCount < actualFieldCount then
                 let index = expectedFieldCount // one higher than greatest index
                 let fieldJson =
@@ -711,15 +686,28 @@ let parse
                       "expectedFields", matchingCase.fields
                       "actualFields", j ]
                 let path = JsonPath.Part.Index index :: casePath
-                return err (ParseError.EnumExtraField(fieldJson.GetRawText(), path))
+                return
+                  raiseError (
+                    ParseError.EnumExtraField(fieldJson.GetRawText(), path)
+                  )
               else
-                return!
-                  TypeChecker.DvalCreator.enum typeName typeName caseName fields
+                let! (enum, _tst) =
+                  TypeChecker.DvalCreator.enum
+                    types
+                    threadID
+                    tst
+                    typeName
+                    typeArgs
+                    caseName
+                    fields
+                return enum
+
 
             | [] -> return raiseCantMatchWithType typ j pathSoFar
             | cases ->
               let caseNames = List.map Tuple2.first cases
-              return err (ParseError.EnumTooManyCases(typ, caseNames, pathSoFar))
+              return
+                raiseError (ParseError.EnumTooManyCases(typ, caseNames, pathSoFar))
 
           | TypeDeclaration.Record fields ->
             if jsonValueKind <> JsonValueKind.Object then
@@ -741,10 +729,15 @@ let parse
                       enumerated |> List.filter (fun v -> v.Name = def.name)
 
                     match matchingFieldDef with
-                    | [] -> err (ParseError.RecordMissingField(def.name, pathSoFar))
+                    | [] ->
+                      raiseError (
+                        ParseError.RecordMissingField(def.name, pathSoFar)
+                      )
                     | [ matchingFieldDef ] -> matchingFieldDef.Value
                     | _ ->
-                      err (ParseError.RecordDuplicateField(def.name, pathSoFar))
+                      raiseError (
+                        ParseError.RecordDuplicateField(def.name, pathSoFar)
+                      )
 
                   let typ = Types.substitute decl.typeParams typeArgs def.typ
                   let! converted =
@@ -756,14 +749,22 @@ let parse
                 })
               |> Ply.List.flatten
 
-            return! TypeChecker.DvalCreator.record callStack typeName fields
+            let! (record, _tst) =
+              TypeChecker.DvalCreator.record
+                types
+                threadID
+                tst
+                typeName
+                typeArgs
+                fields
+            return record
       }
 
 
     // Explicitly not supported
     | TVariable _, _
     | TFn _, _
-    | TDB _, _ -> RuntimeError.raiseUnsupportedType callStack typ
+    | TDB _, _ -> (RTE.Jsons.UnsupportedType typ) |> RTE.Json |> raiseRTE threadID
 
 
     // exhaust TypeReferences
@@ -815,15 +816,15 @@ let fns : List<BuiltInFn> =
       description = "Serializes a Dark value to a JSON string."
       fn =
         (function
-        | state, [ typeToSerializeAs ], [ arg ] ->
+        | exeState, vm, [ typeToSerializeAs ], [ arg ] ->
           uply {
             // TODO: somehow collect list of TVariable -> TypeReference
             // "'b = Int",
             // so we can Json.serialize<'b>, if 'b is in the surrounding context
-            let types = ExecutionState.availableTypes state
+            let types = exeState.types
             let! response =
               writeJson (fun w ->
-                serialize state.tracing.callStack types w typeToSerializeAs arg)
+                serialize vm.threadID types w typeToSerializeAs arg)
             return DString response
           }
         | _ -> incorrectArgs ())
@@ -843,18 +844,18 @@ let fns : List<BuiltInFn> =
         "Parses a JSON string <param json> as a Dark value, matching the type <typeParam a>"
       fn =
         (function
-        | state, [ typeArg ], [ DString arg ] ->
-          let callStack = state.tracing.callStack
+        | exeState, vm, [ typeArg ], [ DString arg ] ->
+          let threadID = vm.threadID
 
           let okType = VT.unknownTODO // "a"
           let errType = KTCustomType(ParseError.typeName, []) |> VT.known
-          let resultOk = TypeChecker.DvalCreator.resultOk callStack okType errType
+          let resultOk = TypeChecker.DvalCreator.Result.ok threadID okType errType
           let resultError =
-            TypeChecker.DvalCreator.resultError callStack okType errType
+            TypeChecker.DvalCreator.Result.error threadID okType errType
 
-          let types = ExecutionState.availableTypes state
+          let types = exeState.types
           uply {
-            match! parse callStack types typeArg arg with
+            match! parse threadID types typeArg arg with
             | Ok v -> return resultOk v
             | Error e -> return resultError (ParseError.toDT e)
           }

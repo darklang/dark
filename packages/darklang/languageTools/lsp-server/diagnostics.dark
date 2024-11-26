@@ -4,7 +4,7 @@ module Darklang =
       module Diagnostics =
         let gatherAndReportDiagnostics
           (parsedText: WrittenTypes.SourceFile.SourceFile)
-          (unresolvedNames: List<Parser.Range * RuntimeErrors.NameResolution.Error>)
+          (unresolvedNames: List<Parser.Range * ProgramTypes.NameResolutionError>)
           : Unit =
           let warningDiagnostics =
             unresolvedNames

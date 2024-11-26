@@ -28,11 +28,11 @@ let tidyHtml (html: String) : String =
 
 (htmlTag "div" [] [ stringNode "yolo" ]) |> nodeToString = "<div>yolo</div>"
 
-(htmlTag "div" [ ("id", (Stdlib.Option.Option.Some "my-div")) ] [ stringNode "yolo" ])
-|> nodeToString = "<div id=\"my-div\">yolo</div>"
+(htmlTag "div" [ ("id", (Stdlib.Option.Option.Some "my-div")) ] [ stringNode "yolo" ]) |> nodeToString =
+  "<div id=\"my-div\">yolo</div>"
 
-(htmlTag "div" [] [ htmlTag "button" [] [ stringNode "click me" ] ])
-|> nodeToString = "<div><button>click me</button></div>"
+(htmlTag "div" [] [ htmlTag "button" [] [ stringNode "click me" ] ]) |> nodeToString =
+  "<div><button>click me</button></div>"
 
 
 // -- testing of simple html node helpers
@@ -69,8 +69,8 @@ let tidyHtml (html: String) : String =
 
 (Stdlib.Html.img []) |> nodeToString = "<img>"
 
-(Stdlib.Html.img [ ("src", Stdlib.Option.Option.Some "foo.png") ])
-|> nodeToString = "<img src=\"foo.png\">"
+(Stdlib.Html.img [ ("src", Stdlib.Option.Option.Some "foo.png") ]) |> nodeToString =
+  "<img src=\"foo.png\">"
 
 (Stdlib.Html.svg [] []) |> nodeToString = "<svg></svg>"
 (Stdlib.Html.path []) |> nodeToString = "<path></path>"

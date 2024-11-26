@@ -73,11 +73,12 @@ echo "Waiting for postgres"
 echo "Waiting for compiled servers"
 for ((i=1;i<=1000;i++));
 do
-  if [[ ! -f "${BWDSERVER_EXE}" \
-     || ! -f "${CRONCHECKER_EXE}" \
-     || ! -f "${QUEUEWORKER_EXE}" \
-     || ! -f "${PRODEXEC_EXE}" \
-     || ! -f "${LOCALEXEC_EXE}" ]]; then
+  if [[
+     ! -f "${BWDSERVER_EXE}" || \
+     ! -f "${CRONCHECKER_EXE}" || \
+     ! -f "${QUEUEWORKER_EXE}" || \
+     ! -f "${PRODEXEC_EXE}" || \
+     ! -f "${LOCALEXEC_EXE}" ]]; then
     sleep 0.01
   fi
 done

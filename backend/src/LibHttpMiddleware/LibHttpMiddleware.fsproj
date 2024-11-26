@@ -11,6 +11,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../DvalReprDeveloper/DvalReprDeveloper.fsproj" />
     <ProjectReference Include="../LibCloud/LibCloud.fsproj" />
   </ItemGroup>
   <ItemGroup>

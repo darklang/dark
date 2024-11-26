@@ -1,0 +1,31 @@
+(if true then "correct" else 0L) = "correct"
+
+(if true then Builtin.testRuntimeError "a" else 0L) =
+  Builtin.testDerrorMessage "Uncaught exception: a"
+
+(if false then 0L else Builtin.testRuntimeError "a") =
+  Builtin.testDerrorMessage "Uncaught exception: a"
+
+(if false then Builtin.testRuntimeError "a" else 0L) = 0L
+(if true then 0L else Builtin.testRuntimeError "a") = 0L
+(if false then "" else "correct") = "correct"
+(if () then "" else "") = Builtin.testDerrorMessage "Encountered a condition that must be a Bool, but got an Unit (())"
+
+(if Builtin.testRuntimeError "msg" then "" else "") =
+  Builtin.testDerrorMessage "Uncaught exception: msg"
+
+(if 5L then "" else "") = Builtin.testDerrorMessage "Encountered a condition that must be a Bool, but got an Int64 (5)"
+
+(if true then ()) = ()
+(if 1L > 3L then 4L) = ()
+(if 1L < 3L then 4L) = 4L
+(if 1L < 3L then "msg") = "msg"
+
+(if () then "msg") =
+  (Builtin.testDerrorMessage "Encountered a condition that must be a Bool, but got an Unit (())")
+
+(if true then Builtin.testRuntimeError "a") =
+  (Builtin.testDerrorMessage "Uncaught exception: a")
+
+(if Builtin.testRuntimeError "msg" then "") =
+  (Builtin.testDerrorMessage "Uncaught exception: msg")

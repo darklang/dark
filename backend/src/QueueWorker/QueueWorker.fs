@@ -14,7 +14,6 @@ module EQ = LibCloud.Queue
 module Pusher = LibCloud.Pusher
 module CloudExecution = LibCloudExecution.CloudExecution
 module Canvas = LibCloud.Canvas
-module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 
 module LD = LibService.LaunchDarkly
 module Telemetry = LibService.Telemetry
@@ -30,6 +29,7 @@ let mutable shouldShutdown = false
 type ShouldRetry =
   | Retry of NodaTime.Duration
   | NoRetry
+
 
 /// The algorithm here is described in the chart in `docs/eventsV2.md`.
 /// The code below is annotated with names from chart.
@@ -206,7 +206,7 @@ let processNotification
                     let! (result, traceResults) =
                       CloudExecution.executeHandler
                         LibClientTypesToCloudTypes.Pusher.eventSerializer
-                        (PT2RT.Handler.toRT h)
+                        h
                         program
                         traceID
                         (Map [ "event", event.value ])

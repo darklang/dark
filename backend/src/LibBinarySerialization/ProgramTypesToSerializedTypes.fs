@@ -16,80 +16,30 @@ module NEList =
 
 
 module NameResolutionError =
-  module NameType =
-    let toST
-      (nameType : LibExecution.NameResolutionError.NameType)
-      : ST.NameResolutionError.NameType =
-      match nameType with
-      | LibExecution.NameResolutionError.Type -> ST.NameResolutionError.Type
-      | LibExecution.NameResolutionError.Function -> ST.NameResolutionError.Function
-      | LibExecution.NameResolutionError.Constant -> ST.NameResolutionError.Constant
-
-    let toPT
-      (nameType : ST.NameResolutionError.NameType)
-      : LibExecution.NameResolutionError.NameType =
-      match nameType with
-      | ST.NameResolutionError.Type -> LibExecution.NameResolutionError.Type
-      | ST.NameResolutionError.Function -> LibExecution.NameResolutionError.Function
-      | ST.NameResolutionError.Constant -> LibExecution.NameResolutionError.Constant
+  let toST (err : PT.NameResolutionError) : ST.NameResolutionError =
+    match err with
+    | PT.NameResolutionError.NotFound names -> ST.NameResolutionError.NotFound names
+    | PT.NameResolutionError.InvalidName names ->
+      ST.NameResolutionError.InvalidName names
 
 
-  module ErrorType =
-    let toST
-      (err : LibExecution.NameResolutionError.ErrorType)
-      : ST.NameResolutionError.ErrorType =
-      match err with
-      | LibExecution.NameResolutionError.NotFound names ->
-        ST.NameResolutionError.NotFound names
-      | LibExecution.NameResolutionError.MissingEnumModuleName caseName ->
-        ST.NameResolutionError.MissingEnumModuleName caseName
-      | LibExecution.NameResolutionError.InvalidPackageName names ->
-        ST.NameResolutionError.InvalidPackageName names
-      | LibExecution.NameResolutionError.ExpectedEnumButNot packageTypeID ->
-        ST.NameResolutionError.ExpectedEnumButNot packageTypeID
-      | LibExecution.NameResolutionError.ExpectedRecordButNot packageTypeID ->
-        ST.NameResolutionError.ExpectedRecordButNot packageTypeID
-
-
-    let toPT
-      (err : ST.NameResolutionError.ErrorType)
-      : LibExecution.NameResolutionError.ErrorType =
-      match err with
-      | ST.NameResolutionError.ErrorType.NotFound names ->
-        LibExecution.NameResolutionError.NotFound names
-      | ST.NameResolutionError.MissingEnumModuleName caseName ->
-        LibExecution.NameResolutionError.MissingEnumModuleName caseName
-      | ST.NameResolutionError.InvalidPackageName names ->
-        LibExecution.NameResolutionError.InvalidPackageName names
-      | ST.NameResolutionError.ExpectedEnumButNot packageTypeID ->
-        LibExecution.NameResolutionError.ExpectedEnumButNot packageTypeID
-      | ST.NameResolutionError.ExpectedRecordButNot packageTypeID ->
-        LibExecution.NameResolutionError.ExpectedRecordButNot packageTypeID
-
-  module Error =
-    let toST
-      (err : LibExecution.NameResolutionError.Error)
-      : ST.NameResolutionError.Error =
-      { nameType = NameType.toST err.nameType
-        errorType = ErrorType.toST err.errorType }
-
-    let toPT
-      (err : ST.NameResolutionError.Error)
-      : LibExecution.NameResolutionError.Error =
-      { errorType = ErrorType.toPT err.errorType
-        nameType = NameType.toPT err.nameType }
+  let toPT (err : ST.NameResolutionError) : PT.NameResolutionError =
+    match err with
+    | ST.NameResolutionError.NotFound names -> PT.NameResolutionError.NotFound names
+    | ST.NameResolutionError.InvalidName names ->
+      PT.NameResolutionError.InvalidName names
 
 
 module NameResolution =
   let toST (f : 'p -> 's) (result : PT.NameResolution<'p>) : ST.NameResolution<'s> =
     match result with
     | Ok name -> Ok(f name)
-    | Error err -> Error(NameResolutionError.Error.toST err)
+    | Error err -> Error(NameResolutionError.toST err)
 
   let toPT (f : 's -> 'p) (result : ST.NameResolution<'s>) : PT.NameResolution<'p> =
     match result with
     | Ok name -> Ok(f name)
-    | Error err -> Error(NameResolutionError.Error.toPT err)
+    | Error err -> Error(NameResolutionError.toPT err)
 
 
 module FQTypeName =
@@ -195,63 +145,63 @@ module InfixFnName =
 module TypeReference =
   let rec toST (t : PT.TypeReference) : ST.TypeReference =
     match t with
-    | PT.TInt64 -> ST.TInt64
-    | PT.TUInt64 -> ST.TUInt64
+    | PT.TUnit -> ST.TUnit
+    | PT.TBool -> ST.TBool
     | PT.TInt8 -> ST.TInt8
     | PT.TUInt8 -> ST.TUInt8
     | PT.TInt16 -> ST.TInt16
     | PT.TUInt16 -> ST.TUInt16
     | PT.TInt32 -> ST.TInt32
     | PT.TUInt32 -> ST.TUInt32
+    | PT.TInt64 -> ST.TInt64
+    | PT.TUInt64 -> ST.TUInt64
     | PT.TInt128 -> ST.TInt128
     | PT.TUInt128 -> ST.TUInt128
     | PT.TFloat -> ST.TFloat
-    | PT.TBool -> ST.TBool
-    | PT.TUnit -> ST.TUnit
+    | PT.TChar -> ST.TChar
     | PT.TString -> ST.TString
-    | PT.TList typ -> ST.TList(toST typ)
+    | PT.TDateTime -> ST.TDateTime
+    | PT.TUuid -> ST.TUuid
     | PT.TTuple(first, second, theRest) ->
       ST.TTuple(toST first, toST second, List.map toST theRest)
+    | PT.TList typ -> ST.TList(toST typ)
     | PT.TDict typ -> ST.TDict(toST typ)
-    | PT.TDB typ -> ST.TDB(toST typ)
-    | PT.TDateTime -> ST.TDateTime
-    | PT.TChar -> ST.TChar
-    | PT.TUuid -> ST.TUuid
     | PT.TCustomType(t, typeArgs) ->
       ST.TCustomType(NameResolution.toST FQTypeName.toST t, List.map toST typeArgs)
-    | PT.TVariable(name) -> ST.TVariable(name)
+    | PT.TVariable name -> ST.TVariable name
     | PT.TFn(paramTypes, returnType) ->
       ST.TFn(paramTypes |> NEList.map toST |> NEList.toST, toST returnType)
+    | PT.TDB typ -> ST.TDB(toST typ)
 
   let rec toPT (t : ST.TypeReference) : PT.TypeReference =
     match t with
-    | ST.TInt64 -> PT.TInt64
-    | ST.TUInt64 -> PT.TUInt64
+    | ST.TUnit -> PT.TUnit
+    | ST.TBool -> PT.TBool
     | ST.TInt8 -> PT.TInt8
     | ST.TUInt8 -> PT.TUInt8
     | ST.TInt16 -> PT.TInt16
     | ST.TUInt16 -> PT.TUInt16
     | ST.TInt32 -> PT.TInt32
     | ST.TUInt32 -> PT.TUInt32
+    | ST.TInt64 -> PT.TInt64
+    | ST.TUInt64 -> PT.TUInt64
     | ST.TInt128 -> PT.TInt128
     | ST.TUInt128 -> PT.TUInt128
     | ST.TFloat -> PT.TFloat
-    | ST.TBool -> PT.TBool
-    | ST.TUnit -> PT.TUnit
+    | ST.TChar -> PT.TChar
     | ST.TString -> PT.TString
-    | ST.TList typ -> PT.TList(toPT typ)
+    | ST.TUuid -> PT.TUuid
+    | ST.TDateTime -> PT.TDateTime
     | ST.TTuple(firstType, secondType, otherTypes) ->
       PT.TTuple(toPT firstType, toPT secondType, List.map toPT otherTypes)
+    | ST.TList typ -> PT.TList(toPT typ)
     | ST.TDict typ -> PT.TDict(toPT typ)
-    | ST.TDB typ -> PT.TDB(toPT typ)
-    | ST.TDateTime -> PT.TDateTime
-    | ST.TChar -> PT.TChar
-    | ST.TUuid -> PT.TUuid
     | ST.TCustomType(t, typeArgs) ->
       PT.TCustomType(NameResolution.toPT FQTypeName.toPT t, List.map toPT typeArgs)
-    | ST.TVariable(name) -> PT.TVariable(name)
+    | ST.TVariable name -> PT.TVariable name
     | ST.TFn(paramTypes, returnType) ->
       PT.TFn(paramTypes |> NEList.toPT |> NEList.map toPT, toPT returnType)
+    | ST.TDB typ -> PT.TDB(toPT typ)
 
 module BinaryOperation =
   let toST (op : PT.BinaryOperation) : ST.BinaryOperation =
@@ -289,81 +239,82 @@ module MatchPattern =
   let rec toST (p : PT.MatchPattern) : ST.MatchPattern =
     match p with
     | PT.MPVariable(id, str) -> ST.MPVariable(id, str)
-    | PT.MPEnum(id, caseName, fieldPats) ->
-      ST.MPEnum(id, caseName, List.map toST fieldPats)
-    | PT.MPInt64(id, i) -> ST.MPInt64(id, i)
-    | PT.MPUInt64(id, i) -> ST.MPUInt64(id, i)
+    | PT.MPUnit id -> ST.MPUnit id
+    | PT.MPBool(id, b) -> ST.MPBool(id, b)
     | PT.MPInt8(id, i) -> ST.MPInt8(id, i)
     | PT.MPUInt8(id, i) -> ST.MPUInt8(id, i)
     | PT.MPInt16(id, i) -> ST.MPInt16(id, i)
     | PT.MPUInt16(id, i) -> ST.MPUInt16(id, i)
     | PT.MPInt32(id, i) -> ST.MPInt32(id, i)
     | PT.MPUInt32(id, i) -> ST.MPUInt32(id, i)
+    | PT.MPInt64(id, i) -> ST.MPInt64(id, i)
+    | PT.MPUInt64(id, i) -> ST.MPUInt64(id, i)
     | PT.MPInt128(id, i) -> ST.MPInt128(id, System.Numerics.BigInteger.op_Implicit i)
     | PT.MPUInt128(id, i) ->
       ST.MPUInt128(id, System.Numerics.BigInteger.op_Implicit i)
-    | PT.MPBool(id, b) -> ST.MPBool(id, b)
+    | PT.MPFloat(id, s, w, f) -> ST.MPFloat(id, s, w, f)
     | PT.MPChar(id, c) -> ST.MPChar(id, c)
     | PT.MPString(id, s) -> ST.MPString(id, s)
-    | PT.MPFloat(id, s, w, f) -> ST.MPFloat(id, s, w, f)
-    | PT.MPUnit id -> ST.MPUnit id
     | PT.MPTuple(id, first, second, theRest) ->
       ST.MPTuple(id, toST first, toST second, List.map toST theRest)
     | PT.MPList(id, pats) -> ST.MPList(id, List.map toST pats)
     | PT.MPListCons(id, head, tail) -> ST.MPListCons(id, toST head, toST tail)
+    | PT.MPEnum(id, caseName, fieldPats) ->
+      ST.MPEnum(id, caseName, List.map toST fieldPats)
 
 
   let rec toPT (p : ST.MatchPattern) : PT.MatchPattern =
     match p with
     | ST.MPVariable(id, str) -> PT.MPVariable(id, str)
-    | ST.MPEnum(id, caseName, fieldPats) ->
-      PT.MPEnum(id, caseName, List.map toPT fieldPats)
-    | ST.MPInt64(id, i) -> PT.MPInt64(id, i)
-    | ST.MPUInt64(id, i) -> PT.MPUInt64(id, i)
+    | ST.MPUnit id -> PT.MPUnit id
+    | ST.MPBool(id, b) -> PT.MPBool(id, b)
     | ST.MPInt8(id, i) -> PT.MPInt8(id, i)
     | ST.MPUInt8(id, i) -> PT.MPUInt8(id, i)
     | ST.MPInt16(id, i) -> PT.MPInt16(id, i)
     | ST.MPUInt16(id, i) -> PT.MPUInt16(id, i)
     | ST.MPInt32(id, i) -> PT.MPInt32(id, i)
     | ST.MPUInt32(id, i) -> PT.MPUInt32(id, i)
+    | ST.MPInt64(id, i) -> PT.MPInt64(id, i)
+    | ST.MPUInt64(id, i) -> PT.MPUInt64(id, i)
     | ST.MPInt128(id, i) -> PT.MPInt128(id, System.Numerics.BigInteger.op_Explicit i)
     | ST.MPUInt128(id, i) ->
       PT.MPUInt128(id, System.Numerics.BigInteger.op_Explicit i)
-    | ST.MPBool(id, b) -> PT.MPBool(id, b)
     | ST.MPChar(id, c) -> PT.MPChar(id, c)
     | ST.MPString(id, s) -> PT.MPString(id, s)
     | ST.MPFloat(id, s, w, f) -> PT.MPFloat(id, s, w, f)
-    | ST.MPUnit id -> PT.MPUnit id
     | ST.MPTuple(id, first, second, theRest) ->
       PT.MPTuple(id, toPT first, toPT second, List.map toPT theRest)
     | ST.MPList(id, pats) -> PT.MPList(id, List.map toPT pats)
     | ST.MPListCons(id, head, tail) -> PT.MPListCons(id, toPT head, toPT tail)
+    | ST.MPEnum(id, caseName, fieldPats) ->
+      PT.MPEnum(id, caseName, List.map toPT fieldPats)
 
 
 module Expr =
   let rec toST (e : PT.Expr) : ST.Expr =
     match e with
-    | PT.EChar(id, char) -> ST.EChar(id, char)
-    | PT.EInt64(id, num) -> ST.EInt64(id, num)
-    | PT.EUInt64(id, num) -> ST.EUInt64(id, num)
+    | PT.EUnit id -> ST.EUnit id
+    | PT.EBool(id, b) -> ST.EBool(id, b)
     | PT.EInt8(id, num) -> ST.EInt8(id, num)
     | PT.EUInt8(id, num) -> ST.EUInt8(id, num)
     | PT.EInt16(id, num) -> ST.EInt16(id, num)
     | PT.EUInt16(id, num) -> ST.EUInt16(id, num)
+    | PT.EInt32(id, num) -> ST.EInt32(id, num)
+    | PT.EUInt32(id, num) -> ST.EUInt32(id, num)
+    | PT.EInt64(id, num) -> ST.EInt64(id, num)
+    | PT.EUInt64(id, num) -> ST.EUInt64(id, num)
     | PT.EInt128(id, num) ->
       ST.EInt128(id, System.Numerics.BigInteger.op_Implicit num)
     | PT.EUInt128(id, num) ->
       ST.EUInt128(id, System.Numerics.BigInteger.op_Implicit num)
-    | PT.EInt32(id, num) -> ST.EInt32(id, num)
-    | PT.EUInt32(id, num) -> ST.EUInt32(id, num)
-    | PT.EString(id, segments) -> ST.EString(id, List.map stringSegmentToST segments)
     | PT.EFloat(id, sign, whole, fraction) -> ST.EFloat(id, sign, whole, fraction)
-    | PT.EBool(id, b) -> ST.EBool(id, b)
-    | PT.EUnit id -> ST.EUnit id
+    | PT.EChar(id, char) -> ST.EChar(id, char)
+    | PT.EString(id, segments) -> ST.EString(id, List.map stringSegmentToST segments)
     | PT.EConstant(id, name) ->
       ST.EConstant(id, NameResolution.toST FQConstantName.toST name)
     | PT.EVariable(id, var) -> ST.EVariable(id, var)
-    | PT.EFieldAccess(id, obj, fieldname) -> ST.EFieldAccess(id, toST obj, fieldname)
+    | PT.ERecordFieldAccess(id, obj, fieldname) ->
+      ST.ERecordFieldAccess(id, toST obj, fieldname)
     | PT.EApply(id, fn, typeArgs, args) ->
       ST.EApply(
         id,
@@ -384,10 +335,11 @@ module Expr =
     | PT.EList(id, exprs) -> ST.EList(id, List.map toST exprs)
     | PT.ETuple(id, first, second, theRest) ->
       ST.ETuple(id, toST first, toST second, List.map toST theRest)
-    | PT.ERecord(id, typeName, fields) ->
+    | PT.ERecord(id, typeName, typeArgs, fields) ->
       ST.ERecord(
         id,
         NameResolution.toST FQTypeName.toST typeName,
+        List.map TypeReference.toST typeArgs,
         List.map (Tuple2.mapSecond toST) fields
       )
     | PT.ERecordUpdate(id, record, updates) ->
@@ -398,10 +350,11 @@ module Expr =
       )
     | PT.EPipe(pipeID, expr1, rest) ->
       ST.EPipe(pipeID, toST expr1, List.map pipeExprToST rest)
-    | PT.EEnum(id, typeName, caseName, fields) ->
+    | PT.EEnum(id, typeName, typeArgs, caseName, fields) ->
       ST.EEnum(
         id,
         NameResolution.toST FQTypeName.toST typeName,
+        List.map TypeReference.toST typeArgs,
         caseName,
         List.map toST fields
       )
@@ -467,7 +420,8 @@ module Expr =
     | ST.EConstant(id, name) ->
       PT.EConstant(id, NameResolution.toPT FQConstantName.toPT name)
     | ST.EVariable(id, var) -> PT.EVariable(id, var)
-    | ST.EFieldAccess(id, obj, fieldname) -> PT.EFieldAccess(id, toPT obj, fieldname)
+    | ST.ERecordFieldAccess(id, obj, fieldname) ->
+      PT.ERecordFieldAccess(id, toPT obj, fieldname)
     | ST.EApply(id, fn, typeArgs, args) ->
       PT.EApply(
         id,
@@ -484,10 +438,11 @@ module Expr =
     | ST.EList(id, exprs) -> PT.EList(id, List.map toPT exprs)
     | ST.ETuple(id, first, second, theRest) ->
       PT.ETuple(id, toPT first, toPT second, List.map toPT theRest)
-    | ST.ERecord(id, typeName, fields) ->
+    | ST.ERecord(id, typeName, typeArgs, fields) ->
       PT.ERecord(
         id,
         NameResolution.toPT FQTypeName.toPT typeName,
+        List.map TypeReference.toPT typeArgs,
         List.map (Tuple2.mapSecond toPT) fields
       )
     | ST.ERecordUpdate(id, record, updates) ->
@@ -498,10 +453,11 @@ module Expr =
       )
     | ST.EPipe(pipeID, expr1, rest) ->
       PT.EPipe(pipeID, toPT expr1, List.map pipeExprToPT rest)
-    | ST.EEnum(id, typeName, caseName, exprs) ->
+    | ST.EEnum(id, typeName, typeArgs, caseName, exprs) ->
       PT.EEnum(
         id,
         NameResolution.toPT FQTypeName.toPT typeName,
+        List.map TypeReference.toPT typeArgs,
         caseName,
         List.map toPT exprs
       )

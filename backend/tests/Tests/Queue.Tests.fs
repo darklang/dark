@@ -28,7 +28,6 @@ let pmPT = LibCloud.PackageManager.pt
 
 
 // This doesn't actually test input, since it's a cron handler and not an actual event handler
-
 let initializeCanvas (name : string) : Task<CanvasID * tlid> =
   task {
     // set up handler

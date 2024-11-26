@@ -7,7 +7,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module VT = ValueType
+module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module PackageIDs = LibExecution.PackageIDs
 module Secret = LibCloud.Secret
@@ -18,16 +18,15 @@ let fns : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "canvasID" TUuid "" ]
       returnType =
-        TList(
-          TCustomType(
-            Ok(FQTypeName.Package PackageIDs.Type.Internal.Canvas.secret),
-            []
-          )
+        TCustomType(
+          Ok(FQTypeName.Package PackageIDs.Type.Internal.Canvas.secret),
+          []
         )
+        |> TList
       description = "Get all secrets in the canvas"
       fn =
         (function
-        | _, _, [ DUuid canvasID ] ->
+        | _, _, _, [ DUuid canvasID ] ->
           uply {
             let! secrets = Secret.getCanvasSecrets canvasID
             let typeName = FQTypeName.Package PackageIDs.Type.Internal.Canvas.secret
@@ -58,7 +57,7 @@ let fns : List<BuiltInFn> =
       description = "Delete a secret"
       fn =
         (function
-        | _, _, [ DUuid canvasID; DString name; DInt64 version ] ->
+        | _, _, _, [ DUuid canvasID; DString name; DInt64 version ] ->
           uply {
             do! Secret.delete canvasID name (int version)
             return DUnit
@@ -82,7 +81,7 @@ let fns : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTUnit KTString
         let resultError = Dval.resultError KTUnit KTString
         (function
-        | _, _, [ DUuid canvasID; DString name; DString value; DInt64 version ] ->
+        | _, _, _, [ DUuid canvasID; DString name; DString value; DInt64 version ] ->
           uply {
             try
               do! Secret.insert canvasID name value (int version)

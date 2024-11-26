@@ -1,7 +1,5 @@
 module BuiltinExecution.Libs.Parser
 
-open FSharp.Control.Tasks
-open System.Threading.Tasks
 open System.Text
 
 open Prelude
@@ -10,10 +8,9 @@ open LibExecution.Builtin.Shortcuts
 
 open LibTreeSitter
 
-module VT = ValueType
+module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module IDs = LibExecution.PackageIDs.Type.LanguageTools.Parser
-
 
 
 let pointTypeName = FQTypeName.fqPackage IDs.point
@@ -28,7 +25,7 @@ let fns : List<BuiltInFn> =
       description = "Parses some Darklang code"
       fn =
         (function
-        | _, _, [ DString sourceCode ] ->
+        | _, _, _, [ DString sourceCode ] ->
           // This was added to handle EGCs correctly
           let byteIndexToCharIndex (byteIndex : int) (text : string) : int =
             let bytes = Encoding.UTF8.GetBytes(text)

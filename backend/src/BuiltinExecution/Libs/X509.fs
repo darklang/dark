@@ -7,7 +7,6 @@ open System.Security.Cryptography.X509Certificates
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
-module VT = ValueType
 module Dval = LibExecution.Dval
 
 
@@ -25,9 +24,9 @@ let fns : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTString KTString
         let resultError = Dval.resultError KTString KTString
         (function
-        | _, _, [ DString certString ] ->
+        | _, _, _, [ DString certString ] ->
           try
-            let cert = new X509Certificates.X509Certificate2(UTF8.toBytes certString)
+            let cert = new X509Certificate2(UTF8.toBytes certString)
             // Workaround to support ECC certs
             // https://www.pkisolutions.com/accessing-and-using-certificate-private-keys-in-net-framework-net-core/
             let publicKey : AsymmetricAlgorithm =

@@ -21,41 +21,12 @@ module Sign =
 
 
 module NameResolutionError =
-  module ErrorType =
-    type DU = NameResolutionError.ErrorType
+  let decoder : JsonDecoder<NameResolutionError> =
+    [ ("NotFound", Decoders.enum1Field (Decoders.list Decoders.string) NotFound)
+      ("InvalidName", Decoders.enum1Field (Decoders.list Decoders.string) InvalidName) ]
+    |> Map.ofList
+    |> Decoders.du
 
-    let decoder : JsonDecoder<DU> =
-      [ ("NotFound", Decoders.enum1Field (Decoders.list Decoders.string) DU.NotFound)
-        ("ExpectedEnumButNot",
-         Decoders.enum1Field Decoders.uuid DU.ExpectedEnumButNot)
-        ("ExpectedRecordButNot",
-         Decoders.enum1Field Decoders.uuid DU.ExpectedRecordButNot)
-        ("MissingEnumModuleName",
-         Decoders.enum1Field Decoders.string DU.MissingEnumModuleName)
-        ("InvalidPackageName",
-         Decoders.enum1Field (Decoders.list Decoders.string) DU.InvalidPackageName) ]
-      |> Map.ofList
-      |> Decoders.du
-
-
-  module NameType =
-    type DU = NameResolutionError.NameType
-
-    let decoder : JsonDecoder<DU> =
-      [ ("Type", Decoders.enum0Fields DU.Type)
-        ("Constant", Decoders.enum0Fields DU.Constant)
-        ("Function", Decoders.enum0Fields DU.Function) ]
-      |> Map.ofList
-      |> Decoders.du
-
-
-  module Error =
-    let decoder : JsonDecoder<NameResolutionError.Error> =
-      Decoders.obj2Fields
-        "NameResolution"
-        ("errorType", ErrorType.decoder)
-        ("nameType", NameType.decoder)
-        (fun errType nameType -> { errorType = errType; nameType = nameType })
 
 
 module ProgramTypes =
@@ -64,7 +35,7 @@ module ProgramTypes =
       (inner : JsonDecoder<'TInner>)
       : JsonDecoder<ProgramTypes.NameResolution<'TInner>> =
       [ ("Ok", Decoders.enum1Field inner Ok)
-        ("Error", Decoders.enum1Field NameResolutionError.Error.decoder Error) ]
+        ("Error", Decoders.enum1Field NameResolutionError.decoder Error) ]
       |> Map.ofList
       |> Decoders.du
 
@@ -160,7 +131,7 @@ module ProgramTypes =
            (NameResolution.decoder FQTypeName.FQTypeName.decoder)
            (Decoders.list (fun ctx -> decoder ctx))
            (fun name typeArgs -> DU.TCustomType(name, typeArgs)))
-        ("TDB", Decoders.enum1Field (fun ctx -> decoder ctx) DU.TDB)
+        //("TDB", Decoders.enum1Field (fun ctx -> decoder ctx) DU.TDB)
         ("TFn",
          Decoders.enum2Fields
            (Decoders.list (fun ctx -> decoder ctx))
@@ -455,19 +426,21 @@ module ProgramTypes =
            (Decoders.list (fun ctx -> decoder ctx))
            (fun id first second rest -> DU.ETuple(id, first, second, rest)))
         ("ERecord",
-         Decoders.enum3Fields
-           ID.decoder
-           (NameResolution.decoder FQTypeName.FQTypeName.decoder)
-           (Decoders.list (Decoders.pair Decoders.string (fun ctx -> decoder ctx)))
-           (fun id name fields -> DU.ERecord(id, name, fields)))
-        ("EEnum",
          Decoders.enum4Fields
            ID.decoder
            (NameResolution.decoder FQTypeName.FQTypeName.decoder)
+           (Decoders.list TypeReference.decoder)
+           (Decoders.list (Decoders.pair Decoders.string (fun ctx -> decoder ctx)))
+           (fun id name typeArgs fields -> DU.ERecord(id, name, typeArgs, fields)))
+        ("EEnum",
+         Decoders.enum5Fields
+           ID.decoder
+           (NameResolution.decoder FQTypeName.FQTypeName.decoder)
+           (Decoders.list TypeReference.decoder)
            Decoders.string
            (Decoders.list (fun ctx -> decoder ctx))
-           (fun id typeName caseName fields ->
-             DU.EEnum(id, typeName, caseName, fields)))
+           (fun id typeName typeArgs caseName fields ->
+             DU.EEnum(id, typeName, typeArgs, caseName, fields)))
         ("ELet",
          Decoders.enum4Fields
            ID.decoder
@@ -475,12 +448,12 @@ module ProgramTypes =
            (fun ctx -> decoder ctx)
            (fun ctx -> decoder ctx)
            (fun id pattern value body -> DU.ELet(id, pattern, value, body)))
-        ("EFieldAccess",
+        ("ERecordFieldAccess",
          Decoders.enum3Fields
            ID.decoder
            (fun ctx -> decoder ctx)
            Decoders.string
-           (fun id expr fieldName -> DU.EFieldAccess(id, expr, fieldName)))
+           (fun id expr fieldName -> DU.ERecordFieldAccess(id, expr, fieldName)))
         ("EVariable",
          Decoders.enum2Fields ID.decoder Decoders.string (fun id name ->
            DU.EVariable(id, name)))

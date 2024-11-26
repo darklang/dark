@@ -1,4 +1,3 @@
-// Should match testfiles/execution/languages.tests -> UserDefined
 module Darklang =
   module Test =
     let stringFn (key: String) : String = key ++ " appended string"
@@ -26,7 +25,8 @@ module Darklang =
     let throwsException () : DateTime =
       Builtin.testRaiseException "throwsException message"
 
-    let derrorFn (msg: String) : String = msg ++ Builtin.testRuntimeError msg
+    let derrorFn (msg: String) : String =
+      msg ++ (Builtin.testRuntimeError msg)
 
     type X<'a> =
       | A of Int64

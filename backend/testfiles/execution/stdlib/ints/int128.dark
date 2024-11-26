@@ -1,0 +1,210 @@
+Stdlib.Int128.absoluteValue_v0 -5Q = 5Q
+Stdlib.Int128.absoluteValue_v0 5Q = 5Q
+
+Stdlib.Int128.absoluteValue_v0 -170141183460469231731687303715884105728Q =
+  Builtin.testDerrorMessage "Encountered out-of-range value for type of Int"
+
+Stdlib.Int128.max_v0 5Q 6Q = 6Q
+Stdlib.Int128.max_v0 10Q 1Q = 10Q
+Stdlib.Int128.max_v0 -5Q 6Q = 6Q
+
+Stdlib.Int128.max_v0 170141183460469231731687303715884105727Q -170141183460469231731687303715884105728Q =
+  170141183460469231731687303715884105727Q
+
+Stdlib.Int128.min_v0 5Q 6Q = 5Q
+Stdlib.Int128.min_v0 50Q -10Q = -10Q
+Stdlib.Int128.min_v0 -5Q 6Q = -5Q
+
+Stdlib.Int128.min_v0 170141183460469231731687303715884105727Q -170141183460469231731687303715884105728Q =
+  -170141183460469231731687303715884105728Q
+
+
+Stdlib.Int128.clamp_v0 -5Q -2Q 5Q = -2Q
+Stdlib.Int128.clamp_v0 -3Q -2Q 1Q = -2Q
+Stdlib.Int128.clamp_v0 -5Q 1Q 1Q = 1Q
+Stdlib.Int128.clamp_v0 1Q 2Q 1Q = 1Q
+Stdlib.Int128.clamp_v0 3Q 0Q 2Q = 2Q
+Stdlib.Int128.clamp_v0 -100Q 0Q 0Q = 0Q
+Stdlib.Int128.clamp_v0 100Q 0Q 0Q = 0Q
+Stdlib.Int128.clamp_v0 -100Q 0Q -1Q = -1Q
+Stdlib.Int128.clamp_v0 100Q 0Q -1Q = 0Q
+Stdlib.Int128.clamp_v0 -100Q -1Q 0Q = -1Q
+Stdlib.Int128.clamp_v0 -100Q 1Q 0Q = 0Q
+Stdlib.Int128.clamp_v0 100Q 1Q 0Q = 1Q
+
+Stdlib.Int128.negate_v0 -5Q = 5Q
+Stdlib.Int128.negate_v0 5Q = -5Q
+Stdlib.Int128.negate_v0 0Q = 0Q
+Stdlib.Int128.negate_v0 -0Q = 0Q
+
+Stdlib.Int128.negate_v0 -170141183460469231731687303715884105728Q =
+ Builtin.testDerrorMessage "Encountered out-of-range value for type of Int"
+
+Stdlib.Int128.remainder_v0 15Q 6Q = Stdlib.Result.Result.Ok 3Q
+Stdlib.Int128.remainder_v0 20Q 8Q = Stdlib.Result.Result.Ok 4Q
+Stdlib.Int128.remainder_v0 -20Q 8Q = Stdlib.Result.Result.Ok -4Q
+Stdlib.Int128.remainder_v0 -20Q -8Q = Stdlib.Result.Result.Ok -4Q
+Stdlib.Int128.remainder_v0 -15Q 6Q = Stdlib.Result.Result.Ok -3Q
+Stdlib.Int128.remainder_v0 5Q 0Q = Builtin.testDerrorMessage "Cannot divide by 0"
+
+Stdlib.Int128.add_v0 10Q 9Q = 19Q
+Stdlib.Int128.add_v0 88Q 9Q = 97Q
+Stdlib.Int128.add_v0 -1Q 2Q = 1Q
+Stdlib.Int128.add_v0 1Q 0Q = 1Q
+Stdlib.Int128.add_v0 -55Q 55Q = 0Q
+Stdlib.Int128.add_v0 55Q 55Q = 110Q
+Stdlib.Int128.add_v0 9223372036854775807Q 2Q = 9223372036854775809Q
+
+Stdlib.Int128.add_v0 170141183460469231731687303715884105726Q 4Q =
+  Builtin.testDerrorMessage "Encountered out-of-range value for type of Int"
+
+
+Stdlib.Int128.subtract_v0 10Q 9Q = 1Q
+Stdlib.Int128.subtract_v0 88Q 9Q = 79Q
+Stdlib.Int128.subtract_v0 0Q 1Q = -1Q
+Stdlib.Int128.subtract_v0 1Q 0Q = 1Q
+Stdlib.Int128.subtract_v0 -55Q -55Q = 0Q
+
+Stdlib.Int128.subtract_v0 -55Q 170141183460469231731687303715884105726Q =
+  Builtin.testDerrorMessage "Encountered out-of-range value for type of Int"
+
+Stdlib.Int128.multiply_v0 8Q 8Q = 64Q
+Stdlib.Int128.multiply_v0 1Q 0Q = 0Q
+
+Stdlib.Int128.divide_v0 10Q 5Q = 2Q
+Stdlib.Int128.divide_v0 17Q 3Q = 5Q
+Stdlib.Int128.divide_v0 -8Q 5Q = -1Q
+Stdlib.Int128.divide_v0 0Q 1Q = 0Q
+
+Stdlib.Int128.divide_v0 1Q 0Q =
+  Builtin.testDerrorMessage "Cannot divide by 0"
+
+Stdlib.Int128.divide_v0 -170141183460469231731687303715884105728Q -1Q =
+  Builtin.testDerrorMessage "Encountered out-of-range value for type of Int"
+
+
+Stdlib.Int128.greaterThan_v0 20Q 1Q = true
+
+Stdlib.Int128.greaterThan_v0 20Q 170141183460469231731687303715884105727Q = false
+
+Stdlib.Int128.greaterThanOrEqualTo_v0 0Q 1Q = false
+Stdlib.Int128.greaterThanOrEqualTo_v0 1Q 0Q = true
+Stdlib.Int128.greaterThanOrEqualTo_v0 6Q 1Q = true
+Stdlib.Int128.greaterThanOrEqualTo_v0 6Q 8Q = false
+Stdlib.Int128.greaterThanOrEqualTo_v0 -5Q -20Q = true
+Stdlib.Int128.greaterThanOrEqualTo_v0 -20Q -1Q = false
+Stdlib.Int128.greaterThanOrEqualTo_v0 -20Q -20Q = true
+
+Stdlib.Int128.greaterThanOrEqualTo_v0 -170141183460469231731687303715884105728Q -20Q = false
+
+Stdlib.Int128.lessThanOrEqualTo_v0 6Q 8Q = true
+Stdlib.Int128.lessThanOrEqualTo_v0 10Q 1Q = false
+Stdlib.Int128.lessThanOrEqualTo_v0 0Q 1Q = true
+Stdlib.Int128.lessThanOrEqualTo_v0 1Q 0Q = false
+
+Stdlib.Int128.lessThan_v0
+  -170141183460469231731687303715884105728Q
+  170141183460469231731687303715884105727Q = true
+
+Stdlib.Int128.lessThan_v0 6Q 8Q = true
+Stdlib.Int128.lessThan_v0 10Q 1Q = false
+Stdlib.Int128.lessThan_v0 0Q 1Q = true
+Stdlib.Int128.lessThan_v0 1Q 0Q = false
+
+Stdlib.Int128.lessThan_v0
+  -170141183460469231731687303715884105728Q
+  170141183460469231731687303715884105727Q = true
+
+Stdlib.Int128.toString 0Q = "0"
+Stdlib.Int128.toString 1Q = "1"
+Stdlib.Int128.toString -1Q = "-1"
+Stdlib.Int128.toString -170141183460469231731687303715884105728Q = "-170141183460469231731687303715884105728"
+Stdlib.Int128.toString 170141183460469231731687303715884105727Q = "170141183460469231731687303715884105727"
+
+Stdlib.Int128.toFloat_v0 2Q = 2.0
+Stdlib.Int128.toFloat_v0 170141183460469231731687303715884105727Q = 170141183460469231731687303715884105727.0
+Stdlib.Int128.toFloat_v0 -170141183460469231731687303715884105728Q = -170141183460469231731687303715884105728.0
+Stdlib.Int128.toFloat_v0 -10Q = -10.0
+
+Stdlib.Int128.sqrt_v0 4Q = 2.0
+Stdlib.Int128.sqrt_v0 100Q = 10.0
+Stdlib.Int128.sqrt_v0 86Q = 9.273618495495704
+
+Stdlib.Int128.mod_v0 15Q 5Q = 0Q
+Stdlib.Int128.mod_v0 15Q 6Q = 3Q
+Stdlib.Int128.mod_v0 0Q 15Q = 0Q
+Stdlib.Int128.mod_v0 -1Q 2Q = 1Q
+Stdlib.Int128.mod_v0 -128Q 53Q = 31Q
+Stdlib.Int128.mod_v0 127Q 3Q = 1Q
+
+Stdlib.Int128.mod_v0 5Q 0Q = Builtin.testDerrorMessage "Cannot evaluate modulus against 0"
+
+Stdlib.Int128.mod_v0 5Q -5Q = Builtin.testDerrorMessage "Cannot evaluate modulus against a negative number"
+
+// parse OK
+Stdlib.Int128.parse_v0 "0" = Stdlib.Result.Result.Ok 0Q
+Stdlib.Int128.parse_v0 "1" = Stdlib.Result.Result.Ok 1Q
+Stdlib.Int128.parse_v0 " 1" = Stdlib.Result.Result.Ok 1Q
+Stdlib.Int128.parse_v0 "1 " = Stdlib.Result.Result.Ok 1Q
+Stdlib.Int128.parse_v0 "+1" = Stdlib.Result.Result.Ok 1Q
+Stdlib.Int128.parse_v0 " +1 " = Stdlib.Result.Result.Ok 1Q
+Stdlib.Int128.parse_v0 "-1" = Stdlib.Result.Result.Ok -1Q
+Stdlib.Int128.parse_v0 "078" = Stdlib.Result.Result.Ok 78Q // "octal" format ignored
+Stdlib.Int128.parse_v0 "-00001" = Stdlib.Result.Result.Ok -1Q
+Stdlib.Int128.parse_v0 "170141183460469231731687303715884105727" = Stdlib.Result.Result.Ok 170141183460469231731687303715884105727Q
+Stdlib.Int128.parse_v0 "-170141183460469231731687303715884105728" = Stdlib.Result.Result.Ok -170141183460469231731687303715884105728Q
+
+// out of range
+Stdlib.Int128.parse_v0 "170141183460469231731687303715884105729" = Stdlib.Result.Result.Error Stdlib.Int128.ParseError.OutOfRange
+Stdlib.Int128.parse_v0 "-170141183460469231731687303715884105729" = Stdlib.Result.Result.Error Stdlib.Int128.ParseError.OutOfRange
+
+// bad format
+Stdlib.Int128.parse_v0 "1 2 3" = Stdlib.Result.Result.Error Stdlib.Int128.ParseError.BadFormat
+Stdlib.Int128.parse_v0 "+ 1" = Stdlib.Result.Result.Error Stdlib.Int128.ParseError.BadFormat
+Stdlib.Int128.parse_v0 "- 1" = Stdlib.Result.Result.Error Stdlib.Int128.ParseError.BadFormat
+Stdlib.Int128.parse_v0 "0xA" = Stdlib.Result.Result.Error Stdlib.Int128.ParseError.BadFormat
+Stdlib.Int128.parse_v0 "0x123" = Stdlib.Result.Result.Error Stdlib.Int128.ParseError.BadFormat
+Stdlib.Int128.parse_v0 "0b0100" = Stdlib.Result.Result.Error Stdlib.Int128.ParseError.BadFormat
+Stdlib.Int128.parse_v0 "pi" = Stdlib.Result.Result.Error Stdlib.Int128.ParseError.BadFormat
+Stdlib.Int128.parse_v0 "PACKAGE.Darklang.Stdlib.Math.pi" = Stdlib.Result.Result.Error Stdlib.Int128.ParseError.BadFormat
+Stdlib.Int128.parse_v0 "1.23E+04" = Stdlib.Result.Result.Error Stdlib.Int128.ParseError.BadFormat
+Stdlib.Int128.parse_v0 "" = Stdlib.Result.Result.Error Stdlib.Int128.ParseError.BadFormat
+Stdlib.Int128.parse_v0 "1Q" = Stdlib.Result.Result.Error Stdlib.Int128.ParseError.BadFormat
+Stdlib.Int128.parse_v0 "one" = Stdlib.Result.Result.Error Stdlib.Int128.ParseError.BadFormat
+Stdlib.Int128.parse_v0 "XQV" = Stdlib.Result.Result.Error Stdlib.Int128.ParseError.BadFormat
+
+Stdlib.Int128.fromInt8_v0 0y = 0Q
+Stdlib.Int128.fromInt8_v0 1y = 1Q
+Stdlib.Int128.fromInt8_v0 127y = 127Q
+Stdlib.Int128.fromInt8_v0 -128y = -128Q
+
+Stdlib.Int128.fromUInt8_v0 0uy = 0Q
+Stdlib.Int128.fromUInt8_v0 1uy = 1Q
+Stdlib.Int128.fromUInt8_v0 255uy = 255Q
+
+Stdlib.Int128.fromInt16_v0 0s = 0Q
+Stdlib.Int128.fromInt16_v0 1s = 1Q
+Stdlib.Int128.fromInt16_v0 32767s = 32767Q
+Stdlib.Int128.fromInt16_v0 -32768s = -32768Q
+
+Stdlib.Int128.fromUInt16_v0 0us = 0Q
+Stdlib.Int128.fromUInt16_v0 1us = 1Q
+Stdlib.Int128.fromUInt16_v0 65535us = 65535Q
+
+Stdlib.Int128.fromInt32_v0 0l = 0Q
+Stdlib.Int128.fromInt32_v0 1l = 1Q
+Stdlib.Int128.fromInt32_v0 2147483647l = 2147483647Q
+Stdlib.Int128.fromInt32_v0 -2147483648l = -2147483648Q
+
+Stdlib.Int128.fromUInt32_v0 0ul = 0Q
+Stdlib.Int128.fromUInt32_v0 1ul = 1Q
+Stdlib.Int128.fromUInt32_v0 4294967295ul = 4294967295Q
+
+Stdlib.Int128.fromInt64_v0 0L = 0Q
+Stdlib.Int128.fromInt64_v0 1L = 1Q
+Stdlib.Int128.fromInt64_v0 9223372036854775807L = 9223372036854775807Q
+Stdlib.Int128.fromInt64_v0 -9223372036854775808L = -9223372036854775808Q
+
+Stdlib.Int128.fromUInt64_v0 0UL = 0Q
+Stdlib.Int128.fromUInt64_v0 1UL = 1Q
+Stdlib.Int128.fromUInt64_v0 18446744073709551615UL = 18446744073709551615Q

@@ -15,7 +15,7 @@ let fns : List<BuiltInFn> =
       description = "Reads a single line from the standard input."
       fn =
         (function
-        | _, _, [ DUnit ] ->
+        | _, _, _, [ DUnit ] ->
           let input = System.Console.ReadLine()
           Ply(DString input)
         | _ -> incorrectArgs ())
@@ -31,7 +31,7 @@ let fns : List<BuiltInFn> =
       description = "Reads a specified number of characters from the standard input."
       fn =
         (function
-        | _, _, [ DInt64 length ] ->
+        | _, _, _, [ DInt64 length ] ->
           if length < 0 then
             Exception.raiseInternal "Length must be non-negative" []
           else

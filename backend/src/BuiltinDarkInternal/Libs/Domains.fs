@@ -19,7 +19,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the domain for a canvas if it exists"
       fn =
         (function
-        | _, _, [ DUuid canvasID ] ->
+        | _, _, _, [ DUuid canvasID ] ->
           uply {
             let! name = Canvas.domainsForCanvasID canvasID
             return name |> List.map DString |> Dval.list KTString
@@ -39,7 +39,7 @@ let fns : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTUuid KTString
         let resultError = Dval.resultError KTUuid KTString
         (function
-        | _, _, [ DString domain ] ->
+        | _, _, _, [ DString domain ] ->
           uply {
             let! name = Canvas.canvasIDForDomain domain
             match name with

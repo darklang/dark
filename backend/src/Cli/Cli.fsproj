@@ -52,6 +52,7 @@
   </Target>
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../DvalReprDeveloper/DvalReprDeveloper.fsproj" />
     <ProjectReference Include="../LibPackageManager/LibPackageManager.fsproj" />
     <ProjectReference Include="../BuiltinCliHost/BuiltinCliHost.fsproj" />
   </ItemGroup>

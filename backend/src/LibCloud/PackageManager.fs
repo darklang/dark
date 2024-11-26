@@ -125,8 +125,7 @@ let getAllFnNames () : Ply<List<string>> =
   uply {
     let! fqName =
       "SELECT modules, name
-      FROM package_functions_v0
-      Limit 300" // CLEANUP: this was added to avoid the stack overflow issue
+      FROM package_functions_v0"
       |> Sql.query
       |> Sql.parameters []
       |> Sql.executeAsync (fun read ->

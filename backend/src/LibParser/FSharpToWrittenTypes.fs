@@ -48,7 +48,6 @@ let parseTypeName (t : SynType) : Result<NEList<string>, string> =
 
 
 module TypeReference =
-
   let rec fromNamesAndTypeArgs
     (names : NEList<string>)
     (typeArgs : List<SynType>)
@@ -502,7 +501,7 @@ module Expr =
       | var :: fields ->
         List.fold
           (fun acc (field : Ident) ->
-            WT.EFieldAccess(id, acc, nameOrBlank field.idText))
+            WT.ERecordFieldAccess(id, acc, nameOrBlank field.idText))
           (WT.EVariable(gid (), var.idText))
           fields
 
@@ -510,7 +509,7 @@ module Expr =
     | SynExpr.DotGet(expr, _, SynLongIdent(fields, _, _), _) ->
       List.fold
         (fun acc (field : Ident) ->
-          WT.EFieldAccess(id, acc, nameOrBlank field.idText))
+          WT.ERecordFieldAccess(id, acc, nameOrBlank field.idText))
         (c expr)
         fields
 

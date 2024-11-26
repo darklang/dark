@@ -174,19 +174,19 @@ module Object =
 
   parse """{ "": null }""" = parsedOk (Json.Object[("", Json.Null)])
 
-  // name with newline
-  // TODO not sure what's right here
-  //format (Json.Object [ ("a\nb", Json.Null) ]) = "{\"a\nb\": null}"
+  // // name with newline
+  // // TODO not sure what's right here
+  // format (Json.Object [ ("a\nb", Json.Null) ]) = "{\"a\nb\": null}"
   // parse  "{\"a\nb\": null}" = parsedOk (Json.Object [ ("a\nb", Json.Null) ])
 
-  module Errors =
-    // names must be strings
-    parse """{ 1: 1}""" = parseError ParseError.NotJson
+module Errors =
+  // names must be strings
+  parse """{ 1: 1}""" = parseError ParseError.NotJson
 
-    parse """{ null: 1}""" = parseError ParseError.NotJson
+  parse """{ null: 1}""" = parseError ParseError.NotJson
 
-    // names must be in quotes
-    parse """{ invalidName: 1}""" = parseError ParseError.NotJson
+  // names must be in quotes
+  parse """{ invalidName: 1}""" = parseError ParseError.NotJson
 
-    // ..._double_ quotes
-    parse """{ 'invalidName': 1}""" = parseError ParseError.NotJson
+  // ..._double_ quotes
+  parse """{ 'invalidName': 1}""" = parseError ParseError.NotJson

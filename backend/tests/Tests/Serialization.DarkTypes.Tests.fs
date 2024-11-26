@@ -1,7 +1,6 @@
 module Tests.DarkTypesSerialization
 
 open Expecto
-open System.Text.RegularExpressions
 
 open Prelude
 
@@ -14,7 +13,6 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
-module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module PackageIDs = LibExecution.PackageIDs
 
@@ -32,7 +30,7 @@ module RoundtripTests =
 
   let types : RT.Types =
     // CLEANUP could the `package` fn just return None? Not sure if we're actually using the types there
-    { typeSymbolTable = Map.empty; package = pmRT.getType }
+    { package = pmRT.getType }
 
   let testRoundtrip
     (testName : string)
@@ -45,15 +43,8 @@ module RoundtripTests =
     testTask testName {
       let firstDT = toDT original
 
-      let context =
-        LibExecution.TypeChecker.Context.FunctionCallResult(
-          fnName = RT.FQFnName.fqPackage System.Guid.Empty,
-          returnType = RT.TCustomType(Ok typeName, [])
-        )
-
       let! typeChecked =
         LibExecution.TypeChecker.unify
-          context
           types
           Map.empty
           (RT.TCustomType(Ok typeName, []))
@@ -151,6 +142,7 @@ module RoundtripTests =
     let pkg (id : uuid) = RT.FQTypeName.fqPackage id
 
     let tests =
+      // CLEANUP backfill with more things from RT
       [ testRoundtripList
           "RT.FQTypeName"
           (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.FQTypeName.fqTypeName)
@@ -185,14 +177,6 @@ module RoundtripTests =
           None
 
         testRoundtripList
-          "RT.Expr"
-          (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.expr)
-          V.RuntimeTypes.exprs
-          RT2DT.Expr.toDT
-          RT2DT.Expr.fromDT
-          None
-
-        testRoundtripList
           "RT.ValueType"
           (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.valueType)
           V.RuntimeTypes.valueTypes
@@ -206,7 +190,7 @@ module RoundtripTests =
           V.RuntimeTypes.dvals
           RT2DT.Dval.toDT
           RT2DT.Dval.fromDT
-          (Some Expect.equalDval)
+          (Some Expect.RT.equalDval)
 
 
         // CLEANUP consider adding roundtrip tests here around

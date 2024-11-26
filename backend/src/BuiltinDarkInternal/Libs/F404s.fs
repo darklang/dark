@@ -13,26 +13,26 @@ module Telemetry = LibService.Telemetry
 let fns : List<BuiltInFn> =
   [
   // { name = fn "delete" 0
-  //     typeParams = []
-  //     parameters =
-  //       [ Param.make "canvasID" TUuid ""
-  //         Param.make "space" TString ""
-  //         Param.make "path" TString ""
-  //         Param.make "modifier" TString "" ]
-  //     returnType = TUnit
-  //     description = "Deletes a specific 404 for a canvas"
-  //     fn =
-  //       (function
-  //       | _, _, [ DUuid canvasID; DString space; DString path; DString modifier ] ->
-  //         uply {
-  //           Telemetry.addTags [ "space", space; "path", path; "modifier", modifier ]
-  //           do! TraceInputs.delete404s canvasID space path modifier
-  //           return DUnit
-  //         }
-  //       | _ -> incorrectArgs ())
-  //     sqlSpec = NotQueryable
-  //     previewable = Impure
-  //     deprecated = NotDeprecated }
+  //   typeParams = []
+  //   parameters =
+  //     [ Param.make "canvasID" TUuid ""
+  //       Param.make "space" TString ""
+  //       Param.make "path" TString ""
+  //       Param.make "modifier" TString "" ]
+  //   returnType = TUnit
+  //   description = "Deletes a specific 404 for a canvas"
+  //   fn =
+  //     (function
+  //     | _, _, _, [ DUuid canvasID; DString space; DString path; DString modifier ] ->
+  //       uply {
+  //         Telemetry.addTags [ "space", space; "path", path; "modifier", modifier ]
+  //         do! TraceInputs.delete404s canvasID space path modifier
+  //         return DUnit
+  //       }
+  //     | _ -> incorrectArgs ())
+  //   sqlSpec = NotQueryable
+  //   previewable = Impure
+  //   deprecated = NotDeprecated }
 
 
   //   { name = fn "recent" 0

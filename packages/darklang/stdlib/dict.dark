@@ -31,8 +31,8 @@ module Darklang =
       /// key will be used in the resulting dictionary (use <fn Dict.fromList> if you
       /// want to enforce unique keys).
       /// This function is the opposite of <fn Dict.toList>.
-      let fromListOverwritingDuplicates (entries: List<(String * 'a)>) : Dict<'a> =
-        Builtin.dictFromListOverwritingDuplicates_v0 entries
+      let fromListOverwritingDuplicates (entries: List<String * 'a>) : Dict<'a> =
+        Builtin.dictFromListOverwritingDuplicates entries
 
 
       /// Each value in <param entries> must be a {{(key, value)}} tuple, where <var
@@ -62,19 +62,25 @@ module Darklang =
       /// each key-value pair.
       /// Consider <fn Dict.filterMap> if you also want to drop some of the entries.
       let map (dict: Dict<'a>) (fn: String -> 'a -> 'b) : Dict<'b> =
-        Builtin.dictMap_v0 dict fn
+        dict
+        |> Dict.toList
+        |> List.map (fun (k, v) -> (k, fn k v))
+        |> Dict.fromListOverwritingDuplicates
 
 
       /// Evaluates {{fn key value}} on every entry in <param dict>. Returns {{()}}.
       let iter (dict: Dict<'a>) (fn: String -> 'a -> Unit) : Unit =
-        Builtin.dictIter_v0 dict fn
+        dict |> Dict.toList |> List.iter (fun (k, v) -> fn k v)
 
 
       /// Evaluates {{fn key value}} on every entry in <param dict>. Returns a <type
       /// dict> that contains only the entries of <param dict> for which <param fn>
       /// returned {{true}}.
       let filter (dict: Dict<'a>) (fn: String -> 'a -> Bool) : Dict<'a> =
-        Builtin.dictFilter_v0 dict fn
+        dict
+        |> Dict.toList
+        |> List.filter (fun (k, v) -> fn k v)
+        |> Dict.fromListOverwritingDuplicates
 
 
       /// Calls <param fn> on every entry in <param dict>, returning a <type dict> that drops some entries (filter) and transforms others (map).
@@ -83,13 +89,19 @@ module Darklang =
       /// This function combines <fn Dict.filter> and <fn Dict.map>.
       let filterMap
         (dict: Dict<'a>)
-        (fn: String -> 'a -> Stdlib.Option.Option<'b>)
+        (fn: String -> 'a -> Option.Option<'b>)
         : Dict<'b> =
-        Builtin.dictFilterMap_v0 dict fn
+        dict
+        |> Dict.toList
+        |> List.filterMap (fun (k, v) ->
+          match fn k v with
+          | None -> Option.Option.None
+          | Some newValue -> Option.Option.Some ((k, newValue)))
+        |> Dict.fromListOverwritingDuplicates
 
 
       /// Returns {{true}} if the <param dict> contains no entries
-      let isEmpty (dict: Dict<'a>) : Bool = Builtin.dictIsEmpty_v0 dict
+      let isEmpty (dict: Dict<'a>) : Bool = dict == Dict.empty
 
 
       /// Returns a combined dictionary with both dictionaries' entries. If the same key exists in both <param left> and <param right>, it will have the value from <param right>.

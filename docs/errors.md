@@ -1,77 +1,45 @@
 # Error Handling
 
-Within the Darklang F# codebase, there are a number of different ways to handle errors. This document explains which error handling mechanism to use.
+Within the Darklang F# codebase, there are a number of different ways to handle errors.
+This document explains which error handling mechanism to use.
 
 Note, this is not for user code or packages, just for the execution engine and the
 rest of the darklang runtime (aka stuff written in F#).
 
 ## Which error handler to use and when?
 
-```mermaid
-flowchart LR;
-    q1{Whose fault\nis this?};
-
-    q1--Dark: this should never happen, or we fucked up-->a1;
-    a1{{Exception.raiseInternal}}
-
-    q1--User: unexpected type-->a2;
-    a2{{raise a TypeChecker.Error}}
-
-    q1--User: bad data/code-->q3;
-
-    q1--Nobody: bad external conditions\neg website down/leap year/sun spots-->q3
-
-
-
-    q1--Listen, there were difficult tradeoffs \nand there wasn't a better option given the situation-->a4
-
-    q3{Are we in\na builtin\nfunction?};
-    q3--Yes, builtin-->a3;
-    a3{{Use a Stdlib Result\nwith a custom Error type}}
-    q3--No, somewhere else-->a4;
-    a4{{raiseRTE a RuntimeError}}
-```
+- if the error should _never_ happen, `Exception.raiseInternal`
+- if an error is unexpected but possible (like integer overflows), raise a `RT.RuntimeError`
+  - these generally represent problems within the users' code.
+- if an error is relatively common, use a `Result<?,?>`
 
 ## Runtime Errors & Type Errors
 
 The primary way of indicating an error in the runtime and during code execution is a
-`RuntimeError`. This indicates there was an exceptional - though anticipated - error in execution, typically caused by the user's code.
+`RuntimeError`. This indicates there was an exceptional - though anticipated - error
+in execution, typically caused by the user's code.
 
 Example:
 
-At the end of the `match`, a `RuntimeError` occurs as the Interpreter doesn't know
-what to do, due to an error in the user's code.
+At the end of the `match`, a `RuntimeError` is raised by the Interpreter if no cases are matched,
+as otherwise it's unclear how to proceed.
 
 ```fsharp
 match 45 with
 | 1 -> "only thing matched"
 ```
 
-Our goal is to fully prevent `RuntimeError`s in our ahead-of-time type checker -- if the code type-checks it should never fail in unexpected ways.
+Our goal is to fully prevent `RuntimeError`s in our ahead-of-time type checker;
+if the code type-checks, it should never fail in unexpected ways.
 
 ### Using RuntimeError
 
-If you need to raise a RuntimeError, call `RT.Error.raiseRTE`. This throws an
-exception with the RuntimeError in it, which is caught at the execution boundary (eg
+If you need to raise a RuntimeError, call `RT.raiseRTE`. This throws an exception
+with the RuntimeError in it, which is caught at the execution boundary (e.g.
 `LibExecution.Execution.executeExpr`). At the execution boundaries, the execution
 functions return F# `Result<Dval, RuntimeError>`s, which are then converted to
 `Dval`s so they can be stringified using
 `@darklang.languageTools.runtimeErrors.error.toString`.
-
-#### Type errors / TypeChecker
-
-A very common RuntimeError to use is a `TypeChecker.Error.ValueNotExpectedType`,
-which indicates that we have the wrong type. Getting the incorrect type is almost
-always a problem with user code.
-
-Example: `List.sortBy [1] (fun i -> "not an int")` raises `ValueNotExpectedType("not an int", 1)`
-
-There are helper functions like `TypeChecker.raiseValueNotExpectedType` and
-`TypeChecker.raiseFnValResultNotExpectedType` that can make this easier (the latter
-for checking return values from first-class functions called from builtin functions).
-
-A `TypeChecker.Error` is a type of `RuntimeError`, so all info about `RuntimeError`s
-here applies to it.
 
 #### Tips for using RuntimeErrors
 
@@ -81,6 +49,8 @@ variations), instead of returning F# `Result<_, RuntimeError>`.
 Never catch a `RuntimeError` anywhere except at the outer boundaries of code
 execution in `LibExecution.Execution`. That's not how they're intended to be used,
 and will lead to errors being hidden from the user.
+
+TODO continue to update this doc, starting here.
 
 #### Source of the Error
 

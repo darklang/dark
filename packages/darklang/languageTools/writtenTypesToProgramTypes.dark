@@ -22,7 +22,7 @@ module Darklang =
             (i: WrittenTypes.QualifiedTypeIdentifier)
             : (ProgramTypes.NameResolution<ProgramTypes.FQTypeName.FQTypeName> *
               List<WrittenTypes.TypeReference.TypeReference> *
-              List<Parser.Range * RuntimeErrors.NameResolution.Error>)
+              List<Parser.Range * ProgramTypes.NameResolutionError>)
             =
             let (typeArgs, typeArgsUnresolvedNames) =
               i.typeArgs
@@ -75,7 +75,7 @@ module Darklang =
             (currentModule: List<String>)
             (c: WrittenTypes.QualifiedConstantOrFnIdentifier)
             : (Stdlib.Result.Result<ConstOrFn, ProgramTypes.NameResolution<ProgramTypes.FQConstantName.FQConstantName>> *
-              List<Parser.Range * RuntimeErrors.NameResolution.Error>)
+              List<Parser.Range * ProgramTypes.NameResolutionError>)
             =
             let nameToResolve =
               Stdlib.List.append
@@ -122,7 +122,7 @@ module Darklang =
             (currentModule: List<String>)
             (i: WrittenTypes.QualifiedFnIdentifier)
             : (ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName> *
-              List<Parser.Range * RuntimeErrors.NameResolution.Error>)
+              List<Parser.Range * ProgramTypes.NameResolutionError>)
             =
             let nameToResolve =
               Stdlib.List.append
@@ -151,7 +151,7 @@ module Darklang =
             (currentModule: List<String>)
             (t: WrittenTypes.TypeReference.Builtin)
             : (ProgramTypes.TypeReference *
-              List<Parser.Range * RuntimeErrors.NameResolution.Error>)
+              List<Parser.Range * ProgramTypes.NameResolutionError>)
             =
             match t with
             | TUnit _range -> (ProgramTypes.TypeReference.TUnit, [])
@@ -184,26 +184,19 @@ module Darklang =
 
               (ProgramTypes.TypeReference.TDict valueType, unresolvedNames)
 
-            | TTuple(_range, firstType, _, secondType, restTypes, _, _) ->
-              let (firstType, fstUnresolvedNames) =
-                TypeReference.toPT onMissing pm owner currentModule firstType
-
-              let (secondType, sndUnresolvedNames) =
-                TypeReference.toPT onMissing pm owner currentModule secondType
-
-              let (restTypes, reUresolvedNames) =
-                restTypes
-                |> Stdlib.List.map (fun (_, t) ->
-                  TypeReference.toPT onMissing pm owner currentModule t)
+            | TTuple(_range, first, _, second, theRest, _, _) ->
+              let (first, firstUnresolvedNames) = TypeReference.toPT onMissing pm owner currentModule first
+              let (second, secondUnresolvedNames) = TypeReference.toPT onMissing pm owner currentModule second
+              let (theRest, restUresolvedNames) =
+                theRest
+                |> Stdlib.List.map (fun (_, t) -> TypeReference.toPT onMissing pm owner currentModule t)
                 |> Stdlib.List.unzip
 
               let unresolvedNames =
-                Stdlib.List.flatten
-                  [ fstUnresolvedNames
-                    sndUnresolvedNames
-                    reUresolvedNames |> Stdlib.List.flatten ]
+                [ firstUnresolvedNames; secondUnresolvedNames; (restUresolvedNames |> Stdlib.List.flatten) ]
+                |> Stdlib.List.flatten
 
-              (ProgramTypes.TypeReference.TTuple(firstType, secondType, restTypes),
+              (ProgramTypes.TypeReference.TTuple(first, second, theRest),
                unresolvedNames)
 
             | TFn(_range, args, returnType) ->
@@ -231,6 +224,7 @@ module Darklang =
             | TVariable(_range, _, (_, name)) ->
               (ProgramTypes.TypeReference.TVariable name, [])
 
+
         let toPT
           (onMissing: NameResolver.OnMissing)
           (pm: ProgramTypes.PackageManager.PackageManager)
@@ -238,7 +232,7 @@ module Darklang =
           (currentModule: List<String>)
           (t: WrittenTypes.TypeReference.TypeReference)
           : (ProgramTypes.TypeReference *
-            List<Parser.Range * RuntimeErrors.NameResolution.Error>)
+            List<Parser.Range * ProgramTypes.NameResolutionError>)
           =
           match t with
           | Builtin b -> Builtin.toPT onMissing pm owner currentModule b
@@ -362,7 +356,7 @@ module Darklang =
             (currentModule: List<String>)
             (pipeExpr: WrittenTypes.PipeExpr)
             : (ProgramTypes.PipeExpr *
-              List<Parser.Range * RuntimeErrors.NameResolution.Error>)
+              List<Parser.Range * ProgramTypes.NameResolutionError>)
             =
             match pipeExpr with
             | EPipeInfix(_, (_, infix), right) ->
@@ -448,7 +442,7 @@ module Darklang =
           (currentModule: List<String>)
           (e: WrittenTypes.Expr)
           : (ProgramTypes.Expr *
-            List<Parser.Range * RuntimeErrors.NameResolution.Error>)
+            List<Parser.Range * ProgramTypes.NameResolutionError>)
           =
           match e with
           // simple
@@ -544,7 +538,8 @@ module Darklang =
                 ((fieldName, typeName), unresolvedNames))
               |> Stdlib.List.unzip
 
-            (ProgramTypes.Expr.ERecord(gid (), typeName, fields),
+            let typeArgs = [] // TODO: update parser to expect/accept these, and update this accordingly
+            (ProgramTypes.Expr.ERecord(gid (), typeName, typeArgs, fields),
              unresolvedNames |> Stdlib.List.flatten)
 
           | ERecordUpdate(_, record, updates, _, _, _) ->
@@ -589,7 +584,9 @@ module Darklang =
                 [ typeNameUnresolvedNames
                   fieldsUnresolvedNames |> Stdlib.List.flatten ]
 
-            (ProgramTypes.Expr.EEnum(gid (), typeName, caseName, fields),
+
+            let typeArgs = [] // TODO: update parser to expect/accept these, and update this accordingly
+            (ProgramTypes.Expr.EEnum(gid (), typeName, typeArgs, caseName, fields),
              unresolvedNames)
 
           // declaring and accessing variables
@@ -634,10 +631,10 @@ module Darklang =
               (ProgramTypes.Expr.EVariable (gid ()) id.constantOrFn.name,
                unresolvedNames)
 
-          | EFieldAccess(_, expr, (_, fieldName), _) ->
+          | ERecordFieldAccess(_, expr, (_, fieldName), _) ->
             let (expr, unresolvedNames) = toPT onMissing pm owner currentModule expr
 
-            (ProgramTypes.Expr.EFieldAccess(gid (), expr, fieldName), unresolvedNames)
+            (ProgramTypes.Expr.ERecordFieldAccess(gid (), expr, fieldName), unresolvedNames)
 
           | EIf(_, cond, thenExpr, elseExpr, _, _, _) ->
             let (cond, condUnresolvedNames) =
@@ -775,7 +772,7 @@ module Darklang =
           (currentModule: List<String>)
           (c: WrittenTypes.Const)
           : (ProgramTypes.Const *
-            List<Parser.Range * RuntimeErrors.NameResolution.Error>)
+            List<Parser.Range * ProgramTypes.NameResolutionError>)
           =
           match c with
           | CUnit _ -> (ProgramTypes.Const.CUnit, [])
@@ -888,7 +885,7 @@ module Darklang =
           (modules: List<String>)
           (submodule: WrittenTypes.ModuleDeclaration.ModuleDeclaration)
           : (ProgramTypes.Definitions *
-            List<Parser.Range * RuntimeErrors.NameResolution.Error>)
+            List<Parser.Range * ProgramTypes.NameResolutionError>)
           =
           let (_, m) = submodule.name
           let modules = Stdlib.List.append modules [ m ]
@@ -977,7 +974,7 @@ module Darklang =
           (currentModule: List<String>)
           (d: WrittenTypes.ModuleDeclaration.ModuleDeclaration)
           : (ProgramTypes.Definitions *
-            List<Parser.Range * RuntimeErrors.NameResolution.Error>)
+            List<Parser.Range * ProgramTypes.NameResolutionError>)
           =
           let (_, owner) = d.name
 
@@ -1086,7 +1083,7 @@ module Darklang =
             (currentModule: List<String>)
             (f: WrittenTypes.TypeDeclaration.RecordField)
             : (ProgramTypes.TypeDeclaration.RecordField *
-              List<Parser.Range * RuntimeErrors.NameResolution.Error>)
+              List<Parser.Range * ProgramTypes.NameResolutionError>)
             =
             let (_, name) = f.name
 
@@ -1107,7 +1104,7 @@ module Darklang =
             (currentModule: List<String>)
             (f: WrittenTypes.TypeDeclaration.EnumField)
             : (ProgramTypes.TypeDeclaration.EnumField *
-              List<Parser.Range * RuntimeErrors.NameResolution.Error>)
+              List<Parser.Range * ProgramTypes.NameResolutionError>)
             =
             let label = f.label |> Stdlib.Option.map Stdlib.Tuple2.second
 
@@ -1127,7 +1124,7 @@ module Darklang =
             (currentModule: List<String>)
             (c: WrittenTypes.TypeDeclaration.EnumCase)
             : (ProgramTypes.TypeDeclaration.EnumCase *
-              List<Parser.Range * RuntimeErrors.NameResolution.Error>)
+              List<Parser.Range * ProgramTypes.NameResolutionError>)
             =
             let (_, name) = c.name
 
@@ -1150,7 +1147,7 @@ module Darklang =
             (currentModule: List<String>)
             (d: WrittenTypes.TypeDeclaration.Definition)
             : (ProgramTypes.TypeDeclaration.Definition *
-              List<Parser.Range * RuntimeErrors.NameResolution.Error>)
+              List<Parser.Range * ProgramTypes.NameResolutionError>)
             =
 
             match d with
@@ -1186,7 +1183,7 @@ module Darklang =
           (currentModule: List<String>)
           (d: WrittenTypes.TypeDeclaration.TypeDeclaration)
           : (ProgramTypes.TypeDeclaration.TypeDeclaration *
-            List<Parser.Range * RuntimeErrors.NameResolution.Error>)
+            List<Parser.Range * ProgramTypes.NameResolutionError>)
           =
           let (def, unresolvedNames) =
             Definition.toPT onMissing pm owner currentModule d.definition
@@ -1205,7 +1202,7 @@ module Darklang =
           (modules: List<String>)
           (d: WrittenTypes.TypeDeclaration.TypeDeclaration)
           : (ProgramTypes.PackageType.PackageType *
-            List<Parser.Range * RuntimeErrors.NameResolution.Error>)
+            List<Parser.Range * ProgramTypes.NameResolutionError>)
           =
           let (declaration, unresolvedNames) = toPT onMissing pm owner modules d
 
@@ -1231,7 +1228,7 @@ module Darklang =
           (modules: List<String>)
           (d: WrittenTypes.ConstantDeclaration.ConstantDeclaration)
           : (ProgramTypes.PackageConstant.PackageConstant *
-            List<Parser.Range * RuntimeErrors.NameResolution.Error>)
+            List<Parser.Range * ProgramTypes.NameResolutionError>)
           =
           let (body, unresolvedNames) = Const.toPT onMissing pm owner modules d.body
 
@@ -1257,7 +1254,7 @@ module Darklang =
             (currentModule: List<String>)
             (p: WrittenTypes.FnDeclaration.Parameter)
             : (ProgramTypes.PackageFn.Parameter *
-              List<Parser.Range * RuntimeErrors.NameResolution.Error>)
+              List<Parser.Range * ProgramTypes.NameResolutionError>)
             =
             match p with
             | Unit p ->
@@ -1284,7 +1281,7 @@ module Darklang =
           (modules: List<String>)
           (fn: WrittenTypes.FnDeclaration.FnDeclaration)
           : (ProgramTypes.PackageFn.PackageFn *
-            List<Parser.Range * RuntimeErrors.NameResolution.Error>)
+            List<Parser.Range * ProgramTypes.NameResolutionError>)
           =
           let typeParams =
             fn.typeParams |> Stdlib.List.map (fun p -> p |> Stdlib.Tuple2.second)
@@ -1326,7 +1323,7 @@ module Darklang =
       let declarationsToPT
         (d: WrittenTypes.SourceFile.SourceFileDeclaration)
         : (ProgramTypes.SourceFile.Declaration *
-          List<Parser.Range * RuntimeErrors.NameResolution.Error>)
+          List<Parser.Range * ProgramTypes.NameResolutionError>)
         =
         match d with
         | Type t ->
@@ -1374,7 +1371,7 @@ module Darklang =
       let parsedFileAsSourceFile
         (parsedFile: WrittenTypes.ParsedFile)
         : (ProgramTypes.SourceFile.SourceFile *
-          List<Parser.Range * RuntimeErrors.NameResolution.Error>)
+          List<Parser.Range * ProgramTypes.NameResolutionError>)
         =
         let pm = LanguageTools.PackageManager.pm ()
         // CLEANUP potentially complain about unparsable stuff?

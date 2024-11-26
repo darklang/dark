@@ -14,6 +14,7 @@ module Result =
     | Ok v -> Dval.resultOk okType errorType (f v)
     | Error err -> Dval.resultError okType errorType (errToDTFn err)
 
+
   let fromDT (f : Dval -> 'a) (d : Dval) (errToDTFn : Dval -> 'b) : Result<'a, 'b> =
     match d with
     | DEnum(tn, _, _typeArgsDEnumTODO, "Ok", [ v ]) when tn = Dval.resultType ->
