@@ -199,7 +199,7 @@ module Darklang =
               log "Handling fileSystem/read request"
 
               match
-                FileSystemProvider.ReadFile.ReadFileParams.fromJson (
+                LspExtension.FileSystemProvider.ReadFile.ReadFileParams.fromJson (
                   Stdlib.AltJson.Json.Object p
                 )
               with
@@ -217,7 +217,7 @@ module Darklang =
               log "Handling fileSystem/write request"
 
               match
-                FileSystemProvider.WriteFile.WriteFileParams.fromJson (
+                LspExtension.FileSystemProvider.WriteFile.WriteFileParams.fromJson (
                   Stdlib.AltJson.Json.Object p
                 )
               with
