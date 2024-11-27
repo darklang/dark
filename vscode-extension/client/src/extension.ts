@@ -210,8 +210,6 @@ export function activate(context: ExtensionContext) {
         const virtualUri = Uri.parse(`darklang://${input}.dark`);
         const doc = await workspace.openTextDocument(virtualUri);
 
-        // Small delay to allow the document to fully load
-        await new Promise(resolve => setTimeout(resolve, 100));
         try {
           await window.showTextDocument(doc, {
             preview: false, // open in a new tab instead of preview mode

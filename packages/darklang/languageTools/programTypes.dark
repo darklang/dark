@@ -475,6 +475,7 @@ module Darklang =
                   with
                   | Some t -> Stdlib.Option.Option.Some t.id
                   | None ->
+                    // CLEANUP: use `pm.findType name` directly once the parser/interpreter is fixed
                     let findType = pm.findType
                     findType name
               findConstant =
