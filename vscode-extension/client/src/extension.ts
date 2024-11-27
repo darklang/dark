@@ -33,6 +33,14 @@ class SimpleRemoteFileProvider implements FileSystemProvider {
 
   async readFile(uri: Uri): Promise<Uint8Array> {
     try {
+      // Check the cache first; if the content is available, return it directly without making a request to the LSP server
+      const cachedContent = SimpleRemoteFileProvider.fileContents.get(
+        uri.toString(),
+      );
+      if (cachedContent) {
+        return cachedContent;
+      }
+
       // Forward the request to LSP and get the response
       const response = await client.sendRequest<LSPFileResponse>(
         "fileSystem/read",
@@ -45,8 +53,9 @@ class SimpleRemoteFileProvider implements FileSystemProvider {
         throw new Error("Invalid response from LSP server");
       }
 
-      // Convert response content to Uint8Array and cache it
+      // Convert response content to Uint8Array
       const content = new TextEncoder().encode(response.content);
+      // Cache the content of the remote file for future reads
       SimpleRemoteFileProvider.fileContents.set(uri.toString(), content);
       return content;
     } catch (error) {
@@ -198,8 +207,20 @@ export function activate(context: ExtensionContext) {
         });
 
         if (!input) return;
-        const uri = Uri.parse(`darklang://${input}.dark`);
-        await provider.readFile(uri);
+        const virtualUri = Uri.parse(`darklang://${input}.dark`);
+        const doc = await workspace.openTextDocument(virtualUri);
+
+        // Small delay to allow the document to fully load
+        await new Promise(resolve => setTimeout(resolve, 100));
+        try {
+          await window.showTextDocument(doc, {
+            preview: false, // open in a new tab instead of preview mode
+            preserveFocus: false, // give focus to the new tab
+          });
+        } catch (error) {
+          console.error("Error showing document:", error);
+          throw error;
+        }
       } catch (error) {
         window.showErrorMessage(`Failed to read remote file: ${error}`);
       }
