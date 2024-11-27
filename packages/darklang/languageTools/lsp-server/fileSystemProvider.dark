@@ -9,11 +9,9 @@ module Darklang =
             (content: String)
             : LspState =
             let responseJson =
-              // (ReadFileResponse.ReadFileResponse { content = content })
               (LspExtension.FileSystemProvider.ReadFile.ReadFileResponse.ReadFileResponse
                 { content = content })
               |> LspExtension.FileSystemProvider.ReadFile.ReadFileResponse.toJson
-              // |> ReadFileResponse.toJson
               |> (fun r ->
                 JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some(requestId)) r)
               |> Stdlib.AltJson.format
