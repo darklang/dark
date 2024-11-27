@@ -192,6 +192,50 @@ module Darklang =
 
           // -- other
           | Other jsonRpcRequest ->
+            match
+              (jsonRpcRequest.method, jsonRpcRequest.id, jsonRpcRequest.params)
+            with
+            | ("fileSystem/read", Some requestId, Some(Object p)) ->
+              log "Handling fileSystem/read request"
+
+              match
+                LspExtension.FileSystemProvider.ReadFile.ReadFileParams.fromJson (
+                  Stdlib.AltJson.Json.Object p
+                )
+              with
+              | Ok params ->
+                FileSystemProvider.ReadFile.handleReadFileRequest
+                  state
+                  requestId
+                  params
+
+              | Error err ->
+                log "Error parsing fileSystem/read params"
+                state
+
+            | ("fileSystem/write", Some requestId, Some(Object p)) ->
+              log "Handling fileSystem/write request"
+
+              match
+                LspExtension.FileSystemProvider.WriteFile.WriteFileParams.fromJson (
+                  Stdlib.AltJson.Json.Object p
+                )
+              with
+              | Ok params ->
+                FileSystemProvider.WriteFile.handleWriteFileRequest
+                  state
+                  requestId
+                  params
+
+              | Error err ->
+                log "Error parsing fileSystem/write params"
+                state
+
+            | _ ->
+              log $"TODO: we don't yet support this method: {jsonRpcRequest.method}"
+              state
+
+          | _ ->
             log $"TODO: we don't yet support this method: {jsonRpcRequest.method}"
             // TODO: log more than just the method
             state

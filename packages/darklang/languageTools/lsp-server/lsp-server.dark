@@ -67,15 +67,77 @@ module Darklang =
           // was an object {} but not a valid json-rpc 2.0 _request_
           // (note: could have been a valid _response_ though - we don't yet have good support for that)
           | SingleRequest(Error singleRequestParseError) ->
-            // TODO match on singleRequestParseError, and return proper error-specific responses
+            match singleRequestParseError with
+            | NotObject json ->
+              let error = Stdlib.AltJson.format json
 
-            log
-              $"Error parsing incoming message as json-rpc request:\n{incomingMessageRaw}"
+              log
+                $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}\nError: it must be an object, but was: {error}"
 
-            logAndSendToClient
+              logAndSendToClient
               """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
 
-            state
+              state
+
+            | MissingJsonRpcField ->
+              log
+                $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}\nError: it must have a 'jsonrpc' field"
+
+              logAndSendToClient
+              """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
+
+              state
+
+            | InvalidIdField json ->
+              let error = Stdlib.AltJson.format json
+
+              log
+                $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}\nError: 'id' field must be Null, a Number or a String, but was: {error}"
+
+              logAndSendToClient
+                """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
+
+              state
+
+            | MissingMethodField id ->
+              log
+                $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}\nError: 'method' field must be provided"
+
+              logAndSendToClient
+                """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
+
+              state
+
+            | InvalidMethodField(id, actual) ->
+              let error = Stdlib.AltJson.format actual
+
+              log
+                $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}\nError: 'method' field must be a string, but was: {error}"
+
+              logAndSendToClient
+                """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
+
+              state
+
+            | InvalidParamsField(id, actual) ->
+              let error = Stdlib.AltJson.format actual
+
+              log
+                $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}\nError: 'params' field must be an Array or an Object, but was: {error}"
+
+              logAndSendToClient
+                """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
+
+              state
+
+            | _ ->
+              log
+                $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}"
+
+              logAndSendToClient
+                """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
+
+              state
 
 
           | NotJson err ->
