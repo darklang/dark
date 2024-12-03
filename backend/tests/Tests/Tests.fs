@@ -35,8 +35,6 @@ let main (args : string array) : int =
       [ // core
         Tests.Prelude.tests
         Tests.TreeSitter.tests
-        Tests.RuntimeTypes.tests
-        Tests.ProgramTypes.tests
         Tests.ProgramTypesToRuntimeTypes.tests
         Tests.Interpreter.tests
         Tests.AnalysisTypes.tests

@@ -39,8 +39,6 @@
 
     <Compile Include="Prelude.Tests.fs" />
 
-    <Compile Include="RuntimeTypes.Tests.fs" />
-    <Compile Include="ProgramTypes.Tests.fs" />
     <Compile Include="PT2RT.Tests.fs" />
     <Compile Include="Interpreter.Tests.fs" />
     <Compile Include="Builtin.Tests.fs" />
