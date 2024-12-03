@@ -77,7 +77,7 @@ module Darklang =
         if times <= 0L then
           []
         else
-          Stdlib.List.push_v0 (repeatUnsafe (times - 1L) value) value
+          Stdlib.List.push (repeatUnsafe (times - 1L) value) value
 
 
       /// Returns a list containing <param val> repeated <param times> times

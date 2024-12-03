@@ -65,3 +65,8 @@ let fromArray (arr : array<'a>) : List<'a> = List.ofArray arr
 
 let getAt (index : int) (l : List<'a>) : Option<'a> =
   if index < 0 then None else List.tryItem index l
+
+let rec zipUntilEitherEnds list1 list2 =
+  match list1, list2 with
+  | x :: xs, y :: ys -> (x, y) :: zipUntilEitherEnds xs ys
+  | _, _ -> []

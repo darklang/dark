@@ -158,17 +158,20 @@ module Type =
       let matchPattern = p [] "MatchPattern" "003c6684-4f9d-4085-bdba-a7f3bea7f587"
       let matchCase = p [] "MatchCase" "5fb0f282-5f7c-4fb8-b107-b63429080e69"
       let stringSegment = p [] "StringSegment" "ccadbf5b-1802-4db7-a30b-7b9073db78cd"
-      //let expr = p [] "Expr" "1f19e838-81f2-4a94-94b8-bad2ce7f7cf7"
 
       let dval = p [] "Dval" "528b682c-a249-4a50-bd93-85e1e8cb529e"
       let knownType = p [] "KnownType" "50940368-5c6b-4f0b-9966-48b9e9443f5d"
       let valueType = p [] "ValueType" "eeb27326-120b-4a71-bd13-a6dc545e5ade"
-      //let lambdaImpl = p [] "LambdaImpl" "51a98562-4c44-4999-8673-ce7a370e2cb8"
-      //let fnValImpl = p [] "FnValImpl" "9332be6b-65d7-44eb-bb4c-e89e86b10e33"
+
+      let applicableNamedFn =
+        p [] "ApplicableNamedFn" "5cbd8499-14f8-4eab-8e40-f88776e64cd3"
+      let applicableLambda =
+        p [] "ApplicableLambda" "ee577e2c-3e66-42f4-8600-fbe1075adba7"
+      let applicable = p [] "Applicable" "b152337b-e794-4a02-9c53-e0c4b19cb479"
 
 
       module RuntimeError =
-        let private p addl = p ("RuntimeErrors" :: addl)
+        let private p addl = p ("RuntimeError" :: addl)
 
         module TypeCheckers =
           let private p addl = p ("TypeCheckers" :: addl)

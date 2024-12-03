@@ -9,7 +9,6 @@ module D = DvalDecoder
 module C2DT = LibExecution.CommonToDarkTypes
 
 
-// TODO: should these be elsewhere?
 let ownerField m = m |> D.field "owner" |> D.string
 let modulesField m = m |> D.field "modules" |> D.list D.string
 let nameField m = m |> D.field "name" |> D.string
@@ -153,8 +152,6 @@ module NameResolutionError =
     | _ -> Exception.raiseInternal "Invalid NameResolutionError" []
 
 
-
-
 module NameResolution =
   let typeName =
     FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.nameResolution
@@ -263,13 +260,6 @@ module TypeReference =
 
     | _ -> Exception.raiseInternal "Invalid TypeReference" [ "typeRef", d ]
 
-
-module Param =
-  let typeName = FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.param
-
-  let toDT (p : Param) : Dval =
-    let fields = [ ("name", DString p.name); ("typ", TypeReference.toDT p.typ) ]
-    DRecord(typeName, typeName, [], Map fields)
 
 
 module LetPattern =
@@ -389,8 +379,6 @@ module StringSegment =
     | _ -> Exception.raiseInternal "Invalid StringSegment" []
 
 
-
-
 module KnownType =
   let typeName =
     FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.knownType
@@ -440,6 +428,7 @@ module KnownType =
       | KTDB d -> "KTDB", [ ValueType.toDT d ]
 
     DEnum(typeName, typeName, [], caseName, fields)
+
 
   let fromDT (d : Dval) : KnownType =
     match d with
@@ -506,72 +495,90 @@ module ValueType =
     | _ -> Exception.raiseInternal "Invalid ValueType" []
 
 
+module ApplicableNamedFn =
+  let toDT (namedFn : ApplicableNamedFn) : Dval =
+    let typeName =
+      FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.applicableNamedFn
+
+    let fields =
+      [ "name", FQFnName.toDT namedFn.name
+        "typeArgs",
+        DList(
+          VT.known TypeReference.knownType,
+          List.map TypeReference.toDT namedFn.typeArgs
+        )
+        "argsSoFar",
+        DList(VT.known Dval.knownType, List.map Dval.toDT namedFn.argsSoFar) ]
+
+    DRecord(typeName, typeName, [], Map fields)
+
+  let fromDT (d : Dval) : ApplicableNamedFn =
+    match d with
+    | DRecord(_, _, _, fields) ->
+      { name = FQFnName.fromDT (fields |> D.field "name")
+        typeArgs = fields |> D.field "typeArgs" |> D.list TypeReference.fromDT
+        argsSoFar = fields |> D.field "argsSoFar" |> D.list Dval.fromDT }
+    | _ -> Exception.raiseInternal "Invalid ApplicableNamedFn" []
 
 
-// module LambdaImpl =
-//   let typeName =
-//     FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.lambdaImpl
+module ApplicableLambda =
+  let toDT (lambda : ApplicableLambda) : Dval =
+    let typeName =
+      FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.applicableLambda
 
-//   let toDT (l : LambdaImpl) : Dval =
-//     let parameters =
-//       l.parameters
-//       |> NEList.toList
-//       |> List.map LetPattern.toDT
-//       |> fun p -> DList(VT.tuple VT.int64 VT.string [], p)
-//     let fields =
-//       [ ("typeSymbolTable",
-//          DDict(
-//            VT.known TypeReference.knownType,
-//            Map.map TypeReference.toDT l.typeSymbolTable
-//          ))
-//         ("symtable", DDict(VT.known Dval.knownType, Map.map Dval.toDT l.symtable))
-//         ("parameters", parameters)
-//         ("body", Expr.toDT l.body) ]
+    let fields =
+      [ ("exprId", DUInt64 lambda.exprId)
+        ("closedRegisters",
+         DList(
+           VT.tuple VT.int32 (VT.known Dval.knownType) [],
+           lambda.closedRegisters
+           |> List.map (fun (reg, dv) -> DTuple(DInt32 reg, Dval.toDT dv, []))
+         ))
+        ("typeSymbolTable",
+         DDict(
+           VT.known ValueType.knownType,
+           Map.map ValueType.toDT lambda.typeSymbolTable
+         ))
+        ("argsSoFar",
+         DList(VT.known Dval.knownType, List.map Dval.toDT lambda.argsSoFar)) ]
 
-//     DRecord(typeName, typeName, [], Map fields)
+    DRecord(typeName, typeName, [], Map fields)
 
-//   let fromDT (d : Dval) : LambdaImpl =
-//     match d with
-//     | DRecord(_, _, _, fields) ->
-//       { typeSymbolTable =
-//           fields |> D.mapField "typeSymbolTable" |> Map.map TypeReference.fromDT
 
-//         symtable = fields |> D.mapField "symtable" |> Map.map Dval.fromDT
+  let fromDT (d : Dval) : ApplicableLambda =
+    match d with
+    | DRecord(_, _, _, fields) ->
+      { exprId = fields |> D.field "exprId" |> D.uInt64
+        closedRegisters =
+          fields
+          |> D.field "closedRegisters"
+          |> D.list (D.tuple2 D.int32 Dval.fromDT)
+        typeSymbolTable =
+          fields |> D.field "typeSymbolTable" |> D.dict ValueType.fromDT
+        argsSoFar = fields |> D.field "argsSoFar" |> D.list Dval.fromDT }
+    | _ -> Exception.raiseInternal "Invalid ApplicableLambda" []
 
-//         parameters =
-//           fields
-//           |> D.listField "parameters"
-//           |> List.map LetPattern.fromDT
-//           |> NEList.ofListUnsafe
-//             "RT2DT.Dval.fromDT expected at least one parameter in LambdaImpl"
-//             []
-
-//         body = fields |> D.field "body" |> Expr.fromDT }
-
-//     | _ -> Exception.raiseInternal "Invalid LambdaImpl" []
-
-// module FnValImpl =
-//   let typeName =
-//     FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.fnValImpl
-
-//   let toDT (fnValImpl : FnValImpl) : Dval =
-//     let (caseName, fields) =
-//       match fnValImpl with
-//       //| Lambda lambda -> "Lambda", [ LambdaImpl.toDT lambda ]
-//       | NamedFn fnName -> "NamedFn", [ FQFnName.toDT fnName ]
-//     DEnum(typeName, typeName, [], caseName, fields)
-
-//   let fromDT (d : Dval) : FnValImpl =
-//     match d with
-//     //| DEnum(_, _, [], "Lambda", [ lambda ]) -> Lambda(LambdaImpl.fromDT lambda)
-//     | DEnum(_, _, [], "NamedFn", [ fnName ]) -> NamedFn(FQFnName.fromDT fnName)
-//     | _ -> Exception.raiseInternal "Invalid FnValImpl" []
 
 module Applicable =
   let toDT (applicable : Applicable) : Dval =
-    match applicable with
-    | AppLambda _lambda -> DUnit // TODO
-    | AppNamedFn fnName -> FQFnName.toDT fnName.name
+    let typeName =
+      FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeTypes.applicable
+
+    let (caseName, fields) =
+      match applicable with
+      | AppNamedFn namedFn -> "AppNamedFn", [ ApplicableNamedFn.toDT namedFn ]
+      | AppLambda lambda -> "AppLambda", [ ApplicableLambda.toDT lambda ]
+
+    DEnum(typeName, typeName, [], caseName, fields)
+
+
+  let fromDT (d : Dval) : Applicable =
+    match d with
+    | DEnum(_, _, [], "AppNamedFn", [ namedFn ]) ->
+      AppNamedFn(ApplicableNamedFn.fromDT namedFn)
+    | DEnum(_, _, [], "AppLambda", [ lambda ]) ->
+      AppLambda(ApplicableLambda.fromDT lambda)
+    | _ -> Exception.raiseInternal "Invalid Applicable" []
 
 
 
@@ -611,7 +618,6 @@ module Dval =
       | DDict(vt, entries) ->
         "DDict",
         [ ValueType.toDT vt; DDict(VT.known knownType, Map.map toDT entries) ]
-
 
       | DRecord(runtimeTypeName, sourceTypeName, typeArgs, fields) ->
         "DRecord",
@@ -673,7 +679,7 @@ module Dval =
         FQTypeName.fromDT runtimeTypeName,
         FQTypeName.fromDT sourceTypeName,
         typeArgs |> D.list ValueType.fromDT,
-        entries |> D.dict |> Map.map fromDT
+        entries |> D.dict fromDT
       )
 
     | DEnum(_,
@@ -689,34 +695,14 @@ module Dval =
         fields |> D.list fromDT
       )
 
-    //| DEnum(_, _, [], "DApplicable", [ applicable ]) -> DApplicable(Applicable.fromDT applicable)
+    | DEnum(_, _, [], "DApplicable", [ applicable ]) ->
+      DApplicable(Applicable.fromDT applicable)
 
     | DEnum(_, _, [], "DDB", [ DString name ]) -> DDB name
 
     | _ -> Exception.raiseInternal "Invalid Dval" []
 
 
-(*for reference,
-module RuntimeError =
-  module TypeCheckers =
-    type PathPart =
-      | TuplePart of index : int
-      | ListItem of index : int
-      | DictEntry of key : string
-      | RecordField of typeName : FQTypeName.FQTypeName * fieldName : string
-      | EnumField of typeName : FQTypeName.FQTypeName * caseName : string * fieldIndex : int * fieldName : Option<string> * fieldCount : int
-      | FunctionCallParameter of fnName : FQFnName.FQFnName * paramName : string * paramIndex : int
-      | FunctionCallResult of fnName : FQFnName.FQFnName
-
-    type Path = List<PathPart>
-
-    type Error =
-      | ValueNotExpectedType of path : Path * expected : TypeReference * actual : Dval
-
-  type Error =
-    | TypeChecker of err : TypeCheckers.Error
-    | UncaughtException of reference : uuid
-*)
 
 
 // TODO: make sure we've tested all of these RTEs
@@ -1105,6 +1091,8 @@ module RuntimeError =
         | RuntimeError.Applications.WrongNumberOfTypeArgsForFn(fn, expected, actual) ->
           "WrongNumberOfTypeArgsForFn",
           [ FQFnName.toDT fn; DInt64 expected; DInt64 actual ]
+        | RuntimeError.Applications.CannotApplyTypeArgsMoreThanOnce ->
+          "CannotApplyTypeArgsMoreThanOnce", []
         | RuntimeError.Applications.TooManyArgsForFn(fn, expected, actual) ->
           "TooManyArgsForFn", [ FQFnName.toDT fn; DInt64 expected; DInt64 actual ]
         | RuntimeError.Applications.FnParameterNotExpectedType(fnName,
@@ -1152,6 +1140,8 @@ module RuntimeError =
           D.int64 expected,
           D.int64 actual
         )
+      | DEnum(_, _, [], "CannotApplyTypeArgsMoreThanOnce", []) ->
+        RuntimeError.Applications.CannotApplyTypeArgsMoreThanOnce
       | DEnum(_, _, [], "TooManyArgsForFn", [ fn; expected; actual ]) ->
         RuntimeError.Applications.TooManyArgsForFn(
           FQFnName.fromDT fn,
@@ -1231,9 +1221,8 @@ module RuntimeError =
         match e with
         | RuntimeError.Jsons.UnsupportedType actual ->
           "UnsupportedType", [ TypeReference.toDT actual ]
-        | RuntimeError.Jsons.CannotSerializeTypeValueCombo(actualValue, actualType) ->
-          "CannotSerializeTypeValueCombo",
-          [ Dval.toDT actualValue; TypeReference.toDT actualType ]
+        | RuntimeError.Jsons.CannotSerializeValue(actualValue) ->
+          "CannotSerializeValue", [ Dval.toDT actualValue ]
 
       DEnum(typeName, typeName, [], caseName, fields)
 
@@ -1241,11 +1230,8 @@ module RuntimeError =
       match d with
       | DEnum(_, _, [], "UnsupportedType", [ actual ]) ->
         RuntimeError.Jsons.UnsupportedType(TypeReference.fromDT actual)
-      | DEnum(_, _, [], "CannotSerializeTypeValueCombo", [ actualValue; actualType ]) ->
-        RuntimeError.Jsons.CannotSerializeTypeValueCombo(
-          Dval.fromDT actualValue,
-          TypeReference.fromDT actualType
-        )
+      | DEnum(_, _, [], "CannotSerializeValue", [ actualValue ]) ->
+        RuntimeError.Jsons.CannotSerializeValue(Dval.fromDT actualValue)
       | _ -> Exception.raiseInternal "Invalid Jsons.Error" []
 
   module CLIs =

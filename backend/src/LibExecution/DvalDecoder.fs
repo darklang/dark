@@ -85,9 +85,9 @@ let string (dv : Dval) : string =
   | DString s -> s
   | _ -> f "string" dv
 
-let tuple2 (dv : Dval) : Dval * Dval =
+let tuple2 (dFirst : Dval -> 'a) (dSecond : Dval -> 'b) (dv : Dval) : 'a * 'b =
   match dv with
-  | DTuple(first, second, _) -> (first, second)
+  | DTuple(first, second, _) -> (dFirst first, dSecond second)
   | _ -> f "('a * 'b)" dv
 
 let tuple3 (dv : Dval) : Dval * Dval * Dval =
@@ -101,9 +101,9 @@ let list (m : Dval -> 'a) (dv : Dval) : List<'a> =
   | DList(_, l) -> List.map m l
   | _ -> f "list" dv
 
-let dict (dv : Dval) : Map<string, Dval> =
+let dict (m : Dval -> 'a) (dv : Dval) : Map<string, 'a> =
   match dv with
-  | DDict(_, d) -> d
+  | DDict(_, d) -> Map.map m d
   | _ -> f "dict" dv
 
 

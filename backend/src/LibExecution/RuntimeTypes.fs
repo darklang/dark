@@ -637,31 +637,28 @@ and BuiltInParam =
     assert_ "makeWithArgs not called on TFn" [ "name", name ] (typ.isFn ())
     { name = name; typ = typ; description = description; blockArgs = blockArgs }
 
-and Param = { name : string; typ : TypeReference }
 
 
 module RuntimeError =
   module TypeChecking =
-
     type TypeCheckPathPart =
       | ListType
 
       | DictValueType
-      // TODO add DictKeyType here, once Dicts support non-string keys
+      // CLEANUP add DictKeyType here, once Dicts support non-string keys
 
       | TupleLength of expected : int * actual : int
       | TupleAtIndex of int
 
-      // TODO try to add these fields
-      | EnumField of
-        // typeName : FQTypeName.FQTypeName *
-        caseName : string *
-        fieldIndex : int
-      // fieldName : Option<string> *
-      // /// we only need this count to help provide a pretty error.
-      // fieldCount : int
+      | TypeArgLength of
+        typeName : FQTypeName.FQTypeName *
+        expected : int *
+        actual : int
+      | TypeArg of
+        typeName : FQTypeName.FQTypeName *
+        typeArgIndex : int *
+        typeArgCount : int
 
-      | RecordField of fieldName : string
 
     type ReverseTypeCheckPath = List<TypeCheckPathPart>
 
@@ -798,6 +795,8 @@ module RuntimeError =
         expected : int64 *
         actual : int64
 
+      | CannotApplyTypeArgsMoreThanOnce
+
       | TooManyArgsForFn of
         fn : FQFnName.FQFnName *
         expected : int64 *
@@ -831,7 +830,7 @@ module RuntimeError =
   module Jsons =
     type Error =
       | UnsupportedType of TypeReference
-      | CannotSerializeTypeValueCombo of Dval * TypeReference
+      | CannotSerializeValue of Dval
 
   module CLIs =
     type Error =
@@ -1542,6 +1541,59 @@ module Types =
         Exception.raiseInternal
           $"typeParams and typeArguments have different lengths"
           [ "typeParams", typeParams; "typeArguments", typeArguments ]
+
+// CLEANUP consider replacing the above with these two fns
+// /// Create a mapping from type parameters to their provided arguments
+// let createTypeParamMapping
+//   (typeParams : List<string>)
+//   (typeArgs : List<TypeReference>)
+//   : Result<Map<string, TypeReference>, string> =
+//   if List.length typeParams <> List.length typeArgs then
+//     Error
+//       $"Expected {List.length typeParams} type arguments but got {List.length typeArgs}"
+//   else
+//     Ok(Map.ofList (List.zip typeParams typeArgs))
+
+// let rec substituteTypeParams
+//   (map : Map<string, TypeReference>)
+//   (typ : TypeReference)
+//   : TypeReference =
+//   let r = substituteTypeParams map
+
+//   match typ with
+//   // actually subtitute type vars
+//   | TVariable name ->
+//     match Map.tryFind name map with
+//     | Some replacement -> replacement
+//     | None -> typ
+
+//   // deal with subtypes recursively
+//   | TTuple(first, second, rest) -> TTuple(r first, r second, List.map r rest)
+//   | TList inner -> TList(r inner)
+//   | TDict value -> TDict(r value)
+//   | TFn(args, ret) -> TFn(NEList.map r args, r ret)
+//   | TCustomType(name, args) -> TCustomType(name, List.map r args)
+
+//   | TDB inner -> TDB(r inner)
+
+//   // for exhaustiveness
+//   | TUnit -> TUnit
+//   | TBool -> TBool
+//   | TInt8 -> TInt8
+//   | TUInt8 -> TUInt8
+//   | TInt16 -> TInt16
+//   | TUInt16 -> TUInt16
+//   | TInt32 -> TInt32
+//   | TUInt32 -> TUInt32
+//   | TInt64 -> TInt64
+//   | TUInt64 -> TUInt64
+//   | TInt128 -> TInt128
+//   | TUInt128 -> TUInt128
+//   | TFloat -> TFloat
+//   | TChar -> TChar
+//   | TString -> TString
+//   | TUuid -> TUuid
+//   | TDateTime -> TDateTime
 
 
 

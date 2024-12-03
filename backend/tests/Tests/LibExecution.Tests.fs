@@ -193,8 +193,8 @@ let t
                   Exception.raiseInternal
                     ("We received an RTE, and when trying to stringify it, there was another RTE error.
                     There is probably a bug in Darklang.LanguageTools.RuntimeErrors.Error.toString")
-                    [ "originalError", DvalReprDeveloper.toRepr actual
-                      "stringified", DvalReprDeveloper.toRepr rte ]
+                    [ "originalRTE", DvalReprDeveloper.toRepr actual
+                      "subsequentRTE", DvalReprDeveloper.toRepr rte ]
 
             | Error e ->
               debuG "Alleged RTE was not an RTE" e

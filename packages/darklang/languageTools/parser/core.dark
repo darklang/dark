@@ -67,7 +67,7 @@ module Darklang =
 
       let createUnparseableError
         (node: ParsedNode)
-        : Stdlib.Result.Result<WrittenTypes.Unparseable> =
+        : Stdlib.Result.Result<'a, WrittenTypes.Unparseable> =
         (WrittenTypes.Unparseable
           { source = node
             note = Stdlib.Option.Option.None })
@@ -76,7 +76,7 @@ module Darklang =
       let createUnparseableErrorMsg
         (node: ParsedNode)
         (msg: String)
-        : Stdlib.Result.Result<WrittenTypes.Unparseable> =
+        : Stdlib.Result.Result<'a, WrittenTypes.Unparseable> =
         (WrittenTypes.Unparseable
           { source = node
             note = Stdlib.Option.Option.Some msg })
@@ -104,12 +104,16 @@ module Darklang =
       let findAndParseRequired
         (node: ParsedNode)
         (fieldName: String)
-        (parserFn: ParsedNode -> Stdlib.Result.Result<'a, String>)
-        : Stdlib.Result.Result<'a, String> =
+        (parserFn: ParsedNode -> Stdlib.Result.Result<'a, WrittenTypes.Unparseable>)
+        : Stdlib.Result.Result<'a, WrittenTypes.Unparseable> =
         match findNodeByFieldName node fieldName with
         | Some nd -> parserFn nd
         | None ->
-          Stdlib.Result.Result.Error $"No {fieldName} node found in {node.typ}"
+          Builtin.debug "hmm" ()
+          (WrittenTypes.Unparseable
+            { source = node
+              note = Stdlib.Option.Option.Some $"No {fieldName} node found in {node.typ}" })
+          |> Stdlib.Result.Result.Error
 
 
       let baseParseList

@@ -295,8 +295,8 @@ let fns : List<BuiltInFn> =
         TypeReference.result TUInt16 (TCustomType(Ok errorType, []))
       description = "Returns the <type UInt16> value of a <type String>"
       fn =
-        let resultOk = Dval.resultOk KTUInt16 KTString
         let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.uint16ParseError
+        let resultOk = Dval.resultOk KTUInt16 (KTCustomType(typeName, []))
         let resultError = Dval.resultError KTUInt16 (KTCustomType(typeName, []))
         (function
         | _, _, _, [ DString s ] ->

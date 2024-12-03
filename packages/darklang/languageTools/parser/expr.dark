@@ -18,82 +18,58 @@ module Darklang =
           | Error _ -> createUnparseableError node
 
 
-        // Helper function for parseIntLiteral
-        let parseIntByType
-          (intText: String)
-          (typ: String)
-          : Stdlib.Result.Result<_res, _err> =
-          match typ with
-          | "int8_literal" -> Stdlib.Int8.parse intText
-          | "uint8_literal" -> Stdlib.UInt8.parse intText
-          | "int16_literal" -> Stdlib.Int16.parse intText
-          | "uint16_literal" -> Stdlib.UInt16.parse intText
-          | "int32_literal" -> Stdlib.Int32.parse intText
-          | "uint32_literal" -> Stdlib.UInt32.parse intText
-          | "int64_literal" -> Stdlib.Int64.parse intText
-          | "uint64_literal" -> Stdlib.UInt64.parse intText
-          | "int128_literal" -> Stdlib.Int128.parse intText
-          | "uint128_literal" -> Stdlib.UInt128.parse intText
-          | _ -> Stdlib.Result.Result.Error $"Unsupported integer type: {typ}"
-
         let parseIntLiteral
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          let supportedInts =
-            [ "int8_literal"
-              "uint8_literal"
-              "int16_literal"
-              "uint16_literal"
-              "int32_literal"
-              "uint32_literal"
-              "int64_literal"
-              "uint64_literal"
-              "int128_literal"
-              "uint128_literal" ]
+          let intPart = findField node "digits"
+          let suffixPart = findField node "suffix"
 
-          if (Stdlib.List.member_v0 supportedInts node.typ) then
-            let intPart = findField node "digits"
-            let suffixPart = findField node "suffix"
+          match intPart, suffixPart with
+          | Ok intPart, Ok sfx ->
+            let intText = getText intPart
 
-            match intPart, suffixPart with
-            | Ok intPart, Ok sfx ->
-              let intText = getText intPart
-
-              match parseIntByType intText node.typ with
-              | Ok parsedValue ->
-                let intPart = (intPart.range, parsedValue)
-
-                let expr =
-                  match node.typ with
-                  | "int8_literal" ->
-                    WrittenTypes.Expr.EInt8(node.range, intPart, sfx.range)
-                  | "uint8_literal" ->
-                    WrittenTypes.Expr.EUInt8(node.range, intPart, sfx.range)
-                  | "int16_literal" ->
-                    WrittenTypes.Expr.EInt16(node.range, intPart, sfx.range)
-                  | "uint16_literal" ->
-                    WrittenTypes.Expr.EUInt16(node.range, intPart, sfx.range)
-                  | "int32_literal" ->
-                    WrittenTypes.Expr.EInt32(node.range, intPart, sfx.range)
-                  | "uint32_literal" ->
-                    WrittenTypes.Expr.EUInt32(node.range, intPart, sfx.range)
-                  | "int64_literal" ->
-                    WrittenTypes.Expr.EInt64(node.range, intPart, sfx.range)
-                  | "uint64_literal" ->
-                    WrittenTypes.Expr.EUInt64(node.range, intPart, sfx.range)
-                  | "int128_literal" ->
-                    WrittenTypes.Expr.EInt128(node.range, intPart, sfx.range)
-                  | "uint128_literal" ->
-                    WrittenTypes.Expr.EUInt128(node.range, intPart, sfx.range)
-
-                expr |> Stdlib.Result.Result.Ok
-
+            match node.typ with
+            | "int8_literal" ->
+              match Stdlib.Int8.parse intText with
+              | Ok parsedValue -> (WrittenTypes.Expr.EInt8(node.range, (intPart.range, parsedValue), sfx.range)) |> Stdlib.Result.Result.Ok
               | Error _ -> createUnparseableError node
-
+            | "uint8_literal" ->
+              match Stdlib.UInt8.parse intText with
+              | Ok parsedValue -> (WrittenTypes.Expr.EUInt8(node.range, (intPart.range, parsedValue), sfx.range)) |> Stdlib.Result.Result.Ok
+              | Error _ -> createUnparseableError node
+            | "int16_literal" ->
+              match Stdlib.Int16.parse intText with
+              | Ok parsedValue -> (WrittenTypes.Expr.EInt16(node.range, (intPart.range, parsedValue), sfx.range)) |> Stdlib.Result.Result.Ok
+              | Error _ -> createUnparseableError node
+            | "uint16_literal" ->
+              match Stdlib.UInt16.parse intText with
+              | Ok parsedValue -> (WrittenTypes.Expr.EUInt16(node.range, (intPart.range, parsedValue), sfx.range)) |> Stdlib.Result.Result.Ok
+              | Error _ -> createUnparseableError node
+            | "int32_literal" ->
+              match Stdlib.Int32.parse intText with
+              | Ok parsedValue -> (WrittenTypes.Expr.EInt32(node.range, (intPart.range, parsedValue), sfx.range)) |> Stdlib.Result.Result.Ok
+              | Error _ -> createUnparseableError node
+            | "uint32_literal" ->
+              match Stdlib.UInt32.parse intText with
+              | Ok parsedValue -> (WrittenTypes.Expr.EUInt32(node.range, (intPart.range, parsedValue), sfx.range)) |> Stdlib.Result.Result.Ok
+              | Error _ -> createUnparseableError node
+            | "int64_literal" ->
+              match Stdlib.Int64.parse intText with
+              | Ok parsedValue -> (WrittenTypes.Expr.EInt64(node.range, (intPart.range, parsedValue), sfx.range)) |> Stdlib.Result.Result.Ok
+              | Error _ -> createUnparseableError node
+            | "uint64_literal" ->
+              match Stdlib.UInt64.parse intText with
+              | Ok parsedValue -> (WrittenTypes.Expr.EUInt64(node.range, (intPart.range, parsedValue), sfx.range)) |> Stdlib.Result.Result.Ok
+              | Error _ -> createUnparseableError node
+            | "int128_literal" ->
+              match Stdlib.Int128.parse intText with
+              | Ok parsedValue -> (WrittenTypes.Expr.EInt128(node.range, (intPart.range, parsedValue), sfx.range)) |> Stdlib.Result.Result.Ok
+              | Error _ -> createUnparseableError node
+            | "uint128_literal" ->
+              match Stdlib.UInt128.parse intText with
+              | Ok parsedValue -> (WrittenTypes.Expr.EUInt128(node.range, (intPart.range, parsedValue), sfx.range)) |> Stdlib.Result.Result.Ok
+              | Error _ -> createUnparseableError node
             | _ -> createUnparseableError node
-
-          else
-            createUnparseableError node
 
 
         let parseFloatLiteral

@@ -64,6 +64,7 @@ module Darklang =
 
           let parts =
             Stdlib.List.fold reversed [] (fun prevSegments segment ->
+
               let newSegment =
                 match segment with
                 | String s -> s
@@ -103,7 +104,7 @@ module Darklang =
                 | VarName v -> $"`{v}`"
                 | InlineVarName v -> v
                 | InlineValue dv ->
-                  // CLEANUP for strings that are cut off, the closing `"` seems to be missing.
+                  // CLEANUP for strings that are cut off, the closing `"` is missing.
                   (dval dv)
                   |> Stdlib.String.ellipsis 10L
                   |> Stdlib.String.splitOnNewline
@@ -121,23 +122,6 @@ module Darklang =
           (e: LanguageTools.RuntimeTypes.RuntimeError.Error)
           : ErrorSegments =
           match e with
-
-          // module TypeCheckers =
-          //   type PathPart =
-          //     | TuplePart of index: Int32
-          //     | ListItem of index: Int32
-          //     | DictEntry of key: String
-          //     | RecordField of typeName: FQTypeName.FQTypeName * fieldName: String
-          //     | EnumField of typeName: FQTypeName.FQTypeName * caseName: String * fieldIndex: Int32 * fieldName: Option<String> * fieldCount: Int32
-          //     | FunctionCallParameter of fnName: FQFnName.FQFnName * paramName: String * paramIndex: Int32
-          //     | FunctionCallResult of fnName: FQFnName.FQFnName
-
-          //   type Path = List<PathPart>
-
-          //   type Error =
-          //     | ValueNotExpectedType of path: Path * expected: TypeReference * actual: Dval
-
-
           | Bool err ->
             match err with
             | AndOnlySupportsBooleans(_gotLeft, _gotRight) ->
@@ -249,8 +233,6 @@ module Darklang =
               ES.FunctionName name
               ES.String " couldn't be found" ]
 
-          //| WrongNumberOfTypeArgsForType of fn: FQTypeName.FQTypeName * expected: Int64 * actual: Int64
-
           | Record err ->
             match err with
             // -- Creation --
@@ -336,7 +318,6 @@ module Darklang =
                 ES.String ", but this only works with records" ]
 
 
-
           | Enum err ->
             match err with
             | ConstructionWrongNumberOfFields (typeName, caseName, expectedFieldCount, actualFieldCount) ->
@@ -393,6 +374,8 @@ module Darklang =
                 ES.Count(expected, ES.String "type argument", ES.String "type arguments")
                 ES.String ", but got "
                 ES.Count(actual, ES.String "type argument", ES.String "type arguments") ]
+            | CannotApplyTypeArgsMoreThanOnce ->
+              [ ES.String "Cannot apply type arguments more than once" ]
             | TooManyArgsForFn (fn, expected, actual) ->
               [ ES.FunctionName fn
                 ES.String " expects "
@@ -400,18 +383,21 @@ module Darklang =
                 ES.String ", but got "
                 ES.Count(actual, ES.String "argument", ES.String "arguments") ]
             | FnParameterNotExpectedType(fnName, paramIndex, paramName, expectedType, actualType, actualValue) ->
-              [ ES.FunctionName fnName
-                ES.String "'s "
-                ES.Ordinal(paramIndex + 1L)
-                ES.String " parameter "
-                ES.ParamName paramName
-                ES.String " expects "
-                ES.ValueType expectedType
-                ES.String ", but got "
-                ES.ValueType actualType
-                ES.String " ("
-                ES.FullValue actualValue
-                ES.String ")" ]
+              [
+                ES.String "here"
+                // ES.FunctionName fnName
+                // ES.String "'s "
+                // ES.Ordinal(paramIndex + 1L)
+                // ES.String " parameter "
+                // ES.ParamName paramName
+                // ES.String " expects "
+                // ES.ValueType expectedType
+                // ES.String ", but got "
+                // ES.ValueType actualType
+                // ES.String " ("
+                // ES.FullValue actualValue
+                // ES.String ")"
+                ]
             | FnResultNotExpectedType(fnName, expectedType, actualType, actualValue) ->
               [ ES.FunctionName fnName
                 ES.String "'s return value expects "
@@ -437,18 +423,15 @@ module Darklang =
                 ES.FunctionName (LanguageTools.RuntimeTypes.FQFnName.FQFnName.Builtin(LanguageTools.RuntimeTypes.FQFnName.Builtin { name = "jsonParse"; version = 0 }))
                 ES.String " or "
                 ES.FunctionName (LanguageTools.RuntimeTypes.FQFnName.FQFnName.Builtin(LanguageTools.RuntimeTypes.FQFnName.Builtin { name = "jsonSerialize"; version = 0 })) ]
-            | CannotSerializeTypeValueCombo (dv, typ) ->
+            | CannotSerializeValue dv ->
               [ ES.String "Cannot serialize "
                 ES.FullValue dv
-                ES.String " as a "
-                ES.TypeReference typ ]
+                ES.String " into JSON" ]
 
           | CLI err ->
             match err with
             | NoExpressionsToExecute -> [ ES.String "TODO NoExpressionsToExecute" ]
             | NonIntReturned actuallyReturnedOfDval -> [ ES.String "TODO NonIntReturned" ]
-
-          //| TypeChecker of err: TypeCheckers.Error
 
           | UncaughtException (msg, metadata) ->
             let withMetadata =
@@ -463,22 +446,22 @@ module Darklang =
               [ ES.String "Uncaught exception: "; ES.String msg ]
               withMetadata
 
-
-          // // CLEANUP when we bring lambda->sql compilation back
-          // // | SqlCompilerRuntimeError err ->
-          // //   let sqlErrorTemplate =
-          // //     "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably fast.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Darklang's functionality, but will be expanding it in the future.\n\nSome Darklang code is not supported in DB::query lambdas for now, and some of it won't be supported because it's an odd thing to do in a datastore query. If you think your operation should be supported, let us know in #general in Discord.\n\n  Error: "
-          // //   let innerOutput = toSegments err
-          // //   { innerOutput with summary = Stdlib.List.append [ (ES.String sqlErrorTemplate) ] innerOutput.summary }
+          // CLEANUP when we bring lambda->sql compilation back
+          // | SqlCompilerRuntimeError err ->
+          //   let sqlErrorTemplate =
+          //     "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably fast.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Darklang's functionality, but will be expanding it in the future.\n\nSome Darklang code is not supported in DB::query lambdas for now, and some of it won't be supported because it's an odd thing to do in a datastore query. If you think your operation should be supported, let us know in #general in Discord.\n\n  Error: "
+          //   let innerOutput = toSegments err
+          //   { innerOutput with summary = Stdlib.List.append [ (ES.String sqlErrorTemplate) ] innerOutput.summary }
 
           | unhandled ->
             let serialized = Builtin.jsonSerialize<LanguageTools.RuntimeTypes.RuntimeError.Error> unhandled
-            [ ES.String $"TODO: {serialized}" ]
+            [ ES.String $"RTE pretty-printing TODO: {serialized}" ]
 
 
 
         let toString (e: LanguageTools.RuntimeTypes.RuntimeError.Error) : String =
-          e |> toSegments |> segmentsToString
+          let s = e |> toSegments
+          s |> segmentsToString
 
 
         type ErrorMessage = ErrorString of String
@@ -487,334 +470,3 @@ module Darklang =
           (e: LanguageTools.RuntimeTypes.RuntimeError.Error)
           : ErrorMessage =
           ErrorMessage.ErrorString(toString e)
-
-
-(*
-module Execution =
-  let toSegments (e: Error) : ErrorOutput =
-    match e with
-    | WrongNumberOfFnArgs(fn,
-                          expectedTypeArgs,
-                          expectedArgs,
-                          actualTypeArgs,
-                          actualArgs) ->
-      [ ES.FunctionName fn
-        ES.String " has "
-        ES.Count(
-          expectedTypeArgs,
-          ES.String "type parameter",
-          ES.String "type parameters"
-        )
-        ES.String " and "
-        ES.Count(
-          expectedArgs,
-          ES.String "parameter",
-          ES.String "parameters"
-        )
-        ES.String ", but here was called with "
-        ES.Count(
-          actualTypeArgs,
-          ES.String "type argument",
-          ES.String "type arguments"
-        )
-        ES.String " and "
-        ES.Count(
-          actualArgs,
-          ES.String "argument",
-          ES.String "arguments"
-        )
-        ES.String "." ]
-*)
-
-
-(*
-module NameResolution =
-  let toSegments (e: Error) : ErrorOutput =
-    match e.errorType with
-    | NotFound names ->
-      let nameType =
-        match e.nameType with
-        | Function -> "function"
-        | Type -> "type"
-        | Constant -> "constant"
-
-      ErrorOutput
-        { summary =
-            [ ES.String $"There is no {nameType} named "
-              ES.InlineVarName( Stdlib.String.join names "." ) ]
-          extraExplanation = []
-          actual = []
-          expected = [] }
-
-    | MissingEnumModuleName caseName ->
-      [ ES.String "Missing type name for enum case"
-        ES.String ": "
-        ES.String caseName ]
-
-    | InvalidPackageName names ->
-      [ ES.String "Invalid package name "
-        ES.InlineVarName(Stdlib.String.join names ".") ]
-
-    | ExpectedRecordButNot packageTypeID ->
-      [ ES.String "Expected a record but "
-        ES.TypeName(RuntimeTypes.FQTypeName.FQTypeName.Package packageTypeID)
-        ES.String " is an enum" ]
-*)
-
-
-
-(*
-module TypeChecker =
-  module Error =
-    /// Return the segments describing the context as a short name, used in the description of errors
-    let contextSummary (context: Context) : List<ErrorSegment> =
-      match context with
-      | FunctionCallParameter(fnName, parameter, paramIndex) ->
-        [ ES.FunctionName fnName
-          ES.String "'s "
-          ES.Ordinal(paramIndex + 1L)
-          ES.String " argument ("
-          ES.ParamName parameter.name
-          ES.String ")" ]
-
-      | FunctionCallResult(fnName, returnType) ->
-        [ ES.FunctionName fnName
-          ES.String "'s return value" ]
-
-
-      | RecordField(recordType, fieldName, _) ->
-        [ ES.TypeName recordType
-          ES.String "'s "
-          ES.FieldName fieldName
-          ES.String " field" ]
-
-      // | DictKey(key, _) ->
-      //   let typeName =
-      //     FQName.BuiltIn { name = TypeName.TypeName "Dict"; modules = []; version = 0 }
-      //   [ TypeName typeName; String "'s "; FieldName key; String " value" ]
-
-      | EnumField(enumType, caseName, fieldIndex, _, _) ->
-        [ ES.TypeName enumType
-          ES.String "."
-          ES.InlineFieldName caseName
-          ES.String "'s "
-          ES.Ordinal(fieldIndex + 1L)
-          ES.String " argument" ]
-
-      | DBSchemaType(dbName, expectedType) ->
-        [ ES.String "DB "
-          ES.DBName dbName
-          ES.String "'s value" ]
-
-      | DBQueryVariable(varName, _) ->
-        [ ES.String "Variable "
-          ES.VarName varName ]
-
-      | TupleIndex(index, typ, parent) ->
-        let rootContext = rootContext parent
-
-        [ String "In " ]
-        @ contextSummary rootContext
-        @ [ String ", the nested value "; VarName(valuePath context) ]
-
-      | ListIndex(index, typ, parent) ->
-        let rootContext = rootContext parent
-
-        [ String "In " ]
-        @ contextSummary rootContext
-        @ [ String ", the nested value "; VarName(valuePath context) ]
-
-
-
-    let rec contextAsActualExpected
-      (argument: RuntimeTypes.Dval.Dval)
-      (context: Context)
-      : List<ErrorSegment> * List<ErrorSegment> =
-
-      // RTETODO: We do actual and expected in the same function so that we can display
-      // them the same way. This hasn't been ported for all Context types, but
-      // should be.
-      let defaultActual =
-        [ ES.IndefiniteArticle
-          ES.TypeOfValue argument
-          ES.String ": "
-          ES.FullValue argument ]
-
-      match context with
-      | FunctionCallParameter(fnName, parameter, paramIndex) ->
-        let segments =
-          [ ES.String "("
-            ES.InlineParamName parameter.name
-            ES.String ": "
-            ES.TypeReference parameter.typ
-            ES.String ")" ]
-
-        (defaultActual, segments)
-
-
-      | FunctionCallResult(fnName, returnType) ->
-        // format:
-        // Option<String>
-        let segment = [ ES.TypeReference returnType ]
-        (defaultActual, segment)
-
-
-      | RecordField(recordType, fieldName, fieldType) ->
-        // format:
-        // ({ name : string; ... }) // some description
-
-        // TODO: fetch the type and lookup the field definition as a comment
-        let comment = []
-        // let comment =
-        //   if fieldDef.description = "" then
-        //     []
-        //   else
-        //     [ String " /// "; Description fieldDef.description ]
-
-        let segment =
-          Stdlib.List.append
-            [ ES.String "({ "
-              ES.InlineFieldName fieldName
-              ES.String ": "
-              ES.TypeReference fieldType
-              ES.String "; ... })" ]
-            comment
-
-        (defaultActual, segment)
-
-
-      | DictKey(key, typ) ->
-        // format:
-        // ({ "name" : String; ... })
-        let segment =
-          [ ES.String "({ "
-            ES.InlineFieldName key
-            ES.String ": "
-            ES.TypeReference typ
-            ES.String "; ... })" ]
-
-        defaultActual, segment
-
-
-      | EnumField(enumType, caseName, fieldIndex, fieldCount, fieldType) ->
-        // format:
-        //   Ok (..., string, ...) // some description
-        // RTETODO: extract description from the type definition later
-
-        let prefix =
-          if fieldIndex == 0L then
-            []
-          else
-            [ ES.String "..., " ]
-
-        let suffix =
-          if fieldIndex == fieldCount - 1L then
-            []
-          else
-            [ ES.String ", ..." ]
-
-        let openParen =
-          if fieldCount > 0L then
-            [ ES.String "(" ]
-          else
-            []
-
-        let closeParen =
-          if fieldCount > 0L then
-            [ ES.String ")" ]
-          else
-            []
-
-        //CLEANUP de-duplicate these 2 segments a bit
-        let fieldTypeSegment =
-          [ ES.ShortTypeName enumType
-            ES.String "."
-            ES.InlineFieldName caseName
-            ES.String " " ]
-          |> Stdlib.List.append openParen
-          |> Stdlib.List.append prefix
-          |> Stdlib.List.append
-            [ ES.TypeReference fieldType ]
-          |> Stdlib.List.append suffix
-          |> Stdlib.List.append closeParen
-
-        let argumentSegment =
-          [ ES.ShortTypeName enumType
-            ES.String "."
-            ES.InlineFieldName caseName
-            ES.String " " ]
-          |> Stdlib.List.append openParen
-          |> Stdlib.List.append prefix
-          |> Stdlib.List.append
-            [ ES.TypeOfValue argument ]
-          |> Stdlib.List.append suffix
-          |> Stdlib.List.append closeParen
-
-        (argumentSegment, fieldTypeSegment)
-
-
-      // | DBSchemaType(dbName, expectedType) ->
-      //   let segment = [ ES.TypeReference expectedType ]
-      //   (defaultActual, segment)
-
-
-      // | DBQueryVariable(varName, expected) ->
-      //   let segment =
-      //     [ ES.String "("
-      //       ES.InlineVarName varName
-      //       ES.String ": "
-      //       ES.TypeReference expected
-      //       ES.String ")" ]
-
-      //   (defaultActual, segment)
-
-      | ListIndex(index, typ, parent) ->
-        defaultActual, [ ES.TypeReference typ ]
-
-      | TupleIndex(index, typ, parent) ->
-        defaultActual, [ ES.TypeReference typ ]
-
-
-    let contextVerb (context: Context) : String =
-      match context with
-      | FunctionCallParameter _ -> "passed"
-      | FunctionCallResult _ -> "returned"
-      | RecordField _ -> "passed"
-      | DictKey _ -> "passed"
-      | EnumField _ -> "passed"
-      | DBSchemaType _ -> "passed"
-      | DBQueryVariable _ -> "passed"
-      | ListIndex _ -> "passed"
-      | TupleIndex _ -> "passed"
-
-    let toSegments (e: Error) : REErrorOutput =
-      match e.errorType with
-      | ValueNotExpectedType(argument, expected) ->
-        let summary =
-          Stdlib.List.append
-            (contextSummary e.context)
-            [ ES.String " should be "
-              ES.IndefiniteArticle
-              ES.TypeReference expected ]
-
-        let extraExplanation =
-          [ ES.String ". However, "
-            ES.IndefiniteArticle
-            ES.TypeOfValue argument
-            ES.String " ("
-            ES.InlineValue argument
-            ES.String ") was "
-            ES.String(contextVerb e.context)
-            ES.String " instead." ]
-
-        let (actual, expected) = contextAsActualExpected argument e.context
-
-        ErrorOutput
-          { summary = summary
-            extraExplanation = extraExplanation
-            actual = actual
-            expected = expected }
-
-      | _ ->
-        [ ES.String "RTETODO typeChecker.toSegments" ]
-*)

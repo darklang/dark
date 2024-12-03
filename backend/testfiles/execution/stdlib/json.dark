@@ -938,11 +938,13 @@ module BadTypes =
   // Builtin.jsonParse<'a> "5" = Result.Ok []
   // Builtin.jsonSerialize<'a> 5 = Result.Error "dunno what happens"
 
-  Builtin.jsonParse<Int64 -> Int64> "{}" = Builtin.testDerrorMessage
-    "Unsupported type in JSON: (Int64) -> Int64. Some types are not supported in Json serialization, and cannot be used as arguments to Builtin.jsonParse or Builtin.jsonSerialize"
+  Builtin.jsonParse<Int64 -> Int64> "{}" =
+    Builtin.testDerrorMessage
+      "Unsupported type in JSON: (Int64) -> Int64. Some types are not supported in Json serialization, and cannot be used as arguments to Builtin.jsonParse or Builtin.jsonSerialize"
 
-  Builtin.jsonSerialize<Int64 -> Int64> (fun i -> 5) = Builtin.testDerrorMessage
-    "Unsupported type in JSON: (Int64) -> Int64. Some types are not supported in Json serialization, and cannot be used as arguments to Builtin.jsonParse or Builtin.jsonSerialize"
+  Builtin.jsonSerialize<Int64 -> Int64> (fun i -> 5) =
+    Builtin.testDerrorMessage
+      "Cannot serialize (lambda) into JSON"
 
 
 module List =

@@ -9,8 +9,7 @@ module Darklang =
             | DictValueType
             | TupleLength of expected : Int32 * actual : Int32
             | TupleAtIndex of Int32
-            | EnumField of caseName : String * fieldIndex : Int32
-            | RecordField of fieldName : String
+            | TypeArg of typeName: FQTypeName.FQTypeName * index : Int32 * expected : TypeReference * actual: ValueType * typeArgCount: Int32
 
           type ReverseTypeCheckPath = List<TypeCheckPathPart>
 
@@ -112,8 +111,9 @@ module Darklang =
             | ExpectedApplicableButNot of actualTyp: ValueType * actualValue: Dval
 
             | WrongNumberOfTypeArgsForFn of fn: FQFnName.FQFnName * expected: Int64 * actual: Int64
+            | CannotApplyTypeArgsMoreThanOnce
             | TooManyArgsForFn of fn: FQFnName.FQFnName * expected: Int64 * actual: Int64
-            | FnParameterNotExpectedType of fnName : FQFnName.FQFnName * paramIndex: Int64 * paramName : string * expectedType : ValueType * actualType : ValueType * actualValue : Dval
+            | FnParameterNotExpectedType of fnName : FQFnName.FQFnName * paramIndex: Int64 * paramName : String * expectedType : ValueType * actualType : ValueType * actualValue : Dval
             | FnResultNotExpectedType of fnName : FQFnName.FQFnName * expectedType : ValueType * actualType : ValueType * actualValue : Dval
 
             | TooManyArgsForLambda of lambdaExprId: id * expected: Int64 * actual: Int64
@@ -129,7 +129,7 @@ module Darklang =
         module Jsons =
           type Error =
             | UnsupportedType of TypeReference
-            | CannotSerializeTypeValueCombo of Dval * TypeReference
+            | CannotSerializeValue of Dval
 
         module CLIs =
           type Error =

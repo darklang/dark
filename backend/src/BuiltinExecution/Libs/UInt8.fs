@@ -285,8 +285,8 @@ let fns : List<BuiltInFn> =
         TypeReference.result TUInt8 (TCustomType(Ok errorType, []))
       description = "Returns the <type UInt8> value of a <type String>"
       fn =
-        let resultOk = Dval.resultOk KTUInt8 KTString
         let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.uint8ParseError
+        let resultOk = Dval.resultOk KTUInt8 (KTCustomType(typeName, []))
         let resultError = Dval.resultError KTUInt8 (KTCustomType(typeName, []))
         (function
         | _, _, _, [ DString s ] ->

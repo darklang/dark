@@ -136,6 +136,7 @@ module Darklang =
 
       type ApplicableNamedFn =
         { name: FQFnName.FQFnName
+          typeArgs: List<TypeReference>
           argsSoFar: List<Dval> }
 
       type ApplicableLambda =
@@ -195,6 +196,3 @@ module Darklang =
           typ: TypeReference
           blockArgs: List<String>
           description: String }
-
-
-      type Param = { name: String; typ: TypeReference }

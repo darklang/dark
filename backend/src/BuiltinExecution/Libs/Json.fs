@@ -26,40 +26,33 @@ let parseJson (s : string) : JsonElement =
 
 
 // serialization
-let writeJson (f : Utf8JsonWriter -> Ply<unit>) : Ply<string> =
-  uply {
-    let options =
-      new JsonWriterOptions(
-        // TODO: `true` here would make it hard to write tests...
-        Indented = false,
-        SkipValidation = true,
-        Encoder =
-          System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-      )
+let writeJson (f : Utf8JsonWriter -> unit) : string =
+  let options =
+    new JsonWriterOptions(
+      // TODO: `true` here would make it hard to write tests...
+      Indented = false,
+      SkipValidation = true,
+      Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    )
 
-    let stream = new System.IO.MemoryStream()
-    let w = new Utf8JsonWriter(stream, options)
-    do! f w
-    w.Flush()
+  let stream = new System.IO.MemoryStream()
+  let w = new Utf8JsonWriter(stream, options)
+  f w
+  w.Flush()
 
-    return UTF8.ofBytesUnsafe (stream.ToArray())
-  }
+  UTF8.ofBytesUnsafe (stream.ToArray())
 
 type Utf8JsonWriter with
 
-  member this.writeObject(f : unit -> Ply<unit>) =
-    uply {
-      this.WriteStartObject()
-      do! f ()
-      this.WriteEndObject()
-    }
+  member this.writeObject(f : unit -> unit) =
+    this.WriteStartObject()
+    f ()
+    this.WriteEndObject()
 
-  member this.writeArray(f : unit -> Ply<unit>) =
-    uply {
-      this.WriteStartArray()
-      do! f ()
-      this.WriteEndArray()
-    }
+  member this.writeArray(f : unit -> unit) =
+    this.WriteStartArray()
+    f ()
+    this.WriteEndArray()
 
 
 
@@ -89,170 +82,75 @@ module JsonPath =
 
 
 
-let rec serialize
-  (threadID : ThreadID)
-  (types : Types)
-  // CLEANUP do we need a TST? or maybe that should have been handled earlier?
-  (w : Utf8JsonWriter)
-  (typ : TypeReference) // CLEANUP would a valueType be better here somehow?
-  (dv : Dval)
-  : Ply<unit> =
-  let r = serialize threadID types w
-  uply {
-    match typ, dv with
-    // basic types
-    | TUnit, DUnit -> w.WriteNullValue()
+let rec serialize (threadID : ThreadID) (w : Utf8JsonWriter) (dv : Dval) : unit =
+  let r = serialize threadID w
+  match dv with
+  // basic types
+  | DUnit -> w.WriteNullValue()
 
-    | TBool, DBool b -> w.WriteBooleanValue b
+  | DBool b -> w.WriteBooleanValue b
 
-    | TInt8, DInt8 i -> w.WriteNumberValue i
-    | TUInt8, DUInt8 i -> w.WriteNumberValue i
-    | TInt16, DInt16 i -> w.WriteNumberValue i
-    | TUInt16, DUInt16 i -> w.WriteNumberValue i
-    | TInt32, DInt32 i -> w.WriteNumberValue i
-    | TUInt32, DUInt32 i -> w.WriteNumberValue i
-    | TInt64, DInt64 i -> w.WriteNumberValue i
-    | TUInt64, DUInt64 i -> w.WriteNumberValue i
-    | TInt128, DInt128 i -> w.WriteRawValue(i.ToString())
-    | TUInt128, DUInt128 i -> w.WriteRawValue(i.ToString())
+  | DInt8 i -> w.WriteNumberValue i
+  | DUInt8 i -> w.WriteNumberValue i
+  | DInt16 i -> w.WriteNumberValue i
+  | DUInt16 i -> w.WriteNumberValue i
+  | DInt32 i -> w.WriteNumberValue i
+  | DUInt32 i -> w.WriteNumberValue i
+  | DInt64 i -> w.WriteNumberValue i
+  | DUInt64 i -> w.WriteNumberValue i
+  | DInt128 i -> w.WriteRawValue(i.ToString())
+  | DUInt128 i -> w.WriteRawValue(i.ToString())
 
-    | TFloat, DFloat f ->
-      if System.Double.IsNaN f then
-        w.WriteStringValue "NaN"
-      else if System.Double.IsNegativeInfinity f then
-        w.WriteStringValue "-Infinity"
-      else if System.Double.IsPositiveInfinity f then
-        w.WriteStringValue "Infinity"
-      else
-        let result = sprintf "%.16g" f
-        let result = if result.Contains "." then result else $"{result}.0"
-        w.WriteRawValue result
+  | DFloat f ->
+    if System.Double.IsNaN f then
+      w.WriteStringValue "NaN"
+    else if System.Double.IsNegativeInfinity f then
+      w.WriteStringValue "-Infinity"
+    else if System.Double.IsPositiveInfinity f then
+      w.WriteStringValue "Infinity"
+    else
+      let result = sprintf "%.16g" f
+      let result = if result.Contains "." then result else $"{result}.0"
+      w.WriteRawValue result
 
-    | TChar, DChar c -> w.WriteStringValue c
-    | TString, DString s -> w.WriteStringValue s
+  | DChar c -> w.WriteStringValue c
+  | DString s -> w.WriteStringValue s
 
-    | TDateTime, DDateTime date -> w.WriteStringValue(DarkDateTime.toIsoString date)
+  | DDateTime date -> w.WriteStringValue(DarkDateTime.toIsoString date)
 
-    | TUuid, DUuid uuid -> w.WriteStringValue(string uuid)
+  | DUuid uuid -> w.WriteStringValue(string uuid)
 
-    // Nested types
-    | TTuple(t1, t2, trest), DTuple(d1, d2, rest) ->
-      let zipped = List.zip (t1 :: t2 :: trest) (d1 :: d2 :: rest)
-      do!
-        w.writeArray (fun () ->
-          Ply.List.iterSequentially (fun (t, d) -> r t d) zipped)
+  // Nested types
+  | DTuple(d1, d2, rest) -> w.writeArray (fun () -> List.iter r (d1 :: d2 :: rest))
 
-    | TList ltype, DList(_, l) ->
-      do! w.writeArray (fun () -> Ply.List.iterSequentially (r ltype) l)
+  | DList(_, items) -> w.writeArray (fun () -> List.iter r items)
 
-    | TDict dictType, DDict(_vtTODO, fields) ->
-      do!
-        w.writeObject (fun () ->
-          fields
-          |> Map.toList
-          |> Ply.List.iterSequentially (fun (k, v) ->
-            uply {
-              w.WritePropertyName k
-              do! r dictType v
-            }))
+  | DDict(_, fields) ->
+    w.writeObject (fun () ->
+      fields
+      |> Map.toList
+      |> List.iter (fun (k, v) ->
+        w.WritePropertyName k
+        r v))
 
+  // Enums and Records
+  | DEnum(_, _, _, caseName, fields) ->
+    w.writeObject (fun () ->
+      w.WritePropertyName caseName
+      w.writeArray (fun () -> fields |> List.iter r))
 
-    // Enums and Records
-    | TCustomType(Ok typeName, typeArgs), dval ->
-      match! Types.find types typeName with
-      | None -> Exception.raiseInternal "Couldn't find type" [ "typeName", typeName ]
-      | Some decl ->
+  | DRecord(_, _, _, fields) ->
+    w.writeObject (fun () ->
+      fields
+      |> Map.toList
+      |> List.iter (fun (fieldName, dval) ->
+        w.WritePropertyName fieldName
+        r dval))
 
-        match decl.definition with
-        | TypeDeclaration.Alias typ ->
-          let typ = Types.substitute decl.typeParams typeArgs typ
-          return! r typ dv
-
-        | TypeDeclaration.Enum cases ->
-          match dval with
-          | DEnum(dTypeName, _, _typeArgsDEnumTODO, caseName, fields) ->
-            let matchingCase =
-              cases
-              |> NEList.find (fun c -> c.name = caseName)
-              |> Exception.unwrapOptionInternal
-                "Couldn't find matching case"
-                [ "typeName", dTypeName ]
-
-            do!
-              w.writeObject (fun () ->
-                w.WritePropertyName caseName
-                w.writeArray (fun () ->
-                  List.zip matchingCase.fields fields
-                  |> Ply.List.iterSequentially (fun (fieldType, fieldVal) ->
-                    let typ = Types.substitute decl.typeParams typeArgs fieldType
-                    r typ fieldVal)))
-
-          | _ -> Exception.raiseInternal "Expected a DEnum but got something else" []
-
-        | TypeDeclaration.Record fields ->
-          match dval with
-          | DRecord(_, _, _typeArgsTODO, dvalMap) ->
-            do!
-              w.writeObject (fun () ->
-                dvalMap
-                |> Map.toList
-                |> Ply.List.iterSequentially (fun (fieldName, dval) ->
-                  w.WritePropertyName fieldName
-
-                  let matchingFieldDef =
-                    fields
-                    |> NEList.find (fun def -> def.name = fieldName)
-                    |> Exception.unwrapOptionInternal
-                      "Couldn't find matching field"
-                      [ "fieldName", fieldName ]
-
-                  let typ =
-                    Types.substitute decl.typeParams typeArgs matchingFieldDef.typ
-                  r typ dval))
-          | _ ->
-            RTE.Records.CreationTypeNotRecord typeName
-            |> RTE.Record
-            |> raiseRTE threadID
-
-
-    | TCustomType(Error err, _typeArgs), _dval ->
-      raiseRTE threadID (RTE.ParseTimeNameResolution err)
-
-
-    // Not supported
-    | TVariable _, _
-    | TFn _, _
-    | TDB _, _ ->
-      return! (RTE.Jsons.UnsupportedType typ) |> RTE.Json |> raiseRTE threadID
-
-
-    // Exhaust the types
-    | TUnit, _
-    | TBool, _
-    | TInt64, _
-    | TUInt64, _
-    | TInt8, _
-    | TUInt8, _
-    | TInt16, _
-    | TUInt16, _
-    | TInt32, _
-    | TUInt32, _
-    | TInt128, _
-    | TUInt128, _
-    | TFloat, _
-    | TChar, _
-    | TString, _
-    | TUuid, _
-    | TDateTime, _
-    | TList _, _
-    | TTuple _, _
-    | TCustomType _, _
-    | TDict _, _ ->
-      // Internal error as this shouldn't get past the typechecker
-      RTE.Jsons.CannotSerializeTypeValueCombo(dv, typ)
-      |> RTE.Json
-      |> raiseRTE threadID
-  }
+  // Not supported
+  | DDB _
+  | DApplicable _ ->
+    (RTE.Jsons.CannotSerializeValue dv) |> RTE.Json |> raiseRTE threadID
 
 module ParseError =
   module RT2DT = LibExecution.RuntimeTypesToDarkTypes
@@ -770,8 +668,6 @@ let parse
     // exhaust TypeReferences
     | TUnit, _
     | TBool, _
-    | TInt64, _
-    | TUInt64, _
     | TInt8, _
     | TUInt8, _
     | TInt16, _
@@ -780,15 +676,17 @@ let parse
     | TUInt32, _
     | TInt128, _
     | TUInt128, _
+    | TInt64, _
+    | TUInt64, _
     | TFloat, _
     | TChar, _
     | TString, _
     | TUuid, _
     | TDateTime, _
-    | TList _, _
     | TTuple _, _
-    | TCustomType _, _
-    | TDict _, _ -> raiseCantMatchWithType typ j pathSoFar
+    | TList _, _
+    | TDict _, _
+    | TCustomType _, _ -> raiseCantMatchWithType typ j pathSoFar
 
   let parsed =
     try
@@ -816,15 +714,9 @@ let fns : List<BuiltInFn> =
       description = "Serializes a Dark value to a JSON string."
       fn =
         (function
-        | exeState, vm, [ typeToSerializeAs ], [ arg ] ->
+        | _, vm, [ _typeToSerializeAs ], [ arg ] ->
           uply {
-            // TODO: somehow collect list of TVariable -> TypeReference
-            // "'b = Int",
-            // so we can Json.serialize<'b>, if 'b is in the surrounding context
-            let types = exeState.types
-            let! response =
-              writeJson (fun w ->
-                serialize vm.threadID types w typeToSerializeAs arg)
+            let response = writeJson (fun w -> serialize vm.threadID w arg)
             return DString response
           }
         | _ -> incorrectArgs ())
@@ -853,9 +745,8 @@ let fns : List<BuiltInFn> =
           let resultError =
             TypeChecker.DvalCreator.Result.error threadID okType errType
 
-          let types = exeState.types
           uply {
-            match! parse threadID types typeArg arg with
+            match! parse threadID exeState.types typeArg arg with
             | Ok v -> return resultOk v
             | Error e -> return resultError (ParseError.toDT e)
           }

@@ -51,8 +51,8 @@ let fns : List<BuiltInFn> =
       description =
         "Parse a <type Uuid> of form {{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}}"
       fn =
-        let resultOk = Dval.resultOk KTUuid KTString
         let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.uuidParseError
+        let resultOk = Dval.resultOk KTUuid (KTCustomType(typeName, []))
         let resultError = Dval.resultError KTUuid (KTCustomType(typeName, []))
         (function
         | _, _, _, [ DString s ] ->

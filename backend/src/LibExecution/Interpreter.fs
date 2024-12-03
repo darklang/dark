@@ -627,17 +627,28 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
               |> RTE.Apply
               |> raiseRTE
 
-            // let _typeCheckParam fnName paramIndex paramName expected actual =
-            //   let actualVT = Dval.toValueType actual
-            //   // TODO we can learn some things about the TST here., and/or type args or something
-            //   match ValueType.merge expected actualVT with
-            //   | Some merged ->
-            //     RTE.Applications.FnParameterNotExpectedType(fnName, paramIndex, paramName, expected, actualVT, actual)
-            //     |> RTE.Apply
-            //     |> raiseRTE
-            //   else ()
+            let _typeCheckParam =
+              TypeChecker.checkFnParam exeState.types applicable.name
 
-            // TODO: typechecking
+            let typeCheckParams pairs =
+              pairs
+              |> Ply.List.iterSequentially (fun ((_pIndex, _pName, _pType), _arg) ->
+                uply {
+                  // match!
+                  //   typeCheckParam
+                  //     currentFrame.typeSymbolTable
+                  //     pIndex
+                  //     pName
+                  //     pType
+                  //     arg
+                  // with
+                  // | Ok updatedTst ->
+                  //   currentFrame.typeSymbolTable <- updatedTst
+                  //   return ()
+                  // | Error rte -> return raiseRTE rte
+                  return ()
+                })
+
             // TODO: reduce duplication between branches
             match applicable.name with
             | FQFnName.Builtin builtin ->
@@ -645,9 +656,23 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
               | None -> return RTE.FnNotFound(FQFnName.Builtin builtin) |> raiseRTE
               | Some fn ->
                 let typeArgs =
-                  // TODO: probably prevent this -- type args should be applied all at once
-                  // _AND_, enforce that no type args are applied after any args are applied
-                  applicable.typeArgs @ typeArgs
+                  match applicable.typeArgs, typeArgs with
+                  | [], newTypeArgs -> newTypeArgs
+                  | oldTypeArgs, [] -> oldTypeArgs
+                  | _, _ ->
+                    RTE.Applications.CannotApplyTypeArgsMoreThanOnce
+                    |> RTE.Apply
+                    |> raiseRTE
+
+                // type-check new arguments against the corresponding parameters
+                do!
+                  List.zipUntilEitherEnds
+                    (fn.parameters
+                     |> List.mapi (fun i p -> i, p.name, p.typ)
+                     |> List.skip (List.length applicable.argsSoFar))
+                    newArgDvals
+                  |> typeCheckParams
+
                 let allArgs = applicable.argsSoFar @ newArgDvals
 
                 let paramCount, argCount =
@@ -662,15 +687,12 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                     else if argCount > paramCount then
                       return handleTooManyArgs paramCount argCount
                     else if argCount < paramCount then
-                      // CLEANUP type-check even when we don't have all the args
                       return
                         { applicable with typeArgs = typeArgs; argsSoFar = allArgs }
                         |> AppNamedFn
                         |> DApplicable
                     else
-                      // TODO: type-checking of args
                       let! result = fn.fn (exeState, vm, typeArgs, allArgs)
-                      // TODO: type-checking of result
                       return result
                   }
 
@@ -680,6 +702,17 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
               match! exeState.fns.package pkg with
               | None -> return RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE
               | Some fn ->
+
+                // type-check new arguments against the corresponding parameters
+                do!
+                  List.zipUntilEitherEnds
+                    (fn.parameters
+                     |> NEList.toList
+                     |> List.mapi (fun i p -> i, p.name, p.typ)
+                     |> List.skip (List.length applicable.argsSoFar))
+                    newArgDvals
+                  |> typeCheckParams
+
                 let allArgs = applicable.argsSoFar @ newArgDvals
 
                 let paramCount, argCount =
@@ -692,14 +725,11 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                 else if argCount > paramCount then
                   return handleTooManyArgs paramCount argCount
                 else if argCount < paramCount then
-                  // CLEANUP type-check even when we don't have all the args
                   registers[putResultIn] <-
                     { applicable with typeArgs = typeArgs; argsSoFar = allArgs }
                     |> AppNamedFn
                     |> DApplicable
                 else
-                  // TODO type-checking of fn args
-
                   // push a new frame to execute the function
                   // , and the interpreter will evaluate it shortly
                   frameToPush <-

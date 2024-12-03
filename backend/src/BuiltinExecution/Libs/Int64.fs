@@ -345,8 +345,8 @@ let fns : List<BuiltInFn> =
         TypeReference.result TInt64 (TCustomType(Ok errorType, []))
       description = "Returns the <type Int64> value of a <type String>"
       fn =
-        let resultOk = Dval.resultOk KTInt64 KTString
         let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.int64ParseError
+        let resultOk = Dval.resultOk KTInt64 (KTCustomType(typeName, []))
         let resultError = Dval.resultError KTInt64 (KTCustomType(typeName, []))
         (function
         | _, _, _, [ DString s ] ->

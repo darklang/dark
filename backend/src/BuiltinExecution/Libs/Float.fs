@@ -288,13 +288,13 @@ let fns : List<BuiltInFn> =
       description =
         "Returns the <type Float> value wrapped in a {{Result}} of the <type String>"
       fn =
-        let resultOk r = Dval.resultOk KTFloat KTString r |> Ply
         let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.floatParseError
+        let resultOk = Dval.resultOk KTFloat (KTCustomType(typeName, []))
         let resultError = Dval.resultError KTFloat (KTCustomType(typeName, []))
         (function
         | _, _, _, [ DString s ] ->
           try
-            float (s) |> DFloat |> resultOk
+            float (s) |> DFloat |> resultOk |> Ply
           with :? System.FormatException ->
             ParseError.BadFormat |> ParseError.toDT |> resultError |> Ply
         | _ -> incorrectArgs ())

@@ -374,22 +374,23 @@ module Darklang =
             typeStr ++ typeArgsPart ++ " {" ++ inl ++ elems ++ nl ++ "}"
 
 
-          // TODO: DApplicable
-          | DFnVal(NamedFn fnName) -> PrettyPrinter.RuntimeTypes.fnName fnName
+          | DApplicable(AppNamedFn namedFn) ->
+            PrettyPrinter.RuntimeTypes.fnName namedFn.name
 
-          | DFnVal(Lambda impl) ->
-            // Note: this use case is safe (RE docs/dblock-serialization.md)
-            let ps =
-              impl.parameters
-              |> Stdlib.List.map Stdlib.Tuple2.second
-              |> Stdlib.String.join ", "
+          | DApplicable(AppLambda _lambda) ->
+            // // Note: this use case is safe (RE docs/dblock-serialization.md)
+            // let ps =
+            //   impl.parameters
+            //   |> Stdlib.List.map Stdlib.Tuple2.second
+            //   |> Stdlib.String.join ", "
 
-            // TODO
-            // let body = impl.body |> RuntimeTypes.Expr.toString
-            $"\\ {ps} {{ ... }}"
+            // // TODO
+            // // let body = impl.body |> RuntimeTypes.Expr.toString
+            // $"\\ {ps} {{ ... }}"
+            "(lambda)"
 
 
-      //| DDB name -> $"<{valueTypeName}: {name}>"
+          | DDB name -> $"<{valueTypeName}: {name}>"
 
 
 

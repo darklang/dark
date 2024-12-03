@@ -302,8 +302,8 @@ let fns : List<BuiltInFn> =
           ))
       description = "Returns the <type Int128> value of a <type String>"
       fn =
-        let resultOk = Dval.resultOk KTInt128 KTString
         let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.int128ParseError
+        let resultOk = Dval.resultOk KTInt128 (KTCustomType(typeName, []))
         let resultError = Dval.resultError KTInt128 (KTCustomType(typeName, []))
         (function
         | _, _, _, [ DString s ] ->

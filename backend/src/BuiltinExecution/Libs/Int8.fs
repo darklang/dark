@@ -342,8 +342,8 @@ let fns : List<BuiltInFn> =
         TypeReference.result TInt8 (TCustomType(Ok errorType, []))
       description = "Returns the <type Int8> value of a <type String>"
       fn =
-        let resultOk = Dval.resultOk KTInt8 KTString
         let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.int8ParseError
+        let resultOk = Dval.resultOk KTInt8 (KTCustomType(typeName, []))
         let resultError = Dval.resultError KTInt8 (KTCustomType(typeName, []))
         (function
         | _, _, _, [ DString s ] ->
