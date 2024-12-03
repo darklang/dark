@@ -153,8 +153,8 @@ let fns : List<BuiltInFn> =
               uply {
                 match execResult with
                 | Ok dval -> return dval
-                | Error(_rte) ->
-                  let rteString = "Exe.rteToString state rte" // TODO
+                | Error(rte, _cs) ->
+                  let! rteString = Exe.runtimeErrorToString exeState rte
                   return
                     Exception.raiseInternal
                       "Error executing pm function"
@@ -181,8 +181,8 @@ let fns : List<BuiltInFn> =
               uply {
                 match execResult with
                 | Ok dval -> return (Utils.CliScript.fromDT dval) |> Ok
-                | Error(_rte) ->
-                  let rteString = "TODO Exe.rteToString state rte"
+                | Error(rte, _cs) ->
+                  let! rteString = Exe.runtimeErrorToString exeState rte
                   return
                     Exception.raiseInternal
                       "Error executing parseCanvas function"
