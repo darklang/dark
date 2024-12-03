@@ -46,54 +46,6 @@ let customType
   : ValueType =
   KTCustomType(typeName, typeArgs) |> known
 
-// let rec toString (vt : ValueType) : string =
-//   match vt with
-//   | ValueType.Unknown -> "_"
-//   | ValueType.Known kt ->
-//     match kt with
-//     | KTUnit -> "Unit"
-//     | KTBool -> "Bool"
-//     | KTInt8 -> "Int8"
-//     | KTUInt8 -> "UInt8"
-//     | KTInt16 -> "Int16"
-//     | KTUInt16 -> "UInt16"
-//     | KTInt32 -> "Int32"
-//     | KTUInt32 -> "UInt32"
-//     | KTInt64 -> "Int64"
-//     | KTUInt64 -> "UInt64"
-//     | KTInt128 -> "Int128"
-//     | KTUInt128 -> "UInt128"
-//     | KTFloat -> "Float"
-//     | KTChar -> "Char"
-//     | KTString -> "String"
-//     | KTUuid -> "Uuid"
-//     | KTDateTime -> "DateTime"
-
-//     | KTList inner -> $"List<{toString inner}>"
-//     | KTDict inner -> $"Dict<{toString inner}>"
-//     | KTTuple(first, second, theRest) ->
-//       first :: second :: theRest
-//       |> List.map toString
-//       |> String.concat " * "
-//       |> fun inner -> $"({inner})"
-
-//     | KTCustomType(typeName, typeArgs) ->
-//       let typeArgsPart =
-//         match typeArgs with
-//         | [] -> ""
-//         | _ ->
-//           typeArgs
-//           |> List.map toString
-//           |> String.concat ", "
-//           |> fun inner -> $"<{inner}>"
-
-//       $"{FQTypeName.toString typeName}{typeArgsPart}"
-
-// // | KTFn(args, ret) ->
-// //   NEList.toList args @ [ ret ] |> List.map toString |> String.concat " -> "
-
-// //| KTDB inner -> $"DB<{toString inner}>"
-
 
 let rec private mergeKnownTypes
   (left : KnownType)
@@ -143,13 +95,13 @@ let rec private mergeKnownTypes
       |> Result.collect
       |> Result.map (fun args -> KTCustomType(lName, args))
 
-  // | KTFn(lArgs, lRet), KTFn(rArgs, rRet) ->
-  //   let argsMerged = NEList.map2 r lArgs rArgs |> Result.collectNE
-  //   let retMerged = r lRet rRet
+  | KTFn(lArgs, lRet), KTFn(rArgs, rRet) ->
+    let argsMerged = NEList.map2 r lArgs rArgs |> Result.collectNE
+    let retMerged = r lRet rRet
 
-  //   match argsMerged, retMerged with
-  //   | Ok args, Ok ret -> Ok(KTFn(args, ret))
-  //   | _ -> Error()
+    match argsMerged, retMerged with
+    | Ok args, Ok ret -> Ok(KTFn(args, ret))
+    | _ -> Error()
 
   | _ -> Error()
 
