@@ -258,10 +258,10 @@ module Darklang =
         match modules with
         | [] ->
           [ Module
-              { name =
-                  (c.name
-                   |> PrettyPrinter.ProgramTypes.FQTypeName.Package.fullForReference)
-                  ++ "has no modules"
+              { name = "has no modules"
+                // (c.name
+                //  |> PrettyPrinter.ProgramTypes.FQTypeName.Package.fullForReference)
+                // ++ "has no modules"
                 types = []
                 fns = []
                 constants = []

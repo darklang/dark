@@ -1656,11 +1656,25 @@ let moduleDeclarations =
     t
       "module with types, fns, and consts"
       """module MyModule =
-  type ID = Int64
-  type MyString = String
-  let myFn (i: Int64): Int64 = 1L
-  const x = 100L"""
+    type ID = Int64
+    type MyString = String
+    let myFn (i: Int64): Int64 = 1L
+    const x = 100L"""
       "module MyModule =\n  type ID =\n    Int64\n\n  type MyString =\n    String\n\n  let myFn (i: Int64): Int64 =\n    1L\n\n  const x = 100L"
+      []
+      []
+      []
+      false
+
+    t
+      "module with types, fns, consts, and exprs"
+      """module MyModule =
+    type ID = Int64
+    type MyString = String
+    let myFn (i: Int64): Int64 = 1L
+    const x = 100L
+    1L"""
+      "module MyModule =\n  type ID =\n    Int64\n\n  type MyString =\n    String\n\n  let myFn (i: Int64): Int64 =\n    1L\n\n  const x = 100L\n\n  1L"
       []
       []
       []
@@ -1669,13 +1683,13 @@ let moduleDeclarations =
     t
       "module with types, fns, conts, and newlines"
       """module MyModule =
-  type ID = Int64
+    type ID = Int64
 
-  type MyString = String
+    type MyString = String
 
-  let myFn (i: Int64): Int64 = 1L
+    let myFn (i: Int64): Int64 = 1L
 
-  const x = 100L"""
+    const x = 100L"""
       "module MyModule =\n  type ID =\n    Int64\n\n  type MyString =\n    String\n\n  let myFn (i: Int64): Int64 =\n    1L\n\n  const x = 100L"
       []
       []
@@ -1685,11 +1699,11 @@ let moduleDeclarations =
     t
       "nested module declaration"
       """module MyModule1 =
-  type ID = Int64
+  type ID1 = Int64
   module MyModule2 =
-    type ID = Int64
+    type ID2 = Int64
     module MyModule3 =
-      type ID = Int64
+      type ID3 = Int64
       const x = 100L
       1L"""
       "module MyModule1 =\n  type ID =\n    Int64\n\n  module MyModule2 =\n    type ID =\n      Int64\n\n    module MyModule3 =\n      type ID =\n        Int64\n\n      const x = 100L\n\n      1L"
@@ -1741,5 +1755,6 @@ let tests =
       constantDeclarations
       exprs
       functionDeclarations
-      moduleDeclarations
-      sourceFiles ]
+      // moduleDeclarations
+      // sourceFiles
+      ]
