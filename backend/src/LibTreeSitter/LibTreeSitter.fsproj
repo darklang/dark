@@ -57,11 +57,11 @@
   </ItemGroup>
   <ItemGroup Condition="'$(RuntimeIdentifier)' == 'win-x64'">
     <EmbeddedResource Include="lib/tree-sitter-win-x64.dll" LogicalName="tree-sitter.dll" />
-    <EmbeddedResource Include="lib/tree-sitter-darklang-win-x64.dll" LogicalName="tree-sitter-darklang.dll" />
+    <EmbeddedResource Include="lib/tree-sitter-darklang-win-x64.dll" LogicalName="tree-sitter-darklang.so" />
   </ItemGroup>
   <ItemGroup Condition="'$(RuntimeIdentifier)' == 'win-arm64'">
     <EmbeddedResource Include="lib/tree-sitter-win-arm64.dll" LogicalName="tree-sitter.dll" />
-    <EmbeddedResource Include="lib/tree-sitter-darklang-win-arm64.dll" LogicalName="tree-sitter-darklang.dll" />
+    <EmbeddedResource Include="lib/tree-sitter-darklang-win-arm64.dll" LogicalName="tree-sitter-darklang.so" />
   </ItemGroup>
   <!-- Paket, for NuGet dependencies-->
   <ItemGroup>
