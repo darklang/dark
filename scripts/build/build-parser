@@ -35,6 +35,7 @@ if $cross_compile; then
     # TODO it seems i386 targets aren't working - commented out for now
 
     ["x86_64-windows-gnu"]="tree-sitter-darklang-windows-x64.dll"
+    ["aarch64-windows-gnu"]="tree-sitter-darklang-windows-arm64.dll"
     #["i386-windows-gnu"]="tree-sitter-darklang-windows-i386.dll"
 
     ["x86_64-linux-gnu"]="tree-sitter-darklang-linux-x64.so"
