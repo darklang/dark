@@ -20,9 +20,7 @@ module Darklang =
         match GitHub.Releases.getLatestReleaseTag bearerToken with
         | Ok latestVersion ->
           match Config.readLocallyInstalledDarklangVersion configPath with
-          | Ok(Some localVersion) ->
-            Stdlib.Result.Result.Ok(localVersion == latestVersion)
-          | Ok None -> Stdlib.Result.Result.Ok false
+          | Ok localVersion -> Stdlib.Result.Result.Ok(localVersion == latestVersion)
           | Error _e -> Stdlib.Result.Result.Error "Couldn't determine local version"
         | Error _e ->
           Stdlib.Result.Result.Error

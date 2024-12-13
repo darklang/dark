@@ -112,10 +112,10 @@ Usage:
 dark help                                     Show this help message and exit
 
 dark [function name]                          Run a function in the package manager
-  i.e. `darklang @Darklang.Stdlib.Bool.and true false`
+  i.e. `dark @Darklang.Stdlib.Bool.and true false`
 
 dark [script path]                            Run a .dark script
-  i.e. `darklang ./my-script.dark`
+  i.e. `dark ./my-script.dark`
 
 dark install                                  Install the darklang CLI so it's available globally in your terminal
 
