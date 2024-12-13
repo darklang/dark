@@ -39,7 +39,7 @@ module Darklang =
           | Some timestamp ->
             let secondsSinceLastUpdate =
               ((Stdlib.DateTime.now ()) |> Stdlib.DateTime.toSeconds)
-              - (lastUpdateTimestamp |> Stdlib.Int64.parse |> Builtin.unwrap)
+              - (timestamp |> Stdlib.Int64.parse |> Builtin.unwrap)
 
             let oneDayInSeconds = 86400L // TODO: show math
 
@@ -49,6 +49,9 @@ module Darklang =
 
       let selfUpdateIfRelevant () : Stdlib.Result.Result<Unit, String> =
         // if not installed, ignore -- nothing to self-update
+        let homeDirectory =
+          (Stdlib.Cli.PowerShell.getHomeDirectory ()) |> Builtin.unwrap
+
         let configPath =
           match (Stdlib.Cli.OS.getOS ()) with
           | Ok Windows -> $"{homeDirectory}\\.darklang\\config.json"
