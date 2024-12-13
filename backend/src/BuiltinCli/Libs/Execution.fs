@@ -75,6 +75,27 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "cliGetOS" 0
+      description = "Returns the operating system name (e.g. Windows, OSX, Linux)"
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TString
+      fn =
+        (function
+        | _, _, [ DUnit ] ->
+          let os =
+            if RuntimeInformation.IsOSPlatform OSPlatform.Windows then "Windows"
+            else if RuntimeInformation.IsOSPlatform OSPlatform.Linux then "Linux"
+            else if RuntimeInformation.IsOSPlatform OSPlatform.OSX then "OSX"
+            else "Unknown"
+
+          DString os |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
       deprecated = NotDeprecated } ]
 
 let builtins : Builtins = Builtin.make [] fns
