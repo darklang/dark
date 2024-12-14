@@ -7,12 +7,7 @@ module Darklang =
           | MacOS
           | Windows
 
-        let getOS () : Stdlib.Result.Result<OS, String> =
-          match Builtin.cliGetOS () with
-          | "Linux" -> Stdlib.Result.Result.Ok OS.Linux
-          | "OSX" -> Stdlib.Result.Result.Ok OS.MacOS
-          | "Windows" -> Stdlib.Result.Result.Ok OS.Windows
-          | _ -> Stdlib.Result.Result.Error "Unsupported OS"
+        let getOS () : Stdlib.Result.Result<OS, String> = Builtin.cliGetOS ()
 
 
       module Architecture =

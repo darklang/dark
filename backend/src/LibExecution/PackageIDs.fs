@@ -87,8 +87,13 @@ module Type =
       let json = p [] "Json" "d80a6028-92e8-4da2-89b3-1cfc5d275024"
 
     module Cli =
+      let private p addl = p ("Cli" :: addl)
       let executionOutcome =
-        p [ "Cli" ] "ExecutionOutcome" "754e11ce-8842-4961-8b40-cdce2cd0d7c8"
+        p [] "ExecutionOutcome" "754e11ce-8842-4961-8b40-cdce2cd0d7c8"
+
+      module OS =
+        let private p addl = p ("OS" :: addl)
+        let os = p [] "OS" "88f1ded5-e860-4f8e-8848-da7abac5824c"
 
   module LanguageTools =
     let private p addl = p ("LanguageTools" :: addl)

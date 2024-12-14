@@ -18,6 +18,23 @@ let executionOutcomeTypeName =
   FQTypeName.fqPackage PackageIDs.Type.Stdlib.Cli.executionOutcome
 
 
+module OS =
+  type OS =
+    | Linux
+    | OSX
+    | Windows
+
+  let osTypeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.Cli.OS.os
+
+  let toDT (os : OS) : Dval =
+    let (caseName, fields) =
+      match os with
+      | Linux -> "Linux", []
+      | OSX -> "MacOS", []
+      | Windows -> "Windows", []
+
+    DEnum(osTypeName, osTypeName, [], caseName, fields)
+
 let fns : List<BuiltInFn> =
   [ { name = fn "cliExecute" 0
       description = "Runs a process; return exitCode, stdout, and stderr"
@@ -82,17 +99,23 @@ let fns : List<BuiltInFn> =
       description = "Returns the operating system name (e.g. Windows, OSX, Linux)"
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TString
+      returnType = TypeReference.result (TCustomType(Ok OS.osTypeName, [])) TString
       fn =
         (function
         | _, _, [ DUnit ] ->
-          let os =
-            if RuntimeInformation.IsOSPlatform OSPlatform.Windows then "Windows"
-            else if RuntimeInformation.IsOSPlatform OSPlatform.Linux then "Linux"
-            else if RuntimeInformation.IsOSPlatform OSPlatform.OSX then "OSX"
-            else "Unknown"
+          let osTypeRef = KTCustomType(OS.osTypeName, [])
+          let resultOk = Dval.resultOk osTypeRef KTString
+          let resultError = Dval.resultError osTypeRef KTString
 
-          DString os |> Ply
+          if RuntimeInformation.IsOSPlatform OSPlatform.Windows then
+            OS.Windows |> OS.toDT |> resultOk |> Ply
+          else if RuntimeInformation.IsOSPlatform OSPlatform.Linux then
+            OS.Linux |> OS.toDT |> resultOk |> Ply
+          else if RuntimeInformation.IsOSPlatform OSPlatform.OSX then
+            OS.OSX |> OS.toDT |> resultOk |> Ply
+          else
+            "Unsupported OS" |> DString |> resultError |> Ply
+
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
