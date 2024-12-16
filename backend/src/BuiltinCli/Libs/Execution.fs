@@ -18,6 +18,23 @@ let executionOutcomeTypeName =
   FQTypeName.fqPackage PackageIDs.Type.Stdlib.Cli.executionOutcome
 
 
+module OS =
+  type OS =
+    | Linux
+    | OSX
+    | Windows
+
+  let osTypeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.Cli.OS.os
+
+  let toDT (os : OS) : Dval =
+    let (caseName, fields) =
+      match os with
+      | Linux -> "Linux", []
+      | OSX -> "MacOS", []
+      | Windows -> "Windows", []
+
+    DEnum(osTypeName, osTypeName, [], caseName, fields)
+
 let fns : List<BuiltInFn> =
   [ { name = fn "cliExecute" 0
       description = "Runs a process; return exitCode, stdout, and stderr"
@@ -72,6 +89,33 @@ let fns : List<BuiltInFn> =
               "stdout", DString stdout
               "stderr", DString stderr ]
           DRecord(typeName, typeName, [], Map fields) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "cliGetOS" 0
+      description = "Returns the operating system name (e.g. Windows, OSX, Linux)"
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TypeReference.result (TCustomType(Ok OS.osTypeName, [])) TString
+      fn =
+        (function
+        | _, _, [ DUnit ] ->
+          let osTypeRef = KTCustomType(OS.osTypeName, [])
+          let resultOk = Dval.resultOk osTypeRef KTString
+          let resultError = Dval.resultError osTypeRef KTString
+
+          if RuntimeInformation.IsOSPlatform OSPlatform.Windows then
+            OS.Windows |> OS.toDT |> resultOk |> Ply
+          else if RuntimeInformation.IsOSPlatform OSPlatform.Linux then
+            OS.Linux |> OS.toDT |> resultOk |> Ply
+          else if RuntimeInformation.IsOSPlatform OSPlatform.OSX then
+            OS.OSX |> OS.toDT |> resultOk |> Ply
+          else
+            "Unsupported OS" |> DString |> resultError |> Ply
+
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
