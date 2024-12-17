@@ -9,19 +9,27 @@ module Darklang =
           | "type_decl" ->
             (TypeDeclaration.parse node)
             |> Stdlib.Result.map (fun x ->
-              WrittenTypes.ModuleDeclaration.Declaration.Type x)
+              WrittenTypes.ModuleDeclaration.Declaration.SourceFileDeclaration(
+                WrittenTypes.SourceFile.SourceFileDeclaration.Type x
+              ))
           | "fn_decl" ->
             (FunctionDeclaration.parse node)
             |> Stdlib.Result.map (fun x ->
-              WrittenTypes.ModuleDeclaration.Declaration.Function x)
+              WrittenTypes.ModuleDeclaration.Declaration.SourceFileDeclaration(
+                WrittenTypes.SourceFile.SourceFileDeclaration.Function x
+              ))
           | "const_decl" ->
             (ConstantDeclaration.parse node)
             |> Stdlib.Result.map (fun x ->
-              WrittenTypes.ModuleDeclaration.Declaration.Constant x)
+              WrittenTypes.ModuleDeclaration.Declaration.SourceFileDeclaration(
+                WrittenTypes.SourceFile.SourceFileDeclaration.Constant x
+              ))
           | "module_decl" ->
             (ModuleDeclaration.parse node)
             |> Stdlib.Result.map (fun x ->
-              WrittenTypes.ModuleDeclaration.Declaration.SubModule x)
+              WrittenTypes.ModuleDeclaration.Declaration.SourceFileDeclaration(
+                WrittenTypes.SourceFile.SourceFileDeclaration.Module x
+              ))
           | "expression" ->
             (Expr.parse node)
             |> Stdlib.Result.map (fun x ->
