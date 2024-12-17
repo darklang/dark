@@ -10,6 +10,12 @@ module Darklang =
 
     type ExecutionError = { msg: String; metadata: Dict<String> }
 
+    // module ExecutionError =
+    //   let toString (err: ExecutionError) : String =
+    //     let metadata = err.metadata |> Stdlib.Dict.toList |> Stdlib.List.map (fun (k, v) -> $"- {k}: {v}")
+    //     let metadata = metadata |> Stdlib.String.join "\n"
+    //     $"Error: {err.msg}\n{metadata}"
+
 
     let parseArguments (args: List<String>) : Command =
       // Extract "flags" value from last argument,
@@ -89,12 +95,12 @@ module Darklang =
           Builtin.cliParseAndExecuteScript
             scriptPath
             scriptSourceCode
-            (Dict { args = args })
+            args
 
         match result with
         | Ok exitCode -> exitCode
         | Error e ->
-          Builtin.printLine (LanguageTools.RuntimeErrors.Error.toString e)
+          Builtin.printLine (Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.toString e)
           1L
 
       | Error e ->

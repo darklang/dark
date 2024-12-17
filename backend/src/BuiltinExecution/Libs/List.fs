@@ -63,11 +63,12 @@ module DvalComparator =
       else
         c
 
+    // CLEANUP consider supporting sorting of `DApplicable`s
     // | DApplicable app1, DApplicable app2 ->
     //   match app1, app2 with
-    //   | AppLambda l1, AppLambda l2 -> //TODO
-    //   | AppNamedFn n1, AppNamedFn n2 -> //TODO
-    //   | _ -> //TODO
+    //   | AppLambda l1, AppLambda l2 -> ...
+    //   | AppNamedFn n1, AppNamedFn n2 -> ...
+    //   | _ -> ...
 
     // | DFnVal(Lambda l1), DFnVal(Lambda l2) ->
     //   let l1' = NEList.toList l1.parameters
@@ -110,41 +111,6 @@ module DvalComparator =
       |> raiseUntargetedRTE
 
 
-  //   // and compareLetPatternsLists (l1 : List<LetPattern>) (l2 : List<LetPattern>) : int =
-  //   //   let rec equalsLetPattern (pattern1 : LetPattern) (pattern2 : LetPattern) : int =
-  //   //     match pattern1, pattern2 with
-  //   //     | LPVariable(_, name1), LPVariable(_, name2) -> compare name1 name2
-  //   //     | LPUnit _, LPUnit _ -> 0
-
-  //   //     | LPTuple(_, first, second, theRest), LPTuple(_, first', second', theRest') ->
-  //   //       let all = first :: second :: theRest
-  //   //       let all' = first' :: second' :: theRest'
-  //   //       if all.Length <> all'.Length then
-  //   //         compare all.Length all'.Length
-  //   //       else
-  //   //         let c = equalsLetPattern first first'
-  //   //         if c = 0 then
-  //   //           let c = equalsLetPattern second second'
-  //   //           if c = 0 then compareLetPatternsLists theRest theRest' else c
-  //   //         else
-  //   //           c
-
-  //   //     | LPTuple _, LPVariable _ -> 1
-  //   //     | LPTuple _, LPUnit _ -> 1
-  //   //     | LPUnit _, LPVariable _ -> -1
-  //   //     | LPVariable _, LPUnit _ -> 1
-  //   //     | LPVariable _, LPTuple _ -> -1
-  //   //     | _, _ -> -1
-
-  //   //   match l1, l2 with
-  //   //   | [], [] -> 0
-  //   //   | [], _ -> -1
-  //   //   | _, [] -> 1
-  //   //   | h1 :: t1, h2 :: t2 ->
-  //   //     let c = equalsLetPattern h1 h2
-  //   //     if c = 0 then compareLetPatternsLists t1 t2 else c
-
-
 
   and compareLists (l1 : List<Dval>) (l2 : List<Dval>) : int =
     match l1, l2 with
@@ -168,13 +134,10 @@ module DvalComparator =
       else
         c
 
-//   //and compareExprs (_e1 : Expr) (_e2 : Expr) : int = 0 // CLEANUP
-
 
 
 // Based on https://github.com/dotnet/runtime/blob/57bfe474518ab5b7cfe6bf7424a79ce3af9d6657/src/coreclr/tools/Common/Sorting/MergeSortCore.cs#L55
 module Sort =
-
   exception InvalidSortComparatorInt of int64
 
   type Comparer = Dval -> Dval -> Ply<int>

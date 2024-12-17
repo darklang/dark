@@ -97,7 +97,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DApplicable a, DApplicable b ->
     match a, b with
     | AppLambda a, AppLambda b ->
-      // CLANUP this is very incomplete,
+      // CLEANUP this is very incomplete,
       // but/because fully checking for equality of LambdaImpls may require some heavy refactoring.
       a.exprId = b.exprId
 
@@ -138,11 +138,12 @@ let rec equals (a : Dval) (b : Dval) : bool =
 
 
 let varA = TVariable "a"
+let varB = TVariable "b"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "equals" 0
       typeParams = []
-      parameters = [ Param.make "a" varA ""; Param.make "b" varA "" ]
+      parameters = [ Param.make "a" varA ""; Param.make "b" varB "" ]
       returnType = TBool
       description = "Returns true if the two value are equal"
       fn =
@@ -161,7 +162,7 @@ let fns : List<BuiltInFn> =
 
     { name = fn "notEquals" 0
       typeParams = []
-      parameters = [ Param.make "a" varA ""; Param.make "b" varA "" ]
+      parameters = [ Param.make "a" varA ""; Param.make "b" varB "" ]
       returnType = TBool
       description = "Returns true if the two value are not equal"
       fn =

@@ -72,12 +72,22 @@ let state () =
       dbs = Map.empty
       secrets = [] }
 
-  let notify (_state : RT.ExecutionState) (_msg : string) (_metadata : Metadata) =
+  let notify
+    (_state : RT.ExecutionState)
+    (_vm : RT.VMState)
+    (_msg : string)
+    (_metadata : Metadata)
+    =
     // let metadata = extraMetadata state @ metadata
     // LibService.Rollbar.notify msg metadata
     ()
 
-  let sendException (_ : RT.ExecutionState) (metadata : Metadata) (exn : exn) =
+  let sendException
+    (_ : RT.ExecutionState)
+    (_ : RT.VMState)
+    (metadata : Metadata)
+    (exn : exn)
+    =
     printException "Internal error" metadata exn
 
   Exe.createState

@@ -182,19 +182,19 @@ let executionStateFor
     // catch them much closer to where they happen (usually in the function
     // definition)
     let rec exceptionReporter : RT.ExceptionReporter =
-      fun (state : RT.ExecutionState) metadata (exn : exn) ->
+      fun (state : RT.ExecutionState) vm metadata (exn : exn) ->
         let message = exn.Message
         let stackTrace = exn.StackTrace
         let metadata = Exception.toMetadata exn @ metadata
         let inner = exn.InnerException
-        if not (isNull inner) then (exceptionReporter state [] inner) else ()
+        if not (isNull inner) then (exceptionReporter state vm [] inner) else ()
         state.test.exceptionReports <-
           (message, stackTrace, metadata) :: state.test.exceptionReports
 
     // For now, lets not track notifications, as often our tests explicitly trigger
     // things that notify, while Exceptions have historically been unexpected errors
     // in the tests and so are worth watching out for.
-    let notifier : RT.Notifier = fun _state _msg _tags -> ()
+    let notifier : RT.Notifier = fun _state _vm _msg _tags -> ()
 
     let builtins =
       if allowLocalHttpAccess then localBuiltIns pmPT else cloudBuiltIns pmPT

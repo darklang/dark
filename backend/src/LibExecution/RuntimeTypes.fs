@@ -402,7 +402,6 @@ type Instruction =
     updates : List<string * Register>
 
   | GetRecordField of
-    // todo: rename to "lhs"? Look into this.
     targetReg : Register *
     recordReg : Register *
     fieldName : string
@@ -465,11 +464,7 @@ and LambdaImpl =
     exprId : id
 
     /// How should the arguments be deconstructed?
-    ///
-    /// When we've received as many args as there are patterns,
-    /// we should either apply the lambda, or error.
-    /// CLEANUP is this enough? in order to support let patterns, idk...
-    patterns : NEList<LetPattern> // LPVar 1
+    patterns : NEList<LetPattern>
 
     /// When the lambda is defined,
     /// we need to "close over" any symbols 'above' that are referenced.
@@ -485,29 +480,23 @@ and LambdaImpl =
     /// (copy from register '1' above into register '2' in this CF)
     ///
     /// PT2RT has the duty of creating and passing in (PT2RT-only)
-    /// symbtable for the evaluation of the expr on the RHS
+    /// symtable for the evaluation of the expr on the RHS
     registersToCloseOver : List<Register * Register>
 
-    // Hmm do these actually belong here, or somewhere else? idk how we get this to work.
-    // do we need to call eval within eval or something? would love to avoid that.
-    // if so, we might need a pc or something to keep track of where we are in the 'above' instructions
     instructions : Instructions
   }
 
 
 and ApplicableNamedFn =
-  {
-    name : FQFnName.FQFnName
+  { name : FQFnName.FQFnName
 
+    typeSymbolTable : TypeSymbolTable
+
+    // CLEANUP maybe this could be List<ValueType>?
     typeArgs : List<TypeReference>
 
-    /// CLEANUP should this be a list of registers instead?
-    argsSoFar : List<Dval>
-  }
+    argsSoFar : List<Dval> }
 
-// if we're just evaluating a "raw expr," I suppose that's InputClosure?
-// eval probably handles whichever of these,
-// with a fn above that to coordinate things?
 and ApplicableLambda =
   {
     /// The lambda's ID, corresponding to the PT.Expr
@@ -517,7 +506,7 @@ and ApplicableLambda =
     /// (exprId alone isn't enough to perform equality checks, etc.)
     exprId : id
 
-    /// We _could_ have this be Register * Register
+    /// We _could_ have this be List<Register * Register>
     /// , but we run some risk of the register's value changing
     /// between the time we create the lambda and the time we apply it.
     /// (even though, at time of writing, this seems impossible.)
@@ -585,19 +574,17 @@ and [<NoComparison>] Dval =
   | DRecord of
     sourceTypeName : FQTypeName.FQTypeName *
     runtimeTypeName : FQTypeName.FQTypeName *
-    // do we need to split this into sourceTypeArgs and runtimeTypeArgs?
+    // CLEANUP
+    // Do we need to split this into sourceTypeArgs and runtimeTypeArgs?
     // What are we even using the source stuff for? error-reporting?
+    // Could source stuff be erased in PT2RT, if we dealt with alias-resolution there?
     typeArgs : List<ValueType> *
-    fields : DvalMap // would a list be better? We can do the type-check fun _after_
-  // field access would be a tad slower, but there usually aren't that many fields
-  // and it's probably more convenient?
-  // Hmm for dicts, we could consider the same thing, but field-access perf is
-  // more important there.
+    fields : DvalMap
 
   | DEnum of
     sourceTypeName : FQTypeName.FQTypeName *
     runtimeTypeName : FQTypeName.FQTypeName *
-    typeArgs : List<ValueType> *  // same q here - split into sourceTypeArgs and runtimeTypeArgs?
+    typeArgs : List<ValueType> *
     caseName : string *
     fields : List<Dval>
 
@@ -605,7 +592,6 @@ and [<NoComparison>] Dval =
 
   // References
   | DDB of name : string
-
 
 
 and DvalTask = Ply<Dval>
@@ -672,7 +658,7 @@ module RuntimeError =
   module Ints =
     type Error =
       | DivideByZeroError
-      | OutOfRange // TODO include value?
+      | OutOfRange // CLEANUP consider including the out-of-range value
       | NegativeExponent
       | NegativeModulus
       | ZeroModulus
@@ -817,6 +803,7 @@ module RuntimeError =
         actualValue : Dval
 
       // specific to lambdas
+      | CannotApplyTypeArgsToLambda
       | TooManyArgsForLambda of lambdaExprId : id * expected : int64 * actual : int64
 
 
@@ -934,8 +921,15 @@ type ExecutionPoint =
   /// Executing some lambda
   | Lambda of parent : ExecutionPoint * lambdaExprId : id
 
+
 /// Not: in reverse order
 type CallStack = List<ExecutionPoint>
+
+module CallStack =
+  let entrypoint (cs : CallStack) : Option<ExecutionPoint> = List.last cs
+
+  let last (cs : CallStack) : Option<ExecutionPoint> = List.head cs
+
 
 /// Internally in the runtime, we allow throwing RuntimeErrorExceptions. At the
 /// boundary, typically in Execution.fs, we will catch the exception, and return
@@ -1069,18 +1063,16 @@ type Const =
 // ------------
 // Package-Space
 // ------------
+// TODO reference things by hash, not ID
 module PackageType =
-  // TODO: hash
   type PackageType = { id : uuid; declaration : TypeDeclaration.T }
 
 module PackageConstant =
-  // TODO: hash
   type PackageConstant = { id : uuid; body : Const }
 
 module PackageFn =
   type Parameter = { name : string; typ : TypeReference }
 
-  // TODO: hash
   type PackageFn =
     { id : uuid
       typeParams : List<string>
@@ -1232,15 +1224,12 @@ module Tracing =
   /// TODO maybe rename to ExprLocation
   type Source = ExecutionPoint * Option<id>
 
-
   type FunctionRecord = Source * FQFnName.FQFnName
 
   type TraceDval = id -> Dval -> unit
 
   type TraceExecutionPoint = ExecutionPoint -> unit
 
-  // why do we need the Dvals here? those are the args, right - do we really need them?
-  // ah, because we could call the same fn twice, from the same place, but with different args. hmm.
   type LoadFnResult =
     FunctionRecord -> NEList<Dval> -> Option<Dval * NodaTime.Instant>
 
@@ -1367,7 +1356,7 @@ and Builtins =
 
 
 /// Every part of a user's program
-/// CLEANUP rename to 'app' or 'canvas'?
+/// CLEANUP rename to 'app' or 'canvas' or something
 and Program =
   { canvasID : CanvasID
     internalFnsAllowed : bool
@@ -1376,7 +1365,7 @@ and Program =
 
 
 // Used for testing
-// TODO: maybe this belongs in Execution rather than RuntimeTypes?
+// CLEANUP maybe this belongs in Execution rather than RuntimeTypes?
 // and taken out of ExecutionState, where it's not really used?
 and TestContext =
   { mutable sideEffectCount : int
@@ -1386,10 +1375,9 @@ and TestContext =
     postTestExecutionHook : TestContext -> unit }
 
 
+and ExceptionReporter = ExecutionState -> VMState -> Metadata -> exn -> unit
 
-and ExceptionReporter = ExecutionState -> Metadata -> exn -> unit
-
-and Notifier = ExecutionState -> string -> Metadata -> unit
+and Notifier = ExecutionState -> VMState -> string -> Metadata -> unit
 
 /// All state set when starting an execution; non-changing
 /// (as opposed to the VMState, which changes as the execution progresses)
@@ -1410,7 +1398,7 @@ and ExecutionState =
 
 
     // -- Set per-execution --
-    program : Program // TODO: rename to Canvas?
+    program : Program
 
     types : Types
     fns : Functions
@@ -1443,6 +1431,7 @@ module Types =
       types.package pkg |> Ply.map (Option.map _.declaration)
 
   /// Swap concrete types for type parameters
+  /// CLEANUP consider accepting a pre-zipped list instead
   let rec substitute
     (typeParams : List<string>)
     (typeArguments : List<TypeReference>)
@@ -1474,11 +1463,10 @@ module Types =
 
     | TCustomType(typ, args) -> TCustomType(typ, List.map r args)
 
-    | TFn _ -> typ // TYPESTODO
-    | TDB _ -> typ // TYPESTODO
+    | TFn(args, ret) -> TFn(NEList.map r args, r ret)
+    | TDB inner -> TDB(r inner)
 
     | TVariable v ->
-      // WHY WOULDN'T THIS JUST USE A TST??
       if typeParams.Length = typeArguments.Length then
         List.zip typeParams typeArguments
         |> List.find (fun (param, _) -> param = v)
@@ -1574,9 +1562,9 @@ module TypeReference =
 
 
 let consoleReporter : ExceptionReporter =
-  fun _state (metadata : Metadata) (exn : exn) ->
+  fun _state _vm (metadata : Metadata) (exn : exn) ->
     printException "runtime-error" metadata exn
 
 let consoleNotifier : Notifier =
-  fun _state msg tags ->
+  fun _state _vm msg tags ->
     print $"A notification happened in the runtime:\n  {msg}\n  {tags}\n\n"

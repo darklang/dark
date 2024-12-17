@@ -12,15 +12,9 @@ module FQTypeName =
   module Package =
     let toRT (p : PT.FQTypeName.Package) : RT.FQTypeName.Package = p
 
-  //let fromRT (p : RT.FQTypeName.Package) : PT.FQTypeName.Package = p
-
   let toRT (fqtn : PT.FQTypeName.FQTypeName) : RT.FQTypeName.FQTypeName =
     match fqtn with
     | PT.FQTypeName.Package p -> RT.FQTypeName.Package(Package.toRT p)
-
-// let fromRT (fqtn : RT.FQTypeName.FQTypeName) : Option<PT.FQTypeName.FQTypeName> =
-//   match fqtn with
-//   | RT.FQTypeName.Package p -> PT.FQTypeName.Package(Package.fromRT p) |> Some
 
 
 module FQConstantName =
@@ -28,13 +22,8 @@ module FQConstantName =
     let toRT (c : PT.FQConstantName.Builtin) : RT.FQConstantName.Builtin =
       { name = c.name; version = c.version }
 
-  //     let fromRT (c : RT.FQConstantName.Builtin) : PT.FQConstantName.Builtin =
-  //       { name = c.name; version = c.version }
-
   module Package =
     let toRT (c : PT.FQConstantName.Package) : RT.FQConstantName.Package = c
-
-  //     let fromRT (c : RT.FQConstantName.Package) : PT.FQConstantName.Package = c
 
   let toRT
     (name : PT.FQConstantName.FQConstantName)
@@ -49,13 +38,8 @@ module FQFnName =
     let toRT (s : PT.FQFnName.Builtin) : RT.FQFnName.Builtin =
       { name = s.name; version = s.version }
 
-    let fromRT (s : RT.FQFnName.Builtin) : PT.FQFnName.Builtin =
-      { name = s.name; version = s.version }
-
   module Package =
     let toRT (p : PT.FQFnName.Package) : RT.FQFnName.Package = p
-
-    let fromRT (p : RT.FQFnName.Package) : PT.FQFnName.Package = p
 
   let toRT (fqfn : PT.FQFnName.FQFnName) : RT.FQFnName.FQFnName =
     match fqfn with
@@ -206,11 +190,6 @@ module MatchPattern =
     | PT.MPChar(_, c) -> RT.MPChar c, symbols, rc
     | PT.MPString(_, s) -> RT.MPString s, symbols, rc
 
-
-    (*
-    match [1;2;3] with
-    | [1; a; b] when a > 3 -> ...
-    *)
     | PT.MPList(_, pats) ->
       let pats, symbols, rc =
         pats
@@ -398,21 +377,20 @@ module Expr =
 
 
     | PT.ETuple(_id, first, second, theRest) ->
-      // save the 'first' register for the result
+      // reserve the 'first' register for the result
       let tupleReg, rc = rc, rc + 1
 
       let first = toRT symbols rc first
       let second = toRT symbols first.registerCount second
-      let (rcAfterAll, _rcsAfterTheRest, theRestInstrs, theRestRegs) =
+      let (rcAfterAll, theRestInstrs, theRestRegs) =
         theRest
         |> List.fold
-          (fun (rc, rcs, instrs, resultRegs) item ->
+          (fun (rc, instrs, resultRegs) item ->
             let itemInstrs = toRT symbols rc item
             (itemInstrs.registerCount,
-             rcs @ [ itemInstrs.registerCount ],
              instrs @ itemInstrs.instructions,
              resultRegs @ [ itemInstrs.resultIn ]))
-          (second.registerCount, [], [], [])
+          (second.registerCount, [], [])
 
       { registerCount = rcAfterAll
         instructions =
@@ -591,7 +569,7 @@ module Expr =
         resultIn = rc }
 
     | PT.EConstant(_, Error nre) ->
-      // TODO improve (see notes for EFnName)
+      // CLEANUP improve (see notes for EFnName)
       { registerCount = rc
         instructions = [ RT.RaiseNRE(NameResolutionError.toRT nre) ]
         resultIn = rc }
@@ -651,6 +629,7 @@ module Expr =
       // Building a `match` expression is a bit more involved than other expressions.
       // We do this in multiple phases, and have a helper type to assist.
 
+      // First, the easy part - compile the expression we're `match`ing against.
       let expr = toRT symbols rc expr
 
       // Shortly, we'll compile each of the cases.
@@ -706,9 +685,7 @@ module Expr =
 
       let (cases, _) : List<MatchCase.IntermediateValue * int> * int =
         casesAfterFirstPhase
-        |> List.map (fun c ->
-          let instrCount = countInstrsForCase c
-          (c, instrCount))
+        |> List.map (fun c -> (c, countInstrsForCase c))
         |> List.foldRight
           // CLEANUP this works, but hurts the brain a bit.
           (fun (acc, runningTotal) (c, instrCount) ->
@@ -756,7 +733,6 @@ module Expr =
         resultIn = returnReg }
 
     | PT.ERecord(_id, Ok typeName, typeArgs, fields) ->
-      // fields : List<string * Expr>
       let recordReg, rc = rc, rc + 1
 
       // CLEANUP: complain if there are no fields

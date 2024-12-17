@@ -141,32 +141,24 @@ let t
           | Ok _ -> return actual
 
           // "alleged" because sometimes we incorrectly construct an RTE... (should be rare, and only during big refactors)
-          | Error(allegedRTE, _cs) ->
+          | Error(allegedRTE, callStack) ->
             let actual = RT2DT.RuntimeError.toDT allegedRTE
             let errorMessageFn =
               RT.FQFnName.fqPackage
                 PackageIDs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toErrorMessage
 
+            let! _csString = Exe.callStackString state callStack
+
             let! typeChecked =
-              // let expected =
-              //   RT.TCustomType(
-              //     Ok(
-              //       RT.FQTypeName.fqPackage
-              //         PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.error
-              //     ),
-              //     []
-              //   )
-
-              // let context =
-              //   LibExecution.TypeChecker.Context.FunctionCallParameter(
-              //     errorMessageFn,
-              //     { name = ""; typ = expected },
-              //     0
-              //   )
-              // let types = RT.ExecutionState.availableTypes state
-              // LibExecution.TypeChecker.unify context types Map.empty expected actual
-              Ply(Ok())
-
+              let expected =
+                RT.TCustomType(
+                  Ok(
+                    RT.FQTypeName.fqPackage
+                      PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.error
+                  ),
+                  []
+                )
+              LibExecution.TypeChecker.unify state.types Map.empty expected actual
 
             match typeChecked with
             | Ok _ ->
@@ -180,6 +172,7 @@ let t
 
               match result with
               | Ok(RT.DEnum(_, _, [], "ErrorString", [ RT.DString _ ])) ->
+                //debuG "callStack" csString
                 return result
               | Ok _ ->
                 return
@@ -196,15 +189,12 @@ let t
                     [ "originalRTE", DvalReprDeveloper.toRepr actual
                       "subsequentRTE", DvalReprDeveloper.toRepr rte ]
 
-            | Error e ->
-              debuG "Alleged RTE was not an RTE" e
-              // The result was not a RuntimeError, try to stringify the typechecker error
-              return!
-                LibExecution.Execution.executeFunction
-                  state
-                  errorMessageFn
-                  []
-                  (NEList.ofList (RT2DT.RuntimeError.toDT e) [])
+            | Error reverseTypeCheckPath ->
+              return
+                Exception.raiseInternal
+                  "Alleged RTE was not an RTE  (failed type-check)"
+                  [ "reverseTypeCheckPath", reverseTypeCheckPath
+                    "allegedRTE", allegedRTE ]
         }
         |> Ply.toTask
 

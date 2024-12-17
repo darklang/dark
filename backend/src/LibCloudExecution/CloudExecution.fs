@@ -32,38 +32,39 @@ let builtins : RT.Builtins =
 
 
 let createState
-  (_traceID : AT.TraceID.T)
+  (traceID : AT.TraceID.T)
   (program : RT.Program)
   (tracing : RT.Tracing.Tracing)
   : Task<RT.ExecutionState> =
   task {
-    // let extraMetadata (state : RT.ExecutionState) : Metadata =
-    //   let callStack = state.tracing.callStack
+    let extraMetadata (state : RT.ExecutionState) (vm : RT.VMState) : Metadata =
+      let callStack = Exe.callStackFromVM vm
+      let epToString ep =
+        match ep with
+        | None -> "None -- empty CallStack"
+        | Some ep -> Exe.executionPointToString state ep
 
-    //   let executionPoint ep =
-    //     match ep with
-    //     | RT.ExecutionPoint.Script -> "Input script"
-    //     | RT.ExecutionPoint.Toplevel tlid -> $"Toplevel {tlid}"
-    //     | RT.ExecutionPoint.Function fnName ->
-    //       match fnName with
-    //       | RT.FQFnName.Package name -> $"Package fn {name}"
-    //       | RT.FQFnName.Builtin name -> $"Builtin fn {name}"
+      [ ("entrypoint", epToString (RT.CallStack.entrypoint callStack))
+        ("lastCalled", epToString (RT.CallStack.last callStack))
+        ("traceID", traceID)
+        ("canvasID", program.canvasID) ]
 
-    //   [ ("entrypoint", executionPoint callStack.entrypoint)
-    //     ("lastCalled", (executionPoint (fst callStack.lastCalled)))
-    //     ("traceID", traceID)
-    //     ("canvasID", program.canvasID) ]
-
-    let notify (_state : RT.ExecutionState) (msg : string) (metadata : Metadata) =
-      //let metadata = extraMetadata state @ metadata
+    let notify
+      (state : RT.ExecutionState)
+      (vm : RT.VMState)
+      (msg : string)
+      (metadata : Metadata)
+      =
+      let metadata = extraMetadata state vm @ metadata
       LibService.Rollbar.notify msg metadata
 
     let sendException
-      (_state : RT.ExecutionState)
+      (state : RT.ExecutionState)
+      (vm : RT.VMState)
       (metadata : Metadata)
       (exn : exn)
       =
-      //let metadata = extraMetadata state @ metadata
+      let metadata = extraMetadata state vm @ metadata
       LibService.Rollbar.sendException None metadata exn
 
     return

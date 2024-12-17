@@ -43,18 +43,25 @@ let createState
       { builtIn = builtins.constants; package = packageManager.getConstant } }
 
 
-let rec callStackFromVM
+let rec callStackForFrame
   (vm : RT.VMState)
   (frameID : uuid)
   (soFar : RT.CallStack)
   : RT.CallStack =
   match vm.callFrames |> Map.find frameID with
-  | None -> soFar // CLEANUP should probably be an error here
+  | None ->
+    Exception.raiseInternal
+      "Execution.callStackForFrame -- Couldn't find frame in callFrames"
+      [ "frameID", string frameID ]
   | Some frame ->
     match frame.parent with
     | None -> soFar
     | Some(parentFrameID, _, _) ->
-      callStackFromVM vm parentFrameID (frame.executionPoint :: soFar)
+      callStackForFrame vm parentFrameID (frame.executionPoint :: soFar)
+
+
+let callStackFromVM (vm : RT.VMState) : RT.CallStack =
+  callStackForFrame vm vm.currentFrameID []
 
 
 let execute
@@ -73,18 +80,12 @@ let execute
 
       with
       | RT.RuntimeErrorException(_threadID, rte) ->
-        let callStack = callStackFromVM vm vm.currentFrameID []
-
+        let callStack = callStackFromVM vm
         return Error(rte, callStack)
       | ex ->
         let metadata : Metadata =
           Exception.toMetadata ex |> List.map (fun (k, v) -> k, string v)
-        exeState.reportException exeState metadata ex
-        // let currentFrame = Map.findUnsafe vm.currentFrameID vm.callFrames
-        // debuG "Uncaught exception" currentFrame.executionPoint // TODO do something w/ the context (match against it)
-
-        //let callStack = callStackFromVM vm vm.currentFrameID []
-
+        exeState.reportException exeState vm metadata ex
 
         let metadata = metadata |> List.map (fun (k, v) -> k, RT.DString(string v))
         return
@@ -133,7 +134,6 @@ let executeFunction
       ([], [], rc)
 
   let applyInstr =
-    // TODO: does apply really need the type args? Maybe not.
     RT.Apply(resultReg, fnReg, typeArgs, argRegs |> NEList.ofListUnsafe "" [])
 
   let instrs : RT.Instructions =
@@ -199,46 +199,44 @@ let runtimeErrorToString
 //     | Some expr -> prettyPrint expr
 
 
-/// TODO: move this impl to darklang
-///
-/// TODO: consider dumping symTable while we're at it.
-/// (beware of secrets in scope, though)
-let callStackString
+let executionPointToString
   (_state : RT.ExecutionState)
-  (callStack : RT.CallStack) // Note: in reverse order
+  (ep : RT.ExecutionPoint)
+  : string =
+  // CLEANUP improve here
+  // let handleFn (fn : Option<RT.PackageFn.PackageFn>) : Ply<string> =
+  //   uply {
+  //     match fn with
+  //     | None -> return $"<Couldn't find package function {fn.id}>"
+  //     | Some fn ->
+  //       let fnName = string fn.id
+  //       let! exprString = exprString state fn.body exprId
+  //       return fnName + ": " + exprString
+  //   }
+
+  match ep with
+  | RT.Source -> "Source"
+  | RT.Function(RT.FQFnName.Package id) -> $"Package Function {id}"
+  | RT.Function(RT.FQFnName.Builtin fnName) -> $"Builtin Function {fnName}" // TODO actually fetch the fn, etc
+  | RT.Lambda(_parent, exprId) -> "Lambda " + string exprId
+
+
+/// CLEANUPs
+/// - move this impl to darklang
+/// - consider accepting a VMState rather than the CallStack
+/// - generally tidy the output here
+let callStackString
+  (state : RT.ExecutionState)
+  (callStack : RT.CallStack)
   : Ply<string> =
   uply {
-    // let handleFn (fn : Option<RT.PackageFn.PackageFn>) : Ply<string> =
-    //   uply {
-    //     match fn with
-    //     | None -> return "<Couldn't find package function>"
-    //     | Some fn ->
-    //       let fnName = string fn.id
-    //       let! exprString = exprString state fn.body exprId
-    //       return fnName + ": " + exprString
-    //   }
-
-    // match executionPoint with
-    // | RT.ExecutionPoint.Script -> Ply "Input script"
-    // | RT.ExecutionPoint.Function fnName ->
-    //   match fnName with
-    //   | RT.FQFnName.Package name ->
-    //     state.packageManager.getFn name |> Ply.bind handleFn
-    //   | RT.FQFnName.Builtin name -> Ply $"Builtin {name}"
-
-
     return!
       Ply.List.foldSequentially
         (fun acc executionPoint ->
-          let part =
-            match executionPoint with
-            | RT.Source -> "Source"
-            | RT.Function(RT.FQFnName.Package id) -> $"Package Function {id}"
-            | RT.Function(RT.FQFnName.Builtin fnName) ->
-              $"Builtin Function {fnName}" // TODO actually fetch the fn, etc
-            | RT.Lambda(_parent, exprId) -> "Lambda " + string exprId
-
-          Ply $"{acc}\n- {part}")
+          uply {
+            let part = executionPointToString state executionPoint
+            return $"{acc}\n- {part}"
+          })
         "Call stack (last call at bottom):"
         callStack
   }

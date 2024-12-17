@@ -51,7 +51,7 @@ let builtinsToUse : RT.Builtins =
 let execute
   (parentState : RT.ExecutionState)
   (mod' : Utils.CliScript.PTCliScriptModule)
-  (_symtable : Map<string, RT.Dval>) // TODO do we really need this? idk...
+  (_args : List<Dval>) // CLEANUP update to List<String>, and extract in builtin
   : Ply<RT.ExecutionResult> =
   uply {
     let (program : Program) =
@@ -114,7 +114,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "filename" TString ""
           Param.make "code" TString ""
-          Param.make "symtable" (TDict TString) "" ]
+          Param.make "args" (TList TString) "" ]
       returnType = TypeReference.result TInt64 ExecutionError.typeRef
       description =
         "Parses Dark code as a script, and and executes it, returning an exit code"
@@ -126,7 +126,7 @@ let fns : List<BuiltInFn> =
         | exeState,
           _,
           [],
-          [ DString filename; DString code; DDict(_vtTODO, symtable) ] ->
+          [ DString filename; DString code; DList(_vtTODO, scriptArgs) ] ->
           uply {
             let exnError (e : exn) : RuntimeError.Error =
               RuntimeError.UncaughtException(
@@ -189,7 +189,7 @@ let fns : List<BuiltInFn> =
             try
               match parsedScript with
               | Ok mod' ->
-                match! execute exeState mod' symtable with
+                match! execute exeState mod' scriptArgs with
                 | Ok(DInt64 i) -> return resultOk (DInt64 i)
                 | Ok result ->
                   return
@@ -197,11 +197,11 @@ let fns : List<BuiltInFn> =
                     |> RuntimeError.CLI
                     |> RT2DT.RuntimeError.toDT
                     |> resultError
-                | Error(e, _cs) ->
+                | Error(e, callStack) ->
                   // TODO: do this, some better way
                   // (probably pass it back in a structured way)
-                  // let! csString = Exe.callStackString state callStack
-                  // print $"Error when executing Script. Call-stack:\n{csString}\n"
+                  let! csString = Exe.callStackString exeState callStack
+                  print $"Error when executing Script. Call-stack:\n{csString}\n"
 
                   return e |> RT2DT.RuntimeError.toDT |> resultError
               | Error e -> return e |> RT2DT.RuntimeError.toDT |> resultError
