@@ -6,6 +6,8 @@ set -euo pipefail
 # install dependencies
 echo "Installing tree-sitter-darklang dependencies..."
 echo "Note: installing tree-sitter automatically builds the parser as part of it, so this might take a bit..."
+echo "(and if you're stuck here for a while, it's probably because you're disconnected from the internet)"
+# TODO don't require internet connection for this!. if the container is already built, this is pretty frustrating.
 cd tree-sitter-darklang
 npm install tree-sitter-cli
 npm i --ignore-scripts
