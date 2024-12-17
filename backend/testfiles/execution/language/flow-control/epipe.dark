@@ -62,7 +62,7 @@ type MyEnum = A of Int64 * Int64 * Int64
   Stdlib.Option.Option.Some 4L
 
 ((Stdlib.Option.Option.Some 3L)
- |> Stdlib.Option.withDefault_v0 Stdlib.Option.Option.None
+ |> Stdlib.Option.withDefault_v0 0L
  |> (+) 3L) = 6L
 
 ((Stdlib.Result.Result.Ok 3L) |> Stdlib.Result.withDefault_v0 0L |> (+) 3L) = 6L

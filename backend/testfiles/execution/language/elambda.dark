@@ -1,3 +1,4 @@
+// CLEANUP fix equality checks of lambdas
 //Stdlib.List.push_v0 [] (fun x -> -4.611686018e+18) = [ (fun x -> -4.611686018e+18) ]
 
 // Test that empty parameters are removed
@@ -13,8 +14,8 @@
  Stdlib.List.map_v0 [ "1"; "2"; "3"; "4" ] y) =
    (Builtin.testDerrorMessage "Uncaught exception: 1")
 
-(let y = (fun a b -> a + b) in y 2L 3L) = 5L // TODO: allow
-//(let y = (fun (a, b) -> a + b in y (2L, 3L)) = 5L)
+(let y = (fun a b -> a + b) in y 2L 3L) = 5L
+(let y = (fun (a, b) -> a + b) in y (2L, 3L)) = 5L
 (let y = (fun msg -> Builtin.testRuntimeError msg) in Stdlib.List.map_v0 [] y) = []
 (let y = (fun a b -> a * b) in Stdlib.List.fold_v0 [ 1L; 2L; 3L; 4L ] 1L y) = 24L
 
@@ -47,29 +48,29 @@
  Stdlib.List.map [ 1L; 2L; 3L ] f) = [ 1L; 1L; 1L ]
 
 
-// (let pairs = [ (1L, "one"); (2L, "two"); (3L, "three") ]
-//  let transformer = fun (num, str) -> $"{Stdlib.Int64.toString num}:{str}"
-//  Stdlib.List.map_v0 pairs transformer) =
-//   [ "1:one"; "2:two"; "3:three" ]
+(let pairs = [ (1L, "one"); (2L, "two"); (3L, "three") ]
+ let transformer = fun (num, str) -> $"{Stdlib.Int64.toString num}:{str}"
+ Stdlib.List.map_v0 pairs transformer) =
+  [ "1:one"; "2:two"; "3:three" ]
 
 
-// (let triplets = [ (1L, "one", true); (2L, "two", false) ]
+(let triplets = [ (1L, "one", true); (2L, "two", false) ]
 
-//  let transformer =
-//    fun (num, str, flag) ->
-//      if flag then
-//        $"{Stdlib.Int64.toString num}:{str}:TRUE"
-//      else
-//        $"{Stdlib.Int64.toString num}:{str}:FALSE"
+ let transformer =
+   fun (num, str, flag) ->
+     if flag then
+       $"{Stdlib.Int64.toString num}:{str}:TRUE"
+     else
+       $"{Stdlib.Int64.toString num}:{str}:FALSE"
 
-//  Stdlib.List.map_v0 triplets transformer
-//  ) = [ "1:one:TRUE"; "2:two:FALSE" ]
+ Stdlib.List.map_v0 triplets transformer
+ ) = [ "1:one:TRUE"; "2:two:FALSE" ]
 
 // nested
-// (let sing = [ (("1"), "2"); (("3"), "4") ]
+(let sing = [ (("1"), "2"); (("3"), "4") ]
 
-//  let transformer = fun ((str1), str2) -> str1 ++ str2
-//  Stdlib.List.map_v0 sing transformer) = [ "12"; "34" ]
+ let transformer = fun ((str1), str2) -> str1 ++ str2
+ Stdlib.List.map_v0 sing transformer) = [ "12"; "34" ]
 
 // TODO:
 // There is weird parser behavior for nested tuples with more than one member.
@@ -87,25 +88,22 @@
 //  Stdlib.List.map_v0 triplets transformer) =
 //   [ "1:one:TRUE"; "2:two:FALSE" ]
 
-// (let triplets = [ (1L, "one", true); (2L, "two", false) ]
+(let triplets = [ (1L, "one", true); (2L, "two", false) ]
+ let transformer = fun (num, str) -> $"{Stdlib.Int64.toString num}:{str}"
+ Stdlib.List.map_v0 triplets transformer) =
+  Builtin.testDerrorMessage "Could not deconstruct value (1, \"one\", true) into pattern ([variable], [variable])"
 
-//  let transformer = fun (num, str) -> $"{Stdlib.Int64.toString num}:{str}"
+Stdlib.Dict.map_v0
+  (Dict
+    { key1 = ("val11", "val12")
+      key2 = ("val21", "val22") })
+  (fun x (y, z) -> x ++ y ++ z) =
+   (Dict { key2 = "key2val21val22"; key1 = "key1val11val12" })
 
-//  Stdlib.List.map_v0 triplets transformer) = Builtin.testDerrorMessage
-//   "Tuple pattern has wrong number of elements"
-
-// Stdlib.Dict.map_v0
-//   (Dict
-//     { key1 = ("val11", "val12")
-//       key2 = ("val21", "val22") })
-//   (fun x (y, z) -> x ++ y ++ z) = (Dict
-//   { key2 = "key2val21val22"
-//     key1 = "key1val11val12" })
-
-// (Stdlib.Dict.map_v0
-//   (Dict { key1 = ("val11", "val12"); key2 = ("val21", "val22") })
-//   (fun x (_, z) -> x ++ z)) =
-//   (Dict { key2 = "key2val22"; key1 = "key1val12" })
+(Stdlib.Dict.map_v0
+  (Dict { key1 = ("val11", "val12"); key2 = ("val21", "val22") })
+  (fun x (_, z) -> x ++ z)) =
+    (Dict { key2 = "key2val22"; key1 = "key1val12" })
 
 
 // CLEANUP include this once we've switched over to the new parser.

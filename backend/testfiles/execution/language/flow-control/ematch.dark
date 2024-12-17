@@ -686,25 +686,26 @@ module Errors =
    | var -> "pass") = "pass"
 
 
-// module TypeErrors =
-//   type TestType =
-//     | NoArgs
-//     | OneArg of Int64
-//     | TwoArgs of Int64 * Int64
+module TypeErrors =
+  type TestType =
+    | NoArgs
+    | OneArg of Int64
+    | TwoArgs of Int64 * Int64
 
-//   // enum with more pattern params than actual args
-//   (match TestType.NoArgs with
-//    | NoArgs _ -> "wrong number") = Builtin.testDerrorMessage
-//     "NoArgs pattern is expecting 1 field, but NoArgs has 0 fields"
+  // enum with more pattern params than actual args
+  (match TestType.NoArgs with
+   | NoArgs _ -> "wrong number") =
+    Builtin.testDerrorMessage "No matching case found"
 
-//   // enum with fewer pattern params than actual args
-//   (match TestType.OneArg 1L with
-//    | OneArg -> "wrong number") = Builtin.testDerrorMessage
-//     "OneArg pattern is expecting 0 fields, but OneArg has 1 field"
+  // enum with fewer pattern params than actual args
+  (match TestType.OneArg 1L with
+   | OneArg -> "wrong number") = Builtin.testDerrorMessage
+    "No matching case found"
 
-//   // enum with a single wildcard
-//   (match TestType.TwoArgs(1L, 2L) with
-//    | TwoArgs _ -> "wildcards allowed") = "wildcards allowed"
+  // TODO implement MPIgnored
+  // // enum with a single wildcard
+  // (match TestType.TwoArgs(1L, 2L) with
+  //  | TwoArgs _ -> "wildcards allowed") = "wildcards allowed"
 
 
 module GuardClause =
@@ -762,10 +763,10 @@ module GuardClause =
    | _ -> false) =
      false
 
-  // (match 5L with
-  //  | 2L when x > 2L -> false
-  //  | 3L -> true) =
-  //   (Builtin.testDerrorMessage "No match for 5")
+  (match 5L with
+   | 2L when x > 2L -> false
+   | 3L -> true) =
+    (Builtin.testDerrorMessage "No matching case found")
 
   (match Stdlib.Result.Result.Error 5L with
    | Ok x when x > 2L -> false

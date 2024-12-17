@@ -34,7 +34,7 @@ module Errors =
     (match MyEnum.C "test" with | C -> "unmatched because we didn't provide a space for the field") = Builtin.testDerrorMessage "No matching case found"
     (match MyEnum.C "test" with | D -> "unmatched because case name does not exist" | C _ -> 2) = 2
 
-    (MyEnum.C 5L) = Builtin.testDerrorMessage "Expected String for field 0 in `C`, but got Int64 (5)"
+    (MyEnum.C 5L) = Builtin.testDerrorMessage "Failed to create enum. Expected String for field 0 in `C`, but got Int64 (5)"
 
 
 module Simple =
@@ -72,10 +72,10 @@ module MixedCases =
   (EnumOfMixedCases.Y 1L == EnumOfMixedCases.Y 1L) = true
 
   EnumOfMixedCases.X 1L =
-    (Builtin.testDerrorMessage "Expected String for field 0 in `X`, but got Int64 (1)")
+    (Builtin.testDerrorMessage "Failed to create enum. Expected String for field 0 in `X`, but got Int64 (1)")
 
   EnumOfMixedCases.Y "test" =
-    (Builtin.testDerrorMessage "Expected Int64 for field 0 in `Y`, but got String (\"test\")")
+    (Builtin.testDerrorMessage "Failed to create enum. Expected Int64 for field 0 in `Y`, but got String (\"test\")")
 
   EnumOfMixedCases.Z 1L =
     (Builtin.testDerrorMessage "Expected 2 fields in MixedCases.EnumOfMixedCases.`Z`, but got 1")

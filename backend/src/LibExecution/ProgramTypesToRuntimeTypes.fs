@@ -560,6 +560,7 @@ module Expr =
           right.registerCount,
           RT.AppNamedFn
             { name = InfixFnName.toFnName infix |> RT.FQFnName.Builtin
+              typeSymbolTable = Map.empty
               typeArgs = []
               argsSoFar = [] }
           |> RT.DApplicable
@@ -599,7 +600,11 @@ module Expr =
     // functions
     | PT.EFnName(_, Ok name) ->
       let namedFn : RT.ApplicableNamedFn =
-        { name = FQFnName.toRT name; typeArgs = []; argsSoFar = [] }
+        { name = FQFnName.toRT name
+          typeSymbolTable = Map.empty
+          typeArgs = []
+          argsSoFar = [] }
+
       let applicable = RT.DApplicable(RT.AppNamedFn namedFn)
 
       { registerCount = rc + 1
@@ -614,11 +619,8 @@ module Expr =
 
 
     | PT.EApply(_id, thingToApplyExpr, typeArgs, args) ->
-      let thingToApply = toRT symbols rc thingToApplyExpr
-
-      let (regCounter, argInstrs, argRegs) =
-        let init = (thingToApply.registerCount, [], [])
-
+      // process the arguments first, so we know how many registers we need
+      let (rcAfterArgs, argInstrs, argRegs) =
         args
         |> NEList.fold
           (fun (rc, instrs, argResultRegs) arg ->
@@ -626,9 +628,12 @@ module Expr =
             (newInstrs.registerCount,
              instrs @ newInstrs.instructions,
              argResultRegs @ [ newInstrs.resultIn ]))
-          init
+          (rc, [], [])
 
-      let putResultIn = regCounter
+      let thingToApply = toRT symbols rcAfterArgs thingToApplyExpr
+
+      let putResultIn = thingToApply.registerCount
+
       let callInstr =
         RT.Apply(
           putResultIn,
@@ -637,13 +642,15 @@ module Expr =
           NEList.ofListUnsafe "" [] argRegs
         )
 
-      { registerCount = regCounter + 1
-        instructions = thingToApply.instructions @ argInstrs @ [ callInstr ]
+      { registerCount = thingToApply.registerCount + 1
+        instructions = argInstrs @ thingToApply.instructions @ [ callInstr ]
         resultIn = putResultIn }
 
 
     | PT.EMatch(_id, expr, cases) ->
-      // first, the easy part - compile the expression we're `match`ing against.
+      // Building a `match` expression is a bit more involved than other expressions.
+      // We do this in multiple phases, and have a helper type to assist.
+
       let expr = toRT symbols rc expr
 
       // Shortly, we'll compile each of the cases.

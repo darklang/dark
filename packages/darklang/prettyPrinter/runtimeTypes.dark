@@ -226,6 +226,18 @@ module Darklang =
         | Known kt -> knownType kt
         | Unknown -> "_"
 
+      let letPattern (pat: LanguageTools.RuntimeTypes.LetPattern) : String =
+        match pat with
+        | LPVariable _reg ->
+          // TODO clearly this is not ideal.
+          "[variable]"
+        | LPUnit -> "()"
+        | LPTuple(first, second, theRest) ->
+          let parts = Stdlib.List.append [ first; second ] theRest
+          let parts = Stdlib.List.map parts (fun p -> letPattern p)
+          let parts = Stdlib.String.join parts ", "
+          $"({parts})"
+
 
       module Dval =
         let valueTypeName (dv: LanguageTools.RuntimeTypes.Dval) : String =

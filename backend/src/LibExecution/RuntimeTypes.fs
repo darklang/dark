@@ -908,52 +908,6 @@ module RuntimeError =
     | UncaughtException of msg : string * metadata : List<string * Dval>
 
 
-
-module TypeReference =
-  let result (t1 : TypeReference) (t2 : TypeReference) : TypeReference =
-    TCustomType(Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.result), [ t1; t2 ])
-
-  let option (t : TypeReference) : TypeReference =
-    TCustomType(Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.option), [ t ])
-
-  let rec toVT (tst : TypeSymbolTable) (typeRef : TypeReference) : ValueType =
-    let r = toVT tst
-
-    match typeRef with
-    | TUnit -> ValueType.Known KTUnit
-    | TBool -> ValueType.Known KTBool
-    | TInt8 -> ValueType.Known KTInt8
-    | TUInt8 -> ValueType.Known KTUInt8
-    | TInt16 -> ValueType.Known KTInt16
-    | TUInt16 -> ValueType.Known KTUInt16
-    | TInt32 -> ValueType.Known KTInt32
-    | TUInt32 -> ValueType.Known KTUInt32
-    | TInt64 -> ValueType.Known KTInt64
-    | TUInt64 -> ValueType.Known KTUInt64
-    | TInt128 -> ValueType.Known KTInt128
-    | TUInt128 -> ValueType.Known KTUInt128
-    | TFloat -> ValueType.Known KTFloat
-    | TChar -> ValueType.Known KTChar
-    | TString -> ValueType.Known KTString
-    | TUuid -> ValueType.Known KTUuid
-    | TDateTime -> ValueType.Known KTDateTime
-
-    | TTuple(first, second, rest) ->
-      KTTuple(r first, r second, rest |> List.map r) |> ValueType.Known
-    | TList inner -> ValueType.Known(KTList(r inner))
-    | TDict inner -> ValueType.Known(KTDict(r inner))
-
-    | TCustomType(Ok typeName, typeArgs) ->
-      KTCustomType(typeName, typeArgs |> List.map r) |> ValueType.Known
-    | TCustomType(Error _err, _) -> ValueType.Unknown // TODO: RTE here instead
-
-    | TVariable name -> tst |> Map.get name |> Option.defaultValue ValueType.Unknown
-
-    | TFn(args, result) -> KTFn(NEList.map r args, r result) |> ValueType.Known
-
-    | TDB inner -> ValueType.Known(KTDB(r inner))
-
-
 // CLEANUP the ThreadID isn't useful yet -- consider abandoning for now.
 exception RuntimeErrorException of Option<ThreadID> * rte : RuntimeError.Error
 
@@ -963,6 +917,7 @@ let raiseRTE (threadId : ThreadID) (rte : RuntimeError.Error) : 'a =
 
 let raiseUntargetedRTE (rte : RuntimeError.Error) : 'a =
   raise (RuntimeErrorException(None, rte))
+
 
 
 type ExecutionPoint =
@@ -1080,8 +1035,6 @@ module Dval =
 
     // CLEANUP follow up when DDB has a typeReference
     | DDB _ -> ValueType.Unknown
-
-
 
 
 
@@ -1319,13 +1272,9 @@ type CallFrame =
     /// What instruction index we are currently 'at'
     mutable programCounter : int
 
-    registers : Registers
-
-    // CLEANUP is it more efficient to copy the 'whole' TST
-    //, or just what's 'new' to this call frame?
-    // Do we even expect to need to 'look up' in above call frames for type symbols?
-    // actually, probably, for nested fn calls or something. (unless we copy all, of course)
     mutable typeSymbolTable : TypeSymbolTable
+
+    registers : Registers
   }
 
 type InstrData =
@@ -1542,58 +1491,85 @@ module Types =
           $"typeParams and typeArguments have different lengths"
           [ "typeParams", typeParams; "typeArguments", typeArguments ]
 
-// CLEANUP consider replacing the above with these two fns
-// /// Create a mapping from type parameters to their provided arguments
-// let createTypeParamMapping
-//   (typeParams : List<string>)
-//   (typeArgs : List<TypeReference>)
-//   : Result<Map<string, TypeReference>, string> =
-//   if List.length typeParams <> List.length typeArgs then
-//     Error
-//       $"Expected {List.length typeParams} type arguments but got {List.length typeArgs}"
-//   else
-//     Ok(Map.ofList (List.zip typeParams typeArgs))
 
-// let rec substituteTypeParams
-//   (map : Map<string, TypeReference>)
-//   (typ : TypeReference)
-//   : TypeReference =
-//   let r = substituteTypeParams map
+module TypeReference =
+  let result (t1 : TypeReference) (t2 : TypeReference) : TypeReference =
+    TCustomType(Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.result), [ t1; t2 ])
 
-//   match typ with
-//   // actually subtitute type vars
-//   | TVariable name ->
-//     match Map.tryFind name map with
-//     | Some replacement -> replacement
-//     | None -> typ
+  let option (t : TypeReference) : TypeReference =
+    TCustomType(Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.option), [ t ])
 
-//   // deal with subtypes recursively
-//   | TTuple(first, second, rest) -> TTuple(r first, r second, List.map r rest)
-//   | TList inner -> TList(r inner)
-//   | TDict value -> TDict(r value)
-//   | TFn(args, ret) -> TFn(NEList.map r args, r ret)
-//   | TCustomType(name, args) -> TCustomType(name, List.map r args)
+  let rec unwrapAlias (types : Types) (typ : TypeReference) : Ply<TypeReference> =
+    match typ with
+    | TCustomType(Ok outerTypeName, outerTypeArgs) ->
+      uply {
+        match! Types.find types outerTypeName with
+        | Some { definition = TypeDeclaration.Alias typ; typeParams = typeParams } ->
+          let typ = Types.substitute typeParams outerTypeArgs typ
+          return! unwrapAlias types typ
+        | _ -> return typ
+      }
+    | _ -> Ply typ
 
-//   | TDB inner -> TDB(r inner)
 
-//   // for exhaustiveness
-//   | TUnit -> TUnit
-//   | TBool -> TBool
-//   | TInt8 -> TInt8
-//   | TUInt8 -> TUInt8
-//   | TInt16 -> TInt16
-//   | TUInt16 -> TUInt16
-//   | TInt32 -> TInt32
-//   | TUInt32 -> TUInt32
-//   | TInt64 -> TInt64
-//   | TUInt64 -> TUInt64
-//   | TInt128 -> TInt128
-//   | TUInt128 -> TUInt128
-//   | TFloat -> TFloat
-//   | TChar -> TChar
-//   | TString -> TString
-//   | TUuid -> TUuid
-//   | TDateTime -> TDateTime
+  let rec toVT
+    (types : Types)
+    (tst : TypeSymbolTable)
+    (typeRef : TypeReference)
+    : Ply<ValueType> =
+    let r = toVT types tst
+
+    uply {
+      match! unwrapAlias types typeRef with
+      | TUnit -> return ValueType.Known KTUnit
+      | TBool -> return ValueType.Known KTBool
+      | TInt8 -> return ValueType.Known KTInt8
+      | TUInt8 -> return ValueType.Known KTUInt8
+      | TInt16 -> return ValueType.Known KTInt16
+      | TUInt16 -> return ValueType.Known KTUInt16
+      | TInt32 -> return ValueType.Known KTInt32
+      | TUInt32 -> return ValueType.Known KTUInt32
+      | TInt64 -> return ValueType.Known KTInt64
+      | TUInt64 -> return ValueType.Known KTUInt64
+      | TInt128 -> return ValueType.Known KTInt128
+      | TUInt128 -> return ValueType.Known KTUInt128
+      | TFloat -> return ValueType.Known KTFloat
+      | TChar -> return ValueType.Known KTChar
+      | TString -> return ValueType.Known KTString
+      | TUuid -> return ValueType.Known KTUuid
+      | TDateTime -> return ValueType.Known KTDateTime
+
+      | TTuple(first, second, theRest) ->
+        let! first = r first
+        let! second = r second
+        let! theRest = theRest |> Ply.List.mapSequentially r
+        return KTTuple(first, second, theRest) |> ValueType.Known
+      | TList inner ->
+        let! inner = r inner
+        return ValueType.Known(KTList inner)
+      | TDict inner ->
+        let! inner = r inner
+        return ValueType.Known(KTDict inner)
+
+      | TCustomType(Ok typeName, typeArgs) ->
+        let! typeArgs = typeArgs |> Ply.List.mapSequentially r
+        return KTCustomType(typeName, typeArgs) |> ValueType.Known
+
+      | TCustomType(Error nre, _) ->
+        return raiseUntargetedRTE (RuntimeError.ParseTimeNameResolution nre)
+
+      | TVariable name ->
+        return tst |> Map.get name |> Option.defaultValue ValueType.Unknown
+
+      | TFn(args, result) ->
+        let! args = args |> Ply.NEList.mapSequentially r
+        let! result = r result
+        return KTFn(args, result) |> ValueType.Known
+
+      | TDB inner ->
+        let! inner = r inner
+        return ValueType.Known(KTDB inner)
+    }
 
 
 

@@ -4,7 +4,6 @@ open Expecto
 open Prelude
 open TestUtils.TestUtils
 
-module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module VT = LibExecution.ValueType
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
@@ -57,14 +56,7 @@ module Basic =
 
   let one = t "1" E.Basic.one (RT.DInt64 1L)
 
-  //let onePlusTwo = t "1+2" E.Basic.onePlusTwo (RT.DInt64 3L)
-
-  let tests =
-    testList
-      "Basic"
-      [ one
-        //onePlusTwo
-        ]
+  let tests = testList "Basic" [ one ]
 
 
 module List =
@@ -214,11 +206,11 @@ module Match =
 
   let withVar = t "match true with\n| x -> x" E.Match.withVar (RT.DBool true)
 
-  // let withVarAndWhenCondition =
-  //   t
-  //     "match 4 with\n| 1 -> \"first branch\"\n| x when x % 2 == 0 -> \"second branch\""
-  //     E.Match.withVarAndWhenCondition
-  //     (RT.DString "second branch")
+  let withVarAndWhenCondition =
+    t
+      "match 4 with\n| 1 -> \"first branch\"\n| x when x % 2 == 0 -> \"second branch\""
+      E.Match.withVarAndWhenCondition
+      (RT.DString "second branch")
 
   let list =
     t
@@ -241,13 +233,7 @@ module Match =
   let tests =
     testList
       "Match"
-      [ simple
-        notMatched
-        withVar
-        //withVarAndWhenCondition
-        list
-        listCons
-        tuple ]
+      [ simple; notMatched; withVar; withVarAndWhenCondition; list; listCons; tuple ]
 
 module Pipes =
   let lambda = t "1 |> fun x -> x" E.Pipes.lambda (RT.DInt64 1L)
@@ -336,19 +322,24 @@ module RecordUpdate =
       E.RecordUpdate.notRecord
       (RTE.Record(RTE.Records.UpdateNotRecord VT.int64))
 
-  // let fieldThatShouldNotExist =
-  //   tFail
-  //     "let r = Test.Test { key = true }\nlet r2 = { r | bonus = false }\nr2.key"
-  //     E.RecordUpdate.fieldThatShouldNotExist
-  //     (RTE.Record(RTE.Records.UpdateFieldNotExpected "bonus"))
+  let fieldThatShouldNotExist =
+    tFail
+      "let r = Test.Test { key = true }\nlet r2 = { r | bonus = false }\nr2.key"
+      E.RecordUpdate.fieldThatShouldNotExist
+      (RTE.Record(RTE.Records.UpdateFieldNotExpected "bonus"))
 
-  // let fieldWithWrongType =
-  //   tFail
-  //     "let r = Test.Test { key = true }\nlet r2 = { r | key = 1 }\nr2.key"
-  //     E.RecordUpdate.fieldWithWrongType
-  //     (RTE.Record(RTE.Records.UpdateFieldOfWrongType("key", RT.TBool, VT.int64)))
+  let fieldWithWrongType =
+    tFail
+      "let r = Test.Test { key = true }\nlet r2 = { r | key = 1 }\nr2.key"
+      E.RecordUpdate.fieldWithWrongType
+      (RTE.Record(
+        RTE.Records.UpdateFieldOfWrongType("key", VT.bool, VT.int64, RT.DInt64 1L)
+      ))
 
-  let tests = testList "RecordUpdate" [ simple; notRecord ] // fieldThatShouldNotExist; fieldWithWrongType ]
+  let tests =
+    testList
+      "RecordUpdate"
+      [ simple; notRecord; fieldThatShouldNotExist; fieldWithWrongType ]
 
 // TODO: add more tests
 module Enum =
@@ -519,6 +510,7 @@ module Fns =
         (RT.DApplicable(
           RT.AppNamedFn
             { name = RT.FQFnName.fqBuiltin "int64Add" 0
+              typeSymbolTable = Map.empty
               typeArgs = []
               argsSoFar = [] }
         ))
@@ -530,6 +522,7 @@ module Fns =
         (RT.DApplicable(
           RT.AppNamedFn
             { name = RT.FQFnName.fqBuiltin "int64Add" 0
+              typeSymbolTable = Map.empty
               typeArgs = []
               argsSoFar = [ RT.DInt64 1 ] }
         ))
@@ -556,6 +549,7 @@ module Fns =
           (RT.DApplicable(
             RT.AppNamedFn
               { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id
+                typeSymbolTable = Map.empty
                 typeArgs = []
                 argsSoFar = [] }
           ))
@@ -567,6 +561,7 @@ module Fns =
           (RT.DApplicable(
             RT.AppNamedFn
               { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id
+                typeSymbolTable = Map.empty
                 typeArgs = []
                 argsSoFar = [ RT.DInt64 1 ] }
           ))
@@ -586,6 +581,7 @@ module Fns =
           (RT.DApplicable(
             RT.AppNamedFn
               { name = RT.FQFnName.fqPackage E.Fns.Package.Fact.id
+                typeSymbolTable = Map.empty
                 typeArgs = []
                 argsSoFar = [] }
           ))
@@ -617,19 +613,25 @@ module Fns =
 
       let tests = testList "MyFnThatTakesALambda" [ fullyApplied ]
 
+    module Outer =
+      let applied =
+        t
+          "Test.outer<Bool, String> true \"ignored\""
+          E.Fns.Package.Outer.applied
+          (RT.DBool true)
+      let tests = testList "Outer" [ applied ]
+
     let tests =
       testList
         "Package"
-        [ MyAdd.tests; Fact.tests; Recusrsion.tests; MyFnThatTakesALambda.tests ]
+        [ MyAdd.tests
+          Fact.tests
+          Recusrsion.tests
+          MyFnThatTakesALambda.tests
+          Outer.tests ]
 
   let tests = testList "Fns" [ Builtin.tests; Package.tests ]
 
-
-(*
-((PACKAGE.Darklang.Stdlib.List.repeat_v0 348L 1L)
- |> Builtin.unwrap
- |> PACKAGE.Darklang.Stdlib.List.map (fun f -> f)) = []
- *)
 
 let tests =
   testList

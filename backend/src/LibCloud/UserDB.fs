@@ -42,10 +42,9 @@ let rec dbToDval
 let dvalToDB
   (threadID : RT.ThreadID)
   (types : RT.Types)
-  (db : RT.DB.T)
   (dv : RT.Dval)
   : Ply<string> =
-  DvalReprInternalQueryable.toJsonStringV0 types threadID db.typ dv
+  DvalReprInternalQueryable.toJsonStringV0 types threadID dv
 
 let rec set
   (exeState : RT.ExecutionState)
@@ -77,7 +76,7 @@ let rec set
         else
           ""
 
-      let! data = dvalToDB threadID types db dv
+      let! data = dvalToDB threadID types dv
 
       do!
         Sql.query

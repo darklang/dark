@@ -4,8 +4,9 @@
 (false && false) = false
 (true && Builtin.testRuntimeError "msg") = Builtin.testDerrorMessage "Uncaught exception: msg"
 (true && 5L) = Builtin.testDerrorMessage "&& only supports Booleans"
-//(false && Builtin.testRuntimeError "msg") = false TODO fix short-circuiting
 (false && 5L) = false
+//TODO bring back short-circuiting
+//(false && Builtin.testRuntimeError "msg") = false
 
 (Builtin.testRuntimeError "msg1" && Builtin.testRuntimeError "msg2") = Builtin.testDerrorMessage "Uncaught exception: msg1"
 

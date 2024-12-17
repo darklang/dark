@@ -181,7 +181,7 @@ let rec evalConst
         []
 
       let! fields = fields |> Ply.List.mapSequentially r
-      let! (enum, _updatedTst) =
+      let! enum =
         TypeChecker.DvalCreator.enum
           types
           threadID
@@ -190,7 +190,6 @@ let rec evalConst
           typeArgs
           caseName
           fields
-      // CLEANUP might need to do something with the updated TST
 
       return enum
 
@@ -406,7 +405,13 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
           let fields =
             fields |> List.map (fun (name, valueReg) -> (name, registers[valueReg]))
 
-          let! (record, updatedTst) =
+          let! typeArgs =
+            typeArgs
+            |> Ply.List.mapSequentially (
+              TypeReference.toVT exeState.types currentFrame.typeSymbolTable
+            )
+
+          let! record =
             TypeChecker.DvalCreator.record
               exeState.types
               vm.threadID
@@ -415,7 +420,6 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
               typeArgs
               fields
 
-          currentFrame.typeSymbolTable <- updatedTst
           registers[recordReg] <- record
 
 
@@ -429,7 +433,7 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
               fieldUpdates
               |> List.map (fun (name, valueReg) -> (name, registers[valueReg]))
 
-            let! (updatedRecord, updatedTst) =
+            let! updatedRecord =
               TypeChecker.DvalCreator.recordUpdate
                 exeState.types
                 vm.threadID
@@ -440,7 +444,6 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                 originalFields
                 fieldUpdates
 
-            currentFrame.typeSymbolTable <- updatedTst
             registers[targetReg] <- updatedRecord
 
           | dv ->
@@ -472,17 +475,22 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
         | CreateEnum(enumReg, typeName, typeArgs, caseName, fields) ->
           let fields = fields |> List.map (fun valueReg -> registers[valueReg])
 
-          let! (newEnum, updatedTst) =
+          let tst = currentFrame.typeSymbolTable
+
+          let! typeArgs =
+            typeArgs
+            |> Ply.List.mapSequentially (TypeReference.toVT exeState.types tst)
+
+          let! newEnum =
             TypeChecker.DvalCreator.enum
               exeState.types
               vm.threadID
-              currentFrame.typeSymbolTable
+              tst
               typeName
               typeArgs
               caseName
               fields
 
-          currentFrame.typeSymbolTable <- updatedTst
           registers[enumReg] <- newEnum
 
 
@@ -532,12 +540,8 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
           // CLEANUP
           // only the first apply of an applicable should be allowed to provide type args
 
-          let thingToCall = registers[thingToCallReg]
-
-          let newArgDvals =
-            newArgRegs |> NEList.toList |> List.map (fun r -> registers[r])
-
           let applicable =
+            let thingToCall = registers[thingToCallReg]
             match thingToCall with
             | DApplicable applicable -> applicable
             | _ ->
@@ -548,31 +552,30 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
               |> RTE.Apply
               |> raiseRTE
 
+          let newArgDvals =
+            newArgRegs |> NEList.toList |> List.map (fun r -> registers[r])
+
           match applicable with
           | AppLambda appLambda ->
             let exprId = appLambda.exprId
             let foundLambda =
               match
-                Map.tryFind
-                  (currentFrame.executionPoint, appLambda.exprId)
-                  vm.lambdaInstrCache
+                Map.tryFind (currentFrame.executionPoint, exprId) vm.lambdaInstrCache
               with
               | Some lambda -> lambda
               | None ->
-                match Map.tryFind (Source, appLambda.exprId) vm.lambdaInstrCache with
+                match Map.tryFind (Source, exprId) vm.lambdaInstrCache with
                 | Some lambda -> lambda
                 | None ->
-                  Exception.raiseInternal
-                    "lambda not found"
-                    [ "exprId", appLambda.exprId ]
+                  Exception.raiseInternal "lambda not found" [ "exprId", exprId ]
 
             let allArgs = appLambda.argsSoFar @ newArgDvals
 
             let argCount = List.length allArgs
             let paramCount = NEList.length foundLambda.patterns
 
-            //let typeArgCount = List.length typeArgs
-            // TODO: fail if we try to apply a lambda with type args
+            if typeArgs <> [] then
+              RTE.Applications.CannotApplyTypeArgsToLambda |> RTE.Apply |> raiseRTE
 
             if argCount = paramCount then
               let newFrame =
@@ -599,9 +602,12 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
                     |> List.iter (fun (reg, value) -> r[reg] <- value)
 
                     r
-                  typeSymbolTable = appLambda.typeSymbolTable // TODO do we need to merge any into this?
-                  executionPoint =
-                    Lambda(currentFrame.executionPoint, appLambda.exprId) }
+                  typeSymbolTable =
+                    // CLEANUP is this right? (I think yes...)
+                    Map.mergeFavoringRight
+                      appLambda.typeSymbolTable
+                      currentFrame.typeSymbolTable
+                  executionPoint = Lambda(currentFrame.executionPoint, exprId) }
 
               frameToPush <- Some newFrame
 
@@ -627,27 +633,33 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
               |> RTE.Apply
               |> raiseRTE
 
-            let _typeCheckParam =
+            let typeCheckParam =
               TypeChecker.checkFnParam exeState.types applicable.name
+
+            let mutable tst =
+              Map.mergeFavoringRight
+                currentFrame.typeSymbolTable
+                applicable.typeSymbolTable
 
             let typeCheckParams pairs =
               pairs
-              |> Ply.List.iterSequentially (fun ((_pIndex, _pName, _pType), _arg) ->
+              |> Ply.List.iterSequentially (fun ((pIndex, pName, pType), arg) ->
                 uply {
-                  // match!
-                  //   typeCheckParam
-                  //     currentFrame.typeSymbolTable
-                  //     pIndex
-                  //     pName
-                  //     pType
-                  //     arg
-                  // with
-                  // | Ok updatedTst ->
-                  //   currentFrame.typeSymbolTable <- updatedTst
-                  //   return ()
-                  // | Error rte -> return raiseRTE rte
-                  return ()
+                  match! typeCheckParam tst pIndex pName pType arg with
+                  | Ok updatedTst ->
+                    tst <- updatedTst
+                    return ()
+                  | Error rte -> return raiseRTE rte
                 })
+
+            let typeArgs =
+              match applicable.typeArgs, typeArgs with
+              | [], newTypeArgs -> newTypeArgs
+              | oldTypeArgs, [] -> oldTypeArgs
+              | _, _ ->
+                RTE.Applications.CannotApplyTypeArgsMoreThanOnce
+                |> RTE.Apply
+                |> raiseRTE
 
             // TODO: reduce duplication between branches
             match applicable.name with
@@ -655,14 +667,20 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
               match Map.find builtin exeState.fns.builtIn with
               | None -> return RTE.FnNotFound(FQFnName.Builtin builtin) |> raiseRTE
               | Some fn ->
-                let typeArgs =
-                  match applicable.typeArgs, typeArgs with
-                  | [], newTypeArgs -> newTypeArgs
-                  | oldTypeArgs, [] -> oldTypeArgs
-                  | _, _ ->
-                    RTE.Applications.CannotApplyTypeArgsMoreThanOnce
-                    |> RTE.Apply
-                    |> raiseRTE
+                // Process type args
+                // - there should be right #,
+                // - we should update _some_ TST with new info
+                let typeParamCount, typeArgCount =
+                  (List.length fn.typeParams, List.length typeArgs)
+                if typeArgCount <> typeParamCount then
+                  return handleWrongTypeArgCount typeParamCount typeArgCount
+
+                let! typeArgsVT =
+                  typeArgs
+                  |> Ply.List.mapSequentially (TypeReference.toVT exeState.types tst)
+                tst <-
+                  let newlyBound = List.zip fn.typeParams typeArgsVT |> Map
+                  Map.mergeFavoringRight tst newlyBound
 
                 // type-check new arguments against the corresponding parameters
                 do!
@@ -677,22 +695,41 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
 
                 let paramCount, argCount =
                   (List.length fn.parameters, List.length allArgs)
-                let typeParamCount, typeArgCount =
-                  (List.length fn.typeParams, List.length typeArgs)
 
                 let! result =
                   uply {
-                    if typeArgCount <> typeParamCount then
-                      return handleWrongTypeArgCount typeParamCount typeArgCount
-                    else if argCount > paramCount then
+                    if argCount > paramCount then
                       return handleTooManyArgs paramCount argCount
                     else if argCount < paramCount then
                       return
-                        { applicable with typeArgs = typeArgs; argsSoFar = allArgs }
+                        // CLEANUP should the typeArgs here be of VTs, not TRs? check out usages, I suppose.
+                        { applicable with
+                            typeSymbolTable = tst
+                            typeArgs = typeArgs
+                            argsSoFar = allArgs }
                         |> AppNamedFn
                         |> DApplicable
                     else
                       let! result = fn.fn (exeState, vm, typeArgs, allArgs)
+
+                      // now: type-check result against the return type
+                      //let tst = currentFrame.typeSymbolTable
+                      let expectedReturnType = fn.returnType
+                      match!
+                        TypeChecker.checkFnResult
+                          exeState.types
+                          (FQFnName.Builtin fn.name)
+                          tst
+                          expectedReturnType
+                          result
+                      with
+                      | Ok _updatedTst ->
+                        //currentFrame.typeSymbolTable <- updatedTst
+                        // CLEANUP is this^ or something like it worthwhile?
+                        // I think so, but let's wait until some relevant bug comes up...
+                        ()
+                      | Error rte -> raiseRTE rte
+
                       return result
                   }
 
@@ -797,10 +834,12 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
               // CLEANUP is this^ or something like it worthwhile?
               ()
             | Error _path ->
+              let! expectedVT =
+                TypeReference.toVT exeState.types tst expectedReturnType
               return
                 RuntimeError.Applications.FnResultNotExpectedType(
                   fnName,
-                  TypeReference.toVT tst expectedReturnType,
+                  expectedVT,
                   Dval.toValueType resultOfFrame,
                   resultOfFrame
                 )

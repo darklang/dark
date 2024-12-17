@@ -580,8 +580,6 @@ module Params =
   [<DB>]
   type ParamDB = Param<String>
 
-  // TODO I'm not sure why this is failing.
-  // I think it's related to TypeChecker dvalcreators, though, not DB-specific stuff.
   // (let _ = Stdlib.DB.set (Param { x = "hello"; b = 5L }) "key" ParamDB
   //  Stdlib.DB.get "key" ParamDB) =
   //   Stdlib.Option.Option.Some(Param { x = "hello"; b = 5L })

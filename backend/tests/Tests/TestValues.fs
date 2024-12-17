@@ -197,29 +197,29 @@ module Expressions =
         (eBool true)
         [ { pat = PT.MPVariable(gid (), "x"); whenCondition = None; rhs = eVar "x" } ]
 
-    // /// match 4 with
-    // /// | 1 -> "first branch"
-    // /// | x when x % 2 == 0 -> "second branch"
-    // let withVarAndWhenCondition =
-    //   eMatch
-    //     (eInt64 4)
-    //     [ { pat = PT.MPInt64(gid (), 1)
-    //         whenCondition = None
-    //         rhs = eStr [ strText "first branch" ] }
-    //       { pat = PT.MPVariable(gid (), "x")
-    //         // "is even"
-    //         whenCondition =
-    //           Some(
-    //             eApply
-    //               (PT.EFnName(gid (), Ok(PT.FQFnName.fqBuiltIn "equals" 0)))
-    //               []
-    //               [ eApply
-    //                   (PT.EFnName(gid (), Ok(PT.FQFnName.fqBuiltIn "int64Mod" 0)))
-    //                   []
-    //                   [ eVar "x" ]
-    //                 eInt64 2 ]
-    //           )
-    //         rhs = eStr [ strText "second branch" ] } ]
+    /// match 4 with
+    /// | 1 -> "first branch"
+    /// | x when x % 2 == 0 -> "second branch"
+    let withVarAndWhenCondition =
+      eMatch
+        (eInt64 4)
+        [ { pat = PT.MPInt64(gid (), 1)
+            whenCondition = None
+            rhs = eStr [ strText "first branch" ] }
+          { pat = PT.MPVariable(gid (), "x")
+            // "is even"
+            whenCondition =
+              Some(
+                eApply
+                  (PT.EFnName(gid (), Ok(PT.FQFnName.fqBuiltIn "equals" 0)))
+                  []
+                  [ eApply
+                      (PT.EFnName(gid (), Ok(PT.FQFnName.fqBuiltIn "int64Mod" 0)))
+                      []
+                      [ eVar "x"; eInt64 2 ]
+                    eInt64 0 ]
+              )
+            rhs = eStr [ strText "second branch" ] } ]
 
     let list =
       eMatch
@@ -440,6 +440,21 @@ module Expressions =
         let partiallyApplied = eApply unapplied [] [ eInt64 1 ]
         let fullyApplied = eApply unapplied [] [ eInt64 1; eInt64 2 ]
 
+      module Inner =
+        let id = System.Guid.Parse "f38c8f89-7472-436f-8d38-2093e2e83fb7"
+
+        let unapplied = ePackageFn id
+      //let applied = eApply unapplied [] [ eInt64 1 ]
+
+      module Outer =
+        let id = System.Guid.Parse "6732ba1d-fae1-4a7e-91ea-d9f0eab6f3c7"
+        let unapplied = ePackageFn id
+        let applied =
+          eApply
+            unapplied
+            [ PT.TBool; PT.TString ]
+            [ eBool true; eStr [ strText "ignored" ] ]
+
 
       module Fact =
         let id = System.Guid.Parse "34c0c7bb-2bfa-4dc3-85f9-b965ba3c7880"
@@ -478,7 +493,6 @@ module Expressions =
           eApply unapplied [] [ eInt64 4L; lambda ]
 
 
-module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 
 //CLEANUP: Migrate this to the top
@@ -496,7 +510,38 @@ let pm : PT.PackageManager =
         body = PT.CInt64 17 } ]
 
     // fns
-    [ { id = Expressions.Fns.Package.MyAdd.id
+    [ { id = Expressions.Fns.Package.Inner.id
+        name = PT.PackageFn.name "Test" [] "inner"
+        typeParams = [ "x"; "y" ]
+        parameters =
+          NEList.ofList
+            { name = "x"; typ = PT.TVariable "x"; description = "TODO" }
+            [ { name = "_y"; typ = PT.TVariable "y"; description = "TODO" } ]
+        returnType = PT.TVariable "x"
+        body = eVar "x"
+        description = "TODO"
+        deprecated = PT.NotDeprecated }
+
+      { id = Expressions.Fns.Package.Outer.id
+        name = PT.PackageFn.name "Test" [] "outer"
+        typeParams = [ "x"; "y" ]
+        parameters =
+          NEList.ofList
+            { name = "x"; typ = PT.TVariable "x"; description = "TODO" }
+            [ { name = "_y"; typ = PT.TVariable "y"; description = "TODO" } ]
+        returnType = PT.TVariable "x"
+        body =
+          eLet
+            (lpVar "ignored")
+            (eApply
+              (ePackageFn Expressions.Fns.Package.Inner.id)
+              [ PT.TString; PT.TBool ]
+              [ eStr [ strText "hi" ]; eBool true ])
+            (eVar "x")
+        description = "TODO"
+        deprecated = PT.NotDeprecated }
+
+      { id = Expressions.Fns.Package.MyAdd.id
         name = PT.PackageFn.name "Test" [] "add"
         typeParams = []
         parameters =
@@ -576,5 +621,34 @@ let pm : PT.PackageManager =
                 description = "TODO" } ]
         returnType = PT.TInt64
         body = eApply (eVar "fn") [] [ eVar "x" ]
+        description = "TODO"
+        deprecated = PT.NotDeprecated }
+
+
+
+
+
+
+      { id = Expressions.Fns.Package.Fact.id
+        name = PT.PackageFn.name "Test" [] "fact"
+        typeParams = []
+        parameters =
+          NEList.ofList { name = "a"; typ = PT.TInt64; description = "TODO" } []
+        returnType = PT.TInt64
+        body =
+          eIf
+            (eApply (eBuiltinFn "equals" 0) [] [ eVar "a"; eInt64 1 ])
+            (eInt64 1)
+            (Some(
+              eApply
+                (eBuiltinFn "int64Multiply" 0)
+                []
+                [ eVar "a"
+                  (eApply
+                    (ePackageFn Expressions.Fns.Package.Fact.id)
+                    []
+                    [ eApply (eBuiltinFn "int64Subtract" 0) [] [ eVar "a"; eInt64 1 ] ]) ]
+            ))
+
         description = "TODO"
         deprecated = PT.NotDeprecated } ]

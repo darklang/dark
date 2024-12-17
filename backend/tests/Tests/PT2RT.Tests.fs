@@ -15,10 +15,6 @@ module PM = TestValues.PM
 
 open TestUtils.PTShortcuts
 
-// TODO: consider adding an Expect.equalInstructions,
-// which better points out the diffs in the lists
-
-// TODO we need tests of PT2RT-ing *functions* as well.
 
 module Expr =
   let t name expr expected =
@@ -31,28 +27,7 @@ module Expr =
   module Basic =
     let one = t "1" E.Basic.one (1, [ RT.LoadVal(0, RT.DInt64 1L) ], 0)
 
-    // let onePlusTwo =
-    //   t
-    //     "1+2"
-    //     E.Basic.onePlusTwo
-    //     (4,
-    //      [ RT.LoadVal(
-    //          0,
-    //          RT.DFnVal(
-    //            RT.AppNamedFn(RT.FQFnName.Builtin { name = "int64Add"; version = 0 })
-    //          )
-    //        )
-    //        RT.LoadVal(1, RT.DInt64 1L)
-    //        RT.LoadVal(2, RT.DInt64 2L)
-    //        RT.Apply(3, 0, [], { head = 1; tail = [ 2 ] }) ],
-    //      3)
-
-    let tests =
-      testList
-        "Basic"
-        [ one
-          //onePlusTwo
-          ]
+    let tests = testList "Basic" [ one ]
 
 
   module Let =
@@ -369,39 +344,53 @@ module Expr =
            RT.MatchUnmatched ],
          1)
 
-    // let withVarAndWhenCondition =
-    //   t
-    //     "match 4 with\n| 1 -> \"first branch\"\n| x when x % 2 == 0 -> \"second branch\""
-    //     E.Match.withVarAndWhenCondition
-    //     (10,
-    //      [ RT.LoadVal(0, RT.DInt64 4L)
+    let withVarAndWhenCondition =
+      t
+        "match 4 with\n| 1 -> \"first branch\"\n| x when x % 2 == 0 -> \"second branch\""
+        E.Match.withVarAndWhenCondition
+        (10,
+         [ RT.LoadVal(0, RT.DInt64 4L)
 
-    //        // first branch
-    //        RT.CheckMatchPatternAndExtractVars(0, RT.MPInt64 1L, 5)
-    //        RT.LoadVal(2, RT.DString "")
-    //        RT.LoadVal(3, RT.DString "first branch")
-    //        RT.AppendString(2, 3)
-    //        RT.CopyVal(1, 2)
-    //        RT.JumpBy 14
+           // first branch
+           RT.CheckMatchPatternAndExtractVars(0, RT.MPInt64 1L, 3)
+           RT.LoadVal(2, RT.DString "first branch")
+           RT.CopyVal(1, 2)
+           RT.JumpBy 12
 
-    //        // second branch
-    //        RT.CheckMatchPatternAndExtractVars(0, RT.MPVariable "x", 12)
-    //        RT.LoadVal(2, (RT.DFnVal(RT.AppNamedFn(RT.FQFnName.fqBuiltin "equals" 0))))
-    //        RT.LoadVal(3, (RT.DFnVal(RT.AppNamedFn(RT.FQFnName.fqBuiltin "int64Mod" 0))))
-    //        RT.GetVar(4, "x")
-    //        RT.Apply(5, 3, [], NEList.ofList 4 [])
-    //        RT.LoadVal(6, RT.DInt64 2L)
-    //        RT.Apply(7, 2, [], NEList.ofList 5 [ 6 ])
-    //        RT.JumpByIfFalse(5, 7)
-    //        RT.LoadVal(8, RT.DString "")
-    //        RT.LoadVal(9, RT.DString "second branch")
-    //        RT.AppendString(8, 9)
-    //        RT.CopyVal(1, 8)
-    //        RT.JumpBy 1
+           // second branch
+           RT.CheckMatchPatternAndExtractVars(0, RT.MPVariable 2, 10)
+           RT.LoadVal(3, RT.DInt64 2L)
+           RT.LoadVal(
+             4,
+             RT.DApplicable(
+               RT.AppNamedFn
+                 { name = RT.FQFnName.fqBuiltin "int64Mod" 0
+                   typeSymbolTable = Map.empty
+                   typeArgs = []
+                   argsSoFar = [] }
+             )
+           )
+           RT.Apply(5, 4, [], NEList.ofList 2 [ 3 ])
+           RT.LoadVal(6, RT.DInt64 0L)
+           RT.LoadVal(
+             7,
+             RT.DApplicable(
+               RT.AppNamedFn
+                 { name = RT.FQFnName.fqBuiltin "equals" 0
+                   typeSymbolTable = Map.empty
+                   typeArgs = []
+                   argsSoFar = [] }
+             )
+           )
+           RT.Apply(8, 7, [], NEList.ofList 5 [ 6 ])
+           RT.JumpByIfFalse(3, 8)
+           RT.LoadVal(9, RT.DString "second branch")
+           RT.CopyVal(1, 9)
+           RT.JumpBy 1
 
-    //        // handle the case where no branches match
-    //        RT.MatchUnmatched ],
-    //      1)
+           // handle the case where no branches match
+           RT.MatchUnmatched ],
+         1)
 
     let list =
       t
@@ -480,7 +469,7 @@ module Expr =
         [ simple
           notMatched
           withVar
-          //withVarAndWhenCondition // -- disabled because of fn-calling issues
+          withVarAndWhenCondition
           list
           listCons
           tuple ]
@@ -491,15 +480,15 @@ module Expr =
         "1 |> fun x -> x"
         E.Pipes.lambda
         (3,
-         [ RT.CreateLambda(
-             0,
+         [ RT.LoadVal(0, RT.DInt64 1L)
+           RT.CreateLambda(
+             1,
              { exprId = E.Pipes.pipeID
                patterns = NEList.ofList (RT.LPVariable 0) []
                registersToCloseOver = []
                instructions = { registerCount = 1; instructions = []; resultIn = 0 } }
            )
-           RT.LoadVal(1, RT.DInt64 1L)
-           RT.Apply(2, 0, [], NEList.ofList 1 []) ],
+           RT.Apply(2, 1, [], NEList.ofList 0 []) ],
          2)
 
     let infix =
@@ -514,6 +503,7 @@ module Expr =
              RT.DApplicable(
                RT.AppNamedFn
                  { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                   typeSymbolTable = Map.empty
                    typeArgs = []
                    argsSoFar = [] }
              )
@@ -522,23 +512,23 @@ module Expr =
          3)
 
     let fnCall =
-      // why are we loading the fn first?
       t
         "1 |> Builtin.int64Add 2"
         E.Pipes.fnCall
         (4,
-         [ RT.LoadVal(
-             0,
+         [ RT.LoadVal(0, RT.DInt64 1L)
+           RT.LoadVal(1, RT.DInt64 2L)
+           RT.LoadVal(
+             2,
              RT.DApplicable(
                RT.AppNamedFn
                  { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                   typeSymbolTable = Map.empty
                    typeArgs = []
                    argsSoFar = [] }
              )
            )
-           RT.LoadVal(1, RT.DInt64 1L)
-           RT.LoadVal(2, RT.DInt64 2L)
-           RT.Apply(3, 0, [], NEList.ofList 1 [ 2 ]) ],
+           RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ],
          3)
 
     let variable =
@@ -560,6 +550,7 @@ module Expr =
                          RT.DApplicable(
                            RT.AppNamedFn
                              { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                               typeSymbolTable = Map.empty
                                typeArgs = []
                                argsSoFar = [] }
                          )
@@ -591,6 +582,7 @@ module Expr =
                          (RT.DApplicable(
                            RT.AppNamedFn
                              { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                               typeSymbolTable = Map.empty
                                typeArgs = []
                                argsSoFar = [] }
                          ))
@@ -599,17 +591,10 @@ module Expr =
                    resultIn = 3 } }
            )
            RT.CheckLetPatternAndExtractVars(0, RT.LPVariable 1)
-           RT.LoadVal(
-             2,
-             RT.DApplicable(
-               RT.AppNamedFn
-                 { name = RT.FQFnName.fqBuiltin "int64Add" 0
-                   typeArgs = []
-                   argsSoFar = [] }
-             )
-           )
+           RT.LoadVal(2, RT.DInt64 2L)
+           RT.Apply(3, 1, [], NEList.ofList 2 [])
            RT.CreateLambda(
-             3,
+             4,
              { exprId = E.Pipes.pipeID
                patterns = NEList.ofList (RT.LPVariable 0) []
                registersToCloseOver = []
@@ -622,6 +607,7 @@ module Expr =
                          (RT.DApplicable(
                            RT.AppNamedFn
                              { name = RT.FQFnName.fqBuiltin "int64Multiply" 0
+                               typeSymbolTable = Map.empty
                                typeArgs = []
                                argsSoFar = [] }
                          ))
@@ -629,17 +615,28 @@ module Expr =
                        RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ]
                    resultIn = 3 } }
            )
-           RT.LoadVal(4, RT.DInt64 2L)
-           RT.Apply(5, 1, [], NEList.ofList 4 [])
-           RT.Apply(6, 3, [], NEList.ofList 5 [])
-           RT.LoadVal(7, RT.DInt64 3L)
-           RT.Apply(8, 2, [], NEList.ofList 6 [ 7 ])
+           RT.Apply(5, 4, [], NEList.ofList 3 [])
+
+           RT.LoadVal(6, RT.DInt64 3L)
+           RT.LoadVal(
+             7,
+             RT.DApplicable(
+               RT.AppNamedFn
+                 { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                   typeSymbolTable = Map.empty
+                   typeArgs = []
+                   argsSoFar = [] }
+             )
+           )
+
+           RT.Apply(8, 7, [], NEList.ofList 5 [ 6 ])
            RT.LoadVal(9, RT.DInt64 4L)
            RT.LoadVal(
              10,
              RT.DApplicable(
                RT.AppNamedFn
                  { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                   typeSymbolTable = Map.empty
                    typeArgs = []
                    argsSoFar = [] }
              )
@@ -855,45 +852,6 @@ module Expr =
         [ simple; notRecord; fieldThatShouldNotExist; fieldWithWrongType ]
 
 
-  (*
-  module Infix =
-    module And =
-      let mixed = eInfix (PT.Infix.BinOp PT.BinOpAnd) (eBool true) (eBool false)
-      let nested = eInfix (PT.Infix.BinOp PT.BinOpAnd) mixed (eBool true)
-      let bothTrue = eInfix (PT.Infix.BinOp PT.BinOpAnd) (eBool true) (eBool true)
-      let bothFalse = eInfix (PT.Infix.BinOp PT.BinOpAnd) (eBool false) (eBool false)
-
-    module Or =
-      let mixed = eInfix (PT.Infix.BinOp PT.BinOpOr) (eBool true) (eBool false)
-      let nested = eInfix (PT.Infix.BinOp PT.BinOpOr) mixed (eBool true)
-      let bothTrue = eInfix (PT.Infix.BinOp PT.BinOpOr) (eBool true) (eBool true)
-      let bothFalse = eInfix (PT.Infix.BinOp PT.BinOpOr) (eBool false) (eBool false)
-
-    module Add =
-      let simple =
-        eInfix (PT.Infix.InfixFnCall PT.ArithmeticPlus) (eInt64 1) (eInt64 2)
-
-    module Subtract =
-      let simple =
-        eInfix (PT.Infix.InfixFnCall PT.ArithmeticMinus) (eInt64 1) (eInt64 2)*)
-
-
-  module Constants =
-    module Package =
-      let mySpecialNumber =
-        t
-          "Test.mySpecialNumber"
-          E.Constants.Package.MySpecialNumber.usage
-          (1,
-           [ RT.LoadConstant(
-               0,
-               RT.FQConstantName.Package E.Constants.Package.MySpecialNumber.id
-             ) ],
-           0)
-      let tests = testList "Package" [ mySpecialNumber ]
-    let tests = testList "Constants" [ Package.tests ]
-
-
   module Infix =
     module And =
       let mixed =
@@ -920,6 +878,7 @@ module Expr =
                RT.DApplicable(
                  RT.AppNamedFn
                    { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                     typeSymbolTable = Map.empty
                      typeArgs = []
                      argsSoFar = [] }
                )
@@ -932,10 +891,24 @@ module Expr =
     let tests = testList "Infix" [ And.tests; Add.tests ]
 
 
+  module Constants =
+    module Package =
+      let mySpecialNumber =
+        t
+          "Test.mySpecialNumber"
+          E.Constants.Package.MySpecialNumber.usage
+          (1,
+           [ RT.LoadConstant(
+               0,
+               RT.FQConstantName.Package E.Constants.Package.MySpecialNumber.id
+             ) ],
+           0)
+      let tests = testList "Package" [ mySpecialNumber ]
+    let tests = testList "Constants" [ Package.tests ]
+
 
   module Lambda =
     module Identity =
-
       let unapplied =
         t
           "fn x -> x"
@@ -956,16 +929,16 @@ module Expr =
           "(fn x -> x) 1"
           E.Lambdas.Identity.applied
           (3,
-           [ RT.CreateLambda(
-               0,
+           [ RT.LoadVal(0, RT.DInt64 1L)
+             RT.CreateLambda(
+               1,
                { exprId = E.Lambdas.Identity.id
                  patterns = NEList.ofList (RT.LPVariable 0) []
                  registersToCloseOver = []
                  instructions =
                    { registerCount = 1; instructions = []; resultIn = 0 } }
              )
-             RT.LoadVal(1, RT.DInt64 1L)
-             RT.Apply(2, 0, [], NEList.ofList 1 []) ],
+             RT.Apply(2, 1, [], NEList.ofList 0 []) ],
            2)
 
       let tests = testList "Identity" [ unapplied; applied ]
@@ -989,6 +962,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 typeSymbolTable = Map.empty
                                  typeArgs = []
                                  argsSoFar = [] }
                            )
@@ -1003,8 +977,9 @@ module Expr =
           "(fn a b -> Builtin.int64Add a b) 1"
           E.Lambdas.Add.partiallyApplied
           (3,
-           [ RT.CreateLambda(
-               0,
+           [ RT.LoadVal(0, RT.DInt64 1L)
+             RT.CreateLambda(
+               1,
                { exprId = E.Lambdas.Add.id
                  patterns = NEList.ofList (RT.LPVariable 0) [ RT.LPVariable 1 ]
                  registersToCloseOver = []
@@ -1016,6 +991,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 typeSymbolTable = Map.empty
                                  typeArgs = []
                                  argsSoFar = [] }
                            )
@@ -1023,8 +999,7 @@ module Expr =
                          RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ]
                      resultIn = 3 } }
              )
-             RT.LoadVal(1, RT.DInt64 1L)
-             RT.Apply(2, 0, [], NEList.ofList 1 []) ],
+             RT.Apply(2, 1, [], NEList.ofList 0 []) ],
            2)
 
 
@@ -1033,8 +1008,10 @@ module Expr =
           "(fn a b -> Builtin.int64Add a b) 1 2"
           E.Lambdas.Add.fullyApplied
           (4,
-           [ RT.CreateLambda(
-               0,
+           [ RT.LoadVal(0, RT.DInt64 1L)
+             RT.LoadVal(1, RT.DInt64 2L)
+             RT.CreateLambda(
+               2,
                { exprId = E.Lambdas.Add.id
                  patterns = NEList.ofList (RT.LPVariable 0) [ RT.LPVariable 1 ]
                  registersToCloseOver = []
@@ -1046,6 +1023,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 typeSymbolTable = Map.empty
                                  typeArgs = []
                                  argsSoFar = [] }
                            )
@@ -1053,9 +1031,7 @@ module Expr =
                          RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ]
                      resultIn = 3 } }
              )
-             RT.LoadVal(1, RT.DInt64 1L)
-             RT.LoadVal(2, RT.DInt64 2L)
-             RT.Apply(3, 0, [], NEList.ofList 1 [ 2 ]) ],
+             RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ],
            3)
 
 
@@ -1084,6 +1060,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 typeSymbolTable = Map.empty
                                  typeArgs = []
                                  argsSoFar = [] }
                            )
@@ -1098,8 +1075,11 @@ module Expr =
           "(fn (a, b) -> Builtin.int64Add a b) (1, 2)"
           E.Lambdas.AddTuple.applied
           (5,
-           [ RT.CreateLambda(
-               0,
+           [ RT.LoadVal(1, RT.DInt64 1L)
+             RT.LoadVal(2, RT.DInt64 2L)
+             RT.CreateTuple(0, 1, 2, [])
+             RT.CreateLambda(
+               3,
                { exprId = E.Lambdas.AddTuple.id
                  patterns =
                    NEList.ofList
@@ -1114,6 +1094,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 typeSymbolTable = Map.empty
                                  typeArgs = []
                                  argsSoFar = [] }
                            )
@@ -1121,10 +1102,7 @@ module Expr =
                          RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ]
                      resultIn = 3 } }
              )
-             RT.LoadVal(2, RT.DInt64 1L)
-             RT.LoadVal(3, RT.DInt64 2L)
-             RT.CreateTuple(1, 2, 3, [])
-             RT.Apply(4, 0, [], NEList.ofList 1 []) ],
+             RT.Apply(4, 3, [], NEList.ofList 0 []) ],
            4)
 
 
@@ -1161,21 +1139,23 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 typeSymbolTable = Map.empty
                                  typeArgs = []
                                  argsSoFar = [] }
                            )
                          )
+                         RT.Apply(4, 3, [], NEList.ofList 1 [ 2 ])
                          RT.LoadVal(
-                           4,
+                           5,
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 typeSymbolTable = Map.empty
                                  typeArgs = []
                                  argsSoFar = [] }
                            )
                          )
-                         RT.Apply(5, 4, [], NEList.ofList 1 [ 2 ])
-                         RT.Apply(6, 3, [], NEList.ofList 0 [ 5 ]) ]
+                         RT.Apply(6, 5, [], NEList.ofList 0 [ 4 ]) ]
                      resultIn = 6 } }
              ) ],
            4)
@@ -1204,21 +1184,23 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 typeSymbolTable = Map.empty
                                  typeArgs = []
                                  argsSoFar = [] }
                            )
                          )
+                         RT.Apply(4, 3, [], NEList.ofList 1 [ 2 ])
                          RT.LoadVal(
-                           4,
+                           5,
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 typeSymbolTable = Map.empty
                                  typeArgs = []
                                  argsSoFar = [] }
                            )
                          )
-                         RT.Apply(5, 4, [], NEList.ofList 1 [ 2 ])
-                         RT.Apply(6, 3, [], NEList.ofList 0 [ 5 ]) ]
+                         RT.Apply(6, 5, [], NEList.ofList 0 [ 4 ]) ]
                      resultIn = 6 } }
              )
 
@@ -1251,6 +1233,7 @@ module Expr =
                RT.DApplicable(
                  RT.AppNamedFn
                    { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                     typeSymbolTable = Map.empty
                      typeArgs = []
                      argsSoFar = [] }
                )
@@ -1262,17 +1245,18 @@ module Expr =
           "Builtin.int64Add 1"
           E.Fns.Builtin.partiallyApplied
           (3,
-           [ RT.LoadVal(
-               0,
+           [ RT.LoadVal(0, RT.DInt64 1L)
+             RT.LoadVal(
+               1,
                RT.DApplicable(
                  RT.AppNamedFn
                    { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                     typeSymbolTable = Map.empty
                      typeArgs = []
                      argsSoFar = [] }
                )
              )
-             RT.LoadVal(1, RT.DInt64 1L)
-             RT.Apply(2, 0, [], NEList.ofList 1 []) ],
+             RT.Apply(2, 1, [], NEList.ofList 0 []) ],
            2)
 
       let fullyApplied =
@@ -1280,18 +1264,19 @@ module Expr =
           "Builtin.int64Add 1 2"
           E.Fns.Builtin.fullyApplied
           (4,
-           [ RT.LoadVal(
-               0,
+           [ RT.LoadVal(0, RT.DInt64 1L)
+             RT.LoadVal(1, RT.DInt64 2L)
+             RT.LoadVal(
+               2,
                RT.DApplicable(
                  RT.AppNamedFn
                    { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                     typeSymbolTable = Map.empty
                      typeArgs = []
                      argsSoFar = [] }
                )
              )
-             RT.LoadVal(1, RT.DInt64 1L)
-             RT.LoadVal(2, RT.DInt64 2L)
-             RT.Apply(3, 0, [], NEList.ofList 1 [ 2 ]) ],
+             RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ],
            3)
 
       let twoStepApplication =
@@ -1299,19 +1284,20 @@ module Expr =
           "(Builtin.int64Add 1) 2"
           E.Fns.Builtin.twoStepApplication
           (5,
-           [ RT.LoadVal(
-               0,
+           [ RT.LoadVal(0, RT.DInt64 2L)
+             RT.LoadVal(1, RT.DInt64 1L)
+             RT.LoadVal(
+               2,
                RT.DApplicable(
                  RT.AppNamedFn
                    { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                     typeSymbolTable = Map.empty
                      typeArgs = []
                      argsSoFar = [] }
                )
              )
-             RT.LoadVal(1, RT.DInt64 1L)
-             RT.Apply(2, 0, [], NEList.ofList 1 [])
-             RT.LoadVal(3, RT.DInt64 2L)
-             RT.Apply(4, 2, [], NEList.ofList 3 []) ],
+             RT.Apply(3, 2, [], NEList.ofList 1 [])
+             RT.Apply(4, 3, [], NEList.ofList 0 []) ],
            4)
 
       let tests =
@@ -1332,6 +1318,7 @@ module Expr =
                  RT.DApplicable(
                    RT.AppNamedFn
                      { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id
+                       typeSymbolTable = Map.empty
                        typeArgs = []
                        argsSoFar = [] }
                  )
@@ -1343,17 +1330,18 @@ module Expr =
             "Test.myAdd 1"
             E.Fns.Package.MyAdd.partiallyApplied
             (3,
-             [ RT.LoadVal(
-                 0,
+             [ RT.LoadVal(0, RT.DInt64 1L)
+               RT.LoadVal(
+                 1,
                  RT.DApplicable(
                    RT.AppNamedFn
                      { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id
+                       typeSymbolTable = Map.empty
                        typeArgs = []
                        argsSoFar = [] }
                  )
                )
-               RT.LoadVal(1, RT.DInt64 1L)
-               RT.Apply(2, 0, [], NEList.ofList 1 []) ],
+               RT.Apply(2, 1, [], NEList.ofList 0 []) ],
              2)
 
         let fullyApplied =
@@ -1361,18 +1349,19 @@ module Expr =
             "Test.myAdd 1 2"
             E.Fns.Package.MyAdd.fullyApplied
             (4,
-             [ RT.LoadVal(
-                 0,
+             [ RT.LoadVal(0, RT.DInt64 1L)
+               RT.LoadVal(1, RT.DInt64 2L)
+               RT.LoadVal(
+                 2,
                  RT.DApplicable(
                    RT.AppNamedFn
                      { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.id
+                       typeSymbolTable = Map.empty
                        typeArgs = []
                        argsSoFar = [] }
                  )
                )
-               RT.LoadVal(1, RT.DInt64 1L)
-               RT.LoadVal(2, RT.DInt64 2L)
-               RT.Apply(3, 0, [], NEList.ofList 1 [ 2 ]) ],
+               RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ],
              3)
 
         let tests = testList "MyAdd" [ unapplied; partiallyApplied; fullyApplied ]
@@ -1383,21 +1372,11 @@ module Expr =
             "Test.myMap [1L; 2L] (fun x -> x + 1L)"
             E.Fns.Package.MyFnThatTakesALambda.fullyApplied
             (6,
-             [ RT.LoadVal(
-                 0,
-                 RT.DApplicable(
-                   RT.AppNamedFn
-                     { name =
-                         RT.FQFnName.fqPackage E.Fns.Package.MyFnThatTakesALambda.id
-                       typeArgs = []
-                       argsSoFar = [] }
-                 )
-               )
-               RT.LoadVal(2, RT.DInt64 1L)
-               RT.LoadVal(3, RT.DInt64 2L)
-               RT.CreateList(1, [ 2; 3 ])
+             [ RT.LoadVal(1, RT.DInt64 1L)
+               RT.LoadVal(2, RT.DInt64 2L)
+               RT.CreateList(0, [ 1; 2 ])
                RT.CreateLambda(
-                 4,
+                 3,
                  { exprId = E.Fns.Package.MyFnThatTakesALambda.lambdaID
                    patterns = { head = RT.LPVariable 0; tail = [] }
                    registersToCloseOver = []
@@ -1410,6 +1389,7 @@ module Expr =
                              RT.DApplicable(
                                RT.AppNamedFn
                                  { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                   typeSymbolTable = Map.empty
                                    typeArgs = []
                                    argsSoFar = [] }
                              )
@@ -1417,12 +1397,47 @@ module Expr =
                            RT.Apply(3, 2, [], { head = 0; tail = [ 1 ] }) ]
                        resultIn = 3 } }
                )
-               RT.Apply(5, 0, [], { head = 1; tail = [ 4 ] }) ],
+               RT.LoadVal(
+                 4,
+                 RT.DApplicable(
+                   RT.AppNamedFn
+                     { name =
+                         RT.FQFnName.fqPackage E.Fns.Package.MyFnThatTakesALambda.id
+                       typeSymbolTable = Map.empty
+                       typeArgs = []
+                       argsSoFar = [] }
+                 )
+               )
+               RT.Apply(5, 4, [], { head = 0; tail = [ 3 ] }) ],
              5)
 
         let tests = testList "MyFnThatTakesALambda" [ myMap ]
 
-      let tests = testList "Package" [ MyAdd.tests; MyFnThatTakesALambda.tests ]
+      module Outer =
+        let works =
+          t
+            "Test.outer<Bool, String> true \"ignored\""
+            E.Fns.Package.Outer.applied
+            (4,
+             [ RT.LoadVal(0, RT.DBool true)
+               RT.LoadVal(1, RT.DString "ignored")
+               RT.LoadVal(
+                 2,
+                 RT.DApplicable(
+                   RT.AppNamedFn
+                     { name = RT.FQFnName.fqPackage E.Fns.Package.Outer.id
+                       typeSymbolTable = Map.empty
+                       typeArgs = []
+                       argsSoFar = [] }
+                 )
+               )
+               RT.Apply(3, 2, [ RT.TBool; RT.TString ], { head = 0; tail = [ 1 ] }) ],
+             3)
+
+        let tests = testList "Outer" [ works ]
+
+      let tests =
+        testList "Package" [ MyAdd.tests; MyFnThatTakesALambda.tests; Outer.tests ]
 
     let tests = testList "Fns" [ Builtin.tests; Package.tests ]
 

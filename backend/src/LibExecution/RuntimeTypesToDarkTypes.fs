@@ -516,6 +516,7 @@ module ApplicableNamedFn =
     match d with
     | DRecord(_, _, _, fields) ->
       { name = FQFnName.fromDT (fields |> D.field "name")
+        typeSymbolTable = Map.empty // TODO
         typeArgs = fields |> D.field "typeArgs" |> D.list TypeReference.fromDT
         argsSoFar = fields |> D.field "argsSoFar" |> D.list Dval.fromDT }
     | _ -> Exception.raiseInternal "Invalid ApplicableNamedFn" []
@@ -1118,11 +1119,15 @@ module RuntimeError =
             ValueType.toDT actualType
             Dval.toDT actualValue ]
 
+        | RuntimeError.Applications.CannotApplyTypeArgsToLambda ->
+          "CannotApplyTypeArgsToLambda", []
+
         | RuntimeError.Applications.TooManyArgsForLambda(lambdaExprId,
                                                          expected,
                                                          actual) ->
           "TooManyArgsForLambda",
           [ DUInt64 lambdaExprId; DInt64 expected; DInt64 actual ]
+
 
       DEnum(typeName, typeName, [], caseName, fields)
 
@@ -1173,12 +1178,16 @@ module RuntimeError =
           Dval.fromDT actualValue
         )
 
+      | DEnum(_, _, [], "CannotApplyTypeArgsToLambda", []) ->
+        RuntimeError.Applications.CannotApplyTypeArgsToLambda
+
       | DEnum(_, _, [], "TooManyArgsForLambda", [ lambdaExprId; expected; actual ]) ->
         RuntimeError.Applications.TooManyArgsForLambda(
           D.uInt64 lambdaExprId,
           D.int64 expected,
           D.int64 actual
         )
+
       | _ -> Exception.raiseInternal "Invalid Applications.Error" []
 
 

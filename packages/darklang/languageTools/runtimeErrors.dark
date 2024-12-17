@@ -116,6 +116,7 @@ module Darklang =
             | FnParameterNotExpectedType of fnName : FQFnName.FQFnName * paramIndex: Int64 * paramName : String * expectedType : ValueType * actualType : ValueType * actualValue : Dval
             | FnResultNotExpectedType of fnName : FQFnName.FQFnName * expectedType : ValueType * actualType : ValueType * actualValue : Dval
 
+            | CannotApplyTypeArgsToLambda
             | TooManyArgsForLambda of lambdaExprId: id * expected: Int64 * actual: Int64
 
 

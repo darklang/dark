@@ -1,20 +1,14 @@
 module Error =
-  // Stdlib.List.map_v0 [ 1L; 2L; 3L; 4L; 5L ] (fun x y -> x) =
-  //   // Lol - now, this returns a list of lambdas.
-  //   Builtin.testDerrorMessage "Expected 2 arguments, got 1"
-
-  // TODO fn arg type-checking
-  // (Stdlib.Option.map2_v0
-  //   (Stdlib.Option.Option.Some 10L)
-  //   "not an option"
-  //   (fun (a, b) -> "1")
-  //  ) = (Builtin.testDerrorMessage "TODOasedf")
+  (Stdlib.Option.map2_v0
+    (Stdlib.Option.Option.Some 10L)
+    "not an option"
+    (fun (a, b) -> "1")
+   ) = (Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.Option.map2's 2nd parameter `option2` expects PACKAGE.Darklang.Stdlib.Option.Option<_>, but got String (\"not an option\")")
 
 
 // Check we get previous errors before later ones
-// (Stdlib.List.map_v0 [ 1L; 2L; 3L; 4L; 5L ] (fun x -> Builtin.testRuntimeError "X"))
-// |> Stdlib.List.fakeFunction = Builtin.testDerrorMessage "X"
-// CLEANUP currently instead errors with `Stdlib.List.fakeFunction not found`
+(Stdlib.List.map_v0 [ 1L; 2L; 3L; 4L; 5L ] (fun x -> Builtin.testRuntimeError "X"))
+|> Stdlib.List.fakeFunction = Builtin.testDerrorMessage "Uncaught exception: X"
 
 
 

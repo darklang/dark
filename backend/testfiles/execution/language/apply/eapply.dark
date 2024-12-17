@@ -7,10 +7,15 @@
 (let fn = Stdlib.Int64.max
  fn 3L 7L) = 7L
 
+([ 1L; 2L; 3L; 4L; 5L ]
+ |> Stdlib.List.map  (fun x y -> x)
+ |> Stdlib.List.map (fun l -> l 1L)) =
+    [ 1L; 2L; 3L; 4L; 5L ]
+
 // ---------------------------
 // DarkInternal tests are internal
 // ---------------------------
-// module Darkinternal =
+// module DarkInternal =
 //   (let _ = Builtin.testSetExpectedExceptionCount 1L
 //    Builtin.darkInternalInfraSchedulingRuleList ()) =
 //      (Builtin.testDerrorMessage "Unknown error")
@@ -98,8 +103,8 @@ module InvalidFnCalls =
     Builtin.testDerrorMessage
       "stringFn expects 1 argument, but got 2 arguments"
 
-  // stringFn 5L =
-  //   (Builtin.testDerrorMessage "stringFn's 1st argument (`key`) should be a String. However, an Int64 (5) was passed instead.")
+  stringFn 5L =
+    (Builtin.testDerrorMessage "stringFn's 1st parameter `key` expects String, but got Int64 (5)")
 
   // fnWithTypeArgAndOneParam<Int64> "str2" =
   //   Builtin.testDerrorMessage "fnWithTypeArgAndOneParam's 1st argument (`arg`) should be an Int64. However, a String (\"str2\") was passed instead."
@@ -125,3 +130,34 @@ module InvalidFnCalls =
   // (let _ = Builtin.testSetExpectedExceptionCount 1L
   //  throwsException ()) =
   //   Builtin.testDerrorMessage "Unknown error"
+
+
+// this is making sure that generic type args aren't "carried" into incorrect contexts
+// specifically, that if `'x` is resolved in one place, it won't be used in another unless appropriate
+module GenericTypeArgsAreOK =
+  (let segments =
+    [ (PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.ErrorSegment.String "a")
+      (PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.ErrorSegment.String "b") ]
+
+  PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.segmentsToString segments
+  ) = "ab"
+
+
+  let inner<'x, 'y> (x: 'x) (_y :'y): 'x =
+    x
+
+  let outer<'x, 'y> (x: 'x) (_y: 'y): 'x =
+    // tst: [x: Bool]
+    let ignored = inner<String, Bool> "hi" true
+    x
+
+  (inner<Bool, String> true "ignored") = true
+  (outer<Bool, String> true "ignored") = true
+
+  (let partial = inner<Bool, String> true
+  partial "ignored") = true
+
+  (let partial = outer<Bool, String> true
+  partial "ignored") = true
+
+

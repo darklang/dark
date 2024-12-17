@@ -1,4 +1,3 @@
-
 module Empty =
   Stdlib.Dict.empty = Dict { }
 
@@ -21,7 +20,7 @@ module FilterMap =
         Stdlib.Option.Option.Some(key ++ value))
   ) = (Dict { c = "cz"; a = "ax" })
 
-  // // CLEANUP: it should be a type error on the function not returning a Bool
+  // CLEANUP figure out why this isn't failing on the `false` not being an option
   // (Stdlib.Dict.filterMap_v0
   //   (Dict { a = "x"; b = "y"; c = "z" })
   //   (fun key value ->
@@ -43,9 +42,8 @@ module Filter =
 
   Stdlib.Dict.filter (Dict { }) (fun k v -> 0L) = (Dict { })
 
-  // CLEANUP: this should be a type error on the function not returning a Bool
-  // Stdlib.Dict.filter (Dict { a = 1L; b = 2L; c = 3L }) (fun k v -> 2L) =
-  //   Builtin.testDerrorMessage "Encountered a condition that must be a Bool, but got an Int64 (-1)"
+  Stdlib.Dict.filter (Dict { a = 1L; b = 2L; c = 3L }) (fun k v -> 2L) =
+    Builtin.testDerrorMessage "Encountered a condition that must be a Bool, but got an Int64 (2)"
 
 
 module FromListOverwritingDuplicates =
@@ -61,12 +59,12 @@ module FromListOverwritingDuplicates =
     Builtin.testDerrorMessage "Uncaught exception: err"
 
   // CLEANUP improve the error message to:
-  //   In Dict.fromListOverwritingDuplicates's 1st argument (`entries`), the nested value `entries[1]` should be a (String, 'b). However, an Int64 (2) was passed instead.\n\nExpected: (String, 'b)\nActual: an Int64: 2
-  // Stdlib.Dict.fromListOverwritingDuplicates_v0 [ (1L, 2L) ] =
-  //   Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.Dict.fromListOverwritingDuplicates's 1st argument (`entries`) should be a List<(String * 'a)>. However, a List<(Int64, Int64)> ([  (1, 2)...) was passed instead."
+  //   In Dict.fromListOverwritingDuplicates's 1st argument (`entries`), the nested value `entries[1]` should be a (String, 'b). However, an Int64 (2) was passed instead.
+  Stdlib.Dict.fromListOverwritingDuplicates_v0 [ (1L, 2L) ] =
+    Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.Dict.fromListOverwritingDuplicates's 1st parameter `entries` expects List<(String * _)>, but got List<(Int64 * Int64)> ([\n  (1, 2)\n])"
 
-  // Stdlib.Dict.fromListOverwritingDuplicates_v0 [ 1L ] =
-  //   Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.Dict.fromListOverwritingDuplicates's 1st argument (`entries`) should be a List<(String * 'a)>. However, a List<Int64> ([  1]) was passed instead."
+  Stdlib.Dict.fromListOverwritingDuplicates_v0 [ 1L ] =
+    Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.Dict.fromListOverwritingDuplicates's 1st parameter `entries` expects List<(String * _)>, but got List<Int64> ([\n  1\n])"
 
 
 module FromList =
@@ -84,10 +82,10 @@ module FromList =
   Stdlib.Dict.fromList_v0 [ Builtin.testRuntimeError "err" ] =
     Builtin.testDerrorMessage "Uncaught exception: err"
 
-  // // CLEANUP improve the error message to
-  // //  "In Dict.fromList's 1st argument (`entries`), the nested value `entries[0][0]` should be a String. However, an Int64 (1) was passed instead.\n\nExpected: String\nActual: an Int64: 1"
-  // Stdlib.Dict.fromList_v0 [ (1L, 1L) ] =
-  //   Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.Dict.fromList's 1st argument (`entries`) should be a List<(String * 'a)>. However, a List<(Int64, Int64)> ([  (1, 1)...) was passed instead."
+  // CLEANUP improve the error message to
+  //  "In Dict.fromList's 1st argument (`entries`), the nested value `entries[0][0]` should be a String. However, an Int64 (1) was passed instead.\n\nExpected: String\nActual: an Int64: 1"
+  Stdlib.Dict.fromList_v0 [ (1L, 1L) ] =
+    Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.Dict.fromList's 1st parameter `entries` expects List<(String * _)>, but got List<(Int64 * Int64)> ([\n  (1, 1)\n])"
 
 
 module Get =
@@ -149,11 +147,11 @@ module Set =
   Stdlib.Dict.set_v0 (Dict { key1 = "val1before" }) "key1" "val1after" =
     Builtin.testDerrorMessage "Cannot add two dictionary entries with the same key `key1`"
 
-  Stdlib.Dict.set_v0 (Dict { key1 = "val1" }) "key2" 2L =
+  Dict { key1 = "val1"; key2 = 2L } =
     Builtin.testDerrorMessage "Cannot add an Int64 (2) to a dict of String. Failed at key `key2`."
 
-  Stdlib.Dict.set_v0 (Dict { key1 = 1 }) "key2" "changedTypeValue" =
-    Builtin.testDerrorMessage "Cannot add a String (\"changedTypeValue\") to a dict of Int32. Failed at key `key2`."
+  Stdlib.Dict.set_v0 (Dict { key1 = "val1" }) "key2" 2L =
+    Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.Dict.set's 3rd parameter `val` expects String, but got Int64 (2)"
 
 // TODO add setOverridingDuplicates
 
@@ -182,9 +180,6 @@ module Values =
 
 module Remove =
   Stdlib.Dict.remove_v0 (Dict { key1 = "val1"; key2 = "val2" }) "key1" = (Dict { key2 = "val2" })
-
   Stdlib.Dict.remove_v0 (Dict { key1 = "val1" }) "key1" = (Dict { })
-
   Stdlib.Dict.remove_v0 (Dict { key1 = "val1" }) "key2" = (Dict { key1 = "val1" })
-
   Stdlib.Dict.remove_v0 (Dict { }) "key1" = (Dict { })

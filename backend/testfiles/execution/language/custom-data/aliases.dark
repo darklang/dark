@@ -7,7 +7,7 @@ Something { ID = "2"; Data = "test" } = Something { ID = "2"; Data = "test" }
 
 // CELANUP: would be better if this noted that `Id` is an alias for `String`
 Something { ID = 2L; Data = "test" } =
-  Builtin.testDerrorMessage "Expected Id for field `ID`, but got 2 (an Int64)"
+  Builtin.testDerrorMessage "Failed to create record. Expected String for field `ID`, but got 2 (an Int64)"
 
 
 module SimpleRecordAlias =
@@ -40,7 +40,7 @@ module NestedAlias =
   getUserID (("Alice", "EMP123")) = "EMP123"
 
   getUserID (("Alice", 123L)) =
-    (Builtin.testDerrorMessage "NestedAlias.getUserID's return value expects Id, but got Int64 (123)")
+    (Builtin.testDerrorMessage "NestedAlias.getUserID's 1st parameter `credential` expects (String * String), but got (String * Int64) ((\"Alice\", 123))")
 
   type UserProfile =
     { credential: UserCredential
@@ -94,10 +94,10 @@ module RecordWithTypeArgs =
   // Inner<String, Int64> { a = "test"; b = "five" } = Builtin.testDerrorMessage "TODO: error message"
 
   Outer2 { a = 5L; b = 6L } =
-    (Builtin.testDerrorMessage "Expected String for field `a`, but got 5 (an Int64)")
+    (Builtin.testDerrorMessage "Failed to create record. Expected String for field `a`, but got 5 (an Int64)")
 
   Outer1 { a = "a"; b = "b" } =
-    (Builtin.testDerrorMessage "Expected Int64 for field `b`, but got \"b\" (a String)")
+    (Builtin.testDerrorMessage "Failed to create record. Expected Int64 for field `b`, but got \"b\" (a String)")
 
 
 module RecordWithTypeArgsDifferentName =
@@ -111,10 +111,10 @@ module RecordWithTypeArgsDifferentName =
     Inner { a = 5L; b = "string" }
 
   MostOutest { a = "not allowed"; b = "string" } =
-    (Builtin.testDerrorMessage "Expected Int64 for field `a`, but got \"not allow... (a String)")
+    (Builtin.testDerrorMessage "Failed to create record. Expected Int64 for field `a`, but got \"not allow... (a String)")
 
   MostOutest { a = 5L; b = 6L } =
-    (Builtin.testDerrorMessage "Expected String for field `b`, but got 6 (an Int64)")
+    (Builtin.testDerrorMessage "Failed to create record. Expected String for field `b`, but got 6 (an Int64)")
 
 
 module RecordWithRecursiveTypeArgs =
@@ -164,10 +164,10 @@ module EnumWithTypeArgs =
   Outer2.B 5L = Outer1.B 5L
 
   Outer2.A 5L =
-    (Builtin.testDerrorMessage "Expected String for field 0 in `A`, but got Int64 (5)")
+    (Builtin.testDerrorMessage "Failed to create enum. Expected String for field 0 in `A`, but got Int64 (5)")
 
   Outer1.B "b" =
-    (Builtin.testDerrorMessage "Expected Int64 for field 0 in `B`, but got String (\"b\")")
+    (Builtin.testDerrorMessage "Failed to create enum. Expected Int64 for field 0 in `B`, but got String (\"b\")")
 
 
 module EnumWithTypeArgsDifferentName =
@@ -184,10 +184,10 @@ module EnumWithTypeArgsDifferentName =
   MostOutest.B "test" = Inner.B "test"
 
   MostOutest.A "not allowed" =
-    (Builtin.testDerrorMessage "Expected Int64 for field 0 in `A`, but got String (\"not allowed\")")
+    (Builtin.testDerrorMessage "Failed to create enum. Expected Int64 for field 0 in `A`, but got String (\"not allowed\")")
 
   MostOutest.B 6L =
-    (Builtin.testDerrorMessage "Expected String for field 0 in `B`, but got Int64 (6)")
+    (Builtin.testDerrorMessage "Failed to create enum. Expected String for field 0 in `B`, but got Int64 (6)")
 
 
 module EnumWithRecursiveTypeArgs =

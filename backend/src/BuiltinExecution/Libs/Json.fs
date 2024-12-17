@@ -510,6 +510,9 @@ let parse
 
     | TCustomType(Ok typeName, typeArgs), jsonValueKind ->
       uply {
+        let! typeArgsVT =
+          typeArgs |> Ply.List.mapSequentially (TypeReference.toVT types tst)
+
         match! Types.find types typeName with
         | None ->
           return
@@ -589,13 +592,13 @@ let parse
                     ParseError.EnumExtraField(fieldJson.GetRawText(), path)
                   )
               else
-                let! (enum, _tst) =
+                let! enum =
                   TypeChecker.DvalCreator.enum
                     types
                     threadID
                     tst
                     typeName
-                    typeArgs
+                    typeArgsVT
                     caseName
                     fields
                 return enum
@@ -647,13 +650,13 @@ let parse
                 })
               |> Ply.List.flatten
 
-            let! (record, _tst) =
+            let! record =
               TypeChecker.DvalCreator.record
                 types
                 threadID
                 tst
                 typeName
-                typeArgs
+                typeArgsVT
                 fields
             return record
       }

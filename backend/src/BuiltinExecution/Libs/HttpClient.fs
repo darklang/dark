@@ -428,7 +428,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
                         FQFnName.Package PackageIDs.Fn.Stdlib.HttpClient.request,
                         2,
                         "headers",
-                        TypeReference.toVT Map.empty headersType,
+                        VT.list (VT.tuple VT.string VT.string []),
                         Dval.toValueType notAPair,
                         notAPair
                       )

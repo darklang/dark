@@ -41,7 +41,7 @@ module InvalidCols =
     (Builtin.testDerrorMessage "No field named `col3`")
 
   Cols1 { col1 = "" } =
-    (Builtin.testDerrorMessage "Expected Int64 for field `col1`, but got \"\" (a String)")
+    (Builtin.testDerrorMessage "Failed to create record. Expected Int64 for field `col1`, but got \"\" (a String)")
 
 
 module InvalidType =
@@ -105,4 +105,4 @@ module Update =
 
     (let myRec = RecordForUpdate { x = 4L; y = 1L }
      { myRec with y = "2" }) =
-      (Builtin.testDerrorMessage "Expected Int64 for field `y`, but got \"2\" (a String)")
+      (Builtin.testDerrorMessage "Failed to create updated record. Expected Int64 for field `y`, but got \"2\" (a String)")

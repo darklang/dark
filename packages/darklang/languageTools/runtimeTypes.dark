@@ -97,7 +97,7 @@ module Darklang =
 
 
       type LetPattern =
-        | LPVariable of name: String
+        | LPVariable of reg: Register
         | LPUnit
         | LPTuple of
           first: LetPattern *

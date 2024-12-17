@@ -79,5 +79,5 @@ module Shadowing =
 
 
 module Errors =
-  (let (a, _) = 1 in a) = Builtin.testDerrorMessage "Could not deconstruct value 1 into pattern TODO"
-  (let (a, _) = (1, 2, 3) in a) = Builtin.testDerrorMessage "Could not deconstruct value (1, 2, 3) into pattern TODO"
+  (let (a, _) = 1 in a) = Builtin.testDerrorMessage "Could not deconstruct value 1 into pattern ([variable], [variable])"
+  (let (a, _) = (1, 2, 3) in a) = Builtin.testDerrorMessage "Could not deconstruct value (1, 2, 3) into pattern ([variable], [variable])"

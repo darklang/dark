@@ -70,7 +70,7 @@ let queryableRoundtripsSuccessfully
   ) : Task<bool> =
   task {
     let! serialized =
-      DvalReprInternalQueryable.toJsonStringV0 (defaultTypes ()) bogusThreadID typ dv
+      DvalReprInternalQueryable.toJsonStringV0 (defaultTypes ()) bogusThreadID dv
     let! roundtripped =
       DvalReprInternalQueryable.parseJsonV0
         (defaultTypes ())

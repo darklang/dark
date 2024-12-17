@@ -8,6 +8,7 @@ module Darklang =
       type TypeReference = LanguageTools.RuntimeTypes.TypeReference
       type ValueType = LanguageTools.RuntimeTypes.ValueType
       type Dval = LanguageTools.RuntimeTypes.Dval
+      type LetPattern = LanguageTools.RuntimeTypes.LetPattern
       // </aliases>
 
       module RuntimeError =
@@ -52,6 +53,8 @@ module Darklang =
           | InlineValue of Dval // possibly shortened to be shown inline
           | FullValue of Dval
 
+          | LetPattern of LetPattern
+
 
         type ES = ErrorSegment
 
@@ -81,6 +84,7 @@ module Darklang =
                     $"{count} {segment}"
 
                 | IndefiniteArticle ->
+                  //Builtin.debug "prevSegments" prevSegments
                   match Stdlib.List.head prevSegments with
                   | None -> ""
                   | Some prev -> Stdlib.String.articleFor prev ++ " "
@@ -110,6 +114,7 @@ module Darklang =
                   |> Stdlib.String.splitOnNewline
                   |> Stdlib.String.join ""
                 | FullValue dv -> dval dv
+                | LetPattern p -> letPattern p
                 | segment ->
                   $"(RTETODO segmentsToString parts {(Builtin.jsonSerialize<ErrorSegment> segment)})"
 
@@ -195,7 +200,7 @@ module Darklang =
             [ ES.String "Could not deconstruct value "
               ES.FullValue dval
               ES.String " into pattern "
-              ES.String "TODO" ]
+              ES.LetPattern pat ]
 
           | VariableNotFound attemptedVarName ->
             [ ES.String $"There is no variable named: {attemptedVarName}" ]
@@ -261,7 +266,8 @@ module Darklang =
                 // ES.String " record"
                 ]
             | CreationFieldOfWrongType (fieldName,  expectedType,  actualType, actualValue) ->
-              [ ES.String "Expected "
+              [ ES.String "Failed to create record. "
+                ES.String "Expected "
                 ES.ValueType expectedType
                 ES.String " for field "
                 ES.FieldName fieldName
@@ -291,7 +297,8 @@ module Darklang =
                 // ES.String " record"
                 ]
             | UpdateFieldOfWrongType(fieldName, expectedType,  actualType, actualValue) ->
-              [ ES.String "Expected "
+              [ ES.String "Failed to create updated record. "
+                ES.String "Expected "
                 ES.ValueType expectedType
                 ES.String " for field "
                 ES.FieldName fieldName
@@ -337,7 +344,8 @@ module Darklang =
                 ES.TypeName typeName ]
 
             | ConstructionFieldOfWrongType (caseName, fieldIndex, expectedType, actualType, actualValue) ->
-              [ ES.String "Expected "
+              [ ES.String "Failed to create enum. "
+                ES.String "Expected "
                 ES.ValueType expectedType
                 ES.String " for field "
                 ES.Int fieldIndex
@@ -383,21 +391,18 @@ module Darklang =
                 ES.String ", but got "
                 ES.Count(actual, ES.String "argument", ES.String "arguments") ]
             | FnParameterNotExpectedType(fnName, paramIndex, paramName, expectedType, actualType, actualValue) ->
-              [
-                ES.String "here"
-                // ES.FunctionName fnName
-                // ES.String "'s "
-                // ES.Ordinal(paramIndex + 1L)
-                // ES.String " parameter "
-                // ES.ParamName paramName
-                // ES.String " expects "
-                // ES.ValueType expectedType
-                // ES.String ", but got "
-                // ES.ValueType actualType
-                // ES.String " ("
-                // ES.FullValue actualValue
-                // ES.String ")"
-                ]
+              [ ES.FunctionName fnName
+                ES.String "'s "
+                ES.Ordinal(paramIndex + 1L)
+                ES.String " parameter "
+                ES.ParamName paramName
+                ES.String " expects "
+                ES.ValueType expectedType
+                ES.String ", but got "
+                ES.ValueType actualType
+                ES.String " ("
+                ES.FullValue actualValue
+                ES.String ")" ]
             | FnResultNotExpectedType(fnName, expectedType, actualType, actualValue) ->
               [ ES.FunctionName fnName
                 ES.String "'s return value expects "
@@ -407,6 +412,11 @@ module Darklang =
                 ES.String " ("
                 ES.FullValue actualValue
                 ES.String ")" ]
+
+
+
+            | CannotApplyTypeArgsToLambda ->
+              [ ES.String "Cannot apply type arguments to a lambda" ]
 
             | TooManyArgsForLambda (_lambdaExprId, expected, actual) ->
               [ ES.String "Lambda expects "
