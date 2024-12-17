@@ -43,7 +43,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "uuid" TString "" ]
       returnType =
         TypeReference.result
-          TInt64
+          TUuid
           (TCustomType(
             Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.uuidParseError),
             []

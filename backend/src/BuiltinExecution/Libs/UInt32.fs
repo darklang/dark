@@ -383,7 +383,7 @@ let fns : List<BuiltInFn> =
     { name = fn "uint32FromInt32" 0
       typeParams = []
       parameters = [ Param.make "a" TInt32 "" ]
-      returnType = TypeReference.option TInt32
+      returnType = TypeReference.option TUInt32
       description =
         "Converts an Int32 to a 32-bit unsigned integer.
         Returns {{None}} if the value is less than 0"

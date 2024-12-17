@@ -65,7 +65,7 @@ let fns : List<BuiltInFn> =
     { name = fn "dictToList" 0
       typeParams = []
       parameters = [ Param.make "dict" (TDict varA) "" ]
-      returnType = (TList(TTuple(varA, varB, [])))
+      returnType = TList(TTuple(TString, varA, []))
       description =
         "Returns <param dict>'s entries as a list of {{(key, value)}} tuples, in an arbitrary order.
         This function is the opposite of <fn Dict.fromList>"
