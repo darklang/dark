@@ -1,0 +1,5 @@
+# All .dark files
+# (in ./.vscode/* somewhere, we tell VS Code that .dark files are F# files,
+# so we get syntax highlighting of the near-equivalent syntax (for now),
+# but we don't want Fantomas to format them)
+*.dark
