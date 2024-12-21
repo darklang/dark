@@ -264,7 +264,7 @@ let parseJsonV0
             let objFields =
               j.EnumerateObject() |> Seq.map (fun jp -> (jp.Name, jp.Value)) |> Map
             if Map.count objFields = List.length fields then
-              return!
+              let! fields =
                 fields
                 |> List.map (fun f ->
                   let dval =
@@ -277,9 +277,15 @@ let parseJsonV0
 
                   dval |> Ply.map (fun dval -> f.name, dval))
                 |> Ply.List.flatten
-                // TYPESCLEANUP: I don't think the original is name right here?
-                |> Ply.map (fun mapped ->
-                  DRecord(typeName, typeName, VT.typeArgsTODO, Map mapped))
+
+              return!
+                TypeChecker.DvalCreator.record
+                  types
+                  threadID
+                  tst
+                  typeName
+                  VT.typeArgsTODO
+                  fields
             else
               return
                 Exception.raiseInternal

@@ -1,5 +1,3 @@
-// see ~:583 for the next thing to tackle. besides that, remaining stuff here is SqlCompiler-related.
-
 // really simple data stores of Records
 type X = { x: String }
 
@@ -580,9 +578,9 @@ module Params =
   [<DB>]
   type ParamDB = Param<String>
 
-  // (let _ = Stdlib.DB.set (Param { x = "hello"; b = 5L }) "key" ParamDB
-  //  Stdlib.DB.get "key" ParamDB) =
-  //   Stdlib.Option.Option.Some(Param { x = "hello"; b = 5L })
+  (let _ = Stdlib.DB.set (Param { x = "hello"; b = 5L }) "key" ParamDB
+   Stdlib.DB.get "key" ParamDB) =
+    Stdlib.Option.Option.Some(Param { x = "hello"; b = 5L })
 
 
 

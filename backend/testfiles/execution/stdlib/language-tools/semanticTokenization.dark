@@ -767,20 +767,20 @@ module TokenizeMatchExpression =
       (TokenType.Symbol, (1L, 6L), (1L, 8L))
       (TokenType.Keyword, (1L, 9L), (1L, 13L)) ]
 
-  // ("match [true; false] with\n| [true; false] -> true" |> tokenize) =
-  //   [ (TokenType.Keyword, (0L, 0L), (0L, 5L))
-  //     (TokenType.Symbol, (0L, 6L), (0L, 7L))
-  //     (TokenType.Keyword, (0L, 7L), (0L, 11L))
-  //     (TokenType.Keyword, (0L, 13L), (0L, 18L))
-  //     (TokenType.Symbol, (0L, 18L), (0L, 19L))
-  //     (TokenType.Keyword, (0L, 20L), (0L, 24L))
-  //     (TokenType.Symbol, (1L, 0L), (1L, 1L))
-  //     (TokenType.Symbol, (1L, 2L), (1L, 3L))
-  //     (TokenType.Keyword, (1L, 3L), (1L, 7L))
-  //     (TokenType.Keyword, (1L, 9L), (1L, 14L))
-  //     (TokenType.Symbol, (1L, 14L), (1L, 15L))
-  //     (TokenType.Symbol, (1L, 16L), (1L, 18L))
-  //     (TokenType.Keyword, (1L, 19L), (1L, 23L)) ]
+  ("match [true; false] with\n| [true; false] -> true" |> tokenize) =
+    [ (TokenType.Keyword, (0L, 0L), (0L, 5L))
+      (TokenType.Symbol, (0L, 6L), (0L, 7L))
+      (TokenType.Keyword, (0L, 7L), (0L, 11L))
+      (TokenType.Keyword, (0L, 13L), (0L, 18L))
+      (TokenType.Symbol, (0L, 18L), (0L, 19L))
+      (TokenType.Keyword, (0L, 20L), (0L, 24L))
+      (TokenType.Symbol, (1L, 0L), (1L, 1L))
+      (TokenType.Symbol, (1L, 2L), (1L, 3L))
+      (TokenType.Keyword, (1L, 3L), (1L, 7L))
+      (TokenType.Keyword, (1L, 9L), (1L, 14L))
+      (TokenType.Symbol, (1L, 14L), (1L, 15L))
+      (TokenType.Symbol, (1L, 16L), (1L, 18L))
+      (TokenType.Keyword, (1L, 19L), (1L, 23L)) ]
 
   // ("match [1L; 2L] with\n| head :: tail -> true" |> tokenize) =
   //   [ (TokenType.Keyword, (0L, 0L), (0L, 5L))

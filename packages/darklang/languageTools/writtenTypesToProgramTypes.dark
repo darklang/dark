@@ -21,7 +21,7 @@ module Darklang =
             (currentModule: List<String>)
             (i: WrittenTypes.QualifiedTypeIdentifier)
             : (ProgramTypes.NameResolution<ProgramTypes.FQTypeName.FQTypeName> *
-              List<WrittenTypes.TypeReference.TypeReference> *
+              List<ProgramTypes.TypeReference> *
               List<Parser.Range * ProgramTypes.NameResolutionError>)
             =
             let (typeArgs, typeArgsUnresolvedNames) =
@@ -1080,6 +1080,7 @@ module Darklang =
           let toPT
             (onMissing: NameResolver.OnMissing)
             (pm: ProgramTypes.PackageManager.PackageManager)
+            (owner: String)
             (currentModule: List<String>)
             (f: WrittenTypes.TypeDeclaration.RecordField)
             : (ProgramTypes.TypeDeclaration.RecordField *
@@ -1101,6 +1102,7 @@ module Darklang =
           let toPT
             (onMissing: NameResolver.OnMissing)
             (pm: ProgramTypes.PackageManager.PackageManager)
+            (owner: String)
             (currentModule: List<String>)
             (f: WrittenTypes.TypeDeclaration.EnumField)
             : (ProgramTypes.TypeDeclaration.EnumField *
@@ -1121,6 +1123,7 @@ module Darklang =
           let toPT
             (onMissing: NameResolver.OnMissing)
             (pm: ProgramTypes.PackageManager.PackageManager)
+            (owner: String)
             (currentModule: List<String>)
             (c: WrittenTypes.TypeDeclaration.EnumCase)
             : (ProgramTypes.TypeDeclaration.EnumCase *
@@ -1130,7 +1133,7 @@ module Darklang =
 
             let (fields, unresolvedNames) =
               (Stdlib.List.map c.fields (fun f ->
-                EnumField.toPT onMissing pm currentModule f))
+                EnumField.toPT onMissing pm owner currentModule f))
               |> Stdlib.List.unzip
 
             (ProgramTypes.TypeDeclaration.EnumCase
@@ -1160,7 +1163,7 @@ module Darklang =
             | Record fields ->
               let (fields, unresolvedNames) =
                 (Stdlib.List.map fields (fun (f, _) ->
-                  RecordField.toPT onMissing pm currentModule f))
+                  RecordField.toPT onMissing pm owner currentModule f))
                 |> Stdlib.List.unzip
 
               (ProgramTypes.TypeDeclaration.Definition.Record fields,
@@ -1170,7 +1173,7 @@ module Darklang =
               let (cases, unresolvedNames) =
                 cases
                 |> Stdlib.List.map (fun (_, c) ->
-                  EnumCase.toPT onMissing pm currentModule c)
+                  EnumCase.toPT onMissing pm owner currentModule c)
                 |> Stdlib.List.unzip
 
               (ProgramTypes.TypeDeclaration.Definition.Enum cases,
@@ -1321,6 +1324,7 @@ module Darklang =
            unresolvedNames)
 
       let declarationsToPT
+        (pm: ProgramTypes.PackageManager.PackageManager)
         (d: WrittenTypes.SourceFile.SourceFileDeclaration)
         : (ProgramTypes.SourceFile.Declaration *
           List<Parser.Range * ProgramTypes.NameResolutionError>)
@@ -1379,7 +1383,7 @@ module Darklang =
         | SourceFile source ->
           let (declarations, declarationsUnresolvedNames) =
             source.declarations
-            |> Stdlib.List.map WrittenTypesToProgramTypes.declarationsToPT
+            |> Stdlib.List.map (WrittenTypesToProgramTypes.declarationsToPT pm)
             |> Stdlib.List.unzip
 
           let (exprsToEval, exprsToEvalUnresolvedNames) =

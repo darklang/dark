@@ -87,13 +87,13 @@ let fns : List<BuiltInFn> =
     // (a bug to fix...) TODO
     { name = fn "languageToolsBuiltinFnExists" 0
       typeParams = []
-      parameters = [ Param.make "name" TString ""; Param.make "version" TInt64 "" ]
+      parameters = [ Param.make "name" TString ""; Param.make "version" TInt32 "" ]
       returnType = TBool
       description = "Returns whether or not some builtin fn exists"
       fn =
         (function
-        | exeState, _, _, [ DString name; DInt64 version ] ->
-          let name : FQFnName.Builtin = { name = name; version = int version }
+        | exeState, _, _, [ DString name; DInt32 version ] ->
+          let name : FQFnName.Builtin = { name = name; version = version }
 
           let found = exeState.fns.builtIn |> Map.find name |> Option.isSome
 

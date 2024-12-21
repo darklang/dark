@@ -1536,7 +1536,6 @@ let unwrapExecutionResult
   (exeResult : RT.ExecutionResult)
   : Ply.Ply<RT.Dval> =
   uply {
-    debuG "unwrapping execution result" ()
     match exeResult with
     | Ok dval -> return dval
     | Error(rte, callStack) ->

@@ -71,7 +71,7 @@ module Darklang =
 
         let extractTypeArgs
           (node: ParsedNode)
-          : Stdlib.Result.Result<List<WrittenTypes.Range * String>, WrittenTypes.Unparseable> =
+          : Stdlib.Result.Result<List<WrittenTypes.TypeReference.TypeReference>, WrittenTypes.Unparseable> =
           let args =
             match findNodeByFieldName node "type_args" with
             | Some typeArgs ->

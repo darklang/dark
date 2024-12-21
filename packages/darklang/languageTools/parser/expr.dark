@@ -272,7 +272,7 @@ module Darklang =
           let typeNameNode = findField node "type_name"
           let openBraceNode = findField node "symbol_open_brace"
 
-          let recordContents =
+          let fields =
             node
             |> findNodeByFieldName "content"
             |> Stdlib.Option.map (fun contentsNode ->
@@ -281,6 +281,7 @@ module Darklang =
               |> Builtin.unwrap
               |> Stdlib.List.map (fun recordSeparatorPair ->
                 match recordSeparatorPair with
+                // CLEANUP collapse these two branches into one
                 | [ recordPairNode; _separator ] ->
                   let fieldNode =
                     findAndParseRequired recordPairNode "field" (fun node ->
@@ -293,7 +294,7 @@ module Darklang =
 
                   match fieldNode, symbolEqualsNode, valueNode with
                   | Ok field, Ok symEquals, Ok value ->
-                    (symEquals, field, value) |> Stdlib.Result.Result.Ok
+                    (symEquals.range, field, value) |> Stdlib.Result.Result.Ok
                   | _ -> createUnparseableError recordPairNode
 
                 | [ recordPairNode ] ->
@@ -308,7 +309,7 @@ module Darklang =
 
                   match fieldNode, symbolEqualsNode, valueNode with
                   | Ok field, Ok symEquals, Ok value ->
-                    (symEquals, field, value) |> Stdlib.Result.Result.Ok
+                    (symEquals.range, field, value) |> Stdlib.Result.Result.Ok
                   | _ -> createUnparseableError recordPairNode
 
                 | _ -> createUnparseableError contentsNode)
@@ -319,8 +320,8 @@ module Darklang =
 
           let closeBraceNode = findField node "symbol_close_brace"
 
-          match typeNameNode, openBraceNode, recordContents, closeBraceNode with
-          | Ok typeName, Ok openBrace, Ok recordContents, Ok closeBrace ->
+          match typeNameNode, openBraceNode, fields, closeBraceNode with
+          | Ok typeName, Ok openBrace, Ok fields, Ok closeBrace ->
             let tn = typeName.text |> Stdlib.String.split "."
 
             let typeNameNode =
@@ -329,7 +330,7 @@ module Darklang =
             (WrittenTypes.Expr.ERecord(
               node.range,
               typeNameNode,
-              recordContents,
+              fields,
               openBrace.range,
               closeBrace.range
             ))

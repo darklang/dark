@@ -232,7 +232,9 @@ module Darklang =
             |> Builtin.unwrap
             |> Stdlib.List.map (fun dictSeparatorPair ->
               match dictSeparatorPair with
+              // CLEANUP collapse these branches into one
               | [ dictPairNode; _separator ] ->
+                // Note: `_separator` here is the `;` between key-value pairs
                 let keyNode =
                   findAndParseRequired dictPairNode "key" (fun node ->
                     match node.typ with
@@ -249,7 +251,7 @@ module Darklang =
 
                 match (keyNode, symbolEqualsNode, valueNode) with
                 | (Ok key, Ok symbolEquals, Ok value) ->
-                  (symbolEquals, key, value) |> Stdlib.Result.Result.Ok
+                  (symbolEquals.range, key, value) |> Stdlib.Result.Result.Ok
                 | _ -> createUnparseableError dictPairNode
 
               | [ dictPairNode ] ->
@@ -269,7 +271,7 @@ module Darklang =
 
                 match (keyNode, symbolEqualsNode, valueNode) with
                 | (Ok key, Ok symbolEquals, Ok value) ->
-                  (symbolEquals, key, value) |> Stdlib.Result.Result.Ok
+                  (symbolEquals.range, key, value) |> Stdlib.Result.Result.Ok
                 | _ -> createUnparseableError dictPairNode
               | _ -> createUnparseableError contentsNode)
 

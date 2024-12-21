@@ -9,13 +9,7 @@ module Darklang =
     // CLEANUP split into a few files - easier to manage, at this point.
     // i.e. common, typeReference, expr, declarations, packages, sourceFile
     module ProgramTypes =
-      type NameResolutionError =
-        | NotFound of List<String>
-        | InvalidName of List<String>
-
-      type NameResolution<'a> = Stdlib.Result.Result<'a, NameResolutionError>
-
-      let nameResolutionError (nr: NameResolutionError) : String =
+      let nameResolutionError (nr: LanguageTools.ProgramTypes.NameResolutionError) : String =
         match nr with
         | NotFound names -> Stdlib.String.join names "."
         | InvalidName names -> Stdlib.String.join names "."

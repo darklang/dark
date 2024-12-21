@@ -116,11 +116,11 @@ Stdlib.List.findFirst [ 1L; -33L; 3L; -2L; 12L ] (fun x -> (x < 0L && x % 2L == 
 module Flatten =
   Stdlib.List.flatten_v0 [ [ 1L ]; [ 2L ]; [ 3L ] ] = [ 1L; 2L; 3L ]
 
-  // Stdlib.List.flatten_v0 [ 1; 2; 3 ] =
-  //   Builtin.testRuntimeError "In List.flatten's 1st argument (`list`), the value should be a List<List<'a>>. However, a List<Int64> ([1; 2; 3]) was passed instead.\n\nExpected: List<List<'a>>\nActual: List<Int64>: [1; 2; 3]"
+  Stdlib.List.flatten_v0 [ 1; 2; 3 ] =
+    Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.List.flatten's 1st parameter `list` expects List<List<_>>, but got List<Int32> ([\n  1, 2, 3\n])"
 
-  // Stdlib.List.flatten_v0 [ [ 1L ]; [ [ 2L; 3L ] ] ] =
-  //  Builtin.testDerrorMessage "Could not merge types List<List<List<Int64>>> and List<List<Int64>>"
+  Stdlib.List.flatten_v0 [ [ 1L ]; [ [ 2L; 3L ] ] ] =
+   Builtin.testDerrorMessage "Cannot add a List<List<Int64>> ([\n  [\n    2, 3\n  ]\n]) to a list of List<Int64>. Failed at index 1."
 
   Stdlib.List.flatten_v0 [ [ [] ] ] = [ [] ]
   Stdlib.List.flatten_v0 [ [] ] = []
@@ -167,16 +167,16 @@ module Interleave =
   Stdlib.List.interleave_v0 [] [ 4L; 5L; 6L ] = [ 4L; 5L; 6L ]
   Stdlib.List.interleave_v0 [] [] = []
 
-  // Stdlib.List.interleave_v0 [ "a"; "b"; "c" ] [ 0L ] =
-  //   Builtin.testDerrorMessage "Cannot add an Int64 (0) to a list of String. Failed at index 3."
+  Stdlib.List.interleave_v0 [ "a"; "b"; "c" ] [ 0L ] =
+    Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.List.interleave's 2nd parameter `lB` expects List<String>, but got List<Int64> ([\n  0\n])"
 
 module Interpose =
   Stdlib.List.interpose_v0 [ 1L; 2L; 3L ] 5L = [ 1L; 5L; 2L; 5L; 3L ]
   Stdlib.List.interpose_v0 [ 1L ] 5L = [ 1L ]
   Stdlib.List.interpose_v0 [] 5L = []
 
-  // Stdlib.List.interpose_v0 [ "a"; "b"; "c" ] 0L = Builtin.testDerrorMessage
-  //   "Could not merge types List<Int64> and List<String>"
+  Stdlib.List.interpose_v0 [ "a"; "b"; "c" ] 0L =
+    Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.List.interpose's 2nd parameter `sep` expects String, but got Int64 (0)"
 
 
 module Last =

@@ -8,8 +8,6 @@ module VT = ValueType
 module RTE = RuntimeError
 
 
-
-
 type TypeCheckPathPart = RuntimeError.TypeChecking.TypeCheckPathPart
 type ReverseTypeCheckPath = RuntimeError.TypeChecking.ReverseTypeCheckPath
 
