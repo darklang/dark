@@ -17,7 +17,7 @@ open LibExecution.RuntimeTypes
 // module PT = LibExecution.ProgramTypes
 // module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
-
+// TODO bring back tracing
 // let testExecFunctionTLIDs : Test =
 //   testTask "test that exec function returns the right tlids in the trace" {
 //     let! meta = initializeTestCanvas "exec-function-tlids"

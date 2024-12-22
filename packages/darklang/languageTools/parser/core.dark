@@ -109,7 +109,6 @@ module Darklang =
         match findNodeByFieldName node fieldName with
         | Some nd -> parserFn nd
         | None ->
-          Builtin.debug "hmm" ()
           (WrittenTypes.Unparseable
             { source = node
               note = Stdlib.Option.Option.Some $"No {fieldName} node found in {node.typ}" })

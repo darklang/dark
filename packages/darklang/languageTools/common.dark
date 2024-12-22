@@ -25,6 +25,3 @@ module Darklang =
       { name: RuntimeTypes.FQConstantName.Builtin
         description: String
         ``type``: RuntimeTypes.TypeReference }
-
-// TODO: update usages given the updates from `type: String` to `type: RuntimeTypes.TypeReference`
-// TODO: and `name` updates

@@ -15,8 +15,6 @@ module PT = LibExecution.ProgramTypes
 module DvalReprInternalQueryable = LibExecution.DvalReprInternalQueryable
 module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippable
 module DvalReprInternalHash = LibExecution.DvalReprInternalHash
-//module S = TestUtils.RTShortcuts
-
 
 let bogusThreadID = guuid ()
 
@@ -30,38 +28,43 @@ let roundtrippableRoundtripsSuccessfully (dv : RT.Dval) : bool =
   |> DvalReprInternalRoundtrippable.parseJsonV0
   |> Expect.RT.dvalEquality dv
 
-// let queryableRoundtripsSuccessfullyInRecord
-//   (
-//     dv : RT.Dval,
-//     fieldTyp : RT.TypeReference
-//   ) : Task<bool> =
+let queryableRoundtripsSuccessfullyInRecord
+  (
+    dv : RT.Dval,
+    fieldTyp : RT.TypeReference
+  ) : Task<bool> =
 
-//   task {
-//     let typeID = System.Guid.Parse "82ac8d1c-86ef-45d4-be66-052050739a38"
-//     let typeName = RT.FQTypeName.Package typeID
-//     let record = RT.DRecord(typeName, typeName, [], Map.ofList [ "field", dv ])
-//     let typeRef = RT.TCustomType(Ok typeName, [])
+  task {
+    let typeID = System.Guid.Parse "82ac8d1c-86ef-45d4-be66-052050739a38"
+    let typeName = RT.FQTypeName.Package typeID
+    let record = RT.DRecord(typeName, typeName, [], Map.ofList [ "field", dv ])
+    let typeRef = RT.TCustomType(Ok typeName, [])
 
-//     let types : RT.Types =
-//       { package =
-//           fun id ->
-//             if id = typeID then
-//               let packageType : RT.PackageType.PackageType =
-//                 { id = typeID
-//                   declaration = S.customTypeRecord [ "field", fieldTyp ] }
-//               packageType |> Some |> Ply
-//             else
-//               pmRT.getType id }
+    let types : RT.Types =
+      { package =
+          fun id ->
+            if id = typeID then
+              let packageType : RT.PackageType.PackageType =
+                { id = typeID
+                  declaration =
+                    { typeParams = []
+                      definition =
+                        RT.TypeDeclaration.Record(
+                          NEList.ofList { name = "field"; typ = fieldTyp } []
+                        ) } }
+              packageType |> Some |> Ply
+            else
+              pmRT.getType id }
 
-//     let! roundtripped =
-//       record
-//       |> DvalReprInternalQueryable.toJsonStringV0 bogusThreadID types typeRef
-//       |> Ply.bind (
-//         DvalReprInternalQueryable.parseJsonV0 bogusThreadID types typeRef
-//       )
+    let! roundtripped =
+      record
+      |> DvalReprInternalQueryable.toJsonStringV0 types bogusThreadID
+      |> Ply.bind (
+        DvalReprInternalQueryable.parseJsonV0 types bogusThreadID Map.empty typeRef
+      )
 
-//     return Expect.dvalEquality record roundtripped
-//   }
+    return Expect.RT.dvalEquality record roundtripped
+  }
 
 let queryableRoundtripsSuccessfully
   (
@@ -150,11 +153,10 @@ let allRoundtrips =
         queryableRoundtripsSuccessfully
         (dvs DvalReprInternalQueryable.Test.isQueryableDval)
 
-      // testListUsingPropertyAsync
-      //   "queryable record v0"
-      //   queryableRoundtripsSuccessfullyInRecord
-      //   (dvs DvalReprInternalQueryable.Test.isQueryableDval)
-      ]
+      testListUsingPropertyAsync
+        "queryable record v0"
+        queryableRoundtripsSuccessfullyInRecord
+        (dvs DvalReprInternalQueryable.Test.isQueryableDval) ]
 
 
 let testInternalRoundtrippableNew =

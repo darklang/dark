@@ -169,14 +169,14 @@ module Darklang =
 
         | TUnit -> "Unit"
         | TBool -> "Bool"
-        | TInt64 -> "Int64"
-        | TUInt64 -> "UInt64"
         | TInt8 -> "Int8"
         | TUInt8 -> "UInt8"
         | TInt16 -> "Int16"
         | TUInt16 -> "UInt16"
         | TInt32 -> "Int32"
         | TUInt32 -> "UInt32"
+        | TInt64 -> "Int64"
+        | TUInt64 -> "UInt64"
         | TInt128 -> "Int128"
         | TUInt128 -> "UInt128"
         | TFloat -> "Float"
@@ -231,26 +231,29 @@ module Darklang =
 
       let constant (c: LanguageTools.ProgramTypes.Const) : String =
         match c with
-        | CInt64 i -> Stdlib.Int64.toString i ++ "L"
-        | CUInt64 i -> Stdlib.UInt64.toString i ++ "UL"
+        | CUnit -> "()"
+
+        | CBool b -> Stdlib.Bool.toString b
+
         | CInt8 i -> Stdlib.Int8.toString i ++ "y"
         | CUInt8 i -> Stdlib.UInt8.toString i ++ "uy"
         | CInt16 i -> Stdlib.Int16.toString i ++ "s"
         | CUInt16 i -> Stdlib.UInt16.toString i ++ "us"
         | CInt32 i -> Stdlib.Int32.toString i ++ "l"
         | CUInt32 i -> Stdlib.UInt32.toString i ++ "ul"
+        | CInt64 i -> Stdlib.Int64.toString i ++ "L"
+        | CUInt64 i -> Stdlib.UInt64.toString i ++ "UL"
         | CInt128 i -> Stdlib.Int128.toString i ++ "Q"
         | CUInt128 i -> Stdlib.UInt128.toString i ++ "Z"
+
         | CFloat(sign, whole, remainder) ->
           let signPart = PrettyPrinter.sign sign
-
           let remainderPart = PrettyPrinter.processRemainder remainder
-
           $"{signPart}{whole}.{remainderPart}"
-        | CBool b -> Stdlib.Bool.toString b
+
         | CChar c -> $"'{c}'"
         | CString s -> $"\"{s}\""
-        | CUnit -> "()"
+
         | CTuple(first, second, theRest) ->
           (Stdlib.List.append [ first; second ] theRest)
           |> Stdlib.List.map (fun item -> PrettyPrinter.ProgramTypes.constant item)
@@ -307,21 +310,24 @@ module Darklang =
       let matchPattern (mp: LanguageTools.ProgramTypes.MatchPattern) : String =
         match mp with
         | MPVariable(_id, name) -> name
+
         | MPUnit _id -> "()"
+
         | MPBool(_id, b) -> Stdlib.Bool.toString b
-        | MPInt64(_id, i) -> (Stdlib.Int64.toString i) ++ "L"
-        | MPUInt64(_id, i) -> (Stdlib.UInt64.toString i) ++ "UL"
+
         | MPInt8(_id, i) -> (Stdlib.Int8.toString i) ++ "y"
         | MPUInt8(_id, i) -> (Stdlib.UInt8.toString i) ++ "uy"
         | MPInt16(_id, i) -> (Stdlib.Int16.toString i) ++ "s"
         | MPUInt16(_id, i) -> (Stdlib.UInt16.toString i) ++ "us"
         | MPInt32(_id, i) -> (Stdlib.Int32.toString i) ++ "l"
         | MPUInt32(_id, i) -> (Stdlib.UInt32.toString i) ++ "ul"
+        | MPInt64(_id, i) -> (Stdlib.Int64.toString i) ++ "L"
+        | MPUInt64(_id, i) -> (Stdlib.UInt64.toString i) ++ "UL"
         | MPInt128(_id, i) -> (Stdlib.Int128.toString i) ++ "Q"
         | MPUInt128(_id, i) -> (Stdlib.UInt128.toString i) ++ "Z"
+
         | MPFloat(_id, sign, whole, remainder) ->
           let remainderPart = PrettyPrinter.processRemainder remainder
-
           $"{PrettyPrinter.sign sign}{whole}.{remainderPart}"
 
         | MPChar(_id, c) -> $"'{c}'"
@@ -329,22 +335,18 @@ module Darklang =
 
         | MPList(_id, items) ->
           items
-          |> Stdlib.List.map (fun item ->
-            PrettyPrinter.ProgramTypes.matchPattern item)
+          |> Stdlib.List.map (fun item -> PrettyPrinter.ProgramTypes.matchPattern item)
           |> Stdlib.String.join "; "
           |> fun parts -> "[" ++ parts ++ "]"
 
         | MPListCons(_id, head, tail) ->
           let headPart = PrettyPrinter.ProgramTypes.matchPattern head
-
           let tailPart = PrettyPrinter.ProgramTypes.matchPattern tail
-
           $"{headPart} :: {tailPart}"
 
         | MPTuple(_, first, second, theRest) ->
           (Stdlib.List.append [ first; second ] theRest)
-          |> Stdlib.List.map (fun item ->
-            PrettyPrinter.ProgramTypes.matchPattern item)
+          |> Stdlib.List.map (fun item -> PrettyPrinter.ProgramTypes.matchPattern item)
           |> Stdlib.String.join ", "
           |> fun parts -> "(" ++ parts ++ ")"
 
@@ -354,8 +356,7 @@ module Darklang =
           | fieldPats ->
             let fieldPart =
               fieldPats
-              |> Stdlib.List.map (fun pat ->
-                PrettyPrinter.ProgramTypes.matchPattern pat)
+              |> Stdlib.List.map (fun pat -> PrettyPrinter.ProgramTypes.matchPattern pat)
               |> Stdlib.String.join ", "
 
             $"{caseName}({fieldPart})"
@@ -363,7 +364,7 @@ module Darklang =
 
       let binaryOperation (b: LanguageTools.ProgramTypes.BinaryOperation) : String =
         match b with
-        // TODO: consider surrounding with spaces
+        // CLEANUP consider surrounding with spaces
         | BinOpAnd -> "&&"
         | BinOpOr -> "||"
 
@@ -400,7 +401,6 @@ module Darklang =
             exprs
             |> Stdlib.List.map PrettyPrinter.ProgramTypes.expr
             |> Stdlib.String.join " "
-
           if exprs == "" then varName else $"({varName} {exprs})"
 
         | EPipeLambda(_id, pats, body) ->
@@ -408,7 +408,6 @@ module Darklang =
             pats
             |> Stdlib.List.map (fun lp -> letPattern lp)
             |> Stdlib.String.join " "
-
           $"fun {argsPart} -> {expr body}"
 
         | EPipeInfix(_id, infix, expr) ->
@@ -468,46 +467,39 @@ module Darklang =
         match e with
         | EUnit _id -> "()"
 
-        // simple data
         | EBool(_id, b) -> Stdlib.Bool.toString b
-        | EInt64(_id, i) -> (Stdlib.Int64.toString i) ++ "L"
-        | EUInt64(_id, i) -> (Stdlib.UInt64.toString i) ++ "UL"
+
         | EInt8(_id, i) -> Stdlib.Int8.toString i ++ "y"
         | EUInt8(_id, i) -> Stdlib.UInt8.toString i ++ "uy"
         | EInt16(_id, i) -> Stdlib.Int16.toString i ++ "s"
         | EUInt16(_id, i) -> Stdlib.UInt16.toString i ++ "us"
         | EInt32(_id, i) -> Stdlib.Int32.toString i ++ "l"
         | EUInt32(_id, i) -> Stdlib.UInt32.toString i ++ "ul"
+        | EInt64(_id, i) -> (Stdlib.Int64.toString i) ++ "L"
+        | EUInt64(_id, i) -> (Stdlib.UInt64.toString i) ++ "UL"
         | EInt128(_id, i) -> Stdlib.Int128.toString i ++ "Q"
         | EUInt128(_id, i) -> Stdlib.UInt128.toString i ++ "Z"
 
         | EFloat(_id, sign, whole, remainder) ->
           let signPart = PrettyPrinter.sign sign
-
           let remainderPart = PrettyPrinter.processRemainder remainder
-
           $"{signPart}{whole}.{remainderPart}"
-
 
         | EChar(_id, c) -> "'" ++ c ++ "'"
 
         | EString(_id, segments) ->
           match segments with
           | [] -> "\"\""
-          | [ StringText text ] ->
-            $"\"{PrettyPrinter.escapeSpecialCharacters text}\""
+          | [ StringText text ] -> $"\"{PrettyPrinter.escapeSpecialCharacters text}\""
           | segments ->
             let inner =
               segments
-              |> Stdlib.List.map (fun segment ->
-                PrettyPrinter.ProgramTypes.stringSegment segment)
+              |> Stdlib.List.map (fun segment -> PrettyPrinter.ProgramTypes.stringSegment segment)
               |> Stdlib.String.join ""
-
             $"$\"{inner}\""
 
 
         // structures of data
-
         | EList(_id, items) ->
           items
           |> Stdlib.List.map (fun item -> PrettyPrinter.ProgramTypes.expr item)
@@ -563,18 +555,14 @@ module Darklang =
               fields
               |> Stdlib.List.map (fun field -> PrettyPrinter.ProgramTypes.expr field)
               |> Stdlib.String.join ", "
-
             $"{typeNamePart}.{caseName}({fieldPart})"
 
 
         // declaring and accessing variables
-
         | ELet(_id, pattern, rhs, body) ->
           let patternPart = PrettyPrinter.ProgramTypes.letPattern pattern
-
           let rhsPart = PrettyPrinter.ProgramTypes.expr rhs
           let bodyPart = PrettyPrinter.ProgramTypes.expr body
-
           $"let {patternPart} =\n{PrettyPrinter.indent rhsPart}\n{bodyPart}"
 
         | ERecordFieldAccess(_id, expr, fieldName) ->
@@ -590,7 +578,6 @@ module Darklang =
 
 
         // control flow
-
         | EIf(_id, cond, thenBranch, elseBranch) ->
           let condPart = PrettyPrinter.ProgramTypes.expr cond
 
@@ -603,27 +590,22 @@ module Darklang =
             match elseBranch with
             | EIf(_, _, _, _) ->
               let elsePart = (PrettyPrinter.ProgramTypes.expr elseBranch)
-
               $"if {condPart} then\n{thenPart}\nelse {elsePart}"
 
             | _ ->
-              let elsePart =
-                (PrettyPrinter.ProgramTypes.expr elseBranch) |> PrettyPrinter.indent
-
+              let elsePart = (PrettyPrinter.ProgramTypes.expr elseBranch) |> PrettyPrinter.indent
               $"if {condPart} then\n{thenPart}\nelse\n{elsePart}"
 
         | EMatch(_id, arg, cases) ->
           let cases =
             cases
             |> Stdlib.List.map (fun case ->
-
               let patternPart = PrettyPrinter.ProgramTypes.matchPattern case.pat
 
               let whenPart =
                 match case.whenCondition with
                 | Some cond ->
                   let whenCondition = PrettyPrinter.ProgramTypes.expr cond
-
                   $" when {whenCondition}"
                 | None -> ""
 
@@ -659,11 +641,8 @@ module Darklang =
 
         | EInfix(_id, infix, left, right) ->
           let infixPart = PrettyPrinter.ProgramTypes.infix infix
-
           let leftPart = PrettyPrinter.ProgramTypes.expr left
-
           let rightPart = PrettyPrinter.ProgramTypes.expr right
-
           // TODO: might need to wrap in parens
           $"({leftPart}) {infixPart} ({rightPart})"
 
@@ -835,13 +814,6 @@ module Darklang =
 
         $"type {db.name}{versionPart} = {typPart}"
 
-
-
-
-      // module Toplevel =
-      //   type T =
-      //     | TLHandler of Handler.Handler
-      //     | TLDB of DB
 
 
       // let secret (s: Stdlib.Secret.T) : String =

@@ -448,7 +448,7 @@ let tests =
             test.expectedResponse
     }
 
-  [] // ($"{basePath}", "http", Http) ]
+  [ ($"{basePath}", "http", Http) ]
   |> List.map (fun (dir, testListName, handlerType) ->
     let tests =
       System.IO.Directory.GetFiles(dir, "*.test")

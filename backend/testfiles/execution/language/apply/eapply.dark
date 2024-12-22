@@ -106,14 +106,15 @@ module InvalidFnCalls =
   stringFn 5L =
     (Builtin.testDerrorMessage "stringFn's 1st parameter `key` expects String, but got Int64 (5)")
 
-  // fnWithTypeArgAndOneParam<Int64> "str2" =
-  //   Builtin.testDerrorMessage "fnWithTypeArgAndOneParam's 1st argument (`arg`) should be an Int64. However, a String (\"str2\") was passed instead."
+  fnWithTypeArgAndOneParam<Int64> "str2" =
+    Builtin.testDerrorMessage "fnWithTypeArgAndOneParam's 1st parameter `arg` expects Int64, but got String (\"str2\")"
 
 
   // errors around return value
   (shouldReturnStringButDoesNot ()) =
     (Builtin.testDerrorMessage "shouldReturnStringButDoesNot's return value expects String, but got Int64 (5)")
 
+  // TODO fix this weird edge case (interpreter work)
   // fnWithTypedReturn<String> () =
   //   Builtin.testDerrorMessage "fnWithTypedReturn's return value should be a String. However, an Int64 (5) was returned instead."
 

@@ -739,6 +739,20 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
               match! exeState.fns.package pkg with
               | None -> return RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE
               | Some fn ->
+                // Process type args
+                // - there should be right #,
+                // - we should update _some_ TST with new info
+                let typeParamCount, typeArgCount =
+                  (List.length fn.typeParams, List.length typeArgs)
+                if typeArgCount <> typeParamCount then
+                  return handleWrongTypeArgCount typeParamCount typeArgCount
+
+                let! typeArgsVT =
+                  typeArgs
+                  |> Ply.List.mapSequentially (TypeReference.toVT exeState.types tst)
+                tst <-
+                  let newlyBound = List.zip fn.typeParams typeArgsVT |> Map
+                  Map.mergeFavoringRight tst newlyBound
 
                 // type-check new arguments against the corresponding parameters
                 do!
@@ -754,16 +768,15 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
 
                 let paramCount, argCount =
                   (NEList.length fn.parameters, List.length allArgs)
-                let typeParamCount, typeArgCount =
-                  (List.length fn.typeParams, List.length typeArgs)
 
-                if typeArgCount <> typeParamCount then
-                  return handleWrongTypeArgCount typeParamCount typeArgCount
-                else if argCount > paramCount then
+                if argCount > paramCount then
                   return handleTooManyArgs paramCount argCount
                 else if argCount < paramCount then
                   registers[putResultIn] <-
-                    { applicable with typeArgs = typeArgs; argsSoFar = allArgs }
+                    { applicable with
+                        typeArgs = typeArgs
+                        argsSoFar = allArgs
+                        typeSymbolTable = tst }
                     |> AppNamedFn
                     |> DApplicable
                 else

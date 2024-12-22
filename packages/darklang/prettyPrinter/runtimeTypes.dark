@@ -165,7 +165,6 @@ module Darklang =
 
         | TDB inner -> $"DB<{typeReference inner}>"
 
-
         | TVariable varName -> "'" ++ varName
 
 
@@ -406,4 +405,5 @@ module Darklang =
 
 
 
-      let dval (dv: LanguageTools.RuntimeTypes.Dval) : String = Dval.withIndent 0L dv
+      let dval (dv: LanguageTools.RuntimeTypes.Dval) : String =
+        Dval.withIndent 0L dv
