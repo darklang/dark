@@ -6,9 +6,6 @@ module Darklang =
     module LocalInstall =
       // TODO: base these 'constants' on each other
       // or maybe they shouldn't constants, but rather passed into the respective fns... probably that.
-      let darklangDir = "$HOME/.darklang"
-      let configPath = "$HOME/.darklang/config.json"
-      let executableDir = "$HOME/.darklang/bin/"
       let bearerToken = "${GITHUB_RELEASES_TOKEN}"
 
 
@@ -23,9 +20,7 @@ module Darklang =
         match GitHub.Releases.getLatestReleaseTag bearerToken with
         | Ok latestVersion ->
           match Config.readLocallyInstalledDarklangVersion configPath with
-          | Ok(Some localVersion) ->
-            Stdlib.Result.Result.Ok(localVersion == latestVersion)
-          | Ok None -> Stdlib.Result.Result.Ok false
+          | Ok localVersion -> Stdlib.Result.Result.Ok(localVersion == latestVersion)
           | Error _e -> Stdlib.Result.Result.Error "Couldn't determine local version"
         | Error _e ->
           Stdlib.Result.Result.Error
@@ -42,7 +37,7 @@ module Darklang =
           | Some timestamp ->
             let secondsSinceLastUpdate =
               ((Stdlib.DateTime.now ()) |> Stdlib.DateTime.toSeconds)
-              - (lastUpdateTimestamp |> Stdlib.Int64.parse |> Builtin.unwrap)
+              - (timestamp |> Stdlib.Int64.parse |> Builtin.unwrap)
 
             let oneDayInSeconds = 86400L // TODO: show math
 
@@ -52,6 +47,17 @@ module Darklang =
 
       let selfUpdateIfRelevant () : Stdlib.Result.Result<Unit, String> =
         // if not installed, ignore -- nothing to self-update
+
+        let configPath =
+          match (Stdlib.Cli.OS.getOS ()) with
+          | Ok Windows ->
+            let homeDirectory =
+              (Stdlib.Cli.PowerShell.getHomeDirectory ()) |> Builtin.unwrap
+
+            $"{homeDirectory}\\.darklang\\config.json"
+          | Ok Linux -> "$HOME/.darklang/config.json"
+          | Ok MacOS -> "$HOME/.darklang/config.json"
+
         if Stdlib.Bool.not (Builtin.fileExists configPath) then
           Stdlib.Result.Result.Ok()
         // don't update _too_ often

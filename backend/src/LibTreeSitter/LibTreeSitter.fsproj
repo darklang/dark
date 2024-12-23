@@ -20,7 +20,7 @@
     the correct native library for the relevant runtime.
   -->
   <PropertyGroup>
-    <RuntimeIdentifiers>linux-x64;linux-musl-x64;linux-arm64;linux-arm;osx-x64;osx-arm64</RuntimeIdentifiers>
+    <RuntimeIdentifiers>linux-x64;linux-musl-x64;linux-arm64;linux-arm;osx-x64;osx-arm64;win-x64;win-arm64</RuntimeIdentifiers>
   </PropertyGroup>
   <Target Name="PrintRuntimeIdentifier" BeforeTargets="CoreCompile">
     <Message Importance="high" Text="RuntimeIdentifier is '$(RuntimeIdentifier)'" />
@@ -54,6 +54,14 @@
   <ItemGroup Condition="'$(RuntimeIdentifier)' == 'osx-arm64'">
     <EmbeddedResource Include="lib/tree-sitter-macos-arm64.dylib" LogicalName="tree-sitter.dylib" />
     <EmbeddedResource Include="lib/tree-sitter-darklang-macos-arm64.dylib" LogicalName="tree-sitter-darklang.so" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'win-x64'">
+    <EmbeddedResource Include="lib/tree-sitter-win-x64.dll" LogicalName="tree-sitter.dll" />
+    <EmbeddedResource Include="lib/tree-sitter-darklang-windows-x64.dll" LogicalName="tree-sitter-darklang.dll" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'win-arm64'">
+    <EmbeddedResource Include="lib/tree-sitter-win-arm64.dll" LogicalName="tree-sitter.dll" />
+    <EmbeddedResource Include="lib/tree-sitter-darklang-windows-arm64.dll" LogicalName="tree-sitter-darklang.dll" />
   </ItemGroup>
   <!-- Paket, for NuGet dependencies-->
   <ItemGroup>

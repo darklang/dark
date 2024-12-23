@@ -70,6 +70,9 @@ module Darklang =
           | Linux, X86_64 -> "linux-x64" |> Stdlib.Result.Result.Ok
           | MacOS, Arm64 -> "osx-arm64" |> Stdlib.Result.Result.Ok
           | MacOS, X86_64 -> "osx-x64" |> Stdlib.Result.Result.Ok
+          | Windows, Arm64 -> "win-arm64" |> Stdlib.Result.Result.Ok
+          | Windows, Aarch64 -> "win-x64" |> Stdlib.Result.Result.Ok
+          | Windows, X86_64 -> "win-x64" |> Stdlib.Result.Result.Ok
           | _, _ -> Stdlib.Result.Result.Error "Unsupported OS or Arch"
 
         match hostStr with

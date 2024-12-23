@@ -297,7 +297,6 @@ module Darklang =
               (initialParse.submodules
                |> Stdlib.List.map (fun m -> m.types)
                |> Stdlib.List.flatten)
-          // Builtin.debug "types" types
 
           let constants =
             Stdlib.List.append

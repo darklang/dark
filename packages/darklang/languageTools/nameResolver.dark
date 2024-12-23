@@ -85,6 +85,7 @@ module Darklang =
               (Stdlib.List.flatten [ name.modules; [ name.name ] ])
               |> Stdlib.String.join "."
 
+            // CLEANUP: use `pm.findType nameForLookup` directly once the parser/interpreter is fixed
             let find = pm.findType
 
             match find nameForLookup with

@@ -1,0 +1,21 @@
+module Darklang =
+  module LanguageTools =
+    module LspServer =
+      module ShowDocument =
+        let makeShowDocumentRequest
+          (uri: String)
+          (requestId: JsonRPC.RequestId)
+          : String =
+          let showDocParams =
+            (LanguageServerProtocol.Window.ShowDocument.ShowDocumentRequest.ShowDocumentParams.ShowDocumentParams
+              { uri = uri
+                external = Stdlib.Option.Option.None
+                takeFocus = Stdlib.Option.Option.Some(true)
+                selection = Stdlib.Option.Option.None })
+
+            |> LanguageServerProtocol.Window.ShowDocument.ShowDocumentRequest.ShowDocumentParams.toJson
+
+          JsonRPC.Request.makeString
+            ("window/showDocument")
+            (Stdlib.Option.Option.Some(requestId))
+            (Stdlib.Option.Option.Some(showDocParams))

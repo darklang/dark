@@ -2,18 +2,45 @@ module Darklang =
   module Cli =
     module LocalInstall =
       module Uninstall =
-        let removeDarklangDirectory () : Stdlib.Result.Result<Unit, String> =
-          Stdlib.Cli.Unix.removeDirectory darklangDir
+        let removeDarklangDirectory
+          (host: Stdlib.Cli.Host.Host)
+          : Stdlib.Result.Result<Unit, String> =
+          match host.os with
+          | Windows ->
+            let homeDirectory =
+              match Stdlib.Cli.PowerShell.getHomeDirectory () with
+              | Ok homeDir -> homeDir
+              | Error e -> e
+
+            let darklangDir = $"{homeDirectory}\\.darklang"
+
+            Stdlib.Cli.PowerShell.removeFile darklangDir
+
+          | _ ->
+            let darklangDir = "$HOME/.darklang"
+            Stdlib.Cli.Unix.removeDirectory darklangDir
 
 
         let runUninstall
           (host: Stdlib.Cli.Host.Host)
           : Stdlib.Result.Result<Unit, String> =
-          let result =
-            (Stdlib.Cli.Unix.deleteAlias host.defaultShell "dark")
-            |> Stdlib.Result.andThen (fun _ -> removeDarklangDirectory ())
+          match host.os with
+          | Windows ->
+            let result =
+              (Stdlib.Cli.PowerShell.deleteAlias "dark")
+              |> Stdlib.Result.andThen (fun _ -> removeDarklangDirectory host)
 
-          match result with
-          | Ok _ -> Stdlib.Result.Result.Ok()
-          | Error err ->
-            Stdlib.Result.Result.Error $"Error uninstalling darklang: {err}"
+            match result with
+            | Ok _ -> Stdlib.Result.Result.Ok()
+            | Error err ->
+              Stdlib.Result.Result.Error $"Error uninstalling darklang: {err}"
+
+          | _ ->
+            let result =
+              (Stdlib.Cli.Unix.deleteAlias host.defaultShell "dark")
+              |> Stdlib.Result.andThen (fun _ -> removeDarklangDirectory host)
+
+            match result with
+            | Ok _ -> Stdlib.Result.Result.Ok()
+            | Error err ->
+              Stdlib.Result.Result.Error $"Error uninstalling darklang: {err}"

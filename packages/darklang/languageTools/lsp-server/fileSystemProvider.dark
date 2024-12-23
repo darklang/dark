@@ -1,0 +1,113 @@
+module Darklang =
+  module LanguageTools =
+    module LspServer =
+      module FileSystemProvider =
+        module ReadFile =
+          let sendResponse
+            (state: LspState)
+            (requestId: JsonRPC.RequestId)
+            (content: String)
+            : LspState =
+            let responseJson =
+              (LspExtension.FileSystemProvider.ReadFile.ReadFileResponse.ReadFileResponse
+                { content = content })
+              |> LspExtension.FileSystemProvider.ReadFile.ReadFileResponse.toJson
+              |> (fun r ->
+                JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some(requestId)) r)
+              |> Stdlib.AltJson.format
+
+            logAndSendToClient responseJson
+            state
+
+
+          let handleReadFileRequest
+            (state: LspState)
+            (requestId: JsonRPC.RequestId)
+            (params:
+              LspExtension.FileSystemProvider.ReadFile.ReadFileParams.ReadFileParams)
+            : LspState =
+            // CLEANUP: make the 'remove scheme part of URI' more universal. Maybe be add it to Stdlib eg.`Stdlib.Uri.removeScheme`
+            // Remove the darklang:// prefix and the .dark suffix from the URI, (e.g.darklang://type/Darklang/Stdlib/Option/Option.dark)
+            let uri =
+              params.uri |> Stdlib.String.dropFirst 11L |> Stdlib.String.dropLast 5L
+
+            let parts = uri |> Stdlib.String.split "/"
+
+            let elementType = parts |> Stdlib.List.head |> Builtin.unwrap
+
+            let nameForLookup =
+              parts |> Stdlib.List.tail |> Builtin.unwrap |> Stdlib.String.join "."
+
+            let pm = LanguageTools.PackageManager.pm ()
+
+            let getContent =
+              match elementType with
+              // e.g.type/Darklang/Stdlib/Option/Option
+              | "type" ->
+                // CLEANUP: use `pm.findType nameForLookup` directly once the parser/interpreter is fixed
+                let findType = pm.findType
+                let getType = pm.getType
+
+                match findType nameForLookup with
+                | Some id ->
+                  let typ = getType id
+
+                  match typ with
+                  | Some typ -> typ |> PrettyPrinter.ProgramTypes.packageType
+                  | None -> "Could not get type"
+
+                | None -> "Type not found"
+
+              // e.g. function/Darklang/Stdlib/Option/map
+              | "function" ->
+                // CLEANUP: use `pm.findType nameForLookup` directly once the parser/interpreter is fixed
+                let findFn = pm.findFn
+                let getFn = pm.getFn
+
+                match findFn nameForLookup with
+                | Some id ->
+                  let fn = getFn id
+
+                  match fn with
+                  | Some fn -> fn |> PrettyPrinter.ProgramTypes.packageFn
+                  | None -> "Could not get function"
+
+                | None -> "Function not found"
+
+              // e.g. constant/Darklang/Stdlib/List/empty
+              | "constant" ->
+                // CLEANUP: use `pm.findType nameForLookup` directly once the parser/interpreter is fixed
+                let findConst = pm.findConstant
+                let getConst = pm.getConstant
+
+                match findConst nameForLookup with
+                | Some id ->
+                  let constant = getConst id
+
+                  match constant with
+                  | Some constant ->
+                    constant |> PrettyPrinter.ProgramTypes.packageConstant
+                  | None -> "Constant not found"
+
+                | None -> "Constant not found"
+
+              | elem -> "Unknown element " ++ elem
+
+            sendResponse state requestId getContent
+
+
+        module WriteFile =
+          let handleWriteFileRequest
+            (state: LspState)
+            (requestId: JsonRPC.RequestId)
+            (params:
+              LspExtension.FileSystemProvider.WriteFile.WriteFileParams.WriteFileParams)
+            : LspState =
+            let responseJson =
+              (JsonRPC.Response.Ok.make
+                (Stdlib.Option.Option.Some(requestId))
+                (Json.String "TODO: parse and create an edit for the file"))
+              |> Stdlib.AltJson.format
+
+            logAndSendToClient responseJson
+            state

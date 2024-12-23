@@ -144,6 +144,25 @@ module Darklang =
         Json.Object
           [ ("start", Position.toJson r.start); ("end", Position.toJson r.end_) ]
 
+      let fromJson (json: Json) : Stdlib.Result.Result<Range, Unit> =
+        match json with
+        | Object fields ->
+          let start =
+            match Stdlib.List.findFirst fields (fun (key, _) -> key == "start") with
+            | Some((_, start)) -> Position.fromJson start
+            | None -> Stdlib.Result.Result.Error()
+
+          let end_ =
+            match Stdlib.List.findFirst fields (fun (key, _) -> key == "end") with
+            | Some((_, end_)) -> Position.fromJson end_
+            | None -> Stdlib.Result.Result.Error()
+
+          match (start, end_) with
+          | (Ok start, Ok end_) ->
+            Stdlib.Result.Result.Ok(Range { start = start; end_ = end_ })
+          | _ -> Stdlib.Result.Result.Error()
+
+        | _ -> Stdlib.Result.Result.Error()
 
 
     module Location =

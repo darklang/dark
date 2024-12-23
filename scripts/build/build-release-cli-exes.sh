@@ -25,8 +25,7 @@ if [[ " $* " =~ " --cross-compile " ]]; then
   #
   # Otherwise we'll fail to include the correct native library
   # for the relevant runtime.
-  runtimes="linux-x64 linux-musl-x64 linux-arm64 linux-arm osx-x64 osx-arm64"
-  # TODO: include `win-x64` and `win-arm64`.
+  runtimes="linux-x64 linux-musl-x64 linux-arm64 linux-arm osx-x64 osx-arm64 win-x64 win-arm64"
 
   # Parallelism set to 1 here to avoid running out of memory.
   # TODO: do better with gnu parallel or with this solution that I couldn't make work:
