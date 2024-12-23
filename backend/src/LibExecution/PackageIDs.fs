@@ -378,6 +378,7 @@ module Fn =
       let request =
         p [ "HttpClient" ] "request" "fa4a4756-cb6b-4575-b192-ec8f02f13f40"
 
+
   module LanguageTools =
     let private p addl = p ("LanguageTools" :: addl)
     module NameResolver =
@@ -385,6 +386,8 @@ module Fn =
       module FnName =
         let private p addl = p ("FnName" :: addl)
         let resolve = p [] "resolve" "7532eda4-f3cf-44e5-a4d6-52fed5aa63f0"
+
+
 
     module Parser =
       let private p addl = p ("Parser" :: addl)
@@ -416,6 +419,13 @@ module Fn =
         let toString = p [] "toString" "75debdd5-1e4f-4437-8124-38d7afaea931"
         let toErrorMessage =
           p [] "toErrorMessage" "d861d9c4-45da-4789-8f41-b0e481422190"
+
+    module ProgramTypes =
+      let private p addl = p ("ProgramTypes" :: addl)
+      module FQFnName =
+        let private p addl = p ("FQFnName" :: addl)
+        let fullForReference =
+          p [] "fullForReference" "ed6bacaa-4fa6-444b-9f6b-0e323e233a5d"
 
   module Cli =
     let executeCliCommand =

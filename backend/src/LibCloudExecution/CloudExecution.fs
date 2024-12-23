@@ -37,17 +37,23 @@ let createState
   (tracing : RT.Tracing.Tracing)
   : Task<RT.ExecutionState> =
   task {
-    let extraMetadata (state : RT.ExecutionState) (vm : RT.VMState) : Metadata =
-      let callStack = Exe.callStackFromVM vm
-      let epToString ep =
-        match ep with
-        | None -> "None -- empty CallStack"
-        | Some ep -> Exe.executionPointToString state ep
+    let extraMetadata (state : RT.ExecutionState) (vm : RT.VMState) : Ply<Metadata> =
+      uply {
+        let callStack = Exe.callStackFromVM vm
+        let epToString ep =
+          match ep with
+          | None -> Ply "None -- empty CallStack"
+          | Some ep -> Exe.executionPointToString state ep
 
-      [ ("entrypoint", epToString (RT.CallStack.entrypoint callStack))
-        ("lastCalled", epToString (RT.CallStack.last callStack))
-        ("traceID", traceID)
-        ("canvasID", program.canvasID) ]
+        let! entrypoint = epToString (RT.CallStack.entrypoint callStack)
+        let! lastCalled = epToString (RT.CallStack.last callStack)
+
+        return
+          [ ("entrypoint", entrypoint)
+            ("lastCalled", lastCalled)
+            ("traceID", traceID)
+            ("canvasID", program.canvasID) ]
+      }
 
     let notify
       (state : RT.ExecutionState)
@@ -55,8 +61,11 @@ let createState
       (msg : string)
       (metadata : Metadata)
       =
-      let metadata = extraMetadata state vm @ metadata
-      LibService.Rollbar.notify msg metadata
+      uply {
+        let! extra = extraMetadata state vm
+        let metadata = extra @ metadata
+        LibService.Rollbar.notify msg metadata
+      }
 
     let sendException
       (state : RT.ExecutionState)
@@ -64,8 +73,11 @@ let createState
       (metadata : Metadata)
       (exn : exn)
       =
-      let metadata = extraMetadata state vm @ metadata
-      LibService.Rollbar.sendException None metadata exn
+      uply {
+        let! extra = extraMetadata state vm
+        let metadata = extra @ metadata
+        LibService.Rollbar.sendException None metadata exn
+      }
 
     return
       Exe.createState builtins packageManagerRT tracing sendException notify program

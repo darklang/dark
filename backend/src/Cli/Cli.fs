@@ -80,7 +80,7 @@ let state () =
     =
     // let metadata = extraMetadata state @ metadata
     // LibService.Rollbar.notify msg metadata
-    ()
+    uply { return () }
 
   let sendException
     (_ : RT.ExecutionState)
@@ -88,7 +88,7 @@ let state () =
     (metadata : Metadata)
     (exn : exn)
     =
-    printException "Internal error" metadata exn
+    uply { printException "Internal error" metadata exn }
 
   Exe.createState
     builtins

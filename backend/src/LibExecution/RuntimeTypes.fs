@@ -1375,9 +1375,9 @@ and TestContext =
     postTestExecutionHook : TestContext -> unit }
 
 
-and ExceptionReporter = ExecutionState -> VMState -> Metadata -> exn -> unit
+and ExceptionReporter = ExecutionState -> VMState -> Metadata -> exn -> Ply<unit>
 
-and Notifier = ExecutionState -> VMState -> string -> Metadata -> unit
+and Notifier = ExecutionState -> VMState -> string -> Metadata -> Ply<unit>
 
 /// All state set when starting an execution; non-changing
 /// (as opposed to the VMState, which changes as the execution progresses)
@@ -1404,7 +1404,6 @@ and ExecutionState =
     fns : Functions
     constants : Constants
   }
-
 
 
 and Types = { package : FQTypeName.Package -> Ply<Option<PackageType.PackageType>> }
@@ -1563,8 +1562,8 @@ module TypeReference =
 
 let consoleReporter : ExceptionReporter =
   fun _state _vm (metadata : Metadata) (exn : exn) ->
-    printException "runtime-error" metadata exn
+    uply { printException "runtime-error" metadata exn }
 
 let consoleNotifier : Notifier =
   fun _state _vm msg tags ->
-    print $"A notification happened in the runtime:\n  {msg}\n  {tags}\n\n"
+    uply { print $"A notification happened in the runtime:\n  {msg}\n  {tags}\n\n" }

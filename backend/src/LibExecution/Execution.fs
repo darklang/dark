@@ -24,7 +24,7 @@ let noTestContext : RT.TestContext =
 
 let createState
   (builtins : RT.Builtins)
-  (packageManager : RT.PackageManager)
+  (pm : RT.PackageManager)
   (tracing : RT.Tracing.Tracing)
   (reportException : RT.ExceptionReporter)
   (notify : RT.Notifier)
@@ -37,10 +37,9 @@ let createState
 
     program = program
 
-    types = { package = packageManager.getType }
-    fns = { builtIn = builtins.fns; package = packageManager.getFn }
-    constants =
-      { builtIn = builtins.constants; package = packageManager.getConstant } }
+    types = { package = pm.getType }
+    constants = { builtIn = builtins.constants; package = pm.getConstant }
+    fns = { builtIn = builtins.fns; package = pm.getFn } }
 
 
 let rec callStackForFrame
@@ -85,7 +84,7 @@ let execute
       | ex ->
         let metadata : Metadata =
           Exception.toMetadata ex |> List.map (fun (k, v) -> k, string v)
-        exeState.reportException exeState vm metadata ex
+        do! exeState.reportException exeState vm metadata ex
 
         let metadata = metadata |> List.map (fun (k, v) -> k, RT.DString(string v))
         return
@@ -155,6 +154,23 @@ let runtimeErrorToString
     return! executeFunction state fnName [] args
   }
 
+// CLEANUP not ideal, but useful
+let getPackageFnName
+  (state : RT.ExecutionState)
+  (id : RT.FQFnName.Package)
+  : Ply<string> =
+  uply {
+    let fnName =
+      RT.FQFnName.fqPackage
+        PackageIDs.Fn.PrettyPrinter.ProgramTypes.FQFnName.fullForReference
+    let args = NEList.singleton (RT.DUuid id)
+    let! result = executeFunction state fnName [] args
+    match result with
+    | Ok(RT.DString s) -> return s
+    | _ -> return $"{id}"
+  }
+
+
 
 // let exprString
 //   (state : RT.ExecutionState)
@@ -200,25 +216,30 @@ let runtimeErrorToString
 
 
 let executionPointToString
-  (_state : RT.ExecutionState)
+  (state : RT.ExecutionState)
   (ep : RT.ExecutionPoint)
-  : string =
-  // CLEANUP improve here
-  // let handleFn (fn : Option<RT.PackageFn.PackageFn>) : Ply<string> =
-  //   uply {
-  //     match fn with
-  //     | None -> return $"<Couldn't find package function {fn.id}>"
-  //     | Some fn ->
-  //       let fnName = string fn.id
-  //       let! exprString = exprString state fn.body exprId
-  //       return fnName + ": " + exprString
-  //   }
+  : Ply<string> =
+  uply {
+    // CLEANUP improve here
+    // let handleFn (fn : Option<RT.PackageFn.PackageFn>) : Ply<string> =
+    //   uply {
+    //     match fn with
+    //     | None -> return $"<Couldn't find package function {fn.id}>"
+    //     | Some fn ->
+    //       let fnName = string fn.id
+    //       let! exprString = exprString state fn.body exprId
+    //       return fnName + ": " + exprString
+    //   }
 
-  match ep with
-  | RT.Source -> "Source"
-  | RT.Function(RT.FQFnName.Package id) -> $"Package Function {id}"
-  | RT.Function(RT.FQFnName.Builtin fnName) -> $"Builtin Function {fnName}" // TODO actually fetch the fn, etc
-  | RT.Lambda(_parent, exprId) -> "Lambda " + string exprId
+    match ep with
+    | RT.Source -> return "Source"
+    | RT.Function(RT.FQFnName.Package id) ->
+      let! name = getPackageFnName state id
+      return $"Package Function {name}"
+    | RT.Function(RT.FQFnName.Builtin fnName) ->
+      return $"Builtin Function {fnName.name}" // TODO actually fetch the fn, etc
+    | RT.Lambda(_parent, exprId) -> return ("Lambda " + string exprId)
+  }
 
 
 /// CLEANUPs
