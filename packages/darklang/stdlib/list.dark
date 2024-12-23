@@ -77,7 +77,7 @@ module Darklang =
         if times <= 0L then
           []
         else
-          Stdlib.List.push_v0 (repeatUnsafe (times - 1L) value) value
+          Stdlib.List.push (repeatUnsafe (times - 1L) value) value
 
 
       /// Returns a list containing <param val> repeated <param times> times
@@ -136,12 +136,12 @@ module Darklang =
       /// Returns a list with the first value from <param l1> then the first value
       /// from <param l2>, then the second value from <param l1> then the second value
       /// other list.
-      let interleave (l1: List<'a>) (l2: List<'a>) : List<'a> =
-        match l1 with
-        | [] -> l2
+      let interleave (lA: List<'a>) (lB: List<'a>) : List<'a> =
+        match lA with
+        | [] -> lB
         | aHead :: aTail ->
-          match l2 with
-          | [] -> l1
+          match lB with
+          | [] -> lA
           | bHead :: bTail ->
             (Stdlib.List.interleave aTail bTail)
             |> Stdlib.List.push_v0 bHead
@@ -152,7 +152,16 @@ module Darklang =
       /// on the result of <param fn>. Only one of each value will be returned, but the
       /// order will not be maintained.
       let uniqueBy (list: List<'a>) (fn: 'a -> 'b) : List<'a> =
-        Builtin.listUniqueBy_v0 list fn
+        list
+        |> List.fold ([], []) (fun (unique, seen) value ->
+          let uniqueValue = fn value
+
+          if List.member_v0 seen uniqueValue then
+            (unique, seen)
+          else
+            (List.push unique value, List.push seen uniqueValue))
+        |> fun (uniqueValues, _) -> uniqueValues
+        |> List.sort
 
 
       /// Returns the passed list, with only unique values.
@@ -179,8 +188,74 @@ module Darklang =
       /// Consider <fn List.sort> if the list values can be directly compared, or <fn
       /// List.sortByComparator> if you want more control over the sorting process.
       let sortBy (list: List<'a>) (fn: 'a -> 'b) : List<'a> =
-        Builtin.listSortBy_v0 list fn
+        list
+        |> List.map (fun x -> (fn x, x))
+        |> List.sort
+        |> List.map (Tuple2.second)
 
+
+      /// Helper functions for sortByComparator
+      ///
+      /// This is a bit much. CLEANUP tidy this up
+      module SortByComparatorHelpers =
+        let validate
+          (comparator: 'a -> 'a -> Int64)
+          (x: 'a)
+          (y: 'a)
+          : Result.Result<Int64, String> =
+          let result = comparator x y
+
+          if result == -1L || result == 0L || result == 1L then
+            Result.Result.Ok result
+          else
+            Result.Result.Error
+              $"Expected comparator function to return -1, 0, or 1, but it returned {Int64.toString result}"
+
+        let rec merge
+          (comparator: 'a -> 'a -> Int64)
+          (left: List<'a>)
+          (right: List<'a>)
+          : Result.Result<List<'a>, String> =
+          match left, right with
+          | [], _ -> Result.Result.Ok right
+          | _, [] -> Result.Result.Ok left
+          | (x :: xs, y :: ys) ->
+            match validate comparator x y with
+            | Error msg -> Result.Result.Error msg
+            | Ok result ->
+              if result <= 0L then
+                match merge comparator xs right with
+                | Error msg -> Result.Result.Error msg
+                | Ok merged -> Result.Result.Ok(List.push merged x)
+              else
+                match merge comparator left ys with
+                | Error msg -> Result.Result.Error msg
+                | Ok merged -> Result.Result.Ok(List.push merged y)
+
+        let splitList (lst: List<'a>) : List<'a> * List<'a> =
+          match lst with
+          | [] -> [], []
+          | [ x ] -> [ x ], []
+          | x :: y :: xs ->
+            let (left, right) = splitList xs
+            (List.push left x, List.push right y)
+
+        let rec mergeSort
+          (comparator: 'a -> 'a -> Int64)
+          (lst: List<'a>)
+          : Result.Result<List<'a>, String> =
+          match lst with
+          | [] -> Result.Result.Ok []
+          | [ x ] -> Result.Result.Ok [ x ]
+          | lst ->
+            let left, right = splitList lst
+
+            match mergeSort comparator left with
+            | Error msg -> Result.Result.Error msg
+            | Ok sortedLeft ->
+              match mergeSort comparator right with
+              | Error msg -> Result.Result.Error msg
+              | Ok sortedRight -> merge comparator sortedLeft sortedRight
 
       /// Returns a copy of <param list>, sorted using {{fn a b}} to compare values
       /// <var a> and <var b>.
@@ -193,7 +268,7 @@ module Darklang =
         (list: List<'a>)
         (fn: 'a -> 'a -> Int64)
         : Stdlib.Result.Result<List<'a>, String> =
-        Builtin.listSortByComparator_v0 list fn
+        SortByComparatorHelpers.mergeSort fn list
 
 
       /// Returns a new list with all values in <param as> followed by all values in <param bs>,
@@ -298,9 +373,28 @@ module Darklang =
       /// Calls <fn fn> on every <var val> and its <var index> in <param list>,
       /// returning a list of the results of those calls.
       /// Consider <fn List.map> if you don't need the index.
-      let indexedMap (list: List<'a>) (fn: 'a -> Int64 -> 'b) : List<'b> =
-        Builtin.listIndexedMap_v0 list fn
+      let indexedMap (list: List<'a>) (fn: Int64 -> 'a -> 'b) : List<'b> =
+        list
+        |> List.fold ([], 0L) (fun (acc, index) item ->
+          let mappedItem = fn index item
+          (List.pushBack acc mappedItem, index + 1L))
+        |> Tuple2.first
 
+
+      // Helper function for map2shortest
+      let map2shortestHelper
+        (as_: List<'a>)
+        (bs: List<'b>)
+        (fn: 'a -> 'b -> 'c)
+        (result: List<'c>)
+        : List<'c> =
+        match (as_, bs) with
+        | ([], _) -> result
+        | (_, []) -> result
+        | (a :: restA, b :: restB) ->
+          let mappedResult = fn a b
+          let result = List.pushBack result mappedResult
+          map2shortestHelper restA restB fn result
 
       /// Maps <param fn> over <param as> and <param bs> in parallel, calling {{fn a
       /// b}} on every pair of values from <param as> and <param bs>.
@@ -314,7 +408,7 @@ module Darklang =
         (bs: List<'b>)
         (fn: 'a -> 'b -> 'c)
         : List<'c> =
-        Builtin.listMap2shortest_v0 as_ bs fn
+        map2shortestHelper as_ bs fn []
 
 
       /// If the lists are the same length, returns {{Just list}} formed by mapping
@@ -331,7 +425,10 @@ module Darklang =
         (bs: List<'b>)
         (fn: 'a -> 'b -> 'c)
         : Stdlib.Option.Option<List<'c>> =
-        Builtin.listMap2_v0 as_ bs fn
+        if (List.length as_) != (List.length bs) then
+          Option.Option.None
+        else
+          Option.Option.Some(List.map2shortest as_ bs fn)
 
 
       /// Returns a list of parallel pairs from <param as> and <param bs>.
@@ -420,7 +517,20 @@ module Darklang =
       /// is {{fn item -> Int64.mod_v0 item 2}}, returns {{[(1, [1, 3, 5]), (0, [2, 4])]}}.
       /// Preserves the order of values and of the keys.
       let groupByWithKey (list: List<'a>) (fn: 'a -> 'b) : List<('b * List<'a>)> =
-        Builtin.listGroupByWithKey_v0 list fn
+        list
+        // CLEANUP: improve performance
+        |> List.fold [] (fun groupCollector element ->
+          let key = fn element
+          let tryFindGroup = List.findFirst groupCollector (fun (k, _) -> k == key)
+
+          match tryFindGroup with
+          | Some _ ->
+            List.map groupCollector (fun (k, elements) ->
+              if k == key then
+                (k, List.pushBack elements element)
+              else
+                (k, elements))
+          | None -> List.pushBack groupCollector (key, [ element ]))
 
 
       /// Calls <param f> on every <var val> in <param list>, splitting the list into

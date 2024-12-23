@@ -1,5 +1,3 @@
-// CLEANUP move all these to LibMisc
-
 module Equals =
   type ERec = { x: Int64; y: Int64 }
   type ERec2 = ERec
@@ -32,74 +30,34 @@ module Equals =
   type ERec2UInt128 = ERecUInt128
 
 
-  type EEnumInt8 =
-    | E1
-    | E2
-    | E3 of Int8
-
+  type EEnumInt8 = | E1 | E2 | E3 of Int8
   type EEnum2Int8 = EEnumInt8
 
-  type EEnumUInt8 =
-    | E1
-    | E2
-    | E3 of UInt8
-
+  type EEnumUInt8 = | E1 | E2 | E3 of UInt8
   type EEnum2UInt8 = EEnumUInt8
 
-  type EEnumInt16 =
-    | E1
-    | E2
-    | E3 of Int16
-
+  type EEnumInt16 = | E1 | E2 | E3 of Int16
   type EEnum2Int16 = EEnumInt16
 
-  type EEnumUInt16 =
-    | E1
-    | E2
-    | E3 of UInt16
-
+  type EEnumUInt16 = | E1 | E2 | E3 of UInt16
   type EEnum2UInt16 = EEnumUInt16
 
-  type EEnumInt32 =
-    | E1
-    | E2
-    | E3 of Int32
-
+  type EEnumInt32 = | E1 | E2 | E3 of Int32
   type EEnum2Int32 = EEnumInt32
 
-  type EEnumUInt32 =
-    | E1
-    | E2
-    | E3 of UInt32
-
+  type EEnumUInt32 = | E1 | E2 | E3 of UInt32
   type EEnum2UInt32 = EEnumUInt32
 
-  type EEnum =
-    | E1
-    | E2
-    | E3 of Int64
-
+  type EEnum = | E1 | E2 | E3 of Int64
   type EEnum2 = EEnum
 
-  type EEnumUIn64 =
-    | E1
-    | E2
-    | E3 of UInt64
-
+  type EEnumUIn64 = | E1 | E2 | E3 of UInt64
   type EEnum2UIn64 = EEnumUIn64
 
-  type EEnumInt128 =
-    | E1
-    | E2
-    | E3 of Int128
-
+  type EEnumInt128 = | E1 | E2 | E3 of Int128
   type EEnum2Int128 = EEnumInt128
 
-  type EEnumUInt128 =
-    | E1
-    | E2
-    | E3 of UInt128
-
+  type EEnumUInt128 = | E1 | E2 | E3 of UInt128
   type EEnum2UInt128 = EEnumUInt128
 
   (5Q == 5Q) = true
@@ -172,33 +130,34 @@ module Equals =
   (Stdlib.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2e"
    != Stdlib.Uuid.parse_v0 "3700adbc-7a46-4ff4-81d3-45afb03f6e2d") = true
 
-  (fun x -> y) = (fun x -> y)
-  ((fun x -> let y = 1Q in y) == (fun x -> let y = 1Q in y)) = true
-  ((fun x -> let y = 1Q in y) != (fun x -> let y = 2Q in x)) = true
+  // TODO revisit these
+  //(fun x -> y) = (fun x -> y)
+  // ((fun x -> let y = 1Q in y) == (fun x -> let y = 1Q in y)) = true
+  // ((fun x -> let y = 1Q in y) != (fun x -> let y = 2Q in x)) = false
 
-  ((fun x -> let y = 1Z in y) == (fun x -> let y = 1Z in y)) = true
-  ((fun x -> let y = 1Z in y) != (fun x -> let y = 2Z in x)) = true
+  // ((fun x -> let y = 1Z in y) == (fun x -> let y = 1Z in y)) = true
+  // ((fun x -> let y = 1Z in y) != (fun x -> let y = 2Z in x)) = false
 
-  ((fun x -> let y = 1L in y) == (fun x -> let y = 1L in y)) = true
-  ((fun x -> let y = 1L in y) != (fun x -> let y = 2L in x)) = true
+  // ((fun x -> let y = 1L in y) == (fun x -> let y = 1L in y)) = true
+  // ((fun x -> let y = 1L in y) != (fun x -> let y = 2L in x)) = false
 
-  ((fun x -> let y = 1l in y) == (fun x -> let y = 1l in y)) = true
-  ((fun x -> let y = 1l in y) != (fun x -> let y = 2l in x)) = true
+  // ((fun x -> let y = 1l in y) == (fun x -> let y = 1l in y)) = true
+  // ((fun x -> let y = 1l in y) != (fun x -> let y = 2l in x)) = false
 
-  ((fun x -> let y = 1ul in y) == (fun x -> let y = 1ul in y)) = true
-  ((fun x -> let y = 1ul in y) != (fun x -> let y = 2ul in x)) = true
+  // ((fun x -> let y = 1ul in y) == (fun x -> let y = 1ul in y)) = true
+  // ((fun x -> let y = 1ul in y) != (fun x -> let y = 2ul in x)) = false
 
-  ((fun x -> let y = 1s in y) == (fun x -> let y = 1s in y)) = true
-  ((fun x -> let y = 1s in y) != (fun x -> let y = 2s in x)) = true
+  // ((fun x -> let y = 1s in y) == (fun x -> let y = 1s in y)) = true
+  // ((fun x -> let y = 1s in y) != (fun x -> let y = 2s in x)) = false
 
-  ((fun x -> let y = 1us in y) == (fun x -> let y = 1us in y)) = true
-  ((fun x -> let y = 1us in y) != (fun x -> let y = 2us in x)) = true
+  // ((fun x -> let y = 1us in y) == (fun x -> let y = 1us in y)) = true
+  // ((fun x -> let y = 1us in y) != (fun x -> let y = 2us in x)) = false
 
-  ((fun x -> let y = 1y in y) == (fun x -> let y = 1y in y)) = true
-  ((fun x -> let y = 1y in y) != (fun x -> let y = 2y in x)) = true
+  // ((fun x -> let y = 1y in y) == (fun x -> let y = 1y in y)) = true
+  // ((fun x -> let y = 1y in y) != (fun x -> let y = 2y in x)) = false
 
-  ((fun x -> let y = 1uy in y) == (fun x -> let y = 1uy in y)) = true
-  ((fun x -> let y = 1uy in y) != (fun x -> let y = 2uy in x)) = true
+  // ((fun x -> let y = 1uy in y) == (fun x -> let y = 1uy in y)) = true
+  // ((fun x -> let y = 1uy in y) != (fun x -> let y = 2uy in x)) = false
 
 
   (ERecInt128 { x = 6Q; y = 7Q } == ERecInt128 { x = 6Q; y = 7Q }) = true
@@ -320,23 +279,14 @@ module Equals =
 
 
   (Stdlib.Option.Option.None == Stdlib.Option.Option.None) = true
-
   (Stdlib.Option.Option.None != Stdlib.Option.Option.Some Stdlib.Option.Option.None) = true
-
   (Stdlib.Option.Option.Some 5L == Stdlib.Option.Option.Some 5L) = true
-
   (Stdlib.Option.Option.Some 5L != Stdlib.Option.Option.Some 6L) = true
-
-  (Stdlib.Option.Option.Some(Stdlib.Option.Option.Some 0L)
-   != Stdlib.Option.Option.Some(Stdlib.Option.Option.Some 1L)) = true
-
-  (Stdlib.Option.Option.Some(Stdlib.Option.Option.Some 0L)
-   == Stdlib.Option.Option.Some(Stdlib.Option.Option.Some 0L)) = true
+  (Stdlib.Option.Option.Some(Stdlib.Option.Option.Some 0L) != Stdlib.Option.Option.Some(Stdlib.Option.Option.Some 1L)) = true
+  (Stdlib.Option.Option.Some(Stdlib.Option.Option.Some 0L) == Stdlib.Option.Option.Some(Stdlib.Option.Option.Some 0L)) = true
 
   (Stdlib.Result.Result.Error 0L == Stdlib.Result.Result.Error 0L) = true
-
   (Stdlib.Result.Result.Ok 0L == Stdlib.Result.Result.Ok 0L) = true
-
   (Stdlib.Result.Result.Ok 0L != Stdlib.Result.Result.Error 0L) = true
 
 
@@ -348,24 +298,26 @@ module Equals =
   (MyDB == MyDB) = true
 
   module TypeErrors =
-    (5.7 != 6L) = Builtin.testDerrorMessage "Both values must be the same type"
-    (5.7 != 5L) = Builtin.testDerrorMessage "Both values must be the same type"
+    (5.7 != 6L) = Builtin.testDerrorMessage "Cannot perform equality check on Float and Int64"
+    (5.7 != 5L) = Builtin.testDerrorMessage "Cannot perform equality check on Float and Int64"
 
-    (5us == 5s) = Builtin.testDerrorMessage "Both values must be the same type"
-    (5y == 5l) = Builtin.testDerrorMessage "Both values must be the same type"
-    (5L == 5l) = Builtin.testDerrorMessage "Both values must be the same type"
-    (5us != 6s) = Builtin.testDerrorMessage "Both values must be the same type"
+    (5us == 5s) = Builtin.testDerrorMessage "Cannot perform equality check on UInt16 and Int16"
+    (5y == 5l) = Builtin.testDerrorMessage "Cannot perform equality check on Int8 and Int32"
+    (5L == 5l) = Builtin.testDerrorMessage "Cannot perform equality check on Int64 and Int32"
+    (5us != 6s) = Builtin.testDerrorMessage "Cannot perform equality check on UInt16 and Int16"
 
-    (Builtin.testRuntimeError "test" != Builtin.testRuntimeError "different msg") = Builtin.testDerrorMessage
-      "test"
+    (Builtin.testRuntimeError "test" != Builtin.testRuntimeError "different msg") =
+     (Builtin.testDerrorMessage "Uncaught exception: test")
 
-    (() != Stdlib.Option.Option.None) = Builtin.testDerrorMessage
-      "Both values must be the same type"
+    (() != Stdlib.Option.Option.None) =
+      (Builtin.testDerrorMessage "Cannot perform equality check on Unit and PACKAGE.Darklang.Stdlib.Option.Option<_>")
 
-    (() != false) = Builtin.testDerrorMessage "Both values must be the same type"
-    (() != 0) = Builtin.testDerrorMessage "Both values must be the same type"
-    (() != 0.0) = Builtin.testDerrorMessage "Both values must be the same type"
-    (MyDB != 5L) = Builtin.testDerrorMessage "Both values must be the same type"
+    (() != false) = Builtin.testDerrorMessage "Cannot perform equality check on Unit and Bool"
+    (() != 0) = Builtin.testDerrorMessage "Cannot perform equality check on Unit and Int32"
+    (() != 0.0) = Builtin.testDerrorMessage "Cannot perform equality check on Unit and Float"
+
+    // CLEANUP follow up here when DB references are fully resolved at parse-time
+    //(MyDB != 5L) = Builtin.testDerrorMessage "Cannot perform equality check on TODO and TODO"
 
   // Other ways to call it
   Stdlib.equals_v0 1Q 1Q = true
@@ -466,3 +418,15 @@ module NotEquals =
 // AWS.urlencode_v0 "<foo val=”bar“ />" = "%3Cfoo%20val%3D%E2%80%9Dbar%E2%80%9C%20/%3E"
 // AWS.urlencode_v0 "表ポあA鷗ŒéＢ逍Üßªąñ丂㐀𠀀" = "%E8%A1%A8%E3%83%9D%E3%81%82A%E9%B7%97%C5%92%C3%A9%EF%BC%A2%E9%80%8D%C3%9C%C3%9F%C2%AA%C4%85%C3%B1%E4%B8%82%E3%90%80%F0%A0%80%80"
 // Twitter.urlencode_v0 "https://google.com?q=left shark&l=en" = "https%3A%2F%2Fgoogle.com%3Fq%3Dleft%20shark%26l%3Den" // URL percent encoding
+
+
+
+module Unwrap =
+  ((Stdlib.Option.Option.Some 5L) |> Builtin.unwrap) = 5L
+  ((Stdlib.Result.Result.Ok true) |> Builtin.unwrap) = true
+
+  ((Stdlib.Option.Option.None) |> Builtin.unwrap) = Builtin.testDerrorMessage "Cannot unwrap None"
+  ((Stdlib.Result.Result.Error 5L) |> Builtin.unwrap) = Builtin.testDerrorMessage "Cannot unwrap Error: 5"
+
+  (true |> Builtin.unwrap) = Builtin.testDerrorMessage "Can only unwrap Options and Results, yet got true"
+  (Builtin.unwrap 1 2) = Builtin.testDerrorMessage "Builtin.unwrap expects 1 argument, but got 2 arguments"

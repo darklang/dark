@@ -1,267 +1,153 @@
 let d (datestr: String) : DateTime =
   (Stdlib.DateTime.parse datestr) |> Builtin.unwrap
 
-let p (datestr: String) : Stdlib.Result.Result<DateTime, String> =
+let p (datestr: String) : Stdlib.Result.Result<String, String> =
   (Stdlib.DateTime.parse datestr)
   |> Stdlib.Result.map (fun x -> Stdlib.DateTime.toString_v0 x)
 
 module DateParsing =
-  (Stdlib.DateTime.parse "2019-07-28T22:42:36Z")
-  |> Stdlib.Result.map (fun x -> Stdlib.DateTime.toString_v0 x) = Stdlib.Result.Result.Ok
-    "2019-07-28T22:42:36Z"
-
-  Stdlib.DateTime.parse "asd" = Stdlib.Result.Result.Error "Invalid date format"
-
-// Parse in both
-p "2018-09-24T18:01:24Z" = Stdlib.Result.Result.Ok "2018-09-24T18:01:24Z"
-
-
-// Lowercase `z` aren't allowed
-p "2023-09-23T18:01:24z" = Stdlib.Result.Result.Error "Invalid date format"
-
-
-// Time zones aren't allowed
-p "2000-11-22 09:10:15z" = Stdlib.Result.Result.Error "Invalid date format" // special cased in F#
-
-p "2008-09-15T09:30:41GMT" = Stdlib.Result.Result.Error "Invalid date format" // special cased in F#
-
-p "2008-09-15T09:30:41UTC" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2008-09-15T09:30:41EST" = Stdlib.Result.Result.Error "Invalid date format"
-
-// Fail in both
-p "2000-11-22 09:10:15" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2000-11-22 09:10:15Z" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2012-01-31 23:59:59.999" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2012-01-31 23:59:59.999+0100" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2012-01-31 23:59:59.999-0100" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2018-09-09 10:43:54+0100" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2018-09-09 11:43:54+0200" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2018-09-24T17:48:00" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2018-09-24T18:09:24+0200" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "1999-03-22T05:06:07+01:00" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "1999-03-22T05:06:07.000Z" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2006-06-09T10:20:30.040" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2006-06-09T10:20:30.040+02:00" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "20061204T1020Z" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "20061204T1020" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2008-09-15T09:30:41.1" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2008-09-15T09:30:41.12" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2008-09-15T09:30:41.123" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2008-09-15T09:30:41.1234" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2008-09-15T09:30:41.12345" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2008-09-15T09:30:41.123456" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2008-09-15T09:30:41.1234567" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2008-09-15T09:30:41.1234567Z" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2008-09-15T09:30:41.7752486-07:00" = Stdlib.Result.Result.Error
-  "Invalid date format"
-
-p "2008-09-15T09:30:41.7752486-04:00" = Stdlib.Result.Result.Error
-  "Invalid date format"
-
-p "20061204T10:20:54.67am" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "20061204T10:20:54.67am" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "20061204T1020am" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "20061204T1020AM" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "20061204T1020PM" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "20061204T1020pm" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "15/06/2008 08:30" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "18/08/2015 06:30:15.006542" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "Mon, 15 Sep 2008 09:30:41 GMT" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2/16/2008 12:15:12 PM" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "16/02/2008 12:15:12" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "12 Juni 2008" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "Friday, April 10, 2009" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2006-06-09" = Stdlib.Result.Result.Error "Invalid date format"
-p "2012-01-31" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2016-12-27 14:40:46 +0000" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2017-08-02" = Stdlib.Result.Result.Error "Invalid date format"
-p "2T102030Z" = Stdlib.Result.Result.Error "Invalid date format"
-p "31-01-12" = Stdlib.Result.Result.Error "Invalid date format"
-p "31-01-2012" = Stdlib.Result.Result.Error "Invalid date format"
-p "Jun 5 Sun" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "Thursday, April 10, 2008" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "00:00:10.512345678" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "01-31-2012" = Stdlib.Result.Result.Error "Invalid date format"
-p "10.5" = Stdlib.Result.Result.Error "Invalid date format"
-p "10.5+02:00" = Stdlib.Result.Result.Error "Invalid date format"
-p "10/04/2008" = Stdlib.Result.Result.Error "Invalid date format"
-p "10:20:30.040" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "10:20:30.040+02:00" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "11:03:01" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "13:03:15.454+0530" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "1999-03-22 AD" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "1999-03-22+01:00" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "+2006-06-09" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "+2006-06-09T10:20:30.040" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "1999-03-22T05:06:07+01:00[Europe/Paris]" = Stdlib.Result.Result.Error
-  "Invalid date format"
-
-p "1999-03-22T05:06:07.000+01:00[Europe/Paris]" = Stdlib.Result.Result.Error
-  "Invalid date format"
-
-p "1999-03-22T05:06:07.000[Europe/Paris]" = Stdlib.Result.Result.Error
-  "Invalid date format"
-
-p "1999-081+01:00" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "1999-W13-2" = Stdlib.Result.Result.Error "Invalid date format"
-p "19990322" = Stdlib.Result.Result.Error "Invalid date format"
-p "19990322+0100" = Stdlib.Result.Result.Error "Invalid date format"
-p "1999W132" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2006-06-09T+02:00" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2006-123" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2006-123T+02:00" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2006-123T10:20:30.040" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2006-123T10:20:30.040+02:00" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2006-W27-3" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2006-W27-3T+02:00" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2006-W27-3T10:20:30.040" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2006-W27-3T10:20:30.040+02:00" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "20061204T10203Z" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "20061204T102Z" = Stdlib.Result.Result.Error "Invalid date format"
-p "20061204T10Z" = Stdlib.Result.Result.Error "Invalid date format"
-p "20061204T1Z" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2006120T102030Z" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "200612T102030Z" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "20061T102030Z" = Stdlib.Result.Result.Error "Invalid date format"
-p "2006T102030Z" = Stdlib.Result.Result.Error "Invalid date format"
-p "200T102030Z" = Stdlib.Result.Result.Error "Invalid date format"
-p "20T102030Z" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "Friday the 16th of May" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "Friday, May 16th 2014" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "Sat Dec 01 00:00:00 IST 2018" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "Saturday November 2012 10:45:42.720+0100" = Stdlib.Result.Result.Error
-  "Invalid date format"
-
-p "Sunday, June 5, 2013" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "T10.5" = Stdlib.Result.Result.Error "Invalid date format"
-p "T10.5+02:00" = Stdlib.Result.Result.Error "Invalid date format"
-p "T10:20:30.040" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "T10:20:30.040+02:00" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "Thu, Aug 2 1985 08:30 PM" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "Thursday, August 2 1985 08:30 PM" = Stdlib.Result.Result.Error
-  "Invalid date format"
-
-p "Tue, 02 Jan 2018 18:07:59 IST" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "mardi janvier 2018 14:51:02.354+0530" = Stdlib.Result.Result.Error
-  "Invalid date format"
-
-p "20061204T1020 am" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "20061204T1020 AM" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2008-09-15T09:30:41 GMT" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2008-09-15T09:30.456" = Stdlib.Result.Result.Error "Invalid date format"
-
-// while space isn't allowed
-p " 2006-06-09T10:20:30.040+02:00" = Stdlib.Result.Result.Error "Invalid date format"
-
-p "2006-06-09T10:20:30.040+02:00 " = Stdlib.Result.Result.Error "Invalid date format"
-
-p " 2006-06-09T10:20:30.040+02:00 " = Stdlib.Result.Result.Error
-  "Invalid date format"
+  p "2019-07-28T22:42:36Z" = Stdlib.Result.Result.Ok "2019-07-28T22:42:36Z"
+
+  p "asd" = Stdlib.Result.Result.Error "Invalid date format"
+
+  // Parse in both
+  p "2018-09-24T18:01:24Z" = Stdlib.Result.Result.Ok "2018-09-24T18:01:24Z"
+
+  // Lowercase `z` aren't allowed
+  p "2023-09-23T18:01:24z" = Stdlib.Result.Result.Error "Invalid date format"
+
+  // Time zones aren't allowed
+  p "2000-11-22 09:10:15z" = Stdlib.Result.Result.Error "Invalid date format" // special cased in F#
+  p "2008-09-15T09:30:41GMT" = Stdlib.Result.Result.Error "Invalid date format" // special cased in F#
+  p "2008-09-15T09:30:41UTC" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2008-09-15T09:30:41EST" = Stdlib.Result.Result.Error "Invalid date format"
+
+  // Fail in both
+  p "2000-11-22 09:10:15" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2000-11-22 09:10:15Z" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2012-01-31 23:59:59.999" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2012-01-31 23:59:59.999+0100" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2012-01-31 23:59:59.999-0100" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2018-09-09 10:43:54+0100" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2018-09-09 11:43:54+0200" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2018-09-24T17:48:00" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2018-09-24T18:09:24+0200" = Stdlib.Result.Result.Error "Invalid date format"
+  p "1999-03-22T05:06:07+01:00" = Stdlib.Result.Result.Error "Invalid date format"
+  p "1999-03-22T05:06:07.000Z" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2006-06-09T10:20:30.040" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2006-06-09T10:20:30.040+02:00" = Stdlib.Result.Result.Error "Invalid date format"
+  p "20061204T1020Z" = Stdlib.Result.Result.Error "Invalid date format"
+  p "20061204T1020" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2008-09-15T09:30:41.1" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2008-09-15T09:30:41.12" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2008-09-15T09:30:41.123" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2008-09-15T09:30:41.1234" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2008-09-15T09:30:41.12345" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2008-09-15T09:30:41.123456" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2008-09-15T09:30:41.1234567" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2008-09-15T09:30:41.1234567Z" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2008-09-15T09:30:41.7752486-07:00" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2008-09-15T09:30:41.7752486-04:00" = Stdlib.Result.Result.Error "Invalid date format"
+  p "20061204T10:20:54.67am" = Stdlib.Result.Result.Error "Invalid date format"
+  p "20061204T10:20:54.67am" = Stdlib.Result.Result.Error "Invalid date format"
+  p "20061204T1020am" = Stdlib.Result.Result.Error "Invalid date format"
+  p "20061204T1020AM" = Stdlib.Result.Result.Error "Invalid date format"
+  p "20061204T1020PM" = Stdlib.Result.Result.Error "Invalid date format"
+  p "20061204T1020pm" = Stdlib.Result.Result.Error "Invalid date format"
+  p "15/06/2008 08:30" = Stdlib.Result.Result.Error "Invalid date format"
+  p "18/08/2015 06:30:15.006542" = Stdlib.Result.Result.Error "Invalid date format"
+  p "Mon, 15 Sep 2008 09:30:41 GMT" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2/16/2008 12:15:12 PM" = Stdlib.Result.Result.Error "Invalid date format"
+  p "16/02/2008 12:15:12" = Stdlib.Result.Result.Error "Invalid date format"
+  p "12 Juni 2008" = Stdlib.Result.Result.Error "Invalid date format"
+  p "Friday, April 10, 2009" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2006-06-09" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2012-01-31" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2016-12-27 14:40:46 +0000" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2017-08-02" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2T102030Z" = Stdlib.Result.Result.Error "Invalid date format"
+  p "31-01-12" = Stdlib.Result.Result.Error "Invalid date format"
+  p "31-01-2012" = Stdlib.Result.Result.Error "Invalid date format"
+  p "Jun 5 Sun" = Stdlib.Result.Result.Error "Invalid date format"
+  p "Thursday, April 10, 2008" = Stdlib.Result.Result.Error "Invalid date format"
+  p "00:00:10.512345678" = Stdlib.Result.Result.Error "Invalid date format"
+  p "01-31-2012" = Stdlib.Result.Result.Error "Invalid date format"
+  p "10.5" = Stdlib.Result.Result.Error "Invalid date format"
+  p "10.5+02:00" = Stdlib.Result.Result.Error "Invalid date format"
+  p "10/04/2008" = Stdlib.Result.Result.Error "Invalid date format"
+  p "10:20:30.040" = Stdlib.Result.Result.Error "Invalid date format"
+  p "10:20:30.040+02:00" = Stdlib.Result.Result.Error "Invalid date format"
+  p "11:03:01" = Stdlib.Result.Result.Error "Invalid date format"
+  p "13:03:15.454+0530" = Stdlib.Result.Result.Error "Invalid date format"
+  p "1999-03-22 AD" = Stdlib.Result.Result.Error "Invalid date format"
+  p "1999-03-22+01:00" = Stdlib.Result.Result.Error "Invalid date format"
+  p "+2006-06-09" = Stdlib.Result.Result.Error "Invalid date format"
+  p "+2006-06-09T10:20:30.040" = Stdlib.Result.Result.Error "Invalid date format"
+  p "1999-03-22T05:06:07+01:00[Europe/Paris]" = Stdlib.Result.Result.Error "Invalid date format"
+  p "1999-03-22T05:06:07.000+01:00[Europe/Paris]" = Stdlib.Result.Result.Error "Invalid date format"
+  p "1999-03-22T05:06:07.000[Europe/Paris]" = Stdlib.Result.Result.Error "Invalid date format"
+  p "1999-081+01:00" = Stdlib.Result.Result.Error "Invalid date format"
+  p "1999-W13-2" = Stdlib.Result.Result.Error "Invalid date format"
+  p "19990322" = Stdlib.Result.Result.Error "Invalid date format"
+  p "19990322+0100" = Stdlib.Result.Result.Error "Invalid date format"
+  p "1999W132" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2006-06-09T+02:00" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2006-123" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2006-123T+02:00" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2006-123T10:20:30.040" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2006-123T10:20:30.040+02:00" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2006-W27-3" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2006-W27-3T+02:00" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2006-W27-3T10:20:30.040" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2006-W27-3T10:20:30.040+02:00" = Stdlib.Result.Result.Error "Invalid date format"
+  p "20061204T10203Z" = Stdlib.Result.Result.Error "Invalid date format"
+  p "20061204T102Z" = Stdlib.Result.Result.Error "Invalid date format"
+  p "20061204T10Z" = Stdlib.Result.Result.Error "Invalid date format"
+  p "20061204T1Z" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2006120T102030Z" = Stdlib.Result.Result.Error "Invalid date format"
+  p "200612T102030Z" = Stdlib.Result.Result.Error "Invalid date format"
+  p "20061T102030Z" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2006T102030Z" = Stdlib.Result.Result.Error "Invalid date format"
+  p "200T102030Z" = Stdlib.Result.Result.Error "Invalid date format"
+  p "20T102030Z" = Stdlib.Result.Result.Error "Invalid date format"
+  p "Friday the 16th of May" = Stdlib.Result.Result.Error "Invalid date format"
+  p "Friday, May 16th 2014" = Stdlib.Result.Result.Error "Invalid date format"
+  p "Sat Dec 01 00:00:00 IST 2018" = Stdlib.Result.Result.Error "Invalid date format"
+  p "Saturday November 2012 10:45:42.720+0100" = Stdlib.Result.Result.Error "Invalid date format"
+  p "Sunday, June 5, 2013" = Stdlib.Result.Result.Error "Invalid date format"
+  p "T10.5" = Stdlib.Result.Result.Error "Invalid date format"
+  p "T10.5+02:00" = Stdlib.Result.Result.Error "Invalid date format"
+  p "T10:20:30.040" = Stdlib.Result.Result.Error "Invalid date format"
+  p "T10:20:30.040+02:00" = Stdlib.Result.Result.Error "Invalid date format"
+  p "Thu, Aug 2 1985 08:30 PM" = Stdlib.Result.Result.Error "Invalid date format"
+  p "Thursday, August 2 1985 08:30 PM" = Stdlib.Result.Result.Error "Invalid date format"
+  p "Tue, 02 Jan 2018 18:07:59 IST" = Stdlib.Result.Result.Error "Invalid date format"
+  p "mardi janvier 2018 14:51:02.354+0530" = Stdlib.Result.Result.Error "Invalid date format"
+  p "20061204T1020 am" = Stdlib.Result.Result.Error "Invalid date format"
+  p "20061204T1020 AM" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2008-09-15T09:30:41 GMT" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2008-09-15T09:30.456" = Stdlib.Result.Result.Error "Invalid date format"
+
+  // while space isn't allowed
+  p " 2006-06-09T10:20:30.040+02:00" = Stdlib.Result.Result.Error "Invalid date format"
+  p "2006-06-09T10:20:30.040+02:00 " = Stdlib.Result.Result.Error "Invalid date format"
+  p " 2006-06-09T10:20:30.040+02:00 " = Stdlib.Result.Result.Error "Invalid date format"
 
 module LessThan =
   Stdlib.DateTime.lessThan (d "2019-07-28T22:42:36Z") (d "2019-07-28T22:42:36Z") = false
-
   Stdlib.DateTime.lessThan (d "2019-07-28T22:42:36Z") (d "2020-11-26T04:37:46Z") = true
 
 module LessThanOrEquals =
-  Stdlib.DateTime.lessThanOrEqualTo
-    (d "2021-07-28T22:42:36Z")
-    (d "2020-11-26T04:37:46Z") = false
-
-  Stdlib.DateTime.lessThanOrEqualTo
-    (d "2019-07-28T22:42:36Z")
-    (d "2020-11-26T04:37:46Z") = true
+  Stdlib.DateTime.lessThanOrEqualTo (d "2021-07-28T22:42:36Z") (d "2020-11-26T04:37:46Z") = false
+  Stdlib.DateTime.lessThanOrEqualTo (d "2019-07-28T22:42:36Z") (d "2020-11-26T04:37:46Z") = true
 
 module GreaterThan =
   Stdlib.DateTime.greaterThan (d "2019-07-28T22:42:36Z") (d "2019-07-28T22:42:36Z") = false
-
   Stdlib.DateTime.greaterThan (d "2020-11-26T04:37:46Z") (d "2019-07-28T22:42:36Z") = true
 
 module GreaterThanOrEquals =
-  Stdlib.DateTime.greaterThanOrEqualTo
-    (d "2019-11-26T04:37:46Z")
-    (d "2020-07-28T22:42:36Z") = false
-
-  Stdlib.DateTime.greaterThanOrEqualTo
-    (d "2020-11-26T04:37:46Z")
-    (d "2020-11-26T04:37:46Z") = true
+  Stdlib.DateTime.greaterThanOrEqualTo (d "2019-11-26T04:37:46Z") (d "2020-07-28T22:42:36Z") = false
+  Stdlib.DateTime.greaterThanOrEqualTo (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:46Z") = true
 
 module Fields =
   Stdlib.DateTime.year_v0 (d "2019-07-28T22:42:36Z") = 2019L
@@ -307,21 +193,18 @@ module Epoch1970 =
   Stdlib.DateTime.second (d "1970-07-28T22:42:36Z") = 36L
   Stdlib.DateTime.second (d "1970-07-28T22:42:36Z") = 36L
 
-module Convertsion =
+module Conversion =
   Stdlib.DateTime.toString_v0 (d "2019-07-28T22:42:36Z") = "2019-07-28T22:42:36Z"
 
-  Stdlib.DateTime.atStartOfDay_v0 (d "2019-07-28T22:42:36Z") = (d
-    "2019-07-28T00:00:00Z")
+  Stdlib.DateTime.atStartOfDay_v0 (d "2019-07-28T22:42:36Z") = (d "2019-07-28T00:00:00Z")
 
   Stdlib.DateTime.toSeconds_v0 (d "2019-07-28T22:42:36Z") = 1564353756L
   Stdlib.DateTime.toSeconds_v0 (d "2075-11-14T11:01:35Z") = 3340954895L
 
   Stdlib.DateTime.toStringISO8601BasicDateTime_v0 (d "2019-07-28T22:42:36Z") = "20190728T224236Z"
-
   Stdlib.DateTime.toStringISO8601BasicDateTime_v0 (d "1919-07-28T22:42:36Z") = "19190728T224236Z"
 
   Stdlib.DateTime.toStringISO8601BasicDate_v0 (d "2019-07-28T22:42:36Z") = "20190728"
-
   Stdlib.DateTime.toStringISO8601BasicDate_v0 (d "1069-07-28T22:42:36Z") = "10690728"
 
   1095379198L |> Stdlib.DateTime.fromSeconds_v0 |> Stdlib.DateTime.toSeconds_v0 = 1095379198L
@@ -333,50 +216,36 @@ module Convertsion =
 // Stdlib.DateTime.today_v0 |> Stdlib.DateTime.toString_v0 = "2020-10-17T00:00:00Z" // todo, how can we test this
 
 module AddingSeconds =
-  Stdlib.DateTime.addSeconds_v0 (d "2020-11-26T04:37:46Z") 0L = (d
-    "2020-11-26T04:37:46Z")
+  let a (d1: String) (s: Int64) : DateTime =
+    Stdlib.DateTime.addSeconds_v0 (d d1) s
 
-  Stdlib.DateTime.addSeconds_v0 (d "2020-11-26T04:37:46Z") 1L = (d
-    "2020-11-26T04:37:47Z")
+  a "2020-11-26T04:37:46Z" 0L = (d "2020-11-26T04:37:46Z")
+  a "2020-11-26T04:37:46Z" 1L = (d "2020-11-26T04:37:47Z")
+  a "2020-11-26T04:37:46Z" 10L = (d "2020-11-26T04:37:56Z")
+  a "2020-11-26T04:37:46Z" 1000000L = (d "2020-12-07T18:24:26Z")
+  a "2020-11-26T04:37:46Z" -10L = (d "2020-11-26T04:37:36Z")
 
-  Stdlib.DateTime.addSeconds_v0 (d "2020-11-26T04:37:46Z") 10L = (d
-    "2020-11-26T04:37:56Z")
-
-  Stdlib.DateTime.addSeconds_v0 (d "2020-11-26T04:37:46Z") 1000000L = (d
-    "2020-12-07T18:24:26Z")
-
-  Stdlib.DateTime.addSeconds_v0 (d "2020-11-26T04:37:46Z") -10L = (d
-    "2020-11-26T04:37:36Z")
 
 module SubtractingSeconds =
-  Stdlib.DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") 0L = (d
-    "2020-11-26T04:37:46Z")
+  let sub (d1: String) (s: Int64) : DateTime =
+    Stdlib.DateTime.subtractSeconds (d d1) s
 
-  Stdlib.DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") 1L = (d
-    "2020-11-26T04:37:45Z")
+  sub "2020-11-26T04:37:46Z" 0L = (d "2020-11-26T04:37:46Z")
+  sub "2020-11-26T04:37:46Z" 1L = (d "2020-11-26T04:37:45Z")
+  sub "2020-11-26T04:37:46Z" 10L = (d "2020-11-26T04:37:36Z")
+  sub "2020-11-26T04:37:46Z" 1000000L = (d "2020-11-14T14:51:06Z")
+  sub "2020-11-26T04:37:46Z" -10L = (d "2020-11-26T04:37:56Z")
 
-  Stdlib.DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") 10L = (d
-    "2020-11-26T04:37:36Z")
-
-  Stdlib.DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") 1000000L = (d
-    "2020-11-14T14:51:06Z")
-
-  Stdlib.DateTime.subtractSeconds_v0 (d "2020-11-26T04:37:46Z") -10L = (d
-    "2020-11-26T04:37:56Z")
 
 module Difference =
-  Stdlib.DateTime.subtract (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:46Z") = 0L
+  let s (d1: String) (d2: String) : Int64 =
+    Stdlib.DateTime.subtract (d d1) (d d2)
 
-  Stdlib.DateTime.subtract (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:45Z") = 1L
-
-  Stdlib.DateTime.subtract (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:36Z") = 10L
-
-  Stdlib.DateTime.subtract (d "2020-11-26T04:37:46Z") (d "2020-11-26T04:37:56Z") = -10L
-
-  Stdlib.DateTime.subtract (d "2020-11-26T04:37:46Z") (d "2020-11-14T14:51:06Z") = 1000000L
-
-  Stdlib.DateTime.subtract (d "2020-11-14T14:51:06Z") (d "2020-11-26T04:37:46Z") = -1000000L
-
-  Stdlib.DateTime.subtract (d "1921-01-01T12:00:00Z") (d "2021-01-01T12:00:00Z") = -3155760000L
-
-  Stdlib.DateTime.subtract (d "2021-01-01T12:00:00Z") (d "1921-01-01T12:00:00Z") = 3155760000L
+  s "2020-11-26T04:37:46Z" "2020-11-26T04:37:46Z" = 0L
+  s "2020-11-26T04:37:46Z" "2020-11-26T04:37:45Z" = 1L
+  s "2020-11-26T04:37:46Z" "2020-11-26T04:37:36Z" = 10L
+  s "2020-11-26T04:37:46Z" "2020-11-26T04:37:56Z" = -10L
+  s "2020-11-26T04:37:46Z" "2020-11-14T14:51:06Z" = 1000000L
+  s "2020-11-14T14:51:06Z" "2020-11-26T04:37:46Z" = -1000000L
+  s "1921-01-01T12:00:00Z" "2021-01-01T12:00:00Z" = -3155760000L
+  s "2021-01-01T12:00:00Z" "1921-01-01T12:00:00Z" = 3155760000L

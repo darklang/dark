@@ -1,0 +1,16 @@
+5L + 3L = 8L
+"xx" ++ "yy" = "xxyy"
+(5L + (3L)) = 8L
+Stdlib.Int64.add_v0 5L 3L = 8L
+
+5L + true =
+  Builtin.testDerrorMessage "Builtin.int64Add's 2nd parameter `b` expects Int64, but got Bool (true)"
+
+5L + (Builtin.testRuntimeError "error") =
+  Builtin.testDerrorMessage "Uncaught exception: error"
+
+(Builtin.testRuntimeError "error") + 5L =
+  Builtin.testDerrorMessage "Uncaught exception: error"
+
+(Builtin.testRuntimeError "one") + (Builtin.testRuntimeError "two") =
+  Builtin.testDerrorMessage "Uncaught exception: one"

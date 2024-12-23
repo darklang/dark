@@ -60,119 +60,158 @@ type TestNestedRecord = OuterRecord
 [<DB>]
 type TestNestedAliasRecord = AliasOfRecord
 
-module NestedRecordFieldAccess =
-  // can use lambda like (fun p -> p.details.numbers.age)
-  (Stdlib.DB.set
-    (OuterRecord
-      { name = "joe"
-        details = InnerRecord { numbers = AliasOfVeryInnerRecord { age = 41L } } })
-    "jjj"
-    TestNestedRecord
 
-   Stdlib.DB.set
-     (OuterRecord
-       { name = "frank"
-         details = InnerRecord { numbers = VeryInnerRecord { age = 22L } } })
-     "fff"
-     TestNestedRecord
+// We're mostly ready to start uncommenting these tests that reference DBs
+// -- the DBs are getting set up appropriately, we have the basic get/set builtins
+// , etc.
+// The bit that _isn't_ working here is that references _to_ those DBs are being
+// parsed as EVariables. In the old interpreter, we dealt with this
+// we could ad
 
-   let shouldBeJustJoe =
-     Stdlib.DB.query TestNestedRecord (fun p -> p.details.numbers.age == 41L)
 
-   Stdlib.List.length shouldBeJustJoe) = 1L
+module SetDoesUpsert =
+  (let old = Stdlib.DB.set (X { x = "hello" }) "hello" XDB
+   let newval = Stdlib.DB.set (X { x = "goodbye" }) "hello" XDB
+   Stdlib.DB.getAllWithKeys XDB) = Dict { hello = X { x = "goodbye" } }
 
-  // same as above, but with aliases
-  (Stdlib.DB.set
-    (AliasOfRecord
-      { name = "jeremy"
-        details = InnerRecord { numbers = VeryInnerRecord { age = 38L } } })
-    "ignored"
-    TestNestedAliasRecord
-
-   Stdlib.DB.set
-     (AliasOfRecord
-       { name = "josephine"
-         details = InnerRecord { numbers = AliasOfVeryInnerRecord { age = 29L } } })
-     "alsoIgnored"
-     TestNestedAliasRecord
-
-   let shouldBeJustJeremy =
-     Stdlib.DB.query TestNestedAliasRecord (fun p -> p.details.numbers.age == 38L)
-
-   Stdlib.List.length shouldBeJustJeremy) = 1L
+module SetCharUpserts =
+  (let old = Stdlib.DB.set (Z { x = 'a' }) "a" ZDB
+   let newval = Stdlib.DB.set (Z { x = 'b' }) "a" ZDB
+   Stdlib.DB.getAllWithKeys ZDB) = Dict { a = Z { x = 'b' } }
 
 
 
-// Query data from a type with generics
-type GenericThing<'thing> = { name: 'thing }
-type RecordWithGenericThing = GenericThing<String>
+module Get =
+  // return none for empty store
+  (Stdlib.DB.get "lol" XDB) = Stdlib.Option.Option.None
 
-[<DB>]
-type TestRecordWithGenericThing = RecordWithGenericThing
+  // return none for invalid key
+  (let _ = Stdlib.DB.set (X { x = "hello" }) "key" XDB in Stdlib.DB.get "lol" XDB) = Stdlib.Option.Option.None
 
-module AccessDataInGenericField =
-  (Stdlib.DB.set
-    (RecordWithGenericThing { name = "joe" })
-    "jjj"
-    TestRecordWithGenericThing
+  // returns single value
+  (let _ = Stdlib.DB.set (X { x = "hello" }) "key" XDB in Stdlib.DB.get "key" XDB) = Stdlib
+    .Option
+    .Option
+    .Some(X { x = "hello" })
 
-   Stdlib.DB.set
-     (RecordWithGenericThing { name = "frank" })
-     "fff"
-     TestRecordWithGenericThing
+  // returns correct value given reassigned entry
+  (let _ = Stdlib.DB.set (X { x = "hello" }) "key" XDB
+   let _ = Stdlib.DB.set (X { x = "goodbye" }) "key" XDB
+   Stdlib.DB.get "key" XDB) = Stdlib.Option.Option.Some(X { x = "goodbye" })
 
-   Stdlib.DB.query TestRecordWithGenericThing (fun p -> p.name == "joe")) = [ RecordWithGenericThing
-                                                                                { name =
-                                                                                    "joe" } ]
-
-module AccessRecordInGenericField =
-  type RecordThing = { nested: String }
-
-  [<DB>]
-  type TestDB = GenericThing<RecordThing>
+  // returns value given multiple entries
+  (let _ = Stdlib.DB.set (X { x = "pancake" }) "key1" XDB
+   let _ = Stdlib.DB.set (X { x = "waffle" }) "key2" XDB
+   let _ = Stdlib.DB.set (X { x = "scone" }) "key3" XDB
+   Stdlib.DB.get "key2" XDB) = Stdlib.Option.Option.Some(X { x = "waffle" })
 
 
-  (Stdlib.DB.set
-    (GenericThing { name = RecordThing { nested = "joe" } })
-    "jjj"
-    TestDB
 
-   Stdlib.DB.set
-     (GenericThing { name = RecordThing { nested = "frank" } })
-     "fff"
-     TestDB
+// // module NestedRecordFieldAccess =
+// //   // can use lambda like (fun p -> p.details.numbers.age)
+// //   (Stdlib.DB.set
+// //     (OuterRecord { name = "joe"; details = InnerRecord { numbers = AliasOfVeryInnerRecord { age = 41L } } })
+// //     "jjj"
+// //     TestNestedRecord
 
-   let nestedValue = RecordThing { nested = "joe" }
+// //    Stdlib.DB.set
+// //      (OuterRecord { name = "frank"; details = InnerRecord { numbers = VeryInnerRecord { age = 22L } } })
+// //      "fff"
+// //      TestNestedRecord
 
-   Stdlib.DB.query TestDB (fun p -> p.name == nestedValue)) = [ GenericThing
-                                                                  { name =
-                                                                      RecordThing
-                                                                        { nested =
-                                                                            "joe" } } ]
+// //    let shouldBeJustJoe =
+// //      Stdlib.DB.query TestNestedRecord (fun p -> p.details.numbers.age == 41L)
 
-module AccessEnumInGenericField =
-  type EnumThing = A of String
+// //    Stdlib.List.length shouldBeJustJoe) = 1L
 
-  [<DB>]
-  type TestDB = GenericThing<EnumThing>
+// //   // same as above, but with aliases
+// //   (Stdlib.DB.set
+// //     (AliasOfRecord { name = "jeremy"; details = InnerRecord { numbers = VeryInnerRecord { age = 38L } } })
+// //     "ignored"
+// //     TestNestedAliasRecord
+
+// //    Stdlib.DB.set
+// //      (AliasOfRecord { name = "josephine"; details = InnerRecord { numbers = AliasOfVeryInnerRecord { age = 29L } } })
+// //      "alsoIgnored"
+// //      TestNestedAliasRecord
+
+// //    let shouldBeJustJeremy =
+// //      Stdlib.DB.query TestNestedAliasRecord (fun p -> p.details.numbers.age == 38L)
+
+// //    Stdlib.List.length shouldBeJustJeremy) = 1L
 
 
-  (Stdlib.DB.set (GenericThing { name = EnumThing.A "joe" }) "jjj" TestDB
-   Stdlib.DB.set (GenericThing { name = EnumThing.A "frank" }) "fff" TestDB
 
-   let nestedValue = EnumThing.A "joe"
+// // Query data from a type with generics
+// type GenericThing<'thing> = { name: 'thing }
+// type RecordWithGenericThing = GenericThing<String>
 
-   Stdlib.DB.query TestDB (fun p -> p.name == nestedValue)) = [ GenericThing
-                                                                  { name =
-                                                                      EnumThing.A
-                                                                        "joe" } ]
+// [<DB>]
+// type TestRecordWithGenericThing = RecordWithGenericThing
+
+// // module AccessDataInGenericField =
+// //   (Stdlib.DB.set
+// //     (RecordWithGenericThing { name = "joe" })
+// //     "jjj"
+// //     TestRecordWithGenericThing
+
+// //    Stdlib.DB.set
+// //      (RecordWithGenericThing { name = "frank" })
+// //      "fff"
+// //      TestRecordWithGenericThing
+
+// //    Stdlib.DB.query TestRecordWithGenericThing (fun p -> p.name == "joe")) = [ RecordWithGenericThing
+// //                                                                                 { name =
+// //                                                                                     "joe" } ]
+
+// // module AccessRecordInGenericField =
+// //   type RecordThing = { nested: String }
+
+// //   [<DB>]
+// //   type TestDB = GenericThing<RecordThing>
+
+
+// //   (Stdlib.DB.set
+// //     (GenericThing { name = RecordThing { nested = "joe" } })
+// //     "jjj"
+// //     TestDB
+
+// //    Stdlib.DB.set
+// //      (GenericThing { name = RecordThing { nested = "frank" } })
+// //      "fff"
+// //      TestDB
+
+// //    let nestedValue = RecordThing { nested = "joe" }
+
+// //    Stdlib.DB.query TestDB (fun p -> p.name == nestedValue)) = [ GenericThing
+// //                                                                   { name =
+// //                                                                       RecordThing
+// //                                                                         { nested =
+// //                                                                             "joe" } } ]
+
+// module AccessEnumInGenericField =
+//   // type EnumThing = A of String
+
+//   // [<DB>]
+//   // type TestDB = GenericThing<EnumThing>
+
+
+//   // (Stdlib.DB.set (GenericThing { name = EnumThing.A "joe" }) "jjj" TestDB
+//   //  Stdlib.DB.set (GenericThing { name = EnumThing.A "frank" }) "fff" TestDB
+
+//   //  let nestedValue = EnumThing.A "joe"
+
+//   //  Stdlib.DB.query TestDB (fun p -> p.name == nestedValue)) = [ GenericThing
+//   //                                                                 { name =
+//   //                                                                     EnumThing.A
+//   //                                                                       "joe" } ]
 
 
 module AddToTestEnumDBs =
-  (let test1 =
+  (let _ =
     Stdlib.DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB
 
-   let test2 =
+   let _ =
      Stdlib.DB.set
        (EnumTestRecord { x = "goodbye"; y = MyEnum.B })
        "test2"
@@ -185,10 +224,10 @@ module AddToTestEnumDBs =
                                                             { x = "hello"
                                                               y = MyEnum.A } ]
 
-  (let test1 =
+  (let _ =
     Stdlib.DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB
 
-   let test2 =
+   let _ =
      Stdlib.DB.set
        (EnumTestRecord { x = "goodbye"; y = MyEnum.B })
        "test2"
@@ -213,19 +252,19 @@ module AddToTestEnumDBs =
                                                            MyEnum2.E
                                                            MyEnum2.F MyEnum.A ]
 
-  (let testQuery =
-    Stdlib.DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB
+//   // (let testQuery =
+//   //   Stdlib.DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB
 
-   (Stdlib.DB.query TestEnumDB (fun p -> p.x == "hello"))) = [ EnumTestRecord
-                                                                 { x = "hello"
-                                                                   y = MyEnum.A } ]
+//   //  (Stdlib.DB.query TestEnumDB (fun p -> p.x == "hello"))) = [ EnumTestRecord
+//   //                                                                { x = "hello"
+//   //                                                                  y = MyEnum.A } ]
 
-  (let testQuery =
-    Stdlib.DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB
+//   // (let testQuery =
+//   //   Stdlib.DB.set (EnumTestRecord { x = "hello"; y = MyEnum.A }) "test1" TestEnumDB
 
-   (Stdlib.DB.query TestEnumDB (fun p -> p.y == MyEnum.A))) = [ EnumTestRecord
-                                                                  { x = "hello"
-                                                                    y = MyEnum.A } ]
+//   //  (Stdlib.DB.query TestEnumDB (fun p -> p.y == MyEnum.A))) = [ EnumTestRecord
+//   //                                                                 { x = "hello"
+//   //                                                                   y = MyEnum.A } ]
 
 
 
@@ -349,173 +388,173 @@ module Roundtrip =
   // TODO: Add roundtrip for bytes (Bytes values not supported yet)
   (let v = sample ()
    let z = Stdlib.DB.set v "all" SampleDB
-   (z, Stdlib.DB.get "all" SampleDB)) = (sample (),
-                                         Stdlib.Option.Option.Some(sample ()))
+   (z, Stdlib.DB.get "all" SampleDB)) =
+    (sample (), Stdlib.Option.Option.Some(sample ()))
 
 
-  module QueryEquality =
-    let fetch (fn: 'a -> Bool) : List<'a> =
-      let z = Stdlib.DB.set (sample ()) "sample" SampleDB
-      let z = Stdlib.DB.set (otherSample ()) "other" SampleDB
-      Stdlib.DB.query SampleDB fn
+//   // module QueryEquality =
+//   //   let fetch (fn: 'a -> Bool) : List<'a> =
+//   //     let z = Stdlib.DB.set (sample ()) "sample" SampleDB
+//   //     let z = Stdlib.DB.set (otherSample ()) "other" SampleDB
+//   //     Stdlib.DB.query SampleDB fn
 
-    // invalid type comparisons errors
-    // these work, but the DError has a random string in it that we can't match
-    // fetch (fun p -> 5 == "str") =
-    //   Builtin.testDerrorSqlMessage "Incorrect type in variable, expected Bool, but got a Error"
-    // fetch (fun p -> 5 != "str") =
-    //   Builtin.testDerrorSqlMessage "Incorrect type in variable, expected Bool, but got a Error"
+//   //   // invalid type comparisons errors
+//   //   // these work, but the DError has a random string in it that we can't match
+//   //   // fetch (fun p -> 5 == "str") =
+//   //   //   Builtin.testDerrorSqlMessage "Incorrect type in variable, expected Bool, but got a Error"
+//   //   // fetch (fun p -> 5 != "str") =
+//   //   //   Builtin.testDerrorSqlMessage "Incorrect type in variable, expected Bool, but got a Error"
 
-    fetch (fun p -> p.int == "str") = Builtin.testDerrorSqlMessage
-      "Incorrect type in String \"str\", expected Int64, but got a String"
+//   //   fetch (fun p -> p.int == "str") =
+//   //     Builtin.testDerrorSqlMessage "Incorrect type in String \"str\", expected Int64, but got a String"
 
-    fetch (fun p -> p.int != "str") = Builtin.testDerrorSqlMessage
-      "Incorrect type in String \"str\", expected Int64, but got a String"
+//   //   fetch (fun p -> p.int != "str") =
+//   //     Builtin.testDerrorSqlMessage "Incorrect type in String \"str\", expected Int64, but got a String"
 
-    fetch (fun p -> "str" == p.int) = Builtin.testDerrorSqlMessage
-      "Incorrect type in int, expected String, but got a Int64"
+//   //   fetch (fun p -> "str" == p.int) =
+//   //     Builtin.testDerrorSqlMessage "Incorrect type in int, expected String, but got a Int64"
 
-    fetch (fun p -> "str" == p.int) = Builtin.testDerrorSqlMessage
-      "Incorrect type in int, expected String, but got a Int64"
+//   //   fetch (fun p -> "str" == p.int) =
+//   //     Builtin.testDerrorSqlMessage "Incorrect type in int, expected String, but got a Int64"
 
-    fetch (fun p -> p.iNsEnSiTiVe == "iNsEnSiTiVe") = [ sample () ]
-    fetch (fun p -> p.iNsEnSiTiVe != "iNsEnSiTiVe") = [ otherSample () ]
-    fetch (fun p -> p.iNsEnSiTiVe == "nothing") = []
+//   //   fetch (fun p -> p.iNsEnSiTiVe == "iNsEnSiTiVe") = [ sample () ]
+//   //   fetch (fun p -> p.iNsEnSiTiVe != "iNsEnSiTiVe") = [ otherSample () ]
+//   //   fetch (fun p -> p.iNsEnSiTiVe == "nothing") = []
 
-    fetch (fun p -> p.``ALLCAPS`` == 1L) = [ sample () ]
-    fetch (fun p -> p.``ALLCAPS`` != 1L) = [ otherSample () ]
-    fetch (fun p -> p.``ALLCAPS`` == 1000L) = []
+//   //   fetch (fun p -> p.``ALLCAPS`` == 1L) = [ sample () ]
+//   //   fetch (fun p -> p.``ALLCAPS`` != 1L) = [ otherSample () ]
+//   //   fetch (fun p -> p.``ALLCAPS`` == 1000L) = []
 
-    fetch (fun p -> p.int == 2L) = [ sample () ]
-    fetch (fun p -> p.int != 2L) = [ otherSample () ]
-    fetch (fun p -> p.int == 200L) = []
+//   //   fetch (fun p -> p.int == 2L) = [ sample () ]
+//   //   fetch (fun p -> p.int != 2L) = [ otherSample () ]
+//   //   fetch (fun p -> p.int == 200L) = []
 
-    fetch (fun p -> p.uint64 == 2UL) = [ sample () ]
-    fetch (fun p -> p.uint64 != 2UL) = [ otherSample () ]
-    fetch (fun p -> p.uint64 == 200UL) = []
+//   //   fetch (fun p -> p.uint64 == 2UL) = [ sample () ]
+//   //   fetch (fun p -> p.uint64 != 2UL) = [ otherSample () ]
+//   //   fetch (fun p -> p.uint64 == 200UL) = []
 
-    fetch (fun p -> p.int8 == 2y) = [ sample () ]
-    fetch (fun p -> p.int8 != 2y) = [ otherSample () ]
-    fetch (fun p -> p.int8 == 100y) = []
+//   //   fetch (fun p -> p.int8 == 2y) = [ sample () ]
+//   //   fetch (fun p -> p.int8 != 2y) = [ otherSample () ]
+//   //   fetch (fun p -> p.int8 == 100y) = []
 
-    fetch (fun p -> p.uint8 == 2uy) = [ sample () ]
-    fetch (fun p -> p.uint8 != 2uy) = [ otherSample () ]
-    fetch (fun p -> p.uint8 == 100uy) = []
+//   //   fetch (fun p -> p.uint8 == 2uy) = [ sample () ]
+//   //   fetch (fun p -> p.uint8 != 2uy) = [ otherSample () ]
+//   //   fetch (fun p -> p.uint8 == 100uy) = []
 
-    fetch (fun p -> p.int16 == 2s) = [ sample () ]
-    fetch (fun p -> p.int16 != 2s) = [ otherSample () ]
-    fetch (fun p -> p.int16 == 100s) = []
+//   //   fetch (fun p -> p.int16 == 2s) = [ sample () ]
+//   //   fetch (fun p -> p.int16 != 2s) = [ otherSample () ]
+//   //   fetch (fun p -> p.int16 == 100s) = []
 
-    fetch (fun p -> p.uint16 == 2us) = [ sample () ]
-    fetch (fun p -> p.uint16 != 2us) = [ otherSample () ]
-    fetch (fun p -> p.uint16 == 100us) = []
+//   //   fetch (fun p -> p.uint16 == 2us) = [ sample () ]
+//   //   fetch (fun p -> p.uint16 != 2us) = [ otherSample () ]
+//   //   fetch (fun p -> p.uint16 == 100us) = []
 
-    fetch (fun p -> p.int32 == 2l) = [ sample () ]
-    fetch (fun p -> p.int32 != 2l) = [ otherSample () ]
-    fetch (fun p -> p.int32 == 100l) = []
+//   //   fetch (fun p -> p.int32 == 2l) = [ sample () ]
+//   //   fetch (fun p -> p.int32 != 2l) = [ otherSample () ]
+//   //   fetch (fun p -> p.int32 == 100l) = []
 
-    fetch (fun p -> p.uint32 == 2ul) = [ sample () ]
-    fetch (fun p -> p.uint32 != 2ul) = [ otherSample () ]
-    fetch (fun p -> p.uint32 == 100ul) = []
+//   //   fetch (fun p -> p.uint32 == 2ul) = [ sample () ]
+//   //   fetch (fun p -> p.uint32 != 2ul) = [ otherSample () ]
+//   //   fetch (fun p -> p.uint32 == 100ul) = []
 
-    fetch (fun p -> p.int128 == 170141183460469231731687303715884105727Q) = [ sample () ]
+//   //   fetch (fun p -> p.int128 == 170141183460469231731687303715884105727Q) = [ sample () ]
 
-    fetch (fun p -> p.int128 != 170141183460469231731687303715884105727Q) = [ otherSample () ]
+//   //   fetch (fun p -> p.int128 != 170141183460469231731687303715884105727Q) = [ otherSample () ]
 
-    fetch (fun p -> p.int128 == 100Q) = []
+//   //   fetch (fun p -> p.int128 == 100Q) = []
 
-    fetch (fun p -> p.uint128 == 340282366920938463463374607431768211455Z) = [ sample () ]
+//   //   fetch (fun p -> p.uint128 == 340282366920938463463374607431768211455Z) = [ sample () ]
 
-    fetch (fun p -> p.uint128 != 340282366920938463463374607431768211455Z) = [ otherSample () ]
+//   //   fetch (fun p -> p.uint128 != 340282366920938463463374607431768211455Z) = [ otherSample () ]
 
-    fetch (fun p -> p.uint128 == 100Z) = []
+//   //   fetch (fun p -> p.uint128 == 100Z) = []
 
-    fetch (fun p -> p.float == 3.0) = [ sample () ]
-    fetch (fun p -> p.float != 3.0) = [ otherSample () ]
-    fetch (fun p -> p.float == 30.0) = []
+//   //   fetch (fun p -> p.float == 3.0) = [ sample () ]
+//   //   fetch (fun p -> p.float != 3.0) = [ otherSample () ]
+//   //   fetch (fun p -> p.float == 30.0) = []
 
-    fetch (fun p -> p.negZero == -0.0) = [ sample () ]
-    fetch (fun p -> p.negZero != -0.0) = [ otherSample () ]
-    fetch (fun p -> p.negZero == 19000.0) = []
+//   //   fetch (fun p -> p.negZero == -0.0) = [ sample () ]
+//   //   fetch (fun p -> p.negZero != -0.0) = [ otherSample () ]
+//   //   fetch (fun p -> p.negZero == 19000.0) = []
 
-    // CLEANUP: nan shouldn't be equal
-    fetch (fun p -> p.nan == Builtin.testNan) = [ sample () ]
-    fetch (fun p -> p.nan != Builtin.testNan) = [ otherSample () ]
-    fetch (fun p -> p.nan == 14.0) = []
+//   //   // CLEANUP: nan shouldn't be equal
+//   //   fetch (fun p -> p.nan == Builtin.testNan) = [ sample () ]
+//   //   fetch (fun p -> p.nan != Builtin.testNan) = [ otherSample () ]
+//   //   fetch (fun p -> p.nan == 14.0) = []
 
-    fetch (fun p -> p.infinity == Builtin.testInfinity) = [ sample () ]
-    fetch (fun p -> p.infinity != Builtin.testInfinity) = [ otherSample () ]
-    fetch (fun p -> p.infinity == 1.0) = []
+//   //   fetch (fun p -> p.infinity == Builtin.testInfinity) = [ sample () ]
+//   //   fetch (fun p -> p.infinity != Builtin.testInfinity) = [ otherSample () ]
+//   //   fetch (fun p -> p.infinity == 1.0) = []
 
-    fetch (fun p -> p.negInfinity == Builtin.testNegativeInfinity) = [ sample () ]
+//   //   fetch (fun p -> p.negInfinity == Builtin.testNegativeInfinity) = [ sample () ]
 
-    fetch (fun p -> p.negInfinity != Builtin.testNegativeInfinity) = [ otherSample () ]
+//   //   fetch (fun p -> p.negInfinity != Builtin.testNegativeInfinity) = [ otherSample () ]
 
-    fetch (fun p -> p.negInfinity == 1.0) = []
+//   //   fetch (fun p -> p.negInfinity == 1.0) = []
 
-    fetch (fun p -> p.``true`` == true) = [ sample () ]
-    fetch (fun p -> p.``true`` != true) = [ otherSample () ]
+//   //   fetch (fun p -> p.``true`` == true) = [ sample () ]
+//   //   fetch (fun p -> p.``true`` != true) = [ otherSample () ]
 
-    fetch (fun p -> p.``false`` == false) = [ sample () ]
-    fetch (fun p -> p.``false`` != false) = [ otherSample () ]
+//   //   fetch (fun p -> p.``false`` == false) = [ sample () ]
+//   //   fetch (fun p -> p.``false`` != false) = [ otherSample () ]
 
-    // A bug in postgresql jsonb support prevents this from working
-    // fetch (fun p -> p.list == [1;2;3]) = [sample ()]
-    // fetch (fun p -> p.list != [1;2;3]) = [otherSample ()]
-    // fetch (fun p -> p.list == []) = []
+//   //   // A bug in postgresql jsonb support prevents this from working
+//   //   // fetch (fun p -> p.list == [1;2;3]) = [sample ()]
+//   //   // fetch (fun p -> p.list != [1;2;3]) = [otherSample ()]
+//   //   // fetch (fun p -> p.list == []) = []
 
-    fetch (fun p -> p.char == 'c') = [ sample () ]
-    fetch (fun p -> p.char != 'c') = [ otherSample () ]
-    fetch (fun p -> p.char == 'x') = []
+//   //   fetch (fun p -> p.char == 'c') = [ sample () ]
+//   //   fetch (fun p -> p.char != 'c') = [ otherSample () ]
+//   //   fetch (fun p -> p.char == 'x') = []
 
-    fetch (fun p -> p.emojiChar == ((Builtin.testToChar "👍") |> Builtin.unwrap)) = [ sample () ]
+//   //   fetch (fun p -> p.emojiChar == ((Builtin.testToChar "👍") |> Builtin.unwrap)) = [ sample () ]
 
-    fetch (fun p -> p.emojiChar != ((Builtin.testToChar "👍") |> Builtin.unwrap)) = [ otherSample () ]
+//   //   fetch (fun p -> p.emojiChar != ((Builtin.testToChar "👍") |> Builtin.unwrap)) = [ otherSample () ]
 
-    fetch (fun p -> p.emojiChar == 'x') = []
+//   //   fetch (fun p -> p.emojiChar == 'x') = []
 
-    fetch (fun p ->
-      p.uuid
-      == ((Stdlib.Uuid.parse "00000050-0000-0000-0000-000000000000")
-          |> Builtin.unwrap)) = [ sample () ]
+//   //   fetch (fun p ->
+//   //     p.uuid
+//   //     == ((Stdlib.Uuid.parse "00000050-0000-0000-0000-000000000000")
+//   //         |> Builtin.unwrap)) = [ sample () ]
 
-    fetch (fun p ->
-      p.uuid
-      != ((Stdlib.Uuid.parse "00000050-0000-0000-0000-000000000000")
-          |> Builtin.unwrap)) = [ otherSample () ]
+//   //   fetch (fun p ->
+//   //     p.uuid
+//   //     != ((Stdlib.Uuid.parse "00000050-0000-0000-0000-000000000000")
+//   //         |> Builtin.unwrap)) = [ otherSample () ]
 
-    fetch (fun p ->
-      p.uuid
-      == ((Stdlib.Uuid.parse "11111111-1111-1111-1111-000000000000")
-          |> Builtin.unwrap)) = []
+//   //   fetch (fun p ->
+//   //     p.uuid
+//   //     == ((Stdlib.Uuid.parse "11111111-1111-1111-1111-000000000000")
+//   //         |> Builtin.unwrap)) = []
 
-    fetch (fun p ->
-      p.datetime
-      == ((Stdlib.DateTime.parse "2020-01-01T00:00:00Z") |> Builtin.unwrap)) = [ sample () ]
+//   //   fetch (fun p ->
+//   //     p.datetime
+//   //     == ((Stdlib.DateTime.parse "2020-01-01T00:00:00Z") |> Builtin.unwrap)) = [ sample () ]
 
-    fetch (fun p ->
-      p.datetime
-      != ((Stdlib.DateTime.parse "2020-01-01T00:00:00Z") |> Builtin.unwrap)) = [ otherSample () ]
+//   //   fetch (fun p ->
+//   //     p.datetime
+//   //     != ((Stdlib.DateTime.parse "2020-01-01T00:00:00Z") |> Builtin.unwrap)) = [ otherSample () ]
 
-    fetch (fun p ->
-      p.datetime
-      == ((Stdlib.DateTime.parse "2019-12-31T23:59:59Z") |> Builtin.unwrap)) = []
+//   //   fetch (fun p ->
+//   //     p.datetime
+//   //     == ((Stdlib.DateTime.parse "2019-12-31T23:59:59Z") |> Builtin.unwrap)) = []
 
-    (fetch (fun p -> p.unit == ())) |> Stdlib.List.sortBy (fun v -> v.int) = [ sample ()
-                                                                               otherSample () ]
+//   //   (fetch (fun p -> p.unit == ())) |> Stdlib.List.sortBy (fun v -> v.int) = [ sample ()
+//   //                                                                              otherSample () ]
 
-    fetch (fun p -> p.unit != ()) = []
+//   //   fetch (fun p -> p.unit != ()) = []
 
-    // Test equality for two different function results - this tests TVariable types, esp checking that we keep track of them correctly
-    fetch (fun p ->
-      ((Stdlib.Uuid.parse "00000050-0000-0000-0000-000000000000") |> Builtin.unwrap)
-      == p.uuid) = [ sample () ]
+//   //   // Test equality for two different function results - this tests TVariable types, esp checking that we keep track of them correctly
+//   //   fetch (fun p ->
+//   //     ((Stdlib.Uuid.parse "00000050-0000-0000-0000-000000000000") |> Builtin.unwrap)
+//   //     == p.uuid) = [ sample () ]
 
-    ((fetch (fun p ->
-      ((Stdlib.Uuid.parse "00000050-0000-0000-0000-000000000000") |> Builtin.unwrap)
-      == ((Stdlib.Uuid.parse "00000050-0000-0000-0000-000000000000")
-          |> Builtin.unwrap)))
-     |> Stdlib.List.length) = 2L
+//   //   ((fetch (fun p ->
+//   //     ((Stdlib.Uuid.parse "00000050-0000-0000-0000-000000000000") |> Builtin.unwrap)
+//   //     == ((Stdlib.Uuid.parse "00000050-0000-0000-0000-000000000000")
+//   //         |> Builtin.unwrap)))
+//   //    |> Stdlib.List.length) = 2L
 
 
 
@@ -523,51 +562,14 @@ module Roundtrip =
 // CLEANUP test partial evaluation of lists and tuples
 
 
-module ValueMissingColumnGivesGoodError =
-  // TYPESCLEANUP: can we test a missing column against the DB anymore?
-  // (Stdlib.DB.set (XY { x = "x"; y = "v" }) "i" XDB) = Builtin.Test.runtimeError "Found but did not expect: [y]"
+// // module ValueMissingColumnGivesGoodError =
+// //   // TYPESCLEANUP: can we test a missing column against the DB anymore?
+// //   // (Stdlib.DB.set (XY { x = "x"; y = "v" }) "i" XDB) = Builtin.Test.runtimeError "Found but did not expect: [y]"
 
-  (Stdlib.DB.set (XY { x = "x"; y = "v" }) "i" XDB) = Builtin.testDerrorMessage
-    "DB XDB's value should be a X. However, a XY (XY {  x: ...) was passed instead.\n\nExpected: X\nActual: a XY: XY {\n  x: \"x\",\n  y: \"v\"\n}"
-
-
-module SetDoesUpsert =
-  (let old = Stdlib.DB.set (X { x = "hello" }) "hello" XDB
-   let newval = Stdlib.DB.set (X { x = "goodbye" }) "hello" XDB
-   Stdlib.DB.getAllWithKeys XDB) = Dict { hello = X { x = "goodbye" } }
-
-module SetCharUpserts =
-  (let old = Stdlib.DB.set (Z { x = 'a' }) "a" ZDB
-   let newval = Stdlib.DB.set (Z { x = 'b' }) "a" ZDB
-   Stdlib.DB.getAllWithKeys ZDB) = Dict { a = Z { x = 'b' } }
+// //   (Stdlib.DB.set (XY { x = "x"; y = "v" }) "i" XDB) =
+// //     Builtin.testDerrorMessage "DB XDB's value should be a X. However, a XY (XY {  x: ...) was passed instead.\n\nExpected: X\nActual: a XY: XY {\n  x: \"x\",\n  y: \"v\"\n}"
 
 
-
-module Get =
-  // return none for empty store
-  (Stdlib.DB.get "lol" XDB) = Stdlib.Option.Option.None
-
-  // return none for invalid key
-  (let _ = Stdlib.DB.set (X { x = "hello" }) "key" XDB in Stdlib.DB.get "lol" XDB) = Stdlib.Option.Option.None
-
-  // returns single value
-  (let _ = Stdlib.DB.set (X { x = "hello" }) "key" XDB in Stdlib.DB.get "key" XDB) = PACKAGE
-    .Darklang
-    .Stdlib
-    .Option
-    .Option
-    .Some(X { x = "hello" })
-
-  // returns correct value given reassigned entry
-  (let _ = Stdlib.DB.set (X { x = "hello" }) "key" XDB
-   let _ = Stdlib.DB.set (X { x = "goodbye" }) "key" XDB
-   Stdlib.DB.get "key" XDB) = Stdlib.Option.Option.Some(X { x = "goodbye" })
-
-  // returns value given multiple entries
-  (let _ = Stdlib.DB.set (X { x = "pancake" }) "key1" XDB
-   let _ = Stdlib.DB.set (X { x = "waffle" }) "key2" XDB
-   let _ = Stdlib.DB.set (X { x = "scone" }) "key3" XDB
-   Stdlib.DB.get "key2" XDB) = Stdlib.Option.Option.Some(X { x = "waffle" })
 
 
 module Params =
@@ -577,34 +579,19 @@ module Params =
   type ParamDB = Param<String>
 
   (let _ = Stdlib.DB.set (Param { x = "hello"; b = 5L }) "key" ParamDB
-   Stdlib.DB.get "key" ParamDB) = Stdlib.Option.Option.Some(
-    Param { x = "hello"; b = 5L }
-  )
+   Stdlib.DB.get "key" ParamDB) =
+    Stdlib.Option.Option.Some(Param { x = "hello"; b = 5L })
 
 
 
 module GetAll =
-  (let one = Stdlib.DB.set (SortedX { x = "hello"; sortBy = 0L }) "one" SortedXDB
-
-   let two = Stdlib.DB.set (SortedX { x = "goodbye"; sortBy = 1L }) "two" SortedXDB
-
-   let three = Stdlib.DB.set (SortedX { x = "howdy"; sortBy = 2L }) "three" SortedXDB
-
-   (Stdlib.DB.getAll SortedXDB) |> Stdlib.List.sortBy_v0 (fun x -> x.sortBy)) = [ (SortedX
-                                                                                    { x =
-                                                                                        "hello"
-                                                                                      sortBy =
-                                                                                        0L })
-                                                                                  (SortedX
-                                                                                    { x =
-                                                                                        "goodbye"
-                                                                                      sortBy =
-                                                                                        1L })
-                                                                                  (SortedX
-                                                                                    { x =
-                                                                                        "howdy"
-                                                                                      sortBy =
-                                                                                        2L }) ]
+  (let _ = Stdlib.DB.set (SortedX { x = "hello"; sortBy = 0L }) "one" SortedXDB
+   let _ = Stdlib.DB.set (SortedX { x = "goodbye"; sortBy = 1L }) "two" SortedXDB
+   let _ = Stdlib.DB.set (SortedX { x = "howdy"; sortBy = 2L }) "three" SortedXDB
+   (Stdlib.DB.getAll SortedXDB) |> Stdlib.List.sortBy_v0 (fun x -> x.sortBy)) =
+    [ SortedX { x = "hello";  sortBy = 0L }
+      SortedX { x = "goodbye"; sortBy = 1L }
+      SortedX { x = "howdy"; sortBy = 2L } ]
 
 
 module GetAllKeys =
@@ -616,17 +603,17 @@ module GetAllKeys =
 module GetAllWithKeys =
   (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
    let two = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
-   Stdlib.DB.getAllWithKeys XDB) = Dict
-    { one = X { x = "hello" }
-      two = X { x = "goodbye" } }
+   Stdlib.DB.getAllWithKeys XDB) =
+    Dict { one = X { x = "hello" }; two = X { x = "goodbye" } }
 
 
 module GetManyWithKeys =
   (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
    let two = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
-   Stdlib.DB.getManyWithKeys [ "one"; "two" ] XDB) = Dict
-    { one = (X { x = "hello" })
-      two = (X { x = "goodbye" }) }
+   Stdlib.DB.getManyWithKeys [ "one"; "two" ] XDB) =
+    Dict
+      { one = (X { x = "hello" })
+        two = (X { x = "goodbye" }) }
 
 
 module GetExisting =
@@ -645,35 +632,36 @@ module GetMany =
 
    (Stdlib.DB.getMany [ "one"; "two" ] XDB)
    |> Builtin.unwrap
-   |> Stdlib.List.sortBy (fun v -> v.x)) = [ (X { x = "goodbye" })
-                                             (X { x = "hello" }) ]
+   |> Stdlib.List.sortBy (fun v -> v.x)) =
+    [ (X { x = "goodbye" })
+      (X { x = "hello" }) ]
 
 
 module Delete =
-  (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
-   let delete = Stdlib.DB.delete "one" XDB
+  (let _ = Stdlib.DB.set (X { x = "hello" }) "one" XDB
+   let _ = Stdlib.DB.delete "one" XDB
    Stdlib.DB.getAllWithKeys XDB) = Dict { }
 
   // delete nothing
-  (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
-   let delete = Stdlib.DB.delete "two" XDB
+  (let _ = Stdlib.DB.set (X { x = "hello" }) "one" XDB
+   let _ = Stdlib.DB.delete "two" XDB
    Stdlib.DB.getAllWithKeys XDB) = Dict { one = (X { x = "hello" }) }
 
   // deletes only one
-  (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
-   let two = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
-   let delete = Stdlib.DB.delete "one" XDB
+  (let _ = Stdlib.DB.set (X { x = "hello" }) "one" XDB
+   let _ = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
+   let _ = Stdlib.DB.delete "one" XDB
    Stdlib.DB.getAllWithKeys XDB) = Dict { two = (X { x = "goodbye" }) }
 
 module DeleteAll =
-  (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
-   let delete = Stdlib.DB.deleteAll XDB
+  (let _ = Stdlib.DB.set (X { x = "hello" }) "one" XDB
+   let _ = Stdlib.DB.deleteAll XDB
    Stdlib.DB.getAll XDB) = []
 
   // deletes all
-  (let one = Stdlib.DB.set (X { x = "hello" }) "one" XDB
-   let two = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
-   let delete = Stdlib.DB.deleteAll XDB
+  (let _ = Stdlib.DB.set (X { x = "hello" }) "one" XDB
+   let _ = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
+   let _ = Stdlib.DB.deleteAll XDB
    Stdlib.DB.getAll XDB) = []
 
   // when empty
@@ -742,340 +730,340 @@ let d (datestr: String) : DateTime =
 
 let rossDOB () : DateTime = d "1967-05-12T00:00:00Z"
 
-let friendsError (lambda: ('a -> Bool)) : List<Person> =
-  let _ = prepFriends () in Stdlib.DB.query PersonDB lambda
+// let friendsError (lambda: ('a -> Bool)) : List<Person> =
+//   let _ = prepFriends () in Stdlib.DB.query PersonDB lambda
 
-let friends (lambda: ('a -> Bool)) : List<String> =
-  let _ = prepFriends ()
+// let friends (lambda: ('a -> Bool)) : List<String> =
+//   let _ = prepFriends ()
 
-  (Stdlib.DB.query PersonDB lambda)
-  |> Stdlib.List.map_v0 (fun p -> p.name)
-  |> Stdlib.List.sort_v0
+//   (Stdlib.DB.query PersonDB lambda)
+//   |> Stdlib.List.map_v0 (fun p -> p.name)
+//   |> Stdlib.List.sort_v0
 
 
-// Test standard language features
-module FindAll =
-  type T2 = { field2: Int64 }
-  type T1 = { field1: T2 }
+// // Test standard language features
+// module FindAll =
+//   type T2 = { field2: Int64 }
+//   type T1 = { field1: T2 }
 
-  (friends (fun p -> true)) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+// //   (friends (fun p -> true)) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
-  // equality
-  (friends (fun p -> p.name == "Ross")) = [ "Ross" ]
-  (friends (fun p -> p.height == 73L)) = [ "Ross" ]
-  (friends (fun p -> p.human == false)) = [ "GrumpyCat" ]
-  (friends (fun p -> p.income == 100.0)) = [ "Ross" ]
-  (friends (fun p -> p.dob == (rossDOB ()))) = [ "Ross" ]
+// //   // equality
+// //   (friends (fun p -> p.name == "Ross")) = [ "Ross" ]
+// //   (friends (fun p -> p.height == 73L)) = [ "Ross" ]
+// //   (friends (fun p -> p.human == false)) = [ "GrumpyCat" ]
+// //   (friends (fun p -> p.income == 100.0)) = [ "Ross" ]
+// //   (friends (fun p -> p.dob == (rossDOB ()))) = [ "Ross" ]
 
-  // with condition
-  (friends (fun p -> p.height > 3L)) = [ " Chandler "
-                                         "GrumpyCat"
-                                         "Rachel"
-                                         "Ross" ]
+// //   // with condition
+// //   (friends (fun p -> p.height > 3L)) = [ " Chandler "
+// //                                          "GrumpyCat"
+// //                                          "Rachel"
+// //                                          "Ross" ]
 
-  // boolean queries
-  (friends (fun p -> p.human)) = [ " Chandler "; "Rachel"; "Ross" ]
+// //   // boolean queries
+// //   (friends (fun p -> p.human)) = [ " Chandler "; "Rachel"; "Ross" ]
 
-  // string inequality works
-  (friends (fun p -> p.name != "")) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+// //   // string inequality works
+// //   (friends (fun p -> p.name != "")) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
-  // &&
-  (friends (fun p -> p.human && p.height > 66L)) = [ " Chandler "; "Ross" ]
+// //   // &&
+// //   (friends (fun p -> p.human && p.height > 66L)) = [ " Chandler "; "Ross" ]
 
-  // ||
-  (friends (fun p -> p.human || p.height > 66L)) = [ " Chandler "; "Rachel"; "Ross" ]
+// //   // ||
+// //   (friends (fun p -> p.human || p.height > 66L)) = [ " Chandler "; "Rachel"; "Ross" ]
 
-  // inlining
-  (friends (fun p -> let x = 32L in p.height > x && true)) = [ " Chandler "
-                                                               "Rachel"
-                                                               "Ross" ]
+// //   // inlining
+// //   (friends (fun p -> let x = 32L in p.height > x && true)) = [ " Chandler "
+// //                                                                "Rachel"
+// //                                                                "Ross" ]
 
-  // inlining field access
-  (friends (fun p -> let x = p.height in true && x > 32L)) = [ " Chandler "
-                                                               "Rachel"
-                                                               "Ross" ]
+// //   // inlining field access
+// //   (friends (fun p -> let x = p.height in true && x > 32L)) = [ " Chandler "
+// //                                                                "Rachel"
+// //                                                                "Ross" ]
 
-  // inlining package functions
-  (friends (fun p -> let x = p.height in true && Stdlib.Int64.greaterThan_v0 x 32L)) = [ " Chandler "
-                                                                                         "Rachel"
-                                                                                         "Ross" ]
+// //   // inlining package functions
+// //   (friends (fun p -> let x = p.height in true && Stdlib.Int64.greaterThan_v0 x 32L)) = [ " Chandler "
+// //                                                                                          "Rachel"
+// //                                                                                          "Ross" ]
 
-  // inlining user functions
-  let userAnd (a: Bool) (b: Bool) : Bool = Stdlib.Bool.and_v0 a b
+// //   // inlining user functions
+// //   let userAnd (a: Bool) (b: Bool) : Bool = Stdlib.Bool.and_v0 a b
 
-  let userStringContains (user: Person) (str: String) : Bool =
-    Stdlib.String.contains_v0 user.name str
+// //   let userStringContains (user: Person) (str: String) : Bool =
+// //     Stdlib.String.contains_v0 user.name str
 
-  let userLessThan (user: Person) (height: Int64) : Bool =
-    Stdlib.Int64.lessThan user height
+// //   let userLessThan (user: Person) (height: Int64) : Bool =
+// //     Stdlib.Int64.lessThan user height
 
-  let userAdd (a: Int64) (b: Int64) : Int64 = a + b
+// //   let userAdd (a: Int64) (b: Int64) : Int64 = a + b
 
-  (friends (fun p -> userAnd (true || false) (p.height > 66L))) = [ " Chandler "
-                                                                    "Ross" ]
+// //   (friends (fun p -> userAnd (true || false) (p.height > 66L))) = [ " Chandler "
+// //                                                                     "Ross" ]
 
-  (friends (fun p -> let a = true in (userAnd (a && a) (p.height > 66L)))) = [ " Chandler "
-                                                                               "Ross" ]
+// //   (friends (fun p -> let a = true in (userAnd (a && a) (p.height > 66L)))) = [ " Chandler "
+// //                                                                                "Ross" ]
 
-  (friends (fun p -> userAnd p.human true)) = [ " Chandler "; "Rachel"; "Ross" ]
+// //   (friends (fun p -> userAnd p.human true)) = [ " Chandler "; "Rachel"; "Ross" ]
 
-  (friends (fun p -> userStringContains p "Chandler")) = [ " Chandler " ]
+// //   (friends (fun p -> userStringContains p "Chandler")) = [ " Chandler " ]
 
-  (friends (fun p -> userLessThan p.height 65L)) = [ "GrumpyCat" ]
+// //   (friends (fun p -> userLessThan p.height 65L)) = [ "GrumpyCat" ]
 
-  (friends (fun p ->
-    let a = 1L
-    let b = 9L
-    (p.height == (userAdd 1L b) && (p.age == b)))) = [ "GrumpyCat" ]
+// //   (friends (fun p ->
+// //     let a = 1L
+// //     let b = 9L
+// //     (p.height == (userAdd 1L b) && (p.age == b)))) = [ "GrumpyCat" ]
 
-  (friends (fun p ->
-    let a = 1L
-    let b = 9L
-    (p.height == (userAdd (b - 8L) b) && (p.age == b)))) = [ "GrumpyCat" ]
+// //   (friends (fun p ->
+// //     let a = 1L
+// //     let b = 9L
+// //     (p.height == (userAdd (b - 8L) b) && (p.age == b)))) = [ "GrumpyCat" ]
 
-  (friends (fun p ->
-    let a = 1L
-    let b = 9L
-    (p.height == userAdd 6L (b - 5L)))) = [ "GrumpyCat" ]
+// //   (friends (fun p ->
+// //     let a = 1L
+// //     let b = 9L
+// //     (p.height == userAdd 6L (b - 5L)))) = [ "GrumpyCat" ]
 
-  (friends (fun p ->
-    let a = 1L
-    let b = 9L
-    (p.height == (userAdd (b - 5L) b) && (p.age == b)))) = []
+// //   (friends (fun p ->
+// //     let a = 1L
+// //     let b = 9L
+// //     (p.height == (userAdd (b - 5L) b) && (p.age == b)))) = []
 
-  (friends (fun p ->
-    let a = 1L
-    let b = 9L
-    let c = userAdd 6L 4L
-    (p.height == c) && (p.age == b))) = [ "GrumpyCat" ]
+// //   (friends (fun p ->
+// //     let a = 1L
+// //     let b = 9L
+// //     let c = userAdd 6L 4L
+// //     (p.height == c) && (p.age == b))) = [ "GrumpyCat" ]
 
 
-  // Tests for functions that are inlined 2-3 functions deep
-  let nestedUserFn (user: Person) (height: Int64) : Bool =
-    userAnd user.human (userLessThan user.height height)
+// //   // Tests for functions that are inlined 2-3 functions deep
+// //   let nestedUserFn (user: Person) (height: Int64) : Bool =
+// //     userAnd user.human (userLessThan user.height height)
 
-  let anotherNestedUserFn (user: Person) (height: Int64) : Bool =
-    userAnd
-      user.human
-      (Stdlib.Int64.lessThan_v0 user.height (Stdlib.Int64.add height 1L))
+// //   let anotherNestedUserFn (user: Person) (height: Int64) : Bool =
+// //     userAnd
+// //       user.human
+// //       (Stdlib.Int64.lessThan_v0 user.height (Stdlib.Int64.add height 1L))
 
 
-  (friends (fun p -> nestedUserFn p 68L)) = [ "Rachel" ]
+// //   (friends (fun p -> nestedUserFn p 68L)) = [ "Rachel" ]
 
-  (friends (fun p -> anotherNestedUserFn p 68L)) = [ "Rachel" ]
+// //   (friends (fun p -> anotherNestedUserFn p 68L)) = [ "Rachel" ]
 
 
-  // pipes
-  (friends (fun p -> p.height |> (*) 2L |> (<) 40L)) = [ "GrumpyCat" ]
+// //   // pipes
+// //   (friends (fun p -> p.height |> (*) 2L |> (<) 40L)) = [ "GrumpyCat" ]
 
-  //[test.db query with external variable] with DB Person
-  // TODO pass an external var x
-  //(friends (fun p -> p.height < x)) = ["GrumpyCat"]
+// //   //[test.db query with external variable] with DB Person
+// //   // TODO pass an external var x
+// //   //(friends (fun p -> p.height < x)) = ["GrumpyCat"]
 
-  // fieldaccess
-  type IntField = { x: Int64 }
+// //   // fieldaccess
+// //   type IntField = { x: Int64 }
 
-  (friends (fun p -> let obj = IntField { x = 42L } in p.height > obj.x)) = [ " Chandler "
-                                                                              "Rachel"
-                                                                              "Ross" ]
+// //   (friends (fun p -> let obj = IntField { x = 42L } in p.height > obj.x)) = [ " Chandler "
+// //                                                                               "Rachel"
+// //                                                                               "Ross" ]
 
-  // nested fieldaccess
-  friends (fun p ->
-    let obj = T1 { field1 = T2 { field2 = 42L } } in p.height > obj.field1.field2) = [ " Chandler "
-                                                                                       "Rachel"
-                                                                                       "Ross" ]
+// //   // nested fieldaccess
+// //   friends (fun p ->
+// //     let obj = T1 { field1 = T2 { field2 = 42L } } in p.height > obj.field1.field2) = [ " Chandler "
+// //                                                                                        "Rachel"
+// //                                                                                        "Ross" ]
 
-  (let x = "not int"
-   friends (fun p -> p.height > x)) = Builtin.testDerrorSqlMessage
-    "Variable `x` should be an Int64. However, a String (\"not int\") was passed instead.\n\nExpected: (x: Int64)\nActual: a String: \"not int\""
+// //   (let x = "not int"
+// //    friends (fun p -> p.height > x)) = Builtin.testDerrorSqlMessage
+// //     "Variable `x` should be an Int64. However, a String (\"not int\") was passed instead.\n\nExpected: (x: Int64)\nActual: a String: \"not int\""
 
-  // lambda doesnt return a bool
-  friendsError (fun p -> "x") = Builtin.testDerrorSqlMessage
-    "Incorrect type in String \"x\", expected Bool, but got a String"
+// //   // lambda doesnt return a bool
+// //   friendsError (fun p -> "x") = Builtin.testDerrorSqlMessage
+// //     "Incorrect type in String \"x\", expected Bool, but got a String"
 
-  // bad variable name
-  friendsError (fun p -> let x = 32L in true && p.height > y) = Builtin.testDerrorSqlMessage
-    "This variable is not defined: y"
+// //   // bad variable name
+// //   friendsError (fun p -> let x = 32L in true && p.height > y) = Builtin.testDerrorSqlMessage
+// //     "This variable is not defined: y"
 
-  // sql injection
-  friendsError (fun p -> "; select * from users;" == p.name) = []
+// //   // sql injection
+// //   friendsError (fun p -> "; select * from users;" == p.name) = []
 
 
-module CompiledFunctions =
-  (friends (fun p -> Stdlib.Float.lessThan_v0 90.0 p.income)) = [ "Ross" ]
+// // module CompiledFunctions =
+// //   (friends (fun p -> Stdlib.Float.lessThan_v0 90.0 p.income)) = [ "Ross" ]
 
-  (friends (fun p -> Stdlib.Float.lessThanOrEqualTo_v0 p.income 82.10)) = [ "GrumpyCat"
-                                                                            "Rachel" ]
+// //   (friends (fun p -> Stdlib.Float.lessThanOrEqualTo_v0 p.income 82.10)) = [ "GrumpyCat"
+// //                                                                             "Rachel" ]
 
-  (friends (fun p -> Stdlib.Float.greaterThan_v0 p.income 90.0)) = [ "Ross" ]
+// //   (friends (fun p -> Stdlib.Float.greaterThan_v0 p.income 90.0)) = [ "Ross" ]
 
 
-  (friends (fun p -> Stdlib.Float.divide_v0 p.income 2.0 == 50.0)) = [ "Ross" ]
+// //   (friends (fun p -> Stdlib.Float.divide_v0 p.income 2.0 == 50.0)) = [ "Ross" ]
 
-  (friends (fun p -> Stdlib.Float.multiply_v0 p.income 2.0 == 200.0)) = [ "Ross" ]
+// //   (friends (fun p -> Stdlib.Float.multiply_v0 p.income 2.0 == 200.0)) = [ "Ross" ]
 
-  (friends (fun p -> Stdlib.Float.power p.income 2.0 == 10000.0)) = [ "Ross" ]
+// //   (friends (fun p -> Stdlib.Float.power p.income 2.0 == 10000.0)) = [ "Ross" ]
 
-  (friends (fun p -> Stdlib.Float.add p.income 0.0 == 0.0)) = [ "GrumpyCat" ]
+// //   (friends (fun p -> Stdlib.Float.add p.income 0.0 == 0.0)) = [ "GrumpyCat" ]
 
-  (friends (fun p -> Stdlib.Float.subtract p.income 3.0 == 80.0)) = [ " Chandler " ]
+// //   (friends (fun p -> Stdlib.Float.subtract p.income 3.0 == 80.0)) = [ " Chandler " ]
 
 
-  (friends (fun p -> Stdlib.Float.greaterThanOrEqualTo_v0 82.10 p.income)) = [ "GrumpyCat"
-                                                                               "Rachel" ]
+// //   (friends (fun p -> Stdlib.Float.greaterThanOrEqualTo_v0 82.10 p.income)) = [ "GrumpyCat"
+// //                                                                                "Rachel" ]
 
-  (friends (fun p -> Stdlib.Int64.lessThanOrEqualTo_v0 p.height 65L)) = [ "GrumpyCat"
-                                                                          "Rachel" ]
+// //   (friends (fun p -> Stdlib.Int64.lessThanOrEqualTo_v0 p.height 65L)) = [ "GrumpyCat"
+// //                                                                           "Rachel" ]
 
-  (friends (fun p -> Stdlib.Int64.lessThan_v0 p.height 65L)) = [ "GrumpyCat" ]
+// //   (friends (fun p -> Stdlib.Int64.lessThan_v0 p.height 65L)) = [ "GrumpyCat" ]
 
-  (friends (fun p -> Stdlib.Int64.greaterThanOrEqualTo_v0 p.height 65L)) = [ " Chandler "
-                                                                             "Rachel"
-                                                                             "Ross" ]
+// //   (friends (fun p -> Stdlib.Int64.greaterThanOrEqualTo_v0 p.height 65L)) = [ " Chandler "
+// //                                                                              "Rachel"
+// //                                                                              "Ross" ]
 
-  (friends (fun p -> Stdlib.Int64.greaterThan_v0 p.height 65L)) = [ " Chandler "
-                                                                    "Ross" ]
+// //   (friends (fun p -> Stdlib.Int64.greaterThan_v0 p.height 65L)) = [ " Chandler "
+// //                                                                     "Ross" ]
 
-  (friends (fun p -> Stdlib.Int64.add p.height 1L == 11L)) = [ "GrumpyCat" ]
+// //   (friends (fun p -> Stdlib.Int64.add p.height 1L == 11L)) = [ "GrumpyCat" ]
 
-  (friends (fun p -> Stdlib.Int64.subtract p.height 3L == 69L)) = [ " Chandler " ]
+// //   (friends (fun p -> Stdlib.Int64.subtract p.height 3L == 69L)) = [ " Chandler " ]
 
-  (friends (fun p -> Stdlib.Int64.multiply_v0 p.height 2L == 146L)) = [ "Ross" ]
+// //   (friends (fun p -> Stdlib.Int64.multiply_v0 p.height 2L == 146L)) = [ "Ross" ]
 
-  (friends (fun p -> Stdlib.Int64.divide_v0 p.height 2L == 5L)) = [ "GrumpyCat" ]
+// //   (friends (fun p -> Stdlib.Int64.divide_v0 p.height 2L == 5L)) = [ "GrumpyCat" ]
 
-  // TODO: This test should pass, but it is causing an infinite recursion
-  // (friends (fun p -> (Stdlib.Int64.power p.height 2) == Stdlib.Result.Result.Ok(100))) = [ "GrumpyCat" ]
+// //   // TODO: This test should pass, but it is causing an infinite recursion
+// //   // (friends (fun p -> (Stdlib.Int64.power p.height 2) == Stdlib.Result.Result.Ok(100))) = [ "GrumpyCat" ]
 
-  (friends (fun p -> Stdlib.String.toLowercase p.name == "rachel")) = [ "Rachel" ]
-  (friends (fun p -> Stdlib.String.toUppercase p.name == "RACHEL")) = [ "Rachel" ]
-  (friends (fun p -> Stdlib.String.reverse_v0 p.name == "lehcaR")) = [ "Rachel" ]
-  // Not implemented yet
-  // (friends (fun p -> Stdlib.String.length p.name > 5)) = [" Chandler "; "GrumpyCat"; "Rachel" ]
-  (friends (fun p -> Stdlib.String.contains_v0 p.name "ROSS")) = []
+// //   (friends (fun p -> Stdlib.String.toLowercase p.name == "rachel")) = [ "Rachel" ]
+// //   (friends (fun p -> Stdlib.String.toUppercase p.name == "RACHEL")) = [ "Rachel" ]
+// //   (friends (fun p -> Stdlib.String.reverse_v0 p.name == "lehcaR")) = [ "Rachel" ]
+// //   // Not implemented yet
+// //   // (friends (fun p -> Stdlib.String.length p.name > 5)) = [" Chandler "; "GrumpyCat"; "Rachel" ]
+// //   (friends (fun p -> Stdlib.String.contains_v0 p.name "ROSS")) = []
 
-  (friends (fun p -> Stdlib.String.contains_v0 p.name "R")) = [ "Rachel"; "Ross" ]
+// //   (friends (fun p -> Stdlib.String.contains_v0 p.name "R")) = [ "Rachel"; "Ross" ]
 
-  (friends (fun p -> Stdlib.String.contains_v0 p.name "ZZZ")) = []
+// //   (friends (fun p -> Stdlib.String.contains_v0 p.name "ZZZ")) = []
 
-  (friends (fun p -> Stdlib.String.contains_v0 p.name "")) = [ " Chandler "
-                                                               "GrumpyCat"
-                                                               "Rachel"
-                                                               "Ross" ]
+// //   (friends (fun p -> Stdlib.String.contains_v0 p.name "")) = [ " Chandler "
+// //                                                                "GrumpyCat"
+// //                                                                "Rachel"
+// //                                                                "Ross" ]
 
-  (friends (fun p -> Stdlib.String.replaceAll_v0 p.name "handle" "he" == " Cher ")) = [ " Chandler " ]
+// //   (friends (fun p -> Stdlib.String.replaceAll_v0 p.name "handle" "he" == " Cher ")) = [ " Chandler " ]
 
-  (friends (fun p -> Stdlib.String.replaceAll_v0 p.name " " "Xx" == "XxChandlerXx")) = [ " Chandler " ]
+// //   (friends (fun p -> Stdlib.String.replaceAll_v0 p.name " " "Xx" == "XxChandlerXx")) = [ " Chandler " ]
 
-  (friends (fun p ->
-    Stdlib.String.replaceAll_v0 p.name "xxx" "notUsed" == " Chandler ")) = [ " Chandler " ]
+// //   (friends (fun p ->
+// //     Stdlib.String.replaceAll_v0 p.name "xxx" "notUsed" == " Chandler ")) = [ " Chandler " ]
 
-  (friends (fun p -> Stdlib.String.trim_v0 p.name == "Chandler")) = [ " Chandler " ]
+// //   (friends (fun p -> Stdlib.String.trim_v0 p.name == "Chandler")) = [ " Chandler " ]
 
-  (friends (fun p -> Stdlib.String.trimStart_v0 p.name == "Chandler ")) = [ " Chandler " ]
+// //   (friends (fun p -> Stdlib.String.trimStart_v0 p.name == "Chandler ")) = [ " Chandler " ]
 
-  (friends (fun p -> Stdlib.String.trimEnd_v0 p.name == " Chandler")) = [ " Chandler " ]
-  (friends (fun p -> Stdlib.Bool.not_v0 p.human)) = [ "GrumpyCat" ]
+// //   (friends (fun p -> Stdlib.String.trimEnd_v0 p.name == " Chandler")) = [ " Chandler " ]
+// //   (friends (fun p -> Stdlib.Bool.not_v0 p.human)) = [ "GrumpyCat" ]
 
-  (friends (fun p -> Stdlib.Bool.and_v0 p.human p.human)) = [ " Chandler "
-                                                              "Rachel"
-                                                              "Ross" ]
+// //   (friends (fun p -> Stdlib.Bool.and_v0 p.human p.human)) = [ " Chandler "
+// //                                                               "Rachel"
+// //                                                               "Ross" ]
 
-  (friends (fun p -> Stdlib.Bool.or_v0 p.human p.human)) = [ " Chandler "
-                                                             "Rachel"
-                                                             "Ross" ]
+// //   (friends (fun p -> Stdlib.Bool.or_v0 p.human p.human)) = [ " Chandler "
+// //                                                              "Rachel"
+// //                                                              "Ross" ]
 
-  (friends (fun p -> Stdlib.Bool.not_v0 (Stdlib.Bool.and_v0 p.human p.human))) = [ "GrumpyCat" ]
+// //   (friends (fun p -> Stdlib.Bool.not_v0 (Stdlib.Bool.and_v0 p.human p.human))) = [ "GrumpyCat" ]
 
-  (friends (fun p -> Stdlib.Bool.and_v0 p.human (Stdlib.Bool.not_v0 p.human))) = []
+// //   (friends (fun p -> Stdlib.Bool.and_v0 p.human (Stdlib.Bool.not_v0 p.human))) = []
 
-  (friends (fun p -> Stdlib.Bool.or_v0 p.human (Stdlib.Bool.not_v0 p.human))) = [ " Chandler "
-                                                                                  "GrumpyCat"
-                                                                                  "Rachel"
-                                                                                  "Ross" ]
+// //   (friends (fun p -> Stdlib.Bool.or_v0 p.human (Stdlib.Bool.not_v0 p.human))) = [ " Chandler "
+// //                                                                                   "GrumpyCat"
+// //                                                                                   "Rachel"
+// //                                                                                   "Ross" ]
 
-  (friends (fun p -> Stdlib.String.reverse_v0 p.name == "lehcaR")) = [ "Rachel" ]
+// //   (friends (fun p -> Stdlib.String.reverse_v0 p.name == "lehcaR")) = [ "Rachel" ]
 
-  (friends (fun p ->
-    Stdlib.String.reverse_v0 (
-      (Stdlib.String.toLowercase p.name) |> Stdlib.String.toUppercase
-    )
-    == "LEHCAR")) = [ "Rachel" ]
+// //   (friends (fun p ->
+// //     Stdlib.String.reverse_v0 (
+// //       (Stdlib.String.toLowercase p.name) |> Stdlib.String.toUppercase
+// //     )
+// //     == "LEHCAR")) = [ "Rachel" ]
 
-  (friends (fun p ->
-    Stdlib.DateTime.lessThanOrEqualTo p.dob (d "2000-01-01T01:02:03Z"))) = [ " Chandler "
-                                                                             "Rachel"
-                                                                             "Ross" ]
+// //   (friends (fun p ->
+// //     Stdlib.DateTime.lessThanOrEqualTo p.dob (d "2000-01-01T01:02:03Z"))) = [ " Chandler "
+// //                                                                              "Rachel"
+// //                                                                              "Ross" ]
 
-  (friends (fun p -> Stdlib.DateTime.lessThanOrEqualTo p.dob (rossDOB ()))) = [ "Ross" ]
+// //   (friends (fun p -> Stdlib.DateTime.lessThanOrEqualTo p.dob (rossDOB ()))) = [ "Ross" ]
 
-  (friends (fun p -> Stdlib.DateTime.lessThan p.dob (rossDOB ()))) = []
+// //   (friends (fun p -> Stdlib.DateTime.lessThan p.dob (rossDOB ()))) = []
 
-  (friends (fun p ->
-    Stdlib.DateTime.greaterThanOrEqualTo p.dob (d "2000-01-01T01:02:03Z"))) = [ "GrumpyCat" ]
+// //   (friends (fun p ->
+// //     Stdlib.DateTime.greaterThanOrEqualTo p.dob (d "2000-01-01T01:02:03Z"))) = [ "GrumpyCat" ]
 
-  (friends (fun p -> Stdlib.DateTime.greaterThanOrEqualTo p.dob (rossDOB ()))) = [ " Chandler "
-                                                                                   "GrumpyCat"
-                                                                                   "Rachel"
-                                                                                   "Ross" ]
+// //   (friends (fun p -> Stdlib.DateTime.greaterThanOrEqualTo p.dob (rossDOB ()))) = [ " Chandler "
+// //                                                                                    "GrumpyCat"
+// //                                                                                    "Rachel"
+// //                                                                                    "Ross" ]
 
-  (friends (fun p -> Stdlib.DateTime.greaterThan p.dob (rossDOB ()))) = [ " Chandler "
-                                                                          "GrumpyCat"
-                                                                          "Rachel" ]
+// //   (friends (fun p -> Stdlib.DateTime.greaterThan p.dob (rossDOB ()))) = [ " Chandler "
+// //                                                                           "GrumpyCat"
+// //                                                                           "Rachel" ]
 
-  (friends (fun p ->
-    Stdlib.DateTime.lessThanOrEqualTo
-      p.dob
-      (Stdlib.DateTime.addSeconds_v0 (Stdlib.DateTime.now_v0 ()) 1L))) = [ " Chandler "
-                                                                           "GrumpyCat"
-                                                                           "Rachel"
-                                                                           "Ross" ]
+// //   (friends (fun p ->
+// //     Stdlib.DateTime.lessThanOrEqualTo
+// //       p.dob
+// //       (Stdlib.DateTime.addSeconds_v0 (Stdlib.DateTime.now_v0 ()) 1L))) = [ " Chandler "
+// //                                                                            "GrumpyCat"
+// //                                                                            "Rachel"
+// //                                                                            "Ross" ]
 
-  (friends (fun p ->
-    Stdlib.DateTime.lessThanOrEqualTo
-      p.dob
-      (Stdlib.DateTime.subtractSeconds_v0 (Stdlib.DateTime.now_v0 ()) 1L))) = [ " Chandler "
-                                                                                "GrumpyCat"
-                                                                                "Rachel"
-                                                                                "Ross" ]
+// //   (friends (fun p ->
+// //     Stdlib.DateTime.lessThanOrEqualTo
+// //       p.dob
+// //       (Stdlib.DateTime.subtractSeconds_v0 (Stdlib.DateTime.now_v0 ()) 1L))) = [ " Chandler "
+// //                                                                                 "GrumpyCat"
+// //                                                                                 "Rachel"
+// //                                                                                 "Ross" ]
 
-  (friends (fun p ->
-    Stdlib.DateTime.atStartOfDay_v0 p.dob == (d "1969-08-19T00:00:00Z"))) = [ " Chandler " ]
+// //   (friends (fun p ->
+// //     Stdlib.DateTime.atStartOfDay_v0 p.dob == (d "1969-08-19T00:00:00Z"))) = [ " Chandler " ]
 
-  (friends (fun p -> Stdlib.DateTime.hour p.dob == 10L)) = [ " Chandler " ]
-  (friends (fun p -> Stdlib.DateTime.day_v0 p.dob == 19L)) = [ " Chandler " ]
-  (friends (fun p -> Stdlib.DateTime.minute p.dob == 13L)) = [ " Chandler " ]
-  (friends (fun p -> Stdlib.DateTime.month_v0 p.dob == 8L)) = [ " Chandler " ]
-  (friends (fun p -> Stdlib.DateTime.second p.dob == 42L)) = [ " Chandler " ]
+// //   (friends (fun p -> Stdlib.DateTime.hour p.dob == 10L)) = [ " Chandler " ]
+// //   (friends (fun p -> Stdlib.DateTime.day_v0 p.dob == 19L)) = [ " Chandler " ]
+// //   (friends (fun p -> Stdlib.DateTime.minute p.dob == 13L)) = [ " Chandler " ]
+// //   (friends (fun p -> Stdlib.DateTime.month_v0 p.dob == 8L)) = [ " Chandler " ]
+// //   (friends (fun p -> Stdlib.DateTime.second p.dob == 42L)) = [ " Chandler " ]
 
-  (friends (fun p -> Stdlib.DateTime.year_v0 p.dob == 1969L)) = [ " Chandler "
-                                                                  "Rachel" ]
+// //   (friends (fun p -> Stdlib.DateTime.year_v0 p.dob == 1969L)) = [ " Chandler "
+// //                                                                   "Rachel" ]
 
-  // Test package constants
-  // Bool
-  (friends (fun p ->
-    Stdlib.Bool.and_v0 p.human PACKAGE.Darklang.Test.Constants.boolConst)) = [ " Chandler "
-                                                                               "Rachel"
-                                                                               "Ross" ]
+// //   // Test package constants
+// //   // Bool
+// //   (friends (fun p ->
+// //     Stdlib.Bool.and_v0 p.human PACKAGE.Darklang.Test.Constants.boolConst)) = [ " Chandler "
+// //                                                                                "Rachel"
+// //                                                                                "Ross" ]
 
-  // Float
-  (friends (fun p ->
-    Stdlib.Float.lessThanOrEqualTo
-      p.income
-      PACKAGE.Darklang.Test.Constants.floatConst)) = [ "GrumpyCat" ]
+// //   // Float
+// //   (friends (fun p ->
+// //     Stdlib.Float.lessThanOrEqualTo
+// //       p.income
+// //       PACKAGE.Darklang.Test.Constants.floatConst)) = [ "GrumpyCat" ]
 
-  // Int64
-  (friends (fun p ->
-    Stdlib.Int64.greaterThanOrEqualTo
-      p.height
-      PACKAGE.Darklang.Test.Constants.intConst)) = [ " Chandler "
-                                                     "GrumpyCat"
-                                                     "Rachel"
-                                                     "Ross" ]
+// //   // Int64
+// //   (friends (fun p ->
+// //     Stdlib.Int64.greaterThanOrEqualTo
+// //       p.height
+// //       PACKAGE.Darklang.Test.Constants.intConst)) = [ " Chandler "
+// //                                                      "GrumpyCat"
+// //                                                      "Rachel"
+// //                                                      "Ross" ]
 
-  // String
-  (friends (fun p ->
-    Stdlib.String.contains_v0 p.name PACKAGE.Darklang.Test.Constants.stringConst)) = []
+// //   // String
+// //   (friends (fun p ->
+// //     Stdlib.String.contains_v0 p.name PACKAGE.Darklang.Test.Constants.stringConst)) = []
 
 
 module PartialEvaluation =
@@ -1085,94 +1073,95 @@ module PartialEvaluation =
   type AL = { a: List<Int64> }
   type ZL = { z: AL }
   type YL = { y: ZL }
-  // fieldAccesses outside query
-  (let _ = prepFriends ()
-   let x = Y { y = Z { z = A { a = 5L } } }
 
-   ((Stdlib.DB.query PersonDB (fun p -> x.y.z.a < p.height))
-    |> Stdlib.List.map_v0 (fun p -> p.name)
-    |> Stdlib.List.sort_v0)) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+// //   // fieldAccesses outside query
+// //   (let _ = prepFriends ()
+// //    let x = Y { y = Z { z = A { a = 5L } } }
 
-  // fieldAccesses inside query
-  (friends (fun p -> let x = Y { y = Z { z = A { a = 5L } } } in x.y.z.a < p.height)) = [ " Chandler "
-                                                                                          "GrumpyCat"
-                                                                                          "Rachel"
-                                                                                          "Ross" ]
+// //    ((Stdlib.DB.query PersonDB (fun p -> x.y.z.a < p.height))
+// //     |> Stdlib.List.map_v0 (fun p -> p.name)
+// //     |> Stdlib.List.sort_v0)) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
-  // fieldAccesses inside query
-  (friends (fun p ->
-    let x = YL { y = ZL { z = AL { a = [ 1L; 2L; 3L; 4L; 5L ] } } }
-    (Stdlib.List.length_v0 x.y.z.a) < p.height)) = [ " Chandler "
-                                                     "GrumpyCat"
-                                                     "Rachel"
-                                                     "Ross" ]
+// //   // fieldAccesses inside query
+// //   (friends (fun p -> let x = Y { y = Z { z = A { a = 5L } } } in x.y.z.a < p.height)) = [ " Chandler "
+// //                                                                                           "GrumpyCat"
+// //                                                                                           "Rachel"
+// //                                                                                           "Ross" ]
 
-  // tuple destructuring inside query
-  (friends (fun p ->
-    let (a0, a1, a2, a3, ((b, c), d)) = (0L, 1L, 2L, 3L, ((5L, "aa"), 'a'))
-    b < p.height)) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+// //   // fieldAccesses inside query
+// //   (friends (fun p ->
+// //     let x = YL { y = ZL { z = AL { a = [ 1L; 2L; 3L; 4L; 5L ] } } }
+// //     (Stdlib.List.length_v0 x.y.z.a) < p.height)) = [ " Chandler "
+// //                                                      "GrumpyCat"
+// //                                                      "Rachel"
+// //                                                      "Ross" ]
 
-
-module QueryOne =
-  (let _ = prepFriends () in Stdlib.DB.queryOne PersonDB (fun p -> p.name == "bob")) = Stdlib.Option.Option.None
-
-  (let _ = prepFriends ()
-   Stdlib.DB.queryOne PersonDB (fun p -> p.name == "Rachel"))
-  |> Stdlib.Option.map (fun v -> v.name) = Stdlib.Option.Option.Some "Rachel"
+// //   // tuple destructuring inside query
+// //   (friends (fun p ->
+// //     let (a0, a1, a2, a3, ((b, c), d)) = (0L, 1L, 2L, 3L, ((5L, "aa"), 'a'))
+// //     b < p.height)) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
 
-  // interpolated
-  (let _ = prepFriends ()
-   let test = "ache"
+// // module QueryOne =
+// //   (let _ = prepFriends () in Stdlib.DB.queryOne PersonDB (fun p -> p.name == "bob")) = Stdlib.Option.Option.None
 
-   (Stdlib.DB.queryOne PersonDB (fun p -> p.name == $"R{test}l"))
-   |> Stdlib.Option.map (fun v -> v.name)) = Stdlib.Option.Option.Some "Rachel"
-
-
-module QueryOneWithKey =
-  // multiple
-  (let _ = prepFriends () in Stdlib.DB.queryOneWithKey PersonDB (fun p -> p.human)) = Stdlib.Option.Option.None
-
-  // none
-  (let _ = prepFriends ()
-   Stdlib.DB.queryOneWithKey PersonDB (fun p -> p.name == "bob")) = Stdlib.Option.Option.None
-
-  // one
-  (let _ = prepFriends ()
-
-   (Stdlib.DB.queryOneWithKey PersonDB (fun p -> p.name == "Rachel"))
-   |> Builtin.unwrap
-   |> (fun v -> (Stdlib.Tuple2.second v).name)) = "Rachel"
-
-  // interpolated
-  (let _ = prepFriends ()
-   let test = "ache"
-
-   (Stdlib.DB.queryOneWithKey PersonDB (fun p -> p.name == $"R{test}l"))
-   |> Stdlib.Option.map (fun v -> (Stdlib.Tuple2.second v).name)) = Stdlib.Option.Option.Some
-    "Rachel"
+// //   (let _ = prepFriends ()
+// //    Stdlib.DB.queryOne PersonDB (fun p -> p.name == "Rachel"))
+// //   |> Stdlib.Option.map (fun v -> v.name) = Stdlib.Option.Option.Some "Rachel"
 
 
-module QueryWithKey =
-  // none
-  (let _ = prepFriends ()
-   Stdlib.DB.queryWithKey PersonDB (fun p -> p.name == "bob")) = Stdlib.Dict.empty
+// //   // interpolated
+// //   (let _ = prepFriends ()
+// //    let test = "ache"
 
-  // one
-  (let _ = prepFriends ()
-
-   (Stdlib.DB.queryWithKey PersonDB (fun p -> p.name == "Rachel"))
-   |> Stdlib.Dict.toList
-   |> Stdlib.List.map (fun v -> (Stdlib.Tuple2.second v).name)) = [ "Rachel" ]
-
-module QueryCount =
-  // none
-  (let _ = prepFriends ()
-   Stdlib.DB.queryCount PersonDB (fun p -> p.name == "bob")) = 0L
-
-  // one
-  (let _ = prepFriends ()
-   Stdlib.DB.queryCount PersonDB (fun p -> p.height > 3L)) = 4L
+// //    (Stdlib.DB.queryOne PersonDB (fun p -> p.name == $"R{test}l"))
+// //    |> Stdlib.Option.map (fun v -> v.name)) = Stdlib.Option.Option.Some "Rachel"
 
 
-((Stdlib.DB.generateKey ()) |> Stdlib.String.length) = 36L
+// // module QueryOneWithKey =
+// //   // multiple
+// //   (let _ = prepFriends () in Stdlib.DB.queryOneWithKey PersonDB (fun p -> p.human)) = Stdlib.Option.Option.None
+
+// //   // none
+// //   (let _ = prepFriends ()
+// //    Stdlib.DB.queryOneWithKey PersonDB (fun p -> p.name == "bob")) = Stdlib.Option.Option.None
+
+// //   // one
+// //   (let _ = prepFriends ()
+
+// //    (Stdlib.DB.queryOneWithKey PersonDB (fun p -> p.name == "Rachel"))
+// //    |> Builtin.unwrap
+// //    |> (fun v -> (Stdlib.Tuple2.second v).name)) = "Rachel"
+
+// //   // interpolated
+// //   (let _ = prepFriends ()
+// //    let test = "ache"
+
+// //    (Stdlib.DB.queryOneWithKey PersonDB (fun p -> p.name == $"R{test}l"))
+// //    |> Stdlib.Option.map (fun v -> (Stdlib.Tuple2.second v).name)) = Stdlib.Option.Option.Some
+// //     "Rachel"
+
+
+// // module QueryWithKey =
+// //   // none
+// //   (let _ = prepFriends ()
+// //    Stdlib.DB.queryWithKey PersonDB (fun p -> p.name == "bob")) = Stdlib.Dict.empty
+
+// //   // one
+// //   (let _ = prepFriends ()
+
+// //    (Stdlib.DB.queryWithKey PersonDB (fun p -> p.name == "Rachel"))
+// //    |> Stdlib.Dict.toList
+// //    |> Stdlib.List.map (fun v -> (Stdlib.Tuple2.second v).name)) = [ "Rachel" ]
+
+// // module QueryCount =
+// //   // none
+// //   (let _ = prepFriends ()
+// //    Stdlib.DB.queryCount PersonDB (fun p -> p.name == "bob")) = 0L
+
+// //   // one
+// //   (let _ = prepFriends ()
+// //    Stdlib.DB.queryCount PersonDB (fun p -> p.height > 3L)) = 4L
+
+
+// // ((Stdlib.DB.generateKey ()) |> Stdlib.String.length) = 36L

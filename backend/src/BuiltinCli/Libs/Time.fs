@@ -18,7 +18,7 @@ let fns : List<BuiltInFn> =
       description = "Sleeps for the given <param delayInMs> milliseconds."
       fn =
         (function
-        | _, _, [ DFloat delay ] ->
+        | _, _, _, [ DFloat delay ] ->
           uply {
             let delay = System.TimeSpan.FromMilliseconds delay
             do! Task.Delay(delay)

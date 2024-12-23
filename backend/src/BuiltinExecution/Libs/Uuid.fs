@@ -1,13 +1,9 @@
 module BuiltinExecution.Libs.Uuid
 
-open System.Threading.Tasks
-open System.Numerics
-open FSharp.Control.Tasks
-
 open LibExecution.RuntimeTypes
 open Prelude
 open LibExecution.Builtin.Shortcuts
-module VT = ValueType
+module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module PackageIDs = LibExecution.PackageIDs
 
@@ -32,12 +28,13 @@ let fns : List<BuiltInFn> =
       description = "Generate a new <type Uuid> v4 according to RFC 4122"
       fn =
         (function
-        | _, _, [ DUnit ] -> Ply(DUuid(System.Guid.NewGuid()))
+        | _, _, _, [ DUnit ] -> Ply(DUuid(System.Guid.NewGuid()))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
-      // similarly to DateTime.now, it's not particularly fun for this to change
-      // when live programming
-      previewable = Impure
+      previewable =
+        // Similarly to DateTime.now, it's not particularly fun for this to change
+        // when live programming, so let's keep this as Impure rather than ImpurePreviewable
+        Impure
       deprecated = NotDeprecated }
 
 
@@ -46,7 +43,7 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "uuid" TString "" ]
       returnType =
         TypeReference.result
-          TInt64
+          TUuid
           (TCustomType(
             Ok(FQTypeName.fqPackage PackageIDs.Type.Stdlib.uuidParseError),
             []
@@ -54,11 +51,11 @@ let fns : List<BuiltInFn> =
       description =
         "Parse a <type Uuid> of form {{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}}"
       fn =
-        let resultOk = Dval.resultOk KTUuid KTString
         let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.uuidParseError
+        let resultOk = Dval.resultOk KTUuid (KTCustomType(typeName, []))
         let resultError = Dval.resultError KTUuid (KTCustomType(typeName, []))
         (function
-        | _, _, [ DString s ] ->
+        | _, _, _, [ DString s ] ->
           match System.Guid.TryParse s with
           | true, x -> x |> DUuid |> resultOk |> Ply
           | _ -> ParseError.BadFormat |> ParseError.toDT |> resultError |> Ply
@@ -76,7 +73,7 @@ let fns : List<BuiltInFn> =
         "Stringify <param uuid> to the format XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
       fn =
         (function
-        | _, _, [ DUuid uuid ] -> Ply(DString(string uuid))
+        | _, _, _, [ DUuid uuid ] -> Ply(DString(string uuid))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

@@ -6,7 +6,7 @@ module Darklang =
       type Secret =
         { name: String
           value: String
-          version: Int64 }
+          version: Int32 }
 
       /// 404 record
       type F404 =

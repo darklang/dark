@@ -47,13 +47,13 @@ module Darklang =
 
                 match dictKeyword, openBracket, valueTypeNode, closeBracket with
                 | Ok dictKeyword, Ok openBracket, Ok valueType, Ok closeBracket ->
-                  (TBuiltin.TDict
-                    firstChild.range
-                    dictKeyword.range
-                    openBracket.range
-                    valueType
+                  (TBuiltin.TDict(
+                    firstChild.range,
+                    dictKeyword.range,
+                    openBracket.range,
+                    valueType,
                     closeBracket.range)
-                  |> builtin
+                  ) |> builtin
                 | _ -> createUnparseableError node
 
               | "tuple_type_reference" ->
@@ -129,13 +129,13 @@ module Darklang =
                   listKeyword, openBracketNode, typeParamNode, closeBracketNode
                 with
                 | Ok listKeyword, Ok openBracket, Ok typeParam, Ok closeBracket ->
-                  (TBuiltin.TList
-                    firstChild.range
-                    listKeyword.range
-                    openBracket.range
-                    typeParam
+                  (TBuiltin.TList(
+                    firstChild.range,
+                    listKeyword.range,
+                    openBracket.range,
+                    typeParam,
                     closeBracket.range)
-                  |> builtin
+                  ) |> builtin
 
                 | _ -> createUnparseableError node
 
@@ -163,9 +163,11 @@ module Darklang =
 
                 let args = argsNodes |> Stdlib.Result.collect
 
+                //Builtin.debug "args" args
+
                 match returnTypeNode, args with
                 | Ok returnType, Ok args ->
-                  (TBuiltin.TFn firstChild.range args returnType) |> builtin
+                  (TBuiltin.TFn(firstChild.range, args, returnType)) |> builtin
 
               | "db_type_reference" ->
                 let dbKeyword = findField firstChild "keyword_type_constructor"
@@ -178,13 +180,13 @@ module Darklang =
 
                 match dbKeyword, openAngle, typeParamNode, closeAngle with
                 | Ok dbKeyword, Ok openAngle, Ok typeParam, Ok closeAngle ->
-                  (TBuiltin.TDB
-                    firstChild.range
-                    dbKeyword.range
-                    openAngle.range
-                    typeParam
+                  (TBuiltin.TDB(
+                    firstChild.range,
+                    dbKeyword.range,
+                    openAngle.range,
+                    typeParam,
                     closeAngle.range)
-                  |> builtin
+                  ) |> builtin
 
                 | _ -> createUnparseableError node
 

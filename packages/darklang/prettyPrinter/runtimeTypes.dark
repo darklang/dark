@@ -2,17 +2,19 @@ module Darklang =
   module PrettyPrinter =
     module RuntimeTypes =
       let nameResolutionError
-        (nr: LanguageTools.RuntimeErrors.NameResolution.Error)
+        (nre: LanguageTools.RuntimeTypes.NameResolutionError)
         : String =
-        match nr.errorType with
-        | NotFound names -> Stdlib.String.join names "."
-        | InvalidPackageName names -> Stdlib.String.join names "."
-        | ExpectedEnumButNot ->
-          "Unexpected: stringification of NRE in RT Pretty-Printer for ExpectedEnumButNot"
-        | ExpectedRecordButNot ->
-          "Unexpected: stringification of NRE in RT Pretty-Printer for ExpectedRecordButNot"
-        | MissingEnumModuleName ->
-          "Unexpected: stringification of NRE in RT Pretty-Printer for MissingEnumModuleName"
+        match nre with
+        | NotFound names -> (Stdlib.String.join names ".") ++ " not found"
+        | InvalidName names -> (Stdlib.String.join names ".") ++ " not found"
+
+      let nameResolution<'a>
+        (nr: LanguageTools.RuntimeTypes.NameResolution<'a>)
+        (f: 'a -> String)
+        : String =
+        match nr with
+        | Ok a -> f a
+        | Error e -> nameResolutionError e
 
 
       let packageName
@@ -49,10 +51,10 @@ module Darklang =
           let namePart = t.name
 
           let versionPart =
-            if t.version == 0L then
+            if t.version == 0 then
               ""
             else
-              $"_v{Stdlib.Int64.toString t.version}"
+              $"_v{Stdlib.Int32.toString t.version}"
 
           $"{namePart}{versionPart}"
 
@@ -77,17 +79,17 @@ module Darklang =
           let namePart = t.name
 
           let versionPart =
-            if t.version == 0L then
+            if t.version == 0 then
               ""
             else
-              $"_v{Stdlib.Int64.toString t.version}"
+              $"_v{Stdlib.Int.toString t.version}"
 
-          $"{namePart}{versionPart}"
+          $"Builtin.{namePart}{versionPart}"
 
         let package (id: LanguageTools.RuntimeTypes.FQFnName.Package) : String =
           match LanguageTools.PackageManager.Function.get id with
           | Some p -> packageName p.name.owner p.name.modules p.name.name
-          | None -> Stdlib.Uuid.toString p
+          | None -> Stdlib.Uuid.toString id
 
 
       // TODO rename to fqfnName?
@@ -96,33 +98,42 @@ module Darklang =
         | Builtin b -> FQFnName.builtIn b
         | Package p -> FQFnName.package p
 
+
+
       let typeReference (t: LanguageTools.RuntimeTypes.TypeReference) : String =
         match t with
         | TUnit -> "Unit"
         | TBool -> "Bool"
-        | TInt64 -> "Int64"
-        | TUInt64 -> "UInt64"
+
         | TInt8 -> "Int8"
         | TUInt8 -> "UInt8"
         | TInt16 -> "Int16"
         | TUInt16 -> "UInt16"
         | TInt32 -> "Int32"
         | TUInt32 -> "UInt32"
+        | TInt64 -> "Int64"
+        | TUInt64 -> "UInt64"
         | TInt128 -> "Int128"
         | TUInt128 -> "UInt128"
+
         | TFloat -> "Float"
+
         | TChar -> "Char"
         | TString -> "String"
+
         | TUuid -> "Uuid"
+
         | TDateTime -> "DateTime"
 
-        | TList inner -> $"List<{typeReference inner}>"
-        | TDict inner -> $"Dict<{typeReference inner}>"
         | TTuple(first, second, theRest) ->
           (Stdlib.List.append [ first; second ] theRest)
           |> Stdlib.List.map (fun item -> typeReference item)
           |> Stdlib.String.join " * "
           |> fun parts -> "(" ++ parts ++ ")"
+
+        | TList inner -> $"List<{typeReference inner}>"
+
+        | TDict inner -> $"Dict<{typeReference inner}>"
 
         | TCustomType(typ, args) ->
           let argsPart =
@@ -141,6 +152,7 @@ module Darklang =
 
           $"{typeNamePart}{argsPart}"
 
+
         | TFn(args, ret) ->
           let argPart =
             args
@@ -149,6 +161,7 @@ module Darklang =
             |> fun parts -> "(" ++ parts ++ ")"
 
           $"{argPart} -> {typeReference ret}"
+
 
         | TDB inner -> $"DB<{typeReference inner}>"
 
@@ -159,29 +172,33 @@ module Darklang =
         match t with
         | KTUnit -> "Unit"
         | KTBool -> "Bool"
-        | KTInt64 -> "Int64"
-        | KTUInt64 -> "UInt64"
+
         | KTInt8 -> "Int8"
         | KTUInt8 -> "UInt8"
         | KTInt16 -> "Int16"
         | KTUInt16 -> "UInt16"
         | KTInt32 -> "Int32"
         | KTUInt32 -> "UInt32"
+        | KTInt64 -> "Int64"
+        | KTUInt64 -> "UInt64"
         | KTInt128 -> "Int128"
         | KTUInt128 -> "UInt128"
+
         | KTFloat -> "Float"
+
         | KTChar -> "Char"
         | KTString -> "String"
+
         | KTDateTime -> "DateTime"
         | KTUuid -> "Uuid"
 
-        | KTList typ -> $"List<{valueType typ}>"
-        | KTDict typ -> $"Dict<{valueType typ}>"
         | KTTuple(t1, t2, trest) ->
           (Stdlib.List.append [ t1; t2 ] trest)
           |> Stdlib.List.map (fun item -> valueType item)
-          |> Stdlib.String.join ", "
+          |> Stdlib.String.join " * "
           |> fun s -> $"({s})"
+        | KTList typ -> $"List<{valueType typ}>"
+        | KTDict typ -> $"Dict<{valueType typ}>"
 
         | KTFn(argTypes, retType) ->
           (Stdlib.List.push argTypes retType)
@@ -196,7 +213,7 @@ module Darklang =
               args
               |> Stdlib.List.map (fun t -> valueType t)
               |> Stdlib.String.join ", "
-              |> fun betweenBrackets -> "<" + betweenBrackets + ">"
+              |> fun betweenBrackets -> "<" ++ betweenBrackets ++ ">"
 
           (typeName name) ++ typeArgsPortion
 
@@ -208,17 +225,30 @@ module Darklang =
         | Known kt -> knownType kt
         | Unknown -> "_"
 
+      let letPattern (pat: LanguageTools.RuntimeTypes.LetPattern) : String =
+        match pat with
+        | LPVariable _reg ->
+          // TODO clearly this is not ideal.
+          "[variable]"
+        | LPUnit -> "()"
+        | LPTuple(first, second, theRest) ->
+          let parts = Stdlib.List.append [ first; second ] theRest
+          let parts = Stdlib.List.map parts (fun p -> letPattern p)
+          let parts = Stdlib.String.join parts ", "
+          $"({parts})"
+
 
       module Dval =
-        let valueTypeName (dv: LanguageTools.RuntimeTypes.Dval.Dval) : String =
-          dv |> LanguageTools.RuntimeTypes.Dval.toValueType |> valueType
+        let valueTypeName (dv: LanguageTools.RuntimeTypes.Dval) : String =
+          //dv |> LanguageTools.RuntimeTypes.Dval.toValueType |> valueType
+          "TODO - use a builtin instead of the thing that was here"
 
         let makeSpaces (len: Int64) : String =
           (Stdlib.List.repeat len " ") |> Builtin.unwrap |> Stdlib.String.join ""
 
         let withIndent
           (indent: Int64)
-          (dv: LanguageTools.RuntimeTypes.Dval.Dval)
+          (dv: LanguageTools.RuntimeTypes.Dval)
           : String =
           let nl = "\n" ++ (makeSpaces indent)
           let inl = "\n" ++ (makeSpaces (indent + 2L))
@@ -237,14 +267,14 @@ module Darklang =
             $"'{c}'"
           | DString s -> $"\"{s}\""
 
-          | DInt64 i -> Builtin.int64ToString i
-          | DUInt64 i -> Builtin.uint64ToString i
           | DInt8 i -> Builtin.int8ToString i
           | DUInt8 i -> Builtin.uint8ToString i
           | DInt16 i -> Builtin.int16ToString i
           | DUInt16 i -> Builtin.uint16ToString i
           | DInt32 i -> Builtin.int32ToString i
           | DUInt32 i -> Builtin.uint32ToString i
+          | DInt64 i -> Builtin.int64ToString i
+          | DUInt64 i -> Builtin.uint64ToString i
           | DInt128 i -> Builtin.int128ToString i
           | DUInt128 i -> Builtin.uint128ToString i
 
@@ -254,18 +284,6 @@ module Darklang =
 
           | DUuid uuid -> $"<{valueTypeName}: {Stdlib.Uuid.toString uuid}>"
 
-
-
-          | DList(vt, l) ->
-            if Stdlib.List.isEmpty l then
-              $"{valueTypeName} []"
-            else
-              let elems =
-                Stdlib.String.join
-                  (Stdlib.List.map l (fun item -> withIndent indent item))
-                  ", "
-
-              $"[{inl}{elems}{nl}]"
 
           | DTuple(first, second, theRest) ->
             let l = Stdlib.List.append [ first; second ] theRest
@@ -281,27 +299,18 @@ module Darklang =
 
               $"({inl}{long}{nl})"
 
-          | DRecord(_, typeName, typeArgs, o) ->
-            let strs =
-              o
-              |> Stdlib.Dict.toList
-              |> Stdlib.List.map (fun pair ->
-                let (key, value) = pair
-                $"{key}: {withIndent indent value}")
 
-            let elems = Stdlib.String.join strs $",{inl}"
-            let typeStr = typeName typeName
+          | DList(vt, l) ->
+            if Stdlib.List.isEmpty l then
+              $"{valueTypeName} []"
+            else
+              let elems =
+                Stdlib.String.join
+                  (Stdlib.List.map l (fun item -> withIndent indent item))
+                  ", "
 
-            let typeArgsPart =
-              match typeArgs with
-              | [] -> ""
-              | args ->
-                args
-                |> Stdlib.List.map (fun t -> valueTypeName t)
-                |> Stdlib.String.join ", "
-                |> fun betweenBrackets -> "<" + betweenBrackets + ">"
+              $"[{inl}{elems}{nl}]"
 
-            typeStr ++ typeArgsPart ++ " {" ++ inl ++ elems ++ nl ++ "}"
 
           | DDict(_, d) ->
             if d == Stdlib.Dict.empty then
@@ -316,6 +325,7 @@ module Darklang =
 
               let elems = Stdlib.String.join strs $",{inl}"
               "{" ++ inl ++ elems ++ nl ++ "}"
+
 
           | DEnum(_, typeName, typeArgs, caseName, fields) ->
             let typeArgsPart =
@@ -352,23 +362,48 @@ module Darklang =
               $"{typeStr}{typeArgsPart}.{caseName}{fieldStr}"
 
 
-          | DFnVal(NamedFn fnName) -> PrettyPrinter.RuntimeTypes.fnName fnName
+          | DRecord(_, typeName, typeArgs, o) ->
+            let strs =
+              o
+              |> Stdlib.Dict.toList
+              |> Stdlib.List.map (fun pair ->
+                let (key, value) = pair
+                $"{key}: {withIndent indent value}")
 
-          | DFnVal(Lambda impl) ->
-            // Note: this use case is safe (RE docs/dblock-serialization.md)
-            let ps =
-              impl.parameters
-              |> Stdlib.List.map Stdlib.Tuple2.second
-              |> Stdlib.String.join ", "
+            let elems = Stdlib.String.join strs $",{inl}"
+            let typeStr = typeName typeName
 
-            // TODO
-            // let body = impl.body |> RuntimeTypes.Expr.toString
-            $"\\ {ps} {{ ... }}"
+            let typeArgsPart =
+              match typeArgs with
+              | [] -> ""
+              | args ->
+                args
+                |> Stdlib.List.map (fun t -> valueTypeName t)
+                |> Stdlib.String.join ", "
+                |> fun betweenBrackets -> "<" + betweenBrackets + ">"
+
+            typeStr ++ typeArgsPart ++ " {" ++ inl ++ elems ++ nl ++ "}"
+
+
+          | DApplicable(AppNamedFn namedFn) ->
+            PrettyPrinter.RuntimeTypes.fnName namedFn.name
+
+          | DApplicable(AppLambda _lambda) ->
+            // // Note: this use case is safe (RE docs/dblock-serialization.md)
+            // let ps =
+            //   impl.parameters
+            //   |> Stdlib.List.map Stdlib.Tuple2.second
+            //   |> Stdlib.String.join ", "
+
+            // // TODO
+            // // let body = impl.body |> RuntimeTypes.Expr.toString
+            // $"\\ {ps} {{ ... }}"
+            "(lambda)"
 
 
           | DDB name -> $"<{valueTypeName}: {name}>"
 
 
 
-      let dval (dv: LanguageTools.RuntimeTypes.Dval.Dval) : String =
+      let dval (dv: LanguageTools.RuntimeTypes.Dval) : String =
         Dval.withIndent 0L dv

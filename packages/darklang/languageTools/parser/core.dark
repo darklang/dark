@@ -67,7 +67,7 @@ module Darklang =
 
       let createUnparseableError
         (node: ParsedNode)
-        : Stdlib.Result.Result<WrittenTypes.Unparseable> =
+        : Stdlib.Result.Result<'a, WrittenTypes.Unparseable> =
         (WrittenTypes.Unparseable
           { source = node
             note = Stdlib.Option.Option.None })
@@ -76,7 +76,7 @@ module Darklang =
       let createUnparseableErrorMsg
         (node: ParsedNode)
         (msg: String)
-        : Stdlib.Result.Result<WrittenTypes.Unparseable> =
+        : Stdlib.Result.Result<'a, WrittenTypes.Unparseable> =
         (WrittenTypes.Unparseable
           { source = node
             note = Stdlib.Option.Option.Some msg })
@@ -104,12 +104,15 @@ module Darklang =
       let findAndParseRequired
         (node: ParsedNode)
         (fieldName: String)
-        (parserFn: ParsedNode -> Stdlib.Result.Result<'a, String>)
-        : Stdlib.Result.Result<'a, String> =
+        (parserFn: ParsedNode -> Stdlib.Result.Result<'a, WrittenTypes.Unparseable>)
+        : Stdlib.Result.Result<'a, WrittenTypes.Unparseable> =
         match findNodeByFieldName node fieldName with
         | Some nd -> parserFn nd
         | None ->
-          Stdlib.Result.Result.Error $"No {fieldName} node found in {node.typ}"
+          (WrittenTypes.Unparseable
+            { source = node
+              note = Stdlib.Option.Option.Some $"No {fieldName} node found in {node.typ}" })
+          |> Stdlib.Result.Result.Error
 
 
       let baseParseList
@@ -228,7 +231,9 @@ module Darklang =
             |> Builtin.unwrap
             |> Stdlib.List.map (fun dictSeparatorPair ->
               match dictSeparatorPair with
+              // CLEANUP collapse these branches into one
               | [ dictPairNode; _separator ] ->
+                // Note: `_separator` here is the `;` between key-value pairs
                 let keyNode =
                   findAndParseRequired dictPairNode "key" (fun node ->
                     match node.typ with
@@ -245,7 +250,7 @@ module Darklang =
 
                 match (keyNode, symbolEqualsNode, valueNode) with
                 | (Ok key, Ok symbolEquals, Ok value) ->
-                  (symbolEquals, key, value) |> Stdlib.Result.Result.Ok
+                  (symbolEquals.range, key, value) |> Stdlib.Result.Result.Ok
                 | _ -> createUnparseableError dictPairNode
 
               | [ dictPairNode ] ->
@@ -265,7 +270,7 @@ module Darklang =
 
                 match (keyNode, symbolEqualsNode, valueNode) with
                 | (Ok key, Ok symbolEquals, Ok value) ->
-                  (symbolEquals, key, value) |> Stdlib.Result.Result.Ok
+                  (symbolEquals.range, key, value) |> Stdlib.Result.Result.Ok
                 | _ -> createUnparseableError dictPairNode
               | _ -> createUnparseableError contentsNode)
 

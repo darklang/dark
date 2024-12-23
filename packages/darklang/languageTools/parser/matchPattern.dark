@@ -18,101 +18,60 @@ module Darklang =
           | Error _ -> createUnparseableError node
 
 
-        // Helper function for parseMPInt
-        let parseIntByType
-          (intText: String)
-          (typ: String)
-          : Stdlib.Result.Result<_res, _err> =
-          match typ with
-          | "int8" -> Stdlib.Int8.parse intText
-          | "uint8" -> Stdlib.UInt8.parse intText
-          | "int16" -> Stdlib.Int16.parse intText
-          | "uint16" -> Stdlib.UInt16.parse intText
-          | "int32" -> Stdlib.Int32.parse intText
-          | "uint32" -> Stdlib.UInt32.parse intText
-          | "int64" -> Stdlib.Int64.parse intText
-          | "uint64" -> Stdlib.UInt64.parse intText
-          | "int128" -> Stdlib.Int128.parse intText
-          | "uint128" -> Stdlib.UInt128.parse intText
-          | _ -> Stdlib.Result.Result.Error $"Unsupported integer type: {typ}"
 
         let parseMPInt
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.MatchPattern, WrittenTypes.Unparseable> =
-          let supportedInts =
-            [ "int8"
-              "uint8"
-              "int16"
-              "uint16"
-              "int32"
-              "uint32"
-              "int64"
-              "uint64"
-              "int128"
-              "uint128" ]
+          let intPart = findField node "digits"
+          let suffixPart = findField node "suffix"
 
-          if (Stdlib.List.member_v0 supportedInts node.typ) then
-            let intPart = findField node "digits"
-            let suffixPart = findField node "suffix"
+          match intPart, suffixPart with
+          | Ok intPart, Ok sfx ->
+            let intText = getText intPart
 
-            match intPart, suffixPart with
-            | Ok intPart, Ok sfx ->
-              let intText = getText intPart
-
-              match parseIntByType intText node.typ with
-              | Ok parsedValue ->
-                let intPart = (intPart.range, parsedValue)
-
-                let pat =
-                  match node.typ with
-                  | "int8" ->
-                    WrittenTypes.MatchPattern.MPInt8(node.range, intPart, sfx.range)
-                  | "uint8" ->
-                    WrittenTypes.MatchPattern.MPUInt8(node.range, intPart, sfx.range)
-                  | "int16" ->
-                    WrittenTypes.MatchPattern.MPInt16(node.range, intPart, sfx.range)
-                  | "uint16" ->
-                    WrittenTypes.MatchPattern.MPUInt16(
-                      node.range,
-                      intPart,
-                      sfx.range
-                    )
-                  | "int32" ->
-                    WrittenTypes.MatchPattern.MPInt32(node.range, intPart, sfx.range)
-                  | "uint32" ->
-                    WrittenTypes.MatchPattern.MPUInt32(
-                      node.range,
-                      intPart,
-                      sfx.range
-                    )
-                  | "int64" ->
-                    WrittenTypes.MatchPattern.MPInt64(node.range, intPart, sfx.range)
-                  | "uint64" ->
-                    WrittenTypes.MatchPattern.MPUInt64(
-                      node.range,
-                      intPart,
-                      sfx.range
-                    )
-                  | "int128" ->
-                    WrittenTypes.MatchPattern.MPInt128(
-                      node.range,
-                      intPart,
-                      sfx.range
-                    )
-                  | "uint128" ->
-                    WrittenTypes.MatchPattern.MPUInt128(
-                      node.range,
-                      intPart,
-                      sfx.range
-                    )
-                  | _ -> createUnparseableError node
-
-                pat |> Stdlib.Result.Result.Ok
-
+            match node.typ with
+            | "int8" ->
+              match Stdlib.Int8.parse intText with
+              | Ok parsedValue -> (WrittenTypes.MatchPattern.MPInt8(node.range, (intPart.range, parsedValue), sfx.range)) |> Stdlib.Result.Result.Ok
               | Error _ -> createUnparseableError node
+            | "uint8" ->
+              match Stdlib.UInt8.parse intText with
+              | Ok parsedValue -> (WrittenTypes.MatchPattern.MPUInt8(node.range, (intPart.range, parsedValue), sfx.range)) |> Stdlib.Result.Result.Ok
+              | Error _ -> createUnparseableError node
+            | "int16" ->
+              match Stdlib.Int16.parse intText with
+              | Ok parsedValue -> (WrittenTypes.MatchPattern.MPInt16(node.range, (intPart.range, parsedValue), sfx.range)) |> Stdlib.Result.Result.Ok
+              | Error _ -> createUnparseableError node
+            | "uint16" ->
+              match Stdlib.UInt16.parse intText with
+              | Ok parsedValue -> (WrittenTypes.MatchPattern.MPUInt16(node.range, (intPart.range, parsedValue), sfx.range)) |> Stdlib.Result.Result.Ok
+              | Error _ -> createUnparseableError node
+            | "int32" ->
+              match Stdlib.Int32.parse intText with
+              | Ok parsedValue -> (WrittenTypes.MatchPattern.MPInt32(node.range, (intPart.range, parsedValue), sfx.range)) |> Stdlib.Result.Result.Ok
+              | Error _ -> createUnparseableError node
+            | "uint32" ->
+              match Stdlib.UInt32.parse intText with
+              | Ok parsedValue -> (WrittenTypes.MatchPattern.MPUInt32(node.range, (intPart.range, parsedValue), sfx.range)) |> Stdlib.Result.Result.Ok
+              | Error _ -> createUnparseableError node
+            | "int64" ->
+              match Stdlib.Int64.parse intText with
+              | Ok parsedValue -> (WrittenTypes.MatchPattern.MPInt64(node.range, (intPart.range, parsedValue), sfx.range)) |> Stdlib.Result.Result.Ok
+              | Error _ -> createUnparseableError node
+            | "uint64" ->
+              match Stdlib.UInt64.parse intText with
+              | Ok parsedValue -> (WrittenTypes.MatchPattern.MPUInt64(node.range, (intPart.range, parsedValue), sfx.range)) |> Stdlib.Result.Result.Ok
+              | Error _ -> createUnparseableError node
+            | "int128" ->
+              match Stdlib.Int128.parse intText with
+              | Ok parsedValue -> (WrittenTypes.MatchPattern.MPInt128(node.range, (intPart.range, parsedValue), sfx.range)) |> Stdlib.Result.Result.Ok
+              | Error _ -> createUnparseableError node
+            | "uint128" ->
+              match Stdlib.UInt128.parse intText with
+              | Ok parsedValue -> (WrittenTypes.MatchPattern.MPUInt128(node.range, (intPart.range, parsedValue), sfx.range)) |> Stdlib.Result.Result.Ok
+              | Error _ -> createUnparseableError node
+            | _ -> createUnparseableError node
 
-          else
-            createUnparseableError node
 
 
         let parseMPFloat

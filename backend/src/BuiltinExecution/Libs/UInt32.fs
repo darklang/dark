@@ -1,18 +1,13 @@
 module BuiltinExecution.Libs.UInt32
 
-open FSharp.Control.Tasks
-open System.Threading.Tasks
-
-open System.Numerics
-
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module VT = ValueType
+module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module PackageIDs = LibExecution.PackageIDs
-module IntRuntimeError = BuiltinExecution.IntRuntimeError
+module RTE = RuntimeError
 
 
 module ParseError =
@@ -45,12 +40,9 @@ let fns : List<BuiltInFn> =
         a different behavior for negative numbers."
       fn =
         (function
-        | state, _, [ DUInt32 v; DUInt32 m ] ->
+        | _, vm, _, [ DUInt32 v; DUInt32 m ] ->
           if m = 0ul then
-            IntRuntimeError.Error.ZeroModulus
-            |> IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.callStack
-            |> Ply
+            RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.threadID
           else
             let result = v % m
             let result = if result < 0ul then m + result else result
@@ -68,16 +60,12 @@ let fns : List<BuiltInFn> =
       description = "Adds two 32-bit unsigned integers together"
       fn =
         (function
-        | state, _, [ DUInt32 a; DUInt32 b ] ->
+        | _, vm, _, [ DUInt32 a; DUInt32 b ] ->
           try
             let result = Checked.(+) a b
             Ply(DUInt32(result))
           with :? System.OverflowException ->
-            IntRuntimeError.Error.OutOfRange
-            |> IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.callStack
-            |> Ply
-
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -91,16 +79,12 @@ let fns : List<BuiltInFn> =
       description = "Subtracts two 32-bit unsigned integers"
       fn =
         (function
-        | state, _, [ DUInt32 a; DUInt32 b ] ->
+        | _, vm, _, [ DUInt32 a; DUInt32 b ] ->
           try
             let result = Checked.(-) a b
             Ply(DUInt32(result))
           with :? System.OverflowException ->
-            IntRuntimeError.Error.OutOfRange
-            |> IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.callStack
-            |> Ply
-
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -114,16 +98,12 @@ let fns : List<BuiltInFn> =
       description = "Multiplies two 32-bit unsigned integers"
       fn =
         (function
-        | state, _, [ DUInt32 a; DUInt32 b ] ->
+        | _, vm, _, [ DUInt32 a; DUInt32 b ] ->
           try
             let result = Checked.(*) a b
             Ply(DUInt32(result))
           with :? System.OverflowException ->
-            IntRuntimeError.Error.OutOfRange
-            |> IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.callStack
-            |> Ply
-
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -140,14 +120,11 @@ let fns : List<BuiltInFn> =
         Return value wrapped in a {{Result}} "
       fn =
         (function
-        | state, _, [ DUInt32 number; DUInt32 exp ] ->
+        | _, vm, _, [ DUInt32 number; DUInt32 exp ] ->
           (try
             (bigint number) ** (int exp) |> uint32 |> DUInt32 |> Ply
            with :? System.OverflowException ->
-             IntRuntimeError.Error.OutOfRange
-             |> IntRuntimeError.RTE.toRuntimeError
-             |> raiseRTE state.tracing.callStack
-             |> Ply)
+             RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -161,21 +138,15 @@ let fns : List<BuiltInFn> =
       description = "Divides two 32-bit unsigned integers"
       fn =
         (function
-        | state, _, [ DUInt32 a; DUInt32 b ] ->
+        | _, vm, _, [ DUInt32 a; DUInt32 b ] ->
           if b = 0ul then
-            IntRuntimeError.Error.DivideByZeroError
-            |> IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.callStack
-            |> Ply
+            RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
           else
             let result = a / b
             if
               result < System.UInt32.MinValue || result > System.UInt32.MaxValue
             then
-              IntRuntimeError.Error.OutOfRange
-              |> IntRuntimeError.RTE.toRuntimeError
-              |> raiseRTE state.tracing.callStack
-              |> Ply
+              RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
             else
               Ply(DUInt32(uint32 result))
 
@@ -192,7 +163,7 @@ let fns : List<BuiltInFn> =
       description = "Returns {{true}} if <param a> is greater than <param b>"
       fn =
         (function
-        | _, _, [ DUInt32 a; DUInt32 b ] -> Ply(DBool(a > b))
+        | _, _, _, [ DUInt32 a; DUInt32 b ] -> Ply(DBool(a > b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -207,7 +178,7 @@ let fns : List<BuiltInFn> =
         "Returns {{true}} if <param a> is greater than or equal to <param b>"
       fn =
         (function
-        | _, _, [ DUInt32 a; DUInt32 b ] -> Ply(DBool(a >= b))
+        | _, _, _, [ DUInt32 a; DUInt32 b ] -> Ply(DBool(a >= b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -221,7 +192,7 @@ let fns : List<BuiltInFn> =
       description = "Returns {{true}} if <param a> is less than <param b>"
       fn =
         (function
-        | _, _, [ DUInt32 a; DUInt32 b ] -> Ply(DBool(a < b))
+        | _, _, _, [ DUInt32 a; DUInt32 b ] -> Ply(DBool(a < b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -236,7 +207,7 @@ let fns : List<BuiltInFn> =
         "Returns {{true}} if <param a> is less than or equal to <param b>"
       fn =
         (function
-        | _, _, [ DUInt32 a; DUInt32 b ] -> Ply(DBool(a <= b))
+        | _, _, _, [ DUInt32 a; DUInt32 b ] -> Ply(DBool(a <= b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -250,7 +221,7 @@ let fns : List<BuiltInFn> =
       description = "Stringify <param uint32>"
       fn =
         (function
-        | _, _, [ DUInt32 a ] -> Ply(DString(string a))
+        | _, _, _, [ DUInt32 a ] -> Ply(DString(string a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -264,7 +235,7 @@ let fns : List<BuiltInFn> =
       description = "Converts an <type UInt32> to a <type Float>"
       fn =
         (function
-        | _, _, [ DUInt32 a ] -> Ply(DFloat(float a))
+        | _, _, _, [ DUInt32 a ] -> Ply(DFloat(float a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -279,7 +250,7 @@ let fns : List<BuiltInFn> =
         "Returns a random integer32 between <param start> and <param end> (inclusive)"
       fn =
         (function
-        | _, _, [ DUInt32 a; DUInt32 b ] ->
+        | _, _, _, [ DUInt32 a; DUInt32 b ] ->
           let lower, upper = if a > b then (b, a) else (a, b)
 
           let lowerBound = max lower 0ul
@@ -306,7 +277,7 @@ let fns : List<BuiltInFn> =
       description = "Get the square root of an <type UInt32>"
       fn =
         (function
-        | _, _, [ DUInt32 a ] -> Ply(DFloat(sqrt (float a)))
+        | _, _, _, [ DUInt32 a ] -> Ply(DFloat(sqrt (float a)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -321,11 +292,11 @@ let fns : List<BuiltInFn> =
         TypeReference.result TUInt32 (TCustomType(Ok errorType, []))
       description = "Returns the <type UInt32> value of a <type String>"
       fn =
-        let resultOk = Dval.resultOk KTUInt32 KTString
         let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.uint32ParseError
+        let resultOk = Dval.resultOk KTUInt32 (KTCustomType(typeName, []))
         let resultError = Dval.resultError KTUInt32 (KTCustomType(typeName, []))
         (function
-        | _, _, [ DString s ] ->
+        | _, _, _, [ DString s ] ->
           try
             s |> System.Convert.ToUInt32 |> DUInt32 |> resultOk |> Ply
           with
@@ -350,7 +321,7 @@ let fns : List<BuiltInFn> =
         Returns {{None}} if the value is less than 0."
       fn =
         (function
-        | _, _, [ DInt8 a ] ->
+        | _, _, _, [ DInt8 a ] ->
           if (a < 0y) then
             Dval.optionNone KTUInt32 |> Ply
           else
@@ -368,7 +339,7 @@ let fns : List<BuiltInFn> =
       description = "Converts a UInt8 to a 32-bit unsigned integer."
       fn =
         (function
-        | _, _, [ DUInt8 a ] -> DUInt32(uint32 a) |> Ply
+        | _, _, _, [ DUInt8 a ] -> DUInt32(uint32 a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -384,7 +355,7 @@ let fns : List<BuiltInFn> =
         Returns {{None}} if the value is less than 0."
       fn =
         (function
-        | _, _, [ DInt16 a ] ->
+        | _, _, _, [ DInt16 a ] ->
           if (a < 0s) then
             Dval.optionNone KTUInt32 |> Ply
           else
@@ -402,7 +373,7 @@ let fns : List<BuiltInFn> =
       description = "Converts a UInt16 to a 32-bit unsigned integer."
       fn =
         (function
-        | _, _, [ DUInt16 a ] -> DUInt32(uint32 a) |> Ply
+        | _, _, _, [ DUInt16 a ] -> DUInt32(uint32 a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -412,13 +383,13 @@ let fns : List<BuiltInFn> =
     { name = fn "uint32FromInt32" 0
       typeParams = []
       parameters = [ Param.make "a" TInt32 "" ]
-      returnType = TypeReference.option TInt32
+      returnType = TypeReference.option TUInt32
       description =
         "Converts an Int32 to a 32-bit unsigned integer.
         Returns {{None}} if the value is less than 0"
       fn =
         (function
-        | _, _, [ DInt32 a ] ->
+        | _, _, _, [ DInt32 a ] ->
           if (a < 0l) then
             Dval.optionNone KTUInt32 |> Ply
           else
@@ -438,7 +409,7 @@ let fns : List<BuiltInFn> =
         Returns {{None}} if the value is less than 0 or greater than 4294967295."
       fn =
         (function
-        | _, _, [ DInt64 a ] ->
+        | _, _, _, [ DInt64 a ] ->
           if
             (a < int64 System.UInt32.MinValue) || (a > int64 System.UInt32.MaxValue)
           then
@@ -460,7 +431,7 @@ let fns : List<BuiltInFn> =
         Returns {{None}} if the value is greater than 4294967295."
       fn =
         (function
-        | _, _, [ DUInt64 a ] ->
+        | _, _, _, [ DUInt64 a ] ->
           if (a > uint64 System.UInt32.MaxValue) then
             Dval.optionNone KTUInt32 |> Ply
           else
@@ -479,7 +450,7 @@ let fns : List<BuiltInFn> =
         "Converts an Int128 to a 32-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 4294967295."
       fn =
         (function
-        | _, _, [ DInt128 a ] ->
+        | _, _, _, [ DInt128 a ] ->
           if
             (a < System.Int128.op_Implicit System.UInt32.MinValue)
             || (a > System.Int128.op_Implicit System.UInt32.MaxValue)
@@ -502,7 +473,7 @@ let fns : List<BuiltInFn> =
         Returns {{None}} if the value is greater than 4294967295."
       fn =
         (function
-        | _, _, [ DUInt128 a ] ->
+        | _, _, _, [ DUInt128 a ] ->
           if (a > System.UInt128.op_Implicit System.UInt32.MaxValue) then
             Dval.optionNone KTUInt32 |> Ply
           else

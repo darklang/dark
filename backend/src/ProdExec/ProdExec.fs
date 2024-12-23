@@ -15,6 +15,7 @@ open Prelude
 module Telemetry = LibService.Telemetry
 module Rollbar = LibService.Rollbar
 module CTPusher = LibClientTypes.Pusher
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 
 let runMigrations () : unit =
@@ -100,7 +101,7 @@ let convertToRT (canvasID : CanvasID) : Task<unit> =
     let _handlers =
       canvas.handlers
       |> Map.values
-      |> List.map (fun h -> LibExecution.ProgramTypesToRuntimeTypes.Handler.toRT h)
+      |> List.map (fun h -> PT2RT.Handler.toRT Map.empty h.ast)
     return ()
   }
 

@@ -1,5 +1,6 @@
 module Cli.Main
 
+open System
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
@@ -71,24 +72,36 @@ let state () =
       dbs = Map.empty
       secrets = [] }
 
-  let tracing = Exe.noTracing (RT.CallStack.fromEntryPoint RT.Script)
-
-  let notify (_state : RT.ExecutionState) (_msg : string) (_metadata : Metadata) =
+  let notify
+    (_state : RT.ExecutionState)
+    (_vm : RT.VMState)
+    (_msg : string)
+    (_metadata : Metadata)
+    =
     // let metadata = extraMetadata state @ metadata
     // LibService.Rollbar.notify msg metadata
-    ()
+    uply { return () }
 
-  let sendException (_ : RT.ExecutionState) (metadata : Metadata) (exn : exn) =
-    printException "Internal error" metadata exn
+  let sendException
+    (_ : RT.ExecutionState)
+    (_ : RT.VMState)
+    (metadata : Metadata)
+    (exn : exn)
+    =
+    uply { printException "Internal error" metadata exn }
 
-  Exe.createState builtins packageManagerRT tracing sendException notify program
+  Exe.createState
+    builtins
+    packageManagerRT
+    Exe.noTracing
+    sendException
+    notify
+    program
 
 
 
 
-let execute
-  (args : List<string>)
-  : Task<Result<RT.Dval, Option<RT.CallStack> * RT.RuntimeError>> =
+let execute (args : List<string>) : Task<RT.ExecutionResult> =
   task {
     let state = state ()
     let fnName = RT.FQFnName.fqPackage PackageIDs.Fn.Cli.executeCliCommand
@@ -119,32 +132,36 @@ let main (args : string[]) =
     NonBlockingConsole.wait ()
 
     match result with
-    | Error(callStack, rte) ->
+    | Error(rte, callStack) ->
       let state = state ()
 
-      let errorCallStackStr = LibExecution.Execution.callStackString state callStack
+      let errorCallStackStr =
+        (LibExecution.Execution.callStackString state callStack).Result
 
       match (LibExecution.Execution.runtimeErrorToString state rte).Result with
       | Ok(RT.DString s) ->
-        System.Console.WriteLine $"Error source: {errorCallStackStr}\n  {s}"
+        Console.WriteLine
+          $"Encountered a Runtime Error:\n{s}\n\n{errorCallStackStr}\n  "
 
       | Ok otherVal ->
-        System.Console.WriteLine
-          $"Unexpected value while stringifying error.\nCallStack: {errorCallStackStr}\n"
-        System.Console.WriteLine $"Original Error: {rte}"
-        System.Console.WriteLine $"Value is:\n{otherVal}"
+        Console.WriteLine
+          $"Encountered a Runtime Error, stringified it, but somehow a non-string was returned.\n"
+        Console.WriteLine $"Runtime Error: {rte}"
+        Console.WriteLine $"'Stringified':\n{otherVal}"
+        Console.WriteLine $"{errorCallStackStr}"
 
-      | Error(_, newErr) ->
-        System.Console.WriteLine
-          $"Error while stringifying error.\n CallStack: {errorCallStackStr}\n"
-        System.Console.WriteLine $"Original Error: {rte}"
-        System.Console.WriteLine $"New Error is:\n{newErr}"
+      | Error(newErr) ->
+        Console.WriteLine
+          $"Encountered a Runtime Error, tried to stringify it, and then _that_ failed."
+        Console.WriteLine $"Original Error: {rte}"
+        Console.WriteLine $"{errorCallStackStr}"
+        Console.WriteLine $"\nError encountered when trying to stringify:\n{newErr}"
 
       1
     | Ok(RT.DInt64 i) -> (int i)
     | Ok dval ->
-      let output = LibExecution.DvalReprDeveloper.toRepr dval
-      System.Console.WriteLine
+      let output = DvalReprDeveloper.toRepr dval
+      Console.WriteLine
         $"Error: main function must return an int (returned {output})"
       1
 

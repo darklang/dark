@@ -10,6 +10,7 @@ open Prelude
 
 module RT = LibExecution.RuntimeTypes
 module Dval = LibExecution.Dval
+module VT = LibExecution.ValueType
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module AT = LibExecution.AnalysisTypes
@@ -33,33 +34,50 @@ let builtins : RT.Builtins =
 let createState
   (traceID : AT.TraceID.T)
   (program : RT.Program)
-  (tracing : RT.Tracing)
+  (tracing : RT.Tracing.Tracing)
   : Task<RT.ExecutionState> =
   task {
-    let extraMetadata (state : RT.ExecutionState) : Metadata =
-      let callStack = state.tracing.callStack
+    let extraMetadata (state : RT.ExecutionState) (vm : RT.VMState) : Ply<Metadata> =
+      uply {
+        let callStack = Exe.callStackFromVM vm
+        let epToString ep =
+          match ep with
+          | None -> Ply "None -- empty CallStack"
+          | Some ep -> Exe.executionPointToString state ep
 
-      let executionPoint ep =
-        match ep with
-        | RT.ExecutionPoint.Script -> "Input script"
-        | RT.ExecutionPoint.Toplevel tlid -> $"Toplevel {tlid}"
-        | RT.ExecutionPoint.Function fnName ->
-          match fnName with
-          | RT.FQFnName.Package name -> $"Package fn {name}"
-          | RT.FQFnName.Builtin name -> $"Builtin fn {name}"
+        let! entrypoint = epToString (RT.CallStack.entrypoint callStack)
+        let! lastCalled = epToString (RT.CallStack.last callStack)
 
-      [ ("entrypoint", executionPoint callStack.entrypoint)
-        ("lastCalled", (executionPoint (fst callStack.lastCalled)))
-        ("traceID", traceID)
-        ("canvasID", program.canvasID) ]
+        return
+          [ ("entrypoint", entrypoint)
+            ("lastCalled", lastCalled)
+            ("traceID", traceID)
+            ("canvasID", program.canvasID) ]
+      }
 
-    let notify (state : RT.ExecutionState) (msg : string) (metadata : Metadata) =
-      let metadata = extraMetadata state @ metadata
-      LibService.Rollbar.notify msg metadata
+    let notify
+      (state : RT.ExecutionState)
+      (vm : RT.VMState)
+      (msg : string)
+      (metadata : Metadata)
+      =
+      uply {
+        let! extra = extraMetadata state vm
+        let metadata = extra @ metadata
+        LibService.Rollbar.notify msg metadata
+      }
 
-    let sendException (state : RT.ExecutionState) (metadata : Metadata) (exn : exn) =
-      let metadata = extraMetadata state @ metadata
-      LibService.Rollbar.sendException None metadata exn
+    let sendException
+      (state : RT.ExecutionState)
+      (vm : RT.VMState)
+      (metadata : Metadata)
+      (exn : exn)
+      =
+      uply {
+        let! extra = extraMetadata state vm
+        let metadata = extra @ metadata
+        LibService.Rollbar.sendException None metadata exn
+      }
 
     return
       Exe.createState builtins packageManagerRT tracing sendException notify program
@@ -84,7 +102,7 @@ type ExecutionReason =
 ///   - not send pushes
 let executeHandler
   (pusherSerializer : Pusher.PusherEventSerializer)
-  (h : RT.Handler.T)
+  (h : PT.Handler.T)
   (program : RT.Program)
   (traceID : AT.TraceID.T)
   (inputVars : Map<string, RT.Dval>)
@@ -100,10 +118,13 @@ let executeHandler
     | ReExecution -> ()
 
     let! state = createState traceID program tracing.executionTracing
-    let state =
-      { state with tracing.callStack.entrypoint = RT.ExecutionPoint.Toplevel h.tlid }
+
+    // TODO we shouldn't PT2RT here -- we should fetch from the PM instead
+
+    let instrs = PT2RT.Handler.toRT inputVars h.ast
+
     HashSet.add h.tlid tracing.results.tlids
-    let! result = Exe.executeExpr state inputVars h.ast
+    let! result = Exe.executeToplevel state h.tlid instrs
 
     let callStackString = Exe.callStackString state
 
@@ -112,8 +133,7 @@ let executeHandler
 
       let fields =
         [ ("statusCode", RT.DInt64 500)
-          ("headers",
-           [] |> Dval.list (RT.KTTuple(RT.ValueType.string, RT.ValueType.string, [])))
+          ("headers", [] |> Dval.list (RT.KTTuple(VT.string, VT.string, [])))
           ("body", msg |> UTF8.toBytes |> Dval.byteArrayToDvalList) ]
 
       RT.DRecord(typeName, typeName, [], Map fields)
@@ -124,7 +144,7 @@ let executeHandler
       task {
         match result with
         | Ok result -> return result
-        | Error(originalCallStack, originalRTE) ->
+        | Error(originalRTE, originalCallStack) ->
           let! originalCallStack = callStackString originalCallStack
 
           match! Exe.runtimeErrorToString state originalRTE with
@@ -132,7 +152,7 @@ let executeHandler
             let msg = $"Error: {msg}\n\nSource: {originalCallStack}"
             return error msg
           | Ok result -> return result
-          | Error(firstErrorCallStack, firstErrorRTE) ->
+          | Error(firstErrorRTE, firstErrorCallStack) ->
             let! firstErrorCallStack = callStackString firstErrorCallStack
             match! Exe.runtimeErrorToString state firstErrorRTE with
             | Ok(RT.DString msg) ->
@@ -143,7 +163,7 @@ let executeHandler
                   + $"\n\nThe original error is ({originalCallStack}) {originalRTE}"
                 )
             | Ok result -> return result
-            | Error(secondErrorCallStack, secondErrorRTE) ->
+            | Error(secondErrorRTE, secondErrorCallStack) ->
               let! secondErrorCallStack = callStackString secondErrorCallStack
               return
                 error (

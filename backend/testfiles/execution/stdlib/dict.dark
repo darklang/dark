@@ -2,104 +2,90 @@ module Empty =
   Stdlib.Dict.empty = Dict { }
 
 
+module ConstructionErrors =
+  Dict { a = 1; a = 2 } = Builtin.testDerrorMessage "Cannot add two dictionary entries with the same key `a`"
+
+  Dict { a = 1; b = "two" } = Builtin.testDerrorMessage "Cannot add a String (\"two\") to a dict of Int32. Failed at key `b`."
+
+
 module FilterMap =
-  Stdlib.Dict.filterMap_v0 (Dict { }) (fun key value -> 0L) = (Dict { })
+  Stdlib.Dict.filterMap (Dict { }) (fun key value -> 0L) = (Dict { })
 
-  Stdlib.Dict.filterMap_v0 (Dict { a = "x"; b = "y"; c = "z" }) (fun key value ->
-    if value == "y" then
-      Stdlib.Option.Option.None
-    else
-      (Stdlib.Option.Option.Some(key ++ value))) = (Dict { c = "cz"; a = "ax" })
+  (Stdlib.Dict.filterMap
+    (Dict { a = "x"; b = "y"; c = "z" })
+    (fun key value ->
+      if value == "y" then
+        Stdlib.Option.Option.None
+      else
+        Stdlib.Option.Option.Some(key ++ value))
+  ) = (Dict { c = "cz"; a = "ax" })
 
-  (Stdlib.Dict.filterMap_v0 (Dict { a = "x"; b = "y"; c = "z" }) (fun key value ->
-    if value == "y" then
-      false
-    else
-      Stdlib.Option.Option.Some(key ++ value))) = Builtin.testDerrorMessage
-    """Function return value should be a PACKAGE.Darklang.Stdlib.Option.Option<'b>. However, a Bool (false) was returned instead.
-
-Expected: PACKAGE.Darklang.Stdlib.Option.Option<'b>
-Actual: a Bool: false"""
+  // CLEANUP figure out why this isn't failing on the `false` not being an option
+  // (Stdlib.Dict.filterMap_v0
+  //   (Dict { a = "x"; b = "y"; c = "z" })
+  //   (fun key value ->
+  //     if value == "y" then
+  //       false
+  //     else
+  //       Stdlib.Option.Option.Some(key ++ value))
+  // ) = Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.Option.map's 1st argument (`option`) should be a PACKAGE.Darklang.Stdlib.Option.Option<'a>. However, a Bool (false) was passed instead."
 
 
 
 module Filter =
-  Stdlib.Dict.filter (Dict { key1 = "val1"; key2 = "val2" }) (fun k v -> k == "key1") = (Dict
-    { key1 = "val1" })
+  (Stdlib.Dict.filter
+    (Dict { key1 = "val1"; key2 = "val2" })
+    (fun k v -> k == "key1")) = (Dict { key1 = "val1" })
 
-  Stdlib.Dict.filter (Dict { key1 = 1L; key2 = 3L }) (fun k v -> v < 2L) = (Dict
-    { key1 = 1L })
+  Stdlib.Dict.filter (Dict { key1 = 1L; key2 = 3L }) (fun k v -> v < 2L) =
+    (Dict { key1 = 1L })
 
   Stdlib.Dict.filter (Dict { }) (fun k v -> 0L) = (Dict { })
 
-  Stdlib.Dict.filter (Dict { a = 1L; b = 2L; c = 3L }) (fun k v -> 2L) = Builtin.testDerrorMessage
-    """Function return value should be a Bool. However, an Int64 (2) was returned instead.
-
-Expected: Bool
-Actual: an Int64: 2"""
+  Stdlib.Dict.filter (Dict { a = 1L; b = 2L; c = 3L }) (fun k v -> 2L) =
+    Builtin.testDerrorMessage "Encountered a condition that must be a Bool, but got an Int64 (2)"
 
 
 module FromListOverwritingDuplicates =
-  Stdlib.Dict.fromListOverwritingDuplicates_v0
-    [ ("duplicate_key", 1L); ("b", 2L); ("duplicate_key", 3L) ] = (Dict
-    { b = 2L; duplicate_key = 3L })
-
-  Stdlib.Dict.fromListOverwritingDuplicates_v0 [ ("a", 1L); ("b", 2L); ("c", 3L) ] = (Dict
-    { c = 3L; b = 2L; a = 1L })
-
   Stdlib.Dict.fromListOverwritingDuplicates_v0 [] = (Dict { })
 
-  Stdlib.Dict.fromListOverwritingDuplicates_v0 [ Builtin.testRuntimeError "" ] = Builtin.testDerrorMessage
-    ""
+  (Stdlib.Dict.fromListOverwritingDuplicates_v0 [ ("duplicate_key", 1L); ("b", 2L); ("duplicate_key", 3L) ]) =
+    (Dict { b = 2L; duplicate_key = 3L })
 
-  // In Dict.fromListOverwritingDuplicates's 1st argument (`entries`), the nested value `entries[1]` should be a (String, 'b). However, an Int64 (2) was passed instead.\n\nExpected: (String, 'b)\nActual: an Int64: 2
-  Stdlib.Dict.fromListOverwritingDuplicates_v0 [ (1L, 2L) ] = Builtin.testDerrorMessage
-    "PACKAGE.Darklang.Stdlib.Dict.fromListOverwritingDuplicates's 1st argument (`entries`) should be a List<(String * 'a)>. However, a List<(Int64, Int64)> ([  (1, 2)...) was passed instead.
+  Stdlib.Dict.fromListOverwritingDuplicates_v0 [ ("a", 1L); ("b", 2L); ("c", 3L) ] =
+    (Dict { c = 3L; b = 2L; a = 1L })
 
-Expected: (entries: List<(String * 'a)>)
-Actual: a List<(Int64, Int64)>: [\n  (1, 2)\n]"
+  Stdlib.Dict.fromListOverwritingDuplicates_v0 [ Builtin.testRuntimeError "err" ] =
+    Builtin.testDerrorMessage "Uncaught exception: err"
 
-  Stdlib.Dict.fromListOverwritingDuplicates_v0 [ 1L ] = Builtin.testDerrorMessage
-    "PACKAGE.Darklang.Stdlib.Dict.fromListOverwritingDuplicates's 1st argument (`entries`) should be a List<(String * 'a)>. However, a List<Int64> ([  1]) was passed instead.
+  // CLEANUP improve the error message to:
+  //   In Dict.fromListOverwritingDuplicates's 1st argument (`entries`), the nested value `entries[1]` should be a (String, 'b). However, an Int64 (2) was passed instead.
+  Stdlib.Dict.fromListOverwritingDuplicates_v0 [ (1L, 2L) ] =
+    Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.Dict.fromListOverwritingDuplicates's 1st parameter `entries` expects List<(String * _)>, but got List<(Int64 * Int64)> ([\n  (1, 2)\n])"
 
-Expected: (entries: List<(String * 'a)>)
-Actual: a List<Int64>: [\n  1\n]"
+  Stdlib.Dict.fromListOverwritingDuplicates_v0 [ 1L ] =
+    Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.Dict.fromListOverwritingDuplicates's 1st parameter `entries` expects List<(String * _)>, but got List<Int64> ([\n  1\n])"
 
 
 module FromList =
-  // CLEANUP the first test here feels surprising - should it error or something?
-  Stdlib.Dict.fromList_v0 [ ("duplicate_key", 1L); ("b", 2L); ("duplicate_key", 3L) ] = Stdlib.Option.Option.None
-
-  Stdlib.Dict.fromList_v0 [ ("a", 1L); ("b", 2L); ("c", 3L) ] = PACKAGE
-    .Darklang
-    .Stdlib
-    .Option
-    .Option
-    .Some(Dict { c = 3L; b = 2L; a = 1L })
-
-  Stdlib.Dict.fromList_v0 [ ("Content-Length", "0"); ("Server", "dark") ] = PACKAGE
-    .Darklang
-    .Stdlib
-    .Option
-    .Option
-    .Some(
-      Dict
-        { ``Content-Length`` = "0"
-          Server = "dark" }
-    )
-
   Stdlib.Dict.fromList_v0 [] = Stdlib.Option.Option.Some(Dict { })
 
-  Stdlib.Dict.fromList_v0 [ Builtin.testRuntimeError "" ] = Builtin.testDerrorMessage
-    ""
+  Stdlib.Dict.fromList_v0 [ ("a", 1L); ("b", 2L); ("c", 3L) ] =
+    Stdlib.Option.Option.Some(Dict { c = 3L; b = 2L; a = 1L })
 
-  // CLEANUP this error message is the goal once Dvals include typeRefs:
-  //Test.runtimeError "In Dict.fromList's 1st argument (`entries`), the nested value `entries[0][0]` should be a String. However, an Int64 (1) was passed instead.\n\nExpected: String\nActual: an Int64: 1"
-  Stdlib.Dict.fromList_v0 [ (1L, 1L) ] = Builtin.testDerrorMessage
-    "PACKAGE.Darklang.Stdlib.Dict.fromList's 1st argument (`entries`) should be a List<(String * 'a)>. However, a List<(Int64, Int64)> ([  (1, 1)...) was passed instead.
+  // CLEANUP this test feels surprising - should it error or something?
+  Stdlib.Dict.fromList_v0 [ ("duplicate_key", 1L); ("b", 2L); ("duplicate_key", 3L) ] = Stdlib.Option.Option.None
 
-Expected: (entries: List<(String * 'a)>)
-Actual: a List<(Int64, Int64)>: [\n  (1, 1)\n]"
+  Stdlib.Dict.fromList_v0 [ ("Content-Length", "0"); ("Server", "dark") ] =
+    Stdlib.Option.Option.Some(Dict { ``Content-Length`` = "0"; Server = "dark" })
+
+  Stdlib.Dict.fromList_v0 [ Builtin.testRuntimeError "err" ] =
+    Builtin.testDerrorMessage "Uncaught exception: err"
+
+  // CLEANUP improve the error message to
+  //  "In Dict.fromList's 1st argument (`entries`), the nested value `entries[0][0]` should be a String. However, an Int64 (1) was passed instead.\n\nExpected: String\nActual: an Int64: 1"
+  Stdlib.Dict.fromList_v0 [ (1L, 1L) ] =
+    Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.Dict.fromList's 1st parameter `entries` expects List<(String * _)>, but got List<(Int64 * Int64)> ([\n  (1, 1)\n])"
 
 
 module Get =
@@ -118,21 +104,25 @@ module Keys =
 
 
 module Map =
-  Stdlib.Dict.map_v0 (Dict { key1 = "val1"; key2 = "val2" }) (fun k x -> k ++ x) = (Dict
-    { key2 = "key2val2"; key1 = "key1val1" })
-
-  Stdlib.Dict.map_v0 (Dict { key1 = 5L; key2 = 3L; key3 = 3L }) (fun k x ->
-    Stdlib.Bool.and_v0
-      (Stdlib.Int64.greaterThanOrEqualTo_v0 x 1L)
-      (Stdlib.Int64.lessThanOrEqualTo_v0 x 4L)) = (Dict
-    { key3 = true
-      key2 = true
-      key1 = false })
-
-  Stdlib.Dict.map_v0 (Dict { a = 1L; b = 2L }) (fun k x -> x + 1L) = (Dict
-    { b = 3L; a = 2L })
-
   Stdlib.Dict.map_v0 (Dict { }) (fun key value -> 0L) = (Dict { })
+
+  (Stdlib.Dict.map_v0
+    (Dict { key1 = "val1"; key2 = "val2" })
+    (fun k x -> k ++ x)
+  ) = (Dict { key2 = "key2val2"; key1 = "key1val1" })
+
+  (Stdlib.Dict.map_v0
+    (Dict { key1 = 5L; key2 = 3L; key3 = 3L })
+    (fun k x ->
+      Stdlib.Bool.and_v0
+        (Stdlib.Int64.greaterThanOrEqualTo_v0 x 1L)
+        (Stdlib.Int64.lessThanOrEqualTo_v0 x 4L)
+    )
+    )= (Dict { key3 = true; key2 = true; key1 = false })
+
+  Stdlib.Dict.map_v0 (Dict { a = 1L; b = 2L }) (fun k x -> x + 1L) =
+    (Dict { b = 3L; a = 2L })
+
 
 
 module Member =
@@ -142,30 +132,28 @@ module Member =
 
 
 module Merge =
-  Stdlib.Dict.merge_v0 (Dict { key1 = "val1" }) (Dict { key2 = "val2" }) = (Dict
-    { key2 = "val2"; key1 = "val1" })
-
-  Stdlib.Dict.merge_v0 (Dict { key1 = "val_l" }) (Dict { key1 = "val_r" }) = (Dict
-    { key1 = "val_r" })
-
   Stdlib.Dict.merge_v0 (Dict { }) (Dict { }) = (Dict { })
+
+  Stdlib.Dict.merge_v0 (Dict { key1 = "val1" }) (Dict { key2 = "val2" }) = (Dict { key2 = "val2"; key1 = "val1" })
+
+  Stdlib.Dict.merge_v0 (Dict { key1 = "val_l" }) (Dict { key1 = "val_r" }) = (Dict { key1 = "val_r" })
+
 
 
 module Set =
-  Stdlib.Dict.set_v0 (Dict { key1 = "val1before" }) "key1" "val1after" = (Dict
-    { key1 = "val1after" })
+  Stdlib.Dict.set_v0 (Dict { key1 = "val1" }) "key2" "val2" =
+    (Dict { key1 = "val1"; key2 = "val2" })
 
-  Stdlib.Dict.set_v0 (Dict { key1 = "val1" }) "key2" "val2" = (Dict
-    { key1 = "val1"; key2 = "val2" })
+  Stdlib.Dict.set_v0 (Dict { key1 = "val1before" }) "key1" "val1after" =
+    Builtin.testDerrorMessage "Cannot add two dictionary entries with the same key `key1`"
 
-  // Dicts do not currently enforce value typing, therefore the following tests pass
-  // VTTODO: this should fail
-  Stdlib.Dict.set_v0 (Dict { key1 = "val1" }) "key2" 2L = (Dict
-    { key1 = "val1"; key2 = 2L })
+  Dict { key1 = "val1"; key2 = 2L } =
+    Builtin.testDerrorMessage "Cannot add an Int64 (2) to a dict of String. Failed at key `key2`."
 
-  Stdlib.Dict.set_v0 (Dict { key1 = 1 }) "key1" "changedTypeValue" = (Dict
-    { key1 = "changedTypeValue" })
+  Stdlib.Dict.set_v0 (Dict { key1 = "val1" }) "key2" 2L =
+    Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.Dict.set's 3rd parameter `val` expects String, but got Int64 (2)"
 
+// TODO add setOverridingDuplicates
 
 module Singleton =
   Stdlib.Dict.singleton_v0 "one" 1L = (Dict { one = 1L })
@@ -179,11 +167,11 @@ module Size =
 
 
 module ToList =
-  Stdlib.Dict.toList_v0 (Dict { a = 1L; b = 2L; c = 3L }) = [ ("a", 1L)
-                                                              ("b", 2L)
-                                                              ("c", 3L) ]
-
   Stdlib.Dict.toList_v0 (Dict { }) = []
+
+  Stdlib.Dict.toList_v0 (Dict { a = 1L; b = 2L; c = 3L }) =
+    [ ("a", 1L); ("b", 2L); ("c", 3L) ]
+
 
 
 module Values =
@@ -191,11 +179,7 @@ module Values =
 
 
 module Remove =
-  Stdlib.Dict.remove_v0 (Dict { key1 = "val1"; key2 = "val2" }) "key1" = (Dict
-    { key2 = "val2" })
-
+  Stdlib.Dict.remove_v0 (Dict { key1 = "val1"; key2 = "val2" }) "key1" = (Dict { key2 = "val2" })
   Stdlib.Dict.remove_v0 (Dict { key1 = "val1" }) "key1" = (Dict { })
-
   Stdlib.Dict.remove_v0 (Dict { key1 = "val1" }) "key2" = (Dict { key1 = "val1" })
-
   Stdlib.Dict.remove_v0 (Dict { }) "key1" = (Dict { })

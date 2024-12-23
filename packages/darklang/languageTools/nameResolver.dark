@@ -29,7 +29,7 @@ module Darklang =
       type GenericName =
         { modules: List<String>
           name: String
-          version: Int64 }
+          version: Int32 }
 
       /// If we're 'given' the name `Option.Option`
       /// and we're parsing in `Darklang.Stdlib`,
@@ -74,15 +74,6 @@ module Darklang =
 
 
       module TypeName =
-        let err
-          (errType: RuntimeErrors.NameResolution.ErrorType)
-          : ProgramTypes.NameResolution<ProgramTypes.FQTypeName.FQTypeName> =
-          (LanguageTools.RuntimeErrors.NameResolution.Error
-            { nameType = LanguageTools.RuntimeErrors.NameResolution.NameType.Type
-              errorType = errType })
-          |> Stdlib.Result.Result.Error
-
-
         let tryResolve
           (pm: ProgramTypes.PackageManager.PackageManager)
           (name: GenericName)
@@ -122,18 +113,19 @@ module Darklang =
             // TODO: handle versions... (parse out the _v[n] part if present)
             match name with
             | None ->
-              err (RuntimeErrors.NameResolution.ErrorType.InvalidPackageName given)
+              Stdlib.Result.Result.Error (ProgramTypes.NameResolutionError.InvalidName given)
+
             | Some name ->
               let genericName =
                 GenericName
                   { modules = modules
                     name = name
-                    version = 0L }
+                    version = 0 }
 
               let result =
                 Stdlib.List.fold
                   (namesToTry owner currentModule genericName)
-                  (err (RuntimeErrors.NameResolution.ErrorType.NotFound given))
+                  (Stdlib.Result.Result.Error (ProgramTypes.NameResolutionError.NotFound given))
                   (fun currentResult nameToTry ->
                     match currentResult with
                     | Ok _ -> currentResult
@@ -147,14 +139,6 @@ module Darklang =
 
 
       module ConstantName =
-        let err
-          (errType: RuntimeErrors.NameResolution.ErrorType)
-          : ProgramTypes.NameResolution<ProgramTypes.FQConstantName.FQConstantName> =
-          (LanguageTools.RuntimeErrors.NameResolution.Error
-            { nameType = LanguageTools.RuntimeErrors.NameResolution.NameType.Constant
-              errorType = errType })
-          |> Stdlib.Result.Result.Error
-
         let builtinThingExists (name: String) : Bool =
           (Builtin.languageToolsAllBuiltinConstants ())
           |> Stdlib.List.findFirst (fun f -> f.name == name)
@@ -208,18 +192,18 @@ module Darklang =
             // TODO: handle versions... (parse out the _v[n] part if present)
             match name with
             | None ->
-              err (RuntimeErrors.NameResolution.ErrorType.InvalidPackageName given)
+              Stdlib.Result.Result.Error (ProgramTypes.NameResolutionError.InvalidName given)
             | Some name ->
               let genericName =
                 GenericName
                   { modules = modules
                     name = name
-                    version = 0L }
+                    version = 0 }
 
               let result =
                 Stdlib.List.fold
                   (namesToTry owner currentModule genericName)
-                  (err (RuntimeErrors.NameResolution.ErrorType.NotFound given))
+                  (Stdlib.Result.Result.Error (ProgramTypes.NameResolutionError.NotFound given))
                   (fun currentResult nameToTry ->
                     match currentResult with
                     | Ok _ -> currentResult
@@ -233,15 +217,6 @@ module Darklang =
 
 
       module FnName =
-        let err
-          (errType: RuntimeErrors.NameResolution.ErrorType)
-          : ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName> =
-          (LanguageTools.RuntimeErrors.NameResolution.Error
-            { nameType = LanguageTools.RuntimeErrors.NameResolution.NameType.Function
-              errorType = errType })
-          |> Stdlib.Result.Result.Error
-
-
         let tryResolve
           (pm: ProgramTypes.PackageManager.PackageManager)
           (name: GenericName)
@@ -291,20 +266,20 @@ module Darklang =
             // TODO: handle versions... (parse out the _v[n] part if present)
             match name with
             | None ->
-              err (RuntimeErrors.NameResolution.ErrorType.InvalidPackageName given)
+              Stdlib.Result.Result.Error (ProgramTypes.NameResolutionError.InvalidName given)
             | Some name ->
               let genericName =
                 GenericName
                   { modules = modules
                     name = name
-                    version = 0L }
+                    version = 0 }
 
               let names = namesToTry owner currentModule genericName
 
               let result =
                 Stdlib.List.fold
                   names
-                  (err (RuntimeErrors.NameResolution.ErrorType.NotFound given))
+                  (Stdlib.Result.Result.Error (ProgramTypes.NameResolutionError.NotFound given))
                   (fun currentResult nameToTry ->
                     match currentResult with
                     | Ok _ -> currentResult

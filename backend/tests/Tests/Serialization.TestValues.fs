@@ -33,135 +33,35 @@ module RuntimeTypes =
       RT.FQConstantName.Package uuid ]
 
   let typeReferences : List<RT.TypeReference> =
-    [ RT.TInt64
-      RT.TUInt64
+    [ RT.TUnit
+      RT.TBool
+
       RT.TInt8
       RT.TUInt8
       RT.TInt16
       RT.TUInt16
       RT.TInt32
       RT.TUInt32
+      RT.TInt64
+      RT.TUInt64
       RT.TInt128
       RT.TUInt128
+
       RT.TFloat
-      RT.TBool
-      RT.TUnit
+
       RT.TString
-      RT.TList RT.TInt64
+
       RT.TTuple(RT.TBool, RT.TBool, [ RT.TBool ])
+      RT.TList RT.TInt64
       RT.TDict RT.TBool
+
+      RT.TFn(NEList.singleton RT.TBool, RT.TBool)
+
+      RT.TCustomType(Ok(RT.FQTypeName.Package uuid), [ RT.TBool ])
+
       RT.TDB RT.TBool
-      RT.TCustomType(Ok(RT.FQTypeName.Package uuid), [ RT.TBool ])
-      RT.TCustomType(Ok(RT.FQTypeName.Package uuid), [ RT.TBool ])
-      RT.TVariable "test"
-      RT.TFn(NEList.singleton RT.TBool, RT.TBool) ]
 
-  let letPatterns : List<RT.LetPattern> =
-    [ RT.LPVariable(id, "test")
-      RT.LPUnit(id)
-      RT.LPTuple(id, RT.LPUnit id, RT.LPUnit id, []) ]
-
-  let matchPatterns : List<RT.MatchPattern> =
-    [ RT.MPVariable(id, "test")
-      RT.MPEnum(id, "Some", [ RT.MPVariable(id, "var") ])
-      RT.MPInt64(id, 7857395)
-      RT.MPUInt64(id, 756386UL)
-      RT.MPInt8(id, 127y)
-      RT.MPUInt8(id, 255uy)
-      RT.MPInt16(id, 32767s)
-      RT.MPUInt16(id, 65535us)
-      RT.MPInt32(id, 2147483647l)
-      RT.MPUInt32(id, 4294967295ul)
-      RT.MPInt128(id, 170141183460Q)
-      RT.MPUInt128(id, 340282366920938Z)
-      RT.MPBool(id, true)
-      RT.MPChar(id, "8jgkdjsfg")
-      RT.MPString(id, "iklfijo13294")
-      RT.MPUnit(id)
-      RT.MPTuple(
-        id,
-        RT.MPUnit(id),
-        RT.MPString(id, "1243sdfsadf"),
-        [ RT.MPVariable(id, "var2") ]
-      )
-      RT.MPFloat(id, 79375.847583)
-      RT.MPList(id, [ RT.MPString(id, "1234") ])
-      RT.MPListCons(
-        id,
-        RT.MPString(id, "val1"),
-        RT.MPListCons(
-          id,
-          RT.MPString(id, "val2"),
-          RT.MPList(id, [ RT.MPString(id, "val3") ])
-        )
-      ) ]
-
-  let exprs : List<RT.Expr> =
-    [ RT.EInt64(id, 7L)
-      RT.EUInt64(id, 7UL)
-      RT.EInt8(id, 7y)
-      RT.EUInt8(id, 7uy)
-      RT.EInt16(id, 7s)
-      RT.EUInt16(id, 7us)
-      RT.EInt32(id, 7l)
-      RT.EUInt32(id, 7ul)
-      RT.EInt128(id, 7Q)
-      RT.EUInt128(id, 7Z)
-      RT.EBool(id, false)
-      RT.EString(
-        id,
-        [ RT.StringText "asdfasedf"
-          RT.StringInterpolation(RT.EVariable(id, "var")) ]
-      )
-      RT.EUnit(id)
-      RT.ELet(
-        id,
-        RT.LPVariable(id, "binding"),
-        RT.EUnit(id),
-        RT.EVariable(id, "binding")
-      )
-      RT.EIf(id, RT.EUnit(id), RT.EUnit(id), Some(RT.EUnit(id)))
-      RT.EIf(id, RT.EUnit(id), RT.EUnit(id), None)
-      RT.ELambda(id, NEList.singleton (RT.LPVariable(id, "var3")), RT.EUnit(id))
-      RT.ELambda(
-        id,
-        NEList.singleton (
-          RT.LPTuple(id, RT.LPVariable(id, "var11"), RT.LPVariable(id, "var12"), [])
-        ),
-        RT.EUnit(id)
-      )
-      RT.EFieldAccess(id, RT.EUnit(id), "field")
-      RT.EVariable(id, "var4")
-      RT.EApply(id, RT.EUnit(id), typeReferences, NEList.singleton (RT.EUnit(id)))
-      RT.EApply(
-        id,
-        RT.EFnName(id, RT.FQFnName.Package uuid),
-        [],
-        (NEList.singleton (RT.EUnit(id)))
-      )
-      RT.EList(id, [ RT.EUnit(id) ])
-      RT.ETuple(id, RT.EUnit(id), RT.EUnit(id), [ RT.EUnit(id) ])
-      RT.ERecord(
-        id,
-        RT.FQTypeName.Package uuid,
-        NEList.singleton ("a9df8", RT.EUnit(id))
-      )
-      RT.ERecordUpdate(
-        id,
-        RT.EVariable(id, "myRec"),
-        NEList.singleton ("y", RT.EInt64(id, 2L))
-      )
-      RT.EMatch(
-        id,
-        RT.EInt64(id, 123),
-        NEList.singleton
-          { pat = RT.MPVariable(id, "i")
-            whenCondition = None
-            rhs = RT.EVariable(id, "i") }
-      )
-      RT.EAnd(id, RT.EBool(id, true), RT.EBool(id, false))
-      RT.EOr(id, RT.EBool(id, true), RT.EBool(id, false))
-      RT.EEnum(id, RT.FQTypeName.Package uuid, "A", [ RT.EUnit(id) ]) ]
+      RT.TVariable "test" ]
 
 
   let valueTypes : List<RT.ValueType> =
@@ -169,16 +69,19 @@ module RuntimeTypes =
     let ktUnit = known RT.KnownType.KTUnit
 
     [ RT.ValueType.Unknown
+
       ktUnit
+
       known RT.KnownType.KTBool
-      known RT.KnownType.KTInt64
-      known RT.KnownType.KTUInt64
+
       known RT.KnownType.KTInt8
       known RT.KnownType.KTUInt8
       known RT.KnownType.KTInt16
       known RT.KnownType.KTUInt16
       known RT.KnownType.KTInt32
       known RT.KnownType.KTUInt32
+      known RT.KnownType.KTInt64
+      known RT.KnownType.KTUInt64
       known RT.KnownType.KTInt128
       known RT.KnownType.KTUInt128
       known RT.KnownType.KTFloat
@@ -186,11 +89,14 @@ module RuntimeTypes =
       known RT.KnownType.KTString
       known RT.KnownType.KTUuid
       known RT.KnownType.KTDateTime
-      known (RT.KnownType.KTList ktUnit)
+
       known (RT.KnownType.KTTuple(ktUnit, ktUnit, []))
+      known (RT.KnownType.KTList ktUnit)
+      known (RT.KnownType.KTDict ktUnit)
+
       known (RT.KnownType.KTFn(NEList.singleton ktUnit, ktUnit))
-      known (RT.KnownType.KTDB ktUnit)
-      known (RT.KnownType.KTDict ktUnit) ]
+
+      known (RT.KnownType.KTDB ktUnit) ]
 
   let dvals : List<RT.Dval> =
     // TODO: is this exhaustive? I haven't checked.
@@ -204,423 +110,408 @@ module RuntimeTypes =
 
 
 module ProgramTypes =
+  open PT
+
   let signs = [ Sign.Positive; Sign.Negative ]
 
-  let fqFnNames : List<PT.FQFnName.FQFnName> =
-    [ PT.FQFnName.Builtin { name = "int64Increment"; version = 1 }
-      PT.FQFnName.Package uuid ]
+  let fqFnNames : List<FQFnName.FQFnName> =
+    [ FQFnName.Builtin { name = "int64Increment"; version = 1 }
+      FQFnName.Package uuid ]
 
 
-  let letPatterns : List<PT.LetPattern> =
-    [ PT.LPVariable(id, "test")
-      PT.LPTuple(
+  let letPatterns : List<LetPattern> =
+    [ LPVariable(id, "test")
+      LPTuple(
         id,
-        PT.LPVariable(id, "x0"),
-        PT.LPTuple(id, PT.LPVariable(id, "x1"), PT.LPVariable(id, "x2"), []),
-        [ PT.LPTuple(id, PT.LPVariable(id, "x3"), PT.LPVariable(id, "x4"), []) ]
+        LPVariable(id, "x0"),
+        LPTuple(id, LPVariable(id, "x1"), LPVariable(id, "x2"), []),
+        [ LPTuple(id, LPVariable(id, "x3"), LPVariable(id, "x4"), []) ]
       ) ]
 
 
-  let matchPatterns : List<PT.MatchPattern> =
-    [ PT.MPVariable(id, "var8481")
-      PT.MPEnum(id, "None", [])
-      PT.MPInt64(id, 84871728L)
-      PT.MPUInt64(id, 84871728UL)
-      PT.MPInt8(id, 127y)
-      PT.MPUInt8(id, 255uy)
-      PT.MPInt16(id, 32767s)
-      PT.MPUInt16(id, 65535us)
-      PT.MPInt32(id, 2147483647l)
-      PT.MPUInt32(id, 4294967295ul)
-      PT.MPInt128(id, 170141183460469231731687303715884105727Q)
-      PT.MPUInt128(id, 340282366920938463463374607431768211455Z)
-      PT.MPBool(id, false)
-      PT.MPChar(id, "w")
-      PT.MPString(id, "testing testing 123")
-      PT.MPFloat(id, Positive, "123", "456")
-      PT.MPUnit(id)
-      PT.MPTuple(id, PT.MPInt64(id, 123), PT.MPBool(id, true), [ PT.MPUnit(id) ])
-      PT.MPList(id, [ PT.MPInt64(id, 123) ])
-      PT.MPListCons(
+  let matchPatterns : List<MatchPattern> =
+    [ MPVariable(id, "var8481")
+      MPEnum(id, "None", [])
+      MPInt64(id, 84871728L)
+      MPUInt64(id, 84871728UL)
+      MPInt8(id, 127y)
+      MPUInt8(id, 255uy)
+      MPInt16(id, 32767s)
+      MPUInt16(id, 65535us)
+      MPInt32(id, 2147483647l)
+      MPUInt32(id, 4294967295ul)
+      MPInt128(id, 170141183460469231731687303715884105727Q)
+      MPUInt128(id, 340282366920938463463374607431768211455Z)
+      MPBool(id, false)
+      MPChar(id, "w")
+      MPString(id, "testing testing 123")
+      MPFloat(id, Positive, "123", "456")
+      MPUnit(id)
+      MPTuple(id, MPInt64(id, 123), MPBool(id, true), [ MPUnit(id) ])
+      MPList(id, [ MPInt64(id, 123) ])
+      MPListCons(
         id,
-        PT.MPString(id, "val1"),
-        PT.MPListCons(
-          id,
-          PT.MPString(id, "val2"),
-          PT.MPList(id, [ PT.MPString(id, "val3") ])
-        )
+        MPString(id, "val1"),
+        MPListCons(id, MPString(id, "val2"), MPList(id, [ MPString(id, "val3") ]))
       ) ]
 
 
   // Note: This is aimed to contain all cases of `TypeReference`
-  let typeReference : PT.TypeReference =
-    PT.TTuple(
-      PT.TInt64,
-      PT.TFloat,
-      [ PT.TBool
-        PT.TUnit
-        PT.TUInt64
-        PT.TInt8
-        PT.TUInt8
-        PT.TInt16
-        PT.TUInt16
-        PT.TInt32
-        PT.TUInt32
-        PT.TInt128
-        PT.TUInt128
-        PT.TString
-        PT.TList PT.TInt64
-        PT.TTuple(PT.TBool, PT.TBool, [ PT.TBool ])
-        PT.TDict PT.TBool
-        PT.TDB PT.TBool
-        PT.TCustomType(Ok(PT.FQTypeName.Package uuid), [ PT.TBool ])
-        PT.TCustomType(Ok(PT.FQTypeName.Package uuid), [ PT.TBool ])
-        PT.TVariable "test"
-        PT.TFn(NEList.singleton PT.TBool, PT.TBool) ]
+  let typeReference : TypeReference =
+    TTuple(
+      TInt64,
+      TFloat,
+      [ TBool
+        TUnit
+        TUInt64
+        TInt8
+        TUInt8
+        TInt16
+        TUInt16
+        TInt32
+        TUInt32
+        TInt128
+        TUInt128
+        TString
+        TList TInt64
+        TTuple(TBool, TBool, [ TBool ])
+        TDict TBool
+        TDB TBool
+        TCustomType(Ok(FQTypeName.Package uuid), [ TBool ])
+        TCustomType(Ok(FQTypeName.Package uuid), [ TBool ])
+        TVariable "test"
+        TFn(NEList.singleton TBool, TBool) ]
     )
 
 
 
   // Note: this is aimed to contain all cases of `Expr`
   let expr =
-    let e = PT.EInt64(id, 5)
-    PT.ELet(
+    let e = EInt64(id, 5)
+    ELet(
       id,
-      PT.LPTuple(
+      LPTuple(
         id,
-        PT.LPVariable(id, "x0"),
-        PT.LPTuple(id, PT.LPVariable(id, "x1"), PT.LPVariable(id, "x2"), []),
-        [ PT.LPTuple(id, PT.LPVariable(id, "x3"), PT.LPVariable(id, "x4"), []) ]
+        LPVariable(id, "x0"),
+        LPTuple(id, LPVariable(id, "x1"), LPVariable(id, "x2"), []),
+        [ LPTuple(id, LPVariable(id, "x3"), LPVariable(id, "x4"), []) ]
       ),
-      PT.EInt64(id, 5L),
-      PT.ELet(
+      EInt64(id, 5L),
+      ELet(
         id,
-        PT.LPVariable(id, "x2"),
-        PT.EInt64(id, 9223372036854775807L),
-        PT.ELet(
+        LPVariable(id, "x2"),
+        EInt64(id, 9223372036854775807L),
+        ELet(
           id,
-          PT.LPVariable(id, "bool"),
-          PT.EBool(id, true),
-          PT.ELet(
+          LPVariable(id, "bool"),
+          EBool(id, true),
+          ELet(
             id,
-            PT.LPVariable(id, "bool"),
-            PT.EBool(id, false),
-            PT.ELet(
+            LPVariable(id, "bool"),
+            EBool(id, false),
+            ELet(
               id,
-              PT.LPVariable(id, "str"),
-              PT.EString(
+              LPVariable(id, "str"),
+              EString(
                 id,
-                [ PT.StringText "a string"
-                  PT.StringInterpolation(PT.EVariable(id, "var")) ]
+                [ StringText "a string"; StringInterpolation(EVariable(id, "var")) ]
               ),
-              PT.ELet(
+              ELet(
                 id,
-                PT.LPVariable(id, "char"),
-                PT.EChar(id, "a"),
-                PT.ELet(
+                LPVariable(id, "char"),
+                EChar(id, "a"),
+                ELet(
                   id,
-                  PT.LPVariable(id, "float"),
-                  PT.EFloat(id, Negative, "6", "5"),
-                  PT.ELet(
+                  LPVariable(id, "float"),
+                  EFloat(id, Negative, "6", "5"),
+                  ELet(
                     id,
-                    PT.LPVariable(id, "n"),
-                    PT.EUnit id,
-                    PT.ELet(
+                    LPVariable(id, "n"),
+                    EUnit id,
+                    ELet(
                       id,
-                      PT.LPVariable(id, "i"),
-                      PT.EIf(
+                      LPVariable(id, "i"),
+                      EIf(
                         id,
-                        PT.EApply(
+                        EApply(
                           id,
-                          PT.EFnName(
+                          EFnName(
                             id,
                             Ok(
-                              PT.FQFnName.Builtin
+                              FQFnName.Builtin
                                 { name = "int64ToString"; version = 0 }
                             )
                           ),
                           [ typeReference ],
-                          NEList.singleton (PT.EInt64(id, 6L))
+                          NEList.singleton (EInt64(id, 6L))
                         ),
-                        PT.EIf(
+                        EIf(
                           id,
-                          PT.EInfix(
+                          EInfix(
                             id,
-                            PT.InfixFnCall(PT.ComparisonNotEquals),
-                            PT.EInt64(id, 5L),
-                            PT.EInt64(id, 6L)
+                            InfixFnCall(ComparisonNotEquals),
+                            EInt64(id, 5L),
+                            EInt64(id, 6L)
                           ),
-                          PT.EInfix(
+                          EInfix(
                             id,
-                            PT.InfixFnCall(PT.ArithmeticPlus),
-                            PT.EInt64(id, 5L),
-                            PT.EInt64(id, 2L)
+                            InfixFnCall(ArithmeticPlus),
+                            EInt64(id, 5L),
+                            EInt64(id, 2L)
                           ),
                           Some(
-                            PT.ELambda(
+                            ELambda(
                               id,
-                              NEList.singleton (PT.LPVariable(id, "y")),
-                              PT.EInfix(
+                              NEList.singleton (LPVariable(id, "y")),
+                              EInfix(
                                 id,
-                                PT.InfixFnCall(PT.ArithmeticPlus),
-                                PT.EInt64(id, 2L),
-                                PT.EVariable(id, "y")
+                                InfixFnCall(ArithmeticPlus),
+                                EInt64(id, 2L),
+                                EVariable(id, "y")
                               )
                             )
                           )
                         ),
                         Some(
-                          PT.EInfix(
+                          EInfix(
                             id,
-                            PT.InfixFnCall(PT.ArithmeticPlus),
-                            PT.EInfix(
+                            InfixFnCall(ArithmeticPlus),
+                            EInfix(
                               id,
-                              PT.InfixFnCall(PT.ArithmeticPlus),
-                              PT.EFieldAccess(id, PT.EVariable(id, "x"), "y"),
-                              PT.EApply(
+                              InfixFnCall(ArithmeticPlus),
+                              ERecordFieldAccess(id, EVariable(id, "x"), "y"),
+                              EApply(
                                 id,
-                                PT.EFnName(
+                                EFnName(
                                   id,
                                   Ok(
-                                    PT.FQFnName.Builtin
+                                    FQFnName.Builtin
                                       { name = "int64Add"; version = 0 }
                                   )
                                 ),
                                 [],
-                                NEList.doubleton
-                                  (PT.EInt64(id, 6L))
-                                  (PT.EInt64(id, 2L))
+                                NEList.doubleton (EInt64(id, 6L)) (EInt64(id, 2L))
                               )
                             ),
-                            PT.EList(
+                            EList(
                               id,
-                              [ PT.EInt64(id, 5L)
-                                PT.EInt64(id, 6L)
-                                PT.EInt64(id, 7L) ]
+                              [ EInt64(id, 5L); EInt64(id, 6L); EInt64(id, 7L) ]
                             )
                           )
                         )
                       ),
-                      PT.ELet(
+                      ELet(
                         id,
-                        PT.LPVariable(id, "r"),
-                        PT.ERecord(
+                        LPVariable(id, "r"),
+                        ERecord(
                           id,
-                          Ok(PT.FQTypeName.Package uuid),
+                          Ok(FQTypeName.Package uuid),
+                          [ TUnit ],
                           [ ("field",
-                             PT.EPipe(
+                             EPipe(
                                id,
-                               PT.EInt64(id, 5L),
-                               [ PT.EPipeVariable(
+                               EInt64(id, 5L),
+                               [ EPipeVariable(id, "fn", [ EVariable(id, "x") ])
+                                 EPipeLambda(
                                    id,
-                                   "fn",
-                                   [ PT.EVariable(id, "x") ]
-                                 )
-                                 PT.EPipeLambda(
-                                   id,
-                                   NEList.singleton (PT.LPVariable(id, "y")),
-                                   PT.EInfix(
+                                   NEList.singleton (LPVariable(id, "y")),
+                                   EInfix(
                                      id,
-                                     PT.InfixFnCall(PT.ArithmeticPlus),
-                                     PT.EInt64(id, 2L),
-                                     PT.EVariable(id, "y")
+                                     InfixFnCall(ArithmeticPlus),
+                                     EInt64(id, 2L),
+                                     EVariable(id, "y")
                                    )
                                  )
-                                 PT.EPipeInfix(
+                                 EPipeInfix(
                                    id,
-                                   PT.InfixFnCall(PT.ArithmeticPlus),
-                                   PT.EInt64(id, 2L)
+                                   InfixFnCall(ArithmeticPlus),
+                                   EInt64(id, 2L)
                                  )
-                                 PT.EPipeFnCall(
+                                 EPipeFnCall(
                                    id,
                                    Ok(
-                                     PT.FQFnName.Builtin
+                                     FQFnName.Builtin
                                        { name = "int64Add"; version = 0 }
                                    ),
                                    [],
-                                   [ (PT.EInt64(id, 6L)); (PT.EInt64(id, 2L)) ]
+                                   [ (EInt64(id, 6L)); (EInt64(id, 2L)) ]
                                  ) ]
                              ))
                             ("enum",
-                             PT.EEnum(
+                             EEnum(
                                id,
-                               Ok(PT.FQTypeName.Package uuid),
+                               Ok(FQTypeName.Package uuid),
+                               [ TUnit ],
                                "Error",
                                []
                              )) ]
                         ),
-                        PT.ELet(
+                        ELet(
                           id,
-                          PT.LPVariable(id, "updatedR"),
-                          PT.ERecordUpdate(
+                          LPVariable(id, "updatedR"),
+                          ERecordUpdate(
                             id,
-                            PT.EVariable(id, "r"),
-                            NEList.singleton ("field", PT.EInt64(id, 42L))
+                            EVariable(id, "r"),
+                            NEList.singleton ("field", EInt64(id, 42L))
                           ),
-                          PT.ELet(
+                          ELet(
                             id,
-                            PT.LPVariable(id, "m"),
-                            PT.EMatch(
+                            LPVariable(id, "m"),
+                            EMatch(
                               id,
-                              PT.EApply(
+                              EApply(
                                 id,
-                                PT.EFnName(
+                                EFnName(
                                   id,
                                   Ok(
-                                    PT.FQFnName.Builtin
+                                    FQFnName.Builtin
                                       { name = "modFunction"; version = 2 }
                                   )
                                 ),
                                 [],
-                                (NEList.singleton (PT.EInt64(id, 5L)))
+                                (NEList.singleton (EInt64(id, 5L)))
                               ),
-                              [ { pat =
-                                    PT.MPEnum(id, "Ok", [ PT.MPVariable(id, "x") ])
+                              [ { pat = MPEnum(id, "Ok", [ MPVariable(id, "x") ])
                                   whenCondition = None
-                                  rhs = PT.EVariable(id, "v") }
-                                { pat = PT.MPInt64(id, 5L)
+                                  rhs = EVariable(id, "v") }
+                                { pat = MPInt64(id, 5L)
                                   whenCondition = None
-                                  rhs = PT.EInt64(id, -9223372036854775808L) }
-                                { pat = PT.MPBool(id, true)
+                                  rhs = EInt64(id, -9223372036854775808L) }
+                                { pat = MPBool(id, true)
                                   whenCondition = None
-                                  rhs = PT.EInt64(id, 7L) }
-                                { pat = PT.MPChar(id, "c")
+                                  rhs = EInt64(id, 7L) }
+                                { pat = MPChar(id, "c")
                                   whenCondition = None
-                                  rhs = PT.EChar(id, "c") }
-                                { pat = PT.MPList(id, [ PT.MPBool(id, true) ])
+                                  rhs = EChar(id, "c") }
+                                { pat = MPList(id, [ MPBool(id, true) ])
                                   whenCondition = None
-                                  rhs = PT.EList(id, [ PT.EBool(id, true) ]) }
+                                  rhs = EList(id, [ EBool(id, true) ]) }
                                 { pat =
-                                    PT.MPListCons(
+                                    MPListCons(
                                       id,
-                                      PT.MPString(id, "val1"),
-                                      PT.MPListCons(
+                                      MPString(id, "val1"),
+                                      MPListCons(
                                         id,
-                                        PT.MPString(id, "val2"),
-                                        PT.MPList(id, [ PT.MPString(id, "val3") ])
+                                        MPString(id, "val2"),
+                                        MPList(id, [ MPString(id, "val3") ])
                                       )
                                     )
                                   whenCondition = None
-                                  rhs = PT.EList(id, [ PT.EBool(id, true) ]) }
-                                { pat = PT.MPString(id, "string")
+                                  rhs = EList(id, [ EBool(id, true) ]) }
+                                { pat = MPString(id, "string")
                                   whenCondition = None
                                   rhs =
-                                    PT.EString(
+                                    EString(
                                       id,
-                                      [ PT.StringText "string"
-                                        PT.StringInterpolation(
-                                          PT.EVariable(id, "var")
-                                        ) ]
+                                      [ StringText "string"
+                                        StringInterpolation(EVariable(id, "var")) ]
                                     ) }
-                                { pat = PT.MPUnit id
+                                { pat = MPUnit id
                                   whenCondition = None
-                                  rhs = PT.EUnit id }
-                                { pat = PT.MPVariable(id, "var")
+                                  rhs = EUnit id }
+                                { pat = MPVariable(id, "var")
                                   whenCondition = None
                                   rhs =
-                                    PT.EInfix(
+                                    EInfix(
                                       id,
-                                      PT.InfixFnCall(PT.ArithmeticPlus),
-                                      PT.EInt64(id, 6L),
-                                      PT.EVariable(id, "var")
+                                      InfixFnCall(ArithmeticPlus),
+                                      EInt64(id, 6L),
+                                      EVariable(id, "var")
                                     ) }
-                                { pat = PT.MPFloat(id, Positive, "5", "6")
+                                { pat = MPFloat(id, Positive, "5", "6")
                                   whenCondition = None
-                                  rhs = PT.EFloat(id, Positive, "5", "6") }
+                                  rhs = EFloat(id, Positive, "5", "6") }
                                 { pat =
-                                    PT.MPTuple(
+                                    MPTuple(
                                       id,
-                                      PT.MPVariable(id, "a"),
-                                      PT.MPVariable(id, "b"),
-                                      [ PT.MPVariable(id, "c") ]
+                                      MPVariable(id, "a"),
+                                      MPVariable(id, "b"),
+                                      [ MPVariable(id, "c") ]
                                     )
                                   whenCondition = None
-                                  rhs = PT.EBool(id, true) }
+                                  rhs = EBool(id, true) }
                                 { pat =
-                                    PT.MPTuple(
+                                    MPTuple(
                                       id,
-                                      PT.MPVariable(id, "a"),
-                                      PT.MPVariable(id, "b"),
-                                      [ PT.MPVariable(id, "c") ]
+                                      MPVariable(id, "a"),
+                                      MPVariable(id, "b"),
+                                      [ MPVariable(id, "c") ]
                                     )
-                                  whenCondition = Some(PT.EBool(id, true))
-                                  rhs = PT.EBool(id, true) } ]
+                                  whenCondition = Some(EBool(id, true))
+                                  rhs = EBool(id, true) } ]
                             ),
-                            PT.ELet(
+                            ELet(
                               id,
-                              PT.LPVariable(id, "f"),
-                              PT.EIf(
+                              LPVariable(id, "f"),
+                              EIf(
                                 id,
-                                PT.EBool(id, true),
-                                PT.EInt64(id, 5L),
-                                Some(PT.EInt64(id, 6L))
+                                EBool(id, true),
+                                EInt64(id, 5L),
+                                Some(EInt64(id, 6L))
                               ),
-                              PT.ELet(
+                              ELet(
                                 id,
-                                PT.LPVariable(id, "partials"),
-                                PT.EList(id, []),
-                                PT.ELet(
+                                LPVariable(id, "partials"),
+                                EList(id, []),
+                                ELet(
                                   id,
-                                  PT.LPVariable(id, "tuples"),
-                                  PT.ETuple(id, e, e, [ e ]),
-                                  PT.ELet(
+                                  LPVariable(id, "tuples"),
+                                  ETuple(id, e, e, [ e ]),
+                                  ELet(
                                     id,
-                                    PT.LPVariable(id, "binopAnd"),
-                                    PT.EInfix(
+                                    LPVariable(id, "binopAnd"),
+                                    EInfix(
                                       id,
-                                      PT.BinOp(PT.BinOpAnd),
-                                      PT.EBool(id, true),
-                                      PT.EBool(id, false)
+                                      BinOp(BinOpAnd),
+                                      EBool(id, true),
+                                      EBool(id, false)
                                     ),
-                                    PT.ELet(
+                                    ELet(
                                       id,
-                                      PT.LPVariable(id, "dict"),
-                                      PT.EDict(
+                                      LPVariable(id, "dict"),
+                                      EDict(id, [ ("a string", EInt64(id, 2L)) ]),
+                                      ELet(
                                         id,
-                                        [ ("a string", PT.EInt64(id, 2L)) ]
-                                      ),
-                                      PT.ELet(
-                                        id,
-                                        PT.LPVariable(id, "int8"),
-                                        PT.EInt8(id, 127y),
-                                        PT.ELet(
+                                        LPVariable(id, "int8"),
+                                        EInt8(id, 127y),
+                                        ELet(
                                           id,
-                                          PT.LPVariable(id, "uint8"),
-                                          PT.EUInt8(id, 255uy),
-                                          PT.ELet(
+                                          LPVariable(id, "uint8"),
+                                          EUInt8(id, 255uy),
+                                          ELet(
                                             id,
-                                            PT.LPVariable(id, "int16"),
-                                            PT.EInt16(id, 32767s),
-                                            PT.ELet(
+                                            LPVariable(id, "int16"),
+                                            EInt16(id, 32767s),
+                                            ELet(
                                               id,
-                                              PT.LPVariable(id, "uint16"),
-                                              PT.EUInt16(id, 65535us),
-                                              PT.ELet(
+                                              LPVariable(id, "uint16"),
+                                              EUInt16(id, 65535us),
+                                              ELet(
                                                 id,
-                                                PT.LPVariable(id, "int32"),
-                                                PT.EInt32(id, 2147483647l),
-                                                PT.ELet(
+                                                LPVariable(id, "int32"),
+                                                EInt32(id, 2147483647l),
+                                                ELet(
                                                   id,
-                                                  PT.LPVariable(id, "uint32"),
-                                                  PT.EUInt32(id, 4294967295ul),
-                                                  PT.ELet(
+                                                  LPVariable(id, "uint32"),
+                                                  EUInt32(id, 4294967295ul),
+                                                  ELet(
                                                     id,
-                                                    PT.LPVariable(id, "int128"),
-                                                    PT.EInt128(
+                                                    LPVariable(id, "int128"),
+                                                    EInt128(
                                                       id,
                                                       170141183460469231731687303715884105727Q
                                                     ),
-                                                    PT.ELet(
+                                                    ELet(
                                                       id,
-                                                      PT.LPVariable(id, "uint128"),
-                                                      PT.EUInt128(
+                                                      LPVariable(id, "uint128"),
+                                                      EUInt128(
                                                         id,
                                                         340282366920938463463374607431768211455Z
                                                       ),
-                                                      PT.ELet(
+                                                      ELet(
                                                         id,
-                                                        PT.LPVariable(id, "uint64"),
-                                                        PT.EUInt64(
+                                                        LPVariable(id, "uint64"),
+                                                        EUInt64(
                                                           id,
                                                           18446744073709551615UL
                                                         ),
@@ -653,69 +544,67 @@ module ProgramTypes =
     )
 
 
-  let constValue : PT.Const =
-    PT.Const.CTuple(
-      PT.Const.CInt64(314L),
-      PT.Const.CBool(true),
-      [ PT.Const.CString("string")
-        PT.Const.CUnit
-        PT.Const.CFloat(Positive, "3", "14")
-        PT.Const.CChar("c")
-        PT.Const.CUnit
-        PT.Const.CUInt64(3UL)
-        PT.Const.CInt8(4y)
-        PT.Const.CUInt8(3uy)
-        PT.Const.CInt16(4s)
-        PT.Const.CUInt16(3us)
-        PT.Const.CInt32(4l)
-        PT.Const.CUInt32(3ul)
-        PT.Const.CInt128(-1Q)
-        PT.Const.CUInt128(1Z) ]
+  let constValue : Const =
+    CTuple(
+      CInt64(314L),
+      CBool(true),
+      [ CString("string")
+        CUnit
+        CFloat(Positive, "3", "14")
+        CChar("c")
+        CUnit
+        CUInt64(3UL)
+        CInt8(4y)
+        CUInt8(3uy)
+        CInt16(4s)
+        CUInt16(3us)
+        CInt32(4l)
+        CUInt32(3ul)
+        CInt128(-1Q)
+        CUInt128(1Z) ]
     )
 
 
   module Handler =
-    let cronIntervals : List<PT.Handler.CronInterval> =
-      [ PT.Handler.EveryDay
-        PT.Handler.EveryWeek
-        PT.Handler.EveryFortnight
-        PT.Handler.Every12Hours
-        PT.Handler.EveryHour
-        PT.Handler.EveryMinute ]
+    let cronIntervals : List<Handler.CronInterval> =
+      [ Handler.EveryDay
+        Handler.EveryWeek
+        Handler.EveryFortnight
+        Handler.Every12Hours
+        Handler.EveryHour
+        Handler.EveryMinute ]
 
     module Spec =
-      let http = PT.Handler.HTTP("/path-bytes", "GET")
-      let worker = PT.Handler.Worker("name")
+      let http = Handler.HTTP("/path-bytes", "GET")
+      let worker = Handler.Worker("name")
 
-      let cron = PT.Handler.Cron("name", PT.Handler.Every12Hours)
+      let cron = Handler.Cron("name", Handler.Every12Hours)
 
-      let repl = PT.Handler.REPL("name")
+      let repl = Handler.REPL("name")
 
-    let specs : List<PT.Handler.Spec> =
-      [ Spec.http; Spec.worker; Spec.cron; Spec.repl ]
+    let specs : List<Handler.Spec> = [ Spec.http; Spec.worker; Spec.cron; Spec.repl ]
 
-    let http : PT.Handler.T = { spec = Spec.http; tlid = tlid; ast = expr }
+    let http : Handler.T = { spec = Spec.http; tlid = tlid; ast = expr }
 
-    let worker : PT.Handler.T = { spec = Spec.worker; tlid = tlid; ast = expr }
+    let worker : Handler.T = { spec = Spec.worker; tlid = tlid; ast = expr }
 
-    let repl : PT.Handler.T = { spec = Spec.repl; tlid = tlid; ast = expr }
+    let repl : Handler.T = { spec = Spec.repl; tlid = tlid; ast = expr }
 
-    let cron : PT.Handler.T = { spec = Spec.cron; tlid = tlid; ast = expr }
+    let cron : Handler.T = { spec = Spec.cron; tlid = tlid; ast = expr }
 
-    let handlersWithName : List<string * PT.Handler.T> =
+    let handlersWithName : List<string * Handler.T> =
       [ "Worker", worker; "Cron", cron; "REPL", repl; "Http", http ]
 
     let handlers = List.map snd handlersWithName
 
-  let userDB : PT.DB.T =
-    { tlid = 0UL; name = "User"; version = 0; typ = typeReference }
+  let userDB : DB.T = { tlid = 0UL; name = "User"; version = 0; typ = typeReference }
 
-  let userDBs : List<PT.DB.T> = [ userDB ]
+  let userDBs : List<DB.T> = [ userDB ]
 
   // TODO: serialize stdlib types?
   // (also make sure we roundtrip test them)
 
-  let packageFn : PT.PackageFn.PackageFn =
+  let packageFn : PackageFn.PackageFn =
     { id = uuid
       name =
         { owner = "dark"; modules = [ "stdlib"; "Int64"; "Int64" ]; name = "mod" }
@@ -726,11 +615,11 @@ module ProgramTypes =
           { name = "param"; typ = typeReference; description = "desc" }
       returnType = typeReference
       description = "test"
-      deprecated = PT.NotDeprecated }
+      deprecated = NotDeprecated }
 
   let packageFns = [ packageFn ]
 
-  let packageType : PT.PackageType.PackageType =
+  let packageType : PackageType.PackageType =
     { id = uuid
       name =
         { owner = "darklang"
@@ -739,7 +628,7 @@ module ProgramTypes =
       declaration =
         { typeParams = [ "a" ]
           definition =
-            PT.TypeDeclaration.Enum(
+            TypeDeclaration.Enum(
               NEList.ofList
                 { name = "caseA"; fields = []; description = "" }
                 [ { name = "caseB"
@@ -749,11 +638,11 @@ module ProgramTypes =
             ) }
 
       description = "test"
-      deprecated = PT.NotDeprecated }
+      deprecated = NotDeprecated }
 
   let packageTypes = [ packageType ]
 
-  let packageConstant : PT.PackageConstant.PackageConstant =
+  let packageConstant : PackageConstant.PackageConstant =
     { id = uuid
       name =
         { owner = "dark"
@@ -761,15 +650,15 @@ module ProgramTypes =
           name = "testConstant" }
       body = constValue
       description = "test"
-      deprecated = PT.NotDeprecated }
+      deprecated = NotDeprecated }
 
   let packageConstants = [ packageConstant ]
 
-  let toplevels : List<PT.Toplevel.T> =
-    [ List.map PT.Toplevel.TLHandler Handler.handlers
-      List.map PT.Toplevel.TLDB [ userDB ] ]
+  let toplevels : List<Toplevel.T> =
+    [ List.map Toplevel.TLHandler Handler.handlers
+      List.map Toplevel.TLDB [ userDB ] ]
     |> List.concat
 
-  let userSecret : PT.Secret.T = { name = "APIKEY"; value = "hunter2"; version = 0 }
+  let userSecret : Secret.T = { name = "APIKEY"; value = "hunter2"; version = 0 }
 
   let userSecrets = [ userSecret ]

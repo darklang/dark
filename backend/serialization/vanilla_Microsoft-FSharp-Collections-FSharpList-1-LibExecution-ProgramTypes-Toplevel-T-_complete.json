@@ -483,7 +483,7 @@
                                                               ]
                                                             },
                                                             {
-                                                              "EFieldAccess": [
+                                                              "ERecordFieldAccess": [
                                                                 123,
                                                                 {
                                                                   "EVariable": [
@@ -585,6 +585,11 @@
                                                         }
                                                       ]
                                                     },
+                                                    [
+                                                      {
+                                                        "TUnit": []
+                                                      }
+                                                    ],
                                                     [
                                                       [
                                                         "field",
@@ -717,6 +722,11 @@
                                                                 }
                                                               ]
                                                             },
+                                                            [
+                                                              {
+                                                                "TUnit": []
+                                                              }
+                                                            ],
                                                             "Error",
                                                             []
                                                           ]
@@ -1956,7 +1966,7 @@
                                                               ]
                                                             },
                                                             {
-                                                              "EFieldAccess": [
+                                                              "ERecordFieldAccess": [
                                                                 123,
                                                                 {
                                                                   "EVariable": [
@@ -2058,6 +2068,11 @@
                                                         }
                                                       ]
                                                     },
+                                                    [
+                                                      {
+                                                        "TUnit": []
+                                                      }
+                                                    ],
                                                     [
                                                       [
                                                         "field",
@@ -2190,6 +2205,11 @@
                                                                 }
                                                               ]
                                                             },
+                                                            [
+                                                              {
+                                                                "TUnit": []
+                                                              }
+                                                            ],
                                                             "Error",
                                                             []
                                                           ]
@@ -3432,7 +3452,7 @@
                                                               ]
                                                             },
                                                             {
-                                                              "EFieldAccess": [
+                                                              "ERecordFieldAccess": [
                                                                 123,
                                                                 {
                                                                   "EVariable": [
@@ -3534,6 +3554,11 @@
                                                         }
                                                       ]
                                                     },
+                                                    [
+                                                      {
+                                                        "TUnit": []
+                                                      }
+                                                    ],
                                                     [
                                                       [
                                                         "field",
@@ -3666,6 +3691,11 @@
                                                                 }
                                                               ]
                                                             },
+                                                            [
+                                                              {
+                                                                "TUnit": []
+                                                              }
+                                                            ],
                                                             "Error",
                                                             []
                                                           ]
@@ -4905,7 +4935,7 @@
                                                               ]
                                                             },
                                                             {
-                                                              "EFieldAccess": [
+                                                              "ERecordFieldAccess": [
                                                                 123,
                                                                 {
                                                                   "EVariable": [
@@ -5007,6 +5037,11 @@
                                                         }
                                                       ]
                                                     },
+                                                    [
+                                                      {
+                                                        "TUnit": []
+                                                      }
+                                                    ],
                                                     [
                                                       [
                                                         "field",
@@ -5139,6 +5174,11 @@
                                                                 }
                                                               ]
                                                             },
+                                                            [
+                                                              {
+                                                                "TUnit": []
+                                                              }
+                                                            ],
                                                             "Error",
                                                             []
                                                           ]

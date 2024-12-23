@@ -1,0 +1,117 @@
+module UserDefined =
+  let stringConst = "test"
+  stringConst = "test"
+  "test" = stringConst
+  UserDefined.stringConst = "test"
+
+  let intConst = 5L
+  intConst = 5L
+  UserDefined.intConst = 5L
+
+  let uint64Const = 5UL
+  uint64Const = 5UL
+  UserDefined.uint64Const = 5UL
+
+  let int32Const = 5l
+  int32Const = 5l
+  UserDefined.int32Const = 5l
+
+  let uint32Const = 5ul
+  uint32Const = 5ul
+  UserDefined.uint32Const = 5ul
+
+  let int16Const = 5s
+  int16Const = 5s
+  UserDefined.int16Const = 5s
+
+  let uint16Const = 5us
+  uint16Const = 5us
+  UserDefined.uint16Const = 5us
+
+  let int8Const = 5y
+  int8Const = 5y
+  UserDefined.int8Const = 5y
+
+  let uint8Const = 5uy
+  uint8Const = 5uy
+  UserDefined.uint8Const = 5uy
+
+  let floatConst = 5.6
+  floatConst = 5.6
+  UserDefined.floatConst = 5.6
+
+  let boolConst = true
+  boolConst = true
+  UserDefined.boolConst = true
+
+  let tupleConst = (1L, 2L, 3L)
+  tupleConst = (1L, 2L, 3L)
+  UserDefined.tupleConst = (1L, 2L, 3L)
+
+  let charConst = 'c'
+  charConst = 'c'
+  UserDefined.charConst = 'c'
+
+  let unitConst = ()
+  unitConst = ()
+  UserDefined.unitConst = ()
+
+  let enumConst = Stdlib.Option.Option.Some 5L
+  enumConst = Stdlib.Option.Option.Some 5L
+  UserDefined.enumConst = Stdlib.Option.Option.Some 5L
+
+  Ok 5L = Builtin.testDerrorMessage "Ok not found"
+
+
+module Package =
+  PACKAGE.Darklang.Test.Constants.stringConst = "test"
+  "test" = PACKAGE.Darklang.Test.Constants.stringConst
+  PACKAGE.Darklang.Test.Constants.stringConst = "test"
+
+  PACKAGE.Darklang.Test.Constants.int128Const = 5Q
+  PACKAGE.Darklang.Test.Constants.int128Const = 5Q
+
+  PACKAGE.Darklang.Test.Constants.uint128Const = 5Z
+  PACKAGE.Darklang.Test.Constants.uint128Const = 5Z
+
+  PACKAGE.Darklang.Test.Constants.intConst = 5L
+  PACKAGE.Darklang.Test.Constants.intConst = 5L
+
+  PACKAGE.Darklang.Test.Constants.uint64Const = 5UL
+  PACKAGE.Darklang.Test.Constants.uint64Const = 5UL
+
+  PACKAGE.Darklang.Test.Constants.int32Const = 5l
+  PACKAGE.Darklang.Test.Constants.int32Const = 5l
+
+  PACKAGE.Darklang.Test.Constants.uint32Const = 5ul
+  PACKAGE.Darklang.Test.Constants.uint32Const = 5ul
+
+  PACKAGE.Darklang.Test.Constants.int16Const = 5s
+  PACKAGE.Darklang.Test.Constants.int16Const = 5s
+
+  PACKAGE.Darklang.Test.Constants.uint16Const = 5us
+  PACKAGE.Darklang.Test.Constants.uint16Const = 5us
+
+  PACKAGE.Darklang.Test.Constants.int8Const = 5y
+  PACKAGE.Darklang.Test.Constants.int8Const = 5y
+
+  PACKAGE.Darklang.Test.Constants.uint8Const = 5uy
+  PACKAGE.Darklang.Test.Constants.uint8Const = 5uy
+
+  PACKAGE.Darklang.Test.Constants.floatConst = 5.6
+  PACKAGE.Darklang.Test.Constants.floatConst = 5.6
+
+  PACKAGE.Darklang.Test.Constants.boolConst = true
+  PACKAGE.Darklang.Test.Constants.boolConst = true
+
+  PACKAGE.Darklang.Test.Constants.tupleConst = (1L, 2L, 3L)
+  PACKAGE.Darklang.Test.Constants.tupleConst = (1L, 2L, 3L)
+
+  PACKAGE.Darklang.Test.Constants.charConst = 'c'
+  PACKAGE.Darklang.Test.Constants.charConst = 'c'
+
+  PACKAGE.Darklang.Test.Constants.unitConst = ()
+  PACKAGE.Darklang.Test.Constants.unitConst = ()
+
+  PACKAGE.Darklang.Test.Constants.enumConst = Stdlib.Option.Option.Some 5L
+  PACKAGE.Darklang.Test.Constants.enumConst = Stdlib.Option.Option.Some 5L

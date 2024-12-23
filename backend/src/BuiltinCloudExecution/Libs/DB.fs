@@ -5,7 +5,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module VT = ValueType
+module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module TypeChecker = LibExecution.TypeChecker
 module Builtin = LibExecution.Builtin
@@ -32,20 +32,20 @@ let queryFilterParam v =
     ""
     [ "value" ]
 
-let handleUnexpectedExceptionDuringQuery
-  (state : ExecutionState)
-  (dbname : string)
-  (query : LambdaImpl)
-  (e : System.Exception)
-  : Dval =
-  match e with
-  | RuntimeErrorException _ -> Exception.reraise e
-  | e ->
-    state.reportException
-      state
-      [ "dbName", dbname; "lambda", query; "db", state.program.dbs[dbname] ]
-      e
-    LibCloud.SqlCompiler.error "An error occurred while querying the Datastore"
+// let handleUnexpectedExceptionDuringQuery
+//   (exeState : ExecutionState)
+//   (dbname : string)
+//   (query : LambdaImpl)
+//   (e : System.Exception)
+//   : Dval =
+//   match e with
+//   | RuntimeErrorException _ -> Exception.reraise e
+//   | e ->
+//     exeState.reportException
+//       exeState
+//       [ "dbName", dbname; "lambda", query; "db", exeState.program.dbs[dbname] ]
+//       e
+//     LibCloud.SqlCompiler.error "An error occurred while querying the Datastore"
 
 let fns : List<BuiltInFn> =
   [ { name = fn "dbSet" 0
@@ -56,11 +56,11 @@ let fns : List<BuiltInFn> =
         "Upsert <param val> into <param table>, accessible by <param key>"
       fn =
         (function
-        | state, _, [ value; DString key; DDB dbname ] ->
+        | exeState, vm, _, [ value; DString key; DDB dbname ] ->
           uply {
-            let db = state.program.dbs[dbname]
+            let db = exeState.program.dbs[dbname]
 
-            let! id = UserDB.set state true db key value
+            let! id = UserDB.set exeState vm.threadID true db key value
 
             match id with
             | Ok _id -> return value
@@ -79,15 +79,11 @@ let fns : List<BuiltInFn> =
       description = "Finds a value in <param table> by <param key>"
       fn =
         (function
-        | state, _, [ DString key; DDB dbname ] ->
+        | exeState, vm, _, [ DString key; DDB dbname ] ->
           uply {
-            let db = state.program.dbs[dbname]
-            let! result = UserDB.getOption state db key
-            return
-              TypeChecker.DvalCreator.option
-                state.tracing.callStack
-                VT.unknownDbTODO
-                result
+            let db = exeState.program.dbs[dbname]
+            let! result = UserDB.getOption exeState vm.threadID db key
+            return TypeChecker.DvalCreator.option vm.threadID VT.unknownDbTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -105,21 +101,23 @@ let fns : List<BuiltInFn> =
         let valueType = VT.unknownDbTODO
         let optType = KTList valueType
         (function
-        | state, _, [ DList(_, keys); DDB dbname ] ->
+        | exeState, vm, _, [ DList(_, keys); DDB dbname ] ->
           uply {
-            let db = state.program.dbs[dbname]
+            let db = exeState.program.dbs[dbname]
+
+            let tst = Map.empty // TODO idk if this is reasonable
 
             let! items =
               keys
               |> List.map (function
                 | DString s -> s
                 | dv -> Exception.raiseInternal "keys aren't strings" [ "key", dv ])
-              |> UserDB.getMany state db
+              |> UserDB.getMany exeState vm.threadID tst db
 
             if List.length items = List.length keys then
               return
                 items
-                |> TypeChecker.DvalCreator.list state.tracing.callStack valueType
+                |> TypeChecker.DvalCreator.list vm.threadID valueType
                 |> Dval.optionSome optType
             else
               return Dval.optionNone optType
@@ -138,21 +136,20 @@ let fns : List<BuiltInFn> =
         "Finds many values in <param table> by <param keys> (ignoring any missing items), returning a {{ [value] }} list of values"
       fn =
         (function
-        | state, _, [ DList(_, keys); DDB dbname ] ->
+        | exeState, vm, _, [ DList(_, keys); DDB dbname ] ->
           uply {
-            let db = state.program.dbs[dbname]
+            let db = exeState.program.dbs[dbname]
+
+            let tst = Map.empty // TODO idk if this is reasonable
 
             let! result =
               keys
               |> List.map (function
                 | DString s -> s
                 | dv -> Exception.raiseInternal "keys aren't strings" [ "key", dv ])
-              |> UserDB.getMany state db
+              |> UserDB.getMany exeState vm.threadID tst db
             return
-              result
-              |> TypeChecker.DvalCreator.list
-                state.tracing.callStack
-                VT.unknownDbTODO
+              result |> TypeChecker.DvalCreator.list vm.threadID VT.unknownDbTODO
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -168,16 +165,19 @@ let fns : List<BuiltInFn> =
         "Finds many values in <param table> by <param keys>, returning a {{ {key:{value}, key2: {value2} } }} object of keys and values"
       fn =
         (function
-        | state, _, [ DList(_, keys); DDB dbname ] ->
+        | exeState, vm, _, [ DList(_, keys); DDB dbname ] ->
           uply {
-            let db = state.program.dbs[dbname]
+            let db = exeState.program.dbs[dbname]
+
+            let tst = Map.empty // TODO idk if this is reasonable
+
             let! result =
               keys
               |> List.map (function
                 | DString s -> s
                 | dv -> Exception.raiseInternal "keys aren't strings" [ "key", dv ])
-              |> UserDB.getManyWithKeys state db
-            return TypeChecker.DvalCreator.dict VT.unknownDbTODO result
+              |> UserDB.getManyWithKeys exeState vm.threadID tst db
+            return TypeChecker.DvalCreator.dict vm.threadID VT.unknownDbTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -192,10 +192,10 @@ let fns : List<BuiltInFn> =
       description = "Delete <param key> from <param table>"
       fn =
         (function
-        | state, _, [ DString key; DDB dbname ] ->
+        | exeState, _, _, [ DString key; DDB dbname ] ->
           uply {
-            let db = state.program.dbs[dbname]
-            do! UserDB.delete state db key
+            let db = exeState.program.dbs[dbname]
+            do! UserDB.delete exeState db key
             return DUnit
           }
         | _ -> incorrectArgs ())
@@ -211,10 +211,10 @@ let fns : List<BuiltInFn> =
       description = "Delete everything from <param table>"
       fn =
         (function
-        | state, _, [ DDB dbname ] ->
+        | exeState, _, _, [ DDB dbname ] ->
           uply {
-            let db = state.program.dbs[dbname]
-            do! UserDB.deleteAll state db
+            let db = exeState.program.dbs[dbname]
+            do! UserDB.deleteAll exeState db
             return DUnit
           }
         | _ -> incorrectArgs ())
@@ -230,16 +230,15 @@ let fns : List<BuiltInFn> =
       description = "Fetch all the values in <param table>"
       fn =
         (function
-        | state, _, [ DDB dbname ] ->
+        | exeState, vm, _, [ DDB dbname ] ->
           uply {
-            let db = state.program.dbs[dbname]
-            let! results = UserDB.getAll state db
+            let db = exeState.program.dbs[dbname]
+            let tst = Map.empty // TODO idk if this is reasonable
+            let! results = UserDB.getAll exeState vm.threadID tst db
             return
               results
               |> List.map snd
-              |> TypeChecker.DvalCreator.list
-                state.tracing.callStack
-                VT.unknownDbTODO
+              |> TypeChecker.DvalCreator.list vm.threadID VT.unknownDbTODO
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -255,11 +254,12 @@ let fns : List<BuiltInFn> =
         "Fetch all the values in <param table>. Returns an object with key: value. ie. {key : value, key2: value2}"
       fn =
         (function
-        | state, _, [ DDB dbname ] ->
+        | exeState, vm, _, [ DDB dbname ] ->
           uply {
-            let db = state.program.dbs[dbname]
-            let! result = UserDB.getAll state db
-            return TypeChecker.DvalCreator.dict VT.unknownDbTODO result
+            let db = exeState.program.dbs[dbname]
+            let tst = Map.empty // TODO idk if this is reasonable
+            let! result = UserDB.getAll exeState vm.threadID tst db
+            return TypeChecker.DvalCreator.dict vm.threadID VT.unknownDbTODO result
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -274,10 +274,10 @@ let fns : List<BuiltInFn> =
       description = "Return the number of items stored in <param table>"
       fn =
         (function
-        | state, _, [ DDB dbname ] ->
+        | exeState, _, _, [ DDB dbname ] ->
           uply {
-            let db = state.program.dbs[dbname]
-            let! (count : int) = UserDB.count state db
+            let db = exeState.program.dbs[dbname]
+            let! (count : int) = UserDB.count exeState db
             return count |> int64 |> DInt64
           }
         | _ -> incorrectArgs ())
@@ -293,7 +293,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a random key suitable for use as a DB key"
       fn =
         (function
-        | _, _, [ DUnit ] -> System.Guid.NewGuid() |> string |> DString |> Ply
+        | _, _, _, [ DUnit ] -> System.Guid.NewGuid() |> string |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -308,10 +308,10 @@ let fns : List<BuiltInFn> =
         "Fetch all the keys of entries in <param table>. Returns an list with strings"
       fn =
         (function
-        | state, _, [ DDB dbname ] ->
+        | exeState, _, _, [ DDB dbname ] ->
           uply {
-            let db = state.program.dbs[dbname]
-            let! results = UserDB.getAllKeys state db
+            let db = exeState.program.dbs[dbname]
+            let! results = UserDB.getAllKeys exeState db
             return results |> List.map DString |> Dval.list KTString
           }
         | _ -> incorrectArgs ())
@@ -320,152 +320,153 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "dbQuery" 0
-      typeParams = []
-      parameters = [ tableParam "a"; queryFilterParam "a" ]
-      returnType = TList(tvar "a")
-      description =
-        "Fetch all the values from <param table> for which filter returns true.
-        Note that this does not check every value in <param table>, but rather is optimized to find data with indexes.
-        Errors at compile-time if Dark's compiler does not support the code in question."
-      fn =
-        (function
-        | state, _, [ DDB dbname; DFnVal(Lambda b) ] ->
-          uply {
-            try
-              let db = state.program.dbs[dbname]
-              let! results = UserDB.queryValues state db b
-              match results with
-              | Ok results ->
-                return
-                  results
-                  |> TypeChecker.DvalCreator.list
-                    state.tracing.callStack
-                    VT.unknownDbTODO
-              | Error rte -> return raiseUntargetedRTE rte
-            with e ->
-              return handleUnexpectedExceptionDuringQuery state dbname b e
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = QueryFunction
-      previewable = Impure
-      deprecated = NotDeprecated }
+    // { name = fn "dbQuery" 0
+    //   typeParams = []
+    //   parameters = [ tableParam "a"; queryFilterParam "a" ]
+    //   returnType = TList(tvar "a")
+    //   description =
+    //     "Fetch all the values from <param table> for which filter returns true.
+    //     Note that this does not check every value in <param table>, but rather is optimized to find data with indexes.
+    //     Errors at compile-time if Dark's compiler does not support the code in question."
+    //   fn =
+    //     (function
+    //     | exeState, _, [ DDB dbname; DFnVal(Lambda b) ] ->
+    //       uply {
+    //         try
+    //           let db = exeState.program.dbs[dbname]
+    //           let! results = UserDB.queryValues exeState db b
+    //           match results with
+    //           | Ok results ->
+    //             return
+    //               results
+    //               |> TypeChecker.DvalCreator.list
+    //                 exeState.tracing.callStack
+    //                 VT.unknownDbTODO
+    //           | Error rte -> return raiseUntargetedRTE rte
+    //         with e ->
+    //           return handleUnexpectedExceptionDuringQuery exeState dbname b e
+    //       }
+    //     | _ -> incorrectArgs ())
+    //   sqlSpec = QueryFunction
+    //   previewable = Impure
+    //   deprecated = NotDeprecated }
 
 
-    { name = fn "dbQueryWithKey" 0
-      typeParams = []
-      parameters = [ tableParam "a"; queryFilterParam "a" ]
-      returnType = TDict(tvar "a")
-      description =
-        "Fetch all the values from <param table> for which filter returns true, returning {key : value} as an dict. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
-      fn =
-        (function
-        | state, _, [ DDB dbname; DFnVal(Lambda b) ] ->
-          uply {
-            try
-              let db = state.program.dbs[dbname]
-              let! results = UserDB.query state db b
-              match results with
-              | Ok results ->
-                return TypeChecker.DvalCreator.dict VT.unknownDbTODO results
-              | Error rte -> return raiseUntargetedRTE rte
-            with e ->
-              return handleUnexpectedExceptionDuringQuery state dbname b e
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = QueryFunction
-      previewable = Impure
-      deprecated = NotDeprecated }
+    // { name = fn "dbQueryWithKey" 0
+    //   typeParams = []
+    //   parameters = [ tableParam "a"; queryFilterParam "a" ]
+    //   returnType = TDict(tvar "a")
+    //   description =
+    //     "Fetch all the values from <param table> for which filter returns true, returning {key : value} as an dict. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
+    //   fn =
+    //     (function
+    //     | exeState, _, [ DDB dbname; DFnVal(Lambda b) ] ->
+    //       uply {
+    //         try
+    //           let db = exeState.program.dbs[dbname]
+    //           let! results = UserDB.query exeState db b
+    //           match results with
+    //           | Ok results ->
+    //             return TypeChecker.DvalCreator.dict VT.unknownDbTODO results
+    //           | Error rte -> return raiseUntargetedRTE rte
+    //         with e ->
+    //           return handleUnexpectedExceptionDuringQuery exeState dbname b e
+    //       }
+    //     | _ -> incorrectArgs ())
+    //   sqlSpec = QueryFunction
+    //   previewable = Impure
+    //   deprecated = NotDeprecated }
 
 
-    { name = fn "dbQueryOne" 0
-      typeParams = []
-      parameters = [ tableParam "a"; queryFilterParam "a" ]
-      returnType = TypeReference.option (tvar "a")
-      description =
-        "Fetch exactly one value from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Some value and if there is none or more than 1 found, it returns None. Errors at compile-time if Dark's compiler does not support the code in question."
-      fn =
-        let optType = VT.unknownDbTODO
-        (function
-        | state, _, [ DDB dbname; DFnVal(Lambda b) ] ->
-          uply {
-            try
-              let db = state.program.dbs[dbname]
-              let! results = UserDB.query state db b
+    // { name = fn "dbQueryOne" 0
+    //   typeParams = []
+    //   parameters = [ tableParam "a"; queryFilterParam "a" ]
+    //   returnType = TypeReference.option (tvar "a")
+    //   description =
+    //     "Fetch exactly one value from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes.  If there is exactly one value, it returns Some value and if there is none or more than 1 found, it returns None. Errors at compile-time if Dark's compiler does not support the code in question."
+    //   fn =
+    //     let optType = VT.unknownDbTODO
+    //     (function
+    //     | exeState, _, [ DDB dbname; DFnVal(Lambda b) ] ->
+    //       uply {
+    //         try
+    //           let db = exeState.program.dbs[dbname]
+    //           let! results = UserDB.query exeState db b
 
-              match results with
-              | Ok [ (_, v) ] ->
-                return
-                  TypeChecker.DvalCreator.optionSome
-                    state.tracing.callStack
-                    optType
-                    v
-              | Ok _ -> return TypeChecker.DvalCreator.optionNone optType
-              | Error rte -> return raiseUntargetedRTE rte
-            with e ->
-              return handleUnexpectedExceptionDuringQuery state dbname b e
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = QueryFunction
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "dbQueryOneWithKey" 0
-      typeParams = []
-      parameters = [ tableParam "a"; queryFilterParam "a" ]
-      returnType = TypeReference.option (TTuple(TString, tvar "a", []))
-      description =
-        "Fetch exactly one value from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. If there is exactly one key/value pair, it returns Some {key: value} and if there is none or more than 1 found, it returns None. Errors at compile-time if Dark's compiler does not support the code in question."
-      fn =
-        let optType = VT.tuple VT.string VT.unknownDbTODO []
-        (function
-        | state, _, [ DDB dbname; DFnVal(Lambda b) ] ->
-          uply {
-            try
-              let db = state.program.dbs[dbname]
-              let! results = UserDB.query state db b
-
-              match results with
-              | Ok [ (key, dv) ] ->
-                return
-                  TypeChecker.DvalCreator.optionSome
-                    state.tracing.callStack
-                    optType
-                    (DTuple(DString key, dv, []))
-              | Ok _ -> return TypeChecker.DvalCreator.optionNone optType
-              | Error rte -> return raiseUntargetedRTE rte
-            with e ->
-              return handleUnexpectedExceptionDuringQuery state dbname b e
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = QueryFunction
-      previewable = Impure
-      deprecated = NotDeprecated }
+    //           match results with
+    //           | Ok [ (_, v) ] ->
+    //             return
+    //               TypeChecker.DvalCreator.optionSome
+    //                 exeState.tracing.callStack
+    //                 optType
+    //                 v
+    //           | Ok _ -> return TypeChecker.DvalCreator.optionNone optType
+    //           | Error rte -> return raiseUntargetedRTE rte
+    //         with e ->
+    //           return handleUnexpectedExceptionDuringQuery exeState dbname b e
+    //       }
+    //     | _ -> incorrectArgs ())
+    //   sqlSpec = QueryFunction
+    //   previewable = Impure
+    //   deprecated = NotDeprecated }
 
 
-    { name = fn "dbQueryCount" 0
-      typeParams = []
-      parameters = [ tableParam "a"; queryFilterParam "a" ]
-      returnType = TInt64
-      description =
-        "Return the number of items from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
-      fn =
-        (function
-        | state, _, [ DDB dbname; DFnVal(Lambda b) ] ->
-          uply {
-            try
-              let db = state.program.dbs[dbname]
-              let! result = UserDB.queryCount state db b
-              match result with
-              | Ok result -> return Dval.int64 result
-              | Error rte -> return raiseUntargetedRTE rte
-            with e ->
-              return handleUnexpectedExceptionDuringQuery state dbname b e
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = QueryFunction
-      previewable = Impure
-      deprecated = NotDeprecated } ]
+    // { name = fn "dbQueryOneWithKey" 0
+    //   typeParams = []
+    //   parameters = [ tableParam "a"; queryFilterParam "a" ]
+    //   returnType = TypeReference.option (TTuple(TString, tvar "a", []))
+    //   description =
+    //     "Fetch exactly one value from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. If there is exactly one key/value pair, it returns Some {key: value} and if there is none or more than 1 found, it returns None. Errors at compile-time if Dark's compiler does not support the code in question."
+    //   fn =
+    //     let optType = VT.tuple VT.string VT.unknownDbTODO []
+    //     (function
+    //     | exeState, _, [ DDB dbname; DFnVal(Lambda b) ] ->
+    //       uply {
+    //         try
+    //           let db = exeState.program.dbs[dbname]
+    //           let! results = UserDB.query exeState db b
+
+    //           match results with
+    //           | Ok [ (key, dv) ] ->
+    //             return
+    //               TypeChecker.DvalCreator.optionSome
+    //                 exeState.tracing.callStack
+    //                 optType
+    //                 (DTuple(DString key, dv, []))
+    //           | Ok _ -> return TypeChecker.DvalCreator.optionNone optType
+    //           | Error rte -> return raiseUntargetedRTE rte
+    //         with e ->
+    //           return handleUnexpectedExceptionDuringQuery exeState dbname b e
+    //       }
+    //     | _ -> incorrectArgs ())
+    //   sqlSpec = QueryFunction
+    //   previewable = Impure
+    //   deprecated = NotDeprecated }
+
+
+    // { name = fn "dbQueryCount" 0
+    //   typeParams = []
+    //   parameters = [ tableParam "a"; queryFilterParam "a" ]
+    //   returnType = TInt64
+    //   description =
+    //     "Return the number of items from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes. Errors at compile-time if Dark's compiler does not support the code in question."
+    //   fn =
+    //     (function
+    //     | exeState, _, [ DDB dbname; DFnVal(Lambda b) ] ->
+    //       uply {
+    //         try
+    //           let db = exeState.program.dbs[dbname]
+    //           let! result = UserDB.queryCount exeState db b
+    //           match result with
+    //           | Ok result -> return Dval.int64 result
+    //           | Error rte -> return raiseUntargetedRTE rte
+    //         with e ->
+    //           return handleUnexpectedExceptionDuringQuery exeState dbname b e
+    //       }
+    //     | _ -> incorrectArgs ())
+    //   sqlSpec = QueryFunction
+    //   previewable = Impure
+    //   deprecated = NotDeprecated }
+    ]
 
 let builtins = Builtin.make [] fns

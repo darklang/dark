@@ -74,11 +74,13 @@ let callExceptionCallback (e : exn) =
     System.Console.WriteLine e.StackTrace
 
 
+// CLEANUP reduce usages of all of these raiseInternal fns
+// and/or map them to an UncaughtException or something, not sure.
+
 let raiseInternal (msg : string) (tags : Metadata) =
   let e = InternalException(msg, tags)
   callExceptionCallback e
   raise e
-
 
 let unwrapOptionInternal (msg : string) (tags : Metadata) (o : Option<'a>) : 'a =
   match o with

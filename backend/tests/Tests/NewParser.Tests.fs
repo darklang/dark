@@ -42,16 +42,19 @@ let t
       if allowUnresolved then
         pmPT
       else
-        PT.PackageManager.withExtras pmPT extraTypes extraConstants extraFns
+        pmPT |> PT.PackageManager.withExtras extraTypes extraConstants extraFns
     let canvasID = System.Guid.NewGuid()
-    let! state = executionStateFor pm canvasID false false Map.empty
+    let! exeState = executionStateFor pm canvasID false false Map.empty
 
     let args = NEList.singleton (RT.DString input)
-    let! exeResult = LibExecution.Execution.executeFunction state fnname [] args
-    let! actual = state |> unwrapExecutionResult exeResult |> Ply.toTask
+    let! exeResult = LibExecution.Execution.executeFunction exeState fnname [] args
+    let! actual = unwrapExecutionResult exeState exeResult |> Ply.toTask
 
     return
-      Expect.equalDval actual (RT.DString expected) "Didn't round-trip as expected"
+      Expect.RT.equalDval
+        actual
+        (RT.DString expected)
+        "Didn't round-trip as expected"
   }
 
 
@@ -79,6 +82,7 @@ let typeReferences =
     t "unit alias" "type MyUnit = Unit" "type MyUnit =\n  Unit" [] [] [] false
 
     t "bool alias" "type MyBool = Bool" "type MyBool =\n  Bool" [] [] [] false
+
     t "int8 alias" "type MyInt8 = Int8" "type MyInt8 =\n  Int8" [] [] [] false
     t "uint8 alias" "type MyUInt8 = UInt8" "type MyUInt8 =\n  UInt8" [] [] [] false
     t "int16 alias" "type MyInt16 = Int16" "type MyInt16 =\n  Int16" [] [] [] false
@@ -548,11 +552,11 @@ let exprs =
 
 
 
-		Expected: (b: Int64)
+    Expected: (b: Int64)
 
-		Actual: a Float: 1.0\"\"\""
+    Actual: a Float: 1.0\"\"\""
 
-      "\"int64Multiply's 2nd argument (`b`) should be an Int64. However, a Float (1.0) was passed instead.\\n\\n\\n\\n\\t\\tExpected: (b: Int64)\\n\\n\\t\\tActual: a Float: 1.0\""
+      "\"int64Multiply's 2nd argument (`b`) should be an Int64. However, a Float (1.0) was passed instead.\\n\\n\\n\\n    Expected: (b: Int64)\\n\\n    Actual: a Float: 1.0\""
       []
       []
       []
@@ -1706,17 +1710,17 @@ let sourceFiles =
     t
       "simple script"
       "
-type BookID = Int64
+  type BookID = Int64
 
-let getTitle (bookId: BookID): String =
-  let book = (Library.getBook bookId)
-  getNameFromBook book
+  let getTitle (bookId: BookID): String =
+    let book = (Library.getBook bookId)
+    getNameFromBook book
 
-let curiousGeorgeBookId = 101L
-Builtin.printLine (getTitle curiousGeorgeBookId)
+  let curiousGeorgeBookId = 101L
+  Builtin.printLine (getTitle curiousGeorgeBookId)
 
-0L
-  "
+  0L
+    "
       "type BookID =\n  Int64
 
 let getTitle (bookId: BookID): String =

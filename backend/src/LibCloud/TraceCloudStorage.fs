@@ -256,10 +256,9 @@ let storeToCloudStorage
       functionResults
       |> Dictionary.toList
       |> List.map (fun ((tlid, fnName, id, hash), (dval, _)) ->
-        // TODO do we really want to parse and unparse fnName?
         tlid,
         id,
-        RT.FQFnName.toString fnName,
+        string fnName, // TODO this isn't really what we want, but OK while we're not relying on traces
         LibExecution.DvalReprInternalHash.currentHashVersion,
         hash,
         Roundtrippable.fromRT dval)

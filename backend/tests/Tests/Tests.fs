@@ -10,8 +10,6 @@ open Prelude
 module PT = LibExecution.ProgramTypes
 module Telemetry = LibService.Telemetry
 
-module CTPusher = LibClientTypes.Pusher
-
 let initSerializers () =
   BwdServer.Server.initSerializers ()
 
@@ -34,31 +32,35 @@ let main (args : string array) : int =
     initSerializers ()
 
     let tests =
-      [ Tests.AnalysisTypes.tests
-        Tests.BwdServer.tests
-        Tests.Canvas.tests
-        Tests.Cron.tests
+      [ // core
+        Tests.Prelude.tests
+        Tests.TreeSitter.tests
+        Tests.ProgramTypesToRuntimeTypes.tests
+        Tests.Interpreter.tests
+        Tests.AnalysisTypes.tests
+        Tests.Execution.tests
+        Tests.Builtin.tests
         Tests.DvalRepr.tests
-        Tests.QueueSchedulingRules.tests
-        // TODO: bring back Tests.Queue.tests
-        // TRACINGTODO
-        // Tests.Execution.tests
+        Tests.PackageManager.tests
         Tests.LibParser.tests
         Tests.NewParser.tests
         Tests.HttpClient.tests
-        Tests.LibExecution.tests.Force()
-        Tests.Prelude.tests
-        Tests.ProgramTypes.tests
+
+        // cloud
+        Tests.BwdServer.tests
+        Tests.Canvas.tests
+        Tests.Cron.tests
+        Tests.QueueSchedulingRules.tests
+        // TODO: bring back Tests.Queue.tests
         Tests.Routing.tests
-        Tests.RuntimeTypes.tests
         Tests.BinarySerialization.tests
         Tests.VanillaSerialization.tests
         Tests.DarkTypesSerialization.tests
         Tests.SqlCompiler.tests
-        Tests.TreeSitter.tests
-        Tests.Builtin.tests
-        Tests.PackageManager.tests
-        Tests.StorageTraces.tests ]
+        Tests.StorageTraces.tests
+
+        // cross-cutting
+        Tests.LibExecution.tests.Force() ]
 
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()
     let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token

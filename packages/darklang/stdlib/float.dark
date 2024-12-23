@@ -135,7 +135,7 @@ module Darklang =
 
 
       /// Returns the <type Float> value wrapped in a {{Result}} of the <type String>
-      let parse (s: String) : Stdlib.Result.Result<Float, String> =
+      let parse (s: String) : Stdlib.Result.Result<Float, ParseError> =
         Builtin.floatParse s
 
 

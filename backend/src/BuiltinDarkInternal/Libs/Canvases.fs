@@ -8,7 +8,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module VT = ValueType
+module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 module Canvas = LibCloud.Canvas
@@ -24,7 +24,7 @@ let fns : List<BuiltInFn> =
       description = "Get a list of all canvas IDs"
       fn =
         (function
-        | _, _, [ DUnit ] ->
+        | _, _, _, [ DUnit ] ->
           uply {
             let! hosts = Canvas.allCanvasIDs ()
             return DList(VT.uuid, List.map DUuid hosts)
@@ -42,7 +42,7 @@ let fns : List<BuiltInFn> =
       description = "Creates a new canvas"
       fn =
         (function
-        | _, _, [ DUuid owner; DString name ] ->
+        | _, _, _, [ DUuid owner; DString name ] ->
           uply {
             let! canvasID = Canvas.create owner name
             return DUuid canvasID
@@ -60,7 +60,7 @@ let fns : List<BuiltInFn> =
       description = "Get the owner of a canvas"
       fn =
         (function
-        | _, _, [ DUuid canvasID ] ->
+        | _, _, _, [ DUuid canvasID ] ->
           uply {
             let! owner = Canvas.getOwner canvasID
             return
@@ -87,7 +87,7 @@ let fns : List<BuiltInFn> =
         "Delete a toplevel forever. Requires that the toplevel already by deleted. If so, deletes and returns true. Otherwise returns false"
       fn =
         (function
-        | _, _, [ DUuid canvasID; DUInt64 tlid ] ->
+        | _, _, _, [ DUuid canvasID; DUInt64 tlid ] ->
           uply {
             let tlid = uint64 tlid
             let! c = Canvas.loadFrom canvasID [ tlid ]
@@ -120,7 +120,7 @@ let fns : List<BuiltInFn> =
         "Returns a list of toplevel ids of http handlers in canvas <param canvasId>"
       fn =
         (function
-        | _, _, [ DUuid canvasID ] ->
+        | _, _, _, [ DUuid canvasID ] ->
           uply {
             let! _canvas = Canvas.loadAll canvasID
 

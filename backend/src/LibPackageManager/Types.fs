@@ -4,9 +4,6 @@
 /// module of Darklang types.
 module LibPackageManager.Types
 
-open System.Threading.Tasks
-open FSharp.Control.Tasks
-
 open Prelude
 
 type ID = uint64
@@ -17,24 +14,13 @@ type Sign =
   | Negative
 
 
-module NameResolutionError =
-  type ErrorType =
-    | NotFound of names : List<string>
-    | ExpectedEnumButNot of packageTypeID : uuid
-    | ExpectedRecordButNot of packageTypeID : uuid
-    | MissingEnumModuleName of caseName : string
-    | InvalidPackageName of names : List<string>
-
-  type NameType =
-    | Function
-    | Type
-    | Constant
-
-  type Error = { errorType : ErrorType; nameType : NameType }
+type NameResolutionError =
+  | NotFound of names : List<string>
+  | InvalidName of names : List<string>
 
 
 module ProgramTypes =
-  type NameResolution<'a> = Result<'a, NameResolutionError.Error>
+  type NameResolution<'a> = Result<'a, NameResolutionError>
 
   module FQTypeName =
     type Package = uuid
@@ -63,14 +49,14 @@ module ProgramTypes =
     | TVariable of string
     | TUnit
     | TBool
-    | TInt64
-    | TUInt64
     | TInt8
     | TUInt8
     | TInt16
     | TUInt16
     | TInt32
     | TUInt32
+    | TInt64
+    | TUInt64
     | TInt128
     | TUInt128
     | TFloat
@@ -78,39 +64,39 @@ module ProgramTypes =
     | TString
     | TDateTime
     | TUuid
-    | TList of TypeReference
     | TTuple of TypeReference * TypeReference * List<TypeReference>
+    | TList of TypeReference
     | TDict of TypeReference
     | TCustomType of
       NameResolution<FQTypeName.FQTypeName> *
       typeArgs : List<TypeReference>
-    | TDB of TypeReference
     | TFn of NEList<TypeReference> * TypeReference
+    | TDB of TypeReference
 
   type LetPattern =
     | LPVariable of ID * name : string
     | LPTuple of ID * LetPattern * LetPattern * List<LetPattern>
 
   type MatchPattern =
-    | MPVariable of ID * string
     | MPUnit of ID
+    | MPVariable of ID * string
     | MPBool of ID * bool
-    | MPInt64 of ID * int64
-    | MPUInt64 of ID * uint64
     | MPInt8 of ID * int8
     | MPUInt8 of ID * uint8
     | MPInt16 of ID * int16
     | MPUInt16 of ID * uint16
     | MPInt32 of ID * int32
     | MPUInt32 of ID * uint32
+    | MPInt64 of ID * int64
+    | MPUInt64 of ID * uint64
     | MPInt128 of ID * System.Int128
     | MPUInt128 of ID * System.UInt128
     | MPFloat of ID * Sign * string * string
     | MPChar of ID * string
     | MPString of ID * string
+    | MPTuple of ID * MatchPattern * MatchPattern * List<MatchPattern>
     | MPList of ID * List<MatchPattern>
     | MPListCons of ID * head : MatchPattern * tail : MatchPattern
-    | MPTuple of ID * MatchPattern * MatchPattern * List<MatchPattern>
     | MPEnum of ID * caseName : string * fieldPats : List<MatchPattern>
 
   type BinaryOperation =
@@ -179,15 +165,20 @@ module ProgramTypes =
     | EList of ID * List<Expr>
     | EDict of ID * List<string * Expr>
     | ETuple of ID * Expr * Expr * List<Expr>
-    | ERecord of ID * NameResolution<FQTypeName.FQTypeName> * List<string * Expr>
+    | ERecord of
+      ID *
+      typeName : NameResolution<FQTypeName.FQTypeName> *
+      typeArgs : List<TypeReference> *
+      fields : List<string * Expr>
     | EEnum of
       ID *
       typeName : NameResolution<FQTypeName.FQTypeName> *
+      typeArgs : List<TypeReference> *
       caseName : string *
       fields : List<Expr>
 
     | ELet of ID * LetPattern * Expr * Expr
-    | EFieldAccess of ID * Expr * string
+    | ERecordFieldAccess of ID * Expr * string
     | EVariable of ID * string
 
     | EIf of ID * cond : Expr * thenExpr : Expr * elseExpr : Option<Expr>

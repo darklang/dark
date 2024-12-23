@@ -1,0 +1,982 @@
+// One module for each type of pattern.
+// In each module, there should be at least 2 error tests, one checking the incorrect
+// dval for that pattern, and one checking the incorrect pattern for that dval. (The
+// error checking in the interpreter tests is at the pattern side, not the dval side)
+
+module Int64 =
+  (match 6L with
+   | 5L -> "fail"
+   | -6L -> "fail"
+   | 6L -> "pass"
+   | var -> "fail") = "pass"
+
+  (match 6L with
+   | 6L -> "pass"
+   | 5L -> "fail"
+   | var -> "fail") = "pass"
+
+  (match 6L with
+   | var -> "pass"
+   | 6L -> "fail"
+   | 5L -> "fail") = "pass"
+
+  (match 999999999999999L with
+   | 0L -> "fail"
+   | 999999999999999L -> "pass") = "pass"
+
+
+module UInt64 =
+  (match 6UL with
+   | 5UL -> "fail"
+   | 6UL -> "pass"
+   | var -> "fail") = "pass"
+
+  (match 6UL with
+   | 6UL -> "pass"
+   | 5UL -> "fail"
+   | var -> "fail") = "pass"
+
+  (match 6UL with
+   | var -> "pass"
+   | 6UL -> "fail"
+   | 5UL -> "fail") = "pass"
+
+  (match 18446744073709551615UL with
+   | 0UL -> "fail"
+   | 18446744073709551615UL -> "pass") = "pass"
+
+
+module Int8 =
+  (match 6y with
+   | 5y -> "fail"
+   | -6y -> "fail"
+   | 6y -> "pass"
+   | var -> "fail") = "pass"
+
+  (match 6y with
+   | 6y -> "pass"
+   | 5y -> "fail"
+   | var -> "fail") = "pass"
+
+  (match 6y with
+   | var -> "pass"
+   | 6y -> "fail"
+   | 5y -> "fail") = "pass"
+
+  (match 127y with
+   | 0y -> "fail"
+   | 127y -> "pass") = "pass"
+
+
+module UInt8 =
+  (match 6uy with
+   | 5uy -> "fail"
+   | 6uy -> "pass"
+   | var -> "fail") = "pass"
+
+  (match 6uy with
+   | 6uy -> "pass"
+   | 5uy -> "fail"
+   | var -> "fail") = "pass"
+
+  (match 6uy with
+   | var -> "pass"
+   | 6uy -> "fail"
+   | 5uy -> "fail") = "pass"
+
+  (match 255uy with
+   | 0uy -> "fail"
+   | 255uy -> "pass") = "pass"
+
+
+module Int16 =
+  (match 6s with
+   | 5s -> "fail"
+   | -6s -> "fail"
+   | 6s -> "pass"
+   | var -> "fail") = "pass"
+
+  (match 6s with
+   | 6s -> "pass"
+   | 5s -> "fail"
+   | var -> "fail") = "pass"
+
+  (match 6s with
+   | var -> "pass"
+   | 6s -> "fail"
+   | 5s -> "fail") = "pass"
+
+  (match 32767s with
+   | 0s -> "fail"
+   | 32767s -> "pass") = "pass"
+
+
+module UInt16 =
+  (match 6us with
+   | 5us -> "fail"
+   | 6us -> "pass"
+   | var -> "fail") = "pass"
+
+  (match 6us with
+   | 6us -> "pass"
+   | 5us -> "fail"
+   | var -> "fail") = "pass"
+
+  (match 6us with
+   | var -> "pass"
+   | 6us -> "fail"
+   | 5us -> "fail") = "pass"
+
+  (match 65535us with
+   | 0us -> "fail"
+   | 65535us -> "pass") = "pass"
+
+
+module Int32 =
+  (match 6l with
+   | 5l -> "fail"
+   | -6l -> "fail"
+   | 6l -> "pass"
+   | var -> "fail") = "pass"
+
+  (match 6l with
+   | 6l -> "pass"
+   | 5l -> "fail"
+   | var -> "fail") = "pass"
+
+  (match 6l with
+   | var -> "pass"
+   | 6l -> "fail"
+   | 5l -> "fail") = "pass"
+
+  (match 2147483647l with
+   | 0l -> "fail"
+   | 2147483647l -> "pass") = "pass"
+
+
+module UInt32 =
+  (match 6ul with
+   | 5ul -> "fail"
+   | 6ul -> "pass"
+   | var -> "fail") = "pass"
+
+  (match 6ul with
+   | 6ul -> "pass"
+   | 5ul -> "fail"
+   | var -> "fail") = "pass"
+
+  (match 6ul with
+   | var -> "pass"
+   | 6ul -> "fail"
+   | 5ul -> "fail") = "pass"
+
+  (match 4294967295ul with
+   | 0ul -> "fail"
+   | 4294967295ul -> "pass") = "pass"
+
+
+module Int128 =
+  (match 6Q with
+   | 5Q -> "fail"
+   | -6Q -> "fail"
+   | 6Q -> "pass"
+   | var -> "fail") = "pass"
+
+  (match 6Q with
+   | 6Q -> "pass"
+   | 5Q -> "fail"
+   | var -> "fail") = "pass"
+
+  (match 6Q with
+   | var -> "pass"
+   | 6Q -> "fail"
+   | 5Q -> "fail") = "pass"
+
+  (match 170141183460469231731687303715884105727Q with
+   | 0Q -> "fail"
+   | 170141183460469231731687303715884105727Q -> "pass") = "pass"
+
+
+module UInt128 =
+  (match 6Z with
+   | 5Z -> "fail"
+   | 6Z -> "pass"
+   | var -> "fail") = "pass"
+
+  (match 6Z with
+   | 6Z -> "pass"
+   | 5Z -> "fail"
+   | var -> "fail") = "pass"
+
+  (match 6Z with
+   | var -> "pass"
+   | 6Z -> "fail"
+   | 5Z -> "fail") = "pass"
+
+  (match 340282366920938463463374607431768211455Z with
+   | 0Z -> "fail"
+   | 340282366920938463463374607431768211455Z -> "pass") = "pass"
+
+
+module String =
+  (match "x" with
+   | "y" -> "fail"
+   | "" -> "pass"
+   | "xx" -> "pass"
+   | "x" -> "pass"
+   | var -> "fail") = "pass"
+
+  (match "x" with
+   | "x" -> "pass"
+   | "y" -> "fail"
+   | var -> "fail") = "pass"
+
+  (match "x" with
+   | var -> $"pass: {var}"
+   | "x" -> "fail"
+   | "y" -> "fail") = "pass: x"
+
+
+module Bool =
+  (match true with
+   | false -> "fail"
+   | true -> "pass"
+   | var -> "fail") = "pass"
+
+  (match true with
+   | true -> "pass"
+   | false -> "fail"
+   | var -> "fail") = "pass"
+
+  (match true with
+   | var -> if var then "pass" else "fail"
+   | true -> "fail"
+   | false -> "fail") = "pass"
+
+  (match false with
+   | true -> "fail"
+   | false -> "pass"
+   | var -> "fail") = "pass"
+
+  (match false with
+   | var -> if var then "fail" else "pass"
+   | false -> "fail"
+   | true -> "fail") = "pass"
+
+
+module Float =
+  (match 6.5 with
+   | 5.5 -> "fail"
+   | -6.5 -> "fail"
+   | 6.5 -> "pass"
+   | var -> "fail") = "pass"
+
+  (match 6.5 with
+   | 6.5 -> "pass"
+   | 5.5 -> "fail"
+   | var -> "fail") = "pass"
+
+  (match 6.5 with
+   | var -> $"pass: {Stdlib.Float.toString var}"
+   | 6.5 -> "fail"
+   | 5.5 -> "fail") = "pass: 6.5"
+
+  // CLEANUP negative -0.0 different from 0.0?
+  // (match 0.0 with
+  //  | -0.0 -> "fail1"
+  //  | 0.0 -> "pass"
+  //  | var -> "fail2") = "pass"
+
+  (match -4.7 with
+   | 4.7 -> "fail"
+   | -4.7 -> "pass"
+   | var -> "fail") = "pass"
+
+  (match -4.7 with
+   | var -> $"pass: {Stdlib.Float.toString var}"
+   | -4.7 -> "fail"
+   | 4.7 -> "fail") = "pass: -4.7"
+
+
+module Unit =
+  (match () with
+   | () -> "pass"
+   | var -> "fail") = "pass"
+
+  (match () with
+   | var -> "pass"
+   | () -> "fail") = "pass"
+
+
+module Char =
+  (match 'a' with
+   | 'b' -> "fail"
+   | 'a' -> "pass"
+   | var -> "fail") = "pass"
+
+  (match 'a' with
+   | 'a' -> "pass"
+   | 'b' -> "fail"
+   | var -> "fail") = "pass"
+
+  (match 'a' with
+   | var -> $"pass: {Stdlib.Char.toString var}"
+   | 'a' -> "fail"
+   | 'b' -> "fail") = "pass: a"
+
+  (match 'c' with
+   | 'd' -> "fail"
+   | 'c' -> "pass"
+   | var -> "fail") = "pass"
+
+  (match 'c' with
+   | var -> $"pass"
+   | 'c' -> "fail"
+   | 'd' -> "fail") = "pass"
+
+
+module List =
+  (match [ 1L; 2L; 3L ] with
+   | [] -> "fail"
+   | [ 1L; 2L; 3L ] -> "pass"
+   | var -> "fail") = "pass"
+
+  (match [ 1L; 2L; 3L ] with
+   | [ 1L; 2L; 3L ] -> "pass"
+   | [] -> "fail"
+   | var -> "fail") = "pass"
+
+  (match [ 1L; 2L; 3L ] with
+   | var ->
+     let length = (Stdlib.List.length var) |> Stdlib.Int64.toString
+
+     $"pass with length: {length}"
+   | [ 1L; 2L; 3L ] -> "fail"
+   | [] -> "fail") = "pass with length: 3"
+
+  (match [] with
+   | [] -> "pass"
+   | [ 1L; 2L; 3L ] -> "fail"
+   | var -> "fail") = "pass"
+
+  (match [ 1L; 2L; 3L ] with
+   | [ 1L; 2L ] -> "fail"
+   | [ 1L; 2L; 3L; 4L ] -> "fail"
+   | [ 1L; 2L; 3L ] -> "pass"
+   | var -> "fail") = "pass"
+
+  (match [ 1L; 2L; 3L ] with
+   | head :: tail -> $"pass"
+   | [] -> "fail") = "pass"
+
+  (match [] with
+   | head :: tail -> "fail"
+   | [] -> "pass") = "pass"
+
+  // duplicate variable name
+  (match [ 1L; 2L; 5L ] with
+   | [ a; a; a ] -> a
+   | name -> name ++ "var") = 5L
+
+
+
+  module NestedList =
+    (match [ [ 1L; 2L ]; [ 3L; 4L ] ] with
+     | [] -> "fail"
+     | [ [ 1L; 2L ]; [ 3L; 4L ] ] -> "pass"
+     | var -> "fail") = "pass"
+
+    (match [ [ 1L; 2L ]; [ 3L; 4L ] ] with
+     | [ [ 1L; 2L ]; [ 3L; 4L ] ] -> "pass"
+     | [] -> "fail"
+     | var -> "fail") = "pass"
+
+    (match [ [ 1L; 2L ]; [ 3L; 4L ] ] with
+     | [ a; b ] -> $"pass"
+     | [] -> "fail") = "pass"
+
+    (match [ [ 1L; 2L ]; [] ] with
+     | [ []; _ ] -> "fail"
+     | [ [ 1L; 2L ]; _ ] -> "pass"
+     | _ -> "fail") = "pass"
+
+    (match [ [ 1L; 2L ]; [ 3L; 4L; 5L ] ] with
+     | [ [ 1L; 2L ]; [ _ ] ] -> "fail"
+     | [ [ 1L; 2L ]; [ _; _ ] ] -> "fail"
+     | [ [ 1L; 2L ]; [ _; _; _ ] ] -> "pass") = "pass"
+
+    (match [ [ 1L; 2L ]; [ 3L; 4L ] ] with
+     | [ [ 1L; 2L; 3L ]; [ 4L; 5L; 6L ] ] -> "fail"
+     | [ _; [ 3L; _ ] ] -> "pass"
+     | _ -> "fail") = "pass"
+
+
+  module ListCons =
+    (match [ 1L; 2L; 3L ] with
+     | 1L :: 2L :: [ 3L ] -> 42L) = 42L
+
+    (match [ 1L; 2L; 3L ] with
+     | 1L :: 2L :: [ 3L ] -> 42L
+     | [] -> 4L
+     | _ -> 2L) = 42L
+
+    (match [ 1L; 2L; 3L ] with
+     | [] -> 4L
+     | 1L :: 2L :: [ 3L ] -> 42L
+     | _ -> 2L) = 42L
+
+    (match [ 1L; 2L; 3L ] with
+     | _ -> 2L
+     | 1L :: 2L :: [ 3L ] -> 42L
+     | [] -> 4L) = 2L
+
+    (match [ 1L; 2L; 3L ] with
+     | head :: rest -> head + (rest |> Stdlib.List.head |> Builtin.unwrap)) = 3L
+
+
+    // head tail
+    let headTail (list: List<Int64>) : (Int64 * List<Int64>) =
+      match list with
+      | head :: tail -> (head, tail)
+      | [] -> (0L, [])
+
+    (headTail []) = (0L, [])
+    (headTail [ 1L ]) = (1L, [])
+    (headTail [ 1L; 2L ]) = (1L, [ 2L ])
+    (headTail [ 1L; 2L; 3L ]) = (1L, [ 2L; 3L ])
+
+    (match [ "dd"; "aa"; "fff"; "gg" ] with
+     | head :: tail -> (head, tail)) = ("dd", [ "aa"; "fff"; "gg" ])
+
+    // heads tail
+    let sequence (list: List<Int64>) : Int64 =
+      match list with
+      | a :: b :: c :: rest -> a + b + c
+      | a :: b :: rest -> a + b - 1L
+      | [] -> 0L
+      | _ -> -1L
+
+    (sequence []) = 0L
+    (sequence [ 1L ]) = -1L
+    (sequence [ 1L; 2L ]) = 2L
+    (sequence [ 1L; 2L; 3L ]) = 6L
+    (sequence [ 1L; 2L; 3L; 0L ]) = 6L
+
+    // nested
+    let complexSum (list: List<List<Int64>>) : Int64 =
+      match list with
+      | (a1 :: a2 :: ar) :: (b1 :: b2 :: br) :: (c1 :: cr) :: rest ->
+        a1 + a2 + b1 + b2 + c1
+      | (a :: ar) :: (b :: brest) :: rest -> a + b
+      | _ -> 0L
+
+    (complexSum []) = 0L
+    (complexSum [ [ 1L; 2L ]; [ 3L; 4L ] ]) = 4L
+    (complexSum [ [ 1L; 2L; 3L ]; [ 3L; 4L; 5L ]; [ 4L; 5L; 6L ] ]) = 14L
+
+    // wildcard
+    (match [ 1L; 2L; 3L; 4L ] with
+     | 1L :: a :: [ 4L; 3L ] -> a + 1L
+     | _ :: a :: _ -> a + 2L
+     | 1L :: a :: rest -> a + 3L) = 4L
+
+    // misc
+    (match [ 1L; 2L; 3L; 4L ] with
+     | 2L :: a :: [ 3L; 4L ] -> a + 1L
+     | 1L :: a :: [ 4L; 3L ] -> a + 2L
+     | 1L :: a :: [ 3L; 4L ] -> a + 3L
+     | 1L :: a :: rest -> a + 4L) = 5L
+
+    (match [ 1L; 2L; 3L; 4L ] with
+     | 2L :: a :: rest -> a - 1L
+     | 1L :: a :: rest -> a * 2L) = 4L
+
+
+module Tuple =
+
+  (match (1L, 'a') with
+   | (2L, 'b') -> "fail"
+   | (1L, 'a') -> "pass"
+   | var -> "fail") = "pass"
+
+  (match (1L, 'a') with
+   | (1L, 'a') -> "pass"
+   | (2L, 'b') -> "fail"
+   | var -> "fail") = "pass"
+
+  (match (1L, 'a') with
+   | (x, y) -> $"pass"
+   | (2L, 'b') -> "fail") = "pass"
+
+  (match (1L, 'a', true) with
+   | (1L, _, true) -> "pass"
+   | _ -> "fail") = "pass"
+
+  (match (1L, 'a') with
+   | (1L, 'a', true) -> "fail"
+   | (1L, 'a') -> "pass") = "pass"
+
+  (match (true, [ 1L; 2L ]) with
+   | (true, [ 1L; 2L; 3L ]) -> "fail"
+   | (false, _) -> "fail"
+   | (true, [ 1L; 2L ]) -> "pass") = "pass"
+
+  // duplicate tuple variables
+  (let tpl = (1L, 2L, (3L, 4L), 5L)
+
+   match tpl with
+   | (a, b, (a, b), a) -> (a, b)
+   | name -> name ++ "var") = (5L, 4L)
+
+
+
+  module NestedTuple =
+
+    (match ((1L, 'a'), (true, 2.0)) with
+     | ((2L, 'b'), (false, 3.0)) -> "fail"
+     | ((1L, 'a'), (true, 2.0)) -> "pass"
+     | var -> "fail") = "pass"
+
+    (match ((1L, 'a'), (true, 2.0)) with
+     | ((1L, 'a'), _) -> "pass"
+     | ((2L, 'b'), _) -> "fail"
+     | _ -> "fail") = "pass"
+
+    (match ((1L, 'a'), (true, 2.0)) with
+     | (_, (true, _)) -> "pass"
+     | _ -> "fail") = "pass"
+
+    (match ((1L, 'a'), (true, 2.0)) with
+     | ((_, 'a'), (true, _)) -> "pass"
+     | _ -> "fail") = "pass"
+
+    (match ((1L, 'a'), (true, 2.0)) with
+     | ((1L, _), (_, 3.0)) -> "fail"
+     | ((1L, _), (_, 2.0)) -> "pass"
+     | _ -> "fail") = "pass"
+
+
+    (match ((1L, 'a'), (true, 2.0)) with
+     | ((_, _), (_, _)) -> "pass"
+     | _ -> "fail") = "pass"
+
+    (match ((1L, 'a'), (true, 2.0)) with
+     | ((_, _), _) -> "pass"
+     | _ -> "fail") = "pass"
+
+
+module Result =
+
+  (match Stdlib.Result.Result.Ok 5L with
+   | Ok 6L -> "fail"
+   | Error _ -> "fail"
+   | Ok 5L -> "pass"
+   | var -> "fail") = "pass"
+
+  (match Stdlib.Result.Result.Ok 5L with
+   | Ok 5L -> "pass"
+   | Error _ -> "fail"
+   | var -> "fail") = "pass"
+
+  (match Stdlib.Result.Result.Error "failure" with
+   | Ok _ -> "fail"
+   | Error "success" -> "fail"
+   | Error "failure" -> "pass") = "pass"
+
+  (match Stdlib.Result.Result.Error "failure" with
+   | Ok var -> $"unexpected: {var}"
+   | Error msg -> $"pass: {msg}") = "pass: failure"
+
+  (match Stdlib.Result.Result.Ok [ 1L; 2L; 3L ] with
+   | Ok [ 1L; 2L; 3L; 4L ] -> "fail"
+   | Error _ -> "fail"
+   | Ok [ 1L; 2L; 3L ] -> "pass"
+   | _ -> "fail") = "pass"
+
+  (match Stdlib.Result.Result.Ok((1L, 'a')) with
+   | Ok((2L, 'b')) -> "fail"
+   | Ok((1L, 'a')) -> "pass"
+   | _ -> "fail") = "pass"
+
+  (match Stdlib.Result.Result.Ok 5.0 with
+   | Ok 6.0 -> "fail"
+   | Error _ -> "fail"
+   | Ok 5.0 -> "pass"
+   | _ -> "fail") = "pass"
+
+
+
+module Option =
+
+  (match Stdlib.Option.Option.Some 5L with
+   | Some 6L -> "fail"
+   | None -> "fail"
+   | Some 5L -> "pass"
+   | var -> "fail") = "pass"
+
+  (match Stdlib.Option.Option.Some 5L with
+   | Some 5L -> "pass"
+   | None -> "fail"
+   | var -> "fail") = "pass"
+
+  (match Stdlib.Option.Option.None with
+   | Some _ -> "fail"
+   | None -> "pass") = "pass"
+
+  (match Stdlib.Option.Option.Some "hello" with
+   | Some "world" -> "fail"
+   | None -> "fail"
+   | Some msg -> $"pass: {msg}") = "pass: hello"
+
+  (match Stdlib.Option.Option.Some [ 1L; 2L; 3L ] with
+   | Some [ 1L; 2L; 3L; 4L ] -> "fail"
+   | None -> "fail"
+   | Some [ 1L; 2L; 3L ] -> "pass"
+   | _ -> "fail") = "pass"
+
+  (match Stdlib.Option.Option.Some((1L, 'a')) with
+   | Some((2L, 'b')) -> "fail"
+   | Some((1L, 'a')) -> "pass"
+   | _ -> "fail") = "pass"
+
+
+  (match Stdlib.Option.Option.Some 5.0 with
+   | Some 6.0 -> "fail"
+   | None -> "fail"
+   | Some 5.0 -> "pass"
+   | _ -> "fail") = "pass"
+
+
+module Errors =
+  (match "nothing matches" with
+   | "not this" -> "fail") = Builtin.testDerrorMessage "No matching case found"
+
+  (match Builtin.testRuntimeError "cond is error" with
+   | 5L -> "fail"
+   | 6L -> "pass"
+   | var -> "fail") = Builtin.testDerrorMessage "Uncaught exception: cond is error"
+
+  (match Builtin.testRuntimeError "cond is error, wildcard" with
+   | 5L -> 5L
+   | _ -> 6L) = Builtin.testDerrorMessage "Uncaught exception: cond is error, wildcard"
+
+  (match 1L with
+   | 1L -> Builtin.testRuntimeError "a"
+   | 6L -> "pass"
+   | var -> "fail") = Builtin.testDerrorMessage "Uncaught exception: a"
+
+  (match 1L with
+   | 2L -> Builtin.testRuntimeError "Uncaught exception: a"
+   | 1L -> "pass"
+   | var -> "fail") = "pass"
+
+  (match 1L with
+   | 1L -> "pass"
+   | 6L -> Builtin.testRuntimeError "a"
+   | var -> "fail") = "pass"
+
+  (match 1L with
+   | 2L -> "pass"
+   | 1L -> Builtin.testRuntimeError "a"
+   | var -> "fail") = Builtin.testDerrorMessage "Uncaught exception: a"
+
+  (match 3L with
+   | 2L -> "pass"
+   | 1L -> Builtin.testRuntimeError "a"
+   | var -> "pass") = "pass"
+
+
+module TypeErrors =
+  type TestType =
+    | NoArgs
+    | OneArg of Int64
+    | TwoArgs of Int64 * Int64
+
+  // enum with more pattern params than actual args
+  (match TestType.NoArgs with
+   | NoArgs _ -> "wrong number") =
+    Builtin.testDerrorMessage "No matching case found"
+
+  // enum with fewer pattern params than actual args
+  (match TestType.OneArg 1L with
+   | OneArg -> "wrong number") = Builtin.testDerrorMessage
+    "No matching case found"
+
+  // TODO implement MPIgnored
+  // // enum with a single wildcard
+  // (match TestType.TwoArgs(1L, 2L) with
+  //  | TwoArgs _ -> "wildcards allowed") = "wildcards allowed"
+
+
+module GuardClause =
+  (match 5L with
+   | x when x > 0L -> true
+   | _ -> false) = true
+
+  (match -5L with
+   | x when x > 0L -> true
+   | _ -> false) = false
+
+  (match 6L with
+   | x when x == 5L -> "fail"
+   | -6L -> "fail"
+   | 6L -> "pass"
+   | var -> "fail") = "pass"
+
+  (match 5L with
+   | x when x > 0L -> "positive"
+   | x when x < 0L -> "negative"
+   | _ -> false) = "positive"
+
+  (match (5L, "hello") with
+   | (x, y) when x > 0L && y == "hello" -> "pass"
+   | _ -> "fail") = "pass"
+
+  (match (5L, "hello") with
+   | (x, y) when x > 0L && y == "hello" -> "first matching branch"
+   | (x, y) when x == 5L && y == "hello" -> "second matching branch"
+   | _ -> "fail") = "first matching branch"
+
+  (match (-5L, "hello") with
+   | (x, y) when x > 0L && y == "hello" -> "pass"
+   | _ -> "fail") = "fail"
+
+  (match (5L, "hello") with
+   | (x, y) when x > 0L && Stdlib.String.length y == 5L -> "pass"
+   | _ -> "fail") = "pass"
+
+  (match -5L with
+   | x when y > 0L -> true
+   | _ -> false) = Builtin.testDerrorMessage "There is no variable named: y"
+
+  (match 5L with
+   | 5L -> false
+   | x when y > 0L -> true) = false
+
+  (match 5L with
+   | x when (x + 1L) == 6L -> true
+   | 5L -> false) =
+    true
+
+  (match 5L with
+   | (x, y) when x > 0L -> true
+   | _ -> false) =
+     false
+
+  (match 5L with
+   | 2L when x > 2L -> false
+   | 3L -> true) =
+    (Builtin.testDerrorMessage "No matching case found")
+
+  (match Stdlib.Result.Result.Error 5L with
+   | Ok x when x > 2L -> false
+   | Error _ -> true) = true
+
+
+
+
+
+
+// CLEANUP these tests made sense when the old interpreter forced
+// patterns to match the type of the dval.
+// So, these tests might be better elsewhere, as "at-rest checking" tests.
+// (match 6L with
+//  | 6.0 -> "fail") = Builtin.testDerrorMessage
+//   "Cannot match Int64 value 6 with a Float pattern"
+
+// (match 6.0 with
+//  | 6L -> "fail") = Builtin.testDerrorMessage
+//   "Cannot match Float value 6.0 with an Int64 pattern"
+
+// (match 6UL with
+//  | 6.0 -> "fail") = Builtin.testDerrorMessage
+//   "Cannot match UInt64 value 6 with a Float pattern"
+
+// (match 6.0 with
+//  | 6UL -> "fail") = Builtin.testDerrorMessage
+//   "Cannot match Float value 6.0 with an UInt64 pattern"
+
+// (match 6y with
+//  | 6.0 -> "fail") = Builtin.testDerrorMessage
+//   "Cannot match Int8 value 6 with a Float pattern"
+
+// (match 6.0 with
+//  | 6y -> "fail") = Builtin.testDerrorMessage
+//   "Cannot match Float value 6.0 with an Int8 pattern"
+
+// (match 6uy with
+//  | 6.0 -> "fail") = Builtin.testDerrorMessage
+//   "Cannot match UInt8 value 6 with a Float pattern"
+
+// (match 6.0 with
+//  | 6uy -> "fail") = Builtin.testDerrorMessage
+//   "Cannot match Float value 6.0 with an UInt8 pattern"
+
+// (match 6s with
+//  | 6.0 -> "fail") = Builtin.testDerrorMessage
+//   "Cannot match Int16 value 6 with a Float pattern"
+
+// (match 6.0 with
+//  | 6s -> "fail") = Builtin.testDerrorMessage
+//   "Cannot match Float value 6.0 with an Int16 pattern"
+
+// (match 6us with
+//  | 6.0 -> "fail") = Builtin.testDerrorMessage
+//   "Cannot match UInt16 value 6 with a Float pattern"
+
+// (match 6.0 with
+//  | 6us -> "fail") = Builtin.testDerrorMessage
+//   "Cannot match Float value 6.0 with an UInt16 pattern"
+
+// (match 6l with
+//  | 6.0 -> "fail") = Builtin.testDerrorMessage
+//   "Cannot match Int32 value 6 with a Float pattern"
+
+// (match 6.0 with
+//  | 6l -> "fail") = Builtin.testDerrorMessage
+//   "Cannot match Float value 6.0 with an Int32 pattern"
+
+// (match 6ul with
+//  | 6.0 -> "fail") = Builtin.testDerrorMessage
+//   "Cannot match UInt32 value 6 with a Float pattern"
+
+// (match 6.0 with
+//  | 6ul -> "fail") = Builtin.testDerrorMessage
+//   "Cannot match Float value 6.0 with an UInt32 pattern"
+
+// (match 6Q with
+//  | 6.0 -> "fail") = Builtin.testDerrorMessage
+//   "Cannot match Int128 value 6 with a Float pattern"
+
+// (match 6.0 with
+//  | 6Q -> "fail") = Builtin.testDerrorMessage
+//   "Cannot match Float value 6.0 with an Int128 pattern"
+
+// (match 6Z with
+//  | 6.0 -> "fail") = Builtin.testDerrorMessage
+//   "Cannot match UInt128 value 6 with a Float pattern"
+
+// (match 6.0 with
+//  | 6Z -> "fail") = Builtin.testDerrorMessage
+//   "Cannot match Float value 6.0 with an UInt128 pattern"
+
+// (match "x" with
+//  | 6L -> "fail") = Builtin.testDerrorMessage
+//   "Cannot match String value \"x\" with an Int64 pattern"
+
+// (match 6L with
+//  | "x" -> "fail") = Builtin.testDerrorMessage
+//   "Cannot match Int64 value 6 with a String pattern"
+
+// (match false with
+//  | "false" -> "fail") = Builtin.testDerrorMessage
+//   "Cannot match Bool value false with a String pattern"
+
+// (match "false" with
+//  | false -> "fail") = Builtin.testDerrorMessage
+//   "Cannot match String value \"false\" with a Bool pattern"
+
+// (match -4.7 with
+//  | true -> "fail") = Builtin.testDerrorMessage
+//   "Cannot match Float value -4.7 with a Bool pattern"
+
+// (match true with
+//  | -4.7 -> "fail") = Builtin.testDerrorMessage
+//   "Cannot match Bool value true with a Float pattern"
+
+// (match () with
+//  | 0L -> "fail") = Builtin.testDerrorMessage
+//   "Cannot match Unit value () with an Int64 pattern"
+
+// (match 0L with
+//  | () -> "fail") = Builtin.testDerrorMessage
+//   "Cannot match Int64 value 0 with an Unit pattern"
+
+// (match 'c' with
+//  | true -> "fail") = Builtin.testDerrorMessage
+//   "Cannot match Char value 'c' with a Bool pattern"
+
+// (match true with
+//  | 'c' -> "fail") = Builtin.testDerrorMessage
+//   "Cannot match Bool value true with a Char pattern"
+
+  // (match [ 1L; 2L; 3L ] with
+  //  | "1,2,3" -> "fail") = Builtin.testDerrorMessage
+  //   "Cannot match List<Int64> value [  1, 2, ... with a String pattern"
+
+  // (match [ 1L; 2L; 3L ] with
+  //  | [ 1.0; 2.0; 3.0 ] -> "fail") = Builtin.testDerrorMessage
+  //   "Cannot match Int64 value 1 with a Float pattern"
+
+  // (match "" with
+  //  | [ 1L; 2L; 3L ] -> "fail") = Builtin.testDerrorMessage
+  //   "Cannot match String value \"\" with a List pattern"
+
+  // (match [ [ 1L; 2L ]; [ 3L; 4L ] ] with
+  //  | "1,2,3,4" -> "fail") = Builtin.testDerrorMessage
+  //   "Cannot match List<List<Int64>> value [  [    ... with a String pattern"
+
+  // (match [ "" ] with
+  //  // Different lengths
+  //  | [ 1L; 2L; 3L ] -> "fail") = Builtin.testDerrorMessage "No match for [  \"\"]"
+
+  // (match [ "" ] with
+  //  | [ 1L ] -> "fail") = Builtin.testDerrorMessage
+  //   "Cannot match String value \"\" with an Int64 pattern"
+
+  // (match [ [ 1.0 ] ] with
+  //  | [ [ 1L ] ] -> "fail") = Builtin.testDerrorMessage
+  //   "Cannot match Float value 1.0 with an Int64 pattern"
+
+  // (match [ [ 1L; 2L ]; [ 3L; 4L ] ] with
+  //  | [ [ 1.0; 2.0 ]; [ 3L; 4L ] ] -> "fail"
+  //  | [ [ 1L; 2L ]; [ 3L; 4L ] ] -> "fail"
+  //  | _ -> "fail") = Builtin.testDerrorMessage
+  //   "Cannot match Int64 value 1 with a Float pattern"
+
+    // (match Stdlib.Option.Option.Some "hello" with
+  //  | "hello" -> "fail"
+  //  | Some "hello" -> "fail"
+  //  | _ -> "fail") = Builtin.testDerrorMessage
+  //   // TODO bad error message
+  //   "Cannot match PACKAGE.Darklang.Stdlib.Option.Option value PACKAGE.Da... with a String pattern"
+
+    // (match "" with
+    //  | head :: rest -> "fail") = Builtin.testDerrorMessage
+    //   "Cannot match String value \"\" with a List pattern"
+
+
+  // (match (1L, 'a') with
+  //  | "1,a" -> "fail") = Builtin.testDerrorMessage
+  //   "Cannot match (Int64, Char) value (1, 'a') with a String pattern"
+
+  // (match "1,a" with
+  //  | (1L, 'a') -> "fail") = Builtin.testDerrorMessage
+  //   "Cannot match String value \"1,a\" with a Tuple pattern"
+
+  // (match (1L, 'a') with
+  //  | (1.0, 'a') -> "fail"
+  //  | (1L, 'a') -> "fail"
+  //  | (2L, 'b') -> "fail") = Builtin.testDerrorMessage
+  //   "Cannot match Int64 value 1 with a Float pattern"
+
+
+    // (match ((1L, 'a'), (true, 2.0)) with
+    //  | "1,a,true,2.0" -> "fail") = Builtin.testDerrorMessage
+    //   "Cannot match ((Int64, Char), (Bool, Float)) value ((1, 'a'),... with a String pattern"
+
+    // (match "" with
+    //  | ((1.0, 'a'), (true, 2.0)) -> "fail") = Builtin.testDerrorMessage
+    //   "Cannot match String value \"\" with a Tuple pattern"
+
+    // (match ((1L, 'a'), (true, 2.0)) with
+    //  | ((1.0, 'a'), (true, 2.0)) -> "fail"
+    //  | ((1L, 'a'), (true, 2.0)) -> "fail"
+    //  | _ -> "fail") = Builtin.testDerrorMessage
+    //   "Cannot match Int64 value 1 with a Float pattern"
+
+  // (match Stdlib.Result.Result.Error "failure" with
+  //  | "failure" -> "fail"
+  //  | Error "failure" -> "fail"
+  //  | _ -> "fail") = Builtin.testDerrorMessage
+  //   "Cannot match PACKAGE.Darklang.Stdlib.Result.Result value PACKAGE.Da... with a String pattern"

@@ -1,18 +1,13 @@
 module BuiltinExecution.Libs.Int32
 
-open FSharp.Control.Tasks
-open System.Threading.Tasks
-
-open System.Numerics
-
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module VT = ValueType
+module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module PackageIDs = LibExecution.PackageIDs
-module IntRuntimeError = BuiltinExecution.IntRuntimeError
+module RTE = RuntimeError
 
 
 module ParseError =
@@ -44,21 +39,15 @@ let fns : List<BuiltInFn> =
          a different behavior for negative numbers."
       fn =
         (function
-        | state, _, [ DInt32 v; DInt32 m ] ->
+        | _, vm, _, [ DInt32 v; DInt32 m ] ->
           if m = 0 then
-            IntRuntimeError.Error.ZeroModulus
-            |> IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.callStack
-            |> Ply
+            RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.threadID
           else if m < 0 then
-            IntRuntimeError.Error.NegativeModulus
-            |> IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.callStack
-            |> Ply
+            RTE.Ints.NegativeModulus |> RTE.Int |> raiseRTE vm.threadID
           else
             let result = v % m
             let result = if result < 0 then m + result else result
-            Ply(DInt32(result))
+            Ply(DInt32 result)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -82,15 +71,12 @@ let fns : List<BuiltInFn> =
       fn =
         let resultOk r = Dval.resultOk KTInt32 KTString r |> Ply
         (function
-        | state, _, [ DInt32 v; DInt32 d ] ->
+        | _, vm, _, [ DInt32 v; DInt32 d ] ->
           (try
             v % d |> DInt32 |> resultOk
            with e ->
              if d = 0 then
-               IntRuntimeError.Error.DivideByZeroError
-               |> IntRuntimeError.RTE.toRuntimeError
-               |> raiseRTE state.tracing.callStack
-               |> Ply
+               RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
              else
                Exception.raiseInternal
                  "unexpected failure case in Int32.remainder"
@@ -109,7 +95,7 @@ let fns : List<BuiltInFn> =
       description = "Adds two 32-bit signed integers together"
       fn =
         (function
-        | _, _, [ DInt32 a; DInt32 b ] -> Ply(DInt32(a + b))
+        | _, _, _, [ DInt32 a; DInt32 b ] -> Ply(DInt32(a + b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -123,7 +109,7 @@ let fns : List<BuiltInFn> =
       description = "Subtracts two 32-bit signed integers"
       fn =
         (function
-        | _, _, [ DInt32 a; DInt32 b ] -> Ply(DInt32(a - b))
+        | _, _, _, [ DInt32 a; DInt32 b ] -> Ply(DInt32(a - b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -137,7 +123,7 @@ let fns : List<BuiltInFn> =
       description = "Multiplies two 32-bit signed integers"
       fn =
         (function
-        | _, _, [ DInt32 a; DInt32 b ] -> Ply(DInt32(a * b))
+        | _, _, _, [ DInt32 a; DInt32 b ] -> Ply(DInt32(a * b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -154,20 +140,14 @@ let fns : List<BuiltInFn> =
         Return value wrapped in a {{Result}} "
       fn =
         (function
-        | state, _, [ DInt32 number; DInt32 exp ] ->
+        | _, vm, _, [ DInt32 number; DInt32 exp ] ->
           (try
             if exp < 0 then
-              IntRuntimeError.Error.NegativeExponent
-              |> IntRuntimeError.RTE.toRuntimeError
-              |> raiseRTE state.tracing.callStack
-              |> Ply
+              RTE.Ints.NegativeExponent |> RTE.Int |> raiseRTE vm.threadID
             else
               (bigint number) ** (int exp) |> int32 |> DInt32 |> Ply
            with :? System.OverflowException ->
-             IntRuntimeError.Error.OutOfRange
-             |> IntRuntimeError.RTE.toRuntimeError
-             |> raiseRTE state.tracing.callStack
-             |> Ply)
+             RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -181,12 +161,9 @@ let fns : List<BuiltInFn> =
       description = "Divides two 32-bit signed integers"
       fn =
         (function
-        | state, _, [ DInt32 a; DInt32 b ] ->
+        | _, vm, _, [ DInt32 a; DInt32 b ] ->
           if b = 0 then
-            IntRuntimeError.Error.DivideByZeroError
-            |> IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.callStack
-            |> Ply
+            RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
           else
             Ply(DInt32(a / b))
         | _ -> incorrectArgs ())
@@ -202,7 +179,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the negation of <param a>, {{-a}}"
       fn =
         (function
-        | _, _, [ DInt32 a ] -> Ply(DInt32(-a))
+        | _, _, _, [ DInt32 a ] -> Ply(DInt32(-a))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -216,7 +193,7 @@ let fns : List<BuiltInFn> =
       description = "Returns {{true}} if <param a> is greater than <param b>"
       fn =
         (function
-        | _, _, [ DInt32 a; DInt32 b ] -> Ply(DBool(a > b))
+        | _, _, _, [ DInt32 a; DInt32 b ] -> Ply(DBool(a > b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -231,7 +208,7 @@ let fns : List<BuiltInFn> =
         "Returns {{true}} if <param a> is greater than or equal to <param b>"
       fn =
         (function
-        | _, _, [ DInt32 a; DInt32 b ] -> Ply(DBool(a >= b))
+        | _, _, _, [ DInt32 a; DInt32 b ] -> Ply(DBool(a >= b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -245,7 +222,7 @@ let fns : List<BuiltInFn> =
       description = "Returns {{true}} if <param a> is less than <param b>"
       fn =
         (function
-        | _, _, [ DInt32 a; DInt32 b ] -> Ply(DBool(a < b))
+        | _, _, _, [ DInt32 a; DInt32 b ] -> Ply(DBool(a < b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -260,7 +237,7 @@ let fns : List<BuiltInFn> =
         "Returns {{true}} if <param a> is less than or equal to <param b>"
       fn =
         (function
-        | _, _, [ DInt32 a; DInt32 b ] -> Ply(DBool(a <= b))
+        | _, _, _, [ DInt32 a; DInt32 b ] -> Ply(DBool(a <= b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -275,7 +252,7 @@ let fns : List<BuiltInFn> =
         "Returns a random integer32 between <param start> and <param end> (inclusive)"
       fn =
         (function
-        | _, _, [ DInt32 a; DInt32 b ] ->
+        | _, _, _, [ DInt32 a; DInt32 b ] ->
           let lower, upper = if a > b then (b, a) else (a, b)
 
           let correction : int32 = 1
@@ -294,7 +271,7 @@ let fns : List<BuiltInFn> =
       description = "Get the square root of an <type Int32>"
       fn =
         (function
-        | _, _, [ DInt32 a ] -> Ply(DFloat(sqrt (float a)))
+        | _, _, _, [ DInt32 a ] -> Ply(DFloat(sqrt (float a)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -308,7 +285,7 @@ let fns : List<BuiltInFn> =
       description = "Converts an <type Int32> to a <type Float>"
       fn =
         (function
-        | _, _, [ DInt32 a ] -> Ply(DFloat(float a))
+        | _, _, _, [ DInt32 a ] -> Ply(DFloat(float a))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -324,11 +301,11 @@ let fns : List<BuiltInFn> =
         TypeReference.result TInt32 (TCustomType(Ok errorType, []))
       description = "Returns the <type Int32> value of a <type String>"
       fn =
-        let resultOk = Dval.resultOk KTInt32 KTString
         let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.int32ParseError
+        let resultOk = Dval.resultOk KTInt32 (KTCustomType(typeName, []))
         let resultError = Dval.resultError KTInt32 (KTCustomType(typeName, []))
         (function
-        | _, _, [ DString s ] ->
+        | _, _, _, [ DString s ] ->
           try
             s |> System.Convert.ToInt32 |> DInt32 |> resultOk |> Ply
           with
@@ -349,7 +326,7 @@ let fns : List<BuiltInFn> =
       description = "Stringify <param int>"
       fn =
         (function
-        | _, _, [ DInt32 int ] -> Ply(DString(string int))
+        | _, _, _, [ DInt32 int ] -> Ply(DString(string int))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -363,7 +340,7 @@ let fns : List<BuiltInFn> =
       description = "Converts an Int8 to a 32-bit signed integer."
       fn =
         (function
-        | _, _, [ DInt8 a ] -> DInt32(int32 a) |> Ply
+        | _, _, _, [ DInt8 a ] -> DInt32(int32 a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -377,7 +354,7 @@ let fns : List<BuiltInFn> =
       description = "Converts a UInt8 to a 32-bit signed integer."
       fn =
         (function
-        | _, _, [ DUInt8 a ] -> DInt32(int32 a) |> Ply
+        | _, _, _, [ DUInt8 a ] -> DInt32(int32 a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -391,7 +368,7 @@ let fns : List<BuiltInFn> =
       description = "Converts an Int16 to a 32-bit signed integer."
       fn =
         (function
-        | _, _, [ DInt16 a ] -> DInt32(int32 a) |> Ply
+        | _, _, _, [ DInt16 a ] -> DInt32(int32 a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -405,7 +382,7 @@ let fns : List<BuiltInFn> =
       description = "Converts a UInt16 to a 32-bit signed integer."
       fn =
         (function
-        | _, _, [ DUInt16 a ] -> DInt32(int32 a) |> Ply
+        | _, _, _, [ DUInt16 a ] -> DInt32(int32 a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -420,7 +397,7 @@ let fns : List<BuiltInFn> =
         "Converts a UInt32 to a 32-bit signed integer. Returns {{None}} if the value is greater than 2147483647."
       fn =
         (function
-        | _, _, [ DUInt32 a ] ->
+        | _, _, _, [ DUInt32 a ] ->
           if (a > uint32 System.Int32.MaxValue) then
             Dval.optionNone KTInt32 |> Ply
           else
@@ -439,7 +416,7 @@ let fns : List<BuiltInFn> =
         "Converts an Int64 to a 32-bit signed integer. Returns {{None}} if the value is less than -2147483648 or greater than 2147483647."
       fn =
         (function
-        | _, _, [ DInt64 a ] ->
+        | _, _, _, [ DInt64 a ] ->
           if
             (a < int64 System.Int32.MinValue) || (a > int64 System.Int32.MaxValue)
           then
@@ -460,7 +437,7 @@ let fns : List<BuiltInFn> =
         "Converts a UInt64 to a 32-bit signed integer. Returns {{None}} if the value is greater than 2147483647."
       fn =
         (function
-        | _, _, [ DUInt64 a ] ->
+        | _, _, _, [ DUInt64 a ] ->
           if (a > uint64 System.Int32.MaxValue) then
             Dval.optionNone KTInt32 |> Ply
           else
@@ -479,7 +456,7 @@ let fns : List<BuiltInFn> =
         "Converts an Int128 to a 32-bit signed integer. Returns {{None}} if the value is less than -2147483648 or greater than 2147483647."
       fn =
         (function
-        | _, _, [ DInt128 a ] ->
+        | _, _, _, [ DInt128 a ] ->
           if
             (a < System.Int128.op_Implicit System.Int32.MinValue)
             || (a > System.Int128.op_Implicit System.Int32.MaxValue)
@@ -501,7 +478,7 @@ let fns : List<BuiltInFn> =
         "Converts a UInt128 to a 32-bit signed integer. Returns {{None}} if the value is greater than 2147483647."
       fn =
         (function
-        | _, _, [ DUInt128 a ] ->
+        | _, _, _, [ DUInt128 a ] ->
           if (a > 2147483647Z) then
             Dval.optionNone KTInt32 |> Ply
           else

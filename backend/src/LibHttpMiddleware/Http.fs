@@ -9,6 +9,7 @@ open LibExecution.Builtin.Shortcuts
 
 module Dval = LibExecution.Dval
 module RT = LibExecution.RuntimeTypes
+module VT = LibExecution.ValueType
 module Telemetry = LibService.Telemetry
 module PackageIDs = LibExecution.PackageIDs
 
@@ -24,7 +25,7 @@ module Request =
     (headers : List<string * string>)
     (body : byte array)
     : RT.Dval =
-    let headerType = RT.KTTuple(RT.ValueType.string, RT.ValueType.string, [])
+    let headerType = RT.KTTuple(VT.string, VT.string, [])
 
     let headers =
       headers
@@ -73,7 +74,7 @@ module Response =
         | Ok headers ->
           { statusCode = int code
             headers = lowercaseHeaderKeys headers
-            body = body |> Dval.DlistToByteArray }
+            body = body |> Dval.dlistToByteArray }
         | Error msg ->
           { statusCode = 500
             headers = [ "Content-Type", "text/plain; charset=utf-8" ]
@@ -94,11 +95,11 @@ module Response =
       { statusCode = 500
         headers = [ "Content-Type", "text/plain; charset=utf-8" ]
         body =
-          let typeName = LibExecution.DvalReprDeveloper.toTypeName result
+          let typeName = DvalReprDeveloper.toTypeName result
           let message =
             [ $"Application error: expected a HTTP response, got:"
               $"type {typeName}:"
-              $"  {LibExecution.DvalReprDeveloper.toRepr result}"
+              $"  {DvalReprDeveloper.toRepr result}"
               "\nHTTP handlers should return results in the form:"
               "  PACKAGE.Darklang.Stdlib.Http.Response {"
               "    statusCode : Int64"

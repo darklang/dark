@@ -1,0 +1,482 @@
+module Darklang =
+  module PrettyPrinter =
+    module RuntimeTypes =
+      // <aliases>
+      type FQFnName = LanguageTools.RuntimeTypes.FQFnName.FQFnName
+      type FQTypeName = LanguageTools.RuntimeTypes.FQTypeName.FQTypeName
+      type FQConstantName = LanguageTools.RuntimeTypes.FQConstantName.FQConstantName
+      type TypeReference = LanguageTools.RuntimeTypes.TypeReference
+      type ValueType = LanguageTools.RuntimeTypes.ValueType
+      type Dval = LanguageTools.RuntimeTypes.Dval
+      type LetPattern = LanguageTools.RuntimeTypes.LetPattern
+      // </aliases>
+
+      module RuntimeError =
+        /// Error pretty printing
+        /// ---------------
+        /// Segments allow us to build error messages where the UI and CLI can both
+        /// decorate/link to the sources in a native way
+        type ErrorSegment =
+          // -- Basic types
+          | String of String
+          | Int of Int64
+          | Ordinal of Int64 // 1st, 2nd, etc
+          | IndefiniteArticle // "a" or "an" (chosen based on the next segment)
+          | Count of Int64 * singular: ErrorSegment * plural: ErrorSegment // 2 errors, 1 error, etc
+
+          // -- Functions
+          | FunctionName of FQFnName
+          /// Description from StdLib description fields.
+          /// Note: may include markers like `<param name>`, to be parsed and displayed differently.
+          | Description of String
+          | ParamName of String
+          | InlineParamName of String
+
+          // -- Types
+          | TypeName of FQTypeName
+          | ShortTypeName of FQTypeName
+          | TypeReference of TypeReference
+          | TypeOfValue of Dval // CLEANUP should these all just be ValueTypes?
+          | ValueType of ValueType
+          | FieldName of String // records and enums
+          | InlineFieldName of String // records and enums
+
+          // -- Constants
+          | ConstantName of FQConstantName
+
+          // -- Variables
+          //| DBName of String
+          | VarName of String
+          | InlineVarName of String
+
+          // -- Dvals
+          | InlineValue of Dval // possibly shortened to be shown inline
+          | FullValue of Dval
+
+          | LetPattern of LetPattern
+
+
+        type ES = ErrorSegment
+
+
+        type ErrorSegments = List<ErrorSegment>
+
+
+        let segmentsToString (segments: ErrorSegments) : String =
+          let reversed = Stdlib.List.reverse segments
+
+          let parts =
+            Stdlib.List.fold reversed [] (fun prevSegments segment ->
+
+              let newSegment =
+                match segment with
+                | String s -> s
+                | Int i -> Stdlib.Int64.toString i
+                | Ordinal i -> Stdlib.String.toOrdinal i
+                | Count(i, singular, plural) ->
+                  let count = Stdlib.Int64.toString i
+
+                  if i == 1L then
+                    let segment = segmentsToString [ singular ]
+                    $"{count} {segment}"
+                  else
+                    let segment = segmentsToString [ plural ]
+                    $"{count} {segment}"
+
+                | IndefiniteArticle ->
+                  //Builtin.debug "prevSegments" prevSegments
+                  match Stdlib.List.head prevSegments with
+                  | None -> ""
+                  | Some prev -> Stdlib.String.articleFor prev ++ " "
+
+                | FunctionName fn -> fnName fn
+
+                | Description d -> d
+                | ParamName p -> $"`{p}`"
+                | InlineParamName p -> p // Inline versions don't have quotes
+                | TypeName t -> typeName t
+                | ConstantName c -> constantName c
+                | ShortTypeName t ->
+                  // TODO: make it short
+                  typeName t
+                | TypeReference t -> typeReference t
+                | TypeOfValue dv -> Dval.valueTypeName dv
+                | ValueType vt -> valueType vt
+                | FieldName f -> $"`{f}`"
+                | InlineFieldName f -> f
+                | DBName db -> db
+                | VarName v -> $"`{v}`"
+                | InlineVarName v -> v
+                | InlineValue dv ->
+                  // CLEANUP for strings that are cut off, the closing `"` is missing.
+                  (dval dv)
+                  |> Stdlib.String.ellipsis 10L
+                  |> Stdlib.String.splitOnNewline
+                  |> Stdlib.String.join ""
+                | FullValue dv -> dval dv
+                | LetPattern p -> letPattern p
+                | segment ->
+                  $"(RTETODO segmentsToString parts {(Builtin.jsonSerialize<ErrorSegment> segment)})"
+
+              Stdlib.List.push prevSegments newSegment)
+
+          Stdlib.String.join parts ""
+
+
+        let toSegments
+          (e: LanguageTools.RuntimeTypes.RuntimeError.Error)
+          : ErrorSegments =
+          match e with
+          | Bool err ->
+            match err with
+            | AndOnlySupportsBooleans(_gotLeft, _gotRight) ->
+              // CLEANUP something like this:
+              // [ ES.String "Cannot use `&&` with "
+              //   ES.ValueType gotLeft
+              //   ES.String " and "
+              //   ES.ValueType gotRight ]
+              [ ES.String "&& only supports Booleans" ]
+
+            | OrOnlySupportsBooleans(_gotLeft, _gotRight) ->
+              // CLEANUP something like this:
+              // [ ES.String "Cannot use `||` with "
+              //   ES.ValueType gotLeft
+              //   ES.String " and "
+              //   ES.ValueType gotRight ]
+              [ ES.String "|| only supports Booleans" ]
+
+            | ConditionRequiresBool(actualValueType, actualValue) ->
+              [ ES.String "Encountered a condition that must be a Bool, but got "
+                ES.IndefiniteArticle
+                ES.ValueType actualValueType
+                ES.String " ("
+                ES.FullValue actualValue
+                ES.String ")" ]
+
+          | Int DivideByZeroError -> [ ES.String "Cannot divide by 0" ]
+          | Int OutOfRange -> [ ES.String "Encountered out-of-range value for type of Int" ]
+          | Int NegativeExponent -> [ ES.String "Cannot raise integer to a negative exponent" ]
+          | Int NegativeModulus -> [ ES.String "Cannot evaluate modulus against a negative number" ]
+          | Int ZeroModulus -> [ ES.String "Cannot evaluate modulus against 0" ]
+
+          | String (NonStringInInterpolation(vt, dv)) ->
+            [ ES.String "Expected String in string interpolation, got "
+              ES.IndefiniteArticle
+              ES.ValueType vt
+              ES.String " ("
+              ES.InlineValue dv
+              ES.String ") instead" ]
+
+          | List (TriedToAddMismatchedData (index, expectedType, actualType, actualValue)) ->
+            [ ES.String "Cannot add "
+              ES.IndefiniteArticle
+              ES.ValueType actualType
+              ES.String " ("
+              ES.FullValue actualValue
+              ES.String ") to a list of "
+              ES.ValueType expectedType
+              ES.String ". Failed at index "
+              ES.Int (Stdlib.Int64.fromInt32 index)
+              ES.String "."]
+
+          | Dict err ->
+            match err with
+            | TriedToAddKeyAfterAlreadyPresent key ->
+              [ ES.String "Cannot add two dictionary entries with the same key "
+                ES.FieldName key ]
+            | TriedToAddMismatchedData (key, expectedType, actualType, actualValue) ->
+              [ ES.String "Cannot add "
+                ES.IndefiniteArticle
+                ES.ValueType actualType
+                ES.String " ("
+                ES.FullValue actualValue
+                ES.String ") to a dict of "
+                ES.ValueType expectedType
+                ES.String ". Failed at key "
+                ES.FieldName key
+                ES.String "." ]
+
+          | Let (PatternDoesNotMatch (dval, pat)) ->
+            [ ES.String "Could not deconstruct value "
+              ES.FullValue dval
+              ES.String " into pattern "
+              ES.LetPattern pat ]
+
+          | VariableNotFound attemptedVarName ->
+            [ ES.String $"There is no variable named: {attemptedVarName}" ]
+
+          | EqualityCheckOnIncompatibleTypes (left, right) ->
+            [ ES.String "Cannot perform equality check on "
+              ES.ValueType left
+              ES.String " and "
+              ES.ValueType right ]
+
+          | IfConditionNotBool (actualValue, actualValueType) ->
+            [ ES.String "If condition must be a Bool, but got "
+              ES.ValueType actualValueType
+              ES.String " ("
+              ES.FullValue actualValue
+              ES.String ")" ]
+
+          | Match err ->
+            match err with
+            | MatchUnmatched -> [ ES.String "No matching case found"]
+
+          | ParseTimeNameResolution err ->
+            [ES.String (nameResolutionError err)]
+
+          | TypeNotFound name ->
+            [ ES.String "Type "
+              ES.TypeName name
+              ES.String " couldn't be found" ]
+          | ConstNotFound name ->
+            [ ES.String "Constant "
+              ES.ConstantName name
+              ES.String " couldn't be found" ]
+          | FnNotFound name ->
+            [ ES.String "Function "
+              ES.FunctionName name
+              ES.String " couldn't be found" ]
+
+          | Record err ->
+            match err with
+            // -- Creation --
+            | CreationTypeNotRecord name ->
+              [ ES.String "Expected a record, but "
+                ES.TypeName name
+                ES.String " is not one" ]
+            | CreationEmptyKey -> [ ES.String "Empty key in record creation" ]
+            | CreationMissingField fieldName ->
+              [ ES.String "Missing field "
+                ES.FieldName fieldName
+                // ES.String " in "
+                // ES.TypeName typeName
+                ]
+            | CreationDuplicateField fieldName ->
+              [ ES.String "Duplicate field "
+                ES.FieldName fieldName
+                // ES.String " in "
+                // ES.TypeName typeName
+                ]
+            | CreationFieldNotExpected fieldName ->
+              [ ES.String "No field named "
+                ES.FieldName fieldName
+                // ES.String " in "
+                // ES.TypeName typeName
+                // ES.String " record"
+                ]
+            | CreationFieldOfWrongType (fieldName,  expectedType,  actualType, actualValue) ->
+              [ ES.String "Failed to create record. "
+                ES.String "Expected "
+                ES.ValueType expectedType
+                ES.String " for field "
+                ES.FieldName fieldName
+                ES.String ", but got "
+                ES.InlineValue actualValue
+                ES.String " ("
+                ES.IndefiniteArticle
+                ES.ValueType actualType
+                ES.String ")" ]
+
+            // -- Update --
+            | UpdateNotRecord actualType ->
+              [ ES.String "Cannot apply a record-update to a "
+                ES.ValueType actualType ]
+            | UpdateEmptyKey -> [ ES.String "Empty key in record update" ]
+            | UpdateDuplicateField fieldName ->
+              [ ES.String "Duplicate field "
+                ES.FieldName fieldName
+                // ES.String " in "
+                // ES.TypeName typeName
+                ]
+            | UpdateFieldNotExpected fieldName ->
+              [ ES.String "No field named "
+                ES.FieldName fieldName
+                // ES.String " in "
+                // ES.TypeName typeName
+                // ES.String " record"
+                ]
+            | UpdateFieldOfWrongType(fieldName, expectedType,  actualType, actualValue) ->
+              [ ES.String "Failed to create updated record. "
+                ES.String "Expected "
+                ES.ValueType expectedType
+                ES.String " for field "
+                ES.FieldName fieldName
+                ES.String ", but got "
+                ES.InlineValue actualValue
+                ES.String " ("
+                ES.IndefiniteArticle
+                ES.ValueType actualType
+                ES.String ")" ]
+
+            // -- Field Access --
+            | FieldAccessEmptyFieldName ->
+              [ ES.String "Field name is empty" ]
+            | FieldAccessFieldNotFound fieldName ->
+              [ ES.String "Unexpected field "
+                ES.FieldName fieldName
+                // ES.String " in "
+                // ES.TypeName typeName
+                ]
+            | FieldAccessNotRecord actualType ->
+              [ ES.String "Attempting to perform field access of "
+                ES.IndefiniteArticle
+                ES.ValueType actualType
+                ES.String ", but this only works with records" ]
+
+
+          | Enum err ->
+            match err with
+            | ConstructionWrongNumberOfFields (typeName, caseName, expectedFieldCount, actualFieldCount) ->
+              [ ES.String "Expected "
+                ES.Int expectedFieldCount
+                ES.String " fields in "
+                ES.TypeName typeName
+                ES.String "."
+                ES.FieldName caseName
+                ES.String ", but got "
+                ES.Int actualFieldCount ]
+
+            | ConstructionCaseNotFound (typeName, caseName) ->
+              [ ES.String "There is no case named "
+                ES.FieldName caseName
+                ES.String " in "
+                ES.TypeName typeName ]
+
+            | ConstructionFieldOfWrongType (caseName, fieldIndex, expectedType, actualType, actualValue) ->
+              [ ES.String "Failed to create enum. "
+                ES.String "Expected "
+                ES.ValueType expectedType
+                ES.String " for field "
+                ES.Int fieldIndex
+                ES.String " in "
+                ES.FieldName caseName
+                ES.String ", but got "
+                ES.ValueType actualType
+                ES.String " ("
+                ES.FullValue actualValue
+                ES.String ")" ]
+
+          | Unwrap err ->
+            match err with
+            | GotNone -> [ ES.String "Cannot unwrap None" ]
+            | GotError err -> [ ES.String "Cannot unwrap Error: "; ES.FullValue err ]
+            | NonOptionOrResult actual -> [ ES.String "Can only unwrap Options and Results, yet got "; ES.FullValue actual ]
+            | MultipleArgs args ->
+              [ ES.String "Unwrap expects a single argument, but got "
+                ES.Int(Stdlib.List.length args) ]
+
+          | Apply err ->
+            match err with
+            | ExpectedApplicableButNot (actualTyp, actualValue) ->
+              [ ES.String "Expected something we could apply to, such as a lambda or function, but got "
+                ES.IndefiniteArticle
+                ES.ValueType actualTyp
+                ES.String " ("
+                ES.FullValue actualValue
+                ES.String ")" ]
+
+            | WrongNumberOfTypeArgsForFn (fn, expected, actual) ->
+              [ ES.FunctionName fn
+                ES.String " expects "
+                ES.Count(expected, ES.String "type argument", ES.String "type arguments")
+                ES.String ", but got "
+                ES.Count(actual, ES.String "type argument", ES.String "type arguments") ]
+            | CannotApplyTypeArgsMoreThanOnce ->
+              [ ES.String "Cannot apply type arguments more than once" ]
+            | TooManyArgsForFn (fn, expected, actual) ->
+              [ ES.FunctionName fn
+                ES.String " expects "
+                ES.Count(expected, ES.String "argument", ES.String "arguments")
+                ES.String ", but got "
+                ES.Count(actual, ES.String "argument", ES.String "arguments") ]
+            | FnParameterNotExpectedType(fnName, paramIndex, paramName, expectedType, actualType, actualValue) ->
+              [ ES.FunctionName fnName
+                ES.String "'s "
+                ES.Ordinal(paramIndex + 1L)
+                ES.String " parameter "
+                ES.ParamName paramName
+                ES.String " expects "
+                ES.ValueType expectedType
+                ES.String ", but got "
+                ES.ValueType actualType
+                ES.String " ("
+                ES.FullValue actualValue
+                ES.String ")" ]
+            | FnResultNotExpectedType(fnName, expectedType, actualType, actualValue) ->
+              [ ES.FunctionName fnName
+                ES.String "'s return value expects "
+                ES.ValueType expectedType
+                ES.String ", but got "
+                ES.ValueType actualType
+                ES.String " ("
+                ES.FullValue actualValue
+                ES.String ")" ]
+
+
+
+            | CannotApplyTypeArgsToLambda ->
+              [ ES.String "Cannot apply type arguments to a lambda" ]
+
+            | TooManyArgsForLambda (_lambdaExprId, expected, actual) ->
+              [ ES.String "Lambda expects "
+                ES.Count(expected, ES.String "argument", ES.String "arguments")
+                ES.String ", but got "
+                ES.Count(actual, ES.String "argument", ES.String "arguments") ]
+
+          | Json err ->
+            match err with
+            | UnsupportedType typ ->
+              [ ES.String "Unsupported type in JSON: "
+                ES.TypeReference typ
+                ES.String ". Some types are not supported in Json serialization, and cannot be used as arguments to "
+                ES.FunctionName (LanguageTools.RuntimeTypes.FQFnName.FQFnName.Builtin(LanguageTools.RuntimeTypes.FQFnName.Builtin { name = "jsonParse"; version = 0 }))
+                ES.String " or "
+                ES.FunctionName (LanguageTools.RuntimeTypes.FQFnName.FQFnName.Builtin(LanguageTools.RuntimeTypes.FQFnName.Builtin { name = "jsonSerialize"; version = 0 })) ]
+            | CannotSerializeValue dv ->
+              [ ES.String "Cannot serialize "
+                ES.FullValue dv
+                ES.String " into JSON" ]
+
+          | CLI err ->
+            match err with
+            | NoExpressionsToExecute -> [ ES.String "TODO NoExpressionsToExecute" ]
+            | NonIntReturned actuallyReturnedOfDval -> [ ES.String "TODO NonIntReturned" ]
+
+          | UncaughtException (msg, metadata) ->
+            let withMetadata =
+              match metadata with
+              | [] -> []
+              | metadata ->
+                let preamble = [ ES.String " with metadata: TODO" ]
+                let todo = [ ES.String "TODO" ]
+                Stdlib.List.append preamble todo
+
+            Stdlib.List.append
+              [ ES.String "Uncaught exception: "; ES.String msg ]
+              withMetadata
+
+          // CLEANUP when we bring lambda->sql compilation back
+          // | SqlCompilerRuntimeError err ->
+          //   let sqlErrorTemplate =
+          //     "You're using our new experimental Datastore query compiler. It compiles your lambdas into optimized (and partially indexed) Datastore queries, which should be reasonably fast.\n\nUnfortunately, we hit a snag while compiling your lambda. We only support a subset of Darklang's functionality, but will be expanding it in the future.\n\nSome Darklang code is not supported in DB::query lambdas for now, and some of it won't be supported because it's an odd thing to do in a datastore query. If you think your operation should be supported, let us know in #general in Discord.\n\n  Error: "
+          //   let innerOutput = toSegments err
+          //   { innerOutput with summary = Stdlib.List.append [ (ES.String sqlErrorTemplate) ] innerOutput.summary }
+
+          | unhandled ->
+            let serialized = Builtin.jsonSerialize<LanguageTools.RuntimeTypes.RuntimeError.Error> unhandled
+            [ ES.String $"RTE pretty-printing TODO: {serialized}" ]
+
+
+
+        let toString (e: LanguageTools.RuntimeTypes.RuntimeError.Error) : String =
+          let s = e |> toSegments
+          s |> segmentsToString
+
+
+        type ErrorMessage = ErrorString of String
+
+        let toErrorMessage
+          (e: LanguageTools.RuntimeTypes.RuntimeError.Error)
+          : ErrorMessage =
+          ErrorMessage.ErrorString(toString e)

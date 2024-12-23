@@ -65,8 +65,8 @@ module Darklang =
 
 
       let get
-        (headers: List<String * String>)
         (uri: String)
+        (headers: List<String * String>)
         : Stdlib.Result.Result<Response, RequestError> =
         request "GET" uri headers []
 

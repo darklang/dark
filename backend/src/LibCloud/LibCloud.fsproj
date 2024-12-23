@@ -18,14 +18,15 @@
     <ProjectReference Include="../LibService/LibService.fsproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DvalReprInternalRoundtrippable.fs" />
+    <Compile Include="DvalReprInternalHash.fs" />
+
     <Compile Include="Config.fs" />
     <Compile Include="File.fs" />
     <Compile Include="Db.fs" />
     <Compile Include="Password.fs" />
     <Compile Include="Account.fs" />
     <Compile Include="Routing.fs" />
-    <Compile Include="SqlCompiler.fs" />
-    <Compile Include="UserDB.fs" />
     <Compile Include="Serialize.fs" />
     <Compile Include="PackageManager.fs" />
     <Compile Include="TraceCloudStorage.fs" />
@@ -36,9 +37,15 @@
     <Compile Include="Queue.fs" />
     <Compile Include="Cron.fs" />
     <Compile Include="Tracing.fs" />
+
+    <Compile Include="Init.fs" />
+
+    <Compile Include="DvalReprInternalQueryable.fs" />
+    <Compile Include="SqlCompiler.fs" />
+    <Compile Include="UserDB.fs" />
+
     <Compile Include="Stats.fs" />
     <Compile Include="Migrations.fs" />
-    <Compile Include="Init.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

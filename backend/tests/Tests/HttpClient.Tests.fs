@@ -1,12 +1,11 @@
 /// This module coordinates testing of our `HttpClient` builtin functions.
 ///
-/// There are a variety of http client tests located in
-/// `../testfiles/httpclient`. They all follow a standard format; this module
-/// loads and runs the tests. See the `README.md` in that directory for how the
-/// tests are formatted and parsed.
+/// There are a variety of http client tests located in `../testfiles/httpclient`.
+/// They all follow a standard format; this module loads and runs the tests.
+/// See the `README.md` in that directory for how the tests are formatted and parsed.
 ///
-/// These work almost exactly as our `HttpClient` tests do, which you can find tests
-/// for in `HttpClient.Tests.fs`. It may make sense to merge these 2 test fmodules.
+/// These work almost exactly as our `LibExecution` tests do, which you can find tests
+/// for in `LibExecution.Tests.fs`. It may make sense to merge these 2 test modules.
 module Tests.HttpClient
 
 let baseDirectory = "testfiles/httpclient"
@@ -29,6 +28,7 @@ open Prelude
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module Exe = LibExecution.Execution
 module PackageIDs = LibExecution.PackageIDs
 module C2DT = LibExecution.CommonToDarkTypes
@@ -90,6 +90,24 @@ let updateBody (body : byte array) : byte array =
 
 let pmPT = LibCloud.PackageManager.pt
 
+module Internal =
+  module D = LibExecution.DvalDecoder
+  module PT2DT = LibExecution.ProgramTypesToDarkTypes
+
+  module Test =
+    type PTTest =
+      { name : string; lineNumber : int64; actual : PT.Expr; expected : PT.Expr }
+
+    let fromDT (d : RT.Dval) : PTTest =
+      match d with
+      | RT.DRecord(_, _, _, fields) ->
+        { name = fields |> D.field "name" |> D.string
+          lineNumber = fields |> D.field "lineNumber" |> D.int64
+          actual = fields |> D.field "actual" |> PT2DT.Expr.fromDT
+          expected = fields |> D.field "expected" |> PT2DT.Expr.fromDT }
+      | _ -> Exception.raiseInternal "Invalid Test" []
+
+
 let parseSingleTestFromFile
   (filename : string)
   (test : string)
@@ -108,26 +126,12 @@ let parseSingleTestFromFile
 
     match execResult with
     | Ok dval -> return Internal.Test.fromDT dval
-    | Error(_, rte) ->
-      let! rteString = Exe.rteToString state rte
+    | Error(rte, _) ->
+      let! rteString = Exe.rteToString RT2DT.RuntimeError.toDT state rte
       return
         Exception.raiseInternal
           "Error executing parseSingleTestFromFile function"
           [ "error", rteString ]
-
-  }
-
-let parseTest (filename : string) (test : string) : Ply<Internal.Test.RTTest> =
-  uply {
-    let! ptTest = (parseSingleTestFromFile filename test)
-    let actual = ptTest.actual |> PT2RT.Expr.toRT
-    let expected = ptTest.expected |> PT2RT.Expr.toRT
-
-    return
-      { actual = actual
-        expected = expected
-        lineNumber = ptTest.lineNumber
-        name = ptTest.name }
   }
 
 let makeTest versionName filename =
@@ -189,22 +193,24 @@ let makeTest versionName filename =
     else
       // Set up the canvas
       let canvasID = System.Guid.NewGuid()
-      let! state = executionStateFor pmPT canvasID false true Map.empty
+      let! exeState = executionStateFor pmPT canvasID false true Map.empty
 
       // Parse the Dark code
-      let! (test : Internal.Test.RTTest) =
+      let! (test : Internal.Test.PTTest) =
         darkCode
         |> String.replace "URL" $"{host}/{versionName}/{testName}"
         // CLEANUP: this doesn't use the correct length, as it might be latin1 or
         // compressed
         |> String.replace "LENGTH" (string response.body.Length)
-        |> parseTest "httpclient.tests.fs"
+        |> parseSingleTestFromFile "httpclient.tests.fs"
         |> Ply.toTask
 
       // Run the handler (call the HTTP client)
       // Note: this will update the corresponding value in `testCases` with the
       // actual request received
-      let! actual = Exe.executeExpr state Map.empty test.actual
+      let! actual =
+        let instrs = test.actual |> PT2RT.Expr.toRT Map.empty 0
+        Exe.executeExpr exeState instrs
 
       // First check: expected HTTP request matches actual HTTP request
       let tc = testCases[dictKey]
@@ -219,10 +225,13 @@ let makeTest versionName filename =
       // Second check: expected result (Dval) matches actual result (Dval)
       let actual = Result.map normalizeDvalResult actual
 
-      let! expected = Exe.executeExpr state Map.empty test.expected
+      let! expected =
+        let instrs = test.expected |> PT2RT.Expr.toRT Map.empty 0
+        Exe.executeExpr exeState instrs
+
       match actual, expected with
       | Ok actual, Ok expected ->
-        return Expect.equalDval actual expected $"Responses don't match"
+        return Expect.RT.equalDval actual expected $"Responses don't match"
       | _ -> Expect.equal actual expected $"Responses don't match"
   }
 
@@ -375,7 +384,6 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
 
 
 
-
 let configureApp (app : IApplicationBuilder) =
   let handler (ctx : HttpContext) : Task = runTestHandler ctx
   app.Run(RequestDelegate handler)
@@ -404,7 +412,5 @@ let testsFromFiles version =
 
 let tests =
   versions
-  |> List.map (fun versionName ->
-    let tests = testsFromFiles versionName
-    testList versionName tests)
+  |> List.map (fun v -> testList v (testsFromFiles v))
   |> testList "HttpClient"

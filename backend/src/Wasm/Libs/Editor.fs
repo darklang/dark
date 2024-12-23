@@ -108,7 +108,7 @@ let fns : List<BuiltInFn> =
                 | (Ok l, DString arg) -> Ok(arg :: l)
                 | (_, notAString) ->
                   // CLEANUP this should be an RTE, not a "normal" error
-                  $"Expected args to be a `List<String>`, but got: {LibExecution.DvalReprDeveloper.toRepr notAString}"
+                  $"Expected args to be a `List<String>`, but got: {DvalReprDeveloper.toRepr notAString}"
                   |> Error)
               (Ok [])
             |> Result.map (fun pairs -> List.rev pairs)
@@ -169,8 +169,7 @@ let fns : List<BuiltInFn> =
               // TODO probably need to call `toString` on the RTE, or raise it
               return resultError (DString(string rte))
             | Ok result ->
-              return
-                LibExecution.DvalReprDeveloper.toRepr result |> DString |> resultOk
+              return DvalReprDeveloper.toRepr result |> DString |> resultOk
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

@@ -17,7 +17,7 @@ module Queue = LibCloud.Queue
 
 let modifySchedule (fn : CanvasID -> string -> Task<unit>) =
   (function
-  | _, _, [ DUuid canvasID; DString handlerName ] ->
+  | _, _, _, [ DUuid canvasID; DString handlerName ] ->
     uply {
       do! fn canvasID handlerName
       let! _s = SchedulingRules.getWorkerSchedules canvasID
@@ -63,7 +63,7 @@ let fns : List<BuiltInFn> =
       description = "Get count of how many events are in the queue for this tlid"
       fn =
         (function
-        | _, _, [ DUuid canvasID; DUInt64 tlid ] ->
+        | _, _, _, [ DUuid canvasID; DUInt64 tlid ] ->
           uply {
             let tlid = uint64 tlid
             let! count = LibCloud.Stats.workerStats canvasID tlid
@@ -83,7 +83,7 @@ let fns : List<BuiltInFn> =
         "Returns a list of all queue scheduling rules for the specified canvasID"
       fn =
         (function
-        | _, _, [ DUuid canvasID ] ->
+        | _, _, _, [ DUuid canvasID ] ->
           uply {
             let! rules = SchedulingRules.getSchedulingRules canvasID
             return rulesToDval rules
@@ -127,7 +127,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a list of all queue scheduling rules"
       fn =
         (function
-        | _, _, [ DUnit ] ->
+        | _, _, _, [ DUnit ] ->
           uply {
             let! rules = SchedulingRules.getAllSchedulingRules ()
             return rulesToDval rules

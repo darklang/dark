@@ -40,7 +40,8 @@ module Darklang =
 
       /// Iterate over each Char (EGC, not byte) in the string, performing the
       /// operation in <param fn> on each one.
-      let map (s: String) (fn: Char -> Char) : String = Builtin.stringMap s fn
+      let map (s: String) (fn: Char -> Char) : String =
+        s |> String.toList |> List.map fn |> String.fromList
 
 
       /// Returns the list of Characters (EGC, not byte) in the string

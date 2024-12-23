@@ -335,14 +335,14 @@ ENV NUGET_SCRATCH=/tmp/NuGetScratch
 # Emscripten,
 # for compiling the tree-sitter parser to wasm
 #############
-RUN git clone https://github.com/emscripten-core/emsdk.git --depth 1 \
-  && cd emsdk \
-  # TODO pin to a recent stable version (i.e. 3.1.37)
-  # we are using the latest version because Linux arm64 binaries aren't available in all releases.
-  # see: https://github.com/emscripten-core/emscripten/issues/19275
-  && ./emsdk install latest \
-  && ./emsdk activate latest
-ENV PATH="$PATH:/home/dark/emsdk/upstream/emscripten"
+# RUN git clone https://github.com/emscripten-core/emsdk.git --depth 1 \
+#   && cd emsdk \
+#   # TODO pin to a recent stable version (i.e. 3.1.37)
+#   # we are using the latest version because Linux arm64 binaries aren't available in all releases.
+#   # see: https://github.com/emscripten-core/emscripten/issues/19275
+#   && ./emsdk install latest \
+#   && ./emsdk activate latest
+# ENV PATH="$PATH:/home/dark/emsdk/upstream/emscripten"
 
 
 #############

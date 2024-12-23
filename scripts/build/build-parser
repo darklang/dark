@@ -6,6 +6,8 @@ set -euo pipefail
 # install dependencies
 echo "Installing tree-sitter-darklang dependencies..."
 echo "Note: installing tree-sitter automatically builds the parser as part of it, so this might take a bit..."
+echo "(and if you're stuck here for a while, it's probably because you're disconnected from the internet)"
+# TODO don't require internet connection for this!. if the container is already built, this is pretty frustrating.
 cd tree-sitter-darklang
 npm install tree-sitter-cli
 npm i --ignore-scripts
@@ -23,7 +25,9 @@ fi
 echo "Building tree-sitter-darklang.so"
 zig cc -o tree-sitter-darklang.so -shared src/parser.c src/scanner.c -Isrc -O3 -fPIC
 
-
+# compile for WASM
+#echo "Building tree-sitter-darklang.wasm"
+#zig cc -target wasm32-freestanding -o tree-sitter-darklang.wasm -shared src/parser.c src/scanner.c -Isrc -O3 -fPIC
 
 # Optionally cross-compile to other platforms
 if $cross_compile; then
@@ -56,10 +60,12 @@ fi
 
 cd ..
 
-# copy `tree-sitter-darklang.so` to `backend/src/LibTreeSitter/lib`
+# Copy `tree-sitter-darklang.so`, `.wasm` to `backend/src/LibTreeSitter/lib`
 mkdir -p backend/src/LibTreeSitter/lib
 echo "Copying tree-sitter-darklang.so to backend/src/LibTreeSitter/lib"
 cp tree-sitter-darklang/tree-sitter-darklang.so backend/src/LibTreeSitter/lib
+#echo "Copying tree-sitter-darklang.wasm to backend/src/LibTreeSitter/lib"
+#cp tree-sitter-darklang/tree-sitter-darklang.wasm backend/src/LibTreeSitter/lib
 
 # copy the others too
 if $cross_compile; then

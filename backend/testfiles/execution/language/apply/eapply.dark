@@ -1,0 +1,164 @@
+(let fn = (fun x -> x + 1L)
+ fn 6L) = 7L
+
+(let fn = Stdlib.Int64.add
+ fn 3L 4L) = 7L
+
+(let fn = Stdlib.Int64.max
+ fn 3L 7L) = 7L
+
+([ 1L; 2L; 3L; 4L; 5L ]
+ |> Stdlib.List.map  (fun x y -> x)
+ |> Stdlib.List.map (fun l -> l 1L)) =
+    [ 1L; 2L; 3L; 4L; 5L ]
+
+// ---------------------------
+// DarkInternal tests are internal
+// ---------------------------
+// module DarkInternal =
+//   (let _ = Builtin.testSetExpectedExceptionCount 1L
+//    Builtin.darkInternalInfraSchedulingRuleList ()) =
+//      (Builtin.testDerrorMessage "Unknown error")
+
+
+let stringFn (key: String) : String = key ++ " appended string"
+
+let fnWithTypeArgAndOneParam<'a> (arg: 'a) : 'a = arg
+
+let twoStringFn (str1: String) (str2: String) : String =
+  str1 ++ " appended " ++ str2
+
+let returnsInt () : Int64 = 5L
+
+let returnsString () : String = "string"
+
+let shouldReturnStringButDoesNot () : String = 5L
+
+let returnsOptionSome () : Stdlib.Option.Option<Int64> =
+  Stdlib.Option.Option.Some 5L
+
+let returnsOptionNone () : Stdlib.Option.Option<Int64> = Stdlib.Option.Option.None
+
+let returnsResultOk () : Stdlib.Result.Result<Int64, 'err> =
+  Stdlib.Result.Result.Ok 5L
+
+let throwsException () : 'a =
+  Builtin.testRaiseException "throwsException message"
+
+let derrorFn (msg: String) : String = msg ++ Builtin.testRuntimeError msg
+
+let fnWithTypeArgs<'a, 'b> (a: 'a) (b: 'b) : 'a = a
+
+let fnWithTypedReturn<'a> () : 'a = 5L // errors unless Int64 passed for 'a
+
+type X<'a> = | A of Int64 | B of 'a
+
+let polyFn (a: X<'a>) : X<'a> = a
+let strFn (a: X<String>) : X<String> = a
+let definedPolyFn<'a> (a: X<'a>) : X<'a> = a
+
+
+
+stringFn "string" = "string appended string"
+twoStringFn "str1" "str2" = "str1 appended str2"
+returnsInt () = 5L
+returnsString () = "string"
+returnsOptionSome () = Stdlib.Option.Option.Some 5L
+(returnsOptionSome ()) |> Builtin.unwrap = 5L
+returnsOptionNone () = Stdlib.Option.Option.None
+returnsResultOk () = Stdlib.Result.Result.Ok 5L
+(returnsResultOk ()) |> Builtin.unwrap = 5L
+fnWithTypeArgAndOneParam<Int64> 1L = 1L
+fnWithTypeArgs<Int64, String> 5L "x" = 5L
+fnWithTypedReturn<Int64> () = 5L
+
+polyFn (X.A 5L) = X.A 5L
+polyFn (X.B "str") = X.B "str"
+
+strFn (X.A 5L) = strFn (X.A 5L)
+strFn (X.B "str") = X.B "str"
+
+// TODO you shouldn't have to supply type arguments to definedPolyFn
+// -- we should be able to infer that based on the data passed in
+// definedPolyFn<String>(X.A 5L) = definedPolyFn (X.A 5L)
+// definedPolyFn<String>(X.B "str") = definedPolyFn (X.B "str")
+
+
+module InvalidFnCalls =
+  (functionWhichDoesntExist 6L) =
+    (Builtin.testDerrorMessage "There is no variable named: functionWhichDoesntExist")
+
+
+  // errors around type args
+  fnWithTypeArgAndOneParam 1L =
+    Builtin.testDerrorMessage
+      "fnWithTypeArgAndOneParam expects 1 type argument, but got 0 type arguments"
+
+  fnWithTypeArgAndOneParam<Int64, String> 1L = Builtin.testDerrorMessage
+    "fnWithTypeArgAndOneParam expects 1 type argument, but got 2 type arguments"
+
+
+  // errors around args
+  stringFn "str1" "str2" =
+    Builtin.testDerrorMessage
+      "stringFn expects 1 argument, but got 2 arguments"
+
+  stringFn 5L =
+    (Builtin.testDerrorMessage "stringFn's 1st parameter `key` expects String, but got Int64 (5)")
+
+  fnWithTypeArgAndOneParam<Int64> "str2" =
+    Builtin.testDerrorMessage "fnWithTypeArgAndOneParam's 1st parameter `arg` expects Int64, but got String (\"str2\")"
+
+
+  // errors around return value
+  (shouldReturnStringButDoesNot ()) =
+    (Builtin.testDerrorMessage "shouldReturnStringButDoesNot's return value expects String, but got Int64 (5)")
+
+  // TODO fix this weird edge case (interpreter work)
+  // fnWithTypedReturn<String> () =
+  //   Builtin.testDerrorMessage "fnWithTypedReturn's return value should be a String. However, an Int64 (5) was returned instead."
+
+
+  // errors around type args take priority over ones about args
+  fnWithTypeArgAndOneParam<Int64, String> 1L "str" =
+    Builtin.testDerrorMessage
+      "fnWithTypeArgAndOneParam expects 1 type argument, but got 2 type arguments"
+
+
+  // misc errors
+  derrorFn "msg" = Builtin.testDerrorMessage "Uncaught exception: msg"
+
+  // (let _ = Builtin.testSetExpectedExceptionCount 1L
+  //  throwsException ()) =
+  //   Builtin.testDerrorMessage "Unknown error"
+
+
+// this is making sure that generic type args aren't "carried" into incorrect contexts
+// specifically, that if `'x` is resolved in one place, it won't be used in another unless appropriate
+module GenericTypeArgsAreOK =
+  (let segments =
+    [ (PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.ErrorSegment.String "a")
+      (PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.ErrorSegment.String "b") ]
+
+  PACKAGE.Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.segmentsToString segments
+  ) = "ab"
+
+
+  let inner<'x, 'y> (x: 'x) (_y :'y): 'x =
+    x
+
+  let outer<'x, 'y> (x: 'x) (_y: 'y): 'x =
+    // tst: [x: Bool]
+    let ignored = inner<String, Bool> "hi" true
+    x
+
+  (inner<Bool, String> true "ignored") = true
+  (outer<Bool, String> true "ignored") = true
+
+  (let partial = inner<Bool, String> true
+  partial "ignored") = true
+
+  (let partial = outer<Bool, String> true
+  partial "ignored") = true
+
+

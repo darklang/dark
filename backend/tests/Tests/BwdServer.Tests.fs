@@ -68,7 +68,7 @@ let splitAtNewlines (bytes : byte array) : byte list list =
 #nowarn "57" // Negative array index using ^idx
 
 /// Used to parse a .test file
-/// See details in httptestfiles/README.md
+/// See details in `httptestfiles/README.md`
 module ParseTest =
   type private TestParsingState =
     | Limbo
@@ -342,7 +342,6 @@ module Execution =
         |> replaceByteStrings "DOMAIN" domain
         |> Http.setHeadersToCRLF
 
-
       // Check body matches content-length
       let incorrectContentTypeAllowed =
         testRequest
@@ -458,6 +457,7 @@ let tests =
       |> List.map (t dir handlerType)
     testList testListName tests)
   |> testList "BwdServer"
+
 
 open Microsoft.Extensions.Hosting
 

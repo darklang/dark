@@ -10,7 +10,7 @@ open LibExecution.Builtin.Shortcuts
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module VT = RT.ValueType
+module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
@@ -26,43 +26,6 @@ module Utils = BuiltinCliHost.Utils
 module ExecutionError =
   let fqTypeName = FQTypeName.fqPackage PackageIDs.Type.Cli.executionError
   let typeRef = TCustomType(Ok fqTypeName, [])
-
-
-module CliRuntimeError =
-  open Prelude
-
-  type Error =
-    | NoExpressionsToExecute
-    | UncaughtException of string * metadata : List<string * string>
-    | NonIntReturned of actuallyReturned : Dval
-
-  /// to RuntimeError
-  module RTE =
-    module Error =
-      let toDT (et : Error) : RT.Dval =
-        let (caseName, fields) =
-          match et with
-          | NoExpressionsToExecute -> "NoExpressionsToExecute", []
-
-          | UncaughtException(msg, metadata) ->
-            let metadata =
-              metadata
-              |> List.map (fun (k, v) -> DTuple(DString k, DString v, []))
-              |> Dval.list (KTTuple(VT.string, VT.string, []))
-
-            "UncaughtException", [ DString msg; metadata ]
-
-          | NonIntReturned actuallyReturned ->
-            "NonIntReturned", [ RT2DT.Dval.toDT actuallyReturned ]
-
-        let typeName =
-          FQTypeName.Package PackageIDs.Type.LanguageTools.RuntimeError.Cli.error
-        DEnum(typeName, typeName, [], caseName, fields)
-
-
-    let toRuntimeError (e : Error) : RT.RuntimeError =
-      Error.toDT e |> RT.RuntimeError.fromDT
-
 
 
 // TODO: de-dupe with _other_ Cli.fs
@@ -88,8 +51,8 @@ let builtinsToUse : RT.Builtins =
 let execute
   (parentState : RT.ExecutionState)
   (mod' : Utils.CliScript.PTCliScriptModule)
-  (symtable : Map<string, RT.Dval>)
-  : Ply<Result<RT.Dval, Option<CallStack> * RuntimeError>> =
+  (_args : List<Dval>) // CLEANUP update to List<String>, and extract in builtin
+  : Ply<RT.ExecutionResult> =
   uply {
     let (program : Program) =
       { canvasID = System.Guid.NewGuid()
@@ -113,9 +76,9 @@ let execute
           mod'.submodules.fns |> List.map PT2RT.PackageFn.toRT ]
 
     let packageManager =
-      PackageManager.withExtras packageManagerRT types constants fns
+      packageManagerRT |> PackageManager.withExtras types constants fns
 
-    let tracing = Exe.noTracing (CallStack.fromEntryPoint Script)
+    let tracing = Exe.noTracing
 
     let state =
       Exe.createState
@@ -126,20 +89,22 @@ let execute
         parentState.notify
         program
 
-    if mod'.exprs.Length = 0 then
-      let rte =
-        CliRuntimeError.NoExpressionsToExecute |> CliRuntimeError.RTE.toRuntimeError
-      return Error((None, rte))
-    else // mod'.exprs.Length > 1
-      let exprs = List.map PT2RT.Expr.toRT mod'.exprs
-      let results = List.map (Exe.executeExpr state symtable) exprs
+    match mod'.exprs with
+    | [] ->
+      return
+        RuntimeError.CLIs.NoExpressionsToExecute
+        |> RuntimeError.CLI
+        |> raiseUntargetedRTE
+    | exprs ->
+      let exprInsrts = exprs |> List.map (PT2RT.Expr.toRT Map.empty 0)
+      let results = exprInsrts |> List.map (Exe.executeExpr state)
       match List.tryLast results with
       | Some lastResult -> return! lastResult
       | None ->
-        let rte =
-          CliRuntimeError.NoExpressionsToExecute
-          |> CliRuntimeError.RTE.toRuntimeError
-        return Error((None, rte))
+        return
+          Exception.raiseInternal
+            "No results from executing expressions (which should be impossible..)"
+            []
   }
 
 
@@ -149,7 +114,7 @@ let fns : List<BuiltInFn> =
       parameters =
         [ Param.make "filename" TString ""
           Param.make "code" TString ""
-          Param.make "symtable" (TDict TString) "" ]
+          Param.make "args" (TList TString) "" ]
       returnType = TypeReference.result TInt64 ExecutionError.typeRef
       description =
         "Parses Dark code as a script, and and executes it, returning an exit code"
@@ -158,38 +123,35 @@ let fns : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTInt64 errType
         let resultError = Dval.resultError KTInt64 errType
         (function
-        | state, [], [ DString filename; DString code; DDict(_vtTODO, symtable) ] ->
+        | exeState,
+          _,
+          [],
+          [ DString filename; DString code; DList(_vtTODO, scriptArgs) ] ->
           uply {
-            let exnError (e : exn) : RuntimeError =
-              let msg = Exception.getMessages e |> String.concat "\n"
-              let metadata =
-                Exception.toMetadata e |> List.map (fun (k, v) -> k, string v)
-              CliRuntimeError.UncaughtException(msg, metadata)
-              |> CliRuntimeError.RTE.toRuntimeError
+            let exnError (e : exn) : RuntimeError.Error =
+              RuntimeError.UncaughtException(
+                Exception.getMessages e |> String.concat "\n",
+                Exception.toMetadata e
+                |> List.map (fun (k, v) -> (k, DString(string v)))
+              )
 
             let onMissingType =
-              RT.FQTypeName.FQTypeName.Package
+              FQTypeName.Package
                 PackageIDs.Type.LanguageTools.NameResolver.nameResolverOnMissing
-            let onMissingAllow =
-              RT.Dval.DEnum(onMissingType, onMissingType, [], "Allow", [])
+            let onMissingAllow = DEnum(onMissingType, onMissingType, [], "Allow", [])
 
             let getPmFnName =
-              RT.FQFnName.FQFnName.Package
-                PackageIDs.Fn.LanguageTools.PackageManager.pm
+              FQFnName.Package PackageIDs.Fn.LanguageTools.PackageManager.pm
 
             let! execResult =
-              Exe.executeFunction
-                state
-                getPmFnName
-                []
-                (NEList.singleton RT.Dval.DUnit)
+              Exe.executeFunction exeState getPmFnName [] (NEList.singleton DUnit)
 
             let! pm =
               uply {
                 match execResult with
                 | Ok dval -> return dval
-                | Error(_callStack, rte) ->
-                  let! rteString = (Exe.rteToString state rte)
+                | Error(rte, _cs) ->
+                  let! rteString = Exe.runtimeErrorToString exeState rte
                   return
                     Exception.raiseInternal
                       "Error executing pm function"
@@ -197,25 +159,27 @@ let fns : List<BuiltInFn> =
               }
             let args =
               NEList.ofList
-                (RT.Dval.DString "CliScript")
-                [ RT.Dval.DString "ScriptName"
+                (DString "CliScript")
+                [ DString "ScriptName"
                   onMissingAllow
                   pm
-                  RT.Dval.DString filename
-                  RT.Dval.DString code ]
+                  DString filename
+                  DString code ]
 
             let parseCliScriptFnName =
-              RT.FQFnName.FQFnName.Package
+              FQFnName.Package
                 PackageIDs.Fn.LanguageTools.Parser.CliScript.parseCliScript
 
-            let! execResult = Exe.executeFunction state parseCliScriptFnName [] args
+            let! execResult =
+              Exe.executeFunction exeState parseCliScriptFnName [] args
 
-            let! parsedScript =
+            let! (parsedScript :
+              Result<Utils.CliScript.PTCliScriptModule, RuntimeError.Error>) =
               uply {
                 match execResult with
                 | Ok dval -> return (Utils.CliScript.fromDT dval) |> Ok
-                | Error(_callStack, rte) ->
-                  let! rteString = Exe.rteToString state rte
+                | Error(rte, _cs) ->
+                  let! rteString = Exe.runtimeErrorToString exeState rte
                   return
                     Exception.raiseInternal
                       "Error executing parseCanvas function"
@@ -225,24 +189,24 @@ let fns : List<BuiltInFn> =
             try
               match parsedScript with
               | Ok mod' ->
-                match! execute state mod' symtable with
+                match! execute exeState mod' scriptArgs with
                 | Ok(DInt64 i) -> return resultOk (DInt64 i)
                 | Ok result ->
                   return
-                    CliRuntimeError.NonIntReturned result
-                    |> CliRuntimeError.RTE.toRuntimeError
-                    |> RuntimeError.toDT
+                    RuntimeError.CLIs.NonIntReturned result
+                    |> RuntimeError.CLI
+                    |> RT2DT.RuntimeError.toDT
                     |> resultError
-                | Error(_callStack, e) ->
+                | Error(e, callStack) ->
                   // TODO: do this, some better way
                   // (probably pass it back in a structured way)
-                  // let! csString = Exe.callStackString state callStack
-                  // print $"Error when executing Script. Call-stack:\n{csString}\n"
+                  let! csString = Exe.callStackString exeState callStack
+                  print $"Error when executing Script. Call-stack:\n{csString}\n"
 
-                  return e |> RuntimeError.toDT |> resultError
-              | Error e -> return e |> RuntimeError.toDT |> resultError
+                  return e |> RT2DT.RuntimeError.toDT |> resultError
+              | Error e -> return e |> RT2DT.RuntimeError.toDT |> resultError
             with e ->
-              return exnError e |> RuntimeError.toDT |> resultError
+              return exnError e |> RT2DT.RuntimeError.toDT |> resultError
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -265,7 +229,7 @@ let fns : List<BuiltInFn> =
         let resultError = Dval.resultError KTString errType
 
         function
-        | state, [], [ DString functionName; DList(_vtTODO, args) ] ->
+        | exeState, _, [], [ DString functionName; DList(_vtTODO, args) ] ->
           uply {
             let err (msg : string) (metadata : List<string * string>) : Dval =
               let fields =
@@ -291,57 +255,50 @@ let fns : List<BuiltInFn> =
 
             try
               let resolveFn =
-                RT.FQFnName.FQFnName.Package
+                FQFnName.Package
                   PackageIDs.Fn.LanguageTools.NameResolver.FnName.resolve
 
               let onMissingType =
-                RT.FQTypeName.FQTypeName.Package
+                FQTypeName.Package
                   PackageIDs.Type.LanguageTools.NameResolver.nameResolverOnMissing
               let onMissingAllow =
-                RT.Dval.DEnum(onMissingType, onMissingType, [], "Allow", [])
+                DEnum(onMissingType, onMissingType, [], "Allow", [])
 
               let parserRangeType =
-                RT.FQTypeName.FQTypeName.Package
-                  PackageIDs.Type.LanguageTools.Parser.range
+                FQTypeName.Package PackageIDs.Type.LanguageTools.Parser.range
               let pointType =
-                RT.FQTypeName.FQTypeName.Package
-                  PackageIDs.Type.LanguageTools.Parser.point
-              let pointFields =
-                [ ("row", RT.Dval.DInt64 0); ("column", RT.Dval.DInt64 0) ]
+                FQTypeName.Package PackageIDs.Type.LanguageTools.Parser.point
+              let pointFields = [ ("row", DInt64 0); ("column", DInt64 0) ]
               let fields =
-                [ ("start",
-                   RT.Dval.DRecord(pointType, pointType, [], Map pointFields))
-                  ("end_", RT.Dval.DRecord(pointType, pointType, [], Map pointFields)) ]
+                [ ("start", DRecord(pointType, pointType, [], Map pointFields))
+                  ("end_", DRecord(pointType, pointType, [], Map pointFields)) ]
 
               let rangeParser =
-                RT.Dval.DRecord(parserRangeType, parserRangeType, [], Map fields)
+                DRecord(parserRangeType, parserRangeType, [], Map fields)
               let writtenTypesNameType =
-                RT.FQTypeName.FQTypeName.Package
-                  PackageIDs.Type.LanguageTools.WrittenTypes.name
+                FQTypeName.Package PackageIDs.Type.LanguageTools.WrittenTypes.name
 
               let parts = functionName.Split('.') |> List.ofArray
-              let currentModule = RT.Dval.DList(VT.string, [])
+              let currentModule = DList(VT.string, [])
               let nameArg =
-                RT.Dval.DEnum(
+                DEnum(
                   writtenTypesNameType,
                   writtenTypesNameType,
                   [],
                   "Unresolved",
-                  [ rangeParser
-                    RT.Dval.DList(VT.string, parts |> List.map RT.Dval.DString) ]
+                  [ rangeParser; DList(VT.string, parts |> List.map DString) ]
                 )
 
-              let pm =
-                RT.FQFnName.FQFnName.Package
-                  PackageIDs.Fn.LanguageTools.PackageManager.pm
+              let pm = FQFnName.Package PackageIDs.Fn.LanguageTools.PackageManager.pm
               let! execResult =
-                Exe.executeFunction state pm [] (NEList.singleton RT.Dval.DUnit)
+                Exe.executeFunction exeState pm [] (NEList.singleton RT.Dval.DUnit)
               let! pm =
                 uply {
                   match execResult with
                   | Ok dval -> return dval
-                  | Error(_, rte) ->
-                    let! rteString = (Exe.rteToString state rte)
+                  | Error(rte, _cs) ->
+                    let! rteString =
+                      (Exe.rteToString RT2DT.RuntimeError.toDT exeState rte)
                     return
                       Exception.raiseInternal
                         "Error executing pm function"
@@ -353,7 +310,8 @@ let fns : List<BuiltInFn> =
                   onMissingAllow
                   [ pm; RT.DString "Cli"; currentModule; nameArg ]
 
-              let! execResult = Exe.executeFunction state resolveFn [] resolveFnArgs
+              let! execResult =
+                Exe.executeFunction exeState resolveFn [] resolveFnArgs
 
               let! fnName =
                 uply {
@@ -364,7 +322,7 @@ let fns : List<BuiltInFn> =
                     | Error _ ->
                       return
                         Exception.raiseInternal "Error converting Dval to FQName" []
-                  | Error(_, rte) ->
+                  | Error(rte) ->
                     return
                       Exception.raiseInternal
                         "Error executing resolve function"
@@ -375,11 +333,7 @@ let fns : List<BuiltInFn> =
               | Ok fnName ->
                 let! fn =
                   match PT2RT.FQFnName.toRT fnName with
-                  | FQFnName.Package pkg ->
-                    uply {
-                      let! fn = state.packageManager.getFn pkg
-                      return Option.map packageFnToFn fn
-                    }
+                  | FQFnName.Package pkg -> exeState.fns.package pkg
                   | _ ->
                     Exception.raiseInternal
                       "Error constructing package function name"
@@ -399,26 +353,26 @@ let fns : List<BuiltInFn> =
 
                   let! result =
                     Exe.executeFunction
-                      state
-                      f.name
+                      exeState
+                      (FQFnName.Package f.id)
                       []
                       (NEList.ofList newArgs.Head newArgs.Tail)
 
                   match result with
-                  | Error(_, e) ->
+                  | Error(rte, _cs) ->
                     // TODO we should probably return the error here as-is, and handle by calling the
                     // toSegments on the error within the CLI
                     return
-                      e
-                      |> RuntimeError.toDT
-                      |> LibExecution.DvalReprDeveloper.toRepr
+                      rte
+                      |> RT2DT.RuntimeError.toDT
+                      |> DvalReprDeveloper.toRepr
                       |> DString
                       |> resultError
                   | Ok value ->
                     match value with
                     | DString s -> return resultOk (DString s)
                     | _ ->
-                      let asString = LibExecution.DvalReprDeveloper.toRepr value
+                      let asString = DvalReprDeveloper.toRepr value
                       return resultOk (DString asString)
               | _ -> return incorrectArgs ()
             with e ->

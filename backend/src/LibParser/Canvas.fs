@@ -319,8 +319,8 @@ let parse
     let! initialResult = toPT builtins pm onMissing moduleWT
 
     let pm =
-      PT.PackageManager.withExtras
-        pm
+      pm
+      |> PT.PackageManager.withExtras
         initialResult.types
         initialResult.constants
         initialResult.fns

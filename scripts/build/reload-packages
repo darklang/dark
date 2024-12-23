@@ -30,10 +30,11 @@ fi
 
 
 ./scripts/run-local-exec $PUBLISHED_FLAG load-packages-to-internal-sql-tables > $LOG_CANVAS 2>&1
+echo -e "Done loading packages to internal SQL tables"
 
 
 if [[ "$TEST" != "true" ]]; then
-  echo "Waiting for BwdServer to be ready"
+  echo "Waiting for BwdServer to be ready, so we can reload dark-packages canvas"
   for i in {1..100}; do
     if curl -s -o /dev/null "localhost:${DARK_CONFIG_BWDSERVER_KUBERNETES_PORT}" ; then
       break
@@ -44,4 +45,5 @@ if [[ "$TEST" != "true" ]]; then
 
   echo -e "Reloading dark-packages canvas ${grey}($LOG_CANVAS)${reset}"
   ./scripts/run-local-exec $PUBLISHED_FLAG reload-dark-packages >> $LOG_CANVAS 2>&1
+  echo -e "Done reloading dark-packages canvas"
 fi

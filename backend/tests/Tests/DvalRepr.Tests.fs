@@ -8,18 +8,15 @@ open Prelude
 open TestUtils.TestUtils
 
 module RT = LibExecution.RuntimeTypes
-module VT = RT.ValueType
+module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 
-module DvalReprDeveloper = LibExecution.DvalReprDeveloper
 module DvalReprInternalQueryable = LibExecution.DvalReprInternalQueryable
 module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippable
 module DvalReprInternalHash = LibExecution.DvalReprInternalHash
-module S = TestUtils.RTShortcuts
 
-
-let bogusCallStack = RT.CallStack.fromEntryPoint RT.Script
+let bogusThreadID = guuid ()
 
 let pmRT = LibCloud.PackageManager.rt
 
@@ -29,7 +26,7 @@ let roundtrippableRoundtripsSuccessfully (dv : RT.Dval) : bool =
   dv
   |> DvalReprInternalRoundtrippable.toJsonV0
   |> DvalReprInternalRoundtrippable.parseJsonV0
-  |> Expect.dvalEquality dv
+  |> Expect.RT.dvalEquality dv
 
 let queryableRoundtripsSuccessfullyInRecord
   (
@@ -44,25 +41,29 @@ let queryableRoundtripsSuccessfullyInRecord
     let typeRef = RT.TCustomType(Ok typeName, [])
 
     let types : RT.Types =
-      { typeSymbolTable = Map.empty
-        package =
+      { package =
           fun id ->
             if id = typeID then
               let packageType : RT.PackageType.PackageType =
                 { id = typeID
-                  declaration = S.customTypeRecord [ "field", fieldTyp ] }
+                  declaration =
+                    { typeParams = []
+                      definition =
+                        RT.TypeDeclaration.Record(
+                          NEList.ofList { name = "field"; typ = fieldTyp } []
+                        ) } }
               packageType |> Some |> Ply
             else
               pmRT.getType id }
 
     let! roundtripped =
       record
-      |> DvalReprInternalQueryable.toJsonStringV0 bogusCallStack types typeRef
+      |> DvalReprInternalQueryable.toJsonStringV0 types bogusThreadID
       |> Ply.bind (
-        DvalReprInternalQueryable.parseJsonV0 bogusCallStack types typeRef
+        DvalReprInternalQueryable.parseJsonV0 types bogusThreadID Map.empty typeRef
       )
 
-    return Expect.dvalEquality record roundtripped
+    return Expect.RT.dvalEquality record roundtripped
   }
 
 let queryableRoundtripsSuccessfully
@@ -72,18 +73,15 @@ let queryableRoundtripsSuccessfully
   ) : Task<bool> =
   task {
     let! serialized =
-      DvalReprInternalQueryable.toJsonStringV0
-        bogusCallStack
-        (defaultTypes ())
-        typ
-        dv
+      DvalReprInternalQueryable.toJsonStringV0 (defaultTypes ()) bogusThreadID dv
     let! roundtripped =
       DvalReprInternalQueryable.parseJsonV0
-        bogusCallStack
         (defaultTypes ())
+        bogusThreadID
+        Map.empty
         typ
         serialized
-    return Expect.dvalEquality dv roundtripped
+    return Expect.RT.dvalEquality dv roundtripped
   }
 
 

@@ -14,7 +14,6 @@
 
     <Compile Include="Libs/Bool.fs" />
 
-    <Compile Include="IntRuntimeError.fs" />
     <Compile Include="Libs/Int8.fs" />
     <Compile Include="Libs/UInt8.fs" />
     <Compile Include="Libs/Int16.fs" />
@@ -61,6 +60,7 @@
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../DvalReprDeveloper/DvalReprDeveloper.fsproj" />
     <ProjectReference Include="../LibTreeSitter/LibTreeSitter.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

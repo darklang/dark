@@ -1,6 +1,8 @@
 {
   "FSharp.inlayHints.typeAnnotations": false,
-  "FSharp.inlayHints.enabled": false,
+  "[fsharp]": {
+    "editor.inlayHints.enabled": "off"
+  },
   "FSharp.inlayHints.parameterNames": false,
   "FSharp.workspacePath": "./backend/fsdark.sln",
   "files.associations": {

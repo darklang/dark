@@ -1,18 +1,13 @@
 module BuiltinExecution.Libs.UInt8
 
-open FSharp.Control.Tasks
-open System.Threading.Tasks
-
-open System.Numerics
-
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module VT = ValueType
+module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module PackageIDs = LibExecution.PackageIDs
-module IntRuntimeError = BuiltinExecution.IntRuntimeError
+module RTE = RuntimeError
 
 
 module ParseError =
@@ -45,12 +40,9 @@ let fns : List<BuiltInFn> =
         a different behavior for negative numbers."
       fn =
         (function
-        | state, _, [ DUInt8 v; DUInt8 m ] ->
+        | _, vm, _, [ DUInt8 v; DUInt8 m ] ->
           if m = 0uy then
-            IntRuntimeError.Error.ZeroModulus
-            |> IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.callStack
-            |> Ply
+            RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.threadID |> Ply
           else
             let result = v % m
             let result = if result < 0uy then m + result else result
@@ -68,14 +60,11 @@ let fns : List<BuiltInFn> =
       description = "Adds two 8-bit unsigned integers together"
       fn =
         (function
-        | state, _, [ DUInt8 a; DUInt8 b ] ->
+        | _, vm, _, [ DUInt8 a; DUInt8 b ] ->
           try
             DUInt8(Checked.(+) a b) |> Ply
           with :? System.OverflowException ->
-            IntRuntimeError.Error.OutOfRange
-            |> IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.callStack
-            |> Ply
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -89,14 +78,11 @@ let fns : List<BuiltInFn> =
       description = "Subtracts two 8-bit unsigned integers"
       fn =
         (function
-        | state, _, [ DUInt8 a; DUInt8 b ] ->
+        | _, vm, _, [ DUInt8 a; DUInt8 b ] ->
           try
             DUInt8(Checked.(-) a b) |> Ply
           with :? System.OverflowException ->
-            IntRuntimeError.Error.OutOfRange
-            |> IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.callStack
-            |> Ply
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -110,14 +96,11 @@ let fns : List<BuiltInFn> =
       description = "Multiplies two 8-bit unsigned integers"
       fn =
         (function
-        | state, _, [ DUInt8 a; DUInt8 b ] ->
+        | _, vm, _, [ DUInt8 a; DUInt8 b ] ->
           try
             DUInt8(Checked.(*) a b) |> Ply
           with :? System.OverflowException ->
-            IntRuntimeError.Error.OutOfRange
-            |> IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.callStack
-            |> Ply
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -134,14 +117,11 @@ let fns : List<BuiltInFn> =
         Return value wrapped in a {{Result}} "
       fn =
         (function
-        | state, _, [ DUInt8 number; DUInt8 exp ] ->
+        | _, vm, _, [ DUInt8 number; DUInt8 exp ] ->
           (try
             (bigint number) ** (int exp) |> uint8 |> DUInt8 |> Ply
            with :? System.OverflowException ->
-             IntRuntimeError.Error.OutOfRange
-             |> IntRuntimeError.RTE.toRuntimeError
-             |> raiseRTE state.tracing.callStack
-             |> Ply)
+             RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -155,19 +135,13 @@ let fns : List<BuiltInFn> =
       description = "Divides two 8-bit unsigned integers"
       fn =
         (function
-        | state, _, [ DUInt8 a; DUInt8 b ] ->
+        | _, vm, _, [ DUInt8 a; DUInt8 b ] ->
           if b = 0uy then
-            IntRuntimeError.Error.DivideByZeroError
-            |> IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.callStack
-            |> Ply
+            RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID |> Ply
           else
             let result = int a / int b
             if result < 0 || result > 255 then
-              IntRuntimeError.Error.OutOfRange
-              |> IntRuntimeError.RTE.toRuntimeError
-              |> raiseRTE state.tracing.callStack
-              |> Ply
+              RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID |> Ply
             else
               Ply(DUInt8(uint8 result))
         | _ -> incorrectArgs ())
@@ -183,7 +157,7 @@ let fns : List<BuiltInFn> =
       description = "Returns {{true}} if <param a> is greater than <param b>"
       fn =
         (function
-        | _, _, [ DUInt8 a; DUInt8 b ] -> Ply(DBool(a > b))
+        | _, _, _, [ DUInt8 a; DUInt8 b ] -> Ply(DBool(a > b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -198,7 +172,7 @@ let fns : List<BuiltInFn> =
         "Returns {{true}} if <param a> is greater than or equal to <param b>"
       fn =
         (function
-        | _, _, [ DUInt8 a; DUInt8 b ] -> Ply(DBool(a >= b))
+        | _, _, _, [ DUInt8 a; DUInt8 b ] -> Ply(DBool(a >= b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -212,7 +186,7 @@ let fns : List<BuiltInFn> =
       description = "Returns {{true}} if <param a> is less than <param b>"
       fn =
         (function
-        | _, _, [ DUInt8 a; DUInt8 b ] -> Ply(DBool(a < b))
+        | _, _, _, [ DUInt8 a; DUInt8 b ] -> Ply(DBool(a < b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -227,7 +201,7 @@ let fns : List<BuiltInFn> =
         "Returns {{true}} if <param a> is less than or equal to <param b>"
       fn =
         (function
-        | _, _, [ DUInt8 a; DUInt8 b ] -> Ply(DBool(a <= b))
+        | _, _, _, [ DUInt8 a; DUInt8 b ] -> Ply(DBool(a <= b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -241,7 +215,7 @@ let fns : List<BuiltInFn> =
       description = "Converts an <type UInt8> to a <type String>"
       fn =
         (function
-        | _, _, [ DUInt8 a ] -> Ply(DString(string a))
+        | _, _, _, [ DUInt8 a ] -> Ply(DString(string a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -255,7 +229,7 @@ let fns : List<BuiltInFn> =
       description = "Converts an <type UInt8> to a <type Float>"
       fn =
         (function
-        | _, _, [ DUInt8 a ] -> Ply(DFloat(float a))
+        | _, _, _, [ DUInt8 a ] -> Ply(DFloat(float a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -270,7 +244,7 @@ let fns : List<BuiltInFn> =
         "Returns a random 8-bit unsigned integer (uint8) between <param start> and <param end> (inclusive)"
       fn =
         (function
-        | _, _, [ DUInt8 a; DUInt8 b ] ->
+        | _, _, _, [ DUInt8 a; DUInt8 b ] ->
           let lower, upper = if a > b then (b, a) else (a, b)
 
           let lowerBound = max lower 0uy
@@ -296,7 +270,7 @@ let fns : List<BuiltInFn> =
       description = "Get the square root of an <type UInt8>"
       fn =
         (function
-        | _, _, [ DUInt8 a ] -> Ply(DFloat(sqrt (float a)))
+        | _, _, _, [ DUInt8 a ] -> Ply(DFloat(sqrt (float a)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -311,11 +285,11 @@ let fns : List<BuiltInFn> =
         TypeReference.result TUInt8 (TCustomType(Ok errorType, []))
       description = "Returns the <type UInt8> value of a <type String>"
       fn =
-        let resultOk = Dval.resultOk KTUInt8 KTString
         let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.uint8ParseError
+        let resultOk = Dval.resultOk KTUInt8 (KTCustomType(typeName, []))
         let resultError = Dval.resultError KTUInt8 (KTCustomType(typeName, []))
         (function
-        | _, _, [ DString s ] ->
+        | _, _, _, [ DString s ] ->
           try
             s |> System.Byte.Parse |> DUInt8 |> resultOk |> Ply
           with
@@ -337,7 +311,7 @@ let fns : List<BuiltInFn> =
         "Converts an Int8 to an 8-bit unsigned integer. Returns {{None}} if the value is less than 0."
       fn =
         (function
-        | _, _, [ DInt8 a ] ->
+        | _, _, _, [ DInt8 a ] ->
           if a < 0y then
             Dval.optionNone KTUInt8 |> Ply
           else
@@ -356,7 +330,7 @@ let fns : List<BuiltInFn> =
         "Converts an Int16 to an 8-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 255."
       fn =
         (function
-        | _, _, [ DInt16 a ] ->
+        | _, _, _, [ DInt16 a ] ->
           if a < 0s || a > 255s then
             Dval.optionNone KTUInt8 |> Ply
           else
@@ -375,7 +349,7 @@ let fns : List<BuiltInFn> =
         "Converts a UInt16 to an 8-bit unsigned integer. Returns {{None}} if the value is greater than 255."
       fn =
         (function
-        | _, _, [ DUInt16 a ] ->
+        | _, _, _, [ DUInt16 a ] ->
           if a > 255us then
             Dval.optionNone KTUInt8 |> Ply
           else
@@ -394,7 +368,7 @@ let fns : List<BuiltInFn> =
         "Converts an Int32 to an 8-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 255."
       fn =
         (function
-        | _, _, [ DInt32 a ] ->
+        | _, _, _, [ DInt32 a ] ->
           if a < 0l || a > 255l then
             Dval.optionNone KTUInt8 |> Ply
           else
@@ -413,7 +387,7 @@ let fns : List<BuiltInFn> =
         "Converts a UInt32 to an 8-bit unsigned integer. Returns {{None}} if the value is greater than 255."
       fn =
         (function
-        | _, _, [ DUInt32 a ] ->
+        | _, _, _, [ DUInt32 a ] ->
           if a > 255ul then
             Dval.optionNone KTUInt8 |> Ply
           else
@@ -432,7 +406,7 @@ let fns : List<BuiltInFn> =
         "Converts an Int64 to an 8-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 255."
       fn =
         (function
-        | _, _, [ DInt64 a ] ->
+        | _, _, _, [ DInt64 a ] ->
           if a < 0L || a > 255L then
             Dval.optionNone KTUInt8 |> Ply
           else
@@ -451,7 +425,7 @@ let fns : List<BuiltInFn> =
         "Converts a UInt64 to an 8-bit unsigned integer. Returns {{None}} if the value is greater than 255."
       fn =
         (function
-        | _, _, [ DUInt64 a ] ->
+        | _, _, _, [ DUInt64 a ] ->
           if a > 255UL then
             Dval.optionNone KTUInt8 |> Ply
           else
@@ -470,7 +444,7 @@ let fns : List<BuiltInFn> =
         "Converts an Int128 to an 8-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 255."
       fn =
         (function
-        | _, _, [ DInt128 a ] ->
+        | _, _, _, [ DInt128 a ] ->
           if a < 0Q || a > 255Q then
             Dval.optionNone KTUInt8 |> Ply
           else
@@ -489,7 +463,7 @@ let fns : List<BuiltInFn> =
         "Converts a UInt128 to an 8-bit unsigned integer. Returns {{None}} if the value is greater than 255."
       fn =
         (function
-        | _, _, [ DUInt128 a ] ->
+        | _, _, _, [ DUInt128 a ] ->
           if a > 255Z then
             Dval.optionNone KTUInt8 |> Ply
           else

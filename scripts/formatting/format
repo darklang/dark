@@ -113,7 +113,6 @@ all_fsharp_files() {
     -o -type f \
     \( -name "*.fs" \
     -o -name "*.fsi" \
-    -o -name "*.dark" \
     \) -print
 }
 

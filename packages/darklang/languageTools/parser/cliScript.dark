@@ -76,8 +76,7 @@ module Darklang =
           (onMissing: NameResolver.OnMissing)
           (pm: ProgramTypes.PackageManager.PackageManager)
           (wt: WTCliScriptModule)
-          : (PTCliScriptModule *
-            List<Parser.Range * RuntimeErrors.NameResolution.Error>)
+          : (PTCliScriptModule * List<Parser.Range * ProgramTypes.NameResolutionError>)
           =
           let modules = if wt.name == "" then [] else [ wt.name ]
 
@@ -124,6 +123,7 @@ module Darklang =
                 modules
                 m)
             |> Stdlib.List.unzip
+          let unresolvedNamesInSubModules = Stdlib.List.flatten unresolvedNamesInSubModules
 
           let (exprs, unresolvedNamesInExprs) =
             wt.exprs
@@ -135,6 +135,7 @@ module Darklang =
                 modules
                 e)
             |> Stdlib.List.unzip
+          let unresolvedNamesInExprs = Stdlib.List.flatten unresolvedNamesInExprs
 
           let unresolvedNames =
             Stdlib.List.flatten
@@ -161,7 +162,7 @@ module Darklang =
           (filename: String)
           (source: String)
           : (PTCliScriptModule *
-            List<Parser.Range * RuntimeErrors.NameResolution.Error>)
+            List<Parser.Range * ProgramTypes.NameResolutionError>)
           =
           let parsedFile = source |> LanguageTools.Parser.TestParsing.initialParse
           let moduleWT = (parseDecls owner scriptName parsedFile) |> Builtin.unwrap

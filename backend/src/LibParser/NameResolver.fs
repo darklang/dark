@@ -7,7 +7,7 @@ module WT = WrittenTypes
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RT = LibExecution.RuntimeTypes
-module NRE = LibExecution.NameResolutionError
+type NRE = PT.NameResolutionError
 
 
 /// If a name is not found, should we raise an exception?
@@ -84,15 +84,12 @@ let resolveTypeName
   (currentModule : List<string>)
   (name : WT.Name)
   : Ply<PT.NameResolution<PT.FQTypeName.FQTypeName>> =
-  let err errType : PT.NameResolution<PT.FQTypeName.FQTypeName> =
-    Error { nameType = NRE.Type; errorType = errType }
-
   match name with
   // TODO remodel things appropriately so this is not needed
   | WT.KnownBuiltin(_name, _version) ->
     Exception.raiseInternal "Builtin types don't exist" []
   | WT.Unresolved given ->
-    let notFoundError = err (NRE.NotFound(NEList.toList given))
+    let notFoundError = Error(NRE.NotFound(NEList.toList given))
 
     let tryPackageName
       (name : PT.PackageType.Name)
@@ -123,7 +120,7 @@ let resolveTypeName
       // parses `TypeName_v2` into `(TypeName, 2)`, or just `TypeName` into `(TypeName, 0)`.
       // TODO: ensure we're validating fully and reasonably (e.g. include module)
       match FS2WT.Expr.parseTypeName name with
-      | Error _ -> return err (NRE.InvalidPackageName(NEList.toList given))
+      | Error _ -> return Error(NRE.InvalidName(NEList.toList given))
       | Ok name ->
         let genericName = { modules = modules; name = name; version = 0 }
 
@@ -153,14 +150,11 @@ let resolveConstantName
   (currentModule : List<string>)
   (name : WT.Name)
   : Ply<PT.NameResolution<PT.FQConstantName.FQConstantName>> =
-  let err errType : PT.NameResolution<PT.FQConstantName.FQConstantName> =
-    Error { nameType = NRE.Constant; errorType = errType }
-
   match name with
   | WT.KnownBuiltin(name, version) ->
     Ok(PT.FQConstantName.fqBuiltIn name version) |> Ply
   | WT.Unresolved given ->
-    let notFoundError = err (NRE.NotFound(NEList.toList given))
+    let notFoundError = Error(NRE.NotFound(NEList.toList given))
 
     let tryPackageName
       (name : PT.PackageConstant.Name)
@@ -198,7 +192,7 @@ let resolveConstantName
       let (modules, name) = NEList.splitLast given
 
       match FS2WT.Expr.parseFnName name with
-      | Error _ -> return err (NRE.InvalidPackageName(NEList.toList given))
+      | Error _ -> return Error(NRE.InvalidName(NEList.toList given))
       | Ok(name, version) ->
         let genericName = { modules = modules; name = name; version = version }
 
@@ -227,13 +221,10 @@ let resolveFnName
   (currentModule : List<string>)
   (name : WT.Name)
   : Ply<PT.NameResolution<PT.FQFnName.FQFnName>> =
-  let err errType : PT.NameResolution<PT.FQFnName.FQFnName> =
-    Error { nameType = NRE.Function; errorType = errType }
-
   match name with
   | WT.KnownBuiltin(name, version) -> Ok(PT.FQFnName.fqBuiltIn name version) |> Ply
   | WT.Unresolved given ->
-    let notFoundError = err (NRE.NotFound(NEList.toList given))
+    let notFoundError = Error(NRE.NotFound(NEList.toList given))
 
     let tryPackageName
       (name : PT.PackageFn.Name)
@@ -270,7 +261,7 @@ let resolveFnName
       let (modules, name) = NEList.splitLast given
 
       match FS2WT.Expr.parseFnName name with
-      | Error _ -> return err (NRE.InvalidPackageName(NEList.toList given))
+      | Error _ -> return Error(NRE.InvalidName(NEList.toList given))
       | Ok(name, version) ->
         let genericName = { modules = modules; name = name; version = version }
 

@@ -6,7 +6,7 @@ open FSharp.Control.Tasks
 
 open Prelude
 open LibExecution.RuntimeTypes
-module VT = ValueType
+module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
@@ -20,7 +20,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the current working directory"
       fn =
         (function
-        | _, _, [ DUnit ] ->
+        | _, _, _, [ DUnit ] ->
           uply {
             let contents = System.IO.Directory.GetCurrentDirectory()
             return DString contents
@@ -41,7 +41,7 @@ let fns : List<BuiltInFn> =
         let resultOk r = Dval.resultOk KTUnit KTString r |> Ply
         let resultError r = Dval.resultError KTUnit KTString r |> Ply
         (function
-        | _, _, [ DString path ] ->
+        | _, _, _, [ DString path ] ->
           try
             System.IO.Directory.CreateDirectory(path)
             |> ignore<System.IO.DirectoryInfo>
@@ -64,7 +64,7 @@ let fns : List<BuiltInFn> =
         let resultOk r = Dval.resultOk KTUnit KTString r |> Ply
         let resultError r = Dval.resultError KTUnit KTString r |> Ply
         (function
-        | _, _, [ DString path ] ->
+        | _, _, _, [ DString path ] ->
           try
             System.IO.Directory.Delete(path, false)
             resultOk DUnit
@@ -83,7 +83,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the directory at <param path>"
       fn =
         (function
-        | _, _, [ DString path ] ->
+        | _, _, _, [ DString path ] ->
           uply {
             // TODO make async
             let contents =

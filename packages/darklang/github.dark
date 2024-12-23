@@ -18,7 +18,7 @@ module Darklang =
           ("accept", "application/vnd.github+json")
           ("user-Agent", "darklang") ]
 
-      match Stdlib.HttpClient.get headers url with
+      match Stdlib.HttpClient.get url headers with
       | Ok r ->
         r.body |> Stdlib.String.fromBytesWithReplacement |> Stdlib.Result.Result.Ok
       | Error _e -> Stdlib.Result.Result.Error "Failed to make GitHub API request"

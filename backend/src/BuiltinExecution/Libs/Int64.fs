@@ -1,24 +1,13 @@
 module BuiltinExecution.Libs.Int64
 
-open FSharp.Control.Tasks
-open System.Threading.Tasks
-
-open System.Numerics
-
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module VT = ValueType
+module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module PackageIDs = LibExecution.PackageIDs
-module IntRuntimeError = BuiltinExecution.IntRuntimeError
-
-/// Used for values which are outside the range of expected values for some
-/// reason. Really, any function using this should have a Result type instead.
-let argumentWasntPositive (paramName : string) (dv : Dval) : string =
-  let actual = LibExecution.DvalReprDeveloper.toRepr dv
-  $"Expected `{paramName}` to be positive, but it was `{actual}`"
+module RTE = RuntimeError
 
 
 module ParseError =
@@ -51,21 +40,15 @@ let fns : List<BuiltInFn> =
          a different behavior for negative numbers."
       fn =
         (function
-        | state, _, [ DInt64 v; DInt64 m ] ->
+        | _, vm, _, [ DInt64 v; DInt64 m ] ->
           if m = 0L then
-            IntRuntimeError.Error.ZeroModulus
-            |> IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.callStack
-            |> Ply
+            RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.threadID
           else if m < 0L then
-            IntRuntimeError.Error.NegativeModulus
-            |> IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.callStack
-            |> Ply
+            RTE.Ints.NegativeModulus |> RTE.Int |> raiseRTE vm.threadID
           else
             let result = v % m
             let result = if result < 0L then m + result else result
-            Ply(DInt64(result))
+            Ply(DInt64 result)
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "%"
       previewable = Pure
@@ -77,13 +60,13 @@ let fns : List<BuiltInFn> =
 
 
     // See above for when to uncomment this
-    // TODO: A future version should support all non-zero modulus values and should include the infix "%"
+    // TODO: A future version should support all non-0 values and should include the infix "%"
     // { name = fn "mod" 0
-    //   parameters = [ Param.make "value" TInt64 ""; Param.make "modulus" TInt64 "" ]
+    //   parameters = [ Param.make "dividend" TInt64 ""; Param.make "divisor" TInt64 "" ]
     //   returnType = TypeReference.result TInt64 TString
     //   description =
-    //     "Returns the result of wrapping <param value> around so that {{0 <= res < modulus}}, as a <type Result>.
-    //      If <param modulus> is positive, returns {{Ok res}}. Returns an {{Error}} if <param modulus> is {{0}} or negative.
+    //     "Returns the result of wrapping <param dividend> around so that {{0 <= res < divisor}}, as a <type Result>.
+    //      If <param divisor> is positive, returns {{Ok res}}. Returns an {{Error}} if <param divisor> is {{0}} or negative.
     //     Use <fn Int64.remainder> if you want the remainder after division, which has a different behavior for negative numbers."
     //   fn =
     //     (function
@@ -98,7 +81,7 @@ let fns : List<BuiltInFn> =
     //                Error(
     //                  DString(
     //                    "`modulus` must be positive but was "
-    //                    + LibExecution.DvalReprDeveloper.toRepr (DInt64 m)
+    //                    + DvalReprDeveloper.toRepr (DInt64 m)
     //                  )
     //                )
     //              )
@@ -113,14 +96,15 @@ let fns : List<BuiltInFn> =
 
     { name = fn "int64Remainder" 0
       typeParams = []
-      parameters = [ Param.make "value" TInt64 ""; Param.make "divisor" TInt64 "" ]
+      parameters =
+        [ Param.make "dividend" TInt64 ""; Param.make "divisor" TInt64 "" ]
       returnType = TypeReference.result TInt64 TString
       description =
-        "Returns the integer remainder left over after dividing <param value> by
+        "Returns the integer remainder left over after dividing <param dividend> by
          <param divisor>, as a <type Result>.
 
          For example, {{Int64.remainder 15 6 == Ok 3}}. The remainder will be
-         negative only if {{<var value> < 0}}.
+         negative only if {{<var dividend> < 0}}.
 
          The sign of <param divisor> doesn't influence the outcome.
 
@@ -128,15 +112,12 @@ let fns : List<BuiltInFn> =
       fn =
         let resultOk r = Dval.resultOk KTInt64 KTString r |> Ply
         (function
-        | state, _, [ DInt64 v; DInt64 d ] ->
+        | _, vm, _, [ DInt64 v; DInt64 d ] ->
           (try
             v % d |> DInt64 |> resultOk
            with e ->
              if d = 0L then
-               IntRuntimeError.Error.DivideByZeroError
-               |> IntRuntimeError.RTE.toRuntimeError
-               |> raiseRTE state.tracing.callStack
-               |> Ply
+               RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
              else
                Exception.raiseInternal
                  "unexpected failure case in Int64.remainder"
@@ -155,7 +136,7 @@ let fns : List<BuiltInFn> =
       description = "Adds two integers together"
       fn =
         (function
-        | _, _, [ DInt64 a; DInt64 b ] -> Ply(DInt64(a + b))
+        | _, _, _, [ DInt64 a; DInt64 b ] -> Ply(DInt64(a + b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "+"
       previewable = Pure
@@ -169,7 +150,7 @@ let fns : List<BuiltInFn> =
       description = "Subtracts two integers"
       fn =
         (function
-        | _, _, [ DInt64 a; DInt64 b ] -> Ply(DInt64(a - b))
+        | _, _, _, [ DInt64 a; DInt64 b ] -> Ply(DInt64(a - b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "-"
       previewable = Pure
@@ -183,7 +164,7 @@ let fns : List<BuiltInFn> =
       description = "Multiplies two integers"
       fn =
         (function
-        | _, _, [ DInt64 a; DInt64 b ] -> Ply(DInt64(a * b))
+        | _, _, _, [ DInt64 a; DInt64 b ] -> Ply(DInt64(a * b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "*"
       previewable = Pure
@@ -200,20 +181,14 @@ let fns : List<BuiltInFn> =
         Return value wrapped in a {{Result}} "
       fn =
         (function
-        | state, _, [ DInt64 number; DInt64 exp ] ->
+        | _, vm, _, [ DInt64 number; DInt64 exp ] ->
           (try
             if exp < 0L then
-              IntRuntimeError.Error.NegativeExponent
-              |> IntRuntimeError.RTE.toRuntimeError
-              |> raiseRTE state.tracing.callStack
-              |> Ply
+              RTE.Ints.NegativeExponent |> RTE.Int |> raiseRTE vm.threadID
             else
               (bigint number) ** (int exp) |> int64 |> DInt64 |> Ply
            with :? System.OverflowException ->
-             IntRuntimeError.Error.OutOfRange
-             |> IntRuntimeError.RTE.toRuntimeError
-             |> raiseRTE state.tracing.callStack
-             |> Ply)
+             RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID)
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "^"
       previewable = Pure
@@ -227,12 +202,9 @@ let fns : List<BuiltInFn> =
       description = "Divides two integers"
       fn =
         (function
-        | state, _, [ DInt64 a; DInt64 b ] ->
+        | _, vm, _, [ DInt64 a; DInt64 b ] ->
           if b = 0L then
-            IntRuntimeError.Error.DivideByZeroError
-            |> IntRuntimeError.RTE.toRuntimeError
-            |> raiseRTE state.tracing.callStack
-            |> Ply
+            RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
           else
             Ply(DInt64(a / b))
         | _ -> incorrectArgs ())
@@ -248,7 +220,7 @@ let fns : List<BuiltInFn> =
       description = "Returns the negation of <param a>, {{-a}}"
       fn =
         (function
-        | _, _, [ DInt64 a ] -> Ply(DInt64(-a))
+        | _, _, _, [ DInt64 a ] -> Ply(DInt64(-a))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -262,7 +234,7 @@ let fns : List<BuiltInFn> =
       description = "Returns {{true}} if <param a> is greater than <param b>"
       fn =
         (function
-        | _, _, [ DInt64 a; DInt64 b ] -> Ply(DBool(a > b))
+        | _, _, _, [ DInt64 a; DInt64 b ] -> Ply(DBool(a > b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp ">"
       previewable = Pure
@@ -277,7 +249,7 @@ let fns : List<BuiltInFn> =
         "Returns {{true}} if <param a> is greater than or equal to <param b>"
       fn =
         (function
-        | _, _, [ DInt64 a; DInt64 b ] -> Ply(DBool(a >= b))
+        | _, _, _, [ DInt64 a; DInt64 b ] -> Ply(DBool(a >= b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp ">="
       previewable = Pure
@@ -291,7 +263,7 @@ let fns : List<BuiltInFn> =
       description = "Returns {{true}} if <param a> is less than <param b>"
       fn =
         (function
-        | _, _, [ DInt64 a; DInt64 b ] -> Ply(DBool(a < b))
+        | _, _, _, [ DInt64 a; DInt64 b ] -> Ply(DBool(a < b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<"
       previewable = Pure
@@ -306,7 +278,7 @@ let fns : List<BuiltInFn> =
         "Returns {{true}} if <param a> is less than or equal to <param b>"
       fn =
         (function
-        | _, _, [ DInt64 a; DInt64 b ] -> Ply(DBool(a <= b))
+        | _, _, _, [ DInt64 a; DInt64 b ] -> Ply(DBool(a <= b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<="
       previewable = Pure
@@ -321,7 +293,7 @@ let fns : List<BuiltInFn> =
         "Returns a random integer between <param start> and <param end> (inclusive)"
       fn =
         (function
-        | _, _, [ DInt64 a; DInt64 b ] ->
+        | _, _, _, [ DInt64 a; DInt64 b ] ->
           let lower, upper = if a > b then (b, a) else (a, b)
 
           // .NET's "nextInt64" is exclusive,
@@ -344,7 +316,7 @@ let fns : List<BuiltInFn> =
       description = "Get the square root of an <type Int64>"
       fn =
         (function
-        | _, _, [ DInt64 a ] -> Ply(DFloat(sqrt (float a)))
+        | _, _, _, [ DInt64 a ] -> Ply(DFloat(sqrt (float a)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -358,7 +330,7 @@ let fns : List<BuiltInFn> =
       description = "Converts an <type Int64> to a <type Float>"
       fn =
         (function
-        | _, _, [ DInt64 a ] -> Ply(DFloat(float a))
+        | _, _, _, [ DInt64 a ] -> Ply(DFloat(float a))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -373,11 +345,11 @@ let fns : List<BuiltInFn> =
         TypeReference.result TInt64 (TCustomType(Ok errorType, []))
       description = "Returns the <type Int64> value of a <type String>"
       fn =
-        let resultOk = Dval.resultOk KTInt64 KTString
         let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.int64ParseError
+        let resultOk = Dval.resultOk KTInt64 (KTCustomType(typeName, []))
         let resultError = Dval.resultError KTInt64 (KTCustomType(typeName, []))
         (function
-        | _, _, [ DString s ] ->
+        | _, _, _, [ DString s ] ->
           try
             s |> System.Convert.ToInt64 |> DInt64 |> resultOk |> Ply
           with
@@ -398,7 +370,7 @@ let fns : List<BuiltInFn> =
       description = "Stringify <param int>"
       fn =
         (function
-        | _, _, [ DInt64 int ] -> Ply(DString(string int))
+        | _, _, _, [ DInt64 int ] -> Ply(DString(string int))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -412,7 +384,7 @@ let fns : List<BuiltInFn> =
       description = "Converts an Int8 to a 64-bit signed integer."
       fn =
         (function
-        | _, _, [ DInt8 a ] -> DInt64(int64 a) |> Ply
+        | _, _, _, [ DInt8 a ] -> DInt64(int64 a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -426,7 +398,7 @@ let fns : List<BuiltInFn> =
       description = "Converts a UInt8 to a 64-bit signed integer."
       fn =
         (function
-        | _, _, [ DUInt8 a ] -> DInt64(int64 a) |> Ply
+        | _, _, _, [ DUInt8 a ] -> DInt64(int64 a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -440,7 +412,7 @@ let fns : List<BuiltInFn> =
       description = "Converts an Int16 to a 64-bit signed integer."
       fn =
         (function
-        | _, _, [ DInt16 a ] -> DInt64(int64 a) |> Ply
+        | _, _, _, [ DInt16 a ] -> DInt64(int64 a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -454,7 +426,7 @@ let fns : List<BuiltInFn> =
       description = "Converts a UInt16 to a 64-bit signed integer."
       fn =
         (function
-        | _, _, [ DUInt16 a ] -> DInt64(int64 a) |> Ply
+        | _, _, _, [ DUInt16 a ] -> DInt64(int64 a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -468,7 +440,7 @@ let fns : List<BuiltInFn> =
       description = "Converts an Int32 to a 64-bit signed integer."
       fn =
         (function
-        | _, _, [ DInt32 a ] -> DInt64(int64 a) |> Ply
+        | _, _, _, [ DInt32 a ] -> DInt64(int64 a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -482,7 +454,7 @@ let fns : List<BuiltInFn> =
       description = "Converts a UInt32 to a 64-bit signed integer."
       fn =
         (function
-        | _, _, [ DUInt32 a ] -> DInt64(int64 a) |> Ply
+        | _, _, _, [ DUInt32 a ] -> DInt64(int64 a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -497,7 +469,7 @@ let fns : List<BuiltInFn> =
         "Converts a UInt64 to a 64-bit signed integer. Returns {{None}} if the value is greater than 9223372036854775807."
       fn =
         (function
-        | _, _, [ DUInt64 a ] ->
+        | _, _, _, [ DUInt64 a ] ->
           if (a > uint64 System.Int64.MaxValue) then
             Dval.optionNone KTInt64 |> Ply
           else
@@ -516,7 +488,7 @@ let fns : List<BuiltInFn> =
         "Converts an Int128 to a 64-bit signed integer. Returns {{None}} if the value is less than -9223372036854775808 or greater than 9223372036854775807."
       fn =
         (function
-        | _, _, [ DInt128 a ] ->
+        | _, _, _, [ DInt128 a ] ->
           if
             (a < System.Int128.op_Implicit System.Int64.MinValue)
             || (a > System.Int128.op_Implicit System.Int64.MaxValue)
@@ -538,7 +510,7 @@ let fns : List<BuiltInFn> =
         "Converts a UInt128 to a 64-bit signed integer. Returns {{None}} if the value is greater than 9223372036854775807."
       fn =
         (function
-        | _, _, [ DUInt128 a ] ->
+        | _, _, _, [ DUInt128 a ] ->
           if (a > 9223372036854775807Z) then
             Dval.optionNone KTInt64 |> Ply
           else

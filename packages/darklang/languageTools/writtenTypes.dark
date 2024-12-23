@@ -87,7 +87,7 @@ module Darklang =
             first: TypeReference *
             symbolAsterisk: Range *
             second: TypeReference *
-            rest: List<Stdlib.Option.Option<Range> * TypeReference> *
+            rest: List<Range * TypeReference> *
             openParen: Range *
             closeParen: Range
 
@@ -257,13 +257,14 @@ module Darklang =
           first: Expr *
           symbolComma: Range *
           second: Expr *
-          rest: List<Stdlib.Option.Option<Range> * Expr> *
+          rest: List<Range * Expr> *
           symbolOpenParen: Range *
           symbolCloseParen: Range
 
         | ERecord of
           Range *
           typeName: Name *
+          // fields: List<:, key, value>
           fields: List<Range * (Range * String) * Expr> *
           symbolOpenBrace: Range *
           symbolCloseBrace: Range
@@ -294,7 +295,7 @@ module Darklang =
 
         | EVariable of Range * String
 
-        | EFieldAccess of
+        | ERecordFieldAccess of
           Range *
           Expr *
           fieldName: (Range * String) *
@@ -396,7 +397,7 @@ module Darklang =
           first: Const *
           symbolComma: Range *
           second: Const *
-          rest: List<Stdlib.Option.Option<Range> * Const> *
+          rest: List<Range * Const> *
           symbolOpenParen: Range *
           symbolCloseParen: Range
         | CEnum of

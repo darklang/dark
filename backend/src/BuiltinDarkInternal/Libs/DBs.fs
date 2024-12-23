@@ -19,7 +19,7 @@ let fns : List<BuiltInFn> =
       description = "Returns a list of toplevel ids of dbs in <param canvasName>"
       fn =
         (function
-        | _, _, [ DUuid canvasID ] ->
+        | _, _, _, [ DUuid canvasID ] ->
           uply {
             let! tlids = UserDB.all canvasID
             return tlids |> List.map uint64 |> List.map DUInt64 |> Dval.list KTUInt64
@@ -37,7 +37,7 @@ let fns : List<BuiltInFn> =
       description = "Get a list of unlocked DBs"
       fn =
         (function
-        | _, _, [ DUuid canvasID ] ->
+        | _, _, _, [ DUuid canvasID ] ->
           uply {
             let! unlocked = UserDB.unlocked canvasID
             return unlocked |> List.map int64 |> List.map DInt64 |> Dval.list KTInt64

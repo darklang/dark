@@ -8,7 +8,7 @@ module Darklang =
         type FQTypeName = Package of Package
 
       module FQConstantName =
-        type Builtin = { name: String; version: Int64 }
+        type Builtin = { name: String; version: Int32 }
         type Package = Uuid
 
         type FQConstantName =
@@ -16,7 +16,7 @@ module Darklang =
           | Package of Package
 
       module FQFnName =
-        type Builtin = { name: String; version: Int64 }
+        type Builtin = { name: String; version: Int32 }
         type Package = Uuid
 
         type FQFnName =
@@ -24,8 +24,11 @@ module Darklang =
           | Package of Package
 
 
-      type NameResolution<'a> =
-        Stdlib.Result.Result<'a, RuntimeErrors.NameResolution.Error>
+      type NameResolutionError =
+        | NotFound of List<String>
+        | InvalidName of List<String>
+
+      type NameResolution<'a> = Stdlib.Result.Result<'a, NameResolutionError>
 
 
       /// Darklang's available types (int, List<T>, user-defined types, etc.)
@@ -35,14 +38,14 @@ module Darklang =
 
         | TUnit
         | TBool
-        | TInt64
-        | TUInt64
         | TInt8
         | TUInt8
         | TInt16
         | TUInt16
         | TInt32
         | TUInt32
+        | TInt64
+        | TUInt64
         | TInt128
         | TUInt128
         | TFloat
@@ -64,30 +67,6 @@ module Darklang =
         // TODO: this should be an NEList
         | TFn of List<TypeReference> * TypeReference
 
-
-      type Const =
-        | CInt64 of Int64
-        | CUInt64 of UInt64
-        | CInt8 of Int8
-        | CUInt8 of UInt8
-        | CInt16 of Int16
-        | CUInt16 of UInt16
-        | CInt32 of Int32
-        | CUInt32 of UInt32
-        | CInt128 of Int128
-        | CUInt128 of UInt128
-        | CFloat of Sign * String * String
-        | CBool of Bool
-        | CChar of String
-        | CString of String
-        | CUnit
-        | CTuple of Const * Const * List<Const>
-        | CEnum of
-          NameResolution<FQTypeName.FQTypeName> *
-          caseName: String *
-          fields: List<Const>
-        | CList of List<Const>
-        | CDict of List<String * Const>
 
 
       type LetPattern =
@@ -183,14 +162,6 @@ module Darklang =
           whenCondition: Stdlib.Option.Option<Expr>
           rhs: Expr }
 
-      // module PipeExpr =
-      //   let toID (expr : PipeExpr) : id =
-      //     match expr with
-      //     | EPipeVariable (id, _)
-      //     | EPipeLambda (id, _, _)
-      //     | EPipeInfix (id, _, _)
-      //     | EPipeFnCall (id, _, _, _)
-      //     | EPipeEnum (id, _, _, _) -> id
 
 
       /// Expressions - the main part of the language.
@@ -231,17 +202,22 @@ module Darklang =
 
         | ETuple of ID * Expr * Expr * List<Expr>
 
-        | ERecord of ID * NameResolution<FQTypeName.FQTypeName> * List<String * Expr>
+        | ERecord of
+          ID *
+          typeName: NameResolution<FQTypeName.FQTypeName> *
+          typeArgs: List<TypeReference> *
+          fields: List<String * Expr>
 
         | EEnum of
           ID *
           typeName: NameResolution<FQTypeName.FQTypeName> *
+          typeArgs : List<TypeReference> *
           caseName: String *
           fields: List<Expr>
 
         // declaring and accessing variables
         | ELet of ID * LetPattern * Expr * Expr
-        | EFieldAccess of ID * Expr * String
+        | ERecordFieldAccess of ID * Expr * String
         | EVariable of ID * String
         | EConstant of ID * NameResolution<FQConstantName.FQConstantName>
 
@@ -293,15 +269,15 @@ module Darklang =
           | EIf(id, _, _, _) -> id
           | EInfix(id, _, _, _) -> id
           | ELambda(id, _, _) -> id
-          | EFieldAccess(id, _, _) -> id
+          | ERecordFieldAccess(id, _, _) -> id
           | EVariable(id, _) -> id
           | EApply(id, _, _, _) -> id
           | EList(id, _) -> id
           | EDict(id, _) -> id
           | ETuple(id, _, _, _) -> id
           | EPipe(id, _, _) -> id
-          | ERecord(id, _, _) -> id
-          | EEnum(id, _, _, _) -> id
+          | ERecord(id, _, _, _) -> id
+          | EEnum(id, _, _, _, _) -> id
           | EMatch(id, _, _) -> id
           | ERecordUpdate(id, _, _) -> id
 
@@ -346,6 +322,32 @@ module Darklang =
         type TypeDeclaration =
           { typeParams: List<String>
             definition: Definition }
+
+
+
+      type Const =
+        | CUnit
+        | CBool of Bool
+        | CInt8 of Int8
+        | CUInt8 of UInt8
+        | CInt16 of Int16
+        | CUInt16 of UInt16
+        | CInt32 of Int32
+        | CUInt32 of UInt32
+        | CInt64 of Int64
+        | CUInt64 of UInt64
+        | CInt128 of Int128
+        | CUInt128 of UInt128
+        | CFloat of Sign * String * String
+        | CChar of String
+        | CString of String
+        | CTuple of Const * Const * List<Const>
+        | CList of List<Const>
+        | CDict of List<String * Const>
+        | CEnum of
+          NameResolution<FQTypeName.FQTypeName> *
+          caseName: String *
+          fields: List<Const>
 
 
       // Package space
@@ -538,14 +540,14 @@ module Darklang =
       type DB =
         { tlid: TLID
           name: String
-          version: Int64
+          version: Int32
           typ: TypeReference }
 
 
       type Secret =
         { name: String
           value: String
-          version: Int64 }
+          version: Int32 }
 
 
       module Handler =

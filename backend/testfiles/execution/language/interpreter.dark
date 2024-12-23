@@ -1,10 +1,17 @@
 // Tests that don't quite fit in the other files,
 // and are more focused on interpreter behavior.
 
-// TODO: this test causes an stack overflow when run in Debug mode, but not Release mode.
-// The issue is likely
-// - in our interpreter,
-// - or in the implementation of List.map specifically
-// ((Stdlib.List.repeat_v0 348L 1L)
+
+// This test used to cause a stack overflow, but now passes everywhere.
+// Let's keep this around to ensure we never regress.
+((Stdlib.List.repeat_v0 348L 1L)
+ |> Builtin.unwrap
+ |> Stdlib.List.map (fun _f -> 1)
+ |> Stdlib.List.length) = 348L
+
+// Just to show off, let's increase the size of the list
+//   (CLEANUP include this -- it's just a bit slow right now.)
+// ((Stdlib.List.repeat_v0 3480L 1L)
 //  |> Builtin.unwrap
-//  |> Stdlib.List.map (fun _f -> 1)) = []
+//  |> Stdlib.List.map (fun _f -> 1)
+//  |> Stdlib.List.length) = 3480L

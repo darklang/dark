@@ -7,7 +7,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module VT = ValueType
+module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 
 
@@ -27,7 +27,7 @@ let fns : List<BuiltInFn> =
         let resultError r =
           Dval.resultError (KTList(ValueType.Known KTUInt8)) KTString r |> Ply
         (function
-        | _, _, [ DString s ] ->
+        | _, _, _, [ DString s ] ->
           let base64FromUrlEncoded (str : string) : string =
             let initial = str.Replace('-', '+').Replace('_', '/')
             let length = initial.Length
@@ -68,8 +68,8 @@ let fns : List<BuiltInFn> =
          section [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4)."
       fn =
         (function
-        | _, _, [ DList(_vt, bytes) ] ->
-          let bytes = Dval.DlistToByteArray bytes
+        | _, _, _, [ DList(_vt, bytes) ] ->
+          let bytes = Dval.dlistToByteArray bytes
           System.Convert.ToBase64String(bytes) |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -87,8 +87,8 @@ let fns : List<BuiltInFn> =
          section [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)."
       fn =
         (function
-        | _, _, [ DList(_vt, bytes) ] ->
-          let bytes = Dval.DlistToByteArray bytes
+        | _, _, _, [ DList(_vt, bytes) ] ->
+          let bytes = Dval.dlistToByteArray bytes
           // Differs from Base64.encodeToUrlSafe as this version has padding
           System.Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_')
           |> DString

@@ -1,0 +1,19 @@
+(true || true) = true
+(true || false) = true
+(false || true) = true
+(false || false) = false
+
+(true || 5L) = true
+(false || 5L) = Builtin.testDerrorMessage "|| only supports Booleans"
+(5L || true) = Builtin.testDerrorMessage "|| only supports Booleans"
+
+(true |> (||) true) = true
+(true |> (||) false) = true
+(false |> (||) true) = true
+(false |> (||) false) = false
+
+// TODO bring back short-circuiting
+//(true || Builtin.testRuntimeError "msg") = true
+(false || Builtin.testRuntimeError "msg") = Builtin.testDerrorMessage "Uncaught exception: msg"
+
+(Builtin.testRuntimeError "msg1" || Builtin.testRuntimeError "msg2") = Builtin.testDerrorMessage "Uncaught exception: msg1"
