@@ -103,7 +103,7 @@ let fns : List<BuiltInFn> =
       returnType = TypeReference.result (TCustomType(Ok OS.osTypeName, [])) TString
       fn =
         (function
-        | _, _, [ DUnit ] ->
+        | _, _, _, [ DUnit ] ->
           let osTypeRef = KTCustomType(OS.osTypeName, [])
           let resultOk = Dval.resultOk osTypeRef KTString
           let resultError = Dval.resultError osTypeRef KTString
