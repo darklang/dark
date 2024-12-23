@@ -109,7 +109,7 @@ module Darklang =
 
           let toLspFormat
             (tokens:
-              List<LanguageServerProtocol.SemanticTokens.RelativeSemanticToken.RelativeSemanticToken>)
+              List<LanguageServerProtocol.SemanticTokens.RelativeSemanticToken.RelativeSemanticToken<LanguageTools.SemanticTokens.TokenType>>)
             : List<UInt64> =
             LanguageServerProtocol.SemanticTokens.RelativeSemanticToken.mapListToFlatDataForResult<Darklang.LanguageTools.SemanticTokens.TokenType>
               (fun t -> tokenType t)

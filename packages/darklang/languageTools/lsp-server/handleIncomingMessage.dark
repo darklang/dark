@@ -95,6 +95,9 @@ module Darklang =
                   diagnostics = diagnostic }
             )
 
+        let diagnosticsJson =
+          JsonRPC.Request.RequestParams.Array [ diagnosticsJson ]
+
         (JsonRPC.Request.makeNotificationString
           "textDocument/publishDiagnostics"
           (diagnosticsJson |> Stdlib.Option.Option.Some))

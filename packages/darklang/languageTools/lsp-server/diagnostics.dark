@@ -3,6 +3,7 @@ module Darklang =
     module LspServer =
       module Diagnostics =
         let gatherAndReportDiagnostics
+          (requestUri: String)
           (parsedText: WrittenTypes.SourceFile.SourceFile)
           (unresolvedNames: List<Parser.Range * ProgramTypes.NameResolutionError>)
           : Unit =
@@ -22,7 +23,7 @@ module Darklang =
 
           let diagnostics = Stdlib.List.append warningDiagnostics errorDiagnostics
 
-          sendDiagnostic request.textDocument.uri diagnostics
+          sendDiagnostic requestUri diagnostics
 
 
 

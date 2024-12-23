@@ -32,6 +32,7 @@ module Darklang =
             )
 
         let parseAndReportDiagnostics
+          (requestUri: String)
           (requestText: String)
           : Stdlib.Result.Result<WrittenTypes.ParsedFile, String> =
           let onMissing = LanguageTools.NameResolver.OnMissing.Allow
@@ -58,6 +59,7 @@ module Darklang =
               requestText
 
           Diagnostics.gatherAndReportDiagnostics
+            requestUri
             sourceFile
             (unresolvedNames |> Stdlib.List.flatten)
 
@@ -70,7 +72,7 @@ module Darklang =
           (request:
             LanguageServerProtocol.DocumentSync.TextDocument.DidOpenTextDocumentNotification.DidOpenTextDocumentParams.DidOpenTextDocumentParams)
           : LspState =
-          let parsed = parseAndReportDiagnostics request.textDocument.text
+          let parsed = parseAndReportDiagnostics request.textDocument.uri request.textDocument.text
 
           let parsedToPT =
             match parsed with
@@ -131,7 +133,7 @@ module Darklang =
             state
 
           | Some text ->
-            let parsed = parseAndReportDiagnostics text
+            let parsed = parseAndReportDiagnostics request.textDocument.uri text
 
             let parsedToPT =
               match parsed with

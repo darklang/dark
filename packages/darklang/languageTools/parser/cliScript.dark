@@ -5,7 +5,7 @@ module Darklang =
         type WTCliScriptModule =
           { owner: String
             name: String
-            types: List<LanguageTools.WrittenTypes.TypeReference.TypeReference>
+            types: List<LanguageTools.WrittenTypes.TypeDeclaration.TypeDeclaration>
             constants:
               List<LanguageTools.WrittenTypes.ConstantDeclaration.ConstantDeclaration>
             fns: List<LanguageTools.WrittenTypes.FnDeclaration.FnDeclaration>
@@ -139,9 +139,9 @@ module Darklang =
 
           let unresolvedNames =
             Stdlib.List.flatten
-              [ unresolvedNamesInTypes
-                unresolvedNamesInConstants
-                unresolvedNamesInFns
+              [ unresolvedNamesInTypes |> Stdlib.List.flatten
+                unresolvedNamesInConstants |> Stdlib.List.flatten
+                unresolvedNamesInFns |> Stdlib.List.flatten
                 unresolvedNamesInSubModules
                 unresolvedNamesInExprs ]
 
