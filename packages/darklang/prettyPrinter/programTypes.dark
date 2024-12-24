@@ -11,8 +11,8 @@ module Darklang =
     module ProgramTypes =
       let nameResolutionError (nr: LanguageTools.ProgramTypes.NameResolutionError) : String =
         match nr with
-        | NotFound names -> Stdlib.String.join names "."
-        | InvalidName names -> Stdlib.String.join names "."
+        | NotFound names -> Stdlib.String.join names "." ++ " not found"
+        | InvalidName names -> Stdlib.String.join names "." ++ " is not a valid name"
 
 
       let packageName
