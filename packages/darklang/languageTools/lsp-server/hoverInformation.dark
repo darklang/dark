@@ -892,11 +892,6 @@ module Darklang =
           | Normal np ->
             let onMissing = LanguageTools.NameResolver.OnMissing.Allow
 
-            // let owner =
-            //   match currentModules |> Stdlib.List.head with
-            //   | Some o -> o
-            //   | None -> ""
-
             let pm = LanguageTools.PackageManager.pm ()
             // check if we are hovering over a parameter
             match CursorPosition.checkIfPositionWithinRange position np.range with
