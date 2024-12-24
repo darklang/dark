@@ -606,6 +606,7 @@ module Darklang =
           (def: WrittenTypes.TypeDeclaration.Definition)
           (position: LanguageServerProtocol.Position.Position)
           (pm: ProgramTypes.PackageManager.PackageManager)
+          (owner: String)
           (currentModules: List<String>)
           : Stdlib.Option.Option<Info> =
           match def with
@@ -659,6 +660,7 @@ module Darklang =
           (typeDecl: WrittenTypes.TypeDeclaration.TypeDeclaration)
           (position: LanguageServerProtocol.Position.Position)
           (pm: ProgramTypes.PackageManager.PackageManager)
+          (owner: String)
           (currentModules: List<String>)
           : Stdlib.Option.Option<Info> =
           // check if we are hovering over the type keyword
@@ -726,6 +728,7 @@ module Darklang =
                   typeDecl.definition
                   position
                   pm
+                  owner
                   currentModules
 
 
@@ -735,6 +738,7 @@ module Darklang =
         let collectConstBodyHoverInfoAtPos
           (body: WrittenTypes.Const)
           (position: LanguageServerProtocol.Position.Position)
+          (owner: String)
           (currentModules: List<String>)
           : Stdlib.Option.Option<Info> =
           match body with
@@ -744,7 +748,7 @@ module Darklang =
               // check if we are hovering over one of the list elements
               contents
               |> Stdlib.List.filterMap (fun (c, _) ->
-                collectConstBodyHoverInfoAtPos c position currentModules)
+                collectConstBodyHoverInfoAtPos c position owner currentModules)
               |> Stdlib.List.head
             else
               Stdlib.Option.Option.None
@@ -783,7 +787,7 @@ module Darklang =
                     (hoverInfoForThingAtPosition thingAtPosition r)
                     |> Stdlib.Option.Option.Some
 
-                  | None -> collectConstBodyHoverInfoAtPos c position currentModules)
+                  | None -> collectConstBodyHoverInfoAtPos c position owner currentModules)
                 |> Stdlib.List.head
             else
               Stdlib.Option.Option.None
@@ -793,19 +797,19 @@ module Darklang =
             // check if position is within the Tuple constant range
             if CursorPosition.isLineNumberInRange position r then
               // check if we are hovering over the first constant
-              match collectConstBodyHoverInfoAtPos first position currentModules with
+              match collectConstBodyHoverInfoAtPos first position owner currentModules with
               | Some r -> Stdlib.Option.Option.Some r
               | None ->
                 // check if we are hovering over the second constant
                 match
-                  collectConstBodyHoverInfoAtPos second position currentModules
+                  collectConstBodyHoverInfoAtPos second position owner currentModules
                 with
                 | Some r -> Stdlib.Option.Option.Some r
                 | None ->
                   // check if we are hovering over one of the rest constants
                   rest
                   |> Stdlib.List.filterMap (fun (_, c) ->
-                    collectConstBodyHoverInfoAtPos c position currentModules)
+                    collectConstBodyHoverInfoAtPos c position owner currentModules)
                   |> Stdlib.List.head
             else
               Stdlib.Option.Option.None
@@ -871,7 +875,7 @@ module Darklang =
 
             | None ->
               // check if we are hovering over the constant body
-              collectConstBodyHoverInfoAtPos c.body position currentModules
+              collectConstBodyHoverInfoAtPos c.body position owner currentModules
 
 
         // ---------------------------
@@ -880,6 +884,7 @@ module Darklang =
         let collectFnParameterHoverInfoAtPos
           (p: WrittenTypes.FnDeclaration.Parameter)
           (position: LanguageServerProtocol.Position.Position)
+          (owner: String)
           (currentModules: List<String>)
           : Stdlib.Option.Option<Info> =
           match p with
@@ -887,10 +892,10 @@ module Darklang =
           | Normal np ->
             let onMissing = LanguageTools.NameResolver.OnMissing.Allow
 
-            let owner =
-              match currentModules |> Stdlib.List.head with
-              | Some o -> o
-              | None -> ""
+            // let owner =
+            //   match currentModules |> Stdlib.List.head with
+            //   | Some o -> o
+            //   | None -> ""
 
             let pm = LanguageTools.PackageManager.pm ()
             // check if we are hovering over a parameter
@@ -1005,7 +1010,7 @@ module Darklang =
                 let parameters =
                   f.parameters
                   |> Stdlib.List.filterMap (fun p ->
-                    p |> collectFnParameterHoverInfoAtPos position currentModules)
+                    p |> collectFnParameterHoverInfoAtPos position owner currentModules)
                   |> Stdlib.List.head
 
                 match parameters with
@@ -2274,7 +2279,7 @@ module Darklang =
               | Type t ->
                 // Check if position is within type range for early escape
                 if CursorPosition.isLineNumberInRange position t.range then
-                  collectTypeHoverInfoAtPosition t position pm currentModules
+                  collectTypeHoverInfoAtPosition t position pm owner currentModules
                 else
                   Stdlib.Option.Option.None
 
