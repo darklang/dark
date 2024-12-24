@@ -81,7 +81,7 @@ module Darklang =
       let sendDiagnostic
         (uri: LanguageServerProtocol.DocumentUri)
         (diagnostic:
-          List<LanguageServerProtocol.Messages.PublishDiagnostics.PublishDiagnosticsParams.PublishDiagnosticsParams>)
+          List<LanguageServerProtocol.Diagnostic.Diagnostic>)
         : Unit =
         let diagnosticsJson =
           LanguageServerProtocol
@@ -94,6 +94,9 @@ module Darklang =
                   version = Stdlib.Option.Option.None
                   diagnostics = diagnostic }
             )
+
+        let diagnosticsJson =
+          JsonRPC.Request.RequestParams.Array [ diagnosticsJson ]
 
         (JsonRPC.Request.makeNotificationString
           "textDocument/publishDiagnostics"

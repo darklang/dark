@@ -60,7 +60,7 @@ module UserDefined =
   enumConst = Stdlib.Option.Option.Some 5L
   UserDefined.enumConst = Stdlib.Option.Option.Some 5L
 
-  Ok 5L = Builtin.testDerrorMessage "Ok not found"
+  Ok 5L = Builtin.testDerrorMessage "Ok is not a valid name"
 
 
 module Package =

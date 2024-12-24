@@ -63,7 +63,9 @@ module Darklang =
               : Stdlib.Result.Result<DidOpenTextDocumentParams, Unit> =
               let jsonAsText = Stdlib.AltJson.format json // TODO: manually parse the JSON so we have better control
 
-              Builtin.jsonParse<DidOpenTextDocumentParams> jsonAsText
+              (Builtin.jsonParse<DidOpenTextDocumentParams> jsonAsText)
+              |> Stdlib.Result.mapError (fun _ -> ())
+
 
 
         /// The document close notification is sent from the client to the server when
@@ -91,7 +93,8 @@ module Darklang =
               : Stdlib.Result.Result<DidCloseTextDocumentParams, Unit> =
               let jsonAsText = Stdlib.AltJson.format json // TODO: manually parse the JSON so we have better control
 
-              Builtin.jsonParse<DidCloseTextDocumentParams> jsonAsText
+              (Builtin.jsonParse<DidCloseTextDocumentParams> jsonAsText)
+              |> Stdlib.Result.mapError (fun _ -> ())
 
 
         /// The document change notification is sent from the client to the server to signal
@@ -126,7 +129,8 @@ module Darklang =
               : Stdlib.Result.Result<DidChangeTextDocumentParams, Unit> =
               let jsonAsText = Stdlib.AltJson.format json
 
-              Builtin.jsonParse<DidChangeTextDocumentParams> jsonAsText
+              (Builtin.jsonParse<DidChangeTextDocumentParams> jsonAsText)
+              |> Stdlib.Result.mapError (fun _ -> ())
 
 
         /// The document save notification is sent from the client to the server when

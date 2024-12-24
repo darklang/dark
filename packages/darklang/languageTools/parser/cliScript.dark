@@ -5,7 +5,7 @@ module Darklang =
         type WTCliScriptModule =
           { owner: String
             name: String
-            types: List<LanguageTools.WrittenTypes.TypeReference.TypeReference>
+            types: List<LanguageTools.WrittenTypes.TypeDeclaration.TypeDeclaration>
             constants:
               List<LanguageTools.WrittenTypes.ConstantDeclaration.ConstantDeclaration>
             fns: List<LanguageTools.WrittenTypes.FnDeclaration.FnDeclaration>
@@ -139,9 +139,9 @@ module Darklang =
 
           let unresolvedNames =
             Stdlib.List.flatten
-              [ unresolvedNamesInTypes
-                unresolvedNamesInConstants
-                unresolvedNamesInFns
+              [ unresolvedNamesInTypes |> Stdlib.List.flatten
+                unresolvedNamesInConstants |> Stdlib.List.flatten
+                unresolvedNamesInFns |> Stdlib.List.flatten
                 unresolvedNamesInSubModules
                 unresolvedNamesInExprs ]
 
@@ -172,22 +172,19 @@ module Darklang =
             Stdlib.List.append
               initialParse.types
               (initialParse.submodules
-               |> Stdlib.List.map (fun m -> m.types)
-               |> Stdlib.List.flatten)
+               |> Stdlib.List.map (fun m -> m.types))
 
           let constants =
             Stdlib.List.append
               initialParse.constants
               (initialParse.submodules
-               |> Stdlib.List.map (fun m -> m.constants)
-               |> Stdlib.List.flatten)
+               |> Stdlib.List.map (fun m -> m.constants))
 
           let fns =
             Stdlib.List.append
               initialParse.fns
               (initialParse.submodules
-               |> Stdlib.List.map (fun m -> m.fns)
-               |> Stdlib.List.flatten)
+               |> Stdlib.List.map (fun m -> m.fns))
 
           let pm = ProgramTypes.PackageManager.withExtras pm types constants fns
 
