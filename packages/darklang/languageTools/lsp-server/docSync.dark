@@ -61,7 +61,7 @@ module Darklang =
           Diagnostics.gatherAndReportDiagnostics
             requestUri
             sourceFile
-            (unresolvedNames |> Stdlib.List.flatten)
+            unresolvedNames
 
           parsed
 

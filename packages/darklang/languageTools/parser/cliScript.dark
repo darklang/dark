@@ -172,22 +172,19 @@ module Darklang =
             Stdlib.List.append
               initialParse.types
               (initialParse.submodules
-               |> Stdlib.List.map (fun m -> m.types)
-               |> Stdlib.List.flatten)
+               |> Stdlib.List.map (fun m -> m.types))
 
           let constants =
             Stdlib.List.append
               initialParse.constants
               (initialParse.submodules
-               |> Stdlib.List.map (fun m -> m.constants)
-               |> Stdlib.List.flatten)
+               |> Stdlib.List.map (fun m -> m.constants))
 
           let fns =
             Stdlib.List.append
               initialParse.fns
               (initialParse.submodules
-               |> Stdlib.List.map (fun m -> m.fns)
-               |> Stdlib.List.flatten)
+               |> Stdlib.List.map (fun m -> m.fns))
 
           let pm = ProgramTypes.PackageManager.withExtras pm types constants fns
 
