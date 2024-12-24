@@ -93,7 +93,7 @@ module Darklang =
             let prettyType = PrettyPrinter.ProgramTypes.packageType typ
 
             let fqName =
-              (Stdlib.List.append t.name.modules [ t.name.name ])
+              (Stdlib.List.append typ.name.modules [ typ.name.name ])
               |> Stdlib.String.join "."
 
             let metadata =
@@ -292,6 +292,7 @@ module Darklang =
           (builtin: WrittenTypes.TypeReference.Builtin)
           (position: LanguageServerProtocol.Position.Position)
           (pm: ProgramTypes.PackageManager.PackageManager)
+          (owner: String)
           (currentModules: List<String>)
           : Stdlib.Option.Option<Info> =
           match builtin with
@@ -353,7 +354,7 @@ module Darklang =
 
           | TTuple(range, f, _, s, rest, _, _) ->
             // check if position is within the Tuple range
-            if CursorPosition.isLineNumberInRange position r then
+            if CursorPosition.isLineNumberInRange position range then
               // check if we are hovering over the first type reference
               match
                 collectTypeRefHoverInfoAtPos f position pm owner currentModules
@@ -460,7 +461,7 @@ module Darklang =
           : Stdlib.Option.Option<Info> =
           match typeRef with
           | Builtin b ->
-            collectBuiltinTypeHoverInfoAtPos b position pm currentModules
+            collectBuiltinTypeHoverInfoAtPos b position pm owner currentModules
           | QualifiedName qn ->
             // check if we are hovering over the one of the modules
             let moduleHoverInfo =
@@ -884,6 +885,14 @@ module Darklang =
           match p with
           | Unit r -> createBuiltinTypeInfoIfInRange r "Unit" position
           | Normal np ->
+            let onMissing = LanguageTools.NameResolver.OnMissing.Allow
+
+            let owner =
+              match currentModules |> Stdlib.List.head with
+              | Some o -> o
+              | None -> ""
+
+            let pm = LanguageTools.PackageManager.pm ()
             // check if we are hovering over a parameter
             match CursorPosition.checkIfPositionWithinRange position np.range with
             | Some r ->
@@ -892,14 +901,6 @@ module Darklang =
                 CursorPosition.checkIfPositionWithinRange position np.name.range
               with
               | Some r ->
-                let onMissing = LanguageTools.NameResolver.OnMissing.Allow
-                let pm = LanguageTools.PackageManager.pm ()
-
-                let owner =
-                  match currentModules |> Stdlib.List.head with
-                  | Some o -> o
-                  | None -> ""
-
                 let modules =
                   currentModules |> Stdlib.List.tail |> Stdlib.Option.withDefault []
 
