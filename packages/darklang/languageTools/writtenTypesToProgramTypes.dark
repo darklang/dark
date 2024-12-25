@@ -1152,7 +1152,6 @@ module Darklang =
             : (ProgramTypes.TypeDeclaration.Definition *
               List<Parser.Range * ProgramTypes.NameResolutionError>)
             =
-
             match d with
             | Alias typ ->
               let (typ, unresolvedNames) =

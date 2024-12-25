@@ -32,6 +32,7 @@ module Darklang =
             )
 
         let parseAndReportDiagnostics
+          (requestUri: String)
           (requestText: String)
           : Stdlib.Result.Result<WrittenTypes.ParsedFile, String> =
           let onMissing = LanguageTools.NameResolver.OnMissing.Allow
@@ -58,8 +59,9 @@ module Darklang =
               requestText
 
           Diagnostics.gatherAndReportDiagnostics
+            requestUri
             sourceFile
-            (unresolvedNames |> Stdlib.List.flatten)
+            unresolvedNames
 
           parsed
 
@@ -70,7 +72,7 @@ module Darklang =
           (request:
             LanguageServerProtocol.DocumentSync.TextDocument.DidOpenTextDocumentNotification.DidOpenTextDocumentParams.DidOpenTextDocumentParams)
           : LspState =
-          let parsed = parseAndReportDiagnostics request.textDocument.text
+          let parsed = parseAndReportDiagnostics request.textDocument.uri request.textDocument.text
 
           let parsedToPT =
             match parsed with
@@ -106,16 +108,19 @@ module Darklang =
 
           { state with
               documentsInScope =
-                Stdlib.Dict.set
-                  state.documentsInScope
-                  request.textDocument.uri
-                  (LanguageTools.LspServer.DocumentInScope
-                    { uri = request.textDocument.uri
-                      text = text.text
-                      // don't re-parse the text, just use the existing parsed value
-                      // TODO maybe we should re-parse, currently it breaks the LSP server
-                      parsed = existingDoc.parsed
-                      parsedToPT = existingDoc.parsedToPT }) }
+                state.documentsInScope
+                |> Stdlib.Dict.remove request.textDocument.uri
+                |> fun dict ->
+                    Stdlib.Dict.set
+                      dict
+                      request.textDocument.uri
+                      (LanguageTools.LspServer.DocumentInScope
+                        { uri = request.textDocument.uri
+                          text = text.text
+                          // don't re-parse the text, just use the existing parsed value
+                          // TODO maybe we should re-parse, currently it breaks the LSP server
+                          parsed = existingDoc.parsed
+                          parsedToPT = existingDoc.parsedToPT }) }
 
 
         let handleTextDocumentDidSave
@@ -131,7 +136,7 @@ module Darklang =
             state
 
           | Some text ->
-            let parsed = parseAndReportDiagnostics text
+            let parsed = parseAndReportDiagnostics request.textDocument.uri text
 
             let parsedToPT =
               match parsed with
@@ -144,14 +149,17 @@ module Darklang =
 
             { state with
                 documentsInScope =
-                  Stdlib.Dict.set
-                    state.documentsInScope
-                    request.textDocument.uri
-                    (LanguageTools.LspServer.DocumentInScope
-                      { uri = request.textDocument.uri
-                        text = text
-                        parsed = parsed
-                        parsedToPT = parsedToPT }) }
+                  state.documentsInScope
+                  |> Stdlib.Dict.remove request.textDocument.uri
+                  |> fun dict ->
+                      Stdlib.Dict.set
+                        dict
+                        request.textDocument.uri
+                        (LanguageTools.LspServer.DocumentInScope
+                          { uri = request.textDocument.uri
+                            text = text
+                            parsed = parsed
+                            parsedToPT = parsedToPT }) }
 
 
         let handleTextDocumentDidClose
