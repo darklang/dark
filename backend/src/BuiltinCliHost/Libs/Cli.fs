@@ -362,12 +362,16 @@ let fns : List<BuiltInFn> =
                   | Error(rte, _cs) ->
                     // TODO we should probably return the error here as-is, and handle by calling the
                     // toSegments on the error within the CLI
-                    return
-                      rte
-                      |> RT2DT.RuntimeError.toDT
-                      |> DvalReprDeveloper.toRepr
-                      |> DString
-                      |> resultError
+                    match! Exe.runtimeErrorToString exeState rte with
+                    | Ok(DString s) -> return s |> DString |> resultError
+                    | _ ->
+                      let rte =
+                        rte |> RT2DT.RuntimeError.toDT |> DvalReprDeveloper.toRepr
+                      return
+                        $"An error occured trying to print a runtime error:\n\noriginal error:\n{rte}"
+                        |> DString
+                        |> resultError
+
                   | Ok value ->
                     match value with
                     | DString s -> return resultOk (DString s)
