@@ -82,7 +82,7 @@ module Darklang =
         0L
 
       | Error err ->
-        Builtin.printLine err
+        Builtin.printLine $"\n{err}"
         1L
 
 
