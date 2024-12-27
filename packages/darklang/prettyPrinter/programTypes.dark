@@ -9,10 +9,16 @@ module Darklang =
     // CLEANUP split into a few files - easier to manage, at this point.
     // i.e. common, typeReference, expr, declarations, packages, sourceFile
     module ProgramTypes =
-      let nameResolutionError (nr: LanguageTools.ProgramTypes.NameResolutionError) : String =
-        match nr with
-        | NotFound names -> Stdlib.String.join names "."
-        | InvalidName names -> Stdlib.String.join names "."
+      module NameResolutionError =
+        let source (nre: LanguageTools.ProgramTypes.NameResolutionError) : String =
+          match nre with
+          | NotFound names -> Stdlib.String.join names "."
+          | InvalidName names -> Stdlib.String.join names "."
+
+        let error (nre: LanguageTools.ProgramTypes.NameResolutionError) : String =
+          match nre with
+          | NotFound names -> Stdlib.String.join names "." ++ " not found"
+          | InvalidName names -> Stdlib.String.join names "." ++ " is not a valid name"
 
 
       let packageName
@@ -210,7 +216,7 @@ module Darklang =
           let typeNamePart =
             match typ with
             | Ok name -> PrettyPrinter.ProgramTypes.FQTypeName.fullForReference name
-            | Error e -> PrettyPrinter.ProgramTypes.nameResolutionError e
+            | Error e -> PrettyPrinter.ProgramTypes.NameResolutionError.source e
 
           $"{typeNamePart}{argsPart}"
 
@@ -264,7 +270,7 @@ module Darklang =
           let typeNamePart =
             match typeName with
             | Ok name -> PrettyPrinter.ProgramTypes.FQTypeName.fullForReference name
-            | Error e -> PrettyPrinter.ProgramTypes.nameResolutionError e
+            | Error e -> PrettyPrinter.ProgramTypes.NameResolutionError.source e
 
           match fields with
           | [] -> $"{typeNamePart}.{caseName}()"
@@ -419,7 +425,7 @@ module Darklang =
           let fnNamePart =
             match fnName with
             | Ok name -> PrettyPrinter.ProgramTypes.FQFnName.fullForReference name
-            | Error e -> PrettyPrinter.ProgramTypes.nameResolutionError e
+            | Error e -> PrettyPrinter.ProgramTypes.NameResolutionError.source e
 
           let typeArgsPart =
             match typeArgs with
@@ -450,7 +456,7 @@ module Darklang =
           let typeNamePart =
             match typeName with
             | Ok name -> PrettyPrinter.ProgramTypes.FQTypeName.fullForReference name
-            | Error e -> PrettyPrinter.ProgramTypes.nameResolutionError e
+            | Error e -> PrettyPrinter.ProgramTypes.NameResolutionError.source e
 
           match fields with
           | [] -> $"{typeNamePart}.{caseName}()"
@@ -529,7 +535,7 @@ module Darklang =
           let typeNamePart =
             match typeName with
             | Ok name -> PrettyPrinter.ProgramTypes.FQTypeName.fullForReference name
-            | Error e -> PrettyPrinter.ProgramTypes.nameResolutionError e
+            | Error e -> PrettyPrinter.ProgramTypes.NameResolutionError.source e
 
           let fieldPart =
             fields
@@ -546,7 +552,7 @@ module Darklang =
           let typeNamePart =
             match typeName with
             | Ok name -> PrettyPrinter.ProgramTypes.FQTypeName.fullForReference name
-            | Error e -> PrettyPrinter.ProgramTypes.nameResolutionError e
+            | Error e -> PrettyPrinter.ProgramTypes.NameResolutionError.source e
 
           match fields with
           | [] -> $"{typeNamePart}.{caseName}()"
@@ -681,7 +687,7 @@ module Darklang =
         | EFnName(_id, fnName) ->
           match fnName with
           | Ok name -> PrettyPrinter.ProgramTypes.FQFnName.fullForReference name
-          | Error e -> PrettyPrinter.ProgramTypes.nameResolutionError e
+          | Error e -> PrettyPrinter.ProgramTypes.NameResolutionError.source e
 
         // LanguageTools.ID *
         // record: LanguageTools.ProgramTypes.Expr *
@@ -704,7 +710,7 @@ module Darklang =
           match constant with
           | Ok name ->
             PrettyPrinter.ProgramTypes.FQConstantName.fullForReference name
-          | Error e -> PrettyPrinter.ProgramTypes.nameResolutionError e
+          | Error e -> PrettyPrinter.ProgramTypes.NameResolutionError.source e
 
         // CLEANUP: remove this case before shipping to users
         | expr ->
