@@ -59,9 +59,9 @@ let t
 
 
 let tID = System.Guid.NewGuid()
-let person3 : PT.PackageType.PackageType =
+let person : PT.PackageType.PackageType =
   { id = tID
-    name = { owner = "Tests"; modules = []; name = "Person3" }
+    name = { owner = "Tests"; modules = []; name = "Person" }
     description = ""
     deprecated = PT.NotDeprecated
     declaration =
@@ -75,6 +75,63 @@ let person3 : PT.PackageType.PackageType =
                   { name = "hasPet"; typ = PT.TypeReference.TBool; description = "" } ] }
           ) } }
 
+let myString : PT.PackageType.PackageType =
+  { id = tID
+    name = { owner = "Tests"; modules = []; name = "MyString" }
+    description = ""
+    deprecated = PT.NotDeprecated
+    declaration =
+      { typeParams = []
+        definition = PT.TypeDeclaration.Alias PT.TypeReference.TString } }
+
+let pet : PT.PackageType.PackageType =
+  { id = tID
+    name = { owner = "Tests"; modules = []; name = "Pet" }
+    description = ""
+    deprecated = PT.NotDeprecated
+    declaration =
+      { typeParams = []
+        definition = PT.TypeDeclaration.Alias PT.TypeReference.TString } }
+
+let myEnum : PT.PackageType.PackageType =
+  { id = tID
+    name = { owner = "Tests"; modules = []; name = "MyEnum" }
+    description = ""
+    deprecated = PT.NotDeprecated
+    declaration =
+      { typeParams = []
+        definition =
+          PT.TypeDeclaration.Enum(
+            NEList.ofList
+              ({ name = "A"; fields = []; description = "" })
+              [ ({ name = "B"
+                   fields =
+                     [ { typ = PT.TypeReference.TInt64
+                         label = None
+                         description = "" } ]
+                   description = "" })
+                ({ name = "C"
+                   fields =
+                     [ { typ =
+                           PT.TypeReference.TTuple(
+                             PT.TypeReference.TInt64,
+                             PT.TypeReference.TInt64,
+                             []
+                           )
+                         label = None
+                         description = "" } ]
+                   description = "" })
+                ({ name = "D"
+                   fields =
+                     [ { typ = PT.TypeReference.TInt64
+                         label = None
+                         description = "" }
+
+                       { typ = PT.TypeReference.TInt64
+                         label = None
+                         description = "" } ]
+                   description = "" }) ]
+          ) } }
 
 let typeReferences =
   [
@@ -171,7 +228,7 @@ let typeReferences =
       "custom type list alias"
       "type MyList = List<MyString>"
       "type MyList =\n  List<MyString>"
-      []
+      [ myString ]
       []
       []
       false
@@ -193,9 +250,9 @@ let typeReferences =
       false
     t
       "custom type dict alias"
-      "type MyDict = Dict<MyList>"
-      "type MyDict =\n  Dict<MyList>"
-      []
+      "type MyDict = Dict<MyString>"
+      "type MyDict =\n  Dict<MyString>"
+      [ myString ]
       []
       []
       false
@@ -270,7 +327,7 @@ let typeReferences =
       "db with custom type"
       "type MyDB = DB<Person>"
       "type MyDB =\n  DB<Person>"
-      []
+      [ person ]
       []
       []
       false
@@ -297,9 +354,9 @@ let typeReferences =
     // single-part qualified name
     t
       "unknown single-part qualified name"
-      "type ID = Test"
-      "type ID =\n  Test"
-      []
+      "type ID = Person"
+      "type ID =\n  Person"
+      [ person ]
       []
       []
       false
@@ -395,7 +452,7 @@ let typeDeclarations =
       "record, 4 fields"
       "type Person = {name: String; age: Int64; hasPet: Bool; pet: Pet}"
       "type Person =\n  { name: String\n    age: Int64\n    hasPet: Bool\n    pet: Pet }"
-      []
+      [ pet ]
       []
       []
       false
@@ -403,7 +460,7 @@ let typeDeclarations =
       "record, newlines as separators"
       "type Person =\n  { name: String\n    age: Int64\n    hasPet: Bool\n    pet: Pet }"
       "type Person =\n  { name: String\n    age: Int64\n    hasPet: Bool\n    pet: Pet }"
-      []
+      [ pet ]
       []
       []
       false
@@ -415,7 +472,7 @@ let typeDeclarations =
     hasPet: Bool
     pet: Pet }"""
       "type Person =\n  { name: String\n    age: Int64\n    hasPet: Bool\n    pet: Pet }"
-      []
+      [ pet ]
       []
       []
       false
@@ -659,18 +716,18 @@ let exprs =
       true
     t
       "record, 3 fields"
-      "Person3 {name =\"John\"; age = 30L; hasPet = true} "
-      "Person3 { name = \"John\"; age = 30L; hasPet = true }"
-      [ person3 ]
+      "Tests.Person {name =\"John\"; age = 30L; hasPet = true} "
+      "Person { name = \"John\"; age = 30L; hasPet = true }"
+      [ person ]
       []
       []
       false
 
     t
       "record with newline as separator"
-      "Person3\n {name =\"John\"\n age = 30L\n hasPet = true} "
-      "Person3 { name = \"John\"; age = 30L; hasPet = true }"
-      [ person3 ]
+      "Tests.Person\n {name =\"John\"\n age = 30L\n hasPet = true} "
+      "Person { name = \"John\"; age = 30L; hasPet = true }"
+      [ person ]
       []
       []
       false
@@ -678,42 +735,49 @@ let exprs =
     // record update
     t
       "record update 1"
-      "{ RecordForUpdate { x = 4L; y = 1L } with y = 2L }"
-      "{ RecordForUpdate { x = 4L; y = 1L } with y = 2L }"
+      "{ Tests.Person { name = \"John\"; age = 30L; hasPet = true } with age = 31L }"
+      "{ Person { name = \"John\"; age = 30L; hasPet = true } with age = 31L }"
+      [ person ]
       []
       []
+      false
+    t
+      "record update 2"
+      "{ person with age = 31L }"
+      "{ person with age = 31L }"
+      [ person ]
       []
-      true
-    t "record update 2" "{ myRec with y = 2L }" "{ myRec with y = 2L }" [] [] [] true
+      []
+      false
     t
       "record update 3"
-      "{ myRec with y = 2L; z = 42L }"
-      "{ myRec with y = 2L; z = 42L }"
-      []
+      "{ person with age = 31L; hasPet = false }"
+      "{ person with age = 31L; hasPet = false }"
+      [ person ]
       []
       []
       false
     t
       "record update 4"
-      """(let myRec = RecordForUpdateMultipe { x = 4L; y = 1L; z = 0L }
+      """(let myRec = Tests.Person { name = "John"; age = 30L; hasPet = true }
   { myRec with
-      z = 3L
-      x = 42L
-      y = 11L })"""
+      name = "Jane"
+      age = 31L
+      hasPet = false })"""
       """let myRec =
-  RecordForUpdateMultipe { x = 4L; y = 1L; z = 0L }
-{ myRec with z = 3L; x = 42L; y = 11L }"""
-      []
+  Person { name = "John"; age = 30L; hasPet = true }
+{ myRec with name = "Jane"; age = 31L; hasPet = false }"""
+      [ person ]
       []
       []
       false
 
     // enum literal
-    t "simple enum literal" "Color.Red()" "Color.Red()" [] [] [] false
+    t "simple enum literal" "Tests.MyEnum.A()" "MyEnum.A()" [ myEnum ] [] [] false
     t
       "option none, short"
-      "Stdlib.Option.None()"
-      "Stdlib.Option.None()"
+      "Stdlib.Option.Option.None()"
+      "PACKAGE.Darklang.Stdlib.Option.Option.None()"
       []
       []
       []
@@ -736,21 +800,29 @@ let exprs =
       false
     t
       "custom enum tupled params"
-      "MyEnum.A((1L, 2L))"
-      "MyEnum.A((1L, 2L))"
-      []
+      "Tests.MyEnum.C((1L, 2L))"
+      "MyEnum.C((1L, 2L))"
+      [ myEnum ]
       []
       []
       false
-    t "custom enum fn params" "MyEnum.A(1L, 2L)" "MyEnum.A(1L, 2L)" [] [] [] false
+    t
+      "custom enum fn params"
+      "Tests.MyEnum.D(1L, 2L)"
+      "MyEnum.D(1L, 2L)"
+      [ myEnum ]
+      []
+      []
+      false
+    t "custom enum fn params" "MyEnum.D(1L, 2L)" "MyEnum.D(1L, 2L)" [] [] [] false
     t
       "custom enum indexed params"
-      """MyEnum.A(
+      """Tests.MyEnum.D(
   1L,
   2L
 )"""
-      """MyEnum.A(1L, 2L)"""
-      []
+      """MyEnum.D(1L, 2L)"""
+      [ myEnum ]
       []
       []
       false
@@ -801,9 +873,9 @@ let exprs =
     t "field access 1" "person.name" "person.name" [] [] [] false
     t
       "field access 2"
-      "(Person { name =\"Janice\" }).name"
+      "(Tests.Person { name =\"Janice\" }).name"
       "(Person { name = \"Janice\" }).name"
-      []
+      [ person ]
       []
       []
       false
@@ -1244,9 +1316,9 @@ else
       false
     t
       "pipe, into enum 2"
-      "33L |> MyEnum.A(21L)"
+      "33L |> Tests.MyEnum.A(21L)"
       "33L\n|> MyEnum.A(21L)"
-      []
+      [ myEnum ]
       []
       []
       false
@@ -1314,7 +1386,14 @@ else
     t "fn call, &&" "true && false" "(true) && (false)" [] [] [] false
     t "fn call, ||" "true || false" "(true) || (false)" [] [] [] false
     t "fn call, and short" "and true false" "and true false" [] [] [] true
-    t "fn call, and longer" "Bool.and true false" "Bool.and true false" [] [] [] true
+    t
+      "fn call, and longer"
+      "Stdlib.Bool.and true false"
+      "PACKAGE.Darklang.Stdlib.Bool.and true false"
+      []
+      []
+      []
+      true
     t
       "fn call, and longest"
       "Darklang.Stdlib.Bool.and true false"
@@ -1365,9 +1444,9 @@ else
       false
     t
       "fn call with db reference"
-      """Stdlib.DB.set (Test { x = "x" }) "key" TestDB"""
-      """PACKAGE.Darklang.Stdlib.DB.set Test { x = "x" } "key" TestDB"""
-      []
+      """Stdlib.DB.set Tests.Person { name = "John"; age = 30L; hasPet = true } "key" TestDB"""
+      """PACKAGE.Darklang.Stdlib.DB.set Person { name = "John"; age = 30L; hasPet = true } "key" TestDB"""
+      [ person ]
       []
       []
       false ]
@@ -1547,7 +1626,7 @@ let constantDeclarations =
       "enum, tupled args"
       "const a = MyEnum.A((1L, 2L))"
       "const a = MyEnum.A((1L, 2L))"
-      []
+      [ myEnum ]
       []
       []
       false
@@ -1555,7 +1634,7 @@ let constantDeclarations =
       "enum, fn args"
       "const a = MyEnum.A(1L, 2L)"
       "const a = MyEnum.A(1L, 2L)"
-      []
+      [ myEnum ]
       []
       []
       false ]

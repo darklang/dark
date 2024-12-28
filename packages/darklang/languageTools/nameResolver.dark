@@ -225,7 +225,8 @@ module Darklang =
           | [] -> Stdlib.Result.Result.Error()
           | owner :: modules ->
             if owner == "Builtin" && modules == [] then
-              if Builtin.languageToolsBuiltinFnExists name.name name.version then
+              let allBuiltins = Builtin.languageToolsAllBuiltinFns ()
+              if Stdlib.List.findFirst allBuiltins (fun f -> f.name.name == name.name) != Stdlib.Option.Option.None then
                 (ProgramTypes.FQFnName.Builtin
                   { name = name.name
                     version = name.version })
