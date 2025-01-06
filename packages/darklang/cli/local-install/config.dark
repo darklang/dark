@@ -36,8 +36,8 @@ module Darklang =
 
           let updatedConfig =
             config
-            |> Stdlib.Dict.set "version" versionToSet
-            |> Stdlib.Dict.set "lastUpdateTimestamp" currentTimestamp
+            |> Stdlib.Dict.setOverridingDuplicates "version" versionToSet
+            |> Stdlib.Dict.setOverridingDuplicates "lastUpdateTimestamp" currentTimestamp
 
           let serializedConfig =
             updatedConfig
