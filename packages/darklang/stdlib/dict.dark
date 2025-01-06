@@ -4,25 +4,63 @@ module Darklang =
       /// Returns an empty dictionary
       let empty = Dict { }
 
+
+      /// Returns {{true}} if the <param dict> contains no entries
+      let isEmpty (dict: Dict<'a>) : Bool =
+        dict == Dict.empty
+
+
       /// Returns a dictionary with a single entry {{<param key>: <param value>}}
       let singleton (key: String) (value: 'a) : Dict<'a> =
         Stdlib.Dict.set (Dict { }) key value
 
 
       /// Returns the number of entries in <param dict>
-      let size (dict: Dict<'a>) : Int64 = Builtin.dictSize_v0 dict
+      let size (dict: Dict<'a>) : Int64 =
+        Builtin.dictSize_v0 dict
+
+
+      /// If the <param dict> contains <param key>, returns the corresponding value,
+      /// wrapped in an <type Option>: {{Some value}}. Otherwise, returns {{None}}.
+      let get (dict: Dict<'a>) (key: String) : Stdlib.Option.Option<'a> =
+        Builtin.dictGet_v0 dict key
+
+
+      /// Returns a copy of <param dict> with the <param key> set to <param val>
+      let set (dict: Dict<'a>) (key: String) (``val``: 'a) : Dict<'a> =
+        Builtin.dictSet_v0 dict key ``val``
+
+
+      /// Returns a copy of <param dict> with the <param key> set to <param val>
+      let setOverridingDuplicates (dict: Dict<'a>) (key: String) (``val``: 'a) : Dict<'a> =
+        dict
+        |> remove key
+        |> set key ``val``
+
+
+      /// If the <param dict> contains <param key>, returns a copy of <param dict> with <param key> and its associated value removed. Otherwise, returns <param dict> unchanged.
+      let remove (dict: Dict<'a>) (key: String) : Dict<'a> =
+        Builtin.dictRemove_v0 dict key
+
+
+      /// Returns a combined dictionary with both dictionaries' entries. If the same key exists in both <param left> and <param right>, it will have the value from <param right>.
+      let merge (left: Dict<'a>) (right: Dict<'a>) : Dict<'a> =
+        Builtin.dictMerge_v0 left right
 
 
       /// Returns <param dict>'s keys in a <type List>, in an arbitrary order
-      let keys (dict: Dict<'a>) : List<String> = Builtin.dictKeys_v0 dict
+      let keys (dict: Dict<'a>) : List<String> =
+        Builtin.dictKeys_v0 dict
 
 
       /// Returns <param dict>'s values in a <type List>, in an arbitrary order
-      let values (dict: Dict<'a>) : List<'a> = Builtin.dictValues_v0 dict
+      let values (dict: Dict<'a>) : List<'a> =
+        Builtin.dictValues_v0 dict
 
 
       /// Returns <param dict>'s entries as a list of {{(key, value)}} tuples, in an arbitrary order. This function is the opposite of <fn Dict.fromList>
-      let toList (dict: Dict<'a>) : List<(String * 'a)> = Builtin.dictToList_v0 dict
+      let toList (dict: Dict<'a>) : List<(String * 'a)> =
+        Builtin.dictToList_v0 dict
 
 
       /// Returns a <type dict> with <param entries>. Each value in <param entries>
@@ -45,14 +83,8 @@ module Darklang =
         Builtin.dictFromList_v0 entries
 
 
-      /// If the <param dict> contains <param key>, returns the corresponding value,
-      /// wrapped in an <type Option>: {{Some value}}. Otherwise, returns {{None}}.
-      let get (dict: Dict<'a>) (key: String) : Stdlib.Option.Option<'a> =
-        Builtin.dictGet_v0 dict key
-
-
-      /// Returns {{true}} if the <param dict> contains an entry with <param key>, and
-      /// {{false}} otherwise
+      /// Returns {{true}} if the <param dict> contains an entry with <param key>,
+      /// and {{false}} otherwise
       let ``member`` (dict: Dict<'a>) (key: String) : Bool =
         Builtin.dictMember_v0 dict key
 
@@ -98,22 +130,3 @@ module Darklang =
           | None -> Option.Option.None
           | Some newValue -> Option.Option.Some ((k, newValue)))
         |> Dict.fromListOverwritingDuplicates
-
-
-      /// Returns {{true}} if the <param dict> contains no entries
-      let isEmpty (dict: Dict<'a>) : Bool = dict == Dict.empty
-
-
-      /// Returns a combined dictionary with both dictionaries' entries. If the same key exists in both <param left> and <param right>, it will have the value from <param right>.
-      let merge (left: Dict<'a>) (right: Dict<'a>) : Dict<'a> =
-        Builtin.dictMerge_v0 left right
-
-
-      /// Returns a copy of <param dict> with the <param key> set to <param val>
-      let set (dict: Dict<'a>) (key: String) (``val``: 'a) : Dict<'a> =
-        Builtin.dictSet_v0 dict key ``val``
-
-
-      /// If the <param dict> contains <param key>, returns a copy of <param dict> with <param key> and its associated value removed. Otherwise, returns <param dict> unchanged.
-      let remove (dict: Dict<'a>) (key: String) : Dict<'a> =
-        Builtin.dictRemove_v0 dict key

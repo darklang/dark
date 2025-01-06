@@ -11,11 +11,11 @@ set -euo pipefail
 #   (`./scripts/run-in-docker bash`) if relevant
 # - `gcloud auth login`
 # - make sure your IP address is allow-listed in Yugabyte
+# - you may need to `gcloud config set project darklang-next` at this point, if not already set)
 #
 # Then run this with `./scripts/deployment/replace-prod-packages 1`,
 # and proceed with additional steps as you succeed.
 #
-# You may need to `gcloud config set project darklang-next`.
 
 db_username=$(gcloud secrets versions access latest --secret db-username)
 db_password=$(gcloud secrets versions access latest --secret db-password)

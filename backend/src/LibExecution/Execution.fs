@@ -255,7 +255,7 @@ let callStackString
       Ply.List.foldSequentially
         (fun acc executionPoint ->
           uply {
-            let part = executionPointToString state executionPoint
+            let! part = executionPointToString state executionPoint
             return $"{acc}\n- {part}"
           })
         "Call stack (last call at bottom):"
