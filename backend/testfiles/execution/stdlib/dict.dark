@@ -153,7 +153,18 @@ module Set =
   Stdlib.Dict.set_v0 (Dict { key1 = "val1" }) "key2" 2L =
     Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.Dict.set's 3rd parameter `val` expects String, but got Int64 (2)"
 
-// TODO add setOverridingDuplicates
+
+module SetOverridingDuplicates =
+  Stdlib.Dict.setOverridingDuplicates (Dict { key1 = "val1" }) "key2" "val2" =
+    (Dict { key1 = "val1"; key2 = "val2" })
+
+  Stdlib.Dict.setOverridingDuplicates (Dict { key1 = "val1" }) "key2" 2L =
+    Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.Dict.setOverridingDuplicates's 3rd parameter `val` expects String, but got Int64 (2)"
+
+  // (where this differs from .set)
+  Stdlib.Dict.setOverridingDuplicates (Dict { key1 = "val1before" }) "key1" "val1after" =
+    (Dict { key1 = "val1after" })
+
 
 module Singleton =
   Stdlib.Dict.singleton_v0 "one" 1L = (Dict { one = 1L })

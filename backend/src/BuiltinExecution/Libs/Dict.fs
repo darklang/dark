@@ -231,7 +231,10 @@ let fns : List<BuiltInFn> =
         (function
         | _, vm, _, [ DDict(vt, o); DString k; v ] ->
           // CLEANUP terrible perf
-          TypeChecker.DvalCreator.dict vm.threadID vt ((Map.toList o) @ [ (k, v) ])
+          o
+          |> Map.toList
+          |> (@) [ (k, v) ]
+          |> TypeChecker.DvalCreator.dict vm.threadID vt
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
