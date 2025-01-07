@@ -157,7 +157,10 @@ let parseFile
                                        _) ->
             (m,
              parseModule (currentModule @ [ modName.idText ]) m.dbs decls @ nested)
-          | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
+          | _ ->
+            Exception.raiseInternal
+              $"Unsupported declaration"
+              [ "decl", decl; "currentModule", currentModule ])
         ({ emptyWTModule with name = currentModule; dbs = parentDBs }, [])
         decls
     m :: nested

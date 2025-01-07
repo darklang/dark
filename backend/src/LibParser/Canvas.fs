@@ -223,7 +223,7 @@ let parseDecls
       | _ ->
         raiseParserError
           "Unsupported declaration"
-          [ "decl", decl ]
+          [ "decl", decl; "owner", owner; "canvasName", canvasName ]
           (Some decl.Range))
     (emptyRootWTModule owner canvasName)
     decls

@@ -7,7 +7,7 @@ module Errors =
     (Builtin.testDerrorMessage "Field name is empty")
 
   (let x = MyRecord { col1 = 1L } in x.fieldName) =
-    (Builtin.testDerrorMessage "Unexpected field `fieldName`")
+    (Builtin.testDerrorMessage "Tried to access field `fieldName`, but it doesn't exist")
 
   (Builtin.testRuntimeError "error").fieldName =
     (Builtin.testDerrorMessage "Uncaught exception: error")

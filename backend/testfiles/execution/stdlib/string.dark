@@ -30,18 +30,12 @@ module Append =
 
 module Join =
   (Stdlib.String.join_v0 [ "a"; "b"; "c"; "d" ] "|") = "a|b|c|d"
-
   (Stdlib.String.join_v0 [ "a"; "̂" ] "") |> Stdlib.String.base64UrlEncode_v0 = "w6I"
-
   Stdlib.String.join_v0 [ "hello"; " world" ] "" = "hello world"
   Stdlib.String.join_v0 [ "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽"; "🧟‍♀️" ] "" = "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽🧟‍♀️"
-
   Stdlib.String.join_v0 [ "👱👱🏻👱🏼👱🏽👱🏾👱🏿"; "👨‍❤️‍💋‍👨"; "﷽﷽﷽" ] "" = "👱👱🏻👱🏼👱🏽👱🏾👱🏿👨‍❤️‍💋‍👨﷽﷽﷽"
-
   Stdlib.String.join_v0 [ "🧟‍♀️🧟‍♂️"; "🧟‍♀️🧑🏽‍🦰" ] "" = "🧟‍♀️🧟‍♂️🧟‍♀️🧑🏽‍🦰"
-
   Stdlib.String.join_v0 [ "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️"; "‍⚧️‍️🇵🇷" ] "" = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
-
   Stdlib.String.join_v0 [ "🧟‍♀️🧟‍♂️‍"; "🧟‍♀️🧑🏽‍🦰‍‍" ] "" = "🧟‍♀️🧟‍♂️‍🧟‍♀️🧑🏽‍🦰‍‍"
   Stdlib.String.join_v0 [ "🧑🏽‍🦰‍"; "🧑🏼‍💻‍‍" ] "" = "🧑🏽‍🦰‍🧑🏼‍💻‍‍"
 
@@ -102,19 +96,12 @@ module StartsWith =
   Stdlib.String.startsWith_v0 "123456" "123" = true
   Stdlib.String.startsWith_v0 "" "" = true
   Stdlib.String.startsWith_v0 "E" "\u0014\u0004" = false
-
   Stdlib.String.startsWith_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏾‍🦰" = false
-
   Stdlib.String.startsWith_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚" = true
-
   Stdlib.String.startsWith_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "﷽﷽﷽﷽" = true
   Stdlib.String.startsWith_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏿" = false
   Stdlib.String.startsWith_v0 "🧟‍♀️🧟‍♂️" "🧟‍♂️" = false
-
-  Stdlib.String.startsWith_v0
-    "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
-    "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️" = true
-
+  Stdlib.String.startsWith_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️" = true
   Stdlib.String.startsWith_v0 "a string" "" = true
 
 module EndsWith =
@@ -128,13 +115,10 @@ module EndsWith =
   Stdlib.String.endsWith_v0 "" "" = true
   Stdlib.String.endsWith_v0 "E" "\u0014\u0004" = false
   Stdlib.String.endsWith_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿" "✋✋🏿✋🏿" = false
-
   Stdlib.String.endsWith_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" "ǧ̗͚̚o̙̔ͮ̇͐̇" = true
-
   Stdlib.String.endsWith_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" "12xsd" = false
   Stdlib.String.endsWith_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "﷽" = false
   Stdlib.String.endsWith_v0 "🧟‍♀️🧟‍♂️" "🧟‍♀️" = false
-
   Stdlib.String.endsWith_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "🏳️‍⚧️‍️🇵🇷" = true
 
 
@@ -208,13 +192,11 @@ module Base64Decode =
   Stdlib.String.base64Decode_v0 "Zm9vYE==" = Stdlib.Result.Result.Ok "foo`"
   Stdlib.String.base64Decode_v0 "Zm9vYmC=" = Stdlib.Result.Result.Ok "foob`"
 
-  Stdlib.String.base64Decode_v0
-    "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig" = Stdlib.Result.Result.Ok
-    "from=06/07/2013 query=\"Καλώς ορίσατε\""
+  Stdlib.String.base64Decode_v0 "ZnJvbT0wNi8wNy8yMDEzIHF1ZXJ5PSLOms6xzrvPjs-CIM6_z4HOr8-DzrHPhM61Ig" =
+    Stdlib.Result.Result.Ok "from=06/07/2013 query=\"Καλώς ορίσατε\""
 
-  Stdlib.String.base64Decode_v0
-    "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78" = Stdlib.Result.Result.Ok
-    "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
+  Stdlib.String.base64Decode_v0 "8J-RsfCfkbHwn4-78J-RsfCfj7zwn5Gx8J-PvfCfkbHwn4--8J-RsfCfj78" =
+    Stdlib.Result.Result.Ok "👱👱🏻👱🏼👱🏽👱🏾👱🏿"
 
   Stdlib.String.base64Decode_v0 "-p" = Stdlib.Result.Result.Error "Invalid UTF-8 string"
   Stdlib.String.base64Decode_v0 "lI" = Stdlib.Result.Result.Error "Invalid UTF-8 string"
@@ -397,11 +379,8 @@ module FromList =
 
   Stdlib.String.fromList [ c "👩‍👩‍👧‍👦"; c "🏳️‍⚧️‍️"; c "👱🏾"; c "Z̤͔ͧ̑̓" ] = "👩‍👩‍👧‍👦🏳️‍⚧️‍️👱🏾Z̤͔ͧ̑̓"
 
-//   Stdlib.String.fromList [ "a" ] = Builtin.testDerrorMessage
-//     "PACKAGE.Darklang.Stdlib.String.fromList's 1st argument (`lst`) should be a List<Char>. However, a List<String> ([  \"a\"]) was passed instead.
-
-// Expected: (lst: List<Char>)
-// Actual: a List<String>: [\n  \"a\"\n]"
+  Stdlib.String.fromList [ "a" ] =
+    Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.String.fromList's 1st parameter `lst` expects List<Char>, but got List<String> ([\n  \"a\"\n])"
 
 
 module ToList =
@@ -409,49 +388,20 @@ module ToList =
   Stdlib.String.toList "ab" = [ 'a'; 'b' ]
   Stdlib.String.toList "👨‍👩‍👧‍👦" = [ c "👨‍👩‍👧‍👦" ]
 
-  Stdlib.String.toList "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = [ (c "Z̤͔ͧ̑̓")
-                                                          (c "ä͖̭̈̇")
-                                                          (c "lͮ̒ͫ")
-                                                          (c "ǧ̗͚̚")
-                                                          (c "o̙̔ͮ̇͐̇") ]
+  Stdlib.String.toList "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇" = [ (c "Z̤͔ͧ̑̓"); (c "ä͖̭̈̇"); (c "lͮ̒ͫ"); (c "ǧ̗͚̚"); (c "o̙̔ͮ̇͐̇") ]
 
 
-  // Stdlib.String.toList "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" = [ (c "﷽")
-  //                                                                                                                                                                                                         (c "﷽")
-  //                                                                                                                                                                                                         (c "﷽")
-  //                                                                                                                                                                                                         (c "﷽")
-  //                                                                                                                                                                                                         (c "﷽")
-  //                                                                                                                                                                                                         (c "﷽")
-  //                                                                                                                                                                                                         (c "﷽")
-  //                                                                                                                                                                                                         (c "﷽")
-  //                                                                                                                                                                                                         (c "﷽")
-  //                                                                                                                                                                                                         (c "﷽")
-  //                                                                                                                                                                                                         (c "﷽")
-  //                                                                                                                                                                                                         (c "﷽")
-  //                                                                                                                                                                                                         (c "﷽")
-  //                                                                                                                                                                                                         (c "﷽")
-  //                                                                                                                                                                                                         (c "﷽")
-  //                                                                                                                                                                                                         (c "﷽") ]
+  Stdlib.String.toList "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽" =
+    [ (c "﷽"); (c "﷽"); (c "﷽"); (c "﷽"); (c "﷽"); (c "﷽"); (c "﷽"); (c "﷽"); (c "﷽"); (c "﷽"); (c "﷽"); (c "﷽"); (c "﷽"); (c "﷽"); (c "﷽"); (c "﷽") ]
 
-  Stdlib.String.toList "🧟‍♀️🧟‍♂️" = [ c "🧟‍♀️"; c "🧟‍♂️" ]
+  Stdlib.String.toList "🧟‍♀️🧟‍♂️" =
+    [ c "🧟‍♀️"; c "🧟‍♂️" ]
 
-  Stdlib.String.toList "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = [ (c "👱")
-                                                    (c "👱🏻")
-                                                    (c "👱🏼")
-                                                    (c "👱🏽")
-                                                    (c "👱🏾")
-                                                    (c "👱🏿") ]
+  Stdlib.String.toList "👱👱🏻👱🏼👱🏽👱🏾👱🏿" =
+    [ (c "👱"); (c "👱🏻"); (c "👱🏼"); (c "👱🏽"); (c "👱🏾"); (c "👱🏿") ]
 
-
-  // Stdlib.String.toList "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = [ (c "ż")
-  //                                           (c "ó")
-  //                                           (c "ł")
-  //                                           (c "w")
-  //                                           (c "🧑🏽‍🦰")
-  //                                           (c "🧑🏻‍🍼")
-  //                                           (c "✋")
-  //                                           (c "✋🏻")
-  //                                           (c "✋🏿") ]
+  Stdlib.String.toList "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" =
+    [ (c "ż"); (c "ó"); (c "ł"); (c "w"); (c "🧑🏽‍🦰"); (c "🧑🏻‍🍼"); (c "✋"); (c "✋🏻"); (c "✋🏿") ]
 
   ("ab1" |> Stdlib.String.toList |> Stdlib.String.fromList) = "ab1"
 
@@ -505,10 +455,7 @@ module Split =
   Stdlib.String.split "x1y" "1" = [ "x"; "y" ]
   Stdlib.String.split "6a6aa6aaa6aaaa" "a" = [ "6"; "6"; ""; "6"; ""; ""; "6"; ""; ""; ""; "" ]
 
-  // Stdlib.String.split "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "" = [ "👨‍❤️‍💋‍👨"
-  //                                       "👩‍👩‍👧‍👦"
-  //                                       "🏳️‍⚧️‍️"
-  //                                       "🇵🇷" ]
+  Stdlib.String.split "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "" = [ "👨‍❤️‍💋‍👨"; "👩‍👩‍👧‍👦"; "🏳️‍⚧️‍️"; "🇵🇷" ]
 
   Stdlib.String.split "👨‍👩‍👧‍👦" "👩" = [ "👨‍👩‍👧‍👦" ]
 
@@ -587,27 +534,20 @@ module TrimEnd =
   Stdlib.String.trimEnd_v0 "  foo bar  " = "  foo bar"
   Stdlib.String.trimEnd_v0 "foo  " = "foo"
   Stdlib.String.trimEnd_v0 "foo" = "foo"
-
   Stdlib.String.trimEnd_v0 " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 " = " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83"
-
   Stdlib.String.trimEnd_v0 " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 " = " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84"
-
   Stdlib.String.trimEnd_v0 "     żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿   " = "     żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
   Stdlib.String.trimEnd_v0 "  Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇  " = "  Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇"
   Stdlib.String.trimEnd_v0 "       ﷽﷽  " = "       ﷽﷽"
   Stdlib.String.trimEnd_v0 " 🧟‍♀️🧟‍♂️ " = " 🧟‍♀️🧟‍♂️"
-
   Stdlib.String.trimEnd_v0 " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷     " = " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
-
   Stdlib.String.trimEnd_v0 "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿  " = "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
   Stdlib.String.trimEnd_v0 "🇺🇸🇷🇺🇸 🇦🇫🇦🇲🇸" = "🇺🇸🇷🇺🇸 🇦🇫🇦🇲🇸"
 
 
 module TrimStart =
   Stdlib.String.trimStart_v0 " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 " = "\xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 "
-
   Stdlib.String.trimStart_v0 " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 " = "\xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 "
-
   Stdlib.String.trimStart_v0 "      " = ""
   Stdlib.String.trimStart_v0 "" = ""
   Stdlib.String.trimStart_v0 "  foo  " = "foo  "
@@ -621,9 +561,7 @@ module TrimStart =
   Stdlib.String.trimStart_v0 "  Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇  " = "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇  "
   Stdlib.String.trimStart_v0 "       ﷽﷽  " = "﷽﷽  "
   Stdlib.String.trimStart_v0 " 🧟‍♀️🧟‍♂️ " = "🧟‍♀️🧟‍♂️ "
-
   Stdlib.String.trimStart_v0 " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷     " = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷     "
-
   Stdlib.String.trimStart_v0 "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿  " = "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿  "
 
 
@@ -643,9 +581,7 @@ module Trim =
   Stdlib.String.trim_v0 " 🧟‍♀️🧟‍♂️ " = "🧟‍♀️🧟‍♂️"
   Stdlib.String.trim_v0 " 👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷     " = "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷"
   Stdlib.String.trim_v0 "          żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" = "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿"
-
   Stdlib.String.trim_v0 " \xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83 " = "\xe2\x80\x83foo\xe2\x80\x83bar\xe2\x80\x83"
-
   Stdlib.String.trim_v0 " \xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84 " = "\xf0\x9f\x98\x84foobar\xf0\x9f\x98\x84"
   Stdlib.String.trim_v0 "쉆ꥨ逴皪巌䖑ⱝዓ淋" = "쉆ꥨ逴皪巌䖑ⱝዓ淋"
 
@@ -724,11 +660,7 @@ module Contains =
   Stdlib.String.contains_v0 "👱👱🏻👱🏼👱🏽👱🏾" "👱🏿" = false
   Stdlib.String.contains_v0 "🧟‍♀️🧟‍♂️" "🧟‍♂️" = true
   Stdlib.String.contains_v0 "🧟‍♀️🧟‍♂️" "🧟‍♂️🧟‍♂️" = false
-
-  Stdlib.String.contains_v0
-    "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷"
-    "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦" = true
-
+  Stdlib.String.contains_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️🇵🇷" "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦" = true
   Stdlib.String.contains_v0 "اختبار" "اختبار" = true
   Stdlib.String.contains_v0 "" "" = true
   Stdlib.String.contains_v0 "a" "" = true
@@ -841,7 +773,9 @@ module Head =
   Stdlib.String.head "hello world" = Stdlib.Option.Option.Some 'h'
 
   Stdlib.String.head "" = Stdlib.Option.Option.None
-  // Commented out as Fantomas doesn't like unicode "characters"
+
+  // Commented out as F# parser doesn't like unicode "characters"
+  // CLEANUP uncomment when switched to new parser
   // Stdlib.String.head "👱👱🏻👱🏼👱🏽👱🏾👱🏿" = Stdlib.Option.Option.Some '👱'
   // Stdlib.String.head "🧟‍♀️🧟‍♂️" = Stdlib.Option.Option.Some '🧟'
   // Stdlib.String.head "👨‍❤️‍💋‍👨" = Stdlib.Option.Option.Some '👨‍❤️‍💋‍👨'

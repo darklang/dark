@@ -95,7 +95,10 @@ let rec parseDecls
           constants = m.constants @ nestedDecls.constants }
 
 
-      | _ -> Exception.raiseInternal $"Unsupported declaration" [ "decl", decl ])
+      | _ ->
+        Exception.raiseInternal
+          $"Unsupported declaration"
+          [ "decl", decl; "moduleNames", moduleNames ])
     emptyWTModule
     decls
 
