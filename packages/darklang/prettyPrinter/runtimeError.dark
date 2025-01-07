@@ -313,8 +313,9 @@ module Darklang =
             | FieldAccessEmptyFieldName ->
               [ ES.String "Field name is empty" ]
             | FieldAccessFieldNotFound fieldName ->
-              [ ES.String "Unexpected field "
+              [ ES.String "Tried to access field "
                 ES.FieldName fieldName
+                ES.String ", but it doesn't exist"
                 // ES.String " in "
                 // ES.TypeName typeName
                 ]

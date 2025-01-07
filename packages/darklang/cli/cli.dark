@@ -8,13 +8,17 @@ module Darklang =
       | Uninstall
       | Invalid of List<String>
 
-    type ExecutionError = { msg: String; metadata: Dict<String> }
-
-    // module ExecutionError =
-    //   let toString (err: ExecutionError) : String =
-    //     let metadata = err.metadata |> Stdlib.Dict.toList |> Stdlib.List.map (fun (k, v) -> $"- {k}: {v}")
-    //     let metadata = metadata |> Stdlib.String.join "\n"
-    //     $"Error: {err.msg}\n{metadata}"
+    type ExecutionError =
+      { msg: String; metadata: Dict<String> }
+      { msg: String; metadata: Dict<String> }
+    module ExecutionError =
+      let toString (err: ExecutionError) : String =
+        let metadataStr =
+          err.metadata
+          |> Stdlib.Dict.toList
+          |> Stdlib.List.map (fun (k, v) -> $"- {k}: {v}")
+          |> Stdlib.String.join "\n"
+        $"Error: {err.msg}\n{metadataStr}"
 
 
     let parseArguments (args: List<String>) : Command =
@@ -111,6 +115,9 @@ module Darklang =
     let executeCommand (command: Command) : Int64 =
       match command with
       | Help ->
+        // CLEANUP there's gotta be a cool way to structure this rather than align things.
+        // maybe a tuple of (command, description) or something
+        // , then measure the longest command and pad the rest to that length
         Builtin.printLine
           """Note: If the darklang CLI is installed, you can run commands using `dark [command]`.
 If it is not installed, replace `dark` with the executable's path, like `./darklang-exe-path [command]`. \n
