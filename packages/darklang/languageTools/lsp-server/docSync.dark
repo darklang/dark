@@ -109,10 +109,7 @@ module Darklang =
           { state with
               documentsInScope =
                 state.documentsInScope
-                // CLEANUP we shouldn't need the lambda here
-                |> fun dict ->
-                    Stdlib.Dict.setOverridingDuplicates
-                      dict
+                |> Stdlib.Dict.setOverridingDuplicates
                       request.textDocument.uri
                       (LanguageTools.LspServer.DocumentInScope
                         { uri = request.textDocument.uri
@@ -150,10 +147,7 @@ module Darklang =
             { state with
                 documentsInScope =
                   state.documentsInScope
-                  // CLEANUP shouldn't need this lambda - just pipe into the fn
-                  |> fun dict ->
-                      Stdlib.Dict.setOverridingDuplicates
-                        dict
+                  |> Stdlib.Dict.setOverridingDuplicates
                         request.textDocument.uri
                         (LanguageTools.LspServer.DocumentInScope
                           { uri = request.textDocument.uri

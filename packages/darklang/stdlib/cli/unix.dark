@@ -23,7 +23,7 @@ module Darklang =
           (shell: Shell.Shell)
           (alias: String)
           (command: String)
-          : Result.Result<String, String> =
+          : Result.Result<Unit, String> =
           match shell with
           | Bash -> Bash.addAlias alias command
           | Zsh -> Zsh.addAlias alias command
@@ -34,7 +34,7 @@ module Darklang =
         let deleteAlias
           (shell: Shell.Shell)
           (alias: String)
-          : Result.Result<String, String> =
+          : Result.Result<Unit, String> =
           match shell with
           | Bash -> Bash.deleteAlias alias
           | Zsh -> Zsh.deleteAlias alias
