@@ -9,6 +9,8 @@ echo "Starting build server"
 
 mkdir -p rundir/logs/
 
+git config --global --add safe.directory /home/dark/app
+
 nohup ./scripts/build/_build-server --compile --watch &> /home/dark/app/rundir/logs/build-server.log &
 
 # It seems that if we don't sleep here, the server does not start properly in all cases

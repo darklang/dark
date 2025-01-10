@@ -4,7 +4,7 @@
 set -euo pipefail
 
 
-# This is run manually, step by step, to replace the canvas and data at packages.darklang.com.
+# This is run to replace the canvas and data at packages.darklang.com.
 #
 # First,
 # - open a terminal, and make sure you're in the devcontainer
@@ -63,36 +63,22 @@ run_local_exec() {
 }
 
 
-# handle command line args
-case $1 in
-  1)
-    echo "1. Prove we can connect to the DB"
-    exec_sql "select 2 ;"
-    #exec_sql "select count(1) from user_data_v0;"
-   ;;
+echo "1. Prove we can connect to the DB"
+exec_sql "select 2 ;"
 
-  2)
-    echo "2. Run migrations"
-    run_prod_exec migrations run
-    run_prod_exec migrations list
-      ;;
+echo "2. Run migrations"
+run_prod_exec migrations run
+run_prod_exec migrations list
 
-  3)
-    echo "3. Load packages into internal SQL tables"
-    # this will be used by BwdServer when _it_ needs to use package items
-    # , as we have a bit of a recursive dog-fooding problem.
-    run_local_exec load-packages-to-internal-sql-tables
-      ;;
+echo "3. Load packages into internal SQL tables"
+# this will be used by BwdServer when _it_ needs to use package items
+# , as we have a bit of a recursive dog-fooding problem.
+run_local_exec load-packages-to-internal-sql-tables
 
-  4)
-    echo "4. Parse, create, and fill in dark-packages canvas"
-    run_local_exec reload-dark-packages
-    ;;
+echo "4. Parse, create, and fill in dark-packages canvas"
+run_local_exec reload-dark-packages
 
-  5)
-    echo "5. Connect dark-packages canvas to packages.darklang.com domain"
-    canvasID='11111111-1111-1111-1111-111111111112'
-    domain='packages.darklang.com'
-    exec_sql "INSERT INTO domains_v0 (canvas_id, domain) VALUES ('$canvasID'::uuid, '$domain')"
-    ;;
-esac
+echo "5. Connect dark-packages canvas to packages.darklang.com domain"
+canvasID='11111111-1111-1111-1111-111111111112'
+domain='packages.darklang.com'
+exec_sql "INSERT INTO domains_v0 (canvas_id, domain) VALUES ('$canvasID'::uuid, '$domain')"
