@@ -822,11 +822,7 @@ module Darklang =
 
           // Person { name = "Alice" }
           | ERecord(range, typeName, fields, symbolOpenBrace, symbolCloseBrace) ->
-            let typeName =
-              match typeName with
-              | Unresolved(range, _) -> [ makeToken range TokenType.TypeName ]
-              | _ -> []
-
+            let typeName = QualifiedTypeIdentifier.tokenize typeName
             let fields =
               fields
               |> Stdlib.List.map (fun (symbol, fieldName, value) ->
@@ -837,7 +833,7 @@ module Darklang =
                 [ // name
                   [ makeToken range TokenType.Property ]
                   // =
-                  [ makeToken symbol.range TokenType.Symbol ]
+                  [ makeToken symbol TokenType.Symbol ]
                   // "Alice"
                   Expr.tokenize value ]
                 |> Stdlib.List.flatten)
