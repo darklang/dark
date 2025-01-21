@@ -193,3 +193,34 @@ Person {
     )
   )
 )
+
+
+==================
+Record - with type args
+==================
+
+MyRecord<String> { name = "test" }
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (record_literal
+        (qualified_type_name
+          (type_identifier)
+          (type_args (symbol) (type_args_items (type_reference (builtin_type))) (symbol))
+        )
+        (symbol)
+        (record_content
+          (record_pair
+            (variable_identifier)
+            (symbol)
+            (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))
+          )
+        )
+        (symbol)
+      )
+    )
+  )
+)
