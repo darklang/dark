@@ -524,8 +524,13 @@ module Darklang =
             (ProgramTypes.Expr.ETuple(gid (), first, second, rest), unresolvedNames)
 
           | ERecord(_, typeName, fields, _, _) ->
-            let typeName =
-              NameResolver.TypeName.resolve onMissing pm owner currentModule typeName
+            let (typeName, typeArgs, typeNameUnresolvedNames) =
+              Identifiers.QualifiedType.toPT
+                onMissing
+                pm
+                owner
+                currentModule
+                typeName
 
             let (fields, unresolvedNames) =
               fields
@@ -538,9 +543,13 @@ module Darklang =
                 ((fieldName, typeName), unresolvedNames))
               |> Stdlib.List.unzip
 
-            let typeArgs = [] // TODO: update parser to expect/accept these, and update this accordingly
+            let unresolvedNames =
+              Stdlib.List.flatten
+                [ typeNameUnresolvedNames
+                  unresolvedNames |> Stdlib.List.flatten ]
+
             (ProgramTypes.Expr.ERecord(gid (), typeName, typeArgs, fields),
-             unresolvedNames |> Stdlib.List.flatten)
+             unresolvedNames)
 
           | ERecordUpdate(_, record, updates, _, _, _) ->
             let (record, recUnresolvedNames) =
@@ -584,8 +593,6 @@ module Darklang =
                 [ typeNameUnresolvedNames
                   fieldsUnresolvedNames |> Stdlib.List.flatten ]
 
-
-            let typeArgs = [] // TODO: update parser to expect/accept these, and update this accordingly
             (ProgramTypes.Expr.EEnum(gid (), typeName, typeArgs, caseName, fields),
              unresolvedNames)
 
