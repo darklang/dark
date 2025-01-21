@@ -1446,7 +1446,12 @@ module Darklang =
                   |> Stdlib.Option.Option.Some
 
                 | None -> Stdlib.Option.Option.None
-              | None -> Stdlib.Option.Option.None
+              | None ->
+                // check if we are hovering over the type arguments
+                typeName.typeArgs
+                |> Stdlib.List.filterMap (fun tr ->
+                  collectTypeRefHoverInfoAtPos tr position pm owner currentModules)
+                |> Stdlib.List.head
 
           | None ->
             // check if we are hovering over the case name
@@ -1728,28 +1733,43 @@ module Darklang =
           | ERecord(r, typeName, fields, _, _) ->
             // check if position is within the Record range
             if CursorPosition.isLineNumberInRange position r then
-              let (tnRange, typeName) =
-                match typeName with
-                | Unresolved(range, name) -> (range, name)
-
-              match CursorPosition.checkIfPositionWithinRange position tnRange with
+              match CursorPosition.checkIfPositionWithinRange position typeName.range with
               | Some range ->
-                let typ = tryGetPkgType typeName range pm owner currentModules
+                let modules =
+                  typeName.modules |> collectModuleNameHoverInfoAtPos position
 
-                match typ with
-                | Some t ->
-                  let description =
-                    Stdlib.Option.Option.Some(
-                      "TODO: add description when /// comments are supported"
-                    )
+                match modules with
+                | Some r -> Stdlib.Option.Option.Some r
+                | None ->
+                  match CursorPosition.checkIfPositionWithinRange position typeName.typ.range with
+                  | Some range ->
+                    let modules =
+                      typeName.modules |> Stdlib.List.map (fun (name, _) -> name.name)
 
-                  let thingAtPosition =
-                    CursorPosition.ThingAtPosition.PackageType(t, description)
+                    let name = typeName.typ.name
+                    let range = typeName.typ.range
+                    let fqName = Stdlib.List.append modules [ name ]
 
-                  (hoverInfoForThingAtPosition thingAtPosition range)
-                  |> Stdlib.Option.Option.Some
+                    let typ = tryGetPkgType fqName range pm owner currentModules
 
-                | None -> Stdlib.Option.Option.None
+                    match typ with
+                    | Some t ->
+                      let description =
+                        Stdlib.Option.Option.Some(
+                          "TODO: add description when /// comments are supported"
+                        )
+                      let thingAtPosition =
+                        CursorPosition.ThingAtPosition.PackageType(t, description)
+
+                      (hoverInfoForThingAtPosition thingAtPosition range)
+                      |> Stdlib.Option.Option.Some
+
+                    | None -> Stdlib.Option.Option.None
+                  | None ->
+                    typeName.typeArgs
+                    |> Stdlib.List.filterMap (fun tr ->
+                      collectTypeRefHoverInfoAtPos tr position pm owner currentModules)
+                    |> Stdlib.List.head
 
               | None ->
                 fields
