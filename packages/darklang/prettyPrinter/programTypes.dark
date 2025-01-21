@@ -530,12 +530,21 @@ module Darklang =
           |> Stdlib.String.join ", "
           |> fun parts -> "(" ++ parts ++ ")"
 
-        | ERecord(_id, typeName, _typeArgs, fields) ->
-          // TODO: include type args
+        | ERecord(_id, typeName, typeArgs, fields) ->
           let typeNamePart =
             match typeName with
             | Ok name -> PrettyPrinter.ProgramTypes.FQTypeName.fullForReference name
             | Error e -> PrettyPrinter.ProgramTypes.NameResolutionError.source e
+
+          let typeArgsPart =
+            match typeArgs with
+            | [] -> ""
+            | _ ->
+              typeArgs
+              |> Stdlib.List.map (fun typeArg ->
+                PrettyPrinter.ProgramTypes.typeReference typeArg)
+              |> Stdlib.String.join ", "
+              |> fun parts -> $"<{parts}>"
 
           let fieldPart =
             fields
@@ -545,23 +554,32 @@ module Darklang =
             |> Stdlib.String.join "; "
             |> fun parts -> "{ " ++ parts ++ " }"
 
-          $"{typeNamePart} {fieldPart}"
+          $"{typeNamePart}{typeArgsPart} {fieldPart}"
 
-        | EEnum(_id, typeName, _typeArgs, caseName, fields) ->
-          // TODO: include type args
+        | EEnum(_id, typeName, typeArgs, caseName, fields) ->
           let typeNamePart =
             match typeName with
             | Ok name -> PrettyPrinter.ProgramTypes.FQTypeName.fullForReference name
             | Error e -> PrettyPrinter.ProgramTypes.NameResolutionError.source e
 
+          let typeArgsPart =
+            match typeArgs with
+            | [] -> ""
+            | _ ->
+              typeArgs
+              |> Stdlib.List.map (fun typeArg ->
+                PrettyPrinter.ProgramTypes.typeReference typeArg)
+              |> Stdlib.String.join ", "
+              |> fun parts -> $"<{parts}>"
+
           match fields with
-          | [] -> $"{typeNamePart}.{caseName}()"
+          | [] -> $"{typeNamePart}{typeArgsPart}.{caseName}()"
           | fields ->
             let fieldPart =
               fields
               |> Stdlib.List.map (fun field -> PrettyPrinter.ProgramTypes.expr field)
               |> Stdlib.String.join ", "
-            $"{typeNamePart}.{caseName}({fieldPart})"
+            $"{typeNamePart}{typeArgsPart}.{caseName}({fieldPart})"
 
 
         // declaring and accessing variables
