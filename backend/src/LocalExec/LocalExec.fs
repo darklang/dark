@@ -25,12 +25,13 @@ module HandleCommand =
       print $"{typeLen} types, {constantLen} constants, and {fnLen} fns"
 
       print "Purging ..."
-      do! LibCloud.PackageManager.purge ()
+      do! LibCloud.PackageManager.purgeSqlite ()
 
       print "Filling ..."
-      do! LibCloud.PackageManager.savePackageTypes packagesFromDisk.types
-      do! LibCloud.PackageManager.savePackageConstants packagesFromDisk.constants
-      do! LibCloud.PackageManager.savePackageFunctions packagesFromDisk.fns
+      do! LibCloud.PackageManager.savePackageTypesSqlite packagesFromDisk.types
+      do!
+        LibCloud.PackageManager.savePackageConstantsSqlite packagesFromDisk.constants
+      do! LibCloud.PackageManager.savePackageFunctionsSqlite packagesFromDisk.fns
 
       return Ok()
     }

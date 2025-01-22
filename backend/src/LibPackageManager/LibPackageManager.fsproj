@@ -13,6 +13,8 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
+    <ProjectReference Include="../LibBinarySerialization/LibBinarySerialization.fsproj" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.0" />
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../BuiltinExecution/BuiltinExecution.fsproj" />
   </ItemGroup>

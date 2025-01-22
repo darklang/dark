@@ -103,11 +103,12 @@ RUN DEBIAN_FRONTEND=noninteractive \
       postgresql-14 \
       postgresql-client-14 \
       postgresql-contrib-14 \
+      sqlite3 \
       git-restore-mtime \
       nodejs \
-      google-cloud-sdk \
-      google-cloud-sdk-pubsub-emulator \
-      google-cloud-sdk-gke-gcloud-auth-plugin \
+      # google-cloud-sdk \
+      # google-cloud-sdk-pubsub-emulator \
+      # google-cloud-sdk-gke-gcloud-auth-plugin \
       jq \
       parallel \
       # yugabyte
@@ -148,6 +149,20 @@ RUN DEBIAN_FRONTEND=noninteractive \
       && apt clean \
       && rm -rf /var/lib/apt/lists/*
 
+# Install Google Cloud SDK
+RUN DEBIAN_FRONTEND=noninteractive \
+  apt-get update && \
+  apt-get install -y openjdk-17-jre-headless && \
+  curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-455.0.0-linux-$(case ${TARGETARCH} in amd64) echo "x86_64";; arm64) echo "arm";; esac).tar.gz && \
+  tar -xf google-cloud-cli-*.tar.gz && \
+  ./google-cloud-sdk/install.sh --quiet --install-python false --usage-reporting false && \
+  rm google-cloud-cli-*.tar.gz && \
+  sudo mv google-cloud-sdk /usr/local/google-cloud-sdk && \
+  sudo ln -s /usr/local/google-cloud-sdk/bin/gcloud /usr/local/bin/gcloud && \
+  sudo ln -s /usr/local/google-cloud-sdk/bin/gsutil /usr/local/bin/gsutil && \
+  sudo gcloud components install beta gke-gcloud-auth-plugin pubsub-emulator --quiet && \
+  apt-get clean && \
+  rm -rf /var/lib/apt/lists/*
 
 # As of Ubuntu 24.04, an install includes
 # an 'ubuntu' user, that we don't use,

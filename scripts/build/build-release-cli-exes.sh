@@ -38,7 +38,6 @@ if [[ " $* " =~ " --cross-compile " ]]; then
       /p:DebugType=None \
       /p:DebugSymbols=false \
       /p:PublishSingleFile=true \
-      /p:PublishTrimmed=true \
       /p:PublishReadyToRun=false \
       --self-contained true \
       --runtime "$rt"

@@ -16,6 +16,7 @@
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../LibBinarySerialization/LibBinarySerialization.fsproj" />
     <ProjectReference Include="../LibService/LibService.fsproj" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.0" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DvalReprInternalRoundtrippable.fs" />

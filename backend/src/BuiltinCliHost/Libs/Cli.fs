@@ -3,6 +3,8 @@
 module BuiltinCliHost.Libs.Cli
 
 open System.Threading.Tasks
+open FSharp.Control.Tasks
+
 
 open Prelude
 open LibExecution.RuntimeTypes
@@ -28,24 +30,34 @@ module ExecutionError =
   let typeRef = TCustomType(Ok fqTypeName, [])
 
 
-// TODO: de-dupe with _other_ Cli.fs
-let pmBaseUrl =
-  match
-    System.Environment.GetEnvironmentVariable "DARK_CONFIG_PACKAGE_MANAGER_BASE_URL"
-  with
-  | null -> "https://packages.darklang.com"
-  | var -> var
-let packageManagerRT = LibPackageManager.PackageManager.rt pmBaseUrl
-let packageManagerPT = LibPackageManager.PackageManager.pt pmBaseUrl
+module Config =
+  let pmBaseUrl =
+    match
+      System.Environment.GetEnvironmentVariable
+        "DARK_CONFIG_PACKAGE_MANAGER_BASE_URL"
+    with
+    | null -> "https://packages.darklang.com"
+    | var -> var
 
+  let initializePackageManagers () =
+    task {
+      let packageManagerRT = LibPackageManager.PackageManager.rt pmBaseUrl
+      let packageManagerPT = LibPackageManager.PackageManager.pt pmBaseUrl
 
-let builtinsToUse : RT.Builtins =
-  LibExecution.Builtin.combine
-    [ BuiltinExecution.Builtin.builtins
-        BuiltinExecution.Libs.HttpClient.defaultConfig
-        packageManagerPT
-      BuiltinCli.Builtin.builtins ]
-    []
+      do! packageManagerRT.init
+
+      return packageManagerRT, packageManagerPT
+    }
+
+  let packageManagerRT, packageManagerPT = initializePackageManagers().Result
+
+  let builtinsToUse : RT.Builtins =
+    LibExecution.Builtin.combine
+      [ BuiltinExecution.Builtin.builtins
+          BuiltinExecution.Libs.HttpClient.defaultConfig
+          packageManagerPT
+        BuiltinCli.Builtin.builtins ]
+      []
 
 
 let execute
@@ -76,13 +88,13 @@ let execute
           mod'.submodules.fns |> List.map PT2RT.PackageFn.toRT ]
 
     let packageManager =
-      packageManagerRT |> PackageManager.withExtras types constants fns
+      Config.packageManagerRT |> PackageManager.withExtras types constants fns
 
     let tracing = Exe.noTracing
 
     let state =
       Exe.createState
-        builtinsToUse
+        Config.builtinsToUse
         packageManager
         tracing
         parentState.reportException
