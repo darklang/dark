@@ -269,7 +269,7 @@ module Darklang =
         let parseRecordLiteral
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          let typeNameNode = findField node "type_name"
+          let typeNameNode = findAndParseRequired node "type_name" Identifiers.parseQualifiedType
           let openBraceNode = findField node "symbol_open_brace"
 
           let fields =
@@ -322,14 +322,9 @@ module Darklang =
 
           match typeNameNode, openBraceNode, fields, closeBraceNode with
           | Ok typeName, Ok openBrace, Ok fields, Ok closeBrace ->
-            let tn = typeName.text |> Stdlib.String.split "."
-
-            let typeNameNode =
-              Darklang.LanguageTools.WrittenTypes.Name.Unresolved(typeName.range, tn)
-
             (WrittenTypes.Expr.ERecord(
               node.range,
-              typeNameNode,
+              typeName,
               fields,
               openBrace.range,
               closeBrace.range

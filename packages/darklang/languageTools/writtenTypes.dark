@@ -263,7 +263,7 @@ module Darklang =
 
         | ERecord of
           Range *
-          typeName: Name *
+          typeName: QualifiedTypeIdentifier *
           // fields: List<:, key, value>
           fields: List<Range * (Range * String) * Expr> *
           symbolOpenBrace: Range *

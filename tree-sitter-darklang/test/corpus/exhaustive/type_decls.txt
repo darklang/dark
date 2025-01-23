@@ -176,6 +176,86 @@ type Test =
 
 
 ==================
+type def Record - with one type parameter
+==================
+
+type Test<'a> = { name: 'a }
+
+---
+
+(source_file
+  (type_decl
+    (keyword)
+    (type_identifier)
+    (type_params
+      (symbol)
+      (type_params_items (variable_type_reference (symbol) (variable_identifier)))
+      (symbol)
+    )
+    (symbol)
+    (type_decl_def
+      (type_decl_def_record
+        (symbol)
+        (type_decl_def_record_fields
+          (type_decl_def_record_field
+            (variable_identifier)
+            (symbol)
+            (type_reference (builtin_type (variable_type_reference (symbol) (variable_identifier))))
+          )
+        )
+        (symbol)
+      )
+    )
+  )
+)
+
+
+==================
+type def Record - with multiple type parameters
+==================
+
+type Test<'a, 'b> = { name: 'a; age: 'b }
+
+---
+
+(source_file
+  (type_decl
+    (keyword)
+    (type_identifier)
+    (type_params
+      (symbol)
+      (type_params_items
+        (variable_type_reference (symbol) (variable_identifier))
+        (symbol)
+        (variable_type_reference (symbol) (variable_identifier))
+      )
+      (symbol)
+    )
+    (symbol)
+    (type_decl_def
+      (type_decl_def_record
+        (symbol)
+        (type_decl_def_record_fields
+          (type_decl_def_record_field
+            (variable_identifier)
+            (symbol)
+            (type_reference (builtin_type (variable_type_reference (symbol) (variable_identifier))))
+          )
+          (symbol)
+          (type_decl_def_record_field
+            (variable_identifier)
+            (symbol)
+            (type_reference (builtin_type (variable_type_reference (symbol) (variable_identifier))))
+          )
+        )
+        (symbol)
+      )
+    )
+  )
+)
+
+
+==================
 type def Enum - one case, no fields
 ==================
 
@@ -417,6 +497,93 @@ type MyEnum =
             (type_decl_enum_field (type_reference (builtin_type)))
             (symbol)
             (type_decl_enum_field (type_reference (builtin_type))))
+          (dedent)
+        )
+      )
+    )
+  )
+)
+
+
+==================
+type def Enum - with one type parameter
+==================
+
+type MyEnum<'a> =
+  | A of 'a
+  | B
+
+---
+
+(source_file
+  (type_decl
+    (keyword)
+    (type_identifier)
+    (type_params
+      (symbol)
+      (type_params_items (variable_type_reference (symbol) (variable_identifier)))
+      (symbol)
+    )
+    (symbol)
+    (type_decl_def
+      (type_decl_def_enum
+        (type_decl_enum_multi_line
+          (indent)
+          (type_decl_enum_case
+            (symbol)
+            (enum_case_identifier)
+            (keyword)
+            (type_decl_enum_field (type_reference (builtin_type (variable_type_reference (symbol) (variable_identifier)))))
+          )
+          (type_decl_enum_case (symbol) (enum_case_identifier))
+          (dedent)
+        )
+      )
+    )
+  )
+)
+
+
+==================
+type def Enum - with multiple type parameters
+==================
+
+type MyEnum<'a, 'b> =
+  | A of 'a
+  | B of 'b
+
+---
+
+(source_file
+  (type_decl
+    (keyword)
+    (type_identifier)
+    (type_params
+      (symbol)
+      (type_params_items
+        (variable_type_reference (symbol) (variable_identifier))
+        (symbol)
+        (variable_type_reference (symbol) (variable_identifier))
+      )
+      (symbol)
+    )
+    (symbol)
+    (type_decl_def
+      (type_decl_def_enum
+        (type_decl_enum_multi_line
+          (indent)
+          (type_decl_enum_case
+            (symbol)
+            (enum_case_identifier)
+            (keyword)
+            (type_decl_enum_field (type_reference (builtin_type (variable_type_reference (symbol) (variable_identifier)))))
+          )
+          (type_decl_enum_case
+            (symbol)
+            (enum_case_identifier)
+            (keyword)
+            (type_decl_enum_field (type_reference (builtin_type (variable_type_reference (symbol) (variable_identifier)))))
+          )
           (dedent)
         )
       )

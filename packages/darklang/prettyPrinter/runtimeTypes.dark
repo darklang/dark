@@ -38,7 +38,7 @@ module Darklang =
         let package (id: LanguageTools.RuntimeTypes.FQTypeName.Package) : String =
           match LanguageTools.PackageManager.Type.get id with
           | Some p -> packageName p.name.owner p.name.modules p.name.name
-          | None -> Stdlib.Uuid.toString p
+          | None -> Stdlib.Uuid.toString id
 
       // TODO rename to fqtypeName?
       let typeName (t: LanguageTools.RuntimeTypes.FQTypeName.FQTypeName) : String =
@@ -63,7 +63,7 @@ module Darklang =
           : String =
           match LanguageTools.PackageManager.Constant.get id with
           | Some p -> packageName p.name.owner p.name.modules p.name.name
-          | None -> Stdlib.Uuid.toString p
+          | None -> Stdlib.Uuid.toString id
 
       // TODO rename to fqconstantName?
       let constantName

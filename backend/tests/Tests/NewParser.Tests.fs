@@ -410,6 +410,8 @@ let typeDeclarations =
       []
       []
       false
+
+    // Record type decls
     t
       "type param record"
       "type Generic<'a> = { x: 'a }"
@@ -419,10 +421,6 @@ let typeDeclarations =
       []
       false
 
-    // // Enum type TODO
-    // ("type Thing = | A | B of Int64 | C of String * Bool"  "type Thing =\n  | A\n  | B of Int64\n  | C of String * Bool"
-
-    // Record type decls
     t
       "record, 1 field"
       "type Person = {name: String}"
@@ -477,7 +475,18 @@ let typeDeclarations =
       []
       false
 
+    // // Enum type TODO
+    // ("type Thing = | A | B of Int64 | C of String * Bool"  "type Thing =\n  | A\n  | B of Int64\n  | C of String * Bool"
     // Enum type decls
+    t
+      "type param, enum"
+      "type MyEnum<'a> = | A | B of 'a"
+      "type MyEnum<'a> =\n  | A\n  | B of 'a"
+      []
+      []
+      []
+      false
+
     t
       "enum, no fields"
       "type Color = | Red | Green | Blue"
@@ -732,6 +741,16 @@ let exprs =
       []
       false
 
+    // record with type args
+    t
+      "record with type args"
+      "Generic<Tests.Person> { x = Person { name = \"John\"; age = 30L; hasPet = true } }"
+      "Generic<Person> { x = Person { name = \"John\"; age = 30L; hasPet = true } }"
+      [ person ]
+      []
+      []
+      false
+
     // record update
     t
       "record update 1"
@@ -774,6 +793,14 @@ let exprs =
 
     // enum literal
     t "simple enum literal" "Tests.MyEnum.A()" "MyEnum.A()" [ myEnum ] [] [] false
+    t
+      "enum with type args"
+      "Generic<Int64>.A(1L)"
+      "Generic<Int64>.A(1L)"
+      []
+      []
+      []
+      false
     t
       "option none, short"
       "Stdlib.Option.Option.None()"

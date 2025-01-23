@@ -1391,26 +1391,14 @@ module Darklang =
             else
               Stdlib.Option.Option.None
 
-        let collectEnumHoverInfo
+        let collectTypeNameHoverInfoAtPos
           (typeName: WrittenTypes.QualifiedTypeIdentifier)
-          (caseName: (WrittenTypes.Range * String))
-          (fields: List<'a>)
           (position: LanguageServerProtocol.Position.Position)
-          (range: WrittenTypes.Range)
           (pm: ProgramTypes.PackageManager.PackageManager)
           (owner: String)
           (currentModules: List<String>)
-          (hoverInfoFn:
-            'a
-              -> LanguageServerProtocol.Position.Position
-              -> List<String>
-              -> Stdlib.Option.Option<Info>)
           : Stdlib.Option.Option<Info> =
-          // check if we are hovering over the fully qualified type name
-          match
-            CursorPosition.checkIfPositionWithinRange position typeName.range
-          with
-          | Some r ->
+          // check if we are hovering over the type name
             let modules =
               typeName.modules |> collectModuleNameHoverInfoAtPos position
 
@@ -1446,7 +1434,39 @@ module Darklang =
                   |> Stdlib.Option.Option.Some
 
                 | None -> Stdlib.Option.Option.None
-              | None -> Stdlib.Option.Option.None
+              | None ->
+                // check if we are hovering over the type arguments
+                typeName.typeArgs
+                |> Stdlib.List.filterMap (fun tr ->
+                  collectTypeRefHoverInfoAtPos tr position pm owner currentModules)
+                |> Stdlib.List.head
+
+        let collectEnumHoverInfo
+          (typeName: WrittenTypes.QualifiedTypeIdentifier)
+          (caseName: (WrittenTypes.Range * String))
+          (fields: List<'a>)
+          (position: LanguageServerProtocol.Position.Position)
+          (range: WrittenTypes.Range)
+          (pm: ProgramTypes.PackageManager.PackageManager)
+          (owner: String)
+          (currentModules: List<String>)
+          (hoverInfoFn:
+            'a
+              -> LanguageServerProtocol.Position.Position
+              -> List<String>
+              -> Stdlib.Option.Option<Info>)
+          : Stdlib.Option.Option<Info> =
+          // check if we are hovering over the fully qualified type name
+          match
+            CursorPosition.checkIfPositionWithinRange position typeName.range
+          with
+          | Some r ->
+            collectTypeNameHoverInfoAtPos
+              typeName
+              position
+              pm
+              owner
+              currentModules
 
           | None ->
             // check if we are hovering over the case name
@@ -1728,28 +1748,14 @@ module Darklang =
           | ERecord(r, typeName, fields, _, _) ->
             // check if position is within the Record range
             if CursorPosition.isLineNumberInRange position r then
-              let (tnRange, typeName) =
-                match typeName with
-                | Unresolved(range, name) -> (range, name)
-
-              match CursorPosition.checkIfPositionWithinRange position tnRange with
+              match CursorPosition.checkIfPositionWithinRange position typeName.range with
               | Some range ->
-                let typ = tryGetPkgType typeName range pm owner currentModules
-
-                match typ with
-                | Some t ->
-                  let description =
-                    Stdlib.Option.Option.Some(
-                      "TODO: add description when /// comments are supported"
-                    )
-
-                  let thingAtPosition =
-                    CursorPosition.ThingAtPosition.PackageType(t, description)
-
-                  (hoverInfoForThingAtPosition thingAtPosition range)
-                  |> Stdlib.Option.Option.Some
-
-                | None -> Stdlib.Option.Option.None
+                collectTypeNameHoverInfoAtPos
+                  typeName
+                  position
+                  pm
+                  owner
+                  currentModules
 
               | None ->
                 fields
