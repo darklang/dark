@@ -59,5 +59,32 @@
   <ItemGroup>
     <Compile Include="Cli.fs" />
   </ItemGroup>
+
+  <PropertyGroup>
+    <RuntimeIdentifiers>linux-x64;linux-musl-x64;linux-arm64;linux-arm;osx-x64;osx-arm64;win-x64;win-arm64</RuntimeIdentifiers>
+  </PropertyGroup>
+  <Target Name="PrintRuntimeIdentifier" BeforeTargets="CoreCompile">
+    <Message Importance="high" Text="RuntimeIdentifier is '$(RuntimeIdentifier)'" />
+  </Target>
+  <!-- default, based on our devcontainer's setup -->
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'linux-x64'">
+    <EmbeddedResource Include="lib/sqlite3-linux-x64.so" LogicalName="tree-sitter.so" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'linux-musl-x64'">
+    <EmbeddedResource Include="lib/sqlite3-linux-musl-x64.so" LogicalName="tree-sitter.so" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'linux-arm64'">
+    <EmbeddedResource Include="lib/sqlite3-linux-arm64.so" LogicalName="tree-sitter.so" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'linux-arm'">
+    <EmbeddedResource Include="lib/sqlite3-linux-arm.so" LogicalName="tree-sitter.so" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'osx-x64'">
+    <EmbeddedResource Include="lib/sqlite3-macos-x64.dylib" LogicalName="tree-sitter.dylib" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'osx-arm64'">
+    <EmbeddedResource Include="lib/sqlite3-macos-arm64.dylib" LogicalName="tree-sitter.dylib" />
+  </ItemGroup>
+
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
