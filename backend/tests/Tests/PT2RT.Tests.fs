@@ -116,7 +116,7 @@ module Expr =
 
     let mixed =
       t
-        "[1, true]"
+        "[1; true]"
         E.List.mixed
         (3,
          [ RT.LoadVal(1, RT.DInt64 1L)
@@ -1441,6 +1441,39 @@ module Expr =
 
     let tests = testList "Fns" [ Builtin.tests; Package.tests ]
 
+  module Statement =
+    let simple =
+      t
+        "()\n1L"
+        E.Statements.statement
+        (2,
+         [ RT.LoadVal(0, RT.DUnit)
+           RT.CheckIfFirstExprIsUnit(0)
+           RT.LoadVal(1, RT.DInt64 1L) ],
+         1)
+
+    let statement =
+      t
+        "Builtin.printLine \"hello\"\n3L"
+        E.Statements.statement2
+        (4,
+         [ RT.LoadVal(0, RT.DString "hello")
+           RT.LoadVal(
+             1,
+             RT.DApplicable(
+               RT.AppNamedFn
+                 { name = RT.FQFnName.fqBuiltin "printLine" 0
+                   typeSymbolTable = Map.empty
+                   typeArgs = []
+                   argsSoFar = [] }
+             )
+           )
+           RT.Apply(2, 1, [], NEList.ofList 0 [])
+           RT.CheckIfFirstExprIsUnit(2)
+           RT.LoadVal(3, RT.DInt64 3L) ],
+         3)
+
+    let tests = testList "Statement" [ simple; statement ]
 
   let tests =
     testList
@@ -1461,7 +1494,8 @@ module Expr =
         Constants.tests
         Infix.tests
         Lambda.tests
-        Fns.tests ]
+        Fns.tests
+        Statement.tests ]
 
 
 module PackageFn =
