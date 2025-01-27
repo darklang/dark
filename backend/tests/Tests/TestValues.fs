@@ -493,6 +493,32 @@ module Expressions =
           eApply unapplied [] [ eInt64 4L; lambda ]
 
 
+  module Statements =
+    let statement = eStatement (eUnit ()) (eInt64 1)
+
+    let first = eApply (eBuiltinFn "printLine" 0) [] [ eStr [ strText "hello" ] ]
+    let second = eInt64 3
+    let statement2 = eStatement first second
+
+    let shouldError = eStatement (eInt64 1) (eBool true)
+
+    let nested =
+      eStatement
+        (eStatement
+          (eApply
+            (eBuiltinFn "printLine" 0)
+            []
+            [ eStr [ strText "1st statement 1st expr" ] ])
+          (eApply
+            (eBuiltinFn "printLine" 0)
+            []
+            [ eStr [ strText "1st statement 2nd expr" ] ]))
+        (eStatement
+          (eApply
+            (eBuiltinFn "printLine" 0)
+            []
+            [ eStr [ strText "2nd statement 1st expr" ] ])
+          (eInt64 0))
 
 
 //CLEANUP: Migrate this to the top
