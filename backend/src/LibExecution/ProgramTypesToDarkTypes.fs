@@ -804,6 +804,8 @@ module Expr =
 
         "ERecordUpdate", [ DInt64(int64 id); toDT record; updates ]
 
+      | PT.EStatement(id, expr, next) ->
+        "EStatement", [ DInt64(int64 id); toDT expr; toDT next ]
 
     DEnum(typeName, typeName, [], caseName, fields)
 
@@ -979,6 +981,9 @@ module Expr =
           | _ ->
             Exception.raiseInternal "Invalid record update" [ "update", update ])
       PT.ERecordUpdate(uint64 id, fromDT record, updates)
+
+    | DEnum(_, _, [], "EStatement", [ DInt64 id; expr; next ]) ->
+      PT.EStatement(uint64 id, fromDT expr, fromDT next)
 
     | e -> Exception.raiseInternal "Invalid Expr" [ "e", e ]
 

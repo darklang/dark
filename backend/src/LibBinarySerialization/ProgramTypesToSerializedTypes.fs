@@ -364,6 +364,8 @@ module Expr =
     | PT.EFnName(id, fnName) ->
       ST.EFnName(id, NameResolution.toST FQFnName.toST fnName)
 
+    | PT.EStatement(id, first, next) -> ST.EStatement(id, toST first, toST next)
+
   and stringSegmentToST (segment : PT.StringSegment) : ST.StringSegment =
     match segment with
     | PT.StringText text -> ST.StringText text
@@ -468,6 +470,8 @@ module Expr =
     | ST.EDict(id, pairs) -> PT.EDict(id, List.map (Tuple2.mapSecond toPT) pairs)
     | ST.EFnName(id, fnName) ->
       PT.EFnName(id, NameResolution.toPT FQFnName.toPT fnName)
+
+    | ST.EStatement(id, first, next) -> PT.EStatement(id, toPT first, toPT next)
 
   and stringSegmentToPT (segment : ST.StringSegment) : PT.StringSegment =
     match segment with

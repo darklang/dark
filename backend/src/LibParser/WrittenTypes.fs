@@ -183,6 +183,7 @@ type Expr =
   | EInfix of id * Infix * Expr * Expr
   | ELambda of id * pats : NEList<LetPattern> * body : Expr
   | EApply of id * Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
+  | EStatement of id * first : Expr * next : Expr
 
   | EPlaceHolder // Used to start exprs that aren't filled in yet, not in ProgramTypes
 

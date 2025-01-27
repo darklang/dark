@@ -238,6 +238,7 @@ module Expr =
       PT.EInfix(id, Infix.toPT infix, toPT arg1, toPT arg2)
     | EPT.EDict(id, pairs) -> PT.EDict(id, List.map (Tuple2.mapSecond toPT) pairs)
     | EPT.EFnName(id, name) -> PT.EFnName(id, NameResolution.toPT FnName.toPT name)
+    | EPT.EStatement(id, expr, next) -> PT.EStatement(id, toPT expr, toPT next)
 
   and stringSegmentToPT (segment : EPT.StringSegment) : PT.StringSegment =
     match segment with

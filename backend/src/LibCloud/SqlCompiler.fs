@@ -1028,7 +1028,8 @@ type CompiledSqlQuery =
 //         | EError _
 //         | EAnd _
 //         | EOr _
-//         | EFnName _ -> return expr
+//         | EFnName _
+//         | EStatement _ -> return expr
 //       }
 
 //     // This is a copy of Ast.postTraversal, made to  work with uplys

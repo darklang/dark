@@ -190,6 +190,7 @@ module ProgramTypes =
     | EApply of ID * Expr * typeArgs : List<TypeReference> * args : NEList<Expr>
     | EFnName of ID * NameResolution<FQFnName.FQFnName>
     | ERecordUpdate of ID * record : Expr * updates : NEList<string * Expr>
+    | EStatement of ID * first : Expr * next : Expr
 
   and MatchCase = { pat : MatchPattern; whenCondition : Option<Expr>; rhs : Expr }
 

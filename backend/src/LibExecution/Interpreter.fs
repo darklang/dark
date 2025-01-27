@@ -796,6 +796,20 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
 
         | RaiseNRE nre -> raiseRTE (RTE.ParseTimeNameResolution nre)
 
+        | CheckIfFirstExprIsUnit reg ->
+          match registers[reg] with
+          | DUnit -> ()
+          | dval ->
+            raiseRTE (
+              RTE.Statement(
+                RTE.Statements.FirstExpressionMustBeUnit(
+                  ValueType.Known KTUnit,
+                  Dval.toValueType dval,
+                  dval
+                )
+              )
+            )
+
         counter <- counter + 1
 
 
