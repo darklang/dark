@@ -515,7 +515,16 @@ module ProgramTypes =
                                                           id,
                                                           18446744073709551615UL
                                                         ),
-                                                        e
+                                                        ELet(
+                                                          id,
+                                                          LPVariable(id, "statement"),
+                                                          EStatement(
+                                                            id,
+                                                            EUnit id,
+                                                            EInt64(id, 1L)
+                                                          ),
+                                                          e
+                                                        )
                                                       )
                                                     )
                                                   )
