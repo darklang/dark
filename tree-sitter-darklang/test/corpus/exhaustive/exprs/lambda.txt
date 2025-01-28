@@ -194,3 +194,43 @@ fun x (y, z) -> x ++ y ++ z
     )
   )
 )
+
+
+==================
+lambda test -- nested lambdas
+==================
+
+fun x ->
+  fun y -> Builtin.printLine x
+  x
+
+---
+
+(source_file
+  (expression
+    (lambda_expression
+      (keyword)
+      (lambda_pats (let_pattern (variable_identifier)))
+      (symbol)
+      (expression
+        (lambda_expression
+          (keyword)
+          (lambda_pats (let_pattern (variable_identifier)))
+          (symbol)
+          (expression
+            (statement
+              (expression
+                (apply
+                  (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
+                  (simple_expression (variable_identifier))
+                  (newline)
+                )
+              )
+              (expression (simple_expression (variable_identifier)))
+            )
+          )
+        )
+      )
+    )
+  )
+)

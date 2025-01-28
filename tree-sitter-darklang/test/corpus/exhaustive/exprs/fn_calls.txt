@@ -335,21 +335,27 @@ Builtin.printLine (getTitle curiousGeorgeBookId)
 
 (source_file
   (expression
-    (apply
-      (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
-      (simple_expression
-        (paren_expression
-          (symbol)
-          (expression
-            (apply (qualified_fn_name (fn_identifier)) (simple_expression (variable_identifier))))
-          (symbol)
+    (statement
+      (expression
+        (apply
+          (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
+          (simple_expression
+            (paren_expression
+              (symbol)
+              (expression
+                (apply
+                  (qualified_fn_name (fn_identifier))
+                  (simple_expression (variable_identifier))
+                )
+              )
+              (symbol)
+            )
+          )
+          (newline)
         )
       )
-      (newline)
+      (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
     )
-  )
-  (expression
-    (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
   )
 )
 

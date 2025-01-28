@@ -401,23 +401,46 @@ if a > b then
 (source_file
   (expression
     (if_expression
-      (keyword) (expression (simple_expression (infix_operation (simple_expression (variable_identifier)) (operator) (simple_expression (variable_identifier))))) (keyword)
+      (keyword)
+      (expression
+        (simple_expression
+          (infix_operation
+            (simple_expression (variable_identifier))
+            (operator)
+            (simple_expression (variable_identifier))
+          )
+        )
+      )
+      (keyword)
       (indent)
       (expression
         (if_expression
           (keyword)
-          (expression (simple_expression (infix_operation (simple_expression (variable_identifier)) (operator) (simple_expression (variable_identifier))))) (keyword)
           (expression
-            (apply
-              (qualified_fn_name (fn_identifier))
-              (indent)
+            (simple_expression
+              (infix_operation
+                (simple_expression (variable_identifier))
+                (operator)
+                (simple_expression (variable_identifier))
+              )
+            )
+          )
+          (keyword)
+          (expression
+            (statement
+              (expression
+                (apply
+                  (qualified_fn_name (fn_identifier))
+                  (indent)
+                  (expression (simple_expression (variable_identifier)))
+                  (dedent)
+                )
+              )
               (expression (simple_expression (variable_identifier)))
-              (dedent)
             )
           )
         )
       )
-      (expression (simple_expression (variable_identifier)))
       (dedent)
     )
   )
