@@ -1056,6 +1056,11 @@ module Darklang =
                |> Stdlib.List.flatten) ]
             |> Stdlib.List.flatten
 
+          | EStatement (_range, first, next) ->
+            [ Expr.tokenize first
+              Expr.tokenize next ]
+            |> Stdlib.List.flatten
+
 
       module Const =
         let tokenize (c: WrittenTypes.Const) : List<SemanticToken> =
