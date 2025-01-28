@@ -730,6 +730,11 @@ module Darklang =
             PrettyPrinter.ProgramTypes.FQConstantName.fullForReference name
           | Error e -> PrettyPrinter.ProgramTypes.NameResolutionError.source e
 
+        | EStatement (_id, first, next) ->
+          let firstPart = PrettyPrinter.ProgramTypes.expr first
+          let nextPart = PrettyPrinter.ProgramTypes.expr next
+          $"{firstPart}\n{nextPart}"
+
         // CLEANUP: remove this case before shipping to users
         | expr ->
           let s = Builtin.Json.serialize<LanguageTools.ProgramTypes.Expr> expr
@@ -919,7 +924,9 @@ module Darklang =
         let signature (f: LanguageTools.BuiltinFunction) : String =
           let parameters =
             f.parameters
-            |> Stdlib.List.map (fun p -> $"({p.name} : {p.``type``})")
+            |> Stdlib.List.map (fun p ->
+                let params = PrettyPrinter.RuntimeTypes.typeReference p.``type``
+                $"({p.name} : {params})")
             |> Stdlib.String.join ", "
 
-          parameters ++ " -> " ++ f.returnType
+          parameters ++ " -> " ++ (f.returnType |> PrettyPrinter.RuntimeTypes.typeReference)
