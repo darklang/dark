@@ -1835,7 +1835,6 @@ let getTitle (bookId: BookID): String =
 
 let curiousGeorgeBookId =\n  101L
 Builtin.printLine (getTitle curiousGeorgeBookId)
-
 0L"
       []
       []

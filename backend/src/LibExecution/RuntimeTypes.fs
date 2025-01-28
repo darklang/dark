@@ -807,6 +807,13 @@ module RuntimeError =
       | CannotApplyTypeArgsToLambda
       | TooManyArgsForLambda of lambdaExprId : id * expected : int64 * actual : int64
 
+  module Statements =
+    type Error =
+      | FirstExpressionMustBeUnit of
+        expectedType : ValueType *
+        actualType : ValueType *
+        actualValue : Dval
+
 
   module Unwraps =
     type Error =
@@ -826,12 +833,6 @@ module RuntimeError =
       | NonIntReturned of actuallyReturned : Dval
 
 
-  module Statements =
-    type Error =
-      | FirstExpressionMustBeUnit of
-        expectedType : ValueType *
-        actualType : ValueType *
-        actualValue : Dval
 
   /// RuntimeError is the major way of representing errors that occur at runtime.
   /// Most are focused on user errors, such as trying to put an Int in a list of Bools.

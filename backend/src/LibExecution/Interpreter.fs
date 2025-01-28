@@ -800,15 +800,14 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
           match registers[reg] with
           | DUnit -> ()
           | dval ->
-            raiseRTE (
-              RTE.Statement(
-                RTE.Statements.FirstExpressionMustBeUnit(
-                  ValueType.Known KTUnit,
-                  Dval.toValueType dval,
-                  dval
-                )
-              )
+            RTE.Statements.FirstExpressionMustBeUnit(
+              ValueType.Known KTUnit,
+              Dval.toValueType dval,
+              dval
             )
+            |> RuntimeError.Statement
+            |> raiseRTE
+
 
         counter <- counter + 1
 
