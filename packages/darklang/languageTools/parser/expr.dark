@@ -783,6 +783,19 @@ module Darklang =
           | _ -> createUnparseableError node
 
 
+        let parseStatement
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
+          let first = findAndParseRequired node "first" Expr.parse
+          let next = findAndParseRequired node "next" Expr.parse
+
+          match first, next with
+          | Ok first, Ok next ->
+            (WrittenTypes.Expr.EStatement(node.range, first, next))
+            |> Stdlib.Result.Result.Ok
+          | _ -> createUnparseableError node
+
+
         /// this parses one of the Expr cases
         let parseCase
           (node: ParsedNode)
@@ -840,6 +853,8 @@ module Darklang =
           | "dbReference" ->
             (WrittenTypes.Expr.EVariable(node.range, getText node))
             |> Stdlib.Result.Result.Ok
+
+          | "statement" ->parseStatement node
 
           | _ -> createUnparseableError node
 

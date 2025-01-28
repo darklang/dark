@@ -770,6 +770,16 @@ module Darklang =
 
             (ProgramTypes.Expr.EApply(gid (), fn, typeArgs, args), unresolvedNames)
 
+          | EStatement (_, first, next) ->
+            let (first, firstUnresolvedNames) = toPT onMissing pm owner currentModule first
+
+            let (next, nextUnresolvedNames) = toPT onMissing pm owner currentModule next
+
+            let unresolvedNames =
+              Stdlib.List.flatten [ firstUnresolvedNames; nextUnresolvedNames ]
+
+            (ProgramTypes.Expr.EStatement(gid (), first, next), unresolvedNames)
+
 
       module Const =
         let toPT
