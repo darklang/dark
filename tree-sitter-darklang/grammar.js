@@ -14,6 +14,8 @@ const PREC = {
   VAR_IDENTIFIER: 7,
   FN_IDENTIFIER: 8,
   PIPE_EXPR: 9,
+  LAMBDA: 10,
+  STATEMENT: 11,
 };
 
 const logicalOperators = choice("&&", "||");
@@ -38,7 +40,7 @@ module.exports = grammar({
         repeat(choice($.module_decl, $.type_decl, $.fn_decl, $.const_decl)),
 
         // then the expressions to evaluate, in order
-        repeat($.expression),
+        optional($.expression),
       ),
 
     _inline_comment: _ => token(seq("//", /.*/)),
@@ -424,6 +426,7 @@ module.exports = grammar({
 
         $.lambda_expression,
         $.pipe_expression,
+        $.statement,
       ),
 
     paren_expression: $ =>
@@ -431,6 +434,12 @@ module.exports = grammar({
         field("symbol_left_paren", alias("(", $.symbol)),
         field("expr", $.expression),
         field("symbol_right_paren", alias(")", $.symbol)),
+      ),
+
+    statement: $ =>
+      prec.left(
+        PREC.STATEMENT,
+        seq(field("first", $.expression), field("next", $.expression)),
       ),
 
     //
@@ -840,11 +849,14 @@ module.exports = grammar({
     //
     // Lambda expressions
     lambda_expression: $ =>
-      seq(
-        field("keyword_fun", alias("fun", $.keyword)),
-        field("pats", $.lambda_pats),
-        field("symbol_arrow", alias("->", $.symbol)),
-        field("body", $.expression),
+      prec(
+        PREC.LAMBDA,
+        seq(
+          field("keyword_fun", alias("fun", $.keyword)),
+          field("pats", $.lambda_pats),
+          field("symbol_arrow", alias("->", $.symbol)),
+          field("body", $.expression),
+        ),
       ),
     lambda_pats: $ => field("pat", repeat1($.let_pattern)),
 
