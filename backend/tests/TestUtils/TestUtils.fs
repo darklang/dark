@@ -948,8 +948,8 @@ module Expect =
           pats'
 
       | EStatement(_, f, n), EStatement(_, f', n') ->
-        eq path f f'
-        eq path n n'
+        eq ("first" :: path) f f'
+        eq ("next" :: path) n n'
 
       // | EMatch(_, e, branches), EMatch(_, e', branches') ->
       //   eq ("matchCond" :: path) e e'

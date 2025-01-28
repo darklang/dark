@@ -808,7 +808,6 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
             |> RuntimeError.Statement
             |> raiseRTE
 
-
         counter <- counter + 1
 
 
