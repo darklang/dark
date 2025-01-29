@@ -497,7 +497,6 @@ module Expressions =
         let applied = eApply (ePackageFn id) [] [ (eUnit ()) ]
 
   module Statements =
-    let id = gid ()
     let simple = eStatement (eUnit ()) (eInt64 1)
     let statement =
       eStatement
