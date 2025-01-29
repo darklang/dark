@@ -922,6 +922,9 @@ module Darklang =
 
       module BuiltinFn =
         let signature (f: LanguageTools.BuiltinFunction) : String =
+          // CLEANUP: it's odd that we have to call the runtime pretty-printer here.
+          // Potential solution: update RuntimeTypes (.fs) such that BuiltInFn’s returnType and parameters use PT TypeReferences.
+          // Main blocker: "RT comes before PT" in LibExecution, and it'd take some wrangling to get it all compiling again if we did that.
           let parameters =
             f.parameters
             |> Stdlib.List.map (fun p ->
