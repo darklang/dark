@@ -866,6 +866,16 @@ module Expr =
         instructions = [ RT.CreateLambda(rc, impl) ]
         resultIn = rc }
 
+    | PT.EStatement(_id, expr, next) ->
+      let firstExpr = toRT symbols rc expr
+      let nextExpr = toRT symbols firstExpr.registerCount next
+
+      let checkIfFirstIsUnit = [ RT.CheckIfFirstExprIsUnit(firstExpr.resultIn) ]
+
+      { registerCount = nextExpr.registerCount
+        instructions =
+          firstExpr.instructions @ checkIfFirstIsUnit @ nextExpr.instructions
+        resultIn = nextExpr.resultIn }
 
 
 

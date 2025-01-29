@@ -492,7 +492,25 @@ module Expressions =
 
           eApply unapplied [] [ eInt64 4L; lambda ]
 
+      module MyFnThatReturnsUnit =
+        let id = System.Guid.Parse "6a47744f-7390-48f6-9822-7a76b9ee174b"
+        let applied = eApply (ePackageFn id) [] [ (eUnit ()) ]
 
+  module Statements =
+    let simple = eStatement (eUnit ()) (eInt64 1)
+    let statement =
+      eStatement
+        (eApply (eBuiltinFn "printLine" 0) [] [ eStr [ strText "hello" ] ])
+        (eInt64 3)
+
+    let nested =
+      eStatement
+        (eStatement
+          Fns.Package.MyFnThatReturnsUnit.applied
+          Fns.Package.MyFnThatReturnsUnit.applied)
+        (eStatement Fns.Package.MyFnThatReturnsUnit.applied (eInt64 0))
+
+    let shouldError = eStatement (eInt64 1) (eBool true)
 
 
 //CLEANUP: Migrate this to the top
@@ -624,11 +642,6 @@ let pm : PT.PackageManager =
         description = "TODO"
         deprecated = PT.NotDeprecated }
 
-
-
-
-
-
       { id = Expressions.Fns.Package.Fact.id
         name = PT.PackageFn.name "Test" [] "fact"
         typeParams = []
@@ -650,5 +663,15 @@ let pm : PT.PackageManager =
                     [ eApply (eBuiltinFn "int64Subtract" 0) [] [ eVar "a"; eInt64 1 ] ]) ]
             ))
 
+        description = "TODO"
+        deprecated = PT.NotDeprecated }
+
+      { id = Expressions.Fns.Package.MyFnThatReturnsUnit.id
+        name = PT.PackageFn.name "Test" [] "myFnThatReturnsUnit"
+        typeParams = []
+        parameters =
+          NEList.ofList { name = "unit"; typ = PT.TUnit; description = "TODO" } []
+        returnType = PT.TUnit
+        body = eUnit ()
         description = "TODO"
         deprecated = PT.NotDeprecated } ]

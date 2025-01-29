@@ -216,6 +216,10 @@ module Type =
           let error =
             p [ "Applications" ] "Error" "8eda2125-db3e-4ef8-b185-80c202f3e1e3"
 
+        module Statements =
+          let error =
+            p [ "Statements" ] "Error" "b945ee85-01ca-4d82-b4a8-041cc74c389b"
+
         module Unwraps =
           let error = p [ "Unwraps" ] "Error" "a69d2c00-2839-449e-9d19-c4d3b5b27550"
 

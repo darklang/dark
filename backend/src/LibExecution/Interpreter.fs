@@ -796,6 +796,19 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
 
         | RaiseNRE nre -> raiseRTE (RTE.ParseTimeNameResolution nre)
 
+        // CLEANUP: consider renaming this to something like "RequireExprToReturnUnit"
+        | CheckIfFirstExprIsUnit reg ->
+          match registers[reg] with
+          | DUnit -> ()
+          | dval ->
+            RTE.Statements.FirstExpressionMustBeUnit(
+              ValueType.Known KTUnit,
+              Dval.toValueType dval,
+              dval
+            )
+            |> RuntimeError.Statement
+            |> raiseRTE
+
         counter <- counter + 1
 
 

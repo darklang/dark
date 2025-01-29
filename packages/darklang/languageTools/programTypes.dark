@@ -246,6 +246,7 @@ module Darklang =
 
         | ERecordUpdate of ID * record: Expr * updates: List<String * Expr>
 
+        | EStatement of ID * first: Expr * next: Expr
 
       module Expr =
         let toID (expr: Expr) : ID =
@@ -280,6 +281,7 @@ module Darklang =
           | EEnum(id, _, _, _, _) -> id
           | EMatch(id, _, _) -> id
           | ERecordUpdate(id, _, _) -> id
+          | EStatement(id, _, _) -> id
 
 
       // Used to mark whether a function/type has been deprecated, and if so,

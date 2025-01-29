@@ -434,6 +434,7 @@ type Instruction =
 
   | VarNotFound of targetRegIfSecretOrDB : Register * name : string
 
+  | CheckIfFirstExprIsUnit of Register
 
 and Instructions =
   {
@@ -806,6 +807,13 @@ module RuntimeError =
       | CannotApplyTypeArgsToLambda
       | TooManyArgsForLambda of lambdaExprId : id * expected : int64 * actual : int64
 
+  module Statements =
+    type Error =
+      | FirstExpressionMustBeUnit of
+        expectedType : ValueType *
+        actualType : ValueType *
+        actualValue : Dval
+
 
   module Unwraps =
     type Error =
@@ -823,6 +831,8 @@ module RuntimeError =
     type Error =
       | NoExpressionsToExecute
       | NonIntReturned of actuallyReturned : Dval
+
+
 
   /// RuntimeError is the major way of representing errors that occur at runtime.
   /// Most are focused on user errors, such as trying to put an Int in a list of Bools.
@@ -877,6 +887,7 @@ module RuntimeError =
 
     | DBSetOfWrongType of expected : TypeReference * actual : ValueType
 
+    | Statement of Statements.Error
 
     // punting these until DBs are supported again
     // - bring back this RTE where/when relevant "Attempting to access field '{fieldName}' of a Datastore (use `DB.*` standard library functions to interact with Datastores. Field access only work with records)"

@@ -1140,6 +1140,10 @@
         {
           "type": "simple_expression",
           "named": true
+        },
+        {
+          "type": "statement",
+          "named": true
         }
       ]
     }
@@ -3511,6 +3515,32 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "statement",
+    "named": true,
+    "fields": {
+      "first": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      },
+      "next": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {

@@ -243,6 +243,7 @@ type Expr =
   | EInfix of id * Infix * Expr * Expr
   | EDict of id * List<string * Expr>
   | EFnName of id * NameResolution<FQFnName.FQFnName>
+  | EStatement of id * first : Expr * next : Expr
 
 and [<MessagePack.MessagePackObject>] MatchCase =
   { [<MessagePack.Key 0>]

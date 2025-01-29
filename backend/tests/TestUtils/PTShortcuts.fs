@@ -104,6 +104,9 @@ let eApply
   let args = NEList.ofListUnsafe "eApply" [] args
   EApply(gid (), target, typeArgs, args)
 
+let ePipe (expr : Expr) (parts : List<PipeExpr>) : Expr = EPipe(gid (), expr, parts)
+
+let eStatement (first : Expr) (next : Expr) : Expr = EStatement(gid (), first, next)
 
 let pLambda id (pats : List<LetPattern>) (body : Expr) : PipeExpr =
   EPipeLambda(id, NEList.ofListUnsafe "pLambda" [] pats, body)
@@ -128,5 +131,3 @@ let pEnum
 
 let pVariable id (varName : string) (args : List<Expr>) : PipeExpr =
   EPipeVariable(id, varName, args)
-
-let ePipe (expr : Expr) (parts : List<PipeExpr>) : Expr = EPipe(gid (), expr, parts)

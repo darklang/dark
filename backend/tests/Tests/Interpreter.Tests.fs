@@ -632,6 +632,24 @@ module Fns =
 
   let tests = testList "Fns" [ Builtin.tests; Package.tests ]
 
+module Statement =
+  let simple = t "()\n true" E.Statements.simple (RT.DInt64(1L))
+
+  let nested =
+    t
+      "myFnThatReturnsUnit()\nmyFnThatReturnsUnit()\nmyFnThatReturnsUnit()\n0L"
+      E.Statements.nested
+      (RT.DInt64(0L))
+
+  let shouldError =
+    tFail
+      "1L\n true"
+      E.Statements.shouldError
+      (RTE.Error.Statement(
+        RTE.Statements.FirstExpressionMustBeUnit(VT.unit, VT.int64, RT.DInt64 1L)
+      ))
+  let tests = testList "Statement" [ simple; nested; shouldError ]
+
 
 let tests =
   testList
@@ -652,4 +670,5 @@ let tests =
       Constants.tests
       Infix.tests
       Lambdas.tests
-      Fns.tests ]
+      Fns.tests
+      Statement.tests ]

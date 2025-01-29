@@ -531,7 +531,13 @@ module ProgramTypes =
                |> NEList.ofListUnsafe
                  "TODO: Expr.ERecordUpdate should have an NEList in Dark"
                  []
-             ))) ]
+             )))
+        ("EStatement",
+         Decoders.enum3Fields
+           ID.decoder
+           (fun ctx -> decoder ctx)
+           (fun ctx -> decoder ctx)
+           (fun id first next -> DU.EStatement(id, first, next))) ]
       |> Map.ofList
       |> Decoders.du
 

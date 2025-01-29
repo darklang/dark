@@ -392,6 +392,7 @@ type Expr =
     // TODO: this reference should be by-hash
     NameResolution<FQConstantName.FQConstantName>
 
+  | EStatement of id * first : Expr * next : Expr
 
 and MatchCase = { pat : MatchPattern; whenCondition : Option<Expr>; rhs : Expr }
 
@@ -462,7 +463,8 @@ module Expr =
     | ERecordUpdate(id, _, _)
     | ERecordFieldAccess(id, _, _)
     | EEnum(id, _, _, _, _)
-    | EMatch(id, _, _) -> id
+    | EMatch(id, _, _)
+    | EStatement(id, _, _) -> id
 
 
 

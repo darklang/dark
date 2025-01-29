@@ -329,6 +329,12 @@ module Expr =
               })
             pairs
         return PT.EDict(id, pairs)
+
+      | WT.EStatement(id, first, next) ->
+        let! first = toPT first
+        let! next = toPT next
+        return PT.EStatement(id, first, next)
+
       | WT.EPlaceHolder ->
         return Exception.raiseInternal "Invalid parse - placeholder not removed" []
     }

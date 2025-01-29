@@ -108,7 +108,7 @@ module Darklang =
 
         module Applications =
           type Error =
-            | ExpectedApplicableButNot of actualTyp: ValueType * actualValue: Dval
+            | ExpectedApplicableButNot of actualType: ValueType * actualValue: Dval
 
             | WrongNumberOfTypeArgsForFn of fn: FQFnName.FQFnName * expected: Int64 * actual: Int64
             | CannotApplyTypeArgsMoreThanOnce
@@ -119,6 +119,9 @@ module Darklang =
             | CannotApplyTypeArgsToLambda
             | TooManyArgsForLambda of lambdaExprId: id * expected: Int64 * actual: Int64
 
+        module Statements =
+          type Error =
+            | FirstExpressionMustBeUnit of expectedType: ValueType * actualType: ValueType * actualValue: Dval
 
         module Unwraps =
           type Error =
@@ -166,6 +169,8 @@ module Darklang =
           | Enum of Enums.Error
 
           | Apply of Applications.Error
+
+          | Statement of Statements.Error
 
           | Unwrap of Unwraps.Error
 

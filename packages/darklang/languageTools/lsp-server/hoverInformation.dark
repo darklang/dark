@@ -151,7 +151,7 @@ module Darklang =
 
         let getBuiltinFn (name: String) : Stdlib.Option.Option<BuiltinFunction> =
           (Builtin.languageToolsAllBuiltinFns ())
-          |> Stdlib.List.findFirst (fun f -> f.name == name)
+          |> Stdlib.List.findFirst (fun f -> f.name.name == name)
 
 
         /// Helper function to find and get package functions, types, and constants by name from the package manager
@@ -196,10 +196,7 @@ module Darklang =
               | Some b ->
                 let signature = PrettyPrinter.ProgramTypes.BuiltinFn.signature b
 
-                let description =
-                  Stdlib.Option.Option.Some(
-                    "TODO: add description when /// comments are supported"
-                  )
+                let description = Stdlib.Option.Option.Some(b.description)
 
                 let thingAtPosition =
                   CursorPosition.ThingAtPosition.BuiltinFn(
@@ -2256,6 +2253,26 @@ module Darklang =
 
                     | None -> Stdlib.Option.Option.None
                 | None -> Stdlib.Option.Option.None
+
+            else
+              Stdlib.Option.Option.None
+
+          | EStatement(r, first, next) ->
+            // check if position is within the Statement range
+            if CursorPosition.isLineNumberInRange position r then
+              // check if we are hovering over the first statement
+              match
+                collectExpressionHoverInfoAtPos
+                  first
+                  position
+                  pm
+                  owner
+                  currentModules
+              with
+              | Some r -> Stdlib.Option.Option.Some r
+              | None ->
+                // check if we are hovering over one of the next statements
+                collectExpressionHoverInfoAtPos next position pm owner currentModules
 
             else
               Stdlib.Option.Option.None

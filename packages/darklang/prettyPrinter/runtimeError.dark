@@ -425,6 +425,17 @@ module Darklang =
                 ES.String ", but got "
                 ES.Count(actual, ES.String "argument", ES.String "arguments") ]
 
+          | Statement err ->
+            match err with
+            | FirstExpressionMustBeUnit (expectedTypes, actualType, actualValue) ->
+              [ ES.String "First expression must be of type "
+                ES.ValueType expectedTypes
+                ES.String ", but got "
+                ES.ValueType actualType
+                ES.String " ("
+                ES.FullValue actualValue
+                ES.String ")" ]
+
           | Json err ->
             match err with
             | UnsupportedType typ ->

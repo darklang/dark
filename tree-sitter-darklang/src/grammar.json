@@ -29,11 +29,16 @@
           }
         },
         {
-          "type": "REPEAT",
-          "content": {
-            "type": "SYMBOL",
-            "name": "expression"
-          }
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "expression"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
         }
       ]
     },
@@ -2419,6 +2424,10 @@
         {
           "type": "SYMBOL",
           "name": "pipe_expression"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "statement"
         }
       ]
     },
@@ -2460,6 +2469,31 @@
           }
         }
       ]
+    },
+    "statement": {
+      "type": "PREC_LEFT",
+      "value": 11,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "FIELD",
+            "name": "first",
+            "content": {
+              "type": "SYMBOL",
+              "name": "expression"
+            }
+          },
+          {
+            "type": "FIELD",
+            "name": "next",
+            "content": {
+              "type": "SYMBOL",
+              "name": "expression"
+            }
+          }
+        ]
+      }
     },
     "bool_literal": {
       "type": "CHOICE",
@@ -4832,51 +4866,55 @@
       ]
     },
     "lambda_expression": {
-      "type": "SEQ",
-      "members": [
-        {
-          "type": "FIELD",
-          "name": "keyword_fun",
-          "content": {
-            "type": "ALIAS",
+      "type": "PREC",
+      "value": 10,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "FIELD",
+            "name": "keyword_fun",
             "content": {
-              "type": "STRING",
-              "value": "fun"
-            },
-            "named": true,
-            "value": "keyword"
-          }
-        },
-        {
-          "type": "FIELD",
-          "name": "pats",
-          "content": {
-            "type": "SYMBOL",
-            "name": "lambda_pats"
-          }
-        },
-        {
-          "type": "FIELD",
-          "name": "symbol_arrow",
-          "content": {
-            "type": "ALIAS",
+              "type": "ALIAS",
+              "content": {
+                "type": "STRING",
+                "value": "fun"
+              },
+              "named": true,
+              "value": "keyword"
+            }
+          },
+          {
+            "type": "FIELD",
+            "name": "pats",
             "content": {
-              "type": "STRING",
-              "value": "->"
-            },
-            "named": true,
-            "value": "symbol"
+              "type": "SYMBOL",
+              "name": "lambda_pats"
+            }
+          },
+          {
+            "type": "FIELD",
+            "name": "symbol_arrow",
+            "content": {
+              "type": "ALIAS",
+              "content": {
+                "type": "STRING",
+                "value": "->"
+              },
+              "named": true,
+              "value": "symbol"
+            }
+          },
+          {
+            "type": "FIELD",
+            "name": "body",
+            "content": {
+              "type": "SYMBOL",
+              "name": "expression"
+            }
           }
-        },
-        {
-          "type": "FIELD",
-          "name": "body",
-          "content": {
-            "type": "SYMBOL",
-            "name": "expression"
-          }
-        }
-      ]
+        ]
+      }
     },
     "lambda_pats": {
       "type": "FIELD",

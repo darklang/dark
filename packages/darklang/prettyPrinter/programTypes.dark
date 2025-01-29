@@ -730,6 +730,11 @@ module Darklang =
             PrettyPrinter.ProgramTypes.FQConstantName.fullForReference name
           | Error e -> PrettyPrinter.ProgramTypes.NameResolutionError.source e
 
+        | EStatement (_id, first, next) ->
+          let firstPart = PrettyPrinter.ProgramTypes.expr first
+          let nextPart = PrettyPrinter.ProgramTypes.expr next
+          $"{firstPart}\n{nextPart}"
+
         // CLEANUP: remove this case before shipping to users
         | expr ->
           let s = Builtin.Json.serialize<LanguageTools.ProgramTypes.Expr> expr
@@ -917,9 +922,14 @@ module Darklang =
 
       module BuiltinFn =
         let signature (f: LanguageTools.BuiltinFunction) : String =
+          // CLEANUP: it's odd that we have to call the runtime pretty-printer here.
+          // Potential solution: update RuntimeTypes (.fs) such that BuiltInFn’s returnType and parameters use PT TypeReferences.
+          // Main blocker: "RT comes before PT" in LibExecution, and it'd take some wrangling to get it all compiling again if we did that.
           let parameters =
             f.parameters
-            |> Stdlib.List.map (fun p -> $"({p.name} : {p.``type``})")
+            |> Stdlib.List.map (fun p ->
+                let params = PrettyPrinter.RuntimeTypes.typeReference p.``type``
+                $"({p.name} : {params})")
             |> Stdlib.String.join ", "
 
-          parameters ++ " -> " ++ f.returnType
+          parameters ++ " -> " ++ (f.returnType |> PrettyPrinter.RuntimeTypes.typeReference)

@@ -833,6 +833,15 @@ module TokenizeMatchExpression =
       (TokenType.Symbol, (2L, 11L), (2L, 13L))
       (TokenType.Keyword, (2L, 14L), (2L, 19L)) ]
 
+  ("Builtin.printLine \"hey\"\n0L" |> tokenize) =
+    [ (TokenType.ModuleName, (0L, 0L), (0L, 7L))
+      (TokenType.FunctionName, (0L, 8L), (0L, 17L))
+      (TokenType.Symbol, (0L, 18L), (0L, 19L))
+      (TokenType.String, (0L, 19L), (0L, 22L))
+      (TokenType.Symbol, (0L, 22L), (0L, 23L))
+      (TokenType.Number, (1L, 0L), (1L, 1L))
+      (TokenType.Symbol, (1L, 1L), (1L, 2L)) ]
+
 
 module TokenizeModuleDeclaration =
   ("module MyModule =\n  type ID = Int64" |> tokenize) =

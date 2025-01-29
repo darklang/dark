@@ -1191,6 +1191,38 @@ module RuntimeError =
       | _ -> Exception.raiseInternal "Invalid Applications.Error" []
 
 
+  module Statements =
+    let toDT (e : RuntimeError.Statements.Error) : Dval =
+      let typeName =
+        FQTypeName.fqPackage
+          PackageIDs.Type.LanguageTools.RuntimeTypes.RuntimeError.Statements.error
+
+      let (caseName, fields) =
+        match e with
+        | RuntimeError.Statements.FirstExpressionMustBeUnit(expectedType,
+                                                            actualType,
+                                                            actualValue) ->
+          "FirstExpressionMustBeUnit",
+          [ ValueType.toDT expectedType
+            ValueType.toDT actualType
+            Dval.toDT actualValue ]
+
+      DEnum(typeName, typeName, [], caseName, fields)
+
+    let fromDT (d : Dval) : RuntimeError.Statements.Error =
+      match d with
+      | DEnum(_,
+              _,
+              [],
+              "FirstExpressionMustBeUnit",
+              [ expectedType; actualType; actualValue ]) ->
+        RuntimeError.Statements.FirstExpressionMustBeUnit(
+          ValueType.fromDT expectedType,
+          ValueType.fromDT actualType,
+          Dval.fromDT actualValue
+        )
+      | _ -> Exception.raiseInternal "Invalid Statements.Error" []
+
 
   module Unwraps =
     let toDT (e : RuntimeError.Unwraps.Error) : Dval =
@@ -1265,6 +1297,7 @@ module RuntimeError =
         RuntimeError.CLIs.NonIntReturned(Dval.fromDT actualReturned)
       | _ -> Exception.raiseInternal "Invalid CLIs.Error" []
 
+
   let toDT (e : RuntimeError.Error) : Dval =
     let typeName =
       FQTypeName.fqPackage
@@ -1298,8 +1331,9 @@ module RuntimeError =
         [ FQTypeName.toDT fn; DInt64 expected; DInt64 actual ]
       | RuntimeError.Record e -> "Record", [ Records.toDT e ]
       | RuntimeError.Enum e -> "Enum", [ Enums.toDT e ]
-      | RuntimeError.Unwrap e -> "Unwrap", [ Unwraps.toDT e ]
       | RuntimeError.Apply e -> "Apply", [ Applications.toDT e ]
+      | RuntimeError.Statement e -> "Statement", [ Statements.toDT e ]
+      | RuntimeError.Unwrap e -> "Unwrap", [ Unwraps.toDT e ]
       | RuntimeError.Json e -> "Json", [ Jsons.toDT e ]
       | RuntimeError.CLI e -> "CLI", [ CLIs.toDT e ]
       | RuntimeError.UncaughtException(msg, metadata) ->
@@ -1351,6 +1385,8 @@ module RuntimeError =
     | DEnum(_, _, [], "Record", [ e ]) -> RuntimeError.Record(Records.fromDT e)
     | DEnum(_, _, [], "Enum", [ e ]) -> RuntimeError.Enum(Enums.fromDT e)
     | DEnum(_, _, [], "Apply", [ e ]) -> RuntimeError.Apply(Applications.fromDT e)
+    | DEnum(_, _, [], "Statement", [ e ]) ->
+      RuntimeError.Statement(Statements.fromDT e)
     | DEnum(_, _, [], "Unwrap", [ e ]) -> RuntimeError.Unwrap(Unwraps.fromDT e)
     | DEnum(_, _, [], "Json", [ e ]) -> RuntimeError.Json(Jsons.fromDT e)
     | DEnum(_, _, [], "CLI", [ e ]) -> RuntimeError.CLI(CLIs.fromDT e)

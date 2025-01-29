@@ -26,36 +26,32 @@ Builtin.printLine (myFn ())
     (symbol)
     (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))) (newline)
   )
-  (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
   (expression
-    (let_expression
-      (keyword)
-      (let_pattern (variable_identifier))
-      (symbol)
-      (simple_expression
-        (infix_operation
-          (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
-          (operator)
-          (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
-        )
-      )
+    (statement
+      (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
       (expression
-        (apply
-          (qualified_fn_name
-            (module_identifier)
-            (symbol)
-            (fn_identifier))
+        (let_expression
+          (keyword) (let_pattern (variable_identifier)) (symbol)
           (simple_expression
-            (paren_expression
-              (symbol)
-              (expression
-                (apply
-                  (qualified_fn_name (fn_identifier))
-                  (simple_expression (unit))))
-              (symbol)
+            (infix_operation
+              (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+              (operator)
+              (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
             )
           )
-          (newline)
+          (expression
+            (apply
+              (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
+              (simple_expression
+                (paren_expression
+                  (symbol)
+                  (expression (apply (qualified_fn_name (fn_identifier)) (simple_expression (unit))))
+                  (symbol)
+                )
+              )
+              (newline)
+            )
+          )
         )
       )
     )

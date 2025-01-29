@@ -338,6 +338,8 @@ module Darklang =
 
         | EConstantOrFn of Range * name: QualifiedConstantOrFnIdentifier
 
+        | EStatement of Range * first: Expr * next: Expr
+
       type PipeExpr =
         | EPipeInfix of Range * op: (Range * Infix) * Expr
         | EPipeLambda of
