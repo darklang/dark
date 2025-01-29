@@ -633,14 +633,14 @@ module Fns =
   let tests = testList "Fns" [ Builtin.tests; Package.tests ]
 
 module Statement =
-  let simple = t "()\n true" E.Statements.statement (RT.DInt64(1L))
-  let simple2 =
-    t "Builtin.printLine(\"hello\")\n 3L" E.Statements.statement2 (RT.DInt64(3L))
+  let simple = t "()\n true" E.Statements.simple (RT.DInt64(1L))
+
   let nested =
     t
-      "Builtin.printLine(\"1st statement 1st expr\")\nBuiltin.printLine(\"1st statement 2nd expr\")\nBuiltin.printLine(\"2nd statement 1st expr\")\n0L"
+      "myFnThatReturnsUnit()\nmyFnThatReturnsUnit()\nmyFnThatReturnsUnit()\n0L"
       E.Statements.nested
       (RT.DInt64(0L))
+
   let shouldError =
     tFail
       "1L\n true"
@@ -648,7 +648,7 @@ module Statement =
       (RTE.Error.Statement(
         RTE.Statements.FirstExpressionMustBeUnit(VT.unit, VT.int64, RT.DInt64 1L)
       ))
-  let tests = testList "Statement" [ simple; simple2; nested; shouldError ]
+  let tests = testList "Statement" [ simple; nested; shouldError ]
 
 
 let tests =

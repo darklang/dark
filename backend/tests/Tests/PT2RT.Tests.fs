@@ -1445,7 +1445,7 @@ module Expr =
     let simple =
       t
         "()\n1L"
-        E.Statements.statement
+        E.Statements.simple
         (2,
          [ RT.LoadVal(0, RT.DUnit)
            RT.CheckIfFirstExprIsUnit(0)
@@ -1455,7 +1455,7 @@ module Expr =
     let statement =
       t
         "Builtin.printLine \"hello\"\n3L"
-        E.Statements.statement2
+        E.Statements.statement
         (4,
          [ RT.LoadVal(0, RT.DString "hello")
            RT.LoadVal(
