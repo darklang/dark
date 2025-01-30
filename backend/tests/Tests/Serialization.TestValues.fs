@@ -153,7 +153,8 @@ module ProgramTypes =
         id,
         MPString(id, "val1"),
         MPListCons(id, MPString(id, "val2"), MPList(id, [ MPString(id, "val3") ]))
-      ) ]
+      )
+      MPOr(id, [ MPBool(id, true); MPBool(id, false) ]) ]
 
 
   // Note: This is aimed to contain all cases of `TypeReference`
@@ -438,6 +439,13 @@ module ProgramTypes =
                                       [ MPVariable(id, "c") ]
                                     )
                                   whenCondition = Some(EBool(id, true))
+                                  rhs = EBool(id, true) }
+                                { pat =
+                                    MPOr(
+                                      id,
+                                      [ MPBool(id, true); MPBool(id, false) ]
+                                    )
+                                  whenCondition = None
                                   rhs = EBool(id, true) } ]
                             ),
                             ELet(

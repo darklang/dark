@@ -248,6 +248,87 @@ module Expressions =
             whenCondition = None
             rhs = eStr [ strText "first branch" ] } ]
 
+    //match (1, 2) with\n| (1, 2) | (2, 1) -> \"first branch\"\n| _ -> \"second branch\"
+    let combinedPatternsFirstPatMatches =
+      eMatch
+        (eTuple (eInt64 1) (eInt64 2) [])
+        [ { pat =
+              PT.MPOr(
+                gid (),
+                [ PT.MPTuple(
+                    gid (),
+                    PT.MPInt64(gid (), 1),
+                    PT.MPInt64(gid (), 2),
+                    []
+                  )
+                  PT.MPTuple(
+                    gid (),
+                    PT.MPInt64(gid (), 2),
+                    PT.MPInt64(gid (), 1),
+                    []
+                  ) ]
+              )
+            whenCondition = None
+            rhs = eStr [ strText "first branch" ] }
+          { pat = PT.MPVariable(gid (), "_")
+            whenCondition = None
+            rhs = eStr [ strText "second branch" ] } ]
+
+    //match (2, 1) with\n| (1, 2) | (2, 1) -> \"first branch\"\n| _ -> \"second branch\"
+    let combinedPatternsSecondPatMatches =
+      eMatch
+        (eTuple (eInt64 2) (eInt64 1) [])
+        [ { pat =
+              PT.MPOr(
+                gid (),
+                [ PT.MPTuple(
+                    gid (),
+                    PT.MPInt64(gid (), 1),
+                    PT.MPInt64(gid (), 2),
+                    []
+                  )
+                  PT.MPTuple(
+                    gid (),
+                    PT.MPInt64(gid (), 2),
+                    PT.MPInt64(gid (), 1),
+                    []
+                  ) ]
+              )
+            whenCondition = None
+            rhs = eStr [ strText "first branch" ] }
+          { pat = PT.MPVariable(gid (), "_")
+            whenCondition = None
+            rhs = eStr [ strText "second branch" ] } ]
+
+    // match (1, 2) with\n| (1, 2) | (2, 1) when false -> \"first branch\"\n| _ -> \"second branch\"
+    let combinedPatternsWithWhenCond =
+      eMatch
+        (eTuple (eInt64 1) (eInt64 2) [])
+        [ { pat =
+              PT.MPOr(
+                gid (),
+                [ PT.MPTuple(
+                    gid (),
+                    PT.MPInt64(gid (), 1),
+                    PT.MPInt64(gid (), 2),
+                    []
+                  )
+                  PT.MPTuple(
+                    gid (),
+                    PT.MPInt64(gid (), 2),
+                    PT.MPInt64(gid (), 1),
+                    []
+                  ) ]
+              )
+            whenCondition = Some(eBool false)
+            rhs = eStr [ strText "first branch" ] }
+          { pat = PT.MPVariable(gid (), "_")
+            whenCondition = None
+            rhs = eStr [ strText "second branch" ] } ]
+
+
+
+
 
   module Pipes =
     let lambdaID = gid ()

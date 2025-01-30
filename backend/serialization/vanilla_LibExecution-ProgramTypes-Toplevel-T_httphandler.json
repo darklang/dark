@@ -1133,6 +1133,34 @@
                                                                   true
                                                                 ]
                                                               }
+                                                            },
+                                                            {
+                                                              "pat": {
+                                                                "MPOr": [
+                                                                  123,
+                                                                  [
+                                                                    {
+                                                                      "MPBool": [
+                                                                        123,
+                                                                        true
+                                                                      ]
+                                                                    },
+                                                                    {
+                                                                      "MPBool": [
+                                                                        123,
+                                                                        false
+                                                                      ]
+                                                                    }
+                                                                  ]
+                                                                ]
+                                                              },
+                                                              "whenCondition": null,
+                                                              "rhs": {
+                                                                "EBool": [
+                                                                  123,
+                                                                  true
+                                                                ]
+                                                              }
                                                             }
                                                           ]
                                                         ]

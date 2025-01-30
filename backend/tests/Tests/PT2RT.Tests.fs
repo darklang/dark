@@ -463,6 +463,34 @@ module Expr =
            RT.MatchUnmatched ],
          3)
 
+    let combinedPatterns =
+      t
+        "match (1, 2) with\n| (1, 2) | (2, 1) -> \"first branch\"\n| _ -> \"second branch\""
+        E.Match.combinedPatternsFirstPatMatches
+        (6,
+         [ RT.LoadVal(1, RT.DInt64 1L)
+           RT.LoadVal(2, RT.DInt64 2L)
+           RT.CreateTuple(0, 1, 2, [])
+
+           RT.CheckMatchPatternAndExtractVars(
+             0,
+             RT.MPOr
+               [ RT.MPTuple(RT.MPInt64 1L, RT.MPInt64 2L, [])
+                 RT.MPTuple(RT.MPInt64 2L, RT.MPInt64 1L, []) ],
+             3
+           )
+           RT.LoadVal(4, RT.DString "first branch")
+           RT.CopyVal(3, 4)
+           RT.JumpBy 5
+
+           RT.CheckMatchPatternAndExtractVars(0, RT.MPVariable 4, 3)
+           RT.LoadVal(5, RT.DString "second branch")
+           RT.CopyVal(3, 5)
+           RT.JumpBy 1
+
+           RT.MatchUnmatched ],
+         3)
+
     let tests =
       testList
         "Match"
@@ -472,7 +500,8 @@ module Expr =
           withVarAndWhenCondition
           list
           listCons
-          tuple ]
+          tuple
+          combinedPatterns ]
 
   module Pipes =
     let lambda =
