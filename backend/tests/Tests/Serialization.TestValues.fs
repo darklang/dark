@@ -441,10 +441,7 @@ module ProgramTypes =
                                   whenCondition = Some(EBool(id, true))
                                   rhs = EBool(id, true) }
                                 { pat =
-                                    MPOr(
-                                      id,
-                                      [ MPBool(id, true); MPBool(id, false) ]
-                                    )
+                                    MPOr(id, [ MPBool(id, true); MPBool(id, false) ])
                                   whenCondition = None
                                   rhs = EBool(id, true) } ]
                             ),

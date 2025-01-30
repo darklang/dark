@@ -245,10 +245,10 @@ module ProgramTypes =
            (Decoders.list (fun ctx -> decoder ctx))
            (fun id caseName fieldPats -> DU.MPEnum(id, caseName, fieldPats)))
         ("MPOr",
-          Decoders.enum2Fields
-            ID.decoder
-            (Decoders.list (fun ctx -> decoder ctx))
-            (fun id pats -> DU.MPOr(id, pats))) ]
+         Decoders.enum2Fields
+           ID.decoder
+           (Decoders.list (fun ctx -> decoder ctx))
+           (fun id pats -> DU.MPOr(id, pats))) ]
       |> Map.ofList
       |> Decoders.du
 
