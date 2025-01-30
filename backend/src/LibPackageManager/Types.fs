@@ -98,6 +98,7 @@ module ProgramTypes =
     | MPList of ID * List<MatchPattern>
     | MPListCons of ID * head : MatchPattern * tail : MatchPattern
     | MPEnum of ID * caseName : string * fieldPats : List<MatchPattern>
+    | MPOr of ID * List<MatchPattern>
 
   type BinaryOperation =
     | BinOpAnd

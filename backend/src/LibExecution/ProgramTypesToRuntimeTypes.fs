@@ -234,6 +234,17 @@ module MatchPattern =
     | PT.MPVariable(_, name) ->
       RT.MPVariable rc, (symbols |> Map.add name rc), rc + 1
 
+    | PT.MPOr(_, patterns) ->
+      let patterns, symbols, rc =
+        patterns
+        |> List.fold
+          (fun (patterns, symbols, rc) pat ->
+            let pat, symbols, rc = toRT symbols rc pat
+            (patterns @ [ pat ], symbols, rc))
+          ([], symbols, rc)
+
+      RT.MPOr(patterns), symbols, rc
+
 
 
 module MatchCase =
