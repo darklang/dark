@@ -1158,6 +1158,17 @@ module Darklang =
             else
               Stdlib.Option.Option.None
 
+          | MPOr(r, patterns) ->
+            // check if position is within the MPOr range
+            if CursorPosition.isLineNumberInRange position r then
+              // check if we are hovering over one of the or patterns
+              patterns
+              |> Stdlib.List.filterMap (fun mp ->
+                collectMatchPatternHoverInfoAtPos mp position currentModules)
+              |> Stdlib.List.head
+            else
+              Stdlib.Option.Option.None
+
           | _ -> Stdlib.Option.Option.None
 
         let collectMatchCaseHoverInfoAtPos
