@@ -833,6 +833,29 @@ module TokenizeMatchExpression =
       (TokenType.Symbol, (2L, 11L), (2L, 13L))
       (TokenType.Keyword, (2L, 14L), (2L, 19L)) ]
 
+
+
+  ("match x with\n| 1L | 2L | 3L -> true \n| _ -> false" |> tokenize) =
+    [ (TokenType.Keyword, (0L, 0L), (0L, 5L))
+      (TokenType.VariableName, (0L, 6L), (0L, 7L))
+      (TokenType.Keyword, (0L, 8L), (0L, 12L))
+      (TokenType.Symbol, (1L, 0L), (1L, 1L))
+      (TokenType.Number, (1L, 2L), (1L, 3L))
+      (TokenType.Symbol, (1L, 3L), (1L, 4L))
+      //TODO missing symbol
+      (TokenType.Number, (1L, 7L), (1L, 8L))
+      (TokenType.Symbol, (1L, 8L), (1L, 9L))
+      //TODO missing symbol
+      (TokenType.Number, (1L, 12L), (1L, 13L))
+      (TokenType.Symbol, (1L, 13L), (1L, 14L))
+      (TokenType.Symbol, (1L, 15L), (1L, 17L))
+      (TokenType.Keyword, (1L, 18L), (1L, 22L))
+      (TokenType.Symbol, (2L, 0L), (2L, 1L))
+      (TokenType.VariableName, (2L, 2L), (2L, 3L))
+      (TokenType.Symbol, (2L, 4L), (2L, 6L))
+      (TokenType.Keyword, (2L, 7L), (2L, 12L)) ]
+
+
   ("Builtin.printLine \"hey\"\n0L" |> tokenize) =
     [ (TokenType.ModuleName, (0L, 0L), (0L, 7L))
       (TokenType.FunctionName, (0L, 8L), (0L, 17L))
