@@ -367,6 +367,11 @@ module Darklang =
 
             $"{caseName}({fieldPart})"
 
+        | MPOr(_id, patterns) ->
+          patterns
+          |> Stdlib.List.map (fun pat -> PrettyPrinter.ProgramTypes.matchPattern pat)
+          |> Stdlib.String.join " | "
+
 
       let binaryOperation (b: LanguageTools.ProgramTypes.BinaryOperation) : String =
         match b with

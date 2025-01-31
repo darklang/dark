@@ -348,6 +348,12 @@ module Darklang =
             | MPVariable(_, name) ->
               ProgramTypes.MatchPattern.MPVariable(gid (), name)
 
+            | MPOr(_, patterns) ->
+              ProgramTypes.MatchPattern.MPOr(
+                gid (),
+                Stdlib.List.map patterns (fun p -> toPT onMissing p)
+              )
+
         module PipeExpr =
           let toPT
             (onMissing: NameResolver.OnMissing)

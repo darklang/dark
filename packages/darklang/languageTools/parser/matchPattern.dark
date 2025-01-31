@@ -237,6 +237,23 @@ module Darklang =
           | _ -> createUnparseableError node
 
 
+        let parseMPOr
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.MatchPattern, WrittenTypes.Unparseable> =
+
+          let patterns =
+            node.children
+            |> Stdlib.List.filter (fun child -> child.fieldName == Stdlib.Option.Option.Some("pattern"))
+            |> Stdlib.List.map MatchPattern.parseMatchPattern
+            |> Stdlib.Result.collect
+
+          match patterns with
+          | Error _ -> createUnparseableError node
+          | Ok result ->
+            (WrittenTypes.MatchPattern.MPOr(node.range, result))
+            |> Stdlib.Result.Result.Ok
+
+
         let parseMatchPattern
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.MatchPattern, WrittenTypes.Unparseable> =
@@ -275,6 +292,8 @@ module Darklang =
               | "variable" ->
                 (WrittenTypes.MatchPattern.MPVariable(node.range, child.text))
                 |> Stdlib.Result.Result.Ok
+
+              | "mp_or" -> parseMPOr child
 
             | _ -> createUnparseableError node
 
