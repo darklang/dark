@@ -2440,6 +2440,10 @@
           "named": true
         },
         {
+          "type": "mp_or",
+          "named": true
+        },
+        {
           "type": "string",
           "named": true
         },
@@ -2632,6 +2636,46 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "mp_or",
+    "named": true,
+    "fields": {
+      "pattern": {
+        "multiple": true,
+        "required": true,
+        "types": [
+          {
+            "type": "match_pattern",
+            "named": true
+          }
+        ]
+      },
+      "patterns": {
+        "multiple": true,
+        "required": true,
+        "types": [
+          {
+            "type": "match_pattern",
+            "named": true
+          },
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_pipe": {
+        "multiple": true,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
