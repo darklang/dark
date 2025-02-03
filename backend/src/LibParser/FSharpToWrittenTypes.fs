@@ -188,6 +188,12 @@ module MatchPattern =
     let id = gid ()
     let r = fromSynPat
 
+    let rec collectOrPatterns (pat : SynPat) : List<SynPat> =
+      match pat with
+      | SynPat.Or(left, right, _, _) ->
+        collectOrPatterns left @ collectOrPatterns right
+      | other -> [ other ]
+
     let convertEnumArg (ast : SynPat) : List<WT.MatchPattern> =
       // if the arg is a tuple with one paren around it, it's just arguments to the
       // enum. But if it has two parens around it, it's a single tuple.
@@ -264,6 +270,11 @@ module MatchPattern =
 
     | SynPat.Tuple(_isStruct, first :: second :: theRest, _range, _) ->
       WT.MPTuple(id, r first, r second, List.map r theRest)
+
+    // MPOr List of match patterns
+    | SynPat.Or(_left, _right, _, _) ->
+      let patterns = collectOrPatterns pat
+      WT.MPOr(id, List.map r patterns)
 
     | _ -> raiseParserError "unhandled pattern" [ "pattern", pat ] (Some pat.Range)
 
