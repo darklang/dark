@@ -773,6 +773,49 @@ module GuardClause =
    | Error _ -> true) = true
 
 
+module PatternGrouping =
+  (match (1L,2L) with
+   | (1L,2L) | (2L,1L) -> "pass"
+   | _ -> "fail") = "pass"
+
+  (match (1L,3L) with
+   | (1L,2L) | (2L,1L) -> "pass"
+   | _ -> "fail") = "fail"
+
+  (match (1L,2L) with
+   | (1L,_) | (_,1L) -> "pass"
+   | _ -> "fail") = "pass"
+
+  (match [1L;2L] with
+   | [1L;_] | [_;1L] -> "pass"
+   | _ -> "fail") = "pass"
+
+  (match Stdlib.Option.Option.Some(1L) with
+   | Some(1L) | None -> "pass"
+   | _ -> "fail") = "pass"
+
+  (match ([1L], Stdlib.Option.Option.Some(2L)) with
+   | ([1L], Some(_)) | ([_], Some(2L)) -> "pass"
+   | _ -> "fail") = "pass"
+
+  (let x = 4L
+   match x with
+   | 1L | 2L | 3L | 4L -> "pass"
+   | _ -> "fail") = "pass"
+
+  (match 5L with
+   | 1L | 2L | 3L  -> "fail"
+   | 4L | 5L | 6L -> "pass"
+   | _ -> "fail") = "pass"
+
+  (match 5L with
+   | 4L | 5L | 6L when true -> "pass"
+   | _ -> "fail") = "pass"
+
+  // TODO: This should work
+  // (match (1L,2L) with
+  //  | (x,2L) | (2L,x) when x == 1L -> "pass"
+  //  | _ -> "fail") = "pass"
 
 
 
