@@ -172,7 +172,8 @@ module Darklang =
           caseName: (Range * String) *
           fieldPats: List<MatchPattern>
 
-        | MPOr of Range * List<Range * MatchPattern>
+        // TODO: handle pipe symbols
+        | MPOr of Range * List<MatchPattern>
 
       type MatchCase =
         { pat: Range * MatchPattern * Range
