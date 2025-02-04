@@ -812,9 +812,21 @@ module PatternGrouping =
    | 4L | 5L | 6L when true -> "pass"
    | _ -> "fail") = "pass"
 
-  // TODO: This should work
+  (match (1L,2L) with
+   | (x,2L) | (2L,x) when x == 1L -> "pass"
+   | _ -> "fail") = "pass"
+
+  (match (1L, 2L, 3L) with
+   | (x, 2L, y) | (y, x, 2L) when x + y == 4L -> "pass"
+   | _ -> "fail") = "pass"
+
+  (match ([1L;2L], 3L) with
+   | ([x], y) | (x :: xs, y) when x > 0L -> "pass"
+   | _ -> "fail") = "pass"
+
+  // TODO: This should fail. All patterns should have the same variables.
   // (match (1L,2L) with
-  //  | (x,2L) | (2L,x) when x == 1L -> "pass"
+  //  | (x,2L) | (2L,y) when x == y -> "pass"
   //  | _ -> "fail") = "pass"
 
 

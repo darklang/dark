@@ -248,6 +248,12 @@ module Match =
       E.Match.combinedPatternsWithWhenCond
       (RT.DString "second branch")
 
+  let combinedPatternsWithVarAndWhenCond =
+    t
+      "match (1L,2L) with\n| (x,2L) | (2L,x) when x == 1L -> \"first branch\"\n _ -> \"second branch\""
+      E.Match.combinedPatternsWithVarAndWhenCond
+      (RT.DString "first branch")
+
 
 
   let tests =
@@ -262,7 +268,8 @@ module Match =
         tuple
         combinedPatternsFirstPatMatches
         combinedPatternsSecondPatMatches
-        combinedPatternsWithWhenCond ]
+        combinedPatternsWithWhenCond
+        combinedPatternsWithVarAndWhenCond ]
 
 module Pipes =
   let lambda = t "1 |> fun x -> x" E.Pipes.lambda (RT.DInt64 1L)

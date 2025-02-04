@@ -235,15 +235,23 @@ module MatchPattern =
       RT.MPVariable rc, (symbols |> Map.add name rc), rc + 1
 
     | PT.MPOr(_, patterns) ->
-      let patterns, symbols, rc =
+      // for each pattern
+      // - convert it to RT
+      // - track all the symbols used
+      // - track the highest register count needed by any pattern
+      let patterns, allSymbols, maxRc =
         patterns
         |> List.fold
-          (fun (patterns, symbols, rc) pat ->
-            let pat, symbols, rc = toRT symbols rc pat
-            (patterns @ [ pat ], symbols, rc))
+          (fun (patterns, allSymbols, maxRc) pat ->
+            let pat, patSymbols, patRc = toRT Map.empty rc pat
+            // Merge symbols to maintain consistent register assignments
+            // e.g. if x->reg0 in first pattern, make sure x->reg0 in all patterns
+            let mergedSymbols = Map.mergeFavoringRight allSymbols patSymbols
+            // patterns can need different counts of registers -- take the max
+            //  e.g., | [x] vs | x::xs needs different registers)
+            (patterns @ [ pat ], mergedSymbols, max maxRc patRc))
           ([], symbols, rc)
-
-      RT.MPOr(patterns), symbols, rc
+      RT.MPOr(patterns), allSymbols, maxRc
 
 
 

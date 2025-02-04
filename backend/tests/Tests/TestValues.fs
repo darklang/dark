@@ -326,6 +326,38 @@ module Expressions =
             whenCondition = None
             rhs = eStr [ strText "second branch" ] } ]
 
+    // match (1L,2L) with\n| (x,2L) | (2L,x) when x == 1L -> "first branch"\n _ -> "second branch"
+    let combinedPatternsWithVarAndWhenCond =
+      eMatch
+        (eTuple (eInt64 1) (eInt64 2) [])
+        [ { pat =
+              PT.MPOr(
+                gid (),
+                [ PT.MPTuple(
+                    gid (),
+                    PT.MPVariable(gid (), "x"),
+                    PT.MPInt64(gid (), 2),
+                    []
+                  )
+                  PT.MPTuple(
+                    gid (),
+                    PT.MPInt64(gid (), 2),
+                    PT.MPVariable(gid (), "x"),
+                    []
+                  ) ]
+              )
+            whenCondition =
+              Some(
+                eApply
+                  (PT.EFnName(gid (), Ok(PT.FQFnName.fqBuiltIn "equals" 0)))
+                  []
+                  [ eVar "x"; eInt64 1 ]
+              )
+            rhs = eStr [ strText "first branch" ] }
+          { pat = PT.MPVariable(gid (), "_")
+            whenCondition = None
+            rhs = eStr [ strText "second branch" ] } ]
+
 
 
 
