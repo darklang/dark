@@ -241,17 +241,29 @@ module Darklang =
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.MatchPattern, WrittenTypes.Unparseable> =
           let patterns =
-            node.children
-            |> Stdlib.List.filter (fun child ->
-                child.fieldName == Stdlib.Option.Option.Some("pattern"))
-            |> Stdlib.List.map MatchPattern.parseMatchPattern
-            |> Stdlib.Result.collect
+            match node.children with
+            | firstPattern :: restPatterns ->
+              let firstPattern = MatchPattern.parseMatchPattern firstPattern
+              let restPatterns =
+                restPatterns
+                |> Stdlib.List.chunkBySize 2L
+                |> Builtin.unwrap
+                |> Stdlib.List.map (fun patternPipeSymbolPair ->
+                  match patternPipeSymbolPair with
+                  | [ pipeSym; pattern ] -> MatchPattern.parseMatchPattern pattern
+                  | _ -> createUnparseableError node)
+                |> Stdlib.Result.collect
+
+              match firstPattern, restPatterns with
+              | Ok firstPattern, Ok restPatterns -> Stdlib.Result.Result.Ok (Stdlib.List.push restPatterns firstPattern)
+              | _ -> createUnparseableError node
+            | [] -> createUnparseableError node
 
           match patterns with
-          | Error _ -> createUnparseableError node
           | Ok patterns ->
             (WrittenTypes.MatchPattern.MPOr(node.range, patterns))
             |> Stdlib.Result.Result.Ok
+          | Error _ -> createUnparseableError node
 
 
         let parseMatchPattern
