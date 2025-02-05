@@ -271,7 +271,6 @@ module MatchPattern =
     | SynPat.Tuple(_isStruct, first :: second :: theRest, _range, _) ->
       WT.MPTuple(id, r first, r second, List.map r theRest)
 
-    // MPOr List of match patterns
     | SynPat.Or(_left, _right, _, _) ->
       let patterns = collectOrPatterns pat
       WT.MPOr(id, List.map r patterns)

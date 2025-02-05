@@ -235,23 +235,48 @@ module MatchPattern =
       RT.MPVariable rc, (symbols |> Map.add name rc), rc + 1
 
     | PT.MPOr(_, patterns) ->
-      // for each pattern
-      // - convert it to RT
-      // - track all the symbols used
-      // - track the highest register count needed by any pattern
-      let patterns, allSymbols, maxRc =
+      // transform each pattern into a tuple containing:
+      // - the converted pattern (to RT)
+      // - the symbols used in the pattern
+      // - the register count needed by the pattern
+      let patternsWithSymbols =
         patterns
-        |> List.fold
-          (fun (patterns, allSymbols, maxRc) pat ->
-            let pat, patSymbols, patRc = toRT Map.empty rc pat
-            // Merge symbols to maintain consistent register assignments
-            // e.g. if x->reg0 in first pattern, make sure x->reg0 in all patterns
-            let mergedSymbols = Map.mergeFavoringRight allSymbols patSymbols
-            // patterns can need different counts of registers -- take the max
-            //  e.g., | [x] vs | x::xs needs different registers)
-            (patterns @ [ pat ], mergedSymbols, max maxRc patRc))
-          ([], symbols, rc)
-      RT.MPOr(patterns), allSymbols, maxRc
+        |> List.map (fun pat ->
+          let pat, patSymbols, patRc = toRT Map.empty rc pat
+          (pat, patSymbols, patRc))
+
+      // find the highest register count needed across all patterns
+      let maxRc = patternsWithSymbols |> List.map (fun (_, _, rc) -> rc) |> List.max
+
+      // use the first pattern's symbols as the reference set
+      let referenceSymbols =
+        match patternsWithSymbols with
+        | (_, firstPatternSymbols, _) :: _ ->
+          Map.keys firstPatternSymbols |> Set.ofSeq
+        | [] -> Set.empty
+
+      // build a consistent symbol-to-register mapping across all patterns
+      // maintains consistency by using the same register for the same symbol across patterns
+      let commonSymbolMapping =
+        referenceSymbols
+        |> Set.fold
+          (fun (currentMapping, nextFreeRegister) currentSymbol ->
+            // Try to find if this symbol already has a register assigned in any pattern
+            let registerToUse =
+              patternsWithSymbols
+              |> List.tryPick (fun (_, symbolMaps, _) ->
+                Map.tryFind currentSymbol symbolMaps)
+              |> Option.defaultValue nextFreeRegister
+            // Add this symbol->register mapping and increment next free register
+            (Map.add currentSymbol registerToUse currentMapping,
+             nextFreeRegister + 1))
+          (Map.empty, rc)
+        |> fst // take just the mapping, discard the final nextFreeRegister since we don't need it anymore
+
+      // extract the runtime patterns.
+      let patterns = patternsWithSymbols |> List.map (fun (p, _, _) -> p)
+
+      RT.MPOr(patterns), commonSymbolMapping, maxRc
 
 
 
