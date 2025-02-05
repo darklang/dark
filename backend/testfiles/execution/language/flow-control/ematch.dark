@@ -828,10 +828,12 @@ module PatternGrouping =
    | (x,2L) | (2L,y) when x == y -> "fail"
    | _ -> "fail") = Builtin.testDerrorMessage "There is no variable named: y"
 
+  // CLEANUP this should fail as the two sides bind different sets of variables
   (match (1L,2L) with
     | (x,y) | (x,_) when y > 0L -> "fail"
     | _ -> "pass") = "fail"
 
+  // CLEANUP these should fail when we have at-rest checking
   (match [1L;2L] with
    | [x;y] | x::y -> "fail"
    | _ -> "pass") = "fail"
