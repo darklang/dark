@@ -103,6 +103,7 @@ let rec checkAndExtractMatchPattern
 
   | MPOr patterns, dv ->
     patterns
+    |> NEList.toList
     |> List.map (fun p -> r p dv)
     |> List.tryFind (fun (matches, _) -> matches)
     |> Option.defaultValue (false, [])

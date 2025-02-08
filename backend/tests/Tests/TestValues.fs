@@ -255,18 +255,19 @@ module Expressions =
         [ { pat =
               PT.MPOr(
                 gid (),
-                [ PT.MPTuple(
+                NEList.ofList
+                  (PT.MPTuple(
                     gid (),
                     PT.MPInt64(gid (), 1),
                     PT.MPInt64(gid (), 2),
                     []
-                  )
-                  PT.MPTuple(
-                    gid (),
-                    PT.MPInt64(gid (), 2),
-                    PT.MPInt64(gid (), 1),
-                    []
-                  ) ]
+                  ))
+                  [ PT.MPTuple(
+                      gid (),
+                      PT.MPInt64(gid (), 2),
+                      PT.MPInt64(gid (), 1),
+                      []
+                    ) ]
               )
             whenCondition = None
             rhs = eStr [ strText "first branch" ] }
@@ -281,18 +282,19 @@ module Expressions =
         [ { pat =
               PT.MPOr(
                 gid (),
-                [ PT.MPTuple(
+                NEList.ofList
+                  (PT.MPTuple(
                     gid (),
                     PT.MPInt64(gid (), 1),
                     PT.MPInt64(gid (), 2),
                     []
-                  )
-                  PT.MPTuple(
-                    gid (),
-                    PT.MPInt64(gid (), 2),
-                    PT.MPInt64(gid (), 1),
-                    []
-                  ) ]
+                  ))
+                  [ PT.MPTuple(
+                      gid (),
+                      PT.MPInt64(gid (), 2),
+                      PT.MPInt64(gid (), 1),
+                      []
+                    ) ]
               )
             whenCondition = None
             rhs = eStr [ strText "first branch" ] }
@@ -307,18 +309,19 @@ module Expressions =
         [ { pat =
               PT.MPOr(
                 gid (),
-                [ PT.MPTuple(
+                NEList.ofList
+                  (PT.MPTuple(
                     gid (),
                     PT.MPInt64(gid (), 1),
                     PT.MPInt64(gid (), 2),
                     []
-                  )
-                  PT.MPTuple(
-                    gid (),
-                    PT.MPInt64(gid (), 2),
-                    PT.MPInt64(gid (), 1),
-                    []
-                  ) ]
+                  ))
+                  [ PT.MPTuple(
+                      gid (),
+                      PT.MPInt64(gid (), 2),
+                      PT.MPInt64(gid (), 1),
+                      []
+                    ) ]
               )
             whenCondition = Some(eBool false)
             rhs = eStr [ strText "first branch" ] }
@@ -333,18 +336,19 @@ module Expressions =
         [ { pat =
               PT.MPOr(
                 gid (),
-                [ PT.MPTuple(
+                NEList.ofList
+                  (PT.MPTuple(
                     gid (),
                     PT.MPVariable(gid (), "x"),
                     PT.MPInt64(gid (), 2),
                     []
-                  )
-                  PT.MPTuple(
-                    gid (),
-                    PT.MPInt64(gid (), 2),
-                    PT.MPVariable(gid (), "x"),
-                    []
-                  ) ]
+                  ))
+                  [ PT.MPTuple(
+                      gid (),
+                      PT.MPInt64(gid (), 2),
+                      PT.MPVariable(gid (), "x"),
+                      []
+                    ) ]
               )
             whenCondition =
               Some(

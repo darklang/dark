@@ -189,7 +189,7 @@ type MatchPattern =
   | MPTuple of id * MatchPattern * MatchPattern * List<MatchPattern>
   | MPList of id * List<MatchPattern>
   | MPListCons of id * head : MatchPattern * tail : MatchPattern
-  | MPOr of id * List<MatchPattern>
+  | MPOr of id * NEList<MatchPattern>
 
 [<MessagePack.MessagePackObject>]
 type BinaryOperation =

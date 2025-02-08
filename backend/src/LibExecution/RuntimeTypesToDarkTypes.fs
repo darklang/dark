@@ -325,7 +325,8 @@ module MatchPattern =
         [ DString caseName; DList(VT.known knownType, List.map toDT fieldPats) ]
 
       | MPOr patterns ->
-        "MPOr", [ DList(VT.known knownType, List.map toDT patterns) ]
+        let patterns = patterns |> NEList.toList |> List.map toDT
+        "MPOr", [ DList(VT.known knownType, patterns) ]
 
     DEnum(typeName, typeName, [], caseName, fields)
 
@@ -361,7 +362,8 @@ module MatchPattern =
       MPEnum(caseName, List.map fromDT fieldPats)
 
     | DEnum(_, _, [], "MPOr", [ DList(_vtTODO, patterns) ]) ->
-      MPOr(List.map fromDT patterns)
+      let patterns = patterns |> List.map fromDT
+      MPOr(NEList.ofList patterns.Head patterns.Tail)
 
     | _ -> Exception.raiseInternal "Invalid MatchPattern" []
 

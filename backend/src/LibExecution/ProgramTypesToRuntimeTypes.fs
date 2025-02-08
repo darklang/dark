@@ -241,6 +241,7 @@ module MatchPattern =
       // - the register count needed by the pattern
       let patternsWithSymbols =
         patterns
+        |> NEList.toList
         |> List.map (fun pat ->
           let pat, patSymbols, patRc = toRT Map.empty rc pat
           (pat, patSymbols, patRc))
@@ -275,8 +276,7 @@ module MatchPattern =
 
       // extract the runtime patterns.
       let patterns = patternsWithSymbols |> List.map (fun (p, _, _) -> p)
-
-      RT.MPOr(patterns), commonSymbolMapping, maxRc
+      (RT.MPOr(NEList.ofList patterns.Head patterns.Tail), commonSymbolMapping, maxRc)
 
 
 

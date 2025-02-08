@@ -272,8 +272,9 @@ module MatchPattern =
       WT.MPTuple(id, r first, r second, List.map r theRest)
 
     | SynPat.Or(_left, _right, _, _) ->
-      let patterns = collectOrPatterns pat
-      WT.MPOr(id, List.map r patterns)
+      let patterns = collectOrPatterns pat |> List.map r
+
+      WT.MPOr(id, NEList.ofList patterns.Head patterns.Tail)
 
     | _ -> raiseParserError "unhandled pattern" [ "pattern", pat ] (Some pat.Range)
 

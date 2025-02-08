@@ -474,9 +474,11 @@ module Expr =
 
            RT.CheckMatchPatternAndExtractVars(
              0,
-             RT.MPOr
-               [ RT.MPTuple(RT.MPInt64 1L, RT.MPInt64 2L, [])
-                 RT.MPTuple(RT.MPInt64 2L, RT.MPInt64 1L, []) ],
+             (RT.MPOr(
+               NEList.ofList
+                 (RT.MPTuple(RT.MPInt64 1L, RT.MPInt64 2L, []))
+                 [ RT.MPTuple(RT.MPInt64 2L, RT.MPInt64 1L, []) ]
+             )),
              3
            )
            RT.LoadVal(4, RT.DString "first branch")
@@ -502,9 +504,11 @@ module Expr =
 
            RT.CheckMatchPatternAndExtractVars(
              0,
-             RT.MPOr
-               [ RT.MPTuple(RT.MPVariable 4, RT.MPInt64 2L, [])
-                 RT.MPTuple(RT.MPInt64 2L, RT.MPVariable 4, []) ],
+             (RT.MPOr(
+               NEList.ofList
+                 (RT.MPTuple(RT.MPVariable 4, RT.MPInt64 2L, []))
+                 [ RT.MPTuple(RT.MPInt64 2L, RT.MPVariable 4, []) ]
+             )),
              7
            )
            RT.LoadVal(5, RT.DInt64 1L)

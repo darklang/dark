@@ -192,7 +192,7 @@ type MatchPattern =
 
   | MPVariable of id * string
 
-  | MPOr of id * List<MatchPattern>
+  | MPOr of id * NEList<MatchPattern>
 
 type BinaryOperation =
   | BinOpAnd

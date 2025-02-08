@@ -261,7 +261,9 @@ module MatchPattern =
     | PT.MPListCons(id, head, tail) -> ST.MPListCons(id, toST head, toST tail)
     | PT.MPEnum(id, caseName, fieldPats) ->
       ST.MPEnum(id, caseName, List.map toST fieldPats)
-    | PT.MPOr(id, patterns) -> ST.MPOr(id, List.map toST patterns)
+    | PT.MPOr(id, patterns) ->
+      let patterns = patterns |> NEList.map toST |> NEList.toST
+      ST.MPOr(id, patterns)
 
 
   let rec toPT (p : ST.MatchPattern) : PT.MatchPattern =
@@ -289,7 +291,9 @@ module MatchPattern =
     | ST.MPListCons(id, head, tail) -> PT.MPListCons(id, toPT head, toPT tail)
     | ST.MPEnum(id, caseName, fieldPats) ->
       PT.MPEnum(id, caseName, List.map toPT fieldPats)
-    | ST.MPOr(id, patterns) -> PT.MPOr(id, List.map toPT patterns)
+    | ST.MPOr(id, patterns) ->
+      let patterns = patterns |> NEList.toPT |> NEList.map toPT
+      PT.MPOr(id, patterns)
 
 
 module Expr =

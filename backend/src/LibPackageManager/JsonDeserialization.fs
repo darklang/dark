@@ -248,7 +248,13 @@ module ProgramTypes =
          Decoders.enum2Fields
            ID.decoder
            (Decoders.list (fun ctx -> decoder ctx))
-           (fun id pats -> DU.MPOr(id, pats))) ]
+           (fun id pats ->
+             let pats =
+               pats
+               |> NEList.ofListUnsafe
+                 "TODO: PT.MatchPattern.MPOr should have an NEList in Dark"
+                 []
+             DU.MPOr(id, pats))) ]
       |> Map.ofList
       |> Decoders.du
 
