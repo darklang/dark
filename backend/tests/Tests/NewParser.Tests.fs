@@ -1313,6 +1313,15 @@ else
       []
       false
 
+    t
+      "match, multiple patterns"
+      "match (1L, 2L) with\n| (1L, 2L) | (2L, 1L) -> true\n| _ -> false"
+      "match (1L, 2L) with\n| (1L, 2L) | (2L, 1L) ->\n  true\n| _ ->\n  false"
+      []
+      []
+      []
+      false
+
 
     // pipe expression
     t "pipe, infix" "1L |> (+) 2L" "1L\n|> (+) 2L" [] [] [] false

@@ -211,7 +211,7 @@ module Darklang =
             Result.Result.Error
               $"Expected comparator function to return -1, 0, or 1, but it returned {Int64.toString result}"
 
-        let rec merge
+        let merge
           (comparator: 'a -> 'a -> Int64)
           (left: List<'a>)
           (right: List<'a>)
@@ -240,7 +240,7 @@ module Darklang =
             let (left, right) = splitList xs
             (List.push left x, List.push right y)
 
-        let rec mergeSort
+        let mergeSort
           (comparator: 'a -> 'a -> Int64)
           (lst: List<'a>)
           : Result.Result<List<'a>, String> =

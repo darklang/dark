@@ -125,6 +125,7 @@ module Darklang =
         | MPListCons of head: MatchPattern * tail: MatchPattern
         | MPEnum of caseName: String * fieldPatterns: List<MatchPattern>
         | MPVariable of String
+        | MPOr of List<MatchPattern>
 
       type Register = Int32
 

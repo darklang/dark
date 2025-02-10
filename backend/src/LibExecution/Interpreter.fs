@@ -101,6 +101,13 @@ let rec checkAndExtractMatchPattern
   | MPEnum(caseName, fields), DEnum(_, _, _, caseNameActual, fieldsActual) ->
     if caseName = caseNameActual then rList fields fieldsActual else false, []
 
+  | MPOr patterns, dv ->
+    patterns
+    |> NEList.toList
+    |> List.map (fun p -> r p dv)
+    |> List.tryFind (fun (matches, _) -> matches)
+    |> Option.defaultValue (false, [])
+
   // Dval didn't match the pattern even in a basic sense
   | MPVariable _, _
   | MPUnit, _
@@ -121,7 +128,8 @@ let rec checkAndExtractMatchPattern
   | MPTuple _, _
   | MPListCons _, _
   | MPList _, _
-  | MPEnum _, _ -> false, []
+  | MPEnum _, _
+  | MPOr _, _ -> false, []
 
 
 // CLEANUP evaluate constants/values at dev-time, not interpreter time,

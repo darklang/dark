@@ -192,6 +192,8 @@ type MatchPattern =
 
   | MPVariable of id * string
 
+  | MPOr of id * NEList<MatchPattern>
+
 type BinaryOperation =
   | BinOpAnd
   | BinOpOr

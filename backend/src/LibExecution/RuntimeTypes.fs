@@ -312,6 +312,7 @@ type MatchPattern =
     theRest : List<MatchPattern>
   | MPEnum of caseName : string * fields : List<MatchPattern>
   | MPVariable of Register
+  | MPOr of NEList<MatchPattern>
 
 
 type StringSegment =

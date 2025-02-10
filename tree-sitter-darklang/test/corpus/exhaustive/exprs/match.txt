@@ -579,3 +579,113 @@ match var with
     )
   )
 )
+
+
+==================
+multi-pattern matching
+==================
+
+match (1L, 2L) with
+| (1L, 2L) | (2L, 1L) -> "pass"
+| _ -> "fail"
+
+---
+
+(source_file
+  (expression
+    (match_expression
+      (keyword)
+      (expression
+        (simple_expression
+          (tuple_literal
+            (symbol)
+            (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+            (symbol)
+            (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+            (symbol)
+          )
+        )
+      )
+      (keyword)
+      (match_case
+        (symbol)
+        (match_pattern
+          (mp_or
+            (match_pattern
+              (tuple
+                (symbol)
+                (match_pattern (int64 (digits (positive_digits)) (symbol)))
+                (symbol)
+                (match_pattern (int64 (digits (positive_digits)) (symbol)))
+                (symbol)
+              )
+            )
+            (symbol)
+            (match_pattern
+              (tuple
+                (symbol)
+                (match_pattern (int64 (digits (positive_digits)) (symbol)))
+                (symbol)
+                (match_pattern (int64 (digits (positive_digits)) (symbol)))
+                (symbol)
+              )
+            )
+          )
+        )
+        (symbol)
+        (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+      )
+      (match_case
+        (symbol)
+        (match_pattern (variable))
+        (symbol)
+        (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+      )
+    )
+  )
+)
+
+
+==================
+multi-pattern matching - more than two patterns
+==================
+
+match x with
+| 1L | 2L | 3L -> "pass"
+| _ -> "fail"
+
+---
+
+(source_file
+  (expression
+    (match_expression
+      (keyword)
+      (expression (simple_expression (variable_identifier)))
+      (keyword)
+      (match_case
+        (symbol)
+        (match_pattern
+          (mp_or
+            (match_pattern
+              (mp_or
+                (match_pattern (int64 (digits (positive_digits)) (symbol)))
+                (symbol)
+                (match_pattern (int64 (digits (positive_digits)) (symbol)))
+              )
+            )
+            (symbol)
+            (match_pattern (int64 (digits (positive_digits)) (symbol)))
+          )
+        )
+        (symbol)
+        (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+      )
+      (match_case
+        (symbol)
+        (match_pattern  (variable))
+        (symbol)
+        (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+      )
+    )
+  )
+)

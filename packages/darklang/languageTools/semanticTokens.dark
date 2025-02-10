@@ -494,13 +494,7 @@ module Darklang =
               tokenize tail ]
             |> Stdlib.List.flatten
 
-          | MPTuple(_range,
-                    first,
-                    symbolComma,
-                    second,
-                    rest,
-                    symbolOpenParen,
-                    symbolCloseParen) ->
+          | MPTuple(_range, first, symbolComma, second, rest, symbolOpenParen, symbolCloseParen) ->
             let rest =
               rest
               |> Stdlib.List.map (fun (r, pat) ->
@@ -539,6 +533,15 @@ module Darklang =
               fields ]
             |> Stdlib.List.flatten
 
+          | MPOr(range, patterns) ->
+            let patterns =
+              patterns
+              |> Stdlib.List.map (fun pat -> tokenize pat)
+              |> Stdlib.List.flatten
+
+            [ // a | b | c
+              patterns ]
+            |> Stdlib.List.flatten
 
       module Expr =
         module LetPattern =

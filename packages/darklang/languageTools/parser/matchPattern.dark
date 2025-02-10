@@ -237,6 +237,35 @@ module Darklang =
           | _ -> createUnparseableError node
 
 
+        let parseMPOr
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.MatchPattern, WrittenTypes.Unparseable> =
+          let patterns =
+            match node.children with
+            | firstPattern :: restPatterns ->
+              let firstPattern = MatchPattern.parseMatchPattern firstPattern
+              let restPatterns =
+                restPatterns
+                |> Stdlib.List.chunkBySize 2L
+                |> Builtin.unwrap
+                |> Stdlib.List.map (fun patternPipeSymbolPair ->
+                  match patternPipeSymbolPair with
+                  | [ pipeSym; pattern ] -> MatchPattern.parseMatchPattern pattern
+                  | _ -> createUnparseableError node)
+                |> Stdlib.Result.collect
+
+              match firstPattern, restPatterns with
+              | Ok firstPattern, Ok restPatterns -> Stdlib.Result.Result.Ok (Stdlib.List.push restPatterns firstPattern)
+              | _ -> createUnparseableError node
+            | [] -> createUnparseableError node
+
+          match patterns with
+          | Ok patterns ->
+            (WrittenTypes.MatchPattern.MPOr(node.range, patterns))
+            |> Stdlib.Result.Result.Ok
+          | Error _ -> createUnparseableError node
+
+
         let parseMatchPattern
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.MatchPattern, WrittenTypes.Unparseable> =
@@ -275,6 +304,8 @@ module Darklang =
               | "variable" ->
                 (WrittenTypes.MatchPattern.MPVariable(node.range, child.text))
                 |> Stdlib.Result.Result.Ok
+
+              | "mp_or" -> parseMPOr child
 
             | _ -> createUnparseableError node
 

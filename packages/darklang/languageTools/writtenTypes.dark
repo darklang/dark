@@ -163,7 +163,7 @@ module Darklang =
           first: MatchPattern *
           symbolComma: Range *
           second: MatchPattern *
-          rest: List<Stdlib.Option.Option<Range> * MatchPattern> *
+          rest: List<Range * MatchPattern> *
           symbolOpenParen: Range *
           symbolCloseParen: Range
         | MPVariable of Range * String
@@ -171,6 +171,9 @@ module Darklang =
           Range *
           caseName: (Range * String) *
           fieldPats: List<MatchPattern>
+
+        // TODO: handle pipe symbols
+        | MPOr of Range * List<MatchPattern>
 
       type MatchCase =
         { pat: Range * MatchPattern * Range

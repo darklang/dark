@@ -106,6 +106,7 @@ module Darklang =
 
         | MPEnum of ID * caseName: String * fieldPats: List<MatchPattern>
 
+        | MPOr of ID * List<MatchPattern>
 
       type BinaryOperation =
         | BinOpAnd

@@ -463,6 +463,80 @@ module Expr =
            RT.MatchUnmatched ],
          3)
 
+    let combinedPatterns =
+      t
+        "match (1, 2) with\n| (1, 2) | (2, 1) -> \"first branch\"\n| _ -> \"second branch\""
+        E.Match.combinedPatternsFirstPatMatches
+        (6,
+         [ RT.LoadVal(1, RT.DInt64 1L)
+           RT.LoadVal(2, RT.DInt64 2L)
+           RT.CreateTuple(0, 1, 2, [])
+
+           RT.CheckMatchPatternAndExtractVars(
+             0,
+             (RT.MPOr(
+               NEList.ofList
+                 (RT.MPTuple(RT.MPInt64 1L, RT.MPInt64 2L, []))
+                 [ RT.MPTuple(RT.MPInt64 2L, RT.MPInt64 1L, []) ]
+             )),
+             3
+           )
+           RT.LoadVal(4, RT.DString "first branch")
+           RT.CopyVal(3, 4)
+           RT.JumpBy 5
+
+           RT.CheckMatchPatternAndExtractVars(0, RT.MPVariable 4, 3)
+           RT.LoadVal(5, RT.DString "second branch")
+           RT.CopyVal(3, 5)
+           RT.JumpBy 1
+
+           RT.MatchUnmatched ],
+         3)
+
+    let combinedPatternsWithVarAndWhenCond =
+      t
+        "match (1L,2L) with\n| (x,2L) | (2L,x) when x == 1L -> \"first branch\"\n _ -> \"second branch\""
+        E.Match.combinedPatternsWithVarAndWhenCond
+        (9,
+         [ RT.LoadVal(1, RT.DInt64 1L)
+           RT.LoadVal(2, RT.DInt64 2L)
+           RT.CreateTuple(0, 1, 2, [])
+
+           RT.CheckMatchPatternAndExtractVars(
+             0,
+             (RT.MPOr(
+               NEList.ofList
+                 (RT.MPTuple(RT.MPVariable 4, RT.MPInt64 2L, []))
+                 [ RT.MPTuple(RT.MPInt64 2L, RT.MPVariable 4, []) ]
+             )),
+             7
+           )
+           RT.LoadVal(5, RT.DInt64 1L)
+           RT.LoadVal(
+             6,
+             RT.DApplicable(
+               RT.AppNamedFn
+                 { name = RT.FQFnName.fqBuiltin "equals" 0
+                   typeSymbolTable = Map.empty
+                   typeArgs = []
+                   argsSoFar = [] }
+             )
+           )
+           RT.Apply(7, 6, [], NEList.ofList 4 [ 5 ])
+           RT.JumpByIfFalse(3, 7)
+           RT.LoadVal(8, RT.DString "first branch")
+           RT.CopyVal(3, 8)
+           RT.JumpBy 5
+
+           RT.CheckMatchPatternAndExtractVars(0, RT.MPVariable 4, 3)
+           RT.LoadVal(5, RT.DString "second branch")
+           RT.CopyVal(3, 5)
+           RT.JumpBy 1
+
+           RT.MatchUnmatched ],
+         3)
+
+
     let tests =
       testList
         "Match"
@@ -472,7 +546,9 @@ module Expr =
           withVarAndWhenCondition
           list
           listCons
-          tuple ]
+          tuple
+          combinedPatterns
+          combinedPatternsWithVarAndWhenCond ]
 
   module Pipes =
     let lambda =

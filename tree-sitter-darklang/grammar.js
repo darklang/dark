@@ -310,6 +310,7 @@ module.exports = grammar({
         alias($.mp_tuple, $.tuple),
         alias($.mp_enum, $.enum),
         alias($.variable_identifier, $.variable),
+        $.mp_or,
       ),
 
     //
@@ -354,6 +355,25 @@ module.exports = grammar({
       ),
 
     mp_enum_fields: $ => enum_fields_base($, $.match_pattern),
+
+    mp_or: $ =>
+      prec.left(
+        field(
+          "patterns",
+          seq(
+            field("pattern", $.match_pattern),
+
+            repeat1(
+              prec.left(
+                seq(
+                  field("symbol_pipe", alias("|", $.symbol)),
+                  field("pattern", $.match_pattern),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
 
     // ---------------------
     // Expressions

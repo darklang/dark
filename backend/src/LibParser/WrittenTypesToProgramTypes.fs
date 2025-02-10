@@ -125,6 +125,7 @@ module MatchPattern =
       PT.MPTuple(id, toPT first, toPT second, List.map toPT theRest)
     | WT.MPList(id, pats) -> PT.MPList(id, List.map toPT pats)
     | WT.MPListCons(id, head, tail) -> PT.MPListCons(id, toPT head, toPT tail)
+    | WT.MPOr(id, pats) -> PT.MPOr(id, NEList.map toPT pats)
 
 
 module Expr =
