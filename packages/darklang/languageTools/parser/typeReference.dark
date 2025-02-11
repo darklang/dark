@@ -168,6 +168,7 @@ module Darklang =
                 match returnTypeNode, args with
                 | Ok returnType, Ok args ->
                   (TBuiltin.TFn(firstChild.range, args, returnType)) |> builtin
+                | _ -> createUnparseableError node
 
               | "db_type_reference" ->
                 let dbKeyword = findField firstChild "keyword_type_constructor"

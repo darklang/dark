@@ -388,7 +388,7 @@ module Darklang =
               let clientInfo = // Result<Option<ClientInfo>, Unit>
                 match Json.Object.get fields "clientInfo" with
                 | Some clientInfo -> ClientInfo.fromJson clientInfo
-                | None -> Stdlib.Result.Result.Ok
+                | None -> Stdlib.Result.Result.Ok()
 
               match clientInfo with
               | Ok clientInfo ->

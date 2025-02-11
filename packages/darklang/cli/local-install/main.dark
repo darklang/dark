@@ -48,6 +48,7 @@ module Darklang =
       let selfUpdateIfRelevant () : Stdlib.Result.Result<Unit, String> =
         // if not installed, ignore -- nothing to self-update
 
+        // CLEANUP: what should we do if we fail to get the OS?
         let configPath =
           match (Stdlib.Cli.OS.getOS ()) with
           | Ok Windows ->
