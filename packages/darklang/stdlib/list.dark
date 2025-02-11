@@ -389,7 +389,7 @@ module Darklang =
         (result: List<'c>)
         : List<'c> =
         match (as_, bs) with
-        | ([], _) -> result
+        | ([], _)
         | (_, []) -> result
         | (a :: restA, b :: restB) ->
           let mappedResult = fn a b

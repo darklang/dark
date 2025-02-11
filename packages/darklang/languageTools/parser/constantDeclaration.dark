@@ -229,15 +229,15 @@ module Darklang =
           | "unit" ->
             (WrittenTypes.Const.CUnit node.range) |> Stdlib.Result.Result.Ok
           | "bool_literal" -> parseBoolConst node
-          | "int8_literal" -> parseIntConst node
-          | "uint8_literal" -> parseIntConst node
-          | "int16_literal" -> parseIntConst node
-          | "uint16_literal" -> parseIntConst node
-          | "int32_literal" -> parseIntConst node
-          | "uint32_literal" -> parseIntConst node
-          | "int64_literal" -> parseIntConst node
-          | "uint64_literal" -> parseIntConst node
-          | "int128_literal" -> parseIntConst node
+          | "int8_literal"
+          | "uint8_literal"
+          | "int16_literal"
+          | "uint16_literal"
+          | "int32_literal"
+          | "uint32_literal"
+          | "int64_literal"
+          | "uint64_literal"
+          | "int128_literal"
           | "uint128_literal" -> parseIntConst node
           | "float_literal" -> parseFloatConst node
           | "string_literal" -> parseStringConst node

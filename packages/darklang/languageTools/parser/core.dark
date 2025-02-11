@@ -231,8 +231,7 @@ module Darklang =
             |> Builtin.unwrap
             |> Stdlib.List.map (fun dictSeparatorPair ->
               match dictSeparatorPair with
-              // CLEANUP collapse these branches into one
-              | [ dictPairNode; _separator ] ->
+              | [ dictPairNode; _separator ] | [ dictPairNode ] ->
                 // Note: `_separator` here is the `;` between key-value pairs
                 let keyNode =
                   findAndParseRequired dictPairNode "key" (fun node ->
@@ -253,25 +252,6 @@ module Darklang =
                   (symbolEquals.range, key, value) |> Stdlib.Result.Result.Ok
                 | _ -> createUnparseableError dictPairNode
 
-              | [ dictPairNode ] ->
-                let keyNode =
-                  findAndParseRequired dictPairNode "key" (fun node ->
-                    match node.typ with
-                    | "double_backtick_identifier" ->
-                      let key = node.text |> Stdlib.String.slice 2L -2L
-                      (node.range, key) |> Stdlib.Result.Result.Ok
-                    | _ ->
-                      (node.range, nameOrBlank (Parser.getText node))
-                      |> Stdlib.Result.Result.Ok)
-
-                let symbolEqualsNode = findField dictPairNode "symbol_equals"
-
-                let valueNode = findAndParseRequired dictPairNode "value" parseFn
-
-                match (keyNode, symbolEqualsNode, valueNode) with
-                | (Ok key, Ok symbolEquals, Ok value) ->
-                  (symbolEquals.range, key, value) |> Stdlib.Result.Result.Ok
-                | _ -> createUnparseableError dictPairNode
               | _ -> createUnparseableError contentsNode)
 
             |> Stdlib.Result.collect)
@@ -314,8 +294,7 @@ module Darklang =
             |> Builtin.unwrap
             |> Stdlib.List.map (fun contentSymbolPair ->
               match contentSymbolPair with
-              | [ contentNode; symbol ] -> parseFn contentNode
-              | [ contentNode ] -> parseFn contentNode)
+              | [ contentNode; symbol ] | [ contentNode ] -> parseFn contentNode)
             |> Stdlib.Result.collect)
 
           |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])

@@ -55,8 +55,8 @@ module Darklang =
               (Stdlib.Cli.PowerShell.getHomeDirectory ()) |> Builtin.unwrap
 
             $"{homeDirectory}\\.darklang\\config.json"
-          | Ok Linux -> "$HOME/.darklang/config.json"
-          | Ok MacOS -> "$HOME/.darklang/config.json"
+          | Ok Linux | Ok MacOS -> "$HOME/.darklang/config.json"
+
 
         if Stdlib.Bool.not (Builtin.fileExists configPath) then
           Stdlib.Result.Result.Ok()

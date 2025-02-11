@@ -1035,20 +1035,20 @@ module Darklang =
           (currentModules: List<String>)
           : Stdlib.Option.Option<Info> =
           match mp with
-          | MPUnit r -> Stdlib.Option.Option.None
-          | MPBool(r, _) -> Stdlib.Option.Option.None
-          | MPInt8(r, _, _) -> Stdlib.Option.Option.None
-          | MPUInt8(r, _, _) -> Stdlib.Option.Option.None
-          | MPInt16(r, _, _) -> Stdlib.Option.Option.None
-          | MPUInt16(r, _, _) -> Stdlib.Option.Option.None
-          | MPInt32(r, _, _) -> Stdlib.Option.Option.None
-          | MPUInt32(r, _, _) -> Stdlib.Option.Option.None
-          | MPInt64(r, _, _) -> Stdlib.Option.Option.None
-          | MPUInt64(r, _, _) -> Stdlib.Option.Option.None
-          | MPInt128(r, _, _) -> Stdlib.Option.Option.None
-          | MPUInt128(r, _, _) -> Stdlib.Option.Option.None
-          | MPFloat(r, _, _, _) -> Stdlib.Option.Option.None
-          | MPChar(r, _, _, _) -> Stdlib.Option.Option.None
+          | MPUnit r
+          | MPBool(r, _)
+          | MPInt8(r, _, _)
+          | MPUInt8(r, _, _)
+          | MPInt16(r, _, _)
+          | MPUInt16(r, _, _)
+          | MPInt32(r, _, _)
+          | MPUInt32(r, _, _)
+          | MPInt64(r, _, _)
+          | MPUInt64(r, _, _)
+          | MPInt128(r, _, _)
+          | MPUInt128(r, _, _)
+          | MPFloat(r, _, _, _)
+          | MPChar(r, _, _, _)
           | MPString(r, _, _, _) -> Stdlib.Option.Option.None
           | MPList(r, contents, _, _) ->
             // check if position is within the List range

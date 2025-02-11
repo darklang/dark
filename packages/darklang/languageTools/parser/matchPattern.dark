@@ -219,8 +219,7 @@ module Darklang =
               |> Builtin.unwrap
               |> Stdlib.List.map (fun contentSymbolPair ->
                 match contentSymbolPair with
-                | [ contentNode; symbol ] -> parseMatchPattern contentNode
-                | [ contentNode ] -> parseMatchPattern contentNode)
+                | [ contentNode; symbol ] | [ contentNode ] -> parseMatchPattern contentNode)
               |> Stdlib.Result.collect)
 
             |> Stdlib.Option.withDefault ([] |> Stdlib.Result.Result.Ok)
@@ -279,15 +278,15 @@ module Darklang =
                 |> Stdlib.Result.Result.Ok
               | "bool" -> parseMPBool child
 
-              | "int8" -> parseMPInt child
-              | "uint8" -> parseMPInt child
-              | "int16" -> parseMPInt child
-              | "uint16" -> parseMPInt child
-              | "int32" -> parseMPInt child
-              | "uint32" -> parseMPInt child
-              | "int64" -> parseMPInt child
-              | "uint64" -> parseMPInt child
-              | "int128" -> parseMPInt child
+              | "int8"
+              | "uint8"
+              | "int16"
+              | "uint16"
+              | "int32"
+              | "uint32"
+              | "int64"
+              | "uint64"
+              | "int128"
               | "uint128" -> parseMPInt child
 
               | "float" -> parseMPFloat child

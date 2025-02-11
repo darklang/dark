@@ -252,36 +252,36 @@ module Darklang =
       module Expr =
         let toID (expr: Expr) : ID =
           match expr with
-          | EUnit id -> id
-          | EBool(id, _) -> id
-          | EInt8(id, _) -> id
-          | EUInt8(id, _) -> id
-          | EInt16(id, _) -> id
-          | EUInt16(id, _) -> id
-          | EInt32(id, _) -> id
-          | EUInt32(id, _) -> id
-          | EInt64(id, _) -> id
-          | EUInt64(id, _) -> id
-          | EInt128(id, _) -> id
-          | EUInt128(id, _) -> id
-          | EFloat(id, _, _, _) -> id
-          | EChar(id, _) -> id
-          | EString(id, _) -> id
-          | ELet(id, _, _, _) -> id
-          | EIf(id, _, _, _) -> id
-          | EInfix(id, _, _, _) -> id
-          | ELambda(id, _, _) -> id
-          | ERecordFieldAccess(id, _, _) -> id
-          | EVariable(id, _) -> id
-          | EApply(id, _, _, _) -> id
-          | EList(id, _) -> id
-          | EDict(id, _) -> id
-          | ETuple(id, _, _, _) -> id
-          | EPipe(id, _, _) -> id
-          | ERecord(id, _, _, _) -> id
-          | EEnum(id, _, _, _, _) -> id
-          | EMatch(id, _, _) -> id
-          | ERecordUpdate(id, _, _) -> id
+          | EUnit id
+          | EBool(id, _)
+          | EInt8(id, _)
+          | EUInt8(id, _)
+          | EInt16(id, _)
+          | EUInt16(id, _)
+          | EInt32(id, _)
+          | EUInt32(id, _)
+          | EInt64(id, _)
+          | EUInt64(id, _)
+          | EInt128(id, _)
+          | EUInt128(id, _)
+          | EFloat(id, _, _, _)
+          | EChar(id, _)
+          | EString(id, _)
+          | ELet(id, _, _, _)
+          | EIf(id, _, _, _)
+          | EInfix(id, _, _, _)
+          | ELambda(id, _, _)
+          | ERecordFieldAccess(id, _, _)
+          | EVariable(id, _)
+          | EApply(id, _, _, _)
+          | EList(id, _)
+          | EDict(id, _)
+          | ETuple(id, _, _, _)
+          | EPipe(id, _, _)
+          | ERecord(id, _, _, _)
+          | EEnum(id, _, _, _, _)
+          | EMatch(id, _, _)
+          | ERecordUpdate(id, _, _)
           | EStatement(id, _, _) -> id
 
 

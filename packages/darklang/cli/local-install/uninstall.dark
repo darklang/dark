@@ -16,7 +16,7 @@ module Darklang =
 
             Stdlib.Cli.PowerShell.removeFile darklangDir
 
-          | _ ->
+          | Linux | MacOS ->
             let darklangDir = "$HOME/.darklang"
             Stdlib.Cli.Unix.removeDirectory darklangDir
 
@@ -35,7 +35,7 @@ module Darklang =
             | Error err ->
               Stdlib.Result.Result.Error $"Error uninstalling darklang: {err}"
 
-          | _ ->
+          | Linux | MacOS ->
             let result =
               (Stdlib.Cli.Unix.deleteAlias host.defaultShell "dark")
               |> Stdlib.Result.andThen (fun _ -> removeDarklangDirectory host)

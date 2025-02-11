@@ -220,9 +220,8 @@ module Partition =
 
   Stdlib.List.partition_v0 [ 1L; 2L; 3L ] (fun item ->
     match item with
-    | 1L -> true
-    | 2L -> false
-    | 3L -> true) = ([ 1L; 3L ], [ 2L ])
+    | 1L | 3L -> true
+    | 2L -> false) = ([ 1L; 3L ], [ 2L ])
 
   Stdlib.List.partition_v0 [ true; false; true ] (fun item -> "a") =
     Builtin.testDerrorMessage "Encountered a condition that must be a Bool, but got a String (\"a\")"
