@@ -28,6 +28,7 @@ module Darklang =
 
       type QualifiedConstantOrFnIdentifier =
         { range: Range
+          /// the Range corresponds to the `.` after the module name
           modules: List<ModuleIdentifier * Range>
           constantOrFn: ConstantOrFnIdentifier }
 
@@ -87,12 +88,14 @@ module Darklang =
             first: TypeReference *
             symbolAsterisk: Range *
             second: TypeReference *
+            /// the Range corresponds to the `*` symbol
             rest: List<Range * TypeReference> *
             openParen: Range *
             closeParen: Range
 
           | TFn of
             Range *
+            /// the Range corresponds to the `->` symbol
             arguments: List<TypeReference.TypeReference * Range> *
             ret: TypeReference.TypeReference
 
@@ -103,7 +106,11 @@ module Darklang =
             typ: TypeReference *
             symbolCloseAngle: Range
 
-          | TVariable of Range * symbolSingleQuote: Range * name: (Range * String)
+          | TVariable of
+            Range *
+            symbolSingleQuote: Range *
+            /// the Range corresponds to the `'` symbol
+            name: (Range * String)
 
 
         type TypeReference =
@@ -119,6 +126,7 @@ module Darklang =
           first: LetPattern *
           symbolComma: Range *
           second: LetPattern *
+          /// the Range corresponds to the `;` symbol
           rest: List<Stdlib.Option.Option<Range> * LetPattern> *
           symbolOpenParen: Range *
           symbolCloseParen: Range
@@ -150,6 +158,7 @@ module Darklang =
           symbolCloseQuote: Range
         | MPList of
           Range *
+          /// the Range corresponds to the `;` symbol
           contents: List<MatchPattern * Stdlib.Option.Option<Range>> *
           symbolOpenBracket: Range *
           symbolCloseBracket: Range
@@ -163,6 +172,7 @@ module Darklang =
           first: MatchPattern *
           symbolComma: Range *
           second: MatchPattern *
+          /// the Range corresponds to the `,` symbol
           rest: List<Range * MatchPattern> *
           symbolOpenParen: Range *
           symbolCloseParen: Range
@@ -172,11 +182,17 @@ module Darklang =
           caseName: (Range * String) *
           fieldPats: List<MatchPattern>
 
-        // TODO: handle pipe symbols
+        // CLEANUP: handle pipe symbols
         | MPOr of Range * List<MatchPattern>
 
       type MatchCase =
-        { pat: Range * MatchPattern * Range
+        { pat:
+            /// the Range corresponds to the `|` symbol
+            Range *
+            MatchPattern *
+            /// the Range corresponds to the `->` symbol
+            Range
+          /// the Range corresponds to the `when` keyword
           whenCondition: Stdlib.Option.Option<Range * Expr>
           rhs: Expr }
 
@@ -244,6 +260,7 @@ module Darklang =
 
         | EList of
           Range *
+          /// the Range corresponds to the `;` symbol
           contents: List<Expr * Stdlib.Option.Option<Range>> *
           symbolOpenBracket: Range *
           symbolCloseBracket: Range
@@ -260,6 +277,7 @@ module Darklang =
           first: Expr *
           symbolComma: Range *
           second: Expr *
+          /// the Range corresponds to the `,` symbol
           rest: List<Range * Expr> *
           symbolOpenParen: Range *
           symbolCloseParen: Range
@@ -275,6 +293,7 @@ module Darklang =
         | ERecordUpdate of
           Range *
           record: Expr *
+          /// the second Range corresponds to the symbol `=`
           updates: List<(Range * String) * Range * Expr> *
           symbolOpenBrace: Range *
           symbolCloseBrace: Range *
@@ -320,6 +339,7 @@ module Darklang =
           keywordMatch: Range *
           keywordWith: Range
 
+        /// the Range corresponds to the `|` symbol
         | EPipe of Range * Expr * List<Range * PipeExpr>
 
         | EInfix of Range * op: (Range * Infix) * left: Expr * right: Expr
@@ -388,6 +408,7 @@ module Darklang =
           symbolCloseQuote: Range
         | CList of
           Range *
+          /// the Range corresponds to the `;` symbol
           contents: List<Const * Stdlib.Option.Option<Range>> *
           symbolOpenBracket: Range *
           symbolCloseBracket: Range
@@ -402,6 +423,7 @@ module Darklang =
           first: Const *
           symbolComma: Range *
           second: Const *
+          /// the Range corresponds to the `,` symbol
           rest: List<Range * Const> *
           symbolOpenParen: Range *
           symbolCloseParen: Range
@@ -455,7 +477,9 @@ module Darklang =
 
         type Definition =
           | Alias of TypeReference.TypeReference
+          /// the Range corresponds to the `;` symbol
           | Record of List<RecordField * Stdlib.Option.Option<Range>>
+          /// the Range corresponds to the `|` symbol
           | Enum of List<Range * EnumCase>
 
         type TypeDeclaration =

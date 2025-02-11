@@ -282,22 +282,7 @@ module Darklang =
               |> Stdlib.List.map (fun recordSeparatorPair ->
                 match recordSeparatorPair with
                 // CLEANUP collapse these two branches into one
-                | [ recordPairNode; _separator ] ->
-                  let fieldNode =
-                    findAndParseRequired recordPairNode "field" (fun node ->
-                      (node.range, node.text) |> Stdlib.Result.Result.Ok)
-
-                  let symbolEqualsNode = findField recordPairNode "symbol_equals"
-
-                  let valueNode =
-                    findAndParseRequired recordPairNode "value" Expr.parse
-
-                  match fieldNode, symbolEqualsNode, valueNode with
-                  | Ok field, Ok symEquals, Ok value ->
-                    (symEquals.range, field, value) |> Stdlib.Result.Result.Ok
-                  | _ -> createUnparseableError recordPairNode
-
-                | [ recordPairNode ] ->
+                | [ recordPairNode; _separator ]  | [ recordPairNode ] ->
                   let fieldNode =
                     findAndParseRequired recordPairNode "field" (fun node ->
                       (node.range, node.text) |> Stdlib.Result.Result.Ok)
@@ -352,22 +337,7 @@ module Darklang =
               |> Builtin.unwrap
               |> Stdlib.List.map (fun fieldSeparatorPair ->
                 match fieldSeparatorPair with
-                | [ fieldNode; _separator ] ->
-                  let fieldNameNode =
-                    findAndParseRequired fieldNode "field_name" (fun node ->
-                      ((node.range, node.text)) |> Stdlib.Result.Result.Ok)
-
-                  let symbolEqualsNode = findField fieldNode "symbol_equals"
-
-                  let valueNode = findAndParseRequired fieldNode "value" Expr.parse
-
-                  match fieldNameNode, symbolEqualsNode, valueNode with
-                  | Ok fieldName, Ok symEquals, Ok value ->
-                    ((fieldName, symEquals.range, value))
-                    |> Stdlib.Result.Result.Ok
-                  | _ -> createUnparseableError fieldNode
-
-                | [ fieldNode ] ->
+                | [ fieldNode; _separator ] | [ fieldNode ] ->
                   let fieldNameNode =
                     findAndParseRequired fieldNode "field_name" (fun node ->
                       ((node.range, node.text)) |> Stdlib.Result.Result.Ok)
@@ -810,15 +780,15 @@ module Darklang =
 
           | "unit" -> (WrittenTypes.Expr.EUnit node.range) |> Stdlib.Result.Result.Ok
           | "bool_literal" -> parseBoolLiteral node
-          | "int8_literal" -> parseIntLiteral node
-          | "uint8_literal" -> parseIntLiteral node
-          | "int16_literal" -> parseIntLiteral node
-          | "uint16_literal" -> parseIntLiteral node
-          | "int32_literal" -> parseIntLiteral node
-          | "uint32_literal" -> parseIntLiteral node
-          | "int64_literal" -> parseIntLiteral node
-          | "uint64_literal" -> parseIntLiteral node
-          | "int128_literal" -> parseIntLiteral node
+          | "int8_literal"
+          | "uint8_literal"
+          | "int16_literal"
+          | "uint16_literal"
+          | "int32_literal"
+          | "uint32_literal"
+          | "int64_literal"
+          | "uint64_literal"
+          | "int128_literal"
           | "uint128_literal" -> parseIntLiteral node
           | "float_literal" -> parseFloatLiteral node
           | "string_segment" -> parseStringLiteral node

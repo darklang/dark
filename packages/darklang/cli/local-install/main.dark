@@ -48,6 +48,7 @@ module Darklang =
       let selfUpdateIfRelevant () : Stdlib.Result.Result<Unit, String> =
         // if not installed, ignore -- nothing to self-update
 
+        // CLEANUP: what should we do if we fail to get the OS?
         let configPath =
           match (Stdlib.Cli.OS.getOS ()) with
           | Ok Windows ->
@@ -55,8 +56,8 @@ module Darklang =
               (Stdlib.Cli.PowerShell.getHomeDirectory ()) |> Builtin.unwrap
 
             $"{homeDirectory}\\.darklang\\config.json"
-          | Ok Linux -> "$HOME/.darklang/config.json"
-          | Ok MacOS -> "$HOME/.darklang/config.json"
+          | Ok Linux | Ok MacOS -> "$HOME/.darklang/config.json"
+
 
         if Stdlib.Bool.not (Builtin.fileExists configPath) then
           Stdlib.Result.Result.Ok()

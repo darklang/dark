@@ -69,8 +69,7 @@ module Darklang =
 
             Stdlib.Result.Result.Ok()
 
-          // TODO: Once we have support pattern grouping, replace the `| _ ->` with `| Linux | MacOS ->`
-          | _ ->
+          | Linux | MacOS ->
             let configPath = "$HOME/.darklang/config.json"
             let executableDir = "$HOME/.darklang/bin/"
 
@@ -119,3 +118,5 @@ module Darklang =
             |> Builtin.unwrap
 
             Stdlib.Result.Result.Ok()
+
+          | _ -> Stdlib.Result.Result.Error "Unsupported OS"

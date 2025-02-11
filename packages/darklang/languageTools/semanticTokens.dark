@@ -133,30 +133,24 @@ module Darklang =
             (t: WrittenTypes.TypeReference.Builtin)
             : List<SemanticToken> =
             match t with
-            | TUnit r -> [ makeToken r TokenType.TypeName ]
-            | TBool r -> [ makeToken r TokenType.TypeName ]
-            | TInt8 r -> [ makeToken r TokenType.TypeName ]
-            | TUInt8 r -> [ makeToken r TokenType.TypeName ]
-            | TInt16 r -> [ makeToken r TokenType.TypeName ]
-            | TUInt16 r -> [ makeToken r TokenType.TypeName ]
-            | TInt32 r -> [ makeToken r TokenType.TypeName ]
-            | TUInt32 r -> [ makeToken r TokenType.TypeName ]
-            | TInt64 r -> [ makeToken r TokenType.TypeName ]
-            | TUInt64 r -> [ makeToken r TokenType.TypeName ]
-            | TInt128 r -> [ makeToken r TokenType.TypeName ]
-            | TUInt128 r -> [ makeToken r TokenType.TypeName ]
-            | TFloat r -> [ makeToken r TokenType.TypeName ]
-            | TChar r -> [ makeToken r TokenType.TypeName ]
-            | TString r -> [ makeToken r TokenType.TypeName ]
-            | TUuid r -> [ makeToken r TokenType.TypeName ]
+            | TUnit r
+            | TBool r
+            | TInt8 r
+            | TUInt8 r
+            | TInt16 r
+            | TUInt16 r
+            | TInt32 r
+            | TUInt32 r
+            | TInt64 r
+            | TUInt64 r
+            | TInt128 r
+            | TUInt128 r
+            | TFloat r
+            | TChar r
+            | TString r
+            | TUuid r
             | TDateTime r -> [ makeToken r TokenType.TypeName ]
-            | TList(r, rk, ro, t, rc) ->
-              Stdlib.List.flatten (
-                [ [ makeToken rk TokenType.Keyword ]
-                  [ makeToken ro TokenType.Symbol ]
-                  (TypeReference.tokenize t)
-                  [ makeToken rc TokenType.Symbol ] ]
-              )
+            | TList(r, rk, ro, t, rc)
             | TDict(_r, rk, ro, t, rc) ->
               Stdlib.List.flatten (
                 [ [ makeToken rk TokenType.Keyword ]
@@ -407,33 +401,15 @@ module Darklang =
           match p with
           | MPVariable(range, _name) -> [ makeToken range TokenType.VariableName ]
           | MPUnit(range) -> [ makeToken range TokenType.Symbol ]
-          | MPInt8(_, (intPartRange, _), suffixPartRange) ->
-            [ makeToken intPartRange TokenType.Number
-              makeToken suffixPartRange TokenType.Symbol ]
-          | MPUInt8(_, (intPartRange, _), suffixPartRange) ->
-            [ makeToken intPartRange TokenType.Number
-              makeToken suffixPartRange TokenType.Symbol ]
-          | MPInt16(_, (intPartRange, _), suffixPartRange) ->
-            [ makeToken intPartRange TokenType.Number
-              makeToken suffixPartRange TokenType.Symbol ]
-          | MPUInt16(_, (intPartRange, _), suffixPartRange) ->
-            [ makeToken intPartRange TokenType.Number
-              makeToken suffixPartRange TokenType.Symbol ]
-          | MPInt32(_, (intPartRange, _), suffixPartRange) ->
-            [ makeToken intPartRange TokenType.Number
-              makeToken suffixPartRange TokenType.Symbol ]
-          | MPUInt32(_, (intPartRange, _), suffixPartRange) ->
-            [ makeToken intPartRange TokenType.Number
-              makeToken suffixPartRange TokenType.Symbol ]
-          | MPInt64(_, (intPartRange, _), suffixPartRange) ->
-            [ makeToken intPartRange TokenType.Number
-              makeToken suffixPartRange TokenType.Symbol ]
-          | MPUInt64(_, (intPartRange, _), suffixPartRange) ->
-            [ makeToken intPartRange TokenType.Number
-              makeToken suffixPartRange TokenType.Symbol ]
-          | MPInt128(_, (intPartRange, _), suffixPartRange) ->
-            [ makeToken intPartRange TokenType.Number
-              makeToken suffixPartRange TokenType.Symbol ]
+          | MPInt8(_, (intPartRange, _), suffixPartRange)
+          | MPUInt8(_, (intPartRange, _), suffixPartRange)
+          | MPInt16(_, (intPartRange, _), suffixPartRange)
+          | MPUInt16(_, (intPartRange, _), suffixPartRange)
+          | MPInt32(_, (intPartRange, _), suffixPartRange)
+          | MPUInt32(_, (intPartRange, _), suffixPartRange)
+          | MPInt64(_, (intPartRange, _), suffixPartRange)
+          | MPUInt64(_, (intPartRange, _), suffixPartRange)
+          | MPInt128(_, (intPartRange, _), suffixPartRange)
           | MPUInt128(_, (intPartRange, _), suffixPartRange) ->
             [ makeToken intPartRange TokenType.Number
               makeToken suffixPartRange TokenType.Symbol ]
@@ -647,50 +623,23 @@ module Darklang =
           | EBool(range, _b) -> [ makeToken range TokenType.Keyword ]
 
           // 12y
-          | EInt8(_, (intPartRange, _), suffixPartRange) ->
-            [ makeToken intPartRange TokenType.Number
-              makeToken suffixPartRange TokenType.Symbol ]
-
+          | EInt8(_, (intPartRange, _), suffixPartRange)
           // 12uy
-          | EUInt8(_, (intPartRange, _), suffixPartRange) ->
-            [ makeToken intPartRange TokenType.Number
-              makeToken suffixPartRange TokenType.Symbol ]
-
+          | EUInt8(_, (intPartRange, _), suffixPartRange)
           // 12s
-          | EInt16(_, (intPartRange, _), suffixPartRange) ->
-            [ makeToken intPartRange TokenType.Number
-              makeToken suffixPartRange TokenType.Symbol ]
-
+          | EInt16(_, (intPartRange, _), suffixPartRange)
           // 12us
-          | EUInt16(_, (intPartRange, _), suffixPartRange) ->
-            [ makeToken intPartRange TokenType.Number
-              makeToken suffixPartRange TokenType.Symbol ]
-
+          | EUInt16(_, (intPartRange, _), suffixPartRange)
           // 12l
-          | EInt32(_, (intPartRange, _), suffixPartRange) ->
-            [ makeToken intPartRange TokenType.Number
-              makeToken suffixPartRange TokenType.Symbol ]
-
+          | EInt32(_, (intPartRange, _), suffixPartRange)
           // 12ul
-          | EUInt32(_, (intPartRange, _), suffixPartRange) ->
-            [ makeToken intPartRange TokenType.Number
-              makeToken suffixPartRange TokenType.Symbol ]
-
+          | EUInt32(_, (intPartRange, _), suffixPartRange)
           // 12L
-          | EInt64(_, (intPartRange, _), suffixPartRange) ->
-            [ makeToken intPartRange TokenType.Number
-              makeToken suffixPartRange TokenType.Symbol ]
-
+          | EInt64(_, (intPartRange, _), suffixPartRange)
           // 12UL
-          | EUInt64(_, (intPartRange, _), suffixPartRange) ->
-            [ makeToken intPartRange TokenType.Number
-              makeToken suffixPartRange TokenType.Symbol ]
-
+          | EUInt64(_, (intPartRange, _), suffixPartRange)
           // 12Q
-          | EInt128(_, (intPartRange, _), suffixPartRange) ->
-            [ makeToken intPartRange TokenType.Number
-              makeToken suffixPartRange TokenType.Symbol ]
-
+          | EInt128(_, (intPartRange, _), suffixPartRange)
           // 12Z
           | EUInt128(_, (intPartRange, _), suffixPartRange) ->
             [ makeToken intPartRange TokenType.Number
@@ -1070,42 +1019,15 @@ module Darklang =
           match c with
           | CUnit r -> [ makeToken r TokenType.Symbol ]
           | CBool(r, _) -> [ makeToken r TokenType.Keyword ]
-          | CInt8(_, (intPartRange, _), suffixPartRange) ->
-            [ makeToken intPartRange TokenType.Number
-              makeToken suffixPartRange TokenType.Symbol ]
-
-          | CUInt8(_, (intPartRange, _), suffixPartRange) ->
-            [ makeToken intPartRange TokenType.Number
-              makeToken suffixPartRange TokenType.Symbol ]
-
-          | CInt16(_, (intPartRange, _), suffixPartRange) ->
-            [ makeToken intPartRange TokenType.Number
-              makeToken suffixPartRange TokenType.Symbol ]
-
-          | CUInt16(_, (intPartRange, _), suffixPartRange) ->
-            [ makeToken intPartRange TokenType.Number
-              makeToken suffixPartRange TokenType.Symbol ]
-
-          | CInt32(_, (intPartRange, _), suffixPartRange) ->
-            [ makeToken intPartRange TokenType.Number
-              makeToken suffixPartRange TokenType.Symbol ]
-
-          | CUInt32(_, (intPartRange, _), suffixPartRange) ->
-            [ makeToken intPartRange TokenType.Number
-              makeToken suffixPartRange TokenType.Symbol ]
-
-          | CInt64(_, (intPartRange, _), suffixPartRange) ->
-            [ makeToken intPartRange TokenType.Number
-              makeToken suffixPartRange TokenType.Symbol ]
-
-          | CUInt64(_, (intPartRange, _), suffixPartRange) ->
-            [ makeToken intPartRange TokenType.Number
-              makeToken suffixPartRange TokenType.Symbol ]
-
-          | CInt128(_, (intPartRange, _), suffixPartRange) ->
-            [ makeToken intPartRange TokenType.Number
-              makeToken suffixPartRange TokenType.Symbol ]
-
+          | CInt8(_, (intPartRange, _), suffixPartRange)
+          | CUInt8(_, (intPartRange, _), suffixPartRange)
+          | CInt16(_, (intPartRange, _), suffixPartRange)
+          | CUInt16(_, (intPartRange, _), suffixPartRange)
+          | CInt32(_, (intPartRange, _), suffixPartRange)
+          | CUInt32(_, (intPartRange, _), suffixPartRange)
+          | CInt64(_, (intPartRange, _), suffixPartRange)
+          | CUInt64(_, (intPartRange, _), suffixPartRange)
+          | CInt128(_, (intPartRange, _), suffixPartRange)
           | CUInt128(_, (intPartRange, _), suffixPartRange) ->
             [ makeToken intPartRange TokenType.Number
               makeToken suffixPartRange TokenType.Symbol ]

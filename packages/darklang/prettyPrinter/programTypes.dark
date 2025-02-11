@@ -12,7 +12,7 @@ module Darklang =
       module NameResolutionError =
         let source (nre: LanguageTools.ProgramTypes.NameResolutionError) : String =
           match nre with
-          | NotFound names -> Stdlib.String.join names "."
+          | NotFound names
           | InvalidName names -> Stdlib.String.join names "."
 
         let error (nre: LanguageTools.ProgramTypes.NameResolutionError) : String =
@@ -599,7 +599,7 @@ module Darklang =
 
           // TODO: only sometimes need to wrap exprPart in parens
           match expr with
-          | EVariable(_, _) -> $"{exprPart}.{fieldName}"
+          | EVariable(_, _)
           | ERecordFieldAccess(_, _, _) -> $"{exprPart}.{fieldName}"
           | _ -> $"({exprPart}).{fieldName}"
 

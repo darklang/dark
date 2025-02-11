@@ -47,8 +47,7 @@ module Darklang =
 
       | [ "uninstall" ] -> Command.Uninstall
 
-      | [ "install" ] -> Command.RunInstallOrUpdate
-      | [ "update" ] -> Command.RunInstallOrUpdate
+      | [ "install" ] | [ "update" ]  -> Command.RunInstallOrUpdate
 
       | thingToRun :: args ->
         if Stdlib.String.startsWith thingToRun "@" then
