@@ -69,7 +69,7 @@ module Darklang =
 
             Stdlib.Result.Result.Ok()
 
-          | Linux | MacOS
+          | Linux | MacOS ->
             let configPath = "$HOME/.darklang/config.json"
             let executableDir = "$HOME/.darklang/bin/"
 
