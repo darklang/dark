@@ -25,16 +25,20 @@ let fns : List<BuiltInFn> =
           // CLEANUP rename cki to something better
           let readKey = Console.ReadKey true
 
-          let altHeld = (readKey.Modifiers &&& ConsoleModifiers.Alt) <> ConsoleModifiers.None
-          let shiftHeld  = (readKey.Modifiers &&& ConsoleModifiers.Shift) <> ConsoleModifiers.None
-          let ctrlHeld =  (readKey.Modifiers &&& ConsoleModifiers.Control) <> ConsoleModifiers.None
+          let altHeld =
+            (readKey.Modifiers &&& ConsoleModifiers.Alt) <> ConsoleModifiers.None
+          let shiftHeld =
+            (readKey.Modifiers &&& ConsoleModifiers.Shift) <> ConsoleModifiers.None
+          let ctrlHeld =
+            (readKey.Modifiers &&& ConsoleModifiers.Control) <> ConsoleModifiers.None
 
           let modifiers =
-            let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.Cli.Stdin.modifiers
+            let typeName =
+              FQTypeName.fqPackage PackageIDs.Type.Stdlib.Cli.Stdin.modifiers
             let fields =
-              ["alt", DBool altHeld
-               "shift", DBool shiftHeld
-               "ctrl", DBool ctrlHeld ]
+              [ "alt", DBool altHeld
+                "shift", DBool shiftHeld
+                "ctrl", DBool ctrlHeld ]
             DRecord(typeName, typeName, [], Map fields)
 
           let keyCaseName =
@@ -192,8 +196,14 @@ let fns : List<BuiltInFn> =
             DEnum(typeName, typeName, [], keyCaseName, [])
 
           let keyRead =
-            let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.Cli.Stdin.keyRead
-            DRecord(typeName, typeName, [], Map ["key", key; "modifiers", modifiers])
+            let typeName =
+              FQTypeName.fqPackage PackageIDs.Type.Stdlib.Cli.Stdin.keyRead
+            DRecord(
+              typeName,
+              typeName,
+              [],
+              Map [ "key", key; "modifiers", modifiers ]
+            )
 
           Ply(keyRead)
         | _ -> incorrectArgs ())

@@ -97,9 +97,11 @@ module Type =
 
       module Stdin =
         let private p addl = p ("Stdin" :: addl)
-        let modifiers = p ["Modifiers"] "Modifiers" "75e354e3-28a8-4086-bad8-8cea633d3358"
-        let key = p ["Key"] "Key" "c871205d-d08d-4bfe-afa5-4b207f07182b"
-        let keyRead =  p ["KeyRead"] "KeyRead" "14ae96ae-a1cf-4275-aa7e-01437bf5e822"
+        let modifiers =
+          p [ "Modifiers" ] "Modifiers" "75e354e3-28a8-4086-bad8-8cea633d3358"
+        let key = p [ "Key" ] "Key" "c871205d-d08d-4bfe-afa5-4b207f07182b"
+        let keyRead =
+          p [ "KeyRead" ] "KeyRead" "14ae96ae-a1cf-4275-aa7e-01437bf5e822"
 
   module LanguageTools =
     let private p addl = p ("LanguageTools" :: addl)
