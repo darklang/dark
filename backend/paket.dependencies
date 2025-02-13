@@ -10,13 +10,14 @@ nuget FSharpPlus = 1.5.0
 nuget FsRegEx = 0.7.2
 nuget FSharpx.Extras = 3.1.0
 nuget FSharp.Core = 8.0.100
+nuget System.Text.Json = 8.0.5
 nuget FSharp.SystemTextJson = 1.3.13
 nuget NodaTime = 3.1.11
-nuget NodaTime.Serialization.SystemTextJson = 1.2.0
+nuget NodaTime.Serialization.SystemTextJson = 1.3.0
 nuget System.IO.Hashing 8.0.0
 
 // Binary Serialization
-nuget MessagePack = 2.5.129
+nuget MessagePack = 2.5.187
 nuget MessagePack.NodaTime = 3.2.1
 nuget MessagePack.FSharpExtensions = 4.0.0
 

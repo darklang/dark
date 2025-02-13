@@ -1,5 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <TargetFramework>net8.0</TargetFramework>
@@ -9,18 +9,15 @@
     <IsTrimmable>false</IsTrimmable>
     <SelfContained>true</SelfContained>
   </PropertyGroup>
-
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
-  <ItemGroup><None Include="paket.references" /></ItemGroup>
-
+  <ItemGroup>
+    <None Include="paket.references" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
   </ItemGroup>
-
   <ItemGroup>
     <Compile Include="DarkDateTime.fs" />
     <Compile Include="PackageIDs.fs" />
-
     <!-- Runtime /-->
     <Compile Include="RuntimeTypes.fs" />
     <Compile Include="ValueType.fs" />
@@ -29,20 +26,18 @@
     <Compile Include="TypeChecker.fs" />
     <Compile Include="Interpreter.fs" />
     <Compile Include="AnalysisTypes.fs" />
-
     <!-- Dev-time, Language Design, Mental Model /-->
     <Compile Include="ProgramTypes.fs" />
     <Compile Include="ProgramTypesAst.fs" />
     <Compile Include="ProgramTypesToRuntimeTypes.fs" />
     <Compile Include="ProgramTypesParser.fs" />
-
     <!-- User+Runtime I/O /-->
     <Compile Include="DvalDecoder.fs" />
     <Compile Include="CommonToDarkTypes.fs" />
     <Compile Include="RuntimeTypesToDarkTypes.fs" />
     <Compile Include="ProgramTypesToDarkTypes.fs" />
-
     <!-- Expose the runtime to the outside world /-->
     <Compile Include="Execution.fs" />
   </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
