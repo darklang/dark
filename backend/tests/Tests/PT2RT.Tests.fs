@@ -536,6 +536,51 @@ module Expr =
            RT.MatchUnmatched ],
          3)
 
+    let combinedPatSameVarDifferentPos =
+      t
+        "match (Stdlib.Result.Result.Ok 1L, Stdlib.Result.Result.Error \"error\") with\n| (Error err, Ok _) | (Ok _, Error err) -> err"
+        E.Match.combinedPatSameVarDifferentPos
+        (8,
+         [ RT.LoadVal(2, RT.DInt64 1L)
+           RT.CreateEnum(
+             1,
+             RT.FQTypeName.fqPackage PM.Types.Enums.resultId,
+             [],
+             "Ok",
+             [ 2 ]
+           )
+           RT.LoadVal(4, RT.DString "error")
+           RT.CreateEnum(
+             3,
+             RT.FQTypeName.fqPackage PM.Types.Enums.resultId,
+             [],
+             "Error",
+             [ 4 ]
+           )
+           RT.CreateTuple(0, 1, 3, [])
+
+           RT.CheckMatchPatternAndExtractVars(
+             0,
+             (RT.MPOr(
+               NEList.ofList
+                 (RT.MPTuple(
+                   RT.MPEnum("Error", [ RT.MPVariable 7 ]),
+                   RT.MPEnum("Ok", [ RT.MPVariable 6 ]),
+                   []
+                 ))
+                 [ RT.MPTuple(
+                     RT.MPEnum("Ok", [ RT.MPVariable 6 ]),
+                     RT.MPEnum("Error", [ RT.MPVariable 7 ]),
+                     []
+                   ) ]
+             )),
+             2
+           )
+           RT.CopyVal(5, 7)
+           RT.JumpBy 1
+
+           RT.MatchUnmatched ],
+         5)
 
     let tests =
       testList
@@ -548,7 +593,8 @@ module Expr =
           listCons
           tuple
           combinedPatterns
-          combinedPatternsWithVarAndWhenCond ]
+          combinedPatternsWithVarAndWhenCond
+          combinedPatSameVarDifferentPos ]
 
   module Pipes =
     let lambda =

@@ -244,8 +244,7 @@ module Darklang =
           match (acc, result) with
           | (Ok acc, Ok result) ->
             Stdlib.Result.Result.Ok(Stdlib.List.pushBack acc result)
-          | (Ok _, Error err) -> Stdlib.Result.Result.Error err
-          | (Error err, _) -> Stdlib.Result.Result.Error err)
+          | (Ok _, Error err) | (Error err, _) -> Stdlib.Result.Result.Error err)
 
 
       /// Returns a list of all the values that are {{Ok <var value>}}, and ignores any values that are {{Error <var msg>}}.
