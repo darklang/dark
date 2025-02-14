@@ -13,6 +13,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 module PackageIDs = LibExecution.PackageIDs
 module BuiltinCli = BuiltinCli.Builtin
+module BuiltinCliHostConfig = BuiltinCliHost.Libs.Cli.Config
 
 // ---------------------
 // Version information
@@ -43,24 +44,10 @@ let info () =
 // Execution
 // ---------------------
 
-// TODO: de-dupe with _other_ Cli.fs
-let pmBaseUrl =
-  match
-    System.Environment.GetEnvironmentVariable "DARK_CONFIG_PACKAGE_MANAGER_BASE_URL"
-  with
-  | null -> "https://packages.darklang.com"
-  | var -> var
-let packageManagerRT = LibPackageManager.PackageManager.rt pmBaseUrl
-let packageManagerPT = LibPackageManager.PackageManager.pt pmBaseUrl
-
-
 let builtins : RT.Builtins =
   LibExecution.Builtin.combine
-    [ BuiltinExecution.Builtin.builtins
-        BuiltinExecution.Libs.HttpClient.defaultConfig
-        packageManagerPT
-      BuiltinCli.Builtin.builtins
-      BuiltinCliHost.Builtin.builtins ]
+    [ BuiltinCliHostConfig.builtinsToUse
+      LibExecution.Builtin.combine [ BuiltinCliHost.Builtin.builtins ] [] ]
     []
 
 
@@ -92,7 +79,7 @@ let state () =
 
   Exe.createState
     builtins
-    packageManagerRT
+    BuiltinCliHostConfig.packageManagerRT
     Exe.noTracing
     sendException
     notify
@@ -124,7 +111,7 @@ let main (args : string[]) =
   try
     initSerializers ()
 
-    packageManagerRT.init.Result
+    BuiltinCliHostConfig.packageManagerRT.init.Result
 
     let result = execute (Array.toList args)
     let result = result.Result
