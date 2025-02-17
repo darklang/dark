@@ -282,6 +282,21 @@ module MatchPattern =
         |> List.map (fun (pat, symbolMap, _) ->
           let rec updateRegisters pattern =
             match pattern with
+            | RT.MPUnit -> RT.MPUnit
+            | RT.MPBool b -> RT.MPBool b
+            | RT.MPInt8 i -> RT.MPInt8 i
+            | RT.MPUInt8 i -> RT.MPUInt8 i
+            | RT.MPInt16 i -> RT.MPInt16 i
+            | RT.MPUInt16 i -> RT.MPUInt16 i
+            | RT.MPInt32 i -> RT.MPInt32 i
+            | RT.MPUInt32 i -> RT.MPUInt32 i
+            | RT.MPInt64 i -> RT.MPInt64 i
+            | RT.MPUInt64 i -> RT.MPUInt64 i
+            | RT.MPInt128 i -> RT.MPInt128 i
+            | RT.MPUInt128 i -> RT.MPUInt128 i
+            | RT.MPFloat f -> RT.MPFloat f
+            | RT.MPChar c -> RT.MPChar c
+            | RT.MPString s -> RT.MPString s
             | RT.MPVariable reg ->
               // when we find a variable, check if it should use a common register
               match Map.tryFindKey (fun _ v -> v = reg) symbolMap with
@@ -302,7 +317,6 @@ module MatchPattern =
             | RT.MPEnum(name, fields) ->
               RT.MPEnum(name, List.map updateRegisters fields)
             | RT.MPOr patterns -> RT.MPOr(NEList.map updateRegisters patterns)
-            | other -> other
           updateRegisters pat)
 
       let patterns =
