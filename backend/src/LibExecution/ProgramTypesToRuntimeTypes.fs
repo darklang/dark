@@ -235,7 +235,7 @@ module MatchPattern =
       RT.MPVariable rc, (symbols |> Map.add name rc), rc + 1
 
     | PT.MPOr(_, patterns) ->
-      // transform each pattern into a tuple containing:
+      // Transform each pattern into a tuple containing:
       // - the converted pattern (to RT)
       // - the symbols used in the pattern
       // - the register count needed by the pattern
@@ -246,7 +246,8 @@ module MatchPattern =
           let pat, patSymbols, patRc = toRT Map.empty rc pat
           (pat, patSymbols, patRc))
 
-      // find the highest register count needed across all patterns
+      // Find the highest register count needed across all patterns
+      // to make sure we allocate enough registers to handle any of the patterns
       let maxRc = patternsWithSymbols |> List.map (fun (_, _, rc) -> rc) |> List.max
 
       // build a consistent symbol-to-register mapping across all patterns
@@ -256,6 +257,9 @@ module MatchPattern =
           patternsWithSymbols
           |> List.map (fun (_, symbols, _) -> Map.keys symbols |> Set.ofSeq)
 
+        // Only include variables that show up in every pattern - if "x" appears in
+        // (x,y) | (y,x), it needs the same register in both places.
+        // This ensures a variable name always refers to the same value
         match symbols with
         | [] -> Map.empty
         | first :: rest ->
@@ -268,8 +272,11 @@ module MatchPattern =
             (Map.empty, rc)
           |> fst // take just the mapping, discard the final nextFreeRegister since we don't need it anymore
 
-      // update all patterns to use the consistent register mapping
-      // walk through each pattern, and for each variable, find the common register
+      // Update all patterns to use the consistent register mapping.
+      // For each variable pattern encountered:
+      // - If the variable appears in all patterns (is in commonSymbolMapping),
+      //   replace its register with the common register assigned to that symbol
+      // - Otherwise, leave its original register unchanged
       let patternsWithConsistentRegisters =
         patternsWithSymbols
         |> List.map (fun (pat, symbolMap, _) ->
