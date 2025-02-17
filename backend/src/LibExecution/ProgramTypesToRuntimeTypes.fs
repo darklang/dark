@@ -235,7 +235,7 @@ module MatchPattern =
       RT.MPVariable rc, (symbols |> Map.add name rc), rc + 1
 
     | PT.MPOr(_, patterns) ->
-      // transform each pattern into a tuple containing:
+      // Transform each pattern into a tuple containing:
       // - the converted pattern (to RT)
       // - the symbols used in the pattern
       // - the register count needed by the pattern
@@ -246,37 +246,85 @@ module MatchPattern =
           let pat, patSymbols, patRc = toRT Map.empty rc pat
           (pat, patSymbols, patRc))
 
-      // find the highest register count needed across all patterns
+      // Find the highest register count needed across all patterns
+      // to make sure we allocate enough registers to handle any of the patterns
       let maxRc = patternsWithSymbols |> List.map (fun (_, _, rc) -> rc) |> List.max
-
-      // use the first pattern's symbols as the reference set
-      let referenceSymbols =
-        match patternsWithSymbols with
-        | (_, firstPatternSymbols, _) :: _ ->
-          Map.keys firstPatternSymbols |> Set.ofSeq
-        | [] -> Set.empty
 
       // build a consistent symbol-to-register mapping across all patterns
       // maintains consistency by using the same register for the same symbol across patterns
       let commonSymbolMapping =
-        referenceSymbols
-        |> Set.fold
-          (fun (currentMapping, nextFreeRegister) currentSymbol ->
-            // Try to find if this symbol already has a register assigned in any pattern
-            let registerToUse =
-              patternsWithSymbols
-              |> List.tryPick (fun (_, symbolMaps, _) ->
-                Map.tryFind currentSymbol symbolMaps)
-              |> Option.defaultValue nextFreeRegister
-            // Add this symbol->register mapping and increment next free register
-            (Map.add currentSymbol registerToUse currentMapping,
-             nextFreeRegister + 1))
-          (Map.empty, rc)
-        |> fst // take just the mapping, discard the final nextFreeRegister since we don't need it anymore
+        let symbols =
+          patternsWithSymbols
+          |> List.map (fun (_, symbols, _) -> Map.keys symbols |> Set.ofSeq)
 
-      // extract the runtime patterns.
-      let patterns = patternsWithSymbols |> List.map (fun (p, _, _) -> p)
-      (RT.MPOr(NEList.ofList patterns.Head patterns.Tail), commonSymbolMapping, maxRc)
+        // Only include variables that show up in every pattern - if "x" appears in
+        // (x,y) | (y,x), it needs the same register in both places.
+        // This ensures a variable name always refers to the same value
+        match symbols with
+        | [] -> Map.empty
+        | first :: rest ->
+          List.fold Set.intersect first rest
+          |> Set.fold
+            (fun (currentMapping, nextFreeRegister) currentSymbol ->
+              let registerToUse = nextFreeRegister
+              (Map.add currentSymbol registerToUse currentMapping,
+               nextFreeRegister + 1))
+            (Map.empty, rc)
+          |> fst // take just the mapping, discard the final nextFreeRegister since we don't need it anymore
+
+      // Update all patterns to use the consistent register mapping.
+      // For each variable pattern encountered:
+      // - If the variable appears in all patterns (is in commonSymbolMapping),
+      //   replace its register with the common register assigned to that symbol
+      // - Otherwise, leave its original register unchanged
+      let patternsWithConsistentRegisters =
+        patternsWithSymbols
+        |> List.map (fun (pat, symbolMap, _) ->
+          let rec updateRegisters pattern =
+            match pattern with
+            | RT.MPUnit -> RT.MPUnit
+            | RT.MPBool b -> RT.MPBool b
+            | RT.MPInt8 i -> RT.MPInt8 i
+            | RT.MPUInt8 i -> RT.MPUInt8 i
+            | RT.MPInt16 i -> RT.MPInt16 i
+            | RT.MPUInt16 i -> RT.MPUInt16 i
+            | RT.MPInt32 i -> RT.MPInt32 i
+            | RT.MPUInt32 i -> RT.MPUInt32 i
+            | RT.MPInt64 i -> RT.MPInt64 i
+            | RT.MPUInt64 i -> RT.MPUInt64 i
+            | RT.MPInt128 i -> RT.MPInt128 i
+            | RT.MPUInt128 i -> RT.MPUInt128 i
+            | RT.MPFloat f -> RT.MPFloat f
+            | RT.MPChar c -> RT.MPChar c
+            | RT.MPString s -> RT.MPString s
+            | RT.MPVariable reg ->
+              // when we find a variable, check if it should use a common register
+              match Map.tryFindKey (fun _ v -> v = reg) symbolMap with
+              | Some varName ->
+                match Map.tryFind varName commonSymbolMapping with
+                | Some commonReg -> RT.MPVariable commonReg
+                | None -> pattern
+              | None -> pattern
+            | RT.MPList pats -> RT.MPList(List.map updateRegisters pats)
+            | RT.MPListCons(head, tail) ->
+              RT.MPListCons(updateRegisters head, updateRegisters tail)
+            | RT.MPTuple(first, second, rest) ->
+              RT.MPTuple(
+                updateRegisters first,
+                updateRegisters second,
+                List.map updateRegisters rest
+              )
+            | RT.MPEnum(name, fields) ->
+              RT.MPEnum(name, List.map updateRegisters fields)
+            | RT.MPOr patterns -> RT.MPOr(NEList.map updateRegisters patterns)
+          updateRegisters pat)
+
+      let patterns =
+        NEList.ofList
+          patternsWithConsistentRegisters.Head
+          patternsWithConsistentRegisters.Tail
+
+      (RT.MPOr(patterns), commonSymbolMapping, maxRc)
 
 
 

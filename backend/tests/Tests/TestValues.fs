@@ -44,6 +44,7 @@ module PM =
     module Enums =
       let withoutFields = guuid ()
       let withFields = guuid ()
+      let resultId = guuid ()
       let make id name cases =
         make id name (PT.TypeDeclaration.Enum(NEList.ofListUnsafe "" [] cases))
 
@@ -64,7 +65,18 @@ module PM =
               fields = [ { typ = PT.TInt64; label = None; description = "TODO" } ]
               description = "TODO" } ]
 
-      let all : List<PT.PackageType.PackageType> = [ colorEnum; MyOption ]
+      let MyResult =
+        make
+          resultId
+          (PT.PackageType.name "Test" [] "MyResult")
+          [ { name = "Ok"
+              fields = [ { typ = PT.TInt64; label = None; description = "TODO" } ]
+              description = "TODO" }
+            { name = "Error"
+              fields = [ { typ = PT.TString; label = None; description = "TODO" } ]
+              description = "TODO" } ]
+
+      let all : List<PT.PackageType.PackageType> = [ colorEnum; MyOption; MyResult ]
 
 
     let all = Records.all @ Enums.all
@@ -363,7 +375,37 @@ module Expressions =
             rhs = eStr [ strText "second branch" ] } ]
 
 
-
+    // match (Stdlib.Result.Result.Ok 1L, Stdlib.Result.Result.Error "error") with
+    // | (Error err, Ok _) | (Ok _, Error err) -> err
+    let combinedPatSameVarDifferentPos =
+      eMatch
+        (eTuple
+          (eEnum (typeNamePkg PM.Types.Enums.resultId) [] "Ok" [ eInt64 1 ])
+          (eEnum
+            (typeNamePkg PM.Types.Enums.resultId)
+            []
+            "Error"
+            [ eStr [ strText "error" ] ])
+          [])
+        [ { pat =
+              PT.MPOr(
+                gid (),
+                NEList.ofList
+                  (PT.MPTuple(
+                    gid (),
+                    PT.MPEnum(gid (), "Error", [ PT.MPVariable(gid (), "err") ]),
+                    PT.MPEnum(gid (), "Ok", [ PT.MPVariable(gid (), "_") ]),
+                    []
+                  ))
+                  [ PT.MPTuple(
+                      gid (),
+                      PT.MPEnum(gid (), "Ok", [ PT.MPVariable(gid (), "_") ]),
+                      PT.MPEnum(gid (), "Error", [ PT.MPVariable(gid (), "err") ]),
+                      []
+                    ) ]
+              )
+            whenCondition = None
+            rhs = eVar "err" } ]
 
 
   module Pipes =
