@@ -230,10 +230,35 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [ DDict(vt, o); DString k; v ] ->
-          // CLEANUP perf
-          Map.foldBack (fun key value acc -> (key, value) :: acc) o [ (k, v) ]
-          |> TypeChecker.DvalCreator.dict vm.threadID vt
-          |> Ply
+          // Our algorithm to avoid excessive type checking for this 'set' function:
+          // First, we get any random key which already exists in the map.
+          // Secondly, because the values already existing in this map are already
+          // guaranteed to be the same type (or else we would have no map here),
+          // we create a list of the old random (key, value) pair with the new
+          // (key, value) pair and check if this new list is type safe.
+          // If so, we add the new (key, value) pair to the map.
+          let alwaysTrue _ _ = true
+          // Get random key in map, without searching the whole map
+          match Map.tryFindKey alwaysTrue o with
+          | Some oldKey ->
+            // Get value belonging to old key
+            // Note: The Prelude module shadows the normal 'find'
+            // function which raises an exception if there's no matching key
+            // so we have to perform unnecessary pattern matching, or edit Prelude
+            // to have a `Map.findUnsafe` function.
+            match Map.find oldKey o with
+            | Some oldVal ->
+              let typeList = [ (oldKey, oldVal); (k, v) ]
+              // Implicit: below function call will raise an exception if not type safe.
+              let _ = TypeChecker.DvalCreator.dict vm.threadID vt typeList
+              let map = DDict(vt, Map.add k v o)
+              Ply map
+            | None ->
+              // This case is impossible
+              TypeChecker.DvalCreator.dict vm.threadID vt [ (k, v) ] |> Ply
+          | None ->
+            // The None case means the existing map is empty
+            TypeChecker.DvalCreator.dict vm.threadID vt [ (k, v) ] |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
