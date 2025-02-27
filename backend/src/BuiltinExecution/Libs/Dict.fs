@@ -249,12 +249,14 @@ let fns : List<BuiltInFn> =
             match Map.find oldKey o with
             | Some oldVal ->
               let typeList = [ (oldKey, oldVal); (k, v) ]
-              // Implicit: below function call will raise an exception if not type safe.
+              // Implicit: below function call will raise an exception if
+              // type of new key/value pair differs from type of old key/value pair
               let _ = TypeChecker.DvalCreator.dict vm.threadID vt typeList
               let map = DDict(vt, Map.add k v o)
               Ply map
             | None ->
               // This case is impossible
+              // Maybe we should raise an error or do something else here?
               TypeChecker.DvalCreator.dict vm.threadID vt [ (k, v) ] |> Ply
           | None ->
             // The None case means the existing map is empty
