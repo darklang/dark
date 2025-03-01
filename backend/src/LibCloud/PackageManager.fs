@@ -5,6 +5,7 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 open Npgsql.FSharp
 open Npgsql
+open Microsoft.Data.Sqlite
 
 open Prelude
 
@@ -16,75 +17,130 @@ module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 
-let savePackageTypes (types : List<PT.PackageType.PackageType>) : Task<Unit> =
+let connString = "Data Source=rundir/data.db"
+
+let savePackageTypes (types : List<PT.PackageType.PackageType>) : Task<unit> =
   types
   |> Task.iterInParallel (fun typ ->
-    Sql.query
-      "INSERT INTO package_types_v0
-        (id, owner, modules, name, definition)
-      VALUES
-        (@id, @owner, @modules, @name, @definition)"
-    |> Sql.parameters
-      [ "id", Sql.uuid typ.id
-        "owner", Sql.string typ.name.owner
-        "modules", Sql.string (typ.name.modules |> String.concat ".")
-        "name", Sql.string typ.name.name
-        "definition", Sql.bytea (BinarySerialization.PackageType.serialize typ) ]
-    |> Sql.executeStatementAsync)
+    task {
+      use connection = new SqliteConnection(connString)
+      do! connection.OpenAsync()
+
+      use command = connection.CreateCommand()
+      command.CommandText <-
+        @"INSERT INTO package_types_v0
+            (id, owner, modules, name, definition)
+          VALUES
+            (@id, @owner, @modules, @name, @definition)"
+
+      command.Parameters.AddWithValue("@id", typ.id.ToString())
+      |> ignore<SqliteParameter>
+      command.Parameters.AddWithValue("@owner", typ.name.owner)
+      |> ignore<SqliteParameter>
+      command.Parameters.AddWithValue(
+        "@modules",
+        String.concat "." typ.name.modules
+      )
+      |> ignore<SqliteParameter>
+      command.Parameters.AddWithValue("@name", typ.name.name)
+      |> ignore<SqliteParameter>
+      command.Parameters.AddWithValue(
+        "@definition",
+        BinarySerialization.PackageType.serialize typ
+      )
+      |> ignore<SqliteParameter>
+
+      do! command.ExecuteNonQueryAsync() |> Async.AwaitTask |> Async.Ignore
+    })
 
 let savePackageConstants
   (constants : List<PT.PackageConstant.PackageConstant>)
-  : Task<Unit> =
+  : Task<unit> =
   constants
   |> Task.iterInParallel (fun c ->
-    Sql.query
-      "INSERT INTO package_constants_v0
-        (id, owner, modules, name, definition)
-      VALUES
-        (@id, @owner, @modules, @name, @definition)"
-    |> Sql.parameters
-      [ "id", Sql.uuid c.id
-        "owner", Sql.string c.name.owner
-        "modules", Sql.string (c.name.modules |> String.concat ".")
-        "name", Sql.string c.name.name
-        "definition", Sql.bytea (BinarySerialization.PackageConstant.serialize c) ]
-    |> Sql.executeStatementAsync)
+    task {
+      use connection = new SqliteConnection(connString)
+      do! connection.OpenAsync()
 
-let savePackageFunctions (fns : List<PT.PackageFn.PackageFn>) : Task<Unit> =
+      use command = connection.CreateCommand()
+      command.CommandText <-
+        @"INSERT INTO package_constants_v0
+            (id, owner, modules, name, definition)
+          VALUES
+            (@id, @owner, @modules, @name, @definition)"
+
+      command.Parameters.AddWithValue("@id", c.id.ToString())
+      |> ignore<SqliteParameter>
+      command.Parameters.AddWithValue("@owner", c.name.owner)
+      |> ignore<SqliteParameter>
+      command.Parameters.AddWithValue(
+        "@modules",
+        String.concat "." c.name.modules
+      )
+      |> ignore<SqliteParameter>
+      command.Parameters.AddWithValue("@name", c.name.name)
+      |> ignore<SqliteParameter>
+      command.Parameters.AddWithValue(
+        "@definition",
+        BinarySerialization.PackageConstant.serialize c
+      )
+      |> ignore<SqliteParameter>
+
+      do! command.ExecuteNonQueryAsync() |> Async.AwaitTask |> Async.Ignore
+    })
+
+let savePackageFunctions
+  (fns : List<PT.PackageFn.PackageFn>)
+  : Task<unit> =
   fns
   |> Task.iterInParallel (fun fn ->
-    Sql.query
-      "INSERT INTO package_functions_v0
-        (id, owner, modules, name, definition)
-      VALUES
-        (@id, @owner, @modules, @name, @definition)"
-    |> Sql.parameters
-      [ "id", Sql.uuid fn.id
-        "owner", Sql.string fn.name.owner
-        "modules", Sql.string (fn.name.modules |> String.concat ".")
-        "name", Sql.string fn.name.name
-        "definition", Sql.bytea (BinarySerialization.PackageFn.serialize fn) ]
-    |> Sql.executeStatementAsync)
+    task {
+      use connection = new SqliteConnection(connString)
+      do! connection.OpenAsync()
+
+      use command = connection.CreateCommand()
+      command.CommandText <-
+        @"INSERT INTO package_functions_v0
+            (id, owner, modules, name, definition)
+          VALUES
+            (@id, @owner, @modules, @name, @definition)"
+
+      command.Parameters.AddWithValue("@id", fn.id.ToString())
+      |> ignore<SqliteParameter>
+      command.Parameters.AddWithValue("@owner", fn.name.owner)
+      |> ignore<SqliteParameter>
+      command.Parameters.AddWithValue(
+        "@modules",
+        String.concat "." fn.name.modules
+      )
+      |> ignore<SqliteParameter>
+      command.Parameters.AddWithValue("@name", fn.name.name)
+      |> ignore<SqliteParameter>
+      command.Parameters.AddWithValue(
+        "@definition",
+        BinarySerialization.PackageFn.serialize fn
+      )
+      |> ignore<SqliteParameter>
+
+      do! command.ExecuteNonQueryAsync() |> Async.AwaitTask |> Async.Ignore
+    })
 
 
 let purge () : Task<unit> =
   task {
-    do!
-      Sql.query "DELETE FROM package_types_v0"
-      |> Sql.parameters []
-      |> Sql.executeStatementAsync
+    use connection = new SqliteConnection(connString)
+    do! connection.OpenAsync()
 
-    do!
-      Sql.query "DELETE FROM package_constants_v0"
-      |> Sql.parameters []
-      |> Sql.executeStatementAsync
+    let queries =
+      [ "DELETE FROM package_types_v0"
+        "DELETE FROM package_constants_v0"
+        "DELETE FROM package_functions_v0" ]
 
-    do!
-      Sql.query "DELETE FROM package_functions_v0"
-      |> Sql.parameters []
-      |> Sql.executeStatementAsync
+    for q in queries do
+      use command = connection.CreateCommand()
+      command.CommandText <- q
+      do! command.ExecuteNonQueryAsync() |> Async.AwaitTask |> Async.Ignore
   }
-
 
 // ------------------
 // Fetching
@@ -92,79 +148,144 @@ let purge () : Task<unit> =
 
 let findFn (name : PT.PackageFn.Name) : Ply<Option<PT.FQFnName.Package>> =
   uply {
-    return!
-      "SELECT id
+    use connection = new SqliteConnection(connString)
+    let! _ = connection.OpenAsync() |> Async.AwaitTask
+
+    let query =
+      """
+      SELECT id
       FROM package_functions_v0
       WHERE owner = @owner
         AND modules = @modules
-        AND name = @name"
-      |> Sql.query
-      |> Sql.parameters
-        [ "owner", Sql.string name.owner
-          "modules", Sql.string (name.modules |> String.concat ".")
-          "name", Sql.string name.name ]
-      |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
+        AND name = @name
+    """
+
+    use command = connection.CreateCommand()
+    command.CommandText <- query
+    command.Parameters.AddWithValue("@owner", name.owner) |> ignore<SqliteParameter>
+    command.Parameters.AddWithValue("@modules", String.concat "." name.modules)
+    |> ignore<SqliteParameter>
+    command.Parameters.AddWithValue("@name", name.name) |> ignore<SqliteParameter>
+
+    use! reader = command.ExecuteReaderAsync() |> Async.AwaitTask
+    let! hasRows = reader.ReadAsync() |> Async.AwaitTask
+
+    if hasRows then
+      let id = reader.GetString(0) |> System.Guid.Parse
+      return Some(id)
+    else
+      return None
   }
 
 let getFn (id : uuid) : Ply<Option<PT.PackageFn.PackageFn>> =
   uply {
-    let! def =
-      "SELECT definition
+    use connection = new SqliteConnection(connString)
+    let! _ = connection.OpenAsync() |> Async.AwaitTask
+
+    let query =
+      """
+      SELECT definition
       FROM package_functions_v0
-      WHERE id = @id"
-      |> Sql.query
-      |> Sql.parameters [ "id", Sql.uuid id ]
-      |> Sql.executeRowOptionAsync (fun read -> read.bytea "definition")
+      WHERE id = @id
+    """
 
-    return
-      def |> Option.map (fun def -> BinarySerialization.PackageFn.deserialize id def)
+    use command = connection.CreateCommand()
+    command.CommandText <- query
+    command.Parameters.AddWithValue("@id", id.ToString()) |> ignore<SqliteParameter>
+
+    use! reader = command.ExecuteReaderAsync() |> Async.AwaitTask
+    let! hasRows = reader.ReadAsync() |> Async.AwaitTask
+
+    if hasRows then
+      let definition = reader.GetValue(0) :?> byte[]
+      return Some(BinarySerialization.PackageFn.deserialize id definition)
+    else
+      return None
   }
-
 
 let getAllFnNames () : Ply<List<string>> =
   uply {
-    let! fqName =
-      "SELECT modules, name
-      FROM package_functions_v0"
-      |> Sql.query
-      |> Sql.parameters []
-      |> Sql.executeAsync (fun read ->
-        let modules = read.string "modules"
-        let name = read.string "name"
-        modules + "." + name)
-    return fqName
+    use connection = new SqliteConnection(connString)
+    let! _ = connection.OpenAsync() |> Async.AwaitTask
+
+    let query =
+      """
+      SELECT modules, name
+      FROM package_functions_v0
+      """
+
+    use command = connection.CreateCommand()
+    command.CommandText <- query
+
+    use! reader = command.ExecuteReaderAsync() |> Async.AwaitTask
+
+    let mutable results = []
+    while! reader.ReadAsync() |> Async.AwaitTask do
+      let modules = reader.GetString(0)
+      let name = reader.GetString(1)
+      results <- (modules + "." + name) :: results
+
+    return List.rev results
   }
 
 
-let findType (name : PT.PackageType.Name) : Ply<Option<PT.FQTypeName.Package>> =
+let findType
+  (name : PT.PackageType.Name)
+  : Ply<Option<PT.FQTypeName.Package>> =
   uply {
-    return!
-      "SELECT id
+    use connection = new SqliteConnection(connString)
+    let! _ = connection.OpenAsync() |> Async.AwaitTask
+
+    let query =
+      """
+      SELECT id
       FROM package_types_v0
       WHERE owner = @owner
         AND modules = @modules
-        AND name = @name"
-      |> Sql.query
-      |> Sql.parameters
-        [ "owner", Sql.string name.owner
-          "modules", Sql.string (name.modules |> String.concat ".")
-          "name", Sql.string name.name ]
-      |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
+        AND name = @name
+    """
+
+    use command = connection.CreateCommand()
+    command.CommandText <- query
+    command.Parameters.AddWithValue("@owner", name.owner) |> ignore<SqliteParameter>
+    command.Parameters.AddWithValue("@modules", String.concat "." name.modules)
+    |> ignore<SqliteParameter>
+    command.Parameters.AddWithValue("@name", name.name) |> ignore<SqliteParameter>
+
+    use! reader = command.ExecuteReaderAsync() |> Async.AwaitTask
+    let! hasRows = reader.ReadAsync() |> Async.AwaitTask
+
+    if hasRows then
+      let id = reader.GetString(0) |> System.Guid.Parse
+      return Some(id)
+    else
+      return None
   }
 
 let getType (id : uuid) : Ply<Option<PT.PackageType.PackageType>> =
   uply {
-    let! def =
-      "SELECT definition
-      FROM package_types_v0
-      WHERE id = @id"
-      |> Sql.query
-      |> Sql.parameters [ "id", Sql.uuid id ]
-      |> Sql.executeRowOptionAsync (fun read -> read.bytea "definition")
+    use connection = new SqliteConnection(connString)
+    let! _ = connection.OpenAsync() |> Async.AwaitTask
 
-    return
-      def
-      |> Option.map (fun def -> BinarySerialization.PackageType.deserialize id def)
+    let query =
+      """
+      SELECT definition
+      FROM package_types_v0
+      WHERE id = @id
+    """
+
+    use command = connection.CreateCommand()
+    command.CommandText <- query
+    command.Parameters.AddWithValue("@id", id.ToString()) |> ignore<SqliteParameter>
+
+    use! reader = command.ExecuteReaderAsync() |> Async.AwaitTask
+    let! hasRows = reader.ReadAsync() |> Async.AwaitTask
+
+    if hasRows then
+      let definition = reader.GetValue(0) :?> byte[]
+      return Some(BinarySerialization.PackageType.deserialize id definition)
+    else
+      return None
   }
 
 
@@ -172,34 +293,61 @@ let findConstant
   (name : PT.PackageConstant.Name)
   : Ply<Option<PT.FQConstantName.Package>> =
   uply {
-    return!
-      "SELECT id
+    use connection = new SqliteConnection(connString)
+    let! _ = connection.OpenAsync() |> Async.AwaitTask
+
+    let query =
+      """
+      SELECT id
       FROM package_constants_v0
       WHERE owner = @owner
         AND modules = @modules
-        AND name = @name"
-      |> Sql.query
-      |> Sql.parameters
-        [ "owner", Sql.string name.owner
-          "modules", Sql.string (name.modules |> String.concat ".")
-          "name", Sql.string name.name ]
-      |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
+        AND name = @name
+    """
+
+    use command = connection.CreateCommand()
+    command.CommandText <- query
+    command.Parameters.AddWithValue("@owner", name.owner) |> ignore<SqliteParameter>
+    command.Parameters.AddWithValue("@modules", String.concat "." name.modules)
+    |> ignore<SqliteParameter>
+    command.Parameters.AddWithValue("@name", name.name) |> ignore<SqliteParameter>
+
+    use! reader = command.ExecuteReaderAsync() |> Async.AwaitTask
+    let! hasRows = reader.ReadAsync() |> Async.AwaitTask
+
+    if hasRows then
+      let id = reader.GetString(0) |> System.Guid.Parse
+      return Some(id)
+    else
+      return None
   }
 
-let getConstant (id : uuid) : Ply<Option<PT.PackageConstant.PackageConstant>> =
+let getConstant
+  (id : uuid)
+  : Ply<Option<PT.PackageConstant.PackageConstant>> =
   uply {
-    let! def =
-      "SELECT definition
-      FROM package_constants_v0
-      WHERE id = @id"
-      |> Sql.query
-      |> Sql.parameters [ "id", Sql.uuid id ]
-      |> Sql.executeRowOptionAsync (fun read -> read.bytea "definition")
+    use connection = new SqliteConnection(connString)
+    let! _ = connection.OpenAsync() |> Async.AwaitTask
 
-    return
-      def
-      |> Option.map (fun def ->
-        BinarySerialization.PackageConstant.deserialize id def)
+    let query =
+      """
+      SELECT definition
+      FROM package_constants_v0
+      WHERE id = @id
+    """
+
+    use command = connection.CreateCommand()
+    command.CommandText <- query
+    command.Parameters.AddWithValue("@id", id.ToString()) |> ignore<SqliteParameter>
+
+    use! reader = command.ExecuteReaderAsync() |> Async.AwaitTask
+    let! hasRows = reader.ReadAsync() |> Async.AwaitTask
+
+    if hasRows then
+      let definition = reader.GetValue(0) :?> byte[]
+      return Some(BinarySerialization.PackageConstant.deserialize id definition)
+    else
+      return None
   }
 
 

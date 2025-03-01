@@ -4,8 +4,6 @@ module LibCloud.Cron
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open Npgsql.FSharp
-open Npgsql
 open Db
 
 open Prelude

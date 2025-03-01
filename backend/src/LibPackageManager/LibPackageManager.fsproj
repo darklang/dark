@@ -15,6 +15,7 @@
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../BuiltinExecution/BuiltinExecution.fsproj" />
+    <ProjectReference Include="../LibBinarySerialization/LibBinarySerialization.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="SimpleJson.fs" />

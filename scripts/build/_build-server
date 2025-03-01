@@ -130,8 +130,6 @@ def main():
   run_or_fail("scripts/devcontainer/_create-app-directories")
   run_or_fail("scripts/devcontainer/_create-cache-directories")
   run_or_fail("scripts/devcontainer/_setup-hosts")
-  run_or_fail("scripts/devcontainer/_start-postgres")
-  run_or_fail("scripts/devcontainer/_start-yugabyte")
   if should_compile:
     if should_watch or should_serve:
       background_task(initial_compile, "initial_compile")

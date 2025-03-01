@@ -62,12 +62,9 @@ RUN DEBIAN_FRONTEND=noninteractive \
 # Latest NPM (taken from https://deb.nodesource.com)
 RUN curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
 RUN curl -sSL https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
-RUN curl -sSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
 RUN curl -sSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
 RUN curl -sSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
 RUN curl -sSL https://apt.releases.hashicorp.com/gpg | apt-key add -
-
-RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" >> /etc/apt/sources.list.d/pgdg.list
 
 RUN echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
 
@@ -100,17 +97,14 @@ RUN DEBIAN_FRONTEND=noninteractive \
       wget \
       sudo \
       locales \
-      postgresql-14 \
-      postgresql-client-14 \
-      postgresql-contrib-14 \
       git-restore-mtime \
       nodejs \
+      sqlite3 \
       google-cloud-sdk \
       google-cloud-sdk-pubsub-emulator \
       google-cloud-sdk-gke-gcloud-auth-plugin \
       jq \
       parallel \
-      # yugabyte
       ntp \
       vim \
       unzip \
@@ -189,38 +183,10 @@ ENV LC_ALL=en_US.UTF-8
 RUN sudo npm install -g prettier@3.0.2
 
 ############################
-# Postgres
-############################
-USER postgres
-RUN /etc/init.d/postgresql start && \
-    psql --command "CREATE USER dark WITH SUPERUSER PASSWORD 'darklang';" && \
-    createdb -O dark devdb && \
-    createdb -O dark testdb
-
-# Adjust PostgreSQL configuration so that remote connections to the
-# database are possible.
-RUN echo "host all  all    0.0.0.0/0  md5" >> /etc/postgresql/14/main/pg_hba.conf
-RUN echo "listen_addresses='*'" >> /etc/postgresql/14/main/postgresql.conf
-
-USER dark
-# Add VOLUMEs to allow backup of config, logs and databases
-VOLUME  ["/etc/postgresql", "/var/log/postgresql", "/var/lib/postgresql"]
-
-# No idea what caused this, but we get permission problems otherwise.
-RUN sudo chown postgres:postgres -R /etc/postgresql
-RUN sudo chown postgres:postgres -R /var/log/postgresql
-RUN sudo chown postgres:postgres -R /var/lib/postgresql
-
-############################
 # Scripts to install files from the internet
 ############################
 
 COPY --chown=dark:dark --chmod=755 ./scripts/installers/* .
-
-############################
-# Yugabyte
-############################
-RUN /home/dark/install-yugabyte --version=2.20.1.3 --build=b3
 
 ############################
 # Terraform

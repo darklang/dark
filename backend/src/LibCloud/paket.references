@@ -1,8 +1,8 @@
 FSharp.Core
-Npgsql.FSharp
 PusherServer
 System.Diagnostics.DiagnosticSource
 FsRegEx
 Sodium.Core
 Google.Cloud.PubSub.V1
 Google.Cloud.Storage.V1
+Microsoft.Data.Sqlite

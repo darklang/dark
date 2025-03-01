@@ -1,12 +1,10 @@
-/// Our Postgres DB migrations
+/// Our DB migrations
 module LibCloud.Migrations
 
 // Note that we don't use Tasks in here because these are expected to be run in
 // order, so it's easier to execute synchronously than have a bunch of code to use
 // tasks and then extra code to ensure the tasks are run synchronously.
 
-open Npgsql
-open Npgsql.FSharp
 open Db
 
 module Telemetry = LibService.Telemetry

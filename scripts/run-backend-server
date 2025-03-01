@@ -66,9 +66,6 @@ sudo pkill -f "QueueWorker" || true
 ./scripts/run-pubsub-emulator
 ./scripts/run-cloud-storage-emulator
 
-echo "Waiting for postgres"
-./scripts/devcontainer/_wait-for-postgres
-
 # if it hasn't been compiled yet, wait for it
 echo "Waiting for compiled servers"
 for ((i=1;i<=1000;i++));

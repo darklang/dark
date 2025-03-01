@@ -16,10 +16,14 @@ nuget NodaTime = 3.1.11
 nuget NodaTime.Serialization.SystemTextJson = 1.3.0
 nuget System.IO.Hashing 8.0.0
 
-// Binary Serialization
+// Sqlite and binary serialization
 nuget MessagePack = 2.5.187
 nuget MessagePack.NodaTime = 3.2.1
 nuget MessagePack.FSharpExtensions = 4.0.0
+
+// Sqlite (for CLI)
+nuget Microsoft.Data.Sqlite = 9.0.0
+nuget Fumble = 1.1.0
 
 // Parser
 nuget FSharp.Compiler.Service = 43.8.100
@@ -34,12 +38,10 @@ nuget PusherServer = 5.0.0
 nuget Rollbar = 5.2.0
 nuget Rollbar.NetCore.AspNet = 5.2.0
 nuget Microsoft.Extensions.Diagnostics.HealthChecks = 8.0.0
-nuget AspNetCore.HealthChecks.Npgsql = 7.1.0
 nuget LaunchDarkly.ServerSdk = 8.0.0
 
 // Tracing
 nuget Honeycomb.OpenTelemetry = 1.3.1
-nuget Npgsql.OpenTelemetry = 8.0.0-rc.2
 nuget System.Diagnostics.DiagnosticSource = 8.0.0
 nuget OpenTelemetry = 1.9.0
 nuget OpenTelemetry.Exporter.OpenTelemetryProtocol = 1.9.0
@@ -49,9 +51,6 @@ nuget OpenTelemetry.Extensions.Hosting = 1.9.0
 nuget OpenTelemetry.Instrumentation.Http = 1.8.1
 
 // LibCloud
-nuget Npgsql.FSharp = 5.7.0
-nuget NpgsqlYugabyteDB = 8.0.3-yb-1
-nuget Npgsql.NodaTime = 8.0.3
 nuget Sodium.Core = 1.3.4
 nuget Google.Cloud.PubSub.V1 = 3.8.0
 nuget Google.Cloud.Storage.V1 = 4.7.0

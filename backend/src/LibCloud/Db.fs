@@ -40,19 +40,19 @@ module Sql =
     | list ->
       Exception.raiseInternal $"Too many results, expected 0 or 1" [ "actual", list ]
 
-  // TODO do a better job of naming these
-  // NOTE: This does not use SQL `EXISTS` but rather expects the query to return a
-  // list of 1/0. We should instead (TODO) make this use SQL `EXISTS` because it returns
-  // early and fetches less data
-  let executeExistsAsync (props : Sql.SqlProps) : Task<bool> =
-    task {
-      match! Sql.executeAsync (fun read -> read.NpgsqlReader.GetBoolean 0) props with
-      | [ true ] -> return true
-      | [] -> return false
-      | result ->
-        return
-          Exception.raiseInternal "Too many results, expected 1" [ "actual", result ]
-    }
+  // // TODO do a better job of naming these
+  // // NOTE: This does not use SQL `EXISTS` but rather expects the query to return a
+  // // list of 1/0. We should instead (TODO) make this use SQL `EXISTS` because it returns
+  // // early and fetches less data
+  // let executeExistsAsync (props : Sql.SqlProps) : Task<bool> =
+  //   task {
+  //     match! Sql.executeAsync (fun read -> read.NpgsqlReader.GetBoolean 0) props with
+  //     | [ true ] -> return true
+  //     | [] -> return false
+  //     | result ->
+  //       return
+  //         Exception.raiseInternal "Too many results, expected 1" [ "actual", result ]
+  //   }
 
   let executeExistsSync (props : Sql.SqlProps) : bool =
     match Sql.execute (fun read -> read.NpgsqlReader.GetBoolean 0) props with
