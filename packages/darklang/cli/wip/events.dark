@@ -1,0 +1,10 @@
+
+type Event = 
+	| Key of k: KeyStroke
+	//| SomethingElseHappened
+
+let handleEvent (evt: Event): Msg = 
+	// usually: add to prompt
+	// (_unless_ it's an [enter] or [escape] or something special)
+	match evt with
+	| Key k ->

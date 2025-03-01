@@ -1,0 +1,7 @@
+let init(): (State * List<Msg>) = 
+	let state = 
+		{ }
+
+	// todo: maybe message to fetch stuff?
+	// would it make sense to have a 'loading stuff...' screen for a sec.?
+	(state, [])

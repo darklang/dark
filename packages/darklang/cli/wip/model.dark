@@ -1,0 +1,67 @@
+module Model = 
+	// aka. Url
+	type Page = 
+		| Home
+		| Meta
+
+		| ConfigHome
+	
+		| Account
+		| OtherUser of name
+		
+		// Matter
+		| Module of location: List<String>
+		| Type of name: PackageType.Name
+		| Fn of name: PackageFn.Name
+		| Constant of name: PackageConstant.Name
+	
+		// app
+		| App of Uuid
+		| HttpHandler of name: FQName // hmm
+		| Script of name: FQName
+		| KV of name
+		| Sql of name
+
+		// TODO: | "InTheMiddleOfALet" or things like that
+
+	
+	type App = 
+		| Cli of 
+		| Cloud of // http and stuff all in here? hmmm, do the details _need_ to be h
+
+	type AppMetadata = 
+	  { name: String
+	    owner: String
+	    created: DateTime
+	    lastEdited: DateTime
+	    // accessibility: public/private
+	  }
+	
+	type App = 
+	  { id: UUID
+	    metadata: AppMetadata
+	    scripts: ...
+	    handlers: ...
+	    dbs: ...
+	    // secrets: ...
+	    // traces: ...
+	    // 404s: ... 
+	    }
+	
+	
+	
+	type State = 
+		{ currentPage: Page
+		  // todo: add history of Pages, so we can go 'back'
+		  mainPrompt: ""
+		  //pm: { fns...}
+	
+		  accounts: [("stachu", "uhcats"); ("ocean": "oak"); ("paul", "biggar")]
+		  currentAccount: "stachu"
+	
+		  cloudApps: ["darklang.com"; "stachu.net"; "dark-cli"]
+		  httpHandlers: List<HttpHandler>
+		  cliApps = []
+		  scripts: []
+		  crons: []
+		  }

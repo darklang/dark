@@ -1,0 +1,45 @@
+module Msg = 
+	type Msg = 
+		// -- General
+		| ShowEntry // just said `dark` - probably just a wrapper for `ShowHelp`, but might do a bit extra
+		| ShowStatus
+			//- logo
+			//- version
+			//- overview of local (and cached) data
+			//- login status, account, access
+			//- alerts
+			//- running processes, servers, etc.
+		| ShowHelp // also 'docs' command or alias?
+		
+		| ShowVersion
+		| Quit
+		
+		// -- Nav.
+		| GoToApp of appId: Uuid
+
+		// -- Account, Auth.
+		| ShowAccountStatus
+		| StartLogin
+		// `dark login --username=stachu --password=yolo`
+		| Login of username: String * password: String
+		| StartSignup
+			//- email and username is required
+			//- full name is optional
+			//- contact links etc are optional
+			//- (email verification)
+		| SubmitSignup of username: String * password: String
+		// TODO: change password
+		// TODO: auth should eventually include oauth, etc
+		| LogOut
+
+		// -- App
+	    | AddFunction of ...
+	    | AddType of ...
+	    //| AddHandler of ...
+		//| AddDB of ...
+		//| EditDefinition of  ...
+		//| EditHandler of ...
+		//| UpdateExpr of old: Expr * new: Expr
+		//| UpdateDBSchema of ...
+		//| EditSecret of ...
+		//| DeleteSecret of ...

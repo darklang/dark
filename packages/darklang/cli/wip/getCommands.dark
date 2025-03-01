@@ -1,0 +1,7 @@
+let getAvailableCommands (TODO): List<Command> = 
+	// i.e. hide a lot of things if in the middle of a `let`
+	[]
+
+let getAllCommands (): List<Command> = 
+	//TODO: reflection? lol
+	[]

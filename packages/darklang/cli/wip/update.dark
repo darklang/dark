@@ -1,0 +1,8 @@
+let update (state: Model) (msg: Msg): Model = 
+	match msg with
+	| Quit -> state // TODO
+	| GoToApp id -> state
+	| Status ->
+		// CLEANUP could use some kinda 'markdown -> fancy CLI text' functionality?
+		ClearPrompt
+		Builtin.printLine "version, location, auth stuff, help info"

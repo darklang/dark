@@ -1,0 +1,10 @@
+// TODO: something else, if not a tty
+let render (state: State) (dispatch: Msg -> unit): String = 
+	let promptPart = ...
+
+	let activePagePart = 
+		match state.currentPage with
+		| 
+
+	Cli.clear()
+	Cli.Stdout.replaceWith (promptPart ++ "\n" ++ activePagePart)

@@ -27,7 +27,7 @@ module Darklang =
 
 
     module Infra =
-      /// Size info for Postgres tables
+      /// Size info for our internal SQL tables
       type TableSize =
         {
           /// Number of bytes on disk
