@@ -230,10 +230,7 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [ DDict(vt, o); DString k; v ] ->
-          // CLEANUP perf
-          Map.foldBack (fun key value acc -> (key, value) :: acc) o [ (k, v) ]
-          |> TypeChecker.DvalCreator.dict vm.threadID vt
-          |> Ply
+          TypeChecker.DvalCreator.dictAddEntry vm.threadID vt o (k, v) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
