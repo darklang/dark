@@ -147,6 +147,9 @@ module Set =
   Stdlib.Dict.set_v0 (Dict { key1 = "val1before" }) "key1" "val1after" =
     Builtin.testDerrorMessage "Cannot add two dictionary entries with the same key `key1`"
 
+  Stdlib.Dict.set_v0 (Dict { key1 = "val1"; key2 = "val2" }) "key2" "newVal2" =
+    Builtin.testDerrorMessage "Cannot add two dictionary entries with the same key `key2`"
+
   Dict { key1 = "val1"; key2 = 2L } =
     Builtin.testDerrorMessage "Cannot add an Int64 (2) to a dict of String. Failed at key `key2`."
 

@@ -10,7 +10,7 @@ import sys
 import threading
 import signal
 
-run_tests = False
+run_tests = True
 
 # When compiling code, use the optimized version of the build. This causes
 # --optimize to be passed to the compile script.
