@@ -351,7 +351,22 @@ module DvalCreator =
 
     DDict(typ, entries)
 
-
+  let dictAddEntry
+    (threadID : ThreadID)
+    (typ : ValueType)
+    (entries : DvalMap)
+    (newEntry : string * Dval)
+    : Dval =
+    if Map.isEmpty entries then
+      dict threadID typ [ newEntry ]
+    else
+      let (k, v) = newEntry
+      let (oldKey, oldVal) = Map.minKeyValue entries
+      let typeList = [ (oldKey, oldVal); (k, v) ]
+      // Implicit: below function call will raise an exception if
+      // type of new key/value pair differs from type of old key/value pair
+      let _ = dict threadID typ typeList
+      DDict(typ, Map.add k v entries)
 
   let optionNone (innerType : ValueType) : Dval =
     DEnum(Dval.optionType, Dval.optionType, [ innerType ], "None", [])
@@ -438,9 +453,11 @@ module DvalCreator =
     (threadID : ThreadID)
     (typeName : FQTypeName.FQTypeName)
     (typeArgs : List<ValueType>)
-    : Ply<FQTypeName.FQTypeName *
-      List<string * ValueType> *
-      NEList<TypeDeclaration.EnumCase>>
+    : Ply<
+        FQTypeName.FQTypeName *
+        List<string * ValueType> *
+        NEList<TypeDeclaration.EnumCase>
+       >
     =
     uply {
       let! (resolvedName, typeArgs, definition) =
@@ -563,9 +580,11 @@ module DvalCreator =
     (threadID : ThreadID)
     (typeName : FQTypeName.FQTypeName)
     (typeArgs : List<ValueType>)
-    : Ply<FQTypeName.FQTypeName *
-      List<string * ValueType> *
-      NEList<TypeDeclaration.RecordField>>
+    : Ply<
+        FQTypeName.FQTypeName *
+        List<string * ValueType> *
+        NEList<TypeDeclaration.RecordField>
+       >
     =
     uply {
       let! (resolvedName, typeArgs, definition) =
