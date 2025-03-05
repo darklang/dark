@@ -464,11 +464,9 @@ module DvalCreator =
     (threadID : ThreadID)
     (typeName : FQTypeName.FQTypeName)
     (typeArgs : List<ValueType>)
-    : Ply<
-        FQTypeName.FQTypeName *
-        List<string * ValueType> *
-        NEList<TypeDeclaration.EnumCase>
-       >
+    : Ply<FQTypeName.FQTypeName *
+      List<string * ValueType> *
+      NEList<TypeDeclaration.EnumCase>>
     =
     uply {
       let! (resolvedName, typeArgs, definition) =
@@ -591,11 +589,9 @@ module DvalCreator =
     (threadID : ThreadID)
     (typeName : FQTypeName.FQTypeName)
     (typeArgs : List<ValueType>)
-    : Ply<
-        FQTypeName.FQTypeName *
-        List<string * ValueType> *
-        NEList<TypeDeclaration.RecordField>
-       >
+    : Ply<FQTypeName.FQTypeName *
+      List<string * ValueType> *
+      NEList<TypeDeclaration.RecordField>>
     =
     uply {
       let! (resolvedName, typeArgs, definition) =
