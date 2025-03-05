@@ -33,9 +33,7 @@ module Darklang =
 
       /// Returns a copy of <param dict> with the <param key> set to <param val>
       let setOverridingDuplicates (dict: Dict<'a>) (key: String) (``val``: 'a) : Dict<'a> =
-        dict
-        |> remove key
-        |> set key ``val``
+        Builtin.dictSetOverridingDuplicates_v0 dict key ``val``
 
 
       /// If the <param dict> contains <param key>, returns a copy of <param dict> with <param key> and its associated value removed. Otherwise, returns <param dict> unchanged.
