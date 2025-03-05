@@ -9,7 +9,7 @@ nuget Ply = 0.3.1
 nuget FSharpPlus = 1.5.0
 nuget FsRegEx = 0.7.2
 nuget FSharpx.Extras = 3.1.0
-nuget FSharp.Core = 8.0.100
+nuget FSharp.Core = 8.0.101
 nuget System.Text.Json = 8.0.5
 nuget FSharp.SystemTextJson = 1.3.13
 nuget NodaTime = 3.1.11
@@ -22,11 +22,11 @@ nuget MessagePack.NodaTime = 3.2.1
 nuget MessagePack.FSharpExtensions = 4.0.0
 
 // Sqlite (for CLI)
-nuget Microsoft.Data.Sqlite = 9.0.0
-nuget Fumble = 1.1.0
+nuget Microsoft.Data.Sqlite = 8.0.1
+nuget Fumble = 1.0.3
 
 // Parser
-nuget FSharp.Compiler.Service = 43.8.100
+nuget FSharp.Compiler.Service = 43.8.101
 
 // Tests
 nuget Expecto = 10.1.0

@@ -49,16 +49,16 @@ package_functions_v0
 , created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- --------------------
--- -- Stuff that belongs in "user space"
--- --------------------
--- CREATE TABLE IF NOT EXISTS
--- canvases_v0
--- ( id TEXT PRIMARY KEY
--- , account_id TEXT NOT NULL
--- , created_at TEXT NOT NULL DEFAULT (datetime('now'))
--- , FOREIGN KEY(account_id) REFERENCES accounts_v0(id)
--- );
+--------------------
+-- Stuff that belongs in "user space"
+--------------------
+CREATE TABLE IF NOT EXISTS
+canvases_v0
+( id TEXT PRIMARY KEY
+, account_id TEXT NOT NULL
+, created_at TEXT NOT NULL DEFAULT (datetime('now'))
+, FOREIGN KEY(account_id) REFERENCES accounts_v0(id)
+);
 
 -- -- User K/V DBs
 -- CREATE TABLE IF NOT EXISTS
@@ -165,6 +165,8 @@ package_functions_v0
 
 
 -- -- Top-levels
+-- TODO split this into a few tables (dbs, handlers, etc)
+-- rebrand 'canvas' to 'app'
 -- CREATE TABLE IF NOT EXISTS
 -- toplevels_v0
 -- ( canvas_id TEXT NOT NULL

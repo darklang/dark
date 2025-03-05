@@ -2,9 +2,6 @@ module LibService.DBConnection
 
 open Prelude
 
-// open Npgsql
-// open Npgsql.FSharp
-
 open Microsoft.Extensions.Logging.Console
 open Microsoft.Extensions.Logging
 

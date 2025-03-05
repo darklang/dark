@@ -1,0 +1,15 @@
+module Darklang =
+  module Cli =
+    let init(): (State * List<Msg>) =
+      let isInteractive = Builtin.stdinIsInteractive()
+
+      let state =
+        State
+          { currentPage = Page.Root
+            pageHistory = []
+            mainPrompt = ""
+            commandResult = CommandResult.None
+            isInteractive = isInteractive }
+
+      // Return initial state and any initial messages to process
+      (state, [])

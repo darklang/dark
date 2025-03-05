@@ -6,6 +6,7 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Prelude
+open Fumble
 open Db
 
 let createUser () : Task<UserID> =

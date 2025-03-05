@@ -1,0 +1,84 @@
+module Darklang =
+  module Cli =
+    let update (state: State) (msg: Msg): (State * List<Msg>) =
+      match msg with
+      | Quit ->
+        // Return the state unchanged, but in a real implementation
+        // this would trigger application exit
+        (state, [])
+
+
+      | KeyPressed(key, modifiers) ->
+        // Handle key presses based on the key and modifiers
+        match key with
+        | Escape ->
+          // Escape key pressed, send Quit message
+          (state, [Msg.Quit])
+
+        | Enter ->
+          // Enter key pressed, submit the current prompt as a command
+          let command = state.mainPrompt
+          let newState = { state with mainPrompt = "" }
+          (newState, [Msg.SubmitCommand command])
+
+        | Backspace ->
+          // Backspace key pressed, remove the last character from the prompt
+          let newPrompt = Stdlib.String.dropLast state.mainPrompt 1L
+          let newState = { state with mainPrompt = newPrompt }
+          (newState, [])
+
+        | _ ->
+          // For other keys, check if they're textual and add to the prompt if so
+          if Stdlib.Cli.Stdin.Key.isTextual key && modifiers.ctrl == false && modifiers.alt == false then
+            let keyChar = Stdlib.Cli.Stdin.KeyDisplay.toStringAsTyped key modifiers.shift
+            let newPrompt = state.mainPrompt ++ keyChar
+            let newState = { state with mainPrompt = newPrompt }
+            (newState, [])
+          else
+            // Ignore non-textual keys or keys with modifiers
+            (state, [])
+
+      | SubmitCommand commandStr ->
+        // Process the submitted command
+        Builtin.printLine $"SubmitCommand: {commandStr}"
+
+        if Stdlib.String.isEmpty (Stdlib.String.trim commandStr) then
+          // Empty command, do nothing
+          (state, [])
+        else
+          // Parse the command into name and arguments
+          let (name, args) = Command.parseCommand commandStr
+          Builtin.printLine $"Parsed command: name={name}, args={args}"
+
+          // Find and execute the command
+          match Command.findCommand state (Stdlib.String.toLowercase name) with
+          | Some cmd ->
+            Builtin.printLine $"Found command: {cmd.name}"
+            let exeFn = cmd.execute
+            let (newState, messages) = exeFn state args
+            (newState, messages)
+          | None ->
+            // Unknown command
+            let errorMsg = $"Unknown command: {name}"
+            let newState = { state with commandResult = CommandResult.Error errorMsg }
+            (newState, [])
+
+      | ClearPrompt ->
+        // Clear the prompt
+        let newState = { state with mainPrompt = "" }
+        (newState, [])
+
+      | NavigateTo page ->
+        // Use the navigateTo function from navigation.dark
+        let newState = navigateTo state page
+        (newState, [])
+
+      | NavigateBack ->
+        // Use the navigateBack function from navigation.dark
+        let newState = navigateBack state
+        (newState, [])
+
+      | SetCommandResult result ->
+        // Set the command result
+        let newState = { state with commandResult = result }
+        (newState, [])

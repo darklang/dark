@@ -63,22 +63,22 @@ module Darklang =
           state
 
 
-        let getModuleByParts
-          (allModules: List<ProgramTypes.Packages.Module>)
-          (parts: List<String>)
-          : Stdlib.Option.Option<ProgramTypes.Packages.Module> =
-          match parts with
-          | moduleNameToLookFor :: otherModuleParts ->
-            // just use tryFind, since we're looking for a single module
-            let found =
-              allModules
-              |> Stdlib.List.findFirst (fun m -> m.name = moduleNameToLookFor)
+        // let getModuleByParts
+        //   (allModules: List<ProgramTypes.Packages.Module>)
+        //   (parts: List<String>)
+        //   : Stdlib.Option.Option<ProgramTypes.Packages.Module> =
+        //   match parts with
+        //   | moduleNameToLookFor :: otherModuleParts ->
+        //     // just use tryFind, since we're looking for a single module
+        //     let found =
+        //       allModules
+        //       |> Stdlib.List.findFirst (fun m -> m.name = moduleNameToLookFor)
 
-            match found, otherModuleParts with
-            | Some foundModule, [] -> Stdlib.Option.Option.Some foundModule
-            | Some foundModule, _ ->
-              getModuleByParts foundModule.submodules otherModuleParts
-            | None, _ -> Stdlib.Option.Option.None
+        //     match found, otherModuleParts with
+        //     | Some foundModule, [] -> Stdlib.Option.Option.Some foundModule
+        //     | Some foundModule, _ ->
+        //       getModuleByParts foundModule.submodules otherModuleParts
+        //     | None, _ -> Stdlib.Option.Option.None
 
 
         /// handles `darklang/getChildNodes` requests

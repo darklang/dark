@@ -3,8 +3,6 @@ module LibCloud.PackageManager
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open Npgsql.FSharp
-open Npgsql
 open Microsoft.Data.Sqlite
 
 open Prelude
@@ -17,7 +15,7 @@ module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 
-let connString = "Data Source=rundir/data.db"
+let connString = "Data Source=./rundir/data.db"
 
 let savePackageTypes (types : List<PT.PackageType.PackageType>) : Task<unit> =
   types
