@@ -11,6 +11,11 @@ module RTE = RuntimeError
 type TypeCheckPathPart = RuntimeError.TypeChecking.TypeCheckPathPart
 type ReverseTypeCheckPath = RuntimeError.TypeChecking.ReverseTypeCheckPath
 
+/// Indicates what action to take when key is already in dictionary
+type OverwriteBehaviour =
+  | ReplaceValue
+  | ThrowIfDuplicate
+
 let rec unifyValueType
   (types : Types)
   (tst : TypeSymbolTable)
@@ -356,17 +361,23 @@ module DvalCreator =
     (typ : ValueType)
     (entries : DvalMap)
     (newEntry : string * Dval)
+    (overwrite : OverwriteBehaviour)
     : Dval =
-    if Map.isEmpty entries then
-      dict threadID typ [ newEntry ]
-    else
-      let (k, v) = newEntry
-      let (oldKey, oldVal) = Map.minKeyValue entries
-      let typeList = [ (oldKey, oldVal); (k, v) ]
-      // Implicit: below function call will raise an exception if
-      // type of new key/value pair differs from type of old key/value pair
-      let _ = dict threadID typ typeList
-      DDict(typ, Map.add k v entries)
+    let (k, v) = newEntry
+    match overwrite with
+    | ThrowIfDuplicate when Map.containsKey k entries ->
+      RTE.Dicts.Error.TriedToAddKeyAfterAlreadyPresent k
+      |> RTE.Error.Dict
+      |> raiseRTE threadID
+    | ReplaceValue
+    | ThrowIfDuplicate ->
+      let vt = Dval.toValueType v
+      match VT.merge typ vt with
+      | Ok merged -> DDict(merged, Map.add k v entries)
+      | Error() ->
+        RTE.Dicts.Error.TriedToAddMismatchedData(k, typ, vt, v)
+        |> RTE.Error.Dict
+        |> raiseRTE threadID
 
   let optionNone (innerType : ValueType) : Dval =
     DEnum(Dval.optionType, Dval.optionType, [ innerType ], "None", [])

@@ -226,11 +226,44 @@ let fns : List<BuiltInFn> =
           Param.make "val" varA "" ]
       returnType = (TDict(TVariable "a"))
       description =
-        "Returns a copy of <param dict> with the <param key> set to <param val>"
+        "Returns a copy of <param dict> with the <param key> set to <param val>.
+        If the key already exists in the Dict, an exception is raised."
       fn =
         (function
         | _, vm, _, [ DDict(vt, o); DString k; v ] ->
-          TypeChecker.DvalCreator.dictAddEntry vm.threadID vt o (k, v) |> Ply
+          TypeChecker.DvalCreator.dictAddEntry
+            vm.threadID
+            vt
+            o
+            (k, v)
+            TypeChecker.ThrowIfDuplicate
+          |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "dictSetOverridingDuplicates" 0
+      typeParams = []
+      parameters =
+        [ Param.make "dict" (TDict(TVariable "a")) ""
+          Param.make "key" TString ""
+          Param.make "val" varA "" ]
+      returnType = (TDict(TVariable "a"))
+      description =
+        "Returns a copy of <param dict> with the <param key> set to <param val>.
+        If the key already exists in the Dict, the previous value is overwritten."
+      fn =
+        (function
+        | _, vm, _, [ DDict(vt, o); DString k; v ] ->
+          TypeChecker.DvalCreator.dictAddEntry
+            vm.threadID
+            vt
+            o
+            (k, v)
+            TypeChecker.ReplaceValue
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
