@@ -100,19 +100,22 @@ let fns : List<BuiltInFn> =
         | _, _, _, [ DList(_, []) ] -> DDict(VT.unknown, Map.empty) |> Ply
 
         | _, vm, _, [ DList(ValueType.Known(KTTuple(_keyType, valueType, [])), l) ] ->
-          let f acc dv =
+          let f (accType, accMap) dv =
             match dv with
-            | DTuple(DString k, value, []) -> Map.add k value acc
+            | DTuple(DString k, value, []) ->
+              TypeChecker.DvalCreator.dictAddEntry
+                vm.threadID
+                accType
+                accMap
+                (k, value)
+                TypeChecker.ReplaceValue
             | _ ->
               Exception.raiseInternal
                 "Not string tuples in fromListOverwritingDuplicates"
                 [ "dval", dv ]
 
-          List.fold f Map.empty l
-          // CLEANUP: performance
-          |> Map.toList
-          |> TypeChecker.DvalCreator.dict vm.threadID valueType
-          |> Ply
+          let (typ, map) = List.fold f (valueType, Map.empty) l
+          DDict(typ, map) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
