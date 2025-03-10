@@ -362,7 +362,7 @@ module DvalCreator =
     (entries : DvalMap)
     (newEntry : string * Dval)
     (overwrite : OverwriteBehaviour)
-    : Dval =
+    : ValueType * DvalMap =
     let (k, v) = newEntry
     match overwrite with
     | ThrowIfDuplicate when Map.containsKey k entries ->
@@ -373,7 +373,7 @@ module DvalCreator =
     | ThrowIfDuplicate ->
       let vt = Dval.toValueType v
       match VT.merge typ vt with
-      | Ok merged -> DDict(merged, Map.add k v entries)
+      | Ok merged -> (merged, Map.add k v entries)
       | Error() ->
         RTE.Dicts.Error.TriedToAddMismatchedData(k, typ, vt, v)
         |> RTE.Error.Dict

@@ -231,13 +231,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [ DDict(vt, o); DString k; v ] ->
-          TypeChecker.DvalCreator.dictAddEntry
-            vm.threadID
-            vt
-            o
-            (k, v)
-            TypeChecker.ThrowIfDuplicate
-          |> Ply
+          let (typ, map) =
+            TypeChecker.DvalCreator.dictAddEntry
+              vm.threadID
+              vt
+              o
+              (k, v)
+              TypeChecker.ThrowIfDuplicate
+          DDict(typ, map) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -257,13 +258,14 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [ DDict(vt, o); DString k; v ] ->
-          TypeChecker.DvalCreator.dictAddEntry
-            vm.threadID
-            vt
-            o
-            (k, v)
-            TypeChecker.ReplaceValue
-          |> Ply
+          let (typ, map) =
+            TypeChecker.DvalCreator.dictAddEntry
+              vm.threadID
+              vt
+              o
+              (k, v)
+              TypeChecker.ReplaceValue
+          DDict(typ, map) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
