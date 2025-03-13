@@ -72,8 +72,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [ DDict(valueType, o) ] ->
-          Map.toList o
-          |> List.map (fun (k, v) -> DTuple(DString k, v, []))
+          let f k v acc = DTuple(DString k, v, []) :: acc
+          Map.foldBack f o []
           |> fun pairs -> DList(VT.tuple VT.string valueType [], pairs)
           |> Ply
         | _ -> incorrectArgs ())
@@ -209,12 +209,17 @@ let fns : List<BuiltInFn> =
           it will have the value from <param right>."
       fn =
         (function
-        | _, vm, _, [ DDict(_vtTODO1, l); DDict(_vtTODO2, r) ] ->
-          Map.mergeFavoringRight l r
-          // CLEANUP: performance
-          |> Map.toList
-          |> TypeChecker.DvalCreator.dict vm.threadID VT.unknownTODO
-          |> Ply
+        | _, vm, _, [ DDict(_vtTODO1, intoMap); DDict(_vtTODO2, fromMap) ] ->
+          let f (accType, accMap) k v =
+            TypeChecker.DvalCreator.dictAddEntry
+              vm.threadID
+              accType
+              accMap
+              (k, v)
+              TypeChecker.ReplaceValue
+
+          let initial = (_vtTODO1, intoMap)
+          Map.fold f initial fromMap |> DDict |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
