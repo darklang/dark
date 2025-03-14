@@ -39,29 +39,31 @@ module Darklang =
             (state, [])
 
       | SubmitCommand commandStr ->
-        // Process the submitted command
-        Builtin.printLine $"SubmitCommand: {commandStr}"
+       // Process the submitted command
+       Builtin.printLine $"SubmitCommand: {commandStr}"
 
-        if Stdlib.String.isEmpty (Stdlib.String.trim commandStr) then
-          // Empty command, do nothing
-          (state, [])
-        else
-          // Parse the command into name and arguments
-          let (name, args) = Command.parseCommand commandStr
-          Builtin.printLine $"Parsed command: name={name}, args={args}"
+       if Stdlib.String.isEmpty (Stdlib.String.trim commandStr) then
+         // Empty command, do nothing
+         (state, [])
+       else
+         // Parse the command into name and arguments
+         let (name, args) = Command.parseCommand commandStr
+         Builtin.printLine $"Parsed command: name={name}, args={args}"
 
-          // Find and execute the command
-          match Command.findCommand state (Stdlib.String.toLowercase name) with
-          | Some cmd ->
-            Builtin.printLine $"Found command: {cmd.name}"
-            let exeFn = cmd.execute
-            let (newState, messages) = exeFn state args
-            (newState, messages)
-          | None ->
-            // Unknown command
-            let errorMsg = $"Unknown command: {name}"
-            let newState = { state with commandResult = CommandResult.Error errorMsg }
-            (newState, [])
+         // Find and execute the command
+         match Command.findCommand state (Stdlib.String.toLowercase name) with
+         | Some cmd ->
+           Builtin.printLine $"Found command: {cmd.name}"
+           let exeFn = cmd.execute
+           let (newState, messages) = exeFn state args
+           // Set needsFullRedraw to true after command execution
+           let stateWithRedraw = { newState with needsFullRedraw = true }
+           (stateWithRedraw, messages)
+         | None ->
+           // Unknown command
+           let errorMsg = $"Unknown command: {name}"
+           let newState =  { state with commandResult = CommandResult.Error errorMsg; needsFullRedraw = true }
+           (newState, [])
 
       | ClearPrompt ->
         // Clear the prompt
@@ -71,14 +73,21 @@ module Darklang =
       | NavigateTo page ->
         // Use the navigateTo function from navigation.dark
         let newState = navigateTo state page
-        (newState, [])
+        // Set needsFullRedraw to true after navigation
+        let stateWithRedraw = { newState with needsFullRedraw = true }
+        (stateWithRedraw, [])
 
       | NavigateBack ->
         // Use the navigateBack function from navigation.dark
         let newState = navigateBack state
-        (newState, [])
+        // Set needsFullRedraw to true after navigation
+        let stateWithRedraw = { newState with needsFullRedraw = true }
+        (stateWithRedraw, [])
 
       | SetCommandResult result ->
         // Set the command result
-        let newState = { state with commandResult = result }
+        let newState =
+          { state with
+                        commandResult = result
+                        needsFullRedraw = true }
         (newState, [])

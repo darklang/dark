@@ -11,7 +11,7 @@ module Darklang =
         let moduleParts =
           match submodulePath with
           | [] -> [owner]
-          | _ -> [owner] ++ submodulePath
+          | _ -> Stdlib.List.append [owner] submodulePath
         "/" ++ (Stdlib.String.join moduleParts ".")
 
       | Type(name) ->
@@ -50,10 +50,10 @@ module Darklang =
         else if path == ".." then
           // Go up one level
           match state.currentPage with
-          | Root -> Root
-          | Module(owner, []) -> Root
-          | Module(owner, head :: tail) -> Module(owner, tail)
-          | _ -> Root
+          | Root -> Page.Root
+          | Module(owner, []) -> Page.Root
+          | Module(owner, head :: tail) -> Page.Module(owner, tail)
+          | _ -> Page.Root
         else
           // Navigate to the specified path
           match state.currentPage with
@@ -62,7 +62,7 @@ module Darklang =
             Page.Module(path, [])
           | Module(owner, subPath) ->
             // Add to current module path
-            Page.Module(owner, subPath ++ [path])
+            Page.Module(owner, Stdlib.List.pushBack subPath path)
           | _ ->
             // From other pages, go to root then to the path
             Page.Module(path, [])

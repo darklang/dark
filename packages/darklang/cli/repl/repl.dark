@@ -20,25 +20,47 @@ module Darklang =
             processMessages stateAfterNewMsgs remainingMsgs
 
       let replInternal (state: State): Int64 =
-        // Clear the screen and render the current state
-        Builtin.stdoutClear()
-        Builtin.print (render state)
+        // Only clear the screen and do a full redraw when initializing
+        // or when the state indicates a need for full redraw
+        if state.needsFullRedraw then
+          Builtin.stdoutClear()
+          Builtin.print (render state)
+          // Reset the flag after redrawing
+          let stateWithoutRedrawFlag = { state with needsFullRedraw = false }
 
-        let keyRead = Stdlib.Cli.Stdin.readKey ()
+          let keyRead = Stdlib.Cli.Stdin.readKey ()
+          let msg = Msg.KeyPressed(keyRead.key, keyRead.modifiers)
+          let (newState, messages) = update stateWithoutRedrawFlag msg
 
-        let msg = Msg.KeyPressed(keyRead.key, keyRead.modifiers)
+          // Process all messages, including any new ones generated during processing
+          let finalState = processMessages newState messages
 
-        let (newState, messages) = update state msg
+          // Check if we should exit
+          match keyRead.key with
+          | Escape -> 0L
+          | _ ->
+            // Continue the REPL loop with the updated state
+            replInternal finalState
+        else
+          // For regular key input, just update the prompt line in-place
+          // First, clear the current prompt line (move cursor to start of line and clear to end)
+          Builtin.print "\r\u001b[K"
+          // Print just the prompt line without clearing the screen
+          Builtin.print (renderPromptOnly state)
 
-        // Process all messages, including any new ones generated during processing
-        let finalState = processMessages newState messages
+          let keyRead = Stdlib.Cli.Stdin.readKey ()
+          let msg = Msg.KeyPressed(keyRead.key, keyRead.modifiers)
+          let (newState, messages) = update state msg
 
-        // Check if we should exit
-        match keyRead.key with
-        | Escape -> 0L
-        | _ ->
-          // Continue the REPL loop with the updated state
-          replInternal finalState
+          // Process all messages
+          let finalState = processMessages newState messages
+
+          // Check if we should exit
+          match keyRead.key with
+          | Escape -> 0L
+          | _ ->
+            // Continue the REPL loop with the updated state
+            replInternal finalState
 
       /// Starts the REPL with the initial state
       let repl () : Int64 =

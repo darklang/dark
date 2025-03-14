@@ -5,6 +5,11 @@ module Darklang =
       (Command.getAvailableCommands state)
       |> Stdlib.List.map (fun cmd -> cmd.name)
 
+    /// Renders just the prompt line for incremental updates
+    let renderPromptOnly (state: State): String =
+      let pathDisplay = getPathDisplay state.currentPage
+      $"{pathDisplay}> {state.mainPrompt}"
+
     /// Renders the current state to a string for display
     let render (state: State): String =
       // If not in interactive mode, just return the command result

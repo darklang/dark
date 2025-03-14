@@ -73,6 +73,10 @@ module Darklang =
           /// Whether we're in interactive mode
           isInteractive: Bool
 
+          /// Flag to indicate if a full screen redraw is needed
+          /// Set to true for initial render, after command execution, or navigation
+          needsFullRedraw: Bool
+
                 //accounts: [("stachu", "uhcats"); ("ocean": "oak"); ("paul", "biggar")]
                 //currentAccount: "stachu"
 

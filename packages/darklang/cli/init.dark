@@ -9,7 +9,8 @@ module Darklang =
             pageHistory = []
             mainPrompt = ""
             commandResult = CommandResult.None
-            isInteractive = isInteractive }
+            isInteractive = isInteractive
+            needsFullRedraw = true }
 
       // Return initial state and any initial messages to process
       (state, [])
