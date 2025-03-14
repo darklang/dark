@@ -281,7 +281,9 @@ module Darklang =
               pageHistory = []
               mainPrompt = ""
               commandResult = CommandResult.Info "dummy" // TODO: default to status command or something
-              isInteractive = true }
+              isInteractive = true
+              needsFullRedraw = true
+              isExiting = false }
         getAvailableCommands dummyState
 
       let cmdDetails (cmd: Command): CommandDetails =

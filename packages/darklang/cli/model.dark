@@ -77,6 +77,9 @@ module Darklang =
           /// Set to true for initial render, after command execution, or navigation
           needsFullRedraw: Bool
 
+          /// Flag to indicate if the application should exit
+          isExiting: Bool
+
                 //accounts: [("stachu", "uhcats"); ("ocean": "oak"); ("paul", "biggar")]
                 //currentAccount: "stachu"
 

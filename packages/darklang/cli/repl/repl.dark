@@ -36,9 +36,9 @@ module Darklang =
           let finalState = processMessages newState messages
 
           // Check if we should exit
-          match keyRead.key with
-          | Escape -> 0L
-          | _ ->
+          if keyRead.key == Escape || finalState.isExiting then
+            0L
+          else
             // Continue the REPL loop with the updated state
             replInternal finalState
         else
@@ -56,9 +56,9 @@ module Darklang =
           let finalState = processMessages newState messages
 
           // Check if we should exit
-          match keyRead.key with
-          | Escape -> 0L
-          | _ ->
+          if keyRead.key == Escape || finalState.isExiting then
+            0L
+          else
             // Continue the REPL loop with the updated state
             replInternal finalState
 

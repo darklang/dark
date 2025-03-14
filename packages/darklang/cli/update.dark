@@ -3,9 +3,10 @@ module Darklang =
     let update (state: State) (msg: Msg): (State * List<Msg>) =
       match msg with
       | Quit ->
-        // Return the state unchanged, but in a real implementation
-        // this would trigger application exit
-        (state, [])
+        // Set the isExiting flag to true
+        // This will be checked in the REPL loop
+        let newState = { state with isExiting = true; needsFullRedraw = true }
+        (newState, [Msg.SetCommandResult(CommandResult.Success "Exiting...")])
 
 
       | KeyPressed(key, modifiers) ->
