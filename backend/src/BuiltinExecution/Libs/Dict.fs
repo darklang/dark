@@ -6,6 +6,7 @@ open LibExecution.Builtin.Shortcuts
 module TypeChecker = LibExecution.TypeChecker
 
 module VT = LibExecution.ValueType
+module RTE = RuntimeError
 module Dval = LibExecution.Dval
 module Interpreter = LibExecution.Interpreter
 module PackageIDs = LibExecution.PackageIDs
@@ -209,17 +210,16 @@ let fns : List<BuiltInFn> =
           it will have the value from <param right>."
       fn =
         (function
-        | _, vm, _, [ DDict(_vtTODO1, intoMap); DDict(_vtTODO2, fromMap) ] ->
-          let f (accType, accMap) k v =
-            TypeChecker.DvalCreator.dictAddEntry
-              vm.threadID
-              accType
-              accMap
-              (k, v)
-              TypeChecker.ReplaceValue
-
-          let initial = (_vtTODO1, intoMap)
-          Map.fold f initial fromMap |> DDict |> Ply
+        | _, vm, _, [ DDict(vt1, intoMap); DDict(vt2, fromMap) ] ->
+          match VT.merge vt1 vt2 with
+          | Ok mergedType ->
+            let f accMap k v = Map.add k v accMap
+            let mergedMap = Map.fold f intoMap fromMap
+            DDict(mergedType, mergedMap) |> Ply
+          | Error() ->
+            RTE.Dicts.Error.TriedToMergeMismatchedData(vt1, vt2)
+            |> RTE.Error.Dict
+            |> raiseRTE vm.threadID
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
