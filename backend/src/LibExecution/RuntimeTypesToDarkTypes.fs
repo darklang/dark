@@ -867,6 +867,11 @@ module RuntimeError =
       match d with
       | DEnum(_, _, [], "TriedToAddKeyAfterAlreadyPresent", [ DString key ]) ->
         RuntimeError.Dicts.TriedToAddKeyAfterAlreadyPresent key
+      | DEnum(_, _, [], "TriedToMergeMismatchedDicts", [ type1; type2 ]) ->
+        RuntimeError.Dicts.TriedToMergeMismatchedDicts(
+          ValueType.fromDT type1,
+          ValueType.fromDT type2
+        )
       | DEnum(_,
               _,
               [],
