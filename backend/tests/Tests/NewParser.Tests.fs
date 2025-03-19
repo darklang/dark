@@ -792,10 +792,10 @@ let exprs =
       false
 
     // enum literal
-    t "simple enum literal" "Tests.MyEnum.A()" "MyEnum.A()" [ myEnum ] [] [] false
+    t "simple enum literal" "Tests.MyEnum.A" "MyEnum.A" [ myEnum ] [] [] false
     t
       "enum with type args"
-      "Generic<Int64>.A(1L)"
+      "Generic<Int64>.A 1L"
       "Generic<Int64>.A(1L)"
       []
       []
@@ -803,23 +803,23 @@ let exprs =
       false
     t
       "option none, short"
-      "Stdlib.Option.Option.None()"
-      "PACKAGE.Darklang.Stdlib.Option.Option.None()"
+      "Stdlib.Option.Option.None"
+      "PACKAGE.Darklang.Stdlib.Option.Option.None"
       []
       []
       []
       false
     t
       "option none, long"
-      "PACKAGE.Darklang.Stdlib.Option.Option.None()"
-      "PACKAGE.Darklang.Stdlib.Option.Option.None()"
+      "PACKAGE.Darklang.Stdlib.Option.Option.None"
+      "PACKAGE.Darklang.Stdlib.Option.Option.None"
       []
       []
       []
       false
     t
       "option some"
-      "PACKAGE.Darklang.Stdlib.Option.Option.Some(1L)"
+      "PACKAGE.Darklang.Stdlib.Option.Option.Some 1L"
       "PACKAGE.Darklang.Stdlib.Option.Option.Some(1L)"
       []
       []
@@ -1274,7 +1274,7 @@ else
       false
     t
       "match, enum"
-      "match Stdlib.Result.Result.Ok(5L) with\n| Ok(5L) -> true\n| Error(e) -> false"
+      "match Stdlib.Result.Result.Ok 5L with\n| Ok(5L) -> true\n| Error(e) -> false"
       "match PACKAGE.Darklang.Stdlib.Result.Result.Ok(5L) with\n| Ok(5L) ->\n  true\n| Error(e) ->\n  false"
       []
       []
@@ -1344,8 +1344,8 @@ else
       false
     t
       "pipe, into enum"
-      "3L |> Stdlib.Result.Result.Ok()"
-      "3L\n|> PACKAGE.Darklang.Stdlib.Result.Result.Ok()"
+      "3L |> Stdlib.Result.Result.Ok"
+      "3L\n|> PACKAGE.Darklang.Stdlib.Result.Result.Ok"
       []
       []
       []
@@ -1644,8 +1644,8 @@ let constantDeclarations =
     // enums
     t
       "option, none"
-      "const none = Stdlib.Option.Option.None()"
-      "const none = PACKAGE.Darklang.Stdlib.Option.Option.None()"
+      "const none = Stdlib.Option.Option.None"
+      "const none = PACKAGE.Darklang.Stdlib.Option.Option.None"
       []
       []
       []
