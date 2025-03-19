@@ -217,7 +217,7 @@ let fns : List<BuiltInFn> =
             let mergedMap = Map.fold f intoMap fromMap
             DDict(mergedType, mergedMap) |> Ply
           | Error() ->
-            RTE.Dicts.Error.TriedToMergeMismatchedData(vt1, vt2)
+            RTE.Dicts.Error.TriedToMergeMismatchedDicts(vt1, vt2)
             |> RTE.Error.Dict
             |> raiseRTE vm.threadID
         | _ -> incorrectArgs ())

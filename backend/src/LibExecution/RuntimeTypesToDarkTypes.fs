@@ -848,8 +848,8 @@ module RuntimeError =
         match e with
         | RuntimeError.Dicts.TriedToAddKeyAfterAlreadyPresent key ->
           "TriedToAddKeyAfterAlreadyPresent", [ DString key ]
-        | RuntimeError.Dicts.TriedToMergeMismatchedData(type1, type2) ->
-          "TriedToMergeMismatchedData",
+        | RuntimeError.Dicts.TriedToMergeMismatchedDicts(type1, type2) ->
+          "TriedToMergeMismatchedDicts",
           [ ValueType.toDT type1; ValueType.toDT type2 ]
         | RuntimeError.Dicts.TriedToAddMismatchedData(key,
                                                       expectedType,
