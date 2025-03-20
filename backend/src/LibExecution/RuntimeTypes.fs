@@ -681,8 +681,6 @@ module RuntimeError =
     type Error =
       | TriedToAddKeyAfterAlreadyPresent of key : string
 
-      | TriedToMergeMismatchedDicts of type1 : ValueType * type2 : ValueType
-
       | TriedToAddMismatchedData of
         key : string *
         expectedType : ValueType *

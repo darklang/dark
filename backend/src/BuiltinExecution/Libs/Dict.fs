@@ -210,16 +210,16 @@ let fns : List<BuiltInFn> =
           it will have the value from <param right>."
       fn =
         (function
-        | _, vm, _, [ DDict(vt1, intoMap); DDict(vt2, fromMap) ] ->
+        | _, _vm, _, [ DDict(vt1, intoMap); DDict(vt2, fromMap) ] ->
           match VT.merge vt1 vt2 with
           | Ok mergedType ->
             let f accMap k v = Map.add k v accMap
             let mergedMap = Map.fold f intoMap fromMap
             DDict(mergedType, mergedMap) |> Ply
           | Error() ->
-            RTE.Dicts.Error.TriedToMergeMismatchedDicts(vt1, vt2)
-            |> RTE.Error.Dict
-            |> raiseRTE vm.threadID
+            Exception.raiseInternal
+              "Type mismatch in Dict.merge"
+              [ "(type1, type2)", (vt1, vt2) ]
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

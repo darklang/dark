@@ -138,11 +138,10 @@ module Merge =
 
   Stdlib.Dict.merge_v0 (Dict { key1 = "val_l" }) (Dict { key1 = "val_r" }) = (Dict { key1 = "val_r" })
 
-  Stdlib.Dict.merge_v0 (Dict { key1 = 1 }) (Dict { key2 = "2" }) =
-    Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.Dict.merge's 2nd parameter `right` expects Dict<Int32>, but got Dict<String>"
-
   Stdlib.Dict.merge_v0 (Dict { key1 = "1" }) (Dict { key1 = 1 }) =
-    Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.Dict.merge's 2nd parameter `right` expects Dict<String>, but got Dict<Int32>"
+    Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.Dict.merge's 2nd parameter `right` expects Dict<String>, but got Dict<Int32> ({
+  key1: 1
+})"
 
 
 

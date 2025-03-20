@@ -184,12 +184,6 @@ module Darklang =
             | TriedToAddKeyAfterAlreadyPresent key ->
               [ ES.String "Cannot add two dictionary entries with the same key "
                 ES.FieldName key ]
-            | TriedToMergeMismatchedDicts (type1, type2) ->
-              [ ES.String "Cannot merge Dict<"
-                ES.ValueType type1
-                ES.String "> with Dict<"
-                ES.ValueType type2
-                ES.String ">" ]
             | TriedToAddMismatchedData (key, expectedType, actualType, actualValue) ->
               [ ES.String "Cannot add "
                 ES.IndefiniteArticle

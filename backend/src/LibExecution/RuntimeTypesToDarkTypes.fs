@@ -848,9 +848,6 @@ module RuntimeError =
         match e with
         | RuntimeError.Dicts.TriedToAddKeyAfterAlreadyPresent key ->
           "TriedToAddKeyAfterAlreadyPresent", [ DString key ]
-        | RuntimeError.Dicts.TriedToMergeMismatchedDicts(type1, type2) ->
-          "TriedToMergeMismatchedDicts",
-          [ ValueType.toDT type1; ValueType.toDT type2 ]
         | RuntimeError.Dicts.TriedToAddMismatchedData(key,
                                                       expectedType,
                                                       actualType,
@@ -867,11 +864,6 @@ module RuntimeError =
       match d with
       | DEnum(_, _, [], "TriedToAddKeyAfterAlreadyPresent", [ DString key ]) ->
         RuntimeError.Dicts.TriedToAddKeyAfterAlreadyPresent key
-      | DEnum(_, _, [], "TriedToMergeMismatchedDicts", [ type1; type2 ]) ->
-        RuntimeError.Dicts.TriedToMergeMismatchedDicts(
-          ValueType.fromDT type1,
-          ValueType.fromDT type2
-        )
       | DEnum(_,
               _,
               [],

@@ -43,8 +43,6 @@ module Darklang =
           type Error =
             | TriedToAddKeyAfterAlreadyPresent of key: String
 
-            | TriedToMergeMismatchedDicts of type1 : ValueType * type2 : ValueType
-
             | TriedToAddMismatchedData of
               key: String *
               expectedType: ValueType *
