@@ -953,6 +953,10 @@
         "required": false,
         "types": [
           {
+            "type": "match_pattern",
+            "named": true
+          },
+          {
             "type": "mp_enum_fields",
             "named": true
           }
@@ -960,7 +964,7 @@
       },
       "symbol_close_paren": {
         "multiple": false,
-        "required": true,
+        "required": false,
         "types": [
           {
             "type": "symbol",
@@ -970,7 +974,7 @@
       },
       "symbol_open_paren": {
         "multiple": false,
-        "required": true,
+        "required": false,
         "types": [
           {
             "type": "symbol",

@@ -347,11 +347,20 @@ module.exports = grammar({
     //
     // match pattern - enum
     mp_enum: $ =>
-      seq(
-        field("case_name", $.enum_case_identifier),
-        field("symbol_open_paren", alias("(", $.symbol)),
-        optional(field("enum_fields", $.mp_enum_fields)),
-        field("symbol_close_paren", alias(")", $.symbol)),
+      prec.right(
+        seq(
+          field("case_name", $.enum_case_identifier),
+          optional(
+            choice(
+              seq(
+                field("symbol_open_paren", alias("(", $.symbol)),
+                field("enum_fields", $.mp_enum_fields),
+                field("symbol_close_paren", alias(")", $.symbol)),
+              ),
+              field("enum_fields", $.match_pattern),
+            ),
+          ),
+        ),
       ),
 
     mp_enum_fields: $ => enum_fields_base($, $.match_pattern),

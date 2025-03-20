@@ -801,9 +801,6 @@ module Darklang =
           | "record_literal" -> parseRecordLiteral node
           | "record_update" -> parseRecordUpdate node
           | "enum_literal" -> parseEnumLiteral node
-          // | "enum_field" ->
-            // Builtin.debug "*********" (parseCase (node.children |> Stdlib.List.head |> Builtin.unwrap))
-            // parseCase (node.children |> Stdlib.List.head |> Builtin.unwrap)
 
           // assigning and accessing variables
           | "let_expression" -> parseLetExpr node

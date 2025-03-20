@@ -2180,59 +2180,81 @@
       }
     },
     "mp_enum": {
-      "type": "SEQ",
-      "members": [
-        {
-          "type": "FIELD",
-          "name": "case_name",
-          "content": {
-            "type": "SYMBOL",
-            "name": "enum_case_identifier"
-          }
-        },
-        {
-          "type": "FIELD",
-          "name": "symbol_open_paren",
-          "content": {
-            "type": "ALIAS",
+      "type": "PREC_RIGHT",
+      "value": 0,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "FIELD",
+            "name": "case_name",
             "content": {
-              "type": "STRING",
-              "value": "("
-            },
-            "named": true,
-            "value": "symbol"
-          }
-        },
-        {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "FIELD",
-              "name": "enum_fields",
-              "content": {
-                "type": "SYMBOL",
-                "name": "mp_enum_fields"
-              }
-            },
-            {
-              "type": "BLANK"
+              "type": "SYMBOL",
+              "name": "enum_case_identifier"
             }
-          ]
-        },
-        {
-          "type": "FIELD",
-          "name": "symbol_close_paren",
-          "content": {
-            "type": "ALIAS",
-            "content": {
-              "type": "STRING",
-              "value": ")"
-            },
-            "named": true,
-            "value": "symbol"
+          },
+          {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "CHOICE",
+                "members": [
+                  {
+                    "type": "SEQ",
+                    "members": [
+                      {
+                        "type": "FIELD",
+                        "name": "symbol_open_paren",
+                        "content": {
+                          "type": "ALIAS",
+                          "content": {
+                            "type": "STRING",
+                            "value": "("
+                          },
+                          "named": true,
+                          "value": "symbol"
+                        }
+                      },
+                      {
+                        "type": "FIELD",
+                        "name": "enum_fields",
+                        "content": {
+                          "type": "SYMBOL",
+                          "name": "mp_enum_fields"
+                        }
+                      },
+                      {
+                        "type": "FIELD",
+                        "name": "symbol_close_paren",
+                        "content": {
+                          "type": "ALIAS",
+                          "content": {
+                            "type": "STRING",
+                            "value": ")"
+                          },
+                          "named": true,
+                          "value": "symbol"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "FIELD",
+                    "name": "enum_fields",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "match_pattern"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "BLANK"
+              }
+            ]
           }
-        }
-      ]
+        ]
+      }
     },
     "mp_enum_fields": {
       "type": "PREC_RIGHT",
