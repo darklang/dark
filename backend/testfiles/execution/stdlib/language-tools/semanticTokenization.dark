@@ -639,7 +639,7 @@ module TokenizePipeExpression =
       (TokenType.Number, (0L, 20L), (0L, 21L))
       (TokenType.Symbol, (0L, 21L), (0L, 22L)) ]
 
-  ("1L |> MyEnum.A()" |> tokenize) =
+  ("1L |> MyEnum.A" |> tokenize) =
     [ (TokenType.Number, (0L, 0L), (0L, 1L))
       (TokenType.Symbol, (0L, 1L), (0L, 2L))
       (TokenType.Operator, (0L, 3L), (0L, 5L))
@@ -647,7 +647,7 @@ module TokenizePipeExpression =
       (TokenType.Symbol, (0L, 12L), (0L, 13L))
       (TokenType.EnumMember, (0L, 13L), (0L, 14L)) ]
 
-  ("1L |> Stdlib.Result.Result.Ok()" |> tokenize) =
+  ("1L |> Stdlib.Result.Result.Ok" |> tokenize) =
     [ (TokenType.Number, (0L, 0L), (0L, 1L))
       (TokenType.Symbol, (0L, 1L), (0L, 2L))
       (TokenType.Operator, (0L, 3L), (0L, 5L))

@@ -305,11 +305,9 @@ Enum List
               (symbol)
               (enum_case_identifier)
               (symbol)
-              (indent)
               (enum_fields
                 (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
               )
-              (dedent)
               (symbol)
             )
           )
@@ -347,6 +345,69 @@ List of constants
           (simple_expression (variable_identifier))
           (newline)
           (simple_expression (variable_identifier))
+          (newline)
+        )
+        (symbol)
+      )
+    )
+  )
+)
+
+
+==================
+List of Enums
+==================
+
+[
+  Stdlib.Option.Option.Some 1L
+  Stdlib.Option.Option.None
+  Stdlib.Option.Option.Some(1L, 2L, 3L)
+  Stdlib.Option.Option.Some(1L, 2L)
+]
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (list_literal
+        (symbol)
+        (list_content
+          (simple_expression
+            (enum_literal
+              (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)) (symbol) (enum_case_identifier)
+              (enum_fields
+                (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol)))))))
+          (newline)
+          (simple_expression
+            (enum_literal (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)) (symbol) (enum_case_identifier)))
+          (newline)
+          (simple_expression
+            (enum_literal (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)) (symbol) (enum_case_identifier)
+              (symbol)
+              (enum_fields
+                (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                (symbol)
+                (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                (symbol)
+                (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+              )
+              (symbol)
+            )
+          )
+          (newline)
+          (simple_expression
+            (enum_literal
+              (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)) (symbol) (enum_case_identifier)
+              (symbol)
+              (enum_fields
+                (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                (symbol)
+                (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+              )
+              (symbol)
+            )
+          )
           (newline)
         )
         (symbol)
