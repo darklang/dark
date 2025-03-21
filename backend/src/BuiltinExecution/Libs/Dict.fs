@@ -218,8 +218,8 @@ let fns : List<BuiltInFn> =
             DDict(mergedType, mergedMap) |> Ply
           | Error() ->
             Exception.raiseInternal
-              "Type mismatch in Dict.merge"
-              [ "(type1, type2)", (vt1, vt2) ]
+              "Builtin.dictMerge input dicts somehow bypassed fn-arg type-checking"
+              [ ("vt1", vt1); ("vt2", vt2) ]
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
