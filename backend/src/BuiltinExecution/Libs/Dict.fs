@@ -6,6 +6,7 @@ open LibExecution.Builtin.Shortcuts
 module TypeChecker = LibExecution.TypeChecker
 
 module VT = LibExecution.ValueType
+module RTE = RuntimeError
 module Dval = LibExecution.Dval
 module Interpreter = LibExecution.Interpreter
 module PackageIDs = LibExecution.PackageIDs
@@ -72,8 +73,8 @@ let fns : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [ DDict(valueType, o) ] ->
-          Map.toList o
-          |> List.map (fun (k, v) -> DTuple(DString k, v, []))
+          let f k v acc = DTuple(DString k, v, []) :: acc
+          Map.foldBack f o []
           |> fun pairs -> DList(VT.tuple VT.string valueType [], pairs)
           |> Ply
         | _ -> incorrectArgs ())
@@ -209,12 +210,16 @@ let fns : List<BuiltInFn> =
           it will have the value from <param right>."
       fn =
         (function
-        | _, vm, _, [ DDict(_vtTODO1, l); DDict(_vtTODO2, r) ] ->
-          Map.mergeFavoringRight l r
-          // CLEANUP: performance
-          |> Map.toList
-          |> TypeChecker.DvalCreator.dict vm.threadID VT.unknownTODO
-          |> Ply
+        | _, _vm, _, [ DDict(vt1, intoMap); DDict(vt2, fromMap) ] ->
+          match VT.merge vt1 vt2 with
+          | Ok mergedType ->
+            let f accMap k v = Map.add k v accMap
+            let mergedMap = Map.fold f intoMap fromMap
+            DDict(mergedType, mergedMap) |> Ply
+          | Error() ->
+            Exception.raiseInternal
+              "Builtin.dictMerge input dicts somehow bypassed fn-arg type-checking"
+              [ ("vt1", vt1); ("vt2", vt2) ]
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

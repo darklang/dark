@@ -139,7 +139,6 @@ module Merge =
   Stdlib.Dict.merge_v0 (Dict { key1 = "val_l" }) (Dict { key1 = "val_r" }) = (Dict { key1 = "val_r" })
 
 
-
 module Set =
   Stdlib.Dict.set_v0 (Dict { key1 = "val1" }) "key2" "val2" =
     (Dict { key1 = "val1"; key2 = "val2" })
