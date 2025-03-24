@@ -116,9 +116,9 @@ let loadFromDisk
 
         let dbs = canvas.dbs |> List.map PT.Toplevel.TLDB
 
-        do! LibCloud.PackageManager.savePackageTypes canvas.types
-        do! LibCloud.PackageManager.savePackageConstants canvas.constants
-        do! LibCloud.PackageManager.savePackageFunctions canvas.fns
+        do! LibCloud.PackageManager.savePackageTypesSqlite canvas.types
+        do! LibCloud.PackageManager.savePackageConstantsSqlite canvas.constants
+        do! LibCloud.PackageManager.savePackageFunctionsSqlite canvas.fns
 
         return
           (dbs @ handlers) |> List.map (fun tl -> tl, LibCloud.Serialize.NotDeleted)
