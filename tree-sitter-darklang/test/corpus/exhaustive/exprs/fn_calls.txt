@@ -398,7 +398,7 @@ Builtin.printLine Person { name = "Alice" }
 function call - with an enum as argument
 ==================
 
-Builtin.printLine Stdlib.Option.Option.Some(1L)
+Builtin.printLine Stdlib.Option.Option.Some 1L
 
 ---
 
@@ -411,13 +411,9 @@ Builtin.printLine Stdlib.Option.Option.Some(1L)
           (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier))
           (symbol)
           (enum_case_identifier)
-          (symbol)
           (enum_fields
-            (expression
-              (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
-            )
+            (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
           )
-          (symbol)
         )
       )
       (newline)

@@ -273,7 +273,7 @@ module Darklang =
             | Error e -> PrettyPrinter.ProgramTypes.NameResolutionError.source e
 
           match fields with
-          | [] -> $"{typeNamePart}.{caseName}()"
+          | [] -> $"{typeNamePart}.{caseName}"
           | fields ->
             let fieldPart =
               fields
@@ -358,7 +358,7 @@ module Darklang =
 
         | MPEnum(_id, caseName, fieldPats) ->
           match fieldPats with
-          | [] -> $"{caseName}()"
+          | [] -> $"{caseName}"
           | fieldPats ->
             let fieldPart =
               fieldPats
@@ -464,7 +464,7 @@ module Darklang =
             | Error e -> PrettyPrinter.ProgramTypes.NameResolutionError.source e
 
           match fields with
-          | [] -> $"{typeNamePart}.{caseName}()"
+          | [] -> $"{typeNamePart}.{caseName}"
           | fields ->
             let fieldPart =
               fields
@@ -578,7 +578,7 @@ module Darklang =
               |> fun parts -> $"<{parts}>"
 
           match fields with
-          | [] -> $"{typeNamePart}{typeArgsPart}.{caseName}()"
+          | [] -> $"{typeNamePart}{typeArgsPart}.{caseName}"
           | fields ->
             let fieldPart =
               fields

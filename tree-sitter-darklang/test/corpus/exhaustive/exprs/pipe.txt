@@ -173,7 +173,7 @@ pipe expression - infix
 pipe expression - enum
 ==================
 
-3L |> Stdlib.Result.Result.Ok()
+3L |> Stdlib.Result.Result.Ok
 
 ---
 
@@ -185,7 +185,7 @@ pipe expression - enum
         (symbol)
         (pipe_expr
           (pipe_enum
-            (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)) (symbol) (enum_case_identifier) (symbol) (symbol)
+            (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)) (symbol) (enum_case_identifier)
           )
         )
       )
