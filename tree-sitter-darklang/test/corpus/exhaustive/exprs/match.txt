@@ -267,7 +267,7 @@ match (5L, 6L) with
 
 
 ==================
-match expression - test enum
+match expression - test enum one arg wrapped in parens
 ==================
 
 match Stdlib.Result.Result.Ok(5L) with
@@ -306,6 +306,187 @@ match Stdlib.Result.Result.Ok(5L) with
   )
 )
 
+
+==================
+match expression - test enum one arg without parens
+==================
+
+match Stdlib.Result.Result.Ok 5L with
+| Ok x -> x
+| Error x -> x
+
+---
+
+(source_file
+  (expression
+    (match_expression
+      (keyword)
+      (expression
+        (simple_expression
+          (enum_literal
+            (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier))
+            (symbol)
+            (enum_case_identifier)
+            (enum_fields
+              (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+            )
+          )
+        )
+      )
+      (keyword)
+      (match_case
+        (symbol)
+        (match_pattern (enum (enum_case_identifier) (mp_enum_fields (match_pattern (variable)))))
+        (symbol)
+        (expression (simple_expression (variable_identifier)))
+      )
+      (match_case
+        (symbol)
+        (match_pattern
+          (enum (enum_case_identifier) (mp_enum_fields (match_pattern (variable))))
+        )
+        (symbol)
+        (expression (simple_expression (variable_identifier)))
+      )
+    )
+  )
+)
+
+
+==================
+match expression - test enum one tuple arg
+==================
+
+match Stdlib.Result.Result.Ok((5L,3L)) with
+| Ok((5L,3L)) -> x
+| Error x -> x
+
+---
+
+(source_file
+  (expression
+    (match_expression
+      (keyword)
+      (expression
+        (simple_expression
+          (enum_literal
+            (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier))
+            (symbol)
+            (enum_case_identifier)
+            (symbol)
+            (enum_fields
+              (expression
+                (simple_expression
+                  (tuple_literal
+                    (symbol)
+                    (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                    (symbol)
+                    (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                    (symbol)
+                  )
+                )
+              )
+            )
+            (symbol)
+          )
+        )
+      )
+      (keyword)
+      (match_case
+        (symbol)
+        (match_pattern
+          (enum
+            (enum_case_identifier)
+            (symbol)
+            (mp_enum_fields
+              (match_pattern
+                (tuple
+                  (symbol)
+                  (match_pattern (int64 (digits (positive_digits)) (symbol)))
+                  (symbol)
+                  (match_pattern (int64 (digits (positive_digits)) (symbol)))
+                  (symbol)
+                )
+              )
+            )
+            (symbol)
+          )
+        )
+        (symbol)
+        (expression (simple_expression (variable_identifier))))
+      (match_case
+        (symbol)
+        (match_pattern
+          (enum
+            (enum_case_identifier)
+            (mp_enum_fields (match_pattern (variable)))
+          )
+        )
+        (symbol)
+        (expression (simple_expression (variable_identifier)))
+      )
+    )
+  )
+)
+
+
+==================
+match expression - test enum two args
+==================
+
+match MyEnum.MyCase(5L,3L) with
+| MyCase(5L,3L) -> "pass"
+| _ -> "fail"
+
+---
+
+(source_file
+  (expression
+    (match_expression
+      (keyword)
+      (expression
+        (simple_expression
+          (enum_literal
+            (qualified_type_name (type_identifier))
+            (symbol)
+            (enum_case_identifier)
+            (symbol)
+            (enum_fields
+              (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+              (symbol)
+              (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+            )
+            (symbol)
+          )
+        )
+      )
+      (keyword)
+      (match_case
+        (symbol)
+        (match_pattern
+          (enum
+            (enum_case_identifier)
+            (symbol)
+            (mp_enum_fields
+              (match_pattern (int64 (digits (positive_digits)) (symbol)))
+              (symbol)
+              (match_pattern (int64 (digits (positive_digits)) (symbol)))
+            )
+            (symbol)
+          )
+        )
+        (symbol)
+        (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+      )
+      (match_case
+        (symbol)
+        (match_pattern (variable))
+        (symbol)
+        (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+      )
+    )
+  )
+)
 
 
 ==================

@@ -30,6 +30,9 @@ tree-sitter-darklang/tree-sitter-darklang.so
 tree-sitter-darklang/xplat-builds
 tree-sitter-darklang/src/parser.c
 
+# Extension
+.vsix/*
+
 # Terraform
 **/.terraform/*
 *.tfstate

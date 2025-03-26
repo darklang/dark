@@ -2208,8 +2208,11 @@
                         "content": {
                           "type": "ALIAS",
                           "content": {
-                            "type": "STRING",
-                            "value": "("
+                            "type": "IMMEDIATE_TOKEN",
+                            "content": {
+                              "type": "STRING",
+                              "value": "("
+                            }
                           },
                           "named": true,
                           "value": "symbol"
@@ -2243,7 +2246,7 @@
                     "name": "enum_fields",
                     "content": {
                       "type": "SYMBOL",
-                      "name": "match_pattern"
+                      "name": "mp_enum_fields"
                     }
                   }
                 ]

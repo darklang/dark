@@ -1,12 +1,59 @@
 module DvalReprDeveloper
 
+open LibCloud
+
 open Prelude
 
 open LibExecution.RuntimeTypes
+module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
+
+// CLEANUP: avoid using `Async.RunSynchronously` and try to handle the pretty printing in dark
 let private fqTypeNameToString (typeName : FQTypeName.FQTypeName) : string =
-  match typeName with
-  | FQTypeName.Package id -> $"Package {id}"
+  let getFQName fields =
+    match Map.tryFind "name" fields with
+    | Some(DRecord(_, _, _, nameFields)) ->
+      let modules =
+        nameFields
+        |> Map.tryFind "modules"
+        |> Option.bind (function
+          | DList(_, mods) -> Some mods
+          | _ -> None)
+        |> Option.defaultValue []
+        |> List.choose (function
+          | DString s -> Some s
+          | _ -> None)
+        |> String.concat "."
+
+      let name =
+        nameFields
+        |> Map.tryFind "name"
+        |> Option.bind (function
+          | DString n -> Some n
+          | _ -> None)
+        |> Option.defaultValue ""
+
+      if modules = "" then name else modules + "." + name
+
+    | _ -> ""
+
+  let result =
+    async {
+      match typeName with
+      | FQTypeName.Package id ->
+        let! typeOption =
+          LibCloud.PackageManager.getType id |> Ply.toTask |> Async.AwaitTask
+
+        match typeOption with
+        | Some packageType ->
+          match PT2DT.PackageType.toDT packageType with
+          | DRecord(_, _, _, fields) -> return getFQName fields
+          | _ -> return $"Package {id}"
+        | None -> return $"Package {id}"
+    }
+  Async.RunSynchronously result
+
+
 
 let rec typeReference (t : TypeReference) : string =
   match t with
