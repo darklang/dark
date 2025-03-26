@@ -1281,6 +1281,30 @@ else
       []
       false
     t
+      "match, enum no parens with one arg"
+      "match Stdlib.Result.Result.Ok 5L with\n| Ok 5L -> true\n| Error e  -> false"
+      "match PACKAGE.Darklang.Stdlib.Result.Result.Ok(5L) with\n| Ok(5L) ->\n  true\n| Error(e) ->\n  false"
+      []
+      []
+      []
+      false
+    t
+      "match, enum with 2 args"
+      "match MyEnum.D(5L, 3L) with\n| D(5L, 3L) -> true\n| _  -> false"
+      "match MyEnum.D(5L, 3L) with\n| D(5L, 3L) ->\n  true\n| _ ->\n  false"
+      []
+      []
+      []
+      false
+    t
+      "match, enum no parens with 1 tuple arg"
+      "match Stdlib.Result.Result.Ok((5L, 3L)) with\n| Ok((5L, 3L)) -> true\n| Error e  -> false"
+      "match PACKAGE.Darklang.Stdlib.Result.Result.Ok((5L, 3L)) with\n| Ok((5L, 3L)) ->\n  true\n| Error(e) ->\n  false"
+      []
+      []
+      []
+      false
+    t
       "match, string 3"
       "match \"str\" with\n| \"str\" when true -> true"
       "match \"str\" with\n| \"str\" when true ->\n  true"
@@ -1352,8 +1376,8 @@ else
       false
     t
       "pipe, into enum 2"
-      "33L |> Tests.MyEnum.A(21L)"
-      "33L\n|> MyEnum.A(21L)"
+      "33L |> Tests.MyEnum.D(21L)"
+      "33L\n|> MyEnum.D(21L)"
       [ myEnum ]
       []
       []
@@ -1660,16 +1684,16 @@ let constantDeclarations =
       false
     t
       "enum, tupled args"
-      "const a = MyEnum.A((1L, 2L))"
-      "const a = MyEnum.A((1L, 2L))"
+      "const a = MyEnum.C((1L, 2L))"
+      "const a = MyEnum.C((1L, 2L))"
       [ myEnum ]
       []
       []
       false
     t
       "enum, fn args"
-      "const a = MyEnum.A(1L, 2L)"
-      "const a = MyEnum.A(1L, 2L)"
+      "const a = MyEnum.D(1L, 2L)"
+      "const a = MyEnum.D(1L, 2L)"
       [ myEnum ]
       []
       []

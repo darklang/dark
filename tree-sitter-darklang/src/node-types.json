@@ -953,10 +953,6 @@
         "required": false,
         "types": [
           {
-            "type": "match_pattern",
-            "named": true
-          },
-          {
             "type": "mp_enum_fields",
             "named": true
           }
