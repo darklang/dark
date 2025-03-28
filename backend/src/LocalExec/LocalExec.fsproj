@@ -16,15 +16,15 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../LibCloud/LibCloud.fsproj" />
     <ProjectReference Include="../LibParser/LibParser.fsproj" />
+    <ProjectReference Include="../LibCloud/LibCloud.fsproj" />
 
     <ProjectReference Include="../BuiltinExecution/BuiltinExecution.fsproj" />
     <ProjectReference Include="../BuiltinCli/BuiltinCli.fsproj" />
     <ProjectReference Include="../BuiltinCliHost/BuiltinCliHost.fsproj" />
     <ProjectReference Include="../BuiltinDarkInternal/BuiltinDarkInternal.fsproj" />
     <ProjectReference Include="../BuiltinCloudExecution/BuiltinCloudExecution.fsproj" />
-    <ProjectReference Include="../../tests/TestUtils/TestUtils.fsproj" />
+    <!--ProjectReference Include="../../tests/TestUtils/TestUtils.fsproj" /-->
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Utils.fs" />

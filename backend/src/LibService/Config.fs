@@ -106,6 +106,7 @@ let traceSamplingRuleDefault = string "DARK_CONFIG_TRACE_SAMPLING_RULE_DEFAULT"
 // --------------------
 // db
 // --------------------
+// TODO can probably kill most of these
 let pgHost = string "DARK_CONFIG_DB_HOST"
 
 let pgPort = int "DARK_CONFIG_DB_PORT"

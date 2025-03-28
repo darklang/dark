@@ -9,8 +9,6 @@ open Expecto
 
 open Prelude
 
-open Npgsql.FSharp
-open Npgsql
 open LibCloud.Db
 
 open TestUtils.TestUtils

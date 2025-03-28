@@ -4,8 +4,8 @@ module LibCloud.Queue
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open Npgsql.FSharp
-open Npgsql
+open Microsoft.Data.Sqlite
+open Fumble
 open Db
 
 open Google.Cloud.PubSub.V1
@@ -75,11 +75,9 @@ let createEventAtTime
   : Task<unit> =
   Sql.query
     "INSERT INTO queue_events_v0
-      (id, canvas_id, module, name, modifier, value,
-       enqueued_at, locked_at)
+      (id, canvas_id, module, name, modifier, value, enqueued_at, locked_at)
      VALUES
-      (@id, @canvasID, @module, @name, @modifier, @value,
-       @enqueuedAt, NULL)"
+      (@id, @canvasID, @module, @name, @modifier, @value, @enqueuedAt, NULL)"
   |> Sql.parameters
     [ "id", Sql.uuid id
       "canvasID", Sql.uuid canvasID

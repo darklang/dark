@@ -1,0 +1,51 @@
+module Darklang =
+  module LanguageTools =
+    module McpServer =
+      let handleInitializeRequest
+        // TODO: (ModelContextProtocol.Lifecycle.InitializeRequest.InitializeParams)
+        ()
+        : McpState =
+        let hardcodedInitializeResult =
+          ModelContextProtocol.Lifecycle.InitializeRequest.InitializeResult
+            { serverInfo =
+                Stdlib.Option.Option.Some(
+                  ModelContextProtocol.ServerInfo
+                    { name = "Darklang MCP Server"
+                      version = "0.1.0" }
+                )
+
+              capabilities =
+                ModelContextProtocol.ServerCapabilities
+                  { resources =
+                      Stdlib.Option.Option.Some(
+                        ModelContextProtocol.ResourceCapabilities
+                          { supportsResourceListing = true
+                            supportsResourceTemplates = true }
+                      )
+
+                    tools =
+                      Stdlib.Option.Option.Some(
+                        ModelContextProtocol.ToolCapabilities
+                          { supportsToolListing = true }
+                      ) } }
+
+
+        let initializeResponse =
+          hardcodedInitializeResult
+          |> ModelContextProtocol.Lifecycle.InitializeRequest.toJson
+          |> (fun r ->
+            JsonRPC.Response.Ok.make
+              (Stdlib.Option.Option.Some(JsonRPC.RequestId.Int 0L))
+              r)
+          |> Stdlib.AltJson.format
+
+        logAndSendToClient initializeResponse
+
+
+        McpState
+          { initialized = true
+            shouldShutdown = false
+            traceLevel = ModelContextProtocol.TraceLevel.Off
+            resources = Dict { }
+            resourceTemplates = Dict { }
+            tools = Dict { } }

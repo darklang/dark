@@ -66,8 +66,6 @@ open FSharp.Control.Tasks
 open System.IO
 open System.IO.Compression
 
-open Npgsql.FSharp
-open Npgsql
 open Db
 
 open Prelude

@@ -1,4 +1,5 @@
 /// Standard libraries for printing and output
+/// TODO create equivalent for stderr, and rename these fns...
 module BuiltinCli.Libs.Output
 
 open System.Threading.Tasks
@@ -40,6 +41,28 @@ let fns : List<BuiltInFn> =
           printInline str
           Ply DUnit
         | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "stdoutClear" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "A unit" ]
+      returnType = TUnit
+      description = "Clears the standard output."
+      fn =
+        function
+        | _, _, _, [ DUnit ] ->
+          // System.Console.Write("\u001b[2J") // Clear screen
+          // System.Console.Write("\u001b[H")  // Move cursor to top-left
+          // //debuG "height" System.Console.WindowHeight
+          if System.OperatingSystem.IsWindows() then
+              System.Console.Clear()
+          else
+              System.Console.Write("\u001b[2J\u001b[H"); // ANSI escape for non-Windows
+          Ply DUnit
+        | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]

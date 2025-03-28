@@ -13,7 +13,7 @@ function ctrl_c() {
 LLDB=false
 PUBLISHED=false
 PUBLISHED_FLAG=
-DB=pg
+DB=sqlite
 
 EXPECTO_ARGS=()
 
@@ -21,7 +21,6 @@ for i in "$@"
 do
   case "${i}" in
     --lldb) LLDB=true ;;
-    --yugabyte) DB=yb ;;
     --published)
       PUBLISHED=true
       PUBLISHED_FLAG=$i
@@ -41,28 +40,17 @@ else
 fi
 
 case "$DB" in
-  pg)
-    export DARK_CONFIG_DB_HOST=localhost
-    export DARK_CONFIG_DB_PORT=5432
-    export DARK_CONFIG_DB_DBNAME=testdb
-    export DARK_CONFIG_DB_USER=dark
-    export DARK_CONFIG_DB_PASSWORD=darklang
+  sqlite)
+    # export DARK_CONFIG_DB_HOST=localhost
+    # export DARK_CONFIG_DB_PORT=5432
+    # export DARK_CONFIG_DB_DBNAME=testdb
+    # export DARK_CONFIG_DB_USER=dark
+    # export DARK_CONFIG_DB_PASSWORD=darklang
 
-    echo "Dropping postgres testdb database"
-    ./scripts/devcontainer/_wait-for-postgres
-    dropdb --if-exists testdb
-    createdb testdb
-    ;;
-  yb)
-    export DARK_CONFIG_DB_HOST=192.168.215.2
-    export DARK_CONFIG_DB_PORT=5433
-    export DARK_CONFIG_DB_DBNAME=testdb
-    export DARK_CONFIG_DB_USER=yugabyte
-    export DARK_CONFIG_DB_PASSWORD=postgres
-    echo "Dropping yugabyte testdb database"
-    # ./scripts/devcontainer/_wait-for-yugabyte
-    ../yugabyte/bin/ysqlsh -h "${DARK_CONFIG_DB_HOST}" -p "${DARK_CONFIG_DB_PORT}" -U "${DARK_CONFIG_DB_USER}" -c "DROP DATABASE IF EXISTS testdb"
-    ../yugabyte/bin/ysqlsh -h "${DARK_CONFIG_DB_HOST}" -p "${DARK_CONFIG_DB_PORT}" -U "${DARK_CONFIG_DB_USER}" -c "CREATE DATABASE testdb"
+    # echo "Dropping postgres testdb database"
+    # ./scripts/devcontainer/_wait-for-postgres
+    # dropdb --if-exists testdb
+    # createdb testdb
     ;;
 esac
 

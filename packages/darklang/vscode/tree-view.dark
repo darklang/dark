@@ -1,0 +1,174 @@
+module Darklang =
+  module VSCode =
+
+    // https://code.visualstudio.com/api/references/vscode-api#TreeItemCollapsibleState for references
+    module TreeView =
+      module TreeItemCollapsibleState =
+        type TreeItemCollapsibleState =
+          /// Can be neither collapsed nor expanded.
+          /// (Implies it has no children.)
+          | None
+
+          | Collapsed
+
+          | Expanded
+
+        let toJson (state: TreeItemCollapsibleState) : Json =
+          match state with
+          | None -> Json.Number 0.0
+          | Collapsed -> Json.Number 1.0
+          | Expanded -> Json.Number 2.0
+
+
+      module TreeItemType =
+        type TreeItemType =
+          | File
+          | Directory
+
+        let toJson (t: TreeItemType) : Json =
+          match t with
+          | File -> Json.String "file"
+          | Directory -> Json.String "directory"
+
+
+      module TreeItemCheckboxState =
+        type TreeItemCheckboxState =
+          | Unchecked
+          | Checked
+
+        let toJson (state: TreeItemCheckboxState) : Json =
+          match state with
+          | Unchecked -> Json.Number 0.0
+          | Checked -> Json.Number 1.0
+
+      module TreeItemLabel =
+        type TreeItemLabel =
+          { label: String
+            highlights: Stdlib.Option.Option<List<Int64 * Int64>> }
+
+        let toJson (l: TreeItemLabel) : Json =
+          [ Some(("label", Json.String l.label))
+
+            l.highlights
+            |> Stdlib.Option.map (fun h ->
+              ("highlights",
+               h
+               |> Stdlib.List.map (fun (s, e) ->
+                 [ s |> Stdlib.Int64.toFloat |> Json.Number
+                   e |> Stdlib.Int64.toFloat |> Json.Number ]
+                 |> Json.Array)
+               |> Json.Array)) ]
+          |> Stdlib.Option.values
+          |> Json.Object
+
+
+      module TreeItem =
+        module Description =
+          type Description =
+            | String of String
+            | Bool of Bool
+
+          let toJson (d: Description) : Json =
+            match d with
+            | String s -> Json.String s
+            | Bool b -> Json.Bool b
+
+
+        module Label =
+          type Label =
+            | String of String
+            | TreeItemLabel of TreeItemLabel.TreeItemLabel
+
+          let toJson (l: Label) : Json =
+            match l with
+            | String s -> Json.String s
+            | TreeItemLabel l -> TreeItemLabel.toJson l
+
+
+        module IconPath =
+          type IconPath =
+            // TODO: handle more of these
+            //| Uri of Uri
+            //| DarkAndLight of
+            // ThemeIcon of
+            | String of String
+
+          let toJson (i: IconPath) : Json =
+            match i with
+            | String s -> Json.String s
+
+
+        module Tooltip =
+          type Tooltip =
+            // TODO: MarkdownString of MarkdownString
+            | String of String
+
+          let toJson (t: Tooltip) : Json =
+            match t with
+            | String s -> Json.String s
+
+
+        type TreeItem =
+          {
+            id: Stdlib.Option.Option<String>
+            label: Stdlib.Option.Option<Label.Label>
+            collapsibleState:
+              Stdlib.Option.Option<TreeItemCollapsibleState.TreeItemCollapsibleState>
+
+            command: Stdlib.Option.Option<Command.Command>
+
+            /// Context value of the tree item. This can be used to contribute item specific
+            /// actions in the tree. For example, a tree item is given a context value as folder.
+            /// When contributing actions to view/item/context using menus extension point,
+            /// you can specify context value for key viewItem in when expression like viewItem == folder.
+            contextValue: Stdlib.Option.Option<String>
+
+            checkboxState:
+              Stdlib.Option.Option<TreeItemCheckboxState.TreeItemCheckboxState>
+            accessibilityInformation:
+              Stdlib.Option.Option<AccessibilityInformation.AccessibilityInformation>
+
+            description: Stdlib.Option.Option<Description.Description>
+
+            iconPath: Stdlib.Option.Option<IconPath.IconPath>
+
+            resourceUri: Stdlib.Option.Option<Uri.Uri>
+
+            tooltip: Stdlib.Option.Option<Tooltip.Tooltip>
+          }
+
+        let toJson (i: TreeItem) : Json =
+          [ i.id |> Stdlib.Option.map (fun id -> ("id", Json.String id))
+
+            i.label |> Stdlib.Option.map (fun l -> ("label", Label.toJson l))
+
+            i.collapsibleState
+            |> Stdlib.Option.map (fun s ->
+              ("collapsibleState", TreeItemCollapsibleState.toJson s))
+
+            i.command |> Stdlib.Option.map (fun c -> ("command", Command.toJson c))
+
+            i.contextValue
+            |> Stdlib.Option.map (fun cv -> ("contextValue", Json.String cv))
+
+            i.checkboxState
+            |> Stdlib.Option.map (fun cs ->
+              ("checkboxState", TreeItemCheckboxState.toJson cs))
+
+            i.accessibilityInformation
+            |> Stdlib.Option.map (fun ai ->
+              ("accessibilityInformation", AccessibilityInformation.toJson ai))
+
+            i.description
+            |> Stdlib.Option.map (fun d -> ("description", Description.toJson d))
+
+            i.iconPath
+            |> Stdlib.Option.map (fun ip -> ("iconPath", IconPath.toJson ip))
+
+            i.resourceUri
+            |> Stdlib.Option.map (fun r -> ("resourceUri", Uri.toJson r))
+
+            i.tooltip |> Stdlib.Option.map (fun t -> ("tooltip", Tooltip.toJson t)) ]
+
+          |> Stdlib.Option.values
+          |> Json.Object

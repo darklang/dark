@@ -439,9 +439,94 @@ module Darklang =
             | OemClear
 
 
-          let toString (k: Key): String =
+          /// Returns true if the key represents a textual input (letters, numbers, etc.)
+          let isTextual (k: Key): Bool =
             match k with
-            // CLEANUP there's some tidying to be done here
+            | A | B | C | D | E | F | G | H | I | J | K | L | M
+            | N | O | P | Q | R | S | T | U | V | W | X | Y | Z
+            | D0 | D1 | D2 | D3 | D4 | D5 | D6 | D7 | D8 | D9
+            | Spacebar | OemComma | OemPeriod | OemMinus | OemPlus
+            | Oem1 | Oem2 | Oem3 | Oem4 | Oem5 | Oem6 | Oem7 | Oem8 -> true
+            | _ -> false
+
+          /// Returns true if the key represents a control key (navigation, function keys, etc.)
+          let isControl (k: Key): Bool =
+            match k with
+            | Enter | Escape | Backspace | Tab
+            | LeftArrow | RightArrow | UpArrow | DownArrow
+            | Home | End | PageUp | PageDown
+            | F1 | F2 | F3 | F4 | F5 | F6 | F7 | F8 | F9 | F10 | F11 | F12
+            | Delete | Insert -> true
+            | _ -> false
+
+
+        module KeyDisplay =
+          /// Returns a string representation as it would be typed by the user, considering shift state
+          let toStringAsTyped (k: Key.Key) (shift: Bool): String =
+            match k with
+            // Letters - uppercase if shift is held
+            | A -> if shift then "A" else "a"
+            | B -> if shift then "B" else "b"
+            | C -> if shift then "C" else "c"
+            | D -> if shift then "D" else "d"
+            | E -> if shift then "E" else "e"
+            | F -> if shift then "F" else "f"
+            | G -> if shift then "G" else "g"
+            | H -> if shift then "H" else "h"
+            | I -> if shift then "I" else "i"
+            | J -> if shift then "J" else "j"
+            | K -> if shift then "K" else "k"
+            | L -> if shift then "L" else "l"
+            | M -> if shift then "M" else "m"
+            | N -> if shift then "N" else "n"
+            | O -> if shift then "O" else "o"
+            | P -> if shift then "P" else "p"
+            | Q -> if shift then "Q" else "q"
+            | R -> if shift then "R" else "r"
+            | S -> if shift then "S" else "s"
+            | T -> if shift then "T" else "t"
+            | U -> if shift then "U" else "u"
+            | V -> if shift then "V" else "v"
+            | W -> if shift then "W" else "w"
+            | X -> if shift then "X" else "x"
+            | Y -> if shift then "Y" else "y"
+            | Z -> if shift then "Z" else "z"
+
+            // Numbers/symbols - different characters when shift is held
+            | D0 -> if shift then ")" else "0"
+            | D1 -> if shift then "!" else "1"
+            | D2 -> if shift then "@" else "2"
+            | D3 -> if shift then "#" else "3"
+            | D4 -> if shift then "$" else "4"
+            | D5 -> if shift then "%" else "5"
+            | D6 -> if shift then "^" else "6"
+            | D7 -> if shift then "&" else "7"
+            | D8 -> if shift then "*" else "8"
+            | D9 -> if shift then "(" else "9"
+
+            // Special characters
+            | Spacebar -> " "
+            | OemComma -> if shift then "<" else ","
+            | OemPeriod -> if shift then ">" else "."
+            | OemMinus -> if shift then "_" else "-"
+            | OemPlus -> if shift then "+" else "="
+            | Oem1 -> if shift then ":" else ";"
+            | Oem2 -> if shift then "?" else "/"
+            | Oem3 -> if shift then "~" else "`"
+            | Oem4 -> if shift then "{" else "["
+            | Oem5 -> if shift then "|" else "\\"
+            | Oem6 -> if shift then "}" else "]"
+            | Oem7 -> if shift then "\"" else "'"
+
+            // For non-textual keys, return an empty string
+            | _ -> ""
+
+          /// Returns a string representation of a key press, considering modifiers
+          let keyReadToString (keyRead: KeyRead.KeyRead): String =
+            toStringAsTyped keyRead.key keyRead.modifiers.shift
+
+          let toString (k: Key.Key): String =
+            match k with
             | None -> "None"
             | Backspace -> "BACKSPACE"
             | Tab -> "TAB"

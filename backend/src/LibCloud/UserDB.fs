@@ -14,8 +14,8 @@ module LibCloud.UserDB
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open Npgsql.FSharp
-open Npgsql
+open Microsoft.Data.Sqlite
+open Fumble
 open Db
 
 open Prelude
@@ -194,8 +194,8 @@ and getManyWithKeys
       |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
 
     return!
-
       result
+      |> Result.unwrap
       |> List.map (fun (key, data) ->
         dbToDval types threadID tst db data |> Ply.map (fun dval -> (key, dval)))
       |> Ply.List.flatten
@@ -227,6 +227,7 @@ let getAll
 
     return!
       result
+      |> Result.unwrap
       |> List.map (fun (key, data) ->
         dbToDval exeState.types threadID tst db data
         |> Ply.map (fun dval -> (key, dval)))
@@ -351,6 +352,7 @@ let getAllKeys (exeState : RT.ExecutionState) (db : RT.DB.T) : Task<List<string>
       "userVersion", Sql.int db.version
       "darkVersion", Sql.int currentDarkVersion ]
   |> Sql.executeAsync (fun read -> read.string "key")
+  |> Task.map Result.unwrap
 
 let count (exeState : RT.ExecutionState) (db : RT.DB.T) : Task<int> =
   Sql.query
@@ -480,6 +482,7 @@ let unlocked (canvasID : CanvasID) : Task<List<tlid>> =
     GROUP BY tl.tlid"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
+  |> Task.map Result.unwrap
 
 
 // -------------------------

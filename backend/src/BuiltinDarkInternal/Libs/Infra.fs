@@ -51,6 +51,7 @@ let fns : List<BuiltInFn> =
           )
         )
       description =
+        // CLEANUP
         "Query the postgres database for the current size (disk + rowcount) of all
 tables. This uses pg_stat, so it is fast but imprecise. This function is logged
 via the backend; its primary purpose is to send data to Honeycomb, but also gives

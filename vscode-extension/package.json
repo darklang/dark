@@ -38,17 +38,37 @@
     "configuration": {
       "type": "object",
       "title": "Darklang Extension Config",
-      "properties": {
-      }
+      "properties": {}
     },
     "semanticTokenTypes": [
-      {"id": "keyword", "description": "Language keywords like 'let' and 'in'"},
-      {"id": "function", "description": "Function names or identifiers"},
-      {"id": "parameter", "description": "Function parameter identifiers"},
-      {"id": "type", "description": "Type names like Int, Bool, etc."},
-      {"id": "string", "description": "String literals"},
-      {"id": "operator", "description": "Operators like +, -"},
-      {"id": "variable", "description": "General variable identifiers"}
+      {
+        "id": "keyword",
+        "description": "Language keywords like 'let' and 'in'"
+      },
+      {
+        "id": "function",
+        "description": "Function names or identifiers"
+      },
+      {
+        "id": "parameter",
+        "description": "Function parameter identifiers"
+      },
+      {
+        "id": "type",
+        "description": "Type names like Int, Bool, etc."
+      },
+      {
+        "id": "string",
+        "description": "String literals"
+      },
+      {
+        "id": "operator",
+        "description": "Operators like +, -"
+      },
+      {
+        "id": "variable",
+        "description": "General variable identifiers"
+      }
     ],
     "commands": [
       {
@@ -61,7 +81,24 @@
       }
     ]
   },
-
+  "viewsContainers": {
+    "activitybar": [
+      {
+        "id": "darklangViewContainer",
+        "title": "Darklang",
+        "icon": "static/logo-dark-transparent-low-margin.svg"
+      }
+    ]
+  },
+  "views": {
+    "darklangViewContainer": [
+      {
+        "id": "darklangTreeView",
+        "name": "tree view of packages",
+        "_todo_when": "workspaceHasFolder"
+      }
+    ]
+  },
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -b",

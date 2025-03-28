@@ -6,8 +6,8 @@ open FSharp.Control.Tasks
 
 open Prelude
 
-open Npgsql
-open Npgsql.FSharp
+open Microsoft.Data.Sqlite
+open Fumble
 open LibCloud.Db
 
 module PT = LibExecution.ProgramTypes
@@ -72,8 +72,12 @@ let loadFromDisk
         match! LibCloud.Canvas.getOwner canvasID with
         | Some id -> return id
         | None ->
+          debuG "here" 1
           let! ownerID = LibCloud.Account.createUser ()
+          debuG "here" 2
           do! LibCloud.Canvas.createWithExactID canvasID ownerID domain
+
+          debuG "here" 3
           return ownerID
       }
 
