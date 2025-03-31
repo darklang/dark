@@ -156,7 +156,7 @@ let fns : List<BuiltInFn> =
                   | Ok rte ->
                     return
                       Exception.raiseInternal
-                        "Error executing pm function (rte not a string)"
+                        "Error executing pm function"
                         [ "rte", rte ]
 
                   | Error(nestedRte, _cs) ->
