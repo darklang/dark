@@ -153,16 +153,11 @@ let fns : List<BuiltInFn> =
                 | Error(rte, _cs) ->
                   let! rteString = Exe.runtimeErrorToString exeState rte
                   match rteString with
-                  | Ok(DString rte) ->
-                    return
-                      Exception.raiseInternal
-                        "Error executing pm function"
-                        [ "rte", rte ]
-                  | Ok dval ->
+                  | Ok rte ->
                     return
                       Exception.raiseInternal
                         "Error executing pm function (rte not a string)"
-                        [ "rte", dval ]
+                        [ "rte", rte ]
 
                   | Error(nestedRte, _cs) ->
                     return
