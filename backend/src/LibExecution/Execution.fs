@@ -163,7 +163,11 @@ let getPackageFnName
     let fnName =
       RT.FQFnName.fqPackage
         PackageIDs.Fn.PrettyPrinter.ProgramTypes.FQFnName.fullForReference
-    let args = NEList.singleton (RT.DUuid id)
+    let typeName =
+      RT.FQTypeName.fqPackage
+        PackageIDs.Type.LanguageTools.ProgramTypes.FQFnName.fqFnName
+    let dval = RT.DEnum(typeName, typeName, [], "Package", [ RT.DUuid id ])
+    let args = NEList.singleton dval
     let! result = executeFunction state fnName [] args
     match result with
     | Ok(RT.DString s) -> return s

@@ -11,6 +11,7 @@
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../LibCloud/LibCloud.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="paket.references" />

@@ -247,8 +247,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, _, [ DString label; value ] ->
           // TODO: call upon the Dark equivalent fn instead of relying on DvalReprDeveloper
-          // and/or, bring back DvalReprDeveloper.toRepr in some capacity
-          let value = $"{value}"
+          let value = DvalReprDeveloper.toRepr value
           print $"DEBUG: {label}: {value}"
           Ply DUnit
         | _ -> incorrectArgs ())

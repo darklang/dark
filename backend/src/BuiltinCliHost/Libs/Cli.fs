@@ -152,10 +152,18 @@ let fns : List<BuiltInFn> =
                 | Ok dval -> return dval
                 | Error(rte, _cs) ->
                   let! rteString = Exe.runtimeErrorToString exeState rte
-                  return
-                    Exception.raiseInternal
-                      "Error executing pm function"
-                      [ "rte", rteString ]
+                  match rteString with
+                  | Ok rte ->
+                    return
+                      Exception.raiseInternal
+                        "Error executing pm function"
+                        [ "rte", rte ]
+
+                  | Error(nestedRte, _cs) ->
+                    return
+                      Exception.raiseInternal
+                        "Error running runtimeErrorToString"
+                        [ "original rte", rte; "nested rte", nestedRte ]
               }
             let args =
               NEList.ofList
@@ -180,10 +188,17 @@ let fns : List<BuiltInFn> =
                 | Ok dval -> return (Utils.CliScript.fromDT dval) |> Ok
                 | Error(rte, _cs) ->
                   let! rteString = Exe.runtimeErrorToString exeState rte
-                  return
-                    Exception.raiseInternal
-                      "Error executing parseCanvas function"
-                      [ "error", rteString ]
+                  match rteString with
+                  | Ok errorDval ->
+                    return
+                      Exception.raiseInternal
+                        "Error executing parseCliScript function"
+                        [ "rte", errorDval ]
+                  | Error(nestedRte, _cs) ->
+                    return
+                      Exception.raiseInternal
+                        "Error running runtimeErrorToString"
+                        [ "original rte", rte; "nested rte", nestedRte ]
               }
 
             try

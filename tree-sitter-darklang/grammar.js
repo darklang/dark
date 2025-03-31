@@ -353,11 +353,14 @@ module.exports = grammar({
           optional(
             choice(
               seq(
-                field("symbol_open_paren", alias("(", $.symbol)),
+                field(
+                  "symbol_open_paren",
+                  alias(token.immediate("("), $.symbol),
+                ),
                 field("enum_fields", $.mp_enum_fields),
                 field("symbol_close_paren", alias(")", $.symbol)),
               ),
-              field("enum_fields", $.match_pattern),
+              field("enum_fields", $.mp_enum_fields),
             ),
           ),
         ),
