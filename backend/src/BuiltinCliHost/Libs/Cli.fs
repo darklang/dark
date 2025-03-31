@@ -152,10 +152,24 @@ let fns : List<BuiltInFn> =
                 | Ok dval -> return dval
                 | Error(rte, _cs) ->
                   let! rteString = Exe.runtimeErrorToString exeState rte
-                  return
-                    Exception.raiseInternal
-                      "Error executing pm function"
-                      [ "rte", rteString ]
+                  match rteString with
+                  | Ok(DString rte) ->
+                    return
+                      Exception.raiseInternal
+                        "Error executing pm function"
+                        [ "rte", rte ]
+                  | Ok dval ->
+                    return
+                      Exception.raiseInternal
+                        "Error executing pm function (rte not a string)"
+                        [ "rte", dval ]
+
+                  | Error(nestedRte, _cs) ->
+                    return
+                      Exception.raiseInternal
+                        "Error processing runtime error from pm function"
+                        [ "nested rte", nestedRte ]
+
               }
             let args =
               NEList.ofList
@@ -180,10 +194,17 @@ let fns : List<BuiltInFn> =
                 | Ok dval -> return (Utils.CliScript.fromDT dval) |> Ok
                 | Error(rte, _cs) ->
                   let! rteString = Exe.runtimeErrorToString exeState rte
-                  return
-                    Exception.raiseInternal
-                      "Error executing parseCanvas function"
-                      [ "error", rteString ]
+                  match rteString with
+                  | Ok errorDval ->
+                    return
+                      Exception.raiseInternal
+                        "Error executing parseCliScript function"
+                        [ "rte", errorDval ]
+                  | Error(nestedRte, _cs) ->
+                    return
+                      Exception.raiseInternal
+                        "Error processing runtime error"
+                        [ "original rte", rte; "nested rte", nestedRte ]
               }
 
             try
