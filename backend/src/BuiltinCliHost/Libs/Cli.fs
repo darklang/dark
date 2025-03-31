@@ -167,9 +167,8 @@ let fns : List<BuiltInFn> =
                   | Error(nestedRte, _cs) ->
                     return
                       Exception.raiseInternal
-                        "Error processing runtime error from pm function"
-                        [ "nested rte", nestedRte ]
-
+                        "Error running runtimeErrorToString"
+                        [ "original rte", rte; "nested rte", nestedRte ]
               }
             let args =
               NEList.ofList
@@ -203,7 +202,7 @@ let fns : List<BuiltInFn> =
                   | Error(nestedRte, _cs) ->
                     return
                       Exception.raiseInternal
-                        "Error processing runtime error"
+                        "Error running runtimeErrorToString"
                         [ "original rte", rte; "nested rte", nestedRte ]
               }
 
