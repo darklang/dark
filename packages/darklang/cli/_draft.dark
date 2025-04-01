@@ -1,0 +1,41 @@
+
+Terminal.MVU.run<[stuff]> [more stuff]
+
+
+// Program.mkSimple init update render
+// |> Program.run
+
+
+// only do this^^^ if a tty
+// AND if --interactive _or_ did not enter a 'complete' command when calling `dark`
+//   (this should allow for it to be usable in case of LSP)
+
+
+// thoughts for when we abstract some of the above...
+// specific elements/components can _capture_/interrupt the normal event-listener (or ignore, and pass _upwards)
+// kinda simple if the only kind of event is keyboard input...
+
+
+// make this RTE-resilient
+// , and then use it for LSP
+
+
+// MVU with specific channels for stdout and stderr 
+// (_two_ renders, or one render with two outputs)
+
+
+// _focus_ on specific components
+// all components have some way of letting you know that you're focused on it (e.g. change color) 
+
+
+// demo the app first in CLI, but then _share_ the ideas in a web-based version/app
+// (w/ sensible defaults when we haven't updated 'render' for one)
+
+
+
+// hot module replacement of _this_ app
+// edit the .dark file lol
+// and we'll know what to do with changes to the important types
+// maybe each .dark 'file' in the workspace corresponds to each of these things
+// (model.dark, update.dark, etc.)
+// update the LSP to actually... write those changes to disk, lol

@@ -35,7 +35,6 @@ open OpenTelemetry
 open OpenTelemetry.Trace
 open OpenTelemetry.Resources
 open Honeycomb.OpenTelemetry
-open Npgsql
 
 open Microsoft.AspNetCore.Http.Extensions
 
@@ -371,10 +370,10 @@ let addTelemetry
   // TODO HttpClient instrumentation isn't working, so let's try to add it
   // before AspNetCoreInstrumentation
   |> fun b -> b.AddAspNetCoreInstrumentation(configureAspNetCore)
-  |> fun b ->
-      match traceDBQueries with
-      | TraceDBQueries -> b.AddNpgsql()
-      | DontTraceDBQueries -> b
+  // |> fun b ->
+  //     match traceDBQueries with
+  //     | TraceDBQueries -> b.AddNpgsql()
+  //     | DontTraceDBQueries -> b
   |> fun b -> b.AddSource("Dark")
 
 

@@ -211,6 +211,7 @@ let fns : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated }
 
+
     { name = fn "stdinReadLine" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
@@ -222,6 +223,23 @@ let fns : List<BuiltInFn> =
           let input = System.Console.ReadLine()
           Ply(DString input)
         | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "stdinIsInteractive" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TBool
+      description = "Returns whether or not the terminal is 'interactive' (a tty)"
+      fn =
+        function
+        | _, _, _, [ DUnit ] ->
+          (not Console.IsInputRedirected || not Console.IsOutputRedirected)
+          |> DBool
+          |> Ply
+        | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }

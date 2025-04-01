@@ -93,14 +93,14 @@ module Darklang =
       /// Consider <fn Dict.filterMap> if you also want to drop some of the entries.
       let map (dict: Dict<'a>) (fn: String -> 'a -> 'b) : Dict<'b> =
         dict
-        |> Dict.toList
+        |> Stdlib.Dict.toList
         |> List.map (fun (k, v) -> (k, fn k v))
         |> Dict.fromListOverwritingDuplicates
 
 
       /// Evaluates {{fn key value}} on every entry in <param dict>. Returns {{()}}.
       let iter (dict: Dict<'a>) (fn: String -> 'a -> Unit) : Unit =
-        dict |> Dict.toList |> List.iter (fun (k, v) -> fn k v)
+        dict |> Stdlib.Dict.toList |> List.iter (fun (k, v) -> fn k v)
 
 
       /// Evaluates {{fn key value}} on every entry in <param dict>. Returns a <type
@@ -108,7 +108,7 @@ module Darklang =
       /// returned {{true}}.
       let filter (dict: Dict<'a>) (fn: String -> 'a -> Bool) : Dict<'a> =
         dict
-        |> Dict.toList
+        |> Stdlib.Dict.toList
         |> List.filter (fun (k, v) -> fn k v)
         |> Dict.fromListOverwritingDuplicates
 
@@ -122,7 +122,7 @@ module Darklang =
         (fn: String -> 'a -> Option.Option<'b>)
         : Dict<'b> =
         dict
-        |> Dict.toList
+        |> Stdlib.Dict.toList
         |> List.filterMap (fun (k, v) ->
           match fn k v with
           | None -> Option.Option.None
