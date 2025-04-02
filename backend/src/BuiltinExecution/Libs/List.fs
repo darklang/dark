@@ -11,7 +11,7 @@ module TypeChecker = LibExecution.TypeChecker
 
 
 module DvalComparator =
-  type order =
+  type Order =
     | Less
     | Equal
     | Greater
