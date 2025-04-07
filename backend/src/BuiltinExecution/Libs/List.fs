@@ -23,7 +23,7 @@ module DvalComparator =
     else Equal
 
   // should this take a vmstate?
-  let rec compareDval (dv1 : Dval) (dv2 : Dval) : order =
+  let rec compareDval (dv1 : Dval) (dv2 : Dval) : Order =
     match dv1, dv2 with
     | DUnit, DUnit -> Equal
 
