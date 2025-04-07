@@ -124,7 +124,7 @@ module DvalComparator =
 
 
 
-  and compareLists (l1 : List<Dval>) (l2 : List<Dval>) : order =
+  and compareLists (l1 : List<Dval>) (l2 : List<Dval>) : Order =
     match l1, l2 with
     | [], [] -> Equal
     | [], _ -> Less
