@@ -135,7 +135,7 @@ module DvalComparator =
       | Less -> Less
       | Equal -> compareLists t1 t2
 
-  and compareMaps (o1 : List<string * Dval>) (o2 : List<string * Dval>) : order =
+  and compareMaps (o1 : List<string * Dval>) (o2 : List<string * Dval>) : Order =
     match o1, o2 with
     | [], [] -> Equal
     | [], _ -> Less
