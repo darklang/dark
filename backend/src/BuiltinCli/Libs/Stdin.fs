@@ -195,6 +195,9 @@ let fns : List<BuiltInFn> =
             let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.Cli.Stdin.key
             DEnum(typeName, typeName, [], keyCaseName, [])
 
+          // Get character representation based on keyboard layout
+          let keyChar = readKey.KeyChar |> string |> DString
+
           let keyRead =
             let typeName =
               FQTypeName.fqPackage PackageIDs.Type.Stdlib.Cli.Stdin.keyRead
@@ -202,7 +205,7 @@ let fns : List<BuiltInFn> =
               typeName,
               typeName,
               [],
-              Map [ "key", key; "modifiers", modifiers ]
+              Map [ "key", key; "modifiers", modifiers; "keyChar", keyChar ]
             )
 
           Ply(keyRead)
@@ -210,6 +213,7 @@ let fns : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }
+
 
     { name = fn "stdinReadLine" 0
       typeParams = []
@@ -222,6 +226,23 @@ let fns : List<BuiltInFn> =
           let input = System.Console.ReadLine()
           Ply(DString input)
         | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "stdinIsInteractive" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TBool
+      description = "Returns whether or not the terminal is 'interactive' (a tty)"
+      fn =
+        function
+        | _, _, _, [ DUnit ] ->
+          (not Console.IsInputRedirected || not Console.IsOutputRedirected)
+          |> DBool
+          |> Ply
+        | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated }

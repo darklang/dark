@@ -1,0 +1,89 @@
+module Darklang =
+  module Cli =
+    let update (state: State) (msg: Msg): (State * List<Msg>) =
+      match msg with
+      | Quit ->
+        // Set the isExiting flag to true
+        // This will be checked in the REPL loop
+        let newState = { state with isExiting = true; needsFullRedraw = true }
+        (newState, [Msg.SetCommandResult(CommandResult.Success "Exiting...")])
+
+
+      | KeyPressed(key, modifiers, keyChar) ->
+        // Handle key presses
+        match key with
+        | Escape ->
+          // Escape key pressed, send Quit message
+          (state, [Msg.Quit])
+
+        | Enter ->
+          // Enter key pressed, submit the current prompt as a command
+          let command = state.mainPrompt
+          let newState = { state with mainPrompt = "" }
+          (newState, [Msg.SubmitCommand command])
+
+        | Backspace ->
+          // Backspace key pressed, remove the last character from the prompt
+          let newPrompt = Stdlib.String.dropLast state.mainPrompt 1L
+          let newState = { state with mainPrompt = newPrompt }
+          (newState, [])
+
+        | _ ->
+          // For other keys, check if they're textual and add to the prompt if so
+          let newPrompt = state.mainPrompt ++ keyChar
+          let newState = { state with mainPrompt = newPrompt }
+          (newState, [])
+
+      | SubmitCommand commandStr ->
+        // Process the submitted command
+        Builtin.printLine $"SubmitCommand: {commandStr}"
+
+        if Stdlib.String.isEmpty (Stdlib.String.trim commandStr) then
+          // Empty command, do nothing
+          (state, [])
+        else
+          // Parse the command into name and arguments
+          let (name, args) = Command.parseCommand commandStr
+          Builtin.printLine $"Parsed command: name={name}, args={args}"
+
+          // Find and execute the command
+          match Command.findCommand state (Stdlib.String.toLowercase name) with
+          | Some cmd ->
+            Builtin.printLine $"Found command: {cmd.name}"
+            let exeFn = cmd.execute
+            let (newState, messages) = exeFn state args
+            // Set needsFullRedraw to true after command execution
+            let stateWithRedraw = { newState with needsFullRedraw = true }
+            (stateWithRedraw, messages)
+          | None ->
+            // Unknown command
+            let errorMsg = $"Unknown command: {name}"
+            let newState =  { state with commandResult = CommandResult.Error errorMsg; needsFullRedraw = true }
+            (newState, [])
+
+      | ClearPrompt ->
+        // Clear the prompt
+        let newState = { state with mainPrompt = "" }
+        (newState, [])
+
+      | NavigateTo page ->
+        // Use the navigateTo function from navigation.dark
+        let newState = navigateTo state page
+        // Set needsFullRedraw to true after navigation
+        let stateWithRedraw = { newState with needsFullRedraw = true }
+        (stateWithRedraw, [])
+
+      | NavigateBack ->
+        // Use the navigateBack function from navigation.dark
+        let newState = navigateBack state
+        // Set needsFullRedraw to true after navigation
+        let stateWithRedraw = { newState with needsFullRedraw = true }
+        (stateWithRedraw, [])
+
+      | SetCommandResult result ->
+        // Set the command result
+        let newState =
+          { state with
+              commandResult = result
+              needsFullRedraw = true }
+        (newState, [])

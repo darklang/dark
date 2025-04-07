@@ -6,8 +6,6 @@ open FSharp.Control.Tasks
 
 open Prelude
 
-open Npgsql.FSharp
-open Npgsql
 open Db
 
 

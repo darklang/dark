@@ -17,7 +17,8 @@ let all : RT.Builtins =
       BuiltinCli.Builtin.builtins
       BuiltinCliHost.Builtin.builtins
       BuiltinCloudExecution.Builtin.builtins // TODO: do we need this?
-      TestUtils.LibTest.builtins ] // TODO: or this?
+      //TestUtils.LibTest.builtins // TODO: or this?
+      ]
     []
 
 let accessibleByCanvas : RT.Builtins =

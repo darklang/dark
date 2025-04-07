@@ -1,0 +1,218 @@
+// Initialization for the Model Context Protocol
+
+module Darklang =
+  module ModelContextProtocol =
+    module Lifecycle =
+      module InitializeRequest =
+        /// Client capabilities for the Model Context Protocol
+        type ClientCapabilities =
+          { resources: Stdlib.Option.Option<ResourceClientCapabilities>
+            tools: Stdlib.Option.Option<ToolClientCapabilities> }
+
+        /// Resource client capabilities
+        and ResourceClientCapabilities =
+          { contentFormat: Stdlib.Option.Option<List<String>> }
+
+        /// Tool client capabilities
+        and ToolClientCapabilities =
+          { contentFormat: Stdlib.Option.Option<List<String>> }
+
+        /// Parameters for the initialize request
+        type InitializeParams =
+          { clientInfo: Stdlib.Option.Option<ClientInfo>
+            capabilities: ClientCapabilities
+            trace: Stdlib.Option.Option<TraceLevel> }
+
+        /// Client information
+        and ClientInfo =
+          { name: String
+            version: Stdlib.Option.Option<String> }
+
+        let fromJson (json: Json) : Stdlib.Result.Result<InitializeParams, String> =
+          match json with
+          | Object fields ->
+            // Parse clientInfo if present
+            let clientInfoResult =
+              match Stdlib.List.findFirst fields (fun (k, _) -> k == "clientInfo") with
+              | Some (_, Object clientInfoFields) ->
+                match Stdlib.List.findFirst clientInfoFields (fun (k, _) -> k == "name") with
+                | Some (_, String name) ->
+                  let version =
+                    match Stdlib.List.findFirst clientInfoFields (fun (k, _) -> k == "version") with
+                    | Some (_, String v) -> Stdlib.Option.Option.Some v
+                    | _ -> Stdlib.Option.Option.None
+
+                  Stdlib.Result.Result.Ok (Stdlib.Option.Option.Some { name = name; version = version })
+                | _ -> Stdlib.Result.Result.Error "clientInfo.name must be a string"
+              | Some (_, _) -> Stdlib.Result.Result.Error "clientInfo must be an object"
+              | None -> Stdlib.Result.Result.Ok Stdlib.Option.Option.None
+
+            // Parse capabilities (required)
+            let capabilitiesResult =
+              match Stdlib.List.findFirst fields (fun (k, _) -> k == "capabilities") with
+              | Some (_, Object capFields) ->
+                // Parse resource capabilities
+                let resourceCapabilities =
+                  match Stdlib.List.findFirst capFields (fun (k, _) -> k == "resources") with
+                  | Some (_, Object resourceFields) ->
+                    let contentFormat =
+                      match Stdlib.List.findFirst resourceFields (fun (k, _) -> k == "contentFormat") with
+                      | Some (_, Array formats) ->
+                        let stringFormats =
+                          formats
+                          |> Stdlib.List.filterMap (fun f ->
+                            match f with
+                            | String s -> Stdlib.Option.Option.Some s
+                            | _ -> Stdlib.Option.Option.None)
+                        Stdlib.Option.Option.Some stringFormats
+                      | _ -> Stdlib.Option.Option.None
+
+                    Stdlib.Option.Option.Some { contentFormat = contentFormat }
+                  | _ -> Stdlib.Option.Option.None
+
+                // Parse tool capabilities
+                let toolCapabilities =
+                  match Stdlib.List.findFirst capFields (fun (k, _) -> k == "tools") with
+                  | Some (_, Object toolFields) ->
+                    let contentFormat =
+                      match Stdlib.List.findFirst toolFields (fun (k, _) -> k == "contentFormat") with
+                      | Some (_, Array formats) ->
+                        let stringFormats =
+                          formats
+                          |> Stdlib.List.filterMap (fun f ->
+                            match f with
+                            | String s -> Stdlib.Option.Option.Some s
+                            | _ -> Stdlib.Option.Option.None)
+                        Stdlib.Option.Option.Some stringFormats
+                      | _ -> Stdlib.Option.Option.None
+
+                    Stdlib.Option.Option.Some { contentFormat = contentFormat }
+                  | _ -> Stdlib.Option.Option.None
+
+                Stdlib.Result.Result.Ok { resources = resourceCapabilities; tools = toolCapabilities }
+              | Some (_, _) -> Stdlib.Result.Result.Error "capabilities must be an object"
+              | None -> Stdlib.Result.Result.Error "capabilities is required"
+
+            // Parse trace if present
+            let traceResult =
+              match Stdlib.List.findFirst fields (fun (k, _) -> k == "trace") with
+              | Some (_, String "off") -> Stdlib.Result.Result.Ok (Stdlib.Option.Option.Some TraceLevel.Off)
+              | Some (_, String "messages") -> Stdlib.Result.Result.Ok (Stdlib.Option.Option.Some TraceLevel.Messages)
+              | Some (_, String "verbose") -> Stdlib.Result.Result.Ok (Stdlib.Option.Option.Some TraceLevel.Verbose)
+              | Some (_, _) -> Stdlib.Result.Result.Error "trace must be one of: 'off', 'messages', 'verbose'"
+              | None -> Stdlib.Result.Result.Ok Stdlib.Option.Option.None
+
+            // Combine all results
+            match (clientInfoResult, capabilitiesResult, traceResult) with
+            | (Ok clientInfo, Ok capabilities, Ok trace) ->
+                Stdlib.Result.Result.Ok { clientInfo = clientInfo; capabilities = capabilities; trace = trace }
+            | (Error e, _, _) -> Stdlib.Result.Result.Error e
+            | (_, Error e, _) -> Stdlib.Result.Result.Error e
+            | (_, _, Error e) -> Stdlib.Result.Result.Error e
+          | _ -> Stdlib.Result.Result.Error "params must be an object"
+
+        let toJson (params: InitializeParams) : Json =
+          let clientInfoJson =
+            match params.clientInfo with
+            | Some info ->
+              let fields = [("name", Json.String info.name)]
+              let fieldsWithVersion =
+                match info.version with
+                | Some v -> fields @ [("version", Json.String v)]
+                | None -> fields
+              Stdlib.Option.Option.Some ("clientInfo", Json.Object fieldsWithVersion)
+            | None -> Stdlib.Option.Option.None
+
+          let resourceCapabilitiesJson =
+            match params.capabilities.resources with
+            | Some res ->
+              let fields = []
+              let fieldsWithContentFormat =
+                match res.contentFormat with
+                | Some formats ->
+                  let formatsJson = formats |> Stdlib.List.map (fun f -> Json.String f)
+                  fields @ [("contentFormat", Json.Array formatsJson)]
+                | None -> fields
+              Stdlib.Option.Option.Some ("resources", Json.Object fieldsWithContentFormat)
+            | None -> Stdlib.Option.Option.None
+
+          let toolCapabilitiesJson =
+            match params.capabilities.tools with
+            | Some tools ->
+              let fields = []
+              let fieldsWithContentFormat =
+                match tools.contentFormat with
+                | Some formats ->
+                  let formatsJson = formats |> Stdlib.List.map (fun f -> Json.String f)
+                  fields @ [("contentFormat", Json.Array formatsJson)]
+                | None -> fields
+              Stdlib.Option.Option.Some ("tools", Json.Object fieldsWithContentFormat)
+            | None -> Stdlib.Option.Option.None
+
+          let capabilitiesFields =
+            [resourceCapabilitiesJson; toolCapabilitiesJson]
+            |> Stdlib.Option.values
+
+          let traceJson =
+            match params.trace with
+            | Some Off -> Stdlib.Option.Option.Some ("trace", Json.String "off")
+            | Some Messages -> Stdlib.Option.Option.Some ("trace", Json.String "messages")
+            | Some Verbose -> Stdlib.Option.Option.Some ("trace", Json.String "verbose")
+            | None -> Stdlib.Option.Option.None
+
+          let fields =
+            [clientInfoJson; Stdlib.Option.Option.Some ("capabilities", Json.Object capabilitiesFields); traceJson]
+            |> Stdlib.Option.values
+
+          Json.Object fields
+
+        /// Result of the initialize request
+        type InitializeResult =
+          { serverInfo: Stdlib.Option.Option<ServerInfo>
+            capabilities: ServerCapabilities }
+
+        let toJson (result: InitializeResult) : Json =
+          let serverInfoJson =
+            match result.serverInfo with
+            | Some info ->
+              Stdlib.Option.Option.Some (
+                "serverInfo",
+                Json.Object [
+                  ("name", Json.String info.name);
+                  ("version", Json.String info.version)
+                ]
+              )
+            | None -> Stdlib.Option.Option.None
+
+          let resourceCapabilitiesJson =
+            match result.capabilities.resources with
+            | Some res ->
+              Stdlib.Option.Option.Some (
+                "resources",
+                Json.Object [
+                  ("supportsResourceListing", Json.Bool res.supportsResourceListing);
+                  ("supportsResourceTemplates", Json.Bool res.supportsResourceTemplates)
+                ]
+              )
+            | None -> Stdlib.Option.Option.None
+
+          let toolCapabilitiesJson =
+            match result.capabilities.tools with
+            | Some tools ->
+              Stdlib.Option.Option.Some (
+                "tools",
+                Json.Object [
+                  ("supportsToolListing", Json.Bool tools.supportsToolListing)
+                ]
+              )
+            | None -> Stdlib.Option.Option.None
+
+          let capabilitiesFields =
+            [resourceCapabilitiesJson; toolCapabilitiesJson]
+            |> Stdlib.Option.values
+
+          let fields =
+            [serverInfoJson; Stdlib.Option.Option.Some ("capabilities", Json.Object capabilitiesFields)]
+            |> Stdlib.Option.values
+
+          Json.Object fields

@@ -41,12 +41,13 @@ let configureServices
   (services : IServiceCollection)
   : IServiceCollection =
   // each healthcheck is tagged according to the probes it is used in
-  let allProbes = [| livenessTag; readinessTag; startupTag |]
+  // TODO bring these back for sqlite if relevant? or just drop?
+  //let allProbes = [| livenessTag; readinessTag; startupTag |]
 
   let healthChecksBuilder =
     services
       .AddHealthChecks()
-      .AddNpgSql(DBConnection.dataSource.ConnectionString, tags = allProbes)
+      //.AddNpgSql(DBConnection.dataSource.ConnectionString, tags = allProbes)
 
   healthChecks
   |> List.iter (fun hc ->

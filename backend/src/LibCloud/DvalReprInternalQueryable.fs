@@ -1,4 +1,4 @@
-/// Ways of converting Dvals to/from Postgres-compatible JSON blobs.
+/// Ways of converting Dvals to/from Sqlite-compatible JSON blobs.
 ///
 /// These are intended to be used exclusively internally.
 /// That is, they should not be used in libraries, BwdServer, HttpClient, etc.

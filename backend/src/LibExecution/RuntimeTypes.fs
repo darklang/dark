@@ -1186,7 +1186,7 @@ type Previewable =
 
 
 /// Used to mark whether a function has an equivalent that can be
-/// used within a Postgres query.
+/// used within a Sqlite query. CLEANUP tidy /// commentary
 type SqlSpec =
   /// Can be implemented, but we haven't yet
   | NotYetImplemented
