@@ -9,8 +9,8 @@ module Darklang =
         (newState, [Msg.SetCommandResult(CommandResult.Success "Exiting...")])
 
 
-      | KeyPressed(key, modifiers) ->
-        // Handle key presses based on the key and modifiers
+      | KeyPressed(key, modifiers, keyChar) ->
+        // Handle key presses
         match key with
         | Escape ->
           // Escape key pressed, send Quit message
@@ -30,41 +30,36 @@ module Darklang =
 
         | _ ->
           // For other keys, check if they're textual and add to the prompt if so
-          if Stdlib.Cli.Stdin.Key.isTextual key && modifiers.ctrl == false && modifiers.alt == false then
-            let keyChar = Stdlib.Cli.Stdin.KeyDisplay.toStringAsTyped key modifiers.shift
-            let newPrompt = state.mainPrompt ++ keyChar
-            let newState = { state with mainPrompt = newPrompt }
-            (newState, [])
-          else
-            // Ignore non-textual keys or keys with modifiers
-            (state, [])
+          let newPrompt = state.mainPrompt ++ keyChar
+          let newState = { state with mainPrompt = newPrompt }
+          (newState, [])
 
       | SubmitCommand commandStr ->
-       // Process the submitted command
-       Builtin.printLine $"SubmitCommand: {commandStr}"
+        // Process the submitted command
+        Builtin.printLine $"SubmitCommand: {commandStr}"
 
-       if Stdlib.String.isEmpty (Stdlib.String.trim commandStr) then
-         // Empty command, do nothing
-         (state, [])
-       else
-         // Parse the command into name and arguments
-         let (name, args) = Command.parseCommand commandStr
-         Builtin.printLine $"Parsed command: name={name}, args={args}"
+        if Stdlib.String.isEmpty (Stdlib.String.trim commandStr) then
+          // Empty command, do nothing
+          (state, [])
+        else
+          // Parse the command into name and arguments
+          let (name, args) = Command.parseCommand commandStr
+          Builtin.printLine $"Parsed command: name={name}, args={args}"
 
-         // Find and execute the command
-         match Command.findCommand state (Stdlib.String.toLowercase name) with
-         | Some cmd ->
-           Builtin.printLine $"Found command: {cmd.name}"
-           let exeFn = cmd.execute
-           let (newState, messages) = exeFn state args
-           // Set needsFullRedraw to true after command execution
-           let stateWithRedraw = { newState with needsFullRedraw = true }
-           (stateWithRedraw, messages)
-         | None ->
-           // Unknown command
-           let errorMsg = $"Unknown command: {name}"
-           let newState =  { state with commandResult = CommandResult.Error errorMsg; needsFullRedraw = true }
-           (newState, [])
+          // Find and execute the command
+          match Command.findCommand state (Stdlib.String.toLowercase name) with
+          | Some cmd ->
+            Builtin.printLine $"Found command: {cmd.name}"
+            let exeFn = cmd.execute
+            let (newState, messages) = exeFn state args
+            // Set needsFullRedraw to true after command execution
+            let stateWithRedraw = { newState with needsFullRedraw = true }
+            (stateWithRedraw, messages)
+          | None ->
+            // Unknown command
+            let errorMsg = $"Unknown command: {name}"
+            let newState =  { state with commandResult = CommandResult.Error errorMsg; needsFullRedraw = true }
+            (newState, [])
 
       | ClearPrompt ->
         // Clear the prompt
@@ -89,6 +84,6 @@ module Darklang =
         // Set the command result
         let newState =
           { state with
-                        commandResult = result
-                        needsFullRedraw = true }
+              commandResult = result
+              needsFullRedraw = true }
         (newState, [])

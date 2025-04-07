@@ -195,6 +195,9 @@ let fns : List<BuiltInFn> =
             let typeName = FQTypeName.fqPackage PackageIDs.Type.Stdlib.Cli.Stdin.key
             DEnum(typeName, typeName, [], keyCaseName, [])
 
+          // Get character representation based on keyboard layout
+          let keyChar = readKey.KeyChar |> string |> DString
+
           let keyRead =
             let typeName =
               FQTypeName.fqPackage PackageIDs.Type.Stdlib.Cli.Stdin.keyRead
@@ -202,7 +205,7 @@ let fns : List<BuiltInFn> =
               typeName,
               typeName,
               [],
-              Map [ "key", key; "modifiers", modifiers ]
+              Map [ "key", key; "modifiers", modifiers; "keyChar", keyChar ]
             )
 
           Ply(keyRead)

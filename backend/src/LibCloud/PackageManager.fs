@@ -208,7 +208,7 @@ let getAllFnNames () : Ply<List<string>> =
 
     let query =
       """
-      SELECT modules, name
+      SELECT owner, modules, name
       FROM package_functions_v0
       """
 
@@ -219,9 +219,10 @@ let getAllFnNames () : Ply<List<string>> =
 
     let mutable results = []
     while! reader.ReadAsync() |> Async.AwaitTask do
-      let modules = reader.GetString(0)
-      let name = reader.GetString(1)
-      results <- (modules + "." + name) :: results
+      let owner = reader.GetString(0)
+      let modules = reader.GetString(1)
+      let name = reader.GetString(2)
+      results <- (owner + "." + modules + "." + name) :: results
 
     return List.rev results
   }

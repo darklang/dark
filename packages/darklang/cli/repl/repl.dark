@@ -22,51 +22,37 @@ module Darklang =
       let replInternal (state: State): Int64 =
         // Only clear the screen and do a full redraw when initializing
         // or when the state indicates a need for full redraw
-        if state.needsFullRedraw then
-          Builtin.stdoutClear()
-          Builtin.print (render state)
-          // Reset the flag after redrawing
-          let stateWithoutRedrawFlag = { state with needsFullRedraw = false }
-
-          let keyRead = Stdlib.Cli.Stdin.readKey ()
-          let msg = Msg.KeyPressed(keyRead.key, keyRead.modifiers)
-          let (newState, messages) = update stateWithoutRedrawFlag msg
-
-          // Process all messages, including any new ones generated during processing
-          let finalState = processMessages newState messages
-
-          // Check if we should exit
-          if keyRead.key == Stdlib.Cli.Stdin.Key.Key.Escape || finalState.isExiting then
-            0L
+        let stateAfterRender =
+          if state.needsFullRedraw then
+            Builtin.stdoutClear()
+            Builtin.print (render state)
+            // Reset the flag after redrawing
+            { state with needsFullRedraw = false }
           else
-            // Continue the REPL loop with the updated state
-            replInternal finalState
+            // For regular key input, just update the prompt line in-place
+            // First, clear the current prompt line (move cursor to start of line and clear to end)
+            Builtin.print "\r\u001b[K"
+            // Print just the prompt line without clearing the screen
+            Builtin.print (renderPromptOnly state)
+            state
+
+        let keyRead = Stdlib.Cli.Stdin.readKey ()
+        let msg = Msg.KeyPressed(keyRead.key, keyRead.modifiers, keyRead.keyChar)
+        let (newState, messages) = update stateAfterRender msg
+
+        // Process all messages
+        let finalState = processMessages newState messages
+
+        // Check if we should exit
+        if keyRead.key == Stdlib.Cli.Stdin.Key.Key.Escape || finalState.isExiting then
+          0L
         else
-          // For regular key input, just update the prompt line in-place
-          // First, clear the current prompt line (move cursor to start of line and clear to end)
-          Builtin.print "\r\u001b[K"
-          // Print just the prompt line without clearing the screen
-          Builtin.print (renderPromptOnly state)
-
-          let keyRead = Stdlib.Cli.Stdin.readKey ()
-          let msg = Msg.KeyPressed(keyRead.key, keyRead.modifiers)
-          let (newState, messages) = update state msg
-
-          // Process all messages
-          let finalState = processMessages newState messages
-
-          // Check if we should exit
-          if keyRead.key == Stdlib.Cli.Stdin.Key.Key.Escape || finalState.isExiting then
-            0L
-          else
-            // Continue the REPL loop with the updated state
-            replInternal finalState
+          // Continue the REPL loop with the updated state
+          replInternal finalState
 
       /// Starts the REPL with the initial state
       let repl () : Int64 =
         let state, initialMsgs = init ()
 
         // Use the same message processing for initialization
-        let initialState = processMessages state initialMsgs
-
-        replInternal initialState
+        replInternal state

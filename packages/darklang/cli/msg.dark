@@ -5,7 +5,7 @@ module Darklang =
       | Quit
 
       // -- Input handling
-      | KeyPressed of key: Stdlib.Cli.Stdin.Key.Key * modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers
+      | KeyPressed of key: Stdlib.Cli.Stdin.Key.Key * modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers * keyChar: String
       | SubmitCommand of command: String
       | ClearPrompt
 

@@ -89,5 +89,4 @@ module Darklang =
                 //scripts: []
                 //crons: []
 
-          }
-                }
+        }
