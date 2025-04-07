@@ -10,36 +10,44 @@ module Interpreter = LibExecution.Interpreter
 module TypeChecker = LibExecution.TypeChecker
 
 
-// CLEANUP something like type ComparatorResult = Higher | Lower | Same
-// rather than 0/1/-2
-
 module DvalComparator =
+  type Order =
+    | Less
+    | Equal
+    | Greater
+
+  let order v1 v2 =
+    let result = compare v1 v2
+    if result < 0 then Less
+    elif result > 0 then Greater
+    else Equal
+
   // should this take a vmstate?
-  let rec compareDval (dv1 : Dval) (dv2 : Dval) : int =
+  let rec compareDval (dv1 : Dval) (dv2 : Dval) : Order =
     match dv1, dv2 with
-    | DUnit, DUnit -> 0
+    | DUnit, DUnit -> Equal
 
-    | DBool b1, DBool b2 -> compare b1 b2
+    | DBool b1, DBool b2 -> order b1 b2
 
-    | DInt8 i1, DInt8 i2 -> compare i1 i2
-    | DUInt8 i1, DUInt8 i2 -> compare i1 i2
-    | DInt16 i1, DInt16 i2 -> compare i1 i2
-    | DUInt16 i1, DUInt16 i2 -> compare i1 i2
-    | DInt32 i1, DInt32 i2 -> compare i1 i2
-    | DUInt32 i1, DUInt32 i2 -> compare i1 i2
-    | DInt64 i1, DInt64 i2 -> compare i1 i2
-    | DUInt64 i1, DUInt64 i2 -> compare i1 i2
-    | DInt128 i1, DInt128 i2 -> compare i1 i2
-    | DUInt128 i1, DUInt128 i2 -> compare i1 i2
+    | DInt8 i1, DInt8 i2 -> order i1 i2
+    | DUInt8 i1, DUInt8 i2 -> order i1 i2
+    | DInt16 i1, DInt16 i2 -> order i1 i2
+    | DUInt16 i1, DUInt16 i2 -> order i1 i2
+    | DInt32 i1, DInt32 i2 -> order i1 i2
+    | DUInt32 i1, DUInt32 i2 -> order i1 i2
+    | DInt64 i1, DInt64 i2 -> order i1 i2
+    | DUInt64 i1, DUInt64 i2 -> order i1 i2
+    | DInt128 i1, DInt128 i2 -> order i1 i2
+    | DUInt128 i1, DUInt128 i2 -> order i1 i2
 
-    | DFloat f1, DFloat f2 -> compare f1 f2
+    | DFloat f1, DFloat f2 -> order f1 f2
 
-    | DChar c1, DChar c2 -> compare c1 c2
-    | DString s1, DString s2 -> compare s1 s2
+    | DChar c1, DChar c2 -> order c1 c2
+    | DString s1, DString s2 -> order s1 s2
 
-    | DDateTime dt1, DDateTime dt2 -> compare dt1 dt2
+    | DDateTime dt1, DDateTime dt2 -> order dt1 dt2
 
-    | DUuid u1, DUuid u2 -> compare u1 u2
+    | DUuid u1, DUuid u2 -> order u1 u2
 
     | DList(_, l1), DList(_, l2) -> compareLists l1 l2
 
@@ -51,17 +59,21 @@ module DvalComparator =
       compareMaps (Map.toList o1) (Map.toList o2)
 
     | DRecord(tn1, _, _typeArgsTODO1, o1), DRecord(tn2, _, _typeArgsTODO2, o2) ->
-      let c = compare tn1 tn2
-      if c = 0 then compareMaps (Map.toList o1) (Map.toList o2) else c
+      match order tn1 tn2 with
+      | Less -> Less
+      | Greater -> Greater
+      | Equal -> compareMaps (Map.toList o1) (Map.toList o2)
 
     | DEnum(typeName1, _, _typeArgsTODO1, case1, fields1),
       DEnum(typeName2, _, _typeArgsTODO2, case2, fields2) ->
-      let c = compare typeName1 typeName2
-      if c = 0 then
-        let c = compare case1 case2
-        if c = 0 then compareLists fields1 fields2 else c
-      else
-        c
+      match order typeName1 typeName2 with
+      | Less -> Less
+      | Greater -> Greater
+      | Equal ->
+        match order case1 case2 with
+        | Less -> Less
+        | Greater -> Greater
+        | Equal -> compareLists fields1 fields2
 
     // CLEANUP consider supporting sorting of `DApplicable`s
     // | DApplicable app1, DApplicable app2 ->
@@ -76,7 +88,7 @@ module DvalComparator =
     //   let c = compareLetPatternsLists l1' l2'
     //   if c = 0 then compareExprs l1.body l2.body else c
 
-    | DDB name1, DDB name2 -> compare name1 name2
+    | DDB name1, DDB name2 -> order name1 name2
 
     // exhaustiveness check
     | DUnit, _
@@ -112,29 +124,37 @@ module DvalComparator =
 
 
 
-  and compareLists (l1 : List<Dval>) (l2 : List<Dval>) : int =
+  and compareLists (l1 : List<Dval>) (l2 : List<Dval>) : Order =
     match l1, l2 with
-    | [], [] -> 0
-    | [], _ -> -1
-    | _, [] -> 1
+    | [], [] -> Equal
+    | [], _ -> Less
+    | _, [] -> Greater
     | h1 :: t1, h2 :: t2 ->
-      let c = compareDval h1 h2
-      if c = 0 then compareLists t1 t2 else c
+      match compareDval h1 h2 with
+      | Greater -> Greater
+      | Less -> Less
+      | Equal -> compareLists t1 t2
 
-  and compareMaps (o1 : List<string * Dval>) (o2 : List<string * Dval>) : int =
+  and compareMaps (o1 : List<string * Dval>) (o2 : List<string * Dval>) : Order =
     match o1, o2 with
-    | [], [] -> 0
-    | [], _ -> -1
-    | _, [] -> 1
+    | [], [] -> Equal
+    | [], _ -> Less
+    | _, [] -> Greater
     | (k1, v1) :: t1, (k2, v2) :: t2 ->
-      let c = compare k1 k2
-      if c = 0 then
-        let c = compareDval v1 v2
-        if c = 0 then compareMaps t1 t2 else c
-      else
-        c
+      match order k1 k2 with
+      | Greater -> Greater
+      | Less -> Less
+      | Equal ->
+        match compareDval v1 v2 with
+        | Greater -> Greater
+        | Less -> Less
+        | Equal -> compareMaps t1 t2
 
-
+  let compareDvalInt v1 v2 =
+    match compareDval v1 v2 with
+    | Greater -> 1
+    | Less -> -1
+    | Equal -> 0
 
 // Based on https://github.com/dotnet/runtime/blob/57bfe474518ab5b7cfe6bf7424a79ce3af9d6657/src/coreclr/tools/Common/Sorting/MergeSortCore.cs#L55
 module Sort =
@@ -278,7 +298,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, _, [ DList(vt, l) ] ->
           List.distinct l
-          |> List.sortWith DvalComparator.compareDval
+          |> List.sortWith DvalComparator.compareDvalInt
           |> fun l -> DList(vt, l)
           |> Ply
         | _ -> incorrectArgs ())
@@ -302,7 +322,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, _, [ DList(vt, list) ] ->
           list
-          |> List.sortWith DvalComparator.compareDval
+          |> List.sortWith DvalComparator.compareDvalInt
           |> (fun l -> DList(vt, l))
           |> Ply
         | _ -> incorrectArgs ())
