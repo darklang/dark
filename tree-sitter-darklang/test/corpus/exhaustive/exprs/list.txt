@@ -23,7 +23,7 @@ Single-item list
       (list_literal
         (symbol)
         (list_content
-          (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+          (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))))
         (symbol)
       )
     )
@@ -45,9 +45,9 @@ Two-item list
       (list_literal
         (symbol)
         (list_content
-          (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+          (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
           (symbol)
-          (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+          (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
         )
         (symbol)
       )
@@ -70,13 +70,13 @@ Multiple-item list
       (list_literal
         (symbol)
         (list_content
-          (simple_expression (bool_literal))
+          (expression (simple_expression (bool_literal)))
           (symbol)
-          (simple_expression (bool_literal))
+          (expression (simple_expression (bool_literal)))
           (symbol)
-          (simple_expression (bool_literal))
+          (expression (simple_expression (bool_literal)))
           (symbol)
-          (simple_expression (bool_literal))
+          (expression (simple_expression (bool_literal)))
         )
         (symbol)
       )
@@ -87,7 +87,7 @@ Multiple-item list
 
 
 ==================
-Nested list
+                                                                    Nested list
 ==================
 
 [[true; false]; [true; false]]
@@ -100,26 +100,30 @@ Nested list
       (list_literal
         (symbol)
         (list_content
-          (simple_expression
-            (list_literal
-              (symbol)
-              (list_content
-                (simple_expression (bool_literal))
+          (expression
+            (simple_expression
+              (list_literal
                 (symbol)
-                (simple_expression (bool_literal))
+                (list_content
+                  (expression (simple_expression (bool_literal)))
+                  (symbol)
+                  (expression (simple_expression (bool_literal)))
+                )
+                (symbol)
               )
-              (symbol)
             )
           )
           (symbol)
-          (simple_expression
-            (list_literal
-              (symbol)
-              (list_content
-                (simple_expression (bool_literal))
+          (expression
+            (simple_expression
+              (list_literal
                 (symbol)
-                (simple_expression (bool_literal)))
-              (symbol)
+                (list_content
+                  (expression (simple_expression (bool_literal)))
+                  (symbol)
+                  (expression (simple_expression (bool_literal))))
+                (symbol)
+              )
             )
           )
         )
@@ -144,9 +148,9 @@ List with trailing semicolon
       (list_literal
         (symbol)
         (list_content
-          (simple_expression (bool_literal))
+          (expression (simple_expression (bool_literal)))
           (symbol)
-          (simple_expression (bool_literal))
+          (expression (simple_expression (bool_literal)))
           (symbol)
         )
         (symbol)
@@ -172,9 +176,9 @@ List starting with semicolon
         (ERROR
           (symbol))
         (list_content
-          (simple_expression (bool_literal))
+          (expression (simple_expression (bool_literal)))
           (symbol)
-          (simple_expression (bool_literal))
+          (expression (simple_expression (bool_literal)))
         )
         (symbol)
       )
@@ -195,8 +199,15 @@ List with missing semicolon
   (expression
     (simple_expression (list_literal
       (symbol)
-      (list_content (simple_expression (bool_literal)))
-      (ERROR)
+      (list_content
+        (expression
+          (statement
+            (expression
+              (simple_expression
+                (bool_literal)))
+            (expression
+              (simple_expression
+                (bool_literal))))))
       (symbol))
     )
   )
@@ -217,11 +228,11 @@ List with missing item
       (list_literal
         (symbol)
         (list_content
-          (simple_expression (bool_literal))
+          (expression (simple_expression (bool_literal)))
           (ERROR
             (symbol))
           (symbol)
-          (simple_expression (bool_literal)))
+          (expression (simple_expression (bool_literal))))
         (symbol)
       )
     )
@@ -267,13 +278,14 @@ List with newlines
       (list_literal
         (symbol)
         (list_content
-          (simple_expression (bool_literal))
+          (expression (simple_expression (bool_literal)))
           (newline)
-          (simple_expression (bool_literal))
+          (expression (simple_expression (bool_literal)))
           (newline)
-          (simple_expression (bool_literal))
+          (expression (simple_expression (bool_literal)))
           (newline)
-          (simple_expression (bool_literal)))
+          (expression (simple_expression (bool_literal)))
+        )
         (symbol)
       )
     )
@@ -299,19 +311,22 @@ Enum List
       (list_literal
         (symbol)
         (list_content
-          (simple_expression
-            (enum_literal
-              (qualified_type_name (module_identifier) (symbol) (type_identifier))
-              (symbol)
-              (enum_case_identifier)
-              (symbol)
-              (enum_fields
-                (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+          (indent)
+          (expression
+            (simple_expression
+              (enum_literal
+                (qualified_type_name (module_identifier) (symbol) (type_identifier))
+                (symbol)
+                (enum_case_identifier)
+                (symbol)
+                (enum_fields
+                  (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+                )
+                (symbol)
               )
-              (symbol)
             )
           )
-          (newline)
+          (dedent)
         )
         (symbol)
       )
@@ -324,7 +339,40 @@ Enum List
 List of constants
 ==================
 
-[ intConst
+[intConst
+floatConst
+stringConst
+boolConst]
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (list_literal
+        (symbol)
+        (list_content
+          (expression (simple_expression (variable_identifier)))
+          (newline)
+          (expression (simple_expression (variable_identifier)))
+          (newline)
+          (expression (simple_expression (variable_identifier)))
+          (newline)
+          (expression (simple_expression (variable_identifier)))
+        )
+        (symbol)
+      )
+    )
+  )
+)
+
+
+==================
+List of vars
+==================
+
+[
+  intConst
   floatConst
   stringConst
   boolConst
@@ -338,21 +386,21 @@ List of constants
       (list_literal
         (symbol)
         (list_content
-          (simple_expression (variable_identifier))
+          (indent)
+          (expression (simple_expression (variable_identifier)))
           (newline)
-          (simple_expression (variable_identifier))
+          (expression (simple_expression (variable_identifier)))
           (newline)
-          (simple_expression (variable_identifier))
+          (expression (simple_expression (variable_identifier)))
           (newline)
-          (simple_expression (variable_identifier))
-          (newline)
+          (expression (simple_expression (variable_identifier)))
+          (dedent)
         )
         (symbol)
       )
     )
   )
 )
-
 
 ==================
 List of Enums
@@ -373,45 +421,130 @@ List of Enums
       (list_literal
         (symbol)
         (list_content
-          (simple_expression
-            (enum_literal
-              (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)) (symbol) (enum_case_identifier)
-              (enum_fields
-                (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol)))))))
+          (indent)
+          (expression
+            (simple_expression
+              (enum_literal
+                (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)) (symbol) (enum_case_identifier)
+                (enum_fields
+                  (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))))))
           (newline)
-          (simple_expression
-            (enum_literal (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)) (symbol) (enum_case_identifier)))
+          (expression (simple_expression
+            (enum_literal (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)) (symbol) (enum_case_identifier))))
           (newline)
-          (simple_expression
-            (enum_literal (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)) (symbol) (enum_case_identifier)
-              (symbol)
-              (enum_fields
-                (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+          (expression
+            (simple_expression
+              (enum_literal (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)) (symbol) (enum_case_identifier)
                 (symbol)
-                (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                (enum_fields
+                  (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                  (symbol)
+                  (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                  (symbol)
+                  (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                )
                 (symbol)
-                (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
               )
-              (symbol)
             )
           )
           (newline)
-          (simple_expression
-            (enum_literal
-              (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)) (symbol) (enum_case_identifier)
-              (symbol)
-              (enum_fields
-                (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+          (expression
+            (simple_expression
+              (enum_literal
+                (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)) (symbol) (enum_case_identifier)
                 (symbol)
-                (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                (enum_fields
+                  (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                  (symbol)
+                  (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                )
+                (symbol)
               )
-              (symbol)
             )
           )
-          (newline)
+          (dedent)
         )
         (symbol)
       )
     )
   )
 )
+
+
+==================
+List of fn calls
+==================
+
+[
+  Builtin.Tuple.second (4L, 5L)
+  Builtin.Int64.add 1L 2L
+  Builtin.List.head [1L; 2L]
+]
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (list_literal
+        (symbol)
+        (list_content
+          (indent)
+          (expression
+            (apply
+              (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+              (simple_expression
+                (tuple_literal
+                  (symbol)
+                  (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                  (symbol)
+                  (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                  (symbol)
+                )
+              )
+            )
+          )
+          (newline)
+          (expression
+            (apply
+              (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+              (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+              (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+            )
+          )
+          (newline)
+          (expression
+            (apply
+              (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+              (simple_expression
+                (list_literal
+                  (symbol)
+                  (list_content
+                    (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                    (symbol)
+                    (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                  )
+                  (symbol)
+                )
+              )
+            )
+          )
+          (dedent)
+        )
+        (symbol)
+      )
+    )
+  )
+)
+
+
+==================
+List of vars -- TODO : fix this
+==================
+
+[ intConst
+  floatConst
+  stringConst
+  boolConst ]
+
+---

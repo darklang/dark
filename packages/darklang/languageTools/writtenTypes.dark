@@ -126,8 +126,8 @@ module Darklang =
           first: LetPattern *
           symbolComma: Range *
           second: LetPattern *
-          /// the Range corresponds to the `;` symbol
-          rest: List<Stdlib.Option.Option<Range> * LetPattern> *
+          /// the Range corresponds to the `,` symbol
+          rest: List<Range * LetPattern> *
           symbolOpenParen: Range *
           symbolCloseParen: Range
 

@@ -428,9 +428,9 @@ pipe expression - multiple pipe expressions
               (list_literal
                 (symbol)
                 (list_content
-                  (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+                  (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
                   (symbol)
-                  (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+                  (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
                 )
                 (symbol)
               )

@@ -14,7 +14,6 @@ Builtin.printline "hello"
         (apply
           (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
           (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))
-          (newline)
         )
       )
       (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
@@ -42,14 +41,12 @@ Builtin.printline "world"
             (apply
               (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
               (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))
-              (newline)
             )
           )
           (expression
             (apply
               (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
               (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))
-              (newline)
             )
           )
         )
@@ -58,5 +55,3 @@ Builtin.printline "world"
     )
   )
 )
-
-

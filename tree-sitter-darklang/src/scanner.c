@@ -1,4 +1,3 @@
-// the scanner should be used __very__ sparingly, and any changes should be discussed before embarking on anything new here.
 #include <tree_sitter/parser.h>
 #include <wctype.h>
 #include <string.h>
@@ -10,7 +9,8 @@
 enum TokenType
 {
   INDENT,
-  DEDENT
+  DEDENT,
+  FUNCTION_BOUNDARY  // to mark the end of a function call
 };
 
 struct Scanner
@@ -19,12 +19,17 @@ struct Scanner
   int indent_stack[MAX_STACK_SIZE]; // Stack to track indentation levels
   unsigned int stack_size;          // the current size of the stack (number of elements)
   bool in_dedent;                   // Flag to indicate processing a dedent sequence
+  int arg_count;                    // Count of function arguments seen
 };
 
 void *tree_sitter_darklang_external_scanner_create()
 {
   // Allocate memory for the scanner and initialize it to zero
   struct Scanner *scanner = calloc(1, sizeof(struct Scanner));
+  scanner->stack_size = 0;  // Start with no indentation levels
+  scanner->indent_stack[0] = 0;  // Base indent level is 0
+  scanner->in_dedent = false;
+  scanner->arg_count = 0;
   return scanner;
 }
 
@@ -50,6 +55,24 @@ bool tree_sitter_darklang_external_scanner_scan(void *payload, TSLexer *lexer, c
 {
   struct Scanner *scanner = payload;
   bool found_newline = false;
+
+  // Handle function boundary detection
+  if (valid_symbols[FUNCTION_BOUNDARY])
+  {
+    // If we're at a newline and FUNCTION_BOUNDARY is a valid symbol, emit it
+    if (lexer->lookahead == '\n')
+    {
+      lexer->result_symbol = FUNCTION_BOUNDARY;
+      return true;
+    }
+
+    // If we're at the end of a file and FUNCTION_BOUNDARY is valid, emit it
+    if (lexer->eof(lexer))
+    {
+      lexer->result_symbol = FUNCTION_BOUNDARY;
+      return true;
+    }
+  }
 
   // Check if the scanner is currently handling a block dedentation
   if (scanner->in_dedent)
@@ -117,7 +140,7 @@ bool tree_sitter_darklang_external_scanner_scan(void *payload, TSLexer *lexer, c
   // Handle end of file dedentation
   if (lexer->eof(lexer))
   {
-    while (scanner->stack_size > 0)
+    while (scanner->stack_size > 0 && valid_symbols[DEDENT])
     {
       pop(scanner);
       lexer->result_symbol = DEDENT;
@@ -131,23 +154,48 @@ bool tree_sitter_darklang_external_scanner_scan(void *payload, TSLexer *lexer, c
 unsigned tree_sitter_darklang_external_scanner_serialize(void *payload, char *buffer)
 {
   struct Scanner *scanner = payload;
-  unsigned length = scanner->stack_size * sizeof(int); // Calculate the size of the data to be serialized.
-  if (length <= TREE_SITTER_SERIALIZATION_BUFFER_SIZE) // Ensure the data fits in the provided buffer.
+
+  // Calculate the total size to serialize
+  unsigned total_size = scanner->stack_size * sizeof(int) + sizeof(int); // indent_stack + arg_count
+
+  if (total_size <= TREE_SITTER_SERIALIZATION_BUFFER_SIZE)
   {
-    memcpy(buffer, scanner->indent_stack, length); // Copy the stack data into the buffer.
-    return length;                                 // Return the size of the serialized data.
+    // Copy indent stack
+    memcpy(buffer, scanner->indent_stack, scanner->stack_size * sizeof(int));
+
+    // Copy arg_count
+    memcpy(buffer + scanner->stack_size * sizeof(int), &scanner->arg_count, sizeof(int));
+
+    return total_size;
   }
-  return 0; // If data does not fit, return 0.
+
+  return 0;
 }
 
 void tree_sitter_darklang_external_scanner_deserialize(void *payload, const char *buffer, unsigned length)
 {
   struct Scanner *scanner = payload;
-  unsigned num_ints = length / sizeof(int); // Calculate the number of integers in the buffer.
-  if (num_ints <= MAX_STACK_SIZE)           // Ensure the data does not exceed the stack capacity.
+
+  // Reset the scanner if deserializing empty data
+  if (length == 0) {
+    scanner->stack_size = 0;
+    scanner->indent_stack[0] = 0;
+    scanner->in_dedent = false;
+    scanner->arg_count = 0;
+    return;
+  }
+
+  unsigned stack_size_bytes = length - sizeof(int); // Total length minus arg_count
+  unsigned num_ints = stack_size_bytes / sizeof(int);
+
+  if (num_ints <= MAX_STACK_SIZE)
   {
-    memcpy(scanner->indent_stack, buffer, length); // Copy the data from the buffer into the stack.
-    scanner->stack_size = num_ints;                // Set the stack size based on the deserialized data.
+    // Restore indent stack
+    memcpy(scanner->indent_stack, buffer, stack_size_bytes);
+    scanner->stack_size = num_ints;
+
+    // Restore arg_count
+    memcpy(&scanner->arg_count, buffer + stack_size_bytes, sizeof(int));
   }
 }
 

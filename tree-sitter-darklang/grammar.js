@@ -16,6 +16,7 @@ const PREC = {
   PIPE_EXPR: 9,
   LAMBDA: 10,
   STATEMENT: 11,
+  // EXPR: 12,
 };
 
 const logicalOperators = choice("&&", "||");
@@ -28,7 +29,7 @@ const stringConcatOperator = "++";
 module.exports = grammar({
   name: "darklang",
 
-  externals: $ => [$.indent, $.dedent],
+  externals: $ => [$.indent, $.dedent, $._function_boundary],
   extras: $ => [/\s/, $._inline_comment],
 
   conflicts: $ => [[$.module_identifier, $.type_identifier]],
@@ -445,6 +446,24 @@ module.exports = grammar({
         $.paren_expression,
       ),
 
+    // _expression_no_statement: $ =>
+    //   prec(
+    //     PREC.EXPR + 1,
+    //     choice(
+    //       $.simple_expression,
+
+    //       $.if_expression,
+    //       $.let_expression,
+
+    //       $.match_expression,
+
+    //       $.apply,
+
+    //       $.lambda_expression,
+    //       $.pipe_expression,
+    //     ),
+    //   ),
+
     expression: $ =>
       choice(
         $.simple_expression,
@@ -643,7 +662,7 @@ module.exports = grammar({
     //
     // List
     list_literal: $ => list_literal_base($, $.list_content),
-    list_content: $ => list_content_base($, $.simple_expression),
+    list_content: $ => list_content_base($, $.expression),
 
     //
     // Dict
@@ -724,15 +743,20 @@ module.exports = grammar({
         seq(
           $.indent,
           $.record_update_field,
-          repeat(seq($.newline, $.record_update_field)),
+          repeat(seq(repeat($.newline), $.record_update_field)),
           optional($.dedent),
         ),
       ),
+
     record_update_field: $ =>
       seq(
         field("field_name", $.variable_identifier),
         field("symbol_equals", alias("=", $.symbol)),
-        field("value", $.simple_expression),
+        choice(
+          seq($.indent, field("value", $.expression), $.dedent),
+
+          field("value", $.expression),
+        ),
       ),
 
     //
@@ -947,15 +971,17 @@ module.exports = grammar({
           // TODO: fn should be an expression
           field("fn", $.qualified_fn_name),
           choice(
-            field("args", repeat1($.simple_expression)),
+            seq(
+              field("args", repeat1($.simple_expression)),
+              optional($._function_boundary),
+            ),
             seq(
               $.indent,
               field("args", seq($.expression, repeat(seq(/\n/, $.expression)))),
               $.dedent,
+              optional($._function_boundary),
             ),
           ),
-          // the new line is used as a delimiter
-          optional($.newline),
         ),
       ),
 
@@ -1246,6 +1272,11 @@ function list_content_base($, content) {
       optional(alias(";", $.symbol)),
     ),
     seq(content, repeat(seq($.newline, content)), optional($.newline)),
+    seq(
+      $.indent,
+      seq(content, repeat(seq($.newline, content)), optional($.newline)),
+      $.dedent,
+    ),
   );
 }
 
