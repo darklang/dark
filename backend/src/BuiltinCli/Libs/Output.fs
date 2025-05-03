@@ -54,9 +54,6 @@ let fns : List<BuiltInFn> =
       fn =
         function
         | _, _, _, [ DUnit ] ->
-          // System.Console.Write("\u001b[2J") // Clear screen
-          // System.Console.Write("\u001b[H")  // Move cursor to top-left
-          // //debuG "height" System.Console.WindowHeight
           if System.OperatingSystem.IsWindows() then
               System.Console.Clear()
           else
