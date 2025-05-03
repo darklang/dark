@@ -91,98 +91,98 @@ let fns : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "dbGetMany" 0
-      typeParams = []
-      parameters = [ keysParam; tableParam "a" ]
-      returnType = TypeReference.option (TList(tvar "a"))
-      description =
-        "Finds many values in <param table> by <param keys>. If all <param keys> are found, returns Some a list of [values], otherwise returns None (to ignore missing keys, use DB.etExisting)"
-      fn =
-        let valueType = VT.unknownDbTODO
-        let optType = KTList valueType
-        (function
-        | exeState, vm, _, [ DList(_, keys); DDB dbname ] ->
-          uply {
-            let db = exeState.program.dbs[dbname]
+    // { name = fn "dbGetMany" 0
+    //   typeParams = []
+    //   parameters = [ keysParam; tableParam "a" ]
+    //   returnType = TypeReference.option (TList(tvar "a"))
+    //   description =
+    //     "Finds many values in <param table> by <param keys>. If all <param keys> are found, returns Some a list of [values], otherwise returns None (to ignore missing keys, use DB.etExisting)"
+    //   fn =
+    //     let valueType = VT.unknownDbTODO
+    //     let optType = KTList valueType
+    //     (function
+    //     | exeState, vm, _, [ DList(_, keys); DDB dbname ] ->
+    //       uply {
+    //         let db = exeState.program.dbs[dbname]
 
-            let tst = Map.empty // TODO idk if this is reasonable
+    //         let tst = Map.empty // TODO idk if this is reasonable
 
-            let! items =
-              keys
-              |> List.map (function
-                | DString s -> s
-                | dv -> Exception.raiseInternal "keys aren't strings" [ "key", dv ])
-              |> UserDB.getMany exeState vm.threadID tst db
+    //         let! items =
+    //           keys
+    //           |> List.map (function
+    //             | DString s -> s
+    //             | dv -> Exception.raiseInternal "keys aren't strings" [ "key", dv ])
+    //           |> UserDB.getMany exeState vm.threadID tst db
 
-            if List.length items = List.length keys then
-              return
-                items
-                |> TypeChecker.DvalCreator.list vm.threadID valueType
-                |> Dval.optionSome optType
-            else
-              return Dval.optionNone optType
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "dbGetExisting" 0
-      typeParams = []
-      parameters = [ keysParam; tableParam "a" ]
-      returnType = TList(tvar "a")
-      description =
-        "Finds many values in <param table> by <param keys> (ignoring any missing items), returning a {{ [value] }} list of values"
-      fn =
-        (function
-        | exeState, vm, _, [ DList(_, keys); DDB dbname ] ->
-          uply {
-            let db = exeState.program.dbs[dbname]
-
-            let tst = Map.empty // TODO idk if this is reasonable
-
-            let! result =
-              keys
-              |> List.map (function
-                | DString s -> s
-                | dv -> Exception.raiseInternal "keys aren't strings" [ "key", dv ])
-              |> UserDB.getMany exeState vm.threadID tst db
-            return
-              result |> TypeChecker.DvalCreator.list vm.threadID VT.unknownDbTODO
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
+    //         if List.length items = List.length keys then
+    //           return
+    //             items
+    //             |> TypeChecker.DvalCreator.list vm.threadID valueType
+    //             |> Dval.optionSome optType
+    //         else
+    //           return Dval.optionNone optType
+    //       }
+    //     | _ -> incorrectArgs ())
+    //   sqlSpec = NotQueryable
+    //   previewable = Impure
+    //   deprecated = NotDeprecated }
 
 
-    { name = fn "dbGetManyWithKeys" 0
-      typeParams = []
-      parameters = [ keysParam; tableParam "a" ]
-      returnType = TDict(tvar "a")
-      description =
-        "Finds many values in <param table> by <param keys>, returning a {{ {key:{value}, key2: {value2} } }} object of keys and values"
-      fn =
-        (function
-        | exeState, vm, _, [ DList(_, keys); DDB dbname ] ->
-          uply {
-            let db = exeState.program.dbs[dbname]
+    // { name = fn "dbGetExisting" 0
+    //   typeParams = []
+    //   parameters = [ keysParam; tableParam "a" ]
+    //   returnType = TList(tvar "a")
+    //   description =
+    //     "Finds many values in <param table> by <param keys> (ignoring any missing items), returning a {{ [value] }} list of values"
+    //   fn =
+    //     (function
+    //     | exeState, vm, _, [ DList(_, keys); DDB dbname ] ->
+    //       uply {
+    //         let db = exeState.program.dbs[dbname]
 
-            let tst = Map.empty // TODO idk if this is reasonable
+    //         let tst = Map.empty // TODO idk if this is reasonable
 
-            let! result =
-              keys
-              |> List.map (function
-                | DString s -> s
-                | dv -> Exception.raiseInternal "keys aren't strings" [ "key", dv ])
-              |> UserDB.getManyWithKeys exeState vm.threadID tst db
-            return TypeChecker.DvalCreator.dict vm.threadID VT.unknownDbTODO result
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
+    //         let! result =
+    //           keys
+    //           |> List.map (function
+    //             | DString s -> s
+    //             | dv -> Exception.raiseInternal "keys aren't strings" [ "key", dv ])
+    //           |> UserDB.getMany exeState vm.threadID tst db
+    //         return
+    //           result |> TypeChecker.DvalCreator.list vm.threadID VT.unknownDbTODO
+    //       }
+    //     | _ -> incorrectArgs ())
+    //   sqlSpec = NotQueryable
+    //   previewable = Impure
+    //   deprecated = NotDeprecated }
+
+
+    // { name = fn "dbGetManyWithKeys" 0
+    //   typeParams = []
+    //   parameters = [ keysParam; tableParam "a" ]
+    //   returnType = TDict(tvar "a")
+    //   description =
+    //     "Finds many values in <param table> by <param keys>, returning a {{ {key:{value}, key2: {value2} } }} object of keys and values"
+    //   fn =
+    //     (function
+    //     | exeState, vm, _, [ DList(_, keys); DDB dbname ] ->
+    //       uply {
+    //         let db = exeState.program.dbs[dbname]
+
+    //         let tst = Map.empty // TODO idk if this is reasonable
+
+    //         let! result =
+    //           keys
+    //           |> List.map (function
+    //             | DString s -> s
+    //             | dv -> Exception.raiseInternal "keys aren't strings" [ "key", dv ])
+    //           |> UserDB.getManyWithKeys exeState vm.threadID tst db
+    //         return TypeChecker.DvalCreator.dict vm.threadID VT.unknownDbTODO result
+    //       }
+    //     | _ -> incorrectArgs ())
+    //   sqlSpec = NotQueryable
+    //   previewable = Impure
+    //   deprecated = NotDeprecated }
 
 
     { name = fn "dbDelete" 0

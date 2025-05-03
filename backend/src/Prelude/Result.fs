@@ -23,3 +23,10 @@ let all (f : 'ok -> bool) (l : List<Result<'ok, 'err>>) : bool =
 
 let collectNE (l : NEList<Result<'ok, 'err>>) : Result<NEList<'ok>, 'err> =
   collect (NEList.toList l) |> Result.map (NEList.ofListUnsafe "" [])
+
+// TODO: review and remove all usages of this
+// just lazy right now...
+let unwrap (r : Result<'ok, 'err>) : 'ok =
+  match r with
+  | Ok r -> r
+  | Error _ -> Exception.raiseInternal "TODO: failed to unwrap" []

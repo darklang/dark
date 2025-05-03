@@ -19,7 +19,6 @@ module RT = LibExecution.RuntimeTypes
 module CloudExecution = LibCloudExecution.CloudExecution
 module Tracing = LibCloud.Tracing
 module TSR = Tracing.TraceSamplingRule
-module TCS = LibCloud.TraceCloudStorage
 
 
 // let testFilterSlash =
@@ -97,108 +96,109 @@ module TCS = LibCloud.TraceCloudStorage
 //     // check we get back the path for a route with a variable in it
 //     let! events = TI.loadEvents c.id ("HTTP", route, "GET")
 
+//
 //     Expect.equal [] events ""
 //   }
 
-let testTraceRoundtrip =
-  testTask "test stored events can be roundtripped" {
-    let! (c1 : CanvasID) = initializeTestCanvas "stored_events_can_be_roundtripped1"
-    let! (c2 : CanvasID) = initializeTestCanvas "stored_events_can_be_roundtripped2"
+// let testTraceRoundtrip =
+//   testTask "test stored events can be roundtripped" {
+//     let! (c1 : CanvasID) = initializeTestCanvas "stored_events_can_be_roundtripped1"
+//     let! (c2 : CanvasID) = initializeTestCanvas "stored_events_can_be_roundtripped2"
 
-    let t1 = AT.TraceID.create ()
-    do! Task.Delay 2 // make sure of ordering with t1 and t2
-    let t2 = AT.TraceID.create ()
-    let t3 = AT.TraceID.create ()
-    let t4 = AT.TraceID.create ()
-    let t5 = AT.TraceID.create ()
-    let t6 = AT.TraceID.create ()
+//     let t1 = AT.TraceID.create ()
+//     do! Task.Delay 2 // make sure of ordering with t1 and t2
+//     let t2 = AT.TraceID.create ()
+//     let t3 = AT.TraceID.create ()
+//     let t4 = AT.TraceID.create ()
+//     let t5 = AT.TraceID.create ()
+//     let t6 = AT.TraceID.create ()
 
-    let tlid1 = 77777720936UL
-    let tlid2 = 77777720935UL
-    let tlid3 = 77777720934UL
-    let tlid4 = 77777720933UL
-    let functionResults = Dictionary.empty ()
-    do!
-      TCS.storeToCloudStorage
-        c1
-        tlid1
-        t1
-        [ tlid1 ]
-        [ "request", DString "1" ]
-        functionResults
-    do!
-      TCS.storeToCloudStorage
-        c1
-        tlid1
-        t2
-        [ tlid1 ]
-        [ "request", DString "2" ]
-        functionResults
-    do!
-      TCS.storeToCloudStorage
-        c1
-        tlid3
-        t3
-        [ tlid3 ]
-        [ "request", DString "3" ]
-        functionResults
-    do!
-      TCS.storeToCloudStorage
-        c1
-        tlid2
-        t4
-        [ tlid2 ]
-        [ "request", DString "3" ]
-        functionResults
-    do!
-      TCS.storeToCloudStorage
-        c2
-        tlid2
-        t5
-        [ tlid2 ]
-        [ "request", DString "3" ]
-        functionResults
-    do!
-      TCS.storeToCloudStorage
-        c2
-        tlid4
-        t6
-        [ tlid4 ]
-        [ "request", DString "3" ]
-        functionResults
+//     let tlid1 = 77777720936UL
+//     let tlid2 = 77777720935UL
+//     let tlid3 = 77777720934UL
+//     let tlid4 = 77777720933UL
+//     let functionResults = Dictionary.empty ()
+//     do!
+//       TCS.storeToCloudStorage
+//         c1
+//         tlid1
+//         t1
+//         [ tlid1 ]
+//         [ "request", DString "1" ]
+//         functionResults
+//     do!
+//       TCS.storeToCloudStorage
+//         c1
+//         tlid1
+//         t2
+//         [ tlid1 ]
+//         [ "request", DString "2" ]
+//         functionResults
+//     do!
+//       TCS.storeToCloudStorage
+//         c1
+//         tlid3
+//         t3
+//         [ tlid3 ]
+//         [ "request", DString "3" ]
+//         functionResults
+//     do!
+//       TCS.storeToCloudStorage
+//         c1
+//         tlid2
+//         t4
+//         [ tlid2 ]
+//         [ "request", DString "3" ]
+//         functionResults
+//     do!
+//       TCS.storeToCloudStorage
+//         c2
+//         tlid2
+//         t5
+//         [ tlid2 ]
+//         [ "request", DString "3" ]
+//         functionResults
+//     do!
+//       TCS.storeToCloudStorage
+//         c2
+//         tlid4
+//         t6
+//         [ tlid4 ]
+//         [ "request", DString "3" ]
+//         functionResults
 
-    let! actual = TCS.Test.listAllTraceIDs c1 |> Task.map List.sort
-    Expect.equal actual (List.sort [ t1; t2; t3; t4 ]) "list canvas events"
+//     let! actual = TCS.Test.listAllTraceIDs c1 |> Task.map List.sort
+//     Expect.equal actual (List.sort [ t1; t2; t3; t4 ]) "list canvas events"
 
-    let! loaded = TCS.listMostRecentTraceIDsForTLIDs c2 [ tlid4 ]
-    Expect.equal (List.sort loaded) (List.sort [ tlid4, t6 ]) "list desc events"
+//     let! loaded = TCS.listMostRecentTraceIDsForTLIDs c2 [ tlid4 ]
+//     Expect.equal (List.sort loaded) (List.sort [ tlid4, t6 ]) "list desc events"
 
-    let fetchRequestsFor (cid : CanvasID) (tlid : tlid) : Task<List<RT.Dval>> =
-      task {
-        let! traces = TCS.listMostRecentTraceIDsForTLIDs cid [ tlid ]
-        let! traceData =
-          traces
-          |> List.map Tuple2.second
-          |> Task.mapInParallel (TCS.getTraceData cid tlid)
-        return
-          traceData
-          |> List.map (fun ((_, traceData) : AT.Trace) -> traceData.input)
-          |> List.flatten
-          |> List.map Tuple2.second
-      }
+//     let fetchRequestsFor (cid : CanvasID) (tlid : tlid) : Task<List<RT.Dval>> =
+//       task {
+//         let! traces = TCS.listMostRecentTraceIDsForTLIDs cid [ tlid ]
+//         let! traceData =
+//           traces
+//           |> List.map Tuple2.second
+//           |> Task.mapInParallel (TCS.getTraceData cid tlid)
+//         return
+//           traceData
+//           |> List.map (fun ((_, traceData) : AT.Trace) -> traceData.input)
+//           |> List.flatten
+//           |> List.map Tuple2.second
+//       }
 
-    let! loaded1 = fetchRequestsFor c1 tlid1
-    Expect.equal loaded1 [ DString "2"; DString "1" ] "load GET events"
+//     let! loaded1 = fetchRequestsFor c1 tlid1
+//     Expect.equal loaded1 [ DString "2"; DString "1" ] "load GET events"
 
-    let! loaded2 = fetchRequestsFor c1 tlid3
-    Expect.equal loaded2 [ DString "3" ] "load POST events"
+//     let! loaded2 = fetchRequestsFor c1 tlid3
+//     Expect.equal loaded2 [ DString "3" ] "load POST events"
 
-    let! loaded3 = fetchRequestsFor c2 tlid3
-    Expect.equal loaded3 [] "load no host2 events"
+//     let! loaded3 = fetchRequestsFor c2 tlid3
+//     Expect.equal loaded3 [] "load no host2 events"
 
-    let! loaded4 = fetchRequestsFor c2 tlid2
-    Expect.equal loaded4 [ DString "3" ] "load host2 events"
-  }
+//     let! loaded4 = fetchRequestsFor c2 tlid2
+//     Expect.equal loaded4 [ DString "3" ] "load host2 events"
+//   }
 
 
 // let testFunctionTracesAreStored =
@@ -321,11 +321,11 @@ let tests =
   testList
     "tracing-storage"
     [
-      // testFilterSlash
-      // testRouteVariablesWorkWithStoredEvents
-      // testRouteVariablesWorkWithTraceInputsAndWildcards
-      testTraceRoundtrip
-      // testFunctionTracesAreStored
-      // testErrorTracesAreStored
-      // testLaunchdarklyParsingCode
-      ]
+    // testFilterSlash
+    // testRouteVariablesWorkWithStoredEvents
+    // testRouteVariablesWorkWithTraceInputsAndWildcards
+    //testTraceRoundtrip
+    // testFunctionTracesAreStored
+    // testErrorTracesAreStored
+    // testLaunchdarklyParsingCode
+    ]

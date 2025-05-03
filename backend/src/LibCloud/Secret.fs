@@ -4,8 +4,7 @@ module LibCloud.Secret
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open Npgsql.FSharp
-open Npgsql
+open Fumble
 open Db
 
 open Prelude

@@ -29,6 +29,7 @@ let emptyPTModule = { fns = []; types = []; constants = [] }
 
 /// Update a Package by parsing a single F# let binding
 let parseLetBinding
+  (fileName : string)
   (modules : List<string>)
   (letBinding : SynBinding)
   : List<WT.PackageFn.PackageFn> * List<WT.PackageConstant.PackageConstant> =
@@ -40,10 +41,11 @@ let parseLetBinding
       [], [ FS2WT.PackageConstant.fromSynBinding owner modules letBinding ]
   | _ ->
     Exception.raiseInternal
-      "Expected owner, and at least 1 other modules"
-      [ "modules", modules; "binding", letBinding ]
+      "Expected owner module containing things"
+      [ "modules", modules; "binding", letBinding; "fileName", fileName ]
 
 let parseTypeDef
+  (fileName : string)
   (modules : List<string>)
   (defn : SynTypeDefn)
   : WT.PackageType.PackageType =
@@ -51,11 +53,12 @@ let parseTypeDef
   | owner :: modules -> FS2WT.PackageType.fromSynTypeDefn owner modules defn
   | _ ->
     Exception.raiseInternal
-      "Expected owner, and at least 1 other modules"
-      [ "modules", modules; "defn", defn ]
+      "Expected owner module"
+      [ "modules", modules; "defn", defn; "fileName", fileName ]
 
 
 let rec parseDecls
+  (fileName : string)
   (moduleNames : List<string>)
   (decls : List<SynModuleDecl>)
   : WTPackageModule =
@@ -64,13 +67,13 @@ let rec parseDecls
       match decl with
       | SynModuleDecl.Let(_, bindings, _) ->
         let (fns, constants) =
-          bindings |> List.map (parseLetBinding moduleNames) |> List.unzip
+          bindings |> List.map (parseLetBinding fileName moduleNames) |> List.unzip
         { m with
             fns = m.fns @ List.flatten fns
             constants = m.constants @ List.flatten constants }
 
       | SynModuleDecl.Types(defns, _) ->
-        let types = List.map (parseTypeDef moduleNames) defns
+        let types = List.map (parseTypeDef fileName moduleNames) defns
         { m with types = m.types @ types }
 
       | SynModuleDecl.NestedModule(SynComponentInfo(_,
@@ -88,7 +91,7 @@ let rec parseDecls
                                    _) ->
 
         let moduleNames = moduleNames @ (nestedModuleNames |> List.map _.idText)
-        let nestedDecls = parseDecls moduleNames nested
+        let nestedDecls = parseDecls fileName moduleNames nested
 
         { fns = m.fns @ nestedDecls.fns
           types = m.types @ nestedDecls.types
@@ -123,7 +126,7 @@ let parse
                           _) ->
       let baseModule = []
 
-      let modul : WTPackageModule = parseDecls baseModule decls
+      let modul : WTPackageModule = parseDecls filename baseModule decls
 
 
       let typeNameToModules (p : WT.PackageType.Name) : List<string> =

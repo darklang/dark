@@ -6,8 +6,8 @@ open FSharp.Control.Tasks
 
 open Prelude
 
-open Npgsql
-open Npgsql.FSharp
+open Microsoft.Data.Sqlite
+open Fumble
 open LibCloud.Db
 
 module PT = LibExecution.ProgramTypes

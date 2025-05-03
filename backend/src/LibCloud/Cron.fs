@@ -4,8 +4,7 @@ module LibCloud.Cron
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open Npgsql.FSharp
-open Npgsql
+open Fumble
 open Db
 
 open Prelude
@@ -31,16 +30,16 @@ let lastRanAt (cron : CronScheduleData) : Task<Option<NodaTime.Instant>> =
     LIMIT 1"
   |> Sql.parameters
     [ "tlid", Sql.tlid cron.tlid; "canvasID", Sql.uuid cron.canvasID ]
-  |> Sql.executeRowOptionAsync (fun read -> read.instantWithoutTimeZone "ran_at")
+  |> Sql.executeRowOptionAsync (fun read -> read.instant "ran_at")
 
 
 let convertInterval (interval : PT.Handler.CronInterval) : NodaTime.Period =
   match interval with
-  | PT.Handler.EveryDay -> NodaTime.Period.FromDays 1
-  | PT.Handler.EveryWeek -> NodaTime.Period.FromWeeks 1
   | PT.Handler.EveryFortnight -> NodaTime.Period.FromWeeks 2
-  | PT.Handler.EveryHour -> NodaTime.Period.FromHours 1
+  | PT.Handler.EveryWeek -> NodaTime.Period.FromWeeks 1
+  | PT.Handler.EveryDay -> NodaTime.Period.FromDays 1
   | PT.Handler.Every12Hours -> NodaTime.Period.FromHours 12
+  | PT.Handler.EveryHour -> NodaTime.Period.FromHours 1
   | PT.Handler.EveryMinute -> NodaTime.Period.FromMinutes 1
 
 
@@ -157,7 +156,7 @@ let checkAndScheduleWorkForAllCrons () : Task<unit> =
       Telemetry.child "checkAndScheduleWorkForAllCrons" []
     let! crons = Serialize.fetchActiveCrons ()
 
-    let concurrencyCount = LibService.Config.pgPoolSize
+    let concurrencyCount = 1 // CLEANUP
     let! enqueuedCrons =
       Task.mapWithConcurrency concurrencyCount checkAndScheduleWorkForCron crons
     let enqueuedCronCount = List.count identity enqueuedCrons

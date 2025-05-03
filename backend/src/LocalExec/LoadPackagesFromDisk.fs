@@ -30,13 +30,17 @@ let load (builtins : RT.Builtins) : Ply<PT.Packages> =
       filesWithContents
       // TODO: parallelize
       |> Ply.List.mapSequentially (fun (path, contents) ->
-        //debuG "parsing" path
-        LibParser.Parser.parsePackageFile
-          builtins
-          PT.PackageManager.empty
-          NR.OnMissing.Allow
-          path
-          contents)
+        try
+          debuG "about to parse" path
+          LibParser.Parser.parsePackageFile
+            builtins
+            PT.PackageManager.empty
+            NR.OnMissing.Allow
+            path
+            contents
+        with _ex ->
+          debuG "failed to parse" path
+          reraise ())
       |> Ply.map PT.Packages.combine
 
     // Re-parse the packages, though this time we don't allow unresolved names

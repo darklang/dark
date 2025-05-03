@@ -107,26 +107,6 @@ module PersistedSerializations =
           "simple"
           { id = V.uuid; canvasID = V.uuid }
 
-        v<LibCloud.TraceCloudStorage.CloudStorageFormat>
-          "simple"
-          { storageFormatVersion = 0
-            input =
-              [ "request",
-                V.RuntimeTypes.dval
-                |> LibExecution.DvalReprInternalRoundtrippable.FormatV0.fromRT ]
-            functionResults =
-              [ (V.tlid,
-                 7777772986753UL,
-                 "testFn",
-                 LibExecution.DvalReprInternalHash.currentHashVersion,
-                 V.RuntimeTypes.dvals
-                 |> NEList.ofListUnsafe "dvals" []
-                 |> LibExecution.DvalReprInternalHash.hash
-                   LibExecution.DvalReprInternalHash.currentHashVersion,
-                 V.RuntimeTypes.dval
-                 |> LibExecution.DvalReprInternalRoundtrippable.FormatV0.fromRT) ] }
-
-
 
         // ------------------
         // Used by Pusher
