@@ -13,8 +13,8 @@ in_ci = os.getenv("CI") == "true"
 optimize = in_ci
 
 fsharp_things_to_build = ["fsdark.sln"]
-# sometimes it's handy to only build a specific project
-fsharp_things_to_build = ["src/Cli", "src/LocalExec"]
+# sometimes it's handy to only build one or more specific projects
+#fsharp_things_to_build = ["src/Cli", "src/LocalExec"]
 
 # Make io unbuffered
 def flush(fn):
@@ -210,12 +210,14 @@ def backend_full_build():
     configuration = "Debug"
     verbosity = "minimal"
     command = "build"
-
-  build = f"./scripts/build/_dotnet-wrapper {command} \
-      /clp:ForceConsoleColor \
-      --verbosity {verbosity} \
-      --configuration {configuration} \
-      {fsharp_thing_to_build}"
+  build = " && ".join(
+    f"./scripts/build/_dotnet-wrapper {command} \
+        /clp:ForceConsoleColor \
+        --verbosity {verbosity} \
+        --configuration {configuration} \
+        {proj}"
+    for proj in fsharp_things_to_build
+  )
 
   result = run_backend(start, build)
 
