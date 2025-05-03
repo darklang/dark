@@ -72,12 +72,8 @@ let loadFromDisk
         match! LibCloud.Canvas.getOwner canvasID with
         | Some id -> return id
         | None ->
-          debuG "here" 1
           let! ownerID = LibCloud.Account.createUser ()
-          debuG "here" 2
           do! LibCloud.Canvas.createWithExactID canvasID ownerID domain
-
-          debuG "here" 3
           return ownerID
       }
 

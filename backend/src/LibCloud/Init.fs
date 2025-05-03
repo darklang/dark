@@ -14,13 +14,7 @@ type WaitForDB =
 
 let waitForDB (shouldWaitForDB : WaitForDB) : Task<unit> =
   match shouldWaitForDB with
-  | WaitForDB ->
-    task {
-      printTime "Initing DB connection"
-      let! result = Db.waitUntilConnected ()
-      printTime " Inited DB connection"
-      return result
-    }
+  | WaitForDB -> Task.FromResult()
   | DontWaitForDB -> Task.FromResult()
 
 /// <summary>Initialize LibCloud.</summary>
@@ -35,14 +29,8 @@ let init (shouldWaitForDB : WaitForDB) (serviceName : string) : Task<unit> =
     printTime $"Initing LibCloud in {serviceName}"
     let dbTask = waitForDB shouldWaitForDB
 
-    //let queueTask = Queue.init ()
-    //let traceStorageTask = TraceCloudStorage.init ()
-    let! (_ : List<unit>) =
-      Task.flatten
-        [
-          // queueTask
-          // traceStorageTask
-          dbTask ]
+    let queueTask = Queue.init ()
+    let! (_ : List<unit>) = Task.flatten [ queueTask; dbTask ]
 
     printTime $" Inited LibCloud in {serviceName}"
   }

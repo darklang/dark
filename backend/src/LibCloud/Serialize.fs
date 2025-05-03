@@ -51,7 +51,6 @@ let loadToplevels
 
     return
       data
-      |> Result.unwrap
       |> List.map (fun (tlid, tl, deleted) ->
         let isDeleted = if deleted then Deleted else NotDeleted
         (isDeleted, BinarySerialization.Toplevel.deserialize tlid tl))
@@ -79,8 +78,6 @@ let fetchReleventTLIDsForHTTP
       "method", Sql.string method
       "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
-  |> Async.StartAsTask
-  |> Task.map Result.unwrap
 
 let fetchRelevantTLIDsForExecution (canvasID : CanvasID) : Task<List<tlid>> =
   Sql.query
@@ -90,8 +87,6 @@ let fetchRelevantTLIDsForExecution (canvasID : CanvasID) : Task<List<tlid>> =
       AND deleted IS FALSE"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
-  |> Async.StartAsTask
-  |> Task.map Result.unwrap
 
 let fetchRelevantTLIDsForEvent
   (canvasID : CanvasID)
@@ -113,8 +108,6 @@ let fetchRelevantTLIDsForEvent
       "name", Sql.string name
       "modifier", Sql.string modifier ]
   |> Sql.executeAsync (fun read -> read.id "tlid")
-  |> Async.StartAsTask
-  |> Task.map Result.unwrap
 
 
 let fetchTLIDsForAllDBs (canvasID : CanvasID) : Task<List<tlid>> =
@@ -125,8 +118,6 @@ let fetchTLIDsForAllDBs (canvasID : CanvasID) : Task<List<tlid>> =
       AND deleted IS FALSE"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
-  |> Async.StartAsTask
-  |> Task.map Result.unwrap
 
 let fetchTLIDsForAllWorkers (canvasID : CanvasID) : Task<List<tlid>> =
   Sql.query
@@ -139,8 +130,6 @@ let fetchTLIDsForAllWorkers (canvasID : CanvasID) : Task<List<tlid>> =
       AND deleted IS FALSE"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
-  |> Async.StartAsTask
-  |> Task.map Result.unwrap
 
 
 let fetchAllIncludingDeletedTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
@@ -149,8 +138,6 @@ let fetchAllIncludingDeletedTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
     WHERE canvas_id = @canvasID"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
-  |> Async.StartAsTask
-  |> Task.map Result.unwrap
 
 let fetchAllLiveTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
   Sql.query
@@ -159,8 +146,6 @@ let fetchAllLiveTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
       AND deleted IS FALSE"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
-  |> Async.StartAsTask
-  |> Task.map Result.unwrap
 
 type CronScheduleData =
   { canvasID : CanvasID
@@ -201,5 +186,3 @@ let fetchActiveCrons () : Task<List<CronScheduleData>> =
         |> Exception.unwrapOptionInternal
           "Could not parse cron modifier"
           [ "interval", interval; "canvasID", canvasID ] })
-  |> Async.StartAsTask
-  |> Task.map Result.unwrap

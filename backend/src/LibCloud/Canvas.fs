@@ -63,8 +63,6 @@ let domainsForCanvasID (id : CanvasID) : Task<List<string>> =
     WHERE canvas_id = @id"
   |> Sql.parameters [ "id", Sql.uuid id ]
   |> Sql.executeAsync (fun read -> read.string "domain")
-  |> Async.StartAsTask
-  |> Task.map Result.unwrap
 
 let addDomain (canvasID : CanvasID) (domain : string) : Task<unit> =
   Sql.query
@@ -78,8 +76,6 @@ let addDomain (canvasID : CanvasID) (domain : string) : Task<unit> =
 let allCanvasIDs () : Task<List<CanvasID>> =
   Sql.query "SELECT id FROM canvases_v0"
   |> Sql.executeAsync (fun read -> read.uuid "id")
-  |> Async.StartAsTask
-  |> Task.map Result.unwrap
 
 
 let getOwner (id : CanvasID) : Task<Option<UserID>> =
@@ -230,9 +226,8 @@ let loadFrom (id : CanvasID) (tlids : List<tlid>) : Task<T> =
 
       let c = empty id
 
-      // let! secrets = Secret.getCanvasSecrets id
-      // let secrets = secrets |> List.map (fun s -> s.name, s) |> Map
-      let secrets = Map []
+      let! secrets = Secret.getCanvasSecrets id
+      let secrets = secrets |> List.map (fun s -> s.name, s) |> Map
 
       return { c with secrets = secrets } |> addToplevels tls |> verify
     with e when not (LD.knownBroken id) ->
@@ -316,14 +311,14 @@ let getToplevel (tlid : tlid) (c : T) : Option<Serialize.Deleted * PT.Toplevel.T
   |> Option.orElseWith deletedDB
 
 
-// let deleteToplevelForever (canvasID : CanvasID) (tlid : tlid) : Task<unit> =
-//   // CLEANUP: set deleted column in toplevels_v0 to be not nullable
-//   Sql.query
-//     "DELETE from toplevels_v0
-//       WHERE canvas_id = @canvasID
-//         AND tlid = @tlid"
-//   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlid", Sql.id tlid ]
-//   |> Sql.executeStatementAsync
+let deleteToplevelForever (canvasID : CanvasID) (tlid : tlid) : Task<unit> =
+  // CLEANUP: set deleted column in toplevels_v0 to be not nullable
+  Sql.query
+    "DELETE from toplevels_v0
+      WHERE canvas_id = @canvasID
+        AND tlid = @tlid"
+  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlid", Sql.id tlid ]
+  |> Sql.executeStatementAsync
 
 let toplevelToDBTypeString (tl : PT.Toplevel.T) : string =
   match tl with
@@ -441,7 +436,10 @@ let loadDomainsHealthCheck
                   "canvas host healthcheck probe"
                   [ "domain", hostname ]
                   id
-              let _canvas = Serialize.loadToplevels id // still expecting another arg -- not doing anything.
+              let _canvas =
+                // TODO this is still expecting another arg -- not doing anything.
+                // (fix it)
+                Serialize.loadToplevels id
               return healthy
             with _ ->
               return

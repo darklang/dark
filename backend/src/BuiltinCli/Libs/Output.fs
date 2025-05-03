@@ -55,9 +55,9 @@ let fns : List<BuiltInFn> =
         function
         | _, _, _, [ DUnit ] ->
           if System.OperatingSystem.IsWindows() then
-              System.Console.Clear()
+            System.Console.Clear()
           else
-              System.Console.Write("\u001b[2J\u001b[H"); // ANSI escape for non-Windows
+            System.Console.Write("\u001b[2J\u001b[H") // ANSI escape for non-Windows
           Ply DUnit
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable

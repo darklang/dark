@@ -16,6 +16,7 @@ module Dval = LibExecution.Dval
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PackageIDs = LibExecution.PackageIDs
 
+open Fumble
 open LibCloud.Db
 
 

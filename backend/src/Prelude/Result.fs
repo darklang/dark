@@ -26,7 +26,7 @@ let collectNE (l : NEList<Result<'ok, 'err>>) : Result<NEList<'ok>, 'err> =
 
 // TODO: review and remove all usages of this
 // just lazy right now...
-let unwrap (r: Result<'ok, 'err>): 'ok =
+let unwrap (r : Result<'ok, 'err>) : 'ok =
   match r with
   | Ok r -> r
   | Error _ -> Exception.raiseInternal "TODO: failed to unwrap" []

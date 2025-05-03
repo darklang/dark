@@ -92,7 +92,7 @@ let rec set
             "userVersion", Sql.int db.version
             "darkVersion", Sql.int currentDarkVersion
             "key", Sql.string key
-            "data", Sql.jsonb data ]
+            "data", Sql.string data ]
         |> Sql.executeStatementAsync
 
       return Ok id
@@ -134,72 +134,71 @@ and getOption
   }
 
 
-and getMany
-  (exeState : RT.ExecutionState)
-  (threadID : RT.ThreadID)
-  (tst : RT.TypeSymbolTable)
-  (db : RT.DB.T)
-  (keys : string list)
-  : Ply<List<RT.Dval>> =
-  uply {
-    let types = exeState.types
+// and getMany
+//   (exeState : RT.ExecutionState)
+//   (threadID : RT.ThreadID)
+//   (tst : RT.TypeSymbolTable)
+//   (db : RT.DB.T)
+//   (keys : string list)
+//   : Ply<List<RT.Dval>> =
+//   uply {
+//     let types = exeState.types
 
-    let! result =
-      Sql.query
-        "SELECT data
-        FROM user_data_v0
-        WHERE table_tlid = @tlid
-          AND canvas_id = @canvasID
-          AND user_version = @userVersion
-          AND dark_version = @darkVersion
-          AND key = ANY (@keys)"
-      |> Sql.parameters
-        [ "tlid", Sql.tlid db.tlid
-          "canvasID", Sql.uuid exeState.program.canvasID
-          "userVersion", Sql.int db.version
-          "darkVersion", Sql.int currentDarkVersion
-          "keys", Sql.stringArray (Array.ofList keys) ]
-      |> Sql.executeAsync (fun read -> read.string "data")
+//     let! result =
+//       Sql.query
+//         "SELECT data
+//         FROM user_data_v0
+//         WHERE table_tlid = @tlid
+//           AND canvas_id = @canvasID
+//           AND user_version = @userVersion
+//           AND dark_version = @darkVersion
+//           AND key = ANY (@keys)"
+//       |> Sql.parameters
+//         [ "tlid", Sql.tlid db.tlid
+//           "canvasID", Sql.uuid exeState.program.canvasID
+//           "userVersion", Sql.int db.version
+//           "darkVersion", Sql.int currentDarkVersion
+//           "keys", Sql.stringArray (Array.ofList keys) ]
+//       |> Sql.executeAsync (fun read -> read.string "data")
 
-    return! result |> List.map (dbToDval types threadID tst db) |> Ply.List.flatten
-  }
+//     return! result |> List.map (dbToDval types threadID tst db) |> Ply.List.flatten
+//   }
 
 
 
-and getManyWithKeys
-  (exeState : RT.ExecutionState)
-  (threadID : RT.ThreadID)
-  (tst : RT.TypeSymbolTable)
-  (db : RT.DB.T)
-  (keys : string list)
-  : Ply<List<string * RT.Dval>> =
-  uply {
-    let types = exeState.types
+// and getManyWithKeys
+//   (exeState : RT.ExecutionState)
+//   (threadID : RT.ThreadID)
+//   (tst : RT.TypeSymbolTable)
+//   (db : RT.DB.T)
+//   (keys : string list)
+//   : Ply<List<string * RT.Dval>> =
+//   uply {
+//     let types = exeState.types
 
-    let! result =
-      Sql.query
-        "SELECT key, data
-        FROM user_data_v0
-        WHERE table_tlid = @tlid
-          AND canvas_id = @canvasID
-          AND user_version = @userVersion
-          AND dark_version = @darkVersion
-          AND key = ANY (@keys)"
-      |> Sql.parameters
-        [ "tlid", Sql.tlid db.tlid
-          "canvasID", Sql.uuid exeState.program.canvasID
-          "userVersion", Sql.int db.version
-          "darkVersion", Sql.int currentDarkVersion
-          "keys", Sql.stringArray (Array.ofList keys) ]
-      |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
+//     let! result =
+//       Sql.query
+//         "SELECT key, data
+//         FROM user_data_v0
+//         WHERE table_tlid = @tlid
+//           AND canvas_id = @canvasID
+//           AND user_version = @userVersion
+//           AND dark_version = @darkVersion
+//           AND key = ANY (@keys)"
+//       |> Sql.parameters
+//         [ "tlid", Sql.tlid db.tlid
+//           "canvasID", Sql.uuid exeState.program.canvasID
+//           "userVersion", Sql.int db.version
+//           "darkVersion", Sql.int currentDarkVersion
+//           "keys", Sql.stringArray (Array.ofList keys) ]
+//       |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
 
-    return!
-      result
-      |> Result.unwrap
-      |> List.map (fun (key, data) ->
-        dbToDval types threadID tst db data |> Ply.map (fun dval -> (key, dval)))
-      |> Ply.List.flatten
-  }
+//     return!
+//       result
+//       |> List.map (fun (key, data) ->
+//         dbToDval types threadID tst db data |> Ply.map (fun dval -> (key, dval)))
+//       |> Ply.List.flatten
+//   }
 
 
 
@@ -227,7 +226,6 @@ let getAll
 
     return!
       result
-      |> Result.unwrap
       |> List.map (fun (key, data) ->
         dbToDval exeState.types threadID tst db data
         |> Ply.map (fun dval -> (key, dval)))
@@ -352,7 +350,6 @@ let getAllKeys (exeState : RT.ExecutionState) (db : RT.DB.T) : Task<List<string>
       "userVersion", Sql.int db.version
       "darkVersion", Sql.int currentDarkVersion ]
   |> Sql.executeAsync (fun read -> read.string "key")
-  |> Task.map Result.unwrap
 
 let count (exeState : RT.ExecutionState) (db : RT.DB.T) : Task<int> =
   Sql.query
@@ -482,7 +479,7 @@ let unlocked (canvasID : CanvasID) : Task<List<tlid>> =
     GROUP BY tl.tlid"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
-  |> Task.map Result.unwrap
+
 
 
 // -------------------------

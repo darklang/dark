@@ -176,7 +176,6 @@ let resolveConstantName
             let (builtInRT : RT.FQConstantName.Builtin) =
               { name = name.name; version = name.version }
 
-            // hmm probably need to allow non-existinant builtins, at least for now.
             if Set.contains builtInRT builtinConstants then
               let (builtInPT : PT.FQConstantName.Builtin) =
                 { name = name.name; version = name.version }

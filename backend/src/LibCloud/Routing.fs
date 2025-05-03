@@ -112,9 +112,9 @@ let requestPathMatchesRoute (route : string) (requestPath : string) : bool =
   Option.isSome (routeInputVars route requestPath)
 
 
-// Postgres matches the provided path `/` with handler `/:a` due to
+// Sqlite matches the provided path `/` with handler `/:a` due to
 // `/` matching `/%%` via LIKE logic`. This cleans this edge case from the
-// set. TODO see if this is true with Sqlite
+// set.
 let filterInvalidHandlerMatches
   (path : string)
   (handlers : List<PT.Handler.T>)

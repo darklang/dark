@@ -29,7 +29,7 @@ let emptyPTModule = { fns = []; types = []; constants = [] }
 
 /// Update a Package by parsing a single F# let binding
 let parseLetBinding
-  (fileName: string)
+  (fileName : string)
   (modules : List<string>)
   (letBinding : SynBinding)
   : List<WT.PackageFn.PackageFn> * List<WT.PackageConstant.PackageConstant> =
@@ -45,7 +45,7 @@ let parseLetBinding
       [ "modules", modules; "binding", letBinding; "fileName", fileName ]
 
 let parseTypeDef
-  (fileName: string)
+  (fileName : string)
   (modules : List<string>)
   (defn : SynTypeDefn)
   : WT.PackageType.PackageType =
@@ -58,7 +58,7 @@ let parseTypeDef
 
 
 let rec parseDecls
-  (fileName: string)
+  (fileName : string)
   (moduleNames : List<string>)
   (decls : List<SynModuleDecl>)
   : WTPackageModule =

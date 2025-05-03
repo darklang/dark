@@ -84,7 +84,7 @@ let createEventAtTime
       "module", Sql.string module'
       "name", Sql.string name
       "modifier", Sql.string modifier
-      "enqueuedAt", Sql.instantWithTimeZone dt
+      "enqueuedAt", Sql.instant dt
       "value", Sql.string (DvalReprInternalRoundtrippable.toJsonV0 value) ]
   |> Sql.executeStatementAsync
 
@@ -183,7 +183,7 @@ let claimLock (event : T) (_n : Notification) : Task<Result<unit, string>> =
       |> Sql.parameters
         [ "eventID", Sql.uuid event.id
           "canvasID", Sql.uuid event.canvasID
-          "currentLockedAt", Sql.instantWithTimeZoneOrNone event.lockedAt ]
+          "currentLockedAt", Sql.instantOrNone event.lockedAt ]
       |> Sql.executeNonQueryAsync
     if rowCount = 1 then return Ok()
     else if rowCount = 0 then return Error "LockNotClaimed"

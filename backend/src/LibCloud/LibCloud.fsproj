@@ -29,20 +29,19 @@
     <Compile Include="Routing.fs" />
     <Compile Include="Serialize.fs" />
     <Compile Include="PackageManager.fs" />
-    <!--Compile Include="TraceCloudStorage.fs" /-->
-    <!--Compile Include="QueueSchedulingRules.fs" /-->
+    <Compile Include="QueueSchedulingRules.fs" />
     <Compile Include="Pusher.fs" />
-    <!--Compile Include="Secret.fs" /-->
+    <Compile Include="Secret.fs" />
     <Compile Include="Canvas.fs" />
-    <!--Compile Include="Queue.fs" /-->
-    <!--Compile Include="Cron.fs" /-->
-    <!--Compile Include="Tracing.fs" /-->
+    <Compile Include="Queue.fs" />
+    <Compile Include="Cron.fs" />
+    <Compile Include="Tracing.fs" />
 
     <Compile Include="Init.fs" />
 
     <Compile Include="DvalReprInternalQueryable.fs" />
     <Compile Include="SqlCompiler.fs" />
-    <!--Compile Include="UserDB.fs" /-->
+    <Compile Include="UserDB.fs" />
 
     <Compile Include="Stats.fs" />
     <Compile Include="Migrations.fs" />

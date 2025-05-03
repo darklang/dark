@@ -38,11 +38,9 @@ let load (builtins : RT.Builtins) : Ply<PT.Packages> =
             NR.OnMissing.Allow
             path
             contents
-          with
-          | _ex ->
-            debuG "failed to parse" path
-            reraise ()
-          )
+        with _ex ->
+          debuG "failed to parse" path
+          reraise ())
       |> Ply.map PT.Packages.combine
 
     // Re-parse the packages, though this time we don't allow unresolved names

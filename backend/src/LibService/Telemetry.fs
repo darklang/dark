@@ -182,7 +182,6 @@ let serverTags : List<string * obj> =
       "meta.server.hostname", Config.hostName
       "meta.server.machinename", string System.Environment.MachineName
       "meta.server.os", string System.Environment.OSVersion
-      "meta.dbhost", Config.pgHost
       "meta.process.path", string System.Environment.ProcessPath
       "meta.process.pwd", string System.Environment.CurrentDirectory
       "meta.process.command_line", string System.Environment.CommandLine
@@ -370,10 +369,6 @@ let addTelemetry
   // TODO HttpClient instrumentation isn't working, so let's try to add it
   // before AspNetCoreInstrumentation
   |> fun b -> b.AddAspNetCoreInstrumentation(configureAspNetCore)
-  // |> fun b ->
-  //     match traceDBQueries with
-  //     | TraceDBQueries -> b.AddNpgsql()
-  //     | DontTraceDBQueries -> b
   |> fun b -> b.AddSource("Dark")
 
 
