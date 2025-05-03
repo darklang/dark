@@ -201,10 +201,54 @@ module Darklang =
               // Entity not found
               (createErrorState state $"Entity not found: {fullyQualifiedName}", [])
 
+
       /// Returns commands available in the current state
       let getAvailableCommands (state: State) : List<CommandDetails> =
         let baseCommands = [
-          // View command - always available
+          // `quit`
+          CommandDetails
+            { name = "quit"
+              description = "Exit the CLI"
+              aliases = ["exit"; "q"]
+              arguments = []
+              execute = fun state _ -> (state, [Msg.Quit])
+            }
+
+          // `help`
+          CommandDetails
+            { name = "help"
+              description = "Show help information"
+              aliases = []
+              arguments = []
+              execute = fun state _args ->
+
+                // Get available commands for the current page
+                let commands = getAvailableCommands state
+
+                // Format help text
+                let helpText =
+                  "Available commands:\n" ++
+                  (commands
+                  |> Stdlib.List.map (fun cmd -> $"  {cmd.name} - {cmd.description}")
+                  |> Stdlib.String.join "\n")
+
+                let newState = { state with commandResult = CommandResult.Info helpText }
+                (newState, [])
+            }
+
+          // `version`
+          CommandDetails
+            { name = "version"
+              description = "Show CLI version"
+              aliases = ["v"]
+              arguments = []
+              execute = fun state _ ->
+                let newState = { state with commandResult = CommandResult.Info cliVersion }
+                (newState, [])
+            }
+
+          // View command
+          // TODO this needs a lot of work.
           CommandDetails
             { name = "view"
               description = "View modules, types, functions, or constants"
@@ -214,10 +258,16 @@ module Darklang =
                 // Parse the arguments
                 let trimmedArgs = Stdlib.String.trim args
 
+                // didn't meet args
+                // TODO this should totally be un-handled by the execute fn; why are we doing this here??
                 if Stdlib.String.isEmpty trimmedArgs then
                   let newState =
-                    { state with commandResult = CommandResult.Info "Please specify an entity name or use 'module <moduleName>' to view a module"; needsFullRedraw = true}
+                    { state with
+                        commandResult = CommandResult.Info "Please specify an entity name or use 'module <moduleName>' to view a module"
+                        needsFullRedraw = true }
                   (newState, [])
+
+                // arg-parsing that (TODO) shouldn't be here.
                 else if Stdlib.String.startsWith trimmedArgs "module " then
                   // View module command
                   let moduleName = (Stdlib.String.dropFirst trimmedArgs 7L) |> Stdlib.String.trim
@@ -316,23 +366,14 @@ module Darklang =
                     let newState = { state with commandResult = CommandResult.Error "Please navigate to a module first to view entities" }
                     (newState, [])
             }
-          // Quit command - always available
-          CommandDetails
-            { name = "quit"
-              description = "Exit the CLI"
-              aliases = ["exit"; "q"]
-              arguments = []
-              execute = fun state _ -> (state, [Msg.Quit])
-            }
 
-          // Status command - always available
+          // Status command
           CommandDetails
             { name = "status"
               description = "Show system status"
               aliases = []
               arguments = []
-              execute = fun state _ ->
-
+              execute = fun state _args ->
                 //- logo
                 //- version
                 //- overview of local (and cached) data
@@ -341,7 +382,9 @@ module Darklang =
                 //- running processes, servers, etc.
                 // Generate status information
                 let version = cliVersion
-                let location = PrettyPrinter.ProgramTypes.packageName "Darklang" [] "CLI"
+                let location =
+                  // TODO this isn't what I was expecting... this always says we're at the CLI namespace...
+                  PrettyPrinter.ProgramTypes.packageName "Darklang" [] "CLI"
 
                 // Get the current location using the getPathDisplay function from navigation.dark
                 let currentLocation = getPathDisplay state.currentPage
@@ -355,35 +398,13 @@ module Darklang =
                 (newState, [])
             }
 
-          // Help command - always available
+          // Back command
           CommandDetails
-            { name = "help"
-              description = "Show help information"
-              aliases = ["?"]
+            { name = "back"
+              description = "Go back to the previous page"
+              aliases = []
               arguments = []
-              execute = fun state _ ->
-                // Get available commands for the current page
-                let commands = getAvailableCommands state
-
-                // Format help text
-                let helpText =
-                  "Available commands:\n" ++
-                  (commands
-                  |> Stdlib.List.map (fun cmd -> $"  {cmd.name} - {cmd.description}")
-                  |> Stdlib.String.join "\n")
-
-                let newState = { state with commandResult = CommandResult.Info helpText }
-                (newState, [])
-            }
-
-          CommandDetails
-            { name = "version"
-              description = "Show CLI version"
-              aliases = ["-v"]
-              arguments = []
-              execute = fun state _ ->
-                let newState = { state with commandResult = CommandResult.Info cliVersion }
-                (newState, [])
+              execute = fun state _ -> (state, [Msg.NavigateBack])
             }
         ]
 
@@ -393,7 +414,7 @@ module Darklang =
           | Root
           | Module (_, _) ->
             [
-              // CD command - available in Root and Module contexts
+              // `cd`
               CommandDetails
                 { name = "cd"
                   description = "Change directory"
@@ -404,13 +425,13 @@ module Darklang =
                     changeDirectory state args
                 }
 
-              // LS command - available in Root and Module contexts
+              // `ls`
               CommandDetails
                 { name = "ls"
                   description = "List items in current directory"
-                  aliases = ["list"; "dir"]
-                  arguments = []
-                  execute = fun state _ ->
+                  aliases = ["list"; "dir"; "pwd"]
+                  arguments = [] // CLEANUP maybe an optional arg to `ls ..` or `ls subdir` or whatever
+                  execute = fun state _args ->
                     // List items based on the current page
                     match state.currentPage with
                     | Root ->
@@ -463,7 +484,7 @@ module Darklang =
           | Fn _
           | Constant _ ->
             [
-              // View command - available in Type, Fn, and Constant contexts
+              // View command
               CommandDetails
                 { name = "view"
                   description = "View details of the current item"
@@ -578,15 +599,6 @@ module Darklang =
                         let newState = { state with commandResult = CommandResult.Error "Not in a valid context to view entities" }
                         (newState, [])
                 }
-
-              // Back command - available in Type, Fn, and Constant contexts
-              CommandDetails
-                { name = "back"
-                  description = "Go back to the previous page"
-                  aliases = []
-                  arguments = []
-                  execute = fun state _ -> (state, [Msg.NavigateBack])
-                }
             ]
 
         Stdlib.List.append baseCommands contextCommands
@@ -601,27 +613,27 @@ module Darklang =
         |> Stdlib.List.findFirst (fun cmd ->
             cmd.name == lowerName || Stdlib.List.member_v0 cmd.aliases lowerName)
 
-      /// Returns all available commands for a dummy state
-      let getAllCommands (): List<CommandDetails> =
-        let dummyState =
-          State
-            { currentPage = Page.Root
-              pageHistory = []
-              mainPrompt = ""
-              commandResult = CommandResult.Info "dummy" // TODO: default to status command or something
-              isInteractive = true
-              needsFullRedraw = true
-              isExiting = false }
-        getAvailableCommands dummyState
+      // /// Returns all available commands for a dummy state
+      // let getAllCommands (): List<CommandDetails> =
+      //   let dummyState =
+      //     State
+      //       { currentPage = Page.Root
+      //         pageHistory = []
+      //         mainPrompt = ""
+      //         commandResult = CommandResult.Info "dummy" // TODO: default to status command or something
+      //         isInteractive = true
+      //         needsFullRedraw = true
+      //         isExiting = false }
+      //   getAvailableCommands dummyState
 
-      let cmdDetails (cmd: Command): CommandDetails =
-        match cmd with
-        | General(Quit) ->
-          (getAllCommands())
-          |> Stdlib.List.findFirst (fun c -> c.name == "quit")
-          |> Builtin.unwrap
+      // let cmdDetails (cmd: Command): CommandDetails =
+      //   match cmd with
+      //   | General(Quit) ->
+      //     (getAllCommands())
+      //     |> Stdlib.List.findFirst (fun c -> c.name == "quit")
+      //     |> Builtin.unwrap
 
-        | General(Status) ->
-          (getAllCommands())
-          |> Stdlib.List.findFirst (fun c -> c.name == "status")
-          |> Builtin.unwrap
+      //   | General(Status) ->
+      //     (getAllCommands())
+      //     |> Stdlib.List.findFirst (fun c -> c.name == "status")
+      //     |> Builtin.unwrap

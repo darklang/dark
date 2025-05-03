@@ -50,12 +50,12 @@ module Darklang =
       //     }
 
 
-      /// Represents the result of a command execution
+      /// The result of a command execution
       type CommandResult =
-        | Success of message: String
-        | Error of message: String
-        | Info of message: String
         | None
+        | Success of message: String
+        | Info of message: String
+        | Error of message: String
 
       type State =
         { /// The current page/view the user is on
@@ -67,7 +67,7 @@ module Darklang =
           /// The current input in the prompt
           mainPrompt: String
 
-          /// The result of the last command execution
+          /// The result of the last command's execution
           commandResult: CommandResult
 
           /// Whether we're in interactive mode
@@ -80,13 +80,12 @@ module Darklang =
           /// Flag to indicate if the application should exit
           isExiting: Bool
 
-                //accounts: [("stachu", "uhcats"); ("ocean": "oak"); ("paul", "biggar")]
-                //currentAccount: "stachu"
+          //accounts: [("stachu", "uhcats"); ("ocean": "oak"); ("paul", "biggar")]
+          //currentAccount: "stachu"
 
-                //cloudApps: ["darklang.com"; "stachu.net"; "dark-cli"]
-                //httpHandlers: List<HttpHandler>
-                //cliApps = []
-                //scripts: []
-                //crons: []
-
+          //cloudApps: ["darklang.com"; "stachu.net"; "dark-cli"]
+          //httpHandlers: List<HttpHandler>
+          //cliApps = []
+          //scripts: []
+          //crons: []
         }
