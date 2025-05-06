@@ -557,6 +557,7 @@ module.exports = grammar({
     character: $ =>
       choice(
         // higher precedence than escape sequences
+        token.immediate("'"),
         token.immediate(prec(1, /[^'\\\n]/)),
         $.char_or_string_escape_sequence,
       ),
@@ -627,7 +628,13 @@ module.exports = grammar({
       ),
 
     string_interpolation_content: $ =>
-      repeat1(choice($.string_to_eval, $.string_text)),
+      repeat1(
+        choice(
+          $.string_to_eval,
+          $.string_text,
+          $.char_or_string_escape_sequence,
+        ),
+      ),
 
     string_text: $ => token.immediate(prec.left(/[^{}\\"]+/)),
 
@@ -696,6 +703,7 @@ module.exports = grammar({
       seq(
         field("field", $.variable_identifier),
         field("symbol_equals", alias("=", $.symbol)),
+        //TODO maybe use expression instead of simple_expression here
         field("value", $.simple_expression),
       ),
 
@@ -910,7 +918,7 @@ module.exports = grammar({
         field("pattern", $.let_pattern),
         field("symbol_equals", alias("=", $.symbol)),
         choice(
-          seq(field("expr", $.simple_expression), "\n"),
+          seq(field("expr", $.expression), "\n"),
           seq($.indent, field("expr", $.expression), $.dedent, optional("\n")),
         ),
         field("body", $.expression),
@@ -928,6 +936,8 @@ module.exports = grammar({
       ),
     match_case: $ =>
       seq(
+        // CLEANUP: look for a better way to handle this
+        optional($.indent), // consume the extra INDENT introduced by our multi-line enum_fields support
         field("symbol_pipe", alias("|", $.symbol)),
         field("pattern", $.match_pattern),
         optional(
@@ -1323,6 +1333,7 @@ function enum_literal_base($, enum_fields) {
             field("symbol_close_paren", alias(")", $.symbol)),
           ),
           field("enum_fields", enum_fields),
+          seq($.indent, field("enum_fields", enum_fields), $.dedent),
         ),
       ),
     ),

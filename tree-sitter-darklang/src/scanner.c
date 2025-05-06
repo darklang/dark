@@ -70,6 +70,20 @@ bool tree_sitter_darklang_external_scanner_scan(void *payload, TSLexer *lexer, c
     }
   }
 
+  // IMPROVED CODE: More aggressive check for closing parenthesis before possible dedent
+  if (valid_symbols[DEDENT] && scanner->stack_size > 0) {
+    // Look ahead to see if we have a closing parenthesis
+    if (lexer->lookahead == ')') {
+      // Always emit a DEDENT before the closing parenthesis if we have indentation levels
+      // and DEDENT is a valid symbol at this position
+      if (scanner->stack_size > 0) {
+        pop(scanner);
+        lexer->result_symbol = DEDENT;
+        return true;
+      }
+    }
+  }
+
   // New line or end of file handling
   while (lexer->lookahead == '\n') {
     found_newline = true;
