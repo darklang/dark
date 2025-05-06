@@ -476,9 +476,9 @@ List of fn calls
 ==================
 
 [
-  Builtin.Tuple.second (4L, 5L)
-  Builtin.Int64.add 1L 2L
-  Builtin.List.head [1L; 2L]
+  Stdlib.Tuple2.second (4L, 5L)
+  Stdlib.Int64.add 1L 2L
+  Stdlib.List.head [1L; 2L]
 ]
 
 ---

@@ -16,7 +16,6 @@ const PREC = {
   PIPE_EXPR: 9,
   LAMBDA: 10,
   STATEMENT: 11,
-  // EXPR: 12,
 };
 
 const logicalOperators = choice("&&", "||");
@@ -445,24 +444,6 @@ module.exports = grammar({
         $.infix_operation,
         $.paren_expression,
       ),
-
-    // _expression_no_statement: $ =>
-    //   prec(
-    //     PREC.EXPR + 1,
-    //     choice(
-    //       $.simple_expression,
-
-    //       $.if_expression,
-    //       $.let_expression,
-
-    //       $.match_expression,
-
-    //       $.apply,
-
-    //       $.lambda_expression,
-    //       $.pipe_expression,
-    //     ),
-    //   ),
 
     expression: $ =>
       choice(
