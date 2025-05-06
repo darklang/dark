@@ -61,7 +61,7 @@ let myRec = RecordForUpdate { x = 4L; y = 1L }
       (keyword)
       (let_pattern (variable_identifier))
       (symbol)
-      (simple_expression (record_literal
+      (expression (simple_expression (record_literal
         (qualified_type_name (type_identifier))
         (symbol)
         (record_content
@@ -78,7 +78,7 @@ let myRec = RecordForUpdate { x = 4L; y = 1L }
           )
         )
         (symbol)
-      ))
+      )))
       (expression
         (simple_expression
           (record_update
@@ -116,7 +116,7 @@ let myRec = RecordForUpdateMultipe { x = 4L; y = 1L; z = 0L }
       (keyword)
       (let_pattern (variable_identifier))
       (symbol)
-      (simple_expression (record_literal
+      (expression (simple_expression (record_literal
         (qualified_type_name (type_identifier))
         (symbol)
         (record_content
@@ -139,7 +139,7 @@ let myRec = RecordForUpdateMultipe { x = 4L; y = 1L; z = 0L }
           )
         )
         (symbol))
-      )
+      ))
       (expression
         (simple_expression
           (record_update
@@ -187,30 +187,34 @@ record update - multiple fields, indented and on newlines
         (expression
           (let_expression
             (keyword) (let_pattern (variable_identifier)) (symbol)
-            (simple_expression
-              (record_literal
-                (qualified_type_name (type_identifier))
-                (symbol)
-                (record_content
-                  (record_pair
-                    (variable_identifier)
+            (expression
+              (simple_expression
+                (record_literal
+                  (qualified_type_name (type_identifier))
+                  (symbol)
+                  (record_content
+                    (record_pair
+                      (variable_identifier)
+                      (symbol)
+                      (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+                      )
                     (symbol)
-                    (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+                    (record_pair
+                      (variable_identifier)
+                      (symbol)
+                      (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
                     )
-                  (symbol)
-                  (record_pair
-                    (variable_identifier)
                     (symbol)
-                    (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+                    (record_pair
+                      (variable_identifier)
+                      (symbol)
+                      (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+                    )
                   )
                   (symbol)
-                  (record_pair
-                    (variable_identifier)
-                    (symbol)
-                    (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
-                  )
                 )
-                (symbol)))
+              )
+            )
             (expression
               (simple_expression
                 (record_update

@@ -11,7 +11,7 @@ x
   (expression
     (let_expression
       (keyword) (let_pattern (variable_identifier)) (symbol)
-      (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+      (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
       (expression (simple_expression (variable_identifier)))
     )
   )
@@ -196,7 +196,7 @@ let (tokensSoFar, startOfLastToken) = acc
         )
       )
       (symbol)
-      (simple_expression (variable_identifier))
+      (expression (simple_expression (variable_identifier)))
       (expression
         (simple_expression
           (tuple_literal
@@ -208,6 +208,97 @@ let (tokensSoFar, startOfLastToken) = acc
           )
         )
       )
+    )
+  )
+)
+
+
+==================
+let expression with fn_call
+==================
+
+let x = Stdlib.Int64.add 1L 2L
+x
+
+---
+
+(source_file
+  (expression
+    (let_expression
+      (keyword) (let_pattern (variable_identifier)) (symbol)
+      (expression
+        (apply
+          (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+          (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+          (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+        )
+      )
+      (expression (simple_expression (variable_identifier)))
+    )
+  )
+)
+
+
+==================
+let expression with fn_call -indented
+==================
+
+let x =
+  Stdlib.Int64.add
+    1L
+    2L
+x
+
+---
+(source_file
+  (expression
+    (let_expression
+      (keyword) (let_pattern (variable_identifier)) (symbol)
+      (indent)
+      (expression
+        (apply
+          (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+          (indent)
+          (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+          (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+          (dedent)
+        )
+      )
+      (dedent)
+      (expression (simple_expression (variable_identifier)))
+    )
+  )
+)
+
+
+==================
+let expression with if expression
+==================
+
+let x = if true then 1L else Stdlib.Int64.add 1L 2L
+x
+---
+
+(source_file
+  (expression
+    (let_expression
+      (keyword) (let_pattern (variable_identifier)) (symbol)
+      (expression
+        (if_expression
+          (keyword)
+          (expression (simple_expression (bool_literal)))
+          (keyword)
+          (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+          (keyword)
+          (expression
+            (apply (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+              (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+              (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+            )
+          )
+        )
+      )
+      (expression (simple_expression (variable_identifier)))
     )
   )
 )
