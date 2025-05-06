@@ -28,7 +28,7 @@ const stringConcatOperator = "++";
 module.exports = grammar({
   name: "darklang",
 
-  externals: $ => [$.indent, $.dedent],
+  externals: $ => [$.indent, $.dedent, $._function_boundary],
   extras: $ => [/\s/, $._inline_comment],
 
   conflicts: $ => [[$.module_identifier, $.type_identifier]],
@@ -557,6 +557,7 @@ module.exports = grammar({
     character: $ =>
       choice(
         // higher precedence than escape sequences
+        token.immediate("'"),
         token.immediate(prec(1, /[^'\\\n]/)),
         $.char_or_string_escape_sequence,
       ),
@@ -627,7 +628,13 @@ module.exports = grammar({
       ),
 
     string_interpolation_content: $ =>
-      repeat1(choice($.string_to_eval, $.string_text)),
+      repeat1(
+        choice(
+          $.string_to_eval,
+          $.string_text,
+          $.char_or_string_escape_sequence,
+        ),
+      ),
 
     string_text: $ => token.immediate(prec.left(/[^{}\\"]+/)),
 
@@ -643,7 +650,7 @@ module.exports = grammar({
     //
     // List
     list_literal: $ => list_literal_base($, $.list_content),
-    list_content: $ => list_content_base($, $.simple_expression),
+    list_content: $ => list_content_base($, $.expression),
 
     //
     // Dict
@@ -696,6 +703,7 @@ module.exports = grammar({
       seq(
         field("field", $.variable_identifier),
         field("symbol_equals", alias("=", $.symbol)),
+        //TODO maybe use expression instead of simple_expression here
         field("value", $.simple_expression),
       ),
 
@@ -724,15 +732,20 @@ module.exports = grammar({
         seq(
           $.indent,
           $.record_update_field,
-          repeat(seq($.newline, $.record_update_field)),
+          repeat(seq(repeat($.newline), $.record_update_field)),
           optional($.dedent),
         ),
       ),
+
     record_update_field: $ =>
       seq(
         field("field_name", $.variable_identifier),
         field("symbol_equals", alias("=", $.symbol)),
-        field("value", $.simple_expression),
+        choice(
+          seq($.indent, field("value", $.expression), $.dedent),
+
+          field("value", $.expression),
+        ),
       ),
 
     //
@@ -905,7 +918,7 @@ module.exports = grammar({
         field("pattern", $.let_pattern),
         field("symbol_equals", alias("=", $.symbol)),
         choice(
-          seq(field("expr", $.simple_expression), "\n"),
+          seq(field("expr", $.expression), "\n"),
           seq($.indent, field("expr", $.expression), $.dedent, optional("\n")),
         ),
         field("body", $.expression),
@@ -923,6 +936,8 @@ module.exports = grammar({
       ),
     match_case: $ =>
       seq(
+        // CLEANUP: look for a better way to handle this
+        optional($.indent), // consume the extra INDENT introduced by our multi-line enum_fields support
         field("symbol_pipe", alias("|", $.symbol)),
         field("pattern", $.match_pattern),
         optional(
@@ -947,15 +962,17 @@ module.exports = grammar({
           // TODO: fn should be an expression
           field("fn", $.qualified_fn_name),
           choice(
-            field("args", repeat1($.simple_expression)),
+            seq(
+              field("args", repeat1($.simple_expression)),
+              optional($._function_boundary),
+            ),
             seq(
               $.indent,
               field("args", seq($.expression, repeat(seq(/\n/, $.expression)))),
               $.dedent,
+              optional($._function_boundary),
             ),
           ),
-          // the new line is used as a delimiter
-          optional($.newline),
         ),
       ),
 
@@ -1246,6 +1263,11 @@ function list_content_base($, content) {
       optional(alias(";", $.symbol)),
     ),
     seq(content, repeat(seq($.newline, content)), optional($.newline)),
+    seq(
+      $.indent,
+      seq(content, repeat(seq($.newline, content)), optional($.newline)),
+      $.dedent,
+    ),
   );
 }
 
@@ -1311,6 +1333,7 @@ function enum_literal_base($, enum_fields) {
             field("symbol_close_paren", alias(")", $.symbol)),
           ),
           field("enum_fields", enum_fields),
+          seq($.indent, field("enum_fields", enum_fields), $.dedent),
         ),
       ),
     ),

@@ -32,11 +32,13 @@ Builtin.printLine (myFn ())
       (expression
         (let_expression
           (keyword) (let_pattern (variable_identifier)) (symbol)
-          (simple_expression
-            (infix_operation
-              (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
-              (operator)
-              (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+          (expression
+            (simple_expression
+              (infix_operation
+                (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+                (operator)
+                (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+              )
             )
           )
           (expression
@@ -49,7 +51,6 @@ Builtin.printLine (myFn ())
                   (symbol)
                 )
               )
-              (newline)
             )
           )
         )
@@ -102,6 +103,6 @@ helloworld ()
   )
 
   (expression
-    (apply (qualified_fn_name (fn_identifier)) (simple_expression (unit)) (newline))
+    (apply (qualified_fn_name (fn_identifier)) (simple_expression (unit)))
   )
 )

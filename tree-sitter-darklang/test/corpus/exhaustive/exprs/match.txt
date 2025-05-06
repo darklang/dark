@@ -96,7 +96,7 @@ match [ true; false] with
         (simple_expression
           (list_literal
             (symbol)
-            (list_content (simple_expression (bool_literal)) (symbol) (simple_expression (bool_literal)))
+            (list_content (expression (simple_expression (bool_literal))) (symbol) (expression (simple_expression (bool_literal))))
             (symbol)
           )
         )
@@ -144,7 +144,7 @@ match [ true ] with
   (expression
     (match_expression
       (keyword)
-      (expression (simple_expression (list_literal (symbol) (list_content (simple_expression (bool_literal))) (symbol))))
+      (expression (simple_expression (list_literal (symbol) (list_content (expression (simple_expression (bool_literal)))) (symbol))))
       (keyword)
       (match_case
         (symbol) (match_pattern (variable)) (symbol)
@@ -152,18 +152,20 @@ match [ true ] with
         (expression
           (let_expression
             (keyword) (let_pattern (variable_identifier)) (symbol)
-            (simple_expression
-              (paren_expression
-                (symbol)
-                (expression
-                  (apply
-                    (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
-                    (simple_expression (variable_identifier))
+            (expression
+              (simple_expression
+                (paren_expression
+                  (symbol)
+                  (expression
+                    (apply
+                      (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+                      (simple_expression (variable_identifier))
+                    )
                   )
+                  (symbol)
                 )
-              (symbol)
+              )
             )
-          )
             (expression (simple_expression (variable_identifier)))
           )
         )
@@ -507,11 +509,11 @@ match [ 1L; 2L; 3L ] with
         (simple_expression (list_literal
           (symbol)
           (list_content
-            (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+            (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
             (symbol)
-            (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+            (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
             (symbol)
-            (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+            (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
           )
           (symbol)
         ))
@@ -554,11 +556,11 @@ match [ 1L; 2L; 3L ] with
           (list_literal
             (symbol)
             (list_content
-              (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+              (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
               (symbol)
-              (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+              (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
               (symbol)
-              (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+              (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
             )
             (symbol)
           )
@@ -722,7 +724,6 @@ match var with
             (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
             (simple_expression (variable_identifier))
             (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
-            (newline)
           )
         )
       )

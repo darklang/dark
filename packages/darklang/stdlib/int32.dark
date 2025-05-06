@@ -67,7 +67,7 @@ module Darklang =
 
       /// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
       let absoluteValue (a: Int32) : Int32 =
-        if Builtin.int32LessThan a 0 then
+        if Builtin.int32LessThan a 0l then
           Builtin.int32Negate a
         else
           a
