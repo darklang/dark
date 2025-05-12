@@ -377,7 +377,7 @@ Builtin.printLine Person { name = "Alice" }
             (record_pair
               (variable_identifier)
               (symbol)
-              (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))
+              (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
             )
           )
           (symbol)

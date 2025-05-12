@@ -70,7 +70,6 @@ bool tree_sitter_darklang_external_scanner_scan(void *payload, TSLexer *lexer, c
     }
   }
 
-  // IMPROVED CODE: More aggressive check for closing parenthesis before possible dedent
   if (valid_symbols[DEDENT] && scanner->stack_size > 0) {
     // Look ahead to see if we have a closing parenthesis
     if (lexer->lookahead == ')') {

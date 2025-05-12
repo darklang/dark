@@ -539,12 +539,147 @@ List of fn calls
 
 
 ==================
+List of fn calls
+==================
+
+[ (Stdlib.Int64.add
+    1L
+    2L)
+  Stdlib.Tuple2.second (4L, 5L)
+  Stdlib.List.head [1L; 2L] ]
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (list_literal
+        (symbol)
+        (list_content
+          (expression
+            (simple_expression
+              (paren_expression
+                (symbol)
+                (expression
+                  (apply
+                    (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+                    (indent)
+                    (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                    (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                    (dedent)
+                  )
+                )
+                (symbol)
+              )
+            )
+          )
+          (newline)
+          (expression
+            (apply
+              (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+              (simple_expression
+                (tuple_literal
+                  (symbol)
+                  (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                  (symbol)
+                  (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                  (symbol)
+                )
+              )
+            )
+          )
+          (newline)
+          (expression
+            (apply
+              (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+              (simple_expression
+                (list_literal
+                  (symbol)
+                  (list_content
+                    (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                    (symbol)
+                    (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                  )
+                  (symbol)
+                )
+              )
+            )
+          )
+        )
+        (symbol)
+      )
+    )
+  )
+)
+
+
+==================
+List of vars
+==================
+
+[
+  intConst
+  floatConst
+  stringConst
+  boolConst
+]
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (list_literal
+        (symbol)
+        (list_content
+          (indent)
+          (expression (simple_expression (variable_identifier)))
+          (newline)
+          (expression (simple_expression (variable_identifier)))
+          (newline)
+          (expression (simple_expression (variable_identifier)))
+          (newline)
+          (expression (simple_expression (variable_identifier)))
+          (dedent)
+        )
+        (symbol)
+      )
+    )
+  )
+)
+
+
+==================
 List of vars -- TODO : fix this
 ==================
 
 [ intConst
   floatConst
   stringConst
-  boolConst ]
+  boolConst
+]
 
+
+==================
+List of fn calls -- TODO : fix this
+==================
+
+[ Stdlib.Int64.add
+    1L
+    2L
+  Stdlib.Tuple2.second (4L, 5L)
+  Stdlib.List.head [1L; 2L] ]
+
+
+
+==================
+List of fn calls 2 -- TODO : fix this
+==================
+
+[
+  Stdlib.Tuple2.second (4L, 5L)
+  Stdlib.Int64.add
+    1L
+    2L
+  Stdlib.List.head [1L; 2L]
+]
 ---

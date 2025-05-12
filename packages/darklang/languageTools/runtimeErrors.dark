@@ -117,7 +117,7 @@ module Darklang =
             | FnResultNotExpectedType of fnName : FQFnName.FQFnName * expectedType : ValueType * actualType : ValueType * actualValue : Dval
 
             | CannotApplyTypeArgsToLambda
-            | TooManyArgsForLambda of lambdaExprId: id * expected: Int64 * actual: Int64
+            | TooManyArgsForLambda of lambdaExprId: ID * expected: Int64 * actual: Int64
 
         module Statements =
           type Error =

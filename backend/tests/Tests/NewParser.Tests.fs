@@ -665,6 +665,34 @@ let exprs =
       []
       false
 
+    t
+      "list of function calls"
+      """[
+  Stdlib.Tuple2.second (4L, 5L)
+  Stdlib.Int64.add 1L 2L
+  Stdlib.List.head [1L; 2L]
+]"""
+      "[PACKAGE.Darklang.Stdlib.Tuple2.second (4L, 5L); PACKAGE.Darklang.Stdlib.Int64.add 1L 2L; PACKAGE.Darklang.Stdlib.List.head [1L; 2L]]"
+      []
+      []
+      []
+      false
+
+    t
+      "list of function calls -indented"
+      """[
+  Stdlib.Tuple2.second (4L, 5L)
+  (Stdlib.Int64.add
+    1L
+    2L)
+  Stdlib.List.head [1L; 2L]
+]"""
+      "[PACKAGE.Darklang.Stdlib.Tuple2.second (4L, 5L); PACKAGE.Darklang.Stdlib.Int64.add 1L 2L; PACKAGE.Darklang.Stdlib.List.head [1L; 2L]]"
+      []
+      []
+      []
+      false
+
     // dict literal
     t "empty dict" "Dict { }" "Dict {  }" [] [] [] false
     t "simple int dict" "Dict { a = 1L }" "Dict { a = 1L }" [] [] [] false
@@ -747,6 +775,16 @@ let exprs =
       "Generic<Tests.Person> { x = Person { name = \"John\"; age = 30L; hasPet = true } }"
       "Generic<Person> { x = Person { name = \"John\"; age = 30L; hasPet = true } }"
       [ person ]
+      []
+      []
+      false
+
+    t
+      "record with indented args"
+      """Stdlib.Result.Result.Error
+  Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero"""
+      """PACKAGE.Darklang.Stdlib.Result.Result.Error(PACKAGE.Darklang.Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero)"""
+      []
       []
       []
       false

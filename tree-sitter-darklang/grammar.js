@@ -681,7 +681,15 @@ module.exports = grammar({
             field("symbol_open_brace", alias("{", $.symbol)),
             optional(field("content", $.record_content)),
             field("symbol_close_brace", alias("}", $.symbol)),
-            optional($.dedent),
+            $.dedent,
+          ),
+          seq(
+            field("type_name", $.qualified_type_name),
+            field("symbol_open_bracw", alias("{", $.symbol)),
+            $.indent,
+            optional(field("content", $.record_content)),
+            field("symbol_close_brace", alias("}", $.symbol)),
+            $.dedent,
           ),
         ),
       ),
@@ -703,8 +711,10 @@ module.exports = grammar({
       seq(
         field("field", $.variable_identifier),
         field("symbol_equals", alias("=", $.symbol)),
-        //TODO maybe use expression instead of simple_expression here
-        field("value", $.simple_expression),
+        choice(
+          field("value", $.expression),
+          seq($.indent, field("value", $.expression), $.dedent),
+        ),
       ),
 
     //
@@ -900,7 +910,10 @@ module.exports = grammar({
           field("keyword_fun", alias("fun", $.keyword)),
           field("pats", $.lambda_pats),
           field("symbol_arrow", alias("->", $.symbol)),
-          field("body", $.expression),
+          field(
+            "body",
+            choice($.expression, seq($.indent, $.expression, $.dedent)),
+          ),
         ),
       ),
     lambda_pats: $ => field("pat", repeat1($.let_pattern)),
@@ -970,7 +983,7 @@ module.exports = grammar({
               $.indent,
               field("args", seq($.expression, repeat(seq(/\n/, $.expression)))),
               $.dedent,
-              optional($._function_boundary),
+              // optional($._function_boundary),
             ),
           ),
         ),
@@ -1023,7 +1036,8 @@ module.exports = grammar({
           field("fn", $.qualified_fn_name),
           field("args", repeat($.simple_expression)),
           // the new line is used as a delimiter
-          optional(/\n/),
+          // optional(/\n/),
+          optional($._function_boundary),
         ),
       ),
 

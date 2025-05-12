@@ -212,6 +212,7 @@ fun x ->
       (keyword)
       (lambda_pats (let_pattern (variable_identifier)))
       (symbol)
+      (indent)
       (expression
         (lambda_expression
           (keyword)
@@ -230,6 +231,7 @@ fun x ->
           )
         )
       )
+      (dedent)
     )
   )
 )

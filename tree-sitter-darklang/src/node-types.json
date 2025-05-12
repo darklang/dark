@@ -1811,11 +1811,19 @@
     "named": true,
     "fields": {
       "body": {
-        "multiple": false,
+        "multiple": true,
         "required": true,
         "types": [
           {
+            "type": "dedent",
+            "named": true
+          },
+          {
             "type": "expression",
+            "named": true
+          },
+          {
+            "type": "indent",
             "named": true
           }
         ]
@@ -3227,7 +3235,17 @@
       },
       "symbol_open_brace": {
         "multiple": false,
-        "required": true,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "symbol_open_bracw": {
+        "multiple": false,
+        "required": false,
         "types": [
           {
             "type": "symbol",
@@ -3290,11 +3308,25 @@
         "required": true,
         "types": [
           {
-            "type": "simple_expression",
+            "type": "expression",
             "named": true
           }
         ]
       }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "dedent",
+          "named": true
+        },
+        {
+          "type": "indent",
+          "named": true
+        }
+      ]
     }
   },
   {

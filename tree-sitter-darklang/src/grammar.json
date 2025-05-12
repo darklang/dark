@@ -4101,16 +4101,71 @@
                 }
               },
               {
+                "type": "SYMBOL",
+                "name": "dedent"
+              }
+            ]
+          },
+          {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "FIELD",
+                "name": "type_name",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "qualified_type_name"
+                }
+              },
+              {
+                "type": "FIELD",
+                "name": "symbol_open_bracw",
+                "content": {
+                  "type": "ALIAS",
+                  "content": {
+                    "type": "STRING",
+                    "value": "{"
+                  },
+                  "named": true,
+                  "value": "symbol"
+                }
+              },
+              {
+                "type": "SYMBOL",
+                "name": "indent"
+              },
+              {
                 "type": "CHOICE",
                 "members": [
                   {
-                    "type": "SYMBOL",
-                    "name": "dedent"
+                    "type": "FIELD",
+                    "name": "content",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "record_content"
+                    }
                   },
                   {
                     "type": "BLANK"
                   }
                 ]
+              },
+              {
+                "type": "FIELD",
+                "name": "symbol_close_brace",
+                "content": {
+                  "type": "ALIAS",
+                  "content": {
+                    "type": "STRING",
+                    "value": "}"
+                  },
+                  "named": true,
+                  "value": "symbol"
+                }
+              },
+              {
+                "type": "SYMBOL",
+                "name": "dedent"
               }
             ]
           }
@@ -4218,12 +4273,38 @@
           }
         },
         {
-          "type": "FIELD",
-          "name": "value",
-          "content": {
-            "type": "SYMBOL",
-            "name": "simple_expression"
-          }
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "FIELD",
+              "name": "value",
+              "content": {
+                "type": "SYMBOL",
+                "name": "expression"
+              }
+            },
+            {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "indent"
+                },
+                {
+                  "type": "FIELD",
+                  "name": "value",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "expression"
+                  }
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "dedent"
+                }
+              ]
+            }
+          ]
         }
       ]
     },
@@ -5215,8 +5296,30 @@
             "type": "FIELD",
             "name": "body",
             "content": {
-              "type": "SYMBOL",
-              "name": "expression"
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "expression"
+                },
+                {
+                  "type": "SEQ",
+                  "members": [
+                    {
+                      "type": "SYMBOL",
+                      "name": "indent"
+                    },
+                    {
+                      "type": "SYMBOL",
+                      "name": "expression"
+                    },
+                    {
+                      "type": "SYMBOL",
+                      "name": "dedent"
+                    }
+                  ]
+                }
+              ]
             }
           }
         ]
@@ -5714,18 +5817,6 @@
                   {
                     "type": "SYMBOL",
                     "name": "dedent"
-                  },
-                  {
-                    "type": "CHOICE",
-                    "members": [
-                      {
-                        "type": "SYMBOL",
-                        "name": "_function_boundary"
-                      },
-                      {
-                        "type": "BLANK"
-                      }
-                    ]
                   }
                 ]
               }
@@ -5951,8 +6042,8 @@
             "type": "CHOICE",
             "members": [
               {
-                "type": "PATTERN",
-                "value": "\\n"
+                "type": "SYMBOL",
+                "name": "_function_boundary"
               },
               {
                 "type": "BLANK"
