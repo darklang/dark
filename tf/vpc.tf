@@ -5,13 +5,6 @@ resource "google_compute_network" "default" {
   auto_create_subnetworks = "true"
 }
 
-resource "google_compute_network_peering" "yugabyte" {
-  name         = "yugabyte"
-  network      = google_compute_network.default.id
-  peer_network = "projects/yugabyte-cloud-prod/global/networks/puoo57iiz2fbaszkvdyi5w75vs4u"
-  stack_type   = "IPV4_ONLY"
-}
-
 resource "google_vpc_access_connector" "serverless_connector_1" {
   name           = "serverless-connector-1"
   network        = google_compute_network.default.id

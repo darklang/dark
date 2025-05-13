@@ -1,3 +1,5 @@
+# TODO: tidy, and finally integrate into CI.
+
 #!/usr/bin/env bash
 . ./scripts/devcontainer/_assert-in-container "$0" "$@"
 

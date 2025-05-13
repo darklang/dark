@@ -4,8 +4,6 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 open FSharp.Control.Tasks.Affine.Unsafe
 
-open Npgsql.FSharp
-open Npgsql
 open Db
 
 open Prelude
@@ -30,23 +28,23 @@ let error2 (msg : string) (v : string) : 'a = error $"{msg}: {v}"
 let error3 (msg : string) (v1 : string) (v2 : string) : 'a =
   error $"{msg}:\n  {v1}\n  {v2}"
 
-let uint64 (v : System.UInt64) : SqlValue =
-  let typ = NpgsqlTypes.NpgsqlDbType.Numeric
-  let idParam = NpgsqlParameter("uint64", typ)
-  idParam.Value <- System.Numerics.BigInteger.op_Implicit (v)
-  Sql.parameter idParam
+// let uint64 (v : System.UInt64) : SqlValue =
+//   let typ = NpgsqlTypes.NpgsqlDbType.Numeric
+//   let idParam = NpgsqlParameter("uint64", typ)
+//   idParam.Value <- System.Numerics.BigInteger.op_Implicit (v)
+//   Sql.parameter idParam
 
-let int128 (v : System.Int128) : SqlValue =
-  let typ = NpgsqlTypes.NpgsqlDbType.Numeric
-  let idParam = NpgsqlParameter("int128", typ)
-  idParam.Value <- System.Numerics.BigInteger.op_Implicit (v)
-  Sql.parameter idParam
+// let int128 (v : System.Int128) : SqlValue =
+//   let typ = NpgsqlTypes.NpgsqlDbType.Numeric
+//   let idParam = NpgsqlParameter("int128", typ)
+//   idParam.Value <- System.Numerics.BigInteger.op_Implicit (v)
+//   Sql.parameter idParam
 
-let uint128 (v : System.UInt128) : SqlValue =
-  let typ = NpgsqlTypes.NpgsqlDbType.Numeric
-  let idParam = NpgsqlParameter("uint128", typ)
-  idParam.Value <- System.Numerics.BigInteger.op_Implicit (v)
-  Sql.parameter idParam
+// let uint128 (v : System.UInt128) : SqlValue =
+//   let typ = NpgsqlTypes.NpgsqlDbType.Numeric
+//   let idParam = NpgsqlParameter("uint128", typ)
+//   idParam.Value <- System.Numerics.BigInteger.op_Implicit (v)
+//   Sql.parameter idParam
 
 
 // // This canonicalizes an expression, meaning it removes multiple ways of
@@ -354,8 +352,8 @@ let escapeFieldname (str : string) : string =
 //            args) when name = fName && version = v -> Some args
 //   | _ -> None
 
-type CompiledSqlQuery =
-  { sql : string; vars : List<string * SqlValue>; actualType : TypeReference }
+// type CompiledSqlQuery =
+//   { sql : string; vars : List<string * SqlValue>; actualType : TypeReference }
 
 
 
@@ -1170,7 +1168,7 @@ type CompiledSqlQuery =
 //   }
 
 
-type CompileLambdaResult = { sql : string; vars : List<string * SqlValue> }
+//type CompileLambdaResult = { sql : string; vars : List<string * SqlValue> }
 
 // let compileLambda
 //   (state : ExecutionState)

@@ -41,12 +41,10 @@ let configureServices
   (services : IServiceCollection)
   : IServiceCollection =
   // each healthcheck is tagged according to the probes it is used in
-  let allProbes = [| livenessTag; readinessTag; startupTag |]
+  let _allProbes = [| livenessTag; readinessTag; startupTag |]
+  // CLEANUP I'm not sure if we're actually doing real health checks here?
 
-  let healthChecksBuilder =
-    services
-      .AddHealthChecks()
-      .AddNpgSql(DBConnection.dataSource.ConnectionString, tags = allProbes)
+  let healthChecksBuilder = services.AddHealthChecks()
 
   healthChecks
   |> List.iter (fun hc ->

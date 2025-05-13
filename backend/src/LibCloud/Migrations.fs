@@ -1,12 +1,12 @@
-/// Our Postgres DB migrations
+/// Our DB migrations
 module LibCloud.Migrations
 
 // Note that we don't use Tasks in here because these are expected to be run in
 // order, so it's easier to execute synchronously than have a bunch of code to use
 // tasks and then extra code to ensure the tasks are run synchronously.
 
-open Npgsql
-open Npgsql.FSharp
+open Microsoft.Data.Sqlite
+open Fumble
 open Db
 
 module Telemetry = LibService.Telemetry
@@ -15,9 +15,11 @@ open Prelude
 
 let isInitialized () : bool =
   Sql.query
-    "SELECT TRUE
-     FROM pg_class
-     WHERE relname = 'system_migrations_v0'"
+    "SELECT 1
+     FROM sqlite_master
+     WHERE type = 'table'
+       AND name = 'system_migrations_v0';
+"
   |> Sql.executeExistsSync
 
 let initializeMigrationsTable () : unit =
@@ -33,6 +35,7 @@ let initializeMigrationsTable () : unit =
 let alreadyRunMigrations () : List<string> =
   Sql.query "SELECT name from system_migrations_v0"
   |> Sql.execute (fun read -> read.string "name")
+  |> Result.unwrap
 
 let runSystemMigration (name : string) (sql : string) : unit =
   use span = Telemetry.child "new migration" [ "name", name; "sql", sql ]
@@ -58,13 +61,13 @@ let runSystemMigration (name : string) (sql : string) : unit =
     |> Sql.parameters recordMigrationParams
     |> Sql.executeStatementSync
   | _ ->
-    let counts =
-      LibService.DBConnection.dataSource
-      |> Sql.fromDataSource
-      |> Sql.executeTransaction
-        [ sql, []; recordMigrationStmt, [ recordMigrationParams ] ]
+    // let counts =
+    //   LibService.DBConnection.dataSource
+    //   |> Sql.fromDataSource
+    //   |> Sql.executeTransaction
+    //     [ sql, []; recordMigrationStmt, [ recordMigrationParams ] ]
 
-    assertEq "recorded migrations" 1 counts[1]
+    // assertEq "recorded migrations" 1 counts[1]
 
     ()
 
@@ -80,7 +83,7 @@ let migrationsToRun () =
   allMigrations () |> List.filter (fun name -> not (Set.contains name alreadyRun))
 
 let run () : unit =
-  if (not (isInitialized ())) then initializeMigrationsTable ()
+  if not (isInitialized ()) then initializeMigrationsTable ()
 
   migrationsToRun ()
   |> List.iter (fun name ->

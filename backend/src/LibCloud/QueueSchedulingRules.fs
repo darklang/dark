@@ -5,9 +5,7 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Prelude
-
-open Npgsql.FSharp
-open Npgsql
+open Fumble
 open Db
 
 
@@ -72,7 +70,7 @@ let rowToSchedulingRule (read : RowReader) : SchedulingRule.T =
     canvasID = read.uuid "canvas_id"
     handlerName = read.string "handler_name"
     eventSpace = read.string "event_space"
-    createdAt = read.instantWithoutTimeZone "created_at" }
+    createdAt = read.instant "created_at" }
 
 
 // DARK INTERNAL FN

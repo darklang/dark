@@ -6,9 +6,6 @@ module TestUtils.LibTest
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open Npgsql.FSharp
-open Npgsql
-
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
@@ -19,6 +16,7 @@ module Dval = LibExecution.Dval
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PackageIDs = LibExecution.PackageIDs
 
+open Fumble
 open LibCloud.Db
 
 

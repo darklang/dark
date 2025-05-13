@@ -16,7 +16,6 @@
     <Compile Include="Logging.fs" />
     <Compile Include="Rollbar.fs" />
     <Compile Include="FireAndForget.fs" />
-    <Compile Include="DBConnection.fs" />
     <Compile Include="Kubernetes.fs" />
     <Compile Include="HeapAnalytics.fs" />
     <Compile Include="Kestrel.fs" />

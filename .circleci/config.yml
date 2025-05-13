@@ -218,9 +218,6 @@ jobs:
           name: Setup backend build environment
           command: |
             set -x
-            scripts/devcontainer/_start-postgres
-            # Disable for now since they're not used
-            # scripts/devcontainer/_start-yugabyte
 
       # The date is used to get a fresh cache each week
       - run: shasum backend/paket.lock backend/global.json <(date +"%U%Y") > ../checksum

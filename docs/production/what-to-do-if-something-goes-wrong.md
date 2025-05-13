@@ -121,9 +121,7 @@ Pub/Sub has a dashboard.
 
 #### Handling a runaway query
 
-- log into gcp psql
-- use the famous pg query to find the issue
-- kill the query
+- TODO figure out what's right here for sqlite
 
 ### Handling accidentally DOS by a customer
 

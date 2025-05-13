@@ -4,7 +4,6 @@ module LibCloud.Init
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open Npgsql.FSharp
 open Db
 
 open Prelude
@@ -15,13 +14,7 @@ type WaitForDB =
 
 let waitForDB (shouldWaitForDB : WaitForDB) : Task<unit> =
   match shouldWaitForDB with
-  | WaitForDB ->
-    task {
-      printTime "Initing DB connection"
-      let! result = Db.waitUntilConnected ()
-      printTime " Inited DB connection"
-      return result
-    }
+  | WaitForDB -> Task.FromResult()
   | DontWaitForDB -> Task.FromResult()
 
 /// <summary>Initialize LibCloud.</summary>
@@ -37,8 +30,7 @@ let init (shouldWaitForDB : WaitForDB) (serviceName : string) : Task<unit> =
     let dbTask = waitForDB shouldWaitForDB
 
     let queueTask = Queue.init ()
-    let traceStorageTask = TraceCloudStorage.init ()
-    let! (_ : List<unit>) = Task.flatten [ queueTask; traceStorageTask; dbTask ]
+    let! (_ : List<unit>) = Task.flatten [ queueTask; dbTask ]
 
     printTime $" Inited LibCloud in {serviceName}"
   }

@@ -4,4 +4,5 @@
 set -uo pipefail
 
 echo "Clearing devdb"
-psql devdb -c "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public"
+rm ./rundir/data.db
+sqlite3 ./rundir/data.db < ./backend/migrations/20250301_000000_migration.sql

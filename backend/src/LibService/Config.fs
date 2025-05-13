@@ -102,24 +102,3 @@ let launchDarklyApiKey = credentialsOption "DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY
 // --------------------
 
 let traceSamplingRuleDefault = string "DARK_CONFIG_TRACE_SAMPLING_RULE_DEFAULT"
-
-// --------------------
-// db
-// --------------------
-let pgHost = string "DARK_CONFIG_DB_HOST"
-
-let pgPort = int "DARK_CONFIG_DB_PORT"
-
-let pgDBName = string "DARK_CONFIG_DB_DBNAME"
-
-let pgUser = string "DARK_CONFIG_DB_USER"
-
-let pgPassword = credentials "DARK_CONFIG_DB_PASSWORD"
-
-let pgPoolSize = int "DARK_CONFIG_DB_POOL_SIZE"
-
-let pgSslRequired = bool "DARK_CONFIG_DB_SSL_REQUIRED"
-
-let pgRootCertPath = stringOption "DARK_CONFIG_DB_ROOT_CERT_PATH"
-
-let pgLogLevel = stringOption "DARK_CONFIG_DB_LOG_LEVEL"
