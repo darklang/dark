@@ -283,7 +283,7 @@ MyRecord {
 
 
 ==================
-Record - with fn calls -indented args
+Record - complex content
 ==================
 
 MyRecord {
@@ -397,7 +397,7 @@ MyRecord {
 
 
 ==================
-Record - with fn calls -indented args 2
+Record - with fn calls -indented args
 ==================
 
 MyRecord {
@@ -452,7 +452,7 @@ MyRecord {
 
 
 ==================
-Record - with fn calls -indented args 3
+Record - with fn calls -indented content
 ==================
 
 

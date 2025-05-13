@@ -1,3 +1,4 @@
+// the scanner should be used __very__ sparingly, and any changes should be discussed before embarking on anything new here.
 #include <tree_sitter/parser.h>
 #include <wctype.h>
 #include <string.h>
@@ -19,6 +20,7 @@ struct Scanner {
 };
 
 void *tree_sitter_darklang_external_scanner_create() {
+  // Allocate memory for the scanner and initialize it to zero
   struct Scanner *scanner = calloc(1, sizeof(struct Scanner));
   scanner->stack_size = 0;  // Start with no indentation levels
   scanner->indent_stack[0] = 0;  // Base indent level is 0
@@ -146,7 +148,7 @@ unsigned tree_sitter_darklang_external_scanner_serialize(void *payload, char *bu
     memcpy(buffer, scanner->indent_stack, total_size);
     return total_size;
   }
-
+  // Return the size of the serialized data.
   return 0;
 }
 

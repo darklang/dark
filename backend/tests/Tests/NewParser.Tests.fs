@@ -779,16 +779,6 @@ let exprs =
       []
       false
 
-    t
-      "record with indented args"
-      """Stdlib.Result.Result.Error
-  Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero"""
-      """PACKAGE.Darklang.Stdlib.Result.Result.Error(PACKAGE.Darklang.Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero)"""
-      []
-      []
-      []
-      false
-
     // record update
     t
       "record update 1"
@@ -888,6 +878,16 @@ let exprs =
 )"""
       """MyEnum.D(1L, 2L)"""
       [ myEnum ]
+      []
+      []
+      false
+
+    t
+      "enum with indented field"
+      """Stdlib.Result.Result.Error
+  Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero"""
+      """PACKAGE.Darklang.Stdlib.Result.Result.Error(PACKAGE.Darklang.Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero)"""
+      []
       []
       []
       false

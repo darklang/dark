@@ -292,6 +292,8 @@ module Darklang =
           (findNodeByFieldName node "enum_fields")
           |> Stdlib.Option.map (fun enumFieldsNode ->
             enumFieldsNode.children
+            |> Stdlib.List.filter (fun c ->
+              c.typ != "indent" && c.typ != "dedent")
             |> Stdlib.List.chunkBySize 2L
             |> Builtin.unwrap
             |> Stdlib.List.map (fun contentSymbolPair ->

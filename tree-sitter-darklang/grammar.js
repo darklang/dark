@@ -949,8 +949,6 @@ module.exports = grammar({
       ),
     match_case: $ =>
       seq(
-        // CLEANUP: look for a better way to handle this
-        optional($.indent), // consume the extra INDENT introduced by our multi-line enum_fields support
         field("symbol_pipe", alias("|", $.symbol)),
         field("pattern", $.match_pattern),
         optional(
@@ -983,7 +981,6 @@ module.exports = grammar({
               $.indent,
               field("args", seq($.expression, repeat(seq(/\n/, $.expression)))),
               $.dedent,
-              // optional($._function_boundary),
             ),
           ),
         ),
@@ -1035,8 +1032,6 @@ module.exports = grammar({
         seq(
           field("fn", $.qualified_fn_name),
           field("args", repeat($.simple_expression)),
-          // the new line is used as a delimiter
-          // optional(/\n/),
           optional($._function_boundary),
         ),
       ),

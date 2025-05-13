@@ -87,7 +87,7 @@ Multiple-item list
 
 
 ==================
-                                                                    Nested list
+Nested list
 ==================
 
 [[true; false]; [true; false]]
@@ -646,40 +646,3 @@ List of vars
     )
   )
 )
-
-
-==================
-List of vars -- TODO : fix this
-==================
-
-[ intConst
-  floatConst
-  stringConst
-  boolConst
-]
-
-
-==================
-List of fn calls -- TODO : fix this
-==================
-
-[ Stdlib.Int64.add
-    1L
-    2L
-  Stdlib.Tuple2.second (4L, 5L)
-  Stdlib.List.head [1L; 2L] ]
-
-
-
-==================
-List of fn calls 2 -- TODO : fix this
-==================
-
-[
-  Stdlib.Tuple2.second (4L, 5L)
-  Stdlib.Int64.add
-    1L
-    2L
-  Stdlib.List.head [1L; 2L]
-]
----
