@@ -1,0 +1,87 @@
+module Darklang =
+  module Cli =
+    /// Returns a list of available command names based on the current state
+    let getAvailableCommandNames (state: State) : List<String> =
+      (Command.getAvailableCommands state)
+      |> Stdlib.List.map (fun cmd -> cmd.name)
+
+
+    /// Renders just the prompt line for incremental updates
+    let renderPromptOnly (state: State): String =
+      let pathDisplay = getPathDisplay state.currentPage
+      $"{pathDisplay}> {state.mainPrompt}"
+
+
+    /// Renders the current state to a string for display
+    let render (state: State): String =
+      match state.interactionMode with
+      // Non-interactive mode: just return the command result without UI elements
+      | NonInteractive ->
+        match state.commandResult with
+        | Success msg -> msg
+        | Error msg -> $"Error: {msg}"
+        | Info msg -> msg
+        | None -> ""
+
+      // Regular mode: include command result and prompt, but no available commands
+      | Regular ->
+        // Format the current path for display
+        let pathDisplay = getPathDisplay state.currentPage
+        // Format the prompt with the current path
+        let promptLine = $"{pathDisplay}> {state.mainPrompt}"
+
+        // Format the command result
+        let resultDisplay =
+          match state.commandResult with
+          | Success msg -> $"✓ {msg}"
+          | Error msg -> $"✗ Error: {msg}"
+          | Info msg -> msg
+          | None -> ""
+
+        // Combine parts with appropriate spacing
+        let parts =
+          if Stdlib.String.isEmpty resultDisplay then
+            [promptLine]
+          else
+            [resultDisplay; ""; promptLine]
+
+        parts
+        |> Stdlib.List.filter (fun p -> Stdlib.Bool.not (Stdlib.String.isEmpty p))
+        |> Stdlib.String.join "\n"
+
+      // RefreshScreen mode (full UI): include command result, available commands, and prompt
+      | RefreshScreen ->
+        // Format the current path for display
+        let pathDisplay = getPathDisplay state.currentPage
+        // Format the prompt with the current path
+        let promptLine = $"{pathDisplay}> {state.mainPrompt}"
+
+        // Format the command result
+        let resultDisplay =
+          match state.commandResult with
+          | Success msg -> $"✓ {msg}"
+          | Error msg -> $"✗ Error: {msg}"
+          | Info msg -> msg
+          | None -> ""
+
+        // Get available commands for the current page
+        let availableCommands = getAvailableCommandNames state
+
+        // Format available commands
+        let commandsDisplay =
+          if Stdlib.List.isEmpty availableCommands then
+            ""
+          else
+            "Available commands: " ++
+            (Stdlib.String.join availableCommands ", ")
+
+        // Combine all parts with appropriate spacing
+        let parts =
+          if Stdlib.String.isEmpty resultDisplay then
+            [commandsDisplay; promptLine]
+          else
+            [resultDisplay; ""; commandsDisplay; promptLine]
+
+        parts
+        |> Stdlib.List.filter (fun p -> Stdlib.Bool.not (Stdlib.String.isEmpty p))
+        |> Stdlib.String.join "\n"
