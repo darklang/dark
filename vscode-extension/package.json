@@ -79,25 +79,25 @@
         "command": "darklang.testRemoteFile",
         "title": "Darklang: Test Remote File"
       }
-    ]
-  },
-  "viewsContainers": {
-    "activitybar": [
-      {
-        "id": "darklangViewContainer",
-        "title": "Darklang",
-        "icon": "static/logo-dark-transparent-low-margin.svg"
-      }
-    ]
-  },
-  "views": {
-    "darklangViewContainer": [
-      {
-        "id": "darklangTreeView",
-        "name": "tree view of packages",
-        "_todo_when": "workspaceHasFolder"
-      }
-    ]
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "darklangViewContainer",
+          "title": "Darklang",
+          "icon": "static/logo-dark-transparent-low-margin.svg"
+        }
+      ]
+    },
+    "views": {
+      "darklangViewContainer": [
+        {
+          "id": "darklangTreeView",
+          "name": "tree view of packages",
+          "_todo_when": "workspaceHasFolder"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
