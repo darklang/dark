@@ -3235,17 +3235,7 @@
       },
       "symbol_open_brace": {
         "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      },
-      "symbol_open_bracw": {
-        "multiple": false,
-        "required": false,
+        "required": true,
         "types": [
           {
             "type": "symbol",

@@ -4119,7 +4119,7 @@
               },
               {
                 "type": "FIELD",
-                "name": "symbol_open_bracw",
+                "name": "symbol_open_brace",
                 "content": {
                   "type": "ALIAS",
                   "content": {

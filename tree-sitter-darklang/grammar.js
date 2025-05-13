@@ -685,7 +685,7 @@ module.exports = grammar({
           ),
           seq(
             field("type_name", $.qualified_type_name),
-            field("symbol_open_bracw", alias("{", $.symbol)),
+            field("symbol_open_brace", alias("{", $.symbol)),
             $.indent,
             optional(field("content", $.record_content)),
             field("symbol_close_brace", alias("}", $.symbol)),
