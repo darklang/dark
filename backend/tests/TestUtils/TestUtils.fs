@@ -6,8 +6,6 @@ open Expecto
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open Npgsql.FSharp
-open Npgsql
 open LibCloud.Db
 
 open Prelude

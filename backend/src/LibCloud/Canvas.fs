@@ -4,8 +4,8 @@ module LibCloud.Canvas
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open Npgsql.FSharp
-open Npgsql
+open Microsoft.Data.Sqlite
+open Fumble
 open LibCloud.Db
 
 open Prelude
@@ -400,14 +400,14 @@ let saveTLIDs
                   data = @data"
           |> Sql.parameters
             [ "canvasID", Sql.uuid id
-              "tlid", Sql.id tlid
+              "tlid", Sql.tlid tlid
               "digest", Sql.string "fsharp"
               "typ", Sql.string (toplevelToDBTypeString tl)
               "name", Sql.stringOrNone name
               "module", Sql.stringOrNone module_
               "modifier", Sql.stringOrNone modifier
               "deleted", Sql.bool deleted
-              "data", Sql.bytea serializedToplevel ]
+              "data", Sql.bytes serializedToplevel ]
           |> Sql.executeStatementAsync
       })
   with e ->
@@ -436,7 +436,10 @@ let loadDomainsHealthCheck
                   "canvas host healthcheck probe"
                   [ "domain", hostname ]
                   id
-              let _canvas = Serialize.loadToplevels id
+              let _canvas =
+                // TODO this is still expecting another arg -- not doing anything.
+                // (fix it)
+                Serialize.loadToplevels id
               return healthy
             with _ ->
               return

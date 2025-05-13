@@ -1,4 +1,4 @@
-/// Maps user-defined routes (in their Http Handlers) to Postgres patterns
+/// Maps user-defined routes (in their Http Handlers) to Sqlite patterns
 /// for filtering when BWD gets a request, to choose the 'right',
 /// most appropriate handler.
 ///
@@ -69,7 +69,7 @@ let routeInputVars
             match routeVariable r with
             | Some rv -> Some((rv, RT.DString p) :: acc)
             | None ->
-              // Concretized match, or we were passed a Postgres wildcard
+              // Concretized match, or we were passed a Sqlite wildcard
               // and should treat this as a match.
               // Otherwise, this route/path do not match and should fail
               if r = p || r = "%" then Some acc else None)
@@ -112,7 +112,7 @@ let requestPathMatchesRoute (route : string) (requestPath : string) : bool =
   Option.isSome (routeInputVars route requestPath)
 
 
-// Postgres matches the provided path `/` with handler `/:a` due to
+// Sqlite matches the provided path `/` with handler `/:a` due to
 // `/` matching `/%%` via LIKE logic`. This cleans this edge case from the
 // set.
 let filterInvalidHandlerMatches

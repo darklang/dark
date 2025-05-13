@@ -469,8 +469,6 @@ let initSerializers () =
     "Canvas.loadJsonFromDisk"
   Json.Vanilla.allow<LibExecution.ProgramTypes.Toplevel.T> "Canvas.loadJsonFromDisk"
   Json.Vanilla.allow<LibCloud.Queue.NotificationData> "eventqueue storage"
-  Json.Vanilla.allow<LibCloud.TraceCloudStorage.CloudStorageFormat>
-    "TraceCloudStorageFormat"
   Json.Vanilla.allow<LibService.Rollbar.HoneycombJson> "Rollbar"
 
   // for Pusher.com payloads

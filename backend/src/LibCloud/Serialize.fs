@@ -5,10 +5,10 @@
 module LibCloud.Serialize
 
 open System.Threading.Tasks
-open FSharp.Control.Tasks
+//open FSharp.Control.Tasks
+open Microsoft.Data.Sqlite
+open Fumble
 
-open Npgsql.FSharp
-open Npgsql
 open LibCloud.Db
 
 open Prelude
@@ -32,7 +32,7 @@ type Deleted =
 
 let loadToplevels
   (canvasID : CanvasID)
-  (tlids : List<tlid>)
+  (_tlids : List<tlid>)
   : Task<List<Deleted * PT.Toplevel.T>> =
   task {
     let! data =
@@ -45,9 +45,9 @@ let loadToplevels
             tipe = 'db'::toplevel_type
             OR tipe = 'handler'::toplevel_type
           )"
-      |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlids", Sql.idArray tlids ]
+      |> Sql.parameters [ "canvasID", Sql.uuid canvasID ] // TODO; "tlids", Sql.idArray tlids ]
       |> Sql.executeAsync (fun read ->
-        (read.tlid "tlid", read.bytea "data", read.bool "deleted"))
+        (read.tlid "tlid", read.bytes "data", read.bool "deleted"))
 
     return
       data
