@@ -4,8 +4,8 @@ module LibCloud.Stats
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open Npgsql.FSharp
-open Npgsql
+open Microsoft.Data.Sqlite
+open Fumble
 open Db
 
 open Prelude
@@ -32,7 +32,7 @@ type DBStats = Map<tlid, DBStat>
 //   |> Task.flatten
 //   |> Task.map Map.ofList
 
-let workerV2Stats (canvasID : CanvasID) (tlid : tlid) : Task<int> =
+let workerStats (canvasID : CanvasID) (tlid : tlid) : Task<int> =
   Sql.query
     "SELECT COUNT(1) AS num
      FROM queue_events_v0 E
@@ -45,8 +45,33 @@ let workerV2Stats (canvasID : CanvasID) (tlid : tlid) : Task<int> =
   |> Sql.parameters [ "tlid", Sql.tlid tlid; "canvasID", Sql.uuid canvasID ]
   |> Sql.executeRowAsync (fun read -> read.int "num")
 
-let workerStats (canvasID : CanvasID) (tlid : tlid) : Task<int> =
-  task {
-    let! v2Stats = workerV2Stats canvasID tlid
-    return v2Stats
-  }
+type Something =
+  { relation : string
+    rows : int64
+    diskBytes : int64
+    diskHuman : string
+    rowsHuman : string }
+
+// // In LibCloud.Db
+// let sqliteTableStats () : Task<List<Something>> =
+//   task {
+//     let! tables = Sql.listOnlyColumn "SELECT name FROM sqlite_master WHERE type='table'" []
+
+//     return!
+//       tables
+//       |> List.mapTask (fun (DString name) ->
+//         task {
+//           let! rowCount = Sql.queryInt64 $"SELECT COUNT(*) FROM \"{name}\"" []
+//           let! pageCount = Sql.queryInt64 $"PRAGMA page_count" []
+//           let! pageSize = Sql.queryInt64 $"PRAGMA page_size" []
+
+//           let diskBytes = pageCount * pageSize
+//           return {
+//             relation = name
+//             rows = rowCount
+//             diskBytes = diskBytes
+//             diskHuman = FileSize.humanReadable diskBytes
+//             rowsHuman = rowCount.ToString("N0")
+//           }
+//         })
+//   }
