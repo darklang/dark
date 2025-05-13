@@ -12,7 +12,7 @@ Person {name = "John"}
       (qualified_type_name (type_identifier))
       (symbol)
       (record_content
-        (record_pair (variable_identifier) (symbol) (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+        (record_pair (variable_identifier) (symbol) (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))))
       )
       (symbol)
     ))
@@ -34,9 +34,9 @@ Person {name = "John"; age = 30L}
       (qualified_type_name (type_identifier))
       (symbol)
       (record_content
-        (record_pair (variable_identifier) (symbol) (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+        (record_pair (variable_identifier) (symbol) (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))))
         (symbol)
-        (record_pair (variable_identifier) (symbol) (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+        (record_pair (variable_identifier) (symbol) (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol)))))
       )
       (symbol)
     ))
@@ -58,20 +58,22 @@ Person {name = "John"; age = 30L; hobbies = ["reading"; "swimming"]}
       (qualified_type_name (type_identifier))
         (symbol)
         (record_content
-          (record_pair (variable_identifier) (symbol) (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+          (record_pair (variable_identifier) (symbol) (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))))
           (symbol)
-          (record_pair (variable_identifier) (symbol) (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+          (record_pair (variable_identifier) (symbol) (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol)))))
           (symbol)
           (record_pair (variable_identifier) (symbol)
-            (simple_expression
-              (list_literal
-                (symbol)
-                (list_content
-                  (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))
+            (expression
+              (simple_expression
+                (list_literal
                   (symbol)
-                  (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))
+                  (list_content
+                    (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+                    (symbol)
+                    (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+                  )
+                  (symbol)
                 )
-                (symbol)
               )
             )
           )
@@ -100,34 +102,40 @@ Person {name = "John"; address = Address {city = "New York"; street = "5th Avenu
           (record_pair
             (variable_identifier)
             (symbol)
-            (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))
+            (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
           )
           (symbol)
           (record_pair
             (variable_identifier)
             (symbol)
-            (simple_expression
-              (record_literal
-                (qualified_type_name (type_identifier))
-                (symbol)
-                (record_content
-                  (record_pair
-                    (variable_identifier)
+            (expression
+              (simple_expression
+                (record_literal
+                  (qualified_type_name (type_identifier))
+                  (symbol)
+                  (record_content
+                    (record_pair
+                      (variable_identifier)
+                      (symbol)
+                      (expression
+                        (simple_expression
+                          (string_segment (string_literal (symbol) (string_content) (symbol)))
+                        )
+                      )
+                    )
                     (symbol)
-                    (simple_expression
-                      (string_segment (string_literal (symbol) (string_content) (symbol)))
+                    (record_pair
+                      (variable_identifier)
+                      (symbol)
+                      (expression
+                        (simple_expression
+                          (string_segment (string_literal (symbol) (string_content) (symbol)))
+                        )
+                      )
                     )
                   )
                   (symbol)
-                  (record_pair
-                    (variable_identifier)
-                    (symbol)
-                    (simple_expression
-                      (string_segment (string_literal (symbol) (string_content) (symbol)))
-                    )
-                  )
                 )
-                (symbol)
               )
             )
           )
@@ -158,37 +166,41 @@ Person {
       (record_literal
         (qualified_type_name (type_identifier))
         (symbol)
+        (indent)
         (record_content
           (record_pair
             (variable_identifier)
             (symbol)
-            (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))
+            (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
           )
           (newline)
           (record_pair
             (variable_identifier)
             (symbol)
-            (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+            (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
           )
           (newline)
           (record_pair
             (variable_identifier)
             (symbol)
-            (simple_expression
-              (list_literal
-                (symbol)
-                (list_content
-                  (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))
+            (expression
+              (simple_expression
+                (list_literal
                   (symbol)
-                  (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))
+                  (list_content
+                    (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+                    (symbol)
+                    (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+                  )
+                  (symbol)
                 )
-                (symbol)
               )
             )
           )
           (newline)
         )
         (symbol)
+        (dedent)
       )
     )
   )
@@ -216,11 +228,394 @@ MyRecord<String> { name = "test" }
           (record_pair
             (variable_identifier)
             (symbol)
-            (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))
+            (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
           )
         )
         (symbol)
       )
+    )
+  )
+)
+
+
+==================
+Record - with fn calls
+==================
+
+MyRecord {
+  name = "test"
+  age = Stdlib.Int.toString 30L
+}
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (record_literal
+        (qualified_type_name (type_identifier))
+        (symbol)
+        (indent)
+        (record_content
+          (record_pair
+            (variable_identifier)
+            (symbol)
+            (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+          )
+          (newline)
+          (record_pair
+            (variable_identifier)
+            (symbol)
+            (expression
+              (apply
+                (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+                (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+              )
+            )
+          )
+          (newline)
+        )
+        (symbol)
+        (dedent)
+      )
+    )
+  )
+)
+
+
+==================
+Record - complex content
+==================
+
+MyRecord {
+  name = "test"
+  age =
+    Stdlib.Int64.add
+      30L
+      10L
+  address =
+    Address {
+      city = "New York"
+      street =
+        Stdlib.String.concat
+          [ "5th Avenue"; "Broadway" ]
+          ", "
+    }
+}
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (record_literal
+        (qualified_type_name (type_identifier))
+        (symbol)
+        (indent)
+        (record_content
+          (record_pair
+            (variable_identifier)
+            (symbol)
+            (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+          )
+          (newline)
+          (record_pair
+            (variable_identifier)
+            (symbol)
+            (indent)
+            (expression
+              (apply
+                (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+                (indent)
+                (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                (dedent)
+              )
+            )
+            (dedent)
+          )
+          (newline (MISSING "apply_token1"))
+          (record_pair
+            (variable_identifier)
+            (symbol)
+            (indent)
+            (expression
+              (simple_expression
+                (record_literal
+                  (qualified_type_name (type_identifier))
+                  (symbol)
+                  (indent)
+                  (record_content
+                    (record_pair
+                      (variable_identifier)
+                      (symbol)
+                      (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+                    )
+                    (newline)
+                    (record_pair
+                      (variable_identifier)
+                      (symbol)
+                      (indent)
+                      (expression
+                        (apply
+                          (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+                          (indent)
+                          (expression
+                            (simple_expression
+                              (list_literal
+                                (symbol)
+                                (list_content
+                                  (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+                                  (symbol)
+                                  (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+                                )
+                                (symbol)
+                              )
+                            )
+                          )
+                          (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+                          (dedent)
+                        )
+                      )
+                      (dedent)
+                    )
+                  )
+                  (symbol)
+                  (dedent)
+                )
+              )
+            )
+            (dedent)
+          )
+        )
+        (symbol)
+        (dedent)
+      )
+    )
+  )
+)
+
+
+
+
+==================
+Record - with fn calls -indented args
+==================
+
+MyRecord {
+  age =
+    Stdlib.Int64.add
+      30L
+      10L
+  address = "test"
+}
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (record_literal
+        (qualified_type_name (type_identifier))
+        (symbol)
+        (indent)
+        (record_content
+          (record_pair
+            (variable_identifier)
+            (symbol)
+            (indent)
+            (expression
+              (apply
+                (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+                (indent)
+                (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                (dedent)
+              )
+            )
+            (dedent)
+          )
+          (newline (MISSING "apply_token1"))
+          (record_pair
+            (variable_identifier)
+            (symbol)
+            (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+          )
+          (newline)
+        )
+        (symbol)
+        (dedent)
+      )
+    )
+  )
+)
+
+
+
+
+==================
+Record - with fn calls -indented content
+==================
+
+
+if node.typ == "const_decl" then
+  match (nameNode, valueNode, keywordConstNode, symEqualsNode) with
+  | Ok name, Ok value, Ok keywordConst, Ok equals ->
+    WrittenTypes.ConstantDeclaration.ConstantDeclaration {
+      range = node.range
+      name = name
+      body = value
+      keywordConst = keywordConst.range
+      symbolEquals = equals.range }
+    |> Stdlib.Result.Result.Ok
+
+  | _ -> createUnparseableError node
+
+---
+
+(source_file
+  (expression
+    (if_expression
+      (keyword)
+      (expression
+        (simple_expression
+          (infix_operation
+            (simple_expression (field_access (variable_identifier) (symbol) (variable_identifier)))
+            (operator)
+            (simple_expression (string_segment (string_literal  (symbol) (string_content) (symbol))))
+          )
+        )
+      )
+      (keyword)
+      (indent)
+      (expression
+        (match_expression
+          (keyword)
+          (expression
+            (simple_expression
+              (tuple_literal
+                (symbol)
+                (expression (simple_expression (variable_identifier)))
+                (symbol)
+                (expression (simple_expression (variable_identifier)))
+                (tuple_literal_the_rest
+                  (symbol)
+                  (expression (simple_expression (variable_identifier)))
+                  (symbol)
+                  (expression (simple_expression (variable_identifier)))
+                )
+                (symbol)
+              )
+            )
+          )
+          (keyword)
+          (match_case
+            (symbol)
+            (match_pattern
+              (enum
+                (enum_case_identifier)
+                (mp_enum_fields
+                  (match_pattern (variable))
+                  (symbol)
+                  (match_pattern
+                    (enum
+                      (enum_case_identifier)
+                      (mp_enum_fields
+                        (match_pattern (variable))
+                        (symbol)
+                        (match_pattern
+                          (enum
+                            (enum_case_identifier)
+                            (mp_enum_fields
+                              (match_pattern (variable))
+                              (symbol)
+                              (match_pattern
+                                (enum
+                                  (enum_case_identifier)
+                                  (mp_enum_fields (match_pattern (variable)))
+                                )
+                              )
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            )
+            (symbol)
+            (indent)
+            (expression
+              (pipe_expression
+                (expression
+                  (simple_expression
+                    (record_literal
+                      (qualified_type_name  (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier))
+                      (symbol)
+                      (indent)
+                      (record_content
+                        (record_pair
+                          (variable_identifier)
+                          (symbol)
+                          (expression (simple_expression (field_access (variable_identifier) (symbol) (variable_identifier))))
+                        )
+                        (newline)
+                        (record_pair
+                          (variable_identifier)
+                          (symbol)
+                          (expression (simple_expression (variable_identifier)))
+                        )
+                        (newline)
+                        (record_pair
+                          (variable_identifier)
+                          (symbol)
+                          (expression (simple_expression (variable_identifier)))
+                        )
+                        (newline)
+                        (record_pair
+                          (variable_identifier)
+                          (symbol)
+                          (expression (simple_expression (field_access (variable_identifier) (symbol) (variable_identifier))))
+                        )
+                        (newline)
+                        (record_pair
+                          (variable_identifier)
+                          (symbol)
+                          (expression (simple_expression (field_access (variable_identifier) (symbol) (variable_identifier))))
+                        )
+                      )
+                      (symbol)
+                      (dedent)
+                    )
+                  )
+                )
+                (pipe_exprs
+                  (symbol)
+                  (pipe_expr
+                    (pipe_enum
+                      (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier))
+                      (symbol)
+                      (enum_case_identifier)
+                    )
+                  )
+                )
+              )
+            )
+            (dedent)
+          )
+          (match_case
+            (symbol)
+            (match_pattern (variable))
+            (symbol)
+            (expression
+              (apply
+                (qualified_fn_name (fn_identifier))
+                (simple_expression (variable_identifier))
+              )
+            )
+          )
+        )
+      )
+    (dedent)
     )
   )
 )

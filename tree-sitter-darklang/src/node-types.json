@@ -39,10 +39,6 @@
         {
           "type": "indent",
           "named": true
-        },
-        {
-          "type": "newline",
-          "named": true
         }
       ]
     }
@@ -431,6 +427,20 @@
           }
         ]
       }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "dedent",
+          "named": true
+        },
+        {
+          "type": "indent",
+          "named": true
+        }
+      ]
     }
   },
   {
@@ -454,6 +464,14 @@
       "types": [
         {
           "type": "consts",
+          "named": true
+        },
+        {
+          "type": "dedent",
+          "named": true
+        },
+        {
+          "type": "indent",
           "named": true
         },
         {
@@ -1075,6 +1093,20 @@
           }
         ]
       }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "dedent",
+          "named": true
+        },
+        {
+          "type": "indent",
+          "named": true
+        }
+      ]
     }
   },
   {
@@ -1779,11 +1811,19 @@
     "named": true,
     "fields": {
       "body": {
-        "multiple": false,
+        "multiple": true,
         "required": true,
         "types": [
           {
+            "type": "dedent",
+            "named": true
+          },
+          {
             "type": "expression",
+            "named": true
+          },
+          {
+            "type": "indent",
             "named": true
           }
         ]
@@ -1856,10 +1896,6 @@
         "types": [
           {
             "type": "expression",
-            "named": true
-          },
-          {
-            "type": "simple_expression",
             "named": true
           }
         ]
@@ -2071,11 +2107,19 @@
       "required": true,
       "types": [
         {
-          "type": "newline",
+          "type": "dedent",
           "named": true
         },
         {
-          "type": "simple_expression",
+          "type": "expression",
+          "named": true
+        },
+        {
+          "type": "indent",
+          "named": true
+        },
+        {
+          "type": "newline",
           "named": true
         },
         {
@@ -2596,6 +2640,14 @@
       "required": true,
       "types": [
         {
+          "type": "dedent",
+          "named": true
+        },
+        {
+          "type": "indent",
+          "named": true
+        },
+        {
           "type": "match_pattern",
           "named": true
         },
@@ -2801,6 +2853,20 @@
           }
         ]
       }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "dedent",
+          "named": true
+        },
+        {
+          "type": "indent",
+          "named": true
+        }
+      ]
     }
   },
   {
@@ -3232,11 +3298,25 @@
         "required": true,
         "types": [
           {
-            "type": "simple_expression",
+            "type": "expression",
             "named": true
           }
         ]
       }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "dedent",
+          "named": true
+        },
+        {
+          "type": "indent",
+          "named": true
+        }
+      ]
     }
   },
   {
@@ -3324,11 +3404,25 @@
         "required": true,
         "types": [
           {
-            "type": "simple_expression",
+            "type": "expression",
             "named": true
           }
         ]
       }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "dedent",
+          "named": true
+        },
+        {
+          "type": "indent",
+          "named": true
+        }
+      ]
     }
   },
   {
@@ -3654,6 +3748,10 @@
       "multiple": true,
       "required": true,
       "types": [
+        {
+          "type": "char_or_string_escape_sequence",
+          "named": true
+        },
         {
           "type": "string_text",
           "named": true
@@ -4852,6 +4950,10 @@
   },
   {
     "type": "&&",
+    "named": false
+  },
+  {
+    "type": "'",
     "named": false
   },
   {

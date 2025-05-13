@@ -216,7 +216,7 @@ module Darklang =
           (left: List<'a>)
           (right: List<'a>)
           : Result.Result<List<'a>, String> =
-          match left, right with
+          match (left, right) with
           | [], _ -> Result.Result.Ok right
           | _, [] -> Result.Result.Ok left
           | (x :: xs, y :: ys) ->
@@ -248,7 +248,7 @@ module Darklang =
           | [] -> Result.Result.Ok []
           | [ x ] -> Result.Result.Ok [ x ]
           | lst ->
-            let left, right = splitList lst
+            let (left, right) = splitList lst
 
             match mergeSort comparator left with
             | Error msg -> Result.Result.Error msg
