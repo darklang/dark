@@ -4,7 +4,12 @@ set -euo pipefail
 
 prepare () {
   sudo mkdir -p $1
-  sudo chown -R dark:dark $1
+
+  # sudo chown -R dark:dark $1
+  # note: we updated from the above to the below because of some symlinked
+  #   tree-sitter binary in the tsd/node_modules dir
+
+  sudo find "$1" ! -type l -exec chown dark:dark {} +
 }
 
 prepare "backend/Build"
