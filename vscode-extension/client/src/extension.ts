@@ -19,6 +19,8 @@ import {
   TransportKind,
 } from "vscode-languageclient/node";
 
+import { ServerBackedTreeDataProvider } from "./ServerBackedTreeDataProvider";
+
 let client: LanguageClient;
 
 interface LSPFileResponse {
@@ -165,6 +167,21 @@ export function activate(context: ExtensionContext) {
 
   client.registerFeature(new SemanticTokensFeature(client));
   client.trace = Trace.Verbose;
+
+  client
+    .onReady()
+    .then(() => {
+      // TODO: only when initialized...
+      //client.onNotification("initialized", () => {
+      let view = vscode.window.createTreeView(`darklangTreeView`, {
+        treeDataProvider: new ServerBackedTreeDataProvider(client),
+      });
+      context.subscriptions.push(view);
+      //});
+    })
+    .catch(e => {
+      console.error(e);
+    });
 
   client.start();
 
