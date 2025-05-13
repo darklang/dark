@@ -217,8 +217,8 @@ module Darklang =
           (right: List<'a>)
           : Result.Result<List<'a>, String> =
           match (left, right) with
-          | [], _ -> Result.Result.Ok right
-          | _, [] -> Result.Result.Ok left
+          | ([], _) -> Result.Result.Ok right
+          | (_, []) -> Result.Result.Ok left
           | (x :: xs, y :: ys) ->
             match validate comparator x y with
             | Error msg -> Result.Result.Error msg
@@ -232,10 +232,10 @@ module Darklang =
                 | Error msg -> Result.Result.Error msg
                 | Ok merged -> Result.Result.Ok(List.push merged y)
 
-        let splitList (lst: List<'a>) : List<'a> * List<'a> =
+        let splitList (lst: List<'a>) : (List<'a> * List<'a>) =
           match lst with
-          | [] -> [], []
-          | [ x ] -> [ x ], []
+          | [] -> ([], [])
+          | [ x ] -> ([ x ], [])
           | x :: y :: xs ->
             let (left, right) = splitList xs
             (List.push left x, List.push right y)
@@ -592,7 +592,7 @@ module Darklang =
           Stdlib.Result.Result.Ok(Stdlib.List.chunkBySizeHelper size list [])
 
 
-      let splitLast (l: List<'a>) : Stdlib.Option.Option<List<'a> * 'a> =
+      let splitLast (l: List<'a>) : Stdlib.Option.Option<(List<'a> * 'a)> =
         match reverse l with
         | [] -> Stdlib.Option.Option.None
         | head :: tail -> Stdlib.Option.Option.Some((reverse tail, head))

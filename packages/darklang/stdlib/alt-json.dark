@@ -7,7 +7,7 @@ module Darklang =
         | Number of Float
         | String of String
         | Array of List<Json>
-        | Object of List<String * Json>
+        | Object of List<(String * Json)>
 
 
       module ParseError =

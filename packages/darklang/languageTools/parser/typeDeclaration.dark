@@ -11,7 +11,7 @@ module Darklang =
           let fieldTypeNode =
             findAndParseRequired fieldNode "type" TypeReference.parse
 
-          match fieldNameNode, symColonNode, fieldTypeNode with
+          match (fieldNameNode, symColonNode, fieldTypeNode) with
           | Ok fieldName, Ok symColon, Ok fieldType ->
             (WrittenTypes.TypeDeclaration.RecordField
               { range = fieldNode.range

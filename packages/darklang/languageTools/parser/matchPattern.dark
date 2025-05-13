@@ -25,7 +25,7 @@ module Darklang =
           let intPart = findField node "digits"
           let suffixPart = findField node "suffix"
 
-          match intPart, suffixPart with
+          match (intPart, suffixPart) with
           | Ok intPart, Ok sfx ->
             let intText = getText intPart
 
@@ -117,7 +117,7 @@ module Darklang =
             findAndParseOptional node "content" (fun stringPart ->
               (stringPart.range, stringPart.text) |> Stdlib.Result.Result.Ok)
 
-          match openQuoteNode, closeQuoteNode with
+          match (openQuoteNode, closeQuoteNode) with
           | Ok openQuote, Ok closeQuote ->
             (WrittenTypes.MatchPattern.MPString(
               node.range,
@@ -140,7 +140,7 @@ module Darklang =
 
           let closeQuoteNode = findField node "symbol_close_single_quote"
 
-          match openQuoteNode, closeQuoteNode with
+          match (openQuoteNode, closeQuoteNode) with
           | Ok openQuote, Ok closeQuote ->
             (WrittenTypes.MatchPattern.MPChar(
               node.range,
@@ -175,7 +175,7 @@ module Darklang =
           let tail = findAndParseRequired node "tail" MatchPattern.parseMatchPattern
           let consSymbol = findField node "symbol_double_colon"
 
-          match head, tail, consSymbol with
+          match (head, tail, consSymbol) with
           | Ok head, Ok tail, Ok consSymbol ->
             (WrittenTypes.MatchPattern.MPListCons(
               node.range,
@@ -224,7 +224,7 @@ module Darklang =
 
             |> Stdlib.Option.withDefault ([] |> Stdlib.Result.Result.Ok)
 
-          match caseNameNode, enumFieldsNode with
+          match (caseNameNode, enumFieldsNode) with
           | Ok caseNameNode, Ok enumFieldsNode ->
             (WrittenTypes.MatchPattern.MPEnum(
               node.range,
@@ -253,7 +253,7 @@ module Darklang =
                   | _ -> createUnparseableError node)
                 |> Stdlib.Result.collect
 
-              match firstPattern, restPatterns with
+              match (firstPattern, restPatterns) with
               | Ok firstPattern, Ok restPatterns -> Stdlib.Result.Result.Ok (Stdlib.List.push restPatterns firstPattern)
               | _ -> createUnparseableError node
             | [] -> createUnparseableError node

@@ -48,7 +48,7 @@ module Darklang =
       /// The response from a HTTP request
       type Response =
         { statusCode: Int64
-          headers: List<String * String>
+          headers: List<(String * String)>
           body: List<UInt8> }
 
 
@@ -58,7 +58,7 @@ module Darklang =
       let request
         (method: String)
         (uri: String)
-        (headers: List<String * String>)
+        (headers: List<(String * String)>)
         (body: List<UInt8>)
         : Stdlib.Result.Result<Response, RequestError> =
         Builtin.httpClientRequest method uri headers body
@@ -66,14 +66,14 @@ module Darklang =
 
       let get
         (uri: String)
-        (headers: List<String * String>)
+        (headers: List<(String * String)>)
         : Stdlib.Result.Result<Response, RequestError> =
         request "GET" uri headers []
 
 
       let post
         (uri: String)
-        (headers: List<String * String>)
+        (headers: List<(String * String)>)
         (body: List<UInt8>)
         : Stdlib.Result.Result<Response, RequestError> =
         request "POST" uri headers body
@@ -81,7 +81,7 @@ module Darklang =
 
       let put
         (uri: String)
-        (headers: List<String * String>)
+        (headers: List<(String * String)>)
         (body: List<UInt8>)
         : Stdlib.Result.Result<Response, RequestError> =
         request "PUT" uri headers body

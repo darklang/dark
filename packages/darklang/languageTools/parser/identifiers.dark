@@ -4,10 +4,10 @@ module Darklang =
       module Identifiers =
         let extractModuleIdentifiersHelper
           (modulesSoFarInReverse:
-            List<WrittenTypes.ModuleIdentifier * WrittenTypes.Range>)
+            List<(WrittenTypes.ModuleIdentifier * WrittenTypes.Range)>)
           (nodes: List<ParsedNode>)
-          : Stdlib.Result.Result<(List<WrittenTypes.ModuleIdentifier *
-            WrittenTypes.Range> *
+          : Stdlib.Result.Result<(List<(WrittenTypes.ModuleIdentifier *
+            WrittenTypes.Range)> *
             ParsedNode), String>
           =
           match nodes with
@@ -43,8 +43,8 @@ module Darklang =
         /// ensuring that we take note of the `.` source ranges after each module name
         let extractModuleIdentifiers
           (nodes: List<ParsedNode>)
-          : Stdlib.Result.Result<(List<WrittenTypes.ModuleIdentifier *
-            WrittenTypes.Range> *
+          : Stdlib.Result.Result<(List<(WrittenTypes.ModuleIdentifier *
+            WrittenTypes.Range)> *
             ParsedNode), String>
           =
           match extractModuleIdentifiersHelper [] nodes with
