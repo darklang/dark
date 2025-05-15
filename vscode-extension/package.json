@@ -17,6 +17,13 @@
     "vscode": "^1.83.0"
   },
   "main": "./client/out/extension",
+  "activationEvents": [
+		"onFileSystem:darkfs",
+		"onLanguage:plaintext",
+		"onCommand:darkfs.workspaceInit",
+		"onCommand:darkfs.init",
+		"workspaceContains:*.txt"
+	],
   "contributes": {
     "languages": [
       {
@@ -76,10 +83,22 @@
         "title": "Run Darklang Script"
       },
       {
-        "command": "darklang.testRemoteFile",
-        "title": "Darklang: Test Remote File"
+        "command": "darklang.lookUpToplevel",
+        "title": "Darklang: Look Up Toplevel element"
+      },
+      {
+        "command": "darklang.init",
+        "title": "Darklang: Init Workspace"
       }
     ],
+    "menus": {
+			"commandPalette": [
+				{
+					"command": "darklang.init",
+					"when": "workbenchState != workspace"
+				}
+			]
+		},
     "viewsContainers": {
       "activitybar": [
         {

@@ -29,7 +29,7 @@ module Darklang =
             // CLEANUP: make the 'remove scheme part of URI' more universal. Maybe be add it to Stdlib eg.`Stdlib.Uri.removeScheme`
             // Remove the darklang:// prefix and the .dark suffix from the URI, (e.g.darklang://type/Darklang/Stdlib/Option/Option.dark)
             let uri =
-              params.uri |> Stdlib.String.dropFirst 11L |> Stdlib.String.dropLast 5L
+              params.uri |> Stdlib.String.dropFirst 9L |> Stdlib.String.dropLast 5L
 
             let parts = uri |> Stdlib.String.split "/"
 
@@ -91,7 +91,7 @@ module Darklang =
 
                 | None -> "Constant not found"
 
-              | elem -> "Unknown element " ++ elem
+              | elem -> ""
 
             sendResponse state requestId getContent
 
@@ -103,10 +103,11 @@ module Darklang =
             (params:
               LspExtension.FileSystemProvider.WriteFile.WriteFileParams.WriteFileParams)
             : LspState =
+            let content = params.content
             let responseJson =
               (JsonRPC.Response.Ok.make
                 (Stdlib.Option.Option.Some(requestId))
-                (Json.String "TODO: parse and create an edit for the file"))
+                (Json.String content))
               |> Stdlib.AltJson.format
 
             logAndSendToClient responseJson
