@@ -23,7 +23,7 @@ module Darklang =
           let intPart = findField node "digits"
           let suffixPart = findField node "suffix"
 
-          match intPart, suffixPart with
+          match (intPart, suffixPart) with
           | Ok intPart, Ok sfx ->
             let intText = getText intPart
 
@@ -116,7 +116,7 @@ module Darklang =
               (stringPart.range, stringPart.text) |> Stdlib.Result.Result.Ok)
 
 
-          match openQuoteNode, closeQuoteNode with
+          match (openQuoteNode, closeQuoteNode) with
           | Ok openQuote, Ok closeQuote ->
             (WrittenTypes.Const.CString(
               node.range,
@@ -140,7 +140,7 @@ module Darklang =
 
           let closeQuoteNode = findField node "symbol_close_single_quote"
 
-          match openQuoteNode, closeQuoteNode with
+          match (openQuoteNode, closeQuoteNode) with
           | Ok openQuote, Ok closeQuote ->
             (WrittenTypes.Const.CChar(
               node.range,
@@ -277,7 +277,7 @@ module Darklang =
             let keywordConstNode = findField node "keyword_const"
             let symEqualsNode = findField node "symbol_equals"
 
-            match nameNode, valueNode, keywordConstNode, symEqualsNode with
+            match (nameNode, valueNode, keywordConstNode, symEqualsNode) with
             | Ok name, Ok value, Ok keywordConst, Ok equals ->
               (WrittenTypes.ConstantDeclaration.ConstantDeclaration
                 { range = node.range

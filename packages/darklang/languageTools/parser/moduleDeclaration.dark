@@ -45,7 +45,7 @@ module Darklang =
                 |> ModuleDeclaration.parseDecls)
               |> Stdlib.Result.collect
 
-            match keywordModule, declarations with
+            match (keywordModule, declarations) with
             | Ok keywordModule, Ok declarations ->
               (WrittenTypes.ModuleDeclaration.ModuleDeclaration
                 { range = node.range

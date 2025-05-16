@@ -67,7 +67,7 @@ module Darklang =
       /// key will be used in the resulting dictionary (use <fn Dict.fromList> if you
       /// want to enforce unique keys).
       /// This function is the opposite of <fn Dict.toList>.
-      let fromListOverwritingDuplicates (entries: List<String * 'a>) : Dict<'a> =
+      let fromListOverwritingDuplicates (entries: List<(String * 'a)>) : Dict<'a> =
         Builtin.dictFromListOverwritingDuplicates entries
 
 

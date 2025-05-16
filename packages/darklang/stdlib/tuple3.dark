@@ -2,42 +2,42 @@ module Darklang =
   module Stdlib =
     module Tuple3 =
       /// Returns a triple with the given values
-      let create (first: 'a) (second: 'b) (third: 'c) : 'a * 'b * 'c =
+      let create (first: 'a) (second: 'b) (third: 'c) : ('a * 'b * 'c) =
         (first, second, third)
 
 
       /// Returns the first value of a triple
-      let first (tuple: 'a * 'b * 'c) : 'a =
+      let first (tuple: ('a * 'b * 'c)) : 'a =
         let (first, _, _) = tuple
         first
 
 
       /// Returns the second value of a triple
-      let second (tuple: 'a * 'b * 'c) : 'b =
+      let second (tuple: ('a * 'b * 'c)) : 'b =
         let (_, second, _) = tuple
         second
 
 
       /// Returns the third value of a triple
-      let third (tuple: 'a * 'b * 'c) : 'c =
+      let third (tuple: ('a * 'b * 'c)) : 'c =
         let (_, _, third) = tuple
         third
 
 
       /// Transform the first value in a triple
-      let mapFirst (fn: 'a -> 'd) (tuple: 'a * 'b * 'c) : 'd * 'b * 'c =
+      let mapFirst (fn: 'a -> 'd) (tuple: ('a * 'b * 'c)) : ('d * 'b * 'c) =
         let (first, second, third) = tuple
         (fn first, second, third)
 
 
       /// Transform the second value in a triple
-      let mapSecond (fn: 'b -> 'd) (tuple: 'a * 'b * 'c) : 'a * 'd * 'c =
+      let mapSecond (fn: 'b -> 'd) (tuple: ('a * 'b * 'c)) : ('a * 'd * 'c) =
         let (first, second, third) = tuple
         (first, fn second, third)
 
 
       /// Transform the third value in a triple
-      let mapThird (fn: 'c -> 'd) (tuple: 'a * 'b * 'c) : 'a * 'b * 'd =
+      let mapThird (fn: 'c -> 'd) (tuple: ('a * 'b * 'c)) : ('a * 'b * 'd) =
         let (first, second, third) = tuple
         (first, second, fn third)
 
@@ -47,7 +47,7 @@ module Darklang =
         (fnFirst: 'a -> 'd)
         (fnSecond: 'b -> 'e)
         (fnThird: 'c -> 'f)
-        (tuple: 'a * 'b * 'c)
-        : 'd * 'e * 'f =
+        (tuple: ('a * 'b * 'c))
+        : ('d * 'e * 'f) =
         let (first, second, third) = tuple
         (fnFirst first, fnSecond second, fnThird third)

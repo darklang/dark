@@ -180,4 +180,4 @@ module Darklang =
 
           | DBSetOfWrongType of expected: TypeReference * actual: ValueType
 
-          | UncaughtException of msg : String * metadata : List<String * Dval>
+          | UncaughtException of msg : String * metadata : List<(String * Dval)>

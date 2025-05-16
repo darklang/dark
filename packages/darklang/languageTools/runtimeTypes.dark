@@ -142,7 +142,7 @@ module Darklang =
 
       type ApplicableLambda =
         { exprId: ID
-          closedRegisters: List<Register * Dval>
+          closedRegisters: List<(Register * Dval)>
           typeSymbolTable: TypeSymbolTable
           argsSoFar: List<Dval> }
 

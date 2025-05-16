@@ -58,7 +58,7 @@ module Darklang =
 
           let rightArg = findAndParseRequired node "right" Expr.parse
 
-          match rightArg, operatorNode with
+          match (rightArg, operatorNode) with
           | Ok rightArg, Ok operatorNode ->
             (WrittenTypes.PipeExpr.EPipeInfix(
               node.range,
@@ -88,7 +88,7 @@ module Darklang =
             let arrowNode = findField node "symbol_arrow"
             let bodyNode = findAndParseRequired node "body" Expr.parse
 
-            match patsNode, bodyNode, keywordFun, arrowNode with
+            match (patsNode, bodyNode, keywordFun, arrowNode) with
             | Ok pats, Ok body, Ok keywordFun, Ok arrowNode ->
               (WrittenTypes.PipeExpr.EPipeLambda(
                 node.range,
@@ -134,7 +134,7 @@ module Darklang =
             |> Stdlib.List.map Expr.parse
             |> Stdlib.Result.collect
 
-          match fnNameNode, args with
+          match (fnNameNode, args) with
           | Ok fnName, Ok args ->
             (WrittenTypes.PipeExpr.EPipeFnCall(node.range, fnName, args))
             |> Stdlib.Result.Result.Ok
