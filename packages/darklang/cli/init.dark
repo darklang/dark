@@ -1,0 +1,23 @@
+module Darklang =
+  module Cli =
+    let init(): (State * List<Msg>) =
+      // Determine the interaction mode
+      // Default to RefreshScreen mode if stdin is interactive, otherwise NonInteractive
+      let interactionMode =
+        if Builtin.stdinIsInteractive() then
+          InteractionMode.RefreshScreen
+        else
+          InteractionMode.NonInteractive
+
+      let state =
+        State
+          { currentPage = Page.Root
+            pageHistory = []
+            mainPrompt = ""
+            commandResult = CommandResult.None
+            interactionMode = interactionMode
+            needsFullRedraw = true
+            isExiting = false }
+
+      // Return initial state and any initial messages to process
+      (state, [])
