@@ -235,8 +235,20 @@ module Darklang =
                 state
 
             | _ ->
-              log $"TODO: we don't yet support this method: {jsonRpcRequest.method}"
-              state
+              let r = jsonRpcRequest
+
+              match (r.method, r.id, r.params) with
+              | ("darklang/getRootNodes", Some requestId, None) ->
+                TreeView.handleGetRootNodesRequest state requestId
+
+              | ("darklang/getChildNodes",
+                Some requestId,
+                Some(Object [ ("nodeId", String nodeId) ])) ->
+                TreeView.handleGetChildNodesRequest state requestId nodeId
+
+              | other ->
+                log $"TODO: we don't yet support this method: {r.method}"
+                state
 
           | _ ->
             log $"TODO: we don't yet support this method: {jsonRpcRequest.method}"

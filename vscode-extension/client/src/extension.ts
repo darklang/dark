@@ -1,13 +1,4 @@
-import {
-  workspace,
-  ExtensionContext,
-  commands,
-  window,
-  Uri,
-  FileSystemProvider,
-  FileType,
-  EventEmitter,
-} from "vscode";
+import { workspace, ExtensionContext, commands, window, Uri } from "vscode";
 import * as os from "os";
 import * as vscode from "vscode";
 import { SemanticTokensFeature } from "vscode-languageclient/lib/common/semanticTokens";
@@ -19,98 +10,13 @@ import {
   TransportKind,
 } from "vscode-languageclient/node";
 
+import { ServerBackedTreeDataProvider } from "./ServerBackedTreeDataProvider";
+import { DarkFS } from "./fileSystemProvider";
+
 let client: LanguageClient;
 
 interface LSPFileResponse {
   content: string;
-}
-
-class SimpleRemoteFileProvider implements FileSystemProvider {
-  private _emitter = new EventEmitter<vscode.FileChangeEvent[]>();
-  readonly onDidChangeFile = this._emitter.event;
-
-  static fileContents = new Map<string, Uint8Array>();
-
-  async readFile(uri: Uri): Promise<Uint8Array> {
-    try {
-      // Check the cache first; if the content is available, return it directly without making a request to the LSP server
-      const cachedContent = SimpleRemoteFileProvider.fileContents.get(
-        uri.toString(),
-      );
-      if (cachedContent) {
-        return cachedContent;
-      }
-
-      // Forward the request to LSP and get the response
-      const response = await client.sendRequest<LSPFileResponse>(
-        "fileSystem/read",
-        {
-          uri: uri.toString(),
-        },
-      );
-
-      if (!response || typeof response.content !== "string") {
-        throw new Error("Invalid response from LSP server");
-      }
-
-      // Convert response content to Uint8Array
-      const content = new TextEncoder().encode(response.content);
-      // Cache the content of the remote file for future reads
-      SimpleRemoteFileProvider.fileContents.set(uri.toString(), content);
-      return content;
-    } catch (error) {
-      console.error("LSP read request failed:", error);
-      throw vscode.FileSystemError.FileNotFound(uri);
-    }
-  }
-
-  async writeFile(
-    uri: Uri,
-    content: Uint8Array,
-    options: { create: boolean; overwrite: boolean },
-  ): Promise<void> {
-    try {
-      // Convert the Uint8Array content to a string
-      const contentString = new TextDecoder().decode(content);
-
-      // Send write request to LSP server
-      await client.sendRequest("fileSystem/write", {
-        uri: uri.toString(),
-        content: contentString,
-        options: {
-          create: options.create,
-          overwrite: options.overwrite,
-        },
-      });
-
-      // Update the file content with the new content
-      SimpleRemoteFileProvider.fileContents.set(uri.toString(), content);
-    } catch (error) {
-      console.error("LSP write request failed:", error);
-
-      if (!options.create) {
-        throw vscode.FileSystemError.FileNotFound(uri);
-      }
-      if (!options.overwrite) {
-        throw vscode.FileSystemError.FileExists(uri);
-      }
-
-      throw vscode.FileSystemError.Unavailable(uri);
-    }
-  }
-  watch(): vscode.Disposable {
-    return new vscode.Disposable(() => {});
-  }
-  stat(): vscode.FileStat {
-    return { type: FileType.File, ctime: 0, mtime: 0, size: 0 };
-  }
-  readDirectory(): [string, FileType][] {
-    return [];
-  }
-  createDirectory(): void {}
-
-  delete(): void {}
-  rename(): void {}
 }
 
 export function activate(context: ExtensionContext) {
@@ -135,7 +41,7 @@ export function activate(context: ExtensionContext) {
   const clientOptions: LanguageClientOptions = {
     documentSelector: [
       { scheme: "file", language: "darklang" },
-      { scheme: "darklang", language: "darklang" },
+      { scheme: "darkfs", language: "darklang" },
     ],
     synchronize: {
       fileEvents: workspace.createFileSystemWatcher("**/*.dark"),
@@ -166,18 +72,52 @@ export function activate(context: ExtensionContext) {
   client.registerFeature(new SemanticTokensFeature(client));
   client.trace = Trace.Verbose;
 
+  client
+    .onReady()
+    .then(() => {
+      // TODO: only when initialized...
+      //client.onNotification("initialized", () => {
+      let view = vscode.window.createTreeView(`darklangTreeView`, {
+        treeDataProvider: new ServerBackedTreeDataProvider(client),
+      });
+      context.subscriptions.push(view);
+      //});
+    })
+    .catch(e => {
+      console.error(e);
+    });
+
   client.start();
 
-  let disposable = commands.registerCommand("darklang.runScript", () => {
+  let disposable = commands.registerCommand("darklang.runScript", async () => {
     const editor = window.activeTextEditor;
-    if (!editor) {
-      window.showWarningMessage(
-        "No active editor! Please open a file to run the script.",
-      );
-      return;
-    }
+    const uri = editor.document.uri;
+    let scriptPath: string;
 
-    const filePath = editor.document.uri.fsPath;
+    if (uri.scheme === "darkfs") {
+      // For virtual files, get the temp file path
+      const content = editor.document.getText();
+      const contentBytes = new TextEncoder().encode(content);
+
+      // Write/update the file content which will create a temp file
+      await provider.writeFile(uri, contentBytes, {
+        create: true,
+        overwrite: true,
+      });
+
+      // Get the temp file path
+      const tempPath = DarkFS.getTempFilePath(uri);
+      if (!tempPath) {
+        window.showErrorMessage(
+          "Failed to create temporary file for script execution",
+        );
+        return;
+      }
+      scriptPath = tempPath;
+    } else {
+      // For regular files, use the actual path
+      scriptPath = uri.fsPath;
+    }
 
     let terminal = window.terminals.find(t => t.name === "darklang-terminal");
 
@@ -188,17 +128,17 @@ export function activate(context: ExtensionContext) {
     terminal.show(true);
 
     if (isDebugMode()) {
-      let scriptCommand = `cd /home/dark/app && { TIMEFORMAT=$'Script executed in: %3lR'; time ./scripts/run-cli "${filePath}" --skip-self-update; }`;
+      let scriptCommand = `cd /home/dark/app && { TIMEFORMAT=$'Script executed in: %3lR'; time ./scripts/run-cli "${scriptPath}" --skip-self-update; }`;
 
       terminal.sendText(scriptCommand, true);
     } else {
-      let scriptCommand = `cd ${os.homedir()} && { TIMEFORMAT=$'Script executed in: %3lR'; time darklang "${filePath}" --skip-self-update; }`;
+      let scriptCommand = `cd ${os.homedir()} && { TIMEFORMAT=$'Script executed in: %3lR'; time darklang "${scriptPath}" --skip-self-update; }`;
       terminal.sendText(scriptCommand, true);
     }
   });
 
-  let testRemoteFileCommand = commands.registerCommand(
-    "darklang.testRemoteFile",
+  let lookUpToplevelCommand = commands.registerCommand(
+    "darklang.lookUpToplevel",
     async () => {
       try {
         const input = await window.showInputBox({
@@ -207,7 +147,7 @@ export function activate(context: ExtensionContext) {
         });
 
         if (!input) return;
-        const virtualUri = Uri.parse(`darklang://${input}.dark`);
+        const virtualUri = Uri.parse(`darkfs://${input}.dark`);
         const doc = await workspace.openTextDocument(virtualUri);
 
         try {
@@ -225,17 +165,49 @@ export function activate(context: ExtensionContext) {
     },
   );
 
-  const provider = new SimpleRemoteFileProvider();
+  const provider = new DarkFS(client);
   const registration = workspace.registerFileSystemProvider(
-    "darklang",
+    "darkfs",
     provider,
     {
       isCaseSensitive: true,
+      isReadonly: false,
     },
   );
 
+  let initWorkspace = commands.registerCommand("darklang.init", async () => {
+    try {
+      // Create the sample folder URI
+      const folderUri = Uri.parse("darkfs:/DarkFS-Sample");
+      const fileUri = Uri.parse("darkfs:/DarkFS-Sample/edit.dark");
+
+      try {
+        await provider.createDirectory(folderUri);
+      } catch (error) {
+        console.log("Error creating directory:", error);
+      }
+
+      const content = new TextEncoder().encode("");
+
+      // Write the file
+      await provider.writeFile(fileUri, content, {
+        create: true,
+        overwrite: true,
+      });
+
+      // Open the file in the editor
+      const document = await workspace.openTextDocument(fileUri);
+      await window.showTextDocument(document);
+
+      window.showInformationMessage("edit file created successfully!");
+    } catch (error) {
+      window.showErrorMessage(`Failed to create file: ${error}`);
+    }
+  });
+
+  context.subscriptions.push(initWorkspace);
   context.subscriptions.push(registration);
-  context.subscriptions.push(testRemoteFileCommand);
+  context.subscriptions.push(lookUpToplevelCommand);
   context.subscriptions.push(disposable);
 }
 

@@ -1,0 +1,88 @@
+module Darklang =
+  module VSCode =
+    // <aliases>
+    type Json = Stdlib.AltJson.Json
+    // </aliases>
+
+    /// Not sure if this is the best way to handle this... will this be OK across the wire?
+    module Uri =
+      type Uri =
+        {
+          /// Scheme is the http part of
+          ///   http://www.example.com/some/path?query#fragment.
+          /// The part before the first colon.
+          scheme: String
+
+          /// Authority is the www.example.com part of
+          ///   http://www.example.com/some/path?query#fragment.
+          /// The part between the first double slashes and the next slash.
+          authority: String
+
+          /// Path is the /some/path part of
+          ///   http://www.example.com/some/path?query#fragment.
+          path: String
+
+          /// Query is the query part of
+          ///   http://www.example.com/some/path?query#fragment.
+          query: String
+
+          /// Fragment is the fragment part of
+          ///   http://www.example.com/some/path?query#fragment.
+          fragment: String
+
+        //TODO: fsPath: String
+        }
+
+      let toJson (u: Uri) : Json =
+        [ ("scheme", Json.String u.scheme)
+          ("authority", Json.String u.authority)
+          ("path", Json.String u.path)
+          ("query", Json.String u.query)
+          ("fragment", Json.String u.fragment) ]
+        |> Json.Object
+
+
+    module AccessibilityInformation =
+      type AccessibilityInformation =
+        {
+          /// Label to be read out by a screen reader once the item has focus.
+          label: String
+
+          /// Role of the widget which defines how a screen reader interacts with it.
+          /// The role should be set in special cases when for example a tree-like
+          /// element behaves like a checkbox. If role is not specified the editor
+          /// will pick the appropriate role automatically.
+          /// More about aria roles can be found here https://w3c.github.io/aria/#widget_roles
+          role: Stdlib.Option.Option<String>
+        }
+
+      let toJson (i: AccessibilityInformation) : Json =
+        [ Some(("label", Json.String i.label))
+          role |> Stdlib.Option.map (fun r -> ("role", Json.String r)) ]
+        |> Stdlib.Option.values
+        |> Json.Object
+
+
+    module Command =
+      type Command =
+        {
+          /// Arguments that the command handler should be invoked with.
+          arguments: Stdlib.Option.Option<List<Json>>
+
+          /// The identifier of the actual command handler.
+          command: String
+
+          /// Title of the command, like save.
+          title: String
+
+          /// A tooltip for the command, when represented in the UI.
+          tooltip: Stdlib.Option.Option<String>
+        }
+
+      let toJson (c: Command) : Json =
+        [ c.arguments |> Stdlib.Option.map (fun a -> ("arguments", Json.Array a))
+          Some(("command", Json.String c.command))
+          Some(("title", Json.String c.title))
+          c.tooltip |> Stdlib.Option.map (fun t -> ("tooltip", Json.String t)) ]
+        |> Stdlib.Option.values
+        |> Json.Object

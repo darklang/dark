@@ -17,6 +17,13 @@
     "vscode": "^1.83.0"
   },
   "main": "./client/out/extension",
+  "activationEvents": [
+		"onFileSystem:darkfs",
+		"onLanguage:plaintext",
+		"onCommand:darkfs.workspaceInit",
+		"onCommand:darkfs.init",
+		"workspaceContains:*.txt"
+	],
   "contributes": {
     "languages": [
       {
@@ -38,17 +45,37 @@
     "configuration": {
       "type": "object",
       "title": "Darklang Extension Config",
-      "properties": {
-      }
+      "properties": {}
     },
     "semanticTokenTypes": [
-      {"id": "keyword", "description": "Language keywords like 'let' and 'in'"},
-      {"id": "function", "description": "Function names or identifiers"},
-      {"id": "parameter", "description": "Function parameter identifiers"},
-      {"id": "type", "description": "Type names like Int, Bool, etc."},
-      {"id": "string", "description": "String literals"},
-      {"id": "operator", "description": "Operators like +, -"},
-      {"id": "variable", "description": "General variable identifiers"}
+      {
+        "id": "keyword",
+        "description": "Language keywords like 'let' and 'in'"
+      },
+      {
+        "id": "function",
+        "description": "Function names or identifiers"
+      },
+      {
+        "id": "parameter",
+        "description": "Function parameter identifiers"
+      },
+      {
+        "id": "type",
+        "description": "Type names like Int, Bool, etc."
+      },
+      {
+        "id": "string",
+        "description": "String literals"
+      },
+      {
+        "id": "operator",
+        "description": "Operators like +, -"
+      },
+      {
+        "id": "variable",
+        "description": "General variable identifiers"
+      }
     ],
     "commands": [
       {
@@ -56,12 +83,41 @@
         "title": "Run Darklang Script"
       },
       {
-        "command": "darklang.testRemoteFile",
-        "title": "Darklang: Test Remote File"
+        "command": "darklang.lookUpToplevel",
+        "title": "Darklang: Look Up Toplevel element"
+      },
+      {
+        "command": "darklang.init",
+        "title": "Darklang: Init Workspace"
       }
-    ]
+    ],
+    "menus": {
+			"commandPalette": [
+				{
+					"command": "darklang.init",
+					"when": "workbenchState != workspace"
+				}
+			]
+		},
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "darklangViewContainer",
+          "title": "Darklang",
+          "icon": "static/logo-dark-transparent-low-margin.svg"
+        }
+      ]
+    },
+    "views": {
+      "darklangViewContainer": [
+        {
+          "id": "darklangTreeView",
+          "name": "tree view of packages",
+          "_todo_when": "workspaceHasFolder"
+        }
+      ]
+    }
   },
-
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -b",
