@@ -523,33 +523,28 @@ module Darklang =
                         LanguageTools.PackageManager.Search.search query
 
                       let functionsSection =
-                        moduleContent.fns
-                        |> Stdlib.List.map (fun fn -> LanguageTools.ProgramTypes.PackageFn.nameToString fn.name)
-                        |> Stdlib.List.sort
-                        |> Stdlib.String.join "\n"
+                        formatEntitySection
+                          "functions"
+                          (moduleContent.fns
+                           |> Stdlib.List.map (fun fn -> LanguageTools.ProgramTypes.PackageFn.nameToString fn.name))
 
                       let typesSection =
-                        moduleContent.types
-                        |> Stdlib.List.map (fun typ -> LanguageTools.ProgramTypes.PackageType.nameToString typ.name)
-                        |> Stdlib.List.sort
-                        |> Stdlib.String.join "\n"
+                        formatEntitySection
+                          "types"
+                          (moduleContent.types
+                           |> Stdlib.List.map (fun typ -> LanguageTools.ProgramTypes.PackageType.nameToString typ.name))
 
                       let constantsSection =
-                        moduleContent.constants
-                        |> Stdlib.List.map (fun c -> LanguageTools.ProgramTypes.PackageConstant.nameToString c.name)
-                        |> Stdlib.List.sort
-                        |> Stdlib.String.join "\n"
-
-                      // TODO: maybe use formatEntitySection
+                        formatEntitySection
+                          "constants"
+                          (moduleContent.constants
+                           |> Stdlib.List.map (fun c -> LanguageTools.ProgramTypes.PackageConstant.nameToString c.name))
 
                       // Combine all sections
                       let moduleView =
                         $"Module: {modulePrefix}\n\n" ++
-                        "functions:\n" ++
-                        functionsSection ++ "\n\n" ++
-                        "types:\n" ++
-                        typesSection ++ "\n\n" ++
-                        "constants:\n" ++
+                        functionsSection ++ "\n" ++
+                        typesSection ++ "\n" ++
                         constantsSection
 
                       let newState = { state with commandResult = CommandResult.Success moduleView }
