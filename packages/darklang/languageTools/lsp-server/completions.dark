@@ -35,6 +35,37 @@ module Darklang =
               commitCharacters = Stdlib.Option.Option.Some [ " " ]
               data = Stdlib.Option.Option.None }
 
+
+         // Helper function to create completion items for search results
+        let getCompletionText (name: String) (currentPrefix: String) : String =
+          let prefixLength = Stdlib.String.length currentPrefix
+          if prefixLength > 0L then
+            if Stdlib.String.startsWith name currentPrefix then
+              Stdlib.String.slice name prefixLength (Stdlib.String.length name)
+            else
+              name
+          else
+            name
+
+        let processSearchResults (names: List<String>) (kind: LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind) (description: String) (currentPrefix: String): List<LanguageServerProtocol.Completions.CompletionItem.CompletionItem> =
+          names
+          |> Stdlib.List.map (fun name ->
+            // drop "Darklang." prefix
+            let darklangPrefix = "Darklang."
+            let processedName =
+              if Stdlib.String.startsWith name darklangPrefix
+              then name |> Stdlib.String.dropFirst (Stdlib.String.length darklangPrefix)
+              else name
+
+            let insertText = getCompletionText processedName currentPrefix
+
+            createCompletionItem
+              processedName
+              kind
+              description
+              insertText)
+
+
         let createCompletions
           (wordUnderCursor: String)
           : List<LanguageServerProtocol.Completions.CompletionItem.CompletionItem> =
@@ -56,31 +87,18 @@ module Darklang =
                 "keyword"
                 k)
 
-
-          // Try to extract each character individually to see what's really there
-          let chars = wordUnderCursor |> Stdlib.String.toList
-
-          // Try a character-by-character approach
           let (modulePath, searchText) =
             match wordUnderCursor |> Stdlib.String.lastIndexOf "." with
             | Some i ->
               let moduleString = Stdlib.String.slice wordUnderCursor 0L i
               let modules = if moduleString == "" then [] else Stdlib.String.split moduleString "."
-
-              let afterDotChars =
-                chars
-                |> Stdlib.List.drop (i + 1L)
-
               let searchStr =
-                if Stdlib.List.isEmpty afterDotChars then
-                  ""
-                else
-                  afterDotChars |> Stdlib.String.fromList
+                wordUnderCursor |> Stdlib.String.dropFirst (i + 1L)
 
               (modules, searchStr)
+
             | None ->
               ([], wordUnderCursor)
-
 
           let query =
             LanguageTools.ProgramTypes.Search.SearchQuery
@@ -94,144 +112,46 @@ module Darklang =
                     LanguageTools.ProgramTypes.Search.EntityType.Type
                     LanguageTools.ProgramTypes.Search.EntityType.Module ] }
 
-
           let searchResults =
             LanguageTools.PackageManager.Search.search query
 
-          let fns =
+          let currentPrefix =
+            match wordUnderCursor |> Stdlib.String.lastIndexOf "." with
+            | Some i -> Stdlib.String.slice wordUnderCursor 0L (i + 1L)
+            | None -> ""
+
+          let functions =
             searchResults.fns
             |> Stdlib.List.map (fun fn -> LanguageTools.ProgramTypes.PackageFn.nameToString fn.name)
+            |> processSearchResults
+                LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind.Function
+                "function"
+                currentPrefix
 
           let types =
             searchResults.types
             |> Stdlib.List.map (fun t -> LanguageTools.ProgramTypes.PackageType.nameToString t.name)
+            |> processSearchResults
+                LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind.Class
+                "type"
+                currentPrefix
 
           let constants =
-            searchResults.constants
+             searchResults.constants
             |> Stdlib.List.map (fun c -> LanguageTools.ProgramTypes.PackageConstant.nameToString c.name)
+            |> processSearchResults
+                LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind.Constant
+                "constant"
+                currentPrefix
 
           let submodules =
             searchResults.submodules
-            |> Stdlib.List.map (fun m ->
-              m
-              |> Stdlib.List.map (fun s ->
-                s
-                |> Stdlib.String.join "."))
+            |> Stdlib.List.map (fun m -> m |> Stdlib.List.map (fun s -> s |> Stdlib.String.join "."))
             |> Stdlib.List.flatten
-
-
-          let functions =
-            fns
-            |> Stdlib.List.map (fun f ->
-              // drop "Darklang." prefix
-              let f = f |> Stdlib.String.dropFirst 9L
-              let currentPrefix =
-                match wordUnderCursor |> Stdlib.String.lastIndexOf "." with
-                | Some i -> Stdlib.String.slice wordUnderCursor 0L (i + 1L)
-                | None -> ""
-
-              let prefixLength = Stdlib.String.length currentPrefix
-
-              // Calculate what text to insert when item is selected from the completion list
-              let insertText =
-                if prefixLength > 0L then
-                  if Stdlib.String.startsWith f currentPrefix then
-                    Stdlib.String.slice f prefixLength (Stdlib.String.length f)
-                  else
-                    f
-                else
-                  f
-
-              createCompletionItem
-                f
-                LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind.Function
-                "function"
-                insertText)
-
-
-          let types =
-            types
-            |> Stdlib.List.map (fun t ->
-              // drop "Darklang." prefix
-              let t = t |> Stdlib.String.dropFirst 9L
-              let currentPrefix =
-                match wordUnderCursor |> Stdlib.String.lastIndexOf "." with
-                | Some i -> Stdlib.String.slice wordUnderCursor 0L (i + 1L)
-                | None -> ""
-
-              let prefixLength = Stdlib.String.length currentPrefix
-
-              // Calculate what text to insert when item is selected from the completion list
-              let insertText =
-                if prefixLength > 0L then
-                  if Stdlib.String.startsWith t currentPrefix then
-                    Stdlib.String.slice t prefixLength (Stdlib.String.length t)
-                  else
-                    t
-                else
-                  t
-
-              createCompletionItem
-                t
-                LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind.Class
-                "type"
-                insertText)
-
-
-          let constants =
-            constants
-            |> Stdlib.List.map (fun c ->
-              // drop "Darklang." prefix
-              let c = c |> Stdlib.String.dropFirst 9L
-              let currentPrefix =
-                match wordUnderCursor |> Stdlib.String.lastIndexOf "." with
-                | Some i -> Stdlib.String.slice wordUnderCursor 0L (i + 1L)
-                | None -> ""
-
-              let prefixLength = Stdlib.String.length currentPrefix
-
-              // Calculate what text to insert when item is selected from the completion list
-              let insertText =
-                if prefixLength > 0L then
-                  if Stdlib.String.startsWith c currentPrefix then
-                    Stdlib.String.slice c prefixLength (Stdlib.String.length c)
-                  else
-                    c
-                else
-                  c
-
-              createCompletionItem
-                c
-                LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind.Constant
-                "constant"
-                insertText)
-
-
-          let submodules =
-            submodules
-            |> Stdlib.List.map (fun m ->
-              let currentPrefix =
-                match wordUnderCursor |> Stdlib.String.lastIndexOf "." with
-                | Some i -> Stdlib.String.slice wordUnderCursor 0L (i + 1L)
-                | None -> ""
-
-              let prefixLength = Stdlib.String.length currentPrefix
-
-              // Calculate what text to insert when item is selected from the completion list
-              let insertText =
-                if prefixLength > 0L then
-                  if Stdlib.String.startsWith m currentPrefix then
-                    Stdlib.String.slice m prefixLength (Stdlib.String.length m)
-                  else
-                    m
-                else
-                  m
-
-              createCompletionItem
-                m
+            |> processSearchResults
                 LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind.Module
                 "module"
-                insertText)
+                currentPrefix
 
 
           let completions = Stdlib.List.flatten [ keywords; functions; types; constants ; submodules ]
