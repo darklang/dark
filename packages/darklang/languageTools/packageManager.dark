@@ -32,7 +32,6 @@ module Darklang =
         let get (id: Uuid) : Stdlib.Option.Option<ProgramTypes.PackageFn.PackageFn> =
           Builtin.packageManagerGetFn id
 
-        let getAllFnNames () : List<String> = Builtin.packageManagerGetAllFnNames ()
 
       module Search =
         let search (query: ProgramTypes.Search.SearchQuery) : ProgramTypes.Search.SearchResults =
@@ -54,5 +53,4 @@ module Darklang =
             search = fun query -> PackageManager.Search.search query
             getFn = PackageManager.Function.get
             getConstant = PackageManager.Constant.get
-            getType = PackageManager.Type.get
-            getAllFnNames = PackageManager.Function.getAllFnNames }
+            getType = PackageManager.Type.get }

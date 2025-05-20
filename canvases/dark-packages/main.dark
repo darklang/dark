@@ -89,12 +89,6 @@ let _handler _req =
   | None -> Stdlib.Http.response (Stdlib.String.toBytes "not found") 404L
 
 
-[<HttpHandler("GET", "/function/get/all")>]
-let _handler _req =
-  let fns = Builtin.packageManagerGetAllFnNames ()
-  Stdlib.Http.response (Stdlib.String.toBytes (fns |> Stdlib.String.join "\n")) 200L
-
-
 [<HttpHandler("GET", "/search")>]
 let _handler _req =
   // let currentModule = request.queryParams.modules

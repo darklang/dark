@@ -197,25 +197,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "packageManagerGetAllFnNames" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TList(TString)
-      description = "Returns a list of all package functions fully qualified names"
-      fn =
-        (function
-        | _, _, _, [ DUnit ] ->
-          uply {
-            let! fns = pm.getAllFnNames ()
-            let dval = fns |> List.map (fun f -> DString f) |> Dval.list KTString
-            return dval
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
     { name = fn "packageManagerSearch" 0
       typeParams = []
       parameters =
