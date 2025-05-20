@@ -325,24 +325,35 @@ module Darklang =
                     let newState = { state with commandResult = CommandResult.Error "Module name is required" }
                     (newState, [])
                   else
-                    // Get all functions from the package manager
-                    let allFnNames = LanguageTools.PackageManager.Function.getAllFnNames()
-                    let moduleFunctions = filterEntitiesByModule allFnNames moduleName
+                    let query =
+                      LanguageTools.ProgramTypes.Search.SearchQuery
+                        { currentModule = moduleName |> Stdlib.String.split "."
+                          text = ""
+                          searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+                          entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Type; LanguageTools.ProgramTypes.Search.EntityType.Module; LanguageTools.ProgramTypes.Search.EntityType.Fn; LanguageTools.ProgramTypes.Search.EntityType.Constant ] }
 
-                    // Get all types from the package manager
-                    // TODO: Implement when available
-                    let allTypeNames = []
-                    let moduleTypes = []
+                    let moduleContent =
+                      LanguageTools.PackageManager.Search.search query
 
-                    // Get all constants from the package manager
-                    // TODO: Implement when available
-                    let allConstantNames = []
-                    let moduleConstants = []
+                    let allFnNames =
+                      moduleContent.fns
+                      |> Stdlib.List.map (fun fn -> LanguageTools.ProgramTypes.PackageFn.nameToString fn.name)
+                      |> Stdlib.List.sort
+
+                    let allTypeNames =
+                      moduleContent.types
+                      |> Stdlib.List.map (fun typ -> LanguageTools.ProgramTypes.PackageType.nameToString typ.name)
+                      |> Stdlib.List.sort
+
+                    let allConstantNames =
+                      moduleContent.constants
+                      |> Stdlib.List.map (fun c -> LanguageTools.ProgramTypes.PackageConstant.nameToString c.name)
+                      |> Stdlib.List.sort
 
                     // Format the output sections
-                    let functionsSection = formatEntitySection "functions" moduleFunctions
-                    let typesSection = formatEntitySection "types" moduleTypes
-                    let constantsSection = formatEntitySection "constants" moduleConstants
+                    let functionsSection = formatEntitySection "functions" allFnNames
+                    let typesSection = formatEntitySection "types" allTypeNames
+                    let constantsSection = formatEntitySection "constants" allConstantNames
 
                     // Combine all sections
                     let moduleView =
@@ -501,28 +512,44 @@ module Darklang =
                       // Construct the module prefix
                       let modulePrefix = constructModulePrefix owner submodules
 
-                      // Get all functions from the package manager
-                      let allFnNames = LanguageTools.PackageManager.Function.getAllFnNames()
-                      let moduleFunctions = filterEntitiesByModule allFnNames modulePrefix
+                      let query =
+                        LanguageTools.ProgramTypes.Search.SearchQuery
+                          { currentModule = modulePrefix |> Stdlib.String.split "."
+                            text = ""
+                            searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+                            entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Type; LanguageTools.ProgramTypes.Search.EntityType.Module; LanguageTools.ProgramTypes.Search.EntityType.Fn; LanguageTools.ProgramTypes.Search.EntityType.Constant ] }
 
-                      // TODO Get all types from the package manager
-                      let allTypeNames = []
-                      let moduleTypes = filterEntitiesByModule allTypeNames modulePrefix
+                      let moduleContent =
+                        LanguageTools.PackageManager.Search.search query
 
-                      // TODO Get all constants from the package manager
-                      let allConstantNames = []
-                      let moduleConstants = filterEntitiesByModule allConstantNames modulePrefix
+                      let functionsSection =
+                        moduleContent.fns
+                        |> Stdlib.List.map (fun fn -> LanguageTools.ProgramTypes.PackageFn.nameToString fn.name)
+                        |> Stdlib.List.sort
+                        |> Stdlib.String.join "\n"
 
-                      // Format the output sections
-                      let functionsSection = formatEntitySection "functions" moduleFunctions
-                      let typesSection = formatEntitySection "types" moduleTypes
-                      let constantsSection = formatEntitySection "constants" moduleConstants
+                      let typesSection =
+                        moduleContent.types
+                        |> Stdlib.List.map (fun typ -> LanguageTools.ProgramTypes.PackageType.nameToString typ.name)
+                        |> Stdlib.List.sort
+                        |> Stdlib.String.join "\n"
+
+                      let constantsSection =
+                        moduleContent.constants
+                        |> Stdlib.List.map (fun c -> LanguageTools.ProgramTypes.PackageConstant.nameToString c.name)
+                        |> Stdlib.List.sort
+                        |> Stdlib.String.join "\n"
+
+                      // TODO: maybe use formatEntitySection
 
                       // Combine all sections
                       let moduleView =
                         $"Module: {modulePrefix}\n\n" ++
-                        functionsSection ++ "\n" ++
-                        typesSection ++ "\n" ++
+                        "functions:\n" ++
+                        functionsSection ++ "\n\n" ++
+                        "types:\n" ++
+                        typesSection ++ "\n\n" ++
+                        "constants:\n" ++
                         constantsSection
 
                       let newState = { state with commandResult = CommandResult.Success moduleView }
