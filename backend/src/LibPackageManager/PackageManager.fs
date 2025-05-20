@@ -166,6 +166,53 @@ let pt (baseUrl : string) : PT.PackageManager =
         findByName baseUrl "function" name.owner name.modules name.name)
       |> withCache
 
+    search =
+      (fun (query : PT.Search.SearchQuery) ->
+        uply {
+          let moduleStr = query.currentModule |> String.concat "."
+
+          let textEncoded = if query.text = "" then "" else query.text
+
+          let entityTypesStr =
+            if query.entityTypes.IsEmpty then
+              ""
+            else
+              query.entityTypes
+              |> List.map (function
+                | PT.Search.EntityType.Type -> "type"
+                | PT.Search.EntityType.Module -> "module"
+                | PT.Search.EntityType.Fn -> "function"
+                | PT.Search.EntityType.Constant -> "constant")
+              |> String.concat ","
+
+          let depthStr =
+            match query.searchDepth with
+            | PT.Search.SearchDepth.OnlyDirectDescendants -> "direct"
+
+          let url =
+            $"{baseUrl}/search?modules={moduleStr}&text={textEncoded}&searchDepth={depthStr}&entityTypes={entityTypesStr}"
+
+          let! response = url |> httpClient.GetAsync
+          let! responseStr = response.Content.ReadAsStringAsync()
+
+          let searchResultMaybe =
+            SimpleJson.deserialize<ProgramTypes.Search.SearchResults>
+              JsonDeserialization.ProgramTypes.Search.SearchResults.decoder
+              responseStr
+
+          let searchResult =
+            match searchResultMaybe with
+            | Ok searchResult ->
+              let converted = ET2PT.Search.toPT searchResult
+              converted
+            | Error e ->
+              Exception.raiseInternal
+                "Failed to deserialize search results"
+                [ "responseStr", responseStr; "url", url; "error", e ]
+                null
+
+          return searchResult
+        })
 
     getType =
       getById

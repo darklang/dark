@@ -19,6 +19,16 @@ let inMemPackageManagerFromPackages (p : PT.Packages) : PT.PackageManager =
       fun name ->
         p.constants |> List.find (fun c -> c.name = name) |> Option.map _.id |> Ply
 
+    search =
+      fun _ ->
+        uply {
+          return
+            { submodules = [ [] ]
+              fns = p.fns
+              types = p.types
+              constants = p.constants }
+        }
+
     getType = fun id -> p.types |> List.find (fun t -> t.id = id) |> Ply
     getFn = fun id -> p.fns |> List.find (fun f -> f.id = id) |> Ply
     getConstant = fun id -> p.constants |> List.find (fun c -> c.id = id) |> Ply

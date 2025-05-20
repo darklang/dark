@@ -440,6 +440,44 @@ module Darklang =
           fns: List<PackageFn.PackageFn> }
 
 
+      module Search =
+        /// The type of entity to search for
+        type EntityType =
+          | Type
+          | Module
+          | Fn
+          | Constant
+
+        /// How deep to search in the module hierarchy
+        type SearchDepth =
+          | OnlyDirectDescendants
+          // TODO: support this. | AllDescendants
+
+        /// Query parameters for searching packages
+        type SearchQuery =
+          {
+            /// i.e. "Darklang.Stdlib"
+            currentModule: List<String>
+
+            /// i.e. "List"
+            text: String
+
+            searchDepth: SearchDepth
+
+            /// (empty list implies 'any')
+            entityTypes: List<EntityType>
+          }
+
+        /// Results from a package search
+        type SearchResults =
+          { submodules: List<List<String>> // [ [ "List"]; ["String"; "List"] ] // => cd "Lambda"
+            types : List<ProgramTypes.PackageType.PackageType>
+            constants : List<ProgramTypes.PackageConstant.PackageConstant>
+            fns : List<ProgramTypes.PackageFn.PackageFn> } // List.head .... ; Dict.head
+
+
+
+
       /// Functionality written in Dark stored and managed outside of user space
       ///
       /// Note: It may be tempting to think the `getX` fns shouldn't return Options,
@@ -450,6 +488,8 @@ module Darklang =
           { findType: String -> Stdlib.Option.Option<FQTypeName.Package>
             findConstant: String -> Stdlib.Option.Option<FQConstantName.Package>
             findFn: String -> Stdlib.Option.Option<FQFnName.Package>
+
+            search: Search.SearchQuery -> Search.SearchResults
 
             getType:
               FQTypeName.Package -> Stdlib.Option.Option<PackageType.PackageType>
@@ -507,6 +547,8 @@ module Darklang =
                   | None ->
                     let findFn = pm.findFn
                     findFn name
+
+              search = pm.search
 
               getType =
                 fun id ->

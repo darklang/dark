@@ -623,6 +623,39 @@ type Packages =
       constants = packages |> List.collect _.constants
       fns = packages |> List.collect _.fns }
 
+module Search =
+  /// The type of entity to search for
+  type EntityType =
+    | Type
+    | Module
+    | Fn
+    | Constant
+
+  /// How deep to search in the module hierarchy
+  type SearchDepth = | OnlyDirectDescendants
+  // TODO: support this. | AllDescendants
+
+  /// Query parameters for searching packages
+  type SearchQuery =
+    {
+      /// i.e. "Darklang.Stdlib"
+      currentModule : List<string>
+
+      /// i.e. "List"
+      text : string
+
+      searchDepth : SearchDepth
+
+      /// (empty list implies 'any')
+      entityTypes : List<EntityType>
+    }
+
+  /// Results from a package search
+  type SearchResults =
+    { submodules : List<List<string>> // [ [ "List"]; ["String"; "List"] ] // => cd "Lambda"
+      types : List<PackageType.PackageType>
+      constants : List<PackageConstant.PackageConstant>
+      fns : List<PackageFn.PackageFn> } // List.head .... ; Dict.head
 
 /// Functionality written in Dark stored and managed outside of user space
 ///
@@ -633,6 +666,8 @@ type PackageManager =
   { findType : PackageType.Name -> Ply<Option<FQTypeName.Package>>
     findConstant : PackageConstant.Name -> Ply<Option<FQConstantName.Package>>
     findFn : PackageFn.Name -> Ply<Option<FQFnName.Package>>
+
+    search : Search.SearchQuery -> Ply<Search.SearchResults>
 
     getType : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
     getConstant :
@@ -646,6 +681,10 @@ type PackageManager =
     { findType = (fun _ -> Ply None)
       findFn = (fun _ -> Ply None)
       findConstant = (fun _ -> Ply None)
+
+      search =
+        (fun _ ->
+          uply { return { submodules = []; types = []; constants = []; fns = [] } })
 
       getType = (fun _ -> Ply None)
       getFn = (fun _ -> Ply None)
@@ -678,6 +717,8 @@ type PackageManager =
           match fns |> List.tryFind (fun f -> f.name = name) with
           | Some f -> Some f.id |> Ply
           | None -> pm.findFn name
+
+      search = fun query -> pm.search query
 
       getType =
         fun id ->

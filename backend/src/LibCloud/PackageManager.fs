@@ -220,6 +220,103 @@ let withCache (f : 'key -> Ply<Option<'value>>) =
     }
 
 
+/// Search for packages based on the given query
+let search (query : PT.Search.SearchQuery) : Ply<PT.Search.SearchResults> =
+  uply {
+    // Get all modules that match the current module path and search text
+    let! submodules =
+      "WITH all_modules AS (
+        SELECT DISTINCT modules
+        FROM (
+          SELECT modules FROM package_types_v0
+          UNION
+          SELECT modules FROM package_constants_v0
+          UNION
+          SELECT modules FROM package_functions_v0
+        ) AS all_items
+      )
+      SELECT modules
+      FROM all_modules
+      WHERE modules LIKE @modulePrefix || '%'
+        AND modules LIKE '%' || @searchText || '%'"
+      |> Sql.query
+      |> Sql.parameters
+        [ "modulePrefix",
+          Sql.string (
+            if query.currentModule.IsEmpty then
+              ""
+            else
+              query.currentModule |> String.concat "." |> (fun s -> s + ".")
+          )
+          "searchText", Sql.string query.text ]
+      |> Sql.executeAsync (fun read ->
+        let modulesStr = read.string "modules"
+        modulesStr.Split('.') |> Array.toList)
+
+    let! types =
+      if
+        query.entityTypes.IsEmpty
+        || query.entityTypes |> List.contains PT.Search.EntityType.Type
+      then
+        "SELECT id, owner, modules, name, definition
+        FROM package_types_v0
+        WHERE modules = @modules
+          AND name LIKE '%' || @searchText || '%'"
+        |> Sql.query
+        |> Sql.parameters
+          [ "modules", Sql.string (query.currentModule |> String.concat ".")
+            "searchText", Sql.string query.text ]
+        |> Sql.executeAsync (fun read ->
+          let id = read.uuid "id"
+          let definition = read.bytea "definition"
+          BinarySerialization.PackageType.deserialize id definition)
+      else
+        Task.FromResult []
+
+    let! constants =
+      if
+        query.entityTypes.IsEmpty
+        || query.entityTypes |> List.contains PT.Search.EntityType.Constant
+      then
+        "SELECT id, owner, modules, name, definition
+        FROM package_constants_v0
+        WHERE modules = @modules
+          AND name LIKE '%' || @searchText || '%'"
+        |> Sql.query
+        |> Sql.parameters
+          [ "modules", Sql.string (query.currentModule |> String.concat ".")
+            "searchText", Sql.string query.text ]
+        |> Sql.executeAsync (fun read ->
+          let id = read.uuid "id"
+          let definition = read.bytea "definition"
+          BinarySerialization.PackageConstant.deserialize id definition)
+      else
+        Task.FromResult []
+
+    let! fns =
+      if
+        query.entityTypes.IsEmpty
+        || query.entityTypes |> List.contains PT.Search.EntityType.Fn
+      then
+        "SELECT id, owner, modules, name, definition
+        FROM package_functions_v0
+        WHERE modules = @modules
+          AND name LIKE '%' || @searchText || '%'"
+        |> Sql.query
+        |> Sql.parameters
+          [ "modules", Sql.string (query.currentModule |> String.concat ".")
+            "searchText", Sql.string query.text ]
+        |> Sql.executeAsync (fun read ->
+          let id = read.uuid "id"
+          let definition = read.bytea "definition"
+          BinarySerialization.PackageFn.deserialize id definition)
+      else
+        Task.FromResult []
+
+    return
+      { submodules = submodules; types = types; constants = constants; fns = fns }
+  }
+
 let rt : RT.PackageManager =
   { getType =
       withCache (fun id ->
@@ -247,6 +344,8 @@ let pt : PT.PackageManager =
   { findType = withCache findType
     findConstant = withCache findConstant
     findFn = withCache findFn
+
+    search = search
 
     getType = withCache getType
     getFn = withCache getFn

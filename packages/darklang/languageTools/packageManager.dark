@@ -34,12 +34,24 @@ module Darklang =
 
         let getAllFnNames () : List<String> = Builtin.packageManagerGetAllFnNames ()
 
+      module Search =
+        let search (query: ProgramTypes.Search.SearchQuery) : ProgramTypes.Search.SearchResults =
+          let searchResults =
+            Builtin.packageManagerSearch query
+
+          ProgramTypes.Search.SearchResults
+            { submodules = [searchResults.submodules]
+              types = searchResults.types
+              constants = searchResults.constants
+              fns = searchResults.fns }
+
       // CLEANUP: update this to a constant rather than a function, once we have support for constant records
       let pm () : ProgramTypes.PackageManager.PackageManager =
         ProgramTypes.PackageManager.PackageManager
           { findType = PackageManager.Type.find
             findConstant = PackageManager.Constant.find
             findFn = PackageManager.Function.find
+            search = fun query -> PackageManager.Search.search query
             getFn = PackageManager.Function.get
             getConstant = PackageManager.Constant.get
             getType = PackageManager.Type.get
