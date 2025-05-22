@@ -306,6 +306,14 @@ module Type =
         let parameter = p [] "Parameter" "208d5c13-071e-4e83-994e-d71c5f40aa2e"
         let packageFn = p [] "PackageFn" "2b363281-c5e8-4223-abf3-5e5d6db27f8c"
 
+      module Search =
+        let private p addl = p ("Search" :: addl)
+        let entityType = p [] "EntityType" "6c481427-3909-4417-b3f2-4df40b64bfcc"
+        let searchDepth = p [] "SearchDepth" "138313e7-a9de-481d-a717-f8e11d730694"
+        let searchQuery = p [] "SearchQuery" "3937be09-aa05-40d6-b42d-3146e9774c82"
+        let searchResults =
+          p [] "SearchResults" "0660f9dc-a816-4185-9e5c-f936325f83d5"
+
       let secret = p [] "Secret" "37427120-d71d-41f2-b094-68757570bc41"
       let db = p [] "DB" "7f219668-f8ac-4b17-a404-1171985dadf9"
 

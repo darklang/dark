@@ -389,3 +389,31 @@ module PackageConstant =
       description = c.description
       deprecated = Deprecation.toPT ConstantName.toPT c.deprecated
       body = Const.toPT c.body }
+
+module Search =
+  module EntityType =
+    let toPT (et : EPT.Search.EntityType) : PT.Search.EntityType =
+      match et with
+      | EPT.Search.Type -> PT.Search.EntityType.Type
+      | EPT.Search.Module -> PT.Search.EntityType.Module
+      | EPT.Search.Fn -> PT.Search.EntityType.Fn
+      | EPT.Search.Constant -> PT.Search.EntityType.Constant
+
+  module SearchDepth =
+    let toPT (sd : EPT.Search.SearchDepth) : PT.Search.SearchDepth =
+      match sd with
+      | EPT.Search.OnlyDirectDescendants ->
+        PT.Search.SearchDepth.OnlyDirectDescendants
+
+  module SearchQuery =
+    let toPT (sq : EPT.Search.SearchQuery) : PT.Search.SearchQuery =
+      { PT.Search.currentModule = sq.currentModule
+        PT.Search.text = sq.text
+        PT.Search.searchDepth = SearchDepth.toPT sq.searchDepth
+        PT.Search.entityTypes = List.map EntityType.toPT sq.entityTypes }
+
+  let toPT (sr : EPT.Search.SearchResults) : PT.Search.SearchResults =
+    { PT.Search.submodules = sr.submodules
+      PT.Search.types = List.map PackageType.toPT sr.types
+      PT.Search.constants = List.map PackageConstant.toPT sr.constants
+      PT.Search.fns = List.map PackageFn.toPT sr.fns }

@@ -1451,6 +1451,113 @@ module PackageFn =
 
 
 
+module Search =
+  module EntityType =
+    let typeName =
+      FQTypeName.fqPackage
+        PackageIDs.Type.LanguageTools.ProgramTypes.Search.entityType
+
+    let toDT (et : PT.Search.EntityType) : Dval =
+      let (caseName, fields) =
+        match et with
+        | PT.Search.EntityType.Type -> "Type", []
+        | PT.Search.EntityType.Module -> "Module", []
+        | PT.Search.EntityType.Fn -> "Fn", []
+        | PT.Search.EntityType.Constant -> "Constant", []
+      DEnum(typeName, typeName, [], caseName, fields)
+
+    let fromDT (d : Dval) : PT.Search.EntityType =
+      match d with
+      | DEnum(_, _, [], "Type", []) -> PT.Search.EntityType.Type
+      | DEnum(_, _, [], "Module", []) -> PT.Search.EntityType.Module
+      | DEnum(_, _, [], "Fn", []) -> PT.Search.EntityType.Fn
+      | DEnum(_, _, [], "Constant", []) -> PT.Search.EntityType.Constant
+      | _ -> Exception.raiseInternal "Invalid EntityType" []
+
+
+  module SearchDepth =
+    let typeName =
+      FQTypeName.fqPackage
+        PackageIDs.Type.LanguageTools.ProgramTypes.Search.searchDepth
+
+    let toDT (sd : PT.Search.SearchDepth) : Dval =
+      let (caseName, fields) =
+        match sd with
+        | PT.Search.SearchDepth.OnlyDirectDescendants -> "OnlyDirectDescendants", []
+      DEnum(typeName, typeName, [], caseName, fields)
+
+    let fromDT (d : Dval) : PT.Search.SearchDepth =
+      match d with
+      | DEnum(_, _, [], "OnlyDirectDescendants", []) ->
+        PT.Search.SearchDepth.OnlyDirectDescendants
+      | _ -> Exception.raiseInternal "Invalid SearchDepth" []
+
+  module SearchQuery =
+    let typeName =
+      FQTypeName.fqPackage
+        PackageIDs.Type.LanguageTools.ProgramTypes.Search.searchQuery
+
+    let toDT (sq : PT.Search.SearchQuery) : Dval =
+      let fields =
+        [ "currentModule", DList(VT.string, List.map DString sq.currentModule)
+          "text", DString sq.text
+          "searchDepth", SearchDepth.toDT sq.searchDepth
+          "entityTypes",
+          DList(
+            VT.known (KTCustomType(EntityType.typeName, [])),
+            sq.entityTypes |> List.map EntityType.toDT
+          ) ]
+      DRecord(typeName, typeName, [], Map fields)
+
+    let fromDT (d : Dval) : PT.Search.SearchQuery =
+      match d with
+      | DRecord(_, _, _, fields) ->
+        { PT.Search.currentModule =
+            fields |> D.field "currentModule" |> D.list D.string
+          PT.Search.text = fields |> D.field "text" |> D.string
+          PT.Search.searchDepth =
+            fields |> D.field "searchDepth" |> SearchDepth.fromDT
+          PT.Search.entityTypes =
+            fields |> D.field "entityTypes" |> D.list EntityType.fromDT }
+      | _ -> Exception.raiseInternal "Invalid SearchQuery" []
+
+  module SearchResults =
+    let typeName =
+      FQTypeName.fqPackage
+        PackageIDs.Type.LanguageTools.ProgramTypes.Search.searchResults
+
+    let toDT (sr : PT.Search.SearchResults) : Dval =
+      let fields =
+        [ "submodules",
+          sr.submodules
+          |> List.map (fun modules ->
+            modules |> List.map (fun m -> DString m) |> Dval.list KTString)
+          |> Dval.list (KTList VT.string)
+          "types",
+          sr.types
+          |> List.map PackageType.toDT
+          |> Dval.list (KTCustomType(PackageType.typeName, []))
+          "constants",
+          sr.constants
+          |> List.map PackageConstant.toDT
+          |> Dval.list (KTCustomType(PackageConstant.typeName, []))
+          "fns",
+          sr.fns
+          |> List.map PackageFn.toDT
+          |> Dval.list (KTCustomType(PackageFn.typeName, [])) ]
+      DRecord(typeName, typeName, [], Map fields)
+
+    let fromDT (d : Dval) : PT.Search.SearchResults =
+      match d with
+      | DRecord(_, _, _, fields) ->
+        { submodules = fields |> D.field "submodules" |> D.list (D.list D.string)
+          types = fields |> D.field "types" |> D.list PackageType.fromDT
+          constants = fields |> D.field "constants" |> D.list PackageConstant.fromDT
+          fns = fields |> D.field "fns" |> D.list PackageFn.fromDT }
+      | _ -> Exception.raiseInternal "Invalid SearchResults" []
+
+
+
 // -- User stuff -- //
 
 module Handler =

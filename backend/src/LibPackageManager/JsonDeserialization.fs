@@ -790,3 +790,52 @@ module ProgramTypes =
             description = description
             deprecated = deprecated
             body = body })
+
+
+  module Search =
+    module EntityType =
+      type DU = ProgramTypes.Search.EntityType
+
+      let decoder : JsonDecoder<DU> =
+        [ ("Type", Decoders.enum0Fields DU.Type)
+          ("Module", Decoders.enum0Fields DU.Module)
+          ("Fn", Decoders.enum0Fields DU.Fn)
+          ("Constant", Decoders.enum0Fields DU.Constant) ]
+        |> Map.ofList
+        |> Decoders.du
+
+    module SearchDepth =
+      type DU = ProgramTypes.Search.SearchDepth
+
+      let decoder : JsonDecoder<DU> =
+        [ ("OnlyDirectDescendants", Decoders.enum0Fields DU.OnlyDirectDescendants) ]
+        |> Map.ofList
+        |> Decoders.du
+
+    module SearchQuery =
+      let decoder : JsonDecoder<ProgramTypes.Search.SearchQuery> =
+        Decoders.obj4Fields
+          "SearchQuery"
+          ("currentModule", Decoders.list Decoders.string)
+          ("text", Decoders.string)
+          ("searchDepth", SearchDepth.decoder)
+          ("entityTypes", Decoders.list EntityType.decoder)
+          (fun currentModule text searchDepth entityTypes ->
+            { currentModule = currentModule
+              text = text
+              searchDepth = searchDepth
+              entityTypes = entityTypes })
+
+    module SearchResults =
+      let decoder : JsonDecoder<ProgramTypes.Search.SearchResults> =
+        Decoders.obj4Fields
+          "SearchResults"
+          ("submodules", Decoders.list (Decoders.list Decoders.string))
+          ("types", Decoders.list ProgramTypes.PackageType.decoder)
+          ("constants", Decoders.list ProgramTypes.PackageConstant.decoder)
+          ("fns", Decoders.list ProgramTypes.PackageFn.PackageFn.decoder)
+          (fun submodules types constants fns ->
+            { submodules = submodules
+              types = types
+              constants = constants
+              fns = fns })
