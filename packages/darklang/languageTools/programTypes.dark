@@ -459,21 +459,21 @@ module Darklang =
             /// i.e. "Darklang.Stdlib"
             currentModule: List<String>
 
-            /// i.e. "List"
+            /// i.e. "List" or "map"
             text: String
 
             searchDepth: SearchDepth
 
-            /// (empty list implies 'any')
+            /// empty list implies 'any'
             entityTypes: List<EntityType>
           }
 
         /// Results from a package search
         type SearchResults =
-          { submodules: List<List<String>> // [ [ "List"]; ["String"; "List"] ] // => cd "Lambda"
+          { submodules: List<List<String>> // [ [ "List"]; ["String"; "List"] ]
             types : List<ProgramTypes.PackageType.PackageType>
             constants : List<ProgramTypes.PackageConstant.PackageConstant>
-            fns : List<ProgramTypes.PackageFn.PackageFn> } // List.head .... ; Dict.head
+            fns : List<ProgramTypes.PackageFn.PackageFn> }
 
 
 
@@ -489,14 +489,14 @@ module Darklang =
             findConstant: String -> Stdlib.Option.Option<FQConstantName.Package>
             findFn: String -> Stdlib.Option.Option<FQFnName.Package>
 
-            search: Search.SearchQuery -> Search.SearchResults
-
             getType:
               FQTypeName.Package -> Stdlib.Option.Option<PackageType.PackageType>
             getConstant:
               FQConstantName.Package
                 -> Stdlib.Option.Option<PackageConstant.PackageConstant>
-            getFn: FQFnName.Package -> Stdlib.Option.Option<PackageFn.PackageFn> }
+            getFn: FQFnName.Package -> Stdlib.Option.Option<PackageFn.PackageFn>
+
+            search: Search.SearchQuery -> Search.SearchResults }
 
 
         /// Allows you to side-load a few 'extras' in-memory, along
@@ -546,8 +546,6 @@ module Darklang =
                     let findFn = pm.findFn
                     findFn name
 
-              search = pm.search
-
               getType =
                 fun id ->
                   match types |> Stdlib.List.findFirst (fun t -> t.id == id) with
@@ -568,7 +566,9 @@ module Darklang =
                   | Some f -> Stdlib.Option.Option.Some f
                   | None ->
                     let getFn = pm.getFn
-                    getFn id }
+                    getFn id
+
+              search = pm.search }
 
 
       type Definitions =

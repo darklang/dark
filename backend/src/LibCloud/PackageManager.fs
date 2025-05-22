@@ -210,20 +210,17 @@ let search (query : PT.Search.SearchQuery) : Ply<PT.Search.SearchResults> =
   uply {
     // Get all modules that match the current module path and search text
     let! submodules =
-      "WITH all_modules AS (
-        SELECT DISTINCT modules
+      "SELECT DISTINCT modules
         FROM (
           SELECT modules FROM package_types_v0
-          UNION
+          WHERE modules LIKE @modulePrefix || '%' AND modules LIKE '%' || @searchText || '%'
+          UNION ALL
           SELECT modules FROM package_constants_v0
-          UNION
+          WHERE modules LIKE @modulePrefix || '%' AND modules LIKE '%' || @searchText || '%'
+          UNION ALL
           SELECT modules FROM package_functions_v0
-        ) AS all_items
-      )
-      SELECT modules
-      FROM all_modules
-      WHERE modules LIKE @modulePrefix || '%'
-        AND modules LIKE '%' || @searchText || '%'"
+          WHERE modules LIKE @modulePrefix || '%' AND modules LIKE '%' || @searchText || '%'
+        ) AS filtered_modules"
       |> Sql.query
       |> Sql.parameters
         [ "modulePrefix",
@@ -330,10 +327,10 @@ let pt : PT.PackageManager =
     findConstant = withCache findConstant
     findFn = withCache findFn
 
-    search = search
-
     getType = withCache getType
     getFn = withCache getFn
     getConstant = withCache getConstant
+
+    search = search
 
     init = uply { return () } }
