@@ -3,6 +3,61 @@ module Darklang =
     // Note: eventually, some commands might be things _besides_ user prompts
     // (based on a timer, or async activity happening, or file system watcher, etc.)
     module Command =
+      //TODO: add a colors module
+      let magenta = "\x1b[38;5;133m"
+      let purple = "\x1b[38;5;147m"
+      let black = "\u001b[30m"
+      let white = "\u001b[37m"
+      let cyan = "\x1b[38;5;123m"
+      let gray = "\u001b[90m"
+      let lightGray = "\x1b[38;5;254m"
+      let darkGray = "\x1b[38;5;0m"
+      let darkerGray = "\x1b[38;5;145m"
+      let yellow = "\x1b[38;5;229m"
+      let brown = "\x1b[38;5;181m"
+      let orange = "\027[38;5;216m"
+      let reset = "\u001b[0m"
+
+      let logoWithText = """
+              ?????      ?????
+             ???????    ???????
+              ?????     ???????
+                        ???????
+              ?????     ???????
+             ???????    ???????
+              ?????      ?????
+  ‍
+             ????        ?????
+               ????     ???????
+             ????        ?????
+     _            _    _
+  __| | __ _ _ __| | _| | __ _ _ __   __ _
+ / _` |/ _` | '__| |/ / |/ _` | '_ \ / _` |
+| (_| | (_| | |  |   <| | (_| | | | | (_| |
+ \__,_|\__,_|_|  |_|\_\_|\__,_|_| |_|\__, |
+                                     |___/
+‍
+      """
+
+
+      let logo = $"""
+
+            ????      ??????
+          ????????   ????????
+          ????????   ????????
+           ??????    ????????
+                     ????????
+            ????     ????????
+          ????????   ????????
+          ????????   ????????
+           ??????     ??????
+‍
+           ???         ????
+             ????    ????????
+             ????    ????????
+           ???        ??????
+‍
+ """
       // type Argument =
       //   { name: String
       //     type: string
@@ -202,6 +257,90 @@ module Darklang =
               (createErrorState state $"Entity not found: {fullyQualifiedName}", [])
 
 
+      let combineLogoAndText (logoStr: String) (textLines: List<String>) (color: String) : String =
+        // Split the logo string by newlines
+        let logoLines =
+          (Stdlib.String.split logoStr "\n")
+
+        // Find the maximum width of logo lines
+        let maxLogoWidth =
+          logoLines
+          |> Stdlib.List.map Stdlib.String.length
+          |> Stdlib.List.fold 0L (fun acc len -> if len > acc then len else acc)
+
+        // Pad logo lines to same width
+        let paddedLogoLines =
+          logoLines
+          |> Stdlib.List.map (fun line ->
+            let paddedLine =
+              match Stdlib.String.padEnd line " " maxLogoWidth with
+              | Ok paddedLine -> paddedLine
+              | Error _ -> line
+            if Stdlib.String.isEmpty (Stdlib.String.trim line) then
+              paddedLine
+            else
+              // Add color to non-empty lines
+              $"{color}{paddedLine}{reset}")
+
+        // Split the text lines by newlines
+        let textLinesList =
+          textLines
+          |> Stdlib.List.map (fun line -> Stdlib.String.split line "\n")
+          |> Stdlib.List.flatten
+
+        let logoHeight = Stdlib.List.length paddedLogoLines
+        let textHeight = Stdlib.List.length textLinesList
+
+        // Calculate target height (maximum of both)
+        let targetHeight = if logoHeight > textHeight then logoHeight else textHeight
+
+        // make both logo and text the same height
+        // Pad text to target height
+        let finalLogoLines =
+          if logoHeight < targetHeight then // e.g, 3 < 7 = true
+            let totalPadding = targetHeight - logoHeight // 7 - 3 = 4 empty lines needed
+            let paddingTop = Stdlib.Int64.divide totalPadding 2L // 4 ÷ 2 = 2 lines above
+            let paddingBottom = totalPadding - paddingTop // 4 - 2 = 2 lines below
+            let emptyLogoLine = Stdlib.String.repeat " " maxLogoWidth // if maxLogoWidth = 6, then emptyLogoLine = "      " (6 spaces)
+            match Stdlib.List.repeat paddingTop emptyLogoLine with // Create 2 empty top logo lines
+            | Ok topEmpty ->
+              match Stdlib.List.repeat paddingBottom emptyLogoLine with // Create 2 empty bottom logo lines
+              | Ok bottomEmpty ->
+                Stdlib.List.flatten [topEmpty; paddedLogoLines; bottomEmpty]
+              | Error _ -> paddedLogoLines
+            | Error _ -> paddedLogoLines
+          else
+            paddedLogoLines
+
+        // Pad text to target height
+        let finalTextLines =
+          if textHeight < targetHeight then
+            let totalPadding = targetHeight - textHeight
+            let paddingTop = Stdlib.Int64.divide totalPadding 2L
+            let paddingBottom = totalPadding - paddingTop
+            match Stdlib.List.repeat paddingTop "" with
+            | Ok topEmpty ->
+              match Stdlib.List.repeat paddingBottom "" with
+              | Ok bottomEmpty ->
+                Stdlib.List.flatten [topEmpty; textLinesList; bottomEmpty]
+              | Error _ -> textLinesList
+            | Error _ -> textLinesList
+          else
+            textLinesList
+
+        // Combine logo and text with spacing
+        let spacing = "          " // 10 spaces between logo and text
+
+
+        match Stdlib.List.zip finalLogoLines finalTextLines with
+        | Some zipped ->
+          zipped
+          |> Stdlib.List.map (fun (logoLine, textLine) -> logoLine ++ spacing ++ textLine)
+          |> Stdlib.String.join "\n"
+        | None ->
+          // This should never happen since we ensured both lists are the same length
+          ""
+
       /// Returns commands available in the current state
       let getAvailableCommands (state: State) : List<CommandDetails> =
         let baseCommands = [
@@ -221,9 +360,9 @@ module Darklang =
               aliases = []
               arguments = ["[non-interactive|regular|refresh-screen]"]
               execute = fun state args ->
-                let trimmedArgs = Stdlib.String.trim args
+                let args = Stdlib.String.trim args
 
-                if Stdlib.String.isEmpty trimmedArgs then
+                if Stdlib.String.isEmpty args then
                   // No arguments, show current mode
                   let modeDisplay =
                     match state.interactionMode with
@@ -235,7 +374,7 @@ module Darklang =
                   (newState, [])
                 else
                   // Set the mode based on the argument
-                  match Stdlib.String.toLowercase trimmedArgs with
+                  match Stdlib.String.toLowercase args with
                   | "non-interactive" ->
                     let newState =
                       { state with
@@ -258,7 +397,7 @@ module Darklang =
                           needsFullRedraw = true }
                     (newState, [])
                   | _ ->
-                    let newState = { state with commandResult = CommandResult.Error $"Unknown mode: {trimmedArgs}\nAvailable modes: non-interactive, regular, refresh-screen" }
+                    let newState = { state with commandResult = CommandResult.Error $"Unknown mode: {args}\nAvailable modes: non-interactive, regular, refresh-screen" }
                     (newState, [])
             }
 
@@ -273,14 +412,32 @@ module Darklang =
                 // Get available commands for the current page
                 let commands = getAvailableCommands state
 
-                // Format help text
-                let helpText =
-                  "Available commands:\n" ++
-                  (commands
-                  |> Stdlib.List.map (fun cmd -> $"  {cmd.name} - {cmd.description}")
-                  |> Stdlib.String.join "\n")
+                let maxNameLength =
+                  commands
+                  |> Stdlib.List.map (fun cmd -> Stdlib.String.length cmd.name)
+                  |> Stdlib.List.fold 0L Stdlib.Int64.max
 
-                let newState = { state with commandResult = CommandResult.Info helpText }
+                let cmdNameDesc =
+                  commands
+                  |> Stdlib.List.map (fun cmd ->
+                      let commandName = cmd.name ++ Stdlib.String.repeat " " (maxNameLength - Stdlib.String.length cmd.name)
+                      $"{purple}{commandName}{reset}   {cmd.description}")
+
+                let colors = [
+                  "\x1b[48;5;61m"; "\x1b[48;5;134m"; "\x1b[48;5;218m"; "\x1b[48;5;176m";
+                  "\x1b[48;5;38m"; "\x1b[48;5;115m"; "\x1b[48;5;229m"; "\027[48;5;180m";
+                  "\027[48;5;216m"; "\x1b[48;5;222m"
+                ]
+
+                let colorBar =
+                  (colors |> Stdlib.List.map (fun color -> $"{color}  {reset}") |> Stdlib.String.join "")
+
+                let helpText =
+                   (Stdlib.List.append cmdNameDesc ["\n"; colorBar])
+                   |> Stdlib.List.push $"Available commands:\n"
+
+                let helpContent = combineLogoAndText logo helpText darkerGray //"\x1b[38;5;139m" //"\x1b[38;5;140m" //"\x1b[38;5;61m"
+                let newState = { state with commandResult = CommandResult.Info helpContent }
                 (newState, [])
             }
 
@@ -303,12 +460,10 @@ module Darklang =
               aliases = []
               arguments = ["[module <moduleName> | <entityName>]"]
               execute = fun state args ->
-                // Parse the arguments
-                let trimmedArgs = Stdlib.String.trim args
-
                 // didn't meet args
                 // TODO this should totally be un-handled by the execute fn; why are we doing this here??
-                if Stdlib.String.isEmpty trimmedArgs then
+                Builtin.debug "args" args
+                if Stdlib.String.isEmpty args then
                   let newState =
                     { state with
                         commandResult = CommandResult.Info "Please specify an entity name or use 'module <moduleName>' to view a module"
@@ -316,9 +471,9 @@ module Darklang =
                   (newState, [])
 
                 // arg-parsing that (TODO) shouldn't be here.
-                else if Stdlib.String.startsWith trimmedArgs "module " then
+                else if Stdlib.String.startsWith args "module " then
                   // View module command
-                  let moduleName = (Stdlib.String.dropFirst trimmedArgs 7L) |> Stdlib.String.trim
+                  let moduleName = (Stdlib.String.dropFirst args 7L) |> Stdlib.String.trim
 
                   if Stdlib.String.isEmpty moduleName then
                     // No module name provided
@@ -366,7 +521,7 @@ module Darklang =
                     (newState, [])
                 else
                   // View entity command
-                  let entityName = trimmedArgs
+                  let entityName = args
 
                   // Check if we're in a module context
                   match state.currentPage with
@@ -455,10 +610,14 @@ module Darklang =
                   | RefreshScreen -> "Refresh screen"
                   | Regular -> "Regular"
 
-                let statusInfo =
-                  $"{version}\nCurrent location: {currentLocation}\n" ++
-                  $"Interaction mode: {modeDisplay}\n" ++
-                  $"Type 'help' for available commands"
+                let textContent = [
+                  $"{magenta}Version:{reset} {version}"
+                  $"{magenta}Location:{reset} {currentLocation}"
+                  $"{magenta}Mode:{reset} {modeDisplay}"
+                  ""
+                  $"Type {gray}'help'{reset} for available commands"
+                ]
+                let statusInfo = combineLogoAndText logo textContent purple
 
                 let newState = { state with commandResult = CommandResult.Info statusInfo }
                 (newState, [])
@@ -568,9 +727,7 @@ module Darklang =
                   aliases = []
                   arguments = ["[<entityName>]"]
                   execute = fun state args ->
-                    let trimmedArgs = Stdlib.String.trim args
-
-                    if Stdlib.String.isEmpty trimmedArgs then
+                    if Stdlib.String.isEmpty args then
                       // No arguments, show details of the current item
                       match state.currentPage with
                       | Type name ->
@@ -635,7 +792,7 @@ module Darklang =
                         (newState, [])
                     else
                       // View a specific entity
-                      let entityName = trimmedArgs
+                      let entityName = args
 
                       // Get the current module context
                       match state.currentPage with
