@@ -68,6 +68,7 @@ module Darklang =
               ProgramTypes.NameResolution<ProgramTypes.FQConstantName.FQConstantName>
             | Fn of ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName>
 
+          // CLEANUP: why do we return a Result here? NameResolution already is a Result type
           let toPT
             (onMissing: NameResolver.OnMissing)
             (pm: ProgramTypes.PackageManager.PackageManager)
@@ -109,7 +110,7 @@ module Darklang =
                   isConstant |> ConstOrFn.Const |> Stdlib.Result.Result.Ok
 
                 (isConst, [])
-              | Error e -> (isConstant, [ (c.range, e) ])
+              | Error e -> (Stdlib.Result.Result.Error isConstant, [ (c.range, e) ])
 
         module Fn =
           let toPT (fn: WrittenTypes.FnIdentifier) : String = fn.name

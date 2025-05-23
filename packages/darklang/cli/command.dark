@@ -214,6 +214,7 @@ module Darklang =
 
       /// Helper function to view an entity by its fully qualified name
       let viewEntityByName (state: State) (fullyQualifiedName: String) : (State * List<Msg>) =
+        // TODO: is it worth it to check if the last part of the name is capitalized (if so we look for a type, otherwise a function or constant)?
         // Try to find the entity as a function
         match LanguageTools.PackageManager.Function.find fullyQualifiedName with
         | Some fnId ->
@@ -330,7 +331,6 @@ module Darklang =
 
         // Combine logo and text with spacing
         let spacing = "          " // 10 spaces between logo and text
-
 
         match Stdlib.List.zip finalLogoLines finalTextLines with
         | Some zipped ->
@@ -473,6 +473,7 @@ module Darklang =
                 // arg-parsing that (TODO) shouldn't be here.
                 else if Stdlib.String.startsWith args "module " then
                   // View module command
+                  //drop the word "module "
                   let moduleName = (Stdlib.String.dropFirst args 7L) |> Stdlib.String.trim
 
                   if Stdlib.String.isEmpty moduleName then
@@ -716,124 +717,124 @@ module Darklang =
                 }
             ]
 
-          | Type _
-          | Fn _
-          | Constant _ ->
-            [
-              // View command
-              CommandDetails
-                { name = "view"
-                  description = "View details of the current item"
-                  aliases = []
-                  arguments = ["[<entityName>]"]
-                  execute = fun state args ->
-                    if Stdlib.String.isEmpty args then
-                      // No arguments, show details of the current item
-                      match state.currentPage with
-                      | Type name ->
-                        // Get the type details
-                        // Convert the name to a string that can be used for lookup
-                        let typeName = LanguageTools.ProgramTypes.PackageType.nameToString name
-                        match LanguageTools.PackageManager.Type.find typeName with
-                        | Some typeId ->
-                          match LanguageTools.PackageManager.Type.get typeId with
-                          | Some packageType ->
-                            // Pretty print the type details
-                            let prettyPrinted = PrettyPrinter.ProgramTypes.packageType packageType
-                            let newState = { state with commandResult = CommandResult.Success $"Type: {typeName}\n\n{prettyPrinted}" }
-                            (newState, [])
-                          | None ->
-                            let newState = { state with commandResult = CommandResult.Error "Type details could not be retrieved" }
-                            (newState, [])
-                        | None ->
-                          let newState = { state with commandResult = CommandResult.Error "Type not found" }
-                          (newState, [])
+          // | Type _
+          // | Fn _
+          // | Constant _ ->
+          //   [
+          //     // View command
+          //     CommandDetails
+          //       { name = "view"
+          //         description = "View details of the current item"
+          //         aliases = []
+          //         arguments = ["[<entityName>]"]
+          //         execute = fun state args ->
+          //           if Stdlib.String.isEmpty args then
+          //             // No arguments, show details of the current item
+          //             match state.currentPage with
+          //             | Type name ->
+          //               // Get the type details
+          //               // Convert the name to a string that can be used for lookup
+          //               let typeName = LanguageTools.ProgramTypes.PackageType.nameToString name
+          //               match LanguageTools.PackageManager.Type.find typeName with
+          //               | Some typeId ->
+          //                 match LanguageTools.PackageManager.Type.get typeId with
+          //                 | Some packageType ->
+          //                   // Pretty print the type details
+          //                   let prettyPrinted = PrettyPrinter.ProgramTypes.packageType packageType
+          //                   let newState = { state with commandResult = CommandResult.Success $"Type: {typeName}\n\n{prettyPrinted}" }
+          //                   (newState, [])
+          //                 | None ->
+          //                   let newState = { state with commandResult = CommandResult.Error "Type details could not be retrieved" }
+          //                   (newState, [])
+          //               | None ->
+          //                 let newState = { state with commandResult = CommandResult.Error "Type not found" }
+          //                 (newState, [])
 
-                      | Fn name ->
-                        // Get the function details
-                        // Convert the name to a string that can be used for lookup
-                        let fnName = LanguageTools.ProgramTypes.PackageFn.nameToString name
-                        match LanguageTools.PackageManager.Function.find fnName with
-                        | Some fnId ->
-                          match LanguageTools.PackageManager.Function.get fnId with
-                          | Some packageFn ->
-                            // Pretty print the function details
-                            let prettyPrinted = PrettyPrinter.ProgramTypes.packageFn packageFn
-                            let newState = { state with commandResult = CommandResult.Success $"Function: {fnName}\n\n{prettyPrinted}" }
-                            (newState, [])
-                          | None ->
-                            let newState = { state with commandResult = CommandResult.Error "Function details could not be retrieved" }
-                            (newState, [])
-                        | None ->
-                          let newState = { state with commandResult = CommandResult.Error "Function not found" }
-                          (newState, [])
+          //             | Fn name ->
+          //               // Get the function details
+          //               // Convert the name to a string that can be used for lookup
+          //               let fnName = LanguageTools.ProgramTypes.PackageFn.nameToString name
+          //               match LanguageTools.PackageManager.Function.find fnName with
+          //               | Some fnId ->
+          //                 match LanguageTools.PackageManager.Function.get fnId with
+          //                 | Some packageFn ->
+          //                   // Pretty print the function details
+          //                   let prettyPrinted = PrettyPrinter.ProgramTypes.packageFn packageFn
+          //                   let newState = { state with commandResult = CommandResult.Success $"Function: {fnName}\n\n{prettyPrinted}" }
+          //                   (newState, [])
+          //                 | None ->
+          //                   let newState = { state with commandResult = CommandResult.Error "Function details could not be retrieved" }
+          //                   (newState, [])
+          //               | None ->
+          //                 let newState = { state with commandResult = CommandResult.Error "Function not found" }
+          //                 (newState, [])
 
-                      | Constant name ->
-                        // Get the constant details
-                        // Convert the name to a string that can be used for lookup
-                        let constName = LanguageTools.ProgramTypes.PackageConstant.nameToString name
-                        match LanguageTools.PackageManager.Constant.find constName with
-                        | Some constId ->
-                          match LanguageTools.PackageManager.Constant.get constId with
-                          | Some packageConst ->
-                            // Pretty print the constant details
-                            let prettyPrinted = PrettyPrinter.ProgramTypes.packageConstant packageConst
-                            let newState = { state with commandResult = CommandResult.Success $"Constant: {constName}\n\n{prettyPrinted}" }
-                            (newState, [])
-                          | None ->
-                            let newState = { state with commandResult = CommandResult.Error "Constant details could not be retrieved" }
-                            (newState, [])
-                        | None ->
-                          let newState = { state with commandResult = CommandResult.Error "Constant not found" }
-                          (newState, [])
+          //             | Constant name ->
+          //               // Get the constant details
+          //               // Convert the name to a string that can be used for lookup
+          //               let constName = LanguageTools.ProgramTypes.PackageConstant.nameToString name
+          //               match LanguageTools.PackageManager.Constant.find constName with
+          //               | Some constId ->
+          //                 match LanguageTools.PackageManager.Constant.get constId with
+          //                 | Some packageConst ->
+          //                   // Pretty print the constant details
+          //                   let prettyPrinted = PrettyPrinter.ProgramTypes.packageConstant packageConst
+          //                   let newState = { state with commandResult = CommandResult.Success $"Constant: {constName}\n\n{prettyPrinted}" }
+          //                   (newState, [])
+          //                 | None ->
+          //                   let newState = { state with commandResult = CommandResult.Error "Constant details could not be retrieved" }
+          //                   (newState, [])
+          //               | None ->
+          //                 let newState = { state with commandResult = CommandResult.Error "Constant not found" }
+          //                 (newState, [])
 
-                      | _ ->
-                        let newState = { state with commandResult = CommandResult.Error "Nothing to view" }
-                        (newState, [])
-                    else
-                      // View a specific entity
-                      let entityName = args
+          //             | _ ->
+          //               let newState = { state with commandResult = CommandResult.Error "Nothing to view" }
+          //               (newState, [])
+          //           else
+          //             // View a specific entity
+          //             let entityName = args
 
-                      // Get the current module context
-                      match state.currentPage with
-                      | Type name ->
-                        // Extract module from the current type
-                        let typeName = LanguageTools.ProgramTypes.PackageType.nameToString name
-                        match extractModulePrefix typeName with
-                        | Some modulePrefix ->
-                          let fullyQualifiedName = modulePrefix ++ "." ++ entityName
-                          viewEntityByName state fullyQualifiedName
-                        | None ->
-                          let newState = { state with commandResult = CommandResult.Error "Cannot determine module context" }
-                          (newState, [])
+          //             // Get the current module context
+          //             match state.currentPage with
+          //             | Type name ->
+          //               // Extract module from the current type
+          //               let typeName = LanguageTools.ProgramTypes.PackageType.nameToString name
+          //               match extractModulePrefix typeName with
+          //               | Some modulePrefix ->
+          //                 let fullyQualifiedName = modulePrefix ++ "." ++ entityName
+          //                 viewEntityByName state fullyQualifiedName
+          //               | None ->
+          //                 let newState = { state with commandResult = CommandResult.Error "Cannot determine module context" }
+          //                 (newState, [])
 
-                      | Fn name ->
-                        // Extract module from the current function
-                        let fnName = LanguageTools.ProgramTypes.PackageFn.nameToString name
-                        match extractModulePrefix fnName with
-                        | Some modulePrefix ->
-                          let fullyQualifiedName = modulePrefix ++ "." ++ entityName
-                          viewEntityByName state fullyQualifiedName
-                        | None ->
-                          let newState = { state with commandResult = CommandResult.Error "Cannot determine module context" }
-                          (newState, [])
+          //             | Fn name ->
+          //               // Extract module from the current function
+          //               let fnName = LanguageTools.ProgramTypes.PackageFn.nameToString name
+          //               match extractModulePrefix fnName with
+          //               | Some modulePrefix ->
+          //                 let fullyQualifiedName = modulePrefix ++ "." ++ entityName
+          //                 viewEntityByName state fullyQualifiedName
+          //               | None ->
+          //                 let newState = { state with commandResult = CommandResult.Error "Cannot determine module context" }
+          //                 (newState, [])
 
-                      | Constant name ->
-                        // Extract module from the current constant
-                        let constName = LanguageTools.ProgramTypes.PackageConstant.nameToString name
-                        match extractModulePrefix constName with
-                        | Some modulePrefix ->
-                          let fullyQualifiedName = modulePrefix ++ "." ++ entityName
-                          viewEntityByName state fullyQualifiedName
-                        | None ->
-                          let newState = { state with commandResult = CommandResult.Error "Cannot determine module context" }
-                          (newState, [])
+          //             | Constant name ->
+          //               // Extract module from the current constant
+          //               let constName = LanguageTools.ProgramTypes.PackageConstant.nameToString name
+          //               match extractModulePrefix constName with
+          //               | Some modulePrefix ->
+          //                 let fullyQualifiedName = modulePrefix ++ "." ++ entityName
+          //                 viewEntityByName state fullyQualifiedName
+          //               | None ->
+          //                 let newState = { state with commandResult = CommandResult.Error "Cannot determine module context" }
+          //                 (newState, [])
 
-                      | _ ->
-                        let newState = { state with commandResult = CommandResult.Error "Not in a valid context to view entities" }
-                        (newState, [])
-                }
-            ]
+          //             | _ ->
+          //               let newState = { state with commandResult = CommandResult.Error "Not in a valid context to view entities" }
+          //               (newState, [])
+            //     }
+            // ]
 
         Stdlib.List.append baseCommands contextCommands
 
