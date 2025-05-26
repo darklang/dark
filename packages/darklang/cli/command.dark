@@ -3,42 +3,27 @@ module Darklang =
     // Note: eventually, some commands might be things _besides_ user prompts
     // (based on a timer, or async activity happening, or file system watcher, etc.)
     module Command =
-      //TODO: add a colors module
-      let magenta = "\x1b[38;5;133m"
-      let purple = "\x1b[38;5;147m"
-      let black = "\u001b[30m"
-      let white = "\u001b[37m"
-      let cyan = "\x1b[38;5;123m"
-      let gray = "\u001b[90m"
-      let lightGray = "\x1b[38;5;254m"
-      let darkGray = "\x1b[38;5;0m"
-      let darkerGray = "\x1b[38;5;145m"
-      let yellow = "\x1b[38;5;229m"
-      let brown = "\x1b[38;5;181m"
-      let orange = "\027[38;5;216m"
-      let reset = "\u001b[0m"
+      module CliColors =
+        // Foreground colors (text)
+        let magenta = "\x1b[38;5;133m"
+        let purple = "\x1b[38;5;147m"
+        let gray = "\x1b[90m"
+        let darkGray = "\x1b[38;5;145m"
 
-      let logoWithText = """
-              ?????      ?????
-             ???????    ???????
-              ?????     ???????
-                        ???????
-              ?????     ???????
-             ???????    ???????
-              ?????      ?????
-  ‍
-             ????        ?????
-               ????     ???????
-             ????        ?????
-     _            _    _
-  __| | __ _ _ __| | _| | __ _ _ __   __ _
- / _` |/ _` | '__| |/ / |/ _` | '_ \ / _` |
-| (_| | (_| | |  |   <| | (_| | | | | (_| |
- \__,_|\__,_|_|  |_|\_\_|\__,_|_| |_|\__, |
-                                     |___/
-‍
-      """
+        // Background colors
+        let purpleBg = "\x1b[48;5;61m"
+        let magentaBg = "\x1b[48;5;134m"
+        let lightPinkBg = "\x1b[48;5;218m"
+        let pinkBg = "\x1b[48;5;176m"
+        let blueBg = "\x1b[48;5;38m"
+        let greenBg = "\x1b[48;5;115m"
+        let yellowBg = "\x1b[48;5;229m"
+        let brownBg = "\x1b[48;5;180m"
+        let orangeBg = "\x1b[48;5;222m"
+        let peachBg = "\x1b[48;5;216m"
+        let salmonBg = "\x1b[48;5;223m"
 
+        let reset = "\x1b[0m"
 
       let logo = $"""
 
@@ -281,7 +266,7 @@ module Darklang =
               paddedLine
             else
               // Add color to non-empty lines
-              $"{color}{paddedLine}{reset}")
+              $"{color}{paddedLine}{CliColors.reset}")
 
         // Split the text lines by newlines
         let textLinesList =
@@ -421,22 +406,21 @@ module Darklang =
                   commands
                   |> Stdlib.List.map (fun cmd ->
                       let commandName = cmd.name ++ Stdlib.String.repeat " " (maxNameLength - Stdlib.String.length cmd.name)
-                      $"{purple}{commandName}{reset}   {cmd.description}")
+                      $"{CliColors.purple}{commandName}{CliColors.reset}   {cmd.description}")
 
-                let colors = [
-                  "\x1b[48;5;61m"; "\x1b[48;5;134m"; "\x1b[48;5;218m"; "\x1b[48;5;176m";
-                  "\x1b[48;5;38m"; "\x1b[48;5;115m"; "\x1b[48;5;229m"; "\027[48;5;180m";
-                  "\027[48;5;216m"; "\x1b[48;5;222m"
-                ]
+                let colors =
+                  [ CliColors.purpleBg; CliColors.magentaBg; CliColors.lightPinkBg; CliColors.pinkBg;
+                    CliColors.blueBg; CliColors.greenBg; CliColors.yellowBg; CliColors.brownBg;
+                    CliColors.orangeBg; CliColors.peachBg; CliColors.salmonBg ]
 
                 let colorBar =
-                  (colors |> Stdlib.List.map (fun color -> $"{color}  {reset}") |> Stdlib.String.join "")
+                  (colors |> Stdlib.List.map (fun color -> $"{color}  {CliColors.reset}") |> Stdlib.String.join "")
 
                 let helpText =
                    (Stdlib.List.append cmdNameDesc ["\n"; colorBar])
                    |> Stdlib.List.push $"Available commands:\n"
 
-                let helpContent = combineLogoAndText logo helpText darkerGray //"\x1b[38;5;139m" //"\x1b[38;5;140m" //"\x1b[38;5;61m"
+                let helpContent = combineLogoAndText logo helpText CliColors.darkGray
                 let newState = { state with commandResult = CommandResult.Info helpContent }
                 (newState, [])
             }
@@ -462,7 +446,6 @@ module Darklang =
               execute = fun state args ->
                 // didn't meet args
                 // TODO this should totally be un-handled by the execute fn; why are we doing this here??
-                Builtin.debug "args" args
                 if Stdlib.String.isEmpty args then
                   let newState =
                     { state with
@@ -612,13 +595,13 @@ module Darklang =
                   | Regular -> "Regular"
 
                 let textContent = [
-                  $"{magenta}Version:{reset} {version}"
-                  $"{magenta}Location:{reset} {currentLocation}"
-                  $"{magenta}Mode:{reset} {modeDisplay}"
+                  $"{CliColors.magenta}Version:{CliColors.reset} {version}"
+                  $"{CliColors.magenta}Location:{CliColors.reset} {currentLocation}"
+                  $"{CliColors.magenta}Mode:{CliColors.reset} {modeDisplay}"
                   ""
-                  $"Type {gray}'help'{reset} for available commands"
+                  $"Type {CliColors.gray}'help'{CliColors.reset} for available commands"
                 ]
-                let statusInfo = combineLogoAndText logo textContent purple
+                let statusInfo = combineLogoAndText logo textContent CliColors.purple
 
                 let newState = { state with commandResult = CommandResult.Info statusInfo }
                 (newState, [])

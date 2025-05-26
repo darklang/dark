@@ -208,9 +208,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       description = "Search for packages based on the given query"
       fn =
         (function
-        | _, _, _, [ record as DRecord(_, _, _, _fields) ] ->
+        | _, _, _, [ query as DRecord(_, _, _, _fields) ] ->
           uply {
-            let searchQuery = PT2DT.Search.SearchQuery.fromDT record
+            let searchQuery = PT2DT.Search.SearchQuery.fromDT query
 
             let! results = pm.search searchQuery
 
