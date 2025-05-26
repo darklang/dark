@@ -208,46 +208,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       description = "Search for packages based on the given query"
       fn =
         (function
-        | _, _, _, [ DRecord(_, _, _, fields) ] ->
+        | _, _, _, [ record as DRecord(_, _, _, _fields) ] ->
           uply {
-            let currentModule =
-              match Map.tryFind "currentModule" fields with
-              | Some(DList(_, modules)) ->
-                modules
-                |> List.map (function
-                  | DString s -> s
-                  | _ ->
-                    Exception.raiseInternal "Expected string in currentModule" [])
-              | _ -> []
-
-            let text =
-              match Map.tryFind "text" fields with
-              | Some(DString s) -> s
-              | _ -> ""
-
-            let searchDepth =
-              match Map.tryFind "searchDepth" fields with
-              | Some(DEnum(_, _, _, "OnlyDirectDescendants", _)) ->
-                PT.Search.SearchDepth.OnlyDirectDescendants
-              | _ -> PT.Search.SearchDepth.OnlyDirectDescendants
-
-            let entityTypes =
-              match Map.tryFind "entityTypes" fields with
-              | Some(DList(_, types)) ->
-                types
-                |> List.map (function
-                  | DEnum(_, _, _, "Type", _) -> PT.Search.EntityType.Type
-                  | DEnum(_, _, _, "Module", _) -> PT.Search.EntityType.Module
-                  | DEnum(_, _, _, "Fn", _) -> PT.Search.EntityType.Fn
-                  | DEnum(_, _, _, "Constant", _) -> PT.Search.EntityType.Constant
-                  | _ -> Exception.raiseInternal "Expected EntityType enum" [])
-              | _ -> []
-
-            let searchQuery =
-              { PT.Search.SearchQuery.text = text
-                PT.Search.SearchQuery.currentModule = currentModule
-                PT.Search.SearchQuery.searchDepth = searchDepth
-                PT.Search.SearchQuery.entityTypes = entityTypes }
+            let searchQuery = PT2DT.Search.SearchQuery.fromDT record
 
             let! results = pm.search searchQuery
 
