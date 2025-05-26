@@ -214,6 +214,7 @@ module Darklang =
 
       /// Helper function to view an entity by its fully qualified name
       let viewEntityByName (state: State) (fullyQualifiedName: String) : (State * List<Msg>) =
+        // TODO: is it worth it to check if the last part of the name is capitalized (if so we look for a type, otherwise a function or constant)?
         // Try to find the entity as a function
         match LanguageTools.PackageManager.Function.find fullyQualifiedName with
         | Some fnId ->
@@ -330,7 +331,6 @@ module Darklang =
 
         // Combine logo and text with spacing
         let spacing = "          " // 10 spaces between logo and text
-
 
         match Stdlib.List.zip finalLogoLines finalTextLines with
         | Some zipped ->
@@ -473,6 +473,7 @@ module Darklang =
                 // arg-parsing that (TODO) shouldn't be here.
                 else if Stdlib.String.startsWith args "module " then
                   // View module command
+                  // drop the word "module "
                   let moduleName = (Stdlib.String.dropFirst args 7L) |> Stdlib.String.trim
 
                   if Stdlib.String.isEmpty moduleName then
@@ -715,7 +716,7 @@ module Darklang =
                       (newState, [])
                 }
             ]
-
+          // CLEANUP: when is this used?
           | Type _
           | Fn _
           | Constant _ ->
