@@ -39,28 +39,29 @@ module Darklang =
          // Helper function to create completion items for search results
         let getCompletionText (name: String) (currentPrefix: String) : String =
           let prefixLength = Stdlib.String.length currentPrefix
-          if prefixLength > 0L then
-            if Stdlib.String.startsWith name currentPrefix then
-              Stdlib.String.slice name prefixLength (Stdlib.String.length name)
-            else
-              name
-          else
+          let nameLength = Stdlib.String.length name
+          if prefixLength == 0L then
             name
+          // if the completion string starts exactly with the prefix typed by the user, we just return the remaining part
+          else if Stdlib.String.startsWith name currentPrefix then
+            Stdlib.String.slice name prefixLength nameLength
+          else
+            match Stdlib.String.indexOf name currentPrefix with
+            | Some index ->
+                let start = index + Stdlib.String.length currentPrefix
+                Stdlib.String.slice name start nameLength
+            | None ->
+                match Stdlib.String.split name "." with
+                | _owner :: rest -> Stdlib.String.join rest "."
+              | [] -> name
 
         let processSearchResults (names: List<String>) (kind: LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind) (description: String) (currentPrefix: String): List<LanguageServerProtocol.Completions.CompletionItem.CompletionItem> =
           names
           |> Stdlib.List.map (fun name ->
-            // drop "Darklang." prefix
-            let darklangPrefix = "Darklang."
-            let processedName =
-              if Stdlib.String.startsWith name darklangPrefix
-              then name |> Stdlib.String.dropFirst (Stdlib.String.length darklangPrefix)
-              else name
-
-            let insertText = getCompletionText processedName currentPrefix
+            let insertText = getCompletionText name currentPrefix
 
             createCompletionItem
-              processedName
+              name
               kind
               description
               insertText)
@@ -177,7 +178,11 @@ module Darklang =
           let completions =
             (createCompletions wordUnderCursor)
             |> Stdlib.List.filter (fun c ->
-              c.label |> Stdlib.String.startsWith wordUnderCursor)
+              // handle both formats (with and without owner, e.g., "Darklang.Stdlib.List" and "Stdlib.List")
+              if Stdlib.String.contains wordUnderCursor "." then
+                Stdlib.String.contains c.label wordUnderCursor
+              else
+                c.label |> Stdlib.String.startsWith wordUnderCursor)
 
 
           let response =
