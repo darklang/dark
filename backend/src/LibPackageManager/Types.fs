@@ -279,3 +279,24 @@ module ProgramTypes =
         description : string
         deprecated : Deprecation<FQConstantName.FQConstantName>
         body : Const }
+
+  module Search =
+    type EntityType =
+      | Type
+      | Module
+      | Fn
+      | Constant
+
+    type SearchDepth = | OnlyDirectDescendants
+
+    type SearchQuery =
+      { currentModule : List<string>
+        text : string
+        searchDepth : SearchDepth
+        entityTypes : List<EntityType> }
+
+    type SearchResults =
+      { submodules : List<List<string>>
+        types : List<PackageType.PackageType>
+        constants : List<PackageConstant.PackageConstant>
+        fns : List<PackageFn.PackageFn> }

@@ -623,6 +623,39 @@ type Packages =
       constants = packages |> List.collect _.constants
       fns = packages |> List.collect _.fns }
 
+module Search =
+  /// The type of entity to search for
+  type EntityType =
+    | Type
+    | Module
+    | Fn
+    | Constant
+
+  /// How deep to search in the module hierarchy
+  type SearchDepth = | OnlyDirectDescendants
+  // TODO: support this. | AllDescendants
+
+  /// Query parameters for searching packages
+  type SearchQuery =
+    {
+      /// i.e. "Darklang.Stdlib"
+      currentModule : List<string>
+
+      /// i.e. "List" or "map"
+      text : string
+
+      searchDepth : SearchDepth
+
+      /// empty list implies 'any'
+      entityTypes : List<EntityType>
+    }
+
+  /// Results from a package search
+  type SearchResults =
+    { submodules : List<List<string>> // [ [ "List"]; ["String"; "List"] ]
+      types : List<PackageType.PackageType>
+      constants : List<PackageConstant.PackageConstant>
+      fns : List<PackageFn.PackageFn> }
 
 /// Functionality written in Dark stored and managed outside of user space
 ///
@@ -638,7 +671,8 @@ type PackageManager =
     getConstant :
       FQConstantName.Package -> Ply<Option<PackageConstant.PackageConstant>>
     getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
-    getAllFnNames : unit -> Ply<List<string>>
+
+    search : Search.SearchQuery -> Ply<Search.SearchResults>
 
     init : Ply<unit> }
 
@@ -650,7 +684,10 @@ type PackageManager =
       getType = (fun _ -> Ply None)
       getFn = (fun _ -> Ply None)
       getConstant = (fun _ -> Ply None)
-      getAllFnNames = (fun _ -> Ply [])
+
+      search =
+        (fun _ ->
+          uply { return { submodules = []; types = []; constants = []; fns = [] } })
 
       init = uply { return () } }
 
@@ -695,7 +732,8 @@ type PackageManager =
           | Some f -> Ply(Some f)
           | None -> pm.getFn id
 
-      getAllFnNames = pm.getAllFnNames
+      search = fun query -> pm.search query
+
       init = pm.init }
 
 

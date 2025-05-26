@@ -219,6 +219,7 @@ module Darklang =
               ES.String ")" ]
 
           | Match err ->
+            // TODO: better if we have No matching case found for {caseName} here
             match err with
             | MatchUnmatched -> [ ES.String "No matching case found"]
 

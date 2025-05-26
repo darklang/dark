@@ -197,18 +197,94 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "packageManagerGetAllFnNames" 0
+    { name = fn "packageManagerSearch" 0
       typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TList(TString)
-      description = "Returns a list of all package functions fully qualified names"
+      parameters =
+        [ Param.make
+            "query"
+            (TCustomType(Ok PT2DT.Search.SearchQuery.typeName, []))
+            "" ]
+      returnType = TCustomType(Ok PT2DT.Search.SearchResults.typeName, [])
+      description = "Search for packages based on the given query"
       fn =
         (function
-        | _, _, _, [ DUnit ] ->
+        | _, _, _, [ DRecord(_, _, _, fields) ] ->
           uply {
-            let! fns = pm.getAllFnNames ()
-            let dval = fns |> List.map (fun f -> DString f) |> Dval.list KTString
-            return dval
+            let currentModule =
+              match Map.tryFind "currentModule" fields with
+              | Some(DList(_, modules)) ->
+                modules
+                |> List.map (function
+                  | DString s -> s
+                  | _ ->
+                    Exception.raiseInternal "Expected string in currentModule" [])
+              | _ -> []
+
+            let text =
+              match Map.tryFind "text" fields with
+              | Some(DString s) -> s
+              | _ -> ""
+
+            let searchDepth =
+              match Map.tryFind "searchDepth" fields with
+              | Some(DEnum(_, _, _, "OnlyDirectDescendants", _)) ->
+                PT.Search.SearchDepth.OnlyDirectDescendants
+              | _ -> PT.Search.SearchDepth.OnlyDirectDescendants
+
+            let entityTypes =
+              match Map.tryFind "entityTypes" fields with
+              | Some(DList(_, types)) ->
+                types
+                |> List.map (function
+                  | DEnum(_, _, _, "Type", _) -> PT.Search.EntityType.Type
+                  | DEnum(_, _, _, "Module", _) -> PT.Search.EntityType.Module
+                  | DEnum(_, _, _, "Fn", _) -> PT.Search.EntityType.Fn
+                  | DEnum(_, _, _, "Constant", _) -> PT.Search.EntityType.Constant
+                  | _ -> Exception.raiseInternal "Expected EntityType enum" [])
+              | _ -> []
+
+            let searchQuery =
+              { PT.Search.SearchQuery.text = text
+                PT.Search.SearchQuery.currentModule = currentModule
+                PT.Search.SearchQuery.searchDepth = searchDepth
+                PT.Search.SearchQuery.entityTypes = entityTypes }
+
+            let! results = pm.search searchQuery
+
+            let submodules =
+              results.submodules
+              |> List.map (fun modules ->
+                modules |> List.map (fun m -> DString m) |> Dval.list KTString)
+              |> Dval.list KTString
+
+            let types =
+              results.types
+              |> List.map PT2DT.PackageType.toDT
+              |> Dval.list (KTCustomType(PT2DT.PackageType.typeName, []))
+
+            let constants =
+              results.constants
+              |> List.map PT2DT.PackageConstant.toDT
+              |> Dval.list (KTCustomType(PT2DT.PackageConstant.typeName, []))
+
+            let fns =
+              results.fns
+              |> List.map PT2DT.PackageFn.toDT
+              |> Dval.list (KTCustomType(PT2DT.PackageFn.typeName, []))
+
+            let resultFields =
+              [ "submodules", submodules
+                "types", types
+                "constants", constants
+                "fns", fns ]
+
+            return
+              DRecord(
+                PT2DT.Search.SearchResults.typeName,
+                PT2DT.Search.SearchResults.typeName,
+                [],
+                Map resultFields
+              )
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
