@@ -208,33 +208,28 @@ let withCache (f : 'key -> Ply<Option<'value>>) =
 /// Search for packages based on the given query
 let search (query : PT.Search.SearchQuery) : Ply<PT.Search.SearchResults> =
   uply {
-    let modulePrefix =
-      match query.currentModule with
-      | [] -> ""
-      | parts -> String.concat "." parts + "."
-
-    let modulesStr = query.currentModule |> String.concat "."
+    let currentModule = String.concat "." query.currentModule
 
     let! submodules =
       """
       SELECT DISTINCT owner, modules
       FROM (
         SELECT owner, modules FROM package_types_v0
-        WHERE (modules LIKE @modulePrefix || '%' AND modules LIKE '%' || @searchText || '%')
-           OR (owner || '.' || modules LIKE @modulePrefix || '%' AND owner || '.' || modules LIKE '%' || @searchText || '%')
+        WHERE (modules LIKE @currentModule || '%' AND modules LIKE '%' || @searchText || '%')
+           OR (owner || '.' || modules LIKE @currentModule || '%' AND owner || '.' || modules LIKE '%' || @searchText || '%')
         UNION ALL
         SELECT owner, modules FROM package_constants_v0
-        WHERE (modules LIKE @modulePrefix || '%' AND modules LIKE '%' || @searchText || '%')
-           OR (owner || '.' || modules LIKE @modulePrefix || '%' AND owner || '.' || modules LIKE '%' || @searchText || '%')
+        WHERE (modules LIKE @currentModule || '%' AND modules LIKE '%' || @searchText || '%')
+           OR (owner || '.' || modules LIKE @currentModule || '%' AND owner || '.' || modules LIKE '%' || @searchText || '%')
         UNION ALL
         SELECT owner, modules FROM package_functions_v0
-        WHERE (modules LIKE @modulePrefix || '%' AND modules LIKE '%' || @searchText || '%')
-           OR (owner || '.' || modules LIKE @modulePrefix || '%' AND owner || '.' || modules LIKE '%' || @searchText || '%')
+        WHERE (modules LIKE @currentModule || '%' AND modules LIKE '%' || @searchText || '%')
+           OR (owner || '.' || modules LIKE @currentModule || '%' AND owner || '.' || modules LIKE '%' || @searchText || '%')
       ) AS filtered_modules
       """
       |> Sql.query
       |> Sql.parameters
-        [ "modulePrefix", Sql.string modulePrefix
+        [ "currentModule", Sql.string currentModule
           "searchText", Sql.string query.text ]
       |> Sql.executeAsync (fun read ->
         let owner = read.string "owner"
@@ -245,20 +240,20 @@ let search (query : PT.Search.SearchQuery) : Ply<PT.Search.SearchResults> =
         else
           owner :: moduleParts)
 
-    let makeEntityQuery table deserialize =
+    let makeEntityQuery table deserializeFn =
       ("SELECT id, owner, modules, name, definition\n"
        + $"FROM {table}\n"
-       + "WHERE ((modules = @modules) OR (owner || '.' || modules = @fullModules))\n"
+       + "WHERE ((modules = @modules) OR (owner || '.' || modules = @fqname))\n"
        + "  AND name LIKE '%' || @searchText || '%'")
       |> Sql.query
       |> Sql.parameters
-        [ "modules", Sql.string modulesStr
-          "fullModules", Sql.string modulesStr
+        [ "modules", Sql.string currentModule
+          "fqname", Sql.string currentModule
           "searchText", Sql.string query.text ]
       |> Sql.executeAsync (fun read ->
         let id = read.uuid "id"
         let definition = read.bytea "definition"
-        deserialize id definition)
+        deserializeFn id definition)
 
     let isEntityRequested entity =
       query.entityTypes.IsEmpty || List.contains entity query.entityTypes
