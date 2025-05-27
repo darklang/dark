@@ -660,7 +660,7 @@ module Darklang =
                           { currentModule = modulePrefix |> Stdlib.String.split "."
                             text = ""
                             searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
-                            entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Type; LanguageTools.ProgramTypes.Search.EntityType.Module; LanguageTools.ProgramTypes.Search.EntityType.Fn; LanguageTools.ProgramTypes.Search.EntityType.Constant ] }
+                            entityTypes = [LanguageTools.ProgramTypes.Search.EntityType.Module; LanguageTools.ProgramTypes.Search.EntityType.Type; LanguageTools.ProgramTypes.Search.EntityType.Fn; LanguageTools.ProgramTypes.Search.EntityType.Constant ] }
 
                       let moduleContent =
                         LanguageTools.PackageManager.Search.search query
@@ -683,12 +683,25 @@ module Darklang =
                           (moduleContent.constants
                            |> Stdlib.List.map (fun c -> LanguageTools.ProgramTypes.PackageConstant.nameToString c.name))
 
+                      let submodulesSection =
+                        formatEntitySection
+                          "submodules"
+                          (moduleContent.submodules
+                           |> Stdlib.List.map (fun m ->
+                              m
+                              |> Stdlib.List.filter (fun s ->
+                                s != (modulePrefix |> Stdlib.String.split "."))
+                              |> Stdlib.List.map (fun s ->
+                                s |> Stdlib.String.join "."))
+                           |> Stdlib.List.flatten)
+
                       // Combine all sections
                       let moduleView =
                         $"Module: {modulePrefix}\n\n" ++
                         functionsSection ++ "\n" ++
                         typesSection ++ "\n" ++
-                        constantsSection
+                        constantsSection ++ "\n" ++
+                        submodulesSection
 
                       let newState = { state with commandResult = CommandResult.Success moduleView }
                       (newState, [])
