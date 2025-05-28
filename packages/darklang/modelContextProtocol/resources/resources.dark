@@ -33,7 +33,7 @@ module Darklang =
           | Object fields ->
             match Stdlib.List.findFirst fields (fun (k, _) -> k == "uri") with
             | Some (_, String uri) ->
-                Stdlib.Result.Result.Ok { uri = uri }
+                Stdlib.Result.Result.Ok (ReadResourceParams { uri = uri })
             | Some (_, _) ->
                 Stdlib.Result.Result.Error "uri must be a string"
             | None ->

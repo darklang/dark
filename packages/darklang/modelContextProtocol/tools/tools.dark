@@ -54,7 +54,7 @@ module Darklang =
             text: String }
 
         type CallToolResponse =
-          { content: List<ContentItem>
+          { content: List<CallToolResponse.ContentItem>
             isError: Stdlib.Option.Option<Bool> }
 
         let toJson (response: CallToolResponse) : Json =
@@ -90,18 +90,18 @@ module Darklang =
           Stdlib.Result.Result.Ok ()
 
         /// Create a text content item
-        let createTextContent (text: String) : ContentItem =
-          ContentItem
+        let createTextContent (text: String) : CallToolResponse.ContentItem =
+          CallToolResponse.ContentItem
             { type_ = "text"; text = text }
 
         /// Create an error response
-        let createErrorResponse (errorMessage: String) : CallToolResponse =
-          CallToolResponse
+        let createErrorResponse (errorMessage: String) : CallToolResponse.CallToolResponse =
+          CallToolResponse.CallToolResponse
             { content = [createTextContent errorMessage]
               isError = Stdlib.Option.Option.Some true }
 
         /// Create a success response
-        let createSuccessResponse (content: List<ContentItem>) : CallToolResponse =
-          CallToolResponse
+        let createSuccessResponse (content: List<CallToolResponse.ContentItem>) : CallToolResponse.CallToolResponse =
+          CallToolResponse.CallToolResponse
             { content = content
               isError = Stdlib.Option.Option.Some false }
