@@ -9,12 +9,12 @@ module Darklang =
       | REPL
       | Invalid of List<String>
 
-    // TODO migrate this to some ParseAndExecuteScript submodule
-    type ExecutionError =
-      { msg: String; metadata: Dict<String> }
-
     module ExecutionError =
-      let toString (err: ExecutionError) : String =
+      // TODO migrate this to some ParseAndExecuteScript submodule
+      type ExecutionError =
+        { msg: String; metadata: Dict<String> }
+
+      let toString (err: ExecutionError.ExecutionError) : String =
         let metadataStr =
           err.metadata
           |> Stdlib.Dict.toList
