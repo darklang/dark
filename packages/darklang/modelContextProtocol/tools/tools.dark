@@ -1,8 +1,15 @@
 // Tool-related functionality for the Model Context Protocol
+// Enables LLMs to perform actions through the server (expose executable functions that can be invoked by the client)
 
 module Darklang =
   module ModelContextProtocol =
     module Tools =
+      // <aliases>
+      type Json = Stdlib.AltJson.Json
+      type ToolDescription = Darklang.ModelContextProtocol.ToolDescription
+      type ToolAnnotations = Darklang.ModelContextProtocol.ToolAnnotations
+      type ToolId = Darklang.ModelContextProtocol.ToolId
+      // </aliases>
       /// Schema for the listTools request
       module ListToolsRequest =
         type ListToolsParams = Unit
@@ -49,50 +56,96 @@ module Darklang =
 
       /// Response for calling a tool
       module CallToolResponse =
+        // Content types that can be returned by tools
         type ContentItem =
-          { type_: String
-            text: String }
+          | TextContent of String
+          // add support for images and embedded resources
+          // | ImageContent
+          // | EmbeddedResource
 
         type CallToolResponse =
-          { content: List<CallToolResponse.ContentItem>
+          { content: List<ContentItem>
             isError: Stdlib.Option.Option<Bool> }
 
-        let toJson (response: CallToolResponse) : Json =
-          let contentJson =
-            response.content
-            |> Stdlib.List.map (fun item ->
-              Json.Object [
-                ("type", Json.String item.type_);
-                ("text", Json.String item.text)
-              ]
-            )
+        let contentItemToJson (item: ContentItem) : Json =
+          match item with
+          | TextContent text ->
+            Json.Object [
+              ("type", Json.String "text");
+              ("text", Json.String text)
+            ]
+          // add support for images and embedded resources
 
-          let fields = [
-            ("content", Json.Array contentJson)
-          ]
+        let toJson (response: CallToolResponse.CallToolResponse) : Json =
+          let contentJson = response.content |> Stdlib.List.map contentItemToJson
 
+          let fields = [("content", Json.Array contentJson)]
+
+          // Only include isError if it's true (indicating an actual error)
           let fieldsWithIsError =
             match response.isError with
-            | Some isError ->
-                fields @ [("isError", Json.Bool isError)]
-            | None ->
-                fields
+            | Some true -> Stdlib.List.append fields [("isError", Json.Bool true)]
+            | _ -> fields
 
           Json.Object fieldsWithIsError
 
+      /// Response for listing tools
+      module ListToolsResponse =
+        type ListToolsResponse =
+          { tools: List<ToolDescription> }
+
+        module ToolAnnotations =
+          let toJson (annotations: ToolAnnotations) : Json =
+            let fields = []
+            let fields =
+              match annotations.title with
+              | Some title -> Stdlib.List.append fields [("title", Json.String title)]
+              | None -> fields
+            let fields =
+              match annotations.readOnlyHint with
+              | Some hint -> Stdlib.List.append fields [("readOnlyHint", Json.Bool hint)]
+              | None -> fields
+            let fields =
+              match annotations.destructiveHint with
+              | Some hint -> Stdlib.List.append fields [("destructiveHint", Json.Bool hint)]
+              | None -> fields
+            let fields =
+              match annotations.idempotentHint with
+              | Some hint -> Stdlib.List.append fields [("idempotentHint", Json.Bool hint)]
+              | None -> fields
+            let fields =
+              match annotations.openWorldHint with
+              | Some hint -> Stdlib.List.append fields [("openWorldHint", Json.Bool hint)]
+              | None -> fields
+            Json.Object fields
+
+        module ToolDescription =
+          let toJson (tool: ToolDescription) : Json =
+            let fields = [
+              ("name", Json.String tool.name);
+              ("inputSchema", tool.inputSchema)
+            ]
+            let fields =
+              match tool.description with
+              | Some desc -> Stdlib.List.append fields [("description", Json.String desc)]
+              | None -> fields
+            let fields =
+              match tool.annotations with
+              | Some annotations -> Stdlib.List.append fields [("annotations", ToolAnnotations.toJson annotations)]
+              | None -> fields
+            Json.Object fields
+
+        let toJson (response: ListToolsResponse) : Json =
+          let toolsJson = response.tools |> Stdlib.List.map ToolDescription.toJson
+          Json.Object [
+            ("tools", Json.Array toolsJson)
+          ]
+
       /// Helper functions for working with tools
       module Helpers =
-        /// Validate tool arguments against a JSON schema
-        let validateArguments (schema: Json) (args: Json) : Stdlib.Result.Result<Unit, String> =
-          // This is a placeholder for JSON schema validation
-          // In a real implementation, this would validate the arguments against the schema
-          // For now, we'll just return Ok
-          Stdlib.Result.Result.Ok ()
-
         /// Create a text content item
         let createTextContent (text: String) : CallToolResponse.ContentItem =
-          CallToolResponse.ContentItem
-            { type_ = "text"; text = text }
+          CallToolResponse.ContentItem.TextContent text
 
         /// Create an error response
         let createErrorResponse (errorMessage: String) : CallToolResponse.CallToolResponse =
@@ -104,4 +157,4 @@ module Darklang =
         let createSuccessResponse (content: List<CallToolResponse.ContentItem>) : CallToolResponse.CallToolResponse =
           CallToolResponse.CallToolResponse
             { content = content
-              isError = Stdlib.Option.Option.Some false }
+              isError = Stdlib.Option.Option.None }

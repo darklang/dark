@@ -249,7 +249,7 @@ module Darklang =
           { content: List<CallToolResponse.ContentItem>
             isError: Stdlib.Option.Option<Bool> }
 
-        let toJson (response: CallToolResponse) : Json =
+        let toJson (response: CallToolResponse.CallToolResponse) : Json =
           let contentJson =
             response.content
             |> Stdlib.List.map (fun item ->
