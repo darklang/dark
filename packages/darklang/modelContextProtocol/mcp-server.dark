@@ -1,0 +1,307 @@
+module Darklang =
+  module LanguageTools =
+    /// This supports a Model Context Protocol Server for Darklang,
+    /// matching the MCP spec.
+    ///
+    /// This MCP server allows AI models to access external data, execute code,
+    /// and interact with various services through Darklang.
+    module McpServer =
+      // <aliases>
+      type Json = Stdlib.AltJson.Json
+      // </aliases>
+
+      /// State for the MCP server
+      type McpState =
+        { initialized: Bool
+          shouldShutdown: Bool
+          traceLevel: ModelContextProtocol.TraceLevel
+          resources: Dict<ModelContextProtocol.ResourceDescription>
+          resourceTemplates: Dict<ModelContextProtocol.ResourceTemplateDescription>
+          tools: Dict<ModelContextProtocol.ToolDescription> }
+
+      /// Log file path for the MCP server
+      let logFilePath = "rundir/logs/mcp-server.log"
+
+      /// Log a message to the log file
+      let log (message: String) : Unit =
+        let timestamp = (Stdlib.DateTime.now_v0 ()) |> Stdlib.DateTime.toString
+        let logMessage = $"[{timestamp}] {message}\n"
+        Builtin.fileAppendText logFilePath logMessage
+        ()
+
+      /// Log an incoming request
+      let logIncomingRequest (message: String) : Unit =
+        log $"Incoming request: {message}"
+
+      /// Log and send a message to the client
+      // let logAndSendToClient (message: String) : Unit =
+      //   log $"Sending to client: {message}"
+      //   let contentLength = Stdlib.String.length message
+      //   Builtin.stdoutWrite $"Content-Length: {contentLength}\r\n\r\n{message}"
+
+      let logAndSendToClient (message: String) : Unit =
+        log $"Sending to client: {message}"
+        // For stdio transport: just send the JSON message followed by newline
+        // No Content-Length headers needed!
+        Builtin.print $"{message}\n"
+
+
+      /// Read a message from the client (simplified for raw JSON)
+      let readMessageFromClient () : String =
+        log "About to call stdinReadLine"
+        let message = Builtin.stdinReadLine ()
+        log $"Got message from stdin, length: {(Stdlib.String.length message) |> Stdlib.Int64.toString}"
+
+        if message == "" then
+          log "Message is empty"
+          ""
+        else
+          log "About to trim message"
+          let trimmedMessage = Stdlib.String.trim message
+          log $"Trimmed message: '{trimmedMessage}'"
+          trimmedMessage
+
+      /// Handle the MCP initialize request and return initial server state
+      /// Takes the already-read initialize message as a parameter
+      let handleInitializeRequest (initializeRequest: String) : McpState =
+        logIncomingRequest initializeRequest
+
+        // Parse the initialize request to extract the ID
+        // let requestId =
+        //   match Stdlib.AltJson.parse initializeRequest with
+        //   | Ok json ->
+        //     match json with
+        //     | Object fields ->
+        //       // Search for the "id" field in the object
+        //       let idField =
+        //         fields
+        //         |> Stdlib.List.findFirst (fun (key, value) -> key == "id")
+
+        //       match idField with
+        //       | Some (Number id) -> Stdlib.AltJson.format id
+        //       | None -> "null"
+        //     | _ -> "null"
+        //   | Error _ -> "null"
+
+
+        // Send our server capabilities response with matching ID
+        let serverCapabilities = """{"jsonrpc":"2.0","id":0,"result":{"protocolVersion":"2024-11-05","capabilities":{"resources":{"subscribe":false,"listChanged":false},"tools":{"listChanged":false},"prompts":{"listChanged":false}},"serverInfo":{"name":"Darklang MCP Server","version":"1.0.0"}}}"""
+
+        logAndSendToClient serverCapabilities
+
+        // Wait for the initialized notification
+        let initializedNotification = readMessageFromClient ()
+        logIncomingRequest initializedNotification
+
+        // Return initial server state
+        McpState
+          { initialized = true
+            shouldShutdown = false
+            traceLevel = ModelContextProtocol.TraceLevel.Off
+            resources = Stdlib.Dict.empty
+            resourceTemplates = Stdlib.Dict.empty
+            tools = Stdlib.Dict.empty }
+
+      /// Handle incoming MCP messages and return updated state
+      let handleIncomingMessage
+        (state: McpState)
+        (request: JsonRPC.Request.Request)
+        : McpState =
+        log request.method
+        match request.method with
+        | "initialize" ->
+          log "Handling initialize request"
+          state
+        | "notifications/initialized" ->
+          log "Received initialized notification"
+          McpState { state with initialized = true }
+        | "notifications/cancelled" ->
+          log "Received cancellation notification - setting shutdown flag"
+          McpState { state with shouldShutdown = true }
+        | method ->
+          log $"Ignoring notification for unknown method: {method}"
+          state
+
+
+      /// Main server loop to handle ongoing messages
+      let runServerCliLoop (state: McpState) : Int64 =
+        log "---"
+
+        let incomingMessageRaw = readMessageFromClient ()
+        logIncomingRequest incomingMessageRaw
+
+        // Handle empty messages (client disconnected)
+        if incomingMessageRaw == "" then
+          log "Received empty message, client disconnected"
+          0L
+        else
+          let updatedState =
+            // parse a json-rpc message from stdin, and call `handleIncomingMessage` on it when relevant
+            match JsonRPC.IncomingMessage.parse incomingMessageRaw with
+            // The json-rpc spec says to just ignore any incoming messages of `[]`
+            | EmptyBatch ->
+              log "Received empty batch, continuing"
+              state
+
+            // # Things we want/expect
+            | SingleRequest(Ok jsonRpcRequest) ->
+              log $"Parsed incoming message as single JSON-RPC request"
+              handleIncomingMessage state jsonRpcRequest
+
+            | BatchOfRequests items ->
+              // TODO: need to reply in a batch as well
+              log "TODO - Got batch request; not yet set to handle these"
+              state
+
+            // # Errors
+
+            // was an object {} but not a valid json-rpc 2.0 _request_
+            // (note: could have been a valid _response_ though - we don't yet have good support for that)
+            | SingleRequest(Error singleRequestParseError) ->
+              match singleRequestParseError with
+              | NotObject json ->
+                let error = Stdlib.AltJson.format json
+
+                log
+                  $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}\nError: it must be an object, but was: {error}"
+
+                logAndSendToClient
+                """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
+
+                state
+
+              | MissingJsonRpcField ->
+                log
+                  $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}\nError: it must have a 'jsonrpc' field"
+
+                logAndSendToClient
+                """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
+
+                state
+
+              | InvalidIdField json ->
+                let error = Stdlib.AltJson.format json
+
+                log
+                  $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}\nError: 'id' field must be Null, a Number or a String, but was: {error}"
+
+                logAndSendToClient
+                  """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
+
+                state
+
+              | MissingMethodField id ->
+                log
+                  $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}\nError: 'method' field must be provided"
+
+                logAndSendToClient
+                  """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
+
+                state
+
+              | InvalidMethodField(id, actual) ->
+                let error = Stdlib.AltJson.format actual
+
+                log
+                  $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}\nError: 'method' field must be a string, but was: {error}"
+
+                logAndSendToClient
+                  """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
+
+                state
+
+              | InvalidParamsField(id, actual) ->
+                let error = Stdlib.AltJson.format actual
+
+                log
+                  $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}\nError: 'params' field must be an Array or an Object, but was: {error}"
+
+                logAndSendToClient
+                  """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
+
+                state
+
+              | _ ->
+                log
+                  $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}"
+
+                logAndSendToClient
+                  """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
+
+                state
+
+            | NotJson err ->
+              log
+                $"Error parsing incoming message as json:\n{incomingMessageRaw}\nError: {err}"
+
+              logAndSendToClient
+                """{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null}"""
+
+              state
+
+            | NotObjectOrArray ->
+              log $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}"
+
+              logAndSendToClient
+                """{"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request"}, "id": null}"""
+
+              state
+
+          // shut down if instructed, or listen for the next message
+          if updatedState.shouldShutdown then
+            0L
+          else
+            runServerCliLoop updatedState
+
+      /// This is the main entrypoint for the Darklang MCP server.
+      ///
+      /// It reads incoming messages from stdin, and writes responses to stdout,
+      /// following the MCP spec. It also logs all incoming and outgoing messages
+      /// to `rundir/logs/mcp-server.log`, for local debugging.
+      let runServerCli (u: Unit) : Int64 =
+        // clear `mcp-server.log`, and write a timestamp of the start-up
+        let _deleted = Builtin.fileDelete logFilePath
+
+        (Stdlib.DateTime.now_v0 ())
+        |> Stdlib.DateTime.toString
+        |> fun nowStr -> log $"Running Darklang MCP Server {nowStr}"
+
+        // The first thing we get is the `initialize` request,
+        // where the client tells us what capabilities it has,
+        // and we tell the client what capabilities we have,
+        // so the client knows which requests it can make.
+        let incomingMessageRaw = readMessageFromClient ()
+
+        // Pass the already-read message to handleInitializeRequest
+        let initialState = handleInitializeRequest incomingMessageRaw
+
+        // now that _that_ is out of the way, we can start responding to normal requests
+        runServerCliLoop initialState
+
+      // Commented out - these are for proper MCP header parsing when needed
+      // let tryReadHeader
+      //   (contentLength: Stdlib.Option.Option<Int64>)
+      //   : Stdlib.Result.Result<Int64, String> =
+      //   let line = Builtin.stdinReadLine ()
+      //   log $"Read header line: {line}"
+
+      //   if line == "" then
+      //     contentLength |> Stdlib.Option.toResult "No Content-Length header found"
+      //   else if Stdlib.String.startsWith line "Content-Length: " then
+      //     let lengthStr = Stdlib.String.dropFirst line 16L
+
+      //     match Stdlib.Int64.parse lengthStr with
+      //     | Ok length -> tryReadHeader (Stdlib.Option.Option.Some length)
+      //     | Error _ -> Stdlib.Result.Result.Error "Invalid Content-Length value"
+      //   else
+      //     tryReadHeader contentLength
+
+      // Alternative message reader for proper MCP protocol (when client sends headers)
+      // let readMessageFromClientWithHeaders () : String =
+      //   let contentLength = tryReadHeader Stdlib.Option.Option.None
+
+      //   match contentLength with
+      //   | Ok contentLength -> Builtin.stdinReadExactly contentLength
+      //   | Error err ->
+      //     log $"Error reading message from client: {err}"
+      //     ""
