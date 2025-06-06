@@ -18,11 +18,11 @@ module Darklang =
         | Object fields ->
           match Stdlib.List.findFirst fields (fun (k, _) -> k == "value") with
           | Some (_, String "off") ->
-              Stdlib.Result.Result.Ok { value = TraceLevel.Off }
+              Stdlib.Result.Result.Ok (TraceNotificationParams { value = TraceLevel.Off })
           | Some (_, String "messages") ->
-              Stdlib.Result.Result.Ok { value = TraceLevel.Messages }
+              Stdlib.Result.Result.Ok (TraceNotificationParams { value = TraceLevel.Messages })
           | Some (_, String "verbose") ->
-              Stdlib.Result.Result.Ok { value = TraceLevel.Verbose }
+              Stdlib.Result.Result.Ok (TraceNotificationParams { value = TraceLevel.Verbose })
           | Some (_, _) ->
               Stdlib.Result.Result.Error "value must be one of: 'off', 'messages', 'verbose'"
           | None ->

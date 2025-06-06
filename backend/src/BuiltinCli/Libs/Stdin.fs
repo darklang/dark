@@ -224,7 +224,7 @@ let fns : List<BuiltInFn> =
         (function
         | _, _, _, [ DUnit ] ->
           let input = System.Console.ReadLine()
-          Ply(DString input)
+          if input = null then Ply(DString "") else Ply(DString input)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
