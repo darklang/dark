@@ -2,14 +2,6 @@ module Darklang =
   module ModelContextProtocol =
     module Prompts =
       module ListPromptsRequest =
-        // {
-        //   "jsonrpc": "2.0",
-        //   "id": 1,
-        //   "method": "prompts/list",
-        //   "params": {
-        //     "cursor": "optional-cursor-value"
-        //   }
-        // }
         type ListPromptsParams = {
           cursor: Stdlib.Option.Option<String>
         }
@@ -29,27 +21,6 @@ module Darklang =
             Stdlib.Result.Result.Error "params must be an object"
 
       module ListPromptsResponse =
-        // {
-        //   "jsonrpc": "2.0",
-        //   "id": 1,
-        //   "result": {
-        //     "prompts": [
-        //       {
-        //         "name": "code_review",
-        //         "description": "Asks the LLM to analyze code quality and suggest improvements",
-        //         "arguments": [
-        //           {
-        //             "name": "code",
-        //             "description": "The code to review",
-        //             "required": true
-        //           }
-        //         ]
-        //       }
-        //     ],
-        //     "nextCursor": "next-page-cursor"
-        //   }
-        // }
-
         type PromptArgument = {
           name: String
           description: Stdlib.Option.Option<String>
@@ -94,17 +65,6 @@ module Darklang =
 
 
       module GetPromptRequest =
-        //   {
-        //     "jsonrpc": "2.0",
-        //     "id": 2,
-        //     "method": "prompts/get",
-        //     "params": {
-        //       "name": "code_review",
-        //       "arguments": {
-        //         "code": "def hello():\n    print('world')"
-        //       }
-        //     }
-        //   }
         type GetPromptParams = {
           name: String
           arguments: Json
@@ -134,22 +94,6 @@ module Darklang =
 
 
       module GetPromptResponse =
-        // {
-        //   "jsonrpc": "2.0",
-        //   "id": 2,
-        //   "result": {
-        //     "description": "Code review prompt",
-        //     "messages": [
-        //       {
-        //         "role": "user",
-        //         "content": {
-        //           "type": "text",
-        //           "text": "Please review this Python code:\ndef hello():\n    print('world')"
-        //         }
-        //       }
-        //     ]
-        //   }
-        // }
         type MessageRole =
           | User
           | Assistant

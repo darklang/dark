@@ -5,46 +5,155 @@ module Darklang =
     module Resources =
       /// Schema for the listResources request
       module ListResourcesRequest =
-        type ListResourcesParams = Unit
+        type ListResourcesParams =
+          { cursor: Stdlib.Option.Option<String> }
 
         let fromJson (json: Json) : Stdlib.Result.Result<ListResourcesParams, String> =
-          Stdlib.Result.Result.Ok ()
+          match json with
+          | Object fields ->
+            let cursorResult =
+              match Stdlib.List.findFirst fields (fun (k, _) -> k == "cursor") with
+              | Some ((_, String cursor)) -> Stdlib.Result.Result.Ok (Stdlib.Option.Option.Some cursor)
+              | Some ((_, Null)) -> Stdlib.Result.Result.Ok Stdlib.Option.Option.None
+              | Some ((_, _)) -> Stdlib.Result.Result.Error "cursor must be a string or null"
+              | None -> Stdlib.Result.Result.Ok Stdlib.Option.Option.None
 
-        let toJson (_idk: ListResourcesParams) : Json =
-          Json.Object []
+            match cursorResult with
+            | Ok cursor ->
+                Stdlib.Result.Result.Ok (ListResourcesParams { cursor = cursor })
+            | Error err ->
+                Stdlib.Result.Result.Error err
+          | _ ->
+            Stdlib.Result.Result.Error "params must be an object"
 
-      /// Schema for the listResourceTemplates request
-      module ListResourceTemplatesRequest =
-        type ListResourceTemplatesParams = Unit
+      module ListResourcesResponse =
+        type ResourceDescription =
+          { uri: ResourceUri
+            name: String
+            description: Stdlib.Option.Option<String>
+            mimeType: Stdlib.Option.Option<String> }
 
-        let fromJson (json: Json) : Stdlib.Result.Result<ListResourceTemplatesParams, String> =
-          Stdlib.Result.Result.Ok ()
+        type ListResourcesResponse =
+          { resources: List<ResourceDescription>
+            nextCursor: Stdlib.Option.Option<String> }
 
-        let toJson (_idk: ListResourceTemplatesParams) : Json =
-          Json.Object []
+        let toJson (response: ListResourcesResponse) : Json =
+          let resourcesJson =
+            response.resources
+            |> Stdlib.List.map (fun resource ->
+              let fields = [
+                ("uri", Json.String resource.uri)
+                ("name", Json.String resource.name)
+              ]
+
+              let fieldsWithDescription =
+                match resource.description with
+                | Some desc ->
+                  Stdlib.List.append fields [("description", Json.String desc)]
+                | None -> fields
+
+              let fieldsWithMimeType =
+                match resource.mimeType with
+                | Some mime ->
+                  Stdlib.List.append fieldsWithDescription [("mimeType", Json.String mime)]
+                | None -> fieldsWithDescription
+
+              Json.Object fieldsWithMimeType
+            )
+
+          let nextCursorJson =
+            match response.nextCursor with
+            | Some cursor -> Json.String cursor
+            | None -> Json.Null
+
+          Json.Object [
+            ("resources", Json.Array resourcesJson);
+            ("nextCursor", nextCursorJson)
+          ]
+
 
       /// Schema for the readResource request
       module ReadResourceRequest =
-        type ReadResourceParams =
+        type ReadResourceResponse =
           { uri: ResourceUri }
 
-        let fromJson (json: Json) : Stdlib.Result.Result<ReadResourceParams, String> =
+        let toJson (response: ReadResourceResponse) : Json =
+          Json.Object [
+            ("uri", Json.String response.uri);
+          ]
+
+      module ReadResourceResponse =
+        type ResourceContent =
+          { uri: ResourceUri
+            mimeType: MimeType
+            text: String }
+
+        let toJson (content: ResourceContent) : Json =
+          Json.Object [
+            ("uri", Json.String content.uri);
+            ("mimeType", Json.String content.mimeType);
+            ("text", Json.String content.text)
+          ]
+
+
+      /// Schema for the listResourceTemplates request
+      module ListResourceTemplatesRequest =
+        type ListResourceTemplatesParams =
+          { method: String }
+
+        let fromJson (json: Json) : Stdlib.Result.Result<ListResourceTemplatesParams, String> =
           match json with
           | Object fields ->
-            match Stdlib.List.findFirst fields (fun (k, _) -> k == "uri") with
-            | Some (_, String uri) ->
-                Stdlib.Result.Result.Ok (ReadResourceParams { uri = uri })
+            match Stdlib.List.findFirst fields (fun (k, _) -> k == "method") with
+            | Some (_, String method) ->
+                Stdlib.Result.Result.Ok (ListResourceTemplatesParams { method = method })
             | Some (_, _) ->
-                Stdlib.Result.Result.Error "uri must be a string"
+                Stdlib.Result.Result.Error "method must be a string"
             | None ->
-                Stdlib.Result.Result.Error "uri is required"
+                Stdlib.Result.Result.Error "method is required"
           | _ ->
               Stdlib.Result.Result.Error "params must be an object"
 
-        let toJson (params: ReadResourceParams) : Json =
+
+      module ListResourceTemplatesResponse =
+        type ResourceUriTemplate = String
+        type ResourceTemplateDescription =
+          { uriTemplate: ResourceUriTemplate
+            name: String
+            description: Stdlib.Option.Option<String>
+            mimeType: Stdlib.Option.Option<String> }
+
+        type ListResourceTemplatesResponse =
+          { resourceTemplates: List<ResourceTemplateDescription> }
+
+        let toJson (response: ListResourceTemplatesResponse) : Json =
+          let templatesJson =
+            response.resourceTemplates
+            |> Stdlib.List.map (fun template ->
+              let fields = [
+                ("uriTemplate", Json.String template.uriTemplate);
+                ("name", Json.String template.name)
+              ]
+
+              let fieldsWithDescription =
+                match template.description with
+                | Some desc ->
+                  Stdlib.List.append fields [("description", Json.String desc)]
+                | None -> fields
+
+              let fieldsWithMimeType =
+                match template.mimeType with
+                | Some mime ->
+                  Stdlib.List.append fieldsWithDescription [("mimeType", Json.String mime)]
+                | None -> fieldsWithDescription
+
+              Json.Object fieldsWithMimeType
+            )
+
           Json.Object [
-            ("uri", Json.String params.uri)
+            ("resourceTemplates", Json.Array templatesJson)
           ]
+
 
       /// Helper functions for working with resources
       module Helpers =

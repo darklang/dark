@@ -66,6 +66,7 @@ module Darklang =
       { name: ToolId
         description: Stdlib.Option.Option<String>
         inputSchema: Json // JSON Schema for the tool's input parameters
+        outputSchema: Stdlib.Option.Option<Json> // JSON Schema for the tool's output
         annotations: Stdlib.Option.Option<ToolAnnotations> } // Optional hints about tool behavior
 
     /// An argument for a prompt
