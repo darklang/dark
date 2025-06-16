@@ -71,7 +71,7 @@ module Darklang =
           | Object fields ->
             match Stdlib.List.findFirst fields (fun (k, _) -> k == "uri") with
             | Some (_, String uri) ->
-                Stdlib.Result.Result.Ok { uri = uri }
+                Stdlib.Result.Result.Ok (ReadResourceParams { uri = uri })
             | Some (_, _) ->
                 Stdlib.Result.Result.Error "uri must be a string"
             | None ->
@@ -198,7 +198,7 @@ module Darklang =
 
             match (nameResult, argsResult) with
             | (Ok name, Ok args) ->
-                Stdlib.Result.Result.Ok { name = name; arguments = args }
+                Stdlib.Result.Result.Ok (CallToolParams { name = name; arguments = args })
             | (Error e, _) -> Stdlib.Result.Result.Error e
             | (_, Error e) -> Stdlib.Result.Result.Error e
           | _ ->
@@ -246,10 +246,10 @@ module Darklang =
             text: String }
 
         type CallToolResponse =
-          { content: List<ContentItem>
+          { content: List<CallToolResponse.ContentItem>
             isError: Stdlib.Option.Option<Bool> }
 
-        let toJson (response: CallToolResponse) : Json =
+        let toJson (response: CallToolResponse.CallToolResponse) : Json =
           let contentJson =
             response.content
             |> Stdlib.List.map (fun item ->

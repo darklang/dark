@@ -1,0 +1,139 @@
+// Common types and functions for the Model Context Protocol
+
+module Darklang =
+  module ModelContextProtocol =
+    // <aliases>
+    type Json = Stdlib.AltJson.Json
+    // </aliases>
+
+    /// The version of the Model Context Protocol implemented
+    let protocolVersion = "1.0.0"
+
+    /// A URI identifying a resource
+    type ResourceUri = String
+
+    /// A template for resource URIs
+    type ResourceUriTemplate = String
+
+    /// A unique identifier for a server
+    type ServerId = String
+
+    /// A unique identifier for a tool
+    type ToolId = String
+
+    /// A unique identifier for a resource
+    type ResourceId = String
+
+    /// A unique identifier for a request
+    type RequestId = String
+
+    /// A unique identifier for a prompt
+    type PromptId = String
+
+    /// The MIME type of a resource
+    type MimeType = String
+
+    /// The content of a resource
+    type ResourceContent =
+      { uri: ResourceUri
+        mimeType: MimeType
+        text: String }
+
+    /// A description of a resource
+    type ResourceDescription =
+      { uri: ResourceUri
+        name: String
+        description: Stdlib.Option.Option<String>
+        mimeType: Stdlib.Option.Option<MimeType> }
+
+    /// A description of a resource template
+    type ResourceTemplateDescription =
+      { uriTemplate: ResourceUriTemplate
+        name: String
+        description: Stdlib.Option.Option<String>
+        mimeType: Stdlib.Option.Option<MimeType> }
+
+    /// Tool annotations providing metadata about tool behavior
+    type ToolAnnotations =
+      { title: Stdlib.Option.Option<String> // Human-readable title for the tool
+        readOnlyHint: Stdlib.Option.Option<Bool> // If true, the tool does not modify its environment
+        destructiveHint: Stdlib.Option.Option<Bool> // If true, the tool may perform destructive updates
+        idempotentHint: Stdlib.Option.Option<Bool> // If true, repeated calls with same args have no additional effect
+        openWorldHint: Stdlib.Option.Option<Bool> } // If true, tool interacts with external entities
+
+    /// A description of a tool
+    type ToolDescription =
+      { name: ToolId
+        description: Stdlib.Option.Option<String>
+        inputSchema: Json // JSON Schema for the tool's input parameters
+        outputSchema: Stdlib.Option.Option<Json> // JSON Schema for the tool's output
+        annotations: Stdlib.Option.Option<ToolAnnotations> } // Optional hints about tool behavior
+
+    /// An argument for a prompt
+    type PromptArgument =
+      { name: String
+        description: Stdlib.Option.Option<String>
+        required: Stdlib.Option.Option<Bool> }
+
+    /// A description of a prompt
+    type PromptDescription =
+      { name: PromptId
+        description: Stdlib.Option.Option<String>
+        arguments: Stdlib.Option.Option<List<PromptArgument>> }
+
+    /// The role of a message in a prompt
+    type MessageRole =
+      | User
+      | Assistant
+
+    /// Content types for prompt messages
+    type PromptContent =
+      | Text of String
+      | Resource of ResourceContent
+
+    /// A message in a prompt
+    type PromptMessage =
+      { role: MessageRole
+        content: PromptContent }
+
+    /// The result of getting a prompt
+    type GetPromptResult =
+      { description: Stdlib.Option.Option<String>
+        messages: List<PromptMessage> }
+
+    /// Prompt capabilities
+    type PromptCapabilities =
+      { supportsPromptListing: Bool
+        listChanged: Stdlib.Option.Option<Bool> }
+
+    /// Server information
+    type ServerInfo =
+      { name: String
+        version: String }
+
+    /// Server capabilities
+    type ServerCapabilities =
+      { resources: Stdlib.Option.Option<ResourceCapabilities>
+        tools: Stdlib.Option.Option<ToolCapabilities>
+        prompts: Stdlib.Option.Option<PromptCapabilities> }
+
+    /// Resource capabilities
+    type ResourceCapabilities =
+      { supportsResourceListing: Bool
+        supportsResourceTemplates: Bool }
+
+    /// Tool capabilities
+    type ToolCapabilities =
+      { listChanged: Stdlib.Option.Option<Bool> }
+
+    /// Error codes for the Model Context Protocol
+    module ErrorCodes =
+      let parseError = -32700L
+      let invalidRequest = -32600L
+      let methodNotFound = -32601L
+      let invalidParams = -32602L
+      let internalError = -32603L
+      let resourceNotFound = -32800L
+      let resourceAccessDenied = -32801L
+      let toolExecutionError = -32900L
+      let promptNotFound = -32950L
