@@ -9,7 +9,7 @@ This repo is intended to help Darklang users solve their needs by fixing bugs,
 expanding features, or otherwise contributing. Darklang is [open source](https://blog.darklang.com/TODO)
 under the Apache License 2.0. See our [LICENSE.md](https://github.com/darklang/dark/blob/main/LICENSE.md).
 
-Note that the production version of Darklang, ["Darklang (Classic)"](https://github.com/darklang/classic-dark),
+Note that the production version of Darklang, ["Darklang-Classic"](https://github.com/darklang/classic-dark),
 is not in this repo. Since Feb 2023, the Darklang team has been working on a new version of Darklang,
 which is in this repo -- temporarily, we're referring to this as "dark-next".
 Dark-next isn't yet ready for production use.
