@@ -355,7 +355,7 @@ let fns : List<BuiltInFn> =
                       [ "fn", fn ]
 
                 match fn with
-                | None -> return DString "fn not found"
+                | None -> return resultError (DString "Function not found")
                 | Some f ->
                   let newArgs =
                     args
