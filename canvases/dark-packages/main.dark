@@ -91,7 +91,6 @@ let _handler _req =
 
 [<HttpHandler("GET", "/search")>]
 let _handler _req =
-  // let currentModule = request.queryParams.modules
   let currentModule =
     (Stdlib.Http.Request.queryParams request)
     |> Stdlib.List.filterMap (fun pair ->

@@ -454,19 +454,14 @@ module Darklang =
                   (newState, [])
 
                 // arg-parsing that (TODO) shouldn't be here.
-                else if Stdlib.String.startsWith args "module " then
-                  // View module command
-                  // drop the word "module "
-                  let moduleName = (Stdlib.String.dropFirst args 7L) |> Stdlib.String.trim
+                else
+                  let entityName = args
 
-                  if Stdlib.String.isEmpty moduleName then
-                    // No module name provided
-                    let newState = { state with commandResult = CommandResult.Error "Module name is required" }
-                    (newState, [])
-                  else
+                  match state.currentPage with
+                  | Root ->
                     let query =
                       LanguageTools.ProgramTypes.Search.SearchQuery
-                        { currentModule = moduleName |> Stdlib.String.split "."
+                        { currentModule = args |> Stdlib.String.split "."
                           text = ""
                           searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
                           entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Type; LanguageTools.ProgramTypes.Search.EntityType.Module; LanguageTools.ProgramTypes.Search.EntityType.Fn; LanguageTools.ProgramTypes.Search.EntityType.Constant ] }
@@ -489,26 +484,87 @@ module Darklang =
                       |> Stdlib.List.map (fun c -> LanguageTools.ProgramTypes.PackageConstant.nameToString c.name)
                       |> Stdlib.List.sort
 
-                    // Format the output sections
-                    let functionsSection = formatEntitySection "functions" allFnNames
-                    let typesSection = formatEntitySection "types" allTypeNames
-                    let constantsSection = formatEntitySection "constants" allConstantNames
+                    if Stdlib.List.isEmpty allFnNames &&
+                       Stdlib.List.isEmpty allTypeNames &&
+                       Stdlib.List.isEmpty allConstantNames then
 
-                    // Combine all sections
-                    let moduleView =
-                      $"Module: {moduleName}\n\n" ++
-                      functionsSection ++ "\n" ++
-                      typesSection ++ "\n" ++
-                      constantsSection
+                      let modules = entityName |> Stdlib.String.split "." |> Stdlib.List.dropLast
+                      let text = entityName |> Stdlib.String.split "." |> Stdlib.List.last |> Builtin.unwrap
 
-                    let newState = { state with commandResult = CommandResult.Success moduleView }
-                    (newState, [])
-                else
-                  // View entity command
-                  let entityName = args
+                      let query =
+                        LanguageTools.ProgramTypes.Search.SearchQuery
+                          { currentModule = modules
+                            text = text
+                            searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+                            entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Type; LanguageTools.ProgramTypes.Search.EntityType.Module; LanguageTools.ProgramTypes.Search.EntityType.Fn; LanguageTools.ProgramTypes.Search.EntityType.Constant ] }
 
-                  // Check if we're in a module context
-                  match state.currentPage with
+                      let moduleContent =
+                        LanguageTools.PackageManager.Search.search query
+
+                      match moduleContent.fns, moduleContent.types, moduleContent.constants with
+                      | [], [], [] ->
+                        let newState = { state with commandResult = CommandResult.Error $"No entities found for: {entityName}" }
+                        (newState, [])
+
+                      | fns , [], [] ->
+                        let fn =
+                          fns
+                          |> Stdlib.List.filter (fun fn -> fn.name.name == text)
+                          |> Stdlib.List.head
+                          |> Builtin.unwrap
+
+                        let prettyPrinted =
+                          PrettyPrinter.ProgramTypes.packageFn fn
+
+                        let newState = { state with commandResult = CommandResult.Success $"Function: {entityName}\n\n{prettyPrinted}" }
+                        (newState, [])
+
+                      | [], types, [] ->
+                        let typ =
+                          types
+                          |> Stdlib.List.filter (fun typ -> typ.name.name == text)
+                          |> Stdlib.List.head
+                          |> Builtin.unwrap
+
+                        let prettyPrinted =
+                          PrettyPrinter.ProgramTypes.packageType typ
+
+                        let newState = { state with commandResult = CommandResult.Success $"Type: {entityName}\n\n{prettyPrinted}" }
+                        (newState, [])
+
+                      | [], [], constants ->
+                        let constant =
+                          constants
+                          |> Stdlib.List.filter (fun c -> c.name.name == text)
+                          |> Stdlib.List.head
+                          |> Builtin.unwrap
+
+                        let prettyPrinted =
+                          PrettyPrinter.ProgramTypes.packageConstant constant
+
+                        let newState = { state with commandResult = CommandResult.Success $"Constant: {entityName}\n\n{prettyPrinted}" }
+                        (newState, [])
+
+                      | _ ->
+                        let newState = { state with commandResult = CommandResult.Error "Please navigate to a module first to view entities" }
+                        (newState, [])
+
+                    else
+                      // Format the output sections
+                      let functionsSection = formatEntitySection "functions" allFnNames
+                      let typesSection = formatEntitySection "types" allTypeNames
+                      let constantsSection = formatEntitySection "constants" allConstantNames
+
+                      // Combine all sections
+                      let moduleView =
+                        $"Module: {entityName}\n\n" ++
+                        functionsSection ++ "\n" ++
+                        typesSection ++ "\n" ++
+                        constantsSection
+
+                      let newState = { state with commandResult = CommandResult.Success moduleView }
+                      (newState, [])
+
                   | Module(owner, submodules) ->
                     // Construct the fully qualified entity name
                     let modulePrefix = constructModulePrefix owner submodules
@@ -559,6 +615,7 @@ module Darklang =
                           // Entity not found
                           let newState = { state with commandResult = CommandResult.Error $"Entity not found: {fullyQualifiedName}" }
                           (newState, [])
+
                   | _ ->
                     // Not in a module context
                     let newState = { state with commandResult = CommandResult.Error "Please navigate to a module first to view entities" }
