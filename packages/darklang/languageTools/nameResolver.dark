@@ -103,9 +103,6 @@ module Darklang =
           (name: WrittenTypes.Name)
           : ProgramTypes.NameResolution<ProgramTypes.FQTypeName.FQTypeName> =
           match name with
-          // TODO remodel things appropriately so this is not needed
-          | KnownBuiltin(_name, _version) -> "Builtin types don't exist" // TODO: error
-
           | Unresolved(_range, given) ->
             let modules = Stdlib.List.dropLast given
             let name = Stdlib.List.last given
@@ -182,9 +179,6 @@ module Darklang =
           (name: WrittenTypes.Name)
           : ProgramTypes.NameResolution<ProgramTypes.FQConstantName.FQConstantName> =
           match name with
-          // TODO remodel things appropriately so this is not needed
-          | KnownBuiltin(_name, _version) -> "Builtin types don't exist" // TODO: error
-
           | Unresolved(_range, given) ->
             let modules = Stdlib.List.dropLast given
             let name = Stdlib.List.last given
@@ -257,9 +251,6 @@ module Darklang =
           (name: WrittenTypes.Name)
           : ProgramTypes.NameResolution<ProgramTypes.FQFnName.FQFnName> =
           match name with
-          // TODO remodel things appropriately so this is not needed
-          | KnownBuiltin(_name, _version) -> "Builtin types don't exist" // TODO: error
-
           | Unresolved(_range, given) ->
             let modules = Stdlib.List.dropLast given
             let name = Stdlib.List.last given
