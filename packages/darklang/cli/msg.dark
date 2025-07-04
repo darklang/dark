@@ -16,7 +16,7 @@ module Darklang =
       // -- Command results
       | SetCommandResult of result: CommandResult
 
-            // -- Nav.
+      // -- Nav.
       //| GoToApp of appId: Uuid
 
       // -- Account, Auth.

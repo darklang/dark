@@ -16,8 +16,8 @@ do
 done
 
 # Not used but they need to be running
-./scripts/run-pubsub-emulator
-./scripts/run-cloud-storage-emulator
+# ./scripts/run-pubsub-emulator
+# ./scripts/run-cloud-storage-emulator
 
 if [[ "$PUBLISHED" == "true" ]]; then
   EXE="backend/Build/out/LocalExec/Release/net8.0/linux-x64/LocalExec"

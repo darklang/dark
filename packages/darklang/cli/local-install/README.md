@@ -18,3 +18,20 @@ you might have to add `127.0.0.1 dark-packages.dlio.localhost` to:
 
 - `etc/hosts` if you are on Mac
 - `C://Windows/System32/drivers/etc/hosts` on Windows
+
+
+
+- [ ] TODO: Bring back self-updating
+  ```fsharp
+  if Stdlib.List.member_v0 args "--skip-self-update" then
+    let newArgs =
+      args |> Stdlib.List.filter (fun arg -> arg != "--skip-self-update")
+
+    processNormally newArgs
+  else
+    match LocalInstall.selfUpdateIfRelevant () with
+    | Ok _ -> processNormally args
+    | Error e ->
+      Builtin.printLine $"Failed to run self-update: {e}\nProceeding anyway."
+      processNormally args
+  ```

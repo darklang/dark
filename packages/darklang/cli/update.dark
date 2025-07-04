@@ -5,8 +5,11 @@ module Darklang =
       | Quit ->
         // Set the isExiting flag to true
         // This will be checked in the REPL loop
+        // In NonInteractive mode, don't show "Exiting..." message
         let newState = { state with isExiting = true; needsFullRedraw = true }
-        (newState, [Msg.SetCommandResult(CommandResult.Success "Exiting...")])
+        match state.interactionMode with
+        | NonInteractive -> (newState, [])
+        | _ -> (newState, [Msg.SetCommandResult(CommandResult.Success "Exiting...")])
 
 
       | KeyPressed(key, modifiers, keyChar) ->
@@ -20,6 +23,7 @@ module Darklang =
           // Enter key pressed, submit the current prompt as a command
           let command = state.mainPrompt
           let newState = { state with mainPrompt = "" }
+          Builtin.printLine ""
           (newState, [Msg.SubmitCommand command])
 
         | Backspace ->
@@ -36,7 +40,6 @@ module Darklang =
 
       | SubmitCommand commandStr ->
         // Process the submitted command
-        Builtin.printLine $"SubmitCommand: {commandStr}"
 
         if Stdlib.String.isEmpty (Stdlib.String.trim commandStr) then
           // Empty command, do nothing
@@ -44,12 +47,10 @@ module Darklang =
         else
           // Parse the command into name and arguments
           let (name, args) = Command.parseCommand commandStr
-          Builtin.printLine $"Parsed command: name={name}, args={args}"
 
           // Find and execute the command
           match Command.findCommand state (Stdlib.String.toLowercase name) with
           | Some cmd ->
-            Builtin.printLine $"Found command: {cmd.name}"
             let exeFn = cmd.execute
             let (newState, messages) = exeFn state args
             // Set needsFullRedraw to true after command execution

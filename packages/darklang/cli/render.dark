@@ -64,24 +64,6 @@ module Darklang =
           | Info msg -> msg
           | None -> ""
 
-        // Get available commands for the current page
-        let availableCommands = getAvailableCommandNames state
-
-        // Format available commands
-        let commandsDisplay =
-          if Stdlib.List.isEmpty availableCommands then
-            ""
-          else
-            "Available commands: " ++
-            (Stdlib.String.join availableCommands ", ")
-
-        // Combine all parts with appropriate spacing
-        let parts =
-          if Stdlib.String.isEmpty resultDisplay then
-            [commandsDisplay; promptLine]
-          else
-            [resultDisplay; ""; commandsDisplay; promptLine]
-
-        parts
+        [ resultDisplay; promptLine ]
         |> Stdlib.List.filter (fun p -> Stdlib.Bool.not (Stdlib.String.isEmpty p))
         |> Stdlib.String.join "\n"
