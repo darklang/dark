@@ -27,7 +27,7 @@ export function activate(context: ExtensionContext) {
     command: "bash",
     args: [
       isDebugMode ? "./scripts/run-cli" : "darklang",
-      "--skip-self-update",
+      "run",
       "@PACKAGE.Darklang.LanguageTools.LspServer.runServerCli",
       "()", // 'parses' to () - TODO clean this up once we switch over to new parser
     ],

@@ -5,8 +5,11 @@ module Darklang =
       | Quit ->
         // Set the isExiting flag to true
         // This will be checked in the REPL loop
+        // In NonInteractive mode, don't show "Exiting..." message
         let newState = { state with isExiting = true; needsFullRedraw = true }
-        (newState, [Msg.SetCommandResult(CommandResult.Success "Exiting...")])
+        match state.interactionMode with
+        | NonInteractive -> (newState, [])
+        | _ -> (newState, [Msg.SetCommandResult(CommandResult.Success "Exiting...")])
 
 
       | KeyPressed(key, modifiers, keyChar) ->
