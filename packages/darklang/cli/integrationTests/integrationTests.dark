@@ -1,0 +1,25 @@
+module Darklang =
+  module Cli =
+    module IntegrationTests =
+      // This is where new CLI tests are defined
+      let getCliTests (): List<TestFramework.CliTest> =
+        [ // Help command test
+          TestFramework.makeCliTest
+            "CLI Help Command"
+            ["help"]
+            "help.txt"
+
+          // Version command test
+          TestFramework.makeCliTest
+            "CLI Version Command"
+            ["version"]
+            "version.txt"
+
+          // Run function command test
+          TestFramework.makeCliTest
+            "CLI Run Function Command"
+            ["run"; "@Darklang.Stdlib.Bool.and true false"]
+            "run-function.txt"
+
+          // Add more tests here
+          ]

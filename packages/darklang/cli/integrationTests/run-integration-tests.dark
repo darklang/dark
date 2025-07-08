@@ -1,0 +1,111 @@
+module Darklang =
+  module Cli =
+    module IntegrationTests =
+      type TestResult =
+        | Passed
+        | Failed of errorMessage: String
+
+      type TestSummary =
+        { totalTests: Int64
+          passedTests: Int64
+          failedTests: Int64
+          failedTestNames: List<String> }
+
+      let printlnColored (color: String) (message: String) : Unit =
+        Builtin.printLine $"{color}{message}{CliColors.reset}"
+
+
+      let runCliTest (test: TestFramework.CliTest) : TestResult =
+        match TestFramework.runCliTest test with
+        | Success _ -> TestResult.Passed
+        | SetupComplete _ -> TestResult.Passed
+        | Failure errorMsg -> TestResult.Failed errorMsg
+
+
+      let recordFailure (testName: String) (command: String) : Unit =
+        if Darklang.Cli.IntegrationTests.FailureRecorder.recordFailureForTest testName command then
+          ()
+        else
+          printlnColored CliColors.yellow "⚠️  Failed to record failure GIF"
+
+
+      let runSingleTest (summary: TestSummary) (test: TestFramework.CliTest) : TestSummary =
+        Builtin.printLine ""
+        printlnColored CliColors.blue $"Running: {test.name}"
+        Builtin.printLine "---"
+
+        let newSummary =
+          { summary with
+              totalTests = summary.totalTests + 1L }
+
+        match runCliTest test with
+        | Passed ->
+          printlnColored CliColors.green $"✓ {test.name} passed"
+          { newSummary with
+              passedTests = newSummary.passedTests + 1L }
+
+        | Failed errorMsg ->
+          let recordCommand = TestFramework.getRecordCommand test
+          recordFailure test.name recordCommand
+
+          { newSummary with
+              failedTests = newSummary.failedTests + 1L
+              failedTestNames =
+                Stdlib.List.push newSummary.failedTestNames test.name }
+
+
+      let printTestSummary (summary: TestSummary) : Unit =
+        Builtin.printLine ""
+        printlnColored CliColors.blue "📊 Test Results Summary"
+        Builtin.printLine "======================"
+        Builtin.printLine $"Total tests:  {Stdlib.Int64.toString summary.totalTests}"
+
+        printlnColored
+          CliColors.green
+          $"Passed:       {Stdlib.Int64.toString summary.passedTests}"
+
+        printlnColored
+          CliColors.red
+          $"Failed:       {Stdlib.Int64.toString summary.failedTests}"
+
+        if summary.failedTests == 0L then
+          printlnColored CliColors.green "🎉 All tests passed!"
+        else
+          printlnColored CliColors.red "🚨 Some tests failed!"
+
+          if Stdlib.Bool.not (Stdlib.List.isEmpty summary.failedTestNames) then
+            Builtin.printLine "Failed tests:"
+
+            summary.failedTestNames
+            |> Stdlib.List.iter (fun testName ->
+              printlnColored CliColors.red $"  - {testName}")
+
+          printlnColored
+            CliColors.yellow
+            "📁 Check failure recordings in ./packages/darklang/cli/integrationTests/testResults/failed-tests-gifs/"
+
+
+      // Main test runner function
+      let runIntegrationTests () : Int64 =
+        printlnColored
+          CliColors.blue
+          "Darklang CLI Integration Tests"
+        Builtin.printLine "=============================================="
+
+        Darklang.Cli.IntegrationTests.FailureRecorder.cleanupPreviousFailures ()
+
+        let initialSummary =
+          TestSummary
+            { totalTests = 0L
+              passedTests = 0L
+              failedTests = 0L
+              failedTestNames = [] }
+
+        let tests = getCliTests ()
+
+        let finalSummary =
+          tests |> Stdlib.List.fold initialSummary Cli.IntegrationTests.runSingleTest
+
+        printTestSummary finalSummary
+
+        if finalSummary.failedTests == 0L then 0L else 1L

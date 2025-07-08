@@ -1,0 +1,177 @@
+module Darklang =
+  module Cli =
+    module IntegrationTests =
+      module TestFramework =
+        type CliTest =
+          { name: String
+            arguments: List<String>
+            expectedOutputFile: String }
+
+        type TestResult =
+          | Success of message: String
+          | Failure of message: String
+          | SetupComplete of message: String
+
+        let printlnColored (color: String) (message: String): Unit =
+          Builtin.printLine $"{color}{message}{CliColors.reset}"
+
+        let testDir = "./packages/darklang/cli/integrationTests/testResults"
+        let projectRoot = "."
+
+
+        let makeCliTest
+          (name: String)
+          (arguments: List<String>)
+          (expectedOutputFile: String): CliTest =
+          CliTest
+            { name = name
+              arguments = arguments
+              expectedOutputFile = expectedOutputFile }
+
+        let buildCliCommand (arguments: List<String>): String =
+          let argsString = Stdlib.String.join arguments " "
+          $"./scripts/run-cli {argsString}"
+
+        let getExpectedFilePath (expectedOutputFile: String): String =
+          $"{testDir}/expected/{expectedOutputFile}"
+
+        let getActualFilePath (testName: String): String =
+          let safeName =
+            testName
+            |> Stdlib.String.toLowercase
+            |> Stdlib.String.replaceAll " " "-"
+            |> Stdlib.String.replaceAll "(" ""
+            |> Stdlib.String.replaceAll ")" ""
+          $"{testDir}/actual/{safeName}.txt"
+
+        let createDirectories (): Stdlib.Result.Result<Unit, String> =
+          let actualDir = $"{testDir}/actual"
+          let expectedDir = $"{testDir}/expected"
+
+          let makeActualDir = Builtin.cliExecute $"mkdir -p {actualDir}"
+          if makeActualDir.exitCode == 0L then
+            let makeExpectedDir = Builtin.cliExecute $"mkdir -p {expectedDir}"
+            if makeExpectedDir.exitCode == 0L then
+              Stdlib.Result.Result.Ok ()
+            else
+              Stdlib.Result.Result.Error $"Failed to create expected directory: {makeExpectedDir.stderr}"
+          else
+            Stdlib.Result.Result.Error $"Failed to create actual directory: {makeActualDir.stderr}"
+
+
+        let runCliCommand (command: String) (outputFile: String): Stdlib.Result.Result<Unit, String> =
+          let fullCommand = $"cd {projectRoot} && {command} > {outputFile} 2>&1"
+
+          let result = Builtin.cliExecute fullCommand
+          if result.exitCode == 0L then
+            Stdlib.Result.Result.Ok ()
+          else
+            Error $"CLI command failed with exit code {Stdlib.Int64.toString result.exitCode}: {result.stderr}"
+
+        let isFileEmpty (filePath: String): Bool =
+          match Builtin.fileRead filePath with
+          | Ok content -> Stdlib.Bool.not (Stdlib.List.isEmpty content)
+          | Error _ -> false
+
+        let getFileContent (filePath: String): Stdlib.Result.Result<String, String> =
+          match Builtin.fileRead filePath with
+          | Ok bytes -> Stdlib.Result.Result.Ok (Stdlib.String.fromBytesWithReplacement bytes)
+          | Error e -> Stdlib.Result.Result.Error e
+
+        let writeFileContent (filePath: String) (content: String): Stdlib.Result.Result<Unit, String> =
+          match Builtin.fileWrite (Stdlib.String.toBytes content) filePath with
+          | Ok _ -> Stdlib.Result.Result.Ok ()
+          | Error e -> Stdlib.Result.Result.Error e
+
+        let copyFile (source: String) (destination: String): Stdlib.Result.Result<Unit, String> =
+          match getFileContent source with
+          | Ok content -> writeFileContent destination content
+          | Error e -> Error e
+
+        let fileExists (filePath: String): Bool =
+          let result = Builtin.cliExecute $"test -f {filePath}"
+          result.exitCode == 0L
+
+        let filesAreEqual (file1: String) (file2: String): Bool =
+          let result = Builtin.cliExecute $"diff -q {file1} {file2}"
+          result.exitCode == 0L
+
+        let generateDiff (expectedFile: String) (actualFile: String): String =
+          let result = Builtin.cliExecute $"diff --unified=3 --color=always {expectedFile} {actualFile}"
+          result.stdout
+
+        let deleteFile (filePath: String): Unit =
+          let result = Builtin.cliExecute $"rm -f {filePath}"
+          ()
+
+
+        let runCliTest (config: CliTest): TestResult =
+          let expectedFile = getExpectedFilePath config.expectedOutputFile
+          let actualFile = getActualFilePath config.name
+          let command = buildCliCommand config.arguments
+
+          match createDirectories() with
+          | Error e ->
+            TestResult.Failure $"Failed to create directories: {e}"
+          | Ok _ ->
+            match runCliCommand command actualFile with
+            | Error e ->
+              printlnColored CliColors.red "✗ CLI command failed"
+              Builtin.printLine "CLI output:"
+
+              match getFileContent actualFile with
+              | Ok content when Stdlib.Bool.not (Stdlib.String.isEmpty content) ->
+                Builtin.printLine content
+              | _ ->
+                Builtin.printLine "No output captured"
+
+              TestResult.Failure $"CLI command failed: {e}"
+
+            | Ok _ ->
+              if Stdlib.Bool.not (isFileEmpty actualFile) then
+                printlnColored CliColors.red "✗ Output file is empty."
+                TestResult.Failure "Output file is empty"
+              else
+                if Stdlib.Bool.not (fileExists expectedFile) then
+                  // Expected file doesn't exist, create it
+                  printlnColored CliColors.yellow $"⚠ Expected output file not found: {expectedFile}"
+                  printlnColored CliColors.yellow "ℹ Creating it with current output for future comparisons"
+
+                  match copyFile actualFile expectedFile with
+                  | Ok _ ->
+                    printlnColored CliColors.green "✓ Test setup complete. Expected output saved."
+                    Builtin.printLine ""
+                    TestResult.SetupComplete "Expected output file created"
+                  | Error e ->
+                    TestResult.Failure $"Failed to create expected file: {e}"
+                else
+                  // Expected file exists, compare
+                  if filesAreEqual expectedFile actualFile then
+                    deleteFile actualFile  // Clean up on success
+                    TestResult.Success $"{config.name} output matches expected"
+                  else
+                    printlnColored CliColors.red $"✗ FAIL - {config.name} output differs from expected"
+                    Builtin.printLine ""
+                    printlnColored CliColors.blue "📊 Detailed diff:"
+                    Builtin.printLine "=================="
+                    printlnColored CliColors.yellow "Expected vs Actual:"
+
+                    let diffOutput = generateDiff expectedFile actualFile
+                    Builtin.printLine diffOutput
+
+                    Builtin.printLine ""
+                    printlnColored CliColors.yellow "💡 Tip: If the new output is correct, update expected with:"
+                    Builtin.printLine $"  cp \"{actualFile}\" \"{expectedFile}\""
+
+                    TestResult.Failure $"{config.name} output differs from expected"
+
+
+        let testResultToExitCode (result: TestResult): Int64 =
+          match result with
+          | Success _ -> 0L
+          | SetupComplete _ -> 0L // Running test for the first time
+          | Failure _ -> 1L
+
+        // Function to get CLI command for recording failures
+        let getRecordCommand (config: CliTest): String =
+          buildCliCommand config.arguments
