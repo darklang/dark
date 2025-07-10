@@ -11,10 +11,6 @@ module Darklang =
           failedTests: Int64
           failedTestNames: List<String> }
 
-      let printlnColored (color: String) (message: String) : Unit =
-        Builtin.printLine $"{color}{message}{CliColors.reset}"
-
-
       let runCliTest (test: TestFramework.CliTest) : TestResult =
         match TestFramework.runCliTest test with
         | Success _ -> TestResult.Passed
@@ -22,17 +18,30 @@ module Darklang =
         | Failure errorMsg -> TestResult.Failed errorMsg
 
 
-      let recordFailure (testName: String) (command: String) : Unit =
-        if Darklang.Cli.IntegrationTests.FailureRecorder.recordFailureForTest testName command then
+      let recordFailure (testName: String) (command: String) (interactiveSteps: List<String>) : Unit =
+        if Darklang.Cli.IntegrationTests.FailureRecorder.recordFailureForTest testName command interactiveSteps then
           ()
         else
-          printlnColored CliColors.yellow "⚠️  Failed to record failure GIF"
+          TestUtils.printlnColored CliColors.yellow "⚠️  Failed to record failure GIF"
+
+
+      let interactiveStepToString (step: TestFramework.InteractiveStep) : String =
+        match step with
+        | SendInput input -> input  // The actual command to type
+        | ExpectOutput _ -> ""  // Don't type anything for expect steps
+        | Wait _ -> ""  // Don't type anything for wait steps
+        | SendQuit -> ""  // Quit is handled by Escape key in VHS
+
+
+      let extractInteractiveCommands (steps: List<TestFramework.InteractiveStep>) : List<String> =
+        steps
+        |> Stdlib.List.map IntegrationTests.interactiveStepToString
+        |> Stdlib.List.filter (fun s -> Stdlib.Bool.not (Stdlib.String.isEmpty s))
 
 
       let runSingleTest (summary: TestSummary) (test: TestFramework.CliTest) : TestSummary =
         Builtin.printLine ""
-        printlnColored CliColors.blue $"Running: {test.name}"
-        Builtin.printLine "---"
+        Builtin.printLine $"Running: {test.name} ..."
 
         let newSummary =
           { summary with
@@ -40,13 +49,15 @@ module Darklang =
 
         match runCliTest test with
         | Passed ->
-          printlnColored CliColors.green $"✓ {test.name} passed"
+          TestUtils.printlnColored CliColors.green $"✓ {test.name} passed"
+          Builtin.printLine "---"
           { newSummary with
               passedTests = newSummary.passedTests + 1L }
-
         | Failed errorMsg ->
           let recordCommand = TestFramework.getRecordCommand test
-          recordFailure test.name recordCommand
+          let interactiveSteps = TestFramework.getInteractiveSteps test
+          let interactiveCommands = extractInteractiveCommands interactiveSteps
+          recordFailure test.name recordCommand interactiveCommands
 
           { newSummary with
               failedTests = newSummary.failedTests + 1L
@@ -56,41 +67,40 @@ module Darklang =
 
       let printTestSummary (summary: TestSummary) : Unit =
         Builtin.printLine ""
-        printlnColored CliColors.blue "📊 Test Results Summary"
-        Builtin.printLine "======================"
+        TestUtils.printlnColored CliColors.blue "📊 Test Results Summary"
+        TestUtils.printlnColored CliColors.blue "======================"
         Builtin.printLine $"Total tests:  {Stdlib.Int64.toString summary.totalTests}"
 
-        printlnColored
+        TestUtils.printlnColored
           CliColors.green
           $"Passed:       {Stdlib.Int64.toString summary.passedTests}"
 
-        printlnColored
+        TestUtils.printlnColored
           CliColors.red
           $"Failed:       {Stdlib.Int64.toString summary.failedTests}"
 
         if summary.failedTests == 0L then
-          printlnColored CliColors.green "🎉 All tests passed!"
+          TestUtils.printlnColored CliColors.green "🎉 All tests passed!"
         else
-          printlnColored CliColors.red "🚨 Some tests failed!"
+          TestUtils.printlnColored CliColors.red "🚨 Some tests failed!"
 
           if Stdlib.Bool.not (Stdlib.List.isEmpty summary.failedTestNames) then
             Builtin.printLine "Failed tests:"
 
             summary.failedTestNames
             |> Stdlib.List.iter (fun testName ->
-              printlnColored CliColors.red $"  - {testName}")
+              TestUtils.printlnColored CliColors.red $"  - {testName}")
 
-          printlnColored
+          TestUtils.printlnColored
             CliColors.yellow
             "📁 Check failure recordings in ./packages/darklang/cli/integrationTests/testResults/failed-tests-gifs/"
 
 
       // Main test runner function
       let runIntegrationTests () : Int64 =
-        printlnColored
-          CliColors.blue
-          "Darklang CLI Integration Tests"
-        Builtin.printLine "=============================================="
+        Builtin.printLine ""
+        TestUtils.printlnColored CliColors.blue "Darklang CLI Integration Tests"
+        TestUtils.printlnColored CliColors.blue "=============================="
 
         Darklang.Cli.IntegrationTests.FailureRecorder.cleanupPreviousFailures ()
 

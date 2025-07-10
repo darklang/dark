@@ -1,0 +1,83 @@
+module Darklang =
+  module Cli =
+    module IntegrationTests =
+      module TestUtils =
+        let safeFileName (name: String) : String =
+          name
+          |> Stdlib.String.toLowercase
+          |> Stdlib.String.replaceAll " " "-"
+          |> Stdlib.String.replaceAll "(" ""
+          |> Stdlib.String.replaceAll ")" ""
+          |> Stdlib.String.replaceAll "[" ""
+          |> Stdlib.String.replaceAll "]" ""
+          |> Stdlib.String.replaceAll "/" ""
+          |> Stdlib.String.replaceAll "\\" ""
+
+        let getFileContent (filePath: String): Stdlib.Result.Result<String, String> =
+          match Builtin.fileRead filePath with
+          | Ok bytes -> Stdlib.Result.Result.Ok (Stdlib.String.fromBytesWithReplacement bytes)
+          | Error e -> Stdlib.Result.Result.Error e
+
+        let writeFileContent (filePath: String) (content: String): Stdlib.Result.Result<Unit, String> =
+          match Builtin.fileWrite (Stdlib.String.toBytes content) filePath with
+          | Ok _ -> Stdlib.Result.Result.Ok ()
+          | Error e -> Stdlib.Result.Result.Error e
+
+        let deleteFile (filePath: String): Unit =
+          let result = Builtin.cliExecute $"rm -f {filePath}"
+          ()
+
+        let fileExists (filePath: String): Bool =
+          let result = Builtin.cliExecute $"test -f {filePath}"
+          result.exitCode == 0L
+
+
+        let printlnColored (color: String) (message: String): Unit =
+          Builtin.printLine $"{color}{message}{CliColors.reset}"
+
+
+        let createDirectory (dirPath: String): Stdlib.Result.Result<Unit, String> =
+          let result = Builtin.cliExecute $"mkdir -p {dirPath}"
+          if result.exitCode == 0L then
+            Stdlib.Result.Result.Ok ()
+          else
+            Stdlib.Result.Result.Error $"Failed to create directory: {result.stderr}"
+
+        let getAbsolutePath (relativePath: String) : String =
+          let result = Builtin.cliExecute $"realpath {relativePath}"
+          if result.exitCode == 0L then
+            Stdlib.String.trim result.stdout
+          else
+            relativePath // Fallback to relative path
+
+
+        let escapeForExpect (str: String): String =
+          str
+          |> Stdlib.String.replaceAll "\\" "\\\\"
+          |> Stdlib.String.replaceAll "\"" "\\\""
+          |> Stdlib.String.replaceAll "\n" "\\n"
+          |> Stdlib.String.replaceAll "\r" "\\r"
+          |> Stdlib.String.replaceAll "\t" "\\t"
+
+
+        let safePadEnd (text: String) (padChar: String) (width: Int64): String =
+          match Stdlib.String.padEnd text padChar width with
+          | Ok padded -> padded
+          | Error _ -> text
+
+        let printMessageWithBorder (message: String) (command: String): Unit =
+          let commandLength = Stdlib.String.length command
+          let messageLength = Stdlib.String.length message
+          let contentWidth = Stdlib.Int64.max commandLength messageLength
+          let borderLength = contentWidth + 4L
+
+          let dashes =
+            (Stdlib.List.range 1L (borderLength - 2L))
+            |> Stdlib.List.map (fun _ -> "-")
+            |> Stdlib.String.join ""
+          let border = $"+{dashes}+"
+
+          printlnColored CliColors.yellow border
+          printlnColored CliColors.yellow $"| {safePadEnd message " " contentWidth} |"
+          printlnColored CliColors.yellow $"| {safePadEnd command " " contentWidth} |"
+          printlnColored CliColors.yellow border

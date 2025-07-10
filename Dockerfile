@@ -157,6 +157,12 @@ RUN DEBIAN_FRONTEND=noninteractive \
       && apt clean \
       && rm -rf /var/lib/apt/lists/*
 
+# Install expect for the CLI integration tests.
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
+  DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends expect || \
+  echo "Warning: expect installation failed, continuing without it" && \
+  apt-get clean && \
+  rm -rf /var/lib/apt/lists/*
 
 # As of Ubuntu 24.04, an install includes
 # an 'ubuntu' user, that we don't use,
