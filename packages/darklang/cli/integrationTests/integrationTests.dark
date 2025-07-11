@@ -1,6 +1,7 @@
 module Darklang =
   module Cli =
     module IntegrationTests =
+      // TODO: Add more tests for CLI commands
       let getCliTests (): List<TestFramework.CliTest> =
         let regularTests =
           [ TestFramework.makeCliTest

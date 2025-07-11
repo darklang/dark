@@ -90,15 +90,6 @@ module Darklang =
           | Ok content -> TestUtils.writeFileContent destination content
           | Error e -> Error e
 
-        // ====================================================================
-        // INTERACTIVE TEST EXECUTION USING EXPECT
-        // ====================================================================
-        // expect is an automation tool that can control interactive programs
-        // It works by:
-        // 1. Spawning a subprocess (our CLI)
-        // 2. Sending input to it (like a user typing)
-        // 3. Waiting for specific output patterns to appear
-        // 4. Timing out if expected patterns don't appear
 
         module InteractiveTestRunner =
           // Generates input commands for expect script
@@ -107,93 +98,110 @@ module Darklang =
             $"send \"{escapedInput}\\r\""  // Send the whole command + Enter
 
           // Generates a complete expect script that automates CLI interaction
-          let generateExpectScript (steps: List<InteractiveStep>) (timeoutSeconds: Int64): String =
+          let generateExpectScript (steps: List<InteractiveStep>) (timeoutSeconds: Int64): Stdlib.Result.Result<String, String> =
             // Find expect executable location
             let expectLocation =
               let whichResult = Builtin.cliExecute "which expect"
               if whichResult.exitCode == 0L then
-                Stdlib.String.trim whichResult.stdout
+                Stdlib.Result.Result.Ok (Stdlib.String.trim whichResult.stdout)
               else
-                "/usr/bin/expect"  // Common default location
+                Stdlib.Result.Result.Error "expect command not found. This is unexpected, as expect is installed during the build"
 
-            // Script header: shebang, timeout setting, and spawn CLI process
-            let header = $"#!{expectLocation} -f\nset timeout {Stdlib.Int64.toString timeoutSeconds}\nspawn ./scripts/run-cli\nsleep 1\n"
+            match expectLocation with
+            | Error e -> Stdlib.Result.Result.Error e
+            | Ok expectPath ->
 
-            // Convert each test step into expect script commands
-            let stepCommands =
-              steps
-              |> Stdlib.List.indexedMap (fun i step ->
-                match step with
-                // SendInput: Simulates user typing a command
-                | SendInput input -> generateInputCommand input
+              // Script header: shebang, timeout setting, and spawn CLI process
+              let header = $"#!{expectPath} -f\nset timeout {Stdlib.Int64.toString timeoutSeconds}\nspawn ./scripts/run-cli\nsleep 1\n"
 
-                // ExpectOutput: Waits for a pattern to appear in CLI output
-                // If pattern doesn't appear within timeout, test fails with detailed error
-                | ExpectOutput pattern ->
-                  $"expect {{\n  -re \"{pattern}\" {{}}\n  timeout {{ puts \"❌ STEP {Stdlib.Int64.toString (i + 1L)}: TIMEOUT - Expected pattern '{pattern}' not found after {Stdlib.Int64.toString timeoutSeconds} seconds\"; exit 1 }}\n  eof {{ puts \"❌ STEP {Stdlib.Int64.toString (i + 1L)}: EOF - Process ended unexpectedly while waiting for '{pattern}'\"; exit 1 }}\n}}"
-                | Wait milliseconds -> $"after {Stdlib.Int64.toString milliseconds}"
-                | SendQuit -> "send \"\\033\""  // \033 is Escape key
-              )
-              |> Stdlib.String.join "\n"
+              // Convert each test step into expect script commands
+              let stepCommands =
+                steps
+                |> Stdlib.List.indexedMap (fun i step ->
+                  match step with
+                  // SendInput: Simulates user typing a command
+                  | SendInput input -> generateInputCommand input
 
-            // Script footer: wait for CLI process to end cleanly
-            let footer = "expect eof\n"
+                  // ExpectOutput: Waits for a pattern to appear in CLI output
+                  // If pattern doesn't appear within timeout, test fails
+                  | ExpectOutput pattern ->
+                    $"expect {{\n  -re \"{pattern}\" {{}}\n  timeout {{ puts \"TIMEOUT: Expected '{pattern}'\"; exit 1 }}\n  eof {{ puts \"EOF: Process ended waiting for '{pattern}'\"; exit 1 }}\n}}"
+                  | Wait milliseconds -> $"after {Stdlib.Int64.toString milliseconds}"
+                  | SendQuit -> "send \"\\033\""  // \033 is Escape key
+                )
+                |> Stdlib.String.join "\n"
 
-            $"{header}{stepCommands}\n{footer}"
+              // Script footer: wait for CLI process to end cleanly
+              let footer = "expect eof\n"
 
-          // Executes an interactive test by:
-          // 1. Generating expect script
-          // 2. Writing script to temporary file
-          // 3. Making script executable
-          // 4. Running script and capturing output
-          // 5. Parsing results for success/failure
+              Stdlib.Result.Result.Ok $"{header}{stepCommands}\n{footer}"
+
+
           let runInteractiveTest (interactiveTest: InteractiveCliTest): TestResult =
-            let expectScript = generateExpectScript interactiveTest.steps interactiveTest.timeoutSeconds
-            let expectFile = $"{TestConfig.testDir}/temp-expect-{TestUtils.safeFileName interactiveTest.name}.exp"
+            match generateExpectScript interactiveTest.steps interactiveTest.timeoutSeconds with
+            | Error e -> TestResult.Failure $"Failed to generate expect script: {e}"
+            | Ok expectScript ->
+              let expectFile = $"{TestConfig.testDir}/temp-expect-{TestUtils.safeFileName interactiveTest.name}.exp"
 
-            // Write the generated expect script to a file
-            match TestUtils.writeFileContent expectFile expectScript with
-            | Error e -> TestResult.Failure $"Failed to write expect script: {e}"
-            | Ok _ ->
-              // Make the script executable (chmod +x)
-              let chmodResult = Builtin.cliExecute $"chmod +x {expectFile}"
-              if chmodResult.exitCode != 0L then
-                TestResult.Failure "Failed to make expect script executable"
-              else
-                // Run the expect script and capture all output
-                let result = Builtin.cliExecute $"cd {TestConfig.projectRoot} && {expectFile} 2>&1"
-
-                // Clean up temporary script file
-                TestUtils.deleteFile expectFile
-
-                if result.exitCode == 0L then
-                  TestResult.Success $"Interactive test {interactiveTest.name} passed - all ExpectOutput validations succeeded"
+              match TestUtils.writeFileContent expectFile expectScript with
+              | Error e -> TestResult.Failure $"Failed to write expect script: {e}"
+              | Ok _ ->
+                let chmodResult = Builtin.cliExecute $"chmod +x {expectFile}"
+                if chmodResult.exitCode != 0L then
+                  TestResult.Failure "Failed to make expect script executable"
                 else
-                  let errorOutput = Stdlib.String.trim result.stdout
-                  let specificError =
-                    if Stdlib.String.contains errorOutput "Expected pattern '" then
-                      // Extract which pattern failed to match
-                      let parts = Stdlib.String.split errorOutput "Expected pattern '"
-                      if Stdlib.List.length parts >= 2L then
-                        let afterPattern = Stdlib.List.getAt parts 1L
-                        match afterPattern with
-                        | Some patternPart ->
-                          let patternEnd = Stdlib.String.split patternPart "' not found"
-                          let pattern = Stdlib.List.getAt patternEnd 0L
-                          match pattern with
-                          | Some p -> $"Expected pattern '{p}' was not found"
-                          | None -> "Pattern matching failed"
-                        | None -> "Pattern matching failed"
-                      else
-                        "Pattern matching failed"
-                    else if Stdlib.String.contains errorOutput "EOF" then
-                      "CLI process ended unexpectedly"
-                    else
-                      "Interactive test failed"
+                  // Run the expect script and capture all output
+                  let result = Builtin.cliExecute $"cd {TestConfig.projectRoot} && {expectFile} 2>&1"
 
-                  TestUtils.printlnColored CliColors.red $"✗ FAIL - {interactiveTest.name}"
-                  TestUtils.printlnColored CliColors.red specificError
-                  TestResult.Failure $"Interactive test {interactiveTest.name} failed - {specificError}"
+                  // Clean up temporary script file
+                  TestUtils.deleteFile expectFile
+
+                  if result.exitCode == 0L then
+                    TestResult.Success $"Interactive test {interactiveTest.name} passed - all ExpectOutput validations succeeded"
+                  else
+                    let errorOutput = Stdlib.String.trim result.stdout
+                    let specificError =
+                      if Stdlib.String.contains errorOutput "TIMEOUT: Expected" then
+                        // Extract which pattern failed
+                        let parts = Stdlib.String.split errorOutput "TIMEOUT: Expected '"
+                        if Stdlib.List.length parts >= 2L then
+                          let afterPattern = Stdlib.List.getAt parts 1L
+                          match afterPattern with
+                          | Some patternPart ->
+                            let patternEnd = Stdlib.String.split patternPart "'"
+                            let pattern = Stdlib.List.getAt patternEnd 0L
+                            match pattern with
+                            | Some p -> $"TIMEOUT: Expected pattern '{p}' was not found"
+                            | None -> "TIMEOUT: Pattern matching failed"
+                          | None -> "TIMEOUT: Pattern matching failed"
+                        else
+                          // If parsing fails, show the full error output
+                          errorOutput
+                      else if Stdlib.String.contains errorOutput "EOF: Process ended" then
+                        // Extract pattern from EOF message
+                        let parts = Stdlib.String.split errorOutput "EOF: Process ended waiting for '"
+                        if Stdlib.List.length parts >= 2L then
+                          let afterPattern = Stdlib.List.getAt parts 1L
+                          match afterPattern with
+                          | Some patternPart ->
+                            let patternEnd = Stdlib.String.split patternPart "'"
+                            let pattern = Stdlib.List.getAt patternEnd 0L
+                            match pattern with
+                            | Some p -> $"EOF: CLI process ended unexpectedly while waiting for '{p}'"
+                            | None -> "EOF: CLI process ended unexpectedly"
+                          | None -> "EOF: CLI process ended unexpectedly"
+                        else
+                          "EOF: CLI process ended unexpectedly"
+                      else
+                        // If it doesn't match our patterns, show the full error output
+                        if Stdlib.String.isEmpty errorOutput then
+                          "Interactive test failed with no error output"
+                        else
+                          $"Interactive test failed: {errorOutput}"
+
+                    TestUtils.printlnColored CliColors.red $"✗ FAIL - {interactiveTest.name}"
+                    TestUtils.printlnColored CliColors.red specificError
+                    TestResult.Failure $"Interactive test {interactiveTest.name} failed - {specificError}"
 
 
         let runCliTest (config: CliTest): TestResult =
