@@ -5,10 +5,25 @@ module Darklang =
 
     module CliColors =
       // Foreground colors (text)
-      let magenta = "\x1b[38;5;133m"
-      let purple = "\x1b[38;5;147m"
+      let white = "\x1b[97m"
       let gray = "\x1b[90m"
       let darkGray = "\x1b[38;5;145m"
+
+      let red = "\x1b[0;31m"
+      let green = "\x1b[0;32m"
+      let yellow = "\x1b[1;33m"
+      let blue = "\x1b[0;34m"
+
+      let magenta = "\x1b[38;5;133m"
+      let purple = "\x1b[38;5;147m"
+      let lightPurple = "\x1b[38;5;99m"
+      let pink = "\x1b[38;5;217m"
+
+      let cyan = "\x1b[38;5;51m"
+      let lightBlue = "\x1b[38;5;117m"
+
+      let orange = "\x1b[38;5;208m"
+      let peach = "\x1b[38;5;223m"
 
       // Background colors
       let purpleBg = "\x1b[48;5;61m"
