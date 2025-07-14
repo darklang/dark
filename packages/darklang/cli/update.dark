@@ -1,5 +1,75 @@
 module Darklang =
   module Cli =
+    // Helper function to add a command to history
+    let addToHistory (state: State) (command: String): State =
+      let trimmedCommand = Stdlib.String.trim command
+      if Stdlib.String.isEmpty trimmedCommand then
+        state
+      else
+        // Don't add duplicate commands if the last command is the same
+        let newHistory =
+          match state.commandHistory with
+          | lastCmd :: _ when lastCmd == trimmedCommand -> state.commandHistory
+          | _ -> Stdlib.List.push state.commandHistory trimmedCommand
+
+        // TODO: should we limit history size?
+        { state with
+            commandHistory = newHistory
+            historyPosition = -1L
+            draftPrompt = "" }
+
+    // Navigate command history
+    let navigateHistory (state: State) (direction: String): State =
+      match state.commandHistory with
+      | [] -> state // No history available
+      | _ ->
+        let historyLength = (Stdlib.List.length state.commandHistory)
+
+        let newPosition =
+          match direction with
+          | "up" ->
+            if state.historyPosition == -1L then
+              0L // First time: go to most recent
+            else
+              // Navigate further back in history
+              Stdlib.Int64.min (state.historyPosition + 1L) (historyLength - 1L)
+          | "down" ->
+            if state.historyPosition <= 0L then
+              -1L // Back to typing mode
+            else
+              // Navigate forward in history
+              state.historyPosition - 1L
+          | _ -> state.historyPosition
+
+        // Typing Mode: mainPrompt shows your typing, draftPrompt is empty
+        // History Mode: mainPrompt shows history commands, draftPrompt preserves what you were typing
+        let newPrompt, newdraftPrompt =
+          match newPosition with
+          | -1L ->
+            // Restore draft prompt
+            (state.draftPrompt, "")
+          | pos ->
+            // Get command from history
+            let historyCommand =
+              state.commandHistory
+              |> Stdlib.List.getAt pos
+              |> Stdlib.Option.withDefault ""
+
+            let draftToSave =
+              if state.historyPosition == -1L then
+                // First time: save what user was typing
+                state.mainPrompt
+              else
+                // Already navigating: keep previous draft
+                state.draftPrompt
+
+            (historyCommand, draftToSave)
+
+        { state with
+            mainPrompt = newPrompt
+            historyPosition = newPosition
+            draftPrompt = newdraftPrompt }
+
     let update (state: State) (msg: Msg): (State * List<Msg>) =
       match msg with
       | Quit ->
@@ -11,6 +81,13 @@ module Darklang =
         | NonInteractive -> (newState, [])
         | _ -> (newState, [Msg.SetCommandResult(CommandResult.Success "Exiting...")])
 
+      | NavigateHistoryUp ->
+        let newState = navigateHistory state "up"
+        (newState, [])
+
+      | NavigateHistoryDown ->
+        let newState = navigateHistory state "down"
+        (newState, [])
 
       | KeyPressed(key, modifiers, keyChar) ->
         // Handle key presses
@@ -20,22 +97,42 @@ module Darklang =
           (state, [Msg.Quit])
 
         | Enter ->
-          // Enter key pressed, submit the current prompt as a command
+          // Enter key pressed, submit the current prompt as a command, and add it to history
           let command = state.mainPrompt
-          let newState = { state with mainPrompt = "" }
+          let newState =
+            { state with mainPrompt = "" }
+            |> addToHistory command
           Builtin.printLine ""
           (newState, [Msg.SubmitCommand command])
 
         | Backspace ->
           // Backspace key pressed, remove the last character from the prompt
+          // Also reset history navigation when user starts typing
           let newPrompt = Stdlib.String.dropLast state.mainPrompt 1L
-          let newState = { state with mainPrompt = newPrompt }
+          let newState =
+            { state with
+                mainPrompt = newPrompt
+                historyPosition = -1L
+                draftPrompt = "" }
           (newState, [])
+
+        | UpArrow ->
+          // Arrow up pressed, navigate to previous command in history
+          (state, [Msg.NavigateHistoryUp])
+
+        | DownArrow ->
+          // Arrow down pressed, navigate to next command in history
+          (state, [Msg.NavigateHistoryDown])
 
         | _ ->
           // For other keys, check if they're textual and add to the prompt if so
+          // Also reset history navigation when user starts typing
           let newPrompt = state.mainPrompt ++ keyChar
-          let newState = { state with mainPrompt = newPrompt }
+          let newState =
+            { state with
+                mainPrompt = newPrompt
+                historyPosition = -1L
+                draftPrompt = "" }
           (newState, [])
 
       | SubmitCommand commandStr ->
@@ -63,8 +160,12 @@ module Darklang =
             (newState, [])
 
       | ClearPrompt ->
-        // Clear the prompt
-        let newState = { state with mainPrompt = "" }
+        // Clear the prompt and reset history navigation
+        let newState =
+          { state with
+              mainPrompt = ""
+              historyPosition = -1L
+              draftPrompt = "" }
         (newState, [])
 
       | NavigateTo page ->
