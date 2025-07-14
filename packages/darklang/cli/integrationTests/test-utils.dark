@@ -35,6 +35,18 @@ module Darklang =
         let printlnColored (color: String) (message: String): Unit =
           Builtin.printLine $"{color}{message}{CliColors.reset}"
 
+        let printlnSuccess (message: String): Unit =
+          printlnColored CliColors.green $"✓ {message}"
+
+        let printlnError (message: String): Unit =
+          printlnColored CliColors.red $"✗ {message}"
+
+        let printlnWarning (message: String): Unit =
+          printlnColored CliColors.yellow $"⚠ {message}"
+
+        let printlnInfo (message: String): Unit =
+          printlnColored CliColors.blue $"ℹ {message}"
+
 
         let createDirectory (dirPath: String): Stdlib.Result.Result<Unit, String> =
           let result = Builtin.cliExecute $"mkdir -p {dirPath}"

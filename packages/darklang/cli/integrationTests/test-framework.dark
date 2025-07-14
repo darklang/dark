@@ -199,7 +199,7 @@ module Darklang =
                         else
                           $"Interactive test failed: {errorOutput}"
 
-                    TestUtils.printlnColored CliColors.red $"✗ FAIL - {interactiveTest.name}"
+                    TestUtils.printlnError $"FAIL - {interactiveTest.name}"
                     TestUtils.printlnColored CliColors.red specificError
                     TestResult.Failure $"Interactive test {interactiveTest.name} failed - {specificError}"
 
@@ -233,11 +233,11 @@ module Darklang =
                   TestResult.Failure "Output file is empty"
                 else
                   if Stdlib.Bool.not (TestUtils.fileExists expectedFile) then
-                    TestUtils.printlnColored CliColors.yellow $"⚠ Expected output file not found: {expectedFile}"
-                    TestUtils.printlnColored CliColors.yellow "ℹ Creating it with current output for future comparisons"
+                    TestUtils.printlnWarning $"⚠ Expected output file not found: {expectedFile}"
+                    TestUtils.printlnColored CliColors.blue "ℹ Creating it with current output for future comparisons"
                     match copyFile actualFile expectedFile with
                     | Ok _ ->
-                      TestUtils.printlnColored CliColors.green "✓ Test setup complete. Expected output saved."
+                      TestUtils.printlnSuccess "Test setup complete. Expected output saved."
                       Builtin.printLine ""
                       TestResult.SetupComplete "Expected output file created"
                     | Error e ->
