@@ -73,6 +73,15 @@ module Darklang =
           /// The current input in the prompt
           mainPrompt: String
 
+          /// Command history
+          commandHistory: List<String>
+
+          /// Current position in command history (-1 = typing (not navigating), 0 = most recent, 1 = second most recent, etc.)
+          historyPosition: Int64
+
+          /// What we were typing before we started navigating history
+          draftPrompt: String
+
           /// The result of the last command's execution
           commandResult: CommandResult
 
