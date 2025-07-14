@@ -49,9 +49,3 @@ clis/
 
 .mono
 .fake
-
-# Integration Tests
-expected/
-actual/
-failed-tests-gifs/
-tapes/
