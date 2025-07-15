@@ -259,7 +259,8 @@ module Darklang =
           | Some packageFn ->
             // Pretty print the function details
             let prettyPrinted = PrettyPrinter.ProgramTypes.packageFn packageFn
-            let newState = { state with commandResult = CommandResult.Success $"Function: {fullyQualifiedName}\n\n{prettyPrinted}" }
+            let highlighted = Cli.SyntaxHighlighting.highlightCode prettyPrinted
+            let newState = { state with commandResult = CommandResult.Success $"Function: {fullyQualifiedName}\n\n{highlighted}" }
             (newState, [])
           | None ->
             (createErrorState state $"Function found but details could not be retrieved: {fullyQualifiedName}", [])
@@ -272,7 +273,8 @@ module Darklang =
             | Some packageType ->
               // Pretty print the type details
               let prettyPrinted = PrettyPrinter.ProgramTypes.packageType packageType
-              let newState = { state with commandResult = CommandResult.Success $"Type: {fullyQualifiedName}\n\n{prettyPrinted}" }
+              let highlighted = Cli.SyntaxHighlighting.highlightCode prettyPrinted
+              let newState = { state with commandResult = CommandResult.Success $"Type: {fullyQualifiedName}\n\n{highlighted}" }
               (newState, [])
             | None ->
               (createErrorState state $"Type found but details could not be retrieved: {fullyQualifiedName}", [])
@@ -285,7 +287,8 @@ module Darklang =
               | Some packageConst ->
                 // Pretty print the constant details
                 let prettyPrinted = PrettyPrinter.ProgramTypes.packageConstant packageConst
-                let newState = { state with commandResult = CommandResult.Success $"Constant: {fullyQualifiedName}\n\n{prettyPrinted}" }
+                let highlighted = Cli.SyntaxHighlighting.highlightCode prettyPrinted
+                let newState = { state with commandResult = CommandResult.Success $"Constant: {fullyQualifiedName}\n\n{highlighted}" }
                 (newState, [])
               | None ->
                 (createErrorState state $"Constant found but details could not be retrieved: {fullyQualifiedName}", [])
@@ -466,7 +469,9 @@ module Darklang =
                         let prettyPrinted =
                           PrettyPrinter.ProgramTypes.packageFn fn
 
-                        let newState = { state with commandResult = CommandResult.Success $"Function: {entityName}\n\n{prettyPrinted}" }
+                        let highlighted = Cli.SyntaxHighlighting.highlightCode prettyPrinted
+
+                        let newState = { state with commandResult = CommandResult.Success $"Function: {entityName}\n\n{highlighted}" }
                         (newState, [])
 
                       | [], types, [] ->
@@ -479,7 +484,9 @@ module Darklang =
                         let prettyPrinted =
                           PrettyPrinter.ProgramTypes.packageType typ
 
-                        let newState = { state with commandResult = CommandResult.Success $"Type: {entityName}\n\n{prettyPrinted}" }
+                        let highlighted = Cli.SyntaxHighlighting.highlightCode prettyPrinted
+
+                        let newState = { state with commandResult = CommandResult.Success $"Type: {entityName}\n\n{highlighted}" }
                         (newState, [])
 
                       | [], [], constants ->
@@ -492,7 +499,9 @@ module Darklang =
                         let prettyPrinted =
                           PrettyPrinter.ProgramTypes.packageConstant constant
 
-                        let newState = { state with commandResult = CommandResult.Success $"Constant: {entityName}\n\n{prettyPrinted}" }
+                        let highlighted = Cli.SyntaxHighlighting.highlightCode prettyPrinted
+
+                        let newState = { state with commandResult = CommandResult.Success $"Constant: {entityName}\n\n{highlighted}" }
                         (newState, [])
 
                       | _ ->
