@@ -157,10 +157,9 @@ RUN DEBIAN_FRONTEND=noninteractive \
       && apt clean \
       && rm -rf /var/lib/apt/lists/*
 
-# Install expect for the CLI integration tests.
+# Install expect for the CLI integration tests
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
-  DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends expect || \
-  echo "Warning: expect installation failed, continuing without it" && \
+  DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends expect && \
   apt-get clean && \
   rm -rf /var/lib/apt/lists/*
 
