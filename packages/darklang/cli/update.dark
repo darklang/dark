@@ -1,5 +1,9 @@
 module Darklang =
   module Cli =
+    type NavDirection =
+      | Up
+      | Down
+
     // Helper function to add a command to history
     let addToHistory (state: State) (command: String): State =
       let trimmedCommand = Stdlib.String.trim command
@@ -19,7 +23,7 @@ module Darklang =
             draftPrompt = "" }
 
     // Navigate command history
-    let navigateHistory (state: State) (direction: String): State =
+    let navigateHistory (state: State) (direction: NavDirection): State =
       match state.commandHistory with
       | [] -> state // No history available
       | _ ->
@@ -27,13 +31,13 @@ module Darklang =
 
         let newPosition =
           match direction with
-          | "up" ->
+          | Up ->
             if state.historyPosition == -1L then
               0L // First time: go to most recent
             else
               // Navigate further back in history
               Stdlib.Int64.min (state.historyPosition + 1L) (historyLength - 1L)
-          | "down" ->
+          | Down ->
             if state.historyPosition <= 0L then
               -1L // Back to typing mode
             else
@@ -82,11 +86,11 @@ module Darklang =
         | _ -> (newState, [Msg.SetCommandResult(CommandResult.Success "Exiting...")])
 
       | NavigateHistoryUp ->
-        let newState = navigateHistory state "up"
+        let newState = navigateHistory state NavDirection.Up
         (newState, [])
 
       | NavigateHistoryDown ->
-        let newState = navigateHistory state "down"
+        let newState = navigateHistory state NavDirection.Down
         (newState, [])
 
       | KeyPressed(key, modifiers, keyChar) ->
