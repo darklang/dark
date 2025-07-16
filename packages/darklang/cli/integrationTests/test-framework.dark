@@ -54,41 +54,20 @@ module Darklang =
               interactiveTest = Stdlib.Option.Option.Some interactiveTest }
 
 
-        let createDirectories (): Stdlib.Result.Result<Unit, String> =
-          match TestUtils.createDirectory (TestConfig.getActualDir ()) with
-          | Error e -> Stdlib.Result.Result.Error $"Failed to create actual directory: {e}"
-          | Ok _ ->
-            match TestUtils.createDirectory (TestConfig.getExpectedDir ()) with
-            | Error e -> Stdlib.Result.Result.Error $"Failed to create expected directory: {e}"
-            | Ok _ -> Stdlib.Result.Result.Ok ()
-
-
-        let runCliCommand (command: String) (outputFile: String): Stdlib.Result.Result<Unit, String> =
-          let fullCommand = $"cd {TestConfig.projectRoot} && {command} > {outputFile} 2>&1"
-          let result = Builtin.cliExecute fullCommand
-          if result.exitCode == 0L then
-            Stdlib.Result.Result.Ok ()
-          else
-            Error $"CLI command failed with exit code {Stdlib.Int64.toString result.exitCode}: {result.stderr}"
-
+        let createActualExpectedDirectories (): Stdlib.Result.Result<Unit, String> =
+          (Stdlib.Cli.Unix.ensureDirectoryExists (TestConfig.getActualDir ()))
+          |> Stdlib.Result.andThen (fun _ ->
+            Stdlib.Cli.Unix.ensureDirectoryExists (TestConfig.getExpectedDir ()))
 
         let isFileEmpty (filePath: String): Bool =
           match TestUtils.getFileContent filePath with
           | Ok content -> Stdlib.Bool.not (Stdlib.String.isEmpty content)
           | Error _ -> false
 
-        let filesAreEqual (file1: String) (file2: String): Bool =
-          let result = Builtin.cliExecute $"diff -q {file1} {file2}"
-          result.exitCode == 0L
-
-        let generateDiff (expectedFile: String) (actualFile: String): String =
-          let result = Builtin.cliExecute $"diff --unified=3 --color=always {expectedFile} {actualFile}"
-          result.stdout
-
         let copyFile (source: String) (destination: String): Stdlib.Result.Result<Unit, String> =
           match TestUtils.getFileContent source with
           | Ok content -> TestUtils.writeFileContent destination content
-          | Error e -> Error e
+          | Error e -> Stdlib.Result.Result.Error e
 
 
         module InteractiveTestRunner =
@@ -101,7 +80,7 @@ module Darklang =
           let generateExpectScript (steps: List<InteractiveStep>) (timeoutSeconds: Int64): Stdlib.Result.Result<String, String> =
             // Find expect executable location
             let expectLocation =
-              let whichResult = Builtin.cliExecute "which expect"
+              let whichResult = Stdlib.Cli.Unix.findCommandPath "expect"
               if whichResult.exitCode == 0L then
                 Stdlib.Result.Result.Ok (Stdlib.String.trim whichResult.stdout)
               else
@@ -146,15 +125,18 @@ module Darklang =
               match TestUtils.writeFileContent expectFile expectScript with
               | Error e -> TestResult.Failure $"Failed to write expect script: {e}"
               | Ok _ ->
-                let chmodResult = Builtin.cliExecute $"chmod +x {expectFile}"
-                if chmodResult.exitCode != 0L then
-                  TestResult.Failure "Failed to make expect script executable"
-                else
+                let chmodResult = Stdlib.Cli.Unix.grantExecutePermission expectFile
+                match chmodResult with
+                | Error e -> TestResult.Failure $"Failed to make expect script executable: {e}"
+                | Ok _ ->
                   // Run the expect script and capture all output
-                  let result = Builtin.cliExecute $"cd {TestConfig.projectRoot} && {expectFile} 2>&1"
+                  let result = Stdlib.Cli.Unix.executeInDirectoryWithOutput TestConfig.projectRoot expectFile
 
                   // Clean up temporary script file
-                  TestUtils.deleteFile expectFile
+                  (Stdlib.Cli.Unix.removeFile expectFile)
+                  |> Stdlib.Result.withDefault (fun e ->
+                    Builtin.printLine $"Failed to remove expect script: {e}"
+                  )
 
                   if result.exitCode == 0L then
                     TestResult.Success $"Interactive test {interactiveTest.name} passed - all ExpectOutput validations succeeded"
@@ -213,11 +195,13 @@ module Darklang =
             let expectedFile = TestConfig.getExpectedFilePath config.expectedOutputFile
             let actualFile = TestConfig.getActualFilePath config.name
             let command = TestConfig.buildCliCommand config.arguments
+            Builtin.printLine $"Running CLI command: {command}"
 
-            match createDirectories() with
+            match createActualExpectedDirectories () with
             | Error e -> TestResult.Failure $"Failed to create directories: {e}"
             | Ok _ ->
-              match runCliCommand command actualFile with
+              let runCommand = Stdlib.Cli.Unix.executeInDirectoryAndRedirectToFile TestConfig.projectRoot command actualFile
+              match runCommand with
               | Error e ->
                 TestUtils.printlnColored CliColors.red "✗ CLI command failed"
                 Builtin.printLine "CLI output:"
@@ -232,9 +216,9 @@ module Darklang =
                   TestUtils.printlnColored CliColors.red "✗ Output file is empty."
                   TestResult.Failure "Output file is empty"
                 else
-                  if Stdlib.Bool.not (TestUtils.fileExists expectedFile) then
-                    TestUtils.printlnWarning $"⚠ Expected output file not found: {expectedFile}"
-                    TestUtils.printlnColored CliColors.blue "ℹ Creating it with current output for future comparisons"
+                  if Stdlib.Bool.not (Stdlib.Cli.Unix.fileExists expectedFile) then
+                    TestUtils.printlnWarning $"Expected output file not found: {expectedFile}"
+                    TestUtils.printlnInfo "Creating it with current output for future comparisons"
                     match copyFile actualFile expectedFile with
                     | Ok _ ->
                       TestUtils.printlnSuccess "Test setup complete. Expected output saved."
@@ -243,8 +227,12 @@ module Darklang =
                     | Error e ->
                       TestResult.Failure $"Failed to create expected file: {e}"
                   else
-                    if filesAreEqual expectedFile actualFile then
-                      TestUtils.deleteFile actualFile
+                    let areFilesIdentical = Stdlib.Cli.Unix.areFilesIdentical expectedFile actualFile
+                    if areFilesIdentical then
+                      (Stdlib.Cli.Unix.removeFile actualFile)
+                      |> Stdlib.Result.withDefault (fun e ->
+                        Builtin.printLine $"Failed to remove actual file: {e}"
+                      )
                       TestResult.Success $"{config.name} output matches expected"
                     else
                       TestUtils.printlnColored CliColors.red $"✗ FAIL - {config.name} output differs from expected"
@@ -252,14 +240,21 @@ module Darklang =
                       TestUtils.printlnColored CliColors.blue "📄 Detailed diff:"
                       Builtin.printLine "-----------------"
                       TestUtils.printlnColored CliColors.yellow "Expected vs Actual:"
-                      let diffOutput = generateDiff expectedFile actualFile
-                      Builtin.printLine diffOutput
-                      Builtin.printLine ""
-                      TestUtils.printMessageWithBorder
-                        "Tip: If the new output is correct, update expected with:"
-                        $"cp \"{actualFile}\" \"{expectedFile}\""
-                      Builtin.printLine ""
-                      TestResult.Failure $"{config.name} output differs from expected"
+                      let diffOutput = Stdlib.Cli.Unix.showDiff expectedFile actualFile
+                      match diffOutput.exitCode with
+                      | 0L ->
+                        Builtin.printLine "No differences found"
+                        TestResult.Success $"{config.name} output matches expected"
+                      | 1L ->
+                        Builtin.printLine diffOutput.stdout
+                        Builtin.printLine ""
+                        TestUtils.printMessageWithBorder
+                          "Tip: If the new output is correct, update expected with:"
+                          $"cp \"{actualFile}\" \"{expectedFile}\""
+                        Builtin.printLine ""
+                        TestResult.Failure $"{config.name} output differs from expected"
+                      | _ ->
+                        TestResult.Failure $"Failed to generate diff: {diffOutput.stderr}"
 
 
         let getRecordCommand (config: CliTest): String =

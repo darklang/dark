@@ -23,14 +23,6 @@ module Darklang =
           | Ok _ -> Stdlib.Result.Result.Ok ()
           | Error e -> Stdlib.Result.Result.Error e
 
-        let deleteFile (filePath: String): Unit =
-          let result = Builtin.cliExecute $"rm -f {filePath}"
-          ()
-
-        let fileExists (filePath: String): Bool =
-          let result = Builtin.cliExecute $"test -f {filePath}"
-          result.exitCode == 0L
-
 
         let printlnColored (color: String) (message: String): Unit =
           Builtin.printLine $"{color}{message}{CliColors.reset}"
@@ -47,16 +39,8 @@ module Darklang =
         let printlnInfo (message: String): Unit =
           printlnColored CliColors.blue $"ℹ {message}"
 
-
-        let createDirectory (dirPath: String): Stdlib.Result.Result<Unit, String> =
-          let result = Builtin.cliExecute $"mkdir -p {dirPath}"
-          if result.exitCode == 0L then
-            Stdlib.Result.Result.Ok ()
-          else
-            Stdlib.Result.Result.Error $"Failed to create directory: {result.stderr}"
-
         let getAbsolutePath (relativePath: String) : String =
-          let result = Builtin.cliExecute $"realpath {relativePath}"
+          let result = Stdlib.Cli.Unix.getAbsolutePath relativePath
           if result.exitCode == 0L then
             Stdlib.String.trim result.stdout
           else

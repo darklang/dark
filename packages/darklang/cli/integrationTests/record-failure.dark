@@ -12,22 +12,22 @@ module Darklang =
           let tapesDir = TestConfig.getTapesDir ()
 
           // Remove all GIF and tape files from previous runs
-          let cleanGifs = Builtin.cliExecute $"rm -f \"{gifsDir}\"/*.gif"
-          let cleanTapes = Builtin.cliExecute $"rm -f \"{tapesDir}\"/*.tape"
+          let cleanGifs = Stdlib.Cli.Unix.removeDirectory gifsDir
+          let cleanTapes = Stdlib.Cli.Unix.removeDirectory tapesDir
 
-          if cleanGifs.exitCode == 0L && cleanTapes.exitCode == 0L then
-            ()
-          else
-            Builtin.printLine "⚠️  Warning: Could not fully clean previous recordings"
+          match cleanGifs, cleanTapes with
+          | Ok _, Ok _ -> ()
+          | Error e, _ -> TestUtils.printlnError $"Failed to clean GIFs: {e}"
+          | _, Error e -> TestUtils.printlnError $"Failed to clean tapes: {e}"
 
 
         let recordFailure (testName: String) (command: String) (interactiveSteps: List<String>) : RecordingResult =
-          if Stdlib.Bool.not (VhsRecorder.checkVhsAvailable ()) then
-            Builtin.printLine "⚠️  VHS not found - skipping failure recording"
-            Builtin.printLine "Run ./scripts/setup-vhs.sh to install VHS"
+          let isVhsAvailable = Stdlib.Cli.Unix.isCommandAvailable "vhs"
+          if Stdlib.Bool.not isVhsAvailable then
+            TestUtils.printlnWarning "VHS is not installed. Skipping failure recording."
             RecordingResult.SkippedNoVhs
           else
-            match VhsRecorder.createDirectories () with
+            match VhsRecorder.createTapeGifsDirectories () with
             | Error e -> RecordingResult.Failed e
             | Ok _ ->
               let timestamp = VhsRecorder.generateTimestamp ()
@@ -46,7 +46,10 @@ module Darklang =
 
                 match VhsRecorder.runVhsRecording tapeFile with
                 | Ok _ ->
-                  TestUtils.deleteFile tapeFile
+                  (Stdlib.Cli.Unix.removeFile tapeFile)
+                  |> Stdlib.Result.withDefault (fun e ->
+                    Builtin.printLine $"Failed to remove tape file: {e}"
+                  )
                   Builtin.printLine $"✓ Failure GIF generated at: {gifPath}"
                   Builtin.printLine "---"
                   RecordingResult.Success gifPath

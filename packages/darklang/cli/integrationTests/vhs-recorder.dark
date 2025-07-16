@@ -3,10 +3,6 @@ module Darklang =
     module IntegrationTests =
       module VhsRecorder =
 
-        let checkVhsAvailable () : Bool =
-          let result = Builtin.cliExecute "command -v vhs"
-          result.exitCode == 0L
-
         let generateVhsHeader (settings: TestConfig.VhsSettings) (outputPath: String) : String =
           let absoluteOutputPath = TestUtils.getAbsolutePath outputPath
           $"Output \"{absoluteOutputPath}\"\n" ++
@@ -62,11 +58,10 @@ module Darklang =
           let absoluteProjectRoot = TestUtils.getAbsolutePath TestConfig.projectRoot
 
           // Verify the tape file exists before running VHS
-          if Stdlib.Bool.not (TestUtils.fileExists absoluteTapeFile) then
+          if Stdlib.Bool.not (Stdlib.Cli.Unix.fileExists absoluteTapeFile) then
             Stdlib.Result.Result.Error $"Tape file does not exist: {absoluteTapeFile}"
           else
-            let command = $"cd \"{absoluteProjectRoot}\" && vhs \"{absoluteTapeFile}\""
-            let result = Builtin.cliExecute command
+            let result = Stdlib.Cli.Unix.executeInDirectoryWithOutput absoluteProjectRoot $"vhs \"{absoluteTapeFile}\""
 
             if result.exitCode == 0L then
               Stdlib.Result.Result.Ok()
@@ -77,17 +72,9 @@ module Darklang =
         let generateTimestamp () : String =
           (Stdlib.DateTime.now()) |> Stdlib.DateTime.toString
 
-        let createDirectories () : Stdlib.Result.Result<Unit, String> =
-          let result1 = Builtin.cliExecute $"mkdir -p {TestConfig.getFailureGifsDir ()}"
-
-          if result1.exitCode == 0L then
-            let result2 = Builtin.cliExecute $"mkdir -p {TestConfig.getTapesDir ()}"
-
-            if result2.exitCode == 0L then
-              Stdlib.Result.Result.Ok()
-            else
-              Stdlib.Result.Result.Error
-                $"Failed to create tapes directory: {result2.stderr}"
-          else
-            Stdlib.Result.Result.Error
-              $"Failed to create failed-tests-gifs directory: {result1.stderr}"
+        let createTapeGifsDirectories () : Stdlib.Result.Result<Unit, String> =
+          (Stdlib.Cli.Unix.ensureDirectoryExists (TestConfig.getFailureGifsDir ()))
+          |> Stdlib.Result.andThen (fun _ ->
+            Stdlib.Cli.Unix.ensureDirectoryExists (TestConfig.getTapesDir ()))
+          |> Stdlib.Result.mapError (fun e ->
+            $"Failed to create directories for VHS recordings: {e}")
