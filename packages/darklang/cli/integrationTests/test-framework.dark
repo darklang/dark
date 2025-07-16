@@ -203,7 +203,7 @@ module Darklang =
               let runCommand = Stdlib.Cli.Unix.executeInDirectoryAndRedirectToFile TestConfig.projectRoot command actualFile
               match runCommand with
               | Error e ->
-                TestUtils.printlnColored CliColors.red "✗ CLI command failed"
+                TestUtils.printlnError $"CLI command failed"
                 Builtin.printLine "CLI output:"
                 match TestUtils.getFileContent actualFile with
                 | Ok content when Stdlib.Bool.not (Stdlib.String.isEmpty content) ->
@@ -213,7 +213,7 @@ module Darklang =
                 TestResult.Failure $"CLI command failed: {e}"
               | Ok _ ->
                 if Stdlib.Bool.not (isFileEmpty actualFile) then
-                  TestUtils.printlnColored CliColors.red "✗ Output file is empty."
+                  TestUtils.printlnError $"Output file is empty."
                   TestResult.Failure "Output file is empty"
                 else
                   if Stdlib.Bool.not (Stdlib.Cli.Unix.fileExists expectedFile) then
@@ -235,7 +235,7 @@ module Darklang =
                       )
                       TestResult.Success $"{config.name} output matches expected"
                     else
-                      TestUtils.printlnColored CliColors.red $"✗ FAIL - {config.name} output differs from expected"
+                      TestUtils.printlnError $"FAIL - {config.name} output differs from expected"
                       Builtin.printLine ""
                       TestUtils.printlnColored CliColors.blue "📄 Detailed diff:"
                       Builtin.printLine "-----------------"
