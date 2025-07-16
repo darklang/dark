@@ -248,54 +248,103 @@ module Darklang =
 
       /// Helper function to view an entity by its fully qualified name
       let viewEntityByName (state: State) (fullyQualifiedName: String) : (State * List<Msg>) =
-        // TODO: is it worth it to check if the last part of the name is capitalized
-        //   (if so we look for a type, otherwise a function or constant)?
+        let modules = fullyQualifiedName |> Stdlib.String.split "." |> Stdlib.List.dropLast
+        let text = fullyQualifiedName |> Stdlib.String.split "." |> Stdlib.List.last |> Builtin.unwrap
 
-        // Try to find the entity as a function
-        match LanguageTools.PackageManager.Function.find fullyQualifiedName with
-        | Some fnId ->
-          // Function found, get the details
-          match LanguageTools.PackageManager.Function.get fnId with
-          | Some packageFn ->
-            // Pretty print the function details
-            let prettyPrinted = PrettyPrinter.ProgramTypes.packageFn packageFn
-            let highlighted = Cli.SyntaxHighlighting.highlightCode prettyPrinted
-            let newState = { state with commandResult = CommandResult.Success $"Function: {fullyQualifiedName}\n\n{highlighted}" }
+        let query = createSearchQuery modules text
+
+        let moduleContent =
+          LanguageTools.PackageManager.Search.search query
+
+
+        match moduleContent.fns, moduleContent.types, moduleContent.constants with
+        | [], [], [] ->
+          let newState =
+            { state with
+                commandResult =
+                  CommandResult.Error $"No entities found for: {fullyQualifiedName}" }
+
+          (newState, [])
+
+        | fns, [], [] ->
+          let fn =
+            fns
+            |> Stdlib.List.filter (fun fn -> fn.name.name == text)
+            |> Stdlib.List.head
+
+          match fn with
+          | None ->
+            let newState =
+              { state with
+                  commandResult =
+                    CommandResult.Error $"Function not found: {fullyQualifiedName}" }
             (newState, [])
-          | None ->
-            (createErrorState state $"Function found but details could not be retrieved: {fullyQualifiedName}", [])
-        | None ->
-          // Try to find the entity as a type
-          match LanguageTools.PackageManager.Type.find fullyQualifiedName with
-          | Some typeId ->
-            // Type found, get the details
-            match LanguageTools.PackageManager.Type.get typeId with
-            | Some packageType ->
-              // Pretty print the type details
-              let prettyPrinted = PrettyPrinter.ProgramTypes.packageType packageType
-              let highlighted = Cli.SyntaxHighlighting.highlightCode prettyPrinted
-              let newState = { state with commandResult = CommandResult.Success $"Type: {fullyQualifiedName}\n\n{highlighted}" }
-              (newState, [])
-            | None ->
-              (createErrorState state $"Type found but details could not be retrieved: {fullyQualifiedName}", [])
-          | None ->
-            // Try to find the entity as a constant
-            match LanguageTools.PackageManager.Constant.find fullyQualifiedName with
-            | Some constId ->
-              // Constant found, get the details
-              match LanguageTools.PackageManager.Constant.get constId with
-              | Some packageConst ->
-                // Pretty print the constant details
-                let prettyPrinted = PrettyPrinter.ProgramTypes.packageConstant packageConst
-                let highlighted = Cli.SyntaxHighlighting.highlightCode prettyPrinted
-                let newState = { state with commandResult = CommandResult.Success $"Constant: {fullyQualifiedName}\n\n{highlighted}" }
-                (newState, [])
-              | None ->
-                (createErrorState state $"Constant found but details could not be retrieved: {fullyQualifiedName}", [])
-            | None ->
-              // Entity not found
-              (createErrorState state $"Entity not found: {fullyQualifiedName}", [])
 
+          | Some fn ->
+            let prettyPrinted = PrettyPrinter.ProgramTypes.packageFn fn
+
+            let highlighted = Cli.SyntaxHighlighting.highlightCode prettyPrinted
+
+            let newState =
+              { state with
+                  commandResult =
+                    CommandResult.Success $"Function: {fullyQualifiedName}\n\n{highlighted}" }
+
+            (newState, [])
+
+        | [], types, [] ->
+          let typ =
+            types
+            |> Stdlib.List.filter (fun typ -> typ.name.name == text)
+            |> Stdlib.List.head
+
+          match typ with
+          | None ->
+            let newState =
+              { state with
+                  commandResult =
+                    CommandResult.Error $"Type not found: {fullyQualifiedName}" }
+            (newState, [])
+
+          | Some typ ->
+            let prettyPrinted = PrettyPrinter.ProgramTypes.packageType typ
+
+            let highlighted = Cli.SyntaxHighlighting.highlightCode prettyPrinted
+
+            let newState =
+              { state with
+                  commandResult =
+                    CommandResult.Success $"Type: {fullyQualifiedName}\n\n{highlighted}" }
+
+            (newState, [])
+
+        | [], [], constants ->
+          let constant =
+            constants
+            |> Stdlib.List.filter (fun c -> c.name.name == text)
+            |> Stdlib.List.head
+
+          match constant with
+          | None ->
+            let newState =
+              { state with
+                  commandResult =
+                    CommandResult.Error $"Constant not found: {fullyQualifiedName}" }
+            (newState, [])
+            s
+          | Some constant ->
+            let prettyPrinted = PrettyPrinter.ProgramTypes.packageConstant constant
+
+            let highlighted = Cli.SyntaxHighlighting.highlightCode prettyPrinted
+
+            let newState =
+              { state with
+                  commandResult =
+                    CommandResult.Success $"Constant: {fullyQualifiedName}\n\n{highlighted}" }
+
+            (newState, [])
+
+        | _ -> (createErrorState state $"Entity not found: {fullyQualifiedName}", [])
 
 
       /// Returns commands available in the current state
