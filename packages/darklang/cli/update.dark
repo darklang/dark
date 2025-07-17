@@ -20,7 +20,8 @@ module Darklang =
         { state with
             commandHistory = newHistory
             historyPosition = -1L
-            draftPrompt = "" }
+            draftPrompt = ""
+            cursorPosition = 0L }
 
     // Navigate command history
     let navigateHistory (state: State) (direction: NavDirection): State =
@@ -47,11 +48,12 @@ module Darklang =
 
         // Typing Mode: mainPrompt shows your typing, draftPrompt is empty
         // History Mode: mainPrompt shows history commands, draftPrompt preserves what you were typing
-        let newPrompt, newdraftPrompt =
+        let newPrompt, newdraftPrompt, newCursorPos =
           match newPosition with
           | -1L ->
             // Restore draft prompt
-            (state.draftPrompt, "")
+            let restoredPrompt = state.draftPrompt
+            (restoredPrompt, "", Stdlib.String.length restoredPrompt)
           | pos ->
             // Get command from history
             let historyCommand =
@@ -67,12 +69,13 @@ module Darklang =
                 // Already navigating: keep previous draft
                 state.draftPrompt
 
-            (historyCommand, draftToSave)
+            (historyCommand, draftToSave, Stdlib.String.length historyCommand)
 
         { state with
             mainPrompt = newPrompt
             historyPosition = newPosition
-            draftPrompt = newdraftPrompt }
+            draftPrompt = newdraftPrompt
+            cursorPosition = newCursorPos }
 
     let update (state: State) (msg: Msg): (State * List<Msg>) =
       match msg with
@@ -104,21 +107,27 @@ module Darklang =
           // Enter key pressed, submit the current prompt as a command, and add it to history
           let command = state.mainPrompt
           let newState =
-            { state with mainPrompt = "" }
+            { state with mainPrompt = ""; cursorPosition = 0L }
             |> addToHistory command
           Builtin.printLine ""
           (newState, [Msg.SubmitCommand command])
 
         | Backspace ->
-          // Backspace key pressed, remove the last character from the prompt
+          // Backspace key pressed, remove the character before the cursor
           // Also reset history navigation when user starts typing
-          let newPrompt = Stdlib.String.dropLast state.mainPrompt 1L
-          let newState =
-            { state with
-                mainPrompt = newPrompt
-                historyPosition = -1L
-                draftPrompt = "" }
-          (newState, [])
+          if state.cursorPosition > 0L then
+            let beforeCursor = Stdlib.String.slice state.mainPrompt 0L (state.cursorPosition - 1L)
+            let afterCursor = Stdlib.String.dropFirst state.mainPrompt state.cursorPosition
+            let newPrompt = beforeCursor ++ afterCursor
+            let newState =
+              { state with
+                  mainPrompt = newPrompt
+                  cursorPosition = state.cursorPosition - 1L
+                  historyPosition = -1L
+                  draftPrompt = "" }
+            (newState, [])
+          else
+            (state, [])
 
         | UpArrow ->
           // Arrow up pressed, navigate to previous command in history
@@ -128,13 +137,29 @@ module Darklang =
           // Arrow down pressed, navigate to next command in history
           (state, [Msg.NavigateHistoryDown])
 
+        | LeftArrow ->
+          // Move cursor left
+          let newCursorPos = Stdlib.Int64.max 0L (state.cursorPosition - 1L)
+          let newState = { state with cursorPosition = newCursorPos }
+          (newState, [])
+
+        | RightArrow ->
+          // Move cursor right
+          let promptLength = Stdlib.String.length state.mainPrompt
+          let newCursorPos = Stdlib.Int64.min promptLength (state.cursorPosition + 1L)
+          let newState = { state with cursorPosition = newCursorPos }
+          (newState, [])
+
         | _ ->
-          // For other keys, check if they're textual and add to the prompt if so
+          // For other keys, check if they're textual and insert at cursor position
           // Also reset history navigation when user starts typing
-          let newPrompt = state.mainPrompt ++ keyChar
+          let beforeCursor = Stdlib.String.slice state.mainPrompt 0L state.cursorPosition
+          let afterCursor = Stdlib.String.dropFirst state.mainPrompt state.cursorPosition
+          let newPrompt = beforeCursor ++ keyChar ++ afterCursor
           let newState =
             { state with
                 mainPrompt = newPrompt
+                cursorPosition = state.cursorPosition + (Stdlib.String.length keyChar)
                 historyPosition = -1L
                 draftPrompt = "" }
           (newState, [])
@@ -168,6 +193,7 @@ module Darklang =
         let newState =
           { state with
               mainPrompt = ""
+              cursorPosition = 0L
               historyPosition = -1L
               draftPrompt = "" }
         (newState, [])
