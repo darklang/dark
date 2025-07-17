@@ -495,67 +495,7 @@ module Darklang =
                        Stdlib.List.isEmpty moduleContent.types &&
                        Stdlib.List.isEmpty moduleContent.constants then
 
-                      let modules = entityName |> Stdlib.String.split "." |> Stdlib.List.dropLast
-                      let text = entityName |> Stdlib.String.split "." |> Stdlib.List.last |> Builtin.unwrap
-
-                      let query = createSearchQuery modules text
-
-                      let moduleContent =
-                        LanguageTools.PackageManager.Search.search query
-
-                      match moduleContent.fns, moduleContent.types, moduleContent.constants with
-                      | [], [], [] ->
-                        let newState = { state with commandResult = CommandResult.Error $"No entities found for: {entityName}" }
-                        (newState, [])
-
-                      | fns , [], [] ->
-                        let fn =
-                          fns
-                          |> Stdlib.List.filter (fun fn -> fn.name.name == text)
-                          |> Stdlib.List.head
-                          |> Builtin.unwrap
-
-                        let prettyPrinted =
-                          PrettyPrinter.ProgramTypes.packageFn fn
-
-                        let highlighted = Cli.SyntaxHighlighting.highlightCode prettyPrinted
-
-                        let newState = { state with commandResult = CommandResult.Success $"Function: {entityName}\n\n{highlighted}" }
-                        (newState, [])
-
-                      | [], types, [] ->
-                        let typ =
-                          types
-                          |> Stdlib.List.filter (fun typ -> typ.name.name == text)
-                          |> Stdlib.List.head
-                          |> Builtin.unwrap
-
-                        let prettyPrinted =
-                          PrettyPrinter.ProgramTypes.packageType typ
-
-                        let highlighted = Cli.SyntaxHighlighting.highlightCode prettyPrinted
-
-                        let newState = { state with commandResult = CommandResult.Success $"Type: {entityName}\n\n{highlighted}" }
-                        (newState, [])
-
-                      | [], [], constants ->
-                        let constant =
-                          constants
-                          |> Stdlib.List.filter (fun c -> c.name.name == text)
-                          |> Stdlib.List.head
-                          |> Builtin.unwrap
-
-                        let prettyPrinted =
-                          PrettyPrinter.ProgramTypes.packageConstant constant
-
-                        let highlighted = Cli.SyntaxHighlighting.highlightCode prettyPrinted
-
-                        let newState = { state with commandResult = CommandResult.Success $"Constant: {entityName}\n\n{highlighted}" }
-                        (newState, [])
-
-                      | _ ->
-                        let newState = { state with commandResult = CommandResult.Error "Please navigate to a module first to view entities" }
-                        (newState, [])
+                        viewEntityByName state entityName
 
                     else
                       let moduleView = formatModuleContent entityName moduleContent
