@@ -76,6 +76,11 @@ RUN echo "deb [arch=${TARGETARCH}] https://download.docker.com/linux/ubuntu $(ls
 
 RUN echo "deb https://apt.releases.hashicorp.com $(lsb_release -cs) main" > /etc/apt/sources.list.d/hashicorp.list
 
+# Charm
+RUN mkdir -p /etc/apt/keyrings
+RUN curl -fsSL https://repo.charm.sh/apt/gpg.key | gpg --dearmor -o /etc/apt/keyrings/charm.gpg
+RUN echo "deb [signed-by=/etc/apt/keyrings/charm.gpg] https://repo.charm.sh/apt/ * *" | tee /etc/apt/sources.list.d/charm.list
+
 # Mostly, we use the generic version. However, for things in production we want
 # to pin the exact package version so that we don't have any surprises.  As a
 # result, sometimes the versions upgrade from under us and break the build. To
@@ -138,6 +143,10 @@ RUN DEBIAN_FRONTEND=noninteractive \
       libstdc++6 \
       zlib1g \
       # end .NET dependencies
+      # charm dependencies
+      ffmpeg \
+      ttyd \
+      vhs \
       # parser (tree-sitter) dependencies
       build-essential \
       # end parser dependencies
@@ -148,6 +157,11 @@ RUN DEBIAN_FRONTEND=noninteractive \
       && apt clean \
       && rm -rf /var/lib/apt/lists/*
 
+# Install expect for the CLI integration tests
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
+  DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends expect && \
+  apt-get clean && \
+  rm -rf /var/lib/apt/lists/*
 
 # As of Ubuntu 24.04, an install includes
 # an 'ubuntu' user, that we don't use,
