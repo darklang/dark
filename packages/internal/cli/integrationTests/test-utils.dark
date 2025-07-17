@@ -1,0 +1,80 @@
+module Darklang =
+  module Internal =
+    module Cli =
+      module IntegrationTests =
+        module TestUtils =
+          let safeFileName (name: String) : String =
+            name
+            |> Stdlib.String.toLowercase
+            |> Stdlib.String.replaceAll " " "-"
+            |> Stdlib.String.replaceAll "(" ""
+            |> Stdlib.String.replaceAll ")" ""
+            |> Stdlib.String.replaceAll "[" ""
+            |> Stdlib.String.replaceAll "]" ""
+            |> Stdlib.String.replaceAll "/" ""
+            |> Stdlib.String.replaceAll "\\" ""
+
+          let getFileContent (filePath: String): Stdlib.Result.Result<String, String> =
+            match Builtin.fileRead filePath with
+            | Ok bytes -> Stdlib.Result.Result.Ok (Stdlib.String.fromBytesWithReplacement bytes)
+            | Error e -> Stdlib.Result.Result.Error e
+
+          let writeFileContent (filePath: String) (content: String): Stdlib.Result.Result<Unit, String> =
+            match Builtin.fileWrite (Stdlib.String.toBytes content) filePath with
+            | Ok _ -> Stdlib.Result.Result.Ok ()
+            | Error e -> Stdlib.Result.Result.Error e
+
+
+          let printlnColored (color: String) (message: String): Unit =
+            Builtin.printLine $"{color}{message}{Cli.CliColors.reset}"
+
+          let printlnSuccess (message: String): Unit =
+            printlnColored Cli.CliColors.green $"✓ {message}"
+
+          let printlnError (message: String): Unit =
+            printlnColored Cli.CliColors.red $"✗ {message}"
+
+          let printlnWarning (message: String): Unit =
+            printlnColored Cli.CliColors.yellow $"⚠ {message}"
+
+          let printlnInfo (message: String): Unit =
+            printlnColored Cli.CliColors.blue $"ℹ {message}"
+
+          let getAbsolutePath (relativePath: String) : String =
+            let result = Stdlib.Cli.Unix.getAbsolutePath relativePath
+            if result.exitCode == 0L then
+              Stdlib.String.trim result.stdout
+            else
+              relativePath // Fallback to relative path
+
+
+          let escapeForExpect (str: String): String =
+            str
+            |> Stdlib.String.replaceAll "\\" "\\\\"
+            |> Stdlib.String.replaceAll "\"" "\\\""
+            |> Stdlib.String.replaceAll "\n" "\\n"
+            |> Stdlib.String.replaceAll "\r" "\\r"
+            |> Stdlib.String.replaceAll "\t" "\\t"
+
+
+          let safePadEnd (text: String) (padChar: String) (width: Int64): String =
+            match Stdlib.String.padEnd text padChar width with
+            | Ok padded -> padded
+            | Error _ -> text
+
+          let printMessageWithBorder (message: String) (command: String): Unit =
+            let commandLength = Stdlib.String.length command
+            let messageLength = Stdlib.String.length message
+            let contentWidth = Stdlib.Int64.max commandLength messageLength
+            let borderLength = contentWidth + 4L
+
+            let dashes =
+              (Stdlib.List.range 1L (borderLength - 2L))
+              |> Stdlib.List.map (fun _ -> "-")
+              |> Stdlib.String.join ""
+            let border = $"+{dashes}+"
+
+            printlnColored Cli.CliColors.yellow border
+            printlnColored Cli.CliColors.yellow $"| {safePadEnd message " " contentWidth} |"
+            printlnColored Cli.CliColors.yellow $"| {safePadEnd command " " contentWidth} |"
+            printlnColored Cli.CliColors.yellow border

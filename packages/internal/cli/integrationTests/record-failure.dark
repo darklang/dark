@@ -1,0 +1,66 @@
+module Darklang =
+  module Internal =
+    module Cli =
+      module IntegrationTests =
+        module FailureRecorder =
+          type RecordingResult =
+            | Success of gifPath: String
+            | SkippedNoVhs
+            | Failed of error: String
+
+          let cleanupPreviousFailures () : Unit =
+            let gifsDir = TestConfig.getFailureGifsDir ()
+            let tapesDir = TestConfig.getTapesDir ()
+
+            // Remove all GIF and tape files from previous runs
+            let cleanGifs = Stdlib.Cli.Unix.removeDirectory gifsDir
+            let cleanTapes = Stdlib.Cli.Unix.removeDirectory tapesDir
+
+            match cleanGifs, cleanTapes with
+            | Ok _, Ok _ -> ()
+            | Error e, _ -> TestUtils.printlnError $"Failed to clean GIFs: {e}"
+            | _, Error e -> TestUtils.printlnError $"Failed to clean tapes: {e}"
+
+
+          let recordFailure (testName: String) (command: String) (interactiveSteps: List<String>) : RecordingResult =
+            let isVhsAvailable = Stdlib.Cli.Unix.isCommandAvailable "vhs"
+            if Stdlib.Bool.not isVhsAvailable then
+              TestUtils.printlnWarning "VHS is not installed. Skipping failure recording."
+              RecordingResult.SkippedNoVhs
+            else
+              match VhsRecorder.createTapeGifsDirectories () with
+              | Error e -> RecordingResult.Failed e
+              | Ok _ ->
+                let timestamp = VhsRecorder.generateTimestamp ()
+                let safeTestName = TestUtils.safeFileName testName
+
+                let tapeFile =
+                  $"{TestConfig.getTapesDir ()}/failure-{safeTestName}-{timestamp}.tape"
+
+                let gifName = $"{safeTestName}-failure-{timestamp}.gif"
+                let gifPath = $"{TestConfig.getFailureGifsDir ()}/{gifName}"
+
+                match VhsRecorder.generateTapeFile testName command interactiveSteps tapeFile gifPath with
+                | Error e -> RecordingResult.Failed $"Failed to create tape file: {e}"
+                | Ok _ ->
+                  Builtin.printLine $"🎬 Recording failure GIF for {testName}..."
+
+                  match VhsRecorder.runVhsRecording tapeFile with
+                  | Ok _ ->
+                    (Stdlib.Cli.Unix.removeFile tapeFile)
+                    |> Stdlib.Result.withDefault (fun e ->
+                      Builtin.printLine $"Failed to remove tape file: {e}"
+                    )
+                    Builtin.printLine $"✓ Failure GIF generated at: {gifPath}"
+                    Builtin.printLine "---"
+                    RecordingResult.Success gifPath
+                  | Error e ->
+                    Builtin.printLine "✗ Failed to generate VHS recording"
+                    RecordingResult.Failed $"VHS recording failed: {e}"
+
+
+          let recordFailureForTest (testName: String) (command: String) (interactiveSteps: List<String>) : Bool =
+            match recordFailure testName command interactiveSteps with
+            | Success _ -> true
+            | SkippedNoVhs -> true
+            | Failed _ -> false

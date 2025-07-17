@@ -6,7 +6,7 @@ It is recommended to run the integration tests inside the dev container (require
 To run the tests, execute the following command in the terminal from the root project:
 
 ```bash
-./scripts/run-cli run @Darklang.Cli.IntegrationTests.runIntegrationTests
+./scripts/run-cli run @Darklang.Internal.Cli.IntegrationTests.runIntegrationTests
 ```
 
 ## Test Types
