@@ -6,10 +6,20 @@ module Darklang =
       |> Stdlib.List.map (fun cmd -> cmd.name)
 
 
+    /// Helper function to move the terminal cursor to the correct position
+    let positionTerminalCursor (pathDisplay: String) (cursorPos: Int64): String =
+      // Calculate the actual column position: path + "> " + cursor position
+      let promptPrefix = $"{pathDisplay}> "
+      let actualColumn = (Stdlib.String.length promptPrefix) + cursorPos + 1L // +1 for 1-based column numbering
+      // \u001b[{column}G  = ANSI escape sequence to move cursor to specific column in current line
+      $"\u001b[{actualColumn |> Stdlib.Int64.toString}G"
+
     /// Renders just the prompt line for incremental updates
     let renderPromptOnly (state: State): String =
       let pathDisplay = getPathDisplay state.currentPage
-      $"{pathDisplay}> {state.mainPrompt}"
+      let promptLine = $"{pathDisplay}> {state.mainPrompt}"
+      let cursorPosition = positionTerminalCursor pathDisplay state.cursorPosition
+      promptLine ++ cursorPosition
 
 
     /// Renders the current state to a string for display
@@ -29,6 +39,7 @@ module Darklang =
         let pathDisplay = getPathDisplay state.currentPage
         // Format the prompt with the current path
         let promptLine = $"{pathDisplay}> {state.mainPrompt}"
+        let cursorPosition = positionTerminalCursor pathDisplay state.cursorPosition
 
         // Format the command result
         let resultDisplay =
@@ -41,9 +52,9 @@ module Darklang =
         // Combine parts with appropriate spacing
         let parts =
           if Stdlib.String.isEmpty resultDisplay then
-            [promptLine]
+            [promptLine ++ cursorPosition]
           else
-            [resultDisplay; ""; promptLine]
+            [resultDisplay; ""; promptLine ++ cursorPosition]
 
         parts
         |> Stdlib.List.filter (fun p -> Stdlib.Bool.not (Stdlib.String.isEmpty p))
@@ -55,6 +66,7 @@ module Darklang =
         let pathDisplay = getPathDisplay state.currentPage
         // Format the prompt with the current path
         let promptLine = $"{pathDisplay}> {state.mainPrompt}"
+        let cursorPosition = positionTerminalCursor pathDisplay state.cursorPosition
 
         // Format the command result
         let resultDisplay =
@@ -64,6 +76,6 @@ module Darklang =
           | Info msg -> msg
           | None -> ""
 
-        [ resultDisplay; promptLine ]
+        [ resultDisplay; promptLine ++ cursorPosition ]
         |> Stdlib.List.filter (fun p -> Stdlib.Bool.not (Stdlib.String.isEmpty p))
         |> Stdlib.String.join "\n"

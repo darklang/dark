@@ -73,6 +73,9 @@ module Darklang =
           /// The current input in the prompt
           mainPrompt: String
 
+          /// Position of the cursor within the prompt
+          cursorPosition: Int64
+
           /// Command history
           commandHistory: List<String>
 

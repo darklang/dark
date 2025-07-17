@@ -14,6 +14,7 @@ module Darklang =
           { currentPage = Page.Root
             pageHistory = []
             mainPrompt = ""
+            cursorPosition = 0L
             commandHistory = []
             historyPosition = -1L
             draftPrompt = ""
