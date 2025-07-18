@@ -74,21 +74,11 @@ variable "service_env_vars" {
     "DARK_CONFIG_QUEUE_PUBSUB_CREATE_TOPIC"      = { value : "n" }
     "DARK_CONFIG_QUEUE_PUBSUB_CREDENTIALS"       = { secret : "queue-pubsub-credentials" }
 
-    # Traces / cloud storage
-    "DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME"   = { value : "darklang-traces" }
-    "DARK_CONFIG_TRACE_STORAGE_CREATE_BUCKET" = { value : "n" }
-    "DARK_CONFIG_TRACE_STORAGE_CREDENTIALS"   = { secret : "traces-cloud-storage-credentials" }
-    "DARK_CONFIG_TRACE_STORAGE_BASE_URI"      = { value : "not-used" }
-
     # Pusher
     "DARK_CONFIG_PUSHER_APP_ID"  = { secret : "pusher-app-id" }
     "DARK_CONFIG_PUSHER_KEY"     = { secret : "pusher-key" }
     "DARK_CONFIG_PUSHER_SECRET"  = { secret : "pusher-secret" }
     "DARK_CONFIG_PUSHER_CLUSTER" = { secret : "pusher-cluster" }
-
-
-    # Heap analytics
-    "DARK_CONFIG_HEAPIO_ID" = { value : "477722926" }
 
     # Package Manager
     "DARK_CONFIG_PACKAGE_MANAGER_BASE_URL" = { value : "https://packages.darklang.com" }

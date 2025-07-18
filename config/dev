@@ -73,13 +73,6 @@ DARK_CONFIG_QUEUE_PUBSUB_SUBSCRIPTION_NAME=topic-queueworker-subscription
 DARK_CONFIG_QUEUE_PUBSUB_CREATE_TOPIC=y
 DARK_CONFIG_QUEUE_PUBSUB_CREDENTIALS=none
 
-# Traces / cloud storage
-# (https://github.com/fsouza/fake-gcs-server is used to emulate GCS in dev)
-DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME=trace-dev
-DARK_CONFIG_TRACE_STORAGE_CREATE_BUCKET=y
-DARK_CONFIG_TRACE_STORAGE_CREDENTIALS=none
-DARK_CONFIG_TRACE_STORAGE_BASE_URI=http://localhost:4444/storage/v1/
-
 # Pusher
 ## This account is the dark-dev-account pusher account, username
 ## ops@darklang.com, whose password is in the 1pw admin vault.
@@ -87,9 +80,6 @@ DARK_CONFIG_PUSHER_APP_ID=1006124
 DARK_CONFIG_PUSHER_KEY=acd42e5073f0bad7e604
 DARK_CONFIG_PUSHER_SECRET=fcd318b907f67bbedb4f
 DARK_CONFIG_PUSHER_CLUSTER=us2
-
-# Heap analytics
-DARK_CONFIG_HEAPIO_ID=2080145903
 
 # Package manager
 DARK_CONFIG_PACKAGE_MANAGER_BASE_URL=http://dark-packages.dlio.localhost:11001

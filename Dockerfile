@@ -227,16 +227,6 @@ RUN /home/dark/install-gz-file \
 ENV PUBSUB_EMULATOR_HOST=localhost:8085
 
 ############################
-# GCS emulator
-############################
-RUN /home/dark/install-targz-file \
-  --arm64-sha256=e37183fb37d3614434bb6e9aa9cfe953a9cde83c240088d842ff1671f8804bda \
-  --amd64-sha256=443811366a779b204adb5feff2460248bc0aef0d0b713b64cb52947ebd429563 \
-  --url=https://github.com/fsouza/fake-gcs-server/releases/download/v1.45.2/fake-gcs-server_1.45.2_Linux_${TARGETARCH}.tar.gz\
-  --extract-file=fake-gcs-server \
-  --target=/usr/bin/fake-gcs-server
-
-############################
 # Pip packages
 ############################
 RUN python3 -m venv /home/dark/.local \
