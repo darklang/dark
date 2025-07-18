@@ -40,21 +40,7 @@ Trigger the deploy:
 
 ## How to pull the prod db locally
 
-- `scripts/production/download-gcp-db`
-
-This pulls all the data from gcp and puts it in a db named "prodclone".
-
-Access it:
-
-- `scripts/builder --compile --watch [etc] --prodclone`
-
-And access it directly with:
-
-- `scripts/run-in-docker psql -d prodclone`
-
-You can also access the real DB in production:
-
-- `./scripts/production/gcp-psql`
+TODO update this now that we've migrated to sqlite.
 
 ### Troubleshooting GCP/GKE:
 

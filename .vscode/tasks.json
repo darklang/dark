@@ -23,73 +23,19 @@
       }
     },
     {
-      "label": "build",
-      "command": "dotnet",
-      "type": "process",
-      "args": [
-        "build",
-        // Ask dotnet build to generate full paths for file names.
-        "/property:GenerateFullPaths=true",
-        "--no-restore",
-        // Do not generate summary otherwise it leads to duplicate errors in Problems panel
-        "/consoleloggerparameters:NoSummary"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}/backend"
-      },
-      "group": {
-        "kind": "build",
-        "isDefault": true
-      },
-      "problemMatcher": "$msCompile"
-    },
-    {
-      "label": "build-tests",
-      "command": "dotnet",
-      "args": [
-        "build",
-        "/property:GenerateFullPaths=true",
-        "--no-restore",
-        "/consoleloggerparameters:NoSummary",
-        "tests/Tests/Tests.fsproj"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}/backend"
-      },
+      "label": "Dev DB",
+      "type": "shell",
+      "command": "./scripts/devcontainer/sqlite-monitor.sh",
       "group": "build",
-      "problemMatcher": "$msCompile"
-    },
-    {
-      "label": "build-benchmark",
-      "command": "dotnet",
-      "args": [
-        "build",
-        "/property:GenerateFullPaths=true",
-        "--no-restore",
-        "/consoleloggerparameters:NoSummary",
-        "src/Benchmark/Benchmark.fsproj"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}/backend"
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "new"
       },
-      "group": "build",
-      "problemMatcher": "$msCompile"
-    },
-    {
-      "label": "build-bwdserver",
-      "command": "dotnet",
-      "args": [
-        "build",
-        "/property:GenerateFullPaths=true",
-        "--no-restore",
-        "/consoleloggerparameters:NoSummary",
-        "src/BwdServer/BwdServer.fsproj"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}/backend"
-      },
-      "group": "build",
-      "problemMatcher": "$msCompile"
+      "runOptions": {
+        "runOn": "folderOpen"
+      }
     }
   ]
 }
