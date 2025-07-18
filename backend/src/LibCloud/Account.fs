@@ -4,11 +4,10 @@ module LibCloud.Account
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open Npgsql.FSharp
-open Npgsql
 
 open Prelude
-open Db
+open Fumble
+open LibDB.Db
 
 let createUser () : Task<UserID> =
   task {

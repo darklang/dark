@@ -62,6 +62,7 @@
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../DvalReprDeveloper/DvalReprDeveloper.fsproj" />
     <ProjectReference Include="../LibTreeSitter/LibTreeSitter.fsproj" />
+    <ProjectReference Include="../LibPackageManager/LibPackageManager.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

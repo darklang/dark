@@ -4,9 +4,9 @@ module LibCloud.Stats
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open Npgsql.FSharp
-open Npgsql
-open Db
+open Microsoft.Data.Sqlite
+open Fumble
+open LibDB.Db
 
 open Prelude
 
@@ -32,7 +32,7 @@ type DBStats = Map<tlid, DBStat>
 //   |> Task.flatten
 //   |> Task.map Map.ofList
 
-let workerV2Stats (canvasID : CanvasID) (tlid : tlid) : Task<int> =
+let workerStats (canvasID : CanvasID) (tlid : tlid) : Task<int> =
   Sql.query
     "SELECT COUNT(1) AS num
      FROM queue_events_v0 E
@@ -44,9 +44,3 @@ let workerV2Stats (canvasID : CanvasID) (tlid : tlid) : Task<int> =
        AND TL.canvas_id = @canvasID"
   |> Sql.parameters [ "tlid", Sql.tlid tlid; "canvasID", Sql.uuid canvasID ]
   |> Sql.executeRowAsync (fun read -> read.int "num")
-
-let workerStats (canvasID : CanvasID) (tlid : tlid) : Task<int> =
-  task {
-    let! v2Stats = workerV2Stats canvasID tlid
-    return v2Stats
-  }

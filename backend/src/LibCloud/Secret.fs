@@ -4,9 +4,8 @@ module LibCloud.Secret
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open Npgsql.FSharp
-open Npgsql
-open Db
+open Fumble
+open LibDB.Db
 
 open Prelude
 
@@ -46,7 +45,7 @@ let delete (canvasID : CanvasID) (name : string) (version : int) : Task<unit> =
   Sql.query
     "DELETE FROM secrets_v0
       WHERE canvas_id = @canvasID
-        AND name = @Name
+        AND name = @name
         AND version = @version"
   |> Sql.parameters
     [ "canvasID", Sql.uuid canvasID

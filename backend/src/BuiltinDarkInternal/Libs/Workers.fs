@@ -56,23 +56,24 @@ let rulesToDval (rules : List<SchedulingRules.SchedulingRule.T>) : Dval =
 
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "darkInternalCanvasQueueCount" 0
-      typeParams = []
-      parameters = [ Param.make "canvasID" TUuid ""; Param.make "tlid" TUInt64 "" ]
-      returnType = TList TInt64
-      description = "Get count of how many events are in the queue for this tlid"
-      fn =
-        (function
-        | _, _, _, [ DUuid canvasID; DUInt64 tlid ] ->
-          uply {
-            let tlid = uint64 tlid
-            let! count = LibCloud.Stats.workerStats canvasID tlid
-            return DInt64 count
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
+  [
+    // { name = fn "darkInternalCanvasQueueCount" 0
+    //   typeParams = []
+    //   parameters = [ Param.make "canvasID" TUuid ""; Param.make "tlid" TUInt64 "" ]
+    //   returnType = TList TInt64
+    //   description = "Get count of how many events are in the queue for this tlid"
+    //   fn =
+    //     (function
+    //     | _, _, _, [ DUuid canvasID; DUInt64 tlid ] ->
+    //       uply {
+    //         let tlid = uint64 tlid
+    //         let! count = LibCloud.Stats.workerStats canvasID tlid
+    //         return DInt64 count
+    //       }
+    //     | _ -> incorrectArgs ())
+    //   sqlSpec = NotQueryable
+    //   previewable = Impure
+    //   deprecated = NotDeprecated }
 
 
     { name = fn "darkInternalCanvasQueueSchedulingRuleList" 0

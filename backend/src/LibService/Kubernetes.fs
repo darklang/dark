@@ -40,13 +40,8 @@ let configureServices
   (healthChecks : List<HealthCheck>)
   (services : IServiceCollection)
   : IServiceCollection =
-  // each healthcheck is tagged according to the probes it is used in
-  let allProbes = [| livenessTag; readinessTag; startupTag |]
-
-  let healthChecksBuilder =
-    services
-      .AddHealthChecks()
-      .AddNpgSql(DBConnection.dataSource.ConnectionString, tags = allProbes)
+  // Set up health checks infrastructure - individual services can add their own checks
+  let healthChecksBuilder = services.AddHealthChecks()
 
   healthChecks
   |> List.iter (fun hc ->

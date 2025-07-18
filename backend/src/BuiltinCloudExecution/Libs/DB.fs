@@ -11,7 +11,7 @@ module TypeChecker = LibExecution.TypeChecker
 module Builtin = LibExecution.Builtin
 
 module UserDB = LibCloud.UserDB
-module Db = LibCloud.Db
+module Db = LibDB.Db
 
 
 let tvar v = TVariable v

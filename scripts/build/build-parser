@@ -8,9 +8,53 @@ echo "Installing tree-sitter-darklang dependencies..."
 echo "Note: installing tree-sitter automatically builds the parser as part of it, so this might take a bit..."
 echo "(and if you're stuck here for a while, it's probably because you're disconnected from the internet)"
 # TODO don't require internet connection for this!. if the container is already built, this is pretty frustrating.
+
+# Wait a bit to ensure the container environment is fully ready
+echo "Waiting for container environment to be ready..."
+sleep 2
+
 cd tree-sitter-darklang
-npm install tree-sitter-cli
-npm i --ignore-scripts
+
+# Retry npm install with exponential backoff to handle timing issues
+max_retries=3
+retry_count=0
+while [ $retry_count -lt $max_retries ]; do
+  echo "Attempting npm install tree-sitter-cli (attempt $((retry_count + 1))/$max_retries)..."
+  if npm install tree-sitter-cli; then
+    echo "Successfully installed tree-sitter-cli"
+    break
+  else
+    retry_count=$((retry_count + 1))
+    if [ $retry_count -lt $max_retries ]; then
+      wait_time=$((2 ** retry_count))
+      echo "npm install failed, waiting ${wait_time}s before retry..."
+      sleep $wait_time
+    else
+      echo "Failed to install tree-sitter-cli after $max_retries attempts"
+      exit 1
+    fi
+  fi
+done
+
+# Install other dependencies with retry logic
+retry_count=0
+while [ $retry_count -lt $max_retries ]; do
+  echo "Attempting npm i --ignore-scripts (attempt $((retry_count + 1))/$max_retries)..."
+  if npm i --ignore-scripts; then
+    echo "Successfully installed dependencies"
+    break
+  else
+    retry_count=$((retry_count + 1))
+    if [ $retry_count -lt $max_retries ]; then
+      wait_time=$((2 ** retry_count))
+      echo "npm i failed, waiting ${wait_time}s before retry..."
+      sleep $wait_time
+    else
+      echo "Failed to install dependencies after $max_retries attempts"
+      exit 1
+    fi
+  fi
+done
 
 echo "Building parser"
 # build the parser and generate the bindings

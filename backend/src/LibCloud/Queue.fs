@@ -4,9 +4,9 @@ module LibCloud.Queue
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open Npgsql.FSharp
-open Npgsql
-open Db
+open Microsoft.Data.Sqlite
+open Fumble
+open LibDB.Db
 
 open Google.Cloud.PubSub.V1
 open Grpc.Auth
@@ -75,18 +75,16 @@ let createEventAtTime
   : Task<unit> =
   Sql.query
     "INSERT INTO queue_events_v0
-      (id, canvas_id, module, name, modifier, value,
-       enqueued_at, locked_at)
+      (id, canvas_id, module, name, modifier, value, enqueued_at, locked_at)
      VALUES
-      (@id, @canvasID, @module, @name, @modifier, @value,
-       @enqueuedAt, NULL)"
+      (@id, @canvasID, @module, @name, @modifier, @value, @enqueuedAt, NULL)"
   |> Sql.parameters
     [ "id", Sql.uuid id
       "canvasID", Sql.uuid canvasID
       "module", Sql.string module'
       "name", Sql.string name
       "modifier", Sql.string modifier
-      "enqueuedAt", Sql.instantWithTimeZone dt
+      "enqueuedAt", Sql.instant dt
       "value", Sql.string (DvalReprInternalRoundtrippable.toJsonV0 value) ]
   |> Sql.executeStatementAsync
 
@@ -185,7 +183,7 @@ let claimLock (event : T) (_n : Notification) : Task<Result<unit, string>> =
       |> Sql.parameters
         [ "eventID", Sql.uuid event.id
           "canvasID", Sql.uuid event.canvasID
-          "currentLockedAt", Sql.instantWithTimeZoneOrNone event.lockedAt ]
+          "currentLockedAt", Sql.instantOrNone event.lockedAt ]
       |> Sql.executeNonQueryAsync
     if rowCount = 1 then return Ok()
     else if rowCount = 0 then return Error "LockNotClaimed"

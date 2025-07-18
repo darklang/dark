@@ -6,9 +6,7 @@ open Expecto
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open Npgsql.FSharp
-open Npgsql
-open LibCloud.Db
+open LibDB.Db
 
 open Prelude
 
@@ -31,7 +29,7 @@ module PackageIDs = LibExecution.PackageIDs
 module C2DT = LibExecution.CommonToDarkTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
-let pmPT = LibCloud.PackageManager.pt
+let pmPT = LibPackageManager.PackageManager.pt
 
 let testOwner : Lazy<Task<UserID>> = lazy (Account.createUser ())
 

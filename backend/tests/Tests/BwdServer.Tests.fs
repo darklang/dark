@@ -44,7 +44,7 @@ type Test =
     expectedResponse : byte array
   }
 
-let pm = LibCloud.PackageManager.pt
+let pm = LibPackageManager.PackageManager.pt
 
 
 let newline = byte '\n'

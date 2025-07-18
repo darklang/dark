@@ -21,7 +21,7 @@ module Rollbar = LibService.Rollbar
 
 module CTPusher = LibClientTypes.Pusher
 
-open LibCloud.Db
+open LibDB.Db
 
 
 let mutable shouldShutdown = false
@@ -308,8 +308,6 @@ let initSerializers () =
     "RoundtrippableSerializationFormatV0.Dval"
   Json.Vanilla.allow<LibExecution.ProgramTypes.Toplevel.T> "Canvas.loadJsonFromDisk"
   Json.Vanilla.allow<LibCloud.Queue.NotificationData> "eventqueue storage"
-  Json.Vanilla.allow<LibCloud.TraceCloudStorage.CloudStorageFormat>
-    "TraceCloudStorageFormat"
   Json.Vanilla.allow<LibService.Rollbar.HoneycombJson> "Rollbar"
 
   // for Pusher.com payloads
@@ -328,7 +326,7 @@ let main _ : int =
     initSerializers ()
     LibService.Init.init name
     Telemetry.Console.loadTelemetry name Telemetry.TraceDBQueries
-    (LibCloud.Init.init LibCloud.Init.WaitForDB name).Result
+    (LibCloud.Init.init name).Result
     (LibCloudExecution.Init.init name).Result
 
     // Called if k8s tells us to stop

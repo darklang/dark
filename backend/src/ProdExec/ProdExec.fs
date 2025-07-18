@@ -18,14 +18,6 @@ module CTPusher = LibClientTypes.Pusher
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 
-let runMigrations () : unit =
-  printTime $"Running migrations"
-  LibCloud.Migrations.run ()
-
-let listMigrations () : unit =
-  print "Migrations needed:\n"
-  LibCloud.Migrations.migrationsToRun ()
-  |> List.iter (fun name -> print $" - {name}")
 
 /// Send multiple messages to Rollbar, to ensure our usage is generally OK
 let triggerRollbar () : unit =
@@ -53,8 +45,6 @@ let triggerPagingRollbar () : int =
 
 let help () : unit =
   [ "USAGE:"
-    "  ProdExec migrations list"
-    "  ProdExec migrations run"
     "  ProdExec trigger-rollbar"
     "  ProdExec trigger-pageable-rollbar"
     "  ProdExec convert-st-to-rt [canvasID]"
@@ -63,8 +53,6 @@ let help () : unit =
   |> print
 
 type Options =
-  | MigrationList
-  | MigrationsRun
   | TriggerRollbar
   | TriggerPagingRollbar
   | InvalidUsage
@@ -74,26 +62,12 @@ type Options =
 
 let parse (args : string[]) : Options =
   match args with
-  | [| "migrations"; "list" |] -> MigrationList
-  | [| "migrations"; "run" |] -> MigrationsRun
   | [| "trigger-rollbar" |] -> TriggerRollbar
   | [| "trigger-paging-rollbar" |] -> TriggerPagingRollbar
   | [| "convert-st-to-rt"; "all" |] -> ConvertST2RTAll
   | [| "convert-st-to-rt"; canvasID |] -> ConvertST2RT(System.Guid.Parse canvasID)
   | [| "help" |] -> Help
   | _ -> InvalidUsage
-
-let usesDB (options : Options) =
-  match options with
-  | MigrationList
-  | MigrationsRun -> true
-  | TriggerRollbar
-  | TriggerPagingRollbar
-  | InvalidUsage
-  | ConvertST2RT _
-  | ConvertST2RTAll
-  | Help -> false
-
 let convertToRT (canvasID : CanvasID) : Task<unit> =
   task {
     let! canvas = LibCloud.Canvas.loadAll canvasID
@@ -117,14 +91,6 @@ let run (options : Options) : Task<int> =
     Rollbar.notify "prodExec called" [ "options", string options ]
 
     match options with
-
-    | MigrationList ->
-      listMigrations ()
-      return 0
-
-    | MigrationsRun ->
-      runMigrations ()
-      return 0
 
     | TriggerRollbar ->
       triggerRollbar ()
@@ -162,8 +128,6 @@ let initSerializers () =
   Json.Vanilla.allow<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
     "RoundtrippableSerializationFormatV0.Dval"
   Json.Vanilla.allow<LibCloud.Queue.NotificationData> "eventqueue storage"
-  Json.Vanilla.allow<LibCloud.TraceCloudStorage.CloudStorageFormat>
-    "TraceCloudStorageFormat"
   Json.Vanilla.allow<LibService.Rollbar.HoneycombJson> "Rollbar"
 
   // for Pusher.com payloads
@@ -182,7 +146,6 @@ let main (args : string[]) : int =
     LibService.Init.init name
     Telemetry.Console.loadTelemetry name Telemetry.TraceDBQueries
     let options = parse args
-    if usesDB options then (LibCloud.Init.init LibCloud.Init.WaitForDB name).Result
     let result = (run options).Result
     LibService.Init.shutdown name
     printTime "Finished ProdExec"
