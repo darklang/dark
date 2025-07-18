@@ -1,0 +1,81 @@
+module Darklang =
+  module Internal =
+    module Cli =
+      module IntegrationTests =
+        module VhsRecorder =
+
+          let generateVhsHeader (settings: TestConfig.VhsSettings) (outputPath: String) : String =
+            let absoluteOutputPath = TestUtils.getAbsolutePath outputPath
+            $"Output \"{absoluteOutputPath}\"\n" ++
+            $"Set FontSize {Stdlib.Int64.toString settings.fontSize}\n" ++
+            $"Set Width {Stdlib.Int64.toString settings.width}\n" ++
+            $"Set Height {Stdlib.Int64.toString settings.height}\n" ++
+            $"Set TypingSpeed {settings.typingSpeed}\n" ++
+            $"Set Theme \"{settings.theme}\"\n\n"
+
+          let createSimpleTapeContent
+            (command: String)
+            (outputPath: String)
+            (settings: TestConfig.VhsSettings) : String =
+            let header = generateVhsHeader settings outputPath
+            let body = $"Type \"{command}\"\nEnter\nSleep 3s"
+            header ++ body
+
+          let createInteractiveTapeContent
+            (command: String)
+            (interactiveSteps: List<String>)
+            (outputPath: String)
+            (settings: TestConfig.VhsSettings) : String =
+            let header = generateVhsHeader settings outputPath
+            let startCommand = $"Type \"{command}\"\nEnter\nSleep 2s\n"
+
+            let stepCommands =
+              interactiveSteps
+              |> Stdlib.List.map (fun step ->
+                $"Type \"{step}\"\nEnter\nSleep 1s\n")
+              |> Stdlib.String.join ""
+
+            let footer = "Escape\nSleep 1s"
+            header ++ startCommand ++ stepCommands ++ footer
+
+          let generateTapeFile
+            (testName: String)
+            (command: String)
+            (interactiveSteps: List<String>)
+            (tapeFile: String)
+            (gifPath: String) : Stdlib.Result.Result<Unit, String> =
+            let settings = TestConfig.defaultVhsSettings ()
+
+            let content =
+              if Stdlib.List.isEmpty interactiveSteps then
+                createSimpleTapeContent command gifPath settings
+              else
+                createInteractiveTapeContent command interactiveSteps gifPath settings
+
+            TestUtils.writeFileContent tapeFile content
+
+          let runVhsRecording (tapeFile: String) : Stdlib.Result.Result<Unit, String> =
+            let absoluteTapeFile = TestUtils.getAbsolutePath tapeFile
+            let absoluteProjectRoot = TestUtils.getAbsolutePath TestConfig.projectRoot
+
+            // Verify the tape file exists before running VHS
+            if Stdlib.Bool.not (Stdlib.Cli.Unix.fileExists absoluteTapeFile) then
+              Stdlib.Result.Result.Error $"Tape file does not exist: {absoluteTapeFile}"
+            else
+              let result = Stdlib.Cli.Unix.executeInDirectoryWithOutput absoluteProjectRoot $"vhs \"{absoluteTapeFile}\""
+
+              if result.exitCode == 0L then
+                Stdlib.Result.Result.Ok()
+              else
+                let errorMsg = $"VHS failed with exit code {Stdlib.Int64.toString result.exitCode}"
+                Stdlib.Result.Result.Error $"{errorMsg}. Stderr: {result.stderr}. Stdout: {result.stdout}"
+
+          let generateTimestamp () : String =
+            (Stdlib.DateTime.now()) |> Stdlib.DateTime.toString
+
+          let createTapeGifsDirectories () : Stdlib.Result.Result<Unit, String> =
+            (Stdlib.Cli.Unix.ensureDirectoryExists (TestConfig.getFailureGifsDir ()))
+            |> Stdlib.Result.andThen (fun _ ->
+              Stdlib.Cli.Unix.ensureDirectoryExists (TestConfig.getTapesDir ()))
+            |> Stdlib.Result.mapError (fun e ->
+              $"Failed to create directories for VHS recordings: {e}")

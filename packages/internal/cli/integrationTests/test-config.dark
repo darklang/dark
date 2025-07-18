@@ -1,0 +1,43 @@
+module Darklang =
+  module Internal =
+    module Cli =
+      module IntegrationTests =
+        module TestConfig =
+          let testDir = "./packages/internal/cli/integrationTests/testResults"
+          let projectRoot = "."
+
+          let getExpectedDir () : String = $"{testDir}/expected"
+          let getActualDir () : String = $"{testDir}/actual"
+          let getFailureGifsDir () : String = $"{testDir}/failed-tests-gifs"
+          let getTapesDir () : String = $"{testDir}/tapes"
+
+
+          let getExpectedFilePath (expectedOutputFile: String): String =
+            $"{getExpectedDir ()}/{expectedOutputFile}"
+
+          let getActualFilePath (testName: String): String =
+            let safeName = TestUtils.safeFileName testName
+            $"{getActualDir ()}/{safeName}.txt"
+
+
+          type VhsSettings =
+            { fontSize: Int64
+              width: Int64
+              height: Int64
+              typingSpeed: String
+              theme: String }
+
+          let defaultVhsSettings () : VhsSettings =
+            VhsSettings
+              { fontSize = 14L
+                width = 1200L
+                height = 600L
+                typingSpeed = "50ms"
+                theme = "Dracula" }
+
+          let defaultInteractiveTimeout = 20L
+
+
+          let buildCliCommand (arguments: List<String>): String =
+            let argsString = Stdlib.String.join arguments " "
+            $"./scripts/run-cli {argsString}"
