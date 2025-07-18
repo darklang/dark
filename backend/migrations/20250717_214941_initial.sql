@@ -117,8 +117,6 @@ ON cron_records_v0
 (tlid, canvas_id, id DESC);
 
 -- Queues/Workers
-
--- Instead of ENUM, use CHECK constraint
 CREATE TABLE IF NOT EXISTS
 scheduling_rules_v0
 ( id TEXT PRIMARY KEY

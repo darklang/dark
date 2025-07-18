@@ -25,7 +25,7 @@ let collectNE (l : NEList<Result<'ok, 'err>>) : Result<NEList<'ok>, 'err> =
   collect (NEList.toList l) |> Result.map (NEList.ofListUnsafe "" [])
 
 // TODO: review and remove all usages of this
-// just lazy right now...
+// this is here as a (hacky) convenience to get things out
 let unwrap (r : Result<'ok, 'err>) : 'ok =
   match r with
   | Ok r -> r

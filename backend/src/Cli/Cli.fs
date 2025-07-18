@@ -97,14 +97,7 @@ let execute (args : List<string>) : Task<RT.ExecutionResult> =
     return! Exe.executeFunction state fnName [] args
   }
 
-let initSerializers () =
-  Json.Vanilla.allow<List<LibPackageManager.Types.ProgramTypes.PackageType.PackageType>>
-    "PackageManager"
-  Json.Vanilla.allow<List<LibPackageManager.Types.ProgramTypes.PackageFn.PackageFn>>
-    "PackageManager"
-  Json.Vanilla.allow<List<LibPackageManager.Types.ProgramTypes.PackageConstant.PackageConstant>>
-    "PackageManager"
-  ()
+let initSerializers () = ()
 
 [<EntryPoint>]
 let main (args : string[]) =

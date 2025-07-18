@@ -67,7 +67,6 @@ let runSystemMigration (name : string) (sql : string) : unit =
     |> Sql.parameters recordMigrationParams
     |> Sql.executeStatementSync
   | _ ->
-    // Execute both statements in a transaction
     let counts =
       Sql.executeTransactionSync
         [ sql, []; recordMigrationStmt, [ recordMigrationParams ] ]

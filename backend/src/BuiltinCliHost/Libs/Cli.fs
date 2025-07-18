@@ -308,7 +308,7 @@ let fns : List<BuiltInFn> =
                   | Ok dval -> return dval
                   | Error(rte, _cs) ->
                     let! rteString =
-                      (Exe.rteToString RT2DT.RuntimeError.toDT exeState rte)
+                      Exe.rteToString RT2DT.RuntimeError.toDT exeState rte
                     return
                       Exception.raiseInternal
                         "Error executing pm function"

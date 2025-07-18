@@ -19,10 +19,6 @@
     <ProjectReference Include="../LibDB/LibDB.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="SimpleJson.fs" />
-    <Compile Include="Types.fs" />
-    <Compile Include="JsonDeserialization.fs" />
-    <Compile Include="ExternalTypesToProgramTypes.fs" />
     <Compile Include="PackageManager.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

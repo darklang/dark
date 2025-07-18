@@ -10,7 +10,6 @@ function ctrl_c() {
   exit 1
 }
 
-LLDB=false
 PUBLISHED=false
 PUBLISHED_FLAG=
 
@@ -19,7 +18,6 @@ EXPECTO_ARGS=()
 for i in "$@"
 do
   case "${i}" in
-    --lldb) LLDB=true ;;
     --published)
       PUBLISHED=true
       PUBLISHED_FLAG=$i
@@ -91,16 +89,8 @@ if [[ -v CI ]]; then
 fi
 
 cd backend
-if [[ "$LLDB" == "true" ]]; then
-  DARK_CONFIG_TELEMETRY_EXPORTER=none \
-  DARK_CONFIG_ROLLBAR_ENABLED=n \
-  DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
-  DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
-  lldb -- "${EXE}" --no-spinner --colours 0 --junit-summary "${JUNIT_FILE}" "${EXPECTO_ARGS[@]}"
-else
-  DARK_CONFIG_TELEMETRY_EXPORTER=none \
-  DARK_CONFIG_ROLLBAR_ENABLED=n \
-  DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
-  DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
-  "${EXE}" ${SPINNER} --colours "${COLOURS}" --junit-summary "${JUNIT_FILE}" "${EXPECTO_ARGS[@]}"
-fi
+DARK_CONFIG_TELEMETRY_EXPORTER=none \
+DARK_CONFIG_ROLLBAR_ENABLED=n \
+DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
+DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
+"${EXE}" ${SPINNER} --colours "${COLOURS}" --junit-summary "${JUNIT_FILE}" "${EXPECTO_ARGS[@]}"
