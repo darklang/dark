@@ -62,6 +62,23 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "stdoutFlush" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "A unit" ]
+      returnType = TUnit
+      description =
+        "Flushes the standard output buffer, ensuring all pending output is immediately written."
+      fn =
+        function
+        | _, _, _, [ DUnit ] ->
+          System.Console.Out.Flush()
+          Ply DUnit
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
       deprecated = NotDeprecated } ]
 
 
