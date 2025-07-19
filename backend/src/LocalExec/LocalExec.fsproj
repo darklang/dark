@@ -16,8 +16,10 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../LibCloud/LibCloud.fsproj" />
     <ProjectReference Include="../LibParser/LibParser.fsproj" />
+    <ProjectReference Include="../LibCloud/LibCloud.fsproj" />
+    <ProjectReference Include="../LibDB/LibDB.fsproj" />
+    <ProjectReference Include="../LibPackageManager/LibPackageManager.fsproj" />
 
     <ProjectReference Include="../BuiltinExecution/BuiltinExecution.fsproj" />
     <ProjectReference Include="../BuiltinCli/BuiltinCli.fsproj" />
@@ -31,6 +33,7 @@
     <Compile Include="Builtins.fs" />
     <Compile Include="LoadPackagesFromDisk.fs" />
     <Compile Include="Canvas.fs" />
+    <Compile Include="Migrations.fs" />
     <Compile Include="LocalExec.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

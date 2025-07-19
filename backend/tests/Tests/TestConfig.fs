@@ -1,6 +1,6 @@
 module Tests.TestConfig
 
-open LibService.ConfigDsl
+open LibConfig.ConfigDsl
 
 // testing
 let bwdServerBackendPort = int "DARK_CONFIG_TEST_BWDSERVER_BACKEND_PORT"

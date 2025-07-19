@@ -16,7 +16,7 @@ module Serialize = LibCloud.Serialize
 module PackageIDs = LibExecution.PackageIDs
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module C2DT = LibExecution.CommonToDarkTypes
-let pm = LibCloud.PackageManager.pt
+let pm = LibPackageManager.PackageManager.pt
 
 let p (code : string) : Task<PT.Expr> =
   uply {

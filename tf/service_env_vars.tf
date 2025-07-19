@@ -9,13 +9,12 @@ variable "service_env_vars" {
     secret = optional(string)
   }))
   default = {
-    # Root directories
-    "DARK_CONFIG_RUNDIR"   = { value : "/home/dark/gcp-rundir" }
+    # Directories
     "DARK_CONFIG_ROOT_DIR" = { value : "/home/dark" }
+    "DARK_CONFIG_RUNDIR"   = { value : "/home/dark/gcp-rundir" }
 
-    # Important dirs
-    "DARK_CONFIG_WEBROOT_DIR"    = { value : "/home/dark/webroot/static" }
-    "DARK_CONFIG_MIGRATIONS_DIR" = { value : "/home/dark/migrations" }
+    # DB
+    "DARK_CONFIG_DB_NAME"  = { value : "data.db" }
 
     # Ports
 
@@ -68,18 +67,6 @@ variable "service_env_vars" {
     # Feature flag defaults
     "DARK_CONFIG_TRACE_SAMPLING_RULE_DEFAULT" = { value : "sample-none" }
 
-    # DB
-    "DARK_CONFIG_DB_DBNAME" = { value : "yugabyte" }
-    "DARK_CONFIG_DB_HOST"   = { value : "us-central1.1c39714c-062a-40f3-b7ba-e320fce7ca3d.gcp.ybdb.io" }
-
-    "DARK_CONFIG_DB_PORT"           = { value : "5433" }
-    "DARK_CONFIG_DB_USER"           = { secret : "db-username" }
-    "DARK_CONFIG_DB_PASSWORD"       = { secret : "db-password" }
-    "DARK_CONFIG_DB_POOL_SIZE"      = { value : "10" }
-    "DARK_CONFIG_DB_SSL_REQUIRED"   = { value : "y" }
-    "DARK_CONFIG_DB_ROOT_CERT_PATH" = { value : "/usr/local/share/ca-certificates/yugabyte.crt" }
-    "DARK_CONFIG_DB_LOG_LEVEL"      = { value : "none" }
-
     # Queue / pubsub
     "DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID"        = { value : "darklang-next" }
     "DARK_CONFIG_QUEUE_PUBSUB_TOPIC_NAME"        = { value : "topic-queue" }
@@ -87,21 +74,11 @@ variable "service_env_vars" {
     "DARK_CONFIG_QUEUE_PUBSUB_CREATE_TOPIC"      = { value : "n" }
     "DARK_CONFIG_QUEUE_PUBSUB_CREDENTIALS"       = { secret : "queue-pubsub-credentials" }
 
-    # Traces / cloud storage
-    "DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME"   = { value : "darklang-traces" }
-    "DARK_CONFIG_TRACE_STORAGE_CREATE_BUCKET" = { value : "n" }
-    "DARK_CONFIG_TRACE_STORAGE_CREDENTIALS"   = { secret : "traces-cloud-storage-credentials" }
-    "DARK_CONFIG_TRACE_STORAGE_BASE_URI"      = { value : "not-used" }
-
     # Pusher
     "DARK_CONFIG_PUSHER_APP_ID"  = { secret : "pusher-app-id" }
     "DARK_CONFIG_PUSHER_KEY"     = { secret : "pusher-key" }
     "DARK_CONFIG_PUSHER_SECRET"  = { secret : "pusher-secret" }
     "DARK_CONFIG_PUSHER_CLUSTER" = { secret : "pusher-cluster" }
-
-
-    # Heap analytics
-    "DARK_CONFIG_HEAPIO_ID" = { value : "477722926" }
 
     # Package Manager
     "DARK_CONFIG_PACKAGE_MANAGER_BASE_URL" = { value : "https://packages.darklang.com" }

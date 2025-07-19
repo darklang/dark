@@ -10,18 +10,14 @@ function ctrl_c() {
   exit 1
 }
 
-LLDB=false
 PUBLISHED=false
 PUBLISHED_FLAG=
-DB=pg
 
 EXPECTO_ARGS=()
 
 for i in "$@"
 do
   case "${i}" in
-    --lldb) LLDB=true ;;
-    --yugabyte) DB=yb ;;
     --published)
       PUBLISHED=true
       PUBLISHED_FLAG=$i
@@ -34,42 +30,16 @@ killall -9 Tests || true
 
 if [[ "$PUBLISHED" == "true" ]]; then
   EXE=Build/out/Tests/Release/net8.0/linux-x64/Tests
-  PRODEXEC=Build/out/ProdExec/Release/net8.0/linux-x64/ProdExec
+  LOCALEXEC=Build/out/LocalExec/Release/net8.0/linux-x64/LocalExec
 else
   EXE=Build/out/Tests/Debug/net8.0/Tests
-  PRODEXEC=Build/out/ProdExec/Debug/net8.0/ProdExec
+  LOCALEXEC=Build/out/LocalExec/Debug/net8.0/LocalExec
 fi
 
-case "$DB" in
-  pg)
-    export DARK_CONFIG_DB_HOST=localhost
-    export DARK_CONFIG_DB_PORT=5432
-    export DARK_CONFIG_DB_DBNAME=testdb
-    export DARK_CONFIG_DB_USER=dark
-    export DARK_CONFIG_DB_PASSWORD=darklang
-
-    echo "Dropping postgres testdb database"
-    ./scripts/devcontainer/_wait-for-postgres
-    dropdb --if-exists testdb
-    createdb testdb
-    ;;
-  yb)
-    export DARK_CONFIG_DB_HOST=192.168.215.2
-    export DARK_CONFIG_DB_PORT=5433
-    export DARK_CONFIG_DB_DBNAME=testdb
-    export DARK_CONFIG_DB_USER=yugabyte
-    export DARK_CONFIG_DB_PASSWORD=postgres
-    echo "Dropping yugabyte testdb database"
-    # ./scripts/devcontainer/_wait-for-yugabyte
-    ../yugabyte/bin/ysqlsh -h "${DARK_CONFIG_DB_HOST}" -p "${DARK_CONFIG_DB_PORT}" -U "${DARK_CONFIG_DB_USER}" -c "DROP DATABASE IF EXISTS testdb"
-    ../yugabyte/bin/ysqlsh -h "${DARK_CONFIG_DB_HOST}" -p "${DARK_CONFIG_DB_PORT}" -U "${DARK_CONFIG_DB_USER}" -c "CREATE DATABASE testdb"
-    ;;
-esac
 
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
 
 ./scripts/run-pubsub-emulator
-./scripts/run-cloud-storage-emulator
 
 # Use random to avoid old items being in the pubsub queue. Use this instead of
 # $RANDOM as RANDOM is only 5 digits
@@ -78,14 +48,20 @@ RANDOM_VALUE=$(cat /proc/sys/kernel/random/uuid)
 grey="\033[1;30m"
 reset="\033[0m"
 
+
+# Delete the database file before running tests
+export DARK_CONFIG_DB_NAME=test-data.db
+DB_PATH="${DARK_CONFIG_RUNDIR}/${DARK_CONFIG_DB_NAME}"
+echo -e "Deleting database file ${grey}(${DB_PATH})${reset}"
+rm -f "$DB_PATH"
+
 # Run the migrations before the other servers start
 echo -e "Running migrations ${grey}($LOGS/test-migrations.log)${reset}"
 cd backend && \
   DARK_CONFIG_TELEMETRY_EXPORTER=none \
   DARK_CONFIG_ROLLBAR_ENABLED=n \
   DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
-  DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME=trace-test-${RANDOM_VALUE} \
-  "${PRODEXEC}" migrations run > "$LOGS/test-migrations.log" 2>&1
+  "${LOCALEXEC}" migrations run > "$LOGS/test-migrations.log" 2>&1
 cd ..
 
 # Reload packages
@@ -113,18 +89,8 @@ if [[ -v CI ]]; then
 fi
 
 cd backend
-if [[ "$LLDB" == "true" ]]; then
-  DARK_CONFIG_TELEMETRY_EXPORTER=none \
-  DARK_CONFIG_ROLLBAR_ENABLED=n \
-  DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
-  DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
-  DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME=trace-test-${RANDOM_VALUE} \
-  lldb -- "${EXE}" --no-spinner --colours 0 --junit-summary "${JUNIT_FILE}" "${EXPECTO_ARGS[@]}"
-else
-  DARK_CONFIG_TELEMETRY_EXPORTER=none \
-  DARK_CONFIG_ROLLBAR_ENABLED=n \
-  DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
-  DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
-  DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME=trace-test-${RANDOM_VALUE} \
-  "${EXE}" ${SPINNER} --colours "${COLOURS}" --junit-summary "${JUNIT_FILE}" "${EXPECTO_ARGS[@]}"
-fi
+DARK_CONFIG_TELEMETRY_EXPORTER=none \
+DARK_CONFIG_ROLLBAR_ENABLED=n \
+DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none \
+DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-test-${RANDOM_VALUE} \
+"${EXE}" ${SPINNER} --colours "${COLOURS}" --junit-summary "${JUNIT_FILE}" "${EXPECTO_ARGS[@]}"

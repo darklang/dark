@@ -1,7 +1,5 @@
 module DvalReprDeveloper
 
-open LibCloud
-
 open Prelude
 
 open LibExecution.RuntimeTypes
@@ -42,7 +40,9 @@ let private fqTypeNameToString (typeName : FQTypeName.FQTypeName) : string =
       match typeName with
       | FQTypeName.Package id ->
         let! typeOption =
-          LibCloud.PackageManager.getType id |> Ply.toTask |> Async.AwaitTask
+          LibPackageManager.PackageManager.getType id
+          |> Ply.toTask
+          |> Async.AwaitTask
 
         match typeOption with
         | Some packageType ->

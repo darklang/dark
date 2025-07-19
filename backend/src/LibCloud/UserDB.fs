@@ -14,9 +14,9 @@ module LibCloud.UserDB
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open Npgsql.FSharp
-open Npgsql
-open Db
+open Microsoft.Data.Sqlite
+open Fumble
+open LibDB.Db
 
 open Prelude
 
@@ -72,7 +72,7 @@ let rec set
     | Ok _ ->
       let upsertQuery =
         if upsert then
-          "ON CONFLICT ON CONSTRAINT user_data_key_uniq DO UPDATE SET data=EXCLUDED.data, updated_at=NOW()"
+          "ON CONFLICT (canvas_id, table_tlid, dark_version, user_version, key) DO UPDATE SET data=EXCLUDED.data, updated_at=datetime('now')"
         else
           ""
 
@@ -83,7 +83,7 @@ let rec set
           $"INSERT INTO user_data_v0
             (id, canvas_id, table_tlid, user_version, dark_version, key, data, updated_at)
           VALUES
-            (@id, @canvasID, @tlid, @userVersion, @darkVersion, @key, @data, NOW())
+            (@id, @canvasID, @tlid, @userVersion, @darkVersion, @key, @data, datetime('now'))
           {upsertQuery}"
         |> Sql.parameters
           [ "id", Sql.uuid id
@@ -92,7 +92,7 @@ let rec set
             "userVersion", Sql.int db.version
             "darkVersion", Sql.int currentDarkVersion
             "key", Sql.string key
-            "data", Sql.jsonb data ]
+            "data", Sql.string data ]
         |> Sql.executeStatementAsync
 
       return Ok id
@@ -144,24 +144,37 @@ and getMany
   uply {
     let types = exeState.types
 
-    let! result =
-      Sql.query
-        "SELECT data
-        FROM user_data_v0
-        WHERE table_tlid = @tlid
-          AND canvas_id = @canvasID
-          AND user_version = @userVersion
-          AND dark_version = @darkVersion
-          AND key = ANY (@keys)"
-      |> Sql.parameters
+    // If no keys, return empty list early
+    if List.isEmpty keys then
+      return []
+    else
+      // Create parameters for each key
+      let keyParams = keys |> List.mapi (fun i key -> ($"key{i}", Sql.string key))
+
+      // Create placeholders for the SQL query
+      let keyPlaceholders =
+        keys |> List.mapi (fun i _ -> $"@key{i}") |> String.concat ", "
+
+      // Base parameters that are always needed
+      let baseParams =
         [ "tlid", Sql.tlid db.tlid
           "canvasID", Sql.uuid exeState.program.canvasID
           "userVersion", Sql.int db.version
-          "darkVersion", Sql.int currentDarkVersion
-          "keys", Sql.stringArray (Array.ofList keys) ]
-      |> Sql.executeAsync (fun read -> read.string "data")
+          "darkVersion", Sql.int currentDarkVersion ]
 
-    return! result |> List.map (dbToDval types threadID tst db) |> Ply.List.flatten
+      let! result =
+        Sql.query
+          $"SELECT data
+          FROM user_data_v0
+          WHERE table_tlid = @tlid
+            AND canvas_id = @canvasID
+            AND user_version = @userVersion
+            AND dark_version = @darkVersion
+            AND key IN ({keyPlaceholders})"
+        |> Sql.parameters (baseParams @ keyParams)
+        |> Sql.executeAsync (fun read -> read.string "data")
+
+      return! result |> List.map (dbToDval types threadID tst db) |> Ply.List.flatten
   }
 
 
@@ -176,29 +189,41 @@ and getManyWithKeys
   uply {
     let types = exeState.types
 
-    let! result =
-      Sql.query
-        "SELECT key, data
-        FROM user_data_v0
-        WHERE table_tlid = @tlid
-          AND canvas_id = @canvasID
-          AND user_version = @userVersion
-          AND dark_version = @darkVersion
-          AND key = ANY (@keys)"
-      |> Sql.parameters
+    // If no keys, return empty list early
+    if List.isEmpty keys then
+      return []
+    else
+      // Create parameters for each key
+      let keyParams = keys |> List.mapi (fun i key -> ($"key{i}", Sql.string key))
+
+      // Create placeholders for the SQL query
+      let keyPlaceholders =
+        keys |> List.mapi (fun i _ -> $"@key{i}") |> String.concat ", "
+
+      // Base parameters that are always needed
+      let baseParams =
         [ "tlid", Sql.tlid db.tlid
           "canvasID", Sql.uuid exeState.program.canvasID
           "userVersion", Sql.int db.version
-          "darkVersion", Sql.int currentDarkVersion
-          "keys", Sql.stringArray (Array.ofList keys) ]
-      |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
+          "darkVersion", Sql.int currentDarkVersion ]
 
-    return!
+      let! result =
+        Sql.query
+          $"SELECT key, data
+          FROM user_data_v0
+          WHERE table_tlid = @tlid
+            AND canvas_id = @canvasID
+            AND user_version = @userVersion
+            AND dark_version = @darkVersion
+            AND key IN ({keyPlaceholders})"
+        |> Sql.parameters (baseParams @ keyParams)
+        |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
 
-      result
-      |> List.map (fun (key, data) ->
-        dbToDval types threadID tst db data |> Ply.map (fun dval -> (key, dval)))
-      |> Ply.List.flatten
+      return!
+        result
+        |> List.map (fun (key, data) ->
+          dbToDval types threadID tst db data |> Ply.map (fun dval -> (key, dval)))
+        |> Ply.List.flatten
   }
 
 
@@ -354,7 +379,7 @@ let getAllKeys (exeState : RT.ExecutionState) (db : RT.DB.T) : Task<List<string>
 
 let count (exeState : RT.ExecutionState) (db : RT.DB.T) : Task<int> =
   Sql.query
-    "SELECT COUNT(*)
+    "SELECT COUNT(*) as count
     FROM user_data_v0
     WHERE table_tlid = @tlid
       AND canvas_id = @canvasID
@@ -432,7 +457,7 @@ let deleteAll (exeState : RT.ExecutionState) (db : RT.DB.T) : Task<unit> =
 
 let statsCount (canvasID : CanvasID) (db : RT.DB.T) : Task<int> =
   Sql.query
-    "SELECT COUNT(*)
+    "SELECT COUNT(*) as count
     FROM user_data_v0
     WHERE table_tlid = @tlid
       AND canvas_id = @canvasID
@@ -475,11 +500,12 @@ let unlocked (canvasID : CanvasID) : Task<List<tlid>> =
         AND tl.canvas_id = ud.canvas_id
     WHERE tl.canvas_id = @canvasID
       AND tl.module IS NULL
-      AND tl.deleted = false
+      AND tl.deleted = 0
       AND ud.table_tlid IS NULL
     GROUP BY tl.tlid"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
+
 
 
 // -------------------------

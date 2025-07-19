@@ -22,7 +22,7 @@ module RT = LibExecution.RuntimeTypes
 module PackageIDs = LibExecution.PackageIDs
 
 
-let pmPT = LibCloud.PackageManager.pt
+let pmPT = LibPackageManager.PackageManager.pt
 
 let t
   (name : string)

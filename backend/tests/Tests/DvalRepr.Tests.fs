@@ -18,7 +18,7 @@ module DvalReprInternalHash = LibExecution.DvalReprInternalHash
 
 let bogusThreadID = guuid ()
 
-let pmRT = LibCloud.PackageManager.rt
+let pmRT = LibPackageManager.PackageManager.rt
 
 let defaultTypes () = { RT.Types.empty with package = pmRT.getType }
 

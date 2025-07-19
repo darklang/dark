@@ -4,13 +4,11 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Expecto
-
-open Npgsql.FSharp
-open Npgsql
-open LibCloud.Db
+open Fumble
 
 open Prelude
 open TestUtils.TestUtils
+open LibDB.Db
 
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize

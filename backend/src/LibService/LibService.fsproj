@@ -9,22 +9,20 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
-    <Compile Include="ConfigDsl.fs" />
     <Compile Include="Config.fs" />
     <Compile Include="LaunchDarkly.fs" />
     <Compile Include="Telemetry.fs" />
     <Compile Include="Logging.fs" />
     <Compile Include="Rollbar.fs" />
     <Compile Include="FireAndForget.fs" />
-    <Compile Include="DBConnection.fs" />
     <Compile Include="Kubernetes.fs" />
-    <Compile Include="HeapAnalytics.fs" />
     <Compile Include="Kestrel.fs" />
     <Compile Include="HSTS.fs" />
     <Compile Include="Init.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
+    <ProjectReference Include="../LibConfig/LibConfig.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

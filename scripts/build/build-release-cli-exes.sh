@@ -6,6 +6,10 @@
 # TODO run some test in CI against the current-runtime executable,
 # just verifying that it (incl the packaged parser) works.
 
+# TODO get back to a point where we can build this with PublishTrimmed
+# We updated that setting from `true` to `false` when including MessagePack stuff for LibPM
+# Relevant: maybe look into `IsTrimmable` usages...
+
 set -euo pipefail
 
 sha=$(git rev-parse HEAD | cut -c 1-10)
@@ -38,7 +42,7 @@ if [[ " $* " =~ " --cross-compile " ]]; then
       /p:DebugType=None \
       /p:DebugSymbols=false \
       /p:PublishSingleFile=true \
-      /p:PublishTrimmed=true \
+      /p:PublishTrimmed=false \
       /p:PublishReadyToRun=false \
       --self-contained true \
       --runtime "$rt"
@@ -80,7 +84,7 @@ else
     /p:DebugType=None \
     /p:DebugSymbols=false \
     /p:PublishSingleFile=true \
-    /p:PublishTrimmed=true \
+    /p:PublishTrimmed=false \
     /p:PublishReadyToRun=false \
     --self-contained true
 

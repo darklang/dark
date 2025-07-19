@@ -1,27 +1,26 @@
-/// Provides central place to fetch known configuration values for LibService
 module LibService.Config
 
-open ConfigDsl
+open LibConfig.ConfigDsl
 
-let envDisplayName = string "DARK_CONFIG_ENV_DISPLAY_NAME"
+// Re-expose everything from LibService.Config
+let envDisplayName = LibConfig.Config.envDisplayName
+let buildHash = LibConfig.Config.buildHash
+let rootDir = LibConfig.Config.rootDir
 
-/// <summary>
-/// If the GIT_COMMIT is in the environment, use that as the build hash.
-/// Otherwise, set it to the env name so that it's constant.
-/// </summary>
-///
-/// <remarks>
-/// We intentionally bypass our DSL here as `GIT_COMMIT` is not set by our
-/// config system but as part of the production container build process, and is
-/// not available in dev mode.
-/// </remarks>
-let buildHash : string =
-  match getEnv "GIT_COMMIT" with
-  | Some s -> s
-  | None -> envDisplayName
+// -------------------------
+// Logging
+// -------------------------
+type Logger =
+  | NoLogger
+  | ConsoleLogger
 
-let rootDir = absoluteDir "DARK_CONFIG_ROOT_DIR"
+let defaultLogger =
+  match string "DARK_CONFIG_DEFAULT_LOGGER" with
+  | "none" -> NoLogger
+  | "console" -> ConsoleLogger
+  | name -> failwith $"Unexpected default logger: {name}"
 
+// Cloud-specific config
 // Provided by k8s, used in rollbar
 let hostName = getEnv "HOSTNAME" |> Option.defaultValue "none"
 
@@ -38,23 +37,6 @@ let rollbarEnabled = bool "DARK_CONFIG_ROLLBAR_ENABLED"
 let rollbarEnvironment = string "DARK_CONFIG_ROLLBAR_ENVIRONMENT"
 
 
-// -------------------------
-// Heap
-// -------------------------
-let heapioId = string "DARK_CONFIG_HEAPIO_ID"
-
-// -------------------------
-// Logging
-// -------------------------
-type Logger =
-  | NoLogger
-  | ConsoleLogger
-
-let defaultLogger =
-  match string "DARK_CONFIG_DEFAULT_LOGGER" with
-  | "none" -> NoLogger
-  | "console" -> ConsoleLogger
-  | name -> failwith $"Unexpected default logger: {name}"
 
 // --------------------
 // honeycomb
@@ -102,24 +84,3 @@ let launchDarklyApiKey = credentialsOption "DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY
 // --------------------
 
 let traceSamplingRuleDefault = string "DARK_CONFIG_TRACE_SAMPLING_RULE_DEFAULT"
-
-// --------------------
-// db
-// --------------------
-let pgHost = string "DARK_CONFIG_DB_HOST"
-
-let pgPort = int "DARK_CONFIG_DB_PORT"
-
-let pgDBName = string "DARK_CONFIG_DB_DBNAME"
-
-let pgUser = string "DARK_CONFIG_DB_USER"
-
-let pgPassword = credentials "DARK_CONFIG_DB_PASSWORD"
-
-let pgPoolSize = int "DARK_CONFIG_DB_POOL_SIZE"
-
-let pgSslRequired = bool "DARK_CONFIG_DB_SSL_REQUIRED"
-
-let pgRootCertPath = stringOption "DARK_CONFIG_DB_ROOT_CERT_PATH"
-
-let pgLogLevel = stringOption "DARK_CONFIG_DB_LOG_LEVEL"

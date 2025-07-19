@@ -2,33 +2,30 @@
 [<RequireQualifiedAccess>]
 module LibCloud.Config
 
-open LibService.ConfigDsl
+open Prelude
+
+open LibConfig.ConfigDsl
+module Config = LibService.Config
 
 // -------------------------
-// Note: if you add an env-var in development, you'll probably need to
-// restart the dev container.
+// Note: if you add or change an env-var in development,
+// you'll probably need to restart the dev container.
 // -------------------------
 
 // -------------------------
 // Root directories - see File.fs and Root type below
 // -------------------------
 
-let runDir = absoluteDir "DARK_CONFIG_RUNDIR"
+let rootDir = Config.rootDir
 
-let backendDir = $"{LibService.Config.rootDir}backend/"
-
-let testdataDir = $"{backendDir}testfiles/data/"
-
+let runDir = absoluteDir "DARK_CONFIG_RUNDIR" // TODO or, default to one in Config.rundir
 let logDir = $"{runDir}logs/"
 
+let backendDir = $"{rootDir}backend/"
+let testdataDir = $"{backendDir}testfiles/data/"
 let serializationDir = $"{backendDir}serialization/"
-
-// -------------------------
-// Configurable dirs
-// -------------------------
-let webrootDir = absoluteDir "DARK_CONFIG_WEBROOT_DIR"
-
-let migrationsDir = absoluteDir "DARK_CONFIG_MIGRATIONS_DIR"
+let webrootDir = $"{backendDir}static/"
+let migrationsDir = $"{backendDir}migrations/"
 
 // --------------------
 // File security
@@ -82,9 +79,9 @@ let rollbarJs =
   | Some token ->
     Printf.sprintf
       "{captureUncaught:true,verbose:true,enabled:%s,accessToken:'%s',payload:{environment: '%s'}}"
-      (if LibService.Config.rollbarEnabled then "true" else "false")
+      (if Config.rollbarEnabled then "true" else "false")
       token
-      LibService.Config.rollbarEnvironment
+      Config.rollbarEnvironment
   | _ -> "{enabled:false}"
 
 
@@ -130,18 +127,6 @@ let queuePubSubCreateTopic = bool "DARK_CONFIG_QUEUE_PUBSUB_CREATE_TOPIC"
 
 let queuePubSubCredentials = credentialsOption "DARK_CONFIG_QUEUE_PUBSUB_CREDENTIALS"
 
-
-// -------------------------
-// Traces
-// -------------------------
-let traceStorageBucketName = string "DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME"
-
-let traceStorageBaseUri = string "DARK_CONFIG_TRACE_STORAGE_BASE_URI"
-
-let traceStorageCreateBucket = bool "DARK_CONFIG_TRACE_STORAGE_CREATE_BUCKET"
-
-let traceStorageCredentials =
-  credentialsOption "DARK_CONFIG_TRACE_STORAGE_CREDENTIALS"
 
 
 // -------------------------

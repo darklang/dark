@@ -14,13 +14,11 @@
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../BuiltinExecution/BuiltinExecution.fsproj" />
+    <ProjectReference Include="../LibBinarySerialization/LibBinarySerialization.fsproj" />
+    <ProjectReference Include="../LibConfig/LibConfig.fsproj" />
+    <ProjectReference Include="../LibDB/LibDB.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="SimpleJson.fs" />
-    <Compile Include="Types.fs" />
-    <Compile Include="JsonDeserialization.fs" />
-    <Compile Include="ExternalTypesToProgramTypes.fs" />
     <Compile Include="PackageManager.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

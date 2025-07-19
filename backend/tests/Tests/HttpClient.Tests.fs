@@ -88,7 +88,7 @@ let updateBody (body : byte array) : byte array =
 
 
 
-let pmPT = LibCloud.PackageManager.pt
+let pmPT = LibPackageManager.PackageManager.pt
 
 module Internal =
   module D = LibExecution.DvalDecoder

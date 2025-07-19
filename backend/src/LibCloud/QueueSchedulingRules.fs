@@ -5,10 +5,8 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Prelude
-
-open Npgsql.FSharp
-open Npgsql
-open Db
+open Fumble
+open LibDB.Db
 
 
 module SchedulingRule =
@@ -72,21 +70,21 @@ let rowToSchedulingRule (read : RowReader) : SchedulingRule.T =
     canvasID = read.uuid "canvas_id"
     handlerName = read.string "handler_name"
     eventSpace = read.string "event_space"
-    createdAt = read.instantWithoutTimeZone "created_at" }
+    createdAt = read.instant "created_at" }
 
 
 // DARK INTERNAL FN
 /// Gets all event scheduling rules, as used by the queue-scheduler.
 let getAllSchedulingRules () : Task<List<SchedulingRule.T>> =
   Sql.query
-    "SELECT id, rule_type::TEXT, canvas_id, handler_name, event_space, created_at
+    "SELECT id, rule_type, canvas_id, handler_name, event_space, created_at
      FROM scheduling_rules_v0"
   |> Sql.executeAsync (fun read -> rowToSchedulingRule read)
 
 /// Gets event scheduling rules for the specified canvas
 let getSchedulingRules (canvasID : CanvasID) : Task<List<SchedulingRule.T>> =
   Sql.query
-    "SELECT id, rule_type::TEXT, canvas_id, handler_name, event_space, created_at
+    "SELECT id, rule_type, canvas_id, handler_name, event_space, created_at
      FROM scheduling_rules_v0
      WHERE canvas_id = @canvasID"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
@@ -157,7 +155,7 @@ let addSchedulingRule
         "INSERT INTO scheduling_rules_v0
           (id, rule_type, canvas_id, handler_name, event_space)
          VALUES
-           (@id, @ruleType::scheduling_rule_type, @canvasID, @workerName, 'WORKER')
+           (@id, @ruleType, @canvasID, @workerName, 'WORKER')
          ON CONFLICT DO NOTHING"
       |> Sql.parameters
         [ "id", Sql.uuid id
@@ -180,7 +178,7 @@ let removeSchedulingRule
     WHERE canvas_id = @canvasID
       AND handler_name = @workerName
       AND event_space = 'WORKER'
-      AND rule_type = @ruleType::scheduling_rule_type"
+      AND rule_type = @ruleType"
   |> Sql.parameters
     [ "ruleType", Sql.string ruleType
       "canvasID", Sql.uuid canvasID

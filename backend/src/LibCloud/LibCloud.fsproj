@@ -16,6 +16,7 @@
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../LibBinarySerialization/LibBinarySerialization.fsproj" />
     <ProjectReference Include="../LibService/LibService.fsproj" />
+    <ProjectReference Include="../LibDB/LibDB.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DvalReprInternalRoundtrippable.fs" />
@@ -23,13 +24,10 @@
 
     <Compile Include="Config.fs" />
     <Compile Include="File.fs" />
-    <Compile Include="Db.fs" />
     <Compile Include="Password.fs" />
     <Compile Include="Account.fs" />
     <Compile Include="Routing.fs" />
     <Compile Include="Serialize.fs" />
-    <Compile Include="PackageManager.fs" />
-    <Compile Include="TraceCloudStorage.fs" />
     <Compile Include="QueueSchedulingRules.fs" />
     <Compile Include="Pusher.fs" />
     <Compile Include="Secret.fs" />
@@ -45,7 +43,6 @@
     <Compile Include="UserDB.fs" />
 
     <Compile Include="Stats.fs" />
-    <Compile Include="Migrations.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

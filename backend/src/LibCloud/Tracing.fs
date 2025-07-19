@@ -90,13 +90,9 @@ module TracingConfig =
 
 
 module TraceResults =
-  type T =
-    { tlids : HashSet.HashSet<tlid>
-      functionResults :
-        Dictionary.T<TraceCloudStorage.FunctionResultKey, TraceCloudStorage.FunctionResultValue> }
+  type T = { tlids : HashSet.HashSet<tlid> }
 
-  let empty () : T =
-    { tlids = HashSet.empty (); functionResults = Dictionary.empty () }
+  let empty () : T = { tlids = HashSet.empty () }
 
 
 

@@ -110,9 +110,6 @@
     "type=volume,src=tree-sitter-build,dst=/home/dark/tree-sitter-darklang/build",
     "type=volume,src=tree-sitter-node-modules,dst=/home/dark/tree-sitter-darklang/node_modules",
 
-    // Cloud storage
-    "type=volume,src=cloudstorage,dst=/home/dark/cloud-storage",
-
     // VS Code extensions
     "type=volume,src=darklang-dark-extension-volume,dst=/home/dark/.vscode-server/extensions",
     "type=volume,src=darklang-dark-extension-volume-insiders,dst=/home/dark/.vscode-server-insiders/extensions"

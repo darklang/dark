@@ -2,9 +2,8 @@
 DARK_CONFIG_RUNDIR=/home/dark/app/rundir
 DARK_CONFIG_ROOT_DIR=/home/dark/app
 
-# Important dirs
-DARK_CONFIG_WEBROOT_DIR=/home/dark/app/backend/static
-DARK_CONFIG_MIGRATIONS_DIR=/home/dark/app/backend/migrations
+# DB
+DARK_CONFIG_DB_NAME=data.db
 
 # Ports
 
@@ -61,30 +60,12 @@ DARK_CONFIG_LAUNCHDARKLY_SDK_API_KEY=none
 # Feature flag defaults
 DARK_CONFIG_TRACE_SAMPLING_RULE_DEFAULT=sample-all
 
-# DB
-DARK_CONFIG_DB_HOST=localhost
-DARK_CONFIG_DB_PORT=5432
-DARK_CONFIG_DB_DBNAME=devdb
-DARK_CONFIG_DB_USER=dark
-DARK_CONFIG_DB_PASSWORD=darklang
-DARK_CONFIG_DB_POOL_SIZE=10
-DARK_CONFIG_DB_SSL_REQUIRED=n
-DARK_CONFIG_DB_ROOT_CERT_PATH=none
-DARK_CONFIG_DB_LOG_LEVEL=none
-
 # Queue / pubsub
 DARK_CONFIG_QUEUE_PUBSUB_PROJECT_ID=pubsub-dev-123456
 DARK_CONFIG_QUEUE_PUBSUB_TOPIC_NAME=queueworker-topic
 DARK_CONFIG_QUEUE_PUBSUB_SUBSCRIPTION_NAME=topic-queueworker-subscription
 DARK_CONFIG_QUEUE_PUBSUB_CREATE_TOPIC=y
 DARK_CONFIG_QUEUE_PUBSUB_CREDENTIALS=none
-
-# Traces / cloud storage
-# (https://github.com/fsouza/fake-gcs-server is used to emulate GCS in CI)
-DARK_CONFIG_TRACE_STORAGE_BUCKET_NAME=trace-dev
-DARK_CONFIG_TRACE_STORAGE_CREATE_BUCKET=y
-DARK_CONFIG_TRACE_STORAGE_CREDENTIALS=none
-DARK_CONFIG_TRACE_STORAGE_BASE_URI=http://localhost:4444/storage/v1/
 
 # Pusher
 ## This account is the dark-dev-account pusher account, username
@@ -93,9 +74,6 @@ DARK_CONFIG_PUSHER_APP_ID=1006124
 DARK_CONFIG_PUSHER_KEY=acd42e5073f0bad7e604
 DARK_CONFIG_PUSHER_SECRET=fcd318b907f67bbedb4f
 DARK_CONFIG_PUSHER_CLUSTER=us2
-
-# Heap analytics
-DARK_CONFIG_HEAPIO_ID=2080145903
 
 # Package manager
 DARK_CONFIG_PACKAGE_MANAGER_BASE_URL=http://dark-packages.dlio.localhost:11001

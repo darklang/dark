@@ -26,7 +26,7 @@ let main (args : string array) : int =
   try
     let name = "Tests"
     LibService.Init.init name
-    (LibCloud.Init.init LibCloud.Init.WaitForDB name).Result
+    (LibCloud.Init.init name).Result
     (LibCloudExecution.Init.init name).Result
 
     initSerializers ()
@@ -41,7 +41,6 @@ let main (args : string array) : int =
         Tests.Execution.tests
         Tests.Builtin.tests
         Tests.DvalRepr.tests
-        Tests.PackageManager.tests
         Tests.LibParser.tests
         Tests.NewParser.tests
         Tests.HttpClient.tests
@@ -57,7 +56,6 @@ let main (args : string array) : int =
         Tests.VanillaSerialization.tests
         Tests.DarkTypesSerialization.tests
         Tests.SqlCompiler.tests
-        Tests.StorageTraces.tests
 
         // cross-cutting
         Tests.LibExecution.tests.Force() ]

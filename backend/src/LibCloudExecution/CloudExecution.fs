@@ -20,8 +20,8 @@ module PackageIDs = LibExecution.PackageIDs
 open LibCloud
 
 
-let packageManagerRT = PackageManager.rt
-let packageManagerPT = PackageManager.pt
+let packageManagerRT = LibPackageManager.PackageManager.rt
+let packageManagerPT = LibPackageManager.PackageManager.pt
 
 let builtins : RT.Builtins =
   LibExecution.Builtin.combine

@@ -37,7 +37,7 @@ let main _ : int =
     initSerializers ()
     LibService.Init.init name
     Telemetry.Console.loadTelemetry name Telemetry.DontTraceDBQueries
-    (LibCloud.Init.init LibCloud.Init.WaitForDB name).Result
+    (LibCloud.Init.init name).Result
 
     // This fn is called if k8s tells us to stop
     let shutdownCallback () =

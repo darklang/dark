@@ -1,5 +1,5 @@
 /// Parsers for environment variables
-module LibService.ConfigDsl
+module LibConfig.ConfigDsl
 
 let getEnv (name : string) : string option =
   let var = System.Environment.GetEnvironmentVariable name
@@ -10,7 +10,8 @@ let getEnvExn (name : string) : string =
   | Some s -> s
   | None -> failwith $"Environment variable {name} not set"
 
-
+// TODO review the usages of this --
+// adjust to actually support different directories for CLI vs Cloud runtimes
 let absoluteDir (name : string) : string =
   let dir = getEnvExn name
 
@@ -18,6 +19,15 @@ let absoluteDir (name : string) : string =
     failwith ($"FAIL: {name} is not absolute")
   else
     $"{dir}/"
+
+let absoluteDirOrCurrent (name : string) : string =
+  match getEnv name with
+  | None -> "./"
+  | Some dir ->
+    if not (System.IO.Path.IsPathFullyQualified dir) then
+      failwith ($"FAIL: {name} is not absolute")
+    else
+      $"{dir}/"
 
 
 let int (name : string) : int = getEnvExn name |> int

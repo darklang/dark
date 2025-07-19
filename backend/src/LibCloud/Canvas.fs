@@ -4,9 +4,9 @@ module LibCloud.Canvas
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
-open Npgsql.FSharp
-open Npgsql
-open LibCloud.Db
+open Microsoft.Data.Sqlite
+open Fumble
+open LibDB.Db
 
 open Prelude
 
@@ -17,6 +17,7 @@ module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Telemetry = LibService.Telemetry
 module LD = LibService.LaunchDarkly
+module K8s = LibService.Kubernetes
 
 
 let createWithExactID
@@ -386,28 +387,28 @@ let saveTLIDs
               (canvas_id, tlid, digest, tipe, name,
                module, modifier, deleted, data, updated_at)
             VALUES
-              (@canvasID, @tlid, @digest, @typ::toplevel_type, @name,
-               @module, @modifier, @deleted, @data, NOW())
-            ON CONFLICT
-              (canvas_id, tlid)
-              DO UPDATE
-              SET digest = @digest,
-                  tipe = @typ::toplevel_type,
-                  name = @name,
-                  module = @module,
-                  modifier = @modifier,
-                  deleted = @deleted,
-                  data = @data"
+              (@canvasID, @tlid, @digest, @typ, @name,
+               @module, @modifier, @deleted, @data, datetime('now'))
+            ON CONFLICT (canvas_id, tlid)
+              DO UPDATE SET
+                digest = @digest,
+                tipe = @typ,
+                name = @name,
+                module = @module,
+                modifier = @modifier,
+                deleted = @deleted,
+                data = @data,
+                updated_at = datetime('now')"
           |> Sql.parameters
             [ "canvasID", Sql.uuid id
-              "tlid", Sql.id tlid
+              "tlid", Sql.tlid tlid
               "digest", Sql.string "fsharp"
               "typ", Sql.string (toplevelToDBTypeString tl)
               "name", Sql.stringOrNone name
               "module", Sql.stringOrNone module_
               "modifier", Sql.stringOrNone modifier
               "deleted", Sql.bool deleted
-              "data", Sql.bytea serializedToplevel ]
+              "data", Sql.bytes serializedToplevel ]
           |> Sql.executeStatementAsync
       })
   with e ->
@@ -425,7 +426,7 @@ let loadDomainsHealthCheck
     let healthy = HealthCheckResult.Healthy()
     try
       let! results =
-        LibService.LaunchDarkly.healthCheckDomains ()
+        LD.healthCheckDomains ()
         |> String.split ","
         |> Task.mapInParallel (fun hostname ->
           task {
@@ -436,7 +437,10 @@ let loadDomainsHealthCheck
                   "canvas host healthcheck probe"
                   [ "domain", hostname ]
                   id
-              let _canvas = Serialize.loadToplevels id
+              let _canvas =
+                // TODO this is still expecting another arg -- not doing anything.
+                // (fix it)
+                Serialize.loadToplevels id
               return healthy
             with _ ->
               return
@@ -456,10 +460,8 @@ let loadDomainsHealthCheck
         HealthCheckResult.Unhealthy("error running Canvas host healthcheck probe")
   }
 
-let healthCheck : LibService.Kubernetes.HealthCheck =
-  { name = "canvas"
-    checkFn = loadDomainsHealthCheck
-    probeTypes = [ LibService.Kubernetes.Startup ] }
+let healthCheck : K8s.HealthCheck =
+  { name = "canvas"; checkFn = loadDomainsHealthCheck; probeTypes = [ K8s.Startup ] }
 
 
 let toProgram (c : T) : Ply<RT.Program> =

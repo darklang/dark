@@ -6,9 +6,9 @@ open FSharp.Control.Tasks
 
 open Prelude
 
-open Npgsql
-open Npgsql.FSharp
-open LibCloud.Db
+open Microsoft.Data.Sqlite
+open Fumble
+open LibDB.Db
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
@@ -116,9 +116,9 @@ let loadFromDisk
 
         let dbs = canvas.dbs |> List.map PT.Toplevel.TLDB
 
-        do! LibCloud.PackageManager.savePackageTypes canvas.types
-        do! LibCloud.PackageManager.savePackageConstants canvas.constants
-        do! LibCloud.PackageManager.savePackageFunctions canvas.fns
+        do! LibPackageManager.PackageManager.savePackageTypes canvas.types
+        do! LibPackageManager.PackageManager.savePackageConstants canvas.constants
+        do! LibPackageManager.PackageManager.savePackageFunctions canvas.fns
 
         return
           (dbs @ handlers) |> List.map (fun tl -> tl, LibCloud.Serialize.NotDeleted)

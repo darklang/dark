@@ -41,8 +41,8 @@ let errBadMethod = Stdlib.Result.Result.Error(Stdlib.HttpClient.RequestError.Bad
 let errUnsupportedProtocol = Stdlib.Result.Result.Error(Stdlib.HttpClient.RequestError.BadUrl(Stdlib.HttpClient.BadUrlDetails.UnsupportedProtocol))
 
 // basic requests work
-((get "https://example.com" []) |> Stdlib.Result.map (fun r -> r.statusCode)) = Stdlib.Result.Result.Ok 200L
-((get "http://example.com" []) |> Stdlib.Result.map (fun r -> r.statusCode)) = Stdlib.Result.Result.Ok 200L
+((get "https://httpbin.org" []) |> Stdlib.Result.map (fun r -> r.statusCode)) = Stdlib.Result.Result.Ok 200L
+((get "http://httpbin.org" []) |> Stdlib.Result.map (fun r -> r.statusCode)) = Stdlib.Result.Result.Ok 200L
 
 // Stdlib.HttpClient.request "get" "https://darklang.com" [ 1L ] [] =
 //   Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.HttpClient.request's 3rd argument (`headers`) should be a List<(String * String)>. However, a List<Int64> ([  1]) was passed instead.

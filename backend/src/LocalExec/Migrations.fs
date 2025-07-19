@@ -1,23 +1,29 @@
-/// Our Postgres DB migrations
-module LibCloud.Migrations
+/// Our Sqlite DB migrations
+///
+/// Note that we don't use Tasks in here because these are expected to be run in
+/// order, so it's easier to execute synchronously than have a bunch of code to use
+/// tasks and then extra code to ensure the tasks are run synchronously.
+///
+/// CLEANUP maybe move this to LibDB?
+module LocalExec.Migrations
 
-// Note that we don't use Tasks in here because these are expected to be run in
-// order, so it's easier to execute synchronously than have a bunch of code to use
-// tasks and then extra code to ensure the tasks are run synchronously.
-
-open Npgsql
-open Npgsql.FSharp
-open Db
+open System.IO
+open Microsoft.Data.Sqlite
+open Fumble
+open LibDB.Db
+module File = LibCloud.File
 
 module Telemetry = LibService.Telemetry
+module Config = LibCloud.Config
 
 open Prelude
 
 let isInitialized () : bool =
   Sql.query
-    "SELECT TRUE
-     FROM pg_class
-     WHERE relname = 'system_migrations_v0'"
+    "SELECT 1
+      FROM sqlite_master
+      WHERE type = 'table'
+        AND name = 'system_migrations_v0'"
   |> Sql.executeExistsSync
 
 let initializeMigrationsTable () : unit =
@@ -25,7 +31,7 @@ let initializeMigrationsTable () : unit =
     "CREATE TABLE IF NOT EXISTS
      system_migrations_v0
      ( name TEXT PRIMARY KEY
-     , execution_date TIMESTAMPTZ NOT NULL
+     , execution_date TEXT NOT NULL
      , sql TEXT NOT NULL)"
   |> Sql.executeStatementSync
 
@@ -33,18 +39,21 @@ let initializeMigrationsTable () : unit =
 let alreadyRunMigrations () : List<string> =
   Sql.query "SELECT name from system_migrations_v0"
   |> Sql.execute (fun read -> read.string "name")
+  |> Result.unwrap
 
 let runSystemMigration (name : string) (sql : string) : unit =
   use span = Telemetry.child "new migration" [ "name", name; "sql", sql ]
-  LibService.Rollbar.notify "running migration" [ "name", name ]
+  // Use print instead of Rollbar to avoid serialization issues
+  print $"Running migration: {name}"
 
   // Insert into the string because params don't work here for some reason.
   // On conflict, do nothing because another starting process might be running this migration as well.
   let recordMigrationStmt =
     "INSERT INTO system_migrations_v0
       (name, execution_date, sql)
-    VALUES (@name, CURRENT_TIMESTAMP, @sql)
-    ON CONFLICT DO NOTHING"
+    VALUES
+      (@name, CURRENT_TIMESTAMP, @sql)
+    ON CONFLICT(name) DO NOTHING"
 
   let recordMigrationParams = [ "name", Sql.string name; "sql", Sql.string sql ]
 
@@ -59,9 +68,7 @@ let runSystemMigration (name : string) (sql : string) : unit =
     |> Sql.executeStatementSync
   | _ ->
     let counts =
-      LibService.DBConnection.dataSource
-      |> Sql.fromDataSource
-      |> Sql.executeTransaction
+      Sql.executeTransactionSync
         [ sql, []; recordMigrationStmt, [ recordMigrationParams ] ]
 
     assertEq "recorded migrations" 1 counts[1]
@@ -70,8 +77,8 @@ let runSystemMigration (name : string) (sql : string) : unit =
 
 
 let allMigrations () : List<string> =
+  // Get all SQL files in the migrations directory
   File.lsdir Config.Migrations ""
-  // endsWith sql filters out, say, the .swp files vim sometimes leaves behind
   |> List.filter (String.endsWith ".sql")
   |> List.sort
 
@@ -80,7 +87,7 @@ let migrationsToRun () =
   allMigrations () |> List.filter (fun name -> not (Set.contains name alreadyRun))
 
 let run () : unit =
-  if (not (isInitialized ())) then initializeMigrationsTable ()
+  if not (isInitialized ()) then initializeMigrationsTable ()
 
   migrationsToRun ()
   |> List.iter (fun name ->

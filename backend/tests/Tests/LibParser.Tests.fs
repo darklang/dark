@@ -15,7 +15,7 @@ module NR = LibParser.NameResolver
 
 let id = 0UL // since we're ignoring IDs, just use the same one everywhere
 
-let pmPT = LibCloud.PackageManager.pt
+let pmPT = LibPackageManager.PackageManager.pt
 
 let exprRTs =
   let t name testStr expectedExpr =

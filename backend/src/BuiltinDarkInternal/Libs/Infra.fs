@@ -51,35 +51,12 @@ let fns : List<BuiltInFn> =
           )
         )
       description =
-        "Query the postgres database for the current size (disk + rowcount) of all
-tables. This uses pg_stat, so it is fast but imprecise. This function is logged
-via the backend; its primary purpose is to send data to Honeycomb, but also gives
-human-readable data."
+        "Query the SQLite database for the current row count of all tables. Disk size is approximated via PRAGMA page_count * page_size. Data is logged to Honeycomb per table."
       fn =
         (function
         | _, _, _, [ DUnit ] ->
           uply {
-            let! tableStats = LibCloud.Db.tableStats ()
-
-            // Send events to honeycomb. We could save some events by sending
-            // these all as a single event - tablename.disk = 1, etc - but
-            // by having an event per table, it's easier to query and graph:
-            // `VISUALIZE MAX(disk), MAX(rows);  GROUP BY relation`.
-            // (Also, if/when we add more tables, the graph-query doesn't need
-            // to be updated)
-            //
-            // There are ~40k minutes/month, and 20 tables, so a 1/min cron
-            // would consume 80k of our 1.5B monthly events. That seems
-            // reasonable.
-            tableStats
-            |> List.iter (fun ts ->
-              Telemetry.addEvent
-                "postgres_table_sizes"
-                [ ("relation", ts.relation)
-                  ("disk_bytes", ts.diskBytes)
-                  ("rows", ts.rows)
-                  ("disk_human", ts.diskHuman)
-                  ("rows_human", ts.rowsHuman) ])
+            let! tableStats = LibDB.Db.tableStats ()
 
             let typeName =
               FQTypeName.Package PackageIDs.Type.Internal.Infra.tableSize

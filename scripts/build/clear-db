@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-. ./scripts/devcontainer/_assert-in-container "$0" "$@"
-
-set -uo pipefail
-
-echo "Clearing devdb"
-psql devdb -c "DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public"
