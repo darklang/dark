@@ -75,7 +75,8 @@ module Darklang =
             mainPrompt = newPrompt
             historyPosition = newPosition
             draftPrompt = newdraftPrompt
-            cursorPosition = newCursorPos }
+            cursorPosition = newCursorPos
+            completionState = Stdlib.Option.Option.None }
 
     let update (state: State) (msg: Msg): (State * List<Msg>) =
       match msg with
@@ -107,14 +108,17 @@ module Darklang =
           // Enter key pressed, submit the current prompt as a command, and add it to history
           let command = state.mainPrompt
           let newState =
-            { state with mainPrompt = ""; cursorPosition = 0L }
+            { state with
+                mainPrompt = ""
+                cursorPosition = 0L
+                completionState = Stdlib.Option.Option.None }
             |> addToHistory command
           Builtin.printLine ""
           (newState, [Msg.SubmitCommand command])
 
         | Backspace ->
           // Backspace key pressed, remove the character before the cursor
-          // Also reset history navigation when user starts typing
+          // Also reset history navigation and update completions
           if state.cursorPosition > 0L then
             let beforeCursor = Stdlib.String.slice state.mainPrompt 0L (state.cursorPosition - 1L)
             let afterCursor = Stdlib.String.dropFirst state.mainPrompt state.cursorPosition
@@ -124,8 +128,10 @@ module Darklang =
                   mainPrompt = newPrompt
                   cursorPosition = state.cursorPosition - 1L
                   historyPosition = -1L
-                  draftPrompt = "" }
-            (newState, [])
+                  draftPrompt = ""
+                  completionState = Stdlib.Option.Option.None }
+            // Automatically request completions after backspacing
+            (newState, [Msg.RequestCompletion])
           else
             (state, [])
 
@@ -140,19 +146,28 @@ module Darklang =
         | LeftArrow ->
           // Move cursor left
           let newCursorPos = Stdlib.Int64.max 0L (state.cursorPosition - 1L)
-          let newState = { state with cursorPosition = newCursorPos }
+          let newState = { state with cursorPosition = newCursorPos; completionState = Stdlib.Option.Option.None }
           (newState, [])
 
         | RightArrow ->
           // Move cursor right
           let promptLength = Stdlib.String.length state.mainPrompt
           let newCursorPos = Stdlib.Int64.min promptLength (state.cursorPosition + 1L)
-          let newState = { state with cursorPosition = newCursorPos }
+          let newState = { state with cursorPosition = newCursorPos; completionState = Stdlib.Option.Option.None }
           (newState, [])
+
+        | Tab ->
+          // Tab key pressed - accept completion if available
+          match state.completionState with
+          | Some _ ->
+            (state, [Msg.AcceptCompletion])
+          | None ->
+            // No completions available, do nothing
+            (state, [])
 
         | _ ->
           // For other keys, check if they're textual and insert at cursor position
-          // Also reset history navigation when user starts typing
+          // Also reset history navigation and automatically generate completions
           let beforeCursor = Stdlib.String.slice state.mainPrompt 0L state.cursorPosition
           let afterCursor = Stdlib.String.dropFirst state.mainPrompt state.cursorPosition
           let newPrompt = beforeCursor ++ keyChar ++ afterCursor
@@ -161,8 +176,10 @@ module Darklang =
                 mainPrompt = newPrompt
                 cursorPosition = state.cursorPosition + (Stdlib.String.length keyChar)
                 historyPosition = -1L
-                draftPrompt = "" }
-          (newState, [])
+                draftPrompt = ""
+                completionState = Stdlib.Option.Option.None }
+          // Automatically request completions after typing
+          (newState, [Msg.RequestCompletion])
 
       | SubmitCommand commandStr ->
         // Process the submitted command
@@ -219,3 +236,23 @@ module Darklang =
               commandResult = result
               needsFullRedraw = true }
         (newState, [])
+
+      | RequestCompletion ->
+        // Generate completions for the current input
+        let completionState = Completion.generateCompletions state
+        let newState = { state with completionState = completionState }
+        (newState, [])
+
+      | ClearCompletion ->
+        // Clear current completion state
+        let newState = { state with completionState = Stdlib.Option.Option.None }
+        (newState, [])
+
+      | AcceptCompletion ->
+        // Apply the selected completion
+        match state.completionState with
+        | Some completion ->
+          let newState = Completion.applyCompletion state completion
+          (newState, [])
+        | None ->
+          (state, [])

@@ -13,6 +13,11 @@ module Darklang =
       | NavigateHistoryUp
       | NavigateHistoryDown
 
+      // -- Tab completion
+      | RequestCompletion
+      | ClearCompletion
+      | AcceptCompletion
+
       // -- Navigation
       | NavigateTo of page: Page
       | NavigateBack

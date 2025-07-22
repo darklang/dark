@@ -21,7 +21,8 @@ module Darklang =
             commandResult = CommandResult.None
             interactionMode = interactionMode
             needsFullRedraw = true
-            isExiting = false }
+            isExiting = false
+            completionState = Stdlib.Option.Option.None }
 
       // Return initial state and any initial messages to process
       (state, msgs)

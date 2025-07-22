@@ -469,7 +469,7 @@ module Darklang =
             { name = "view"
               description = "View modules, types, functions, or constants"
               aliases = []
-              arguments = ["[module <moduleName> | <entityName>]"]
+              arguments = ["[<moduleName> | <entityName>]"]
               execute = fun state args ->
                 // didn't meet args
                 // TODO this should totally be un-handled by the execute fn; why are we doing this here??
