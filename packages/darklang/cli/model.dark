@@ -63,6 +63,18 @@ module Darklang =
         | RefreshScreen
         | Regular
 
+      /// The state of completion
+      type CompletionState =
+        { /// Current completion suggestions
+          suggestions: List<String>
+          /// Index of currently selected suggestion (-1 = no selection)
+          selectedIndex: Int64
+          /// The original text that was being completed
+          originalText: String
+          /// The prefix that matched to generate these suggestions
+          completionPrefix: String
+        }
+
       type State =
         { /// The current page/view the user is on
           currentPage: Page
@@ -97,6 +109,9 @@ module Darklang =
 
           /// Flag to indicate if the application should exit
           isExiting: Bool
+
+          /// The current state of tab completion
+          completionState: Stdlib.Option.Option<CompletionState>
 
           //accounts: [("stachu", "uhcats"); ("ocean": "oak"); ("paul", "biggar")]
           //currentAccount: "stachu"

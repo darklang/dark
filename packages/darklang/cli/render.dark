@@ -17,7 +17,17 @@ module Darklang =
     /// Renders just the prompt line for incremental updates
     let renderPromptOnly (state: State): String =
       let pathDisplay = getPathDisplay state.currentPage
-      let promptLine = $"{pathDisplay}> {state.mainPrompt}"
+
+      // Get completion text to display in gray
+      let completionText = Completion.getCompletionDisplay state
+
+      // Build the prompt with completion
+      let promptLine =
+        if Stdlib.String.isEmpty completionText then
+          $"{pathDisplay}> {state.mainPrompt}"
+        else
+          $"{pathDisplay}> {state.mainPrompt}{CliColors.darkGray}{completionText}{CliColors.reset}"
+
       let cursorPosition = positionTerminalCursor pathDisplay state.cursorPosition
       promptLine ++ cursorPosition
 
@@ -35,11 +45,7 @@ module Darklang =
 
       // Regular mode: include command result and prompt, but no available commands
       | Regular ->
-        // Format the current path for display
-        let pathDisplay = getPathDisplay state.currentPage
-        // Format the prompt with the current path
-        let promptLine = $"{pathDisplay}> {state.mainPrompt}"
-        let cursorPosition = positionTerminalCursor pathDisplay state.cursorPosition
+        let promptRender = renderPromptOnly state
 
         // Format the command result
         let resultDisplay =
@@ -52,9 +58,9 @@ module Darklang =
         // Combine parts with appropriate spacing
         let parts =
           if Stdlib.String.isEmpty resultDisplay then
-            [promptLine ++ cursorPosition]
+            [promptRender]
           else
-            [resultDisplay; ""; promptLine ++ cursorPosition]
+            [resultDisplay; ""; promptRender]
 
         parts
         |> Stdlib.List.filter (fun p -> Stdlib.Bool.not (Stdlib.String.isEmpty p))
@@ -62,11 +68,7 @@ module Darklang =
 
       // RefreshScreen mode (full UI): include command result, available commands, and prompt
       | RefreshScreen ->
-        // Format the current path for display
-        let pathDisplay = getPathDisplay state.currentPage
-        // Format the prompt with the current path
-        let promptLine = $"{pathDisplay}> {state.mainPrompt}"
-        let cursorPosition = positionTerminalCursor pathDisplay state.cursorPosition
+        let promptRender = renderPromptOnly state
 
         // Format the command result
         let resultDisplay =
@@ -76,6 +78,6 @@ module Darklang =
           | Info msg -> msg
           | None -> ""
 
-        [ resultDisplay; promptLine ++ cursorPosition ]
+        [ resultDisplay; promptRender ]
         |> Stdlib.List.filter (fun p -> Stdlib.Bool.not (Stdlib.String.isEmpty p))
         |> Stdlib.String.join "\n"
