@@ -395,6 +395,115 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "cliEvaluateExpression" 0
+      typeParams = []
+      parameters = [ Param.make "expression" TString "" ]
+      returnType = TypeReference.result TString ExecutionError.typeRef
+      description = "Evaluates a Dark expression and returns the result as a Strin"
+      fn =
+        let errType = KTCustomType(ExecutionError.fqTypeName, [])
+        let resultOk = Dval.resultOk KTString errType
+        let resultError = Dval.resultError KTString errType
+        (function
+        | exeState, _, [], [ DString expression ] ->
+          uply {
+            let exnError (e : exn) : RuntimeError.Error =
+              RuntimeError.UncaughtException(
+                Exception.getMessages e |> String.concat "\n",
+                Exception.toMetadata e
+                |> List.map (fun (k, v) -> (k, DString(string v)))
+              )
+
+            let onMissingType =
+              FQTypeName.Package
+                PackageIDs.Type.LanguageTools.NameResolver.nameResolverOnMissing
+            let onMissingAllow = DEnum(onMissingType, onMissingType, [], "Allow", [])
+
+            let getPmFnName =
+              FQFnName.Package PackageIDs.Fn.LanguageTools.PackageManager.pm
+
+            let! execResult =
+              Exe.executeFunction exeState getPmFnName [] (NEList.singleton DUnit)
+
+            let! pm =
+              uply {
+                match execResult with
+                | Ok dval -> return dval
+                | Error(rte, _cs) ->
+                  let! rteString = Exe.runtimeErrorToString exeState rte
+                  match rteString with
+                  | Ok rte ->
+                    return
+                      Exception.raiseInternal
+                        "Error executing pm function"
+                        [ "rte", rte ]
+                  | Error(nestedRte, _cs) ->
+                    return
+                      Exception.raiseInternal
+                        "Error running runtimeErrorToString"
+                        [ "original rte", rte; "nested rte", nestedRte ]
+              }
+
+            let args =
+              NEList.ofList
+                (DString "CliScript")
+                [ DString "ExprWrapper"
+                  onMissingAllow
+                  pm
+                  DString "exprWrapper"
+                  DString expression ]
+
+            let parseCliScriptFnName =
+              FQFnName.Package
+                PackageIDs.Fn.LanguageTools.Parser.CliScript.parseCliScript
+
+            let! execResult =
+              Exe.executeFunction exeState parseCliScriptFnName [] args
+
+            let! (parsedScript :
+              Result<Utils.CliScript.PTCliScriptModule, RuntimeError.Error>) =
+              uply {
+                match execResult with
+                | Ok dval -> return (Utils.CliScript.fromDT dval) |> Ok
+                | Error(rte, _cs) ->
+                  let! rteString = Exe.runtimeErrorToString exeState rte
+                  match rteString with
+                  | Ok errorDval ->
+                    return
+                      Exception.raiseInternal
+                        "Error executing parseCliScript function"
+                        [ "rte", errorDval ]
+                  | Error(nestedRte, _cs) ->
+                    return
+                      Exception.raiseInternal
+                        "Error running runtimeErrorToString"
+                        [ "original rte", rte; "nested rte", nestedRte ]
+              }
+
+            try
+              match parsedScript with
+              | Ok mod' ->
+                match! execute exeState mod' [] with
+                | Ok result ->
+                  match result with
+                  | DString s -> return resultOk (DString s)
+                  | _ ->
+                    let asString = DvalReprDeveloper.toRepr result
+                    return resultOk (DString asString)
+                | Error(e, callStack) ->
+                  let! csString = Exe.callStackString exeState callStack
+                  print $"Error when executing expression. Call-stack:\n{csString}\n"
+                  return e |> RT2DT.RuntimeError.toDT |> resultError
+              | Error e -> return e |> RT2DT.RuntimeError.toDT |> resultError
+            with e ->
+              return exnError e |> RT2DT.RuntimeError.toDT |> resultError
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
       deprecated = NotDeprecated } ]
 
 let builtins = LibExecution.Builtin.make [] fns

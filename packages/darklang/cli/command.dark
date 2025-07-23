@@ -235,7 +235,7 @@ module Darklang =
 
           match result with
           | Ok exitCode ->
-            let newState = { state with commandResult = CommandResult.Success $"Script executed with exit code: {exitCode}" }
+            let newState = { state with commandResult = CommandResult.Success $"Script executed with exit code: {exitCode |> Stdlib.Int64.toString}" }
             (newState, [])
           | Error e ->
             let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString e
@@ -727,6 +727,28 @@ module Darklang =
                       let newState = { state with commandResult = CommandResult.Info "No items to display in this context" }
                       (newState, [])
                 }
+
+             // `eval <expression>`
+              CommandDetails
+                { name = "eval"
+                  description = "Evaluate a Dark expression"
+                  aliases = ["e"]
+                  arguments = ["<expression>"]
+                  execute = fun state args ->
+                    if Stdlib.String.isEmpty args then
+                      let newState = { state with commandResult = CommandResult.Error "Please provide an expression to evaluate. Example: eval 1L + 2L" }
+                      (newState, [])
+                    else
+                      let expr = args
+                      match Builtin.cliEvaluateExpression expr with
+                      | Ok result ->
+                        let newState = { state with commandResult = CommandResult.Success result }
+                        (newState, [])
+                      | Error err ->
+                        let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString err
+                        let newState = { state with commandResult = CommandResult.Error prettyError }
+                        (newState, [])
+                }
             ]
           // CLEANUP: when is this used?
           | Type _
@@ -859,4 +881,5 @@ module Darklang =
         |> getAvailableCommands
         |> Stdlib.List.findFirst (fun cmd ->
             cmd.name == lowerName || Stdlib.List.member_v0 cmd.aliases lowerName)
+
 

@@ -41,7 +41,7 @@ module Darklang =
       /// Check if command takes entity arguments (like view, cd, run)
       let commandTakesEntities (command: String): Bool =
         match command with
-        | "view" | "cd" | "run" -> true
+        | "view" | "cd" | "run" | "eval" -> true
         | _ -> false
 
       /// Figure out what kind of completion we need
