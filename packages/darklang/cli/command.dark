@@ -532,6 +532,18 @@ module Darklang =
                     (newState, [])
             }
 
+          // Clear command
+          CommandDetails
+            { name = "clear"
+              description = "Clear the screen"
+              aliases = ["cls"]
+              arguments = []
+              execute = fun state _ ->
+                // \x1b starts the escape sequence, [2J clears the screen, [H moves cursor to top left
+                let newState = { state with commandResult = CommandResult.Success "\x1b[2J\x1b[H"; needsFullRedraw = true }
+                (newState, [])
+            }
+
           // Status command
           CommandDetails
             { name = "status"
