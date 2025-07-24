@@ -323,15 +323,25 @@ let fns : List<BuiltInFn> =
               let! execResult =
                 Exe.executeFunction exeState resolveFn [] resolveFnArgs
 
-              let! fnName =
+              let! fnNameResult =
                 uply {
                   match execResult with
                   | Ok dval ->
-                    match C2DT.Result.fromDT PT2DT.FQFnName.fromDT dval identity with
+                    match
+                      C2DT.Result.fromDT
+                        PT2DT.FQFnName.fromDT
+                        dval
+                        PT2DT.NameResolutionError.fromDT
+                    with
                     | Ok fnName -> return Ok fnName
-                    | Error _ ->
-                      return
-                        Exception.raiseInternal "Error converting Dval to FQName" []
+                    | Error nameErr ->
+                      match nameErr with
+                      | PT.NameResolutionError.NotFound names ->
+                        let nameStr = names |> String.concat "."
+                        return Error $"Function not found: {nameStr}"
+                      | PT.NameResolutionError.InvalidName names ->
+                        let nameStr = names |> String.concat "."
+                        return Error $"Invalid function name: {nameStr}"
                   | Error(rte) ->
                     return
                       Exception.raiseInternal
@@ -339,7 +349,7 @@ let fns : List<BuiltInFn> =
                         [ "rte", rte ]
                 }
 
-              match fnName with
+              match fnNameResult with
               | Ok fnName ->
                 let! fn =
                   match PT2RT.FQFnName.toRT fnName with
@@ -388,7 +398,7 @@ let fns : List<BuiltInFn> =
                     | _ ->
                       let asString = DvalReprDeveloper.toRepr value
                       return resultOk (DString asString)
-              | _ -> return incorrectArgs ()
+              | Error errMsg -> return resultError (DString errMsg)
             with e ->
               return exnError e
           }
