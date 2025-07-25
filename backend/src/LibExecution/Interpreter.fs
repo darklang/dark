@@ -385,7 +385,9 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
           else
             counter <- counter + failJump
 
-        | MatchUnmatched -> raiseRTE (RTE.Match RTE.Matches.MatchUnmatched)
+        | MatchUnmatched(valueReg) ->
+          let unmatchedValue = registers[valueReg]
+          raiseRTE (RTE.Match(RTE.Matches.MatchUnmatched unmatchedValue))
 
 
         // == Working with Collections ==

@@ -55,7 +55,7 @@ module Darklang =
 
         module Matches =
           type Error =
-            | MatchUnmatched
+            | MatchUnmatched of unmatchedValue: Dval
 
         module Enums =
           type Error =
