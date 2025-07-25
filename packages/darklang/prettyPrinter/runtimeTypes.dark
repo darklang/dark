@@ -240,8 +240,59 @@ module Darklang =
 
       module Dval =
         let valueTypeName (dv: LanguageTools.RuntimeTypes.Dval) : String =
-          //dv |> LanguageTools.RuntimeTypes.Dval.toValueType |> valueType
-          "TODO - use a builtin instead of the thing that was here"
+          // TODO: When a builtin for Dval.toValueType is available, use:
+          // dv |> LanguageTools.RuntimeTypes.Dval.toValueType |> valueType
+          // This mirrors DvalReprDeveloper.toTypeName
+          // If a builtin is ever exposed, we could simplify to: Builtin.dvalToTypeName dv
+          match dv with
+          | DUnit -> "Unit"
+          | DBool _ -> "Bool"
+          | DInt8 _ -> "Int8"
+          | DUInt8 _ -> "UInt8"
+          | DInt16 _ -> "Int16"
+          | DUInt16 _ -> "UInt16"
+          | DInt32 _ -> "Int32"
+          | DUInt32 _ -> "UInt32"
+          | DInt64 _ -> "Int64"
+          | DUInt64 _ -> "UInt64"
+          | DInt128 _ -> "Int128"
+          | DUInt128 _ -> "UInt128"
+          | DFloat _ -> "Float"
+          | DChar _ -> "Char"
+          | DString _ -> "String"
+          | DDateTime _ -> "DateTime"
+          | DUuid _ -> "Uuid"
+          | DTuple(first, second, theRest) ->
+            let types = Stdlib.List.append [ first; second ] theRest
+            types
+            |> Stdlib.List.map (fun item -> valueTypeName item)
+            |> Stdlib.String.join " * "
+            |> fun parts -> "(" ++ parts ++ ")"
+          | DList (vt, _) -> $"List<{valueType vt}>"
+          | DDict (vt, _) -> $"Dict<{valueType vt}>"
+          | DRecord (_, typeName, typeArgs, _) ->
+            let typeArgsPart =
+              match typeArgs with
+              | [] -> ""
+              | args ->
+                args
+                |> Stdlib.List.map (fun t -> valueType t)
+                |> Stdlib.String.join ", "
+                |> fun parts -> $"<{parts}>"
+            (typeName typeName) ++ typeArgsPart
+          | DEnum (_, typeName, typeArgs, _, _) ->
+            let typeArgsPart =
+              match typeArgs with
+              | [] -> ""
+              | args ->
+                args
+                |> Stdlib.List.map (fun t -> valueType t)
+                |> Stdlib.String.join ", "
+                |> fun parts -> $"<{parts}>"
+            (typeName typeName) ++ typeArgsPart
+          | DDB _ -> "Datastore"
+          | DApplicable (AppNamedFn _) -> "Function"
+          | DApplicable (AppLambda _) -> "Lambda"
 
         let makeSpaces (len: Int64) : String =
           (Stdlib.List.repeat len " ") |> Builtin.unwrap |> Stdlib.String.join ""

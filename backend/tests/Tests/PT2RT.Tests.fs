@@ -308,7 +308,7 @@ module Expr =
            RT.JumpBy 1
 
            // handle the case where no branches match
-           RT.MatchUnmatched ],
+           RT.MatchUnmatched 0 ],
          1)
 
     let notMatched =
@@ -327,7 +327,7 @@ module Expr =
            RT.JumpBy 1
 
            // handle the case where no branches match
-           RT.MatchUnmatched ],
+           RT.MatchUnmatched 0 ],
          1)
 
     let withVar =
@@ -341,7 +341,7 @@ module Expr =
            RT.CopyVal(1, 2)
            RT.JumpBy 1
 
-           RT.MatchUnmatched ],
+           RT.MatchUnmatched 0 ],
          1)
 
     let withVarAndWhenCondition =
@@ -389,7 +389,7 @@ module Expr =
            RT.JumpBy 1
 
            // handle the case where no branches match
-           RT.MatchUnmatched ],
+           RT.MatchUnmatched 0 ],
          1)
 
     let list =
@@ -413,7 +413,7 @@ module Expr =
            RT.JumpBy 1
 
            // handle the case where no branches match
-           RT.MatchUnmatched ],
+           RT.MatchUnmatched 0 ],
          3)
 
     let listCons =
@@ -436,7 +436,7 @@ module Expr =
            RT.JumpBy 1
 
            // handle the case where no branches match
-           RT.MatchUnmatched ],
+           RT.MatchUnmatched 0 ],
          3)
 
     let tuple =
@@ -460,7 +460,7 @@ module Expr =
            RT.JumpBy 1
 
            // handle the case where no branches match
-           RT.MatchUnmatched ],
+           RT.MatchUnmatched 0 ],
          3)
 
     let combinedPatterns =
@@ -490,7 +490,7 @@ module Expr =
            RT.CopyVal(3, 5)
            RT.JumpBy 1
 
-           RT.MatchUnmatched ],
+           RT.MatchUnmatched 0 ],
          3)
 
     let combinedPatternsWithVarAndWhenCond =
@@ -533,7 +533,7 @@ module Expr =
            RT.CopyVal(3, 5)
            RT.JumpBy 1
 
-           RT.MatchUnmatched ],
+           RT.MatchUnmatched 0 ],
          3)
 
     let combinedPatSameVarDifferentPos =
@@ -579,7 +579,7 @@ module Expr =
            RT.CopyVal(5, 7)
            RT.JumpBy 1
 
-           RT.MatchUnmatched ],
+           RT.MatchUnmatched 0 ],
          5)
 
     let tests =

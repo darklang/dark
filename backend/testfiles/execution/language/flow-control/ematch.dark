@@ -649,7 +649,7 @@ module Option =
 
 module Errors =
   (match "nothing matches" with
-   | "not this" -> "fail") = Builtin.testDerrorMessage "No matching case found"
+   | "not this" -> "fail") = Builtin.testDerrorMessage "No matching case found for value \"nothing matches\" in match expression"
 
   (match Builtin.testRuntimeError "cond is error" with
    | 5L -> "fail"
@@ -695,12 +695,12 @@ module TypeErrors =
   // enum with more pattern params than actual args
   (match TestType.NoArgs with
    | NoArgs _ -> "wrong number") =
-    Builtin.testDerrorMessage "No matching case found"
+    Builtin.testDerrorMessage "No matching case found for value TypeErrors.TestType.NoArgs in match expression"
 
   // enum with fewer pattern params than actual args
   (match TestType.OneArg 1L with
    | OneArg -> "wrong number") = Builtin.testDerrorMessage
-    "No matching case found"
+    "No matching case found for value TypeErrors.TestType.OneArg(1) in match expression"
 
   // TODO implement MPIgnored
   // // enum with a single wildcard
@@ -766,7 +766,7 @@ module GuardClause =
   (match 5L with
    | 2L when x > 2L -> false
    | 3L -> true) =
-    (Builtin.testDerrorMessage "No matching case found")
+    (Builtin.testDerrorMessage "No matching case found for value 5 in match expression")
 
   (match Stdlib.Result.Result.Error 5L with
    | Ok x when x > 2L -> false

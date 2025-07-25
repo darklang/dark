@@ -907,13 +907,15 @@ module RuntimeError =
 
       let (caseName, fields) =
         match e with
-        | RuntimeError.Matches.MatchUnmatched -> "MatchUnmatched", []
+        | RuntimeError.Matches.MatchUnmatched unmatchedValue ->
+          "MatchUnmatched", [ Dval.toDT unmatchedValue ]
 
       DEnum(typeName, typeName, [], caseName, fields)
 
     let fromDT (d : Dval) : RuntimeError.Matches.Error =
       match d with
-      | DEnum(_, _, [], "MatchUnmatched", []) -> RuntimeError.Matches.MatchUnmatched
+      | DEnum(_, _, [], "MatchUnmatched", [ unmatchedValue ]) ->
+        RuntimeError.Matches.MatchUnmatched(Dval.fromDT unmatchedValue)
       | _ -> Exception.raiseInternal "Invalid Matches.Error" []
 
   module Records =

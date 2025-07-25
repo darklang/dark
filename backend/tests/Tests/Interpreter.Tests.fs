@@ -202,7 +202,7 @@ module Match =
     tFail
       "match true with\n| false -> \"first branch\""
       E.Match.notMatched
-      (RTE.Match RTE.Matches.MatchUnmatched)
+      (RTE.Match(RTE.Matches.MatchUnmatched(RT.DBool true)))
 
   let withVar = t "match true with\n| x -> x" E.Match.withVar (RT.DBool true)
 

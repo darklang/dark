@@ -810,7 +810,8 @@ module Expr =
             instrs @ caseInstrs)
           []
 
-      let instrs = expr.instructions @ caseInstrs @ [ RT.MatchUnmatched ]
+      let instrs =
+        expr.instructions @ caseInstrs @ [ RT.MatchUnmatched expr.resultIn ]
 
       let rcAtEnd = casesAfterFirstPhase |> List.map _.rc |> List.max
 
