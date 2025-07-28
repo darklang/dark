@@ -281,6 +281,19 @@ jobs:
       # For tests
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
+
+      # The CLI embeds the Sqlite data.db,
+      # so we need to get a copy ready first.
+      - run:
+          name: Build LocalExec for migrations (debug mode fine)
+          command: ./scripts/build/_dotnet-wrapper build src/LocalExec/LocalExec.fsproj
+      - run:
+          name: Run migrations to create database
+          command: scripts/run-local-exec migrations run
+      - run:
+          name: Load packages into database
+          command: scripts/build/reload-packages
+
       - assert-clean-worktree
       - run:
           command: |

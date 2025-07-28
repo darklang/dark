@@ -23,9 +23,10 @@ let buildHash : string =
   | Some s -> s
   | None -> envDisplayName
 
-let rootDir = absoluteDirOrCurrent "DARK_CONFIG_ROOT_DIR"
+// runDir is for runtime data (DB, logs, etc.) - separate from source code paths
+let runDir = absoluteDirOrCurrent "DARK_CONFIG_RUNDIR"
 
-let runDir = $"{rootDir}rundir/"
+let logDir = $"{runDir}logs/"
 
 let dbName =
   match getEnv "DARK_CONFIG_DB_NAME" with

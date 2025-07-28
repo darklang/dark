@@ -15,6 +15,24 @@ module PackageIDs = LibExecution.PackageIDs
 module BuiltinCli = BuiltinCli.Builtin
 module BuiltinCliHostConfig = BuiltinCliHost.Libs.Cli.Config
 
+// Dual logging (console + cli.log file)
+let private logError (message : string) : unit =
+  // Always write to stderr for immediate feedback
+  System.Console.Error.WriteLine(message)
+
+  // Also try to log to file (best effort - don't fail if we can't)
+  try
+    let logPath = System.IO.Path.Combine(LibConfig.Config.logDir, "cli.log")
+    let logDir = System.IO.Path.GetDirectoryName(logPath)
+    if not (System.IO.Directory.Exists(logDir)) then
+      System.IO.Directory.CreateDirectory(logDir) |> ignore<System.IO.DirectoryInfo>
+
+    let timestamp = System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+    let logEntry = $"[{timestamp}] {message}\n"
+    System.IO.File.AppendAllText(logPath, logEntry)
+  with _ ->
+    () // Silently ignore logging errors - don't make things worse
+
 // ---------------------
 // Version information
 // ---------------------
@@ -102,6 +120,8 @@ let initSerializers () = ()
 [<EntryPoint>]
 let main (args : string[]) =
   try
+    EmbeddedResources.extract ()
+
     initSerializers ()
 
     BuiltinCliHostConfig.packageManagerRT.init.Result
@@ -120,31 +140,24 @@ let main (args : string[]) =
 
       match (LibExecution.Execution.runtimeErrorToString state rte).Result with
       | Ok(RT.DString s) ->
-        Console.WriteLine
-          $"Encountered a Runtime Error:\n{s}\n\n{errorCallStackStr}\n  "
+        logError $"Encountered a Runtime Error:\n{s}\n\n{errorCallStackStr}\n  "
 
       | Ok otherVal ->
-        Console.WriteLine
-          $"Encountered a Runtime Error, stringified it, but somehow a non-string was returned.\n"
-        Console.WriteLine $"Runtime Error: {rte}"
-        Console.WriteLine $"'Stringified':\n{otherVal}"
-        Console.WriteLine $"{errorCallStackStr}"
+        logError
+          $"Encountered a Runtime Error, stringified it, but somehow a non-string was returned.\nRuntime Error: {rte}\n'Stringified':\n{otherVal}\n{errorCallStackStr}"
 
       | Error(newErr) ->
-        Console.WriteLine
-          $"Encountered a Runtime Error, tried to stringify it, and then _that_ failed."
-        Console.WriteLine $"Original Error: {rte}"
-        Console.WriteLine $"{errorCallStackStr}"
-        Console.WriteLine $"\nError encountered when trying to stringify:\n{newErr}"
+        logError
+          $"Encountered a Runtime Error, tried to stringify it, and then _that_ failed.\nOriginal Error: {rte}\n{errorCallStackStr}\n\nError encountered when trying to stringify:\n{newErr}"
 
       1
     | Ok(RT.DInt64 i) -> (int i)
     | Ok dval ->
       let output = DvalReprDeveloper.toRepr dval
-      Console.WriteLine
-        $"Error: main function must return an int (returned {output})"
+      logError $"Error: main function must return an int (returned {output})"
       1
 
   with e ->
-    printException "Error starting Darklang CLI" [] e
+    logError
+      $"Error starting Darklang CLI: {e.Message}\nStack trace:\n{e.StackTrace}"
     1

@@ -57,7 +57,23 @@
     <ProjectReference Include="../BuiltinCliHost/BuiltinCliHost.fsproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="EmbeddedResources.fs" />
     <Compile Include="Cli.fs" />
   </ItemGroup>
+  <ItemGroup Condition="'$(Configuration)' == 'Release'">
+    <!-- Only embed resources in Release mode -->
+    <EmbeddedResource Include="../../../rundir/data.db">
+      <LogicalName>data.db</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="README-to-embed.md">
+      <LogicalName>README.md</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <!-- Fail the build if the database doesn't exist in Release mode -->
+  <Target Name="CheckDatabaseExists" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(Configuration)' == 'Release' And !Exists('../../../rundir/data.db')"
+           Text="Database file (rundir/data.db) not found. The database must be created before building the CLI in Release mode. Run migrations first." />
+  </Target>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
