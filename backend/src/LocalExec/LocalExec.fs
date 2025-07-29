@@ -34,6 +34,8 @@ module HandleCommand =
           packagesFromDisk.constants
       do! LibPackageManager.PackageManager.savePackageFunctions packagesFromDisk.fns
 
+      //do! LibPackageManager.PackageManager.flushCheckpoint ()
+
       return Ok()
     }
 

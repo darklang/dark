@@ -124,6 +124,7 @@ let main (args : string[]) =
 
     initSerializers ()
 
+    // Custom binary serialization is now active
     BuiltinCliHostConfig.packageManagerRT.init.Result
 
     let result = execute (Array.toList args)
@@ -157,7 +158,7 @@ let main (args : string[]) =
       logError $"Error: main function must return an int (returned {output})"
       1
 
+      
   with e ->
-    logError
-      $"Error starting Darklang CLI: {e.Message}\nStack trace:\n{e.StackTrace}"
+    print $"Error starting Darklang CLI: {e.Message}\nStack trace:\n{e.StackTrace}"
     1

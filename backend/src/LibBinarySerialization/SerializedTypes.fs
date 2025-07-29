@@ -1,5 +1,6 @@
 /// The types that are serialized for the program. This type is only for
 /// binary serialization to the DB, use ProgramTypes for anything else.
+/// Maybe, now that MessagePack is gone, we don't need this, and should just use the LibExecution types? idk.
 module LibBinarySerialization.SerializedTypes
 
 type id = Prelude.id
@@ -7,16 +8,7 @@ type tlid = Prelude.tlid
 type Sign = Prelude.Sign
 type uuid = Prelude.uuid
 
-// The types in this files are serialized using MessagePack.
-//
-// https://github.com/neuecc/MessagePack-CSharp
-// https://github.com/pocketberserker/MessagePack.FSharpExtensions
-//
-// All types should be annotated with `[<MessagePack.MessagePackObject>]`, and each
-// field in the record should be annotated with `[<MessagePack.Key 0>]` (the zero
-// should be replaced with a unique sequential index):
-//
-// [<MessagePack.MessagePackObject>] type X = { [<MessagePack.Key 0>] x : int }
+// The types in this file are serialized using custom binary format.
 //
 // If you forget to annotate all parts of a type (or a type referred to by that type)
 // the serializer will raise an exception. (It seems to be OK to not annotate some
@@ -46,67 +38,50 @@ type uuid = Prelude.uuid
 // - change the type of a field in a record
 // - removing a field from a variant (eg remove b to X(a,b))
 
-[<MessagePack.MessagePackObject>]
 type NEList<'a> =
-  { [<MessagePack.Key 0>]
+  {
     head : 'a
-    [<MessagePack.Key 1>]
     tail : List<'a> }
 
 
 module FQTypeName =
-  [<MessagePack.MessagePackObject>]
-  type Package = uuid
+    type Package = uuid
 
-  [<MessagePack.MessagePackObject>]
-  type FQTypeName = Package of Package
+    type FQTypeName = Package of Package
 
 
 module FQConstantName =
-  [<MessagePack.MessagePackObject>]
   type Builtin =
-    { [<MessagePack.Key 0>]
-      name : string
-      [<MessagePack.Key 1>]
+    { name : string
       version : int }
 
-  [<MessagePack.MessagePackObject>]
   type Package = uuid
 
-  [<MessagePack.MessagePackObject>]
   type FQConstantName =
     | Builtin of Builtin
     | Package of Package
 
 
 module FQFnName =
-  [<MessagePack.MessagePackObject>]
   type Builtin =
-    { [<MessagePack.Key 0>]
-      name : string
-      [<MessagePack.Key 1>]
+    { name : string
       version : int }
 
-  [<MessagePack.MessagePackObject>]
   type Package = uuid
 
-  [<MessagePack.MessagePackObject>]
   type FQFnName =
     | Builtin of Builtin
     | Package of Package
 
 
-[<MessagePack.MessagePackObject>]
 type NameResolutionError =
   | NotFound of List<string>
   | InvalidName of List<string>
 
-[<MessagePack.MessagePackObject>]
 type NameResolution<'a> = Result<'a, NameResolutionError>
 
 
 
-[<MessagePack.MessagePackObject>]
 type TypeReference =
   | TInt64
   | TUInt64
@@ -135,7 +110,6 @@ type TypeReference =
   | TFn of NEList<TypeReference> * TypeReference
   | TTuple of TypeReference * TypeReference * List<TypeReference>
 
-[<MessagePack.MessagePackObject>]
 type InfixFnName =
   | ArithmeticPlus
   | ArithmeticMinus
@@ -151,7 +125,6 @@ type InfixFnName =
   | ComparisonNotEquals
   | StringConcat
 
-[<MessagePack.MessagePackObject>]
 type LetPattern =
   | LPVariable of id * name : string
   | LPUnit of id
@@ -162,12 +135,11 @@ type LetPattern =
     theRest : List<LetPattern>
 
 
-// We use bigint for serializing Int128 and UInt128 in MessagePack because
+// We use bigint for serializing Int128 and UInt128 because
 // BigInteger is a built-in supported type that supports handling large integers beyond the range of Int128 and UInt128.
 // Creating custom formatters for Int128 and UInt128 would introduce complexity,
 // especially when dealing with endianness and serialization/deserialization processes.
 
-[<MessagePack.MessagePackObject>]
 type MatchPattern =
   | MPVariable of id * string
   | MPEnum of id * caseName : string * fieldPats : List<MatchPattern>
@@ -191,17 +163,14 @@ type MatchPattern =
   | MPListCons of id * head : MatchPattern * tail : MatchPattern
   | MPOr of id * NEList<MatchPattern>
 
-[<MessagePack.MessagePackObject>]
 type BinaryOperation =
   | BinOpAnd
   | BinOpOr
 
-[<MessagePack.MessagePackObject>]
 type Infix =
   | InfixFnCall of InfixFnName
   | BinOp of BinaryOperation
 
-[<MessagePack.MessagePackObject>]
 type Expr =
   | EInt64 of id * int64
   | EUInt64 of id * uint64
@@ -246,19 +215,17 @@ type Expr =
   | EFnName of id * NameResolution<FQFnName.FQFnName>
   | EStatement of id * first : Expr * next : Expr
 
-and [<MessagePack.MessagePackObject>] MatchCase =
-  { [<MessagePack.Key 0>]
+and MatchCase =
+  {
     pat : MatchPattern
-    [<MessagePack.Key 1>]
     whenCondition : Option<Expr>
-    [<MessagePack.Key 2>]
     rhs : Expr }
 
-and [<MessagePack.MessagePackObject>] StringSegment =
+and StringSegment =
   | StringText of string
   | StringInterpolation of Expr
 
-and [<MessagePack.MessagePackObject>] PipeExpr =
+and PipeExpr =
   | EPipeVariable of id * string * List<Expr>
   | EPipeLambda of id * pats : NEList<LetPattern> * body : Expr
   | EPipeInfix of id * Infix * Expr
@@ -273,7 +240,6 @@ and [<MessagePack.MessagePackObject>] PipeExpr =
     caseName : string *
     fields : List<Expr>
 
-[<MessagePack.MessagePackObject>]
 type Deprecation<'name> =
   | NotDeprecated
   | RenamedTo of 'name
@@ -282,48 +248,31 @@ type Deprecation<'name> =
 
 
 module TypeDeclaration =
-  [<MessagePack.MessagePackObject>]
   type RecordField =
-    { [<MessagePack.Key 0>]
-      name : string
-      [<MessagePack.Key 1>]
+    { name : string
       typ : TypeReference
-      [<MessagePack.Key 2>]
       description : string }
 
-  [<MessagePack.MessagePackObject>]
   type EnumField =
-    { [<MessagePack.Key 0>]
-      typ : TypeReference
-      [<MessagePack.Key 1>]
+    { typ : TypeReference
       label : Option<string>
-      [<MessagePack.Key 2>]
       description : string }
 
-  [<MessagePack.MessagePackObject>]
   type EnumCase =
-    { [<MessagePack.Key 0>]
-      name : string
-      [<MessagePack.Key 1>]
+    { name : string
       fields : List<EnumField>
-      [<MessagePack.Key 2>]
       description : string }
 
-  [<MessagePack.MessagePackObject>]
   type Definition =
     | Alias of TypeReference
     | Record of NEList<RecordField>
     | Enum of NEList<EnumCase>
 
-  [<MessagePack.MessagePackObject>]
   type T =
-    { [<MessagePack.Key 0>]
-      typeParams : List<string>
-      [<MessagePack.Key 1>]
+    { typeParams : List<string>
       definition : Definition }
 
 
-[<MessagePack.MessagePackObject>]
 type Const =
   | CInt64 of int64
   | CUInt64 of uint64
@@ -348,88 +297,54 @@ type Const =
 
 
 module PackageType =
-  [<MessagePack.MessagePackObject>]
   type Name =
-    { [<MessagePack.Key 0>]
-      owner : string
-      [<MessagePack.Key 1>]
+    { owner : string
       modules : List<string>
-      [<MessagePack.Key 2>]
       name : string }
 
-  [<MessagePack.MessagePackObject>]
   type PackageType =
-    { [<MessagePack.Key 0>]
-      id : System.Guid
-      [<MessagePack.Key 1>]
+    { id : System.Guid
       name : Name
-      [<MessagePack.Key 2>]
       declaration : TypeDeclaration.T
-      [<MessagePack.Key 3>]
       description : string
-      [<MessagePack.Key 4>]
       deprecated : Deprecation<FQTypeName.FQTypeName> }
 
 module PackageConstant =
-  [<MessagePack.MessagePackObject>]
   type Name =
-    { [<MessagePack.Key 0>]
-      owner : string
-      [<MessagePack.Key 1>]
+    { owner : string
       modules : List<string>
-      [<MessagePack.Key 2>]
       name : string }
 
-  [<MessagePack.MessagePackObject>]
   type PackageConstant =
-    { [<MessagePack.Key 0>]
-      id : System.Guid
-      [<MessagePack.Key 1>]
+    { id : System.Guid
       name : Name
-      [<MessagePack.Key 2>]
       body : Const
-      [<MessagePack.Key 3>]
       description : string
-      [<MessagePack.Key 4>]
       deprecated : Deprecation<FQConstantName.FQConstantName> }
 
 
 module PackageFn =
-  [<MessagePack.MessagePackObject>]
   type Name =
-    { [<MessagePack.Key 0>]
+    {
       owner : string
-      [<MessagePack.Key 1>]
       modules : List<string>
-      [<MessagePack.Key 2>]
       name : string }
 
-  [<MessagePack.MessagePackObject>]
   type Parameter =
-    { [<MessagePack.Key 0>]
+    {
       name : string
-      [<MessagePack.Key 1>]
       typ : TypeReference
-      [<MessagePack.Key 2>]
       description : string }
 
-  [<MessagePack.MessagePackObject>]
   type PackageFn =
-    { [<MessagePack.Key 0>]
+    {
       id : System.Guid
-      [<MessagePack.Key 1>]
       name : Name
-      [<MessagePack.Key 2>]
       body : Expr
-      [<MessagePack.Key 3>]
       typeParams : List<string>
-      [<MessagePack.Key 4>]
       parameters : NEList<Parameter>
-      [<MessagePack.Key 5>]
       returnType : TypeReference
-      [<MessagePack.Key 6>]
       description : string
-      [<MessagePack.Key 7>]
       deprecated : Deprecation<FQFnName.FQFnName> }
 
 
@@ -438,7 +353,6 @@ module PackageFn =
 
 
 module Handler =
-  [<MessagePack.MessagePackObject>]
   type CronInterval =
     | EveryDay
     | EveryWeek
@@ -447,39 +361,30 @@ module Handler =
     | Every12Hours
     | EveryMinute
 
-  [<MessagePack.MessagePackObject>]
-  type Spec =
+    type Spec =
     | Worker of name : string
     | Cron of name : string * interval : CronInterval
     | REPL of name : string
     | HTTP of route : string * method : string
 
-  [<MessagePack.MessagePackObject>]
   type T =
-    { [<MessagePack.Key 0>]
+    {
       tlid : tlid
-      [<MessagePack.Key 1>]
       ast : Expr
-      [<MessagePack.Key 2>]
       spec : Spec }
 
 
 module DB =
-  [<MessagePack.MessagePackObject>]
   type T =
-    { [<MessagePack.Key 0>]
+    {
       tlid : tlid
-      [<MessagePack.Key 1>]
       name : string
-      [<MessagePack.Key 2>]
       version : int
-      [<MessagePack.Key 3>]
       typ : TypeReference }
 
 
 
 module Toplevel =
-  [<MessagePack.MessagePackObject>]
-  type T =
+    type T =
     | TLDB of DB.T
     | TLHandler of Handler.T

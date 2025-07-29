@@ -6,6 +6,15 @@
     <LangVersion>8.0</LangVersion>
     <!-- Publishing configuration -->
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <!-- Assembly linking - trim framework assemblies too -->
+    <TrimMode>link</TrimMode>
+    <!-- More aggressive linking settings -->
+    <SuppressTrimAnalysisWarnings>true</SuppressTrimAnalysisWarnings>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <TrimmerRemoveSymbols>true</TrimmerRemoveSymbols>
+    <!-- Additional aggressive settings -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <IlcOptimizationPreference>Size</IlcOptimizationPreference>
 
     <!-- We publish these for lots of different runtimes, so leave these empty and
          then specify them in scripts/build/build-release-cli-exes.sh. The

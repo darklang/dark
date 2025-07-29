@@ -17,6 +17,15 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="SerializedTypes.fs" />
+    <Compile Include="Binary/BinaryFormat.fs" />
+    <Compile Include="Binary/Primitives.fs" />
+    <Compile Include="Binary/Serializers/Serializers.fs" />
+    <Compile Include="Binary/Serializers/TypeReference.fs" />
+    <Compile Include="Binary/Serializers/Expr.fs" />
+    <Compile Include="Binary/Serializers/PackageType.fs" />
+    <Compile Include="Binary/Serializers/PackageConstant.fs" />
+    <Compile Include="Binary/Serializers/PackageFn.fs" />
+    <Compile Include="Binary/Serializers/Toplevel.fs" />
     <Compile Include="ProgramTypesToSerializedTypes.fs" />
     <Compile Include="BinarySerialization.fs" />
   </ItemGroup>

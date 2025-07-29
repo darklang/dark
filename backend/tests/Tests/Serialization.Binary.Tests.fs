@@ -26,6 +26,36 @@ module RoundtripTests =
         |> (=) tl)
       (List.map (fun x -> x, true) Values.ProgramTypes.toplevels)
 
+  let packageFnRoundtripTest =
+    testMany
+      "serializePackageFn"
+      (fun fn ->
+        fn
+        |> BinarySerialization.PackageFn.serialize
+        |> BinarySerialization.PackageFn.deserialize fn.id
+        |> (=) fn)
+      (List.map (fun x -> x, true) Values.ProgramTypes.packageFns)
+
+  let packageTypeRoundtripTest =
+    testMany
+      "serializePackageType"
+      (fun typ ->
+        typ
+        |> BinarySerialization.PackageType.serialize
+        |> BinarySerialization.PackageType.deserialize typ.id
+        |> (=) typ)
+      (List.map (fun x -> x, true) Values.ProgramTypes.packageTypes)
+
+  let packageConstantRoundtripTest =
+    testMany
+      "serializePackageConstant"
+      (fun constant ->
+        constant
+        |> BinarySerialization.PackageConstant.serialize
+        |> BinarySerialization.PackageConstant.deserialize constant.id
+        |> (=) constant)
+      (List.map (fun x -> x, true) Values.ProgramTypes.packageConstants)
+
 module ConsistentSerializationTests =
   type Format =
     { name : string
@@ -40,7 +70,7 @@ module ConsistentSerializationTests =
     [ { name = "BinarySerialization"
         serializer = BinarySerialization.Toplevels.serialize "test"
         deserializer = BinarySerialization.Toplevels.deserialize "test"
-        prettyPrinter = Some(BinarySerialization.Test.serializeToplevelsToJson)
+        prettyPrinter = None  // No JSON pretty printing for binary format
         prefix = "toplevels-binary"
         suffix = ".bin"
         prettyPrinterSuffix = ".json" } ]
@@ -116,4 +146,7 @@ let tests =
   testList
     "Binary Serialization"
     [ RoundtripTests.toplevelRoundtripTest
+      RoundtripTests.packageFnRoundtripTest
+      RoundtripTests.packageTypeRoundtripTest
+      RoundtripTests.packageConstantRoundtripTest
       testList "consistent serialization" ConsistentSerializationTests.testTestFiles ]
