@@ -1,10 +1,10 @@
 /// Toplevel serialization for custom binary format
-module LibBinarySerialization.Binary.Serializers.Toplevel
+module LibBinarySerialization.Serializers.Toplevel
 
 open System.IO
 open Prelude
-open LibBinarySerialization.Binary.BinaryFormat
-open LibBinarySerialization.Binary.Primitives
+open LibBinarySerialization.BinaryFormat
+open LibBinarySerialization.Primitives
 open LibBinarySerialization.SerializedTypes
 open TypeReference
 open Expr

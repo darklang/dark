@@ -1,11 +1,11 @@
 /// Type-specific binary serializers for SerializedTypes
-module LibBinarySerialization.Binary.Serializers.Common
+module LibBinarySerialization.Serializers.Common
 
 open System
 open System.IO
 open Prelude
-open LibBinarySerialization.Binary.BinaryFormat
-open LibBinarySerialization.Binary.Primitives
+open LibBinarySerialization.BinaryFormat
+open LibBinarySerialization.Primitives
 open LibBinarySerialization.SerializedTypes
 open LibBinarySerialization.SerializedTypes.FQConstantName
 open LibBinarySerialization.SerializedTypes.FQFnName

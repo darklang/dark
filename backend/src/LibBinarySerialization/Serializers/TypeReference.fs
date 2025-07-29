@@ -1,10 +1,10 @@
 /// TypeReference serialization for custom binary format
-module LibBinarySerialization.Binary.Serializers.TypeReference
+module LibBinarySerialization.Serializers.TypeReference
 
 open System.IO
 open Prelude
-open LibBinarySerialization.Binary.BinaryFormat
-open LibBinarySerialization.Binary.Primitives
+open LibBinarySerialization.BinaryFormat
+open LibBinarySerialization.Primitives
 open LibBinarySerialization.SerializedTypes
 
 let rec writeTypeReference (writer : BinaryWriter) (typeRef : TypeReference) : unit =

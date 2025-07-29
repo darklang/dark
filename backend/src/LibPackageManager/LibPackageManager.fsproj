@@ -6,7 +6,7 @@
     <LangVersion>8.0</LangVersion>
     <!-- Publishing configuration -->
     <IsPublishable>false</IsPublishable>
-    <IsTrimmable>false</IsTrimmable>
+    <IsTrimmable>true</IsTrimmable>
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />

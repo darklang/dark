@@ -1,5 +1,5 @@
 /// Low-level binary read/write primitives
-module LibBinarySerialization.Binary.Primitives
+module LibBinarySerialization.Primitives
 
 open System
 open System.IO

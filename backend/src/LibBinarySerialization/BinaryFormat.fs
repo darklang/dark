@@ -1,5 +1,5 @@
 /// Core binary format definitions and constants
-module LibBinarySerialization.Binary.BinaryFormat
+module LibBinarySerialization.BinaryFormat
 
 open System
 
