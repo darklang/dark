@@ -38,22 +38,17 @@ type uuid = Prelude.uuid
 // - change the type of a field in a record
 // - removing a field from a variant (eg remove b to X(a,b))
 
-type NEList<'a> =
-  {
-    head : 'a
-    tail : List<'a> }
+type NEList<'a> = { head : 'a; tail : List<'a> }
 
 
 module FQTypeName =
-    type Package = uuid
+  type Package = uuid
 
-    type FQTypeName = Package of Package
+  type FQTypeName = Package of Package
 
 
 module FQConstantName =
-  type Builtin =
-    { name : string
-      version : int }
+  type Builtin = { name : string; version : int }
 
   type Package = uuid
 
@@ -63,9 +58,7 @@ module FQConstantName =
 
 
 module FQFnName =
-  type Builtin =
-    { name : string
-      version : int }
+  type Builtin = { name : string; version : int }
 
   type Package = uuid
 
@@ -215,11 +208,7 @@ type Expr =
   | EFnName of id * NameResolution<FQFnName.FQFnName>
   | EStatement of id * first : Expr * next : Expr
 
-and MatchCase =
-  {
-    pat : MatchPattern
-    whenCondition : Option<Expr>
-    rhs : Expr }
+and MatchCase = { pat : MatchPattern; whenCondition : Option<Expr>; rhs : Expr }
 
 and StringSegment =
   | StringText of string
@@ -248,29 +237,19 @@ type Deprecation<'name> =
 
 
 module TypeDeclaration =
-  type RecordField =
-    { name : string
-      typ : TypeReference
-      description : string }
+  type RecordField = { name : string; typ : TypeReference; description : string }
 
   type EnumField =
-    { typ : TypeReference
-      label : Option<string>
-      description : string }
+    { typ : TypeReference; label : Option<string>; description : string }
 
-  type EnumCase =
-    { name : string
-      fields : List<EnumField>
-      description : string }
+  type EnumCase = { name : string; fields : List<EnumField>; description : string }
 
   type Definition =
     | Alias of TypeReference
     | Record of NEList<RecordField>
     | Enum of NEList<EnumCase>
 
-  type T =
-    { typeParams : List<string>
-      definition : Definition }
+  type T = { typeParams : List<string>; definition : Definition }
 
 
 type Const =
@@ -297,10 +276,7 @@ type Const =
 
 
 module PackageType =
-  type Name =
-    { owner : string
-      modules : List<string>
-      name : string }
+  type Name = { owner : string; modules : List<string>; name : string }
 
   type PackageType =
     { id : System.Guid
@@ -310,10 +286,7 @@ module PackageType =
       deprecated : Deprecation<FQTypeName.FQTypeName> }
 
 module PackageConstant =
-  type Name =
-    { owner : string
-      modules : List<string>
-      name : string }
+  type Name = { owner : string; modules : List<string>; name : string }
 
   type PackageConstant =
     { id : System.Guid
@@ -324,21 +297,12 @@ module PackageConstant =
 
 
 module PackageFn =
-  type Name =
-    {
-      owner : string
-      modules : List<string>
-      name : string }
+  type Name = { owner : string; modules : List<string>; name : string }
 
-  type Parameter =
-    {
-      name : string
-      typ : TypeReference
-      description : string }
+  type Parameter = { name : string; typ : TypeReference; description : string }
 
   type PackageFn =
-    {
-      id : System.Guid
+    { id : System.Guid
       name : Name
       body : Expr
       typeParams : List<string>
@@ -361,30 +325,21 @@ module Handler =
     | Every12Hours
     | EveryMinute
 
-    type Spec =
+  type Spec =
     | Worker of name : string
     | Cron of name : string * interval : CronInterval
     | REPL of name : string
     | HTTP of route : string * method : string
 
-  type T =
-    {
-      tlid : tlid
-      ast : Expr
-      spec : Spec }
+  type T = { tlid : tlid; ast : Expr; spec : Spec }
 
 
 module DB =
-  type T =
-    {
-      tlid : tlid
-      name : string
-      version : int
-      typ : TypeReference }
+  type T = { tlid : tlid; name : string; version : int; typ : TypeReference }
 
 
 
 module Toplevel =
-    type T =
+  type T =
     | TLDB of DB.T
     | TLHandler of Handler.T

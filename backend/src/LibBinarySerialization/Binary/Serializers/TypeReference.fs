@@ -7,7 +7,7 @@ open LibBinarySerialization.Binary.BinaryFormat
 open LibBinarySerialization.Binary.Primitives
 open LibBinarySerialization.SerializedTypes
 
-let rec writeTypeReference (writer: BinaryWriter) (typeRef: TypeReference) : unit =
+let rec writeTypeReference (writer : BinaryWriter) (typeRef : TypeReference) : unit =
   match typeRef with
   | TInt64 -> writer.Write(0uy)
   | TUInt64 -> writer.Write(1uy)
@@ -24,51 +24,57 @@ let rec writeTypeReference (writer: BinaryWriter) (typeRef: TypeReference) : uni
   | TUnit -> writer.Write(12uy)
   | TString -> writer.Write(13uy)
   | TList typeRef ->
-      writer.Write(14uy)
-      writeTypeReference writer typeRef
+    writer.Write(14uy)
+    writeTypeReference writer typeRef
   | TDict typeRef ->
-      writer.Write(15uy)
-      writeTypeReference writer typeRef
+    writer.Write(15uy)
+    writeTypeReference writer typeRef
   | TDB typeRef ->
-      writer.Write(16uy)
-      writeTypeReference writer typeRef
+    writer.Write(16uy)
+    writeTypeReference writer typeRef
   | TDateTime -> writer.Write(17uy)
   | TChar -> writer.Write(18uy)
   | TUuid -> writer.Write(19uy)
-  | TCustomType (typeName, typeArgs) ->
-      writer.Write(20uy)
-      writeNameResolutionFQTypeName writer typeName
-      Writer.writeList writer writeTypeReference typeArgs
+  | TCustomType(typeName, typeArgs) ->
+    writer.Write(20uy)
+    writeNameResolutionFQTypeName writer typeName
+    Writer.writeList writer writeTypeReference typeArgs
   | TVariable name ->
-      writer.Write(21uy)
-      Writer.writeString writer name
-  | TFn (paramTypes, returnType) ->
-      writer.Write(22uy)
-      writeNEListTypeReference writer paramTypes
-      writeTypeReference writer returnType
-  | TTuple (first, second, rest) ->
-      writer.Write(23uy)
-      writeTypeReference writer first
-      writeTypeReference writer second
-      Writer.writeList writer writeTypeReference rest
+    writer.Write(21uy)
+    Writer.writeString writer name
+  | TFn(paramTypes, returnType) ->
+    writer.Write(22uy)
+    writeNEListTypeReference writer paramTypes
+    writeTypeReference writer returnType
+  | TTuple(first, second, rest) ->
+    writer.Write(23uy)
+    writeTypeReference writer first
+    writeTypeReference writer second
+    Writer.writeList writer writeTypeReference rest
 
-and writeNEListTypeReference (writer: BinaryWriter) (types: NEList<TypeReference>) : unit =
+and writeNEListTypeReference
+  (writer : BinaryWriter)
+  (types : NEList<TypeReference>)
+  : unit =
   writeTypeReference writer types.head
   Writer.writeList writer writeTypeReference types.tail
 
-and writeNameResolutionFQTypeName (writer: BinaryWriter) (nameRes: NameResolution<FQTypeName.FQTypeName>) : unit =
+and writeNameResolutionFQTypeName
+  (writer : BinaryWriter)
+  (nameRes : NameResolution<FQTypeName.FQTypeName>)
+  : unit =
   match nameRes with
-  | Ok (FQTypeName.Package uuid) ->
-      writer.Write(0uy)
-      Writer.writeGuid writer uuid
-  | Error (NameResolutionError.NotFound names) ->
-      writer.Write(1uy)
-      Writer.writeList writer Writer.writeString names
-  | Error (NameResolutionError.InvalidName names) ->
-      writer.Write(2uy)
-      Writer.writeList writer Writer.writeString names
+  | Ok(FQTypeName.Package uuid) ->
+    writer.Write(0uy)
+    Writer.writeGuid writer uuid
+  | Error(NameResolutionError.NotFound names) ->
+    writer.Write(1uy)
+    Writer.writeList writer Writer.writeString names
+  | Error(NameResolutionError.InvalidName names) ->
+    writer.Write(2uy)
+    Writer.writeList writer Writer.writeString names
 
-let rec readTypeReference (reader: BinaryReader) : TypeReference =
+let rec readTypeReference (reader : BinaryReader) : TypeReference =
   match reader.ReadByte() with
   | 0uy -> TInt64
   | 1uy -> TUInt64
@@ -84,52 +90,54 @@ let rec readTypeReference (reader: BinaryReader) : TypeReference =
   | 11uy -> TBool
   | 12uy -> TUnit
   | 13uy -> TString
-  | 14uy -> 
-      let typeRef = readTypeReference reader
-      TList typeRef
+  | 14uy ->
+    let typeRef = readTypeReference reader
+    TList typeRef
   | 15uy ->
-      let typeRef = readTypeReference reader
-      TDict typeRef
+    let typeRef = readTypeReference reader
+    TDict typeRef
   | 16uy ->
-      let typeRef = readTypeReference reader
-      TDB typeRef
+    let typeRef = readTypeReference reader
+    TDB typeRef
   | 17uy -> TDateTime
   | 18uy -> TChar
   | 19uy -> TUuid
   | 20uy ->
-      let typeName = readNameResolutionFQTypeName reader
-      let typeArgs = Reader.readList reader readTypeReference
-      TCustomType (typeName, typeArgs)
+    let typeName = readNameResolutionFQTypeName reader
+    let typeArgs = Reader.readList reader readTypeReference
+    TCustomType(typeName, typeArgs)
   | 21uy ->
-      let name = Reader.readString reader
-      TVariable name
+    let name = Reader.readString reader
+    TVariable name
   | 22uy ->
-      let paramTypes = readNEListTypeReference reader
-      let returnType = readTypeReference reader
-      TFn (paramTypes, returnType)
+    let paramTypes = readNEListTypeReference reader
+    let returnType = readTypeReference reader
+    TFn(paramTypes, returnType)
   | 23uy ->
-      let first = readTypeReference reader
-      let second = readTypeReference reader
-      let rest = Reader.readList reader readTypeReference
-      TTuple (first, second, rest)
-  | b -> 
-      raise (BinaryFormatException(CorruptedData $"Invalid TypeReference tag: {b}"))
+    let first = readTypeReference reader
+    let second = readTypeReference reader
+    let rest = Reader.readList reader readTypeReference
+    TTuple(first, second, rest)
+  | b ->
+    raise (BinaryFormatException(CorruptedData $"Invalid TypeReference tag: {b}"))
 
-and readNameResolutionFQTypeName (reader: BinaryReader) : NameResolution<FQTypeName.FQTypeName> =
+and readNameResolutionFQTypeName
+  (reader : BinaryReader)
+  : NameResolution<FQTypeName.FQTypeName> =
   match reader.ReadByte() with
   | 0uy ->
-      let uuid = Reader.readGuid reader
-      Ok (FQTypeName.Package uuid)
+    let uuid = Reader.readGuid reader
+    Ok(FQTypeName.Package uuid)
   | 1uy ->
-      let names = Reader.readList reader Reader.readString
-      Error (NameResolutionError.NotFound names)
+    let names = Reader.readList reader Reader.readString
+    Error(NameResolutionError.NotFound names)
   | 2uy ->
-      let names = Reader.readList reader Reader.readString
-      Error (NameResolutionError.InvalidName names)
+    let names = Reader.readList reader Reader.readString
+    Error(NameResolutionError.InvalidName names)
   | b ->
-      raise (BinaryFormatException(CorruptedData $"Invalid NameResolution tag: {b}"))
+    raise (BinaryFormatException(CorruptedData $"Invalid NameResolution tag: {b}"))
 
-and readNEListTypeReference (reader: BinaryReader) : NEList<TypeReference> =
+and readNEListTypeReference (reader : BinaryReader) : NEList<TypeReference> =
   let head = readTypeReference reader
   let tail = Reader.readList reader readTypeReference
   { head = head; tail = tail }

@@ -158,7 +158,7 @@ let main (args : string[]) =
       logError $"Error: main function must return an int (returned {output})"
       1
 
-      
+
   with e ->
     print $"Error starting Darklang CLI: {e.Message}\nStack trace:\n{e.StackTrace}"
     1
