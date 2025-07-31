@@ -372,7 +372,7 @@ type Instruction =
   /// Could not find matching case in a match expression
   /// CLEANUP we probably need a way to reference back to PT so we can get useful RTEs
   /// TODO probably better as a usage of a broader "Fail" error case.
-  | MatchUnmatched
+  | MatchUnmatched of valueReg : Register
 
 
   // == Working with Collections ==
@@ -713,9 +713,8 @@ module RuntimeError =
     // TODO "When condition should be a boolean" -- this could warn _or_ error -- which do we want?
     // CLEANUP "Match must have at least one case"
     type Error =
-      /// CLEANUP probably need the value -- though if the trace contains
-      /// enough info, this may be enough? enh.
-      | MatchUnmatched
+      /// Could not find matching case for the given value
+      | MatchUnmatched of unmatchedValue : Dval
 
   module Enums =
     type Error =
