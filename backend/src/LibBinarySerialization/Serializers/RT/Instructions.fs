@@ -238,7 +238,9 @@ module Instruction =
       w.Write(valueReg : int)
       MatchPattern.write w pat
       w.Write(failJump : int)
-    | MatchUnmatched -> w.Write 9uy
+    | MatchUnmatched(valueReg) ->
+      w.Write 9uy
+      w.Write(valueReg : int)
     | CreateTuple(createTo, first, second, theRest) ->
       w.Write 10uy
       w.Write(createTo : int)
@@ -356,7 +358,9 @@ module Instruction =
       let pat = MatchPattern.read r
       let failJump = r.ReadInt32()
       CheckMatchPatternAndExtractVars(valueReg, pat, failJump)
-    | 9uy -> MatchUnmatched
+    | 9uy ->
+      let valueReg = r.ReadInt32()
+      MatchUnmatched(valueReg)
     | 10uy ->
       let createTo = r.ReadInt32()
       let first = r.ReadInt32()
