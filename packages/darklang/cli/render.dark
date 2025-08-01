@@ -34,50 +34,58 @@ module Darklang =
 
     /// Renders the current state to a string for display
     let render (state: State): String =
-      match state.interactionMode with
-      // Non-interactive mode: just return the command result without UI elements
-      | NonInteractive ->
+      // If in viewing mode, only show the command result without prompt
+      if state.isViewingMode then
         match state.commandResult with
         | Success msg -> msg
         | Error msg -> $"Error: {msg}"
         | Info msg -> msg
         | None -> ""
-
-      // Regular mode: include command result and prompt, but no available commands
-      | Regular ->
-        let promptRender = renderPromptOnly state
-
-        // Format the command result
-        let resultDisplay =
+      else
+        match state.interactionMode with
+        // Non-interactive mode: just return the command result without UI elements
+        | NonInteractive ->
           match state.commandResult with
-          | Success msg -> $"✓ {msg}"
-          | Error msg -> $"✗ Error: {msg}"
+          | Success msg -> msg
+          | Error msg -> $"Error: {msg}"
           | Info msg -> msg
           | None -> ""
 
-        // Combine parts with appropriate spacing
-        let parts =
-          if Stdlib.String.isEmpty resultDisplay then
-            [promptRender]
-          else
-            [resultDisplay; ""; promptRender]
+        // Regular mode: include command result and prompt, but no available commands
+        | Regular ->
+          let promptRender = renderPromptOnly state
 
-        parts
-        |> Stdlib.List.filter (fun p -> Stdlib.Bool.not (Stdlib.String.isEmpty p))
-        |> Stdlib.String.join "\n"
+          // Format the command result
+          let resultDisplay =
+            match state.commandResult with
+            | Success msg -> $"✓ {msg}"
+            | Error msg -> $"✗ Error: {msg}"
+            | Info msg -> msg
+            | None -> ""
 
-      // RefreshScreen mode (full UI): include command result, available commands, and prompt
-      | RefreshScreen ->
-        let promptRender = renderPromptOnly state
+          // Combine parts with appropriate spacing
+          let parts =
+            if Stdlib.String.isEmpty resultDisplay then
+              [promptRender]
+            else
+              [resultDisplay; ""; promptRender]
 
-        // Format the command result
-        let resultDisplay =
-          match state.commandResult with
-          | Success msg -> $"✓ {msg}"
-          | Error msg -> $"✗ Error: {msg}"
-          | Info msg -> msg
-          | None -> ""
+          parts
+          |> Stdlib.List.filter (fun p -> Stdlib.Bool.not (Stdlib.String.isEmpty p))
+          |> Stdlib.String.join "\n"
 
-        [ resultDisplay; promptRender ]
-        |> Stdlib.List.filter (fun p -> Stdlib.Bool.not (Stdlib.String.isEmpty p))
-        |> Stdlib.String.join "\n"
+        // RefreshScreen mode (full UI): include command result, available commands, and prompt
+        | RefreshScreen ->
+          let promptRender = renderPromptOnly state
+
+          // Format the command result
+          let resultDisplay =
+            match state.commandResult with
+            | Success msg -> $"✓ {msg}"
+            | Error msg -> $"✗ Error: {msg}"
+            | Info msg -> msg
+            | None -> ""
+
+          [ resultDisplay; promptRender ]
+          |> Stdlib.List.filter (fun p -> Stdlib.Bool.not (Stdlib.String.isEmpty p))
+          |> Stdlib.String.join "\n"
