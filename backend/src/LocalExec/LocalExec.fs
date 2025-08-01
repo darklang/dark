@@ -97,7 +97,7 @@ let main (args : string[]) : int =
       name
       LibService.Telemetry.DontTraceDBQueries
 
-    let _ = (LibCloud.Init.init name).Result
+    //let _ = (LibCloud.Init.init name).Result
 
     let handleCommand
       (description : string)
