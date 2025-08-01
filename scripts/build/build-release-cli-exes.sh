@@ -6,9 +6,6 @@
 # TODO run some test in CI against the current-runtime executable,
 # just verifying that it (incl the packaged parser) works.
 
-# TODO get back to a point where we can build this with PublishTrimmed
-# We updated that setting from `true` to `false` when including MessagePack stuff for LibPM
-# Relevant: maybe look into `IsTrimmable` usages...
 
 set -euo pipefail
 
@@ -18,6 +15,9 @@ release="alpha-$sha"
 
 mkdir -p clis
 
+# Force WAL checkpoint to ensure all data is committed to main DB before embedding
+echo "Forcing WAL checkpoint to commit all data before embedding database..."
+sqlite3 rundir/data.db "PRAGMA wal_checkpoint(TRUNCATE);" || echo "WAL checkpoint completed (or no WAL file exists)"
 
 if [[ " $* " =~ " --cross-compile " ]]; then
   echo "Cross-compiling for all supported runtimes"
@@ -30,6 +30,7 @@ if [[ " $* " =~ " --cross-compile " ]]; then
   # Otherwise we'll fail to include the correct native library
   # for the relevant runtime.
   runtimes="linux-x64 linux-musl-x64 linux-arm64 linux-arm osx-x64 osx-arm64 win-x64 win-arm64"
+  #runtimes="linux-x64" # sometimes this is set, locally, for testing
 
   # Parallelism set to 1 here to avoid running out of memory.
   # TODO: do better with gnu parallel or with this solution that I couldn't make work:
@@ -42,8 +43,8 @@ if [[ " $* " =~ " --cross-compile " ]]; then
       /p:DebugType=None \
       /p:DebugSymbols=false \
       /p:PublishSingleFile=true \
-      /p:PublishTrimmed=false \
-      /p:PublishReadyToRun=false \
+      /p:PublishTrimmed=true \
+      /p:PublishReadyToRun=true \
       --self-contained true \
       --runtime "$rt"
 
@@ -84,8 +85,8 @@ else
     /p:DebugType=None \
     /p:DebugSymbols=false \
     /p:PublishSingleFile=true \
-    /p:PublishTrimmed=false \
-    /p:PublishReadyToRun=false \
+    /p:PublishTrimmed=true \
+    /p:PublishReadyToRun=true \
     --self-contained true
 
   target="clis/darklang-$release-$runtime"

@@ -18,7 +18,7 @@ accounts_v0
 --------------------
 -- Stuff that belongs in "package space"
 --------------------
--- [1] = the whole thing serialized as binary, in ProgramTypes form (via MessagePack)
+-- [1] = the whole thing serialized as binary, in ProgramTypes form (via custom binary serialization)
 CREATE TABLE IF NOT EXISTS
 package_types_v0
 ( id TEXT PRIMARY KEY -- UUID stored as text

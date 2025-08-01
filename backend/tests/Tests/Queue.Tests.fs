@@ -22,8 +22,6 @@ module SR = LibCloud.QueueSchedulingRules
 
 //module TCS = LibCloud.TraceCloudStorage
 
-let pmPT = LibPackageManager.PackageManager.pt
-
 
 // This doesn't actually test input, since it's a cron handler and not an actual event handler
 let initializeCanvas (name : string) : Task<CanvasID * tlid> =

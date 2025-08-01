@@ -108,6 +108,89 @@ module RuntimeTypes =
     |> List.map (fun (name, (dv, _)) -> name, dv)
     |> fun fields -> RT.DRecord(typeName, typeName, [], Map fields)
 
+  let typeDeclarations : List<RT.TypeDeclaration.T> =
+    [ // Alias type
+      { typeParams = []; definition = RT.TypeDeclaration.Alias RT.TString }
+      { typeParams = [ "T" ]
+        definition = RT.TypeDeclaration.Alias(RT.TVariable "T") }
+
+      // Record type
+      { typeParams = []
+        definition =
+          RT.TypeDeclaration.Record(
+            NEList.ofList
+              { name = "name"; typ = RT.TString }
+              [ { name = "age"; typ = RT.TInt64 } ]
+          ) }
+
+      // Enum type
+      { typeParams = []
+        definition =
+          RT.TypeDeclaration.Enum(
+            NEList.ofList
+              { name = "None"; fields = [] }
+              [ { name = "Some"; fields = [ RT.TVariable "T" ] } ]
+          ) } ]
+
+  // RT test values for binary serialization
+  let packageTypes : List<RT.PackageType.PackageType> =
+    [ { id = uuid; declaration = typeDeclarations[0] }
+      { id = System.Guid.Parse "42d72f73-0f99-5a9b-949c-b95705ae7c4d"
+        declaration = typeDeclarations[1] } ]
+
+  let packageConstants : List<RT.PackageConstant.PackageConstant> =
+    [ { id = uuid; body = RT.CString "Hello RT PackageConstant" }
+      { id = System.Guid.Parse "52d72f73-0f99-5a9b-949c-b95705ae7c4d"
+        body = RT.CInt64 42L }
+      { id = System.Guid.Parse "62d72f73-0f99-5a9b-949c-b95705ae7c4d"
+        body = RT.CBool true } ]
+
+  let instructions : List<RT.Instructions> =
+    [ { registerCount = 1; instructions = [ RT.CopyVal(0, 1) ]; resultIn = 0 }
+      { registerCount = 3
+        instructions =
+          [ RT.LoadVal(0, RT.DUnit)
+            RT.CreateString(1, [ RT.Text "hello" ])
+            RT.JumpBy 2 ]
+        resultIn = 1 } ]
+
+  let packageFns : List<RT.PackageFn.PackageFn> =
+    [ { id = uuid
+        typeParams = []
+        parameters = NEList.singleton { name = "x"; typ = RT.TInt64 }
+        returnType = RT.TInt64
+        body = instructions[0] }
+      { id = System.Guid.Parse "72d72f73-0f99-5a9b-949c-b95705ae7c4d"
+        typeParams = [ "T" ]
+        parameters =
+          NEList.ofList
+            { name = "param1"; typ = RT.TVariable "T" }
+            [ { name = "param2"; typ = RT.TString } ]
+        returnType = RT.TString
+        body = instructions[0] } ]
+
+
+  let consts : List<RT.Const> =
+    [ RT.CUnit
+      RT.CBool true
+      RT.CBool false
+      RT.CInt8 127y
+      RT.CUInt8 255uy
+      RT.CInt16 32767s
+      RT.CUInt16 65535us
+      RT.CInt32 2147483647l
+      RT.CUInt32 4294967295ul
+      RT.CInt64 9223372036854775807L
+      RT.CUInt64 18446744073709551615UL
+      RT.CInt128 170141183460469231731687303715884105727Q
+      RT.CUInt128 340282366920938463463374607431768211455Z
+      RT.CFloat(Positive, "3", "14159")
+      RT.CChar "A"
+      RT.CString "Hello, World!"
+      // RT.CUuid and RT.CDateTime don't exist in RT.Const
+      // RT.CUuid uuid
+      // RT.CDateTime instant
+      ]
 
 module ProgramTypes =
   open PT

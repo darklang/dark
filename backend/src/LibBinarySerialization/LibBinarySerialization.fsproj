@@ -6,7 +6,7 @@
     <LangVersion>8.0</LangVersion>
     <!-- Publishing configuration -->
     <IsPublishable>false</IsPublishable>
-    <IsTrimmable>false</IsTrimmable>
+    <IsTrimmable>true</IsTrimmable>
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
@@ -16,8 +16,27 @@
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="SerializedTypes.fs" />
-    <Compile Include="ProgramTypesToSerializedTypes.fs" />
+    <Compile Include="BinaryFormat.fs" />
+
+    <Compile Include="Serializers/Common.fs" />
+
+    <Compile Include="Serializers/PT/Common.fs" />
+    <Compile Include="Serializers/PT/TypeReference.fs" />
+    <Compile Include="Serializers/PT/PackageType.fs" />
+    <Compile Include="Serializers/PT/Expr.fs" />
+    <Compile Include="Serializers/PT/PackageConstant.fs" />
+    <Compile Include="Serializers/PT/PackageFn.fs" />
+    <Compile Include="Serializers/PT/Toplevel.fs" />
+
+    <Compile Include="Serializers/RT/Common.fs" />
+    <Compile Include="Serializers/RT/TypeReference.fs" />
+    <Compile Include="Serializers/RT/ValueType.fs" />
+    <Compile Include="Serializers/RT/PackageType.fs" />
+    <Compile Include="Serializers/RT/PackageConstant.fs" />
+    <Compile Include="Serializers/RT/Dval.fs" />
+    <Compile Include="Serializers/RT/Instructions.fs" />
+    <Compile Include="Serializers/RT/PackageFn.fs" />
+
     <Compile Include="BinarySerialization.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

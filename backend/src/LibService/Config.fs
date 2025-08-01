@@ -2,10 +2,14 @@ module LibService.Config
 
 open LibConfig.ConfigDsl
 
-// Re-expose everything from LibService.Config
+// Re-expose everything from LibConfig.Config
 let envDisplayName = LibConfig.Config.envDisplayName
 let buildHash = LibConfig.Config.buildHash
-let rootDir = LibConfig.Config.rootDir
+let runDir = LibConfig.Config.runDir
+let logDir = LibConfig.Config.logDir
+
+// sourceRootDir is for referencing things from our source code - requires env var
+let sourceRootDir = LibConfig.ConfigDsl.absoluteDir "DARK_CONFIG_ROOT_DIR"
 
 // -------------------------
 // Logging

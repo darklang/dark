@@ -65,7 +65,7 @@ let loadToplevels
       data
       |> List.map (fun (tlid, tl, deleted) ->
         let isDeleted = if deleted then Deleted else NotDeleted
-        (isDeleted, BinarySerialization.Toplevel.deserialize tlid tl))
+        (isDeleted, BinarySerialization.PT.Toplevel.deserialize tlid tl))
   }
 
 

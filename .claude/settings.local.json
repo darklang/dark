@@ -5,7 +5,20 @@
       "Bash(grep:*)",
       "Bash(rg:*)",
       "WebFetch(domain:github.com)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(./scripts/build/build-release-cli-exes.sh:*)",
+      "Bash(./scripts/run-cli:*)",
+      "Bash(./scripts/run-backend-tests:*)",
+      "Bash(cat:*)",
+      "Bash(dotnet-illink-analyze:*)",
+      "Bash(./scripts/build/_dotnet-wrapper:*)",
+      "Bash(sqlite3:*)",
+      "Bash(/dev/null)",
+      "Bash(done)",
+      "Bash(/home/stachu/code/dark/scripts/build/build-release-cli-exes.sh:*)",
+      "Bash(scripts/run-backend-tests:*)",
+      "Bash(timeout:*)"
     ],
     "deny": []
   }

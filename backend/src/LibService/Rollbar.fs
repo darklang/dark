@@ -386,7 +386,7 @@ let init (serviceName : string) : unit =
   state["service"] <- serviceName
   paOpts.Server <- Rollbar.DTOs.Server(state)
   paOpts.Server.Host <- Config.hostName
-  paOpts.Server.Root <- Config.rootDir
+  paOpts.Server.Root <- Config.sourceRootDir
   paOpts.Server.CodeVersion <- Config.buildHash
   config.RollbarLoggerConfig.RollbarPayloadAdditionOptions.Reconfigure paOpts
   |> ignore<Rollbar.IRollbarPayloadAdditionOptions>

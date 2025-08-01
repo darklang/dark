@@ -16,12 +16,12 @@ module Config = LibService.Config
 // Root directories - see File.fs and Root type below
 // -------------------------
 
-let rootDir = Config.rootDir
+let sourceRootDir = Config.sourceRootDir
 
-let runDir = absoluteDir "DARK_CONFIG_RUNDIR" // TODO or, default to one in Config.rundir
-let logDir = $"{runDir}logs/"
+let runDir = Config.runDir
+let logDir = Config.logDir
 
-let backendDir = $"{rootDir}backend/"
+let backendDir = $"{sourceRootDir}backend/"
 let testdataDir = $"{backendDir}testfiles/data/"
 let serializationDir = $"{backendDir}serialization/"
 let webrootDir = $"{backendDir}static/"

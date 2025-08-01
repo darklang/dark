@@ -197,6 +197,7 @@ jobs:
       - slack-notify-job-failure
 
   # Build server binaries and run tests
+  # Cleanup: consider splitting into (1) build debug (2) prepare .db (3) build release
   build-backend:
     executor: in-container
     resource_class: xlarge
@@ -230,7 +231,20 @@ jobs:
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
       # DebugType=None and DebugSymbol=false tells dotnet not to copy .pdb files to publish/
+
+      # Setup database for tests that need it
+      - run:
+          name: Build LocalExec for migrations (debug mode fine)
+          command: ./scripts/build/_dotnet-wrapper build src/LocalExec/LocalExec.fsproj
+      - run:
+          name: Run migrations to create database
+          command: scripts/run-local-exec migrations run
+      - run:
+          name: Load packages into database
+          command: scripts/build/reload-packages
+
       - run: ./scripts/build/_dotnet-wrapper publish -c Release fsdark.sln /p:DebugType=None /p:DebugSymbols=false
+
       - run: scripts/run-backend-tests --published
 
       ## TODO: too many race conditions. Bring back later
@@ -281,6 +295,19 @@ jobs:
       # For tests
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
+
+      # The CLI embeds the Sqlite data.db,
+      # so we need to get a copy ready first.
+      - run:
+          name: Build LocalExec for migrations (debug mode fine)
+          command: ./scripts/build/_dotnet-wrapper build src/LocalExec/LocalExec.fsproj
+      - run:
+          name: Run migrations to create database
+          command: scripts/run-local-exec migrations run
+      - run:
+          name: Load packages into database
+          command: scripts/build/reload-packages
+
       - assert-clean-worktree
       - run:
           command: |

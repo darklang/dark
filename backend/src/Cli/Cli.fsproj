@@ -4,8 +4,18 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <LangVersion>8.0</LangVersion>
+    <IsTrimmable>true</IsTrimmable>
     <!-- Publishing configuration -->
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <!-- Assembly linking - trim framework assemblies too -->
+    <TrimMode>link</TrimMode>
+    <!-- More aggressive linking settings -->
+    <SuppressTrimAnalysisWarnings>true</SuppressTrimAnalysisWarnings>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <TrimmerRemoveSymbols>true</TrimmerRemoveSymbols>
+    <!-- Additional aggressive settings -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <IlcOptimizationPreference>Size</IlcOptimizationPreference>
 
     <!-- We publish these for lots of different runtimes, so leave these empty and
          then specify them in scripts/build/build-release-cli-exes.sh. The
@@ -57,7 +67,23 @@
     <ProjectReference Include="../BuiltinCliHost/BuiltinCliHost.fsproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="EmbeddedResources.fs" />
     <Compile Include="Cli.fs" />
   </ItemGroup>
+  <ItemGroup Condition="'$(Configuration)' == 'Release'">
+    <!-- Only embed resources in Release mode -->
+    <EmbeddedResource Include="../../../rundir/data.db">
+      <LogicalName>data.db</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="README-to-embed.md">
+      <LogicalName>README.md</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <!-- Fail the build if the database doesn't exist in Release mode -->
+  <Target Name="CheckDatabaseExists" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(Configuration)' == 'Release' And !Exists('../../../rundir/data.db')"
+           Text="Database file (rundir/data.db) not found. The database must be created before building the CLI in Release mode. Run migrations first." />
+  </Target>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
