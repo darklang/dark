@@ -14,6 +14,8 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module NR = LibParser.NameResolver
 
+module PM = LibPackageManager.PackageManager
+
 open Utils
 
 let parseYamlExn<'a> (filename : string) : 'a =
@@ -90,7 +92,8 @@ let loadFromDisk
             $"Currently only prepared to parse Darklang (dark-) canvases"
         )
 
-    // TODO this doesn't purge any added types/consts/fns from PM... maybe we should?
+    // TODO this doesn't purge any added types/consts/fns from PM...
+    // maybe we should?
     do! purgeDataFromInternalSqlTables canvasID
     do! LibCloud.Canvas.createWithExactID canvasID ownerID domain
 
@@ -116,9 +119,9 @@ let loadFromDisk
 
         let dbs = canvas.dbs |> List.map PT.Toplevel.TLDB
 
-        do! LibPackageManager.PackageManager.savePackageTypes canvas.types
-        do! LibPackageManager.PackageManager.savePackageConstants canvas.constants
-        do! LibPackageManager.PackageManager.savePackageFunctions canvas.fns
+        do! LibPackageManager.Inserts.insertTypes canvas.types
+        do! LibPackageManager.Inserts.insertConsts canvas.constants
+        do! LibPackageManager.Inserts.insertFns canvas.fns
 
         return
           (dbs @ handlers) |> List.map (fun tl -> tl, LibCloud.Serialize.NotDeleted)

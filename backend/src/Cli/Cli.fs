@@ -70,7 +70,7 @@ let builtins : RT.Builtins =
 
 
 
-let state () =
+let state (packageManager : RT.PackageManager) =
   let program : RT.Program =
     { canvasID = System.Guid.NewGuid()
       internalFnsAllowed = false
@@ -95,24 +95,22 @@ let state () =
     =
     uply { printException "Internal error" metadata exn }
 
-  Exe.createState
-    builtins
-    BuiltinCliHostConfig.packageManagerRT
-    Exe.noTracing
-    sendException
-    notify
-    program
+  Exe.createState builtins packageManager Exe.noTracing sendException notify program
 
 
 
 
-let execute (args : List<string>) : Task<RT.ExecutionResult> =
+let execute
+  (packageManager : RT.PackageManager)
+  (args : List<string>)
+  : Task<RT.ExecutionResult> =
   task {
-    let state = state ()
+    let state = state packageManager
     let fnName = RT.FQFnName.fqPackage PackageIDs.Fn.Cli.executeCliCommand
     let args =
       args |> List.map RT.DString |> Dval.list RT.KTString |> NEList.singleton
-    return! Exe.executeFunction state fnName [] args
+    let! result = Exe.executeFunction state fnName [] args
+    return result
   }
 
 let initSerializers () = ()
@@ -121,20 +119,19 @@ let initSerializers () = ()
 let main (args : string[]) =
   try
     EmbeddedResources.extract ()
-
     initSerializers ()
 
-    // Custom binary serialization is now active
-    BuiltinCliHostConfig.packageManagerRT.init.Result
+    let cliPackageManager = LibPackageManager.PackageManager.rt
+    cliPackageManager.init.Result
 
-    let result = execute (Array.toList args)
+    let result = execute cliPackageManager (Array.toList args)
     let result = result.Result
 
     NonBlockingConsole.wait ()
 
     match result with
     | Error(rte, callStack) ->
-      let state = state ()
+      let state = state cliPackageManager
 
       let errorCallStackStr =
         (LibExecution.Execution.callStackString state callStack).Result
@@ -160,5 +157,6 @@ let main (args : string[]) =
 
 
   with e ->
-    print $"Error starting Darklang CLI: {e.Message}\nStack trace:\n{e.StackTrace}"
+    System.Console.Error.WriteLine
+      $"Error starting Darklang CLI: {e.Message}\nStack trace:\n{e.StackTrace}"
     1

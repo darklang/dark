@@ -88,8 +88,6 @@ let updateBody (body : byte array) : byte array =
 
 
 
-let pmPT = LibPackageManager.PackageManager.pt
-
 module Internal =
   module D = LibExecution.DvalDecoder
   module PT2DT = LibExecution.ProgramTypesToDarkTypes

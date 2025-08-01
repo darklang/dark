@@ -16,13 +16,12 @@ module Serialize = LibCloud.Serialize
 module PackageIDs = LibExecution.PackageIDs
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module C2DT = LibExecution.CommonToDarkTypes
-let pm = LibPackageManager.PackageManager.pt
 
 let p (code : string) : Task<PT.Expr> =
   uply {
     let! (state : RT.ExecutionState) =
       let canvasID = System.Guid.NewGuid()
-      executionStateFor pm canvasID false false Map.empty
+      executionStateFor pmPT canvasID false false Map.empty
 
     let name =
       RT.FQFnName.FQFnName.Package PackageIDs.Fn.LanguageTools.Parser.parsePTExpr

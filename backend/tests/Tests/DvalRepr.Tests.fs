@@ -18,8 +18,6 @@ module DvalReprInternalHash = LibExecution.DvalReprInternalHash
 
 let bogusThreadID = guuid ()
 
-let pmRT = LibPackageManager.PackageManager.rt
-
 let defaultTypes () = { RT.Types.empty with package = pmRT.getType }
 
 let roundtrippableRoundtripsSuccessfully (dv : RT.Dval) : bool =

@@ -4,7 +4,7 @@ open Prelude
 
 open LibExecution.RuntimeTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
-
+module PM = LibPackageManager.PackageManager
 
 // CLEANUP: avoid using `Async.RunSynchronously` and try to handle the pretty printing in dark
 let private fqTypeNameToString (typeName : FQTypeName.FQTypeName) : string =
@@ -39,10 +39,7 @@ let private fqTypeNameToString (typeName : FQTypeName.FQTypeName) : string =
     async {
       match typeName with
       | FQTypeName.Package id ->
-        let! typeOption =
-          LibPackageManager.PackageManager.getType id
-          |> Ply.toTask
-          |> Async.AwaitTask
+        let! typeOption = PM.pt.getType id |> Ply.toTask |> Async.AwaitTask
 
         match typeOption with
         | Some packageType ->

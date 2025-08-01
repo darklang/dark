@@ -44,8 +44,6 @@ type Test =
     expectedResponse : byte array
   }
 
-let pm = LibPackageManager.PackageManager.pt
-
 
 let newline = byte '\n'
 

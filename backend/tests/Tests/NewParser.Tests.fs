@@ -22,8 +22,6 @@ module RT = LibExecution.RuntimeTypes
 module PackageIDs = LibExecution.PackageIDs
 
 
-let pmPT = LibPackageManager.PackageManager.pt
-
 let t
   (name : string)
   (input : string)

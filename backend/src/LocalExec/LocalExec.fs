@@ -9,32 +9,35 @@ open Prelude
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 
+module PM = LibPackageManager.PackageManager
+
 open Utils
 
 module HandleCommand =
   let reloadPackages () : Ply<Result<unit, string>> =
     uply {
       // first, load the packages from disk, ensuring all parse well
-      let! packagesFromDisk = LoadPackagesFromDisk.load Builtins.all
+      let! packages = LoadPackagesFromDisk.load Builtins.all
 
-      let typeLen = packagesFromDisk.types |> List.length
-      let constantLen = packagesFromDisk.constants |> List.length
-      let fnLen = packagesFromDisk.fns |> List.length
+      let typeLen = packages.types |> List.length
+      let constantLen = packages.constants |> List.length
+      let fnLen = packages.fns |> List.length
 
       print "Loaded packages from disk "
       print $"{typeLen} types, {constantLen} constants, and {fnLen} fns"
 
       print "Purging ..."
-      do! LibPackageManager.PackageManager.purge ()
+      do! LibPackageManager.Purge.purge ()
 
       print "Filling ..."
-      do! LibPackageManager.PackageManager.savePackageTypes packagesFromDisk.types
-      do!
-        LibPackageManager.PackageManager.savePackageConstants
-          packagesFromDisk.constants
-      do! LibPackageManager.PackageManager.savePackageFunctions packagesFromDisk.fns
+      do! LibPackageManager.Inserts.insertTypes packages.types
+      do! LibPackageManager.Inserts.insertConsts packages.constants
+      do! LibPackageManager.Inserts.insertFns packages.fns
 
-      //do! LibPackageManager.PackageManager.flushCheckpoint ()
+      // print "Populating RT columns..."
+      // do! PM.populateRTColumns ()
+
+      //do! PM.flushCheckpoint ()
 
       return Ok()
     }

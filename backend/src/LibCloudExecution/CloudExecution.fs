@@ -20,12 +20,12 @@ module PackageIDs = LibExecution.PackageIDs
 open LibCloud
 
 
-let packageManagerRT = LibPackageManager.PackageManager.rt
-let packageManagerPT = LibPackageManager.PackageManager.pt
+let pmRT = LibPackageManager.PackageManager.rt
+let pmPT = LibPackageManager.PackageManager.pt
 
 let builtins : RT.Builtins =
   LibExecution.Builtin.combine
-    [ BuiltinExecution.Builtin.builtins HttpClient.configuration packageManagerPT
+    [ BuiltinExecution.Builtin.builtins HttpClient.configuration pmPT
       BuiltinCloudExecution.Builtin.builtins
       BuiltinDarkInternal.Builtin.builtins ]
     []
@@ -79,8 +79,7 @@ let createState
         LibService.Rollbar.sendException None metadata exn
       }
 
-    return
-      Exe.createState builtins packageManagerRT tracing sendException notify program
+    return Exe.createState builtins pmRT tracing sendException notify program
   }
 
 type ExecutionReason =
@@ -212,6 +211,6 @@ let reexecuteFunction
 /// Ensure library is ready to be called. Throws if it cannot initialize.
 let init () : Task<unit> =
   task {
-    do! packageManagerRT.init
+    do! pmRT.init
     return ()
   }

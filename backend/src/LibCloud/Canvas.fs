@@ -374,7 +374,8 @@ let saveTLIDs
           else
             None, None, None
 
-        let serializedToplevel = BinarySerialization.Toplevel.serialize tl
+        let serializedToplevel =
+          BinarySerialization.PT.Toplevel.serialize (PT.Toplevel.toTLID tl) tl
 
         let deleted =
           match deleted with
