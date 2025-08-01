@@ -75,6 +75,13 @@ module Darklang =
           completionPrefix: String
         }
 
+      /// Categories of entities that can be displayed in viewing mode
+      type EntityCategory =
+        | Functions
+        | Types
+        | Constants
+        | Submodules
+
       type State =
         { /// The current page/view the user is on
           currentPage: Page
@@ -112,6 +119,28 @@ module Darklang =
 
           /// The current state of tab completion
           completionState: Stdlib.Option.Option<CompletionState>
+
+          /// Tracks which entity categories are expanded in the view command
+          /// Keys are: "functions", "types", "constants", "submodules"
+          expandedCategories: Dict<Bool>
+
+          /// Whether we're in interactive viewing mode
+          isViewingMode: Bool
+
+          /// Index of currently selected category in viewing mode (0-3)
+          selectedCategoryIndex: Int64
+
+          /// The module content being viewed (cached to avoid re-fetching)
+          viewingModuleContent: Stdlib.Option.Option<LanguageTools.ProgramTypes.Search.SearchResults>
+
+          /// The entity name being viewed
+          viewingEntityName: String
+
+          /// Index of currently selected item within the expanded category (-1 = no item selected)
+          selectedItemIndex: Int64
+
+          /// Name of the entity whose definition is currently being displayed (empty string = none)
+          displayedEntityDefinition: String
 
           //accounts: [("stachu", "uhcats"); ("ocean": "oak"); ("paul", "biggar")]
           //currentAccount: "stachu"

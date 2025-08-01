@@ -22,7 +22,14 @@ module Darklang =
             interactionMode = interactionMode
             needsFullRedraw = true
             isExiting = false
-            completionState = Stdlib.Option.Option.None }
+            completionState = Stdlib.Option.Option.None
+            expandedCategories = Stdlib.Dict.empty
+            isViewingMode = false
+            selectedCategoryIndex = 0L
+            viewingModuleContent = Stdlib.Option.Option.None
+            viewingEntityName = ""
+            selectedItemIndex = -1L
+            displayedEntityDefinition = "" }
 
       // Return initial state and any initial messages to process
       (state, msgs)
