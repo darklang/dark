@@ -630,6 +630,13 @@ let fns : List<BuiltInFn> =
             match result with
             | Ok() -> return Dval.resultOk KTUnit KTString DUnit
             | Error err -> return Dval.resultError KTUnit KTString (DString err)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
     { name = fn "cliGetTerminalHeight" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]

@@ -7,7 +7,7 @@ module Darklang =
           (InteractionMode.Regular, [ Msg.SubmitCommand "help" ])
         | _ ->
           let cmd = (args |> Stdlib.String.join " ")
-          (InteractionMode.NonInteractive, [ Msg.SubmitCommand cmd; Msg.Quit ])
+          (InteractionMode.NonInteractive, [ Msg.SubmitCommand cmd ])
 
       let state =
         State

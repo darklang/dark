@@ -310,6 +310,47 @@ module Darklang =
           $"{header}\n"
 
 
+      /// Formats a section of entities for display with simple list (for non-interactive mode)
+      let formatEntitySectionSimple (sectionName: String) (entities: List<String>) : String =
+        if Stdlib.List.isEmpty entities then
+          $"{sectionName}:\n\n(none)\n"
+        else
+          $"{sectionName}:\n\n" ++ (Stdlib.String.join entities "\n") ++ "\n"
+
+      /// Formats module content for non-interactive display (original simple list)
+      let formatModuleContentSimple (moduleContent: LanguageTools.ProgramTypes.Search.SearchResults) : String =
+        let functionsSection =
+          formatEntitySectionSimple
+            "functions"
+            (moduleContent.fns
+              |> Stdlib.List.map (fun fn -> LanguageTools.ProgramTypes.PackageFn.nameToString fn.name))
+
+        let typesSection =
+          formatEntitySectionSimple
+            "types"
+            (moduleContent.types
+              |> Stdlib.List.map (fun typ -> LanguageTools.ProgramTypes.PackageType.nameToString typ.name))
+
+        let constantsSection =
+          formatEntitySectionSimple
+            "constants"
+            (moduleContent.constants
+              |> Stdlib.List.map (fun c -> LanguageTools.ProgramTypes.PackageConstant.nameToString c.name))
+
+        let submodulesSection =
+          formatEntitySectionSimple
+            "submodules"
+            ((moduleContent.submodules
+              |> Stdlib.List.map (fun m ->
+                m
+                |> Stdlib.List.map (fun s -> s |> Stdlib.String.join ".")))
+              |> Stdlib.List.flatten)
+
+        functionsSection ++
+        typesSection ++
+        constantsSection ++
+        submodulesSection
+
       let formatModuleContent (viewingState: ViewingState) : String =
         let functionsSection =
           formatEntitySection
@@ -644,26 +685,33 @@ module Darklang =
                         viewEntityByName state entityName
 
                     else
-                      // Create viewing state with functions expanded and first item selected
-                      let initialItemIndex = if Stdlib.List.isEmpty moduleContent.fns then -1L else 0L
-                      let viewingState =
-                        ViewingState
-                          { moduleContent = moduleContent
-                            entityName = entityName
-                            selectedCategory = EntityCategory.Functions
-                            selectedItemIndex = initialItemIndex
-                            expandedCategories = [ EntityCategory.Functions ]
-                            entityDefinition = Stdlib.Option.Option.None
-                            entityCache = [] }
-                      let moduleView = formatModuleContent viewingState
-                      // Enter alternate screen buffer when first entering view mode, then render interface
-                      let enterAltScreen = if Stdlib.Option.isNone state.viewingState then Display.enterAltScreen else ""
-                      let completeInterface = renderViewingInterface moduleView true
-                      let newState =
-                        { state with
-                            commandResult = CommandResult.Success (enterAltScreen ++ completeInterface)
-                            viewingState = Stdlib.Option.Option.Some viewingState }
-                      (newState, [])
+                      match state.interactionMode with
+                      | NonInteractive ->
+                        // Use the simple format function
+                        let moduleView = formatModuleContentSimple moduleContent
+                        let newState = { state with commandResult = CommandResult.Success moduleView }
+                        (newState, [])
+                      | _ ->
+                        // Interactive format for regular and refresh-screen modes
+                        let initialItemIndex = if Stdlib.List.isEmpty moduleContent.fns then -1L else 0L
+                        let viewingState =
+                          ViewingState
+                            { moduleContent = moduleContent
+                              entityName = entityName
+                              selectedCategory = EntityCategory.Functions
+                              selectedItemIndex = initialItemIndex
+                              expandedCategories = [ EntityCategory.Functions ]
+                              entityDefinition = Stdlib.Option.Option.None
+                              entityCache = [] }
+                        let moduleView = formatModuleContent viewingState
+                        // Enter alternate screen buffer when first entering view mode, then render interface
+                        let enterAltScreen = if Stdlib.Option.isNone state.viewingState then Display.enterAltScreen else ""
+                        let completeInterface = renderViewingInterface moduleView true
+                        let newState =
+                          { state with
+                              commandResult = CommandResult.Success (enterAltScreen ++ completeInterface)
+                              viewingState = Stdlib.Option.Option.Some viewingState }
+                        (newState, [])
 
                   | Module(owner, submodules) ->
                     // Construct the fully qualified entity name
@@ -683,26 +731,65 @@ module Darklang =
                       viewEntityByName state fullyQualifiedName
 
                     else
-                      // Create viewing state with functions expanded and first item selected
-                      let initialItemIndex = if Stdlib.List.isEmpty moduleContent.fns then -1L else 0L
-                      let viewingState =
-                        ViewingState
-                          { moduleContent = moduleContent
-                            entityName = fullyQualifiedName
-                            selectedCategory = EntityCategory.Functions
-                            selectedItemIndex = initialItemIndex
-                            expandedCategories = [ EntityCategory.Functions ]
-                            entityDefinition = Stdlib.Option.Option.None
-                            entityCache = [] }
-                      let moduleView = formatModuleContent viewingState
-                      // Enter alternate screen buffer when first entering view mode, then render interface
-                      let enterAltScreen = if Stdlib.Option.isNone state.viewingState then Display.enterAltScreen else ""
-                      let completeInterface = renderViewingInterface moduleView true
-                      let newState =
-                        { state with
-                            commandResult = CommandResult.Success (enterAltScreen ++ completeInterface)
-                            viewingState = Stdlib.Option.Option.Some viewingState }
-                      (newState, [])
+                      match state.interactionMode with
+                      | NonInteractive ->
+                        let functionsSection =
+                          formatEntitySectionSimple
+                            "functions"
+                            (moduleContent.fns
+                              |> Stdlib.List.map (fun fn -> LanguageTools.ProgramTypes.PackageFn.nameToString fn.name))
+
+                        let typesSection =
+                          formatEntitySectionSimple
+                            "types"
+                            (moduleContent.types
+                              |> Stdlib.List.map (fun typ -> LanguageTools.ProgramTypes.PackageType.nameToString typ.name))
+
+                        let constantsSection =
+                          formatEntitySectionSimple
+                            "constants"
+                            (moduleContent.constants
+                              |> Stdlib.List.map (fun c -> LanguageTools.ProgramTypes.PackageConstant.nameToString c.name))
+
+                        let submodulesSection =
+                          formatEntitySectionSimple
+                            "submodules"
+                            ((moduleContent.submodules
+                              |> Stdlib.List.map (fun m ->
+                                m
+                                |> Stdlib.List.map (fun s -> s |> Stdlib.String.join ".")))
+                              |> Stdlib.List.flatten)
+
+                        let moduleView =
+                          $"Module: {fullyQualifiedName}\n\n" ++
+                          functionsSection ++ "\n" ++
+                          typesSection ++ "\n" ++
+                          constantsSection ++ "\n" ++
+                          submodulesSection
+
+                        let newState = { state with commandResult = CommandResult.Success moduleView }
+                        (newState, [])
+                      | _ ->
+                        // Interactive format for regular and refresh-screen modes
+                        let initialItemIndex = if Stdlib.List.isEmpty moduleContent.fns then -1L else 0L
+                        let viewingState =
+                          ViewingState
+                            { moduleContent = moduleContent
+                              entityName = fullyQualifiedName
+                              selectedCategory = EntityCategory.Functions
+                              selectedItemIndex = initialItemIndex
+                              expandedCategories = [ EntityCategory.Functions ]
+                              entityDefinition = Stdlib.Option.Option.None
+                              entityCache = [] }
+                        let moduleView = formatModuleContent viewingState
+                        // Enter alternate screen buffer when first entering view mode, then render interface
+                        let enterAltScreen = if Stdlib.Option.isNone state.viewingState then Display.enterAltScreen else ""
+                        let completeInterface = renderViewingInterface moduleView true
+                        let newState =
+                          { state with
+                              commandResult = CommandResult.Success (enterAltScreen ++ completeInterface)
+                              viewingState = Stdlib.Option.Option.Some viewingState }
+                        (newState, [])
 
                   | _ ->
                     // Not in a module context
