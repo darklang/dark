@@ -462,7 +462,7 @@ module Darklang =
 
         // Check cache first
         match viewingState.entityCache |> Stdlib.List.findFirst (fun (key, _) -> key == cacheKey) with
-        | Some (_, cachedDef) -> (cachedDef, viewingState)
+        | Some ((_, cachedDef)) -> (cachedDef, viewingState)
         | None ->
           // Create new definition and add to cache
           let highlighted = Cli.SyntaxHighlighting.highlightCode prettyPrinted
