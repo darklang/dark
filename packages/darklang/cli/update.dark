@@ -78,6 +78,244 @@ module Darklang =
             cursorPosition = newCursorPos
             completionState = Stdlib.Option.Option.None }
 
+    type ScrollDirection = Up | Down | PageUp | PageDown
+
+    /// Helper function to handle entity definition scrolling
+    let handleEntityScroll (state: State) (direction: ScrollDirection) : (State * List<Msg>) =
+      match state.viewingState with
+      | Some viewingState ->
+        match viewingState.entityDefinition with
+        | Some entityDef ->
+          let totalLines = entityDef.lines |> Stdlib.List.length
+          let contentHeight = Command.getContentViewportHeight totalLines
+          let maxScroll = Stdlib.Int64.max 0L (totalLines - contentHeight)
+
+          let newScrollPos =
+            match direction with
+              | Up -> Stdlib.Int64.max 0L (entityDef.scrollPosition - 1L)
+              | Down -> Stdlib.Int64.min maxScroll (entityDef.scrollPosition + 1L)
+              | PageUp -> Stdlib.Int64.max 0L (entityDef.scrollPosition - contentHeight)
+              | PageDown -> Stdlib.Int64.min maxScroll (entityDef.scrollPosition + contentHeight)
+
+          let newEntityDef = { entityDef with scrollPosition = newScrollPos }
+          let completeInterface = Command.renderEntityInterface newEntityDef.name newEntityDef.lines newEntityDef.scrollPosition
+          let newViewingState = { viewingState with entityDefinition = Stdlib.Option.Option.Some newEntityDef }
+          let newState =
+            { state with
+                viewingState = Stdlib.Option.Option.Some newViewingState
+                commandResult = CommandResult.Success completeInterface
+                needsFullRedraw = true }
+          (newState, [])
+        | None ->
+          (state, []) // No entity definition to scroll
+      | None ->
+        (state, []) // Not in viewing mode
+
+    /// Helper function to update selection and redraw view
+    let updateSelection (state: State) (category: EntityCategory) (itemIndex: Int64) : (State * List<Msg>) =
+      match state.viewingState with
+      | Some viewingState ->
+        let newViewingState = { viewingState with selectedCategory = category; selectedItemIndex = itemIndex; entityDefinition = Stdlib.Option.Option.None }
+        let moduleView = Command.formatModuleContent newViewingState
+        let completeInterface = Command.renderViewingInterface moduleView true
+        let newState = { state with viewingState = Stdlib.Option.Option.Some newViewingState; commandResult = CommandResult.Success completeInterface; needsFullRedraw = true }
+        (newState, [])
+      | None ->
+        (state, []) // Not in viewing mode
+
+    /// Helper function to handle item navigation (left/right arrows)
+    let handleItemNavigation (state: State) (viewingState: ViewingState) (direction: Int64) : (State * List<Msg>) =
+      let currentExpanded = viewingState.expandedCategories |> Stdlib.List.member_v0 viewingState.selectedCategory
+
+      if currentExpanded then
+        let currentEntities = Command.getEntitiesForCategory viewingState.moduleContent viewingState.selectedCategory viewingState.entityName
+        let maxIndex = (currentEntities |> Stdlib.List.length) - 1L
+        let newItemIndex =
+          if direction < 0L then
+            Stdlib.Int64.max (-1L) (viewingState.selectedItemIndex + direction)
+          else
+            Stdlib.Int64.min maxIndex (viewingState.selectedItemIndex + direction)
+        updateSelection state viewingState.selectedCategory newItemIndex
+      else
+        (state, [])
+
+    /// Handle key presses in viewing mode
+    let handleViewingModeKey (state: State) (viewingState: ViewingState) (key: Stdlib.Cli.Stdin.Key.Key) : (State * List<Msg>) =
+      match key with
+      | UpArrow ->
+        match viewingState.entityDefinition with
+        | Some _ ->
+          handleEntityScroll state ScrollDirection.Up
+        | None ->
+          // Move selection up through categories
+          let currentIndex = Command.entityCategoryToIndex viewingState.selectedCategory
+          let newIndex = Stdlib.Int64.max 0L (currentIndex - 1L)
+          let newCategory = Command.indexToEntityCategory newIndex
+          updateSelection state newCategory (-1L)
+      | DownArrow ->
+        match viewingState.entityDefinition with
+        | Some _ ->
+          handleEntityScroll state ScrollDirection.Down
+        | None ->
+          // Move selection down through categories
+          let currentIndex = Command.entityCategoryToIndex viewingState.selectedCategory
+          let newIndex = Stdlib.Int64.min 3L (currentIndex + 1L)
+          let newCategory = Command.indexToEntityCategory newIndex
+          updateSelection state newCategory (-1L)
+      | Enter ->
+        let isExpanded = viewingState.expandedCategories |> Stdlib.List.member_v0 viewingState.selectedCategory
+
+        // If category is expanded and we have an item selected, show its definition
+        // Otherwise, toggle the category expand/collapse
+        if isExpanded && viewingState.selectedItemIndex >= 0L then
+          (state, [Msg.ShowItemDefinition viewingState.selectedCategory viewingState.selectedItemIndex])
+        else
+          // Toggle the category (this will collapse if expanded, expand if collapsed)
+          // Reset item selection when toggling
+          (state, [Msg.ToggleCategory viewingState.selectedCategory])
+      | LeftArrow ->
+        match viewingState.entityDefinition with
+        | Some _ ->
+          handleEntityScroll state ScrollDirection.PageUp
+        | None ->
+          handleItemNavigation state viewingState (-1L)
+      | RightArrow ->
+        match viewingState.entityDefinition with
+        | Some _ ->
+          handleEntityScroll state ScrollDirection.PageDown
+        | None ->
+          handleItemNavigation state viewingState 1L
+      | B ->
+        // If viewing entity definition, go back to module view
+        match viewingState.entityDefinition with
+        | Some _ ->
+          // Reset entity viewing state and return to module view
+          let newViewingState = { viewingState with entityDefinition = Stdlib.Option.Option.None }
+          let moduleView = Command.formatModuleContent newViewingState
+          let completeInterface = Command.renderViewingInterface moduleView true
+          let newState =
+            { state with
+                viewingState = Stdlib.Option.Option.Some newViewingState
+                commandResult = CommandResult.Success completeInterface
+                needsFullRedraw = true }
+          (newState, [])
+        | None ->
+          // Go back to parent module while staying in viewing mode
+          if viewingState.entityName |> Stdlib.String.contains "." then
+            // Extract parent module path
+            let parts = viewingState.entityName |> Stdlib.String.split "."
+            let parentParts = parts |> Stdlib.List.dropLast
+            match parentParts with
+            | [] ->
+              // No parent, just stay where we are
+              (state, [])
+            | _ ->
+              // Navigate to parent module
+              let parentModule = Stdlib.String.join parentParts "."
+              (state, [Msg.SubmitCommand $"view {parentModule}"])
+          else
+            // Already at top level, can't go back further
+            (state, [])
+      | Q ->
+        // Exit viewing mode and return to regular prompt
+        // Exit alternate screen buffer first
+        let exitAlternateScreen = Command.Display.exitAltScreen
+        let newState =
+          { state with
+              viewingState = Stdlib.Option.Option.None
+              commandResult = CommandResult.Success (exitAlternateScreen ++ "Exited viewing mode")
+              needsFullRedraw = true }
+        (newState, [])
+      | _ ->
+        // Ignore other keys in viewing mode
+        (state, [])
+
+    /// Handle key presses in normal mode
+    let handleNormalModeKey (state: State) (key: Stdlib.Cli.Stdin.Key.Key) (keyChar: String) : (State * List<Msg>) =
+      match key with
+      | Escape ->
+        // Escape key pressed, send Quit message
+        (state, [Msg.Quit])
+
+      | Enter ->
+        // Enter key pressed, submit the current prompt as a command, and add it to history
+        let command = state.mainPrompt
+        let stateWithClearedPrompt =
+          { state with
+              mainPrompt = ""
+              cursorPosition = 0L
+              completionState = Stdlib.Option.Option.None }
+        let newState =
+          addToHistory
+            stateWithClearedPrompt
+            command
+        (newState, [ Msg.SubmitCommand command ])
+
+      | Backspace ->
+        // Backspace key pressed, remove the character before the cursor
+        // Also reset history navigation and update completions
+        if state.cursorPosition > 0L then
+          let beforeCursor = Stdlib.String.slice state.mainPrompt 0L (state.cursorPosition - 1L)
+          let afterCursor = Stdlib.String.dropFirst state.mainPrompt state.cursorPosition
+          let newPrompt = beforeCursor ++ afterCursor
+          let newState =
+            { state with
+                mainPrompt = newPrompt
+                cursorPosition = state.cursorPosition - 1L
+                historyPosition = -1L
+                draftPrompt = ""
+                completionState = Stdlib.Option.Option.None }
+          // Automatically request completions after backspacing
+          (newState, [Msg.RequestCompletion])
+        else
+          (state, [])
+
+      | UpArrow ->
+        // Arrow up pressed, navigate to previous command in history
+        (state, [Msg.NavigateHistoryUp])
+
+      | DownArrow ->
+        // Arrow down pressed, navigate to next command in history
+        (state, [Msg.NavigateHistoryDown])
+
+      | LeftArrow ->
+        // Move cursor left
+        let newCursorPos = Stdlib.Int64.max 0L (state.cursorPosition - 1L)
+        let newState = { state with cursorPosition = newCursorPos; completionState = Stdlib.Option.Option.None }
+        (newState, [])
+
+      | RightArrow ->
+        // Move cursor right
+        let promptLength = Stdlib.String.length state.mainPrompt
+        let newCursorPos = Stdlib.Int64.min promptLength (state.cursorPosition + 1L)
+        let newState = { state with cursorPosition = newCursorPos; completionState = Stdlib.Option.Option.None }
+        (newState, [])
+
+      | Tab ->
+        // Tab key pressed - accept completion if available
+        match state.completionState with
+        | Some _ ->
+          (state, [Msg.AcceptCompletion])
+        | None ->
+          // No completions available, do nothing
+          (state, [])
+
+      | _ ->
+        // For other keys, check if they're textual and insert at cursor position
+        // Also reset history navigation and automatically generate completions
+        let beforeCursor = Stdlib.String.slice state.mainPrompt 0L state.cursorPosition
+        let afterCursor = Stdlib.String.dropFirst state.mainPrompt state.cursorPosition
+        let newPrompt = beforeCursor ++ keyChar ++ afterCursor
+        let newState =
+          { state with
+              mainPrompt = newPrompt
+              cursorPosition = state.cursorPosition + (Stdlib.String.length keyChar)
+              historyPosition = -1L
+              draftPrompt = ""
+              completionState = Stdlib.Option.Option.None }
+        // Automatically request completions after typing
+        (newState, [Msg.RequestCompletion])
+
     let update (state: State) (msg: Msg): (State * List<Msg>) =
       match msg with
       | Quit ->
@@ -98,88 +336,12 @@ module Darklang =
         (newState, [])
 
       | KeyPressed(key, modifiers, keyChar) ->
-        // Handle key presses
-        match key with
-        | Escape ->
-          // Escape key pressed, send Quit message
-          (state, [Msg.Quit])
-
-        | Enter ->
-          // Enter key pressed, submit the current prompt as a command, and add it to history
-          let command = state.mainPrompt
-          let newState =
-            { state with
-                mainPrompt = ""
-                cursorPosition = 0L
-                completionState = Stdlib.Option.Option.None }
-            |> addToHistory command
-          Builtin.printLine ""
-          (newState, [Msg.SubmitCommand command])
-
-        | Backspace ->
-          // Backspace key pressed, remove the character before the cursor
-          // Also reset history navigation and update completions
-          if state.cursorPosition > 0L then
-            let beforeCursor = Stdlib.String.slice state.mainPrompt 0L (state.cursorPosition - 1L)
-            let afterCursor = Stdlib.String.dropFirst state.mainPrompt state.cursorPosition
-            let newPrompt = beforeCursor ++ afterCursor
-            let newState =
-              { state with
-                  mainPrompt = newPrompt
-                  cursorPosition = state.cursorPosition - 1L
-                  historyPosition = -1L
-                  draftPrompt = ""
-                  completionState = Stdlib.Option.Option.None }
-            // Automatically request completions after backspacing
-            (newState, [Msg.RequestCompletion])
-          else
-            (state, [])
-
-        | UpArrow ->
-          // Arrow up pressed, navigate to previous command in history
-          (state, [Msg.NavigateHistoryUp])
-
-        | DownArrow ->
-          // Arrow down pressed, navigate to next command in history
-          (state, [Msg.NavigateHistoryDown])
-
-        | LeftArrow ->
-          // Move cursor left
-          let newCursorPos = Stdlib.Int64.max 0L (state.cursorPosition - 1L)
-          let newState = { state with cursorPosition = newCursorPos; completionState = Stdlib.Option.Option.None }
-          (newState, [])
-
-        | RightArrow ->
-          // Move cursor right
-          let promptLength = Stdlib.String.length state.mainPrompt
-          let newCursorPos = Stdlib.Int64.min promptLength (state.cursorPosition + 1L)
-          let newState = { state with cursorPosition = newCursorPos; completionState = Stdlib.Option.Option.None }
-          (newState, [])
-
-        | Tab ->
-          // Tab key pressed - accept completion if available
-          match state.completionState with
-          | Some _ ->
-            (state, [Msg.AcceptCompletion])
-          | None ->
-            // No completions available, do nothing
-            (state, [])
-
-        | _ ->
-          // For other keys, check if they're textual and insert at cursor position
-          // Also reset history navigation and automatically generate completions
-          let beforeCursor = Stdlib.String.slice state.mainPrompt 0L state.cursorPosition
-          let afterCursor = Stdlib.String.dropFirst state.mainPrompt state.cursorPosition
-          let newPrompt = beforeCursor ++ keyChar ++ afterCursor
-          let newState =
-            { state with
-                mainPrompt = newPrompt
-                cursorPosition = state.cursorPosition + (Stdlib.String.length keyChar)
-                historyPosition = -1L
-                draftPrompt = ""
-                completionState = Stdlib.Option.Option.None }
-          // Automatically request completions after typing
-          (newState, [Msg.RequestCompletion])
+        // Handle key presses - delegate to specialized handlers
+        match state.viewingState with
+        | Some viewingState ->
+          handleViewingModeKey state viewingState key
+        | None ->
+          handleNormalModeKey state key keyChar
 
       | SubmitCommand commandStr ->
         // Process the submitted command
@@ -236,6 +398,73 @@ module Darklang =
               commandResult = result
               needsFullRedraw = true }
         (newState, [])
+
+      | ToggleCategory entityCategory ->
+        match state.viewingState with
+        | Some viewingState ->
+          let currentValue = viewingState.expandedCategories |> Stdlib.List.member_v0 entityCategory
+          let newSelectedItemIndex = if Stdlib.Bool.not currentValue then 0L else -1L
+
+          let newExpandedCategories =
+            if currentValue then
+              viewingState.expandedCategories |> Stdlib.List.filter (fun c -> c != entityCategory)
+            else
+              viewingState.expandedCategories |> Stdlib.List.push entityCategory
+
+          let newViewingState =
+            { viewingState with
+                expandedCategories = newExpandedCategories
+                selectedItemIndex = newSelectedItemIndex
+                entityDefinition = Stdlib.Option.Option.None }
+
+          let moduleView = Command.formatModuleContent newViewingState
+          let completeInterface = Command.renderViewingInterface moduleView true
+          let newState =
+            { state with
+                viewingState = Stdlib.Option.Option.Some newViewingState
+                commandResult = CommandResult.Success completeInterface
+                needsFullRedraw = true }
+          (newState, [])
+        | None ->
+          (state, []) // Not in viewing mode
+
+      | ShowItemDefinition category itemIndex ->
+        // Toggle the definition display of the selected item
+        match state.viewingState with
+        | Some viewingState ->
+          let entities = Command.getEntitiesForCategory viewingState.moduleContent category viewingState.entityName
+
+          let selectedEntity = entities |> Stdlib.List.getAt itemIndex
+          match selectedEntity with
+          | Some entityName ->
+            // Check if this entity's definition is already being displayed
+            match viewingState.entityDefinition with
+            | Some entityDef when entityDef.name |> Stdlib.String.contains entityName ->
+              // Hide the definition - return to module view while preserving selection
+              let newViewingState = { viewingState with entityDefinition = Stdlib.Option.Option.None }
+              let moduleView = Command.formatModuleContent newViewingState
+              let completeInterface = Command.renderViewingInterface moduleView true
+              let newState =
+                { state with
+                    viewingState = Stdlib.Option.Option.Some newViewingState
+                    commandResult = CommandResult.Success completeInterface
+                    needsFullRedraw = true }
+              (newState, [])
+            | _ ->
+              // Show the definition - need to construct the fully qualified name
+              let fullyQualifiedName =
+                if Stdlib.String.contains entityName "." then
+                  entityName  // Already fully qualified
+                else
+                  // Need to prepend the current module path
+                  viewingState.entityName ++ "." ++ entityName
+              (state, [Msg.SubmitCommand $"view {fullyQualifiedName}"])
+          | None ->
+            let newState = { state with commandResult = CommandResult.Error "Selected item not found"; needsFullRedraw = true }
+            (newState, [])
+        | None ->
+          let newState = { state with commandResult = CommandResult.Error "No module content available"; needsFullRedraw = true }
+          (newState, [])
 
       | RequestCompletion ->
         // Generate completions for the current input
