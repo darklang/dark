@@ -142,25 +142,45 @@ export function activate(context: ExtensionContext) {
     async () => {
       try {
         const input = await window.showInputBox({
-          prompt: "Enter the GitHub raw URL",
-          placeHolder: "e.g. type/Darklang/Stdlib/Option/Option",
+          prompt: "Enter the package element name",
+          placeHolder: "e.g. Darklang.Stdlib.Option.Option",
         });
 
         if (!input) return;
-        const virtualUri = Uri.parse(`darkfs://${input}.dark`);
+        const virtualUri = Uri.parse(`darkfs:/${input}.dark`);
         const doc = await workspace.openTextDocument(virtualUri);
 
-        try {
-          await window.showTextDocument(doc, {
-            preview: false, // open in a new tab instead of preview mode
-            preserveFocus: false, // give focus to the new tab
-          });
-        } catch (error) {
-          console.error("Error showing document:", error);
-          throw error;
-        }
+        await window.showTextDocument(doc, {
+          preview: false, // open in a new tab instead of preview mode
+          preserveFocus: false, // give focus to the new tab
+        });
       } catch (error) {
         window.showErrorMessage(`Failed to read remote file: ${error}`);
+      }
+    },
+  );
+
+  let openPackageDefinitionCommand = commands.registerCommand(
+    "darklang.openPackageDefinition",
+    async (packagePath: string) => {
+      try {
+        const virtualUri = Uri.parse(`darkfs:/${packagePath}.dark`);
+        const doc = await workspace.openTextDocument(virtualUri);
+
+        await window.showTextDocument(doc, {
+          preview: false,
+          preserveFocus: false,
+        });
+      } catch (error) {
+        console.error(
+          `Failed to open package definition for ${packagePath}:`,
+          error,
+        );
+        window.showErrorMessage(
+          `Failed to open ${packagePath}: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`,
+        );
       }
     },
   );
@@ -208,6 +228,7 @@ export function activate(context: ExtensionContext) {
   context.subscriptions.push(initWorkspace);
   context.subscriptions.push(registration);
   context.subscriptions.push(lookUpToplevelCommand);
+  context.subscriptions.push(openPackageDefinitionCommand);
   context.subscriptions.push(disposable);
 }
 

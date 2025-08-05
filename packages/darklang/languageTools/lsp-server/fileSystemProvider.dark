@@ -27,71 +27,47 @@ module Darklang =
               LspExtension.FileSystemProvider.ReadFile.ReadFileParams.ReadFileParams)
             : LspState =
             // CLEANUP: make the 'remove scheme part of URI' more universal. Maybe be add it to Stdlib eg.`Stdlib.Uri.removeScheme`
-            // Remove the darklang:// prefix and the .dark suffix from the URI, (e.g.darklang://type/Darklang/Stdlib/Option/Option.dark)
-            let uri =
-              params.uri |> Stdlib.String.dropFirst 9L |> Stdlib.String.dropLast 5L
-
-            let parts = uri |> Stdlib.String.split "/"
-
-            let elementType = parts |> Stdlib.List.head |> Builtin.unwrap
-
             let nameForLookup =
-              parts |> Stdlib.List.tail |> Builtin.unwrap |> Stdlib.String.join "."
+              params.uri
+              |> Stdlib.String.dropFirst 8L  // Drop "darkfs:/"
+              |> Stdlib.String.dropLast 5L   // Drop ".dark"
 
             let pm = LanguageTools.PackageManager.pm ()
 
+            // Try to find the entity in the package manager
+            // First try as a type, then function, then constant
             let getContent =
-              match elementType with
-              // e.g.type/Darklang/Stdlib/Option/Option
-              | "type" ->
-                // CLEANUP: use `pm.findType nameForLookup` directly once the parser/interpreter is fixed
-                let findType = pm.findType
-                let getType = pm.getType
-
-                match findType nameForLookup with
-                | Some id ->
-                  let typ = getType id
-
-                  match typ with
-                  | Some typ -> typ |> PrettyPrinter.ProgramTypes.packageType
-                  | None -> "Could not get type"
-
-                | None -> "Type not found"
-
-              // e.g. function/Darklang/Stdlib/Option/map
-              | "function" ->
-                // CLEANUP: use `pm.findType nameForLookup` directly once the parser/interpreter is fixed
+              // Try to find as a type
+              // CLEANUP: use `pm.findType nameForLookup` directly once the parser/interpreter is fixed
+              let findType = pm.findType
+              let getType = pm.getType
+              match findType nameForLookup with
+              | Some id ->
+                match getType id with
+                | Some typ -> typ |> PrettyPrinter.ProgramTypes.packageType
+                | None -> "Could not get type"
+              | None ->
+                // Try to find as a function
+                // CLEANUP: use `pm.findFn nameForLookup` directly once the parser/interpreter is fixed
                 let findFn = pm.findFn
                 let getFn = pm.getFn
-
                 match findFn nameForLookup with
                 | Some id ->
-                  let fn = getFn id
-
-                  match fn with
+                  match getFn id with
                   | Some fn -> fn |> PrettyPrinter.ProgramTypes.packageFn
                   | None -> "Could not get function"
-
-                | None -> "Function not found"
-
-              // e.g. constant/Darklang/Stdlib/List/empty
-              | "constant" ->
-                // CLEANUP: use `pm.findType nameForLookup` directly once the parser/interpreter is fixed
-                let findConst = pm.findConstant
-                let getConst = pm.getConstant
-
-                match findConst nameForLookup with
-                | Some id ->
-                  let constant = getConst id
-
-                  match constant with
-                  | Some constant ->
-                    constant |> PrettyPrinter.ProgramTypes.packageConstant
-                  | None -> "Constant not found"
-
-                | None -> "Constant not found"
-
-              | elem -> ""
+                | None ->
+                  // Try to find as a constant
+                  // CLEANUP: use `pm.findConstant nameForLookup` directly once the parser/interpreter is fixed
+                  let findConst = pm.findConstant
+                  let getConst = pm.getConstant
+                  match findConst nameForLookup with
+                  | Some id ->
+                    match getConst id with
+                    | Some constant ->
+                      constant |> PrettyPrinter.ProgramTypes.packageConstant
+                    | None -> "Could not get constant"
+                  | None -> $"Package element not found: {nameForLookup}"
 
             sendResponse state requestId getContent
 
