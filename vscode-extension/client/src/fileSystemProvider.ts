@@ -30,7 +30,7 @@ export class File implements vscode.FileStat {
     this.ctime = Date.now();
     this.mtime = Date.now();
     this.size = 0;
-    this.name = "test: " + name;
+    this.name = name;
   }
 }
 
@@ -138,7 +138,6 @@ export class DarkFS implements vscode.FileSystemProvider {
 
       // Convert the response to Uint8Array
       const content = new TextEncoder().encode(response.content);
-      console.log("Read file from LSP server:", content);
       DarkFS.fileContents.set(uri.toString(), content);
       return content;
     } catch (error) {
@@ -153,7 +152,6 @@ export class DarkFS implements vscode.FileSystemProvider {
     options: { create: boolean; overwrite: boolean },
   ): Promise<void> {
     try {
-      console.log("uri", uri);
       const contentString = new TextDecoder().decode(content);
 
       // For virtual files, create a temporary file
@@ -294,7 +292,6 @@ export class DarkFS implements vscode.FileSystemProvider {
   }
 
   private _lookupAsDirectory(uri: vscode.Uri, silent: boolean): Directory {
-    vscode.window.showErrorMessage("ahhh");
     const entry = this._lookup(uri, silent);
     if (entry instanceof Directory) {
       return entry;

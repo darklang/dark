@@ -84,7 +84,11 @@
       },
       {
         "command": "darklang.lookUpToplevel",
-        "title": "Darklang: Look Up Toplevel element"
+        "title": "Darklang: Look Up Package Element"
+      },
+      {
+        "command": "darklang.openPackageDefinition",
+        "title": "Darklang: Open Package Definition"
       },
       {
         "command": "darklang.init",
