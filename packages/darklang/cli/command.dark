@@ -686,6 +686,123 @@ module Darklang =
                     // Script execution
                     runScript state thingToRun restArgs
             }
+
+          // Scripts command
+          CommandDetails
+            { name = "scripts"
+              description = "Manage stored scripts"
+              aliases = []
+              arguments = ["[list|view|add|edit|delete|run] <args>"]
+              execute = fun state args ->
+                let parts = args |> Stdlib.String.split " " |> Stdlib.List.filter (fun s -> Stdlib.Bool.not (Stdlib.String.isEmpty s))
+
+                match parts with
+                | [] ->
+                  let helpText =
+                    """Scripts commands:
+  scripts list              - List all scripts
+  scripts view <name>       - View script content
+  scripts add <name> <text> - Add a new script
+  scripts edit <name>       - Show script content
+  scripts edit <name> <text> - Update script with new content
+  scripts delete <name>     - Delete a script
+  scripts run <name>        - Run a script"""
+                  let newState = { state with commandResult = CommandResult.Info helpText }
+                  (newState, [])
+
+                | ["list"] ->
+                  match Darklang.Cli.Scripts.list () with
+                  | Ok scripts ->
+                    let output =
+                      if Stdlib.List.isEmpty scripts then
+                        "No scripts found"
+                      else
+                        scripts
+                        |> Stdlib.List.map (fun s -> $"  {s.name}")
+                        |> Stdlib.String.join "\n"
+                        |> fun names -> $"Scripts:\n{names}"
+                    let newState = { state with commandResult = CommandResult.Success output }
+                    (newState, [])
+                  | Error err ->
+                    let newState = { state with commandResult = CommandResult.Error err }
+                    (newState, [])
+
+                | ["view"; name] ->
+                  match Darklang.Cli.Scripts.get name with
+                  | Ok script ->
+                    let output = $"Script: {script.name}\n\n{script.text}"
+                    let newState = { state with commandResult = CommandResult.Success output }
+                    (newState, [])
+                  | Error err ->
+                    let newState = { state with commandResult = CommandResult.Error err }
+                    (newState, [])
+
+                | "add" :: name :: textParts when Stdlib.Bool.not (Stdlib.List.isEmpty textParts) ->
+                  let text = textParts |> Stdlib.String.join " "
+                  match Darklang.Cli.Scripts.add name text with
+                  | Ok script ->
+                    let newState = { state with commandResult = CommandResult.Success $"Script '{script.name}' added successfully" }
+                    (newState, [])
+                  | Error err ->
+                    let newState = { state with commandResult = CommandResult.Error err }
+                    (newState, [])
+
+                | ["edit"; name] ->
+                  // Edit without new content - show current content
+                  match Darklang.Cli.Scripts.edit name (Stdlib.Option.Option.None) with
+                  | Ok message ->
+                    let newState = { state with commandResult = CommandResult.Success message }
+                    (newState, [])
+                  | Error err ->
+                    let newState = { state with commandResult = CommandResult.Error err }
+                    (newState, [])
+
+                | "edit" :: name :: textParts when Stdlib.Bool.not (Stdlib.List.isEmpty textParts) ->
+                  // Edit with new content - update the script
+                  let text = textParts |> Stdlib.String.join " "
+                  match Darklang.Cli.Scripts.edit name (Stdlib.Option.Option.Some text) with
+                  | Ok message ->
+                    let newState = { state with commandResult = CommandResult.Success message }
+                    (newState, [])
+                  | Error err ->
+                    let newState = { state with commandResult = CommandResult.Error err }
+                    (newState, [])
+
+                | ["delete"; name] ->
+                  match Darklang.Cli.Scripts.delete name with
+                  | Ok () ->
+                    let newState = { state with commandResult = CommandResult.Success $"Script '{name}' deleted successfully" }
+                    (newState, [])
+                  | Error err ->
+                    let newState = { state with commandResult = CommandResult.Error err }
+                    (newState, [])
+
+                | ["run"; name] ->
+                  match Darklang.Cli.Scripts.get name with
+                  | Ok script ->
+                    // Execute the script's text content using the same approach as runScript
+                    let result =
+                      Builtin.cliParseAndExecuteScript
+                        $"script:{name}"
+                        script.text
+                        []
+
+                    match result with
+                    | Ok exitCode ->
+                      let newState = { state with commandResult = CommandResult.Success $"Script '{name}' executed with exit code: {exitCode |> Stdlib.Int64.toString}" }
+                      (newState, [])
+                    | Error runtimeError ->
+                      let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString runtimeError
+                      let newState = { state with commandResult = CommandResult.Error prettyError }
+                      (newState, [])
+                  | Error err ->
+                    let newState = { state with commandResult = CommandResult.Error err }
+                    (newState, [])
+
+                | _ ->
+                  let newState = { state with commandResult = CommandResult.Error "Invalid scripts command. Use 'scripts' to see available commands" }
+                  (newState, [])
+            }
         ]
 
         // Context-specific commands
