@@ -48,7 +48,8 @@ module Darklang =
             // - your account's packages (for me, `stachu`)
             // - packages shared with you
             [ makeTreeItem "Darklang" "Darklang" TreeItemCollapsibleState.Collapsed Stdlib.Option.Option.None
-              makeTreeItem "Stachu" "Stachu" TreeItemCollapsibleState.Collapsed Stdlib.Option.Option.None ]
+              makeTreeItem "Stachu" "Stachu" TreeItemCollapsibleState.Collapsed Stdlib.Option.Option.None
+              makeTreeItem "Scripts" "Scripts" TreeItemCollapsibleState.Collapsed Stdlib.Option.Option.None ]
 
             |> Stdlib.List.map (fun i -> VSCode.TreeView.TreeItem.toJson i)
             |> Json.Array
@@ -135,24 +136,32 @@ module Darklang =
           (nodeId: String)
           : LspState =
 
-          let currentPath = nodeId |> Stdlib.String.split "."
-
-          let searchQuery =
-            LanguageTools.ProgramTypes.Search.SearchQuery
-              { currentModule = currentPath
-                text = ""
-                searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
-                entityTypes = [
-                  LanguageTools.ProgramTypes.Search.EntityType.Module
-                  LanguageTools.ProgramTypes.Search.EntityType.Fn
-                  LanguageTools.ProgramTypes.Search.EntityType.Type
-                  LanguageTools.ProgramTypes.Search.EntityType.Constant
-                ] }
-
-          let searchResults = LanguageTools.PackageManager.Search.search searchQuery
-
           let treeItems =
-            buildTreeItems searchResults currentPath nodeId
+            if nodeId == "Scripts" then
+              // Handle Scripts node - show all stored scripts
+              let scripts = Builtin.cliScriptsList ()
+              scripts
+              |> Stdlib.List.map (fun script ->
+                let scriptId = $"script/{script.name}"
+                makeTreeItem scriptId script.name TreeItemCollapsibleState.None (Stdlib.Option.Option.Some scriptId))
+            else
+              // Handle package nodes
+              let currentPath = nodeId |> Stdlib.String.split "."
+
+              let searchQuery =
+                LanguageTools.ProgramTypes.Search.SearchQuery
+                  { currentModule = currentPath
+                    text = ""
+                    searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+                    entityTypes = [
+                      LanguageTools.ProgramTypes.Search.EntityType.Module
+                      LanguageTools.ProgramTypes.Search.EntityType.Fn
+                      LanguageTools.ProgramTypes.Search.EntityType.Type
+                      LanguageTools.ProgramTypes.Search.EntityType.Constant
+                    ] }
+
+              let searchResults = LanguageTools.PackageManager.Search.search searchQuery
+              buildTreeItems searchResults currentPath nodeId
 
           let response =
             treeItems

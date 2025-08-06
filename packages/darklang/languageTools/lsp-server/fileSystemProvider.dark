@@ -32,42 +32,54 @@ module Darklang =
               |> Stdlib.String.dropFirst 8L  // Drop "darkfs:/"
               |> Stdlib.String.dropLast 5L   // Drop ".dark"
 
-            let pm = LanguageTools.PackageManager.pm ()
-
-            // Try to find the entity in the package manager
-            // First try as a type, then function, then constant
             let getContent =
-              // Try to find as a type
-              // CLEANUP: use `pm.findType nameForLookup` directly once the parser/interpreter is fixed
-              let findType = pm.findType
-              let getType = pm.getType
-              match findType nameForLookup with
-              | Some id ->
-                match getType id with
-                | Some typ -> typ |> PrettyPrinter.ProgramTypes.packageType
-                | None -> "Could not get type"
-              | None ->
-                // Try to find as a function
-                // CLEANUP: use `pm.findFn nameForLookup` directly once the parser/interpreter is fixed
-                let findFn = pm.findFn
-                let getFn = pm.getFn
-                match findFn nameForLookup with
+              // Check if this is a script request
+              if Stdlib.String.startsWith nameForLookup "script/" then
+                let scriptName = 
+                  nameForLookup
+                  |> Stdlib.String.dropFirst 7L  // Drop "script/"
+                
+                // Get script content, fallback to error message if not found
+                match Builtin.cliScriptsGet scriptName with
+                | Some script -> script.text
+                | None -> $"Script not found: {scriptName}"
+              else
+                // Handle package entities as before
+                let pm = LanguageTools.PackageManager.pm ()
+
+                // Try to find the entity in the package manager
+                // First try as a type, then function, then constant
+                // Try to find as a type
+                // CLEANUP: use `pm.findType nameForLookup` directly once the parser/interpreter is fixed
+                let findType = pm.findType
+                let getType = pm.getType
+                match findType nameForLookup with
                 | Some id ->
-                  match getFn id with
-                  | Some fn -> fn |> PrettyPrinter.ProgramTypes.packageFn
-                  | None -> "Could not get function"
+                  match getType id with
+                  | Some typ -> typ |> PrettyPrinter.ProgramTypes.packageType
+                  | None -> "Could not get type"
                 | None ->
-                  // Try to find as a constant
-                  // CLEANUP: use `pm.findConstant nameForLookup` directly once the parser/interpreter is fixed
-                  let findConst = pm.findConstant
-                  let getConst = pm.getConstant
-                  match findConst nameForLookup with
+                  // Try to find as a function
+                  // CLEANUP: use `pm.findFn nameForLookup` directly once the parser/interpreter is fixed
+                  let findFn = pm.findFn
+                  let getFn = pm.getFn
+                  match findFn nameForLookup with
                   | Some id ->
-                    match getConst id with
-                    | Some constant ->
-                      constant |> PrettyPrinter.ProgramTypes.packageConstant
-                    | None -> "Could not get constant"
-                  | None -> $"Package element not found: {nameForLookup}"
+                    match getFn id with
+                    | Some fn -> fn |> PrettyPrinter.ProgramTypes.packageFn
+                    | None -> "Could not get function"
+                  | None ->
+                    // Try to find as a constant
+                    // CLEANUP: use `pm.findConstant nameForLookup` directly once the parser/interpreter is fixed
+                    let findConst = pm.findConstant
+                    let getConst = pm.getConstant
+                    match findConst nameForLookup with
+                    | Some id ->
+                      match getConst id with
+                      | Some constant ->
+                        constant |> PrettyPrinter.ProgramTypes.packageConstant
+                      | None -> "Could not get constant"
+                    | None -> $"Package element not found: {nameForLookup}"
 
             sendResponse state requestId getContent
 
@@ -80,6 +92,23 @@ module Darklang =
               LspExtension.FileSystemProvider.WriteFile.WriteFileParams.WriteFileParams)
             : LspState =
             let content = params.content
+            
+            // Check if this is a script write request
+            let nameForLookup =
+              params.uri
+              |> Stdlib.String.dropFirst 8L  // Drop "darkfs:/"
+              |> Stdlib.String.dropLast 5L   // Drop ".dark"
+
+            if Stdlib.String.startsWith nameForLookup "script/" then
+              let scriptName = 
+                nameForLookup
+                |> Stdlib.String.dropFirst 7L  // Drop "script/"
+              
+              // Update the script content
+              match Builtin.cliScriptsUpdate scriptName content with
+              | Ok () -> ()
+              | Error _err -> () // TODO: Handle error properly
+              
             let responseJson =
               (JsonRPC.Response.Ok.make
                 (Stdlib.Option.Option.Some(requestId))
