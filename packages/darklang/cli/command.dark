@@ -690,7 +690,7 @@ module Darklang =
           // Scripts command
           CommandDetails
             { name = "scripts"
-              description = "Manage stored scripts"
+              description = "Store, manage, and run Dark scripts"
               aliases = []
               arguments = ["[list|view|add|edit|delete|run]"; "<args>"]
               execute = fun state args ->
@@ -700,13 +700,13 @@ module Darklang =
                 | [] ->
                   let helpText =
                     """Scripts commands:
-  scripts list              - List all scripts
-  scripts view <name>       - View script content
-  scripts add <name> <text> - Add a new script
-  scripts edit <name>       - Show script content
+  scripts list               - List all scripts
+  scripts view <name>        - View script content
+  scripts add <name> <text>  - Add a new script
+  scripts edit <name>        - Show script content
   scripts edit <name> <text> - Update script with new content
-  scripts delete <name>     - Delete a script
-  scripts run <name>        - Run a script"""
+  scripts delete <name>      - Delete a script
+  scripts run <name>         - Run a script"""
                   let newState = { state with commandResult = CommandResult.Info helpText }
                   (newState, [])
 
@@ -759,6 +759,7 @@ module Darklang =
 
                 | "edit" :: name :: textParts when Stdlib.Bool.not (Stdlib.List.isEmpty textParts) ->
                   // Edit with new content - update the script
+                  // CLEANUP: maybe we should have a separate command for this? e.g. `script update <script_name> <new_content>`
                   let text = textParts |> Stdlib.String.join " "
                   match Darklang.Cli.Scripts.edit name (Stdlib.Option.Option.Some text) with
                   | Ok message ->
@@ -780,7 +781,6 @@ module Darklang =
                 | ["run"; name] ->
                   match Darklang.Cli.Scripts.get name with
                   | Ok script ->
-                    // Execute the script's text content using the same approach as runScript
                     let result =
                       Builtin.cliParseAndExecuteScript
                         $"script:{name}"

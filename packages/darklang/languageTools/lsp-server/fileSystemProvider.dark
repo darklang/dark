@@ -35,16 +35,15 @@ module Darklang =
             let getContent =
               // Check if this is a script request
               if Stdlib.String.startsWith nameForLookup "script/" then
-                let scriptName = 
+                let scriptName =
                   nameForLookup
                   |> Stdlib.String.dropFirst 7L  // Drop "script/"
-                
-                // Get script content, fallback to error message if not found
+
                 match Builtin.cliScriptsGet scriptName with
                 | Some script -> script.text
                 | None -> $"Script not found: {scriptName}"
               else
-                // Handle package entities as before
+                // Handle package entities
                 let pm = LanguageTools.PackageManager.pm ()
 
                 // Try to find the entity in the package manager
@@ -92,7 +91,7 @@ module Darklang =
               LspExtension.FileSystemProvider.WriteFile.WriteFileParams.WriteFileParams)
             : LspState =
             let content = params.content
-            
+
             // Check if this is a script write request
             let nameForLookup =
               params.uri
@@ -100,15 +99,15 @@ module Darklang =
               |> Stdlib.String.dropLast 5L   // Drop ".dark"
 
             if Stdlib.String.startsWith nameForLookup "script/" then
-              let scriptName = 
+              let scriptName =
                 nameForLookup
                 |> Stdlib.String.dropFirst 7L  // Drop "script/"
-              
+
               // Update the script content
               match Builtin.cliScriptsUpdate scriptName content with
               | Ok () -> ()
               | Error _err -> () // TODO: Handle error properly
-              
+
             let responseJson =
               (JsonRPC.Response.Ok.make
                 (Stdlib.Option.Option.Some(requestId))

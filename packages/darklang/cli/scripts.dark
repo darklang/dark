@@ -29,13 +29,6 @@ module Darklang =
       let list (): Stdlib.Result.Result<List<Script>, String> =
         Stdlib.Result.Result.Ok (Builtin.cliScriptsList ())
 
-      /// Lists just the script names
-      let listNames (): Stdlib.Result.Result<List<String>, String> =
-        match list () with
-        | Ok scripts ->
-          Stdlib.Result.Result.Ok (scripts |> Stdlib.List.map (fun s -> s.name))
-        | Error err ->
-          Stdlib.Result.Result.Error err
 
       /// Edit a script interactively or with provided content
       let edit (name: String) (newContent: Stdlib.Option.Option<String>): Stdlib.Result.Result<String, String> =
