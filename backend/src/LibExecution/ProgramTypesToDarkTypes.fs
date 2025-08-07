@@ -1031,6 +1031,18 @@ module Const =
         "CTuple",
         [ toDT first; toDT second; DList(VT.known knownType, List.map toDT theRest) ]
 
+      | PT.Const.CRecord(typeName, typeArgs, fields) ->
+        "CRecord",
+        [ NameResolution.toDT FQTypeName.knownType FQTypeName.toDT typeName
+          DList(
+            VT.known TypeReference.knownType,
+            List.map TypeReference.toDT typeArgs
+          )
+          DList(
+            VT.known (KTTuple(VT.string, VT.known knownType, [])),
+            fields |> List.map (fun (k, v) -> DTuple(DString k, toDT v, []))
+          ) ]
+
       | PT.Const.CEnum(typeName, caseName, fields) ->
         "CEnum",
         [ NameResolution.toDT FQTypeName.knownType FQTypeName.toDT typeName
@@ -1070,6 +1082,20 @@ module Const =
     | DEnum(_, _, [], "CUnit", []) -> PT.Const.CUnit
     | DEnum(_, _, [], "CTuple", [ first; second; DList(_vtTODO, rest) ]) ->
       PT.Const.CTuple(fromDT first, fromDT second, List.map fromDT rest)
+    | DEnum(_,
+            _,
+            [],
+            "CRecord",
+            [ typeName; DList(_vtTODO1, typeArgs); DList(_vtTODO2, fields) ]) ->
+      PT.Const.CRecord(
+        NameResolution.fromDT FQTypeName.fromDT typeName,
+        List.map TypeReference.fromDT typeArgs,
+        fields
+        |> List.map (fun fieldVal ->
+          match fieldVal with
+          | DTuple(DString key, value, []) -> (key, fromDT value)
+          | _ -> Exception.raiseInternal "Invalid field" [])
+      )
     | DEnum(_, _, [], "CEnum", [ typeName; DString caseName; DList(_vtTODO, fields) ]) ->
       PT.Const.CEnum(
         NameResolution.fromDT FQTypeName.fromDT typeName,

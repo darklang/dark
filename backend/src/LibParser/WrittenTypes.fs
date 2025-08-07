@@ -243,6 +243,7 @@ type Const =
   | CList of List<Const>
   | CDict of List<string * Const>
   | CTuple of first : Const * second : Const * rest : List<Const>
+  | CRecord of typeName : Name * fields : List<string * Const>
   | CEnum of typeName : UnresolvedEnumTypeName * caseName : string * List<Const>
 
 module TypeDeclaration =

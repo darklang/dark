@@ -868,6 +868,8 @@ module Constant =
       | WT.EString(_, [ WT.StringText str ]) -> WT.CString str
       | WT.ETuple(_, first, second, rest) ->
         WT.CTuple(c first, c second, List.map c rest)
+      | WT.ERecord(_, typeName, fields) ->
+        WT.CRecord(typeName, List.map (fun (k, v) -> (k, c v)) fields)
       | WT.EEnum(_, typeName, caseName, fields) ->
         WT.CEnum(typeName, caseName, List.map c fields)
       | WT.EList(_, items) -> WT.CList(List.map c items)
