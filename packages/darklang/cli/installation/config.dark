@@ -1,6 +1,6 @@
 module Darklang =
   module Cli =
-    module LocalInstall =
+    module Installation =
       /// Manages the config.json file which sits in the $HOME/.darklang directory,
       /// to manage the local installation of the Darklang CLI.
       module Config =

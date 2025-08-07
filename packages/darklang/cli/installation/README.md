@@ -1,31 +1,12 @@
-module Darklang =
-  module Cli =
-    /// Everything related to the local installation of the Darklang CLI
-    ///
-    /// (as opposed to running the CLI without any install)
-    module LocalInstall =
-      // TODO: base these 'constants' on each other
-      // or maybe they shouldn't constants, but rather passed into the respective fns... probably that.
-      let bearerToken = "${GITHUB_RELEASES_TOKEN}"
+Relates to locally installing the `darklang` CLI tool
+(as opposed to running it without any install).
+
+To run the CLI executable against the local package manager:
 
 
-      /// Check if the latest version of the Darklang CLI is installed,
-      /// by comparing:
-      /// - the latest release on GitHub,
-      /// (against)
-      /// - the locally-installed version, as recorded in the `.darklang/config.json` file.
-      let isAtLatestVersion
-        (configPath: String)
-        : Stdlib.Result.Result<Bool, String> =
-        match GitHub.Releases.getLatestReleaseTag bearerToken with
-        | Ok latestVersion ->
-          match Config.readLocallyInstalledDarklangVersion configPath with
-          | Ok localVersion -> Stdlib.Result.Result.Ok(localVersion == latestVersion)
-          | Error _e -> Stdlib.Result.Result.Error "Couldn't determine local version"
-        | Error _e ->
-          Stdlib.Result.Result.Error
-            "Couldn't determine latest version -- whatever you're about to try probably won't work"
 
+- [ ] TODO: Bring back self-updating
+  ```fsharp
 
       // Check if we should skip self update
       // (if we've updated in the last 24 hours, don't update)
@@ -43,6 +24,7 @@ module Darklang =
 
             secondsSinceLastUpdate < oneDayInSeconds
         | Error e -> false
+
 
 
       let selfUpdateIfRelevant () : Stdlib.Result.Result<Unit, String> =
@@ -72,5 +54,18 @@ module Darklang =
           | Ok false ->
             (Stdlib.Cli.Host.getRuntimeHost ())
             |> Stdlib.Result.andThen (fun host ->
-              LocalInstall.Installation.installOrUpdateLatestRelease host)
+              Installation.Install.installOrUpdateLatestRelease host)
           | Error e -> Stdlib.Result.Result.Error e
+
+  if Stdlib.List.member_v0 args "--skip-self-update" then
+    let newArgs =
+      args |> Stdlib.List.filter (fun arg -> arg != "--skip-self-update")
+
+    processNormally newArgs
+  else
+    match Installation.selfUpdateIfRelevant () with
+    | Ok _ -> processNormally args
+    | Error e ->
+      Builtin.printLine $"Failed to run self-update: {e}\nProceeding anyway."
+      processNormally args
+  ```

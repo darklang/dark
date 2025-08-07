@@ -10,12 +10,10 @@ module Darklang =
 
     /// A baseline function for fetching data from the GitHub API
     let fetchString
-      (bearerToken: String)
       (url: String)
       : Stdlib.Result.Result<String, String> =
       let headers =
-        [ ("authorization ", "bearer" ++ bearerToken)
-          ("accept", "application/vnd.github+json")
+        [ ("accept", "application/vnd.github+json")
           ("user-Agent", "darklang") ]
 
       match Stdlib.HttpClient.get url headers with
@@ -37,10 +35,8 @@ module Darklang =
       /// (i.e. `v0.0.19`)
       ///
       /// TODO: typify the error type
-      let getLatestReleaseTag
-        (bearerToken: String)
-        : Stdlib.Result.Result<String, String> =
-        match fetchString bearerToken $"{darklangRepoBaseUrl}/releases" with
+      let getLatestReleaseTag () : Stdlib.Result.Result<String, String> =
+        match fetchString $"{darklangRepoBaseUrl}/releases" with
         | Ok releasesJsonString ->
           match Builtin.jsonParse<List<Release>> releasesJsonString with
           | Ok releases ->
@@ -59,7 +55,6 @@ module Darklang =
       /// TODO typify the error type
       let getDownloadUrl
         (host: Stdlib.Cli.Host.Host)
-        (bearerToken: String)
         (releaseTag: String)
         : Stdlib.Result.Result<String, String> =
         let hostStr =
@@ -76,9 +71,7 @@ module Darklang =
         match hostStr with
         | Ok hostStr ->
           let fetched =
-            fetchString
-              bearerToken
-              $"{darklangRepoBaseUrl}/releases/tags/{releaseTag}"
+            fetchString $"{darklangRepoBaseUrl}/releases/tags/{releaseTag}"
 
           match fetched with
           | Ok releaseJsonString ->

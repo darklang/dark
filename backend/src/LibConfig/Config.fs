@@ -9,19 +9,22 @@ let envDisplayName =
   | None -> "unknown" // TODO something better
 
 /// <summary>
-/// If the GIT_COMMIT is in the environment, use that as the build hash.
-/// Otherwise, set it to the env name so that it's constant.
+/// Read the git commit hash from the embedded resource.
+/// Falls back to "dev" for local development builds.
 /// </summary>
-///
-/// <remarks>
-/// We intentionally bypass our DSL here as `GIT_COMMIT` is not set by our
-/// config system but as part of the production container build process, and is
-/// not available in dev mode.
-/// </remarks>
 let buildHash : string =
-  match getEnv "GIT_COMMIT" with
-  | Some s -> s
-  | None -> envDisplayName
+  try
+    use stream =
+      System.Reflection.Assembly
+        .GetExecutingAssembly()
+        .GetManifestResourceStream("LibConfig.build-hash.txt")
+    if stream <> null then
+      use reader = new System.IO.StreamReader(stream)
+      reader.ReadToEnd().Trim()
+    else
+      "dev"
+  with _ ->
+    "dev"
 
 // runDir is for runtime data (DB, logs, etc.) - separate from source code paths
 let runDir = absoluteDirOrCurrent "DARK_CONFIG_RUNDIR"

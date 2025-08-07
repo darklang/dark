@@ -634,6 +634,20 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "getBuildHash" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TString
+      description = "Returns the git hash of the current CLI build"
+      fn =
+        function
+        | _, _, [], [ DUnit ] -> uply { return DString LibConfig.Config.buildHash }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
       deprecated = NotDeprecated } ]
 
 let builtins = LibExecution.Builtin.make [] fns

@@ -48,6 +48,10 @@ module Darklang =
         let findCommandPath (tool: String) : Stdlib.Cli.ExecutionOutcome =
           Cli.execute $"which {tool}"
 
+        /// Copies a file from source to destination path
+        let copyFile (sourcePath: String) (destPath: String) : Result.Result<Unit, String> =
+          Cli.executeWithUnitOrStdErr $"cp '{sourcePath}' '{destPath}'"
+
         /// Checks if a file exists at the given path.
         let fileExists (filePath: String) : Bool =
           match Cli.executeWithUnitOrStdErr $"test -f {filePath}" with
@@ -80,3 +84,13 @@ module Darklang =
           | Bash -> Bash.deleteAlias alias
           | Zsh -> Zsh.deleteAlias alias
           | _ -> Result.Result.Error "Unsupported OS or shell"
+
+
+        /// Gets the home directory of the current user using $HOME environment variable.
+        let getHomeDirectory () : Result.Result<String, String> =
+          let dir = Cli.execute "echo $HOME"
+          if dir.exitCode == 0L then
+            let dir = dir.stdout |> String.trim
+            Result.Result.Ok dir
+          else
+            Result.Result.Error dir.stderr

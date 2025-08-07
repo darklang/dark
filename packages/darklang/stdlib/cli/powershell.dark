@@ -30,6 +30,16 @@ module Darklang =
           Cli.executeWithUnitOrStdErr
             $"powershell.exe -Command \"Remove-Item -Path '{path}' -Recurse -Force\""
 
+        /// Copies a file from source to destination path
+        let copyFile (sourcePath: String) (destPath: String) : Result.Result<Unit, String> =
+          Cli.executeWithUnitOrStdErr
+            $"powershell.exe -Command \"Copy-Item -Path '{sourcePath}' -Destination '{destPath}' -Force\""
+
+        /// Checks if a file exists
+        let fileExists (path: String) : Bool =
+          let result = Cli.execute $"powershell.exe -Command \"Test-Path -Path '{path}'\""
+          result.exitCode == 0L && String.trim result.stdout == "True"
+
 
         /// Grants execute permissions to the specified file. (chmod +x <param path>)
         /// If successful, returns {{Ok ()}}. Otherwise, returns an {{Error <var stderr>}}

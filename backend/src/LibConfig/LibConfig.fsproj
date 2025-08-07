@@ -12,6 +12,13 @@
     <Compile Include="ConfigDsl.fs" />
     <Compile Include="Config.fs" />
   </ItemGroup>
+  
+  <Target Name="EmbedGitHash" BeforeTargets="BeforeBuild">
+    <Exec Command="git rev-parse --short HEAD > $(IntermediateOutputPath)build-hash.txt" />
+    <ItemGroup>
+      <EmbeddedResource Include="$(IntermediateOutputPath)build-hash.txt" />
+    </ItemGroup>
+  </Target>
   <ItemGroup>
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
   </ItemGroup>
