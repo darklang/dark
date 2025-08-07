@@ -21,6 +21,8 @@ module Exe = LibExecution.Execution
 module PackageIDs = LibExecution.PackageIDs
 module Json = BuiltinExecution.Libs.Json
 module C2DT = LibExecution.CommonToDarkTypes
+module Scripts = LibPackageManager.Scripts
+module ScriptsToDT = BuiltinCliHost.Utils.ScriptsToDarkTypes
 
 module Utils = BuiltinCliHost.Utils
 
@@ -28,6 +30,10 @@ module Utils = BuiltinCliHost.Utils
 module ExecutionError =
   let fqTypeName = FQTypeName.fqPackage PackageIDs.Type.Cli.executionError
   let typeRef = TCustomType(Ok fqTypeName, [])
+
+// Script type definitions
+let scriptTypeName = ScriptsToDT.scriptTypeName
+let scriptType = TCustomType(Ok scriptTypeName, [])
 
 
 module Config =
@@ -510,6 +516,120 @@ let fns : List<BuiltInFn> =
               | Error e -> return e |> RT2DT.RuntimeError.toDT |> resultError
             with e ->
               return exnError e |> RT2DT.RuntimeError.toDT |> resultError
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    // Script management functions
+    { name = fn "cliScriptsList" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TList scriptType
+      description = "List all stored scripts"
+      fn =
+        (function
+        | _, _, _, [ DUnit ] ->
+          uply {
+            let! scripts = Scripts.list ()
+            let dvals = scripts |> List.map ScriptsToDT.toDT
+            return Dval.list (KTCustomType(scriptTypeName, [])) dvals
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "cliScriptsGet" 0
+      typeParams = []
+      parameters = [ Param.make "name" TString "" ]
+      returnType = TypeReference.option scriptType
+      description = "Get a script by name"
+      fn =
+        (function
+        | _, _, _, [ DString name ] ->
+          uply {
+            let! scriptOpt = Scripts.get name
+            match scriptOpt with
+            | Some script ->
+              return
+                Dval.optionSome
+                  (KTCustomType(scriptTypeName, []))
+                  (ScriptsToDT.toDT script)
+            | None -> return Dval.optionNone (KTCustomType(scriptTypeName, []))
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "cliScriptsAdd" 0
+      typeParams = []
+      parameters = [ Param.make "name" TString ""; Param.make "text" TString "" ]
+      returnType = TypeReference.result scriptType TString
+      description = "Add a new script"
+      fn =
+        (function
+        | _, _, _, [ DString name; DString text ] ->
+          uply {
+            let! result = Scripts.add name text
+            match result with
+            | Ok script ->
+              return
+                Dval.resultOk
+                  (KTCustomType(scriptTypeName, []))
+                  KTString
+                  (ScriptsToDT.toDT script)
+            | Error err ->
+              return
+                Dval.resultError
+                  (KTCustomType(scriptTypeName, []))
+                  KTString
+                  (DString err)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "cliScriptsUpdate" 0
+      typeParams = []
+      parameters = [ Param.make "name" TString ""; Param.make "text" TString "" ]
+      returnType = TypeReference.result TUnit TString
+      description = "Update an existing script's text"
+      fn =
+        (function
+        | _, _, _, [ DString name; DString text ] ->
+          uply {
+            let! result = Scripts.update name text
+            match result with
+            | Ok() -> return Dval.resultOk KTUnit KTString DUnit
+            | Error err -> return Dval.resultError KTUnit KTString (DString err)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "cliScriptsDelete" 0
+      typeParams = []
+      parameters = [ Param.make "name" TString "" ]
+      returnType = TypeReference.result TUnit TString
+      description = "Delete a script by name"
+      fn =
+        (function
+        | _, _, _, [ DString name ] ->
+          uply {
+            let! result = Scripts.delete name
+            match result with
+            | Ok() -> return Dval.resultOk KTUnit KTString DUnit
+            | Error err -> return Dval.resultError KTUnit KTString (DString err)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

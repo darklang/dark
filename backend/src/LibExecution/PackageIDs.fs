@@ -338,6 +338,10 @@ module Type =
         "ExecutionError"
         "1ca71c83-7a12-43ae-a973-b4fb09c3e4bc"
 
+    let script =
+      p [ "Cli"; "Scripts" ] "Script" "de1629b6-cdfa-46b1-84c0-e0c60048d93b"
+
+
   module DarkPackages =
     let stats = p [ "DarkPackages" ] "Stats" "0fcd5847-701c-4da7-9f24-adbe8b5eb397"
 
