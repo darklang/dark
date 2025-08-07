@@ -180,6 +180,28 @@ let rec evalConst
       return TypeChecker.DvalCreator.dict threadID ValueType.Unknown entries
 
 
+    | CRecord(Ok typeName, _typeArgs, fields) ->
+      let! fields =
+        fields
+        |> Ply.List.mapSequentially (fun (k, v) ->
+          uply {
+            let! v = r v
+            return (k, v)
+          })
+      let typeArgs =
+        // At this point, we don't support explicit type args for constant records
+        // once (CLEANUP) we make some big changes to how Constants work
+        // (so they're eval'd at dev-time rather than run-time)
+        // , we can support this.
+        []
+      let! record =
+        TypeChecker.DvalCreator.record types threadID tst typeName typeArgs fields
+
+      return record
+
+    | CRecord(Error nre, _typeArgs, _fields) ->
+      return raiseRTE threadID (RuntimeError.ParseTimeNameResolution nre)
+
     | CEnum(Ok typeName, caseName, fields) ->
       let typeArgs =
         // At this point, we don't support explicit type args for constant enums

@@ -1701,6 +1701,16 @@ let constantDeclarations =
       []
       false
 
+    // records
+    t
+      "record with fields"
+      "const myPerson = Tests.Person { name = \"Alice\"; age = 30L; hasPet = true }"
+      "const myPerson = Person { name = \"Alice\"; age = 30L; hasPet = true }"
+      [ person ]
+      []
+      []
+      false
+
     // enums
     t
       "option, none"

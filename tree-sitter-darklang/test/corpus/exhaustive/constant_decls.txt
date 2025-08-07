@@ -481,6 +481,80 @@ const myEnum = MyEnum.MyCase((1L, 2L))
 
 
 ==================
+const declaration - record
+==================
+
+const myPerson = Person { name = "Alice"; age = 30L }
+
+---
+
+(source_file
+  (const_decl
+    (keyword)
+    (constant_identifier)
+    (symbol)
+    (consts
+      (const_record_literal
+        (qualified_type_name (type_identifier))
+        (symbol)
+        (const_record_content
+          (const_record_pair
+            (variable_identifier)
+            (symbol)
+            (consts (string_literal (symbol) (string_content) (symbol)))
+          )
+          (symbol)
+          (const_record_pair
+            (variable_identifier)
+            (symbol)
+            (consts (int64_literal (digits (positive_digits)) (symbol)))
+          )
+        )
+        (symbol)
+      )
+    )
+  )
+)
+
+
+==================
+const declaration - qualified record
+==================
+
+const myPoint = Geometry.Point { x = 1.0; y = 2.0 }
+
+---
+
+(source_file
+  (const_decl
+    (keyword)
+    (constant_identifier)
+    (symbol)
+    (consts
+      (const_record_literal
+        (qualified_type_name (module_identifier) (symbol) (type_identifier))
+        (symbol)
+        (const_record_content
+          (const_record_pair
+            (variable_identifier)
+            (symbol)
+            (consts (float_literal))
+          )
+          (symbol)
+          (const_record_pair
+            (variable_identifier)
+            (symbol)
+            (consts (float_literal))
+          )
+        )
+        (symbol)
+      )
+    )
+  )
+)
+
+
+==================
 const declaration - unit
 ==================
 

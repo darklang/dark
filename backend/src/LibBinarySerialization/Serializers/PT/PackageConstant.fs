@@ -77,16 +77,26 @@ module Const =
       write w first
       write w second
       List.write w write rest
-    | CEnum(typeName, caseName, fields) ->
+    | CRecord(typeName, typeArgs, fields) ->
       w.Write 16uy
+      NameResolution.write FQTypeName.write w typeName
+      List.write w TypeReference.write typeArgs
+      List.write
+        w
+        (fun w (key, value) ->
+          String.write w key
+          write w value)
+        fields
+    | CEnum(typeName, caseName, fields) ->
+      w.Write 17uy
       NameResolution.write FQTypeName.write w typeName
       String.write w caseName
       List.write w write fields
     | CList consts ->
-      w.Write 17uy
+      w.Write 18uy
       List.write w write consts
     | CDict pairs ->
-      w.Write 18uy
+      w.Write 19uy
       List.write
         w
         (fun w (key, value) ->
@@ -126,13 +136,22 @@ module Const =
       CTuple(first, second, rest)
     | 16uy ->
       let typeName = NameResolution.read FQTypeName.read r
+      let typeArgs = List.read r TypeReference.read
+      let fields =
+        List.read r (fun r ->
+          let key = String.read r
+          let value = read r
+          (key, value))
+      CRecord(typeName, typeArgs, fields)
+    | 17uy ->
+      let typeName = NameResolution.read FQTypeName.read r
       let caseName = String.read r
       let fields = List.read r read
       CEnum(typeName, caseName, fields)
-    | 17uy ->
+    | 18uy ->
       let consts = List.read r read
       CList consts
-    | 18uy ->
+    | 19uy ->
       let pairs =
         List.read r (fun r ->
           let key = String.read r

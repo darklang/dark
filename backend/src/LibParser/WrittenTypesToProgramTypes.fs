@@ -473,6 +473,25 @@ module Const =
         let! theRest = Ply.List.mapSequentially toPT theRest
         return PT.CTuple(first, second, theRest)
 
+      | WT.CRecord(typeName, fields) ->
+        let names =
+          match typeName with
+          | WT.Unresolved given -> NEList.toList given
+          | WT.KnownBuiltin(name, _) -> [ name ]
+        let! typeName =
+          Expr.resolveTypeName pm onMissing currentModule names "CRecord"
+        // Type args aren't available at parse time for constants
+        // They would need to be inferred, which happens at runtime currently
+        let typeArgs = []
+        let! fields =
+          fields
+          |> Ply.List.mapSequentially (fun (k, v) ->
+            uply {
+              let! v = toPT v
+              return (k, v)
+            })
+        return PT.CRecord(typeName, typeArgs, fields)
+
       | WT.CEnum(typeName, caseName, fields) ->
         let! typeName =
           Expr.resolveTypeName pm onMissing currentModule typeName caseName

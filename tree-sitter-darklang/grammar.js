@@ -115,6 +115,7 @@ module.exports = grammar({
         $.const_list_literal,
         $.const_tuple_literal,
         $.const_dict_literal,
+        $.const_record_literal,
         $.const_enum_literal,
         $.unit,
         // TODO: should we allow a const_identifier here?
@@ -130,6 +131,10 @@ module.exports = grammar({
     const_dict_literal: $ => dict_literal_base($, $.const_dict_content),
     const_dict_content: $ => dict_content_base($, $.const_dict_pair),
     const_dict_pair: $ => dict_pair_base($, $.consts),
+
+    const_record_literal: $ => record_literal_base($, $.const_record_content),
+    const_record_content: $ => record_content_base($, $.const_record_pair),
+    const_record_pair: $ => record_pair_base($, $.consts),
 
     const_enum_literal: $ => enum_literal_base($, $.const_enum_fields),
     const_enum_fields: $ => enum_fields_base($, $.consts),
@@ -666,56 +671,9 @@ module.exports = grammar({
 
     //
     // Record
-    record_literal: $ =>
-      prec.right(
-        choice(
-          seq(
-            field("type_name", $.qualified_type_name),
-            field("symbol_open_brace", alias("{", $.symbol)),
-            optional(field("content", $.record_content)),
-            field("symbol_close_brace", alias("}", $.symbol)),
-          ),
-          seq(
-            field("type_name", $.qualified_type_name),
-            $.indent,
-            field("symbol_open_brace", alias("{", $.symbol)),
-            optional(field("content", $.record_content)),
-            field("symbol_close_brace", alias("}", $.symbol)),
-            $.dedent,
-          ),
-          seq(
-            field("type_name", $.qualified_type_name),
-            field("symbol_open_brace", alias("{", $.symbol)),
-            $.indent,
-            optional(field("content", $.record_content)),
-            field("symbol_close_brace", alias("}", $.symbol)),
-            $.dedent,
-          ),
-        ),
-      ),
-    record_content: $ =>
-      choice(
-        seq(
-          $.record_pair,
-          repeat(
-            seq(field("record_separator", alias(";", $.symbol)), $.record_pair),
-          ),
-        ),
-        seq(
-          $.record_pair,
-          repeat(seq($.newline, $.record_pair)),
-          optional($.newline),
-        ),
-      ),
-    record_pair: $ =>
-      seq(
-        field("field", $.variable_identifier),
-        field("symbol_equals", alias("=", $.symbol)),
-        choice(
-          field("value", $.expression),
-          seq($.indent, field("value", $.expression), $.dedent),
-        ),
-      ),
+    record_literal: $ => record_literal_base($, $.record_content),
+    record_content: $ => record_content_base($, $.record_pair),
+    record_pair: $ => record_pair_base($, $.expression),
 
     //
     // Record update
@@ -1358,6 +1316,55 @@ function enum_fields_base($, fields) {
           prec.right(seq(field("symbol_comma", alias(",", $.symbol)), fields)),
         ),
       ),
+    ),
+  );
+}
+//
+// Record
+function record_literal_base($, record_content) {
+  return prec.right(
+    choice(
+      seq(
+        field("type_name", $.qualified_type_name),
+        field("symbol_open_brace", alias("{", $.symbol)),
+        optional(field("content", record_content)),
+        field("symbol_close_brace", alias("}", $.symbol)),
+      ),
+      seq(
+        field("type_name", $.qualified_type_name),
+        $.indent,
+        field("symbol_open_brace", alias("{", $.symbol)),
+        optional(field("content", record_content)),
+        field("symbol_close_brace", alias("}", $.symbol)),
+        $.dedent,
+      ),
+      seq(
+        field("type_name", $.qualified_type_name),
+        field("symbol_open_brace", alias("{", $.symbol)),
+        $.indent,
+        optional(field("content", record_content)),
+        field("symbol_close_brace", alias("}", $.symbol)),
+        $.dedent,
+      ),
+    ),
+  );
+}
+function record_content_base($, record_pair) {
+  return choice(
+    seq(
+      record_pair,
+      repeat(seq(field("record_separator", alias(";", $.symbol)), record_pair)),
+    ),
+    seq(record_pair, repeat(seq($.newline, record_pair)), optional($.newline)),
+  );
+}
+function record_pair_base($, value) {
+  return seq(
+    field("field", $.variable_identifier),
+    field("symbol_equals", alias("=", $.symbol)),
+    choice(
+      field("value", value),
+      seq($.indent, field("value", value), $.dedent),
     ),
   );
 }

@@ -1136,6 +1136,19 @@ module Darklang =
               [ makeToken symbolCloseBrace TokenType.Symbol ] ]
             |> Stdlib.List.flatten
 
+          | CRecord(range, typeName, fields) ->
+            let typeName = QualifiedTypeIdentifier.tokenize typeName
+
+            let fields =
+              fields
+              |> Stdlib.List.map (fun field ->
+                let ((nameRange, _), value) = field
+                Stdlib.List.append [ makeToken nameRange TokenType.Property ] (tokenize value))
+              |> Stdlib.List.flatten
+
+            [ typeName; fields ]
+            |> Stdlib.List.flatten
+
           | CEnum(range, typeName, caseName, fields, symbolDot) ->
             let typeName = QualifiedTypeIdentifier.tokenize typeName
 

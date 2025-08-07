@@ -1000,6 +1000,13 @@ module Const =
     | PT.Const.CList items -> RT.CList(List.map toRT items)
     | PT.Const.CDict entries -> RT.CDict(entries |> List.map (Tuple2.mapSecond toRT))
 
+    | PT.Const.CRecord(typeName, typeArgs, fields) ->
+      RT.CRecord(
+        NameResolution.toRT FQTypeName.toRT typeName,
+        List.map TypeReference.toRT typeArgs,
+        fields |> List.map (Tuple2.mapSecond toRT)
+      )
+
     | PT.Const.CEnum(typeName, caseName, fields) ->
       RT.CEnum(
         NameResolution.toRT FQTypeName.toRT typeName,

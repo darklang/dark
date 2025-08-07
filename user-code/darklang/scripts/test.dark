@@ -1,1 +1,7 @@
-1L + "test"
+const myList = [1L; 2L; 3L]
+const recordConst =
+  Stdlib.Cli.Host.Host {
+    os = Stdlib.Cli.OS.OS.Linux;
+    architecture = Stdlib.Cli.Architecture.Architecture.X86_64;
+    defaultShell = Stdlib.Cli.Shell.Shell.Bash
+  }

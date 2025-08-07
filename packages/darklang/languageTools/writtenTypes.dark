@@ -427,6 +427,10 @@ module Darklang =
           rest: List<(Range * Const)> *
           symbolOpenParen: Range *
           symbolCloseParen: Range
+        | CRecord of
+          Range *
+          typeName: QualifiedTypeIdentifier *
+          fields: List<(Range * String) * Const>
         | CEnum of
           Range *
           typeName: QualifiedTypeIdentifier *

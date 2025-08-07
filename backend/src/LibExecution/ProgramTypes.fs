@@ -521,6 +521,11 @@ type Const =
   | CDict of List<string * Const>
   | CTuple of first : Const * second : Const * rest : List<Const>
 
+  | CRecord of
+    typeName : NameResolution<FQTypeName.FQTypeName> *
+    typeArgs : List<TypeReference> *
+    fields : List<string * Const>
+
   | CEnum of
     // TODO: this reference should be by-hash
     NameResolution<FQTypeName.FQTypeName> *

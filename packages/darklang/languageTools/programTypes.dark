@@ -347,6 +347,9 @@ module Darklang =
         | CTuple of Const * Const * List<Const>
         | CList of List<Const>
         | CDict of List<String * Const>
+        | CRecord of
+          NameResolution<FQTypeName.FQTypeName> *
+          fields: List<String * Const>
         | CEnum of
           NameResolution<FQTypeName.FQTypeName> *
           caseName: String *

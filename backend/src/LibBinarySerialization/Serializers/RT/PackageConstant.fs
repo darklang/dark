@@ -95,8 +95,19 @@ module Const =
           write w value)
         pairs
 
-    | CEnum(nameResolution, caseName, fields) ->
+    | CRecord(typeName, typeArgs, fields) ->
       w.Write 18uy
+      NameResolution.write FQTypeName.write w typeName
+      List.write w TypeReference.write typeArgs
+      List.write
+        w
+        (fun w (key, value) ->
+          String.write w key
+          write w value)
+        fields
+
+    | CEnum(nameResolution, caseName, fields) ->
+      w.Write 19uy
       NameResolution.write FQTypeName.write w nameResolution
       String.write w caseName
       List.write w write fields
@@ -145,6 +156,16 @@ module Const =
       CDict pairs
 
     | 18uy ->
+      let typeName = NameResolution.read FQTypeName.read r
+      let typeArgs = List.read r TypeReference.read
+      let fields =
+        List.read r (fun r ->
+          let key = String.read r
+          let value = read r
+          (key, value))
+      CRecord(typeName, typeArgs, fields)
+
+    | 19uy ->
       let nameResolution = NameResolution.read FQTypeName.read r
       let caseName = String.read r
       let fields = List.read r read

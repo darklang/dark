@@ -1067,6 +1067,11 @@ type Const =
   | CTuple of first : Const * second : Const * rest : List<Const>
   | CDict of List<string * Const>
 
+  | CRecord of
+    typeName : NameResolution<FQTypeName.FQTypeName> *
+    typeArgs : List<TypeReference> *
+    fields : List<string * Const>
+
   | CEnum of NameResolution<FQTypeName.FQTypeName> * caseName : string * List<Const>
 
 

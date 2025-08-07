@@ -735,6 +735,7 @@ module Darklang =
         let collectConstBodyHoverInfoAtPos
           (body: WrittenTypes.Const)
           (position: LanguageServerProtocol.Position.Position)
+          (pm: ProgramTypes.PackageManager.PackageManager)
           (owner: String)
           (currentModules: List<String>)
           : Stdlib.Option.Option<Info> =
@@ -745,7 +746,7 @@ module Darklang =
               // check if we are hovering over one of the list elements
               contents
               |> Stdlib.List.filterMap (fun (c, _) ->
-                collectConstBodyHoverInfoAtPos c position owner currentModules)
+                collectConstBodyHoverInfoAtPos c position pm owner currentModules)
               |> Stdlib.List.head
             else
               Stdlib.Option.Option.None
@@ -784,7 +785,7 @@ module Darklang =
                     (hoverInfoForThingAtPosition thingAtPosition r)
                     |> Stdlib.Option.Option.Some
 
-                  | None -> collectConstBodyHoverInfoAtPos c position owner currentModules)
+                  | None -> collectConstBodyHoverInfoAtPos c position pm owner currentModules)
                 |> Stdlib.List.head
             else
               Stdlib.Option.Option.None
@@ -794,20 +795,35 @@ module Darklang =
             // check if position is within the Tuple constant range
             if CursorPosition.isLineNumberInRange position r then
               // check if we are hovering over the first constant
-              match collectConstBodyHoverInfoAtPos first position owner currentModules with
+              match collectConstBodyHoverInfoAtPos first position pm owner currentModules with
               | Some r -> Stdlib.Option.Option.Some r
               | None ->
                 // check if we are hovering over the second constant
                 match
-                  collectConstBodyHoverInfoAtPos second position owner currentModules
+                  collectConstBodyHoverInfoAtPos second position pm owner currentModules
                 with
                 | Some r -> Stdlib.Option.Option.Some r
                 | None ->
                   // check if we are hovering over one of the rest constants
                   rest
                   |> Stdlib.List.filterMap (fun (_, c) ->
-                    collectConstBodyHoverInfoAtPos c position owner currentModules)
+                    collectConstBodyHoverInfoAtPos c position pm owner currentModules)
                   |> Stdlib.List.head
+            else
+              Stdlib.Option.Option.None
+
+          | CRecord(r, typeName, fields) ->
+            // check if position is within the Record constant range
+            if CursorPosition.isLineNumberInRange position r then
+              collectRecordHoverInfo
+                typeName
+                fields
+                position
+                r
+                pm
+                owner
+                currentModules
+                HoverInformation.collectConstBodyHoverInfoAtPos
             else
               Stdlib.Option.Option.None
 
@@ -872,7 +888,7 @@ module Darklang =
 
             | None ->
               // check if we are hovering over the constant body
-              collectConstBodyHoverInfoAtPos c.body position owner currentModules
+              collectConstBodyHoverInfoAtPos c.body position pm owner currentModules
 
 
         // ---------------------------
@@ -1449,6 +1465,57 @@ module Darklang =
                   collectTypeRefHoverInfoAtPos tr position pm owner currentModules)
                 |> Stdlib.List.head
 
+        let collectRecordHoverInfo
+          (typeName: WrittenTypes.QualifiedTypeIdentifier)
+          (fields: List<((WrittenTypes.Range * String) * 'a)>)
+          (position: LanguageServerProtocol.Position.Position)
+          (range: WrittenTypes.Range)
+          (pm: ProgramTypes.PackageManager.PackageManager)
+          (owner: String)
+          (currentModules: List<String>)
+          (hoverInfoFn:
+            'a
+              -> LanguageServerProtocol.Position.Position
+              -> ProgramTypes.PackageManager.PackageManager
+              -> String
+              -> List<String>
+              -> Stdlib.Option.Option<Info>)
+          : Stdlib.Option.Option<Info> =
+          // check if we are hovering over the fully qualified type name
+          match
+            CursorPosition.checkIfPositionWithinRange position typeName.range
+          with
+          | Some r ->
+            collectTypeNameHoverInfoAtPos
+              typeName
+              position
+              pm
+              owner
+              currentModules
+
+          | None ->
+            // check if we are hovering over one of the fields
+            fields
+            |> Stdlib.List.filterMap (fun field ->
+              let ((nameRange, fieldName), value) = field
+              match CursorPosition.checkIfPositionWithinRange position nameRange with
+              | Some r ->
+                // Hovering over field name - show field information
+                let description =
+                  Stdlib.Option.Option.Some(
+                    $"Record field: {fieldName}"
+                  )
+                
+                let thingAtPosition =
+                  CursorPosition.ThingAtPosition.FieldName(fieldName, description)
+                
+                (hoverInfoForThingAtPosition thingAtPosition r)
+                |> Stdlib.Option.Option.Some
+              | None ->
+                // Check if hovering over field value
+                hoverInfoFn value position pm owner currentModules)
+            |> Stdlib.List.head
+
         let collectEnumHoverInfo
           (typeName: WrittenTypes.QualifiedTypeIdentifier)
           (caseName: (WrittenTypes.Range * String))
@@ -1461,6 +1528,8 @@ module Darklang =
           (hoverInfoFn:
             'a
               -> LanguageServerProtocol.Position.Position
+              -> ProgramTypes.PackageManager.PackageManager
+              -> String
               -> List<String>
               -> Stdlib.Option.Option<Info>)
           : Stdlib.Option.Option<Info> =
