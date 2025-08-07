@@ -692,7 +692,7 @@ module Darklang =
             { name = "scripts"
               description = "Manage stored scripts"
               aliases = []
-              arguments = ["[list|view|add|edit|delete|run] <args>"]
+              arguments = ["[list|view|add|edit|delete|run]"; "<args>"]
               execute = fun state args ->
                 let parts = args |> Stdlib.String.split " " |> Stdlib.List.filter (fun s -> Stdlib.Bool.not (Stdlib.String.isEmpty s))
 
