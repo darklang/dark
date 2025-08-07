@@ -51,40 +51,34 @@ let get (name : string) : Task<Option<Script>> =
 /// Add a new script
 let add (name : string) (text : string) : Task<Result<Script, string>> =
   task {
-    let id = System.Guid.NewGuid()
-    try
-      let! _ =
-        Sql.query
-          """
-          INSERT INTO scripts_v0 (id, name, text)
-          VALUES (@id, @name, @text)
-          """
-        |> Sql.parameters
-          [ "id", Sql.string (string id)
-            "name", Sql.string name
-            "text", Sql.string text ]
-        |> Sql.executeNonQueryAsync
+    let! existing = get name
+    match existing with
+    | Some _ -> return Error $"Script with name '{name}' already exists"
+    | None ->
+      let id = System.Guid.NewGuid()
+      try
+        do!
+          Sql.query
+            """
+            INSERT INTO scripts_v0 (id, name, text)
+            VALUES (@id, @name, @text)
+            """
+          |> Sql.parameters
+            [ "id", Sql.string (string id)
+              "name", Sql.string name
+              "text", Sql.string text ]
+          |> Sql.executeStatementAsync
 
-      return Ok { id = id; name = name; text = text }
-    with
-    | :? SqliteException as e when e.Message.Contains("UNIQUE constraint failed") ->
-      // Unique constraint violation
-      return Error $"Script with name '{name}' already exists"
-    | :? System.AggregateException as ae ->
-      // Unwrap AggregateException to get the real exception
-      let innerException = ae.InnerExceptions |> Seq.head
-      match innerException with
-      | :? SqliteException as e when e.Message.Contains("UNIQUE constraint failed") ->
-        return Error $"Script with name '{name}' already exists"
-      | _ -> return Error $"Failed to add script: {innerException.Message}"
-    | e -> return Error $"Failed to add script: {e.Message}"
+        return Ok { id = id; name = name; text = text }
+      with e ->
+        return Error $"Failed to add script: {e.Message}"
   }
 
 /// Update an existing script's text
 let update (name : string) (text : string) : Task<Result<unit, string>> =
   task {
     try
-      let! rowsAffected =
+      let! rowCount =
         Sql.query
           """
           UPDATE scripts_v0
@@ -94,10 +88,7 @@ let update (name : string) (text : string) : Task<Result<unit, string>> =
         |> Sql.parameters [ "text", Sql.string text; "name", Sql.string name ]
         |> Sql.executeNonQueryAsync
 
-      if rowsAffected = 0 then
-        return Error $"Script '{name}' not found"
-      else
-        return Ok()
+      if rowCount = 0 then return Error $"Script '{name}' not found" else return Ok()
     with e ->
       return Error $"Failed to update script: {e.Message}"
   }
@@ -106,7 +97,7 @@ let update (name : string) (text : string) : Task<Result<unit, string>> =
 let delete (name : string) : Task<Result<unit, string>> =
   task {
     try
-      let! rowsAffected =
+      let! rowCount =
         Sql.query
           """
           DELETE FROM scripts_v0
@@ -115,10 +106,7 @@ let delete (name : string) : Task<Result<unit, string>> =
         |> Sql.parameters [ "name", Sql.string name ]
         |> Sql.executeNonQueryAsync
 
-      if rowsAffected = 0 then
-        return Error $"Script '{name}' not found"
-      else
-        return Ok()
+      if rowCount = 0 then return Error $"Script '{name}' not found" else return Ok()
     with e ->
       return Error $"Failed to delete script: {e.Message}"
   }
