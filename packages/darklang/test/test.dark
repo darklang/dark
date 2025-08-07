@@ -56,3 +56,8 @@ module Darklang =
       let enumConst = Stdlib.Option.Option.Some 5L
       let listConst = [ 1L; 2L; 3L ]
       let dictConst = Dict { a = 1L; b = 2L; c = 3L }
+      let recordConst = Stdlib.Cli.Host.Host {
+        os = Stdlib.Cli.OS.OS.Linux
+        architecture = Stdlib.Cli.Architecture.Architecture.X86_64
+        defaultShell = Stdlib.Cli.Shell.Shell.Bash
+      }
