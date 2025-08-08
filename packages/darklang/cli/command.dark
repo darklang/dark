@@ -129,7 +129,7 @@ module Darklang =
       /// Get version information with latest release comparison
       let getVersionInfo () : String =
         let currentVersion = cliVersion ()
-        match GitHub.Releases.getLatestReleaseTag () with
+        match GitHub.Releases.getLatestReleaseBuildHash () with
         | Ok latestVersion ->
           if currentVersion == latestVersion then
             $"Darklang CLI {currentVersion} (up to date)"
