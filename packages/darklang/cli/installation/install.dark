@@ -1,9 +1,9 @@
 module Darklang =
   module Cli =
-    module LocalInstall =
+    module Installation =
       /// Helps to download the latest release of the Darklang CLI,
       /// and replace the current version with it.
-      module Installation =
+      module Install =
         let basename (url: String) : Stdlib.Result.Result<String, String> =
           let basename = url |> Stdlib.String.split "/" |> Stdlib.List.last
 
@@ -12,10 +12,21 @@ module Darklang =
           | None -> Stdlib.Result.Result.Error "Failed to get asset name"
 
 
-        // TODO: delete old version of the executable, if the new version is working correctly
+        // CLEANUP delete old version of the executable,
+        //  if/when the new version is working correctly
         let installOrUpdateLatestRelease
           (host: Stdlib.Cli.Host.Host)
           : Stdlib.Result.Result<Unit, String> =
+
+          let latestReleaseTag =
+            (GitHub.Releases.getLatestReleaseTag ()) |> Builtin.unwrap
+
+          let downloadUrl = // will be something like `darklang-linux-x64.gz`
+            (GitHub.Releases.getDownloadUrl host latestReleaseTag)
+            |> Builtin.unwrap
+
+          let assetName = (basename downloadUrl) |> Builtin.unwrap
+
           match host.os with
           | Windows ->
             let homeDirectory =
@@ -26,15 +37,6 @@ module Darklang =
 
             let ensureDirectoryExists =
               Stdlib.Cli.PowerShell.ensureDirectoryExists executableDir
-
-            let latestReleaseTag =
-              (GitHub.Releases.getLatestReleaseTag bearerToken) |> Builtin.unwrap
-
-            let downloadUrl = // will be something like `darklang-linux-x64.gz`
-              (GitHub.Releases.getDownloadUrl host bearerToken latestReleaseTag)
-              |> Builtin.unwrap
-
-            let assetName = (basename downloadUrl) |> Builtin.unwrap
 
             let downloadTo = $"{executableDir}{assetName}"
 
@@ -53,14 +55,14 @@ module Darklang =
               extractedExecutablePath)
             |> Builtin.unwrap
 
+            (Stdlib.Cli.PowerShell.createFile configPath) |> Builtin.unwrap
+
+            (Config.updateVersion configPath latestReleaseTag) |> Builtin.unwrap
+
             (Stdlib.Cli.PowerShell.removeFile downloadTo) |> Builtin.unwrap
 
             (Stdlib.Cli.PowerShell.grantExecutePermission extractedExecutablePath)
             |> Builtin.unwrap
-
-            (Stdlib.Cli.PowerShell.createFile configPath) |> Builtin.unwrap
-
-            (Config.updateVersion configPath latestReleaseTag) |> Builtin.unwrap
 
             (Stdlib.Cli.PowerShell.deleteAlias "dark") |> Builtin.unwrap
 
@@ -75,20 +77,10 @@ module Darklang =
 
             (Stdlib.Cli.Unix.ensureDirectoryExists executableDir) |> Builtin.unwrap
 
-            let latestReleaseTag =
-              (GitHub.Releases.getLatestReleaseTag bearerToken) |> Builtin.unwrap
-
-            let downloadUrl = // will be something like `darklang-linux-x64.gz`
-              (GitHub.Releases.getDownloadUrl host bearerToken latestReleaseTag)
-              |> Builtin.unwrap
-
-            let assetName = (basename downloadUrl) |> Builtin.unwrap
-
             let downloadTo = $"{executableDir}{assetName}"
 
             (Stdlib.Cli.Curl.downloadFileToPath downloadUrl downloadTo)
             |> Builtin.unwrap
-
 
             // unzip the .gz file
             let extractedExecutablePath =
@@ -97,7 +89,6 @@ module Darklang =
               else
                 // TODO: error here better
                 Stdlib.Result.Result.Error "Asset is not a .gz file"
-
 
             (Stdlib.Cli.Gunzip.unzipToFile downloadTo extractedExecutablePath)
             |> Builtin.unwrap

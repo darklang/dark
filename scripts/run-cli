@@ -37,4 +37,6 @@ do
   fi
 done
 
+GIT_COMMIT=$(git rev-parse --short HEAD)
+export GIT_COMMIT
 "${EXE}" "$@" 2>&1 | tee "${CLI_LOG}"

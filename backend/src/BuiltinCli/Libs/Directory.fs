@@ -97,6 +97,25 @@ let fns : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "getCurrentExecutablePath" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TString
+      description = "Returns the full path to the currently running executable"
+      fn =
+        (function
+        | _, _, _, [ DUnit ] ->
+          uply {
+            let exePath =
+              System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName
+            return DString exePath
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
       deprecated = NotDeprecated } ]
 
 

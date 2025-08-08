@@ -73,7 +73,7 @@ module Darklang =
       //   | EnterUsernameAndPassword // TODO: collect
       //   | LogOut
 
-      // type LocalInstallCommand =
+      // type InstallationCommand =
       //   | ShowInstallInfo
       //   | Install // aliases "init", "setup"
       //   | Config
@@ -121,8 +121,22 @@ module Darklang =
           (trimmed, "")
 
 
-      /// CLI version string
-      let cliVersion = "Darklang CLI (alpha)"
+      /// CLI version string - just the version number
+      let cliVersion (): String =
+        let hash = Builtin.getBuildHash ()
+        $"alpha-{hash}"
+
+      /// Get version information with latest release comparison
+      let getVersionInfo () : String =
+        let currentVersion = cliVersion ()
+        match GitHub.Releases.getLatestReleaseTag () with
+        | Ok latestVersion ->
+          if currentVersion == latestVersion then
+            $"Darklang CLI {currentVersion} (up to date)"
+          else
+            $"Darklang CLI {currentVersion} (latest: {latestVersion} - update available!)"
+        | Error _ ->
+          $"Darklang CLI {currentVersion} (unable to check for updates)"
 
       /// Constructs a module prefix from owner and submodules
       let constructModulePrefix (owner: String) (submodules: List<String>) : String =
@@ -407,6 +421,7 @@ module Darklang =
                     (newState, [])
             }
 
+
           // `help`
           CommandDetails
             { name = "help"
@@ -443,9 +458,32 @@ module Darklang =
                   |> Stdlib.List.map (fun color -> $"{color}  {CliColors.reset}")
                   |> Stdlib.String.join ""
 
+                let versionInfo = getVersionInfo ()
+                let currentMode = Installation.getInstallationMode ()
+
+                let modeInfo =
+                  match currentMode with
+                  | Installed ->
+                    let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
+                    let homeDir =
+                      match host.os with
+                      | Windows ->
+                        match Stdlib.Cli.PowerShell.getHomeDirectory () with
+                        | Ok dir -> $"{dir}\\.darklang"
+                        | Error _ -> "~/.darklang"
+                      | _ ->
+                        match Stdlib.Cli.Unix.getHomeDirectory () with
+                        | Ok dir -> $"{dir}/.darklang"
+                        | Error _ -> "~/.darklang"
+                    $"{CliColors.green}Installed at:{CliColors.reset} {homeDir}"
+                  | Portable ->
+                    let currentDir = Builtin.directoryCurrent ()
+                    $"{CliColors.yellow}Working locally out of:{CliColors.reset} {currentDir}/.darklang"
+
                 let helpText =
-                   (Stdlib.List.append cmdNameDesc ["\n"; colorBar])
-                   |> Stdlib.List.push $"Available commands:\n"
+                   (Stdlib.List.append
+                     [versionInfo; modeInfo; ""; "Available commands:"]
+                     (Stdlib.List.append cmdNameDesc ["\n"; colorBar]))
 
                 let helpContent = combineLogoAndText logo helpText CliColors.darkGray
                 let newState = { state with commandResult = CommandResult.Info helpContent }
@@ -459,7 +497,8 @@ module Darklang =
               aliases = ["v"]
               arguments = []
               execute = fun state _ ->
-                let newState = { state with commandResult = CommandResult.Info cliVersion }
+                let versionInfo = getVersionInfo ()
+                let newState = { state with commandResult = CommandResult.Info versionInfo }
                 (newState, [])
             }
 
@@ -558,7 +597,7 @@ module Darklang =
                 //- alerts
                 //- running processes, servers, etc.
                 // Generate status information
-                let version = cliVersion
+                let version = getVersionInfo ()
                 let location =
                   // TODO this isn't what I was expecting... this always says we're at the CLI namespace...
                   PrettyPrinter.ProgramTypes.packageName "Darklang" [] "CLI"
@@ -573,11 +612,33 @@ module Darklang =
                   | RefreshScreen -> "Refresh screen"
                   | Regular -> "Regular"
 
+                let currentMode = Installation.getInstallationMode ()
+
+                let installationStatus =
+                  match currentMode with
+                  | Installed ->
+                    let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
+                    let homeDir =
+                      match host.os with
+                      | Windows ->
+                        match Stdlib.Cli.PowerShell.getHomeDirectory () with
+                        | Ok dir -> $"{dir}\\.darklang"
+                        | Error _ -> "~/.darklang"
+                      | _ ->
+                        match Stdlib.Cli.Unix.getHomeDirectory () with
+                        | Ok dir -> $"{dir}/.darklang"
+                        | Error _ -> "~/.darklang"
+                    $"{CliColors.green}Status:{CliColors.reset} Globally installed at {homeDir} and ready to use"
+                  | Portable ->
+                    let currentDir = Builtin.directoryCurrent ()
+                    $"{CliColors.yellow}Status:{CliColors.reset} Running in portable mode at {currentDir}/.darklang (run 'install' for global system-wide access)"
+
                 let textContent =
                   [
                     $"{CliColors.magenta}Version:{CliColors.reset} {version}"
                     $"{CliColors.magenta}Location:{CliColors.reset} {currentLocation}"
                     $"{CliColors.magenta}Mode:{CliColors.reset} {modeDisplay}"
+                    installationStatus
                     ""
                     $"Type {CliColors.gray}'help'{CliColors.reset} for available commands"
                   ] |> Stdlib.String.join "\n"
@@ -596,72 +657,7 @@ module Darklang =
               execute = fun state _ -> (state, [Msg.NavigateBack])
             }
 
-          // Install command
-          CommandDetails
-            { name = "install"
-              description = "Install the darklang CLI globally"
-              aliases = []
-              arguments = []
-              execute = fun state _ ->
-                Builtin.printLine "Installing..."
-                let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
 
-                match LocalInstall.Installation.installOrUpdateLatestRelease host with
-                | Ok _ ->
-                  let newState = { state with commandResult = CommandResult.Success "Install complete" }
-                  (newState, [])
-                | Error e ->
-                  let newState = { state with commandResult = CommandResult.Error e }
-                  (newState, [])
-            }
-
-          // Update command
-          CommandDetails
-            { name = "update"
-              description = "Update the darklang CLI to the latest version"
-              aliases = []
-              arguments = []
-              execute = fun state _ ->
-                Builtin.printLine "Updating..."
-                let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
-
-                match LocalInstall.Installation.installOrUpdateLatestRelease host with
-                | Ok _ ->
-                  let newState = { state with commandResult = CommandResult.Success "Update complete" }
-                  (newState, [])
-                | Error e ->
-                  let newState = { state with commandResult = CommandResult.Error e }
-                  (newState, [])
-            }
-
-          // Uninstall command
-          CommandDetails
-            { name = "uninstall"
-              description = "Uninstall the darklang CLI"
-              aliases = []
-              arguments = []
-              execute = fun state _ ->
-                Builtin.printLine "Are you sure you want to uninstall darklang cli? (y/n): "
-                let response = Builtin.stdinReadLine ()
-
-                if response == "y" || response == "Y" then
-                  Builtin.printLine "Uninstalling..."
-                  let r =
-                    (Stdlib.Cli.Host.getRuntimeHost ())
-                    |> Stdlib.Result.andThen (fun host ->
-                      LocalInstall.Uninstall.runUninstall host)
-
-                  match r with
-                  | Ok _ ->
-                    let newState = { state with commandResult = CommandResult.Success "Uninstall complete" }
-                    (newState, [])
-                  | Error e ->
-                    let newState = { state with commandResult = CommandResult.Error e }
-                    (newState, [])
-                else
-                  let newState = { state with commandResult = CommandResult.Info "Uninstall cancelled" }
-                  (newState, [])
-            }
 
           // Run function command
           CommandDetails
@@ -803,7 +799,118 @@ module Darklang =
                   let newState = { state with commandResult = CommandResult.Error "Invalid scripts command. Use 'scripts' to see available commands" }
                   (newState, [])
             }
+
+
+          // Install command
+          CommandDetails
+            { name = "install"
+              description = "Install the darklang CLI globally"
+              aliases = []
+              arguments = []
+              execute = fun state _ ->
+                let currentMode = Installation.getInstallationMode ()
+                match currentMode with
+                | Installed ->
+                  let newState = { state with commandResult = CommandResult.Info "Already installed globally" }
+                  (newState, [])
+                | Portable ->
+                  let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
+                  let currentDir = Builtin.directoryCurrent ()
+
+                  if Installation.globalInstallationExists host then
+                    let homeDir =
+                      match host.os with
+                      | Windows ->
+                        match Stdlib.Cli.PowerShell.getHomeDirectory () with
+                        | Ok dir -> $"{dir}\\.darklang"
+                        | Error _ -> "~/.darklang"
+                      | _ ->
+                        match Stdlib.Cli.Unix.getHomeDirectory () with
+                        | Ok dir -> $"{dir}/.darklang"
+                        | Error _ -> "~/.darklang"
+
+                    let message = $"Detected portable mode - you're running from {currentDir}/.darklang\nFound existing global installation at {homeDir}\n\nIf you'd like to update your global installation, please run `dark` rather than this portable executable."
+                    let newState = { state with commandResult = CommandResult.Info message }
+                    (newState, [])
+                  else
+                    Builtin.printLine "Choose installation method:"
+                    Builtin.printLine "1. Copy this binary (for testing local changes)"
+                    Builtin.printLine "2. Download latest release from GitHub"
+                    Builtin.printLine "Choose option (1 or 2, default: 2): "
+                    let choice = (Builtin.stdinReadLine ()) |> Stdlib.String.trim
+
+                    if choice == "1" then
+                      match Installation.installFromCurrentBinary host with
+                      | Ok message ->
+                        let newState = { state with commandResult = CommandResult.Success message }
+                        (newState, [])
+                      | Error e ->
+                        let newState = { state with commandResult = CommandResult.Error e }
+                        (newState, [])
+                    else
+                      Builtin.printLine "Installing globally..."
+                      match Installation.install host with
+                      | Ok message ->
+                        let newState = { state with commandResult = CommandResult.Success message }
+                        (newState, [])
+                      | Error e ->
+                        let newState = { state with commandResult = CommandResult.Error e }
+                        (newState, [])
+            }
+
+          // Update command
+          CommandDetails
+            { name = "update"
+              description = "Update the darklang CLI to the latest version"
+              aliases = []
+              arguments = []
+              execute = fun state _ ->
+                let currentVersion = cliVersion ()
+                let currentMode = Installation.getInstallationMode ()
+
+                match currentMode with
+                | Installed ->
+                  Builtin.printLine $"Checking for updates from Darklang CLI {currentVersion}..."
+                  let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
+                  match Installation.updateIfAvailable currentVersion host with
+                  | Ok message ->
+                    let newState = { state with commandResult = CommandResult.Success message }
+                    (newState, [])
+                  | Error e ->
+                    let newState = { state with commandResult = CommandResult.Error e }
+                    (newState, [])
+                | Portable ->
+                  let message = $"Running in portable mode from {Builtin.directoryCurrent ()}/.darklang\n\nTo update this portable executable, please download the latest release manually from:\nhttps://github.com/darklang/dark/releases\n\nFor automatic updates, consider running 'install' to set up global installation."
+                  let newState = { state with commandResult = CommandResult.Info message }
+                  (newState, [])
+            }
+
+          // Uninstall command
+          CommandDetails
+            { name = "uninstall"
+              description = "Uninstall the darklang CLI"
+              aliases = []
+              arguments = []
+              execute = fun state _ ->
+                let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
+                match Installation.uninstallWithConfirmation host with
+                | Ok message ->
+                  let newState = { state with commandResult = CommandResult.Success message }
+                  (newState, [])
+                | Error e ->
+                  let newState = { state with commandResult = CommandResult.Error e }
+                  (newState, [])
+            }
         ]
+
+        // Filter commands based on installation mode
+        let currentMode = Installation.getInstallationMode ()
+        let filteredBaseCommands =
+          baseCommands
+          |> Stdlib.List.filter (fun cmd ->
+            match cmd.name with
+            | "uninstall" -> currentMode == Installation.InstallationMode.Installed
+            | _ -> true)
 
         // Context-specific commands
         let contextCommands =
@@ -999,7 +1106,7 @@ module Darklang =
                 }
             ]
 
-        Stdlib.List.append baseCommands contextCommands
+        Stdlib.List.append filteredBaseCommands contextCommands
 
 
       /// Finds a command by name or alias

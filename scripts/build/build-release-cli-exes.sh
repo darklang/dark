@@ -13,7 +13,11 @@ sha=$(git rev-parse HEAD | cut -c 1-10)
 
 release="alpha-$sha"
 
+# Export GIT_COMMIT so the built binary includes the git hash
+export GIT_COMMIT="$sha"
+
 mkdir -p clis
+rm -rf clis/.darklang
 
 # Force WAL checkpoint to ensure all data is committed to main DB before embedding
 echo "Forcing WAL checkpoint to commit all data before embedding database..."
