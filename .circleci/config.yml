@@ -190,7 +190,7 @@ jobs:
               <(date +"%U%Y") | shasum > ../parser-checksum
       - restore_cache:
           keys:
-            - v1-parser-{{ checksum "../parser-checksum" }}
+            - v2-parser-{{ checksum "../parser-checksum" }}
       - run:
           name: Check if parser already built
           command: |
@@ -224,10 +224,11 @@ jobs:
           paths:
             - tree-sitter-darklang/node_modules
             - tree-sitter-darklang/build
+            - tree-sitter-darklang/src
             - tree-sitter-darklang/tree-sitter-darklang.so
             - tree-sitter-darklang/xplat-builds
             - backend/src/LibTreeSitter/lib
-          key: v1-parser-{{ checksum "../parser-checksum" }}
+          key: v2-parser-{{ checksum "../parser-checksum" }}
       - persist_to_workspace:
           root: "."
           paths:
