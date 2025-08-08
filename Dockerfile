@@ -128,6 +128,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       bash-completion \
       openssh-server \
       dnsutils \
+      openjdk-11-jdk \
       # .NET dependencies - https://github.com/dotnet/dotnet-docker/blob/master/src/runtime-deps/3.1/bionic/amd64/Dockerfile
       libc6 \
       libgcc1 \
@@ -220,6 +221,12 @@ RUN /home/dark/install-gz-file \
   --amd64-sha256=704a31cd89911a0f7d1741ee9ca32ca0f5496b06370bf398dfc5b7d3a31ef563 \
   --url=https://github.com/jpillora/chisel/releases/download/v1.9.1/chisel_1.9.1_linux_${TARGETARCH}.gz \
   --target=/usr/bin/chisel
+
+############################
+# Java version management
+############################
+# Set Java 11 as default for gcloud tools (including PubSub emulator)
+ENV JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
 
 ############################
 # PubSub
