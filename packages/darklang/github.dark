@@ -32,21 +32,48 @@ module Darklang =
           assets: List<Asset> }
 
       /// Get tag of the most recent Darklang release, from the GitHub API
-      /// Returns the version in the same format as the CLI (e.g. "alpha-abe74e7")
+      /// (i.e. `v0.0.19`)
       ///
       /// TODO: typify the error type
       let getLatestReleaseTag () : Stdlib.Result.Result<String, String> =
         match fetchString $"{darklangRepoBaseUrl}/releases" with
         | Ok releasesJsonString ->
-          let releases = (Builtin.jsonParse<List<Release>> releasesJsonString) |> Builtin.unwrap
-          let latestRelease = (Stdlib.List.head releases) |> Builtin.unwrap
-          let firstAsset = (Stdlib.List.head latestRelease.assets) |> Builtin.unwrap
-          // Asset name format: darklang-alpha-BUILDHASH-platform
-          // Extract the alpha-HASH part
-          let parts = Stdlib.String.split firstAsset.name "-"
-          let hash = (Stdlib.List.getAt parts 2L) |> Builtin.unwrap
-          // Return in same format as CLI version
-          Stdlib.Result.Result.Ok $"alpha-{Stdlib.String.slice hash 0L 7L}"
+          match Builtin.jsonParse<List<Release>> releasesJsonString with
+          | Ok releases ->
+            match Stdlib.List.head releases with
+            | Some latestRelease -> latestRelease.tag_name |> Stdlib.Result.Result.Ok
+            | None -> Stdlib.Result.Result.Error "No releases found"
+          | Error _e ->
+            Stdlib.Result.Result.Error "Couldn't parse releases JSON string"
+        | Error _e ->
+          Stdlib.Result.Result.Error "Couldn't fetch releases list from GitHub API"
+
+      /// Get the build hash version from the latest release assets
+      /// Returns in CLI format (e.g. "alpha-abe74e7") for version comparison
+      let getLatestReleaseBuildHash () : Stdlib.Result.Result<String, String> =
+        match fetchString $"{darklangRepoBaseUrl}/releases" with
+        | Ok releasesJsonString ->
+          match Builtin.jsonParse<List<Release>> releasesJsonString with
+          | Ok releases ->
+            match Stdlib.List.head releases with
+            | Some latestRelease ->
+              match Stdlib.List.head latestRelease.assets with
+              | Some firstAsset ->
+                // Asset name format: darklang-alpha-BUILDHASH-platform
+                let parts = Stdlib.String.split firstAsset.name "-"
+                match Stdlib.List.getAt parts 2L with
+                | Some hash ->
+                  // Return in same format as CLI version (first 7 chars)
+                  Stdlib.Result.Result.Ok $"alpha-{Stdlib.String.slice hash 0L 7L}"
+                | None -> 
+                  // Fallback to tag name if we can't parse hash
+                  Stdlib.Result.Result.Ok latestRelease.tag_name
+              | None ->
+                // No assets, fallback to tag name  
+                Stdlib.Result.Result.Ok latestRelease.tag_name
+            | None -> Stdlib.Result.Result.Error "No releases found"
+          | Error _e ->
+            Stdlib.Result.Result.Error "Couldn't parse releases JSON string"
         | Error _e ->
           Stdlib.Result.Result.Error "Couldn't fetch releases list from GitHub API"
 
