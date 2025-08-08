@@ -32,19 +32,21 @@ module Darklang =
           assets: List<Asset> }
 
       /// Get tag of the most recent Darklang release, from the GitHub API
-      /// (i.e. `v0.0.19`)
+      /// Returns the version in the same format as the CLI (e.g. "alpha-abe74e7")
       ///
       /// TODO: typify the error type
       let getLatestReleaseTag () : Stdlib.Result.Result<String, String> =
         match fetchString $"{darklangRepoBaseUrl}/releases" with
         | Ok releasesJsonString ->
-          match Builtin.jsonParse<List<Release>> releasesJsonString with
-          | Ok releases ->
-            match Stdlib.List.head releases with
-            | Some latestRelease -> latestRelease.tag_name |> Stdlib.Result.Result.Ok
-            | None -> Stdlib.Result.Result.Error "No releases found"
-          | Error _e ->
-            Stdlib.Result.Result.Error "Couldn't parse releases JSON string"
+          let releases = (Builtin.jsonParse<List<Release>> releasesJsonString) |> Builtin.unwrap
+          let latestRelease = (Stdlib.List.head releases) |> Builtin.unwrap
+          let firstAsset = (Stdlib.List.head latestRelease.assets) |> Builtin.unwrap
+          // Asset name format: darklang-alpha-BUILDHASH-platform
+          // Extract the alpha-HASH part
+          let parts = Stdlib.String.split firstAsset.name "-"
+          let hash = (Stdlib.List.getAt parts 2L) |> Builtin.unwrap
+          // Return in same format as CLI version
+          Stdlib.Result.Result.Ok $"alpha-{Stdlib.String.slice hash 0L 7L}"
         | Error _e ->
           Stdlib.Result.Result.Error "Couldn't fetch releases list from GitHub API"
 
