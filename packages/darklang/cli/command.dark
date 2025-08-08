@@ -797,6 +797,9 @@ module Darklang =
 
                 | _ ->
                   let newState = { state with commandResult = CommandResult.Error "Invalid scripts command. Use 'scripts' to see available commands" }
+                  (newState, [])
+            }
+
 
           // Install command
           CommandDetails
