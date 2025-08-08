@@ -15,7 +15,7 @@
   
   <Target Name="EmbedGitHash" BeforeTargets="BeforeBuild">
     <MakeDir Directories="$(IntermediateOutputPath)" />
-    <Exec Command="git rev-parse --short HEAD > $(IntermediateOutputPath)build-hash.txt" />
+    <Exec Command="git rev-parse --short=7 HEAD > $(IntermediateOutputPath)build-hash.txt" />
     <ItemGroup>
       <EmbeddedResource Include="$(IntermediateOutputPath)build-hash.txt" />
     </ItemGroup>
