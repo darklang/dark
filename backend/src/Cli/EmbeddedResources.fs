@@ -73,11 +73,16 @@ let extract () : unit =
       if not (Directory.Exists(darklangDir)) then
         true
       else
-        // Directory exists, ask user if they want to overwrite
-        printfn $"Found existing .darklang directory at {darklangDir}"
-        printf "Overwrite existing data? (y/n): "
-        let response = Console.ReadLine()
-        response = "y" || response = "Y"
+        // Directory exists - only ask to overwrite in portable mode
+        // In installed mode, always preserve existing data
+        if isInstalledMode () then
+          false
+        else
+          // Portable mode: ask user if they want to overwrite
+          printfn $"Found existing .darklang directory at {darklangDir}"
+          printf "Overwrite existing data? (y/n): "
+          let response = Console.ReadLine()
+          response = "y" || response = "Y"
 
     if shouldExtract then
       printfn $"Setting up Darklang CLI data directory at {darklangDir}"
