@@ -896,7 +896,8 @@ module Darklang =
                 match Installation.uninstallWithConfirmation host with
                 | Ok message ->
                   let newState = { state with commandResult = CommandResult.Success message }
-                  (newState, [])
+                  // Exit after successful uninstall since the executable is being removed
+                  (newState, [Msg.Quit])
                 | Error e ->
                   let newState = { state with commandResult = CommandResult.Error e }
                   (newState, [])
