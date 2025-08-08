@@ -181,15 +181,53 @@ jobs:
     steps:
       - darkcheckout
       - setup-app
-      - run: ./scripts/build/build-tree-sitter.sh
+      # Generate checksum for parser cache based on files that affect the build
+      - run: |
+          cat tree-sitter-darklang/grammar.js \
+              tree-sitter-darklang/src/scanner.c \
+              tree-sitter-darklang/package.json \
+              tree-sitter-darklang/package-lock.json \
+              <(date +"%U%Y") | shasum > ../parser-checksum
+      - restore_cache:
+          keys:
+            - v1-parser-{{ checksum "../parser-checksum" }}
+      - run:
+          name: Check if parser already built
+          command: |
+            if [ -f backend/src/LibTreeSitter/lib/tree-sitter-darklang.so ]; then
+              echo "Parser already built from cache"
+              if [ "${CIRCLE_BRANCH}" = "main" ]; then
+                # Check if cross-compiled files exist
+                if ls backend/src/LibTreeSitter/lib/tree-sitter-darklang-*.* 1> /dev/null 2>&1; then
+                  echo "Cross-compiled binaries exist, skipping build"
+                  echo "export SKIP_PARSER_BUILD=true" >> $BASH_ENV
+                fi
+              else
+                echo "export SKIP_PARSER_BUILD=true" >> $BASH_ENV
+              fi
+            fi
+      - run: |
+          if [ "$SKIP_PARSER_BUILD" != "true" ]; then
+            ./scripts/build/build-tree-sitter.sh
+          fi
       - run:
           command: |
-            if [ "${CIRCLE_BRANCH}" = "main" ]; then
-              ./scripts/build/build-parser --cross-compile
-            else
-              ./scripts/build/build-parser
+            if [ "$SKIP_PARSER_BUILD" != "true" ]; then
+              if [ "${CIRCLE_BRANCH}" = "main" ]; then
+                ./scripts/build/build-parser --cross-compile
+              else
+                ./scripts/build/build-parser
+              fi
             fi
       - run: cd tree-sitter-darklang && npm run test
+      - save_cache:
+          paths:
+            - tree-sitter-darklang/node_modules
+            - tree-sitter-darklang/build
+            - tree-sitter-darklang/tree-sitter-darklang.so
+            - tree-sitter-darklang/xplat-builds
+            - backend/src/LibTreeSitter/lib
+          key: v1-parser-{{ checksum "../parser-checksum" }}
       - persist_to_workspace:
           root: "."
           paths:
