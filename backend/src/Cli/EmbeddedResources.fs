@@ -69,26 +69,9 @@ let extract () : unit =
 
     Environment.SetEnvironmentVariable("DARK_CONFIG_RUNDIR", darklangDir)
 
-    let shouldExtract =
-      if not (Directory.Exists(darklangDir)) then
-        true
-      else
-        // Directory exists - only ask to overwrite in portable mode
-        // In installed mode, always preserve existing data
-        if isInstalledMode () then
-          false
-        else
-          // Portable mode: ask user if they want to overwrite
-          printfn $"Found existing .darklang directory at {darklangDir}"
-          printf "Overwrite existing data? (y/n): "
-          let response = Console.ReadLine()
-          response = "y" || response = "Y"
-
-    if shouldExtract then
+    // Only extract if .darklang directory doesn't exist yet
+    if not (Directory.Exists(darklangDir)) then
       printfn $"Setting up Darklang CLI data directory at {darklangDir}"
-
-      // Remove existing directory if it exists
-      if Directory.Exists(darklangDir) then Directory.Delete(darklangDir, true)
 
       // Extract database
       let dbPath = Path.Combine(darklangDir, "data.db")
