@@ -7,7 +7,7 @@ module Darklang =
           (InteractionMode.Regular, [ Msg.SubmitCommand "help" ])
         | _ ->
           let cmd = (args |> Stdlib.String.join " ")
-          (InteractionMode.NonInteractive, [ Msg.SubmitCommand cmd; Msg.Quit ])
+          (InteractionMode.NonInteractive, [ Msg.SubmitCommand cmd ])
 
       let state =
         State
@@ -22,7 +22,8 @@ module Darklang =
             interactionMode = interactionMode
             needsFullRedraw = true
             isExiting = false
-            completionState = Stdlib.Option.Option.None }
+            completionState = Stdlib.Option.Option.None
+            viewingState = Stdlib.Option.Option.None }
 
       // Return initial state and any initial messages to process
       (state, msgs)
