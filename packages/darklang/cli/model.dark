@@ -102,7 +102,9 @@ module Darklang =
           expandedCategories: List<EntityCategory>
           entityDefinition: Stdlib.Option.Option<EntityDefinition>
           /// Cache for entity definitions to avoid re-computing them
-          entityCache: List<(String * EntityDefinition)> }
+          entityCache: List<(String * EntityDefinition)>
+          /// Viewport scroll position for the module view (how many lines scrolled from top)
+          viewportScrollPosition: Int64 }
 
       type State =
         { /// The current page/view the user is on
