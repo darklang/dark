@@ -32,6 +32,12 @@ export class Node extends vscode.TreeItem {
         title: "Open Definition",
         arguments: [this.packagePath],
       };
+    } else if (this.type === "file" && this.id.startsWith("script/")) {
+      this.command = {
+        command: "darklang.openScript",
+        title: "Open Script",
+        arguments: [this.id],
+      };
     }
   }
 }
