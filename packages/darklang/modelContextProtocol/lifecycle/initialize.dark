@@ -10,11 +10,11 @@ module Darklang =
             tools: Stdlib.Option.Option<ToolClientCapabilities> }
 
         /// Resource client capabilities
-        and ResourceClientCapabilities =
+        type ResourceClientCapabilities =
           { contentFormat: Stdlib.Option.Option<List<String>> }
 
         /// Tool client capabilities
-        and ToolClientCapabilities =
+        type ToolClientCapabilities =
           { contentFormat: Stdlib.Option.Option<List<String>> }
 
         /// Parameters for the initialize request
@@ -24,7 +24,7 @@ module Darklang =
             trace: Stdlib.Option.Option<TraceLevel> }
 
         /// Client information
-        and ClientInfo =
+        type ClientInfo =
           { name: String
             version: Stdlib.Option.Option<String> }
 
@@ -42,7 +42,7 @@ module Darklang =
                     | Some (_, String v) -> Stdlib.Option.Option.Some v
                     | _ -> Stdlib.Option.Option.None
 
-                  Stdlib.Result.Result.Ok (Stdlib.Option.Option.Some { name = name; version = version })
+                  Stdlib.Result.Result.Ok (Stdlib.Option.Option.Some (ClientInfo { name = name; version = version }))
                 | _ -> Stdlib.Result.Result.Error "clientInfo.name must be a string"
               | Some (_, _) -> Stdlib.Result.Result.Error "clientInfo must be an object"
               | None -> Stdlib.Result.Result.Ok Stdlib.Option.Option.None
@@ -67,7 +67,7 @@ module Darklang =
                         Stdlib.Option.Option.Some stringFormats
                       | _ -> Stdlib.Option.Option.None
 
-                    Stdlib.Option.Option.Some { contentFormat = contentFormat }
+                    Stdlib.Option.Option.Some (ResourceClientCapabilities { contentFormat = contentFormat })
                   | _ -> Stdlib.Option.Option.None
 
                 // Parse tool capabilities
@@ -86,10 +86,10 @@ module Darklang =
                         Stdlib.Option.Option.Some stringFormats
                       | _ -> Stdlib.Option.Option.None
 
-                    Stdlib.Option.Option.Some { contentFormat = contentFormat }
+                    Stdlib.Option.Option.Some (ToolClientCapabilities { contentFormat = contentFormat })
                   | _ -> Stdlib.Option.Option.None
 
-                Stdlib.Result.Result.Ok { resources = resourceCapabilities; tools = toolCapabilities }
+                Stdlib.Result.Result.Ok (ClientCapabilities { resources = resourceCapabilities; tools = toolCapabilities })
               | Some (_, _) -> Stdlib.Result.Result.Error "capabilities must be an object"
               | None -> Stdlib.Result.Result.Error "capabilities is required"
 
@@ -105,7 +105,7 @@ module Darklang =
             // Combine all results
             match (clientInfoResult, capabilitiesResult, traceResult) with
             | (Ok clientInfo, Ok capabilities, Ok trace) ->
-                Stdlib.Result.Result.Ok { clientInfo = clientInfo; capabilities = capabilities; trace = trace }
+                Stdlib.Result.Result.Ok (InitializeParams { clientInfo = clientInfo; capabilities = capabilities; trace = trace })
             | (Error e, _, _) -> Stdlib.Result.Result.Error e
             | (_, Error e, _) -> Stdlib.Result.Result.Error e
             | (_, _, Error e) -> Stdlib.Result.Result.Error e
@@ -167,52 +167,53 @@ module Darklang =
           Json.Object fields
 
         /// Result of the initialize request
-        type InitializeResult =
-          { serverInfo: Stdlib.Option.Option<ServerInfo>
-            capabilities: ServerCapabilities }
+        module InitializeResult =
+          type InitializeResult =
+            { serverInfo: Stdlib.Option.Option<ServerInfo>
+              capabilities: ServerCapabilities }
 
-        let toJson (result: InitializeResult) : Json =
-          let serverInfoJson =
-            match result.serverInfo with
-            | Some info ->
-              Stdlib.Option.Option.Some (
-                "serverInfo",
-                Json.Object [
-                  ("name", Json.String info.name);
-                  ("version", Json.String info.version)
-                ]
-              )
-            | None -> Stdlib.Option.Option.None
+          let toJson (result: InitializeResult) : Json =
+            let serverInfoJson =
+              match result.serverInfo with
+              | Some info ->
+                Stdlib.Option.Option.Some ((
+                  "serverInfo",
+                  Json.Object [
+                    ("name", Json.String info.name);
+                    ("version", Json.String info.version)
+                  ]
+                ))
+              | None -> Stdlib.Option.Option.None
 
-          let resourceCapabilitiesJson =
-            match result.capabilities.resources with
-            | Some res ->
-              Stdlib.Option.Option.Some (
-                "resources",
-                Json.Object [
-                  ("supportsResourceListing", Json.Bool res.supportsResourceListing);
-                  ("supportsResourceTemplates", Json.Bool res.supportsResourceTemplates)
-                ]
-              )
-            | None -> Stdlib.Option.Option.None
+            let resourceCapabilitiesJson =
+              match result.capabilities.resources with
+              | Some res ->
+                Stdlib.Option.Option.Some ((
+                  "resources",
+                  Json.Object [
+                    ("supportsResourceListing", Json.Bool res.supportsResourceListing);
+                    ("supportsResourceTemplates", Json.Bool res.supportsResourceTemplates)
+                  ]
+                ))
+              | None -> Stdlib.Option.Option.None
 
-          let toolCapabilitiesJson =
-            match result.capabilities.tools with
-            | Some tools ->
-              Stdlib.Option.Option.Some (
-                "tools",
-                Json.Object [
-                  ("supportsToolListing", Json.Bool tools.supportsToolListing)
-                ]
-              )
-            | None -> Stdlib.Option.Option.None
+            let toolCapabilitiesJson =
+              match result.capabilities.tools with
+              | Some tools ->
+                Stdlib.Option.Option.Some ((
+                  "tools",
+                  Json.Object [
+                    ("supportsToolListing", Json.Bool tools.supportsToolListing)
+                  ]
+                ))
+              | None -> Stdlib.Option.Option.None
 
-          let capabilitiesFields =
-            [resourceCapabilitiesJson; toolCapabilitiesJson]
-            |> Stdlib.Option.values
+            let capabilitiesFields =
+              [resourceCapabilitiesJson; toolCapabilitiesJson]
+              |> Stdlib.Option.values
 
-          let fields =
-            [serverInfoJson; Stdlib.Option.Option.Some ("capabilities", Json.Object capabilitiesFields)]
-            |> Stdlib.Option.values
+            let fields =
+              [serverInfoJson; Stdlib.Option.Option.Some (("capabilities", Json.Object capabilitiesFields))]
+              |> Stdlib.Option.values
 
-          Json.Object fields
+            Json.Object fields
