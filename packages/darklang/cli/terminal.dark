@@ -22,20 +22,14 @@ module Darklang =
         if lineLength <= safeTerminalWidth then
           1L
         else
-          let quotient = lineLength |> Stdlib.Int64.divide safeTerminalWidth
+          // the number of full lines that fit completely in the terminal
+          let fullLineCount = lineLength |> Stdlib.Int64.divide safeTerminalWidth
           match lineLength |> Stdlib.Int64.remainder safeTerminalWidth with
-          | Ok remainder -> if remainder == 0L then quotient else quotient + 1L
-          | Error _ -> quotient + 1L
+          | Ok remainder -> if remainder == 0L then fullLineCount else fullLineCount + 1L
+          | Error _ -> fullLineCount + 1L
 
-      /// Calculates the content viewport height for entity definitions
-      let getContentViewportHeight (totalLines: Int64) : Int64 =
+      /// Calculates viewport height for scrollable content
+      let getViewportHeight (totalLines: Int64) (reservedLines: Int64) : Int64 =
         let viewportHeight = getHeight ()
-        let reservedLines = 5L // title (2) + help bar (2) + spacing (1)
         let availableHeight = Stdlib.Int64.max 1L (viewportHeight - reservedLines)
         Stdlib.Int64.min availableHeight totalLines
-
-      /// Calculates the module viewport height for scrollable module content
-      let getModuleViewportHeight () : Int64 =
-        let viewportHeight = getHeight ()
-        let reservedLines = 3L // help bar (2) + spacing (1)
-        Stdlib.Int64.max 1L (viewportHeight - reservedLines)

@@ -467,7 +467,7 @@ module Darklang =
                               |> Stdlib.List.flatten)
 
                         let moduleView =
-                          $"Module: {fullyQualifiedName}\n\n" ++
+                          $"Module: {fullyQualifiedName}\n" ++
                           functionsSection ++ "\n" ++
                           typesSection ++ "\n" ++
                           constantsSection ++ "\n" ++

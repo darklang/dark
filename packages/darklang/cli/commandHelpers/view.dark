@@ -17,7 +17,6 @@ module Darklang =
           | 1L -> EntityCategory.Types
           | 2L -> EntityCategory.Constants
           | 3L -> EntityCategory.Submodules
-          | _ -> EntityCategory.Functions  // Default fallback
 
         /// Converts an EntityCategory to its index
         let entityCategoryToIndex (category: EntityCategory) : Int64 =
@@ -33,69 +32,80 @@ module Darklang =
           let renderView (content: ViewContent) : String =
             match content with
             | ModuleView (category, items, selectedIndex) ->
-              let formattedItems =
-                items
-                |> Stdlib.List.indexedMap (fun index item ->
-                  if index == selectedIndex then
-                    $"{CliColors.magenta}[{item}]{CliColors.reset}"
-                  else
-                    item)
-              if Stdlib.List.isEmpty formattedItems then "(none)" else Stdlib.String.join formattedItems ", "
+              if Stdlib.List.isEmpty items then
+                "(none)"
+              else
+                // Calculate how many items we can show (adapts based on terminal size)
+                let terminalWidth = Terminal.getWidth ()
+                let avgItemLength = 15L
+                let itemsPerLine = Stdlib.Int64.max 1L (terminalWidth |> Stdlib.Int64.divide (avgItemLength + 2L))
+
+                let maxLines =
+                  if terminalWidth > 120L then 10L
+                  else if terminalWidth > 80L then 5L
+                  else 3L
+
+                let maxViewportItems = itemsPerLine * maxLines
+
+                // If we have more items than can fit, show a viewport around the selected item
+                if (items |> Stdlib.List.length) > maxViewportItems && selectedIndex >= 0L then
+                  let totalItems = items |> Stdlib.List.length
+                  let halfViewport = maxViewportItems |> Stdlib.Int64.divide 2L
+
+                  // Calculate viewport start, keeping selected item in center when possible
+                  let viewportStart =
+                    (Stdlib.Int64.max 0L (selectedIndex - halfViewport))
+                    |> Stdlib.Int64.min (totalItems - maxViewportItems)
+
+                  let viewportEnd = Stdlib.Int64.min totalItems (viewportStart + maxViewportItems)
+
+                  let visibleItems =
+                    items
+                    |> Stdlib.List.drop viewportStart
+                    |> Stdlib.List.take (viewportEnd - viewportStart)
+
+                  let formattedItems =
+                    visibleItems
+                    |> Stdlib.List.indexedMap (fun localIndex item ->
+                      let globalIndex = viewportStart + localIndex
+                      if globalIndex == selectedIndex then
+                        $"{CliColors.magenta}[{item}]{CliColors.reset}"
+                      else
+                        item)
+
+                  // Add indicators for hidden items
+                  let prefix = if viewportStart > 0L then "... " else ""
+                  let suffix = if viewportEnd < totalItems then " ..." else ""
+
+                  prefix ++ (Stdlib.String.join formattedItems ", ") ++ suffix
+                else
+                  // Show all items if they fit
+                  let formattedItems =
+                    items
+                    |> Stdlib.List.indexedMap (fun index item ->
+                      if index == selectedIndex then
+                        $"{CliColors.magenta}[{item}]{CliColors.reset}"
+                      else
+                        item)
+                  Stdlib.String.join formattedItems ", "
 
             | EntityDefinitionView entityDef ->
-              // Calculate actual display lines accounting for wrapping
-              let terminalWidth = Terminal.getWidth ()
-              let displayLinesInfo =
-                entityDef.lines
-                |> Stdlib.List.map (fun line ->
-                  (line, Terminal.calculateWrappedLineCount line terminalWidth))
+              // Line-based scrolling
+              let totalLines = entityDef.lines |> Stdlib.List.length
+              let viewportHeight = Terminal.getViewportHeight totalLines 5L
 
-              let totalDisplayLines =
-                displayLinesInfo
-                |> Stdlib.List.fold 0L (fun acc (_, count) -> acc + count)
-
-              let viewportHeight = Terminal.getContentViewportHeight totalDisplayLines
-              let safeViewportHeight = Stdlib.Int64.max 1L viewportHeight
-
-              // Calculate scroll position in terms of display lines
-              let maxScrollPos =
-                if totalDisplayLines <= safeViewportHeight then
-                  0L
-                else
-                  totalDisplayLines - safeViewportHeight
-
+              // Ensure scroll position is within bounds (allow scrolling to line 0)
+              let maxScrollPos = Stdlib.Int64.max 0L (totalLines - viewportHeight)
               let adjustedScrollPos =
                 entityDef.scrollPosition
                 |> Stdlib.Int64.max 0L
                 |> Stdlib.Int64.min maxScrollPos
 
-              // Find which logical lines to show based on display line scroll position
+              // Get visible lines using simple slicing
               let visibleLines =
-                displayLinesInfo
-                |> Stdlib.List.fold ([], (0L, adjustedScrollPos, safeViewportHeight))
-                  (fun acc lineInfo ->
-                    let (accLines, state) = acc
-                    let (currentDisplayLine, skipLines, remainingViewport) = state
-                    let (line, wrappedCount) = lineInfo
-
-                    if remainingViewport <= 0L then
-                      // Viewport is full
-                      (accLines, (currentDisplayLine + wrappedCount, skipLines, remainingViewport))
-                    else if skipLines >= wrappedCount then
-                      // Skip this entire logical line
-                      (accLines, (currentDisplayLine + wrappedCount, skipLines - wrappedCount, remainingViewport))
-                    else if skipLines > 0L then
-                      // Partially skip this line (edge case for wrapped lines)
-                      let displayCount = Stdlib.Int64.min wrappedCount remainingViewport
-                      (Stdlib.List.push accLines line, (currentDisplayLine + wrappedCount, 0L, remainingViewport - displayCount))
-                    else
-                      // Include this line
-                      let displayCount = Stdlib.Int64.min wrappedCount remainingViewport
-                      (Stdlib.List.push accLines line, (currentDisplayLine + wrappedCount, 0L, remainingViewport - displayCount))
-                  )
-                |> fun result ->
-                  let (lines, _) = result
-                  lines |> Stdlib.List.reverse
+                entityDef.lines
+                |> Stdlib.List.drop adjustedScrollPos
+                |> Stdlib.List.take viewportHeight
 
               $"{CliColors.blue}{entityDef.name}\n\n" ++ (visibleLines |> Stdlib.String.join "\n")
 
@@ -224,23 +234,15 @@ module Darklang =
                   |> Stdlib.List.filter (fun submodule ->
                     submodule != viewingState.entityName))
 
-            let moduleHeader = $"{CliColors.blue}Module: {viewingState.entityName}{CliColors.reset}\n"
-
             // Scrollable content (everything below the module title)
-            let scrollableContent =
-              "\n" ++
-              functionsSection ++ "\n" ++
-              typesSection ++ "\n" ++
-              constantsSection ++ "\n" ++
-              submodulesSection
+            let scrollableContent = Rendering.buildScrollableContent viewingState
 
             // Apply viewport scrolling only to the scrollable content
             let scrollableLines = scrollableContent |> Stdlib.String.split "\n"
             let totalScrollableLines = scrollableLines |> Stdlib.List.length
-            let viewportHeight = Terminal.getModuleViewportHeight ()
 
-            // Reserve space for the module header (1 line)
-            let availableScrollHeight = Stdlib.Int64.max 1L (viewportHeight - 1L)
+            // Calculate viewport height for module view
+            let availableScrollHeight = Terminal.getViewportHeight totalScrollableLines 4L
 
             // Ensure scroll position is within bounds
             let maxScrollPos = Stdlib.Int64.max 0L (totalScrollableLines - availableScrollHeight)
@@ -254,8 +256,56 @@ module Darklang =
               |> Stdlib.List.drop adjustedScrollPos
               |> Stdlib.List.take availableScrollHeight
 
-            // Combine fixed header with scrollable content
-            moduleHeader ++ (visibleScrollableLines |> Stdlib.String.join "\n")
+            let contentPart =
+              if Stdlib.List.isEmpty visibleScrollableLines then
+                ""
+              else
+                visibleScrollableLines |> Stdlib.String.join "\n"
+
+            // Always show header, even if no room for content (match entity definition format)
+            $"{CliColors.blue}Module: {viewingState.entityName}{CliColors.reset}\n\n" ++ contentPart
+
+          /// Builds the scrollable content for a viewing state
+          let buildScrollableContent (viewingState: ViewingState) : String =
+            let functionsSection =
+              formatEntitySection
+                viewingState
+                EntityCategory.Functions
+                (viewingState.moduleContent.fns
+                  |> Stdlib.List.map (fun fn -> LanguageTools.ProgramTypes.PackageFn.nameToString fn.name))
+
+            let typesSection =
+              formatEntitySection
+                viewingState
+                EntityCategory.Types
+                (viewingState.moduleContent.types
+                  |> Stdlib.List.map (fun typ -> LanguageTools.ProgramTypes.PackageType.nameToString typ.name))
+
+            let constantsSection =
+              formatEntitySection
+                viewingState
+                EntityCategory.Constants
+                (viewingState.moduleContent.constants
+                  |> Stdlib.List.map (fun c -> LanguageTools.ProgramTypes.PackageConstant.nameToString c.name))
+
+            let submodulesSection =
+              formatEntitySection
+                viewingState
+                EntityCategory.Submodules
+                (viewingState.moduleContent.submodules
+                  |> Stdlib.List.map (fun m ->
+                    m
+                    |> Stdlib.List.map (fun singleModulePath ->
+                      Stdlib.String.join singleModulePath "."))
+                  |> Stdlib.List.flatten
+                  |> Stdlib.List.filter (fun submodule ->
+                    submodule != viewingState.entityName))
+
+            "\n" ++
+            functionsSection ++ "\n" ++
+            typesSection ++ "\n" ++
+            constantsSection ++ "\n" ++
+            submodulesSection
 
         module Navigation =
           type ScrollDirection = Up | Down | PageUp | PageDown
@@ -264,7 +314,11 @@ module Darklang =
           let handleModuleViewportScroll (state: State) (direction: ScrollDirection) : (State * List<Msg>) =
             match state.viewingState with
             | Some viewingState ->
-              let viewportHeight = Terminal.getModuleViewportHeight ()
+              // Build the scrollable content to calculate total lines
+              let scrollableContent = Rendering.buildScrollableContent viewingState
+              let scrollableLines = scrollableContent |> Stdlib.String.split "\n"
+              let totalLines = scrollableLines |> Stdlib.List.length
+              let viewportHeight = Terminal.getViewportHeight totalLines 4L
 
               let newScrollPos =
                 match direction with
@@ -291,14 +345,10 @@ module Darklang =
             | Some viewingState ->
               match viewingState.entityDefinition with
               | Some entityDef ->
-                let terminalWidth = Terminal.getWidth ()
-                let totalDisplayLines =
-                  entityDef.lines
-                  |> Stdlib.List.fold 0L (fun acc line ->
-                    acc + Terminal.calculateWrappedLineCount line terminalWidth)
-
-                let contentHeight = Terminal.getContentViewportHeight totalDisplayLines
-                let maxScroll = Stdlib.Int64.max 0L (totalDisplayLines - contentHeight)
+                // Line-based scrolling
+                let totalLines = entityDef.lines |> Stdlib.List.length
+                let contentHeight = Terminal.getViewportHeight totalLines 5L
+                let maxScroll = Stdlib.Int64.max 0L (totalLines - contentHeight)
 
                 let scrollAmount =
                   match direction with
@@ -326,55 +376,37 @@ module Darklang =
             | None ->
               (state, [])
 
-          /// Calculate the line position of a category header in the scrollable content
-          let calculateCategoryLinePosition (viewingState: ViewingState) (targetCategory: EntityCategory) : Int64 =
-            let blankLineAfterModuleTitle = 1L // blank line after "Module: X"
-            let targetIndex = View.entityCategoryToIndex targetCategory
+          /// Find the line position of a category header by searching in the built content
+          let findCategoryLinePosition (scrollableContent: String) (targetCategory: EntityCategory) : Int64 =
+            let categoryName = View.entityCategoryToString targetCategory
+            let lines = scrollableContent |> Stdlib.String.split "\n"
 
-            // Count lines for each category before the target
-            let categories = [EntityCategory.Functions; EntityCategory.Types; EntityCategory.Constants; EntityCategory.Submodules]
+            // Look for line containing the category name (simple string search)
+            lines
+            |> Stdlib.List.indexedMap (fun index line -> (index, line))
+            |> Stdlib.List.findFirst (fun (_, line) -> line |> Stdlib.String.contains categoryName)
+            |> Stdlib.Option.map (fun (index, _) -> index)
+            |> Stdlib.Option.withDefault 0L
 
-            let linesBeforeTarget =
-              categories
-              |> Stdlib.List.take targetIndex
-              |> Stdlib.List.fold 0L (fun acc category ->
-                let entities = EntityLookup.getEntitiesForCategory viewingState.moduleContent category viewingState.entityName
-                let isExpanded = viewingState.expandedCategories |> Stdlib.List.member_v0 category
-
-                let headerLine = 1L
-                let contentLines =
-                  if Stdlib.List.isEmpty entities then
-                    2L // blank line + "(none)" + blank line
-                  else if isExpanded then
-                    3L // blank line + content + blank line
-                  else
-                    1L // blank line after header
-
-                acc + headerLine + contentLines
-              )
-
-            blankLineAfterModuleTitle + linesBeforeTarget
-
-          /// Helper function to ensure a category is visible in the scrollable viewport area
+          /// Scroll to make a category visible (simple approach)
           let ensureCategoryVisible (viewingState: ViewingState) (category: EntityCategory) : Int64 =
-            let categoryLine = calculateCategoryLinePosition viewingState category
-            let viewportHeight = Terminal.getModuleViewportHeight ()
-            let availableScrollHeight = Stdlib.Int64.max 1L (viewportHeight - 1L)
+            // Build scrollable content and find category position in it
+            let scrollableContent = Rendering.buildScrollableContent viewingState
+            let categoryLine = findCategoryLinePosition scrollableContent category
+            let scrollableLines = scrollableContent |> Stdlib.String.split "\n"
+            let totalLines = scrollableLines |> Stdlib.List.length
+            let viewportHeight = Terminal.getViewportHeight totalLines 4L
+
             let currentScrollPos = viewingState.viewportScrollPosition
             let viewportTop = currentScrollPos
-            let viewportBottom = currentScrollPos + availableScrollHeight - 1L
+            let viewportBottom = currentScrollPos + viewportHeight - 1L
 
-            if categoryLine < viewportTop then
-              // Category is above viewport, scroll up to show it at the top
+            // If category is not visible, scroll to show it
+            if categoryLine < viewportTop || categoryLine > viewportBottom then
+              // Category is outside viewport - scroll to show it at the top
               Stdlib.Int64.max 0L categoryLine
-            else if categoryLine > viewportBottom then
-              // Category is below viewport, scroll down to show it near the top
-              Stdlib.Int64.max 0L (categoryLine - 2L) // Show category header 2 lines from top
-            else if categoryLine > (viewportTop + (availableScrollHeight |> Stdlib.Int64.divide 2L)) then
-              // Category is in lower half, move it to upper half for better visibility
-              Stdlib.Int64.max 0L (categoryLine - 2L)
             else
-              // Category is already visible in upper half, keep current position
+              // Category is already visible - keep current scroll position
               currentScrollPos
 
           /// Helper function to update selection and redraw view with auto-scroll to keep selection visible
