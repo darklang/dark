@@ -1,0 +1,41 @@
+module Darklang =
+  module Cli =
+    module Terminal =
+      /// Display control constants
+      module Display =
+        let clearScreen = "\x1b[2J\x1b[H"
+        let enterAltScreen = "\x1b[?1049h"
+        let exitAltScreen = "\x1b[?1049l"
+
+      /// Gets terminal height
+      let getHeight () : Int64 =
+        Builtin.cliGetTerminalHeight ()
+
+      /// Gets terminal width
+      let getWidth () : Int64 =
+        Builtin.cliGetTerminalWidth ()
+
+      /// Calculate how many display lines a logical line will take when wrapped
+      let calculateWrappedLineCount (line: String) (terminalWidth: Int64) : Int64 =
+        let lineLength = Stdlib.String.length line
+        let safeTerminalWidth = Stdlib.Int64.max 1L terminalWidth
+        if lineLength <= safeTerminalWidth then
+          1L
+        else
+          let quotient = lineLength |> Stdlib.Int64.divide safeTerminalWidth
+          match lineLength |> Stdlib.Int64.remainder safeTerminalWidth with
+          | Ok remainder -> if remainder == 0L then quotient else quotient + 1L
+          | Error _ -> quotient + 1L
+
+      /// Calculates the content viewport height for entity definitions
+      let getContentViewportHeight (totalLines: Int64) : Int64 =
+        let viewportHeight = getHeight ()
+        let reservedLines = 5L // title (2) + help bar (2) + spacing (1)
+        let availableHeight = Stdlib.Int64.max 1L (viewportHeight - reservedLines)
+        Stdlib.Int64.min availableHeight totalLines
+
+      /// Calculates the module viewport height for scrollable module content
+      let getModuleViewportHeight () : Int64 =
+        let viewportHeight = getHeight ()
+        let reservedLines = 3L // help bar (2) + spacing (1)
+        Stdlib.Int64.max 1L (viewportHeight - reservedLines)

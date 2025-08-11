@@ -28,11 +28,6 @@ module Darklang =
           | Submodules -> 3L
 
         module Rendering =
-          /// Display control constants
-          module Display =
-            let clearScreen = "\x1b[2J\x1b[H"
-            let enterAltScreen = "\x1b[?1049h"
-            let exitAltScreen = "\x1b[?1049l"
 
           /// Renders view content based on type
           let renderView (content: ViewContent) : String =
@@ -49,17 +44,17 @@ module Darklang =
 
             | EntityDefinitionView entityDef ->
               // Calculate actual display lines accounting for wrapping
-              let terminalWidth = getTerminalWidth ()
+              let terminalWidth = Terminal.getWidth ()
               let displayLinesInfo =
                 entityDef.lines
                 |> Stdlib.List.map (fun line ->
-                  (line, calculateWrappedLineCount line terminalWidth))
+                  (line, Terminal.calculateWrappedLineCount line terminalWidth))
 
               let totalDisplayLines =
                 displayLinesInfo
                 |> Stdlib.List.fold 0L (fun acc (_, count) -> acc + count)
 
-              let viewportHeight = getContentViewportHeight totalDisplayLines
+              let viewportHeight = Terminal.getContentViewportHeight totalDisplayLines
               let safeViewportHeight = Stdlib.Int64.max 1L viewportHeight
 
               // Calculate scroll position in terms of display lines
@@ -104,50 +99,23 @@ module Darklang =
 
               $"{CliColors.blue}{entityDef.name}\n\n" ++ (visibleLines |> Stdlib.String.join "\n")
 
-          /// Wraps the content with a help bar
-          let renderViewingInterface (content: String) : String =
+          /// Wraps the content with a help bar for module viewing
+          let renderModuleViewingInterface (content: String) : String =
             let helpBar = $"{CliColors.gray}↑/↓: categories  ←/→: entities  Enter: expand/view  b: back  q: quit{CliColors.reset}\n\n"
-            $"{Display.clearScreen}{content}\n{helpBar}"
+            $"{Terminal.Display.clearScreen}{content}\n{helpBar}"
 
-          /// Gets terminal height
-          let getTerminalHeight () : Int64 =
-            Builtin.cliGetTerminalHeight ()
+          /// Wraps the content with a help bar for entity definition viewing
+          let renderEntityViewingInterface (content: String) : String =
+            let helpBar = $"{CliColors.gray}↑/↓: scroll  ←/→: page  Enter: collapse  b: back  q: quit{CliColors.reset}\n\n"
+            $"{Terminal.Display.clearScreen}{content}\n{helpBar}"
 
-          /// Gets terminal width
-          let getTerminalWidth () : Int64 =
-            Builtin.cliGetTerminalWidth ()
-
-          /// Calculate how many display lines a logical line will take when wrapped
-          let calculateWrappedLineCount (line: String) (terminalWidth: Int64) : Int64 =
-            let lineLength = Stdlib.String.length line
-            let safeTerminalWidth = Stdlib.Int64.max 1L terminalWidth
-            if lineLength <= safeTerminalWidth then
-              1L
-            else
-              let quotient = lineLength |> Stdlib.Int64.divide safeTerminalWidth
-              match lineLength |> Stdlib.Int64.remainder safeTerminalWidth with
-              | Ok remainder -> if remainder == 0L then quotient else quotient + 1L
-              | Error _ -> quotient + 1L
-
-          /// Calculates the content viewport height for entity definitions
-          let getContentViewportHeight (totalLines: Int64) : Int64 =
-            let viewportHeight = getTerminalHeight ()
-            let reservedLines = 5L // title (2) + help bar (2) + spacing (1)
-            let availableHeight = Stdlib.Int64.max 1L (viewportHeight - reservedLines)
-            Stdlib.Int64.min availableHeight totalLines
-
-          /// Calculates the module viewport height for scrollable module content
-          let getModuleViewportHeight () : Int64 =
-            let viewportHeight = getTerminalHeight ()
-            let reservedLines = 3L // help bar (2) + spacing (1)
-            Stdlib.Int64.max 1L (viewportHeight - reservedLines)
 
           /// Renders entity interface with scrolling
           let renderEntityInterface (entityName: String) (lines: List<String>) (scrollPosition: Int64) : String =
             let entityDef = EntityDefinition { name = entityName; lines = lines; scrollPosition = scrollPosition }
             let content = ViewContent.EntityDefinitionView entityDef
             let visibleContent = renderView content
-            renderViewingInterface visibleContent
+            renderEntityViewingInterface visibleContent
 
           /// Formats a section of entities for display with expandable state and scrolling
           let formatEntitySection (viewingState: ViewingState) (category: EntityCategory) (entities: List<String>) : String =
@@ -269,7 +237,7 @@ module Darklang =
             // Apply viewport scrolling only to the scrollable content
             let scrollableLines = scrollableContent |> Stdlib.String.split "\n"
             let totalScrollableLines = scrollableLines |> Stdlib.List.length
-            let viewportHeight = getModuleViewportHeight ()
+            let viewportHeight = Terminal.getModuleViewportHeight ()
 
             // Reserve space for the module header (1 line)
             let availableScrollHeight = Stdlib.Int64.max 1L (viewportHeight - 1L)
@@ -296,7 +264,7 @@ module Darklang =
           let handleModuleViewportScroll (state: State) (direction: ScrollDirection) : (State * List<Msg>) =
             match state.viewingState with
             | Some viewingState ->
-              let viewportHeight = Rendering.getModuleViewportHeight ()
+              let viewportHeight = Terminal.getModuleViewportHeight ()
 
               let newScrollPos =
                 match direction with
@@ -307,7 +275,7 @@ module Darklang =
 
               let newViewingState = { viewingState with viewportScrollPosition = newScrollPos }
               let moduleView = Rendering.formatModuleContent newViewingState
-              let completeInterface = Rendering.renderViewingInterface moduleView
+              let completeInterface = Rendering.renderModuleViewingInterface moduleView
               let newState =
                 { state with
                     viewingState = Stdlib.Option.Option.Some newViewingState
@@ -323,13 +291,13 @@ module Darklang =
             | Some viewingState ->
               match viewingState.entityDefinition with
               | Some entityDef ->
-                let terminalWidth = Rendering.getTerminalWidth ()
+                let terminalWidth = Terminal.getWidth ()
                 let totalDisplayLines =
                   entityDef.lines
                   |> Stdlib.List.fold 0L (fun acc line ->
-                    acc + Rendering.calculateWrappedLineCount line terminalWidth)
+                    acc + Terminal.calculateWrappedLineCount line terminalWidth)
 
-                let contentHeight = Rendering.getContentViewportHeight totalDisplayLines
+                let contentHeight = Terminal.getContentViewportHeight totalDisplayLines
                 let maxScroll = Stdlib.Int64.max 0L (totalDisplayLines - contentHeight)
 
                 let scrollAmount =
@@ -390,7 +358,7 @@ module Darklang =
           /// Helper function to ensure a category is visible in the scrollable viewport area
           let ensureCategoryVisible (viewingState: ViewingState) (category: EntityCategory) : Int64 =
             let categoryLine = calculateCategoryLinePosition viewingState category
-            let viewportHeight = Rendering.getModuleViewportHeight ()
+            let viewportHeight = Terminal.getModuleViewportHeight ()
             let availableScrollHeight = Stdlib.Int64.max 1L (viewportHeight - 1L)
             let currentScrollPos = viewingState.viewportScrollPosition
             let viewportTop = currentScrollPos
@@ -413,21 +381,19 @@ module Darklang =
           let updateSelection (state: State) (category: EntityCategory) (itemIndex: Int64) : (State * List<Msg>) =
             match state.viewingState with
             | Some viewingState ->
-              let entities = EntityLookup.getEntitiesForCategory viewingState.moduleContent category viewingState.entityName
-              let shouldExpandNewCategory = Stdlib.Bool.not (Stdlib.List.isEmpty entities)
-
+              // If switching to a different category, collapse all. If staying in same category, preserve expanded state
               let newExpandedCategories =
-                if shouldExpandNewCategory then
-                  [category]
+                if category == viewingState.selectedCategory then
+                  viewingState.expandedCategories  // Keep current expanded state when navigating within category
                 else
-                  []
+                  []  // Collapse when switching categories
 
               let tempViewingState = { viewingState with selectedCategory = category; selectedItemIndex = itemIndex; expandedCategories = newExpandedCategories }
               let newScrollPosition = ensureCategoryVisible tempViewingState category
 
               let newViewingState = { tempViewingState with entityDefinition = Stdlib.Option.Option.None; viewportScrollPosition = newScrollPosition }
               let moduleView = Rendering.formatModuleContent newViewingState
-              let completeInterface = Rendering.renderViewingInterface moduleView
+              let completeInterface = Rendering.renderModuleViewingInterface moduleView
               let newState = { state with viewingState = Stdlib.Option.Option.Some newViewingState; commandResult = CommandResult.Success completeInterface; needsFullRedraw = true }
               (newState, [])
             | None ->
@@ -501,7 +467,7 @@ module Darklang =
                 | Some _ ->
                   let newViewingState = { viewingState with entityDefinition = Stdlib.Option.Option.None }
                   let moduleView = Rendering.formatModuleContent newViewingState
-                  let completeInterface = Rendering.renderViewingInterface moduleView
+                  let completeInterface = Rendering.renderModuleViewingInterface moduleView
                   let newState =
                     { state with
                         viewingState = Stdlib.Option.Option.Some newViewingState
@@ -533,7 +499,7 @@ module Darklang =
                 | None ->
                   handleModuleViewportScroll state ScrollDirection.PageDown
               | Q ->
-                let exitAlternateScreen = Rendering.Display.exitAltScreen
+                let exitAlternateScreen = Terminal.Display.exitAltScreen
                 let newState =
                   { state with
                       viewingState = Stdlib.Option.Option.None
@@ -580,7 +546,7 @@ module Darklang =
                 { state with
                     commandResult = CommandResult.Error $"Entity not found: {fullyQualifiedName}" }
               (newState, [])
-            
+
           /// Entity lookup that finds an entity by name and returns its type and pretty-printed definition
           let findEntity (moduleContent: LanguageTools.ProgramTypes.Search.SearchResults) (name: String) : Stdlib.Option.Option<(String * String)> =
             let constantResult =

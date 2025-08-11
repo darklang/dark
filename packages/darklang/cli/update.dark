@@ -274,7 +274,7 @@ module Darklang =
             { intermediateViewingState with viewportScrollPosition = finalScrollPosition }
 
           let moduleView = CommandHelpers.View.Rendering.formatModuleContent newViewingState
-          let completeInterface = CommandHelpers.View.Rendering.renderViewingInterface moduleView
+          let completeInterface = CommandHelpers.View.Rendering.renderModuleViewingInterface moduleView
           let newState =
             { state with
                 viewingState = Stdlib.Option.Option.Some newViewingState
@@ -299,7 +299,7 @@ module Darklang =
               // Hide the definition - return to module view while preserving selection
               let newViewingState = { viewingState with entityDefinition = Stdlib.Option.Option.None }
               let moduleView = CommandHelpers.View.Rendering.formatModuleContent newViewingState
-              let completeInterface = CommandHelpers.View.Rendering.renderViewingInterface moduleView
+              let completeInterface = CommandHelpers.View.Rendering.renderModuleViewingInterface moduleView
               let newState =
                 { state with
                     viewingState = Stdlib.Option.Option.Some newViewingState

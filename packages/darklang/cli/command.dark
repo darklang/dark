@@ -405,14 +405,14 @@ module Darklang =
                               entityName = entityName
                               selectedCategory = EntityCategory.Functions
                               selectedItemIndex = initialItemIndex
-                              expandedCategories = [ EntityCategory.Functions ]
+                              expandedCategories = []
                               entityDefinition = Stdlib.Option.Option.None
                               entityCache = []
                               viewportScrollPosition = 0L }
                         let moduleView = CommandHelpers.View.Rendering.formatModuleContent viewingState
                         // Enter alternate screen buffer when first entering view mode, then render interface
-                        let enterAltScreen = if Stdlib.Option.isNone state.viewingState then CommandHelpers.View.Rendering.Display.enterAltScreen else ""
-                        let completeInterface = CommandHelpers.View.Rendering.renderViewingInterface moduleView
+                        let enterAltScreen = if Stdlib.Option.isNone state.viewingState then Terminal.Display.enterAltScreen else ""
+                        let completeInterface = CommandHelpers.View.Rendering.renderModuleViewingInterface moduleView
                         let newState =
                           { state with
                               commandResult = CommandResult.Success (enterAltScreen ++ completeInterface)
@@ -484,14 +484,14 @@ module Darklang =
                               entityName = fullyQualifiedName
                               selectedCategory = EntityCategory.Functions
                               selectedItemIndex = initialItemIndex
-                              expandedCategories = [ EntityCategory.Functions ]
+                              expandedCategories = []
                               entityDefinition = Stdlib.Option.Option.None
                               entityCache = []
                               viewportScrollPosition = 0L }
                         let moduleView = CommandHelpers.View.Rendering.formatModuleContent viewingState
                         // Enter alternate screen buffer when first entering view mode, then render interface
-                        let enterAltScreen = if Stdlib.Option.isNone state.viewingState then CommandHelpers.View.Rendering.Display.enterAltScreen else ""
-                        let completeInterface = CommandHelpers.View.Rendering.renderViewingInterface moduleView
+                        let enterAltScreen = if Stdlib.Option.isNone state.viewingState then Terminal.Display.enterAltScreen else ""
+                        let completeInterface = CommandHelpers.View.Rendering.renderModuleViewingInterface moduleView
                         let newState =
                           { state with
                               commandResult = CommandResult.Success (enterAltScreen ++ completeInterface)
