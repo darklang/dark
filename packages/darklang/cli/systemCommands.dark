@@ -1,0 +1,106 @@
+module Darklang =
+  module Cli =
+    module SystemCommands =
+      /// System commands that are always available (help, version, status, quit, clear)
+      
+      let help (state: Darklang.Cli.Types.State) (args: String) : Darklang.Cli.CommandResult =
+        // Enhanced help system with category and per-command support
+        let trimmedArgs = Stdlib.String.trim args
+        
+        if Stdlib.String.isEmpty trimmedArgs then
+          // Show general categorized help with logo
+          let helpTextLines = Darklang.Cli.UI.getContextualHelpText state
+          let helpContent = Darklang.Cli.Logo.combineLogoAndText Darklang.Cli.Logo.logo helpTextLines Darklang.Cli.Colors.darkGray
+          Darklang.Cli.CommandResult { output = helpContent; nextState = state }
+        else
+          // Check if it's a category or individual command
+          let isCategory = 
+            (trimmedArgs == "system") ||
+            (trimmedArgs == "navigation") ||
+            (trimmedArgs == "development") ||
+            (trimmedArgs == "installation")
+          
+          if isCategory then
+            // Show category-specific detailed help
+            let categoryHelpLines = Darklang.Cli.UI.getCategoryHelpText trimmedArgs
+            let categoryContent = Stdlib.String.join categoryHelpLines "\n"
+            Darklang.Cli.CommandResult { output = categoryContent; nextState = state }
+          else
+            // Show individual command help
+            let commandHelpLines = Darklang.Cli.UI.getCommandHelpText trimmedArgs
+            let commandContent = Stdlib.String.join commandHelpLines "\n"
+            Darklang.Cli.CommandResult { output = commandContent; nextState = state }
+      
+      let version (state: Darklang.Cli.Types.State) (args: String) : Darklang.Cli.CommandResult =
+        // Use the real version system from CLI1 - not fake
+        let versionText = Darklang.Cli.Commands.getVersionInfo ()
+        Darklang.Cli.CommandResult { output = versionText; nextState = state }
+      
+      let status (state: Darklang.Cli.Types.State) (args: String) : Darklang.Cli.CommandResult =
+        // Use the real version and path display systems - not fake
+        let version = Darklang.Cli.Commands.getVersionInfo ()
+        let currentLocation = Darklang.Cli.NavigationCommands.getPathDisplay state.currentPage
+        let modeDisplay =
+          match state.interactionMode with
+          | NonInteractive -> "Non-interactive" 
+          | RefreshScreen -> "Refresh screen"
+          | Regular -> "Regular"
+        let currentMode = Darklang.Cli.Installation.getInstallationMode ()
+        let installationMessage = 
+          match currentMode with
+          | Installed -> "Globally installed and ready to use"
+          | Portable -> "Running in portable mode (run 'install' for global access)"
+        let statusText = $"{version}\nLocation: {currentLocation}\nMode: {modeDisplay}\nStatus: {installationMessage}\n\nType 'help' for available commands"
+        Darklang.Cli.CommandResult { output = statusText; nextState = state }
+      
+      let quit (state: Darklang.Cli.Types.State) (args: String) : Darklang.Cli.CommandResult =
+        let newState = { state with isExiting = true }
+        Darklang.Cli.CommandResult { output = "Goodbye! 👋"; nextState = newState }
+      
+      let clear (state: Darklang.Cli.Types.State) (args: String) : Darklang.Cli.CommandResult =
+        let clearOutput = "\u001b[2J\u001b[H"  // ANSI codes to clear screen and move cursor to top
+        let newState = { state with needsFullRedraw = true }
+        Darklang.Cli.CommandResult { output = clearOutput; nextState = newState }
+      
+      let test (state: Darklang.Cli.Types.State) (args: String) : Darklang.Cli.CommandResult =
+        let testResults = Darklang.Cli.Tests.runAllTests ()
+        Darklang.Cli.CommandResult { output = testResults; nextState = state }
+
+      let mode (state: Darklang.Cli.Types.State) (args: String) : Darklang.Cli.CommandResult =
+        // Switch between interaction modes (matching CLI1 exactly)
+        let args = Stdlib.String.trim args
+        
+        if Stdlib.String.isEmpty args then
+          // No arguments, show current mode
+          let modeDisplay =
+            match state.interactionMode with
+            | NonInteractive -> "non-interactive"
+            | RefreshScreen -> "refresh-screen"  
+            | Regular -> "regular"
+          
+          let output = $"Current interaction mode: {modeDisplay}\nAvailable modes: non-interactive, regular, refresh-screen"
+          Darklang.Cli.CommandResult { output = output; nextState = state }
+        else
+          // Set the mode based on the argument
+          match Stdlib.String.toLowercase args with
+          | "non-interactive" ->
+            let newState = 
+              { state with 
+                  interactionMode = NonInteractive
+                  needsFullRedraw = true }
+            Darklang.Cli.CommandResult { output = "Switched to non-interactive mode"; nextState = newState }
+          | "regular" ->
+            let newState = 
+              { state with 
+                  interactionMode = Regular
+                  needsFullRedraw = true }
+            Darklang.Cli.CommandResult { output = "Switched to regular mode"; nextState = newState }
+          | "refresh-screen" ->
+            let newState = 
+              { state with 
+                  interactionMode = RefreshScreen
+                  needsFullRedraw = true }
+            Darklang.Cli.CommandResult { output = "Switched to refresh-screen mode"; nextState = newState }
+          | _ ->
+            let output = $"Unknown mode: {args}\nAvailable modes: non-interactive, regular, refresh-screen"
+            Darklang.Cli.CommandResult { output = output; nextState = state }

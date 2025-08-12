@@ -1,0 +1,9 @@
+module Darklang =
+  module Cli =
+    module CanvasCommands =
+      /// Canvas commands for working with handlers, databases, and secrets
+      
+      /// List all canvas handlers
+      let handlers (state: Types.State) (args: String) : CommandResult =
+        let output = Toplevels.listHandlers ()
+        CommandResult { output = output; nextState = state }

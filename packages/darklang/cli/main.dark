@@ -1,0 +1,142 @@
+module Darklang =
+  module Cli =
+    /// Read input line character by character
+    let readInputLine (currentLine: String) : String =
+      let keyRead = Stdlib.Cli.Stdin.readKey ()
+
+      if keyRead.key == Stdlib.Cli.Stdin.Key.Key.Enter then
+        currentLine
+      else if keyRead.key == Stdlib.Cli.Stdin.Key.Key.Backspace then
+        if Stdlib.String.length currentLine > 0L then
+          let newLine = Stdlib.String.dropLast currentLine 1L
+          Builtin.print "\b \b"  // Backspace, space, backspace to erase
+          readInputLine newLine
+        else
+          readInputLine currentLine
+      else if keyRead.keyChar != "" then
+        Builtin.print keyRead.keyChar
+        readInputLine (currentLine ++ keyRead.keyChar)
+      else
+        readInputLine currentLine
+
+
+    /// CLI's independent main entry point
+    let executeCliCommand (args: List<String>) : Int64 =
+      // Check if command line arguments were provided for non-interactive mode
+      if Stdlib.List.length args > 0L then
+        // Non-interactive mode: execute single command and exit
+        executeNonInteractiveCommand args
+      else
+        // Interactive mode: start REPL
+        startInteractiveMode ()
+
+
+    /// Execute a single command non-interactively and exit
+    let executeNonInteractiveCommand (args: List<String>) : Int64 =
+      let initialState =
+        Types.State {
+          currentPage = Types.Page.Root
+          pageHistory = []
+          mainPrompt = ""
+          cursorPosition = 0L
+          commandHistory = []
+          historyPosition = -1L
+          draftPrompt = ""
+          commandResult = Types.CommandResult.None
+          interactionMode = Types.InteractionMode.Regular
+          needsFullRedraw = true
+          isExiting = false
+          completionState = Stdlib.Option.Option.None
+        }
+
+      let command =
+        match Stdlib.List.head args with
+        | Some cmd -> cmd
+        | None -> ""
+      let argsString =
+        let remainingArgs = Stdlib.List.drop args 1L
+        Stdlib.String.join remainingArgs " "
+
+      // Execute the command
+      let result = Commands.executeCommand initialState command argsString
+
+      // Display output
+      if result.output != "" then
+        Builtin.print result.output
+
+      // Return appropriate exit code
+      0L
+
+
+    /// Start interactive REPL mode
+    let startInteractiveMode () : Int64 =
+      let initialState =
+        Types.State {
+          currentPage = Types.Page.Root
+          pageHistory = []
+          mainPrompt = ""
+          cursorPosition = 0L
+          commandHistory = []
+          historyPosition = -1L
+          draftPrompt = ""
+          commandResult = Types.CommandResult.None
+          interactionMode = Types.InteractionMode.Regular
+          needsFullRedraw = true
+          isExiting = false
+          completionState = Stdlib.Option.Option.None
+        }
+
+      // Show welcome message
+      Builtin.print "Welcome to Darklang's CLI\n"
+      Builtin.print "Type 'help' to see available commands.\n"
+      Builtin.print "\n"
+
+      // Run CLI's main loop
+      mainLoop initialState
+
+
+    /// CLI's main REPL loop
+    let mainLoop (state: Types.State) : Int64 =
+      // Check if we should exit
+      if state.isExiting then
+        0L
+      else
+        // Show prompt
+        let prompt = "> "
+        Builtin.print prompt
+
+        // Read input line character by character
+        let input = readInputLine ""
+
+        // Parse and execute command
+        let trimmedInput = Stdlib.String.trim input
+
+        if trimmedInput == "" then
+          // Empty input, continue loop
+          mainLoop state
+        else
+          // Parse command and arguments
+          let parts = Stdlib.String.split trimmedInput " "
+          let command = Stdlib.List.head parts
+          let argsString =
+            match command with
+            | Some(cmd) ->
+              let remainingParts = Stdlib.List.drop parts 1L
+              Stdlib.String.join remainingParts " "
+            | None -> ""
+
+          let commandName =
+            match command with
+            | Some(cmd) -> cmd
+            | None -> ""
+
+          // Execute the command using CLI's command system
+          let result = Commands.executeCommand state commandName argsString
+
+          // Display output if any
+          if result.output != "" then
+            Builtin.print result.output
+            Builtin.print "\n"
+
+          // Continue with updated state
+          mainLoop result.nextState

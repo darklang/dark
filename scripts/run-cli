@@ -20,6 +20,7 @@ fi
 
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
 CLI_LOG="$LOGS/cli.log"
+PACKAGES_LOG="$LOGS/packages-canvas.log"
 
 if [[ "$PUBLISHED" == "true" ]]; then
   EXE="backend/Build/out/Cli/Release/net8.0/linux-x64/publish/Cli"
@@ -36,6 +37,27 @@ do
     sleep 0.01
   fi
 done
+
+# Check if packages have loaded successfully
+if [[ -f "${PACKAGES_LOG}" ]]; then
+  # Check if the log ends with an exception/error (indicating failed package loading)
+  if tail -n 10 "${PACKAGES_LOG}" | grep -q "Exception\|Shutting down LibService"; then
+    echo "ERROR: Packages failed to load! Check ${PACKAGES_LOG} for details."
+    echo "You must wait for packages to finish loading successfully before running the CLI."
+    echo "Recent log entries:"
+    tail -n 20 "${PACKAGES_LOG}"
+    exit 1
+  fi
+  
+  # Check if packages are still loading
+  if tail -n 5 "${PACKAGES_LOG}" | grep -q "DEBUG: about to parse"; then
+    echo "ERROR: Packages are still loading! Wait for package loading to complete."
+    echo "Check ${PACKAGES_LOG} and wait for 'Starting: reading, parsing packages' to complete successfully."
+    echo "Recent log entries:"
+    tail -n 10 "${PACKAGES_LOG}"
+    exit 1
+  fi
+fi
 
 GIT_COMMIT=$(git rev-parse --short HEAD)
 export GIT_COMMIT

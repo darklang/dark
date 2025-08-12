@@ -1,0 +1,29 @@
+module Darklang =
+  module Cli =
+    module Messages =
+      // Shared message types for CLI event handling
+      
+      type Msg =
+        // -- General navigation and system messages
+        | Quit
+
+        // -- Input handling
+        | KeyPressed of key: Stdlib.Cli.Stdin.Key.Key * modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers * keyChar: String
+        | SubmitCommand of command: String
+        | ClearPrompt
+
+        // -- Command History Navigation
+        | NavigateHistoryUp
+        | NavigateHistoryDown
+
+        // -- Tab completion
+        | RequestCompletion
+        | ClearCompletion
+        | AcceptCompletion
+
+        // -- Navigation
+        | NavigateTo of page: Types.Page
+        | NavigateBack
+
+        // -- Command results
+        | SetCommandResult of result: Types.CommandResult

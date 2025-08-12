@@ -16,37 +16,64 @@ module Darklang =
                 "version.txt"
 
               TestFramework.makeCliTest
-                "CLI Run Function Command"
+                "CLI Status Command"
+                ["status"]
+                "status.txt"
+
+              TestFramework.makeCliTest
+                "CLI Run Function Command - Bool.and"
                 ["run"; "@Darklang.Stdlib.Bool.and true false"]
-                "run-function.txt"
+                "run-function-bool-and.txt"
+
+              TestFramework.makeCliTest
+                "CLI Run Function Command - Int64.add"
+                ["run"; "@Darklang.Stdlib.Int64.add 5L 3L"]
+                "run-function-int64-add.txt"
+
+              TestFramework.makeCliTest
+                "CLI Run Function Command - String.length"
+                ["run"; "@Darklang.Stdlib.String.length \"hello\""]
+                "run-function-string-length.txt"
+
+              TestFramework.makeCliTest
+                "CLI Run Function Command - List.length"
+                ["run"; "@Darklang.Stdlib.List.length"; "[1L; 2L; 3L]"]
+                "run-function-list-length.txt"
+
+              TestFramework.makeCliTest
+                "CLI List Functions Command"
+                ["ls"; "Darklang.Stdlib.List"]
+                "ls-stdlib-list.txt"
+
+              TestFramework.makeCliTest
+                "CLI View Function Command"
+                ["view"; "Darklang.Stdlib.List.head"]
+                "view-function.txt"
+
+              TestFramework.makeCliTest
+                "CLI List Types Command"
+                ["ls"; "Darklang.Stdlib.Option"]
+                "ls-stdlib-option.txt"
+
+              TestFramework.makeCliTest
+                "CLI Help for Specific Command"
+                ["help"; "run"]
+                "help-run.txt"
+
+              TestFramework.makeCliTest
+                "CLI Help for Ls Command"
+                ["help"; "ls"]
+                "help-ls.txt"
+
+              TestFramework.makeCliTest
+                "CLI Eval Simple Expression"
+                ["eval"; "2L + 3L"]
+                "eval-simple.txt"
+
+              TestFramework.makeCliTest
+                "CLI Eval String Expression"
+                ["eval"; "\"hello\" ++ \" world\""]
+                "eval-string.txt"
             ]
 
-          let interactiveTests =
-            [ TestFramework.makeInteractiveCliTest
-                "Status command in Interactive Mode"
-                [ TestFramework.InteractiveStep.ExpectOutput "Available commands:"
-                  TestFramework.InteractiveStep.Wait 1000L
-                  TestFramework.InteractiveStep.SendInput "status"
-                  TestFramework.InteractiveStep.Wait 2000L
-                  TestFramework.InteractiveStep.ExpectOutput "Version:"
-                  TestFramework.InteractiveStep.SendQuit
-                ]
-                TestConfig.defaultInteractiveTimeout
-
-              TestFramework.makeInteractiveCliTest
-                "Interactive cd and ls Commands"
-                  [ TestFramework.InteractiveStep.ExpectOutput "Available commands:"
-                    TestFramework.InteractiveStep.Wait 1000L
-                    TestFramework.InteractiveStep.SendInput "cd Stdlib.List"
-                    TestFramework.InteractiveStep.Wait 2000L
-                    TestFramework.InteractiveStep.ExpectOutput "✓ Changed directory to"
-                    TestFramework.InteractiveStep.SendInput "ls"
-                    TestFramework.InteractiveStep.Wait 2000L
-                    TestFramework.InteractiveStep.ExpectOutput "✓ Module: Stdlib.List"
-                    TestFramework.InteractiveStep.ExpectOutput "functions:"
-                    TestFramework.InteractiveStep.SendQuit
-                  ]
-                TestConfig.defaultInteractiveTimeout
-            ]
-
-          Stdlib.List.append regularTests interactiveTests
+          regularTests

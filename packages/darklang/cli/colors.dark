@@ -1,9 +1,8 @@
 module Darklang =
   module Cli =
-    // CLEANUP this should go to stdlib or something?
-    // (or maybe a more generic 'palette' should go there)
-
-    module CliColors =
+    module Colors =
+      // Shared CLI color constants
+      
       // Foreground colors (text)
       let white = "\x1b[97m"
       let gray = "\x1b[90m"

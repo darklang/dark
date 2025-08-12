@@ -43,16 +43,16 @@ module HandleCommand =
     }
 
 
-  // not currently used, but we'll do _something_ like this again before too long
-  // let reloadDarkPackagesCanvas () : Ply<Result<unit, string>> =
-  //   uply {
-  //     let! (canvasId, toplevels) =
-  //       Canvas.loadFromDisk LibPackageManager.PackageManager.pt "dark-packages"
+  //not currently used, but we'll do _something_ like this again before too long
+  let reloadDarkPackagesCanvas () : Ply<Result<unit, string>> =
+    uply {
+      let! (canvasId, toplevels) =
+        Canvas.loadFromDisk LibPackageManager.PackageManager.pt "dark-packages"
 
-  //     print $"Loaded canvas {canvasId} with {List.length toplevels} toplevels"
+      print $"Loaded canvas {canvasId} with {List.length toplevels} toplevels"
 
-  //     return Ok()
-  //   }
+      return Ok()
+    }
 
   let runMigrations () : Ply<Result<unit, string>> =
     uply {
@@ -97,7 +97,7 @@ let main (args : string[]) : int =
       name
       LibService.Telemetry.DontTraceDBQueries
 
-    //let _ = (LibCloud.Init.init name).Result
+    let _ = (LibCloud.Init.init name).Result
 
     let handleCommand
       (description : string)
@@ -120,6 +120,11 @@ let main (args : string[]) : int =
         "reading, parsing packages from `packages` directory, and saving to internal SQL tables"
         (HandleCommand.reloadPackages ())
 
+    | [ "reload-packages-canvas" ] ->
+      handleCommand
+        "loading up API for Dark Packages"
+        (HandleCommand.reloadDarkPackagesCanvas ())
+
     | [ "migrations"; "run" ] ->
       handleCommand
         "deleting database and running all migrations"
@@ -132,6 +137,7 @@ let main (args : string[]) : int =
       print "Invalid arguments"
       print "Available commands:"
       print "  reload-packages"
+      print "  reload-packages-canvas"
       print "  migrations run"
       print "  migrations list"
       NonBlockingConsole.wait ()

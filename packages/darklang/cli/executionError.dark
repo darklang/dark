@@ -1,0 +1,5 @@
+module Darklang =
+  module Cli =
+    module ExecutionError =
+      type ExecutionError =
+        { msg: String }

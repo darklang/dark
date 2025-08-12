@@ -45,27 +45,26 @@ module Darklang =
         | _ -> false
 
       /// Figure out what kind of completion we need
-      let determineCompletionContext (state: State) (input: String): CompletionContext =
+      let determineCompletionContext (state: Darklang.Cli.Types.State) (input: String): CompletionContext =
         let (command, args, lastArg, hasTrailingSpace) = parseInput input
 
         if Stdlib.String.isEmpty command then
           CompletionContext.CommandCompletion
-        else
-          match Command.findCommand state command with
-          | Some cmd ->
-            if Stdlib.List.isEmpty args && Stdlib.Bool.not hasTrailingSpace then
-              CompletionContext.CommandCompletion
-            else if commandTakesEntities cmd.name then
-              CompletionContext.EntityCompletion
-            else
-              CompletionContext.ArgumentCompletion
-          | None ->
+        else if commandTakesEntities command then
+          if Stdlib.List.isEmpty args && Stdlib.Bool.not hasTrailingSpace then
             CompletionContext.CommandCompletion
+          else
+            CompletionContext.EntityCompletion
+        else
+          if Stdlib.List.isEmpty args && Stdlib.Bool.not hasTrailingSpace then
+            CompletionContext.CommandCompletion
+          else
+            CompletionContext.ArgumentCompletion
 
       /// Get module aliases (module name without owner)
       let getModuleAliases (): List<(String * String)> =
-        let query = Command.createSearchQuery [] ""
-        let moduleContent = LanguageTools.PackageManager.Search.search query
+        let query = Darklang.Cli.Commands.createSearchQuery [] ""
+        let moduleContent = Darklang.LanguageTools.PackageManager.Search.search query
 
         match Stdlib.List.head moduleContent.submodules with
         | Some modulePathsList ->
@@ -98,8 +97,8 @@ module Darklang =
       /// Get entities (functions, types, constants, submodules) from a module
       let getEntitiesFromModule (modulePath: String): List<String> =
         let parts = Stdlib.String.split modulePath "."
-        let query = Command.createSearchQuery parts ""
-        let moduleContent = LanguageTools.PackageManager.Search.search query
+        let query = Darklang.Cli.Commands.createSearchQuery parts ""
+        let moduleContent = Darklang.LanguageTools.PackageManager.Search.search query
 
         let submodules =
           match Stdlib.List.head moduleContent.submodules with
@@ -122,26 +121,30 @@ module Darklang =
 
         Stdlib.List.flatten [submodules; functions; types; constants]
 
+      /// Get available commands for completion
+      let getAvailableCommands (): List<String> =
+        ["help"; "version"; "status"; "quit"; "clear"; "mode"; "ls"; "pwd"; "cd"; "view"; "back"; "tree"; "home"; "run"; "eval"; "scripts"; "install"; "update"]
+
       /// Case 1: Complete command names
-      let getCommandCompletions (state: State) (input: String): List<String> =
-        let availableCommands = Command.getAvailableCommands state
-        availableCommands
-        |> Stdlib.List.map (fun cmd -> cmd.name)
-        |> filterByPrefix input
+      let getCommandCompletions (input: String): List<String> =
+        let availableCommands = getAvailableCommands ()
+        filterByPrefix availableCommands input
 
       /// Case 2: Complete command arguments
-      let getArgumentCompletions (cmd: Command.CommandDetails) (argIndex: Int64) (partialArg: String): List<String> =
-        match Stdlib.List.getAt cmd.arguments argIndex with
-        | Some argSpec ->
-          let options = parseArgumentOptions argSpec
-          if Stdlib.String.isEmpty partialArg then
-            [argSpec]
-          else
-            filterByPrefix options partialArg
-        | None -> []
+      let getArgumentCompletions (command: String) (argIndex: Int64) (partialArg: String): List<String> =
+        match command with
+        | "mode" ->
+          let modes = ["regular"; "non-interactive"; "refresh-screen"]
+          filterByPrefix modes partialArg
+        | "help" ->
+          let categories = ["system"; "navigation"; "development"; "installation"]
+          let commands = getAvailableCommands ()
+          let allOptions = Stdlib.List.append categories commands
+          filterByPrefix allOptions partialArg
+        | _ -> []
 
       /// Case 3: Complete command arguments where the argument is an entity path
-      let getEntityCompletions (state: State) (input: String): List<String> =
+      let getEntityCompletions (state: Darklang.Cli.Types.State) (input: String): List<String> =
         // Remove @ prefix if present (for run command)
         let cleanInput =
           if Stdlib.String.startsWith input "@" then
@@ -169,13 +172,13 @@ module Darklang =
             let modules = getAvailableModules ()
             filterByPrefix modules cleanInput
           | Module(owner, submodules) ->
-            let modulePrefix = Command.constructModulePrefix owner submodules
+            let modulePrefix = Darklang.Cli.Commands.constructModulePrefix owner submodules
             let entities = getEntitiesFromModule modulePrefix
             filterByPrefix entities cleanInput
           | _ -> []
 
       /// Main completion logic
-      let getCompletions (state: State) (input: String): List<String> =
+      let getCompletions (state: Darklang.Cli.Types.State) (input: String): List<String> =
         if Stdlib.String.isEmpty (Stdlib.String.trim input) then
           []
         else
@@ -184,17 +187,14 @@ module Darklang =
 
           match context with
           | CommandCompletion ->
-            getCommandCompletions state command
+            getCommandCompletions command
           | ArgumentCompletion ->
-            match Command.findCommand state command with
-            | Some cmd ->
-              let argIndex =
-                if hasTrailingSpace then
-                  Stdlib.List.length args
-                else
-                  (Stdlib.List.length args) - 1L
-              getArgumentCompletions cmd argIndex lastArg
-            | None -> []
+            let argIndex =
+              if hasTrailingSpace then
+                Stdlib.List.length args
+              else
+                (Stdlib.List.length args) - 1L
+            getArgumentCompletions command argIndex lastArg
           | EntityCompletion ->
             if Stdlib.String.isEmpty lastArg then
               []
@@ -202,13 +202,13 @@ module Darklang =
               getEntityCompletions state lastArg
 
       /// Generate completion state from current input
-      let generateCompletions (state: State): Stdlib.Option.Option<CompletionState> =
+      let generateCompletions (state: Darklang.Cli.Types.State): Stdlib.Option.Option<Darklang.Cli.Types.CompletionState> =
         let completions = getCompletions state state.mainPrompt
 
         match completions with
         | [] -> Stdlib.Option.Option.None
         | suggestions ->
-          let completionState = CompletionState {
+          let completionState = Darklang.Cli.Types.CompletionState {
             suggestions = suggestions
             selectedIndex = 0L
             originalText = state.mainPrompt
@@ -217,7 +217,7 @@ module Darklang =
           Stdlib.Option.Option.Some completionState
 
       /// Get the completion text to display (the grayed-out suggestion)
-      let getCompletionDisplay (state: State): String =
+      let getCompletionDisplay (state: Darklang.Cli.Types.State): String =
         match state.completionState with
         | None -> ""
         | Some completion ->
@@ -227,26 +227,23 @@ module Darklang =
 
             if Stdlib.String.contains state.mainPrompt " " then
               // Show completion for arguments
-              if Stdlib.String.startsWith suggestion "[" then
-                suggestion
-              else
-                let cleanLastArg =
-                  if command == "run" && Stdlib.String.startsWith lastArg "@" then
-                    Stdlib.String.dropFirst lastArg 1L
-                  else
-                    lastArg
+              let cleanLastArg =
+                if command == "run" && Stdlib.String.startsWith lastArg "@" then
+                  Stdlib.String.dropFirst lastArg 1L
+                else
+                  lastArg
 
-                if Stdlib.String.contains cleanLastArg "." then
-                  let dotParts = Stdlib.String.split cleanLastArg "."
-                  let entityFilter = (Stdlib.List.last dotParts) |> Stdlib.Option.withDefault ""
-                  if caseInsensitiveStartsWith suggestion entityFilter then
-                    Stdlib.String.dropFirst suggestion (Stdlib.String.length entityFilter)
-                  else
-                    suggestion
-                else if caseInsensitiveStartsWith suggestion cleanLastArg then
-                  Stdlib.String.dropFirst suggestion (Stdlib.String.length cleanLastArg)
+              if Stdlib.String.contains cleanLastArg "." then
+                let dotParts = Stdlib.String.split cleanLastArg "."
+                let entityFilter = (Stdlib.List.last dotParts) |> Stdlib.Option.withDefault ""
+                if caseInsensitiveStartsWith suggestion entityFilter then
+                  Stdlib.String.dropFirst suggestion (Stdlib.String.length entityFilter)
                 else
                   suggestion
+              else if caseInsensitiveStartsWith suggestion cleanLastArg then
+                Stdlib.String.dropFirst suggestion (Stdlib.String.length cleanLastArg)
+              else
+                suggestion
             else
               // Show completion for command names
               if caseInsensitiveStartsWith suggestion state.mainPrompt then
@@ -256,53 +253,49 @@ module Darklang =
           | None -> ""
 
       /// Apply the selected completion to the prompt
-      let applyCompletion (state: State) (completion: CompletionState): State =
+      let applyCompletion (state: Darklang.Cli.Types.State) (completion: Darklang.Cli.Types.CompletionState): Darklang.Cli.Types.State =
         match Stdlib.List.getAt completion.suggestions completion.selectedIndex with
         | Some selectedCompletion ->
-          if Stdlib.String.startsWith selectedCompletion "[" then
-            // This handles argument help specs that shouldn't be inserted into the prompt
-            { state with completionState = Stdlib.Option.Option.None }
-          else
-            let (command, args, lastArg, hasTrailingSpace) = parseInput state.mainPrompt
+          let (command, args, lastArg, hasTrailingSpace) = parseInput state.mainPrompt
 
-            let newPrompt =
-              if Stdlib.String.contains state.mainPrompt " " then
-                // Completing arguments
-                let commandParts = Stdlib.List.dropLast args
-                let commandPrefix =
-                  if Stdlib.List.isEmpty commandParts then
-                    command ++ " "
-                  else
-                    command ++ " " ++ (Stdlib.String.join commandParts " ") ++ " "
+          let newPrompt =
+            if Stdlib.String.contains state.mainPrompt " " then
+              // Completing arguments
+              let commandParts = Stdlib.List.dropLast args
+              let commandPrefix =
+                if Stdlib.List.isEmpty commandParts then
+                  command ++ " "
+                else
+                  command ++ " " ++ (Stdlib.String.join commandParts " ") ++ " "
 
-                let prefix =
-                  if command == "run" && Stdlib.String.startsWith lastArg "@" then
-                    "@"
-                  else
-                    ""
+              let prefix =
+                if command == "run" && Stdlib.String.startsWith lastArg "@" then
+                  "@"
+                else
+                  ""
 
-                let finalCompletion =
-                  if Stdlib.String.contains lastArg "." then
-                    let cleanArg = Stdlib.String.dropFirst lastArg (Stdlib.String.length prefix)
-                    let parts = Stdlib.String.split cleanArg "."
-                    let moduleParts = Stdlib.List.dropLast parts
-                    if Stdlib.List.isEmpty moduleParts then
-                      resolveModuleName selectedCompletion
-                    else
-                      let modulePathInput = Stdlib.String.join moduleParts "."
-                      let resolvedModulePath = resolveModuleName modulePathInput
-                      resolvedModulePath ++ "." ++ selectedCompletion
-                  else
+              let finalCompletion =
+                if Stdlib.String.contains lastArg "." then
+                  let cleanArg = Stdlib.String.dropFirst lastArg (Stdlib.String.length prefix)
+                  let parts = Stdlib.String.split cleanArg "."
+                  let moduleParts = Stdlib.List.dropLast parts
+                  if Stdlib.List.isEmpty moduleParts then
                     resolveModuleName selectedCompletion
+                  else
+                    let modulePathInput = Stdlib.String.join moduleParts "."
+                    let resolvedModulePath = resolveModuleName modulePathInput
+                    resolvedModulePath ++ "." ++ selectedCompletion
+                else
+                  resolveModuleName selectedCompletion
 
-                commandPrefix ++ prefix ++ finalCompletion
-              else
-                // Completing command name
-                selectedCompletion
+              commandPrefix ++ prefix ++ finalCompletion
+            else
+              // Completing command name
+              selectedCompletion
 
-            { state with
-                mainPrompt = newPrompt
-                cursorPosition = Stdlib.String.length newPrompt
-                completionState = Stdlib.Option.Option.None }
+          { state with
+              mainPrompt = newPrompt
+              cursorPosition = Stdlib.String.length newPrompt
+              completionState = Stdlib.Option.Option.None }
 
         | None -> state

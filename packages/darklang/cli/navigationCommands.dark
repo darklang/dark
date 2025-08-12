@@ -1,0 +1,234 @@
+module Darklang =
+  module Cli =
+    module NavigationCommands =
+      /// Navigation commands for moving through CLI contexts (back, cd, ls, view)
+      
+      /// Display a page path in a readable format
+      let getPathDisplay (page: Darklang.Cli.Types.Page) : String =
+        match page with
+        | Root -> "/"
+        | Module(owner, []) -> $"/{owner}"
+        | Module(owner, subPath) -> $"/{owner}/{Stdlib.String.join subPath "/"}"
+        | Type name -> $"Type: {Darklang.LanguageTools.ProgramTypes.PackageType.nameToString name}"
+        | Fn name -> $"Function: {Darklang.LanguageTools.ProgramTypes.PackageFn.nameToString name}"
+        | Constant name -> $"Constant: {Darklang.LanguageTools.ProgramTypes.PackageConstant.nameToString name}"
+        | HandlersListing -> "/handlers"
+        | DBsListing -> "/dbs"
+        | SecretsListing -> "/secrets"
+        | Handler tlid -> $"Handler: {tlid}"
+        | DB name -> $"DB: {name}"
+        | Secret name -> $"Secret: {name}"
+      
+      let back (state: Darklang.Cli.Types.State) (args: String) : Darklang.Cli.CommandResult =
+        match state.pageHistory with
+        | [] ->
+          Darklang.Cli.CommandResult { output = "Already at the root. No history to go back to."; nextState = state }
+        | prevPage :: remainingHistory ->
+          let newState = { state with currentPage = prevPage; pageHistory = remainingHistory }
+          let pathDisplay = getPathDisplay prevPage
+          Darklang.Cli.CommandResult { output = $"Navigated back to {pathDisplay}"; nextState = newState }
+      
+      let changeDirectory (state: Darklang.Cli.Types.State) (args: String) : Darklang.Cli.CommandResult =
+        let path = Stdlib.String.trim args
+        
+        if path == "" then
+          // No args - just display current location without changing
+          let pathDisplay = getPathDisplay state.currentPage
+          Darklang.Cli.CommandResult { output = $"Current directory: {pathDisplay}"; nextState = state }
+        else
+          let newPage = 
+            if path == "/" then
+              Darklang.Cli.Page.Root
+            else if path == ".." then
+              match state.currentPage with
+              | Root -> Darklang.Cli.Page.Root
+              | Module(owner, []) -> Darklang.Cli.Page.Root
+              | Module(owner, head :: tail) -> Darklang.Cli.Page.Module(owner, tail)
+              | HandlersListing | DBsListing | SecretsListing -> Darklang.Cli.Page.Root
+              | Handler _ | DB _ | Secret _ -> Darklang.Cli.Page.Root  // Go back to root for now
+              | _ -> Darklang.Cli.Page.Root
+            else if path == "handlers" then
+              Darklang.Cli.Page.HandlersListing
+            else if path == "dbs" then
+              Darklang.Cli.Page.DBsListing
+            else if path == "secrets" then
+              Darklang.Cli.Page.SecretsListing
+            else
+              // Default to module navigation for other paths
+              match state.currentPage with
+              | Root -> Darklang.Cli.Page.Module(path, [])
+              | Module(owner, subPath) -> Darklang.Cli.Page.Module(owner, Stdlib.List.pushBack subPath path)
+              | _ -> Darklang.Cli.Page.Module(path, [])
+          let newHistory = Stdlib.List.push state.pageHistory state.currentPage
+          let newState = { state with currentPage = newPage; pageHistory = newHistory }
+          let pathDisplay = getPathDisplay newPage
+          Darklang.Cli.CommandResult { output = $"Changed directory to {pathDisplay}"; nextState = newState }
+      
+      let listItems (state: Darklang.Cli.Types.State) (args: String) : Darklang.Cli.CommandResult =
+        // Use REAL PackageManager data like CLI1 does - not fake!
+        let trimmedArgs = Stdlib.String.trim args
+        
+        if Stdlib.String.isEmpty trimmedArgs then
+          // No arguments - list current directory
+          match state.currentPage with
+          | Root ->
+            // At root, show all available toplevel categories
+            let items = ["modules"; "types"; "functions"; "constants"; "handlers"; "dbs"; "secrets"]
+            let listText = "Items in current directory:\n" ++ (Stdlib.String.join items "\n")
+            Darklang.Cli.CommandResult { output = listText; nextState = state }
+          
+          | Module(owner, submodules) ->
+            // In a module, show all functions, types, and constants - use CLI1's exact approach
+            let modulePrefix = Darklang.Cli.Commands.constructModulePrefix owner submodules
+            
+            let query = Darklang.Cli.Commands.createSearchQuery (modulePrefix |> Stdlib.String.split ".") ""
+            let moduleContent = Darklang.LanguageTools.PackageManager.Search.search query
+            
+            let moduleView = Darklang.Cli.Commands.formatModuleContent modulePrefix moduleContent
+            
+            Darklang.Cli.CommandResult { output = moduleView; nextState = state }
+          
+          | HandlersListing ->
+            // TODO: List canvas handlers when we have access to canvas data
+            let output = "Handlers:\n\n(no handlers yet - canvas integration coming soon)"
+            Darklang.Cli.CommandResult { output = output; nextState = state }
+            
+          | DBsListing ->
+            // TODO: List canvas databases when we have access to canvas data
+            let output = "Databases:\n\n(no databases yet - canvas integration coming soon)"
+            Darklang.Cli.CommandResult { output = output; nextState = state }
+            
+          | SecretsListing ->
+            // TODO: List canvas secrets when we have access to canvas data
+            let output = "Secrets:\n\n(no secrets yet - canvas integration coming soon)"
+            Darklang.Cli.CommandResult { output = output; nextState = state }
+          
+          | _ ->
+            Darklang.Cli.CommandResult { output = "No items to display in this context"; nextState = state }
+        
+        else
+          // Arguments provided - list specific module path
+          let modulePath = trimmedArgs
+          let query = Darklang.Cli.Commands.createSearchQuery (modulePath |> Stdlib.String.split ".") ""
+          let moduleContent = Darklang.LanguageTools.PackageManager.Search.search query
+          
+          let moduleView = Darklang.Cli.Commands.formatModuleContent modulePath moduleContent
+          
+          Darklang.Cli.CommandResult { output = moduleView; nextState = state }
+      
+
+      let viewItem (state: Darklang.Cli.Types.State) (args: String) : Darklang.Cli.CommandResult =
+        // Use REAL PackageManager to view actual types, functions, constants - not fake!
+        let itemName = Stdlib.String.trim args
+        
+        if Stdlib.String.isEmpty itemName then
+          // No argument - show current page details if applicable
+          match state.currentPage with
+          | Type name ->
+            let typeName = Darklang.LanguageTools.ProgramTypes.PackageType.nameToString name
+            match Darklang.LanguageTools.PackageManager.Type.find typeName with
+            | Some typeId ->
+              match Darklang.LanguageTools.PackageManager.Type.get typeId with
+              | Some packageType ->
+                let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageType packageType
+                let formattedOutput = Darklang.Cli.UI.formatTypeView typeName prettyPrinted
+                Darklang.Cli.CommandResult { output = formattedOutput; nextState = state }
+              | None ->
+                Darklang.Cli.CommandResult { output = "Type details could not be retrieved"; nextState = state }
+            | None ->
+              Darklang.Cli.CommandResult { output = "Type not found"; nextState = state }
+          
+          | Fn name ->
+            let fnName = Darklang.LanguageTools.ProgramTypes.PackageFn.nameToString name
+            match Darklang.LanguageTools.PackageManager.Function.find fnName with
+            | Some fnId ->
+              match Darklang.LanguageTools.PackageManager.Function.get fnId with
+              | Some packageFn ->
+                let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageFn packageFn
+                let formattedOutput = Darklang.Cli.UI.formatFunctionView fnName prettyPrinted
+                Darklang.Cli.CommandResult { output = formattedOutput; nextState = state }
+              | None ->
+                Darklang.Cli.CommandResult { output = "Function details could not be retrieved"; nextState = state }
+            | None ->
+              Darklang.Cli.CommandResult { output = "Function not found"; nextState = state }
+          
+          | Constant name ->
+            let constName = Darklang.LanguageTools.ProgramTypes.PackageConstant.nameToString name
+            match Darklang.LanguageTools.PackageManager.Constant.find constName with
+            | Some constId ->
+              match Darklang.LanguageTools.PackageManager.Constant.get constId with
+              | Some packageConst ->
+                let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageConstant packageConst
+                let formattedOutput = Darklang.Cli.UI.formatConstantView constName prettyPrinted
+                Darklang.Cli.CommandResult { output = formattedOutput; nextState = state }
+              | None ->
+                Darklang.Cli.CommandResult { output = "Constant details could not be retrieved"; nextState = state }
+            | None ->
+              Darklang.Cli.CommandResult { output = "Constant not found"; nextState = state }
+          
+          | _ ->
+            Darklang.Cli.CommandResult { output = "Usage: view <item-name>"; nextState = state }
+        
+        else
+          // Argument provided - search for and view the specific item
+          // Handle @ prefix by stripping it (common Dark convention)
+          let cleanItemName = 
+            if Stdlib.String.startsWith itemName "@" then
+              Stdlib.String.dropFirst itemName 1L
+            else
+              itemName
+          
+          // Try to find as function first
+          match Darklang.LanguageTools.PackageManager.Function.find cleanItemName with
+          | Some fnId ->
+            match Darklang.LanguageTools.PackageManager.Function.get fnId with
+            | Some packageFn ->
+              let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageFn packageFn
+              let formattedOutput = Darklang.Cli.UI.formatFunctionView cleanItemName prettyPrinted
+              Darklang.Cli.CommandResult { output = formattedOutput; nextState = state }
+            | None ->
+              Darklang.Cli.CommandResult { output = "Function details could not be retrieved"; nextState = state }
+          | None ->
+            // Try as type
+            match Darklang.LanguageTools.PackageManager.Type.find cleanItemName with
+            | Some typeId ->
+              match Darklang.LanguageTools.PackageManager.Type.get typeId with
+              | Some packageType ->
+                let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageType packageType
+                let formattedOutput = Darklang.Cli.UI.formatTypeView cleanItemName prettyPrinted
+                Darklang.Cli.CommandResult { output = formattedOutput; nextState = state }
+              | None ->
+                Darklang.Cli.CommandResult { output = "Type details could not be retrieved"; nextState = state }
+            | None ->
+              // Try as constant
+              match Darklang.LanguageTools.PackageManager.Constant.find cleanItemName with
+              | Some constId ->
+                match Darklang.LanguageTools.PackageManager.Constant.get constId with
+                | Some packageConst ->
+                  let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageConstant packageConst
+                  let formattedOutput = Darklang.Cli.UI.formatConstantView cleanItemName prettyPrinted
+                  Darklang.Cli.CommandResult { output = formattedOutput; nextState = state }
+                | None ->
+                  Darklang.Cli.CommandResult { output = "Constant details could not be retrieved"; nextState = state }
+              | None ->
+                Darklang.Cli.CommandResult { output = $"'{cleanItemName}' not found as a function, type, or constant"; nextState = state }
+      
+
+      let showTree (state: Darklang.Cli.Types.State) (args: String) : Darklang.Cli.CommandResult =
+        // tree view - shows hierarchical structure for current or specified path
+        let trimmedArgs = Stdlib.String.trim args
+        
+        let targetPage = 
+          if Stdlib.String.isEmpty trimmedArgs then
+            // No argument - use current page
+            state.currentPage
+          else
+            // Parse path argument to determine target page
+            if trimmedArgs == "/" then
+              Darklang.Cli.Types.Page.Root
+            else
+              // Treat as module path for now
+              Darklang.Cli.Types.Page.Module(trimmedArgs, [])
+        
+        let treeView = Darklang.Cli.UI.formatTreeView targetPage
+        Darklang.Cli.CommandResult { output = treeView; nextState = state }

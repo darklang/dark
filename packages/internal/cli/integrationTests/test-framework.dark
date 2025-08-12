@@ -172,7 +172,7 @@ module Darklang =
                             $"Interactive test failed: {errorOutput}"
 
                       TestUtils.printlnError $"FAIL - {interactiveTest.name}"
-                      TestUtils.printlnColored Cli.CliColors.red specificError
+                      TestUtils.printlnColored Cli.Colors.red specificError
                       TestResult.Failure $"Interactive test {interactiveTest.name} failed - {specificError}"
 
 
@@ -233,9 +233,9 @@ module Darklang =
                       else
                         TestUtils.printlnError $"FAIL - {config.name} output differs from expected"
                         Builtin.printLine ""
-                        TestUtils.printlnColored Cli.CliColors.blue "📄 Detailed diff:"
+                        TestUtils.printlnColored Cli.Colors.blue "📄 Detailed diff:"
                         Builtin.printLine "-----------------"
-                        TestUtils.printlnColored Cli.CliColors.yellow "Expected vs Actual:"
+                        TestUtils.printlnColored Cli.Colors.yellow "Expected vs Actual:"
                         let diffOutput = Stdlib.Cli.Unix.showDiff expectedFile actualFile
                         match diffOutput.exitCode with
                         | 0L ->

@@ -23,7 +23,7 @@ module Darklang =
           if IntegrationTests.FailureRecorder.recordFailureForTest testName command interactiveSteps then
             ()
           else
-            TestUtils.printlnWarning "Failed to record failure GIF"
+            TestUtils.printlnWarning "Failed to record failure log"
 
 
         let interactiveStepToString (step: TestFramework.InteractiveStep) : String =
@@ -68,22 +68,22 @@ module Darklang =
 
         let printTestSummary (summary: TestSummary) : Unit =
           Builtin.printLine ""
-          TestUtils.printlnColored Cli.CliColors.blue "📊 Test Results Summary"
-          TestUtils.printlnColored Cli.CliColors.blue "======================"
+          TestUtils.printlnColored Cli.Colors.blue "📊 Test Results Summary"
+          TestUtils.printlnColored Cli.Colors.blue "======================"
           Builtin.printLine $"Total tests:  {Stdlib.Int64.toString summary.totalTests}"
 
           TestUtils.printlnColored
-            Cli.CliColors.green
+            Cli.Colors.green
             $"Passed:       {Stdlib.Int64.toString summary.passedTests}"
 
           TestUtils.printlnColored
-            Cli.CliColors.red
+            Cli.Colors.red
             $"Failed:       {Stdlib.Int64.toString summary.failedTests}"
 
           if summary.failedTests == 0L then
-            TestUtils.printlnColored Cli.CliColors.green "🎉 All tests passed!"
+            TestUtils.printlnColored Cli.Colors.green "🎉 All tests passed!"
           else
-            TestUtils.printlnColored Cli.CliColors.red "🚨 Some tests failed!"
+            TestUtils.printlnColored Cli.Colors.red "🚨 Some tests failed!"
 
             if Stdlib.Bool.not (Stdlib.List.isEmpty summary.failedTestNames) then
               Builtin.printLine "Failed tests:"
@@ -93,14 +93,14 @@ module Darklang =
                 TestUtils.printlnError testName)
 
             TestUtils.printlnInfo
-              $"Check failure recordings in {TestConfig.testDir}/failed-tests-gifs/"
+              $"Check failure logs in {TestConfig.testDir}/failed-tests-logs/"
 
 
         // Main test runner function
         let runIntegrationTests () : Int64 =
           Builtin.printLine ""
-          TestUtils.printlnColored Cli.CliColors.blue "Darklang CLI Integration Tests"
-          TestUtils.printlnColored Cli.CliColors.blue "=============================="
+          TestUtils.printlnColored Cli.Colors.blue "Darklang CLI Integration Tests"
+          TestUtils.printlnColored Cli.Colors.blue "=============================="
 
           IntegrationTests.FailureRecorder.cleanupPreviousFailures ()
 

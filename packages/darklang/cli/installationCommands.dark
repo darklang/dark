@@ -1,0 +1,87 @@
+module Darklang =
+  module Cli =
+    module InstallationCommands =
+      
+      let install (state: Types.State) (args: String) : CommandResult =
+        let currentMode = Installation.getInstallationMode ()
+
+        match currentMode with
+        | Installed ->
+          CommandResult { output = "Already installed globally"; nextState = state }
+
+        | Portable ->
+          let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
+
+          let currentDir = Builtin.directoryCurrent ()
+
+          if Installation.globalInstallationExists host then
+            // TODO this should be a util fn in Installation or something.
+            let homeDir =
+              match host.os with
+              | Windows ->
+                match Stdlib.Cli.PowerShell.getHomeDirectory () with
+                | Ok dir -> $"{dir}\\.darklang"
+                | Error _ -> "~/.darklang"
+              | _ ->
+                match Stdlib.Cli.Unix.getHomeDirectory () with
+                | Ok dir -> $"{dir}/.darklang"
+                | Error _ -> "~/.darklang"
+            
+            CommandResult
+              { output =
+                  $"Detected portable mode - you're running from {currentDir}/.darklang\n
+                  Found existing global installation at {homeDir}\n\n
+                  If you'd like to update your global installation, please run `dark` rather than this portable executable."
+                nextState = state }
+          else
+            Builtin.printLine "Choose installation method:"
+            Builtin.printLine "1. Download latest release from GitHub"
+            Builtin.printLine "2. Copy this binary (for testing local changes)"
+            Builtin.printLine "Choose option (1 or 2, default: 1): "
+
+            let choice = (Builtin.stdinReadLine ()) |> Stdlib.String.trim
+            if choice == "1" then
+              Builtin.printLine "Installing globally..."
+              match Installation.install host with
+              | Ok message -> CommandResult { output = message; nextState = state }
+              | Error e -> CommandResult { output = e; nextState = state }
+            else
+              match Installation.installFromCurrentBinary host with
+              | Ok message -> CommandResult { output = message; nextState = state }
+              | Error e -> CommandResult { output = e; nextState = state }
+      
+
+      let update (state: Types.State) (args: String) : CommandResult =
+        let currentVersion = Commands.cliVersion ()
+        let currentMode = Installation.getInstallationMode ()
+        match currentMode with
+        | Installed ->
+          Builtin.printLine $"Checking for updates from Darklang CLI {currentVersion}..."
+          let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
+
+          match Installation.updateIfAvailable currentVersion host with
+          | Ok message -> CommandResult { output = message; nextState = state }
+          | Error e -> CommandResult { output = e; nextState = state }
+
+        | Portable ->
+          CommandResult
+            { output = 
+                $"Running in portable mode from {Builtin.directoryCurrent ()}/.darklang\n\n
+                To update this portable executable, please download the latest release manually from:\n
+                https://github.com/darklang/dark/releases\n\n
+                For automatic updates, consider running 'install' to set up global installation."
+              nextState = state }
+      
+      
+      let uninstall (state: Types.State) (args: String) : CommandResult =
+        let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
+
+        match Installation.uninstallWithConfirmation host with
+        | Ok message ->
+          CommandResult
+            { output = message;
+              // exit after successful uninstall since the executable is being removed
+              nextState = { state with isExiting = true } }
+              
+        | Error e ->
+          CommandResult { output = e; nextState = state }

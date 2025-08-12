@@ -26,19 +26,19 @@ module Darklang =
 
 
           let printlnColored (color: String) (message: String): Unit =
-            Builtin.printLine $"{color}{message}{Cli.CliColors.reset}"
+            Builtin.printLine $"{color}{message}{Cli.Colors.reset}"
 
           let printlnSuccess (message: String): Unit =
-            printlnColored Cli.CliColors.green $"✓ {message}"
+            printlnColored Cli.Colors.green $"✓ {message}"
 
           let printlnError (message: String): Unit =
-            printlnColored Cli.CliColors.red $"✗ {message}"
+            printlnColored Cli.Colors.red $"✗ {message}"
 
           let printlnWarning (message: String): Unit =
-            printlnColored Cli.CliColors.yellow $"⚠ {message}"
+            printlnColored Cli.Colors.yellow $"⚠ {message}"
 
           let printlnInfo (message: String): Unit =
-            printlnColored Cli.CliColors.blue $"ℹ {message}"
+            printlnColored Cli.Colors.blue $"ℹ {message}"
 
           let getAbsolutePath (relativePath: String) : String =
             let result = Stdlib.Cli.Unix.getAbsolutePath relativePath
@@ -74,7 +74,13 @@ module Darklang =
               |> Stdlib.String.join ""
             let border = $"+{dashes}+"
 
-            printlnColored Cli.CliColors.yellow border
-            printlnColored Cli.CliColors.yellow $"| {safePadEnd message " " contentWidth} |"
-            printlnColored Cli.CliColors.yellow $"| {safePadEnd command " " contentWidth} |"
-            printlnColored Cli.CliColors.yellow border
+            printlnColored Cli.Colors.yellow border
+            printlnColored Cli.Colors.yellow $"| {safePadEnd message " " contentWidth} |"
+            printlnColored Cli.Colors.yellow $"| {safePadEnd command " " contentWidth} |"
+            printlnColored Cli.Colors.yellow border
+
+          let ensureDirectoryExists (dirPath: String) : Stdlib.Result.Result<Unit, String> =
+            Stdlib.Cli.Unix.ensureDirectoryExists dirPath
+
+          let generateTimestamp () : String =
+            (Stdlib.DateTime.now()) |> Stdlib.DateTime.toString
