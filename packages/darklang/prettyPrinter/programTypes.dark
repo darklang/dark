@@ -266,6 +266,20 @@ module Darklang =
           |> Stdlib.String.join ", "
           |> fun parts -> "(" ++ parts ++ ")"
 
+        | CRecord(typeName, fields) ->
+          let typeNamePart =
+            match typeName with
+            | Ok name -> PrettyPrinter.ProgramTypes.FQTypeName.fullForReference name
+            | Error e -> PrettyPrinter.ProgramTypes.NameResolutionError.source e
+
+          let fieldsPart =
+            fields
+            |> Stdlib.List.map (fun (name, value) ->
+              $"{name} = {PrettyPrinter.ProgramTypes.constant value}")
+            |> Stdlib.String.join "; "
+
+          $"{typeNamePart} {{ {fieldsPart} }}"
+
         | CEnum(typeName, caseName, fields) ->
           let typeNamePart =
             match typeName with

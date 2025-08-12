@@ -860,6 +860,29 @@ module Darklang =
                   restUnresolvedNames |> Stdlib.List.flatten ]
 
             (ProgramTypes.Const.CTuple(first, second, rest), unresolvedNames)
+          | CRecord(_, typeName, fields) ->
+            let (typeName, _typeArgs, typeNameUnresolvedNames) =
+              Identifiers.QualifiedType.toPT
+                onMissing
+                pm
+                owner
+                currentModule
+                typeName
+
+            let (fields, fieldsUnresolvedNames) =
+              fields
+              |> Stdlib.List.map (fun field ->
+                let ((_, name), value) = field
+                let (value, unresolvedNames) = toPT onMissing pm owner currentModule value
+                ((name, value), unresolvedNames))
+              |> Stdlib.List.unzip
+
+            let unresolvedNames =
+              Stdlib.List.flatten
+                [ typeNameUnresolvedNames
+                  fieldsUnresolvedNames |> Stdlib.List.flatten ]
+
+            (ProgramTypes.Const.CRecord(typeName, fields), unresolvedNames)
 
           | CEnum(_, typeName, (_, caseName), fields, _) ->
             let (typeName, typeArgs, typeNameUnresolvedNames) =
