@@ -150,51 +150,6 @@ module Darklang =
         | Some idx -> Stdlib.Option.Option.Some (Stdlib.String.slice fullyQualifiedName 0L idx)
         | None -> Stdlib.Option.Option.None
 
-      /// Creates an error state with the given message
-      let createErrorState (state: State) (message: String) : State =
-        { state with commandResult = CommandResult.Error message }
-
-
-      /// Formats a section of entities for display
-      let formatEntitySection (sectionName: String) (entities: List<String>) : String =
-        if Stdlib.List.isEmpty entities then
-          $"{sectionName}:\n\n(none)\n"
-        else
-          $"{sectionName}:\n\n" ++ (Stdlib.String.join entities "\n") ++ "\n"
-
-      let formatModuleContent (entityName: String) (moduleContent: LanguageTools.ProgramTypes.Search.SearchResults) : String =
-        let functionsSection =
-          formatEntitySection
-            "functions"
-            (moduleContent.fns
-              |> Stdlib.List.map (fun fn -> LanguageTools.ProgramTypes.PackageFn.nameToString fn.name))
-
-        let typesSection =
-          formatEntitySection
-            "types"
-            (moduleContent.types
-              |> Stdlib.List.map (fun typ -> LanguageTools.ProgramTypes.PackageType.nameToString typ.name))
-
-        let constantsSection =
-          formatEntitySection
-            "constants"
-            (moduleContent.constants
-              |> Stdlib.List.map (fun c -> LanguageTools.ProgramTypes.PackageConstant.nameToString c.name))
-
-        let submodulesSection =
-          formatEntitySection
-            "submodules"
-            ((moduleContent.submodules
-              |> Stdlib.List.map (fun m ->
-                m
-                |> Stdlib.List.map (fun s -> s |> Stdlib.String.join ".")))
-              |> Stdlib.List.flatten)
-
-        $"Module: {entityName}\n\n" ++
-        functionsSection ++ "\n" ++
-        typesSection ++ "\n" ++
-        constantsSection ++ "\n" ++
-        submodulesSection
 
       let createSearchQuery (currentModule: List<String>) (text: String) : LanguageTools.ProgramTypes.Search.SearchQuery =
         LanguageTools.ProgramTypes.Search.SearchQuery
@@ -258,107 +213,6 @@ module Darklang =
         | Error e ->
           let newState = { state with commandResult = CommandResult.Error e }
           (newState, [])
-
-
-      /// Helper function to view an entity by its fully qualified name
-      let viewEntityByName (state: State) (fullyQualifiedName: String) : (State * List<Msg>) =
-        let modules = fullyQualifiedName |> Stdlib.String.split "." |> Stdlib.List.dropLast
-        let text = fullyQualifiedName |> Stdlib.String.split "." |> Stdlib.List.last |> Builtin.unwrap
-
-        let query = createSearchQuery modules text
-
-        let moduleContent =
-          LanguageTools.PackageManager.Search.search query
-
-
-        match moduleContent.fns, moduleContent.types, moduleContent.constants with
-        | [], [], [] ->
-          let newState =
-            { state with
-                commandResult =
-                  CommandResult.Error $"No entities found for: {fullyQualifiedName}" }
-
-          (newState, [])
-
-        | fns, [], [] ->
-          let fn =
-            fns
-            |> Stdlib.List.filter (fun fn -> fn.name.name == text)
-            |> Stdlib.List.head
-
-          match fn with
-          | None ->
-            let newState =
-              { state with
-                  commandResult =
-                    CommandResult.Error $"Function not found: {fullyQualifiedName}" }
-            (newState, [])
-
-          | Some fn ->
-            let prettyPrinted = PrettyPrinter.ProgramTypes.packageFn fn
-
-            let highlighted = Cli.SyntaxHighlighting.highlightCode prettyPrinted
-
-            let newState =
-              { state with
-                  commandResult =
-                    CommandResult.Success $"Function: {fullyQualifiedName}\n\n{highlighted}" }
-
-            (newState, [])
-
-        | [], types, [] ->
-          let typ =
-            types
-            |> Stdlib.List.filter (fun typ -> typ.name.name == text)
-            |> Stdlib.List.head
-
-          match typ with
-          | None ->
-            let newState =
-              { state with
-                  commandResult =
-                    CommandResult.Error $"Type not found: {fullyQualifiedName}" }
-            (newState, [])
-
-          | Some typ ->
-            let prettyPrinted = PrettyPrinter.ProgramTypes.packageType typ
-
-            let highlighted = Cli.SyntaxHighlighting.highlightCode prettyPrinted
-
-            let newState =
-              { state with
-                  commandResult =
-                    CommandResult.Success $"Type: {fullyQualifiedName}\n\n{highlighted}" }
-
-            (newState, [])
-
-        | [], [], constants ->
-          let constant =
-            constants
-            |> Stdlib.List.filter (fun c -> c.name.name == text)
-            |> Stdlib.List.head
-
-          match constant with
-          | None ->
-            let newState =
-              { state with
-                  commandResult =
-                    CommandResult.Error $"Constant not found: {fullyQualifiedName}" }
-            (newState, [])
-            s
-          | Some constant ->
-            let prettyPrinted = PrettyPrinter.ProgramTypes.packageConstant constant
-
-            let highlighted = Cli.SyntaxHighlighting.highlightCode prettyPrinted
-
-            let newState =
-              { state with
-                  commandResult =
-                    CommandResult.Success $"Constant: {fullyQualifiedName}\n\n{highlighted}" }
-
-            (newState, [])
-
-        | _ -> (createErrorState state $"Entity not found: {fullyQualifiedName}", [])
 
 
       /// Returns commands available in the current state
@@ -534,12 +388,36 @@ module Darklang =
                        Stdlib.List.isEmpty moduleContent.types &&
                        Stdlib.List.isEmpty moduleContent.constants then
 
-                        viewEntityByName state entityName
+                        CommandHelpers.View.EntityLookup.viewEntityByName state entityName
 
                     else
-                      let moduleView = formatModuleContent entityName moduleContent
-                      let newState = { state with commandResult = CommandResult.Success moduleView }
-                      (newState, [])
+                      match state.interactionMode with
+                      | NonInteractive ->
+                        let moduleView = CommandHelpers.View.Rendering.formatModuleContentSimple moduleContent
+                        let newState = { state with commandResult = CommandResult.Success moduleView }
+                        (newState, [])
+                      | _ ->
+                        // Interactive format for regular and refresh-screen modes
+                        let initialItemIndex = if Stdlib.List.isEmpty moduleContent.fns then -1L else 0L
+                        let viewingState =
+                          ViewingState
+                            { moduleContent = moduleContent
+                              entityName = entityName
+                              selectedCategory = EntityCategory.Functions
+                              selectedItemIndex = initialItemIndex
+                              expandedCategories = []
+                              entityDefinition = Stdlib.Option.Option.None
+                              entityCache = []
+                              viewportScrollPosition = 0L }
+                        let moduleView = CommandHelpers.View.Rendering.formatModuleContent viewingState
+                        // Enter alternate screen buffer when first entering view mode, then render interface
+                        let enterAltScreen = if Stdlib.Option.isNone state.viewingState then Terminal.Display.enterAltScreen else ""
+                        let completeInterface = CommandHelpers.View.Rendering.renderModuleViewingInterface moduleView
+                        let newState =
+                          { state with
+                              commandResult = CommandResult.Success (enterAltScreen ++ completeInterface)
+                              viewingState = Stdlib.Option.Option.Some viewingState }
+                        (newState, [])
 
                   | Module(owner, submodules) ->
                     // Construct the fully qualified entity name
@@ -556,14 +434,69 @@ module Darklang =
                        Stdlib.List.isEmpty moduleContent.types &&
                        Stdlib.List.isEmpty moduleContent.constants then
                       // check if the entity is a function, type, or constant
-                      viewEntityByName state fullyQualifiedName
+                      CommandHelpers.View.EntityLookup.viewEntityByName state fullyQualifiedName
 
                     else
-                      let moduleView =
-                        formatModuleContent fullyQualifiedName moduleContent
+                      match state.interactionMode with
+                      | NonInteractive ->
+                        let functionsSection =
+                          CommandHelpers.View.Rendering.formatEntitySectionSimple
+                            "functions"
+                            (moduleContent.fns
+                              |> Stdlib.List.map (fun fn -> LanguageTools.ProgramTypes.PackageFn.nameToString fn.name))
 
-                      let newState = { state with commandResult = CommandResult.Success moduleView }
-                      (newState, [])
+                        let typesSection =
+                          CommandHelpers.View.Rendering.formatEntitySectionSimple
+                            "types"
+                            (moduleContent.types
+                              |> Stdlib.List.map (fun typ -> LanguageTools.ProgramTypes.PackageType.nameToString typ.name))
+
+                        let constantsSection =
+                          CommandHelpers.View.Rendering.formatEntitySectionSimple
+                            "constants"
+                            (moduleContent.constants
+                              |> Stdlib.List.map (fun c -> LanguageTools.ProgramTypes.PackageConstant.nameToString c.name))
+
+                        let submodulesSection =
+                          CommandHelpers.View.Rendering.formatEntitySectionSimple
+                            "submodules"
+                            ((moduleContent.submodules
+                              |> Stdlib.List.map (fun m ->
+                                m
+                                |> Stdlib.List.map (fun s -> s |> Stdlib.String.join ".")))
+                              |> Stdlib.List.flatten)
+
+                        let moduleView =
+                          $"Module: {fullyQualifiedName}\n" ++
+                          functionsSection ++ "\n" ++
+                          typesSection ++ "\n" ++
+                          constantsSection ++ "\n" ++
+                          submodulesSection
+
+                        let newState = { state with commandResult = CommandResult.Success moduleView }
+                        (newState, [])
+                      | _ ->
+                        // Interactive format for regular and refresh-screen modes
+                        let initialItemIndex = if Stdlib.List.isEmpty moduleContent.fns then -1L else 0L
+                        let viewingState =
+                          ViewingState
+                            { moduleContent = moduleContent
+                              entityName = fullyQualifiedName
+                              selectedCategory = EntityCategory.Functions
+                              selectedItemIndex = initialItemIndex
+                              expandedCategories = []
+                              entityDefinition = Stdlib.Option.Option.None
+                              entityCache = []
+                              viewportScrollPosition = 0L }
+                        let moduleView = CommandHelpers.View.Rendering.formatModuleContent viewingState
+                        // Enter alternate screen buffer when first entering view mode, then render interface
+                        let enterAltScreen = if Stdlib.Option.isNone state.viewingState then Terminal.Display.enterAltScreen else ""
+                        let completeInterface = CommandHelpers.View.Rendering.renderModuleViewingInterface moduleView
+                        let newState =
+                          { state with
+                              commandResult = CommandResult.Success (enterAltScreen ++ completeInterface)
+                              viewingState = Stdlib.Option.Option.Some viewingState }
+                        (newState, [])
 
                   | _ ->
                     // Not in a module context
@@ -947,14 +880,11 @@ module Darklang =
                       (newState, [])
 
                     | Module(owner, submodules) ->
-                      // In a module, show all functions, types, and constants
-                      // Construct the module prefix
                       let modulePrefix = constructModulePrefix owner submodules
 
                       let query = createSearchQuery (modulePrefix |> Stdlib.String.split ".") ""
                       let moduleContent = LanguageTools.PackageManager.Search.search query
-
-                      let moduleView = formatModuleContent modulePrefix moduleContent
+                      let moduleView = CommandHelpers.View.Rendering.formatModuleContentSimple moduleContent
 
                       let newState = { state with commandResult = CommandResult.Success moduleView }
                       (newState, [])
@@ -1074,7 +1004,7 @@ module Darklang =
                         match extractModulePrefix typeName with
                         | Some modulePrefix ->
                           let fullyQualifiedName = modulePrefix ++ "." ++ entityName
-                          viewEntityByName state fullyQualifiedName
+                          CommandHelpers.View.EntityLookup.viewEntityByName state fullyQualifiedName
                         | None ->
                           let newState = { state with commandResult = CommandResult.Error "Cannot determine module context" }
                           (newState, [])
@@ -1085,7 +1015,7 @@ module Darklang =
                         match extractModulePrefix fnName with
                         | Some modulePrefix ->
                           let fullyQualifiedName = modulePrefix ++ "." ++ entityName
-                          viewEntityByName state fullyQualifiedName
+                          CommandHelpers.View.EntityLookup.viewEntityByName state fullyQualifiedName
                         | None ->
                           let newState = { state with commandResult = CommandResult.Error "Cannot determine module context" }
                           (newState, [])
@@ -1096,7 +1026,7 @@ module Darklang =
                         match extractModulePrefix constName with
                         | Some modulePrefix ->
                           let fullyQualifiedName = modulePrefix ++ "." ++ entityName
-                          viewEntityByName state fullyQualifiedName
+                          CommandHelpers.View.EntityLookup.viewEntityByName state fullyQualifiedName
                         | None ->
                           let newState = { state with commandResult = CommandResult.Error "Cannot determine module context" }
                           (newState, [])

@@ -25,6 +25,10 @@ module Darklang =
       // -- Command results
       | SetCommandResult of result: CommandResult
 
+      // -- Viewing mode
+      | ToggleCategory of category: EntityCategory
+      | ShowItemDefinition of category: EntityCategory * itemIndex: Int64
+
       // -- Nav.
       //| GoToApp of appId: Uuid
 

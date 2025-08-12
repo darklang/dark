@@ -75,6 +75,37 @@ module Darklang =
           completionPrefix: String
         }
 
+      /// Categories of entities that can be displayed in viewing mode
+      type EntityCategory =
+        | Functions
+        | Types
+        | Constants
+        | Submodules
+
+      /// Entity definition with cached content for scrolling
+      type EntityDefinition =
+        { name: String
+          lines: List<String> //  content split into lines for scrolling
+          scrollPosition: Int64 }
+
+      /// Content types
+      type ViewContent =
+        | ModuleView of EntityCategory * List<String> * Int64  // category, items, selectedIndex
+        | EntityDefinitionView of EntityDefinition
+
+      /// Viewing mode state
+      type ViewingState =
+        { moduleContent: LanguageTools.ProgramTypes.Search.SearchResults
+          entityName: String
+          selectedCategory: EntityCategory
+          selectedItemIndex: Int64
+          expandedCategories: List<EntityCategory>
+          entityDefinition: Stdlib.Option.Option<EntityDefinition>
+          /// Cache for entity definitions to avoid re-computing them
+          entityCache: List<(String * EntityDefinition)>
+          /// Viewport scroll position for the module view (how many lines scrolled from top)
+          viewportScrollPosition: Int64 }
+
       type State =
         { /// The current page/view the user is on
           currentPage: Page
@@ -112,6 +143,9 @@ module Darklang =
 
           /// The current state of tab completion
           completionState: Stdlib.Option.Option<CompletionState>
+
+          /// Viewing mode state - None when not in viewing mode
+          viewingState: Stdlib.Option.Option<ViewingState>
 
           //accounts: [("stachu", "uhcats"); ("ocean": "oak"); ("paul", "biggar")]
           //currentAccount: "stachu"

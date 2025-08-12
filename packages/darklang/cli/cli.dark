@@ -23,12 +23,6 @@ module Darklang =
       // Handle rendering based on the interaction mode
       let stateAfterRender =
         match state.interactionMode with
-        // In NonInteractive mode, just render and exit
-        // (we do this if you enter any command explicitly when starting the CLI)
-        | NonInteractive ->
-          Builtin.print (render state)
-          { state with isExiting = true }
-
         // In Regular mode, don't clear the screen, just print the prompt
         | Regular ->
           if state.needsFullRedraw then
@@ -77,7 +71,15 @@ module Darklang =
     let executeCliCommand (args: List<String>) : Int64 =
       let (state, initialMsgs) = init args
       let state = processMessages state initialMsgs
-      runInternalLoop state
+      match state.interactionMode with
+      | NonInteractive ->
+        match state.commandResult with
+        | Success msg -> Builtin.printLine msg; 0L
+        | Error msg -> Builtin.printLine $"Error: {msg}"; 1L
+        | Info msg -> Builtin.printLine msg; 0L
+        | None -> 0L
+      | _ ->
+        runInternalLoop state
 
 
     module ExecutionError =
