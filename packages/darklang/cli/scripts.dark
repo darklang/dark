@@ -1,21 +1,27 @@
 module Darklang =
   module Cli =
     module Scripts =
+      // Shared scripts utilities used by both CLI implementations
+      
       type Script = {
         id: String
         name: String
         text: String
       }
 
-      /// Adds a new script to the database
-      let add (name: String) (text: String): Stdlib.Result.Result<Script, String> =
-        Builtin.cliScriptsAdd name text
+      /// Lists all scripts
+      let list (): Stdlib.Result.Result<List<Script>, String> =
+        Stdlib.Result.Result.Ok (Builtin.cliScriptsList ())
 
       /// Gets a script by name
       let get (name: String): Stdlib.Result.Result<Script, String> =
         match Builtin.cliScriptsGet name with
         | Some script -> Stdlib.Result.Result.Ok script
         | None -> Stdlib.Result.Result.Error $"Script '{name}' not found"
+
+      /// Adds a new script to the database
+      let add (name: String) (text: String): Stdlib.Result.Result<Script, String> =
+        Builtin.cliScriptsAdd name text
 
       /// Updates an existing script's text
       let update (name: String) (text: String): Stdlib.Result.Result<Unit, String> =
@@ -24,41 +30,3 @@ module Darklang =
       /// Deletes a script by name
       let delete (name: String): Stdlib.Result.Result<Unit, String> =
         Builtin.cliScriptsDelete name
-
-      /// Lists all scripts
-      let list (): Stdlib.Result.Result<List<Script>, String> =
-        Stdlib.Result.Result.Ok (Builtin.cliScriptsList ())
-
-
-      /// Edit a script interactively or with provided content
-      let edit (name: String) (newContent: Stdlib.Option.Option<String>): Stdlib.Result.Result<String, String> =
-        match newContent with
-        | Some content ->
-          // Update the script with new content
-          match update name content with
-          | Ok () ->
-            Stdlib.Result.Result.Ok $"Script '{name}' updated successfully"
-          | Error err ->
-            Stdlib.Result.Result.Error err
-        | None ->
-          // Interactive edit mode
-          match get name with
-          | Ok script ->
-            // Show current content and prompt for new content
-            Builtin.printLine $"Current content of script '{name}':"
-            Builtin.printLine script.text
-            Builtin.printLine ""
-            Builtin.printLine "Enter new content (or press Enter to keep unchanged):"
-
-            let input = Builtin.stdinReadLine ()
-
-            if Stdlib.String.isEmpty input then
-              Stdlib.Result.Result.Ok "No changes made"
-            else
-              match update name input with
-              | Ok () ->
-                Stdlib.Result.Result.Ok $"Script '{name}' updated successfully"
-              | Error err ->
-                Stdlib.Result.Result.Error err
-          | Error err ->
-            Stdlib.Result.Result.Error err

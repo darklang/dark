@@ -1,0 +1,53 @@
+module Darklang =
+  module Cli =
+    module Tests =
+      /// Simple unit tests for CLI - no external dependencies
+      /// Tests core command dispatch and basic functionality
+      
+      type TestResult =
+        | Pass
+        | Fail of message: String
+        
+      type TestCase = 
+        { name: String
+          test: Unit -> TestResult }
+      
+      let createMockState () : Types.State =
+        Types.State
+          { currentPage = Page.Root
+            pageHistory = []
+            mainPrompt = ""
+            cursorPosition = 0L
+            commandHistory = []
+            historyPosition = -1L
+            draftPrompt = ""
+            commandResult = CommandResult.None
+            interactionMode = InteractionMode.NonInteractive
+            needsFullRedraw = true
+            isExiting = false
+            completionState = Stdlib.Option.Option.None }
+      
+
+      /// Old test functions - commented out due to Darklang parser limitations
+      /// These were causing "Unsupported expression in app" errors with record field access
+      ///
+      /// testCommandDispatch, testUnknownCommand, testSystemCommands, testNavigationCommands
+      /// would test individual CLI functionality but the parser can't handle the TestResult pattern
+      
+      /// Simple test runner - just run a few basic tests manually 
+      let runBasicTest () : String =
+        let state = createMockState ()
+        let versionResult = Commands.executeCommand state "version" ""
+        let helpResult = Commands.executeCommand state "help" ""
+        let unknownResult = Commands.executeCommand state "unknown" ""
+        
+        "CLI Basic Test Results\n" ++
+        "========================\n" ++
+        "Version command: " ++ (if Stdlib.String.contains versionResult.output "CLI" then "✓ PASS" else "✗ FAIL") ++ "\n" ++
+        "Help command: " ++ (if Stdlib.String.contains helpResult.output "System Commands" then "✓ PASS" else "✗ FAIL") ++ "\n" ++
+        "Unknown command: " ++ (if Stdlib.String.contains unknownResult.output "Unknown command" then "✓ PASS" else "✗ FAIL")
+      
+      /// Old test infrastructure - causing parser issues, keeping for reference but not used
+      
+      let runAllTests () : String =
+        runBasicTest ()

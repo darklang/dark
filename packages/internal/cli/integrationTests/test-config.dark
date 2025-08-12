@@ -8,9 +8,7 @@ module Darklang =
 
           let getExpectedDir () : String = $"{testDir}/expected"
           let getActualDir () : String = $"{testDir}/actual"
-          let getFailureGifsDir () : String = $"{testDir}/failed-tests-gifs"
-          let getTapesDir () : String = $"{testDir}/tapes"
-
+          let getFailureLogsDir () : String = $"{testDir}/failed-tests-logs"
 
           let getExpectedFilePath (expectedOutputFile: String): String =
             $"{getExpectedDir ()}/{expectedOutputFile}"
@@ -19,25 +17,21 @@ module Darklang =
             let safeName = TestUtils.safeFileName testName
             $"{getActualDir ()}/{safeName}.txt"
 
-
-          type VhsSettings =
-            { fontSize: Int64
-              width: Int64
-              height: Int64
-              typingSpeed: String
-              theme: String }
-
-          let defaultVhsSettings () : VhsSettings =
-            VhsSettings
-              { fontSize = 14L
-                width = 1200L
-                height = 600L
-                typingSpeed = "50ms"
-                theme = "Dracula" }
-
           let defaultInteractiveTimeout = 20L
 
-
           let buildCliCommand (arguments: List<String>): String =
-            let argsString = Stdlib.String.join arguments " "
+            let escapedArgs = 
+              arguments
+              |> Stdlib.List.map (fun arg ->
+                // Escape arguments that contain shell special characters
+                let hasBrackets = Stdlib.String.contains arg "[" || Stdlib.String.contains arg "]"
+                let hasSemicolon = Stdlib.String.contains arg ";"
+                let hasQuotes = Stdlib.String.contains arg "\""
+                if hasBrackets || hasSemicolon then
+                  $"\"{arg}\""
+                else if hasQuotes then
+                  $"'{arg}'"
+                else
+                  arg)
+            let argsString = Stdlib.String.join escapedArgs " "
             $"./scripts/run-cli {argsString}"

@@ -1,0 +1,74 @@
+module Darklang =
+  module Cli =
+    module Installation =
+
+      type InstallationMode =
+        /// Runs from any location
+        /// Creates files as needed in an adjacent .darklang directory
+        | Portable
+
+        /// Globally installed with system integration, per user account
+        | Installed
+
+
+      /// Convert installation mode to string for display
+      let installationModeToString (mode: InstallationMode) : String =
+        match mode with
+        | Portable -> "portable"
+        | Installed -> "installed"
+
+
+      /// Detect current CLI installation mode based on executable location
+      let getInstallationMode () : InstallationMode =
+        let executablePath = Builtin.getCurrentExecutablePath ()
+        let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
+        let homeDir =
+          match host.os with
+          | Windows ->
+            match Stdlib.Cli.PowerShell.getHomeDirectory () with
+            | Ok dir -> dir
+            | Error _ -> ""
+          | _ ->
+            match Stdlib.Cli.Unix.getHomeDirectory () with
+            | Ok dir -> dir
+            | Error _ -> ""
+
+        if homeDir == "" then
+          InstallationMode.Portable
+        else
+          let globalBinPath = 
+            match host.os with
+            | Windows -> $"{homeDir}\\.darklang\\bin\\"
+            | _ -> $"{homeDir}/.darklang/bin/"
+          
+          // Check if executable is running from global installation directory
+          if Stdlib.String.contains executablePath globalBinPath then
+            InstallationMode.Installed
+          else
+            InstallationMode.Portable
+
+
+      /// Check if a global installation exists
+      let globalInstallationExists (host: Stdlib.Cli.Host.Host) : Bool =
+        let homeDir =
+          match host.os with
+          | Windows ->
+            match Stdlib.Cli.PowerShell.getHomeDirectory () with
+            | Ok dir -> dir
+            | Error _ -> ""
+          | _ ->
+            match Stdlib.Cli.Unix.getHomeDirectory () with
+            | Ok dir -> dir
+            | Error _ -> ""
+        
+        if homeDir == "" then
+          false
+        else
+          let globalBinPath = 
+            match host.os with
+            | Windows -> $"{homeDir}\\.darklang\\bin\\dark.exe"
+            | _ -> $"{homeDir}/.darklang/bin/dark"
+          
+          match host.os with
+          | Windows -> Stdlib.Cli.PowerShell.fileExists globalBinPath
+          | _ -> Stdlib.Cli.Unix.fileExists globalBinPath

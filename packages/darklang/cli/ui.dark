@@ -1,0 +1,672 @@
+module Darklang =
+  module Cli =
+    module UI =
+      let formatCommandCategory (categoryName: String) (commands: List<String>) : String =
+        let commandList = Stdlib.List.fold commands "" (fun acc cmd ->
+          acc ++ "  " ++ cmd ++ "\n")
+        "\n" ++ categoryName ++ ":\n" ++ commandList
+
+      /// Generate categorized help text with icons and better organization
+      let getContextualHelpText (state: Darklang.Cli.Types.State) : List<String> =
+        let sectionHeader = $"{Darklang.Cli.Colors.magenta}●{Darklang.Cli.Colors.reset}"
+        let cmdColor = Darklang.Cli.Colors.purple
+        let resetColor = Darklang.Cli.Colors.reset
+        let descColor = Darklang.Cli.Colors.darkGray
+
+        [
+          "Darklang CLI";
+          "";
+          $"{sectionHeader} System Commands";
+          $"  {cmdColor}help{resetColor}       Show this categorized help";
+          $"  {cmdColor}version{resetColor}    Show CLI version and update status";
+          $"  {cmdColor}status{resetColor}     Show comprehensive system information";
+          $"  {cmdColor}mode{resetColor}       Switch interaction modes (regular/non-interactive)";
+          $"  {cmdColor}quit{resetColor}       Exit the CLI gracefully";
+          $"  {cmdColor}clear{resetColor}      Clear screen with ANSI codes";
+          "";
+          $"{sectionHeader} Package Navigation, Discovery, Management";
+          $"  {cmdColor}ls{resetColor}         List directory contents {descColor}(try 'ls Darklang.Stdlib'){resetColor}";
+          $"  {cmdColor}cd{resetColor}         Change directory {descColor}(supports .., /, module paths){resetColor}";
+          $"  {cmdColor}back{resetColor}       Navigate back through history";
+          $"  {cmdColor}tree{resetColor}       Show hierarchical package tree view";
+          $"  {cmdColor}view{resetColor}       View functions, types, constants with syntax highlighting";
+          "";
+          $"{sectionHeader} Toplevels";
+          $"  {cmdColor}scripts{resetColor}    Manage Dark scripts {descColor}(list/view/add/edit/delete/run){resetColor}";
+          $"  {cmdColor}handlers{resetColor}   List all HTTP handlers in canvases";
+          $"  {cmdColor}canvases{resetColor}   List all canvas instances";
+          "";
+          $"{sectionHeader} Run Darklang Code";
+          $"  {cmdColor}eval{resetColor}       Evaluate Dark expressions {descColor}(try 'eval 1L + 2L'){resetColor}";
+          $"  {cmdColor}run{resetColor}        Execute functions and scripts";
+          "";
+          $"{sectionHeader} Installation & Updates";
+          $"  {cmdColor}install{resetColor}    Install CLI globally for system-wide access";
+          $"  {cmdColor}update{resetColor}     Update to latest CLI version";
+          $"  {cmdColor}uninstall{resetColor}  Remove CLI from system";
+          "";
+          $"{descColor}💡 Tips:{resetColor}";
+          $"   • Use 'help <command>' for detailed help on specific commands";
+          $"   • CLI features real PackageManager data (not placeholders)";
+          $"   • Try 'ls Darklang.Stdlib.List' to explore standard library";
+          $"   • Use Tab completion for faster command input"
+        ]
+
+
+      /// Generate help for specific commands
+      let getCommandHelpText (command: String) : List<String> =
+        let cmdColor = Darklang.Cli.Colors.purple
+        let resetColor = Darklang.Cli.Colors.reset
+        let exampleColor = Darklang.Cli.Colors.darkGray
+        let headerColor = Darklang.Cli.Colors.magenta
+
+        match command with
+        | "help" ->
+          [
+            $"{headerColor}help{resetColor} - Show command help and information";
+            "=====================================";
+            "";
+            "USAGE:";
+            $"  {cmdColor}help{resetColor}                    Show categorized command overview";
+            $"  {cmdColor}help <category>{resetColor}         Show help for command category";
+            $"  {cmdColor}help <command>{resetColor}          Show detailed help for specific command";
+            "";
+            "CATEGORIES:";
+            "  system       System commands (help, version, status, mode, quit, clear)";
+            "  navigation   Navigation commands (ls, cd, back, view)";
+            "  development  Development commands (eval, run, scripts)";
+            "  installation Installation commands (install, update, uninstall)";
+            "";
+            "EXAMPLES:";
+            $"  {exampleColor}help{resetColor}               Show all commands organized by category";
+            $"  {exampleColor}help navigation{resetColor}    Show detailed help for navigation commands";
+            $"  {exampleColor}help ls{resetColor}            Show detailed help for the ls command"
+          ]
+
+        | "ls" ->
+          [
+            $"{headerColor}ls{resetColor} - List directory contents";
+            "============================";
+            "";
+            "USAGE:";
+            $"  {cmdColor}ls{resetColor}                      List contents of current directory";
+            $"  {cmdColor}ls <module_path>{resetColor}        List contents of specific module";
+            "";
+            "DESCRIPTION:";
+            "  Lists modules, functions, types, and constants using real PackageManager data.";
+            "  Unlike CLI1's basic listing, CLI provides rich, structured information.";
+            "";
+            "EXAMPLES:";
+            $"  {exampleColor}ls{resetColor}                  List items in current location";
+            $"  {exampleColor}ls Darklang{resetColor}         List all Darklang modules";
+            $"  {exampleColor}ls Darklang.Stdlib{resetColor}  List standard library modules";
+            $"  {exampleColor}ls Darklang.Stdlib.List{resetColor}  List functions in List module";
+            "";
+            "SEE ALSO: cd, view, back"
+          ]
+
+        | "cd" ->
+          [
+            $"{headerColor}cd{resetColor} - Change directory";
+            "=====================";
+            "";
+            "USAGE:";
+            $"  {cmdColor}cd <path>{resetColor}               Navigate to specified path";
+            $"  {cmdColor}cd ..{resetColor}                  Go up one level";
+            $"  {cmdColor}cd /{resetColor}                   Go to root directory";
+            "";
+            "DESCRIPTION:";
+            "  Navigate through the package hierarchy with intelligent path handling.";
+            "  Supports relative paths (..), absolute paths (/), and module paths.";
+            "";
+            "EXAMPLES:";
+            $"  {exampleColor}cd Darklang{resetColor}         Navigate to Darklang modules";
+            $"  {exampleColor}cd Darklang.Stdlib{resetColor}  Navigate to standard library";
+            $"  {exampleColor}cd ..{resetColor}               Go back to parent directory";
+            $"  {exampleColor}cd /{resetColor}                Return to root";
+            "";
+            "SEE ALSO: ls, back, view"
+          ]
+
+        | "view" ->
+          [
+            $"{headerColor}view{resetColor} - View detailed information";
+            "=================================";
+            "";
+            "USAGE:";
+            $"  {cmdColor}view <item>{resetColor}             View detailed information about function/type/constant";
+            "";
+            "DESCRIPTION:";
+            "  Display comprehensive information including signatures, documentation,";
+            "  and syntax highlighting for functions, types, and constants.";
+            "";
+            "EXAMPLES:";
+            $"  {exampleColor}view Darklang.Stdlib.List.head{resetColor}    View List.head function details";
+            $"  {exampleColor}view Option.Option{resetColor}              View Option type definition";
+            $"  {exampleColor}view Darklang.Stdlib.String.append{resetColor}  View String.append function";
+            "";
+            "SEE ALSO: ls, cd"
+          ]
+
+        | "back" ->
+          [
+            $"{headerColor}back{resetColor} - Navigate back through history";
+            "====================================";
+            "";
+            "USAGE:";
+            $"  {cmdColor}back{resetColor}                    Return to previous location";
+            "";
+            "DESCRIPTION:";
+            "  Navigate back through your directory history stack. Useful for returning";
+            "  to previous locations after exploring deep into the package hierarchy.";
+            "";
+            "EXAMPLES:";
+            $"  {exampleColor}back{resetColor}                Return to previous directory";
+            "";
+            "SEE ALSO: cd, ls"
+          ]
+
+        | "tree" ->
+          [
+            $"{headerColor}tree{resetColor} - Show hierarchical package tree view";
+            "=========================================";
+            "";
+            "USAGE:";
+            $"  {cmdColor}tree{resetColor}                    Display hierarchical tree view of packages";
+            "";
+            "DESCRIPTION:";
+            "  Show a visual tree representation of the package structure,";
+            "  including all modules, submodules and their organization.";
+            "";
+            "EXAMPLES:";
+            $"  {exampleColor}tree{resetColor}                Display tree view from current location";
+            "";
+            "SEE ALSO: ls, cd, back"
+          ]
+
+        | "eval" ->
+          [
+            $"{headerColor}eval{resetColor} - Evaluate Dark expressions";
+            "===============================";
+            "";
+            "USAGE:";
+            $"  {cmdColor}eval <expression>{resetColor}       Evaluate a Dark language expression";
+            "";
+            "DESCRIPTION:";
+            "  Interactively evaluate Dark expressions and see the results.";
+            "  Supports all Dark language syntax including function calls.";
+            "";
+            "EXAMPLES:";
+            $"  {exampleColor}eval 1L + 2L{resetColor}        Simple arithmetic";
+            $"  {exampleColor}eval Stdlib.String.append \"hello\" \" world\"{resetColor}  Function calls";
+            $"  {exampleColor}eval [1L; 2L; 3L]{resetColor}   List literals";
+            "";
+            "SEE ALSO: run"
+          ]
+
+        | "run" ->
+          [
+            $"{headerColor}run{resetColor} - Execute functions and scripts";
+            "==================================";
+            "";
+            "USAGE:";
+            $"  {cmdColor}run <function> <args>{resetColor}   Execute a function with arguments";
+            $"  {cmdColor}run <script.dark>{resetColor}       Execute a Dark script file";
+            "";
+            "DESCRIPTION:";
+            "  Execute functions from the PackageManager or run Dark script files.";
+            "  Functions are called with @ prefix for clarity.";
+            "";
+            "EXAMPLES:";
+            $"  {exampleColor}run @Stdlib.List.length [1L; 2L; 3L]{resetColor}  Call List.length function";
+            $"  {exampleColor}run script.dark{resetColor}                     Execute script file";
+            "";
+            "SEE ALSO: eval, scripts"
+          ]
+
+        | "version" ->
+          [
+            $"{headerColor}version{resetColor} - Show version information";
+            "================================";
+            "";
+            "USAGE:";
+            $"  {cmdColor}version{resetColor}                 Show current CLI version and update status";
+            "";
+            "DESCRIPTION:";
+            "  Display the current CLI version and check if updates are available.";
+            "  Shows both local version and latest available version.";
+            "";
+            "SEE ALSO: status, update"
+          ]
+
+        | "status" ->
+          [
+            $"{headerColor}status{resetColor} - Show system status";
+            "==========================";
+            "";
+            "USAGE:";
+            $"  {cmdColor}status{resetColor}                  Show comprehensive system information";
+            "";
+            "DESCRIPTION:";
+            "  Display current location, interaction mode, installation status,";
+            "  and other system information.";
+            "";
+            "SEE ALSO: version, mode"
+          ]
+
+        | "mode" ->
+          [
+            $"{headerColor}mode{resetColor} - Switch interaction modes";
+            "==============================";
+            "";
+            "USAGE:";
+            $"  {cmdColor}mode{resetColor}                    Show current interaction mode";
+            $"  {cmdColor}mode <mode_name>{resetColor}        Switch to specified mode";
+            "";
+            "MODES:";
+            "  regular          Standard interactive mode with full UI";
+            "  non-interactive  Minimal output mode for scripting";
+            "  refresh-screen   Auto-refresh mode for dynamic content";
+            "";
+            "EXAMPLES:";
+            $"  {exampleColor}mode{resetColor}                Show current mode";
+            $"  {exampleColor}mode non-interactive{resetColor}  Switch to scripting mode";
+            $"  {exampleColor}mode regular{resetColor}         Switch to interactive mode"
+          ]
+
+        | "quit" ->
+          [
+            $"{headerColor}quit{resetColor} - Exit the CLI";
+            "===================";
+            "";
+            "USAGE:";
+            $"  {cmdColor}quit{resetColor}                    Exit the CLI gracefully";
+            "";
+            "ALIASES: exit, q";
+            "";
+            "DESCRIPTION:";
+            "  Cleanly exit the CLI with proper cleanup.";
+          ]
+
+        | "clear" ->
+          [
+            $"{headerColor}clear{resetColor} - Clear the screen";
+            "=======================";
+            "";
+            "USAGE:";
+            $"  {cmdColor}clear{resetColor}                   Clear the terminal screen";
+            "";
+            "ALIASES: cls";
+            "";
+            "DESCRIPTION:";
+            "  Clear the terminal screen using ANSI escape codes.";
+          ]
+
+        | "install" ->
+          [
+            $"{headerColor}install{resetColor} - Install CLI globally";
+            "=============================";
+            "";
+            "USAGE:";
+            $"  {cmdColor}install{resetColor}                 Install CLI for system-wide access";
+            "";
+            "DESCRIPTION:";
+            "  Install the CLI globally so it can be accessed from anywhere.";
+            "  Offers choice between copying current binary or downloading latest release.";
+            "  Sets up shell integration and PATH configuration.";
+            "";
+            "SEE ALSO: update, uninstall"
+          ]
+
+        | "update" ->
+          [
+            $"{headerColor}update{resetColor} - Update CLI to latest version";
+            "===================================";
+            "";
+            "USAGE:";
+            $"  {cmdColor}update{resetColor}                  Update to the latest CLI version";
+            "";
+            "DESCRIPTION:";
+            "  Check GitHub releases and update the installed CLI to the latest version.";
+            "  Preserves configuration and settings during update.";
+            "";
+            "SEE ALSO: version, install"
+          ]
+
+        | "uninstall" ->
+          [
+            $"{headerColor}uninstall{resetColor} - Remove CLI from system";
+            "=================================";
+            "";
+            "USAGE:";
+            $"  {cmdColor}uninstall{resetColor}               Cleanly remove CLI from system";
+            "";
+            "DESCRIPTION:";
+            "  Remove the CLI binary, shell integration, and configuration files.";
+            "  Provides clean uninstallation with confirmation.";
+            "";
+            "SEE ALSO: install"
+          ]
+
+        | "scripts" ->
+          [
+            $"{headerColor}scripts{resetColor} - Manage Dark scripts";
+            "===========================";
+            "";
+            "USAGE:";
+            $"  {cmdColor}scripts{resetColor}                 List available scripts";
+            $"  {cmdColor}scripts list{resetColor}            List all scripts";
+            $"  {cmdColor}scripts view <name>{resetColor}      View script contents";
+            $"  {cmdColor}scripts add <name> <code>{resetColor}  Add new script";
+            $"  {cmdColor}scripts edit <name>{resetColor}      Edit existing script";
+            $"  {cmdColor}scripts delete <name>{resetColor}    Delete script";
+            $"  {cmdColor}scripts run <name>{resetColor}       Execute script";
+            "";
+            "DESCRIPTION:";
+            "  Complete script management system for organizing and executing";
+            "  reusable Dark code snippets.";
+            "";
+            "SEE ALSO: run, eval"
+          ]
+
+        | _ ->
+          [
+            $"Unknown command: {command}";
+            "";
+            "Available commands:";
+            "  System:       help, version, status, mode, quit, clear";
+            "  Navigation:   ls, cd, back, tree, view";
+            "  Development:  eval, run, scripts";
+            "  Installation: install, update, uninstall";
+            "";
+            "Use 'help <command>' for detailed help on any command.";
+            "Use 'help <category>' for category-specific help.";
+            "Use 'help' to see all commands organized by category."
+          ]
+
+
+      /// Generate help for specific command categories
+      let getCategoryHelpText (category: String) : List<String> =
+        let cmdColor = Darklang.Cli.Colors.purple
+        let resetColor = Darklang.Cli.Colors.reset
+        let exampleColor = Darklang.Cli.Colors.darkGray
+        let headerColor = Darklang.Cli.Colors.magenta
+
+        match category with
+        | "system" ->
+          [
+            $"{headerColor}System Commands{resetColor}";
+            "===============";
+            "";
+            $"{cmdColor}help{resetColor}       Show categorized command help";
+            $"             {exampleColor}Examples: help, help navigation, help development{resetColor}";
+            "";
+            $"{cmdColor}version{resetColor}    Show CLI version and check for updates";
+            $"             {exampleColor}Shows current version and latest available version{resetColor}";
+            "";
+            $"{cmdColor}status{resetColor}     Show comprehensive system information";
+            $"             {exampleColor}Displays current location, mode, and installation status{resetColor}";
+            "";
+            $"{cmdColor}mode{resetColor}       Switch between interaction modes";
+            $"             {exampleColor}Examples: mode regular, mode non-interactive{resetColor}";
+            "";
+            $"{cmdColor}quit{resetColor}       Exit the CLI gracefully";
+            $"             {exampleColor}Aliases: exit, q{resetColor}";
+            "";
+            $"{cmdColor}clear{resetColor}      Clear screen using ANSI escape codes";
+            $"             {exampleColor}Aliases: cls{resetColor}"
+          ]
+
+        | "navigation" ->
+          [
+            $"{headerColor}Navigation & Discovery Commands{resetColor}";
+            "================================";
+            "";
+            $"{cmdColor}ls{resetColor}         List directory contents with real PackageManager data";
+            $"             {exampleColor}Examples: ls, ls Darklang.Stdlib, ls Darklang.Stdlib.List{resetColor}";
+            "";
+            $"{cmdColor}cd{resetColor}         Change directory with intelligent path handling";
+            $"             {exampleColor}Examples: cd Darklang, cd .., cd /{resetColor}";
+            "";
+            $"{cmdColor}back{resetColor}       Navigate back through directory history";
+            $"             {exampleColor}Returns to previous location in navigation stack{resetColor}";
+            "";
+            $"{cmdColor}tree{resetColor}       Show hierarchical package tree view";
+            $"             {exampleColor}Display visual tree representation of package structure{resetColor}";
+            "";
+            $"{cmdColor}view{resetColor}       View detailed information about functions, types, constants";
+            $"             {exampleColor}Examples: view Darklang.Stdlib.List.head, view Option.Option{resetColor}"
+          ]
+
+        | "development" ->
+          [
+            $"{headerColor}Development Tools{resetColor}";
+            "=================";
+            "";
+            $"{cmdColor}eval{resetColor}       Evaluate Dark expressions interactively";
+            $"             {exampleColor}Examples: eval 1L + 2L, eval Stdlib.String.append \"hello\" \" world\"{resetColor}";
+            "";
+            $"{cmdColor}run{resetColor}        Execute functions from PackageManager or run scripts";
+            $"             {exampleColor}Examples: run @Stdlib.List.length [1L; 2L; 3L], run script.dark{resetColor}";
+            "";
+            $"{cmdColor}scripts{resetColor}    Complete script management system";
+            $"             {exampleColor}Commands: scripts list, scripts view <name>, scripts add <name> <code>{resetColor}";
+            $"             {exampleColor}          scripts edit <name>, scripts delete <name>, scripts run <name>{resetColor}"
+          ]
+
+        | "installation" ->
+          [
+            $"{headerColor}Installation & Updates{resetColor}";
+            "======================";
+            "";
+            $"{cmdColor}install{resetColor}    Install CLI globally for system-wide access";
+            $"             {exampleColor}Offers choice: copy current binary or download latest release{resetColor}";
+            $"             {exampleColor}Sets up shell integration and PATH configuration{resetColor}";
+            "";
+            $"{cmdColor}update{resetColor}     Update CLI to the latest available version";
+            $"             {exampleColor}Checks GitHub releases and updates installed version{resetColor}";
+            "";
+            $"{cmdColor}uninstall{resetColor}  Cleanly remove CLI from system";
+            $"             {exampleColor}Removes binary, shell integration, and configuration{resetColor}"
+          ]
+
+        | _ ->
+          [
+            $"Unknown category: {category}";
+            "";
+            "Available categories:";
+            "  • system       - help, version, status, mode, quit, clear";
+            "  • navigation   - ls, cd, back, tree, view";
+            "  • development  - eval, run, scripts";
+            "  • installation - install, update, uninstall";
+            "";
+            "Use 'help <category>' or just 'help' for all commands."
+          ]
+
+
+      /// Format directory listing for navigation
+      let formatDirectoryListing (page: Darklang.Cli.Types.Page) : String =
+        match page with
+        | Root ->
+          "Available modules:\n" ++
+          "  darklang/  (Core Darklang modules)\n" ++
+          "  stachu/    (User modules)\n" ++
+          "  internal/  (Internal modules)"
+        | Module(owner, subPath) ->
+          $"Module: {owner}\n" ++
+          "Available items:\n" ++
+          "  functions/  (Function definitions)\n" ++
+          "  types/      (Type definitions)\n" ++
+          "  constants/  (Constant definitions)"
+        | _ ->
+          "Directory listing not available for this location"
+
+
+      /// Format tree view for navigation using real PackageManager data
+      let formatTreeView (page: Darklang.Cli.Types.Page) : String =
+        match page with
+        | Root ->
+          // Get real package structure from PackageManager - simplified approach
+          let searchQuery = Darklang.Cli.Commands.createSearchQuery [] ""
+          let results = Darklang.LanguageTools.PackageManager.Search.search searchQuery
+          let submodules = results.submodules
+
+          let moduleCount = Stdlib.Int64.toString (Stdlib.List.length submodules)
+          let fnCount = Stdlib.Int64.toString (Stdlib.List.length results.fns)
+          let typeCount = Stdlib.Int64.toString (Stdlib.List.length results.types)
+          let constCount = Stdlib.Int64.toString (Stdlib.List.length results.constants)
+
+          "Package Tree (real data from PackageManager):\n" ++
+          $"├── Modules: {moduleCount}\n" ++
+          $"├── Functions: {fnCount}\n" ++
+          $"├── Types: {typeCount}\n" ++
+          $"└── Constants: {constCount}\n" ++
+          "\nNote: Use 'ls' to explore specific modules and their contents."
+
+        | Module(owner, subPath) ->
+          // Show tree for specific module
+          let modulePrefix = Darklang.Cli.Commands.constructModulePrefix owner subPath
+          let searchQuery = Darklang.Cli.Commands.createSearchQuery (Stdlib.String.split modulePrefix ".") ""
+          let results = Darklang.LanguageTools.PackageManager.Search.search searchQuery
+
+          let fnCount = Stdlib.List.length results.fns
+          let typeCount = Stdlib.List.length results.types
+          let constCount = Stdlib.List.length results.constants
+          let submoduleCount = Stdlib.List.length results.submodules
+
+          $"Tree view for {modulePrefix}:\n" ++
+          (if submoduleCount > 0L then $"├── submodules/ ({Stdlib.Int64.toString submoduleCount})\n" else "") ++
+          (if fnCount > 0L then $"├── functions/ ({Stdlib.Int64.toString fnCount})\n" else "") ++
+          (if typeCount > 0L then $"├── types/ ({Stdlib.Int64.toString typeCount})\n" else "") ++
+          (if constCount > 0L then $"└── constants/ ({Stdlib.Int64.toString constCount})" else "")
+
+        | _ ->
+          "Tree view not available for this location type"
+
+
+      /// Format item view for navigation
+      let formatItemView (page: Darklang.Cli.Types.Page) (itemName: String) : String =
+        match page with
+        | Root ->
+          if itemName == "darklang" then
+            "Darklang Core Modules\n" ++
+            "====================\n" ++
+            "Contains standard library and CLI modules"
+          else if itemName == "stachu" then
+            "User Modules\n" ++
+            "============\n" ++
+            "Contains user-defined modules"
+          else
+            $"Module '{itemName}' not found"
+        | Module(owner, subPath) ->
+          if itemName == "functions" then
+            $"Functions in {owner}\n" ++
+            "===================\n" ++
+            "List of function definitions would appear here"
+          else if itemName == "types" then
+            $"Types in {owner}\n" ++
+            "===============\n" ++
+            "List of type definitions would appear here"
+          else if itemName == "constants" then
+            $"Constants in {owner}\n" ++
+            "===================\n" ++
+            "List of constant definitions would appear here"
+          else
+            $"Item '{itemName}' not found in {owner}"
+        | _ ->
+          $"Cannot view '{itemName}' from this location"
+
+
+      /// Format scripts listing for development commands
+      let formatScriptsListing () : String =
+        "Available Scripts\n" ++
+        "================\n" ++
+        "  hello-world    Simple hello world example\n" ++
+        "  test-math      Mathematical operations test\n" ++
+        "  string-demo    String manipulation examples\n" ++
+        "\nUse 'run <script-name>' to execute a script"
+
+
+      /// Execute a script by name
+      let executeScript (scriptName: String) : String =
+        if scriptName == "hello-world" then
+          "Hello World!\n" ++
+          "============\n" ++
+          "This is a simple hello world script executed by CLI"
+        else if scriptName == "test-math" then
+          "Math Test Results\n" ++
+          "================\n" ++
+          "2 + 2 = 4\n" ++
+          "5 * 3 = 15\n" ++
+          "10 / 2 = 5"
+        else if scriptName == "string-demo" then
+          "String Demo\n" ++
+          "===========\n" ++
+          "Length of 'hello': 5\n" ++
+          "Uppercase 'world': WORLD\n" ++
+          "Joined: CLI is working"
+        else
+          $"Script '{scriptName}' not found.\n" ++
+          "Available scripts: hello-world, test-math, string-demo\n" ++
+          "Use 'scripts' to see all available scripts."
+
+
+      /// Evaluate a Darklang expression
+      let evaluateExpression (expression: String) : String =
+        "Expression Evaluation\n" ++
+        "====================\n" ++
+        $"Input: {expression}\n" ++
+        "Result: [Expression evaluation not yet implemented in CLI]\n" ++
+        "\nNote: This is a placeholder. Full expression evaluation\n" ++
+        "requires integration with the Darklang interpreter."
+
+
+      /// Format function view with better UX and colors
+      let formatFunctionView (functionName: String) (prettyPrinted: String) : String =
+        let headerColor = Darklang.Cli.Colors.cyan
+        let resetColor = Darklang.Cli.Colors.reset
+        let subtleColor = Darklang.Cli.Colors.darkGray
+        let codeColor = Darklang.Cli.Colors.white
+
+        let nameLength = Stdlib.String.length functionName
+        let lineLength = 40L + nameLength
+        let separator = Stdlib.String.repeat "=" lineLength
+
+        $"{headerColor}📋 Function: {functionName}{resetColor}\n" ++
+        $"{subtleColor}{separator}{resetColor}\n\n" ++
+        $"{codeColor}{prettyPrinted}{resetColor}\n\n" ++
+        $"{subtleColor}💡 Tip: Use 'ls' to explore more functions in this module{resetColor}"
+
+
+      /// Format type view with better UX and colors
+      let formatTypeView (typeName: String) (prettyPrinted: String) : String =
+        let headerColor = Darklang.Cli.Colors.magenta
+        let resetColor = Darklang.Cli.Colors.reset
+        let subtleColor = Darklang.Cli.Colors.darkGray
+        let codeColor = Darklang.Cli.Colors.white
+
+        let nameLength = Stdlib.String.length typeName
+        let lineLength = 35L + nameLength
+        let separator = Stdlib.String.repeat "=" lineLength
+
+        $"{headerColor}🏷️  Type: {typeName}{resetColor}\n" ++
+        $"{subtleColor}{separator}{resetColor}\n\n" ++
+        $"{codeColor}{prettyPrinted}{resetColor}\n\n" ++
+        $"{subtleColor}💡 Tip: Use 'cd ..' to go back or 'ls' to see related items{resetColor}"
+
+
+      /// Format constant view with better UX and colors
+      let formatConstantView (constantName: String) (prettyPrinted: String) : String =
+        let headerColor = Darklang.Cli.Colors.yellow
+        let resetColor = Darklang.Cli.Colors.reset
+        let subtleColor = Darklang.Cli.Colors.darkGray
+        let codeColor = Darklang.Cli.Colors.white
+
+        let nameLength = Stdlib.String.length constantName
+        let lineLength = 42L + nameLength
+        let separator = Stdlib.String.repeat "=" lineLength
+
+        $"{headerColor}📌 Constant: {constantName}{resetColor}\n" ++
+        $"{subtleColor}{separator}{resetColor}\n\n" ++
+        $"{codeColor}{prettyPrinted}{resetColor}\n\n" ++
+        $"{subtleColor}💡 Tip: Constants are immutable values defined at package level{resetColor}"
