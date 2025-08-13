@@ -91,6 +91,10 @@
         "title": "Darklang: Open Package Definition"
       },
       {
+        "command": "darklang.openFullModule",
+        "title": "Open Full Module"
+      },
+      {
         "command": "darklang.init",
         "title": "Darklang: Init Workspace"
       }
@@ -100,6 +104,13 @@
 				{
 					"command": "darklang.init",
 					"when": "workbenchState != workspace"
+				}
+			],
+			"view/item/context": [
+				{
+					"command": "darklang.openFullModule",
+					"when": "view == darklangTreeView && viewItem == module",
+					"group": "navigation"
 				}
 			]
 		},
