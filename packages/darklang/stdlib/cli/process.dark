@@ -1,0 +1,21 @@
+module Darklang =
+  module Stdlib =
+    module Cli =
+      module Process =
+        /// Process handle for interacting with spawned processes
+        type ProcessHandle = Int64
+
+        /// Spawn a new process and return a handle for interaction
+        let spawn (command: String) : ProcessHandle =
+          Builtin.cliSpawnProcess command
+
+        /// Send input to a process and read any available output (non-blocking)
+        /// Use empty string for input to just read output without sending anything
+        let communicate (handle: ProcessHandle) (input: String) : Stdlib.Cli.ExecutionOutcome =
+          Builtin.cliProcessIO handle input
+
+        /// Terminate a process and get final output
+        let terminate (handle: ProcessHandle) : Stdlib.Cli.ExecutionOutcome =
+          Builtin.cliTerminateProcess handle
+
+
