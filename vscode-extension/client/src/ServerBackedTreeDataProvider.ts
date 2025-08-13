@@ -141,6 +141,7 @@ export class ServerBackedTreeDataProvider
     // Only set if there's no existing contextValue (which would be a packagePath for entities)
     if (type === "directory" && !item.contextValue) {
       node.contextValue = "module";
+      node.tooltip = `${item.label} - Right-click to open full module`;
     }
 
     return node;
@@ -157,7 +158,38 @@ export class ServerBackedTreeDataProvider
             "darklang/getRootNodes",
           );
 
-      return items.map(item => this.mapResponseToNode(item));
+      const nodes = items.map(item => this.mapResponseToNode(item));
+
+      // For each module node, check if it has any non-module children
+      // Don't open context menu for empty modules
+      for (const childNode of nodes) {
+        if (
+          childNode.type === "directory" &&
+          childNode.contextValue === "module"
+        ) {
+          const children = await this._client.sendRequest<TreeItemResponse[]>(
+            "darklang/getChildNodes",
+            { nodeId: childNode.id },
+          );
+
+          // Check if any children are actual definitions (not submodules)
+          const hasDefinitions = children.some(
+            c =>
+              c.contextValue &&
+              (c.contextValue.startsWith("fn:") ||
+                c.contextValue.startsWith("type:") ||
+                c.contextValue.startsWith("const:")),
+          );
+
+          if (!hasDefinitions) {
+            // Remove context menu and tooltip for empty modules
+            childNode.contextValue = undefined;
+            childNode.tooltip = childNode.label;
+          }
+        }
+      }
+
+      return nodes;
     } catch (error) {
       console.error(`Failed to get tree nodes: ${error}`);
       vscode.window.showErrorMessage(
