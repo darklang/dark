@@ -197,21 +197,16 @@ module Darklang =
 
       /// Completion functions for installation commands
       let installComplete (state: Types.AppState) (args: List<String>) : List<String> =
-        // Install command takes no arguments
-        []
+        Completion.noArgsCompletion state args
 
       let updateComplete (state: Types.AppState) (args: List<String>) : List<String> =
-        // Update command takes no arguments  
-        []
+        Completion.noArgsCompletion state args
 
       let uninstallComplete (state: Types.AppState) (args: List<String>) : List<String> =
-        // Uninstall command takes no arguments
-        []
+        Completion.noArgsCompletion state args
 
       let statusComplete (state: Types.AppState) (args: List<String>) : List<String> =
-        // Status command takes no arguments
-        []
+        Completion.noArgsCompletion state args
 
       let versionComplete (state: Types.AppState) (args: List<String>) : List<String> =
-        // Version command takes no arguments
-        []
+        Completion.noArgsCompletion state args

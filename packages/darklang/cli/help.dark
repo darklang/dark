@@ -18,21 +18,5 @@ module Darklang =
         Types.AppState { isExiting = state.isExiting; lastCommand = "help help"; output = "help help displayed"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw }
 
       let complete (state: Types.AppState) (args: List<String>) : List<String> =
-        match args with
-        | [] ->
-          // First argument: suggest all command names and aliases
-          let commands = Registry.allCommands ()
-          let commandNames = Stdlib.List.map commands (fun cmd -> cmd.name)
-          let allAliases = Stdlib.List.fold commands [] (fun acc cmd -> Stdlib.List.append acc cmd.aliases)
-          Stdlib.List.append commandNames allAliases
-        | [partialArg] ->
-          // Filter command names and aliases by partial match
-          let commands = Registry.allCommands ()
-          let commandNames = Stdlib.List.map commands (fun cmd -> cmd.name)
-          let allAliases = Stdlib.List.fold commands [] (fun acc cmd -> Stdlib.List.append acc cmd.aliases)
-          let allOptions = Stdlib.List.append commandNames allAliases
-          Stdlib.List.filter allOptions (fun name -> Stdlib.String.startsWith name partialArg)
-        | _ ->
-          // Help only takes one argument
-          []
+        Completion.commandNamesCompletion state args
 

@@ -10,6 +10,5 @@ module Darklang =
         Types.AppState { isExiting = state.isExiting; lastCommand = "help quit"; output = "quit help displayed"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw }
 
       let complete (state: Types.AppState) (args: List<String>) : List<String> =
-        // Quit command takes no arguments, so no completions
-        []
+        Completion.noArgsCompletion state args
 

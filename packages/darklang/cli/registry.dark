@@ -65,70 +65,30 @@ module Darklang =
         $"Available commands:\n{joined}"
 
       let getCompletions (state: Types.AppState) (input: String) : List<String> =
-        let trimmedInput = Stdlib.String.trim input
-        let words = Stdlib.String.split trimmedInput " "
-        match words with
-        | [] ->
-          // No input yet, suggest all command names
-          let commands = allCommands ()
-          Stdlib.List.map commands (fun cmd -> cmd.name)
-        | [partialCommand] ->
-          // Completing the command name
+        let parsed = Completion.parseInput input
+        
+        if parsed.isCompletingCommand then
+          // Completing command name
+          let partial = Completion.getPartialCompletion parsed
           let commands = allCommands ()
           let allNames = Stdlib.List.map commands (fun cmd -> cmd.name)
           let allAliases = Stdlib.List.fold commands [] (fun acc cmd -> Stdlib.List.append acc cmd.aliases)
           let allOptions = Stdlib.List.append allNames allAliases
-          Stdlib.List.filter allOptions (fun name -> Stdlib.String.startsWith name partialCommand)
-        | commandName :: args ->
+          if Stdlib.String.isEmpty partial then
+            allOptions
+          else
+            Stdlib.List.filter allOptions (fun name -> Stdlib.String.startsWith name partial)
+        else
           // Completing command arguments
-          let handler = findCommand commandName
+          let handler = findCommand parsed.commandName
           let completeFunc = handler.complete
-          completeFunc state args
+          completeFunc state parsed.args
 
       let getCompletionHint (state: Types.AppState) (input: String) : String =
+        let parsed = Completion.parseInput input
         let completions = getCompletions state input
-        let trimmedInput = Stdlib.String.trim input
-        let words = Stdlib.String.split trimmedInput " "
-        
-        match words with
-        | [] -> ""
-        | [partialCommand] ->
-          // Completing the command name itself
-          match completions with
-          | [] -> ""
-          | [singleCompletion] ->
-            if Stdlib.String.startsWith singleCompletion partialCommand then
-              Stdlib.String.dropFirst singleCompletion (Stdlib.String.length partialCommand)
-            else
-              ""
-          | multiple ->
-            let commonPrefix = findCommonPrefix multiple
-            if Stdlib.String.startsWith commonPrefix partialCommand && Stdlib.String.length commonPrefix > Stdlib.String.length partialCommand then
-              Stdlib.String.dropFirst commonPrefix (Stdlib.String.length partialCommand)
-            else
-              ""
-        | commandName :: args ->
-          // Completing command arguments - need to show hint for the last argument
-          match args with
-          | [] -> ""
-          | _ ->
-            let lastArgOpt = Stdlib.List.last args
-            match lastArgOpt with
-            | Some lastArg ->
-              match completions with
-              | [] -> ""
-              | [singleCompletion] ->
-                if Stdlib.String.startsWith singleCompletion lastArg then
-                  Stdlib.String.dropFirst singleCompletion (Stdlib.String.length lastArg)
-                else
-                  ""
-              | multiple ->
-                let commonPrefix = findCommonPrefix multiple
-                if Stdlib.String.startsWith commonPrefix lastArg && Stdlib.String.length commonPrefix > Stdlib.String.length lastArg then
-                  Stdlib.String.dropFirst commonPrefix (Stdlib.String.length lastArg)
-                else
-                  ""
-            | None -> ""
+        let partial = Completion.getPartialCompletion parsed
+        Completion.getHintFromCompletions partial completions
 
       let findCommonPrefix (strings: List<String>) : String =
         match strings with
