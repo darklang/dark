@@ -6,16 +6,17 @@ module Darklang =
           description: String
           aliases: List<String>
           execute: Types.AppState -> List<String> -> Types.AppState
-          help: Types.AppState -> Types.AppState }
+          help: Types.AppState -> Types.AppState
+          complete: Types.AppState -> List<String> -> List<String> }
 
       let allCommands () : List<CommandHandler> =
-        [ CommandHandler { name = "quit"; description = "Exit the CLI"; aliases = ["exit"]; execute = Quit.execute; help = Quit.help }
-          CommandHandler { name = "help"; description = "Show help for commands"; aliases = ["h"; "?"]; execute = Help.execute; help = Help.help }
-          CommandHandler { name = "install"; description = "Install CLI globally"; aliases = []; execute = Install.executeInstall; help = Install.installHelp }
-          CommandHandler { name = "update"; description = "Update CLI to latest version"; aliases = ["upgrade"]; execute = Install.executeUpdate; help = Install.updateHelp }
-          CommandHandler { name = "uninstall"; description = "Remove CLI installation"; aliases = []; execute = Install.executeUninstall; help = Install.uninstallHelp }
-          CommandHandler { name = "status"; description = "Show installation status"; aliases = []; execute = Install.executeStatus; help = Install.statusHelp }
-          CommandHandler { name = "version"; description = "Display CLI version"; aliases = ["v"]; execute = Install.executeVersion; help = Install.versionHelp } ]
+        [ CommandHandler { name = "quit"; description = "Exit the CLI"; aliases = ["exit"]; execute = Quit.execute; help = Quit.help; complete = Help.complete }
+          CommandHandler { name = "help"; description = "Show help for commands"; aliases = ["h"; "?"]; execute = Help.execute; help = Help.help; complete = Help.complete }
+          CommandHandler { name = "install"; description = "Install CLI globally"; aliases = []; execute = Install.executeInstall; help = Install.installHelp; complete = Install.installComplete }
+          CommandHandler { name = "update"; description = "Update CLI to latest version"; aliases = ["upgrade"]; execute = Install.executeUpdate; help = Install.updateHelp; complete = Install.updateComplete }
+          CommandHandler { name = "uninstall"; description = "Remove CLI installation"; aliases = []; execute = Install.executeUninstall; help = Install.uninstallHelp; complete = Install.uninstallComplete }
+          CommandHandler { name = "status"; description = "Show installation status"; aliases = []; execute = Install.executeStatus; help = Install.statusHelp; complete = Install.statusComplete }
+          CommandHandler { name = "version"; description = "Display CLI version"; aliases = ["v"]; execute = Install.executeVersion; help = Install.versionHelp; complete = Install.versionComplete } ]
 
       let findCommand (name: String) : CommandHandler =
         let commands = allCommands ()
@@ -39,7 +40,8 @@ module Darklang =
                 Types.AppState { isExiting = state.isExiting; lastCommand = name; output = $"unknown command: {name}"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw }
               help = fun state ->
                 Builtin.printLine $"No help available for command: {name}"
-                Types.AppState { isExiting = state.isExiting; lastCommand = $"help {name}"; output = $"no help for {name}"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw } }
+                Types.AppState { isExiting = state.isExiting; lastCommand = $"help {name}"; output = $"no help for {name}"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw }
+              complete = fun state args -> [] }
 
       let executeCommand (name: String) (state: Types.AppState) (args: List<String>) : Types.AppState =
         let handler = findCommand name
@@ -61,3 +63,90 @@ module Darklang =
             $"  {cmd.name} ({aliasText}) - {cmd.description}")
         let joined = Stdlib.String.join lines "\n"
         $"Available commands:\n{joined}"
+
+      let getCompletions (state: Types.AppState) (input: String) : List<String> =
+        let trimmedInput = Stdlib.String.trim input
+        let words = Stdlib.String.split trimmedInput " "
+        match words with
+        | [] ->
+          // No input yet, suggest all command names
+          let commands = allCommands ()
+          Stdlib.List.map commands (fun cmd -> cmd.name)
+        | [partialCommand] ->
+          // Completing the command name
+          let commands = allCommands ()
+          let allNames = Stdlib.List.map commands (fun cmd -> cmd.name)
+          let allAliases = Stdlib.List.fold commands [] (fun acc cmd -> Stdlib.List.append acc cmd.aliases)
+          let allOptions = Stdlib.List.append allNames allAliases
+          Stdlib.List.filter allOptions (fun name -> Stdlib.String.startsWith name partialCommand)
+        | commandName :: args ->
+          // Completing command arguments
+          let handler = findCommand commandName
+          let completeFunc = handler.complete
+          completeFunc state args
+
+      let getCompletionHint (state: Types.AppState) (input: String) : String =
+        let completions = getCompletions state input
+        let trimmedInput = Stdlib.String.trim input
+        let words = Stdlib.String.split trimmedInput " "
+        
+        match words with
+        | [] -> ""
+        | [partialCommand] ->
+          // Completing the command name itself
+          match completions with
+          | [] -> ""
+          | [singleCompletion] ->
+            if Stdlib.String.startsWith singleCompletion partialCommand then
+              Stdlib.String.dropFirst singleCompletion (Stdlib.String.length partialCommand)
+            else
+              ""
+          | multiple ->
+            let commonPrefix = findCommonPrefix multiple
+            if Stdlib.String.startsWith commonPrefix partialCommand && Stdlib.String.length commonPrefix > Stdlib.String.length partialCommand then
+              Stdlib.String.dropFirst commonPrefix (Stdlib.String.length partialCommand)
+            else
+              ""
+        | commandName :: args ->
+          // Completing command arguments - need to show hint for the last argument
+          match args with
+          | [] -> ""
+          | _ ->
+            let lastArgOpt = Stdlib.List.last args
+            match lastArgOpt with
+            | Some lastArg ->
+              match completions with
+              | [] -> ""
+              | [singleCompletion] ->
+                if Stdlib.String.startsWith singleCompletion lastArg then
+                  Stdlib.String.dropFirst singleCompletion (Stdlib.String.length lastArg)
+                else
+                  ""
+              | multiple ->
+                let commonPrefix = findCommonPrefix multiple
+                if Stdlib.String.startsWith commonPrefix lastArg && Stdlib.String.length commonPrefix > Stdlib.String.length lastArg then
+                  Stdlib.String.dropFirst commonPrefix (Stdlib.String.length lastArg)
+                else
+                  ""
+            | None -> ""
+
+      let findCommonPrefix (strings: List<String>) : String =
+        match strings with
+        | [] -> ""
+        | [single] -> single
+        | first :: rest ->
+          Stdlib.List.fold rest first (fun acc next ->
+            let maxLen = Stdlib.Int64.min (Stdlib.String.length acc) (Stdlib.String.length next)
+            let commonLen = findCommonLength acc next 0L maxLen
+            Stdlib.String.slice acc 0L commonLen)
+
+      let findCommonLength (str1: String) (str2: String) (index: Int64) (maxLen: Int64) : Int64 =
+        if index >= maxLen then
+          index
+        else
+          let char1 = Stdlib.String.slice str1 index (index + 1L)
+          let char2 = Stdlib.String.slice str2 index (index + 1L)
+          if char1 == char2 then
+            findCommonLength str1 str2 (index + 1L) maxLen
+          else
+            index

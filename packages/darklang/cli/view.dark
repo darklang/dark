@@ -10,6 +10,14 @@ module Darklang =
       let formatPrompt () : String =
         "> "
       
+      let formatPromptWithInput (state: Types.AppState) : String =
+        let hint = Registry.getCompletionHint state state.mainPrompt
+        if Stdlib.String.isEmpty hint then
+          $"> {state.mainPrompt}"
+        else
+          // Use ANSI escape codes: \u001b[2m for dim text, \u001b[0m to reset
+          $"> {state.mainPrompt}\u001b[2m{hint}\u001b[0m"
+      
       let formatWelcome () : String =
         $"Darklang CLI - Interactive Mode\n\n{Registry.getCommandList ()}\n\nType 'help <command>' for specific command help."
       

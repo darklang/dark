@@ -194,3 +194,24 @@ module Darklang =
         Builtin.printLine ""
         Builtin.printLine "Shows current version, installation mode, and location."
         Types.AppState { isExiting = state.isExiting; lastCommand = "help version"; output = "version help displayed"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw }
+
+      /// Completion functions for installation commands
+      let installComplete (state: Types.AppState) (args: List<String>) : List<String> =
+        // Install command takes no arguments
+        []
+
+      let updateComplete (state: Types.AppState) (args: List<String>) : List<String> =
+        // Update command takes no arguments  
+        []
+
+      let uninstallComplete (state: Types.AppState) (args: List<String>) : List<String> =
+        // Uninstall command takes no arguments
+        []
+
+      let statusComplete (state: Types.AppState) (args: List<String>) : List<String> =
+        // Status command takes no arguments
+        []
+
+      let versionComplete (state: Types.AppState) (args: List<String>) : List<String> =
+        // Version command takes no arguments
+        []

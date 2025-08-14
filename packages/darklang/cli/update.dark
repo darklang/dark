@@ -29,6 +29,34 @@ module Darklang =
             Types.AppState { isExiting = state.isExiting; lastCommand = state.lastCommand; output = state.output; mainPrompt = newPrompt; needsFullRedraw = false }
           else
             state
+        | Tab ->
+          // Handle tab completion
+          let completions = Registry.getCompletions state state.mainPrompt
+          let trimmedInput = Stdlib.String.trim state.mainPrompt
+          let words = Stdlib.String.split trimmedInput " "
+          
+          match completions with
+          | [] ->
+            // No completions available
+            state
+          | [singleCompletion] ->
+            // Single completion - auto-complete it
+            let newPrompt = 
+              match words with
+              | [] -> singleCompletion
+              | [partialCommand] -> singleCompletion
+              | commandName :: args ->
+                // Replace the last argument with the completion
+                let allButLast = Stdlib.List.dropLast args
+                let newArgs = Stdlib.List.append allButLast [singleCompletion]
+                let fullCommand = Stdlib.List.append [commandName] newArgs
+                Stdlib.String.join fullCommand " "
+            Types.AppState { isExiting = state.isExiting; lastCommand = state.lastCommand; output = state.output; mainPrompt = newPrompt; needsFullRedraw = false }
+          | multiple ->
+            // Multiple completions - show them
+            Builtin.printLine ""
+            Builtin.printLine (Stdlib.String.join multiple " ")
+            Types.AppState { isExiting = state.isExiting; lastCommand = state.lastCommand; output = state.output; mainPrompt = state.mainPrompt; needsFullRedraw = true }
         | _ ->
           // Add character to prompt
           match keyChar with
