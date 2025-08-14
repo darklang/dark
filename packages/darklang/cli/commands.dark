@@ -1,0 +1,22 @@
+module Darklang =
+  module Cli =
+    module Commands =
+      let parseCommand (input: String) : Types.Command =
+        match Stdlib.String.trim input with
+        | "help" -> Types.Command.Help
+        | "quit" -> Types.Command.Quit
+        | cmd -> Types.Command.Unknown cmd
+
+      let executeCommand (state: Types.AppState) (cmd: Types.Command) : Types.AppState =
+        match cmd with
+        | Help ->
+          Builtin.printLine "Available commands:"
+          Builtin.printLine "  help - Show this help"
+          Builtin.printLine "  quit - Exit the CLI"
+          Types.AppState { isExiting = state.isExiting; lastCommand = "help"; output = "help displayed" }
+        | Quit ->
+          Builtin.printLine "Goodbye!"
+          Types.AppState { isExiting = true; lastCommand = "quit"; output = "goodbye" }
+        | Unknown command ->
+          Builtin.printLine $"Unknown command: {command}"
+          Types.AppState { isExiting = state.isExiting; lastCommand = command; output = $"unknown command: {command}" }

@@ -1,0 +1,19 @@
+module Darklang =
+  module Cli =
+    module Types =
+      type Command = 
+        | Help
+        | Quit
+        | Unknown of String
+
+      type Msg =
+        | ProcessCommand of Command
+        | Exit
+
+      type AppState = 
+        { isExiting: Bool
+          lastCommand: String
+          output: String }
+
+      let initState () : AppState =
+        AppState { isExiting = false; lastCommand = ""; output = "" }
