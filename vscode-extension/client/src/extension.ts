@@ -185,6 +185,33 @@ export function activate(context: ExtensionContext) {
     },
   );
 
+  let openFullModuleCommand = commands.registerCommand(
+    "darklang.openFullModule",
+    async (node: any) => {
+      try {
+        // Get the module path from the node
+        const modulePath = node?.id || "";
+        const virtualUri = Uri.parse(`darkfs:/module/${modulePath}.dark`);
+        const doc = await workspace.openTextDocument(virtualUri);
+
+        await window.showTextDocument(doc, {
+          preview: false,
+          preserveFocus: false,
+        });
+      } catch (error) {
+        console.error(
+          `Failed to open full module:`,
+          error,
+        );
+        window.showErrorMessage(
+          `Failed to open module: ${
+            error instanceof Error ? error.message : "Unknown error"
+          }`,
+        );
+      }
+    },
+  );
+
   const provider = new DarkFS(client);
   const registration = workspace.registerFileSystemProvider(
     "darkfs",
@@ -229,6 +256,7 @@ export function activate(context: ExtensionContext) {
   context.subscriptions.push(registration);
   context.subscriptions.push(lookUpToplevelCommand);
   context.subscriptions.push(openPackageDefinitionCommand);
+  context.subscriptions.push(openFullModuleCommand);
   context.subscriptions.push(disposable);
 }
 

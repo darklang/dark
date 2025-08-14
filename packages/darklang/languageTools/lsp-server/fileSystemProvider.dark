@@ -42,6 +42,64 @@ module Darklang =
                 match Builtin.cliScriptsGet scriptName with
                 | Some script -> script.text
                 | None -> $"Script not found: {scriptName}"
+              // Check if this is a full module request
+              elif Stdlib.String.startsWith nameForLookup "module/" then
+                let modulePath =
+                  nameForLookup
+                  |> Stdlib.String.dropFirst 7L  // Drop "module/"
+                  |> Stdlib.String.split "."
+
+                // Search for all entities in this module
+                let searchQuery =
+                  LanguageTools.ProgramTypes.Search.SearchQuery
+                    { currentModule = modulePath
+                      text = ""
+                      searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+                      entityTypes = [
+                        LanguageTools.ProgramTypes.Search.EntityType.Fn
+                        LanguageTools.ProgramTypes.Search.EntityType.Type
+                        LanguageTools.ProgramTypes.Search.EntityType.Constant
+                      ] }
+
+                let searchResults = LanguageTools.PackageManager.Search.search searchQuery
+
+                let functions =
+                  searchResults.fns
+                  |> Stdlib.List.map (fun fn -> fn |> PrettyPrinter.ProgramTypes.packageFn)
+                  |> Stdlib.String.join "\n\n"
+
+                let types =
+                  searchResults.types
+                  |> Stdlib.List.map (fun typ -> typ |> PrettyPrinter.ProgramTypes.packageType)
+                  |> Stdlib.String.join "\n\n"
+
+                let constants =
+                  searchResults.constants
+                  |> Stdlib.List.map (fun c -> c |> PrettyPrinter.ProgramTypes.packageConstant)
+                  |> Stdlib.String.join "\n\n"
+
+                let allDefinitions =
+                  [ types; constants; functions ]
+                  |> Stdlib.List.filter (fun s -> s != "")
+                  |> Stdlib.String.join "\n\n"
+
+                // Build module header with proper nesting
+                let moduleHeader =
+                  modulePath
+                  |> Stdlib.List.indexedMap (fun i name ->
+                    let indent = Stdlib.String.repeat "  " i
+                    $"{indent}module {name} =")
+                  |> Stdlib.String.join "\n"
+
+                let contentIndent = Stdlib.String.repeat "  " (Stdlib.List.length modulePath)
+                let indentedContent =
+                  allDefinitions
+                  |> Stdlib.String.split "\n"
+                  |> Stdlib.List.map (fun line ->
+                    if line == "" then line else $"{contentIndent}{line}")
+                  |> Stdlib.String.join "\n"
+
+                $"{moduleHeader}\n{indentedContent}"
               else
                 // Handle package entities
                 let pm = LanguageTools.PackageManager.pm ()

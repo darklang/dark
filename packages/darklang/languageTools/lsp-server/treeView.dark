@@ -25,13 +25,13 @@ module Darklang =
                   VSCode.TreeView.TreeItem.Label.Label.String label
                 )
               collapsibleState = collapsibleState |> Stdlib.Option.Option.Some
-              command = Stdlib.Option.Option.None // TODO: this should be a command to open the package
+              command = Stdlib.Option.Option.None //command to open the package
               contextValue = contextValue
               checkboxState = Stdlib.Option.Option.None
               accessibilityInformation = Stdlib.Option.Option.None
               description = Stdlib.Option.Option.None // could include metadata about package, author, etc.
-              iconPath = Stdlib.Option.Option.None // TODO: based on whether it's a module, type, constant, or fn (or later: other things, like http endpoint)
-              resourceUri = Stdlib.Option.Option.None // TODO: this should be the URI of the package
+              iconPath = Stdlib.Option.Option.None // based on whether it's a module, type, constant, or fn (or later: other things, like http endpoint)
+              resourceUri = Stdlib.Option.Option.None // URI of the package
               tooltip = Stdlib.Option.Option.None }
 
 
@@ -107,7 +107,7 @@ module Darklang =
               modules == currentPath)
             |> Stdlib.List.map (fun fn ->
               let id = fn.name |> ProgramTypes.PackageFn.nameToString
-              makeTreeItem id fn.name.name TreeItemCollapsibleState.None (Stdlib.Option.Option.Some id))
+              makeTreeItem id fn.name.name TreeItemCollapsibleState.None (Stdlib.Option.Option.Some $"fn:{id}"))
 
           let typeItems =
             searchResults.types
@@ -116,7 +116,7 @@ module Darklang =
               modules == currentPath)
             |> Stdlib.List.map (fun typ ->
               let id = typ.name |> ProgramTypes.PackageType.nameToString
-              makeTreeItem id typ.name.name TreeItemCollapsibleState.None (Stdlib.Option.Option.Some id))
+              makeTreeItem id typ.name.name TreeItemCollapsibleState.None (Stdlib.Option.Option.Some $"type:{id}"))
 
           let constItems =
             searchResults.constants
@@ -125,7 +125,7 @@ module Darklang =
               modules == currentPath)
             |> Stdlib.List.map (fun c ->
               let id = c.name |> ProgramTypes.PackageConstant.nameToString
-              makeTreeItem id c.name.name TreeItemCollapsibleState.None (Stdlib.Option.Option.Some id))
+              makeTreeItem id c.name.name TreeItemCollapsibleState.None (Stdlib.Option.Option.Some $"const:{id}"))
 
           Stdlib.List.flatten [submodules; fnItems; typeItems; constItems]
 
