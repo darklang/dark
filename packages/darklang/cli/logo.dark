@@ -41,7 +41,7 @@ module Darklang =
             paddedLine
           else
             // Add color to non-empty lines
-            $"{color}{paddedLine}{CliColors.reset}")
+            $"{color}{paddedLine}{Colors.reset}")
 
       // Split the text lines by newlines
       let textLinesList =

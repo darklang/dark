@@ -69,7 +69,7 @@ module Darklang =
                     |> Stdlib.List.indexedMap (fun localIndex item ->
                       let globalIndex = viewportStart + localIndex
                       if globalIndex == selectedIndex then
-                        $"{CliColors.magenta}[{item}]{CliColors.reset}"
+                        $"{Colors.magenta}[{item}]{Colors.reset}"
                       else
                         item)
 
@@ -84,7 +84,7 @@ module Darklang =
                     items
                     |> Stdlib.List.indexedMap (fun index item ->
                       if index == selectedIndex then
-                        $"{CliColors.magenta}[{item}]{CliColors.reset}"
+                        $"{Colors.magenta}[{item}]{Colors.reset}"
                       else
                         item)
                   Stdlib.String.join formattedItems ", "
@@ -107,16 +107,16 @@ module Darklang =
                 |> Stdlib.List.drop adjustedScrollPos
                 |> Stdlib.List.take viewportHeight
 
-              $"{CliColors.blue}{entityDef.name}\n\n" ++ (visibleLines |> Stdlib.String.join "\n")
+              $"{Colors.blue}{entityDef.name}\n\n" ++ (visibleLines |> Stdlib.String.join "\n")
 
           /// Wraps the content with a help bar for module viewing
           let renderModuleViewingInterface (content: String) : String =
-            let helpBar = $"{CliColors.gray}↑/↓: categories  ←/→: entities  Enter: expand/view  b: back  q: quit{CliColors.reset}\n\n"
+            let helpBar = $"{Colors.gray}↑/↓: categories  ←/→: entities  Enter: expand/view  b: back  q: quit{Colors.reset}\n\n"
             $"{Terminal.Display.clearScreen}{content}\n{helpBar}"
 
           /// Wraps the content with a help bar for entity definition viewing
           let renderEntityViewingInterface (content: String) : String =
-            let helpBar = $"{CliColors.gray}↑/↓: scroll  ←/→: page  Enter: collapse  b: back  q: quit{CliColors.reset}\n\n"
+            let helpBar = $"{Colors.gray}↑/↓: scroll  ←/→: page  Enter: collapse  b: back  q: quit{Colors.reset}\n\n"
             $"{Terminal.Display.clearScreen}{content}\n{helpBar}"
 
 
@@ -132,9 +132,9 @@ module Darklang =
             let sectionName = View.entityCategoryToString category
             let isExpanded = viewingState.expandedCategories |> Stdlib.List.member_v0 category
 
-            let expandIndicator = if isExpanded then $"{CliColors.purple}▼{CliColors.reset}" else $"{CliColors.purple}▶{CliColors.reset}"
+            let expandIndicator = if isExpanded then $"{Colors.purple}▼{Colors.reset}" else $"{Colors.purple}▶{Colors.reset}"
             let selectionIndicator = if viewingState.selectedCategory == category then "→ " else "  "
-            let header = $"{selectionIndicator}{expandIndicator} {sectionName} {CliColors.gray}({entities |> Stdlib.List.length |> Stdlib.Int64.toString}){CliColors.reset}"
+            let header = $"{selectionIndicator}{expandIndicator} {sectionName} {Colors.gray}({entities |> Stdlib.List.length |> Stdlib.Int64.toString}){Colors.reset}"
 
             if Stdlib.List.isEmpty entities then
               $"{header}\n\n(none)\n"
@@ -263,7 +263,7 @@ module Darklang =
                 visibleScrollableLines |> Stdlib.String.join "\n"
 
             // Always show header, even if no room for content (match entity definition format)
-            $"{CliColors.blue}Module: {viewingState.entityName}{CliColors.reset}\n\n" ++ contentPart
+            $"{Colors.blue}Module: {viewingState.entityName}{Colors.reset}\n\n" ++ contentPart
 
           /// Builds the scrollable content for a viewing state
           let buildScrollableContent (viewingState: ViewingState) : String =

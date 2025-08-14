@@ -26,7 +26,7 @@ module Darklang =
         if Stdlib.String.isEmpty completionText then
           $"{pathDisplay}> {state.mainPrompt}"
         else
-          $"{pathDisplay}> {state.mainPrompt}{CliColors.darkGray}{completionText}{CliColors.reset}"
+          $"{pathDisplay}> {state.mainPrompt}{Colors.darkGray}{completionText}{Colors.reset}"
 
       let cursorPosition = positionTerminalCursor pathDisplay state.cursorPosition
       promptLine ++ cursorPosition
