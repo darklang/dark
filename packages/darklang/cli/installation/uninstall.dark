@@ -1,0 +1,46 @@
+module Darklang =
+  module Cli =
+    module Installation =
+      module Uninstall =
+        let removeDarklangDirectory
+          (host: Stdlib.Cli.Host.Host)
+          : Stdlib.Result.Result<Unit, String> =
+          match host.os with
+          | Windows ->
+            let homeDirectory =
+              match Stdlib.Cli.PowerShell.getHomeDirectory () with
+              | Ok homeDir -> homeDir
+              | Error e -> e
+
+            let darklangDir = $"{homeDirectory}\\.darklang"
+
+            Stdlib.Cli.PowerShell.removeFile darklangDir
+
+          | Linux | MacOS ->
+            let darklangDir = "$HOME/.darklang"
+            Stdlib.Cli.Unix.removeDirectory darklangDir
+
+
+        let runUninstall
+          (host: Stdlib.Cli.Host.Host)
+          : Stdlib.Result.Result<Unit, String> =
+          match host.os with
+          | Windows ->
+            let result =
+              (Stdlib.Cli.PowerShell.deleteAlias "darklang")
+              |> Stdlib.Result.andThen (fun _ -> removeDarklangDirectory host)
+
+            match result with
+            | Ok _ -> Stdlib.Result.Result.Ok()
+            | Error err ->
+              Stdlib.Result.Result.Error $"Error uninstalling darklang: {err}"
+
+          | Linux | MacOS ->
+            let result =
+              (Stdlib.Cli.Unix.deleteAlias host.defaultShell "darklang")
+              |> Stdlib.Result.andThen (fun _ -> removeDarklangDirectory host)
+
+            match result with
+            | Ok _ -> Stdlib.Result.Result.Ok()
+            | Error err ->
+              Stdlib.Result.Result.Error $"Error uninstalling darklang: {err}"

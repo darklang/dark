@@ -10,8 +10,12 @@ module Darklang =
 
       let allCommands () : List<CommandHandler> =
         [ CommandHandler { name = "quit"; description = "Exit the CLI"; aliases = ["exit"]; execute = Quit.execute; help = Quit.help }
-          CommandHandler { name = "version"; description = "Display CLI version"; aliases = ["v"]; execute = Version.execute; help = Version.help }
-          CommandHandler { name = "help"; description = "Show help for commands"; aliases = ["h"; "?"]; execute = Help.execute; help = Help.help } ]
+          CommandHandler { name = "help"; description = "Show help for commands"; aliases = ["h"; "?"]; execute = Help.execute; help = Help.help }
+          CommandHandler { name = "install"; description = "Install CLI globally"; aliases = []; execute = Install.executeInstall; help = Install.installHelp }
+          CommandHandler { name = "update"; description = "Update CLI to latest version"; aliases = ["upgrade"]; execute = Install.executeUpdate; help = Install.updateHelp }
+          CommandHandler { name = "uninstall"; description = "Remove CLI installation"; aliases = []; execute = Install.executeUninstall; help = Install.uninstallHelp }
+          CommandHandler { name = "status"; description = "Show installation status"; aliases = []; execute = Install.executeStatus; help = Install.statusHelp }
+          CommandHandler { name = "version"; description = "Display CLI version"; aliases = ["v"]; execute = Install.executeVersion; help = Install.versionHelp } ]
 
       let findCommand (name: String) : CommandHandler =
         let commands = allCommands ()

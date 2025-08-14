@@ -11,8 +11,7 @@ module Darklang =
         "> "
       
       let formatWelcome () : String =
-        let commands = formatWelcomeCommands ()
-        $"Darklang CLI - Interactive Mode\nAvailable commands: {commands}"
+        $"Darklang CLI - Interactive Mode\n\n{Registry.getCommandList ()}\n\nType 'help <command>' for specific command help."
       
       let formatWelcomeCommands () : String =
         "help, version, quit"
