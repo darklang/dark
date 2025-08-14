@@ -1,13 +1,8 @@
 module Darklang =
   module Cli =
     module Types =
-      type Command = 
-        | Help of List<String>
-        | Quit
-        | Unknown of String
-
       type Msg =
-        | ProcessCommand of Command
+        | ProcessInput of String
         | Exit
 
       type AppState = 

@@ -1,0 +1,36 @@
+module Darklang =
+  module Cli =
+    module Registry =
+      type CommandInfo =
+        { name: String
+          description: String }
+
+      let executeCommand (name: String) (state: Types.AppState) (args: List<String>) : Types.AppState =
+        match name with
+        | "quit" -> QuitCommand.execute state args
+        | "version" -> VersionCommand.execute state args
+        | "help" -> HelpCommand.execute state args
+        | _ -> 
+          Builtin.printLine (View.formatError $"Unknown command: {name}")
+          Builtin.printLine "Use 'help' to see available commands."
+          Types.AppState { isExiting = state.isExiting; lastCommand = name; output = $"unknown command: {name}" }
+
+      let executeCommandHelp (name: String) (state: Types.AppState) : Types.AppState =
+        match name with
+        | "quit" -> QuitCommand.help state
+        | "version" -> VersionCommand.help state
+        | "help" -> HelpCommand.help state
+        | _ -> 
+          Builtin.printLine $"No help available for command: {name}"
+          Types.AppState { isExiting = state.isExiting; lastCommand = $"help {name}"; output = $"no help for {name}" }
+
+      let allCommands () : List<CommandInfo> =
+        [ CommandInfo { name = "quit"; description = "Exit the CLI" }
+          CommandInfo { name = "version"; description = "Display CLI version" }
+          CommandInfo { name = "help"; description = "Show help for commands" } ]
+
+      let getCommandList () : String =
+        let commands = allCommands ()
+        let lines = Stdlib.List.map commands (fun cmd -> $"  {cmd.name} - {cmd.description}")
+        let joined = Stdlib.String.join lines "\n"
+        $"Available commands:\n{joined}"

@@ -3,8 +3,8 @@ module Darklang =
     module Update =
       let updateAppState (state: Types.AppState) (msg: Types.Msg) : Types.AppState =
         match msg with
-        | ProcessCommand cmd ->
-          Commands.executeCommand state cmd
+        | ProcessInput input ->
+          Commands.parseAndExecute state input
         | Exit ->
           Types.AppState { isExiting = true; lastCommand = "exit"; output = "exiting" }
 
@@ -13,6 +13,5 @@ module Darklang =
         if Stdlib.String.isEmpty trimmedInput then
           state
         else
-          let cmd = Commands.parseCommand trimmedInput
-          let msg = Types.Msg.ProcessCommand cmd
+          let msg = Types.Msg.ProcessInput trimmedInput
           updateAppState state msg

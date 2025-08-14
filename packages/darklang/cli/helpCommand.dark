@@ -1,0 +1,19 @@
+module Darklang =
+  module Cli =
+    module HelpCommand =
+      let execute (state: Types.AppState) (args: List<String>) : Types.AppState =
+        match args with
+        | [] ->
+          Builtin.printLine (Registry.getCommandList ())
+          Types.AppState { isExiting = state.isExiting; lastCommand = "help"; output = "help displayed" }
+        | [commandName] ->
+          Registry.executeCommandHelp commandName state
+        | _ ->
+          Builtin.printLine "Usage: help [command]"
+          Builtin.printLine "Too many arguments. Use 'help' for general help or 'help <command>' for specific help."
+          Types.AppState { isExiting = state.isExiting; lastCommand = "help error"; output = "help error" }
+
+      let help (state: Types.AppState) : Types.AppState =
+        Builtin.printLine "Usage: help [command]\nShow general help or help for a specific command.\nExamples:\n  help        - Show all available commands\n  help quit   - Show help for the quit command"
+        Types.AppState { isExiting = state.isExiting; lastCommand = "help help"; output = "help help displayed" }
+

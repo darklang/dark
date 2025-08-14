@@ -11,10 +11,14 @@ module Darklang =
         "> "
       
       let formatWelcome () : String =
-        "Darklang CLI - Interactive Mode\nAvailable commands: help, quit"
+        let commands = formatWelcomeCommands ()
+        $"Darklang CLI - Interactive Mode\nAvailable commands: {commands}"
       
-      let formatCommandList () : String =
-        "Available commands:\n  help [command] - Show this help or help for specific command\n  quit - Exit the CLI"
+      let formatWelcomeCommands () : String =
+        "help, version, quit"
       
       let formatGoodbye () : String =
         "Goodbye!"
+      
+      let formatVersion () : String =
+        "Darklang CLI v0.1.0-dev (MVU Architecture)"
