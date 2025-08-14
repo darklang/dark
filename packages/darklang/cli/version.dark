@@ -1,6 +1,6 @@
 module Darklang =
   module Cli =
-    module VersionCommand =
+    module Version =
       let execute (state: Types.AppState) (args: List<String>) : Types.AppState =
         Builtin.printLine (View.formatVersion ())
         Types.AppState { isExiting = state.isExiting; lastCommand = "version"; output = "version displayed" }

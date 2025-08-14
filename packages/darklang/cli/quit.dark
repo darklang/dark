@@ -1,6 +1,6 @@
 module Darklang =
   module Cli =
-    module QuitCommand =
+    module Quit =
       let execute (state: Types.AppState) (args: List<String>) : Types.AppState =
         Builtin.printLine (View.formatGoodbye ())
         Types.AppState { isExiting = true; lastCommand = "quit"; output = "goodbye" }

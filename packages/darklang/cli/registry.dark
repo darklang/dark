@@ -7,9 +7,9 @@ module Darklang =
 
       let executeCommand (name: String) (state: Types.AppState) (args: List<String>) : Types.AppState =
         match name with
-        | "quit" -> QuitCommand.execute state args
-        | "version" -> VersionCommand.execute state args
-        | "help" -> HelpCommand.execute state args
+        | "quit" -> Quit.execute state args
+        | "version" -> Version.execute state args
+        | "help" -> Help.execute state args
         | _ -> 
           Builtin.printLine (View.formatError $"Unknown command: {name}")
           Builtin.printLine "Use 'help' to see available commands."
@@ -17,9 +17,9 @@ module Darklang =
 
       let executeCommandHelp (name: String) (state: Types.AppState) : Types.AppState =
         match name with
-        | "quit" -> QuitCommand.help state
-        | "version" -> VersionCommand.help state
-        | "help" -> HelpCommand.help state
+        | "quit" -> Quit.help state
+        | "version" -> Version.help state
+        | "help" -> Help.help state
         | _ -> 
           Builtin.printLine $"No help available for command: {name}"
           Types.AppState { isExiting = state.isExiting; lastCommand = $"help {name}"; output = $"no help for {name}" }
