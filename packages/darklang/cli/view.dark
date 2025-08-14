@@ -1,0 +1,20 @@
+module Darklang =
+  module Cli =
+    module View =
+      let formatError (message: String) : String =
+        $"Error: {message}"
+      
+      let formatSuccess (message: String) : String =
+        message
+      
+      let formatPrompt () : String =
+        "> "
+      
+      let formatWelcome () : String =
+        "Darklang CLI - Interactive Mode\nAvailable commands: help, quit"
+      
+      let formatCommandList () : String =
+        "Available commands:\n  help [command] - Show this help or help for specific command\n  quit - Exit the CLI"
+      
+      let formatGoodbye () : String =
+        "Goodbye!"

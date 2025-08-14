@@ -2,7 +2,7 @@ module Darklang =
   module Cli =
     module Types =
       type Command = 
-        | Help
+        | Help of List<String>
         | Quit
         | Unknown of String
 

@@ -1,0 +1,18 @@
+module Darklang =
+  module Cli =
+    module Update =
+      let updateAppState (state: Types.AppState) (msg: Types.Msg) : Types.AppState =
+        match msg with
+        | ProcessCommand cmd ->
+          Commands.executeCommand state cmd
+        | Exit ->
+          Types.AppState { isExiting = true; lastCommand = "exit"; output = "exiting" }
+
+      let processInput (state: Types.AppState) (input: String) : Types.AppState =
+        let trimmedInput = Stdlib.String.trim input
+        if Stdlib.String.isEmpty trimmedInput then
+          state
+        else
+          let cmd = Commands.parseCommand trimmedInput
+          let msg = Types.Msg.ProcessCommand cmd
+          updateAppState state msg

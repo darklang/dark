@@ -2,21 +2,39 @@ module Darklang =
   module Cli =
     module Commands =
       let parseCommand (input: String) : Types.Command =
-        match Stdlib.String.trim input with
-        | "help" -> Types.Command.Help
-        | "quit" -> Types.Command.Quit
-        | cmd -> Types.Command.Unknown cmd
+        let trimmed = Stdlib.String.trim input
+        let parts = Stdlib.String.split trimmed " "
+        match parts with
+        | ["help"] -> Types.Command.Help []
+        | "help" :: args -> Types.Command.Help args
+        | ["quit"] -> Types.Command.Quit
+        | _ -> Types.Command.Unknown input
+
+      let getCommandHelp (command: String) : String =
+        match command with
+        | "help" -> "Usage: help [command]\nShow general help or help for a specific command.\nExamples:\n  help        - Show all available commands\n  help quit   - Show help for the quit command"
+        | "quit" -> "Usage: quit\nExit the CLI immediately.\nNo arguments required."
+        | _ -> $"No help available for command: {command}"
 
       let executeCommand (state: Types.AppState) (cmd: Types.Command) : Types.AppState =
         match cmd with
-        | Help ->
-          Builtin.printLine "Available commands:"
-          Builtin.printLine "  help - Show this help"
-          Builtin.printLine "  quit - Exit the CLI"
-          Types.AppState { isExiting = state.isExiting; lastCommand = "help"; output = "help displayed" }
+        | Help args ->
+          match args with
+          | [] ->
+            Builtin.printLine (View.formatCommandList ())
+            Types.AppState { isExiting = state.isExiting; lastCommand = "help"; output = "help displayed" }
+          | [command] ->
+            let helpText = getCommandHelp command
+            Builtin.printLine helpText
+            Types.AppState { isExiting = state.isExiting; lastCommand = $"help {command}"; output = helpText }
+          | _ ->
+            Builtin.printLine "Usage: help [command]"
+            Builtin.printLine "Too many arguments. Use 'help' for general help or 'help <command>' for specific help."
+            Types.AppState { isExiting = state.isExiting; lastCommand = "help error"; output = "help error" }
         | Quit ->
-          Builtin.printLine "Goodbye!"
+          Builtin.printLine (View.formatGoodbye ())
           Types.AppState { isExiting = true; lastCommand = "quit"; output = "goodbye" }
         | Unknown command ->
-          Builtin.printLine $"Unknown command: {command}"
+          Builtin.printLine (View.formatError $"Unknown command: {command}")
+          Builtin.printLine "Use 'help' to see available commands."
           Types.AppState { isExiting = state.isExiting; lastCommand = command; output = $"unknown command: {command}" }

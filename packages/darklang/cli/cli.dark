@@ -4,16 +4,10 @@ module Darklang =
       if state.isExiting then
         0L
       else
-        Builtin.printLine "> "
+        Builtin.printLine (View.formatPrompt ())
         let input = Builtin.stdinReadLine ()
-        let trimmedInput = Stdlib.String.trim input
-        
-        if Stdlib.String.isEmpty trimmedInput then
-          runInteractiveLoop state
-        else
-          let cmd = Commands.parseCommand trimmedInput
-          let newState = Commands.executeCommand state cmd
-          runInteractiveLoop newState
+        let newState = Update.processInput state input
+        runInteractiveLoop newState
 
     let executeCliCommand (args: List<String>) : Int64 =
       let initialState = Types.initState ()
@@ -21,14 +15,12 @@ module Darklang =
       match args with
       | [] ->
         // Interactive mode - continuous loop
-        Builtin.printLine "Darklang CLI - Interactive Mode"
-        Builtin.printLine "Available commands: help, quit"
+        Builtin.printLine (View.formatWelcome ())
         runInteractiveLoop initialState
       | _ ->
         // Non-interactive mode: execute command, print result, and exit
         let command = args |> Stdlib.String.join " "
-        let cmd = Commands.parseCommand command
-        let finalState = Commands.executeCommand initialState cmd
+        let finalState = Update.processInput initialState command
         
         // Always exit for non-interactive mode
         0L
