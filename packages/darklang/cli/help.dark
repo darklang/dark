@@ -5,15 +5,15 @@ module Darklang =
         match args with
         | [] ->
           Builtin.printLine (Registry.getCommandList ())
-          Types.AppState { isExiting = state.isExiting; lastCommand = "help"; output = "help displayed" }
+          Types.AppState { isExiting = state.isExiting; lastCommand = "help"; output = "help displayed"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw }
         | [commandName] ->
           Registry.executeCommandHelp commandName state
         | _ ->
           Builtin.printLine "Usage: help [command]"
           Builtin.printLine "Too many arguments. Use 'help' for general help or 'help <command>' for specific help."
-          Types.AppState { isExiting = state.isExiting; lastCommand = "help error"; output = "help error" }
+          Types.AppState { isExiting = state.isExiting; lastCommand = "help error"; output = "help error"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw }
 
       let help (state: Types.AppState) : Types.AppState =
         Builtin.printLine "Usage: help [command]\nShow general help or help for a specific command.\nExamples:\n  help        - Show all available commands\n  help quit   - Show help for the quit command"
-        Types.AppState { isExiting = state.isExiting; lastCommand = "help help"; output = "help help displayed" }
+        Types.AppState { isExiting = state.isExiting; lastCommand = "help help"; output = "help help displayed"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw }
 

@@ -5,8 +5,38 @@ module Darklang =
         match msg with
         | ProcessInput input ->
           Commands.parseAndExecute state input
+        | KeyPressed (key, modifiers, keyChar) ->
+          handleKeyInput state key modifiers keyChar
         | Exit ->
-          Types.AppState { isExiting = true; lastCommand = "exit"; output = "exiting" }
+          Types.AppState { isExiting = true; lastCommand = "exit"; output = "exiting"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw }
+
+      let handleKeyInput (state: Types.AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers) (keyChar: Stdlib.Option.Option<String>) : Types.AppState =
+        match key with
+        | Enter ->
+          // Execute the current command
+          if Stdlib.String.isEmpty (Stdlib.String.trim state.mainPrompt) then
+            Builtin.printLine ""
+            Types.AppState { isExiting = state.isExiting; lastCommand = state.lastCommand; output = state.output; mainPrompt = ""; needsFullRedraw = true }
+          else
+            Builtin.printLine ""
+            let commandToExecute = Stdlib.String.trim state.mainPrompt
+            let newState = Commands.parseAndExecute state commandToExecute
+            Types.AppState { isExiting = newState.isExiting; lastCommand = newState.lastCommand; output = newState.output; mainPrompt = ""; needsFullRedraw = true }
+        | Backspace ->
+          // Remove last character from prompt
+          if Stdlib.String.length state.mainPrompt > 0L then
+            let newPrompt = Stdlib.String.dropLast state.mainPrompt 1L
+            Types.AppState { isExiting = state.isExiting; lastCommand = state.lastCommand; output = state.output; mainPrompt = newPrompt; needsFullRedraw = false }
+          else
+            state
+        | _ ->
+          // Add character to prompt
+          match keyChar with
+          | Some char ->
+            let newPrompt = state.mainPrompt ++ char
+            Types.AppState { isExiting = state.isExiting; lastCommand = state.lastCommand; output = state.output; mainPrompt = newPrompt; needsFullRedraw = false }
+          | None ->
+            state
 
       let processInput (state: Types.AppState) (input: String) : Types.AppState =
         let trimmedInput = Stdlib.String.trim input

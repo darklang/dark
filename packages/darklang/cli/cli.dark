@@ -4,9 +4,19 @@ module Darklang =
       if state.isExiting then
         0L
       else
-        Builtin.printLine (View.formatPrompt ())
-        let input = Builtin.stdinReadLine ()
-        let newState = Update.processInput state input
+        // Display prompt and current input
+        if state.needsFullRedraw then
+          Builtin.printLine (View.formatPrompt ())
+        else
+          // Clear current line completely and redraw prompt with current input
+          Builtin.print "\r\u001b[K"
+          Builtin.print (View.formatPrompt ())
+        Builtin.print state.mainPrompt
+        
+        // Read keystroke input
+        let keyInput = Stdlib.Cli.Stdin.readKey ()
+        let keyPressedMsg = Types.Msg.KeyPressed (keyInput.key, keyInput.modifiers, Stdlib.Option.Option.Some keyInput.keyChar)
+        let newState = Update.updateAppState state keyPressedMsg
         runInteractiveLoop newState
 
     let executeCliCommand (args: List<String>) : Int64 =

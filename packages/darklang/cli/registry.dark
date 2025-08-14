@@ -36,10 +36,10 @@ module Darklang =
               execute = fun state args -> 
                 Builtin.printLine (View.formatError $"Unknown command: {name}")
                 Builtin.printLine "Use 'help' to see available commands."
-                Types.AppState { isExiting = state.isExiting; lastCommand = name; output = $"unknown command: {name}" }
+                Types.AppState { isExiting = state.isExiting; lastCommand = name; output = $"unknown command: {name}"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw }
               help = fun state ->
                 Builtin.printLine $"No help available for command: {name}"
-                Types.AppState { isExiting = state.isExiting; lastCommand = $"help {name}"; output = $"no help for {name}" } }
+                Types.AppState { isExiting = state.isExiting; lastCommand = $"help {name}"; output = $"no help for {name}"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw } }
 
       let executeCommand (name: String) (state: Types.AppState) (args: List<String>) : Types.AppState =
         let handler = findCommand name

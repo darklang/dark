@@ -3,12 +3,15 @@ module Darklang =
     module Types =
       type Msg =
         | ProcessInput of String
+        | KeyPressed of key: Stdlib.Cli.Stdin.Key.Key * modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers * keyChar: Stdlib.Option.Option<String>
         | Exit
 
       type AppState = 
         { isExiting: Bool
           lastCommand: String
-          output: String }
+          output: String
+          mainPrompt: String
+          needsFullRedraw: Bool }
 
       let initState () : AppState =
-        AppState { isExiting = false; lastCommand = ""; output = "" }
+        AppState { isExiting = false; lastCommand = ""; output = ""; mainPrompt = ""; needsFullRedraw = true }
