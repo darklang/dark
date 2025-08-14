@@ -1,36 +1,59 @@
 module Darklang =
   module Cli =
     module Registry =
-      type CommandInfo =
+      type CommandHandler =
         { name: String
-          description: String }
+          description: String
+          aliases: List<String>
+          execute: Types.AppState -> List<String> -> Types.AppState
+          help: Types.AppState -> Types.AppState }
+
+      let allCommands () : List<CommandHandler> =
+        [ CommandHandler { name = "quit"; description = "Exit the CLI"; aliases = ["exit"]; execute = Quit.execute; help = Quit.help }
+          CommandHandler { name = "version"; description = "Display CLI version"; aliases = ["v"]; execute = Version.execute; help = Version.help }
+          CommandHandler { name = "help"; description = "Show help for commands"; aliases = ["h"; "?"]; execute = Help.execute; help = Help.help } ]
+
+      let findCommand (name: String) : CommandHandler =
+        let commands = allCommands ()
+        let nameMatches = Stdlib.List.filter commands (fun cmd -> cmd.name == name)
+        let aliasMatches = Stdlib.List.filter commands (fun cmd -> 
+          match Stdlib.List.findFirst cmd.aliases (fun alias -> alias == name) with
+          | Some _ -> true
+          | None -> false)
+        let allMatches = Stdlib.List.append nameMatches aliasMatches
+        match allMatches with
+        | [handler] -> handler
+        | handler :: _ -> handler
+        | [] -> 
+          CommandHandler 
+            { name = name
+              description = "Unknown command"
+              aliases = []
+              execute = fun state args -> 
+                Builtin.printLine (View.formatError $"Unknown command: {name}")
+                Builtin.printLine "Use 'help' to see available commands."
+                Types.AppState { isExiting = state.isExiting; lastCommand = name; output = $"unknown command: {name}" }
+              help = fun state ->
+                Builtin.printLine $"No help available for command: {name}"
+                Types.AppState { isExiting = state.isExiting; lastCommand = $"help {name}"; output = $"no help for {name}" } }
 
       let executeCommand (name: String) (state: Types.AppState) (args: List<String>) : Types.AppState =
-        match name with
-        | "quit" -> Quit.execute state args
-        | "version" -> Version.execute state args
-        | "help" -> Help.execute state args
-        | _ -> 
-          Builtin.printLine (View.formatError $"Unknown command: {name}")
-          Builtin.printLine "Use 'help' to see available commands."
-          Types.AppState { isExiting = state.isExiting; lastCommand = name; output = $"unknown command: {name}" }
+        let handler = findCommand name
+        let ex = handler.execute
+        ex state args
 
       let executeCommandHelp (name: String) (state: Types.AppState) : Types.AppState =
-        match name with
-        | "quit" -> Quit.help state
-        | "version" -> Version.help state
-        | "help" -> Help.help state
-        | _ -> 
-          Builtin.printLine $"No help available for command: {name}"
-          Types.AppState { isExiting = state.isExiting; lastCommand = $"help {name}"; output = $"no help for {name}" }
-
-      let allCommands () : List<CommandInfo> =
-        [ CommandInfo { name = "quit"; description = "Exit the CLI" }
-          CommandInfo { name = "version"; description = "Display CLI version" }
-          CommandInfo { name = "help"; description = "Show help for commands" } ]
+        let handler = findCommand name
+        let help = handler.help
+        help state
 
       let getCommandList () : String =
         let commands = allCommands ()
-        let lines = Stdlib.List.map commands (fun cmd -> $"  {cmd.name} - {cmd.description}")
+        let lines = Stdlib.List.map commands (fun cmd ->
+          match cmd.aliases with
+          | [] -> $"  {cmd.name} - {cmd.description}"
+          | aliases ->
+            let aliasText = Stdlib.String.join aliases ", "
+            $"  {cmd.name} ({aliasText}) - {cmd.description}")
         let joined = Stdlib.String.join lines "\n"
         $"Available commands:\n{joined}"
