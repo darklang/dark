@@ -5,27 +5,27 @@ module Darklang =
       /// Maps semantic token types to CLI colors
       let tokenTypeToCliColor (tokenType: LanguageTools.SemanticTokens.TokenType) : String =
         match tokenType with
-        | Symbol -> CliColors.blue
-        | Keyword -> CliColors.magenta
+        | Symbol -> Colors.blue
+        | Keyword -> Colors.magenta
 
-        | ModuleName -> CliColors.darkGray
-        | TypeName -> CliColors.lightBlue
+        | ModuleName -> Colors.darkGray
+        | TypeName -> Colors.lightBlue
 
-        | Operator -> CliColors.lightPurple
-        | String -> CliColors.peach
-        | Number -> CliColors.purple
-        | ParameterName -> CliColors.lightBlue
-        | VariableName -> CliColors.white
-        | FunctionName -> CliColors.lightBlue
+        | Operator -> Colors.lightPurple
+        | String -> Colors.peach
+        | Number -> Colors.purple
+        | ParameterName -> Colors.lightBlue
+        | VariableName -> Colors.white
+        | FunctionName -> Colors.lightBlue
 
-        | Comment -> CliColors.gray
+        | Comment -> Colors.gray
 
-        | TypeParameter -> CliColors.purple
+        | TypeParameter -> Colors.purple
 
-        | EnumMember -> CliColors.purple
-        | Property -> CliColors.white
-        | Method -> CliColors.blue
-        | RegularExpression -> CliColors.peach
+        | EnumMember -> Colors.purple
+        | Property -> Colors.white
+        | Method -> Colors.blue
+        | RegularExpression -> Colors.peach
 
 
       /// Highlights a single line by inserting color codes at token positions
@@ -41,7 +41,7 @@ module Darklang =
 
               // add color start and reset positions
               let colorStart = (startPos, color)
-              let colorEnd = (endPos, CliColors.reset)
+              let colorEnd = (endPos, Colors.reset)
 
               Stdlib.List.append acc [colorStart; colorEnd])
         |> Stdlib.List.sortBy (fun (pos, _) -> pos)

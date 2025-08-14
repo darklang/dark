@@ -295,21 +295,21 @@ module Darklang =
                   commands
                   |> Stdlib.List.map (fun cmd ->
                       let commandName = cmd.name ++ Stdlib.String.repeat " " (maxNameLength - Stdlib.String.length cmd.name)
-                      $"{CliColors.purple}{commandName}{CliColors.reset}   {cmd.description}")
+                      $"{Colors.purple}{commandName}{Colors.reset}   {cmd.description}")
 
                 let colorBar =
-                  [ CliColors.purpleBg
-                    CliColors.magentaBg
-                    CliColors.lightPinkBg
-                    CliColors.pinkBg;
-                    CliColors.blueBg
-                    CliColors.greenBg
-                    CliColors.yellowBg
-                    CliColors.brownBg;
-                    CliColors.orangeBg
-                    CliColors.peachBg
-                    CliColors.salmonBg ]
-                  |> Stdlib.List.map (fun color -> $"{color}  {CliColors.reset}")
+                  [ Colors.purpleBg
+                    Colors.magentaBg
+                    Colors.lightPinkBg
+                    Colors.pinkBg;
+                    Colors.blueBg
+                    Colors.greenBg
+                    Colors.yellowBg
+                    Colors.brownBg;
+                    Colors.orangeBg
+                    Colors.peachBg
+                    Colors.salmonBg ]
+                  |> Stdlib.List.map (fun color -> $"{color}  {Colors.reset}")
                   |> Stdlib.String.join ""
 
                 let versionInfo = getVersionInfo ()
@@ -329,17 +329,17 @@ module Darklang =
                         match Stdlib.Cli.Unix.getHomeDirectory () with
                         | Ok dir -> $"{dir}/.darklang"
                         | Error _ -> "~/.darklang"
-                    $"{CliColors.green}Installed at:{CliColors.reset} {homeDir}"
+                    $"{Colors.green}Installed at:{Colors.reset} {homeDir}"
                   | Portable ->
                     let currentDir = Builtin.directoryCurrent ()
-                    $"{CliColors.yellow}Working locally out of:{CliColors.reset} {currentDir}/.darklang"
+                    $"{Colors.yellow}Working locally out of:{Colors.reset} {currentDir}/.darklang"
 
                 let helpText =
                    (Stdlib.List.append
                      [versionInfo; modeInfo; ""; "Available commands:"]
                      (Stdlib.List.append cmdNameDesc ["\n"; colorBar]))
 
-                let helpContent = combineLogoAndText logo helpText CliColors.darkGray
+                let helpContent = combineLogoAndText logo helpText Colors.darkGray
                 let newState = { state with commandResult = CommandResult.Info helpContent }
                 (newState, [])
             }
@@ -561,21 +561,21 @@ module Darklang =
                         match Stdlib.Cli.Unix.getHomeDirectory () with
                         | Ok dir -> $"{dir}/.darklang"
                         | Error _ -> "~/.darklang"
-                    $"{CliColors.green}Status:{CliColors.reset} Globally installed at {homeDir} and ready to use"
+                    $"{Colors.green}Status:{Colors.reset} Globally installed at {homeDir} and ready to use"
                   | Portable ->
                     let currentDir = Builtin.directoryCurrent ()
-                    $"{CliColors.yellow}Status:{CliColors.reset} Running in portable mode at {currentDir}/.darklang (run 'install' for global system-wide access)"
+                    $"{Colors.yellow}Status:{Colors.reset} Running in portable mode at {currentDir}/.darklang (run 'install' for global system-wide access)"
 
                 let textContent =
                   [
-                    $"{CliColors.magenta}Version:{CliColors.reset} {version}"
-                    $"{CliColors.magenta}Location:{CliColors.reset} {currentLocation}"
-                    $"{CliColors.magenta}Mode:{CliColors.reset} {modeDisplay}"
+                    $"{Colors.magenta}Version:{Colors.reset} {version}"
+                    $"{Colors.magenta}Location:{Colors.reset} {currentLocation}"
+                    $"{Colors.magenta}Mode:{Colors.reset} {modeDisplay}"
                     installationStatus
                     ""
-                    $"Type {CliColors.gray}'help'{CliColors.reset} for available commands"
+                    $"Type {Colors.gray}'help'{Colors.reset} for available commands"
                   ] |> Stdlib.String.join "\n"
-                //let statusInfo = combineLogoAndText logo textContent CliColors.purple
+                //let statusInfo = combineLogoAndText logo textContent Colors.purple
 
                 let newState = { state with commandResult = CommandResult.Info textContent }
                 (newState, [])
