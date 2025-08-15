@@ -2,7 +2,7 @@ module Darklang =
   module Cli =
     module Execution =
       // Run command - execute functions or scripts
-      let executeRun (state: Types.AppState) (args: List<String>) : Types.AppState =
+      let executeRun (state: AppState) (args: List<String>) : AppState =
         match args with
         | [] ->
           Builtin.printLine "Usage: run @function_name [args...] | run script_path [args...]"
@@ -19,7 +19,7 @@ module Darklang =
             executeScript state thingToRun restArgs
 
       // Helper function to execute a function
-      let executeFunction (state: Types.AppState) (fnName: String) (args: List<String>) : Types.AppState =
+      let executeFunction (state: AppState) (fnName: String) (args: List<String>) : AppState =
         let onMissing = LanguageTools.NameResolver.OnMissing.Allow
         let pm = LanguageTools.PackageManager.pm ()
 
@@ -47,7 +47,7 @@ module Darklang =
           { state with lastCommand = "run error"; output = $"error: {err}" }
 
       // Helper function to execute a script
-      let executeScript (state: Types.AppState) (scriptPath: String) (args: List<String>) : Types.AppState =
+      let executeScript (state: AppState) (scriptPath: String) (args: List<String>) : AppState =
         match Builtin.fileRead scriptPath with
         | Ok script ->
           let scriptSourceCode = Stdlib.String.fromBytesWithReplacement script
@@ -66,7 +66,7 @@ module Darklang =
           Builtin.printLine $"File error: {e}"
           { state with lastCommand = "run error"; output = $"file error: {e}" }
 
-      let runHelp (state: Types.AppState) : Types.AppState =
+      let runHelp (state: AppState) : AppState =
         Builtin.printLine "Usage: run @function_name [args...] | run script_path [args...]"
         Builtin.printLine "Run a function from the package manager or execute a Dark script file."
         Builtin.printLine ""
@@ -121,7 +121,7 @@ module Darklang =
         let fullPath = $"{normalizedDirPath}/{fileName}"
         Builtin.fileIsDirectory fullPath
 
-      let runComplete (state: Types.AppState) (args: List<String>) : List<String> =
+      let runComplete (state: AppState) (args: List<String>) : List<String> =
         match args with
         | [] ->
           // Complete with function prefix or show current directory contents
@@ -192,7 +192,7 @@ module Darklang =
         | _ -> []
 
       // Eval command - evaluate Dark expressions
-      let executeEval (state: Types.AppState) (args: List<String>) : Types.AppState =
+      let executeEval (state: AppState) (args: List<String>) : AppState =
         match args with
         | [] ->
           Builtin.printLine "Usage: eval <expression>"
@@ -211,7 +211,7 @@ module Darklang =
             Builtin.printLine $"Error: {prettyError}"
             { state with lastCommand = "eval error"; output = $"error: {prettyError}" }
 
-      let evalHelp (state: Types.AppState) : Types.AppState =
+      let evalHelp (state: AppState) : AppState =
         Builtin.printLine "Usage: eval <expression>"
         Builtin.printLine "Evaluate a Dark expression and display the result."
         Builtin.printLine ""
@@ -222,6 +222,6 @@ module Darklang =
         Builtin.printLine "  eval Stdlib.String.length \"test\" - Function calls"
         { state with lastCommand = "help eval"; output = "eval help displayed" }
 
-      let evalComplete (state: Types.AppState) (args: List<String>) : List<String> =
+      let evalComplete (state: AppState) (args: List<String>) : List<String> =
         // For eval completion, we could potentially complete function names, but for now keep it simple
         []

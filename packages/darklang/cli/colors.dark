@@ -57,6 +57,12 @@ module Darklang =
       let promptColor = "\u001b[97m"
       let logoColor = "\u001b[90m"
       
+      // Interactive viewing colors
+      let primary = "\u001b[94m"       // bright blue for primary elements
+      let muted = "\u001b[90m"         // dim gray for secondary text
+      let accent = "\u001b[93m"        // bright yellow for highlights
+      let selection = "\u001b[103;30m" // yellow background with black text for selection
+      
       // Helper functions for applying colors
       let colorize (color: String) (text: String) : String =
         $"{color}{text}{reset}"

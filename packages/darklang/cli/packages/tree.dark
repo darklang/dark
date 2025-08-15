@@ -3,30 +3,30 @@ module Darklang =
     module Packages =
       module Tree =
         // Tree command - display package hierarchy
-        let executeTree (state: Types.AppState) (args: List<String>) : Types.AppState =
-          let showIcons = 
+        let executeTree (state: AppState) (args: List<String>) : AppState =
+          let showIcons =
             match Stdlib.List.findFirst args (fun arg -> arg == "--icons") with
             | Some _ -> true
             | None -> false
-          
+
           // Parse depth option
-          let maxDepth = 
+          let maxDepth =
             match Stdlib.List.findFirst args (fun arg -> Stdlib.String.startsWith arg "--depth=") with
             | Some depthArg ->
               let depthStr = Stdlib.String.dropFirst depthArg 8L // Remove "--depth="
               match Stdlib.Int64.parse depthStr with
-              | Ok depth -> 
+              | Ok depth ->
                 if depth > 0L && depth <= 10L then depth else 3L // Limit to reasonable range
               | Error _ -> 3L
             | None -> 3L // Default max depth to avoid overwhelming output
-          
+
           // Determine starting path
-          let startPath = 
+          let startPath =
             match Stdlib.List.filter args (fun arg -> Stdlib.Bool.not (Stdlib.String.startsWith arg "--")) with
             | [] -> state.currentPath
             | [pathStr] -> Path.parsePath pathStr
             | _ -> state.currentPath
-          
+
           match startPath with
           | Root ->
             Builtin.printLine "Package tree:"
@@ -37,9 +37,9 @@ module Darklang =
             Builtin.printLine $"Package tree from {pathStr}:"
             Builtin.printLine ""
             displayModuleTree owner moduleName showIcons maxDepth 0L ""
-          
+
           { state with lastCommand = "tree"; output = "tree displayed" }
-        
+
         // Display tree from root
         let displayRootTree (showIcons: Bool) (maxDepth: Int64) : Unit =
           // Get top-level packages
@@ -50,10 +50,10 @@ module Darklang =
                 searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
                 entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module ] }
           let searchResults = LanguageTools.PackageManager.Search.search query
-          
+
           match Stdlib.List.head searchResults.submodules with
           | Some moduleList ->
-            let owners = 
+            let owners =
               moduleList
               |> Stdlib.List.filterMap (fun path ->
                 match path with
@@ -61,48 +61,48 @@ module Darklang =
                 | [] -> Stdlib.Option.Option.None)
               |> Stdlib.List.unique
               |> Stdlib.List.sort
-            
+
             let ownerCount = Stdlib.List.length owners
-            let _ = 
+            let _ =
               Stdlib.List.fold owners 0L (fun index owner ->
                 let isLast = index == (ownerCount - 1L)
                 let prefix = if isLast then "└── " else "├── "
                 let icon = if showIcons then "📦 " else ""
                 Builtin.printLine $"{prefix}{icon}{owner}/"
-                
+
                 // Display children of this owner
                 if maxDepth > 1L then
                   let childPrefix = if isLast then "    " else "│   "
                   displayModuleTree owner "" showIcons (maxDepth - 1L) 1L childPrefix
-                
+
                 index + 1L
               )
             ()
           | None ->
             Builtin.printLine "  (no packages found)"
-        
+
         // Display tree for a specific module
         let displayModuleTree (owner: String) (moduleName: String) (showIcons: Bool) (remainingDepth: Int64) (currentDepth: Int64) (prefix: String) : Unit =
           if remainingDepth <= 0L then
             ()
           else
-            let currentModule = 
-              if Stdlib.String.isEmpty moduleName then 
-                [owner] 
-              else 
+            let currentModule =
+              if Stdlib.String.isEmpty moduleName then
+                [owner]
+              else
                 Stdlib.String.split $"{owner}.{moduleName}" "."
-            
+
             let query =
               LanguageTools.ProgramTypes.Search.SearchQuery
                 { currentModule = currentModule
                   text = ""
                   searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
-                  entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module; 
+                  entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module;
                                   LanguageTools.ProgramTypes.Search.EntityType.Fn;
                                   LanguageTools.ProgramTypes.Search.EntityType.Type;
                                   LanguageTools.ProgramTypes.Search.EntityType.Constant ] }
             let searchResults = LanguageTools.PackageManager.Search.search query
-            
+
             // Get direct child modules
             let childModules =
               match Stdlib.List.head searchResults.submodules with
@@ -114,70 +114,70 @@ module Darklang =
                 |> Stdlib.List.unique
                 |> Stdlib.List.sort
               | None -> []
-            
+
             // Count entities
             let fnCount = Stdlib.List.length searchResults.fns
-            let typeCount = Stdlib.List.length searchResults.types  
+            let typeCount = Stdlib.List.length searchResults.types
             let constCount = Stdlib.List.length searchResults.constants
-            
+
             // Display child modules
             let childCount = Stdlib.List.length childModules
-            let _ = 
+            let _ =
               Stdlib.List.fold childModules 0L (fun index child ->
                 let isLast = index == (childCount - 1L)
                 let nodePrefix = if isLast then "└── " else "├── "
                 let icon = if showIcons then "📦 " else ""
-                
+
                 // Show module with entity counts
                 let counts = []
                 let counts = if fnCount > 0L then Stdlib.List.append counts [$"{Stdlib.Int64.toString fnCount} fns"] else counts
                 let counts = if typeCount > 0L then Stdlib.List.append counts [$"{Stdlib.Int64.toString typeCount} types"] else counts
                 let counts = if constCount > 0L then Stdlib.List.append counts [$"{Stdlib.Int64.toString constCount} consts"] else counts
-                let countsStr = 
-                  if Stdlib.List.isEmpty counts then 
-                    "" 
-                  else 
+                let countsStr =
+                  if Stdlib.List.isEmpty counts then
+                    ""
+                  else
                     $" ({Stdlib.String.join counts ", "})"
-                
+
                 Builtin.printLine $"{prefix}{nodePrefix}{icon}{child}/{countsStr}"
-                
+
                 // Recursively display children
                 if remainingDepth > 1L then
                   let childPrefix = if isLast then $"{prefix}    " else $"{prefix}│   "
-                  let childModuleName = 
-                    if Stdlib.String.isEmpty moduleName then 
-                      child 
-                    else 
+                  let childModuleName =
+                    if Stdlib.String.isEmpty moduleName then
+                      child
+                    else
                       $"{moduleName}.{child}"
                   displayModuleTree owner childModuleName showIcons (remainingDepth - 1L) (currentDepth + 1L) childPrefix
-                
+
                 index + 1L
               )
             ()
-            
+
             // If this is a leaf module with entities, show summary
             if Stdlib.List.isEmpty childModules && currentDepth > 0L then
               let summaries = []
-              let summaries = 
-                if fnCount > 0L then 
+              let summaries =
+                if fnCount > 0L then
                   let icon = if showIcons then "🔧 " else ""
                   Stdlib.List.append summaries [$"{prefix}    {icon}{Stdlib.Int64.toString fnCount} functions"]
                 else summaries
-              let summaries = 
+              let summaries =
                 if typeCount > 0L then
                   let icon = if showIcons then "📋 " else ""
                   Stdlib.List.append summaries [$"{prefix}    {icon}{Stdlib.Int64.toString typeCount} types"]
                 else summaries
-              let summaries = 
+              let summaries =
                 if constCount > 0L then
                   let icon = if showIcons then "💎 " else ""
                   Stdlib.List.append summaries [$"{prefix}    {icon}{Stdlib.Int64.toString constCount} constants"]
                 else summaries
-              
+
               summaries |> Stdlib.List.iter (fun line -> Builtin.printLine line)
-        
+
         // Help function
-        let treeHelp (state: Types.AppState) : Types.AppState =
+        let treeHelp (state: AppState) : AppState =
           Builtin.printLine "Usage: tree [path] [--icons] [--depth=N]"
           Builtin.printLine "Display package hierarchy in tree format."
           Builtin.printLine ""
@@ -193,9 +193,9 @@ module Darklang =
           Builtin.printLine "  tree Darklang.Stdlib --depth=2  - Show Stdlib tree with depth 2"
           Builtin.printLine "  tree Stdlib --icons --depth=1   - Show Stdlib with icons, depth 1"
           { state with lastCommand = "help tree"; output = "tree help displayed" }
-        
+
         // Completion function
-        let treeComplete (state: Types.AppState) (args: List<String>) : List<String> =
+        let treeComplete (state: AppState) (args: List<String>) : List<String> =
           match args with
           | [] ->
             // Suggest common options and current context packages
@@ -212,7 +212,7 @@ module Darklang =
               let searchResults = LanguageTools.PackageManager.Search.search query
               match Stdlib.List.head searchResults.submodules with
               | Some moduleList ->
-                let owners = 
+                let owners =
                   moduleList
                   |> Stdlib.List.filterMap (fun path ->
                     match path with

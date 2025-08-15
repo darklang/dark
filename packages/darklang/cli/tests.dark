@@ -102,8 +102,11 @@ module Darklang =
 
       let testViewFunction (): TestResult =
         let output = runWithCommand ["view"; "Stdlib.List.head"]
-        if Stdlib.String.contains output "List.head" &&
-           (Stdlib.String.contains output "Option" || Stdlib.String.contains output "->") then
+        Builtin.debug "output" output
+        if Stdlib.String.contains output "head"
+          && Stdlib.String.contains output "Option"
+          && Stdlib.String.contains output "->"
+        then
             TestResult.Pass
         else
           TestResult.Fail "Expected function signature for List.head"

@@ -7,7 +7,7 @@ module Darklang =
           "v0.1.0-dev"
 
         /// Install command handler
-        let executeInstall (state: Types.AppState) (args: List<String>) : Types.AppState =
+        let executeInstall (state: AppState) (args: List<String>) : AppState =
           let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
           let currentMode = Installation.System.getInstallationMode ()
 
@@ -59,7 +59,7 @@ module Darklang =
                   { state with lastCommand = "install"; output = "global install failed" }
 
         /// Install help handler
-        let installHelp (state: Types.AppState) : Types.AppState =
+        let installHelp (state: AppState) : AppState =
           Builtin.printLine "Usage: install"
           Builtin.printLine "Install Darklang CLI globally for system-wide access."
           Builtin.printLine ""
@@ -68,7 +68,7 @@ module Darklang =
           { state with lastCommand = "help install"; output = "install help displayed" }
 
         /// Update command handler
-        let executeUpdate (state: Types.AppState) (args: List<String>) : Types.AppState =
+        let executeUpdate (state: AppState) (args: List<String>) : AppState =
           let currentVersion = cliVersion ()
           let currentMode = Installation.System.getInstallationMode ()
           let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
@@ -89,7 +89,7 @@ module Darklang =
             { state with lastCommand = "update"; output = "portable update info" }
 
         /// Update help handler
-        let updateHelp (state: Types.AppState) : Types.AppState =
+        let updateHelp (state: AppState) : AppState =
           Builtin.printLine "Usage: update"
           Builtin.printLine "Update Darklang CLI to the latest version."
           Builtin.printLine ""
@@ -98,7 +98,7 @@ module Darklang =
           { state with lastCommand = "help update"; output = "update help displayed" }
 
         /// Uninstall command handler
-        let executeUninstall (state: Types.AppState) (args: List<String>) : Types.AppState =
+        let executeUninstall (state: AppState) (args: List<String>) : AppState =
           let currentMode = Installation.System.getInstallationMode ()
           let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
 
@@ -118,7 +118,7 @@ module Darklang =
             { state with lastCommand = "uninstall"; output = "portable uninstall error" }
 
         /// Uninstall help handler
-        let uninstallHelp (state: Types.AppState) : Types.AppState =
+        let uninstallHelp (state: AppState) : AppState =
           Builtin.printLine "Usage: uninstall"
           Builtin.printLine "Uninstall Darklang CLI from global installation."
           Builtin.printLine ""
@@ -127,7 +127,7 @@ module Darklang =
           { state with lastCommand = "help uninstall"; output = "uninstall help displayed" }
 
         /// Status command handler
-        let executeStatus (state: Types.AppState) (args: List<String>) : Types.AppState =
+        let executeStatus (state: AppState) (args: List<String>) : AppState =
           let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
           let currentMode = Installation.System.getInstallationMode ()
 
@@ -153,7 +153,7 @@ module Darklang =
           { state with lastCommand = "status"; output = "status displayed" }
 
         /// Status help handler
-        let statusHelp (state: Types.AppState) : Types.AppState =
+        let statusHelp (state: AppState) : AppState =
           Builtin.printLine "Usage: status"
           Builtin.printLine "Show current CLI installation status."
           Builtin.printLine ""
@@ -162,7 +162,7 @@ module Darklang =
           { state with lastCommand = "help status"; output = "status help displayed" }
 
         /// Enhanced version command with installation info
-        let executeVersion (state: Types.AppState) (args: List<String>) : Types.AppState =
+        let executeVersion (state: AppState) (args: List<String>) : AppState =
           let currentMode = Installation.System.getInstallationMode ()
           let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
 
@@ -189,7 +189,7 @@ module Darklang =
           { state with lastCommand = "version"; output = "version with install info displayed" }
 
         /// Enhanced version help handler
-        let versionHelp (state: Types.AppState) : Types.AppState =
+        let versionHelp (state: AppState) : AppState =
           Builtin.printLine "Usage: version"
           Builtin.printLine "Display CLI version and installation information."
           Builtin.printLine ""
@@ -197,17 +197,17 @@ module Darklang =
           { state with lastCommand = "help version"; output = "version help displayed" }
 
         /// Completion functions for installation commands
-        let installComplete (state: Types.AppState) (args: List<String>) : List<String> =
+        let installComplete (state: AppState) (args: List<String>) : List<String> =
           Completion.noArgsCompletion state args
 
-        let updateComplete (state: Types.AppState) (args: List<String>) : List<String> =
+        let updateComplete (state: AppState) (args: List<String>) : List<String> =
           Completion.noArgsCompletion state args
 
-        let uninstallComplete (state: Types.AppState) (args: List<String>) : List<String> =
+        let uninstallComplete (state: AppState) (args: List<String>) : List<String> =
           Completion.noArgsCompletion state args
 
-        let statusComplete (state: Types.AppState) (args: List<String>) : List<String> =
+        let statusComplete (state: AppState) (args: List<String>) : List<String> =
           Completion.noArgsCompletion state args
 
-        let versionComplete (state: Types.AppState) (args: List<String>) : List<String> =
+        let versionComplete (state: AppState) (args: List<String>) : List<String> =
           Completion.noArgsCompletion state args

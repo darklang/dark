@@ -1,22 +1,22 @@
 module Darklang =
   module Cli =
     module Help =
-      let execute (state: Types.AppState) (args: List<String>) : Types.AppState =
+      let execute (state: AppState) (args: List<String>) : AppState =
         match args with
         | [] ->
           Builtin.printLine (Registry.getCommandList ())
-          Types.updateState state state.isExiting "help" "help displayed" state.mainPrompt state.needsFullRedraw
+          updateState state state.isExiting "help" "help displayed" state.mainPrompt state.needsFullRedraw
         | [commandName] ->
           Registry.executeCommandHelp commandName state
         | _ ->
           Builtin.printLine "Usage: help [command]"
           Builtin.printLine "Too many arguments. Use 'help' for general help or 'help <command>' for specific help."
-          Types.updateState state state.isExiting "help error" "help error" state.mainPrompt state.needsFullRedraw
+          updateState state state.isExiting "help error" "help error" state.mainPrompt state.needsFullRedraw
 
-      let help (state: Types.AppState) : Types.AppState =
+      let help (state: AppState) : AppState =
         Builtin.printLine "Usage: help [command]\nShow general help or help for a specific command.\nExamples:\n  help        - Show all available commands\n  help quit   - Show help for the quit command"
-        Types.updateState state state.isExiting "help help" "help help displayed" state.mainPrompt state.needsFullRedraw
+        updateState state state.isExiting "help help" "help help displayed" state.mainPrompt state.needsFullRedraw
 
-      let complete (state: Types.AppState) (args: List<String>) : List<String> =
+      let complete (state: AppState) (args: List<String>) : List<String> =
         Completion.commandNamesCompletion state args
 

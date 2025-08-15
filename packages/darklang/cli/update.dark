@@ -1,7 +1,7 @@
 module Darklang =
   module Cli =
     module Update =
-      let updateAppState (state: Types.AppState) (msg: Types.Msg) : Types.AppState =
+      let updateAppState (state: AppState) (msg: Msg) : AppState =
         match msg with
         | ProcessInput input ->
           Commands.parseAndExecute state input
@@ -10,99 +10,101 @@ module Darklang =
         | Exit ->
           { state with isExiting = true; lastCommand = "exit"; output = "exiting" }
 
-      let handleKeyInput (state: Types.AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers) (keyChar: Stdlib.Option.Option<String>) : Types.AppState =
-        match key with
-        | Enter ->
-          // Execute the current command
-          if Stdlib.String.isEmpty (Stdlib.String.trim state.mainPrompt) then
-            Builtin.printLine ""
-            { state with mainPrompt = ""; needsFullRedraw = true; historyIndex = -1L }
-          else
-            Builtin.printLine ""
-            let commandToExecute = Stdlib.String.trim state.mainPrompt
-            let newState = Commands.parseAndExecute state commandToExecute
-            // Add command to history (avoiding duplicates)
-            let updatedHistory = 
-              if Stdlib.List.isEmpty state.commandHistory || Stdlib.List.head state.commandHistory != Stdlib.Option.Option.Some commandToExecute then
-                Stdlib.List.append [commandToExecute] state.commandHistory
-              else
-                state.commandHistory
-            { newState with mainPrompt = ""; needsFullRedraw = true; commandHistory = updatedHistory; historyIndex = -1L }
-        | Backspace ->
-          // Remove last character from prompt
-          if Stdlib.String.length state.mainPrompt > 0L then
-            let newPrompt = Stdlib.String.dropLast state.mainPrompt 1L
-            { state with mainPrompt = newPrompt; historyIndex = -1L }
-          else
-            state
-        | Tab ->
-          // Handle tab completion
-          let completions = Registry.getCompletions state state.mainPrompt
-          
-          match completions with
-          | [] ->
-            // No completions available
-            state
-          | [singleCompletion] ->
-            // Single completion - auto-complete it
-            let parsed = Completion.parseInput state.mainPrompt
-            let newPrompt = Completion.buildCompletedCommand parsed singleCompletion
-            { state with mainPrompt = newPrompt }
-          | multiple ->
-            // Multiple completions - show them
-            Builtin.printLine ""
-            Builtin.printLine (Stdlib.String.join multiple " ")
-            { state with needsFullRedraw = true }
-        | UpArrow ->
-          // Navigate to previous command in history
-          if not (Stdlib.List.isEmpty state.commandHistory) then
-            let historyLength = Stdlib.List.length state.commandHistory
-            let newIndex = 
-              if state.historyIndex == -1L then
-                0L  // Start from the most recent command
-              else
-                if state.historyIndex < (historyLength - 1L) then
-                  state.historyIndex + 1L
-                else
-                  state.historyIndex  // Stay at oldest command
-            match Stdlib.List.getAt state.commandHistory newIndex with
-            | Some command ->
-              { state with mainPrompt = command; historyIndex = newIndex }
-            | None ->
-              state
-          else
-            state
-        | DownArrow ->
-          // Navigate to next command in history
-          if not (Stdlib.List.isEmpty state.commandHistory) && state.historyIndex >= 0L then
-            let newIndex = 
-              if state.historyIndex > 0L then
-                state.historyIndex - 1L
-              else
-                -1L  // Go back to empty prompt
-            if newIndex == -1L then
-              { state with mainPrompt = ""; historyIndex = newIndex }
+      let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers) (keyChar: Stdlib.Option.Option<String>) : AppState =
+        // Normal command mode key handling
+          match key with
+          | Enter ->
+            // Execute the current command
+            if Stdlib.String.isEmpty (Stdlib.String.trim state.mainPrompt) then
+              Builtin.printLine ""
+              { state with mainPrompt = ""; needsFullRedraw = true; historyIndex = -1L }
             else
+              Builtin.printLine ""
+              let commandToExecute = Stdlib.String.trim state.mainPrompt
+              let newState = Commands.parseAndExecute state commandToExecute
+              // Add command to history (avoiding duplicates)
+              let updatedHistory =
+                if Stdlib.List.isEmpty state.commandHistory || Stdlib.List.head state.commandHistory != Stdlib.Option.Option.Some commandToExecute then
+                  Stdlib.List.append [commandToExecute] state.commandHistory
+                else
+                  state.commandHistory
+              { newState with mainPrompt = ""; needsFullRedraw = true; commandHistory = updatedHistory; historyIndex = -1L }
+          | Backspace ->
+            // Remove last character from prompt
+            if Stdlib.String.length state.mainPrompt > 0L then
+              let newPrompt = Stdlib.String.dropLast state.mainPrompt 1L
+              { state with mainPrompt = newPrompt; historyIndex = -1L }
+            else
+              state
+          | Tab ->
+            // Handle tab completion
+            let completions = Registry.getCompletions state state.mainPrompt
+
+            match completions with
+            | [] ->
+              // No completions available
+              state
+            | [singleCompletion] ->
+              // Single completion - auto-complete it
+              let parsed = Completion.parseInput state.mainPrompt
+              let newPrompt = Completion.buildCompletedCommand parsed singleCompletion
+              { state with mainPrompt = newPrompt }
+            | multiple ->
+              // Multiple completions - show them
+              Builtin.printLine ""
+              Builtin.printLine (Stdlib.String.join multiple " ")
+              { state with needsFullRedraw = true }
+          | UpArrow ->
+            // Navigate to previous command in history
+            if Stdlib.Bool.not (Stdlib.List.isEmpty state.commandHistory) then
+              let historyLength = Stdlib.List.length state.commandHistory
+              let newIndex =
+                if state.historyIndex == -1L then
+                  0L  // Start from the most recent command
+                else
+                  if state.historyIndex < (historyLength - 1L) then
+                    state.historyIndex + 1L
+                  else
+                    state.historyIndex  // Stay at oldest command
               match Stdlib.List.getAt state.commandHistory newIndex with
               | Some command ->
-                { state with mainPrompt = command; historyIndex = newIndex }
+                { state with mainPrompt = command; historyIndex = newIndex; needsFullRedraw = false }
               | None ->
                 state
-          else
-            state
-        | _ ->
-          // Add character to prompt
-          match keyChar with
-          | Some char ->
-            let newPrompt = state.mainPrompt ++ char
-            { state with mainPrompt = newPrompt; historyIndex = -1L; needsFullRedraw = false }
-          | None ->
-            state
+            else
+              state
+          | DownArrow ->
+            // Navigate to next command in history
+            if Stdlib.Bool.not (Stdlib.List.isEmpty state.commandHistory) && state.historyIndex >= 0L then
+              let newIndex =
+                if state.historyIndex > 0L then
+                  state.historyIndex - 1L
+                else
+                  -1L  // Go back to empty prompt
+              if newIndex == -1L then
+                { state with mainPrompt = ""; historyIndex = newIndex; needsFullRedraw = false }
+              else
+                match Stdlib.List.getAt state.commandHistory newIndex with
+                | Some command ->
+                  { state with mainPrompt = command; historyIndex = newIndex; needsFullRedraw = false }
+                | None ->
+                  state
+            else
+              state
+          | _ ->
+            // Add character to prompt
+            match keyChar with
+            | Some char ->
+              let newPrompt = state.mainPrompt ++ char
+              { state with mainPrompt = newPrompt; historyIndex = -1L; needsFullRedraw = false }
+            | None ->
+              state
 
-      let processInput (state: Types.AppState) (input: String) : Types.AppState =
+      let processInput (state: AppState) (input: String) : AppState =
         let trimmedInput = Stdlib.String.trim input
         if Stdlib.String.isEmpty trimmedInput then
           state
         else
-          let msg = Types.Msg.ProcessInput trimmedInput
+          let msg = Msg.ProcessInput trimmedInput
           updateAppState state msg
+

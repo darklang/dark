@@ -1,24 +1,6 @@
 module Darklang =
   module Cli =
     module Logo =
-      // Alternative logo using lower half blocks - kept for potential future use
-      let logoAlternative = $"""
-  ▄▄▄▄      ▄▄▄▄▄▄
-▄▄▄▄▄▄▄▄   ▄▄▄▄▄▄▄▄
-▄▄▄▄▄▄▄▄   ▄▄▄▄▄▄▄▄
- ▄▄▄▄▄▄    ▄▄▄▄▄▄▄▄
-           ▄▄▄▄▄▄▄▄
-  ▄▄▄▄     ▄▄▄▄▄▄▄▄
-▄▄▄▄▄▄▄▄   ▄▄▄▄▄▄▄▄
-▄▄▄▄▄▄▄▄   ▄▄▄▄▄▄▄▄
- ▄▄▄▄▄▄     ▄▄▄▄▄▄
-
- ▄▄▄         ▄▄▄▄
-   ▄▄▄▄    ▄▄▄▄▄▄▄▄
-   ▄▄▄▄    ▄▄▄▄▄▄▄▄
- ▄▄▄        ▄▄▄▄▄▄
- """
-
       let logo = $"""
   ????      ??????
 ????????   ????????
@@ -34,6 +16,24 @@ module Darklang =
    ????    ????????
    ????    ????????
  ???        ??????
+ """
+
+       // Alternative logo using lower half blocks - kept for potential future use
+      let logoBlock = $"""
+  ▄▄▄▄      ▄▄▄▄▄▄
+▄▄▄▄▄▄▄▄   ▄▄▄▄▄▄▄▄
+▄▄▄▄▄▄▄▄   ▄▄▄▄▄▄▄▄
+ ▄▄▄▄▄▄    ▄▄▄▄▄▄▄▄
+           ▄▄▄▄▄▄▄▄
+  ▄▄▄▄     ▄▄▄▄▄▄▄▄
+▄▄▄▄▄▄▄▄   ▄▄▄▄▄▄▄▄
+▄▄▄▄▄▄▄▄   ▄▄▄▄▄▄▄▄
+ ▄▄▄▄▄▄     ▄▄▄▄▄▄
+
+ ▄▄▄         ▄▄▄▄
+   ▄▄▄▄    ▄▄▄▄▄▄▄▄
+   ▄▄▄▄    ▄▄▄▄▄▄▄▄
+ ▄▄▄        ▄▄▄▄▄▄
  """
 
       let combineLogoAndText (logoStr: String) (textLines: List<String>) (color: String) : String =

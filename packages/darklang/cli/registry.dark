@@ -5,9 +5,9 @@ module Darklang =
         { name: String
           description: String
           aliases: List<String>
-          execute: Types.AppState -> List<String> -> Types.AppState
-          help: Types.AppState -> Types.AppState
-          complete: Types.AppState -> List<String> -> List<String> }
+          execute: AppState -> List<String> -> AppState
+          help: AppState -> AppState
+          complete: AppState -> List<String> -> List<String> }
 
       let allCommands () : List<CommandHandler> =
         [ CommandHandler { name = "quit"; description = "Exit the CLI"; aliases = ["exit"]; execute = Quit.execute; help = Quit.help; complete = Quit.complete }
@@ -24,7 +24,7 @@ module Darklang =
           CommandHandler { name = "clear"; description = "Clear the screen"; aliases = ["cls"]; execute = Cli.Commands.executeClear; help = Cli.Commands.clearHelp; complete = Cli.Commands.clearComplete }
           CommandHandler { name = "run"; description = "Run a function or script"; aliases = []; execute = Cli.Execution.executeRun; help = Cli.Execution.runHelp; complete = Cli.Execution.runComplete }
           CommandHandler { name = "eval"; description = "Evaluate a Dark expression"; aliases = ["e"]; execute = Cli.Execution.executeEval; help = Cli.Execution.evalHelp; complete = Cli.Execution.evalComplete }
-          CommandHandler { name = "scripts"; description = "Store, manage, and run Dark scripts"; aliases = []; execute = Cli.Scripts.executeScripts; help = Cli.Scripts.scriptsHelp; complete = Cli.Scripts.scriptsComplete }
+          CommandHandler { name = "scripts"; description = "Store, manage, and run Dark scripts"; aliases = []; execute = Cli.Scripts.executeScripts; help = Cli.Scripts.scriptsHelp; complete = Cli.Scripts.complete }
           CommandHandler { name = "view"; description = "View details of functions, types, constants, or modules"; aliases = []; execute = Packages.Viewing.executeView; help = Packages.Viewing.viewHelp; complete = Packages.Viewing.viewComplete }
           CommandHandler { name = "tree"; description = "Display package hierarchy in tree format"; aliases = []; execute = Packages.Tree.executeTree; help = Packages.Tree.treeHelp; complete = Packages.Tree.treeComplete }
           CommandHandler { name = "mode"; description = "Switch between CLI interaction modes"; aliases = []; execute = Mode.executeMode; help = Mode.modeHelp; complete = Mode.modeComplete } ]
@@ -32,7 +32,7 @@ module Darklang =
       let findCommand (name: String) : CommandHandler =
         let commands = allCommands ()
         let nameMatches = Stdlib.List.filter commands (fun cmd -> cmd.name == name)
-        let aliasMatches = Stdlib.List.filter commands (fun cmd -> 
+        let aliasMatches = Stdlib.List.filter commands (fun cmd ->
           match Stdlib.List.findFirst cmd.aliases (fun alias -> alias == name) with
           | Some _ -> true
           | None -> false)
@@ -40,12 +40,12 @@ module Darklang =
         match allMatches with
         | [handler] -> handler
         | handler :: _ -> handler
-        | [] -> 
-          CommandHandler 
+        | [] ->
+          CommandHandler
             { name = name
               description = "Unknown command"
               aliases = []
-              execute = fun state args -> 
+              execute = fun state args ->
                 Builtin.printLine (View.formatError $"Unknown command: {name}")
                 Builtin.printLine "Use 'help' to see available commands."
                 { state with lastCommand = name; output = $"unknown command: {name}" }
@@ -54,28 +54,28 @@ module Darklang =
                 { state with lastCommand = $"help {name}"; output = $"no help for {name}" }
               complete = fun state args -> [] }
 
-      let executeCommand (name: String) (state: Types.AppState) (args: List<String>) : Types.AppState =
+      let executeCommand (name: String) (state: AppState) (args: List<String>) : AppState =
         let handler = findCommand name
         let ex = handler.execute
         ex state args
 
-      let executeCommandHelp (name: String) (state: Types.AppState) : Types.AppState =
+      let executeCommandHelp (name: String) (state: AppState) : AppState =
         let handler = findCommand name
         let help = handler.help
         help state
 
       let getCommandList () : String =
         let commands = allCommands ()
-        
+
         // Group commands by category
         let packageCommands = ["cd"; "ls"; "view"; "tree"; "pwd"; "back"]
         let executionCommands = ["run"; "eval"; "scripts"]
         let installCommands = ["install"; "update"; "uninstall"; "status"; "version"]
         let utilityCommands = ["clear"; "help"; "quit"; "mode"]
-        
+
         // Format package navigation group
         let packageGroup =
-          let packageCmds = 
+          let packageCmds =
             packageCommands
             |> Stdlib.List.filterMap (fun name ->
               match Stdlib.List.findFirst commands (fun cmd -> cmd.name == name) with
@@ -88,10 +88,10 @@ module Darklang =
               | None -> Stdlib.Option.Option.None)
           let packageLines = Stdlib.String.join packageCmds "\n"
           $"Package navigation:\n{packageLines}"
-        
+
         // Format execution group
         let executionGroup =
-          let executionCmds = 
+          let executionCmds =
             executionCommands
             |> Stdlib.List.filterMap (fun name ->
               match Stdlib.List.findFirst commands (fun cmd -> cmd.name == name) with
@@ -104,10 +104,10 @@ module Darklang =
               | None -> Stdlib.Option.Option.None)
           let executionLines = Stdlib.String.join executionCmds "\n"
           $"Code execution:\n{executionLines}"
-        
+
         // Format installation group
         let installGroup =
-          let installCmds = 
+          let installCmds =
             installCommands
             |> Stdlib.List.filterMap (fun name ->
               match Stdlib.List.findFirst commands (fun cmd -> cmd.name == name) with
@@ -120,10 +120,10 @@ module Darklang =
               | None -> Stdlib.Option.Option.None)
           let installLines = Stdlib.String.join installCmds "\n"
           $"Installation:\n{installLines}"
-        
+
         // Format utilities group
         let utilityGroup =
-          let utilityCmds = 
+          let utilityCmds =
             utilityCommands
             |> Stdlib.List.filterMap (fun name ->
               match Stdlib.List.findFirst commands (fun cmd -> cmd.name == name) with
@@ -136,12 +136,12 @@ module Darklang =
               | None -> Stdlib.Option.Option.None)
           let utilityLines = Stdlib.String.join utilityCmds "\n"
           $"Utilities:\n{utilityLines}"
-        
+
         // Find any ungrouped commands
         let allGroupedCommands = Stdlib.List.append (Stdlib.List.append (Stdlib.List.append packageCommands executionCommands) installCommands) utilityCommands
-        let ungroupedCommands = 
+        let ungroupedCommands =
           commands
-          |> Stdlib.List.filter (fun cmd -> 
+          |> Stdlib.List.filter (fun cmd ->
             match Stdlib.List.findFirst allGroupedCommands (fun name -> name == cmd.name) with
             | Some _ -> false
             | None -> true)
@@ -151,25 +151,25 @@ module Darklang =
             | aliases ->
               let aliasText = Stdlib.String.join aliases ", "
               $"  {cmd.name} ({aliasText}) - {cmd.description}")
-        
+
         let allGroups = [packageGroup; executionGroup; installGroup; utilityGroup]
-        let finalGroups = 
+        let finalGroups =
           if Stdlib.List.isEmpty ungroupedCommands then
             allGroups
           else
-            let ungroupedGroup = 
+            let ungroupedGroup =
               let ungroupedLines = Stdlib.String.join ungroupedCommands "\n"
               $"Other:\n{ungroupedLines}"
             Stdlib.List.append allGroups [ungroupedGroup]
-        
+
         let groupsText = Stdlib.String.join finalGroups "\n\n"
         let helpText = $"Available commands:\n\n{groupsText}"
         let helpLines = Stdlib.String.split helpText "\n"
         Logo.combineLogoAndText Logo.logo helpLines Colors.logoColor
 
-      let getCompletions (state: Types.AppState) (input: String) : List<String> =
+      let getCompletions (state: AppState) (input: String) : List<String> =
         let parsed = Completion.parseInput input
-        
+
         if parsed.isCompletingCommand then
           // Completing command name
           let partial = Completion.getPartialCompletion parsed
@@ -187,7 +187,7 @@ module Darklang =
           let completeFunc = handler.complete
           completeFunc state parsed.args
 
-      let getCompletionHint (state: Types.AppState) (input: String) : String =
+      let getCompletionHint (state: AppState) (input: String) : String =
         let parsed = Completion.parseInput input
         let completions = getCompletions state input
         let partial = Completion.getPartialCompletion parsed

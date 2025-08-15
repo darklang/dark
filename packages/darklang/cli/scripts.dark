@@ -6,10 +6,13 @@ module Darklang =
         name: String
         text: String
       }
+
       // Scripts command - manage and run stored Dark scripts
-      let executeScripts (state: Types.AppState) (args: List<String>) : Types.AppState =
+      // TODO rename to just execute
+      let executeScripts (state: AppState) (args: List<String>) : AppState =
         match args with
         | [] ->
+          // CLEANUP defer to 'help' stuff -- consolidate
           Builtin.printLine "Scripts commands:"
           Builtin.printLine "  scripts list               - List all scripts"
           Builtin.printLine "  scripts view <name>        - View script content"
@@ -30,7 +33,7 @@ module Darklang =
                 lastCommand = "scripts list";
                 output = "no scripts found" }
           else
-            let output = 
+            let output =
               scripts
               |> Stdlib.List.map (fun s -> $"  {s.name}")
               |> Stdlib.String.join "\n"
@@ -161,7 +164,7 @@ module Darklang =
               lastCommand = "scripts error";
               output = "invalid scripts command" }
 
-      let scriptsHelp (state: Types.AppState) : Types.AppState =
+      let scriptsHelp (state: AppState) : AppState =
         Builtin.printLine "Usage: scripts <command> [args...]"
         Builtin.printLine "Store, manage, and run Dark scripts."
         Builtin.printLine ""
@@ -182,7 +185,7 @@ module Darklang =
             lastCommand = "help scripts";
             output = "scripts help displayed" }
 
-      let scriptsComplete (state: Types.AppState) (args: List<String>) : List<String> =
+      let complete (state: AppState) (args: List<String>) : List<String> =
         match args with
         | [] ->
           // Complete subcommands
@@ -191,7 +194,7 @@ module Darklang =
         | ["view"] | ["edit"] | ["delete"] | ["run"] ->
           // Complete script names
           let scripts = Builtin.cliScriptsList ()
-          scripts |> Stdlib.List.map (fun script -> script.name)
+          scripts |> Stdlib.List.map (fun s -> s.name)
         | [subcommand] ->
           // Partial subcommand completion
           ["list"; "view"; "add"; "edit"; "delete"; "run"]

@@ -2,7 +2,7 @@ module Darklang =
   module Cli =
     module Completion =
       // Types for structured input parsing
-      type ParsedInput = 
+      type ParsedInput =
         { commandName: String
           args: List<String>
           isCompletingCommand: Bool }
@@ -10,7 +10,7 @@ module Darklang =
       // Parse an input string into structured form
       let parseInput (input: String) : ParsedInput =
         let trimmed = Stdlib.String.trim input
-        
+
         if Stdlib.String.isEmpty trimmed then
           ParsedInput { commandName = ""; args = []; isCompletingCommand = true }
         else
@@ -20,7 +20,7 @@ module Darklang =
           | [command] -> ParsedInput { commandName = command; args = []; isCompletingCommand = true }
           | command :: args -> ParsedInput { commandName = command; args = args; isCompletingCommand = false }
 
-      // Get the partial string being completed  
+      // Get the partial string being completed
       let getPartialCompletion (parsed: ParsedInput) : String =
         if parsed.isCompletingCommand then
           parsed.commandName
@@ -57,10 +57,10 @@ module Darklang =
             ""
 
       // Standard completion for commands that take no arguments
-      let noArgsCompletion (state: Types.AppState) (args: List<String>) : List<String> = []
+      let noArgsCompletion (state: AppState) (args: List<String>) : List<String> = []
 
       // Standard completion for commands that complete with other command names (like help)
-      let commandNamesCompletion (state: Types.AppState) (args: List<String>) : List<String> =
+      let commandNamesCompletion (state: AppState) (args: List<String>) : List<String> =
         match args with
         | [] ->
           // Suggest all command names and aliases

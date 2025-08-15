@@ -20,9 +20,9 @@ The full interactive exploration system (like the old CLI's `view` command) requ
 
 ## Current State Analysis
 The current MVU CLI uses:
-- Line-based input with `stdinReadLine()` 
+- Line-based input with `stdinReadLine()`
 - Simple command parsing and execution
-- Basic state management with `Types.AppState`
+- Basic state management with `AppState`
 - Registry-based command dispatch
 
 The old CLI uses:
@@ -57,7 +57,7 @@ type Page =
 
 type EntityCategory = Functions | Types | Constants | Submodules
 
-type EntityDefinition = 
+type EntityDefinition =
   { name: String; lines: List<String>; scrollPosition: Int64 }
 
 type ViewingState =
@@ -107,7 +107,7 @@ type Msg =
 - `pwd` - Show current path
 - `tree [path]` - Show hierarchical view
 
-#### Viewing Commands  
+#### Viewing Commands
 - `view <module>` - Enter interactive viewing mode for module
 - In interactive mode:
   - Arrow keys: Navigate categories and items

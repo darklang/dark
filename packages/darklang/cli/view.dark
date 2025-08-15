@@ -10,9 +10,9 @@ module Darklang =
       let formatPrompt () : String =
         "> "
 
-      let formatPromptWithInput (state: Types.AppState) : String =
+      let formatPromptWithInput (state: AppState) : String =
         let currentPathStr = Colors.info (Packages.Path.formatPath state.currentPath)
-              
+
         let hint = Registry.getCompletionHint state state.mainPrompt
         if Stdlib.String.isEmpty hint then
           $"{currentPathStr}> {state.mainPrompt}"

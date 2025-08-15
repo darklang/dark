@@ -3,26 +3,30 @@ module Darklang =
     module Packages =
       module Listing =
         // LS command - list contents
-        let executeLS (state: Types.AppState) (args: List<String>) : Types.AppState =
+        let executeLS (state: AppState) (args: List<String>) : AppState =
           // Determine which path to list
-          let pathToList =
+          // CLEANUP extract this to a fn; test it
+          let path =
             match args with
-            | [] -> state.currentPath  // No args, list current location
-            | [pathArg] ->
-              // Parse the argument to get the path to list
-              if pathArg == "/" then
-                Types.PackagePath.Root
-              else if pathArg == ".." then
-                match state.currentPath with
-                | Root -> Types.PackagePath.Root
-                | Module owner moduleName -> Types.PackagePath.Root
-              else
-                Packages.Path.parsePath pathArg
-            | _ -> state.currentPath  // Multiple args, just use current
+            | [] -> state.currentPath
+            | ["/"] -> PackagePath.Root
+            | [ ".." ] ->
+              match state.currentPath with
+              | Root -> PackagePath.Root
+              | Module owner moduleName -> PackagePath.Root
+            // TODO support ../..
+            // TODO support ../Something
+            | [ pathArg ] -> Packages.Path.parsePath pathArg
+            | _ ->
+              // Multiple args, just use current for now
+              // CLEANUP error or something?
+              state.currentPath
 
-          match pathToList with
+          match path with
           | Root ->
-            // Get real top-level packages from the package manager
+            // CLEANUP this whole this is verbose, and points to us just using the wrong module
+
+            // Fetch package items
             let query =
               LanguageTools.ProgramTypes.Search.SearchQuery
                 { currentModule = []
@@ -45,8 +49,7 @@ module Darklang =
               | None -> []
 
             Builtin.printLine "Available packages:"
-            owners |> Stdlib.List.iter (fun owner ->
-              Builtin.printLine $"  {owner}/")
+            owners |> Stdlib.List.iter (fun o -> Builtin.printLine $"  {o}/")
 
             if Stdlib.List.isEmpty owners then
               Builtin.printLine "  (No packages found)"
@@ -56,20 +59,28 @@ module Darklang =
 
             { state with lastCommand = "ls"; output = "ls root" }
 
+
           | Module owner moduleName ->
-            let currentModule = if Stdlib.String.isEmpty moduleName then [owner] else [owner; moduleName]
+            // CLEANUP this is messy, why not just a List<String> for the current path?
+            let currentModule =
+              if Stdlib.String.isEmpty moduleName then
+                [owner]
+              else
+                [owner; moduleName]
             let query =
               LanguageTools.ProgramTypes.Search.SearchQuery
                 { currentModule = currentModule
                   text = ""
-                  searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
-                  entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module
-                                  LanguageTools.ProgramTypes.Search.EntityType.Type
-                                  LanguageTools.ProgramTypes.Search.EntityType.Fn
-                                  LanguageTools.ProgramTypes.Search.EntityType.Constant ] }
+                  searchDepth =
+                    LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+                  entityTypes =
+                    [ LanguageTools.ProgramTypes.Search.EntityType.Module
+                      LanguageTools.ProgramTypes.Search.EntityType.Type
+                      LanguageTools.ProgramTypes.Search.EntityType.Fn
+                      LanguageTools.ProgramTypes.Search.EntityType.Constant ] }
             let searchResults = LanguageTools.PackageManager.Search.search query
 
-            let pathStr = Packages.Path.formatPath pathToList
+            let pathStr = Packages.Path.formatPath path
             Builtin.printLine $"Contents of {pathStr}:"
 
             // List submodules - only direct children
@@ -77,24 +88,18 @@ module Darklang =
             | Some moduleList when Stdlib.Bool.not (Stdlib.List.isEmpty moduleList) ->
               // Filter to only direct children by checking path length
               let expectedLength = (Stdlib.List.length currentModule) + 1L
-              let submoduleNames =
+              let submodules =
                 moduleList
-                |> Stdlib.List.filter (fun path ->
-                  Stdlib.List.length path == expectedLength)
+                |> Stdlib.List.filter (fun path -> Stdlib.List.length path == expectedLength)
                 |> Stdlib.List.filterMap (fun path -> Stdlib.List.last path)
                 |> Stdlib.List.unique
+              let submoduleNames =
+                submodules
                 |> Stdlib.List.sort
                 |> Stdlib.List.map (fun name -> $"{name}/")
                 |> Stdlib.String.join ", "
-              let submoduleCount = 
-                moduleList
-                |> Stdlib.List.filter (fun path ->
-                  Stdlib.List.length path == expectedLength)
-                |> Stdlib.List.filterMap (fun path -> Stdlib.List.last path)
-                |> Stdlib.List.unique
-                |> Stdlib.List.length
               Builtin.printLine ""
-              Builtin.printLine $"  [Submodules] ({Stdlib.Int64.toString submoduleCount}): {submoduleNames}"
+              Builtin.printLine $"  [Submodules]: {submoduleNames}"
             | _ -> ()
 
             // List functions
@@ -148,7 +153,7 @@ module Darklang =
             { state with lastCommand = "ls"; output = "ls module" }
 
         // Help function
-        let lsHelp (state: Types.AppState) : Types.AppState =
+        let lsHelp (state: AppState) : AppState =
           Builtin.printLine "Usage: ls [path]"
           Builtin.printLine "List contents of the current location or specified path."
           Builtin.printLine ""
@@ -160,5 +165,5 @@ module Darklang =
           { state with lastCommand = "help ls"; output = "ls help displayed" }
 
         // Completion function
-        let lsComplete (state: Types.AppState) (args: List<String>) : List<String> =
+        let lsComplete (state: AppState) (args: List<String>) : List<String> =
           Completion.noArgsCompletion state args

@@ -3,25 +3,41 @@ module Darklang =
     module Packages =
       module Viewing =
         // Entity categories for viewing mode
-        type EntityCategory = 
+        type EntityCategory =
           | Functions
-          | Types  
+          | Types
           | Constants
           | Submodules
 
+        // Viewing state for interactive mode
+        type ViewingState =
+          { moduleContent: LanguageTools.ProgramTypes.Search.SearchResults
+            entityName: String
+            selectedCategory: EntityCategory
+            selectedItemIndex: Int64
+            expandedCategories: List<EntityCategory>
+            entityDefinition: Stdlib.Option.Option<EntityDefinition>
+            entityCache: List<(String * EntityDefinition)>
+            viewportScrollPosition: Int64
+            treeMode: Bool
+            treeDepth: Int64
+            selectedTreeIndex: Int64 }
+
+        type EntityDefinition = String
+
         // VIEW command - view modules, functions, types, or constants
-        let executeView (state: Types.AppState) (args: List<String>) : Types.AppState =
+        let executeView (state: AppState) (args: List<String>) : AppState =
           match args with
           | [] ->
             Builtin.printLine "Usage: view <entityName> or view <moduleName>"
             Builtin.printLine "View details of functions, types, constants, or modules."
             { state with lastCommand = "view help"; output = "view help displayed" }
           | [fullPath] ->
-            // Parse the path: could be "Option" or "Darklang.Stdlib.Option.Option" 
+            // Parse the path: could be "Option" or "Darklang.Stdlib.Option.Option"
             let pathParts = Stdlib.String.split fullPath "."
-            
+
             // Try to find as a specific entity first
-            let (modulePath, entityName) = 
+            let (modulePath, entityName) =
               match Stdlib.List.reverse pathParts with
               | [] -> ([], fullPath)  // Shouldn't happen, but handle gracefully
               | [singleName] ->
@@ -37,7 +53,7 @@ module Darklang =
                 (moduleParts, entityName)
 
             // Build search query to find the entity in the specified module
-            let searchQuery = 
+            let searchQuery =
               LanguageTools.ProgramTypes.Search.SearchQuery
                 { currentModule = modulePath
                   text = ""
@@ -50,7 +66,7 @@ module Darklang =
             let searchResults = LanguageTools.PackageManager.Search.search searchQuery
 
             // Try to find the specific entity by exact name match
-            let foundFunction = 
+            let foundFunction =
               searchResults.fns
               |> Stdlib.List.findFirst (fun fn ->
                 let name = LanguageTools.ProgramTypes.PackageFn.nameToString fn.name
@@ -58,20 +74,20 @@ module Darklang =
                 match Stdlib.List.last parts with
                 | Some lastPart -> lastPart == entityName
                 | None -> name == entityName)
-                
+
             let foundType =
-              searchResults.types  
+              searchResults.types
               |> Stdlib.List.findFirst (fun typ ->
                 let name = LanguageTools.ProgramTypes.PackageType.nameToString typ.name
                 let parts = Stdlib.String.split name "."
                 match Stdlib.List.last parts with
                 | Some lastPart -> lastPart == entityName
                 | None -> name == entityName)
-                
+
             let foundConstant =
               searchResults.constants
               |> Stdlib.List.findFirst (fun constant ->
-                let name = LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name  
+                let name = LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name
                 let parts = Stdlib.String.split name "."
                 match Stdlib.List.last parts with
                 | Some lastPart -> lastPart == entityName
@@ -82,7 +98,7 @@ module Darklang =
             | Some fn ->
               viewSpecificFunction state fn
             | None ->
-              match foundType with 
+              match foundType with
               | Some typ ->
                 viewSpecificType state typ
               | None ->
@@ -92,7 +108,7 @@ module Darklang =
                 | None ->
                   // No entity found - try as a module using the full path
                   let fullModulePath = Stdlib.List.append modulePath [entityName]
-                  let moduleSearchQuery = 
+                  let moduleSearchQuery =
                     LanguageTools.ProgramTypes.Search.SearchQuery
                       { currentModule = fullModulePath
                         text = ""
@@ -101,21 +117,17 @@ module Darklang =
                                         LanguageTools.ProgramTypes.Search.EntityType.Type
                                         LanguageTools.ProgramTypes.Search.EntityType.Constant
                                         LanguageTools.ProgramTypes.Search.EntityType.Module ] }
-                  
+
                   let moduleSearchResults = LanguageTools.PackageManager.Search.search moduleSearchQuery
-                  let hasModuleContents = 
+                  let hasModuleContents =
                     Stdlib.Bool.not (Stdlib.List.isEmpty moduleSearchResults.fns) ||
                     Stdlib.Bool.not (Stdlib.List.isEmpty moduleSearchResults.types) ||
                     Stdlib.Bool.not (Stdlib.List.isEmpty moduleSearchResults.constants) ||
                     Stdlib.Bool.not (Stdlib.List.isEmpty moduleSearchResults.submodules)
-                  
+
                   if hasModuleContents then
-                    // Display as module - check if we should enter interactive mode
-                    match state.viewMode with
-                    | InteractiveMode ->
-                      enterInteractiveView state fullPath moduleSearchResults
-                    | CommandMode ->
-                      viewAsModule state fullPath moduleSearchResults
+                    // Display as module 
+                    viewAsModule state fullPath moduleSearchResults
                   else
                     // Nothing found
                     Builtin.printLine $"Entity '{fullPath}' not found."
@@ -127,7 +139,7 @@ module Darklang =
             { state with lastCommand = "view error"; output = "view error" }
 
         // Helper function to view a specific function
-        let viewSpecificFunction (state: Types.AppState) (fn: LanguageTools.ProgramTypes.PackageFn.PackageFn) : Types.AppState =
+        let viewSpecificFunction (state: AppState) (fn: LanguageTools.ProgramTypes.PackageFn.PackageFn) : AppState =
           let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageFn fn
           Builtin.printLine prettyPrinted
 
@@ -135,15 +147,15 @@ module Darklang =
           { state with lastCommand = "view"; output = $"viewed function {name}" }
 
         // Helper function to view a specific type
-        let viewSpecificType (state: Types.AppState) (typ: LanguageTools.ProgramTypes.PackageType.PackageType) : Types.AppState =
+        let viewSpecificType (state: AppState) (typ: LanguageTools.ProgramTypes.PackageType.PackageType) : AppState =
           let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageType typ
           Builtin.printLine prettyPrinted
 
           let name = LanguageTools.ProgramTypes.PackageType.nameToString typ.name
           { state with lastCommand = "view"; output = $"viewed type {name}" }
 
-        // Helper function to view a specific constant  
-        let viewSpecificConstant (state: Types.AppState) (constant: LanguageTools.ProgramTypes.PackageConstant.PackageConstant) : Types.AppState =
+        // Helper function to view a specific constant
+        let viewSpecificConstant (state: AppState) (constant: LanguageTools.ProgramTypes.PackageConstant.PackageConstant) : AppState =
           let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageConstant constant
           Builtin.printLine prettyPrinted
 
@@ -151,7 +163,7 @@ module Darklang =
           { state with lastCommand = "view"; output = $"viewed constant {name}" }
 
         // Helper function to view as module
-        let viewAsModule (state: Types.AppState) (pathStr: String) (searchResults: LanguageTools.ProgramTypes.Search.SearchResults) : Types.AppState =
+        let viewAsModule (state: AppState) (pathStr: String) (searchResults: LanguageTools.ProgramTypes.Search.SearchResults) : AppState =
           Builtin.printLine $"Module: {pathStr}"
           Builtin.printLine ""
 
@@ -161,13 +173,13 @@ module Darklang =
             | Some moduleList ->
               let currentModule = Stdlib.String.split pathStr "."
               let expectedLength = (Stdlib.List.length currentModule) + 1L
-              let directChildren = 
+              let directChildren =
                 moduleList
                 |> Stdlib.List.filter (fun path -> Stdlib.List.length path == expectedLength)
                 |> Stdlib.List.filterMap (fun path -> Stdlib.List.last path)
                 |> Stdlib.List.unique
                 |> Stdlib.List.sort
-              
+
               if Stdlib.Bool.not (Stdlib.List.isEmpty directChildren) then
                 Builtin.printLine $"Submodules ({Stdlib.Int64.toString (Stdlib.List.length directChildren)}):"
                 directChildren
@@ -178,9 +190,9 @@ module Darklang =
           // Display functions
           let fnCount = Stdlib.List.length searchResults.fns
           if fnCount > 0L then
-            let fnNames = 
-              searchResults.fns 
-              |> Stdlib.List.map (fun fn -> 
+            let fnNames =
+              searchResults.fns
+              |> Stdlib.List.map (fun fn ->
                 let name = LanguageTools.ProgramTypes.PackageFn.nameToString fn.name
                 let parts = Stdlib.String.split name "."
                 match Stdlib.List.last parts with
@@ -192,7 +204,7 @@ module Darklang =
           // Display types
           let typeCount = Stdlib.List.length searchResults.types
           if typeCount > 0L then
-            let typeNames = 
+            let typeNames =
               searchResults.types
               |> Stdlib.List.map (fun typ ->
                 let name = LanguageTools.ProgramTypes.PackageType.nameToString typ.name
@@ -203,10 +215,10 @@ module Darklang =
               |> Stdlib.String.join ", "
             Builtin.printLine $"Types ({Stdlib.Int64.toString typeCount}): {typeNames}"
 
-          // Display constants  
+          // Display constants
           let constCount = Stdlib.List.length searchResults.constants
           if constCount > 0L then
-            let constNames = 
+            let constNames =
               searchResults.constants
               |> Stdlib.List.map (fun constant ->
                 let name = LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name
@@ -220,8 +232,8 @@ module Darklang =
 
           { state with lastCommand = "view"; output = $"viewed module {pathStr}" }
 
-        // Help function  
-        let viewHelp (state: Types.AppState) : Types.AppState =
+        // Help function
+        let viewHelp (state: AppState) : AppState =
           Builtin.printLine "Usage: view <entityName>"
           Builtin.printLine "View detailed information about functions, types, constants, or modules."
           Builtin.printLine ""
@@ -232,7 +244,7 @@ module Darklang =
           { state with lastCommand = "help view"; output = "view help displayed" }
 
         // Completion function
-        let viewComplete (state: Types.AppState) (args: List<String>) : List<String> =
+        let viewComplete (state: AppState) (args: List<String>) : List<String> =
           match args with
           | [] ->
             // At root, suggest top-level packages plus entities
@@ -270,8 +282,8 @@ module Darklang =
                                     LanguageTools.ProgramTypes.Search.EntityType.Type
                                     LanguageTools.ProgramTypes.Search.EntityType.Constant ] }
               let entityResults = LanguageTools.PackageManager.Search.search entityQuery
-              
-              let entityNames = 
+
+              let entityNames =
                 let fnNames = entityResults.fns |> Stdlib.List.map (fun fn -> LanguageTools.ProgramTypes.PackageFn.nameToString fn.name)
                 let typeNames = entityResults.types |> Stdlib.List.map (fun typ -> LanguageTools.ProgramTypes.PackageType.nameToString typ.name)
                 let constNames = entityResults.constants |> Stdlib.List.map (fun constant -> LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name)
@@ -296,7 +308,7 @@ module Darklang =
               let searchResults = LanguageTools.PackageManager.Search.search query
 
               // Get submodules
-              let submodules = 
+              let submodules =
                 match Stdlib.List.head searchResults.submodules with
                 | Some moduleList ->
                   let currentModuleLength = if Stdlib.String.isEmpty moduleName then 1L else 2L
@@ -308,15 +320,15 @@ module Darklang =
                 | None -> []
 
               // Get entities (extract just the last part of names)
-              let functionNames = 
+              let functionNames =
                 searchResults.fns
                 |> Stdlib.List.map (fun fn -> LanguageTools.ProgramTypes.PackageFn.nameToString fn.name)
-                |> Stdlib.List.filterMap (fun name -> 
+                |> Stdlib.List.filterMap (fun name ->
                   let parts = Stdlib.String.split name "."
                   match Stdlib.List.last parts with
                   | Some lastPart -> Stdlib.Option.Option.Some lastPart
                   | None -> Stdlib.Option.Option.None)
-                  
+
               let typeNames =
                 searchResults.types
                 |> Stdlib.List.map (fun typ -> LanguageTools.ProgramTypes.PackageType.nameToString typ.name)
@@ -325,8 +337,8 @@ module Darklang =
                   match Stdlib.List.last parts with
                   | Some lastPart -> Stdlib.Option.Option.Some lastPart
                   | None -> Stdlib.Option.Option.None)
-                  
-              let constantNames = 
+
+              let constantNames =
                 searchResults.constants
                 |> Stdlib.List.map (fun constant -> LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name)
                 |> Stdlib.List.filterMap (fun name ->
@@ -334,7 +346,7 @@ module Darklang =
                   match Stdlib.List.last parts with
                   | Some lastPart -> Stdlib.Option.Option.Some lastPart
                   | None -> Stdlib.Option.Option.None)
-              
+
               (Stdlib.List.append (Stdlib.List.append (Stdlib.List.append submodules functionNames) typeNames) constantNames)
               |> Stdlib.List.unique
               |> Stdlib.List.sort
@@ -357,9 +369,9 @@ module Darklang =
                 // Multi-part dot notation like "Stdlib.L" when in /Darklang
                 let prefixParts = Stdlib.List.reverse reversedPrefixParts
                 let lowerLastPartial = Stdlib.String.toLowercase lastPartial
-                
+
                 // Build the full module path considering current context
-                let fullModulePath = 
+                let fullModulePath =
                   match state.currentPath with
                   | Root -> prefixParts
                   | Module owner moduleName ->
@@ -369,7 +381,7 @@ module Darklang =
                     else
                       // In deeper module context, use absolute path
                       prefixParts
-                
+
                 // Search for entities and submodules in that context
                 let query =
                   LanguageTools.ProgramTypes.Search.SearchQuery
@@ -381,7 +393,7 @@ module Darklang =
                                       LanguageTools.ProgramTypes.Search.EntityType.Type
                                       LanguageTools.ProgramTypes.Search.EntityType.Constant ] }
                 let searchResults = LanguageTools.PackageManager.Search.search query
-                
+
                 // Get submodules
                 let submoduleSuggestions =
                   match Stdlib.List.head searchResults.submodules with
@@ -390,13 +402,13 @@ module Darklang =
                     moduleList
                     |> Stdlib.List.filter (fun path -> Stdlib.List.length path == expectedLength)
                     |> Stdlib.List.filterMap (fun path -> Stdlib.List.last path)
-                    |> Stdlib.List.filter (fun name -> 
+                    |> Stdlib.List.filter (fun name ->
                       Stdlib.String.startsWith (Stdlib.String.toLowercase name) lowerLastPartial)
                   | None -> []
-                
+
                 // Get entities (functions, types, constants)
                 let entitySuggestions =
-                  let fnNames = 
+                  let fnNames =
                     searchResults.fns
                     |> Stdlib.List.map (fun fn -> LanguageTools.ProgramTypes.PackageFn.nameToString fn.name)
                     |> Stdlib.List.filterMap (fun name ->
@@ -404,7 +416,7 @@ module Darklang =
                       match Stdlib.List.last parts with
                       | Some lastPart -> Stdlib.Option.Option.Some lastPart
                       | None -> Stdlib.Option.Option.None)
-                  
+
                   let typeNames =
                     searchResults.types
                     |> Stdlib.List.map (fun typ -> LanguageTools.ProgramTypes.PackageType.nameToString typ.name)
@@ -413,7 +425,7 @@ module Darklang =
                       match Stdlib.List.last parts with
                       | Some lastPart -> Stdlib.Option.Option.Some lastPart
                       | None -> Stdlib.Option.Option.None)
-                  
+
                   let constantNames =
                     searchResults.constants
                     |> Stdlib.List.map (fun constant -> LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name)
@@ -422,11 +434,11 @@ module Darklang =
                       match Stdlib.List.last parts with
                       | Some lastPart -> Stdlib.Option.Option.Some lastPart
                       | None -> Stdlib.Option.Option.None)
-                  
+
                   (Stdlib.List.append (Stdlib.List.append fnNames typeNames) constantNames)
                   |> Stdlib.List.filter (fun name ->
                     Stdlib.String.startsWith (Stdlib.String.toLowercase name) lowerLastPartial)
-                
+
                 // Combine and format suggestions
                 let allSuggestions = Stdlib.List.append submoduleSuggestions entitySuggestions
                 let prefix = Stdlib.String.join prefixParts "."
@@ -441,11 +453,6 @@ module Darklang =
               allCompletions
               |> Stdlib.List.filter (fun name ->
                 Stdlib.String.startsWith (Stdlib.String.toLowercase name) lowerPartial)
-              
+
           | _ -> []
 
-        // Interactive viewing functions
-        let enterInteractiveView (state: Types.AppState) (entityName: String) (moduleContent: LanguageTools.ProgramTypes.Search.SearchResults) : Types.AppState =
-          Builtin.printLine "Interactive view mode is coming soon!"
-          Builtin.printLine "For now, displaying in command mode:"
-          viewAsModule state entityName moduleContent

@@ -1,36 +1,36 @@
 module Darklang =
   module Cli =
     module Mode =
-      let executeMode (state: Types.AppState) (args: List<String>) : Types.AppState =
+      let executeMode (state: AppState) (args: List<String>) : AppState =
         match args with
         | [] ->
           // Show current mode
-          let currentModeStr = 
-            match state.viewMode with
+          let currentModeStr =
+            match state.appMode with
             | CommandMode -> "command"
             | InteractiveMode -> "interactive"
           Builtin.printLine $"Current mode: {currentModeStr}"
           { state with lastCommand = "mode"; output = "mode displayed" }
         | [newModeStr] ->
           // Switch to specified mode
-          let targetMode = 
+          let targetMode =
             match Stdlib.String.toLowercase newModeStr with
-            | "command" | "cmd" -> Stdlib.Option.Option.Some Types.ViewMode.CommandMode
-            | "interactive" | "int" -> Stdlib.Option.Option.Some Types.ViewMode.InteractiveMode
+            | "command" | "cmd" -> Stdlib.Option.Option.Some AppMode.CommandMode
+            | "interactive" | "int" -> Stdlib.Option.Option.Some AppMode.InteractiveMode
             | _ -> Stdlib.Option.Option.None
-          
+
           match targetMode with
           | Some mode ->
-            if mode == state.viewMode then
+            if mode == state.appMode then
               Builtin.printLine $"Already in {newModeStr} mode"
               { state with lastCommand = "mode"; output = "mode unchanged" }
             else
-              let modeStr = 
+              let modeStr =
                 match mode with
                 | CommandMode -> "command"
                 | InteractiveMode -> "interactive"
               Builtin.printLine $"Switched to {modeStr} mode"
-              { state with viewMode = mode; lastCommand = "mode"; output = $"switched to {modeStr} mode" }
+              { state with appMode = mode; lastCommand = "mode"; output = $"switched to {modeStr} mode" }
           | None ->
             Builtin.printLine (Colors.error $"Unknown mode: {newModeStr}")
             Builtin.printLine "Available modes: command, interactive"
@@ -40,7 +40,7 @@ module Darklang =
           Builtin.printLine "Usage: mode [command|interactive]"
           { state with lastCommand = "mode"; output = "too many args" }
 
-      let modeHelp (state: Types.AppState) : Types.AppState =
+      let modeHelp (state: AppState) : AppState =
         Builtin.printLine "Usage: mode [command|interactive]"
         Builtin.printLine "Switch between CLI interaction modes or display current mode."
         Builtin.printLine ""
@@ -54,7 +54,7 @@ module Darklang =
         Builtin.printLine "  mode interactive      - Switch to interactive mode"
         { state with lastCommand = "help mode"; output = "mode help displayed" }
 
-      let modeComplete (state: Types.AppState) (args: List<String>) : List<String> =
+      let modeComplete (state: AppState) (args: List<String>) : List<String> =
         match args with
         | [] -> ["command"; "interactive"]
         | [partial] ->
@@ -62,6 +62,6 @@ module Darklang =
           if Stdlib.String.isEmpty partial then
             options
           else
-            Stdlib.List.filter options (fun option -> 
+            Stdlib.List.filter options (fun option ->
               Stdlib.String.startsWith option partial)
         | _ -> []

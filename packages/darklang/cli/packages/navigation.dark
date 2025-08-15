@@ -3,7 +3,7 @@ module Darklang =
     module Packages =
       module Navigation =
         // CD command - change directory/module
-        let executeCD (state: Types.AppState) (args: List<String>) : Types.AppState =
+        let executeCD (state: AppState) (args: List<String>) : AppState =
           match args with
           | [] ->
             // No args, show current path
@@ -16,19 +16,19 @@ module Darklang =
               if pathArg == ".." then
                 // Go back to parent
                 match state.currentPath with
-                | Root -> Types.PackagePath.Root
+                | Root -> PackagePath.Root
                 | Module owner moduleName ->
                   if Stdlib.String.isEmpty moduleName then
                     // At owner level, go to root
-                    Types.PackagePath.Root
+                    PackagePath.Root
                   else
                     // At module level, go to owner
-                    Types.PackagePath.Module owner ""
+                    PackagePath.Module owner ""
               else if pathArg == "../.." then
                 // Go back two levels - always to root in our simple model
-                Types.PackagePath.Root
+                PackagePath.Root
               else if pathArg == "/" then
-                Types.PackagePath.Root
+                PackagePath.Root
               else if Stdlib.String.startsWith pathArg "/" then
                 // Absolute path
                 Packages.Path.parsePath pathArg
@@ -45,9 +45,9 @@ module Darklang =
                   else
                     // At module level, go to owner then navigate
                     if Stdlib.String.isEmpty afterDotDot then
-                      Types.PackagePath.Module owner ""
+                      PackagePath.Module owner ""
                     else
-                      Types.PackagePath.Module owner afterDotDot
+                      PackagePath.Module owner afterDotDot
               else
                 // Regular relative path - append to current path
                 match state.currentPath with
@@ -58,10 +58,10 @@ module Darklang =
                   // From inside a module, append the new segment
                   if Stdlib.String.isEmpty moduleName then
                     // We're at owner level (e.g., /Darklang)
-                    Types.PackagePath.Module owner pathArg
+                    PackagePath.Module owner pathArg
                   else
                     // We're in a nested module like Darklang.Stdlib, append to the current path
-                    Types.PackagePath.Module owner $"{moduleName}.{pathArg}"
+                    PackagePath.Module owner $"{moduleName}.{pathArg}"
 
             let newHistory = Stdlib.List.append state.pathHistory [state.currentPath]
             let newPathStr = Packages.Path.formatPath newPath
@@ -81,13 +81,13 @@ module Darklang =
             { state with lastCommand = "cd"; output = "cd help displayed" }
 
         // PWD command - show current path
-        let executePWD (state: Types.AppState) (args: List<String>) : Types.AppState =
+        let executePWD (state: AppState) (args: List<String>) : AppState =
           let currentPathStr = Packages.Path.formatPath state.currentPath
           Builtin.printLine currentPathStr
           { state with lastCommand = "pwd"; output = "pwd displayed" }
 
         // BACK command - navigate back using history
-        let executeBACK (state: Types.AppState) (args: List<String>) : Types.AppState =
+        let executeBACK (state: AppState) (args: List<String>) : AppState =
           match Stdlib.List.last state.pathHistory with
           | Some previousPath ->
             let newHistory = Stdlib.List.dropLast state.pathHistory
@@ -105,7 +105,7 @@ module Darklang =
             { state with lastCommand = "back"; output = "no history" }
 
         // Help functions
-        let cdHelp (state: Types.AppState) : Types.AppState =
+        let cdHelp (state: AppState) : AppState =
           Builtin.printLine "Usage: cd [path]"
           Builtin.printLine "Navigate between packages and modules."
           Builtin.printLine ""
@@ -117,18 +117,18 @@ module Darklang =
           Builtin.printLine "  cd /Darklang/Stdlib - Absolute path"
           { state with lastCommand = "help cd"; output = "cd help displayed" }
 
-        let pwdHelp (state: Types.AppState) : Types.AppState =
+        let pwdHelp (state: AppState) : AppState =
           Builtin.printLine "Usage: pwd"
           Builtin.printLine "Show the current package path."
           { state with lastCommand = "help pwd"; output = "pwd help displayed" }
 
-        let backHelp (state: Types.AppState) : Types.AppState =
+        let backHelp (state: AppState) : AppState =
           Builtin.printLine "Usage: back"
           Builtin.printLine "Navigate back to the previous location in history."
           { state with lastCommand = "help back"; output = "back help displayed" }
 
         // Completion functions
-        let cdComplete (state: Types.AppState) (args: List<String>) : List<String> =
+        let cdComplete (state: AppState) (args: List<String>) : List<String> =
           match args with
           | [] ->
             // At root, suggest top-level packages
@@ -239,6 +239,6 @@ module Darklang =
                 Stdlib.String.startsWith (Stdlib.String.toLowercase path) lowerPartial)
           | _ -> []
 
-        let pwdComplete (state: Types.AppState) (args: List<String>) : List<String> = []
+        let pwdComplete (state: AppState) (args: List<String>) : List<String> = []
 
-        let backComplete (state: Types.AppState) (args: List<String>) : List<String> = []
+        let backComplete (state: AppState) (args: List<String>) : List<String> = []

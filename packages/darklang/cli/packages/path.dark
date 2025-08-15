@@ -3,36 +3,36 @@ module Darklang =
     module Packages =
       module Path =
         // Package path utilities
-        let formatPath (path: Types.PackagePath) : String =
+        let formatPath (path: PackagePath) : String =
           match path with
           | Root -> "/"
-          | Module owner moduleName -> 
+          | Module owner moduleName ->
             if Stdlib.String.isEmpty moduleName then
               $"/{owner}"
             else
               $"/{owner}.{moduleName}"
 
-        let parsePath (pathStr: String) : Types.PackagePath =
+        let parsePath (pathStr: String) : PackagePath =
           let trimmed = Stdlib.String.trim pathStr
           if trimmed == "/" || Stdlib.String.isEmpty trimmed then
-            Types.PackagePath.Root
+            PackagePath.Root
           else
             let pathToSplit =
               if Stdlib.String.startsWith trimmed "/" then
                 Stdlib.String.dropFirst trimmed 1L
               else
                 trimmed
-            let parts = 
+            let parts =
               if Stdlib.String.contains pathToSplit "." then
                 // Handle dotted paths like "Darklang.Stdlib"
                 Stdlib.String.split pathToSplit "."
               else
-                // Handle slash paths like "Darklang/Stdlib"  
+                // Handle slash paths like "Darklang/Stdlib"
                 Stdlib.String.split pathToSplit "/"
             match parts with
-            | [owner; moduleName] -> Types.PackagePath.Module owner moduleName
-            | [owner] -> Types.PackagePath.Module owner ""
-            | _ -> Types.PackagePath.Root
+            | [owner; moduleName] -> PackagePath.Module owner moduleName
+            | [owner] -> PackagePath.Module owner ""
+            | _ -> PackagePath.Root
 
         // Helper to construct module prefix for search queries
         let constructModulePrefix (owner: String) (submodules: List<String>) : String =
@@ -45,7 +45,7 @@ module Darklang =
         // Create search query from path components
         let createSearchQuery (parts: List<String>) (remainder: String) : LanguageTools.ProgramTypes.Search.SearchQuery =
           match parts with
-          | [] -> 
+          | [] ->
             LanguageTools.ProgramTypes.Search.SearchQuery
               { owner = ""; modules = []; name = remainder }
           | [owner] when Stdlib.String.isEmpty remainder ->

@@ -1,6 +1,6 @@
 module Darklang =
   module Cli =
-    let runInteractiveLoop (state: Types.AppState) : Int64 =
+    let runInteractiveLoop (state: AppState) : Int64 =
       if state.isExiting then
         0L
       else
@@ -11,16 +11,16 @@ module Darklang =
           // Clear current line completely and redraw prompt with current input and hints
           Builtin.print $"{Colors.carriageReturn}{Colors.clearLine}"
         Builtin.print (View.formatPromptWithInput state)
-        
+
         // Read keystroke input
         let keyInput = Stdlib.Cli.Stdin.readKey ()
-        let keyPressedMsg = Types.Msg.KeyPressed (keyInput.key, keyInput.modifiers, Stdlib.Option.Option.Some keyInput.keyChar)
+        let keyPressedMsg = Msg.KeyPressed (keyInput.key, keyInput.modifiers, Stdlib.Option.Option.Some keyInput.keyChar)
         let newState = Update.updateAppState state keyPressedMsg
         runInteractiveLoop newState
 
     let executeCliCommand (args: List<String>) : Int64 =
-      let initialState = Types.initState ()
-      
+      let initialState = initState ()
+
       match args with
       | [] ->
         // Interactive mode - continuous loop
@@ -30,6 +30,6 @@ module Darklang =
         // Non-interactive mode: execute command, print result, and exit
         let command = args |> Stdlib.String.join " "
         let finalState = Update.processInput initialState command
-        
+
         // Always exit for non-interactive mode
         0L
