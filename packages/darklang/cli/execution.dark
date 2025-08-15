@@ -8,15 +8,15 @@ module Darklang =
           Builtin.printLine "Usage: run @function_name [args...] | run script_path [args...]"
           Builtin.printLine "  run @Stdlib.Int64.add 5L 3L    - Run a function"
           Builtin.printLine "  run script.dark arg1 arg2      - Run a script file"
-          Types.AppState { 
-            isExiting = state.isExiting; 
-            lastCommand = "run error"; 
-            output = "run usage displayed"; 
-            mainPrompt = state.mainPrompt; 
-            needsFullRedraw = state.needsFullRedraw; 
-            currentPath = state.currentPath; 
-            pathHistory = state.pathHistory; 
-            viewMode = state.viewMode 
+          Types.AppState {
+            isExiting = state.isExiting;
+            lastCommand = "run error";
+            output = "run usage displayed";
+            mainPrompt = state.mainPrompt;
+            needsFullRedraw = state.needsFullRedraw;
+            currentPath = state.currentPath;
+            pathHistory = state.pathHistory;
+            viewMode = state.viewMode
           }
         | thingToRun :: restArgs ->
           if Stdlib.String.startsWith thingToRun "@" then
@@ -50,27 +50,27 @@ module Darklang =
         match Builtin.cliExecuteFunction fnName parsedArgs with
         | Ok result ->
           Builtin.printLine result
-          Types.AppState { 
-            isExiting = state.isExiting; 
-            lastCommand = "run"; 
-            output = result; 
-            mainPrompt = state.mainPrompt; 
-            needsFullRedraw = state.needsFullRedraw; 
-            currentPath = state.currentPath; 
-            pathHistory = state.pathHistory; 
-            viewMode = state.viewMode 
+          Types.AppState {
+            isExiting = state.isExiting;
+            lastCommand = "run";
+            output = result;
+            mainPrompt = state.mainPrompt;
+            needsFullRedraw = state.needsFullRedraw;
+            currentPath = state.currentPath;
+            pathHistory = state.pathHistory;
+            viewMode = state.viewMode
           }
         | Error err ->
           Builtin.printLine $"Error: {err}"
-          Types.AppState { 
-            isExiting = state.isExiting; 
-            lastCommand = "run error"; 
-            output = $"error: {err}"; 
-            mainPrompt = state.mainPrompt; 
-            needsFullRedraw = state.needsFullRedraw; 
-            currentPath = state.currentPath; 
-            pathHistory = state.pathHistory; 
-            viewMode = state.viewMode 
+          Types.AppState {
+            isExiting = state.isExiting;
+            lastCommand = "run error";
+            output = $"error: {err}";
+            mainPrompt = state.mainPrompt;
+            needsFullRedraw = state.needsFullRedraw;
+            currentPath = state.currentPath;
+            pathHistory = state.pathHistory;
+            viewMode = state.viewMode
           }
 
       // Helper function to execute a script
@@ -84,40 +84,40 @@ module Darklang =
           | Ok exitCode ->
             let message = $"Script executed with exit code: {Stdlib.Int64.toString exitCode}"
             Builtin.printLine message
-            Types.AppState { 
-              isExiting = state.isExiting; 
-              lastCommand = "run"; 
-              output = message; 
-              mainPrompt = state.mainPrompt; 
-              needsFullRedraw = state.needsFullRedraw; 
-              currentPath = state.currentPath; 
-              pathHistory = state.pathHistory; 
-              viewMode = state.viewMode 
+            Types.AppState {
+              isExiting = state.isExiting;
+              lastCommand = "run";
+              output = message;
+              mainPrompt = state.mainPrompt;
+              needsFullRedraw = state.needsFullRedraw;
+              currentPath = state.currentPath;
+              pathHistory = state.pathHistory;
+              viewMode = state.viewMode
             }
           | Error e ->
             let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString e
             Builtin.printLine $"Script error: {prettyError}"
-            Types.AppState { 
-              isExiting = state.isExiting; 
-              lastCommand = "run error"; 
-              output = $"script error: {prettyError}"; 
-              mainPrompt = state.mainPrompt; 
-              needsFullRedraw = state.needsFullRedraw; 
-              currentPath = state.currentPath; 
-              pathHistory = state.pathHistory; 
-              viewMode = state.viewMode 
+            Types.AppState {
+              isExiting = state.isExiting;
+              lastCommand = "run error";
+              output = $"script error: {prettyError}";
+              mainPrompt = state.mainPrompt;
+              needsFullRedraw = state.needsFullRedraw;
+              currentPath = state.currentPath;
+              pathHistory = state.pathHistory;
+              viewMode = state.viewMode
             }
         | Error e ->
           Builtin.printLine $"File error: {e}"
-          Types.AppState { 
-            isExiting = state.isExiting; 
-            lastCommand = "run error"; 
-            output = $"file error: {e}"; 
-            mainPrompt = state.mainPrompt; 
-            needsFullRedraw = state.needsFullRedraw; 
-            currentPath = state.currentPath; 
-            pathHistory = state.pathHistory; 
-            viewMode = state.viewMode 
+          Types.AppState {
+            isExiting = state.isExiting;
+            lastCommand = "run error";
+            output = $"file error: {e}";
+            mainPrompt = state.mainPrompt;
+            needsFullRedraw = state.needsFullRedraw;
+            currentPath = state.currentPath;
+            pathHistory = state.pathHistory;
+            viewMode = state.viewMode
           }
 
       let runHelp (state: Types.AppState) : Types.AppState =
@@ -131,43 +131,58 @@ module Darklang =
         Builtin.printLine "Script execution:"
         Builtin.printLine "  run script.dark                  - Run a script file"
         Builtin.printLine "  run script.dark arg1 arg2        - Run script with arguments"
-        Types.AppState { 
-          isExiting = state.isExiting; 
-          lastCommand = "help run"; 
-          output = "run help displayed"; 
-          mainPrompt = state.mainPrompt; 
-          needsFullRedraw = state.needsFullRedraw; 
-          currentPath = state.currentPath; 
-          pathHistory = state.pathHistory; 
-          viewMode = state.viewMode 
+        Types.AppState {
+          isExiting = state.isExiting;
+          lastCommand = "help run";
+          output = "run help displayed";
+          mainPrompt = state.mainPrompt;
+          needsFullRedraw = state.needsFullRedraw;
+          currentPath = state.currentPath;
+          pathHistory = state.pathHistory;
+          viewMode = state.viewMode
         }
 
       // Get files in a directory - returns just filenames
       let getDirectoryContents (path: String) : List<String> =
-        match Builtin.directoryCurrent () with
-        | currentDir ->
-          let fullPath = 
-            if Stdlib.String.startsWith path "/" then
-              path
-            else
-              $"{currentDir}/{path}"
-          
-          match Builtin.directoryList fullPath with
-          | Ok files -> 
-            files
-            |> Stdlib.List.map (fun fullFilePath ->
-              // Extract just the filename from the full path
-              match Stdlib.String.lastIndexOf fullFilePath "/" with
-              | Some idx -> Stdlib.String.dropFirst fullFilePath (idx + 1L)
-              | None -> fullFilePath)
-          | Error _ -> []
+        let currentDir = Builtin.directoryCurrent ()
+
+        let fullPath =
+          if Stdlib.String.startsWith path "/" then
+            path
+          else
+            // Normalize path by removing leading "./" if present
+            let normalizedPath = 
+              if Stdlib.String.startsWith path "./" then
+                Stdlib.String.dropFirst path 2L
+              else
+                path
+            $"{currentDir}/{normalizedPath}"
+
+        let files = Builtin.directoryList fullPath
+
+        files
+        |> Stdlib.List.map (fun fullFilePath ->
+          // Extract just the filename from the full path
+          match Stdlib.String.split fullFilePath "/" with
+          | [] -> fullFilePath
+          | parts ->
+            match Stdlib.List.last parts with
+            | Some filename -> filename
+            | None -> fullFilePath)
 
       // Check if a path is a directory - expects full path
       let isDirectoryAtPath (dirPath: String) (fileName: String) : Bool =
-        let fullPath = $"{dirPath}/{fileName}"
-        match Builtin.directoryList fullPath with
-        | Ok _ -> true
-        | Error _ -> false
+        let currentDir = Builtin.directoryCurrent ()
+        let normalizedDirPath = 
+          if Stdlib.String.startsWith dirPath "/" then
+            dirPath
+          else if Stdlib.String.startsWith dirPath "./" then
+            let withoutDot = Stdlib.String.dropFirst dirPath 2L
+            $"{currentDir}/{withoutDot}"
+          else
+            $"{currentDir}/{dirPath}"
+        let fullPath = $"{normalizedDirPath}/{fileName}"
+        Builtin.fileIsDirectory fullPath
 
       let runComplete (state: Types.AppState) (args: List<String>) : List<String> =
         match args with
@@ -179,7 +194,7 @@ module Darklang =
           let darkFiles = currentDirFiles |> Stdlib.List.filter (fun file -> Stdlib.String.endsWith file ".dark")
           // Just show directories and .dark files - no hardcoded function prefixes
           Stdlib.List.append directories darkFiles
-          
+
         | [partialArg] ->
           if Stdlib.String.startsWith partialArg "@" then
             // Complete function names - query actual package manager
@@ -187,8 +202,21 @@ module Darklang =
             let allFunctions = LanguageTools.PackageManager.allFunctions pm
             allFunctions
             |> Stdlib.List.map (fun fn -> $"@{fn.name}")
-            |> Stdlib.List.filter (fun name -> 
+            |> Stdlib.List.filter (fun name ->
               Stdlib.String.startsWith name partialArg)
+          else if partialArg == "." then
+            // Special case: "." means show all files in current directory
+            let currentDir = Builtin.directoryCurrent ()
+            let files = getDirectoryContents "."
+            files
+            |> Stdlib.List.map (fun file ->
+              if isDirectoryAtPath currentDir file then
+                $"{file}/"
+              else
+                file)
+          else if partialArg == ".." then
+            // Special case: ".." means parent directory
+            ["../"]
           else
             // Complete filesystem paths
             let currentDir = Builtin.directoryCurrent ()
@@ -198,16 +226,16 @@ module Darklang =
               | Some idx ->
                 let dirPart = Stdlib.String.slice partialArg 0L (idx + 1L)
                 let filePart = Stdlib.String.dropFirst partialArg (idx + 1L)
-                let fullDirPath = 
+                let fullDirPath =
                   if Stdlib.String.startsWith dirPart "/" then
                     dirPart
                   else
                     $"{currentDir}/{dirPart}"
                 let files = getDirectoryContents fullDirPath
                 files
-                |> Stdlib.List.filter (fun file -> 
+                |> Stdlib.List.filter (fun file ->
                   Stdlib.String.startsWith file filePart)
-                |> Stdlib.List.map (fun file -> 
+                |> Stdlib.List.map (fun file ->
                   if isDirectoryAtPath fullDirPath file then
                     $"{dirPart}{file}/"
                   else
@@ -217,9 +245,9 @@ module Darklang =
               // No directory separator, complete in current directory
               let files = getDirectoryContents "."
               files
-              |> Stdlib.List.filter (fun file -> 
+              |> Stdlib.List.filter (fun file ->
                 Stdlib.String.startsWith file partialArg)
-              |> Stdlib.List.map (fun file -> 
+              |> Stdlib.List.map (fun file ->
                 if isDirectoryAtPath currentDir file then
                   $"{file}/"
                 else
