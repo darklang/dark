@@ -8,9 +8,9 @@ module Darklang =
           | Root -> "/"
           | Module owner moduleName -> 
             if Stdlib.String.isEmpty moduleName then
-              $"@{owner}"
+              $"/{owner}"
             else
-              $"@{owner}.{moduleName}"
+              $"/{owner}.{moduleName}"
 
         let parsePath (pathStr: String) : Types.PackagePath =
           let trimmed = Stdlib.String.trim pathStr
