@@ -26,6 +26,7 @@ module Darklang =
           CommandHandler { name = "eval"; description = "Evaluate a Dark expression"; aliases = ["e"]; execute = Cli.Execution.executeEval; help = Cli.Execution.evalHelp; complete = Cli.Execution.evalComplete }
           CommandHandler { name = "scripts"; description = "Store, manage, and run Dark scripts"; aliases = []; execute = Cli.Scripts.executeScripts; help = Cli.Scripts.scriptsHelp; complete = Cli.Scripts.scriptsComplete }
           CommandHandler { name = "view"; description = "View details of functions, types, constants, or modules"; aliases = []; execute = Packages.Viewing.executeView; help = Packages.Viewing.viewHelp; complete = Packages.Viewing.viewComplete }
+          CommandHandler { name = "tree"; description = "Display package hierarchy in tree format"; aliases = []; execute = Packages.Tree.executeTree; help = Packages.Tree.treeHelp; complete = Packages.Tree.treeComplete }
           CommandHandler { name = "mode"; description = "Switch between CLI interaction modes"; aliases = []; execute = Mode.executeMode; help = Mode.modeHelp; complete = Mode.modeComplete } ]
 
       let findCommand (name: String) : CommandHandler =
@@ -67,7 +68,7 @@ module Darklang =
         let commands = allCommands ()
         
         // Group commands by category
-        let packageCommands = ["cd"; "ls"; "view"; "pwd"; "back"]
+        let packageCommands = ["cd"; "ls"; "view"; "tree"; "pwd"; "back"]
         let executionCommands = ["run"; "eval"; "scripts"]
         let installCommands = ["install"; "update"; "uninstall"; "status"; "version"]
         let utilityCommands = ["clear"; "help"; "quit"; "mode"]
