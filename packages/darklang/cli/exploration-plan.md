@@ -1,7 +1,13 @@
 # Package Exploration System - Architecture Plan
 
-## Overview
-The package exploration system requires a major architectural upgrade from line-based to keystroke-based input handling to support real-time navigation, scrolling, and interactive viewing. This is critical functionality that cannot be simplified without causing serious UX regression.
+## ✅ Completed
+- Basic package navigation (cd, ls, pwd, back)
+- Real package data integration
+- Tab completion for packages
+- Direct children filtering (not all descendants)
+
+## 🚧 Still Needed for Full Interactive Exploration
+The full interactive exploration system (like the old CLI's `view` command) requires a major architectural upgrade from line-based to keystroke-based input handling to support real-time navigation, scrolling, and interactive viewing.
 
 ## Key Requirements
 - **Keystroke-based input**: Use `Stdlib.Cli.Stdin.readKey()` instead of `stdinReadLine()`

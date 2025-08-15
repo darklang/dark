@@ -20,6 +20,7 @@
       "Bash(scripts/run-backend-tests:*)",
       "Bash(timeout:*)"
     ],
-    "deny": []
+    "deny": [],
+    "defaultMode": "acceptEdits"
   }
 }

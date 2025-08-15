@@ -12,7 +12,7 @@ module Darklang =
         if trimmed == "/" || Stdlib.String.isEmpty trimmed then
           Types.PackagePath.Root
         else
-          let pathToSplit = 
+          let pathToSplit =
             if Stdlib.String.startsWith trimmed "/" then
               Stdlib.String.dropFirst trimmed 1L
             else
@@ -32,7 +32,7 @@ module Darklang =
           Builtin.printLine $"Current path: {currentPathStr}"
           Types.AppState { isExiting = state.isExiting; lastCommand = "cd"; output = "pwd displayed"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode }
         | [pathArg] ->
-          let newPath = 
+          let newPath =
             if pathArg == ".." then
               // Go back to parent
               match state.currentPath with
@@ -42,20 +42,20 @@ module Darklang =
               Types.PackagePath.Root
             else
               parsePath pathArg
-          
+
           let newHistory = Stdlib.List.append state.pathHistory [state.currentPath]
           let newPathStr = formatPath newPath
           Builtin.printLine $"Changed to: {newPathStr}"
-          
-          Types.AppState { 
-            isExiting = state.isExiting; 
-            lastCommand = "cd"; 
-            output = $"cd to {newPathStr}"; 
-            mainPrompt = state.mainPrompt; 
+
+          Types.AppState {
+            isExiting = state.isExiting;
+            lastCommand = "cd";
+            output = $"cd to {newPathStr}";
+            mainPrompt = state.mainPrompt;
             needsFullRedraw = true;
             currentPath = newPath;
             pathHistory = newHistory;
-            viewMode = state.viewMode 
+            viewMode = state.viewMode
           }
         | _ ->
           Builtin.printLine "Usage: cd [path]"
@@ -68,22 +68,94 @@ module Darklang =
       let executeLS (state: Types.AppState) (args: List<String>) : Types.AppState =
         match state.currentPath with
         | Root ->
+          // Get real top-level packages from the package manager
+          let query =
+            LanguageTools.ProgramTypes.Search.SearchQuery
+              { currentModule = []
+                text = ""
+                searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+                entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module ] }
+          let searchResults = LanguageTools.PackageManager.Search.search query
+
+          // Extract unique owners from module paths
+          let owners =
+            match Stdlib.List.head searchResults.submodules with
+            | Some moduleList ->
+              moduleList
+              |> Stdlib.List.filterMap (fun path ->
+                match path with
+                | owner :: _ -> Stdlib.Option.Option.Some owner
+                | [] -> Stdlib.Option.Option.None)
+              |> Stdlib.List.unique
+              |> Stdlib.List.sort
+            | None -> []
+
           Builtin.printLine "Available packages:"
-          Builtin.printLine "  darklang/     - Core Dark language packages"
-          Builtin.printLine "  stachu/       - User packages"
-          Builtin.printLine "  internal/     - Internal packages"
-          Builtin.printLine ""
-          Builtin.printLine "Use 'cd darklang' to explore core packages"
+          owners |> Stdlib.List.iter (fun owner ->
+            Builtin.printLine $"  {owner}/")
+
+          if Stdlib.List.isEmpty owners then
+            Builtin.printLine "  (No packages found)"
+          else
+            Builtin.printLine ""
+            Builtin.printLine $"Use 'cd <package>' to explore a package"
+
           Types.AppState { isExiting = state.isExiting; lastCommand = "ls"; output = "ls root"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode }
+
         | Module owner moduleName ->
+          let currentModule = if Stdlib.String.isEmpty moduleName then [owner] else [owner; moduleName]
+          let query =
+            LanguageTools.ProgramTypes.Search.SearchQuery
+              { currentModule = currentModule
+                text = ""
+                searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+                entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module
+                                LanguageTools.ProgramTypes.Search.EntityType.Type
+                                LanguageTools.ProgramTypes.Search.EntityType.Fn
+                                LanguageTools.ProgramTypes.Search.EntityType.Constant ] }
+          let searchResults = LanguageTools.PackageManager.Search.search query
+
           let pathStr = formatPath state.currentPath
           Builtin.printLine $"Contents of {pathStr}:"
-          Builtin.printLine "  [Functions]   - Module functions"
-          Builtin.printLine "  [Types]       - Type definitions"  
-          Builtin.printLine "  [Constants]   - Module constants"
-          Builtin.printLine "  [Submodules]  - Nested modules"
+
+          // List submodules - only direct children
+          match Stdlib.List.head searchResults.submodules with
+          | Some moduleList when Stdlib.Bool.not (Stdlib.List.isEmpty moduleList) ->
+            Builtin.printLine ""
+            Builtin.printLine "  [Submodules]"
+            // Filter to only direct children by checking path length
+            let expectedLength = (Stdlib.List.length currentModule) + 1L
+            moduleList
+            |> Stdlib.List.filter (fun path -> 
+              Stdlib.List.length path == expectedLength)
+            |> Stdlib.List.filterMap (fun path -> Stdlib.List.last path)
+            |> Stdlib.List.unique
+            |> Stdlib.List.sort
+            |> Stdlib.List.iter (fun name ->
+              Builtin.printLine $"    {name}/")
+          | _ -> ()
+
+          // Count functions
+          let fnCount = Stdlib.List.length searchResults.fns
+          if fnCount > 0L then
+            Builtin.printLine ""
+            Builtin.printLine $"  [Functions] ({fnCount} items)"
+
+          // Count types
+          let typeCount = Stdlib.List.length searchResults.types
+          if typeCount > 0L then
+            Builtin.printLine ""
+            Builtin.printLine $"  [Types] ({typeCount} items)"
+
+          // Count constants
+          let constCount = Stdlib.List.length searchResults.constants
+          if constCount > 0L then
+            Builtin.printLine ""
+            Builtin.printLine $"  [Constants] ({constCount} items)"
+
           Builtin.printLine ""
-          Builtin.printLine "Use 'view' to explore interactively"
+          Builtin.printLine "Use 'view' to see details of functions, types, and constants"
+
           Types.AppState { isExiting = state.isExiting; lastCommand = "ls"; output = "ls module"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode }
 
       // PWD command - show current path
@@ -99,16 +171,16 @@ module Darklang =
           let newHistory = Stdlib.List.dropLast state.pathHistory
           let pathStr = formatPath previousPath
           Builtin.printLine $"Back to: {pathStr}"
-          
-          Types.AppState { 
-            isExiting = state.isExiting; 
-            lastCommand = "back"; 
-            output = $"back to {pathStr}"; 
-            mainPrompt = state.mainPrompt; 
+
+          Types.AppState {
+            isExiting = state.isExiting;
+            lastCommand = "back";
+            output = $"back to {pathStr}";
+            mainPrompt = state.mainPrompt;
             needsFullRedraw = true;
             currentPath = previousPath;
             pathHistory = newHistory;
-            viewMode = state.viewMode 
+            viewMode = state.viewMode
           }
         | None ->
           Builtin.printLine "No previous location in history"
@@ -146,13 +218,70 @@ module Darklang =
       let cdComplete (state: Types.AppState) (args: List<String>) : List<String> =
         match args with
         | [] ->
-          // Suggest basic navigation paths only
-          ["/"; ".."]
+          // At root, suggest top-level packages
+          match state.currentPath with
+          | Root ->
+            // Get top-level packages from the package manager
+            let query =
+              LanguageTools.ProgramTypes.Search.SearchQuery
+                { currentModule = []
+                  text = ""
+                  searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+                  entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module ] }
+            let searchResults = LanguageTools.PackageManager.Search.search query
+
+            // Extract unique owners from module paths
+            let owners =
+              match Stdlib.List.head searchResults.submodules with
+              | Some moduleList ->
+                moduleList
+                |> Stdlib.List.filterMap (fun path ->
+                  match path with
+                  | owner :: _ -> Stdlib.Option.Option.Some owner
+                  | [] -> Stdlib.Option.Option.None)
+                |> Stdlib.List.unique
+                |> Stdlib.List.sort
+              | None -> []
+
+            // Add basic navigation options
+            Stdlib.List.append ["/"; ".."] owners
+          | Module owner moduleName ->
+            // Inside a module, suggest submodules
+            let currentModule = if Stdlib.String.isEmpty moduleName then [owner] else [owner; moduleName]
+            let query =
+              LanguageTools.ProgramTypes.Search.SearchQuery
+                { currentModule = currentModule
+                  text = ""
+                  searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+                  entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module ] }
+            let searchResults = LanguageTools.PackageManager.Search.search query
+
+            // Extract submodule names - only direct children
+            let submodules =
+              match Stdlib.List.head searchResults.submodules with
+              | Some moduleList ->
+                // Filter to only direct children by checking path length
+                let expectedLength = (Stdlib.List.length currentModule) + 1L
+                moduleList
+                |> Stdlib.List.filter (fun path -> 
+                  Stdlib.List.length path == expectedLength)
+                |> Stdlib.List.filterMap (fun path ->
+                  // Get the last part of the path as the submodule name
+                  Stdlib.List.last path)
+                |> Stdlib.List.unique
+                |> Stdlib.List.sort
+              | None -> []
+
+            // Add basic navigation options
+            Stdlib.List.append ["/"; ".."] submodules
+
         | [partialPath] ->
-          // Filter basic navigation paths by partial match
-          let basicPaths = ["/"; ".."]
+          // Get all available completions
+          let allCompletions = cdComplete state []
           let lowerPartial = Stdlib.String.toLowercase partialPath
-          Stdlib.List.filter basicPaths (fun path -> Stdlib.String.startsWith (Stdlib.String.toLowercase path) lowerPartial)
+          // Filter by prefix match
+          Stdlib.List.filter allCompletions (fun path ->
+            Stdlib.String.startsWith (Stdlib.String.toLowercase path) lowerPartial)
         | _ -> []
 
       let lsComplete (state: Types.AppState) (args: List<String>) : List<String> =

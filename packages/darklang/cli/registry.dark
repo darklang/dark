@@ -12,11 +12,11 @@ module Darklang =
       let allCommands () : List<CommandHandler> =
         [ CommandHandler { name = "quit"; description = "Exit the CLI"; aliases = ["exit"]; execute = Quit.execute; help = Quit.help; complete = Quit.complete }
           CommandHandler { name = "help"; description = "Show help for commands"; aliases = ["h"; "?"]; execute = Help.execute; help = Help.help; complete = Help.complete }
-          CommandHandler { name = "install"; description = "Install CLI globally"; aliases = []; execute = Install.executeInstall; help = Install.installHelp; complete = Install.installComplete }
-          CommandHandler { name = "update"; description = "Update CLI to latest version"; aliases = ["upgrade"]; execute = Install.executeUpdate; help = Install.updateHelp; complete = Install.updateComplete }
-          CommandHandler { name = "uninstall"; description = "Remove CLI installation"; aliases = []; execute = Install.executeUninstall; help = Install.uninstallHelp; complete = Install.uninstallComplete }
-          CommandHandler { name = "status"; description = "Show installation status"; aliases = []; execute = Install.executeStatus; help = Install.statusHelp; complete = Install.statusComplete }
-          CommandHandler { name = "version"; description = "Display CLI version"; aliases = ["v"]; execute = Install.executeVersion; help = Install.versionHelp; complete = Install.versionComplete }
+          CommandHandler { name = "install"; description = "Install CLI globally"; aliases = []; execute = Installation.Commands.executeInstall; help = Installation.Commands.installHelp; complete = Installation.Commands.installComplete }
+          CommandHandler { name = "update"; description = "Update CLI to latest version"; aliases = ["upgrade"]; execute = Installation.Commands.executeUpdate; help = Installation.Commands.updateHelp; complete = Installation.Commands.updateComplete }
+          CommandHandler { name = "uninstall"; description = "Remove CLI installation"; aliases = []; execute = Installation.Commands.executeUninstall; help = Installation.Commands.uninstallHelp; complete = Installation.Commands.uninstallComplete }
+          CommandHandler { name = "status"; description = "Show installation status"; aliases = []; execute = Installation.Commands.executeStatus; help = Installation.Commands.statusHelp; complete = Installation.Commands.statusComplete }
+          CommandHandler { name = "version"; description = "Display CLI version"; aliases = ["v"]; execute = Installation.Commands.executeVersion; help = Installation.Commands.versionHelp; complete = Installation.Commands.versionComplete }
           CommandHandler { name = "cd"; description = "Navigate to package or module"; aliases = []; execute = Explore.executeCD; help = Explore.cdHelp; complete = Explore.cdComplete }
           CommandHandler { name = "ls"; description = "List package contents"; aliases = ["dir"]; execute = Explore.executeLS; help = Explore.lsHelp; complete = Explore.lsComplete }
           CommandHandler { name = "pwd"; description = "Show current package path"; aliases = []; execute = Explore.executePWD; help = Explore.pwdHelp; complete = Explore.pwdComplete }
