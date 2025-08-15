@@ -63,14 +63,79 @@ module Darklang =
 
       let getCommandList () : String =
         let commands = allCommands ()
-        let lines = Stdlib.List.map commands (fun cmd ->
-          match cmd.aliases with
-          | [] -> $"  {cmd.name} - {cmd.description}"
-          | aliases ->
-            let aliasText = Stdlib.String.join aliases ", "
-            $"  {cmd.name} ({aliasText}) - {cmd.description}")
-        let joined = Stdlib.String.join lines "\n"
-        $"Available commands:\n{joined}"
+        
+        // Group commands by category
+        let packageCommands = ["cd"; "ls"; "pwd"; "back"]
+        let executionCommands = ["run"; "eval"; "scripts"]
+        let installCommands = ["install"; "update"; "uninstall"; "status"; "version"]
+        let utilityCommands = ["clear"; "help"; "quit"]
+        
+        // Format package navigation group
+        let packageGroup =
+          let packageCmds = 
+            packageCommands
+            |> Stdlib.List.filterMap (fun name ->
+              match Stdlib.List.findFirst commands (fun cmd -> cmd.name == name) with
+              | Some cmd ->
+                match cmd.aliases with
+                | [] -> Stdlib.Option.Option.Some $"  {cmd.name} - {cmd.description}"
+                | aliases ->
+                  let aliasText = Stdlib.String.join aliases ", "
+                  Stdlib.Option.Option.Some $"  {cmd.name} ({aliasText}) - {cmd.description}"
+              | None -> Stdlib.Option.Option.None)
+          let packageLines = Stdlib.String.join packageCmds "\n"
+          $"Package navigation:\n{packageLines}"
+        
+        // Format execution group
+        let executionGroup =
+          let executionCmds = 
+            executionCommands
+            |> Stdlib.List.filterMap (fun name ->
+              match Stdlib.List.findFirst commands (fun cmd -> cmd.name == name) with
+              | Some cmd ->
+                match cmd.aliases with
+                | [] -> Stdlib.Option.Option.Some $"  {cmd.name} - {cmd.description}"
+                | aliases ->
+                  let aliasText = Stdlib.String.join aliases ", "
+                  Stdlib.Option.Option.Some $"  {cmd.name} ({aliasText}) - {cmd.description}"
+              | None -> Stdlib.Option.Option.None)
+          let executionLines = Stdlib.String.join executionCmds "\n"
+          $"Code execution:\n{executionLines}"
+        
+        // Format installation group
+        let installGroup =
+          let installCmds = 
+            installCommands
+            |> Stdlib.List.filterMap (fun name ->
+              match Stdlib.List.findFirst commands (fun cmd -> cmd.name == name) with
+              | Some cmd ->
+                match cmd.aliases with
+                | [] -> Stdlib.Option.Option.Some $"  {cmd.name} - {cmd.description}"
+                | aliases ->
+                  let aliasText = Stdlib.String.join aliases ", "
+                  Stdlib.Option.Option.Some $"  {cmd.name} ({aliasText}) - {cmd.description}"
+              | None -> Stdlib.Option.Option.None)
+          let installLines = Stdlib.String.join installCmds "\n"
+          $"Installation:\n{installLines}"
+        
+        // Format utilities group
+        let utilityGroup =
+          let utilityCmds = 
+            utilityCommands
+            |> Stdlib.List.filterMap (fun name ->
+              match Stdlib.List.findFirst commands (fun cmd -> cmd.name == name) with
+              | Some cmd ->
+                match cmd.aliases with
+                | [] -> Stdlib.Option.Option.Some $"  {cmd.name} - {cmd.description}"
+                | aliases ->
+                  let aliasText = Stdlib.String.join aliases ", "
+                  Stdlib.Option.Option.Some $"  {cmd.name} ({aliasText}) - {cmd.description}"
+              | None -> Stdlib.Option.Option.None)
+          let utilityLines = Stdlib.String.join utilityCmds "\n"
+          $"Utilities:\n{utilityLines}"
+        
+        let groupsText = Stdlib.String.join [packageGroup; executionGroup; installGroup; utilityGroup] "\n\n"
+        $"Available commands:\n\n{groupsText}"
 
       let getCompletions (state: Types.AppState) (input: String) : List<String> =
         let parsed = Completion.parseInput input

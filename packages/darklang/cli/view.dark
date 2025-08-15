@@ -19,7 +19,7 @@ module Darklang =
           $"> {state.mainPrompt}\u001b[2m{hint}\u001b[0m"
 
       let formatWelcome () : String =
-        $"Darklang CLI - Interactive Mode\n\n{Registry.getCommandList ()}\n\nType 'help <command>' for specific command help."
+        $"Darklang CLI\n\n{Registry.getCommandList ()}\n\nType 'help <command>' for specific command help."
 
       let formatWelcomeCommands () : String =
         "help, version, quit"

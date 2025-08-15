@@ -151,7 +151,7 @@ module Darklang =
             path
           else
             // Normalize path by removing leading "./" if present
-            let normalizedPath = 
+            let normalizedPath =
               if Stdlib.String.startsWith path "./" then
                 Stdlib.String.dropFirst path 2L
               else
@@ -173,7 +173,7 @@ module Darklang =
       // Check if a path is a directory - expects full path
       let isDirectoryAtPath (dirPath: String) (fileName: String) : Bool =
         let currentDir = Builtin.directoryCurrent ()
-        let normalizedDirPath = 
+        let normalizedDirPath =
           if Stdlib.String.startsWith dirPath "/" then
             dirPath
           else if Stdlib.String.startsWith dirPath "./" then
@@ -262,43 +262,43 @@ module Darklang =
           Builtin.printLine "  eval 1L + 2L                    - Evaluate arithmetic"
           Builtin.printLine "  eval \"hello\" ++ \"world\"        - String concatenation"
           Builtin.printLine "  eval [1L; 2L; 3L] |> List.length - List operations"
-          Types.AppState { 
-            isExiting = state.isExiting; 
-            lastCommand = "eval error"; 
-            output = "eval usage displayed"; 
-            mainPrompt = state.mainPrompt; 
-            needsFullRedraw = state.needsFullRedraw; 
-            currentPath = state.currentPath; 
-            pathHistory = state.pathHistory; 
-            viewMode = state.viewMode 
+          Types.AppState {
+            isExiting = state.isExiting;
+            lastCommand = "eval error";
+            output = "eval usage displayed";
+            mainPrompt = state.mainPrompt;
+            needsFullRedraw = state.needsFullRedraw;
+            currentPath = state.currentPath;
+            pathHistory = state.pathHistory;
+            viewMode = state.viewMode
           }
         | _ ->
           let expr = Stdlib.String.join args " "
           match Builtin.cliEvaluateExpression expr with
           | Ok result ->
             Builtin.printLine result
-            Types.AppState { 
-              isExiting = state.isExiting; 
-              lastCommand = "eval"; 
-              output = result; 
-              mainPrompt = state.mainPrompt; 
-              needsFullRedraw = state.needsFullRedraw; 
-              currentPath = state.currentPath; 
-              pathHistory = state.pathHistory; 
-              viewMode = state.viewMode 
+            Types.AppState {
+              isExiting = state.isExiting;
+              lastCommand = "eval";
+              output = result;
+              mainPrompt = state.mainPrompt;
+              needsFullRedraw = state.needsFullRedraw;
+              currentPath = state.currentPath;
+              pathHistory = state.pathHistory;
+              viewMode = state.viewMode
             }
           | Error err ->
             let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString err
             Builtin.printLine $"Error: {prettyError}"
-            Types.AppState { 
-              isExiting = state.isExiting; 
-              lastCommand = "eval error"; 
-              output = $"error: {prettyError}"; 
-              mainPrompt = state.mainPrompt; 
-              needsFullRedraw = state.needsFullRedraw; 
-              currentPath = state.currentPath; 
-              pathHistory = state.pathHistory; 
-              viewMode = state.viewMode 
+            Types.AppState {
+              isExiting = state.isExiting;
+              lastCommand = "eval error";
+              output = $"error: {prettyError}";
+              mainPrompt = state.mainPrompt;
+              needsFullRedraw = state.needsFullRedraw;
+              currentPath = state.currentPath;
+              pathHistory = state.pathHistory;
+              viewMode = state.viewMode
             }
 
       let evalHelp (state: Types.AppState) : Types.AppState =
@@ -310,15 +310,15 @@ module Darklang =
         Builtin.printLine "  eval \"hello\" ++ \"world\"         - String concatenation"
         Builtin.printLine "  eval [1L; 2L; 3L] |> List.length  - List operations"
         Builtin.printLine "  eval Stdlib.String.length \"test\" - Function calls"
-        Types.AppState { 
-          isExiting = state.isExiting; 
-          lastCommand = "help eval"; 
-          output = "eval help displayed"; 
-          mainPrompt = state.mainPrompt; 
-          needsFullRedraw = state.needsFullRedraw; 
-          currentPath = state.currentPath; 
-          pathHistory = state.pathHistory; 
-          viewMode = state.viewMode 
+        Types.AppState {
+          isExiting = state.isExiting;
+          lastCommand = "help eval";
+          output = "eval help displayed";
+          mainPrompt = state.mainPrompt;
+          needsFullRedraw = state.needsFullRedraw;
+          currentPath = state.currentPath;
+          pathHistory = state.pathHistory;
+          viewMode = state.viewMode
         }
 
       let evalComplete (state: Types.AppState) (args: List<String>) : List<String> =
