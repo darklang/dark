@@ -6,12 +6,33 @@ module Darklang =
         | KeyPressed of key: Stdlib.Cli.Stdin.Key.Key * modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers * keyChar: Stdlib.Option.Option<String>
         | Exit
 
+      type PackagePath =
+        | Root
+        | Module of owner: String * moduleName: String
+
+      type EntityCategory =
+        | Functions
+        | Types  
+        | Constants
+        | Submodules
+
+      type ViewMode =
+        | CommandMode
+        | InteractiveMode
+
       type AppState = 
         { isExiting: Bool
           lastCommand: String
           output: String
           mainPrompt: String
-          needsFullRedraw: Bool }
+          needsFullRedraw: Bool
+          currentPath: PackagePath
+          pathHistory: List<PackagePath>
+          viewMode: ViewMode }
 
       let initState () : AppState =
-        AppState { isExiting = false; lastCommand = ""; output = ""; mainPrompt = ""; needsFullRedraw = true }
+        AppState { isExiting = false; lastCommand = ""; output = ""; mainPrompt = ""; needsFullRedraw = true; currentPath = PackagePath.Root; pathHistory = []; viewMode = ViewMode.CommandMode }
+
+      // Helper to update state preserving package navigation fields
+      let updateState (state: AppState) (isExiting: Bool) (lastCommand: String) (output: String) (mainPrompt: String) (needsFullRedraw: Bool) : AppState =
+        AppState { isExiting = isExiting; lastCommand = lastCommand; output = output; mainPrompt = mainPrompt; needsFullRedraw = needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode }

@@ -3,11 +3,11 @@ module Darklang =
     module Quit =
       let execute (state: Types.AppState) (args: List<String>) : Types.AppState =
         Builtin.printLine (View.formatGoodbye ())
-        Types.AppState { isExiting = true; lastCommand = "quit"; output = "goodbye"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw }
+        Types.AppState { isExiting = true; lastCommand = "quit"; output = "goodbye"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode }
 
       let help (state: Types.AppState) : Types.AppState =
         Builtin.printLine "Usage: quit\nExit the CLI immediately.\nNo arguments required."
-        Types.AppState { isExiting = state.isExiting; lastCommand = "help quit"; output = "quit help displayed"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw }
+        Types.AppState { isExiting = state.isExiting; lastCommand = "help quit"; output = "quit help displayed"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode }
 
       let complete (state: Types.AppState) (args: List<String>) : List<String> =
         Completion.noArgsCompletion state args

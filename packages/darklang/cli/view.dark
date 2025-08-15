@@ -3,13 +3,13 @@ module Darklang =
     module View =
       let formatError (message: String) : String =
         $"Error: {message}"
-      
+
       let formatSuccess (message: String) : String =
         message
-      
+
       let formatPrompt () : String =
         "> "
-      
+
       let formatPromptWithInput (state: Types.AppState) : String =
         let hint = Registry.getCompletionHint state state.mainPrompt
         if Stdlib.String.isEmpty hint then
@@ -17,15 +17,15 @@ module Darklang =
         else
           // Use ANSI escape codes: \u001b[2m for dim text, \u001b[0m to reset
           $"> {state.mainPrompt}\u001b[2m{hint}\u001b[0m"
-      
+
       let formatWelcome () : String =
         $"Darklang CLI - Interactive Mode\n\n{Registry.getCommandList ()}\n\nType 'help <command>' for specific command help."
-      
+
       let formatWelcomeCommands () : String =
         "help, version, quit"
-      
+
       let formatGoodbye () : String =
         "Goodbye!"
-      
+
       let formatVersion () : String =
-        "Darklang CLI v0.1.0-dev (MVU Architecture)"
+        "Darklang CLI v0.1.0-dev"

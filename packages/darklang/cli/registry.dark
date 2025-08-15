@@ -10,13 +10,17 @@ module Darklang =
           complete: Types.AppState -> List<String> -> List<String> }
 
       let allCommands () : List<CommandHandler> =
-        [ CommandHandler { name = "quit"; description = "Exit the CLI"; aliases = ["exit"]; execute = Quit.execute; help = Quit.help; complete = Help.complete }
+        [ CommandHandler { name = "quit"; description = "Exit the CLI"; aliases = ["exit"]; execute = Quit.execute; help = Quit.help; complete = Quit.complete }
           CommandHandler { name = "help"; description = "Show help for commands"; aliases = ["h"; "?"]; execute = Help.execute; help = Help.help; complete = Help.complete }
           CommandHandler { name = "install"; description = "Install CLI globally"; aliases = []; execute = Install.executeInstall; help = Install.installHelp; complete = Install.installComplete }
           CommandHandler { name = "update"; description = "Update CLI to latest version"; aliases = ["upgrade"]; execute = Install.executeUpdate; help = Install.updateHelp; complete = Install.updateComplete }
           CommandHandler { name = "uninstall"; description = "Remove CLI installation"; aliases = []; execute = Install.executeUninstall; help = Install.uninstallHelp; complete = Install.uninstallComplete }
           CommandHandler { name = "status"; description = "Show installation status"; aliases = []; execute = Install.executeStatus; help = Install.statusHelp; complete = Install.statusComplete }
-          CommandHandler { name = "version"; description = "Display CLI version"; aliases = ["v"]; execute = Install.executeVersion; help = Install.versionHelp; complete = Install.versionComplete } ]
+          CommandHandler { name = "version"; description = "Display CLI version"; aliases = ["v"]; execute = Install.executeVersion; help = Install.versionHelp; complete = Install.versionComplete }
+          CommandHandler { name = "cd"; description = "Navigate to package or module"; aliases = []; execute = Explore.executeCD; help = Explore.cdHelp; complete = Explore.cdComplete }
+          CommandHandler { name = "ls"; description = "List package contents"; aliases = ["dir"]; execute = Explore.executeLS; help = Explore.lsHelp; complete = Explore.lsComplete }
+          CommandHandler { name = "pwd"; description = "Show current package path"; aliases = []; execute = Explore.executePWD; help = Explore.pwdHelp; complete = Explore.pwdComplete }
+          CommandHandler { name = "back"; description = "Go back to previous location"; aliases = ["b"]; execute = Explore.executeBACK; help = Explore.backHelp; complete = Explore.backComplete } ]
 
       let findCommand (name: String) : CommandHandler =
         let commands = allCommands ()
@@ -37,10 +41,10 @@ module Darklang =
               execute = fun state args -> 
                 Builtin.printLine (View.formatError $"Unknown command: {name}")
                 Builtin.printLine "Use 'help' to see available commands."
-                Types.AppState { isExiting = state.isExiting; lastCommand = name; output = $"unknown command: {name}"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw }
+                Types.AppState { isExiting = state.isExiting; lastCommand = name; output = $"unknown command: {name}"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode }
               help = fun state ->
                 Builtin.printLine $"No help available for command: {name}"
-                Types.AppState { isExiting = state.isExiting; lastCommand = $"help {name}"; output = $"no help for {name}"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw }
+                Types.AppState { isExiting = state.isExiting; lastCommand = $"help {name}"; output = $"no help for {name}"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode }
               complete = fun state args -> [] }
 
       let executeCommand (name: String) (state: Types.AppState) (args: List<String>) : Types.AppState =
