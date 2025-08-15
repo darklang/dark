@@ -60,9 +60,8 @@ module Darklang =
                     // We're at owner level (e.g., /Darklang)
                     Types.PackagePath.Module owner pathArg
                   else
-                    // We're deeper, but our simple model only supports owner/module
-                    // For now, just navigate to owner/pathArg
-                    Types.PackagePath.Module owner pathArg
+                    // We're in a nested module like Darklang.Stdlib, append to the current path
+                    Types.PackagePath.Module owner $"{moduleName}.{pathArg}"
 
             let newHistory = Stdlib.List.append state.pathHistory [state.currentPath]
             let newPathStr = Packages.Path.formatPath newPath

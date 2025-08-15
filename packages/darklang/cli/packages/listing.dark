@@ -54,7 +54,7 @@ module Darklang =
               Builtin.printLine ""
               Builtin.printLine $"Use 'cd <package>' to explore a package"
 
-            Types.AppState { isExiting = state.isExiting; lastCommand = "ls"; output = "ls root"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode; commandHistory = state.commandHistory; historyIndex = state.historyIndex }
+            { state with lastCommand = "ls"; output = "ls root" }
 
           | Module owner moduleName ->
             let currentModule = if Stdlib.String.isEmpty moduleName then [owner] else [owner; moduleName]
@@ -75,18 +75,26 @@ module Darklang =
             // List submodules - only direct children
             match Stdlib.List.head searchResults.submodules with
             | Some moduleList when Stdlib.Bool.not (Stdlib.List.isEmpty moduleList) ->
-              Builtin.printLine ""
-              Builtin.printLine "  [Submodules]"
               // Filter to only direct children by checking path length
               let expectedLength = (Stdlib.List.length currentModule) + 1L
-              moduleList
-              |> Stdlib.List.filter (fun path ->
-                Stdlib.List.length path == expectedLength)
-              |> Stdlib.List.filterMap (fun path -> Stdlib.List.last path)
-              |> Stdlib.List.unique
-              |> Stdlib.List.sort
-              |> Stdlib.List.iter (fun name ->
-                Builtin.printLine $"    {name}/")
+              let submoduleNames =
+                moduleList
+                |> Stdlib.List.filter (fun path ->
+                  Stdlib.List.length path == expectedLength)
+                |> Stdlib.List.filterMap (fun path -> Stdlib.List.last path)
+                |> Stdlib.List.unique
+                |> Stdlib.List.sort
+                |> Stdlib.List.map (fun name -> $"{name}/")
+                |> Stdlib.String.join ", "
+              let submoduleCount = 
+                moduleList
+                |> Stdlib.List.filter (fun path ->
+                  Stdlib.List.length path == expectedLength)
+                |> Stdlib.List.filterMap (fun path -> Stdlib.List.last path)
+                |> Stdlib.List.unique
+                |> Stdlib.List.length
+              Builtin.printLine ""
+              Builtin.printLine $"  [Submodules] ({Stdlib.Int64.toString submoduleCount}): {submoduleNames}"
             | _ -> ()
 
             // List functions
@@ -137,7 +145,7 @@ module Darklang =
             Builtin.printLine ""
             Builtin.printLine "Use 'view' to see details of functions, types, and constants"
 
-            Types.AppState { isExiting = state.isExiting; lastCommand = "ls"; output = "ls module"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode; commandHistory = state.commandHistory; historyIndex = state.historyIndex }
+            { state with lastCommand = "ls"; output = "ls module" }
 
         // Help function
         let lsHelp (state: Types.AppState) : Types.AppState =
@@ -149,7 +157,7 @@ module Darklang =
           Builtin.printLine "  ls /              - List root packages"
           Builtin.printLine "  ls Darklang       - List Darklang package contents"
           Builtin.printLine "  ls ..             - List parent directory"
-          Types.AppState { isExiting = state.isExiting; lastCommand = "help ls"; output = "ls help displayed"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode; commandHistory = state.commandHistory; historyIndex = state.historyIndex }
+          { state with lastCommand = "help ls"; output = "ls help displayed" }
 
         // Completion function
         let lsComplete (state: Types.AppState) (args: List<String>) : List<String> =
