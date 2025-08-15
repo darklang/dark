@@ -161,7 +161,9 @@ module Darklang =
             Stdlib.List.append allGroups [ungroupedGroup]
         
         let groupsText = Stdlib.String.join finalGroups "\n\n"
-        $"Available commands:\n\n{groupsText}"
+        let helpText = $"Available commands:\n\n{groupsText}"
+        let helpLines = Stdlib.String.split helpText "\n"
+        Logo.combineLogoAndText Logo.logo helpLines "\u001b[90m"
 
       let getCompletions (state: Types.AppState) (input: String) : List<String> =
         let parsed = Completion.parseInput input
