@@ -1,0 +1,46 @@
+module Darklang =
+  module Cli =
+    module Packages =
+      module Path =
+        // Package path utilities
+        let formatPath (path: Types.PackagePath) : String =
+          match path with
+          | Root -> "/"
+          | Module owner moduleName -> $"/{owner}/{moduleName}"
+
+        let parsePath (pathStr: String) : Types.PackagePath =
+          let trimmed = Stdlib.String.trim pathStr
+          if trimmed == "/" || Stdlib.String.isEmpty trimmed then
+            Types.PackagePath.Root
+          else
+            let pathToSplit =
+              if Stdlib.String.startsWith trimmed "/" then
+                Stdlib.String.dropFirst trimmed 1L
+              else
+                trimmed
+            let parts = Stdlib.String.split pathToSplit "/"
+            match parts with
+            | [owner; moduleName] -> Types.PackagePath.Module owner moduleName
+            | [owner] -> Types.PackagePath.Module owner ""
+            | _ -> Types.PackagePath.Root
+
+        // Helper to construct module prefix for search queries
+        let constructModulePrefix (owner: String) (submodules: List<String>) : String =
+          if Stdlib.List.isEmpty submodules then
+            owner
+          else
+            let modulesList = Stdlib.String.join submodules "."
+            $"{owner}.{modulesList}"
+
+        // Create search query from path components
+        let createSearchQuery (parts: List<String>) (remainder: String) : LanguageTools.ProgramTypes.Search.SearchQuery =
+          match parts with
+          | [] -> 
+            LanguageTools.ProgramTypes.Search.SearchQuery
+              { owner = ""; modules = []; name = remainder }
+          | [owner] when Stdlib.String.isEmpty remainder ->
+            LanguageTools.ProgramTypes.Search.SearchQuery
+              { owner = owner; modules = []; name = "" }
+          | owner :: modules ->
+            LanguageTools.ProgramTypes.Search.SearchQuery
+              { owner = owner; modules = modules; name = remainder }
