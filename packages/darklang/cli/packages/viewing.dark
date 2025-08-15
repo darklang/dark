@@ -229,75 +229,109 @@ module Darklang =
         let viewComplete (state: Types.AppState) (args: List<String>) : List<String> =
           match args with
           | [] ->
-            // Get entities from current path for completion
-            let query = 
-              match state.currentPath with
-              | Root ->
+            // At root, suggest top-level packages plus entities
+            match state.currentPath with
+            | Root ->
+              // Get top-level packages (same as cd completion)
+              let moduleQuery =
                 LanguageTools.ProgramTypes.Search.SearchQuery
                   { currentModule = []
                     text = ""
-                    searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants  
-                    entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module
-                                    LanguageTools.ProgramTypes.Search.EntityType.Fn
+                    searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+                    entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module ] }
+              let moduleResults = LanguageTools.PackageManager.Search.search moduleQuery
+
+              // Extract unique owners from module paths
+              let owners =
+                match Stdlib.List.head moduleResults.submodules with
+                | Some moduleList ->
+                  moduleList
+                  |> Stdlib.List.filterMap (fun path ->
+                    match path with
+                    | owner :: _ -> Stdlib.Option.Option.Some owner
+                    | [] -> Stdlib.Option.Option.None)
+                  |> Stdlib.List.unique
+                  |> Stdlib.List.sort
+                | None -> []
+
+              // Also get any entities at root level
+              let entityQuery =
+                LanguageTools.ProgramTypes.Search.SearchQuery
+                  { currentModule = []
+                    text = ""
+                    searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+                    entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Fn
                                     LanguageTools.ProgramTypes.Search.EntityType.Type
                                     LanguageTools.ProgramTypes.Search.EntityType.Constant ] }
-              | Module owner moduleName ->
-                let currentModule = if Stdlib.String.isEmpty moduleName then [owner] else [owner; moduleName]
+              let entityResults = LanguageTools.PackageManager.Search.search entityQuery
+              
+              let entityNames = 
+                let fnNames = entityResults.fns |> Stdlib.List.map (fun fn -> LanguageTools.ProgramTypes.PackageFn.nameToString fn.name)
+                let typeNames = entityResults.types |> Stdlib.List.map (fun typ -> LanguageTools.ProgramTypes.PackageType.nameToString typ.name)
+                let constNames = entityResults.constants |> Stdlib.List.map (fun constant -> LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name)
+                Stdlib.List.append (Stdlib.List.append fnNames typeNames) constNames
+
+              (Stdlib.List.append owners entityNames)
+              |> Stdlib.List.unique
+              |> Stdlib.List.sort
+
+            | Module owner moduleName ->
+              // Inside a module, suggest submodules and entities
+              let currentModule = if Stdlib.String.isEmpty moduleName then [owner] else [owner; moduleName]
+              let query =
                 LanguageTools.ProgramTypes.Search.SearchQuery
                   { currentModule = currentModule
                     text = ""
                     searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
                     entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module
-                                    LanguageTools.ProgramTypes.Search.EntityType.Fn  
+                                    LanguageTools.ProgramTypes.Search.EntityType.Fn
                                     LanguageTools.ProgramTypes.Search.EntityType.Type
                                     LanguageTools.ProgramTypes.Search.EntityType.Constant ] }
-                                    
-            let searchResults = LanguageTools.PackageManager.Search.search query
-            
-            let functionNames = 
-              searchResults.fns
-              |> Stdlib.List.map (fun fn -> LanguageTools.ProgramTypes.PackageFn.nameToString fn.name)
-              |> Stdlib.List.filterMap (fun name -> 
-                let parts = Stdlib.String.split name "."
-                match Stdlib.List.last parts with
-                | Some lastPart -> Stdlib.Option.Option.Some lastPart
-                | None -> Stdlib.Option.Option.None)
-                
-            let typeNames =
-              searchResults.types
-              |> Stdlib.List.map (fun typ -> LanguageTools.ProgramTypes.PackageType.nameToString typ.name)
-              |> Stdlib.List.filterMap (fun name ->
-                let parts = Stdlib.String.split name "."
-                match Stdlib.List.last parts with
-                | Some lastPart -> Stdlib.Option.Option.Some lastPart
-                | None -> Stdlib.Option.Option.None)
-                
-            let constantNames = 
-              searchResults.constants
-              |> Stdlib.List.map (fun constant -> LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name)
-              |> Stdlib.List.filterMap (fun name ->
-                let parts = Stdlib.String.split name "."
-                match Stdlib.List.last parts with
-                | Some lastPart -> Stdlib.Option.Option.Some lastPart
-                | None -> Stdlib.Option.Option.None)
-                
-            let submoduleNames =
-              match Stdlib.List.head searchResults.submodules with
-              | Some moduleList ->
-                let currentModuleLength = 
-                  match state.currentPath with
-                  | Root -> 0L
-                  | Module owner moduleName -> if Stdlib.String.isEmpty moduleName then 1L else 2L
-                let expectedLength = currentModuleLength + 1L
-                moduleList
-                |> Stdlib.List.filter (fun path -> Stdlib.List.length path == expectedLength)
-                |> Stdlib.List.filterMap (fun path -> Stdlib.List.last path)
-                |> Stdlib.List.unique
-              | None -> []
-            
-            (Stdlib.List.append (Stdlib.List.append (Stdlib.List.append functionNames typeNames) constantNames) submoduleNames)
-            |> Stdlib.List.unique
-            |> Stdlib.List.sort
+              let searchResults = LanguageTools.PackageManager.Search.search query
+
+              // Get submodules
+              let submodules = 
+                match Stdlib.List.head searchResults.submodules with
+                | Some moduleList ->
+                  let currentModuleLength = if Stdlib.String.isEmpty moduleName then 1L else 2L
+                  let expectedLength = currentModuleLength + 1L
+                  moduleList
+                  |> Stdlib.List.filter (fun path -> Stdlib.List.length path == expectedLength)
+                  |> Stdlib.List.filterMap (fun path -> Stdlib.List.last path)
+                  |> Stdlib.List.unique
+                | None -> []
+
+              // Get entities (extract just the last part of names)
+              let functionNames = 
+                searchResults.fns
+                |> Stdlib.List.map (fun fn -> LanguageTools.ProgramTypes.PackageFn.nameToString fn.name)
+                |> Stdlib.List.filterMap (fun name -> 
+                  let parts = Stdlib.String.split name "."
+                  match Stdlib.List.last parts with
+                  | Some lastPart -> Stdlib.Option.Option.Some lastPart
+                  | None -> Stdlib.Option.Option.None)
+                  
+              let typeNames =
+                searchResults.types
+                |> Stdlib.List.map (fun typ -> LanguageTools.ProgramTypes.PackageType.nameToString typ.name)
+                |> Stdlib.List.filterMap (fun name ->
+                  let parts = Stdlib.String.split name "."
+                  match Stdlib.List.last parts with
+                  | Some lastPart -> Stdlib.Option.Option.Some lastPart
+                  | None -> Stdlib.Option.Option.None)
+                  
+              let constantNames = 
+                searchResults.constants
+                |> Stdlib.List.map (fun constant -> LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name)
+                |> Stdlib.List.filterMap (fun name ->
+                  let parts = Stdlib.String.split name "."
+                  match Stdlib.List.last parts with
+                  | Some lastPart -> Stdlib.Option.Option.Some lastPart
+                  | None -> Stdlib.Option.Option.None)
+              
+              (Stdlib.List.append (Stdlib.List.append (Stdlib.List.append submodules functionNames) typeNames) constantNames)
+              |> Stdlib.List.unique
+              |> Stdlib.List.sort
 
           | [partial] ->
             // Filter completions by partial match
