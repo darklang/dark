@@ -33,15 +33,57 @@ module Darklang =
           Types.AppState { isExiting = state.isExiting; lastCommand = "cd"; output = "pwd displayed"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode }
         | [pathArg] ->
           let newPath =
+            // Handle special navigation patterns
             if pathArg == ".." then
               // Go back to parent
               match state.currentPath with
               | Root -> Types.PackagePath.Root
-              | Module owner moduleName -> Types.PackagePath.Root
+              | Module owner moduleName -> 
+                if Stdlib.String.isEmpty moduleName then
+                  // At owner level, go to root
+                  Types.PackagePath.Root
+                else
+                  // At module level, go to owner
+                  Types.PackagePath.Module owner ""
+            else if pathArg == "../.." then
+              // Go back two levels - always to root in our simple model
+              Types.PackagePath.Root
             else if pathArg == "/" then
               Types.PackagePath.Root
-            else
+            else if Stdlib.String.startsWith pathArg "/" then
+              // Absolute path
               parsePath pathArg
+            else if Stdlib.String.startsWith pathArg "../" then
+              // Relative path starting with ../
+              // Go up one level first, then navigate
+              let afterDotDot = Stdlib.String.dropFirst pathArg 3L
+              match state.currentPath with
+              | Root -> parsePath afterDotDot
+              | Module owner moduleName ->
+                if Stdlib.String.isEmpty moduleName then
+                  // At owner level, go to root then navigate
+                  parsePath afterDotDot
+                else
+                  // At module level, go to owner then navigate
+                  if Stdlib.String.isEmpty afterDotDot then
+                    Types.PackagePath.Module owner ""
+                  else
+                    Types.PackagePath.Module owner afterDotDot
+            else
+              // Regular relative path - append to current path
+              match state.currentPath with
+              | Root -> 
+                // From root, just parse as normal
+                parsePath pathArg
+              | Module owner moduleName ->
+                // From inside a module, append the new segment
+                if Stdlib.String.isEmpty moduleName then
+                  // We're at owner level (e.g., /Darklang)
+                  Types.PackagePath.Module owner pathArg
+                else
+                  // We're deeper, but our simple model only supports owner/module
+                  // For now, just navigate to owner/pathArg
+                  Types.PackagePath.Module owner pathArg
 
           let newHistory = Stdlib.List.append state.pathHistory [state.currentPath]
           let newPathStr = formatPath newPath
@@ -66,7 +108,23 @@ module Darklang =
 
       // LS command - list contents
       let executeLS (state: Types.AppState) (args: List<String>) : Types.AppState =
-        match state.currentPath with
+        // Determine which path to list
+        let pathToList = 
+          match args with
+          | [] -> state.currentPath  // No args, list current location
+          | [pathArg] -> 
+            // Parse the argument to get the path to list
+            if pathArg == "/" then
+              Types.PackagePath.Root
+            else if pathArg == ".." then
+              match state.currentPath with
+              | Root -> Types.PackagePath.Root
+              | Module owner moduleName -> Types.PackagePath.Root
+            else
+              parsePath pathArg
+          | _ -> state.currentPath  // Multiple args, just use current
+        
+        match pathToList with
         | Root ->
           // Get real top-level packages from the package manager
           let query =
@@ -115,7 +173,7 @@ module Darklang =
                                 LanguageTools.ProgramTypes.Search.EntityType.Constant ] }
           let searchResults = LanguageTools.PackageManager.Search.search query
 
-          let pathStr = formatPath state.currentPath
+          let pathStr = formatPath pathToList
           Builtin.printLine $"Contents of {pathStr}:"
 
           // List submodules - only direct children
@@ -198,10 +256,14 @@ module Darklang =
         Types.AppState { isExiting = state.isExiting; lastCommand = "help cd"; output = "cd help displayed"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode }
 
       let lsHelp (state: Types.AppState) : Types.AppState =
-        Builtin.printLine "Usage: ls"
-        Builtin.printLine "List contents of the current package or module."
+        Builtin.printLine "Usage: ls [path]"
+        Builtin.printLine "List contents of the current location or specified path."
         Builtin.printLine ""
-        Builtin.printLine "Shows available packages at root level, or module contents when inside a module."
+        Builtin.printLine "Examples:"
+        Builtin.printLine "  ls                - List current location"
+        Builtin.printLine "  ls /              - List root packages"
+        Builtin.printLine "  ls Darklang       - List Darklang package contents"
+        Builtin.printLine "  ls ..             - List parent directory"
         Types.AppState { isExiting = state.isExiting; lastCommand = "help ls"; output = "ls help displayed"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode }
 
       let pwdHelp (state: Types.AppState) : Types.AppState =
