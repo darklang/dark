@@ -1,0 +1,286 @@
+module Darklang =
+  module Cli =
+    module Packages =
+      module Viewing =
+        // Entity categories for viewing mode
+        type EntityCategory = 
+          | Functions
+          | Types  
+          | Constants
+          | Submodules
+
+        // VIEW command - view modules, functions, types, or constants
+        let executeView (state: Types.AppState) (args: List<String>) : Types.AppState =
+          match args with
+          | [] ->
+            Builtin.printLine "Usage: view <entityName> or view <moduleName>"
+            Builtin.printLine "View details of functions, types, constants, or modules."
+            Types.AppState { isExiting = state.isExiting; lastCommand = "view help"; output = "view help displayed"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode }
+          | [fullPath] ->
+            // Parse the path: could be "Option" or "Darklang.Stdlib.Option.Option" 
+            let pathParts = Stdlib.String.split fullPath "."
+            
+            // Try to find as a specific entity first
+            let (modulePath, entityName) = 
+              match Stdlib.List.reverse pathParts with
+              | [] -> ([], fullPath)  // Shouldn't happen, but handle gracefully
+              | [singleName] ->
+                // Single name like "Option" - search in current context
+                match state.currentPath with
+                | Root -> ([], singleName)
+                | Module owner moduleName ->
+                  let currentModule = if Stdlib.String.isEmpty moduleName then [owner] else [owner; moduleName]
+                  (currentModule, singleName)
+              | entityName :: reversedModuleParts ->
+                // Multi-part path like "Darklang.Stdlib.Option.Option"
+                let moduleParts = Stdlib.List.reverse reversedModuleParts
+                (moduleParts, entityName)
+
+            // Build search query to find the entity in the specified module
+            let searchQuery = 
+              LanguageTools.ProgramTypes.Search.SearchQuery
+                { currentModule = modulePath
+                  text = ""
+                  searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+                  entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Fn
+                                  LanguageTools.ProgramTypes.Search.EntityType.Type
+                                  LanguageTools.ProgramTypes.Search.EntityType.Constant
+                                  LanguageTools.ProgramTypes.Search.EntityType.Module ] }
+
+            let searchResults = LanguageTools.PackageManager.Search.search searchQuery
+
+            // Try to find the specific entity by exact name match
+            let foundFunction = 
+              searchResults.fns
+              |> Stdlib.List.findFirst (fun fn ->
+                let name = LanguageTools.ProgramTypes.PackageFn.nameToString fn.name
+                let parts = Stdlib.String.split name "."
+                match Stdlib.List.last parts with
+                | Some lastPart -> lastPart == entityName
+                | None -> name == entityName)
+                
+            let foundType =
+              searchResults.types  
+              |> Stdlib.List.findFirst (fun typ ->
+                let name = LanguageTools.ProgramTypes.PackageType.nameToString typ.name
+                let parts = Stdlib.String.split name "."
+                match Stdlib.List.last parts with
+                | Some lastPart -> lastPart == entityName
+                | None -> name == entityName)
+                
+            let foundConstant =
+              searchResults.constants
+              |> Stdlib.List.findFirst (fun constant ->
+                let name = LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name  
+                let parts = Stdlib.String.split name "."
+                match Stdlib.List.last parts with
+                | Some lastPart -> lastPart == entityName
+                | None -> name == entityName)
+
+            // Display the found entity
+            match foundFunction with
+            | Some fn ->
+              viewSpecificFunction state fn
+            | None ->
+              match foundType with 
+              | Some typ ->
+                viewSpecificType state typ
+              | None ->
+                match foundConstant with
+                | Some constant ->
+                  viewSpecificConstant state constant
+                | None ->
+                  // No entity found - try as a module
+                  let hasModuleContents = 
+                    Stdlib.Bool.not (Stdlib.List.isEmpty searchResults.fns) ||
+                    Stdlib.Bool.not (Stdlib.List.isEmpty searchResults.types) ||
+                    Stdlib.Bool.not (Stdlib.List.isEmpty searchResults.constants) ||
+                    Stdlib.Bool.not (Stdlib.List.isEmpty searchResults.submodules)
+                  
+                  if hasModuleContents then
+                    // Display as module
+                    viewAsModule state fullPath searchResults
+                  else
+                    // Nothing found
+                    Builtin.printLine $"Entity '{fullPath}' not found."
+                    Builtin.printLine "Use 'ls' to see available entities or 'cd' to navigate to a module."
+                    Types.AppState { isExiting = state.isExiting; lastCommand = "view"; output = $"entity {fullPath} not found"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode }
+          | _ ->
+            Builtin.printLine "Usage: view <entityName>"
+            Builtin.printLine "Too many arguments provided."
+            Types.AppState { isExiting = state.isExiting; lastCommand = "view error"; output = "view error"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode }
+
+        // Helper function to view a specific function
+        let viewSpecificFunction (state: Types.AppState) (fn: LanguageTools.ProgramTypes.PackageFn.PackageFn) : Types.AppState =
+          let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageFn fn
+          Builtin.printLine prettyPrinted
+
+          let name = LanguageTools.ProgramTypes.PackageFn.nameToString fn.name
+          Types.AppState { isExiting = state.isExiting; lastCommand = "view"; output = $"viewed function {name}"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode }
+
+        // Helper function to view a specific type
+        let viewSpecificType (state: Types.AppState) (typ: LanguageTools.ProgramTypes.PackageType.PackageType) : Types.AppState =
+          let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageType typ
+          Builtin.printLine prettyPrinted
+
+          let name = LanguageTools.ProgramTypes.PackageType.nameToString typ.name
+          Types.AppState { isExiting = state.isExiting; lastCommand = "view"; output = $"viewed type {name}"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode }
+
+        // Helper function to view a specific constant  
+        let viewSpecificConstant (state: Types.AppState) (constant: LanguageTools.ProgramTypes.PackageConstant.PackageConstant) : Types.AppState =
+          let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageConstant constant
+          Builtin.printLine prettyPrinted
+
+          let name = LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name
+          Types.AppState { isExiting = state.isExiting; lastCommand = "view"; output = $"viewed constant {name}"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode }
+
+        // Helper function to view as module
+        let viewAsModule (state: Types.AppState) (pathStr: String) (searchResults: LanguageTools.ProgramTypes.Search.SearchResults) : Types.AppState =
+          Builtin.printLine $"Module: {pathStr}"
+          Builtin.printLine ""
+
+          // Display functions
+          let fnCount = Stdlib.List.length searchResults.fns
+          if fnCount > 0L then
+            let fnNames = 
+              searchResults.fns 
+              |> Stdlib.List.map (fun fn -> 
+                LanguageTools.ProgramTypes.PackageFn.nameToString fn.name)
+              |> Stdlib.String.join ", "
+            Builtin.printLine $"Functions ({Stdlib.Int64.toString fnCount}): {fnNames}"
+
+          // Display types
+          let typeCount = Stdlib.List.length searchResults.types
+          if typeCount > 0L then
+            let typeNames = 
+              searchResults.types
+              |> Stdlib.List.map (fun typ ->
+                LanguageTools.ProgramTypes.PackageType.nameToString typ.name)
+              |> Stdlib.String.join ", "
+            Builtin.printLine $"Types ({Stdlib.Int64.toString typeCount}): {typeNames}"
+
+          // Display constants  
+          let constCount = Stdlib.List.length searchResults.constants
+          if constCount > 0L then
+            let constNames = 
+              searchResults.constants
+              |> Stdlib.List.map (fun constant ->
+                LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name)
+              |> Stdlib.String.join ", "
+            Builtin.printLine $"Constants ({Stdlib.Int64.toString constCount}): {constNames}"
+
+          // Display submodules
+          if Stdlib.Bool.not (Stdlib.List.isEmpty searchResults.submodules) then
+            match Stdlib.List.head searchResults.submodules with
+            | Some moduleList ->
+              let currentModule = Stdlib.String.split pathStr "."
+              let expectedLength = (Stdlib.List.length currentModule) + 1L
+              let directChildren = 
+                moduleList
+                |> Stdlib.List.filter (fun path -> Stdlib.List.length path == expectedLength)
+                |> Stdlib.List.filterMap (fun path -> Stdlib.List.last path)
+                |> Stdlib.List.unique
+                |> Stdlib.List.sort
+              
+              if Stdlib.Bool.not (Stdlib.List.isEmpty directChildren) then
+                Builtin.printLine $"Submodules ({Stdlib.Int64.toString (Stdlib.List.length directChildren)}):"
+                directChildren
+                |> Stdlib.List.iter (fun name -> Builtin.printLine $"  {name}/")
+            | None -> ()
+
+          Types.AppState { isExiting = state.isExiting; lastCommand = "view"; output = $"viewed module {pathStr}"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode }
+
+        // Help function  
+        let viewHelp (state: Types.AppState) : Types.AppState =
+          Builtin.printLine "Usage: view <entityName>"
+          Builtin.printLine "View detailed information about functions, types, constants, or modules."
+          Builtin.printLine ""
+          Builtin.printLine "Examples:"
+          Builtin.printLine "  view List.head          - View the List.head function"
+          Builtin.printLine "  view Option             - View the Option type"
+          Builtin.printLine "  view Stdlib.List        - View contents of Stdlib.List module"
+          Types.AppState { isExiting = state.isExiting; lastCommand = "help view"; output = "view help displayed"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode }
+
+        // Completion function
+        let viewComplete (state: Types.AppState) (args: List<String>) : List<String> =
+          match args with
+          | [] ->
+            // Get entities from current path for completion
+            let query = 
+              match state.currentPath with
+              | Root ->
+                LanguageTools.ProgramTypes.Search.SearchQuery
+                  { currentModule = []
+                    text = ""
+                    searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants  
+                    entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module
+                                    LanguageTools.ProgramTypes.Search.EntityType.Fn
+                                    LanguageTools.ProgramTypes.Search.EntityType.Type
+                                    LanguageTools.ProgramTypes.Search.EntityType.Constant ] }
+              | Module owner moduleName ->
+                let currentModule = if Stdlib.String.isEmpty moduleName then [owner] else [owner; moduleName]
+                LanguageTools.ProgramTypes.Search.SearchQuery
+                  { currentModule = currentModule
+                    text = ""
+                    searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+                    entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module
+                                    LanguageTools.ProgramTypes.Search.EntityType.Fn  
+                                    LanguageTools.ProgramTypes.Search.EntityType.Type
+                                    LanguageTools.ProgramTypes.Search.EntityType.Constant ] }
+                                    
+            let searchResults = LanguageTools.PackageManager.Search.search query
+            
+            let functionNames = 
+              searchResults.fns
+              |> Stdlib.List.map (fun fn -> LanguageTools.ProgramTypes.PackageFn.nameToString fn.name)
+              |> Stdlib.List.filterMap (fun name -> 
+                let parts = Stdlib.String.split name "."
+                match Stdlib.List.last parts with
+                | Some lastPart -> Stdlib.Option.Option.Some lastPart
+                | None -> Stdlib.Option.Option.None)
+                
+            let typeNames =
+              searchResults.types
+              |> Stdlib.List.map (fun typ -> LanguageTools.ProgramTypes.PackageType.nameToString typ.name)
+              |> Stdlib.List.filterMap (fun name ->
+                let parts = Stdlib.String.split name "."
+                match Stdlib.List.last parts with
+                | Some lastPart -> Stdlib.Option.Option.Some lastPart
+                | None -> Stdlib.Option.Option.None)
+                
+            let constantNames = 
+              searchResults.constants
+              |> Stdlib.List.map (fun constant -> LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name)
+              |> Stdlib.List.filterMap (fun name ->
+                let parts = Stdlib.String.split name "."
+                match Stdlib.List.last parts with
+                | Some lastPart -> Stdlib.Option.Option.Some lastPart
+                | None -> Stdlib.Option.Option.None)
+                
+            let submoduleNames =
+              match Stdlib.List.head searchResults.submodules with
+              | Some moduleList ->
+                let currentModuleLength = 
+                  match state.currentPath with
+                  | Root -> 0L
+                  | Module owner moduleName -> if Stdlib.String.isEmpty moduleName then 1L else 2L
+                let expectedLength = currentModuleLength + 1L
+                moduleList
+                |> Stdlib.List.filter (fun path -> Stdlib.List.length path == expectedLength)
+                |> Stdlib.List.filterMap (fun path -> Stdlib.List.last path)
+                |> Stdlib.List.unique
+              | None -> []
+            
+            (Stdlib.List.append (Stdlib.List.append (Stdlib.List.append functionNames typeNames) constantNames) submoduleNames)
+            |> Stdlib.List.unique
+            |> Stdlib.List.sort
+
+          | [partial] ->
+            // Filter completions by partial match
+            let allCompletions = viewComplete state []
+            let lowerPartial = Stdlib.String.toLowercase partial
+            allCompletions
+            |> Stdlib.List.filter (fun name ->
+              Stdlib.String.startsWith (Stdlib.String.toLowercase name) lowerPartial)
+              
+          | _ -> []

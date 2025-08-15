@@ -89,23 +89,50 @@ module Darklang =
                 Builtin.printLine $"    {name}/")
             | _ -> ()
 
-            // Count functions
+            // List functions
             let fnCount = Stdlib.List.length searchResults.fns
             if fnCount > 0L then
               Builtin.printLine ""
-              Builtin.printLine $"  [Functions] ({Stdlib.Int64.toString fnCount} items)"
+              let fnNames = 
+                searchResults.fns
+                |> Stdlib.List.map (fun fn ->
+                  let name = LanguageTools.ProgramTypes.PackageFn.nameToString fn.name
+                  let parts = Stdlib.String.split name "."
+                  match Stdlib.List.last parts with
+                  | Some lastPart -> lastPart
+                  | None -> name)
+                |> Stdlib.String.join ", "
+              Builtin.printLine $"  [Functions] ({Stdlib.Int64.toString fnCount}): {fnNames}"
 
-            // Count types
+            // List types
             let typeCount = Stdlib.List.length searchResults.types
             if typeCount > 0L then
               Builtin.printLine ""
-              Builtin.printLine $"  [Types] ({Stdlib.Int64.toString typeCount} items)"
+              let typeNames = 
+                searchResults.types
+                |> Stdlib.List.map (fun typ ->
+                  let name = LanguageTools.ProgramTypes.PackageType.nameToString typ.name
+                  let parts = Stdlib.String.split name "."
+                  match Stdlib.List.last parts with
+                  | Some lastPart -> lastPart
+                  | None -> name)
+                |> Stdlib.String.join ", "
+              Builtin.printLine $"  [Types] ({Stdlib.Int64.toString typeCount}): {typeNames}"
 
-            // Count constants
+            // List constants
             let constCount = Stdlib.List.length searchResults.constants
             if constCount > 0L then
               Builtin.printLine ""
-              Builtin.printLine $"  [Constants] ({Stdlib.Int64.toString constCount} items)"
+              let constNames = 
+                searchResults.constants
+                |> Stdlib.List.map (fun constant ->
+                  let name = LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name
+                  let parts = Stdlib.String.split name "."
+                  match Stdlib.List.last parts with
+                  | Some lastPart -> lastPart
+                  | None -> name)
+                |> Stdlib.String.join ", "
+              Builtin.printLine $"  [Constants] ({Stdlib.Int64.toString constCount}): {constNames}"
 
             Builtin.printLine ""
             Builtin.printLine "Use 'view' to see details of functions, types, and constants"

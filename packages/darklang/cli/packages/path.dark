@@ -6,7 +6,11 @@ module Darklang =
         let formatPath (path: Types.PackagePath) : String =
           match path with
           | Root -> "/"
-          | Module owner moduleName -> $"/{owner}/{moduleName}"
+          | Module owner moduleName -> 
+            if Stdlib.String.isEmpty moduleName then
+              $"@{owner}"
+            else
+              $"@{owner}.{moduleName}"
 
         let parsePath (pathStr: String) : Types.PackagePath =
           let trimmed = Stdlib.String.trim pathStr
@@ -18,7 +22,13 @@ module Darklang =
                 Stdlib.String.dropFirst trimmed 1L
               else
                 trimmed
-            let parts = Stdlib.String.split pathToSplit "/"
+            let parts = 
+              if Stdlib.String.contains pathToSplit "." then
+                // Handle dotted paths like "Darklang.Stdlib"
+                Stdlib.String.split pathToSplit "."
+              else
+                // Handle slash paths like "Darklang/Stdlib"  
+                Stdlib.String.split pathToSplit "/"
             match parts with
             | [owner; moduleName] -> Types.PackagePath.Module owner moduleName
             | [owner] -> Types.PackagePath.Module owner ""
