@@ -9,7 +9,7 @@ module Darklang =
             // No args, show current path
             let currentPathStr = Packages.Path.formatPath state.currentPath
             Builtin.printLine $"Current path: {currentPathStr}"
-            Types.AppState { isExiting = state.isExiting; lastCommand = "cd"; output = "pwd displayed"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode; commandHistory = state.commandHistory; historyIndex = state.historyIndex }
+            { state with lastCommand = "cd"; output = "pwd displayed" }
           | [pathArg] ->
             let newPath =
               // Handle special navigation patterns
@@ -17,7 +17,7 @@ module Darklang =
                 // Go back to parent
                 match state.currentPath with
                 | Root -> Types.PackagePath.Root
-                | Module owner moduleName -> 
+                | Module owner moduleName ->
                   if Stdlib.String.isEmpty moduleName then
                     // At owner level, go to root
                     Types.PackagePath.Root
@@ -51,7 +51,7 @@ module Darklang =
               else
                 // Regular relative path - append to current path
                 match state.currentPath with
-                | Root -> 
+                | Root ->
                   // From root, just parse as normal
                   Packages.Path.parsePath pathArg
                 | Module owner moduleName ->
@@ -68,28 +68,24 @@ module Darklang =
             let newPathStr = Packages.Path.formatPath newPath
             Builtin.printLine $"Changed to: {newPathStr}"
 
-            Types.AppState {
-              isExiting = state.isExiting;
-              lastCommand = "cd";
-              output = $"cd to {newPathStr}";
-              mainPrompt = state.mainPrompt;
-              needsFullRedraw = true;
-              currentPath = newPath;
-              pathHistory = newHistory;
-              viewMode = state.viewMode
-            }
+            { state with
+                lastCommand = "cd"
+                output = $"cd to {newPathStr}"
+                needsFullRedraw = true
+                currentPath = newPath
+                pathHistory = newHistory }
           | _ ->
             Builtin.printLine "Usage: cd [path]"
             Builtin.printLine "  cd /           - Go to root"
             Builtin.printLine "  cd ..          - Go to parent"
             Builtin.printLine "  cd owner/module - Go to module"
-            Types.AppState { isExiting = state.isExiting; lastCommand = "cd"; output = "cd help displayed"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode; commandHistory = state.commandHistory; historyIndex = state.historyIndex }
+            { state with lastCommand = "cd"; output = "cd help displayed" }
 
         // PWD command - show current path
         let executePWD (state: Types.AppState) (args: List<String>) : Types.AppState =
           let currentPathStr = Packages.Path.formatPath state.currentPath
           Builtin.printLine currentPathStr
-          Types.AppState { isExiting = state.isExiting; lastCommand = "pwd"; output = "pwd displayed"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode; commandHistory = state.commandHistory; historyIndex = state.historyIndex }
+          { state with lastCommand = "pwd"; output = "pwd displayed" }
 
         // BACK command - navigate back using history
         let executeBACK (state: Types.AppState) (args: List<String>) : Types.AppState =
@@ -99,19 +95,15 @@ module Darklang =
             let pathStr = Packages.Path.formatPath previousPath
             Builtin.printLine $"Back to: {pathStr}"
 
-            Types.AppState {
-              isExiting = state.isExiting;
-              lastCommand = "back";
-              output = $"back to {pathStr}";
-              mainPrompt = state.mainPrompt;
-              needsFullRedraw = true;
-              currentPath = previousPath;
-              pathHistory = newHistory;
-              viewMode = state.viewMode
-            }
+            { state with
+                lastCommand = "back"
+                output = $"back to {pathStr}"
+                needsFullRedraw = true
+                currentPath = previousPath
+                pathHistory = newHistory }
           | None ->
             Builtin.printLine "No previous location in history"
-            Types.AppState { isExiting = state.isExiting; lastCommand = "back"; output = "no history"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode; commandHistory = state.commandHistory; historyIndex = state.historyIndex }
+            { state with lastCommand = "back"; output = "no history" }
 
         // Help functions
         let cdHelp (state: Types.AppState) : Types.AppState =
@@ -124,17 +116,17 @@ module Darklang =
           Builtin.printLine "  cd Stdlib           - Go to Stdlib owner"
           Builtin.printLine "  cd Stdlib/List      - Go to Stdlib.List module"
           Builtin.printLine "  cd /Darklang/Stdlib - Absolute path"
-          Types.AppState { isExiting = state.isExiting; lastCommand = "help cd"; output = "cd help displayed"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode; commandHistory = state.commandHistory; historyIndex = state.historyIndex }
+          { state with lastCommand = "help cd"; output = "cd help displayed" }
 
         let pwdHelp (state: Types.AppState) : Types.AppState =
           Builtin.printLine "Usage: pwd"
           Builtin.printLine "Show the current package path."
-          Types.AppState { isExiting = state.isExiting; lastCommand = "help pwd"; output = "pwd help displayed"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode; commandHistory = state.commandHistory; historyIndex = state.historyIndex }
+          { state with lastCommand = "help pwd"; output = "pwd help displayed" }
 
         let backHelp (state: Types.AppState) : Types.AppState =
           Builtin.printLine "Usage: back"
           Builtin.printLine "Navigate back to the previous location in history."
-          Types.AppState { isExiting = state.isExiting; lastCommand = "help back"; output = "back help displayed"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode; commandHistory = state.commandHistory; historyIndex = state.historyIndex }
+          { state with lastCommand = "help back"; output = "back help displayed" }
 
         // Completion functions
         let cdComplete (state: Types.AppState) (args: List<String>) : List<String> =
@@ -185,7 +177,7 @@ module Darklang =
                   // Filter to only direct children by checking path length
                   let expectedLength = (Stdlib.List.length currentModule) + 1L
                   moduleList
-                  |> Stdlib.List.filter (fun path -> 
+                  |> Stdlib.List.filter (fun path ->
                     Stdlib.List.length path == expectedLength)
                   |> Stdlib.List.filterMap (fun path ->
                     // Get the last part of the path as the submodule name
@@ -214,7 +206,7 @@ module Darklang =
                 // Multi-part dot notation like "Darklang.St"
                 let prefixParts = Stdlib.List.reverse reversedPrefixParts
                 let lowerLastPartial = Stdlib.String.toLowercase lastPartial
-                
+
                 // Search in the specified module context
                 let query =
                   LanguageTools.ProgramTypes.Search.SearchQuery
@@ -223,7 +215,7 @@ module Darklang =
                       searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
                       entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module ] }
                 let searchResults = LanguageTools.PackageManager.Search.search query
-                
+
                 // Extract submodule names that match the partial
                 match Stdlib.List.head searchResults.submodules with
                 | Some moduleList ->
@@ -232,7 +224,7 @@ module Darklang =
                     moduleList
                     |> Stdlib.List.filter (fun path -> Stdlib.List.length path == expectedLength)
                     |> Stdlib.List.filterMap (fun path -> Stdlib.List.last path)
-                    |> Stdlib.List.filter (fun name -> 
+                    |> Stdlib.List.filter (fun name ->
                       Stdlib.String.startsWith (Stdlib.String.toLowercase name) lowerLastPartial)
                     |> Stdlib.List.map (fun name ->
                       let prefix = Stdlib.String.join prefixParts "."
