@@ -20,7 +20,9 @@ module Darklang =
           CommandHandler { name = "cd"; description = "Navigate to package or module"; aliases = []; execute = Explore.executeCD; help = Explore.cdHelp; complete = Explore.cdComplete }
           CommandHandler { name = "ls"; description = "List package contents"; aliases = ["dir"]; execute = Explore.executeLS; help = Explore.lsHelp; complete = Explore.lsComplete }
           CommandHandler { name = "pwd"; description = "Show current package path"; aliases = []; execute = Explore.executePWD; help = Explore.pwdHelp; complete = Explore.pwdComplete }
-          CommandHandler { name = "back"; description = "Go back to previous location"; aliases = ["b"]; execute = Explore.executeBACK; help = Explore.backHelp; complete = Explore.backComplete } ]
+          CommandHandler { name = "back"; description = "Go back to previous location"; aliases = ["b"]; execute = Explore.executeBACK; help = Explore.backHelp; complete = Explore.backComplete }
+          CommandHandler { name = "clear"; description = "Clear the screen"; aliases = ["cls"]; execute = Cli.Commands.executeClear; help = Cli.Commands.clearHelp; complete = Cli.Commands.clearComplete }
+          CommandHandler { name = "run"; description = "Run a function or script"; aliases = []; execute = Cli.Execution.executeRun; help = Cli.Execution.runHelp; complete = Cli.Execution.runComplete } ]
 
       let findCommand (name: String) : CommandHandler =
         let commands = allCommands ()

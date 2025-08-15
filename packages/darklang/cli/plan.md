@@ -11,9 +11,9 @@
 - Tab completion for cd command showing actual packages
 - Installation commands reorganized into proper module structure
 - Fixed ls to show only direct children, not all descendants
+- Robust cd/ls navigation: .., ../.., relative/absolute paths, ls with args
 
 ## 🐛 Known Bugs
-- cd with relative paths doesn't append to current path (cd Stdlib from /Darklang should go to /Darklang/Stdlib)
 - Dot-notation paths not supported yet (cd Darklang.Stdlib)
 
 ## 📋 Next Up
@@ -29,6 +29,9 @@
 - Port `mode` command for interaction modes
 - Add tests.dark module
 - Support dot-notation paths
+- Implement `tree` command with two modes:
+  - `tree --plain`: ASCII tree view with cute icons (📦 modules, 🔧 fns, 📋 types, 💎 values)
+  - `tree` (interactive): expandable/collapsible tree like `lf` file manager
 
 ### Major Features (need keystroke input first)
 - Upgrade to keystroke-based input for true interactive mode

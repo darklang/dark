@@ -197,19 +197,19 @@ module Darklang =
           let fnCount = Stdlib.List.length searchResults.fns
           if fnCount > 0L then
             Builtin.printLine ""
-            Builtin.printLine $"  [Functions] ({fnCount} items)"
+            Builtin.printLine $"  [Functions] ({Stdlib.Int64.toString fnCount} items)"
 
           // Count types
           let typeCount = Stdlib.List.length searchResults.types
           if typeCount > 0L then
             Builtin.printLine ""
-            Builtin.printLine $"  [Types] ({typeCount} items)"
+            Builtin.printLine $"  [Types] ({Stdlib.Int64.toString typeCount} items)"
 
           // Count constants
           let constCount = Stdlib.List.length searchResults.constants
           if constCount > 0L then
             Builtin.printLine ""
-            Builtin.printLine $"  [Constants] ({constCount} items)"
+            Builtin.printLine $"  [Constants] ({Stdlib.Int64.toString constCount} items)"
 
           Builtin.printLine ""
           Builtin.printLine "Use 'view' to see details of functions, types, and constants"
