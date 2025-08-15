@@ -1,0 +1,67 @@
+module Darklang =
+  module Cli =
+    module Mode =
+      let executeMode (state: Types.AppState) (args: List<String>) : Types.AppState =
+        match args with
+        | [] ->
+          // Show current mode
+          let currentModeStr = 
+            match state.viewMode with
+            | CommandMode -> "command"
+            | InteractiveMode -> "interactive"
+          Builtin.printLine $"Current mode: {currentModeStr}"
+          { state with lastCommand = "mode"; output = "mode displayed" }
+        | [newModeStr] ->
+          // Switch to specified mode
+          let targetMode = 
+            match Stdlib.String.toLowercase newModeStr with
+            | "command" | "cmd" -> Stdlib.Option.Option.Some Types.ViewMode.CommandMode
+            | "interactive" | "int" -> Stdlib.Option.Option.Some Types.ViewMode.InteractiveMode
+            | _ -> Stdlib.Option.Option.None
+          
+          match targetMode with
+          | Some mode ->
+            if mode == state.viewMode then
+              Builtin.printLine $"Already in {newModeStr} mode"
+              { state with lastCommand = "mode"; output = "mode unchanged" }
+            else
+              let modeStr = 
+                match mode with
+                | CommandMode -> "command"
+                | InteractiveMode -> "interactive"
+              Builtin.printLine $"Switched to {modeStr} mode"
+              { state with viewMode = mode; lastCommand = "mode"; output = $"switched to {modeStr} mode" }
+          | None ->
+            Builtin.printLine (Colors.error $"Unknown mode: {newModeStr}")
+            Builtin.printLine "Available modes: command, interactive"
+            { state with lastCommand = "mode"; output = "invalid mode" }
+        | _ ->
+          Builtin.printLine (Colors.error "Too many arguments")
+          Builtin.printLine "Usage: mode [command|interactive]"
+          { state with lastCommand = "mode"; output = "too many args" }
+
+      let modeHelp (state: Types.AppState) : Types.AppState =
+        Builtin.printLine "Usage: mode [command|interactive]"
+        Builtin.printLine "Switch between CLI interaction modes or display current mode."
+        Builtin.printLine ""
+        Builtin.printLine "Modes:"
+        Builtin.printLine "  command      - Execute commands one at a time (default)"
+        Builtin.printLine "  interactive  - Interactive browsing and navigation mode"
+        Builtin.printLine ""
+        Builtin.printLine "Examples:"
+        Builtin.printLine "  mode                  - Show current mode"
+        Builtin.printLine "  mode command          - Switch to command mode"
+        Builtin.printLine "  mode interactive      - Switch to interactive mode"
+        { state with lastCommand = "help mode"; output = "mode help displayed" }
+
+      let modeComplete (state: Types.AppState) (args: List<String>) : List<String> =
+        match args with
+        | [] -> ["command"; "interactive"]
+        | [partial] ->
+          let options = ["command"; "interactive"]
+          if Stdlib.String.isEmpty partial then
+            options
+          else
+            Stdlib.List.filter options (fun option -> 
+              Stdlib.String.startsWith option partial)
+        | _ -> []

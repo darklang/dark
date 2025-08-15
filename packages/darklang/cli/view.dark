@@ -17,8 +17,8 @@ module Darklang =
         if Stdlib.String.isEmpty hint then
           $"{currentPathStr}> {state.mainPrompt}"
         else
-          // Use ANSI escape codes: \u001b[2m for dim text, \u001b[0m to reset
-          $"{currentPathStr}> {state.mainPrompt}\u001b[2m{hint}\u001b[0m"
+          // Use ANSI escape codes for dim hint text
+          $"{currentPathStr}> {state.mainPrompt}" ++ (Colors.hint hint)
 
       let formatWelcome () : String =
         $"Darklang CLI\n\n{Registry.getCommandList ()}\n\nType 'help <command>' for specific command help."

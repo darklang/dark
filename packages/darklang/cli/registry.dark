@@ -25,7 +25,8 @@ module Darklang =
           CommandHandler { name = "run"; description = "Run a function or script"; aliases = []; execute = Cli.Execution.executeRun; help = Cli.Execution.runHelp; complete = Cli.Execution.runComplete }
           CommandHandler { name = "eval"; description = "Evaluate a Dark expression"; aliases = ["e"]; execute = Cli.Execution.executeEval; help = Cli.Execution.evalHelp; complete = Cli.Execution.evalComplete }
           CommandHandler { name = "scripts"; description = "Store, manage, and run Dark scripts"; aliases = []; execute = Cli.Scripts.executeScripts; help = Cli.Scripts.scriptsHelp; complete = Cli.Scripts.scriptsComplete }
-          CommandHandler { name = "view"; description = "View details of functions, types, constants, or modules"; aliases = []; execute = Packages.Viewing.executeView; help = Packages.Viewing.viewHelp; complete = Packages.Viewing.viewComplete } ]
+          CommandHandler { name = "view"; description = "View details of functions, types, constants, or modules"; aliases = []; execute = Packages.Viewing.executeView; help = Packages.Viewing.viewHelp; complete = Packages.Viewing.viewComplete }
+          CommandHandler { name = "mode"; description = "Switch between CLI interaction modes"; aliases = []; execute = Mode.executeMode; help = Mode.modeHelp; complete = Mode.modeComplete } ]
 
       let findCommand (name: String) : CommandHandler =
         let commands = allCommands ()
@@ -69,7 +70,7 @@ module Darklang =
         let packageCommands = ["cd"; "ls"; "view"; "pwd"; "back"]
         let executionCommands = ["run"; "eval"; "scripts"]
         let installCommands = ["install"; "update"; "uninstall"; "status"; "version"]
-        let utilityCommands = ["clear"; "help"; "quit"]
+        let utilityCommands = ["clear"; "help"; "quit"; "mode"]
         
         // Format package navigation group
         let packageGroup =
@@ -163,7 +164,7 @@ module Darklang =
         let groupsText = Stdlib.String.join finalGroups "\n\n"
         let helpText = $"Available commands:\n\n{groupsText}"
         let helpLines = Stdlib.String.split helpText "\n"
-        Logo.combineLogoAndText Logo.logo helpLines "\u001b[90m"
+        Logo.combineLogoAndText Logo.logo helpLines Colors.logoColor
 
       let getCompletions (state: Types.AppState) (input: String) : List<String> =
         let parsed = Completion.parseInput input

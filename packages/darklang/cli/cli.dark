@@ -9,7 +9,7 @@ module Darklang =
           Builtin.printLine (View.formatPrompt ())
         else
           // Clear current line completely and redraw prompt with current input and hints
-          Builtin.print "\r\u001b[K"
+          Builtin.print $"{Colors.carriageReturn}{Colors.clearLine}"
         Builtin.print (View.formatPromptWithInput state)
         
         // Read keystroke input

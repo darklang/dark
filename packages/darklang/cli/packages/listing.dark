@@ -5,10 +5,10 @@ module Darklang =
         // LS command - list contents
         let executeLS (state: Types.AppState) (args: List<String>) : Types.AppState =
           // Determine which path to list
-          let pathToList = 
+          let pathToList =
             match args with
             | [] -> state.currentPath  // No args, list current location
-            | [pathArg] -> 
+            | [pathArg] ->
               // Parse the argument to get the path to list
               if pathArg == "/" then
                 Types.PackagePath.Root
@@ -19,7 +19,7 @@ module Darklang =
               else
                 Packages.Path.parsePath pathArg
             | _ -> state.currentPath  // Multiple args, just use current
-          
+
           match pathToList with
           | Root ->
             // Get real top-level packages from the package manager
@@ -54,7 +54,7 @@ module Darklang =
               Builtin.printLine ""
               Builtin.printLine $"Use 'cd <package>' to explore a package"
 
-            Types.AppState { isExiting = state.isExiting; lastCommand = "ls"; output = "ls root"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode }
+            Types.AppState { isExiting = state.isExiting; lastCommand = "ls"; output = "ls root"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode; commandHistory = state.commandHistory; historyIndex = state.historyIndex }
 
           | Module owner moduleName ->
             let currentModule = if Stdlib.String.isEmpty moduleName then [owner] else [owner; moduleName]
@@ -80,7 +80,7 @@ module Darklang =
               // Filter to only direct children by checking path length
               let expectedLength = (Stdlib.List.length currentModule) + 1L
               moduleList
-              |> Stdlib.List.filter (fun path -> 
+              |> Stdlib.List.filter (fun path ->
                 Stdlib.List.length path == expectedLength)
               |> Stdlib.List.filterMap (fun path -> Stdlib.List.last path)
               |> Stdlib.List.unique
@@ -93,7 +93,7 @@ module Darklang =
             let fnCount = Stdlib.List.length searchResults.fns
             if fnCount > 0L then
               Builtin.printLine ""
-              let fnNames = 
+              let fnNames =
                 searchResults.fns
                 |> Stdlib.List.map (fun fn ->
                   let name = LanguageTools.ProgramTypes.PackageFn.nameToString fn.name
@@ -108,7 +108,7 @@ module Darklang =
             let typeCount = Stdlib.List.length searchResults.types
             if typeCount > 0L then
               Builtin.printLine ""
-              let typeNames = 
+              let typeNames =
                 searchResults.types
                 |> Stdlib.List.map (fun typ ->
                   let name = LanguageTools.ProgramTypes.PackageType.nameToString typ.name
@@ -123,7 +123,7 @@ module Darklang =
             let constCount = Stdlib.List.length searchResults.constants
             if constCount > 0L then
               Builtin.printLine ""
-              let constNames = 
+              let constNames =
                 searchResults.constants
                 |> Stdlib.List.map (fun constant ->
                   let name = LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name
@@ -137,7 +137,7 @@ module Darklang =
             Builtin.printLine ""
             Builtin.printLine "Use 'view' to see details of functions, types, and constants"
 
-            Types.AppState { isExiting = state.isExiting; lastCommand = "ls"; output = "ls module"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode }
+            Types.AppState { isExiting = state.isExiting; lastCommand = "ls"; output = "ls module"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode; commandHistory = state.commandHistory; historyIndex = state.historyIndex }
 
         // Help function
         let lsHelp (state: Types.AppState) : Types.AppState =
@@ -149,7 +149,7 @@ module Darklang =
           Builtin.printLine "  ls /              - List root packages"
           Builtin.printLine "  ls Darklang       - List Darklang package contents"
           Builtin.printLine "  ls ..             - List parent directory"
-          Types.AppState { isExiting = state.isExiting; lastCommand = "help ls"; output = "ls help displayed"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode }
+          Types.AppState { isExiting = state.isExiting; lastCommand = "help ls"; output = "ls help displayed"; mainPrompt = state.mainPrompt; needsFullRedraw = state.needsFullRedraw; currentPath = state.currentPath; pathHistory = state.pathHistory; viewMode = state.viewMode; commandHistory = state.commandHistory; historyIndex = state.historyIndex }
 
         // Completion function
         let lsComplete (state: Types.AppState) (args: List<String>) : List<String> =
