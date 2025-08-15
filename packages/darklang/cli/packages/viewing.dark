@@ -90,16 +90,28 @@ module Darklang =
                 | Some constant ->
                   viewSpecificConstant state constant
                 | None ->
-                  // No entity found - try as a module
+                  // No entity found - try as a module using the full path
+                  let fullModulePath = Stdlib.List.append modulePath [entityName]
+                  let moduleSearchQuery = 
+                    LanguageTools.ProgramTypes.Search.SearchQuery
+                      { currentModule = fullModulePath
+                        text = ""
+                        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+                        entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Fn
+                                        LanguageTools.ProgramTypes.Search.EntityType.Type
+                                        LanguageTools.ProgramTypes.Search.EntityType.Constant
+                                        LanguageTools.ProgramTypes.Search.EntityType.Module ] }
+                  
+                  let moduleSearchResults = LanguageTools.PackageManager.Search.search moduleSearchQuery
                   let hasModuleContents = 
-                    Stdlib.Bool.not (Stdlib.List.isEmpty searchResults.fns) ||
-                    Stdlib.Bool.not (Stdlib.List.isEmpty searchResults.types) ||
-                    Stdlib.Bool.not (Stdlib.List.isEmpty searchResults.constants) ||
-                    Stdlib.Bool.not (Stdlib.List.isEmpty searchResults.submodules)
+                    Stdlib.Bool.not (Stdlib.List.isEmpty moduleSearchResults.fns) ||
+                    Stdlib.Bool.not (Stdlib.List.isEmpty moduleSearchResults.types) ||
+                    Stdlib.Bool.not (Stdlib.List.isEmpty moduleSearchResults.constants) ||
+                    Stdlib.Bool.not (Stdlib.List.isEmpty moduleSearchResults.submodules)
                   
                   if hasModuleContents then
                     // Display as module
-                    viewAsModule state fullPath searchResults
+                    viewAsModule state fullPath moduleSearchResults
                   else
                     // Nothing found
                     Builtin.printLine $"Entity '{fullPath}' not found."
@@ -145,7 +157,11 @@ module Darklang =
             let fnNames = 
               searchResults.fns 
               |> Stdlib.List.map (fun fn -> 
-                LanguageTools.ProgramTypes.PackageFn.nameToString fn.name)
+                let name = LanguageTools.ProgramTypes.PackageFn.nameToString fn.name
+                let parts = Stdlib.String.split name "."
+                match Stdlib.List.last parts with
+                | Some lastPart -> lastPart
+                | None -> name)
               |> Stdlib.String.join ", "
             Builtin.printLine $"Functions ({Stdlib.Int64.toString fnCount}): {fnNames}"
 
@@ -155,7 +171,11 @@ module Darklang =
             let typeNames = 
               searchResults.types
               |> Stdlib.List.map (fun typ ->
-                LanguageTools.ProgramTypes.PackageType.nameToString typ.name)
+                let name = LanguageTools.ProgramTypes.PackageType.nameToString typ.name
+                let parts = Stdlib.String.split name "."
+                match Stdlib.List.last parts with
+                | Some lastPart -> lastPart
+                | None -> name)
               |> Stdlib.String.join ", "
             Builtin.printLine $"Types ({Stdlib.Int64.toString typeCount}): {typeNames}"
 
@@ -165,7 +185,11 @@ module Darklang =
             let constNames = 
               searchResults.constants
               |> Stdlib.List.map (fun constant ->
-                LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name)
+                let name = LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name
+                let parts = Stdlib.String.split name "."
+                match Stdlib.List.last parts with
+                | Some lastPart -> lastPart
+                | None -> name)
               |> Stdlib.String.join ", "
             Builtin.printLine $"Constants ({Stdlib.Int64.toString constCount}): {constNames}"
 

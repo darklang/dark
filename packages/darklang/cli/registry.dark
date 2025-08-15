@@ -66,7 +66,7 @@ module Darklang =
         let commands = allCommands ()
         
         // Group commands by category
-        let packageCommands = ["cd"; "ls"; "pwd"; "back"]
+        let packageCommands = ["cd"; "ls"; "view"; "pwd"; "back"]
         let executionCommands = ["run"; "eval"; "scripts"]
         let installCommands = ["install"; "update"; "uninstall"; "status"; "version"]
         let utilityCommands = ["clear"; "help"; "quit"]
@@ -135,7 +135,32 @@ module Darklang =
           let utilityLines = Stdlib.String.join utilityCmds "\n"
           $"Utilities:\n{utilityLines}"
         
-        let groupsText = Stdlib.String.join [packageGroup; executionGroup; installGroup; utilityGroup] "\n\n"
+        // Find any ungrouped commands
+        let allGroupedCommands = Stdlib.List.append (Stdlib.List.append (Stdlib.List.append packageCommands executionCommands) installCommands) utilityCommands
+        let ungroupedCommands = 
+          commands
+          |> Stdlib.List.filter (fun cmd -> 
+            match Stdlib.List.findFirst allGroupedCommands (fun name -> name == cmd.name) with
+            | Some _ -> false
+            | None -> true)
+          |> Stdlib.List.map (fun cmd ->
+            match cmd.aliases with
+            | [] -> $"  {cmd.name} - {cmd.description}"
+            | aliases ->
+              let aliasText = Stdlib.String.join aliases ", "
+              $"  {cmd.name} ({aliasText}) - {cmd.description}")
+        
+        let allGroups = [packageGroup; executionGroup; installGroup; utilityGroup]
+        let finalGroups = 
+          if Stdlib.List.isEmpty ungroupedCommands then
+            allGroups
+          else
+            let ungroupedGroup = 
+              let ungroupedLines = Stdlib.String.join ungroupedCommands "\n"
+              $"Other:\n{ungroupedLines}"
+            Stdlib.List.append allGroups [ungroupedGroup]
+        
+        let groupsText = Stdlib.String.join finalGroups "\n\n"
         $"Available commands:\n\n{groupsText}"
 
       let getCompletions (state: Types.AppState) (input: String) : List<String> =
