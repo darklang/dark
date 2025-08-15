@@ -1,0 +1,346 @@
+module Darklang =
+  module Cli =
+    module Scripts =
+      type Script = {
+        id: String
+        name: String
+        text: String
+      }
+      // Scripts command - manage and run stored Dark scripts
+      let executeScripts (state: Types.AppState) (args: List<String>) : Types.AppState =
+        match args with
+        | [] ->
+          Builtin.printLine "Scripts commands:"
+          Builtin.printLine "  scripts list               - List all scripts"
+          Builtin.printLine "  scripts view <name>        - View script content"
+          Builtin.printLine "  scripts add <name> <text>  - Add a new script"
+          Builtin.printLine "  scripts edit <name>        - Show script content"
+          Builtin.printLine "  scripts edit <name> <text> - Update script with new content"
+          Builtin.printLine "  scripts delete <name>      - Delete a script"
+          Builtin.printLine "  scripts run <name>         - Run a script"
+          Types.AppState { 
+            isExiting = state.isExiting; 
+            lastCommand = "scripts help"; 
+            output = "scripts help displayed"; 
+            mainPrompt = state.mainPrompt; 
+            needsFullRedraw = state.needsFullRedraw; 
+            currentPath = state.currentPath; 
+            pathHistory = state.pathHistory; 
+            viewMode = state.viewMode 
+          }
+
+        | ["list"] ->
+          let scripts = Builtin.cliScriptsList ()
+          if Stdlib.List.isEmpty scripts then
+            Builtin.printLine "No scripts found"
+            Types.AppState { 
+              isExiting = state.isExiting; 
+              lastCommand = "scripts list"; 
+              output = "no scripts found"; 
+              mainPrompt = state.mainPrompt; 
+              needsFullRedraw = state.needsFullRedraw; 
+              currentPath = state.currentPath; 
+              pathHistory = state.pathHistory; 
+              viewMode = state.viewMode 
+            }
+          else
+            let output = 
+              scripts
+              |> Stdlib.List.map (fun s -> $"  {s.name}")
+              |> Stdlib.String.join "\n"
+            Builtin.printLine $"Scripts:\n{output}"
+            Types.AppState { 
+              isExiting = state.isExiting; 
+              lastCommand = "scripts list"; 
+              output = output; 
+              mainPrompt = state.mainPrompt; 
+              needsFullRedraw = state.needsFullRedraw; 
+              currentPath = state.currentPath; 
+              pathHistory = state.pathHistory; 
+              viewMode = state.viewMode 
+            }
+
+        | ["view"; name] ->
+          match Builtin.cliScriptsGet name with
+          | Some script ->
+            let output = $"Script: {script.name}\n\n{script.text}"
+            Builtin.printLine output
+            Types.AppState { 
+              isExiting = state.isExiting; 
+              lastCommand = "scripts view"; 
+              output = output; 
+              mainPrompt = state.mainPrompt; 
+              needsFullRedraw = state.needsFullRedraw; 
+              currentPath = state.currentPath; 
+              pathHistory = state.pathHistory; 
+              viewMode = state.viewMode 
+            }
+          | None ->
+            let error = $"Script '{name}' not found"
+            Builtin.printLine $"Error: {error}"
+            Types.AppState { 
+              isExiting = state.isExiting; 
+              lastCommand = "scripts view error"; 
+              output = $"error: {error}"; 
+              mainPrompt = state.mainPrompt; 
+              needsFullRedraw = state.needsFullRedraw; 
+              currentPath = state.currentPath; 
+              pathHistory = state.pathHistory; 
+              viewMode = state.viewMode 
+            }
+
+        | ["add"] ->
+          Builtin.printLine "Error: Missing arguments for scripts add"
+          Builtin.printLine "Usage: scripts add <name> <text>"
+          Builtin.printLine "Example: scripts add hello 'Builtin.printLine \"Hello World\"'"
+          Types.AppState { 
+            isExiting = state.isExiting; 
+            lastCommand = "scripts add error"; 
+            output = "missing arguments"; 
+            mainPrompt = state.mainPrompt; 
+            needsFullRedraw = state.needsFullRedraw; 
+            currentPath = state.currentPath; 
+            pathHistory = state.pathHistory; 
+            viewMode = state.viewMode 
+          }
+
+        | ["add"; _] ->
+          Builtin.printLine "Error: Missing script text"
+          Builtin.printLine "Usage: scripts add <name> <text>"
+          Builtin.printLine "Example: scripts add hello 'Builtin.printLine \"Hello World\"'"
+          Types.AppState { 
+            isExiting = state.isExiting; 
+            lastCommand = "scripts add error"; 
+            output = "missing script text"; 
+            mainPrompt = state.mainPrompt; 
+            needsFullRedraw = state.needsFullRedraw; 
+            currentPath = state.currentPath; 
+            pathHistory = state.pathHistory; 
+            viewMode = state.viewMode 
+          }
+
+        | "add" :: name :: textParts when Stdlib.Bool.not (Stdlib.List.isEmpty textParts) ->
+          let text = Stdlib.String.join textParts " "
+          match Builtin.cliScriptsAdd name text with
+          | Ok script ->
+            let message = $"Script '{script.name}' added successfully"
+            Builtin.printLine message
+            Types.AppState { 
+              isExiting = state.isExiting; 
+              lastCommand = "scripts add"; 
+              output = message; 
+              mainPrompt = state.mainPrompt; 
+              needsFullRedraw = state.needsFullRedraw; 
+              currentPath = state.currentPath; 
+              pathHistory = state.pathHistory; 
+              viewMode = state.viewMode 
+            }
+          | Error err ->
+            Builtin.printLine $"Error: {err}"
+            Types.AppState { 
+              isExiting = state.isExiting; 
+              lastCommand = "scripts add error"; 
+              output = $"error: {err}"; 
+              mainPrompt = state.mainPrompt; 
+              needsFullRedraw = state.needsFullRedraw; 
+              currentPath = state.currentPath; 
+              pathHistory = state.pathHistory; 
+              viewMode = state.viewMode 
+            }
+
+        | ["edit"; name] ->
+          match Builtin.cliScriptsGet name with
+          | Some script ->
+            let output = $"Current content of script '{name}':\n{script.text}"
+            Builtin.printLine output
+            Builtin.printLine ""
+            Builtin.printLine "Use 'scripts edit <name> <new_content>' to update the script"
+            Types.AppState { 
+              isExiting = state.isExiting; 
+              lastCommand = "scripts edit"; 
+              output = output; 
+              mainPrompt = state.mainPrompt; 
+              needsFullRedraw = state.needsFullRedraw; 
+              currentPath = state.currentPath; 
+              pathHistory = state.pathHistory; 
+              viewMode = state.viewMode 
+            }
+          | None ->
+            let error = $"Script '{name}' not found"
+            Builtin.printLine $"Error: {error}"
+            Types.AppState { 
+              isExiting = state.isExiting; 
+              lastCommand = "scripts edit error"; 
+              output = $"error: {error}"; 
+              mainPrompt = state.mainPrompt; 
+              needsFullRedraw = state.needsFullRedraw; 
+              currentPath = state.currentPath; 
+              pathHistory = state.pathHistory; 
+              viewMode = state.viewMode 
+            }
+
+        | "edit" :: name :: textParts when Stdlib.Bool.not (Stdlib.List.isEmpty textParts) ->
+          let text = Stdlib.String.join textParts " "
+          match Builtin.cliScriptsUpdate name text with
+          | Ok () ->
+            let message = $"Script '{name}' updated successfully"
+            Builtin.printLine message
+            Types.AppState { 
+              isExiting = state.isExiting; 
+              lastCommand = "scripts edit"; 
+              output = message; 
+              mainPrompt = state.mainPrompt; 
+              needsFullRedraw = state.needsFullRedraw; 
+              currentPath = state.currentPath; 
+              pathHistory = state.pathHistory; 
+              viewMode = state.viewMode 
+            }
+          | Error err ->
+            Builtin.printLine $"Error: {err}"
+            Types.AppState { 
+              isExiting = state.isExiting; 
+              lastCommand = "scripts edit error"; 
+              output = $"error: {err}"; 
+              mainPrompt = state.mainPrompt; 
+              needsFullRedraw = state.needsFullRedraw; 
+              currentPath = state.currentPath; 
+              pathHistory = state.pathHistory; 
+              viewMode = state.viewMode 
+            }
+
+        | ["delete"; name] ->
+          match Builtin.cliScriptsDelete name with
+          | Ok () ->
+            let message = $"Script '{name}' deleted successfully"
+            Builtin.printLine message
+            Types.AppState { 
+              isExiting = state.isExiting; 
+              lastCommand = "scripts delete"; 
+              output = message; 
+              mainPrompt = state.mainPrompt; 
+              needsFullRedraw = state.needsFullRedraw; 
+              currentPath = state.currentPath; 
+              pathHistory = state.pathHistory; 
+              viewMode = state.viewMode 
+            }
+          | Error err ->
+            Builtin.printLine $"Error: {err}"
+            Types.AppState { 
+              isExiting = state.isExiting; 
+              lastCommand = "scripts delete error"; 
+              output = $"error: {err}"; 
+              mainPrompt = state.mainPrompt; 
+              needsFullRedraw = state.needsFullRedraw; 
+              currentPath = state.currentPath; 
+              pathHistory = state.pathHistory; 
+              viewMode = state.viewMode 
+            }
+
+        | ["run"; name] ->
+          match Builtin.cliScriptsGet name with
+          | Some script ->
+            let result = Builtin.cliParseAndExecuteScript $"script:{name}" script.text []
+            match result with
+            | Ok exitCode ->
+              let message = $"Script '{name}' executed with exit code: {Stdlib.Int64.toString exitCode}"
+              Builtin.printLine message
+              Types.AppState { 
+                isExiting = state.isExiting; 
+                lastCommand = "scripts run"; 
+                output = message; 
+                mainPrompt = state.mainPrompt; 
+                needsFullRedraw = state.needsFullRedraw; 
+                currentPath = state.currentPath; 
+                pathHistory = state.pathHistory; 
+                viewMode = state.viewMode 
+              }
+            | Error runtimeError ->
+              let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString runtimeError
+              Builtin.printLine $"Script error: {prettyError}"
+              Types.AppState { 
+                isExiting = state.isExiting; 
+                lastCommand = "scripts run error"; 
+                output = $"script error: {prettyError}"; 
+                mainPrompt = state.mainPrompt; 
+                needsFullRedraw = state.needsFullRedraw; 
+                currentPath = state.currentPath; 
+                pathHistory = state.pathHistory; 
+                viewMode = state.viewMode 
+              }
+          | None ->
+            let error = $"Script '{name}' not found"
+            Builtin.printLine $"Error: {error}"
+            Types.AppState { 
+              isExiting = state.isExiting; 
+              lastCommand = "scripts run error"; 
+              output = $"error: {error}"; 
+              mainPrompt = state.mainPrompt; 
+              needsFullRedraw = state.needsFullRedraw; 
+              currentPath = state.currentPath; 
+              pathHistory = state.pathHistory; 
+              viewMode = state.viewMode 
+            }
+
+        | _ ->
+          Builtin.printLine "Error: Invalid scripts command. Use 'scripts' to see available commands"
+          Types.AppState { 
+            isExiting = state.isExiting; 
+            lastCommand = "scripts error"; 
+            output = "invalid scripts command"; 
+            mainPrompt = state.mainPrompt; 
+            needsFullRedraw = state.needsFullRedraw; 
+            currentPath = state.currentPath; 
+            pathHistory = state.pathHistory; 
+            viewMode = state.viewMode 
+          }
+
+      let scriptsHelp (state: Types.AppState) : Types.AppState =
+        Builtin.printLine "Usage: scripts <command> [args...]"
+        Builtin.printLine "Store, manage, and run Dark scripts."
+        Builtin.printLine ""
+        Builtin.printLine "Commands:"
+        Builtin.printLine "  scripts list               - List all scripts"
+        Builtin.printLine "  scripts view <name>        - View script content"
+        Builtin.printLine "  scripts add <name> <text>  - Add a new script"
+        Builtin.printLine "  scripts edit <name>        - Show script content"
+        Builtin.printLine "  scripts edit <name> <text> - Update script with new content"
+        Builtin.printLine "  scripts delete <name>      - Delete a script"
+        Builtin.printLine "  scripts run <name>         - Run a script"
+        Builtin.printLine ""
+        Builtin.printLine "Examples:"
+        Builtin.printLine "  scripts add hello 'Builtin.printLine \"Hello World\"'"
+        Builtin.printLine "  scripts run hello"
+        Builtin.printLine "  scripts edit hello 'Builtin.printLine \"Updated Hello\"'"
+        Types.AppState { 
+          isExiting = state.isExiting; 
+          lastCommand = "help scripts"; 
+          output = "scripts help displayed"; 
+          mainPrompt = state.mainPrompt; 
+          needsFullRedraw = state.needsFullRedraw; 
+          currentPath = state.currentPath; 
+          pathHistory = state.pathHistory; 
+          viewMode = state.viewMode 
+        }
+
+      let scriptsComplete (state: Types.AppState) (args: List<String>) : List<String> =
+        match args with
+        | [] ->
+          // Complete subcommands
+          ["list"; "view"; "add"; "edit"; "delete"; "run"]
+        | ["list"] | ["add"] -> []
+        | ["view"] | ["edit"] | ["delete"] | ["run"] ->
+          // Complete script names
+          let scripts = Builtin.cliScriptsList ()
+          scripts |> Stdlib.List.map (fun script -> script.name)
+        | [subcommand] ->
+          // Partial subcommand completion
+          ["list"; "view"; "add"; "edit"; "delete"; "run"]
+          |> Stdlib.List.filter (fun cmd -> Stdlib.String.startsWith cmd subcommand)
+        | ["view"; _] | ["delete"; _] | ["run"; _] -> []
+        | ["edit"; scriptName] ->
+          // For edit with script name, could show current content hint but keep simple
+          []
+        | "add" :: _ | "edit" :: _ :: _ ->
+          // For add or edit with content, no completion needed
+          []
+        | _ -> []
