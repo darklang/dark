@@ -12,36 +12,14 @@ module Darklang =
       // Clear command - clear the screen
       let executeClear (state: Types.AppState) (args: List<String>) : Types.AppState =
         Builtin.stdoutClear ()
-        Types.AppState { 
-          isExiting = state.isExiting; 
-          lastCommand = "clear"; 
-          output = "screen cleared"; 
-          mainPrompt = state.mainPrompt; 
-          needsFullRedraw = true;
-          currentPath = state.currentPath; 
-          pathHistory = state.pathHistory; 
-          viewMode = state.viewMode;
-          commandHistory = state.commandHistory;
-          historyIndex = state.historyIndex
-        }
+        { state with lastCommand = "clear"; output = "screen cleared"; needsFullRedraw = true }
 
       let clearHelp (state: Types.AppState) : Types.AppState =
         Builtin.printLine "Usage: clear"
         Builtin.printLine "Clear the terminal screen."
         Builtin.printLine ""
         Builtin.printLine "Aliases: cls"
-        Types.AppState { 
-          isExiting = state.isExiting; 
-          lastCommand = "help clear"; 
-          output = "clear help displayed"; 
-          mainPrompt = state.mainPrompt; 
-          needsFullRedraw = state.needsFullRedraw; 
-          currentPath = state.currentPath; 
-          pathHistory = state.pathHistory; 
-          viewMode = state.viewMode;
-          commandHistory = state.commandHistory;
-          historyIndex = state.historyIndex
-        }
+        { state with lastCommand = "help clear"; output = "clear help displayed" }
 
       let clearComplete (state: Types.AppState) (args: List<String>) : List<String> =
         Completion.noArgsCompletion state args

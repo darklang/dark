@@ -8,16 +8,7 @@ module Darklang =
           Builtin.printLine "Usage: run @function_name [args...] | run script_path [args...]"
           Builtin.printLine "  run @Stdlib.Int64.add 5L 3L    - Run a function"
           Builtin.printLine "  run script.dark arg1 arg2      - Run a script file"
-          Types.AppState {
-            isExiting = state.isExiting;
-            lastCommand = "run error";
-            output = "run usage displayed";
-            mainPrompt = state.mainPrompt;
-            needsFullRedraw = state.needsFullRedraw;
-            currentPath = state.currentPath;
-            pathHistory = state.pathHistory;
-            viewMode = state.viewMode
-          }
+          { state with lastCommand = "run error"; output = "run usage displayed" }
         | thingToRun :: restArgs ->
           if Stdlib.String.startsWith thingToRun "@" then
             // Function execution
@@ -50,28 +41,10 @@ module Darklang =
         match Builtin.cliExecuteFunction fnName parsedArgs with
         | Ok result ->
           Builtin.printLine result
-          Types.AppState {
-            isExiting = state.isExiting;
-            lastCommand = "run";
-            output = result;
-            mainPrompt = state.mainPrompt;
-            needsFullRedraw = state.needsFullRedraw;
-            currentPath = state.currentPath;
-            pathHistory = state.pathHistory;
-            viewMode = state.viewMode
-          }
+          { state with lastCommand = "run"; output = result }
         | Error err ->
           Builtin.printLine $"Error: {err}"
-          Types.AppState {
-            isExiting = state.isExiting;
-            lastCommand = "run error";
-            output = $"error: {err}";
-            mainPrompt = state.mainPrompt;
-            needsFullRedraw = state.needsFullRedraw;
-            currentPath = state.currentPath;
-            pathHistory = state.pathHistory;
-            viewMode = state.viewMode
-          }
+          { state with lastCommand = "run error"; output = $"error: {err}" }
 
       // Helper function to execute a script
       let executeScript (state: Types.AppState) (scriptPath: String) (args: List<String>) : Types.AppState =
@@ -84,41 +57,14 @@ module Darklang =
           | Ok exitCode ->
             let message = $"Script executed with exit code: {Stdlib.Int64.toString exitCode}"
             Builtin.printLine message
-            Types.AppState {
-              isExiting = state.isExiting;
-              lastCommand = "run";
-              output = message;
-              mainPrompt = state.mainPrompt;
-              needsFullRedraw = state.needsFullRedraw;
-              currentPath = state.currentPath;
-              pathHistory = state.pathHistory;
-              viewMode = state.viewMode
-            }
+            { state with lastCommand = "run"; output = message }
           | Error e ->
             let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString e
             Builtin.printLine $"Script error: {prettyError}"
-            Types.AppState {
-              isExiting = state.isExiting;
-              lastCommand = "run error";
-              output = $"script error: {prettyError}";
-              mainPrompt = state.mainPrompt;
-              needsFullRedraw = state.needsFullRedraw;
-              currentPath = state.currentPath;
-              pathHistory = state.pathHistory;
-              viewMode = state.viewMode
-            }
+            { state with lastCommand = "run error"; output = $"script error: {prettyError}" }
         | Error e ->
           Builtin.printLine $"File error: {e}"
-          Types.AppState {
-            isExiting = state.isExiting;
-            lastCommand = "run error";
-            output = $"file error: {e}";
-            mainPrompt = state.mainPrompt;
-            needsFullRedraw = state.needsFullRedraw;
-            currentPath = state.currentPath;
-            pathHistory = state.pathHistory;
-            viewMode = state.viewMode
-          }
+          { state with lastCommand = "run error"; output = $"file error: {e}" }
 
       let runHelp (state: Types.AppState) : Types.AppState =
         Builtin.printLine "Usage: run @function_name [args...] | run script_path [args...]"
@@ -131,16 +77,7 @@ module Darklang =
         Builtin.printLine "Script execution:"
         Builtin.printLine "  run script.dark                  - Run a script file"
         Builtin.printLine "  run script.dark arg1 arg2        - Run script with arguments"
-        Types.AppState {
-          isExiting = state.isExiting;
-          lastCommand = "help run";
-          output = "run help displayed";
-          mainPrompt = state.mainPrompt;
-          needsFullRedraw = state.needsFullRedraw;
-          currentPath = state.currentPath;
-          pathHistory = state.pathHistory;
-          viewMode = state.viewMode
-        }
+        { state with lastCommand = "help run"; output = "run help displayed" }
 
       // Get files in a directory - returns just filenames
       let getDirectoryContents (path: String) : List<String> =
@@ -262,44 +199,17 @@ module Darklang =
           Builtin.printLine "  eval 1L + 2L                    - Evaluate arithmetic"
           Builtin.printLine "  eval \"hello\" ++ \"world\"        - String concatenation"
           Builtin.printLine "  eval [1L; 2L; 3L] |> List.length - List operations"
-          Types.AppState {
-            isExiting = state.isExiting;
-            lastCommand = "eval error";
-            output = "eval usage displayed";
-            mainPrompt = state.mainPrompt;
-            needsFullRedraw = state.needsFullRedraw;
-            currentPath = state.currentPath;
-            pathHistory = state.pathHistory;
-            viewMode = state.viewMode
-          }
+          { state with lastCommand = "eval error"; output = "eval usage displayed" }
         | _ ->
           let expr = Stdlib.String.join args " "
           match Builtin.cliEvaluateExpression expr with
           | Ok result ->
             Builtin.printLine result
-            Types.AppState {
-              isExiting = state.isExiting;
-              lastCommand = "eval";
-              output = result;
-              mainPrompt = state.mainPrompt;
-              needsFullRedraw = state.needsFullRedraw;
-              currentPath = state.currentPath;
-              pathHistory = state.pathHistory;
-              viewMode = state.viewMode
-            }
+            { state with lastCommand = "eval"; output = result }
           | Error err ->
             let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString err
             Builtin.printLine $"Error: {prettyError}"
-            Types.AppState {
-              isExiting = state.isExiting;
-              lastCommand = "eval error";
-              output = $"error: {prettyError}";
-              mainPrompt = state.mainPrompt;
-              needsFullRedraw = state.needsFullRedraw;
-              currentPath = state.currentPath;
-              pathHistory = state.pathHistory;
-              viewMode = state.viewMode
-            }
+            { state with lastCommand = "eval error"; output = $"error: {prettyError}" }
 
       let evalHelp (state: Types.AppState) : Types.AppState =
         Builtin.printLine "Usage: eval <expression>"
@@ -310,16 +220,7 @@ module Darklang =
         Builtin.printLine "  eval \"hello\" ++ \"world\"         - String concatenation"
         Builtin.printLine "  eval [1L; 2L; 3L] |> List.length  - List operations"
         Builtin.printLine "  eval Stdlib.String.length \"test\" - Function calls"
-        Types.AppState {
-          isExiting = state.isExiting;
-          lastCommand = "help eval";
-          output = "eval help displayed";
-          mainPrompt = state.mainPrompt;
-          needsFullRedraw = state.needsFullRedraw;
-          currentPath = state.currentPath;
-          pathHistory = state.pathHistory;
-          viewMode = state.viewMode
-        }
+        { state with lastCommand = "help eval"; output = "eval help displayed" }
 
       let evalComplete (state: Types.AppState) (args: List<String>) : List<String> =
         // For eval completion, we could potentially complete function names, but for now keep it simple
