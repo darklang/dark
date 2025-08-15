@@ -334,11 +334,106 @@ module Darklang =
               |> Stdlib.List.sort
 
           | [partial] ->
-            // Filter completions by partial match
-            let allCompletions = viewComplete state []
-            let lowerPartial = Stdlib.String.toLowercase partial
-            allCompletions
-            |> Stdlib.List.filter (fun name ->
-              Stdlib.String.startsWith (Stdlib.String.toLowercase name) lowerPartial)
+            // Handle dot-notation completion like "Stdlib.L" when in /Darklang
+            if Stdlib.String.contains partial "." then
+              // Parse the partial path to understand context
+              let pathParts = Stdlib.String.split partial "."
+              match Stdlib.List.reverse pathParts with
+              | [] -> []
+              | [lastPart] ->
+                // Single part with dot, shouldn't happen but handle gracefully
+                let allCompletions = viewComplete state []
+                let lowerPartial = Stdlib.String.toLowercase partial
+                allCompletions
+                |> Stdlib.List.filter (fun name ->
+                  Stdlib.String.startsWith (Stdlib.String.toLowercase name) lowerPartial)
+              | lastPartial :: reversedPrefixParts ->
+                // Multi-part dot notation like "Stdlib.L" when in /Darklang
+                let prefixParts = Stdlib.List.reverse reversedPrefixParts
+                let lowerLastPartial = Stdlib.String.toLowercase lastPartial
+                
+                // Build the full module path considering current context
+                let fullModulePath = 
+                  match state.currentPath with
+                  | Root -> prefixParts
+                  | Module owner moduleName ->
+                    if Stdlib.String.isEmpty moduleName then
+                      // In owner context like /Darklang, so Stdlib means Darklang.Stdlib
+                      Stdlib.List.append [owner] prefixParts
+                    else
+                      // In deeper module context, use absolute path
+                      prefixParts
+                
+                // Search for entities and submodules in that context
+                let query =
+                  LanguageTools.ProgramTypes.Search.SearchQuery
+                    { currentModule = fullModulePath
+                      text = ""
+                      searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+                      entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module
+                                      LanguageTools.ProgramTypes.Search.EntityType.Fn
+                                      LanguageTools.ProgramTypes.Search.EntityType.Type
+                                      LanguageTools.ProgramTypes.Search.EntityType.Constant ] }
+                let searchResults = LanguageTools.PackageManager.Search.search query
+                
+                // Get submodules
+                let submoduleSuggestions =
+                  match Stdlib.List.head searchResults.submodules with
+                  | Some moduleList ->
+                    let expectedLength = (Stdlib.List.length fullModulePath) + 1L
+                    moduleList
+                    |> Stdlib.List.filter (fun path -> Stdlib.List.length path == expectedLength)
+                    |> Stdlib.List.filterMap (fun path -> Stdlib.List.last path)
+                    |> Stdlib.List.filter (fun name -> 
+                      Stdlib.String.startsWith (Stdlib.String.toLowercase name) lowerLastPartial)
+                  | None -> []
+                
+                // Get entities (functions, types, constants)
+                let entitySuggestions =
+                  let fnNames = 
+                    searchResults.fns
+                    |> Stdlib.List.map (fun fn -> LanguageTools.ProgramTypes.PackageFn.nameToString fn.name)
+                    |> Stdlib.List.filterMap (fun name ->
+                      let parts = Stdlib.String.split name "."
+                      match Stdlib.List.last parts with
+                      | Some lastPart -> Stdlib.Option.Option.Some lastPart
+                      | None -> Stdlib.Option.Option.None)
+                  
+                  let typeNames =
+                    searchResults.types
+                    |> Stdlib.List.map (fun typ -> LanguageTools.ProgramTypes.PackageType.nameToString typ.name)
+                    |> Stdlib.List.filterMap (fun name ->
+                      let parts = Stdlib.String.split name "."
+                      match Stdlib.List.last parts with
+                      | Some lastPart -> Stdlib.Option.Option.Some lastPart
+                      | None -> Stdlib.Option.Option.None)
+                  
+                  let constantNames =
+                    searchResults.constants
+                    |> Stdlib.List.map (fun constant -> LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name)
+                    |> Stdlib.List.filterMap (fun name ->
+                      let parts = Stdlib.String.split name "."
+                      match Stdlib.List.last parts with
+                      | Some lastPart -> Stdlib.Option.Option.Some lastPart
+                      | None -> Stdlib.Option.Option.None)
+                  
+                  (Stdlib.List.append (Stdlib.List.append fnNames typeNames) constantNames)
+                  |> Stdlib.List.filter (fun name ->
+                    Stdlib.String.startsWith (Stdlib.String.toLowercase name) lowerLastPartial)
+                
+                // Combine and format suggestions
+                let allSuggestions = Stdlib.List.append submoduleSuggestions entitySuggestions
+                let prefix = Stdlib.String.join prefixParts "."
+                allSuggestions
+                |> Stdlib.List.map (fun name -> $"{prefix}.{name}")
+                |> Stdlib.List.unique
+                |> Stdlib.List.sort
+            else
+              // Regular prefix matching for simple paths
+              let allCompletions = viewComplete state []
+              let lowerPartial = Stdlib.String.toLowercase partial
+              allCompletions
+              |> Stdlib.List.filter (fun name ->
+                Stdlib.String.startsWith (Stdlib.String.toLowercase name) lowerPartial)
               
           | _ -> []

@@ -198,12 +198,54 @@ module Darklang =
               Stdlib.List.append ["/"; ".."] submodules
 
           | [partialPath] ->
-            // Get all available completions
-            let allCompletions = cdComplete state []
-            let lowerPartial = Stdlib.String.toLowercase partialPath
-            // Filter by prefix match
-            Stdlib.List.filter allCompletions (fun path ->
-              Stdlib.String.startsWith (Stdlib.String.toLowercase path) lowerPartial)
+            // Handle dot-notation completion like "Darklang.St"
+            if Stdlib.String.contains partialPath "." then
+              // Parse the partial path to understand context
+              let pathParts = Stdlib.String.split partialPath "."
+              match Stdlib.List.reverse pathParts with
+              | [] -> []
+              | [lastPart] ->
+                // Single part with dot, shouldn't happen but handle gracefully
+                let allCompletions = cdComplete state []
+                let lowerPartial = Stdlib.String.toLowercase partialPath
+                Stdlib.List.filter allCompletions (fun path ->
+                  Stdlib.String.startsWith (Stdlib.String.toLowercase path) lowerPartial)
+              | lastPartial :: reversedPrefixParts ->
+                // Multi-part dot notation like "Darklang.St"
+                let prefixParts = Stdlib.List.reverse reversedPrefixParts
+                let lowerLastPartial = Stdlib.String.toLowercase lastPartial
+                
+                // Search in the specified module context
+                let query =
+                  LanguageTools.ProgramTypes.Search.SearchQuery
+                    { currentModule = prefixParts
+                      text = ""
+                      searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+                      entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module ] }
+                let searchResults = LanguageTools.PackageManager.Search.search query
+                
+                // Extract submodule names that match the partial
+                match Stdlib.List.head searchResults.submodules with
+                | Some moduleList ->
+                  let expectedLength = (Stdlib.List.length prefixParts) + 1L
+                  let suggestions =
+                    moduleList
+                    |> Stdlib.List.filter (fun path -> Stdlib.List.length path == expectedLength)
+                    |> Stdlib.List.filterMap (fun path -> Stdlib.List.last path)
+                    |> Stdlib.List.filter (fun name -> 
+                      Stdlib.String.startsWith (Stdlib.String.toLowercase name) lowerLastPartial)
+                    |> Stdlib.List.map (fun name ->
+                      let prefix = Stdlib.String.join prefixParts "."
+                      $"{prefix}.{name}")
+                    |> Stdlib.List.sort
+                  suggestions
+                | None -> []
+            else
+              // Regular prefix matching for simple paths
+              let allCompletions = cdComplete state []
+              let lowerPartial = Stdlib.String.toLowercase partialPath
+              Stdlib.List.filter allCompletions (fun path ->
+                Stdlib.String.startsWith (Stdlib.String.toLowercase path) lowerPartial)
           | _ -> []
 
         let pwdComplete (state: Types.AppState) (args: List<String>) : List<String> = []
