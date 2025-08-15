@@ -110,8 +110,12 @@ module Darklang =
                     Stdlib.Bool.not (Stdlib.List.isEmpty moduleSearchResults.submodules)
                   
                   if hasModuleContents then
-                    // Display as module
-                    viewAsModule state fullPath moduleSearchResults
+                    // Display as module - check if we should enter interactive mode
+                    match state.viewMode with
+                    | InteractiveMode ->
+                      enterInteractiveView state fullPath moduleSearchResults
+                    | CommandMode ->
+                      viewAsModule state fullPath moduleSearchResults
                   else
                     // Nothing found
                     Builtin.printLine $"Entity '{fullPath}' not found."
@@ -439,3 +443,9 @@ module Darklang =
                 Stdlib.String.startsWith (Stdlib.String.toLowercase name) lowerPartial)
               
           | _ -> []
+
+        // Interactive viewing functions
+        let enterInteractiveView (state: Types.AppState) (entityName: String) (moduleContent: LanguageTools.ProgramTypes.Search.SearchResults) : Types.AppState =
+          Builtin.printLine "Interactive view mode is coming soon!"
+          Builtin.printLine "For now, displaying in command mode:"
+          viewAsModule state entityName moduleContent
