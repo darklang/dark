@@ -2,22 +2,21 @@ module Darklang =
   module Cli =
     module View =
       let formatError (message: String) : String =
-        $"Error: {message}"
+        Colors.error $"Error: {message}"
 
       let formatSuccess (message: String) : String =
-        message
+        Colors.success message
 
       let formatPrompt () : String =
         "> "
 
       let formatPromptWithInput (state: Types.AppState) : String =
-        let currentPathStr = Packages.Path.formatPath state.currentPath
+        let currentPathStr = Colors.info (Packages.Path.formatPath state.currentPath)
               
         let hint = Registry.getCompletionHint state state.mainPrompt
         if Stdlib.String.isEmpty hint then
           $"{currentPathStr}> {state.mainPrompt}"
         else
-          // Use ANSI escape codes for dim hint text
           $"{currentPathStr}> {state.mainPrompt}" ++ (Colors.hint hint)
 
       let formatWelcome () : String =
@@ -30,4 +29,4 @@ module Darklang =
         "Goodbye!"
 
       let formatVersion () : String =
-        "Darklang CLI v0.1.0-dev"
+        Colors.info "Darklang CLI " ++ Colors.success "v0.1.0-dev"

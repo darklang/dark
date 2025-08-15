@@ -66,7 +66,7 @@ module Darklang =
 
             let newHistory = Stdlib.List.append state.pathHistory [state.currentPath]
             let newPathStr = Packages.Path.formatPath newPath
-            Builtin.printLine $"Changed to: {newPathStr}"
+            Builtin.printLine (Colors.success $"Changed to: {newPathStr}")
 
             { state with
                 lastCommand = "cd"
@@ -93,7 +93,7 @@ module Darklang =
           | Some previousPath ->
             let newHistory = Stdlib.List.dropLast state.pathHistory
             let pathStr = Packages.Path.formatPath previousPath
-            Builtin.printLine $"Back to: {pathStr}"
+            Builtin.printLine (Colors.success $"Back to: {pathStr}")
 
             { state with
                 lastCommand = "back"
