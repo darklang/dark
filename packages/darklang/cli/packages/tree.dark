@@ -8,11 +8,21 @@ module Darklang =
             match Stdlib.List.findFirst args (fun arg -> arg == "--icons") with
             | Some _ -> true
             | None -> false
-          let maxDepth = 3L // Default max depth to avoid overwhelming output
+          
+          // Parse depth option
+          let maxDepth = 
+            match Stdlib.List.findFirst args (fun arg -> Stdlib.String.startsWith arg "--depth=") with
+            | Some depthArg ->
+              let depthStr = Stdlib.String.dropFirst depthArg 8L // Remove "--depth="
+              match Stdlib.Int64.parse depthStr with
+              | Ok depth -> 
+                if depth > 0L && depth <= 10L then depth else 3L // Limit to reasonable range
+              | Error _ -> 3L
+            | None -> 3L // Default max depth to avoid overwhelming output
           
           // Determine starting path
           let startPath = 
-            match Stdlib.List.filter args (fun arg -> not (Stdlib.String.startsWith arg "--")) with
+            match Stdlib.List.filter args (fun arg -> Stdlib.Bool.not (Stdlib.String.startsWith arg "--")) with
             | [] -> state.currentPath
             | [pathStr] -> Path.parsePath pathStr
             | _ -> state.currentPath
@@ -168,18 +178,20 @@ module Darklang =
         
         // Help function
         let treeHelp (state: Types.AppState) : Types.AppState =
-          Builtin.printLine "Usage: tree [path] [--icons]"
+          Builtin.printLine "Usage: tree [path] [--icons] [--depth=N]"
           Builtin.printLine "Display package hierarchy in tree format."
           Builtin.printLine ""
           Builtin.printLine "Options:"
-          Builtin.printLine "  --icons    Show icons for different entity types"
+          Builtin.printLine "  --icons       Show icons for different entity types"
+          Builtin.printLine "  --depth=N     Set maximum depth (1-10, default: 3)"
           Builtin.printLine ""
           Builtin.printLine "Examples:"
-          Builtin.printLine "  tree                    - Show tree from current location"
-          Builtin.printLine "  tree /                  - Show tree from root"
-          Builtin.printLine "  tree Darklang           - Show tree from Darklang package"
-          Builtin.printLine "  tree --icons           - Show tree with icons"
-          Builtin.printLine "  tree Stdlib --icons    - Show Stdlib tree with icons"
+          Builtin.printLine "  tree                         - Show tree from current location"
+          Builtin.printLine "  tree /                       - Show tree from root"
+          Builtin.printLine "  tree Darklang                - Show tree from Darklang package"
+          Builtin.printLine "  tree --icons                 - Show tree with icons"
+          Builtin.printLine "  tree Darklang.Stdlib --depth=2  - Show Stdlib tree with depth 2"
+          Builtin.printLine "  tree Stdlib --icons --depth=1   - Show Stdlib with icons, depth 1"
           { state with lastCommand = "help tree"; output = "tree help displayed" }
         
         // Completion function
@@ -187,7 +199,7 @@ module Darklang =
           match args with
           | [] ->
             // Suggest common options and current context packages
-            let options = ["--icons"; "/"]
+            let options = ["--icons"; "--depth=1"; "--depth=2"; "--depth=3"; "/"]
             match state.currentPath with
             | Root ->
               // At root, suggest top-level packages
@@ -214,7 +226,8 @@ module Darklang =
           | [partial] ->
             // Complete package names or options
             if Stdlib.String.startsWith partial "--" then
-              ["--icons"] |> Stdlib.List.filter (fun opt -> Stdlib.String.startsWith opt partial)
+              let allOptions = ["--icons"; "--depth=1"; "--depth=2"; "--depth=3"; "--depth=4"; "--depth=5"]
+              allOptions |> Stdlib.List.filter (fun opt -> Stdlib.String.startsWith opt partial)
             else
               // Use cd completion logic for paths
               Navigation.cdComplete state [partial]
