@@ -4,13 +4,19 @@ module Darklang =
       if state.isExiting then
         0L
       else
-        // Display prompt and current input with completion hints
-        if state.needsFullRedraw then
-          Builtin.printLine (View.formatPrompt ())
-        else
-          // Clear current line completely and redraw prompt with current input and hints
-          Builtin.print $"{Colors.carriageReturn}{Colors.clearLine}"
-        Builtin.print (View.formatPromptWithInput state)
+        // Only display prompt when in PromptMode, not in TreeNavigationMode
+        match state.uiMode with
+        | PromptMode ->
+          // Display prompt and current input with completion hints
+          if state.needsFullRedraw then
+            Builtin.printLine (View.formatPrompt ())
+          else
+            // Clear current line completely and redraw prompt with current input and hints
+            Builtin.print $"{Colors.carriageReturn}{Colors.clearLine}"
+          Builtin.print (View.formatPromptWithInput state)
+        | TreeNavigationMode _ ->
+          // Tree mode handles its own display, don't show prompt
+          ()
 
         // Read keystroke input
         let keyInput = Stdlib.Cli.Stdin.readKey ()

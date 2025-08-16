@@ -11,6 +11,41 @@ module Darklang =
       | InteractiveMode  // REPL-like experience (default)
       | CommandMode      // One-off command execution via CLI args
 
+    // Interactive UI modes
+    type InteractiveUIMode =
+      | PromptMode        // Normal command prompt
+      | TreeNavigationMode of TreeNavState  // Interactive tree navigation
+
+    // Tree navigation state
+    type TreeNavState =
+      { startPath: PackagePath
+        showIcons: Bool
+        maxDepth: Int64
+        selectedIndex: Int64
+        expandedPaths: List<PackagePath>
+        currentNodes: List<TreeNavNode> }
+
+    // Tree navigation node
+    type TreeNavNode =
+      { path: PackagePath
+        name: String
+        nodeType: TreeNodeType
+        isExpanded: Bool
+        entityCount: EntityCount
+        depth: Int64 }
+
+    type TreeNodeType =
+      | RootNode
+      | ModuleNode
+      | FunctionNode
+      | TypeNode
+      | ConstantNode
+
+    type EntityCount =
+      { functions: Int64
+        types: Int64
+        constants: Int64 }
+
     // Package path as list of components (e.g., ["Darklang"; "Stdlib"; "List"])
     type PackagePath = List<String>
 
@@ -23,6 +58,7 @@ module Darklang =
         currentPath: PackagePath
         pathHistory: List<PackagePath>
         appMode: AppMode
+        uiMode: InteractiveUIMode
         commandHistory: List<String>
         historyIndex: Int64 }
 
@@ -36,6 +72,7 @@ module Darklang =
           currentPath = []
           pathHistory = []
           appMode = AppMode.InteractiveMode  // Default to REPL mode
+          uiMode = InteractiveUIMode.PromptMode  // Default to prompt mode
           commandHistory = []
           historyIndex = -1L }
 

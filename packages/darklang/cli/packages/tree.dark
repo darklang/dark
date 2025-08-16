@@ -3,60 +3,28 @@ module Darklang =
     module Packages =
       module Tree =
         // Tree command - display package hierarchy
-        
-        // Interactive tree state types
-        type TreeNode =
-          { path: PackagePath
-            name: String
-            nodeType: NodeType
-            isExpanded: Bool
-            children: List<TreeNode>
-            entityCount: EntityCount }
-        
-        type NodeType =
-          | RootNode
-          | PackageNode
-          | ModuleNode
-          | EntityNode of EntityType
-        
-        type EntityType =
-          | FunctionEntity
-          | TypeEntity
-          | ConstantEntity
-        
-        type EntityCount =
-          { functions: Int64
-            types: Int64
-            constants: Int64 }
-        
-        type InteractiveTreeState =
-          { rootNode: TreeNode
-            selectedIndex: Int64
-            visibleNodes: List<TreeNode>
-            showIcons: Bool
-            maxDepth: Int64
-            scrollOffset: Int64 }
         let executeTree (state: AppState) (args: List<String>) : AppState =
+          // Icons are ON by default, use --no-icons to disable
           let showIcons =
-            match Stdlib.List.findFirst args (fun arg -> arg == "--icons") with
-            | Some _ -> true
-            | None -> false
+            match Stdlib.List.findFirst args (fun arg -> arg == "--no-icons") with
+            | Some _ -> false
+            | None -> true
 
           let isInteractive =
             match Stdlib.List.findFirst args (fun arg -> arg == "--interactive" || arg == "-i") with
             | Some _ -> true
             | None -> false
 
-          // Parse depth option
+          // Parse depth option (default is now 2 for better initial view)
           let maxDepth =
             match Stdlib.List.findFirst args (fun arg -> Stdlib.String.startsWith arg "--depth=") with
             | Some depthArg ->
               let depthStr = Stdlib.String.dropFirst depthArg 8L // Remove "--depth="
               match Stdlib.Int64.parse depthStr with
               | Ok depth ->
-                if depth > 0L && depth <= 10L then depth else 3L // Limit to reasonable range
-              | Error _ -> 3L
-            | None -> 3L // Default max depth to avoid overwhelming output
+                if depth > 0L && depth <= 10L then depth else 2L // Limit to reasonable range
+              | Error _ -> 2L
+            | None -> 2L // Default depth of 2 for concise but useful view
 
           // Determine starting path
           let startPath =
@@ -82,102 +50,32 @@ module Darklang =
 
             { state with lastCommand = "tree"; output = "tree displayed" }
         
-        // Interactive tree functions (simplified due to parser limitations)
+        // Interactive tree functions
         let startInteractiveTree (state: AppState) (startPath: PackagePath) (showIcons: Bool) (maxDepth: Int64) : AppState =
-          Builtin.printLine "Interactive Package Tree"
-          Builtin.printLine "Navigation: ↑/↓ to move, Enter to expand/view, 'q' to quit"
-          Builtin.printLine "─────────────────────────────────────────────────────"
-          Builtin.printLine ""
+          // Build initial navigation nodes
+          let initialNodes = buildTreeNavNodes startPath maxDepth showIcons 0L
           
-          // For now, show enhanced static tree with selection hints
-          // Full interactive functionality would require keyboard input handling
-          displayInteractiveStaticTree startPath showIcons maxDepth 0L ""
+          // Create tree navigation state
+          let treeNavState =
+            TreeNavState
+              { startPath = startPath
+                showIcons = showIcons
+                maxDepth = maxDepth
+                selectedIndex = 0L
+                expandedPaths = []
+                currentNodes = initialNodes }
           
-          Builtin.printLine ""
-          Builtin.printLine "Interactive navigation coming soon!"
-          Builtin.printLine "Use regular tree command for now: tree [path] [--icons] [--depth=N]"
+          // Switch to tree navigation mode
+          let newState =
+            { state with 
+                uiMode = InteractiveUIMode.TreeNavigationMode treeNavState
+                lastCommand = "tree --interactive"
+                output = "interactive tree mode started"
+                needsFullRedraw = true }
           
-          { state with 
-              lastCommand = "tree --interactive"
-              output = "interactive tree (enhanced static) displayed"
-              needsFullRedraw = true }
+          // Display initial tree
+          redrawInteractiveTree newState treeNavState
 
-        // Display enhanced static tree that shows what interactive tree would look like
-        let displayInteractiveStaticTree (path: PackagePath) (showIcons: Bool) (remainingDepth: Int64) (currentDepth: Int64) (prefix: String) : Unit =
-          if remainingDepth <= 0L then
-            ()
-          else
-            let query =
-              LanguageTools.ProgramTypes.Search.SearchQuery
-                { currentModule = path
-                  text = ""
-                  searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
-                  entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module;
-                                  LanguageTools.ProgramTypes.Search.EntityType.Fn;
-                                  LanguageTools.ProgramTypes.Search.EntityType.Type;
-                                  LanguageTools.ProgramTypes.Search.EntityType.Constant ] }
-            let searchResults = LanguageTools.PackageManager.Search.search query
-
-            // Get direct child modules
-            let childModules =
-              match Stdlib.List.head searchResults.submodules with
-              | Some moduleList ->
-                let expectedLength = (Stdlib.List.length path) + 1L
-                moduleList
-                |> Stdlib.List.filter (fun modulePath -> Stdlib.List.length modulePath == expectedLength)
-                |> Stdlib.List.filterMap (fun modulePath -> Stdlib.List.last modulePath)
-                |> Stdlib.List.unique
-                |> Stdlib.List.sort
-              | None -> []
-
-            // Display child modules with interactive-style formatting
-            let childCount = Stdlib.List.length childModules
-            let _ =
-              Stdlib.List.fold childModules 0L (fun index child ->
-                let isLast = index == (childCount - 1L)
-                let isSelected = index == 0L  // Simulate first item being selected
-                let selectionPrefix = if isSelected then "> " else "  "
-                let nodePrefix = if isLast then "└─ " else "├─ "
-                let expandIcon = "▶ " // All collapsed initially
-                let icon = if showIcons then "📁 " else ""
-
-                // Get entity counts for this specific child module
-                let childPath = Stdlib.List.append path [child]
-                let childQuery =
-                  LanguageTools.ProgramTypes.Search.SearchQuery
-                    { currentModule = childPath
-                      text = ""
-                      searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
-                      entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Fn;
-                                      LanguageTools.ProgramTypes.Search.EntityType.Type;
-                                      LanguageTools.ProgramTypes.Search.EntityType.Constant ] }
-                let childResults = LanguageTools.PackageManager.Search.search childQuery
-                
-                let childFnCount = Stdlib.List.length childResults.fns
-                let childTypeCount = Stdlib.List.length childResults.types
-                let childConstCount = Stdlib.List.length childResults.constants
-
-                // Show module with entity counts
-                let counts = []
-                let counts = if childFnCount > 0L then Stdlib.List.append counts [$"{Stdlib.Int64.toString childFnCount} fns"] else counts
-                let counts = if childTypeCount > 0L then Stdlib.List.append counts [$"{Stdlib.Int64.toString childTypeCount} types"] else counts
-                let counts = if childConstCount > 0L then Stdlib.List.append counts [$"{Stdlib.Int64.toString childConstCount} consts"] else counts
-                let countsStr =
-                  if Stdlib.List.isEmpty counts then
-                    ""
-                  else
-                    $" ({Stdlib.String.join counts ", "})"
-
-                Builtin.printLine $"{prefix}{selectionPrefix}{expandIcon}{nodePrefix}{icon}{child}/{countsStr}"
-
-                // Show first level children for selected item
-                if isSelected && remainingDepth > 1L then
-                  let childPrefix = if isLast then $"{prefix}      " else $"{prefix}  │   "
-                  displayInteractiveStaticTree childPath showIcons (remainingDepth - 1L) (currentDepth + 1L) childPrefix
-
-                index + 1L
-              )
-            ()
 
         // Display tree from root
         let displayRootTree (showIcons: Bool) (maxDepth: Int64) : Unit =
@@ -259,7 +157,7 @@ module Darklang =
               Stdlib.List.fold childModules 0L (fun index child ->
                 let isLast = index == (childCount - 1L)
                 let nodePrefix = if isLast then "└── " else "├── "
-                let icon = if showIcons then "📦 " else ""
+                let icon = if showIcons then "📂 " else ""
 
                 // Get entity counts for this specific child module
                 let childPath = Stdlib.List.append path [child]
@@ -305,17 +203,17 @@ module Darklang =
               let summaries = []
               let summaries =
                 if fnCount > 0L then
-                  let icon = if showIcons then "🔧 " else ""
+                  let icon = if showIcons then "⚡ " else ""
                   Stdlib.List.append summaries [$"{prefix}    {icon}{Stdlib.Int64.toString fnCount} functions"]
                 else summaries
               let summaries =
                 if typeCount > 0L then
-                  let icon = if showIcons then "📋 " else ""
+                  let icon = if showIcons then "🏷️ " else ""
                   Stdlib.List.append summaries [$"{prefix}    {icon}{Stdlib.Int64.toString typeCount} types"]
                 else summaries
               let summaries =
                 if constCount > 0L then
-                  let icon = if showIcons then "💎 " else ""
+                  let icon = if showIcons then "🔒 " else ""
                   Stdlib.List.append summaries [$"{prefix}    {icon}{Stdlib.Int64.toString constCount} constants"]
                 else summaries
 
@@ -323,22 +221,23 @@ module Darklang =
 
         // Help function
         let treeHelp (state: AppState) : AppState =
-          Builtin.printLine "Usage: tree [path] [--icons] [--depth=N] [--interactive]"
+          Builtin.printLine "Usage: tree [path] [--no-icons] [--depth=N] [--interactive]"
           Builtin.printLine "Display package hierarchy in tree format."
           Builtin.printLine ""
           Builtin.printLine "Options:"
-          Builtin.printLine "  --icons         Show icons for different entity types"
-          Builtin.printLine "  --depth=N       Set maximum depth (1-10, default: 3)"
+          Builtin.printLine "  --no-icons      Disable icons (icons shown by default)"
+          Builtin.printLine "  --depth=N       Set maximum depth (1-10, default: 2)"
           Builtin.printLine "  --interactive   Enable interactive tree navigation (beta)"
           Builtin.printLine ""
           Builtin.printLine "Examples:"
-          Builtin.printLine "  tree                         - Show tree from current location"
+          Builtin.printLine "  tree                         - Show tree with icons, depth 2"
           Builtin.printLine "  tree /                       - Show tree from root"
-          Builtin.printLine "  tree Darklang                - Show tree from Darklang package"
-          Builtin.printLine "  tree --icons                 - Show tree with icons"
-          Builtin.printLine "  tree --interactive           - Show interactive tree (preview)"
-          Builtin.printLine "  tree Darklang.Stdlib --depth=2  - Show Stdlib tree with depth 2"
-          Builtin.printLine "  tree Stdlib --icons --depth=1   - Show Stdlib with icons, depth 1"
+          Builtin.printLine "  tree Darklang                - Show Darklang package tree"
+          Builtin.printLine "  tree --no-icons              - Show tree without icons"
+          Builtin.printLine "  tree --depth=1               - Show only direct children"
+          Builtin.printLine "  tree --depth=5               - Show deeper tree structure"
+          Builtin.printLine "  tree Darklang.Stdlib         - Show Stdlib tree"
+          Builtin.printLine "  tree --interactive           - Interactive navigation (beta)"
           { state with lastCommand = "help tree"; output = "tree help displayed" }
 
         // Completion function
@@ -346,7 +245,7 @@ module Darklang =
           match args with
           | [] ->
             // Suggest common options and current context packages
-            let options = ["--icons"; "--depth=1"; "--depth=2"; "--depth=3"; "--interactive"; "/"]
+            let options = ["--no-icons"; "--depth=1"; "--depth=3"; "--depth=4"; "--interactive"; "/"]
             if Stdlib.List.isEmpty state.currentPath then
               // At root, suggest top-level packages
               let query =
@@ -373,9 +272,253 @@ module Darklang =
           | [partial] ->
             // Complete package names or options
             if Stdlib.String.startsWith partial "--" then
-              let allOptions = ["--icons"; "--interactive"; "--depth=1"; "--depth=2"; "--depth=3"; "--depth=4"; "--depth=5"]
+              let allOptions = ["--no-icons"; "--interactive"; "--depth=1"; "--depth=2"; "--depth=3"; "--depth=4"; "--depth=5"]
               allOptions |> Stdlib.List.filter (fun opt -> Stdlib.String.startsWith opt partial)
             else
               // Use cd completion logic for paths
               Navigation.cdComplete state [partial]
           | _ -> []
+
+        // Interactive tree helper functions
+        
+        // Recursively build hierarchical tree nodes 
+        let buildHierarchicalNodes (parentPath: PackagePath) (expandedPaths: List<PackagePath>) (currentDepth: Int64) (maxDepth: Int64) : List<TreeNavNode> =
+          if currentDepth >= maxDepth then
+            []
+          else
+            let query =
+              LanguageTools.ProgramTypes.Search.SearchQuery
+                { currentModule = parentPath
+                  text = ""
+                  searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+                  entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module;
+                                  LanguageTools.ProgramTypes.Search.EntityType.Fn;
+                                  LanguageTools.ProgramTypes.Search.EntityType.Type;
+                                  LanguageTools.ProgramTypes.Search.EntityType.Constant ] }
+            let searchResults = LanguageTools.PackageManager.Search.search query
+
+            // Get direct child modules
+            let childModules =
+              match Stdlib.List.head searchResults.submodules with
+              | Some moduleList ->
+                let expectedLength = (Stdlib.List.length parentPath) + 1L
+                moduleList
+                |> Stdlib.List.filter (fun modulePath -> Stdlib.List.length modulePath == expectedLength)
+                |> Stdlib.List.filterMap (fun modulePath -> Stdlib.List.last modulePath)
+                |> Stdlib.List.unique
+                |> Stdlib.List.sort
+              | None -> []
+
+            // Build nodes for child modules and their content
+            let allNodes =
+              childModules
+              |> Stdlib.List.map (fun moduleName ->
+                let childPath = Stdlib.List.append parentPath [moduleName]
+                let childQuery =
+                  LanguageTools.ProgramTypes.Search.SearchQuery
+                    { currentModule = childPath
+                      text = ""
+                      searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+                      entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Fn;
+                                      LanguageTools.ProgramTypes.Search.EntityType.Type;
+                                      LanguageTools.ProgramTypes.Search.EntityType.Constant ] }
+                let childResults = LanguageTools.PackageManager.Search.search childQuery
+                
+                let entityCount =
+                  EntityCount
+                    { functions = Stdlib.List.length childResults.fns
+                      types = Stdlib.List.length childResults.types
+                      constants = Stdlib.List.length childResults.constants }
+
+                let isExpanded = Stdlib.List.``member`` expandedPaths childPath
+                let moduleNode =
+                  TreeNavNode
+                    { path = childPath
+                      name = moduleName
+                      nodeType = TreeNodeType.ModuleNode
+                      isExpanded = isExpanded
+                      entityCount = entityCount
+                      depth = currentDepth }
+
+                // If expanded, add entity nodes and recurse into submodules
+                if isExpanded then
+                  let entityNodes = []
+                  
+                  // Add function nodes
+                  let fnNodes =
+                    childResults.fns
+                    |> Stdlib.List.map (fun fn ->
+                      TreeNavNode
+                        { path = childPath
+                          name = fn.name.name
+                          nodeType = TreeNodeType.FunctionNode
+                          isExpanded = false
+                          entityCount = EntityCount { functions = 0L; types = 0L; constants = 0L }
+                          depth = currentDepth + 1L })
+                  
+                  // Add type nodes
+                  let typeNodes =
+                    childResults.types
+                    |> Stdlib.List.map (fun typ ->
+                      TreeNavNode
+                        { path = childPath
+                          name = typ.name.name
+                          nodeType = TreeNodeType.TypeNode
+                          isExpanded = false
+                          entityCount = EntityCount { functions = 0L; types = 0L; constants = 0L }
+                          depth = currentDepth + 1L })
+                  
+                  // Add constant nodes
+                  let constNodes =
+                    childResults.constants
+                    |> Stdlib.List.map (fun constDef ->
+                      TreeNavNode
+                        { path = childPath
+                          name = constDef.name.name
+                          nodeType = TreeNodeType.ConstantNode
+                          isExpanded = false
+                          entityCount = EntityCount { functions = 0L; types = 0L; constants = 0L }
+                          depth = currentDepth + 1L })
+
+                  // Recursively get submodule nodes
+                  let subNodes = buildHierarchicalNodes childPath expandedPaths (currentDepth + 1L) maxDepth
+
+                  // Return module node followed by its content
+                  Stdlib.List.append [moduleNode] (Stdlib.List.append fnNodes (Stdlib.List.append typeNodes (Stdlib.List.append constNodes subNodes)))
+                else
+                  [moduleNode])
+              |> Stdlib.List.flatten
+
+            allNodes
+
+        // Build tree navigation nodes with expansion support
+        let buildTreeNavNodes (startPath: PackagePath) (maxDepth: Int64) (showIcons: Bool) (currentDepth: Int64) : List<TreeNavNode> =
+          buildTreeNavNodesWithExpansion startPath maxDepth showIcons currentDepth []
+
+        // Build tree navigation nodes with expansion tracking
+        let buildTreeNavNodesWithExpansion (startPath: PackagePath) (maxDepth: Int64) (showIcons: Bool) (currentDepth: Int64) (expandedPaths: List<PackagePath>) : List<TreeNavNode> =
+          if Stdlib.List.isEmpty startPath then
+            // At root level, show top-level package owners (like Darklang, Stachu)
+            let query =
+              LanguageTools.ProgramTypes.Search.SearchQuery
+                { currentModule = []
+                  text = ""
+                  searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+                  entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module ] }
+            let searchResults = LanguageTools.PackageManager.Search.search query
+
+            match Stdlib.List.head searchResults.submodules with
+            | Some moduleList ->
+              let owners =
+                moduleList
+                |> Stdlib.List.filterMap (fun path ->
+                  match path with
+                  | owner :: _ -> Stdlib.Option.Option.Some owner
+                  | [] -> Stdlib.Option.Option.None)
+                |> Stdlib.List.unique
+                |> Stdlib.List.sort
+
+              // Build hierarchical structure for each owner
+              owners
+              |> Stdlib.List.map (fun ownerName ->
+                let ownerPath = [ownerName]
+                let isExpanded = Stdlib.List.``member`` expandedPaths ownerPath
+                let ownerNode =
+                  TreeNavNode
+                    { path = ownerPath
+                      name = ownerName
+                      nodeType = TreeNodeType.ModuleNode
+                      isExpanded = isExpanded
+                      entityCount = EntityCount { functions = 0L; types = 0L; constants = 0L }
+                      depth = 0L }
+
+                // If expanded, get children hierarchically
+                if isExpanded then
+                  let children = buildHierarchicalNodes ownerPath expandedPaths 1L maxDepth
+                  Stdlib.List.append [ownerNode] children
+                else
+                  [ownerNode])
+              |> Stdlib.List.flatten
+            | None -> []
+          else
+            buildHierarchicalNodes startPath expandedPaths currentDepth maxDepth
+
+        // Display current tree navigation state
+        let displayTreeNavigation (state: AppState) (treeState: TreeNavState) : Unit =
+          let _ = 
+            treeState.currentNodes
+            |> Stdlib.List.fold 0L (fun index node ->
+              let isSelected = index == treeState.selectedIndex
+              let selectionPrefix = if isSelected then "> " else "  "
+              
+              // Create indentation based on depth
+              let indentation = Stdlib.String.repeat "  " node.depth
+              
+              let icon = if treeState.showIcons then getNodeIcon node.nodeType else ""
+              
+              // Only show expand icon for modules that can have children
+              let expandIcon = 
+                match node.nodeType with
+                | ModuleNode ->
+                  if node.isExpanded then "▼ " else "▶ "
+                | _ -> ""
+              
+              let countsStr =
+                if node.entityCount.functions + node.entityCount.types + node.entityCount.constants > 0L then
+                  let counts = []
+                  let counts = if node.entityCount.functions > 0L then Stdlib.List.append counts [$"{Stdlib.Int64.toString node.entityCount.functions} fns"] else counts
+                  let counts = if node.entityCount.types > 0L then Stdlib.List.append counts [$"{Stdlib.Int64.toString node.entityCount.types} types"] else counts
+                  let counts = if node.entityCount.constants > 0L then Stdlib.List.append counts [$"{Stdlib.Int64.toString node.entityCount.constants} consts"] else counts
+                  $" ({Stdlib.String.join counts ", "})"
+                else
+                  ""
+              
+              Builtin.printLine $"{selectionPrefix}{indentation}{expandIcon}{icon}{node.name}{countsStr}"
+              index + 1L)
+          ()
+
+        // Redraw interactive tree (clears and redraws)
+        let redrawInteractiveTree (state: AppState) (treeState: TreeNavState) : AppState =
+          // Clear screen and redisplay
+          Builtin.printLine "\x1b[2J\x1b[H"  // ANSI clear screen and move cursor to top
+          Builtin.printLine "Interactive Package Tree"
+          Builtin.printLine "Navigation: ↑/↓ to move, ←/→ to collapse/expand, Enter to toggle/view, 'q' to quit"
+          Builtin.printLine "─────────────────────────────────────────────────────"
+          Builtin.printLine ""
+          displayTreeNavigation state treeState
+          state
+
+        // Rebuild and redraw tree (for expansions)
+        let rebuildAndRedrawTree (state: AppState) (treeState: TreeNavState) : AppState =
+          // Rebuild nodes with new expansion state
+          let updatedNodes = buildTreeNavNodesWithExpansion treeState.startPath treeState.maxDepth treeState.showIcons 0L treeState.expandedPaths
+          let newTreeState =
+            { treeState with
+                currentNodes = updatedNodes }
+          let newState =
+            { state with
+                uiMode = InteractiveUIMode.TreeNavigationMode newTreeState }
+          redrawInteractiveTree newState newTreeState
+
+        // View entity from tree selection
+        let viewEntityFromTree (state: AppState) (selectedNode: TreeNavNode) : AppState =
+          // Exit tree mode and execute view command
+          let newState =
+            { state with
+                uiMode = InteractiveUIMode.PromptMode }
+          let entityPath = Path.formatPath selectedNode.path
+          Builtin.printLine ""
+          Builtin.printLine $"Viewing {selectedNode.name} at {entityPath}"
+          
+          // Execute view command for the selected entity
+          Packages.Viewing.executeView newState [selectedNode.name]
+
+        // Get icon for tree node type
+        let getNodeIcon (nodeType: TreeNodeType) : String =
+          match nodeType with
+          | RootNode -> "🏠 "
+          | ModuleNode -> "📂 "
+          | FunctionNode -> "⚡ "
+          | TypeNode -> "🏷️ "
+          | ConstantNode -> "🔒 "
+
