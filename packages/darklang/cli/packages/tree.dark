@@ -42,6 +42,11 @@ module Darklang =
             | Some _ -> true
             | None -> false
 
+          let isInteractive =
+            match Stdlib.List.findFirst args (fun arg -> arg == "--interactive" || arg == "-i") with
+            | Some _ -> true
+            | None -> false
+
           // Parse depth option
           let maxDepth =
             match Stdlib.List.findFirst args (fun arg -> Stdlib.String.startsWith arg "--depth=") with
@@ -60,19 +65,119 @@ module Darklang =
             | [pathStr] -> Path.parsePath pathStr
             | _ -> state.currentPath
 
-          if Stdlib.List.isEmpty startPath then
-            Builtin.printLine "Package tree:"
-            Builtin.printLine ""
-            displayRootTree showIcons maxDepth
+          if isInteractive then
+            // Start interactive tree mode
+            startInteractiveTree state startPath showIcons maxDepth
           else
-            let pathStr = Path.formatPath startPath
-            Builtin.printLine $"Package tree from {pathStr}:"
-            Builtin.printLine ""
-            displayModuleTree startPath showIcons maxDepth 0L ""
+            // Static tree display
+            if Stdlib.List.isEmpty startPath then
+              Builtin.printLine "Package tree:"
+              Builtin.printLine ""
+              displayRootTree showIcons maxDepth
+            else
+              let pathStr = Path.formatPath startPath
+              Builtin.printLine $"Package tree from {pathStr}:"
+              Builtin.printLine ""
+              displayModuleTree startPath showIcons maxDepth 0L ""
 
-          { state with lastCommand = "tree"; output = "tree displayed" }
+            { state with lastCommand = "tree"; output = "tree displayed" }
         
-        // Interactive tree functions will be added later
+        // Interactive tree functions (simplified due to parser limitations)
+        let startInteractiveTree (state: AppState) (startPath: PackagePath) (showIcons: Bool) (maxDepth: Int64) : AppState =
+          Builtin.printLine "Interactive Package Tree"
+          Builtin.printLine "Navigation: ↑/↓ to move, Enter to expand/view, 'q' to quit"
+          Builtin.printLine "─────────────────────────────────────────────────────"
+          Builtin.printLine ""
+          
+          // For now, show enhanced static tree with selection hints
+          // Full interactive functionality would require keyboard input handling
+          displayInteractiveStaticTree startPath showIcons maxDepth 0L ""
+          
+          Builtin.printLine ""
+          Builtin.printLine "Interactive navigation coming soon!"
+          Builtin.printLine "Use regular tree command for now: tree [path] [--icons] [--depth=N]"
+          
+          { state with 
+              lastCommand = "tree --interactive"
+              output = "interactive tree (enhanced static) displayed"
+              needsFullRedraw = true }
+
+        // Display enhanced static tree that shows what interactive tree would look like
+        let displayInteractiveStaticTree (path: PackagePath) (showIcons: Bool) (remainingDepth: Int64) (currentDepth: Int64) (prefix: String) : Unit =
+          if remainingDepth <= 0L then
+            ()
+          else
+            let query =
+              LanguageTools.ProgramTypes.Search.SearchQuery
+                { currentModule = path
+                  text = ""
+                  searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+                  entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module;
+                                  LanguageTools.ProgramTypes.Search.EntityType.Fn;
+                                  LanguageTools.ProgramTypes.Search.EntityType.Type;
+                                  LanguageTools.ProgramTypes.Search.EntityType.Constant ] }
+            let searchResults = LanguageTools.PackageManager.Search.search query
+
+            // Get direct child modules
+            let childModules =
+              match Stdlib.List.head searchResults.submodules with
+              | Some moduleList ->
+                let expectedLength = (Stdlib.List.length path) + 1L
+                moduleList
+                |> Stdlib.List.filter (fun modulePath -> Stdlib.List.length modulePath == expectedLength)
+                |> Stdlib.List.filterMap (fun modulePath -> Stdlib.List.last modulePath)
+                |> Stdlib.List.unique
+                |> Stdlib.List.sort
+              | None -> []
+
+            // Display child modules with interactive-style formatting
+            let childCount = Stdlib.List.length childModules
+            let _ =
+              Stdlib.List.fold childModules 0L (fun index child ->
+                let isLast = index == (childCount - 1L)
+                let isSelected = index == 0L  // Simulate first item being selected
+                let selectionPrefix = if isSelected then "> " else "  "
+                let nodePrefix = if isLast then "└─ " else "├─ "
+                let expandIcon = "▶ " // All collapsed initially
+                let icon = if showIcons then "📁 " else ""
+
+                // Get entity counts for this specific child module
+                let childPath = Stdlib.List.append path [child]
+                let childQuery =
+                  LanguageTools.ProgramTypes.Search.SearchQuery
+                    { currentModule = childPath
+                      text = ""
+                      searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+                      entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Fn;
+                                      LanguageTools.ProgramTypes.Search.EntityType.Type;
+                                      LanguageTools.ProgramTypes.Search.EntityType.Constant ] }
+                let childResults = LanguageTools.PackageManager.Search.search childQuery
+                
+                let childFnCount = Stdlib.List.length childResults.fns
+                let childTypeCount = Stdlib.List.length childResults.types
+                let childConstCount = Stdlib.List.length childResults.constants
+
+                // Show module with entity counts
+                let counts = []
+                let counts = if childFnCount > 0L then Stdlib.List.append counts [$"{Stdlib.Int64.toString childFnCount} fns"] else counts
+                let counts = if childTypeCount > 0L then Stdlib.List.append counts [$"{Stdlib.Int64.toString childTypeCount} types"] else counts
+                let counts = if childConstCount > 0L then Stdlib.List.append counts [$"{Stdlib.Int64.toString childConstCount} consts"] else counts
+                let countsStr =
+                  if Stdlib.List.isEmpty counts then
+                    ""
+                  else
+                    $" ({Stdlib.String.join counts ", "})"
+
+                Builtin.printLine $"{prefix}{selectionPrefix}{expandIcon}{nodePrefix}{icon}{child}/{countsStr}"
+
+                // Show first level children for selected item
+                if isSelected && remainingDepth > 1L then
+                  let childPrefix = if isLast then $"{prefix}      " else $"{prefix}  │   "
+                  displayInteractiveStaticTree childPath showIcons (remainingDepth - 1L) (currentDepth + 1L) childPrefix
+
+                index + 1L
+              )
+            ()
 
         // Display tree from root
         let displayRootTree (showIcons: Bool) (maxDepth: Int64) : Unit =
@@ -218,18 +323,20 @@ module Darklang =
 
         // Help function
         let treeHelp (state: AppState) : AppState =
-          Builtin.printLine "Usage: tree [path] [--icons] [--depth=N]"
+          Builtin.printLine "Usage: tree [path] [--icons] [--depth=N] [--interactive]"
           Builtin.printLine "Display package hierarchy in tree format."
           Builtin.printLine ""
           Builtin.printLine "Options:"
-          Builtin.printLine "  --icons       Show icons for different entity types"
-          Builtin.printLine "  --depth=N     Set maximum depth (1-10, default: 3)"
+          Builtin.printLine "  --icons         Show icons for different entity types"
+          Builtin.printLine "  --depth=N       Set maximum depth (1-10, default: 3)"
+          Builtin.printLine "  --interactive   Enable interactive tree navigation (beta)"
           Builtin.printLine ""
           Builtin.printLine "Examples:"
           Builtin.printLine "  tree                         - Show tree from current location"
           Builtin.printLine "  tree /                       - Show tree from root"
           Builtin.printLine "  tree Darklang                - Show tree from Darklang package"
           Builtin.printLine "  tree --icons                 - Show tree with icons"
+          Builtin.printLine "  tree --interactive           - Show interactive tree (preview)"
           Builtin.printLine "  tree Darklang.Stdlib --depth=2  - Show Stdlib tree with depth 2"
           Builtin.printLine "  tree Stdlib --icons --depth=1   - Show Stdlib with icons, depth 1"
           { state with lastCommand = "help tree"; output = "tree help displayed" }
@@ -239,9 +346,8 @@ module Darklang =
           match args with
           | [] ->
             // Suggest common options and current context packages
-            let options = ["--icons"; "--depth=1"; "--depth=2"; "--depth=3"; "/"]
-            match state.currentPath with
-            | Root ->
+            let options = ["--icons"; "--depth=1"; "--depth=2"; "--depth=3"; "--interactive"; "/"]
+            if Stdlib.List.isEmpty state.currentPath then
               // At root, suggest top-level packages
               let query =
                 LanguageTools.ProgramTypes.Search.SearchQuery
@@ -262,11 +368,12 @@ module Darklang =
                   |> Stdlib.List.sort
                 Stdlib.List.append options owners
               | None -> options
-            | Module _ _ -> options
+            else
+              options
           | [partial] ->
             // Complete package names or options
             if Stdlib.String.startsWith partial "--" then
-              let allOptions = ["--icons"; "--depth=1"; "--depth=2"; "--depth=3"; "--depth=4"; "--depth=5"]
+              let allOptions = ["--icons"; "--interactive"; "--depth=1"; "--depth=2"; "--depth=3"; "--depth=4"; "--depth=5"]
               allOptions |> Stdlib.List.filter (fun opt -> Stdlib.String.startsWith opt partial)
             else
               // Use cd completion logic for paths
