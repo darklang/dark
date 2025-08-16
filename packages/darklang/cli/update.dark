@@ -110,14 +110,20 @@ module Darklang =
         match key with
         | UpArrow ->
           // Move selection up
+          let totalNodes = Stdlib.List.length treeState.currentNodes
           let newIndex = 
             if treeState.selectedIndex > 0L then
               treeState.selectedIndex - 1L
             else
-              (Stdlib.List.length treeState.currentNodes) - 1L  // Wrap to bottom
+              totalNodes - 1L  // Wrap to bottom
+          
+          // Calculate new scroll offset to keep selection visible
+          let newScrollOffset = Packages.Tree.calculateScrollOffset newIndex treeState.scrollOffset totalNodes
+          
           let newTreeState =
             { treeState with
-                selectedIndex = newIndex }
+                selectedIndex = newIndex
+                scrollOffset = newScrollOffset }
           let newUiMode = InteractiveUIMode.TreeNavigationMode newTreeState
           let newState =
             { state with
@@ -126,15 +132,20 @@ module Darklang =
           Packages.Tree.redrawInteractiveTree newState newTreeState
         | DownArrow ->
           // Move selection down
-          let nodeCount = Stdlib.List.length treeState.currentNodes
+          let totalNodes = Stdlib.List.length treeState.currentNodes
           let newIndex = 
-            if treeState.selectedIndex < (nodeCount - 1L) then
+            if treeState.selectedIndex < (totalNodes - 1L) then
               treeState.selectedIndex + 1L
             else
               0L  // Wrap to top
+          
+          // Calculate new scroll offset to keep selection visible
+          let newScrollOffset = Packages.Tree.calculateScrollOffset newIndex treeState.scrollOffset totalNodes
+          
           let newTreeState =
             { treeState with
-                selectedIndex = newIndex }
+                selectedIndex = newIndex
+                scrollOffset = newScrollOffset }
           let newUiMode = InteractiveUIMode.TreeNavigationMode newTreeState
           let newState =
             { state with
@@ -191,7 +202,7 @@ module Darklang =
               else
                 // Current module not expanded, collapse parent if it exists
                 if selectedNode.depth > 0L then
-                  let parentPath = Stdlib.List.dropLast selectedNode.path 1L
+                  let parentPath = Stdlib.List.dropLast selectedNode.path
                   if Stdlib.List.``member`` treeState.expandedPaths parentPath then
                     let newExpandedPaths = 
                       Stdlib.List.filter treeState.expandedPaths (fun path -> path != parentPath)
@@ -211,7 +222,7 @@ module Darklang =
             | _ ->
               // Non-module node, collapse parent if it exists
               if selectedNode.depth > 0L then
-                let parentPath = Stdlib.List.dropLast selectedNode.path 1L
+                let parentPath = Stdlib.List.dropLast selectedNode.path
                 if Stdlib.List.``member`` treeState.expandedPaths parentPath then
                   let newExpandedPaths = 
                     Stdlib.List.filter treeState.expandedPaths (fun path -> path != parentPath)

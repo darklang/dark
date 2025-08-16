@@ -23,7 +23,8 @@ module Darklang =
         maxDepth: Int64
         selectedIndex: Int64
         expandedPaths: List<PackagePath>
-        currentNodes: List<TreeNavNode> }
+        currentNodes: List<TreeNavNode>
+        scrollOffset: Int64 }
 
     // Tree navigation node
     type TreeNavNode =

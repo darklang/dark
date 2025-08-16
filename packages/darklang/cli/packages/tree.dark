@@ -63,7 +63,8 @@ module Darklang =
                 maxDepth = maxDepth
                 selectedIndex = 0L
                 expandedPaths = []
-                currentNodes = initialNodes }
+                currentNodes = initialNodes
+                scrollOffset = 0L }
           
           // Switch to tree navigation mode
           let newState =
@@ -443,12 +444,25 @@ module Darklang =
           else
             buildHierarchicalNodes startPath expandedPaths currentDepth maxDepth
 
-        // Display current tree navigation state
+        // Display current tree navigation state with viewport scrolling
         let displayTreeNavigation (state: AppState) (treeState: TreeNavState) : Unit =
-          let _ = 
+          // Calculate viewport dimensions
+          let reservedLines = 4L  // Header lines + instructions
+          let viewportHeight = Terminal.getViewportHeight reservedLines
+          let totalNodes = Stdlib.List.length treeState.currentNodes
+          
+          // Calculate visible slice of nodes
+          let startIndex = treeState.scrollOffset
+          let endIndex = Stdlib.Int64.min (startIndex + viewportHeight) totalNodes
+          let visibleNodes = 
             treeState.currentNodes
-            |> Stdlib.List.fold 0L (fun index node ->
-              let isSelected = index == treeState.selectedIndex
+            |> Stdlib.List.drop startIndex
+            |> Stdlib.List.take (endIndex - startIndex)
+          
+          let _ = 
+            visibleNodes
+            |> Stdlib.List.fold startIndex (fun globalIndex node ->
+              let isSelected = globalIndex == treeState.selectedIndex
               let selectionPrefix = if isSelected then "> " else "  "
               
               // Create indentation based on depth
@@ -474,7 +488,14 @@ module Darklang =
                   ""
               
               Builtin.printLine $"{selectionPrefix}{indentation}{expandIcon}{icon}{node.name}{countsStr}"
-              index + 1L)
+              globalIndex + 1L)
+          
+          // Show scroll indicator if there are more items
+          if totalNodes > viewportHeight then
+            let scrollIndicator = $"Showing {Stdlib.Int64.toString (startIndex + 1L)}-{Stdlib.Int64.toString endIndex} of {Stdlib.Int64.toString totalNodes}"
+            Builtin.printLine ""
+            Builtin.printLine scrollIndicator
+          
           ()
 
         // Redraw interactive tree (clears and redraws)
@@ -512,6 +533,22 @@ module Darklang =
           
           // Execute view command for the selected entity
           Packages.Viewing.executeView newState [selectedNode.name]
+
+        // Calculate scroll offset to ensure selected item is visible
+        let calculateScrollOffset (selectedIndex: Int64) (currentScrollOffset: Int64) (totalNodes: Int64) : Int64 =
+          let reservedLines = 4L  // Header lines + instructions
+          let viewportHeight = Terminal.getViewportHeight reservedLines
+          
+          // If selected item is above current viewport, scroll up
+          if selectedIndex < currentScrollOffset then
+            selectedIndex
+          // If selected item is below current viewport, scroll down  
+          else if selectedIndex >= (currentScrollOffset + viewportHeight) then
+            selectedIndex - viewportHeight + 1L
+          // Selected item is within viewport, no scroll needed
+          else
+            currentScrollOffset
+          |> Terminal.clampScrollOffset totalNodes viewportHeight
 
         // Get icon for tree node type
         let getNodeIcon (nodeType: TreeNodeType) : String =
