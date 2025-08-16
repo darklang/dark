@@ -6,11 +6,6 @@ module Darklang =
       | Exit
 
 
-    // App execution modes
-    type AppMode =
-      | InteractiveMode  // REPL-like experience (default)
-      | CommandMode      // One-off command execution via CLI args
-
     // Interactive UI modes
     type InteractiveUIMode =
       | PromptMode        // Normal command prompt
@@ -58,7 +53,6 @@ module Darklang =
         needsFullRedraw: Bool
         currentPath: PackagePath
         pathHistory: List<PackagePath>
-        appMode: AppMode
         uiMode: InteractiveUIMode
         commandHistory: List<String>
         historyIndex: Int64 }
@@ -72,7 +66,6 @@ module Darklang =
           needsFullRedraw = true
           currentPath = []
           pathHistory = []
-          appMode = AppMode.InteractiveMode  // Default to REPL mode
           uiMode = InteractiveUIMode.PromptMode  // Default to prompt mode
           commandHistory = []
           historyIndex = -1L }
