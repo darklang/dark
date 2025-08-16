@@ -480,27 +480,27 @@ module Darklang =
               let countsStr =
                 if node.entityCount.functions + node.entityCount.types + node.entityCount.constants > 0L then
                   let counts = []
-                  let counts = if node.entityCount.functions > 0L then Stdlib.List.append counts [$"{Stdlib.Int64.toString node.entityCount.functions} fns"] else counts
-                  let counts = if node.entityCount.types > 0L then Stdlib.List.append counts [$"{Stdlib.Int64.toString node.entityCount.types} types"] else counts
-                  let counts = if node.entityCount.constants > 0L then Stdlib.List.append counts [$"{Stdlib.Int64.toString node.entityCount.constants} consts"] else counts
-                  $" ({Stdlib.String.join counts ", "})"
+                  let counts = if node.entityCount.functions > 0L then Stdlib.List.append counts [Stdlib.Int64.toString node.entityCount.functions ++ " fns"] else counts
+                  let counts = if node.entityCount.types > 0L then Stdlib.List.append counts [Stdlib.Int64.toString node.entityCount.types ++ " types"] else counts
+                  let counts = if node.entityCount.constants > 0L then Stdlib.List.append counts [Stdlib.Int64.toString node.entityCount.constants ++ " consts"] else counts
+                  " (" ++ (Stdlib.String.join counts ", ") ++ ")"
                 else
                   ""
               
-              Builtin.printLine $"{selectionPrefix}{indentation}{expandIcon}{icon}{node.name}{countsStr}"
+              Builtin.printLine (selectionPrefix ++ indentation ++ expandIcon ++ icon ++ node.name ++ countsStr)
               globalIndex + 1L)
           
           // Show scroll indicator if there are more items
           if totalNodes > viewportHeight then
-            let scrollIndicator = $"Showing {Stdlib.Int64.toString (startIndex + 1L)}-{Stdlib.Int64.toString endIndex} of {Stdlib.Int64.toString totalNodes}"
+            let scrollIndicator = "Showing " ++ Stdlib.Int64.toString (startIndex + 1L) ++ "-" ++ Stdlib.Int64.toString endIndex ++ " of " ++ Stdlib.Int64.toString totalNodes
             Builtin.printLine ""
             Builtin.printLine scrollIndicator
           
           ()
 
-        // Redraw interactive tree (clears and redraws)
+        // Redraw interactive tree (clears and redraws) - only for major changes
         let redrawInteractiveTree (state: AppState) (treeState: TreeNavState) : AppState =
-          // Clear screen and redisplay
+          // Clear screen and redisplay - only used for major layout changes
           Builtin.printLine "\x1b[2J\x1b[H"  // ANSI clear screen and move cursor to top
           Builtin.printLine "Interactive Package Tree"
           Builtin.printLine "Navigation: ↑/↓ to move, ←/→ to collapse/expand, Enter to toggle/view, 'q' to quit"
@@ -509,7 +509,74 @@ module Darklang =
           displayTreeNavigation state treeState
           state
 
-        // Rebuild and redraw tree (for expansions)
+        // Update tree selection without full redraw - for navigation
+        let updateTreeSelection (state: AppState) (treeState: TreeNavState) : AppState =
+          // Calculate viewport and display only visible portion
+          let reservedLines = 4L  // Header lines + instructions
+          let viewportHeight = Terminal.getViewportHeight reservedLines
+          let totalNodes = Stdlib.List.length treeState.currentNodes
+          
+          // Calculate visible slice of nodes
+          let startIndex = treeState.scrollOffset
+          let endIndex = Stdlib.Int64.min (startIndex + viewportHeight) totalNodes
+          let visibleNodes = 
+            treeState.currentNodes
+            |> Stdlib.List.drop startIndex
+            |> Stdlib.List.take (endIndex - startIndex)
+          
+          // Move cursor to start of tree content (after header)
+          Builtin.print "\x1b[5;1H"  // Move to row 5, column 1
+          
+          let _ = 
+            visibleNodes
+            |> Stdlib.List.fold startIndex (fun globalIndex node ->
+              let isSelected = globalIndex == treeState.selectedIndex
+              let selectionPrefix = if isSelected then "> " else "  "
+              
+              // Create indentation based on depth
+              let indentation = Stdlib.String.repeat "  " node.depth
+              
+              // Get appropriate icon
+              let icon = getNodeIcon node.nodeType
+              
+              // Get expansion icon for modules
+              let expandIcon = 
+                match node.nodeType with
+                | ModuleNode ->
+                  if Stdlib.List.``member`` treeState.expandedPaths node.path then
+                    "▼ "
+                  else
+                    "▶ "
+                | _ -> ""
+              
+              // Add entity counts for modules
+              let countsStr = 
+                let counts = node.entityCount
+                if counts.functions > 0L || counts.types > 0L || counts.constants > 0L then
+                  let parts = []
+                  let parts = if counts.functions > 0L then Stdlib.List.append parts [Stdlib.Int64.toString counts.functions ++ " fns"] else parts
+                  let parts = if counts.types > 0L then Stdlib.List.append parts [Stdlib.Int64.toString counts.types ++ " types"] else parts
+                  let parts = if counts.constants > 0L then Stdlib.List.append parts [Stdlib.Int64.toString counts.constants ++ " consts"] else parts
+                  " (" ++ (Stdlib.String.join parts ", ") ++ ")"
+                else
+                  ""
+              
+              // Clear the line and print the updated content
+              Builtin.print "\x1b[2K"  // Clear entire line
+              Builtin.printLine (selectionPrefix ++ indentation ++ expandIcon ++ icon ++ node.name ++ countsStr)
+              globalIndex + 1L)
+          
+          // Show scroll indicator if there are more items
+          if totalNodes > viewportHeight then
+            let scrollIndicator = "Showing " ++ Stdlib.Int64.toString (startIndex + 1L) ++ "-" ++ Stdlib.Int64.toString endIndex ++ " of " ++ Stdlib.Int64.toString totalNodes
+            Builtin.print "\x1b[2K"  // Clear line
+            Builtin.printLine ""
+            Builtin.print "\x1b[2K"  // Clear line  
+            Builtin.printLine scrollIndicator
+          
+          state
+
+        // Rebuild and redraw tree (for expansions) - optimized
         let rebuildAndRedrawTree (state: AppState) (treeState: TreeNavState) : AppState =
           // Rebuild nodes with new expansion state
           let updatedNodes = buildTreeNavNodesWithExpansion treeState.startPath treeState.maxDepth treeState.showIcons 0L treeState.expandedPaths
@@ -519,7 +586,21 @@ module Darklang =
           let newState =
             { state with
                 uiMode = InteractiveUIMode.TreeNavigationMode newTreeState }
+          
+          // Use full redraw for tree structure changes, but update selection for navigation
           redrawInteractiveTree newState newTreeState
+
+        // Smart tree update - chooses between full redraw or selection update
+        let smartTreeUpdate (state: AppState) (treeState: TreeNavState) (isStructuralChange: Bool) : AppState =
+          if isStructuralChange then
+            // Tree structure changed (expand/collapse) - need full redraw
+            rebuildAndRedrawTree state treeState
+          else
+            // Only selection changed - use targeted update
+            let newState =
+              { state with
+                  uiMode = InteractiveUIMode.TreeNavigationMode treeState }
+            updateTreeSelection newState treeState
 
         // View entity from tree selection
         let viewEntityFromTree (state: AppState) (selectedNode: TreeNavNode) : AppState =

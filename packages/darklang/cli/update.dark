@@ -22,7 +22,7 @@ module Darklang =
             // Execute the current command
             if Stdlib.String.isEmpty (Stdlib.String.trim state.mainPrompt) then
               Builtin.printLine ""
-              { state with mainPrompt = ""; needsFullRedraw = true; historyIndex = -1L }
+              { state with mainPrompt = ""; needsFullRedraw = false; historyIndex = -1L }
             else
               Builtin.printLine ""
               let commandToExecute = Stdlib.String.trim state.mainPrompt
@@ -33,7 +33,7 @@ module Darklang =
                   Stdlib.List.append [commandToExecute] state.commandHistory
                 else
                   state.commandHistory
-              { newState with mainPrompt = ""; needsFullRedraw = true; commandHistory = updatedHistory; historyIndex = -1L }
+              { newState with mainPrompt = ""; needsFullRedraw = false; commandHistory = updatedHistory; historyIndex = -1L }
           | Backspace ->
             // Remove last character from prompt
             if Stdlib.String.length state.mainPrompt > 0L then
@@ -128,8 +128,8 @@ module Darklang =
           let newState =
             { state with
                 uiMode = newUiMode
-                needsFullRedraw = true }
-          Packages.Tree.redrawInteractiveTree newState newTreeState
+                needsFullRedraw = false }
+          Packages.Tree.smartTreeUpdate newState newTreeState false
         | DownArrow ->
           // Move selection down
           let totalNodes = Stdlib.List.length treeState.currentNodes
@@ -150,8 +150,8 @@ module Darklang =
           let newState =
             { state with
                 uiMode = newUiMode
-                needsFullRedraw = true }
-          Packages.Tree.redrawInteractiveTree newState newTreeState
+                needsFullRedraw = false }
+          Packages.Tree.smartTreeUpdate newState newTreeState false
         | Enter ->
           // Expand/collapse node or view entity
           match Stdlib.List.getAt treeState.currentNodes treeState.selectedIndex with

@@ -2,7 +2,7 @@ module Darklang =
   module Cli =
     module View =
       let formatError (message: String) : String =
-        Colors.error $"Error: {message}"
+        Colors.error ("Error: " ++ message)
 
       let formatSuccess (message: String) : String =
         Colors.success message
@@ -15,12 +15,12 @@ module Darklang =
 
         let hint = Registry.getCompletionHint state state.mainPrompt
         if Stdlib.String.isEmpty hint then
-          $"{currentPathStr}> {state.mainPrompt}"
+          currentPathStr ++ "> " ++ state.mainPrompt
         else
-          $"{currentPathStr}> {state.mainPrompt}" ++ (Colors.hint hint)
+          currentPathStr ++ "> " ++ state.mainPrompt ++ (Colors.hint hint)
 
       let formatWelcome () : String =
-        $"Darklang CLI\n\n{Registry.getCommandList ()}\n\nType 'help <command>' for specific command help."
+        "Darklang CLI\n\n" ++ Registry.getCommandList () ++ "\n\nType 'help <command>' for specific command help."
 
       let formatWelcomeCommands () : String =
         "help, version, quit"

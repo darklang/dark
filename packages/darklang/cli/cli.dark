@@ -11,8 +11,8 @@ module Darklang =
           if state.needsFullRedraw then
             Builtin.printLine (View.formatPrompt ())
           else
-            // Clear current line completely and redraw prompt with current input and hints
-            Builtin.print $"{Colors.carriageReturn}{Colors.clearLine}"
+            // Move cursor to beginning of line only, avoid clearing unless necessary
+            Builtin.print Colors.carriageReturn
           Builtin.print (View.formatPromptWithInput state)
         | TreeNavigationMode _ ->
           // Tree mode handles its own display, don't show prompt
