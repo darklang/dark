@@ -2,9 +2,22 @@ module Darklang =
   module Cli =
     module Installation =
       module Commands =
-        /// Get current CLI version for display
+        /// Get current CLI version using git build hash like old CLI
         let cliVersion () : String =
-          "v0.1.0-dev"
+          let hash = Builtin.getBuildHash ()
+          "alpha-" ++ hash
+
+        /// Get version information with latest release comparison (like old CLI)
+        let getVersionInfo () : String =
+          let currentVersion = cliVersion ()
+          match GitHub.Releases.getLatestReleaseBuildHash () with
+          | Ok latestVersion ->
+            if currentVersion == latestVersion then
+              "Darklang CLI " ++ currentVersion ++ " (up to date)"
+            else
+              "Darklang CLI " ++ currentVersion ++ " (latest: " ++ latestVersion ++ " - update available!)"
+          | Error _ ->
+            "Darklang CLI " ++ currentVersion ++ " (unable to check for updates)"
 
         /// Install command handler
         let executeInstall (state: AppState) (args: List<String>) : AppState =
@@ -126,31 +139,46 @@ module Darklang =
           Builtin.printLine "Only available for global installations."
           { state with lastCommand = "help uninstall"; output = "uninstall help displayed" }
 
-        /// Status command handler
+        /// Status command handler like old CLI - shows detailed system info
         let executeStatus (state: AppState) (args: List<String>) : AppState =
           let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
           let currentMode = Installation.System.getInstallationMode ()
-
-          let statusMessage =
+          
+          // Get version info with update check like old CLI
+          let version = getVersionInfo ()
+          
+          // Get current location (package path)
+          let currentLocation = Packages.Path.formatPath state.currentPath
+          let locationDisplay = if Stdlib.String.isEmpty currentLocation then "/" else currentLocation
+          
+          // Get installation status like old CLI
+          let installationStatus =
             match currentMode with
             | Installed ->
               let homeDir =
                 match host.os with
                 | Windows ->
                   match Stdlib.Cli.PowerShell.getHomeDirectory () with
-                  | Ok dir -> $"{dir}\\.darklang"
+                  | Ok dir -> dir ++ "\\.darklang"
                   | Error _ -> "~\\.darklang"
                 | _ ->
                   match Stdlib.Cli.Unix.getHomeDirectory () with
-                  | Ok dir -> $"{dir}/.darklang"
+                  | Ok dir -> dir ++ "/.darklang"
                   | Error _ -> "~/.darklang"
-              $"Status: Globally installed at {homeDir} and ready to use"
+              Colors.success "Status: " ++ "Globally installed at " ++ homeDir ++ " and ready to use"
             | Portable ->
               let currentDir = Builtin.directoryCurrent ()
-              $"Status: Running in portable mode at {currentDir}/.darklang (run 'install' for global system-wide access)"
+              Colors.warning "Status: " ++ "Running in portable mode at " ++ currentDir ++ "/.darklang (run 'install' for global system-wide access)"
 
-          Builtin.printLine (View.formatSuccess statusMessage)
-          { state with lastCommand = "status"; output = "status displayed" }
+          // Build status text like old CLI
+          let statusText = 
+            Colors.info "Version: " ++ version ++ "\n" ++
+            Colors.info "Location: " ++ locationDisplay ++ "\n" ++
+            installationStatus ++ "\n\n" ++
+            "Type " ++ Colors.hint "'help'" ++ " for available commands"
+            
+          Builtin.printLine statusText
+          { state with lastCommand = "status"; output = "detailed status displayed" }
 
         /// Status help handler
         let statusHelp (state: AppState) : AppState =
@@ -161,32 +189,11 @@ module Darklang =
           Builtin.printLine "and shows installation location."
           { state with lastCommand = "help status"; output = "status help displayed" }
 
-        /// Enhanced version command with installation info
+        /// Enhanced version command like old CLI - shows version with update check
         let executeVersion (state: AppState) (args: List<String>) : AppState =
-          let currentMode = Installation.System.getInstallationMode ()
-          let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
-
-          let modeInfo =
-            match currentMode with
-            | Installed ->
-              let homeDir =
-                match host.os with
-                | Windows ->
-                  match Stdlib.Cli.PowerShell.getHomeDirectory () with
-                  | Ok dir -> $"{dir}\\.darklang"
-                  | Error _ -> "~\\.darklang"
-                | _ ->
-                  match Stdlib.Cli.Unix.getHomeDirectory () with
-                  | Ok dir -> $"{dir}/.darklang"
-                  | Error _ -> "~/.darklang"
-              $"Installed at: {homeDir}"
-            | Portable ->
-              let currentDir = Builtin.directoryCurrent ()
-              $"Running portable from: {currentDir}/.darklang"
-
-          Builtin.printLine (View.formatVersion ())
-          Builtin.printLine modeInfo
-          { state with lastCommand = "version"; output = "version with install info displayed" }
+          let versionInfo = getVersionInfo ()
+          Builtin.printLine versionInfo
+          { state with lastCommand = "version"; output = "version info displayed" }
 
         /// Enhanced version help handler
         let versionHelp (state: AppState) : AppState =

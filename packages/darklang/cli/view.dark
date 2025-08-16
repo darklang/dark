@@ -28,5 +28,3 @@ module Darklang =
       let formatGoodbye () : String =
         "Goodbye!"
 
-      let formatVersion () : String =
-        Colors.info "Darklang CLI " ++ Colors.success "v0.1.0-dev"
