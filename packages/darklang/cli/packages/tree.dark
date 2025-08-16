@@ -3,6 +3,39 @@ module Darklang =
     module Packages =
       module Tree =
         // Tree command - display package hierarchy
+        
+        // Interactive tree state types
+        type TreeNode =
+          { path: PackagePath
+            name: String
+            nodeType: NodeType
+            isExpanded: Bool
+            children: List<TreeNode>
+            entityCount: EntityCount }
+        
+        type NodeType =
+          | RootNode
+          | PackageNode
+          | ModuleNode
+          | EntityNode of EntityType
+        
+        type EntityType =
+          | FunctionEntity
+          | TypeEntity
+          | ConstantEntity
+        
+        type EntityCount =
+          { functions: Int64
+            types: Int64
+            constants: Int64 }
+        
+        type InteractiveTreeState =
+          { rootNode: TreeNode
+            selectedIndex: Int64
+            visibleNodes: List<TreeNode>
+            showIcons: Bool
+            maxDepth: Int64
+            scrollOffset: Int64 }
         let executeTree (state: AppState) (args: List<String>) : AppState =
           let showIcons =
             match Stdlib.List.findFirst args (fun arg -> arg == "--icons") with
@@ -27,18 +60,19 @@ module Darklang =
             | [pathStr] -> Path.parsePath pathStr
             | _ -> state.currentPath
 
-          match startPath with
-          | Root ->
+          if Stdlib.List.isEmpty startPath then
             Builtin.printLine "Package tree:"
             Builtin.printLine ""
             displayRootTree showIcons maxDepth
-          | Module owner moduleName ->
+          else
             let pathStr = Path.formatPath startPath
             Builtin.printLine $"Package tree from {pathStr}:"
             Builtin.printLine ""
-            displayModuleTree owner moduleName showIcons maxDepth 0L ""
+            displayModuleTree startPath showIcons maxDepth 0L ""
 
           { state with lastCommand = "tree"; output = "tree displayed" }
+        
+        // Interactive tree functions will be added later
 
         // Display tree from root
         let displayRootTree (showIcons: Bool) (maxDepth: Int64) : Unit =
@@ -73,7 +107,7 @@ module Darklang =
                 // Display children of this owner
                 if maxDepth > 1L then
                   let childPrefix = if isLast then "    " else "│   "
-                  displayModuleTree owner "" showIcons (maxDepth - 1L) 1L childPrefix
+                  displayModuleTree [owner] showIcons (maxDepth - 1L) 1L childPrefix
 
                 index + 1L
               )
@@ -82,19 +116,13 @@ module Darklang =
             Builtin.printLine "  (no packages found)"
 
         // Display tree for a specific module
-        let displayModuleTree (owner: String) (moduleName: String) (showIcons: Bool) (remainingDepth: Int64) (currentDepth: Int64) (prefix: String) : Unit =
+        let displayModuleTree (path: PackagePath) (showIcons: Bool) (remainingDepth: Int64) (currentDepth: Int64) (prefix: String) : Unit =
           if remainingDepth <= 0L then
             ()
           else
-            let currentModule =
-              if Stdlib.String.isEmpty moduleName then
-                [owner]
-              else
-                Stdlib.String.split $"{owner}.{moduleName}" "."
-
             let query =
               LanguageTools.ProgramTypes.Search.SearchQuery
-                { currentModule = currentModule
+                { currentModule = path
                   text = ""
                   searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
                   entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module;
@@ -107,10 +135,10 @@ module Darklang =
             let childModules =
               match Stdlib.List.head searchResults.submodules with
               | Some moduleList ->
-                let expectedLength = (Stdlib.List.length currentModule) + 1L
+                let expectedLength = (Stdlib.List.length path) + 1L
                 moduleList
-                |> Stdlib.List.filter (fun path -> Stdlib.List.length path == expectedLength)
-                |> Stdlib.List.filterMap (fun path -> Stdlib.List.last path)
+                |> Stdlib.List.filter (fun modulePath -> Stdlib.List.length modulePath == expectedLength)
+                |> Stdlib.List.filterMap (fun modulePath -> Stdlib.List.last modulePath)
                 |> Stdlib.List.unique
                 |> Stdlib.List.sort
               | None -> []
@@ -128,11 +156,27 @@ module Darklang =
                 let nodePrefix = if isLast then "└── " else "├── "
                 let icon = if showIcons then "📦 " else ""
 
+                // Get entity counts for this specific child module
+                let childPath = Stdlib.List.append path [child]
+                let childQuery =
+                  LanguageTools.ProgramTypes.Search.SearchQuery
+                    { currentModule = childPath
+                      text = ""
+                      searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+                      entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Fn;
+                                      LanguageTools.ProgramTypes.Search.EntityType.Type;
+                                      LanguageTools.ProgramTypes.Search.EntityType.Constant ] }
+                let childResults = LanguageTools.PackageManager.Search.search childQuery
+                
+                let childFnCount = Stdlib.List.length childResults.fns
+                let childTypeCount = Stdlib.List.length childResults.types
+                let childConstCount = Stdlib.List.length childResults.constants
+
                 // Show module with entity counts
                 let counts = []
-                let counts = if fnCount > 0L then Stdlib.List.append counts [$"{Stdlib.Int64.toString fnCount} fns"] else counts
-                let counts = if typeCount > 0L then Stdlib.List.append counts [$"{Stdlib.Int64.toString typeCount} types"] else counts
-                let counts = if constCount > 0L then Stdlib.List.append counts [$"{Stdlib.Int64.toString constCount} consts"] else counts
+                let counts = if childFnCount > 0L then Stdlib.List.append counts [$"{Stdlib.Int64.toString childFnCount} fns"] else counts
+                let counts = if childTypeCount > 0L then Stdlib.List.append counts [$"{Stdlib.Int64.toString childTypeCount} types"] else counts
+                let counts = if childConstCount > 0L then Stdlib.List.append counts [$"{Stdlib.Int64.toString childConstCount} consts"] else counts
                 let countsStr =
                   if Stdlib.List.isEmpty counts then
                     ""
@@ -144,12 +188,8 @@ module Darklang =
                 // Recursively display children
                 if remainingDepth > 1L then
                   let childPrefix = if isLast then $"{prefix}    " else $"{prefix}│   "
-                  let childModuleName =
-                    if Stdlib.String.isEmpty moduleName then
-                      child
-                    else
-                      $"{moduleName}.{child}"
-                  displayModuleTree owner childModuleName showIcons (remainingDepth - 1L) (currentDepth + 1L) childPrefix
+                  let childPath = Stdlib.List.append path [child]
+                  displayModuleTree childPath showIcons (remainingDepth - 1L) (currentDepth + 1L) childPrefix
 
                 index + 1L
               )

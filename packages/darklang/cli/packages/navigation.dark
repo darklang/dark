@@ -15,20 +15,18 @@ module Darklang =
               // Handle special navigation patterns
               if pathArg == ".." then
                 // Go back to parent
-                match state.currentPath with
-                | Root -> PackagePath.Root
-                | Module owner moduleName ->
-                  if Stdlib.String.isEmpty moduleName then
-                    // At owner level, go to root
-                    PackagePath.Root
-                  else
-                    // At module level, go to owner
-                    PackagePath.Module owner ""
+                if Stdlib.List.isEmpty state.currentPath then
+                  []
+                else
+                  Stdlib.List.dropLast state.currentPath
               else if pathArg == "../.." then
-                // Go back two levels - always to root in our simple model
-                PackagePath.Root
+                // Go back two levels
+                if Stdlib.List.length state.currentPath <= 1L then
+                  []
+                else
+                  Stdlib.List.dropLast (Stdlib.List.dropLast state.currentPath)
               else if pathArg == "/" then
-                PackagePath.Root
+                []
               else if Stdlib.String.startsWith pathArg "/" then
                 // Absolute path
                 Packages.Path.parsePath pathArg
@@ -36,32 +34,16 @@ module Darklang =
                 // Relative path starting with ../
                 // Go up one level first, then navigate
                 let afterDotDot = Stdlib.String.dropFirst pathArg 3L
-                match state.currentPath with
-                | Root -> Packages.Path.parsePath afterDotDot
-                | Module owner moduleName ->
-                  if Stdlib.String.isEmpty moduleName then
-                    // At owner level, go to root then navigate
-                    Packages.Path.parsePath afterDotDot
-                  else
-                    // At module level, go to owner then navigate
-                    if Stdlib.String.isEmpty afterDotDot then
-                      PackagePath.Module owner ""
-                    else
-                      PackagePath.Module owner afterDotDot
+                let parentPath = if Stdlib.List.isEmpty state.currentPath then [] else Stdlib.List.dropLast state.currentPath
+                if Stdlib.String.isEmpty afterDotDot then
+                  parentPath
+                else
+                  let relativePath = Packages.Path.parsePath afterDotDot
+                  Stdlib.List.append parentPath relativePath
               else
                 // Regular relative path - append to current path
-                match state.currentPath with
-                | Root ->
-                  // From root, just parse as normal
-                  Packages.Path.parsePath pathArg
-                | Module owner moduleName ->
-                  // From inside a module, append the new segment
-                  if Stdlib.String.isEmpty moduleName then
-                    // We're at owner level (e.g., /Darklang)
-                    PackagePath.Module owner pathArg
-                  else
-                    // We're in a nested module like Darklang.Stdlib, append to the current path
-                    PackagePath.Module owner $"{moduleName}.{pathArg}"
+                let relativePath = Packages.Path.parsePath pathArg
+                Stdlib.List.append state.currentPath relativePath
 
             let newHistory = Stdlib.List.append state.pathHistory [state.currentPath]
             let newPathStr = Packages.Path.formatPath newPath
@@ -132,8 +114,7 @@ module Darklang =
           match args with
           | [] ->
             // At root, suggest top-level packages
-            match state.currentPath with
-            | Root ->
+            if Stdlib.List.isEmpty state.currentPath then
               // Get top-level packages from the package manager
               let query =
                 LanguageTools.ProgramTypes.Search.SearchQuery
@@ -158,12 +139,11 @@ module Darklang =
 
               // Add basic navigation options
               Stdlib.List.append ["/"; ".."] owners
-            | Module owner moduleName ->
+            else
               // Inside a module, suggest submodules
-              let currentModule = if Stdlib.String.isEmpty moduleName then [owner] else [owner; moduleName]
               let query =
                 LanguageTools.ProgramTypes.Search.SearchQuery
-                  { currentModule = currentModule
+                  { currentModule = state.currentPath
                     text = ""
                     searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
                     entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module ] }
@@ -174,7 +154,7 @@ module Darklang =
                 match Stdlib.List.head searchResults.submodules with
                 | Some moduleList ->
                   // Filter to only direct children by checking path length
-                  let expectedLength = (Stdlib.List.length currentModule) + 1L
+                  let expectedLength = (Stdlib.List.length state.currentPath) + 1L
                   moduleList
                   |> Stdlib.List.filter (fun path ->
                     Stdlib.List.length path == expectedLength)

@@ -42,11 +42,7 @@ module Darklang =
               | [] -> ([], fullPath)  // Shouldn't happen, but handle gracefully
               | [singleName] ->
                 // Single name like "Option" - search in current context
-                match state.currentPath with
-                | Root -> ([], singleName)
-                | Module owner moduleName ->
-                  let currentModule = if Stdlib.String.isEmpty moduleName then [owner] else [owner; moduleName]
-                  (currentModule, singleName)
+                (state.currentPath, singleName)
               | entityName :: reversedModuleParts ->
                 // Multi-part path like "Darklang.Stdlib.Option.Option"
                 let moduleParts = Stdlib.List.reverse reversedModuleParts
@@ -248,8 +244,7 @@ module Darklang =
           match args with
           | [] ->
             // At root, suggest top-level packages plus entities
-            match state.currentPath with
-            | Root ->
+            if Stdlib.List.isEmpty state.currentPath then
               // Get top-level packages (same as cd completion)
               let moduleQuery =
                 LanguageTools.ProgramTypes.Search.SearchQuery
@@ -293,12 +288,11 @@ module Darklang =
               |> Stdlib.List.unique
               |> Stdlib.List.sort
 
-            | Module owner moduleName ->
+            else
               // Inside a module, suggest submodules and entities
-              let currentModule = if Stdlib.String.isEmpty moduleName then [owner] else [owner; moduleName]
               let query =
                 LanguageTools.ProgramTypes.Search.SearchQuery
-                  { currentModule = currentModule
+                  { currentModule = state.currentPath
                     text = ""
                     searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
                     entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module
@@ -311,8 +305,7 @@ module Darklang =
               let submodules =
                 match Stdlib.List.head searchResults.submodules with
                 | Some moduleList ->
-                  let currentModuleLength = if Stdlib.String.isEmpty moduleName then 1L else 2L
-                  let expectedLength = currentModuleLength + 1L
+                  let expectedLength = (Stdlib.List.length state.currentPath) + 1L
                   moduleList
                   |> Stdlib.List.filter (fun path -> Stdlib.List.length path == expectedLength)
                   |> Stdlib.List.filterMap (fun path -> Stdlib.List.last path)
@@ -372,15 +365,11 @@ module Darklang =
 
                 // Build the full module path considering current context
                 let fullModulePath =
-                  match state.currentPath with
-                  | Root -> prefixParts
-                  | Module owner moduleName ->
-                    if Stdlib.String.isEmpty moduleName then
-                      // In owner context like /Darklang, so Stdlib means Darklang.Stdlib
-                      Stdlib.List.append [owner] prefixParts
-                    else
-                      // In deeper module context, use absolute path
-                      prefixParts
+                  if Stdlib.List.isEmpty state.currentPath then
+                    prefixParts
+                  else
+                    // In module context, append current path to prefix
+                    Stdlib.List.append state.currentPath prefixParts
 
                 // Search for entities and submodules in that context
                 let query =

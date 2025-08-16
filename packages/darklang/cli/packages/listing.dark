@@ -9,11 +9,12 @@ module Darklang =
           let path =
             match args with
             | [] -> state.currentPath
-            | ["/"] -> PackagePath.Root
+            | ["/"] -> []
             | [ ".." ] ->
-              match state.currentPath with
-              | Root -> PackagePath.Root
-              | Module owner moduleName -> PackagePath.Root
+              if Stdlib.List.isEmpty state.currentPath then
+                []
+              else
+                Stdlib.List.dropLast state.currentPath
             // TODO support ../..
             // TODO support ../Something
             | [ pathArg ] -> Packages.Path.parsePath pathArg
@@ -22,8 +23,7 @@ module Darklang =
               // CLEANUP error or something?
               state.currentPath
 
-          match path with
-          | Root ->
+          if Stdlib.List.isEmpty path then
             // CLEANUP this whole this is verbose, and points to us just using the wrong module
 
             // Fetch package items
@@ -58,15 +58,9 @@ module Darklang =
               Builtin.printLine $"Use 'cd <package>' to explore a package"
 
             { state with lastCommand = "ls"; output = "ls root" }
-
-
-          | Module owner moduleName ->
-            // CLEANUP this is messy, why not just a List<String> for the current path?
-            let currentModule =
-              if Stdlib.String.isEmpty moduleName then
-                [owner]
-              else
-                [owner; moduleName]
+          else
+            // Non-empty path - list module contents
+            let currentModule = path
             let query =
               LanguageTools.ProgramTypes.Search.SearchQuery
                 { currentModule = currentModule

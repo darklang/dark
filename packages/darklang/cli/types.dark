@@ -11,10 +11,8 @@ module Darklang =
       | InteractiveMode  // REPL-like experience (default)
       | CommandMode      // One-off command execution via CLI args
 
-    // Simple package path representation
-    type PackagePath =
-      | Root
-      | Module of owner: String * moduleName: String
+    // Package path as list of components (e.g., ["Darklang"; "Stdlib"; "List"])
+    type PackagePath = List<String>
 
     type AppState =
       { isExiting: Bool
@@ -35,7 +33,7 @@ module Darklang =
           output = ""
           mainPrompt = ""
           needsFullRedraw = true
-          currentPath = PackagePath.Root
+          currentPath = []
           pathHistory = []
           appMode = AppMode.InteractiveMode  // Default to REPL mode
           commandHistory = []

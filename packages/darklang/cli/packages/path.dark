@@ -4,35 +4,27 @@ module Darklang =
       module Path =
         // Package path utilities
         let formatPath (path: PackagePath) : String =
-          match path with
-          | Root -> "/"
-          | Module owner moduleName ->
-            if Stdlib.String.isEmpty moduleName then
-              $"/{owner}"
-            else
-              $"/{owner}.{moduleName}"
+          if Stdlib.List.isEmpty path then
+            "/"
+          else
+            $"/{Stdlib.String.join path "."}"
 
         let parsePath (pathStr: String) : PackagePath =
           let trimmed = Stdlib.String.trim pathStr
           if trimmed == "/" || Stdlib.String.isEmpty trimmed then
-            PackagePath.Root
+            []
           else
             let pathToSplit =
               if Stdlib.String.startsWith trimmed "/" then
                 Stdlib.String.dropFirst trimmed 1L
               else
                 trimmed
-            let parts =
-              if Stdlib.String.contains pathToSplit "." then
-                // Handle dotted paths like "Darklang.Stdlib"
-                Stdlib.String.split pathToSplit "."
-              else
-                // Handle slash paths like "Darklang/Stdlib"
-                Stdlib.String.split pathToSplit "/"
-            match parts with
-            | [owner; moduleName] -> PackagePath.Module owner moduleName
-            | [owner] -> PackagePath.Module owner ""
-            | _ -> PackagePath.Root
+            if Stdlib.String.contains pathToSplit "." then
+              // Handle dotted paths like "Darklang.Stdlib"
+              Stdlib.String.split pathToSplit "."
+            else
+              // Handle slash paths like "Darklang/Stdlib"
+              Stdlib.String.split pathToSplit "/"
 
         // Helper to construct module prefix for search queries
         let constructModulePrefix (owner: String) (submodules: List<String>) : String =
