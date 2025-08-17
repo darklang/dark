@@ -258,7 +258,7 @@ module Darklang =
           $"{signPart}{whole}.{remainderPart}"
 
         | CChar c -> $"'{c}'"
-        | CString s -> $"\"{s}\""
+        | CString s -> $"\"{PrettyPrinter.escapeSpecialCharacters s}\""
 
         | CTuple(first, second, theRest) ->
           (Stdlib.List.append [ first; second ] theRest)
