@@ -55,14 +55,20 @@ module Darklang =
           if node.typ == "type_decl_def" then
             match node.children with
             | [ child ] when child.typ == "type_decl_def_alias" ->
-              match child.children with
-              | [ single ] when single.typ == "type_reference" ->
-                match TypeReference.parse single with
+              let typeRefNodes =
+                child.children
+                |> Stdlib.List.filter (fun node ->
+                  node.typ != "indent" && node.typ != "dedent")
+
+              match typeRefNodes with
+              | [ typeRef ] when typeRef.typ == "type_reference" ->
+                match TypeReference.parse typeRef with
                 | Ok typRef ->
                   (WrittenTypes.TypeDeclaration.Definition.Alias typRef)
                   |> Stdlib.Result.Result.Ok
 
-                | Error _ -> createUnparseableError single
+                | Error _ -> createUnparseableError typeRef
+
               | _ -> createUnparseableError child
 
             | [ child ] when child.typ == "type_decl_def_record" ->
@@ -71,22 +77,23 @@ module Darklang =
               let recordFields =
                 match (findNodeByFieldName child "fields") with
                 | Some fieldsNode ->
-                  fieldsNode.children
-                  |> Stdlib.List.chunkBySize 2L
-                  |> Builtin.unwrap
-                  |> Stdlib.List.map (fun fieldSeparatorPair ->
-                    match fieldSeparatorPair with
-                    | [ fieldNode ] ->
-                      (parseRecordField fieldNode, Stdlib.Option.Option.None)
-
-                    | [ fieldNode; separator ] ->
-                      if separator.typ == "newline" then
+                  match fieldsNode.children |> Stdlib.List.chunkBySize 2L with
+                  | Some chunks ->
+                    chunks |> Stdlib.List.map (fun fieldSeparatorPair ->
+                      match fieldSeparatorPair with
+                      | [ fieldNode ] ->
                         (parseRecordField fieldNode, Stdlib.Option.Option.None)
-                      else
-                        (parseRecordField fieldNode,
-                         Stdlib.Option.Option.Some separator.range)
-                    | _ ->
-                      (createUnparseableError fieldsNode, Stdlib.Option.Option.None))
+
+                      | [ fieldNode; separator ] ->
+                        if separator.typ == "newline" then
+                          (parseRecordField fieldNode, Stdlib.Option.Option.None)
+                        else
+                          (parseRecordField fieldNode,
+                           Stdlib.Option.Option.Some separator.range)
+                      | _ ->
+                        (createUnparseableError fieldsNode, Stdlib.Option.Option.None))
+                  | None ->
+                    [ (createUnparseableError fieldsNode, Stdlib.Option.Option.None) ]
 
                 | None -> createUnparseableError child
 

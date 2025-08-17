@@ -1631,8 +1631,30 @@
       ]
     },
     "type_decl_def_alias": {
-      "type": "SYMBOL",
-      "name": "type_reference"
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "type_reference"
+        },
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "indent"
+            },
+            {
+              "type": "SYMBOL",
+              "name": "type_reference"
+            },
+            {
+              "type": "SYMBOL",
+              "name": "dedent"
+            }
+          ]
+        }
+      ]
     },
     "type_decl_def_record": {
       "type": "CHOICE",

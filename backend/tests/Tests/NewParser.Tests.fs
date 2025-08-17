@@ -384,6 +384,15 @@ let typeReferences =
       []
       []
       []
+      false
+
+    t
+      "json alias"
+      "type Json =\n  PACKAGE.Darklang.Stdlib.AltJson.Json"
+      "type Json =\n  PACKAGE.Darklang.Stdlib.AltJson.Json"
+      []
+      []
+      []
       false ]
   |> testList "type references"
 

@@ -188,7 +188,11 @@ module.exports = grammar({
 
     //
     // Alias
-    type_decl_def_alias: $ => $.type_reference,
+    type_decl_def_alias: $ => 
+      choice(
+        $.type_reference,
+        seq($.indent, $.type_reference, $.dedent)
+      ),
 
     //
     // Record

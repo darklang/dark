@@ -72,6 +72,35 @@ type MyID = Test
 
 
 ==================
+type def alias with indent
+==================
+
+type Json =
+  PACKAGE.Darklang.Stdlib.AltJson.Json
+
+---
+
+(source_file
+  (type_decl
+    (keyword)
+    (type_identifier)
+    (symbol)
+    (type_decl_def
+      (type_decl_def_alias
+        (indent)
+        (type_reference
+          (qualified_type_name
+            (module_identifier) (symbol) (module_identifier) (symbol) (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier)
+          )
+        )
+        (dedent)
+      )
+    )
+  )
+)
+
+
+==================
 type def Record
 ==================
 
