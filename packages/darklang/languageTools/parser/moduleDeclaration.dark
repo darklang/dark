@@ -33,20 +33,19 @@ module Darklang =
           : Stdlib.Result.Result<WrittenTypes.ModuleDeclaration.ModuleDeclaration, WrittenTypes.Unparseable> =
           if node.typ == "module_decl" then
             let keywordModule = findField node "keyword_module"
-            let name = (findField node "name") |> Builtin.unwrap
+            let name = findField node "name"
 
             let declarations =
               (Stdlib.List.filter node.children (fun node ->
                 node.typ == "module_content"))
               |> Stdlib.List.map (fun node ->
-                node.children
-                |> Stdlib.List.head
-                |> Builtin.unwrap
-                |> ModuleDeclaration.parseDecls)
+                match node.children |> Stdlib.List.head with
+                | Some child -> ModuleDeclaration.parseDecls child
+                | None -> createUnparseableError node)
               |> Stdlib.Result.collect
 
-            match (keywordModule, declarations) with
-            | Ok keywordModule, Ok declarations ->
+            match (keywordModule, name, declarations) with
+            | Ok keywordModule, Ok name, Ok declarations ->
               (WrittenTypes.ModuleDeclaration.ModuleDeclaration
                 { range = node.range
                   name = (name.range, name.text)

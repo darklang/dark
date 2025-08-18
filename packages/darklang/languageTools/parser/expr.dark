@@ -108,86 +108,89 @@ module Darklang =
         let parseStringLiteral
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          let stringSegment = node.children |> Stdlib.List.head |> Builtin.unwrap
-          let openQuoteNode = findField stringSegment "symbol_open_quote"
-          let closeQuoteNode = findField stringSegment "symbol_close_quote"
-          let symbolDollarSign = findField stringSegment "symbol_dollar_sign"
+          match node.children |> Stdlib.List.head with
+          | None -> createUnparseableError node
+          | Some stringSegment ->
+            let openQuoteNode = findField stringSegment "symbol_open_quote"
+            let closeQuoteNode = findField stringSegment "symbol_close_quote"
+            let symbolDollarSign = findField stringSegment "symbol_dollar_sign"
 
-          let contents =
-            match stringSegment.typ with
-            | "string_literal" ->
-              let findContents =
-                findAndParseOptional stringSegment "content" (fun stringPart ->
-                  (stringPart.range, stringPart.text) |> Stdlib.Result.Result.Ok)
+            let contents =
+              match stringSegment.typ with
+              | "string_literal" ->
+                let findContents =
+                  findAndParseOptional stringSegment "content" (fun stringPart ->
+                    (stringPart.range, stringPart.text) |> Stdlib.Result.Result.Ok)
 
-              let (range, contents) =
-                Stdlib.Option.withDefault findContents (stringSegment.range, "")
+                let (range, contents) =
+                  Stdlib.Option.withDefault findContents (stringSegment.range, "")
 
-              [ WrittenTypes.StringSegment.StringText(range, contents) ]
+                [ WrittenTypes.StringSegment.StringText(range, contents) ]
 
-            | "string_interpolation" ->
-              let stringInterpolationContents =
-                stringSegment.children
-                |> Stdlib.List.filter (fun c ->
-                  c.typ == "string_interpolation_content")
-                |> Stdlib.List.head
-                |> Builtin.unwrap
+              | "string_interpolation" ->
+                let stringInterpolationContents =
+                  stringSegment.children
+                  |> Stdlib.List.filter (fun c ->
+                    c.typ == "string_interpolation_content")
+                  |> Stdlib.List.head
 
-              let contents =
-                stringInterpolationContents.children
-                |> Stdlib.List.filterMap (fun c ->
-                  match c.typ with
-                  | "string_text" ->
-                    [ (WrittenTypes.StringSegment.StringText(c.range, c.text)) ]
-                    |> Stdlib.Option.Option.Some
-                  | "string_to_eval" ->
-                    let symbolOpenBrace = findField c "symbol_open_brace"
-                    let symbolCloseBrace = findField c "symbol_close_brace"
+                match stringInterpolationContents with
+                | Error _ -> []
+                | Some interpolationContent ->
+                  interpolationContent.children
+                  |> Stdlib.List.filterMap (fun c ->
+                    match c.typ with
+                    | "string_text" ->
+                      [ (WrittenTypes.StringSegment.StringText(c.range, c.text)) ]
+                      |> Stdlib.Option.Option.Some
+                    | "string_to_eval" ->
+                      let symbolOpenBrace = findField c "symbol_open_brace"
+                      let symbolCloseBrace = findField c "symbol_close_brace"
 
-                    c.children
-                    |> Stdlib.List.filterMap (fun c ->
-                      match symbolOpenBrace, symbolCloseBrace with
-                      | Ok openBrace, Ok closeBrace ->
-                        match c.typ with
-                        | "expression" ->
-                          match Expr.parse c with
-                          | Ok expr ->
-                            Stdlib.Option.Option.Some(
-                              WrittenTypes.StringSegment.StringInterpolation(
-                                c.range,
-                                expr,
-                                openBrace.range,
-                                closeBrace.range
+                      c.children
+                      |> Stdlib.List.filterMap (fun c ->
+                        match symbolOpenBrace, symbolCloseBrace with
+                        | Ok openBrace, Ok closeBrace ->
+                          match c.typ with
+                          | "expression" ->
+                            match Expr.parse c with
+                            | Ok expr ->
+                              Stdlib.Option.Option.Some(
+                                WrittenTypes.StringSegment.StringInterpolation(
+                                  c.range,
+                                  expr,
+                                  openBrace.range,
+                                  closeBrace.range
+                                )
                               )
-                            )
-                          | Error _ -> Stdlib.Option.Option.None
-                        | _ -> Stdlib.Option.Option.None
-                      | _ -> Stdlib.Option.Option.None)
-                    |> Stdlib.Option.Option.Some
+                            | Error _ -> Stdlib.Option.Option.None
+                          | _ -> Stdlib.Option.Option.None
+                        | _ -> Stdlib.Option.Option.None)
+                      |> Stdlib.Option.Option.Some
 
-                  | _ -> Stdlib.Option.Option.None)
-                |> Stdlib.List.flatten
+                    | _ -> Stdlib.Option.Option.None)
+                  |> Stdlib.List.flatten
 
-              contents
+              | _ -> []
 
-          let dollarSign =
-            match symbolDollarSign with
-            | Ok symbolDollarSign ->
-              symbolDollarSign.range |> Stdlib.Option.Option.Some
-            | _ -> Stdlib.Option.Option.None
+            let dollarSign =
+              match symbolDollarSign with
+              | Ok symbolDollarSign ->
+                symbolDollarSign.range |> Stdlib.Option.Option.Some
+              | _ -> Stdlib.Option.Option.None
 
-          match openQuoteNode, closeQuoteNode with
-          | Ok openQuote, Ok closeQuote ->
-            (WrittenTypes.Expr.EString(
-              node.range,
-              dollarSign,
-              contents,
-              openQuote.range,
-              closeQuote.range
-            ))
-            |> Stdlib.Result.Result.Ok
+            match openQuoteNode, closeQuoteNode with
+            | Ok openQuote, Ok closeQuote ->
+              (WrittenTypes.Expr.EString(
+                node.range,
+                dollarSign,
+                contents,
+                openQuote.range,
+                closeQuote.range
+              ))
+              |> Stdlib.Result.Result.Ok
 
-          | _ -> createUnparseableError node
+            | _ -> createUnparseableError node
 
 
         let parseCharLiteral
@@ -278,28 +281,32 @@ module Darklang =
             |> Stdlib.Option.map (fun contentsNode ->
               contentsNode.children
               |> Stdlib.List.chunkBySize 2L
-              |> Builtin.unwrap
-              |> Stdlib.List.map (fun recordSeparatorPair ->
-                match recordSeparatorPair with
-                // CLEANUP collapse these two branches into one
-                | [ recordPairNode; _separator ]  | [ recordPairNode ] ->
-                  let fieldNode =
-                    findAndParseRequired recordPairNode "field" (fun node ->
-                      (node.range, node.text) |> Stdlib.Result.Result.Ok)
+              |> (fun chunkedResult ->
+                match chunkedResult with
+                | Ok pairs ->
+                  pairs
+                  |> Stdlib.List.map (fun recordSeparatorPair ->
+                    match recordSeparatorPair with
+                    // CLEANUP collapse these two branches into one
+                    | [ recordPairNode; _separator ]  | [ recordPairNode ] ->
+                      let fieldNode =
+                        findAndParseRequired recordPairNode "field" (fun node ->
+                          (node.range, node.text) |> Stdlib.Result.Result.Ok)
 
-                  let symbolEqualsNode = findField recordPairNode "symbol_equals"
+                      let symbolEqualsNode = findField recordPairNode "symbol_equals"
 
-                  let valueNode =
-                    findAndParseRequired recordPairNode "value" Expr.parse
+                      let valueNode =
+                        findAndParseRequired recordPairNode "value" Expr.parse
 
-                  match fieldNode, symbolEqualsNode, valueNode with
-                  | Ok field, Ok symEquals, Ok value ->
-                    (symEquals.range, field, value) |> Stdlib.Result.Result.Ok
-                  | _ -> createUnparseableError recordPairNode
+                      match fieldNode, symbolEqualsNode, valueNode with
+                      | Ok field, Ok symEquals, Ok value ->
+                        (symEquals.range, field, value) |> Stdlib.Result.Result.Ok
+                      | _ -> createUnparseableError recordPairNode
 
-                | _ -> createUnparseableError contentsNode)
-
-              |> Stdlib.Result.collect)
+                    | _ -> createUnparseableError contentsNode)
+                  |> Stdlib.Result.collect
+                | Error _ ->
+                  createUnparseableError contentsNode))
 
             |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
 
@@ -334,27 +341,31 @@ module Darklang =
               |> Stdlib.List.filter (fun c ->
                 c.typ != "indent" && c.typ != "dedent")
               |> Stdlib.List.chunkBySize 2L
-              |> Builtin.unwrap
-              |> Stdlib.List.map (fun fieldSeparatorPair ->
-                match fieldSeparatorPair with
-                | [ fieldNode; _separator ] | [ fieldNode ] ->
-                  let fieldNameNode =
-                    findAndParseRequired fieldNode "field_name" (fun node ->
-                      ((node.range, node.text)) |> Stdlib.Result.Result.Ok)
+              |> (fun chunkedResult ->
+                match chunkedResult with
+                | Ok pairs ->
+                  pairs
+                  |> Stdlib.List.map (fun fieldSeparatorPair ->
+                    match fieldSeparatorPair with
+                    | [ fieldNode; _separator ] | [ fieldNode ] ->
+                      let fieldNameNode =
+                        findAndParseRequired fieldNode "field_name" (fun node ->
+                          ((node.range, node.text)) |> Stdlib.Result.Result.Ok)
 
-                  let symbolEqualsNode = findField fieldNode "symbol_equals"
+                      let symbolEqualsNode = findField fieldNode "symbol_equals"
 
-                  let valueNode = findAndParseRequired fieldNode "value" Expr.parse
+                      let valueNode = findAndParseRequired fieldNode "value" Expr.parse
 
-                  match fieldNameNode, symbolEqualsNode, valueNode with
-                  | Ok fieldName, Ok symEquals, Ok value ->
-                    ((fieldName, symEquals.range, value))
-                    |> Stdlib.Result.Result.Ok
-                  | _ -> createUnparseableError fieldNode
+                      match fieldNameNode, symbolEqualsNode, valueNode with
+                      | Ok fieldName, Ok symEquals, Ok value ->
+                        ((fieldName, symEquals.range, value))
+                        |> Stdlib.Result.Result.Ok
+                      | _ -> createUnparseableError fieldNode
 
-                | _ -> createUnparseableError fieldUpdatesNode)
-
-              |> Stdlib.Result.collect)
+                    | _ -> createUnparseableError fieldUpdatesNode)
+                  |> Stdlib.Result.collect
+                | Error _ ->
+                  createUnparseableError fieldUpdatesNode))
 
             |> Stdlib.Option.withDefault (
               Stdlib.Result.Result.Error "field_updates not found"
@@ -689,19 +700,22 @@ module Darklang =
             |> Stdlib.Option.map (fun pipeExprNode ->
               pipeExprNode.children
               |> Stdlib.List.chunkBySize 2L
-              |> Builtin.unwrap
-              |> Stdlib.List.map (fun symbolPipeExprPair ->
-                match symbolPipeExprPair with
-                | [ pipeSymbol; pipeExpr ] ->
-                  match PipeExpr.parse pipeExpr with
-                  | Ok pipeExpr ->
-                    (pipeSymbol.range, pipeExpr) |> Stdlib.Result.Result.Ok
-                  | Error _ -> createUnparseableError pipeExpr
-                | _ -> createUnparseableError pipeExprNode)
+              |> (fun chunkedResult ->
+                match chunkedResult with
+                | Ok pairs ->
+                  pairs
+                  |> Stdlib.List.map (fun symbolPipeExprPair ->
+                    match symbolPipeExprPair with
+                    | [ pipeSymbol; pipeExpr ] ->
+                      match PipeExpr.parse pipeExpr with
+                      | Ok pipeExpr ->
+                        (pipeSymbol.range, pipeExpr) |> Stdlib.Result.Result.Ok
+                      | Error _ -> createUnparseableError pipeExpr
+                    | _ -> createUnparseableError pipeExprNode)
+                  |> Stdlib.Result.collect
+                | Error _ ->
+                  createUnparseableError pipeExprNode))
 
-              |> Stdlib.Result.collect)
-
-            // CLEANUP: should error instead of returning an empty list?
             |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
 
           match expr, pipeExpr with

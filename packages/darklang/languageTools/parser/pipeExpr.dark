@@ -73,33 +73,35 @@ module Darklang =
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.PipeExpr, WrittenTypes.Unparseable> =
           if node.typ == "pipe_lambda" then
-            let node = (findField node "pipe_lambda") |> Builtin.unwrap
-            let keywordFun = findField node "keyword_fun"
+            match findField node "pipe_lambda" with
+            | Ok node ->
+              let keywordFun = findField node "keyword_fun"
 
-            let patsNode =
-              match findField node "pats" with
-              | Ok paramsNode ->
-                paramsNode.children
-                |> Stdlib.List.map (fun pat -> Expr.parseLetPattern pat)
-                |> Stdlib.Result.collect
+              let patsNode =
+                match findField node "pats" with
+                | Ok paramsNode ->
+                  paramsNode.children
+                  |> Stdlib.List.map (fun pat -> Expr.parseLetPattern pat)
+                  |> Stdlib.Result.collect
+
+                | _ -> createUnparseableError node
+
+              let arrowNode = findField node "symbol_arrow"
+              let bodyNode = findAndParseRequired node "body" Expr.parse
+
+              match (patsNode, bodyNode, keywordFun, arrowNode) with
+              | Ok pats, Ok body, Ok keywordFun, Ok arrowNode ->
+                (WrittenTypes.PipeExpr.EPipeLambda(
+                  node.range,
+                  pats,
+                  body,
+                  keywordFun.range,
+                  arrowNode.range
+                ))
+                |> Stdlib.Result.Result.Ok
 
               | _ -> createUnparseableError node
-
-            let arrowNode = findField node "symbol_arrow"
-            let bodyNode = findAndParseRequired node "body" Expr.parse
-
-            match (patsNode, bodyNode, keywordFun, arrowNode) with
-            | Ok pats, Ok body, Ok keywordFun, Ok arrowNode ->
-              (WrittenTypes.PipeExpr.EPipeLambda(
-                node.range,
-                pats,
-                body,
-                keywordFun.range,
-                arrowNode.range
-              ))
-              |> Stdlib.Result.Result.Ok
-
-            | _ -> createUnparseableError node
+            | Error _ -> createUnparseableError node
 
 
         let parsePipeEnum

@@ -78,8 +78,8 @@ module Darklang =
                 match (findNodeByFieldName child "fields") with
                 | Some fieldsNode ->
                   match fieldsNode.children |> Stdlib.List.chunkBySize 2L with
-                  | Some chunks ->
-                    chunks |> Stdlib.List.map (fun fieldSeparatorPair ->
+                  | Ok pairs ->
+                    pairs |> Stdlib.List.map (fun fieldSeparatorPair ->
                       match fieldSeparatorPair with
                       | [ fieldNode ] ->
                         (parseRecordField fieldNode, Stdlib.Option.Option.None)
@@ -92,7 +92,7 @@ module Darklang =
                            Stdlib.Option.Option.Some separator.range)
                       | _ ->
                         (createUnparseableError fieldsNode, Stdlib.Option.Option.None))
-                  | None ->
+                  | Error _ ->
                     [ (createUnparseableError fieldsNode, Stdlib.Option.Option.None) ]
 
                 | None -> createUnparseableError child
@@ -136,7 +136,7 @@ module Darklang =
                       |> Stdlib.List.map (fun field ->
                         match findNodeByFieldName field "type" with
                         | Some fieldTypeNode -> parseEnumField field
-                        | None -> createUnparseableError field)
+                        | Error _ -> createUnparseableError field)
                       |> Stdlib.Result.collect
 
                     match symbolPipeNode, caseNameNode, fields with
@@ -174,31 +174,29 @@ module Darklang =
 
             let typeParams =
               match findNodeByFieldName node "type_params" with
-              | Some typeParamsNode ->
-                typeParamsNode
-                |> findNodeByFieldName "params"
-                |> Stdlib.Option.map (fun node ->
-                  node.children
-                  |> Stdlib.List.chunkBySize 2L
-                  |> Builtin.unwrap
-                  |> Stdlib.List.map (fun typeParamSeparatorPair ->
-                    match typeParamSeparatorPair with
-                    | [ typeParamNode ]
-                    | [ typeParamNode; _separator ] ->
-                      let name =
-                        typeParamNode |> findField "variable" |> Builtin.unwrap
-
-                      (typeParamNode.range, name.text) |> Stdlib.Result.Result.Ok
-
-                    | _ ->
-                      (createUnparseableError node) |> Stdlib.Result.Result.Error))
-
-              | None -> Stdlib.Option.Option.None
-
-            let typeParams =
-              match typeParams with
-              | Some typeParams -> typeParams |> Stdlib.Result.collect
               | None -> [] |> Stdlib.Result.Result.Ok
+              | Some typeParamsNode ->
+                match findNodeByFieldName typeParamsNode "params" with
+                | None -> [] |> Stdlib.Result.Result.Ok
+                | Some paramsNode ->
+                  match paramsNode.children |> Stdlib.List.chunkBySize 2L with
+                  | Ok pairs ->
+                    pairs
+                    |> Stdlib.List.map (fun typeParamSeparatorPair ->
+                      match typeParamSeparatorPair with
+                      | [ typeParamNode ]
+                      | [ typeParamNode; _separator ] ->
+                        match typeParamNode |> findField "variable" with
+                        | Ok name ->
+                          (typeParamNode.range, name.text) |> Stdlib.Result.Result.Ok
+                        | Error _ ->
+                          (createUnparseableError typeParamNode) |> Stdlib.Result.Result.Error
+
+                      | _ ->
+                        (createUnparseableError paramsNode) |> Stdlib.Result.Result.Error)
+                    |> Stdlib.Result.collect
+                  | Error _ ->
+                    createUnparseableError paramsNode
 
             let defNode =
               findAndParseRequired node "typ" TypeDeclaration.parseDefinition

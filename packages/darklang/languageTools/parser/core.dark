@@ -131,24 +131,28 @@ module Darklang =
             |> Stdlib.List.filter (fun c ->
                 c.typ != "indent" && c.typ != "dedent")
             |> Stdlib.List.chunkBySize 2L
-            |> Builtin.unwrap
-            |> Stdlib.List.map (fun contentSymbolPair ->
-              match contentSymbolPair with
-              | [ contentNode; symbol ] ->
-                match parseFn contentNode with
-                | Ok e ->
-                  (e, Stdlib.Option.Option.Some symbol.range)
-                  |> Stdlib.Result.Result.Ok
-                | Error _ -> createUnparseableError contentsNode
+            |> (fun chunkedResult ->
+              match chunkedResult with
+              | Ok pairs ->
+                pairs
+                |> Stdlib.List.map (fun contentSymbolPair ->
+                  match contentSymbolPair with
+                  | [ contentNode; symbol ] ->
+                    match parseFn contentNode with
+                    | Ok e ->
+                      (e, Stdlib.Option.Option.Some symbol.range)
+                      |> Stdlib.Result.Result.Ok
+                    | Error _ -> createUnparseableError contentsNode
 
-              | [ contentNode ] ->
-                match parseFn contentNode with
-                | Ok e -> (e, Stdlib.Option.Option.None) |> Stdlib.Result.Result.Ok
-                | Error _ -> createUnparseableError contentNode
+                  | [ contentNode ] ->
+                    match parseFn contentNode with
+                    | Ok e -> (e, Stdlib.Option.Option.None) |> Stdlib.Result.Result.Ok
+                    | Error _ -> createUnparseableError contentNode
 
-              | _ -> createUnparseableError contentsNode)
-
-            |> Stdlib.Result.collect)
+                  | _ -> createUnparseableError contentsNode)
+                |> Stdlib.Result.collect
+              | Error _ ->
+                createUnparseableError contentsNode))
 
           |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
 
@@ -180,22 +184,26 @@ module Darklang =
           |> Stdlib.Option.map (fun restNode ->
             restNode.children
             |> Stdlib.List.chunkBySize 2L
-            |> Builtin.unwrap
-            |> Stdlib.List.map (fun symbolRestPair ->
-              match symbolRestPair with
-              | [ symbol; restNode ] ->
-                match parseFn restNode with
-                | Ok rest -> (symbol.range, rest) |> Stdlib.Result.Result.Ok
-                | Error _ -> createUnparseableError restNode
+            |> (fun chunkedResult ->
+              match chunkedResult with
+              | Ok pairs ->
+                pairs
+                |> Stdlib.List.map (fun symbolRestPair ->
+                  match symbolRestPair with
+                  | [ symbol; restNode ] ->
+                    match parseFn restNode with
+                    | Ok rest -> (symbol.range, rest) |> Stdlib.Result.Result.Ok
+                    | Error _ -> createUnparseableError restNode
 
-              | [ restNode ] ->
-                match parseFn restNode with
-                | Ok rest ->
-                  (Stdlib.Option.Option.None, rest) |> Stdlib.Result.Result.Ok
-                | Error _ -> createUnparseableError restNode
-              | _ -> createUnparseableError restNode)
-
-            |> Stdlib.Result.collect)
+                  | [ restNode ] ->
+                    match parseFn restNode with
+                    | Ok rest ->
+                      (Stdlib.Option.Option.None, rest) |> Stdlib.Result.Result.Ok
+                    | Error _ -> createUnparseableError restNode
+                  | _ -> createUnparseableError restNode)
+                |> Stdlib.Result.collect
+              | Error _ ->
+                createUnparseableError restNode))
 
           |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
 
@@ -230,33 +238,37 @@ module Darklang =
           |> Stdlib.Option.map (fun contentsNode ->
             contentsNode.children
             |> Stdlib.List.chunkBySize 2L
-            |> Builtin.unwrap
-            |> Stdlib.List.map (fun dictSeparatorPair ->
-              match dictSeparatorPair with
-              | [ dictPairNode; _separator ] | [ dictPairNode ] ->
-                // Note: `_separator` here is the `;` between key-value pairs
-                let keyNode =
-                  findAndParseRequired dictPairNode "key" (fun node ->
-                    match node.typ with
-                    | "double_backtick_identifier" ->
-                      let key = node.text |> Stdlib.String.slice 2L -2L
-                      (node.range, key) |> Stdlib.Result.Result.Ok
-                    | _ ->
-                      (node.range, nameOrBlank (Parser.getText node))
-                      |> Stdlib.Result.Result.Ok)
+            |> (fun chunkedResult ->
+              match chunkedResult with
+              | Ok pairs ->
+                pairs
+                |> Stdlib.List.map (fun dictSeparatorPair ->
+                  match dictSeparatorPair with
+                  | [ dictPairNode; _separator ] | [ dictPairNode ] ->
+                    // Note: `_separator` here is the `;` between key-value pairs
+                    let keyNode =
+                      findAndParseRequired dictPairNode "key" (fun node ->
+                        match node.typ with
+                        | "double_backtick_identifier" ->
+                          let key = node.text |> Stdlib.String.slice 2L -2L
+                          (node.range, key) |> Stdlib.Result.Result.Ok
+                        | _ ->
+                          (node.range, nameOrBlank (Parser.getText node))
+                          |> Stdlib.Result.Result.Ok)
 
-                let symbolEqualsNode = findField dictPairNode "symbol_equals"
+                    let symbolEqualsNode = findField dictPairNode "symbol_equals"
 
-                let valueNode = findAndParseRequired dictPairNode "value" parseFn
+                    let valueNode = findAndParseRequired dictPairNode "value" parseFn
 
-                match (keyNode, symbolEqualsNode, valueNode) with
-                | (Ok key, Ok symbolEquals, Ok value) ->
-                  (symbolEquals.range, key, value) |> Stdlib.Result.Result.Ok
-                | _ -> createUnparseableError dictPairNode
+                    match (keyNode, symbolEqualsNode, valueNode) with
+                    | (Ok key, Ok symbolEquals, Ok value) ->
+                      (symbolEquals.range, key, value) |> Stdlib.Result.Result.Ok
+                    | _ -> createUnparseableError dictPairNode
 
-              | _ -> createUnparseableError contentsNode)
-
-            |> Stdlib.Result.collect)
+                  | _ -> createUnparseableError contentsNode)
+                |> Stdlib.Result.collect
+              | Error _ ->
+                createUnparseableError contentsNode))
 
           |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
 
@@ -295,11 +307,16 @@ module Darklang =
             |> Stdlib.List.filter (fun c ->
               c.typ != "indent" && c.typ != "dedent")
             |> Stdlib.List.chunkBySize 2L
-            |> Builtin.unwrap
-            |> Stdlib.List.map (fun contentSymbolPair ->
-              match contentSymbolPair with
-              | [ contentNode; symbol ] | [ contentNode ] -> parseFn contentNode)
-            |> Stdlib.Result.collect)
+            |> (fun chunkedResult ->
+              match chunkedResult with
+              | Ok pairs ->
+                pairs
+                |> Stdlib.List.map (fun contentSymbolPair ->
+                  match contentSymbolPair with
+                  | [ contentNode; symbol ] | [ contentNode ] -> parseFn contentNode)
+                |> Stdlib.Result.collect
+              | Error _ ->
+                createUnparseableError enumFieldsNode))
 
           |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
 
