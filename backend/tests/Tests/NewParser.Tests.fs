@@ -19,6 +19,7 @@ open TestUtils.TestUtils
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
+module Dval = LibExecution.Dval
 module PackageIDs = LibExecution.PackageIDs
 
 
@@ -46,13 +47,20 @@ let t
 
     let args = NEList.singleton (RT.DString input)
     let! exeResult = LibExecution.Execution.executeFunction exeState fnname [] args
-    let! actual = unwrapExecutionResult exeState exeResult |> Ply.toTask
+    let! resultDval = unwrapExecutionResult exeState exeResult |> Ply.toTask
 
-    return
-      Expect.RT.equalDval
-        actual
-        (RT.DString expected)
-        "Didn't round-trip as expected"
+    match resultDval with
+    | RT.DEnum(tn, _, _, "Ok", [ RT.DString result ]) when tn = Dval.resultType ->
+      return
+        Expect.RT.equalDval
+          (RT.DString result)
+          (RT.DString expected)
+          "Didn't round-trip as expected"
+    | RT.DEnum(tn, _, _, "Error", [ RT.DString errMsg ]) when tn = Dval.resultType ->
+      return failtest $"Parse error: {errMsg}"
+    | _ ->
+      return
+        failtest $"Unexpected result format from parseAndPrettyPrint: {resultDval}"
   }
 
 
