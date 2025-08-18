@@ -149,7 +149,7 @@ module Darklang =
                            description = ""
                            keywordOf = keywordOf }))
                       |> Stdlib.Result.Result.Ok
-                    | Error _ -> createUnparseableError caseNode)
+                    | _ -> createUnparseableError caseNode)
 
                 enumCases
                 |> Stdlib.Result.collect
