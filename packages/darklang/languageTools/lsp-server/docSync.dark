@@ -46,17 +46,27 @@ module Darklang =
             | Ok parsedFile ->
               match parsedFile with
               | SourceFile sf -> sf
-              | _ -> log "Invalid source file"
-            | Error err -> log err
+              | _ ->
+                log "Invalid source file"
+                WrittenTypes.SourceFile.SourceFile
+                  { range = Parser.Range { start = Parser.Point { row = 0L; column = 0L }; end_ = Parser.Point { row = 0L; column = 0L } }
+                    declarations = []
+                    unparseableStuff = []
+                    exprsToEval = [] }
+            | Error err ->
+              log err
+              WrittenTypes.SourceFile.SourceFile
+                { range = Parser.Range { start = Parser.Point { row = 0L; column = 0L }; end_ = Parser.Point { row = 0L; column = 0L } }
+                  declarations = []
+                  unparseableStuff = []
+                  exprsToEval = [] }
 
-          let (_ptCliScriptModule, unresolvedNames) =
-            Parser.CliScript.parse
-              "LSP"
-              "scriptName"
-              onMissing
-              pm
-              "fileName"
-              requestText
+          let unresolvedNames =
+            match Parser.CliScript.parse "LSP" "scriptName" onMissing pm "fileName" requestText with
+            | Ok ((_ptCliScriptModule, unresolvedNames)) -> unresolvedNames
+            | Error err ->
+              log $"Parse error: {err}"
+              []
 
           Diagnostics.gatherAndReportDiagnostics
             requestUri
