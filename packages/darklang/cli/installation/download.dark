@@ -29,11 +29,10 @@ module Darklang =
 
           match host.os with
           | Windows ->
-            let homeDirectory =
-              (Stdlib.Cli.PowerShell.getHomeDirectory ()) |> Builtin.unwrap
+            let darklangHomeDir = Config.getDarklangHomeDir host
 
-            let executableDir = $"{homeDirectory}\\.darklang\\bin\\"
-            let configPath = $"{homeDirectory}\\.darklang\\config.json"
+            let executableDir = $"{darklangHomeDir}\\bin\\"
+            let configPath = $"{darklangHomeDir}\\config.json"
 
             let ensureDirectoryExists =
               Stdlib.Cli.PowerShell.ensureDirectoryExists executableDir

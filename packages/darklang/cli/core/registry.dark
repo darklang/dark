@@ -63,6 +63,22 @@ module Darklang =
         let help = handler.help
         help state
 
+      // Helper function to format a group of commands
+      let formatCommandGroup (groupName: String) (commandNames: List<String>) (commands: List<CommandHandler>) : String =
+        let formattedCommands =
+          commandNames
+          |> Stdlib.List.filterMap (fun name ->
+            match Stdlib.List.findFirst commands (fun cmd -> cmd.name == name) with
+            | Some cmd ->
+              match cmd.aliases with
+              | [] -> Stdlib.Option.Option.Some $"  {cmd.name} - {cmd.description}"
+              | aliases ->
+                let aliasText = Stdlib.String.join aliases ", "
+                Stdlib.Option.Option.Some $"  {cmd.name} ({aliasText}) - {cmd.description}"
+            | None -> Stdlib.Option.Option.None)
+        let commandLines = Stdlib.String.join formattedCommands "\n"
+        $"{groupName}:\n{commandLines}"
+
       let getCommandList () : String =
         let commands = allCommands ()
 
@@ -72,69 +88,11 @@ module Darklang =
         let installCommands = ["install"; "update"; "uninstall"; "status"; "version"]
         let utilityCommands = ["clear"; "help"; "quit"]
 
-        // Format package navigation group
-        let packageGroup =
-          let packageCmds =
-            packageCommands
-            |> Stdlib.List.filterMap (fun name ->
-              match Stdlib.List.findFirst commands (fun cmd -> cmd.name == name) with
-              | Some cmd ->
-                match cmd.aliases with
-                | [] -> Stdlib.Option.Option.Some $"  {cmd.name} - {cmd.description}"
-                | aliases ->
-                  let aliasText = Stdlib.String.join aliases ", "
-                  Stdlib.Option.Option.Some $"  {cmd.name} ({aliasText}) - {cmd.description}"
-              | None -> Stdlib.Option.Option.None)
-          let packageLines = Stdlib.String.join packageCmds "\n"
-          $"Package navigation:\n{packageLines}"
-
-        // Format execution group
-        let executionGroup =
-          let executionCmds =
-            executionCommands
-            |> Stdlib.List.filterMap (fun name ->
-              match Stdlib.List.findFirst commands (fun cmd -> cmd.name == name) with
-              | Some cmd ->
-                match cmd.aliases with
-                | [] -> Stdlib.Option.Option.Some $"  {cmd.name} - {cmd.description}"
-                | aliases ->
-                  let aliasText = Stdlib.String.join aliases ", "
-                  Stdlib.Option.Option.Some $"  {cmd.name} ({aliasText}) - {cmd.description}"
-              | None -> Stdlib.Option.Option.None)
-          let executionLines = Stdlib.String.join executionCmds "\n"
-          $"Code execution:\n{executionLines}"
-
-        // Format installation group
-        let installGroup =
-          let installCmds =
-            installCommands
-            |> Stdlib.List.filterMap (fun name ->
-              match Stdlib.List.findFirst commands (fun cmd -> cmd.name == name) with
-              | Some cmd ->
-                match cmd.aliases with
-                | [] -> Stdlib.Option.Option.Some $"  {cmd.name} - {cmd.description}"
-                | aliases ->
-                  let aliasText = Stdlib.String.join aliases ", "
-                  Stdlib.Option.Option.Some $"  {cmd.name} ({aliasText}) - {cmd.description}"
-              | None -> Stdlib.Option.Option.None)
-          let installLines = Stdlib.String.join installCmds "\n"
-          $"Installation:\n{installLines}"
-
-        // Format utilities group
-        let utilityGroup =
-          let utilityCmds =
-            utilityCommands
-            |> Stdlib.List.filterMap (fun name ->
-              match Stdlib.List.findFirst commands (fun cmd -> cmd.name == name) with
-              | Some cmd ->
-                match cmd.aliases with
-                | [] -> Stdlib.Option.Option.Some $"  {cmd.name} - {cmd.description}"
-                | aliases ->
-                  let aliasText = Stdlib.String.join aliases ", "
-                  Stdlib.Option.Option.Some $"  {cmd.name} ({aliasText}) - {cmd.description}"
-              | None -> Stdlib.Option.Option.None)
-          let utilityLines = Stdlib.String.join utilityCmds "\n"
-          $"Utilities:\n{utilityLines}"
+        // Format command groups
+        let packageGroup = formatCommandGroup "Package navigation" packageCommands commands
+        let executionGroup = formatCommandGroup "Code execution" executionCommands commands
+        let installGroup = formatCommandGroup "Installation" installCommands commands
+        let utilityGroup = formatCommandGroup "Utilities" utilityCommands commands
 
         // Find any ungrouped commands
         let allGroupedCommands = Stdlib.List.append (Stdlib.List.append (Stdlib.List.append packageCommands executionCommands) installCommands) utilityCommands

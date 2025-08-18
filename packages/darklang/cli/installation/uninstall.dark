@@ -5,19 +5,12 @@ module Darklang =
         let removeDarklangDirectory
           (host: Stdlib.Cli.Host.Host)
           : Stdlib.Result.Result<Unit, String> =
+          let darklangDir = Config.getDarklangHomeDir host
+          
           match host.os with
           | Windows ->
-            let homeDirectory =
-              match Stdlib.Cli.PowerShell.getHomeDirectory () with
-              | Ok homeDir -> homeDir
-              | Error e -> e
-
-            let darklangDir = $"{homeDirectory}\\.darklang"
-
             Stdlib.Cli.PowerShell.removeFile darklangDir
-
           | Linux | MacOS ->
-            let darklangDir = "$HOME/.darklang"
             Stdlib.Cli.Unix.removeDirectory darklangDir
 
 

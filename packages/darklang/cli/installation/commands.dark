@@ -32,16 +32,7 @@ module Darklang =
             let currentDir = Builtin.directoryCurrent ()
 
             if Installation.System.globalInstallationExists host then
-              let homeDir =
-                match host.os with
-                | Windows ->
-                  match Stdlib.Cli.PowerShell.getHomeDirectory () with
-                  | Ok dir -> $"{dir}\\.darklang"
-                  | Error _ -> "~\\.darklang"
-                | _ ->
-                  match Stdlib.Cli.Unix.getHomeDirectory () with
-                  | Ok dir -> $"{dir}/.darklang"
-                  | Error _ -> "~/.darklang"
+              let homeDir = Config.getDarklangHomeDir host
 
               let message = $"Detected portable mode - you're running from {currentDir}/.darklang\nFound existing global installation at {homeDir}\n\nIf you'd like to update your global installation, please run `darklang` rather than this portable executable."
               Builtin.printLine (View.formatSuccess message)
@@ -152,16 +143,7 @@ module Darklang =
           let installationStatus =
             match currentMode with
             | Installed ->
-              let homeDir =
-                match host.os with
-                | Windows ->
-                  match Stdlib.Cli.PowerShell.getHomeDirectory () with
-                  | Ok dir -> dir ++ "\\.darklang"
-                  | Error _ -> "~\\.darklang"
-                | _ ->
-                  match Stdlib.Cli.Unix.getHomeDirectory () with
-                  | Ok dir -> dir ++ "/.darklang"
-                  | Error _ -> "~/.darklang"
+              let homeDir = Config.getDarklangHomeDir host
               Colors.success "Status: " ++ "Globally installed at " ++ homeDir ++ " and ready to use"
             | Portable ->
               let currentDir = Builtin.directoryCurrent ()

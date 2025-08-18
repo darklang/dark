@@ -59,3 +59,15 @@ module Darklang =
             match (config |> Stdlib.Dict.get "version") with
             | Some version -> Stdlib.Result.Result.Ok version
             | None -> Stdlib.Result.Result.Error "Failed to find version key"
+
+        /// Get the Darklang home directory path based on the OS
+        let getDarklangHomeDir (host: Stdlib.Cli.Host.Host) : String =
+          match host.os with
+          | Windows ->
+            match Stdlib.Cli.PowerShell.getHomeDirectory () with
+            | Ok dir -> $"{dir}\\.darklang"
+            | Error _ -> "~\\.darklang"
+          | _ ->
+            match Stdlib.Cli.Unix.getHomeDirectory () with
+            | Ok dir -> $"{dir}/.darklang"
+            | Error _ -> "~/.darklang"

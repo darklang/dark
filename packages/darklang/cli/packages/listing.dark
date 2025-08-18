@@ -61,17 +61,7 @@ module Darklang =
           else
             // Non-empty path - list module contents
             let currentModule = path
-            let query =
-              LanguageTools.ProgramTypes.Search.SearchQuery
-                { currentModule = currentModule
-                  text = ""
-                  searchDepth =
-                    LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
-                  entityTypes =
-                    [ LanguageTools.ProgramTypes.Search.EntityType.Module
-                      LanguageTools.ProgramTypes.Search.EntityType.Type
-                      LanguageTools.ProgramTypes.Search.EntityType.Fn
-                      LanguageTools.ProgramTypes.Search.EntityType.Constant ] }
+            let query = Utils.createFullSearchQuery currentModule
             let searchResults = LanguageTools.PackageManager.Search.search query
 
             let pathStr = Packages.Path.formatPath path
