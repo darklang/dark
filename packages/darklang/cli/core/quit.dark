@@ -1,7 +1,7 @@
 module Darklang =
   module Cli =
     module Quit =
-      let execute (state: AppState) (args: List<String>) : AppState =
+      let execute (state: AppState) (_args: List<String>) : AppState =
         Builtin.printLine (View.formatGoodbye ())
         { state with isExiting = true; lastCommand = "quit"; output = "goodbye" }
 

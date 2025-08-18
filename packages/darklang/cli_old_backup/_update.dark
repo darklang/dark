@@ -23,6 +23,7 @@ module Darklang =
             draftPrompt = ""
             cursorPosition = 0L }
 
+
     // Navigate command history
     let navigateHistory (state: State) (direction: NavDirection): State =
       match state.commandHistory with

@@ -151,137 +151,14 @@ module Darklang =
         | None -> Stdlib.Option.Option.None
 
 
-      let createSearchQuery (currentModule: List<String>) (text: String) : LanguageTools.ProgramTypes.Search.SearchQuery =
-        LanguageTools.ProgramTypes.Search.SearchQuery
-          { currentModule = currentModule
-            text = text
-            searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
-            entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module
-                            LanguageTools.ProgramTypes.Search.EntityType.Type
-                            LanguageTools.ProgramTypes.Search.EntityType.Fn
-                            LanguageTools.ProgramTypes.Search.EntityType.Constant ] }
-
-      /// Helper function to run a function from the package manager
-      let runFunction (state: State) (fnName: String) (args: List<String>) : (State * List<Msg>) =
-        let onMissing = LanguageTools.NameResolver.OnMissing.Allow
-        let pm = LanguageTools.PackageManager.pm ()
-
-        let (parsedArgs, _unres) =
-          args
-          |> Stdlib.List.map (fun arg ->
-            arg
-            |> LanguageTools.Parser.parseToSimplifiedTree
-            |> LanguageTools.Parser.parseFromTree
-            |> Builtin.unwrap
-            |> fun parsedFile ->
-                match parsedFile with
-                | SourceFile source -> source.exprsToEval)
-          |> Stdlib.List.flatten
-          |> Stdlib.List.map (fun arg ->
-            LanguageTools.WrittenTypesToProgramTypes.Expr.toPT onMissing pm "" [] arg)
-          |> Stdlib.List.unzip
-
-        match Builtin.cliExecuteFunction fnName parsedArgs with
-        | Ok result ->
-          let newState = { state with commandResult = CommandResult.Success result }
-          (newState, [])
-        | Error err ->
-          let newState = { state with commandResult = CommandResult.Error $"\n{err}" }
-          (newState, [])
-
-
-      /// Helper function to run a .dark script file
-      let runScript (state: State) (scriptPath: String) (args: List<String>) : (State * List<Msg>) =
-        match Builtin.fileRead scriptPath with
-        | Ok script ->
-          let scriptSourceCode = Stdlib.String.fromBytesWithReplacement script
-
-          let result =
-            Builtin.cliParseAndExecuteScript
-              scriptPath
-              scriptSourceCode
-              args
-
-          match result with
-          | Ok exitCode ->
-            let newState = { state with commandResult = CommandResult.Success $"Script executed with exit code: {exitCode |> Stdlib.Int64.toString}" }
-            (newState, [])
-          | Error e ->
-            let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString e
-            let newState = { state with commandResult = CommandResult.Error prettyError }
-            (newState, [])
-        | Error e ->
-          let newState = { state with commandResult = CommandResult.Error e }
-          (newState, [])
-
-
       /// Returns commands available in the current state
       let getAvailableCommands (state: State) : List<CommandDetails> =
         let baseCommands = [
-          // `quit`
-          CommandDetails
-            { name = "quit"
-              description = "Exit the CLI"
-              aliases = ["exit"; "q"]
-              arguments = []
-              execute = fun state _ -> (state, [Msg.Quit])
-            }
-
-          // `mode` - switch between interaction modes
-          CommandDetails
-            { name = "mode"
-              description = "Change the interaction mode (non-interactive, regular, refresh-screen)"
-              aliases = []
-              arguments = ["[non-interactive|regular|refresh-screen]"]
-              execute = fun state args ->
-                let args = Stdlib.String.trim args
-
-                if Stdlib.String.isEmpty args then
-                  // No arguments, show current mode
-                  let modeDisplay =
-                    match state.interactionMode with
-                    | NonInteractive -> "non-interactive"
-                    | RefreshScreen -> "refresh-screen"
-                    | Regular -> "regular"
-
-                  let newState = { state with commandResult = CommandResult.Info $"Current interaction mode: {modeDisplay}\nAvailable modes: non-interactive, regular, refresh-screen" }
-                  (newState, [])
-                else
-                  // Set the mode based on the argument
-                  match Stdlib.String.toLowercase args with
-                  | "non-interactive" ->
-                    let newState =
-                      { state with
-                          interactionMode = InteractionMode.NonInteractive
-                          commandResult = CommandResult.Success "Switched to non-interactive mode"
-                          needsFullRedraw = true }
-                    (newState, [])
-                  | "regular" ->
-                    let newState =
-                      { state with
-                          interactionMode = InteractionMode.Regular
-                          commandResult = CommandResult.Success "Switched to regular mode"
-                          needsFullRedraw = true }
-                    (newState, [])
-                  | "refresh-screen" ->
-                    let newState =
-                      { state with
-                          interactionMode = InteractionMode.RefreshScreen
-                          commandResult = CommandResult.Success "Switched to refresh-screen mode"
-                          needsFullRedraw = true }
-                    (newState, [])
-                  | _ ->
-                    let newState = { state with commandResult = CommandResult.Error $"Unknown mode: {args}\nAvailable modes: non-interactive, regular, refresh-screen" }
-                    (newState, [])
-            }
 
 
           // `help`
           CommandDetails
             { name = "help"
-              description = "Show help information"
-              aliases = []
-              arguments = []
               execute = fun state _args ->
                 // Get available commands for the current page
                 let commands = getAvailableCommands state
@@ -297,7 +174,7 @@ module Darklang =
                       let commandName = cmd.name ++ Stdlib.String.repeat " " (maxNameLength - Stdlib.String.length cmd.name)
                       $"{Colors.purple}{commandName}{Colors.reset}   {cmd.description}")
 
-                let colorBar =
+               let colorBar =
                   [ Colors.purpleBg
                     Colors.magentaBg
                     Colors.lightPinkBg
@@ -342,19 +219,9 @@ module Darklang =
                 let helpContent = combineLogoAndText logo helpText Colors.darkGray
                 let newState = { state with commandResult = CommandResult.Info helpContent }
                 (newState, [])
+
             }
 
-          // `version`
-          CommandDetails
-            { name = "version"
-              description = "Show CLI version"
-              aliases = ["v"]
-              arguments = []
-              execute = fun state _ ->
-                let versionInfo = getVersionInfo ()
-                let newState = { state with commandResult = CommandResult.Info versionInfo }
-                (newState, [])
-            }
 
           // View command
           // TODO this needs a lot of work.
@@ -504,18 +371,6 @@ module Darklang =
                     (newState, [])
             }
 
-          // Clear command
-          CommandDetails
-            { name = "clear"
-              description = "Clear the screen"
-              aliases = ["cls"]
-              arguments = []
-              execute = fun state _ ->
-                // \x1b starts the escape sequence, [2J clears the screen, [H moves cursor to top left
-                let newState = { state with commandResult = CommandResult.Success "\x1b[2J\x1b[H"; needsFullRedraw = true }
-                (newState, [])
-            }
-
           // Status command
           CommandDetails
             { name = "status"
@@ -581,262 +436,6 @@ module Darklang =
                 (newState, [])
             }
 
-          // Back command
-          CommandDetails
-            { name = "back"
-              description = "Go back to the previous page"
-              aliases = []
-              arguments = []
-              execute = fun state _ -> (state, [Msg.NavigateBack])
-            }
-
-
-
-          // Run function command
-          CommandDetails
-            { name = "run"
-              description = "Run a function from the package manager or execute a script"
-              aliases = []
-              arguments = ["<@function_name args...> | <script_path args...>"]
-              execute = fun state args ->
-                let argsList = args |> Stdlib.String.split " "
-
-                match argsList with
-                | [] ->
-                  let newState = { state with commandResult = CommandResult.Error "Please specify a function name (starting with @) or script path" }
-                  (newState, [])
-
-                | thingToRun :: restArgs ->
-                  if Stdlib.String.startsWith thingToRun "@" then
-                    // Function execution
-                    let fnName = thingToRun |> Stdlib.String.dropFirst 1L
-                    runFunction state fnName restArgs
-                  else
-                    // Script execution
-                    runScript state thingToRun restArgs
-            }
-
-          // Scripts command
-          CommandDetails
-            { name = "scripts"
-              description = "Store, manage, and run Dark scripts"
-              aliases = []
-              arguments = ["[list|view|add|edit|delete|run]"; "<args>"]
-              execute = fun state args ->
-                let parts = args |> Stdlib.String.split " " |> Stdlib.List.filter (fun s -> Stdlib.Bool.not (Stdlib.String.isEmpty s))
-
-                match parts with
-                | [] ->
-                  let helpText =
-                    """Scripts commands:
-  scripts list               - List all scripts
-  scripts view <name>        - View script content
-  scripts add <name> <text>  - Add a new script
-  scripts edit <name>        - Show script content
-  scripts edit <name> <text> - Update script with new content
-  scripts delete <name>      - Delete a script
-  scripts run <name>         - Run a script"""
-                  let newState = { state with commandResult = CommandResult.Info helpText }
-                  (newState, [])
-
-                | ["list"] ->
-                  match Darklang.Cli.Scripts.list () with
-                  | Ok scripts ->
-                    let output =
-                      if Stdlib.List.isEmpty scripts then
-                        "No scripts found"
-                      else
-                        scripts
-                        |> Stdlib.List.map (fun s -> $"  {s.name}")
-                        |> Stdlib.String.join "\n"
-                        |> fun names -> $"Scripts:\n{names}"
-                    let newState = { state with commandResult = CommandResult.Success output }
-                    (newState, [])
-                  | Error err ->
-                    let newState = { state with commandResult = CommandResult.Error err }
-                    (newState, [])
-
-                | ["view"; name] ->
-                  match Darklang.Cli.Scripts.get name with
-                  | Ok script ->
-                    let output = $"Script: {script.name}\n\n{script.text}"
-                    let newState = { state with commandResult = CommandResult.Success output }
-                    (newState, [])
-                  | Error err ->
-                    let newState = { state with commandResult = CommandResult.Error err }
-                    (newState, [])
-
-                | "add" :: name :: textParts when Stdlib.Bool.not (Stdlib.List.isEmpty textParts) ->
-                  let text = textParts |> Stdlib.String.join " "
-                  match Darklang.Cli.Scripts.add name text with
-                  | Ok script ->
-                    let newState = { state with commandResult = CommandResult.Success $"Script '{script.name}' added successfully" }
-                    (newState, [])
-                  | Error err ->
-                    let newState = { state with commandResult = CommandResult.Error err }
-                    (newState, [])
-
-                | ["edit"; name] ->
-                  // Edit without new content - show current content
-                  match Darklang.Cli.Scripts.edit name (Stdlib.Option.Option.None) with
-                  | Ok message ->
-                    let newState = { state with commandResult = CommandResult.Success message }
-                    (newState, [])
-                  | Error err ->
-                    let newState = { state with commandResult = CommandResult.Error err }
-                    (newState, [])
-
-                | "edit" :: name :: textParts when Stdlib.Bool.not (Stdlib.List.isEmpty textParts) ->
-                  // Edit with new content - update the script
-                  // CLEANUP: maybe we should have a separate command for this? e.g. `script update <script_name> <new_content>`
-                  let text = textParts |> Stdlib.String.join " "
-                  match Darklang.Cli.Scripts.edit name (Stdlib.Option.Option.Some text) with
-                  | Ok message ->
-                    let newState = { state with commandResult = CommandResult.Success message }
-                    (newState, [])
-                  | Error err ->
-                    let newState = { state with commandResult = CommandResult.Error err }
-                    (newState, [])
-
-                | ["delete"; name] ->
-                  match Darklang.Cli.Scripts.delete name with
-                  | Ok () ->
-                    let newState = { state with commandResult = CommandResult.Success $"Script '{name}' deleted successfully" }
-                    (newState, [])
-                  | Error err ->
-                    let newState = { state with commandResult = CommandResult.Error err }
-                    (newState, [])
-
-                | ["run"; name] ->
-                  match Darklang.Cli.Scripts.get name with
-                  | Ok script ->
-                    let result =
-                      Builtin.cliParseAndExecuteScript
-                        $"script:{name}"
-                        script.text
-                        []
-
-                    match result with
-                    | Ok exitCode ->
-                      let newState = { state with commandResult = CommandResult.Success $"Script '{name}' executed with exit code: {exitCode |> Stdlib.Int64.toString}" }
-                      (newState, [])
-                    | Error runtimeError ->
-                      let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString runtimeError
-                      let newState = { state with commandResult = CommandResult.Error prettyError }
-                      (newState, [])
-                  | Error err ->
-                    let newState = { state with commandResult = CommandResult.Error err }
-                    (newState, [])
-
-                | _ ->
-                  let newState = { state with commandResult = CommandResult.Error "Invalid scripts command. Use 'scripts' to see available commands" }
-                  (newState, [])
-            }
-
-
-          // Install command
-          CommandDetails
-            { name = "install"
-              description = "Install the darklang CLI globally"
-              aliases = []
-              arguments = []
-              execute = fun state _ ->
-                let currentMode = Installation.getInstallationMode ()
-                match currentMode with
-                | Installed ->
-                  let newState = { state with commandResult = CommandResult.Info "Already installed globally" }
-                  (newState, [])
-                | Portable ->
-                  let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
-                  let currentDir = Builtin.directoryCurrent ()
-
-                  if Installation.globalInstallationExists host then
-                    let homeDir =
-                      match host.os with
-                      | Windows ->
-                        match Stdlib.Cli.PowerShell.getHomeDirectory () with
-                        | Ok dir -> $"{dir}\\.darklang"
-                        | Error _ -> "~/.darklang"
-                      | _ ->
-                        match Stdlib.Cli.Unix.getHomeDirectory () with
-                        | Ok dir -> $"{dir}/.darklang"
-                        | Error _ -> "~/.darklang"
-
-                    let message = $"Detected portable mode - you're running from {currentDir}/.darklang\nFound existing global installation at {homeDir}\n\nIf you'd like to update your global installation, please run `dark` rather than this portable executable."
-                    let newState = { state with commandResult = CommandResult.Info message }
-                    (newState, [])
-                  else
-                    Builtin.printLine "Choose installation method:"
-                    Builtin.printLine "1. Copy this binary (for testing local changes)"
-                    Builtin.printLine "2. Download latest release from GitHub"
-                    Builtin.printLine "Choose option (1 or 2, default: 2): "
-                    let choice = (Builtin.stdinReadLine ()) |> Stdlib.String.trim
-
-                    if choice == "1" then
-                      match Installation.installFromCurrentBinary host with
-                      | Ok message ->
-                        let newState = { state with commandResult = CommandResult.Success message }
-                        (newState, [])
-                      | Error e ->
-                        let newState = { state with commandResult = CommandResult.Error e }
-                        (newState, [])
-                    else
-                      Builtin.printLine "Installing globally..."
-                      match Installation.install host with
-                      | Ok message ->
-                        let newState = { state with commandResult = CommandResult.Success message }
-                        (newState, [])
-                      | Error e ->
-                        let newState = { state with commandResult = CommandResult.Error e }
-                        (newState, [])
-            }
-
-          // Update command
-          CommandDetails
-            { name = "update"
-              description = "Update the darklang CLI to the latest version"
-              aliases = []
-              arguments = []
-              execute = fun state _ ->
-                let currentVersion = cliVersion ()
-                let currentMode = Installation.getInstallationMode ()
-
-                match currentMode with
-                | Installed ->
-                  Builtin.printLine $"Checking for updates from Darklang CLI {currentVersion}..."
-                  let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
-                  match Installation.updateIfAvailable currentVersion host with
-                  | Ok message ->
-                    let newState = { state with commandResult = CommandResult.Success message }
-                    (newState, [])
-                  | Error e ->
-                    let newState = { state with commandResult = CommandResult.Error e }
-                    (newState, [])
-                | Portable ->
-                  let message = $"Running in portable mode from {Builtin.directoryCurrent ()}/.darklang\n\nTo update this portable executable, please download the latest release manually from:\nhttps://github.com/darklang/dark/releases\n\nFor automatic updates, consider running 'install' to set up global installation."
-                  let newState = { state with commandResult = CommandResult.Info message }
-                  (newState, [])
-            }
-
-          // Uninstall command
-          CommandDetails
-            { name = "uninstall"
-              description = "Uninstall the darklang CLI"
-              aliases = []
-              arguments = []
-              execute = fun state _ ->
-                let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
-                match Installation.uninstallWithConfirmation host with
-                | Ok message ->
-                  let newState = { state with commandResult = CommandResult.Success message }
-                  // Exit after successful uninstall since the executable is being removed
-                  (newState, [Msg.Quit])
-                | Error e ->
-                  let newState = { state with commandResult = CommandResult.Error e }
-                  (newState, [])
-            }
-        ]
-
         // Filter commands based on installation mode
         let currentMode = Installation.getInstallationMode ()
         let filteredBaseCommands =
@@ -895,28 +494,8 @@ module Darklang =
                       (newState, [])
                 }
 
-             // `eval <expression>`
-              CommandDetails
-                { name = "eval"
-                  description = "Evaluate a Dark expression"
-                  aliases = ["e"]
-                  arguments = ["<expression>"]
-                  execute = fun state args ->
-                    if Stdlib.String.isEmpty args then
-                      let newState = { state with commandResult = CommandResult.Error "Please provide an expression to evaluate. Example: eval 1L + 2L" }
-                      (newState, [])
-                    else
-                      let expr = args
-                      match Builtin.cliEvaluateExpression expr with
-                      | Ok result ->
-                        let newState = { state with commandResult = CommandResult.Success result }
-                        (newState, [])
-                      | Error err ->
-                        let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString err
-                        let newState = { state with commandResult = CommandResult.Error prettyError }
-                        (newState, [])
-                }
-            ]
+
+
           // CLEANUP: when is this used?
           | Type _
           | Fn _
@@ -1038,15 +617,4 @@ module Darklang =
             ]
 
         Stdlib.List.append filteredBaseCommands contextCommands
-
-
-      /// Finds a command by name or alias
-      let findCommand (state: State) (name: String) : Stdlib.Option.Option<CommandDetails> =
-        let lowerName = Stdlib.String.toLowercase name
-
-        state
-        |> getAvailableCommands
-        |> Stdlib.List.findFirst (fun cmd ->
-            cmd.name == lowerName || Stdlib.List.member_v0 cmd.aliases lowerName)
-
 

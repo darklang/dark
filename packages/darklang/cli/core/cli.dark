@@ -14,6 +14,10 @@ module Darklang =
             // Move cursor to beginning of line only, avoid clearing unless necessary
             Builtin.print Colors.carriageReturn
           Builtin.print (View.formatPromptWithInput state)
+
+        // CLEANUP the specific 'tree' command has bled outside of its space...
+        // we should abstract this to something that represents when a command
+        // or sub-app "takes over" the rendering
         | TreeNavigationMode _ ->
           // Tree mode handles its own display, don't show prompt
           ()
@@ -24,18 +28,17 @@ module Darklang =
         let newState = Update.updateAppState state keyPressedMsg
         runInteractiveLoop newState
 
+
     let executeCliCommand (args: List<String>) : Int64 =
       let initialState = initState ()
 
       match args with
+      // If someone runs `dark` without args, start the interactive loop
       | [] ->
-        // Interactive mode - continuous loop
         Builtin.printLine (View.formatWelcome ())
         runInteractiveLoop initialState
+      // Otherwise, just execute command, print result, and exit
       | _ ->
-        // Non-interactive mode: execute command, print result, and exit
         let command = args |> Stdlib.String.join " "
         let finalState = Update.processInput initialState command
-
-        // Always exit for non-interactive mode
         0L

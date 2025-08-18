@@ -9,6 +9,7 @@ module Darklang =
         | commandName :: args ->
           Registry.executeCommand commandName state args
 
+
       // Clear command - clear the screen
       let executeClear (state: AppState) (args: List<String>) : AppState =
         Builtin.stdoutClear ()

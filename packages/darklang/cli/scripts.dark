@@ -9,7 +9,7 @@ module Darklang =
 
       // Scripts command - manage and run stored Dark scripts
       // TODO rename to just execute
-      let executeScripts (state: AppState) (args: List<String>) : AppState =
+      let execute (state: AppState) (args: List<String>) : AppState =
         match args with
         | [] ->
           // CLEANUP defer to 'help' stuff -- consolidate
@@ -21,57 +21,43 @@ module Darklang =
           Builtin.printLine "  scripts edit <name> <text> - Update script with new content"
           Builtin.printLine "  scripts delete <name>      - Delete a script"
           Builtin.printLine "  scripts run <name>         - Run a script"
-          { state with
-              lastCommand = "scripts help";
-              output = "scripts help displayed" }
+          { state with lastCommand = "scripts help"; output = "scripts help displayed" }
 
         | ["list"] ->
           let scripts = Builtin.cliScriptsList ()
           if Stdlib.List.isEmpty scripts then
             Builtin.printLine "No scripts found"
-            { state with
-                lastCommand = "scripts list";
-                output = "no scripts found" }
+            { state with lastCommand = "scripts list"; output = "no scripts found" }
           else
             let output =
               scripts
               |> Stdlib.List.map (fun s -> $"  {s.name}")
               |> Stdlib.String.join "\n"
             Builtin.printLine $"Scripts:\n{output}"
-            { state with
-                lastCommand = "scripts list";
-                output = output }
+            { state with lastCommand = "scripts list"; output = output }
 
         | ["view"; name] ->
           match Builtin.cliScriptsGet name with
           | Some script ->
             let output = $"Script: {script.name}\n\n{script.text}"
             Builtin.printLine output
-            { state with
-                lastCommand = "scripts view";
-                output = output }
+            { state with lastCommand = "scripts view"; output = output }
           | None ->
             let error = $"Script '{name}' not found"
             Builtin.printLine $"Error: {error}"
-            { state with
-                lastCommand = "scripts view error";
-                output = $"error: {error}" }
+            { state with lastCommand = "scripts view error"; output = $"error: {error}" }
 
         | ["add"] ->
           Builtin.printLine "Error: Missing arguments for scripts add"
           Builtin.printLine "Usage: scripts add <name> <text>"
           Builtin.printLine "Example: scripts add hello 'Builtin.printLine \"Hello World\"'"
-          { state with
-              lastCommand = "scripts add error";
-              output = "missing arguments" }
+          { state with lastCommand = "scripts add error"; output = "missing arguments" }
 
         | ["add"; _] ->
           Builtin.printLine "Error: Missing script text"
           Builtin.printLine "Usage: scripts add <name> <text>"
           Builtin.printLine "Example: scripts add hello 'Builtin.printLine \"Hello World\"'"
-          { state with
-              lastCommand = "scripts add error";
-              output = "missing script text" }
+          { state with lastCommand = "scripts add error"; output = "missing script text" }
 
         | "add" :: name :: textParts when Stdlib.Bool.not (Stdlib.List.isEmpty textParts) ->
           let text = Stdlib.String.join textParts " "
@@ -79,14 +65,10 @@ module Darklang =
           | Ok script ->
             let message = $"Script '{script.name}' added successfully"
             Builtin.printLine message
-            { state with
-                lastCommand = "scripts add";
-                output = message }
+            { state with lastCommand = "scripts add"; output = message }
           | Error err ->
             Builtin.printLine $"Error: {err}"
-            { state with
-                lastCommand = "scripts add error";
-                output = $"error: {err}" }
+            { state with lastCommand = "scripts add error"; output = $"error: {err}" }
 
         | ["edit"; name] ->
           match Builtin.cliScriptsGet name with
@@ -95,15 +77,11 @@ module Darklang =
             Builtin.printLine output
             Builtin.printLine ""
             Builtin.printLine "Use 'scripts edit <name> <new_content>' to update the script"
-            { state with
-                lastCommand = "scripts edit";
-                output = output }
+            { state with lastCommand = "scripts edit"; output = output }
           | None ->
             let error = $"Script '{name}' not found"
             Builtin.printLine $"Error: {error}"
-            { state with
-                lastCommand = "scripts edit error";
-                output = $"error: {error}" }
+            { state with lastCommand = "scripts edit error"; output = $"error: {error}" }
 
         | "edit" :: name :: textParts when Stdlib.Bool.not (Stdlib.List.isEmpty textParts) ->
           let text = Stdlib.String.join textParts " "
@@ -111,28 +89,20 @@ module Darklang =
           | Ok () ->
             let message = $"Script '{name}' updated successfully"
             Builtin.printLine message
-            { state with
-                lastCommand = "scripts edit";
-                output = message }
+            { state with lastCommand = "scripts edit"; output = message }
           | Error err ->
             Builtin.printLine $"Error: {err}"
-            { state with
-                lastCommand = "scripts edit error";
-                output = $"error: {err}" }
+            { state with lastCommand = "scripts edit error"; output = $"error: {err}" }
 
         | ["delete"; name] ->
           match Builtin.cliScriptsDelete name with
           | Ok () ->
             let message = $"Script '{name}' deleted successfully"
             Builtin.printLine message
-            { state with
-                lastCommand = "scripts delete";
-                output = message }
+            { state with lastCommand = "scripts delete"; output = message }
           | Error err ->
             Builtin.printLine $"Error: {err}"
-            { state with
-                lastCommand = "scripts delete error";
-                output = $"error: {err}" }
+            { state with lastCommand = "scripts delete error"; output = $"error: {err}" }
 
         | ["run"; name] ->
           match Builtin.cliScriptsGet name with
@@ -142,29 +112,22 @@ module Darklang =
             | Ok exitCode ->
               let message = $"Script '{name}' executed with exit code: {Stdlib.Int64.toString exitCode}"
               Builtin.printLine message
-              { state with
-                  lastCommand = "scripts run";
-                  output = message }
+              { state with lastCommand = "scripts run"; output = message }
             | Error runtimeError ->
               let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString runtimeError
               Builtin.printLine $"Script error: {prettyError}"
-              { state with
-                  lastCommand = "scripts run error";
-                  output = $"script error: {prettyError}" }
+              { state with lastCommand = "scripts run error"; output = $"script error: {prettyError}" }
           | None ->
             let error = $"Script '{name}' not found"
             Builtin.printLine $"Error: {error}"
-            { state with
-                lastCommand = "scripts run error";
-                output = $"error: {error}" }
+            { state with lastCommand = "scripts run error"; output = $"error: {error}" }
 
         | _ ->
           Builtin.printLine "Error: Invalid scripts command. Use 'scripts' to see available commands"
-          { state with
-              lastCommand = "scripts error";
-              output = "invalid scripts command" }
+          { state with lastCommand = "scripts error"; output = "invalid scripts command" }
 
-      let scriptsHelp (state: AppState) : AppState =
+
+      let help (state: AppState) : AppState =
         Builtin.printLine "Usage: scripts <command> [args...]"
         Builtin.printLine "Store, manage, and run Dark scripts."
         Builtin.printLine ""
@@ -185,25 +148,37 @@ module Darklang =
             lastCommand = "help scripts";
             output = "scripts help displayed" }
 
+
       let complete (state: AppState) (args: List<String>) : List<String> =
         match args with
-        | [] ->
-          // Complete subcommands
-          ["list"; "view"; "add"; "edit"; "delete"; "run"]
+        // if hitting `tab` right after typing `scripts`, recommend subcommands
+        | [] -> ["list"; "view"; "add"; "edit"; "delete"; "run"]
+
+        // no completions here
         | ["list"] | ["add"] -> []
+
+        // we're referencing some specific script - recommend names
         | ["view"] | ["edit"] | ["delete"] | ["run"] ->
           // Complete script names
           let scripts = Builtin.cliScriptsList ()
           scripts |> Stdlib.List.map (fun s -> s.name)
+
         | [subcommand] ->
           // Partial subcommand completion
           ["list"; "view"; "add"; "edit"; "delete"; "run"]
           |> Stdlib.List.filter (fun cmd -> Stdlib.String.startsWith cmd subcommand)
-        | ["view"; _] | ["delete"; _] | ["run"; _] -> []
+
+        | ["view"; _] | ["delete"; _] | ["run"; _] ->
+          // CLEANUP why are we ignoring them?
+          // We should be recommending based on the names available
+          []
+
         | ["edit"; scriptName] ->
           // For edit with script name, could show current content hint but keep simple
           []
+
         | "add" :: _ | "edit" :: _ :: _ ->
           // For add or edit with content, no completion needed
           []
+
         | _ -> []

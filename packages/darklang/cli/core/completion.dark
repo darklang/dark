@@ -56,11 +56,12 @@ module Darklang =
           else
             ""
 
-      // Standard completion for commands that take no arguments
-      let noArgsCompletion (state: AppState) (args: List<String>) : List<String> = []
+      let noArgsCompletion (_state: AppState) (_args: List<String>) : List<String> =
+        []
 
-      // Standard completion for commands that complete with other command names (like help)
-      let commandNamesCompletion (state: AppState) (args: List<String>) : List<String> =
+      // Standard completion for commands that complete with other command names
+      // (right now, just `help`)
+      let commandNamesCompletion (_state: AppState) (args: List<String>) : List<String> =
         match args with
         | [] ->
           // Suggest all command names and aliases

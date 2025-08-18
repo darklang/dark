@@ -2,12 +2,11 @@ module Darklang =
   module Cli =
     module Installation =
       module Commands =
-        /// Get current CLI version using git build hash like old CLI
+        // Helpers
         let cliVersion () : String =
           let hash = Builtin.getBuildHash ()
           "alpha-" ++ hash
 
-        /// Get version information with latest release comparison (like old CLI)
         let getVersionInfo () : String =
           let currentVersion = cliVersion ()
           match GitHub.Releases.getLatestReleaseBuildHash () with
@@ -19,7 +18,8 @@ module Darklang =
           | Error _ ->
             "Darklang CLI " ++ currentVersion ++ " (unable to check for updates)"
 
-        /// Install command handler
+
+        // Install
         let executeInstall (state: AppState) (args: List<String>) : AppState =
           let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
           let currentMode = Installation.System.getInstallationMode ()
@@ -71,7 +71,6 @@ module Darklang =
                   Builtin.printLine (View.formatError e)
                   { state with lastCommand = "install"; output = "global install failed" }
 
-        /// Install help handler
         let installHelp (state: AppState) : AppState =
           Builtin.printLine "Usage: install"
           Builtin.printLine "Install Darklang CLI globally for system-wide access."
@@ -80,7 +79,8 @@ module Darklang =
           Builtin.printLine "shell configuration for global access."
           { state with lastCommand = "help install"; output = "install help displayed" }
 
-        /// Update command handler
+
+        /// Update
         let executeUpdate (state: AppState) (args: List<String>) : AppState =
           let currentVersion = cliVersion ()
           let currentMode = Installation.System.getInstallationMode ()
@@ -101,7 +101,7 @@ module Darklang =
             Builtin.printLine (View.formatSuccess message)
             { state with lastCommand = "update"; output = "portable update info" }
 
-        /// Update help handler
+
         let updateHelp (state: AppState) : AppState =
           Builtin.printLine "Usage: update"
           Builtin.printLine "Update Darklang CLI to the latest version."
@@ -110,7 +110,7 @@ module Darklang =
           Builtin.printLine "installed CLI. Only works for global installations."
           { state with lastCommand = "help update"; output = "update help displayed" }
 
-        /// Uninstall command handler
+        // Uninstall
         let executeUninstall (state: AppState) (args: List<String>) : AppState =
           let currentMode = Installation.System.getInstallationMode ()
           let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
@@ -130,7 +130,6 @@ module Darklang =
             Builtin.printLine "To remove this portable installation, simply delete the current directory"
             { state with lastCommand = "uninstall"; output = "portable uninstall error" }
 
-        /// Uninstall help handler
         let uninstallHelp (state: AppState) : AppState =
           Builtin.printLine "Usage: uninstall"
           Builtin.printLine "Uninstall Darklang CLI from global installation."
@@ -139,19 +138,17 @@ module Darklang =
           Builtin.printLine "Only available for global installations."
           { state with lastCommand = "help uninstall"; output = "uninstall help displayed" }
 
-        /// Status command handler like old CLI - shows detailed system info
+
+        // Status
         let executeStatus (state: AppState) (args: List<String>) : AppState =
           let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
           let currentMode = Installation.System.getInstallationMode ()
-          
-          // Get version info with update check like old CLI
+
           let version = getVersionInfo ()
-          
-          // Get current location (package path)
+
           let currentLocation = Packages.Path.formatPath state.currentPath
           let locationDisplay = if Stdlib.String.isEmpty currentLocation then "/" else currentLocation
-          
-          // Get installation status like old CLI
+
           let installationStatus =
             match currentMode with
             | Installed ->
@@ -170,17 +167,15 @@ module Darklang =
               let currentDir = Builtin.directoryCurrent ()
               Colors.warning "Status: " ++ "Running in portable mode at " ++ currentDir ++ "/.darklang (run 'install' for global system-wide access)"
 
-          // Build status text like old CLI
-          let statusText = 
+          let statusText =
             Colors.info "Version: " ++ version ++ "\n" ++
             Colors.info "Location: " ++ locationDisplay ++ "\n" ++
             installationStatus ++ "\n\n" ++
             "Type " ++ Colors.hint "'help'" ++ " for available commands"
-            
+
           Builtin.printLine statusText
           { state with lastCommand = "status"; output = "detailed status displayed" }
 
-        /// Status help handler
         let statusHelp (state: AppState) : AppState =
           Builtin.printLine "Usage: status"
           Builtin.printLine "Show current CLI installation status."
@@ -189,19 +184,20 @@ module Darklang =
           Builtin.printLine "and shows installation location."
           { state with lastCommand = "help status"; output = "status help displayed" }
 
-        /// Enhanced version command like old CLI - shows version with update check
+
+        // Version
         let executeVersion (state: AppState) (args: List<String>) : AppState =
           let versionInfo = getVersionInfo ()
           Builtin.printLine versionInfo
           { state with lastCommand = "version"; output = "version info displayed" }
 
-        /// Enhanced version help handler
         let versionHelp (state: AppState) : AppState =
           Builtin.printLine "Usage: version"
           Builtin.printLine "Display CLI version and installation information."
           Builtin.printLine ""
           Builtin.printLine "Shows current version, installation mode, and location."
           { state with lastCommand = "help version"; output = "version help displayed" }
+
 
         /// Completion functions for installation commands
         let installComplete (state: AppState) (args: List<String>) : List<String> =

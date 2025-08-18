@@ -7,11 +7,11 @@ module Darklang =
       let dim = "\u001b[2m"
       let italic = "\u001b[3m"
       let underline = "\u001b[4m"
-      
+
       // Cursor and line control
       let clearLine = "\u001b[K"
       let carriageReturn = "\r"
-      
+
       // Standard colors
       let black = "\u001b[30m"
       let red = "\u001b[31m"
@@ -21,7 +21,7 @@ module Darklang =
       let magenta = "\u001b[35m"
       let cyan = "\u001b[36m"
       let white = "\u001b[37m"
-      
+
       // Bright colors
       let brightBlack = "\u001b[90m"
       let brightRed = "\u001b[91m"
@@ -31,7 +31,7 @@ module Darklang =
       let brightMagenta = "\u001b[95m"
       let brightCyan = "\u001b[96m"
       let brightWhite = "\u001b[97m"
-      
+
       // Background colors
       let bgBlack = "\u001b[40m"
       let bgRed = "\u001b[41m"
@@ -41,7 +41,7 @@ module Darklang =
       let bgMagenta = "\u001b[45m"
       let bgCyan = "\u001b[46m"
       let bgWhite = "\u001b[47m"
-      
+
       // Semantic colors for CLI elements
       let commandColor = "\u001b[34m"
       let argumentColor = "\u001b[32m"
@@ -56,58 +56,29 @@ module Darklang =
       let hintColor = "\u001b[2m"
       let promptColor = "\u001b[97m"
       let logoColor = "\u001b[90m"
-      
+
       // Interactive viewing colors
       let primary = "\u001b[94m"       // bright blue for primary elements
       let muted = "\u001b[90m"         // dim gray for secondary text
       let accent = "\u001b[93m"        // bright yellow for highlights
       let selection = "\u001b[103;30m" // yellow background with black text for selection
-      
+
       // Helper functions for applying colors
       let colorize (color: String) (text: String) : String =
         $"{color}{text}{reset}"
-      
-      let boldText (text: String) : String =
-        colorize bold text
-      
-      let dimText (text: String) : String =
-        colorize dim text
-      
-      let command (text: String) : String =
-        colorize commandColor text
-      
-      let argument (text: String) : String =
-        colorize argumentColor text
-      
-      let keyword (text: String) : String =
-        colorize keywordColor text
-      
-      let string (text: String) : String =
-        colorize stringColor text
-      
-      let number (text: String) : String =
-        colorize numberColor text
-      
-      let comment (text: String) : String =
-        colorize commentColor text
-      
-      let error (text: String) : String =
-        colorize errorColor text
-      
-      let warning (text: String) : String =
-        colorize warningColor text
-      
-      let success (text: String) : String =
-        colorize successColor text
-      
-      let info (text: String) : String =
-        colorize infoColor text
-      
-      let hint (text: String) : String =
-        colorize hintColor text
-      
-      let prompt (text: String) : String =
-        colorize promptColor text
-      
-      let logo (text: String) : String =
-        colorize logoColor text
+
+      let boldText (text: String) : String = colorize bold text
+      let dimText (text: String) : String = colorize dim text
+      let command (text: String) : String = colorize commandColor text
+      let argument (text: String) : String = colorize argumentColor text
+      let keyword (text: String) : String = colorize keywordColor text
+      let string (text: String) : String = colorize stringColor text
+      let number (text: String) : String = colorize numberColor text
+      let comment (text: String) : String = colorize commentColor text
+      let error (text: String) : String = colorize errorColor text
+      let warning (text: String) : String = colorize warningColor text
+      let success (text: String) : String = colorize successColor text
+      let info (text: String) : String = colorize infoColor text
+      let hint (text: String) : String = colorize hintColor text
+      let prompt (text: String) : String = colorize promptColor text
+      let logo (text: String) : String = colorize logoColor text

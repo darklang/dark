@@ -20,3 +20,5 @@ module Darklang =
       let complete (state: AppState) (args: List<String>) : List<String> =
         Completion.commandNamesCompletion state args
 
+// CLEANUP I think there's other `help` stuff we can move here
+// specifically, the commandNamesCompletino

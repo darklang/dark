@@ -24,7 +24,7 @@ module Darklang =
           CommandHandler { name = "clear"; description = "Clear the screen"; aliases = ["cls"]; execute = Cli.Commands.executeClear; help = Cli.Commands.clearHelp; complete = Cli.Commands.clearComplete }
           CommandHandler { name = "run"; description = "Run a function or script"; aliases = []; execute = Cli.Execution.executeRun; help = Cli.Execution.runHelp; complete = Cli.Execution.runComplete }
           CommandHandler { name = "eval"; description = "Evaluate a Dark expression"; aliases = ["e"]; execute = Cli.Execution.executeEval; help = Cli.Execution.evalHelp; complete = Cli.Execution.evalComplete }
-          CommandHandler { name = "scripts"; description = "Store, manage, and run Dark scripts"; aliases = []; execute = Cli.Scripts.executeScripts; help = Cli.Scripts.scriptsHelp; complete = Cli.Scripts.complete }
+          CommandHandler { name = "scripts"; description = "Store, manage, and run Dark scripts"; aliases = []; execute = Cli.Scripts.execute; help = Cli.Scripts.help; complete = Cli.Scripts.complete }
           CommandHandler { name = "view"; description = "View details of functions, types, constants, or modules"; aliases = []; execute = Packages.Viewing.executeView; help = Packages.Viewing.viewHelp; complete = Packages.Viewing.viewComplete }
           CommandHandler { name = "tree"; description = "Display package hierarchy in tree format"; aliases = []; execute = Packages.Tree.executeTree; help = Packages.Tree.treeHelp; complete = Packages.Tree.treeComplete } ]
 
@@ -166,6 +166,7 @@ module Darklang =
         let helpLines = Stdlib.String.split helpText "\n"
         Logo.combineLogoAndText Logo.logo helpLines Colors.logoColor
 
+
       let getCompletions (state: AppState) (input: String) : List<String> =
         let parsed = Completion.parseInput input
 
@@ -192,6 +193,7 @@ module Darklang =
         let partial = Completion.getPartialCompletion parsed
         Completion.getHintFromCompletions partial completions
 
+
       let findCommonPrefix (strings: List<String>) : String =
         match strings with
         | [] -> ""
@@ -201,6 +203,7 @@ module Darklang =
             let maxLen = Stdlib.Int64.min (Stdlib.String.length acc) (Stdlib.String.length next)
             let commonLen = findCommonLength acc next 0L maxLen
             Stdlib.String.slice acc 0L commonLen)
+
 
       let findCommonLength (str1: String) (str2: String) (index: Int64) (maxLen: Int64) : Int64 =
         if index >= maxLen then

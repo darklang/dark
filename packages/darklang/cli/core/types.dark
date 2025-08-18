@@ -6,6 +6,11 @@ module Darklang =
       | Exit
 
 
+    // CLEANUP ugh the tree stuff has bled into this... why?
+    // we should refactor back to some Page situation
+    // on most pages, we render the normal Prompt stuff
+    // ... but not on all pages.
+
     // Interactive UI modes
     type InteractiveUIMode =
       | PromptMode        // Normal command prompt
