@@ -188,8 +188,7 @@ let fns : List<BuiltInFn> =
                 match execResult with
                 | Ok dval ->
                   match C2DT.Result.fromDT (fun v -> v) dval (fun e -> e) with
-                  | Ok tupleVal ->
-                    return (Utils.CliScript.fromDT tupleVal) |> Ok
+                  | Ok tupleVal -> return (Utils.CliScript.fromDT tupleVal) |> Ok
                   | Error(DString errMsg) ->
                     return Error(RuntimeError.UncaughtException(errMsg, []))
                   | Error _ ->
@@ -495,8 +494,7 @@ let fns : List<BuiltInFn> =
                 match execResult with
                 | Ok dval ->
                   match C2DT.Result.fromDT (fun v -> v) dval (fun e -> e) with
-                  | Ok tupleVal ->
-                    return (Utils.CliScript.fromDT tupleVal) |> Ok
+                  | Ok tupleVal -> return (Utils.CliScript.fromDT tupleVal) |> Ok
                   | Error(DString errMsg) ->
                     return Error(RuntimeError.UncaughtException(errMsg, []))
                   | Error _ ->
