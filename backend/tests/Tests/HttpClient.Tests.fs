@@ -124,7 +124,7 @@ let parseSingleTestFromFile
 
     match execResult with
     | Ok dval ->
-      match C2DT.Result.fromDT (fun v -> v) dval (fun e -> e) with
+      match C2DT.Result.fromDT identity dval identity with
       | Ok testVal -> return Internal.Test.fromDT testVal
       | Error(RT.DString errMsg) ->
         return

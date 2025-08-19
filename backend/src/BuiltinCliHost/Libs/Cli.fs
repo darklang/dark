@@ -187,8 +187,10 @@ let fns : List<BuiltInFn> =
               uply {
                 match execResult with
                 | Ok dval ->
-                  match C2DT.Result.fromDT (fun v -> v) dval (fun e -> e) with
-                  | Ok tupleVal -> return (Utils.CliScript.fromDT tupleVal) |> Ok
+                  match C2DT.Result.fromDT identity dval identity with
+                  | Ok parsedModuleAndUnresolvedNames ->
+                    return
+                      (Utils.CliScript.fromDT parsedModuleAndUnresolvedNames) |> Ok
                   | Error(DString errMsg) ->
                     return Error(RuntimeError.UncaughtException(errMsg, []))
                   | Error _ ->
@@ -493,8 +495,10 @@ let fns : List<BuiltInFn> =
               uply {
                 match execResult with
                 | Ok dval ->
-                  match C2DT.Result.fromDT (fun v -> v) dval (fun e -> e) with
-                  | Ok tupleVal -> return (Utils.CliScript.fromDT tupleVal) |> Ok
+                  match C2DT.Result.fromDT identity dval identity with
+                  | Ok parsedModuleAndUnresolvedNames ->
+                    return
+                      (Utils.CliScript.fromDT parsedModuleAndUnresolvedNames) |> Ok
                   | Error(DString errMsg) ->
                     return Error(RuntimeError.UncaughtException(errMsg, []))
                   | Error _ ->
