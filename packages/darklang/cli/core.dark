@@ -213,3 +213,541 @@ module Darklang =
             let commonLen = findCommonLength acc next 0L maxLen
             Stdlib.String.slice acc 0L commonLen)
 
+
+    // ================================
+    // VIEW - Display and formatting functions
+    // ================================
+    
+    module View =
+      let formatError (message: String) : String =
+        Colors.error ("Error: " ++ message)
+
+      let formatSuccess (message: String) : String =
+        Colors.success message
+
+      let formatPrompt () : String =
+        "> "
+
+      let formatPromptWithInput (state: AppState) : String =
+        let currentPathStr = Colors.info (Packages.Path.formatPath state.currentPath)
+
+        let hint = Registry.getCompletionHint state state.mainPrompt
+        if Stdlib.String.isEmpty hint then
+          currentPathStr ++ "> " ++ state.mainPrompt
+        else
+          currentPathStr ++ "> " ++ state.mainPrompt ++ (Colors.hint hint)
+
+      let formatWelcome () : String =
+        Registry.getCommandList () ++ "\n\nType 'help <command>' for specific command help."
+
+      let formatGoodbye () : String =
+        "Goodbye!"
+
+
+    // ================================
+    // REGISTRY - Command registry and execution
+    // ================================
+    
+    module Registry =
+      type CommandHandler =
+        { name: String
+          description: String
+          aliases: List<String>
+          execute: AppState -> List<String> -> AppState
+          help: AppState -> AppState
+          complete: AppState -> List<String> -> List<String> }
+
+      let allCommands () : List<CommandHandler> =
+        [ CommandHandler { name = "quit"; description = "Exit the CLI"; aliases = ["exit"]; execute = Quit.execute; help = Quit.help; complete = Quit.complete }
+          CommandHandler { name = "help"; description = "Show help for commands"; aliases = ["commands"; "?"]; execute = Help.execute; help = Help.help; complete = Help.complete }
+          CommandHandler { name = "install"; description = "Install CLI globally"; aliases = []; execute = Installation.Commands.executeInstall; help = Installation.Commands.installHelp; complete = Installation.Commands.installComplete }
+          CommandHandler { name = "update"; description = "Update CLI to latest version"; aliases = ["upgrade"]; execute = Installation.Commands.executeUpdate; help = Installation.Commands.updateHelp; complete = Installation.Commands.updateComplete }
+          CommandHandler { name = "uninstall"; description = "Remove CLI installation"; aliases = []; execute = Installation.Commands.executeUninstall; help = Installation.Commands.uninstallHelp; complete = Installation.Commands.uninstallComplete }
+          CommandHandler { name = "status"; description = "Show installation status"; aliases = []; execute = Installation.Commands.executeStatus; help = Installation.Commands.statusHelp; complete = Installation.Commands.statusComplete }
+          CommandHandler { name = "version"; description = "Display CLI version"; aliases = ["--version"; "-v"]; execute = Installation.Commands.executeVersion; help = Installation.Commands.versionHelp; complete = Installation.Commands.versionComplete }
+          CommandHandler { name = "cd"; description = "Navigate to package or module"; aliases = []; execute = Packages.Navigation.executeCD; help = Packages.Navigation.cdHelp; complete = Packages.Navigation.cdComplete }
+          CommandHandler { name = "ls"; description = "List package contents"; aliases = ["dir"]; execute = Packages.Listing.executeLS; help = Packages.Listing.lsHelp; complete = Packages.Listing.lsComplete }
+          //CommandHandler { name = "pwd"; description = "Show current package path"; aliases = []; execute = Packages.Navigation.executePWD; help = Packages.Navigation.pwdHelp; complete = Packages.Navigation.pwdComplete }
+          CommandHandler { name = "back"; description = "Go back to previous location"; aliases = []; execute = Packages.Navigation.executeBACK; help = Packages.Navigation.backHelp; complete = Packages.Navigation.backComplete }
+          CommandHandler { name = "clear"; description = "Clear the screen"; aliases = ["cls"]; execute = Cli.Clear.execute; help = Cli.Clear.help; complete = Cli.Clear.complete }
+          CommandHandler { name = "run"; description = "Run a function or script"; aliases = []; execute = Cli.Execution.executeRun; help = Cli.Execution.runHelp; complete = Cli.Execution.runComplete }
+          CommandHandler { name = "eval"; description = "Evaluate a Dark expression"; aliases = []; execute = Cli.Execution.executeEval; help = Cli.Execution.evalHelp; complete = Cli.Execution.evalComplete }
+          CommandHandler { name = "scripts"; description = "Store, manage, and run Dark scripts"; aliases = []; execute = Cli.Scripts.execute; help = Cli.Scripts.help; complete = Cli.Scripts.complete }
+          CommandHandler { name = "view"; description = "View details of functions, types, constants, or modules"; aliases = []; execute = Packages.Viewing.executeView; help = Packages.Viewing.viewHelp; complete = Packages.Viewing.viewComplete }
+          CommandHandler { name = "tree"; description = "Display package hierarchy in tree format"; aliases = []; execute = Packages.Tree.executeTree; help = Packages.Tree.treeHelp; complete = Packages.Tree.treeComplete }
+          CommandHandler { name = "experiments"; description = "Try out various WIP CLI experiments"; aliases = []; execute = Cli.Experiments.execute; help = Cli.Experiments.help; complete = Cli.Experiments.complete } ]
+
+      let findCommand (name: String) : CommandHandler =
+        let commands = allCommands ()
+        let nameMatches = Stdlib.List.filter commands (fun cmd -> cmd.name == name)
+        let aliasMatches = Stdlib.List.filter commands (fun cmd ->
+          match Stdlib.List.findFirst cmd.aliases (fun alias -> alias == name) with
+          | Some _ -> true
+          | None -> false)
+        let allMatches = Stdlib.List.append nameMatches aliasMatches
+        match allMatches with
+        | [handler] -> handler
+        | handler :: _ -> handler
+        | [] ->
+          CommandHandler
+            { name = name
+              description = "Unknown command"
+              aliases = []
+              execute = fun state args ->
+                Builtin.printLine (View.formatError $"Unknown command: {name}")
+                Builtin.printLine "Use 'help' to see available commands."
+                { state with lastCommand = name; output = $"unknown command: {name}" }
+              help = fun state ->
+                Builtin.printLine $"No help available for command: {name}"
+                { state with lastCommand = $"help {name}"; output = $"no help for {name}" }
+              complete = fun state args -> [] }
+
+      let executeCommand (name: String) (state: AppState) (args: List<String>) : AppState =
+        let handler = findCommand name
+        let ex = handler.execute
+        ex state args
+
+      let executeCommandHelp (name: String) (state: AppState) : AppState =
+        let handler = findCommand name
+        let help = handler.help
+        help state
+
+      // Helper function to format a group of commands
+      let formatCommandGroup (groupName: String) (commandNames: List<String>) (commands: List<CommandHandler>) : String =
+        let formattedCommands =
+          commandNames
+          |> Stdlib.List.filterMap (fun name ->
+            match Stdlib.List.findFirst commands (fun cmd -> cmd.name == name) with
+            | Some cmd ->
+              match cmd.aliases with
+              | [] -> Stdlib.Option.Option.Some $"  {cmd.name} - {cmd.description}"
+              | aliases ->
+                let aliasText = Stdlib.String.join aliases ", "
+                Stdlib.Option.Option.Some $"  {cmd.name} ({aliasText}) - {cmd.description}"
+            | None -> Stdlib.Option.Option.None)
+        let commandLines = Stdlib.String.join formattedCommands "\n"
+        $"{groupName}:\n{commandLines}"
+
+      let getCommandList () : String =
+        let commands = allCommands ()
+
+        // Group commands by category
+        let packageCommands = ["cd"; "ls"; "view"; "tree"; "pwd"; "back"]
+        let executionCommands = ["run"; "eval"; "scripts"]
+        let installCommands = ["install"; "update"; "uninstall"; "status"; "version"]
+        let utilityCommands = ["clear"; "help"; "quit"; "experiments"]
+
+        // Format command groups
+        let packageGroup = formatCommandGroup "Packages" packageCommands commands
+        let executionGroup = formatCommandGroup "Execution" executionCommands commands
+        let installGroup = formatCommandGroup "Installation" installCommands commands
+        let utilityGroup = formatCommandGroup "Utilities" utilityCommands commands
+
+        // Find any ungrouped commands
+        let allGroupedCommands = Stdlib.List.append (Stdlib.List.append (Stdlib.List.append packageCommands executionCommands) installCommands) utilityCommands
+        let ungroupedCommands =
+          commands
+          |> Stdlib.List.filter (fun cmd ->
+            match Stdlib.List.findFirst allGroupedCommands (fun name -> name == cmd.name) with
+            | Some _ -> false
+            | None -> true)
+          |> Stdlib.List.map (fun cmd ->
+            match cmd.aliases with
+            | [] -> $"  {cmd.name} - {cmd.description}"
+            | aliases ->
+              let aliasText = Stdlib.String.join aliases ", "
+              $"  {cmd.name} ({aliasText}) - {cmd.description}")
+
+        let allGroups = [packageGroup; executionGroup; installGroup; utilityGroup]
+        let finalGroups =
+          if Stdlib.List.isEmpty ungroupedCommands then
+            allGroups
+          else
+            let ungroupedGroup =
+              let ungroupedLines = Stdlib.String.join ungroupedCommands "\n"
+              $"Other:\n{ungroupedLines}"
+            Stdlib.List.append allGroups [ungroupedGroup]
+
+        let groupsText = Stdlib.String.join finalGroups "\n\n"
+        let helpLines = Stdlib.String.split groupsText "\n"
+        Logo.combineLogoAndText Logo.logo helpLines Colors.logoColor
+
+
+      let getCompletions (state: AppState) (input: String) : List<String> =
+        let parsed = Completion.parseInput input
+
+        if parsed.isCompletingCommand then
+          // Completing command name
+          let partial = Completion.getPartialCompletion parsed
+          let commands = allCommands ()
+          let allNames = Stdlib.List.map commands (fun cmd -> cmd.name)
+          let allAliases = Stdlib.List.fold commands [] (fun acc cmd -> Stdlib.List.append acc cmd.aliases)
+          let allOptions = Stdlib.List.append allNames allAliases
+          if Stdlib.String.isEmpty partial then
+            allOptions
+          else
+            Stdlib.List.filter allOptions (fun name -> Stdlib.String.startsWith name partial)
+        else
+          // Completing command arguments
+          let handler = findCommand parsed.commandName
+          let completeFunc = handler.complete
+          completeFunc state parsed.args
+
+      let getCompletionHint (state: AppState) (input: String) : String =
+        let parsed = Completion.parseInput input
+        let completions = getCompletions state input
+        let partial = Completion.getPartialCompletion parsed
+        Completion.getHintFromCompletions partial completions
+
+
+    // ================================
+    // COMMANDS - Command parsing and execution
+    // ================================
+    
+    module Commands =
+      let parseAndExecute (state: AppState) (input: String) : AppState =
+        let trimmed = Stdlib.String.trim input
+        let parts = Stdlib.String.split trimmed " "
+        match parts with
+        | [] -> state
+        | commandName :: args ->
+          Registry.executeCommand commandName state args
+
+
+    // ================================
+    // UPDATE - State update and event handling
+    // ================================
+    
+    module Update =
+      let updateAppState (state: AppState) (msg: Msg) : AppState =
+        match msg with
+        | ProcessInput input ->
+          Commands.parseAndExecute state input
+        | KeyPressed (key, modifiers, keyChar) ->
+          handleKeyInput state key modifiers keyChar
+        | Exit ->
+          { state with isExiting = true; lastCommand = "exit"; output = "exiting" }
+
+      let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers) (keyChar: Stdlib.Option.Option<String>) : AppState =
+        match state.uiMode with
+        | TreeNavigationMode treeState ->
+          // Tree navigation mode key handling
+          handleTreeNavigationKeys state treeState key keyChar
+        | PromptMode ->
+          // Normal command mode key handling
+          match key with
+          | Enter ->
+            // Execute the current command
+            if Stdlib.String.isEmpty (Stdlib.String.trim state.mainPrompt) then
+              Builtin.printLine ""
+              { state with mainPrompt = ""; needsFullRedraw = false; historyIndex = -1L }
+            else
+              Builtin.printLine ""
+              let commandToExecute = Stdlib.String.trim state.mainPrompt
+              let newState = Commands.parseAndExecute state commandToExecute
+              // Add command to history (avoiding duplicates)
+              let updatedHistory =
+                if Stdlib.List.isEmpty state.commandHistory || Stdlib.List.head state.commandHistory != Stdlib.Option.Option.Some commandToExecute then
+                  Stdlib.List.append [commandToExecute] state.commandHistory
+                else
+                  state.commandHistory
+              { newState with mainPrompt = ""; needsFullRedraw = false; commandHistory = updatedHistory; historyIndex = -1L }
+          | Backspace ->
+            // Remove last character from prompt
+            if Stdlib.String.length state.mainPrompt > 0L then
+              let newPrompt = Stdlib.String.dropLast state.mainPrompt 1L
+              { state with mainPrompt = newPrompt; historyIndex = -1L }
+            else
+              state
+          | Tab ->
+            // Handle tab completion
+            let completions = Registry.getCompletions state state.mainPrompt
+
+            match completions with
+            | [] ->
+              // No completions available
+              state
+            | [singleCompletion] ->
+              // Single completion - auto-complete it
+              let parsed = Completion.parseInput state.mainPrompt
+              let newPrompt = Completion.buildCompletedCommand parsed singleCompletion
+              { state with mainPrompt = newPrompt }
+            | multiple ->
+              // Multiple completions - show them
+              Builtin.printLine ""
+              Builtin.printLine (Stdlib.String.join multiple " ")
+              { state with needsFullRedraw = true }
+          | UpArrow ->
+            // Navigate to previous command in history
+            if Stdlib.Bool.not (Stdlib.List.isEmpty state.commandHistory) then
+              let historyLength = Stdlib.List.length state.commandHistory
+              let newIndex =
+                if state.historyIndex == -1L then
+                  0L  // Start from the most recent command
+                else
+                  if state.historyIndex < (historyLength - 1L) then
+                    state.historyIndex + 1L
+                  else
+                    state.historyIndex  // Stay at oldest command
+              match Stdlib.List.getAt state.commandHistory newIndex with
+              | Some command ->
+                { state with mainPrompt = command; historyIndex = newIndex; needsFullRedraw = false }
+              | None ->
+                state
+            else
+              state
+          | DownArrow ->
+            // Navigate to next command in history
+            if Stdlib.Bool.not (Stdlib.List.isEmpty state.commandHistory) && state.historyIndex >= 0L then
+              let newIndex =
+                if state.historyIndex > 0L then
+                  state.historyIndex - 1L
+                else
+                  -1L  // Go back to empty prompt
+              if newIndex == -1L then
+                { state with mainPrompt = ""; historyIndex = newIndex; needsFullRedraw = false }
+              else
+                match Stdlib.List.getAt state.commandHistory newIndex with
+                | Some command ->
+                  { state with mainPrompt = command; historyIndex = newIndex; needsFullRedraw = false }
+                | None ->
+                  state
+            else
+              state
+          | _ ->
+            // Add character to prompt
+            match keyChar with
+            | Some char ->
+              let newPrompt = state.mainPrompt ++ char
+              { state with mainPrompt = newPrompt; historyIndex = -1L; needsFullRedraw = false }
+            | None ->
+              state
+
+      // Handle keyboard navigation in tree mode
+      let handleTreeNavigationKeys (state: AppState) (treeState: TreeNavState) (key: Stdlib.Cli.Stdin.Key.Key) (keyChar: Stdlib.Option.Option<String>) : AppState =
+        match key with
+        | UpArrow ->
+          // Move selection up
+          let totalNodes = Stdlib.List.length treeState.currentNodes
+          let newIndex = 
+            if treeState.selectedIndex > 0L then
+              treeState.selectedIndex - 1L
+            else
+              totalNodes - 1L  // Wrap to bottom
+          
+          // Calculate new scroll offset to keep selection visible
+          let newScrollOffset = Packages.Tree.calculateScrollOffset newIndex treeState.scrollOffset totalNodes
+          
+          let newTreeState =
+            { treeState with
+                selectedIndex = newIndex
+                scrollOffset = newScrollOffset }
+          let newUiMode = InteractiveUIMode.TreeNavigationMode newTreeState
+          let newState =
+            { state with
+                uiMode = newUiMode
+                needsFullRedraw = false }
+          Packages.Tree.smartTreeUpdate newState newTreeState false
+        | DownArrow ->
+          // Move selection down
+          let totalNodes = Stdlib.List.length treeState.currentNodes
+          let newIndex = 
+            if treeState.selectedIndex < (totalNodes - 1L) then
+              treeState.selectedIndex + 1L
+            else
+              0L  // Wrap to top
+          
+          // Calculate new scroll offset to keep selection visible
+          let newScrollOffset = Packages.Tree.calculateScrollOffset newIndex treeState.scrollOffset totalNodes
+          
+          let newTreeState =
+            { treeState with
+                selectedIndex = newIndex
+                scrollOffset = newScrollOffset }
+          let newUiMode = InteractiveUIMode.TreeNavigationMode newTreeState
+          let newState =
+            { state with
+                uiMode = newUiMode
+                needsFullRedraw = false }
+          Packages.Tree.smartTreeUpdate newState newTreeState false
+        | Enter ->
+          // Expand/collapse node or view entity
+          match Stdlib.List.getAt treeState.currentNodes treeState.selectedIndex with
+          | Some selectedNode ->
+            match selectedNode.nodeType with
+            | ModuleNode ->
+              // Toggle expansion for modules
+              let newExpandedPaths = 
+                if Stdlib.List.``member`` treeState.expandedPaths selectedNode.path then
+                  Stdlib.List.filter treeState.expandedPaths (fun path -> path != selectedNode.path)
+                else
+                  Stdlib.List.append treeState.expandedPaths [selectedNode.path]
+              let newTreeState =
+                { treeState with
+                    expandedPaths = newExpandedPaths }
+              let newUiMode = InteractiveUIMode.TreeNavigationMode newTreeState
+              let newState =
+                { state with
+                    uiMode = newUiMode
+                    needsFullRedraw = true }
+              Packages.Tree.rebuildAndRedrawTree newState newTreeState
+            | FunctionNode | TypeNode | ConstantNode ->
+              // View entity definition
+              Packages.Tree.viewEntityFromTree state selectedNode
+            | RootNode ->
+              state  // Root nodes don't expand
+          | None ->
+            state
+        | LeftArrow ->
+          // Smart collapse: if current is expanded module, collapse it; otherwise collapse parent
+          match Stdlib.List.getAt treeState.currentNodes treeState.selectedIndex with
+          | Some selectedNode ->
+            match selectedNode.nodeType with
+            | ModuleNode ->
+              if Stdlib.List.``member`` treeState.expandedPaths selectedNode.path then
+                // Current module is expanded, collapse it
+                let newExpandedPaths = 
+                  Stdlib.List.filter treeState.expandedPaths (fun path -> path != selectedNode.path)
+                let newTreeState =
+                  { treeState with
+                      expandedPaths = newExpandedPaths }
+                let newUiMode = InteractiveUIMode.TreeNavigationMode newTreeState
+                let newState =
+                  { state with
+                      uiMode = newUiMode
+                      needsFullRedraw = true }
+                Packages.Tree.rebuildAndRedrawTree newState newTreeState
+              else
+                // Current module not expanded, collapse parent if it exists
+                if selectedNode.depth > 0L then
+                  let parentPath = Stdlib.List.dropLast selectedNode.path
+                  if Stdlib.List.``member`` treeState.expandedPaths parentPath then
+                    let newExpandedPaths = 
+                      Stdlib.List.filter treeState.expandedPaths (fun path -> path != parentPath)
+                    let newTreeState =
+                      { treeState with
+                          expandedPaths = newExpandedPaths }
+                    let newUiMode = InteractiveUIMode.TreeNavigationMode newTreeState
+                    let newState =
+                      { state with
+                          uiMode = newUiMode
+                          needsFullRedraw = true }
+                    Packages.Tree.rebuildAndRedrawTree newState newTreeState
+                  else
+                    state
+                else
+                  state
+            | _ ->
+              // Non-module node, collapse parent if it exists
+              if selectedNode.depth > 0L then
+                let parentPath = Stdlib.List.dropLast selectedNode.path
+                if Stdlib.List.``member`` treeState.expandedPaths parentPath then
+                  let newExpandedPaths = 
+                    Stdlib.List.filter treeState.expandedPaths (fun path -> path != parentPath)
+                  let newTreeState =
+                    { treeState with
+                        expandedPaths = newExpandedPaths }
+                  let newUiMode = InteractiveUIMode.TreeNavigationMode newTreeState
+                  let newState =
+                    { state with
+                        uiMode = newUiMode
+                        needsFullRedraw = true }
+                  Packages.Tree.rebuildAndRedrawTree newState newTreeState
+                else
+                  state
+              else
+                state
+          | None ->
+            state
+        | RightArrow ->
+          // Expand current node if not expanded
+          match Stdlib.List.getAt treeState.currentNodes treeState.selectedIndex with
+          | Some selectedNode ->
+            match selectedNode.nodeType with
+            | ModuleNode ->
+              if Stdlib.Bool.not (Stdlib.List.``member`` treeState.expandedPaths selectedNode.path) then
+                let newExpandedPaths = 
+                  Stdlib.List.append treeState.expandedPaths [selectedNode.path]
+                let newTreeState =
+                  { treeState with
+                      expandedPaths = newExpandedPaths }
+                let newUiMode = InteractiveUIMode.TreeNavigationMode newTreeState
+                let newState =
+                  { state with
+                      uiMode = newUiMode
+                      needsFullRedraw = true }
+                Packages.Tree.rebuildAndRedrawTree newState newTreeState
+              else
+                state
+            | _ ->
+              state  // Non-module nodes can't be expanded
+          | None ->
+            state
+        | _ ->
+          // Handle 'q' or Escape to exit tree mode
+          match keyChar with
+          | Some "q" ->
+            Builtin.printLine ""
+            Builtin.printLine "Exited interactive tree mode"
+            { state with
+                uiMode = InteractiveUIMode.PromptMode
+                needsFullRedraw = true }
+          | _ ->
+            state  // Ignore other keys
+
+      let processInput (state: AppState) (input: String) : AppState =
+        let trimmedInput = Stdlib.String.trim input
+        if Stdlib.String.isEmpty trimmedInput then
+          state
+        else
+          let msg = Msg.ProcessInput trimmedInput
+          updateAppState state msg
+
+
+    // ================================
+    // CLI - Main CLI loop and command execution
+    // ================================
+    
+    let runInteractiveLoop (state: AppState) : Int64 =
+      if state.isExiting then
+        0L
+      else
+        // Only display prompt when in PromptMode, not in TreeNavigationMode
+        match state.uiMode with
+        | PromptMode ->
+          // Display prompt and current input with completion hints
+          if state.needsFullRedraw then
+            Builtin.printLine (View.formatPrompt ())
+          else
+            // Move cursor to beginning of line only, avoid clearing unless necessary
+            Builtin.print Colors.carriageReturn
+          Builtin.print (View.formatPromptWithInput state)
+
+        // CLEANUP the specific 'tree' command has bled outside of its space...
+        // we should abstract this to something that represents when a command
+        // or sub-app "takes over" the rendering
+        | TreeNavigationMode _ ->
+          // Tree mode handles its own display, don't show prompt
+          ()
+
+        // Read keystroke input
+        let keyInput = Stdlib.Cli.Stdin.readKey ()
+        let keyPressedMsg = Msg.KeyPressed (keyInput.key, keyInput.modifiers, Stdlib.Option.Option.Some keyInput.keyChar)
+        let newState = Update.updateAppState state keyPressedMsg
+        runInteractiveLoop newState
+
+
+    let executeCliCommand (args: List<String>) : Int64 =
+      let initialState = initState ()
+
+      match args with
+      // If someone runs `dark` without args, start the interactive loop
+      | [] ->
+        Builtin.printLine (View.formatWelcome ())
+        runInteractiveLoop initialState
+      // Otherwise, just execute command, print result, and exit
+      | _ ->
+        let command = args |> Stdlib.String.join " "
+        let finalState = Update.processInput initialState command
+        0L
+
