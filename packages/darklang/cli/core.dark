@@ -59,6 +59,7 @@ module Darklang =
         lastCommand: String
         output: String
         mainPrompt: String
+        cursorPosition: Int64
         needsFullRedraw: Bool
         currentPath: PackagePath
         pathHistory: List<PackagePath>
@@ -72,6 +73,7 @@ module Darklang =
           lastCommand = ""
           output = ""
           mainPrompt = ""
+          cursorPosition = 0L
           needsFullRedraw = true
           currentPath = []
           pathHistory = []
@@ -440,7 +442,11 @@ module Darklang =
             // Execute the current command
             if Stdlib.String.isEmpty (Stdlib.String.trim state.mainPrompt) then
               Builtin.printLine ""
-              { state with mainPrompt = ""; needsFullRedraw = false; historyIndex = -1L }
+              { state with 
+                  mainPrompt = ""
+                  cursorPosition = 0L
+                  needsFullRedraw = false
+                  historyIndex = -1L }
             else
               Builtin.printLine ""
               let commandToExecute = Stdlib.String.trim state.mainPrompt
@@ -451,12 +457,23 @@ module Darklang =
                   Stdlib.List.append [commandToExecute] state.commandHistory
                 else
                   state.commandHistory
-              { newState with mainPrompt = ""; needsFullRedraw = false; commandHistory = updatedHistory; historyIndex = -1L }
+              { newState with 
+                  mainPrompt = ""
+                  cursorPosition = 0L
+                  needsFullRedraw = false
+                  commandHistory = updatedHistory
+                  historyIndex = -1L }
           | Backspace ->
-            // Remove last character from prompt
-            if Stdlib.String.length state.mainPrompt > 0L then
-              let newPrompt = Stdlib.String.dropLast state.mainPrompt 1L
-              { state with mainPrompt = newPrompt; historyIndex = -1L }
+            // Remove character before cursor
+            if state.cursorPosition > 0L then
+              let beforeCursor = Stdlib.String.slice state.mainPrompt 0L (state.cursorPosition - 1L)
+              let afterCursor = Stdlib.String.dropFirst state.mainPrompt state.cursorPosition
+              let newPrompt = beforeCursor ++ afterCursor
+              { state with 
+                  mainPrompt = newPrompt
+                  cursorPosition = state.cursorPosition - 1L
+                  historyIndex = -1L
+                  needsFullRedraw = false }
             else
               state
           | Tab ->
@@ -471,7 +488,10 @@ module Darklang =
               // Single completion - auto-complete it
               let parsed = Completion.parseInput state.mainPrompt
               let newPrompt = Completion.buildCompletedCommand parsed singleCompletion
-              { state with mainPrompt = newPrompt }
+              let newPromptLength = Stdlib.String.length newPrompt
+              { state with 
+                  mainPrompt = newPrompt
+                  cursorPosition = newPromptLength }
             | multiple ->
               // Multiple completions - show them
               Builtin.printLine ""
@@ -491,7 +511,12 @@ module Darklang =
                     state.historyIndex  // Stay at oldest command
               match Stdlib.List.getAt state.commandHistory newIndex with
               | Some command ->
-                { state with mainPrompt = command; historyIndex = newIndex; needsFullRedraw = false }
+                let commandLength = Stdlib.String.length command
+                { state with 
+                    mainPrompt = command
+                    cursorPosition = commandLength
+                    historyIndex = newIndex
+                    needsFullRedraw = false }
               | None ->
                 state
             else
@@ -505,21 +530,52 @@ module Darklang =
                 else
                   -1L  // Go back to empty prompt
               if newIndex == -1L then
-                { state with mainPrompt = ""; historyIndex = newIndex; needsFullRedraw = false }
+                { state with 
+                    mainPrompt = ""
+                    cursorPosition = 0L
+                    historyIndex = newIndex
+                    needsFullRedraw = false }
               else
                 match Stdlib.List.getAt state.commandHistory newIndex with
                 | Some command ->
-                  { state with mainPrompt = command; historyIndex = newIndex; needsFullRedraw = false }
+                  let commandLength = Stdlib.String.length command
+                  { state with 
+                      mainPrompt = command
+                      cursorPosition = commandLength
+                      historyIndex = newIndex
+                      needsFullRedraw = false }
                 | None ->
                   state
             else
               state
+          | LeftArrow ->
+            // Move cursor left
+            let newCursorPos = Stdlib.Int64.max 0L (state.cursorPosition - 1L)
+            { state with cursorPosition = newCursorPos; needsFullRedraw = false }
+          | RightArrow ->
+            // Move cursor right
+            let promptLength = Stdlib.String.length state.mainPrompt
+            let newCursorPos = Stdlib.Int64.min promptLength (state.cursorPosition + 1L)
+            { state with cursorPosition = newCursorPos; needsFullRedraw = false }
+          | Home ->
+            // Move cursor to start of line
+            { state with cursorPosition = 0L; needsFullRedraw = false }
+          | End ->
+            // Move cursor to end of line
+            let promptLength = Stdlib.String.length state.mainPrompt
+            { state with cursorPosition = promptLength; needsFullRedraw = false }
           | _ ->
-            // Add character to prompt
+            // Add character to prompt at cursor position
             match keyChar with
             | Some char ->
-              let newPrompt = state.mainPrompt ++ char
-              { state with mainPrompt = newPrompt; historyIndex = -1L; needsFullRedraw = false }
+              let beforeCursor = Stdlib.String.slice state.mainPrompt 0L state.cursorPosition
+              let afterCursor = Stdlib.String.dropFirst state.mainPrompt state.cursorPosition
+              let newPrompt = beforeCursor ++ char ++ afterCursor
+              { state with 
+                  mainPrompt = newPrompt
+                  cursorPosition = state.cursorPosition + (Stdlib.String.length char)
+                  historyIndex = -1L
+                  needsFullRedraw = false }
             | None ->
               state
 
@@ -719,8 +775,8 @@ module Darklang =
           if state.needsFullRedraw then
             Builtin.printLine (View.formatPrompt ())
           else
-            // Move cursor to beginning of line only, avoid clearing unless necessary
-            Builtin.print Colors.carriageReturn
+            // Move cursor to beginning of line and clear the rest of the line
+            Builtin.print (Colors.carriageReturn ++ Colors.clearLine)
           Builtin.print (View.formatPromptWithInput state)
 
         // CLEANUP the specific 'tree' command has bled outside of its space...
