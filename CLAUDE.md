@@ -36,6 +36,7 @@ package-reloads are higher level, happen whenever you change a .dark file, take 
 - Cannot use `/` operator for Int64 division - use `Stdlib.Int64.divide`
 - Cannot use `-` operator for Float subtraction - use `Stdlib.Float.subtract`
 - Reserved keyword: "function" is reserved in F#, use "fn" instead for field names
+- ++ is for string concat; @ doesn't exist - use Stdlib.List.append to combine lists
 
 ### Record Construction
 - When constructing records, ensure the `{` is never to the left of the type name
