@@ -88,20 +88,22 @@ module Darklang =
                 typeParamsNode
                 |> findNodeByFieldName "params"
                 |> Stdlib.Option.map (fun node ->
-                  node.children
-                  |> Stdlib.List.chunkBySize 2L
-                  |> Builtin.unwrap
-                  |> Stdlib.List.map (fun typeParamSeparatorPair ->
-                    match typeParamSeparatorPair with
-                    | [ typeParamNode; _separator ] | [ typeParamNode ] ->
-                      let name =
-                        typeParamNode |> findField "variable" |> Builtin.unwrap
+                  match node.children |> Stdlib.List.chunkBySize 2L with
+                  | Ok pairs ->
+                    pairs |> Stdlib.List.map (fun typeParamSeparatorPair ->
+                      match typeParamSeparatorPair with
+                      | [ typeParamNode; _separator ] | [ typeParamNode ] ->
+                        match typeParamNode |> findField "variable" with
+                        | Ok name ->
+                          (typeParamNode.range, name.text) |> Stdlib.Result.Result.Ok
+                        | Error _ ->
+                          (createUnparseableError typeParamNode) |> Stdlib.Result.Result.Error
 
-                      (typeParamNode.range, name.text) |> Stdlib.Result.Result.Ok
-
-                    | _ ->
-                      (createUnparseableError typeParamsNode)
-                      |> Stdlib.Result.Result.Error))
+                      | _ ->
+                        (createUnparseableError typeParamsNode)
+                        |> Stdlib.Result.Result.Error)
+                  | Error _ ->
+                    [ (createUnparseableError typeParamsNode) |> Stdlib.Result.Result.Error ])
 
               | None -> Stdlib.Option.Option.None
 

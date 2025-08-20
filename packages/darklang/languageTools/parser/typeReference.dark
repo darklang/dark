@@ -33,179 +33,178 @@ module Darklang =
             | "Uuid" -> (TBuiltin.TUuid node.range) |> builtin
 
             | _ ->
-              let firstChild = node.children |> Stdlib.List.head |> Builtin.unwrap
+              match node.children |> Stdlib.List.head with
+              | Some firstChild ->
+                match firstChild.typ with
+                | "dict_type_reference" ->
+                  let dictKeyword = findField firstChild "keyword_type_constructor"
+                  let openBracket = findField firstChild "symbol_open_angle"
 
-              match firstChild.typ with
-              | "dict_type_reference" ->
-                let dictKeyword = findField firstChild "keyword_type_constructor"
-                let openBracket = findField firstChild "symbol_open_angle"
+                  let valueTypeNode =
+                    findAndParseRequired firstChild "value_type" TypeReference.parse
 
-                let valueTypeNode =
-                  findAndParseRequired firstChild "value_type" TypeReference.parse
+                  let closeBracket = findField firstChild "symbol_close_angle"
 
-                let closeBracket = findField firstChild "symbol_close_angle"
+                  match dictKeyword, openBracket, valueTypeNode, closeBracket with
+                  | Ok dictKeyword, Ok openBracket, Ok valueType, Ok closeBracket ->
+                    (TBuiltin.TDict(
+                      firstChild.range,
+                      dictKeyword.range,
+                      openBracket.range,
+                      valueType,
+                      closeBracket.range)
+                    ) |> builtin
+                  | _ -> createUnparseableError node
 
-                match dictKeyword, openBracket, valueTypeNode, closeBracket with
-                | Ok dictKeyword, Ok openBracket, Ok valueType, Ok closeBracket ->
-                  (TBuiltin.TDict(
-                    firstChild.range,
-                    dictKeyword.range,
-                    openBracket.range,
-                    valueType,
-                    closeBracket.range)
-                  ) |> builtin
-                | _ -> createUnparseableError node
+                | "tuple_type_reference" ->
+                  let leftParen = findField firstChild "symbol_left_paren"
 
-              | "tuple_type_reference" ->
-                let leftParen = findField firstChild "symbol_left_paren"
+                  let first =
+                    findAndParseRequired firstChild "first" TypeReference.parse
 
-                let first =
-                  findAndParseRequired firstChild "first" TypeReference.parse
+                  let second =
+                    findAndParseRequired firstChild "second" TypeReference.parse
 
-                let second =
-                  findAndParseRequired firstChild "second" TypeReference.parse
+                  let rest =
+                    firstChild
+                    |> findNodeByFieldName "rest"
+                    |> Stdlib.Option.map (fun restNode ->
+                    match restNode.children |> Stdlib.List.chunkBySize 2L with
+                    | Ok pairs ->
+                      pairs |> Stdlib.List.map (fun symbolTypePair ->
+                        match symbolTypePair with
+                        | [ symbol; typeNode ] ->
+                          match TypeReference.parse typeNode with
+                          | Ok typeRef -> (symbol.range, typeRef)
+                          | Error _ ->
+                            (symbol.range,
+                             WrittenTypes.Unparseable
+                               { source = typeNode
+                                 note = Stdlib.Option.Option.None })
 
-                let rest =
-                  firstChild
-                  |> findNodeByFieldName "rest"
-                  |> Stdlib.Option.map (fun restNode ->
-                    restNode.children
-                    |> Stdlib.List.chunkBySize 2L
-                    |> Builtin.unwrap
-                    |> Stdlib.List.map (fun symbolTypePair ->
-                      match symbolTypePair with
-                      | [ symbol; typeNode ] ->
-                        match TypeReference.parse typeNode with
-                        | Ok typeRef -> (symbol.range, typeRef)
-                        | Error _ ->
-                          (symbol.range,
-                           WrittenTypes.Unparseable
-                             { source = typeNode
-                               note = Stdlib.Option.Option.None })
-
-                      | [ typeNode ] ->
-                        match TypeReference.parse typeNode with
-                        | Ok typeRef -> (Stdlib.Option.Option.None, typeRef)
-                        | Error _ ->
+                        | [ typeNode ] ->
+                          match TypeReference.parse typeNode with
+                          | Ok typeRef -> (Stdlib.Option.Option.None, typeRef)
+                          | Error _ ->
+                            (Stdlib.Option.Option.None,
+                             WrittenTypes.Unparseable
+                               { source = typeNode
+                                 note = Stdlib.Option.Option.None })
+                        | _ ->
                           (Stdlib.Option.Option.None,
                            WrittenTypes.Unparseable
-                             { source = typeNode
-                               note = Stdlib.Option.Option.None })
-                      | _ ->
-                        (Stdlib.Option.Option.None,
-                         WrittenTypes.Unparseable
-                           { source = restNode
-                             note = Stdlib.Option.Option.None })))
-                  |> Stdlib.Option.withDefault []
+                             { source = restNode
+                               note = Stdlib.Option.Option.None }))
+                    | Error _ -> [])
+                    |> Stdlib.Option.withDefault []
 
-                let asterisk = findField firstChild "symbol_asterisk"
-                let rightParen = findField firstChild "symbol_right_paren"
+                  let asterisk = findField firstChild "symbol_asterisk"
+                  let rightParen = findField firstChild "symbol_right_paren"
 
-                match leftParen, first, asterisk, second, rightParen with
-                | Ok leftParen, Ok first, Ok asterisk, Ok second, Ok rightParen ->
-                  (TBuiltin.TTuple(
-                    node.range,
-                    first,
-                    asterisk.range,
-                    second,
-                    rest,
-                    leftParen.range,
-                    rightParen.range
-                  ))
-                  |> builtin
+                  match leftParen, first, asterisk, second, rightParen with
+                  | Ok leftParen, Ok first, Ok asterisk, Ok second, Ok rightParen ->
+                    (TBuiltin.TTuple(
+                      node.range,
+                      first,
+                      asterisk.range,
+                      second,
+                      rest,
+                      leftParen.range,
+                      rightParen.range
+                    ))
+                    |> builtin
+
+                  | _ -> createUnparseableError node
+
+                | "list_type_reference" ->
+                  let listKeyword = findField firstChild "keyword_type_constructor"
+                  let openBracketNode = findField firstChild "symbol_open_angle"
+
+                  let typeParamNode =
+                    findAndParseRequired firstChild "typ_param" TypeReference.parse
+
+                  let closeBracketNode = findField firstChild "symbol_close_angle"
+
+                  match
+                    listKeyword, openBracketNode, typeParamNode, closeBracketNode
+                  with
+                  | Ok listKeyword, Ok openBracket, Ok typeParam, Ok closeBracket ->
+                    (TBuiltin.TList(
+                      firstChild.range,
+                      listKeyword.range,
+                      openBracket.range,
+                      typeParam,
+                      closeBracket.range)
+                    ) |> builtin
+
+                  | _ -> createUnparseableError node
+
+                | "fn_type_reference" ->
+                  let returnTypeNode =
+                    match firstChild.children |> Stdlib.List.last with
+                    | Some lastChild -> TypeReference.parse lastChild
+                    | None -> createUnparseableError firstChild
+
+                  let argsNodes =
+                    match firstChild.children |> Stdlib.List.dropLast |> Stdlib.List.chunkBySize 2L with
+                    | Ok pairs ->
+                      pairs |> Stdlib.List.map (fun typeArrowPair ->
+                        match typeArrowPair with
+                        | [ typeNode; arrowNode ] ->
+                          match TypeReference.parse typeNode with
+                          | Ok typeRef ->
+                            (typeRef, arrowNode.range) |> Stdlib.Result.Result.Ok
+                          | Error _ -> createUnparseableError typeNode
+                        | [ typeNode ] -> createUnparseableError typeNode
+                        | _ -> createUnparseableError firstChild)
+                    | Error _ -> [ createUnparseableError firstChild ]
+
+                  let args = argsNodes |> Stdlib.Result.collect
+
+                  //Builtin.debug "args" args
+
+                  match returnTypeNode, args with
+                  | Ok returnType, Ok args ->
+                    (TBuiltin.TFn(firstChild.range, args, returnType)) |> builtin
+                  | _ -> createUnparseableError node
+
+                | "db_type_reference" ->
+                  let dbKeyword = findField firstChild "keyword_type_constructor"
+                  let openAngle = findField firstChild "symbol_open_angle"
+
+                  let typeParamNode =
+                    findAndParseRequired firstChild "typ_param" TypeReference.parse
+
+                  let closeAngle = findField firstChild "symbol_close_angle"
+
+                  match dbKeyword, openAngle, typeParamNode, closeAngle with
+                  | Ok dbKeyword, Ok openAngle, Ok typeParam, Ok closeAngle ->
+                    (TBuiltin.TDB(
+                      firstChild.range,
+                      dbKeyword.range,
+                      openAngle.range,
+                      typeParam,
+                      closeAngle.range)
+                    ) |> builtin
+
+                  | _ -> createUnparseableError node
+
+                | "variable_type_reference" ->
+                  let symbolSingleQuote = findField firstChild "symbol_single_quote"
+                  let variableName = findField firstChild "variable"
+
+                  match symbolSingleQuote, variableName with
+                  | Ok singleQuote, Ok variableName ->
+                    (TBuiltin.TVariable(
+                      firstChild.range,
+                      singleQuote.range,
+                      (variableName.range, variableName.text)
+                    ))
+                    |> builtin
+                  | _ -> createUnparseableError firstChild
 
                 | _ -> createUnparseableError node
-
-              | "list_type_reference" ->
-                let listKeyword = findField firstChild "keyword_type_constructor"
-                let openBracketNode = findField firstChild "symbol_open_angle"
-
-                let typeParamNode =
-                  findAndParseRequired firstChild "typ_param" TypeReference.parse
-
-                let closeBracketNode = findField firstChild "symbol_close_angle"
-
-                match
-                  listKeyword, openBracketNode, typeParamNode, closeBracketNode
-                with
-                | Ok listKeyword, Ok openBracket, Ok typeParam, Ok closeBracket ->
-                  (TBuiltin.TList(
-                    firstChild.range,
-                    listKeyword.range,
-                    openBracket.range,
-                    typeParam,
-                    closeBracket.range)
-                  ) |> builtin
-
-                | _ -> createUnparseableError node
-
-              | "fn_type_reference" ->
-                let returnTypeNode =
-                  firstChild.children
-                  |> Stdlib.List.last
-                  |> Builtin.unwrap
-                  |> TypeReference.parse
-
-                let argsNodes =
-                  firstChild.children
-                  |> Stdlib.List.dropLast
-                  |> Stdlib.List.chunkBySize 2L
-                  |> Builtin.unwrap
-                  |> Stdlib.List.map (fun typeArrowPair ->
-                    match typeArrowPair with
-                    | [ typeNode; arrowNode ] ->
-                      match TypeReference.parse typeNode with
-                      | Ok typeRef ->
-                        (typeRef, arrowNode.range) |> Stdlib.Result.Result.Ok
-                      | Error _ -> createUnparseableError typeNode
-                    | [ typeNode ] -> createUnparseableError typeNode
-                    | _ -> createUnparseableError firstChild)
-
-                let args = argsNodes |> Stdlib.Result.collect
-
-                //Builtin.debug "args" args
-
-                match returnTypeNode, args with
-                | Ok returnType, Ok args ->
-                  (TBuiltin.TFn(firstChild.range, args, returnType)) |> builtin
-                | _ -> createUnparseableError node
-
-              | "db_type_reference" ->
-                let dbKeyword = findField firstChild "keyword_type_constructor"
-                let openAngle = findField firstChild "symbol_open_angle"
-
-                let typeParamNode =
-                  findAndParseRequired firstChild "typ_param" TypeReference.parse
-
-                let closeAngle = findField firstChild "symbol_close_angle"
-
-                match dbKeyword, openAngle, typeParamNode, closeAngle with
-                | Ok dbKeyword, Ok openAngle, Ok typeParam, Ok closeAngle ->
-                  (TBuiltin.TDB(
-                    firstChild.range,
-                    dbKeyword.range,
-                    openAngle.range,
-                    typeParam,
-                    closeAngle.range)
-                  ) |> builtin
-
-                | _ -> createUnparseableError node
-
-              | "variable_type_reference" ->
-                let symbolSingleQuote = findField firstChild "symbol_single_quote"
-                let variableName = findField firstChild "variable"
-
-                match symbolSingleQuote, variableName with
-                | Ok singleQuote, Ok variableName ->
-                  (TBuiltin.TVariable(
-                    firstChild.range,
-                    singleQuote.range,
-                    (variableName.range, variableName.text)
-                  ))
-                  |> builtin
-                | _ -> createUnparseableError firstChild
-
-              | _ -> createUnparseableError node
+              | None -> createUnparseableError node
 
           else
             createUnparseableError node

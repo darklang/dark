@@ -161,122 +161,124 @@ module Darklang =
           (pm: ProgramTypes.PackageManager.PackageManager)
           (filename: String)
           (source: String)
-          : (PTCliScriptModule *
-            List<Parser.Range * ProgramTypes.NameResolutionError>)
-          =
-          let parsedFile = source |> LanguageTools.Parser.TestParsing.initialParse
-          let moduleWT = (parseDecls owner scriptName parsedFile) |> Builtin.unwrap
-          let (initialParse, _) = toPT onMissing pm moduleWT
+          : Stdlib.Result.Result<(PTCliScriptModule * List<Parser.Range * ProgramTypes.NameResolutionError>), String> =
+          match source |> LanguageTools.Parser.TestParsing.initialParse with
+          | Error e -> Stdlib.Result.Result.Error e
+          | Ok parsedFile ->
+            match parseDecls owner scriptName parsedFile with
+            | Error e -> Stdlib.Result.Result.Error e
+            | Ok moduleWT ->
+              let (initialParse, _) = toPT onMissing pm moduleWT
 
-          let types =
-            Stdlib.List.append
-              initialParse.types
-              (initialParse.submodules
-               |> Stdlib.List.map (fun m -> m.types)
-               |> Stdlib.List.flatten)
+              let types =
+                Stdlib.List.append
+                  initialParse.types
+                  (initialParse.submodules
+                   |> Stdlib.List.map (fun m -> m.types)
+                   |> Stdlib.List.flatten)
 
-          let constants =
-            Stdlib.List.append
-              initialParse.constants
-              (initialParse.submodules
-               |> Stdlib.List.map (fun m -> m.constants)
-               |> Stdlib.List.flatten)
+              let constants =
+                Stdlib.List.append
+                  initialParse.constants
+                  (initialParse.submodules
+                   |> Stdlib.List.map (fun m -> m.constants)
+                   |> Stdlib.List.flatten)
 
-          let fns =
-            Stdlib.List.append
-              initialParse.fns
-              (initialParse.submodules
-               |> Stdlib.List.map (fun m -> m.fns)
-               |> Stdlib.List.flatten)
+              let fns =
+                Stdlib.List.append
+                  initialParse.fns
+                  (initialParse.submodules
+                   |> Stdlib.List.map (fun m -> m.fns)
+                   |> Stdlib.List.flatten)
 
-          let pm = ProgramTypes.PackageManager.withExtras pm types constants fns
+              let pm = ProgramTypes.PackageManager.withExtras pm types constants fns
 
-          let (result, unresolvedNames) = toPT onMissing pm moduleWT
+              let (result, unresolvedNames) = toPT onMissing pm moduleWT
 
-          let adjusted =
-            PTCliScriptModule
-              { types =
-                  result.types
-                  |> Stdlib.List.map (fun t ->
-                    { t with
-                        id =
-                          initialParse.types
-                          |> Stdlib.List.findFirst (fun original ->
-                            original.name == t.name)
-                          |> Stdlib.Option.mapWithDefault t.id (fun original ->
-                            original.id) })
+              let adjusted =
+                PTCliScriptModule
+                  { types =
+                      result.types
+                      |> Stdlib.List.map (fun t ->
+                        { t with
+                            id =
+                              initialParse.types
+                              |> Stdlib.List.findFirst (fun original ->
+                                original.name == t.name)
+                              |> Stdlib.Option.mapWithDefault t.id (fun original ->
+                                original.id) })
 
-                constants =
-                  result.constants
-                  |> Stdlib.List.map (fun c ->
-                    { c with
-                        id =
-                          initialParse.constants
-                          |> Stdlib.List.findFirst (fun original ->
-                            original.name == c.name)
-                          |> Stdlib.Option.mapWithDefault c.id (fun original ->
-                            original.id) })
+                    constants =
+                      result.constants
+                      |> Stdlib.List.map (fun c ->
+                        { c with
+                            id =
+                              initialParse.constants
+                              |> Stdlib.List.findFirst (fun original ->
+                                original.name == c.name)
+                              |> Stdlib.Option.mapWithDefault c.id (fun original ->
+                                original.id) })
 
-                fns =
-                  result.fns
-                  |> Stdlib.List.map (fun f ->
-                    { f with
-                        id =
-                          initialParse.fns
-                          |> Stdlib.List.findFirst (fun original ->
-                            original.name == f.name)
-                          |> Stdlib.Option.mapWithDefault f.id (fun original ->
-                            original.id) })
+                    fns =
+                      result.fns
+                      |> Stdlib.List.map (fun f ->
+                        { f with
+                            id =
+                              initialParse.fns
+                              |> Stdlib.List.findFirst (fun original ->
+                                original.name == f.name)
+                              |> Stdlib.Option.mapWithDefault f.id (fun original ->
+                                original.id) })
 
-                submodules =
-                  result.submodules
-                  |> Stdlib.List.map (fun submodule ->
-                    { submodule with
-                        types =
-                          submodule.types
-                          |> Stdlib.List.map (fun t ->
-                            { t with
-                                id =
-                                  initialParse.submodules
-                                  |> Stdlib.List.map (fun m -> m.types)
-                                  |> Stdlib.List.flatten
-                                  |> Stdlib.List.findFirst (fun original ->
-                                    original.name == t.name)
-                                  |> Stdlib.Option.mapWithDefault
-                                    t.id
-                                    (fun original -> original.id) })
+                    submodules =
+                      result.submodules
+                      |> Stdlib.List.map (fun submodule ->
+                        { submodule with
+                            types =
+                              submodule.types
+                              |> Stdlib.List.map (fun t ->
+                                { t with
+                                    id =
+                                      initialParse.submodules
+                                      |> Stdlib.List.map (fun m -> m.types)
+                                      |> Stdlib.List.flatten
+                                      |> Stdlib.List.findFirst (fun original ->
+                                        original.name == t.name)
+                                      |> Stdlib.Option.mapWithDefault
+                                        t.id
+                                        (fun original -> original.id) })
 
-                        constants =
-                          submodule.constants
-                          |> Stdlib.List.map (fun c ->
-                            { c with
-                                id =
-                                  initialParse.submodules
-                                  |> Stdlib.List.map (fun m -> m.constants)
-                                  |> Stdlib.List.flatten
-                                  |> Stdlib.List.findFirst (fun original ->
-                                    original.name == c.name)
-                                  |> Stdlib.Option.mapWithDefault
-                                    c.id
-                                    (fun original -> original.id) })
+                            constants =
+                              submodule.constants
+                              |> Stdlib.List.map (fun c ->
+                                { c with
+                                    id =
+                                      initialParse.submodules
+                                      |> Stdlib.List.map (fun m -> m.constants)
+                                      |> Stdlib.List.flatten
+                                      |> Stdlib.List.findFirst (fun original ->
+                                        original.name == c.name)
+                                      |> Stdlib.Option.mapWithDefault
+                                        c.id
+                                        (fun original -> original.id) })
 
-                        fns =
-                          submodule.fns
-                          |> Stdlib.List.map (fun f ->
-                            { f with
-                                id =
-                                  initialParse.submodules
-                                  |> Stdlib.List.map (fun m -> m.fns)
-                                  |> Stdlib.List.flatten
-                                  |> Stdlib.List.findFirst (fun original ->
-                                    original.name == f.name)
-                                  |> Stdlib.Option.mapWithDefault
-                                    f.id
-                                    (fun original -> original.id) }) })
+                            fns =
+                              submodule.fns
+                              |> Stdlib.List.map (fun f ->
+                                { f with
+                                    id =
+                                      initialParse.submodules
+                                      |> Stdlib.List.map (fun m -> m.fns)
+                                      |> Stdlib.List.flatten
+                                      |> Stdlib.List.findFirst (fun original ->
+                                        original.name == f.name)
+                                      |> Stdlib.Option.mapWithDefault
+                                        f.id
+                                        (fun original -> original.id) }) })
 
-                exprs = result.exprs }
+                    exprs = result.exprs }
 
-          (adjusted, unresolvedNames)
+              Stdlib.Result.Result.Ok ((adjusted, unresolvedNames))
 
 
         let pmWithExtras
@@ -286,30 +288,35 @@ module Darklang =
           (pm: ProgramTypes.PackageManager.PackageManager)
           (filename: String)
           (source: String)
-          : ProgramTypes.PackageManager.PackageManager =
-          let parsedFile = source |> LanguageTools.Parser.TestParsing.initialParse
-          let moduleWT = (parseDecls owner scriptName parsedFile) |> Builtin.unwrap
-          let (initialParse, _) = toPT onMissing pm moduleWT
+          : Stdlib.Result.Result<ProgramTypes.PackageManager.PackageManager, String> =
+          match source |> LanguageTools.Parser.TestParsing.initialParse with
+          | Error e -> Stdlib.Result.Result.Error e
+          | Ok parsedFile ->
+            match parseDecls owner scriptName parsedFile with
+            | Error e -> Stdlib.Result.Result.Error e
+            | Ok moduleWT ->
+              let (initialParse, _) = toPT onMissing pm moduleWT
 
-          let types =
-            Stdlib.List.append
-              initialParse.types
-              (initialParse.submodules
-               |> Stdlib.List.map (fun m -> m.types)
-               |> Stdlib.List.flatten)
+              let types =
+                Stdlib.List.append
+                  initialParse.types
+                  (initialParse.submodules
+                   |> Stdlib.List.map (fun m -> m.types)
+                   |> Stdlib.List.flatten)
 
-          let constants =
-            Stdlib.List.append
-              initialParse.constants
-              (initialParse.submodules
-               |> Stdlib.List.map (fun m -> m.constants)
-               |> Stdlib.List.flatten)
+              let constants =
+                Stdlib.List.append
+                  initialParse.constants
+                  (initialParse.submodules
+                   |> Stdlib.List.map (fun m -> m.constants)
+                   |> Stdlib.List.flatten)
 
-          let fns =
-            Stdlib.List.append
-              initialParse.fns
-              (initialParse.submodules
-               |> Stdlib.List.map (fun m -> m.fns)
-               |> Stdlib.List.flatten)
+              let fns =
+                Stdlib.List.append
+                  initialParse.fns
+                  (initialParse.submodules
+                   |> Stdlib.List.map (fun m -> m.fns)
+                   |> Stdlib.List.flatten)
 
-          ProgramTypes.PackageManager.withExtras pm types constants fns
+              (ProgramTypes.PackageManager.withExtras pm types constants fns)
+              |> Stdlib.Result.Result.Ok

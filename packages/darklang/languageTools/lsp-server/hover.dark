@@ -44,7 +44,9 @@ module Darklang =
           let owner = "LspHover"
 
           let pmWithExtras =
-            Parser.CliScript.pmWithExtras owner "" onMissing pm "" doc.text
+            match Parser.CliScript.pmWithExtras owner "" onMissing pm "" doc.text with
+            | Ok pm -> pm
+            | Error _ -> pm // fallback to original pm on error
 
           /// Find the node at the hover position, and get the hover information
           let info =

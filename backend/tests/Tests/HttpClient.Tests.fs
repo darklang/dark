@@ -123,7 +123,19 @@ let parseSingleTestFromFile
     let! execResult = LibExecution.Execution.executeFunction state name [] args
 
     match execResult with
-    | Ok dval -> return Internal.Test.fromDT dval
+    | Ok dval ->
+      match C2DT.Result.fromDT identity dval identity with
+      | Ok testVal -> return Internal.Test.fromDT testVal
+      | Error(RT.DString errMsg) ->
+        return
+          Exception.raiseInternal
+            $"Error parsing test: {errMsg}"
+            [ "filename", filename; "test", test ]
+      | Error _ ->
+        return
+          Exception.raiseInternal
+            "Invalid error format from parseSingleTestFromFile"
+            [ "dval", dval ]
     | Error(rte, _) ->
       let! rteString = Exe.rteToString RT2DT.RuntimeError.toDT state rte
       return

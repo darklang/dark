@@ -41,29 +41,24 @@ module Darklang =
           let parsed =
             requestText |> Parser.parseToSimplifiedTree |> Parser.parseFromTree
 
-          let sourceFile =
-            match parsed with
-            | Ok parsedFile ->
-              match parsedFile with
-              | SourceFile sf -> sf
-              | _ -> log "Invalid source file"
-            | Error err -> log err
+          match parsed with
+          | Ok (SourceFile sf) ->
+            let unresolvedNames =
+              match Parser.CliScript.parse "LSP" "scriptName" onMissing pm "fileName" requestText with
+              | Ok ((_ptCliScriptModule, unresolvedNames)) -> unresolvedNames
+              | Error err ->
+                log $"Parse error: {err}"
+                []
 
-          let (_ptCliScriptModule, unresolvedNames) =
-            Parser.CliScript.parse
-              "LSP"
-              "scriptName"
-              onMissing
-              pm
-              "fileName"
-              requestText
+            Diagnostics.gatherAndReportDiagnostics
+              requestUri
+              sf
+              unresolvedNames
 
-          Diagnostics.gatherAndReportDiagnostics
-            requestUri
-            sourceFile
-            unresolvedNames
-
-          parsed
+            parsed
+          | Error err ->
+            log $"Parse error: {err}"
+            Stdlib.Result.Result.Error err
 
         // -- message-handling
 

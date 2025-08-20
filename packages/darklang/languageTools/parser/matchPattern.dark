@@ -214,13 +214,15 @@ module Darklang =
           let enumFieldsNode =
             (findNodeByFieldName node "enum_fields")
             |> Stdlib.Option.map (fun enumFieldsNode ->
-              enumFieldsNode.children
-              |> Stdlib.List.chunkBySize 2L
-              |> Builtin.unwrap
-              |> Stdlib.List.map (fun contentSymbolPair ->
-                match contentSymbolPair with
-                | [ contentNode; symbol ] | [ contentNode ] -> parseMatchPattern contentNode)
-              |> Stdlib.Result.collect)
+              match enumFieldsNode.children |> Stdlib.List.chunkBySize 2L with
+              | Ok pairs ->
+                pairs
+                |> Stdlib.List.map (fun contentSymbolPair ->
+                  match contentSymbolPair with
+                  | [ contentNode; symbol ] | [ contentNode ] -> parseMatchPattern contentNode
+                  | _ -> createUnparseableError enumFieldsNode)
+                |> Stdlib.Result.collect
+              | Error _ -> createUnparseableError enumFieldsNode)
 
             |> Stdlib.Option.withDefault ([] |> Stdlib.Result.Result.Ok)
 
@@ -244,14 +246,15 @@ module Darklang =
             | firstPattern :: restPatterns ->
               let firstPattern = MatchPattern.parseMatchPattern firstPattern
               let restPatterns =
-                restPatterns
-                |> Stdlib.List.chunkBySize 2L
-                |> Builtin.unwrap
-                |> Stdlib.List.map (fun patternPipeSymbolPair ->
-                  match patternPipeSymbolPair with
-                  | [ pipeSym; pattern ] -> MatchPattern.parseMatchPattern pattern
-                  | _ -> createUnparseableError node)
-                |> Stdlib.Result.collect
+                match restPatterns |> Stdlib.List.chunkBySize 2L with
+                | Ok chunks ->
+                  chunks
+                  |> Stdlib.List.map (fun patternPipeSymbolPair ->
+                    match patternPipeSymbolPair with
+                    | [ pipeSym; pattern ] -> MatchPattern.parseMatchPattern pattern
+                    | _ -> createUnparseableError node)
+                  |> Stdlib.Result.collect
+                | Error _ -> createUnparseableError node
 
               match (firstPattern, restPatterns) with
               | Ok firstPattern, Ok restPatterns -> Stdlib.Result.Result.Ok (Stdlib.List.push restPatterns firstPattern)

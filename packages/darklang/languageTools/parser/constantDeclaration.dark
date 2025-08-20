@@ -213,23 +213,24 @@ module Darklang =
             node
             |> findNodeByFieldName "content"
             |> Stdlib.Option.map (fun contentsNode ->
-              contentsNode.children
-              |> Stdlib.List.chunkBySize 2L
-              |> Builtin.unwrap
-              |> Stdlib.List.map (fun recordSeparatorPair ->
-                match recordSeparatorPair with
-                | [ recordPairNode; _separator ]  | [ recordPairNode ] ->
-                  let fieldNode =
-                    findAndParseRequired recordPairNode "field" (fun node ->
-                      (node.range, node.text) |> Stdlib.Result.Result.Ok)
-                  let valueNode =
-                    findAndParseRequired recordPairNode "value" ConstantDeclaration.parseConst
-                  match fieldNode, valueNode with
-                  | Ok field, Ok value ->
-                    (field, value) |> Stdlib.Result.Result.Ok
-                  | _ -> createUnparseableError recordPairNode
-                | _ -> createUnparseableError contentsNode)
-              |> Stdlib.Result.collect)
+              match contentsNode.children |> Stdlib.List.chunkBySize 2L with
+              | Ok pairs ->
+                pairs
+                |> Stdlib.List.map (fun recordSeparatorPair ->
+                  match recordSeparatorPair with
+                  | [ recordPairNode; _separator ]  | [ recordPairNode ] ->
+                    let fieldNode =
+                      findAndParseRequired recordPairNode "field" (fun node ->
+                        (node.range, node.text) |> Stdlib.Result.Result.Ok)
+                    let valueNode =
+                      findAndParseRequired recordPairNode "value" ConstantDeclaration.parseConst
+                    match fieldNode, valueNode with
+                    | Ok field, Ok value ->
+                      (field, value) |> Stdlib.Result.Result.Ok
+                    | _ -> createUnparseableError recordPairNode
+                  | _ -> createUnparseableError contentsNode)
+                |> Stdlib.Result.collect
+              | Error _ -> createUnparseableError contentsNode)
             |> Stdlib.Option.withDefault (Stdlib.Result.Result.Ok [])
           match typeNameNode, fields with
           | Ok typeName, Ok fields ->
@@ -305,12 +306,13 @@ module Darklang =
               findAndParseRequired node "name" (fun node ->
                 (Identifiers.parseConst node) |> Stdlib.Result.Result.Ok)
 
-            let value = (findNodeByFieldName node "value") |> Builtin.unwrap
-
             let valueNode =
-              match value.children with
-              | [ valueNode ] -> ConstantDeclaration.parseConst valueNode
-              | _ -> createUnparseableError node
+              match findNodeByFieldName node "value" with
+              | Some value ->
+                match value.children with
+                | [ valueNode ] -> ConstantDeclaration.parseConst valueNode
+                | _ -> createUnparseableError node
+              | None -> createUnparseableError node
 
             let keywordConstNode = findField node "keyword_const"
             let symEqualsNode = findField node "symbol_equals"

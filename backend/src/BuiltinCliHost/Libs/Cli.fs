@@ -186,7 +186,18 @@ let fns : List<BuiltInFn> =
               Result<Utils.CliScript.PTCliScriptModule, RuntimeError.Error>) =
               uply {
                 match execResult with
-                | Ok dval -> return (Utils.CliScript.fromDT dval) |> Ok
+                | Ok dval ->
+                  match C2DT.Result.fromDT identity dval identity with
+                  | Ok parsedModuleAndUnresolvedNames ->
+                    return
+                      (Utils.CliScript.fromDT parsedModuleAndUnresolvedNames) |> Ok
+                  | Error(DString errMsg) ->
+                    return Error(RuntimeError.UncaughtException(errMsg, []))
+                  | Error _ ->
+                    return
+                      Exception.raiseInternal
+                        "Invalid error format from parseCliScript"
+                        [ "dval", dval ]
                 | Error(rte, _cs) ->
                   let! rteString = Exe.runtimeErrorToString exeState rte
                   match rteString with
@@ -483,7 +494,18 @@ let fns : List<BuiltInFn> =
               Result<Utils.CliScript.PTCliScriptModule, RuntimeError.Error>) =
               uply {
                 match execResult with
-                | Ok dval -> return (Utils.CliScript.fromDT dval) |> Ok
+                | Ok dval ->
+                  match C2DT.Result.fromDT identity dval identity with
+                  | Ok parsedModuleAndUnresolvedNames ->
+                    return
+                      (Utils.CliScript.fromDT parsedModuleAndUnresolvedNames) |> Ok
+                  | Error(DString errMsg) ->
+                    return Error(RuntimeError.UncaughtException(errMsg, []))
+                  | Error _ ->
+                    return
+                      Exception.raiseInternal
+                        "Invalid error format from parseCliScript"
+                        [ "dval", dval ]
                 | Error(rte, _cs) ->
                   let! rteString = Exe.runtimeErrorToString exeState rte
                   match rteString with

@@ -1631,8 +1631,30 @@
       ]
     },
     "type_decl_def_alias": {
-      "type": "SYMBOL",
-      "name": "type_reference"
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "type_reference"
+        },
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "indent"
+            },
+            {
+              "type": "SYMBOL",
+              "name": "type_reference"
+            },
+            {
+              "type": "SYMBOL",
+              "name": "dedent"
+            }
+          ]
+        }
+      ]
     },
     "type_decl_def_record": {
       "type": "CHOICE",
@@ -5623,34 +5645,38 @@
             }
           },
           {
-            "type": "FIELD",
-            "name": "body",
-            "content": {
-              "type": "CHOICE",
-              "members": [
-                {
-                  "type": "SYMBOL",
-                  "name": "expression"
-                },
-                {
-                  "type": "SEQ",
-                  "members": [
-                    {
-                      "type": "SYMBOL",
-                      "name": "indent"
-                    },
-                    {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SEQ",
+                "members": [
+                  {
+                    "type": "SYMBOL",
+                    "name": "indent"
+                  },
+                  {
+                    "type": "FIELD",
+                    "name": "body",
+                    "content": {
                       "type": "SYMBOL",
                       "name": "expression"
-                    },
-                    {
-                      "type": "SYMBOL",
-                      "name": "dedent"
                     }
-                  ]
+                  },
+                  {
+                    "type": "SYMBOL",
+                    "name": "dedent"
+                  }
+                ]
+              },
+              {
+                "type": "FIELD",
+                "name": "body",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "expression"
                 }
-              ]
-            }
+              }
+            ]
           }
         ]
       }

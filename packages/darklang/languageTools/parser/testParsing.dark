@@ -2,43 +2,55 @@ module Darklang =
   module LanguageTools =
     module Parser =
       module TestParsing =
-        let initialParse (code: String) : WrittenTypes.ParsedFile =
+        let initialParse 
+          (code: String) 
+          : Stdlib.Result.Result<WrittenTypes.ParsedFile, String> =
           code
           |> LanguageTools.Parser.parseToSimplifiedTree
           |> LanguageTools.Parser.parseFromTree
-          |> Builtin.unwrap
 
         // TODO: maybe use a proper type instead of string?
         let parsePTExpr
           (code: String)
           : Stdlib.Result.Result<ProgramTypes.Expr, String> =
-          let sourceFile = code |> TestParsing.initialParse
+          match code |> TestParsing.initialParse with
+          | Ok sourceFile ->
+            let exprs =
+              match sourceFile with
+              | SourceFile s -> s.exprsToEval
+              | _ -> []
 
-          let exprs =
-            match sourceFile with
-            | SourceFile s -> s.exprsToEval
-            | _ -> []
+            let onMissing = LanguageTools.NameResolver.OnMissing.Allow
+            let pm = LanguageTools.PackageManager.pm ()
 
-          let onMissing = LanguageTools.NameResolver.OnMissing.Allow
-          let pm = LanguageTools.PackageManager.pm ()
+            match exprs with
+            | [ expr ] ->
+              let (expr, _) =
+                WrittenTypesToProgramTypes.Expr.toPT onMissing pm "" [] expr
 
-          match exprs with
-          | [ expr ] ->
-            let (expr, _) =
-              WrittenTypesToProgramTypes.Expr.toPT onMissing pm "" [] expr
+              expr |> Stdlib.Result.Result.Ok
+            | _ ->
+              "Expected exactly one expression to be parsed"
+              |> Stdlib.Result.Result.Error
+          | Error e -> Stdlib.Result.Result.Error e
 
-            expr |> Stdlib.Result.Result.Ok
-          | _ ->
-            "Expected exactly one expression to be parsed"
-            |> Stdlib.Result.Result.Error
+        let parsePTSourceFile 
+          (code: String) 
+          : Stdlib.Result.Result<ProgramTypes.SourceFile.SourceFile, String> =
+          match code |> TestParsing.initialParse with
+          | Ok parsedFile ->
+            parsedFile
+            |> WrittenTypesToProgramTypes.parsedFileAsSourceFile
+            |> Stdlib.Tuple2.first
+            |> Stdlib.Result.Result.Ok
+          | Error e -> Stdlib.Result.Result.Error e
 
-        let parsePTSourceFile (code: String) : ProgramTypes.SourceFile.SourceFile =
-          code
-          |> TestParsing.initialParse
-          |> WrittenTypesToProgramTypes.parsedFileAsSourceFile
-          |> Stdlib.Tuple2.first
-
-        let parseAndPrettyPrint (code: String) : String =
-          code
-          |> TestParsing.parsePTSourceFile
-          |> PrettyPrinter.ProgramTypes.sourceFile
+        let parseAndPrettyPrint 
+          (code: String) 
+          : Stdlib.Result.Result<String, String> =
+          match code |> TestParsing.parsePTSourceFile with
+          | Ok sourceFile ->
+            sourceFile
+            |> PrettyPrinter.ProgramTypes.sourceFile
+            |> Stdlib.Result.Result.Ok
+          | Error e -> Stdlib.Result.Result.Error e

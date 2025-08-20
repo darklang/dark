@@ -126,55 +126,59 @@ module Darklang =
           (pm: ProgramTypes.PackageManager.PackageManager)
           (filename: String)
           (source: String)
-          : PTCanvasModule =
-          let parsedFile = source |> LanguageTools.Parser.TestParsing.initialParse
-          let moduleWT = (parseDecls owner canvasName parsedFile) |> Builtin.unwrap
-          let initialParse = toPT onMissing pm moduleWT
+          : Stdlib.Result.Result<PTCanvasModule, String> =
+          match source |> LanguageTools.Parser.TestParsing.initialParse with
+          | Error e -> Stdlib.Result.Result.Error e
+          | Ok parsedFile ->
+            match parseDecls owner canvasName parsedFile with
+            | Error e -> Stdlib.Result.Result.Error e
+            | Ok moduleWT ->
+              let initialParse = toPT onMissing pm moduleWT
 
-          let pm =
-            ProgramTypes.PackageManager.withExtras
-              pm
-              initialParse.types
-              initialParse.constants
-              initialParse.fns
+              let pm =
+                ProgramTypes.PackageManager.withExtras
+                  pm
+                  initialParse.types
+                  initialParse.constants
+                  initialParse.fns
 
-          let result = toPT onMissing pm moduleWT
+              let result = toPT onMissing pm moduleWT
 
-          let adjusted =
-            PTCanvasModule
-              { types =
-                  result.types
-                  |> Stdlib.List.map (fun t ->
-                    { t with
-                        id =
-                          initialParse.types
-                          |> Stdlib.List.findFirst (fun original ->
-                            original.name == t.name)
-                          |> Stdlib.Option.mapWithDefault t.id (fun original ->
-                            original.id) })
+              let adjusted =
+                PTCanvasModule
+                  { types =
+                      result.types
+                      |> Stdlib.List.map (fun t ->
+                        { t with
+                            id =
+                              initialParse.types
+                              |> Stdlib.List.findFirst (fun original ->
+                                original.name == t.name)
+                              |> Stdlib.Option.mapWithDefault t.id (fun original ->
+                                original.id) })
 
-                constants =
-                  result.constants
-                  |> Stdlib.List.map (fun c ->
-                    { c with
-                        id =
-                          initialParse.constants
-                          |> Stdlib.List.findFirst (fun original ->
-                            original.name == c.name)
-                          |> Stdlib.Option.mapWithDefault c.id (fun original ->
-                            original.id) })
+                    constants =
+                      result.constants
+                      |> Stdlib.List.map (fun c ->
+                        { c with
+                            id =
+                              initialParse.constants
+                              |> Stdlib.List.findFirst (fun original ->
+                                original.name == c.name)
+                              |> Stdlib.Option.mapWithDefault c.id (fun original ->
+                                original.id) })
 
-                fns =
-                  result.fns
-                  |> Stdlib.List.map (fun f ->
-                    { f with
-                        id =
-                          initialParse.fns
-                          |> Stdlib.List.findFirst (fun original ->
-                            original.name == f.name)
-                          |> Stdlib.Option.mapWithDefault f.id (fun original ->
-                            original.id) })
+                    fns =
+                      result.fns
+                      |> Stdlib.List.map (fun f ->
+                        { f with
+                            id =
+                              initialParse.fns
+                              |> Stdlib.List.findFirst (fun original ->
+                                original.name == f.name)
+                              |> Stdlib.Option.mapWithDefault f.id (fun original ->
+                                original.id) })
 
-                exprs = result.exprs }
+                    exprs = result.exprs }
 
-          adjusted
+              Stdlib.Result.Result.Ok adjusted

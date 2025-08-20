@@ -188,7 +188,11 @@ module.exports = grammar({
 
     //
     // Alias
-    type_decl_def_alias: $ => $.type_reference,
+    type_decl_def_alias: $ =>
+      choice(
+        $.type_reference,
+        seq($.indent, $.type_reference, $.dedent)
+      ),
 
     //
     // Record
@@ -868,9 +872,9 @@ module.exports = grammar({
           field("keyword_fun", alias("fun", $.keyword)),
           field("pats", $.lambda_pats),
           field("symbol_arrow", alias("->", $.symbol)),
-          field(
-            "body",
-            choice($.expression, seq($.indent, $.expression, $.dedent)),
+          choice(
+            seq($.indent, field("body", $.expression), $.dedent),
+            field("body", $.expression),
           ),
         ),
       ),
