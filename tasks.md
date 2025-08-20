@@ -36,12 +36,12 @@ A few pieces of feedback I'd like you to create a TODO list for and complete:
 
 
 ## Some keyboard nav related stuff
-  - [ ] hitting backspace kinda works, but not fully.
+  - [x] hitting backspace kinda works, but not fully.
       when I hit backspace, it moves the cursor left, and the _model_ seems to change, but the line is not redrawn
       see cli_old_backup for some things that worked before -- especially _update.dark had some magic around this, it seems
-  - [ ] hitting left/right should move my cursor, but it's not
-  - [ ] hitting 'home' should move me to the start of the cursor
-  - [ ] the keyboard shortcuts (left, right, home, backspace) should only work for the specific Page I'm on
+  - [x] hitting left/right should move my cursor, but it's not
+  - [x] hitting 'home' should move me to the start of the cursor
+  - [x] the keyboard shortcuts (left, right, home, backspace) should only work for the specific Page I'm on
       (if the prompt isn't shown, then the shortcuts don't make sense)
   - [x] remove parser-combinator-feasibility-analysis.md - it's irrelevant. if possible, make it so it's as if it were never in the git history
   - [x] delete test-script.dark - unused
