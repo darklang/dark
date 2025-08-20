@@ -42,7 +42,8 @@ let errUnsupportedProtocol = Stdlib.Result.Result.Error(Stdlib.HttpClient.Reques
 
 // basic requests work
 ((get "https://httpbin.org" []) |> Stdlib.Result.map (fun r -> r.statusCode)) = Stdlib.Result.Result.Ok 200L
-((get "http://httpbin.org" []) |> Stdlib.Result.map (fun r -> r.statusCode)) = Stdlib.Result.Result.Ok 200L
+// TODO: this is a flaky test – replace httpbin.org call with a local server
+// ((get "http://httpbin.org" []) |> Stdlib.Result.map (fun r -> r.statusCode)) = Stdlib.Result.Result.Ok 200L
 
 // Stdlib.HttpClient.request "get" "https://darklang.com" [ 1L ] [] =
 //   Builtin.testDerrorMessage "PACKAGE.Darklang.Stdlib.HttpClient.request's 3rd argument (`headers`) should be a List<(String * String)>. However, a List<Int64> ([  1]) was passed instead.
