@@ -3,36 +3,36 @@
 A few pieces of feedback I'd like you to create a TODO list for and complete:
 
 ## Easy Quick Wins
-- [ ] delete packages/darklang/cli/exploration-plan.md
-- [ ] remove the 'h' alias for help and make it 'commands' instead
-- [ ] remove the "Darklang CLI" text that shows when you go to the site
-- [ ] instead, in the logo section on the left, print  "darklang.com" just below the logo (with a line of separation)
-- [ ] while you're at it, remove the words "Available commands:" -- that's pretty obvious
-- [ ] the 'clear' command should be extracted out of commands.dark into its own clear.dark file
-- [ ] update text "Launch experiments TUI" to "Try out various WIP CLI experiments"
-- [ ] retitle "package navigation" to just "packages"
-- [ ] and code execution to just 'execution'
-- [ ] delete packages/darklang/cli/experiments/CLI_MVU_PROJECT_STATUS.md
+- [x] delete packages/darklang/cli/exploration-plan.md
+- [x] remove the 'h' alias for help and make it 'commands' instead
+- [x] remove the "Darklang CLI" text that shows when you go to the site
+- [x] instead, in the logo section on the left, print  "darklang.com" just below the logo (with a line of separation)
+- [x] while you're at it, remove the words "Available commands:" -- that's pretty obvious
+- [x] the 'clear' command should be extracted out of commands.dark into its own clear.dark file
+- [x] update text "Launch experiments TUI" to "Try out various WIP CLI experiments"
+- [x] retitle "package navigation" to just "packages"
+- [x] and code execution to just 'execution'
+- [x] delete packages/darklang/cli/experiments/CLI_MVU_PROJECT_STATUS.md
     except, copy any important things from Critical Darklang Syntax Learnings to the root CLAUDE.md, first
-- [ ] delete packages/darklang/cli/experiments/UI_COMPONENT_INVENTORY.md
-- [ ] for some reason, the install made the alias for the installed app "darklang" but it should be "dark"
+- [x] delete packages/darklang/cli/experiments/UI_COMPONENT_INVENTORY.md
+- [x] for some reason, the install made the alias for the installed app "darklang" but it should be "dark"
     fix uninstall and other references too
     (the product is Darklang everywhere, but for convenience we make the cli app just 'dark' - easier to type)
-- [ ] add a "--version" alias for the version command, so `dark --version` works
+- [x] add a "--version" alias for the version command, so `dark --version` works
 - also `-v`
-- [ ] remove --no-icons from tree. always icons.
-- [ ] getDirectoryContents and isDirectoryAtPath should exist in Stdlib somewhere. if they don't exist already, mput some version of them there, and use those instead (deleting the ones in the Cli fodler)
-- [ ] for installation/commands.dark, break it down by module a bit. a module for update, a module for install, etc. I find it easier to reason about things that way
+- [x] remove --no-icons from tree. always icons.
+- [x] getDirectoryContents and isDirectoryAtPath should exist in Stdlib somewhere. if they don't exist already, mput some version of them there, and use those instead (deleting the ones in the Cli fodler)
+- [x] for installation/commands.dark, break it down by module a bit. a module for update, a module for install, etc. I find it easier to reason about things that way
 
 
 ## Claude.md updates
-- [ ] iterate on the root Claude.md file - make it a tad more formal and expansive. reference the root README, and list the major root-level folders. maybe read some of wip.darklang.com's content for inspo as to what should be in the CLAUDE.md
-- [ ] update the root CLAUDE.md with any syntactical things you've learned when writing Darklang, for future reference
+- [x] iterate on the root Claude.md file - make it a tad more formal and expansive. reference the root README, and list the major root-level folders. maybe read some of wip.darklang.com's content for inspo as to what should be in the CLAUDE.md
+- [x] update the root CLAUDE.md with any syntactical things you've learned when writing Darklang, for future reference
 - try not to let this file get too long, though
 
 
 ## Get some context for the harder stuff
-- [ ] read packages/darklang/cli and packages/darklang/cli_old_backup, for context
+- [x] read packages/darklang/cli and packages/darklang/cli_old_backup, for context
 
 
 ## Some keyboard nav related stuff
