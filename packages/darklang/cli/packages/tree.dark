@@ -4,11 +4,8 @@ module Darklang =
       module Tree =
         // Tree command - display package hierarchy
         let executeTree (state: AppState) (args: List<String>) : AppState =
-          // Icons are ON by default, use --no-icons to disable
-          let showIcons =
-            match Stdlib.List.findFirst args (fun arg -> arg == "--no-icons") with
-            | Some _ -> false
-            | None -> true
+          // Icons are always shown
+          let showIcons = true
 
           let isInteractive =
             match Stdlib.List.findFirst args (fun arg -> arg == "--interactive" || arg == "-i") with
@@ -35,18 +32,18 @@ module Darklang =
 
           if isInteractive then
             // Start interactive tree mode
-            startInteractiveTree state startPath showIcons maxDepth
+            startInteractiveTree state startPath true maxDepth
           else
             // Static tree display
             if Stdlib.List.isEmpty startPath then
               Builtin.printLine "Package tree:"
               Builtin.printLine ""
-              displayRootTree showIcons maxDepth
+              displayRootTree true maxDepth
             else
               let pathStr = Path.formatPath startPath
               Builtin.printLine $"Package tree from {pathStr}:"
               Builtin.printLine ""
-              displayModuleTree startPath showIcons maxDepth 0L ""
+              displayModuleTree startPath true maxDepth 0L ""
 
             { state with lastCommand = "tree"; output = "tree displayed" }
         
@@ -222,11 +219,10 @@ module Darklang =
 
         // Help function
         let treeHelp (state: AppState) : AppState =
-          Builtin.printLine "Usage: tree [path] [--no-icons] [--depth=N] [--interactive]"
+          Builtin.printLine "Usage: tree [path] [--depth=N] [--interactive]"
           Builtin.printLine "Display package hierarchy in tree format."
           Builtin.printLine ""
           Builtin.printLine "Options:"
-          Builtin.printLine "  --no-icons      Disable icons (icons shown by default)"
           Builtin.printLine "  --depth=N       Set maximum depth (1-10, default: 2)"
           Builtin.printLine "  --interactive   Enable interactive tree navigation (beta)"
           Builtin.printLine ""
@@ -234,7 +230,6 @@ module Darklang =
           Builtin.printLine "  tree                         - Show tree with icons, depth 2"
           Builtin.printLine "  tree /                       - Show tree from root"
           Builtin.printLine "  tree Darklang                - Show Darklang package tree"
-          Builtin.printLine "  tree --no-icons              - Show tree without icons"
           Builtin.printLine "  tree --depth=1               - Show only direct children"
           Builtin.printLine "  tree --depth=5               - Show deeper tree structure"
           Builtin.printLine "  tree Darklang.Stdlib         - Show Stdlib tree"
@@ -246,7 +241,7 @@ module Darklang =
           match args with
           | [] ->
             // Suggest common options and current context packages
-            let options = ["--no-icons"; "--depth=1"; "--depth=3"; "--depth=4"; "--interactive"; "/"]
+            let options = ["--depth=1"; "--depth=3"; "--depth=4"; "--interactive"; "/"]
             if Stdlib.List.isEmpty state.currentPath then
               // At root, suggest top-level packages
               let query =
@@ -273,7 +268,7 @@ module Darklang =
           | [partial] ->
             // Complete package names or options
             if Stdlib.String.startsWith partial "--" then
-              let allOptions = ["--no-icons"; "--interactive"; "--depth=1"; "--depth=2"; "--depth=3"; "--depth=4"; "--depth=5"]
+              let allOptions = ["--interactive"; "--depth=1"; "--depth=2"; "--depth=3"; "--depth=4"; "--depth=5"]
               allOptions |> Stdlib.List.filter (fun opt -> Stdlib.String.startsWith opt partial)
             else
               // Use cd completion logic for paths

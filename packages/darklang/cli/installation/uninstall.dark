@@ -37,3 +37,34 @@ module Darklang =
             | Ok _ -> Stdlib.Result.Result.Ok()
             | Error err ->
               Stdlib.Result.Result.Error $"Error uninstalling dark: {err}"
+
+        // CLI interface functions
+        let execute (state: AppState) (args: List<String>) : AppState =
+          let currentMode = Installation.System.getInstallationMode ()
+          let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
+
+          match currentMode with
+          | Installed ->
+            match Installation.System.uninstallWithConfirmation host with
+            | Ok message ->
+              Builtin.printLine (View.formatSuccess message)
+              // Exit after successful uninstall since the executable is being removed
+              { state with isExiting = true; lastCommand = "uninstall"; output = "uninstall success" }
+            | Error e ->
+              Builtin.printLine (View.formatError e)
+              { state with lastCommand = "uninstall"; output = "uninstall failed" }
+          | Portable ->
+            Builtin.printLine (View.formatError "Cannot uninstall - running in portable mode")
+            Builtin.printLine "To remove this portable installation, simply delete the current directory"
+            { state with lastCommand = "uninstall"; output = "portable uninstall error" }
+
+        let help (state: AppState) : AppState =
+          Builtin.printLine "Usage: uninstall"
+          Builtin.printLine "Uninstall Darklang CLI from global installation."
+          Builtin.printLine ""
+          Builtin.printLine "Removes the CLI from ~/.darklang/ and cleans up shell configuration."
+          Builtin.printLine "Only available for global installations."
+          { state with lastCommand = "help uninstall"; output = "uninstall help displayed" }
+
+        let complete (state: AppState) (args: List<String>) : List<String> =
+          Completion.noArgsCompletion state args

@@ -79,55 +79,14 @@ module Darklang =
         Builtin.printLine "  run script.dark arg1 arg2        - Run script with arguments"
         { state with lastCommand = "help run"; output = "run help displayed" }
 
-      // Get files in a directory - returns just filenames
-      let getDirectoryContents (path: String) : List<String> =
-        let currentDir = Builtin.directoryCurrent ()
-
-        let fullPath =
-          if Stdlib.String.startsWith path "/" then
-            path
-          else
-            // Normalize path by removing leading "./" if present
-            let normalizedPath =
-              if Stdlib.String.startsWith path "./" then
-                Stdlib.String.dropFirst path 2L
-              else
-                path
-            $"{currentDir}/{normalizedPath}"
-
-        let files = Builtin.directoryList fullPath
-
-        files
-        |> Stdlib.List.map (fun fullFilePath ->
-          // Extract just the filename from the full path
-          match Stdlib.String.split fullFilePath "/" with
-          | [] -> fullFilePath
-          | parts ->
-            match Stdlib.List.last parts with
-            | Some filename -> filename
-            | None -> fullFilePath)
-
-      // Check if a path is a directory - expects full path
-      let isDirectoryAtPath (dirPath: String) (fileName: String) : Bool =
-        let currentDir = Builtin.directoryCurrent ()
-        let normalizedDirPath =
-          if Stdlib.String.startsWith dirPath "/" then
-            dirPath
-          else if Stdlib.String.startsWith dirPath "./" then
-            let withoutDot = Stdlib.String.dropFirst dirPath 2L
-            $"{currentDir}/{withoutDot}"
-          else
-            $"{currentDir}/{dirPath}"
-        let fullPath = $"{normalizedDirPath}/{fileName}"
-        Builtin.fileIsDirectory fullPath
 
       let runComplete (state: AppState) (args: List<String>) : List<String> =
         match args with
         | [] ->
           // Complete with function prefix or show current directory contents
-          let currentDirFiles = getDirectoryContents "."
+          let currentDirFiles = Stdlib.Cli.FileSystem.getDirectoryContents "."
           let currentDir = Builtin.directoryCurrent ()
-          let directories = currentDirFiles |> Stdlib.List.filter (fun file -> isDirectoryAtPath currentDir file)
+          let directories = currentDirFiles |> Stdlib.List.filter (fun file -> Stdlib.Cli.FileSystem.isDirectoryAtPath currentDir file)
           let darkFiles = currentDirFiles |> Stdlib.List.filter (fun file -> Stdlib.String.endsWith file ".dark")
           // Just show directories and .dark files - no hardcoded function prefixes
           Stdlib.List.append directories darkFiles
@@ -144,10 +103,10 @@ module Darklang =
           else if partialArg == "." then
             // Special case: "." means show all files in current directory
             let currentDir = Builtin.directoryCurrent ()
-            let files = getDirectoryContents "."
+            let files = Stdlib.Cli.FileSystem.getDirectoryContents "."
             files
             |> Stdlib.List.map (fun file ->
-              if isDirectoryAtPath currentDir file then
+              if Stdlib.Cli.FileSystem.isDirectoryAtPath currentDir file then
                 $"{file}/"
               else
                 file)
@@ -168,24 +127,24 @@ module Darklang =
                     dirPart
                   else
                     $"{currentDir}/{dirPart}"
-                let files = getDirectoryContents fullDirPath
+                let files = Stdlib.Cli.FileSystem.getDirectoryContents fullDirPath
                 files
                 |> Stdlib.List.filter (fun file ->
                   Stdlib.String.startsWith file filePart)
                 |> Stdlib.List.map (fun file ->
-                  if isDirectoryAtPath fullDirPath file then
+                  if Stdlib.Cli.FileSystem.isDirectoryAtPath fullDirPath file then
                     $"{dirPart}{file}/"
                   else
                     $"{dirPart}{file}")
               | None -> []
             else
               // No directory separator, complete in current directory
-              let files = getDirectoryContents "."
+              let files = Stdlib.Cli.FileSystem.getDirectoryContents "."
               files
               |> Stdlib.List.filter (fun file ->
                 Stdlib.String.startsWith file partialArg)
               |> Stdlib.List.map (fun file ->
-                if isDirectoryAtPath currentDir file then
+                if Stdlib.Cli.FileSystem.isDirectoryAtPath currentDir file then
                   $"{file}/"
                 else
                   file)

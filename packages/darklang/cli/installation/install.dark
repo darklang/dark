@@ -1,0 +1,56 @@
+module Darklang =
+  module Cli =
+    module Installation =
+      module Install =
+        let execute (state: AppState) (args: List<String>) : AppState =
+          let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
+          let currentMode = Installation.System.getInstallationMode ()
+
+          match currentMode with
+          | Installed ->
+            Builtin.printLine (View.formatSuccess "Already installed globally")
+            { state with lastCommand = "install"; output = "already installed" }
+          | Portable ->
+            let currentDir = Builtin.directoryCurrent ()
+
+            if Installation.System.globalInstallationExists host then
+              let homeDir = Config.getDarklangHomeDir host
+
+              let message = $"Detected portable mode - you're running from {currentDir}/.darklang\nFound existing global installation at {homeDir}\n\nIf you'd like to update your global installation, please run `dark` rather than this portable executable."
+              Builtin.printLine (View.formatSuccess message)
+              { state with lastCommand = "install"; output = "existing global found" }
+            else
+              Builtin.printLine "Choose installation method:"
+              Builtin.printLine "1. Copy this binary (for testing local changes)"
+              Builtin.printLine "2. Download latest release from GitHub"
+              Builtin.printLine "Choose option (1 or 2): "
+              let choice = (Builtin.stdinReadLine ()) |> Stdlib.String.trim
+
+              if choice == "1" then
+                match Installation.System.installFromCurrentBinary host with
+                | Ok message ->
+                  Builtin.printLine (View.formatSuccess message)
+                  { state with lastCommand = "install"; output = "binary install success" }
+                | Error e ->
+                  Builtin.printLine (View.formatError e)
+                  { state with lastCommand = "install"; output = "binary install failed" }
+              else
+                Builtin.printLine "Installing globally..."
+                match Installation.System.install host with
+                | Ok message ->
+                  Builtin.printLine (View.formatSuccess message)
+                  { state with lastCommand = "install"; output = "global install success" }
+                | Error e ->
+                  Builtin.printLine (View.formatError e)
+                  { state with lastCommand = "install"; output = "global install failed" }
+
+        let help (state: AppState) : AppState =
+          Builtin.printLine "Usage: install"
+          Builtin.printLine "Install Darklang CLI globally for system-wide access."
+          Builtin.printLine ""
+          Builtin.printLine "This command installs the CLI to ~/.darklang/bin/ and sets up"
+          Builtin.printLine "shell configuration for global access."
+          { state with lastCommand = "help install"; output = "install help displayed" }
+
+        let complete (state: AppState) (args: List<String>) : List<String> =
+          Completion.noArgsCompletion state args

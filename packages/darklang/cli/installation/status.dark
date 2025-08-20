@@ -1,0 +1,41 @@
+module Darklang =
+  module Cli =
+    module Installation =
+      module Status =
+        let execute (state: AppState) (args: List<String>) : AppState =
+          let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
+          let currentMode = Installation.System.getInstallationMode ()
+
+          let version = Helpers.getVersionInfo ()
+
+          let currentLocation = Packages.Path.formatPath state.currentPath
+          let locationDisplay = if Stdlib.String.isEmpty currentLocation then "/" else currentLocation
+
+          let installationStatus =
+            match currentMode with
+            | Installed ->
+              let homeDir = Config.getDarklangHomeDir host
+              Colors.success "Status: " ++ "Globally installed at " ++ homeDir ++ " and ready to use"
+            | Portable ->
+              let currentDir = Builtin.directoryCurrent ()
+              Colors.warning "Status: " ++ "Running in portable mode at " ++ currentDir ++ "/.darklang (run 'install' for global system-wide access)"
+
+          let statusText =
+            Colors.info "Version: " ++ version ++ "\n" ++
+            Colors.info "Location: " ++ locationDisplay ++ "\n" ++
+            installationStatus ++ "\n\n" ++
+            "Type " ++ Colors.hint "'help'" ++ " for available commands"
+
+          Builtin.printLine statusText
+          { state with lastCommand = "status"; output = "detailed status displayed" }
+
+        let help (state: AppState) : AppState =
+          Builtin.printLine "Usage: status"
+          Builtin.printLine "Show current CLI installation status."
+          Builtin.printLine ""
+          Builtin.printLine "Displays whether CLI is running in portable or global mode"
+          Builtin.printLine "and shows installation location."
+          { state with lastCommand = "help status"; output = "status help displayed" }
+
+        let complete (state: AppState) (args: List<String>) : List<String> =
+          Completion.noArgsCompletion state args
