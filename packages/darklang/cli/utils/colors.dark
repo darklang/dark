@@ -11,6 +11,7 @@ module Darklang =
       // Cursor and line control
       let clearLine = "\u001b[K"
       let carriageReturn = "\r"
+      let moveCursorToColumn (col: Int64) : String = $"\u001b[{col}G"
 
       // Standard colors
       let black = "\u001b[30m"

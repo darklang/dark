@@ -549,7 +549,7 @@ module Darklang =
             else
               state
           | LeftArrow ->
-            // Move cursor left
+            // Move cursor left (cursor-only movement, no content change)
             let newCursorPos = Stdlib.Int64.max 0L (state.cursorPosition - 1L)
             { state with cursorPosition = newCursorPos; needsFullRedraw = false }
           | RightArrow ->
@@ -775,8 +775,9 @@ module Darklang =
           if state.needsFullRedraw then
             Builtin.printLine (View.formatPrompt ())
           else
-            // Move cursor to beginning of line and clear the rest of the line
+            // For all interactive editing: clear line and reprint to avoid artifacts
             Builtin.print (Colors.carriageReturn ++ Colors.clearLine)
+          
           Builtin.print (View.formatPromptWithInput state)
 
         // CLEANUP the specific 'tree' command has bled outside of its space...
