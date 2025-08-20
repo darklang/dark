@@ -48,19 +48,19 @@ A few pieces of feedback I'd like you to create a TODO list for and complete:
 
 
 ## Let's tidy the 'core' folder
-- [ ] colors.dark can be in the utils dir
+- [x] colors.dark can be in the utils dir
       btw, things in the utils dir don't need a Utils namespace
-- [ ] help.dark and quit.dark can be in the root cli dir
-- [ ] the rest should be combined into one 'core.dark' file, 'in order' as you see fit.
+- [x] help.dark and quit.dark can be in the root cli dir
+- [x] the rest should be combined into one 'core.dark' file, 'in order' as you see fit.
     analyze, plan the order, then do the work
     I realize it'll be a bit of a long file
 
 
 ## Misc.
-- [ ] move findCommonLength and findCommonPrefix to the Completions module - that's the only place they're used
-- [ ] and remove the 'location' line of the 'status' command
-- [ ] maybe add a splash of color to the 'help' command? think through options, choose your favorite
-- [ ] rename updateState to whtaever you see fit
+- [x] move findCommonLength and findCommonPrefix to the Completions module - that's the only place they're used
+- [x] and remove the 'location' line of the 'status' command
+- [x] maybe add a splash of color to the 'help' command? think through options, choose your favorite
+- [x] rename updateState to whtaever you see fit
 
 - [ ] I want to generally make this application follow more of the pattern that the Counter List demo shows, with nested MVU stuff
 
