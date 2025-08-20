@@ -20,7 +20,7 @@ module Darklang =
           currentPathStr ++ "> " ++ state.mainPrompt ++ (Colors.hint hint)
 
       let formatWelcome () : String =
-        "Darklang CLI\n\n" ++ Registry.getCommandList () ++ "\n\nType 'help <command>' for specific command help."
+        Registry.getCommandList () ++ "\n\nType 'help <command>' for specific command help."
 
       let formatGoodbye () : String =
         "Goodbye!"

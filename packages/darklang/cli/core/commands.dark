@@ -10,18 +10,4 @@ module Darklang =
           Registry.executeCommand commandName state args
 
 
-      // Clear command - clear the screen
-      let executeClear (state: AppState) (args: List<String>) : AppState =
-        Builtin.stdoutClear ()
-        { state with lastCommand = "clear"; output = "screen cleared"; needsFullRedraw = true }
-
-      let clearHelp (state: AppState) : AppState =
-        Builtin.printLine "Usage: clear"
-        Builtin.printLine "Clear the terminal screen."
-        Builtin.printLine ""
-        Builtin.printLine "Aliases: cls"
-        { state with lastCommand = "help clear"; output = "clear help displayed" }
-
-      let clearComplete (state: AppState) (args: List<String>) : List<String> =
-        Completion.noArgsCompletion state args
 
