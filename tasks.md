@@ -67,7 +67,31 @@ A few pieces of feedback I'd like you to create a TODO list for and complete:
 
 ## More Major Refactor of Package Stuff
 
-- [ ] all of this lol
+### Architecture Plan (Phased Approach)
+
+**Phase 1: Foundation (Clean up existing)**
+- [ ] Remove interactive tree from core - Clean out TreeNavState, TreeNavigationMode that "bled" into core
+- [ ] Extract package types - Move PackagePath and related types to packages module  
+- [ ] Unified path resolution - Single function to parse/resolve relative paths (../, ../Something, etc.)
+
+**Phase 2: New Architecture (Build new system)**
+- [ ] Implement PackageLocation type - New location model with type awareness (Root | Module | Type | Function | Constant)
+- [ ] Implement Page system - Replace uiMode with clean page architecture (MainPrompt | InteractiveNavigation | Help)
+- [ ] Extract package commands - Pure functions that don't touch core state directly
+
+**Phase 3: Enhanced Features (Polish)**
+- [ ] Enhanced display - Icons and better formatting for package locations
+- [ ] Interactive navigation page - Clean MVU-based tree navigation as separate page
+- [ ] Better command integration - Commands work seamlessly with new architecture
+
+**Benefits:**
+- Separation of concerns (package logic completely separate from core)
+- Type safety (PackageLocation prevents navigation errors)  
+- Cleaner MVU (each page can have its own loop)
+- Better UX (clear visual hierarchy with icons)
+- Maintainable (logic consolidated in logical modules)
+
+### Original Requirements
 
 I'd like to do a pretty major refactor of package-specific stuff...
 
