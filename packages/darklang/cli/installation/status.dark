@@ -8,9 +8,6 @@ module Darklang =
 
           let version = Helpers.getVersionInfo ()
 
-          let currentLocation = Packages.Path.formatPath state.currentPath
-          let locationDisplay = if Stdlib.String.isEmpty currentLocation then "/" else currentLocation
-
           let installationStatus =
             match currentMode with
             | Installed ->
@@ -22,7 +19,6 @@ module Darklang =
 
           let statusText =
             Colors.info "Version: " ++ version ++ "\n" ++
-            Colors.info "Location: " ++ locationDisplay ++ "\n" ++
             installationStatus ++ "\n\n" ++
             "Type " ++ Colors.hint "'help'" ++ " for available commands"
 

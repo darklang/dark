@@ -152,24 +152,3 @@ module Darklang =
         Completion.getHintFromCompletions partial completions
 
 
-      let findCommonPrefix (strings: List<String>) : String =
-        match strings with
-        | [] -> ""
-        | [single] -> single
-        | first :: rest ->
-          Stdlib.List.fold rest first (fun acc next ->
-            let maxLen = Stdlib.Int64.min (Stdlib.String.length acc) (Stdlib.String.length next)
-            let commonLen = findCommonLength acc next 0L maxLen
-            Stdlib.String.slice acc 0L commonLen)
-
-
-      let findCommonLength (str1: String) (str2: String) (index: Int64) (maxLen: Int64) : Int64 =
-        if index >= maxLen then
-          index
-        else
-          let char1 = Stdlib.String.slice str1 index (index + 1L)
-          let char2 = Stdlib.String.slice str2 index (index + 1L)
-          if char1 == char2 then
-            findCommonLength str1 str2 (index + 1L) maxLen
-          else
-            index

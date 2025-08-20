@@ -1,5 +1,116 @@
 module Darklang =
   module Cli =
+    // ================================
+    // TYPES - Core type definitions
+    // ================================
+    
+    type Msg =
+      | ProcessInput of String
+      | KeyPressed of key: Stdlib.Cli.Stdin.Key.Key * modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers * keyChar: Stdlib.Option.Option<String>
+      | Exit
+
+
+    // CLEANUP ugh the tree stuff has bled into this... why?
+    // we should refactor back to some Page situation
+    // on most pages, we render the normal Prompt stuff
+    // ... but not on all pages.
+
+    // Interactive UI modes
+    type InteractiveUIMode =
+      | PromptMode        // Normal command prompt
+      | TreeNavigationMode of TreeNavState  // Interactive tree navigation
+
+    // Tree navigation state
+    type TreeNavState =
+      { startPath: PackagePath
+        showIcons: Bool
+        maxDepth: Int64
+        selectedIndex: Int64
+        expandedPaths: List<PackagePath>
+        currentNodes: List<TreeNavNode>
+        scrollOffset: Int64 }
+
+    // Tree navigation node
+    type TreeNavNode =
+      { path: PackagePath
+        name: String
+        nodeType: TreeNodeType
+        isExpanded: Bool
+        entityCount: EntityCount
+        depth: Int64 }
+
+    type TreeNodeType =
+      | RootNode
+      | ModuleNode
+      | FunctionNode
+      | TypeNode
+      | ConstantNode
+
+    type EntityCount =
+      { functions: Int64
+        types: Int64
+        constants: Int64 }
+
+    // Package path as list of components (e.g., ["Darklang"; "Stdlib"; "List"])
+    type PackagePath = List<String>
+
+    type AppState =
+      { isExiting: Bool
+        lastCommand: String
+        output: String
+        mainPrompt: String
+        needsFullRedraw: Bool
+        currentPath: PackagePath
+        pathHistory: List<PackagePath>
+        uiMode: InteractiveUIMode
+        commandHistory: List<String>
+        historyIndex: Int64 }
+
+    let initState () : AppState =
+      AppState
+        { isExiting = false
+          lastCommand = ""
+          output = ""
+          mainPrompt = ""
+          needsFullRedraw = true
+          currentPath = []
+          pathHistory = []
+          uiMode = InteractiveUIMode.PromptMode  // Default to prompt mode
+          commandHistory = []
+          historyIndex = -1L }
+
+    // Helper to update core state fields while preserving package navigation fields
+    let updateCoreFields (state: AppState) (isExiting: Bool) (lastCommand: String) (output: String) (mainPrompt: String) (needsFullRedraw: Bool) : AppState =
+      { state with
+          isExiting = isExiting
+          lastCommand = lastCommand
+          output = output
+          mainPrompt = mainPrompt
+          needsFullRedraw = needsFullRedraw }
+
+
+    // ================================
+    // EXECUTION ERROR - Error handling
+    // ================================
+    
+    module ExecutionError =
+      // TODO migrate this to some ParseAndExecuteScript submodule
+      type ExecutionError =
+        { msg: String; metadata: Dict<String> }
+
+      let toString (err: ExecutionError) : String =
+        let metadataStr =
+          err.metadata
+          |> Stdlib.Dict.toList
+          |> Stdlib.List.map (fun (k, v) -> $"- {k}: {v}")
+          |> Stdlib.String.join "\n"
+        $"Error: {err.msg}\n{metadataStr}"
+
+
+    // ================================
+    // COMPLETION - Tab completion logic
+    // ================================
+    
     module Completion =
       // Types for structured input parsing
       type ParsedInput =
@@ -101,3 +212,4 @@ module Darklang =
             let maxLen = Stdlib.Int64.min (Stdlib.String.length acc) (Stdlib.String.length next)
             let commonLen = findCommonLength acc next 0L maxLen
             Stdlib.String.slice acc 0L commonLen)
+

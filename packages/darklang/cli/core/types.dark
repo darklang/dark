@@ -75,9 +75,8 @@ module Darklang =
           commandHistory = []
           historyIndex = -1L }
 
-    // Helper to update state preserving package navigation fields
-    // CLEANUP needs better name
-    let updateState (state: AppState) (isExiting: Bool) (lastCommand: String) (output: String) (mainPrompt: String) (needsFullRedraw: Bool) : AppState =
+    // Helper to update core state fields while preserving package navigation fields
+    let updateCoreFields (state: AppState) (isExiting: Bool) (lastCommand: String) (output: String) (mainPrompt: String) (needsFullRedraw: Bool) : AppState =
       { state with
           isExiting = isExiting
           lastCommand = lastCommand
