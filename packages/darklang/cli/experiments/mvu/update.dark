@@ -1,0 +1,227 @@
+module Darklang =
+  module CLI =
+    module Experiments =
+      module MVU =
+        module Update =
+          // ==========================================
+          // MVU Update Logic
+          // ==========================================
+
+          // ---------- Command Integration ----------
+          // Wrapper to integrate existing command handlers with MVU
+          type MVUCommandResult =
+            { newModel: Core.CliModel
+              outputLines: List<String>
+              shouldExit: Bool }
+
+          let executeMVUCommand (model: Core.CliModel) (commandName: String) (args: List<String>) : MVUCommandResult =
+            // Convert CliModel to legacy AppState for compatibility
+            let legacyState =
+              Darklang.Cli.AppState
+                { isExiting = false
+                  lastCommand = model.lastCommand
+                  output = model.lastOutput
+                  mainPrompt = ""
+                  needsFullRedraw = false
+                  currentPath = model.currentPath
+                  pathHistory = model.pathHistory
+                  uiMode = Darklang.Cli.InteractiveUIMode.PromptMode
+                  commandHistory = model.commandHistory
+                  historyIndex = model.historyIndex }
+
+            // Execute command using existing registry
+            let resultState = Darklang.Cli.Registry.executeCommand commandName legacyState args
+
+            // Convert back to CliModel
+            let updatedModel =
+              { model with
+                  lastCommand = resultState.lastCommand
+                  lastOutput = resultState.output
+                  currentPath = resultState.currentPath
+                  pathHistory = resultState.pathHistory
+                  commandHistory = resultState.commandHistory
+                  historyIndex = resultState.historyIndex
+                  outputHistory = Stdlib.List.append model.outputHistory [resultState.output]
+                  isExecutingCommand = false
+                  needsRedraw = true }
+
+            MVUCommandResult
+              { newModel = updatedModel
+                outputLines = [resultState.output]
+                shouldExit = resultState.isExiting }
+
+          // ---------- Completion System ----------
+          let updateCompletions (model: Core.CliModel) : Core.CliModel =
+            if Stdlib.String.isEmpty model.currentInput then
+              { model with completions = Core.CompletionState { suggestions = []; selectedIndex = 0L; isVisible = false } }
+            else
+              // Use existing completion system
+              let legacyState =
+                Darklang.Cli.AppState
+                  { isExiting = false
+                    lastCommand = model.lastCommand
+                    output = model.lastOutput
+                    mainPrompt = ""
+                    needsFullRedraw = false
+                    currentPath = model.currentPath
+                    pathHistory = model.pathHistory
+                    uiMode = Darklang.Cli.InteractiveUIMode.PromptMode
+                    commandHistory = model.commandHistory
+                    historyIndex = model.historyIndex }
+
+              let suggestions = Darklang.Cli.Registry.getCompletions legacyState model.currentInput
+              let shouldShow = Stdlib.List.length suggestions > 0L
+
+              { model with
+                  completions =
+                    Core.CompletionState
+                      { suggestions = suggestions
+                        selectedIndex = 0L
+                        isVisible = shouldShow } }
+
+          // ---------- Update Function ----------
+          let updateCliModel (model: Core.CliModel) (msg: Core.CliMsg) : Core.CliModel =
+            match msg with
+            | InputCharacter char ->
+                let newInput = model.currentInput ++ char
+                let updatedModel = { model with currentInput = newInput; cursorPosition = model.cursorPosition + 1L }
+                updateCompletions updatedModel
+
+            | SpecialKey key ->
+                match key with
+                | Backspace ->
+                    if model.cursorPosition > 0L then
+                      let newInput = Stdlib.String.slice model.currentInput 0L (model.cursorPosition - 1L) ++
+                                     Stdlib.String.dropFirst model.currentInput model.cursorPosition
+                      let updatedModel = { model with currentInput = newInput; cursorPosition = model.cursorPosition - 1L }
+                      updateCompletions updatedModel
+                    else
+                      model
+
+                | Tab ->
+                    if model.completions.isVisible && Stdlib.List.length model.completions.suggestions > 0L then
+                      match Stdlib.List.getAt model.completions.suggestions model.completions.selectedIndex with
+                      | Some completion ->
+                          { model with
+                              currentInput = completion
+                              cursorPosition = Stdlib.String.length completion
+                              completions = Core.CompletionState { suggestions = model.completions.suggestions; selectedIndex = model.completions.selectedIndex; isVisible = false } }
+                      | None -> model
+                    else
+                      updateCompletions model
+
+                | UpArrow ->
+                    if model.completions.isVisible then
+                      let newIndex = if model.completions.selectedIndex > 0L then model.completions.selectedIndex - 1L else 0L
+                      { model with completions = Core.CompletionState { suggestions = model.completions.suggestions; selectedIndex = newIndex; isVisible = model.completions.isVisible } }
+                    else
+                      updateCliModel model (NavigateHistory -1L)
+
+                | DownArrow ->
+                    if model.completions.isVisible then
+                      let maxIndex = Stdlib.List.length model.completions.suggestions - 1L
+                      let newIndex = if model.completions.selectedIndex < maxIndex then model.completions.selectedIndex + 1L else maxIndex
+                      { model with completions = Core.CompletionState { suggestions = model.completions.suggestions; selectedIndex = newIndex; isVisible = model.completions.isVisible } }
+                    else
+                      updateCliModel model (NavigateHistory 1L)
+
+                | Escape ->
+                    { model with
+                        completions = Core.CompletionState { suggestions = model.completions.suggestions; selectedIndex = model.completions.selectedIndex; isVisible = false }
+                        showHelp = false
+                        errorMessage = "" }
+
+                | _ -> model
+
+            | ExecuteCommand ->
+                if Stdlib.String.isEmpty (Stdlib.String.trim model.currentInput) then
+                  model
+                else
+                  let trimmed = Stdlib.String.trim model.currentInput
+                  let parts = Stdlib.String.split trimmed " "
+                  match parts with
+                  | [] -> model
+                  | commandName :: args ->
+                      // Add to history
+                      let newHistory = Stdlib.List.append model.commandHistory [trimmed]
+                      let updatedModel = { model with
+                                             commandHistory = newHistory
+                                             historyIndex = -1L
+                                             currentInput = ""
+                                             cursorPosition = 0L
+                                             completions = Core.CompletionState { suggestions = model.completions.suggestions; selectedIndex = model.completions.selectedIndex; isVisible = false }
+                                             isExecutingCommand = true }
+
+                      // Execute command
+                      let result = executeMVUCommand updatedModel commandName args
+                      if result.shouldExit then
+                        { result.newModel with isExiting = true }
+                      else
+                        result.newModel
+
+            | NavigateHistory direction ->
+                let historySize = Stdlib.List.length model.commandHistory
+                if historySize > 0L then
+                  let newIndex =
+                    if direction < 0L then
+                      // Going up (to older commands)
+                      if model.historyIndex == -1L then
+                        historySize - 1L
+                      else if model.historyIndex > 0L then
+                        model.historyIndex - 1L
+                      else
+                        model.historyIndex
+                    else
+                      // Going down (to newer commands)
+                      if model.historyIndex == -1L then
+                        -1L
+                      else if model.historyIndex < historySize - 1L then
+                        model.historyIndex + 1L
+                      else
+                        -1L
+
+                  let newInput =
+                    if newIndex == -1L then
+                      ""
+                    else
+                      match Stdlib.List.getAt model.commandHistory newIndex with
+                      | Some cmd -> cmd
+                      | None -> ""
+
+                  { model with
+                      currentInput = newInput
+                      cursorPosition = Stdlib.String.length newInput
+                      historyIndex = newIndex }
+                else
+                  model
+
+            | ClearScreen ->
+                { model with
+                    outputHistory = []
+                    needsRedraw = true }
+
+            | ShowCommandHelp helpCmd ->
+                { model with
+                    showHelp = true
+                    helpCommand = helpCmd
+                    needsRedraw = true }
+
+            | HideHelp ->
+                { model with
+                    showHelp = false
+                    needsRedraw = true }
+
+            | DisplayError errorMsg ->
+                { model with
+                    errorMessage = errorMsg
+                    needsRedraw = true }
+
+            | ClearError ->
+                { model with
+                    errorMessage = ""
+                    needsRedraw = true }
+
+            | Exit ->
+                { model with isExiting = true }
+
+            | _ -> model

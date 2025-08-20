@@ -49,13 +49,13 @@ module Darklang =
 
         // Resolve a path argument relative to the current path
         // Handles all path formats:
-        // - Absolute: "/Darklang/Stdlib", "/"
-        // - Relative: "Stdlib/List", "Stdlib.List"  
-        // - Parent: "..", "../..", "../Stdlib", "../Stdlib/List"
         // - Current: ".", "./"
+        // - Absolute: "/Darklang/Stdlib", "/"
+        // - Relative: "Stdlib/List", "Stdlib.List"
+        // - Parent: "..", "../..", "../Stdlib", "../Stdlib/List"
         let resolvePath (currentPath: List<String>) (pathArg: String) : List<String> =
           let trimmed = Stdlib.String.trim pathArg
-          
+
           if trimmed == "." || trimmed == "./" then
             // Current directory
             currentPath
@@ -78,7 +78,7 @@ module Darklang =
             // Relative path starting with ../
             let (parentLevels, remainder) = countParentRefs trimmed
             let basePath = goUpLevels currentPath parentLevels
-            
+
             // Add remainder if any
             if Stdlib.String.isEmpty remainder then
               basePath
@@ -97,7 +97,7 @@ module Darklang =
         // e.g., "St" -> (currentPath, "St")
         let resolvePartialPath (currentPath: List<String>) (partial: String) : (List<String> * String) =
           let trimmed = Stdlib.String.trim partial
-          
+
           if Stdlib.String.contains trimmed "." then
             // Dot notation like "Darklang.Stdlib.Li"
             let parts = Stdlib.String.split trimmed "."

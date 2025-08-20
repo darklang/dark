@@ -1,0 +1,86 @@
+module Darklang =
+  module CLI =
+    module Experiments =
+      module MVU =
+        module Core =
+          // ==========================================
+          // MVU-based CLI Implementation
+          // ==========================================
+
+          // ---------- Model Types ----------
+          type CompletionState =
+            { suggestions: List<String>
+              selectedIndex: Int64
+              isVisible: Bool }
+
+          type CliModel =
+            { // Core input state
+              currentInput: String
+              cursorPosition: Int64
+              isExiting: Bool
+
+              // Command execution
+              outputHistory: List<String>
+              isExecutingCommand: Bool
+              lastCommand: String
+              lastOutput: String
+
+              // Package navigation (retain existing functionality)
+              currentPath: List<String>  // PackagePath
+              pathHistory: List<List<String>>
+
+              // Interactive features
+              commandHistory: List<String>
+              historyIndex: Int64
+
+              // UI state
+              completions: CompletionState
+              showHelp: Bool
+              helpCommand: String
+              errorMessage: String
+
+              // Display state
+              needsRedraw: Bool
+              terminalWidth: Int64
+              terminalHeight: Int64 }
+
+          // ---------- Messages ----------
+          type CliMsg =
+            | InputCharacter of String
+            | SpecialKey of Stdlib.Cli.Stdin.Key.Key
+            | ExecuteCommand
+            | ShowCompletions
+            | HideCompletions
+            | SelectCompletion of Int64
+            | NavigateHistory of direction: Int64  // -1 for up, 1 for down
+            | ClearScreen
+            | ShowCommandHelp of String
+            | HideHelp
+            | ChangeDirectory of List<String>
+            | UpdatePath of List<String>
+            | DisplayError of String
+            | ClearError
+            | Exit
+            | Redraw
+
+          // ---------- Model Initialization ----------
+          let initCliModel () : CliModel =
+            CliModel
+              { currentInput = ""
+                cursorPosition = 0L
+                isExiting = false
+                outputHistory = []
+                isExecutingCommand = false
+                lastCommand = ""
+                lastOutput = ""
+                currentPath = []
+                pathHistory = []
+                commandHistory = []
+                historyIndex = -1L
+                completions = CompletionState { suggestions = []; selectedIndex = 0L; isVisible = false }
+                showHelp = false
+                helpCommand = ""
+                errorMessage = ""
+                needsRedraw = true
+                terminalWidth = 80L
+                terminalHeight = 24L }

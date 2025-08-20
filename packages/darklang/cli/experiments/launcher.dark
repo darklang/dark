@@ -1,0 +1,164 @@
+module Darklang =
+  module CLI =
+    module Experiments =
+      module Launcher =
+        // ==========================================
+        // Experiments Launcher - Easy Access to All CLI Experiments
+        // ==========================================
+
+        type ExperimentInfo =
+          { name: String
+            description: String
+            launcher: (Unit -> Int64) }
+
+        let availableExperiments () : List<ExperimentInfo> =
+          [ ExperimentInfo
+              { name = "counter-demo"
+                description = "Counter list MVU demo"
+                launcher = Darklang.Cli.Demo.runMVUDemo }
+            ExperimentInfo
+              { name = "ui-catalog"
+                description = "Terminal.Gui style UI Catalog with MVU components"
+                launcher = Darklang.CLI.Experiments.UICatalog.Catalog.runUICatalogDemo }
+            ExperimentInfo
+              { name = "mvu-cli"
+                description = "Modern MVU-based CLI with REPL-style interface"
+                launcher = Main.runMVUCli }
+            ExperimentInfo
+              { name = "mvu-cli-alt"
+                description = "Alternative MVU CLI implementation"
+                launcher = Darklang.Cli.MVUCli.runMVUCli }
+            ExperimentInfo
+              { name = "data-entry-demo"
+                description = "Task management and data entry demo"
+                launcher = Darklang.Cli.DataEntryDemo.runDataEntryDemo }
+            ExperimentInfo
+              { name = "cli-mvu-demo"
+                description = "CLI MVU architecture demonstration"
+                launcher = Darklang.Cli.CliMVUDemo.runCliMVUDemo }
+            ExperimentInfo
+              { name = "classic-ui-demo"
+                description = "Classic Darklang UI components demo"
+                launcher = Darklang.Cli.ClassicUIDemo.runClassicUIDemo }
+            ExperimentInfo
+              { name = "demo-launcher"
+                description = "Interactive demo launcher interface"
+                launcher = Darklang.Cli.DemoLauncher.runDemoLauncher }
+            ExperimentInfo
+              { name = "ui-components"
+                description = "UI component showcase and examples"
+                launcher = Darklang.Cli.UIComponents.runUIDemoComponents }
+          ]
+
+        let showExperimentsMenu () : Unit =
+          Builtin.printLine "=== Darklang CLI Experiments ==="
+          Builtin.printLine ""
+          Builtin.printLine "Available experiments:"
+          
+          let experiments = availableExperiments ()
+          experiments
+          |> Stdlib.List.indexedMap (fun i exp ->
+              let indexStr = Stdlib.Int64.toString (i + 1L)
+              Builtin.printLine ($"{indexStr}. {exp.name} - {exp.description}")
+          )
+          |> Stdlib.List.length
+          |> fun _ -> ()
+
+          Builtin.printLine ""
+          Builtin.printLine "Usage: call the experiment directly or use the experiments() function"
+
+        let launchExperimentByName (name: String) : Int64 =
+          let experiments = availableExperiments ()
+          match Stdlib.List.findFirst experiments (fun exp -> exp.name == name) with
+          | Some exp -> 
+              let launcherFn = exp.launcher
+              launcherFn ()
+          | None ->
+              Builtin.printLine $"Unknown experiment: {name}"
+              showExperimentsMenu ()
+              1L
+
+        let launchExperimentByIndex (index: Int64) : Int64 =
+          let experiments = availableExperiments ()
+          match Stdlib.List.getAt experiments (index - 1L) with
+          | Some exp -> 
+              let launcherFn = exp.launcher
+              launcherFn ()
+          | None ->
+              Builtin.printLine $"Invalid experiment index: {Stdlib.Int64.toString index}"
+              showExperimentsMenu ()
+              1L
+
+        // TUI State
+        type TUIState = 
+          { experiments: List<ExperimentInfo>
+            selectedIndex: Int64
+            isRunning: Bool }
+
+        let initTUIState () : TUIState =
+          TUIState 
+            { experiments = availableExperiments ()
+              selectedIndex = 0L
+              isRunning = true }
+
+        let drawTUI (state: TUIState) : Unit =
+          // Clear screen and move cursor to top
+          Builtin.print "\u001b[2J\u001b[H"
+          
+          Builtin.printLine "=== Darklang CLI Experiments ==="
+          Builtin.printLine ""
+          Builtin.printLine "Use ↑/↓ to navigate, Enter to select, Q to quit"
+          Builtin.printLine ""
+          
+          // Draw experiments list with selection highlight
+          state.experiments
+          |> Stdlib.List.indexedMap (fun i exp ->
+              if i == state.selectedIndex then
+                Builtin.printLine ($"► {Stdlib.Int64.toString (i + 1L)}. {exp.name} - {exp.description}")
+              else
+                Builtin.printLine ($"  {Stdlib.Int64.toString (i + 1L)}. {exp.name} - {exp.description}")
+          )
+          |> Stdlib.List.length
+          |> fun _ -> ()
+
+        let handleKey (state: TUIState) (keyInput: Stdlib.Cli.Stdin.KeyRead.KeyRead) : TUIState =
+          match keyInput.key with
+          | UpArrow ->
+              let newIndex = if state.selectedIndex > 0L then state.selectedIndex - 1L else 0L
+              { state with selectedIndex = newIndex }
+          | DownArrow ->
+              let maxIndex = Stdlib.List.length state.experiments - 1L
+              let newIndex = if state.selectedIndex < maxIndex then state.selectedIndex + 1L else maxIndex
+              { state with selectedIndex = newIndex }
+          | Enter ->
+              // Launch selected experiment
+              match Stdlib.List.getAt state.experiments state.selectedIndex with
+              | Some exp ->
+                  // Clear screen before launching
+                  Builtin.print "\u001b[2J\u001b[H"
+                  Builtin.printLine ($"Launching {exp.name}...")
+                  Builtin.printLine ""
+                  let launcherFn = exp.launcher
+                  let _ = launcherFn ()
+                  { state with isRunning = false }
+              | None -> state
+          | _ ->
+              // Check for 'q' or 'Q' to quit
+              if keyInput.keyChar == "q" || keyInput.keyChar == "Q" then
+                { state with isRunning = false }
+              else
+                state
+
+        let runTUI (state: TUIState) : Int64 =
+          if Stdlib.Bool.not state.isRunning then
+            0L
+          else
+            drawTUI state
+            let keyInput = Stdlib.Cli.Stdin.readKey ()
+            let newState = handleKey state keyInput
+            runTUI newState
+
+        // Main entry point function
+        let experiments () : Int64 =
+          let initialState = initTUIState ()
+          runTUI initialState

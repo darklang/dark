@@ -1,0 +1,81 @@
+module Darklang =
+  module CLI =
+    module Experiments =
+      module Main =
+        // ==========================================
+        // Main Entry Point for CLI Experiments
+        // ==========================================
+
+        // ---------- MVU CLI Loop ----------
+        let handleKeyInput (keyInput: Stdlib.Cli.Stdin.KeyRead.KeyRead) : MVU.Core.CliMsg =
+          match keyInput.key with
+          | Enter -> MVU.Core.CliMsg.ExecuteCommand
+          | Tab -> MVU.Core.CliMsg.SpecialKey keyInput.key
+          | Backspace -> MVU.Core.CliMsg.SpecialKey keyInput.key
+          | UpArrow -> MVU.Core.CliMsg.SpecialKey keyInput.key
+          | DownArrow -> MVU.Core.CliMsg.SpecialKey keyInput.key
+          | Escape -> MVU.Core.CliMsg.SpecialKey keyInput.key
+          | F1 -> MVU.Core.CliMsg.ShowCommandHelp ""
+          | C when keyInput.modifiers.ctrl -> MVU.Core.CliMsg.Exit
+          | _ ->
+              if Stdlib.String.isEmpty keyInput.keyChar then
+                MVU.Core.CliMsg.SpecialKey keyInput.key
+              else
+                MVU.Core.CliMsg.InputCharacter keyInput.keyChar
+
+        let mvuCliLoop (model: MVU.Core.CliModel) : Int64 =
+          if model.isExiting then
+            Builtin.printLine "Goodbye!"
+            0L
+          else
+            // REPL-style rendering
+            if model.needsRedraw then
+              // After command execution, print new output and show fresh prompt
+              if Stdlib.Bool.not (Stdlib.String.isEmpty model.lastOutput) then
+                Builtin.printLine model.lastOutput
+              let promptLine = MVU.View.viewPrompt model
+              Builtin.print promptLine
+            else
+              // During typing, just update the current line in-place
+              let promptLine = MVU.View.viewPrompt model
+              // Show completions above prompt if visible
+              if model.completions.isVisible && Stdlib.List.length model.completions.suggestions > 0L then
+                Builtin.printLine ""  // New line
+                let completions = MVU.View.viewCompletions model
+                if Stdlib.Bool.not (Stdlib.List.isEmpty completions) then
+                  Builtin.printLine (Stdlib.String.join completions "\n")
+              // Use carriage return to go to start of line, then overwrite
+              Builtin.print ("\r" ++ promptLine ++ "\u001b[K")
+
+            // Read input
+            let keyInput = Stdlib.Cli.Stdin.readKey ()
+            let msg = handleKeyInput keyInput
+            let newModel = MVU.Update.updateCliModel { model with needsRedraw = false } msg
+
+            mvuCliLoop newModel
+
+        // ---------- Entry Points ----------
+        let runMVUCli () : Int64 =
+          // Print welcome message
+          Builtin.printLine "Welcome to Darklang CLI (Experimental MVU Edition)"
+          Builtin.printLine "Type 'help' to see available commands."
+          
+          let initialModel = MVU.Core.initCliModel ()
+          let promptLine = MVU.View.viewPrompt initialModel
+          Builtin.print promptLine
+          mvuCliLoop initialModel
+
+        let runMVUCliWithArgs (args: List<String>) : Int64 =
+          match args with
+          | [] -> runMVUCli ()
+          | _ ->
+              // Execute single command and exit
+              let initialModel = MVU.Core.initCliModel ()
+              let command = Stdlib.String.join args " "
+              let parts = Stdlib.String.split command " "
+              match parts with
+              | [] -> 0L
+              | commandName :: cmdArgs ->
+                  let result = MVU.Update.executeMVUCommand initialModel commandName cmdArgs
+                  Builtin.printLine result.newModel.lastOutput
+                  if result.shouldExit then 0L else 0L

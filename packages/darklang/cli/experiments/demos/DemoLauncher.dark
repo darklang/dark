@@ -1,0 +1,477 @@
+module Darklang =
+  module Cli =
+    module DemoLauncher =
+      // ==========================================
+      // Comprehensive CLI Demo Launcher
+      // ==========================================
+
+      // ---------- Helper Functions ----------
+      let showToast (message: String) (toastType: String) : Unit =
+        let icon = 
+          match toastType with
+          | "Success" -> "✅"
+          | "Warning" -> "⚠️"
+          | "Error" -> "❌"
+          | _ -> "ℹ️"
+        let color = 
+          match toastType with
+          | "Success" -> Darklang.Cli.Colors.success
+          | "Warning" -> Darklang.Cli.Colors.warning  
+          | "Error" -> Darklang.Cli.Colors.error
+          | _ -> Darklang.Cli.Colors.info
+        Builtin.printLine (color (icon ++ " " ++ message))
+
+      // ---------- Demo Registry ----------
+      type DemoInfo = 
+        { id: String
+          title: String
+          description: String
+          category: String
+          complexity: String
+          estimatedTime: String
+          keywords: List<String> }
+
+      type DemoCategory = | MVU | UI | Interaction | Productivity | Advanced
+
+      let allDemos : List<DemoInfo> =
+        [ DemoInfo
+            { id = "counter-mvu"
+              title = "Counter List MVU Demo"
+              description = "Interactive counter list with Model-View-Update architecture"
+              category = "MVU Fundamentals"
+              complexity = "Beginner"
+              estimatedTime = "5-10 min"
+              keywords = ["mvu"; "counter"; "navigation"; "state"] }
+
+        ; DemoInfo
+          { id = "ui-components"
+            title = "Bulma-Inspired UI Components"
+            description = "10 screens showcasing Bulma-inspired CLI/TUI components"
+            category = "UI Components"
+            complexity = "Intermediate"
+            estimatedTime = "10-15 min"
+            keywords = ["ui"; "bulma"; "components"; "design"; "showcase"] }
+
+        ; DemoInfo
+          { id = "data-entry"
+            title = "Task Manager Data Entry"
+            description = "Complete task management app combining MVU + UI components"
+            category = "Complete Applications"
+            complexity = "Advanced"
+            estimatedTime = "15-20 min"
+            keywords = ["crud"; "tasks"; "forms"; "mvp"; "layout"] }
+
+        ; DemoInfo
+          { id = "cli-mvu"
+            title = "CLI Experience with MVU"
+            description = "Replica of Darklang CLI with MVU architecture and autocompletion"
+            category = "CLI Tools"
+            complexity = "Advanced"
+            estimatedTime = "10-15 min"
+            keywords = ["cli"; "completion"; "commands"; "history"; "help"] }
+
+        ; DemoInfo
+          { id = "classic-ui"
+            title = "Darklang Classic UI Replica"
+            description = "Recreation of Darklang Classic interface with live data simulation"
+            category = "IDE Experience"
+            complexity = "Expert"
+            estimatedTime = "20-30 min"
+            keywords = ["canvas"; "editor"; "functions"; "realtime"; "classic"] }
+
+        ; DemoInfo
+          { id = "extended-components"
+            title = "Terminal.Gui Extended Components"
+            description = "Advanced UI components inspired by Terminal.Gui library"
+            category = "UI Components"
+            complexity = "Intermediate"
+            estimatedTime = "5-10 min"
+            keywords = ["terminal-gui"; "advanced"; "listview"; "textview"; "widgets"] }
+
+        ; DemoInfo
+          { id = "abstractions-showcase"
+            title = "CLI Abstractions & Utilities"
+            description = "Enhanced CLI abstractions including forms, menus, and progress bars"
+            category = "Developer Tools"
+            complexity = "Intermediate"
+            estimatedTime = "8-12 min"
+            keywords = ["abstractions"; "forms"; "menus"; "progress"; "utilities"] } ]
+
+      // ---------- Launcher State ----------
+      type FilterMode = | All | ByCategory of String | ByComplexity of String
+      type SortMode = | ByTitle | ByComplexity | ByTime | ByCategory
+
+      type LauncherModel =
+        { demos: List<DemoInfo>
+          filteredDemos: List<DemoInfo>
+          selectedIndex: Int64
+          filterMode: FilterMode
+          sortMode: SortMode
+          searchQuery: String
+          showHelp: Bool
+          showDetails: Bool }
+
+      // ---------- Messages ----------
+      type LauncherMsg =
+        | NavigateUp
+        | NavigateDown
+        | LaunchDemo
+        | ToggleDetails
+        | UpdateSearch of String
+        | SetFilter of FilterMode
+        | SetSort of SortMode
+        | ShowHelp
+        | HideHelp
+        | RefreshDemos
+        | Exit
+
+      // ---------- Model Functions ----------
+      let initLauncherModel () : LauncherModel =
+        LauncherModel
+          { demos = allDemos
+            filteredDemos = allDemos
+            selectedIndex = 0L
+            filterMode = FilterMode.All
+            sortMode = SortMode.ByCategory
+            searchQuery = ""
+            showHelp = false
+            showDetails = false }
+
+      let filterDemos (demos: List<DemoInfo>) (filter: FilterMode) (search: String) : List<DemoInfo> =
+        let filtered = 
+          match filter with
+          | All -> demos
+          | ByCategory category -> demos |> Stdlib.List.filter (fun d -> d.category == category)
+          | ByComplexity complexity -> demos |> Stdlib.List.filter (fun d -> d.complexity == complexity)
+
+        if Stdlib.String.trim search == "" then
+          filtered
+        else
+          let searchLower = Stdlib.String.toLowercase search
+          filtered |> Stdlib.List.filter (fun d ->
+            Stdlib.String.contains (Stdlib.String.toLowercase d.title) searchLower ||
+            Stdlib.String.contains (Stdlib.String.toLowercase d.description) searchLower ||
+            Stdlib.Option.isSome (Stdlib.List.findFirst d.keywords (fun k -> Stdlib.String.contains (Stdlib.String.toLowercase k) searchLower)))
+
+      let sortDemos (demos: List<DemoInfo>) (sortMode: SortMode) : List<DemoInfo> =
+        match sortMode with
+        | ByTitle -> demos |> Stdlib.List.sortBy (fun d -> d.title)
+        | ByComplexity -> 
+            let complexityOrder = ["Beginner"; "Intermediate"; "Advanced"; "Expert"]
+            demos |> Stdlib.List.sortBy (fun d ->
+              match Stdlib.List.findFirstWithIndex complexityOrder (fun c -> c == d.complexity) with
+              | Some (index, _) -> index
+              | None -> 999L)
+        | ByTime -> demos |> Stdlib.List.sortBy (fun d -> d.estimatedTime)
+        | ByCategory -> demos |> Stdlib.List.sortBy (fun d -> d.category)
+
+      // ---------- Demo Execution ----------
+      let executeDemo (demoId: String) : Int64 =
+        match demoId with
+        | "counter-mvu" -> Darklang.Cli.Demo.runMVUCounterDemo ()
+        | "ui-components" -> Darklang.Cli.UIComponents.runUIDemoComponents ()
+        | "data-entry" -> Darklang.Cli.DataEntryDemo.runDataEntryDemo ()
+        | "cli-mvu" -> Darklang.Cli.CliMVUDemo.runCliMVUDemo ()
+        | "classic-ui" -> Darklang.Cli.ClassicUIDemo.runClassicUIDemo ()
+        | "extended-components" -> 
+            // Demo showcase for extended components
+            Builtin.printLine "Extended Components Demo:"
+            Builtin.printLine ""
+            let context = Darklang.CLI.Experiments.UICatalog.Core.Types.RenderContext { availableWidth = 40L; availableHeight = 5L; hasFocus = true; theme = "default" }
+            let listItems = [Darklang.CLI.Experiments.UICatalog.Components.ListView.ListItem { text = "ListView Demo"; enabled = true; data = "" };
+                           Darklang.CLI.Experiments.UICatalog.Components.ListView.ListItem { text = "Interactive Lists"; enabled = true; data = "" };
+                           Darklang.CLI.Experiments.UICatalog.Components.ListView.ListItem { text = "Navigation Support"; enabled = false; data = "" }]
+            let listView = Darklang.CLI.Experiments.UICatalog.Components.ListView.createListView listItems 40L 5L
+            let rendered = Darklang.CLI.Experiments.UICatalog.Components.ListView.renderListView listView context
+            Builtin.printLine (Stdlib.String.join "\n" rendered)
+            Builtin.printLine ""
+            let progressBar = Darklang.CLI.Experiments.UICatalog.Components.Progress.createProgressBar 75L 0L 100L Darklang.CLI.Experiments.UICatalog.Core.Types.Color.Success
+            let progressContext = Darklang.CLI.Experiments.UICatalog.Core.Types.RenderContext { availableWidth = 30L; availableHeight = 1L; hasFocus = false; theme = "default" }
+            let progressRendered = Darklang.CLI.Experiments.UICatalog.Components.Progress.renderProgressBar progressBar progressContext
+            Builtin.printLine (Stdlib.String.join "\n" progressRendered)
+            Builtin.printLine ""
+            Builtin.printLine "Press Enter to continue..."
+            let _ = Stdlib.Cli.Stdin.readKey ()
+            0L
+        | "abstractions-showcase" ->
+            // Demo showcase for abstractions - featuring toasts!
+            Builtin.printLine "🎨 CLI Abstractions Toast Demo"
+            Builtin.printLine ""
+            
+            // Show different types of toast notifications
+            showToast "🎉 Welcome to the Abstractions showcase!" "Info"
+            Builtin.printLine ""
+            
+            showToast "✅ Data processed successfully!" "Success"
+            Builtin.printLine ""
+            
+            showToast "⚠️  Cache will expire in 5 minutes" "Warning" 
+            Builtin.printLine ""
+            
+            showToast "❌ Failed to connect to remote server" "Error"
+            Builtin.printLine ""
+            
+            // Show a progress simulation
+            Builtin.printLine "📊 Running progress demonstration..."
+            (Stdlib.List.range 1L 10L)
+            |> Stdlib.List.iter (fun i ->
+              let percent = i * 10L
+              Builtin.printLine ($"Progress: [{Stdlib.String.repeat "█" i}{Stdlib.String.repeat "░" (10L - i)}] {Stdlib.Int64.toString percent}%")
+              Builtin.sleepMs 200L)
+            
+            showToast "🏁 Abstractions demo completed!" "Success"
+            Builtin.printLine ""
+            Builtin.printLine "Press Enter to return to launcher..."
+            let _ = Stdlib.Cli.Stdin.readKey ()
+            0L
+        | _ ->
+            Builtin.printLine ("Demo not found: " ++ demoId)
+            0L
+
+      // ---------- View Functions ----------
+      let formatComplexityBadge (complexity: String) : String =
+        let color = 
+          match complexity with
+          | "Beginner" -> Darklang.Cli.Colors.success
+          | "Intermediate" -> Darklang.Cli.Colors.warning
+          | "Advanced" -> Darklang.Cli.Colors.error
+          | "Expert" -> Darklang.Cli.Colors.boldText
+          | _ -> (fun x -> x)
+        color ("[" ++ complexity ++ "]")
+
+      let formatDemoListItem (demo: DemoInfo) (isSelected: Bool) : String =
+        let marker = if isSelected then "▶ " else "  "
+        let titleColor = if isSelected then Darklang.Cli.Colors.boldText else fun x -> x
+        let title = titleColor demo.title
+        let complexity = formatComplexityBadge demo.complexity
+        let time = Darklang.Cli.Colors.dimText ("⏱ " ++ demo.estimatedTime)
+        
+        marker ++ title ++ " " ++ complexity ++ " " ++ time
+
+      let formatDemoDetails (demo: DemoInfo) : List<String> =
+        [ Darklang.Cli.Colors.boldText ("📋 " ++ demo.title)
+        ; ""
+        ; "Category: " ++ Darklang.Cli.Colors.info demo.category
+        ; "Complexity: " ++ formatComplexityBadge demo.complexity
+        ; "Time: " ++ Darklang.Cli.Colors.hint demo.estimatedTime
+        ; ""
+        ; Darklang.Cli.Colors.boldText "Description:"
+        ; demo.description
+        ; ""
+        ; Darklang.Cli.Colors.boldText "Keywords:"
+        ; Stdlib.String.join demo.keywords ", " ]
+
+      let viewLauncherHeader () : List<String> =
+        [ Darklang.Cli.Colors.boldText "╔══════════════════════════════════════════════════════════════╗"
+        ; Darklang.Cli.Colors.boldText "║                    🚀 Darklang CLI Demo Launcher            ║"
+        ; Darklang.Cli.Colors.boldText "║                      Interactive Showcase                   ║"
+        ; Darklang.Cli.Colors.boldText "╚══════════════════════════════════════════════════════════════╝"
+        ; "" ]
+
+      let viewStatsPanel (model: LauncherModel) : List<String> =
+        let totalDemos = Stdlib.List.length model.demos
+        let filteredCount = Stdlib.List.length model.filteredDemos
+        let categories = model.demos |> Stdlib.List.map (fun d -> d.category) |> Stdlib.List.unique |> Stdlib.List.length
+        
+        [ Darklang.Cli.Colors.boldText "📊 Statistics:"
+        ; "Total Demos: " ++ Darklang.Cli.Colors.info (Stdlib.Int64.toString totalDemos)
+        ; "Filtered: " ++ Darklang.Cli.Colors.warning (Stdlib.Int64.toString filteredCount)
+        ; "Categories: " ++ Darklang.Cli.Colors.hint (Stdlib.Int64.toString categories)
+        ; ""
+        ; Darklang.Cli.Colors.boldText "🎯 Quick Navigation:"
+        ; "↑/↓ Navigate  Enter Launch  D Details"
+        ; "F Filter      S Sort        H Help"
+        ; "Q Quit" ]
+
+      let viewFilterInfo (model: LauncherModel) : String =
+        let filterStr = 
+          match model.filterMode with
+          | All -> "All demos"
+          | ByCategory cat -> "Category: " ++ cat
+          | ByComplexity comp -> "Complexity: " ++ comp
+        
+        let sortStr = 
+          match model.sortMode with
+          | ByTitle -> "Title"
+          | ByComplexity -> "Complexity"
+          | ByTime -> "Time"
+          | ByCategory -> "Category"
+
+        "Filter: " ++ Darklang.Cli.Colors.info filterStr ++ " | Sort: " ++ Darklang.Cli.Colors.warning sortStr
+
+      let viewHelpPanel () : List<String> =
+        (Darklang.Cli.UIComponents.Box.create 60L 15L Darklang.Cli.UIComponents.Box.Style.Double
+          [ Darklang.Cli.Colors.boldText "🎯 Demo Launcher Help"
+          ; ""
+          ; "Navigation:"
+          ; "  ↑/↓     Navigate demo list"
+          ; "  Enter   Launch selected demo"
+          ; "  D       Toggle demo details"
+          ; "  /       Search demos"
+          ; ""
+          ; "Filtering & Sorting:"
+          ; "  F       Cycle filter modes"
+          ; "  S       Cycle sort modes"
+          ; "  R       Refresh demo list"
+          ; ""
+          ; "Other:"
+          ; "  H       Show/hide this help"
+          ; "  Q       Quit launcher" ]) |> Stdlib.String.split "\n"
+
+      let viewLauncherModel (model: LauncherModel) : String =
+        let header = viewLauncherHeader ()
+        let filterInfo = [viewFilterInfo model; ""]
+        
+        let demoList =
+          model.filteredDemos
+          |> Stdlib.List.indexedMap (fun i demo -> formatDemoListItem demo (i == model.selectedIndex))
+
+        let mainContent =
+          if model.showDetails && Stdlib.List.length model.filteredDemos > 0L then
+            match Stdlib.List.getAt model.filteredDemos model.selectedIndex with
+            | Some demo ->
+                let detailsBox = Darklang.Cli.UIComponents.Box.create 45L 15L Darklang.Cli.UIComponents.Box.Style.Single (formatDemoDetails demo)
+                let listBox = Darklang.Cli.UIComponents.Box.create 35L 15L Darklang.Cli.UIComponents.Box.Style.Single demoList
+                [listBox ++ "  " ++ detailsBox]
+            | None -> demoList
+          else
+            demoList
+
+        let sidebar = viewStatsPanel model
+        let sidebarBox = Darklang.Cli.UIComponents.Box.create 30L (Stdlib.List.length sidebar + 2L) Darklang.Cli.UIComponents.Box.Style.Rounded sidebar
+
+        let helpSection = if model.showHelp then Stdlib.List.append [""] (viewHelpPanel ()) else []
+
+        let footerInfo = 
+          [ ""
+          ; Darklang.Cli.Colors.hint ("Selected: " ++ 
+            (match Stdlib.List.getAt model.filteredDemos model.selectedIndex with
+             | Some demo -> demo.title
+             | None -> "None"))
+          ; Darklang.Cli.Colors.dimText "Press H for help, Q to quit" ]
+
+        let allLines = 
+          header
+          |> Stdlib.List.append filterInfo
+          |> Stdlib.List.append mainContent
+          |> Stdlib.List.append helpSection
+          |> Stdlib.List.append [sidebarBox]
+          |> Stdlib.List.append footerInfo
+        Stdlib.String.join allLines "\n"
+
+      // ---------- Update Function ----------
+      let updateLauncherModel (model: LauncherModel) (msg: LauncherMsg) : LauncherModel =
+        match msg with
+        | NavigateUp ->
+            let newIndex = if model.selectedIndex > 0L then model.selectedIndex - 1L else Stdlib.List.length model.filteredDemos - 1L
+            { model with selectedIndex = newIndex }
+
+        | NavigateDown ->
+            let newIndex = if model.selectedIndex < Stdlib.List.length model.filteredDemos - 1L then model.selectedIndex + 1L else 0L
+            { model with selectedIndex = newIndex }
+
+        | LaunchDemo ->
+            model // Will be handled in main loop
+
+        | ToggleDetails ->
+            { model with showDetails = Stdlib.Bool.not model.showDetails }
+
+        | UpdateSearch query ->
+            let filtered = filterDemos model.demos model.filterMode query
+            let sorted = sortDemos filtered model.sortMode
+            { model with 
+                searchQuery = query
+                filteredDemos = sorted
+                selectedIndex = 0L }
+
+        | SetFilter filter ->
+            let filtered = filterDemos model.demos filter model.searchQuery
+            let sorted = sortDemos filtered model.sortMode
+            { model with 
+                filterMode = filter
+                filteredDemos = sorted
+                selectedIndex = 0L }
+
+        | SetSort sortMode ->
+            let sorted = sortDemos model.filteredDemos sortMode
+            { model with 
+                sortMode = sortMode
+                filteredDemos = sorted }
+
+        | ShowHelp ->
+            { model with showHelp = true }
+
+        | HideHelp ->
+            { model with showHelp = false }
+
+        | RefreshDemos ->
+            let filtered = filterDemos allDemos model.filterMode model.searchQuery
+            let sorted = sortDemos filtered model.sortMode
+            { model with 
+                demos = allDemos
+                filteredDemos = sorted }
+
+        | Exit ->
+            model
+
+      // ---------- Main MVU Loop ----------
+      let mvuLoop (model: LauncherModel) : Int64 =
+        // Clear screen and render
+        Builtin.print "\u001b[2J\u001b[H"
+        Builtin.printLine (viewLauncherModel model)
+
+        // Read input
+        let keyInput = Stdlib.Cli.Stdin.readKey ()
+
+        // Process input
+        let newModel =
+          match keyInput.key with
+          | UpArrow -> updateLauncherModel model LauncherMsg.NavigateUp
+          | DownArrow -> updateLauncherModel model LauncherMsg.NavigateDown
+          | Enter -> 
+              // Launch selected demo
+              match Stdlib.List.getAt model.filteredDemos model.selectedIndex with
+              | Some demo ->
+                  Builtin.print "\u001b[2J\u001b[H"
+                  let _ = executeDemo demo.id
+                  Builtin.printLine ""
+                  Builtin.printLine "Press Enter to return to launcher..."
+                  let _ = Stdlib.Cli.Stdin.readKey ()
+                  model
+              | None -> model
+          | D -> updateLauncherModel model LauncherMsg.ToggleDetails
+          | H -> 
+              if model.showHelp then
+                updateLauncherModel model LauncherMsg.HideHelp
+              else
+                updateLauncherModel model LauncherMsg.ShowHelp
+          | F ->
+              let nextFilter = 
+                match model.filterMode with
+                | All -> LauncherMsg.SetFilter (FilterMode.ByCategory "MVU Fundamentals")
+                | ByCategory _ -> LauncherMsg.SetFilter (FilterMode.ByComplexity "Beginner")
+                | ByComplexity _ -> LauncherMsg.SetFilter FilterMode.All
+              updateLauncherModel model nextFilter
+          | S ->
+              let nextSort = 
+                match model.sortMode with
+                | ByCategory -> LauncherMsg.SetSort SortMode.ByTitle
+                | ByTitle -> LauncherMsg.SetSort SortMode.ByComplexity
+                | ByComplexity -> LauncherMsg.SetSort SortMode.ByTime
+                | ByTime -> LauncherMsg.SetSort SortMode.ByCategory
+              updateLauncherModel model nextSort
+          | R -> updateLauncherModel model LauncherMsg.RefreshDemos
+          | Q -> updateLauncherModel model LauncherMsg.Exit
+          | _ -> model
+
+        // Check for exit
+        match keyInput.key with
+        | Q ->
+            Builtin.print "\u001b[2J\u001b[H"
+            Builtin.printLine "Thanks for exploring Darklang CLI demos!"
+            0L
+        | _ -> mvuLoop newModel
+
+      let runDemoLauncher (unit: Unit) : Int64 =
+        let initialModel = initLauncherModel ()
+        mvuLoop initialModel

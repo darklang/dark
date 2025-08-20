@@ -1,0 +1,49 @@
+module Darklang =
+  module CLI =
+    module Experiments =
+      module MVU =
+        module View =
+          // ==========================================
+          // MVU View Functions
+          // ==========================================
+
+          let formatPath (path: List<String>) : String =
+            if Stdlib.List.isEmpty path then
+              "~"
+            else
+              "/" ++ Stdlib.String.join path "/"
+
+          let viewPrompt (model: Core.CliModel) : String =
+            let pathStr = formatPath model.currentPath
+            let promptText = Darklang.Cli.Colors.info pathStr ++ Darklang.Cli.Colors.boldText " $ "
+            let inputText = model.currentInput
+
+            // Add cursor if not at end
+            let displayInput =
+              if model.cursorPosition == Stdlib.String.length inputText then
+                inputText ++ Darklang.Cli.Colors.hint "_"
+              else
+                let before = Stdlib.String.slice inputText 0L model.cursorPosition
+                let cursor = Darklang.Cli.Colors.boldText "_"
+                let after = Stdlib.String.dropFirst inputText (model.cursorPosition + 1L)
+                before ++ cursor ++ after
+
+            promptText ++ displayInput
+
+          let viewCompletions (model: Core.CliModel) : List<String> =
+            if model.completions.isVisible && Stdlib.List.length model.completions.suggestions > 0L then
+              // Simple text-based completions without fancy UI boxes
+              model.completions.suggestions
+              |> Stdlib.List.indexedMap (fun i suggestion ->
+                  if i == model.completions.selectedIndex then
+                    "> " ++ suggestion ++ " <"
+                  else
+                    "  " ++ suggestion)
+            else
+              []
+
+          let viewError (model: Core.CliModel) : List<String> =
+            if Stdlib.String.isEmpty model.errorMessage then
+              []
+            else
+              ["Error: " ++ model.errorMessage]

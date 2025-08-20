@@ -1,0 +1,225 @@
+module Darklang =
+  module Cli =
+    module Demo =
+      // ==========================================
+      // MVU Counter Component Demo
+      // ==========================================
+      
+      // Model types
+      type CounterModel = { id: Int64; value: Int64; label: String }
+      
+      type CounterMsg =
+        | Increment
+        | Decrement 
+        | Reset
+        | SetValue of Int64
+      
+      type CounterListModel = 
+        { counters: List<CounterModel>
+          nextId: Int64
+          selectedIndex: Int64 }
+      
+      type CounterListMsg =
+        | AddCounter of String
+        | RemoveCounter of Int64
+        | UpdateCounter of counterId: Int64 * counterMsg: CounterMsg
+        | SelectNext
+        | SelectPrevious
+        | IncrementSelected
+        | DecrementSelected
+        | ResetSelected
+        | ResetAll
+      
+      // Counter functions
+      let initCounter (id: Int64) (label: String) : CounterModel =
+        CounterModel { id = id; value = 0L; label = label }
+      
+      let updateCounter (model: CounterModel) (msg: CounterMsg) : CounterModel =
+        match msg with
+        | Increment -> { model with value = model.value + 1L }
+        | Decrement -> { model with value = model.value - 1L }
+        | Reset -> { model with value = 0L }
+        | SetValue v -> { model with value = v }
+      
+      let viewCounter (model: CounterModel) : String =
+        let coloredValue =
+          if model.value > 0L then
+            Darklang.Cli.Colors.success (Stdlib.Int64.toString model.value)
+          else if model.value < 0L then
+            Darklang.Cli.Colors.error (Stdlib.Int64.toString model.value)
+          else
+            Darklang.Cli.Colors.info (Stdlib.Int64.toString model.value)
+        
+        $"[{model.label}]: {coloredValue}"
+      
+      // CounterList functions
+      let initCounterList () : CounterListModel =
+        CounterListModel 
+          { counters = 
+              [ initCounter 0L "Main"
+                initCounter 1L "Secondary"
+                initCounter 2L "Tertiary" ]
+            nextId = 3L
+            selectedIndex = 0L }
+      
+      let updateCounterList (model: CounterListModel) (msg: CounterListMsg) : CounterListModel =
+        match msg with
+        | AddCounter label ->
+            let newCounter = initCounter model.nextId label
+            { model with 
+                counters = Stdlib.List.append model.counters [newCounter]
+                nextId = model.nextId + 1L }
+        
+        | RemoveCounter id ->
+            let newCounters = 
+              model.counters 
+              |> Stdlib.List.filter (fun c -> c.id != id)
+            let newIndex = 
+              if model.selectedIndex >= Stdlib.List.length newCounters then
+                Stdlib.Int64.max 0L (Stdlib.List.length newCounters - 1L)
+              else
+                model.selectedIndex
+            { model with counters = newCounters; selectedIndex = newIndex }
+        
+        | UpdateCounter (counterId, counterMsg) ->
+            let newCounters = 
+              model.counters
+              |> Stdlib.List.map (fun c ->
+                if c.id == counterId then
+                  updateCounter c counterMsg
+                else
+                  c)
+            { model with counters = newCounters }
+        
+        | SelectNext ->
+            let maxIndex = Stdlib.List.length model.counters - 1L
+            let newIndex = 
+              if model.selectedIndex < maxIndex then
+                model.selectedIndex + 1L
+              else
+                0L
+            { model with selectedIndex = newIndex }
+        
+        | SelectPrevious ->
+            let maxIndex = Stdlib.List.length model.counters - 1L
+            let newIndex =
+              if model.selectedIndex > 0L then
+                model.selectedIndex - 1L
+              else
+                maxIndex
+            { model with selectedIndex = newIndex }
+        
+        | IncrementSelected ->
+            match Stdlib.List.getAt model.counters model.selectedIndex with
+            | Some counter ->
+                updateCounterList model (CounterListMsg.UpdateCounter (counter.id, CounterMsg.Increment))
+            | None -> model
+        
+        | DecrementSelected ->
+            match Stdlib.List.getAt model.counters model.selectedIndex with
+            | Some counter ->
+                updateCounterList model (CounterListMsg.UpdateCounter (counter.id, CounterMsg.Decrement))
+            | None -> model
+        
+        | ResetSelected ->
+            match Stdlib.List.getAt model.counters model.selectedIndex with
+            | Some counter ->
+                updateCounterList model (CounterListMsg.UpdateCounter (counter.id, CounterMsg.Reset))
+            | None -> model
+        
+        | ResetAll ->
+            let newCounters = 
+              model.counters
+              |> Stdlib.List.map (fun c -> updateCounter c CounterMsg.Reset)
+            { model with counters = newCounters }
+      
+      let viewCounterList (model: CounterListModel) : String =
+        let header = Darklang.Cli.Colors.boldText "=== Counter List MVU Demo ==="
+        
+        let countersView = 
+          model.counters
+          |> Stdlib.List.indexedMap (fun index counter ->
+            let selector = 
+              if index == model.selectedIndex then
+                Darklang.Cli.Colors.boldText "> "
+              else
+                "  "
+            selector ++ viewCounter counter)
+          |> Stdlib.String.join "\n"
+        
+        let controls = 
+          "\n" ++ Darklang.Cli.Colors.hint "Controls:" ++
+          "\n  ↑/↓: Select counter | ←/→: Dec/Inc selected" ++
+          "\n  +/-: Increment/Decrement selected" ++
+          "\n  A: Add counter | D: Delete selected" ++
+          "\n  R: Reset selected | Q: Quit demo" ++
+          "\n  (lowercase keys also work)"
+        
+        let stats = 
+          let total = 
+            model.counters
+            |> Stdlib.List.map (fun c -> c.value)
+            |> Stdlib.List.fold 0L (fun acc v -> acc + v)
+          $"\nTotal: {Darklang.Cli.Colors.boldText (Stdlib.Int64.toString total)} | Counters: {Stdlib.Int64.toString (Stdlib.List.length model.counters)}"
+        
+        header ++ "\n\n" ++ countersView ++ "\n" ++ stats ++ "\n" ++ controls
+      
+      // Main MVU Loop
+      let mvuLoop (model: CounterListModel) : Int64 =
+        // Clear screen and render
+        Builtin.print "\u001b[2J\u001b[H"
+        Builtin.printLine (viewCounterList model)
+        
+        // Read input
+        let keyInput = Stdlib.Cli.Stdin.readKey ()
+        
+        // Process input
+        let newModel = 
+          match keyInput.key with
+          | UpArrow -> updateCounterList model CounterListMsg.SelectPrevious
+          | DownArrow -> updateCounterList model CounterListMsg.SelectNext
+          | LeftArrow -> updateCounterList model CounterListMsg.DecrementSelected
+          | RightArrow -> updateCounterList model CounterListMsg.IncrementSelected
+          | A -> 
+              let labelNum = model.nextId
+              updateCounterList model (CounterListMsg.AddCounter $"Counter {Stdlib.Int64.toString labelNum}")
+          | D ->
+              match Stdlib.List.getAt model.counters model.selectedIndex with
+              | Some counter -> updateCounterList model (CounterListMsg.RemoveCounter counter.id)
+              | None -> model
+          | R -> updateCounterList model CounterListMsg.ResetSelected
+          | Q -> model // Will exit on next check  
+          | _ ->
+              match keyInput.keyChar with
+              | "+" -> updateCounterList model CounterListMsg.IncrementSelected
+              | "-" -> updateCounterList model CounterListMsg.DecrementSelected
+              | "r" -> updateCounterList model CounterListMsg.ResetSelected
+              | "R" -> updateCounterList model CounterListMsg.ResetAll
+              | "a" -> 
+                  let labelNum = model.nextId
+                  updateCounterList model (CounterListMsg.AddCounter $"Counter {Stdlib.Int64.toString labelNum}")
+              | "d" ->
+                  match Stdlib.List.getAt model.counters model.selectedIndex with
+                  | Some counter -> updateCounterList model (CounterListMsg.RemoveCounter counter.id)
+                  | None -> model
+              | "q" -> model // Will exit on next check
+              | _ -> model
+        
+        // Check for exit
+        match keyInput.key with
+        | Q -> 
+            Builtin.print "\u001b[2J\u001b[H"
+            Builtin.printLine "Exiting MVU Counter Demo..."
+            0L
+        | _ ->
+            if keyInput.keyChar == "q" then
+              Builtin.print "\u001b[2J\u001b[H"
+              Builtin.printLine "Exiting MVU Counter Demo..."
+              0L
+            else
+              mvuLoop newModel
+      
+      let runMVUDemo (unit: Unit) : Int64 =
+        // Initialize and start
+        let initialModel = initCounterList ()
+        mvuLoop initialModel
