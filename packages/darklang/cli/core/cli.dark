@@ -37,6 +37,11 @@ module Darklang =
       | [] ->
         Builtin.printLine (View.formatWelcome ())
         runInteractiveLoop initialState
+      // Handle --version and -v flags
+      | ["--version"] | ["-v"] ->
+        let versionInfo = Installation.Commands.getVersionInfo ()
+        Builtin.printLine versionInfo
+        0L
       // Otherwise, just execute command, print result, and exit
       | _ ->
         let command = args |> Stdlib.String.join " "

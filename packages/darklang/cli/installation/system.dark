@@ -70,8 +70,8 @@ module Darklang =
 
           let globalBinPath =
             match host.os with
-            | Windows -> $"{darklangHomeDir}\\bin\\darklang.exe"
-            | _ -> $"{darklangHomeDir}/bin/darklang"
+            | Windows -> $"{darklangHomeDir}\\bin\\dark.exe"
+            | _ -> $"{darklangHomeDir}/bin/dark"
 
           match host.os with
           | Windows -> Stdlib.Cli.PowerShell.fileExists globalBinPath
@@ -93,8 +93,8 @@ module Darklang =
 
           let globalBinaryPath =
             match host.os with
-            | Windows -> $"{globalBinDir}darklang.exe"
-            | _ -> $"{globalBinDir}darklang"
+            | Windows -> $"{globalBinDir}dark.exe"
+            | _ -> $"{globalBinDir}dark"
 
           let configPath = $"{darklangHomeDir}/config.json"
 
@@ -128,14 +128,14 @@ module Darklang =
               | _ ->
                 match Config.updateVersion configPath "local-binary" with
                 | Ok _ ->
-                  match Stdlib.Cli.Unix.deleteAlias host.defaultShell "darklang" with
+                  match Stdlib.Cli.Unix.deleteAlias host.defaultShell "dark" with
                   | Ok _ ->
-                    match Stdlib.Cli.Unix.addAlias host.defaultShell "darklang" globalBinaryPath with
+                    match Stdlib.Cli.Unix.addAlias host.defaultShell "dark" globalBinaryPath with
                     | Ok _ -> Stdlib.Result.Result.Ok()
                     | Error e -> Stdlib.Result.Result.Error e
                   | Error _ ->
                     // Ignore error if alias doesn't exist, try to add it anyway
-                    match Stdlib.Cli.Unix.addAlias host.defaultShell "darklang" globalBinaryPath with
+                    match Stdlib.Cli.Unix.addAlias host.defaultShell "dark" globalBinaryPath with
                     | Ok _ -> Stdlib.Result.Result.Ok()
                     | Error e -> Stdlib.Result.Result.Error e
                 | Error e -> Stdlib.Result.Result.Error e
@@ -149,12 +149,12 @@ module Darklang =
               if migrateChoice == "copy" then
                 if Stdlib.Cli.Unix.fileExists portableDbPath || Stdlib.Cli.PowerShell.fileExists portableDbPath then
                   match migratePortableData host portableDbPath with
-                  | Ok _ -> Stdlib.Result.Result.Ok("Binary copied and data migrated. The global 'darklang' command should now be available.")
+                  | Ok _ -> Stdlib.Result.Result.Ok("Binary copied and data migrated. The global 'dark' command should now be available.")
                   | Error e -> Stdlib.Result.Result.Error($"Binary copied but data migration failed: {e}")
                 else
-                  Stdlib.Result.Result.Ok("Binary copied with fresh database (no portable data found). The global 'darklang' command should now be available.")
+                  Stdlib.Result.Result.Ok("Binary copied with fresh database (no portable data found). The global 'dark' command should now be available.")
               else
-                Stdlib.Result.Result.Ok("Binary copied with fresh database. The global 'darklang' command should now be available.")
+                Stdlib.Result.Result.Ok("Binary copied with fresh database. The global 'dark' command should now be available.")
             | Error e -> Stdlib.Result.Result.Error($"Binary copied but setup failed: {e}")
           | Error e -> Stdlib.Result.Result.Error e
 
@@ -176,10 +176,10 @@ module Darklang =
             if choice == "2" then
               // Copy the database after successful installation
               match migratePortableData host portableDbPath with
-              | Ok _ -> Stdlib.Result.Result.Ok("Global installation complete with data migration. Restart your terminal to use 'darklang' command.")
-              | Error e -> Stdlib.Result.Result.Error($"Installation complete but data migration failed: {e}. You can probably continue if you copy the .db manually, restart your terminal, and run the 'darklang' command")
+              | Ok _ -> Stdlib.Result.Result.Ok("Global installation complete with data migration. Restart your terminal to use 'dark' command.")
+              | Error e -> Stdlib.Result.Result.Error($"Installation complete but data migration failed: {e}. You can probably continue if you copy the .db manually, restart your terminal, and run the 'dark' command")
             else
-              Stdlib.Result.Result.Ok("Global installation complete with fresh database. Restart your terminal to use 'darklang' command.")
+              Stdlib.Result.Result.Ok("Global installation complete with fresh database. Restart your terminal to use 'dark' command.")
           | Error e -> Stdlib.Result.Result.Error e
 
 
@@ -215,7 +215,7 @@ module Darklang =
 
         /// Uninstall the CLI with user confirmation
         let uninstallWithConfirmation (host: Stdlib.Cli.Host.Host) : Stdlib.Result.Result<String, String> =
-          Builtin.printLine "Are you sure you want to uninstall darklang cli? (y/n): "
+          Builtin.printLine "Are you sure you want to uninstall dark cli? (y/n): "
           let response = Builtin.stdinReadLine ()
 
           if response == "y" || response == "Y" then

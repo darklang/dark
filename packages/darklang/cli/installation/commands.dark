@@ -34,7 +34,7 @@ module Darklang =
             if Installation.System.globalInstallationExists host then
               let homeDir = Config.getDarklangHomeDir host
 
-              let message = $"Detected portable mode - you're running from {currentDir}/.darklang\nFound existing global installation at {homeDir}\n\nIf you'd like to update your global installation, please run `darklang` rather than this portable executable."
+              let message = $"Detected portable mode - you're running from {currentDir}/.darklang\nFound existing global installation at {homeDir}\n\nIf you'd like to update your global installation, please run `dark` rather than this portable executable."
               Builtin.printLine (View.formatSuccess message)
               { state with lastCommand = "install"; output = "existing global found" }
             else

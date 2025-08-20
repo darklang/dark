@@ -27,9 +27,26 @@ package-reloads are higher level, happen whenever you change a .dark file, take 
 .net builds are lower level, happen whenever you change an F# file, and take up to a min to load, and log to build-server.log. when they finish, they trigger a package reload too, 'just in case'
 
 ## Regarding Darklang Syntax
-- when you construct enums, you need the typename before the case name. when you deconstruct - enums, you're only allowed the case name
-- oh you can't use / for Int64s. use Stdlib.Int64.divide
-- same for `-`; can only be used for
-- list items are separated by ;
-- the LHS of a |> may need to be wrapped by () if it's "complex"
+
+### Critical Rules
+- Darklang is whitespace-sensitive - proper indentation and line breaks are critical
+- No nested function definitions allowed - extract all functions to module level
+- The LHS of a |> needs parentheses if it's complex: `(Stdlib.List.range 0L 100L) |> Stdlib.List.map fn`
+- List items are separated by `;`
+- Cannot use `/` operator for Int64 division - use `Stdlib.Int64.divide`
+- Cannot use `-` operator for Float subtraction - use `Stdlib.Float.subtract`
+- Reserved keyword: "function" is reserved in F#, use "fn" instead for field names
+
+### Record Construction
+- When constructing records, ensure the `{` is never to the left of the type name
+- Correct: `RecordType { field = value }` or multi-line with proper indentation
+- Wrong: Type name and opening brace misaligned
+
+### Enum Construction
+- When constructing enums, need typename before case name: `EnumType.CaseName`
+- When deconstructing in match expressions, use only case name: `| CaseName ->`
+
+### Function Arguments
+- Check parameter order carefully - e.g., `Stdlib.String.join` expects list first, then separator
+- `Stdlib.List.range` expects start and end values, both inclusive
 

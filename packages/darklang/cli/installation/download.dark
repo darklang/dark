@@ -63,9 +63,9 @@ module Darklang =
             (Stdlib.Cli.PowerShell.grantExecutePermission extractedExecutablePath)
             |> Builtin.unwrap
 
-            (Stdlib.Cli.PowerShell.deleteAlias "darklang") |> Builtin.unwrap
+            (Stdlib.Cli.PowerShell.deleteAlias "dark") |> Builtin.unwrap
 
-            (Stdlib.Cli.PowerShell.addAlias "darklang" extractedExecutablePath)
+            (Stdlib.Cli.PowerShell.addAlias "dark" extractedExecutablePath)
             |> Builtin.unwrap
 
             Stdlib.Result.Result.Ok()
@@ -99,11 +99,11 @@ module Darklang =
 
             (Config.updateVersion configPath latestReleaseTag) |> Builtin.unwrap
 
-            (Stdlib.Cli.Unix.deleteAlias host.defaultShell "darklang") |> Builtin.unwrap
+            (Stdlib.Cli.Unix.deleteAlias host.defaultShell "dark") |> Builtin.unwrap
 
             (Stdlib.Cli.Unix.addAlias
               host.defaultShell
-              "darklang"
+              "dark"
               extractedExecutablePath)
             |> Builtin.unwrap
 

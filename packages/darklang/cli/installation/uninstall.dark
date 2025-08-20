@@ -20,20 +20,20 @@ module Darklang =
           match host.os with
           | Windows ->
             let result =
-              (Stdlib.Cli.PowerShell.deleteAlias "darklang")
+              (Stdlib.Cli.PowerShell.deleteAlias "dark")
               |> Stdlib.Result.andThen (fun _ -> removeDarklangDirectory host)
 
             match result with
             | Ok _ -> Stdlib.Result.Result.Ok()
             | Error err ->
-              Stdlib.Result.Result.Error $"Error uninstalling darklang: {err}"
+              Stdlib.Result.Result.Error $"Error uninstalling dark: {err}"
 
           | Linux | MacOS ->
             let result =
-              (Stdlib.Cli.Unix.deleteAlias host.defaultShell "darklang")
+              (Stdlib.Cli.Unix.deleteAlias host.defaultShell "dark")
               |> Stdlib.Result.andThen (fun _ -> removeDarklangDirectory host)
 
             match result with
             | Ok _ -> Stdlib.Result.Result.Ok()
             | Error err ->
-              Stdlib.Result.Result.Error $"Error uninstalling darklang: {err}"
+              Stdlib.Result.Result.Error $"Error uninstalling dark: {err}"
