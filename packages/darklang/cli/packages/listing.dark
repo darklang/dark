@@ -5,19 +5,10 @@ module Darklang =
         // LS command - list contents
         let executeLS (state: AppState) (args: List<String>) : AppState =
           // Determine which path to list
-          // CLEANUP extract this to a fn; test it
           let path =
             match args with
             | [] -> state.currentPath
-            | ["/"] -> []
-            | [ ".." ] ->
-              if Stdlib.List.isEmpty state.currentPath then
-                []
-              else
-                Stdlib.List.dropLast state.currentPath
-            // TODO support ../..
-            // TODO support ../Something
-            | [ pathArg ] -> Packages.Path.parsePath pathArg
+            | [ pathArg ] -> Utils.resolvePath state.currentPath pathArg
             | _ ->
               // Multiple args, just use current for now
               // CLEANUP error or something?

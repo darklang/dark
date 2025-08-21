@@ -19,8 +19,7 @@ module Darklang =
     type InteractiveUIMode =
       | PromptMode        // Normal command prompt
 
-    // Package path as list of components (e.g., ["Darklang"; "Stdlib"; "List"])
-    type PackagePath = List<String>
+    // Package path type is defined in Packages.Types module
 
     type AppState =
       { isExiting: Bool
@@ -29,8 +28,8 @@ module Darklang =
         mainPrompt: String
         cursorPosition: Int64
         needsFullRedraw: Bool
-        currentPath: PackagePath
-        pathHistory: List<PackagePath>
+        currentPath: Packages.Types.PackagePath
+        pathHistory: List<Packages.Types.PackagePath>
         uiMode: InteractiveUIMode
         commandHistory: List<String>
         historyIndex: Int64 }

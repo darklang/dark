@@ -3,13 +3,13 @@ module Darklang =
     module Packages =
       module Path =
         // Package path utilities
-        let formatPath (path: PackagePath) : String =
+        let formatPath (path: Types.PackagePath) : String =
           if Stdlib.List.isEmpty path then
             "/"
           else
             $"/{Stdlib.String.join path "."}"
 
-        let parsePath (pathStr: String) : PackagePath =
+        let parsePath (pathStr: String) : Types.PackagePath =
           let trimmed = Stdlib.String.trim pathStr
           if trimmed == "/" || Stdlib.String.isEmpty trimmed then
             []

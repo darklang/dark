@@ -24,7 +24,7 @@ module Darklang =
           let startPath =
             match Stdlib.List.filter args (fun arg -> Stdlib.Bool.not (Stdlib.String.startsWith arg "--")) with
             | [] -> state.currentPath
-            | [pathStr] -> Path.parsePath pathStr
+            | [pathStr] -> Utils.resolvePath state.currentPath pathStr
             | _ -> state.currentPath
 
           // Static tree display
@@ -81,7 +81,7 @@ module Darklang =
           ()
 
         // Display module tree recursively
-        let displayModuleTree (path: PackagePath) (showIcons: Bool) (remainingDepth: Int64) (currentDepth: Int64) (prefix: String) : Unit =
+        let displayModuleTree (path: Types.PackagePath) (showIcons: Bool) (remainingDepth: Int64) (currentDepth: Int64) (prefix: String) : Unit =
           if remainingDepth <= 0L then
             ()
           else

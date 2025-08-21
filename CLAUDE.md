@@ -29,7 +29,7 @@ package-reloads are higher level, happen whenever you change a .dark file, take 
 ## Regarding Darklang Syntax
 
 ### Critical Rules
-- Darklang is whitespace-sensitive - proper indentation and line breaks are critical
+- Darklang is whitespace- and indentation-sensitive - proper indentation and line breaks are critical
 - No nested function definitions allowed - extract all functions to module level
 - The LHS of a |> needs parentheses if it's complex: `(Stdlib.List.range 0L 100L) |> Stdlib.List.map fn`
 - List items are separated by `;`

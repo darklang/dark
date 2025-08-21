@@ -1,0 +1,6 @@
+module Darklang =
+  module Cli =
+    module Packages =
+      module Types =
+        // Package path as list of components (e.g., ["Darklang"; "Stdlib"; "List"])
+        type PackagePath = List<String>

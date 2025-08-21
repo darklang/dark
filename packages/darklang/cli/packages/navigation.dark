@@ -11,39 +11,7 @@ module Darklang =
             Builtin.printLine $"Current path: {currentPathStr}"
             { state with lastCommand = "cd"; output = "pwd displayed" }
           | [pathArg] ->
-            let newPath =
-              // Handle special navigation patterns
-              if pathArg == ".." then
-                // Go back to parent
-                if Stdlib.List.isEmpty state.currentPath then
-                  []
-                else
-                  Stdlib.List.dropLast state.currentPath
-              else if pathArg == "../.." then
-                // Go back two levels
-                if Stdlib.List.length state.currentPath <= 1L then
-                  []
-                else
-                  Stdlib.List.dropLast (Stdlib.List.dropLast state.currentPath)
-              else if pathArg == "/" then
-                []
-              else if Stdlib.String.startsWith pathArg "/" then
-                // Absolute path
-                Packages.Path.parsePath pathArg
-              else if Stdlib.String.startsWith pathArg "../" then
-                // Relative path starting with ../
-                // Go up one level first, then navigate
-                let afterDotDot = Stdlib.String.dropFirst pathArg 3L
-                let parentPath = if Stdlib.List.isEmpty state.currentPath then [] else Stdlib.List.dropLast state.currentPath
-                if Stdlib.String.isEmpty afterDotDot then
-                  parentPath
-                else
-                  let relativePath = Packages.Path.parsePath afterDotDot
-                  Stdlib.List.append parentPath relativePath
-              else
-                // Regular relative path - append to current path
-                let relativePath = Packages.Path.parsePath pathArg
-                Stdlib.List.append state.currentPath relativePath
+            let newPath = Utils.resolvePath state.currentPath pathArg
 
             let newHistory = Stdlib.List.append state.pathHistory [state.currentPath]
             let newPathStr = Packages.Path.formatPath newPath
