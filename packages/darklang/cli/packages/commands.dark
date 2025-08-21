@@ -8,7 +8,7 @@ module Darklang =
         // Pure navigation function that returns navigation decision
         let computeNavigation (currentLocation: Types.PackageLocation) (pathArg: String) : (Types.PackageLocation * String) =
           let currentPath = Path.locationToPath currentLocation
-          Navigation.resolveNavigationTarget currentPath pathArg
+          Nav.resolveNavigationTarget currentPath pathArg
         
         // Pure back navigation that computes the target location
         let computeBackNavigation (locationHistory: List<Types.PackageLocation>) : Stdlib.Option.Option<Types.PackageLocation> =

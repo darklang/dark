@@ -239,7 +239,7 @@ module Darklang =
           CommandHandler { name = "nav"; description = "Navigate between packages, modules, and entities"; aliases = ["cd"]; execute = Packages.Nav.execute; help = Packages.Nav.help; complete = Packages.Nav.complete }
           CommandHandler { name = "ls"; description = "List package contents"; aliases = ["dir"]; execute = Packages.Listing.executeLS; help = Packages.Listing.lsHelp; complete = Packages.Listing.lsComplete }
           //CommandHandler { name = "pwd"; description = "Show current package path"; aliases = []; execute = Packages.Navigation.executePWD; help = Packages.Navigation.pwdHelp; complete = Packages.Navigation.pwdComplete }
-          CommandHandler { name = "back"; description = "Go back to previous location"; aliases = []; execute = Packages.Navigation.executeBACK; help = Packages.Navigation.backHelp; complete = Packages.Navigation.backComplete }
+          CommandHandler { name = "back"; description = "Go back to previous location"; aliases = []; execute = Packages.Back.execute; help = Packages.Back.help; complete = Packages.Back.complete }
           CommandHandler { name = "clear"; description = "Clear the screen"; aliases = ["cls"]; execute = Cli.Clear.execute; help = Cli.Clear.help; complete = Cli.Clear.complete }
           CommandHandler { name = "run"; description = "Run a function or script"; aliases = []; execute = Cli.Execution.executeRun; help = Cli.Execution.runHelp; complete = Cli.Execution.runComplete }
           CommandHandler { name = "eval"; description = "Evaluate a Dark expression"; aliases = []; execute = Cli.Execution.executeEval; help = Cli.Execution.evalHelp; complete = Cli.Execution.evalComplete }

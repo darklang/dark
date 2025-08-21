@@ -1,0 +1,29 @@
+module Darklang =
+  module Cli =
+    module Packages =
+      module Back =
+        // Navigate back using history
+        let execute (state: AppState) (args: List<String>) : AppState =
+          // Use pure function to compute back navigation target
+          match Commands.computeBackNavigation state.locationHistory with
+          | Some previousLocation ->
+            let newHistory = Stdlib.List.dropLast state.locationHistory
+            let pathStr = Packages.Path.formatLocation previousLocation
+            Builtin.printLine (Colors.success ("Back to: " ++ pathStr))
+
+            { state with
+                lastCommand = "back"
+                output = "back to " ++ pathStr
+                needsFullRedraw = true
+                currentLocation = previousLocation
+                locationHistory = newHistory }
+          | None ->
+            Builtin.printLine "No previous location in history"
+            { state with lastCommand = "back"; output = "no history" }
+
+        let help (state: AppState) : AppState =
+          Builtin.printLine "Usage: back"
+          Builtin.printLine "Navigate back to the previous location in history."
+          { state with lastCommand = "help back"; output = "back help displayed" }
+
+        let complete (state: AppState) (args: List<String>) : List<String> = []
