@@ -28,7 +28,7 @@ module Darklang =
         // Helper function to view entity at current location
         let viewEntityAtCurrentLocation (state: AppState) (entityType: String) (entityName: String) (modulePath: Types.PackagePath) : AppState =
           // Search for the specific entity to get its details
-          let searchQuery = Utils.createFullSearchQuery modulePath
+          let searchQuery = Utils.createSearchQuery modulePath
           let searchResults = LanguageTools.PackageManager.Search.search searchQuery
           
           match entityType with
@@ -113,81 +113,95 @@ module Darklang =
               viewEntityAtCurrentLocation state "Type" name path
             | Constant (name, path) ->
               viewEntityAtCurrentLocation state "Constant" name path
-          | [fullPath] ->
-            // Parse the path: could be "Option" or "Darklang.Stdlib.Option.Option"
-            let pathParts = Stdlib.String.split fullPath "."
+          | [pathArg] ->
+            // Handle path resolution first (for .., /, relative paths)
+            if pathArg == ".." || pathArg == "/" || Stdlib.String.contains pathArg "/" then
+              // This is a navigation path - resolve it and view as module
+              let currentPath = Packages.Path.locationToPath state.currentLocation
+              let resolvedPath = Utils.resolvePath currentPath pathArg
+              let pathStr = Packages.Path.formatPath resolvedPath
+              
+              // Search the resolved module
+              let moduleSearchQuery = Utils.createSearchQuery resolvedPath
+              let moduleSearchResults = LanguageTools.PackageManager.Search.search moduleSearchQuery
+              
+              viewAsModule state pathStr moduleSearchResults
+            else
+              // Parse as entity path: could be "Option" or "Darklang.Stdlib.Option.Option"
+              let pathParts = Stdlib.String.split pathArg "."
 
-            // Try to find as a specific entity first
-            let (modulePath, entityName) =
-              match Stdlib.List.reverse pathParts with
-              | [] -> ([], fullPath)  // Shouldn't happen, but handle gracefully
-              | [singleName] ->
-                // Single name like "Option" - search in current context
-                (Packages.Path.locationToPath state.currentLocation, singleName)
-              | entityName :: reversedModuleParts ->
-                // Multi-part path like "Darklang.Stdlib.Option.Option"
-                let moduleParts = Stdlib.List.reverse reversedModuleParts
-                (moduleParts, entityName)
+              // Try to find as a specific entity first
+              let (modulePath, entityName) =
+                match Stdlib.List.reverse pathParts with
+                | [] -> ([], pathArg)  // Shouldn't happen, but handle gracefully
+                | [singleName] ->
+                  // Single name like "Option" - search in current context
+                  (Packages.Path.locationToPath state.currentLocation, singleName)
+                | entityName :: reversedModuleParts ->
+                  // Multi-part path like "Darklang.Stdlib.Option.Option"
+                  let moduleParts = Stdlib.List.reverse reversedModuleParts
+                  (moduleParts, entityName)
 
-            // Build search query to find the entity in the specified module
-            let searchQuery = Utils.createFullSearchQuery modulePath
+              // Build search query to find the entity in the specified module
+              let searchQuery = Utils.createSearchQuery modulePath
 
-            let searchResults = LanguageTools.PackageManager.Search.search searchQuery
+              let searchResults = LanguageTools.PackageManager.Search.search searchQuery
 
-            // Try to find the specific entity by exact name match
-            let foundFunction =
-              searchResults.fns
-              |> Stdlib.List.findFirst (fun fn ->
-                let name = LanguageTools.ProgramTypes.PackageFn.nameToString fn.name
-                let shortName = Utils.extractEntityShortName name
-                shortName == entityName)
+              // Try to find the specific entity by exact name match
+              let foundFunction =
+                searchResults.fns
+                |> Stdlib.List.findFirst (fun fn ->
+                  let name = LanguageTools.ProgramTypes.PackageFn.nameToString fn.name
+                  let shortName = Utils.extractEntityShortName name
+                  shortName == entityName)
 
-            let foundType =
-              searchResults.types
-              |> Stdlib.List.findFirst (fun typ ->
-                let name = LanguageTools.ProgramTypes.PackageType.nameToString typ.name
-                let shortName = Utils.extractEntityShortName name
-                shortName == entityName)
+              let foundType =
+                searchResults.types
+                |> Stdlib.List.findFirst (fun typ ->
+                  let name = LanguageTools.ProgramTypes.PackageType.nameToString typ.name
+                  let shortName = Utils.extractEntityShortName name
+                  shortName == entityName)
 
-            let foundConstant =
-              searchResults.constants
-              |> Stdlib.List.findFirst (fun constant ->
-                let name = LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name
-                let shortName = Utils.extractEntityShortName name
-                shortName == entityName)
+              let foundConstant =
+                searchResults.constants
+                |> Stdlib.List.findFirst (fun constant ->
+                  let name = LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name
+                  let shortName = Utils.extractEntityShortName name
+                  shortName == entityName)
 
-            // Display the found entity
-            match foundFunction with
-            | Some fn ->
-              viewSpecificFunction state fn
-            | None ->
-              match foundType with
-              | Some typ ->
-                viewSpecificType state typ
+              // Display the found entity
+              match foundFunction with
+              | Some fn ->
+                viewSpecificFunction state fn
               | None ->
-                match foundConstant with
-                | Some constant ->
-                  viewSpecificConstant state constant
+                match foundType with
+                | Some typ ->
+                  viewSpecificType state typ
                 | None ->
-                  // No entity found - try as a module using the full path
-                  let fullModulePath = Stdlib.List.append modulePath [entityName]
-                  let moduleSearchQuery = Utils.createFullSearchQuery fullModulePath
+                  match foundConstant with
+                  | Some constant ->
+                    viewSpecificConstant state constant
+                  | None ->
+                    // No entity found - try as a module using the full path
+                    let fullModulePath = Stdlib.List.append modulePath [entityName]
+                    let moduleSearchQuery = Utils.createSearchQuery fullModulePath
+                    let moduleSearchResults = LanguageTools.PackageManager.Search.search moduleSearchQuery
+                    let hasModuleContents =
+                      Stdlib.Bool.not (Stdlib.List.isEmpty moduleSearchResults.fns) ||
+                      Stdlib.Bool.not (Stdlib.List.isEmpty moduleSearchResults.types) ||
+                      Stdlib.Bool.not (Stdlib.List.isEmpty moduleSearchResults.constants) ||
+                      Stdlib.Bool.not (Stdlib.List.isEmpty moduleSearchResults.submodules)
 
-                  let moduleSearchResults = LanguageTools.PackageManager.Search.search moduleSearchQuery
-                  let hasModuleContents =
-                    Stdlib.Bool.not (Stdlib.List.isEmpty moduleSearchResults.fns) ||
-                    Stdlib.Bool.not (Stdlib.List.isEmpty moduleSearchResults.types) ||
-                    Stdlib.Bool.not (Stdlib.List.isEmpty moduleSearchResults.constants) ||
-                    Stdlib.Bool.not (Stdlib.List.isEmpty moduleSearchResults.submodules)
-
-                  if hasModuleContents then
-                    // Display as module
-                    viewAsModule state fullPath moduleSearchResults
-                  else
-                    // Nothing found
-                    Builtin.printLine $"Entity '{fullPath}' not found."
-                    Builtin.printLine "Use 'ls' to see available entities or 'cd' to navigate to a module."
-                    { state with lastCommand = "view"; output = $"entity {fullPath} not found" }
+                    if hasModuleContents then
+                      // Display as module
+                      let fullPath = Stdlib.String.join fullModulePath "."
+                      viewAsModule state fullPath moduleSearchResults
+                    else
+                      // Nothing found
+                      let fullPath = Stdlib.String.join fullModulePath "."
+                      Builtin.printLine $"Entity '{fullPath}' not found."
+                      Builtin.printLine "Use 'ls' to see available entities or 'cd' to navigate to a module."
+                      { state with lastCommand = "view"; output = $"entity {fullPath} not found" }
           | _ ->
             Builtin.printLine "Usage: view <entityName>"
             Builtin.printLine "Too many arguments provided."
@@ -284,7 +298,7 @@ module Darklang =
             let currentPath = Packages.Path.locationToPath state.currentLocation
             if Stdlib.List.isEmpty currentPath then
               // Get top-level modules
-              let moduleQuery = Utils.createModuleSearchQuery []
+              let moduleQuery = Utils.createSearchQuery []
               let moduleResults = LanguageTools.PackageManager.Search.search moduleQuery
 
               // Get top-level modules
@@ -293,7 +307,7 @@ module Darklang =
                 []
 
               // Also get any entities at root level
-              let entityQuery = Utils.createFullSearchQuery []
+              let entityQuery = Utils.createSearchQuery []
               let entityResults = LanguageTools.PackageManager.Search.search entityQuery
 
               let entityNames =
@@ -308,7 +322,7 @@ module Darklang =
 
             else
               // Inside a module, suggest submodules and entities
-              let query = Utils.createFullSearchQuery currentPath
+              let query = Utils.createSearchQuery currentPath
               let searchResults = LanguageTools.PackageManager.Search.search query
 
               // Get submodules
@@ -364,7 +378,7 @@ module Darklang =
                     Stdlib.List.append currentPath prefixParts
 
                 // Search for entities and submodules in that context
-                let query = Utils.createFullSearchQuery fullModulePath
+                let query = Utils.createSearchQuery fullModulePath
                 let searchResults = LanguageTools.PackageManager.Search.search query
 
                 // Get submodules

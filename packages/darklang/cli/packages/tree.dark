@@ -221,7 +221,7 @@ module Darklang =
               Stdlib.List.append options moduleNames
             else
               // In a module, suggest relative paths and submodules
-              let query = Utils.createModuleSearchQuery currentPath
+              let query = Utils.createSearchQuery currentPath
               let results = LanguageTools.PackageManager.Search.search query
               let submoduleNames =
                 match Stdlib.List.head results.submodules with

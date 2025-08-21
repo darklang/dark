@@ -16,15 +16,9 @@ module Darklang =
               let parentLocation = Packages.Path.pathToLocation parentPath
               let parentStr = Packages.Path.formatLocation parentLocation
               (parentLocation, parentStr)
-          else if Stdlib.String.contains target "." then
-            // Multi-part path - treat as module for now
-            let newPath = Utils.resolvePath currentPath target
-            let newLocation = Packages.Path.pathToLocation newPath
-            let locationStr = Packages.Path.formatLocation newLocation
-            (newLocation, locationStr)
           else
-            // Single name - check if it's an entity in current context
-            let searchQuery = Utils.createFullSearchQuery currentPath
+            // Single or multi-part name - check if it's an entity first, then try as module path
+            let searchQuery = Utils.createSearchQuery currentPath
             let searchResults = LanguageTools.PackageManager.Search.search searchQuery
             
             // Check if it's a function
@@ -69,35 +63,56 @@ module Darklang =
                   let locationStr = Packages.Path.formatLocation constLocation
                   (constLocation, locationStr)
                 | None ->
-                  // Fallback - try as module path
+                  // Try as module path, but validate it exists
                   let newPath = Utils.resolvePath currentPath target
-                  let newLocation = Packages.Path.pathToLocation newPath
-                  let locationStr = Packages.Path.formatLocation newLocation
-                  (newLocation, locationStr)
+                  let query = Utils.createSearchQuery newPath
+                  let searchResults = LanguageTools.PackageManager.Search.search query
+                  
+                  // Check if this path has any content (submodules, functions, types, constants)
+                  let hasSubmodules = Stdlib.Bool.not (Stdlib.List.isEmpty searchResults.submodules)
+                  let hasFunctions = Stdlib.Bool.not (Stdlib.List.isEmpty searchResults.fns)
+                  let hasTypes = Stdlib.Bool.not (Stdlib.List.isEmpty searchResults.types)
+                  let hasConstants = Stdlib.Bool.not (Stdlib.List.isEmpty searchResults.constants)
+                  
+                  if hasSubmodules || hasFunctions || hasTypes || hasConstants then
+                    let newLocation = Packages.Path.pathToLocation newPath
+                    let locationStr = Packages.Path.formatLocation newLocation
+                    (newLocation, locationStr)
+                  else
+                    // Path doesn't exist - return a special error result that the caller can handle
+                    // We'll use a special marker to indicate failure
+                    let currentLocation = Packages.Path.pathToLocation currentPath
+                    let errorMsg = $"Path '{target}' not found"
+                    (currentLocation, errorMsg)
 
         // NAV command - navigate between packages, modules, and entities  
         let executeNAV (state: AppState) (args: List<String>) : AppState =
           match args with
           | [] ->
-            // No args, show current path
-            let currentPathStr = Packages.Path.formatLocation state.currentLocation
+            // No args, show current path using pure function
+            let currentPathStr = Commands.computePwdOutput state.currentLocation
             Builtin.printLine $"Current path: {currentPathStr}"
             { state with lastCommand = "nav"; output = "pwd displayed" }
           | [pathArg] ->
-            let currentPath = Packages.Path.locationToPath state.currentLocation
+            // Use pure function to compute navigation result
+            let (newLocation, locationStr) = Commands.computeNavigation state.currentLocation pathArg
             
-            // Try to intelligently determine what the user wants to navigate to
-            let (newLocation, locationStr) = resolveNavigationTarget currentPath pathArg
-            
-            let newHistory = Stdlib.List.append state.locationHistory [state.currentLocation]
-            Builtin.printLine (Colors.success $"Changed to: {locationStr}")
+            // Check if navigation failed (same location + error message)
+            if newLocation == state.currentLocation && Stdlib.String.contains locationStr "not found" then
+              // Navigation failed - show error and don't change location
+              Builtin.printLine (Colors.error locationStr)
+              { state with lastCommand = "nav"; output = "nav failed" }
+            else
+              // Navigation succeeded
+              let newHistory = Stdlib.List.append state.locationHistory [state.currentLocation]
+              Builtin.printLine (Colors.success $"Changed to: {locationStr}")
 
-            { state with
-                lastCommand = "nav"
-                output = $"nav to {locationStr}"
-                needsFullRedraw = true
-                currentLocation = newLocation
-                locationHistory = newHistory }
+              { state with
+                  lastCommand = "nav"
+                  output = $"nav to {locationStr}"
+                  needsFullRedraw = true
+                  currentLocation = newLocation
+                  locationHistory = newHistory }
           | _ ->
             Builtin.printLine "Usage: nav [path]"
             Builtin.printLine "  nav /             - Go to root"
@@ -120,7 +135,8 @@ module Darklang =
 
         // BACK command - navigate back using history
         let executeBACK (state: AppState) (args: List<String>) : AppState =
-          match Stdlib.List.last state.locationHistory with
+          // Use pure function to compute back navigation target
+          match Commands.computeBackNavigation state.locationHistory with
           | Some previousLocation ->
             let newHistory = Stdlib.List.dropLast state.locationHistory
             let pathStr = Packages.Path.formatLocation previousLocation
@@ -183,12 +199,7 @@ module Darklang =
             let currentPath = Packages.Path.locationToPath state.currentLocation
             if Stdlib.List.isEmpty currentPath then
               // Get top-level packages from the package manager
-              let query =
-                LanguageTools.ProgramTypes.Search.SearchQuery
-                  { currentModule = []
-                    text = ""
-                    searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
-                    entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module ] }
+              let query = Utils.createSearchQuery []
               let searchResults = LanguageTools.PackageManager.Search.search query
 
               // Extract unique owners from module paths
@@ -208,7 +219,7 @@ module Darklang =
               Stdlib.List.append ["/"; ".."] owners
             else
               // Inside a module, suggest submodules AND entities (functions, types, constants)
-              let query = Utils.createFullSearchQuery currentPath
+              let query = Utils.createSearchQuery currentPath
               let searchResults = LanguageTools.PackageManager.Search.search query
 
               // Extract submodule names - only direct children
@@ -274,12 +285,7 @@ module Darklang =
                 let lowerLastPartial = Stdlib.String.toLowercase lastPartial
 
                 // Search in the specified module context
-                let query =
-                  LanguageTools.ProgramTypes.Search.SearchQuery
-                    { currentModule = prefixParts
-                      text = ""
-                      searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
-                      entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module ] }
+                let query = Utils.createSearchQuery prefixParts
                 let searchResults = LanguageTools.PackageManager.Search.search query
 
                 // Extract submodule names that match the partial

@@ -19,12 +19,8 @@ module Darklang =
                 Stdlib.String.dropFirst trimmed 1L
               else
                 trimmed
-            if Stdlib.String.contains pathToSplit "." then
-              // Handle dotted paths like "Darklang.Stdlib"
-              Stdlib.String.split pathToSplit "."
-            else
-              // Handle slash paths like "Darklang/Stdlib"
-              Stdlib.String.split pathToSplit "/"
+            // Only handle dotted paths - dots are the standard separator for package paths
+            Stdlib.String.split pathToSplit "."
 
         // Helper to construct module prefix for search queries
         let constructModulePrefix (owner: String) (submodules: List<String>) : String =

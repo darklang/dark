@@ -130,16 +130,9 @@ module Darklang =
             // Simple name, relative to current
             (currentPath, trimmed)
 
-        // Create a module-only search query for the given path
-        let createModuleSearchQuery (modulePath: List<String>) : LanguageTools.ProgramTypes.Search.SearchQuery =
-          LanguageTools.ProgramTypes.Search.SearchQuery
-            { currentModule = modulePath
-              text = ""
-              searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
-              entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module ] }
-
-        // Create a search query for all entity types
-        let createFullSearchQuery (modulePath: List<String>) : LanguageTools.ProgramTypes.Search.SearchQuery =
+        // Create a unified search query that finds all entities (modules, functions, types, constants)
+        // This is the primary search function - use this for almost everything
+        let createSearchQuery (modulePath: List<String>) : LanguageTools.ProgramTypes.Search.SearchQuery =
           LanguageTools.ProgramTypes.Search.SearchQuery
             { currentModule = modulePath
               text = ""
@@ -148,3 +141,7 @@ module Darklang =
                               LanguageTools.ProgramTypes.Search.EntityType.Fn
                               LanguageTools.ProgramTypes.Search.EntityType.Type
                               LanguageTools.ProgramTypes.Search.EntityType.Constant ] }
+
+        // Legacy alias - use createSearchQuery instead
+        let createFullSearchQuery (modulePath: List<String>) : LanguageTools.ProgramTypes.Search.SearchQuery =
+          createSearchQuery modulePath
