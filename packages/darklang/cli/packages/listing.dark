@@ -4,17 +4,36 @@ module Darklang =
       module Listing =
         // LS command - list contents
         let executeLS (state: AppState) (args: List<String>) : AppState =
-          // Determine which path to list
-          let path =
-            match args with
-            | [] -> Packages.Path.locationToPath state.currentLocation
-            | [ pathArg ] -> 
-              let currentPath = Packages.Path.locationToPath state.currentLocation
-              Utils.resolvePath currentPath pathArg
-            | _ ->
-              // Multiple args, just use current for now
-              // CLEANUP error or something?
-              Packages.Path.locationToPath state.currentLocation
+          match args with
+          | [] ->
+            // No args - list current location
+            listCurrentLocation state
+          | [ pathArg ] -> 
+            // With args - resolve and list that path
+            let currentPath = Packages.Path.locationToPath state.currentLocation
+            let path = Utils.resolvePath currentPath pathArg
+            listModulePath state path
+          | _ ->
+            // Multiple args, just use current for now
+            // CLEANUP error or something?
+            listCurrentLocation state
+            
+        // Helper function to list current location (could be module, function, type, constant)
+        let listCurrentLocation (state: AppState) : AppState =
+          match state.currentLocation with
+          | Root ->
+            listModulePath state []
+          | Module path ->
+            listModulePath state path
+          | Function name path ->
+            listEntityDetails state "Function" name path
+          | Type name path ->
+            listEntityDetails state "Type" name path
+          | Constant name path ->
+            listEntityDetails state "Constant" name path
+            
+        // Helper function to list a module path
+        let listModulePath (state: AppState) (path: Types.PackagePath) : AppState =
 
           if Stdlib.List.isEmpty path then
             // CLEANUP this whole this is verbose, and points to us just using the wrong module
@@ -128,6 +147,80 @@ module Darklang =
             Builtin.printLine "Use 'view' to see details of functions, types, and constants"
 
             { state with lastCommand = "ls"; output = "ls module" }
+            
+        // Helper function to show details of a specific entity
+        let listEntityDetails (state: AppState) (entityType: String) (entityName: String) (modulePath: Types.PackagePath) : AppState =
+          let modulePathStr = if Stdlib.List.isEmpty modulePath then "" else $"/{Packages.Path.formatPath modulePath}"
+          let fullPath = $"{modulePathStr}.{entityName}"
+          
+          Builtin.printLine $"{entityType}: {fullPath}"
+          Builtin.printLine ""
+          
+          // Search for the specific entity to get its details
+          let searchQuery = Utils.createFullSearchQuery modulePath
+          let searchResults = LanguageTools.PackageManager.Search.search searchQuery
+          
+          match entityType with
+          | "Function" ->
+            // Find and display the function
+            let foundFunction =
+              searchResults.fns
+              |> Stdlib.List.findFirst (fun fn ->
+                let name = LanguageTools.ProgramTypes.PackageFn.nameToString fn.name
+                let shortName = Utils.extractEntityShortName name
+                shortName == entityName)
+            
+            match foundFunction with
+            | Some fn ->
+              let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageFn fn
+              let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
+              Builtin.printLine highlighted
+              { state with lastCommand = "ls"; output = $"ls function {entityName}" }
+            | None ->
+              Builtin.printLine $"Function '{entityName}' not found in current context."
+              { state with lastCommand = "ls"; output = $"function {entityName} not found" }
+              
+          | "Type" ->
+            // Find and display the type
+            let foundType =
+              searchResults.types
+              |> Stdlib.List.findFirst (fun typ ->
+                let name = LanguageTools.ProgramTypes.PackageType.nameToString typ.name
+                let shortName = Utils.extractEntityShortName name
+                shortName == entityName)
+            
+            match foundType with
+            | Some typ ->
+              let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageType typ
+              let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
+              Builtin.printLine highlighted
+              { state with lastCommand = "ls"; output = $"ls type {entityName}" }
+            | None ->
+              Builtin.printLine $"Type '{entityName}' not found in current context."
+              { state with lastCommand = "ls"; output = $"type {entityName} not found" }
+              
+          | "Constant" ->
+            // Find and display the constant
+            let foundConstant =
+              searchResults.constants
+              |> Stdlib.List.findFirst (fun constant ->
+                let name = LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name
+                let shortName = Utils.extractEntityShortName name
+                shortName == entityName)
+            
+            match foundConstant with
+            | Some constant ->
+              let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageConstant constant
+              let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
+              Builtin.printLine highlighted
+              { state with lastCommand = "ls"; output = $"ls constant {entityName}" }
+            | None ->
+              Builtin.printLine $"Constant '{entityName}' not found in current context."
+              { state with lastCommand = "ls"; output = $"constant {entityName} not found" }
+              
+          | _ ->
+            Builtin.printLine $"Unknown entity type: {entityType}"
+            { state with lastCommand = "ls"; output = "unknown entity type" }
 
         // Help function
         let lsHelp (state: AppState) : AppState =

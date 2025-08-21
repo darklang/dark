@@ -2,35 +2,115 @@ module Darklang =
   module Cli =
     module Packages =
       module Navigation =
-        // CD command - change directory/module
-        let executeCD (state: AppState) (args: List<String>) : AppState =
+        // Helper function to intelligently resolve navigation targets
+        let resolveNavigationTarget (currentPath: Types.PackagePath) (target: String) : (Types.PackageLocation * String) =
+          // Handle special navigation cases first
+          if target == "/" then
+            (Root, "/")
+          else if target == ".." then
+            // Go up one level
+            match currentPath with
+            | [] -> (Root, "/")
+            | _ ->
+              let parentPath = Stdlib.List.dropLast currentPath
+              let parentLocation = Packages.Path.pathToLocation parentPath
+              let parentStr = Packages.Path.formatLocation parentLocation
+              (parentLocation, parentStr)
+          else if Stdlib.String.contains target "." then
+            // Multi-part path - treat as module for now
+            let newPath = Utils.resolvePath currentPath target
+            let newLocation = Packages.Path.pathToLocation newPath
+            let locationStr = Packages.Path.formatLocation newLocation
+            (newLocation, locationStr)
+          else
+            // Single name - check if it's an entity in current context
+            let searchQuery = Utils.createFullSearchQuery currentPath
+            let searchResults = LanguageTools.PackageManager.Search.search searchQuery
+            
+            // Check if it's a function
+            let foundFunction =
+              searchResults.fns
+              |> Stdlib.List.findFirst (fun fn ->
+                let name = LanguageTools.ProgramTypes.PackageFn.nameToString fn.name
+                let shortName = Utils.extractEntityShortName name
+                shortName == target)
+            
+            match foundFunction with
+            | Some fn ->
+              let fnLocation = Function target currentPath
+              let locationStr = Packages.Path.formatLocation fnLocation
+              (fnLocation, locationStr)
+            | None ->
+              // Check if it's a type
+              let foundType =
+                searchResults.types
+                |> Stdlib.List.findFirst (fun typ ->
+                  let name = LanguageTools.ProgramTypes.PackageType.nameToString typ.name
+                  let shortName = Utils.extractEntityShortName name
+                  shortName == target)
+              
+              match foundType with
+              | Some typ ->
+                let typeLocation = Type target currentPath
+                let locationStr = Packages.Path.formatLocation typeLocation
+                (typeLocation, locationStr)
+              | None ->
+                // Check if it's a constant
+                let foundConstant =
+                  searchResults.constants
+                  |> Stdlib.List.findFirst (fun constant ->
+                    let name = LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name
+                    let shortName = Utils.extractEntityShortName name
+                    shortName == target)
+                
+                match foundConstant with
+                | Some constant ->
+                  let constLocation = Constant target currentPath
+                  let locationStr = Packages.Path.formatLocation constLocation
+                  (constLocation, locationStr)
+                | None ->
+                  // Fallback - try as module path
+                  let newPath = Utils.resolvePath currentPath target
+                  let newLocation = Packages.Path.pathToLocation newPath
+                  let locationStr = Packages.Path.formatLocation newLocation
+                  (newLocation, locationStr)
+
+        // NAV command - navigate between packages, modules, and entities  
+        let executeNAV (state: AppState) (args: List<String>) : AppState =
           match args with
           | [] ->
             // No args, show current path
             let currentPathStr = Packages.Path.formatLocation state.currentLocation
             Builtin.printLine $"Current path: {currentPathStr}"
-            { state with lastCommand = "cd"; output = "pwd displayed" }
+            { state with lastCommand = "nav"; output = "pwd displayed" }
           | [pathArg] ->
             let currentPath = Packages.Path.locationToPath state.currentLocation
-            let newPath = Utils.resolvePath currentPath pathArg
-            let newLocation = Packages.Path.pathToLocation newPath
-
+            
+            // Try to intelligently determine what the user wants to navigate to
+            let (newLocation, locationStr) = resolveNavigationTarget currentPath pathArg
+            
             let newHistory = Stdlib.List.append state.locationHistory [state.currentLocation]
-            let newPathStr = Packages.Path.formatPath newPath
-            Builtin.printLine (Colors.success $"Changed to: {newPathStr}")
+            Builtin.printLine (Colors.success $"Changed to: {locationStr}")
 
             { state with
-                lastCommand = "cd"
-                output = $"cd to {newPathStr}"
+                lastCommand = "nav"
+                output = $"nav to {locationStr}"
                 needsFullRedraw = true
                 currentLocation = newLocation
                 locationHistory = newHistory }
           | _ ->
-            Builtin.printLine "Usage: cd [path]"
-            Builtin.printLine "  cd /           - Go to root"
-            Builtin.printLine "  cd ..          - Go to parent"
-            Builtin.printLine "  cd owner/module - Go to module"
-            { state with lastCommand = "cd"; output = "cd help displayed" }
+            Builtin.printLine "Usage: nav [path]"
+            Builtin.printLine "  nav /             - Go to root"
+            Builtin.printLine "  nav ..            - Go to parent"
+            Builtin.printLine "  nav owner/module  - Go to module"
+            Builtin.printLine "  nav functionName  - Go to function"
+            Builtin.printLine "  nav TypeName      - Go to type"
+            Builtin.printLine "  nav constantName  - Go to constant"
+            { state with lastCommand = "nav"; output = "nav help displayed" }
+            
+        // CD command - alias for NAV
+        let executeCD (state: AppState) (args: List<String>) : AppState =
+          executeNAV state args
 
         // PWD command - show current path
         let executePWD (state: AppState) (args: List<String>) : AppState =
@@ -57,9 +137,23 @@ module Darklang =
             { state with lastCommand = "back"; output = "no history" }
 
         // Help functions
+        let navHelp (state: AppState) : AppState =
+          Builtin.printLine "Usage: nav [path]"
+          Builtin.printLine "Navigate between packages, modules, and entities."
+          Builtin.printLine ""
+          Builtin.printLine "Examples:"
+          Builtin.printLine "  nav /                - Go to root"
+          Builtin.printLine "  nav ..               - Go to parent"
+          Builtin.printLine "  nav Stdlib           - Go to Stdlib owner"
+          Builtin.printLine "  nav Stdlib/List      - Go to Stdlib.List module"
+          Builtin.printLine "  nav /Darklang/Stdlib - Absolute path"
+          Builtin.printLine "  nav equals           - Go to equals function"
+          Builtin.printLine "  nav Option           - Go to Option type"
+          { state with lastCommand = "help nav"; output = "nav help displayed" }
+          
         let cdHelp (state: AppState) : AppState =
-          Builtin.printLine "Usage: cd [path]"
-          Builtin.printLine "Navigate between packages and modules."
+          Builtin.printLine "Usage: cd [path] (alias for nav)"
+          Builtin.printLine "Navigate between packages, modules, and entities."
           Builtin.printLine ""
           Builtin.printLine "Examples:"
           Builtin.printLine "  cd /                - Go to root"
@@ -67,6 +161,8 @@ module Darklang =
           Builtin.printLine "  cd Stdlib           - Go to Stdlib owner"
           Builtin.printLine "  cd Stdlib/List      - Go to Stdlib.List module"
           Builtin.printLine "  cd /Darklang/Stdlib - Absolute path"
+          Builtin.printLine "  cd equals           - Go to equals function"
+          Builtin.printLine "  cd Option           - Go to Option type"
           { state with lastCommand = "help cd"; output = "cd help displayed" }
 
         let pwdHelp (state: AppState) : AppState =
@@ -80,7 +176,7 @@ module Darklang =
           { state with lastCommand = "help back"; output = "back help displayed" }
 
         // Completion functions
-        let cdComplete (state: AppState) (args: List<String>) : List<String> =
+        let navComplete (state: AppState) (args: List<String>) : List<String> =
           match args with
           | [] ->
             // At root, suggest top-level packages
@@ -111,13 +207,8 @@ module Darklang =
               // Add basic navigation options
               Stdlib.List.append ["/"; ".."] owners
             else
-              // Inside a module, suggest submodules
-              let query =
-                LanguageTools.ProgramTypes.Search.SearchQuery
-                  { currentModule = currentPath
-                    text = ""
-                    searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
-                    entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module ] }
+              // Inside a module, suggest submodules AND entities (functions, types, constants)
+              let query = Utils.createFullSearchQuery currentPath
               let searchResults = LanguageTools.PackageManager.Search.search query
 
               // Extract submodule names - only direct children
@@ -136,8 +227,33 @@ module Darklang =
                   |> Stdlib.List.sort
                 | None -> []
 
-              // Add basic navigation options
-              Stdlib.List.append ["/"; ".."] submodules
+              // Extract entity names (functions, types, constants)
+              let functionNames =
+                searchResults.fns
+                |> Stdlib.List.map (fun fn ->
+                  let name = LanguageTools.ProgramTypes.PackageFn.nameToString fn.name
+                  Utils.extractEntityShortName name)
+
+              let typeNames =
+                searchResults.types
+                |> Stdlib.List.map (fun typ ->
+                  let name = LanguageTools.ProgramTypes.PackageType.nameToString typ.name
+                  Utils.extractEntityShortName name)
+
+              let constantNames =
+                searchResults.constants
+                |> Stdlib.List.map (fun constant ->
+                  let name = LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name
+                  Utils.extractEntityShortName name)
+
+              // Combine all navigation options
+              let allOptions = 
+                Stdlib.List.append ["/"; ".."] 
+                  (Stdlib.List.append submodules 
+                    (Stdlib.List.append functionNames 
+                      (Stdlib.List.append typeNames constantNames)))
+              
+              allOptions |> Stdlib.List.unique |> Stdlib.List.sort
 
           | [partialPath] ->
             // Handle dot-notation completion like "Darklang.St"
@@ -184,11 +300,14 @@ module Darklang =
                 | None -> []
             else
               // Regular prefix matching for simple paths
-              let allCompletions = cdComplete state []
+              let allCompletions = navComplete state []
               let lowerPartial = Stdlib.String.toLowercase partialPath
               Stdlib.List.filter allCompletions (fun path ->
                 Stdlib.String.startsWith (Stdlib.String.toLowercase path) lowerPartial)
           | _ -> []
+
+        let cdComplete (state: AppState) (args: List<String>) : List<String> =
+          navComplete state args
 
         let pwdComplete (state: AppState) (args: List<String>) : List<String> = []
 
