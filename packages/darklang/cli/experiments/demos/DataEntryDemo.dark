@@ -274,8 +274,8 @@ module Darklang =
           ; Darklang.Cli.UIComponents.Input.field "Assignee" model.formTask.assignee (model.selectedFormField == FormField.Assignee) ]
 
         let buttons =
-          Darklang.Cli.UIComponents.Button.create "Save" Darklang.Cli.UIComponents.Button.Style.Success true ++ "  " ++
-          Darklang.Cli.UIComponents.Button.create "Cancel" Darklang.Cli.UIComponents.Button.Style.Light false
+          "[ " ++ Darklang.Cli.Colors.boldText (Darklang.Cli.Colors.success " Save ") ++ " ]" ++ "  " ++
+          "( " ++ Darklang.Cli.Colors.boldText " Cancel " ++ " )"
 
         Darklang.Cli.UIComponents.Modal.create title (fields |> Stdlib.List.append [buttons]) []
 

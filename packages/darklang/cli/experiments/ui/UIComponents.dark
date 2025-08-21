@@ -51,28 +51,6 @@ module Darklang =
           ([topLine] |> Stdlib.List.append paddedContent |> Stdlib.List.append emptyLines |> Stdlib.List.append [bottomLine])
           |> Stdlib.String.join "\n"
 
-      module Button =
-        type Style = | Primary | Success | Warning | Danger | Info | Light | Dark
-
-        let getColor (style: Style) : (String -> String) =
-          match style with
-          | Primary -> Darklang.Cli.Colors.info
-          | Success -> Darklang.Cli.Colors.success
-          | Warning -> Darklang.Cli.Colors.warning
-          | Danger -> Darklang.Cli.Colors.error
-          | Info -> Darklang.Cli.Colors.hint
-          | Light -> Darklang.Cli.Colors.boldText
-          | Dark -> Darklang.Cli.Colors.dimText
-
-        let create (label: String) (style: Style) (selected: Bool) : String =
-          let colorFn = getColor style
-          let padding = 2L
-          let content = " " ++ label ++ " "
-
-          if selected then
-            "[ " ++ Darklang.Cli.Colors.boldText (colorFn content) ++ " ]"
-          else
-            "( " ++ colorFn content ++ " )"
 
       module Progress =
         let bar (current: Int64) (total: Int64) (width: Int64) : String =
@@ -227,7 +205,7 @@ module Darklang =
 
           let buttonRow =
             buttons
-            |> Stdlib.List.map (fun b -> Button.create b Button.Style.Primary false)
+            |> Stdlib.List.map (fun b -> "( " ++ Darklang.Cli.Colors.info (" " ++ b ++ " ") ++ " )")
             |> Stdlib.String.join "  "
 
           let centeredButtons =
@@ -237,86 +215,6 @@ module Darklang =
           Box.create width contentHeight Box.Style.Double
             ([centeredTitle; ""] |> Stdlib.List.append content |> Stdlib.List.append [""; centeredButtons])
 
-      // ---------- Layout Components ----------
-      module Layout =
-        // Calculate visual width of string excluding ANSI escape sequences
-        let visualLength (str: String) : Int64 =
-          // Remove all ANSI codes used in the Colors module
-          let temp1 = Stdlib.String.replaceAll str "\u001b[0m" ""    // reset
-          let temp2 = Stdlib.String.replaceAll temp1 "\u001b[1m" ""  // bold
-          let temp3 = Stdlib.String.replaceAll temp2 "\u001b[2m" ""  // dim
-          let temp4 = Stdlib.String.replaceAll temp3 "\u001b[30m" "" // black
-          let temp5 = Stdlib.String.replaceAll temp4 "\u001b[31m" "" // red
-          let temp6 = Stdlib.String.replaceAll temp5 "\u001b[32m" "" // green
-          let temp7 = Stdlib.String.replaceAll temp6 "\u001b[33m" "" // yellow
-          let temp8 = Stdlib.String.replaceAll temp7 "\u001b[34m" "" // blue
-          let temp9 = Stdlib.String.replaceAll temp8 "\u001b[35m" "" // magenta
-          let temp10 = Stdlib.String.replaceAll temp9 "\u001b[36m" "" // cyan
-          let temp11 = Stdlib.String.replaceAll temp10 "\u001b[37m" "" // white
-          let temp12 = Stdlib.String.replaceAll temp11 "\u001b[90m" "" // bright black
-          let temp13 = Stdlib.String.replaceAll temp12 "\u001b[91m" "" // bright red
-          let temp14 = Stdlib.String.replaceAll temp13 "\u001b[92m" "" // bright green
-          let temp15 = Stdlib.String.replaceAll temp14 "\u001b[93m" "" // bright yellow
-          let temp16 = Stdlib.String.replaceAll temp15 "\u001b[94m" "" // bright blue
-          let temp17 = Stdlib.String.replaceAll temp16 "\u001b[95m" "" // bright magenta
-          let temp18 = Stdlib.String.replaceAll temp17 "\u001b[96m" "" // bright cyan
-          let temp19 = Stdlib.String.replaceAll temp18 "\u001b[97m" "" // bright white
-          let temp20 = Stdlib.String.replaceAll temp19 "\u001b[103;30m" "" // selection bg
-          Stdlib.String.length temp20
-        
-        // Pad string to visual width, accounting for ANSI codes
-        let padToVisualWidth (str: String) (targetWidth: Int64) : String =
-          let currentVisualWidth = visualLength str
-          if currentVisualWidth < targetWidth then
-            str ++ Stdlib.String.repeat " " (targetWidth - currentVisualWidth)
-          else if currentVisualWidth > targetWidth then
-            // For now, just truncate - could be smarter about preserving ANSI codes
-            Stdlib.String.slice str 0L targetWidth
-          else
-            str
-        
-        // Merge two text blocks side by side
-        let sideBySide (leftContent: List<String>) (rightContent: List<String>) (leftWidth: Int64) (rightWidth: Int64) (gap: Int64) : List<String> =
-          let maxLines = Stdlib.Int64.max (Stdlib.List.length leftContent) (Stdlib.List.length rightContent)
-          
-          (Stdlib.List.range 0L (maxLines - 1L))
-          |> Stdlib.List.map (fun i ->
-            let leftLine = 
-              match Stdlib.List.getAt leftContent i with
-              | Some line -> padToVisualWidth line leftWidth
-              | None -> Stdlib.String.repeat " " leftWidth
-            
-            let rightLine = 
-              match Stdlib.List.getAt rightContent i with
-              | Some line -> line
-              | None -> ""
-            
-            leftLine ++ Stdlib.String.repeat " " gap ++ rightLine)
-        
-        // Merge two boxes side by side
-        let boxesSideBySide (leftBox: String) (rightBox: String) (gap: Int64) : String =
-          let leftLines = Stdlib.String.split leftBox "\n"
-          let rightLines = Stdlib.String.split rightBox "\n"
-          
-          // Calculate left box width from first line using visual length
-          let leftWidth = 
-            match Stdlib.List.head leftLines with
-            | Some line -> visualLength line
-            | None -> 0L
-          
-          let mergedLines = sideBySide leftLines rightLines leftWidth 0L gap
-          Stdlib.String.join mergedLines "\n"
-        
-        // Stack content vertically with optional spacing
-        let verticalStack (sections: List<List<String>>) (spacing: Int64) : List<String> =
-          let spacer = Stdlib.List.repeat "" spacing
-          
-          match sections with
-          | [] -> []
-          | head :: tail ->
-              tail
-              |> Stdlib.List.fold head (fun acc section ->
-                Stdlib.List.append (Stdlib.List.append acc spacer) section)
 
       // ==========================================
       // Demo Screens
@@ -371,8 +269,8 @@ module Darklang =
 
         let buttons =
           "\n\n" ++
-          Button.create "Create" Button.Style.Success true ++ "  " ++
-          Button.create "Cancel" Button.Style.Light false
+          "[ " ++ Darklang.Cli.Colors.boldText (Darklang.Cli.Colors.success " Create ") ++ " ]" ++ "  " ++
+          "( " ++ Darklang.Cli.Colors.boldText " Cancel " ++ " )"
 
         title ++ "\n\n" ++ fields ++ buttons
 

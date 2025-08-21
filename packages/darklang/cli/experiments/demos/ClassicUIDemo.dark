@@ -457,7 +457,23 @@ module Darklang =
           if model.sidebarVisible then
             let sidebarBox = Darklang.Cli.UIComponents.Box.create 32L (Stdlib.List.length sidebar + 2L) Darklang.Cli.UIComponents.Box.Style.Single sidebar
             let mainBox = Darklang.Cli.UIComponents.Box.create 45L (Stdlib.List.length mainPanel + 2L) Darklang.Cli.UIComponents.Box.Style.Single mainPanel
-            let mergedBoxes = Darklang.Cli.UIComponents.Layout.boxesSideBySide sidebarBox mainBox 1L
+            // Merge boxes side by side with 1 space gap
+            let sidebarLines = Stdlib.String.split sidebarBox "\n"
+            let mainLines = Stdlib.String.split mainBox "\n"
+            let maxLines = Stdlib.Int64.max (Stdlib.List.length sidebarLines) (Stdlib.List.length mainLines)
+            let mergedLines = 
+              (Stdlib.List.range 0L (maxLines - 1L))
+              |> Stdlib.List.map (fun i ->
+                let leftLine = 
+                  match Stdlib.List.getAt sidebarLines i with
+                  | Some line -> line
+                  | None -> Stdlib.String.repeat " " 32L
+                let rightLine = 
+                  match Stdlib.List.getAt mainLines i with
+                  | Some line -> line
+                  | None -> ""
+                leftLine ++ " " ++ rightLine)
+            let mergedBoxes = Stdlib.String.join mergedLines "\n"
             Stdlib.String.split mergedBoxes "\n"
           else
             mainPanel
