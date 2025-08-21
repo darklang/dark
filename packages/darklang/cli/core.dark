@@ -29,9 +29,8 @@ module Darklang =
         mainPrompt: String
         cursorPosition: Int64
         needsFullRedraw: Bool
-        currentPath: Packages.Types.PackagePath
-        pathHistory: List<Packages.Types.PackagePath>
         currentLocation: Packages.Types.PackageLocation
+        locationHistory: List<Packages.Types.PackageLocation>
         currentPage: Page
         commandHistory: List<String>
         historyIndex: Int64 }
@@ -44,9 +43,8 @@ module Darklang =
           mainPrompt = ""
           cursorPosition = 0L
           needsFullRedraw = true
-          currentPath = []
-          pathHistory = []
           currentLocation = Packages.Types.PackageLocation.Root
+          locationHistory = []
           currentPage = Page.MainPrompt  // Default to main prompt page
           commandHistory = []
           historyIndex = -1L }

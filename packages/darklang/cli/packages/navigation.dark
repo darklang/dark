@@ -11,9 +11,11 @@ module Darklang =
             Builtin.printLine $"Current path: {currentPathStr}"
             { state with lastCommand = "cd"; output = "pwd displayed" }
           | [pathArg] ->
-            let newPath = Utils.resolvePath state.currentPath pathArg
+            let currentPath = Packages.Path.locationToPath state.currentLocation
+            let newPath = Utils.resolvePath currentPath pathArg
+            let newLocation = Packages.Path.pathToLocation newPath
 
-            let newHistory = Stdlib.List.append state.pathHistory [state.currentPath]
+            let newHistory = Stdlib.List.append state.locationHistory [state.currentLocation]
             let newPathStr = Packages.Path.formatPath newPath
             Builtin.printLine (Colors.success $"Changed to: {newPathStr}")
 
@@ -21,9 +23,8 @@ module Darklang =
                 lastCommand = "cd"
                 output = $"cd to {newPathStr}"
                 needsFullRedraw = true
-                currentPath = newPath
-                currentLocation = Packages.Path.pathToLocation newPath
-                pathHistory = newHistory }
+                currentLocation = newLocation
+                locationHistory = newHistory }
           | _ ->
             Builtin.printLine "Usage: cd [path]"
             Builtin.printLine "  cd /           - Go to root"
@@ -39,19 +40,18 @@ module Darklang =
 
         // BACK command - navigate back using history
         let executeBACK (state: AppState) (args: List<String>) : AppState =
-          match Stdlib.List.last state.pathHistory with
-          | Some previousPath ->
-            let newHistory = Stdlib.List.dropLast state.pathHistory
-            let pathStr = Packages.Path.formatPath previousPath
+          match Stdlib.List.last state.locationHistory with
+          | Some previousLocation ->
+            let newHistory = Stdlib.List.dropLast state.locationHistory
+            let pathStr = Packages.Path.formatLocation previousLocation
             Builtin.printLine (Colors.success $"Back to: {pathStr}")
 
             { state with
                 lastCommand = "back"
                 output = $"back to {pathStr}"
                 needsFullRedraw = true
-                currentPath = previousPath
-                currentLocation = Packages.Path.pathToLocation previousPath
-                pathHistory = newHistory }
+                currentLocation = previousLocation
+                locationHistory = newHistory }
           | None ->
             Builtin.printLine "No previous location in history"
             { state with lastCommand = "back"; output = "no history" }

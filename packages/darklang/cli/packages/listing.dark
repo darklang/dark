@@ -7,12 +7,14 @@ module Darklang =
           // Determine which path to list
           let path =
             match args with
-            | [] -> state.currentPath
-            | [ pathArg ] -> Utils.resolvePath state.currentPath pathArg
+            | [] -> Packages.Path.locationToPath state.currentLocation
+            | [ pathArg ] -> 
+              let currentPath = Packages.Path.locationToPath state.currentLocation
+              Utils.resolvePath currentPath pathArg
             | _ ->
               // Multiple args, just use current for now
               // CLEANUP error or something?
-              state.currentPath
+              Packages.Path.locationToPath state.currentLocation
 
           if Stdlib.List.isEmpty path then
             // CLEANUP this whole this is verbose, and points to us just using the wrong module
