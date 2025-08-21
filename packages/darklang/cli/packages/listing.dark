@@ -20,133 +20,23 @@ module Darklang =
             
         // Helper function to list current location (could be module, function, type, constant)
         let listCurrentLocation (state: AppState) : AppState =
-          match state.currentLocation with
-          | Root ->
-            listModulePath state []
-          | Module path ->
-            listModulePath state path
-          | Function (name, path) ->
-            listEntityDetails state "Function" name path
-          | Type (name, path) ->
-            listEntityDetails state "Type" name path
-          | Constant (name, path) ->
-            listEntityDetails state "Constant" name path
+          // Use pure function to compute listing output
+          let output = Commands.computeListingOutput state.currentLocation
+          Builtin.printLine output
+          { state with lastCommand = "ls"; output = "ls displayed" }
             
         // Helper function to list a module path
         let listModulePath (state: AppState) (path: Types.PackagePath) : AppState =
-
-          if Stdlib.List.isEmpty path then
-            // CLEANUP this whole this is verbose, and points to us just using the wrong module
-
-            // Fetch package items
-            let query =
-              LanguageTools.ProgramTypes.Search.SearchQuery
-                { currentModule = []
-                  text = ""
-                  searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
-                  entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module ] }
-            let searchResults = LanguageTools.PackageManager.Search.search query
-
-            // Extract unique owners from module paths
-            let owners =
-              match Stdlib.List.head searchResults.submodules with
-              | Some moduleList ->
-                moduleList
-                |> Stdlib.List.filterMap (fun path ->
-                  match path with
-                  | owner :: _ -> Stdlib.Option.Option.Some owner
-                  | [] -> Stdlib.Option.Option.None)
-                |> Stdlib.List.unique
-                |> Stdlib.List.sort
-              | None -> []
-
-            Builtin.printLine "Available packages:"
-            owners |> Stdlib.List.iter (fun o -> Builtin.printLine $"  {o}/")
-
-            if Stdlib.List.isEmpty owners then
-              Builtin.printLine "  (No packages found)"
+          // Convert path to Module location and use pure function
+          let location = 
+            if Stdlib.List.isEmpty path then
+              Types.PackageLocation.Root
             else
-              Builtin.printLine ""
-              Builtin.printLine $"Use 'cd <package>' to explore a package"
-
-            { state with lastCommand = "ls"; output = "ls root" }
-          else
-            // Non-empty path - list module contents
-            let currentModule = path
-            let query = Utils.createFullSearchQuery currentModule
-            let searchResults = LanguageTools.PackageManager.Search.search query
-
-            let pathStr = Packages.Path.formatPath path
-            Builtin.printLine $"Contents of {pathStr}:"
-
-            // List submodules - only direct children
-            match Stdlib.List.head searchResults.submodules with
-            | Some moduleList when Stdlib.Bool.not (Stdlib.List.isEmpty moduleList) ->
-              // Filter to only direct children by checking path length
-              let expectedLength = (Stdlib.List.length currentModule) + 1L
-              let submodules =
-                moduleList
-                |> Stdlib.List.filter (fun path -> Stdlib.List.length path == expectedLength)
-                |> Stdlib.List.filterMap (fun path -> Stdlib.List.last path)
-                |> Stdlib.List.unique
-              let submoduleNames =
-                submodules
-                |> Stdlib.List.sort
-                |> Stdlib.List.map (fun name -> $"{name}/")
-                |> Stdlib.String.join ", "
-              Builtin.printLine ""
-              Builtin.printLine $"  [Submodules]: {submoduleNames}"
-            | _ -> ()
-
-            // List functions
-            let fnCount = Stdlib.List.length searchResults.fns
-            if fnCount > 0L then
-              Builtin.printLine ""
-              let fnNames =
-                searchResults.fns
-                |> Stdlib.List.map (fun fn ->
-                  let name = LanguageTools.ProgramTypes.PackageFn.nameToString fn.name
-                  let parts = Stdlib.String.split name "."
-                  match Stdlib.List.last parts with
-                  | Some lastPart -> lastPart
-                  | None -> name)
-                |> Stdlib.String.join ", "
-              Builtin.printLine $"  [Functions] ({Stdlib.Int64.toString fnCount}): {fnNames}"
-
-            // List types
-            let typeCount = Stdlib.List.length searchResults.types
-            if typeCount > 0L then
-              Builtin.printLine ""
-              let typeNames =
-                searchResults.types
-                |> Stdlib.List.map (fun typ ->
-                  let name = LanguageTools.ProgramTypes.PackageType.nameToString typ.name
-                  let parts = Stdlib.String.split name "."
-                  match Stdlib.List.last parts with
-                  | Some lastPart -> lastPart
-                  | None -> name)
-                |> Stdlib.String.join ", "
-              Builtin.printLine $"  [Types] ({Stdlib.Int64.toString typeCount}): {typeNames}"
-
-            // List constants
-            let constCount = Stdlib.List.length searchResults.constants
-            if constCount > 0L then
-              Builtin.printLine ""
-              let constNames =
-                searchResults.constants
-                |> Stdlib.List.map (fun constant ->
-                  let name = LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name
-                  let parts = Stdlib.String.split name "."
-                  match Stdlib.List.last parts with
-                  | Some lastPart -> lastPart
-                  | None -> name)
-                |> Stdlib.String.join ", "
-              Builtin.printLine $"  [Constants] ({Stdlib.Int64.toString constCount}): {constNames}"
-
-            Builtin.printLine ""
-            Builtin.printLine "Use 'view' to see details of functions, types, and constants"
-
-            { state with lastCommand = "ls"; output = "ls module" }
+              Types.PackageLocation.Module path
+          
+          let output = Commands.computeListingOutput location
+          Builtin.printLine output
+          { state with lastCommand = "ls"; output = "ls displayed" }
             
         // Helper function to show details of a specific entity
         let listEntityDetails (state: AppState) (entityType: String) (entityName: String) (modulePath: Types.PackagePath) : AppState =
@@ -157,7 +47,7 @@ module Darklang =
           Builtin.printLine ""
           
           // Search for the specific entity to get its details
-          let searchQuery = Utils.createFullSearchQuery modulePath
+          let searchQuery = Utils.createSearchQuery modulePath
           let searchResults = LanguageTools.PackageManager.Search.search searchQuery
           
           match entityType with
