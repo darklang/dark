@@ -48,10 +48,10 @@ module Darklang =
             $"{pathStr}/{name} 🏷️"
           | Function (name, path) ->
             let pathStr = if Stdlib.List.isEmpty path then "/" else $"/{Stdlib.String.join path "."}"
-            $"{pathStr}/{name} 🔧"
+            $"{pathStr}/{name} ⚡"
           | Constant (name, path) ->
             let pathStr = if Stdlib.List.isEmpty path then "/" else $"/{Stdlib.String.join path "."}"
-            $"{pathStr}/{name} 🔢"
+            $"{pathStr}/{name} 🔒"
 
         // Convert PackageLocation to underlying path
         let locationToPath (location: Types.PackageLocation) : Types.PackagePath =
@@ -65,9 +65,9 @@ module Darklang =
         // Convert PackagePath to Module location
         let pathToLocation (path: Types.PackagePath) : Types.PackageLocation =
           if Stdlib.List.isEmpty path then
-            Types.PackageLocation.Root
+            Root
           else
-            Types.PackageLocation.Module path
+            Module path
 
         // Create search query from path components
         let createSearchQuery (parts: List<String>) (remainder: String) : LanguageTools.ProgramTypes.Search.SearchQuery =

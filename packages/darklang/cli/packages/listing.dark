@@ -25,11 +25,11 @@ module Darklang =
             listModulePath state []
           | Module path ->
             listModulePath state path
-          | Function name path ->
+          | Function (name, path) ->
             listEntityDetails state "Function" name path
-          | Type name path ->
+          | Type (name, path) ->
             listEntityDetails state "Type" name path
-          | Constant name path ->
+          | Constant (name, path) ->
             listEntityDetails state "Constant" name path
             
         // Helper function to list a module path
