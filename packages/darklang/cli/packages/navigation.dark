@@ -123,9 +123,6 @@ module Darklang =
             Builtin.printLine "  nav constantName  - Go to constant"
             { state with lastCommand = "nav"; output = "nav help displayed" }
             
-        // CD command - alias for NAV
-        let executeCD (state: AppState) (args: List<String>) : AppState =
-          executeNAV state args
 
         // PWD command - show current path
         let executePWD (state: AppState) (args: List<String>) : AppState =
@@ -167,19 +164,6 @@ module Darklang =
           Builtin.printLine "  nav Option           - Go to Option type"
           { state with lastCommand = "help nav"; output = "nav help displayed" }
           
-        let cdHelp (state: AppState) : AppState =
-          Builtin.printLine "Usage: cd [path] (alias for nav)"
-          Builtin.printLine "Navigate between packages, modules, and entities."
-          Builtin.printLine ""
-          Builtin.printLine "Examples:"
-          Builtin.printLine "  cd /                - Go to root"
-          Builtin.printLine "  cd ..               - Go to parent"
-          Builtin.printLine "  cd Stdlib           - Go to Stdlib owner"
-          Builtin.printLine "  cd Stdlib/List      - Go to Stdlib.List module"
-          Builtin.printLine "  cd /Darklang/Stdlib - Absolute path"
-          Builtin.printLine "  cd equals           - Go to equals function"
-          Builtin.printLine "  cd Option           - Go to Option type"
-          { state with lastCommand = "help cd"; output = "cd help displayed" }
 
         let pwdHelp (state: AppState) : AppState =
           Builtin.printLine "Usage: pwd"
@@ -312,8 +296,6 @@ module Darklang =
                 Stdlib.String.startsWith (Stdlib.String.toLowercase path) lowerPartial)
           | _ -> []
 
-        let cdComplete (state: AppState) (args: List<String>) : List<String> =
-          navComplete state args
 
         let pwdComplete (state: AppState) (args: List<String>) : List<String> = []
 
