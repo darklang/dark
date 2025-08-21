@@ -101,7 +101,7 @@ module Darklang =
               needsFullRedraw = false
               currentPath = model.currentPath
               pathHistory = model.pathHistory
-              uiMode = InteractiveUIMode.PromptMode
+              currentPage = Page.MainPrompt
               commandHistory = model.commandHistory
               historyIndex = model.historyIndex }
 
@@ -141,7 +141,7 @@ module Darklang =
                 needsFullRedraw = false
                 currentPath = model.currentPath
                 pathHistory = model.pathHistory
-                uiMode = InteractiveUIMode.PromptMode
+                currentPage = Page.MainPrompt
                 commandHistory = model.commandHistory
                 historyIndex = model.historyIndex }
 

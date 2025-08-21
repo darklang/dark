@@ -15,9 +15,10 @@ module Darklang =
     // on most pages, we render the normal Prompt stuff
     // ... but not on all pages.
 
-    // Interactive UI modes (simplified - tree navigation moved to packages module)
-    type InteractiveUIMode =
-      | PromptMode        // Normal command prompt
+    // Page system - clean MVU architecture for different UI modes
+    type Page =
+      | MainPrompt        // Normal command prompt (default)
+      | Experiments       // Experiments page for trying WIP features
 
     // Package path type is defined in Packages.Types module
 
@@ -30,7 +31,7 @@ module Darklang =
         needsFullRedraw: Bool
         currentPath: Packages.Types.PackagePath
         pathHistory: List<Packages.Types.PackagePath>
-        uiMode: InteractiveUIMode
+        currentPage: Page
         commandHistory: List<String>
         historyIndex: Int64 }
 
@@ -44,7 +45,7 @@ module Darklang =
           needsFullRedraw = true
           currentPath = []
           pathHistory = []
-          uiMode = InteractiveUIMode.PromptMode  // Default to prompt mode
+          currentPage = Page.MainPrompt  // Default to main prompt page
           commandHistory = []
           historyIndex = -1L }
 
@@ -211,6 +212,7 @@ module Darklang =
 
       let formatGoodbye () : String =
         "Goodbye!"
+
 
 
     // ================================
@@ -388,8 +390,8 @@ module Darklang =
     // ================================
     
     let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers) (keyChar: Stdlib.Option.Option<String>) : AppState =
-        match state.uiMode with
-        | PromptMode ->
+        match state.currentPage with
+        | MainPrompt ->
           // Normal command mode key handling
           match key with
           | Enter ->
@@ -532,6 +534,15 @@ module Darklang =
                   needsFullRedraw = false }
             | None ->
               state
+        | Experiments ->
+          // Experiments page key handling
+          match key with
+          | Escape ->
+            // Exit experiments page back to main prompt
+            { state with currentPage = Page.MainPrompt; needsFullRedraw = true }
+          | _ ->
+            // Ignore other keys in experiments mode
+            state
 
     module Update =
       let updateAppState (state: AppState) (msg: Msg) : AppState =
@@ -560,9 +571,9 @@ module Darklang =
       if state.isExiting then
         0L
       else
-        // Display prompt and current input with completion hints
-        match state.uiMode with
-        | PromptMode ->
+        // Display current page
+        match state.currentPage with
+        | MainPrompt ->
           if state.needsFullRedraw then
             Builtin.printLine (View.formatPrompt ())
           else
@@ -570,6 +581,13 @@ module Darklang =
             Builtin.print (Colors.carriageReturn ++ Colors.clearLine)
           
           Builtin.print (View.formatPromptWithInput state)
+        | Experiments ->
+          if state.needsFullRedraw then
+            Builtin.printLine "🧪 Experiments Mode"
+            Builtin.printLine ""
+            Builtin.printLine "Try out various WIP CLI experiments here"
+            Builtin.printLine ""
+            Builtin.printLine "Press ESC to return to main prompt"
 
         // Read keystroke input
         let keyInput = Stdlib.Cli.Stdin.readKey ()
