@@ -25,13 +25,94 @@ module Darklang =
 
         type EntityDefinition = String
 
+        // Helper function to view entity at current location
+        let viewEntityAtCurrentLocation (state: AppState) (entityType: String) (entityName: String) (modulePath: Types.PackagePath) : AppState =
+          // Search for the specific entity to get its details
+          let searchQuery = Utils.createFullSearchQuery modulePath
+          let searchResults = LanguageTools.PackageManager.Search.search searchQuery
+          
+          match entityType with
+          | "Function" ->
+            // Find and display the function
+            let foundFunction =
+              searchResults.fns
+              |> Stdlib.List.findFirst (fun fn ->
+                let name = LanguageTools.ProgramTypes.PackageFn.nameToString fn.name
+                let shortName = Utils.extractEntityShortName name
+                shortName == entityName)
+            
+            match foundFunction with
+            | Some fn ->
+              let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageFn fn
+              let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
+              Builtin.printLine highlighted
+              { state with lastCommand = "view"; output = $"viewed function {entityName}" }
+            | None ->
+              Builtin.printLine $"Function '{entityName}' not found."
+              { state with lastCommand = "view"; output = $"function {entityName} not found" }
+              
+          | "Type" ->
+            // Find and display the type
+            let foundType =
+              searchResults.types
+              |> Stdlib.List.findFirst (fun typ ->
+                let name = LanguageTools.ProgramTypes.PackageType.nameToString typ.name
+                let shortName = Utils.extractEntityShortName name
+                shortName == entityName)
+            
+            match foundType with
+            | Some typ ->
+              let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageType typ
+              let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
+              Builtin.printLine highlighted
+              { state with lastCommand = "view"; output = $"viewed type {entityName}" }
+            | None ->
+              Builtin.printLine $"Type '{entityName}' not found."
+              { state with lastCommand = "view"; output = $"type {entityName} not found" }
+              
+          | "Constant" ->
+            // Find and display the constant
+            let foundConstant =
+              searchResults.constants
+              |> Stdlib.List.findFirst (fun constant ->
+                let name = LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name
+                let shortName = Utils.extractEntityShortName name
+                shortName == entityName)
+            
+            match foundConstant with
+            | Some constant ->
+              let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageConstant constant
+              let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
+              Builtin.printLine highlighted
+              { state with lastCommand = "view"; output = $"viewed constant {entityName}" }
+            | None ->
+              Builtin.printLine $"Constant '{entityName}' not found."
+              { state with lastCommand = "view"; output = $"constant {entityName} not found" }
+              
+          | _ ->
+            Builtin.printLine $"Unknown entity type: {entityType}"
+            { state with lastCommand = "view"; output = "unknown entity type" }
+
         // VIEW command - view modules, functions, types, or constants
         let executeView (state: AppState) (args: List<String>) : AppState =
           match args with
           | [] ->
-            Builtin.printLine "Usage: view <entityName> or view <moduleName>"
-            Builtin.printLine "View details of functions, types, constants, or modules."
-            { state with lastCommand = "view help"; output = "view help displayed" }
+            // No args - view current location if it's an entity
+            match state.currentLocation with
+            | Root ->
+              Builtin.printLine "Usage: view <entityName> or view <moduleName>"
+              Builtin.printLine "View details of functions, types, constants, or modules."
+              { state with lastCommand = "view help"; output = "view help displayed" }
+            | Module _ ->
+              Builtin.printLine "Usage: view <entityName> or view <moduleName>"
+              Builtin.printLine "View details of functions, types, constants, or modules."
+              { state with lastCommand = "view help"; output = "view help displayed" }
+            | Function (name, path) ->
+              viewEntityAtCurrentLocation state "Function" name path
+            | Type (name, path) ->
+              viewEntityAtCurrentLocation state "Type" name path
+            | Constant (name, path) ->
+              viewEntityAtCurrentLocation state "Constant" name path
           | [fullPath] ->
             // Parse the path: could be "Option" or "Darklang.Stdlib.Option.Option"
             let pathParts = Stdlib.String.split fullPath "."
