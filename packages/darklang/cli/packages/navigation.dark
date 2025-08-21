@@ -7,7 +7,7 @@ module Darklang =
           match args with
           | [] ->
             // No args, show current path
-            let currentPathStr = Packages.Path.formatPath state.currentPath
+            let currentPathStr = Packages.Path.formatLocation state.currentLocation
             Builtin.printLine $"Current path: {currentPathStr}"
             { state with lastCommand = "cd"; output = "pwd displayed" }
           | [pathArg] ->
@@ -22,6 +22,7 @@ module Darklang =
                 output = $"cd to {newPathStr}"
                 needsFullRedraw = true
                 currentPath = newPath
+                currentLocation = Packages.Path.pathToLocation newPath
                 pathHistory = newHistory }
           | _ ->
             Builtin.printLine "Usage: cd [path]"
@@ -32,7 +33,7 @@ module Darklang =
 
         // PWD command - show current path
         let executePWD (state: AppState) (args: List<String>) : AppState =
-          let currentPathStr = Packages.Path.formatPath state.currentPath
+          let currentPathStr = Packages.Path.formatLocation state.currentLocation
           Builtin.printLine currentPathStr
           { state with lastCommand = "pwd"; output = "pwd displayed" }
 
@@ -49,6 +50,7 @@ module Darklang =
                 output = $"back to {pathStr}"
                 needsFullRedraw = true
                 currentPath = previousPath
+                currentLocation = Packages.Path.pathToLocation previousPath
                 pathHistory = newHistory }
           | None ->
             Builtin.printLine "No previous location in history"
