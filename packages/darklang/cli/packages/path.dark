@@ -34,6 +34,41 @@ module Darklang =
             let modulesList = Stdlib.String.join submodules "."
             $"{owner}.{modulesList}"
 
+        // Convert PackageLocation to display string with icons
+        let formatLocation (location: Types.PackageLocation) : String =
+          match location with
+          | Root -> "/"
+          | Module path ->
+            if Stdlib.List.isEmpty path then
+              "/ 📁"
+            else
+              $"/{Stdlib.String.join path "."} 📁"
+          | Type (name, path) ->
+            let pathStr = if Stdlib.List.isEmpty path then "/" else $"/{Stdlib.String.join path "."}"
+            $"{pathStr}/{name} 🏷️"
+          | Function (name, path) ->
+            let pathStr = if Stdlib.List.isEmpty path then "/" else $"/{Stdlib.String.join path "."}"
+            $"{pathStr}/{name} 🔧"
+          | Constant (name, path) ->
+            let pathStr = if Stdlib.List.isEmpty path then "/" else $"/{Stdlib.String.join path "."}"
+            $"{pathStr}/{name} 🔢"
+
+        // Convert PackageLocation to underlying path
+        let locationToPath (location: Types.PackageLocation) : Types.PackagePath =
+          match location with
+          | Root -> []
+          | Module path -> path
+          | Type (_, path) -> path
+          | Function (_, path) -> path
+          | Constant (_, path) -> path
+
+        // Convert PackagePath to Module location
+        let pathToLocation (path: Types.PackagePath) : Types.PackageLocation =
+          if Stdlib.List.isEmpty path then
+            Types.PackageLocation.Root
+          else
+            Types.PackageLocation.Module path
+
         // Create search query from path components
         let createSearchQuery (parts: List<String>) (remainder: String) : LanguageTools.ProgramTypes.Search.SearchQuery =
           match parts with

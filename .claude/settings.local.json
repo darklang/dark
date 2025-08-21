@@ -20,7 +20,9 @@
       "Bash(scripts/run-backend-tests:*)",
       "Bash(timeout:*)",
       "Bash(tree:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "defaultMode": "acceptEdits"

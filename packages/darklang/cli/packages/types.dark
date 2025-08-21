@@ -4,3 +4,11 @@ module Darklang =
       module Types =
         // Package path as list of components (e.g., ["Darklang"; "Stdlib"; "List"])
         type PackagePath = List<String>
+
+        // Enhanced location model with type awareness
+        type PackageLocation =
+          | Root
+          | Module of path: PackagePath
+          | Type of name: String * path: PackagePath
+          | Function of name: String * path: PackagePath  
+          | Constant of name: String * path: PackagePath
