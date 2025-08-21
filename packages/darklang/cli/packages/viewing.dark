@@ -42,7 +42,7 @@ module Darklang =
               | [] -> ([], fullPath)  // Shouldn't happen, but handle gracefully
               | [singleName] ->
                 // Single name like "Option" - search in current context
-                (state.currentPath, singleName)
+                (Packages.Path.locationToPath state.currentLocation, singleName)
               | entityName :: reversedModuleParts ->
                 // Multi-part path like "Darklang.Stdlib.Option.Option"
                 let moduleParts = Stdlib.List.reverse reversedModuleParts
@@ -200,7 +200,8 @@ module Darklang =
           match args with
           | [] ->
             // At root, suggest top-level packages plus entities
-            if Stdlib.List.isEmpty state.currentPath then
+            let currentPath = Packages.Path.locationToPath state.currentLocation
+            if Stdlib.List.isEmpty currentPath then
               // Get top-level modules
               let moduleQuery = Utils.createModuleSearchQuery []
               let moduleResults = LanguageTools.PackageManager.Search.search moduleQuery
@@ -226,7 +227,7 @@ module Darklang =
 
             else
               // Inside a module, suggest submodules and entities
-              let query = Utils.createFullSearchQuery state.currentPath
+              let query = Utils.createFullSearchQuery currentPath
               let searchResults = LanguageTools.PackageManager.Search.search query
 
               // Get submodules
@@ -274,11 +275,11 @@ module Darklang =
 
                 // Build the full module path considering current context
                 let fullModulePath =
-                  if Stdlib.List.isEmpty state.currentPath then
+                  if Stdlib.List.isEmpty currentPath then
                     prefixParts
                   else
                     // In module context, append current path to prefix
-                    Stdlib.List.append state.currentPath prefixParts
+                    Stdlib.List.append currentPath prefixParts
 
                 // Search for entities and submodules in that context
                 let query = Utils.createFullSearchQuery fullModulePath

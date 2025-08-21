@@ -84,7 +84,8 @@ module Darklang =
           match args with
           | [] ->
             // At root, suggest top-level packages
-            if Stdlib.List.isEmpty state.currentPath then
+            let currentPath = Packages.Path.locationToPath state.currentLocation
+            if Stdlib.List.isEmpty currentPath then
               // Get top-level packages from the package manager
               let query =
                 LanguageTools.ProgramTypes.Search.SearchQuery
@@ -113,7 +114,7 @@ module Darklang =
               // Inside a module, suggest submodules
               let query =
                 LanguageTools.ProgramTypes.Search.SearchQuery
-                  { currentModule = state.currentPath
+                  { currentModule = currentPath
                     text = ""
                     searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
                     entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module ] }
@@ -124,7 +125,7 @@ module Darklang =
                 match Stdlib.List.head searchResults.submodules with
                 | Some moduleList ->
                   // Filter to only direct children by checking path length
-                  let expectedLength = (Stdlib.List.length state.currentPath) + 1L
+                  let expectedLength = (Stdlib.List.length currentPath) + 1L
                   moduleList
                   |> Stdlib.List.filter (fun path ->
                     Stdlib.List.length path == expectedLength)

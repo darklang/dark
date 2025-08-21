@@ -23,9 +23,9 @@ module Darklang =
           // Determine starting path
           let startPath =
             match Stdlib.List.filter args (fun arg -> Stdlib.Bool.not (Stdlib.String.startsWith arg "--")) with
-            | [] -> state.currentPath
-            | [pathStr] -> Utils.resolvePath state.currentPath pathStr
-            | _ -> state.currentPath
+            | [] -> Packages.Path.locationToPath state.currentLocation
+            | [pathStr] -> Utils.resolvePath (Packages.Path.locationToPath state.currentLocation) pathStr
+            | _ -> Packages.Path.locationToPath state.currentLocation
 
           // Static tree display
           if Stdlib.List.isEmpty startPath then
@@ -203,7 +203,8 @@ module Darklang =
           | [] ->
             // Suggest common options and current context packages
             let options = ["--depth=1"; "--depth=3"; "--depth=4"; "/"]
-            if Stdlib.List.isEmpty state.currentPath then
+            let currentPath = Packages.Path.locationToPath state.currentLocation
+            if Stdlib.List.isEmpty currentPath then
               // At root, suggest top-level packages
               let query =
                 LanguageTools.ProgramTypes.Search.SearchQuery
@@ -220,12 +221,12 @@ module Darklang =
               Stdlib.List.append options moduleNames
             else
               // In a module, suggest relative paths and submodules
-              let query = Utils.createModuleSearchQuery state.currentPath
+              let query = Utils.createModuleSearchQuery currentPath
               let results = LanguageTools.PackageManager.Search.search query
               let submoduleNames =
                 match Stdlib.List.head results.submodules with
                 | Some moduleList ->
-                  Utils.getDirectChildModuleNames state.currentPath moduleList
+                  Utils.getDirectChildModuleNames currentPath moduleList
                 | None -> []
               Stdlib.List.append options submoduleNames
           | [partial] ->
