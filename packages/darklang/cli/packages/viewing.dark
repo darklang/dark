@@ -353,6 +353,7 @@ module Darklang =
                 // Multi-part dot notation like "Stdlib.L" when in /Darklang
                 let prefixParts = Stdlib.List.reverse reversedPrefixParts
                 let lowerLastPartial = Stdlib.String.toLowercase lastPartial
+                let currentPath = Packages.Path.locationToPath state.currentLocation
 
                 // Build the full module path considering current context
                 let fullModulePath =
