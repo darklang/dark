@@ -65,9 +65,9 @@ module Darklang =
         // Convert PackagePath to Module location
         let pathToLocation (path: Types.PackagePath) : Types.PackageLocation =
           if Stdlib.List.isEmpty path then
-            Root
+            Types.PackageLocation.Root
           else
-            Module path
+            Types.PackageLocation.Module path
 
         // Create search query from path components
         let createSearchQuery (parts: List<String>) (remainder: String) : LanguageTools.ProgramTypes.Search.SearchQuery =

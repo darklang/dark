@@ -37,7 +37,7 @@ module Darklang =
             
             match foundFunction with
             | Some fn ->
-              let fnLocation = Function { name = target; path = currentPath }
+              let fnLocation = Types.PackageLocation.Function (target, currentPath)
               let locationStr = Packages.Path.formatLocation fnLocation
               (fnLocation, locationStr)
             | None ->
@@ -51,7 +51,7 @@ module Darklang =
               
               match foundType with
               | Some typ ->
-                let typeLocation = Type { name = target; path = currentPath }
+                let typeLocation = Types.PackageLocation.Type (target, currentPath)
                 let locationStr = Packages.Path.formatLocation typeLocation
                 (typeLocation, locationStr)
               | None ->
@@ -65,7 +65,7 @@ module Darklang =
                 
                 match foundConstant with
                 | Some constant ->
-                  let constLocation = Constant { name = target; path = currentPath }
+                  let constLocation = Types.PackageLocation.Constant (target, currentPath)
                   let locationStr = Packages.Path.formatLocation constLocation
                   (constLocation, locationStr)
                 | None ->
