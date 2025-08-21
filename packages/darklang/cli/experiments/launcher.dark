@@ -21,14 +21,6 @@ module Darklang =
                 description = "Terminal.Gui style UI Catalog with MVU components"
                 launcher = Darklang.CLI.Experiments.UICatalog.Catalog.runUICatalogDemo }
             ExperimentInfo
-              { name = "mvu-cli"
-                description = "Modern MVU-based CLI with REPL-style interface"
-                launcher = Main.runMVUCli }
-            ExperimentInfo
-              { name = "mvu-cli-alt"
-                description = "Alternative MVU CLI implementation"
-                launcher = Darklang.Cli.MVUCli.runMVUCli }
-            ExperimentInfo
               { name = "data-entry-demo"
                 description = "Task management and data entry demo"
                 launcher = Darklang.Cli.DataEntryDemo.runDataEntryDemo }
