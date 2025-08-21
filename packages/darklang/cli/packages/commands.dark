@@ -38,26 +38,7 @@ module Darklang =
         
         // Helper functions for formatting output (pure string functions)
         let formatRootListing (searchResults: LanguageTools.ProgramTypes.Search.SearchResults) : String =
-          let owners =
-            if Stdlib.List.isEmpty searchResults.submodules then
-              []
-            else
-              searchResults.submodules
-              |> Stdlib.List.filterMap (fun path ->
-                match path with
-                | owner :: _ -> Stdlib.Option.Option.Some owner
-                | [] -> Stdlib.Option.Option.None)
-              |> Stdlib.List.unique
-              |> Stdlib.List.sort
-          
-          if Stdlib.List.isEmpty owners then
-            "No packages found."
-          else
-            let ownerLines = 
-              owners
-              |> Stdlib.List.map (fun owner -> $"📁 {owner}/")
-              |> Stdlib.String.join "\n"
-            $"Root packages:\n{ownerLines}"
+          "TODO: Root package listing"
         
         let formatModuleListing (path: Types.PackagePath) (searchResults: LanguageTools.ProgramTypes.Search.SearchResults) : String =
           let lines = []
@@ -67,11 +48,7 @@ module Darklang =
             if Stdlib.List.isEmpty searchResults.submodules then
               lines
             else
-              // searchResults.submodules is List<List<List<String>>>, get the first (and only) list
-              let allModulePaths = 
-                match Stdlib.List.head searchResults.submodules with
-                | Some moduleList -> moduleList
-                | None -> []
+              let allModulePaths = searchResults.submodules
               
               // Filter to only direct children (path length = current path length + 1)
               let expectedLength = (Stdlib.List.length path) + 1L

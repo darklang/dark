@@ -303,7 +303,7 @@ module Darklang =
         let commands = allCommands ()
 
         // Group commands by category
-        let packageCommands = ["cd"; "ls"; "view"; "tree"; "pwd"; "back"]
+        let packageCommands = ["nav"; "ls"; "view"; "tree"; "back"]
         let executionCommands = ["run"; "eval"; "scripts"]
         let installCommands = ["install"; "update"; "uninstall"; "status"; "version"]
         let utilityCommands = ["clear"; "help"; "quit"; "experiments"]
