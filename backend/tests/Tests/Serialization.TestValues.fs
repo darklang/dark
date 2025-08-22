@@ -28,9 +28,9 @@ module RuntimeTypes =
   let fqFnNames : List<RT.FQFnName.FQFnName> =
     [ RT.FQFnName.Builtin { name = "aB"; version = 1 }; RT.FQFnName.Package uuid ]
 
-  let fqConstantNames : List<RT.FQConstantName.FQConstantName> =
-    [ RT.FQConstantName.Builtin { name = "aB"; version = 1 }
-      RT.FQConstantName.Package uuid ]
+  let fqValueNames : List<RT.FQValueName.FQValueName> =
+    [ RT.FQValueName.Builtin { name = "aB"; version = 1 }
+      RT.FQValueName.Package uuid ]
 
   let typeReferences : List<RT.TypeReference> =
     [ RT.TUnit
@@ -138,12 +138,12 @@ module RuntimeTypes =
       { id = System.Guid.Parse "42d72f73-0f99-5a9b-949c-b95705ae7c4d"
         declaration = typeDeclarations[1] } ]
 
-  let packageConstants : List<RT.PackageConstant.PackageConstant> =
-    [ { id = uuid; body = RT.CString "Hello RT PackageConstant" }
+  let packageValues : List<RT.PackageValue.PackageValue> =
+    [ { id = uuid; body = RT.DString "Hello RT PackageValue" }
       { id = System.Guid.Parse "52d72f73-0f99-5a9b-949c-b95705ae7c4d"
-        body = RT.CInt64 42L }
+        body = RT.DInt64 42L }
       { id = System.Guid.Parse "62d72f73-0f99-5a9b-949c-b95705ae7c4d"
-        body = RT.CBool true } ]
+        body = RT.DBool true } ]
 
   let instructions : List<RT.Instructions> =
     [ { registerCount = 1; instructions = [ RT.CopyVal(0, 1) ]; resultIn = 0 }
@@ -170,23 +170,23 @@ module RuntimeTypes =
         body = instructions[0] } ]
 
 
-  let consts : List<RT.Const> =
-    [ RT.CUnit
-      RT.CBool true
-      RT.CBool false
-      RT.CInt8 127y
-      RT.CUInt8 255uy
-      RT.CInt16 32767s
-      RT.CUInt16 65535us
-      RT.CInt32 2147483647l
-      RT.CUInt32 4294967295ul
-      RT.CInt64 9223372036854775807L
-      RT.CUInt64 18446744073709551615UL
-      RT.CInt128 170141183460469231731687303715884105727Q
-      RT.CUInt128 340282366920938463463374607431768211455Z
-      RT.CFloat(Positive, "3", "14159")
-      RT.CChar "A"
-      RT.CString "Hello, World!"
+  let vals : List<RT.Dval> =
+    [ RT.DUnit
+      RT.DBool true
+      RT.DBool false
+      RT.DInt8 127y
+      RT.DUInt8 255uy
+      RT.DInt16 32767s
+      RT.DUInt16 65535us
+      RT.DInt32 2147483647l
+      RT.DUInt32 4294967295ul
+      RT.DInt64 9223372036854775807L
+      RT.DUInt64 18446744073709551615UL
+      RT.DInt128 170141183460469231731687303715884105727Q
+      RT.DUInt128 340282366920938463463374607431768211455Z
+      RT.DFloat(3.14159)
+      RT.DChar "A"
+      RT.DString "Hello, World!"
       // RT.CUuid and RT.CDateTime don't exist in RT.Const
       // RT.CUuid uuid
       // RT.CDateTime instant
@@ -646,24 +646,25 @@ module ProgramTypes =
     )
 
 
-  let constValue : Const =
-    CTuple(
-      CInt64(314L),
-      CBool(true),
-      [ CString("string")
-        CUnit
-        CFloat(Positive, "3", "14")
-        CChar("c")
-        CUnit
-        CUInt64(3UL)
-        CInt8(4y)
-        CUInt8(3uy)
-        CInt16(4s)
-        CUInt16(3us)
-        CInt32(4l)
-        CUInt32(3ul)
-        CInt128(-1Q)
-        CUInt128(1Z) ]
+  let constValue : PT.Expr =
+    PT.ETuple(
+      id,
+      PT.EInt64(id, 314L),
+      PT.EBool(id, true),
+      [ PT.EString(id, [ PT.StringText("string") ])
+        PT.EUnit(id)
+        PT.EFloat(id, Positive, "3", "14")
+        PT.EChar(id, "c")
+        PT.EUnit(id)
+        PT.EUInt64(id, 3UL)
+        PT.EInt8(id, 4y)
+        PT.EUInt8(id, 3uy)
+        PT.EInt16(id, 4s)
+        PT.EUInt16(id, 3us)
+        PT.EInt32(id, 4l)
+        PT.EUInt32(id, 3ul)
+        PT.EInt128(id, -1Q)
+        PT.EUInt128(id, 1Z) ]
     )
 
 
@@ -744,17 +745,14 @@ module ProgramTypes =
 
   let packageTypes = [ packageType ]
 
-  let packageConstant : PackageConstant.PackageConstant =
+  let packageValue : PT.PackageValue.PackageValue =
     { id = uuid
-      name =
-        { owner = "dark"
-          modules = [ "stdlib"; "Int64"; "Int64" ]
-          name = "testConstant" }
+      name = PT.PackageValue.name "dark" [ "stdlib"; "Int64"; "Int64" ] "testValue"
       body = constValue
       description = "test"
-      deprecated = NotDeprecated }
+      deprecated = PT.NotDeprecated }
 
-  let packageConstants = [ packageConstant ]
+  let packageValues = [ packageValue ]
 
   let toplevels : List<Toplevel.T> =
     [ List.map Toplevel.TLHandler Handler.handlers

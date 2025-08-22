@@ -67,12 +67,12 @@ let load (builtins : RT.Builtins) : Ply<PT.Packages> =
                   |> List.find (fun original -> original.name = typ.name)
                   |> Option.map _.id
                   |> Option.defaultValue typ.id })
-        constants =
-          reParsed.constants
+        values =
+          reParsed.values
           |> List.map (fun c ->
             { c with
                 id =
-                  packages.constants
+                  packages.values
                   |> List.find (fun original -> original.name = c.name)
                   |> Option.map _.id
                   |> Option.defaultValue c.id })

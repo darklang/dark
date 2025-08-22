@@ -96,12 +96,11 @@ module RoundtripTests =
           None
 
         testRoundtripList
-          "PT.PackageConstant"
-          (pkg
-            PackageIDs.Type.LanguageTools.ProgramTypes.PackageConstant.packageConstant)
-          V.ProgramTypes.packageConstants
-          PT2DT.PackageConstant.toDT
-          PT2DT.PackageConstant.fromDT
+          "PT.PackageValue"
+          (pkg PackageIDs.Type.LanguageTools.ProgramTypes.PackageValue.packageValue)
+          V.ProgramTypes.packageValues
+          PT2DT.PackageValue.toDT
+          PT2DT.PackageValue.fromDT
           None
 
         testRoundtripList
@@ -150,12 +149,11 @@ module RoundtripTests =
           None
 
         testRoundtripList
-          "RT.FQConstantName"
-          (pkg
-            PackageIDs.Type.LanguageTools.RuntimeTypes.FQConstantName.fqConstantName)
-          V.RuntimeTypes.fqConstantNames
-          RT2DT.FQConstantName.toDT
-          RT2DT.FQConstantName.fromDT
+          "RT.FQValueName"
+          (pkg PackageIDs.Type.LanguageTools.RuntimeTypes.FQValueName.fqValueName)
+          V.RuntimeTypes.fqValueNames
+          RT2DT.FQValueName.toDT
+          RT2DT.FQValueName.fromDT
           None
 
         testRoundtripList

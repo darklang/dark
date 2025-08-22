@@ -3,5 +3,5 @@ module Darklang =
   module DarkPackages =
     type Stats =
       { types: Int64
-        constants: Int64
+        values: Int64
         fns: Int64 }

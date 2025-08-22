@@ -108,8 +108,7 @@ module Type =
     let sign = p [] "Sign" "7f0c6dba-6439-4a6c-b689-838cbbd66692"
 
     // TODO: where do these actually belong? are they used, even?
-    let builtinConstant =
-      p [] "BuiltinConstant" "b68d3b0a-d139-4933-9127-1d06712e1514"
+    let builtinValue = p [] "BuiltinValue" "b68d3b0a-d139-4933-9127-1d06712e1514"
     let builtinFnParam =
       p [] "BuiltinFunctionParameter" "8dec56ad-3b32-4f53-83d6-c86200a1d39f"
     let builtinFn = p [] "BuiltinFunction" "fd899262-dc09-46cf-a025-95f31841718c"
@@ -147,12 +146,11 @@ module Type =
         let builtin = p [] "Builtin" "67c7c385-91e9-4f37-91c8-117a0d6a1ace"
         let fqTypeName = p [] "FQTypeName" "690be187-31be-4cef-914a-397d6bd27ac3"
 
-      module FQConstantName =
-        let private p addl = p ("FQConstantName" :: addl)
+      module FQValueName =
+        let private p addl = p ("FQValueName" :: addl)
         let package = p [] "Package" "594f972b-1461-459a-9b27-04fbd8332ce8"
         let builtin = p [] "Builtin" "e32ad5e3-156d-4c36-ab58-04528cbd9885"
-        let fqConstantName =
-          p [] "FQConstantName" "9998a7ea-c1c5-4246-89a4-9167bfbbd7f6"
+        let fqValueName = p [] "FQValueName" "9998a7ea-c1c5-4246-89a4-9167bfbbd7f6"
 
       module FQFnName =
         let private p addl = p ("FQFnName" :: addl)
@@ -250,12 +248,11 @@ module Type =
         let package = p [] "Package" "ad2b1288-5005-4943-a03b-caa8056a2aee"
         let fqTypeName = p [] "FQTypeName" "fa606ff4-1daf-4194-b684-62a0b1215953"
 
-      module FQConstantName =
-        let private p addl = p ("FQConstantName" :: addl)
+      module FQValueName =
+        let private p addl = p ("FQValueName" :: addl)
         let builtin = p [] "Builtin" "2d751fa5-042d-4c63-8c81-8c97ab0f630c"
         let package = p [] "Package" "26810c53-0af7-400d-8755-f6c1c9a61ca7"
-        let fqConstantName =
-          p [] "FQConstantName" "e72942a3-48dd-4f00-b451-aff4903114ba"
+        let fqValueName = p [] "FQValueName" "e72942a3-48dd-4f00-b451-aff4903114ba"
 
       module FQFnName =
         let private p addl = p ("FQFnName" :: addl)
@@ -276,8 +273,6 @@ module Type =
       let pipeExpr = p [] "PipeExpr" "580bc173-e5ef-4f3e-8d12-e88e99fc980a"
       let expr = p [] "Expr" "138c055e-34c3-47f2-a067-7d78d84fe638"
 
-      let constDef = p [] "Const" "5b97f7c3-936b-4a23-bcf1-edd4c57bf70d"
-
       let deprecation = p [] "Deprecation" "e6ac931d-eac0-42df-a197-a9bcf1094b09"
 
       module TypeDeclaration =
@@ -294,11 +289,10 @@ module Type =
         let name = p [] "Name" "5207810f-879c-4e2a-84b5-73b0401213cb"
         let packageType = p [] "PackageType" "27e3390c-137a-4df2-97db-7403442835d1"
 
-      module PackageConstant =
-        let private p addl = p ("PackageConstant" :: addl)
+      module PackageValue =
+        let private p addl = p ("PackageValue" :: addl)
         let name = p [] "Name" "f48ac737-360c-4c85-a5fb-8916c0ba4b3f"
-        let packageConstant =
-          p [] "PackageConstant" "e5190f19-b9de-406c-ba3e-b2f9d83998dd"
+        let packageValue = p [] "PackageValue" "e5190f19-b9de-406c-ba3e-b2f9d83998dd"
 
       module PackageFn =
         let private p addl = p ("PackageFn" :: addl)
@@ -380,8 +374,8 @@ module Type =
     | _ -> System.Guid.NewGuid()
 
 
-module Constant =
-  // There are no referenced Constants at this point,
+module Value =
+  // There are no referenced Values at this point,
   // but we may be thankful later for hooking this up in the meantime.
   let idForName
     (_owner : string)

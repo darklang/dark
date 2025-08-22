@@ -6,16 +6,16 @@ module Darklang =
           { owner: String
             name: List<String>
             types: List<LanguageTools.WrittenTypes.TypeReference.TypeReference>
-            constants:
-              List<LanguageTools.WrittenTypes.ConstantDeclaration.ConstantDeclaration>
+            values:
+              List<LanguageTools.WrittenTypes.ValueDeclaration.ValueDeclaration>
             fns: List<LanguageTools.WrittenTypes.FnDeclaration.FnDeclaration>
             // dbs, handlers
             exprs: List<LanguageTools.WrittenTypes.Expr> }
 
         type PTCanvasModule =
           { types: List<LanguageTools.ProgramTypes.PackageType.PackageType>
-            constants:
-              List<LanguageTools.ProgramTypes.PackageConstant.PackageConstant>
+            values:
+              List<LanguageTools.ProgramTypes.PackageValue.PackageValue>
             fns: List<LanguageTools.ProgramTypes.PackageFn.PackageFn>
             // dbs, handlers
             exprs: List<LanguageTools.ProgramTypes.Expr> }
@@ -34,11 +34,11 @@ module Darklang =
                 | Type t -> Stdlib.Option.Option.Some t
                 | _ -> Stdlib.Option.Option.None)
 
-            let constants =
+            let values =
               source.declarations
               |> Stdlib.List.filterMap (fun decl ->
                 match decl with
-                | Constant c -> Stdlib.Option.Option.Some c
+                | Value v -> Stdlib.Option.Option.Some v
                 | _ -> Stdlib.Option.Option.None)
 
             let fns =
@@ -55,7 +55,7 @@ module Darklang =
                 { owner = owner
                   name = [ canvasName ]
                   types = types
-                  constants = constants
+                  values = values
                   fns = fns
                   exprs = exprs }
             )
@@ -79,15 +79,15 @@ module Darklang =
                 t)
             |> Stdlib.List.unzip
 
-          let (constants, _) =
-            wt.constants
-            |> Stdlib.List.map (fun c ->
-              WrittenTypesToProgramTypes.ConstantDeclaration.toPackageConstPT
+          let (values, _) =
+            wt.values
+            |> Stdlib.List.map (fun v ->
+              WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT
                 onMissing
                 pm
                 wt.owner
                 []
-                c)
+                v)
             |> Stdlib.List.unzip
 
           let (fns, _) =
@@ -114,7 +114,7 @@ module Darklang =
 
           PTCanvasModule
             { types = types
-              constants = constants
+              values = values
               fns = fns
               exprs = exprs }
 
@@ -139,7 +139,7 @@ module Darklang =
                 ProgramTypes.PackageManager.withExtras
                   pm
                   initialParse.types
-                  initialParse.constants
+                  initialParse.values
                   initialParse.fns
 
               let result = toPT onMissing pm moduleWT
@@ -157,15 +157,15 @@ module Darklang =
                               |> Stdlib.Option.mapWithDefault t.id (fun original ->
                                 original.id) })
 
-                    constants =
-                      result.constants
-                      |> Stdlib.List.map (fun c ->
-                        { c with
+                    values =
+                      result.values
+                      |> Stdlib.List.map (fun v ->
+                        { v with
                             id =
-                              initialParse.constants
+                              initialParse.values
                               |> Stdlib.List.findFirst (fun original ->
-                                original.name == c.name)
-                              |> Stdlib.Option.mapWithDefault c.id (fun original ->
+                                original.name == v.name)
+                              |> Stdlib.Option.mapWithDefault v.id (fun original ->
                                 original.id) })
 
                     fns =

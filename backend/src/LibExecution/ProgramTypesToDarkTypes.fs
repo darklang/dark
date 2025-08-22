@@ -111,50 +111,48 @@ module FQFnName =
     | _ -> Exception.raiseInternal "Invalid FQFnName" []
 
 
-module FQConstantName =
+module FQValueName =
   let typeName =
     FQTypeName.fqPackage
-      PackageIDs.Type.LanguageTools.ProgramTypes.FQConstantName.fqConstantName
+      PackageIDs.Type.LanguageTools.ProgramTypes.FQValueName.fqValueName
   let knownType = KTCustomType(typeName, [])
 
   module Builtin =
     let typeName =
       FQTypeName.fqPackage
-        PackageIDs.Type.LanguageTools.ProgramTypes.FQConstantName.builtin
-    let toDT (u : PT.FQConstantName.Builtin) : Dval =
+        PackageIDs.Type.LanguageTools.ProgramTypes.FQValueName.builtin
+    let toDT (u : PT.FQValueName.Builtin) : Dval =
       let fields = [ "name", DString u.name; "version", DInt32 u.version ]
       DRecord(typeName, typeName, [], Map fields)
 
-    let fromDT (d : Dval) : PT.FQConstantName.Builtin =
+    let fromDT (d : Dval) : PT.FQValueName.Builtin =
       match d with
       | DRecord(_, _, _, fields) ->
         { name = nameField fields; version = versionField fields }
-      | _ -> Exception.raiseInternal "Invalid FQConstantName.Builtin" []
+      | _ -> Exception.raiseInternal "Invalid FQValueName.Builtin" []
 
   module Package =
-    let toDT (u : PT.FQConstantName.Package) : Dval = DUuid u
+    let toDT (u : PT.FQValueName.Package) : Dval = DUuid u
 
-    let fromDT (d : Dval) : PT.FQConstantName.Package =
+    let fromDT (d : Dval) : PT.FQValueName.Package =
       match d with
       | DUuid u -> u
-      | _ -> Exception.raiseInternal "Invalid FQConstantName.Package" []
+      | _ -> Exception.raiseInternal "Invalid FQValueName.Package" []
 
-  let toDT (u : PT.FQConstantName.FQConstantName) : Dval =
+  let toDT (u : PT.FQValueName.FQValueName) : Dval =
     let (caseName, fields) =
       match u with
-      | PT.FQConstantName.Builtin u -> "Builtin", [ Builtin.toDT u ]
-      | PT.FQConstantName.Package u -> "Package", [ Package.toDT u ]
+      | PT.FQValueName.Builtin u -> "Builtin", [ Builtin.toDT u ]
+      | PT.FQValueName.Package u -> "Package", [ Package.toDT u ]
     DEnum(typeName, typeName, [], caseName, fields)
 
-  let fromDT (d : Dval) : PT.FQConstantName.FQConstantName =
+  let fromDT (d : Dval) : PT.FQValueName.FQValueName =
     match d with
-    | DEnum(_, _, [], "Builtin", [ u ]) ->
-      PT.FQConstantName.Builtin(Builtin.fromDT u)
+    | DEnum(_, _, [], "Builtin", [ u ]) -> PT.FQValueName.Builtin(Builtin.fromDT u)
 
-    | DEnum(_, _, [], "Package", [ u ]) ->
-      PT.FQConstantName.Package(Package.fromDT u)
+    | DEnum(_, _, [], "Package", [ u ]) -> PT.FQValueName.Package(Package.fromDT u)
 
-    | _ -> Exception.raiseInternal "Invalid FQConstantName" []
+    | _ -> Exception.raiseInternal "Invalid FQValueName" []
 
 
 module NameResolutionError =
@@ -787,10 +785,10 @@ module Expr =
           )
         "ELambda", [ DInt64(int64 id); variables; toDT body ]
 
-      | PT.EConstant(id, name) ->
-        "EConstant",
+      | PT.EValue(id, name) ->
+        "EValue",
         [ DInt64(int64 id)
-          NameResolution.toDT FQConstantName.knownType FQConstantName.toDT name ]
+          NameResolution.toDT FQValueName.knownType FQValueName.toDT name ]
 
       | PT.EApply(id, name, typeArgs, args) ->
         "EApply",
@@ -999,130 +997,12 @@ module Expr =
     | DEnum(_, _, [], "EStatement", [ DInt64 id; expr; next ]) ->
       PT.EStatement(uint64 id, fromDT expr, fromDT next)
 
+    | DEnum(_, _, [], "EValue", [ DInt64 id; name ]) ->
+      PT.EValue(uint64 id, NameResolution.fromDT FQValueName.fromDT name)
+
     | e -> Exception.raiseInternal "Invalid Expr" [ "e", e ]
 
 
-module Const =
-  let typeName =
-    FQTypeName.fqPackage PackageIDs.Type.LanguageTools.ProgramTypes.constDef
-  let knownType = KTCustomType(typeName, [])
-
-  let rec toDT (c : PT.Const) : Dval =
-    let (caseName, fields) =
-      match c with
-      | PT.Const.CUnit -> "CUnit", []
-      | PT.Const.CBool b -> "CBool", [ DBool b ]
-      | PT.Const.CInt64 i -> "CInt64", [ DInt64 i ]
-      | PT.Const.CUInt64 i -> "CUInt64", [ DUInt64 i ]
-      | PT.Const.CInt8 i -> "CInt8", [ DInt8 i ]
-      | PT.Const.CUInt8 i -> "CUInt8", [ DUInt8 i ]
-      | PT.Const.CInt16 i -> "CInt16", [ DInt16 i ]
-      | PT.Const.CUInt16 i -> "CUInt16", [ DUInt16 i ]
-      | PT.Const.CInt32 i -> "CInt32", [ DInt32 i ]
-      | PT.Const.CUInt32 i -> "CUInt32", [ DUInt32 i ]
-      | PT.Const.CInt128 i -> "CInt128", [ DInt128 i ]
-      | PT.Const.CUInt128 i -> "CUInt128", [ DUInt128 i ]
-      | PT.Const.CFloat(sign, w, f) ->
-        "CFloat", [ Sign.toDT sign; DString w; DString f ]
-      | PT.Const.CChar c -> "CChar", [ DChar c ]
-      | PT.Const.CString s -> "CString", [ DString s ]
-
-      | PT.Const.CTuple(first, second, theRest) ->
-        "CTuple",
-        [ toDT first; toDT second; DList(VT.known knownType, List.map toDT theRest) ]
-
-      | PT.Const.CRecord(typeName, typeArgs, fields) ->
-        "CRecord",
-        [ NameResolution.toDT FQTypeName.knownType FQTypeName.toDT typeName
-          DList(
-            VT.known TypeReference.knownType,
-            List.map TypeReference.toDT typeArgs
-          )
-          DList(
-            VT.known (KTTuple(VT.string, VT.known knownType, [])),
-            fields |> List.map (fun (k, v) -> DTuple(DString k, toDT v, []))
-          ) ]
-
-      | PT.Const.CEnum(typeName, caseName, fields) ->
-        "CEnum",
-        [ NameResolution.toDT FQTypeName.knownType FQTypeName.toDT typeName
-          DString caseName
-          Dval.list knownType (List.map toDT fields) ]
-
-      | PT.Const.CList inner ->
-        "CList", [ DList(VT.known knownType, List.map toDT inner) ]
-
-      | PT.Const.CDict pairs ->
-        "CDict",
-        [ DList(
-            VT.tuple VT.string VT.string [],
-            pairs |> List.map (fun (k, v) -> DTuple(DString k, toDT v, []))
-          ) ]
-
-    DEnum(typeName, typeName, [], caseName, fields)
-
-
-  let rec fromDT (d : Dval) : PT.Const =
-    match d with
-    | DEnum(_, _, [], "CInt64", [ DInt64 i ]) -> PT.Const.CInt64 i
-    | DEnum(_, _, [], "CUInt64", [ DUInt64 i ]) -> PT.Const.CUInt64 i
-    | DEnum(_, _, [], "CInt8", [ DInt8 i ]) -> PT.Const.CInt8 i
-    | DEnum(_, _, [], "CUInt8", [ DUInt8 i ]) -> PT.Const.CUInt8 i
-    | DEnum(_, _, [], "CInt16", [ DInt16 i ]) -> PT.Const.CInt16 i
-    | DEnum(_, _, [], "CUInt16", [ DUInt16 i ]) -> PT.Const.CUInt16 i
-    | DEnum(_, _, [], "CInt32", [ DInt32 i ]) -> PT.Const.CInt32 i
-    | DEnum(_, _, [], "CUInt32", [ DUInt32 i ]) -> PT.Const.CUInt32 i
-    | DEnum(_, _, [], "CInt128", [ DInt128 i ]) -> PT.Const.CInt128 i
-    | DEnum(_, _, [], "CUInt128", [ DUInt128 i ]) -> PT.Const.CUInt128 i
-    | DEnum(_, _, [], "CBool", [ DBool b ]) -> PT.Const.CBool b
-    | DEnum(_, _, [], "CString", [ DString s ]) -> PT.Const.CString s
-    | DEnum(_, _, [], "CChar", [ DChar c ]) -> PT.Const.CChar c
-    | DEnum(_, _, [], "CFloat", [ sign; DString w; DString f ]) ->
-      PT.Const.CFloat(Sign.fromDT sign, w, f)
-    | DEnum(_, _, [], "CUnit", []) -> PT.Const.CUnit
-    | DEnum(_, _, [], "CTuple", [ first; second; DList(_vtTODO, rest) ]) ->
-      PT.Const.CTuple(fromDT first, fromDT second, List.map fromDT rest)
-    | DEnum(_,
-            _,
-            [],
-            "CRecord",
-            [ typeName; DList(_vtTODO1, typeArgs); DList(_vtTODO2, fields) ]) ->
-      PT.Const.CRecord(
-        NameResolution.fromDT FQTypeName.fromDT typeName,
-        List.map TypeReference.fromDT typeArgs,
-        fields
-        |> List.map (fun fieldVal ->
-          match fieldVal with
-          | DTuple(DString key, value, []) -> (key, fromDT value)
-          | _ -> Exception.raiseInternal "Invalid field" [])
-      )
-    | DEnum(_, _, [], "CEnum", [ typeName; DString caseName; DList(_vtTODO, fields) ]) ->
-      PT.Const.CEnum(
-        NameResolution.fromDT FQTypeName.fromDT typeName,
-        caseName,
-        List.map fromDT fields
-      )
-    | DEnum(_, _, [], "CList", [ DList(_vtTODO, inner) ]) ->
-      PT.Const.CList(List.map fromDT inner)
-    | DEnum(_, _, [], "CDict", [ DList(_vtTODO, pairs) ]) ->
-      let pairs =
-        pairs
-        |> List.map (fun pair ->
-          match pair with
-          | DTuple(k, v, _) -> (fromDT k, fromDT v)
-          | _ -> Exception.raiseInternal "Invalid pair" [])
-      PT.Const.CDict(
-        List.map
-          (fun (k, v) ->
-            (match k with
-             | PT.Const.CString s -> s
-             | _ -> Exception.raiseInternal "Invalid key" []),
-            v)
-          pairs
-      )
-
-
-    | _ -> Exception.raiseInternal "Invalid Const" []
 
 module Deprecation =
   let typeName =
@@ -1342,52 +1222,52 @@ module PackageType =
     | _ -> Exception.raiseInternal "Invalid PackageType" []
 
 
-module PackageConstant =
+module PackageValue =
   module Name =
     let typeName =
       FQTypeName.fqPackage
-        PackageIDs.Type.LanguageTools.ProgramTypes.PackageConstant.name
+        PackageIDs.Type.LanguageTools.ProgramTypes.PackageValue.name
 
-    let toDT (n : PT.PackageConstant.Name) : Dval =
+    let toDT (n : PT.PackageValue.Name) : Dval =
       let fields =
         [ "owner", DString n.owner
           "modules", DList(VT.string, List.map DString n.modules)
           "name", DString n.name ]
       DRecord(typeName, typeName, [], Map fields)
 
-    let fromDT (d : Dval) : PT.PackageConstant.Name =
+    let fromDT (d : Dval) : PT.PackageValue.Name =
       match d with
       | DRecord(_, _, _, fields) ->
         { owner = fields |> D.field "owner" |> D.string
           modules = fields |> D.field "modules" |> D.list D.string
           name = fields |> D.field "name" |> D.string }
-      | _ -> Exception.raiseInternal "Invalid PackageConstant.Name" []
+      | _ -> Exception.raiseInternal "Invalid PackageValue.Name" []
 
 
   let typeName =
     FQTypeName.fqPackage
-      PackageIDs.Type.LanguageTools.ProgramTypes.PackageConstant.packageConstant
+      PackageIDs.Type.LanguageTools.ProgramTypes.PackageValue.packageValue
 
-  let toDT (p : PT.PackageConstant.PackageConstant) : Dval =
+  let toDT (p : PT.PackageValue.PackageValue) : Dval =
     let fields =
       [ "id", DUuid p.id
         "name", Name.toDT p.name
-        "body", Const.toDT p.body
+        "body", Expr.toDT p.body
         "description", DString p.description
         "deprecated",
-        Deprecation.toDT FQConstantName.knownType FQConstantName.toDT p.deprecated ]
+        Deprecation.toDT FQValueName.knownType FQValueName.toDT p.deprecated ]
     DRecord(typeName, typeName, [], Map fields)
 
-  let fromDT (d : Dval) : PT.PackageConstant.PackageConstant =
+  let fromDT (d : Dval) : PT.PackageValue.PackageValue =
     match d with
     | DRecord(_, _, _, fields) ->
       { id = fields |> D.field "id" |> D.uuid
         name = fields |> D.field "name" |> Name.fromDT
-        body = fields |> D.field "body" |> Const.fromDT
+        body = fields |> D.field "body" |> Expr.fromDT
         description = fields |> D.field "description" |> D.string
         deprecated =
-          fields |> D.field "deprecated" |> Deprecation.fromDT FQConstantName.fromDT }
-    | _ -> Exception.raiseInternal "Invalid PackageConstant" []
+          fields |> D.field "deprecated" |> Deprecation.fromDT FQValueName.fromDT }
+    | _ -> Exception.raiseInternal "Invalid PackageValue" []
 
 
 module PackageFn =
@@ -1489,7 +1369,7 @@ module Search =
         | PT.Search.EntityType.Type -> "Type", []
         | PT.Search.EntityType.Module -> "Module", []
         | PT.Search.EntityType.Fn -> "Fn", []
-        | PT.Search.EntityType.Constant -> "Constant", []
+        | PT.Search.EntityType.Value -> "Value", []
       DEnum(typeName, typeName, [], caseName, fields)
 
     let fromDT (d : Dval) : PT.Search.EntityType =
@@ -1497,7 +1377,7 @@ module Search =
       | DEnum(_, _, [], "Type", []) -> PT.Search.EntityType.Type
       | DEnum(_, _, [], "Module", []) -> PT.Search.EntityType.Module
       | DEnum(_, _, [], "Fn", []) -> PT.Search.EntityType.Fn
-      | DEnum(_, _, [], "Constant", []) -> PT.Search.EntityType.Constant
+      | DEnum(_, _, [], "Value", []) -> PT.Search.EntityType.Value
       | _ -> Exception.raiseInternal "Invalid EntityType" []
 
 
@@ -1563,10 +1443,10 @@ module Search =
           sr.types
           |> List.map PackageType.toDT
           |> Dval.list (KTCustomType(PackageType.typeName, []))
-          "constants",
-          sr.constants
-          |> List.map PackageConstant.toDT
-          |> Dval.list (KTCustomType(PackageConstant.typeName, []))
+          "values",
+          sr.values
+          |> List.map PackageValue.toDT
+          |> Dval.list (KTCustomType(PackageValue.typeName, []))
           "fns",
           sr.fns
           |> List.map PackageFn.toDT
@@ -1578,7 +1458,7 @@ module Search =
       | DRecord(_, _, _, fields) ->
         { submodules = fields |> D.field "submodules" |> D.list (D.list D.string)
           types = fields |> D.field "types" |> D.list PackageType.fromDT
-          constants = fields |> D.field "constants" |> D.list PackageConstant.fromDT
+          values = fields |> D.field "values" |> D.list PackageValue.fromDT
           fns = fields |> D.field "fns" |> D.list PackageFn.fromDT }
       | _ -> Exception.raiseInternal "Invalid SearchResults" []
 

@@ -462,10 +462,10 @@ module Expr =
     | EUnit id ->
       w.Write 14uy
       w.Write id
-    | EConstant(id, nameRes) ->
+    | EValue(id, nameRes) ->
       w.Write 15uy
       w.Write id
-      NameResolution.write FQConstantName.write w nameRes
+      NameResolution.write FQValueName.write w nameRes
     | ELet(id, pattern, rhs, body) ->
       w.Write 16uy
       w.Write id
@@ -636,8 +636,8 @@ module Expr =
       EUnit id
     | 15uy ->
       let id = r.ReadUInt64()
-      let nameRes = NameResolution.read FQConstantName.read r
-      EConstant(id, nameRes)
+      let nameRes = NameResolution.read FQValueName.read r
+      EValue(id, nameRes)
     | 16uy ->
       let id = r.ReadUInt64()
       let pattern = LetPattern.read r

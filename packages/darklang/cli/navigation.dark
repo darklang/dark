@@ -20,8 +20,8 @@ module Darklang =
       | Fn(name) ->
         "/functions/" ++ (PrettyPrinter.ProgramTypes.PackageFn.nameToString name)
 
-      | Constant(name) ->
-        "/constants/" ++ (PrettyPrinter.ProgramTypes.PackageConstant.nameToString name)
+      | Value(name) ->
+        "/values/" ++ (PrettyPrinter.ProgramTypes.PackageValue.nameToString name)
 
 
     /// Navigate to a new page, updating the state

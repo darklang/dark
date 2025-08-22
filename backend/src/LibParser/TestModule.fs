@@ -19,13 +19,13 @@ type WTTest =
 type WTModule =
   { name : List<string>
     types : List<WT.PackageType.PackageType>
-    constants : List<WT.PackageConstant.PackageConstant>
+    values : List<WT.PackageValue.PackageValue>
     dbs : List<WT.DB.T>
     fns : List<WT.PackageFn.PackageFn>
     tests : List<WTTest> }
 
 let emptyWTModule =
-  { name = []; types = []; constants = []; fns = []; dbs = []; tests = [] }
+  { name = []; types = []; values = []; fns = []; dbs = []; tests = [] }
 
 type PTTest =
   { name : string; lineNumber : int; actual : PT.Expr; expected : PT.Expr }
@@ -34,12 +34,12 @@ type PTModule =
   { name : List<string>
     types : List<PT.PackageType.PackageType>
     fns : List<PT.PackageFn.PackageFn>
-    constants : List<PT.PackageConstant.PackageConstant>
+    values : List<PT.PackageValue.PackageValue>
     dbs : List<PT.DB.T>
     tests : List<PTTest> }
 
 let emptyPTModule =
-  { name = []; types = []; fns = []; constants = []; dbs = []; tests = [] }
+  { name = []; types = []; fns = []; values = []; dbs = []; tests = [] }
 
 
 module UserDB =
@@ -104,14 +104,14 @@ let parseFile
   let parseSynBinding
     (currentModule : List<string>)
     (binding : SynBinding)
-    : List<WT.PackageFn.PackageFn> * List<WT.PackageConstant.PackageConstant> =
+    : List<WT.PackageFn.PackageFn> * List<WT.PackageValue.PackageValue> =
     match binding with
     | SynBinding(_, _, _, _, _, _, _, signature, _, _, _, _, _) ->
       match signature with
       | SynPat.LongIdent(SynLongIdent _, _, _, _, _, _) ->
         [ FS2WT.PackageFn.fromSynBinding owner currentModule binding ], []
       | SynPat.Named _ ->
-        [], [ FS2WT.PackageConstant.fromSynBinding owner currentModule binding ]
+        [], [ FS2WT.PackageValue.fromSynBinding owner currentModule binding ]
       | _ -> Exception.raiseInternal $"Unsupported binding" [ "binding", binding ]
 
   let rec parseModule
@@ -124,11 +124,11 @@ let parseFile
         (fun ((m : WTModule), nested) decl ->
           match decl with
           | SynModuleDecl.Let(_, bindings, _) ->
-            let (newUserFns, newPackageConstants) =
+            let (newUserFns, newPackageValues) =
               bindings |> List.map (parseSynBinding currentModule) |> List.unzip
             ({ m with
                 fns = m.fns @ List.concat newUserFns
-                constants = m.constants @ List.concat newPackageConstants },
+                values = m.values @ List.concat newPackageValues },
              nested)
 
           | SynModuleDecl.Types(defns, _) ->
@@ -197,10 +197,10 @@ let toPT
       m.types
       |> Ply.List.mapSequentially (WT2PT.PackageType.toPT pm onMissing currentModule)
 
-    let! constants =
-      m.constants
+    let! values =
+      m.values
       |> Ply.List.mapSequentially (
-        WT2PT.PackageConstant.toPT pm onMissing currentModule
+        WT2PT.PackageValue.toPT builtins pm onMissing currentModule
       )
 
     let! dbs =
@@ -230,7 +230,7 @@ let toPT
       { name = m.name
         fns = fns
         types = types
-        constants = constants
+        values = values
         dbs = dbs
         tests = tests }
   }
@@ -263,7 +263,7 @@ let parseTestFile
       pm
       |> PT.PackageManager.withExtras
         (afterFirstPass |> List.collect _.types)
-        (afterFirstPass |> List.collect _.constants)
+        (afterFirstPass |> List.collect _.values)
         (afterFirstPass |> List.collect _.fns)
 
     let! (afterSecondPass : List<PTModule>) =
@@ -288,12 +288,12 @@ let parseTestFile
                       |> List.find (fun original -> original.name = typ.name)
                       |> Option.map _.id
                       |> Option.defaultValue typ.id })
-            constants =
-              m.constants
+            values =
+              m.values
               |> List.map (fun c ->
                 { c with
                     id =
-                      originalModule.constants
+                      originalModule.values
                       |> List.find (fun original -> original.name = c.name)
                       |> Option.map _.id
                       |> Option.defaultValue c.id })

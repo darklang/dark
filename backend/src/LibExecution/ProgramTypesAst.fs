@@ -85,7 +85,7 @@ let rec symbolsUsedInExpr (expr : Expr) : Set<string> =
       (r expr)
       (updates |> NEList.toList |> List.map (fun (_, e) -> r e) |> Set.unionMany)
 
-  | EConstant(_, _) -> Set.empty // CLEANUP
+  | EValue(_, _) -> Set.empty
 
   // things that can be applied
   | EInfix(_, _, left, right) -> Set.union (r left) (r right)

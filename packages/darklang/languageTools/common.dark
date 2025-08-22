@@ -20,8 +20,8 @@ module Darklang =
         parameters: List<BuiltinFunctionParameter>
         returnType: RuntimeTypes.TypeReference }
 
-    /// A Darklang builtin constant
-    type BuiltinConstant =
-      { name: RuntimeTypes.FQConstantName.Builtin
+    /// A Darklang builtin value
+    type BuiltinValue =
+      { name: RuntimeTypes.FQValueName.Builtin
         description: String
         ``type``: RuntimeTypes.TypeReference }

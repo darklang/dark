@@ -17,20 +17,18 @@ module FQTypeName =
     | PT.FQTypeName.Package p -> RT.FQTypeName.Package(Package.toRT p)
 
 
-module FQConstantName =
+module FQValueName =
   module Builtin =
-    let toRT (c : PT.FQConstantName.Builtin) : RT.FQConstantName.Builtin =
+    let toRT (c : PT.FQValueName.Builtin) : RT.FQValueName.Builtin =
       { name = c.name; version = c.version }
 
   module Package =
-    let toRT (c : PT.FQConstantName.Package) : RT.FQConstantName.Package = c
+    let toRT (c : PT.FQValueName.Package) : RT.FQValueName.Package = c
 
-  let toRT
-    (name : PT.FQConstantName.FQConstantName)
-    : RT.FQConstantName.FQConstantName =
+  let toRT (name : PT.FQValueName.FQValueName) : RT.FQValueName.FQValueName =
     match name with
-    | PT.FQConstantName.Builtin s -> RT.FQConstantName.Builtin(Builtin.toRT s)
-    | PT.FQConstantName.Package p -> RT.FQConstantName.Package(Package.toRT p)
+    | PT.FQValueName.Builtin s -> RT.FQValueName.Builtin(Builtin.toRT s)
+    | PT.FQValueName.Package p -> RT.FQValueName.Package(Package.toRT p)
 
 
 module FQFnName =
@@ -104,6 +102,49 @@ module TypeReference =
       RT.TFn(NEList.map toRT paramTypes, toRT returnType)
 
     | PT.TDB typ -> RT.TDB(toRT typ)
+
+  let rec toValueType (t : PT.TypeReference) : RT.ValueType =
+    match t with
+    | PT.TUnit -> RT.ValueType.Known RT.KTUnit
+    | PT.TBool -> RT.ValueType.Known RT.KTBool
+    | PT.TInt8 -> RT.ValueType.Known RT.KTInt8
+    | PT.TUInt8 -> RT.ValueType.Known RT.KTUInt8
+    | PT.TInt16 -> RT.ValueType.Known RT.KTInt16
+    | PT.TUInt16 -> RT.ValueType.Known RT.KTUInt16
+    | PT.TInt32 -> RT.ValueType.Known RT.KTInt32
+    | PT.TUInt32 -> RT.ValueType.Known RT.KTUInt32
+    | PT.TInt64 -> RT.ValueType.Known RT.KTInt64
+    | PT.TUInt64 -> RT.ValueType.Known RT.KTUInt64
+    | PT.TInt128 -> RT.ValueType.Known RT.KTInt128
+    | PT.TUInt128 -> RT.ValueType.Known RT.KTUInt128
+    | PT.TFloat -> RT.ValueType.Known RT.KTFloat
+    | PT.TChar -> RT.ValueType.Known RT.KTChar
+    | PT.TString -> RT.ValueType.Known RT.KTString
+    | PT.TDateTime -> RT.ValueType.Known RT.KTDateTime
+    | PT.TUuid -> RT.ValueType.Known RT.KTUuid
+    | PT.TList inner -> RT.ValueType.Known(RT.KTList(toValueType inner))
+    | PT.TTuple(first, second, theRest) ->
+      RT.ValueType.Known(
+        RT.KTTuple(
+          toValueType first,
+          toValueType second,
+          theRest |> List.map toValueType
+        )
+      )
+    | PT.TDict typ -> RT.ValueType.Known(RT.KTDict(toValueType typ))
+    | PT.TCustomType(typeName, typeArgs) ->
+      match typeName with
+      | Ok name ->
+        RT.ValueType.Known(
+          RT.KTCustomType(FQTypeName.toRT name, List.map toValueType typeArgs)
+        )
+      | Error _ -> RT.ValueType.Unknown // Can't resolve, use Unknown
+    | PT.TVariable(_) -> RT.ValueType.Unknown // Variables can't be resolved at this stage
+    | PT.TFn(paramTypes, returnType) ->
+      RT.ValueType.Known(
+        RT.KTFn(NEList.map toValueType paramTypes, toValueType returnType)
+      )
+    | PT.TDB typ -> RT.ValueType.Known(RT.KTDB(toValueType typ))
 
 
 module InfixFnName =
@@ -654,13 +695,13 @@ module Expr =
         resultIn = resultReg }
 
 
-    // constants
-    | PT.EConstant(_, Ok name) ->
+    // values
+    | PT.EValue(_, Ok name) ->
       { registerCount = rc + 1
-        instructions = [ RT.LoadConstant(rc, FQConstantName.toRT name) ]
+        instructions = [ RT.LoadValue(rc, FQValueName.toRT name) ]
         resultIn = rc }
 
-    | PT.EConstant(_, Error nre) ->
+    | PT.EValue(_, Error nre) ->
       // CLEANUP improve (see notes for EFnName)
       { registerCount = rc
         instructions = [ RT.RaiseNRE(NameResolutionError.toRT nre) ]
@@ -971,50 +1012,6 @@ module Expr =
         resultIn = nextExpr.resultIn }
 
 
-
-module Const =
-  let rec toRT (c : PT.Const) : RT.Const =
-    match c with
-    | PT.Const.CUnit -> RT.CUnit
-
-    | PT.Const.CBool b -> RT.CBool b
-
-    | PT.Const.CInt8 i -> RT.CInt8 i
-    | PT.Const.CUInt8 i -> RT.CUInt8 i
-    | PT.Const.CInt16 i -> RT.CInt16 i
-    | PT.Const.CUInt16 i -> RT.CUInt16 i
-    | PT.Const.CInt32 i -> RT.CInt32 i
-    | PT.Const.CUInt32 i -> RT.CUInt32 i
-    | PT.Const.CInt64 i -> RT.CInt64 i
-    | PT.Const.CUInt64 i -> RT.CUInt64 i
-    | PT.Const.CInt128 i -> RT.CInt128 i
-    | PT.Const.CUInt128 i -> RT.CUInt128 i
-
-    | PT.Const.CFloat(sign, w, f) -> RT.CFloat(sign, w, f)
-
-    | PT.Const.CChar c -> RT.CChar c
-    | PT.Const.CString s -> RT.CString s
-
-    | PT.Const.CTuple(first, second, rest) ->
-      RT.CTuple(toRT first, toRT second, List.map toRT rest)
-    | PT.Const.CList items -> RT.CList(List.map toRT items)
-    | PT.Const.CDict entries -> RT.CDict(entries |> List.map (Tuple2.mapSecond toRT))
-
-    | PT.Const.CRecord(typeName, typeArgs, fields) ->
-      RT.CRecord(
-        NameResolution.toRT FQTypeName.toRT typeName,
-        List.map TypeReference.toRT typeArgs,
-        fields |> List.map (Tuple2.mapSecond toRT)
-      )
-
-    | PT.Const.CEnum(typeName, caseName, fields) ->
-      RT.CEnum(
-        NameResolution.toRT FQTypeName.toRT typeName,
-        caseName,
-        List.map toRT fields
-      )
-
-
 module TypeDeclaration =
   module RecordField =
     let toRT (f : PT.TypeDeclaration.RecordField) : RT.TypeDeclaration.RecordField =
@@ -1051,11 +1048,97 @@ module PackageType =
   let toRT (t : PT.PackageType.PackageType) : RT.PackageType.PackageType =
     { id = t.id; declaration = TypeDeclaration.toRT t.declaration }
 
-module PackageConstant =
-  let toRT
-    (c : PT.PackageConstant.PackageConstant)
-    : RT.PackageConstant.PackageConstant =
-    { id = c.id; body = Const.toRT c.body }
+module PackageValue =
+  // TODO: do a proper eval (Execution.execute)
+  let rec evalConstantExpr (expr : PT.Expr) : RT.Dval =
+    match expr with
+    | PT.EUnit _ -> RT.DUnit
+    | PT.EBool(_, b) -> RT.DBool b
+    | PT.EInt8(_, i) -> RT.DInt8 i
+    | PT.EUInt8(_, i) -> RT.DUInt8 i
+    | PT.EInt16(_, i) -> RT.DInt16 i
+    | PT.EUInt16(_, i) -> RT.DUInt16 i
+    | PT.EInt32(_, i) -> RT.DInt32 i
+    | PT.EUInt32(_, i) -> RT.DUInt32 i
+    | PT.EInt64(_, i) -> RT.DInt64 i
+    | PT.EUInt64(_, i) -> RT.DUInt64 i
+    | PT.EInt128(_, i) -> RT.DInt128 i
+    | PT.EUInt128(_, i) -> RT.DUInt128 i
+    | PT.EFloat(_, sign, whole, part) ->
+      let str = (if sign = Positive then "" else "-") + whole + "." + part
+      match System.Double.TryParse(str) with
+      | (true, f) -> RT.DFloat f
+      | (false, _) -> RT.DFloat 0.0
+    | PT.EChar(_, c) -> RT.DChar c
+    | PT.EString(_, segments) ->
+      // For values, string segments should only be text, not interpolations
+      let text =
+        segments
+        |> List.map (function
+          | PT.StringText s -> s
+          | PT.StringInterpolation _ -> "")
+        |> String.concat ""
+      RT.DString text
+    | PT.EList(_, exprs) ->
+      let values = exprs |> List.map evalConstantExpr
+      // TODO: determine proper type for the list
+      RT.DList(RT.ValueType.Unknown, values)
+    | PT.ETuple(_, first, second, rest) ->
+      let firstVal = evalConstantExpr first
+      let secondVal = evalConstantExpr second
+      let restVals = rest |> List.map evalConstantExpr
+      RT.DTuple(firstVal, secondVal, restVals)
+    | PT.EDict(_, entries) ->
+      let evalEntries =
+        entries
+        |> List.map (fun (key, valueExpr) -> (key, evalConstantExpr valueExpr))
+        |> Map.ofList
+      RT.DDict(RT.ValueType.Unknown, evalEntries)
+    | PT.EEnum(_, typeName, typeArgs, caseName, fields) ->
+      let resolvedTypeName =
+        match typeName with
+        | Ok name -> FQTypeName.toRT name
+        | Error _ ->
+          Exception.raiseInternal
+            "Cannot resolve enum type name in package constant"
+            []
+      let fieldValues = fields |> List.map evalConstantExpr
+
+      // Convert provided type args, or infer for known generic types when empty
+      let convertedTypeArgs =
+        match typeArgs with
+        | [] ->
+          // Only infer for well-known generic types when no type args provided
+          match resolvedTypeName with
+          | RT.FQTypeName.Package id when id = PackageIDs.Type.Stdlib.option ->
+            match caseName, fieldValues with
+            | "Some", [ fieldValue ] -> [ RT.Dval.toValueType fieldValue ]
+            | "None", [] -> [ RT.ValueType.Unknown ]
+            | _ -> []
+          | RT.FQTypeName.Package id when id = PackageIDs.Type.Stdlib.result ->
+            match caseName, fieldValues with
+            | "Ok", [ okValue ] ->
+              [ RT.Dval.toValueType okValue; RT.ValueType.Unknown ]
+            | "Error", [ errValue ] ->
+              [ RT.ValueType.Unknown; RT.Dval.toValueType errValue ]
+            | _ -> []
+          | _ -> []
+        | _ -> List.map TypeReference.toValueType typeArgs
+
+      RT.DEnum(
+        resolvedTypeName,
+        resolvedTypeName,
+        convertedTypeArgs,
+        caseName,
+        fieldValues
+      )
+    | _ ->
+      // For more complex expressions, return Unit as fallback
+      RT.DUnit
+
+  let toRT (c : PT.PackageValue.PackageValue) : RT.PackageValue.PackageValue =
+    let body = evalConstantExpr c.body
+    { id = c.id; body = body }
 
 module PackageFn =
   module Parameter =
@@ -1081,8 +1164,7 @@ module PackageFn =
 module PackageManager =
   let toRT (pm : PT.PackageManager) : RT.PackageManager =
     { getType = fun id -> pm.getType id |> Ply.map (Option.map PackageType.toRT)
-      getConstant =
-        fun id -> pm.getConstant id |> Ply.map (Option.map PackageConstant.toRT)
+      getValue = fun id -> pm.getValue id |> Ply.map (Option.map PackageValue.toRT)
       getFn = fun id -> pm.getFn id |> Ply.map (Option.map PackageFn.toRT)
 
       init = pm.init }

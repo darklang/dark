@@ -54,8 +54,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _, _, _, [ DUnit ] ->
           uply {
             // TODO: real #s (requires updates in RuntimeTypes and some other places, I think?)
-            let fields =
-              [ "types", DInt64 0; "constants", DInt64 0; "fns", DInt64 0 ]
+            let fields = [ "types", DInt64 0; "values", DInt64 0; "fns", DInt64 0 ]
             return DRecord(statsTypeName, statsTypeName, [], Map fields)
           }
         | _ -> incorrectArgs ())
@@ -108,21 +107,21 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // constants
-    { name = fn "packageManagerFindConstant" 0
+    // values
+    { name = fn "packageManagerFindValue" 0
       typeParams = []
       parameters = [ Param.make "name" TString "" ]
       returnType = TypeReference.option TUuid
       description =
-        "Tries to find a package constant, by name, and returns the ID if it exists"
+        "Tries to find a package value, by name, and returns the ID if it exists"
       fn =
         let optType = KTUuid
         (function
         | _, _, _, [ DString name ] ->
           uply {
             let n = parseGenericName name
-            let name = PT.PackageConstant.name n.owner n.modules n.name
-            match! pm.findConstant name with
+            let name = PT.PackageValue.name n.owner n.modules n.name
+            match! pm.findValue name with
             | Some id -> return DUuid id |> Dval.optionSome optType
             | None -> return Dval.optionNone optType
           }
@@ -131,20 +130,20 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       previewable = Impure
       deprecated = NotDeprecated }
 
-    { name = fn "packageManagerGetConstant" 0
+    { name = fn "packageManagerGetValue" 0
       typeParams = []
       parameters = [ Param.make "id" TUuid "" ]
       returnType =
-        TypeReference.option (TCustomType(Ok PT2DT.PackageConstant.typeName, []))
-      description = "Returns a package constant, by id, if it exists"
+        TypeReference.option (TCustomType(Ok PT2DT.PackageValue.typeName, []))
+      description = "Returns a package value, by id, if it exists"
       fn =
-        let optType = KTCustomType(PT2DT.PackageConstant.typeName, [])
+        let optType = KTCustomType(PT2DT.PackageValue.typeName, [])
         (function
         | _, _, _, [ DUuid id ] ->
           uply {
-            match! pm.getConstant id with
+            match! pm.getValue id with
             | Some f ->
-              return f |> PT2DT.PackageConstant.toDT |> Dval.optionSome optType
+              return f |> PT2DT.PackageValue.toDT |> Dval.optionSome optType
             | None -> return Dval.optionNone optType
           }
         | _ -> incorrectArgs ())
@@ -225,10 +224,10 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               |> List.map PT2DT.PackageType.toDT
               |> Dval.list (KTCustomType(PT2DT.PackageType.typeName, []))
 
-            let constants =
-              results.constants
-              |> List.map PT2DT.PackageConstant.toDT
-              |> Dval.list (KTCustomType(PT2DT.PackageConstant.typeName, []))
+            let values =
+              results.values
+              |> List.map PT2DT.PackageValue.toDT
+              |> Dval.list (KTCustomType(PT2DT.PackageValue.typeName, []))
 
             let fns =
               results.fns
@@ -238,7 +237,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             let resultFields =
               [ "submodules", submodules
                 "types", types
-                "constants", constants
+                "values", values
                 "fns", fns ]
 
             return

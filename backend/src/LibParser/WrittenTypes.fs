@@ -224,28 +224,6 @@ and PipeExpr =
   | EPipeVariableOrFnCall of id * string
 
 
-type Const =
-  | CUnit
-  | CBool of bool
-  | CInt64 of int64
-  | CUInt64 of uint64
-  | CInt8 of int8
-  | CUInt8 of uint8
-  | CInt16 of int16
-  | CUInt16 of uint16
-  | CInt32 of int32
-  | CUInt32 of uint32
-  | CInt128 of System.Int128
-  | CUInt128 of System.UInt128
-  | CFloat of Sign * string * string
-  | CChar of string
-  | CString of string
-  | CList of List<Const>
-  | CDict of List<string * Const>
-  | CTuple of first : Const * second : Const * rest : List<Const>
-  | CRecord of typeName : Name * fields : List<string * Const>
-  | CEnum of typeName : UnresolvedEnumTypeName * caseName : string * List<Const>
-
 module TypeDeclaration =
   type RecordField = { name : string; typ : TypeReference; description : string }
 
@@ -268,10 +246,10 @@ module PackageType =
   type PackageType =
     { name : Name; declaration : TypeDeclaration.T; description : string }
 
-module PackageConstant =
+module PackageValue =
   type Name = { owner : string; modules : List<string>; name : string }
 
-  type PackageConstant = { name : Name; description : string; body : Const }
+  type PackageValue = { name : Name; description : string; body : Expr }
 
 module PackageFn =
   type Name = { owner : string; modules : List<string>; name : string }

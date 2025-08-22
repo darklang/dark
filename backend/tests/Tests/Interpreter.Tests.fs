@@ -396,15 +396,12 @@ module Enum =
   let tests = testList "Enum" [ simple; withFields ]
 
 
-module Constants =
+module Values =
   module Package =
     let mySpecialNumber =
-      t
-        "Test.mySpecialNumber"
-        E.Constants.Package.MySpecialNumber.usage
-        (RT.DInt64 17L)
+      t "Test.mySpecialNumber" E.Values.Package.MySpecialNumber.usage (RT.DInt64 17L)
     let tests = testList "Package" [ mySpecialNumber ]
-  let tests = testList "Constants" [ Package.tests ]
+  let tests = testList "Values" [ Package.tests ]
 
 
 module Infix =
@@ -703,7 +700,7 @@ let tests =
       RecordFieldAccess.tests
       RecordUpdate.tests
       Enum.tests
-      Constants.tests
+      Values.tests
       Infix.tests
       Lambdas.tests
       Fns.tests

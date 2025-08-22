@@ -9,11 +9,11 @@ module Darklang =
         type Package = Uuid
         type FQTypeName = Package of Package
 
-      module FQConstantName =
+      module FQValueName =
         type Builtin = { name: String; version: Int32 }
         type Package = Uuid
 
-        type FQConstantName =
+        type FQValueName =
           | Builtin of Builtin
           | Package of Package
 

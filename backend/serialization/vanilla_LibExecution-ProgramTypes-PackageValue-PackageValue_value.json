@@ -7,35 +7,48 @@
       "Int64",
       "Int64"
     ],
-    "name": "testConstant"
+    "name": "testValue"
   },
   "description": "test",
   "deprecated": {
     "NotDeprecated": []
   },
   "body": {
-    "CTuple": [
+    "ETuple": [
+      123,
       {
-        "CInt64": [
+        "EInt64": [
+          123,
           314
         ]
       },
       {
-        "CBool": [
+        "EBool": [
+          123,
           true
         ]
       },
       [
         {
-          "CString": [
-            "string"
+          "EString": [
+            123,
+            [
+              {
+                "StringText": [
+                  "string"
+                ]
+              }
+            ]
           ]
         },
         {
-          "CUnit": []
+          "EUnit": [
+            123
+          ]
         },
         {
-          "CFloat": [
+          "EFloat": [
+            123,
             {
               "Positive": []
             },
@@ -44,55 +57,67 @@
           ]
         },
         {
-          "CChar": [
+          "EChar": [
+            123,
             "c"
           ]
         },
         {
-          "CUnit": []
+          "EUnit": [
+            123
+          ]
         },
         {
-          "CUInt64": [
+          "EUInt64": [
+            123,
             3
           ]
         },
         {
-          "CInt8": [
+          "EInt8": [
+            123,
             4
           ]
         },
         {
-          "CUInt8": [
+          "EUInt8": [
+            123,
             3
           ]
         },
         {
-          "CInt16": [
+          "EInt16": [
+            123,
             4
           ]
         },
         {
-          "CUInt16": [
+          "EUInt16": [
+            123,
             3
           ]
         },
         {
-          "CInt32": [
+          "EInt32": [
+            123,
             4
           ]
         },
         {
-          "CUInt32": [
+          "EUInt32": [
+            123,
             3
           ]
         },
         {
-          "CInt128": [
+          "EInt128": [
+            123,
             "-1"
           ]
         },
         {
-          "CUInt128": [
+          "EUInt128": [
+            123,
             "1"
           ]
         }

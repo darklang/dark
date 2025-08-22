@@ -46,8 +46,8 @@ module Darklang =
         | Package p -> FQTypeName.package p
 
 
-      module FQConstantName =
-        let builtIn (t: LanguageTools.RuntimeTypes.FQConstantName.Builtin) : String =
+      module FQValueName =
+        let builtIn (t: LanguageTools.RuntimeTypes.FQValueName.Builtin) : String =
           let namePart = t.name
 
           let versionPart =
@@ -59,19 +59,19 @@ module Darklang =
           $"{namePart}{versionPart}"
 
         let package
-          (id: LanguageTools.RuntimeTypes.FQConstantName.Package)
+          (id: LanguageTools.RuntimeTypes.FQValueName.Package)
           : String =
-          match LanguageTools.PackageManager.Constant.get id with
+          match LanguageTools.PackageManager.Value.get id with
           | Some p -> packageName p.name.owner p.name.modules p.name.name
           | None -> Stdlib.Uuid.toString id
 
-      // TODO rename to fqconstantName?
-      let constantName
-        (t: LanguageTools.RuntimeTypes.FQConstantName.FQConstantName)
+      // TODO rename to fqvalueName?
+      let valueName
+        (t: LanguageTools.RuntimeTypes.FQValueName.FQValueName)
         : String =
         match t with
-        | Builtin b -> FQConstantName.builtIn b
-        | Package p -> FQConstantName.package p
+        | Builtin b -> FQValueName.builtIn b
+        | Package p -> FQValueName.package p
 
 
       module FQFnName =

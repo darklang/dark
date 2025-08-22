@@ -33,7 +33,7 @@ let promptText =
 
     "There are two problems I'm facing in refactoring this code:"
     "1. See the `toString` in RuntimeTypes.FQTypeName - that's used in many places 'above' the package names, to help with error messages and other things"
-    "2. a lot of our F# code references the names of Package Types, Consts, and Fns by their name, and we would look up the implementation of those things by name
+    "2. a lot of our F# code references the names of Package Types, Values, and Fns by their name, and we would look up the implementation of those things by name
       With this refactor"
 
     "The first problem can be dealt with by updating those `toString`s to simply print TODO with the IDs rather than the names. That's not great, but maybe good enough for now."

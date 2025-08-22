@@ -24,20 +24,20 @@ let varA = TVariable "a"
 let varB = TVariable "b"
 
 
-let constants : List<BuiltInConstant> =
-  [ { name = constant "testNan" 0
+let values : List<BuiltInValue> =
+  [ { name = value "testNan" 0
       typ = TFloat
       description = "Return a NaN"
       body = DFloat(System.Double.NaN)
       deprecated = NotDeprecated }
 
-    { name = constant "testInfinity" 0
+    { name = value "testInfinity" 0
       typ = TFloat
       description = "Returns positive infitity"
       body = DFloat(System.Double.PositiveInfinity)
       deprecated = NotDeprecated }
 
-    { name = constant "testNegativeInfinity" 0
+    { name = value "testNegativeInfinity" 0
       typ = TFloat
       description = "Returns negative infinity"
       body = DFloat(System.Double.NegativeInfinity)
@@ -273,4 +273,4 @@ let fns : List<BuiltInFn> =
       previewable = Pure
       deprecated = NotDeprecated } ]
 
-let builtins = LibExecution.Builtin.make constants fns
+let builtins = LibExecution.Builtin.make values fns

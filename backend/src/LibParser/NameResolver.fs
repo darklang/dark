@@ -17,7 +17,7 @@ type NRE = PT.NameResolutionError
 ///   items won't be there yet
 /// - sometimes when parsing, we're not sure whether something is:
 ///   - a variable
-///   - or something else, like a constant or fn.
+///   - or something else, like a value or fn.
 ///   During these times, we _also_ want to allow errors as well, so we can
 ///   parse it as a variable as a fallback if nothing is found under that name.
 [<RequireQualifiedAccess>]
@@ -143,47 +143,47 @@ let resolveTypeName
 
 
 
-let resolveConstantName
-  (builtinConstants : Set<RT.FQConstantName.Builtin>)
+let resolveValueName
+  (builtinValues : Set<RT.FQValueName.Builtin>)
   (packageManager : PT.PackageManager)
   (onMissing : OnMissing)
   (currentModule : List<string>)
   (name : WT.Name)
-  : Ply<PT.NameResolution<PT.FQConstantName.FQConstantName>> =
+  : Ply<PT.NameResolution<PT.FQValueName.FQValueName>> =
   match name with
   | WT.KnownBuiltin(name, version) ->
-    Ok(PT.FQConstantName.fqBuiltIn name version) |> Ply
+    Ok(PT.FQValueName.fqBuiltIn name version) |> Ply
   | WT.Unresolved given ->
     let notFoundError = Error(NRE.NotFound(NEList.toList given))
 
     let tryPackageName
-      (name : PT.PackageConstant.Name)
-      : Ply<PT.NameResolution<PT.FQConstantName.FQConstantName>> =
+      (name : PT.PackageValue.Name)
+      : Ply<PT.NameResolution<PT.FQValueName.FQValueName>> =
       uply {
-        match! packageManager.findConstant name with
-        | Some id -> return Ok(PT.FQConstantName.FQConstantName.Package id)
+        match! packageManager.findValue name with
+        | Some id -> return Ok(PT.FQValueName.FQValueName.Package id)
         | None -> return notFoundError
       }
 
     let tryResolve
       (name : GenericName)
-      : Ply<Result<PT.FQConstantName.FQConstantName, unit>> =
+      : Ply<Result<PT.FQValueName.FQValueName, unit>> =
       uply {
         match name.modules with
         | [] -> return Error()
         | owner :: modules ->
           if owner = "Builtin" && modules = [] then
-            let (builtInRT : RT.FQConstantName.Builtin) =
+            let (builtInRT : RT.FQValueName.Builtin) =
               { name = name.name; version = name.version }
 
-            if Set.contains builtInRT builtinConstants then
-              let (builtInPT : PT.FQConstantName.Builtin) =
+            if Set.contains builtInRT builtinValues then
+              let (builtInPT : PT.FQValueName.Builtin) =
                 { name = name.name; version = name.version }
-              return Ok(PT.FQConstantName.Builtin builtInPT)
+              return Ok(PT.FQValueName.Builtin builtInPT)
             else
               return Error()
           else
-            let name = PT.PackageConstant.name owner modules name.name
+            let name = PT.PackageValue.name owner modules name.name
             let! packageName = tryPackageName name
             return packageName |> Result.mapError (fun _ -> ())
       }
@@ -196,7 +196,7 @@ let resolveConstantName
       | Ok(name, version) ->
         let genericName = { modules = modules; name = name; version = version }
 
-        let! (result : PT.NameResolution<PT.FQConstantName.FQConstantName>) =
+        let! (result : PT.NameResolution<PT.FQValueName.FQValueName>) =
           Ply.List.foldSequentially
             (fun currentResult nameToTry ->
               match currentResult with

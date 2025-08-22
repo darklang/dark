@@ -1,7 +1,7 @@
 module Darklang =
   module LanguageTools =
     /// For interacting with the `dark-packages` canvas,
-    /// where package items (types, constants, fns, etc) are maintained.
+    /// where package items (types, values, fns, etc) are maintained.
     ///
     /// Of note, this is the Dev-time PackageManager, not the Runtime PackageManager.
     module PackageManager =
@@ -15,14 +15,14 @@ module Darklang =
           Builtin.packageManagerGetType id
 
 
-      module Constant =
+      module Value =
         let find (name: String) : Stdlib.Option.Option<Uuid> =
-          Builtin.packageManagerFindConstant name
+          Builtin.packageManagerFindValue name
 
         let get
           (id: Uuid)
-          : Stdlib.Option.Option<ProgramTypes.PackageConstant.PackageConstant> =
-          Builtin.packageManagerGetConstant id
+          : Stdlib.Option.Option<ProgramTypes.PackageValue.PackageValue> =
+          Builtin.packageManagerGetValue id
 
 
       module Function =
@@ -41,16 +41,16 @@ module Darklang =
           ProgramTypes.Search.SearchResults
             { submodules = [searchResults.submodules]
               types = searchResults.types
-              constants = searchResults.constants
+              values = searchResults.values
               fns = searchResults.fns }
 
-      // CLEANUP: update this to a constant rather than a function, once we have support for constant records
+      // CLEANUP: update this to a value rather than a function, once we have support for value records
       let pm () : ProgramTypes.PackageManager.PackageManager =
         ProgramTypes.PackageManager.PackageManager
           { findType = PackageManager.Type.find
-            findConstant = PackageManager.Constant.find
+            findValue = PackageManager.Value.find
             findFn = PackageManager.Function.find
             getFn = PackageManager.Function.get
-            getConstant = PackageManager.Constant.get
+            getValue = PackageManager.Value.get
             getType = PackageManager.Type.get
             search = fun query -> PackageManager.Search.search query }

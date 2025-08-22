@@ -95,7 +95,7 @@ module Darklang =
         let shortNames = aliases |> Stdlib.List.map (fun (shortName, _) -> shortName)
         Stdlib.List.append ["Darklang"] shortNames
 
-      /// Get entities (functions, types, constants, submodules) from a module
+      /// Get entities (functions, types, values, submodules) from a module
       let getEntitiesFromModule (modulePath: String): List<String> =
         let parts = Stdlib.String.split modulePath "."
         let query = Command.createSearchQuery parts ""
@@ -118,9 +118,9 @@ module Darklang =
 
         let functions = moduleContent.fns |> Stdlib.List.map (fun fn -> fn.name.name)
         let types = moduleContent.types |> Stdlib.List.map (fun typ -> typ.name.name)
-        let constants = moduleContent.constants |> Stdlib.List.map (fun c -> c.name.name)
+        let values = moduleContent.values |> Stdlib.List.map (fun v -> v.name.name)
 
-        Stdlib.List.flatten [submodules; functions; types; constants]
+        Stdlib.List.flatten [submodules; functions; types; values]
 
       /// Case 1: Complete command names
       let getCommandCompletions (state: State) (input: String): List<String> =

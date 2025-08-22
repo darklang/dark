@@ -685,7 +685,7 @@ module Float =
 
   Builtin.jsonParse<Float> "0.7999999999" = Result.Ok 0.7999999999
 
-  module Constants =
+  module Values =
     Builtin.jsonSerialize<Float> Builtin.testNegativeInfinity_v0 = "\"-Infinity\""
     Builtin.jsonParse<Float> "\"-Infinity\"" = Result.Ok Builtin.testNegativeInfinity_v0
     Builtin.jsonSerialize<Float> Builtin.testInfinity_v0 = "\"Infinity\""

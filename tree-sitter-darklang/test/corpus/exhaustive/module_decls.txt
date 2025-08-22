@@ -76,7 +76,7 @@ module Test =
 module decl - with newlines
 ==================
 module Test =
-  const x = 1L
+  val x = 1L
 
   type T = { x : Int64 }
 
@@ -89,9 +89,10 @@ module Test =
     (keyword) (module_identifier) (symbol)
     (indent)
     (module_content
-      (const_decl
-        (keyword) (constant_identifier) (symbol)
-        (consts (int64_literal (digits (positive_digits)) (symbol)))
+      (val_decl
+        (keyword) (value_identifier) (symbol)
+        (simple_expression
+          (int64_literal (digits (positive_digits)) (symbol)))
       )
     )
     (module_content
@@ -130,7 +131,7 @@ module Test =
 module decl - no newlines
 ==================
 module Test =
-  const x = 1L
+  val x = 1L
   type T = { x : Int64 }
   let helloWorld (i: Int64): String = "Hello world"
 
@@ -141,9 +142,10 @@ module Test =
     (keyword) (module_identifier) (symbol)
     (indent)
     (module_content
-      (const_decl
-        (keyword) (constant_identifier) (symbol)
-        (consts (int64_literal (digits (positive_digits)) (symbol)))
+      (val_decl
+        (keyword) (value_identifier) (symbol)
+        (simple_expression
+          (int64_literal (digits (positive_digits)) (symbol)))
       )
     )
     (module_content
@@ -180,10 +182,10 @@ module decl - nested modules
 
 module Test =
   module Nested1 =
-    const x = 1L
+    val x = 1L
 
   module Nested2 =
-    const x = true
+    val x = true
 
 ---
 
@@ -195,9 +197,10 @@ module Test =
         (keyword) (module_identifier) (symbol)
         (indent)
         (module_content
-          (const_decl
-            (keyword) (constant_identifier) (symbol)
-            (consts (int64_literal (digits (positive_digits)) (symbol)))
+          (val_decl
+            (keyword) (value_identifier) (symbol)
+            (simple_expression
+          (int64_literal (digits (positive_digits)) (symbol)))
           )
         )
         (dedent)
@@ -208,9 +211,10 @@ module Test =
         (keyword) (module_identifier) (symbol)
         (indent)
         (module_content
-          (const_decl
-            (keyword) (constant_identifier) (symbol)
-            (consts (bool_literal))
+          (val_decl
+            (keyword) (value_identifier) (symbol)
+            (simple_expression
+              (bool_literal))
           )
         )
         (dedent)

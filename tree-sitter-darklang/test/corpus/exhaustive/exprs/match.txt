@@ -698,12 +698,12 @@ match (name, value, keyword) with
 
 
 ==================
-match expression - test apply, constant, pipe, and variable
+match expression - test apply, value, pipe, and variable
 ==================
 
 match var with
 | 5L -> Stdlib.Int64.add var 1L
-| 6L -> MyModule.myConst
+| 6L -> MyModule.myVal
 | 7L -> 7L |> Stdlib.Int64.add 1L
 | 8L -> myVar
 
@@ -731,7 +731,7 @@ match var with
         (symbol)
         (match_pattern (int64 (digits (positive_digits)) (symbol)))
         (symbol)
-        (expression (simple_expression (qualified_const_or_fn_name (module_identifier) (symbol) (constant_or_fn_identifier))))
+        (expression (simple_expression (qualified_val_or_fn_name (module_identifier) (symbol) (value_or_fn_identifier))))
       )
       (match_case
         (symbol)

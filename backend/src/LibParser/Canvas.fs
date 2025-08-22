@@ -20,7 +20,7 @@ type WTCanvasModule =
   { owner : string
     name : List<string>
     types : List<WT.PackageType.PackageType>
-    constants : List<WT.PackageConstant.PackageConstant>
+    values : List<WT.PackageValue.PackageValue>
     dbs : List<WT.DB.T>
     fns : List<WT.PackageFn.PackageFn>
     // TODO: consider breaking this down into httpHandlers, crons, workers, and repls
@@ -31,7 +31,7 @@ let emptyRootWTModule owner canvasName =
   { owner = owner
     name = [ "Canvas"; canvasName ]
     types = []
-    constants = []
+    values = []
     dbs = []
     fns = []
     handlers = []
@@ -39,7 +39,7 @@ let emptyRootWTModule owner canvasName =
 
 type PTCanvasModule =
   { types : List<PT.PackageType.PackageType>
-    constants : List<PT.PackageConstant.PackageConstant>
+    values : List<PT.PackageValue.PackageValue>
     fns : List<PT.PackageFn.PackageFn>
 
     dbs : List<PT.DB.T>
@@ -242,10 +242,10 @@ let toPT
         WT2PT.PackageType.toPT pm onMissing (m.owner :: m.name)
       )
 
-    let! constants =
-      m.constants
+    let! values =
+      m.values
       |> Ply.List.mapSequentially (
-        WT2PT.PackageConstant.toPT pm onMissing (m.owner :: m.name)
+        WT2PT.PackageValue.toPT builtins pm onMissing (m.owner :: m.name)
       )
 
     let! dbs =
@@ -275,7 +275,7 @@ let toPT
 
     return
       { types = types
-        constants = constants
+        values = values
         dbs = dbs
         fns = fns
         handlers = handlers
@@ -322,7 +322,7 @@ let parse
       pm
       |> PT.PackageManager.withExtras
         initialResult.types
-        initialResult.constants
+        initialResult.values
         initialResult.fns
 
     // Now, parse again, but with the names in context (so fewer are marked as unresolved)
@@ -338,12 +338,12 @@ let parse
                   |> List.find (fun original -> original.name = typ.name)
                   |> Option.map _.id
                   |> Option.defaultValue typ.id })
-        constants =
-          result.constants
+        values =
+          result.values
           |> List.map (fun c ->
             { c with
                 id =
-                  initialResult.constants
+                  initialResult.values
                   |> List.find (fun original -> original.name = c.name)
                   |> Option.map _.id
                   |> Option.defaultValue c.id })

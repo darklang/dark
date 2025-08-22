@@ -9,8 +9,8 @@ module Darklang =
               description =
                 "Used to associate a name with a group of related types, values, and functions, to logically separate it from other code." }
           KeywordDescription
-            { name = "const"
-              description = "Keyword to specify a constant literal." }
+            { name = "val"
+              description = "Keyword to specify a val literal." }
           KeywordDescription
             { name = "let"
               description = "Binds a name to a value or function." }

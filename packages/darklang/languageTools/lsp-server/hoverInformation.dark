@@ -47,16 +47,16 @@ module Darklang =
 
             createHoverInfo range description metadata
 
-          | PackageConstant c description ->
-            let prettyConst = PrettyPrinter.ProgramTypes.packageConstant c
+          | PackageValue v description ->
+            let prettyVal = PrettyPrinter.ProgramTypes.packageValue v
 
             let fqName =
-              (Stdlib.List.append c.name.modules [ c.name.name ])
+              (Stdlib.List.append v.name.modules [ v.name.name ])
               |> Stdlib.String.join "."
 
             let metadata =
               Stdlib.Option.Option.Some(
-                "Fully qualified name: " ++ fqName ++ "\n\n" ++ prettyConst
+                "Fully qualified name: " ++ fqName ++ "\n\n" ++ prettyVal
               )
 
             createHoverInfo range description metadata
@@ -154,7 +154,7 @@ module Darklang =
           |> Stdlib.List.findFirst (fun f -> f.name.name == name)
 
 
-        /// Helper function to find and get package functions, types, and constants by name from the package manager
+        /// Helper function to find and get package functions, types, and values by name from the package manager
         let tryGetFnAndCollectHoverInfo
           (fnName: List<String>)
           (range: WrittenTypes.Range)
@@ -236,32 +236,32 @@ module Darklang =
           | _ -> Stdlib.Option.Option.None
 
 
-        let tryGetPkgConst
-          (constName: List<String>)
+        let tryGetPkgVal
+          (valName: List<String>)
           (range: WrittenTypes.Range)
           (pm: ProgramTypes.PackageManager.PackageManager)
           (owner: String)
           (currentModules: List<String>)
-          : Stdlib.Option.Option<ProgramTypes.PackageConstant.PackageConstant> =
+          : Stdlib.Option.Option<ProgramTypes.PackageValue.PackageValue> =
           let onMissing = LanguageTools.NameResolver.OnMissing.Allow
-          let constName = WrittenTypes.Name.Unresolved range constName
+          let valName = WrittenTypes.Name.Unresolved range valName
 
-          let resolvedConst =
-            NameResolver.ConstantName.resolve
+          let resolvedVal =
+            NameResolver.ValueName.resolve
               onMissing
               pm
               owner
               currentModules
-              constName
+              valName
 
-          match resolvedConst with
-          | Ok constant ->
-            let c =
-              match constant with
-              | Package c -> c
+          match resolvedVal with
+          | Ok value ->
+            let v =
+              match value with
+              | Package v -> v
 
-            let getConstant = pm.getConstant
-            getConstant c
+            let getValue = pm.getValue
+            getValue v
           | _ -> Stdlib.Option.Option.None
 
 
@@ -730,156 +730,44 @@ module Darklang =
 
 
         // ---------------------------
-        // Constant declaration Hover Info
+        // Value declaration Hover Info
         // ---------------------------
-        let collectConstBodyHoverInfoAtPos
-          (body: WrittenTypes.Const)
+
+        /// Collect hover information for a value declaration at a given position
+        let collectValueHoverInfoAtPos
+          (v: WrittenTypes.ValueDeclaration.ValueDeclaration)
           (position: LanguageServerProtocol.Position.Position)
           (pm: ProgramTypes.PackageManager.PackageManager)
           (owner: String)
           (currentModules: List<String>)
           : Stdlib.Option.Option<Info> =
-          match body with
-          | CList(r, contents, _sob, _scb) ->
-            // check if we are hovering over a List constant
-            if CursorPosition.isLineNumberInRange position r then
-              // check if we are hovering over one of the list elements
-              contents
-              |> Stdlib.List.filterMap (fun (c, _) ->
-                collectConstBodyHoverInfoAtPos c position pm owner currentModules)
-              |> Stdlib.List.head
-            else
-              Stdlib.Option.Option.None
-
-          | CDict(r, contents, keywordDict, _sob, _scb) ->
-            // check if we are hovering over a Dict constant
-            if CursorPosition.isLineNumberInRange position r then
-              // check if we are hovering over the Dict keyword
-              match
-                CursorPosition.checkIfPositionWithinRange position keywordDict
-              with
-              | Some r ->
-                let thingAtPosition = CursorPosition.ThingAtPosition.Keyword("Dict")
-
-                (hoverInfoForThingAtPosition thingAtPosition r)
-                |> Stdlib.Option.Option.Some
-
-              | None ->
-                // check if we are hovering over one of the dict elements
-                contents
-                |> Stdlib.List.filterMap (fun (_, key, c) ->
-                  let (keyRange, key) = key
-
-                  match
-                    CursorPosition.checkIfPositionWithinRange position keyRange
-                  with
-                  | Some r ->
-                    let description =
-                      Stdlib.Option.Option.Some(
-                        "TODO: add description when /// comments are supported"
-                      )
-
-                    let thingAtPosition =
-                      CursorPosition.ThingAtPosition.DictKey(key, description)
-
-                    (hoverInfoForThingAtPosition thingAtPosition r)
-                    |> Stdlib.Option.Option.Some
-
-                  | None -> collectConstBodyHoverInfoAtPos c position pm owner currentModules)
-                |> Stdlib.List.head
-            else
-              Stdlib.Option.Option.None
-
-
-          | CTuple(r, first, _sc, second, rest, _sop, _scp) ->
-            // check if position is within the Tuple constant range
-            if CursorPosition.isLineNumberInRange position r then
-              // check if we are hovering over the first constant
-              match collectConstBodyHoverInfoAtPos first position pm owner currentModules with
-              | Some r -> Stdlib.Option.Option.Some r
-              | None ->
-                // check if we are hovering over the second constant
-                match
-                  collectConstBodyHoverInfoAtPos second position pm owner currentModules
-                with
-                | Some r -> Stdlib.Option.Option.Some r
-                | None ->
-                  // check if we are hovering over one of the rest constants
-                  rest
-                  |> Stdlib.List.filterMap (fun (_, c) ->
-                    collectConstBodyHoverInfoAtPos c position pm owner currentModules)
-                  |> Stdlib.List.head
-            else
-              Stdlib.Option.Option.None
-
-          | CRecord(r, typeName, fields) ->
-            // check if position is within the Record constant range
-            if CursorPosition.isLineNumberInRange position r then
-              collectRecordHoverInfo
-                typeName
-                fields
-                position
-                r
-                pm
-                owner
-                currentModules
-                HoverInformation.collectConstBodyHoverInfoAtPos
-            else
-              Stdlib.Option.Option.None
-
-          | CEnum(r, typeName, caseName, fields, _sd) ->
-            // check if position is within the Enum constant range
-            if CursorPosition.isLineNumberInRange position r then
-              collectEnumHoverInfo
-                typeName
-                caseName
-                fields
-                position
-                r
-                pm
-                owner
-                currentModules
-                HoverInformation.collectConstBodyHoverInfoAtPos
-            else
-              Stdlib.Option.Option.None
-
-          | _ -> Stdlib.Option.Option.None
-
-        /// Collect hover information for a constant declaration at a given position
-        let collectConstHoverInfoAtPos
-          (c: WrittenTypes.ConstantDeclaration.ConstantDeclaration)
-          (position: LanguageServerProtocol.Position.Position)
-          (pm: ProgramTypes.PackageManager.PackageManager)
-          (owner: String)
-          (currentModules: List<String>)
-          : Stdlib.Option.Option<Info> =
-          // check if we are hovering over the const keyword
+          // check if we are hovering over the val keyword
           match
-            CursorPosition.checkIfPositionWithinRange position c.keywordConst
+            CursorPosition.checkIfPositionWithinRange position v.keywordVal
           with
           | Some r ->
-            let thingAtPosition = CursorPosition.ThingAtPosition.Keyword("const")
+            let thingAtPosition = CursorPosition.ThingAtPosition.Keyword("val")
 
             (hoverInfoForThingAtPosition thingAtPosition r)
             |> Stdlib.Option.Option.Some
 
           | None ->
-            let range = c.name.range
-            // check if we are hovering over the constant name
+            let range = v.name.range
+            // check if we are hovering over the value name
             match CursorPosition.checkIfPositionWithinRange position range with
             | Some r ->
-              let getConstant =
-                tryGetPkgConst [ c.name.name ] range pm owner currentModules
+              let getValue =
+                tryGetPkgVal [ v.name.name ] range pm owner currentModules
 
-              match getConstant with
-              | Some c ->
+              match getValue with
+              | Some value ->
                 let description =
                   Stdlib.Option.Option.Some(
                     "TODO: add description when /// comments are supported"
                   )
 
                 let thingAtPosition =
-                  CursorPosition.ThingAtPosition.PackageConstant(c, description)
+                  CursorPosition.ThingAtPosition.PackageValue(value, description)
 
                 (hoverInfoForThingAtPosition thingAtPosition r)
                 |> Stdlib.Option.Option.Some
@@ -887,8 +775,8 @@ module Darklang =
               | None -> Stdlib.Option.Option.None
 
             | None ->
-              // check if we are hovering over the constant body
-              collectConstBodyHoverInfoAtPos c.body position pm owner currentModules
+              // check if we are hovering over the value body (which is an expression)
+              collectExpressionHoverInfoAtPos v.body position pm owner currentModules
 
 
         // ---------------------------
@@ -1505,10 +1393,10 @@ module Darklang =
                   Stdlib.Option.Option.Some(
                     $"Record field: {fieldName}"
                   )
-                
+
                 let thingAtPosition =
                   CursorPosition.ThingAtPosition.FieldName(fieldName, description)
-                
+
                 (hoverInfoForThingAtPosition thingAtPosition r)
                 |> Stdlib.Option.Option.Some
               | None ->
@@ -1565,8 +1453,8 @@ module Darklang =
             | None ->
               // check if we are hovering over one of the fields
               fields
-              |> Stdlib.List.filterMap (fun exprOrConst ->
-                hoverInfoFn exprOrConst position pm owner currentModules)
+              |> Stdlib.List.filterMap (fun exprOrVal ->
+                hoverInfoFn exprOrVal position pm owner currentModules)
               |> Stdlib.List.head
 
 
@@ -2278,27 +2166,27 @@ module Darklang =
             else
               Stdlib.Option.Option.None
 
-          | EConstantOrFn(r, fnOrConstName) ->
-            // check if position is within the EConstantOrFn range
+          | EValueOrFn(r, fnOrValueName) ->
+            // check if position is within the EValueOrFn range
             if CursorPosition.isLineNumberInRange position r then
               let modules =
-                fnOrConstName.modules |> collectModuleNameHoverInfoAtPos position
+                fnOrValueName.modules |> collectModuleNameHoverInfoAtPos position
 
               match modules with
               | Some r -> Stdlib.Option.Option.Some r
               | None ->
                 let modules =
-                  fnOrConstName.modules |> Stdlib.List.map (fun (m, _) -> m.name)
+                  fnOrValueName.modules |> Stdlib.List.map (fun (m, _) -> m.name)
 
-                let fnOrConstantName =
-                  Stdlib.List.append modules [ fnOrConstName.constantOrFn.name ]
+                let fnOrValueName =
+                  Stdlib.List.append modules [ fnOrValueName.valueOrFn.name ]
 
                 match CursorPosition.checkIfPositionWithinRange position r with
                 | Some r ->
                   // check if we are hovering over a function
                   match
                     tryGetFnAndCollectHoverInfo
-                      fnOrConstantName
+                      fnOrValueName
                       r
                       pm
                       owner
@@ -2306,25 +2194,25 @@ module Darklang =
                   with
                   | Some r -> Stdlib.Option.Option.Some r
                   | None ->
-                    // check if we are hovering over a constant
-                    let getConstant =
-                      tryGetPkgConst
-                        fnOrConstantName
-                        fnOrConstName.constantOrFn.range
+                    // check if we are hovering over a value
+                    let getValue =
+                      tryGetPkgVal
+                        fnOrValueName
+                        fnOrValueName.valueOrFn.range
                         pm
                         owner
                         currentModules
 
-                    match getConstant with
-                    | Some c ->
+                    match getValue with
+                    | Some value ->
                       let description =
                         Stdlib.Option.Option.Some(
                           "TODO: add description when /// comments are supported"
                         )
 
                       let thingAtPosition =
-                        CursorPosition.ThingAtPosition.PackageConstant(
-                          c,
+                        CursorPosition.ThingAtPosition.PackageValue(
+                          value,
                           description
                         )
 
@@ -2381,10 +2269,10 @@ module Darklang =
                 else
                   Stdlib.Option.Option.None
 
-              | Constant c ->
-                // Check if position is within const range for early escape
-                if CursorPosition.isLineNumberInRange position c.range then
-                  collectConstHoverInfoAtPos c position pm owner currentModules
+              | Value v ->
+                // Check if position is within value range for early escape
+                if CursorPosition.isLineNumberInRange position v.range then
+                  collectValueHoverInfoAtPos v position pm owner currentModules
                 else
                   Stdlib.Option.Option.None
 

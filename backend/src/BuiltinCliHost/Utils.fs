@@ -16,12 +16,12 @@ open LibExecution.RuntimeTypes
 module CliScript =
   type Definitions =
     { types : List<PT.PackageType.PackageType>
-      constants : List<PT.PackageConstant.PackageConstant>
+      values : List<PT.PackageValue.PackageValue>
       fns : List<PT.PackageFn.PackageFn> }
 
   type PTCliScriptModule =
     { types : List<PT.PackageType.PackageType>
-      constants : List<PT.PackageConstant.PackageConstant>
+      values : List<PT.PackageValue.PackageValue>
       fns : List<PT.PackageFn.PackageFn>
       submodules : Definitions
       exprs : List<PT.Expr> }
@@ -33,9 +33,9 @@ module CliScript =
   let packageType =
     FQTypeName.fqPackage
       PackageIDs.Type.LanguageTools.ProgramTypes.PackageType.packageType
-  let packageConstant =
+  let packageValue =
     FQTypeName.fqPackage
-      PackageIDs.Type.LanguageTools.ProgramTypes.PackageConstant.packageConstant
+      PackageIDs.Type.LanguageTools.ProgramTypes.PackageValue.packageValue
   let packageFn =
     FQTypeName.fqPackage
       PackageIDs.Type.LanguageTools.ProgramTypes.PackageFn.packageFn
@@ -47,10 +47,10 @@ module CliScript =
           VT.customType packageType [],
           m.types |> List.map PT2DT.PackageType.toDT
         )
-        "constants",
+        "values",
         DList(
-          VT.customType packageConstant [],
-          m.constants |> List.map PT2DT.PackageConstant.toDT
+          VT.customType packageValue [],
+          m.values |> List.map PT2DT.PackageValue.toDT
         )
         "fns",
         DList(VT.customType packageFn [], m.fns |> List.map PT2DT.PackageFn.toDT) ]
@@ -64,10 +64,10 @@ module CliScript =
           VT.customType packageType [],
           m.types |> List.map PT2DT.PackageType.toDT
         )
-        "constants",
+        "values",
         DList(
-          VT.customType packageConstant [],
-          m.constants |> List.map PT2DT.PackageConstant.toDT
+          VT.customType packageValue [],
+          m.values |> List.map PT2DT.PackageValue.toDT
         )
         "fns",
         DList(VT.customType packageFn [], m.fns |> List.map PT2DT.PackageFn.toDT)
@@ -85,13 +85,13 @@ module CliScript =
           List.map (fun t -> t |> PT2DT.PackageType.fromDT) types
         | _ ->
           Exception.raiseInternal "Invalid PTCliScriptModule, missing types field" []
-      let constants =
-        match Map.tryFind "constants" fields with
-        | Some(DList(_, constants)) ->
-          List.map (fun c -> c |> PT2DT.PackageConstant.fromDT) constants
+      let values =
+        match Map.tryFind "values" fields with
+        | Some(DList(_, values)) ->
+          List.map (fun v -> v |> PT2DT.PackageValue.fromDT) values
         | _ ->
           Exception.raiseInternal
-            "Invalid PTCliScriptModule, missing constants field"
+            "Invalid PTCliScriptModule, missing values field"
             []
       let fns =
         match Map.tryFind "fns" fields with
@@ -125,17 +125,17 @@ module CliScript =
                   [])
             |> List.concat
 
-          let constants =
+          let values =
             submodules
             |> List.map (fun m ->
               match m with
               | DRecord(_, _, _, m) ->
-                match Map.tryFind "constants" m with
-                | Some(DList(_, constants)) ->
-                  List.map (fun c -> c |> PT2DT.PackageConstant.fromDT) constants
+                match Map.tryFind "values" m with
+                | Some(DList(_, values)) ->
+                  List.map (fun v -> v |> PT2DT.PackageValue.fromDT) values
                 | _ ->
                   Exception.raiseInternal
-                    "Invalid PTCliScriptModule, missing constants field in submodule"
+                    "Invalid PTCliScriptModule, missing values field in submodule"
                     []
               | _ ->
                 Exception.raiseInternal
@@ -161,14 +161,14 @@ module CliScript =
                   [])
             |> List.concat
 
-          { types = types; constants = constants; fns = fns }
+          { types = types; values = values; fns = fns }
         | _ ->
           Exception.raiseInternal
             "Invalid PTCliScriptModule, missing submodules field"
             []
 
       { types = types
-        constants = constants
+        values = values
         fns = fns
         submodules = submodules
         exprs = exprs }

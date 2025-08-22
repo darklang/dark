@@ -63,11 +63,11 @@ module Darklang =
         let parseFn (n: ParsedNode) : WrittenTypes.FnIdentifier =
           WrittenTypes.FnIdentifier { range = n.range; name = n.text }
 
-        let parseConst (n: ParsedNode) : WrittenTypes.ConstantIdentifier =
-          WrittenTypes.ConstantIdentifier { range = n.range; name = n.text }
+        let parseValue (n: ParsedNode) : WrittenTypes.ValueIdentifier =
+          WrittenTypes.ValueIdentifier { range = n.range; name = n.text }
 
-        let parseConstOrFn (n: ParsedNode) : WrittenTypes.ConstantOrFnIdentifier =
-          WrittenTypes.ConstantOrFnIdentifier { range = n.range; name = n.text }
+        let parseValueOrFn (n: ParsedNode) : WrittenTypes.ValueOrFnIdentifier =
+          WrittenTypes.ValueOrFnIdentifier { range = n.range; name = n.text }
 
         let extractTypeArgs
           (node: ParsedNode)
@@ -146,20 +146,20 @@ module Darklang =
               $"Can't parse qualified_fn_name from {node.typ}"
 
 
-        let parseQualifiedConstantOrFnName
+        let parseQualifiedValueOrFnName
           (node: ParsedNode)
-          : Stdlib.Result.Result<WrittenTypes.QualifiedConstantOrFnIdentifier, String> =
-          if node.typ == "qualified_const_or_fn_name" then
+          : Stdlib.Result.Result<WrittenTypes.QualifiedValueOrFnIdentifier, String> =
+          if node.typ == "qualified_val_or_fn_name" then
             match extractModuleIdentifiers node.children with
             | Ok((modules, identifierNode)) ->
-              (WrittenTypes.QualifiedConstantOrFnIdentifier
+              (WrittenTypes.QualifiedValueOrFnIdentifier
                 { range = node.range
                   modules = modules
-                  constantOrFn = parseConstOrFn identifierNode })
+                  valueOrFn = parseValueOrFn identifierNode })
               |> Stdlib.Result.Result.Ok
 
             | Error _ -> createUnparseableError node
 
           else
             Stdlib.Result.Result.Error
-              $"Can't parse qualified_const_or_fn_name from {node.typ}"
+              $"Can't parse qualified_val_or_fn_name from {node.typ}"

@@ -22,15 +22,15 @@ module Darklang =
 
       type VariableIdentifier = { range: Range; name: String }
 
-      type ConstantIdentifier = { range: Range; name: String }
+      type ValueIdentifier = { range: Range; name: String }
 
-      type ConstantOrFnIdentifier = { range: Range; name: String }
+      type ValueOrFnIdentifier = { range: Range; name: String }
 
-      type QualifiedConstantOrFnIdentifier =
+      type QualifiedValueOrFnIdentifier =
         { range: Range
           /// the Range corresponds to the `.` after the module name
           modules: List<(ModuleIdentifier * Range)>
-          constantOrFn: ConstantOrFnIdentifier }
+          valueOrFn: ValueOrFnIdentifier }
 
       type FnIdentifier = { range: Range; name: String }
 
@@ -359,7 +359,7 @@ module Darklang =
 
         | EFnName of Range * name: QualifiedFnIdentifier
 
-        | EConstantOrFn of Range * name: QualifiedConstantOrFnIdentifier
+        | EValueOrFn of Range * name: QualifiedValueOrFnIdentifier
 
         | EStatement of Range * first: Expr * next: Expr
 
@@ -382,69 +382,12 @@ module Darklang =
         | EPipeVariableOrFnCall of Range * String
 
 
-      type Const =
-        | CUnit of Range
-        | CBool of Range * Bool
-        | CInt8 of Range * intPart: (Range * Int8) * suffixPart: Range
-        | CUInt8 of Range * intPart: (Range * UInt8) * suffixPart: Range
-        | CInt16 of Range * intPart: (Range * Int16) * suffixPart: Range
-        | CUInt16 of Range * intPart: (Range * UInt16) * suffixPart: Range
-        | CInt32 of Range * intPart: (Range * Int32) * suffixPart: Range
-        | CUInt32 of Range * intPart: (Range * UInt32) * suffixPart: Range
-        | CInt64 of Range * intPart: (Range * Int64) * suffixPart: Range
-        | CUInt64 of Range * intPart: (Range * UInt64) * suffixPart: Range
-        | CInt128 of Range * intPart: (Range * Int128) * suffixPart: Range
-        | CUInt128 of Range * intPart: (Range * UInt128) * suffixPart: Range
-        | CFloat of Range * Sign * String * String
-        | CChar of
-          Range *
-          contents: Stdlib.Option.Option<(Range * String)> *
-          symbolOpenQuote: Range *
-          symbolCloseQuote: Range
-        | CString of
-          Range *
-          contents: Stdlib.Option.Option<(Range * String)> *
-          symbolOpenQuote: Range *
-          symbolCloseQuote: Range
-        | CList of
-          Range *
-          /// the Range corresponds to the `;` symbol
-          contents: List<(Const * Stdlib.Option.Option<Range>)> *
-          symbolOpenBracket: Range *
-          symbolCloseBracket: Range
-        | CDict of
-          Range *
-          contents: List<(Range * (Range * String) * Const)> *
-          keywordDict: Range *
-          symbolOpenBrace: Range *
-          symbolCloseBrace: Range
-        | CTuple of
-          Range *
-          first: Const *
-          symbolComma: Range *
-          second: Const *
-          /// the Range corresponds to the `,` symbol
-          rest: List<(Range * Const)> *
-          symbolOpenParen: Range *
-          symbolCloseParen: Range
-        | CRecord of
-          Range *
-          typeName: QualifiedTypeIdentifier *
-          fields: List<(Range * String) * Const>
-        | CEnum of
-          Range *
-          typeName: QualifiedTypeIdentifier *
-          caseName: (Range * String) *
-          fields: List<Const> *
-          symbolDot: Range
-
-
       // Module declarations
       module ModuleDeclaration =
         type Declaration =
           | Type of TypeDeclaration.TypeDeclaration
           | Function of FnDeclaration.FnDeclaration
-          | Constant of ConstantDeclaration.ConstantDeclaration
+          | Value of ValueDeclaration.ValueDeclaration
           | SubModule of ModuleDeclaration.ModuleDeclaration
           // TODO: handle http handler and db
           | Expr of Expr
@@ -495,13 +438,13 @@ module Darklang =
             symbolEquals: Range }
 
 
-      // Constant declarations
-      module ConstantDeclaration =
-        type ConstantDeclaration =
+      // Value declarations
+      module ValueDeclaration =
+        type ValueDeclaration =
           { range: Range
-            name: ConstantIdentifier
-            body: Const
-            keywordConst: Range
+            name: ValueIdentifier
+            body: Expr
+            keywordVal: Range
             symbolEquals: Range }
 
 
@@ -543,7 +486,7 @@ module Darklang =
         type SourceFileDeclaration =
           | Type of TypeDeclaration.TypeDeclaration
           | Function of FnDeclaration.FnDeclaration
-          | Constant of ConstantDeclaration.ConstantDeclaration
+          | Value of ValueDeclaration.ValueDeclaration
           | Module of ModuleDeclaration.ModuleDeclaration
 
         type SourceFile =

@@ -336,13 +336,13 @@ Enum List
 
 
 ==================
-List of constants
+List of vars
 ==================
 
-[intConst
-floatConst
-stringConst
-boolConst]
+[intVar
+floatVar
+stringVar
+boolVar]
 
 ---
 
@@ -372,10 +372,10 @@ List of vars
 ==================
 
 [
-  intConst
-  floatConst
-  stringConst
-  boolConst
+  intVar
+  floatVar
+  stringVar
+  boolVar
 ]
 
 ---
@@ -617,10 +617,10 @@ List of vars
 ==================
 
 [
-  intConst
-  floatConst
-  stringConst
-  boolConst
+  intVars
+  floatVars
+  stringVars
+  boolVars
 ]
 
 ---

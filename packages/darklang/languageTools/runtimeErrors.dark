@@ -161,7 +161,7 @@ module Darklang =
 
           | TypeNotFound of name: FQTypeName.FQTypeName
           | FnNotFound of name: FQFnName.FQFnName
-          | ConstNotFound of name: FQConstantName.FQConstantName
+          | ValNotFound of name: FQValueName.FQValueName
 
           | WrongNumberOfTypeArgsForType of fn: FQTypeName.FQTypeName * expected: Int64 * actual: Int64
 

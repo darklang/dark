@@ -10,35 +10,34 @@ module PackageIDs = LibExecution.PackageIDs
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 
 
-let builtinConstant =
-  FQTypeName.fqPackage PackageIDs.Type.LanguageTools.builtinConstant
+let builtinValue = FQTypeName.fqPackage PackageIDs.Type.LanguageTools.builtinValue
 
 let builtinFnParam =
   FQTypeName.fqPackage PackageIDs.Type.LanguageTools.builtinFnParam
 let builtinFn = FQTypeName.fqPackage PackageIDs.Type.LanguageTools.builtinFn
 
 let fns : List<BuiltInFn> =
-  [ { name = fn "languageToolsAllBuiltinConstants" 0
+  [ { name = fn "languageToolsAllBuiltinValues" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TCustomType(Ok builtinConstant, []) |> TList
+      returnType = TCustomType(Ok builtinValue, []) |> TList
       description =
-        "Returns a list of the Builtin constants (usually not to be accessed directly)."
+        "Returns a list of the Builtin values (usually not to be accessed directly)."
       fn =
         (function
         | exeState, _, _, [ DUnit ] ->
-          let consts =
-            exeState.constants.builtIn
+          let vals =
+            exeState.values.builtIn
             |> Map.toList
-            |> List.map (fun (name, data) ->
+            |> List.map (fun (name, (data : BuiltInValue)) ->
               let fields =
-                [ "name", RT2DT.FQConstantName.Builtin.toDT name
+                [ "name", RT2DT.FQValueName.Builtin.toDT name
                   "description", DString data.description
                   "returnType", RT2DT.TypeReference.toDT data.typ ]
 
-              DRecord(builtinConstant, builtinConstant, [], Map fields))
+              DRecord(builtinValue, builtinValue, [], Map fields))
 
-          DList(VT.customType builtinConstant [], consts) |> Ply
+          DList(VT.customType builtinValue [], vals) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

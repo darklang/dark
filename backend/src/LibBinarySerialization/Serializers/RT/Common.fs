@@ -93,28 +93,28 @@ module FQFnName =
     | b -> raise (BinaryFormatException(CorruptedData $"Invalid FQFnName tag: {b}"))
 
 
-module FQConstantName =
-  let write (w : BinaryWriter) (n : FQConstantName.FQConstantName) : unit =
+module FQValueName =
+  let write (w : BinaryWriter) (n : FQValueName.FQValueName) : unit =
     match n with
-    | FQConstantName.Builtin builtin ->
+    | FQValueName.Builtin builtin ->
       w.Write 0uy
       String.write w builtin.name
       w.Write builtin.version
-    | FQConstantName.Package id ->
+    | FQValueName.Package id ->
       w.Write 1uy
       Guid.write w id
 
-  let read (r : BinaryReader) : FQConstantName.FQConstantName =
+  let read (r : BinaryReader) : FQValueName.FQValueName =
     match r.ReadByte() with
     | 0uy ->
       let name = String.read r
       let version = r.ReadInt32()
-      FQConstantName.Builtin { name = name; version = version }
+      FQValueName.Builtin { name = name; version = version }
     | 1uy ->
       let id = Guid.read r
-      FQConstantName.Package id
+      FQValueName.Package id
     | b ->
-      raise (BinaryFormatException(CorruptedData $"Invalid FQConstantName tag: {b}"))
+      raise (BinaryFormatException(CorruptedData $"Invalid FQValueName tag: {b}"))
 
 
 module Sign =

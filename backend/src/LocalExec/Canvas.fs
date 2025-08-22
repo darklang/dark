@@ -92,7 +92,7 @@ let loadFromDisk
             $"Currently only prepared to parse Darklang (dark-) canvases"
         )
 
-    // TODO this doesn't purge any added types/consts/fns from PM...
+    // TODO this doesn't purge any added types/vals/fns from PM...
     // maybe we should?
     do! purgeDataFromInternalSqlTables canvasID
     do! LibCloud.Canvas.createWithExactID canvasID ownerID domain
@@ -120,7 +120,7 @@ let loadFromDisk
         let dbs = canvas.dbs |> List.map PT.Toplevel.TLDB
 
         do! LibPackageManager.Inserts.insertTypes canvas.types
-        do! LibPackageManager.Inserts.insertConsts canvas.constants
+        do! LibPackageManager.Inserts.insertValues canvas.values
         do! LibPackageManager.Inserts.insertFns canvas.fns
 
         return

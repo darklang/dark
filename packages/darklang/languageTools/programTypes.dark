@@ -7,11 +7,11 @@ module Darklang =
         type Package = Uuid
         type FQTypeName = Package of Package
 
-      module FQConstantName =
+      module FQValueName =
         type Builtin = { name: String; version: Int32 }
         type Package = Uuid
 
-        type FQConstantName =
+        type FQValueName =
           | Builtin of Builtin
           | Package of Package
 
@@ -220,7 +220,7 @@ module Darklang =
         | ELet of ID * LetPattern * Expr * Expr
         | ERecordFieldAccess of ID * Expr * String
         | EVariable of ID * String
-        | EConstant of ID * NameResolution<FQConstantName.FQConstantName>
+        | EValue of ID * NameResolution<FQValueName.FQValueName>
 
         // control flow
         | EIf of
@@ -328,33 +328,6 @@ module Darklang =
 
 
 
-      type Const =
-        | CUnit
-        | CBool of Bool
-        | CInt8 of Int8
-        | CUInt8 of UInt8
-        | CInt16 of Int16
-        | CUInt16 of UInt16
-        | CInt32 of Int32
-        | CUInt32 of UInt32
-        | CInt64 of Int64
-        | CUInt64 of UInt64
-        | CInt128 of Int128
-        | CUInt128 of UInt128
-        | CFloat of Sign * String * String
-        | CChar of String
-        | CString of String
-        | CTuple of Const * Const * List<Const>
-        | CList of List<Const>
-        | CDict of List<String * Const>
-        | CRecord of
-          NameResolution<FQTypeName.FQTypeName> *
-          fields: List<String * Const>
-        | CEnum of
-          NameResolution<FQTypeName.FQTypeName> *
-          caseName: String *
-          fields: List<Const>
-
 
       // Package space
       module PackageType =
@@ -381,28 +354,28 @@ module Darklang =
           let name = typeName.name
           owner ++ modules ++ name
 
-      module PackageConstant =
+      module PackageValue =
         type Name =
           { owner: String
             modules: List<String>
             name: String }
 
-        type PackageConstant =
+        type PackageValue =
           { id: Uuid
             name: Name
-            body: Const
+            body: Expr
             description: String
             deprecated: Deprecation<FQFnName.FQFnName> }
 
-        let nameToString (constName: Name) : String =
-          let owner = if constName.owner == "" then "" else constName.owner ++ "."
+        let nameToString (valueName: Name) : String =
+          let owner = if valueName.owner == "" then "" else valueName.owner ++ "."
 
           let modules =
-            match constName.modules with
+            match valueName.modules with
             | [] -> ""
             | modules -> (modules |> Stdlib.String.join ".") ++ "."
 
-          let name = constName.name
+          let name = valueName.name
           owner ++ modules ++ name
 
       module PackageFn =
@@ -439,7 +412,7 @@ module Darklang =
 
       type Packages =
         { types: List<PackageType.PackageType>
-          constants: List<PackageConstant.PackageConstant>
+          values: List<PackageValue.PackageValue>
           fns: List<PackageFn.PackageFn> }
 
 
@@ -449,7 +422,7 @@ module Darklang =
           | Type
           | Module
           | Fn
-          | Constant
+          | Value
 
         /// How deep to search in the module hierarchy
         type SearchDepth =
@@ -475,7 +448,7 @@ module Darklang =
         type SearchResults =
           { submodules: List<List<String>> // [ [ "List"]; ["String"; "List"] ]
             types : List<ProgramTypes.PackageType.PackageType>
-            constants : List<ProgramTypes.PackageConstant.PackageConstant>
+            values : List<ProgramTypes.PackageValue.PackageValue>
             fns : List<ProgramTypes.PackageFn.PackageFn> }
 
 
@@ -489,14 +462,14 @@ module Darklang =
       module PackageManager =
         type PackageManager =
           { findType: String -> Stdlib.Option.Option<FQTypeName.Package>
-            findConstant: String -> Stdlib.Option.Option<FQConstantName.Package>
+            findValue: String -> Stdlib.Option.Option<FQValueName.Package>
             findFn: String -> Stdlib.Option.Option<FQFnName.Package>
 
             getType:
               FQTypeName.Package -> Stdlib.Option.Option<PackageType.PackageType>
-            getConstant:
-              FQConstantName.Package
-                -> Stdlib.Option.Option<PackageConstant.PackageConstant>
+            getValue:
+              FQValueName.Package
+                -> Stdlib.Option.Option<PackageValue.PackageValue>
             getFn: FQFnName.Package -> Stdlib.Option.Option<PackageFn.PackageFn>
 
             search: Search.SearchQuery -> Search.SearchResults }
@@ -507,7 +480,7 @@ module Darklang =
         let withExtras
           (pm: PackageManager.PackageManager)
           (types: List<PackageType.PackageType>)
-          (constants: List<PackageConstant.PackageConstant>)
+          (values: List<PackageValue.PackageValue>)
           (fns: List<PackageFn.PackageFn>)
           : PackageManager.PackageManager =
           PackageManager.PackageManager
@@ -524,18 +497,18 @@ module Darklang =
                     // CLEANUP: use `pm.findType name` directly once the parser/interpreter is fixed
                     let findType = pm.findType
                     findType name
-              findConstant =
+              findValue =
                 fun name ->
                   match
-                    constants
-                    |> Stdlib.List.findFirst (fun c ->
-                      let constName = PackageConstant.nameToString c.name
-                      constName == name)
+                    values
+                    |> Stdlib.List.findFirst (fun v ->
+                      let valueName = PackageValue.nameToString v.name
+                      valueName == name)
                   with
-                  | Some c -> Stdlib.Option.Option.Some c.id
+                  | Some v -> Stdlib.Option.Option.Some v.id
                   | None ->
-                    let findConstant = pm.findConstant
-                    findConstant name
+                    let findValue = pm.findValue
+                    findValue name
               findFn =
                 fun name ->
                   match
@@ -556,13 +529,13 @@ module Darklang =
                   | None ->
                     let getType = pm.getType
                     getType id
-              getConstant =
+              getValue =
                 fun id ->
-                  match constants |> Stdlib.List.findFirst (fun c -> c.id == id) with
-                  | Some c -> Stdlib.Option.Option.Some c
+                  match values |> Stdlib.List.findFirst (fun v -> v.id == id) with
+                  | Some v -> Stdlib.Option.Option.Some v
                   | None ->
-                    let getConstant = pm.getConstant
-                    getConstant id
+                    let getValue = pm.getValue
+                    getValue id
               getFn =
                 fun id ->
                   match fns |> Stdlib.List.findFirst (fun f -> f.id == id) with
@@ -576,7 +549,7 @@ module Darklang =
 
       type Definitions =
         { types: List<PackageType.PackageType>
-          constants: List<PackageConstant.PackageConstant>
+          values: List<PackageValue.PackageValue>
           fns: List<PackageFn.PackageFn>
           // TODO db and handlers
           exprs: List<Expr * List<String>> }
@@ -626,7 +599,7 @@ module Darklang =
       module SourceFile =
         type Declaration =
           | Type of PackageType.PackageType
-          | Constant of PackageConstant.PackageConstant
+          | Value of PackageValue.PackageValue
           | Function of PackageFn.PackageFn
           // db and handlers
           | Module of Definitions // re-evaluate if this makes sense to be here

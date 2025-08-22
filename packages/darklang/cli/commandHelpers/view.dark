@@ -7,7 +7,7 @@ module Darklang =
           match category with
           | Functions -> "functions"
           | Types -> "types"
-          | Constants -> "constants"
+          | Values -> "values"
           | Submodules -> "submodules"
 
         /// Converts a category index to an EntityCategory
@@ -15,7 +15,7 @@ module Darklang =
           match index with
           | 0L -> EntityCategory.Functions
           | 1L -> EntityCategory.Types
-          | 2L -> EntityCategory.Constants
+          | 2L -> EntityCategory.Values
           | 3L -> EntityCategory.Submodules
 
         /// Converts an EntityCategory to its index
@@ -23,7 +23,7 @@ module Darklang =
           match category with
           | Functions -> 0L
           | Types -> 1L
-          | Constants -> 2L
+          | Values -> 2L
           | Submodules -> 3L
 
         module Rendering =
@@ -178,11 +178,11 @@ module Darklang =
                 (moduleContent.types
                   |> Stdlib.List.map (fun typ -> LanguageTools.ProgramTypes.PackageType.nameToString typ.name))
 
-            let constantsSection =
+            let valuesSection =
               formatEntitySectionSimple
-                "constants"
-                (moduleContent.constants
-                  |> Stdlib.List.map (fun c -> LanguageTools.ProgramTypes.PackageConstant.nameToString c.name))
+                "values"
+                (moduleContent.values
+                  |> Stdlib.List.map (fun c -> LanguageTools.ProgramTypes.PackageValue.nameToString c.name))
 
             let submodulesSection =
               formatEntitySectionSimple
@@ -195,7 +195,7 @@ module Darklang =
 
             functionsSection ++
             typesSection ++
-            constantsSection ++
+            valuesSection ++
             submodulesSection
 
           /// Formats module content for interactive display
@@ -214,12 +214,12 @@ module Darklang =
                 (viewingState.moduleContent.types
                   |> Stdlib.List.map (fun typ -> LanguageTools.ProgramTypes.PackageType.nameToString typ.name))
 
-            let constantsSection =
+            let valuesSection =
               formatEntitySection
                 viewingState
-                EntityCategory.Constants
-                (viewingState.moduleContent.constants
-                  |> Stdlib.List.map (fun c -> LanguageTools.ProgramTypes.PackageConstant.nameToString c.name))
+                EntityCategory.Values
+                (viewingState.moduleContent.values
+                  |> Stdlib.List.map (fun c -> LanguageTools.ProgramTypes.PackageValue.nameToString c.name))
 
             let submodulesSection =
               formatEntitySection
@@ -281,12 +281,12 @@ module Darklang =
                 (viewingState.moduleContent.types
                   |> Stdlib.List.map (fun typ -> LanguageTools.ProgramTypes.PackageType.nameToString typ.name))
 
-            let constantsSection =
+            let valuesSection =
               formatEntitySection
                 viewingState
-                EntityCategory.Constants
-                (viewingState.moduleContent.constants
-                  |> Stdlib.List.map (fun c -> LanguageTools.ProgramTypes.PackageConstant.nameToString c.name))
+                EntityCategory.Values
+                (viewingState.moduleContent.values
+                  |> Stdlib.List.map (fun c -> LanguageTools.ProgramTypes.PackageValue.nameToString c.name))
 
             let submodulesSection =
               formatEntitySection
@@ -304,7 +304,7 @@ module Darklang =
             "\n" ++
             functionsSection ++ "\n" ++
             typesSection ++ "\n" ++
-            constantsSection ++ "\n" ++
+            valuesSection ++ "\n" ++
             submodulesSection
 
         module Navigation =
@@ -581,10 +581,10 @@ module Darklang =
 
           /// Entity lookup that finds an entity by name and returns its type and pretty-printed definition
           let findEntity (moduleContent: LanguageTools.ProgramTypes.Search.SearchResults) (name: String) : Stdlib.Option.Option<(String * String)> =
-            let constantResult =
-              moduleContent.constants
-              |> Stdlib.List.findFirst (fun c -> c.name.name == name)
-              |> Stdlib.Option.map (fun c -> ("Constant", PrettyPrinter.ProgramTypes.packageConstant c))
+            let valueResult =
+              moduleContent.values
+              |> Stdlib.List.findFirst (fun v -> v.name.name == name)
+              |> Stdlib.Option.map (fun v -> ("Value", PrettyPrinter.ProgramTypes.packageValue v))
 
             let functionResult =
               moduleContent.fns
@@ -596,8 +596,8 @@ module Darklang =
               |> Stdlib.List.findFirst (fun t -> t.name.name == name)
               |> Stdlib.Option.map (fun t -> ("Type", PrettyPrinter.ProgramTypes.packageType t))
 
-            match constantResult with
-            | Some _ -> constantResult
+            match valueResult with
+            | Some _ -> valueResult
             | None ->
               match functionResult with
               | Some _ -> functionResult
@@ -608,7 +608,7 @@ module Darklang =
             match category with
             | Functions -> moduleContent.fns |> Stdlib.List.map (fun fn -> LanguageTools.ProgramTypes.PackageFn.nameToString fn.name)
             | Types -> moduleContent.types |> Stdlib.List.map (fun typ -> LanguageTools.ProgramTypes.PackageType.nameToString typ.name)
-            | Constants -> moduleContent.constants |> Stdlib.List.map (fun constant -> LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name)
+            | Values -> moduleContent.values |> Stdlib.List.map (fun value -> LanguageTools.ProgramTypes.PackageValue.nameToString value.name)
             | Submodules ->
               moduleContent.submodules
               |> Stdlib.List.map (fun m ->

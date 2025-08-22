@@ -14,7 +14,7 @@ module TypeChecker = LibExecution.TypeChecker
 
 type Editor =
   { types : List<PackageType.PackageType>
-    constants : List<PackageConstant.PackageConstant>
+    values : List<PackageValue.PackageValue>
     functions : List<PackageFn.PackageFn>
     currentState : Dval }
 
@@ -22,7 +22,7 @@ type Editor =
 /// A "user program" that can be executed by the interpreter
 type UserProgramSource =
   { types : List<PackageType.PackageType>
-    constants : List<PackageConstant.PackageConstant>
+    values : List<PackageValue.PackageValue>
     fns : List<PackageFn.PackageFn>
 
     // (exprs to eval, in order)
@@ -30,7 +30,7 @@ type UserProgramSource =
 
 // this is client.dark, loaded and live, along with some current state
 let mutable editor : Editor =
-  { types = []; constants = []; functions = []; currentState = DUnit }
+  { types = []; values = []; functions = []; currentState = DUnit }
 
 
 let fns : List<BuiltInFn> =
@@ -160,7 +160,7 @@ let fns : List<BuiltInFn> =
             let! result =
               let expr = exprsCollapsedIntoOne source.exprs
               let state =
-                getStateForEval builtin source.types source.constants source.fns
+                getStateForEval builtin source.types source.values source.fns
               let inputVars = Map.empty
               LibExecution.Execution.executeExpr state inputVars expr
 

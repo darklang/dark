@@ -176,685 +176,6 @@
     }
   },
   {
-    "type": "const_decl",
-    "named": true,
-    "fields": {
-      "keyword_const": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "keyword",
-            "named": true
-          }
-        ]
-      },
-      "name": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "constant_identifier",
-            "named": true
-          }
-        ]
-      },
-      "symbol_equals": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      },
-      "value": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "consts",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
-    "type": "const_dict_content",
-    "named": true,
-    "fields": {
-      "dict_separator": {
-        "multiple": true,
-        "required": false,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      }
-    },
-    "children": {
-      "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "const_dict_pair",
-          "named": true
-        },
-        {
-          "type": "newline",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "const_dict_literal",
-    "named": true,
-    "fields": {
-      "content": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "const_dict_content",
-            "named": true
-          }
-        ]
-      },
-      "keyword_dict": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "keyword",
-            "named": true
-          }
-        ]
-      },
-      "symbol_close_brace": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      },
-      "symbol_open_brace": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
-    "type": "const_dict_pair",
-    "named": true,
-    "fields": {
-      "key": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "double_backtick_identifier",
-            "named": true
-          },
-          {
-            "type": "variable_identifier",
-            "named": true
-          }
-        ]
-      },
-      "symbol_equals": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      },
-      "value": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "consts",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
-    "type": "const_enum_fields",
-    "named": true,
-    "fields": {
-      "symbol_comma": {
-        "multiple": true,
-        "required": false,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      }
-    },
-    "children": {
-      "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "consts",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "const_enum_literal",
-    "named": true,
-    "fields": {
-      "case_name": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "enum_case_identifier",
-            "named": true
-          }
-        ]
-      },
-      "enum_fields": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "const_enum_fields",
-            "named": true
-          }
-        ]
-      },
-      "symbol_close_paren": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      },
-      "symbol_dot": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      },
-      "symbol_open_paren": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      },
-      "type_name": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "qualified_type_name",
-            "named": true
-          }
-        ]
-      }
-    },
-    "children": {
-      "multiple": true,
-      "required": false,
-      "types": [
-        {
-          "type": "dedent",
-          "named": true
-        },
-        {
-          "type": "indent",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "const_list_content",
-    "named": true,
-    "fields": {
-      "list_separator": {
-        "multiple": true,
-        "required": false,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      }
-    },
-    "children": {
-      "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "consts",
-          "named": true
-        },
-        {
-          "type": "dedent",
-          "named": true
-        },
-        {
-          "type": "indent",
-          "named": true
-        },
-        {
-          "type": "newline",
-          "named": true
-        },
-        {
-          "type": "symbol",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "const_list_literal",
-    "named": true,
-    "fields": {
-      "content": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "const_list_content",
-            "named": true
-          }
-        ]
-      },
-      "symbol_close_bracket": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      },
-      "symbol_open_bracket": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
-    "type": "const_record_content",
-    "named": true,
-    "fields": {
-      "record_separator": {
-        "multiple": true,
-        "required": false,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      }
-    },
-    "children": {
-      "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "const_record_pair",
-          "named": true
-        },
-        {
-          "type": "newline",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "const_record_literal",
-    "named": true,
-    "fields": {
-      "content": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "const_record_content",
-            "named": true
-          }
-        ]
-      },
-      "symbol_close_brace": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      },
-      "symbol_open_brace": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      },
-      "type_name": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "qualified_type_name",
-            "named": true
-          }
-        ]
-      }
-    },
-    "children": {
-      "multiple": true,
-      "required": false,
-      "types": [
-        {
-          "type": "dedent",
-          "named": true
-        },
-        {
-          "type": "indent",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "const_record_pair",
-    "named": true,
-    "fields": {
-      "field": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "variable_identifier",
-            "named": true
-          }
-        ]
-      },
-      "symbol_equals": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      },
-      "value": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "consts",
-            "named": true
-          }
-        ]
-      }
-    },
-    "children": {
-      "multiple": true,
-      "required": false,
-      "types": [
-        {
-          "type": "dedent",
-          "named": true
-        },
-        {
-          "type": "indent",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "const_tuple_literal",
-    "named": true,
-    "fields": {
-      "first": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "consts",
-            "named": true
-          }
-        ]
-      },
-      "rest": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "const_tuple_literal_the_rest",
-            "named": true
-          }
-        ]
-      },
-      "second": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "consts",
-            "named": true
-          }
-        ]
-      },
-      "symbol_comma": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      },
-      "symbol_left_paren": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      },
-      "symbol_right_paren": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
-    "type": "const_tuple_literal_the_rest",
-    "named": true,
-    "fields": {
-      "expr": {
-        "multiple": true,
-        "required": true,
-        "types": [
-          {
-            "type": "consts",
-            "named": true
-          }
-        ]
-      },
-      "symbol_comma": {
-        "multiple": true,
-        "required": true,
-        "types": [
-          {
-            "type": "symbol",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
-    "type": "constant_identifier",
-    "named": true,
-    "fields": {}
-  },
-  {
-    "type": "constant_or_fn_identifier",
-    "named": true,
-    "fields": {}
-  },
-  {
-    "type": "consts",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": false,
-      "required": true,
-      "types": [
-        {
-          "type": "bool_literal",
-          "named": true
-        },
-        {
-          "type": "char_literal",
-          "named": true
-        },
-        {
-          "type": "const_dict_literal",
-          "named": true
-        },
-        {
-          "type": "const_enum_literal",
-          "named": true
-        },
-        {
-          "type": "const_list_literal",
-          "named": true
-        },
-        {
-          "type": "const_record_literal",
-          "named": true
-        },
-        {
-          "type": "const_tuple_literal",
-          "named": true
-        },
-        {
-          "type": "float_literal",
-          "named": true
-        },
-        {
-          "type": "int128_literal",
-          "named": true
-        },
-        {
-          "type": "int16_literal",
-          "named": true
-        },
-        {
-          "type": "int32_literal",
-          "named": true
-        },
-        {
-          "type": "int64_literal",
-          "named": true
-        },
-        {
-          "type": "int8_literal",
-          "named": true
-        },
-        {
-          "type": "string_literal",
-          "named": true
-        },
-        {
-          "type": "uint128_literal",
-          "named": true
-        },
-        {
-          "type": "uint16_literal",
-          "named": true
-        },
-        {
-          "type": "uint32_literal",
-          "named": true
-        },
-        {
-          "type": "uint64_literal",
-          "named": true
-        },
-        {
-          "type": "uint8_literal",
-          "named": true
-        },
-        {
-          "type": "unit",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
     "type": "dbReference",
     "named": true,
     "fields": {},
@@ -2657,10 +1978,6 @@
       "required": true,
       "types": [
         {
-          "type": "const_decl",
-          "named": true
-        },
-        {
           "type": "expression",
           "named": true
         },
@@ -2674,6 +1991,10 @@
         },
         {
           "type": "type_decl",
+          "named": true
+        },
+        {
+          "type": "val_decl",
           "named": true
         }
       ]
@@ -3233,29 +2554,6 @@
     }
   },
   {
-    "type": "qualified_const_or_fn_name",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "constant_or_fn_identifier",
-          "named": true
-        },
-        {
-          "type": "module_identifier",
-          "named": true
-        },
-        {
-          "type": "symbol",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
     "type": "qualified_fn_name",
     "named": true,
     "fields": {
@@ -3324,6 +2622,29 @@
         },
         {
           "type": "symbol",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "qualified_val_or_fn_name",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "module_identifier",
+          "named": true
+        },
+        {
+          "type": "symbol",
+          "named": true
+        },
+        {
+          "type": "value_or_fn_identifier",
           "named": true
         }
       ]
@@ -3682,7 +3003,7 @@
           "named": true
         },
         {
-          "type": "qualified_const_or_fn_name",
+          "type": "qualified_val_or_fn_name",
           "named": true
         },
         {
@@ -3741,10 +3062,6 @@
       "required": false,
       "types": [
         {
-          "type": "const_decl",
-          "named": true
-        },
-        {
           "type": "expression",
           "named": true
         },
@@ -3758,6 +3075,10 @@
         },
         {
           "type": "type_decl",
+          "named": true
+        },
+        {
+          "type": "val_decl",
           "named": true
         }
       ]
@@ -5057,6 +4378,62 @@
         ]
       }
     }
+  },
+  {
+    "type": "val_decl",
+    "named": true,
+    "fields": {
+      "keyword_val": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "keyword",
+            "named": true
+          }
+        ]
+      },
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "value_identifier",
+            "named": true
+          }
+        ]
+      },
+      "symbol_equals": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "simple_expression",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "value_identifier",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "value_or_fn_identifier",
+    "named": true,
+    "fields": {}
   },
   {
     "type": "variable",

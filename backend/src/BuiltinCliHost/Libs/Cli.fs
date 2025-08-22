@@ -66,10 +66,10 @@ let execute
         [ mod'.types |> List.map PT2RT.PackageType.toRT
           mod'.submodules.types |> List.map PT2RT.PackageType.toRT ]
 
-    let constants =
+    let values =
       List.concat
-        [ mod'.constants |> List.map PT2RT.PackageConstant.toRT
-          mod'.submodules.constants |> List.map PT2RT.PackageConstant.toRT ]
+        [ mod'.values |> List.map PT2RT.PackageValue.toRT
+          mod'.submodules.values |> List.map PT2RT.PackageValue.toRT ]
 
     let fns =
       List.concat
@@ -77,7 +77,7 @@ let execute
           mod'.submodules.fns |> List.map PT2RT.PackageFn.toRT ]
 
     let packageManager =
-      Config.packageManagerRT |> PackageManager.withExtras types constants fns
+      Config.packageManagerRT |> PackageManager.withExtras types values fns
 
     let tracing = Exe.noTracing
 

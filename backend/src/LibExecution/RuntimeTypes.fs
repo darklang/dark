@@ -11,7 +11,7 @@ module LibExecution.RuntimeTypes
 open Prelude
 
 let builtinNamePattern = @"^(__|[a-z])[a-z0-9A-Z_]\w*$"
-let constantNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
+let valueNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
 
 let assertBuiltin
   (name : string)
@@ -36,30 +36,30 @@ module FQTypeName =
   let fqPackage (id : uuid) : FQTypeName = Package id
 
 
-/// A Fully-Qualified Constant Name
+/// A Fully-Qualified Value Name
 ///
-/// Used to reference a constant defined by the runtime or in a Package
-module FQConstantName =
-  /// A constant built into the runtime
+/// Used to reference a value defined by the runtime or in a Package
+module FQValueName =
+  /// A value built into the runtime
   type Builtin = { name : string; version : int }
 
-  /// The id of a constant in the package manager
+  /// The id of a value in the package manager
   type Package = uuid
 
-  type FQConstantName =
+  type FQValueName =
     | Builtin of Builtin
     | Package of Package
 
-  let assertConstantName (name : string) : unit =
-    assertRe "Constant name must match" constantNamePattern name
+  let assertValueName (name : string) : unit =
+    assertRe "Value name must match" valueNamePattern name
 
   let builtin (name : string) (version : int) : Builtin =
-    assertBuiltin name version assertConstantName
+    assertBuiltin name version assertValueName
     { name = name; version = version }
 
   let package (id : uuid) : Package = id
 
-  let fqPackage (id : uuid) : FQConstantName = Package id
+  let fqPackage (id : uuid) : FQValueName = Package id
 
 
 /// A Fully-Qualified Function Name
@@ -322,7 +322,7 @@ type StringSegment =
 
 type Instruction =
   // == Simple register operations ==
-  /// Push a ("constant") value into a register
+  /// Push a value into a register
   | LoadVal of loadTo : Register * Dval
 
   | CopyVal of copyTo : Register * copyFrom : Register
@@ -416,7 +416,7 @@ type Instruction =
     fields : List<Register>
 
 
-  | LoadConstant of createTo : Register * FQConstantName.FQConstantName
+  | LoadValue of createTo : Register * FQValueName.FQValueName
 
   // == Working with things that Apply ==
 
@@ -863,7 +863,7 @@ module RuntimeError =
 
     | TypeNotFound of name : FQTypeName.FQTypeName
     | FnNotFound of name : FQFnName.FQFnName
-    | ConstNotFound of name : FQConstantName.FQConstantName
+    | ValueNotFound of name : FQValueName.FQValueName
 
     | WrongNumberOfTypeArgsForType of
       fn : FQTypeName.FQTypeName *
@@ -1043,38 +1043,6 @@ module Dval =
 
 
 
-type Const =
-  | CUnit
-  | CBool of bool
-
-  | CInt8 of int8
-  | CUInt8 of uint8
-  | CInt16 of int16
-  | CUInt16 of uint16
-  | CInt32 of int32
-  | CUInt32 of uint32
-  | CInt64 of int64
-  | CUInt64 of uint64
-  | CInt128 of System.Int128
-  | CUInt128 of System.UInt128
-
-  | CFloat of Sign * string * string
-
-  | CChar of string
-  | CString of string
-
-  | CList of List<Const>
-  | CTuple of first : Const * second : Const * rest : List<Const>
-  | CDict of List<string * Const>
-
-  | CRecord of
-    typeName : NameResolution<FQTypeName.FQTypeName> *
-    typeArgs : List<TypeReference> *
-    fields : List<string * Const>
-
-  | CEnum of NameResolution<FQTypeName.FQTypeName> * caseName : string * List<Const>
-
-
 
 // ------------
 // Package-Space
@@ -1083,8 +1051,8 @@ type Const =
 module PackageType =
   type PackageType = { id : uuid; declaration : TypeDeclaration.T }
 
-module PackageConstant =
-  type PackageConstant = { id : uuid; body : Const }
+module PackageValue =
+  type PackageValue = { id : uuid; body : Dval }
 
 module PackageFn =
   type Parameter = { name : string; typ : TypeReference }
@@ -1108,8 +1076,7 @@ module PackageFn =
 /// (though, we'll likely demand deps. in the PM before committing something upstream...)
 type PackageManager =
   { getType : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
-    getConstant :
-      FQConstantName.Package -> Ply<Option<PackageConstant.PackageConstant>>
+    getValue : FQValueName.Package -> Ply<Option<PackageValue.PackageValue>>
     getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
 
     init : Ply<unit> }
@@ -1117,7 +1084,7 @@ type PackageManager =
   static member empty =
     { getType = (fun _ -> Ply None)
       getFn = (fun _ -> Ply None)
-      getConstant = (fun _ -> Ply None)
+      getValue = (fun _ -> Ply None)
 
       init = uply { return () } }
 
@@ -1125,7 +1092,7 @@ type PackageManager =
   /// the normal fetching functionality. (Mostly helpful for tests)
   static member withExtras
     (types : List<PackageType.PackageType>)
-    (constants : List<PackageConstant.PackageConstant>)
+    (values : List<PackageValue.PackageValue>)
     (fns : List<PackageFn.PackageFn>)
     (pm : PackageManager)
     : PackageManager =
@@ -1134,11 +1101,11 @@ type PackageManager =
           match types |> List.tryFind (fun t -> t.id = id) with
           | Some t -> Some t |> Ply
           | None -> pm.getType id
-      getConstant =
+      getValue =
         fun id ->
-          match constants |> List.tryFind (fun c -> c.id = id) with
-          | Some c -> Some c |> Ply
-          | None -> pm.getConstant id
+          match values |> List.tryFind (fun v -> v.id = id) with
+          | Some v -> Some v |> Ply
+          | None -> pm.getValue id
       getFn =
         fun id ->
           match fns |> List.tryFind (fun f -> f.id = id) with
@@ -1335,11 +1302,11 @@ type VMState =
 
 
 // -- Builtins --
-type BuiltInConstant =
-  { name : FQConstantName.Builtin
+type BuiltInValue =
+  { name : FQValueName.Builtin
     typ : TypeReference
     description : string
-    deprecated : Deprecation<FQConstantName.FQConstantName>
+    deprecated : Deprecation<FQValueName.FQValueName>
     body : Dval }
 
 /// A built-in standard library function
@@ -1364,7 +1331,7 @@ and BuiltInFnSig =
 
 /// Functionally written in F# and shipped with the executable
 and Builtins =
-  { constants : Map<FQConstantName.Builtin, BuiltInConstant>
+  { values : Map<FQValueName.Builtin, BuiltInValue>
     fns : Map<FQFnName.Builtin, BuiltInFn> }
 
 
@@ -1418,15 +1385,15 @@ and ExecutionState =
 
     types : Types
     fns : Functions
-    constants : Constants
+    values : Values
   }
 
 
 and Types = { package : FQTypeName.Package -> Ply<Option<PackageType.PackageType>> }
 
-and Constants =
-  { builtIn : Map<FQConstantName.Builtin, BuiltInConstant>
-    package : FQConstantName.Package -> Ply<Option<PackageConstant.PackageConstant>> }
+and Values =
+  { builtIn : Map<FQValueName.Builtin, BuiltInValue>
+    package : FQValueName.Package -> Ply<Option<PackageValue.PackageValue>> }
 
 and Functions =
   { builtIn : Map<FQFnName.Builtin, BuiltInFn>

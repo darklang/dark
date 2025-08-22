@@ -48,16 +48,14 @@ module Type =
     }
 
 
-module Constant =
-  let find
-    (name : PT.PackageConstant.Name)
-    : Ply<Option<PT.FQConstantName.Package>> =
+module Value =
+  let find (name : PT.PackageValue.Name) : Ply<Option<PT.FQValueName.Package>> =
     uply {
       return!
         Sql.query
           """
           SELECT id
-          FROM package_constants_v0
+          FROM package_values_v0
           WHERE owner = @owner
             AND modules = @modules
             AND name = @name
@@ -69,20 +67,18 @@ module Constant =
         |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
     }
 
-  let get (id : uuid) : Ply<Option<PT.PackageConstant.PackageConstant>> =
+  let get (id : uuid) : Ply<Option<PT.PackageValue.PackageValue>> =
     uply {
       return!
         Sql.query
           """
           SELECT pt_def
-          FROM package_constants_v0
+          FROM package_values_v0
           WHERE id = @id
           """
         |> Sql.parameters [ "id", Sql.uuid id ]
         |> Sql.executeRowOptionAsync (fun read -> read.bytes "pt_def")
-        |> Task.map (
-          Option.map (BinarySerialization.PT.PackageConstant.deserialize id)
-        )
+        |> Task.map (Option.map (BinarySerialization.PT.PackageValue.deserialize id))
     }
 
 
@@ -133,7 +129,7 @@ let search (query : PT.Search.SearchQuery) : Ply<PT.Search.SearchResults> =
         WHERE (modules LIKE @currentModule || '%' AND modules LIKE '%' || @searchText || '%')
            OR (owner || '.' || modules LIKE @currentModule || '%' AND owner || '.' || modules LIKE '%' || @searchText || '%')
         UNION ALL
-        SELECT owner, modules FROM package_constants_v0
+        SELECT owner, modules FROM package_values_v0
         WHERE (modules LIKE @currentModule || '%' AND modules LIKE '%' || @searchText || '%')
            OR (owner || '.' || modules LIKE @currentModule || '%' AND owner || '.' || modules LIKE '%' || @searchText || '%')
         UNION ALL
@@ -181,11 +177,11 @@ let search (query : PT.Search.SearchQuery) : Ply<PT.Search.SearchResults> =
       else
         Task.FromResult []
 
-    let! constants =
-      if isEntityRequested PT.Search.EntityType.Constant then
+    let! values =
+      if isEntityRequested PT.Search.EntityType.Value then
         makeEntityQuery
-          "package_constants_v0"
-          BinarySerialization.PT.PackageConstant.deserialize
+          "package_values_v0"
+          BinarySerialization.PT.PackageValue.deserialize
       else
         Task.FromResult []
 
@@ -197,6 +193,5 @@ let search (query : PT.Search.SearchQuery) : Ply<PT.Search.SearchResults> =
       else
         Task.FromResult []
 
-    return
-      { submodules = submodules; types = types; constants = constants; fns = fns }
+    return { submodules = submodules; types = types; values = values; fns = fns }
   }

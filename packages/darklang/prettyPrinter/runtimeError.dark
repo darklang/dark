@@ -4,7 +4,7 @@ module Darklang =
       // <aliases>
       type FQFnName = LanguageTools.RuntimeTypes.FQFnName.FQFnName
       type FQTypeName = LanguageTools.RuntimeTypes.FQTypeName.FQTypeName
-      type FQConstantName = LanguageTools.RuntimeTypes.FQConstantName.FQConstantName
+      type FQValueName = LanguageTools.RuntimeTypes.FQValueName.FQValueName
       type TypeReference = LanguageTools.RuntimeTypes.TypeReference
       type ValueType = LanguageTools.RuntimeTypes.ValueType
       type Dval = LanguageTools.RuntimeTypes.Dval
@@ -41,8 +41,8 @@ module Darklang =
           | FieldName of String // records and enums
           | InlineFieldName of String // records and enums
 
-          // -- Constants
-          | ConstantName of FQConstantName
+          // -- Values
+          | ValueName of FQValueName
 
           // -- Variables
           //| DBName of String
@@ -95,7 +95,7 @@ module Darklang =
                 | ParamName p -> $"`{p}`"
                 | InlineParamName p -> p // Inline versions don't have quotes
                 | TypeName t -> typeName t
-                | ConstantName c -> constantName c
+                | ValueName v -> valueName v
                 | ShortTypeName t ->
                   // TODO: make it short
                   typeName t
@@ -232,9 +232,9 @@ module Darklang =
             [ ES.String "Type "
               ES.TypeName name
               ES.String " couldn't be found" ]
-          | ConstNotFound name ->
-            [ ES.String "Constant "
-              ES.ConstantName name
+          | ValNotFound name ->
+            [ ES.String "Value "
+              ES.ValueName name
               ES.String " couldn't be found" ]
           | FnNotFound name ->
             [ ES.String "Function "

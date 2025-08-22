@@ -85,38 +85,38 @@ module FQTypeName =
       raise (BinaryFormatException(CorruptedData $"Invalid FQTypeName tag: {b}"))
 
 
-module FQConstantName =
+module FQValueName =
   module Builtin =
-    let write (w : BinaryWriter) (b : FQConstantName.Builtin) =
+    let write (w : BinaryWriter) (b : FQValueName.Builtin) =
       String.write w b.name
       w.Write(b.version : int)
 
-    let read (r : BinaryReader) : FQConstantName.Builtin =
+    let read (r : BinaryReader) : FQValueName.Builtin =
       let name = String.read r
       let version = r.ReadInt32()
       { name = name; version = version }
 
   module Package =
-    let write (w : BinaryWriter) (p : FQConstantName.Package) = Guid.write w p
+    let write (w : BinaryWriter) (p : FQValueName.Package) = Guid.write w p
 
-    let read (r : BinaryReader) : FQConstantName.Package = Guid.read r
+    let read (r : BinaryReader) : FQValueName.Package = Guid.read r
 
 
-  let write (w : BinaryWriter) (n : FQConstantName.FQConstantName) =
+  let write (w : BinaryWriter) (n : FQValueName.FQValueName) =
     match n with
-    | FQConstantName.Builtin builtin ->
+    | FQValueName.Builtin builtin ->
       w.Write(0uy)
       Builtin.write w builtin
-    | FQConstantName.Package p ->
+    | FQValueName.Package p ->
       w.Write(1uy)
       Package.write w p
 
-  let read (r : BinaryReader) : FQConstantName.FQConstantName =
+  let read (r : BinaryReader) : FQValueName.FQValueName =
     match r.ReadByte() with
-    | 0uy -> FQConstantName.Builtin(Builtin.read r)
-    | 1uy -> FQConstantName.Package(Package.read r)
+    | 0uy -> FQValueName.Builtin(Builtin.read r)
+    | 1uy -> FQValueName.Package(Package.read r)
     | b ->
-      raise (BinaryFormatException(CorruptedData $"Invalid FQConstantName tag: {b}"))
+      raise (BinaryFormatException(CorruptedData $"Invalid FQValueName tag: {b}"))
 
 
 module FQFnName =

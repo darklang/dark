@@ -845,69 +845,6 @@ module Function =
           returnType = returnType
           body = Expr.fromSynExpr expr }
 
-module Constant =
-  type T = { name : string; version : int; body : WT.Const }
-
-  let fromSynExpr (expr : SynExpr) : WT.Const =
-    let rec c (e : WT.Expr) : WT.Const =
-      match e with
-      | WT.EUnit _ -> WT.CUnit
-      | WT.EInt64(_, n) -> WT.CInt64 n
-      | WT.EUInt64(_, n) -> WT.CUInt64 n
-      | WT.EInt8(_, n) -> WT.CInt8 n
-      | WT.EUInt8(_, n) -> WT.CUInt8 n
-      | WT.EInt16(_, n) -> WT.CInt16 n
-      | WT.EUInt16(_, n) -> WT.CUInt16 n
-      | WT.EInt32(_, n) -> WT.CInt32 n
-      | WT.EUInt32(_, n) -> WT.CUInt32 n
-      | WT.EInt128(_, n) -> WT.CInt128 n
-      | WT.EUInt128(_, n) -> WT.CUInt128 n
-      | WT.EChar(_, c) -> WT.CChar c
-      | WT.EBool(_, b) -> WT.CBool b
-      | WT.EFloat(_, sign, whole, fraction) -> WT.CFloat(sign, whole, fraction)
-      | WT.EString(_, [ WT.StringText str ]) -> WT.CString str
-      | WT.ETuple(_, first, second, rest) ->
-        WT.CTuple(c first, c second, List.map c rest)
-      | WT.ERecord(_, typeName, fields) ->
-        WT.CRecord(typeName, List.map (fun (k, v) -> (k, c v)) fields)
-      | WT.EEnum(_, typeName, caseName, fields) ->
-        WT.CEnum(typeName, caseName, List.map c fields)
-      | WT.EList(_, items) -> WT.CList(List.map c items)
-      | WT.EDict(_, fields) -> WT.CDict(List.map (fun (k, v) -> (k, c v)) fields)
-      | _ ->
-        raiseParserError "Unsupported constant" [ "expr", expr ] (Some expr.Range)
-    expr |> Expr.fromSynExpr |> c
-
-  let fromSynBinding (binding : SynBinding) : T =
-    match binding with
-    | SynBinding(_,
-                 _,
-                 _,
-                 _,
-                 _,
-                 _,
-                 _,
-                 SynPat.Named(SynIdent(name, _), _, _, _),
-                 _,
-                 expr,
-                 _,
-                 _,
-                 _) ->
-      match Expr.parseFnName name.idText with
-      | Ok(name, version) ->
-        { name = name; version = version; body = fromSynExpr expr }
-      | Error errMsg ->
-        raiseParserError
-          $"Unsupported constant > {errMsg}"
-          [ "binding", binding ]
-          (Some binding.RangeOfBindingWithoutRhs)
-
-    | _ ->
-      raiseParserError
-        "Unsupported constant"
-        [ "binding", binding ]
-        (Some binding.RangeOfBindingWithRhs)
-
 
 module PackageFn =
   let fromSynBinding
@@ -1060,13 +997,31 @@ module PackageType =
       description = ""
       declaration = { typeParams = typeParams; definition = definition } }
 
-module PackageConstant =
+module PackageValue =
   let fromSynBinding
     (owner : string)
     (modules : List<string>)
     (b : SynBinding)
-    : WT.PackageConstant.PackageConstant =
-    let c = Constant.fromSynBinding b
-    { name = { owner = owner; modules = modules; name = c.name }
-      description = ""
-      body = c.body }
+    : WT.PackageValue.PackageValue =
+    match b with
+    | SynBinding(_,
+                 _,
+                 _,
+                 _,
+                 _,
+                 _,
+                 _,
+                 SynPat.Named(SynIdent(name, _), _, _, _),
+                 _,
+                 expr,
+                 _,
+                 _,
+                 _) ->
+      { name = { owner = owner; modules = modules; name = name.idText }
+        description = ""
+        body = Expr.fromSynExpr expr }
+    | _ ->
+      raiseParserError
+        "Unsupported value binding"
+        [ "binding", b ]
+        (Some b.RangeOfBindingWithRhs)

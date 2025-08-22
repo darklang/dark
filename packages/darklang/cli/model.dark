@@ -14,7 +14,7 @@ module Darklang =
       | Module of owner: String * submodulePath: List<String>
       | Type of name: LanguageTools.ProgramTypes.PackageType.Name
       | Fn of name: LanguageTools.ProgramTypes.PackageFn.Name
-      | Constant of name: LanguageTools.ProgramTypes.PackageConstant.Name
+      | Value of name: LanguageTools.ProgramTypes.PackageValue.Name
 
       // app
       //| App of Uuid
@@ -79,7 +79,7 @@ module Darklang =
       type EntityCategory =
         | Functions
         | Types
-        | Constants
+        | Values
         | Submodules
 
       /// Entity definition with cached content for scrolling

@@ -1,277 +1,298 @@
 ==================
-const declaration - int8
+val declaration - int8
 ==================
 
-const waterBoilingPointCelsius = 100y
+val waterBoilingPointCelsius = 100y
 
 ---
 
 (source_file
-  (const_decl
+  (val_decl
     (keyword)
-    (constant_identifier)
+    (value_identifier)
     (symbol)
-    (consts (int8_literal (digits (positive_digits)) (symbol)))
+    (simple_expression
+      (int8_literal (digits (positive_digits)) (symbol)))
   )
 )
 
 
 ==================
-const declaration - uint8
+val declaration - uint8
 ==================
 
-const maxPlayers = 20uy
+val maxPlayers = 20uy
 
 ---
 
 (source_file
-  (const_decl
+  (val_decl
     (keyword)
-    (constant_identifier)
+    (value_identifier)
     (symbol)
-    (consts (uint8_literal (positive_digits) (symbol)))
+    (simple_expression
+      (uint8_literal (positive_digits) (symbol)))
   )
 )
 
 
 ==================
-const declaration - int16
+val declaration - int16
 ==================
 
-const maxSeatsInPlane = 800s
+val maxSeatsInPlane = 800s
 
 ---
 
 (source_file
-  (const_decl
+  (val_decl
     (keyword)
-    (constant_identifier)
+    (value_identifier)
     (symbol)
-    (consts (int16_literal (digits (positive_digits)) (symbol)))
+    (simple_expression
+      (int16_literal (digits (positive_digits)) (symbol)))
   )
 )
 
 
 ==================
-const declaration - uint16
+val declaration - uint16
 ==================
 
-const maxDaysInAYear = 365us
+val maxDaysInAYear = 365us
 
 ---
 
 (source_file
-  (const_decl
+  (val_decl
     (keyword)
-    (constant_identifier)
+    (value_identifier)
     (symbol)
-    (consts (uint16_literal (positive_digits) (symbol)))
+    (simple_expression
+      (uint16_literal (positive_digits) (symbol)))
   )
 )
 
 
 ==================
-const declaration - int32
+val declaration - int32
 ==================
 
-const stadiumCapacity = 80000l
+val stadiumCapacity = 80000l
 
 ---
 
 (source_file
-  (const_decl
+  (val_decl
     (keyword)
-    (constant_identifier)
+    (value_identifier)
     (symbol)
-    (consts (int32_literal (digits (positive_digits)) (symbol)))
+    (simple_expression
+      (int32_literal (digits (positive_digits)) (symbol)))
   )
 )
 
 
 ==================
-const declaration - uint32
+val declaration - uint32
 ==================
 
-const marathonDistance = 42195ul
+val marathonDistance = 42195ul
 
 ---
 
 (source_file
-  (const_decl
+  (val_decl
     (keyword)
-    (constant_identifier)
+    (value_identifier)
     (symbol)
-    (consts (uint32_literal (positive_digits) (symbol)))
+    (simple_expression
+      (uint32_literal (positive_digits) (symbol)))
   )
 )
 
 
 ==================
-const declaration - int64
+val declaration - int64
 ==================
 
-const secondsInAYear = 31536000L
+val secondsInAYear = 31536000L
 
 ---
 
 (source_file
-  (const_decl
+  (val_decl
     (keyword)
-    (constant_identifier)
+    (value_identifier)
     (symbol)
-    (consts (int64_literal (digits (positive_digits)) (symbol)))
+    (simple_expression
+      (int64_literal (digits (positive_digits)) (symbol)))
   )
 )
 
 
 ==================
-const declaration - uint64
+val declaration - uint64
 ==================
 
-const millisecondsInYear = 31536000000UL
+val millisecondsInYear = 31536000000UL
 
 ---
 
 (source_file
-  (const_decl
+  (val_decl
     (keyword)
-    (constant_identifier)
+    (value_identifier)
     (symbol)
-    (consts (uint64_literal (positive_digits) (symbol)))
+    (simple_expression
+      (uint64_literal (positive_digits) (symbol)))
   )
 )
 
 
 ==================
-const declaration - int128
+val declaration - int128
 ==================
 
-const millisecondsInDay = 86400000Q
+val millisecondsInDay = 86400000Q
 
 ---
 
 (source_file
-  (const_decl
+  (val_decl
     (keyword)
-    (constant_identifier)
+    (value_identifier)
     (symbol)
-    (consts (int128_literal (digits (positive_digits)) (symbol)))
+    (simple_expression
+      (int128_literal (digits (positive_digits)) (symbol)))
   )
 )
 
 
 ==================
-const declaration - uint128
+val declaration - uint128
 ==================
 
-const millisecondsInCentury = 3155695200000Z
+val millisecondsInCentury = 3155695200000Z
 
 ---
 
 (source_file
-  (const_decl
+  (val_decl
     (keyword)
-    (constant_identifier)
+    (value_identifier)
     (symbol)
-    (consts (uint128_literal (positive_digits) (symbol)))
+    (simple_expression
+      (uint128_literal (positive_digits) (symbol)))
   )
 )
 
 
 ==================
-const declaration - float
+val declaration - float
 ==================
 
-const pi = 3.14159
+val pi = 3.14159
 
 ---
 
 (source_file
-  (const_decl
+  (val_decl
     (keyword)
-    (constant_identifier)
+    (value_identifier)
     (symbol)
-    (consts (float_literal))
+    (simple_expression
+      (float_literal))
   )
 )
 
 
 ==================
-const declaration - string
+val declaration - string
 ==================
 
-const message = "Hello, World!"
+val message = "Hello, World!"
 
 ---
 
 (source_file
-  (const_decl
+  (val_decl
     (keyword)
-    (constant_identifier)
+    (value_identifier)
     (symbol)
-    (consts (string_literal (symbol) (string_content) (symbol)))
+    (simple_expression
+      (string_segment
+        (string_literal (symbol) (string_content) (symbol))))
   )
 )
 
 
 ==================
-const declaration - char
+val declaration - char
 ==================
 
-const letter = 'A'
+val letter = 'A'
 
 ---
 
 (source_file
-  (const_decl
+  (val_decl
     (keyword)
-    (constant_identifier)
+    (value_identifier)
     (symbol)
-    (consts (char_literal (symbol) (character) (symbol)))
+    (simple_expression
+      (char_literal (symbol) (character) (symbol)))
   )
 )
 
 
 ==================
-const declaration - boolean
+val declaration - boolean
 ==================
 
-const isTrue = true
+val isTrue = true
 
 ---
 
 (source_file
-  (const_decl
+  (val_decl
     (keyword)
-    (constant_identifier)
+    (value_identifier)
     (symbol)
-    (consts (bool_literal))
+    (simple_expression
+      (bool_literal))
   )
 )
 
 
 ==================
-const declaration - list
+val declaration - list
 ==================
 
-const numbers = [1L; 2L; 3L]
+val numbers = [1L; 2L; 3L]
 
 ---
 
 (source_file
-  (const_decl
+  (val_decl
     (keyword)
-    (constant_identifier)
+    (value_identifier)
     (symbol)
-    (consts
-      (const_list_literal
+    (simple_expression
+      (list_literal
         (symbol)
-        (const_list_content
-          (consts (int64_literal (digits (positive_digits)) (symbol)))
+        (list_content
+          (expression
+            (simple_expression
+              (int64_literal (digits (positive_digits)) (symbol))))
           (symbol)
-          (consts (int64_literal (digits (positive_digits)) (symbol)))
+          (expression
+            (simple_expression
+              (int64_literal (digits (positive_digits)) (symbol))))
           (symbol)
-          (consts (int64_literal (digits (positive_digits)) (symbol)))
+          (expression
+            (simple_expression
+              (int64_literal (digits (positive_digits)) (symbol))))
         )
         (symbol)
       )
@@ -281,27 +302,33 @@ const numbers = [1L; 2L; 3L]
 
 
 ==================
-const declaration - tuple
+val declaration - tuple
 ==================
 
-const dimensionsOfRoom = (5L, 10L, 3L)
+val dimensionsOfRoom = (5L, 10L, 3L)
 
 ---
 
 (source_file
-  (const_decl
+  (val_decl
     (keyword)
-    (constant_identifier)
+    (value_identifier)
     (symbol)
-    (consts
-      (const_tuple_literal
+    (simple_expression
+      (tuple_literal
         (symbol)
-        (consts (int64_literal (digits (positive_digits)) (symbol)))
+        (expression
+          (simple_expression
+            (int64_literal (digits (positive_digits)) (symbol))))
         (symbol)
-        (consts (int64_literal (digits (positive_digits)) (symbol)))
-        (const_tuple_literal_the_rest
+        (expression
+          (simple_expression
+            (int64_literal (digits (positive_digits)) (symbol))))
+        (tuple_literal_the_rest
           (symbol)
-          (consts (int64_literal (digits (positive_digits)) (symbol)))
+          (expression
+            (simple_expression
+              (int64_literal (digits (positive_digits)) (symbol))))
         )
         (symbol)
       )
@@ -311,53 +338,57 @@ const dimensionsOfRoom = (5L, 10L, 3L)
 
 
 ==================
-const declaration - dictionary
+val declaration - dictionary
 ==================
 
-const emptyDict = Dict{}
+val emptyDict = Dict{}
 
 ---
 
 (source_file
-  (const_decl
+  (val_decl
     (keyword)
-    (constant_identifier)
+    (value_identifier)
     (symbol)
-    (consts
-      (const_dict_literal (keyword) (symbol) (symbol))
+    (simple_expression
+      (dict_literal (keyword) (symbol) (symbol))
     )
   )
 )
 
 
 ==================
-const declaration - dictionary with key-value pairs
+val declaration - dictionary with key-value pairs
 ==================
 
-const myDict = Dict{one = 1L; two = 2L}
+val myDict = Dict{one = 1L; two = 2L}
 
 ---
 
 (source_file
-  (const_decl
+  (val_decl
     (keyword)
-    (constant_identifier)
+    (value_identifier)
     (symbol)
-    (consts
-      (const_dict_literal
+    (simple_expression
+      (dict_literal
         (keyword)
         (symbol)
-        (const_dict_content
-          (const_dict_pair
+        (dict_content
+          (dict_pair
             (variable_identifier)
             (symbol)
-            (consts (int64_literal (digits (positive_digits)) (symbol)))
+            (expression
+              (simple_expression
+                (int64_literal (digits (positive_digits)) (symbol))))
           )
           (symbol)
-          (const_dict_pair
+          (dict_pair
             (variable_identifier)
             (symbol)
-            (consts (int64_literal (digits (positive_digits)) (symbol)))
+            (expression
+              (simple_expression
+                (int64_literal (digits (positive_digits)) (symbol))))
           )
         )
         (symbol)
@@ -368,20 +399,20 @@ const myDict = Dict{one = 1L; two = 2L}
 
 
 ==================
-const declaration - enum
+val declaration - enum
 ==================
 
-const colorRed = Color.Red
+val colorRed = Color.Red
 
 ---
 
 (source_file
-  (const_decl
+  (val_decl
     (keyword)
-    (constant_identifier)
+    (value_identifier)
     (symbol)
-    (consts
-      (const_enum_literal
+    (simple_expression
+      (enum_literal
         (qualified_type_name (type_identifier))
         (symbol)
         (enum_case_identifier)
@@ -392,24 +423,27 @@ const colorRed = Color.Red
 
 
 ==================
-const declaration - enum with one field
+val declaration - enum with one field
 ==================
 
-const someOne = Stdlib.Option.Option.Some 1L
+val someOne = Stdlib.Option.Option.Some 1L
 
 ---
 
 (source_file
-  (const_decl
+  (val_decl
     (keyword)
-    (constant_identifier)
+    (value_identifier)
     (symbol)
-    (consts
-      (const_enum_literal
+    (simple_expression
+      (enum_literal
         (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier))
         (symbol)
         (enum_case_identifier)
-        (const_enum_fields (consts (int64_literal (digits (positive_digits)) (symbol))))
+        (enum_fields
+          (expression
+            (simple_expression
+              (int64_literal (digits (positive_digits)) (symbol)))))
       )
     )
   )
@@ -417,26 +451,30 @@ const someOne = Stdlib.Option.Option.Some 1L
 
 
 ==================
-const declaration - enum with multiple fields
+val declaration - enum with multiple fields
 ==================
 
-const myEnum = MyEnum.MyCase(1L, 2L)
+val myEnum = MyEnum.MyCase(1L, 2L)
 
 ---
 
 (source_file
-  (const_decl
+  (val_decl
     (keyword)
-    (constant_identifier)
+    (value_identifier)
     (symbol)
-    (consts
-      (const_enum_literal
+    (simple_expression
+      (enum_literal
         (qualified_type_name (type_identifier)) (symbol) (enum_case_identifier)
         (symbol)
-        (const_enum_fields
-          (consts (int64_literal (digits (positive_digits)) (symbol)))
+        (enum_fields
+          (expression
+            (simple_expression
+              (int64_literal (digits (positive_digits)) (symbol))))
           (symbol)
-          (consts (int64_literal (digits (positive_digits)) (symbol)))
+          (expression
+            (simple_expression
+              (int64_literal (digits (positive_digits)) (symbol))))
         )
         (symbol)
       )
@@ -446,30 +484,36 @@ const myEnum = MyEnum.MyCase(1L, 2L)
 
 
 ==================
-const declaration - enum with tuple field
+val declaration - enum with tuple field
 ==================
 
-const myEnum = MyEnum.MyCase((1L, 2L))
+val myEnum = MyEnum.MyCase((1L, 2L))
 
 ---
 
 (source_file
-  (const_decl
+  (val_decl
     (keyword)
-    (constant_identifier)
+    (value_identifier)
     (symbol)
-    (consts
-      (const_enum_literal
+    (simple_expression
+      (enum_literal
         (qualified_type_name (type_identifier)) (symbol) (enum_case_identifier)
         (symbol)
-        (const_enum_fields
-          (consts
-            (const_tuple_literal
-              (symbol)
-              (consts (int64_literal (digits (positive_digits)) (symbol)))
-              (symbol)
-              (consts (int64_literal (digits (positive_digits)) (symbol)))
-              (symbol)
+        (enum_fields
+          (expression
+            (simple_expression
+              (tuple_literal
+                (symbol)
+                (expression
+                  (simple_expression
+                    (int64_literal (digits (positive_digits)) (symbol))))
+                (symbol)
+                (expression
+                  (simple_expression
+                    (int64_literal (digits (positive_digits)) (symbol))))
+                (symbol)
+              )
             )
           )
         )
@@ -481,33 +525,38 @@ const myEnum = MyEnum.MyCase((1L, 2L))
 
 
 ==================
-const declaration - record
+val declaration - record
 ==================
 
-const myPerson = Person { name = "Alice"; age = 30L }
+val myPerson = Person { name = "Alice"; age = 30L }
 
 ---
 
 (source_file
-  (const_decl
+  (val_decl
     (keyword)
-    (constant_identifier)
+    (value_identifier)
     (symbol)
-    (consts
-      (const_record_literal
+    (simple_expression
+      (record_literal
         (qualified_type_name (type_identifier))
         (symbol)
-        (const_record_content
-          (const_record_pair
+        (record_content
+          (record_pair
             (variable_identifier)
             (symbol)
-            (consts (string_literal (symbol) (string_content) (symbol)))
+            (expression
+              (simple_expression
+                (string_segment
+                  (string_literal (symbol) (string_content) (symbol)))))
           )
           (symbol)
-          (const_record_pair
+          (record_pair
             (variable_identifier)
             (symbol)
-            (consts (int64_literal (digits (positive_digits)) (symbol)))
+            (expression
+              (simple_expression
+                (int64_literal (digits (positive_digits)) (symbol))))
           )
         )
         (symbol)
@@ -518,33 +567,37 @@ const myPerson = Person { name = "Alice"; age = 30L }
 
 
 ==================
-const declaration - qualified record
+val declaration - qualified record
 ==================
 
-const myPoint = Geometry.Point { x = 1.0; y = 2.0 }
+val myPoint = Geometry.Point { x = 1.0; y = 2.0 }
 
 ---
 
 (source_file
-  (const_decl
+  (val_decl
     (keyword)
-    (constant_identifier)
+    (value_identifier)
     (symbol)
-    (consts
-      (const_record_literal
+    (simple_expression
+      (record_literal
         (qualified_type_name (module_identifier) (symbol) (type_identifier))
         (symbol)
-        (const_record_content
-          (const_record_pair
+        (record_content
+          (record_pair
             (variable_identifier)
             (symbol)
-            (consts (float_literal))
+            (expression
+              (simple_expression
+                (float_literal)))
           )
           (symbol)
-          (const_record_pair
+          (record_pair
             (variable_identifier)
             (symbol)
-            (consts (float_literal))
+            (expression
+              (simple_expression
+                (float_literal)))
           )
         )
         (symbol)
@@ -555,19 +608,20 @@ const myPoint = Geometry.Point { x = 1.0; y = 2.0 }
 
 
 ==================
-const declaration - unit
+val declaration - unit
 ==================
 
-const unitValue = ()
+val unitValue = ()
 
 ---
 
 (source_file
-  (const_decl
+  (val_decl
     (keyword)
-    (constant_identifier)
+    (value_identifier)
     (symbol)
-    (consts (unit))
+    (simple_expression
+      (unit))
   )
 )
 

@@ -58,7 +58,7 @@ module Darklang =
                       entityTypes = [
                         LanguageTools.ProgramTypes.Search.EntityType.Fn
                         LanguageTools.ProgramTypes.Search.EntityType.Type
-                        LanguageTools.ProgramTypes.Search.EntityType.Constant
+                        LanguageTools.ProgramTypes.Search.EntityType.Value
                       ] }
 
                 let searchResults = LanguageTools.PackageManager.Search.search searchQuery
@@ -73,13 +73,13 @@ module Darklang =
                   |> Stdlib.List.map (fun typ -> typ |> PrettyPrinter.ProgramTypes.packageType)
                   |> Stdlib.String.join "\n\n"
 
-                let constants =
-                  searchResults.constants
-                  |> Stdlib.List.map (fun c -> c |> PrettyPrinter.ProgramTypes.packageConstant)
+                let values =
+                  searchResults.values
+                  |> Stdlib.List.map (fun v -> v |> PrettyPrinter.ProgramTypes.packageValue)
                   |> Stdlib.String.join "\n\n"
 
                 let allDefinitions =
-                  [ types; constants; functions ]
+                  [ types; values; functions ]
                   |> Stdlib.List.filter (fun s -> s != "")
                   |> Stdlib.String.join "\n\n"
 
@@ -105,7 +105,7 @@ module Darklang =
                 let pm = LanguageTools.PackageManager.pm ()
 
                 // Try to find the entity in the package manager
-                // First try as a type, then function, then constant
+                // First try as a type, then function, then value
                 // Try to find as a type
                 // CLEANUP: use `pm.findType nameForLookup` directly once the parser/interpreter is fixed
                 let findType = pm.findType
@@ -126,16 +126,16 @@ module Darklang =
                     | Some fn -> fn |> PrettyPrinter.ProgramTypes.packageFn
                     | None -> "Could not get function"
                   | None ->
-                    // Try to find as a constant
-                    // CLEANUP: use `pm.findConstant nameForLookup` directly once the parser/interpreter is fixed
-                    let findConst = pm.findConstant
-                    let getConst = pm.getConstant
-                    match findConst nameForLookup with
+                    // Try to find as a value
+                    // CLEANUP: use `pm.findValue nameForLookup` directly once the parser/interpreter is fixed
+                    let findVal = pm.findValue
+                    let getVal = pm.getValue
+                    match findVal nameForLookup with
                     | Some id ->
-                      match getConst id with
-                      | Some constant ->
-                        constant |> PrettyPrinter.ProgramTypes.packageConstant
-                      | None -> "Could not get constant"
+                      match getVal id with
+                      | Some value ->
+                        value |> PrettyPrinter.ProgramTypes.packageValue
+                      | None -> "Could not get value"
                     | None -> $"Package element not found: {nameForLookup}"
 
             sendResponse state requestId getContent

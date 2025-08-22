@@ -1,4 +1,4 @@
-/// Helper functions for declaraing built-in functions and constants
+/// Helper functions for declaraing built-in functions and values
 module LibExecution.Builtin
 
 open Prelude
@@ -51,22 +51,18 @@ let combine (libs : List<Builtins>) (fnRenames : FnRenames) : Builtins =
 
   fns |> List.iter checkFn
 
-  { constants =
-      libs
-      |> List.map _.constants
-      |> List.collect Map.values
-      |> Map.fromListBy _.name
+  { values =
+      libs |> List.map _.values |> List.collect Map.values |> Map.fromListBy _.name
     fns = fns |> renameFunctions fnRenames |> Map.fromListBy _.name }
 
 
-let make (constants : List<BuiltInConstant>) (fns : List<BuiltInFn>) : Builtins =
-  { constants = constants |> Map.fromListBy _.name
-    fns = fns |> Map.fromListBy _.name }
+let make (values : List<BuiltInValue>) (fns : List<BuiltInFn>) : Builtins =
+  { values = values |> Map.fromListBy _.name; fns = fns |> Map.fromListBy _.name }
 
 
 module Shortcuts =
   let fn = FQFnName.builtin
-  let constant = FQConstantName.builtin
+  let value = FQValueName.builtin
   let incorrectArgs = RuntimeTypes.incorrectArgs
 
   type Param = BuiltInParam

@@ -82,9 +82,9 @@ module PT =
     let serialize id value = makeSerializer PT.PackageType.write id value
     let deserialize id data = makeDeserializer PT.PackageType.read id data
 
-  module PackageConstant =
-    let serialize id value = makeSerializer PT.PackageConstant.write id value
-    let deserialize id data = makeDeserializer PT.PackageConstant.read id data
+  module PackageValue =
+    let serialize id value = makeSerializer PT.PackageValue.write id value
+    let deserialize id data = makeDeserializer PT.PackageValue.read id data
 
   module PackageFn =
     let serialize id value = makeSerializer PT.PackageFn.write id value
@@ -111,9 +111,9 @@ module RT =
     let serialize id value = makeSerializer RT.Instructions.write id value
     let deserialize id data = makeDeserializer RT.Instructions.read id data
 
-  module PackageConstant =
-    let serialize id value = makeSerializer RT.PackageConstant.write id value
-    let deserialize id data = makeDeserializer RT.PackageConstant.read id data
+  module PackageValue =
+    let serialize id value = makeSerializer RT.PackageValue.write id value
+    let deserialize id data = makeDeserializer RT.PackageValue.read id data
 
   module PackageFn =
     let serialize id value = makeSerializer RT.PackageFn.write id value

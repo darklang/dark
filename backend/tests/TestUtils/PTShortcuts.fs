@@ -81,11 +81,10 @@ let eEnum
 let eInfix (op : Infix) (left : Expr) (right : Expr) : Expr =
   EInfix(gid (), op, left, right)
 
-let eBuiltinConstant (name : string) (version : int) : Expr =
-  EConstant(gid (), Ok(FQConstantName.fqBuiltIn name version))
+let eBuiltinValue (name : string) (version : int) : Expr =
+  EValue(gid (), Ok(FQValueName.fqBuiltIn name version))
 
-let ePackageConstant (id : uuid) : Expr =
-  EConstant(gid (), Ok(FQConstantName.fqPackage id))
+let ePackageValue (id : uuid) : Expr = EValue(gid (), Ok(FQValueName.fqPackage id))
 
 let eBuiltinFn (name : string) (version : int) : Expr =
   EFnName(gid (), Ok(FQFnName.fqBuiltIn name version))

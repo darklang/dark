@@ -258,7 +258,7 @@ let fileTests () : Test =
             pmPT
             |> PT.PackageManager.withExtras
               (modules |> List.collect _.types)
-              (modules |> List.collect _.constants)
+              (modules |> List.collect _.values)
               (modules |> List.collect _.fns)
 
           let tests =
