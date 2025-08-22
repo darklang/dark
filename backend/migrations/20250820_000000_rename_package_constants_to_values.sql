@@ -14,5 +14,5 @@ CREATE INDEX IF NOT EXISTS idx_package_values_pt_def
 CREATE INDEX IF NOT EXISTS idx_package_values_rt_dval
   ON package_values_v0(id) WHERE rt_dval IS NOT NULL;
 
--- Drop the old table
+-- Drop the package_constants_v0 table
 DROP TABLE package_constants_v0;

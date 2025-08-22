@@ -1117,8 +1117,10 @@ module PackageValue =
             | _ -> []
           | RT.FQTypeName.Package id when id = PackageIDs.Type.Stdlib.result ->
             match caseName, fieldValues with
-            | "Ok", [ okValue ] -> [ RT.Dval.toValueType okValue; RT.ValueType.Unknown ]
-            | "Error", [ errValue ] -> [ RT.ValueType.Unknown; RT.Dval.toValueType errValue ]
+            | "Ok", [ okValue ] ->
+              [ RT.Dval.toValueType okValue; RT.ValueType.Unknown ]
+            | "Error", [ errValue ] ->
+              [ RT.ValueType.Unknown; RT.Dval.toValueType errValue ]
             | _ -> []
           | _ -> []
         | _ -> List.map TypeReference.toValueType typeArgs
@@ -1132,7 +1134,6 @@ module PackageValue =
       )
     | _ ->
       // For more complex expressions, return Unit as fallback
-      // This should ideally not happen for package constants
       RT.DUnit
 
   let toRT (c : PT.PackageValue.PackageValue) : RT.PackageValue.PackageValue =
