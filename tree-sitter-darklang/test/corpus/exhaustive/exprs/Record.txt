@@ -456,14 +456,14 @@ Record - with fn calls -indented content
 ==================
 
 
-if node.typ == "const_decl" then
-  match (nameNode, valueNode, keywordConstNode, symEqualsNode) with
-  | Ok name, Ok value, Ok keywordConst, Ok equals ->
-    WrittenTypes.ConstantDeclaration.ConstantDeclaration {
+if node.typ == "val_decl" then
+  match (nameNode, valueNode, keywordValNode, symEqualsNode) with
+  | Ok name, Ok value, Ok keywordVal, Ok equals ->
+    WrittenTypes.ValueDeclaration.ValueDeclaration {
       range = node.range
       name = name
       body = value
-      keywordConst = keywordConst.range
+      keywordVal = keywordVal.range
       symbolEquals = equals.range }
     |> Stdlib.Result.Result.Ok
 

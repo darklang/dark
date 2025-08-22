@@ -1,0 +1,17 @@
+==================
+package value
+==================
+
+Stdlib.List.empty
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (qualified_val_or_fn_name
+        (module_identifier) (symbol) (module_identifier) (symbol) (value_or_fn_identifier)
+      )
+    )
+  )
+)
