@@ -159,7 +159,7 @@ module Darklang =
             entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module
                             LanguageTools.ProgramTypes.Search.EntityType.Type
                             LanguageTools.ProgramTypes.Search.EntityType.Fn
-                            LanguageTools.ProgramTypes.Search.EntityType.Constant ] }
+                            LanguageTools.ProgramTypes.Search.EntityType.Value ] }
 
       /// Helper function to run a function from the package manager
       let runFunction (state: State) (fnName: String) (args: List<String>) : (State * List<Msg>) =
@@ -432,8 +432,8 @@ module Darklang =
 
                     if Stdlib.List.isEmpty moduleContent.fns &&
                        Stdlib.List.isEmpty moduleContent.types &&
-                       Stdlib.List.isEmpty moduleContent.constants then
-                      // check if the entity is a function, type, or constant
+                       Stdlib.List.isEmpty moduleContent.values then
+                      // check if the entity is a function, type, or value
                       CommandHelpers.View.EntityLookup.viewEntityByName state fullyQualifiedName
 
                     else
@@ -451,11 +451,11 @@ module Darklang =
                             (moduleContent.types
                               |> Stdlib.List.map (fun typ -> LanguageTools.ProgramTypes.PackageType.nameToString typ.name))
 
-                        let constantsSection =
+                        let valuesSection =
                           CommandHelpers.View.Rendering.formatEntitySectionSimple
-                            "constants"
-                            (moduleContent.constants
-                              |> Stdlib.List.map (fun c -> LanguageTools.ProgramTypes.PackageConstant.nameToString c.name))
+                            "values"
+                            (moduleContent.values
+                              |> Stdlib.List.map (fun v -> LanguageTools.ProgramTypes.PackageValue.nameToString v.name))
 
                         let submodulesSection =
                           CommandHelpers.View.Rendering.formatEntitySectionSimple
@@ -470,7 +470,7 @@ module Darklang =
                           $"Module: {fullyQualifiedName}\n" ++
                           functionsSection ++ "\n" ++
                           typesSection ++ "\n" ++
-                          constantsSection ++ "\n" ++
+                          valuesSection ++ "\n" ++
                           submodulesSection
 
                         let newState = { state with commandResult = CommandResult.Success moduleView }
@@ -874,7 +874,7 @@ module Darklang =
                     match state.currentPage with
                     | Root ->
                       // At root, just show categories
-                      let items = ["modules"; "types"; "functions"; "constants"]
+                      let items = ["modules"; "types"; "functions"; "values"]
                       let listText = "Items in current directory:\n" ++ (Stdlib.String.join items "\n")
                       let newState = { state with commandResult = CommandResult.Success listText }
                       (newState, [])
@@ -920,7 +920,7 @@ module Darklang =
           // CLEANUP: when is this used?
           | Type _
           | Fn _
-          | Constant _ ->
+          | Value _ ->
             [
               // View command
               CommandDetails
@@ -970,23 +970,23 @@ module Darklang =
                           let newState = { state with commandResult = CommandResult.Error "Function not found" }
                           (newState, [])
 
-                      | Constant name ->
-                        // Get the constant details
+                      | Value name ->
+                        // Get the value details
                         // Convert the name to a string that can be used for lookup
-                        let constName = LanguageTools.ProgramTypes.PackageConstant.nameToString name
-                        match LanguageTools.PackageManager.Constant.find constName with
-                        | Some constId ->
-                          match LanguageTools.PackageManager.Constant.get constId with
-                          | Some packageConst ->
-                            // Pretty print the constant details
-                            let prettyPrinted = PrettyPrinter.ProgramTypes.packageConstant packageConst
-                            let newState = { state with commandResult = CommandResult.Success $"Constant: {constName}\n\n{prettyPrinted}" }
+                        let valueName = LanguageTools.ProgramTypes.PackageValue.nameToString name
+                        match LanguageTools.PackageManager.Value.find valueName with
+                        | Some valueId ->
+                          match LanguageTools.PackageManager.Value.get valueId with
+                          | Some packageVal ->
+                            // Pretty print the value details
+                            let prettyPrinted = PrettyPrinter.ProgramTypes.packageValue packageVal
+                            let newState = { state with commandResult = CommandResult.Success $"Value: {valueName}\n\n{prettyPrinted}" }
                             (newState, [])
                           | None ->
-                            let newState = { state with commandResult = CommandResult.Error "Constant details could not be retrieved" }
+                            let newState = { state with commandResult = CommandResult.Error "Value details could not be retrieved" }
                             (newState, [])
                         | None ->
-                          let newState = { state with commandResult = CommandResult.Error "Constant not found" }
+                          let newState = { state with commandResult = CommandResult.Error "Value not found" }
                           (newState, [])
 
                       | _ ->
@@ -1020,10 +1020,10 @@ module Darklang =
                           let newState = { state with commandResult = CommandResult.Error "Cannot determine module context" }
                           (newState, [])
 
-                      | Constant name ->
-                        // Extract module from the current constant
-                        let constName = LanguageTools.ProgramTypes.PackageConstant.nameToString name
-                        match extractModulePrefix constName with
+                      | Value name ->
+                        // Extract module from the current value
+                        let valName = LanguageTools.ProgramTypes.PackageValue.nameToString name
+                        match extractModulePrefix valName with
                         | Some modulePrefix ->
                           let fullyQualifiedName = modulePrefix ++ "." ++ entityName
                           CommandHelpers.View.EntityLookup.viewEntityByName state fullyQualifiedName

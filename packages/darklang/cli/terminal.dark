@@ -1,7 +1,7 @@
 module Darklang =
   module Cli =
     module Terminal =
-      /// Display control constants
+      /// Display control values
       module Display =
         let clearScreen = "\x1b[2J\x1b[H"
         let enterAltScreen = "\x1b[?1049h"
