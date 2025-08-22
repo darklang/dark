@@ -15,10 +15,8 @@ module Darklang =
               let prettyPrinted = PrettyPrinter.ProgramTypes.packageType typeDecl
               acc |> Stdlib.List.push prettyPrinted
 
-            | Constant constDecl ->
-              let prettyPrinted =
-                PrettyPrinter.ProgramTypes.packageConstant constDecl
-
+            | Value valDecl ->
+              let prettyPrinted = PrettyPrinter.ProgramTypes.packageValue valDecl
               acc |> Stdlib.List.push prettyPrinted
 
             | Function fnDecl ->

@@ -6,7 +6,7 @@ module Darklang =
         { name: String
           types: List<LanguageTools.ProgramTypes.PackageType.PackageType>
           fns: List<LanguageTools.ProgramTypes.PackageFn.PackageFn>
-          constants: List<LanguageTools.ProgramTypes.PackageConstant.PackageConstant>
+          values: List<LanguageTools.ProgramTypes.PackageValue.PackageValue>
           submodules: List<Module> }
 
       let withType
@@ -22,7 +22,7 @@ module Darklang =
                   ++ "has no modules"
                 types = []
                 fns = []
-                constants = []
+                values = []
                 submodules = [] } ]
 
         | firstModuleNamePart :: submoduleNames ->
@@ -39,7 +39,7 @@ module Darklang =
                     [ { t with
                           name = { t.name with modules = [] } } ]
                   fns = []
-                  constants = []
+                  values = []
                   submodules = [] }
 
             Stdlib.List.append otherModules [ newModule ]
@@ -54,7 +54,7 @@ module Darklang =
                 { name = firstModuleNamePart
                   types = []
                   fns = []
-                  constants = []
+                  values = []
                   submodules = withType [] typeWithoutFirstModuleNamePartOfModule }
 
             Stdlib.List.append otherModules [ newModuleWithSubmodule ]
@@ -98,7 +98,7 @@ module Darklang =
                   ++ "has no modules"
                 types = []
                 fns = []
-                constants = []
+                values = []
                 submodules = [] } ]
 
         | firstModuleNamePart :: submoduleNames ->
@@ -114,7 +114,7 @@ module Darklang =
                   fns =
                     [ { f with
                           name = { f.name with modules = [] } } ]
-                  constants = []
+                  values = []
                   submodules = [] }
 
             Stdlib.List.append otherModules [ newModule ]
@@ -129,7 +129,7 @@ module Darklang =
                 { name = firstModuleNamePart
                   types = []
                   fns = []
-                  constants = []
+                  values = []
                   submodules = withFn [] fnWithoutFirstModuleNamePartOfModule }
 
             Stdlib.List.append otherModules [ newModuleWithSubmodule ]
@@ -159,20 +159,20 @@ module Darklang =
 
             Stdlib.List.append otherModules [ updatedModule ]
 
-      let withConstant
+      let withValue
         (ms: List<Module>)
-        (c: LanguageTools.ProgramTypes.PackageConstant.PackageConstant)
+        (v: LanguageTools.ProgramTypes.PackageValue.PackageValue)
         : List<Module> =
-        match c.name.modules with
+        match v.name.modules with
         | [] ->
           [ Module
               { name =
-                  (c.name
+                  (v.name
                    |> PrettyPrinter.ProgramTypes.FQTypeName.Package.fullForReference)
                   ++ "has no modules"
                 types = []
                 fns = []
-                constants = []
+                values = []
                 submodules = [] } ]
 
         | firstModuleNamePart :: submoduleNames ->
@@ -186,51 +186,51 @@ module Darklang =
                 { name = firstModuleNamePart
                   types = []
                   fns = []
-                  constants =
-                    [ { c with
-                          name = { c.name with modules = [] } } ]
+                  values =
+                    [ { v with
+                          name = { v.name with modules = [] } } ]
                   submodules = [] }
 
             Stdlib.List.append otherModules [ newModule ]
 
           | [], submoduleNames ->
-            let constantWithoutFirstModuleNamePartOfModule =
-              { c with
-                  name = { c.name with modules = submoduleNames } }
+            let valueWithoutFirstModuleNamePartOfModule =
+              { v with
+                  name = { v.name with modules = submoduleNames } }
 
             let newModuleWithSubmodule =
               Module
                 { name = firstModuleNamePart
                   types = []
                   fns = []
-                  constants = []
+                  values = []
                   submodules =
-                    withConstant [] constantWithoutFirstModuleNamePartOfModule }
+                    withValue [] valueWithoutFirstModuleNamePartOfModule }
 
             Stdlib.List.append otherModules [ newModuleWithSubmodule ]
 
           | [ foundModule ], [] ->
             let updatedModule =
               { foundModule with
-                  constants =
+                  values =
                     Stdlib.List.append
-                      foundModule.constants
-                      [ { c with
-                            name = { c.name with modules = [] } } ] }
+                      foundModule.values
+                      [ { v with
+                            name = { v.name with modules = [] } } ] }
 
             Stdlib.List.append otherModules [ updatedModule ]
 
           | [ foundModule ], submoduleNames ->
-            let constantWithoutFirstModuleNamePartOfModule =
-              { c with
-                  name = { c.name with modules = submoduleNames } }
+            let valueWithoutFirstModuleNamePartOfModule =
+              { v with
+                  name = { v.name with modules = submoduleNames } }
 
             let updatedModule =
               { foundModule with
                   submodules =
-                    withConstant
+                    withValue
                       foundModule.submodules
-                      constantWithoutFirstModuleNamePartOfModule }
+                      valueWithoutFirstModuleNamePartOfModule }
 
             Stdlib.List.append otherModules [ updatedModule ]
 
@@ -246,11 +246,11 @@ module Darklang =
           Stdlib.List.fold p.fns modulesAfterTypes (fun modules f ->
             withFn modules f)
 
-        let modulesWithTypesAndFnsAndConstants =
-          Stdlib.List.fold p.constants modulesWithTypesAndFns (fun modules c ->
-            withConstant modules c)
+        let modulesWithTypesAndFnsAndValues =
+          Stdlib.List.fold p.values modulesWithTypesAndFns (fun modules v ->
+            withValue modules v)
 
-        modulesWithTypesAndFnsAndConstants
+        modulesWithTypesAndFnsAndValues
 
 
     let packageModule (m: Packages.Module) : String =
@@ -274,12 +274,12 @@ module Darklang =
           |> Stdlib.String.join "\n\n"
           |> Stdlib.Option.Option.Some
 
-      let constantsPart =
-        match m.constants with
+      let valuesPart =
+        match m.values with
         | [] -> Stdlib.Option.Option.None
-        | constants ->
-          m.constants
-          |> Stdlib.List.map (fun c -> PrettyPrinter.ProgramTypes.packageConstant c)
+        | values ->
+          m.values
+          |> Stdlib.List.map (fun v -> PrettyPrinter.ProgramTypes.packageValue v)
           |> Stdlib.String.join "\n\n"
           |> Stdlib.Option.Option.Some
 
@@ -293,7 +293,7 @@ module Darklang =
           |> Stdlib.Option.Option.Some
 
       let parts =
-        [ typesPart; fnsPart; constantsPart; submodulesPart ]
+        [ typesPart; fnsPart; valuesPart; submodulesPart ]
         |> Stdlib.List.filterMap (fun s -> s)
 
       match parts with
@@ -327,14 +327,14 @@ module Darklang =
                             Stdlib.List.append [ f.name.owner ] f.name.modules
                           owner = "(redacted)" } })
 
-            constants =
-              p.constants
-              |> Stdlib.List.map (fun c ->
-                { c with
+            values =
+              p.values
+              |> Stdlib.List.map (fun v ->
+                { v with
                     name =
-                      { c.name with
+                      { v.name with
                           modules =
-                            Stdlib.List.append [ c.name.owner ] c.name.modules
+                            Stdlib.List.append [ v.name.owner ] v.name.modules
                           owner = "(redacted)" } }) }
 
       let modules = Packages.toModules withOwnerStuffRepresentedAsRootLevelModule

@@ -69,10 +69,10 @@ module Darklang =
             PrettyPrinter.ProgramTypes.FQTypeName.Package.fullForReference p
 
 
-      module FQConstantName =
+      module FQValueName =
         module Builtin =
           let fullForReference
-            (t: LanguageTools.ProgramTypes.FQConstantName.Builtin)
+            (t: LanguageTools.ProgramTypes.FQValueName.Builtin)
             : String =
             let namePart = t.name
 
@@ -87,38 +87,38 @@ module Darklang =
 
         module Package =
           let atDefinition
-            (id: LanguageTools.ProgramTypes.FQConstantName.Package)
+            (id: LanguageTools.ProgramTypes.FQValueName.Package)
             : String =
-            match LanguageTools.PackageManager.Constant.get id with
+            match LanguageTools.PackageManager.Value.get id with
             | Some p -> p.name.name
             | None -> Stdlib.Uuid.toString p
 
           let fullForReference
-            (id: LanguageTools.ProgramTypes.FQConstantName.Package)
+            (id: LanguageTools.ProgramTypes.FQValueName.Package)
             : String =
-            match LanguageTools.PackageManager.Constant.get id with
+            match LanguageTools.PackageManager.Value.get id with
             | Some p -> packageName p.name.owner p.name.modules p.name.name
             | None -> Stdlib.Uuid.toString p
 
 
 
         let atDefinition
-          (t: LanguageTools.ProgramTypes.FQConstantName.FQConstantName)
+          (t: LanguageTools.ProgramTypes.FQValueName.FQValueName)
           : String =
           match t with
           | Builtin b ->
-            PrettyPrinter.ProgramTypes.FQConstantName.Builtin.fullForReference b
+            PrettyPrinter.ProgramTypes.FQValueName.Builtin.fullForReference b
           | Package p ->
-            PrettyPrinter.ProgramTypes.FQConstantName.Package.atDefinition p
+            PrettyPrinter.ProgramTypes.FQValueName.Package.atDefinition p
 
         let fullForReference
-          (t: LanguageTools.ProgramTypes.FQConstantName.FQConstantName)
+          (t: LanguageTools.ProgramTypes.FQValueName.FQValueName)
           : String =
           match t with
           | Builtin b ->
-            PrettyPrinter.ProgramTypes.FQConstantName.Builtin.fullForReference b
+            PrettyPrinter.ProgramTypes.FQValueName.Builtin.fullForReference b
           | Package p ->
-            PrettyPrinter.ProgramTypes.FQConstantName.Package.fullForReference p
+            PrettyPrinter.ProgramTypes.FQValueName.Package.fullForReference p
 
 
       module FQFnName =
@@ -234,87 +234,6 @@ module Darklang =
           let s = Builtin.Json.serialize<LanguageTools.ProgramTypes.TypeReference> t
 
           $"({s})"
-
-      let constant (c: LanguageTools.ProgramTypes.Const) : String =
-        match c with
-        | CUnit -> "()"
-
-        | CBool b -> Stdlib.Bool.toString b
-
-        | CInt8 i -> Stdlib.Int8.toString i ++ "y"
-        | CUInt8 i -> Stdlib.UInt8.toString i ++ "uy"
-        | CInt16 i -> Stdlib.Int16.toString i ++ "s"
-        | CUInt16 i -> Stdlib.UInt16.toString i ++ "us"
-        | CInt32 i -> Stdlib.Int32.toString i ++ "l"
-        | CUInt32 i -> Stdlib.UInt32.toString i ++ "ul"
-        | CInt64 i -> Stdlib.Int64.toString i ++ "L"
-        | CUInt64 i -> Stdlib.UInt64.toString i ++ "UL"
-        | CInt128 i -> Stdlib.Int128.toString i ++ "Q"
-        | CUInt128 i -> Stdlib.UInt128.toString i ++ "Z"
-
-        | CFloat(sign, whole, remainder) ->
-          let signPart = PrettyPrinter.sign sign
-          let remainderPart = PrettyPrinter.processRemainder remainder
-          $"{signPart}{whole}.{remainderPart}"
-
-        | CChar c -> $"'{c}'"
-        | CString s -> $"\"{PrettyPrinter.escapeSpecialCharacters s}\""
-
-        | CTuple(first, second, theRest) ->
-          (Stdlib.List.append [ first; second ] theRest)
-          |> Stdlib.List.map (fun item -> PrettyPrinter.ProgramTypes.constant item)
-          |> Stdlib.String.join ", "
-          |> fun parts -> "(" ++ parts ++ ")"
-
-        | CRecord(typeName, fields) ->
-          let typeNamePart =
-            match typeName with
-            | Ok name -> PrettyPrinter.ProgramTypes.FQTypeName.fullForReference name
-            | Error e -> PrettyPrinter.ProgramTypes.NameResolutionError.source e
-
-          let fieldsPart =
-            fields
-            |> Stdlib.List.map (fun (name, value) ->
-              $"{name} = {PrettyPrinter.ProgramTypes.constant value}")
-            |> Stdlib.String.join "; "
-
-          $"{typeNamePart} {{ {fieldsPart} }}"
-
-        | CEnum(typeName, caseName, fields) ->
-          let typeNamePart =
-            match typeName with
-            | Ok name -> PrettyPrinter.ProgramTypes.FQTypeName.fullForReference name
-            | Error e -> PrettyPrinter.ProgramTypes.NameResolutionError.source e
-
-          match fields with
-          | [] -> $"{typeNamePart}.{caseName}"
-          | fields ->
-            let fieldPart =
-              fields
-              |> Stdlib.List.map (fun field ->
-                PrettyPrinter.ProgramTypes.constant field)
-              |> Stdlib.String.join ", "
-
-            $"{typeNamePart}.{caseName}({fieldPart})"
-
-        | CList items ->
-          items
-          |> Stdlib.List.map (fun item -> PrettyPrinter.ProgramTypes.constant item)
-          |> Stdlib.String.join "; "
-          |> fun parts -> "[" ++ parts ++ "]"
-
-        | CDict pairs ->
-          let pairPart =
-            pairs
-            |> Stdlib.List.map (fun pair ->
-              let (key, value) = pair
-              $"{key} = {PrettyPrinter.ProgramTypes.constant value}")
-            |> Stdlib.String.join "; "
-            |> fun parts -> "{ " ++ parts ++ " }"
-
-          $"Dict {pairPart}"
-
-        | _ -> "TODO"
 
 
       let letPattern (lp: LanguageTools.ProgramTypes.LetPattern) : String =
@@ -743,10 +662,10 @@ module Darklang =
 
           $"{{ {recordPart} with {updatePart} }}"
 
-        | EConstant(_id, constant) ->
-          match constant with
+        | EValue(_id, value) ->
+          match value with
           | Ok name ->
-            PrettyPrinter.ProgramTypes.FQConstantName.fullForReference name
+            PrettyPrinter.ProgramTypes.FQValueName.fullForReference name
           | Error e -> PrettyPrinter.ProgramTypes.NameResolutionError.source e
 
         | EStatement (_id, first, next) ->
@@ -890,11 +809,11 @@ module Darklang =
         $"type {p.name.name}{typeParamPart} =\n{defPart}"
 
 
-      let packageConstant
-        (p: LanguageTools.ProgramTypes.PackageConstant.PackageConstant)
+      let packageValue
+        (p: LanguageTools.ProgramTypes.PackageValue.PackageValue)
         : String =
-        let bodyPart = PrettyPrinter.ProgramTypes.constant p.body
-        $"const {p.name.name} = {bodyPart}"
+        let bodyPart = PrettyPrinter.ProgramTypes.expr p.body
+        $"val {p.name.name} = {bodyPart}"
 
 
       module PackageFn =
