@@ -72,7 +72,7 @@ export class Node extends vscode.TreeItem {
           "symbol-type-parameter",
           new vscode.ThemeColor("charts.blue"),
         );
-      } else if (this.contextValue.startsWith("const:")) {
+      } else if (this.contextValue.startsWith("value:")) {
         this.iconPath = new vscode.ThemeIcon(
           "symbol-constant",
           new vscode.ThemeColor("charts.orange"),
@@ -116,7 +116,7 @@ export class ServerBackedTreeDataProvider
 
     // If contextValue has a type prefix, extract the actual path
     if (item.contextValue) {
-      const prefixMatch = item.contextValue.match(/^(fn:|type:|const:)(.+)$/);
+      const prefixMatch = item.contextValue.match(/^(fn:|type:|const:|value:)(.+)$/);
       if (prefixMatch) {
         contextValue = item.contextValue; // Keep the full value with prefix for icon detection
         packagePath = prefixMatch[2]; // Extract the path without prefix for the command
@@ -178,7 +178,7 @@ export class ServerBackedTreeDataProvider
               c.contextValue &&
               (c.contextValue.startsWith("fn:") ||
                 c.contextValue.startsWith("type:") ||
-                c.contextValue.startsWith("const:")),
+                c.contextValue.startsWith("value:")),
           );
 
           if (!hasDefinitions) {
