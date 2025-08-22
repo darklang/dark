@@ -1,4 +1,5 @@
-CREATE TABLE package_values_v0
+CREATE TABLE IF NOT EXISTS
+package_values_v0
 ( id TEXT PRIMARY KEY
 , owner TEXT NOT NULL -- e.g. Darklang
 , modules TEXT NOT NULL -- e.g. Math.Geometry
