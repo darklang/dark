@@ -6,8 +6,8 @@ module Darklang =
           { owner: String
             name: String
             types: List<LanguageTools.WrittenTypes.TypeDeclaration.TypeDeclaration>
-            constants:
-              List<LanguageTools.WrittenTypes.ConstantDeclaration.ConstantDeclaration>
+            values:
+              List<LanguageTools.WrittenTypes.ValueDeclaration.ValueDeclaration>
             fns: List<LanguageTools.WrittenTypes.FnDeclaration.FnDeclaration>
             submodules:
               List<LanguageTools.WrittenTypes.ModuleDeclaration.ModuleDeclaration>
@@ -15,8 +15,8 @@ module Darklang =
 
         type PTCliScriptModule =
           { types: List<LanguageTools.ProgramTypes.PackageType.PackageType>
-            constants:
-              List<LanguageTools.ProgramTypes.PackageConstant.PackageConstant>
+            values:
+              List<LanguageTools.ProgramTypes.PackageValue.PackageValue>
             fns: List<LanguageTools.ProgramTypes.PackageFn.PackageFn>
             submodules: List<LanguageTools.ProgramTypes.Definitions>
             exprs: List<LanguageTools.ProgramTypes.Expr> }
@@ -35,11 +35,11 @@ module Darklang =
                 | Type t -> Stdlib.Option.Option.Some t
                 | _ -> Stdlib.Option.Option.None)
 
-            let constants =
+            let values =
               source.declarations
               |> Stdlib.List.filterMap (fun decl ->
                 match decl with
-                | Constant c -> Stdlib.Option.Option.Some c
+                | Value v -> Stdlib.Option.Option.Some v
                 | _ -> Stdlib.Option.Option.None)
 
             let fns =
@@ -63,7 +63,7 @@ module Darklang =
                 { owner = owner
                   name = scriptName
                   types = types
-                  constants = constants
+                  values = values
                   fns = fns
                   submodules = submodules
                   exprs = exprs }
@@ -91,10 +91,10 @@ module Darklang =
                 t)
             |> Stdlib.List.unzip
 
-          let (constants, unresolvedNamesInConstants) =
-            wt.constants
+          let (values, unresolvedNamesInValues) =
+            wt.values
             |> Stdlib.List.map (fun c ->
-              WrittenTypesToProgramTypes.ConstantDeclaration.toPackageConstPT
+              WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT
                 onMissing
                 pm
                 wt.owner
@@ -140,14 +140,14 @@ module Darklang =
           let unresolvedNames =
             Stdlib.List.flatten
               [ unresolvedNamesInTypes |> Stdlib.List.flatten
-                unresolvedNamesInConstants |> Stdlib.List.flatten
+                unresolvedNamesInValues |> Stdlib.List.flatten
                 unresolvedNamesInFns |> Stdlib.List.flatten
                 unresolvedNamesInSubModules
                 unresolvedNamesInExprs ]
 
           (PTCliScriptModule
             { types = types
-              constants = constants
+              values = values
               fns = fns
               submodules = submodules
               exprs = exprs },
@@ -177,12 +177,12 @@ module Darklang =
                    |> Stdlib.List.map (fun m -> m.types)
                    |> Stdlib.List.flatten)
 
-              let constants =
+              let values =
                 Stdlib.List.append
-                  initialParse.constants
+                  initialParse.values
                   (initialParse.submodules
-                   |> Stdlib.List.map (fun m -> m.constants)
-                   |> Stdlib.List.flatten)
+                  |> Stdlib.List.map (fun m -> m.values)
+                  |> Stdlib.List.flatten)
 
               let fns =
                 Stdlib.List.append
@@ -191,7 +191,7 @@ module Darklang =
                    |> Stdlib.List.map (fun m -> m.fns)
                    |> Stdlib.List.flatten)
 
-              let pm = ProgramTypes.PackageManager.withExtras pm types constants fns
+              let pm = ProgramTypes.PackageManager.withExtras pm types values fns
 
               let (result, unresolvedNames) = toPT onMissing pm moduleWT
 
@@ -208,15 +208,15 @@ module Darklang =
                               |> Stdlib.Option.mapWithDefault t.id (fun original ->
                                 original.id) })
 
-                    constants =
-                      result.constants
-                      |> Stdlib.List.map (fun c ->
-                        { c with
+                    values =
+                      result.values
+                      |> Stdlib.List.map (fun v ->
+                        { v with
                             id =
-                              initialParse.constants
+                              initialParse.values
                               |> Stdlib.List.findFirst (fun original ->
-                                original.name == c.name)
-                              |> Stdlib.Option.mapWithDefault c.id (fun original ->
+                                original.name == v.name)
+                              |> Stdlib.Option.mapWithDefault v.id (fun original ->
                                 original.id) })
 
                     fns =
@@ -248,18 +248,18 @@ module Darklang =
                                         t.id
                                         (fun original -> original.id) })
 
-                            constants =
-                              submodule.constants
-                              |> Stdlib.List.map (fun c ->
-                                { c with
+                            values =
+                              submodule.values
+                              |> Stdlib.List.map (fun v ->
+                                { v with
                                     id =
                                       initialParse.submodules
-                                      |> Stdlib.List.map (fun m -> m.constants)
+                                      |> Stdlib.List.map (fun m -> m.values)
                                       |> Stdlib.List.flatten
                                       |> Stdlib.List.findFirst (fun original ->
-                                        original.name == c.name)
+                                        original.name == v.name)
                                       |> Stdlib.Option.mapWithDefault
-                                        c.id
+                                        v.id
                                         (fun original -> original.id) })
 
                             fns =
@@ -304,12 +304,12 @@ module Darklang =
                    |> Stdlib.List.map (fun m -> m.types)
                    |> Stdlib.List.flatten)
 
-              let constants =
+              let values =
                 Stdlib.List.append
-                  initialParse.constants
+                  initialParse.values
                   (initialParse.submodules
-                   |> Stdlib.List.map (fun m -> m.constants)
-                   |> Stdlib.List.flatten)
+                  |> Stdlib.List.map (fun m -> m.values)
+                  |> Stdlib.List.flatten)
 
               let fns =
                 Stdlib.List.append
@@ -318,5 +318,5 @@ module Darklang =
                    |> Stdlib.List.map (fun m -> m.fns)
                    |> Stdlib.List.flatten)
 
-              (ProgramTypes.PackageManager.withExtras pm types constants fns)
+              (ProgramTypes.PackageManager.withExtras pm types values fns)
               |> Stdlib.Result.Result.Ok

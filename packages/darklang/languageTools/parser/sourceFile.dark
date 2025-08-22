@@ -35,17 +35,17 @@ module Darklang =
               { result with
                   declarations = Stdlib.List.pushBack result.declarations newFn }
 
-          | "const_decl" ->
-            match ConstantDeclaration.parse decl with
+          | "val_decl" ->
+            match ValueDeclaration.parse decl with
             | Error e -> updateUnparseableStuff result e
 
-            | Ok parsedConstDecl ->
-              let newConst =
-                WrittenTypes.SourceFile.SourceFileDeclaration.Constant
-                  parsedConstDecl
+            | Ok parsedValueDecl ->
+              let newValue =
+                WrittenTypes.SourceFile.SourceFileDeclaration.Value
+                  parsedValueDecl
 
               { result with
-                  declarations = Stdlib.List.pushBack result.declarations newConst }
+                  declarations = Stdlib.List.pushBack result.declarations newValue }
 
           | "expression" ->
             match Expr.parse decl with

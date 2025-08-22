@@ -751,16 +751,16 @@ module Darklang =
           | _ -> createUnparseableError node
 
 
-        let parseConstanrOrFnName
+        let parseValueOrFnName
           (node: ParsedNode)
           : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-          let constOrFnNameNode = Identifiers.parseQualifiedConstantOrFnName node
+          let valueOrFnNameNode = Identifiers.parseQualifiedValueOrFnName node
 
-          match constOrFnNameNode with
-          | Ok constOrFnNameNode ->
-            (WrittenTypes.Expr.EConstantOrFn(
-              constOrFnNameNode.range,
-              constOrFnNameNode
+          match valueOrFnNameNode with
+          | Ok valueOrFnNameNode ->
+            (WrittenTypes.Expr.EValueOrFn(
+              valueOrFnNameNode.range,
+              valueOrFnNameNode
             ))
             |> Stdlib.Result.Result.Ok
 
@@ -833,7 +833,7 @@ module Darklang =
           | "lambda_expression" -> parseLambda node
           | "apply" -> parseFunctionCall node
 
-          | "qualified_const_or_fn_name" -> parseConstanrOrFnName node
+          | "qualified_val_or_fn_name" -> parseValueOrFnName node
           | "dbReference" ->
             (WrittenTypes.Expr.EVariable(node.range, getText node))
             |> Stdlib.Result.Result.Ok

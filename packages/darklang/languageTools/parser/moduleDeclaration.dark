@@ -14,10 +14,10 @@ module Darklang =
             (FunctionDeclaration.parse node)
             |> Stdlib.Result.map (fun x ->
               WrittenTypes.ModuleDeclaration.Declaration.Function x)
-          | "const_decl" ->
-            (ConstantDeclaration.parse node)
+          | "val_decl" ->
+            (ValueDeclaration.parse node)
             |> Stdlib.Result.map (fun x ->
-              WrittenTypes.ModuleDeclaration.Declaration.Constant x)
+              WrittenTypes.ModuleDeclaration.Declaration.Value x)
           | "module_decl" ->
             (ModuleDeclaration.parse node)
             |> Stdlib.Result.map (fun x ->

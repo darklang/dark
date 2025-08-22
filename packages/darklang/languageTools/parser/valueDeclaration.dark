@@ -1,0 +1,40 @@
+module Darklang =
+  module LanguageTools =
+    module Parser =
+      module ValueDeclaration =
+        /// Parses a package value declaration
+        ///
+        /// i.e. `val waterBoilingPointCelsius = 100y`,
+        ///
+        /// - `waterBoilingPointCelsius` is the value name
+        /// - `100y` is the body
+        let parse
+          (node: ParsedNode)
+          : Stdlib.Result.Result<WrittenTypes.ValueDeclaration.ValueDeclaration, WrittenTypes.Unparseable> =
+          if node.typ == "val_decl" then
+            let nameNode =
+              findAndParseRequired node "name" (fun node ->
+                (Identifiers.parseValue node) |> Stdlib.Result.Result.Ok)
+
+            let value = (findNodeByFieldName node "value") |> Builtin.unwrap
+            
+            // The value field contains a 'values' node which Expr.parse now handles
+            let valueNode = Expr.parse value
+
+            let keywordValNode = findField node "keyword_val"
+            let symEqualsNode = findField node "symbol_equals"
+
+            match (nameNode, valueNode, keywordValNode, symEqualsNode) with
+            | Ok name, Ok value, Ok keywordVal, Ok equals ->
+              (WrittenTypes.ValueDeclaration.ValueDeclaration
+                { range = node.range
+                  name = name
+                  body = value
+                  keywordVal = keywordVal.range
+                  symbolEquals = equals.range })
+              |> Stdlib.Result.Result.Ok
+
+            | _ -> createUnparseableError node
+
+          else
+            createUnparseableError node

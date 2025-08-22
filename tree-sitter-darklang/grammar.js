@@ -36,8 +36,8 @@ module.exports = grammar({
   rules: {
     source_file: $ =>
       seq(
-        // all type and fn and constant defs first
-        repeat(choice($.module_decl, $.type_decl, $.fn_decl, $.const_decl)),
+        // all type and fn and value defs first
+        repeat(choice($.module_decl, $.type_decl, $.fn_decl, $.val_decl)),
 
         // then the expressions to evaluate, in order
         optional($.expression),
@@ -76,68 +76,20 @@ module.exports = grammar({
       ),
     module_content: $ =>
       seq(
-        choice(
-          $.module_decl,
-          $.fn_decl,
-          $.type_decl,
-          $.const_decl,
-          $.expression,
-        ),
+        choice($.module_decl, $.fn_decl, $.type_decl, $.val_decl, $.expression),
       ),
 
     // ---------------------
-    // Constant declarations
+    // Value declarations
     // ---------------------
-    const_decl: $ =>
+    val_decl: $ =>
       seq(
-        field("keyword_const", alias("const", $.keyword)),
-        field("name", $.constant_identifier),
+        field("keyword_val", alias("val", $.keyword)),
+        field("name", $.value_identifier),
         field("symbol_equals", alias("=", $.symbol)),
-        field("value", $.consts),
+        field("value", $.simple_expression),
       ),
 
-    consts: $ =>
-      choice(
-        $.int8_literal,
-        $.uint8_literal,
-        $.int16_literal,
-        $.uint16_literal,
-        $.int32_literal,
-        $.uint32_literal,
-        $.int64_literal,
-        $.uint64_literal,
-        $.int128_literal,
-        $.uint128_literal,
-        $.float_literal,
-        $.bool_literal,
-        $.string_literal,
-        $.char_literal,
-        $.const_list_literal,
-        $.const_tuple_literal,
-        $.const_dict_literal,
-        $.const_record_literal,
-        $.const_enum_literal,
-        $.unit,
-        // TODO: should we allow a const_identifier here?
-      ),
-
-    const_list_literal: $ => list_literal_base($, $.const_list_content),
-    const_list_content: $ => list_content_base($, $.consts),
-
-    const_tuple_literal: $ =>
-      tuple_literal_base($, $.consts, $.const_tuple_literal_the_rest),
-    const_tuple_literal_the_rest: $ => tuple_literal_the_rest_base($, $.consts),
-
-    const_dict_literal: $ => dict_literal_base($, $.const_dict_content),
-    const_dict_content: $ => dict_content_base($, $.const_dict_pair),
-    const_dict_pair: $ => dict_pair_base($, $.consts),
-
-    const_record_literal: $ => record_literal_base($, $.const_record_content),
-    const_record_content: $ => record_content_base($, $.const_record_pair),
-    const_record_pair: $ => record_pair_base($, $.consts),
-
-    const_enum_literal: $ => enum_literal_base($, $.const_enum_fields),
-    const_enum_fields: $ => enum_fields_base($, $.consts),
 
     // ---------------------
     // Function declarations
@@ -448,7 +400,7 @@ module.exports = grammar({
         $.field_access,
         $.tuple_literal,
         $.record_update,
-        $.qualified_const_or_fn_name,
+        $.qualified_val_or_fn_name,
         $.dbReference,
         $.infix_operation,
         $.paren_expression,
@@ -856,11 +808,11 @@ module.exports = grammar({
     dbReference: $ => $.type_identifier,
 
     //
-    // Qualified constant or function name
-    qualified_const_or_fn_name: $ =>
+    // Qualified value or function name
+    qualified_val_or_fn_name: $ =>
       seq(
         repeat(seq($.module_identifier, alias(".", $.symbol))),
-        $.constant_or_fn_identifier,
+        $.value_or_fn_identifier,
       ),
 
     //
@@ -1190,9 +1142,9 @@ module.exports = grammar({
     // e.g. `Person` in `type MyPerson = ...`
     type_identifier: $ => /[A-Z][a-zA-Z0-9_]*/,
 
-    // e.g. `newline` in `const newline = '\n'`
-    constant_identifier: $ => /[a-z_][a-zA-Z0-9_']*/,
-    constant_or_fn_identifier: $ => /[a-z_][a-zA-Z0-9_']*/,
+    // e.g. `newline` in `val newline = '\n'`
+    value_identifier: $ => /[a-z_][a-zA-Z0-9_']*/,
+    value_or_fn_identifier: $ => /[a-z_][a-zA-Z0-9_']*/,
 
     // e.g. `double` in `let double (x: Int) = x + x`
     fn_identifier: $ => prec(PREC.FN_IDENTIFIER, /[a-z_][a-zA-Z0-9_']*/),
