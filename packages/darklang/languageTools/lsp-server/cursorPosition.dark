@@ -9,8 +9,8 @@ module Darklang =
             fqName: String *
             description: Stdlib.Option.Option<String>
           | FnName of String * description: Stdlib.Option.Option<String>
-          | PackageConstant of
-            ProgramTypes.PackageConstant.PackageConstant *
+          | PackageValue of
+            ProgramTypes.PackageValue.PackageValue *
             description: Stdlib.Option.Option<String>
           | BuiltinFn of
             signature: String *

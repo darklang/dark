@@ -73,7 +73,7 @@ module Darklang =
           let keywords =
             [ "module"
               "type"
-              "const"
+              "val"
               "let"
               "if"
               "then"
@@ -109,7 +109,7 @@ module Darklang =
                   LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
                 entityTypes =
                   [ LanguageTools.ProgramTypes.Search.EntityType.Fn
-                    LanguageTools.ProgramTypes.Search.EntityType.Constant
+                    LanguageTools.ProgramTypes.Search.EntityType.Value
                     LanguageTools.ProgramTypes.Search.EntityType.Type
                     LanguageTools.ProgramTypes.Search.EntityType.Module ] }
 
@@ -137,12 +137,12 @@ module Darklang =
                 "type"
                 currentPrefix
 
-          let constants =
-             searchResults.constants
-            |> Stdlib.List.map (fun c -> LanguageTools.ProgramTypes.PackageConstant.nameToString c.name)
+          let values =
+            searchResults.values
+            |> Stdlib.List.map (fun v -> LanguageTools.ProgramTypes.PackageValue.nameToString v.name)
             |> processSearchResults
-                LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind.Constant
-                "constant"
+                LanguageServerProtocol.Completions.CompletionItem.CompletionItemKind.CompletionItemKind.Value
+                "value"
                 currentPrefix
 
           let submodules =
@@ -155,7 +155,7 @@ module Darklang =
                 currentPrefix
 
 
-          let completions = Stdlib.List.flatten [ keywords; functions; types; constants ; submodules ]
+          let completions = Stdlib.List.flatten [ keywords; functions; types; values ; submodules ]
 
           completions
 

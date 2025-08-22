@@ -30,7 +30,7 @@ module Darklang =
               checkboxState = Stdlib.Option.Option.None
               accessibilityInformation = Stdlib.Option.Option.None
               description = Stdlib.Option.Option.None // could include metadata about package, author, etc.
-              iconPath = Stdlib.Option.Option.None // based on whether it's a module, type, constant, or fn (or later: other things, like http endpoint)
+              iconPath = Stdlib.Option.Option.None // based on whether it's a module, type, value, or fn (or later: other things, like http endpoint)
               resourceUri = Stdlib.Option.Option.None // URI of the package
               tooltip = Stdlib.Option.Option.None }
 
@@ -118,16 +118,16 @@ module Darklang =
               let id = typ.name |> ProgramTypes.PackageType.nameToString
               makeTreeItem id typ.name.name TreeItemCollapsibleState.None (Stdlib.Option.Option.Some $"type:{id}"))
 
-          let constItems =
-            searchResults.constants
-            |> Stdlib.List.filter (fun c ->
-              let modules = Stdlib.List.push c.name.modules c.name.owner
+          let valueItems =
+            searchResults.values
+            |> Stdlib.List.filter (fun v ->
+              let modules = Stdlib.List.push v.name.modules v.name.owner
               modules == currentPath)
-            |> Stdlib.List.map (fun c ->
-              let id = c.name |> ProgramTypes.PackageConstant.nameToString
-              makeTreeItem id c.name.name TreeItemCollapsibleState.None (Stdlib.Option.Option.Some $"const:{id}"))
+            |> Stdlib.List.map (fun v ->
+              let id = v.name |> ProgramTypes.PackageValue.nameToString
+              makeTreeItem id v.name.name TreeItemCollapsibleState.None (Stdlib.Option.Option.Some $"value:{id}"))
 
-          Stdlib.List.flatten [submodules; fnItems; typeItems; constItems]
+          Stdlib.List.flatten [submodules; fnItems; typeItems; valueItems]
 
 
         let handleGetChildNodesRequest
@@ -157,7 +157,7 @@ module Darklang =
                       LanguageTools.ProgramTypes.Search.EntityType.Module
                       LanguageTools.ProgramTypes.Search.EntityType.Fn
                       LanguageTools.ProgramTypes.Search.EntityType.Type
-                      LanguageTools.ProgramTypes.Search.EntityType.Constant
+                      LanguageTools.ProgramTypes.Search.EntityType.Value
                     ] }
 
               let searchResults = LanguageTools.PackageManager.Search.search searchQuery
