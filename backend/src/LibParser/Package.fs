@@ -17,14 +17,14 @@ open Utils
 type WTPackageModule =
   { fns : List<WT.PackageFn.PackageFn>
     types : List<WT.PackageType.PackageType>
-    constants : List<WT.PackageConstant.PackageConstant> }
-let emptyWTModule = { fns = []; types = []; constants = [] }
+    values : List<WT.PackageValue.PackageValue> }
+let emptyWTModule = { fns = []; types = []; values = [] }
 
 type PTPackageModule =
   { fns : List<PT.PackageFn.PackageFn>
     types : List<PT.PackageType.PackageType>
-    constants : List<PT.PackageConstant.PackageConstant> }
-let emptyPTModule = { fns = []; types = []; constants = [] }
+    values : List<PT.PackageValue.PackageValue> }
+let emptyPTModule = { fns = []; types = []; values = [] }
 
 
 /// Update a Package by parsing a single F# let binding
@@ -32,13 +32,13 @@ let parseLetBinding
   (fileName : string)
   (modules : List<string>)
   (letBinding : SynBinding)
-  : List<WT.PackageFn.PackageFn> * List<WT.PackageConstant.PackageConstant> =
+  : List<WT.PackageFn.PackageFn> * List<WT.PackageValue.PackageValue> =
   match modules with
   | owner :: modules ->
     if FS2WT.Function.hasArguments letBinding then
       [ FS2WT.PackageFn.fromSynBinding owner modules letBinding ], []
     else
-      [], [ FS2WT.PackageConstant.fromSynBinding owner modules letBinding ]
+      [], [ FS2WT.PackageValue.fromSynBinding owner modules letBinding ]
   | _ ->
     Exception.raiseInternal
       "Expected owner module containing things"
@@ -66,11 +66,11 @@ let rec parseDecls
     (fun m decl ->
       match decl with
       | SynModuleDecl.Let(_, bindings, _) ->
-        let (fns, constants) =
+        let (fns, values) =
           bindings |> List.map (parseLetBinding fileName moduleNames) |> List.unzip
         { m with
             fns = m.fns @ List.flatten fns
-            constants = m.constants @ List.flatten constants }
+            values = m.values @ List.flatten values }
 
       | SynModuleDecl.Types(defns, _) ->
         let types = List.map (parseTypeDef fileName moduleNames) defns
@@ -95,7 +95,7 @@ let rec parseDecls
 
         { fns = m.fns @ nestedDecls.fns
           types = m.types @ nestedDecls.types
-          constants = m.constants @ nestedDecls.constants }
+          values = m.values @ nestedDecls.values }
 
 
       | _ ->
@@ -135,7 +135,7 @@ let parse
       let fnNameToModules (p : WT.PackageFn.Name) : List<string> =
         p.owner :: p.modules
 
-      let constantNameToModules (p : WT.PackageConstant.Name) : List<string> =
+      let valueNameToModules (p : WT.PackageValue.Name) : List<string> =
         p.owner :: p.modules
 
       let! fns =
@@ -148,16 +148,17 @@ let parse
         |> Ply.List.mapSequentially (fun typ ->
           WT2PT.PackageType.toPT pm onMissing (typeNameToModules typ.name) typ)
 
-      let! constants =
-        modul.constants
-        |> Ply.List.mapSequentially (fun constant ->
-          WT2PT.PackageConstant.toPT
+      let! values =
+        modul.values
+        |> Ply.List.mapSequentially (fun value ->
+          WT2PT.PackageValue.toPT
+            builtins
             pm
             onMissing
-            (constantNameToModules constant.name)
-            constant)
+            (valueNameToModules value.name)
+            value)
 
-      return { fns = fns; types = types; constants = constants }
+      return { fns = fns; types = types; values = values }
 
     // in the parsed package, types are being read as user, as opposed to the package that's right there
     | decl ->

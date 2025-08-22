@@ -15,22 +15,19 @@ let inMemPackageManagerFromPackages (p : PT.Packages) : PT.PackageManager =
     findFn =
       fun name ->
         p.fns |> List.find (fun f -> f.name = name) |> Option.map _.id |> Ply
-    findConstant =
+    findValue =
       fun name ->
-        p.constants |> List.find (fun c -> c.name = name) |> Option.map _.id |> Ply
+        p.values |> List.find (fun c -> c.name = name) |> Option.map _.id |> Ply
 
     getType = fun id -> p.types |> List.find (fun t -> t.id = id) |> Ply
     getFn = fun id -> p.fns |> List.find (fun f -> f.id = id) |> Ply
-    getConstant = fun id -> p.constants |> List.find (fun c -> c.id = id) |> Ply
+    getValue = fun id -> p.values |> List.find (fun c -> c.id = id) |> Ply
 
     search =
       fun _ ->
         uply {
           return
-            { submodules = [ [] ]
-              fns = p.fns
-              types = p.types
-              constants = p.constants }
+            { submodules = [ [] ]; fns = p.fns; types = p.types; values = p.values }
         }
 
     init = uply { return () } }

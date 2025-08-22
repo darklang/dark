@@ -20,18 +20,18 @@ module HandleCommand =
       let! packages = LoadPackagesFromDisk.load Builtins.all
 
       let typeLen = packages.types |> List.length
-      let constantLen = packages.constants |> List.length
+      let valueLen = packages.values |> List.length
       let fnLen = packages.fns |> List.length
 
       print "Loaded packages from disk "
-      print $"{typeLen} types, {constantLen} constants, and {fnLen} fns"
+      print $"{typeLen} types, {valueLen} values, and {fnLen} fns"
 
       print "Purging ..."
       do! LibPackageManager.Purge.purge ()
 
       print "Filling ..."
       do! LibPackageManager.Inserts.insertTypes packages.types
-      do! LibPackageManager.Inserts.insertConsts packages.constants
+      do! LibPackageManager.Inserts.insertValues packages.values
       do! LibPackageManager.Inserts.insertFns packages.fns
 
       // print "Populating RT columns..."

@@ -1,0 +1,117 @@
+module UserDefined =
+  let stringValue = "test"
+  stringValue = "test"
+  "test" = stringValue
+  UserDefined.stringValue = "test"
+
+  let intValue = 5L
+  intValue = 5L
+  UserDefined.intValue = 5L
+
+  let uint64Value = 5UL
+  uint64Value = 5UL
+  UserDefined.uint64Value = 5UL
+
+  let int32Value = 5l
+  int32Value = 5l
+  UserDefined.int32Value = 5l
+
+  let uint32Value = 5ul
+  uint32Value = 5ul
+  UserDefined.uint32Value = 5ul
+
+  let int16Value = 5s
+  int16Value = 5s
+  UserDefined.int16Value = 5s
+
+  let uint16Value = 5us
+  uint16Value = 5us
+  UserDefined.uint16Value = 5us
+
+  let int8Value = 5y
+  int8Value = 5y
+  UserDefined.int8Value = 5y
+
+  let uint8Value = 5uy
+  uint8Value = 5uy
+  UserDefined.uint8Value = 5uy
+
+  let floatValue = 5.6
+  floatValue = 5.6
+  UserDefined.floatValue = 5.6
+
+  let boolValue = true
+  boolValue = true
+  UserDefined.boolValue = true
+
+  let tupleValue = (1L, 2L, 3L)
+  tupleValue = (1L, 2L, 3L)
+  UserDefined.tupleValue = (1L, 2L, 3L)
+
+  let charValue = 'c'
+  charValue = 'c'
+  UserDefined.charValue = 'c'
+
+  let unitValue = ()
+  unitValue = ()
+  UserDefined.unitValue = ()
+
+  let enumValue = Stdlib.Option.Option.Some 5L
+  enumValue = Stdlib.Option.Option.Some 5L
+  UserDefined.enumValue = Stdlib.Option.Option.Some 5L
+
+  Ok 5L = Builtin.testDerrorMessage "Ok is not a valid name"
+
+
+module Package =
+  PACKAGE.Darklang.Test.Values.stringValue = "test"
+  "test" = PACKAGE.Darklang.Test.Values.stringValue
+  PACKAGE.Darklang.Test.Values.stringValue = "test"
+
+  PACKAGE.Darklang.Test.Values.int128Value = 5Q
+  PACKAGE.Darklang.Test.Values.int128Value = 5Q
+
+  PACKAGE.Darklang.Test.Values.uint128Value = 5Z
+  PACKAGE.Darklang.Test.Values.uint128Value = 5Z
+
+  PACKAGE.Darklang.Test.Values.intValue = 5L
+  PACKAGE.Darklang.Test.Values.intValue = 5L
+
+  PACKAGE.Darklang.Test.Values.uint64Value = 5UL
+  PACKAGE.Darklang.Test.Values.uint64Value = 5UL
+
+  PACKAGE.Darklang.Test.Values.int32Value = 5l
+  PACKAGE.Darklang.Test.Values.int32Value = 5l
+
+  PACKAGE.Darklang.Test.Values.uint32Value = 5ul
+  PACKAGE.Darklang.Test.Values.uint32Value = 5ul
+
+  PACKAGE.Darklang.Test.Values.int16Value = 5s
+  PACKAGE.Darklang.Test.Values.int16Value = 5s
+
+  PACKAGE.Darklang.Test.Values.uint16Value = 5us
+  PACKAGE.Darklang.Test.Values.uint16Value = 5us
+
+  PACKAGE.Darklang.Test.Values.int8Value = 5y
+  PACKAGE.Darklang.Test.Values.int8Value = 5y
+
+  PACKAGE.Darklang.Test.Values.uint8Value = 5uy
+  PACKAGE.Darklang.Test.Values.uint8Value = 5uy
+
+  PACKAGE.Darklang.Test.Values.floatValue = 5.6
+  PACKAGE.Darklang.Test.Values.floatValue = 5.6
+
+  PACKAGE.Darklang.Test.Values.boolValue = true
+  PACKAGE.Darklang.Test.Values.boolValue = true
+
+  PACKAGE.Darklang.Test.Values.tupleValue = (1L, 2L, 3L)
+  PACKAGE.Darklang.Test.Values.tupleValue = (1L, 2L, 3L)
+
+  PACKAGE.Darklang.Test.Values.charValue = 'c'
+  PACKAGE.Darklang.Test.Values.charValue = 'c'
+
+  PACKAGE.Darklang.Test.Values.unitValue = ()
+  PACKAGE.Darklang.Test.Values.unitValue = ()
+
+  PACKAGE.Darklang.Test.Values.enumValue = Stdlib.Option.Option.Some 5L
+  PACKAGE.Darklang.Test.Values.enumValue = Stdlib.Option.Option.Some 5L

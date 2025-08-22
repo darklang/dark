@@ -12,7 +12,7 @@ let modulePattern = @"^[A-Z][a-z0-9A-Z_]*$"
 //let typeNamePattern = @"^[A-Z][a-z0-9A-Z_]*$"
 let fnNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
 let builtinNamePattern = @"^(__|[a-z])[a-z0-9A-Z_]\w*$"
-let constantNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
+let valueNamePattern = @"^[a-z][a-z0-9A-Z_']*$"
 
 let assertBuiltin
   (name : string)
@@ -38,34 +38,34 @@ module FQTypeName =
 
 
 
-/// A Fully-Qualified Constant Name
+/// A Fully-Qualified Value Name
 ///
-/// Used to reference a constant defined by the runtime, in a Package, or by a User
-module FQConstantName =
-  /// A constant built into the runtime
+/// Used to reference a value defined by the runtime, in a Package, or by a User
+module FQValueName =
+  /// A value built into the runtime
   type Builtin = { name : string; version : int }
 
-  /// The id of a constant in the package manager
+  /// The id of a value in the package manager
   type Package = uuid
 
-  type FQConstantName =
+  type FQValueName =
     | Builtin of Builtin
     | Package of Package
 
 
-  let assertConstantName (name : string) : unit =
-    assertRe "Constant name must match" constantNamePattern name
+  let assertValueName (name : string) : unit =
+    assertRe "Value name must match" valueNamePattern name
 
   let builtIn (name : string) (version : int) : Builtin =
-    assertBuiltin name version assertConstantName
+    assertBuiltin name version assertValueName
     { name = name; version = version }
 
-  let fqBuiltIn (name : string) (version : int) : FQConstantName =
+  let fqBuiltIn (name : string) (version : int) : FQValueName =
     Builtin(builtIn name version)
 
   let package (id : uuid) : Package = id
 
-  let fqPackage (id : uuid) : FQConstantName = Package id
+  let fqPackage (id : uuid) : FQValueName = Package id
 
 
 
@@ -99,11 +99,11 @@ module FQFnName =
   let fqPackage (id : uuid) : FQFnName = Package id
 
 
-// In ProgramTypes, names (FnNames, TypeNames, ConstantNames) have already been
+// In ProgramTypes, names (FnNames, TypeNames, ValueNames) have already been
 // resolved. The user wrote them in WrittenTypes, and the WrittenTypesToProgramTypes
 // pass looked them up and specified them exactly in ProgramTypes.
 //
-// However, sometimes the name/fn/type/constant could not be found, which means the
+// However, sometimes the name/fn/type/value could not be found, which means the
 // user specified a name that doesn't exist (it shouldn't be for any other reason -
 // things like "the internet was down" should error differently).
 //
@@ -389,10 +389,10 @@ type Expr =
     caseName : string *
     fields : List<Expr>
 
-  | EConstant of
+  | EValue of
     id *
     // TODO: this reference should be by-hash
-    NameResolution<FQConstantName.FQConstantName>
+    NameResolution<FQValueName.FQValueName>
 
   | EStatement of id * first : Expr * next : Expr
 
@@ -449,7 +449,7 @@ module Expr =
     | EChar(id, _)
     | EString(id, _)
     | EFloat(id, _, _, _)
-    | EConstant(id, _)
+    | EValue(id, _)
     | ELet(id, _, _, _)
     | EIf(id, _, _, _)
     | EInfix(id, _, _, _)
@@ -493,44 +493,6 @@ module TypeDeclaration =
   /// Combined the RHS definition, with the list of type parameters. Eg type
   /// MyType<'a> = List<'a>
   type T = { typeParams : List<string>; definition : Definition }
-
-
-/// Replace this whole concept with just "Package Values" that store Dvals
-type Const =
-  | CUnit
-
-  | CBool of bool
-
-  | CInt8 of int8
-  | CUInt8 of uint8
-  | CInt16 of int16
-  | CUInt16 of uint16
-  | CInt32 of int32
-  | CUInt32 of uint32
-  | CInt64 of int64
-  | CUInt64 of uint64
-  | CInt128 of System.Int128
-  | CUInt128 of System.UInt128
-
-  | CFloat of Sign * string * string
-
-  | CChar of string
-  | CString of string
-
-  | CList of List<Const>
-  | CDict of List<string * Const>
-  | CTuple of first : Const * second : Const * rest : List<Const>
-
-  | CRecord of
-    typeName : NameResolution<FQTypeName.FQTypeName> *
-    typeArgs : List<TypeReference> *
-    fields : List<string * Const>
-
-  | CEnum of
-    // TODO: this reference should be by-hash
-    NameResolution<FQTypeName.FQTypeName> *
-    caseName : string *
-    fields : List<Const>
 
 
 
@@ -585,19 +547,19 @@ module PackageType =
       description : string
       deprecated : Deprecation<FQTypeName.FQTypeName> }
 
-module PackageConstant =
+module PackageValue =
   type Name = { owner : string; modules : List<string>; name : string }
 
   let name (owner : string) (modules : List<string>) (name : string) : Name =
     // TODO: assert OK
     { owner = owner; modules = modules; name = name }
 
-  type PackageConstant =
+  type PackageValue =
     { id : uuid
       name : Name
       description : string
-      deprecated : Deprecation<FQConstantName.FQConstantName>
-      body : Const }
+      deprecated : Deprecation<FQValueName.FQValueName>
+      body : Expr }
 
 module PackageFn =
   type Name = { owner : string; modules : List<string>; name : string }
@@ -620,12 +582,12 @@ module PackageFn =
 
 type Packages =
   { types : List<PackageType.PackageType>
-    constants : List<PackageConstant.PackageConstant>
+    values : List<PackageValue.PackageValue>
     fns : List<PackageFn.PackageFn> }
 
   static member combine(packages : List<Packages>) : Packages =
     { types = packages |> List.collect _.types
-      constants = packages |> List.collect _.constants
+      values = packages |> List.collect _.values
       fns = packages |> List.collect _.fns }
 
 module Search =
@@ -634,7 +596,7 @@ module Search =
     | Type
     | Module
     | Fn
-    | Constant
+    | Value
 
   /// How deep to search in the module hierarchy
   type SearchDepth = | OnlyDirectDescendants
@@ -659,7 +621,7 @@ module Search =
   type SearchResults =
     { submodules : List<List<string>> // [ [ "List"]; ["String"; "List"] ]
       types : List<PackageType.PackageType>
-      constants : List<PackageConstant.PackageConstant>
+      values : List<PackageValue.PackageValue>
       fns : List<PackageFn.PackageFn> }
 
 /// Functionality written in Dark stored and managed outside of user space
@@ -669,12 +631,11 @@ module Search =
 /// for whatever reasons.
 type PackageManager =
   { findType : PackageType.Name -> Ply<Option<FQTypeName.Package>>
-    findConstant : PackageConstant.Name -> Ply<Option<FQConstantName.Package>>
+    findValue : PackageValue.Name -> Ply<Option<FQValueName.Package>>
     findFn : PackageFn.Name -> Ply<Option<FQFnName.Package>>
 
     getType : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
-    getConstant :
-      FQConstantName.Package -> Ply<Option<PackageConstant.PackageConstant>>
+    getValue : FQValueName.Package -> Ply<Option<PackageValue.PackageValue>>
     getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
 
     search : Search.SearchQuery -> Ply<Search.SearchResults>
@@ -684,15 +645,15 @@ type PackageManager =
   static member empty =
     { findType = (fun _ -> Ply None)
       findFn = (fun _ -> Ply None)
-      findConstant = (fun _ -> Ply None)
+      findValue = (fun _ -> Ply None)
 
       getType = (fun _ -> Ply None)
       getFn = (fun _ -> Ply None)
-      getConstant = (fun _ -> Ply None)
+      getValue = (fun _ -> Ply None)
 
       search =
         (fun _ ->
-          uply { return { submodules = []; types = []; constants = []; fns = [] } })
+          uply { return { submodules = []; types = []; values = []; fns = [] } })
 
       init = uply { return () } }
 
@@ -701,7 +662,7 @@ type PackageManager =
   /// the normal fetching functionality. (Mostly helpful for tests)
   static member withExtras
     (types : List<PackageType.PackageType>)
-    (constants : List<PackageConstant.PackageConstant>)
+    (values : List<PackageValue.PackageValue>)
     (fns : List<PackageFn.PackageFn>)
     (pm : PackageManager)
     : PackageManager =
@@ -710,11 +671,11 @@ type PackageManager =
           match types |> List.tryFind (fun t -> t.name = name) with
           | Some t -> Some t.id |> Ply
           | None -> pm.findType name
-      findConstant =
+      findValue =
         fun name ->
-          match constants |> List.tryFind (fun c -> c.name = name) with
-          | Some c -> Some c.id |> Ply
-          | None -> pm.findConstant name
+          match values |> List.tryFind (fun v -> v.name = name) with
+          | Some v -> Some v.id |> Ply
+          | None -> pm.findValue name
       findFn =
         fun name ->
           match fns |> List.tryFind (fun f -> f.name = name) with
@@ -726,11 +687,11 @@ type PackageManager =
           match types |> List.tryFind (fun t -> t.id = id) with
           | Some t -> Ply(Some t)
           | None -> pm.getType id
-      getConstant =
+      getValue =
         fun id ->
-          match constants |> List.tryFind (fun c -> c.id = id) with
-          | Some c -> Ply(Some c)
-          | None -> pm.getConstant id
+          match values |> List.tryFind (fun v -> v.id = id) with
+          | Some v -> Ply(Some v)
+          | None -> pm.getValue id
       getFn =
         fun id ->
           match fns |> List.tryFind (fun f -> f.id = id) with

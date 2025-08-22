@@ -132,101 +132,6 @@ let rec checkAndExtractMatchPattern
   | MPOr _, _ -> false, []
 
 
-// CLEANUP evaluate constants/values at dev-time, not interpreter time,
-// and remove the Const structure
-let rec evalConst
-  (types : Types)
-  (threadID : ThreadID)
-  (tst : TypeSymbolTable)
-  (c : Const)
-  : Ply<Dval> =
-  uply {
-    let r = evalConst types threadID tst
-
-    match c with
-    | CUnit -> return DUnit
-    | CBool b -> return DBool b
-
-    | CInt8 i -> return DInt8 i
-    | CUInt8 i -> return DUInt8 i
-    | CInt16 i -> return DInt16 i
-    | CUInt16 i -> return DUInt16 i
-    | CInt32 i -> return DInt32 i
-    | CUInt32 i -> return DUInt32 i
-    | CInt64 i -> return DInt64 i
-    | CUInt64 i -> return DUInt64 i
-    | CInt128 i -> return DInt128 i
-    | CUInt128 i -> return DUInt128 i
-
-    | CFloat(sign, w, f) -> return DFloat(makeFloat sign w f)
-
-    | CChar c -> return DChar c
-    | CString s -> return DString s
-
-    | CTuple(first, second, theRest) ->
-      let! first = r first
-      let! second = r second
-      let! theRest = theRest |> Ply.List.mapSequentially r
-      return DTuple(first, second, theRest)
-
-    | CList items ->
-      let! items = items |> Ply.List.mapSequentially r
-      return TypeChecker.DvalCreator.list threadID ValueType.Unknown items
-
-    | CDict entries ->
-      let! entries =
-        entries
-        |> Ply.List.mapSequentially (fun (k, v) -> r v |> Ply.map (fun v -> k, v))
-      return TypeChecker.DvalCreator.dict threadID ValueType.Unknown entries
-
-
-    | CRecord(Ok typeName, _typeArgs, fields) ->
-      let! fields =
-        fields
-        |> Ply.List.mapSequentially (fun (k, v) ->
-          uply {
-            let! v = r v
-            return (k, v)
-          })
-      let typeArgs =
-        // At this point, we don't support explicit type args for constant records
-        // once (CLEANUP) we make some big changes to how Constants work
-        // (so they're eval'd at dev-time rather than run-time)
-        // , we can support this.
-        []
-      let! record =
-        TypeChecker.DvalCreator.record types threadID tst typeName typeArgs fields
-
-      return record
-
-    | CRecord(Error nre, _typeArgs, _fields) ->
-      return raiseRTE threadID (RuntimeError.ParseTimeNameResolution nre)
-
-    | CEnum(Ok typeName, caseName, fields) ->
-      let typeArgs =
-        // At this point, we don't support explicit type args for constant enums
-        // once (CLEANUP) we make some big changes to how Constants work
-        // (so they're eval'd at dev-time rather than run-time)
-        // , we can support this.
-        []
-
-      let! fields = fields |> Ply.List.mapSequentially r
-      let! enum =
-        TypeChecker.DvalCreator.enum
-          types
-          threadID
-          tst
-          typeName
-          typeArgs
-          caseName
-          fields
-
-      return enum
-
-    | CEnum(Error nre, _caseName, _fields) ->
-      // CLEANUP ConstNotFound would be better
-      return raiseRTE threadID (RuntimeError.ParseTimeNameResolution nre)
-  }
 
 
 let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
@@ -526,24 +431,19 @@ let execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
           registers[enumReg] <- newEnum
 
 
-        | LoadConstant(createTo, name) ->
+        | LoadValue(createTo, name) ->
           match name with
-          | FQConstantName.Builtin builtin ->
-            match Map.find builtin exeState.constants.builtIn with
-            | Some c -> registers[createTo] <- c.body
-            | None -> raiseRTE (RTE.ConstNotFound name)
+          | FQValueName.Builtin builtin ->
+            match Map.find builtin exeState.values.builtIn with
+            | Some v -> registers[createTo] <- v.body
+            | None -> raiseRTE (RTE.ValueNotFound name)
 
-          | FQConstantName.Package pkg ->
-            match! exeState.constants.package pkg with
-            | Some c ->
-              let! dv =
-                evalConst
-                  exeState.types
-                  vm.threadID
-                  currentFrame.typeSymbolTable
-                  c.body
-              registers[createTo] <- dv
-            | None -> raiseRTE (RTE.ConstNotFound name)
+          | FQValueName.Package pkg ->
+            match! exeState.values.package pkg with
+            | Some v ->
+              // The Dval is already stored in the package value
+              registers[createTo] <- v.body
+            | None -> raiseRTE (RTE.ValueNotFound name)
 
 
         | CreateLambda(lambdaReg, impl) ->

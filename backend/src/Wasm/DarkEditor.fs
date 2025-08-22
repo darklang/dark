@@ -17,7 +17,7 @@ let debug (arg : string) = WasmHelpers.callJSFunction "console.log" [ arg ]
 /// Source of the editor (types, functions)
 type EditorSource =
   { types : List<PackageType.PackageType>
-    constants : List<PackageConstant.PackageConstant>
+    values : List<PackageValue.PackageValue>
     fns : List<PackageFn.PackageFn> }
 
 
@@ -66,7 +66,7 @@ let LoadClient (canvasName : string) : Task<string> =
         getStateForEval
           builtin
           clientSource.types
-          clientSource.constants
+          clientSource.values
           clientSource.fns
       LibExecution.Execution.executeFunction
         state
@@ -79,7 +79,7 @@ let LoadClient (canvasName : string) : Task<string> =
     | Ok result ->
       Libs.Editor.editor <-
         { types = clientSource.types
-          constants = clientSource.constants
+          values = clientSource.values
           functions = clientSource.fns
           currentState = result }
 
@@ -101,7 +101,7 @@ let HandleEvent (serializedEvent : string) : Task<string> =
       getStateForEval
         builtin
         Libs.Editor.editor.types
-        Libs.Editor.editor.constants
+        Libs.Editor.editor.values
         Libs.Editor.editor.functions
 
     let! result =

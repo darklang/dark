@@ -24,7 +24,7 @@
     <Compile Include="Serializers/PT/TypeReference.fs" />
     <Compile Include="Serializers/PT/PackageType.fs" />
     <Compile Include="Serializers/PT/Expr.fs" />
-    <Compile Include="Serializers/PT/PackageConstant.fs" />
+    <Compile Include="Serializers/PT/PackageValue.fs" />
     <Compile Include="Serializers/PT/PackageFn.fs" />
     <Compile Include="Serializers/PT/Toplevel.fs" />
 
@@ -32,8 +32,8 @@
     <Compile Include="Serializers/RT/TypeReference.fs" />
     <Compile Include="Serializers/RT/ValueType.fs" />
     <Compile Include="Serializers/RT/PackageType.fs" />
-    <Compile Include="Serializers/RT/PackageConstant.fs" />
     <Compile Include="Serializers/RT/Dval.fs" />
+    <Compile Include="Serializers/RT/PackageValue.fs" />
     <Compile Include="Serializers/RT/Instructions.fs" />
     <Compile Include="Serializers/RT/PackageFn.fs" />
 

@@ -81,7 +81,7 @@ module PM =
 
     let all = Records.all @ Enums.all
 
-  module Constants =
+  module Values =
     let all = []
 
   module Functions =
@@ -490,16 +490,16 @@ module Expressions =
     let withFields =
       eEnum (typeNamePkg PM.Types.Enums.withFields) [] "Some" [ eInt64 1 ]
 
-  module Constants =
-    // CLEANUP we don't really have builtin constants, so not bothering to test for now
+  module Values =
+    // CLEANUP we don't really have builtin values, so not bothering to test for now
     // module Builtin =
-    //   let infinity = eBuiltinConstant "infinity" 0
+    //   let infinity = eBuiltinValue "infinity" 0
 
     module Package =
       module MySpecialNumber =
         // 17
         let id = System.Guid.Parse "1823ae7e-cc59-4843-a884-18591398abb0"
-        let usage = ePackageConstant id
+        let usage = ePackageValue id
 
 
   module Infix =
@@ -679,12 +679,12 @@ let pm : PT.PackageManager =
     // Types
     PM.Types.all
 
-    // constants
-    [ { id = Expressions.Constants.Package.MySpecialNumber.id
-        name = PT.PackageConstant.name "Test" [] "seventeen"
+    // values
+    [ { id = Expressions.Values.Package.MySpecialNumber.id
+        name = PT.PackageValue.name "Test" [] "seventeen"
         description = "TODO"
         deprecated = PT.NotDeprecated
-        body = PT.CInt64 17 } ]
+        body = PT.EInt64(gid (), 17L) } ]
 
     // fns
     [ { id = Expressions.Fns.Package.Inner.id

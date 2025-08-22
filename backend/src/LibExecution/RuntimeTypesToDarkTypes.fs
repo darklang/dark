@@ -46,46 +46,46 @@ module FQTypeName =
     | _ -> Exception.raiseInternal "Invalid FQTypeName" []
 
 
-module FQConstantName =
+module FQValueName =
   let typeName =
     FQTypeName.Package
-      PackageIDs.Type.LanguageTools.RuntimeTypes.FQConstantName.fqConstantName
+      PackageIDs.Type.LanguageTools.RuntimeTypes.FQValueName.fqValueName
   let knownType = KTCustomType(typeName, [])
 
   module Builtin =
-    let toDT (u : FQConstantName.Builtin) : Dval =
+    let toDT (u : FQValueName.Builtin) : Dval =
       let fields = [ "name", DString u.name; "version", DInt32 u.version ]
       let typeName =
         FQTypeName.Package
-          PackageIDs.Type.LanguageTools.RuntimeTypes.FQConstantName.builtin
+          PackageIDs.Type.LanguageTools.RuntimeTypes.FQValueName.builtin
       DRecord(typeName, typeName, [], Map fields)
 
-    let fromDT (d : Dval) : FQConstantName.Builtin =
+    let fromDT (d : Dval) : FQValueName.Builtin =
       match d with
       | DRecord(_, _, _, fields) ->
         { name = nameField fields; version = versionField fields }
-      | _ -> Exception.raiseInternal "Invalid FQConstantName.Builtin" []
+      | _ -> Exception.raiseInternal "Invalid FQValueName.Builtin" []
 
   module Package =
-    let toDT (u : FQConstantName.Package) : Dval = DUuid u
+    let toDT (u : FQValueName.Package) : Dval = DUuid u
 
-    let fromDT (d : Dval) : FQConstantName.Package =
+    let fromDT (d : Dval) : FQValueName.Package =
       match d with
       | DUuid id -> id
-      | _ -> Exception.raiseInternal "Invalid FQConstantName.Package" []
+      | _ -> Exception.raiseInternal "Invalid FQValueName.Package" []
 
-  let toDT (u : FQConstantName.FQConstantName) : Dval =
+  let toDT (u : FQValueName.FQValueName) : Dval =
     let (caseName, fields) =
       match u with
-      | FQConstantName.Builtin u -> "Builtin", [ Builtin.toDT u ]
-      | FQConstantName.Package u -> "Package", [ Package.toDT u ]
+      | FQValueName.Builtin u -> "Builtin", [ Builtin.toDT u ]
+      | FQValueName.Package u -> "Package", [ Package.toDT u ]
     DEnum(typeName, typeName, [], caseName, fields)
 
-  let fromDT (d : Dval) : FQConstantName.FQConstantName =
+  let fromDT (d : Dval) : FQValueName.FQValueName =
     match d with
-    | DEnum(_, _, [], "Builtin", [ u ]) -> FQConstantName.Builtin(Builtin.fromDT u)
-    | DEnum(_, _, [], "Package", [ u ]) -> FQConstantName.Package(Package.fromDT u)
-    | _ -> Exception.raiseInternal "Invalid FQConstantName" []
+    | DEnum(_, _, [], "Builtin", [ u ]) -> FQValueName.Builtin(Builtin.fromDT u)
+    | DEnum(_, _, [], "Package", [ u ]) -> FQValueName.Package(Package.fromDT u)
+    | _ -> Exception.raiseInternal "Invalid FQValueName" []
 
 
 module FQFnName =
@@ -1333,8 +1333,7 @@ module RuntimeError =
       | RuntimeError.ParseTimeNameResolution e ->
         "ParseTimeNameResolution", [ NameResolutionError.toDT e ]
       | RuntimeError.TypeNotFound name -> "TypeNotFound", [ FQTypeName.toDT name ]
-      | RuntimeError.ConstNotFound name ->
-        "ConstNotFound", [ FQConstantName.toDT name ]
+      | RuntimeError.ValueNotFound name -> "ValueNotFound", [ FQValueName.toDT name ]
       | RuntimeError.FnNotFound name -> "FnNotFound", [ FQFnName.toDT name ]
       | RuntimeError.WrongNumberOfTypeArgsForType(fn, expected, actual) ->
         "WrongNumberOfTypeArgsForType",
@@ -1382,8 +1381,8 @@ module RuntimeError =
       RuntimeError.ParseTimeNameResolution(NameResolutionError.fromDT e)
     | DEnum(_, _, [], "TypeNotFound", [ name ]) ->
       RuntimeError.TypeNotFound(FQTypeName.fromDT name)
-    | DEnum(_, _, [], "ConstNotFound", [ name ]) ->
-      RuntimeError.ConstNotFound(FQConstantName.fromDT name)
+    | DEnum(_, _, [], "ValueNotFound", [ name ]) ->
+      RuntimeError.ValueNotFound(FQValueName.fromDT name)
     | DEnum(_, _, [], "FnNotFound", [ name ]) ->
       RuntimeError.FnNotFound(FQFnName.fromDT name)
     | DEnum(_, _, [], "WrongNumberOfTypeArgsForType", [ fn; expected; actual ]) ->

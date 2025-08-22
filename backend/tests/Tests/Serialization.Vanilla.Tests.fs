@@ -80,9 +80,9 @@ module PersistedSerializations =
           "type"
           V.ProgramTypes.packageType
 
-        v<LibExecution.ProgramTypes.PackageConstant.PackageConstant>
-          "constant"
-          V.ProgramTypes.packageConstant
+        v<LibExecution.ProgramTypes.PackageValue.PackageValue>
+          "value"
+          V.ProgramTypes.packageValue
 
         v<LibExecution.ProgramTypes.PackageFn.PackageFn>
           "function"

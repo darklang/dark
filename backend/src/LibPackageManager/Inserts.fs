@@ -48,31 +48,29 @@ let insertTypes (types : List<PT.PackageType.PackageType>) : Task<unit> =
   }
 
 
-let insertConsts
-  (constants : List<PT.PackageConstant.PackageConstant>)
-  : Task<unit> =
+let insertValues (values : List<PT.PackageValue.PackageValue>) : Task<unit> =
   task {
-    if List.isEmpty constants then return ()
+    if List.isEmpty values then return ()
 
-    constants
-    |> List.map (fun c ->
+    values
+    |> List.map (fun v ->
       let sql =
-        @"INSERT INTO package_constants_v0
+        @"INSERT INTO package_values_v0
             (id, owner, modules, name, pt_def, rt_dval)
           VALUES
             (@id, @owner, @modules, @name, @pt_def, @rt_dval)"
 
-      let ptDef = BinarySerialization.PT.PackageConstant.serialize c.id c
+      let ptDef = BinarySerialization.PT.PackageValue.serialize v.id v
       let rtDval =
-        c
-        |> PT2RT.PackageConstant.toRT
-        |> BinarySerialization.RT.PackageConstant.serialize c.id
+        v
+        |> PT2RT.PackageValue.toRT
+        |> BinarySerialization.RT.PackageValue.serialize v.id
 
       let parameters =
-        [ "id", Sql.uuid c.id
-          "owner", Sql.string c.name.owner
-          "modules", Sql.string (String.concat "." c.name.modules)
-          "name", Sql.string c.name.name
+        [ "id", Sql.uuid v.id
+          "owner", Sql.string v.name.owner
+          "modules", Sql.string (String.concat "." v.name.modules)
+          "name", Sql.string v.name.name
           "pt_def", Sql.bytes ptDef
           "rt_dval", Sql.bytes rtDval ]
 

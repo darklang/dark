@@ -174,21 +174,21 @@ module Expr =
       | WT.EBool(id, b) -> return PT.EBool(id, b)
       | WT.EUnit id -> return PT.EUnit id
       | WT.EVariable(id, var) ->
-        let! constant =
-          NR.resolveConstantName
-            (builtins.constants |> Map.keys |> Set)
+        let! value =
+          NR.resolveValueName
+            (builtins.values |> Map.keys |> Set)
             pm
             NR.OnMissing.Allow
             currentModule
             (WT.Unresolved(NEList.singleton var))
-        match constant with
-        | Ok _ as name -> return PT.EConstant(id, name)
+        match value with
+        | Ok _ as name -> return PT.EValue(id, name)
         | Error _ -> return PT.EVariable(id, var)
       | WT.ERecordFieldAccess(id, obj, fieldname) ->
         let! obj = toPT obj
         return PT.ERecordFieldAccess(id, obj, fieldname)
       | WT.EApply(id, (WT.EFnName(_, name)), [], { head = WT.EPlaceHolder }) ->
-        // There are no arguments, so this could be a function name or a constant
+        // There are no arguments, so this could be a function name or a value
         let! fnName =
           NR.resolveFnName
             (builtins.fns |> Map.keys |> Set)
@@ -200,13 +200,13 @@ module Expr =
         | Ok _ as name -> return PT.EFnName(id, name)
         | Error _ ->
           let! name =
-            NR.resolveConstantName
-              (builtins.constants |> Map.keys |> Set)
+            NR.resolveValueName
+              (builtins.values |> Map.keys |> Set)
               pm
               onMissing
               currentModule
               name
-          return PT.EConstant(id, name)
+          return PT.EValue(id, name)
       | WT.EApply(id, name, typeArgs, args) ->
         let! name = toPT name
         let! typeArgs =
@@ -426,79 +426,6 @@ module Expr =
         return PT.EPipeEnum(id, typeName, caseName, fields)
     }
 
-module Const =
-  let rec toPT
-    (pm : PT.PackageManager)
-    (onMissing : NR.OnMissing)
-    (currentModule : List<string>)
-    (c : WT.Const)
-    : Ply<PT.Const> =
-    let toPT = toPT pm onMissing currentModule
-    uply {
-      match c with
-      | WT.CUnit -> return PT.CUnit
-      | WT.CBool b -> return PT.CBool b
-      | WT.CInt64 i -> return PT.CInt64 i
-      | WT.CUInt64 i -> return PT.CUInt64 i
-      | WT.CInt8 i -> return PT.CInt8 i
-      | WT.CUInt8 i -> return PT.CUInt8 i
-      | WT.CInt16 i -> return PT.CInt16 i
-      | WT.CUInt16 i -> return PT.CUInt16 i
-      | WT.CInt32 i -> return PT.CInt32 i
-      | WT.CUInt32 i -> return PT.CUInt32 i
-      | WT.CInt128 i -> return PT.CInt128 i
-      | WT.CUInt128 i -> return PT.CUInt128 i
-      | WT.CFloat(sign, w, f) -> return PT.CFloat(sign, w, f)
-      | WT.CChar c -> return PT.CChar c
-      | WT.CString s -> return PT.CString s
-
-      | WT.CList items ->
-        let! items = Ply.List.mapSequentially toPT items
-        return PT.CList items
-
-      | WT.CDict items ->
-        let! items =
-          Ply.List.mapSequentially
-            (fun (key, value) ->
-              uply {
-                let! value = toPT value
-                return (key, value)
-              })
-            items
-        return PT.CDict items
-
-      | WT.CTuple(first, second, theRest) ->
-        let! first = toPT first
-        let! second = toPT second
-        let! theRest = Ply.List.mapSequentially toPT theRest
-        return PT.CTuple(first, second, theRest)
-
-      | WT.CRecord(typeName, fields) ->
-        let names =
-          match typeName with
-          | WT.Unresolved given -> NEList.toList given
-          | WT.KnownBuiltin(name, _) -> [ name ]
-        let! typeName =
-          Expr.resolveTypeName pm onMissing currentModule names "CRecord"
-        // Type args aren't available at parse time for constants
-        // They would need to be inferred, which happens at runtime currently
-        let typeArgs = []
-        let! fields =
-          fields
-          |> Ply.List.mapSequentially (fun (k, v) ->
-            uply {
-              let! v = toPT v
-              return (k, v)
-            })
-        return PT.CRecord(typeName, typeArgs, fields)
-
-      | WT.CEnum(typeName, caseName, fields) ->
-        let! typeName =
-          Expr.resolveTypeName pm onMissing currentModule typeName caseName
-        let! fields = Ply.List.mapSequentially toPT fields
-        return PT.CEnum(typeName, caseName, fields)
-    }
-
 
 module TypeDeclaration =
   module RecordField =
@@ -610,21 +537,22 @@ module PackageType =
           deprecated = PT.NotDeprecated }
     }
 
-module PackageConstant =
+module PackageValue =
   module Name =
-    let toPT (n : WT.PackageConstant.Name) : PT.PackageConstant.Name =
+    let toPT (n : WT.PackageValue.Name) : PT.PackageValue.Name =
       { owner = n.owner; modules = n.modules; name = n.name }
 
   let toPT
+    (builtins : RT.Builtins)
     (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
     (currentModule : List<string>)
-    (c : WT.PackageConstant.PackageConstant)
-    : Ply<PT.PackageConstant.PackageConstant> =
+    (c : WT.PackageValue.PackageValue)
+    : Ply<PT.PackageValue.PackageValue> =
     uply {
-      let! body = Const.toPT pm onMissing currentModule c.body
+      let! body = Expr.toPT builtins pm onMissing currentModule c.body
       return
-        { id = PackageIDs.Constant.idForName c.name.owner c.name.modules c.name.name
+        { id = PackageIDs.Value.idForName c.name.owner c.name.modules c.name.name
           name = Name.toPT c.name
           description = c.description
           deprecated = PT.NotDeprecated

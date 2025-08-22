@@ -38,7 +38,7 @@ let createState
     program = program
 
     types = { package = pm.getType }
-    constants = { builtIn = builtins.constants; package = pm.getConstant }
+    values = { builtIn = builtins.values; package = pm.getValue }
     fns = { builtIn = builtins.fns; package = pm.getFn } }
 
 

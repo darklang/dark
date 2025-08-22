@@ -42,14 +42,14 @@ module PT =
         |> BinarySerialization.PT.PackageFn.deserialize fn.id)
       Values.ProgramTypes.packageFns
 
-  let packageConstTests =
+  let packageValTests =
     Roundtripping.testRoundtripMany
-      "packageConsts"
+      "packageVals"
       (fun c ->
         c
-        |> BinarySerialization.PT.PackageConstant.serialize c.id
-        |> BinarySerialization.PT.PackageConstant.deserialize c.id)
-      Values.ProgramTypes.packageConstants
+        |> BinarySerialization.PT.PackageValue.serialize c.id
+        |> BinarySerialization.PT.PackageValue.deserialize c.id)
+      Values.ProgramTypes.packageValues
 
   let toplevelTests =
     Roundtripping.testRoundtripMany
@@ -72,14 +72,14 @@ module RT =
         |> BinarySerialization.RT.PackageType.deserialize t.id)
       Values.RuntimeTypes.packageTypes
 
-  let packageConstantTests =
+  let packageValueTests =
     Roundtripping.testRoundtripMany
-      "packageConstants"
+      "packageValues"
       (fun c ->
         c
-        |> BinarySerialization.RT.PackageConstant.serialize c.id
-        |> BinarySerialization.RT.PackageConstant.deserialize c.id)
-      Values.RuntimeTypes.packageConstants
+        |> BinarySerialization.RT.PackageValue.serialize c.id
+        |> BinarySerialization.RT.PackageValue.deserialize c.id)
+      Values.RuntimeTypes.packageValues
 
   let packageFnTests =
     Roundtripping.testRoundtripMany
@@ -184,14 +184,14 @@ let tests =
     [ testList
         "PT Roundtrip Tests"
         [ PT.packageTypeTests
-          PT.packageConstTests
+          PT.packageValTests
           PT.packageFnTests
           PT.toplevelTests ]
 
       testList
         "RT Roundtrip Tests"
         [ RT.packageTypeTests
-          RT.packageConstantTests
+          RT.packageValueTests
           RT.packageFnTests
           RT.dvalTests
           RT.instructionsTests ]

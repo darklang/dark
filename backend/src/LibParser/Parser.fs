@@ -50,6 +50,5 @@ let parsePackageFile
   : Ply<PT.Packages> =
   uply {
     let! pModule = Package.parse builtins pm onMissing path contents
-    return
-      { types = pModule.types; constants = pModule.constants; fns = pModule.fns }
+    return { types = pModule.types; values = pModule.values; fns = pModule.fns }
   }

@@ -26,21 +26,19 @@ module Type =
     }
 
 
-module Constant =
-  let get (id : uuid) : Ply<Option<RT.PackageConstant.PackageConstant>> =
+module Value =
+  let get (id : uuid) : Ply<Option<RT.PackageValue.PackageValue>> =
     uply {
       return!
         Sql.query
           """
           SELECT rt_dval
-          FROM package_constants_v0
+          FROM package_values_v0
           WHERE id = @id
           """
         |> Sql.parameters [ "id", Sql.uuid id ]
         |> Sql.executeRowOptionAsync (fun read -> read.bytes "rt_dval")
-        |> Task.map (
-          Option.map (BinarySerialization.RT.PackageConstant.deserialize id)
-        )
+        |> Task.map (Option.map (BinarySerialization.RT.PackageValue.deserialize id))
     }
 
 

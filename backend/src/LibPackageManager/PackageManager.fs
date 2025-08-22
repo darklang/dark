@@ -15,7 +15,7 @@ module PMRT = LibPackageManager.RuntimeTypes
 let rt : RT.PackageManager =
   { getType = withCache PMRT.Type.get
     getFn = withCache PMRT.Fn.get
-    getConstant = withCache PMRT.Constant.get
+    getValue = withCache PMRT.Value.get
 
     init =
       uply {
@@ -26,12 +26,12 @@ let rt : RT.PackageManager =
 
 let pt : PT.PackageManager =
   { findType = withCache PMPT.Type.find
-    findConstant = withCache PMPT.Constant.find
+    findValue = withCache PMPT.Value.find
     findFn = withCache PMPT.Fn.find
 
     getType = withCache PMPT.Type.get
     getFn = withCache PMPT.Fn.get
-    getConstant = withCache PMPT.Constant.get
+    getValue = withCache PMPT.Value.get
 
     search = LibPackageManager.ProgramTypes.search
 

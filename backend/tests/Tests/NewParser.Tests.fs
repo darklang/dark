@@ -28,7 +28,7 @@ let t
   (input : string)
   (expected : string)
   (extraTypes : List<PT.PackageType.PackageType>)
-  (extraConstants : List<PT.PackageConstant.PackageConstant>)
+  (extraValues : List<PT.PackageValue.PackageValue>)
   (extraFns : List<PT.PackageFn.PackageFn>)
   (allowUnresolved : bool)
   =
@@ -41,7 +41,7 @@ let t
       if allowUnresolved then
         pmPT
       else
-        pmPT |> PT.PackageManager.withExtras extraTypes extraConstants extraFns
+        pmPT |> PT.PackageManager.withExtras extraTypes extraValues extraFns
     let canvasID = System.Guid.NewGuid()
     let! exeState = executionStateFor pm canvasID false false Map.empty
 
@@ -908,9 +908,9 @@ let exprs =
       false
 
 
-    // qualified constant
+    // qualified value
     t
-      "qualified constant"
+      "qualified value"
       "Stdlib.List.empty"
       "PACKAGE.Darklang.Stdlib.List.empty"
       []
@@ -1566,153 +1566,132 @@ else
   |> testList "exprs"
 
 
-let constantDeclarations =
-  [ t "unit" "const unitConst = ()" "const unitConst = ()" [] [] [] false
+let valueDeclarations =
+  [ t "unit" "val unitVal = ()" "val unitVal = ()" [] [] [] false
 
     // ints
-    t "int8, max" "const maxInt8 = 127y" "const maxInt8 = 127y" [] [] [] false
-    t "uint8, max" "const maxUInt8 = 255uy" "const maxUInt8 = 255uy" [] [] [] false
-    t "int16, max" "const maxInt16 = 32767s" "const maxInt16 = 32767s" [] [] [] false
+    t "int8, max" "val maxInt8 = 127y" "val maxInt8 = 127y" [] [] [] false
+    t "uint8, max" "val maxUInt8 = 255uy" "val maxUInt8 = 255uy" [] [] [] false
+    t "int16, max" "val maxInt16 = 32767s" "val maxInt16 = 32767s" [] [] [] false
     t
       "uint16, max"
-      "const maxUInt16 = 65535us"
-      "const maxUInt16 = 65535us"
+      "val maxUInt16 = 65535us"
+      "val maxUInt16 = 65535us"
       []
       []
       []
       false
     t
       "int32, max"
-      "const maxInt32 = 2147483647l"
-      "const maxInt32 = 2147483647l"
+      "val maxInt32 = 2147483647l"
+      "val maxInt32 = 2147483647l"
       []
       []
       []
       false
     t
       "uint32, max"
-      "const maxUInt32 = 4294967295ul"
-      "const maxUInt32 = 4294967295ul"
+      "val maxUInt32 = 4294967295ul"
+      "val maxUInt32 = 4294967295ul"
       []
       []
       []
       false
     t
       "int64, max"
-      "const maxInt64 = 9223372036854775807L"
-      "const maxInt64 = 9223372036854775807L"
+      "val maxInt64 = 9223372036854775807L"
+      "val maxInt64 = 9223372036854775807L"
       []
       []
       []
       false
     t
       "uint64, max"
-      "const maxUInt64 = 18446744073709551615UL"
-      "const maxUInt64 = 18446744073709551615UL"
+      "val maxUInt64 = 18446744073709551615UL"
+      "val maxUInt64 = 18446744073709551615UL"
       []
       []
       []
       false
     t
       "int128, max"
-      "const maxInt128 = 170141183460469231731687303715884105727Q"
-      "const maxInt128 = 170141183460469231731687303715884105727Q"
+      "val maxInt128 = 170141183460469231731687303715884105727Q"
+      "val maxInt128 = 170141183460469231731687303715884105727Q"
       []
       []
       []
       false
     t
       "uint128, max"
-      "const maxUInt128 = 340282366920938463463374607431768211455Z"
-      "const maxUInt128 = 340282366920938463463374607431768211455Z"
+      "val maxUInt128 = 340282366920938463463374607431768211455Z"
+      "val maxUInt128 = 340282366920938463463374607431768211455Z"
       []
       []
       []
       false
 
     // bools
-    t "true alias" "const trueConst = true" "const trueConst = true" [] [] [] false
-    t
-      "false alias"
-      "const falseConst = false"
-      "const falseConst = false"
-      []
-      []
-      []
-      false
+    t "true alias" "val trueVal = true" "val trueVal = true" [] [] [] false
+    t "false alias" "val falseVal = false" "val falseVal = false" [] [] [] false
 
     // strings
-    t
-      "hello"
-      "const greeting = \"hello\""
-      "const greeting = \"hello\""
-      []
-      []
-      []
-      false
-    t "newline" "const newline = '\\n'" "const newline = '\\n'" [] [] [] false
+    t "hello" "val greeting = \"hello\"" "val greeting = \"hello\"" [] [] [] false
+    t "newline" "val newline = '\\n'" "val newline = '\\n'" [] [] [] false
 
     // floats
-    t "pi" "const pi = 3.14159" "const pi = 3.14159" [] [] [] false
+    t "pi" "val pi = 3.14159" "val pi = 3.14159" [] [] [] false
 
     // dicts
     t
       "dict, empty"
-      "const emptyDict = Dict {}"
-      "const emptyDict = Dict {  }"
+      "val emptyDict = Dict {}"
+      "val emptyDict = Dict {  }"
       []
       []
       []
       false
     t
       "dict, one entry"
-      "const dict = Dict { a = 1L }"
-      "const dict = Dict { a = 1L }"
+      "val dict = Dict { a = 1L }"
+      "val dict = Dict { a = 1L }"
       []
       []
       []
       false
     t
       "dict, two entries"
-      "const dict = Dict { a = \"hello\"; b = \"test\" }"
-      "const dict = Dict { a = \"hello\"; b = \"test\" }"
+      "val dict = Dict { a = \"hello\"; b = \"test\" }"
+      "val dict = Dict { a = \"hello\"; b = \"test\" }"
       []
       []
       []
       false
 
     // tuples
-    t
-      "tuple, 2"
-      "const tuple2Const = (1L, 2L)"
-      "const tuple2Const = (1L, 2L)"
-      []
-      []
-      []
-      false
+    t "tuple, 2" "val tuple2Val = (1L, 2L)" "val tuple2Val = (1L, 2L)" [] [] [] false
     t
       "tuple, 3"
-      "const tuple3Const = (1L, 2L, 3L)"
-      "const tuple3Const = (1L, 2L, 3L)"
+      "val tuple3Val = (1L, 2L, 3L)"
+      "val tuple3Val = (1L, 2L, 3L)"
       []
       []
       []
       false
 
     // lists
-    t "list, empty" "const emptyList = []" "const emptyList = []" [] [] [] false
+    t "list, empty" "val emptyList = []" "val emptyList = []" [] [] [] false
     t
       "list, int"
-      "const listOfInts = [1L; 2L; 3L]"
-      "const listOfInts = [1L; 2L; 3L]"
+      "val listOfInts = [1L; 2L; 3L]"
+      "val listOfInts = [1L; 2L; 3L]"
       []
       []
       []
       false
     t
       "list, list, int"
-      "const listOfLists = [[1L; 2L]; [3L; 4L]]"
-      "const listOfLists = [[1L; 2L]; [3L; 4L]]"
+      "val listOfLists = [[1L; 2L]; [3L; 4L]]"
+      "val listOfLists = [[1L; 2L]; [3L; 4L]]"
       []
       []
       []
@@ -1721,8 +1700,8 @@ let constantDeclarations =
     // records
     t
       "record with fields"
-      "const myPerson = Tests.Person { name = \"Alice\"; age = 30L; hasPet = true }"
-      "const myPerson = Person { name = \"Alice\"; age = 30L; hasPet = true }"
+      "val myPerson = Tests.Person { name = \"Alice\"; age = 30L; hasPet = true }"
+      "val myPerson = Person { name = \"Alice\"; age = 30L; hasPet = true }"
       [ person ]
       []
       []
@@ -1731,37 +1710,37 @@ let constantDeclarations =
     // enums
     t
       "option, none"
-      "const none = Stdlib.Option.Option.None"
-      "const none = PACKAGE.Darklang.Stdlib.Option.Option.None"
+      "val none = Stdlib.Option.Option.None"
+      "val none = PACKAGE.Darklang.Stdlib.Option.Option.None"
       []
       []
       []
       false
     t
       "option, some 1"
-      "const some = Stdlib.Option.Option.Some(1L)"
-      "const some = PACKAGE.Darklang.Stdlib.Option.Option.Some(1L)"
+      "val some = Stdlib.Option.Option.Some(1L)"
+      "val some = PACKAGE.Darklang.Stdlib.Option.Option.Some(1L)"
       []
       []
       []
       false
     t
       "enum, tupled args"
-      "const a = MyEnum.C((1L, 2L))"
-      "const a = MyEnum.C((1L, 2L))"
+      "val a = MyEnum.C((1L, 2L))"
+      "val a = MyEnum.C((1L, 2L))"
       [ myEnum ]
       []
       []
       false
     t
       "enum, fn args"
-      "const a = MyEnum.D(1L, 2L)"
-      "const a = MyEnum.D(1L, 2L)"
+      "val a = MyEnum.D(1L, 2L)"
+      "val a = MyEnum.D(1L, 2L)"
       [ myEnum ]
       []
       []
       false ]
-  |> testList "constant declarations"
+  |> testList "value declarations"
 
 let functionDeclarations =
   [ t
@@ -1860,20 +1839,20 @@ let moduleDeclarations =
       false
 
     t
-      "module with types, fns, and consts"
+      "module with types, fns, and vals"
       """module MyModule =
   type ID = Int64
   type MyString = String
   let myFn (i: Int64): Int64 = 1L
-  const x = 100L"""
-      "module MyModule =\n  type ID =\n    Int64\n\n  type MyString =\n    String\n\n  let myFn (i: Int64): Int64 =\n    1L\n\n  const x = 100L"
+  val x = 100L"""
+      "module MyModule =\n  type ID =\n    Int64\n\n  type MyString =\n    String\n\n  let myFn (i: Int64): Int64 =\n    1L\n\n  val x = 100L"
       []
       []
       []
       false
 
     t
-      "module with types, fns, conts, and newlines"
+      "module with types, fns, vals, and newlines"
       """module MyModule =
   type ID = Int64
 
@@ -1881,8 +1860,8 @@ let moduleDeclarations =
 
   let myFn (i: Int64): Int64 = 1L
 
-  const x = 100L"""
-      "module MyModule =\n  type ID =\n    Int64\n\n  type MyString =\n    String\n\n  let myFn (i: Int64): Int64 =\n    1L\n\n  const x = 100L"
+  val x = 100L"""
+      "module MyModule =\n  type ID =\n    Int64\n\n  type MyString =\n    String\n\n  let myFn (i: Int64): Int64 =\n    1L\n\n  val x = 100L"
       []
       []
       []
@@ -1896,9 +1875,9 @@ let moduleDeclarations =
     type ID = Int64
     module MyModule3 =
       type ID = Int64
-      const x = 100L
+      val x = 100L
       1L"""
-      "module MyModule1 =\n  type ID =\n    Int64\n\n  module MyModule2 =\n    type ID =\n      Int64\n\n    module MyModule3 =\n      type ID =\n        Int64\n\n      const x = 100L\n\n      1L"
+      "module MyModule1 =\n  type ID =\n    Int64\n\n  module MyModule2 =\n    type ID =\n      Int64\n\n    module MyModule3 =\n      type ID =\n        Int64\n\n      val x = 100L\n\n      1L"
       []
       []
       []
@@ -1943,7 +1922,7 @@ let tests =
     "NewParser"
     [ typeReferences
       typeDeclarations
-      constantDeclarations
+      valueDeclarations
       exprs
       functionDeclarations
       moduleDeclarations

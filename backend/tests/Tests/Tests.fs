@@ -17,7 +17,7 @@ let initSerializers () =
   Json.Vanilla.allow<Map<string, string>> "tests"
   Json.Vanilla.allow<LibExecution.AnalysisTypes.TraceData> "testTraceData"
   Json.Vanilla.allow<PT.PackageType.PackageType> "Canvas.loadJsonFromDisk"
-  Json.Vanilla.allow<PT.PackageConstant.PackageConstant> "Canvas.loadJsonFromDisk"
+  Json.Vanilla.allow<PT.PackageValue.PackageValue> "Canvas.loadJsonFromDisk"
   Json.Vanilla.allow<PT.PackageFn.PackageFn> "Canvas.loadJsonFromDisk"
 
 

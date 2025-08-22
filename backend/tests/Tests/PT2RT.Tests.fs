@@ -1013,20 +1013,20 @@ module Expr =
     let tests = testList "Infix" [ And.tests; Add.tests ]
 
 
-  module Constants =
+  module Values =
     module Package =
       let mySpecialNumber =
         t
           "Test.mySpecialNumber"
-          E.Constants.Package.MySpecialNumber.usage
+          E.Values.Package.MySpecialNumber.usage
           (1,
-           [ RT.LoadConstant(
+           [ RT.LoadValue(
                0,
-               RT.FQConstantName.Package E.Constants.Package.MySpecialNumber.id
+               RT.FQValueName.Package E.Values.Package.MySpecialNumber.id
              ) ],
            0)
       let tests = testList "Package" [ mySpecialNumber ]
-    let tests = testList "Constants" [ Package.tests ]
+    let tests = testList "Values" [ Package.tests ]
 
 
   module Lambda =
@@ -1613,7 +1613,7 @@ module Expr =
         RecordFieldAccess.tests
         RecordUpdate.tests
         Enums.tests
-        Constants.tests
+        Values.tests
         Infix.tests
         Lambda.tests
         Fns.tests

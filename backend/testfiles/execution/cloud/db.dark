@@ -1042,7 +1042,7 @@ let rossDOB () : DateTime = d "1967-05-12T00:00:00Z"
 // //   // Test package constants
 // //   // Bool
 // //   (friends (fun p ->
-// //     Stdlib.Bool.and_v0 p.human PACKAGE.Darklang.Test.Constants.boolConst)) = [ " Chandler "
+// //     Stdlib.Bool.and_v0 p.human PACKAGE.Darklang.Test.Values.boolConst)) = [ " Chandler "
 // //                                                                                "Rachel"
 // //                                                                                "Ross" ]
 
@@ -1050,20 +1050,20 @@ let rossDOB () : DateTime = d "1967-05-12T00:00:00Z"
 // //   (friends (fun p ->
 // //     Stdlib.Float.lessThanOrEqualTo
 // //       p.income
-// //       PACKAGE.Darklang.Test.Constants.floatConst)) = [ "GrumpyCat" ]
+// //       PACKAGE.Darklang.Test.Values.floatConst)) = [ "GrumpyCat" ]
 
 // //   // Int64
 // //   (friends (fun p ->
 // //     Stdlib.Int64.greaterThanOrEqualTo
 // //       p.height
-// //       PACKAGE.Darklang.Test.Constants.intConst)) = [ " Chandler "
+// //       PACKAGE.Darklang.Test.Values.intConst)) = [ " Chandler "
 // //                                                      "GrumpyCat"
 // //                                                      "Rachel"
 // //                                                      "Ross" ]
 
 // //   // String
 // //   (friends (fun p ->
-// //     Stdlib.String.contains_v0 p.name PACKAGE.Darklang.Test.Constants.stringConst)) = []
+// //     Stdlib.String.contains_v0 p.name PACKAGE.Darklang.Test.Values.stringConst)) = []
 
 
 module PartialEvaluation =

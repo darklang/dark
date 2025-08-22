@@ -293,10 +293,10 @@ module Instruction =
       List.write w TypeReference.write typeArgs
       String.write w caseName
       List.write w (fun w reg -> w.Write(reg : int)) fields
-    | LoadConstant(createTo, constName) ->
+    | LoadValue(createTo, valueName) ->
       w.Write 17uy
       w.Write(createTo : int)
-      FQConstantName.write w constName
+      FQValueName.write w valueName
     | CreateLambda(createTo, lambda) ->
       w.Write 18uy
       w.Write(createTo : int)
@@ -412,8 +412,8 @@ module Instruction =
       CreateEnum(createTo, typeName, typeArgs, caseName, fields)
     | 17uy ->
       let createTo = r.ReadInt32()
-      let constName = FQConstantName.read r
-      LoadConstant(createTo, constName)
+      let valueName = FQValueName.read r
+      LoadValue(createTo, valueName)
     | 18uy ->
       let createTo = r.ReadInt32()
       let lambda = LambdaImpl.read r
