@@ -91,7 +91,8 @@ module Test =
     (module_content
       (val_decl
         (keyword) (value_identifier) (symbol)
-        (values (int64_literal (digits (positive_digits)) (symbol)))
+        (simple_expression
+          (int64_literal (digits (positive_digits)) (symbol)))
       )
     )
     (module_content
@@ -143,7 +144,8 @@ module Test =
     (module_content
       (val_decl
         (keyword) (value_identifier) (symbol)
-        (values (int64_literal (digits (positive_digits)) (symbol)))
+        (simple_expression
+          (int64_literal (digits (positive_digits)) (symbol)))
       )
     )
     (module_content
@@ -197,7 +199,8 @@ module Test =
         (module_content
           (val_decl
             (keyword) (value_identifier) (symbol)
-            (values (int64_literal (digits (positive_digits)) (symbol)))
+            (simple_expression
+          (int64_literal (digits (positive_digits)) (symbol)))
           )
         )
         (dedent)
@@ -210,7 +213,8 @@ module Test =
         (module_content
           (val_decl
             (keyword) (value_identifier) (symbol)
-            (values (bool_literal))
+            (simple_expression
+              (bool_literal))
           )
         )
         (dedent)

@@ -11,7 +11,8 @@ val waterBoilingPointCelsius = 100y
     (keyword)
     (value_identifier)
     (symbol)
-    (values (int8_literal (digits (positive_digits)) (symbol)))
+    (simple_expression
+      (int8_literal (digits (positive_digits)) (symbol)))
   )
 )
 
@@ -29,7 +30,8 @@ val maxPlayers = 20uy
     (keyword)
     (value_identifier)
     (symbol)
-    (values (uint8_literal (positive_digits) (symbol)))
+    (simple_expression
+      (uint8_literal (positive_digits) (symbol)))
   )
 )
 
@@ -47,7 +49,8 @@ val maxSeatsInPlane = 800s
     (keyword)
     (value_identifier)
     (symbol)
-    (values (int16_literal (digits (positive_digits)) (symbol)))
+    (simple_expression
+      (int16_literal (digits (positive_digits)) (symbol)))
   )
 )
 
@@ -65,7 +68,8 @@ val maxDaysInAYear = 365us
     (keyword)
     (value_identifier)
     (symbol)
-    (values (uint16_literal (positive_digits) (symbol)))
+    (simple_expression
+      (uint16_literal (positive_digits) (symbol)))
   )
 )
 
@@ -83,7 +87,8 @@ val stadiumCapacity = 80000l
     (keyword)
     (value_identifier)
     (symbol)
-    (values (int32_literal (digits (positive_digits)) (symbol)))
+    (simple_expression
+      (int32_literal (digits (positive_digits)) (symbol)))
   )
 )
 
@@ -101,7 +106,8 @@ val marathonDistance = 42195ul
     (keyword)
     (value_identifier)
     (symbol)
-    (values (uint32_literal (positive_digits) (symbol)))
+    (simple_expression
+      (uint32_literal (positive_digits) (symbol)))
   )
 )
 
@@ -119,7 +125,8 @@ val secondsInAYear = 31536000L
     (keyword)
     (value_identifier)
     (symbol)
-    (values (int64_literal (digits (positive_digits)) (symbol)))
+    (simple_expression
+      (int64_literal (digits (positive_digits)) (symbol)))
   )
 )
 
@@ -137,7 +144,8 @@ val millisecondsInYear = 31536000000UL
     (keyword)
     (value_identifier)
     (symbol)
-    (values (uint64_literal (positive_digits) (symbol)))
+    (simple_expression
+      (uint64_literal (positive_digits) (symbol)))
   )
 )
 
@@ -155,7 +163,8 @@ val millisecondsInDay = 86400000Q
     (keyword)
     (value_identifier)
     (symbol)
-    (values (int128_literal (digits (positive_digits)) (symbol)))
+    (simple_expression
+      (int128_literal (digits (positive_digits)) (symbol)))
   )
 )
 
@@ -173,7 +182,8 @@ val millisecondsInCentury = 3155695200000Z
     (keyword)
     (value_identifier)
     (symbol)
-    (values (uint128_literal (positive_digits) (symbol)))
+    (simple_expression
+      (uint128_literal (positive_digits) (symbol)))
   )
 )
 
@@ -191,7 +201,8 @@ val pi = 3.14159
     (keyword)
     (value_identifier)
     (symbol)
-    (values (float_literal))
+    (simple_expression
+      (float_literal))
   )
 )
 
@@ -209,7 +220,9 @@ val message = "Hello, World!"
     (keyword)
     (value_identifier)
     (symbol)
-    (values (string_literal (symbol) (string_content) (symbol)))
+    (simple_expression
+      (string_segment
+        (string_literal (symbol) (string_content) (symbol))))
   )
 )
 
@@ -227,7 +240,8 @@ val letter = 'A'
     (keyword)
     (value_identifier)
     (symbol)
-    (values (char_literal (symbol) (character) (symbol)))
+    (simple_expression
+      (char_literal (symbol) (character) (symbol)))
   )
 )
 
@@ -245,7 +259,8 @@ val isTrue = true
     (keyword)
     (value_identifier)
     (symbol)
-    (values (bool_literal))
+    (simple_expression
+      (bool_literal))
   )
 )
 
@@ -263,15 +278,21 @@ val numbers = [1L; 2L; 3L]
     (keyword)
     (value_identifier)
     (symbol)
-    (values
-      (val_list_literal
+    (simple_expression
+      (list_literal
         (symbol)
-        (val_list_content
-          (values (int64_literal (digits (positive_digits)) (symbol)))
+        (list_content
+          (expression
+            (simple_expression
+              (int64_literal (digits (positive_digits)) (symbol))))
           (symbol)
-          (values (int64_literal (digits (positive_digits)) (symbol)))
+          (expression
+            (simple_expression
+              (int64_literal (digits (positive_digits)) (symbol))))
           (symbol)
-          (values (int64_literal (digits (positive_digits)) (symbol)))
+          (expression
+            (simple_expression
+              (int64_literal (digits (positive_digits)) (symbol))))
         )
         (symbol)
       )
@@ -293,15 +314,21 @@ val dimensionsOfRoom = (5L, 10L, 3L)
     (keyword)
     (value_identifier)
     (symbol)
-    (values
-      (val_tuple_literal
+    (simple_expression
+      (tuple_literal
         (symbol)
-        (values (int64_literal (digits (positive_digits)) (symbol)))
+        (expression
+          (simple_expression
+            (int64_literal (digits (positive_digits)) (symbol))))
         (symbol)
-        (values (int64_literal (digits (positive_digits)) (symbol)))
-        (val_tuple_literal_the_rest
+        (expression
+          (simple_expression
+            (int64_literal (digits (positive_digits)) (symbol))))
+        (tuple_literal_the_rest
           (symbol)
-          (values (int64_literal (digits (positive_digits)) (symbol)))
+          (expression
+            (simple_expression
+              (int64_literal (digits (positive_digits)) (symbol))))
         )
         (symbol)
       )
@@ -323,8 +350,8 @@ val emptyDict = Dict{}
     (keyword)
     (value_identifier)
     (symbol)
-    (values
-      (val_dict_literal (keyword) (symbol) (symbol))
+    (simple_expression
+      (dict_literal (keyword) (symbol) (symbol))
     )
   )
 )
@@ -343,21 +370,25 @@ val myDict = Dict{one = 1L; two = 2L}
     (keyword)
     (value_identifier)
     (symbol)
-    (values
-      (val_dict_literal
+    (simple_expression
+      (dict_literal
         (keyword)
         (symbol)
-        (val_dict_content
-          (val_dict_pair
+        (dict_content
+          (dict_pair
             (variable_identifier)
             (symbol)
-            (values (int64_literal (digits (positive_digits)) (symbol)))
+            (expression
+              (simple_expression
+                (int64_literal (digits (positive_digits)) (symbol))))
           )
           (symbol)
-          (val_dict_pair
+          (dict_pair
             (variable_identifier)
             (symbol)
-            (values (int64_literal (digits (positive_digits)) (symbol)))
+            (expression
+              (simple_expression
+                (int64_literal (digits (positive_digits)) (symbol))))
           )
         )
         (symbol)
@@ -380,8 +411,8 @@ val colorRed = Color.Red
     (keyword)
     (value_identifier)
     (symbol)
-    (values
-      (val_enum_literal
+    (simple_expression
+      (enum_literal
         (qualified_type_name (type_identifier))
         (symbol)
         (enum_case_identifier)
@@ -404,12 +435,15 @@ val someOne = Stdlib.Option.Option.Some 1L
     (keyword)
     (value_identifier)
     (symbol)
-    (values
-      (val_enum_literal
+    (simple_expression
+      (enum_literal
         (qualified_type_name (module_identifier) (symbol) (module_identifier) (symbol) (type_identifier))
         (symbol)
         (enum_case_identifier)
-        (val_enum_fields (values (int64_literal (digits (positive_digits)) (symbol))))
+        (enum_fields
+          (expression
+            (simple_expression
+              (int64_literal (digits (positive_digits)) (symbol)))))
       )
     )
   )
@@ -429,14 +463,18 @@ val myEnum = MyEnum.MyCase(1L, 2L)
     (keyword)
     (value_identifier)
     (symbol)
-    (values
-      (val_enum_literal
+    (simple_expression
+      (enum_literal
         (qualified_type_name (type_identifier)) (symbol) (enum_case_identifier)
         (symbol)
-        (val_enum_fields
-          (values (int64_literal (digits (positive_digits)) (symbol)))
+        (enum_fields
+          (expression
+            (simple_expression
+              (int64_literal (digits (positive_digits)) (symbol))))
           (symbol)
-          (values (int64_literal (digits (positive_digits)) (symbol)))
+          (expression
+            (simple_expression
+              (int64_literal (digits (positive_digits)) (symbol))))
         )
         (symbol)
       )
@@ -458,18 +496,24 @@ val myEnum = MyEnum.MyCase((1L, 2L))
     (keyword)
     (value_identifier)
     (symbol)
-    (values
-      (val_enum_literal
+    (simple_expression
+      (enum_literal
         (qualified_type_name (type_identifier)) (symbol) (enum_case_identifier)
         (symbol)
-        (val_enum_fields
-          (values
-            (val_tuple_literal
-              (symbol)
-              (values (int64_literal (digits (positive_digits)) (symbol)))
-              (symbol)
-              (values (int64_literal (digits (positive_digits)) (symbol)))
-              (symbol)
+        (enum_fields
+          (expression
+            (simple_expression
+              (tuple_literal
+                (symbol)
+                (expression
+                  (simple_expression
+                    (int64_literal (digits (positive_digits)) (symbol))))
+                (symbol)
+                (expression
+                  (simple_expression
+                    (int64_literal (digits (positive_digits)) (symbol))))
+                (symbol)
+              )
             )
           )
         )
@@ -493,21 +537,26 @@ val myPerson = Person { name = "Alice"; age = 30L }
     (keyword)
     (value_identifier)
     (symbol)
-    (values
-      (val_record_literal
+    (simple_expression
+      (record_literal
         (qualified_type_name (type_identifier))
         (symbol)
-        (val_record_content
-          (val_record_pair
+        (record_content
+          (record_pair
             (variable_identifier)
             (symbol)
-            (values (string_literal (symbol) (string_content) (symbol)))
+            (expression
+              (simple_expression
+                (string_segment
+                  (string_literal (symbol) (string_content) (symbol)))))
           )
           (symbol)
-          (val_record_pair
+          (record_pair
             (variable_identifier)
             (symbol)
-            (values (int64_literal (digits (positive_digits)) (symbol)))
+            (expression
+              (simple_expression
+                (int64_literal (digits (positive_digits)) (symbol))))
           )
         )
         (symbol)
@@ -530,21 +579,25 @@ val myPoint = Geometry.Point { x = 1.0; y = 2.0 }
     (keyword)
     (value_identifier)
     (symbol)
-    (values
-      (val_record_literal
+    (simple_expression
+      (record_literal
         (qualified_type_name (module_identifier) (symbol) (type_identifier))
         (symbol)
-        (val_record_content
-          (val_record_pair
+        (record_content
+          (record_pair
             (variable_identifier)
             (symbol)
-            (values (float_literal))
+            (expression
+              (simple_expression
+                (float_literal)))
           )
           (symbol)
-          (val_record_pair
+          (record_pair
             (variable_identifier)
             (symbol)
-            (values (float_literal))
+            (expression
+              (simple_expression
+                (float_literal)))
           )
         )
         (symbol)
@@ -567,7 +620,8 @@ val unitValue = ()
     (keyword)
     (value_identifier)
     (symbol)
-    (values (unit))
+    (simple_expression
+      (unit))
   )
 )
 
