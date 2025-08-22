@@ -6,7 +6,7 @@ module Darklang =
       ///
       /// sometimes when parsing, we're not sure whether something is:
       /// - a variable
-      /// - or something else, like a constant or fn.
+      /// - or something else, like a value or fn.
       /// During these times, and others, we wantto allow errors, so we can
       ///  parse it as a variable as a fallback if nothing is found under that name.
       type OnMissing =
@@ -135,16 +135,16 @@ module Darklang =
 
 
 
-      module ConstantName =
+      module ValueName =
         let builtinThingExists (name: String) : Bool =
-          (Builtin.languageToolsAllBuiltinConstants ())
+          (Builtin.languageToolsAllBuiltinValues ())
           |> Stdlib.List.findFirst (fun f -> f.name == name)
           |> Stdlib.Option.isSome
 
         let tryResolve
           (pm: ProgramTypes.PackageManager.PackageManager)
           (name: GenericName)
-          : Stdlib.Result.Result<ProgramTypes.FQConstantName.FQConstantName, Unit> =
+          : Stdlib.Result.Result<ProgramTypes.FQValueName.FQValueName, Unit> =
           match name.modules with
           | [] -> Stdlib.Result.Result.Error()
           | owner :: modules ->
@@ -154,19 +154,19 @@ module Darklang =
 
             if owner == "Builtin" && modules == [] then
               if builtinThingExists name.name then
-                (ProgramTypes.FQConstantName.Builtin
+                (ProgramTypes.FQValueName.Builtin
                   { name = name.name
                     version = name.version })
-                |> ProgramTypes.FQConstantName.FQConstantName.Builtin
+                |> ProgramTypes.FQValueName.FQValueName.Builtin
                 |> Stdlib.Result.Result.Ok
               else
                 Stdlib.Result.Result.Error()
             else
-              let find = pm.findConstant
+              let find = pm.findValue
 
               match find nameForLookup with
               | Some id ->
-                (ProgramTypes.FQConstantName.FQConstantName.Package id)
+                (ProgramTypes.FQValueName.FQValueName.Package id)
                 |> Stdlib.Result.Result.Ok
               | None -> Stdlib.Result.Result.Error()
 
@@ -177,7 +177,7 @@ module Darklang =
           (owner: String)
           (currentModule: List<String>)
           (name: WrittenTypes.Name)
-          : ProgramTypes.NameResolution<ProgramTypes.FQConstantName.FQConstantName> =
+          : ProgramTypes.NameResolution<ProgramTypes.FQValueName.FQValueName> =
           match name with
           | Unresolved(_range, given) ->
             let modules = Stdlib.List.dropLast given
