@@ -56,13 +56,14 @@ module Darklang =
             let end' =
               let lines = text |> Stdlib.String.split "\n"
 
+              let lastLineLength =
+                match lines |> Stdlib.List.last with
+                | Some lastLine -> Stdlib.String.length lastLine
+                | None -> 0L
+
               Position
                 { line = (Stdlib.List.length lines) - 1L
-                  character =
-                    lines
-                    |> Stdlib.List.last
-                    |> Builtin.unwrap
-                    |> Stdlib.String.length }
+                  character = lastLineLength }
 
             Range { start = start; end_ = end' }
 

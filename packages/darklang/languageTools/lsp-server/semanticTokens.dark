@@ -61,50 +61,57 @@ module Darklang =
           let toRelativeTokens
             (tokens: List<LanguageTools.SemanticTokens.SemanticToken>)
             : List<LanguageServerProtocol.SemanticTokens.RelativeSemanticToken.RelativeSemanticToken<LanguageTools.SemanticTokens.TokenType>> =
-            tokens
-            |> Stdlib.List.sortByComparator_v0 (fun a b ->
-              let aStart = a.range.start
-              let bStart = b.range.start
+            let sortedTokens =
+              tokens
+              |> Stdlib.List.sortByComparator_v0 (fun a b ->
+                let aStart = a.range.start
+                let bStart = b.range.start
 
-              if Stdlib.Int64.lessThan aStart.row bStart.row then
-                -1L
-              elif Stdlib.Int64.greaterThan aStart.row bStart.row then
-                1L
-              else if Stdlib.Int64.lessThan aStart.column bStart.column then
-                -1L
-              else if Stdlib.Int64.greaterThan aStart.column bStart.column then
-                1L
-              else
-                0L)
-            |> Builtin.unwrap
-            |> (Stdlib.List.fold
-              (([], Parser.Point { row = 0L; column = 0L }))
-              (fun acc token ->
-                let (tokensSoFar, startOfLastToken) = acc
+                if Stdlib.Int64.lessThan aStart.row bStart.row then
+                  -1L
+                elif Stdlib.Int64.greaterThan aStart.row bStart.row then
+                  1L
+                else if Stdlib.Int64.lessThan aStart.column bStart.column then
+                  -1L
+                else if Stdlib.Int64.greaterThan aStart.column bStart.column then
+                  1L
+                else
+                  0L)
 
-                let (deltaLine, deltaStart) =
-                  match token.range.start.row - startOfLastToken.row with
-                  | 0L -> (0UL, token.range.start.column - startOfLastToken.column)
-                  | lineDiff ->
-                    let lineDiff =
-                      lineDiff |> Stdlib.UInt64.fromInt64 |> Builtin.unwrap
+            match sortedTokens with
+            | Error _ -> []
+            | Ok sorted ->
+              sorted
+              |> (Stdlib.List.fold
+                (([], Parser.Point { row = 0L; column = 0L }))
+                (fun acc token ->
+                  let (tokensSoFar, startOfLastToken) = acc
 
-                    (lineDiff, token.range.start.column)
+                  let lineDiff = token.range.start.row - startOfLastToken.row
+                  let columnDiff = token.range.start.column - startOfLastToken.column
+                  let tokenLength = token.range.end_.column - token.range.start.column
 
-                let newToken =
-                  LanguageServerProtocol.SemanticTokens.RelativeSemanticToken.RelativeSemanticToken //<LanguageTools.SemanticTokens.TokenType>
-                    { deltaLine = deltaLine
-                      deltaStart =
-                        deltaStart |> Stdlib.UInt64.fromInt64 |> Builtin.unwrap
-                      length =
-                        (token.range.end_.column - token.range.start.column)
-                        |> Stdlib.UInt64.fromInt64
-                        |> Builtin.unwrap
-                      tokenType = token.tokenType }
+                  let deltaStartValue =
+                    if lineDiff == 0L then columnDiff else token.range.start.column
 
-                (Stdlib.List.push tokensSoFar newToken, token.range.start)))
-            |> Stdlib.Tuple2.first
-            |> Stdlib.List.reverse
+                  let maybeDeltaLine = lineDiff |> Stdlib.UInt64.fromInt64
+                  let maybeDeltaStart = deltaStartValue |> Stdlib.UInt64.fromInt64
+                  let maybeLength = tokenLength |> Stdlib.UInt64.fromInt64
+
+                  match (maybeDeltaLine, maybeDeltaStart, maybeLength) with
+                  | (Some deltaLine, Some deltaStart, Some length) ->
+                    let newToken =
+                      LanguageServerProtocol.SemanticTokens.RelativeSemanticToken.RelativeSemanticToken
+                        { deltaLine = deltaLine
+                          deltaStart = deltaStart
+                          length = length
+                          tokenType = token.tokenType }
+                    (Stdlib.List.push tokensSoFar newToken, token.range.start)
+                  | _ ->
+                    // Skip token if any conversion fails
+                    acc))
+              |> Stdlib.Tuple2.first
+              |> Stdlib.List.reverse
 
 
           let toLspFormat

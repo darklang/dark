@@ -80,7 +80,7 @@ module Darklang =
             | Some typeArgsNode ->
               match typeArgsNode.children |> Stdlib.List.chunkBySize 2L with
               | Ok pairs ->
-                pairs 
+                pairs
                 |> Stdlib.List.map (fun typeArgSeparatorPair ->
                   match typeArgSeparatorPair with
                   | [ typeArg; _sep ]

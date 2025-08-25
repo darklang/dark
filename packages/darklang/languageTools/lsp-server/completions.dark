@@ -167,37 +167,52 @@ module Darklang =
           (requestParams:
             LanguageServerProtocol.Completions.CompletionRequest.CompletionParams.CompletionParams)
           : LspState =
-          let content =
-            (state.documentsInScope
-             |> Stdlib.Dict.get requestParams.textDocument.uri
-             |> Builtin.unwrap)
+          match state.documentsInScope |> Stdlib.Dict.get requestParams.textDocument.uri with
+          | Some content ->
+            let wordUnderCursor =
+              CursorPosition.wordUnderCursor content.text requestParams.position
 
-          let wordUnderCursor =
-            CursorPosition.wordUnderCursor content.text requestParams.position
-
-          let completions =
-            (createCompletions wordUnderCursor)
-            |> Stdlib.List.filter (fun c ->
-              // handle both formats (with and without owner, e.g., "Darklang.Stdlib.List" and "Stdlib.List")
-              if Stdlib.String.contains wordUnderCursor "." then
-                Stdlib.String.contains c.label wordUnderCursor
-              else
-                c.label |> Stdlib.String.startsWith wordUnderCursor)
+            let completions =
+              (createCompletions wordUnderCursor)
+              |> Stdlib.List.filter (fun c ->
+                // handle both formats (with and without owner, e.g., "Darklang.Stdlib.List" and "Stdlib.List")
+                if Stdlib.String.contains wordUnderCursor "." then
+                  Stdlib.String.contains c.label wordUnderCursor
+                else
+                  c.label |> Stdlib.String.startsWith wordUnderCursor)
 
 
-          let response =
-            LanguageServerProtocol.Completions.CompletionList.CompletionList
-              { isIncomplete = true
-                itemDefaults = Stdlib.Option.Option.None
-                items = completions }
+            let response =
+              LanguageServerProtocol.Completions.CompletionList.CompletionList
+                { isIncomplete = true
+                  itemDefaults = Stdlib.Option.Option.None
+                  items = completions }
 
-          let responseJson =
-            response
-            |> LanguageServerProtocol.Completions.CompletionList.toJson
-            |> (fun r ->
-              JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) r)
-            |> Stdlib.AltJson.format
+            let responseJson =
+              response
+              |> LanguageServerProtocol.Completions.CompletionList.toJson
+              |> (fun r ->
+                JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) r)
+              |> Stdlib.AltJson.format
 
-          logAndSendToClient responseJson
+            logAndSendToClient responseJson
 
-          state
+            state
+          | None ->
+            // Document not found, return empty completions
+            let response =
+              LanguageServerProtocol.Completions.CompletionList.CompletionList
+                { isIncomplete = false
+                  itemDefaults = Stdlib.Option.Option.None
+                  items = [] }
+
+            let responseJson =
+              response
+              |> LanguageServerProtocol.Completions.CompletionList.toJson
+              |> (fun r ->
+                JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestId) r)
+              |> Stdlib.AltJson.format
+
+            logAndSendToClient responseJson
+
+            state
