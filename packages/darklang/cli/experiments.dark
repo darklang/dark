@@ -1,30 +1,27 @@
-module Darklang =
-  module Cli =
-    module Experiments =
-      // ==========================================
-      // Experiments Command for Main CLI
-      // ==========================================
-      
-      let execute (state: Darklang.Cli.AppState) (args: List<String>) : Darklang.Cli.AppState =
-        // Call the experiments launcher TUI
-        let _ = Darklang.CLI.Experiments.Launcher.experiments ()
-        
-        // Return unchanged state since this is a standalone command
-        { state with lastCommand = "experiments"; output = "experiments launcher executed" }
-      
-      let help (state: Darklang.Cli.AppState) : Darklang.Cli.AppState =
-        Builtin.printLine "experiments - Launch the experiments TUI to access CLI experiments and demos"
-        Builtin.printLine ""
-        Builtin.printLine "Usage:"
-        Builtin.printLine "  experiments"
-        Builtin.printLine ""
-        Builtin.printLine "Opens an interactive TUI where you can:"
-        Builtin.printLine "  • Browse available CLI experiments and demos"
-        Builtin.printLine "  • Use ↑/↓ arrow keys to navigate"
-        Builtin.printLine "  • Press Enter to launch selected experiment"
-        Builtin.printLine "  • Press Q to quit"
-        { state with lastCommand = "help experiments"; output = "experiments help displayed" }
-      
-      let complete (state: Darklang.Cli.AppState) (args: List<String>) : List<String> =
-        // No completions needed for this command
-        []
+module Darklang.Cli.Experiments
+
+
+let execute (state: AppState) (_args: List<String>) : AppState =
+  let _ = Experiments.Launcher.experiments ()
+  state
+
+
+let complete (_state: AppState) (_args: List<String>) : List<String> =
+  // No completions needed for this command
+  []
+
+
+let help (_state: AppState) : Unit =
+  [
+    "experiments - Launch the experiments TUI to access CLI experiments and demos"
+    ""
+    "Usage:"
+    "  experiments"
+    ""
+    "Opens an interactive TUI where you can:"
+    "  • Browse available CLI experiments and demos"
+    "  • Use ↑/↓ arrow keys to navigate"
+    "  • Press Enter to launch selected experiment"
+    "  • Press Q to quit"
+  ] |> Stdlib.printLines
+

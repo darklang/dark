@@ -1,5 +1,5 @@
 module Darklang =
-  module CLI =
+  module Cli =
     module Experiments =
       module UICatalog =
         module Components =
@@ -8,7 +8,7 @@ module Darklang =
             // Button Component - Interactive buttons
             // ==========================================
 
-            type ButtonModel = 
+            type ButtonModel =
               { text: String
                 color: Core.Types.Color
                 size: Core.Types.Size
@@ -18,7 +18,7 @@ module Darklang =
             let createButton (text: String) (color: Core.Types.Color) (action: Unit -> Unit) : Core.Types.Component<ButtonModel> =
               let model = ButtonModel { text = text; color = color; size = Core.Types.Size.Normal; disabled = false; action = action }
               let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = 12L; height = 3L } }
-              Core.Types.Component 
+              Core.Types.Component
                 { id = "button-" ++ text
                   model = model
                   state = Core.Types.ComponentState.Normal
@@ -29,24 +29,24 @@ module Darklang =
             let renderButton (component: Core.Types.Component<ButtonModel>) (context: Core.Types.RenderContext) : List<String> =
               let model = component.model
               let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
-              
-              let buttonText = 
+
+              let buttonText =
                 if model.disabled then
                   Core.Rendering.dim model.text
                 else if hasFocus then
                   Core.Rendering.bold model.text
                 else
                   model.text
-              
-              let coloredText = 
+
+              let coloredText =
                 if model.disabled then
                   buttonText
                 else
                   Core.Rendering.colorize model.color buttonText
-              
+
               let paddedText = Core.Rendering.padText coloredText component.bounds.dimensions.width Core.Types.Alignment.Center
               let focusIndicator = if hasFocus then "► " else "  "
-              
+
               [ focusIndicator ++ "┌" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┐"
                 focusIndicator ++ "│" ++ paddedText ++ "│"
                 focusIndicator ++ "└" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┘" ]

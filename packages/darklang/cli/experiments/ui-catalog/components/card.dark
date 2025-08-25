@@ -1,5 +1,5 @@
 module Darklang =
-  module CLI =
+  module Cli =
     module Experiments =
       module UICatalog =
         module Components =
@@ -45,7 +45,7 @@ module Darklang =
             let renderCard (component: Core.Types.Component<CardModel>) (context: Core.Types.RenderContext) : List<String> =
               let model = component.model
               let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
-              
+
               let top = if model.isRounded then "╭" else "┌"
               let bottom = if model.isRounded then "╰" else "└"
               let left = "│"
@@ -53,95 +53,95 @@ module Darklang =
               let topRight = if model.isRounded then "╮" else "┐"
               let bottomRight = if model.isRounded then "╯" else "┘"
               let horizontal = "─"
-              
+
               // Create header section
-              let headerLines = 
+              let headerLines =
                 if Stdlib.String.isEmpty model.title && Stdlib.String.isEmpty model.subtitle then
                   []
                 else
-                  let titleLine = 
+                  let titleLine =
                     if Stdlib.String.isEmpty model.title then
                       ""
                     else
                       let styledTitle = Core.Rendering.colorize model.headerColor (Core.Rendering.bold model.title)
                       let paddedTitle = Core.Rendering.padText styledTitle (model.width - 4L) Core.Types.Alignment.Left
                       left ++ " " ++ paddedTitle ++ " " ++ right
-                  
-                  let subtitleLine = 
+
+                  let subtitleLine =
                     if Stdlib.String.isEmpty model.subtitle then
                       ""
                     else
                       let paddedSubtitle = Core.Rendering.padText model.subtitle (model.width - 4L) Core.Types.Alignment.Left
                       left ++ " " ++ paddedSubtitle ++ " " ++ right
-                  
+
                   let headerSeparator = left ++ (Stdlib.String.repeat horizontal (model.width - 2L)) ++ right
-                  
+
                   [titleLine; subtitleLine; headerSeparator]
                   |> Stdlib.List.filter (fun line -> Stdlib.Bool.not (Stdlib.String.isEmpty line))
-              
+
               // Create content section
-              let contentLines = 
+              let contentLines =
                 let maxContentHeight = model.height - 2L - Stdlib.List.length headerLines - Stdlib.List.length model.footer
-                let paddedContent = 
+                let paddedContent =
                   model.content
                   |> Stdlib.List.take maxContentHeight
                   |> Stdlib.List.map (fun line ->
                       let truncatedLine = Core.Rendering.truncateText line (model.width - 4L)
                       let paddedLine = Core.Rendering.padText truncatedLine (model.width - 4L) Core.Types.Alignment.Left
                       left ++ " " ++ paddedLine ++ " " ++ right)
-                
+
                 let remainingHeight = maxContentHeight - Stdlib.List.length paddedContent
-                let emptyLines = 
+                let emptyLines =
                   if remainingHeight > 0L then
                     Stdlib.List.repeat remainingHeight (left ++ (Stdlib.String.repeat " " (model.width - 2L)) ++ right)
                   else
                     []
-                
+
                 paddedContent
                 |> Stdlib.List.append emptyLines
-              
+
               // Create footer section
-              let footerLines = 
+              let footerLines =
                 if Stdlib.List.isEmpty model.footer then
                   []
                 else
                   let footerSeparator = left ++ (Stdlib.String.repeat horizontal (model.width - 2L)) ++ right
-                  let footerContent = 
+                  let footerContent =
                     model.footer
                     |> Stdlib.List.map (fun line ->
                         let paddedLine = Core.Rendering.padText line (model.width - 4L) Core.Types.Alignment.Left
                         left ++ " " ++ paddedLine ++ " " ++ right)
-                  
+
                   [footerSeparator]
                   |> Stdlib.List.append footerContent
-              
+
               // Create borders
-              let topBorder = 
+              let topBorder =
                 if Stdlib.List.isEmpty headerLines then
                   top ++ (Stdlib.String.repeat horizontal (model.width - 2L)) ++ topRight
                 else
                   top ++ (Stdlib.String.repeat horizontal (model.width - 2L)) ++ topRight
-              
+
               let bottomBorder = bottom ++ (Stdlib.String.repeat horizontal (model.width - 2L)) ++ bottomRight
-              
+
               // Combine all sections
-              let cardContent = 
+              let cardContent =
                 [topBorder]
                 |> Stdlib.List.append headerLines
                 |> Stdlib.List.append contentLines
                 |> Stdlib.List.append footerLines
                 |> Stdlib.List.append [bottomBorder]
-              
+
               // Apply shadow effect if enabled
               if model.hasShadow then
-                let shadowedContent = 
+                let shadowedContent =
                   cardContent
                   |> Stdlib.List.indexedMap (fun i line ->
                       if i == Stdlib.List.length cardContent - 1L then
                         line ++ " " ++ (Core.Rendering.dim (Stdlib.String.repeat "▄" (model.width - 1L)))
                       else
                         line ++ Core.Rendering.dim "▌")
-                
+
                 let shadowBottom = " " ++ (Core.Rendering.dim (Stdlib.String.repeat "▀" model.width))
                 shadowedContent
                 |> Stdlib.List.append [shadowBottom]
@@ -202,12 +202,12 @@ module Darklang =
 
             let renderMediaCard (component: Core.Types.Component<MediaCardModel>) (context: Core.Types.RenderContext) : List<String> =
               let model = component.model
-              
+
               let topBorder = "┌" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┐"
               let bottomBorder = "└" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┘"
-              
+
               // Create media placeholder
-              let mediaLines = 
+              let mediaLines =
                 let centerY = Stdlib.Int64.divide model.mediaHeight 2L
                 (Stdlib.List.range 0L model.mediaHeight)
                 |> Stdlib.List.map (fun i ->
@@ -218,28 +218,28 @@ module Darklang =
                     else
                       let emptyLine = Stdlib.String.repeat " " (model.width - 4L)
                       "│ " ++ emptyLine ++ " │")
-              
+
               // Create title and description
-              let titleLine = 
+              let titleLine =
                 let styledTitle = Core.Rendering.bold model.title
                 let paddedTitle = Core.Rendering.padText styledTitle (model.width - 4L) Core.Types.Alignment.Left
                 "│ " ++ paddedTitle ++ " │"
-              
-              let descLine = 
+
+              let descLine =
                 let paddedDesc = Core.Rendering.padText model.description (model.width - 4L) Core.Types.Alignment.Left
                 "│ " ++ paddedDesc ++ " │"
-              
+
               let separatorLine = "├" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┤"
-              
+
               // Create actions if any
-              let actionLines = 
+              let actionLines =
                 if Stdlib.List.isEmpty model.actions then
                   []
                 else
                   let actionText = Stdlib.String.join " | " model.actions
                   let paddedActions = Core.Rendering.padText actionText (model.width - 4L) Core.Types.Alignment.Center
                   ["│ " ++ paddedActions ++ " │"]
-              
+
               [topBorder]
               |> Stdlib.List.append mediaLines
               |> Stdlib.List.append [separatorLine; titleLine; descLine]

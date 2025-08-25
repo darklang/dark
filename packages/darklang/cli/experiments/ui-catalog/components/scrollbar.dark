@@ -1,5 +1,5 @@
 module Darklang =
-  module CLI =
+  module Cli =
     module Experiments =
       module UICatalog =
         module Components =
@@ -33,7 +33,7 @@ module Darklang =
 
             let renderScrollbar (component: Core.Types.Component<ScrollbarModel>) (context: Core.Types.RenderContext) : List<String> =
               let model = component.model
-              
+
               if model.total <= model.visible then
                 let maxIndex = model.height - 1L
                 (Stdlib.List.range 0L maxIndex)
@@ -41,13 +41,13 @@ module Darklang =
               else
                 let thumbSize = Stdlib.Int64.max 1L (Stdlib.Int64.divide (model.visible * model.height) model.total)
                 let remainingSpace = model.total - model.visible
-                let thumbPos = 
+                let thumbPos =
                   if remainingSpace <= 0L then
                     0L
                   else
                     let heightOffset = model.height - thumbSize
                     Stdlib.Int64.divide (model.position * heightOffset) remainingSpace
-                
+
                 let maxIndex = model.height - 1L
                 (Stdlib.List.range 0L maxIndex)
                 |> Stdlib.List.map (fun i ->
@@ -69,20 +69,20 @@ module Darklang =
 
             let renderHorizontalScrollbar (component: Core.Types.Component<ScrollbarModel>) (context: Core.Types.RenderContext) : List<String> =
               let model = component.model
-              
+
               if model.total <= model.visible then
                 [Stdlib.String.repeat "─" model.height]
               else
                 let thumbSize = Stdlib.Int64.max 1L (Stdlib.Int64.divide (model.visible * model.height) model.total)
                 let remainingSpace = model.total - model.visible
-                let thumbPos = 
+                let thumbPos =
                   if remainingSpace <= 0L then
                     0L
                   else
                     Stdlib.Int64.divide (model.position * (model.height - thumbSize)) remainingSpace
-                
+
                 let maxIndex = model.height - 1L
-                let scrollLine = 
+                let scrollLine =
                   (Stdlib.List.range 0L maxIndex)
                   |> Stdlib.List.map (fun i ->
                       if i >= thumbPos && i < (thumbPos + thumbSize) then
@@ -90,7 +90,7 @@ module Darklang =
                       else
                         "░")
                   |> Stdlib.String.join ""
-                
+
                 [scrollLine]
 
             let updateScrollPosition (component: Core.Types.Component<ScrollbarModel>) (newPosition: Int64) : Core.Types.Component<ScrollbarModel> =

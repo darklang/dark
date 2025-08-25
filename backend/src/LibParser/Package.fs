@@ -89,6 +89,7 @@ let rec parseDecls
                                    _,
                                    _,
                                    _) ->
+        //debuG "nestedModuleNames" nestedModuleNames
 
         let moduleNames = moduleNames @ (nestedModuleNames |> List.map _.idText)
         let nestedDecls = parseDecls fileName moduleNames nested
@@ -120,11 +121,14 @@ let parse
                           _,
                           _,
                           _,
-                          [ SynModuleOrNamespace(_, _, _, decls, _, _, _, _, _) ],
+                          [ SynModuleOrNamespace(longId, _, kind, decls, _, _, _, _, _) ],
                           _,
                           _,
                           _) ->
-      let baseModule = []
+      let baseModule =
+        match kind with
+        | SynModuleOrNamespaceKind.NamedModule -> longIdentToList longId
+        | _ -> []
 
       let modul : WTPackageModule = parseDecls filename baseModule decls
 

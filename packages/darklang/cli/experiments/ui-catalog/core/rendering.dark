@@ -1,5 +1,5 @@
 module Darklang =
-  module CLI =
+  module Cli =
     module Experiments =
       module UICatalog =
         module Core =
@@ -46,7 +46,7 @@ module Darklang =
               let teeDown = "┬"
               let teeLeft = "┤"
               let teeRight = "├"
-              
+
               // Double line variants
               let doubleHorizontal = "═"
               let doubleVertical = "║"
@@ -59,11 +59,11 @@ module Darklang =
             let drawBox (bounds: Types.Bounds) (title: String) (content: List<String>) : List<String> =
               let width = bounds.dimensions.width
               let height = bounds.dimensions.height
-              
+
               let topBorder = BoxChars.topLeft ++ Stdlib.String.repeat BoxChars.horizontal (width - 2L) ++ BoxChars.topRight
               let bottomBorder = BoxChars.bottomLeft ++ Stdlib.String.repeat BoxChars.horizontal (width - 2L) ++ BoxChars.bottomRight
-              
-              let titleLine = 
+
+              let titleLine =
                 if Stdlib.String.isEmpty title then
                   []
                 else
@@ -72,14 +72,14 @@ module Darklang =
                   let leftPadding = Stdlib.Int64.divide (width - titleWidth) 2L
                   let rightPadding = width - titleWidth - leftPadding
                   [BoxChars.vertical ++ Stdlib.String.repeat " " leftPadding ++ bold paddedTitle ++ Stdlib.String.repeat " " rightPadding ++ BoxChars.vertical]
-              
-              let contentLines = 
+
+              let contentLines =
                 content
                 |> Stdlib.List.map (fun line ->
                   let lineLength = Stdlib.String.length line
                   let padding = if lineLength < width - 2L then Stdlib.String.repeat " " (width - 2L - lineLength) else ""
                   BoxChars.vertical ++ " " ++ line ++ padding ++ BoxChars.vertical)
-              
+
               [topBorder]
               |> Stdlib.List.append titleLine
               |> Stdlib.List.append contentLines

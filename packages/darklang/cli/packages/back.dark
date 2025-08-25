@@ -1,29 +1,30 @@
-module Darklang =
-  module Cli =
-    module Packages =
-      module Back =
-        // Navigate back using history
-        let execute (state: AppState) (args: List<String>) : AppState =
-          // Use pure function to compute back navigation target
-          match Commands.computeBackNavigation state.locationHistory with
-          | Some previousLocation ->
-            let newHistory = Stdlib.List.dropLast state.locationHistory
-            let pathStr = Packages.Path.formatLocation previousLocation
-            Builtin.printLine (Colors.success ("Back to: " ++ pathStr))
+module Darklang.Cli.Packages.Back
 
-            { state with
-                lastCommand = "back"
-                output = "back to " ++ pathStr
-                needsFullRedraw = true
-                currentLocation = previousLocation
-                locationHistory = newHistory }
-          | None ->
-            Builtin.printLine "No previous location in history"
-            { state with lastCommand = "back"; output = "no history" }
 
-        let help (state: AppState) : AppState =
-          Builtin.printLine "Usage: back"
-          Builtin.printLine "Navigate back to the previous location in history."
-          { state with lastCommand = "help back"; output = "back help displayed" }
+// Navigate back using history
+let execute (state: AppState) (args: List<String>) : AppState =
+  // // Use pure function to compute back navigation target
+  // match Commands.computeBackNavigation state.locationHistory with
+  // | Some previousLocation ->
+  //   let newHistory = Stdlib.List.dropLast state.locationHistory
+  //   let pathStr = Packages.Path.formatLocation previousLocation
+  //   Stdlib.printLine (Colors.success ("Back to: " ++ pathStr))
 
-        let complete (state: AppState) (args: List<String>) : List<String> = []
+  //   { state with
+  //       needsFullRedraw = true
+  //       currentLocation = previousLocation
+  //       locationHistory = newHistory }
+  // | None ->
+  //   Stdlib.printLine "No previous location in history"
+  //   state
+
+  state
+
+
+let complete (_state: AppState) (_args: List<String>) : List<String> =
+  []
+
+
+let help (state: AppState) : Unit =
+  Stdlib.printLine "Usage: back"
+  Stdlib.printLine "Navigate back to the previous location in history."

@@ -1,5 +1,5 @@
 module Darklang =
-  module CLI =
+  module Cli =
     module Experiments =
       module UICatalog =
         module Components =
@@ -28,12 +28,12 @@ module Darklang =
 
             let renderLabel (component: Core.Types.Component<LabelModel>) (context: Core.Types.RenderContext) : List<String> =
               let model = component.model
-              let styledText = 
+              let styledText =
                 if model.bold then
                   Core.Rendering.bold model.text
                 else
                   model.text
-              
+
               let coloredText = Core.Rendering.colorize model.color styledText
               [ coloredText ]
 
@@ -41,7 +41,7 @@ module Darklang =
               let model = component.model
               let textLength = Stdlib.String.length text
               let newBounds = Core.Types.Bounds { position = component.bounds.position; dimensions = Core.Types.Dimensions { width = textLength; height = 1L } }
-              { component with 
+              { component with
                   model = { model with text = text }
                   bounds = newBounds }
 

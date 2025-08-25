@@ -27,7 +27,8 @@ module Darklang =
 
 
       type GenericName =
-        { modules: List<String>
+        { // the _parent_ modules
+          modules: List<String>
           name: String
           version: Int32 }
 

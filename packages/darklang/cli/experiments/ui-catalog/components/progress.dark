@@ -1,5 +1,5 @@
 module Darklang =
-  module CLI =
+  module Cli =
     module Experiments =
       module UICatalog =
         module Components =
@@ -34,10 +34,10 @@ module Darklang =
               let filledWidth = if range == 0L then 0L else Stdlib.Int64.divide (progress * availableWidth) range
               let filled = Stdlib.String.repeat "█" filledWidth
               let empty = Stdlib.String.repeat "░" (component.bounds.dimensions.width - 2L - filledWidth)
-              
+
               let progressText = "[" ++ filled ++ empty ++ "]"
               let coloredProgress = Core.Rendering.colorize model.color progressText
-              
+
               if model.showPercentage then
                 let percentValue = if range == 0L then 0L else Stdlib.Int64.divide (progress * 100L) range
                 let percentText = " " ++ Stdlib.Int64.toString percentValue ++ "%"
@@ -47,7 +47,7 @@ module Darklang =
 
             let updateProgressValue (component: Core.Types.Component<ProgressModel>) (value: Int64) : Core.Types.Component<ProgressModel> =
               let model = component.model
-              let clampedValue = 
+              let clampedValue =
                 if value < model.min then model.min
                 else if value > model.max then model.max
                 else value
@@ -55,7 +55,7 @@ module Darklang =
 
             let setProgressRange (component: Core.Types.Component<ProgressModel>) (min: Int64) (max: Int64) : Core.Types.Component<ProgressModel> =
               let model = component.model
-              let clampedValue = 
+              let clampedValue =
                 if model.value < min then min
                 else if model.value > max then max
                 else model.value

@@ -1,5 +1,5 @@
 module Darklang =
-  module CLI =
+  module Cli =
     module Experiments =
       module UICatalog =
         module Components =
@@ -34,28 +34,28 @@ module Darklang =
               if Stdlib.Bool.not model.isVisible then
                 []
               else
-                let typeIcon = 
+                let typeIcon =
                   match model.messageType with
                   | Success -> "✓"
                   | Warning -> "⚠"
                   | Error -> "✗"
                   | Info -> "ℹ"
                   | _ -> "•"
-                
+
                 let topBorder = "┌" ++ Stdlib.String.repeat "─" (model.width - 2L) ++ "┐"
                 let bottomBorder = "└" ++ Stdlib.String.repeat "─" (model.width - 2L) ++ "┘"
-                
-                let titleLine = 
+
+                let titleLine =
                   let dismissButton = if model.isDismissible then " ✕" else ""
                   let availableWidth = model.width - 6L - Stdlib.String.length dismissButton
                   let styledTitle = Core.Rendering.colorize model.messageType (Core.Rendering.bold (typeIcon ++ " " ++ model.title))
                   let paddedTitle = Core.Rendering.padText styledTitle availableWidth Core.Types.Alignment.Left
                   "│ " ++ paddedTitle ++ dismissButton ++ " │"
-                
-                let contentLine = 
+
+                let contentLine =
                   let paddedContent = Core.Rendering.padText model.content (model.width - 4L) Core.Types.Alignment.Left
                   "│ " ++ paddedContent ++ " │"
-                
+
                 [topBorder; titleLine; contentLine; bottomBorder]
 
             let showMessage (component: Core.Types.Component<MessageModel>) : Core.Types.Component<MessageModel> =
@@ -98,19 +98,19 @@ module Darklang =
               if Stdlib.Bool.not model.isVisible then
                 []
               else
-                let typeIcon = 
+                let typeIcon =
                   match model.toastType with
                   | Success -> "✓"
                   | Warning -> "⚠"
                   | Error -> "✗"
                   | Info -> "ℹ"
                   | _ -> "•"
-                
+
                 let styledMessage = Core.Rendering.colorize model.toastType (typeIcon ++ " " ++ model.message)
                 let topBorder = "╭" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "╮"
                 let contentLine = "│ " ++ Core.Rendering.padText styledMessage (component.bounds.dimensions.width - 4L) Core.Types.Alignment.Left ++ " │"
                 let bottomBorder = "╰" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "╯"
-                
+
                 [topBorder; contentLine; bottomBorder]
 
             let showToast (component: Core.Types.Component<ToastModel>) : Core.Types.Component<ToastModel> =
@@ -145,14 +145,14 @@ module Darklang =
               if Stdlib.Bool.not model.isVisible then
                 []
               else
-                let typeIcon = 
+                let typeIcon =
                   match model.alertType with
                   | Success -> "✓"
                   | Warning -> "⚠"
                   | Error -> "✗"
                   | Info -> "ℹ"
                   | _ -> "•"
-                
+
                 let styledMessage = Core.Rendering.colorize model.alertType (typeIcon ++ " " ++ model.message)
                 let paddedMessage = Core.Rendering.padText styledMessage model.width Core.Types.Alignment.Center
                 [paddedMessage]

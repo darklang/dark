@@ -1,5 +1,5 @@
 module Darklang =
-  module CLI =
+  module Cli =
     module Experiments =
       module UICatalog =
         module Components =
@@ -29,18 +29,18 @@ module Darklang =
 
             let renderStatusBar (component: Core.Types.Component<StatusBarModel>) (context: Core.Types.RenderContext) : List<String> =
               let model = component.model
-              
+
               let leftLen = Stdlib.String.length model.leftText
               let rightLen = Stdlib.String.length model.rightText
               let centerLen = Stdlib.String.length model.centerText
-              
-              let line = 
+
+              let line =
                 if Stdlib.String.isEmpty model.centerText then
                   let paddingSpace = model.width - leftLen - rightLen
-                  let padding = 
-                    if paddingSpace > 0L then 
-                      Stdlib.String.repeat " " paddingSpace 
-                    else 
+                  let padding =
+                    if paddingSpace > 0L then
+                      Stdlib.String.repeat " " paddingSpace
+                    else
                       ""
                   model.leftText ++ padding ++ model.rightText
                 else
@@ -50,18 +50,18 @@ module Darklang =
                   else
                     let leftPadding = (model.width - centerLen) / 2L - leftLen
                     let rightPadding = model.width - leftLen - centerLen - leftPadding
-                    let leftPad = 
-                      if leftPadding > 0L then 
-                        Stdlib.String.repeat " " leftPadding 
-                      else 
+                    let leftPad =
+                      if leftPadding > 0L then
+                        Stdlib.String.repeat " " leftPadding
+                      else
                         ""
-                    let rightPad = 
-                      if rightPadding > 0L then 
-                        Stdlib.String.repeat " " rightPadding 
-                      else 
+                    let rightPad =
+                      if rightPadding > 0L then
+                        Stdlib.String.repeat " " rightPadding
+                      else
                         ""
                     model.leftText ++ leftPad ++ model.centerText ++ rightPad
-              
+
               let styledLine = Core.Rendering.colorize model.backgroundColor line
               [styledLine]
 

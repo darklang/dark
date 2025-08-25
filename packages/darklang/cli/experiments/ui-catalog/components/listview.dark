@@ -1,5 +1,5 @@
 module Darklang =
-  module CLI =
+  module Cli =
     module Experiments =
       module UICatalog =
         module Components =
@@ -36,23 +36,23 @@ module Darklang =
             let renderListView (component: Core.Types.Component<ListViewModel>) (context: Core.Types.RenderContext) : List<String> =
               let model = component.model
               let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
-              
-              let visibleItems = 
+
+              let visibleItems =
                 model.items
                 |> Stdlib.List.drop model.scrollOffset
                 |> Stdlib.List.take (model.height - 2L)
-              
+
               let content =
                 visibleItems
                 |> Stdlib.List.indexedMap (fun i item ->
                     let globalIndex = model.scrollOffset + i
                     let marker = if globalIndex == model.selectedIndex then "▶ " else "  "
-                    let itemText = 
-                      if item.enabled then 
-                        item.text 
-                      else 
+                    let itemText =
+                      if item.enabled then
+                        item.text
+                      else
                         Core.Rendering.dim item.text
-                    let styledText = 
+                    let styledText =
                       if globalIndex == model.selectedIndex && hasFocus then
                         Core.Rendering.colorize Core.Types.Color.Primary (Core.Rendering.bold (marker ++ itemText))
                       else if globalIndex == model.selectedIndex then
@@ -60,13 +60,13 @@ module Darklang =
                       else
                         marker ++ itemText
                     Core.Rendering.padText styledText (model.width - 4L) Core.Types.Alignment.Left)
-              
+
               let topBorder = "┌" ++ Stdlib.String.repeat "─" (model.width - 2L) ++ "┐"
               let bottomBorder = "└" ++ Stdlib.String.repeat "─" (model.width - 2L) ++ "┘"
-              let contentLines = 
-                content 
+              let contentLines =
+                content
                 |> Stdlib.List.map (fun line -> "│ " ++ line ++ " │")
-              
+
               [topBorder]
               |> Stdlib.List.append contentLines
               |> Stdlib.List.append [bottomBorder]

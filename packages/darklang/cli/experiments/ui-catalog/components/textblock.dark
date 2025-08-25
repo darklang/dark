@@ -1,5 +1,5 @@
 module Darklang =
-  module CLI =
+  module Cli =
     module Experiments =
       module UICatalog =
         module Components =
@@ -16,7 +16,7 @@ module Darklang =
 
             let createTextBlock (lines: List<String>) (color: Core.Types.Color) (alignment: Core.Types.Alignment) : Core.Types.Component<TextBlockModel> =
               let model = TextBlockModel { lines = lines; color = color; alignment = alignment; wordWrap = false }
-              let maxWidth = 
+              let maxWidth =
                 lines
                 |> Stdlib.List.map Stdlib.String.length
                 |> Stdlib.List.fold 0L (fun acc len -> if len > acc then len else acc)
@@ -39,13 +39,13 @@ module Darklang =
 
             let setTextBlockLines (component: Core.Types.Component<TextBlockModel>) (lines: List<String>) : Core.Types.Component<TextBlockModel> =
               let model = component.model
-              let maxWidth = 
+              let maxWidth =
                 lines
                 |> Stdlib.List.map Stdlib.String.length
                 |> Stdlib.List.fold 0L (fun acc len -> if len > acc then len else acc)
               let height = Stdlib.List.length lines
               let newBounds = Core.Types.Bounds { position = component.bounds.position; dimensions = Core.Types.Dimensions { width = maxWidth; height = height } }
-              { component with 
+              { component with
                   model = { model with lines = lines }
                   bounds = newBounds }
 

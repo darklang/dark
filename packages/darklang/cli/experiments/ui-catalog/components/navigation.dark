@@ -1,5 +1,5 @@
 module Darklang =
-  module CLI =
+  module Cli =
     module Experiments =
       module UICatalog =
         module Components =
@@ -26,7 +26,7 @@ module Darklang =
 
             let createMenu (title: String) (items: List<MenuItem>) : Core.Types.Component<MenuModel> =
               let model = MenuModel { items = items; selectedIndex = 0L; isOpen = false; title = title }
-              let maxWidth = 
+              let maxWidth =
                 items
                 |> Stdlib.List.map (fun item -> Stdlib.String.length item.label + Stdlib.String.length item.shortcut + 4L)
                 |> Stdlib.List.fold 20L (fun acc len -> if len > acc then len else acc)
@@ -43,31 +43,31 @@ module Darklang =
             let renderMenu (component: Core.Types.Component<MenuModel>) (context: Core.Types.RenderContext) : List<String> =
               let model = component.model
               let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
-              
+
               let titleColor = if hasFocus then Core.Types.Color.Primary else Core.Types.Color.Default
               let styledTitle = Core.Rendering.colorize titleColor model.title
               let focusIndicator = if hasFocus then "► " else "  "
-              
+
               if model.isOpen then
-                let menuItems = 
+                let menuItems =
                   model.items
                   |> Stdlib.List.indexedMap (fun i item ->
                       let isSelected = i == model.selectedIndex
                       let prefix = if isSelected then "►" else " "
-                      let itemColor = 
+                      let itemColor =
                         if Stdlib.Bool.not item.enabled then Core.Types.Color.Dark
                         else if isSelected then Core.Types.Color.Primary
                         else Core.Types.Color.Default
-                      
+
                       let label = Core.Rendering.padText item.label (component.bounds.dimensions.width - 6L - Stdlib.String.length item.shortcut) Core.Types.Alignment.Left
                       let shortcut = if Stdlib.String.isEmpty item.shortcut then "" else "[" ++ item.shortcut ++ "]"
                       let styledItem = Core.Rendering.colorize itemColor (prefix ++ " " ++ label ++ " " ++ shortcut)
                       "│" ++ styledItem ++ "│")
-                
+
                 let topBorder = "┌" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┐"
                 let bottomBorder = "└" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┘"
                 let titleLine = "│" ++ Core.Rendering.padText styledTitle (component.bounds.dimensions.width - 2L) Core.Types.Alignment.Center ++ "│"
-                
+
                 [ topBorder; titleLine ]
                 |> Stdlib.List.append menuItems
                 |> Stdlib.List.append [ bottomBorder ]
@@ -106,47 +106,47 @@ module Darklang =
             let renderTabs (component: Core.Types.Component<TabModel>) (context: Core.Types.RenderContext) : List<String> =
               let model = component.model
               let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
-              
-              let tabHeaders = 
+
+              let tabHeaders =
                 model.tabs
                 |> Stdlib.List.indexedMap (fun i tab ->
                     let isActive = i == model.activeIndex
                     let isFocused = hasFocus && isActive
-                    
-                    let tabColor = 
+
+                    let tabColor =
                       if isFocused then Core.Types.Color.Primary
                       else if isActive then Core.Types.Color.Success
                       else Core.Types.Color.Default
-                    
+
                     let paddedTab = Core.Rendering.padText tab model.tabWidth Core.Types.Alignment.Center
                     let styledTab = Core.Rendering.colorize tabColor paddedTab
-                    
+
                     if isActive then
                       "┌" ++ Stdlib.String.repeat "─" (model.tabWidth - 2L) ++ "┐"
                     else
                       " " ++ Stdlib.String.repeat " " (model.tabWidth - 2L) ++ " ")
                 |> Stdlib.String.join ""
-              
-              let tabLabels = 
+
+              let tabLabels =
                 model.tabs
                 |> Stdlib.List.indexedMap (fun i tab ->
                     let isActive = i == model.activeIndex
                     let isFocused = hasFocus && isActive
-                    
-                    let tabColor = 
+
+                    let tabColor =
                       if isFocused then Core.Types.Color.Primary
                       else if isActive then Core.Types.Color.Success
                       else Core.Types.Color.Default
-                    
+
                     let paddedTab = Core.Rendering.padText tab (model.tabWidth - 2L) Core.Types.Alignment.Center
                     let styledTab = Core.Rendering.colorize tabColor paddedTab
-                    
+
                     if isActive then
                       "│" ++ styledTab ++ "│"
                     else
                       " " ++ styledTab ++ " ")
                 |> Stdlib.String.join ""
-              
+
               [ tabHeaders; tabLabels ]
 
             let selectTab (component: Core.Types.Component<TabModel>) (index: Int64) : Core.Types.Component<TabModel> =
@@ -175,8 +175,8 @@ module Darklang =
 
             let renderBreadcrumb (component: Core.Types.Component<BreadcrumbModel>) (context: Core.Types.RenderContext) : List<String> =
               let model = component.model
-              
-              let breadcrumbText = 
+
+              let breadcrumbText =
                 model.crumbs
                 |> Stdlib.List.indexedMap (fun i crumb ->
                     if i == Stdlib.List.length model.crumbs - 1L then
@@ -184,7 +184,7 @@ module Darklang =
                     else
                       crumb)
                 |> Stdlib.String.join (" " ++ model.separator ++ " ")
-              
+
               let truncatedText = Core.Rendering.truncateText breadcrumbText model.maxWidth
               [truncatedText]
 
@@ -196,8 +196,8 @@ module Darklang =
 
             let createNavBar (title: String) (items: List<MenuItem>) : Core.Types.Component<NavBarModel> =
               let model = NavBarModel { items = items; selectedIndex = 0L; title = title }
-              let totalWidth = 
-                (Stdlib.String.length title + 4L) + 
+              let totalWidth =
+                (Stdlib.String.length title + 4L) +
                 (items |> Stdlib.List.map (fun item -> Stdlib.String.length item.label + 4L) |> Stdlib.List.fold 0L (fun acc len -> acc + len))
               let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = totalWidth; height = 1L } }
               Core.Types.Component
@@ -211,25 +211,25 @@ module Darklang =
             let renderNavBar (component: Core.Types.Component<NavBarModel>) (context: Core.Types.RenderContext) : List<String> =
               let model = component.model
               let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
-              
+
               let styledTitle = Core.Rendering.colorize Core.Types.Color.Primary (Core.Rendering.bold model.title)
-              
-              let navItems = 
+
+              let navItems =
                 model.items
                 |> Stdlib.List.indexedMap (fun i item ->
                     let isSelected = i == model.selectedIndex && hasFocus
-                    let itemColor = 
+                    let itemColor =
                       if Stdlib.Bool.not item.enabled then Core.Types.Color.Dark
                       else if isSelected then Core.Types.Color.Primary
                       else Core.Types.Color.Default
-                    
+
                     let styledItem = Core.Rendering.colorize itemColor item.label
                     if isSelected then
                       "[" ++ styledItem ++ "]"
                     else
                       " " ++ styledItem ++ " ")
                 |> Stdlib.String.join " | "
-              
+
               [styledTitle ++ " | " ++ navItems]
 
             let selectNavItem (component: Core.Types.Component<NavBarModel>) (index: Int64) : Core.Types.Component<NavBarModel> =

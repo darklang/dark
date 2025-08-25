@@ -1,425 +1,405 @@
-module Darklang =
-  module Cli =
-    module Packages =
-      module Viewing =
-        // Entity categories for viewing mode
-        type EntityCategory =
-          | Functions
-          | Types
-          | Constants
-          | Submodules
+module Darklang.Cli.Packages.View
 
-        // Viewing state for interactive mode
-        type ViewingState =
-          { moduleContent: LanguageTools.ProgramTypes.Search.SearchResults
-            entityName: String
-            selectedCategory: EntityCategory
-            selectedItemIndex: Int64
-            expandedCategories: List<EntityCategory>
-            entityDefinition: Stdlib.Option.Option<EntityDefinition>
-            entityCache: List<(String * EntityDefinition)>
-            viewportScrollPosition: Int64
-            treeMode: Bool
-            treeDepth: Int64
-            selectedTreeIndex: Int64 }
+// // Helper function to view entity at current location
+// let viewEntityAtCurrentLocation (state: AppState) (entityType: String) (entityName: String) (modulePath: PackagePath) : AppState =
+//   // Search for the specific entity to get its details
+//   let searchQuery = Utils.createSearchQuery modulePath
+//   let searchResults = LanguageTools.PackageManager.Search.search searchQuery
 
-        type EntityDefinition = String
+//   match entityType with
+//   | "Function" ->
+//     // Find and display the function
+//     let foundFunction =
+//       searchResults.fns
+//       |> Stdlib.List.findFirst (fun fn ->
+//         let name = LanguageTools.ProgramTypes.PackageFn.nameToString fn.name
+//         let shortName = Utils.extractEntityShortName name
+//         shortName == entityName)
 
-        // Helper function to view entity at current location
-        let viewEntityAtCurrentLocation (state: AppState) (entityType: String) (entityName: String) (modulePath: Types.PackagePath) : AppState =
-          // Search for the specific entity to get its details
-          let searchQuery = Utils.createSearchQuery modulePath
-          let searchResults = LanguageTools.PackageManager.Search.search searchQuery
-          
-          match entityType with
-          | "Function" ->
-            // Find and display the function
-            let foundFunction =
-              searchResults.fns
-              |> Stdlib.List.findFirst (fun fn ->
-                let name = LanguageTools.ProgramTypes.PackageFn.nameToString fn.name
-                let shortName = Utils.extractEntityShortName name
-                shortName == entityName)
-            
-            match foundFunction with
-            | Some fn ->
-              let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageFn fn
-              let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
-              Builtin.printLine highlighted
-              { state with lastCommand = "view"; output = $"viewed function {entityName}" }
-            | None ->
-              Builtin.printLine $"Function '{entityName}' not found."
-              { state with lastCommand = "view"; output = $"function {entityName} not found" }
-              
-          | "Type" ->
-            // Find and display the type
-            let foundType =
-              searchResults.types
-              |> Stdlib.List.findFirst (fun typ ->
-                let name = LanguageTools.ProgramTypes.PackageType.nameToString typ.name
-                let shortName = Utils.extractEntityShortName name
-                shortName == entityName)
-            
-            match foundType with
-            | Some typ ->
-              let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageType typ
-              let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
-              Builtin.printLine highlighted
-              { state with lastCommand = "view"; output = $"viewed type {entityName}" }
-            | None ->
-              Builtin.printLine $"Type '{entityName}' not found."
-              { state with lastCommand = "view"; output = $"type {entityName} not found" }
-              
-          | "Constant" ->
-            // Find and display the constant
-            let foundConstant =
-              searchResults.constants
-              |> Stdlib.List.findFirst (fun constant ->
-                let name = LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name
-                let shortName = Utils.extractEntityShortName name
-                shortName == entityName)
-            
-            match foundConstant with
-            | Some constant ->
-              let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageConstant constant
-              let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
-              Builtin.printLine highlighted
-              { state with lastCommand = "view"; output = $"viewed constant {entityName}" }
-            | None ->
-              Builtin.printLine $"Constant '{entityName}' not found."
-              { state with lastCommand = "view"; output = $"constant {entityName} not found" }
-              
-          | _ ->
-            Builtin.printLine $"Unknown entity type: {entityType}"
-            { state with lastCommand = "view"; output = "unknown entity type" }
+//     match foundFunction with
+//     | Some fn ->
+//       let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageFn fn
+//       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
+//       Stdlib.printLine highlighted
+//       state
+//     | None ->
+//       Stdlib.printLine $"Function '{entityName}' not found."
+//       state
 
-        // VIEW command - view modules, functions, types, or constants
-        let executeView (state: AppState) (args: List<String>) : AppState =
-          match args with
-          | [] ->
-            // No args - view current location if it's an entity
-            match state.currentLocation with
-            | Root ->
-              Builtin.printLine "Usage: view <entityName> or view <moduleName>"
-              Builtin.printLine "View details of functions, types, constants, or modules."
-              { state with lastCommand = "view help"; output = "view help displayed" }
-            | Module _ ->
-              Builtin.printLine "Usage: view <entityName> or view <moduleName>"
-              Builtin.printLine "View details of functions, types, constants, or modules."
-              { state with lastCommand = "view help"; output = "view help displayed" }
-            | Function (name, path) ->
-              viewEntityAtCurrentLocation state "Function" name path
-            | Type (name, path) ->
-              viewEntityAtCurrentLocation state "Type" name path
-            | Constant (name, path) ->
-              viewEntityAtCurrentLocation state "Constant" name path
-          | [pathArg] ->
-            // Handle path resolution first (for .., /, relative paths)
-            if pathArg == ".." || pathArg == "/" || Stdlib.String.contains pathArg "/" then
-              // This is a navigation path - resolve it and view as module
-              let currentPath = Packages.Path.locationToPath state.currentLocation
-              let resolvedPath = Utils.resolvePath currentPath pathArg
-              let pathStr = Packages.Path.formatPath resolvedPath
-              
-              // Search the resolved module
-              let moduleSearchQuery = Utils.createSearchQuery resolvedPath
-              let moduleSearchResults = LanguageTools.PackageManager.Search.search moduleSearchQuery
-              
-              viewAsModule state pathStr moduleSearchResults
-            else
-              // Parse as entity path: could be "Option" or "Darklang.Stdlib.Option.Option"
-              let pathParts = Stdlib.String.split pathArg "."
+//   | "Type" ->
+//     // Find and display the type
+//     let foundType =
+//       searchResults.types
+//       |> Stdlib.List.findFirst (fun typ ->
+//         let name = LanguageTools.ProgramTypes.PackageType.nameToString typ.name
+//         let shortName = Utils.extractEntityShortName name
+//         shortName == entityName)
 
-              // Try to find as a specific entity first
-              let (modulePath, entityName) =
-                match Stdlib.List.reverse pathParts with
-                | [] -> ([], pathArg)  // Shouldn't happen, but handle gracefully
-                | [singleName] ->
-                  // Single name like "Option" - search in current context
-                  (Packages.Path.locationToPath state.currentLocation, singleName)
-                | entityName :: reversedModuleParts ->
-                  // Multi-part path like "Darklang.Stdlib.Option.Option"
-                  let moduleParts = Stdlib.List.reverse reversedModuleParts
-                  (moduleParts, entityName)
+//     match foundType with
+//     | Some typ ->
+//       let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageType typ
+//       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
+//       Stdlib.printLine highlighted
+//       state
+//     | None ->
+//       Stdlib.printLine $"Type '{entityName}' not found."
+//       state
 
-              // Build search query to find the entity in the specified module
-              let searchQuery = Utils.createSearchQuery modulePath
+//   | "Constant" ->
+//     // Find and display the constant
+//     let foundConstant =
+//       searchResults.constants
+//       |> Stdlib.List.findFirst (fun constant ->
+//         let name = LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name
+//         let shortName = Utils.extractEntityShortName name
+//         shortName == entityName)
 
-              let searchResults = LanguageTools.PackageManager.Search.search searchQuery
+//     match foundConstant with
+//     | Some constant ->
+//       let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageConstant constant
+//       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
+//       Stdlib.printLine highlighted
+//       state
+//     | None ->
+//       Stdlib.printLine $"Constant '{entityName}' not found."
+//       state
 
-              // Try to find the specific entity by exact name match
-              let foundFunction =
-                searchResults.fns
-                |> Stdlib.List.findFirst (fun fn ->
-                  let name = LanguageTools.ProgramTypes.PackageFn.nameToString fn.name
-                  let shortName = Utils.extractEntityShortName name
-                  shortName == entityName)
-
-              let foundType =
-                searchResults.types
-                |> Stdlib.List.findFirst (fun typ ->
-                  let name = LanguageTools.ProgramTypes.PackageType.nameToString typ.name
-                  let shortName = Utils.extractEntityShortName name
-                  shortName == entityName)
-
-              let foundConstant =
-                searchResults.constants
-                |> Stdlib.List.findFirst (fun constant ->
-                  let name = LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name
-                  let shortName = Utils.extractEntityShortName name
-                  shortName == entityName)
-
-              // Display the found entity
-              match foundFunction with
-              | Some fn ->
-                viewSpecificFunction state fn
-              | None ->
-                match foundType with
-                | Some typ ->
-                  viewSpecificType state typ
-                | None ->
-                  match foundConstant with
-                  | Some constant ->
-                    viewSpecificConstant state constant
-                  | None ->
-                    // No entity found - try as a module using the full path
-                    let fullModulePath = Stdlib.List.append modulePath [entityName]
-                    let moduleSearchQuery = Utils.createSearchQuery fullModulePath
-                    let moduleSearchResults = LanguageTools.PackageManager.Search.search moduleSearchQuery
-                    let hasModuleContents =
-                      Stdlib.Bool.not (Stdlib.List.isEmpty moduleSearchResults.fns) ||
-                      Stdlib.Bool.not (Stdlib.List.isEmpty moduleSearchResults.types) ||
-                      Stdlib.Bool.not (Stdlib.List.isEmpty moduleSearchResults.constants) ||
-                      Stdlib.Bool.not (Stdlib.List.isEmpty moduleSearchResults.submodules)
-
-                    if hasModuleContents then
-                      // Display as module
-                      let fullPath = Stdlib.String.join fullModulePath "."
-                      viewAsModule state fullPath moduleSearchResults
-                    else
-                      // Nothing found
-                      let fullPath = Stdlib.String.join fullModulePath "."
-                      Builtin.printLine $"Entity '{fullPath}' not found."
-                      Builtin.printLine "Use 'ls' to see available entities or 'cd' to navigate to a module."
-                      { state with lastCommand = "view"; output = $"entity {fullPath} not found" }
-          | _ ->
-            Builtin.printLine "Usage: view <entityName>"
-            Builtin.printLine "Too many arguments provided."
-            { state with lastCommand = "view error"; output = "view error" }
-
-        // Helper function to view a specific function
-        let viewSpecificFunction (state: AppState) (fn: LanguageTools.ProgramTypes.PackageFn.PackageFn) : AppState =
-          let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageFn fn
-          let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
-          Builtin.printLine highlighted
-
-          let name = LanguageTools.ProgramTypes.PackageFn.nameToString fn.name
-          { state with lastCommand = "view"; output = $"viewed function {name}" }
-
-        // Helper function to view a specific type
-        let viewSpecificType (state: AppState) (typ: LanguageTools.ProgramTypes.PackageType.PackageType) : AppState =
-          let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageType typ
-          let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
-          Builtin.printLine highlighted
-
-          let name = LanguageTools.ProgramTypes.PackageType.nameToString typ.name
-          { state with lastCommand = "view"; output = $"viewed type {name}" }
-
-        // Helper function to view a specific constant
-        let viewSpecificConstant (state: AppState) (constant: LanguageTools.ProgramTypes.PackageConstant.PackageConstant) : AppState =
-          let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageConstant constant
-          let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
-          Builtin.printLine highlighted
-
-          let name = LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name
-          { state with lastCommand = "view"; output = $"viewed constant {name}" }
-
-        // Helper function to view as module
-        let viewAsModule (state: AppState) (pathStr: String) (searchResults: LanguageTools.ProgramTypes.Search.SearchResults) : AppState =
-          Builtin.printLine $"Module: {pathStr}"
-          Builtin.printLine ""
-
-          // Display submodules first
-          // TEMPORARY: Commented out problematic submodules display due to type mismatch
-          // TODO: Fix getDirectChildModuleNames usage
-
-          // Display functions
-          let fnCount = Stdlib.List.length searchResults.fns
-          if fnCount > 0L then
-            let fnNames =
-              searchResults.fns
-              |> Stdlib.List.map (fun fn ->
-                let name = LanguageTools.ProgramTypes.PackageFn.nameToString fn.name
-                Utils.extractEntityShortName name)
-              |> Stdlib.String.join ", "
-            Builtin.printLine $"Functions ({Stdlib.Int64.toString fnCount}): {fnNames}"
-
-          // Display types
-          let typeCount = Stdlib.List.length searchResults.types
-          if typeCount > 0L then
-            let typeNames =
-              searchResults.types
-              |> Stdlib.List.map (fun typ ->
-                let name = LanguageTools.ProgramTypes.PackageType.nameToString typ.name
-                Utils.extractEntityShortName name)
-              |> Stdlib.String.join ", "
-            Builtin.printLine $"Types ({Stdlib.Int64.toString typeCount}): {typeNames}"
-
-          // Display constants
-          let constCount = Stdlib.List.length searchResults.constants
-          if constCount > 0L then
-            let constNames =
-              searchResults.constants
-              |> Stdlib.List.map (fun constant ->
-                let name = LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name
-                Utils.extractEntityShortName name)
-              |> Stdlib.String.join ", "
-            Builtin.printLine $"Constants ({Stdlib.Int64.toString constCount}): {constNames}"
+//   | _ ->
+//     Stdlib.printLine $"Unknown entity type: {entityType}"
+//     state
 
 
-          { state with lastCommand = "view"; output = $"viewed module {pathStr}" }
+// VIEW command - view modules, functions, types, or constants
+let execute (state: AppState) (args: List<String>) : AppState =
+  // step 1: resolve path arg
 
-        // Help function
-        let viewHelp (state: AppState) : AppState =
-          Builtin.printLine "Usage: view <entityName>"
-          Builtin.printLine "View detailed information about functions, types, constants, or modules."
-          Builtin.printLine ""
-          Builtin.printLine "Examples:"
-          Builtin.printLine "  view List.head          - View the List.head function"
-          Builtin.printLine "  view Option             - View the Option type"
-          Builtin.printLine "  view Stdlib.List        - View contents of Stdlib.List module"
-          { state with lastCommand = "help view"; output = "view help displayed" }
+  // match args with
+  // | [] ->
+  //   // No args - view current location if it's an entity
+  //   match state.currentLocation with
+  //   | Root ->
+  //     Stdlib.printLine "Usage: view <entityName> or view <moduleName>"
+  //     Stdlib.printLine "View details of functions, types, constants, or modules."
+  //     state
+  //   | Module _ ->
+  //     Stdlib.printLine "Usage: view <entityName> or view <moduleName>"
+  //     Stdlib.printLine "View details of functions, types, constants, or modules."
+  //     state
+  //   | Function (name, path) ->
+  //     viewEntityAtCurrentLocation state "Function" name path
+  //   | Type (name, path) ->
+  //     viewEntityAtCurrentLocation state "Type" name path
+  //   | Constant (name, path) ->
+  //     viewEntityAtCurrentLocation state "Constant" name path
+  // | [pathArg] ->
+  //   // Handle path resolution first (for .., /, relative paths)
+  //   if pathArg == ".." || pathArg == "/" || Stdlib.String.contains pathArg "/" then
+  //     // This is a navigation path - resolve it and view as module
+  //     let currentPath = Packages.Path.locationToPath state.currentLocation
+  //     let resolvedPath = Utils.resolvePath currentPath pathArg
+  //     let pathStr = Packages.Path.formatPath resolvedPath
 
-        // Completion function
-        let viewComplete (state: AppState) (args: List<String>) : List<String> =
-          match args with
-          | [] ->
-            // At root, suggest top-level packages plus entities
-            let currentPath = Packages.Path.locationToPath state.currentLocation
-            if Stdlib.List.isEmpty currentPath then
-              // Get top-level modules
-              let moduleQuery = Utils.createSearchQuery []
-              let moduleResults = LanguageTools.PackageManager.Search.search moduleQuery
+  //     // Search the resolved module
+  //     let moduleSearchQuery = Utils.createSearchQuery resolvedPath
+  //     let moduleSearchResults = LanguageTools.PackageManager.Search.search moduleSearchQuery
 
-              // Get top-level modules
-              let topLevelModules =
-                // TEMPORARY: Disabled due to type mismatch issue
-                []
+  //     viewAsModule state pathStr moduleSearchResults
+  //   else
+  //     // Parse as entity path: could be "Option" or "Darklang.Stdlib.Option.Option"
+  //     let pathParts = Stdlib.String.split pathArg "."
 
-              // Also get any entities at root level
-              let entityQuery = Utils.createSearchQuery []
-              let entityResults = LanguageTools.PackageManager.Search.search entityQuery
+  //     // Try to find as a specific entity first
+  //     let (modulePath, entityName) =
+  //       match Stdlib.List.reverse pathParts with
+  //       | [] -> ([], pathArg)  // Shouldn't happen, but handle gracefully
+  //       | [singleName] ->
+  //         // Single name like "Option" - search in current context
+  //         (Packages.Path.locationToPath state.currentLocation, singleName)
+  //       | entityName :: reversedModuleParts ->
+  //         // Multi-part path like "Darklang.Stdlib.Option.Option"
+  //         let moduleParts = Stdlib.List.reverse reversedModuleParts
+  //         (moduleParts, entityName)
 
-              let entityNames =
-                let fnNames = entityResults.fns |> Stdlib.List.map (fun fn -> LanguageTools.ProgramTypes.PackageFn.nameToString fn.name)
-                let typeNames = entityResults.types |> Stdlib.List.map (fun typ -> LanguageTools.ProgramTypes.PackageType.nameToString typ.name)
-                let constNames = entityResults.constants |> Stdlib.List.map (fun constant -> LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name)
-                Stdlib.List.append (Stdlib.List.append fnNames typeNames) constNames
+  //     // Build search query to find the entity in the specified module
+  //     let searchQuery = Utils.createSearchQuery modulePath
 
-              (Stdlib.List.append topLevelModules entityNames)
-              |> Stdlib.List.unique
-              |> Stdlib.List.sort
+  //     let searchResults = LanguageTools.PackageManager.Search.search searchQuery
 
-            else
-              // Inside a module, suggest submodules and entities
-              let query = Utils.createSearchQuery currentPath
-              let searchResults = LanguageTools.PackageManager.Search.search query
+  //     // Try to find the specific entity by exact name match
+  //     let foundFunction =
+  //       searchResults.fns
+  //       |> Stdlib.List.findFirst (fun fn ->
+  //         let name = LanguageTools.ProgramTypes.PackageFn.nameToString fn.name
+  //         let shortName = Utils.extractEntityShortName name
+  //         shortName == entityName)
 
-              // Get submodules
-              // TEMPORARY: Disabled due to type mismatch issue
-              let submodules = []
+  //     let foundType =
+  //       searchResults.types
+  //       |> Stdlib.List.findFirst (fun typ ->
+  //         let name = LanguageTools.ProgramTypes.PackageType.nameToString typ.name
+  //         let shortName = Utils.extractEntityShortName name
+  //         shortName == entityName)
 
-              // Get entities (extract just the last part of names)
-              let functionNames =
-                searchResults.fns
-                |> Stdlib.List.map (fun fn -> LanguageTools.ProgramTypes.PackageFn.nameToString fn.name)
-                |> Stdlib.List.map (fun name -> Utils.extractEntityShortName name)
+  //     let foundConstant =
+  //       searchResults.constants
+  //       |> Stdlib.List.findFirst (fun constant ->
+  //         let name = LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name
+  //         let shortName = Utils.extractEntityShortName name
+  //         shortName == entityName)
 
-              let typeNames =
-                searchResults.types
-                |> Stdlib.List.map (fun typ -> LanguageTools.ProgramTypes.PackageType.nameToString typ.name)
-                |> Stdlib.List.map (fun name -> Utils.extractEntityShortName name)
+  //     // Display the found entity
+  //     match foundFunction with
+  //     | Some fn ->
+  //       viewSpecificFunction state fn
+  //     | None ->
+  //       match foundType with
+  //       | Some typ ->
+  //         viewSpecificType state typ
+  //       | None ->
+  //         match foundConstant with
+  //         | Some constant ->
+  //           viewSpecificConstant state constant
+  //         | None ->
+  //           // No entity found - try as a module using the full path
+  //           let fullModulePath = Stdlib.List.append modulePath [entityName]
+  //           let moduleSearchQuery = Utils.createSearchQuery fullModulePath
+  //           let moduleSearchResults = LanguageTools.PackageManager.Search.search moduleSearchQuery
+  //           let hasModuleContents =
+  //             Stdlib.Bool.not (Stdlib.List.isEmpty moduleSearchResults.fns) ||
+  //             Stdlib.Bool.not (Stdlib.List.isEmpty moduleSearchResults.types) ||
+  //             Stdlib.Bool.not (Stdlib.List.isEmpty moduleSearchResults.constants) ||
+  //             Stdlib.Bool.not (Stdlib.List.isEmpty moduleSearchResults.submodules)
 
-              let constantNames =
-                searchResults.constants
-                |> Stdlib.List.map (fun constant -> LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name)
-                |> Stdlib.List.map (fun name -> Utils.extractEntityShortName name)
+  //           if hasModuleContents then
+  //             // Display as module
+  //             let fullPath = Stdlib.String.join fullModulePath "."
+  //             viewAsModule state fullPath moduleSearchResults
+  //           else
+  //             // Nothing found
+  //             let fullPath = Stdlib.String.join fullModulePath "."
+  //             Stdlib.printLine $"Entity '{fullPath}' not found."
+  //             Stdlib.printLine "Use 'ls' to see available entities or 'cd' to navigate to a module."
+  //             state
+  // | _ ->
+  //   Stdlib.printLine "Usage: view <entityName>"
+  //   Stdlib.printLine "Too many arguments provided."
+  //   state
+  state
 
-              (Stdlib.List.append (Stdlib.List.append (Stdlib.List.append submodules functionNames) typeNames) constantNames)
-              |> Stdlib.List.unique
-              |> Stdlib.List.sort
+// // Helper function to view a specific function
+// let viewSpecificFunction (state: AppState) (fn: LanguageTools.ProgramTypes.PackageFn.PackageFn) : AppState =
+//   let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageFn fn
+//   let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
+//   Stdlib.printLine highlighted
 
-          | [partial] ->
-            // Handle dot-notation completion like "Stdlib.L" when in /Darklang
-            if Stdlib.String.contains partial "." then
-              // Parse the partial path to understand context
-              let pathParts = Stdlib.String.split partial "."
-              match Stdlib.List.reverse pathParts with
-              | [] -> []
-              | [lastPart] ->
-                // Single part with dot, shouldn't happen but handle gracefully
-                let allCompletions = viewComplete state []
-                let lowerPartial = Stdlib.String.toLowercase partial
-                allCompletions
-                |> Stdlib.List.filter (fun name ->
-                  Stdlib.String.startsWith (Stdlib.String.toLowercase name) lowerPartial)
-              | lastPartial :: reversedPrefixParts ->
-                // Multi-part dot notation like "Stdlib.L" when in /Darklang
-                let prefixParts = Stdlib.List.reverse reversedPrefixParts
-                let lowerLastPartial = Stdlib.String.toLowercase lastPartial
-                let currentPath = Packages.Path.locationToPath state.currentLocation
+//   let name = LanguageTools.ProgramTypes.PackageFn.nameToString fn.name
+//   state
 
-                // Build the full module path considering current context
-                let fullModulePath =
-                  if Stdlib.List.isEmpty currentPath then
-                    prefixParts
-                  else
-                    // In module context, append current path to prefix
-                    Stdlib.List.append currentPath prefixParts
+// // Helper function to view a specific type
+// let viewSpecificType (state: AppState) (typ: LanguageTools.ProgramTypes.PackageType.PackageType) : AppState =
+//   let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageType typ
+//   let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
+//   Stdlib.printLine highlighted
 
-                // Search for entities and submodules in that context
-                let query = Utils.createSearchQuery fullModulePath
-                let searchResults = LanguageTools.PackageManager.Search.search query
+//   let name = LanguageTools.ProgramTypes.PackageType.nameToString typ.name
+//   state
 
-                // Get submodules
-                // TEMPORARY: Disabled due to type mismatch issue  
-                let submoduleSuggestions = []
+// // Helper function to view a specific constant
+// let viewSpecificConstant (state: AppState) (constant: LanguageTools.ProgramTypes.PackageConstant.PackageConstant) : AppState =
+//   let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageConstant constant
+//   let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
+//   Stdlib.printLine highlighted
 
-                // Get entities (functions, types, constants)
-                let entitySuggestions =
-                  let fnNames =
-                    searchResults.fns
-                    |> Stdlib.List.map (fun fn -> LanguageTools.ProgramTypes.PackageFn.nameToString fn.name)
-                    |> Stdlib.List.map (fun name -> Utils.extractEntityShortName name)
+//   let name = LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name
+//   state
 
-                  let typeNames =
-                    searchResults.types
-                    |> Stdlib.List.map (fun typ -> LanguageTools.ProgramTypes.PackageType.nameToString typ.name)
-                    |> Stdlib.List.map (fun name -> Utils.extractEntityShortName name)
+// // Helper function to view as module
+// let viewAsModule (state: AppState) (pathStr: String) (searchResults: LanguageTools.ProgramTypes.Search.SearchResults) : AppState =
+//   Stdlib.printLine $"Module: {pathStr}"
+//   Stdlib.printLine ""
 
-                  let constantNames =
-                    searchResults.constants
-                    |> Stdlib.List.map (fun constant -> LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name)
-                    |> Stdlib.List.map (fun name -> Utils.extractEntityShortName name)
+//   // Display submodules first
+//   // TEMPORARY: Commented out problematic submodules display due to type mismatch
+//   // TODO: Fix getDirectChildModuleNames usage
 
-                  (Stdlib.List.append (Stdlib.List.append fnNames typeNames) constantNames)
-                  |> Stdlib.List.filter (fun name ->
-                    Stdlib.String.startsWith (Stdlib.String.toLowercase name) lowerLastPartial)
+//   // Display functions
+//   let fnCount = Stdlib.List.length searchResults.fns
+//   if fnCount > 0L then
+//     let fnNames =
+//       searchResults.fns
+//       |> Stdlib.List.map (fun fn ->
+//         let name = LanguageTools.ProgramTypes.PackageFn.nameToString fn.name
+//         Utils.extractEntityShortName name)
+//       |> Stdlib.String.join ", "
+//     Stdlib.printLine $"Functions ({Stdlib.Int64.toString fnCount}): {fnNames}"
 
-                // Combine and format suggestions
-                let allSuggestions = Stdlib.List.append submoduleSuggestions entitySuggestions
-                let prefix = Stdlib.String.join prefixParts "."
-                allSuggestions
-                |> Stdlib.List.map (fun name -> $"{prefix}.{name}")
-                |> Stdlib.List.unique
-                |> Stdlib.List.sort
-            else
-              // Regular prefix matching for simple paths
-              let allCompletions = viewComplete state []
-              let lowerPartial = Stdlib.String.toLowercase partial
-              allCompletions
-              |> Stdlib.List.filter (fun name ->
-                Stdlib.String.startsWith (Stdlib.String.toLowercase name) lowerPartial)
+//   // Display types
+//   let typeCount = Stdlib.List.length searchResults.types
+//   if typeCount > 0L then
+//     let typeNames =
+//       searchResults.types
+//       |> Stdlib.List.map (fun typ ->
+//         let name = LanguageTools.ProgramTypes.PackageType.nameToString typ.name
+//         Utils.extractEntityShortName name)
+//       |> Stdlib.String.join ", "
+//     Stdlib.printLine $"Types ({Stdlib.Int64.toString typeCount}): {typeNames}"
 
-          | _ -> []
+//   // Display constants
+//   let constCount = Stdlib.List.length searchResults.constants
+//   if constCount > 0L then
+//     let constNames =
+//       searchResults.constants
+//       |> Stdlib.List.map (fun constant ->
+//         let name = LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name
+//         Utils.extractEntityShortName name)
+//       |> Stdlib.String.join ", "
+//     Stdlib.printLine $"Constants ({Stdlib.Int64.toString constCount}): {constNames}"
 
+
+//   state
+
+
+let complete (state: AppState) (args: List<String>) : List<String> =
+  // match args with
+  // | [] ->
+  //   // At root, suggest top-level packages plus entities
+  //   let currentPath = Packages.Path.locationToPath state.currentLocation
+  //   if Stdlib.List.isEmpty currentPath then
+  //     // Get top-level modules
+  //     let moduleQuery = Utils.createSearchQuery []
+  //     let moduleResults = LanguageTools.PackageManager.Search.search moduleQuery
+
+  //     // Get top-level modules
+  //     let topLevelModules =
+  //       // TEMPORARY: Disabled due to type mismatch issue
+  //       []
+
+  //     // Also get any entities at root level
+  //     let entityQuery = Utils.createSearchQuery []
+  //     let entityResults = LanguageTools.PackageManager.Search.search entityQuery
+
+  //     let entityNames =
+  //       let fnNames = entityResults.fns |> Stdlib.List.map (fun fn -> LanguageTools.ProgramTypes.PackageFn.nameToString fn.name)
+  //       let typeNames = entityResults.types |> Stdlib.List.map (fun typ -> LanguageTools.ProgramTypes.PackageType.nameToString typ.name)
+  //       let constNames = entityResults.constants |> Stdlib.List.map (fun constant -> LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name)
+  //       Stdlib.List.append (Stdlib.List.append fnNames typeNames) constNames
+
+  //     (Stdlib.List.append topLevelModules entityNames)
+  //     |> Stdlib.List.unique
+  //     |> Stdlib.List.sort
+
+  //   else
+  //     // Inside a module, suggest submodules and entities
+  //     let query = Utils.createSearchQuery currentPath
+  //     let searchResults = LanguageTools.PackageManager.Search.search query
+
+  //     // Get submodules
+  //     // TEMPORARY: Disabled due to type mismatch issue
+  //     let submodules = []
+
+  //     // Get entities (extract just the last part of names)
+  //     let functionNames =
+  //       searchResults.fns
+  //       |> Stdlib.List.map (fun fn -> LanguageTools.ProgramTypes.PackageFn.nameToString fn.name)
+  //       |> Stdlib.List.map (fun name -> Utils.extractEntityShortName name)
+
+  //     let typeNames =
+  //       searchResults.types
+  //       |> Stdlib.List.map (fun typ -> LanguageTools.ProgramTypes.PackageType.nameToString typ.name)
+  //       |> Stdlib.List.map (fun name -> Utils.extractEntityShortName name)
+
+  //     let constantNames =
+  //       searchResults.constants
+  //       |> Stdlib.List.map (fun constant -> LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name)
+  //       |> Stdlib.List.map (fun name -> Utils.extractEntityShortName name)
+
+  //     (Stdlib.List.append (Stdlib.List.append (Stdlib.List.append submodules functionNames) typeNames) constantNames)
+  //     |> Stdlib.List.unique
+  //     |> Stdlib.List.sort
+
+  // | [partial] ->
+  //   // Handle dot-notation completion like "Stdlib.L" when in /Darklang
+  //   if Stdlib.String.contains partial "." then
+  //     // Parse the partial path to understand context
+  //     let pathParts = Stdlib.String.split partial "."
+  //     match Stdlib.List.reverse pathParts with
+  //     | [] -> []
+  //     | [lastPart] ->
+  //       // Single part with dot, shouldn't happen but handle gracefully
+  //       let allCompletions = viewComplete state []
+  //       let lowerPartial = Stdlib.String.toLowercase partial
+  //       allCompletions
+  //       |> Stdlib.List.filter (fun name ->
+  //         Stdlib.String.startsWith (Stdlib.String.toLowercase name) lowerPartial)
+  //     | lastPartial :: reversedPrefixParts ->
+  //       // Multi-part dot notation like "Stdlib.L" when in /Darklang
+  //       let prefixParts = Stdlib.List.reverse reversedPrefixParts
+  //       let lowerLastPartial = Stdlib.String.toLowercase lastPartial
+  //       let currentPath = Packages.Path.locationToPath state.currentLocation
+
+  //       // Build the full module path considering current context
+  //       let fullModulePath =
+  //         if Stdlib.List.isEmpty currentPath then
+  //           prefixParts
+  //         else
+  //           // In module context, append current path to prefix
+  //           Stdlib.List.append currentPath prefixParts
+
+  //       // Search for entities and submodules in that context
+  //       let query = Utils.createSearchQuery fullModulePath
+  //       let searchResults = LanguageTools.PackageManager.Search.search query
+
+  //       // Get submodules
+  //       // TEMPORARY: Disabled due to type mismatch issue
+  //       let submoduleSuggestions = []
+
+  //       // Get entities (functions, types, constants)
+  //       let entitySuggestions =
+  //         let fnNames =
+  //           searchResults.fns
+  //           |> Stdlib.List.map (fun fn -> LanguageTools.ProgramTypes.PackageFn.nameToString fn.name)
+  //           |> Stdlib.List.map (fun name -> Utils.extractEntityShortName name)
+
+  //         let typeNames =
+  //           searchResults.types
+  //           |> Stdlib.List.map (fun typ -> LanguageTools.ProgramTypes.PackageType.nameToString typ.name)
+  //           |> Stdlib.List.map (fun name -> Utils.extractEntityShortName name)
+
+  //         let constantNames =
+  //           searchResults.constants
+  //           |> Stdlib.List.map (fun constant -> LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name)
+  //           |> Stdlib.List.map (fun name -> Utils.extractEntityShortName name)
+
+  //         (Stdlib.List.append (Stdlib.List.append fnNames typeNames) constantNames)
+  //         |> Stdlib.List.filter (fun name ->
+  //           Stdlib.String.startsWith (Stdlib.String.toLowercase name) lowerLastPartial)
+
+  //       // Combine and format suggestions
+  //       let allSuggestions = Stdlib.List.append submoduleSuggestions entitySuggestions
+  //       let prefix = Stdlib.String.join prefixParts "."
+  //       allSuggestions
+  //       |> Stdlib.List.map (fun name -> $"{prefix}.{name}")
+  //       |> Stdlib.List.unique
+  //       |> Stdlib.List.sort
+  //   else
+  //     // Regular prefix matching for simple paths
+  //     let allCompletions = viewComplete state []
+  //     let lowerPartial = Stdlib.String.toLowercase partial
+  //     allCompletions
+  //     |> Stdlib.List.filter (fun name ->
+  //       Stdlib.String.startsWith (Stdlib.String.toLowercase name) lowerPartial)
+
+  // | _ -> []
+  ["TODO View.complete"]
+
+
+let help (_state: AppState) : Unit =
+  [
+    "Usage: view <entityName>"
+    "View detailed information about functions, types, constants, or modules."
+    ""
+    "Examples:"
+    "  view List.head          - View the List.head function"
+    "  view Option             - View the Option type"
+    "  view Stdlib.List        - View contents of Stdlib.List module"
+  ] |> Stdlib.printLines

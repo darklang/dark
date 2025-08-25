@@ -1,5 +1,5 @@
 module Darklang =
-  module CLI =
+  module Cli =
     module Experiments =
       module UICatalog =
         module Components =
@@ -35,52 +35,52 @@ module Darklang =
                 []
               else
                 let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
-                
+
                 // Create backdrop
                 let backdropWidth = 60L
                 let backdropHeight = 20L
-                let backdrop = 
+                let backdrop =
                   Stdlib.List.repeat backdropHeight (Core.Rendering.dim (Stdlib.String.repeat "░" backdropWidth))
-                
+
                 // Calculate modal position (centered)
                 let modalX = Stdlib.Int64.divide (backdropWidth - model.width) 2L
                 let modalY = Stdlib.Int64.divide (backdropHeight - model.height) 2L
-                
+
                 // Create modal box
                 let topBorder = "╔" ++ Stdlib.String.repeat "═" (model.width - 2L) ++ "╗"
                 let bottomBorder = "╚" ++ Stdlib.String.repeat "═" (model.width - 2L) ++ "╝"
-                
-                let titleLine = 
+
+                let titleLine =
                   let closeButton = if model.hasCloseButton then " ✕" else ""
                   let availableWidth = model.width - 4L - Stdlib.String.length closeButton
                   let paddedTitle = Core.Rendering.padText model.title availableWidth Core.Types.Alignment.Center
                   let titleColor = if hasFocus then Core.Types.Color.Primary else Core.Types.Color.Default
                   "║ " ++ Core.Rendering.colorize titleColor (Core.Rendering.bold paddedTitle) ++ closeButton ++ " ║"
-                
+
                 let separatorLine = "╠" ++ Stdlib.String.repeat "═" (model.width - 2L) ++ "╣"
-                
-                let contentLines = 
+
+                let contentLines =
                   model.content
                   |> Stdlib.List.map (fun line ->
                       let paddedLine = Core.Rendering.padText line (model.width - 4L) Core.Types.Alignment.Left
                       "║ " ++ paddedLine ++ " ║")
-                
+
                 // Fill remaining space if content is shorter than modal height
                 let remainingHeight = model.height - 4L - Stdlib.List.length contentLines
-                let fillerLines = 
+                let fillerLines =
                   if remainingHeight > 0L then
                     Stdlib.List.repeat remainingHeight ("║" ++ Stdlib.String.repeat " " (model.width - 2L) ++ "║")
                   else
                     []
-                
-                let modalContent = 
+
+                let modalContent =
                   [topBorder; titleLine; separatorLine]
                   |> Stdlib.List.append contentLines
                   |> Stdlib.List.append fillerLines
                   |> Stdlib.List.append [bottomBorder]
-                
+
                 // Overlay modal on backdrop
-                let result = 
+                let result =
                   backdrop
                   |> Stdlib.List.indexedMap (fun i backdropLine ->
                       if i >= modalY && i < modalY + Stdlib.List.length modalContent then
@@ -93,7 +93,7 @@ module Darklang =
                         | None -> backdropLine
                       else
                         backdropLine)
-                
+
                 result
 
             let showModal (component: Core.Types.Component<ModalModel>) : Core.Types.Component<ModalModel> =
@@ -139,40 +139,40 @@ module Darklang =
                 []
               else
                 let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
-                
+
                 let topBorder = "┌" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┐"
                 let bottomBorder = "└" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┘"
-                
-                let titleLine = 
+
+                let titleLine =
                   let paddedTitle = Core.Rendering.padText model.title (component.bounds.dimensions.width - 4L) Core.Types.Alignment.Center
                   let titleColor = if hasFocus then Core.Types.Color.Warning else Core.Types.Color.Default
                   "│ " ++ Core.Rendering.colorize titleColor (Core.Rendering.bold paddedTitle) ++ " │"
-                
+
                 let separatorLine = "├" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┤"
-                
-                let messageLine = 
+
+                let messageLine =
                   let paddedMessage = Core.Rendering.padText model.message (component.bounds.dimensions.width - 4L) Core.Types.Alignment.Center
                   "│ " ++ paddedMessage ++ " │"
-                
+
                 let emptyLine = "│" ++ Stdlib.String.repeat " " (component.bounds.dimensions.width - 2L) ++ "│"
-                
-                let buttonLine = 
-                  let confirmButton = 
+
+                let buttonLine =
+                  let confirmButton =
                     if model.selectedButton == 0L then
                       Core.Rendering.colorize Core.Types.Color.Success ("[ " ++ model.confirmText ++ " ]")
                     else
                       "[ " ++ model.confirmText ++ " ]"
-                  
-                  let cancelButton = 
+
+                  let cancelButton =
                     if model.selectedButton == 1L then
                       Core.Rendering.colorize Core.Types.Color.Error ("[ " ++ model.cancelText ++ " ]")
                     else
                       "[ " ++ model.cancelText ++ " ]"
-                  
+
                   let buttons = confirmButton ++ "  " ++ cancelButton
                   let paddedButtons = Core.Rendering.padText buttons (component.bounds.dimensions.width - 4L) Core.Types.Alignment.Center
                   "│ " ++ paddedButtons ++ " │"
-                
+
                 [topBorder; titleLine; separatorLine; messageLine; emptyLine; buttonLine; bottomBorder]
 
             let selectConfirmButton (component: Core.Types.Component<ConfirmDialogModel>) (buttonIndex: Int64) : Core.Types.Component<ConfirmDialogModel> =

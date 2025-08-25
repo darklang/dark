@@ -1,0 +1,371 @@
+module Darklang.Cli.Packages
+
+// TODO should largely defer to a Darklang.Packages or Darklang.Matter namespace
+// (less of this in CLI world)
+
+type PackageLocation =
+  | Module of path: List<String>
+  // Language.Dev.PackageType.Name
+  | Type of name: LanguageTools.ProgramTypes.PackageType.Name
+  | Function of name: LanguageTools.ProgramTypes.PackageFn.Name
+  | Constant of name: LanguageTools.ProgramTypes.PackageConstant.Name
+
+type State =
+  { currentLocation: PackageLocation
+    locationHistory: List<PackageLocation> }
+
+let initState () : State =
+  State
+    { currentLocation = PackageLocation.Module []
+      locationHistory = [] }
+
+// TOD: remove referneces including .Types
+
+// TODO: review usages of
+// currentLocation = Packages.PackageLocation.Root
+// locationHistory = []
+
+
+// let formatPath (path: PackagePath) : String =
+//   if Stdlib.List.isEmpty path then
+//     "/"
+//   else
+//     $"/{Stdlib.String.join path "."}"
+
+// let parsePath (pathStr: String) : PackagePath =
+//   let trimmed = Stdlib.String.trim pathStr
+//   if trimmed == "/" || Stdlib.String.isEmpty trimmed then
+//     []
+//   else
+//     let pathToSplit =
+//       if Stdlib.String.startsWith trimmed "/" then
+//         Stdlib.String.dropFirst trimmed 1L
+//       else
+//         trimmed
+//     // Only handle dotted paths - dots are the standard separator for package paths
+//     Stdlib.String.split pathToSplit "."
+
+
+// Convert PackageLocation to display string with icons
+let formatLocation (location: PackageLocation) : String =
+  match location with
+  | Module path ->
+    if Stdlib.List.isEmpty path then
+      "/ (root)"
+    else
+      $"/{Stdlib.String.join path "."} (module)"
+  | Type name ->
+    [[name.owner]; name.modules; [name.name]]
+    |> Stdlib.List.flatten
+    |> Stdlib.String.join "."
+    |> fun s -> "/{s} (type)"
+  | Constant name ->
+    [[name.owner]; name.modules; [name.name]]
+    |> Stdlib.List.flatten
+    |> Stdlib.String.join "."
+    |> fun s -> "/{s} (value)"
+  | Function name ->
+    [[name.owner]; name.modules; [name.name]]
+    |> Stdlib.List.flatten
+    |> Stdlib.String.join "."
+    |> fun s -> "/{s} (fn)"
+
+
+
+// maybe add a Path type like | Root | Here | Up | Down | Into of String ?
+// then it becomes...
+// - String -> List<Path>
+// - (Location, List<Path>) -> Location*
+//     (assume 'module' for now, or just rep as List<String> or String with a bunch of .s)
+// - verify the thing exists and turn it into a _real_ location
+//     how - does that involve a search? a 'find' to make sure it exists?
+//     Maybe the 'find' includes an ID if it's a package type or fn or something
+
+
+let traverse (l: PackageLocation) (arg: String) : String =
+  match arg with
+  | "/" -> PackageLocation.Module []
+  | "." -> l
+  | _ ->
+    Builtin.debug "traverse" l
+    l // TODO
+
+
+  // // Helper function to intelligently resolve navigation targets
+  // let resolveNavigationTarget (currentPath: PackagePath) (target: String) : (PackageLocation * String) =
+  //   // Handle special navigation cases first
+  //   if target == "/" then
+  //     (Root, "/")
+  //   else if target == ".." then
+  //     // Go up one level
+  //     match currentPath with
+  //     | [] -> (Root, "/")
+  //     | _ ->
+  //       let parentPath = Stdlib.List.dropLast currentPath
+  //       let parentLocation = Packages.Path.pathToLocation parentPath
+  //       let parentStr = Packages.Path.formatLocation parentLocation
+  //       (parentLocation, parentStr)
+  //   else
+  //     // Single or multi-part name - check if it's an entity first, then try as module path
+  //     let searchQuery = Utils.createSearchQuery currentPath
+  //     let searchResults = LanguageTools.PackageManager.Search.search searchQuery
+
+  //     // Check if it's a function
+  //     let foundFunction =
+  //       searchResults.fns
+  //       |> Stdlib.List.findFirst (fun fn ->
+  //         let name = LanguageTools.ProgramTypes.PackageFn.nameToString fn.name
+  //         let shortName = Utils.extractEntityShortName name
+  //         shortName == target)
+
+  //     match foundFunction with
+  //     | Some fn ->
+  //       let fnLocation = PackageLocation.Function (target, currentPath)
+  //       let locationStr = Packages.Path.formatLocation fnLocation
+  //       (fnLocation, locationStr)
+  //     | None ->
+  //       // Check if it's a type
+  //       let foundType =
+  //         searchResults.types
+  //         |> Stdlib.List.findFirst (fun typ ->
+  //           let name = LanguageTools.ProgramTypes.PackageType.nameToString typ.name
+  //           let shortName = Utils.extractEntityShortName name
+  //           shortName == target)
+
+  //       match foundType with
+  //       | Some typ ->
+  //         let typeLocation = PackageLocation.Type (target, currentPath)
+  //         let locationStr = Packages.Path.formatLocation typeLocation
+  //         (typeLocation, locationStr)
+  //       | None ->
+  //         // Check if it's a constant
+  //         let foundConstant =
+  //           searchResults.constants
+  //           |> Stdlib.List.findFirst (fun constant ->
+  //             let name = LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name
+  //             let shortName = Utils.extractEntityShortName name
+  //             shortName == target)
+
+  //         match foundConstant with
+  //         | Some constant ->
+  //           let constLocation = PackageLocation.Constant (target, currentPath)
+  //           let locationStr = Packages.Path.formatLocation constLocation
+  //           (constLocation, locationStr)
+  //         | None ->
+  //           // Try as module path, but validate it exists
+  //           let newPath = Utils.resolvePath currentPath target
+  //           let query = Utils.createSearchQuery newPath
+  //           let searchResults = LanguageTools.PackageManager.Search.search query
+
+  //           // Check if this path has any content (submodules, functions, types, constants)
+  //           let hasSubmodules = Stdlib.Bool.not (Stdlib.List.isEmpty searchResults.submodules)
+  //           let hasFunctions = Stdlib.Bool.not (Stdlib.List.isEmpty searchResults.fns)
+  //           let hasTypes = Stdlib.Bool.not (Stdlib.List.isEmpty searchResults.types)
+  //           let hasConstants = Stdlib.Bool.not (Stdlib.List.isEmpty searchResults.constants)
+
+  //           if hasSubmodules || hasFunctions || hasTypes || hasConstants then
+  //             let newLocation = Packages.Path.pathToLocation newPath
+  //             let locationStr = Packages.Path.formatLocation newLocation
+  //             (newLocation, locationStr)
+  //           else
+  //             // Path doesn't exist - return a special error result that the caller can handle
+  //             // We'll use a special marker to indicate failure
+  //             let currentLocation = Packages.Path.pathToLocation currentPath
+  //             let errorMsg = "Path '" ++ target ++ "' not found"
+  //             (currentLocation, errorMsg)
+
+
+// // Create search query from path components
+// let createSearchQuery (parts: List<String>) (remainder: String) : LanguageTools.ProgramTypes.Search.SearchQuery =
+//   match parts with
+//   | [] ->
+//     LanguageTools.ProgramTypes.Search.SearchQuery
+//       { owner = ""; modules = []; name = remainder }
+//   | [owner] when Stdlib.String.isEmpty remainder ->
+//     LanguageTools.ProgramTypes.Search.SearchQuery
+//       { owner = owner; modules = []; name = "" }
+//   | owner :: modules ->
+//     LanguageTools.ProgramTypes.Search.SearchQuery
+//       { owner = owner; modules = modules; name = remainder }
+
+
+
+
+// Pure command functions that don't touch AppState directly
+// These extract the core business logic from execute functions
+
+// // Pure navigation function that returns navigation decision
+// let computeNavigation (l: PackageLocation) (pathArg: String) : (PackageLocation * String) =
+//   let currentPath = Path.locationToPath l
+//   Nav.resolveNavigationTarget currentPath pathArg
+
+// // Pure back navigation that computes the target location
+// let computeBackNavigation (locationHistory: List<PackageLocation>) : Stdlib.Option.Option<PackageLocation> =
+//   Stdlib.List.last locationHistory
+
+// // Pure pwd function that formats current location
+// let computePwdOutput (l: PackageLocation) : String =
+//   Path.formatLocation l
+
+// Pure listing function that formats module contents
+let computeListingOutput (location: PackageLocation) : String =
+  // match location with
+  // | Root ->
+  //   let query = Utils.createSearchQuery []
+  //   let searchResults = LanguageTools.PackageManager.Search.search query
+  //   formatRootListing searchResults
+  // | Module path ->
+  //   let query = Utils.createSearchQuery path
+  //   Builtin.debug "query" query
+  //   let searchResults = LanguageTools.PackageManager.Search.search query
+  //   formatModuleListing path searchResults
+  // | Function (name, path) ->
+  //   formatEntityListing "Function" name path
+  // | Type (name, path) ->
+  //   formatEntityListing "Type" name path
+  // | Constant (name, path) ->
+  //   formatEntityListing "Constant" name path
+  Builtin.debug "location" location
+  "TODO computeListingOutput"
+
+// // Helper functions for formatting output (pure string functions)
+// let formatRootListing (searchResults: LanguageTools.ProgramTypes.Search.SearchResults) : String =
+//   "TODO: Root package listing"
+
+// let formatModuleListing (path: PackagePath) (searchResults: LanguageTools.ProgramTypes.Search.SearchResults) : String =
+//   Builtin.debug "results" searchResults
+//   let lines = []
+
+//   // Add submodules - extract direct children only
+//   let lines =
+//     if Stdlib.List.isEmpty searchResults.submodules then
+//       lines
+//     else
+//       let allModulePaths = searchResults.submodules
+
+//       // Filter to only direct children (path length = current path length + 1)
+//       let expectedLength = (Stdlib.List.length path) + 1L
+//       let directChildren =
+//         allModulePaths
+//         |> Stdlib.List.filter (fun modulePath -> Stdlib.List.length modulePath == expectedLength)
+//         |> Stdlib.List.filterMap (fun modulePath -> Stdlib.List.last modulePath)
+//         |> Stdlib.List.unique
+//         |> Stdlib.List.sort
+
+//       if Stdlib.List.isEmpty directChildren then
+//         lines
+//       else
+//         let submoduleLines =
+//           directChildren
+//           |> Stdlib.List.map (fun name -> "📁 " ++ name ++ "/")
+//           |> Stdlib.String.join "\n"
+//         Stdlib.List.append lines ["Submodules:\n" ++ submoduleLines]
+
+//   // Add functions
+//   let lines =
+//     if Stdlib.List.isEmpty searchResults.fns then
+//       lines
+//     else
+//       let fnLines =
+//         searchResults.fns
+//         |> Stdlib.List.map (fun fn ->
+//           let name = LanguageTools.ProgramTypes.PackageFn.nameToString fn.name
+//           let shortName = Utils.extractEntityShortName name
+//           "⚡ " ++ shortName)
+//         |> Stdlib.String.join "\n"
+//       Stdlib.List.append lines ["Functions:\n" ++ fnLines]
+
+//   // Add types
+//   let lines =
+//     if Stdlib.List.isEmpty searchResults.types then
+//       lines
+//     else
+//       let typeLines =
+//         searchResults.types
+//         |> Stdlib.List.map (fun typ ->
+//           let name = LanguageTools.ProgramTypes.PackageType.nameToString typ.name
+//           let shortName = Utils.extractEntityShortName name
+//           "🏷️ " ++ shortName)
+//         |> Stdlib.String.join "\n"
+//       Stdlib.List.append lines ["Types:\n" ++ typeLines]
+
+//   // Add constants
+//   let lines =
+//     if Stdlib.List.isEmpty searchResults.constants then
+//       lines
+//     else
+//       let constLines =
+//         searchResults.constants
+//         |> Stdlib.List.map (fun constant ->
+//           let name = LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name
+//           let shortName = Utils.extractEntityShortName name
+//           "🔒 " ++ shortName)
+//         |> Stdlib.String.join "\n"
+//       Stdlib.List.append lines ["Constants:\n" ++ constLines]
+
+//   if Stdlib.List.isEmpty lines then
+//     let pathStr = Path.formatPath path
+//     if Stdlib.List.isEmpty path then
+//       "Root is empty."
+//     else
+//       "TODO: Module listing for " ++ pathStr ++ " - submodules not yet implemented"
+//   else
+//     Stdlib.String.join lines "\n\n"
+
+
+// let formatEntityListing (entityType: String) (entityName: String) (modulePath: PackagePath) : String =
+//   // Search for the specific entity to get its details
+//   let searchQuery = Utils.createSearchQuery modulePath
+//   let searchResults = LanguageTools.PackageManager.Search.search searchQuery
+
+//   match entityType with
+//   | "Function" ->
+//     let foundFunction =
+//       searchResults.fns
+//       |> Stdlib.List.findFirst (fun fn ->
+//         let name = LanguageTools.ProgramTypes.PackageFn.nameToString fn.name
+//         let shortName = Utils.extractEntityShortName name
+//         shortName == entityName)
+
+//     match foundFunction with
+//     | Some fn ->
+//       let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageFn fn
+//       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
+//       $"Function: {entityName}\n\n{highlighted}"
+//     | None ->
+//       $"Function '{entityName}' not found."
+
+//   | "Type" ->
+//     let foundType =
+//       searchResults.types
+//       |> Stdlib.List.findFirst (fun typ ->
+//         let name = LanguageTools.ProgramTypes.PackageType.nameToString typ.name
+//         let shortName = Utils.extractEntityShortName name
+//         shortName == entityName)
+
+//     match foundType with
+//     | Some typ ->
+//       let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageType typ
+//       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
+//       $"Type: {entityName}\n\n{highlighted}"
+//     | None ->
+//       $"Type '{entityName}' not found."
+
+//   | "Constant" ->
+//     let foundConstant =
+//       searchResults.constants
+//       |> Stdlib.List.findFirst (fun constant ->
+//         let name = LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name
+//         let shortName = Utils.extractEntityShortName name
+//         shortName == entityName)
+
+//     match foundConstant with
+//     | Some constant ->
+//       let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageConstant constant
+//       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
+//       $"Constant: {entityName}\n\n{highlighted}"
+//     | None ->
+//       $"Constant '{entityName}' not found."
+
+//   | _ ->
+//     $"Unknown entity type: {entityType}"

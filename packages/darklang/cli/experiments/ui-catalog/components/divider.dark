@@ -1,13 +1,9 @@
 module Darklang =
-  module CLI =
+  module Cli =
     module Experiments =
       module UICatalog =
         module Components =
           module Divider =
-            // ==========================================
-            // Divider Component - Visual separators
-            // ==========================================
-
             type DividerModel =
               { character: String
                 color: Core.Types.Color
@@ -37,7 +33,7 @@ module Darklang =
             let setDividerLength (component: Core.Types.Component<DividerModel>) (length: Int64) : Core.Types.Component<DividerModel> =
               let model = component.model
               let newBounds = Core.Types.Bounds { position = component.bounds.position; dimensions = Core.Types.Dimensions { width = length; height = 1L } }
-              { component with 
+              { component with
                   model = { model with length = length }
                   bounds = newBounds }
 

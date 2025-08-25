@@ -1,5 +1,5 @@
 module Darklang =
-  module CLI =
+  module Cli =
     module Experiments =
       module UICatalog =
         module Core =
@@ -9,10 +9,10 @@ module Darklang =
             // ==========================================
 
             // Base UI Element Types
-            type Color = 
+            type Color =
               | Default
               | Primary
-              | Secondary 
+              | Secondary
               | Success
               | Warning
               | Error
@@ -38,7 +38,7 @@ module Darklang =
             type Bounds = { position: Position; dimensions: Dimensions }
 
             // Event Types
-            type KeyEvent = 
+            type KeyEvent =
               | Enter
               | Escape
               | Tab

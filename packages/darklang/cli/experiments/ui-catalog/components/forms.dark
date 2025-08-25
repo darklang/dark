@@ -1,5 +1,5 @@
 module Darklang =
-  module CLI =
+  module Cli =
     module Experiments =
       module UICatalog =
         module Components =
@@ -31,19 +31,19 @@ module Darklang =
             let renderTextInput (component: Core.Types.Component<TextInputModel>) (context: Core.Types.RenderContext) : List<String> =
               let model = component.model
               let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
-              
-              let displayValue = 
+
+              let displayValue =
                 if model.password then
                   Stdlib.String.repeat "*" (Stdlib.String.length model.value)
                 else if Stdlib.String.isEmpty model.value then
                   Core.Rendering.dim model.placeholder
                 else
                   model.value
-              
+
               let paddedValue = Core.Rendering.padText displayValue (component.bounds.dimensions.width - 4L) Core.Types.Alignment.Left
               let cursor = if hasFocus then "│" else " "
               let focusIndicator = if hasFocus then "► " else "  "
-              
+
               [ focusIndicator ++ "┌" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┐"
                 focusIndicator ++ "│ " ++ paddedValue ++ cursor ++ " │"
                 focusIndicator ++ "└" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┘" ]
@@ -96,15 +96,15 @@ module Darklang =
             let renderCheckbox (component: Core.Types.Component<CheckboxModel>) (context: Core.Types.RenderContext) : List<String> =
               let model = component.model
               let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
-              
+
               let checkSymbol = if model.checked then "✓" else " "
               let boxColor = if model.disabled then Core.Types.Color.Dark else Core.Types.Color.Primary
               let labelColor = if model.disabled then Core.Types.Color.Dark else Core.Types.Color.Default
-              
+
               let styledBox = Core.Rendering.colorize boxColor ("[" ++ checkSymbol ++ "]")
               let styledLabel = Core.Rendering.colorize labelColor model.label
               let focusIndicator = if hasFocus then "► " else "  "
-              
+
               [ focusIndicator ++ styledBox ++ " " ++ styledLabel ]
 
             let toggleCheckbox (component: Core.Types.Component<CheckboxModel>) : Core.Types.Component<CheckboxModel> =
@@ -122,7 +122,7 @@ module Darklang =
 
             let createRadioGroup (options: List<String>) (selectedIndex: Int64) : Core.Types.Component<RadioModel> =
               let model = RadioModel { options = options; selectedIndex = selectedIndex; disabled = false }
-              let maxWidth = 
+              let maxWidth =
                 options
                 |> Stdlib.List.map (fun opt -> Stdlib.String.length opt + 6L)
                 |> Stdlib.List.fold 20L (fun acc len -> if len > acc then len else acc)
@@ -139,18 +139,18 @@ module Darklang =
             let renderRadioGroup (component: Core.Types.Component<RadioModel>) (context: Core.Types.RenderContext) : List<String> =
               let model = component.model
               let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
-              
+
               model.options
               |> Stdlib.List.indexedMap (fun i option ->
                   let isSelected = i == model.selectedIndex
                   let radioSymbol = if isSelected then "●" else "○"
                   let boxColor = if model.disabled then Core.Types.Color.Dark else Core.Types.Color.Primary
                   let labelColor = if model.disabled then Core.Types.Color.Dark else Core.Types.Color.Default
-                  
+
                   let styledRadio = Core.Rendering.colorize boxColor ("(" ++ radioSymbol ++ ")")
                   let styledLabel = Core.Rendering.colorize labelColor option
                   let focusIndicator = if hasFocus && i == model.selectedIndex then "► " else "  "
-                  
+
                   focusIndicator ++ styledRadio ++ " " ++ styledLabel)
 
             let selectRadioOption (component: Core.Types.Component<RadioModel>) (index: Int64) : Core.Types.Component<RadioModel> =
@@ -169,7 +169,7 @@ module Darklang =
 
             let createSelect (options: List<String>) (selectedIndex: Int64) : Core.Types.Component<SelectModel> =
               let model = SelectModel { options = options; selectedIndex = selectedIndex; isOpen = false; disabled = false }
-              let maxWidth = 
+              let maxWidth =
                 options
                 |> Stdlib.List.map Stdlib.String.length
                 |> Stdlib.List.fold 10L (fun acc len -> if len > acc then len else acc)
@@ -186,31 +186,31 @@ module Darklang =
             let renderSelect (component: Core.Types.Component<SelectModel>) (context: Core.Types.RenderContext) : List<String> =
               let model = component.model
               let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
-              
-              let selectedOption = 
+
+              let selectedOption =
                 match Stdlib.List.getAt model.options model.selectedIndex with
                 | Some opt -> opt
                 | None -> ""
-              
+
               let paddedOption = Core.Rendering.padText selectedOption (component.bounds.dimensions.width - 4L) Core.Types.Alignment.Left
               let arrow = if model.isOpen then "▲" else "▼"
               let focusIndicator = if hasFocus then "► " else "  "
-              
+
               let mainLine = focusIndicator ++ "┌" ++ paddedOption ++ " " ++ arrow ++ "┐"
-              
+
               if model.isOpen then
-                let optionLines = 
+                let optionLines =
                   model.options
                   |> Stdlib.List.indexedMap (fun i option ->
                       let isSelected = i == model.selectedIndex
                       let prefix = if isSelected then "►" else " "
-                      let styledOption = 
+                      let styledOption =
                         if isSelected then
                           Core.Rendering.colorize Core.Types.Color.Primary (prefix ++ " " ++ option)
                         else
                           prefix ++ " " ++ option
                       "  │" ++ Core.Rendering.padText styledOption (component.bounds.dimensions.width - 4L) Core.Types.Alignment.Left ++ "│")
-                
+
                 let bottomLine = "  └" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┘"
                 [mainLine]
                 |> Stdlib.List.append optionLines
@@ -229,7 +229,7 @@ module Darklang =
                 disabled: Bool }
 
             let createSlider (label: String) (min: Float) (max: Float) (value: Float) (width: Int64) : Core.Types.Component<SliderModel> =
-              let model = 
+              let model =
                 SliderModel
                   { value = value
                   ; min = min
@@ -250,20 +250,20 @@ module Darklang =
             let renderSlider (component: Core.Types.Component<SliderModel>) (context: Core.Types.RenderContext) : List<String> =
               let model = component.model
               let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
-              
-              let percentage = 
-                (Stdlib.Float.subtract model.value model.min) 
+
+              let percentage =
+                (Stdlib.Float.subtract model.value model.min)
                 |> fun diff -> Stdlib.Float.divide diff (Stdlib.Float.subtract model.max model.min)
-              let filledWidth = 
+              let filledWidth =
                 (Stdlib.Float.multiply (Stdlib.Int64.toFloat model.width) percentage)
                 |> Stdlib.Float.round
               let emptyWidth = Stdlib.Int64.subtract model.width filledWidth
-              
+
               let track = Stdlib.String.repeat "═" filledWidth ++ Stdlib.String.repeat "─" emptyWidth
               let handle = "●"
               let valueText = "Value: " ++ Stdlib.Float.toString model.value
               let focusIndicator = if hasFocus then "► " else "  "
-              
+
               [ focusIndicator ++ model.label ++ " (" ++ valueText ++ ")"
                 focusIndicator ++ "├" ++ track ++ "┤"
                 focusIndicator ++ Stdlib.String.repeat " " filledWidth ++ handle ]
@@ -273,7 +273,7 @@ module Darklang =
               if model.disabled then
                 component
               else
-                let newValue = 
+                let newValue =
                   if direction == "left" then
                     if model.value - model.step >= model.min then model.value - model.step else model.min
                   else if direction == "right" then
@@ -292,7 +292,7 @@ module Darklang =
                 focused: String } // "day", "month", "year", or ""
 
             let createDateField (placeholder: String) : Core.Types.Component<DateFieldModel> =
-              let model = 
+              let model =
                 DateFieldModel
                   { day = 1L
                   ; month = 1L
@@ -312,18 +312,18 @@ module Darklang =
             let renderDateField (component: Core.Types.Component<DateFieldModel>) (context: Core.Types.RenderContext) : List<String> =
               let model = component.model
               let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
-              
+
               let dayStr = if model.day < 10L then "0" ++ Stdlib.Int64.toString model.day else Stdlib.Int64.toString model.day
               let monthStr = if model.month < 10L then "0" ++ Stdlib.Int64.toString model.month else Stdlib.Int64.toString model.month
               let yearStr = Stdlib.Int64.toString model.year
-              
+
               let dayPart = if model.focused == "day" && hasFocus then "[" ++ dayStr ++ "]" else dayStr
               let monthPart = if model.focused == "month" && hasFocus then "[" ++ monthStr ++ "]" else monthStr
               let yearPart = if model.focused == "year" && hasFocus then "[" ++ yearStr ++ "]" else yearStr
-              
+
               let dateValue = dayPart ++ "/" ++ monthPart ++ "/" ++ yearPart
               let focusIndicator = if hasFocus then "► " else "  "
-              
+
               [ focusIndicator ++ model.placeholder
                 focusIndicator ++ "┌──────────────────┐"
                 focusIndicator ++ "│ " ++ Core.Rendering.padText dateValue 16L Core.Types.Alignment.Center ++ " │"
@@ -334,7 +334,7 @@ module Darklang =
               if model.disabled then
                 component
               else
-                let (newDay, newMonth, newYear) = 
+                let (newDay, newMonth, newYear) =
                   if field == "day" then
                     let newDay = if increment then model.day + 1L else model.day - 1L
                     let clampedDay = if newDay > 31L then 1L else if newDay < 1L then 31L else newDay
@@ -349,6 +349,6 @@ module Darklang =
                     (model.day, model.month, clampedYear)
                   else
                     (model.day, model.month, model.year)
-                
+
                 { component with model = { model with day = newDay; month = newMonth; year = newYear; focused = field } }
 

@@ -1,18 +1,18 @@
-module Darklang =
-  module Cli =
-    module Installation =
-      module Version =
-        let execute (state: AppState) (args: List<String>) : AppState =
-          let versionInfo = Helpers.getVersionInfo ()
-          Builtin.printLine versionInfo
-          { state with lastCommand = "version"; output = "version info displayed" }
+module Darklang.Cli.Installation.Version
 
-        let help (state: AppState) : AppState =
-          Builtin.printLine "Usage: version"
-          Builtin.printLine "Display CLI version and installation information."
-          Builtin.printLine ""
-          Builtin.printLine "Shows current version, installation mode, and location."
-          { state with lastCommand = "help version"; output = "version help displayed" }
 
-        let complete (state: AppState) (args: List<String>) : List<String> =
-          Completion.noArgsCompletion state args
+let execute (state: AppState) (args: List<String>) : AppState =
+  let versionInfo = Helpers.getVersionInfo ()
+  Stdlib.printLine versionInfo
+  state
+
+
+let complete (state: AppState) (args: List<String>) : List<String> =
+  []
+
+
+let help (_state: AppState) : Unit =
+  Stdlib.printLine "Usage: version"
+  Stdlib.printLine "Display CLI version and installation information."
+  Stdlib.printLine ""
+  Stdlib.printLine "Shows current version, installation mode, and location."

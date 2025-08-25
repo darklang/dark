@@ -1,5 +1,5 @@
 module Darklang =
-  module CLI =
+  module Cli =
     module Experiments =
       module UICatalog =
         module Components =
@@ -29,13 +29,13 @@ module Darklang =
 
             let renderContainer (component: Core.Types.Component<ContainerModel<'TChild>>) (context: Core.Types.RenderContext) (renderChild: 'TChild -> Core.Types.RenderContext -> List<String>) : List<String> =
               let model = component.model
-              
+
               if model.border then
-                let contentLines = 
+                let contentLines =
                   model.children
                   |> Stdlib.List.map (fun child -> renderChild child context)
                   |> Stdlib.List.flatten
-                
+
                 Core.Rendering.drawBox component.bounds model.title contentLines
               else
                 model.children
@@ -53,7 +53,7 @@ module Darklang =
             let createPanel (title: String) (content: List<String>) (color: Core.Types.Color) : Core.Types.Component<PanelModel> =
               let model = PanelModel { content = content; title = title; color = color; collapsible = false; collapsed = false }
               let contentHeight = if model.collapsed then 1L else Stdlib.List.length content + 2L
-              let maxWidth = 
+              let maxWidth =
                 (Stdlib.List.push content title)
                 |> Stdlib.List.map Stdlib.String.length
                 |> Stdlib.List.fold 20L (fun acc len -> if len > acc then len else acc)
@@ -69,12 +69,12 @@ module Darklang =
             let renderPanel (component: Core.Types.Component<PanelModel>) (context: Core.Types.RenderContext) : List<String> =
               let model = component.model
               let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
-              
+
               let titleColor = if hasFocus then Core.Types.Color.Primary else model.color
               let coloredTitle = Core.Rendering.colorize titleColor model.title
               let collapseIndicator = if model.collapsible then (if model.collapsed then " ▼" else " ▲") else ""
               let fullTitle = coloredTitle ++ collapseIndicator
-              
+
               if model.collapsed then
                 let focusIndicator = if hasFocus then "► " else "  "
                 [ focusIndicator ++ "┌─ " ++ fullTitle ++ " ─┐" ]
@@ -114,7 +114,7 @@ module Darklang =
               let model = component.model
               // Simplified grid rendering - just render items in a vertical list for now
               model.items
-              |> Stdlib.List.indexedMap (fun index item -> 
+              |> Stdlib.List.indexedMap (fun index item ->
                   let renderedItem = renderItem item index context
                   renderedItem)
               |> Stdlib.List.flatten
@@ -140,13 +140,13 @@ module Darklang =
             let renderHStack (component: Core.Types.Component<HStackModel<'TItem>>) (context: Core.Types.RenderContext) (renderItem: 'TItem -> Core.Types.RenderContext -> List<String>) : List<String> =
               let model = component.model
               let itemRenderings = model.items |> Stdlib.List.map (fun item -> renderItem item context)
-              
+
               // Find max height among all items
-              let maxHeight = 
+              let maxHeight =
                 itemRenderings
                 |> Stdlib.List.map Stdlib.List.length
                 |> Stdlib.List.fold 1L (fun acc len -> if len > acc then len else acc)
-              
+
               // Combine items horizontally line by line
               (Stdlib.List.range 0L (maxHeight - 1L))
               |> Stdlib.List.map (fun lineIndex ->
@@ -176,7 +176,7 @@ module Darklang =
             let renderVStack (component: Core.Types.Component<VStackModel<'TItem>>) (context: Core.Types.RenderContext) (renderItem: 'TItem -> Core.Types.RenderContext -> List<String>) : List<String> =
               let model = component.model
               let spacingLines = (Stdlib.List.range 0L (model.spacing - 1L)) |> Stdlib.List.map (fun _ -> "")
-              
+
               model.items
               |> Stdlib.List.map (fun item -> renderItem item context)
               |> Stdlib.List.interpose spacingLines

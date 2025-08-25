@@ -1,5 +1,5 @@
 module Darklang =
-  module CLI =
+  module Cli =
     module Experiments =
       module UICatalog =
         module Components =
@@ -50,18 +50,18 @@ module Darklang =
               let newItems = model.items |> Stdlib.List.append [item]
               let newHeight = if model.showHeader then Stdlib.List.length newItems + 3L else Stdlib.List.length newItems + 2L
               let newBounds = Core.Types.Bounds { position = component.bounds.position; dimensions = Core.Types.Dimensions { width = model.width; height = newHeight } }
-              { component with 
+              { component with
                   model = { model with items = newItems }
                   bounds = newBounds }
 
             let renderPanel (component: Core.Types.Component<PanelModel>) (context: Core.Types.RenderContext) : List<String> =
               let model = component.model
               let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
-              
+
               let topBorder = "┌" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┐"
               let bottomBorder = "└" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┘"
-              
-              let headerLines = 
+
+              let headerLines =
                 if model.showHeader then
                   let styledTitle = Core.Rendering.colorize model.headerColor (Core.Rendering.bold model.title)
                   let paddedTitle = Core.Rendering.padText styledTitle (model.width - 4L) Core.Types.Alignment.Center
@@ -70,8 +70,8 @@ module Darklang =
                   [titleLine; separatorLine]
                 else
                   []
-              
-              let itemLines = 
+
+              let itemLines =
                 model.items
                 |> Stdlib.List.indexedMap (fun i item ->
                     if item.itemType == PanelItemType.Separator then
@@ -79,26 +79,26 @@ module Darklang =
                     else
                       let isSelected = i == model.selectedIndex
                       let isHovered = hasFocus && i == model.selectedIndex
-                      
-                      let prefix = 
+
+                      let prefix =
                         if item.isDisabled then " "
                         else if isSelected then "●"
                         else if isHovered then "►"
                         else " "
-                      
+
                       let icon = if Stdlib.String.isEmpty item.icon then "" else item.icon ++ " "
                       let labelText = icon ++ item.label
-                      
-                      let itemColor = 
+
+                      let itemColor =
                         if item.isDisabled then Core.Types.Color.Dark
                         else if isSelected then Core.Types.Color.Primary
                         else if isHovered then Core.Types.Color.Secondary
                         else Core.Types.Color.Default
-                      
+
                       let styledLabel = Core.Rendering.colorize itemColor labelText
                       let paddedLabel = Core.Rendering.padText (prefix ++ " " ++ styledLabel) (model.width - 4L) Core.Types.Alignment.Left
                       "│ " ++ paddedLabel ++ " │")
-              
+
               [topBorder]
               |> Stdlib.List.append headerLines
               |> Stdlib.List.append itemLines
@@ -129,7 +129,7 @@ module Darklang =
               let model = component.model
               let newHeight = Stdlib.List.length model.items + 2L
               let newBounds = Core.Types.Bounds { position = component.bounds.position; dimensions = Core.Types.Dimensions { width = model.width; height = newHeight } }
-              { component with 
+              { component with
                   model = { model with showHeader = false }
                   bounds = newBounds }
 
@@ -165,55 +165,55 @@ module Darklang =
             let renderTabPanel (component: Core.Types.Component<TabPanelModel>) (context: Core.Types.RenderContext) : List<String> =
               let model = component.model
               let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
-              
+
               match model.tabStyle with
               | Boxed ->
                   let topBorder = "┌" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┐"
                   let bottomBorder = "└" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┘"
-                  
-                  let tabLine = 
-                    let tabTexts = 
+
+                  let tabLine =
+                    let tabTexts =
                       model.tabs
                       |> Stdlib.List.indexedMap (fun i tab ->
                           let isActive = i == model.activeTabIndex
                           let tabColor = if isActive then Core.Types.Color.Primary else Core.Types.Color.Default
                           let styledTab = Core.Rendering.colorize tabColor tab.label
                           if isActive then "[" ++ styledTab ++ "]" else " " ++ styledTab ++ " ")
-                    
+
                     let combinedTabs = Stdlib.String.join tabTexts " "
                     let paddedTabs = Core.Rendering.padText combinedTabs (model.width - 4L) Core.Types.Alignment.Center
                     "│ " ++ paddedTabs ++ " │"
-                  
+
                   [topBorder; tabLine; bottomBorder]
-              
+
               | Toggle ->
-                  let toggleLine = 
-                    let tabTexts = 
+                  let toggleLine =
+                    let tabTexts =
                       model.tabs
                       |> Stdlib.List.indexedMap (fun i tab ->
                           let isActive = i == model.activeTabIndex
                           if isActive then "●" ++ tab.label else "○" ++ tab.label)
-                    
+
                     let combinedTabs = Stdlib.String.join tabTexts " │ "
                     let paddedTabs = Core.Rendering.padText combinedTabs model.width Core.Types.Alignment.Center
                     paddedTabs
-                  
+
                   [toggleLine]
-              
+
               | Pills ->
-                  let pillLine = 
-                    let tabTexts = 
+                  let pillLine =
+                    let tabTexts =
                       model.tabs
                       |> Stdlib.List.indexedMap (fun i tab ->
                           let isActive = i == model.activeTabIndex
                           let tabColor = if isActive then Core.Types.Color.Primary else Core.Types.Color.Secondary
                           let styledTab = Core.Rendering.colorize tabColor tab.label
                           if isActive then "(" ++ styledTab ++ ")" else " " ++ styledTab ++ " ")
-                    
+
                     let combinedTabs = Stdlib.String.join tabTexts "  "
                     let paddedTabs = Core.Rendering.padText combinedTabs model.width Core.Types.Alignment.Center
                     paddedTabs
-                  
+
                   [pillLine]
 
             let setActiveTab (component: Core.Types.Component<TabPanelModel>) (index: Int64) : Core.Types.Component<TabPanelModel> =
@@ -247,24 +247,24 @@ module Darklang =
               let newFilters = model.filters |> Stdlib.List.append [filter]
               let newHeight = Stdlib.List.length newFilters + 3L
               let newBounds = Core.Types.Bounds { position = component.bounds.position; dimensions = Core.Types.Dimensions { width = model.width; height = newHeight } }
-              { component with 
+              { component with
                   model = { model with filters = newFilters }
                   bounds = newBounds }
 
             let renderFilterPanel (component: Core.Types.Component<FilterPanelModel>) (context: Core.Types.RenderContext) : List<String> =
               let model = component.model
-              
+
               let topBorder = "┌" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┐"
               let bottomBorder = "└" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┘"
-              
-              let titleLine = 
+
+              let titleLine =
                 let styledTitle = Core.Rendering.colorize Core.Types.Color.Primary (Core.Rendering.bold model.title)
                 let paddedTitle = Core.Rendering.padText styledTitle (model.width - 4L) Core.Types.Alignment.Left
                 "│ " ++ paddedTitle ++ " │"
-              
+
               let separatorLine = "├" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┤"
-              
-              let filterLines = 
+
+              let filterLines =
                 model.filters
                 |> Stdlib.List.indexedMap (fun i filter ->
                     let isApplied = Stdlib.List.``member`` model.appliedFilters i
@@ -273,7 +273,7 @@ module Darklang =
                     let styledLabel = Core.Rendering.colorize filterColor (checkbox ++ " " ++ filter.label)
                     let paddedLabel = Core.Rendering.padText styledLabel (model.width - 4L) Core.Types.Alignment.Left
                     "│ " ++ paddedLabel ++ " │")
-              
+
               [topBorder; titleLine; separatorLine]
               |> Stdlib.List.append filterLines
               |> Stdlib.List.append [bottomBorder]
@@ -282,7 +282,7 @@ module Darklang =
               let model = component.model
               if index >= 0L && index < Stdlib.List.length model.filters then
                 let isApplied = Stdlib.List.``member`` model.appliedFilters index
-                let newAppliedFilters = 
+                let newAppliedFilters =
                   if isApplied then
                     Stdlib.List.filter model.appliedFilters (fun i -> i != index)
                   else

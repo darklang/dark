@@ -1,0 +1,137 @@
+// LS command - list contents
+// CLEANUP could the impl here just be a `... --depth=1 --plain` call of 'tree'?
+module Darklang.Cli.Packages.Listing
+
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  // match args with
+  // | [] ->
+  //   // No args - list current location
+  //   listCurrentLocation state
+  // | [ pathArg ] ->
+  //   // With args - resolve and list that path
+  //   let currentPath = Packages.Path.locationToPath state.currentLocation
+  //   let path = Utils.resolvePath currentPath pathArg
+  //   listModulePath state path
+  // | _ ->
+  //   // Multiple args, just use current for now
+  //   // CLEANUP error or something?
+  //   listCurrentLocation state
+  state // TODO
+
+
+// // Helper function to list current location (could be module, function, type, constant)
+// let listCurrentLocation (state: AppState) : AppState =
+//   // Use pure function to compute listing output
+//   let output = Commands.computeListingOutput state.currentLocation
+//   Stdlib.printLine output
+//   state
+
+
+// // Helper function to list a module path
+// let listModulePath (state: AppState) (path: PackagePath) : AppState =
+//   // Convert path to Module location and use pure function
+//   let location =
+//     if Stdlib.List.isEmpty path then
+//       PackageLocation.Root
+//     else
+//       PackageLocation.Module path
+
+//   let output = Commands.computeListingOutput location
+//   Stdlib.printLine output
+//   state
+
+
+// // Helper function to show details of a specific entity
+// let listEntityDetails (state: AppState) (entityType: String) (entityName: String) (modulePath: PackagePath) : AppState =
+//   let modulePathStr = if Stdlib.List.isEmpty modulePath then "" else $"/{Packages.Path.formatPath modulePath}"
+//   let fullPath = $"{modulePathStr}.{entityName}"
+
+//   Stdlib.printLine $"{entityType}: {fullPath}"
+//   Stdlib.printLine ""
+
+//   // Search for the specific entity to get its details
+//   let searchQuery = Utils.createSearchQuery modulePath
+//   let searchResults = LanguageTools.PackageManager.Search.search searchQuery
+
+//   match entityType with
+//   | "Function" ->
+//     // Find and display the function
+//     let foundFunction =
+//       searchResults.fns
+//       |> Stdlib.List.findFirst (fun fn ->
+//         let name = LanguageTools.ProgramTypes.PackageFn.nameToString fn.name
+//         let shortName = Utils.extractEntityShortName name
+//         shortName == entityName)
+
+//     match foundFunction with
+//     | Some fn ->
+//       let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageFn fn
+//       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
+//       Stdlib.printLine highlighted
+//       state
+//     | None ->
+//       Stdlib.printLine $"Function '{entityName}' not found in current context."
+//       state
+
+//   | "Type" ->
+//     // Find and display the type
+//     let foundType =
+//       searchResults.types
+//       |> Stdlib.List.findFirst (fun typ ->
+//         let name = LanguageTools.ProgramTypes.PackageType.nameToString typ.name
+//         let shortName = Utils.extractEntityShortName name
+//         shortName == entityName)
+
+//     match foundType with
+//     | Some typ ->
+//       let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageType typ
+//       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
+//       Stdlib.printLine highlighted
+//       state
+//     | None ->
+//       Stdlib.printLine $"Type '{entityName}' not found in current context."
+//       state
+
+//   | "Constant" ->
+//     // Find and display the constant
+//     let foundConstant =
+//       searchResults.constants
+//       |> Stdlib.List.findFirst (fun constant ->
+//         let name = LanguageTools.ProgramTypes.PackageConstant.nameToString constant.name
+//         let shortName = Utils.extractEntityShortName name
+//         shortName == entityName)
+
+//     match foundConstant with
+//     | Some constant ->
+//       let prettyPrinted = Darklang.PrettyPrinter.ProgramTypes.packageConstant constant
+//       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
+//       Stdlib.printLine highlighted
+//       state
+//     | None ->
+//       Stdlib.printLine $"Constant '{entityName}' not found in current context."
+//       state
+
+//   | _ ->
+//     Stdlib.printLine $"Unknown entity type: {entityType}"
+//     state
+
+
+
+let complete (_state: AppState) (_args: List<String>) : List<String> =
+  []
+
+
+let help (_state: AppState) : Unit =
+  [
+    "Usage: ls [path]"
+    "List contents of the current location or specified path."
+    ""
+    "Examples:"
+    "  ls                - List current location"
+    "  ls /              - List root packages"
+    "  ls Darklang       - List Darklang package contents"
+    "  ls ..             - List parent directory"
+    ""
+    "P.S. `tree` is available for seeing more than one level"
+  ] |> Stdlib.printLines

@@ -1,14 +1,15 @@
-module Darklang =
-  module Cli =
-    module Quit =
-      let execute (state: AppState) (_args: List<String>) : AppState =
-        Builtin.printLine (View.formatGoodbye ())
-        { state with isExiting = true; lastCommand = "quit"; output = "goodbye" }
+module Darklang.Cli.Quit
 
-      let help (state: AppState) : AppState =
-        Builtin.printLine "Usage: quit\nExit the CLI immediately.\nNo arguments required."
-        { state with lastCommand = "help quit"; output = "quit help displayed" }
 
-      let complete (state: AppState) (args: List<String>) : List<String> =
-        Completion.noArgsCompletion state args
+let execute (state: AppState) (_args: List<String>) : AppState =
+  Stdlib.printLine "Goodbye!"
+  { state with isExiting = true }
+
+
+let complete (_state: AppState) (_args: List<String>) : List<String> =
+  []
+
+
+let help (state: AppState) : Unit =
+  Stdlib.printLine "Usage: quit\nExit the CLI immediately.\nNo arguments required."
 

@@ -1,16 +1,17 @@
-module Darklang =
-  module Cli =
-    module Clear =
-      let execute (state: AppState) (args: List<String>) : AppState =
-        Builtin.stdoutClear ()
-        { state with lastCommand = "clear"; output = "screen cleared"; needsFullRedraw = true }
+module Darklang.Cli.Clear
 
-      let help (state: AppState) : AppState =
-        Builtin.printLine "Usage: clear"
-        Builtin.printLine "Clear the terminal screen."
-        Builtin.printLine ""
-        Builtin.printLine "Aliases: cls"
-        { state with lastCommand = "help clear"; output = "clear help displayed" }
 
-      let complete (state: AppState) (args: List<String>) : List<String> =
-        Completion.noArgsCompletion state args
+let execute (state: AppState) (args: List<String>) : AppState =
+  Builtin.stdoutClear ()
+  { state with needsFullRedraw = true }
+
+
+let complete (_state: AppState) (_args: List<String>) : List<String> =
+  []
+
+
+let help (state: AppState) : Unit =
+  Stdlib.printLine "Usage: clear"
+  Stdlib.printLine "Clear the terminal screen."
+  Stdlib.printLine ""
+  Stdlib.printLine "Aliases: cls"

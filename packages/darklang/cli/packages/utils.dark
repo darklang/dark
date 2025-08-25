@@ -1,147 +1,147 @@
-module Darklang =
-  module Cli =
-    module Packages =
-      module Utils =
-        // Extract the short name from a fully qualified entity name
-        // e.g., "Darklang.Stdlib.List.head" -> "head"
-        let extractEntityShortName (fullName: String) : String =
-          let parts = Stdlib.String.split fullName "."
-          match Stdlib.List.last parts with
-          | Some lastPart -> lastPart
-          | None -> fullName
+module Darklang.Cli.Packages.Utils
 
-        // Get direct child module names from a list of module paths
-        // Filters to only direct children of the parent path and extracts their names
-        let getDirectChildModuleNames (parentPath: List<String>) (allModulePaths: List<List<String>>) : List<String> =
-          let expectedLength = (Stdlib.List.length parentPath) + 1L
-          allModulePaths
-          |> Stdlib.List.filter (fun path -> Stdlib.List.length path == expectedLength)
-          |> Stdlib.List.filterMap (fun path -> Stdlib.List.last path)
-          |> Stdlib.List.unique
-          |> Stdlib.List.sort
+let foo = "bar"
 
-        // Helper function for counting parent refs recursively
-        let countParentRefsHelper (str: String) (acc: Int64) : (Int64 * String) =
-          if Stdlib.String.startsWith str "../" then
-            countParentRefsHelper (Stdlib.String.dropFirst str 3L) (acc + 1L)
-          else
-            (acc, str)
+// // Extract the short name from a fully qualified entity name
+// // e.g., "Darklang.Stdlib.List.head" -> "head"
+// let extractEntityShortName (fullName: String) : String =
+//   let parts = Stdlib.String.split fullName "."
+//   match Stdlib.List.last parts with
+//   | Some lastPart -> lastPart
+//   | None -> fullName
 
-        // Helper: count parent references ("../") at start of string
-        let countParentRefs (s: String) : (Int64 * String) =
-          countParentRefsHelper s 0L
+// // Get direct child module names from a list of module paths
+// // Filters to only direct children of the parent path and extracts their names
+// let getDirectChildModuleNames (parentPath: List<String>) (allModulePaths: List<List<String>>) : List<String> =
+//   let expectedLength = (Stdlib.List.length parentPath) + 1L
+//   allModulePaths
+//   |> Stdlib.List.filter (fun path -> Stdlib.List.length path == expectedLength)
+//   |> Stdlib.List.filterMap (fun path -> Stdlib.List.last path)
+//   |> Stdlib.List.unique
+//   |> Stdlib.List.sort
 
-        // Helper function for dropping N levels recursively
-        let dropNLevels (p: List<String>) (n: Int64) : List<String> =
-          if n <= 0L then
-            p
-          else
-            dropNLevels (Stdlib.List.dropLast p) (n - 1L)
+// // Helper function for counting parent refs recursively
+// let countParentRefsHelper (str: String) (acc: Int64) : (Int64 * String) =
+//   if Stdlib.String.startsWith str "../" then
+//     countParentRefsHelper (Stdlib.String.dropFirst str 3L) (acc + 1L)
+//   else
+//     (acc, str)
 
-        // Helper: go up N levels in a path
-        let goUpLevels (path: List<String>) (levels: Int64) : List<String> =
-          if levels <= 0L then
-            path
-          else if levels >= Stdlib.List.length path then
-            []
-          else
-            dropNLevels path levels
+// // Helper: count parent references ("../") at start of string
+// let countParentRefs (s: String) : (Int64 * String) =
+//   countParentRefsHelper s 0L
 
-        // Resolve a path argument relative to the current path
-        // Handles all path formats:
-        // - Current: ".", "./"
-        // - Absolute: "/Darklang/Stdlib", "/"
-        // - Relative: "Stdlib/List", "Stdlib.List"
-        // - Parent: "..", "../..", "../Stdlib", "../Stdlib/List"
-        let resolvePath (currentPath: List<String>) (pathArg: String) : List<String> =
-          let trimmed = Stdlib.String.trim pathArg
+// // Helper function for dropping N levels recursively
+// let dropNLevels (p: List<String>) (n: Int64) : List<String> =
+//   if n <= 0L then
+//     p
+//   else
+//     dropNLevels (Stdlib.List.dropLast p) (n - 1L)
 
-          if trimmed == "." || trimmed == "./" then
-            // Current directory
-            currentPath
-          else if trimmed == ".." then
-            // Go back to parent
-            if Stdlib.List.isEmpty currentPath then
-              []
-            else
-              Stdlib.List.dropLast currentPath
-          else if trimmed == "../.." then
-            // Go back two levels
-            goUpLevels currentPath 2L
-          else if trimmed == "/" then
-            // Root
-            []
-          else if Stdlib.String.startsWith trimmed "/" then
-            // Absolute path
-            Path.parsePath trimmed
-          else if Stdlib.String.startsWith trimmed "../" then
-            // Relative path starting with ../
-            let (parentLevels, remainder) = countParentRefs trimmed
-            let basePath = goUpLevels currentPath parentLevels
+// // Helper: go up N levels in a path
+// let goUpLevels (path: List<String>) (levels: Int64) : List<String> =
+//   if levels <= 0L then
+//     path
+//   else if levels >= Stdlib.List.length path then
+//     []
+//   else
+//     dropNLevels path levels
 
-            // Add remainder if any
-            if Stdlib.String.isEmpty remainder then
-              basePath
-            else
-              let relativePath = Path.parsePath remainder
-              Stdlib.List.append basePath relativePath
-          else
-            // Regular relative path - append to current path
-            let relativePath = Path.parsePath trimmed
-            Stdlib.List.append currentPath relativePath
+// // Resolve a path argument relative to the current path
+// // Handles all path formats:
+// // - Current: ".", "./"
+// // - Absolute: "/Darklang/Stdlib", "/"
+// // - Relative: "Stdlib/List", "Stdlib.List"
+// // - Parent: "..", "../..", "../Stdlib", "../Stdlib/List"
+// let resolvePath (currentPath: List<String>) (pathArg: String) : List<String> =
+//   let trimmed = Stdlib.String.trim pathArg
 
-        // Resolve a partial path for completion purposes
-        // Returns (basePath, partialName) tuple
-        // e.g., "Darklang.St" -> (["Darklang"], "St")
-        // e.g., "../St" -> (parentPath, "St")
-        // e.g., "St" -> (currentPath, "St")
-        let resolvePartialPath (currentPath: List<String>) (partial: String) : (List<String> * String) =
-          let trimmed = Stdlib.String.trim partial
+//   if trimmed == "." || trimmed == "./" then
+//     // Current directory
+//     currentPath
+//   else if trimmed == ".." then
+//     // Go back to parent
+//     if Stdlib.List.isEmpty currentPath then
+//       []
+//     else
+//       Stdlib.List.dropLast currentPath
+//   else if trimmed == "../.." then
+//     // Go back two levels
+//     goUpLevels currentPath 2L
+//   else if trimmed == "/" then
+//     // Root
+//     []
+//   else if Stdlib.String.startsWith trimmed "/" then
+//     // Absolute path
+//     Path.parsePath trimmed
+//   else if Stdlib.String.startsWith trimmed "../" then
+//     // Relative path starting with ../
+//     let (parentLevels, remainder) = countParentRefs trimmed
+//     let basePath = goUpLevels currentPath parentLevels
 
-          if Stdlib.String.contains trimmed "." then
-            // Dot notation like "Darklang.Stdlib.Li"
-            let parts = Stdlib.String.split trimmed "."
-            match Stdlib.List.reverse parts with
-            | [] -> (currentPath, "")
-            | [single] -> (currentPath, single)
-            | lastPart :: reversedRest ->
-              let baseParts = Stdlib.List.reverse reversedRest
-              // Check if it starts with "/" for absolute
-              if Stdlib.String.startsWith trimmed "/" then
-                (baseParts, lastPart)
-              else
-                // Relative to current
-                (Stdlib.List.append currentPath baseParts, lastPart)
-          else if Stdlib.String.contains trimmed "/" then
-            // Slash notation, possibly with "../"
-            match Stdlib.String.lastIndexOf trimmed "/" with
-            | Some idx ->
-              let pathPart = Stdlib.String.slice trimmed 0L (idx + 1L)
-              let namePart = Stdlib.String.dropFirst trimmed (idx + 1L)
-              let resolvedPath = resolvePath currentPath pathPart
-              (resolvedPath, namePart)
-            | None -> (currentPath, trimmed)
-          else if Stdlib.String.startsWith trimmed "../" then
-            // Handle "../" prefix without further slashes
-            let (parentLevels, remainder) = countParentRefs trimmed
-            let basePath = goUpLevels currentPath parentLevels
-            (basePath, remainder)
-          else
-            // Simple name, relative to current
-            (currentPath, trimmed)
+//     // Add remainder if any
+//     if Stdlib.String.isEmpty remainder then
+//       basePath
+//     else
+//       let relativePath = Path.parsePath remainder
+//       Stdlib.List.append basePath relativePath
+//   else
+//     // Regular relative path - append to current path
+//     let relativePath = Path.parsePath trimmed
+//     Stdlib.List.append currentPath relativePath
 
-        // Create a unified search query that finds all entities (modules, functions, types, constants)
-        // This is the primary search function - use this for almost everything
-        let createSearchQuery (modulePath: List<String>) : LanguageTools.ProgramTypes.Search.SearchQuery =
-          LanguageTools.ProgramTypes.Search.SearchQuery
-            { currentModule = modulePath
-              text = ""
-              searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
-              entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module
-                              LanguageTools.ProgramTypes.Search.EntityType.Fn
-                              LanguageTools.ProgramTypes.Search.EntityType.Type
-                              LanguageTools.ProgramTypes.Search.EntityType.Constant ] }
+// // Resolve a partial path for completion purposes
+// // Returns (basePath, partialName) tuple
+// // e.g., "Darklang.St" -> (["Darklang"], "St")
+// // e.g., "../St" -> (parentPath, "St")
+// // e.g., "St" -> (currentPath, "St")
+// let resolvePartialPath (currentPath: List<String>) (partial: String) : (List<String> * String) =
+//   let trimmed = Stdlib.String.trim partial
 
-        // Legacy alias - use createSearchQuery instead
-        let createFullSearchQuery (modulePath: List<String>) : LanguageTools.ProgramTypes.Search.SearchQuery =
-          createSearchQuery modulePath
+//   if Stdlib.String.contains trimmed "." then
+//     // Dot notation like "Darklang.Stdlib.Li"
+//     let parts = Stdlib.String.split trimmed "."
+//     match Stdlib.List.reverse parts with
+//     | [] -> (currentPath, "")
+//     | [single] -> (currentPath, single)
+//     | lastPart :: reversedRest ->
+//       let baseParts = Stdlib.List.reverse reversedRest
+//       // Check if it starts with "/" for absolute
+//       if Stdlib.String.startsWith trimmed "/" then
+//         (baseParts, lastPart)
+//       else
+//         // Relative to current
+//         (Stdlib.List.append currentPath baseParts, lastPart)
+//   else if Stdlib.String.contains trimmed "/" then
+//     // Slash notation, possibly with "../"
+//     match Stdlib.String.lastIndexOf trimmed "/" with
+//     | Some idx ->
+//       let pathPart = Stdlib.String.slice trimmed 0L (idx + 1L)
+//       let namePart = Stdlib.String.dropFirst trimmed (idx + 1L)
+//       let resolvedPath = resolvePath currentPath pathPart
+//       (resolvedPath, namePart)
+//     | None -> (currentPath, trimmed)
+//   else if Stdlib.String.startsWith trimmed "../" then
+//     // Handle "../" prefix without further slashes
+//     let (parentLevels, remainder) = countParentRefs trimmed
+//     let basePath = goUpLevels currentPath parentLevels
+//     (basePath, remainder)
+//   else
+//     // Simple name, relative to current
+//     (currentPath, trimmed)
+
+// // Create a unified search query that finds all entities (modules, functions, types, constants)
+// // This is the primary search function - use this for almost everything
+// let createSearchQuery (modulePath: List<String>) : LanguageTools.ProgramTypes.Search.SearchQuery =
+//   LanguageTools.ProgramTypes.Search.SearchQuery
+//     { currentModule = modulePath
+//       text = ""
+//       searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+//       entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Module
+//                       LanguageTools.ProgramTypes.Search.EntityType.Fn
+//                       LanguageTools.ProgramTypes.Search.EntityType.Type
+//                       LanguageTools.ProgramTypes.Search.EntityType.Constant ] }
+
+// // Legacy alias - use createSearchQuery instead
+// let createFullSearchQuery (modulePath: List<String>) : LanguageTools.ProgramTypes.Search.SearchQuery =
+//   createSearchQuery modulePath
