@@ -42,6 +42,13 @@
         }
       }
     ],
+    "grammars": [
+      {
+        "language": "darklang",
+        "scopeName": "source.darklang",
+        "path": "./syntaxes/darklang.tmLanguage.json"
+      }
+    ],
     "configuration": {
       "type": "object",
       "title": "Darklang Extension Config",
