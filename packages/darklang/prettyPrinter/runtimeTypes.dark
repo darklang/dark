@@ -295,7 +295,9 @@ module Darklang =
           | DApplicable (AppLambda _) -> "Lambda"
 
         let makeSpaces (len: Int64) : String =
-          (Stdlib.List.repeat len " ") |> Builtin.unwrap |> Stdlib.String.join ""
+          match Stdlib.List.repeat len " " with
+          | Ok spaces -> spaces |> Stdlib.String.join ""
+          | Error _ -> ""
 
         let withIndent
           (indent: Int64)
