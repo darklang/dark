@@ -91,9 +91,24 @@ export class ServerBackedTreeDataProvider
   implements vscode.TreeDataProvider<Node>
 {
   private _client: LanguageClient;
+  private _onDidChangeTreeData: vscode.EventEmitter<Node | undefined | null | void> = new vscode.EventEmitter<Node | undefined | null | void>();
+  readonly onDidChangeTreeData: vscode.Event<Node | undefined | null | void> = this._onDidChangeTreeData.event;
+  private _isServerReady: boolean = false;
+  private _rootNodesCache: Node[] | null = null;
 
   constructor(client: LanguageClient) {
     this._client = client;
+    
+    // Wait for server to be ready, then refresh the tree
+    this._client.onReady().then(() => {
+      this._isServerReady = true;
+      this._onDidChangeTreeData.fire();
+    });
+  }
+
+  refresh(): void {
+    this._rootNodesCache = null;
+    this._onDidChangeTreeData.fire();
   }
 
   getTreeItem(node: Node): vscode.TreeItem {
@@ -148,15 +163,44 @@ export class ServerBackedTreeDataProvider
   }
 
   async getChildren(node?: Node): Promise<Node[]> {
+    // If requesting root nodes
+    if (!node) {
+      // Return static root nodes immediately, without waiting for server
+      if (!this._rootNodesCache) {
+        this._rootNodesCache = [
+          new Node(
+            "Darklang",
+            "Darklang",
+            "directory",
+            vscode.TreeItemCollapsibleState.Collapsed,
+          ),
+          new Node(
+            "Stachu",
+            "Stachu",
+            "directory",
+            vscode.TreeItemCollapsibleState.Collapsed,
+          ),
+          new Node(
+            "Scripts",
+            "Scripts",
+            "directory",
+            vscode.TreeItemCollapsibleState.Collapsed,
+          ),
+        ];
+      }
+      return this._rootNodesCache;
+    }
+
+    // For child nodes, only fetch if server is ready
+    if (!this._isServerReady) {
+      return [];
+    }
+
     try {
-      const items = node
-        ? await this._client.sendRequest<TreeItemResponse[]>(
-            "darklang/getChildNodes",
-            { nodeId: node.id },
-          )
-        : await this._client.sendRequest<TreeItemResponse[]>(
-            "darklang/getRootNodes",
-          );
+      const items = await this._client.sendRequest<TreeItemResponse[]>(
+        "darklang/getChildNodes",
+        { nodeId: node.id },
+      );
 
       const nodes = items.map(item => this.mapResponseToNode(item));
 

@@ -127,7 +127,11 @@ module Darklang =
               let id = v.name |> ProgramTypes.PackageValue.nameToString
               makeTreeItem id v.name.name TreeItemCollapsibleState.None (Stdlib.Option.Option.Some $"value:{id}"))
 
-          Stdlib.List.flatten [submodules; fnItems; typeItems; valueItems]
+          (Stdlib.List.flatten [submodules; fnItems; typeItems; valueItems])
+          |> Stdlib.List.uniqueBy (fun item ->
+            match item.id with
+            | Some id -> id
+            | None -> "")
 
 
         let handleGetChildNodesRequest

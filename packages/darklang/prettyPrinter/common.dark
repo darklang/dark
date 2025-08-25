@@ -25,6 +25,8 @@ module Darklang =
       |> Stdlib.String.replaceAll "\r" "\\r"
 
     let processRemainder (remainder: String) : String =
-      let rem = $".{remainder}" |> Stdlib.Float.parse
-
-      rem |> Builtin.unwrap |> Stdlib.Float.toString |> Stdlib.String.dropFirst 2L
+      match $".{remainder}" |> Stdlib.Float.parse with
+      | Ok floatValue -> 
+        floatValue |> Stdlib.Float.toString |> Stdlib.String.dropFirst 2L
+      | Error _ -> 
+        remainder

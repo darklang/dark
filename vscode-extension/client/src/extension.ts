@@ -72,20 +72,20 @@ export function activate(context: ExtensionContext) {
   client.registerFeature(new SemanticTokensFeature(client));
   client.trace = Trace.Verbose;
 
-  client
-    .onReady()
-    .then(() => {
-      // TODO: only when initialized...
-      //client.onNotification("initialized", () => {
-      let view = vscode.window.createTreeView(`darklangTreeView`, {
-        treeDataProvider: new ServerBackedTreeDataProvider(client),
-      });
-      context.subscriptions.push(view);
-      //});
+  // Create tree view immediately with static root nodes
+  const treeDataProvider = new ServerBackedTreeDataProvider(client);
+  let view = vscode.window.createTreeView(`darklangTreeView`, {
+    treeDataProvider: treeDataProvider,
+    showCollapseAll: true,
+  });
+  context.subscriptions.push(view);
+
+  // Register refresh command
+  context.subscriptions.push(
+    commands.registerCommand('darklang.refreshTreeView', () => {
+      treeDataProvider.refresh();
     })
-    .catch(e => {
-      console.error(e);
-    });
+  );
 
   client.start();
 

@@ -41,27 +41,24 @@ module Darklang =
           (text: String)
           (cursorPosition: LanguageServerProtocol.Position.Position)
           : String =
-          let currentLine =
-            text
-            |> Stdlib.String.split "\n"
-            |> Stdlib.List.getAt (
-              cursorPosition.line |> Stdlib.Int64.fromUInt64 |> Builtin.unwrap
-            )
-            |> Builtin.unwrap
-
-          let lineToCursor =
-            currentLine
-            |> Stdlib.String.slice
-              0L
-              (cursorPosition.character |> Stdlib.Int64.fromUInt64 |> Builtin.unwrap)
-
-          let wordUnderCursor =
+          let lineNum = cursorPosition.line |> Stdlib.Int64.fromUInt64
+          let charPos = cursorPosition.character |> Stdlib.Int64.fromUInt64
+          
+          match (lineNum, charPos) with
+          | (Some line, Some character) ->
+            let currentLine =
+              text
+              |> Stdlib.String.split "\n"
+              |> Stdlib.List.getAt line
+              |> Stdlib.Option.withDefault ""
+            
+            let lineToCursor = currentLine |> Stdlib.String.slice 0L character
+            
             lineToCursor
             |> Stdlib.String.split " "
             |> Stdlib.List.last
-            |> Builtin.unwrap
-
-          wordUnderCursor
+            |> Stdlib.Option.withDefault ""
+          | _ -> ""
 
 
         /// Check if the position falls within the node's range
@@ -94,8 +91,9 @@ module Darklang =
           (position: LanguageServerProtocol.Position.Position)
           (range: WrittenTypes.Range)
           : Bool =
-          let line = position.line |> Stdlib.Int64.fromUInt64 |> Builtin.unwrap
-          let rangeStartLine = range.start.row
-          let rangeEndLine = range.end_.row
-
-          line >= rangeStartLine && line <= rangeEndLine
+          match position.line |> Stdlib.Int64.fromUInt64 with
+          | Some line ->
+            let rangeStartLine = range.start.row
+            let rangeEndLine = range.end_.row
+            line >= rangeStartLine && line <= rangeEndLine
+          | None -> false

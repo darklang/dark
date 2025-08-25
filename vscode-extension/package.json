@@ -42,6 +42,13 @@
         }
       }
     ],
+    "grammars": [
+      {
+        "language": "darklang",
+        "scopeName": "source.darklang",
+        "path": "./syntaxes/darklang.tmLanguage.json"
+      }
+    ],
     "configuration": {
       "type": "object",
       "title": "Darklang Extension Config",
@@ -83,6 +90,11 @@
         "title": "Run Darklang Script"
       },
       {
+        "command": "darklang.refreshTreeView",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
         "command": "darklang.lookUpToplevel",
         "title": "Darklang: Look Up Package Element"
       },
@@ -104,6 +116,13 @@
 				{
 					"command": "darklang.init",
 					"when": "workbenchState != workspace"
+				}
+			],
+			"view/title": [
+				{
+					"command": "darklang.refreshTreeView",
+					"when": "view == darklangTreeView",
+					"group": "navigation"
 				}
 			],
 			"view/item/context": [
