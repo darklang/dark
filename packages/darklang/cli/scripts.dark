@@ -1,64 +1,183 @@
-module Darklang =
-  module Cli =
-    module Scripts =
-      type Script = {
-        id: String
-        name: String
-        text: String
-      }
+module Darklang.Cli.Scripts
 
-      /// Adds a new script to the database
-      let add (name: String) (text: String): Stdlib.Result.Result<Script, String> =
-        Builtin.cliScriptsAdd name text
+type Script = {
+  id: String
+  name: String
+  text: String
+}
 
-      /// Gets a script by name
-      let get (name: String): Stdlib.Result.Result<Script, String> =
-        match Builtin.cliScriptsGet name with
-        | Some script -> Stdlib.Result.Result.Ok script
-        | None -> Stdlib.Result.Result.Error $"Script '{name}' not found"
+// Scripts command - manage and run stored Dark scripts
+// TODO rename to just execute
+let execute (state: AppState) (args: List<String>) : AppState =
+  match args with
+  | [] ->
+    // CLEANUP defer to 'help' stuff -- consolidate
+    Stdlib.printLine "Scripts commands:"
+    Stdlib.printLine "  scripts list               - List all scripts"
+    Stdlib.printLine "  scripts view <name>        - View script content"
+    Stdlib.printLine "  scripts add <name> <text>  - Add a new script"
+    Stdlib.printLine "  scripts edit <name>        - Show script content"
+    Stdlib.printLine "  scripts edit <name> <text> - Update script with new content"
+    Stdlib.printLine "  scripts delete <name>      - Delete a script"
+    Stdlib.printLine "  scripts run <name>         - Run a script"
+    state
 
-      /// Updates an existing script's text
-      let update (name: String) (text: String): Stdlib.Result.Result<Unit, String> =
-        Builtin.cliScriptsUpdate name text
+  | ["list"] ->
+    let scripts = Builtin.cliScriptsList ()
+    if Stdlib.List.isEmpty scripts then
+      Stdlib.printLine "No scripts found"
+      state
+    else
+      let output =
+        scripts
+        |> Stdlib.List.map (fun s -> $"  {s.name}")
+        |> Stdlib.String.join "\n"
+      Stdlib.printLine $"Scripts:\n{output}"
+      state
 
-      /// Deletes a script by name
-      let delete (name: String): Stdlib.Result.Result<Unit, String> =
-        Builtin.cliScriptsDelete name
+  | ["view"; name] ->
+    match Builtin.cliScriptsGet name with
+    | Some script ->
+      let output = $"Script: {script.name}\n\n{script.text}"
+      Stdlib.printLine output
+      state
+    | None ->
+      let error = $"Script '{name}' not found"
+      Stdlib.printLine $"Error: {error}"
+      state
 
-      /// Lists all scripts
-      let list (): Stdlib.Result.Result<List<Script>, String> =
-        Stdlib.Result.Result.Ok (Builtin.cliScriptsList ())
+  | ["add"] ->
+    Stdlib.printLine "Error: Missing arguments for scripts add"
+    Stdlib.printLine "Usage: scripts add <name> <text>"
+    Stdlib.printLine "Example: scripts add hello 'Stdlib.printLine \"Hello World\"'"
+    state
+
+  | ["add"; _] ->
+    Stdlib.printLine "Error: Missing script text"
+    Stdlib.printLine "Usage: scripts add <name> <text>"
+    Stdlib.printLine "Example: scripts add hello 'Stdlib.printLine \"Hello World\"'"
+    staet
+
+  | "add" :: name :: textParts when Stdlib.Bool.not (Stdlib.List.isEmpty textParts) ->
+    let text = Stdlib.String.join textParts " "
+    match Builtin.cliScriptsAdd name text with
+    | Ok script ->
+      let message = $"Script '{script.name}' added successfully"
+      Stdlib.printLine message
+      state
+    | Error err ->
+      Stdlib.printLine $"Error: {err}"
+      state
+
+  | ["edit"; name] ->
+    match Builtin.cliScriptsGet name with
+    | Some script ->
+      let output = $"Current content of script '{name}':\n{script.text}"
+      Stdlib.printLine output
+      Stdlib.printLine ""
+      Stdlib.printLine "Use 'scripts edit <name> <new_content>' to update the script"
+      state
+    | None ->
+      let error = $"Script '{name}' not found"
+      Stdlib.printLine $"Error: {error}"
+      state
+
+  | "edit" :: name :: textParts when Stdlib.Bool.not (Stdlib.List.isEmpty textParts) ->
+    let text = Stdlib.String.join textParts " "
+    match Builtin.cliScriptsUpdate name text with
+    | Ok () ->
+      let message = $"Script '{name}' updated successfully"
+      Stdlib.printLine message
+      state
+    | Error err ->
+      Stdlib.printLine $"Error: {err}"
+      state
+
+  | ["delete"; name] ->
+    match Builtin.cliScriptsDelete name with
+    | Ok () ->
+      let message = $"Script '{name}' deleted successfully"
+      Stdlib.printLine message
+      state
+    | Error err ->
+      Stdlib.printLine $"Error: {err}"
+      state
+
+  | ["run"; name] ->
+    match Builtin.cliScriptsGet name with
+    | Some script ->
+      let result = Builtin.cliParseAndExecuteScript $"script:{name}" script.text []
+      match result with
+      | Ok exitCode ->
+        let message = $"Script '{name}' executed with exit code: {Stdlib.Int64.toString exitCode}"
+        Stdlib.printLine message
+        state
+      | Error runtimeError ->
+        let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString runtimeError
+        Stdlib.printLine $"Script error: {prettyError}"
+        state
+    | None ->
+      let error = $"Script '{name}' not found"
+      Stdlib.printLine $"Error: {error}"
+      state
+
+  | _ ->
+    Stdlib.printLine "Error: Invalid scripts command. Use 'scripts' to see available commands"
+    state
 
 
-      /// Edit a script interactively or with provided content
-      let edit (name: String) (newContent: Stdlib.Option.Option<String>): Stdlib.Result.Result<String, String> =
-        match newContent with
-        | Some content ->
-          // Update the script with new content
-          match update name content with
-          | Ok () ->
-            Stdlib.Result.Result.Ok $"Script '{name}' updated successfully"
-          | Error err ->
-            Stdlib.Result.Result.Error err
-        | None ->
-          // Interactive edit mode
-          match get name with
-          | Ok script ->
-            // Show current content and prompt for new content
-            Builtin.printLine $"Current content of script '{name}':"
-            Builtin.printLine script.text
-            Builtin.printLine ""
-            Builtin.printLine "Enter new content (or press Enter to keep unchanged):"
 
-            let input = Builtin.stdinReadLine ()
+let complete (state: AppState) (args: List<String>) : List<String> =
+  match args with
+  // if hitting `tab` right after typing `scripts`, recommend subcommands
+  | [] -> ["list"; "view"; "add"; "edit"; "delete"; "run"]
 
-            if Stdlib.String.isEmpty input then
-              Stdlib.Result.Result.Ok "No changes made"
-            else
-              match update name input with
-              | Ok () ->
-                Stdlib.Result.Result.Ok $"Script '{name}' updated successfully"
-              | Error err ->
-                Stdlib.Result.Result.Error err
-          | Error err ->
-            Stdlib.Result.Result.Error err
+  // no completions here
+  | ["list"] | ["add"] -> []
+
+  // we're referencing some specific script - recommend names
+  | ["view"] | ["edit"] | ["delete"] | ["run"] ->
+    // Complete script names
+    let scripts = Builtin.cliScriptsList ()
+    scripts |> Stdlib.List.map (fun s -> s.name)
+
+  | [subcommand] ->
+    // Partial subcommand completion
+    ["list"; "view"; "add"; "edit"; "delete"; "run"]
+    |> Stdlib.List.filter (fun cmd -> Stdlib.String.startsWith cmd subcommand)
+
+  | ["view"; _] | ["delete"; _] | ["run"; _] ->
+    // CLEANUP why are we ignoring them?
+    // We should be recommending based on the names available
+    []
+
+  | ["edit"; scriptName] ->
+    // For edit with script name, could show current content hint but keep simple
+    []
+
+  | "add" :: _ | "edit" :: _ :: _ ->
+    // For add or edit with content, no completion needed
+    []
+
+  | _ -> []
+
+
+let help (state: AppState) : Unit =
+  [
+    "Usage: scripts <command> [args...]"
+    "Store, manage, and run Dark scripts."
+    ""
+    "Commands:"
+    "  scripts list               - List all scripts"
+    "  scripts view <name>        - View script content"
+    "  scripts add <name> <text>  - Add a new script"
+    "  scripts edit <name>        - Show script content"
+    "  scripts edit <name> <text> - Update script with new content"
+    "  scripts delete <name>      - Delete a script"
+    "  scripts run <name>         - Run a script"
+    ""
+    "Examples:"
+    "  scripts add hello 'Stdlib.printLine \"Hello World\"'"
+    "  scripts run hello"
+    "  scripts edit hello 'Stdlib.printLine \"Updated Hello\"'"
+  ] |> Stdlib.printLines

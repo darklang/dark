@@ -1,0 +1,198 @@
+module Darklang.Cli.Packages.Traversal
+
+// Path segment type for navigation
+type PathSegment =
+  | Root           // Go to root (/)
+  | Here           // Stay here (.)
+  | Up             // Go up one level (..)
+  | Into of String // Go into a named entity/module
+
+let parsePath (pathStr: String) : List<PathSegment> =
+  if pathStr == "/" then
+    [PathSegment.Root]
+  else
+    // Split on / first, then handle each part separately
+    let parts =
+      pathStr
+      |> Stdlib.String.split "/"
+      |> Stdlib.List.map (fun part ->
+        // Don't split ".." on dots - it's a special case
+        if part == ".." then
+          [part]
+        else
+          Stdlib.String.split part "."
+      )
+      |> Stdlib.List.flatten
+      |> Stdlib.List.filter (fun p -> Stdlib.Bool.not (Stdlib.String.isEmpty p))
+
+    let segments =
+      parts
+      |> Stdlib.List.map (fun part ->
+        match part with
+        | "." -> PathSegment.Here
+        | ".." -> PathSegment.Up
+        | name -> PathSegment.Into name
+      )
+
+    if Stdlib.String.startsWith pathStr "/" then
+      // Absolute path from root
+      Stdlib.List.append [PathSegment.Root] segments
+    else
+      segments
+
+
+let getCurrentModulePath (location: PackageLocation) : List<String> =
+  match location with
+  | Module path -> path
+  | Type t -> Stdlib.List.append [t.owner] t.modules
+  | Value v -> Stdlib.List.append [v.owner] v.modules
+  | Function f -> Stdlib.List.append [f.owner] f.modules
+
+
+let applySegment (location: PackageLocation) (segment: PathSegment) : Stdlib.Result.Result<PackageLocation, String> =
+  match segment with
+  | Root ->
+    Stdlib.Result.Result.Ok (PackageLocation.Module [])
+
+  | Here ->
+    Stdlib.Result.Result.Ok location
+
+  | Up ->
+    match location with
+    | Module [] ->
+      Stdlib.Result.Result.Error "Already at root - cannot go to parent"
+    | Module modules ->
+      let newModules = Stdlib.List.dropLast modules
+      Stdlib.Result.Result.Ok (PackageLocation.Module newModules)
+    | Type name ->
+      let parentModules = Stdlib.List.append [name.owner] name.modules
+      Stdlib.Result.Result.Ok (PackageLocation.Module parentModules)
+    | Value name ->
+      let parentModules = Stdlib.List.append [name.owner] name.modules
+      Stdlib.Result.Result.Ok (PackageLocation.Module parentModules)
+    | Function name ->
+      let parentModules = Stdlib.List.append [name.owner] name.modules
+      Stdlib.Result.Result.Ok (PackageLocation.Module parentModules)
+
+  | Into name ->
+    let currentPath = getCurrentModulePath location
+    resolveEntity currentPath name
+
+
+// Resolve a name to an actual entity (module, type, fn, or value)
+let resolveEntity (basePath: List<String>) (name: String) : Stdlib.Result.Result<PackageLocation, String> =
+  // First see if it's a module
+  let modulePath = Stdlib.List.append basePath [name]
+  let moduleResults = Search.searchContents modulePath
+
+  let isAModule = Search.hasContent moduleResults
+
+  if isAModule then
+    Stdlib.Result.Result.Ok (PackageLocation.Module modulePath)
+  // Not a module -- check if it's a type/value/fn
+  else
+    let entityResults = Search.searchEntity basePath name
+
+    // Look for exact matches
+    let matchingType = Search.findTypeByName entityResults name
+    let matchingValue = Search.findValueByName entityResults name
+    let matchingFn = Search.findFnByName entityResults name
+
+    match matchingType with
+    | Some t -> Stdlib.Result.Result.Ok (PackageLocation.Type t.name)
+    | None ->
+      match matchingFn with
+      | Some f -> Stdlib.Result.Result.Ok (PackageLocation.Function f.name)
+      | None ->
+        match matchingValue with
+        | Some v -> Stdlib.Result.Result.Ok (PackageLocation.Value v.name)
+        | None -> Stdlib.Result.Result.Error "Not found"
+
+
+let applyPath (start: PackageLocation) (segments: List<PathSegment>) : Stdlib.Result.Result<PackageLocation, String> =
+  segments
+  |> Stdlib.List.fold (Stdlib.Result.Result.Ok start) (fun accResult segment ->
+    match accResult with
+    | Error e -> Stdlib.Result.Result.Error e
+    | Ok loc -> applySegment loc segment
+  )
+
+
+// Get all available names at a location for completion
+let getAvailableNames (location: PackageLocation) (fuzzyText: String) : List<String> =
+  // Performance: Skip search entirely for single-char fuzzy text (too broad)
+  if Stdlib.String.length fuzzyText == 1L then
+    []
+  else
+    let currentPath = getCurrentModulePath location
+    let results = Search.searchFuzzy currentPath fuzzyText
+
+    // Extract module names
+    let currentPathLength = Stdlib.List.length currentPath
+    let moduleNames = Search.getDirectSubmodules results currentPathLength
+
+    // Build result list without intermediate lists
+    // Concatenate directly rather than creating lists of lists
+    let typeNames = results.types |> Stdlib.List.map (fun t -> t.name.name)
+    let fnNames = results.fns |> Stdlib.List.map (fun f -> f.name.name)
+    let valueNames = results.values |> Stdlib.List.map (fun v -> v.name.name)
+
+    // Combine all names efficiently
+    typeNames
+    |> Stdlib.List.append fnNames
+    |> Stdlib.List.append valueNames
+    |> Stdlib.List.append moduleNames
+    |> Stdlib.List.unique
+    |> Stdlib.List.sort
+
+// Simple completion: traverse exact path, then fuzzy search the last part
+let completePartialPath (start: PackageLocation) (partialPath: String) : List<String> =
+  let segments = parsePath partialPath
+
+
+  match Stdlib.List.reverse segments with
+  | [] ->
+    // Empty path - get completions from current location
+    getAvailableNames start ""
+
+  | (Into fuzzyPart) :: exactSegmentsReversed ->
+    // Navigate to exact path, then fuzzy search
+    let exactSegments = Stdlib.List.reverse exactSegmentsReversed
+    match applyPath start exactSegments with
+    | Error _ -> []
+    | Ok contextLocation ->
+      let completionNames = getAvailableNames contextLocation fuzzyPart
+
+      // Build prefix for the completions, preserving the separator style
+      let prefix =
+        if Stdlib.List.isEmpty exactSegments then
+          ""
+        else
+          // Check if original path uses / separator
+          let usesSlash = Stdlib.String.contains partialPath "/"
+          let separator = if usesSlash then "/" else "."
+
+          let pathStr =
+            exactSegments
+            |> Stdlib.List.map (fun segment ->
+              match segment with
+              | Root -> ""
+              | Here -> "."
+              | Up -> ".."
+              | Into name -> name
+            )
+            |> Stdlib.List.filter (fun s -> Stdlib.Bool.not (Stdlib.String.isEmpty s))
+            |> Stdlib.String.join separator
+          pathStr ++ separator
+
+      completionNames |> Stdlib.List.map (fun name -> prefix ++ name)
+
+  | _ ->
+    // Last segment is Root, Here, or Up - no fuzzy completion
+    []
+
+
+// Main traverse function
+let traverse (start: PackageLocation) (path: String) : Stdlib.Result.Result<PackageLocation, String> =
+  let segments = parsePath path
+  applyPath start segments

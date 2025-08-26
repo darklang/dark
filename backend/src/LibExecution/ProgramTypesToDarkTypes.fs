@@ -1412,7 +1412,8 @@ module Search =
           DList(
             VT.known (KTCustomType(EntityType.typeName, [])),
             sq.entityTypes |> List.map EntityType.toDT
-          ) ]
+          )
+          "exactMatch", DBool sq.exactMatch ]
       DRecord(typeName, typeName, [], Map fields)
 
     let fromDT (d : Dval) : PT.Search.SearchQuery =
@@ -1424,7 +1425,8 @@ module Search =
           PT.Search.searchDepth =
             fields |> D.field "searchDepth" |> SearchDepth.fromDT
           PT.Search.entityTypes =
-            fields |> D.field "entityTypes" |> D.list EntityType.fromDT }
+            fields |> D.field "entityTypes" |> D.list EntityType.fromDT
+          PT.Search.exactMatch = fields |> D.field "exactMatch" |> D.bool }
       | _ -> Exception.raiseInternal "Invalid SearchQuery" []
 
   module SearchResults =

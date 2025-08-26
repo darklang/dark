@@ -615,6 +615,9 @@ module Search =
 
       /// empty list implies 'any'
       entityTypes : List<EntityType>
+
+      /// if true, require exact matches for names and modules instead of fuzzy matching
+      exactMatch : bool
     }
 
   /// Results from a package search
@@ -643,17 +646,17 @@ type PackageManager =
     init : Ply<unit> }
 
   static member empty =
-    { findType = (fun _ -> Ply None)
-      findFn = (fun _ -> Ply None)
-      findValue = (fun _ -> Ply None)
+    { findType = fun _ -> Ply None
+      findFn = fun _ -> Ply None
+      findValue = fun _ -> Ply None
 
-      getType = (fun _ -> Ply None)
-      getFn = (fun _ -> Ply None)
-      getValue = (fun _ -> Ply None)
+      getType = fun _ -> Ply None
+      getFn = fun _ -> Ply None
+      getValue = fun _ -> Ply None
 
       search =
-        (fun _ ->
-          uply { return { submodules = []; types = []; values = []; fns = [] } })
+        fun _ ->
+          uply { return { submodules = []; types = []; values = []; fns = [] } }
 
       init = uply { return () } }
 

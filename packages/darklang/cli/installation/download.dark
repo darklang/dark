@@ -1,0 +1,111 @@
+/// Helps to download the latest release of the Darklang CLI,
+/// and replace the current version with it.
+module Darklang.Cli.Installation.Download
+
+
+let basename (url: String) : Stdlib.Result.Result<String, String> =
+  let basename = url |> Stdlib.String.split "/" |> Stdlib.List.last
+
+  match basename with
+  | Some name -> Stdlib.Result.Result.Ok name
+  | None -> Stdlib.Result.Result.Error "Failed to get asset name"
+
+
+// CLEANUP delete old version of the executable,
+//  if/when the new version is working correctly
+let installOrUpdateLatestRelease
+  (host: Stdlib.Cli.Host.Host)
+  : Stdlib.Result.Result<Unit, String> =
+
+  let latestReleaseTag =
+    (Darklang.GitHub.Releases.getLatestReleaseTag ()) |> Builtin.unwrap
+
+  let downloadUrl = // will be something like `darklang-linux-x64.gz`
+    (Darklang.GitHub.Releases.getDownloadUrl host latestReleaseTag)
+    |> Builtin.unwrap
+
+  let assetName = (basename downloadUrl) |> Builtin.unwrap
+
+  match host.os with
+  | Windows ->
+    let darklangHomeDir = Config.getDarklangHomeDir host
+
+    let executableDir = $"{darklangHomeDir}\\bin\\"
+    let configPath = $"{darklangHomeDir}\\config.json"
+
+    let ensureDirectoryExists =
+      Stdlib.Cli.PowerShell.ensureDirectoryExists executableDir
+
+    let downloadTo = $"{executableDir}{assetName}"
+
+    let downloadFileToPath =
+      Stdlib.Cli.Curl.downloadFileToPath downloadUrl downloadTo
+
+    let extractedExecutablePath =
+      if Stdlib.String.endsWith assetName ".gz" then
+        $"{executableDir}{assetName |> Stdlib.String.dropLast 3L}"
+      else
+        // TODO: error here better
+        Stdlib.Result.Result.Error "Asset is not a .gz file"
+
+    (Stdlib.Cli.PowerShell.Gzip.unzipToFile
+      downloadTo
+      extractedExecutablePath)
+    |> Builtin.unwrap
+
+    (Stdlib.Cli.PowerShell.createFile configPath) |> Builtin.unwrap
+
+    (Config.updateVersion configPath latestReleaseTag) |> Builtin.unwrap
+
+    (Stdlib.Cli.PowerShell.removeFile downloadTo) |> Builtin.unwrap
+
+    (Stdlib.Cli.PowerShell.grantExecutePermission extractedExecutablePath)
+    |> Builtin.unwrap
+
+    (Stdlib.Cli.PowerShell.deleteAlias "dark") |> Builtin.unwrap
+
+    (Stdlib.Cli.PowerShell.addAlias "dark" extractedExecutablePath)
+    |> Builtin.unwrap
+
+    Stdlib.Result.Result.Ok()
+
+  | Linux | MacOS ->
+    let configPath = "$HOME/.darklang/config.json"
+    let executableDir = "$HOME/.darklang/bin/"
+
+    (Stdlib.Cli.Unix.ensureDirectoryExists executableDir) |> Builtin.unwrap
+
+    let downloadTo = $"{executableDir}{assetName}"
+
+    (Stdlib.Cli.Curl.downloadFileToPath downloadUrl downloadTo)
+    |> Builtin.unwrap
+
+    // unzip the .gz file
+    let extractedExecutablePath =
+      if Stdlib.String.endsWith assetName ".gz" then
+        $"{executableDir}{assetName |> Stdlib.String.dropLast 3L}"
+      else
+        // TODO: error here better
+        Stdlib.Result.Result.Error "Asset is not a .gz file"
+
+    (Stdlib.Cli.Gunzip.unzipToFile downloadTo extractedExecutablePath)
+    |> Builtin.unwrap
+
+    (Stdlib.Cli.Unix.removeFile downloadTo) |> Builtin.unwrap
+
+    (Stdlib.Cli.Unix.grantExecutePermission extractedExecutablePath)
+    |> Builtin.unwrap
+
+    (Config.updateVersion configPath latestReleaseTag) |> Builtin.unwrap
+
+    (Stdlib.Cli.Unix.deleteAlias host.defaultShell "dark") |> Builtin.unwrap
+
+    (Stdlib.Cli.Unix.addAlias
+      host.defaultShell
+      "dark"
+      extractedExecutablePath)
+    |> Builtin.unwrap
+
+    Stdlib.Result.Result.Ok()
+
+  | _ -> Stdlib.Result.Result.Error "Unsupported OS"

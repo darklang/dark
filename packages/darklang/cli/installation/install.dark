@@ -1,113 +1,58 @@
-module Darklang =
-  module Cli =
-    module Installation =
-      /// Helps to download the latest release of the Darklang CLI,
-      /// and replace the current version with it.
-      module Install =
-        let basename (url: String) : Stdlib.Result.Result<String, String> =
-          let basename = url |> Stdlib.String.split "/" |> Stdlib.List.last
-
-          match basename with
-          | Some name -> Stdlib.Result.Result.Ok name
-          | None -> Stdlib.Result.Result.Error "Failed to get asset name"
+module Darklang.Cli.Installation.Install
 
 
-        // CLEANUP delete old version of the executable,
-        //  if/when the new version is working correctly
-        let installOrUpdateLatestRelease
-          (host: Stdlib.Cli.Host.Host)
-          : Stdlib.Result.Result<Unit, String> =
+let execute (state: AppState) (args: List<String>) : AppState =
+  let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
+  let currentMode = Installation.System.getInstallationMode ()
 
-          let latestReleaseTag =
-            (GitHub.Releases.getLatestReleaseTag ()) |> Builtin.unwrap
+  match currentMode with
+  | Installed ->
+    Stdlib.printLine (View.formatSuccess "Already installed globally")
+    state
+  | Portable ->
+    let currentDir = Builtin.directoryCurrent ()
 
-          let downloadUrl = // will be something like `darklang-linux-x64.gz`
-            (GitHub.Releases.getDownloadUrl host latestReleaseTag)
-            |> Builtin.unwrap
+    if Installation.System.globalInstallationExists host then
+      let homeDir = Config.getDarklangHomeDir host
 
-          let assetName = (basename downloadUrl) |> Builtin.unwrap
+      let message = $"Detected portable mode - you're running from {currentDir}/.darklang\nFound existing global installation at {homeDir}\n\nIf you'd like to update your global installation, please run `dark` rather than this portable executable."
+      Stdlib.printLine (View.formatSuccess message)
+      state
+    else
+      Stdlib.printLine "Choose installation method:"
+      Stdlib.printLine "1. Copy this binary (for testing local changes)"
+      Stdlib.printLine "2. Download latest release from GitHub"
+      Stdlib.printLine "Choose option (1 or 2): "
+      let choice = (Builtin.stdinReadLine ()) |> Stdlib.String.trim
 
-          match host.os with
-          | Windows ->
-            let homeDirectory =
-              (Stdlib.Cli.PowerShell.getHomeDirectory ()) |> Builtin.unwrap
+      if choice == "1" then
+        match Installation.System.installFromCurrentBinary host with
+        | Ok message ->
+          Stdlib.printLine (View.formatSuccess message)
+          state
+        | Error e ->
+          Stdlib.printLine (View.formatError e)
+          state
+      else
+        Stdlib.printLine "Installing globally..."
+        match Installation.System.install host with
+        | Ok message ->
+          Stdlib.printLine (View.formatSuccess message)
+          state
+        | Error e ->
+          Stdlib.printLine (View.formatError e)
+          state
 
-            let executableDir = $"{homeDirectory}\\.darklang\\bin\\"
-            let configPath = $"{homeDirectory}\\.darklang\\config.json"
 
-            let ensureDirectoryExists =
-              Stdlib.Cli.PowerShell.ensureDirectoryExists executableDir
+let complete (_state: AppState) (_args: List<String>) : List<String> =
+  []
 
-            let downloadTo = $"{executableDir}{assetName}"
 
-            let downloadFileToPath =
-              Stdlib.Cli.Curl.downloadFileToPath downloadUrl downloadTo
-
-            let extractedExecutablePath =
-              if Stdlib.String.endsWith assetName ".gz" then
-                $"{executableDir}{assetName |> Stdlib.String.dropLast 3L}"
-              else
-                // TODO: error here better
-                Stdlib.Result.Result.Error "Asset is not a .gz file"
-
-            (Stdlib.Cli.PowerShell.Gzip.unzipToFile
-              downloadTo
-              extractedExecutablePath)
-            |> Builtin.unwrap
-
-            (Stdlib.Cli.PowerShell.createFile configPath) |> Builtin.unwrap
-
-            (Config.updateVersion configPath latestReleaseTag) |> Builtin.unwrap
-
-            (Stdlib.Cli.PowerShell.removeFile downloadTo) |> Builtin.unwrap
-
-            (Stdlib.Cli.PowerShell.grantExecutePermission extractedExecutablePath)
-            |> Builtin.unwrap
-
-            (Stdlib.Cli.PowerShell.deleteAlias "dark") |> Builtin.unwrap
-
-            (Stdlib.Cli.PowerShell.addAlias "dark" extractedExecutablePath)
-            |> Builtin.unwrap
-
-            Stdlib.Result.Result.Ok()
-
-          | Linux | MacOS ->
-            let configPath = "$HOME/.darklang/config.json"
-            let executableDir = "$HOME/.darklang/bin/"
-
-            (Stdlib.Cli.Unix.ensureDirectoryExists executableDir) |> Builtin.unwrap
-
-            let downloadTo = $"{executableDir}{assetName}"
-
-            (Stdlib.Cli.Curl.downloadFileToPath downloadUrl downloadTo)
-            |> Builtin.unwrap
-
-            // unzip the .gz file
-            let extractedExecutablePath =
-              if Stdlib.String.endsWith assetName ".gz" then
-                $"{executableDir}{assetName |> Stdlib.String.dropLast 3L}"
-              else
-                // TODO: error here better
-                Stdlib.Result.Result.Error "Asset is not a .gz file"
-
-            (Stdlib.Cli.Gunzip.unzipToFile downloadTo extractedExecutablePath)
-            |> Builtin.unwrap
-
-            (Stdlib.Cli.Unix.removeFile downloadTo) |> Builtin.unwrap
-
-            (Stdlib.Cli.Unix.grantExecutePermission extractedExecutablePath)
-            |> Builtin.unwrap
-
-            (Config.updateVersion configPath latestReleaseTag) |> Builtin.unwrap
-
-            (Stdlib.Cli.Unix.deleteAlias host.defaultShell "dark") |> Builtin.unwrap
-
-            (Stdlib.Cli.Unix.addAlias
-              host.defaultShell
-              "dark"
-              extractedExecutablePath)
-            |> Builtin.unwrap
-
-            Stdlib.Result.Result.Ok()
-
-          | _ -> Stdlib.Result.Result.Error "Unsupported OS"
+let help (state: AppState) : Unit =
+  [
+    "Usage: install"
+    "Install Darklang CLI globally for system-wide access."
+    ""
+    "This command installs the CLI to ~/.darklang/bin/ and sets up"
+    "shell configuration for global access."
+  ] |> Stdlib.printLines

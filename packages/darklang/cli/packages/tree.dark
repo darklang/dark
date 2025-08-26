@@ -1,0 +1,122 @@
+/// Tree command - display package hierarchy
+module Darklang.Cli.Packages.Tree
+
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  // Parse depth option (default is 2 for better initial view)
+  let maxDepth =
+    match Stdlib.List.findFirst args (fun arg -> Stdlib.String.startsWith arg "--depth=") with
+    | Some depthArg ->
+      let depthStr = Stdlib.String.dropFirst depthArg 8L // Remove "--depth="
+      match Stdlib.Int64.parse depthStr with
+      | Ok depth ->
+        if depth > 0L && depth <= 10L then depth else 2L // Limit to reasonable range
+      | Error _ -> 2L
+    | None -> 2L // Default depth of 2 for concise but useful view
+
+  // Determine starting location
+  let startLocation =
+    let pathArgs = Stdlib.List.filter args (fun arg -> Stdlib.Bool.not (Stdlib.String.startsWith arg "--"))
+    match pathArgs with
+    | [] -> state.packageData.currentLocation
+    | [pathStr] ->
+      match Traversal.traverse state.packageData.currentLocation pathStr with
+      | Ok location -> location
+      | Error _ -> state.packageData.currentLocation
+    | _ -> state.packageData.currentLocation
+
+  // Display tree
+  let locationStr = Packages.formatLocation startLocation
+  Stdlib.printLine $"Package tree from {locationStr}:"
+  Stdlib.printLine ""
+  displayTree startLocation maxDepth 0L ""
+
+  state
+
+
+// Display tree recursively from a given location
+let displayTree (location: PackageLocation) (remainingDepth: Int64) (currentDepth: Int64) (prefix: String) : Unit =
+  if remainingDepth <= 0L then
+    ()
+  else
+    let modulePath = 
+      match location with
+      | Module path -> path
+      | Type t -> Stdlib.List.append [t.owner] t.modules
+      | Value v -> Stdlib.List.append [v.owner] v.modules
+      | Function f -> Stdlib.List.append [f.owner] f.modules
+      
+    // Get all entities in this module
+    let results = Search.searchContents modulePath
+
+    // Get submodules
+    let currentPathLength = Stdlib.List.length modulePath
+    let submoduleNames = Search.getDirectSubmodules results currentPathLength
+
+    // Get entity names
+    let functionNames = results.fns |> Stdlib.List.map (fun f -> f.name.name) |> Stdlib.List.sort
+    let typeNames = results.types |> Stdlib.List.map (fun t -> t.name.name) |> Stdlib.List.sort
+    let valueNames = results.values |> Stdlib.List.map (fun v -> v.name.name) |> Stdlib.List.sort
+
+    // Combine all entities with their types in proper order: modules, types, values, functions
+    let allEntities =
+      let moduleEntities = submoduleNames |> Stdlib.List.map (fun name -> (name, "module")) |> Stdlib.List.sortBy (fun (name, _) -> name)
+      let typeEntities = typeNames |> Stdlib.List.map (fun name -> (name, "type")) |> Stdlib.List.sortBy (fun (name, _) -> name)
+      let valueEntities = valueNames |> Stdlib.List.map (fun name -> (name, "value")) |> Stdlib.List.sortBy (fun (name, _) -> name)
+      let functionEntities = functionNames |> Stdlib.List.map (fun name -> (name, "function")) |> Stdlib.List.sortBy (fun (name, _) -> name)
+      
+      moduleEntities
+      |> Stdlib.List.append typeEntities
+      |> Stdlib.List.append valueEntities
+      |> Stdlib.List.append functionEntities
+
+    // Display entities with appropriate icons
+    let entitiesCount = Stdlib.List.length allEntities
+    allEntities
+    |> Stdlib.List.indexedMap (fun index (name, entityType) ->
+      let isLast = index == (entitiesCount - 1L)
+      let treeBranch = if isLast then "└── " else "├── "
+      let fullPrefix = prefix ++ treeBranch
+
+      let icon = Search.getIcon entityType ++ " "
+
+      Stdlib.printLine $"{fullPrefix}{icon}{name}"
+
+      // Recursively display submodules
+      if entityType == "module" && remainingDepth > 1L then
+        let newPrefix = prefix ++ (if isLast then "    " else "│   ")
+        let newModulePath = Stdlib.List.append modulePath [name]
+        let newLocation = PackageLocation.Module newModulePath
+        displayTree newLocation (remainingDepth - 1L) (currentDepth + 1L) newPrefix
+    )
+    |> Stdlib.List.iter (fun _ -> ())
+
+
+let complete (state: AppState) (args: List<String>) : List<String> =
+  // Filter out depth arguments for path completion
+  let pathArgs = Stdlib.List.filter args (fun arg -> Stdlib.Bool.not (Stdlib.String.startsWith arg "--"))
+  
+  match pathArgs with
+  | [] ->
+    Traversal.completePartialPath state.packageData.currentLocation ""
+  | [partialPath] ->
+    Traversal.completePartialPath state.packageData.currentLocation partialPath
+  | _ -> []
+
+
+let help (state: AppState) : Unit =
+  [
+    "Usage: tree [path] [--depth=N]"
+    "Display package hierarchy in tree format."
+    ""
+    "Options:"
+    "  --depth=N       Set maximum depth (1-10, default: 2)"
+    ""
+    "Examples:"
+    "  tree                         - Show tree with icons, depth 2"
+    "  tree /                       - Show tree from root"
+    "  tree Darklang                - Show Darklang package tree"
+    "  tree --depth=1               - Show only direct children"
+    "  tree --depth=5               - Show deeper tree structure"
+    "  tree Darklang.Stdlib         - Show Stdlib tree"
+  ] |> Stdlib.printLines

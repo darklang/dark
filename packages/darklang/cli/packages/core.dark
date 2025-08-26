@@ -1,0 +1,43 @@
+module Darklang.Cli.Packages
+
+// CLEANUP should largely defer to a Darklang.Packages or Darklang.Matter namespace
+// (less of this in CLI world)
+
+type PackageLocation =
+  | Module of path: List<String>
+  | Type of name: LanguageTools.ProgramTypes.PackageType.Name
+  | Value of name: LanguageTools.ProgramTypes.PackageValue.Name
+  | Function of name: LanguageTools.ProgramTypes.PackageFn.Name
+
+type State =
+  { currentLocation: PackageLocation
+    locationHistory: List<PackageLocation> }
+
+let initState () : State =
+  State
+    { currentLocation = PackageLocation.Module []
+      locationHistory = [] }
+
+
+let formatLocation (location: PackageLocation) : String =
+  match location with
+  | Module path ->
+    if Stdlib.List.isEmpty path then
+      "/ (root)"
+    else
+      $"/{Stdlib.String.join path "."} (module)"
+  | Type name ->
+    [[name.owner]; name.modules; [name.name]]
+    |> Stdlib.List.flatten
+    |> Stdlib.String.join "."
+    |> fun s -> $"/{s} (type)"
+  | Value name ->
+    [[name.owner]; name.modules; [name.name]]
+    |> Stdlib.List.flatten
+    |> Stdlib.String.join "."
+    |> fun s -> $"/{s} (value)"
+  | Function name ->
+    [[name.owner]; name.modules; [name.name]]
+    |> Stdlib.List.flatten
+    |> Stdlib.String.join "."
+    |> fun s -> $"/{s} (fn)"

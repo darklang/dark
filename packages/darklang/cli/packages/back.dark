@@ -1,0 +1,40 @@
+// Navigate 'back' to wherever you were last in the package tree
+module Darklang.Cli.Packages.Back
+
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  match Stdlib.List.last state.packageData.locationHistory with
+  | Some previousLocation ->
+    let pathStr = formatLocation previousLocation
+    Stdlib.printLine (Colors.success ("Back to: " ++ pathStr))
+
+    { state with
+        needsFullRedraw = true
+        packageData =
+          { state.packageData with
+              currentLocation = previousLocation
+              locationHistory = Stdlib.List.dropLast state.packageData.locationHistory
+          }
+    }
+
+  | None ->
+    Stdlib.printLine "No previous location in history"
+    state
+
+
+let complete (_state: AppState) (_args: List<String>) : List<String> =
+  []
+
+
+let help (_state: AppState) : Unit =
+  [
+    "Usage: back"
+    "Navigate back to the previous location in navigation history."
+    ""
+    "Similar to a browser's back button, this undoes your last 'nav' command."
+    "History is built up when you use 'nav' to move between locations."
+    ""
+    "Example:"
+    "  nav /Darklang/Stdlib    (moves to Stdlib, adds current to history)"
+    "  back                    (returns to previous location)"
+  ] |> Stdlib.printLines

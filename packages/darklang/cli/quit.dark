@@ -1,0 +1,18 @@
+module Darklang.Cli.Quit
+
+
+let execute (state: AppState) (_args: List<String>) : AppState =
+  Stdlib.printLine "Goodbye!"
+  { state with isExiting = true }
+
+
+let complete (_state: AppState) (_args: List<String>) : List<String> =
+  []
+
+
+let help (_state: AppState) : Unit =
+  [
+    "Usage: quit"
+    "Exit the CLI immediately."
+  ] |> Stdlib.printLines
+

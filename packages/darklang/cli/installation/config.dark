@@ -1,61 +1,71 @@
-module Darklang =
-  module Cli =
-    module Installation =
-      /// Manages the config.json file which sits in the $HOME/.darklang directory,
-      /// to manage the local installation of the Darklang CLI.
-      module Config =
-        let defaultConfig =
-          Dict
-            { version = "v0.0.0"
-              lastUpdateTimestamp = "0" }
+/// Manages the config.json file which sits in the $HOME/.darklang directory,
+/// to manage the local installation of the Darklang CLI.
+module Darklang.Cli.Installation.Config
 
-        // TODO: typify the error messages
-        let read (configPath: String) : Stdlib.Result.Result<Dict<String>, String> =
-          match Builtin.fileRead configPath with
-          | Ok content ->
-            content
-            |> Stdlib.String.fromBytesWithReplacement
-            |> Builtin.jsonParse<Dict<String>>
-            |> Stdlib.Result.mapError (fun _ -> "Failed to parse config.json")
-          | Error _ -> Stdlib.Result.Result.Error "Failed to read config.json"
+let defaultConfig =
+  Dict
+    { version = "v0.0.0"
+      lastUpdateTimestamp = "0" }
+
+// TODO: typify the error messages
+let read (configPath: String) : Stdlib.Result.Result<Dict<String>, String> =
+  match Builtin.fileRead configPath with
+  | Ok content ->
+    content
+    |> Stdlib.String.fromBytesWithReplacement
+    |> Builtin.jsonParse<Dict<String>>
+    |> Stdlib.Result.mapError (fun _ -> "Failed to parse config.json")
+  | Error _ -> Stdlib.Result.Result.Error "Failed to read config.json"
 
 
-        let updateVersion
-          (configPath: String)
-          (versionToSet: String)
-          : Stdlib.Result.Result<Unit, String> =
-          let currentTimestamp =
-            (Stdlib.DateTime.now ())
-            |> Stdlib.DateTime.toSeconds
-            |> Stdlib.Int64.toString
+let updateVersion
+  (configPath: String)
+  (versionToSet: String)
+  : Stdlib.Result.Result<Unit, String> =
+  let currentTimestamp =
+    (Stdlib.DateTime.now ())
+    |> Stdlib.DateTime.toSeconds
+    |> Stdlib.Int64.toString
 
-          let config =
-            match read configPath with
-            | Error e -> defaultConfig
-            | Ok config -> config
+  let config =
+    match read configPath with
+    | Error e -> defaultConfig
+    | Ok config -> config
 
-          let updatedConfig =
-            config
-            |> Stdlib.Dict.setOverridingDuplicates "version" versionToSet
-            |> Stdlib.Dict.setOverridingDuplicates "lastUpdateTimestamp" currentTimestamp
+  let updatedConfig =
+    config
+    |> Stdlib.Dict.setOverridingDuplicates "version" versionToSet
+    |> Stdlib.Dict.setOverridingDuplicates "lastUpdateTimestamp" currentTimestamp
 
-          let serializedConfig =
-            updatedConfig
-            |> Builtin.jsonSerialize<Dict<String>>
-            |> Stdlib.String.toBytes
+  let serializedConfig =
+    updatedConfig
+    |> Builtin.jsonSerialize<Dict<String>>
+    |> Stdlib.String.toBytes
 
-          match Builtin.fileWrite serializedConfig configPath with
-          | Ok _ -> Stdlib.Result.Result.Ok()
-          | Error err -> Stdlib.Result.Result.Error "Failed to update config.json"
+  match Builtin.fileWrite serializedConfig configPath with
+  | Ok _ -> Stdlib.Result.Result.Ok()
+  | Error err -> Stdlib.Result.Result.Error "Failed to update config.json"
 
 
-        /// Get the version of the locally-installed version, from config.json
-        let readLocallyInstalledDarklangVersion
-          (configPath: String)
-          : Stdlib.Result.Result<String, String> =
-          match read configPath with
-          | Error e -> Stdlib.Result.Result.Error $"Couldn't read config\n{e}"
-          | Ok config ->
-            match (config |> Stdlib.Dict.get "version") with
-            | Some version -> Stdlib.Result.Result.Ok version
-            | None -> Stdlib.Result.Result.Error "Failed to find version key"
+/// Get the version of the locally-installed version, from config.json
+let readLocallyInstalledDarklangVersion
+  (configPath: String)
+  : Stdlib.Result.Result<String, String> =
+  match read configPath with
+  | Error e -> Stdlib.Result.Result.Error $"Couldn't read config\n{e}"
+  | Ok config ->
+    match (config |> Stdlib.Dict.get "version") with
+    | Some version -> Stdlib.Result.Result.Ok version
+    | None -> Stdlib.Result.Result.Error "Failed to find version key"
+
+/// Get the Darklang home directory path based on the OS
+let getDarklangHomeDir (host: Stdlib.Cli.Host.Host) : String =
+  match host.os with
+  | Windows ->
+    match Stdlib.Cli.PowerShell.getHomeDirectory () with
+    | Ok dir -> $"{dir}\\.darklang"
+    | Error _ -> "~\\.darklang"
+  | _ ->
+    match Stdlib.Cli.Unix.getHomeDirectory () with
+    | Ok dir -> $"{dir}/.darklang"
+    | Error _ -> "~/.darklang"

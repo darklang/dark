@@ -1,0 +1,110 @@
+module Darklang.Cli.Packages.Search
+
+/// Search for all contents (modules, types, values, functions) in a given module path
+let searchContents (modulePath: List<String>) : LanguageTools.ProgramTypes.Search.SearchResults =
+  let query =
+    LanguageTools.ProgramTypes.Search.SearchQuery
+      { currentModule = modulePath
+        text = ""
+        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+        entityTypes = []
+        exactMatch = false }
+  LanguageTools.PackageManager.Search.search query
+
+
+/// Search for a specific entity by name in a given module path (exact match)
+let searchEntity (modulePath: List<String>) (entityName: String) : LanguageTools.ProgramTypes.Search.SearchResults =
+  let query =
+    LanguageTools.ProgramTypes.Search.SearchQuery
+      { currentModule = modulePath
+        text = entityName
+        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+        entityTypes = []
+        exactMatch = true }
+  LanguageTools.PackageManager.Search.search query
+
+
+/// Search for entities matching a partial string (fuzzy search for completions)
+let searchFuzzy (modulePath: List<String>) (partialText: String) : LanguageTools.ProgramTypes.Search.SearchResults =
+  let query =
+    LanguageTools.ProgramTypes.Search.SearchQuery
+      { currentModule = modulePath
+        text = partialText
+        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+        entityTypes = []
+        exactMatch = false }
+  LanguageTools.PackageManager.Search.search query
+
+
+/// Find a specific type by name in the search results
+let findTypeByName (results: LanguageTools.ProgramTypes.Search.SearchResults) (name: String) : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageType.PackageType> =
+  results.types |> Stdlib.List.findFirst (fun t -> t.name.name == name)
+
+
+/// Find a specific function by name in the search results
+let findFnByName (results: LanguageTools.ProgramTypes.Search.SearchResults) (name: String) : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageFn.PackageFn> =
+  results.fns |> Stdlib.List.findFirst (fun f -> f.name.name == name)
+
+
+/// Find a specific value by name in the search results
+let findValueByName (results: LanguageTools.ProgramTypes.Search.SearchResults) (name: String) : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageValue.PackageValue> =
+  results.values |> Stdlib.List.findFirst (fun v -> v.name.name == name)
+
+
+/// Check if search results contain any content
+let hasContent (r: LanguageTools.ProgramTypes.Search.SearchResults) : Bool =
+  match r.submodules with
+  | [] ->
+    (r.types != []) ||
+    (r.fns != []) ||
+    (r.values != [])
+
+  | [submodules] ->
+    (submodules) != [] ||
+    (r.types != []) ||
+    (r.fns != []) ||
+    (r.values != [])
+
+  | _ -> true
+
+
+/// Extract direct submodule names from the current module path
+let getDirectSubmodules (results: LanguageTools.ProgramTypes.Search.SearchResults) (currentPathLength: Int64) : List<String> =
+  match results.submodules with
+  | [] -> []
+  | [submodules] ->
+    submodules
+    |> Stdlib.List.filterMap (fun modulePath ->
+      match Stdlib.List.drop modulePath currentPathLength with
+      | [] -> Stdlib.Option.Option.None
+      | nextPart :: _ ->
+        if Stdlib.String.isEmpty nextPart then
+          Stdlib.Option.Option.None
+        else
+          Stdlib.Option.Option.Some nextPart
+    )
+    |> Stdlib.List.unique
+    |> Stdlib.List.sort
+  | _ -> []
+
+
+/// Icon mappings for different entity types
+let getIcon (entityType: String) : String =
+  match entityType with
+  | "module" -> "📁"
+  | "function" -> "⚡"
+  | "type" -> "📐"
+  | "value" -> "💎"
+  | "up" -> "⬆️"
+  | _ -> ""
+
+
+/// Get section header with icon for entity type
+let getSectionHeader (entityType: String) : String =
+  match entityType with
+  | "module" -> "📁 Modules:"
+  | "function" -> "⚡ Functions:"
+  | "type" -> "📐 Types:" 
+  | "value" -> "💎 Values:"
+  | "submodule" -> "📁 Submodules:"
+  | _ -> entityType ++ ":"

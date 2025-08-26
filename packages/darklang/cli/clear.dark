@@ -1,0 +1,17 @@
+module Darklang.Cli.Clear
+
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  Builtin.stdoutClear ()
+  { state with needsFullRedraw = true }
+
+
+let complete (_state: AppState) (_args: List<String>) : List<String> =
+  []
+
+
+let help (_state: AppState) : Unit =
+  [
+    "Usage: clear"
+    "Clear the terminal screen."
+  ] |> Stdlib.printLines

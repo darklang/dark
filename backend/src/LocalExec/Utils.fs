@@ -25,10 +25,7 @@ let inMemPackageManagerFromPackages (p : PT.Packages) : PT.PackageManager =
 
     search =
       fun _ ->
-        uply {
-          return
-            { submodules = [ [] ]; fns = p.fns; types = p.types; values = p.values }
-        }
+        uply { return { submodules = [ [] ]; fns = []; types = []; values = [] } }
 
     init = uply { return () } }
 
