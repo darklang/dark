@@ -1,598 +1,613 @@
-module Darklang =
-  module Stdlib =
-    module List =
-      /// Returns an empty list
-      let empty = []
-
-      /// Returns a one-element list containing the given <param val>
-      let singleton (value: 'a) : List<'a> = [ value ]
+module Darklang.Stdlib.List
 
 
-      /// Returns {{Some}} the head (first value) of a list.
-      /// Returns {{None}} if the list is empty.
-      let head (list: List<'a>) : Stdlib.Option.Option<'a> =
-        match list with
-        | [] -> Stdlib.Option.Option.None
-        | head :: _ -> Stdlib.Option.Option.Some head
+/// Returns an empty list
+let empty = []
+
+/// Returns a one-element list containing the given <param val>
+let singleton (value: 'a) : List<'a> =
+  [ value ]
 
 
-      /// If <param list> contains at least one value, returns {{Some}} with a list of
-      /// every value other than the first. Otherwise, returns {{None}}.
-      let tail (list: List<'a>) : Stdlib.Option.Option<List<'a>> =
-        match list with
-        | [] -> Stdlib.Option.Option.None
-        | _ :: tail -> Stdlib.Option.Option.Some tail
+/// Returns {{Some}} the head (first value) of a list.
+/// Returns {{None}} if the list is empty.
+let head (list: List<'a>) : Option.Option<'a> =
+  match list with
+  | [] -> Option.Option.None
+  | head :: _ -> Option.Option.Some head
 
 
-      /// Add element <param value> to front of <type list> <param list>
-      let push (list: List<'a>) (value: 'a) : List<'a> =
-        Stdlib.List.append_v0 [ value ] list
+/// If <param list> contains at least one value, returns {{Some}} with a list of
+/// every value other than the first. Otherwise, returns {{None}}.
+let tail (list: List<'a>) : Option.Option<List<'a>> =
+  match list with
+  | [] -> Option.Option.None
+  | _ :: tail -> Option.Option.Some tail
 
 
-      /// Add element <param val> to back of <type list> <param list>
-      let pushBack (list: List<'a>) (value: 'a) : List<'a> =
-        Stdlib.List.append_v0 list [ value ]
+/// Returns a new list with all values in <param as> followed by all values in <param bs>,
+/// preserving the order
+let append (as_: List<'a>) (bs: List<'a>) : List<'a> =
+  Builtin.listAppend as_ bs
 
 
-      /// Returns the last value in <param list>, wrapped in an option (<paramNone> if the list is empty)
-      let last (list: List<'a>) : Stdlib.Option.Option<'a> =
-        match list with
-        | [] -> Stdlib.Option.Option.None
-        | head :: tail ->
-          match tail with
-          | [] -> Stdlib.Option.Option.Some head
-          | _ -> Stdlib.List.last tail
+/// Add element <param value> to front of <type list> <param list>
+let push (list: List<'a>) (value: 'a) : List<'a> =
+  append [ value ] list
 
 
-      // Todo: remove the helper function once we have recursive lambdas
-      let reverseHelper (list: List<'a>) (acc: List<'a>) : List<'a> =
-        match list with
-        | [] -> acc
-        | head :: tail -> reverseHelper tail (Stdlib.List.push acc head)
-
-      /// Returns a reversed copy of <param list>
-      let reverse (list: List<'a>) : List<'a> = Stdlib.List.reverseHelper list []
+/// Add element <param val> to back of <type list> <param list>
+let pushBack (list: List<'a>) (value: 'a) : List<'a> =
+  append list [ value ]
 
 
-      /// Returns {{Some firstMatch}} where <var firstMatch> is the first value of the
-      /// list for which <param fn> returns {{true}}. Returns {{None}} if no such
-      /// value exists
-      let findFirst (list: List<'a>) (fn: 'a -> Bool) : Stdlib.Option.Option<'a> =
-        match list with
-        | [] -> Stdlib.Option.Option.None
-        | head :: tail ->
-          if (fn head) then
-            Stdlib.Option.Option.Some head
-          else
-            Stdlib.List.findFirst tail fn
+/// Returns the last value in <param list>, wrapped in an option (<paramNone> if the list is empty)
+let last (list: List<'a>) : Option.Option<'a> =
+  match list with
+  | [] -> Option.Option.None
+  | head :: tail ->
+    match tail with
+    | [] -> Option.Option.Some head
+    | _ -> last tail
 
 
-      /// Returns {{true}} if <param value> is in the list
-      let ``member`` (list: List<'a>) (value: 'a) : Bool =
-        Stdlib.Option.isSome (Stdlib.List.findFirst list (fun elem -> elem == value))
+// Todo: remove the helper function once we have recursive lambdas
+let reverseHelper (list: List<'a>) (acc: List<'a>) : List<'a> =
+  match list with
+  | [] -> acc
+  | head :: tail -> reverseHelper tail (push acc head)
+
+/// Returns a reversed copy of <param list>
+let reverse (list: List<'a>) : List<'a> = reverseHelper list []
 
 
-      // TODO: remove this once we have a way to call lambdas recursively
-      let repeatUnsafe (times: Int64) (value: 'a) : List<'a> =
-        if times <= 0L then
-          []
+/// Returns {{Some firstMatch}} where <var firstMatch> is the first value of the
+/// list for which <param fn> returns {{true}}. Returns {{None}} if no such
+/// value exists
+let findFirst (list: List<'a>) (fn: 'a -> Bool) : Option.Option<'a> =
+  match list with
+  | [] -> Option.Option.None
+  | head :: tail ->
+    if (fn head) then
+      Option.Option.Some head
+    else
+      findFirst tail fn
+
+
+/// Returns {{true}} if <param value> is in the list
+let ``member`` (list: List<'a>) (value: 'a) : Bool =
+  Option.isSome (findFirst list (fun elem -> elem == value))
+
+
+// TODO: remove this once we have a way to call lambdas recursively
+let repeatUnsafe (times: Int64) (value: 'a) : List<'a> =
+  if times <= 0L then
+    []
+  else
+    push (repeatUnsafe (times - 1L) value) value
+
+
+/// Returns a list containing <param val> repeated <param times> times
+let repeat
+  (times: Int64)
+  (value: 'a)
+  : Result.Result<List<'a>, String> =
+  if times < 0L then
+    Result.Result.Error
+      $"Expected `times` to be positive, but it was `{times |> Int64.toString}`"
+  else
+    Result.Result.Ok(repeatUnsafe times value)
+
+
+/// Returns the number of values in <param list>
+let ``length`` (list: List<'a>) : Int64 =
+  Builtin.listLength list
+
+
+/// Returns a list of numbers where each element is {{1}} larger than the
+/// previous. You provide the <param lowest> and <param highest> numbers in the list.
+let range (lowest: Int64) (highest: Int64) : List<Int64> =
+  if lowest > highest then
+    []
+  else
+    push (range (lowest + 1L) highest) lowest
+
+
+/// Folds <param list> into a single value, by repeatedly applying <param fn> to any two pairs.
+let fold (list: List<'a>) (init: 'b) (fn: 'b -> 'a -> 'b) : 'b =
+  match list with
+  | [] -> init
+  | head :: tail ->
+    let init = fn init head
+    fold tail init fn
+
+
+/// Returns a single list containing the values of every list directly in <paramlist>
+/// (does not recursively flatten nested lists)
+let flatten (list: List<List<'a>>) : List<'a> =
+  match list with
+  | [] -> []
+  | head :: tail -> append head (flatten tail)
+
+
+/// Returns a single list containing the values of <param list> separated by <param sep>
+let interpose (list: List<'a>) (sep: 'a) : List<'a> =
+  match list with
+  | [] -> []
+  | [ single ] -> [ single ]
+  | head :: tail ->
+    (interpose tail sep)
+    |> push sep
+    |> push head
+
+
+/// Returns a list with the first value from <param l1> then the first value
+/// from <param l2>, then the second value from <param l1> then the second value
+/// other list.
+let interleave (lA: List<'a>) (lB: List<'a>) : List<'a> =
+  match lA with
+  | [] -> lB
+  | aHead :: aTail ->
+    match lB with
+    | [] -> lA
+    | bHead :: bTail ->
+      (interleave aTail bTail)
+      |> push bHead
+      |> push aHead
+
+
+/// Returns the passed list, with only unique values, where uniqueness is based
+/// on the result of <param fn>. Only one of each value will be returned, but the
+/// order will not be maintained.
+let uniqueBy (list: List<'a>) (fn: 'a -> 'b) : List<'a> =
+  list
+  |> fold ([], []) (fun (unique, seen) value ->
+    let uniqueValue = fn value
+
+    if member_v0 seen uniqueValue then
+      (unique, seen)
+    else
+      (push unique value, push seen uniqueValue))
+  |> fun (uniqueValues, _) -> uniqueValues
+  |> sort
+
+
+/// Returns the passed list, with only unique values.
+/// Only one of each value will be returned, but the
+/// order will not be maintained.
+let unique (list: List<'a>) : List<'a> = Builtin.listUnique list
+
+
+/// Returns true if <param list> has no values
+let isEmpty (list: List<'a>) : Bool = list == []
+
+
+/// Returns a copy of <param list> with every value sorted in ascending order.
+/// Use this if the values have types Dark knows how to sort.
+/// Consider <fn sortBy> or <fn sortByComparator> if you need more
+/// control over the sorting process.
+let sort (list: List<'a>) : List<'a> = Builtin.listSort list
+
+
+/// Returns a copy of <param list>, sorted in ascending order, as if each value
+/// evaluated to {{fn val}}.
+/// For example, {{sortBy [\"x\",\"jkl\",\"ab\"] \\val -> String.length
+/// val}} returns {{[ \"x\", \"ab\", \"jkl\" ]}}.
+/// Consider <fn sort> if the list values can be directly compared, or <fn
+/// sortByComparator> if you want more control over the sorting process.
+let sortBy (list: List<'a>) (fn: 'a -> 'b) : List<'a> =
+  list
+  |> map (fun x -> (fn x, x))
+  |> sort
+  |> map (Tuple2.second)
+
+
+/// Helper functions for sortByComparator
+///
+/// This is a bit much. CLEANUP tidy this up
+module SortByComparatorHelpers =
+  let validate
+    (comparator: 'a -> 'a -> Int64)
+    (x: 'a)
+    (y: 'a)
+    : Result.Result<Int64, String> =
+    let result = comparator x y
+
+    if result == -1L || result == 0L || result == 1L then
+      Result.Result.Ok result
+    else
+      Result.Result.Error
+        $"Expected comparator function to return -1, 0, or 1, but it returned {Int64.toString result}"
+
+  let merge
+    (comparator: 'a -> 'a -> Int64)
+    (left: List<'a>)
+    (right: List<'a>)
+    : Result.Result<List<'a>, String> =
+    match (left, right) with
+    | ([], _) -> Result.Result.Ok right
+    | (_, []) -> Result.Result.Ok left
+    | (x :: xs, y :: ys) ->
+      match validate comparator x y with
+      | Error msg -> Result.Result.Error msg
+      | Ok result ->
+        if result <= 0L then
+          match merge comparator xs right with
+          | Error msg -> Result.Result.Error msg
+          | Ok merged -> Result.Result.Ok(push merged x)
         else
-          Stdlib.List.push (repeatUnsafe (times - 1L) value) value
+          match merge comparator left ys with
+          | Error msg -> Result.Result.Error msg
+          | Ok merged -> Result.Result.Ok(push merged y)
+
+  let splitList (lst: List<'a>) : (List<'a> * List<'a>) =
+    match lst with
+    | [] -> ([], [])
+    | [ x ] -> ([ x ], [])
+    | x :: y :: xs ->
+      let (left, right) = splitList xs
+      (push left x, push right y)
+
+  let mergeSort
+    (comparator: 'a -> 'a -> Int64)
+    (lst: List<'a>)
+    : Result.Result<List<'a>, String> =
+    match lst with
+    | [] -> Result.Result.Ok []
+    | [ x ] -> Result.Result.Ok [ x ]
+    | lst ->
+      let (left, right) = splitList lst
+
+      match mergeSort comparator left with
+      | Error msg -> Result.Result.Error msg
+      | Ok sortedLeft ->
+        match mergeSort comparator right with
+        | Error msg -> Result.Result.Error msg
+        | Ok sortedRight -> merge comparator sortedLeft sortedRight
+
+/// Returns a copy of <param list>, sorted using {{fn a b}} to compare values
+/// <var a> and <var b>.
+/// <param f> must return {{-1}} if <var a> should appear before <var b>, {{1}}
+/// if <var a> should appear after <var b>, and {{0}} if the order of <var a>
+/// and <var b> doesn't matter.
+/// Consider <fn sort> or <fn sortBy> if you don't need this level
+/// of control.
+let sortByComparator
+  (list: List<'a>)
+  (fn: 'a -> 'a -> Int64)
+  : Result.Result<List<'a>, String> =
+  SortByComparatorHelpers.mergeSort fn list
 
 
-      /// Returns a list containing <param val> repeated <param times> times
-      let repeat
-        (times: Int64)
-        (value: 'a)
-        : Stdlib.Result.Result<List<'a>, String> =
-        if times < 0L then
-          Stdlib.Result.Result.Error
-            $"Expected `times` to be positive, but it was `{times |> Stdlib.Int64.toString}`"
+
+
+/// Return {{true}} if all elements in the list meet the function's criteria, else {{false}}
+let all (list: List<'a>) (fn: 'a -> Bool) : Bool =
+  match list with
+  | [] -> true
+  | head :: tail -> if (fn head) then all tail fn else false
+
+
+/// Return {{true}} if any elements in the list meet the function's criteria, else {{false}}
+let any (list: List<'a>) (fn: 'a -> Bool) : Bool =
+  match list with
+  | [] -> true
+  | head :: tail ->
+    if fn head then
+      true
+    else
+      any tail fn
+
+
+// Calls <param f> on every <var val> in <param list>, returning a list of only
+// those values for which {{fn val}} returns {{true}}.
+// Preserves the order of values that were not dropped. Consider <fn
+// filterMap> if you also want to transform the values.
+let filter (list: List<'a>) (f: 'a -> Bool) : List<'a> =
+  (fold list [] (fun acc elem ->
+    if (f elem) then push acc elem else acc))
+  |> reverse
+
+
+// Calls <param fn> on every <var val> in <param list>, returning a list that
+// drops some values (filter) and transforms others (map).
+// If {{fn val}} returns {{None}}, drops <var val> from the list.
+// If {{fn val}} returns {{Some newValue}}, replaces <var val> with <var newValue>.
+// Preserves the order of values that were not dropped.
+// This function combines <fn filter> and <fn map>.
+let filterMap
+  (list: List<'a>)
+  (fn: 'a -> Option.Option<'b>)
+  : List<'b> =
+  match list with
+  | [] -> []
+  | head :: tail ->
+    match (fn head) with
+    | Some newValue ->
+      push (filterMap tail fn) newValue
+    | None -> filterMap tail fn
+
+
+/// Drops the first <param count> values from <param list>
+let drop (list: List<'a>) (count: Int64) : List<'a> =
+  if count <= 0L then
+    list
+  else
+    match list with
+    | [] -> []
+    | _ :: tail -> drop tail (count - 1L)
+
+
+/// Drops the longest prefix of <param list> which satisfies the predicate <param val>
+let dropWhile (list: List<'a>) (fn: 'a -> Bool) : List<'a> =
+  match list with
+  | [] -> []
+  | head :: tail -> if (fn head) then dropWhile tail fn else list
+
+
+/// Drops the last value from <param list>
+let dropLast (list: List<'a>) : List<'a> =
+  match list with
+  | [] -> []
+  | head :: tail ->
+    match tail with
+    | [] -> []
+    | _ -> push (dropLast tail) head
+
+
+/// Drops all but the first <param count> values from <param list>
+let take (list: List<'a>) (count: Int64) : List<'a> =
+  if count <= 0L then
+    []
+  else
+    match list with
+    | [] -> []
+    | head :: tail ->
+      push (take tail (count - 1L)) head
+
+
+/// Return the longest prefix of <param list> which satisfies the predicate <param fn>
+let takeWhile (list: List<'a>) (fn: 'a -> Bool) : List<'a> =
+  match list with
+  | [] -> []
+  | head :: tail ->
+    if (fn head) then
+      push (takeWhile tail fn) head
+    else
+      []
+
+
+// Calls <param fn> on every <var val> in <param list>, returning a list of the
+// results of those calls.
+// Consider <fn filterMap> if you also want to drop some of the values.
+let map (list: List<'a>) (fn: 'a -> 'b) : List<'b> =
+  (fold list [] (fun acc elem -> push acc (fn elem)))
+  |> reverse
+
+
+/// Calls <fn fn> on every <var val> and its <var index> in <param list>,
+/// returning a list of the results of those calls.
+/// Consider <fn map> if you don't need the index.
+let indexedMap (list: List<'a>) (fn: Int64 -> 'a -> 'b) : List<'b> =
+  list
+  |> fold ([], 0L) (fun (acc, index) item ->
+    let mappedItem = fn index item
+    (pushBack acc mappedItem, index + 1L))
+  |> Tuple2.first
+
+
+// Helper function for map2shortest
+let map2shortestHelper
+  (as_: List<'a>)
+  (bs: List<'b>)
+  (fn: 'a -> 'b -> 'c)
+  (result: List<'c>)
+  : List<'c> =
+  match (as_, bs) with
+  | ([], _)
+  | (_, []) -> result
+  | (a :: restA, b :: restB) ->
+    let mappedResult = fn a b
+    let result = pushBack result mappedResult
+    map2shortestHelper restA restB fn result
+
+/// Maps <param fn> over <param as> and <param bs> in parallel, calling {{fn a
+/// b}} on every pair of values from <param as> and <param bs>.
+/// If the lists differ in length, values from the longer list are dropped.
+/// For example, if <param as> is {{[1,2]}} and <param bs> is
+/// {{[\"x\",\"y\",\"z\"]}}, returns {{[(f 1 \"x\"), (f 2 \"y\")]}}
+/// Use <fn map2> if you want to enforce equivalent lengths for <param as>
+/// and <param bs>.
+let map2shortest
+  (as_: List<'a>)
+  (bs: List<'b>)
+  (fn: 'a -> 'b -> 'c)
+  : List<'c> =
+  map2shortestHelper as_ bs fn []
+
+
+/// If the lists are the same length, returns {{Just list}} formed by mapping
+/// <param fn> over <param as> and <param bs> in parallel, calling {{fn a b}} on
+/// every pair of values from <param as> and <param bs>.
+/// For example, if <param as> is {{[1,2,3]}} and <param bs> is
+/// {{[\"x\",\"y\",\"z\"]}}, returns {{[(fn 1 \"x\"), (f 2 \"y\"), (f 3
+/// \"z\")]}}.
+/// If the lists differ in length, returns {{Nothing}} (consider <fn
+/// map2shortest> if you want to drop values from the longer list
+/// instead).
+let map2
+  (as_: List<'a>)
+  (bs: List<'b>)
+  (fn: 'a -> 'b -> 'c)
+  : Option.Option<List<'c>> =
+  if (length as_) != (length bs) then
+    Option.Option.None
+  else
+    Option.Option.Some(map2shortest as_ bs fn)
+
+
+/// Returns a list of parallel pairs from <param as> and <param bs>.
+/// If the lists differ in length, values from the longer list are dropped.
+/// For example, if <param as> is {{[1,2]}} and <param bs> is
+/// {{[\"x\",\"y\",\"z\"]}}, returns {{[(1,\"x\"), (2,\"y\")]}}.
+/// Use <fn zip> if you want to enforce equivalent lengths for <param as>
+/// and <param bs>.
+/// See <fn unzip> if you want to deconstruct the result into <param as>
+/// and <param bs> again.
+let zipShortest (as_: List<'a>) (bs: List<'b>) : List<('a * 'b)> =
+  match as_ with
+  | [] -> []
+  | aHead :: aTail ->
+    match bs with
+    | [] -> []
+    | bHead :: bTail ->
+      push (zipShortest aTail bTail) (aHead, bHead)
+
+
+/// If the lists have the same length, returns {{Some list of tuples}} formed from
+/// parallel pairs in <param l1> and <param l2>.
+/// For example, if <param l1> is {{[1,2,3]}} and <param l2> is
+/// {{[\"x\",\"y\",\"z\"]}}, returns {{[(1,\"x\"), (2,\"y\"), (3,\"z\")]}}.
+/// See <fn unzip> if you want to deconstruct <var list> into <param l1>
+/// and <param l2> again.
+/// If the lists differ in length, returns {{None}} (consider
+/// <fn zipShortest> if you want to drop values from the longer list
+/// instead).
+let zip (l1: List<'a>) (l2: List<'b>) : Option.Option<List<('a * 'b)>> =
+  if (length l1) != (length l2) then
+    Option.Option.None
+  else
+    match l1 with
+    | [] -> Option.Option.Some []
+    | aHead :: aTail ->
+      match l2 with
+      | [] -> Option.Option.Some []
+      | bHead :: bTail ->
+        match zip aTail bTail with
+        | Some zipped ->
+          Option.Option.Some(push zipped (aHead, bHead))
+        | None -> Option.Option.None
+
+
+/// Given a <param pairs> list where each value is a tuple of two values (such
+/// lists are constructed by <fn zip> and <fn zipShortest>), returns
+/// a tuple of two lists, one with every first value, and one with every second
+/// value.
+/// For example, if <fn pairs> is {{[(1,\"x\"), (2,\"y\"), (3,\"z\")]}}, returns
+/// {{([1,2,3], [\"x\",\"y\",\"z\"])}}.
+let unzip (pairs: List<('a * 'b)>) : (List<'a> * List<'b>) =
+  match pairs with
+  | [] -> ([], [])
+  | (a, b) :: tail ->
+    let (firsts, seconds) = unzip tail
+
+    (push firsts a, push seconds b)
+
+
+/// Returns {{Some value}} at <param index> in <param list> if <param index> is
+/// less than the length of the list otherwise returns {{None}}.
+let getAt (list: List<'a>) (index: Int64) : Option.Option<'a> =
+  if index < 0L then
+    Option.Option.None
+  else
+    match list with
+    | [] -> Option.Option.None
+    | head :: tail ->
+      if index == 0L then
+        Option.Option.Some head
+      else
+        getAt tail (index - 1L)
+
+
+/// Returns {{Just <var randomValue>}}, where <var randomValue> is a randomly
+/// selected value in <param list>. Returns {{Nothing}} if <param list> is
+/// empty.
+let randomElement (list: List<'a>) : Option.Option<'a> =
+  Builtin.listRandomElement list
+
+
+/// Groups <param list> into tuples (key, elements), where the key is computed by applying
+/// <param fn> to each element in the list.
+/// For example, if <param list> is {{[1, 2, 3, 4, 5]}} and <param fn>
+/// is {{fn item -> Int64.mod item 2}}, returns {{[(1, [1, 3, 5]), (0, [2, 4])]}}.
+/// Preserves the order of values and of the keys.
+let groupByWithKey (list: List<'a>) (fn: 'a -> 'b) : List<('b * List<'a>)> =
+  list
+  // CLEANUP: improve performance
+  |> fold [] (fun groupCollector element ->
+    let key = fn element
+    let tryFindGroup = findFirst groupCollector (fun (k, _) -> k == key)
+
+    match tryFindGroup with
+    | Some _ ->
+      map groupCollector (fun (k, elements) ->
+        if k == key then
+          (k, pushBack elements element)
         else
-          Stdlib.Result.Result.Ok(Stdlib.List.repeatUnsafe times value)
-
-
-      /// Returns the number of values in <param list>
-      let ``length`` (list: List<'a>) : Int64 = Builtin.listLength_v0 list
-
-
-      /// Returns a list of numbers where each element is {{1}} larger than the
-      /// previous. You provide the <param lowest> and <param highest> numbers in the list.
-      let range (lowest: Int64) (highest: Int64) : List<Int64> =
-        if lowest > highest then
-          []
-        else
-          Stdlib.List.push_v0 (Stdlib.List.range (lowest + 1L) highest) lowest
-
-
-      /// Folds <param list> into a single value, by repeatedly applying <param fn> to any two pairs.
-      let fold (list: List<'a>) (init: 'b) (fn: 'b -> 'a -> 'b) : 'b =
-        match list with
-        | [] -> init
-        | head :: tail ->
-          let init = fn init head
-          Stdlib.List.fold tail init fn
-
-
-      /// Returns a single list containing the values of every list directly in <paramlist>
-      /// (does not recursively flatten nested lists)
-      let flatten (list: List<List<'a>>) : List<'a> =
-        match list with
-        | [] -> []
-        | head :: tail -> Stdlib.List.append_v0 head (Stdlib.List.flatten tail)
-
-
-      /// Returns a single list containing the values of <param list> separated by <param sep>
-      let interpose (list: List<'a>) (sep: 'a) : List<'a> =
-        match list with
-        | [] -> []
-        | [ single ] -> [ single ]
-        | head :: tail ->
-          (Stdlib.List.interpose tail sep)
-          |> Stdlib.List.push_v0 sep
-          |> Stdlib.List.push_v0 head
-
-
-      /// Returns a list with the first value from <param l1> then the first value
-      /// from <param l2>, then the second value from <param l1> then the second value
-      /// other list.
-      let interleave (lA: List<'a>) (lB: List<'a>) : List<'a> =
-        match lA with
-        | [] -> lB
-        | aHead :: aTail ->
-          match lB with
-          | [] -> lA
-          | bHead :: bTail ->
-            (Stdlib.List.interleave aTail bTail)
-            |> Stdlib.List.push_v0 bHead
-            |> Stdlib.List.push_v0 aHead
-
-
-      /// Returns the passed list, with only unique values, where uniqueness is based
-      /// on the result of <param fn>. Only one of each value will be returned, but the
-      /// order will not be maintained.
-      let uniqueBy (list: List<'a>) (fn: 'a -> 'b) : List<'a> =
-        list
-        |> List.fold ([], []) (fun (unique, seen) value ->
-          let uniqueValue = fn value
-
-          if List.member_v0 seen uniqueValue then
-            (unique, seen)
-          else
-            (List.push unique value, List.push seen uniqueValue))
-        |> fun (uniqueValues, _) -> uniqueValues
-        |> List.sort
-
-
-      /// Returns the passed list, with only unique values.
-      /// Only one of each value will be returned, but the
-      /// order will not be maintained.
-      let unique (list: List<'a>) : List<'a> = Builtin.listUnique_v0 list
-
-
-      /// Returns true if <param list> has no values
-      let isEmpty (list: List<'a>) : Bool = list == []
-
-
-      /// Returns a copy of <param list> with every value sorted in ascending order.
-      /// Use this if the values have types Dark knows how to sort.
-      /// Consider <fn List.sortBy> or <fn List.sortByComparator> if you need more
-      /// control over the sorting process.
-      let sort (list: List<'a>) : List<'a> = Builtin.listSort_v0 list
-
-
-      /// Returns a copy of <param list>, sorted in ascending order, as if each value
-      /// evaluated to {{fn val}}.
-      /// For example, {{List.sortBy [\"x\",\"jkl\",\"ab\"] \\val -> String.length
-      /// val}} returns {{[ \"x\", \"ab\", \"jkl\" ]}}.
-      /// Consider <fn List.sort> if the list values can be directly compared, or <fn
-      /// List.sortByComparator> if you want more control over the sorting process.
-      let sortBy (list: List<'a>) (fn: 'a -> 'b) : List<'a> =
-        list
-        |> List.map (fun x -> (fn x, x))
-        |> List.sort
-        |> List.map (Tuple2.second)
-
-
-      /// Helper functions for sortByComparator
-      ///
-      /// This is a bit much. CLEANUP tidy this up
-      module SortByComparatorHelpers =
-        let validate
-          (comparator: 'a -> 'a -> Int64)
-          (x: 'a)
-          (y: 'a)
-          : Result.Result<Int64, String> =
-          let result = comparator x y
-
-          if result == -1L || result == 0L || result == 1L then
-            Result.Result.Ok result
-          else
-            Result.Result.Error
-              $"Expected comparator function to return -1, 0, or 1, but it returned {Int64.toString result}"
-
-        let merge
-          (comparator: 'a -> 'a -> Int64)
-          (left: List<'a>)
-          (right: List<'a>)
-          : Result.Result<List<'a>, String> =
-          match (left, right) with
-          | ([], _) -> Result.Result.Ok right
-          | (_, []) -> Result.Result.Ok left
-          | (x :: xs, y :: ys) ->
-            match validate comparator x y with
-            | Error msg -> Result.Result.Error msg
-            | Ok result ->
-              if result <= 0L then
-                match merge comparator xs right with
-                | Error msg -> Result.Result.Error msg
-                | Ok merged -> Result.Result.Ok(List.push merged x)
-              else
-                match merge comparator left ys with
-                | Error msg -> Result.Result.Error msg
-                | Ok merged -> Result.Result.Ok(List.push merged y)
-
-        let splitList (lst: List<'a>) : (List<'a> * List<'a>) =
-          match lst with
-          | [] -> ([], [])
-          | [ x ] -> ([ x ], [])
-          | x :: y :: xs ->
-            let (left, right) = splitList xs
-            (List.push left x, List.push right y)
-
-        let mergeSort
-          (comparator: 'a -> 'a -> Int64)
-          (lst: List<'a>)
-          : Result.Result<List<'a>, String> =
-          match lst with
-          | [] -> Result.Result.Ok []
-          | [ x ] -> Result.Result.Ok [ x ]
-          | lst ->
-            let (left, right) = splitList lst
-
-            match mergeSort comparator left with
-            | Error msg -> Result.Result.Error msg
-            | Ok sortedLeft ->
-              match mergeSort comparator right with
-              | Error msg -> Result.Result.Error msg
-              | Ok sortedRight -> merge comparator sortedLeft sortedRight
-
-      /// Returns a copy of <param list>, sorted using {{fn a b}} to compare values
-      /// <var a> and <var b>.
-      /// <param f> must return {{-1}} if <var a> should appear before <var b>, {{1}}
-      /// if <var a> should appear after <var b>, and {{0}} if the order of <var a>
-      /// and <var b> doesn't matter.
-      /// Consider <fn List.sort> or <fn List.sortBy> if you don't need this level
-      /// of control.
-      let sortByComparator
-        (list: List<'a>)
-        (fn: 'a -> 'a -> Int64)
-        : Stdlib.Result.Result<List<'a>, String> =
-        SortByComparatorHelpers.mergeSort fn list
-
-
-      /// Returns a new list with all values in <param as> followed by all values in <param bs>,
-      /// preserving the order
-      let append (as_: List<'a>) (bs: List<'a>) : List<'a> =
-        Builtin.listAppend_v0 as_ bs
-
-
-      /// Return {{true}} if all elements in the list meet the function's criteria, else {{false}}
-      let all (list: List<'a>) (fn: 'a -> Bool) : Bool =
-        match list with
-        | [] -> true
-        | head :: tail -> if (fn head) then Stdlib.List.all tail fn else false
-
-
-      // Calls <param f> on every <var val> in <param list>, returning a list of only
-      // those values for which {{fn val}} returns {{true}}.
-      // Preserves the order of values that were not dropped. Consider <fn
-      // List.filterMap> if you also want to transform the values.
-      let filter (list: List<'a>) (f: 'a -> Bool) : List<'a> =
-        (Stdlib.List.fold list [] (fun acc elem ->
-          if (f elem) then Stdlib.List.push_v0 acc elem else acc))
-        |> Stdlib.List.reverse
-
-
-      // Calls <param fn> on every <var val> in <param list>, returning a list that
-      // drops some values (filter) and transforms others (map).
-      // If {{fn val}} returns {{None}}, drops <var val> from the list.
-      // If {{fn val}} returns {{Some newValue}}, replaces <var val> with <var newValue>.
-      // Preserves the order of values that were not dropped.
-      // This function combines <fn List.filter> and <fn List.map>.
-      let filterMap
-        (list: List<'a>)
-        (fn: 'a -> Stdlib.Option.Option<'b>)
-        : List<'b> =
-        match list with
-        | [] -> []
-        | head :: tail ->
-          match (fn head) with
-          | Some newValue ->
-            Stdlib.List.push_v0 (Stdlib.List.filterMap tail fn) newValue
-          | None -> Stdlib.List.filterMap tail fn
-
-
-      /// Drops the first <param count> values from <param list>
-      let drop (list: List<'a>) (count: Int64) : List<'a> =
-        if count <= 0L then
-          list
-        else
-          match list with
-          | [] -> []
-          | _ :: tail -> Stdlib.List.drop tail (count - 1L)
-
-
-      /// Drops the longest prefix of <param list> which satisfies the predicate <param val>
-      let dropWhile (list: List<'a>) (fn: 'a -> Bool) : List<'a> =
-        match list with
-        | [] -> []
-        | head :: tail -> if (fn head) then Stdlib.List.dropWhile tail fn else list
-
-
-      /// Drops the last value from <param list>
-      let dropLast (list: List<'a>) : List<'a> =
-        match list with
-        | [] -> []
-        | head :: tail ->
-          match tail with
-          | [] -> []
-          | _ -> Stdlib.List.push_v0 (Stdlib.List.dropLast tail) head
-
-
-      /// Drops all but the first <param count> values from <param list>
-      let take (list: List<'a>) (count: Int64) : List<'a> =
-        if count <= 0L then
-          []
-        else
-          match list with
-          | [] -> []
-          | head :: tail ->
-            Stdlib.List.push_v0 (Stdlib.List.take tail (count - 1L)) head
-
-
-      /// Return the longest prefix of <param list> which satisfies the predicate <param fn>
-      let takeWhile (list: List<'a>) (fn: 'a -> Bool) : List<'a> =
-        match list with
-        | [] -> []
-        | head :: tail ->
-          if (fn head) then
-            Stdlib.List.push_v0 (Stdlib.List.takeWhile tail fn) head
-          else
-            []
-
-
-      // Calls <param fn> on every <var val> in <param list>, returning a list of the
-      // results of those calls.
-      // Consider <fn List.filterMap> if you also want to drop some of the values.
-      let map (list: List<'a>) (fn: 'a -> 'b) : List<'b> =
-        (Stdlib.List.fold list [] (fun acc elem -> Stdlib.List.push_v0 acc (fn elem)))
-        |> Stdlib.List.reverse
-
-
-      /// Calls <fn fn> on every <var val> and its <var index> in <param list>,
-      /// returning a list of the results of those calls.
-      /// Consider <fn List.map> if you don't need the index.
-      let indexedMap (list: List<'a>) (fn: Int64 -> 'a -> 'b) : List<'b> =
-        list
-        |> List.fold ([], 0L) (fun (acc, index) item ->
-          let mappedItem = fn index item
-          (List.pushBack acc mappedItem, index + 1L))
-        |> Tuple2.first
-
-
-      // Helper function for map2shortest
-      let map2shortestHelper
-        (as_: List<'a>)
-        (bs: List<'b>)
-        (fn: 'a -> 'b -> 'c)
-        (result: List<'c>)
-        : List<'c> =
-        match (as_, bs) with
-        | ([], _)
-        | (_, []) -> result
-        | (a :: restA, b :: restB) ->
-          let mappedResult = fn a b
-          let result = List.pushBack result mappedResult
-          map2shortestHelper restA restB fn result
-
-      /// Maps <param fn> over <param as> and <param bs> in parallel, calling {{fn a
-      /// b}} on every pair of values from <param as> and <param bs>.
-      /// If the lists differ in length, values from the longer list are dropped.
-      /// For example, if <param as> is {{[1,2]}} and <param bs> is
-      /// {{[\"x\",\"y\",\"z\"]}}, returns {{[(f 1 \"x\"), (f 2 \"y\")]}}
-      /// Use <fn List.map2> if you want to enforce equivalent lengths for <param as>
-      /// and <param bs>.
-      let map2shortest
-        (as_: List<'a>)
-        (bs: List<'b>)
-        (fn: 'a -> 'b -> 'c)
-        : List<'c> =
-        map2shortestHelper as_ bs fn []
-
-
-      /// If the lists are the same length, returns {{Just list}} formed by mapping
-      /// <param fn> over <param as> and <param bs> in parallel, calling {{fn a b}} on
-      /// every pair of values from <param as> and <param bs>.
-      /// For example, if <param as> is {{[1,2,3]}} and <param bs> is
-      /// {{[\"x\",\"y\",\"z\"]}}, returns {{[(fn 1 \"x\"), (f 2 \"y\"), (f 3
-      /// \"z\")]}}.
-      /// If the lists differ in length, returns {{Nothing}} (consider <fn
-      /// List.map2shortest> if you want to drop values from the longer list
-      /// instead).
-      let map2
-        (as_: List<'a>)
-        (bs: List<'b>)
-        (fn: 'a -> 'b -> 'c)
-        : Stdlib.Option.Option<List<'c>> =
-        if (List.length as_) != (List.length bs) then
-          Option.Option.None
-        else
-          Option.Option.Some(List.map2shortest as_ bs fn)
-
-
-      /// Returns a list of parallel pairs from <param as> and <param bs>.
-      /// If the lists differ in length, values from the longer list are dropped.
-      /// For example, if <param as> is {{[1,2]}} and <param bs> is
-      /// {{[\"x\",\"y\",\"z\"]}}, returns {{[(1,\"x\"), (2,\"y\")]}}.
-      /// Use <fn List.zip> if you want to enforce equivalent lengths for <param as>
-      /// and <param bs>.
-      /// See <fn List.unzip> if you want to deconstruct the result into <param as>
-      /// and <param bs> again.
-      let zipShortest (as_: List<'a>) (bs: List<'b>) : List<('a * 'b)> =
-        match as_ with
-        | [] -> []
-        | aHead :: aTail ->
-          match bs with
-          | [] -> []
-          | bHead :: bTail ->
-            Stdlib.List.push_v0 (Stdlib.List.zipShortest aTail bTail) (aHead, bHead)
-
-
-      /// If the lists have the same length, returns {{Some list of tuples}} formed from
-      /// parallel pairs in <param l1> and <param l2>.
-      /// For example, if <param l1> is {{[1,2,3]}} and <param l2> is
-      /// {{[\"x\",\"y\",\"z\"]}}, returns {{[(1,\"x\"), (2,\"y\"), (3,\"z\")]}}.
-      /// See <fn List.unzip> if you want to deconstruct <var list> into <param l1>
-      /// and <param l2> again.
-      /// If the lists differ in length, returns {{None}} (consider
-      /// <fn List.zipShortest> if you want to drop values from the longer list
-      /// instead).
-      let zip (l1: List<'a>) (l2: List<'b>) : Stdlib.Option.Option<List<('a * 'b)>> =
-        if (Stdlib.List.length l1) != (Stdlib.List.length l2) then
-          Stdlib.Option.Option.None
-        else
-          match l1 with
-          | [] -> Stdlib.Option.Option.Some []
-          | aHead :: aTail ->
-            match l2 with
-            | [] -> Stdlib.Option.Option.Some []
-            | bHead :: bTail ->
-              match Stdlib.List.zip aTail bTail with
-              | Some zipped ->
-                Stdlib.Option.Option.Some(Stdlib.List.push_v0 zipped (aHead, bHead))
-              | None -> Stdlib.Option.Option.None
-
-
-      /// Given a <param pairs> list where each value is a tuple of two values (such
-      /// lists are constructed by <fn List.zip> and <fn List.zipShortest>), returns
-      /// a tuple of two lists, one with every first value, and one with every second
-      /// value.
-      /// For example, if <fn pairs> is {{[(1,\"x\"), (2,\"y\"), (3,\"z\")]}}, returns
-      /// {{([1,2,3], [\"x\",\"y\",\"z\"])}}.
-      let unzip (pairs: List<('a * 'b)>) : (List<'a> * List<'b>) =
-        match pairs with
-        | [] -> ([], [])
-        | (a, b) :: tail ->
-          let (firsts, seconds) = Stdlib.List.unzip tail
-
-          (Stdlib.List.push_v0 firsts a, Stdlib.List.push_v0 seconds b)
-
-
-      /// Returns {{Some value}} at <param index> in <param list> if <param index> is
-      /// less than the length of the list otherwise returns {{None}}.
-      let getAt (list: List<'a>) (index: Int64) : Stdlib.Option.Option<'a> =
-        if index < 0L then
-          Stdlib.Option.Option.None
-        else
-          match list with
-          | [] -> Stdlib.Option.Option.None
-          | head :: tail ->
-            if index == 0L then
-              Stdlib.Option.Option.Some head
-            else
-              Stdlib.List.getAt tail (index - 1L)
-
-
-      /// Returns {{Just <var randomValue>}}, where <var randomValue> is a randomly
-      /// selected value in <param list>. Returns {{Nothing}} if <param list> is
-      /// empty.
-      let randomElement (list: List<'a>) : Stdlib.Option.Option<'a> =
-        Builtin.listRandomElement_v0 list
-
-
-      /// Groups <param list> into tuples (key, elements), where the key is computed by applying
-      /// <param fn> to each element in the list.
-      /// For example, if <param list> is {{[1, 2, 3, 4, 5]}} and <param fn>
-      /// is {{fn item -> Int64.mod_v0 item 2}}, returns {{[(1, [1, 3, 5]), (0, [2, 4])]}}.
-      /// Preserves the order of values and of the keys.
-      let groupByWithKey (list: List<'a>) (fn: 'a -> 'b) : List<('b * List<'a>)> =
-        list
-        // CLEANUP: improve performance
-        |> List.fold [] (fun groupCollector element ->
-          let key = fn element
-          let tryFindGroup = List.findFirst groupCollector (fun (k, _) -> k == key)
-
-          match tryFindGroup with
-          | Some _ ->
-            List.map groupCollector (fun (k, elements) ->
-              if k == key then
-                (k, List.pushBack elements element)
-              else
-                (k, elements))
-          | None -> List.pushBack groupCollector (key, [ element ]))
-
-
-      /// Calls <param f> on every <var val> in <param list>, splitting the list into
-      /// two - those values for which {{fn val}} returns {{true}}, and those that
-      /// return {{false}}
-      let partition (ls: List<'a>) (f: 'a -> Bool) : (List<'a> * List<'a>) =
-        match ls with
-        | [] -> ([], [])
-        | head :: tail ->
-          let (trueList, falseList) = Stdlib.List.partition tail f
-
-          if (f head) then
-            (Stdlib.List.push_v0 trueList head, falseList)
-          else
-            (trueList, Stdlib.List.push_v0 falseList head)
-
-
-      /// Applies the given function <param fn> to each element of the <param list>.
-      let iter (list: List<'a>) (f: 'a -> Unit) : Unit =
-        match list with
-        | [] -> ()
-        | head :: tail ->
-          f head
-          Stdlib.List.iter tail f
-
-
-      /// Helper function for chunkBySize. Recursively divides a list into chunks of a given size.
-      let chunkBySizeHelper
-        (size: Int64)
-        (currentList: List<'a>)
-        (accum: List<List<'a>>)
-        : List<List<'a>> =
-        match currentList with
-        | [] -> Stdlib.List.reverse accum
-        | _ ->
-          let taken = Stdlib.List.take currentList size
-          let rest = Stdlib.List.drop currentList size
-
-          let newAccum =
-            if Stdlib.List.isEmpty taken then
-              accum
-            else
-              Stdlib.List.push accum taken
-
-          chunkBySizeHelper size rest newAccum
-
-      type ChunkBySizeError = | SizeMustBeGreaterThanZero
-
-      /// Chunks <param list> into sublists of specified maximum <param size>.
-      /// If <param size> is less than or equal to zero, returns an error
-      let chunkBySize
-        (list: List<'a>)
-        (size: Int64)
-        : Stdlib.Result.Result<List<List<'a>>, ChunkBySizeError> =
-        if size <= 0L then
-          Stdlib.Result.Result.Error
-            Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero
-        else
-          Stdlib.Result.Result.Ok(Stdlib.List.chunkBySizeHelper size list [])
-
-
-      let splitLast (l: List<'a>) : Stdlib.Option.Option<(List<'a> * 'a)> =
-        match reverse l with
-        | [] -> Stdlib.Option.Option.None
-        | head :: tail -> Stdlib.Option.Option.Some((reverse tail, head))
+          (k, elements))
+    | None -> pushBack groupCollector (key, [ element ]))
+
+
+/// Calls <param f> on every <var val> in <param list>, splitting the list into
+/// two - those values for which {{fn val}} returns {{true}}, and those that
+/// return {{false}}
+let partition (ls: List<'a>) (f: 'a -> Bool) : (List<'a> * List<'a>) =
+  match ls with
+  | [] -> ([], [])
+  | head :: tail ->
+    let (trueList, falseList) = partition tail f
+
+    if (f head) then
+      (push trueList head, falseList)
+    else
+      (trueList, push falseList head)
+
+
+/// Applies the given function <param fn> to each element of the <param list>.
+let iter (list: List<'a>) (f: 'a -> Unit) : Unit =
+  match list with
+  | [] -> ()
+  | head :: tail ->
+    f head
+    iter tail f
+
+
+/// Helper function for chunkBySize. Recursively divides a list into chunks of a given size.
+let chunkBySizeHelper
+  (size: Int64)
+  (currentList: List<'a>)
+  (accum: List<List<'a>>)
+  : List<List<'a>> =
+  match currentList with
+  | [] -> reverse accum
+  | _ ->
+    let taken = take currentList size
+    let rest = drop currentList size
+
+    let newAccum =
+      if isEmpty taken then
+        accum
+      else
+        push accum taken
+
+    chunkBySizeHelper size rest newAccum
+
+type ChunkBySizeError = | SizeMustBeGreaterThanZero
+
+/// Chunks <param list> into sublists of specified maximum <param size>.
+/// If <param size> is less than or equal to zero, returns an error
+let chunkBySize
+  (list: List<'a>)
+  (size: Int64)
+  : Result.Result<List<List<'a>>, ChunkBySizeError> =
+  if size <= 0L then
+    Result.Result.Error
+      ChunkBySizeError.SizeMustBeGreaterThanZero
+  else
+    Result.Result.Ok(chunkBySizeHelper size list [])
+
+
+let splitLast (l: List<'a>) : Option.Option<(List<'a> * 'a)> =
+  match reverse l with
+  | [] -> Option.Option.None
+  | head :: tail -> Option.Option.Some((reverse tail, head))
