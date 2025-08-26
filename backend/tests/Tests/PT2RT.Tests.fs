@@ -1625,6 +1625,7 @@ module PackageFn =
     testTask name {
       let fn : PT.PackageFn.PackageFn =
         { id = guuid ()
+          hash = PT.Hash "test-hash" // TODO: generate real hash
           name = { owner = "Test"; modules = []; name = fnName }
           body = expr
           typeParams = typeParams

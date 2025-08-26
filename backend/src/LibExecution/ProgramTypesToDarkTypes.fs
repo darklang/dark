@@ -1200,8 +1200,10 @@ module PackageType =
       PackageIDs.Type.LanguageTools.ProgramTypes.PackageType.packageType
 
   let toDT (p : PT.PackageType.PackageType) : Dval =
+    let (PT.Hash hashStr) = p.hash
     let fields =
       [ "id", DUuid p.id
+        "hash", DString hashStr
         "name", Name.toDT p.name
         "declaration", TypeDeclaration.toDT p.declaration
         "description", DString p.description
@@ -1214,6 +1216,7 @@ module PackageType =
     match d with
     | DRecord(_, _, _, fields) ->
       { id = fields |> D.field "id" |> D.uuid
+        hash = PT.Hash(fields |> D.field "hash" |> D.string)
         name = fields |> D.field "name" |> Name.fromDT
         declaration = fields |> D.field "declaration" |> TypeDeclaration.fromDT
         description = fields |> D.field "description" |> D.string
@@ -1249,8 +1252,10 @@ module PackageValue =
       PackageIDs.Type.LanguageTools.ProgramTypes.PackageValue.packageValue
 
   let toDT (p : PT.PackageValue.PackageValue) : Dval =
+    let (PT.Hash hashStr) = p.hash
     let fields =
       [ "id", DUuid p.id
+        "hash", DString hashStr
         "name", Name.toDT p.name
         "body", Expr.toDT p.body
         "description", DString p.description
@@ -1262,6 +1267,7 @@ module PackageValue =
     match d with
     | DRecord(_, _, _, fields) ->
       { id = fields |> D.field "id" |> D.uuid
+        hash = PT.Hash(fields |> D.field "hash" |> D.string)
         name = fields |> D.field "name" |> Name.fromDT
         body = fields |> D.field "body" |> Expr.fromDT
         description = fields |> D.field "description" |> D.string
@@ -1320,8 +1326,10 @@ module PackageFn =
       PackageIDs.Type.LanguageTools.ProgramTypes.PackageFn.packageFn
 
   let toDT (p : PT.PackageFn.PackageFn) : Dval =
+    let (PT.Hash hashStr) = p.hash
     let fields =
       [ ("id", DUuid p.id)
+        ("hash", DString hashStr)
         ("name", Name.toDT p.name)
         ("body", Expr.toDT p.body)
         ("typeParams", DList(VT.string, List.map DString p.typeParams))
@@ -1341,6 +1349,7 @@ module PackageFn =
     match d with
     | DRecord(_, _, _, fields) ->
       { id = fields |> D.field "id" |> D.uuid
+        hash = PT.Hash(fields |> D.field "hash" |> D.string)
         name = fields |> D.field "name" |> Name.fromDT
         body = fields |> D.field "body" |> Expr.fromDT
         typeParams = fields |> D.field "typeParams" |> D.list D.string

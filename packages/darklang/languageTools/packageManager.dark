@@ -13,6 +13,14 @@ module Darklang =
           (id: Uuid)
           : Stdlib.Option.Option<ProgramTypes.PackageType.PackageType> =
           Builtin.packageManagerGetType id
+          
+        let findByHash (hash: ProgramTypes.Hash) : Stdlib.Option.Option<Uuid> =
+          Builtin.packageManagerFindTypeByHash hash
+
+        let getByHash
+          (hash: ProgramTypes.Hash)
+          : Stdlib.Option.Option<ProgramTypes.PackageType.PackageType> =
+          Builtin.packageManagerGetTypeByHash hash
 
 
       module Value =
@@ -23,6 +31,14 @@ module Darklang =
           (id: Uuid)
           : Stdlib.Option.Option<ProgramTypes.PackageValue.PackageValue> =
           Builtin.packageManagerGetValue id
+          
+        let findByHash (hash: ProgramTypes.Hash) : Stdlib.Option.Option<Uuid> =
+          Builtin.packageManagerFindValueByHash hash
+
+        let getByHash
+          (hash: ProgramTypes.Hash)
+          : Stdlib.Option.Option<ProgramTypes.PackageValue.PackageValue> =
+          Builtin.packageManagerGetValueByHash hash
 
 
       module Function =
@@ -31,6 +47,14 @@ module Darklang =
 
         let get (id: Uuid) : Stdlib.Option.Option<ProgramTypes.PackageFn.PackageFn> =
           Builtin.packageManagerGetFn id
+          
+        let findByHash (hash: ProgramTypes.Hash) : Stdlib.Option.Option<Uuid> =
+          Builtin.packageManagerFindFnByHash hash
+
+        let getByHash
+          (hash: ProgramTypes.Hash)
+          : Stdlib.Option.Option<ProgramTypes.PackageFn.PackageFn> =
+          Builtin.packageManagerGetFnByHash hash
 
 
       module Search =
@@ -53,4 +77,10 @@ module Darklang =
             getFn = PackageManager.Function.get
             getValue = PackageManager.Value.get
             getType = PackageManager.Type.get
+            findTypeByHash = PackageManager.Type.findByHash
+            findValueByHash = PackageManager.Value.findByHash
+            findFnByHash = PackageManager.Function.findByHash
+            getTypeByHash = PackageManager.Type.getByHash
+            getValueByHash = PackageManager.Value.getByHash
+            getFnByHash = PackageManager.Function.getByHash
             search = fun query -> PackageManager.Search.search query }

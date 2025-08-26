@@ -33,6 +33,14 @@ let pt : PT.PackageManager =
     getFn = withCache PMPT.Fn.get
     getValue = withCache PMPT.Value.get
 
+    findTypeByHash = withCache PMPT.Type.findByHash
+    findValueByHash = withCache PMPT.Value.findByHash
+    findFnByHash = withCache PMPT.Fn.findByHash
+
+    getTypeByHash = withCache PMPT.Type.getByHash
+    getValueByHash = withCache PMPT.Value.getByHash
+    getFnByHash = withCache PMPT.Fn.getByHash
+
     search = LibPackageManager.ProgramTypes.search
 
     init = uply { return () } }

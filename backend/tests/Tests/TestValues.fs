@@ -16,6 +16,7 @@ module PM =
   module Types =
     let make id name definition : PT.PackageType.PackageType =
       { id = id
+        hash = PT.Hash "test-hash" // TODO: generate real hash
         name = name
         declaration = { typeParams = []; definition = definition }
         description = "TODO"
@@ -681,6 +682,7 @@ let pm : PT.PackageManager =
 
     // values
     [ { id = Expressions.Values.Package.MySpecialNumber.id
+        hash = PT.Hash "test-hash" // TODO: generate real hash
         name = PT.PackageValue.name "Test" [] "seventeen"
         description = "TODO"
         deprecated = PT.NotDeprecated
@@ -688,6 +690,7 @@ let pm : PT.PackageManager =
 
     // fns
     [ { id = Expressions.Fns.Package.Inner.id
+        hash = PT.Hash "test-hash" // TODO: generate real hash
         name = PT.PackageFn.name "Test" [] "inner"
         typeParams = [ "x"; "y" ]
         parameters =
@@ -700,6 +703,7 @@ let pm : PT.PackageManager =
         deprecated = PT.NotDeprecated }
 
       { id = Expressions.Fns.Package.Outer.id
+        hash = PT.Hash "test-hash" // TODO: generate real hash
         name = PT.PackageFn.name "Test" [] "outer"
         typeParams = [ "x"; "y" ]
         parameters =
@@ -719,6 +723,7 @@ let pm : PT.PackageManager =
         deprecated = PT.NotDeprecated }
 
       { id = Expressions.Fns.Package.MyAdd.id
+        hash = PT.Hash "test-hash" // TODO: generate real hash
         name = PT.PackageFn.name "Test" [] "add"
         typeParams = []
         parameters =
@@ -731,6 +736,7 @@ let pm : PT.PackageManager =
         deprecated = PT.NotDeprecated }
 
       { id = Expressions.Fns.Package.Fact.id
+        hash = PT.Hash "test-hash" // TODO: generate real hash
         name = PT.PackageFn.name "Test" [] "fact"
         typeParams = []
         parameters =
@@ -758,6 +764,7 @@ let pm : PT.PackageManager =
       //   if n <= 0 then 0
       //   else 1 + addUpTo (n - 1)
       { id = Expressions.Fns.Package.Recursion.id
+        hash = PT.Hash "test-hash" // TODO: generate real hash
         name = PT.PackageFn.name "Test" [] "addUpTo"
         typeParams = []
         parameters =
@@ -787,6 +794,7 @@ let pm : PT.PackageManager =
         deprecated = PT.NotDeprecated }
 
       { id = Expressions.Fns.Package.MyFnThatTakesALambda.id
+        hash = PT.Hash "test-hash" // TODO: generate real hash
         name = PT.PackageFn.name "Test" [] "myFnThatTakesALambda"
         typeParams = []
         parameters =
@@ -802,6 +810,7 @@ let pm : PT.PackageManager =
         deprecated = PT.NotDeprecated }
 
       { id = Expressions.Fns.Package.Fact.id
+        hash = PT.Hash "test-hash" // TODO: generate real hash
         name = PT.PackageFn.name "Test" [] "fact"
         typeParams = []
         parameters =
@@ -826,6 +835,7 @@ let pm : PT.PackageManager =
         deprecated = PT.NotDeprecated }
 
       { id = Expressions.Fns.Package.MyFnThatReturnsUnit.id
+        hash = PT.Hash "test-hash" // TODO: generate real hash
         name = PT.PackageFn.name "Test" [] "myFnThatReturnsUnit"
         typeParams = []
         parameters =

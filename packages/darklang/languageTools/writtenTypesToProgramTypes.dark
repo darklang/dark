@@ -1142,6 +1142,7 @@ module Darklang =
           (ProgramTypes.PackageType.PackageType
             // TODO: when relevant, use PackageIDs defined in F# land
             { id = Stdlib.Uuid.generate ()
+              hash = ""
               name =
                 ProgramTypes.PackageType.Name
                   { owner = owner
@@ -1167,6 +1168,7 @@ module Darklang =
 
           (ProgramTypes.PackageValue.PackageValue
             { id = Stdlib.Uuid.generate ()
+              hash = ""
               name =
                 ProgramTypes.PackageValue.Name
                   { owner = owner
@@ -1240,6 +1242,7 @@ module Darklang =
           (ProgramTypes.PackageFn.PackageFn
             // TODO: when relevant, use PacakgeIDs defined in F# land
             { id = Stdlib.Uuid.generate ()
+              hash = ""
               name =
                 ProgramTypes.PackageFn.Name
                   { owner = owner

@@ -329,6 +329,8 @@ module Darklang =
 
 
 
+      type Hash = String
+
       // Package space
       module PackageType =
         type Name =
@@ -338,6 +340,7 @@ module Darklang =
 
         type PackageType =
           { id: Uuid
+            hash: Hash
             name: Name
             declaration: TypeDeclaration.TypeDeclaration
             description: String
@@ -362,6 +365,7 @@ module Darklang =
 
         type PackageValue =
           { id: Uuid
+            hash: Hash
             name: Name
             body: Expr
             description: String
@@ -391,6 +395,7 @@ module Darklang =
 
         type PackageFn =
           { id: Uuid
+            hash: Hash
             name: Name
             body: Expr
             typeParams: List<String>
@@ -442,7 +447,7 @@ module Darklang =
 
             /// empty list implies 'any'
             entityTypes: List<EntityType>
-            
+
             /// if true, require exact matches for names and modules instead of fuzzy matching
             exactMatch: Bool
           }
@@ -468,12 +473,17 @@ module Darklang =
             findValue: String -> Stdlib.Option.Option<FQValueName.Package>
             findFn: String -> Stdlib.Option.Option<FQFnName.Package>
 
-            getType:
-              FQTypeName.Package -> Stdlib.Option.Option<PackageType.PackageType>
-            getValue:
-              FQValueName.Package
-                -> Stdlib.Option.Option<PackageValue.PackageValue>
+            getType: FQTypeName.Package -> Stdlib.Option.Option<PackageType.PackageType>
+            getValue: FQValueName.Package -> Stdlib.Option.Option<PackageValue.PackageValue>
             getFn: FQFnName.Package -> Stdlib.Option.Option<PackageFn.PackageFn>
+
+            findTypeByHash: Hash -> Stdlib.Option.Option<FQTypeName.Package>
+            findValueByHash: Hash -> Stdlib.Option.Option<FQValueName.Package>
+            findFnByHash: Hash -> Stdlib.Option.Option<FQFnName.Package>
+
+            getTypeByHash: Hash -> Stdlib.Option.Option<PackageType.PackageType>
+            getValueByHash: Hash -> Stdlib.Option.Option<PackageValue.PackageValue>
+            getFnByHash: Hash -> Stdlib.Option.Option<PackageFn.PackageFn>
 
             search: Search.SearchQuery -> Search.SearchResults }
 
@@ -546,6 +556,50 @@ module Darklang =
                   | None ->
                     let getFn = pm.getFn
                     getFn id
+
+              findTypeByHash =
+                fun hash ->
+                  match types |> Stdlib.List.findFirst (fun t -> t.hash == hash) with
+                  | Some t -> Stdlib.Option.Option.Some t.id
+                  | None ->
+                    let findTypeByHash = pm.findTypeByHash
+                    findTypeByHash hash
+              findValueByHash =
+                fun hash ->
+                  match values |> Stdlib.List.findFirst (fun v -> v.hash == hash) with
+                  | Some v -> Stdlib.Option.Option.Some v.id
+                  | None ->
+                    let findValueByHash = pm.findValueByHash
+                    findValueByHash hash
+              findFnByHash =
+                fun hash ->
+                  match fns |> Stdlib.List.findFirst (fun f -> f.hash == hash) with
+                  | Some f -> Stdlib.Option.Option.Some f.id
+                  | None ->
+                    let findFnByHash = pm.findFnByHash
+                    findFnByHash hash
+
+              getTypeByHash =
+                fun hash ->
+                  match types |> Stdlib.List.findFirst (fun t -> t.hash == hash) with
+                  | Some t -> Stdlib.Option.Option.Some t
+                  | None ->
+                    let getTypeByHash = pm.getTypeByHash
+                    getTypeByHash hash
+              getValueByHash =
+                fun hash ->
+                  match values |> Stdlib.List.findFirst (fun v -> v.hash == hash) with
+                  | Some v -> Stdlib.Option.Option.Some v
+                  | None ->
+                    let getValueByHash = pm.getValueByHash
+                    getValueByHash hash
+              getFnByHash =
+                fun hash ->
+                  match fns |> Stdlib.List.findFirst (fun f -> f.hash == hash) with
+                  | Some f -> Stdlib.Option.Option.Some f
+                  | None ->
+                    let getFnByHash = pm.getFnByHash
+                    getFnByHash hash
 
               search = pm.search }
 
